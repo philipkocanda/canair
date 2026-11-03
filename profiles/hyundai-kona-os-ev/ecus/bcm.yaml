@@ -30,6 +30,7 @@ BCM:
         - OBDb Hyundai-Kona-Electric
   pids:
     22C00B:
+      support_map: {at: 0, length: 4, unit: field, order: msb}
       status: active
       source_links:
         - https://github.com/OBDb/Hyundai-Kona-Electric

@@ -100,6 +100,8 @@ class _Args(argparse.Namespace):
             at=0,
             length=4,
             unit="bit",
+            order="msb",
+            also_at=None,
             clear=False,
             dir=pids_dir,
             no_validate=True,
@@ -128,6 +130,24 @@ class TestCommand:
         with pytest.raises(SystemExit, match="length"):
             cli.cmd_set_support_map(_Args(pids_dir, length=9))
         assert (pids_dir / "test.yaml").read_text() == before
+
+    def test_a_field_map_with_further_bitmaps(self, pids_dir):
+        cli.cmd_set_support_map(_Args(pids_dir, unit="field", order="lsb", also_at="48, 110"))
+        assert _pid(pids_dir)["support_map"] == {
+            "at": 0,
+            "length": 4,
+            "unit": "field",
+            "order": "lsb",
+            "also_at": [48, 110],
+        }
+
+    def test_lsb_is_refused_on_a_per_bit_map(self, pids_dir):
+        with pytest.raises(SystemExit, match="lsb needs unit field"):
+            cli.cmd_set_support_map(_Args(pids_dir, order="lsb"))
+
+    def test_also_at_must_be_integers(self, pids_dir):
+        with pytest.raises(SystemExit, match="comma-separated integers"):
+            cli.cmd_set_support_map(_Args(pids_dir, unit="field", also_at="48,x"))
 
     def test_the_schema_gate_can_veto_and_revert(self, pids_dir, monkeypatch):
         before = (pids_dir / "test.yaml").read_text()
@@ -160,6 +180,10 @@ class TestValidation:
             self._validate(tmp_path, "support_map: {at: 0, length: 4, unit: bit, order: msb}") == []
         )
 
+    def test_a_field_map_passes(self, tmp_path):
+        decl = "support_map: {at: 0, length: 4, unit: field, order: lsb, also_at: [48]}"
+        assert self._validate(tmp_path, decl) == []
+
     def test_order_is_optional(self, tmp_path):
         assert self._validate(tmp_path, "support_map: {at: 0, length: 4, unit: byte}") == []
 
@@ -171,6 +195,8 @@ class TestValidation:
             ("support_map: {length: 4, unit: bit}", "needs 'at'"),
             ("support_map: {at: 0, length: 4, unit: bit, width: 2}", "unknown"),
             ("support_map: yes", "mapping"),
+            ("support_map: {at: 0, length: 4, unit: bit, also_at: [48]}", "needs unit field"),
+            ("support_map: {at: 0, length: 4, unit: field, also_at: [2]}", "ascend"),
         ],
     )
     def test_a_malformed_declaration_is_an_error(self, tmp_path, field, needle):

@@ -26,6 +26,7 @@ BCM:
         data. RID 0x12A1 returned NRC 0x22 (conditionsNotCorrect). 0xC8D3-0xFFFF not scanned.
   pids:
     22C00B:
+      support_map: {at: 0, length: 4, unit: field, order: msb}
       response_frames: 4
       status: active
       period: 60000

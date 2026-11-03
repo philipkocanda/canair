@@ -571,6 +571,15 @@ def cmd_set_sensitive(args: argparse.Namespace) -> int:
     return 0
 
 
+def _int_list(text: str) -> list[int]:
+    try:
+        return [int(v) for v in text.split(",") if v.strip()]
+    except ValueError as e:
+        raise SystemExit(
+            f"{ansi.RED}  Error: --also-at takes comma-separated integers{ansi.RESET}"
+        ) from e
+
+
 def cmd_set_support_map(args: argparse.Namespace) -> int:
     decl = None
     if not args.clear:
@@ -578,10 +587,11 @@ def cmd_set_support_map(args: argparse.Namespace) -> int:
             raise SystemExit(
                 f"{ansi.RED}  Error: give --at, --length and --unit, or --clear{ansi.RESET}"
             )
+        raw = {"at": args.at, "length": args.length, "unit": args.unit, "order": args.order}
+        if args.also_at:
+            raw["also_at"] = _int_list(args.also_at)
         try:
-            decl = MapDecl.from_mapping(
-                {"at": args.at, "length": args.length, "unit": args.unit, "order": "msb"}
-            )
+            decl = MapDecl.from_mapping(raw)
         except SupportMapError as e:
             raise SystemExit(f"{ansi.RED}  Error: {e}{ansi.RESET}") from e
 
@@ -1234,17 +1244,32 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         description=(
             "Record that the PID's data starts with a constant support map: LENGTH bytes at "
             "data offset AT (counted after the SID and DID echo) marking which of the data that "
-            "follows are real signals, one map bit per data bit (--unit bit) or per data byte "
-            "(--unit byte), most significant bit first. `canair investigate ECU --support-map` "
-            "finds and scores candidates and prints the exact command; `canair coverage` then "
-            "stops reporting bits the map does not mark. --clear removes the declaration."
+            "follows are real signals: one map bit per data bit (--unit bit), per data byte "
+            "(--unit byte), or per parameter of the record whatever its width (--unit field, "
+            "the service-21 pages), most significant bit first. A field map may count from the "
+            "least significant bit (--order lsb) and, in a record of more than 32 parameters, "
+            "carry further bitmaps (--also-at). `canair investigate ECU --support-map` finds "
+            "and scores candidates and prints the exact command; `canair coverage` then stops "
+            "reporting bytes and bits the map says carry no signal. --clear removes the "
+            "declaration."
         ),
     )
     ssm.add_argument("ecu")
     ssm.add_argument("pid")
     ssm.add_argument("--at", type=int, help="Data offset of the first map byte (usually 0)")
     ssm.add_argument("--length", type=int, help="Map length in bytes (1-4)")
-    ssm.add_argument("--unit", choices=["bit", "byte"], help="What one map bit marks")
+    ssm.add_argument("--unit", choices=["bit", "byte", "field"], help="What one map bit marks")
+    ssm.add_argument(
+        "--order",
+        choices=["msb", "lsb"],
+        default="msb",
+        help="Which map bit is the first (default msb; lsb only with --unit field)",
+    )
+    ssm.add_argument(
+        "--also-at",
+        metavar="OFFSETS",
+        help="Comma-separated data offsets of further bitmaps (--unit field only)",
+    )
     ssm.add_argument("--clear", action="store_true", help="Remove the declaration")
     _add_common(ssm)
     ssm.set_defaults(_pids_func=cmd_set_support_map)

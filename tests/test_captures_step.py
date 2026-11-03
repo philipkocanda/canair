@@ -113,6 +113,15 @@ class TestCaptureBlockText:
         assert "P_MOVING" in out
         assert "P_STATIC" not in out
 
+    def test_declared_map_bytes_are_drawn_muted(self):
+        from canlib.formatting import MAP_BYTE_STYLE
+
+        caps = [_entry(time="12:00:00", payload="6201005A6414")]
+        defs = {("HVAC", "220100"): (PARAMS, 0x7B3, (2,))}
+        text = capture_block_text(caps, 0, defs, [None], [(1, 1)])
+        cells = [(text.plain[sp.start : sp.end], str(sp.style)) for sp in text.spans]
+        assert ("00", MAP_BYTE_STYLE) in cells
+
     def test_changed_only_reports_when_nothing_moved(self):
         caps = [
             _entry(time="12:00:00", payload="6201005A6414"),

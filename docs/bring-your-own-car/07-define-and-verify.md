@@ -95,6 +95,8 @@ What it reports per PID:
 | `PAST END` | a signal reading beyond the end of the payload — a short reply, or a wrong offset |
 | `MAP` | the PID declares a [support map](../concepts/analysis-commands.md#support-maps-which-bits-are-signals-at-all): its own bytes, and any covered bytes that carry no signal, are not data to decode |
 | `OUTSIDE MAP` | a signal reads a bit or byte the declared support map does not mark (a bit just above a mark is shown dimmed as `FIELD CONTINUATION`) |
+| `FIELDS` | a field map: how many parameters it marks against how many the bytes hold and how many signals define (`FIELDS BROKEN` when no split fits) |
+| `OPEN FIELDS` | a field map's marked parameters no signal reads, as byte ranges |
 | `NO CAPTURE` | no positive reply recorded (`in scope` when a scope flag such as `--until` is set) |
 | `NEGATIVE RESPONSE ONLY` | the ECU only ever answered with a negative response; its NRC is shown |
 
@@ -116,7 +118,8 @@ On a body or climate ECU whose DIDs are rows of bit flags, run
 `canair investigate <ECU> --support-map` first. If a DID leads with a constant support map,
 declare it with `canair pids set-support-map` and `coverage` stops counting bits that are
 not signals as gaps: `BITS … missing{…}` then lists only bits the map marks, with the rest
-as `(+N not signals)`.
+as `(+N not signals)`. Do the same on a powertrain page (service 21): there the map counts
+parameters, and an `EXACT` split names each one nobody has decoded yet.
 
 Unmapped bytes are your next research leads — loop back to
 [capture](05-capture.md) and [analyze](06-analyze.md).

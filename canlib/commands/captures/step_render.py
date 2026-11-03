@@ -19,7 +19,7 @@ from typing import Any
 
 from rich.text import Text
 
-from canlib.captures.store import PidDefs
+from canlib.captures.store import NO_DEFS, PidDefs
 from canlib.captures.types import CaptureEntry
 from canlib.states import join_states as _join_states
 from canlib.uds.notation import ByteNotation
@@ -87,7 +87,7 @@ def capture_block_text(
 
     e = captures[i]
     key = _capture_key(e)
-    parameters, tx_id = defs.get(key, ({}, None))
+    parameters, tx_id, map_bytes = PidDefs(*defs.get(key, NO_DEFS))
 
     pj = prev_idx[i]
     prev = captures[pj] if pj is not None else None
@@ -164,18 +164,30 @@ def capture_block_text(
     prev_ts = (prev.get("time") or prev.get("date") or "") if prev else ""
     max_ts = max(len(ts), len(prev_ts))
     if rulers and n_bytes:
-        out.append(render_byte_rulers(display, rows, prefix_width=8 + max_ts))
+        out.append(render_byte_rulers(display, rows, prefix_width=8 + max_ts, map_bytes=map_bytes))
 
     # Previous same-PID capture (dimmed, no highlight) for visual reference, then
     # the current capture with per-byte change highlighting against it.
     if prev is not None:
         out.append(
             _render_hex_line(
-                prev_norm, rows, unmapped, prefix=f"      {prev_ts:<{max_ts}}  ", prefix_style="dim"
+                prev_norm,
+                rows,
+                unmapped,
+                prefix=f"      {prev_ts:<{max_ts}}  ",
+                prefix_style="dim",
+                map_bytes=map_bytes,
             )
         )
     out.append(
-        _render_hex_line(norm, rows, unmapped, prev_raw=prev_norm, prefix=f"    > {ts:<{max_ts}}  ")
+        _render_hex_line(
+            norm,
+            rows,
+            unmapped,
+            prev_raw=prev_norm,
+            prefix=f"    > {ts:<{max_ts}}  ",
+            map_bytes=map_bytes,
+        )
     )
     return out
 

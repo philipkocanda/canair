@@ -41,6 +41,7 @@ BMS:
   vehicle_states: [IG3]
   pids:
     2101:
+      support_map: {at: 0, length: 4, unit: field, order: msb}
       response_frames: 9
       status: active
       period: 1000
@@ -276,7 +277,9 @@ BMS:
           verified: false
           notes: >-
             Unsigned 16-bit, volts. r=0.986 vs VCU:2102:VCU_DCLINK_VOLTAGE, slope 1.00. Reads 0 to a
-            few volts with the main relay open.
+            few volts with the main relay open. At the end of the 2026-11-03 top-up: 361 V with the
+            relay closed (10:16:18.4), 356 V in the first reply with it open (10:16:20.6), 0 V 2.7 s
+            later, while BATTERY_VOLTAGE stayed at 361.8 V.
           unit: V
           enabled: true
         BMS_CONTROLLABLE_STATE:
@@ -327,8 +330,8 @@ BMS:
           notes: >-
             GDS name HCU Ready (HCU is the dealer-tool name for the VCU), but it means the IG3 rail
             is powered, not drive-ready: it reads 1 while charging. Equals VCU:2101:VCU_IG3_ON in
-            10845 of 10846 aligned rows. 0 (B61 = 0x01) only after a charge ends or the car is
-            switched off. Disabled as a duplicate of VCU_IG3_ON.
+            10845 of 10846 aligned rows. 0 (B61 = 0x01) only after a charge or a 12 V top-up ends or
+            the car is switched off. Disabled as a duplicate of VCU_IG3_ON.
           enabled: false
         MCU_READY:
           expression: B61:0
@@ -521,6 +524,7 @@ BMS:
             Within READY it steps between 75, 80 and 85 with no link to temperature, SOC, current or
             12 V.
     2102:
+      support_map: {at: 0, length: 4, unit: field, order: msb}
       response_frames: 6
       status: active
       period: 60000
@@ -601,6 +605,7 @@ BMS:
           expression: "B44*0.02"
 
     2103:
+      support_map: {at: 0, length: 4, unit: field, order: msb}
       response_frames: 6
       status: active
       period: 60000
@@ -678,6 +683,7 @@ BMS:
           expression: "B44*0.02"
 
     2104:
+      support_map: {at: 0, length: 4, unit: field, order: msb}
       response_frames: 6
       status: active
       period: 60000
@@ -1282,8 +1288,10 @@ BMS:
         Operating Time and Inverter Capacitor Voltage: MCU Ready, MCU Main Relay Off Request, MCU
         Controllable, HCU Ready (YES, NO, NO, YES = 0x09 in its screenshot), registered as b0-b3.
         B61 reads 0x0D (READY, or charging begun while READY), 0x09 (charging from off, 12 V top-up,
-        plugged idle) and 0x01 (after a charge ends or at power-off). b0 is 1 and b1 is 0 in every
-        capture.
+        plugged idle) and 0x01 (after a charge ends, a 12 V top-up ends or at power-off). b0 is 1
+        and b1 is 0 in every capture. At the end of the 2026-11-03 top-up B61 was still 0x09 at
+        10:16:20.6 with the main relay already open, and 0x01 in the BMS's last reply at 10:16:23.3,
+        2.2 s after VCU_IG3_ON read 0; b0 stayed 1 in that last reply.
       sources:
         - canair B61 cross-tab 2026-10-27 (align BMS:2101:B61:2 vs VCU/IGPM)
         - OBDb Hyundai/Kia signalsets and test cases (data byte 50 of 2101/220101)

@@ -1,6 +1,6 @@
 # Support maps, second pass: field maps, map variants and confirmed absence
 
-Status: **PROPOSED** (phase 0 is done; phases 1-3 wait on a decision)
+Status: **DONE** (phases 0-3; see "As built" for where it differs from the design)
 
 Follow-up to `plans/2026-10-29-support-bitmap-coverage.md`. That plan built detection for the
 constant leading bytes some Hyundai DIDs use to mark which data are signals, in two
@@ -149,7 +149,7 @@ would be unsupported while their bytes are live), so that supplier may count fro
   `formatting.BYTE_COLOUR_LEGEND` and the monitor's marker glyphs), which any other TUI can
   reuse.
 
-## Proposal
+## Design
 
 ### Phase 1: `unit: field`
 
@@ -186,9 +186,51 @@ an ECU revision, and could become a revision fingerprint.
   captures, and nothing would read it today. Proposed answer: no; record it as a `research:`
   result when it matters.
 
+## As built
+
+- **Solver** (`canlib/analysis/support_fields.py`). A search over every split of the covered
+  bytes, memoised per (byte, parameter, bitmap) state, counting splits up to two. The rules: a
+  defined field is never cut or shared; an undefined run forms parameters of 1-4 bytes and may
+  widen a defined neighbour up to 4; an unmarked parameter's bytes are constant; no set bit may
+  name a parameter past the end; parameter 32 of a block either ends the record or is the next
+  4-byte constant bitmap (which its own bit must mark). It reports the fewest and most data
+  parameters over all splits, the bytes that are fill on every split, every bitmap any split
+  places, and the split itself when it is unique.
+- **Defined fields.** `known_fields` drops a signal reading non-contiguous bytes, or a run its
+  narrower neighbours already cover (`BATTERY_POWER`, `OBC_EFFICIENCY`), and merges the rest
+  where they overlap. A byte of flags is one parameter: that matched VCU `2101`; the spec's
+  example allows one parameter per flag, which this does not model.
+- **Strict trailing bits.** A set bit past the record's end breaks the split. That is what
+  gives an all-`FF` map its meaning, and it is why the BMS `21F2` block at data+110 is read as
+  data: as a bitmap it would need 32 more parameters in 7 bytes.
+- **Order.** MSB first is kept whenever it fits; LSB first is reported only where MSB first is
+  broken (Ioniq MCU `2101`/`2102`, Kona BMS `220105`). `order: lsb` is accepted on field maps
+  only. No LSB map is declared: the MCU reading is consistent, not exact.
+- **When the field reading runs.** On a constant non-zero 4-byte lead followed by more than 4
+  bytes (4 or fewer is the bitmapped layout). Precedence: `strong`/`corroborated` per-bit or
+  per-byte fits keep the headline; an exact split beats anything else; a consistent one
+  replaces only a rejected fit or none. A broken field reading is a one-line note, except
+  under a per-bit fit, where it would only be noise.
+- **Sweep noise.** A consistent split whose signals read under half the bytes is hidden in a
+  sweep unless it pins fill or a further bitmap (`--map-all` shows it).
+- **Variants.** When the absence reason is `variants`, rows are grouped by their 4-byte lead and
+  each group of 20+ rows is fitted on its own; the report lists the map bits that differ.
+- **Coverage** splits the one representative payload, so constancy cannot be tested and only a
+  unique split settles fill and `OUTSIDE MAP`. Lines: `FIELDS m marked of n, d defined`,
+  `FIELDS BROKEN`, `OPEN FIELDS`.
+- **bix** labels every declared bitmap's bytes but does not number the parameters.
+- **Capture views.** `captures.store.PidDefs` became a named tuple carrying the PID's map
+  bytes, so `captures uds --step` and `--diff` colour them like the monitor.
+- **Declared:** Ioniq BMS `2101`-`2104`, VCU `2101`, BCM `22C00B`, HVAC `220102`; Kona BMS
+  `220101`-`220104`, BCM `22C00B`. Left for review: Ioniq OBC `2101`, BMS `2105`, `21F2`, CLU
+  `22B002`, MCU `2101`/`2102` (all consistent, not exact).
+
 ## Validation
 
-Golden expectations stay frozen-range (`tests/test_analysis_golden.py`). Phase 1 golden cases:
-Ioniq BMS `2101` and VCU `2101` (exact), Kona BMS `220101` (three unmarked fields, constant), and
-a synthetic page with a field spanning two map bits (broken). Phase 2: a two-variant fixture
-built on the Kona CLU `22B002` shape.
+Golden expectations stay frozen-range (`tests/test_analysis_golden.py`):
+`investigate-support-map-fields` (the Ioniq VCU sweep: `2101` exact, `2102` and `21F2`
+broken), and `coverage-multi-frame` now shows BMS `2101`'s declared field map. The solver's
+unit tests use synthetic pages shaped like VCU `2101` (exact, one open parameter), Kona BMS
+`220101` (fill, and a moving unmarked parameter that breaks it), BMS `21F2` (a second bitmap
+at parameter 32) and an LSB-first map; the bridge tests cover precedence, `--json`, the declare
+command and a two-variant page shaped like Kona CLU `22B002`.

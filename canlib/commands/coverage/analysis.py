@@ -6,6 +6,7 @@ rendering — so every finding category is unit-testable on a literal payload.
 
 from typing import NotRequired, TypedDict
 
+from canlib.analysis.support_fields import FieldFit, known_fields, solve_fields
 from canlib.uds.byteindex import (
     declared_bits,
     extract_byte_indices,
@@ -52,6 +53,18 @@ class OutsideMap(TypedDict):
     continuation: bool
 
 
+class FieldSplit(TypedDict):
+    """How a field map's record splits into parameters on the representative payload."""
+
+    verdict: str  # exact | consistent | broken (canlib.analysis.support_fields)
+    marked: int  # set bits of the leading bitmap
+    parameters: list[int]  # fewest and most data parameters over every split
+    defined: int  # parameters a defined signal reads
+    # WiCAN index ranges [first, last] of marked parameters no signal reads (unique split only).
+    open: list[list[int]]
+    reason: str
+
+
 class SupportMapFinding(TypedDict):
     """What a declared support map did to a PID's findings."""
 
@@ -60,6 +73,7 @@ class SupportMapFinding(TypedDict):
     # WiCAN indices of the map's own bytes, and of covered bytes that carry no signal.
     map_bytes: list[int]
     not_signal_bytes: list[int]
+    fields: NotRequired[FieldSplit]
 
 
 class PidAnalysis(TypedDict):
@@ -177,9 +191,77 @@ def analyze_pid(
         resolved = resolve(support, payload, 1 + sfb)
         if resolved is None:
             out["support_map_past_end"] = True
+        elif support.unit == "field":
+            _apply_field_map(out, resolved, parameters, payload, 1 + sfb)
         else:
             _apply_support_map(out, resolved, parameters, payload)
     return out
+
+
+def _apply_field_map(
+    out: PidAnalysis, rm: ResolvedMap, parameters: dict, payload: bytes, header: int
+) -> None:
+    """Fold a field map into ``out``: split the record, drop fill, flag reads of unmarked ones.
+
+    One payload cannot show which bytes never change, so the split leans on the defined
+    signals alone; only a unique split settles which bytes are fill.
+    """
+    to_wican = payload_index_to_wican(list(payload))
+    to_index = {w: i for i, w in to_wican.items()}
+    reads = {
+        str(name): {to_index[w] - header for w in extract_byte_indices(p.get("expression") or "")
+                    if w in to_index}
+        for name, p in parameters.items()
+    }  # fmt: skip
+    known = known_fields(s for s in reads.values() if s)
+    decl = rm.decl
+    order = "lsb" if decl.order == "lsb" else "msb"
+    fit = solve_fields([payload[header:]], known, at=decl.at, length=decl.length, order=order)
+    map_bytes = sorted(to_wican[i] for i in rm.map_indices)
+    fill = sorted(to_wican[header + o] for o in (fit.fill if fit else ()))
+    skip = {*map_bytes, *fill}
+    out["unmapped"] = [b for b in out["unmapped"] if b not in skip]
+    out["outside_map"] = []
+    finding: SupportMapFinding = {
+        "unit": decl.unit,
+        "mask": rm.mask_hex,
+        "map_bytes": map_bytes,
+        "not_signal_bytes": fill,
+    }
+    if fit is not None:
+        finding["fields"] = _field_split(fit, to_wican, header)
+        out["outside_map"] = _unmarked_reads(fit, reads, to_wican, header)
+    out["support_map"] = finding
+
+
+def _field_split(fit: FieldFit, to_wican: dict[int, int], header: int) -> FieldSplit:
+    data = [f for f in fit.fields if not f.is_map]
+    return {
+        "verdict": fit.verdict,
+        "marked": fit.marked,
+        "parameters": list(fit.field_counts),
+        "defined": sum(1 for f in data if f.defined),
+        "open": [
+            [to_wican[header + f.start], to_wican[header + f.end - 1]]
+            for f in data
+            if f.marked and not f.defined
+        ],
+        "reason": fit.reason,
+    }
+
+
+def _unmarked_reads(
+    fit: FieldFit, reads: dict[str, set[int]], to_wican: dict[int, int], header: int
+) -> list[OutsideMap]:
+    """Signals reading a parameter the unique split leaves unmarked (unsupported here)."""
+    unmarked = {
+        o for f in fit.fields if not f.marked and not f.is_map for o in range(f.start, f.end)
+    }
+    return [
+        {"signal": name, "byte": to_wican[header + o], "bit": None, "continuation": False}
+        for name, offs in reads.items()
+        for o in sorted(offs & unmarked)
+    ]
 
 
 def _apply_support_map(out: PidAnalysis, rm: ResolvedMap, parameters: dict, payload: bytes) -> None:

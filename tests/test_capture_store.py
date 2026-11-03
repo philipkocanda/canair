@@ -145,7 +145,7 @@ class TestResolvePidDefs:
     def test_exact_pid_match_returns_parameters_and_tx_id(self):
         from canlib.captures.store import load_ecu_index
 
-        params, tx_id = resolve_pid_defs(load_ecu_index(), "BMS", "2101")
+        params, tx_id, _maps = resolve_pid_defs(load_ecu_index(), "BMS", "2101")
         assert tx_id == 0x7E4
         assert "SOC_BMS" in params
 
@@ -156,14 +156,14 @@ class TestResolvePidDefs:
         assert resolve_pid_defs(index, "bms", "2101") == resolve_pid_defs(index, "BMS", "2101")
 
     def test_unknown_ecu_is_empty(self):
-        assert resolve_pid_defs({}, "NOPE", "2101") == ({}, None)
+        assert resolve_pid_defs({}, "NOPE", "2101") == ({}, None, ())
 
     def test_unknown_pid_keeps_the_tx_id(self):
         # A capture with no exact PID definition renders as raw hex (no params),
         # but the ECU is still known, so its request address is still reported.
         from canlib.captures.store import load_ecu_index
 
-        params, tx_id = resolve_pid_defs(load_ecu_index(), "BMS", "FFFF")
+        params, tx_id, _maps = resolve_pid_defs(load_ecu_index(), "BMS", "FFFF")
         assert params == {}
         assert tx_id == 0x7E4
 
@@ -491,3 +491,19 @@ class TestUnresolvedStateSummary:
 
     def test_absent_flag_counts_as_resolved(self):
         assert unresolved_state_summary([{"file": "a.json", "_session_idx": 0}]) == (0, 0)
+
+
+class TestPidDefsMapBytes:
+    def test_a_declared_support_map_is_carried_for_the_capture_views(self):
+        index = {
+            "IGPM": {
+                "tx_id": 0x770,
+                "pids": {
+                    "22BC03": {
+                        "parameters": {},
+                        "support_map": {"at": 0, "length": 4, "unit": "bit"},
+                    }
+                },
+            }
+        }
+        assert resolve_pid_defs(index, "IGPM", "22BC03").map_bytes == (3, 4, 5, 6)

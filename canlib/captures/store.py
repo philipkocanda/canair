@@ -26,7 +26,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from canlib.captures import io as capture_io
 from canlib.captures import merge as captures_merge
@@ -508,8 +508,17 @@ def load_pid_captures(ecu: str, pid: str) -> list[dict]:
 # PID definition resolution
 # ---------------------------------------------------------------------------
 
-# A resolved PID definition: (parameters, tx_id) for one (ECU, PID) pair.
-PidDefs = tuple[dict, "int | None"]
+
+class PidDefs(NamedTuple):
+    """A resolved PID definition for one (ECU, PID) pair, as the capture views need it."""
+
+    parameters: dict
+    tx_id: int | None
+    # Payload indices of the PID's declared support-map bytes (canlib.uds.support_map).
+    map_bytes: tuple[int, ...] = ()
+
+
+NO_DEFS = PidDefs({}, None)
 
 
 def load_ecu_index() -> dict:
@@ -523,15 +532,17 @@ def load_ecu_index() -> dict:
 
 
 def resolve_pid_defs(ecu_index: dict, ecu: str, pid: str) -> PidDefs:
-    """Look up ``(parameters, tx_id)`` for one ECU+PID from the index.
+    """Look up one ECU+PID's :class:`PidDefs` from the index.
 
     Parameters come from an *exact* PID key match (boundary-matched captures
     with no exact definition render as raw hex, i.e. empty parameters).
     """
+    from canlib.uds.support_map import map_byte_indices
+
     info = ecu_index.get(str(ecu).upper())
     if not info:
-        return {}, None
+        return NO_DEFS
     tx_id = info.get("tx_id")
     pid_info = info.get("pids", {}).get(str(pid).upper())
     parameters = (pid_info or {}).get("parameters", {}) or {}
-    return parameters, tx_id
+    return PidDefs(parameters, tx_id, map_byte_indices(pid_info, str(pid)))

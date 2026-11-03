@@ -18,6 +18,28 @@ def _where(o, label) -> str:
     return base if o["bit"] is None else f"{base}:{o['bit']}"
 
 
+def _print_fields(fs, label) -> None:
+    """The ``FIELDS`` line of a field map: marked parameters against defined ones."""
+    if fs["verdict"] == "broken":
+        print(f"      {ansi.RED}FIELDS BROKEN{ansi.RESET} {ansi.DIM}— {fs['reason']}{ansi.RESET}")
+        return
+    lo, hi = fs["parameters"]
+    count = str(lo) if lo == hi else f"{lo}-{hi}"
+    if fs["verdict"] == "exact":
+        print(
+            f"      {ansi.DIM}FIELDS {fs['marked']} marked of {count}, "
+            f"{fs['defined']} defined{ansi.RESET}"
+        )
+    else:
+        print(
+            f"      {ansi.DIM}FIELDS {fs['marked']} marked of {count} "
+            f"(the undefined bytes split several ways){ansi.RESET}"
+        )
+    if fs["open"]:
+        spans = ",".join(label(a) if a == b else f"{label(a)}-{label(b)}" for a, b in fs["open"])
+        print(f"      {ansi.YELLOW}OPEN FIELDS{ansi.RESET} {spans}")
+
+
 def render_text(results: Sequence[CoverageEntry], notation_arg: str | None, scoped: bool) -> None:
     """Print the audit; ``scoped`` qualifies every "no data" claim with "in scope"."""
     if not results:
@@ -76,6 +98,9 @@ def render_text(results: Sequence[CoverageEntry], notation_arg: str | None, scop
                 f"      {ansi.DIM}MAP {sm['mask']} ({sm['unit']}) "
                 f"{','.join(map(label, sm['map_bytes']))}{extra}{ansi.RESET}"
             )
+            fs = sm.get("fields")
+            if fs:
+                _print_fields(fs, label)
         if e.get("support_map_past_end"):
             print(
                 f"      {ansi.RED}MAP PAST END{ansi.RESET} "

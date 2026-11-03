@@ -8,7 +8,7 @@ information one time-joined frame at a time.
 
 from collections.abc import Sequence
 
-from canlib.captures.store import decoded_preview
+from canlib.captures.store import NO_DEFS, PidDefs, decoded_preview
 from canlib.captures.types import CaptureEntry
 from canlib.uds.notation import ByteNotation
 
@@ -23,8 +23,7 @@ from .query import (
 def _render_diff_group(
     console,
     payloads: list[dict],
-    parameters: dict,
-    tx_id: int | None,
+    pdefs: PidDefs,
     show_all: bool,
     rulers: bool = False,
     notation: ByteNotation = ByteNotation.WICAN,
@@ -32,6 +31,7 @@ def _render_diff_group(
     """Render one ECU+PID block: header, decoded signals, optional ruler, byte-diff hex."""
     from rich.markup import escape
 
+    parameters, tx_id, map_bytes = pdefs
     from canlib.expression.decoding import decode_param_rows
     from canlib.formatting import _render_hex_line, render_byte_rulers, render_param_table
     from canlib.uds.notation import ByteDisplay, subfunction_bytes_for_pid
@@ -74,7 +74,9 @@ def _render_diff_group(
     # below, in the user's preferred byte notation (default WiCAN Bnn).
     if rulers and n_bytes:
         console.print(
-            render_byte_rulers(display, rows, prefix_width=8 + max_ts), end="", soft_wrap=True
+            render_byte_rulers(display, rows, prefix_width=8 + max_ts, map_bytes=map_bytes),
+            end="",
+            soft_wrap=True,
         )
 
     prev_norm = ""
@@ -83,7 +85,13 @@ def _render_diff_group(
         ts = e.get("time") or e.get("date") or ""
         prefix = f"      {ts:<{max_ts}}  "
         line = _render_hex_line(
-            norm, rows, unmapped, prev_raw=prev_norm, prefix=prefix, prefix_style="dim"
+            norm,
+            rows,
+            unmapped,
+            prev_raw=prev_norm,
+            prefix=prefix,
+            prefix_style="dim",
+            map_bytes=map_bytes,
         )
         # soft_wrap keeps long hex lines on one row (let the terminal wrap, not rich)
         console.print(line, end="", soft_wrap=True)
@@ -120,7 +128,7 @@ def cmd_diff(
     if as_json:
         out = []
         for key, group in sorted(groups.items()):
-            parameters, tx_id = defs.get(key, ({}, None))
+            tx_id = defs.get(key, NO_DEFS).tx_id
             unique = _dedupe_payloads(group)
             render_list = group if show_all else unique
             out.append(
@@ -142,7 +150,7 @@ def cmd_diff(
     console = Console(highlight=False)
 
     for key, group in sorted(groups.items()):
-        parameters, tx_id = defs.get(key, ({}, None))
-        _render_diff_group(console, group, parameters, tx_id, show_all, rulers, notation)
+        pdefs = defs.get(key, NO_DEFS)
+        _render_diff_group(console, group, pdefs, show_all, rulers, notation)
 
     console.print()

@@ -336,14 +336,18 @@ and **`g`/`G` address the view's primary axis**.
   **`--support-map`** finds the constant leading bytes some body/climate DIDs use to mark which
   following bits (or bytes) are real signals: leaf `canlib/analysis/support_map.py` (scoring and
   the one marking rule), bridge `canlib/commands/investigate/support_map.py`. **It is per-PID,
-  not make-wide** — the BMS/VCU/MCU service-21 pages carry a third, per-field kind the detector
-  does not model yet (`plans/2026-11-03-support-map-field-maps.md`), and BCM `22B005` is a
-  documented exception — so a map is *declared* (`pids set-support-map`), never inferred at
-  read time. Sibling DIDs of one ECU that share a placement corroborate each other, because one DID
-  with few moving bits cannot be significant alone. A PID with no fit reports why
-  (`absence_reason`): leading bytes that vary mean the data starts there. A declared map's bytes
-  render muted in `monitor`/`read` (`formatting.MAP_BYTE_STYLE`). Plan:
-  `plans/2026-10-29-support-bitmap-coverage.md`.
+  not make-wide** — BCM `22B005` is a documented exception — so a map is *declared* (`pids
+  set-support-map`), never inferred at read time. The service-21 pages carry the per-*field*
+  kind (one bit per parameter of any width, as Hyundai's spec defines it): the leaf
+  `canlib/analysis/support_fields.py` splits the bytes into parameters from the defined
+  signals (`exact`/`consistent`/`broken`), bridged by `commands/investigate/support_fields.py`;
+  a PID whose captures hold several maps is fitted per map (`VARIANTS`). Plan:
+  `plans/2026-11-03-support-map-field-maps.md`. Sibling DIDs of one ECU that share a placement
+  corroborate each other, because one DID with few moving bits cannot be significant alone. A
+  PID with no fit reports why (`absence_reason`): leading bytes that vary mean the data starts
+  there. A declared map's bytes render muted in `monitor`/`read`/`captures`
+  (`formatting.MAP_BYTE_STYLE`, carried to the capture views by
+  `captures.store.PidDefs.map_bytes`). Plan: `plans/2026-10-29-support-bitmap-coverage.md`.
 - **`canair search`** — "Where in my captures is this string?" Searches every payload (and, by
   default, labels/notes/text responses; `--defs` adds `ecus/` identity fields) for a literal,
   `--regex`, `--hex` byte pattern or `--vin`, **without knowing the ECU or PID**; with no pattern it
@@ -361,8 +365,9 @@ and **`g`/`G` address the view's primary axis**.
   bit references, so **author bits as `Bn:k`, never a mask**. A PID with a declared
   **`support_map:`** (`canlib/uds/support_map.py`) stops reporting its map bytes and the bytes the
   map marks as carrying no signal as **UNMAPPED**, counts only marked bits as **BITS** gaps, and
-  adds **OUTSIDE MAP** for a signal reading a position the map does not mark. No declaration, no
-  change to the output.
+  adds **OUTSIDE MAP** for a signal reading a position the map does not mark. A field map
+  (`unit: field`) adds **FIELDS**/**OPEN FIELDS** from a split of the one representative
+  payload, so only a unique split settles fill. No declaration, no change to the output.
 - **`canair research`** — The open RE backlog from the per-ECU `research:` sections. Complements
   `coverage` (undecoded *bytes*) by surfacing *planned* work. **`--gaps`** derives unplanned work:
   IOControl DID families no `0x22` read has reached (leaf `canlib/did_families.py`, evidence from

@@ -35,6 +35,7 @@ VCU:
   vehicle_states: [IG3]
   pids:
     2101:
+      support_map: {at: 0, length: 4, unit: field, order: msb}
       response_frames: 4
       status: active
       period: 2500

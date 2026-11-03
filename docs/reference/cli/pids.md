@@ -503,30 +503,39 @@ options:
 
 ```
 usage: canair pids set-support-map [-h] [--at AT] [--length LENGTH]
-                                   [--unit {bit,byte}] [--clear] [--dir DIR]
-                                   [--no-validate]
+                                   [--unit {bit,byte,field}]
+                                   [--order {msb,lsb}] [--also-at OFFSETS]
+                                   [--clear] [--dir DIR] [--no-validate]
                                    ecu pid
 
 Record that the PID's data starts with a constant support map: LENGTH bytes at
 data offset AT (counted after the SID and DID echo) marking which of the data
-that follows are real signals, one map bit per data bit (--unit bit) or per
-data byte (--unit byte), most significant bit first. `canair investigate ECU
+that follows are real signals: one map bit per data bit (--unit bit), per data
+byte (--unit byte), or per parameter of the record whatever its width (--unit
+field, the service-21 pages), most significant bit first. A field map may
+count from the least significant bit (--order lsb) and, in a record of more
+than 32 parameters, carry further bitmaps (--also-at). `canair investigate ECU
 --support-map` finds and scores candidates and prints the exact command;
-`canair coverage` then stops reporting bits the map does not mark. --clear
-removes the declaration.
+`canair coverage` then stops reporting bytes and bits the map says carry no
+signal. --clear removes the declaration.
 
 positional arguments:
   ecu
   pid
 
 options:
-  -h, --help         show this help message and exit
-  --at AT            Data offset of the first map byte (usually 0)
-  --length LENGTH    Map length in bytes (1-4)
-  --unit {bit,byte}  What one map bit marks
-  --clear            Remove the declaration
-  --dir DIR          ecus/ directory (default: active profile)
-  --no-validate      Skip the post-edit schema validation gate
+  -h, --help            show this help message and exit
+  --at AT               Data offset of the first map byte (usually 0)
+  --length LENGTH       Map length in bytes (1-4)
+  --unit {bit,byte,field}
+                        What one map bit marks
+  --order {msb,lsb}     Which map bit is the first (default msb; lsb only with
+                        --unit field)
+  --also-at OFFSETS     Comma-separated data offsets of further bitmaps
+                        (--unit field only)
+  --clear               Remove the declaration
+  --dir DIR             ecus/ directory (default: active profile)
+  --no-validate         Skip the post-edit schema validation gate
 ```
 
 ## `canair pids set-pid-period`

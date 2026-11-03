@@ -10,6 +10,7 @@ BMS:
     id_protocol: UDS
   pids:
     220101:
+      support_map: {at: 0, length: 4, unit: field, order: msb}
       status: active
       source: OBDb Hyundai-Kona-Electric (offsets via canair bix) + wican-fw Niro/Soul/Kona
       source_links:
@@ -226,6 +227,7 @@ BMS:
           max: "5"
           source: OBDb Hyundai-Kona-Electric (KONAEV_HVBAT_CMUnnn_VOLT; offset via canair bix)
     220102:
+      support_map: {at: 0, length: 4, unit: field, order: msb}
       status: active
       source: OBDb Hyundai-Kona-Electric (KONAEV_HVBAT_CMUnnn_VOLT; offset via canair bix)
       source_links:
@@ -305,6 +307,7 @@ BMS:
         CELL_32_VOLTAGE:
           expression: B45/50
     220103:
+      support_map: {at: 0, length: 4, unit: field, order: msb}
       status: active
       source: OBDb Hyundai-Kona-Electric (KONAEV_HVBAT_CMUnnn_VOLT; offset via canair bix)
       source_links:
@@ -384,6 +387,7 @@ BMS:
         CELL_64_VOLTAGE:
           expression: B45/50
     220104:
+      support_map: {at: 0, length: 4, unit: field, order: msb}
       status: active
       source: OBDb Hyundai-Kona-Electric (KONAEV_HVBAT_CMUnnn_VOLT; offset via canair bix)
       source_links:

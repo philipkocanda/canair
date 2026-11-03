@@ -118,7 +118,7 @@ def _decode_cycle(cycle: Sequence[Mapping[str, Any]], ecu_index: dict) -> dict[s
         pid = str(cap.get("pid") or "").upper()
         if not payload or not ecu or not pid:
             continue
-        parameters, _tx = resolve_pid_defs(ecu_index, ecu, pid)
+        parameters = resolve_pid_defs(ecu_index, ecu, pid).parameters
         if not parameters:
             continue
         try:

@@ -389,16 +389,21 @@ optional_pid_fields:
                       #   deliberate undercount). The true count is recorded even
                       #   when it exceeds what an adapter can be asked for — that
                       #   ceiling is consumer policy (MAX_REQUESTABLE_FRAMES).
-  - support_map      # {at, length, unit, order}: the PID's data starts with a constant
-                     #   support map — `length` bytes at data offset `at` (counted after
-                     #   the SID and DID echo) marking which of the data that follows are
-                     #   real signals. unit: bit = one map bit per data bit (a mark may
-                     #   start a multi-bit field), byte = one per data byte; order: msb
-                     #   (map bit 7 = first). Only the layout is stored; the map bytes are
-                     #   read from each payload. Found by `canair investigate ECU
-                     #   --support-map`, written by `canair pids set-support-map`, read by
-                     #   `canair coverage` (which then stops reporting bits that are not
-                     #   signals). Per-PID by design: the layout is not make-wide.
+  - support_map      # {at, length, unit, order, also_at}: the PID's data starts with a
+                     #   constant support map — `length` bytes at data offset `at` (counted
+                     #   after the SID and DID echo) marking which of the data that follows
+                     #   are real signals. unit: bit = one map bit per data bit (a mark may
+                     #   start a multi-bit field), byte = one per data byte, field = one
+                     #   per parameter of the record whatever its width (the service-21
+                     #   pages; widths come from the defined signals); order: msb (map bit
+                     #   7 = first) or, for field only, lsb; also_at (field only): data
+                     #   offsets of the further bitmaps a record of more than 32 parameters
+                     #   carries. Only the layout is stored; the map bytes are read from
+                     #   each payload. Found by `canair investigate ECU --support-map`,
+                     #   written by `canair pids set-support-map`, read by `canair
+                     #   coverage` (which then stops reporting bytes and bits that are not
+                     #   signals) and drawn muted by `monitor`/`read`/`captures`. Per-PID
+                     #   by design: the layout is not make-wide.
   - snapshot_only    # bool: the ECU serves this DID only inside a DTC snapshot (a live
                      #   `22` read draws an NRC). Defined so `canair dtc` can decode the
                      #   snapshot data with its signals; never polled in a bare-ECU sweep and

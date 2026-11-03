@@ -3,6 +3,8 @@
 A PID may carry ``support_map: {at: 0, length: 4, unit: bit, order: msb}`` (see
 ``plans/2026-10-29-support-bitmap-coverage.md``): ``length`` constant bytes at data offset ``at``
 (counted after the SID and DID echo) mark which of the data that follows are real signals.
+``unit: field`` marks parameters of any width instead, and may count ``lsb`` first and name
+further bitmaps in ``also_at`` (``plans/2026-11-03-support-map-field-maps.md``).
 Only the *layout* is stored. The map bytes are read from each payload, so a declaration survives
 an ECU software update that adds signals.
 
@@ -15,20 +17,20 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from canlib.analysis.support_map import (
     MAX_MAP_LEN,
-    Unit,
     continuation_bits,
     marked_bits,
     marked_byte_indices,
 )
 from canlib.uds.notation import subfunction_bytes_for_pid
 
-UNITS: tuple[str, ...] = ("bit", "byte")
-ORDERS: tuple[str, ...] = ("msb",)
-DECL_FIELDS = ("at", "length", "unit", "order")
+UNITS: tuple[str, ...] = ("bit", "byte", "field")
+ORDERS: tuple[str, ...] = ("msb", "lsb")
+DECL_FIELDS = ("at", "length", "unit", "order", "also_at")
+DeclUnit = Literal["bit", "byte", "field"]
 
 
 class SupportMapError(ValueError):
@@ -37,12 +39,19 @@ class SupportMapError(ValueError):
 
 @dataclass(frozen=True)
 class MapDecl:
-    """The layout of a map, as declared on a PID."""
+    """The layout of a map, as declared on a PID.
+
+    ``unit: field`` is one map bit per parameter of the record, whatever its width
+    (:mod:`canlib.analysis.support_fields`); only it may count ``lsb`` first or name
+    ``also_at``, the data offsets of the further bitmaps a record of more than ``8 * length``
+    parameters carries.
+    """
 
     at: int
     length: int
-    unit: Unit
+    unit: DeclUnit
     order: str = "msb"
+    also_at: tuple[int, ...] = ()
 
     @classmethod
     def from_mapping(cls, raw: Mapping[str, Any]) -> MapDecl:
@@ -56,7 +65,7 @@ class MapDecl:
         at, length, unit = raw["at"], raw["length"], raw["unit"]
         order = raw.get("order", "msb")
         for name, value in (("at", at), ("length", length)):
-            if isinstance(value, bool) or not isinstance(value, int):
+            if not _is_int(value):
                 raise SupportMapError(f"support_map {name} must be an integer")
         if at < 0:
             raise SupportMapError("support_map at must be >= 0")
@@ -66,11 +75,36 @@ class MapDecl:
             raise SupportMapError(f"support_map unit must be one of {', '.join(UNITS)}")
         if order not in ORDERS:
             raise SupportMapError(f"support_map order must be one of {', '.join(ORDERS)}")
-        return cls(at, length, unit, order)
+        if order != "msb" and unit != "field":
+            raise SupportMapError("support_map order lsb needs unit field")
+        also = raw.get("also_at", [])
+        if not isinstance(also, list | tuple) or not all(_is_int(v) for v in also):
+            raise SupportMapError("support_map also_at must be a list of integers")
+        if also and unit != "field":
+            raise SupportMapError("support_map also_at needs unit field")
+        floor = at + length
+        for value in also:
+            if value < floor:
+                raise SupportMapError("support_map also_at must ascend past the leading map")
+            floor = value + length
+        return cls(at, length, unit, order, tuple(also))
 
     def flow(self) -> str:
         """The one-line flow-mapping form written into ``ecus/``."""
-        return f"{{at: {self.at}, length: {self.length}, unit: {self.unit}, order: {self.order}}}"
+        also = f", also_at: [{', '.join(map(str, self.also_at))}]" if self.also_at else ""
+        return (
+            f"{{at: {self.at}, length: {self.length}, unit: {self.unit}, "
+            f"order: {self.order}{also}}}"
+        )
+
+    @property
+    def map_offsets(self) -> tuple[int, ...]:
+        """Data offsets of every bitmap this declaration places."""
+        return (self.at, *self.also_at)
+
+
+def _is_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
 def declaration(pid_def: Mapping[str, Any] | None) -> MapDecl | None:
@@ -95,8 +129,8 @@ def map_byte_indices(pid_def: Mapping[str, Any] | None, pid: str) -> tuple[int, 
         return ()
     if decl is None:
         return ()
-    first = 1 + subfunction_bytes_for_pid(pid) + decl.at
-    return tuple(range(first, first + decl.length))
+    header = 1 + subfunction_bytes_for_pid(pid)
+    return tuple(header + o + k for o in decl.map_offsets for k in range(decl.length))
 
 
 @dataclass(frozen=True)
@@ -115,13 +149,22 @@ class ResolvedMap:
         return " ".join(f"{b:02X}" for b in self.mask)
 
     def is_signal_byte(self, index: int) -> bool:
-        """True if any part of the byte at ``index`` is marked."""
+        """True if any part of the byte at ``index`` is marked.
+
+        A field map cannot say without splitting the record into parameters (which needs the
+        defined signals, :mod:`canlib.analysis.support_fields`), so every covered byte that is
+        not itself a bitmap may be one.
+        """
+        if self.decl.unit == "field":
+            return index in self.covered and index not in self.map_indices
         if self.decl.unit == "bit":
             return bool(self.bit_marks.get(index))
         return index in self.byte_marks
 
     def signal_bits(self, index: int) -> frozenset[int]:
         """Marked bits of the byte at ``index`` (all eight when a per-byte mark covers it)."""
+        if self.decl.unit == "field":
+            return frozenset(range(8)) if self.is_signal_byte(index) else frozenset()
         if self.decl.unit == "bit":
             return self.bit_marks.get(index, frozenset())
         return frozenset(range(8)) if index in self.byte_marks else frozenset()
@@ -133,7 +176,7 @@ class ResolvedMap:
         unmarked byte is outside; in a per-bit map an unmarked bit directly above a mark counts
         as the rest of that field.
         """
-        if index not in self.covered:
+        if index not in self.covered or self.decl.unit == "field":
             return set(), set()
         if self.decl.unit == "byte":
             return (set() if index in self.byte_marks else set(bits)), set()
@@ -152,6 +195,15 @@ def resolve(decl: MapDecl, payload: bytes, header: int) -> ResolvedMap | None:
     if start >= len(payload):
         return None
     mask = bytes(payload[first:start])
+    if decl.unit == "field":
+        maps = tuple(
+            i
+            for o in decl.map_offsets
+            for i in range(header + o, header + o + decl.length)
+            if i < len(payload)
+        )
+        covered = range(start, len(payload))
+        return ResolvedMap(decl, mask, maps, covered, {}, frozenset())
     if decl.unit == "bit":
         covered = range(start, min(start + decl.length, len(payload)))
         bit_marks = {i: marked_bits(mask[i - start]) for i in covered}

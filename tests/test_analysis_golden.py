@@ -111,6 +111,12 @@ CASES: list[tuple[str, str, list[str]]] = [
         "hyundai-ioniq-ae-ev",
         ["investigate", "uds", "BCM", "22B005", "--support-map", "--until", FROZEN_UNTIL],
     ),
+    # -- field maps: VCU 2101 splits exactly into 11 parameters, 2102 and 21F2 do not --
+    (
+        "investigate-support-map-fields",
+        "hyundai-ioniq-ae-ev",
+        ["investigate", "uds", "VCU", "--support-map", "--map-all", "--until", FROZEN_UNTIL],
+    ),
     # -- decode: mirrors / discriminate / dump-bytes --
     (
         "decode-mirrors-bits",

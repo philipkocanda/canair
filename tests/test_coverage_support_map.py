@@ -251,3 +251,57 @@ def test_payload_index_to_wican_is_length_aware():
     assert multi[0] == 2 and multi[6] == 9  # FF carries 6 data bytes, then a CF PCI byte
     single = payload_index_to_wican(list(range(5)))
     assert single[0] == 1  # a single frame has one PCI byte
+
+
+# 61 01 | map | d4 | d5 | d6-d9 (a 4-byte value) | d10 (00)
+# WiCAN: map B4-B7, d4 B9, d5 B10, d6-d9 B11-B14, d10 B15.
+WIDE = "B11*16777216+B12*65536+B13*256+B14"
+
+
+def _field(params, mask="E0000000"):
+    payload = "6101" + mask + "11" + "22" + "33445566" + "00"
+    return coverage.analyze_pid(params, payload, sfb=1, support=MapDecl(0, 4, "field"))
+
+
+class TestFieldMaps:
+    def test_map_bytes_leave_unmapped(self):
+        res = _field(_params(A="B9", B="B10", C=WIDE))
+        assert {4, 5, 6, 7}.isdisjoint(res["unmapped"])
+        assert res["support_map"]["map_bytes"] == [4, 5, 6, 7]
+
+    def test_a_unique_split_counts_parameters_and_marks_fill(self):
+        res = _field(_params(A="B9", B="B10", C=WIDE))
+        fs = res["support_map"]["fields"]
+        assert (fs["verdict"], fs["marked"], fs["parameters"], fs["defined"]) == (
+            "exact", 3, [4, 4], 3,
+        )  # fmt: skip
+        # The fourth parameter is unmarked: its byte is fill, not an unmapped signal.
+        assert res["support_map"]["not_signal_bytes"] == [15]
+        assert 15 not in res["unmapped"]
+
+    def test_a_marked_parameter_nobody_reads_is_open(self):
+        res = _field(_params(B="B10", C=WIDE, D="B15"), mask="F0000000")
+        assert res["support_map"]["fields"]["open"] == [[9, 9]]
+
+    def test_a_signal_on_an_unmarked_parameter_is_outside_the_map(self):
+        res = _field(_params(A="B9", B="B10", C=WIDE, D="B15"))
+        assert res["outside_map"] == [
+            {"signal": "D", "byte": 15, "bit": None, "continuation": False}
+        ]
+
+    def test_a_split_that_cannot_exist_is_broken(self):
+        # Five marks, but the bytes hold at most four parameters.
+        res = _field(_params(A="B9", B="B10", C=WIDE, D="B15"), mask="F8000000")
+        fs = res["support_map"]["fields"]
+        assert fs["verdict"] == "broken" and "at most 4" in fs["reason"]
+
+    def test_the_text_view(self, capsys):
+        from canlib.commands.coverage.render import render_text
+
+        entry = {"ecu": "VCU", "pid": "2101", "params": 3, "verified": 3, "capture": {}}
+        entry |= _field(_params(B="B10", C=WIDE, D="B15"), mask="F0000000")
+        render_text([entry], None, scoped=False)
+        out = capsys.readouterr().out
+        assert "MAP F0 00 00 00 (field)" in out
+        assert "FIELDS 4 marked of 4, 3 defined" in out
+        assert "OPEN FIELDS B9" in out

@@ -43,6 +43,10 @@ class TestMapByteIndices:
         decl = {"support_map": {"at": 0, "length": 4, "unit": "byte"}}
         assert map_byte_indices(decl, "2101") == (2, 3, 4, 5)
 
+    def test_further_bitmaps_of_a_field_map_are_included(self):
+        decl = {"support_map": {"at": 0, "length": 4, "unit": "field", "also_at": [48]}}
+        assert map_byte_indices(decl, "21F2") == (2, 3, 4, 5, 50, 51, 52, 53)
+
     def test_offset_and_length_move_it(self):
         decl = {"support_map": {"at": 1, "length": 2, "unit": "bit"}}
         assert map_byte_indices(decl, "22B004") == (4, 5)

@@ -204,6 +204,7 @@ HVAC:
           notes: Marked by the 220100 support map. 0 or 1; 1 in 522 of 3051 captures.
           enabled: false
     220102:
+      support_map: {at: 0, length: 4, unit: field, order: msb}
       response_frames: 3
       status: active
       period: 10000

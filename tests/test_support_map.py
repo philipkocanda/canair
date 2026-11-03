@@ -310,6 +310,27 @@ class TestDeclaration:
         with pytest.raises(SupportMapError, match=match):
             MapDecl.from_mapping(raw)
 
+    def test_a_field_map_with_further_bitmaps(self):
+        raw = {"at": 0, "length": 4, "unit": "field", "order": "lsb", "also_at": [48, 110]}
+        d = MapDecl.from_mapping(raw)
+        assert d.map_offsets == (0, 48, 110)
+        assert d.flow() == "{at: 0, length: 4, unit: field, order: lsb, also_at: [48, 110]}"
+
+    @pytest.mark.parametrize(
+        "extra, match",
+        [
+            ({"unit": "bit", "also_at": [48]}, "needs unit field"),
+            ({"also_at": [2]}, "ascend"),
+            ({"also_at": [48, 50]}, "ascend"),
+            ({"also_at": "48"}, "list of integers"),
+            ({"also_at": [True]}, "list of integers"),
+        ],
+    )
+    def test_malformed_further_bitmaps(self, extra, match):
+        raw = {"at": 0, "length": 4, "unit": "field"} | extra
+        with pytest.raises(SupportMapError, match=match):
+            MapDecl.from_mapping(raw)
+
     def test_a_pid_without_one(self):
         assert declaration({"status": "active"}) is None
         assert declaration(None) is None
@@ -359,6 +380,14 @@ class TestResolve:
         # Map marks only bit 0 of the first covered byte.
         assert rm.outside(7, {0, 1, 6}) == ({6}, {1})
         assert rm.outside(99, {3}) == (set(), set())  # not covered: not judged
+
+    def test_a_field_map_names_every_bitmap_and_judges_nothing(self):
+        payload = bytes.fromhex("6101" + "FF000000" + "1122" + "80000000" + "33")
+        rm = resolve(MapDecl(0, 4, "field", also_at=(6,)), payload, header=2)
+        assert rm.map_indices == (2, 3, 4, 5, 8, 9, 10, 11)
+        assert rm.is_signal_byte(6) and not rm.is_signal_byte(8)
+        assert rm.signal_bits(6) == frozenset(range(8))
+        assert rm.outside(6, {3}) == (set(), set())
 
     def test_outside_in_a_per_byte_map_is_the_whole_unmarked_byte(self):
         rm = resolve(MapDecl(0, 1, "byte"), bytes.fromhex("62BC0380AABBCC"), header=3)
