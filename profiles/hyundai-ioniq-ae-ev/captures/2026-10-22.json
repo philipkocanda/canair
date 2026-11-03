@@ -1076,10 +1076,6 @@
         "variant": "migrated"
       },
       "captures": [
-        {"rx":"0x7A8","pid":"22C00C","payload":"62C00CFFFF030001C0F8117499434119180000000000FFFF0000000000000000FFFF000000","time":"10:38:43.794","elapsed_ms":168},
-        {"rx":"0x7A8","pid":"22C00D","payload":"62C00DFFFF03000000000000FFFF0000000000000000FFFF0000000000000000FFFF000000","time":"10:38:43.976","elapsed_ms":182},
-        {"rx":"0x7A8","pid":"22C00E","payload":"62C00EFFFF03000000000000FFFF0000000000000000FFFF0000000000000000FFFF000000","time":"10:38:44.116","elapsed_ms":140},
-        {"rx":"0x7A8","pid":"22C00F","payload":"62C00FFFFF030001C0F8118801203B1E560000000000FFFF0000000000000000FFFF000000","time":"10:38:44.275","elapsed_ms":159},
         {"rx":"0x7A8","pid":"22C010","payload":"62C010FC00000000","time":"10:38:44.374","elapsed_ms":99},
         {"rx":"0x7A8","pid":"22C012","payload":"62C01280000000444F3031","time":"10:38:44.475","elapsed_ms":101},
         {"rx":"0x7A8","pid":"22C013","payload":"62C01380000000307830363230","time":"10:38:44.562","elapsed_ms":87},

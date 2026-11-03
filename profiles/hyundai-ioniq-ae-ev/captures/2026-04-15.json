@@ -130,8 +130,6 @@
         {"rx":"0x7A8","pid":"22B00D","label":"Preheat timer configuration","payload":"62B00DFCFCE00000000000AAAA","notes":"13 bytes. B3-B4=0xFCFC, B5=0xE0. May encode preheat departure time. 0xE0=224 — relationship to 08:00 (480 min) unclear. Need to change time and re-read to decode."},
         {"rx":"0x7A8","pid":"22B00E","label":"Charge port flap status","payload":"62B00E0C00000000000000AAAA","notes":"Charge port CLOSED. B3=0x0C. Confirmed: B10:5 in WiCAN = open/closed."},
         {"rx":"0x7A8","pid":"22B00F","label":"BCM data page F","payload":"62B00FFCFCE00000000000AAAA","notes":"Note: scan showed this as 0xB00F responding but NOT B010-B012. Possibly only in ACC/Drive mode?"},
-        {"rx":"0x7A8","pid":"22C001","label":"TPMS config","payload":"62C001000000002E2E02500706B5B50A098C3C0000000001FF01000101AA","notes":"34 bytes. Tire configuration — pressure limits, sensor IDs."},
-        {"rx":"0x7A8","pid":"22C002","label":"TPMS pressure readings","payload":"62C002FFFF0000C0F81174C0F80410C0F80BD2C0F81188AAAAAAAA","notes":"27 bytes. 4 × pressure values. C0F8 prefix per wheel."},
         {"rx":"0x7A8","pid":"22C003","label":"TPMS sensor 1 (DO01)","payload":"62C00300000000444F303101002E2E02500706B5B50A098C3C0000000001","notes":"34 bytes. Sensor ID 'DO01' (ASCII at B7-B10)."},
         {"rx":"0x7A8","pid":"22C004","label":"TPMS sensor 2 (NA01)","payload":"62C004000000004E41303101002E2E024B0005B5B508088C3C0100000001","notes":"34 bytes. Sensor ID 'NA01'."},
         {"rx":"0x7A8","pid":"22C005","label":"TPMS sensor 3 (NTPM)","payload":"62C005000000004E54504D0100302F02500000ABAB00008C3C0000030001","notes":"34 bytes. Sensor ID 'NTPM'."},
@@ -140,11 +138,7 @@
         {"rx":"0x7A8","pid":"22C008","label":"TPMS slot 5 (0005)","payload":"62C00800000000303030350000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF","notes":"34 bytes. Spare slot '0005' — all FF data (no sensor)."},
         {"rx":"0x7A8","pid":"22C009","label":"TPMS slot 6 (0006)","payload":"62C00900000000303030360000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF","notes":"34 bytes. Spare slot '0006' — all FF data."},
         {"rx":"0x7A8","pid":"22C00A","label":"TPMS slot 7 (0007)","payload":"62C00A00000000303030370000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF","notes":"34 bytes. Spare slot '0007' — all FF data."},
-        {"rx":"0x7A8","pid":"22C00B","label":"TPMS live data (already in AutoPID)","payload":"62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA","notes":"27 bytes. Same as existing AutoPID sensor. Pressure + temp per wheel."},
-        {"rx":"0x7A8","pid":"22C00C","label":"TPMS extended data 1","payload":"62C00CFFFF030001C0F8117499434119180000000000FFFF000000000000","notes":"41 bytes. Extended per-sensor data with status flags."},
-        {"rx":"0x7A8","pid":"22C00D","label":"TPMS extended data 2","payload":"62C00DFFFF03000000000000FFFF0000000000000000FFFF000000000000","notes":"41 bytes. Mostly zeros — no active sensor in this slot."},
-        {"rx":"0x7A8","pid":"22C00E","label":"TPMS extended data 3","payload":"62C00EFFFF03000000000000FFFF0000000000000000FFFF000000000000","notes":"41 bytes. Mostly zeros."},
-        {"rx":"0x7A8","pid":"22C00F","label":"TPMS extended data 4","payload":"62C00FFFFF030001C0F8118801203B1E560000000000FFFF000000000000","notes":"41 bytes. Active sensor — has pressure/status data."}
+        {"rx":"0x7A8","pid":"22C00B","label":"TPMS live data (already in AutoPID)","payload":"62C00BFFFF0000C9450200CB430100CF440100CB440100AAAAAAAA","notes":"27 bytes. Same as existing AutoPID sensor. Pressure + temp per wheel."}
       ]
     },
     {

@@ -591,20 +591,23 @@ BCM:
     # Static TPMS sensor registration, IDs, and configuration data.
     # C00B (above) has live tyre pressure/temp readings.
     22C001:
+      sensitive: true
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        34 bytes. Four C0F8-prefixed sensor IDs, one per wheel. Static. Sample:
-        62C001FFFF000001C0F80410C0F80BD2C0F81174C0F81188AAAA.
+        34 bytes. A count byte, then four 4-byte TPMS sensor IDs (C0F8 prefix), one per wheel.
+        Static. Sensitive: TPMS sensors broadcast these IDs in the clear, so they can track the car.
+        Layout: 62C001 FFFF0000 01 <ID> <ID> <ID> <ID> AAAA.
       parameters: {}
 
     22C002:
+      sensitive: true
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        27 bytes as stored, ending in 0xAA frame padding (only old, padded reads exist). The C001
-        sensor IDs in a different order. Sample:
-        62C002FFFF0000C0F81174C0F80410C0F80BD2C0F81188AAAAAAAA.
+        27 bytes as stored, ending in 0xAA frame padding (only old, padded reads exist). The 22C001
+        sensor IDs in a different order. Sensitive, as 22C001. Layout: 62C002 FFFF0000 <ID> <ID>
+        <ID> <ID> AAAAAAAA.
       parameters: {}
 
     22C003:
@@ -676,34 +679,41 @@ BCM:
       parameters: {}
 
     22C00C:
+      sensitive: true
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        37 bytes. The first slot holds sensor ID C0F81174, the other slots FFFF. Sample:
-        62C00CFFFF030001C0F8117499434119180000000000FFFF000000000000...
+        37 bytes. A per-wheel sensor slot: the first holds a 4-byte TPMS sensor ID (C0F8 prefix),
+        the other slots FFFF. Sensitive, as 22C001. Layout: 62C00C FFFF0300 01 <ID> 9943411918
+        0000000000 FFFF 000000...
       parameters: {}
 
     22C00D:
+      sensitive: true
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        37 bytes. All slots empty (FFFF/zeros). Sample:
+        37 bytes. A per-wheel sensor slot, all slots empty (FFFF/zeros). Sensitive like 22C00C: a
+        paired sensor's ID would land here. Sample:
         62C00DFFFF03000000000000FFFF0000000000000000FFFF000000...
       parameters: {}
 
     22C00E:
+      sensitive: true
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        37 bytes. All slots empty. Sample: 62C00EFFFF03000000000000FFFF0000000000000000FFFF000000...
+        37 bytes. A per-wheel sensor slot, all slots empty. Sensitive like 22C00C. Sample:
+        62C00EFFFF03000000000000FFFF0000000000000000FFFF000000...
       parameters: {}
 
     22C00F:
+      sensitive: true
       status: ignored
       vehicle_states: [ALL]
       notes: >-
-        37 bytes. One slot holds sensor ID C0F81188. Sample:
-        62C00FFFFF030001C0F8118801203B1E560000000000FFFF000000...
+        37 bytes. A per-wheel sensor slot; one slot holds a 4-byte TPMS sensor ID (C0F8 prefix).
+        Sensitive, as 22C001. Layout: 62C00F FFFF0300 01 <ID> 01203B1E56 0000000000 FFFF 000000...
       parameters: {}
 
     22C010:
