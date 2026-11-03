@@ -50,11 +50,10 @@ import dataclasses
 import sys
 from typing import NamedTuple
 
+from canlib.modes.discovery_scan import DiscoveryProbe, mode_discovery_scan
+from canlib.quirks import NISSAN_C0_SESSION, has_quirk
+from canlib.transport.protocol import Terminal
 from canlib.uds.response import UdsResponse
-
-from ..quirks import NISSAN_C0_SESSION, has_quirk
-from ..transport.protocol import Terminal
-from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
 # InputOutputControlParameter (IOCP) — the byte after the LID, per SSF 14230-3
 # Issue 2 Table 9.1.3.2 (ISO 14230-3 leaves it manufacturer-defined). Only 0x00 is
@@ -182,7 +181,7 @@ def _make_hit(lid, session, response_hex, nrc, nrc_desc) -> KwpIOControlHit:
 
 
 def _write_hit(ecu_name: str, hit: KwpIOControlHit) -> None:
-    from ..pids_edit import append_iocontrol_discoveries_block
+    from canlib.yaml_edit.pids import append_iocontrol_discoveries_block
 
     try:
         # KWP local identifiers are a single byte → 2-hex-digit keys.

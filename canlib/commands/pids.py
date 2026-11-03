@@ -1,6 +1,6 @@
 """``canair pids`` — safely add/update ecus/ parameters and research entries.
 
-A thin, non-interactive wrapper over canlib.pids_edit for the reverse-
+A thin, non-interactive wrapper over canlib.yaml_edit.pids for the reverse-
 engineering workflow. Every edit is:
 
   1. applied surgically (comments/formatting preserved, YAML re-parsed), then
@@ -57,9 +57,12 @@ from pathlib import Path
 
 from canlib import ansi
 from canlib.commands._hexarg import HexArgError, parse_hex_arg
-from canlib.edit_echo import echo_edit
 from canlib.pids import INHERITED_PARAM_FIELDS, PID_STATUSES
-from canlib.pids_edit import (
+from canlib.profile import require_writable_definitions
+from canlib.signal_category import CATEGORIES, QUANTITY_CATEGORIES
+from canlib.uds.support_map import MapDecl, SupportMapError
+from canlib.yaml_edit.echo import echo_edit
+from canlib.yaml_edit.pids import (
     Migrated,
     PidsEditError,
     add_pid,
@@ -91,9 +94,6 @@ from canlib.pids_edit import (
     update_iocontrol_field,
     upsert_parameter,
 )
-from canlib.profile import require_writable_definitions
-from canlib.signal_category import CATEGORIES, QUANTITY_CATEGORIES
-from canlib.uds.support_map import MapDecl, SupportMapError
 
 NAME = "pids"
 
@@ -293,8 +293,8 @@ def _signal_exists(ecu: str, pid: str, name: str, pids_dir) -> bool:
 
 
 def _gate_new_signal(args: argparse.Namespace, revision: str) -> None:
-    from canlib.ecus.edit import EcusEditError
-    from canlib.ecus.revisions_edit import set_gate
+    from canlib.yaml_edit.ecu import EcusEditError
+    from canlib.yaml_edit.revisions import set_gate
 
     try:
         set_gate(args.ecu, args.pid, args.name, [revision])
@@ -304,8 +304,8 @@ def _gate_new_signal(args: argparse.Namespace, revision: str) -> None:
 
 def _upsert_revision_override(args: argparse.Namespace, ptype, values, bits) -> int:
     """``upsert-param --revision R`` on an existing signal: write ``per_revision.R``."""
-    from canlib.ecus.edit import EcusEditError
-    from canlib.ecus.revisions_edit import set_override
+    from canlib.yaml_edit.ecu import EcusEditError
+    from canlib.yaml_edit.revisions import set_override
 
     if args.dir is not None:
         raise SystemExit(f"{ansi.RED}  Error: --revision does not take --dir{ansi.RESET}")
@@ -787,8 +787,8 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
 
 
 def cmd_set_revisions(args: argparse.Namespace) -> int:
-    from canlib.ecus.edit import EcusEditError
-    from canlib.ecus.revisions_edit import set_gate
+    from canlib.yaml_edit.ecu import EcusEditError
+    from canlib.yaml_edit.revisions import set_gate
 
     parts = args.target.split(":")
     if len(parts) not in (2, 3) or not all(p.strip() for p in parts):
@@ -890,8 +890,8 @@ def cmd_set_wake(args: argparse.Namespace) -> int:
 
 def cmd_set_addressing(args: argparse.Namespace) -> int:
     from canlib import yaml_io
-    from canlib.ecus.edit import EcusEditError, set_addressing, tx_key
-    from canlib.pids_edit import find_ecu_file
+    from canlib.yaml_edit.ecu import EcusEditError, set_addressing, tx_key
+    from canlib.yaml_edit.pids import find_ecu_file
 
     if not any(
         getattr(args, k) is not None

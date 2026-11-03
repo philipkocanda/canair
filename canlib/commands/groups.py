@@ -25,7 +25,7 @@ import sys
 from typing import TypedDict
 
 from canlib import ansi
-from canlib.edit_echo import echo_edit
+from canlib.yaml_edit.echo import echo_edit
 
 NAME = "groups"
 
@@ -89,8 +89,8 @@ def cmd_list(args) -> int:
 
 
 def _run_edit(args, action) -> int:
-    from canlib.ecus.groups_edit import GroupsEditError
     from canlib.profile import require_writable_definitions
+    from canlib.yaml_edit.groups import GroupsEditError
 
     require_writable_definitions()
     try:
@@ -102,7 +102,7 @@ def _run_edit(args, action) -> int:
 
 
 def cmd_add(args) -> int:
-    from canlib.ecus.groups_edit import add_group
+    from canlib.yaml_edit.groups import add_group
 
     args._groups_msg = f"added group @{args.name.strip().lower()}"
     return _run_edit(
@@ -112,21 +112,21 @@ def cmd_add(args) -> int:
 
 
 def cmd_rm(args) -> int:
-    from canlib.ecus.groups_edit import remove_group
+    from canlib.yaml_edit.groups import remove_group
 
     args._groups_msg = f"removed group @{args.name.strip().lower()}"
     return _run_edit(args, lambda: remove_group(args.name))
 
 
 def cmd_rename(args) -> int:
-    from canlib.ecus.groups_edit import rename_group
+    from canlib.yaml_edit.groups import rename_group
 
     args._groups_msg = f"renamed @{args.old.strip().lower()} → @{args.new.strip().lower()}"
     return _run_edit(args, lambda: rename_group(args.old, args.new))
 
 
 def cmd_set_description(args) -> int:
-    from canlib.ecus.groups_edit import set_group_description
+    from canlib.yaml_edit.groups import set_group_description
 
     verb = "cleared" if not args.value else "set"
     args._groups_msg = f"{verb} description on @{args.name.strip().lower()}"
@@ -134,7 +134,7 @@ def cmd_set_description(args) -> int:
 
 
 def cmd_set_members(args) -> int:
-    from canlib.ecus.groups_edit import set_group_members
+    from canlib.yaml_edit.groups import set_group_members
 
     args._groups_msg = f"set members on @{args.name.strip().lower()}"
     return _run_edit(args, lambda: set_group_members(args.name, args.members))

@@ -37,8 +37,8 @@ from io import StringIO
 from pathlib import Path
 
 from canlib.states import POWER_STATES
-from canlib.yaml_rt import detect_sequence_indent, round_trip_yaml
-from canlib.yaml_rt import dump as _dump
+from canlib.yaml_edit.rt import detect_sequence_indent, round_trip_yaml
+from canlib.yaml_edit.rt import dump as _dump
 
 SYNONYMS = {"asleep": "sleep"}
 # Vocabulary accepted verbatim into a vehicle_states list (composites included).

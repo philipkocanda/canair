@@ -54,10 +54,10 @@ from canlib.commands._group import group_help
 from canlib.commands._hexarg import HexArgError, parse_hex_arg
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.ecus import load_ecus, resolve_tx, rx_addr_str
-from canlib.edit_echo import echo_edit
 from canlib.pids import load_pids, pid_status
 from canlib.profile import require_writable_definitions
 from canlib.states import ecu_states
+from canlib.yaml_edit.echo import echo_edit
 
 NAME = "ecu"
 
@@ -730,7 +730,7 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
     import shutil
     import subprocess
 
-    from canlib.ecus.edit import find_ecu_file_by_tx
+    from canlib.yaml_edit.ecu import find_ecu_file_by_tx
 
     name = info.get("name") or f"0x{tx_id:03X}"
 
@@ -916,7 +916,7 @@ def _add_add_parser(kinds) -> argparse.ArgumentParser:
 
 
 def cmd_add(args) -> int:
-    from canlib.ecus.edit import EcusEditError, find_ecu_file_by_tx, register_ecu, tx_key
+    from canlib.yaml_edit.ecu import EcusEditError, find_ecu_file_by_tx, register_ecu, tx_key
 
     try:
         tx_id = int(str(args.tx), 16)
@@ -1003,7 +1003,7 @@ def _add_rename_parser(kinds) -> argparse.ArgumentParser:
 
 
 def cmd_rename(args) -> int:
-    from canlib.ecus.edit import EcusEditError, rename_ecu, tx_key
+    from canlib.yaml_edit.ecu import EcusEditError, rename_ecu, tx_key
 
     tx_id = resolve_tx(args.ecu)
     if tx_id is None:
@@ -1021,8 +1021,8 @@ def cmd_rename(args) -> int:
     echo_edit(f"renamed {args.ecu} → {args.new_name} ({tx_key(tx_id)})", new_path)
     if args.dir is None and old_name and old_name != args.new_name:
         # Variants' revisions: lists and capture revision tags are keyed by ECU name.
-        from canlib.ecus.revisions_edit import retag_ecu_rename
         from canlib.profile import active
+        from canlib.yaml_edit.revisions import retag_ecu_rename
 
         for path in retag_ecu_rename(old_name, args.new_name.strip(), active()):
             print(f"  {ansi.c('rewrote', ansi.DIM)} {path}")

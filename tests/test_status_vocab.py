@@ -10,9 +10,9 @@ from pathlib import Path
 import pytest
 
 from canlib.commands.validate import collect_pids_validation
-from canlib.pids_edit import PidsEditError, set_pid_status
 from canlib.states import POWER_STATES, allowed_states, join_states, parse_states
 from canlib.wican.autopid_profile import DuplicateParameterError, generate_profile
+from canlib.yaml_edit.pids import PidsEditError, set_pid_status
 
 # ── vocabulary single source ───────────────────────────────────────────────
 

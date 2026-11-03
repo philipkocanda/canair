@@ -11,7 +11,7 @@ cursor over the decoded signal rows, ``e`` opens an in-place edit dialog
 (expression / unit / min / max / notes / verified / enabled), ``v`` and ``d``
 quick-toggle the selected signal's verified/enabled flags, and ``F`` cycles
 a display filter (all / verified / unverified / enabled / disabled). Edits are
-written through :mod:`canlib.pids_edit` and picked up on the next poll.
+written through :mod:`canlib.yaml_edit.pids` and picked up on the next poll.
 
 With ``--save`` a blinking ``● REC`` marks the active recording. Because every
 payload is journaled and written to a capture file automatically on exit, ``s``

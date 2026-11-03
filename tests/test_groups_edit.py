@@ -1,4 +1,4 @@
-"""Tests for canlib.ecus.groups_edit — surgical groups.yaml editing."""
+"""Tests for canlib.yaml_edit.groups — surgical groups.yaml editing."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from canlib import yaml_io
-from canlib.ecus import groups_edit as groups_edit
-from canlib.ecus.groups_edit import (
+from canlib.yaml_edit import groups as groups_edit
+from canlib.yaml_edit.groups import (
     GroupsEditError,
     add_group,
     normalize_name,

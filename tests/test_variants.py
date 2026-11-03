@@ -14,8 +14,8 @@ import pytest
 import yaml
 
 from canlib import variants as v
-from canlib.variants import edit
-from canlib.variants.edit import VariantsEditError
+from canlib.yaml_edit import variants as edit
+from canlib.yaml_edit.variants import VariantsEditError
 
 SCHEMA = Path(v.__file__).resolve().parent.parent / "schema" / "variants_schema.yaml"
 

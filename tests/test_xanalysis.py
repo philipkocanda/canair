@@ -671,7 +671,7 @@ class TestHuntPromote:
             return Path("aaf.yaml")
 
         monkeypatch.setattr(hunt, "_promote", hunt._promote)  # keep real
-        monkeypatch.setattr("canlib.pids_edit.upsert_parameter", fake_upsert)
+        monkeypatch.setattr("canlib.yaml_edit.pids.upsert_parameter", fake_upsert)
         rc = hunt._promote("AAF_SPEED", "AAF", "2181", [self._hit()], "ESC:22C101:REAL_SPEED_KMH")
         assert rc == 0
         assert captured["name"] == "AAF_SPEED"
@@ -973,7 +973,7 @@ class TestPromotePciGuard:
     )
     def test_refuses_pci_reads(self, expr):
         from canlib.commands._promote import write_candidate
-        from canlib.pids_edit import PidsEditError
+        from canlib.yaml_edit.pids import PidsEditError
 
         with pytest.raises(PidsEditError, match="refusing to promote"):
             write_candidate("BMS", "2101", "X", expr, source="s", notes="n")
@@ -1002,7 +1002,7 @@ class TestPromotePciGuard:
 
     def test_the_refusal_names_the_offending_byte_and_the_fix(self):
         from canlib.commands._promote import write_candidate
-        from canlib.pids_edit import PidsEditError
+        from canlib.yaml_edit.pids import PidsEditError
 
         with pytest.raises(PidsEditError) as exc:
             write_candidate("BMS", "2101", "X", "[B7:B9]", source="s", notes="n")

@@ -24,11 +24,10 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
+from canlib.modes.discovery_scan import DiscoveryProbe, mode_discovery_scan
+from canlib.quirks import NISSAN_C0_SESSION, has_quirk
+from canlib.transport.protocol import Terminal
 from canlib.uds.response import UdsResponse
-
-from ..quirks import NISSAN_C0_SESSION, has_quirk
-from ..transport.protocol import Terminal
-from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
 # NRCs that still indicate "routine local identifier exists"
 NRC_EXISTS_HINTS = {
@@ -105,7 +104,7 @@ def _make_hit(lid, session, response_hex, nrc, nrc_desc) -> KwpRoutineHit:
 
 
 def _write_hit(ecu_name: str, hit: KwpRoutineHit) -> None:
-    from ..pids_edit import append_routines_block
+    from canlib.yaml_edit.pids import append_routines_block
 
     try:
         # KWP routine local identifiers are a single byte → 2-hex-digit keys.

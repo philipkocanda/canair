@@ -18,7 +18,7 @@ import pytest
 
 from canlib.frame_counts import FrameCountLedger, frames_for_payload
 from canlib.modes.dispatch import run_session_guarded
-from canlib.pids_edit import set_response_frames
+from canlib.yaml_edit.pids import set_response_frames
 
 from ._fakes import FakeTerminal
 
@@ -67,8 +67,8 @@ def redirect_writes(pids_dir: Path, monkeypatch):
     ``persist`` imports its collaborators lazily, so the patch has to land on the
     modules it resolves them from rather than on ``canlib.response_frames``.
     """
-    import canlib.pids_edit as pids_edit
     import canlib.profile as profile
+    import canlib.yaml_edit.pids as pids_edit
 
     def _set(ecu, pid, frames):
         return set_response_frames(ecu, pid, frames, pids_dir=pids_dir)
@@ -184,8 +184,8 @@ class TestSessionWriteBack:
     def test_a_write_failure_never_fails_the_session(self, pids_data, monkeypatch, stub_dispatch):
         # Persisting is bookkeeping on the way out; it must not turn a good read
         # into a non-zero exit.
-        import canlib.pids_edit as pids_edit
         import canlib.profile as profile
+        import canlib.yaml_edit.pids as pids_edit
 
         monkeypatch.setattr(profile, "require_writable_definitions", lambda: None)
         monkeypatch.setattr(

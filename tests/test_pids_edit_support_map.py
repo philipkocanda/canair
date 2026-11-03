@@ -7,8 +7,8 @@ import yaml
 
 from canlib.commands import pids as cli
 from canlib.commands import validate as validate_pids
-from canlib.pids_edit import PidsEditError, set_support_map
 from canlib.uds.support_map import MapDecl
+from canlib.yaml_edit.pids import PidsEditError, set_support_map
 
 YAML = """\
 TEST:

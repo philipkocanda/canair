@@ -9,7 +9,7 @@ import yaml
 from canlib.commands import pids as cli
 from canlib.commands import validate as validate_pids
 from canlib.pids import build_ecu_index, pid_ships, pid_swept
-from canlib.pids_edit import PidsEditError, set_snapshot_only
+from canlib.yaml_edit.pids import PidsEditError, set_snapshot_only
 
 YAML = """\
 TEST:

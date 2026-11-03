@@ -16,7 +16,7 @@ The file is optional. Beside its metadata a variant may say which ECU revisions 
 can carry (``revisions: {BMS: [kwp]}``, see :mod:`canlib.variants.revisions`) and which
 ``profile.yaml`` settings differ for it (``profile_overrides:``, a whitelist). The field
 lists and the structural check live here once, shared by the loader, ``canair validate
-variants`` and the editor (:mod:`canlib.variants.edit`), so a field one accepts is never
+variants`` and the editor (:mod:`canlib.yaml_edit.variants`), so a field one accepts is never
 rejected by another; ``canlib/schema/variants_schema.yaml`` documents the same fields for
 humans.
 """

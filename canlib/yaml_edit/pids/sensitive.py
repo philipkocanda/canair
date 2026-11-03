@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ._text import (
+from canlib.yaml_edit.text import (
     PidsEditError,
     _find_ecu_block,
     _keyed_block,

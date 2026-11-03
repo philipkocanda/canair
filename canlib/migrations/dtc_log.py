@@ -286,7 +286,7 @@ def backfill_tags(profile: Profile, dest: Path, addresses: _Addresses | None = N
         ecus = load_raw_pids(profile).get("ecus") or {}
     except Exception:
         return 0  # an unloadable profile settles nothing; try again next time
-    from canlib.yaml_rt import round_trip_yaml
+    from canlib.yaml_edit.rt import round_trip_yaml
 
     data = round_trip_yaml().load(dest.read_text())
     n = 0

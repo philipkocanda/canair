@@ -24,12 +24,12 @@ from pathlib import Path
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarint import HexCapsInt
 
-from canlib.yaml_rt import detect_sequence_indent as _detect_seq
-from canlib.yaml_rt import dump as _dump
-from canlib.yaml_rt import folded as _folded
-from canlib.yaml_rt import round_trip_yaml as _yaml
+from canlib.yaml_edit.rt import detect_sequence_indent as _detect_seq
+from canlib.yaml_edit.rt import dump as _dump
+from canlib.yaml_edit.rt import folded as _folded
+from canlib.yaml_edit.rt import round_trip_yaml as _yaml
 
-# Free-text ECU fields rendered per the shared note policy (canlib.yaml_rt):
+# Free-text ECU fields rendered per the shared note policy (canlib.yaml_edit.rt):
 # inline when short, else a wrapped folded block scalar. Kept in one place so a
 # new curated free-text field only needs adding here to gain the same treatment.
 FREE_TEXT_FIELDS = frozenset({"notes"})
@@ -72,7 +72,7 @@ def _flow_states(vehicle_states) -> CommentedSeq | None:
     Returns ``None`` for an empty/absent value so the caller omits the key.
     """
     from canlib.states import parse_states
-    from canlib.yaml_rt import state_token
+    from canlib.yaml_edit.rt import state_token
 
     toks = parse_states(vehicle_states)
     if not toks:
@@ -138,7 +138,7 @@ def _find_file_by_tx(tx_id: int, ecus_dir: Path) -> tuple[Path | None, str | Non
 def find_ecu_file_by_tx(tx_id: int, ecus_dir: Path | None = None) -> Path | None:
     """Return the ``ecus/<name>.yaml`` path for the ECU with ``tx_id`` (or None).
 
-    The address-keyed counterpart of :func:`canlib.pids_edit.find_ecu_file`
+    The address-keyed counterpart of :func:`canlib.yaml_edit.pids.find_ecu_file`
     (which is name-keyed): a scanner knows a CAN address before it knows a name.
     """
     fpath, _name = _find_file_by_tx(tx_id, _resolve_dir(ecus_dir))

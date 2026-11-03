@@ -78,7 +78,7 @@ class TestDecodePreviewIndex:
 
     def test_editing_a_param_is_reflected(self, tmp_path):
         from canlib.captures.store import decoded_preview
-        from canlib.pids_edit import rename_parameter
+        from canlib.yaml_edit.pids import rename_parameter
 
         root = _mk_profile(tmp_path, "c", "BMS", "OLD_NAME")
         _activate(root, "c")

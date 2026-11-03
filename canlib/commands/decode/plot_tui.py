@@ -362,7 +362,7 @@ class PlotApp(HelpMixin, App):
     def _write_param(
         self, name: str, expr: str, *, notes: str = "", verified: bool | None = None
     ) -> None:
-        from canlib.pids_edit import upsert_parameter
+        from canlib.yaml_edit.pids import upsert_parameter
 
         try:
             upsert_parameter(
@@ -386,7 +386,7 @@ class PlotApp(HelpMixin, App):
         def _done(new: str | None) -> None:
             if not new or new == old:
                 return
-            from canlib.pids_edit import rename_pid
+            from canlib.yaml_edit.pids import rename_pid
 
             try:
                 rename_pid(self.model.ecu_key, old, new)

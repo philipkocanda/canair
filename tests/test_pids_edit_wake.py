@@ -1,11 +1,11 @@
-"""Tests for canlib.pids_edit.set_wake (per-ECU wake-ritual editing)."""
+"""Tests for canlib.yaml_edit.pids.set_wake (per-ECU wake-ritual editing)."""
 
 import textwrap
 
 import pytest
 import yaml
 
-from canlib.pids_edit import PidsEditError, set_wake
+from canlib.yaml_edit.pids import PidsEditError, set_wake
 
 
 @pytest.fixture

@@ -25,9 +25,9 @@ from canlib.variants import (
     id_problem,
     normalize_variant_id,
 )
-from canlib.yaml_rt import NOTE_WRAP_WIDTH, folded
-from canlib.yaml_rt import dump as _dump
-from canlib.yaml_rt import round_trip_yaml as _yaml
+from canlib.yaml_edit.rt import NOTE_WRAP_WIDTH, folded
+from canlib.yaml_edit.rt import dump as _dump
+from canlib.yaml_edit.rt import round_trip_yaml as _yaml
 
 if TYPE_CHECKING:
     from canlib.profile import Profile

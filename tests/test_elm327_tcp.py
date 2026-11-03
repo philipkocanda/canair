@@ -413,5 +413,5 @@ class TestEmulatorProfile:
 
     def test_coolant_temp_leading_zero_pid(self):
         # PID key "0105" is all-decimal-with-leading-zero — quoted so it round-
-        # trips (see canlib.pids_edit._key_token). 41 05 7B -> 0x7B - 40 = 83 degC.
+        # trips (see canlib.yaml_edit.pids._key_token). 41 05 7B -> 0x7B - 40 = 83 degC.
         assert self._decode("0105", "41057B", "COOLANT_TEMP_C") == 83

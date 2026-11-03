@@ -16,7 +16,7 @@ from canlib.modes.sessions_scan import (
     mode_sessions_scan,
     scan_ecu_sessions,
 )
-from canlib.pids_edit import append_sessions_block
+from canlib.yaml_edit.pids import append_sessions_block
 from tests._fakes import FakeTerminal
 from tests._fakes import nrc as _nrc
 

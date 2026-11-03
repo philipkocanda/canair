@@ -1,4 +1,4 @@
-"""Tests for canlib.states.rename — renaming a state across a whole profile."""
+"""Tests for canlib.yaml_edit.state_rename — renaming a state across a whole profile."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pytest
 
 from canlib.dtc.log import log_file
 from canlib.profile import Profile
-from canlib.states.rename import (
+from canlib.yaml_edit.state_rename import (
     StateRenameError,
     apply_state_rename,
     plan_state_rename,
@@ -220,7 +220,7 @@ class TestBooleanWordStates:
 
     def test_states_editor_quotes_a_new_boolean_word(self, prof):
         from canlib import yaml_io
-        from canlib.states.edit import add_state, set_state_field
+        from canlib.yaml_edit.states import add_state, set_state_field
 
         add_state("OFF", description="Button off", profile=prof)
         set_state_field("READY", "excludes", "OFF", profile=prof)
@@ -231,7 +231,7 @@ class TestBooleanWordStates:
 
 
 def test_research_writer_quotes_a_boolean_word():
-    from canlib.pids_edit.research import _format_research_item
+    from canlib.yaml_edit.pids.research import _format_research_item
 
     lines = _format_research_item({"type": "decode", "vehicle_states": ["ON", "READY"]})
     assert '  vehicle_states: ["ON", READY]' in "\n".join(lines)

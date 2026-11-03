@@ -253,7 +253,7 @@ class TestNeverShared:
 
 class TestEditor:
     def test_set_sensitive_on_a_pid_and_a_signal_round_trips(self, prof):
-        from canlib.pids_edit import set_sensitive
+        from canlib.yaml_edit.pids import set_sensitive
 
         set_sensitive("CCM", "22F101", True, pids_dir=prof / "ecus")
         set_sensitive("CCM", "22F101", True, param="APP_SW", pids_dir=prof / "ecus")

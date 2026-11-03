@@ -13,13 +13,12 @@ Split by concern into a package:
   * :mod:`.categories` — the one-time ``ha_class`` → ``category`` migration
 
 The full public API is re-exported here so callers that
-``from canlib.pids_edit import …`` are unaffected by the split.
+``from canlib.yaml_edit.pids import …`` are unaffected by the split.
 """
 
-from ._text import PidsEditError, find_ecu_file
-from .categories import Migrated, migrate_categories
-from .defaults import Hoisted, hoist_defaults, set_pid_defaults
-from .hits import (
+from canlib.yaml_edit.pids.categories import Migrated, migrate_categories
+from canlib.yaml_edit.pids.defaults import Hoisted, hoist_defaults, set_pid_defaults
+from canlib.yaml_edit.pids.hits import (
     EDITABLE_FIELDS,
     IOCONTROL_FIELDS,
     append_iocontrol_discoveries_block,
@@ -29,7 +28,7 @@ from .hits import (
     update_iocontrol_field,
     update_routines_field,
 )
-from .params import (
+from canlib.yaml_edit.pids.params import (
     add_pid,
     delete_parameter,
     delete_pid,
@@ -48,7 +47,7 @@ from .params import (
     set_wake,
     upsert_parameter,
 )
-from .research import (
+from canlib.yaml_edit.pids.research import (
     RESEARCH_TEXT_FIELDS,
     add_research_entry,
     delete_research_entry,
@@ -58,9 +57,10 @@ from .research import (
     set_research_status,
     set_research_text,
 )
-from .sensitive import set_sensitive
-from .snapshot import set_snapshot_only
-from .support_map import set_support_map
+from canlib.yaml_edit.pids.sensitive import set_sensitive
+from canlib.yaml_edit.pids.snapshot import set_snapshot_only
+from canlib.yaml_edit.pids.support_map import set_support_map
+from canlib.yaml_edit.text import PidsEditError, find_ecu_file
 
 __all__ = [
     "EDITABLE_FIELDS",

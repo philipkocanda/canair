@@ -17,7 +17,7 @@ from cantools.database.conversion import BaseConversion
 import canlib.profile as profile
 from canlib.commands.import_ import DbcImportError, _dbc_to_signals
 from canlib.profile import Profile
-from canlib.signals_edit import merge_bus, upsert_signal
+from canlib.yaml_edit.signals import merge_bus, upsert_signal
 
 
 @pytest.fixture

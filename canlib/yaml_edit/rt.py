@@ -1,7 +1,7 @@
 """Shared comment-preserving YAML round-trip helpers.
 
 Both the capture writer (:mod:`canlib.captures`) and the ECU-file writer
-(:mod:`canlib.ecus.edit`) append to and edit hand-authored YAML files in place.
+(:mod:`canlib.yaml_edit.ecu`) append to and edit hand-authored YAML files in place.
 We use ruamel.yaml in round-trip mode so existing comments, quoting, and layout
 survive writes — only newly appended content is rendered fresh.
 
@@ -23,8 +23,8 @@ from ruamel.yaml.scalarstring import DoubleQuotedScalarString, FoldedScalarStrin
 
 # ── Free-text (notes) rendering policy — shared by both writer subsystems ──────
 #
-# Both the text-based per-field editors (canlib.pids_edit) and the ruamel
-# round-trip writer (canlib.ecus.edit) render free-text fields (notably
+# Both the text-based per-field editors (canlib.yaml_edit.pids) and the ruamel
+# round-trip writer (canlib.yaml_edit.ecu) render free-text fields (notably
 # ``notes``) the same way, so the on-disk style can't drift between them:
 #   * a short, single-line note stays an inline scalar (``notes: text``);
 #   * a longer/multi-line note becomes a folded block scalar (``notes: >-``)

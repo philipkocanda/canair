@@ -28,13 +28,12 @@ import asyncio
 import sys
 from typing import NamedTuple
 
+from canlib.quirks import allowed_session_modes
+from canlib.safety import SessionPolicy
+from canlib.transport.protocol import Terminal
 from canlib.uds.layout import SUBFUNCTION_NAMES
 from canlib.uds.protocol import KWP, classify_protocol
 from canlib.uds.response import UdsResponse
-
-from ..quirks import allowed_session_modes
-from ..safety import SessionPolicy
-from ..transport.protocol import Terminal
 
 # Human labels for the session sub-functions, from the shared table in
 # canlib.uds.layout — the single home for these enums. Keeping a private copy here
@@ -97,7 +96,7 @@ async def probe_session(terminal: Terminal, mode: int) -> UdsResponse:
 
 
 def _write_hit(ecu_name: str, hits: list[SessionHit]) -> None:
-    from ..pids_edit import append_sessions_block
+    from canlib.yaml_edit.pids import append_sessions_block
 
     try:
         append_sessions_block(ecu_name, hits)

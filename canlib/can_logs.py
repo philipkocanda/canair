@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .profile import Profile
+    from canlib.profile import Profile
 
 # On-disk log formats we can read into the store. GVRET (SavvyCAN CSV) has a
 # custom adapter here; `csv` is python-can's own CSV. Both use the .csv extension,
@@ -277,12 +277,12 @@ def import_log(
 def _append_index_entry(index_path: Path, entry: dict, *, replace_file: str | None = None) -> None:
     """Append (or replace, when re-importing) an entry in ``index.yaml``.
 
-    Comment-preserving via ``yaml_rt`` so a hand-annotated index survives edits.
+    Comment-preserving via ``canlib.yaml_edit.rt`` so a hand-annotated index survives edits.
     """
     from ruamel.yaml.comments import CommentedMap
 
-    from .yaml_rt import dump as _dump
-    from .yaml_rt import round_trip_yaml as _yaml
+    from canlib.yaml_edit.rt import dump as _dump
+    from canlib.yaml_edit.rt import round_trip_yaml as _yaml
 
     data = None
     if index_path.exists():

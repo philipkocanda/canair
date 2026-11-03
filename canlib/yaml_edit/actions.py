@@ -23,10 +23,10 @@ from canlib.actions import (
     parse_action,
     parse_actions_doc,
 )
-from canlib.yaml_rt import detect_sequence_indent as _detect_seq
-from canlib.yaml_rt import dump as _dump
-from canlib.yaml_rt import folded as _folded
-from canlib.yaml_rt import round_trip_yaml as _yaml
+from canlib.yaml_edit.rt import detect_sequence_indent as _detect_seq
+from canlib.yaml_edit.rt import dump as _dump
+from canlib.yaml_edit.rt import folded as _folded
+from canlib.yaml_edit.rt import round_trip_yaml as _yaml
 
 if TYPE_CHECKING:
     from canlib.profile import Profile

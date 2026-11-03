@@ -34,10 +34,9 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
+from canlib.modes.discovery_scan import DiscoveryProbe, mode_discovery_scan
+from canlib.transport.protocol import Terminal
 from canlib.uds.response import UdsResponse
-
-from ..transport.protocol import Terminal
-from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
 # Routine sub-functions
 SF_START = 0x01  # startRoutine — DO NOT USE
@@ -114,7 +113,7 @@ def _make_hit(rid, session, response_hex, nrc, nrc_desc) -> RoutineHit:
 
 
 def _write_hit(ecu_name: str, hit: RoutineHit) -> None:
-    from ..pids_edit import append_routines_block
+    from canlib.yaml_edit.pids import append_routines_block
 
     try:
         append_routines_block(ecu_name, [hit])

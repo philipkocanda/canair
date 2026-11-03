@@ -5,7 +5,7 @@ fields (``result``, ``notes``, ``capture_protocol``) without hand-editing the
 YAML. Items are located by ``target`` (and optionally ``type``/``index``, since a
 signal worked over several passes leaves several items with one target), and
 every write is re-parsed and rolled back on failure, like the other editors.
-Builds on the shared primitives in :mod:`canlib.pids_edit._text`.
+Builds on the shared primitives in :mod:`canlib.yaml_edit.text`.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from ._text import (
+from canlib.yaml_edit.text import (
     PidsEditError,
     _attached_comments_start,
     _cut_block,
@@ -169,7 +169,7 @@ def _research_item_spans(text: str, research_block) -> list[tuple[int, int]]:
     """Return ``[(start, end), ...]`` spans of every item in a ``research:`` list.
 
     An item ends before the comments heading the next one
-    (:func:`~canlib.pids_edit._text._attached_comments_start`).
+    (:func:`~canlib.yaml_edit.text._attached_comments_start`).
     """
     _, _, r_body_start, r_body_end, _ = research_block
     item_re = re.compile(r"^ {4}- ", re.MULTILINE)

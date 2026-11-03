@@ -9,8 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from canlib.uds.support_map import MapDecl, SupportMapError, declaration
-
-from ._text import (
+from canlib.yaml_edit.text import (
     PidsEditError,
     _find_ecu_block,
     _keyed_block,

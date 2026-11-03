@@ -14,7 +14,7 @@ from canlib.modes.routines_scan import (
     RoutineHit,
     classify,
 )
-from canlib.pids_edit import PidsEditError, append_routines_block, update_routines_field
+from canlib.yaml_edit.pids import PidsEditError, append_routines_block, update_routines_field
 
 # ── classify() ───────────────────────────────────────────────────────────────
 

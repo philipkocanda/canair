@@ -41,10 +41,9 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
+from canlib.modes.discovery_scan import DiscoveryProbe, mode_discovery_scan
+from canlib.transport.protocol import Terminal
 from canlib.uds.response import UdsResponse
-
-from ..transport.protocol import Terminal
-from .discovery_scan import DiscoveryProbe, mode_discovery_scan
 
 # IOControl sub-functions — 0x00 is the ONLY safe one for scanning
 SF_RETURN_CONTROL = 0x00  # returnControlToECU — safe
@@ -176,7 +175,7 @@ def resolve_iocontrol_ranges(ecu_def: dict) -> list[tuple[int, int]] | None:
         parsed = [r for spec in explicit if (r := _parse_range_str(spec)) is not None]
         if parsed:
             return parsed
-    from ..scan_presets import infer_iocontrol_ranges
+    from canlib.scan_presets import infer_iocontrol_ranges
 
     return infer_iocontrol_ranges(ecu_def)
 
@@ -186,7 +185,7 @@ def _make_hit(did, session, response_hex, nrc, nrc_desc) -> IOControlHit:
 
 
 def _write_hit(ecu_name: str, hit: IOControlHit) -> None:
-    from ..pids_edit import append_iocontrol_discoveries_block
+    from canlib.yaml_edit.pids import append_iocontrol_discoveries_block
 
     try:
         append_iocontrol_discoveries_block(ecu_name, [hit])

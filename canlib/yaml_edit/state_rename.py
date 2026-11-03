@@ -120,7 +120,7 @@ def rewrite_flow_lists(text: str, old: str, new: str) -> tuple[str, int]:
 
 def _walk_state_lists(node: Any, old: str, new: str) -> int:
     """Swap ``old`` in place in every ``vehicle_states`` list under ``node``."""
-    from canlib.yaml_rt import state_token
+    from canlib.yaml_edit.rt import state_token
 
     count = 0
     if isinstance(node, dict):
@@ -192,7 +192,7 @@ def _plan_captures(plan: StateRenamePlan, captures_dir: Path) -> None:
 def _plan_round_trip(plan: StateRenamePlan, path: Path) -> None:
     import io
 
-    from canlib.yaml_rt import detect_sequence_indent, dump, round_trip_yaml
+    from canlib.yaml_edit.rt import detect_sequence_indent, dump, round_trip_yaml
 
     if not path.is_file():
         return
@@ -211,13 +211,13 @@ def plan_state_rename(old: str, new: str, *, profile: Profile | None = None) -> 
     """Compute every edit renaming ``old`` to ``new`` makes. Writes nothing.
 
     Raises :class:`StateRenameError` (or a
-    :class:`~canlib.states.edit.StatesEditError` for an invalid name) when the
+    :class:`~canlib.yaml_edit.states.StatesEditError` for an invalid name) when the
     rename cannot be made: ``old`` is not declared, ``new`` already is, either is
     ``ALL``, or a reference is in a form this cannot rewrite.
     """
     from canlib.dtc.log import log_file as dtc_log_file
     from canlib.profile import active
-    from canlib.states.edit import _find, _load_doc, normalize_name
+    from canlib.yaml_edit.states import _find, _load_doc, normalize_name
 
     profile = profile or active()
     old, new = normalize_name(old), normalize_name(new)
@@ -249,7 +249,7 @@ def apply_state_rename(plan: StateRenamePlan, *, profile: Profile | None = None)
     from canlib.commands.validate import validate_pids_file
     from canlib.pids import clear_cache
     from canlib.profile import active
-    from canlib.states.edit import rename_state
+    from canlib.yaml_edit.states import rename_state
 
     profile = profile or active()
     originals: dict[Path, str] = {plan.states_file: plan.states_file.read_text()}

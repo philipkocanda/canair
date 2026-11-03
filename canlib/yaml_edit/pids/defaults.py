@@ -20,8 +20,7 @@ from typing import Any
 import yaml
 
 from canlib.pids import INHERITED_PARAM_FIELDS, effective_param
-
-from ._text import (
+from canlib.yaml_edit.text import (
     PidsEditError,
     _find_ecu_block,
     _format_list_field,

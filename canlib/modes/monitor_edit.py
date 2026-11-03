@@ -8,7 +8,7 @@ that turn the read-only monitor into an editor:
 - a **display filter** (``all`` / ``verified`` / ``unverified`` / ``enabled`` /
   ``disabled``) that narrows which parameters are shown *and* navigable.
 
-Edits are applied through :func:`canlib.pids_edit.upsert_parameter` (surgical,
+Edits are applied through :func:`canlib.yaml_edit.pids.upsert_parameter` (surgical,
 comment-preserving, schema-validated) and then the controller reloads its PID
 definitions so the next poll decodes with the new expression/flags. The editor
 never talks to the CAN bus and never writes capture data — it only mutates the
@@ -22,9 +22,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from canlib.expression.decoding import ParamRow
-
-    from .monitor import MonitorController
-    from .multi_batch import EcuFrame, ResultEntry
+    from canlib.modes.monitor import MonitorController
+    from canlib.modes.multi_batch import EcuFrame, ResultEntry
 
 # Ordered display filters cycled by the TUI's filter key.
 FILTERS = ("all", "verified", "unverified", "enabled", "disabled")
@@ -197,7 +196,7 @@ class MonitorEditor:
             return "No parameter selected."
         ecu_label, pid, name = self.selected
         ecu = _ecu_name(ecu_label)
-        from ..pids_edit import PidsEditError, upsert_parameter
+        from canlib.yaml_edit.pids import PidsEditError, upsert_parameter
 
         def _opt(key):  # keep empty strings from clobbering existing values
             val = fields.get(key)
@@ -237,7 +236,7 @@ class MonitorEditor:
             return f"{name}: no expression — edit it first."
         default = True if field == "enabled" else False
         new_val = not bool(pdef.get(field, default))
-        from ..pids_edit import PidsEditError, set_param_field
+        from canlib.yaml_edit.pids import PidsEditError, set_param_field
 
         # Surgically flip only the boolean line — do NOT re-send expression, which
         # would re-render (and re-normalize the quoting of) a field the user never

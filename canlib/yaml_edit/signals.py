@@ -1,6 +1,6 @@
 """Surgical, validated editor for the broadcast signal-definition sidecar.
 
-The domain-B analogue of :mod:`canlib.pids_edit`: safely create/update/remove
+The domain-B analogue of :mod:`canlib.yaml_edit.pids`: safely create/update/remove
 entries in ``signals/<bus>.yaml`` (arbitration ID → named linear signals), with
 the same snapshot → write → re-parse → validate → rollback discipline, so a bad
 edit never persists. Prefer this (and the ``canair signals`` command) over
@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .validation.signals import (
+from canlib.validation.signals import (
     BYTE_ORDERS,
     CLASSIC_MAX_LENGTH,
     MAX_EXTENDED_ID,
@@ -29,7 +29,7 @@ from .validation.signals import (
 )
 
 if TYPE_CHECKING:
-    from .profile import Profile
+    from canlib.profile import Profile
 
 
 class SignalsEditError(Exception):
@@ -143,8 +143,8 @@ def upsert_signal(
     """
     from ruamel.yaml.comments import CommentedMap
 
-    from .profile import active
-    from .yaml_rt import round_trip_yaml as _yaml
+    from canlib.profile import active
+    from canlib.yaml_edit.rt import round_trip_yaml as _yaml
 
     clear = set(clear)
     if unknown := clear - set(CLEARABLE_SIGNAL_FIELDS):
@@ -251,8 +251,8 @@ def merge_bus(
     """
     from ruamel.yaml.comments import CommentedMap
 
-    from .profile import active
-    from .yaml_rt import round_trip_yaml as _yaml
+    from canlib.profile import active
+    from canlib.yaml_edit.rt import round_trip_yaml as _yaml
 
     prof = profile or active()
     path = _bus_path(prof, bus)
@@ -300,8 +300,8 @@ def remove_signal(
     bus: str, arb_id: str | int, name: str, *, profile: Profile | None = None
 ) -> Path:
     """Remove a signal (and any now-empty message) from ``signals/<bus>.yaml``."""
-    from .profile import active
-    from .yaml_rt import round_trip_yaml as _yaml
+    from canlib.profile import active
+    from canlib.yaml_edit.rt import round_trip_yaml as _yaml
 
     prof = profile or active()
     path = _bus_path(prof, bus)
@@ -328,7 +328,7 @@ def _safe_write(path: Path, original: str | None, data, checker) -> None:
     """Write ``data`` (comment-preserving), re-parse, check, and roll back on error."""
     import yaml as _pyyaml
 
-    from .yaml_rt import dump as _dump
+    from canlib.yaml_edit.rt import dump as _dump
 
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:

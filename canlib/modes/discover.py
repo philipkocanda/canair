@@ -352,7 +352,7 @@ def _register_discovered(
         print(paint("  (dry-run — nothing written)", ansi.raw.DIM))
         return
 
-    from canlib.ecus.edit import EcusEditError, register_ecu
+    from canlib.yaml_edit.ecu import EcusEditError, register_ecu
 
     today = date.today().isoformat()
     added = 0

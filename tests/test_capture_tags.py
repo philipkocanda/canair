@@ -16,8 +16,8 @@ from canlib import profile as profile_mod
 from canlib.captures import io as capture_io
 from canlib.dtc.log import log_file
 from canlib.profile import Profile, ProfileError
-from canlib.variants import edit as variants_edit
 from canlib.variants.selection import apply_variant, require_named_car
+from canlib.yaml_edit import variants as variants_edit
 
 VARIANTS = "variants:\n  28kwh:\n    name: A\n  38kwh:\n    name: B\n"
 
@@ -308,7 +308,7 @@ class TestImportsNameTheCar:
 
 class TestRenameAndRemove:
     def test_rename_retags_history(self, prof):
-        from canlib.variants.references import find_references, rename_everywhere
+        from canlib.yaml_edit.variant_refs import find_references, rename_everywhere
 
         path = _write(
             prof.captures_dir / "2026-01-01.json", _session("a", variant="28kwh"), _session("b")
@@ -328,8 +328,8 @@ class TestRenameAndRemove:
         assert find_references(prof, "28kwh").total == 0
 
     def test_remove_is_refused_while_referenced(self, prof):
-        from canlib.variants.edit import VariantsEditError
-        from canlib.variants.references import remove_unreferenced
+        from canlib.yaml_edit.variant_refs import remove_unreferenced
+        from canlib.yaml_edit.variants import VariantsEditError
 
         _write(prof.captures_dir / "2026-01-01.json", _session("a", variant="38kwh"))
         with pytest.raises(VariantsEditError, match="still used by 1 capture session"):

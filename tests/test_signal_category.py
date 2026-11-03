@@ -10,8 +10,6 @@ import yaml
 
 from canlib.commands import pids as cli
 from canlib.commands.validate import load_schema, validate_ecu_file
-from canlib.pids_edit import migrate_categories, upsert_parameter
-from canlib.pids_edit.categories import convert
 from canlib.signal_category import (
     BINARY_CATEGORIES,
     CATEGORIES,
@@ -21,6 +19,8 @@ from canlib.signal_category import (
     unit_category,
 )
 from canlib.wican.autopid_class import autopid_class
+from canlib.yaml_edit.pids import migrate_categories, upsert_parameter
+from canlib.yaml_edit.pids.categories import convert
 
 DOOR = {"type": "enum", "values": {0: "closed", 1: "open"}}
 

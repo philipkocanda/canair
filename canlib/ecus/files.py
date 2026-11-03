@@ -7,7 +7,7 @@ defines the ECU at CAN address 0x7XX* (the tx_id-keyed editors, which see an
 address before they know a name).
 
 They live here together so the answers cannot drift apart — the two lookups were
-previously separate implementations in ``pids_edit`` and ``ecus_edit``, both
+previously separate implementations in ``yaml_edit.pids`` and ``yaml_edit.ecu``, both
 exporting a function called ``find_ecu_file`` with different arguments, return
 types and failure modes. This is also the single place that decides *which root*
 owns an ECU definition, which is what a mutative command needs to know.
@@ -81,7 +81,7 @@ def find_by_tx(
     Requires parsing (``tx_id`` is a value, not a key), so an unparseable file is
     skipped rather than aborting the search.
     """
-    from canlib.yaml_rt import round_trip_yaml
+    from canlib.yaml_edit.rt import round_trip_yaml
 
     yaml = round_trip_yaml()
     for path in iter_ecu_files(dir_or_none, profile=profile):

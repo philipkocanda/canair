@@ -21,8 +21,8 @@ import yaml
 
 from canlib.pids import effective_param
 from canlib.signal_category import CATEGORIES, unit_category
-
-from ._text import (
+from canlib.yaml_edit.pids.defaults import _ecu_def, _locate_pid, _params
+from canlib.yaml_edit.text import (
     PidsEditError,
     _format_scalar_field,
     _keyed_block,
@@ -31,7 +31,6 @@ from ._text import (
     _safe_write,
     find_ecu_file,
 )
-from .defaults import _ecu_def, _locate_pid, _params
 
 RETIRED_FIELD = "ha_class"
 

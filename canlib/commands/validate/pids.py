@@ -17,13 +17,13 @@ from canlib.dtc.snapshot import did_of_read
 from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.expression.lint import firmware_grammar_problems, signed_low_bytes
 from canlib.pids import PID_STATUSES, effective_param, pid_ships, pid_status
-from canlib.pids_edit.categories import RETIRED_FIELD
 from canlib.sensitive import param_sensitive
 from canlib.signal_category import category_findings
 from canlib.uds.byteindex import wican_to_isotp
 from canlib.uds.support_map import SupportMapError
 from canlib.uds.support_map import declaration as support_map_declaration
 from canlib.variants.revisions import check_ecu as check_revisions
+from canlib.yaml_edit.pids.categories import RETIRED_FIELD
 
 from ._common import EXPR_TOKEN_RE, SCHEMA_FILE, duplicate_key_errors
 from .profile_names import profile_name_findings

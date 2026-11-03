@@ -17,8 +17,8 @@ import yaml
 
 from canlib import profile
 from canlib.commands.ecu import cmd_add, cmd_rename
-from canlib.ecus.edit import register_ecu
 from canlib.pids import clear_cache
+from canlib.yaml_edit.ecu import register_ecu
 
 
 @pytest.fixture(autouse=True)

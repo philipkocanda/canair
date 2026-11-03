@@ -255,7 +255,7 @@ def _yaml_load(fh) -> dict:
 
 # ── per-process memoization ───────────────────────────────────────────────
 # The active profile's ECU dir is parsed once per process and reused. Writers
-# (canlib.pids_edit / canlib.ecus.edit) call clear_cache() after mutating a
+# (canlib.yaml_edit.pids / canlib.yaml_edit.ecu) call clear_cache() after mutating a
 # file so a later read in the same process never sees stale data.
 _cache: dict[str, dict] = {}
 

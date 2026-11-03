@@ -1,11 +1,11 @@
-"""Tests for canlib.pids_edit parameter + research editing (RE workflow)."""
+"""Tests for canlib.yaml_edit.pids parameter + research editing (RE workflow)."""
 
 import textwrap
 
 import pytest
 import yaml
 
-from canlib.pids_edit import (
+from canlib.yaml_edit.pids import (
     PidsEditError,
     add_pid,
     add_research_entry,
@@ -285,20 +285,20 @@ class TestUpsertParameterUpdate:
 
 class TestSetParamField:
     def test_flips_verified(self, pids_dir):
-        from canlib.pids_edit import set_param_field
+        from canlib.yaml_edit.pids import set_param_field
 
         set_param_field("TESTECU", "2101", "EXISTING", "verified", False, pids_dir=pids_dir)
         assert _params(pids_dir, "2101")["EXISTING"]["verified"] is False
 
     def test_appends_enabled_when_absent(self, pids_dir):
-        from canlib.pids_edit import set_param_field
+        from canlib.yaml_edit.pids import set_param_field
 
         # EXISTING has no `enabled:` — the setter should add it.
         set_param_field("TESTECU", "2101", "EXISTING", "enabled", False, pids_dir=pids_dir)
         assert _params(pids_dir, "2101")["EXISTING"]["enabled"] is False
 
     def test_preserves_expression_quoting(self, pids_dir):
-        from canlib.pids_edit import set_param_field
+        from canlib.yaml_edit.pids import set_param_field
 
         before = (pids_dir / "test.yaml").read_text()
         assert 'expression: "B3"' in before  # hand-quoted on disk
@@ -308,13 +308,13 @@ class TestSetParamField:
         assert 'expression: "B3"' in after
 
     def test_rejects_non_boolean_field(self, pids_dir):
-        from canlib.pids_edit import set_param_field
+        from canlib.yaml_edit.pids import set_param_field
 
         with pytest.raises(PidsEditError):
             set_param_field("TESTECU", "2101", "EXISTING", "expression", True, pids_dir=pids_dir)
 
     def test_missing_param_raises(self, pids_dir):
-        from canlib.pids_edit import set_param_field
+        from canlib.yaml_edit.pids import set_param_field
 
         with pytest.raises(PidsEditError):
             set_param_field("TESTECU", "2101", "NOPE", "verified", True, pids_dir=pids_dir)
@@ -734,7 +734,7 @@ def _load2(pids_dir):
 
 class TestRenameParameter:
     def test_rename_preserves_fields(self, pids_dir):
-        from canlib.pids_edit import rename_parameter
+        from canlib.yaml_edit.pids import rename_parameter
 
         rename_parameter("TESTECU", "2101", "EXISTING", "RENAMED", pids_dir=pids_dir)
         params = _load(pids_dir)["TESTECU"]["pids"][2101]["parameters"]
@@ -744,26 +744,26 @@ class TestRenameParameter:
         assert params["RENAMED"]["verified"] is True
 
     def test_rename_preserves_header_comment(self, pids_dir):
-        from canlib.pids_edit import rename_parameter
+        from canlib.yaml_edit.pids import rename_parameter
 
         rename_parameter("TESTECU", "2101", "EXISTING", "RENAMED", pids_dir=pids_dir)
         assert "Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
 
     def test_rename_missing_raises(self, pids_dir):
-        from canlib.pids_edit import rename_parameter
+        from canlib.yaml_edit.pids import rename_parameter
 
         with pytest.raises(PidsEditError, match="not found"):
             rename_parameter("TESTECU", "2101", "NOPE", "X", pids_dir=pids_dir)
 
     def test_rename_collision_raises(self, pids_dir):
-        from canlib.pids_edit import rename_parameter, upsert_parameter
+        from canlib.yaml_edit.pids import rename_parameter, upsert_parameter
 
         upsert_parameter("TESTECU", "2101", "OTHER", "B4", pids_dir=pids_dir)
         with pytest.raises(PidsEditError, match="already exists"):
             rename_parameter("TESTECU", "2101", "EXISTING", "OTHER", pids_dir=pids_dir)
 
     def test_rename_invalid_name_raises(self, pids_dir):
-        from canlib.pids_edit import rename_parameter
+        from canlib.yaml_edit.pids import rename_parameter
 
         with pytest.raises(PidsEditError, match="invalid parameter name"):
             rename_parameter("TESTECU", "2101", "EXISTING", "bad name", pids_dir=pids_dir)
@@ -771,7 +771,7 @@ class TestRenameParameter:
 
 class TestDeleteParameter:
     def test_delete_removes(self, pids_dir):
-        from canlib.pids_edit import delete_parameter
+        from canlib.yaml_edit.pids import delete_parameter
 
         # 2101 has KEEP + EXISTING so a delete leaves a non-empty parameters: map.
         upsert_parameter("TESTECU", "2101", "KEEP", "B5", pids_dir=pids_dir)
@@ -783,7 +783,7 @@ class TestDeleteParameter:
         # Removing a PID's LAST parameter must drop the now-empty parameters:
         # block entirely — an empty `parameters:` parses to None and fails the
         # schema ("'parameters' must be a dict"). Leaves a valid identity-only PID.
-        from canlib.pids_edit import delete_parameter
+        from canlib.yaml_edit.pids import delete_parameter
 
         delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir)
         block = _load(pids_dir)["TESTECU"]["pids"][2101]
@@ -791,13 +791,13 @@ class TestDeleteParameter:
         assert block["period"] == 5000  # other PID fields preserved
 
     def test_delete_missing_raises(self, pids_dir):
-        from canlib.pids_edit import delete_parameter
+        from canlib.yaml_edit.pids import delete_parameter
 
         with pytest.raises(PidsEditError, match="not found"):
             delete_parameter("TESTECU", "2101", "NOPE", pids_dir=pids_dir)
 
     def test_delete_preserves_other_params(self, pids_dir):
-        from canlib.pids_edit import delete_parameter, upsert_parameter
+        from canlib.yaml_edit.pids import delete_parameter, upsert_parameter
 
         upsert_parameter("TESTECU", "2101", "KEEP", "B5", pids_dir=pids_dir)
         delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir)
@@ -807,7 +807,7 @@ class TestDeleteParameter:
     def test_delete_preserves_following_pid_separator(self, pids_dir):
         # Deleting a PID's last param must not collapse the blank line separating
         # it from the next PID header (the whitespace-drift bug this guards).
-        from canlib.pids_edit import delete_parameter
+        from canlib.yaml_edit.pids import delete_parameter
 
         # Insert a blank line before 2102 (mirrors real files' spacing).
         text = (pids_dir / "test.yaml").read_text().replace("\n    2102:", "\n\n    2102:", 1)
@@ -824,7 +824,7 @@ class TestDeleteParameter:
 
 class TestRenamePid:
     def test_rename_preserves_status_and_params(self, pids_dir):
-        from canlib.pids_edit import rename_pid
+        from canlib.yaml_edit.pids import rename_pid
 
         rename_pid("TESTECU", "2101", "22B002", pids_dir=pids_dir)
         pids = _load(pids_dir)["TESTECU"]["pids"]
@@ -835,32 +835,32 @@ class TestRenamePid:
         assert renamed["parameters"]["EXISTING"]["expression"] == "B3"
 
     def test_rename_preserves_header_comment(self, pids_dir):
-        from canlib.pids_edit import rename_pid
+        from canlib.yaml_edit.pids import rename_pid
 
         rename_pid("TESTECU", "2101", "22B002", pids_dir=pids_dir)
         assert "Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
 
     def test_rename_missing_raises(self, pids_dir):
-        from canlib.pids_edit import rename_pid
+        from canlib.yaml_edit.pids import rename_pid
 
         with pytest.raises(PidsEditError, match="not found"):
             rename_pid("TESTECU", "9999", "22B002", pids_dir=pids_dir)
 
     def test_rename_collision_raises(self, pids_dir):
-        from canlib.pids_edit import rename_pid
+        from canlib.yaml_edit.pids import rename_pid
 
         with pytest.raises(PidsEditError, match="already exists"):
             rename_pid("TESTECU", "2101", "2102", pids_dir=pids_dir)
 
     def test_rename_invalid_code_raises(self, pids_dir):
-        from canlib.pids_edit import rename_pid
+        from canlib.yaml_edit.pids import rename_pid
 
         with pytest.raises(PidsEditError, match="invalid PID code"):
             rename_pid("TESTECU", "2101", "ZZTOP", pids_dir=pids_dir)
 
     def test_rename_does_not_touch_substring_sibling(self, pids_dir):
         # Renaming B002 must not clobber a sibling 22B002 that contains it.
-        from canlib.pids_edit import rename_pid, upsert_parameter
+        from canlib.yaml_edit.pids import rename_pid, upsert_parameter
 
         upsert_parameter("TESTECU", "B002", "SHORT", "B1", pids_dir=pids_dir)
         upsert_parameter("TESTECU", "22B002", "LONG", "B2", pids_dir=pids_dir)
@@ -871,7 +871,7 @@ class TestRenamePid:
 
 class TestDeletePid:
     def test_delete_removes_whole_pid(self, pids_dir):
-        from canlib.pids_edit import delete_pid
+        from canlib.yaml_edit.pids import delete_pid
 
         delete_pid("TESTECU", "2101", pids_dir=pids_dir)
         keys = {str(k).upper() for k in _load(pids_dir)["TESTECU"]["pids"]}
@@ -879,13 +879,13 @@ class TestDeletePid:
         assert "2102" in keys and "2103" in keys  # siblings preserved
 
     def test_delete_missing_raises(self, pids_dir):
-        from canlib.pids_edit import delete_pid
+        from canlib.yaml_edit.pids import delete_pid
 
         with pytest.raises(PidsEditError, match="not found"):
             delete_pid("TESTECU", "9999", pids_dir=pids_dir)
 
     def test_delete_preserves_header_comment(self, pids_dir):
-        from canlib.pids_edit import delete_pid
+        from canlib.yaml_edit.pids import delete_pid
 
         delete_pid("TESTECU", "2102", pids_dir=pids_dir)
         assert "Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
@@ -893,7 +893,7 @@ class TestDeletePid:
     def test_delete_only_pid_drops_pids_section(self, tmp_path):
         # An ECU with a single PID: rm-pid should remove the whole pids: block
         # (leaving an identity-only ECU), not an invalid empty mapping.
-        from canlib.pids_edit import delete_pid
+        from canlib.yaml_edit.pids import delete_pid
 
         (tmp_path / "_meta.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
         (tmp_path / "solo.yaml").write_text(
@@ -930,7 +930,7 @@ class TestRemovalLeavesNoGap:
         return tmp_path / "e.yaml"
 
     def test_first_of_adjacent_pids(self, tmp_path):
-        from canlib.pids_edit import delete_pid
+        from canlib.yaml_edit.pids import delete_pid
 
         f = self._write(
             tmp_path,
@@ -948,7 +948,7 @@ class TestRemovalLeavesNoGap:
         assert f.read_text() == "E:\n  tx_id: 0x7E0\n  pids:\n    220E2E:\n      status: active\n"
 
     def test_first_of_blank_separated_pids(self, tmp_path):
-        from canlib.pids_edit import delete_pid
+        from canlib.yaml_edit.pids import delete_pid
 
         f = self._write(
             tmp_path,
@@ -969,7 +969,7 @@ class TestRemovalLeavesNoGap:
         assert f.read_text().startswith("E:\n  pids:\n    2102:\n")
 
     def test_middle_of_blank_separated_pids(self, tmp_path):
-        from canlib.pids_edit import delete_pid
+        from canlib.yaml_edit.pids import delete_pid
 
         f = self._write(
             tmp_path,
@@ -990,7 +990,7 @@ class TestRemovalLeavesNoGap:
         assert "status: active\n\n    2103:" in f.read_text()
 
     def test_last_pid_keeps_separator_before_next_section(self, tmp_path):
-        from canlib.pids_edit import delete_pid
+        from canlib.yaml_edit.pids import delete_pid
 
         f = self._write(
             tmp_path,
@@ -1009,7 +1009,7 @@ class TestRemovalLeavesNoGap:
         assert "      status: active\n\n  research: []\n" in f.read_text()
 
     def test_last_pid_at_end_of_file(self, tmp_path):
-        from canlib.pids_edit import delete_pid
+        from canlib.yaml_edit.pids import delete_pid
 
         f = self._write(
             tmp_path,
@@ -1027,7 +1027,7 @@ class TestRemovalLeavesNoGap:
         assert f.read_text().endswith("    2101:\n      status: active\n")
 
     def test_only_param_of_a_pid(self, tmp_path):
-        from canlib.pids_edit import delete_parameter
+        from canlib.yaml_edit.pids import delete_parameter
 
         f = self._write(
             tmp_path,
@@ -1142,7 +1142,7 @@ class TestLeadingZeroPidKeys:
         assert set(params) == {"A", "B"}
 
     def test_rename_to_leading_zero_key(self, pids_dir):
-        from canlib.pids_edit import rename_pid
+        from canlib.yaml_edit.pids import rename_pid
 
         rename_pid("TESTECU", "2103", "0100", pids_dir=pids_dir)
         keys = {str(k) for k in _load(pids_dir)["TESTECU"]["pids"]}
@@ -1158,7 +1158,7 @@ class TestLeadingZeroPidKeys:
     def test_exponent_shaped_key_quoted(self, pids_dir):
         # 220E01 is a hex DID PyYAML keeps as a string, but the round-trip reader
         # (YAML 1.1 mode) parses it as the float 2200.0 — so it must be quoted.
-        from canlib.yaml_rt import round_trip_yaml
+        from canlib.yaml_edit.rt import round_trip_yaml
 
         upsert_parameter("TESTECU", "220E01", "ODOMETER", "[B4:B6]", pids_dir=pids_dir)
         text = (pids_dir / "test.yaml").read_text()

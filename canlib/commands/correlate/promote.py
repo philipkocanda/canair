@@ -43,7 +43,7 @@ def _promote_top_byte(name, rows, series, ref_series, ref_label, tol, *, ref_uni
 
     from canlib.analysis.xanalysis import linear_fit, sniff_unit
     from canlib.commands._promote import print_promoted, write_candidate
-    from canlib.pids_edit import PidsEditError
+    from canlib.yaml_edit.pids import PidsEditError
 
     byte_hit = None
     for sig, r, n in rows:

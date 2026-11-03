@@ -1,6 +1,6 @@
 """Structural checks for a profile's broadcast signal maps (``signals/<bus>.yaml``).
 
-``canair validate signals`` reports these and :mod:`canlib.signals_edit` uses them
+``canair validate signals`` reports these and :mod:`canlib.yaml_edit.signals` uses them
 as its rollback guard, so both enforce the same rules. The
 ``canlib/schema/signals_schema.yaml`` companion documents the same fields for humans.
 

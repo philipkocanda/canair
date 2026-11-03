@@ -221,7 +221,7 @@ and **`g`/`G` address the view's primary axis**.
   release you have not seen hand the output back on the car.
 - **`canair action`** — List, run and edit the profile's guarded, make-specific actions
   (`actions.yaml`; `action run NAME [--dry-run] [--yes]`). Model, rules and loader
-  `canlib/actions/`, editor `canlib/actions/edit.py`, live run `canlib/modes/action.py` (its
+  `canlib/actions/`, editor `canlib/yaml_edit/actions.py`, live run `canlib/modes/action.py` (its
   docstring fixes the plan → check → confirm → re-check → send order). Two rules a change must
   keep: **every request still passes the blocklist** — a refused one goes out only when a quirk
   grants exactly that `(tx_id, request)` (`canlib/quirks.py::action_grants`), applied through
@@ -445,11 +445,12 @@ reuse these instead of re-declaring a flag:
   the PID's defaults and note *first* and gives a signal its own value only where it differs
   (`""` to opt out of an inherited unit); `pids hoist-defaults --dry-run` must then report
   nothing. The seeding workflow is in the **reverse-engineer-signal** skill. Free-text `notes`
-  auto-format via `canlib/yaml_rt.py` (short inline, long folded `>-`) — pass plain strings, never
-  hand-format block scalars.
+  auto-format via `canlib/yaml_edit/rt.py` (short inline, long folded `>-`) — pass plain strings,
+  never hand-format block scalars.
 - **`canair signals`** — The domain-B analogue: view/edit the broadcast sidecar `signals/<bus>.yaml`
   (arbitration ID → named **linear** signals: start bit/length/byte order/signedness/scale/offset/
-  unit). Surgical, validated (`canair validate signals`), auto-reverted (`canlib/signals_edit.py`).
+  unit). Surgical, validated (`canair validate signals`), auto-reverted
+  (`canlib/yaml_edit/signals.py`).
   **Never hand-edit `signals/`.** Distinct from `pids` (freeform WiCAN expressions over `Bnn`); this
   is the DBC-compatible linear model, so `--start-bit` is DBC numbering (the MSB for big-endian).
   The field list and structural check live once in `canlib/validation/signals.py`
@@ -474,13 +475,14 @@ reuse these instead of re-declaring a flag:
   predicate can't hide behind a healthy ●. `set-implies NAME [STATES]` (and `add --implies`)
   declares the **specificity hierarchy** — see `vehicle_states.yaml` under Key Files; the list view
   shows it as a dim `specializes:` line and `canair states <STATE>` also reports the reverse edges
-  (`specialized by:`). **Never hand-edit `vehicle_states.yaml`** (`canlib/states/edit.py`) — its
-  editors also retarget/drop sibling `implies:` references on `rename`/`remove`, which a hand-edit
-  would leave dangling (and a dangling target fails the next validate). **`states rename` rewrites
-  every reference in the profile** (`canlib/states/rename.py`): `ecus/` tags, capture sessions'
-  states and `state_spans`, the DTC log and the raw-CAN index, all or nothing. A state *is* its
-  token, so a vocabulary-only rename would leave the whole history out of vocabulary. `canair
-  states <STATE>` lists an ECU through `implies:` too (an `[IG3]` ECU appears under READY).
+  (`specialized by:`). **Never hand-edit `vehicle_states.yaml`** (`canlib/yaml_edit/states.py`) —
+  its editors also retarget/drop sibling `implies:` references on `rename`/`remove`, which a
+  hand-edit would leave dangling (and a dangling target fails the next validate). **`states rename`
+  rewrites every reference in the profile** (`canlib/yaml_edit/state_rename.py`): `ecus/` tags,
+  capture sessions' states and `state_spans`, the DTC log and the raw-CAN index, all or nothing. A
+  state *is* its token, so a vocabulary-only rename would leave the whole history out of
+  vocabulary. `canair states <STATE>` lists an ECU through `implies:` too (an `[IG3]` ECU appears
+  under READY).
 - **`canair groups`** — List/edit `groups.yaml`, the named selector groups recalled with the `@`
   sigil. Expansion is **textual, before the query parser**
   (`canlib/ecus/ecu_groups.py::expand_group_refs`), so a group composes with other groups and with
@@ -504,9 +506,9 @@ reuse these instead of re-declaring a flag:
   `plans/2026-10-30-profile-variants-and-rename.md`, phase by phase. The field table and the
   structural check live once in `canlib/variants/__init__.py` (`VARIANT_FIELDS`,
   `PROFILE_OVERRIDE_FIELDS`, `check_variants_doc`), shared by the loader, `validate variants` and
-  the editor (`canlib/variants/edit.py`, which types each command-line value from that table).
+  the editor (`canlib/yaml_edit/variants.py`, which types each command-line value from that table).
   `rename` rewrites every tag and ECU `variants:` list that uses the ID and `rm` refuses while one
-  does (`canlib/variants/references.py`).
+  does (`canlib/yaml_edit/variant_refs.py`).
   **ECU revisions** (`canlib/variants/revisions.py`) are versions of one ECU that differ in
   protocol or decoding: an ECU's `revisions:` mapping (overrides from a whitelist plus
   `fingerprints:`, checked but not matched yet), `revisions: [..]` gates on PIDs and signals,
@@ -521,7 +523,7 @@ reuse these instead of re-declaring a flag:
   analysis drops sessions tagged with another revision of a determined ECU
   (`tags.revisions_in_scope`), and the byte-level analyses refuse a scope spanning two revisions
   (`tags.require_one_revision`, via `load_signal_captures(one_revision=…)`). Editors: `ecu
-  revisions` / `ecu set-variants` (`canlib/ecus/revisions_edit.py`, whose `rename` rewrites
+  revisions` / `ecu set-variants` (`canlib/yaml_edit/revisions.py`, whose `rename` rewrites
   gates, variants and capture tags) and `pids set-revisions`. The regression fixture is
   `tests/fixtures/profiles/variants/`.
   **`per_revision:`** on a PID or signal replaces whitelisted fields for one revision
@@ -830,7 +832,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
 really happened, costing two sessions' captures. The detection and the user-facing remedy are
 `canlib/install_context.py::installed_snapshot_kind` and `::snapshot_write_note`, and **every write
 path emits that note**: `canlib/captures.py::saved_banner` for captures and
-`canlib/edit_echo.py::echo_edit` for every definition edit (`pids`/`signals`/`states`/
+`canlib/yaml_edit/echo.py::echo_edit` for every definition edit (`pids`/`signals`/`states`/
 `groups`/`ecu add` all route their `✓ …` confirmation through it, which is also what guarantees the
 confirmation names a **full path** rather than a bare `bms.yaml`). `canair update` refuses to be the
 thing that erases the data: `::snapshot_profile_risks` diffs the snapshot's profiles against the
@@ -914,7 +916,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   tie-breaks states unrelated in the DAG. It backs `suggest_state` (and so the monitor status bar);
   `suggest_states` deliberately does **not** apply it, because a recorded session keeps every state
   it was in. `implies:` must name declared states, may not self-reference or involve `ALL`, and must
-  be acyclic — enforced by `validate states`, by `states_edit`'s post-write reparse, and by
+  be acyclic — enforced by `validate states`, by `yaml_edit.states`' post-write reparse, and by
   `load_states` itself. The make-neutral base is the ignition ladder `SLEEP/ACC/RUN/CRANK`
   (`RUN`/`SLEEP` because `ON`/`OFF` are YAML booleans) plus the `ALL` meta-token. A profile *may*
   declare such a word (the Ioniq's `ON`, the manual's name): it must then be quoted (`["ON"]`) in
@@ -923,7 +925,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   (`PLUGGED`/`READY`/`CHARGING`) and finer vendor rungs are **declared per profile**, and
   `allowed_states()` returns base ∪ `ALL` ∪ the profile's own, so `--state`/`--prereq` validate
   without a static choice list. Input is normalized to uppercase. Edit via `canair states` (never
-  hand-edit; `canlib/states/edit.py`); references in `ecus/` are written as inline flow lists.
+  hand-edit; `canlib/yaml_edit/states.py`); references in `ecus/` are written as inline flow lists.
 - **`profiles/<car>/can_buses.yaml`** — The profile's CAN bus segment vocabulary: code → human
   `name` + `description` + optional `bitrate`. Bus naming is **vendor-specific** (Hyundai/Kia
   `B-CAN`/`P-CAN`/`C-CAN`/`MM-CAN`/`H-CAN`/`D-CAN`/`ALL`; Ford `HS`/`MS`; BMW `PT-CAN`/`K-CAN`), so

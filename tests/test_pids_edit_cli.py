@@ -158,7 +158,7 @@ def test_set_iocontrol_ranges_writes_field(pids_dir):
 
 
 def test_set_iocontrol_ranges_rejects_bad_range(pids_dir):
-    from canlib.pids_edit import PidsEditError
+    from canlib.yaml_edit.pids import PidsEditError
 
     with pytest.raises((PidsEditError, SystemExit)):
         cli.cmd_set_iocontrol_ranges(_RangeArgs(["not-a-range"], dir=pids_dir))
@@ -243,7 +243,7 @@ def test_set_status_index_disambiguates(research_pids_dir):
 
 
 def test_set_status_ambiguous_without_index_exits(research_pids_dir):
-    from canlib.pids_edit import PidsEditError
+    from canlib.yaml_edit.pids import PidsEditError
 
     args = _ResearchArgs(status="done", type="decode", dir=research_pids_dir)
     with pytest.raises((PidsEditError, SystemExit)):

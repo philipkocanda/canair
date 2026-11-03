@@ -3,7 +3,7 @@
 Appends and field-edits for the machine-discovered sections written by
 ``canair scan``/``discover`` (routines, iocontrol_discoveries, sessions), plus
 promotion of a discovery into a real iocontrol entry. Builds on the shared
-primitives in :mod:`canlib.pids_edit._text`.
+primitives in :mod:`canlib.yaml_edit.text`.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from ._text import (
+from canlib.yaml_edit.text import (
     PidsEditError,
     _cut_block,
     _find_did_block,

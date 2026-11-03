@@ -2,11 +2,11 @@
 
 Unlike the scanner sections (routines / iocontrol_discoveries), these edit the
 hand-authored ``pids:``/``identity:`` structures used when decoding a new PID
-(the ``research:`` backlog has its own module, :mod:`canlib.pids_edit.research`).
+(the ``research:`` backlog has its own module, :mod:`canlib.yaml_edit.pids.research`).
 The deeper nesting (pids: PID: parameters: PARAM: field) needs its own
 indent-anchored locators. Every write is followed by a YAML re-parse; on any
 failure the original text is restored so a botched edit never lands on disk.
-Builds on the shared primitives in :mod:`canlib.pids_edit._text`.
+Builds on the shared primitives in :mod:`canlib.yaml_edit.text`.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from pathlib import Path
 
 import yaml
 
-from ._text import (
+from canlib.yaml_edit.text import (
     PidsEditError,
     _cut_block,
     _find_ecu_block,
@@ -789,7 +789,7 @@ def set_pid_notes(
     forbids).
 
     ``notes=None`` (or blank) removes the field. Rendered by the shared note policy
-    (:func:`canlib.pids_edit._text._format_block_scalar`): short notes stay inline,
+    (:func:`canlib.yaml_edit.text._format_block_scalar`): short notes stay inline,
     longer ones become a word-wrapped folded ``>-`` block.
 
     An existing note is replaced in place, preserving its position. A *new* note is

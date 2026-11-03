@@ -333,7 +333,7 @@ class TestPlotApp:
             calls.append((ecu, pid, name, expr, kw))
             return None
 
-        monkeypatch.setattr("canlib.pids_edit.upsert_parameter", fake_upsert)
+        monkeypatch.setattr("canlib.yaml_edit.pids.upsert_parameter", fake_upsert)
 
         app = PlotApp(_plot_model())
         async with app.run_test(size=(110, 30)) as pilot:

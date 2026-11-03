@@ -21,8 +21,8 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 
-from .frame_counts import CountKey, FrameCountLedger
-from .pids import pid_status
+from canlib.frame_counts import CountKey, FrameCountLedger
+from canlib.pids import pid_status
 
 FIELD = "response_frames"
 
@@ -242,9 +242,9 @@ def persist(pids_data: dict, ledger: FrameCountLedger, *, verbose: bool = False)
     user actually ran, so a read-only profile or a locked file must not turn a
     successful session into a failed command.
     """
-    from .edit_echo import echo_edit
-    from .pids_edit import PidsEditError, set_response_frames
-    from .profile import ProfileError, require_writable_definitions
+    from canlib.profile import ProfileError, require_writable_definitions
+    from canlib.yaml_edit.echo import echo_edit
+    from canlib.yaml_edit.pids import PidsEditError, set_response_frames
 
     edits, notes = resolve_edits(pids_data, ledger)
     if verbose:
@@ -301,8 +301,8 @@ def revision_target(ecu: str, pid: str) -> tuple[bool, str | None]:
     this routing is what keeps one revision's count from seeding — and undercounting — a
     read of the other, which would desynchronise an ELM327 pipe.
     """
-    from .pids import load_raw_pids, revision_resolutions
-    from .variants.revisions import declared, gate, reference_of
+    from canlib.pids import load_raw_pids, revision_resolutions
+    from canlib.variants.revisions import declared, gate, reference_of
 
     ecus = load_raw_pids().get("ecus") or {}
     ecu_def = ecus.get(ecu) or {}
@@ -320,9 +320,9 @@ def revision_target(ecu: str, pid: str) -> tuple[bool, str | None]:
 
 
 def _set_revision_frames(ecu: str, pid: str, revision: str, frames: int | None):
-    from .ecus.edit import EcusEditError
-    from .ecus.revisions_edit import set_override
-    from .pids_edit import PidsEditError
+    from canlib.yaml_edit.ecu import EcusEditError
+    from canlib.yaml_edit.pids import PidsEditError
+    from canlib.yaml_edit.revisions import set_override
 
     try:
         if frames is None:

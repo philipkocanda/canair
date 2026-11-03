@@ -12,7 +12,7 @@ from canlib.modes.kwp_routines_scan import (
     classify,
     probe_kwp_routine_results,
 )
-from canlib.pids_edit import append_routines_block
+from canlib.yaml_edit.pids import append_routines_block
 from tests._fakes import FakeTerminal
 from tests._fakes import ok as _ok
 

@@ -1,4 +1,4 @@
-"""Tests for canlib.ecus.edit (per-ECU file writer) and identity validation.
+"""Tests for canlib.yaml_edit.ecu (per-ECU file writer) and identity validation.
 
 All writes are directed at a tmp_path-backed ``ecus/`` directory via the
 ``ecus_dir=`` kwarg so the real profile is never touched.
@@ -12,7 +12,7 @@ import pytest
 import yaml
 
 from canlib.commands.validate import collect_pids_validation
-from canlib.ecus.edit import (
+from canlib.yaml_edit.ecu import (
     EcusEditError,
     append_scan_log,
     register_ecu,
@@ -416,7 +416,7 @@ IGPM:
 
 class TestIndentationPreserved:
     def test_detect_sequence_indent(self):
-        from canlib.yaml_rt import detect_sequence_indent
+        from canlib.yaml_edit.rt import detect_sequence_indent
 
         assert detect_sequence_indent("a:\n  0x1:\n    - x: 1\n") == (4, 2)
         assert detect_sequence_indent("scan_log:\n  0x770:  # IGPM\n    - s: 1\n") == (4, 2)

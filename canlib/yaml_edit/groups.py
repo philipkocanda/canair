@@ -23,9 +23,9 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from canlib import yaml_io
 from canlib.ecus.ecu_groups import normalize_group_name
 from canlib.query import QueryError, parse_selector
-from canlib.yaml_rt import detect_sequence_indent as _detect_seq
-from canlib.yaml_rt import dump as _dump
-from canlib.yaml_rt import round_trip_yaml as _yaml
+from canlib.yaml_edit.rt import detect_sequence_indent as _detect_seq
+from canlib.yaml_edit.rt import dump as _dump
+from canlib.yaml_edit.rt import round_trip_yaml as _yaml
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

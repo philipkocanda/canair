@@ -1,7 +1,7 @@
 """Reading a profile's broadcast signal maps (``signals/<bus>.yaml``).
 
-The read counterpart of :mod:`canlib.signals_edit`, mirroring the
-``states``/``states_edit`` and ``ecu_groups``/``groups_edit`` split: one loader
+The read counterpart of :mod:`canlib.yaml_edit.signals`, mirroring the
+``states``/``yaml_edit.states`` and ``ecu_groups``/``yaml_edit.groups`` split: one loader
 that resolves the profile's signal directory and parses its per-bus documents, so
 `signals list`, `export dbc` and `validate signals` all see the same thing.
 

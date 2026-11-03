@@ -31,10 +31,10 @@ from canlib.states import (
     parse_implies,
     unquoted_boolean_error,
 )
-from canlib.yaml_rt import detect_sequence_indent as _detect_seq
-from canlib.yaml_rt import dump as _dump
-from canlib.yaml_rt import round_trip_yaml as _yaml
-from canlib.yaml_rt import state_token as _token
+from canlib.yaml_edit.rt import detect_sequence_indent as _detect_seq
+from canlib.yaml_edit.rt import dump as _dump
+from canlib.yaml_edit.rt import round_trip_yaml as _yaml
+from canlib.yaml_edit.rt import state_token as _token
 
 if TYPE_CHECKING:
     from canlib.profile import Profile

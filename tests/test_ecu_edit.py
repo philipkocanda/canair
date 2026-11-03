@@ -12,8 +12,8 @@ import pytest
 
 from canlib import profile
 from canlib.commands.ecu import cmd_edit
-from canlib.ecus.edit import find_ecu_file_by_tx, register_ecu
 from canlib.pids import clear_cache
+from canlib.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu
 
 
 @pytest.fixture(autouse=True)

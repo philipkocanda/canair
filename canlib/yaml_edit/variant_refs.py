@@ -98,7 +98,7 @@ def _retag_yaml(path: Path, sections: tuple[str, ...], old: str, new: str) -> st
     """``path``'s text with every ``variant: old`` entry retagged, or None if unchanged."""
     from io import StringIO
 
-    from canlib.yaml_rt import dump, round_trip_yaml
+    from canlib.yaml_edit.rt import dump, round_trip_yaml
 
     if not path.exists():
         return None
@@ -163,10 +163,10 @@ def rename_everywhere(old: str, new: str, profile: Profile) -> tuple[Path, list[
     Returns ``variants.yaml`` and the history files rewritten. If rewriting the
     history fails, ``variants.yaml`` is restored, so the two never disagree.
     """
-    from canlib.ecus.revisions_edit import set_ecu_variants
     from canlib.pids import load_raw_pids
-    from canlib.variants.edit import rename_variant
     from canlib.variants.revisions import presence
+    from canlib.yaml_edit.revisions import set_ecu_variants
+    from canlib.yaml_edit.variants import rename_variant
 
     old_id, new_id = normalize_variant_id(old), normalize_variant_id(new)
     fitted = {
@@ -200,7 +200,7 @@ def rename_everywhere(old: str, new: str, profile: Profile) -> tuple[Path, list[
 
 def remove_unreferenced(variant_id: str, profile: Profile) -> Path:
     """Remove a variant from ``variants.yaml``, refusing while anything refers to it."""
-    from canlib.variants.edit import VariantsEditError, remove_variant
+    from canlib.yaml_edit.variants import VariantsEditError, remove_variant
 
     refs = find_references(profile, variant_id)
     if refs.total:

@@ -46,7 +46,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from canlib import ansi
-from canlib.edit_echo import echo_edit
+from canlib.yaml_edit.echo import echo_edit
 
 NAME = "states"
 
@@ -369,7 +369,7 @@ def cmd_list(args) -> int:
 def _run_edit(args, action) -> int:
     from canlib.profile import require_writable_definitions
     from canlib.states import StatePredicateError
-    from canlib.states.edit import StatesEditError
+    from canlib.yaml_edit.states import StatesEditError
 
     require_writable_definitions()
     try:
@@ -406,7 +406,7 @@ def _warn_unresolved_refs(state: str, expr: str | None) -> None:
 
 
 def cmd_add(args) -> int:
-    from canlib.states.edit import add_state
+    from canlib.yaml_edit.states import add_state
 
     args._states_msg = f"added state {args.name.upper()}"
     rc = _run_edit(
@@ -424,7 +424,7 @@ def cmd_add(args) -> int:
 
 
 def cmd_rm(args) -> int:
-    from canlib.states.edit import remove_state
+    from canlib.yaml_edit.states import remove_state
 
     args._states_msg = f"removed state {args.name.upper()}"
     return _run_edit(args, lambda: remove_state(args.name))
@@ -433,8 +433,12 @@ def cmd_rm(args) -> int:
 def cmd_rename(args) -> int:
     from canlib.profile import require_writable_definitions
     from canlib.states import StatePredicateError
-    from canlib.states.edit import StatesEditError
-    from canlib.states.rename import StateRenameError, apply_state_rename, plan_state_rename
+    from canlib.yaml_edit.state_rename import (
+        StateRenameError,
+        apply_state_rename,
+        plan_state_rename,
+    )
+    from canlib.yaml_edit.states import StatesEditError
 
     profile = require_writable_definitions()
     try:
@@ -496,14 +500,14 @@ def _print_rename_plan(plan, root: Path) -> None:
 
 
 def cmd_set_description(args) -> int:
-    from canlib.states.edit import set_state_field
+    from canlib.yaml_edit.states import set_state_field
 
     args._states_msg = f"set description on {args.name.upper()}"
     return _run_edit(args, lambda: set_state_field(args.name, "description", args.value))
 
 
 def cmd_set_predicate(args) -> int:
-    from canlib.states.edit import set_state_field
+    from canlib.yaml_edit.states import set_state_field
 
     verb = "cleared" if not args.value else "set"
     args._states_msg = f"{verb} when: predicate on {args.name.upper()}"
@@ -513,7 +517,7 @@ def cmd_set_predicate(args) -> int:
 
 
 def cmd_set_implies(args) -> int:
-    from canlib.states.edit import set_state_field
+    from canlib.yaml_edit.states import set_state_field
 
     verb = "cleared" if not args.value else "set"
     args._states_msg = f"{verb} implies: on {args.name.upper()}"
@@ -521,7 +525,7 @@ def cmd_set_implies(args) -> int:
 
 
 def cmd_set_excludes(args) -> int:
-    from canlib.states.edit import set_state_field
+    from canlib.yaml_edit.states import set_state_field
 
     verb = "cleared" if not args.value else "set"
     args._states_msg = f"{verb} excludes: on {args.name.upper()}"

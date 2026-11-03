@@ -33,7 +33,7 @@ import json
 import sys
 
 from canlib import ansi
-from canlib.edit_echo import echo_edit
+from canlib.yaml_edit.echo import echo_edit
 
 NAME = "variants"
 
@@ -131,7 +131,7 @@ def _assignments(pairs: list[str]) -> list[tuple[str, str]]:
 
 def _run_edit(message: str, action) -> int:
     from canlib.profile import require_writable_definitions
-    from canlib.variants.edit import VariantsEditError
+    from canlib.yaml_edit.variants import VariantsEditError
 
     require_writable_definitions()
     try:
@@ -143,14 +143,14 @@ def _run_edit(message: str, action) -> int:
 
 
 def cmd_add(args) -> int:
-    from canlib.variants.edit import add_variant
+    from canlib.yaml_edit.variants import add_variant
 
     meta = _assignments(args.meta)
     return _run_edit(f"added variant {args.id}", lambda: add_variant(args.id, args.name, meta))
 
 
 def cmd_set_meta(args) -> int:
-    from canlib.variants.edit import set_variant_meta
+    from canlib.yaml_edit.variants import set_variant_meta
 
     meta = _assignments(args.meta)
     keys = ", ".join(dict.fromkeys(k for k, _ in meta))
@@ -158,7 +158,7 @@ def cmd_set_meta(args) -> int:
 
 
 def cmd_unset_meta(args) -> int:
-    from canlib.variants.edit import unset_variant_meta
+    from canlib.yaml_edit.variants import unset_variant_meta
 
     keys = ", ".join(args.keys)
     return _run_edit(
@@ -168,8 +168,8 @@ def cmd_unset_meta(args) -> int:
 
 def cmd_set_revisions(args) -> int:
     from canlib.pids import load_raw_pids
-    from canlib.variants.edit import VariantsEditError, set_variant_revisions
     from canlib.variants.revisions import canonical_ecu, declared
+    from canlib.yaml_edit.variants import VariantsEditError, set_variant_revisions
 
     revs = [r.strip().lower() for part in args.revisions for r in part.split(",") if r.strip()]
     if args.clear == bool(revs):
@@ -200,7 +200,7 @@ def cmd_set_revisions(args) -> int:
 
 def cmd_rename(args) -> int:
     from canlib.profile import active
-    from canlib.variants.references import rename_everywhere
+    from canlib.yaml_edit.variant_refs import rename_everywhere
 
     written: list = []
 
@@ -217,7 +217,7 @@ def cmd_rename(args) -> int:
 
 def cmd_rm(args) -> int:
     from canlib.profile import active
-    from canlib.variants.references import remove_unreferenced
+    from canlib.yaml_edit.variant_refs import remove_unreferenced
 
     return _run_edit(f"removed variant {args.id}", lambda: remove_unreferenced(args.id, active()))
 

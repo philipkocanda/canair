@@ -20,7 +20,7 @@ from canlib.modes.iocontrol_scan import (
     classify,
     probe_iocontrol,
 )
-from canlib.pids_edit import PidsEditError, append_iocontrol_discoveries_block
+from canlib.yaml_edit.pids import PidsEditError, append_iocontrol_discoveries_block
 
 # ── classify() ───────────────────────────────────────────────────────────────
 
@@ -311,7 +311,7 @@ def test_append_iocontrol_discoveries_yaml_round_trip(pids_dir):
 def test_routines_and_discoveries_coexist(pids_dir):
     """Both scanner sections can live side-by-side in the same ECU block."""
     from canlib.modes.routines_scan import RoutineHit
-    from canlib.pids_edit import append_routines_block
+    from canlib.yaml_edit.pids import append_routines_block
 
     r_hits = [
         RoutineHit(

@@ -724,7 +724,7 @@ def _promote(name: str, ecu: str, pid: str, hits, ref_label: str) -> int:
     upsert-param`` — so a PCI-crossing expression is rejected and rolled back.
     """
     from canlib.commands._promote import print_promoted, write_candidate
-    from canlib.pids_edit import PidsEditError
+    from canlib.yaml_edit.pids import PidsEditError
 
     if not hits:
         print("Nothing to promote — no correlating byte found.", file=sys.stderr)

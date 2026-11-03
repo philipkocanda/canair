@@ -19,8 +19,8 @@ from canlib.actions import (
     parse_request_spec,
     registry_issues,
 )
-from canlib.actions.edit import add_action, remove_action, update_action
 from canlib.profile import Profile
+from canlib.yaml_edit.actions import add_action, remove_action, update_action
 
 GOOD = {
     "description": "Put every ECU to sleep.",

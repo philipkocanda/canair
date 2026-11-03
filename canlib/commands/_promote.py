@@ -31,7 +31,7 @@ def _reject_pci_reads(ecu: str, pid: str, name: str, expr: str) -> None:
     (``[B7:B9]``).
     """
     from canlib.commands.validate.pids import check_pci_bytes
-    from canlib.pids_edit import PidsEditError
+    from canlib.yaml_edit.pids import PidsEditError
 
     problems = check_pci_bytes(expr, name, pid, ecu)
     if problems:
@@ -50,7 +50,7 @@ def write_candidate(ecu: str, pid: str, name: str, expr: str, *, source: str, no
     fails schema validation and is reverted.
     """
     from canlib.commands.pids import _guarded
-    from canlib.pids_edit import upsert_parameter
+    from canlib.yaml_edit.pids import upsert_parameter
 
     _reject_pci_reads(ecu, pid, name, expr)
 

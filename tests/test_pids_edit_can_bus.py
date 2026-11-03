@@ -1,11 +1,11 @@
-"""Tests for canlib.pids_edit.set_can_bus (top-level CAN-bus segment editing)."""
+"""Tests for canlib.yaml_edit.pids.set_can_bus (top-level CAN-bus segment editing)."""
 
 import textwrap
 
 import pytest
 import yaml
 
-from canlib.pids_edit import PidsEditError, set_can_bus
+from canlib.yaml_edit.pids import PidsEditError, set_can_bus
 
 
 @pytest.fixture

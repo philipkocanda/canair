@@ -348,7 +348,7 @@ def _run_dbc(args) -> int:
         return 0
 
     from canlib.profile import active
-    from canlib.signals_edit import SignalsEditError, merge_bus
+    from canlib.yaml_edit.signals import SignalsEditError, merge_bus
 
     try:
         out, written = merge_bus(bus, imported, profile=active())

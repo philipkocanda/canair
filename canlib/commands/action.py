@@ -24,7 +24,7 @@ import sys
 
 from canlib import ansi
 from canlib.commands._live import add_connection_args, finalize_live_parser
-from canlib.edit_echo import echo_edit
+from canlib.yaml_edit.echo import echo_edit
 
 NAME = "action"
 
@@ -102,7 +102,7 @@ def _requests(specs):
 
 def cmd_add(args) -> int:
     from canlib.actions import ActionError
-    from canlib.actions.edit import add_action
+    from canlib.yaml_edit.actions import add_action
 
     def edit():
         if not args.read or not args.require or not args.request:
@@ -119,7 +119,7 @@ def cmd_add(args) -> int:
 
 
 def cmd_set(args) -> int:
-    from canlib.actions.edit import update_action
+    from canlib.yaml_edit.actions import update_action
 
     return _run_edit(
         f"updated action {args.name.strip().lower()}",
@@ -134,7 +134,7 @@ def cmd_set(args) -> int:
 
 
 def cmd_rm(args) -> int:
-    from canlib.actions.edit import remove_action
+    from canlib.yaml_edit.actions import remove_action
 
     return _run_edit(
         f"removed action {args.name.strip().lower()}", lambda: remove_action(args.name)

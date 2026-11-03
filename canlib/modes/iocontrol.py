@@ -13,17 +13,16 @@ import termios
 import tty
 from pathlib import Path
 
+from canlib.actuation import on_refusal
+from canlib.modes._iocontrol_actuate import ActuatorState, IOControlActuator, send_iocontrol
+from canlib.modes._iocontrol_render import _truncate_text, render_iocontrol
+from canlib.modes.status import format_status_value, query_param_status
+from canlib.pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
+from canlib.transport.protocol import Terminal
+from canlib.tui import terminal_columns as _terminal_columns
+from canlib.tui import terminal_lines as _terminal_lines
 from canlib.uds.protocol import DiagProtocol
-
-from ..actuation import on_refusal
-from ..pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
-from ..pids_edit import PidsEditError, promote_discovery, update_iocontrol_field
-from ..transport.protocol import Terminal
-from ..tui import terminal_columns as _terminal_columns
-from ..tui import terminal_lines as _terminal_lines
-from ._iocontrol_actuate import ActuatorState, IOControlActuator, send_iocontrol
-from ._iocontrol_render import _truncate_text, render_iocontrol
-from .status import format_status_value, query_param_status
+from canlib.yaml_edit.pids import PidsEditError, promote_discovery, update_iocontrol_field
 
 # TUI debug log — cleared each session, written to logs/iocontrol-tui.log
 _LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
@@ -455,7 +454,7 @@ class _IOControlTUI:
         """Promote a discovery DID to a curated entry and reload state.
 
         ``on``/``off`` are inferred from the discovery's captured response
-        length (see ``pids_edit.promote_discovery``). The user refines the
+        length (see ``yaml_edit.pids.promote_discovery``). The user refines the
         payload afterwards via ``e``/direct YAML edit if needed.
         """
         label = label.strip()

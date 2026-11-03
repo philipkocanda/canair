@@ -4,7 +4,8 @@
 The broadcast-frame (domain-B) authoring counterpart to ``canair pids`` (which
 authors domain-A diagnostic UDS PID params): manage the ``signals/<bus>.yaml``
 sidecar (arbitration ID → named linear signals) with surgical, validated,
-comment-preserving edits (via :mod:`canlib.signals_edit`). See ``plans/2026-07-24-raw-can-analysis.md``.
+comment-preserving edits (via :mod:`canlib.yaml_edit.signals`). See
+``plans/2026-07-24-raw-can-analysis.md``.
 
   canair signals                     # list all broadcast signals
   canair signals list [BUS]          # list (optionally one bus)
@@ -21,8 +22,8 @@ import json
 import sys
 
 from canlib import ansi
-from canlib.edit_echo import echo_edit
-from canlib.signals_edit import CLEARABLE_SIGNAL_FIELDS
+from canlib.yaml_edit.echo import echo_edit
+from canlib.yaml_edit.signals import CLEARABLE_SIGNAL_FIELDS
 
 NAME = "signals"
 
@@ -233,7 +234,7 @@ def _frame_facts(mid: object, msg: dict) -> list[str]:
 
 def cmd_upsert(args) -> int:
     from canlib.profile import active, require_writable_definitions
-    from canlib.signals_edit import SignalsEditError, upsert_signal
+    from canlib.yaml_edit.signals import SignalsEditError, upsert_signal
 
     require_writable_definitions()
     try:
@@ -272,7 +273,7 @@ def cmd_upsert(args) -> int:
 
 def cmd_rm(args) -> int:
     from canlib.profile import active, require_writable_definitions
-    from canlib.signals_edit import SignalsEditError, remove_signal
+    from canlib.yaml_edit.signals import SignalsEditError, remove_signal
 
     require_writable_definitions()
     try:

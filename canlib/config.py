@@ -32,8 +32,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from . import yaml_io
-from .constants import CONFIG_FILE
+from canlib import yaml_io
+from canlib.constants import CONFIG_FILE
 
 # Fallback WiCAN address when nothing is configured (WiCAN AP mode).
 _DEFAULT_ADDRESSES = {"ap": "192.168.80.1"}
@@ -203,7 +203,7 @@ def set_config_key(key: str, value) -> Path:
     """
     from ruamel.yaml.comments import CommentedMap
 
-    from .yaml_rt import dump, round_trip_yaml
+    from canlib.yaml_edit.rt import dump, round_trip_yaml
 
     ensure_config_dir()
     path = user_config_file()
@@ -248,7 +248,7 @@ def unset_config_key(key: str) -> tuple[Path, bool]:
     Returns ``(path, removed)`` where ``removed`` is False if the key was
     absent. Comments and formatting are preserved.
     """
-    from .yaml_rt import dump, round_trip_yaml
+    from canlib.yaml_edit.rt import dump, round_trip_yaml
 
     path = user_config_file()
     if not path.exists():

@@ -10,8 +10,8 @@ import yaml
 from canlib.commands import pids as cli
 from canlib.commands.validate import load_schema, validate_ecu_file, validate_pids_file
 from canlib.pids import effective_param, load_pids
-from canlib.pids_edit import PidsEditError, hoist_defaults, set_pid_defaults
-from canlib.pids_edit.defaults import plan_hoist
+from canlib.yaml_edit.pids import PidsEditError, hoist_defaults, set_pid_defaults
+from canlib.yaml_edit.pids.defaults import plan_hoist
 
 LINK = "https://example.org/sheet"
 

@@ -2,7 +2,7 @@
 
 ``canair ecu revisions`` / ``canair ecu set-variants`` / ``canair pids set-revisions`` /
 ``canair variants set-revisions`` write through here.
-Each ECU-file edit is a ruamel round-trip through :func:`canlib.ecus.edit._safe_write`,
+Each ECU-file edit is a ruamel round-trip through :func:`canlib.yaml_edit.ecu._safe_write`,
 which re-parses, validates (including :func:`canlib.variants.revisions.check_ecu`) and
 reverts on failure, so comments and field order survive and a broken edit never lands.
 
@@ -24,13 +24,13 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
 from canlib.captures import io as capture_io
-from canlib.ecus.edit import EcusEditError, _load_doc, _safe_write
 from canlib.variants.revisions import (
     FINGERPRINT_KINDS,
     declared,
     normalize_revision_id,
     revision_id_problem,
 )
+from canlib.yaml_edit.ecu import EcusEditError, _load_doc, _safe_write
 
 if TYPE_CHECKING:
     from canlib.profile import Profile
@@ -367,7 +367,7 @@ def _retag_dtc_log(profile: Profile, rewrite_entry) -> dict[Path, str]:
     from io import StringIO
 
     from canlib.dtc.log import log_file
-    from canlib.yaml_rt import dump, round_trip_yaml
+    from canlib.yaml_edit.rt import dump, round_trip_yaml
 
     path = log_file(profile)
     if not path.exists():
@@ -422,7 +422,7 @@ def rename_revision(
     profile's own capture sessions and of its DTC log. Returns the ECU file and the
     other files rewritten.
     """
-    from canlib.variants.edit import set_variant_revisions
+    from canlib.yaml_edit.variants import set_variant_revisions
 
     prof = _profile(profile)
     old_id, new_id = _checked_id(old), _checked_id(new)
@@ -516,7 +516,7 @@ def remove_revision(ecu: str, revision: str, *, profile: Profile | None = None) 
 def retag_ecu_rename(old: str, new: str, profile: Profile) -> list[Path]:
     """After an ECU rename: rewrite variants' ``revisions:`` keys, and the revision tags
     of captures and of the DTC log."""
-    from canlib.variants.edit import rename_variant_revisions_ecu
+    from canlib.yaml_edit.variants import rename_variant_revisions_ecu
 
     def retag(session: dict) -> bool:
         changed = False

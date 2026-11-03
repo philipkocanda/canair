@@ -26,14 +26,14 @@ import sys
 
 from canlib import ansi
 from canlib.commands._hints import ecu_completer as _ecu_completer
-from canlib.edit_echo import echo_edit
+from canlib.yaml_edit.echo import echo_edit
 
 _EXAMPLES = __doc__.split("Examples:")[1]
 
 
 def _run_edit(message: str, action) -> int:
-    from canlib.ecus.edit import EcusEditError
     from canlib.profile import require_writable_definitions
+    from canlib.yaml_edit.ecu import EcusEditError
 
     require_writable_definitions()
     try:
@@ -116,7 +116,7 @@ def cmd_list(args) -> int:
 
 
 def cmd_add(args) -> int:
-    from canlib.ecus.revisions_edit import add_revision
+    from canlib.yaml_edit.revisions import add_revision
 
     return _run_edit(
         f"{args.ecu}: added revision {args.revision}",
@@ -125,7 +125,7 @@ def cmd_add(args) -> int:
 
 
 def cmd_set_fingerprint(args) -> int:
-    from canlib.ecus.revisions_edit import set_fingerprint
+    from canlib.yaml_edit.revisions import set_fingerprint
 
     identity = {}
     for pair in args.identity or []:
@@ -147,7 +147,7 @@ def cmd_set_fingerprint(args) -> int:
 
 
 def cmd_rename(args) -> int:
-    from canlib.ecus.revisions_edit import rename_revision
+    from canlib.yaml_edit.revisions import rename_revision
 
     written: list = []
 
@@ -163,7 +163,7 @@ def cmd_rename(args) -> int:
 
 
 def cmd_rm(args) -> int:
-    from canlib.ecus.revisions_edit import remove_revision
+    from canlib.yaml_edit.revisions import remove_revision
 
     return _run_edit(
         f"{args.ecu}: removed revision {args.revision}",
@@ -172,7 +172,7 @@ def cmd_rm(args) -> int:
 
 
 def cmd_set_variants(args) -> int:
-    from canlib.ecus.revisions_edit import set_ecu_variants
+    from canlib.yaml_edit.revisions import set_ecu_variants
 
     if args.clear == bool(args.variants):
         print("error: give the variants, or --clear", file=sys.stderr)
