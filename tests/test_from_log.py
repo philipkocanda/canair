@@ -204,6 +204,14 @@ class TestLostFrames:
         out = extract_replies([*reply, flow_control(BMS_TX)], ecus)
         assert out.replies == [] and out.lost == 1
 
+    def test_losses_on_request_ids_are_not_counted(self, ecus):
+        # A lost multi-frame request is not a capture that went missing.
+        request = message_frames(BMS_TX, bytes.fromhex("22") + bytes(range(1, 21)))
+        del request[1]
+        out = extract_replies([*request, *exchange("220101", "620101AA", 1.0)], ecus)
+        assert [r.pid for r in out.replies] == ["220101"]
+        assert out.lost == 0 and out.reassembly.truncated == 0
+
 
 class TestStamp:
     def test_times_follow_the_log_clock_from_the_first_reply(self):

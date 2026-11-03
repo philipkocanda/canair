@@ -141,8 +141,9 @@ def extract_replies(
     rx_to_tx = {rx_for_tx(tx, ecus): tx for tx in ecus}
     outstanding: dict[tuple[int | str | None, int], _Outstanding] = {}
 
-    tracked = set(ecus) | set(rx_to_tx)
-    for msg in reassemble(frames, result.reassembly, tracked=tracked):
+    # Losses are tallied on the reply ids only: a request lost on its way to the ECU
+    # is not a capture that went missing.
+    for msg in reassemble(frames, result.reassembly, tracked=set(rx_to_tx)):
         payload = msg.payload
         if msg.arbitration_id in ecus:
             pending = outstanding.setdefault((msg.channel, msg.arbitration_id), _Outstanding())
