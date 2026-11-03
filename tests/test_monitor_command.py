@@ -34,6 +34,21 @@ class TestMonitorRegistered:
         args = _parse(["monitor", "BMS:2101", "--interval", "2"])
         assert args.interval == 2.0
 
+    @pytest.mark.parametrize("value", ["0", "-1", "0.05", "nan", "inf", "fast"])
+    def test_interval_must_be_a_usable_number_of_seconds(self, value, capsys):
+        # 0 made every period-less PID due on every tick (polling never paused), and a
+        # zero args.monitor reads as "no monitor" to the dispatcher.
+        with pytest.raises(SystemExit) as exc:
+            _parse(["monitor", "BMS:2101", "--interval", value])
+        assert exc.value.code == 2
+        assert "--interval" in capsys.readouterr().err
+
+    def test_interval_floor_is_the_tui_floor(self):
+        from canlib.poll_schedule import MIN_INTERVAL
+
+        args = _parse(["monitor", "BMS:2101", "--interval", str(MIN_INTERVAL)])
+        assert args.interval == MIN_INTERVAL
+
     def test_keep_and_save_flags_live_on_monitor(self):
         args = _parse(["monitor", "BMS:2101", "--keep-all", "--save", "--label", "drive"])
         assert args.keep_all is True

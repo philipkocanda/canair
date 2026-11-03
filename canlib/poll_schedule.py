@@ -81,6 +81,8 @@ class PollScheduler:
             raise ValueError(f"unknown schedule {schedule!r} (expected one of {SCHEDULES})")
         if period_speedup <= 0:
             raise ValueError(f"period_speedup must be positive, not {period_speedup!r}")
+        if not interval > 0:
+            raise ValueError(f"interval must be positive, not {interval!r}")
         self.schedule: Schedule = schedule
         self.interval = interval
         # Divides every declared profile period (not the --interval fallback, which is

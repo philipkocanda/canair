@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from canlib.poll_schedule import (
     DEFAULT_SCHEDULE,
     MAX_RATE_STEPS,
@@ -64,6 +66,12 @@ class TestFixedSchedule:
 class TestDynamicSchedule:
     def test_default_is_dynamic(self):
         assert PollScheduler().schedule == DEFAULT_SCHEDULE == "dynamic"
+
+    @pytest.mark.parametrize("interval", [0.0, -1.0, float("nan")])
+    def test_a_non_positive_interval_is_refused(self, interval):
+        # Every PID without a period would be due on every tick: a busy poll loop.
+        with pytest.raises(ValueError, match="interval"):
+            PollScheduler("dynamic", interval=interval)
 
     def test_first_tick_polls_everything(self):
         s = PollScheduler("dynamic", interval=5.0)

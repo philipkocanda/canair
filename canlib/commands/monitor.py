@@ -17,6 +17,7 @@ apply here, not to the one-shot ``canair read``.
 from __future__ import annotations
 
 import argparse
+import math
 import shlex
 import sys
 
@@ -29,11 +30,27 @@ from canlib.commands._live import (
     step_completer,
     to_step,
 )
-from canlib.poll_schedule import DEFAULT_SCHEDULE, SCHEDULES
+from canlib.poll_schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
 from canlib.uds.notation import add_notation_arg
 
 NAME = "monitor"
 ALIASES = ["mon"]
+
+
+def _interval(value: str) -> float:
+    """``--interval``: seconds, no shorter than the TUI's own =/- floor.
+
+    Zero or negative would make every PID without a profile period due on every tick
+    (the monitor never pauses between polls), and a zero interval also reads as "no
+    monitor" to the dispatcher.
+    """
+    try:
+        seconds = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"must be a number of seconds, got {value!r}") from None
+    if not math.isfinite(seconds) or seconds < MIN_INTERVAL:
+        raise argparse.ArgumentTypeError(f"must be at least {MIN_INTERVAL} seconds, got {value}")
+    return seconds
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -89,7 +106,7 @@ For a single one-shot read (no live refresh) use `canair read` instead.
     ).completer = step_completer
     parser.add_argument(
         "--interval",
-        type=float,
+        type=_interval,
         default=5.0,
         metavar="SECONDS",
         help="Poll interval in seconds for PIDs with no profile `period:` — or for every "
