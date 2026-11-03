@@ -69,8 +69,30 @@ class TestRecovery:
         _feed(b, SILENT, ESCALATE_AFTER + 1)
         assert b.slowdown("SKM") == 4
         assert _feed(b, HEALTHY, RECOVER_AFTER)[-1] == 2
-        assert _feed(b, HEALTHY, RECOVER_AFTER)[-1] == 1
+        assert _feed(b, HEALTHY, 1) == [1]
         assert b.reason("SKM") == ""
+
+    def test_once_trusted_each_healthy_poll_halves(self):
+        # At 32x a 5 s PID is read every 160 s: a streak per step took ~15 min back.
+        b = EcuBackoff()
+        _feed(b, SILENT, 100)
+        assert b.slowdown("SKM") == MAX_SLOWDOWN
+        assert _feed(b, HEALTHY, RECOVER_AFTER + 4) == [None] * (RECOVER_AFTER - 1) + [
+            16,
+            8,
+            4,
+            2,
+            1,
+        ]
+
+    def test_an_intermittent_ecu_keeps_climbing(self):
+        # Fewer healthy polls in a row than RECOVER_AFTER never step it back.
+        b = EcuBackoff()
+        _feed(b, SILENT, ESCALATE_AFTER)
+        for _ in range(4):
+            _feed(b, HEALTHY, RECOVER_AFTER - 1)
+            b.observe("SKM", SILENT)
+        assert b.slowdown("SKM") == MAX_SLOWDOWN
 
     def test_a_slow_poll_resets_the_recovery_streak(self):
         b = EcuBackoff()

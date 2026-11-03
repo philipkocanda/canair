@@ -400,6 +400,26 @@ class TestControllerRebind:
         assert c.sm.terminal is new_terminal
         assert c.disconnected is False
 
+    def test_rebind_restores_backed_off_ecus(self):
+        # A desynced pipe makes every ECU look unanswered, so all are backed off by the
+        # time the liveness check reconnects. Resetting the backoff alone would leave the
+        # scheduler's factor behind with nothing left to ever restore it.
+        from canlib.poll_backoff import ESCALATE_AFTER, PollCost
+
+        c = self._controller(raw=False)
+        silent = PollCost(reads=2, seconds=2.0, answered=0)
+        for _ in range(ESCALATE_AFTER + 1):
+            c.ecu_costs = {"BMS": silent}
+            c._apply_backoff()
+        assert c.schedule.slowdown("BMS") == 4
+        c.rebind(object())
+        assert c.schedule.slowdown("BMS") == 1
+        assert c.backoff.slowed() == {}
+        # And the next slow spell starts from scratch (one slow poll is not a pattern).
+        c.ecu_costs = {"BMS": silent}
+        c._apply_backoff()
+        assert c.schedule.slowdown("BMS") == 1
+
     def test_close_client_raw_is_best_effort(self):
         class Boom:
             def close(self):

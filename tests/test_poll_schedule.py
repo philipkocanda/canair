@@ -237,6 +237,13 @@ class TestSlowdown:
         assert s.take_due("E", plan) == plan
         assert s.slowdown("E") == 1
 
+    def test_slowed_lists_only_slowed_ecus(self):
+        s = PollScheduler("dynamic", interval=1.0)
+        s.set_slowdown("A", 4)
+        s.set_slowdown("B", 2)
+        s.set_slowdown("B", 1)
+        assert s.slowed() == {"A": 4}
+
 
 class TestToggle:
     def test_toggle_flips_and_re_wakes(self):

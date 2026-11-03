@@ -192,6 +192,10 @@ class PollScheduler:
     def slowdown(self, ecu: str) -> int:
         return self._slowdown.get(ecu, 1)
 
+    def slowed(self) -> dict[str, int]:
+        """Every slowed-down ECU and its slowdown factor."""
+        return dict(self._slowdown)
+
     def _sits_out(self, ecu: str) -> bool:
         skip = self._skip.get(ecu, 0)
         if skip <= 0:

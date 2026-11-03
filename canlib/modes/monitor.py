@@ -720,6 +720,26 @@ class MonitorController:
                 detail = f"{ecu} answers promptly again: back to its normal poll rate"
             log_event("config", detail, level=logging.INFO, transport=self.transport_type)
 
+    def reset_backoff(self) -> None:
+        """Restore every slowed-down ECU to its normal poll rate.
+
+        Clears both halves of the slowdown: the backoff's history and the scheduler's
+        factor. Resetting only the backoff would leave the scheduler stretching an ECU
+        the backoff no longer tracks, so nothing would ever restore it.
+        """
+        slowed = set(self.backoff.slowed()) | set(self.schedule.slowed())
+        for ecu in sorted(slowed):
+            self.schedule.set_slowdown(ecu, 1)
+            self.link_events.backoff(ecu, 1)
+        self.backoff.reset()
+        if slowed:
+            log_event(
+                "config",
+                f"poll rates restored after reconnecting: {', '.join(sorted(slowed))}",
+                level=logging.INFO,
+                transport=self.transport_type,
+            )
+
     def ecu_notes(self) -> dict[str, str]:
         """Header note per slowed-down ECU, keyed by its display label."""
         notes: dict[str, str] = {}
@@ -1104,6 +1124,10 @@ class MonitorController:
         same ``--save`` session. Clears :attr:`disconnected` so the poll loop
         resumes. The new client must match the controller's transport kind (the
         reconnector filters candidates to the same transport).
+
+        Every ECU's poll rate is restored too: a desynchronised pipe makes every ECU
+        look unanswered, so by the time the liveness check reconnects they are all
+        backed off, and the old link's timings say nothing about the new one.
         """
         if self.raw:
             self.raw_client = new_client
@@ -1111,6 +1135,7 @@ class MonitorController:
         else:
             self.terminal = new_client
             self.sm = SessionManager(new_client, verbose=self.verbose)
+        self.reset_backoff()
         self.disconnected = False
 
 

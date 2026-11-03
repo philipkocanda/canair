@@ -24,7 +24,9 @@ SLOW_READ_S = 0.5
 MAX_SLOWDOWN = 32
 # Consecutive slow polls before the first slowdown (one cold first read is not a
 # pattern); once slowed, each further slow poll doubles it again. Consecutive healthy
-# polls before each step back.
+# polls before the first step back (an ECU that answers only now and then keeps
+# climbing); from then on each healthy poll halves it again, since a slowed ECU is
+# polled so rarely that a streak per step would keep a woken ECU slow for many minutes.
 ESCALATE_AFTER = 2
 RECOVER_AFTER = 3
 
@@ -85,7 +87,6 @@ class EcuBackoff:
             return None
         h.ok_streak += 1
         if h.ok_streak >= RECOVER_AFTER:
-            h.ok_streak = 0
             h.slowdown //= 2
             return h.slowdown
         return None
@@ -104,7 +105,12 @@ class EcuBackoff:
         return {ecu: h.slowdown for ecu, h in self._ecus.items() if h.slowdown > 1}
 
     def reset(self) -> None:
-        """Forget every ECU's history (after a reconnect, the old link's timings say nothing)."""
+        """Forget every ECU's history (after a reconnect, the old link's timings say nothing).
+
+        The scheduler keeps its own copy of each slowdown, so restore those too (the
+        monitor's ``reset_backoff`` does both): an ECU forgotten here is never reported
+        as back to 1, and would otherwise stay slow for the whole session.
+        """
         self._ecus.clear()
 
 
