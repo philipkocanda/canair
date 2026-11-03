@@ -203,3 +203,9 @@ class TestDidReplies:
         from canlib.dtc.snapshot import did_replies
 
         assert did_replies("5904") == [] and did_replies("zz") == []
+
+    def test_a_several_did_record_gives_nothing(self):
+        # Splitting it needs the first DID's length, which this helper does not know.
+        from canlib.dtc.snapshot import did_replies
+
+        assert did_replies("5904582C0008" + "0102" + "0101AABB" + "0102CC") == []

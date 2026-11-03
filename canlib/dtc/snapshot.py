@@ -152,12 +152,13 @@ def parse_snapshot_reply(
 
 
 def did_replies(reply_hex: str) -> list[tuple[str, str]]:
-    """``(read PID, live-equivalent reply)`` per DID of a one-record ``59 04`` reply.
+    """``(read PID, live-equivalent reply)`` for a one-DID record of a one-record ``59 04``.
 
     ``59 04 … 4710 <data>`` gives ``("224710", "624710<data>")``: the reply a live read of
-    the DID would have given, which is how its signals decode a snapshot. Only the DIDs
-    the reply describes by itself are returned (a one-DID record, or a record's last DID);
-    a malformed reply gives nothing.
+    the DID would have given, which is how its signals decode a snapshot. Only a record
+    holding a single DID describes itself; a record with several DIDs needs every DID's
+    length but the last, which this profile-free helper does not know, so it gives nothing
+    (as does a malformed reply).
     """
     try:
         parsed = parse_snapshot_reply(
