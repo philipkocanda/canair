@@ -119,8 +119,17 @@ def _is_request_echo(data_lines: list[str], request: str | None) -> bool:
         sent = _compact(request)
         if not sent:
             return False
-        return first == sent or (
-            len(first) == len(sent) + 1 and first.startswith(sent) and first[-1] in _HEX_DIGITS
+        if first == sent:
+            return True
+        # The request plus one count digit — unless the next line is frame 0, which
+        # makes the line the ISO-TP length token of an echo-off reply (`03A` after a
+        # `03` request), not an echo.
+        follows_frame = len(data_lines) > 1 and _FRAME_LINE.match(data_lines[1].upper())
+        return (
+            len(first) == len(sent) + 1
+            and first.startswith(sent)
+            and first[-1] in _HEX_DIGITS
+            and not follows_frame
         )
     if len(data_lines) < 2 or len(first) < 2 or not _is_hex(first):
         return False

@@ -96,6 +96,23 @@ class TestRequestEchoStripping:
         r = parse_uds_response("010D1\n410D32", request="010D1")
         assert r["hex"] == "410D32"
 
+    def test_a_length_token_spelling_the_request_plus_a_digit_is_kept(self):
+        # Echo off: `03A` is the First Frame length of a mode 03 reply, not the `03`
+        # request plus a count digit; dropping it lost the declared length.
+        payload = "43" + "AB" * (0x3A - 1)
+        frames = [payload[:12]] + [payload[i : i + 14] for i in range(12, len(payload), 14)]
+        raw = "03A\n" + "\n".join(f"{n:X}:{f}" for n, f in enumerate(frames))
+        r = parse_uds_response(raw, request="03")
+        assert r["ok"] is True
+        assert r["isotp_declared_len"] == 0x3A
+        assert len(r["bytes"]) == 0x3A
+
+    def test_an_echo_with_digit_ahead_of_a_multiframe_reply_is_stripped(self):
+        raw = "22C00B3\n00A\n0:62C00BAABBCC\n1:DDEEFF00"
+        r = parse_uds_response(raw, request="22C00B")
+        assert r["ok"] is True
+        assert r["isotp_declared_len"] == 10
+
     def test_echo_spaces_and_case_ignored(self):
         r = parse_uds_response("01 0d\n41 0D 32", request="010D")
         assert r["hex"] == "410D32"
