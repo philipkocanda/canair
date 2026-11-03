@@ -64,7 +64,25 @@ commercial scan tool opens it on every Kona EV powertrain ECU. No quirk can perm
 a programming or safety-system session. `canair validate` checks
 every actuator's `session_mode` against the same rule. A refused request stops
 the command with `error: …` (exit code 2); `--unsafe` turns the refusal into a
-prompt you must answer `YES`; the same prompt covers every refusal on this page.
+prompt you must answer `YES`. The same prompt covers every refusal above, but not
+the broadcast rule below.
+
+Anything that is neither hex bytes nor an AT command is refused too, because the
+blocklist cannot tell what it sends: an STN adapter's `STPX`, for one, puts any
+frame on the bus. Whitespace inside hex (spaces, tabs, newlines) is ignored, as
+the transports ignore it.
+
+### Broadcasts
+
+A request on the functional id (`0x7DF`, or `0x18DB33F1` in a 29-bit mode) is
+heard by every ECU the gateway routes it to at once, so it gets a stricter rule:
+it must be one of the reads `canair discover --functional` lists (TesterPresent,
+one DID, ReadEcuIdentification, the DTC-by-status reads, one OBD-II mode 01 PID).
+That holds whichever command sends it, `canair raw 7DF:…` and the REPL included,
+and `--unsafe` does not change it. A clear-DTCs, a session change or an
+IOControl to every ECU at once is not something to do by accident. A profile that
+registers an ECU on the functional id (a car whose ECUs take their requests there)
+addresses that ECU under the ordinary rules.
 
 These exist to make it very hard to brick a real car by accident. The block is
 enforced centrally, not per-command, so it can't be quietly bypassed by a
@@ -104,12 +122,12 @@ gateway passes it to every network. A profile defines such a request as an
 *action* in `actions.yaml` (`canair action add`), and `canair action run NAME`
 sends it. A profile cannot use this to get around the rules above:
 
-- **Every request still goes through the blocklist.** `10 D1` is an OEM session,
-  so it is refused like any other. An action may send a refused request only when
-  a code-owned quirk grants exactly that request on that id (`hk_forced_sleep`
-  grants `10 D1` on `0x7DF` and nothing else), and only for the length of the
-  action's own send. The same quirk does not make `canair read "raw 7DF:10D1"`
-  work, and `--unsafe` has no effect on an action.
+- **Every request still goes through the blocklist.** `10 D1` is an OEM session
+  sent as a broadcast, so it is refused twice over. An action may send a refused
+  request only when a code-owned quirk grants exactly that request on that id
+  (`hk_forced_sleep` grants `10 D1` on `0x7DF` and nothing else), and only for the
+  length of the action's own send. The same quirk does not make
+  `canair read "raw 7DF:10D1"` work, and `--unsafe` has no effect on an action.
 - **Every action is guarded.** It must name PIDs to read (`reads:`) and a
   condition on them (`require:`). canair reads them live, and only a TRUE result
   passes: a signal that did not read leaves the condition UNKNOWN, which refuses

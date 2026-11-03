@@ -18,7 +18,13 @@ RoutineControl (``0x31``) is judged the same way: its reprogramming routine ids
 
 A *functional* (broadcast) request is judged by a separate, stricter rule,
 :func:`check_functional_request`: an allow-list of reads that ``--unsafe`` cannot
-widen, since one frame reaches every routed ECU at once.
+widen, since one frame reaches every routed ECU at once. It applies to every request
+sent to a functional id that no ECU of the profile is registered on, whichever command
+sends it (``discover --functional``, ``raw``, the REPL), and only an exact grant of a
+guarded profile action lifts it.
+
+Anything that is neither hex bytes nor an AT command (an STN ``STPX``, which sends
+arbitrary frames) is refused: what the guard cannot read, it does not let through.
 """
 
 from __future__ import annotations
@@ -221,10 +227,11 @@ class SessionPolicy:
     not registered at all (a discovery sweep), resolves to ``unknown``. The
     default instance knows nothing, so the stricter reading always applies.
 
-    ``grants`` are exact ``(tx_id, request hex)`` session requests whose *soft*
-    block is lifted. :meth:`from_profile` never sets them: only a guarded profile
-    action (:mod:`canlib.actions`) adds them, through :meth:`granting`, for the
-    duration of its own send.
+    ``grants`` are exact ``(tx_id, request hex)`` requests whose *soft* session block
+    is lifted, and which may go to a functional id although they are not one of
+    :data:`FUNCTIONAL_READS`. :meth:`from_profile` never sets them: only a guarded
+    profile action (:mod:`canlib.actions`) adds them, through :meth:`granting`, for
+    the duration of its own send.
     """
 
     protocols: Mapping[int, DiagProtocol] = field(default_factory=dict)
@@ -253,6 +260,10 @@ class SessionPolicy:
     def protocol(self, tx_id: int | None) -> DiagProtocol:
         return UNKNOWN if tx_id is None else self.protocols.get(tx_id, UNKNOWN)
 
+    def registered(self, tx_id: int) -> bool:
+        """Whether an ECU of the profile is addressed on ``tx_id``."""
+        return tx_id in self.protocols
+
     def allowed_for(self, protocol: DiagProtocol) -> frozenset[int]:
         return self.allowed.get(protocol, frozenset())
 
@@ -263,7 +274,7 @@ class SessionPolicy:
 
     def granting(self, grants: Collection[tuple[int, str]]) -> SessionPolicy:
         """This policy plus the exact session requests ``grants`` permits."""
-        normalized = frozenset((tx, req.replace(" ", "").upper()) for tx, req in grants)
+        normalized = frozenset((tx, _compact_hex(req)) for tx, req in grants)
         return replace(self, grants=self.grants | normalized)
 
     def is_granted(self, request: str, tx_id: int | None) -> bool:
@@ -278,25 +289,73 @@ class SessionPolicy:
 _NO_POLICY: Final = SessionPolicy()
 
 
+def _compact_hex(text: str) -> str:
+    """``text`` upper-cased with every whitespace character removed.
+
+    ``bytes.fromhex`` skips any whitespace, tabs and newlines included, so the guard
+    must judge the same bytes the transport will send.
+    """
+    return "".join(text.split()).upper()
+
+
+def _is_hex(text: str) -> bool:
+    return bool(text) and all(c in "0123456789ABCDEF" for c in text)
+
+
+def functional_block(
+    cmd: str, policy: SessionPolicy | None = None, tx_id: int | None = None
+) -> str | None:
+    """Why ``cmd`` may not be sent to ``tx_id`` as a broadcast, or None.
+
+    Applies to a functional id no ECU of the profile is registered on (a profile may
+    declare a functional-TX ECU, which is then addressed like any other). An odd
+    length is an ELM327 request plus its expected-frame-count digit, which never
+    reaches the bus, so it is judged without it. ``--unsafe`` cannot lift this
+    refusal; an exact grant (:meth:`SessionPolicy.granting`) can.
+    """
+    from .addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
+
+    if tx_id not in (FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID):
+        return None
+    active = policy or _NO_POLICY
+    request = _compact_hex(cmd)
+    if request.startswith("AT") or active.registered(tx_id):
+        return None
+    if active.is_granted(request, tx_id):
+        return None
+    if len(request) % 2 and _is_hex(request):
+        request = request[:-1]
+    return check_functional_request(request)
+
+
 def check_command_safety(
     cmd: str, policy: SessionPolicy | None = None, tx_id: int | None = None
 ) -> str | None:
     """Check if a command is potentially dangerous.
 
     Returns an error message if the command is blocked, or None if safe.
-    Checks both raw UDS hex commands and AT commands.
+    Checks both raw UDS hex commands and AT commands; anything else is refused.
 
     ``policy``/``tx_id`` give a session request (``10 xx``) its target's protocol
-    and the profile's allowances; without them the stricter reading applies.
+    and the profile's allowances; without them the stricter reading applies. A
+    request to an unregistered functional id must also be one of
+    :data:`FUNCTIONAL_READS` (:func:`functional_block`).
     """
-    clean = cmd.strip().upper()
+    hex_only = _compact_hex(cmd)
 
-    if clean.startswith("AT"):
+    if hex_only.startswith("AT") or not hex_only:
         return None
 
-    hex_only = clean.replace(" ", "")
-    if not hex_only or not all(c in "0123456789ABCDEF" for c in hex_only):
-        return None
+    if not _is_hex(hex_only):
+        return (
+            f"BLOCKED: {cmd.strip()!r} is neither hex bytes nor an AT command, so the "
+            "blocklist cannot judge what it sends; re-run with --unsafe if you are certain "
+            "it is safe"
+        )
+
+    broadcast = functional_block(hex_only, policy, tx_id)
+    if broadcast is not None:
+        return broadcast
 
     if len(hex_only) < 2:
         return None
@@ -361,8 +420,8 @@ def check_functional_request(request: str) -> str | None:
     writes, IOControl and routines all fall outside :data:`FUNCTIONAL_READS`, so
     they are refused; ``--unsafe`` plays no part.
     """
-    clean = request.replace(" ", "").upper()
-    if len(clean) % 2 or not clean or not all(c in "0123456789ABCDEF" for c in clean):
+    clean = _compact_hex(request)
+    if len(clean) % 2 or not _is_hex(clean):
         return f"BLOCKED: functional request {request!r} is not hex bytes"
     if any(_matches_shape(clean, shape) for shape, _ in FUNCTIONAL_READS):
         return None
@@ -387,7 +446,7 @@ async def enforce_command_safety(
     if not blocked:
         return
 
-    if not unsafe:
+    if not unsafe or functional_block(cmd, policy, tx_id) is not None:
         log_command(f"{cmd}  !! {blocked}")
         raise SafetyBlocked(blocked)
 

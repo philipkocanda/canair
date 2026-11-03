@@ -214,8 +214,47 @@ class TestCheckCommandSafety:
 
     def test_empty_and_nonsense(self):
         assert check_command_safety("") is None
-        assert check_command_safety("hello") is None
         assert check_command_safety("A") is None  # single hex char
+
+    def test_text_that_is_neither_hex_nor_at_is_refused(self):
+        """What the guard cannot read it does not let through (an STN STPX sends any frame)."""
+        assert "BLOCKED" in check_command_safety("hello")
+        assert "BLOCKED" in check_command_safety("STPX H:7E0,D:2EF19000")
+
+    @pytest.mark.parametrize("cmd", ["10\t02", "10\n02", "2E\tF1\n90 00", " 11\r01 "])
+    def test_any_whitespace_is_judged_as_the_transport_sends_it(self, cmd):
+        """bytes.fromhex skips tabs and newlines too, so the guard must not be fooled by them."""
+        assert bytes.fromhex(cmd)  # the bytes a raw transport would put on the bus
+        assert "BLOCKED" in check_command_safety(cmd)
+
+
+class TestBroadcastRequests:
+    """Any request to an unregistered functional id must be an allowed functional read."""
+
+    @pytest.mark.parametrize("tx", [0x7DF, 0x18DB33F1])
+    @pytest.mark.parametrize("cmd", ["14FFFFFF", "04", "8502", "1003", "2FBC1003", "3101FF00"])
+    def test_a_state_change_cannot_be_broadcast(self, tx, cmd):
+        assert "may not be sent functionally" in check_command_safety(cmd, SessionPolicy(), tx)
+
+    @pytest.mark.parametrize("cmd", ["14FFFFFF", "04", "8502", "1003"])
+    def test_the_same_request_sent_physically_is_not_refused(self, cmd):
+        assert check_command_safety(cmd, SessionPolicy(), 0x7E0) is None
+
+    @pytest.mark.parametrize("cmd", ["3E00", "22F190", "0100", "1A87", "190208"])
+    def test_an_allowed_read_may_be_broadcast(self, cmd):
+        assert check_command_safety(cmd, SessionPolicy(), 0x7DF) is None
+
+    def test_the_elm327_frame_count_digit_is_not_part_of_the_request(self):
+        assert check_command_safety("3E001", SessionPolicy(), 0x7DF) is None
+        assert check_command_safety("14FFFFFF1", SessionPolicy(), 0x7DF) is not None
+
+    def test_a_registered_functional_tx_ecu_is_addressed_like_any_other(self):
+        policy = SessionPolicy({0x7DF: UDS})
+        assert check_command_safety("1003", policy, 0x7DF) is None
+        assert check_command_safety("1002", policy, 0x7DF) is not None
+
+    def test_without_a_policy_the_broadcast_rule_applies(self):
+        assert check_command_safety("14FFFFFF", None, 0x7DF) is not None
 
 
 # ── check_command_safety: service and routine blocklist ──────────────────────

@@ -2,7 +2,7 @@
 
 import pytest
 
-from canlib.safety import enforce_command_safety
+from canlib.safety import SafetyBlocked, enforce_command_safety
 
 
 class TestEnforceCommandSafety:
@@ -37,3 +37,14 @@ class TestEnforceCommandSafety:
         monkeypatch.setattr("builtins.input", _raise)
         with pytest.raises(ValueError):
             await enforce_command_safety("3400", unsafe=True)
+
+    @pytest.mark.asyncio
+    async def test_unsafe_cannot_broadcast_a_refused_request(self, monkeypatch):
+        """The functional allow-list is never widened: --unsafe does not even prompt."""
+
+        def _never(*a):
+            raise AssertionError("prompted for a broadcast")
+
+        monkeypatch.setattr("builtins.input", _never)
+        with pytest.raises(SafetyBlocked, match="functionally"):
+            await enforce_command_safety("14FFFFFF", unsafe=True, tx_id=0x7DF)
