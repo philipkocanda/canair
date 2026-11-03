@@ -9,16 +9,19 @@ messages that completed. :class:`Reassembler` is the same rules fed one frame at
 a time, for the functional responder sweep, which listens to many ECUs at once.
 
 Every lost frame is counted, never repaired. A sequence gap, a new message that
-starts before the previous one finished, and a consecutive frame with no First
-Frame each cost exactly one message, tallied once in :class:`ReassemblyStats`
-(a lost message's trailing consecutive frames are not counted again). A truncated
-payload is therefore never handed to the caller, which keeps a half-captured
-multi-frame reply from becoming a believable-looking capture.
+starts before the previous one finished, a consecutive frame with no First Frame
+and a First Frame this reader cannot use each cost exactly one message, tallied
+once in :class:`ReassemblyStats` (a lost message's trailing consecutive frames are
+not counted again). Those trailing frames are told from the next message's by their
+sequence number: every message's first consecutive frame is numbered 1, so a 1 that
+does not follow a 0 starts another message. A truncated payload is therefore never
+handed to the caller, which keeps a half-captured multi-frame reply from becoming a
+believable-looking capture.
 
-Scope: classic CAN (8-byte frames) with *normal* addressing, where the PCI byte is
-the first data byte. Extended addressing (the PCI byte follows a target-address
-byte) and the CAN-FD / 32-bit-length escapes are not understood and are counted as
-``malformed`` rather than guessed at.
+Scope: *normal* addressing, where the PCI byte is the first data byte, including the
+32-bit First Frame length of a message over 4095 bytes. Extended addressing (the PCI
+byte follows a target-address byte) and the CAN-FD single-frame length escape are
+not understood and are counted as ``malformed`` rather than guessed at.
 """
 
 from __future__ import annotations
@@ -63,7 +66,7 @@ class ReassemblyStats:
         return self.truncated + self.orphan_runs
 
 
-@dataclass
+@dataclass(slots=True)
 class _Partial:
     length: int
     buf: bytearray
@@ -87,9 +90,10 @@ class Reassembler:
     def __init__(self, stats: ReassemblyStats) -> None:
         self.stats = stats
         self._partial: dict[_Key, _Partial] = {}
-        # Keys whose message was lost part-way: the rest of that same message's
-        # consecutive frames are expected, and must not be counted as an orphan run.
-        self._lost_run: set[_Key] = set()
+        # Keys whose message was lost part-way, with the sequence number of the last
+        # frame seen (0 for a First Frame): the rest of that same message's consecutive
+        # frames are expected, and must not be counted as another orphan run.
+        self._lost_run: dict[_Key, int] = {}
 
     @property
     def open(self) -> int:
@@ -107,30 +111,32 @@ class Reassembler:
             return None
 
         if pci == _CONSECUTIVE:
+            seq = data[0] & 0x0F
             open_msg = partial.get(key)
-            if open_msg is None:
-                if key not in lost_run:
-                    stats.orphan_runs += 1
-                    lost_run.add(key)
+            if open_msg is not None and seq == open_msg.next_seq & 0x0F:
+                open_msg.buf += data[1:]
+                open_msg.next_seq += 1
+                if len(open_msg.buf) >= open_msg.length:
+                    del partial[key]
+                    stats.messages += 1
+                    return IsoTpMessage(ts, *key, bytes(open_msg.buf[: open_msg.length]))
                 return None
-            if data[0] & 0x0F != open_msg.next_seq & 0x0F:
+            if open_msg is not None:
                 del partial[key]
                 stats.truncated += 1
-                lost_run.add(key)
-                return None
-            open_msg.buf += data[1:]
-            open_msg.next_seq += 1
-            if len(open_msg.buf) >= open_msg.length:
-                del partial[key]
-                stats.messages += 1
-                return IsoTpMessage(ts, *key, bytes(open_msg.buf[: open_msg.length]))
+                last: int | None = (open_msg.next_seq - 1) & 0x0F
+            else:
+                last = lost_run.get(key)
+            if last is None or _starts_message(last, seq):
+                stats.orphan_runs += 1
+            lost_run[key] = seq
             return None
 
         # A single or first frame on a key still mid-message: the earlier
         # message's remaining frames never arrived.
         if partial.pop(key, None) is not None:
             stats.truncated += 1
-        lost_run.discard(key)
+        lost_run.pop(key, None)
 
         if pci == _SINGLE:
             size = data[0] & 0x0F
@@ -140,11 +146,12 @@ class Reassembler:
             stats.messages += 1
             return IsoTpMessage(ts, *key, data[1 : 1 + size])
         if pci == _FIRST:
-            length = ((data[0] & 0x0F) << 8) | data[1] if len(data) > 1 else 0
-            if length <= 7:
-                stats.malformed += 1  # 0 is the 32-bit escape; 1-7 belongs in a single frame
+            length, start = _first_frame_length(data)
+            if length is None:
+                stats.malformed += 1
+                lost_run[key] = 0  # its consecutive frames are this one message, not another
                 return None
-            partial[key] = _Partial(length, bytearray(data[2:]))
+            partial[key] = _Partial(length, bytearray(data[start:]))
             return None
         stats.malformed += 1
         return None
@@ -153,6 +160,33 @@ class Reassembler:
         """End of stream: every message still open lost its remaining frames."""
         self.stats.truncated += len(self._partial)
         self._partial.clear()
+
+
+def _starts_message(last_seq: int, seq: int) -> bool:
+    """Is a consecutive frame numbered ``seq`` the first of a new message?
+
+    Every message numbers its first consecutive frame 1 (its First Frame counting as
+    0), and within one message a 1 only ever follows a 0, at a wrap.
+    """
+    return seq == 1 and last_seq != 0
+
+
+def _first_frame_length(data: bytes) -> tuple[int | None, int]:
+    """``(message length, offset of the first payload byte)`` of a First Frame.
+
+    The length is None when the frame cannot start a multi-frame message: a 12-bit
+    length of 1-7 belongs in a single frame, and the 32-bit escape (a 12-bit length
+    of 0) is only valid for a message too long for 12 bits.
+    """
+    if len(data) < 2:
+        return None, 2
+    length = ((data[0] & 0x0F) << 8) | data[1]
+    if length:
+        return (length if length > 7 else None), 2
+    if len(data) < 6:
+        return None, 6
+    length = int.from_bytes(data[2:6], "big")
+    return (length if length > 0xFFF else None), 6
 
 
 def reassemble(

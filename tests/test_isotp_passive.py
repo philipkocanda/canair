@@ -111,6 +111,49 @@ class TestLostFrames:
         )
         assert msgs == [] and stats.malformed == 4
 
+    def test_an_unusable_first_frame_costs_one_message(self):
+        # Its consecutive frames belong to the message it failed to start, not to another.
+        for header in (bytes([0x10, 0x05]), bytes([0x10, 0x00, 0x00, 0x00, 0x00, 0x14])):
+            frames = message_frames(ECU, bytes(range(20)))
+            frames[0] = frame(ECU, header + bytes(8 - len(header)))
+            msgs, stats = run(frames)
+            assert msgs == []
+            assert (stats.malformed, stats.orphan_runs, stats.lost) == (1, 0, 0)
+
+    def test_back_to_back_lost_first_frames_are_two_orphan_runs(self):
+        first = message_frames(ECU, bytes(range(20)))[1:]
+        second = message_frames(ECU, bytes(range(30, 50)))[1:]
+        msgs, stats = run([*first, *second])
+        assert msgs == [] and stats.orphan_runs == 2
+
+    def test_a_lost_first_frame_after_a_truncated_message_is_counted(self):
+        truncated = message_frames(ECU, bytes(range(40)))
+        del truncated[2]
+        orphan = message_frames(ECU, bytes(range(20)))[1:]
+        msgs, stats = run([*truncated, *orphan])
+        assert msgs == [] and (stats.truncated, stats.orphan_runs) == (1, 1)
+
+    def test_a_wrap_is_not_mistaken_for_a_new_message(self):
+        frames = message_frames(ECU, bytes(i % 251 for i in range(130)))[1:]  # SN 1..F,0,1,…
+        msgs, stats = run(frames)
+        assert msgs == [] and stats.orphan_runs == 1
+
+
+class TestLongMessages:
+    def test_the_32_bit_first_frame_length_is_read(self):
+        payload = bytes(i % 251 for i in range(4100))
+        first = frame(ECU, bytes([0x10, 0x00]) + len(payload).to_bytes(4, "big") + payload[:2])
+        rest = [
+            frame(ECU, bytes([0x20 | (n & 0x0F)]) + payload[start : start + 7])
+            for n, start in enumerate(range(2, len(payload), 7), start=1)
+        ]
+        msgs, stats = run([first, *rest])
+        assert [m.payload for m in msgs] == [payload] and stats.lost == 0
+
+    def test_the_32_bit_escape_for_a_short_message_is_malformed(self):
+        msgs, stats = run([frame(ECU, bytes([0x10, 0x00, 0, 0, 0, 0x14, 1, 2]))])
+        assert msgs == [] and stats.malformed == 1
+
 
 class TestTrackedIds:
     BROADCAST = 0x4E2
