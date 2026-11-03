@@ -97,8 +97,8 @@ __all__ = [
 
 
 def _is_nrc(entry: ResultEntry) -> bool:
-    """A negative response (``multi_batch._error_result``'s ``NRC 0x..`` error)."""
-    return str(entry.get("error", "")).startswith("NRC")
+    """A negative response: the result's builder sets its ``nrc``."""
+    return entry.get("nrc") is not None
 
 
 def _answered(entry: ResultEntry) -> bool:

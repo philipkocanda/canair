@@ -162,7 +162,7 @@ class TestElmPollCost:
                 ]
             return "BMS (0x7E4)", [
                 {"pid": "2101", "raw_hex": "6101AA", "elapsed_ms": 20, "request_s": 0.02},
-                {"pid": "2102", "error": "NRC 0x31 (ROOR)", "request_s": 0.03},
+                {"pid": "2102", "error": "NRC 0x31 (ROOR)", "nrc": 0x31, "request_s": 0.03},
             ]
 
         monkeypatch.setattr("canlib.modes.multi._exec_query", fake_exec_query)

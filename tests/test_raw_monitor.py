@@ -71,6 +71,11 @@ class TestRawPidResult:
     def test_negative_response_nrc(self):
         r = _raw_pid_result("22B004", None, False, bytes.fromhex("7F2213"), 3.0)
         assert "NRC 0x13" in r["error"]
+        assert r["nrc"] == 0x13
+
+    def test_a_truncated_negative_response_carries_no_code(self):
+        r = _raw_pid_result("22B004", None, False, bytes.fromhex("7F22"), 3.0)
+        assert "too short" in r["error"] and "nrc" not in r
 
     def test_timeout_none(self):
         r = _raw_pid_result("2101", {"parameters": {}}, False, None, 4.0)

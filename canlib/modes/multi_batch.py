@@ -47,6 +47,8 @@ class ResultEntry(TypedDict):
     decode: NotRequired[str | None]
     unmapped: NotRequired[bool]
     error: NotRequired[str]
+    # The negative response code when ``error`` is a negative response.
+    nrc: NotRequired[int]
     stale: NotRequired[bool]
     sensitive: NotRequired[bool]
     # Payload indices of the PID's declared support-map bytes (display only; never recorded).
@@ -343,8 +345,14 @@ def _decode_pid_result(
 def _error_result(
     pid_code: str, unmapped: bool, resp: UdsResponse, acquired_at: float | None
 ) -> ResultEntry:
-    error = resp.get("error") or resp.get("nrc_desc", "unknown")
+    entry: ResultEntry = {
+        "pid": pid_code,
+        "error": resp.get("error") or resp.get("nrc_desc", "unknown"),
+        "unmapped": unmapped,
+        "acquired_at": acquired_at,
+    }
     nrc = resp.get("nrc")
     if nrc is not None:
-        error = f"NRC 0x{nrc:02X} ({resp['nrc_desc']})"
-    return {"pid": pid_code, "error": error, "unmapped": unmapped, "acquired_at": acquired_at}
+        entry["error"] = f"NRC 0x{nrc:02X} ({resp['nrc_desc']})"
+        entry["nrc"] = nrc
+    return entry

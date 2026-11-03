@@ -1318,3 +1318,22 @@ def test_the_elm327_warmup_read_is_one_validated_transaction(monkeypatch):
     ]
     assert terminal.uds_kwargs[0]["expected_sid"] == 0x22
     assert terminal.uds_kwargs[0]["expected_echo"] == bytes.fromhex("BC03")
+
+
+class TestNrcClassification:
+    """A negative response is told apart by its code, not by its error text."""
+
+    def test_the_elm327_error_result_carries_the_code(self):
+        from canlib.modes.multi_batch import _error_result
+
+        r = _error_result("2101", False, {"ok": False, "nrc": 0x31, "nrc_desc": "ROOR"}, 1.0)
+        assert r["nrc"] == 0x31 and r["error"] == "NRC 0x31 (ROOR)"
+        assert "nrc" not in _error_result("2101", False, {"ok": False, "error": "NO DATA"}, 1.0)
+
+    def test_is_nrc_reads_the_code(self):
+        from canlib.modes.monitor import _answered, _is_nrc
+
+        assert _is_nrc({"pid": "2101", "error": "NRC 0x31 (ROOR)", "nrc": 0x31})
+        # An error whose text merely starts with the letters is not an answer.
+        assert not _is_nrc({"pid": "2101", "error": "NRC-like adapter text"})
+        assert not _answered({"pid": "2101", "error": "timeout"})

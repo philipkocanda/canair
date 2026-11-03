@@ -312,7 +312,9 @@ class TestControllerHooks:
         assert c.disconnected
         assert journal.rows == [("event", "disconnect", _at(1), 1, "stale", None)]
         # The first coherent answer after the reconnect closes it; an NRC counts.
-        c._displayify(("BMS", "2101"), {"error": "NRC 0x31", "acquired_at": _at(9).timestamp()})
+        c._displayify(
+            ("BMS", "2101"), {"error": "NRC 0x31", "nrc": 0x31, "acquired_at": _at(9).timestamp()}
+        )
         assert journal.rows[-1] == ("end", 1, _at(9))
 
     def test_mark_disconnected_records_the_cause(self):

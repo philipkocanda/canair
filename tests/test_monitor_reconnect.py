@@ -506,9 +506,9 @@ class TestStaleEscalation:
 
         monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 2)
         c = self._controller()
-        self._cycle(c, {"error": "NRC 0x31 requestOutOfRange"})
-        self._cycle(c, {"error": "NRC 0x31 requestOutOfRange"})
-        self._cycle(c, {"error": "NRC 0x31 requestOutOfRange"})
+        self._cycle(c, {"error": "NRC 0x31 requestOutOfRange", "nrc": 0x31})
+        self._cycle(c, {"error": "NRC 0x31 requestOutOfRange", "nrc": 0x31})
+        self._cycle(c, {"error": "NRC 0x31 requestOutOfRange", "nrc": 0x31})
         assert c.dead_cycles == 0
         assert c.disconnected is False
 

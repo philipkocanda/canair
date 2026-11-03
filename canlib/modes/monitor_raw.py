@@ -76,14 +76,17 @@ def _raw_pid_result(
     if resp[0] == 0x7F:  # negative response: 7F <sid> <nrc>
         from canlib.uds.nrc import nrc_description
 
-        error = (
-            f"NRC 0x{resp[2]:02X} ({nrc_description(resp[2], protocol)})"
-            if len(resp) >= 3
-            else f"negative response too short: {resp.hex().upper()}"
-        )
+        if len(resp) < 3:
+            return {
+                "pid": pid_code,
+                "error": f"negative response too short: {resp.hex().upper()}",
+                "unmapped": unmapped,
+                "acquired_at": acquired_at,
+            }
         return {
             "pid": pid_code,
-            "error": error,
+            "error": f"NRC 0x{resp[2]:02X} ({nrc_description(resp[2], protocol)})",
+            "nrc": resp[2],
             "unmapped": unmapped,
             "acquired_at": acquired_at,
         }
