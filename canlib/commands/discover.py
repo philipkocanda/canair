@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Mapping
 
 from canlib.commands._live import add_connection_args, finalize_live_parser, run_live
 
@@ -151,25 +152,36 @@ def functional_args_error(args) -> str | None:
     return None
 
 
-def _addressing_error() -> str | None:
-    """The profile's addressing mode has no functional id canair can use."""
+def _profile_error() -> str | None:
+    """Why the profile rules out a functional sweep (its addressing or CAN-FD), or None."""
     from canlib.addressing import AddressingMode, resolve_mode
     from canlib.pids import load_pids
     from canlib.profile import ProfileError
+    from canlib.transport.functional import CAN_FD_REFUSAL, classic_can
+    from canlib.transport.isotp_params import build_isotp_params
 
     try:
-        mode = resolve_mode(load_pids())
+        pids_data = load_pids()
     except ProfileError:
         return None
+    mode = resolve_mode(pids_data)
     if mode in (AddressingMode.NORMAL_EXTENDED_11BIT, AddressingMode.EXTENDED_29BIT):
         return f"--functional does not support the {mode.value} addressing mode"
+    if mode == AddressingMode.NORMAL_29BIT:
+        return (
+            "--functional does not support the normal_29bit addressing mode: only "
+            "normal_fixed_29bit replies (0x18DAF1xx) can be recognised"
+        )
+    isotp = pids_data.get("isotp")
+    if not classic_can(build_isotp_params(dict(isotp) if isinstance(isotp, Mapping) else None)):
+        return f"--functional: {CAN_FD_REFUSAL}"
     return None
 
 
 def run(args) -> int:
     error = functional_args_error(args)
     if error is None and getattr(args, "functional", False):
-        error = _addressing_error()
+        error = _profile_error()
     if error is not None:
         print(f"error: {error}", file=sys.stderr)
         return 2

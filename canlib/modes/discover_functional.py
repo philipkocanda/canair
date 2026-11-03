@@ -15,8 +15,9 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Any
+from typing import Any, TextIO
 
 from canlib.transport.functional import DEFAULT_WINDOW_S
 from canlib.transport.protocol import Terminal
@@ -37,13 +38,13 @@ DEFAULT_REQUEST = "3E00"
 MIN_INTERVAL_S = 1.0
 
 
-def _print_round(sweep: SweepRound, total: int, out) -> None:
+def _print_round(sweep: SweepRound, total: int, out: TextIO) -> None:
     head = f"Round {sweep.index}/{total}" if total > 1 else "Responders"
     print(f"\n  --- {head} ({sweep.time}): {len(sweep.responders)} answered ---", file=out)
     for bus, rows in group_by_bus(sweep.responders).items():
         print(f"  {bus}", file=out)
         for r in rows:
-            mark = "+" if r.status == "positive" else "~"
+            mark = "+" if r.positive else "?" if not r.answered else "~"
             tag = r.name or "NEW"
             timing = f"  {r.elapsed_ms} ms" if r.elapsed_ms is not None else ""
             pending = f"  ({r.pending}x pending)" if r.pending else ""
@@ -63,9 +64,11 @@ def _print_round(sweep: SweepRound, total: int, out) -> None:
             print(f"    {hex_id(o.rx_id)}: {o.payload_hex}", file=out)
     if sweep.lost:
         print(f"  Lost: {sweep.lost} reply/replies missing frames (not shown)", file=out)
+    for note in sweep.notes:
+        print(f"  Note: {note}", file=out)
 
 
-def _print_summary(rounds: list[SweepRound], out) -> None:
+def _print_summary(rounds: list[SweepRound], out: TextIO) -> None:
     """Per responder, how many rounds it answered (a dropped bus shows up here)."""
     answered: dict[int, tuple[str, int]] = {}
     for sweep in rounds:
@@ -88,7 +91,7 @@ async def mode_discover_functional(
     as_json: bool = False,
     save: bool = False,
     label: str | None = None,
-    vehicle_states=None,
+    vehicle_states: list[str] | str | None = None,
     notes: str | None = None,
     register: bool = False,
     dry_run: bool = False,
@@ -164,7 +167,15 @@ async def mode_discover_functional(
     return rounds
 
 
-def _save(terminal, rounds, tx_id, request, label, vehicle_states, notes) -> None:
+def _save(
+    terminal: Terminal,
+    rounds: Sequence[SweepRound],
+    tx_id: int,
+    request: str,
+    label: str | None,
+    vehicle_states: list[str] | str | None,
+    notes: str | None,
+) -> None:
     from canlib.captures import build_manual_session, resolve_metadata, save_session_journaled
     from canlib.transport.stats import client_transport
 

@@ -10,17 +10,25 @@ when to stop listening. It is pure; the raw and ELM327 terminals feed it frames
 acts on :meth:`FunctionalCollector.feed` asking for flow control.
 
 Stopping: after the window (default :data:`DEFAULT_WINDOW_S`), unless a
-responder is mid-message (wait up to ISO-TP's N_Cr for its next frame) or has
+responder is mid-message (wait up to ISO-TP's N_Cr for *its* next frame) or has
 asked for more time with ResponsePending (``7F xx 78``), which the spec follows
-with a final reply within 5 s. See ``plans/2026-10-30-functional-addressing-followups.md``.
+with a final reply within 5 s. A message idle for longer than N_Cr is abandoned
+(counted lost), and nothing keeps the collector listening past
+:data:`ABSOLUTE_CAP_S` beyond the window, however much other traffic arrives. See
+``plans/2026-10-30-functional-addressing-followups.md``.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 from canlib.uds.isotp_passive import Reassembler, ReassemblyStats, is_first_frame
+from canlib.uds.response import CAT_DROP
+
+if TYPE_CHECKING:
+    from .stats import TransportStats
 
 # How long to listen after a functional request: the 50 ms an ECU has to start its
 # answer, plus gateway delay and the 100 kbit/s buses, with room to spare.
@@ -34,6 +42,23 @@ CONSECUTIVE_FRAME_TIMEOUT_S: Final = 1.0
 # them is capped as on the physical raw path (`uds_raw.PENDING_TOTAL_TIMEOUT`).
 PENDING_EXTENSION_S: Final = 5.0
 PENDING_TOTAL_S: Final = 20.0
+
+# The longest a collector listens past its window, whatever arrives: every
+# ResponsePending extension, then one message's last gap.
+ABSOLUTE_CAP_S: Final = PENDING_TOTAL_S + CONSECUTIVE_FRAME_TIMEOUT_S
+
+# ISO-TP frame types (the PCI byte's high nibble).
+_CONSECUTIVE_FRAME: Final = 2
+_FLOW_CONTROL: Final = 3
+
+# The answer to a request opens with its SID + 0x40, or 0x7F.
+_POSITIVE_OFFSET: Final = 0x40
+_NEGATIVE_RESPONSE: Final = 0x7F
+
+CAN_FD_REFUSAL: Final = (
+    "a functional request is sent and reassembled as classic CAN only, and the "
+    "profile's isotp: block selects CAN-FD (can_fd, or a tx_data_length other than 8)"
+)
 
 # Lowest 11-bit diagnostic id a response may arrive on (ES95486: 0x700-0x7FF).
 _DIAG_11BIT_LOW: Final = 0x700
@@ -76,6 +101,11 @@ def functional_request_bytes(tx_id: int, request: str) -> bytes:
     return bytes.fromhex(request.replace(" ", ""))
 
 
+def classic_can(isotp_params: Mapping[str, object]) -> bool:
+    """Whether resolved ISO-TP params (``build_isotp_params``) mean 8-byte classic frames."""
+    return not isotp_params.get("can_fd") and isotp_params.get("tx_data_length", 8) == 8
+
+
 def single_frame(request: bytes, padding: int) -> bytes:
     """``request`` as one classic-CAN single frame, DLC 8 (ECUs ignore a shorter one)."""
     if not 1 <= len(request) <= 7:
@@ -112,6 +142,20 @@ class FunctionalResult:
     messages: list[FunctionalMessage] = field(default_factory=list)
     # Messages known to have lost frames (never handed back truncated).
     lost: int = 0
+    # What the transport could not do for this request, for the report to say
+    # (an adapter that refused a command, so some replies may be missing).
+    notes: list[str] = field(default_factory=list)
+
+
+def record_functional_losses(diag: TransportStats, result: FunctionalResult) -> None:
+    """Tally each reply that lost frames as a drop on the terminal's diagnostics."""
+    for _ in range(result.lost):
+        diag.record(
+            CAT_DROP,
+            ecu=f"0x{result.tx_id:X}",
+            pid=result.request.hex().upper(),
+            detail="a functional reply lost frames",
+        )
 
 
 def is_pending(payload: bytes, request_sid: int) -> bool:
@@ -129,6 +173,13 @@ class FunctionalCollector:
 
     Times are the caller's monotonic clock, in seconds; ``started`` is when the
     request went out.
+
+    Only a First Frame that opens an answer to the request (its first byte the
+    request SID + 0x40, or 0x7F) asks for flow control and holds the window open:
+    another tester's multi-frame request falls in the same id block, and flow
+    control for it would land on some ECU's request id. Each held message is
+    timed on its own last frame, so a responder that stalls mid-message is given
+    up on after N_Cr however busy the others are.
     """
 
     def __init__(
@@ -146,15 +197,46 @@ class FunctionalCollector:
         self._started = started
         self._deadline = started + window
         self._pending_cap = started + PENDING_TOTAL_S
-        self._last_frame = started
+        self._hard_stop = started + window + ABSOLUTE_CAP_S
+        # Responders mid-answer -> when their last frame arrived.
+        self._open: dict[int, float] = {}
+        # Responders whose answer stalled past N_Cr: the rest of that message is
+        # ignored, and the reassembler counts it lost when it ends.
+        self._abandoned: set[int] = set()
 
-    def feed(self, can_id: int, data: bytes, now: float) -> bool:
-        """Take one received frame; True when it is a First Frame to flow-control."""
-        if not accepts_response_id(can_id, self._extended, self._result.tx_id):
+    def _answers(self, first_byte: bytes) -> bool:
+        return first_byte in (
+            bytes([(self._result.request[0] + _POSITIVE_OFFSET) & 0xFF]),
+            bytes([_NEGATIVE_RESPONSE]),
+        )
+
+    def _expire(self, now: float) -> None:
+        for can_id, last in list(self._open.items()):
+            if now >= last + CONSECUTIVE_FRAME_TIMEOUT_S:
+                del self._open[can_id]
+                self._abandoned.add(can_id)
+
+    def feed(self, can_id: int, data: bytes, now: float, *, extended: bool | None = None) -> bool:
+        """Take one received frame; True when it is a First Frame to flow-control.
+
+        ``extended`` is the frame's own format (default: from the id's value).
+        """
+        if extended is None:
+            extended = can_id > 0x7FF
+        if not data or not accepts_response_id(can_id, extended, self._result.tx_id):
             return False
-        self._last_frame = now
-        message = self._reassembler.feed((None, can_id, self._extended), data, now)
+        self._expire(now)
+        pci = data[0] >> 4
+        if pci == _FLOW_CONTROL:
+            return False
+        if can_id in self._abandoned:
+            if pci == _CONSECUTIVE_FRAME:
+                return False
+            self._abandoned.discard(can_id)
+        malformed, truncated = self._stats.malformed, self._stats.truncated
+        message = self._reassembler.feed((None, can_id, extended), data, now)
         if message is not None:
+            self._open.pop(can_id, None)
             self._result.messages.append(
                 FunctionalMessage(can_id, message.payload, round((now - self._started) * 1000))
             )
@@ -162,20 +244,35 @@ class FunctionalCollector:
                 self._deadline = max(
                     self._deadline, min(now + PENDING_EXTENSION_S, self._pending_cap)
                 )
-        return is_first_frame(data)
+            return False
+        if pci == _CONSECUTIVE_FRAME:
+            if can_id in self._open:
+                if self._stats.truncated == truncated:
+                    self._open[can_id] = now
+                else:
+                    del self._open[can_id]
+            return False
+        # A single or first frame ends whatever this responder had open.
+        self._open.pop(can_id, None)
+        opened = is_first_frame(data) and self._stats.malformed == malformed
+        if not opened or not self._answers(data[2:3]):
+            return False
+        self._open[can_id] = now
+        return True
 
     def done(self, now: float) -> bool:
         """Whether to stop listening (see the module docstring)."""
-        if now < self._deadline:
-            return False
-        return not self._reassembler.open or now >= self._last_frame + CONSECUTIVE_FRAME_TIMEOUT_S
+        if now >= self._hard_stop:
+            return True
+        self._expire(now)
+        return now >= self._deadline and not self._open
 
     def remaining(self, now: float) -> float:
         """Seconds until :meth:`done` could next become true (at least a tick)."""
         until = self._deadline - now
-        if until <= 0 and self._reassembler.open:
-            until = self._last_frame + CONSECUTIVE_FRAME_TIMEOUT_S - now
-        return max(until, 0.005)
+        if until <= 0 and self._open:
+            until = min(self._open.values()) + CONSECUTIVE_FRAME_TIMEOUT_S - now
+        return max(min(until, self._hard_stop - now), 0.005)
 
     def result(self) -> FunctionalResult:
         """The collected messages; a message still open at this point is lost."""

@@ -89,6 +89,10 @@ the physical sweep.
   control on that ECU's own request ID. An ELM327 (`wican-ws`, `elm327-tcp`) is best-effort: the
   adapter handles flow control and decides when to stop listening, and overlapping multi-frame
   replies are where it is weakest.
+- **Slow answers:** an ECU that only sent ResponsePending (`7F xx 78`) by the end of the window
+  is listed as `pending`, not as silent.
+- **Limits:** profiles on CAN-FD, and on `normal_29bit` addressing (free-form 29-bit reply IDs),
+  are refused; `normal_fixed_29bit` (`0x18DAF1xx` replies) works.
 
 `--save` records each round as a discover-style capture, one entry per responder.
 

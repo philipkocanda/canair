@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, NamedTuple
 
 from canlib.addressing import AddressingMode, physical_request_id
 from canlib.captures.types import CaptureRecord, RespondingEntry, ScanResults
@@ -27,21 +27,37 @@ NOT_IN_PROFILE = "not in profile"
 
 @dataclass(frozen=True)
 class Responder:
-    """One ECU's answer. ``tx_id`` is its physical request id (where flow control went)."""
+    """One ECU's answer. ``tx_id`` is its physical request id (where flow control went).
+
+    ``answered`` False: the ECU sent only ResponsePending, and no final reply came
+    within the window; ``payload_hex`` is then its last ResponsePending.
+    """
 
     rx_id: int
     tx_id: int
     name: str | None  # None: the profile does not know this response id
     can_bus: tuple[str, ...]
-    status: str  # "positive" or "NRC 0xNN"
+    nrc: int | None  # the final reply's NRC; None for a positive one
     detail: str  # the NRC's meaning, empty for a positive reply
     payload_hex: str
     elapsed_ms: int | None
     pending: int = 0  # ResponsePending replies before the final one
+    answered: bool = True
 
     @property
     def known(self) -> bool:
         return self.name is not None
+
+    @property
+    def positive(self) -> bool:
+        return self.answered and self.nrc is None
+
+    @property
+    def status(self) -> str:
+        """``positive``, ``NRC 0xNN``, or ``pending`` (no final reply)."""
+        if not self.answered:
+            return "pending"
+        return "positive" if self.nrc is None else f"NRC 0x{self.nrc:02X}"
 
     @property
     def bus_key(self) -> str:
@@ -82,6 +98,17 @@ class SweepRound:
     silent: list[SilentEcu] = field(default_factory=list)
     other: list[OtherMessage] = field(default_factory=list)
     lost: int = 0
+    # Caveats from the transport (FunctionalResult.notes).
+    notes: list[str] = field(default_factory=list)
+
+
+class _Reply(NamedTuple):
+    """The reply a responder's row shows."""
+
+    payload_hex: str
+    elapsed_ms: int | None
+    nrc: int | None
+    nrc_desc: str
 
 
 def _buses(entry: Mapping[str, Any]) -> tuple[str, ...]:
@@ -106,6 +133,8 @@ def classify_round(
     ``ecus`` is :func:`canlib.ecus.load_ecus` output (keyed by request id, each
     entry with its resolved ``rx_id``/``address``/``can_bus``). A responder's
     last reply counts; ResponsePending replies before it are counted, not shown.
+    A responder that sent only ResponsePending is listed as ``pending``: it is
+    there, it just gave no final answer in time.
     """
     request = result.request
     req_hex = request.hex().upper()
@@ -114,15 +143,17 @@ def classify_round(
     by_rx = {int(entry["rx_id"]): (tx, entry) for tx, entry in ecus.items()}
     by_tx = {tx: entry["address"] for tx, entry in ecus.items() if "address" in entry}
 
-    sweep = SweepRound(index=index, time=time, lost=result.lost)
+    sweep = SweepRound(index=index, time=time, lost=result.lost, notes=list(result.notes))
     pending: dict[int, int] = {}
-    final: dict[int, tuple[str, int | None, int | None, str]] = {}
+    last_pending: dict[int, _Reply] = {}
+    final: dict[int, _Reply] = {}
     for message in result.messages:
+        payload_hex = message.payload.hex().upper()
         if is_pending(message.payload, request[0]):
             pending[message.rx_id] = pending.get(message.rx_id, 0) + 1
+            last_pending[message.rx_id] = _Reply(payload_hex, message.elapsed_ms, None, "")
             continue
         known = by_rx.get(message.rx_id)
-        payload_hex = message.payload.hex().upper()
         resp = parse_uds_response(
             payload_hex,
             expected_sid=request[0],
@@ -134,14 +165,13 @@ def classify_round(
         if not resp.get("ok") and nrc is None:
             sweep.other.append(OtherMessage(message.rx_id, payload_hex))
             continue
-        final[message.rx_id] = (
-            payload_hex,
-            message.elapsed_ms,
-            nrc,
-            str(resp.get("nrc_desc", "")),
+        final[message.rx_id] = _Reply(
+            payload_hex, message.elapsed_ms, nrc, str(resp.get("nrc_desc", ""))
         )
 
-    for rx_id, (payload_hex, elapsed_ms, nrc, nrc_desc) in final.items():
+    replies = [(rx_id, reply, True) for rx_id, reply in final.items()]
+    replies += [(rx_id, r, False) for rx_id, r in last_pending.items() if rx_id not in final]
+    for rx_id, reply, answered in replies:
         known = by_rx.get(rx_id)
         if known is not None:
             tx_id, entry = known
@@ -155,11 +185,12 @@ def classify_round(
                 tx_id=tx_id,
                 name=name,
                 can_bus=buses,
-                status="positive" if nrc is None else f"NRC 0x{nrc:02X}",
-                detail="" if nrc is None else nrc_desc,
-                payload_hex=payload_hex,
-                elapsed_ms=elapsed_ms,
+                nrc=reply.nrc,
+                detail=reply.nrc_desc if answered else "no final reply within the window",
+                payload_hex=reply.payload_hex,
+                elapsed_ms=reply.elapsed_ms,
                 pending=pending.get(rx_id, 0),
+                answered=answered,
             )
         )
 
@@ -221,6 +252,7 @@ def round_to_json(sweep: SweepRound) -> dict[str, Any]:
         ],
         "other": [{"rx": hex_id(o.rx_id), "payload": o.payload_hex} for o in sweep.other],
         "lost": sweep.lost,
+        "notes": list(sweep.notes),
     }
 
 

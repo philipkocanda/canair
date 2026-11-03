@@ -67,7 +67,12 @@ async def raw_functional_exchange(
                 continue
             if msg.is_error_frame or msg.is_remote_frame:
                 continue
-            if not collector.feed(msg.arbitration_id, bytes(msg.data), time.monotonic()):
+            if not collector.feed(
+                msg.arbitration_id,
+                bytes(msg.data),
+                time.monotonic(),
+                extended=bool(msg.is_extended_id),
+            ):
                 continue
             target = flow_control_to(msg.arbitration_id)
             if target is not None:

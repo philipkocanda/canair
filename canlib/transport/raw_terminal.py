@@ -44,7 +44,13 @@ from ..frame_counts import FrameCountLedger, frames_for_payload
 from ..log import log_response
 from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
-from .functional import DEFAULT_WINDOW_S, FunctionalResult, functional_request_bytes
+from .functional import (
+    CAN_FD_REFUSAL,
+    DEFAULT_WINDOW_S,
+    FunctionalResult,
+    functional_request_bytes,
+    record_functional_losses,
+)
 from .functional_raw import raw_functional_exchange
 from .isotp_stack import build_isotp_stack
 from .uds_raw import (
@@ -211,9 +217,12 @@ class RawTerminal:
         """Broadcast ``request`` on the functional id ``tx_id`` and collect every reply.
 
         Raises :class:`~canlib.safety.SafetyBlocked` for anything but an allowed
-        read (:func:`~canlib.safety.check_functional_request`).
+        read (:func:`~canlib.safety.check_functional_request`), and ValueError on
+        a CAN-FD profile (the request and its flow control are classic frames).
         """
         req = functional_request_bytes(tx_id, request)
+        if not self._classic_can:
+            raise ValueError(CAN_FD_REFUSAL)
         result = await raw_functional_exchange(
             self.bus,
             self.notifier,
@@ -225,12 +234,26 @@ class RawTerminal:
             flow_control_to=self._functional_fc_target,
         )
         self.cmd_count += 1
+        record_functional_losses(self.diag, result)
         return result
 
     def _functional_fc_target(self, rx_id: int) -> int | None:
-        """Where a functional responder's flow control goes (None: its stack sends it)."""
-        target = physical_request_id(rx_id, self.addr_map, self.rx_offset, self.mode)
-        return None if target in self._stacks else target
+        """Where a functional responder's flow control goes (None: its stack sends it).
+
+        A stack canair already runs for the ECU listening on ``rx_id`` answers the
+        First Frame itself. Stacks are keyed by request id, which is not where flow
+        control goes when the ECU has an ``fc_id``, so match on what each listens to.
+        """
+        for stack_tx in self._stacks:
+            addr = self.addr_map.get(stack_tx)
+            listens = (
+                addr.rx_id
+                if addr is not None
+                else resolve_rx(stack_tx, rx_offset=self.rx_offset, mode=self.mode)
+            )
+            if listens == rx_id:
+                return None
+        return physical_request_id(rx_id, self.addr_map, self.rx_offset, self.mode)
 
     async def enter_extended_session(
         self, wake: bool = False, mode: str = "03"
