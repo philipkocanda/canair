@@ -47,6 +47,10 @@ class SessionManager:
         # monitor TUI status bar / session-type picker).
         self._session_modes: dict[int, str] = {}
         self._bg_task: asyncio.Task | None = None
+        # Seconds spent sending keepalives, inline or from the background task. The
+        # live monitor takes it out of an ECU's poll cost: on a serial ELM327 pipe a
+        # keepalive to another ECU is not time the polled ECU held everyone up.
+        self.keepalive_seconds = 0.0
 
     async def rapid_read_wake(self, tx_id: int, plan: WakePlan) -> bool:
         """Rouse a fast-sleeping ECU by firing a cheap request back-to-back.
@@ -165,12 +169,14 @@ class SessionManager:
             else:
                 if self.verbose:
                     print(f"  [session] Sending wake-up (1001) to 0x{tx_id:03X}...")
-                await self.terminal.send_uds("1001", timeout=15.0)
+                await self.terminal.send_uds("1001", timeout=15.0, expected_sid=0x10)
                 await asyncio.sleep(0.5)
 
         if self.verbose:
             print(f"  [session] Entering session (10{mode}) on 0x{tx_id:03X}...")
-        resp = await self.terminal.send_uds(req, timeout=5.0)
+        # Checked by service, so a stale reply to an earlier read is not taken for
+        # an open session (see elm327_session for why the sub-function is not).
+        resp = await self.terminal.send_uds(req, timeout=5.0, expected_sid=0x10)
 
         if resp.get("ok"):
             if self.verbose:
@@ -200,8 +206,14 @@ class SessionManager:
         """
         try:
             async with self.terminal.transaction():
-                await self.terminal.set_header(tx_id)
-                resp = await self.terminal.send_uds("3E00", timeout=1.5, expected_sid=0x3E)
+                # Timed inside the transaction: a background keepalive queued behind a
+                # slow read must not count that read's time as its own.
+                t0 = time.monotonic()
+                try:
+                    await self.terminal.set_header(tx_id)
+                    resp = await self.terminal.send_uds("3E00", timeout=1.5, expected_sid=0x3E)
+                finally:
+                    self.keepalive_seconds += time.monotonic() - t0
         except ConnectionError:
             # The pipe could not be realigned — surface it so the caller's
             # reconnect path runs rather than silently polling a broken link.

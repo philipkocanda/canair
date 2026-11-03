@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from canlib.poll_backoff import (
     ESCALATE_AFTER,
     MAX_SLOWDOWN,
@@ -10,6 +12,7 @@ from canlib.poll_backoff import (
     PollCost,
     describe_slowdown,
 )
+from tests._fakes import FakeTerminal, nrc, ok
 
 SILENT = PollCost(reads=4, seconds=4.0, answered=0)
 SLUGGISH = PollCost(reads=2, seconds=1.6, answered=2)
@@ -135,7 +138,7 @@ class TestElmPollCost:
                 time.sleep(0.01)
                 return "SKM (0x7A5)", [{"pid": p, "error": "NO DATA"} for p, _i, _u in due]
             return "BMS (0x7E4)", [
-                {"pid": "2101", "raw_hex": "6101AA"},
+                {"pid": "2101", "raw_hex": "6101AA", "elapsed_ms": 20},
                 {"pid": "2102", "error": "NRC 0x31 (ROOR)"},
             ]
 
@@ -156,3 +159,80 @@ class TestElmPollCost:
         skm, bms = c.ecu_costs["SKM"], c.ecu_costs["BMS"]
         assert (skm.reads, skm.answered) == (2, 0) and skm.seconds >= 0.01
         assert (bms.reads, bms.answered) == (2, 2)  # an NRC is an answer
+
+
+class _ElmTerminal(FakeTerminal):
+    """A FakeTerminal with the ELM327 counters the monitor reads, and a slow 3E00."""
+
+    cmd_count = 0
+    cmd_time = 0.0
+    keepalive_delay = 0.0
+
+    async def send_uds(self, req: str, *args, **kwargs):
+        if req == "3E00":
+            await asyncio.sleep(self.keepalive_delay)
+            return ok("7E00")
+        return await super().send_uds(req, *args, **kwargs)
+
+
+def _igpm_controller(terminal: _ElmTerminal, **index_extra):
+    """A real controller polling IGPM's three DIDs through the real executor."""
+    from canlib.modes.monitor import MonitorController
+    from canlib.modes.multi_batch import BatchState
+
+    steps = [{"type": "query", "ecu": "IGPM", "pids": []}]
+    c = MonitorController(terminal, steps, {}, verbose=False, schedule="fixed")
+    c._ecu_index = {
+        "IGPM": {
+            "tx_id": 0x770,
+            "pids": {code: {"parameters": {}} for code in ("22BC03", "22BC04", "22BC06")},
+            **index_extra,
+        }
+    }
+    c._batch_state = BatchState()
+    return c
+
+
+def _poll(c) -> None:
+    c.schedule.begin_tick(0.0)
+    asyncio.run(c._poll_elm())
+
+
+class TestElmCostAttribution:
+    def test_a_batch_counts_as_one_request(self):
+        # Counting its three DIDs as three reads divided one slow request by three, so
+        # it rarely crossed SLOW_READ_S.
+        multi = "62BC03FDEE3C730A000000BC04B53FF4EA01000042BC06B480000000000000AAAA"
+        c = _igpm_controller(_ElmTerminal({"22BC03BC04BC06": ok(multi)}), multi_did=True)
+        assert c._batch_state is not None
+        for d in ("BC03", "BC04", "BC06"):
+            c._batch_state.lengths[(0x770, d)] = 8
+        _poll(c)
+        assert c.terminal.sent == ["22BC03BC04BC06"]
+        cost = c.ecu_costs["IGPM"]
+        assert (cost.reads, cost.answered) == (1, 1)
+
+    def test_single_reads_count_one_each(self):
+        responses = {
+            "22BC03": ok("62BC03FDEE3C730A000000AAAA"),
+            "22BC06": nrc(0x31, "requestOutOfRange"),
+        }  # 22BC04 times out (the fake's NO DATA default)
+        c = _igpm_controller(_ElmTerminal(responses))
+        _poll(c)
+        cost = c.ecu_costs["IGPM"]
+        assert (cost.reads, cost.answered) == (3, 2)
+
+    def test_keepalives_for_other_ecus_are_not_its_cost(self):
+        # The executor refreshes every stale session before each read; on the serial
+        # pipe that is time spent for other ECUs, not time IGPM held everyone up.
+        import time
+
+        term = _ElmTerminal({"22BC03": ok("62BC03FDEE3C730A000000AAAA")})
+        term.keepalive_delay = 0.2
+        c = _igpm_controller(term)
+        assert c.sm is not None
+        c.sm._sessions[0x7A5] = time.monotonic() - 10.0  # SKM's session is stale
+        _poll(c)
+        assert "3E00" not in term.sent  # answered by the subclass, never recorded
+        assert c.sm.keepalive_seconds >= 0.2
+        assert c.ecu_costs["IGPM"].seconds < 0.1

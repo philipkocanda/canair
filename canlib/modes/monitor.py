@@ -90,9 +90,29 @@ __all__ = [
 ]
 
 
+def _is_nrc(entry: ResultEntry) -> bool:
+    """A negative response (``multi_batch._error_result``'s ``NRC 0x..`` error)."""
+    return str(entry.get("error", "")).startswith("NRC")
+
+
 def _answered(entry: ResultEntry) -> bool:
     """A coherent reply: a payload, or a negative response (a prompt refusal)."""
-    return bool(entry.get("raw_hex")) or str(entry.get("error", "")).startswith("NRC")
+    return bool(entry.get("raw_hex")) or _is_nrc(entry)
+
+
+def _request_outcomes(entries: Sequence[ResultEntry]) -> tuple[int, int]:
+    """``(requests, answered)`` behind one ECU step's ``entries``, counted per request.
+
+    A multi-DID batch answers several PIDs with one request, so counting entries would
+    spread one slow request over its members and hide it from the backoff. Only a single
+    read stamps ``elapsed_ms`` on a payload (``_decode_pid_result``); a batch's members
+    carry none and share the one ``acquired_at`` of their reply. Errors are always
+    single reads (a failed batch falls back to per-DID reads), so every batch answered.
+    """
+    batches = {e.get("acquired_at") for e in entries if e.get("raw_hex") and "elapsed_ms" not in e}
+    singles = [e for e in entries if not e.get("raw_hex") or "elapsed_ms" in e]
+    answered = sum(1 for e in singles if _answered(e)) + len(batches)
+    return len(singles) + len(batches), answered
 
 
 def _label_ecu(label: str) -> str:
@@ -836,6 +856,7 @@ class MonitorController:
                 return due
 
             step_t0 = _t.monotonic()
+            keepalive0 = self.sm.keepalive_seconds
             try:
                 result = await _exec_query(
                     self.sm,
@@ -854,12 +875,15 @@ class MonitorController:
                 self.mark_disconnected("error")
                 return
             if result is not None and due_on:
-                # The ELM327 pipe is serial: this step's wall time is exactly how long
-                # this ECU kept every other ECU waiting.
+                # The ELM327 pipe is serial: this step's wall time is how long this ECU
+                # kept every other ECU waiting — less the keepalives sent meanwhile to
+                # keep *other* ECUs' sessions open, which are no fault of this one.
+                keepalives = self.sm.keepalive_seconds - keepalive0
+                requests, answered = _request_outcomes(result[1])
                 self.ecu_costs[due_on[0]] = PollCost(
-                    reads=len(result[1]),
-                    seconds=_t.monotonic() - step_t0,
-                    answered=sum(1 for e in result[1] if _answered(e)),
+                    reads=requests,
+                    seconds=max(0.0, _t.monotonic() - step_t0 - keepalives),
+                    answered=answered,
                 )
             if result is not None:
                 label, pids = result
@@ -937,7 +961,7 @@ class MonitorController:
             self._last_good[key] = entry
             self._cycle_answered = True
             return entry
-        if str(entry.get("error", "")).startswith("NRC"):
+        if _is_nrc(entry):
             self._cycle_answered = True
             return entry
         last = self._last_good.get(key)
