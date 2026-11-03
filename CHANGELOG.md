@@ -15,6 +15,76 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [4.3.0](https://github.com/philipkocanda/canair/compare/v4.2.1...v4.3.0) (2026-11-03)
+
+
+### Added
+
+* **contribute:** offer to drop what the PR holds, and attach the log by default ([06465b7](https://github.com/philipkocanda/canair/commit/06465b79cecb8d1d757a7d538627c291e5285d93))
+* **investigate:** explain missing support maps and mute map bytes in the monitor ([14a5470](https://github.com/philipkocanda/canair/commit/14a5470b0791f2ed422b0c3a0edca04b6aec212a))
+* **investigate:** read support maps one bit per parameter on the service-21 pages ([71aa3d7](https://github.com/philipkocanda/canair/commit/71aa3d7da7f57e09211e8910fd14fe8dd539a919))
+
+
+### Fixed
+
+* **contribute:** scrub every IPv4 and IPv6 form from the attached log ([fa61cb5](https://github.com/philipkocanda/canair/commit/fa61cb5c4ab061ffb4129d92dd3bd10c9021eba8))
+* **discover:** bound a functional sweep and flow-control only real answers ([81a9879](https://github.com/philipkocanda/canair/commit/81a9879674af1e4a1bfc9f82e2130d5bd21c8b86))
+* **discover:** let every responder through an ELM327 functional sweep ([d460473](https://github.com/philipkocanda/canair/commit/d460473497c218a8bd9a8487a2e18ab3ec68dee8))
+* **dtc:** never take a variable-length PID's live length for a snapshot DID ([1fd339c](https://github.com/philipkocanda/canair/commit/1fd339c12df5360c0bd4fa5306b3e8f80ecfb6a2))
+* **dtc:** refuse a snapshot reply for a record other than the one requested ([bbda05c](https://github.com/philipkocanda/canair/commit/bbda05c030559d3ebacc861a27c89adef6f6f152))
+* **identity:** name the Hyundai/Kia one-lower answer instead of reporting silence ([fa37dbc](https://github.com/philipkocanda/canair/commit/fa37dbcd6835fee39826d61f4b1265e4e3ff756a))
+* **identity:** read KWP2000's not-in-this-session refusal as unsupported in the probe ([f152688](https://github.com/philipkocanda/canair/commit/f152688dc924bad6384a92df5930e11f912840dd))
+* **import:** count only lost replies in a log import's quality.drop ([0ecff94](https://github.com/philipkocanda/canair/commit/0ecff94e11be2c7c66b38ddb9a91d094bf9a8391))
+* **import:** skip a batched reply in a log even when later requests were pipelined ([b1391cd](https://github.com/philipkocanda/canair/commit/b1391cdad40b64a17c2d632b2c742c5539fa53d0))
+* **io:** accept only a request that hands the output back as an actuator's release ([4a4e635](https://github.com/philipkocanda/canair/commit/4a4e635604ef6a3cdc31933114ecbc906ca17c95))
+* **monitor:** charge an ELM327 ECU only for its own requests ([81b3e90](https://github.com/philipkocanda/canair/commit/81b3e90498c1e923c2862be66edf041c747a5209))
+* **monitor:** learn a DID's length without stripping data that looks like padding ([69cd097](https://github.com/philipkocanda/canair/commit/69cd097d999288b2bffe67c59ab38982bc4fe8e7))
+* **monitor:** reject a zero or negative --interval ([d7ad60d](https://github.com/philipkocanda/canair/commit/d7ad60df386450c4773d3a648057236bd77f5211))
+* **monitor:** resolve an ECU alias on the raw poll path as the ELM path does ([a1380f7](https://github.com/philipkocanda/canair/commit/a1380f78ff94c5207a4ec5e5de05d0ce4ab1d094))
+* **monitor:** restore every ECU's poll rate after a reconnect ([f13df61](https://github.com/philipkocanda/canair/commit/f13df61c535aeb6ee9afa578fdbe9fe0793bff9d))
+* **monitor:** send the ELM327 warm-up read as one validated transaction ([1b75feb](https://github.com/philipkocanda/canair/commit/1b75feb599bd3d2291abe09b6be455a478247a3a))
+* **monitor:** slow only the PID that holds up the poll, not its whole ECU ([491fb01](https://github.com/philipkocanda/canair/commit/491fb01f17df319941a93d8d72a0ee093691dbe6))
+* **monitor:** type the raw-submission facade with the poller's Submission ([3afb803](https://github.com/philipkocanda/canair/commit/3afb803f0f1f213b9ac5facb4542b07704affa4a))
+* **query:** pick defined PIDs by prefix in a live read, as the capture tools do ([ab70dfa](https://github.com/philipkocanda/canair/commit/ab70dfa63769dd1ad6f83973b01762134676a613))
+* **query:** refuse an undefined PID token that names no single read ([9d505bb](https://github.com/philipkocanda/canair/commit/9d505bb7e080265a073b58a9988a425c5be20b48))
+* **read:** keep every ECU's session alive when reading several ECUs' signals ([929db93](https://github.com/philipkocanda/canair/commit/929db936c508384c4ab41503326da2ba24a1c480))
+* **safety:** refuse broadcast state changes and requests the guard cannot read ([987c79b](https://github.com/philipkocanda/canair/commit/987c79b82deb721034a1f17bcd5fe0d5972f2dd9))
+* **transport:** count an ELM327 count retry's plain reply as frame-count evidence ([f608a59](https://github.com/philipkocanda/canair/commit/f608a592a0d358c81d63ec9c888730948da8195b))
+* **transport:** track the adapter's ECU wait and restore the init after a self-reset ([adb2b94](https://github.com/philipkocanda/canair/commit/adb2b94a517ab39fa9da3b5fcfcc43ac6e1b6c44))
+* **transport:** validate session replies and never seed a count on a shared request id ([fe67ed9](https://github.com/philipkocanda/canair/commit/fe67ed91157f3890f086d93f2ec454d8ee239251))
+* **uds:** classify the several-replies refusals as stale from their message too ([4790803](https://github.com/philipkocanda/canair/commit/479080399d4ab4744cead52d2df5a22fe0b69585))
+* **uds:** count each message lost in a passive ISO-TP log exactly once ([afb0fb0](https://github.com/philipkocanda/canair/commit/afb0fb07ee1694ef3e93b4cf2cd282ea52a995f8))
+* **uds:** ignore a multi-frame length token too small to be a First Frame ([7546400](https://github.com/philipkocanda/canair/commit/7546400dbb86c8a9e4cb58ef8b3ad51a520f24a1))
+* **uds:** keep a length token that spells the request plus a count digit ([da511be](https://github.com/philipkocanda/canair/commit/da511bea28b26664983fdb53b28a006d57964445))
+* **uds:** refuse an OBD-II support bitmap that is not 4 bytes ([b914a39](https://github.com/philipkocanda/canair/commit/b914a392f502e936e0d25de5fae5a1b556b2eb96))
+* **uds:** skip a ResponsePending line between replies, not just ahead of them ([c545ccb](https://github.com/philipkocanda/canair/commit/c545ccb203752c16efdda6aa527547c925978685))
+* **uds:** split adapter text on bare CR line endings too ([073c971](https://github.com/philipkocanda/canair/commit/073c9715a5d50a55061727b22e329f3a02a568cf))
+* **uds:** stop naming UDS-only response codes on KWP2000 ECUs ([c863dd1](https://github.com/philipkocanda/canair/commit/c863dd148ae0af6bb641a7e6d3b75ac42d9ffa1a))
+* **uds:** tell single-frame replies apart by the request's identifier ([3494d06](https://github.com/philipkocanda/canair/commit/3494d060ce667250a22578ef18706e8f057b7f08))
+
+
+### Changed
+
+* **discover:** pass the functional sweep's parsed values, not an `or` fallback ([fed3f33](https://github.com/philipkocanda/canair/commit/fed3f33970e39aa22678bdbb1ec096525afb7632))
+* **isotp:** remove the unused resolve_tx_padding ([b4ffa5e](https://github.com/philipkocanda/canair/commit/b4ffa5ee23c84f1e78a19372aceed6f124866a01))
+* **monitor:** carry the NRC code on a result instead of matching its text ([dfeeefc](https://github.com/philipkocanda/canair/commit/dfeeefc94a01eace9d4c8fee238d526075761479))
+* **monitor:** resolve a step's ECU name through one lookup on every path ([a5e9550](https://github.com/philipkocanda/canair/commit/a5e95505da86377616e231d7934c0ee555099c52))
+* **monitor:** type the scheduler's plan entries and slot the backoff records ([a418fc5](https://github.com/philipkocanda/canair/commit/a418fc57be234f7cb413b3628c0dd72da2babc13))
+* **transport:** give ResponsePending and the ELM327 command helpers one home ([2bbd45c](https://github.com/philipkocanda/canair/commit/2bbd45c00bd1f1ad62c8e83799e6ff10a60e663b))
+* **uds:** type response categories and NRC protocols as their literals ([20873e5](https://github.com/philipkocanda/canair/commit/20873e5a0ff83a566615f5a3f21f61617b328096))
+
+
+### Documentation
+
+* **agents:** record the transport and protocol fixes in the agent guide ([85855b9](https://github.com/philipkocanda/canair/commit/85855b966ae523908dfc83a2ccdbb195d1e9bb8f))
+* **dtc:** say a variable-length DID needs its snapshot length declared ([d554612](https://github.com/philipkocanda/canair/commit/d55461203e58f559cc4e063704c7465cfad8f6c5))
+* **dtc:** say did_replies returns only a one-DID record's reply ([148f36d](https://github.com/philipkocanda/canair/commit/148f36d6e532a6b104668601684e9219c39a1442))
+* **hyundai-ioniq-ae-ev:** narrow the pack-current mismatch to low loads ([6d5f0ac](https://github.com/philipkocanda/canair/commit/6d5f0acc7664b90994ddd55447faa18b1ffe07bc))
+* **hyundai-ioniq-ae-ev:** read the 12 V bus word and bound the top-ups ([285341d](https://github.com/philipkocanda/canair/commit/285341d975901d2480105904f29428c5ae1e7029))
+* **hyundai-ioniq-ae-ev:** record how the parked 12 V top-up ends ([ef06f14](https://github.com/philipkocanda/canair/commit/ef06f14614a8594ec27cf374eb074cc36eb23a0f))
+* say a reconnect restores poll rates, and fix stale padding and long lines ([09dca1c](https://github.com/philipkocanda/canair/commit/09dca1c81bc9147cbd0044d68c4e03e78ac3337f))
+* **skills:** point agents at support maps before decoding a record ([302310d](https://github.com/philipkocanda/canair/commit/302310d3bcf21a9496d1b196d4bc9facdb04a472))
+
 ## [4.2.1](https://github.com/philipkocanda/canair/compare/v4.2.0...v4.2.1) (2026-11-02)
 
 
