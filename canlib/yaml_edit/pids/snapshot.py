@@ -9,13 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from canlib.dtc.snapshot import did_of_read
-from canlib.yaml_edit.text import (
-    PidsEditError,
-    _find_ecu_block,
-    _keyed_block,
-    _remove_field_line,
-    edit_ecu_text,
-)
+from canlib.yaml_edit.text import PidsEditError, edit_pid, set_scalar
 
 ONLY_FIELD = "snapshot_only"
 LENGTH_FIELD = "snapshot_length"
@@ -49,39 +43,23 @@ def set_snapshot_only(
 
     kept_length: list[int | None] = [None]
 
-    def transform(text: str) -> str:
-        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
-        if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-        _, _, pids_body_start, pids_body_end, _ = pids
-        pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
-        if not pidb:
-            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
-        p_hdr, _line_end, _body_start, p_body_end, _inline = pidb
-        block = text[p_hdr:p_body_end]
+    def edit(block: str) -> str:
         kept_length[0] = length if length is not None else _current_length(block)
-        block = _remove_field_line(block, ONLY_FIELD, indent=6)
-        block = _remove_field_line(block, LENGTH_FIELD, indent=6)
-        if value:
-            fields = f"      {ONLY_FIELD}: true\n"
-            if kept_length[0] is not None:
-                fields += f"      {LENGTH_FIELD}: {kept_length[0]}\n"
-            lines = block.splitlines(keepends=True)
-            block = lines[0] + fields + "".join(lines[1:])
-        return text[:p_hdr] + block + text[p_body_end:]
+        block = set_scalar(block, ONLY_FIELD, None)
+        block = set_scalar(block, LENGTH_FIELD, None)
+        if not value:
+            return block
+        if kept_length[0] is not None:
+            block = set_scalar(block, LENGTH_FIELD, f"{LENGTH_FIELD}: {kept_length[0]}")
+        return set_scalar(block, ONLY_FIELD, f"{ONLY_FIELD}: true")
 
-    def checker(ecu_def: dict) -> None:
-        pids_map = ecu_def.get("pids", {}) or {}
-        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
-        if pdef is None:
-            raise PidsEditError(f"PID {pid_u!r} missing after edit")
+    def check(pdef: dict) -> None:
         got = (pdef.get(ONLY_FIELD) is True, pdef.get(LENGTH_FIELD))
         want = (value, kept_length[0] if value else None)
         if got != want:
             raise PidsEditError(f"snapshot fields mismatch after edit: {got!r} != {want!r}")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_pid(ecu_name, pid_u, edit, check, pids_dir=pids_dir)
 
 
 def _current_length(block: str) -> int | None:

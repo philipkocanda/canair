@@ -10,27 +10,21 @@ from __future__ import annotations
 from pathlib import Path
 
 from canlib.yaml_edit.text import (
+    Block,
     PidsEditError,
-    _find_ecu_block,
     _keyed_block,
-    _remove_field_line,
     edit_ecu_text,
+    locate_pid,
+    pid_checker,
+    set_scalar,
 )
 
 FIELD = "sensitive"
 
 
-def _inline(block: tuple) -> bool:
+def _inline(block: Block) -> bool:
     """Is this key's value on its own header line (``{...}``), not a nested block?"""
-    return bool(block[4]) and not block[4].startswith("#")
-
-
-def _set_in_block(block: str, value: bool, indent: int) -> str:
-    block = _remove_field_line(block, FIELD, indent=indent)
-    if not value:
-        return block
-    lines = block.splitlines(keepends=True)
-    return lines[0] + f"{' ' * indent}{FIELD}: true\n" + "".join(lines[1:])
+    return bool(block.inline) and not block.inline.startswith("#")
 
 
 def set_sensitive(
@@ -45,35 +39,28 @@ def set_sensitive(
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
-        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
-        if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-        pidb = _keyed_block(text, pid_u, 4, pids[2], pids[3])
-        if not pidb:
-            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
+        pidb = locate_pid(text, ecu_name, pid_u)
         if _inline(pidb):
             raise PidsEditError(f"PID {pid_u!r} is a one-line mapping; expand it first")
-        start, end, indent = pidb[0], pidb[3], 6
+        start, end, indent = pidb.hdr, pidb.end, 6
         if param is not None:
-            params = _keyed_block(text, "parameters", 6, pidb[2], pidb[3])
-            sigb = _keyed_block(text, param, 8, params[2], params[3]) if params else None
+            params = _keyed_block(text, "parameters", 6, pidb.body, pidb.end)
+            sigb = _keyed_block(text, param, 8, params.body, params.end) if params else None
             if not sigb:
                 raise PidsEditError(f"signal {param!r} not found on {ecu_name} {pid_u}")
             if _inline(sigb):
                 raise PidsEditError(f"signal {param!r} is a one-line mapping; expand it first")
-            start, end, indent = sigb[0], sigb[3], 10
-        return text[:start] + _set_in_block(text[start:end], value, indent) + text[end:]
+            start, end, indent = sigb.hdr, sigb.end, 10
+        block = set_scalar(
+            text[start:end], FIELD, f"{FIELD}: true" if value else None, indent=indent
+        )
+        return text[:start] + block + text[end:]
 
-    def checker(ecu_def: dict) -> None:
-        pids_map = ecu_def.get("pids", {}) or {}
-        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
-        if pdef is None:
-            raise PidsEditError(f"PID {pid_u!r} missing after edit")
+    def check(pdef: dict) -> None:
         target = pdef if param is None else (pdef.get("parameters") or {}).get(param)
         if not isinstance(target, dict):
             raise PidsEditError(f"signal {param!r} missing after edit")
         if (target.get(FIELD) is True) != value:
             raise PidsEditError(f"{FIELD} mismatch after edit")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, pid_checker(pid_u, check), pids_dir=pids_dir)

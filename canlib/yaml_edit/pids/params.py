@@ -33,6 +33,12 @@ from canlib.yaml_edit.text import (
     _remove_field_line,
     _replace_field_in_block_at,
     edit_ecu_text,
+    edit_pid,
+    locate_param,
+    locate_pid,
+    locate_section,
+    pid_checker,
+    set_scalar,
 )
 
 # ── Parameter editing (reverse-engineering workflow) ──────────────────────────
@@ -317,36 +323,21 @@ def set_param_field(
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
-        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
-        if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-        pidb = _keyed_block(text, pid_u, 4, pids[2], pids[3])
-        if not pidb:
-            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
-        params = _keyed_block(text, "parameters", 6, pidb[2], pidb[3])
-        if not params:
-            raise PidsEditError(f"PID {pid_u!r} has no parameters:")
-        existing = _keyed_block(text, param_name, 8, params[2], params[3])
-        if not existing:
-            raise PidsEditError(f"parameter {param_name!r} not found on {ecu_name} {pid_u}")
-        e_start, e_end = existing[0], existing[3]
+        *_, existing = locate_param(text, ecu_name, pid_u, param_name)
+        e_start, e_end = existing.hdr, existing.end
         block_text = text[e_start:e_end]
         repl = _format_scalar_field(" " * 10, field, value)
         block_text = _replace_field_in_block_at(block_text, field, repl, indent=10)
         return text[:e_start] + block_text + text[e_end:]
 
-    def checker(ecu_def: dict) -> None:
-        pids_map = ecu_def.get("pids", {}) or {}
-        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
-        params = (pdef or {}).get("parameters") or {}
-        pm = params.get(param_name)
+    def check(pdef: dict) -> None:
+        pm = (pdef.get("parameters") or {}).get(param_name)
         if pm is None:
             raise PidsEditError(f"parameter {param_name!r} missing after edit")
         if bool(pm.get(field)) != bool(value):
             raise PidsEditError(f"{field} mismatch after edit")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, pid_checker(pid_u, check), pids_dir=pids_dir)
 
 
 def rename_parameter(
@@ -364,40 +355,26 @@ def rename_parameter(
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
-        e_start, e_end = _find_ecu_block(text, ecu_name)
-        pids = _keyed_block(text, "pids", 2, e_start, e_end)
-        if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-        pidb = _keyed_block(text, pid_u, 4, pids[2], pids[3])
-        if not pidb:
-            raise PidsEditError(f"PID {pid!r} not found on {ecu_name}")
-        params = _keyed_block(text, "parameters", 6, pidb[2], pidb[3])
-        if not params:
-            raise PidsEditError(f"PID {pid!r} has no parameters:")
-        if _keyed_block(text, new_name, 8, params[2], params[3]):
-            raise PidsEditError(f"parameter {new_name!r} already exists on {ecu_name} {pid}")
-        existing = _keyed_block(text, old_name, 8, params[2], params[3])
-        if not existing:
-            raise PidsEditError(f"parameter {old_name!r} not found on {ecu_name} {pid}")
-        hdr = existing[0]
+        _, params, existing = locate_param(text, ecu_name, pid_u, old_name)
+        if _keyed_block(text, new_name, 8, params.body, params.end):
+            raise PidsEditError(f"parameter {new_name!r} already exists on {ecu_name} {pid_u}")
+        hdr = existing.hdr
         renamed = re.sub(
             rf"^( {{8}}){re.escape(old_name)}:",
             rf"\g<1>{new_name}:",
-            text[hdr : existing[1] + 1],
+            text[hdr : existing.line_end + 1],
             count=1,
         )
-        return text[:hdr] + renamed + text[existing[1] + 1 :]
+        return text[:hdr] + renamed + text[existing.line_end + 1 :]
 
-    def checker(ecu_def: dict) -> None:
-        pids_map = ecu_def.get("pids", {})
-        match = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
-        params = (match or {}).get("parameters") or {}
+    def check(pdef: dict) -> None:
+        params = pdef.get("parameters") or {}
         if new_name not in params:
             raise PidsEditError(f"parameter {new_name!r} missing after rename")
         if old_name in params:
             raise PidsEditError(f"old parameter {old_name!r} still present after rename")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, pid_checker(pid_u, check), pids_dir=pids_dir)
 
 
 def delete_parameter(
@@ -411,40 +388,25 @@ def delete_parameter(
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
-        e_start, e_end = _find_ecu_block(text, ecu_name)
-        pids = _keyed_block(text, "pids", 2, e_start, e_end)
-        if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-        pidb = _keyed_block(text, pid_u, 4, pids[2], pids[3])
-        if not pidb:
-            raise PidsEditError(f"PID {pid!r} not found on {ecu_name}")
-        params = _keyed_block(text, "parameters", 6, pidb[2], pidb[3])
-        if not params:
-            raise PidsEditError(f"PID {pid!r} has no parameters:")
-        existing = _keyed_block(text, param_name, 8, params[2], params[3])
-        if not existing:
-            raise PidsEditError(f"parameter {param_name!r} not found on {ecu_name} {pid}")
+        _, params, existing = locate_param(text, ecu_name, pid_u, param_name)
         # If this is the ONLY parameter under the PID, drop the whole
         # ``parameters:`` block — leaving an empty ``parameters:`` key parses to
         # None and fails the schema ("'parameters' must be a dict").
         sibling = re.compile(r"^ {8}[^\s#]", re.MULTILINE)
         others = [
             m
-            for m in sibling.finditer(text, params[2], params[3])
-            if not (existing[0] <= m.start() < existing[3])
+            for m in sibling.finditer(text, params.body, params.end)
+            if not (existing.hdr <= m.start() < existing.end)
         ]
         if not others:
-            return _cut_block(text, params[0], params[3])
-        return _cut_block(text, existing[0], existing[3])
+            return _cut_block(text, params.hdr, params.end)
+        return _cut_block(text, existing.hdr, existing.end)
 
-    def checker(ecu_def: dict) -> None:
-        pids_map = ecu_def.get("pids", {})
-        match = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
-        params = (match or {}).get("parameters") or {}
-        if param_name in params:
+    def check(pdef: dict) -> None:
+        if param_name in (pdef.get("parameters") or {}):
             raise PidsEditError(f"parameter {param_name!r} still present after delete")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, pid_checker(pid_u, check), pids_dir=pids_dir)
 
 
 def add_pid(
@@ -536,34 +498,18 @@ def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | Non
     if status not in PID_STATUSES:
         raise PidsEditError(f"status must be one of {PID_STATUSES}, got {status!r}")
 
-    pid_u = str(pid).strip().upper()
-
-    def transform(text: str) -> str:
-        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
-        if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-        _, _, pids_body_start, pids_body_end, _ = pids
-        pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
-        if not pidb:
-            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
-        p_hdr, _p_line_end, _p_body_start, p_body_end, _inline = pidb
-        block_text = text[p_hdr:p_body_end]
-        block_text = _remove_field_line(block_text, "status", indent=6)
-        lines = block_text.splitlines(keepends=True)
-        block_text = lines[0] + f"      status: {status}\n" + "".join(lines[1:])
-        return text[:p_hdr] + block_text + text[p_body_end:]
-
-    def checker(ecu_def: dict) -> None:
-        pids_map = ecu_def.get("pids", {}) or {}
-        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
-        if pdef is None:
-            raise PidsEditError(f"PID {pid_u!r} missing after edit")
-        got = str((pdef or {}).get("status", "active")).lower()
+    def check(pdef: dict) -> None:
+        got = str(pdef.get("status", "active")).lower()
         if got != status:
             raise PidsEditError(f"status mismatch after edit: {got!r} != {status!r}")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_pid(
+        ecu_name,
+        pid,
+        lambda block: set_scalar(block, "status", f"status: {status}"),
+        check,
+        pids_dir=pids_dir,
+    )
 
 
 def set_pid_variable_length(
@@ -579,36 +525,17 @@ def set_pid_variable_length(
     (the default is fixed-length). Written after the PID header; verified by a YAML
     re-parse, restored on failure.
     """
-    pid_u = str(pid).strip().upper()
 
-    def transform(text: str) -> str:
-        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
-        if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-        _, _, pids_body_start, pids_body_end, _ = pids
-        pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
-        if not pidb:
-            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
-        p_hdr, _p_line_end, _p_body_start, p_body_end, _inline = pidb
-        block_text = text[p_hdr:p_body_end]
-        block_text = _remove_field_line(block_text, "variable_length", indent=6)
-        if value:
-            block_text = _remove_field_line(block_text, "response_frames", indent=6)
-            lines = block_text.splitlines(keepends=True)
-            block_text = lines[0] + "      variable_length: true\n" + "".join(lines[1:])
-        return text[:p_hdr] + block_text + text[p_body_end:]
+    def edit(block: str) -> str:
+        block = set_scalar(block, "variable_length", "variable_length: true" if value else None)
+        return set_scalar(block, "response_frames", None) if value else block
 
-    def checker(ecu_def: dict) -> None:
-        pids_map = ecu_def.get("pids", {}) or {}
-        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
-        if pdef is None:
-            raise PidsEditError(f"PID {pid_u!r} missing after edit")
-        got = bool((pdef or {}).get("variable_length", False))
+    def check(pdef: dict) -> None:
+        got = bool(pdef.get("variable_length", False))
         if got != value:
             raise PidsEditError(f"variable_length mismatch after edit: {got!r} != {value!r}")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_pid(ecu_name, pid, edit, check, pids_dir=pids_dir)
 
 
 def set_pid_period(
@@ -631,45 +558,25 @@ def set_pid_period(
                 "the firmware substitutes a default)"
             )
 
-    pid_u = str(pid).strip().upper()
-
-    def transform(text: str) -> str:
-        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
-        if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-        _, _, pids_body_start, pids_body_end, _ = pids
-        pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
-        if not pidb:
-            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
-        p_hdr, _p_line_end, _p_body_start, p_body_end, _inline = pidb
-        block_text = text[p_hdr:p_body_end]
+    def edit(block: str) -> str:
         if value is None:
-            block_text = _remove_field_line(block_text, "period", indent=6)
-        else:
-            # Keep an existing field where it is so a re-tune diffs as one line.
-            block_text, replaced = re.subn(
-                r"^( {6}period:)[ \t]*\S.*$",
-                rf"\g<1> {value}",
-                block_text,
-                count=1,
-                flags=re.MULTILINE,
-            )
-            if not replaced:
-                lines = block_text.splitlines(keepends=True)
-                block_text = lines[0] + f"      period: {value}\n" + "".join(lines[1:])
-        return text[:p_hdr] + block_text + text[p_body_end:]
+            return set_scalar(block, "period", None)
+        # Keep an existing field where it is so a re-tune diffs as one line.
+        block, replaced = re.subn(
+            r"^( {6}period:)[ \t]*\S.*$",
+            rf"\g<1> {value}",
+            block,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        return block if replaced else set_scalar(block, "period", f"period: {value}")
 
-    def checker(ecu_def: dict) -> None:
-        pids_map = ecu_def.get("pids", {}) or {}
-        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
-        if pdef is None:
-            raise PidsEditError(f"PID {pid_u!r} missing after edit")
-        got = (pdef or {}).get("period")
+    def check(pdef: dict) -> None:
+        got = pdef.get("period")
         if got != value:
             raise PidsEditError(f"period mismatch after edit: {got!r} != {value!r}")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_pid(ecu_name, pid, edit, check, pids_dir=pids_dir)
 
 
 def set_response_frames(
@@ -694,40 +601,24 @@ def set_response_frames(
         if value < 1:
             raise PidsEditError(f"response_frames must be >= 1, got {value}")
 
-    pid_u = str(pid).strip().upper()
-
-    def transform(text: str) -> str:
-        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
-        if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-        _, _, pids_body_start, pids_body_end, _ = pids
-        pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
-        if not pidb:
-            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
-        p_hdr, _p_line_end, _p_body_start, p_body_end, _inline = pidb
-        block_text = text[p_hdr:p_body_end]
-        block_text = _remove_field_line(block_text, "response_frames", indent=6)
-        if value is not None:
-            lines = block_text.splitlines(keepends=True)
-            block_text = lines[0] + f"      response_frames: {value}\n" + "".join(lines[1:])
-        return text[:p_hdr] + block_text + text[p_body_end:]
-
-    def checker(ecu_def: dict) -> None:
-        pids_map = ecu_def.get("pids", {}) or {}
-        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
-        if pdef is None:
-            raise PidsEditError(f"PID {pid_u!r} missing after edit")
-        got = (pdef or {}).get("response_frames")
+    def check(pdef: dict) -> None:
+        got = pdef.get("response_frames")
         if got != value:
             raise PidsEditError(f"response_frames mismatch after edit: {got!r} != {value!r}")
-        if value is not None and (pdef or {}).get("variable_length"):
+        if value is not None and pdef.get("variable_length"):
             raise PidsEditError(
-                f"PID {pid_u!r} is variable_length — a variable-length response has no "
-                "fixed frame count"
+                "PID is variable_length — a variable-length response has no fixed frame count"
             )
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_pid(
+        ecu_name,
+        pid,
+        lambda block: set_scalar(
+            block, "response_frames", None if value is None else f"response_frames: {value}"
+        ),
+        check,
+        pids_dir=pids_dir,
+    )
 
 
 def set_pid_notes(
@@ -755,18 +646,7 @@ def set_pid_notes(
     text_val = "" if notes is None else str(notes).strip()
     clearing = not text_val
 
-    def transform(text: str) -> str:
-        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-        pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
-        if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-        _, _, pids_body_start, pids_body_end, _ = pids
-        pidb = _keyed_block(text, pid_u, 4, pids_body_start, pids_body_end)
-        if not pidb:
-            raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
-        p_hdr, _p_line_end, _p_body_start, p_body_end, _inline = pidb
-        block = text[p_hdr:p_body_end]
-
+    def edit(block: str) -> str:
         has_note = re.search(r"^ {6}notes:", block, re.MULTILINE) is not None
         if clearing:
             if not has_note:
@@ -786,14 +666,10 @@ def set_pid_notes(
                     len(lines),
                 )
                 new_block = "".join(lines[:at] + [f"{ln}\n" for ln in repl] + lines[at:])
-        return text[:p_hdr] + new_block + text[p_body_end:]
+        return new_block
 
-    def checker(ecu_def: dict) -> None:
-        pids_map = ecu_def.get("pids", {}) or {}
-        pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
-        if pdef is None:
-            raise PidsEditError(f"PID {pid_u!r} missing after edit")
-        got = (pdef or {}).get("notes")
+    def check(pdef: dict) -> None:
+        got = pdef.get("notes")
         if clearing:
             if got is not None:
                 raise PidsEditError(f"PID {pid_u!r} notes still present after clear")
@@ -804,7 +680,7 @@ def set_pid_notes(
         if " ".join(str(got).split()) != " ".join(text_val.split()):
             raise PidsEditError(f"PID {pid_u!r} notes mismatch after edit")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_pid(ecu_name, pid, edit, check, pids_dir=pids_dir)
 
 
 def rename_pid(ecu_name: str, old_pid: str, new_pid: str, *, pids_dir: Path | None = None) -> Path:
@@ -820,23 +696,18 @@ def rename_pid(ecu_name: str, old_pid: str, new_pid: str, *, pids_dir: Path | No
         raise PidsEditError(f"invalid PID code {new_pid!r} (expected hex, e.g. 22B002)")
 
     def transform(text: str) -> str:
-        e_start, e_end = _find_ecu_block(text, ecu_name)
-        pids = _keyed_block(text, "pids", 2, e_start, e_end)
-        if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-        if new_u != old_u and _keyed_block(text, new_u, 4, pids[2], pids[3]):
+        pids = locate_section(text, ecu_name, "pids")
+        if new_u != old_u and _keyed_block(text, new_u, 4, pids.body, pids.end):
             raise PidsEditError(f"PID {new_u!r} already exists on {ecu_name}")
-        existing = _keyed_block(text, old_u, 4, pids[2], pids[3])
-        if not existing:
-            raise PidsEditError(f"PID {old_pid!r} not found on {ecu_name}")
-        hdr = existing[0]
+        existing = locate_pid(text, ecu_name, old_u)
+        hdr = existing.hdr
         renamed = re.sub(
             rf"""^( {{4}})(?:"{re.escape(old_u)}"|'{re.escape(old_u)}'|{re.escape(old_u)}):""",
             rf"\g<1>{_key_token(new_u)}:",
-            text[hdr : existing[1] + 1],
+            text[hdr : existing.line_end + 1],
             count=1,
         )
-        return text[:hdr] + renamed + text[existing[1] + 1 :]
+        return text[:hdr] + renamed + text[existing.line_end + 1 :]
 
     def checker(ecu_def: dict) -> None:
         keys = {str(k).upper() for k in (ecu_def.get("pids") or {})}
@@ -858,21 +729,16 @@ def delete_pid(ecu_name: str, pid: str, *, pids_dir: Path | None = None) -> Path
     pid_u = str(pid).strip().upper()
 
     def transform(text: str) -> str:
-        e_start, e_end = _find_ecu_block(text, ecu_name)
-        pids = _keyed_block(text, "pids", 2, e_start, e_end)
-        if not pids:
-            raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
-        existing = _keyed_block(text, pid_u, 4, pids[2], pids[3])
-        if not existing:
-            raise PidsEditError(f"PID {pid!r} not found on {ecu_name}")
+        pids = locate_section(text, ecu_name, "pids")
+        existing = locate_pid(text, ecu_name, pid_u)
         # If this is the only PID, drop the whole `pids:` section so the ECU
         # becomes identity-only (an empty `pids:` is not a valid mapping); a
         # PID header is the only thing at 4-space indent under pids:.
-        pid_headers = re.findall(r"^ {4}[^\s#]", text[pids[2] : pids[3]], re.MULTILINE)
+        pid_headers = re.findall(r"^ {4}[^\s#]", text[pids.body : pids.end], re.MULTILINE)
         if len(pid_headers) <= 1:
-            start, end = pids[0], pids[3]
+            start, end = pids.hdr, pids.end
         else:
-            start, end = existing[0], existing[3]
+            start, end = existing.hdr, existing.end
         return _cut_block(text, start, end)
 
     def checker(ecu_def: dict) -> None:
@@ -916,10 +782,7 @@ def set_identity_field(
         raise PidsEditError("value must not be empty")
 
     def transform(text: str) -> str:
-        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-        identity = _keyed_block(text, "identity", 2, ecu_start, ecu_end)
-        if not identity:
-            raise PidsEditError(f"ECU {ecu_name!r} has no identity: section")
+        identity = locate_section(text, ecu_name, "identity")
         _, _, id_body_start, id_body_end, _ = identity
         block = text[id_body_start:id_body_end]
         if field == "notes":
@@ -960,10 +823,7 @@ def remove_identity_field(
         raise PidsEditError(f"invalid identity field name {field!r}")
 
     def transform(text: str) -> str:
-        ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-        identity = _keyed_block(text, "identity", 2, ecu_start, ecu_end)
-        if not identity:
-            raise PidsEditError(f"ECU {ecu_name!r} has no identity: section")
+        identity = locate_section(text, ecu_name, "identity")
         id_start, _, id_body_start, id_body_end, _ = identity
         existing = _keyed_block(text, field, 4, id_body_start, id_body_end)
         if not existing:

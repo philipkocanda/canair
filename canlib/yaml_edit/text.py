@@ -579,12 +579,18 @@ def edit_ecu_text(
 # ── Locating a PID, a signal, and the PID-level scalars ──────────────────────
 
 
+def locate_section(text: str, ecu_name: str, section: str) -> Block:
+    """The ECU's top-level ``section:`` block (``pids``, ``identity``, ...)."""
+    ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+    block = _keyed_block(text, section, 2, ecu_start, ecu_end)
+    if not block:
+        raise PidsEditError(f"ECU {ecu_name!r} has no {section}: section")
+    return block
+
+
 def locate_pid(text: str, ecu_name: str, pid_u: str) -> Block:
     """The ``pids:`` entry for ``pid_u`` in ``ecu_name``'s block."""
-    ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
-    pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
-    if not pids:
-        raise PidsEditError(f"ECU {ecu_name!r} has no pids: section")
+    pids = locate_section(text, ecu_name, "pids")
     pidb = _keyed_block(text, pid_u, 4, pids.body, pids.end)
     if not pidb:
         raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
@@ -617,11 +623,34 @@ def edit_pid_block(text: str, ecu_name: str, pid_u: str, edit: Callable[[str], s
     return text[: b.hdr] + edit(text[b.hdr : b.end]) + text[b.end :]
 
 
+def edit_pid(
+    ecu_name: str,
+    pid: str,
+    edit_block: Callable[[str], str],
+    assert_pid: Callable[[dict], None],
+    *,
+    pids_dir: Path | None = None,
+) -> Path:
+    """Edit one PID's own block; ``assert_pid`` judges the re-parsed PID mapping.
+
+    The shape of every PID-level setter: ``edit_block`` maps the PID's block text (header line
+    first) to its new text, and ``assert_pid`` raises ``PidsEditError`` unless the PID reads back
+    as the edit intended. The PID going missing is reported for it.
+    """
+    pid_u = str(pid).strip().upper()
+    return edit_ecu_text(
+        ecu_name,
+        lambda text: edit_pid_block(text, ecu_name, pid_u, edit_block),
+        pid_checker(pid_u, assert_pid),
+        pids_dir=pids_dir,
+    )
+
+
 def set_scalar(block: str, field: str, line: str | None, *, indent: int = 6) -> str:
     """Put ``field: …`` straight after the block's header line, or drop the field (``None``).
 
     Any earlier occurrence (and a block scalar or nested body it owns) goes first, so the field
-    moves to the top of the block. :func:`replace_in_place` keeps its position instead.
+    moves to the top of the block.
     """
     block = _remove_field_line(block, field, indent=indent)
     if line is None:
