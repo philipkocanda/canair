@@ -94,7 +94,8 @@ expected to stop and surface the risk to its human rather than proceed.
 4. **Show** the value + a loud warning block, then require typed confirmation
    (`--yes` scripting hatch for this step only).
 5. **Write the same bytes back** (`2E <did> <same-data>`), via `send_uds(...,
-   expected_sid=0x6E, expected_did=…)`.
+   expected_sid=0x2E, expected_echo=<DID bytes>)` (`request_echo` does not derive a
+   `0x2E` echo, so pass the DID explicitly).
 6. **Re-read** (`0x22`) to verify the value is unchanged; warn hard if it
    changed.
 7. **Classify writability** from the write response:
