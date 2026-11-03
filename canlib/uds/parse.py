@@ -59,6 +59,8 @@ _HEX_DIGITS = frozenset("0123456789ABCDEF")
 _FRAME_LINE = re.compile(r"([0-9A-F])\s*:\s*([0-9A-F][0-9A-F ]*)")
 # The bare-hex ISO-TP First Frame length an adapter prints before the frame lines.
 _LENGTH_TOKEN = re.compile(r"[0-9A-F]{1,4}")
+# The smallest First Frame length: 7 bytes or fewer travel as one Single Frame.
+_MIN_FIRST_FRAME_LEN = 8
 
 
 def _compact(line: str) -> str:
@@ -243,9 +245,12 @@ def _reassemble(data_lines: list[str]) -> tuple[str, int, int | None]:
             raise _Rejected(CAT_DECODE, f"Non-hex response frame: {line[:80]}")
         # The length token is the last bare-hex line *before* the frames; anything
         # else (a stale single-frame reply that preceded it, say) is not part of this
-        # reply's reassembly.
+        # reply's reassembly. A First Frame length is never below 8 on classic CAN (a
+        # shorter reply fits one Single Frame), so a smaller token is not one.
         if not frame_hex and _LENGTH_TOKEN.fullmatch(line):
-            declared_len = int(line, 16)
+            length = int(line, 16)
+            if length >= _MIN_FIRST_FRAME_LEN:
+                declared_len = length
     if any(int(c, 16) != i & 0xF for i, c in enumerate(counters)):
         raise _Rejected(
             CAT_DROP,

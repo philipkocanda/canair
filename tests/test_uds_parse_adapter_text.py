@@ -116,6 +116,15 @@ class TestMultiFrameText:
         r = parse_uds_response("009\n0:6101AABBCCDD\n1:EEFF00AAAAAA")
         assert r["hex"] == "6101AABBCCDDEEFF00"
 
+    @pytest.mark.parametrize("token", ["0", "000", "007"])
+    def test_a_length_below_a_first_frame_is_not_a_length(self, token):
+        # Regression: a declared length of 0 cut the payload to nothing and raised
+        # IndexError. A First Frame always declares at least 8 bytes.
+        r = parse_uds_response(f"{token}\n0:620101\n")
+        assert r["ok"] is True
+        assert r["hex"] == "620101"
+        assert "isotp_declared_len" not in r
+
 
 class TestMalformedPayloads:
     def test_a_truncated_negative_response_is_not_a_positive(self):
