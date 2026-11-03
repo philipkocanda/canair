@@ -1088,14 +1088,15 @@ IGPM:
         relay already closed and the LDC at 14.6 V: a sleeping WiCAN wakes only when the 12 V rises
         above its wake threshold, which happens once the LDC runs, so it cannot record a start.
         2026-11-03 (VCU and BMS 2101 polled every 2 s, IGPM 22BC07 every 2.6 s): BMS pack current
-        fell from 0.8 A at 09:56:53 to 0.0 by 10:11, but on 2026-10-21 it read 0.0 with 85-110 W
-        still on the LDC output (VCU_AUX_POWER, 143 W early on), so the load tapers to about 100 W
-        rather than stopping. End: OBC LDC_OUTPUT_V 14.59 V at 10:16:18.8 and VCU B11 0x10 at
-        10:16:19.0; IGPM bit 1 at 10:16:20.0; BMS at 10:16:20.6 with the relay open, 12 V 13.5 V, DC
-        link 356 V and B61:3 still 1; VCU B11 0x80 at 10:16:21.1; IGPM bit 0 at 10:16:21.6; BMS (B61
-        0x01) and OBC last answered at 10:16:23.3 and 10:16:23.7, the VCU at 10:19:25. 2026-10-21:
-        BMS read the relay closed with the 12 V already at 13.9 V at 21:17:08.8, the DC link was 19
-        V at 21:17:10.0 and VCU_IG3_ON 0 at 21:17:11.3. 2026-10-30 was polled every 20 s and ended
+        fell from 0.8 A at 09:56:53 to 0.0 by 10:11, but on 2026-10-21 it read 0.0 while
+        VCU_AUX_POWER still reported 85-110 W on the LDC output (143 W early on); the two disagree
+        at that load (see BATTERY_CURRENT), so whether the load tapers to about 100 W or to nothing
+        is open. End: OBC LDC_OUTPUT_V 14.59 V at 10:16:18.8 and VCU B11 0x10 at 10:16:19.0; IGPM
+        bit 1 at 10:16:20.0; BMS at 10:16:20.6 with the relay open, 12 V 13.5 V, DC link 356 V and
+        B61:3 still 1; VCU B11 0x80 at 10:16:21.1; IGPM bit 0 at 10:16:21.6; BMS (B61 0x01) and OBC
+        last answered at 10:16:23.3 and 10:16:23.7, the VCU at 10:19:25. 2026-10-21: BMS read the
+        relay closed with the 12 V already at 13.9 V at 21:17:08.8, the DC link was 19 V at
+        21:17:10.0 and VCU_IG3_ON 0 at 21:17:11.3. 2026-10-30 was polled every 20 s and ended
         between 13:39:59.8 and 13:40:17.7. Recorded lengths: at least 16 min (10-21), 13 min (10-30)
         and 19 min 27 s (11-03). Aligned on their end, MCU 2101 B22 and B25 follow the same curve in
         all three within 1-2 counts over the last 13 min (B22 88 at 12-13 min before the end, 69-72
