@@ -25,7 +25,7 @@ from ..formatting import (
     print_hexdump,
 )
 from ..log import log_event
-from ..pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index
+from ..pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index, ecu_index_key
 from ..sensitive import MASK, request_hidden
 from ..session_manager import SessionManager
 from ..transport.elm327_terminal import Elm327Terminal
@@ -76,11 +76,8 @@ async def _exec_session(
     # 10 01. Resolved into the ECU index by build_ecu_index; None = default wake.
     wake_plan = None
     if wake:
-        entry = ecu_index.get(target.upper()) if isinstance(ecu_index, dict) else None
-        if entry is None:
-            from ..ecus import canonical_ecu_name_safe
-
-            entry = ecu_index.get(canonical_ecu_name_safe(target).upper())
+        key = ecu_index_key(target, ecu_index)
+        entry = ecu_index.get(key) if key is not None else None
         if isinstance(entry, dict):
             wake_plan = entry.get("wake")
     if wake_plan is not None:
@@ -390,18 +387,14 @@ async def _exec_query(
             scheduler uses it to read only the PIDs due this tick. An empty
             selection reads nothing and touches no device state.
     """
-    upper = ecu_name_str.upper()
-    if upper not in ecu_index:
-        from ..ecus import canonical_ecu_name_safe
-
-        upper = canonical_ecu_name_safe(ecu_name_str).upper()
-    if upper not in ecu_index:
+    ecu_key = ecu_index_key(ecu_name_str, ecu_index)
+    if ecu_key is None:
         print(f"  ERROR: Unknown ECU '{ecu_name_str}'. Available: {', '.join(ecu_index.keys())}")
         return
 
-    ecu_info = ecu_index[upper]
+    ecu_info = ecu_index[ecu_key]
     tx_id = ecu_info["tx_id"]
-    ecu_label = f"{upper} (0x{tx_id:03X})"
+    ecu_label = f"{ecu_key} (0x{tx_id:03X})"
 
     query_plan = build_query_plan(ecu_info, pid_filter, quiet=quiet, include_static=include_static)
     if query_plan is None:
@@ -409,7 +402,7 @@ async def _exec_query(
         print(f"  Available: {', '.join(sorted(ecu_info['pids'].keys()))}")
         return
     if plan_filter is not None:
-        query_plan = plan_filter(upper, query_plan)
+        query_plan = plan_filter(ecu_key, query_plan)
         if not query_plan:
             return (ecu_label, []) if return_results else None
 
@@ -497,10 +490,10 @@ async def _exec_iocontrol(
 ):
     """Execute iocontrol sub-command within multi pipeline."""
     ioctrl_index = build_iocontrol_index(pids_data)
-    ecu_key = ecu_name.upper()
+    ecu_key = ecu_index_key(ecu_name, ioctrl_index)
     did_key = did.upper()
 
-    if ecu_key not in ioctrl_index:
+    if ecu_key is None:
         available = sorted(ioctrl_index.keys())
         print(f"  ERROR: No IOControl DIDs for ECU: {ecu_name}")
         if available:

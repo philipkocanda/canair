@@ -20,14 +20,14 @@ def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
     Accepts: 'IGPM', 'igpm', '770', '0x770', '7A0', and ECU-registry aliases
     ('LDC' -> OBC, 'ABS' -> ESC).
     """
-    from ..ecus import canonical_ecu_name_safe
+    from ..pids import ecu_index_key
 
-    upper = canonical_ecu_name_safe(name_or_hex).upper()
-    if upper in ecu_index:
-        return ecu_index[upper]["tx_id"]
+    key = ecu_index_key(name_or_hex, ecu_index)
+    if key is not None:
+        return ecu_index[key]["tx_id"]
 
     # Try as hex
-    cleaned = upper.removeprefix("0X")
+    cleaned = name_or_hex.upper().removeprefix("0X")
     try:
         return int(cleaned, 16)
     except ValueError:

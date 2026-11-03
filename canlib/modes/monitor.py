@@ -69,6 +69,7 @@ from .multi_batch import EcuFrame, ResultEntry
 
 if TYPE_CHECKING:
     from ..captures.link_events import DisconnectCause
+    from ..pids import EcuIndexEntry
     from .monitor_reconnect import Reconnector
 
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
@@ -581,14 +582,14 @@ class MonitorController:
             # that need them are opened best-effort before polling — but a mode
             # the safety policy refuses aborts setup rather than being swallowed
             # with the transport errors (the ELM path raises the same way).
+            from ..pids import ecu_index_key
             from ..safety import SafetyBlocked
-            from .multi import build_query_plan
 
             assert self.raw_client is not None  # self.raw is True ⟺ raw_client was provided
             for step in session_steps or []:
                 if step["type"] == "session":
-                    tgt = step["target"].upper()
-                    if tgt in self._ecu_index:
+                    tgt = ecu_index_key(step["target"], self._ecu_index)
+                    if tgt is not None:
                         mode = str(step.get("mode", "03")).upper().removeprefix("0X").zfill(2)
                         blocked = self._session_check(tgt, mode)
                         if blocked:
@@ -599,24 +600,12 @@ class MonitorController:
             # Warm each ECU up: the first diagnostic request after idle is slow
             # (the ECU/gateway has to wake). Prime with one throwaway read per ECU
             # on a longer timeout so the first *monitored* cycle is already warm.
-            for step in self.query_steps:
-                info = self._ecu_index.get(step["ecu"].upper())
-                if not info:
-                    continue
-                plan = (
-                    build_query_plan(
-                        info, step.get("pids", []), quiet=True, include_static=self.include_static
-                    )
-                    or []
-                )
-                if plan:
-                    with contextlib.suppress(Exception):
-                        self.raw_client.read(
-                            step["ecu"].upper(), bytes.fromhex(plan[0][0]), timeout=3.0
-                        )
+            for ecu, _info, request in self._warmup_reads():
+                with contextlib.suppress(Exception):
+                    self.raw_client.read(ecu, bytes.fromhex(request), timeout=3.0)
             return
 
-        from .multi import _exec_session, _exec_skm_wake, build_query_plan
+        from .multi import _exec_session, _exec_skm_wake
         from .multi_batch import BatchState
 
         assert self.sm is not None  # not self.raw ⟺ sm was constructed
@@ -641,20 +630,29 @@ class MonitorController:
         # Prime each ECU once (parity with the raw path): the first request after
         # idle is slow, so warm the path before the first *displayed* cycle. The
         # retry (retries=1) also rides out a cold NO-DATA on this throwaway read.
+        for _ecu, info, request in self._warmup_reads():
+            with contextlib.suppress(Exception):
+                await self.sm.terminal.set_header(info["tx_id"])
+                await self.sm.terminal.send_uds(request, retries=1)
+
+    def _warmup_reads(self) -> "list[tuple[str, EcuIndexEntry, str]]":
+        """``(ECU key, its index entry, first planned request)`` per polled ECU step."""
+        from ..pids import ecu_index_key
+        from .multi import build_query_plan
+
+        assert self._ecu_index is not None  # built by setup() before this runs
+        reads: list[tuple[str, EcuIndexEntry, str]] = []
         for step in self.query_steps:
-            info = self._ecu_index.get(step["ecu"].upper())
-            if not info:
+            ecu = ecu_index_key(step["ecu"], self._ecu_index)
+            if ecu is None:
                 continue
-            plan = (
-                build_query_plan(
-                    info, step.get("pids", []), quiet=True, include_static=self.include_static
-                )
-                or []
+            info = self._ecu_index[ecu]
+            plan = build_query_plan(
+                info, step.get("pids", []), quiet=True, include_static=self.include_static
             )
             if plan:
-                with contextlib.suppress(Exception):
-                    await self.sm.terminal.set_header(info["tx_id"])
-                    await self.sm.terminal.send_uds(plan[0][0], retries=1)
+                reads.append((ecu, info, plan[0][0]))
+        return reads
 
     def _record(self, new_queries: list[EcuFrame]) -> None:
         """Record freshly-polled payloads into prev_hex / display / save history."""
@@ -1047,8 +1045,10 @@ class MonitorController:
         the on-demand save dialog's label.
         """
         parts: list[str] = []
+        from ..pids import ecu_index_key
+
         for step in self.query_steps:
-            ecu = step["ecu"].upper()
+            ecu = ecu_index_key(step["ecu"], self._ecu_index or {}) or step["ecu"].upper()
             pids = step.get("pids") or []
             parts.append(f"{ecu}:{','.join(pids)}" if pids else ecu)
         return " ".join(parts)
