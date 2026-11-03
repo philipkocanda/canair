@@ -1,5 +1,5 @@
 """Phase 3/4 multi-vehicle support: 29-bit discovery, SLCAN extended frames,
-padding-byte + quirk resolution.
+quirk resolution.
 
 See plans/2026-07-28-multi-vehicle-support.md (Phases 3–4).
 """
@@ -10,7 +10,6 @@ import isotp
 from canlib.addressing import AddressingMode, EcuAddress, build_isotp_address
 from canlib.modes.discover import discovery_targets, fmt_id
 from canlib.quirks import HK_F1XX_MINUS_ONE, has_quirk, resolve_quirks
-from canlib.transport.isotp_params import DEFAULT_TX_PADDING, resolve_tx_padding
 from canlib.transport.slcan_tcp import format_slcan_frame
 
 
@@ -103,19 +102,3 @@ class TestQuirks:
 
     def test_malformed_block(self):
         assert resolve_quirks({"quirks": "nope"}) == frozenset()
-
-
-class TestResolveTxPadding:
-    def test_default(self):
-        assert resolve_tx_padding(None) == DEFAULT_TX_PADDING
-        assert resolve_tx_padding({}) == 0xAA
-
-    def test_from_isotp_block(self):
-        assert resolve_tx_padding({"isotp": {"tx_padding": 0x00}}) == 0x00
-        assert resolve_tx_padding({"isotp": {"tx_padding": 0xCC}}) == 0xCC
-
-    def test_bool_rejected(self):
-        assert resolve_tx_padding({"isotp": {"tx_padding": True}}) == 0xAA
-
-    def test_out_of_range_rejected(self):
-        assert resolve_tx_padding({"isotp": {"tx_padding": 999}}) == 0xAA

@@ -7,7 +7,6 @@ from canlib.transport.isotp_params import (
     ISOTP_FIELDS,
     build_isotp_params,
     resolve_rx_padding,
-    resolve_tx_padding,
 )
 
 
@@ -58,7 +57,7 @@ class TestPaddingResolvers:
     """Request and reply padding are separate bytes (ES95486: 0x55 out, 0xAA back)."""
 
     def test_defaults(self):
-        assert resolve_tx_padding(None) == resolve_rx_padding(None) == DEFAULT_TX_PADDING
+        assert resolve_rx_padding(None) == DEFAULT_TX_PADDING
         assert resolve_rx_padding({}) == 0xAA
 
     def test_rx_padding_falls_back_to_tx_padding(self):
@@ -67,13 +66,13 @@ class TestPaddingResolvers:
 
     def test_rx_padding_is_independent_when_set(self):
         data = {"isotp": {"tx_padding": 0x55, "rx_padding": 0xAA}}
-        assert resolve_tx_padding(data) == 0x55
         assert resolve_rx_padding(data) == 0xAA
         assert build_isotp_params(data["isotp"])["tx_padding"] == 0x55
 
     def test_invalid_rx_padding_falls_back(self):
         assert resolve_rx_padding({"isotp": {"rx_padding": 999, "tx_padding": 0xCC}}) == 0xCC
         assert resolve_rx_padding({"isotp": {"rx_padding": True}}) == 0xAA
+        assert resolve_rx_padding({"isotp": {"tx_padding": 999}}) == 0xAA
 
 
 class TestLinkScaledTimeouts:

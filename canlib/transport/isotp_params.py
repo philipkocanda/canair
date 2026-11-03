@@ -122,23 +122,14 @@ def _padding_byte(pids_data: dict | None, key: str) -> int | None:
     return None
 
 
-def resolve_tx_padding(pids_data: dict | None) -> int:
-    """The byte canair pads the short frames it *sends* with (``isotp.tx_padding``).
-
-    Default ``0xAA``. Only the raw ``slcan-tcp`` path reaches the bus with it: an
-    ELM327 pads requests itself. The byte to strip from a reply is a different
-    setting, :func:`resolve_rx_padding`.
-    """
-    value = _padding_byte(pids_data, "tx_padding")
-    return DEFAULT_TX_PADDING if value is None else value
-
-
 def resolve_rx_padding(pids_data: dict | None) -> int:
     """The byte ECU replies are padded with, and so the byte to strip from them.
 
     ``isotp.rx_padding``; when absent, ``isotp.tx_padding`` (the one byte both
     meant before the two were separated), else ``0xAA``. Hyundai/Kia's ES95486
-    has them differ: requests padded with ``0x55``, responses with ``0xAA``.
+    has them differ: requests padded with ``0x55``, responses with ``0xAA``. The
+    byte canair *sends* is ``tx_padding`` in :func:`build_isotp_params`, which only
+    the raw ``slcan-tcp`` path uses (an ELM327 pads its requests itself).
     """
     value = _padding_byte(pids_data, "rx_padding")
     if value is None:
