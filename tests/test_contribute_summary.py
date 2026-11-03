@@ -100,6 +100,54 @@ class TestLogs:
             assert gone not in clean
         assert "~/x" in clean
 
+    @pytest.mark.parametrize(
+        "address",
+        [
+            "10.0.2.86",
+            "192.168.80.1",
+            "2001:db8:85a3:0:0:8a2e:370:7334",
+            "2001:db8::1",
+            "fe80::1c2b:3aff:fe4d:5e6f",
+            "fe80::1%en0",
+            "::1",
+            "::ffff:10.0.2.86",
+            "2001:DB8::ABCD",
+        ],
+    )
+    @pytest.mark.parametrize(
+        "template",
+        [
+            "connecting to {}",
+            "connecting to {}.",
+            "peer {}:35000 closed",
+            "peer [{}]:35000 closed",
+            "ws://[{}]/ws dropped",
+            "addr=({}), retrying",
+        ],
+    )
+    def test_scrubs_every_ip_form(self, address, template):
+        if template.startswith("peer {}:") and ":" in address:
+            pytest.skip("an unbracketed IPv6 address cannot carry a port")
+        clean = L.scrub(f"2026-11-01T10:00:00.000Z WARNING bus :: {template.format(address)}")
+        assert address not in clean
+        assert address.split("%")[0] not in clean
+        assert "<ip>" in clean or "<host>" in clean
+
+    @pytest.mark.parametrize(
+        "kept",
+        [
+            "2026-11-01T10:00:00.123456+00:00",
+            "elapsed 10:00:00",
+            "ecu=BMS :: drop",
+            "reply 62:F1:90 short",
+            "0x7EC:2101",
+            "Class::method",
+            "deadbeef",
+        ],
+    )
+    def test_leaves_times_separators_and_hex_alone(self, kept):
+        assert L.scrub(kept, home="/nonexistent") == kept
+
     def test_window_and_cap(self, local_tz):
         lines = [f"2026-10-0{d}T10:00:00Z WARNING drop :: n{d}" for d in range(1, 10)]
         windows = L.session_windows((f"2026-10-0{d}", "", "") for d in range(4, 10))
