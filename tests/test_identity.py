@@ -6,6 +6,7 @@ import pytest
 
 from canlib.modes import identity as ident
 from canlib.modes import identity_decode as idec
+from canlib.uds.parse import parse_uds_response
 from tests._fakes import FakeTerminal
 from tests._fakes import ok as _ok
 
@@ -80,6 +81,62 @@ class TestModeIdentity:
         out = capsys.readouterr().out
         assert "No identity data" in out
         assert "asleep" in out
+
+
+class TestHkOffsetWithoutQuirk:
+    """A Hyundai/Kia ECU on a profile without the hk_f1xx_minus_one quirk."""
+
+    @staticmethod
+    def _offset_reply(did: str, data: str) -> dict:
+        lower = f"{int(did, 16) - 1:04X}"
+        return parse_uds_response(
+            f"62{lower}{data}", expected_sid=0x22, expected_echo=bytes.fromhex(did)
+        )
+
+    def _terminal(self) -> FakeTerminal:
+        return FakeTerminal(
+            {
+                "22F190": self._offset_reply("F190", "4B4D48"),
+                "22F188": self._offset_reply("F188", "3931323334"),
+            }
+        )
+
+    @pytest.mark.asyncio
+    async def test_the_offset_is_reported_with_the_quirk_hint(self, monkeypatch, capsys):
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "uds")
+        await ident.mode_identity(
+            self._terminal(), 0x7A0, session=False, wake=False, as_json=False, quirks=frozenset()
+        )
+        out = capsys.readouterr().out
+        assert "answered as F187" in out
+        assert "hk_f1xx_minus_one" in out
+        assert "asleep" not in out
+        # Still refused: the reply is never printed as the requested DID's value.
+        assert "91234" not in out
+
+    @pytest.mark.asyncio
+    async def test_json_lists_the_offset_answers(self, monkeypatch, capsys):
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "uds")
+        await ident.mode_identity(
+            self._terminal(), 0x7A0, session=False, wake=False, as_json=True, quirks=frozenset()
+        )
+        data = json.loads(capsys.readouterr().out)
+        assert data["results"] == []
+        assert data["summary"]["offset"] == 2
+        assert {a["did"]: a["answered_as"] for a in data["offset_answers"]} == {
+            "F190": "F18F",
+            "F188": "F187",
+        }
+
+    @pytest.mark.asyncio
+    async def test_the_probe_takes_an_offset_answer_as_uds(self):
+        proto, _ = await ident._probe_protocol(self._terminal())
+        assert proto == "uds"
+
+    def test_another_identifier_is_not_taken_for_the_offset(self):
+        r = parse_uds_response("62F18A41", expected_sid=0x22, expected_echo=b"\xf1\x88")
+        assert ident._offset_answer("22F188", r) is None
+        assert r["error_kind"] == "stale"
 
 
 class TestReExports:
