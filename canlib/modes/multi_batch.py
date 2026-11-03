@@ -17,6 +17,7 @@ from typing import NotRequired, TypedDict
 from canlib.expression.decoding import ParamRow, decode_param_rows
 from canlib.uds.multi_did import split_chain
 from canlib.uds.response import UdsResponse
+from canlib.uds.support_map import map_byte_indices
 
 from ..formatting import decode_uds_response
 from ..frame_counts import frames_for_payload
@@ -46,6 +47,8 @@ class ResultEntry(TypedDict):
     error: NotRequired[str]
     stale: NotRequired[bool]
     sensitive: NotRequired[bool]
+    # Payload indices of the PID's declared support-map bytes (display only; never recorded).
+    map_bytes: NotRequired[tuple[int, ...]]
 
 
 # One render/collect frame: per-ECU ``(label, results)`` pairs, where ``label``
@@ -324,6 +327,9 @@ def _decode_pid_result(
             "raw_hex": hex_str,
             "acquired_at": acquired_at,
         }
+        map_bytes = map_byte_indices(pid_info, pid_code)
+        if map_bytes:
+            entry["map_bytes"] = map_bytes
     else:
         entry = {
             "pid": pid_code,

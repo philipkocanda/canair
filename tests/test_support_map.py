@@ -10,10 +10,12 @@ import random
 import pytest
 
 from canlib.analysis.support_map import (
+    ABSENCE_TEXT,
     MIN_EXPLAINED,
     MapFit,
     Slot,
     _chance_log10,
+    absence_reason,
     best_fit,
     continuation_bits,
     corroborated,
@@ -167,6 +169,53 @@ class TestDetection:
         rows = [bytes([i % 251]) + r for i, r in enumerate(_bit_rows())]
         assert best_fit(detect_support_maps(rows, max_at=0)) is None
         assert best_fit(detect_support_maps(rows, max_at=1)).at == 1
+
+    def test_a_short_stub_does_not_beat_the_whole_map(self):
+        # Kona IGPM 22BC03: with few moving bits, the 3-byte stub (which reads the fourth map
+        # byte as data) scored a hair better than the whole map and was reported, rejected.
+        mask = bytes.fromhex("FDEE3C73")
+        rows = [mask + bytes([0x34 * (i % 2), 0x60 | (i % 3 == 0), 0, 0]) for i in range(80)]
+        fits = detect_support_maps(rows)
+        stub = next(f for f in fits if f.unit == "bit" and f.length == 3)
+        whole = next(f for f in fits if f.unit == "bit" and f.length == 4)
+        assert stub.violations and not whole.violations
+        assert stub.penalised_log10 < whole.penalised_log10
+        assert best_fit(fits) is whole
+
+    def test_a_per_byte_reading_does_not_excuse_a_per_bit_violation(self):
+        # Units are not compared: marking a whole byte explains any stray bit in it.
+        fits = [_fit(-0.5, inside=1, violations=2), _fit(0.1, inside=1, key=("byte", 0, 2))]
+        assert best_fit(fits) is fits[0]
+
+
+class TestAbsence:
+    def test_too_few_rows(self):
+        assert absence_reason(_bit_rows(n=5)) == "few-rows"
+
+    def test_varying_leading_bytes_are_data(self):
+        rng = random.Random(4)
+        rows = [bytes(rng.getrandbits(8) for _ in range(8)) for _ in range(60)]
+        assert absence_reason(rows) == "varies"
+
+    def test_a_few_fixed_maps_are_variants_not_data(self):
+        # Kona CLU 22B002: E0 in one car's log, 60 in another's.
+        rows = [bytes.fromhex("E0000000") + bytes([i % 5, 7]) for i in range(40)]
+        rows += [bytes.fromhex("60000000") + bytes([0, i % 5]) for i in range(70)]
+        assert absence_reason(rows) == "variants"
+
+    @pytest.mark.parametrize(
+        "lead, reason", [("00000000", "empty"), ("FFFFFFFF", "full"), ("40C00000", "still")]
+    )
+    def test_constant_leading_bytes(self, lead, reason):
+        rows = [bytes.fromhex(lead) + bytes([1, 2, 3]) for _ in range(40)]
+        assert absence_reason(rows) == reason
+
+    def test_a_map_that_starts_with_00_is_not_empty(self):
+        rows = [bytes.fromhex("002001E0") + bytes([0, 0, 0, 0]) for _ in range(40)]
+        assert absence_reason(rows) == "still"
+
+    def test_every_reason_has_text(self):
+        assert set(ABSENCE_TEXT) == {"few-rows", "varies", "variants", "empty", "full", "still"}
 
 
 class TestEvidence:

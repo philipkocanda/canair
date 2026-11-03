@@ -228,7 +228,8 @@ tip: no anchors found? widen scope (drop --state), lower --min-r, or grow the
     parser.add_argument(
         "--map-all",
         action="store_true",
-        help="With --support-map in a sweep: also list PIDs with no map-shaped leading bytes",
+        help="With --support-map in a sweep: also list PIDs with no map (each with the reason: "
+        "varying leading bytes mean the data starts there) and thin fits",
     )
     parser.add_argument(
         "--independent-of",

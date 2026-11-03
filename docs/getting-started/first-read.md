@@ -59,6 +59,11 @@ It monitors several ECUs at once, too. This cross-ECU view watches the
 
 ![canair monitor — live cross-ECU drivetrain view in READY mode](../screenshots/monitor-drivetrain.gif)
 
+The payload bytes are coloured by what reads them: green for a verified signal, yellow
+for an unverified one, grey for nothing, and a muted grey-blue for a PID's declared
+[support map](../concepts/analysis-commands.md#support-maps-which-bits-are-signals-at-all)
+(layout bytes, not data). Press **`?`** for the keys and a colour legend.
+
 By default each PID refreshes at its own cadence — twice as often as the `period:`
 the profile ships for it (what the WiCAN AutoPID profile uses) — so a fast-moving
 signal updates briskly while a slow per-cycle record is read only as often as it

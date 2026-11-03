@@ -180,16 +180,28 @@ breaks the layout counts against them, not for them. A marked bit may be the *st
 multi-bit field, so an unmarked bit directly above a mark is reported as a **field
 continuation**, not a violation (the IGPM's left/right turn signal is one 2-bit field).
 
-This is **not make-wide**. The service-21 pages (BMS, VCU, MCU, OBC) and the chassis
-`22xxxx` DIDs have similar-looking leading bytes that do not fit, and BCM `22B005` is a hard
-exception: its light-stalk bits move outside its map. That is why a map is *declared* per
-PID after reading the report, not applied automatically.
+This is **not make-wide**, and not one layout. The service-21 pages (BMS, VCU, MCU, OBC)
+lead with constant bytes too, but of a third kind the detector does not model yet: one map
+bit per *field* of the page, whatever its width. Ioniq BMS `2101`'s `FF FF FF FF` matches its
+32 known fields, VCU `2101`'s `FF E0` its 11, and on the Kona the three clear bits of BMS
+`220101`'s map are the fields a liquid-cooled pack lacks. Read per byte they fail, so they are
+reported `REJECTED`; see [`plans/2026-11-03-support-map-field-maps.md`](https://github.com/philipkocanda/canair/blob/main/plans/2026-11-03-support-map-field-maps.md).
+BCM `22B005` is a hard exception: its light-stalk bits move outside its map. That is why a
+map is *declared* per PID after reading the report, not applied automatically. No map has
+turned up on a Nissan or XPeng profile.
+
+A PID with no fit says why, and that is information too: **leading bytes vary** means the
+data starts right after the DID echo, so the first bytes are signals, not a map. The other
+reasons (constant `00`, constant `FF`, nothing moving, too few captures, or a few fixed
+values that differ between cars or sessions) mean the captures cannot tell. A sweep prints
+the count of each on its header line.
 
 Once declared (`canair pids set-support-map`), `canair coverage` reads the map off each
 payload: its own bytes and the bytes it marks as carrying nothing stop being reported as
 `UNMAPPED`, `BITS` only counts marked bits, and signals reading unmarked positions are
 reported as `OUTSIDE MAP`. `canair bix --annotate --ecu --pid` labels the map bytes in a
-payload. See [`plans/2026-10-29-support-bitmap-coverage.md`](https://github.com/philipkocanda/canair/blob/main/plans/2026-10-29-support-bitmap-coverage.md)
+payload, and `canair monitor` and `canair read` draw them in a muted grey-blue. See
+[`plans/2026-10-29-support-bitmap-coverage.md`](https://github.com/philipkocanda/canair/blob/main/plans/2026-10-29-support-bitmap-coverage.md)
 for the design and the evidence.
 
 ## Where each sits in the RE lifecycle

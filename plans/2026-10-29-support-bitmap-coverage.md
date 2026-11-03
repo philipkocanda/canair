@@ -187,6 +187,10 @@ Each phase is shippable on its own.
 
 ## Open questions
 
+Several are answered, and new work proposed, in
+`plans/2026-11-03-support-map-field-maps.md` (field maps on the service-21 pages, map variants,
+other makes, the name).
+
 - **Field widths.** The map marks a field's start bit, not its width. Declaring known widths
   (e.g. `fields: {B11: 2}`) would let `coverage` stop calling a continuation bit a gap.
 - **Other makes.** Worth checking against another manufacturer's captures before documenting this

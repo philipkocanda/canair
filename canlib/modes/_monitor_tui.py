@@ -76,6 +76,7 @@ from datetime import datetime
 
 from ..log import log_event, log_exception
 from ..transport.errors import transport_error_types
+from ._monitor_render import MONITOR_LEGEND
 
 #: The hint for the ECU/PID picker key, shown in the header and the status bar.
 PICK_HINT = f"{keys_for('pick')[0]} select ECUs/PIDs"
@@ -822,6 +823,7 @@ class MonitorApp(HelpMixin, App):
     """Scrollable, in-place live-value monitor."""
 
     HELP_TITLE = "canair monitor — keyboard shortcuts"
+    HELP_LEGEND = MONITOR_LEGEND
 
     # canair uses no command-palette commands; disable Textual's ctrl+p palette.
     ENABLE_COMMAND_PALETTE = False

@@ -1,6 +1,7 @@
 """Output formatting helpers."""
 
 import json
+from collections.abc import Collection
 from typing import TYPE_CHECKING, Literal
 
 from rich.console import Console
@@ -32,6 +33,22 @@ _HIGHLIGHT_STYLE = {
     "bright_black": "bold white on grey37",
 }
 
+# A declared support map's bytes (``support_map:`` on the PID; canlib.uds.support_map): muted
+# and grey-blue, so they read as layout metadata rather than as uncovered data. A map byte that
+# changes is worth noticing (another car or software), so it still flashes.
+MAP_BYTE_STYLE = "light_slate_grey"
+_HIGHLIGHT_STYLE[MAP_BYTE_STYLE] = "bold white on medium_purple4"
+
+# What each byte colour means, for a TUI's help legend: (sample, style, meaning). One list
+# beside the styles it describes, so the legend cannot drift from the colours.
+BYTE_COLOUR_LEGEND: tuple[tuple[str, str, str], ...] = (
+    ("3C", "green", "byte read by a verified signal"),
+    ("3C", "yellow", "byte read by an unverified signal"),
+    ("3C", "bright_black", "byte no signal reads"),
+    ("3C", MAP_BYTE_STYLE, "support map byte: marks which data are signals"),
+    ("3C", _HIGHLIGHT_STYLE["green"], "byte changed since the previous payload"),
+)
+
 
 def _bytes_to_ascii(raw_hex: str) -> str:
     """Convert hex string to ASCII representation (printable chars or '.')."""
@@ -39,15 +56,19 @@ def _bytes_to_ascii(raw_hex: str) -> str:
     return "".join(chr(b) if 32 <= b < 127 else "." for b in data)
 
 
-def _build_byte_colors(params: list[ParamRow], n_bytes: int) -> list[str]:
+def _build_byte_colors(
+    params: list[ParamRow], n_bytes: int, map_bytes: Collection[int] = ()
+) -> list[str]:
     """Return a per-ELM-byte colour list based on parameter coverage and verification.
 
     Priority: green (covered by verified param) > yellow (covered by unverified) >
+              :data:`MAP_BYTE_STYLE` (a declared support-map byte) >
               bright_black (not covered by any expression).
 
     Args:
-        params:   list of (name, value, unit, expression, error, verified[, display])
-        n_bytes:  number of ELM payload bytes
+        params:    list of (name, value, unit, expression, error, verified[, display])
+        n_bytes:   number of ELM payload bytes
+        map_bytes: payload indices of the PID's declared support-map bytes
     Returns:
         list of Rich colour strings, one per byte index.
     """
@@ -64,7 +85,9 @@ def _build_byte_colors(params: list[ParamRow], n_bytes: int) -> list[str]:
                 if level > rank[ei]:
                     rank[ei] = level
     color_map = {0: "bright_black", 1: "yellow", 2: "green"}
-    return [color_map[r] for r in rank]
+    return [
+        MAP_BYTE_STYLE if r == 0 and i in map_bytes else color_map[r] for i, r in enumerate(rank)
+    ]
 
 
 def _changed_byte_offsets(raw_hex: str, prev_raw: str) -> set[int]:
@@ -228,14 +251,17 @@ def _render_hex_line(
     prefix: str = "      ",
     prefix_style: str = "",
     suffix: str = "",
+    map_bytes: Collection[int] = (),
 ) -> Text:
     """Render a payload hex line as Rich Text with per-byte change highlighting.
 
     Bytes get a base colour from parameter coverage (green=verified, yellow=
     unverified, grey=uncovered); bytes differing from ``prev_raw`` get a
     highlighted background variant. Unmapped/paramless payloads render grey with
-    a trailing ASCII column. ``prefix`` is prepended before the hex bytes and
-    ``suffix`` (dimmed) appended after them.
+    a trailing ASCII column. ``map_bytes`` (payload indices of the PID's declared
+    support map) render in :data:`MAP_BYTE_STYLE` unless a signal reads them.
+    ``prefix`` is prepended before the hex bytes and ``suffix`` (dimmed) appended
+    after them.
     """
     elm_bytes = [raw_hex[i : i + 2] for i in range(0, len(raw_hex), 2)]
     prev_bytes = [prev_raw[i : i + 2] for i in range(0, len(prev_raw), 2)] if prev_raw else []
@@ -250,12 +276,13 @@ def _render_hex_line(
             if i > 0:
                 t.append(" ")
             changed = i < len(prev_bytes) and prev_bytes[i] != hb
-            style = _HIGHLIGHT_STYLE["bright_black"] if changed else "bright_black"
+            base = MAP_BYTE_STYLE if i in map_bytes else "bright_black"
+            style = _HIGHLIGHT_STYLE[base] if changed else base
             t.append(hb, style=style)
         ascii_repr = _bytes_to_ascii(raw_hex)
         t.append(f"  {ascii_repr}  ({n_bytes} B)", style="bright_black")
     else:
-        byte_color = _build_byte_colors(params, n_bytes)
+        byte_color = _build_byte_colors(params, n_bytes, map_bytes)
         for i, hb in enumerate(elm_bytes):
             if i > 0:
                 t.append(" ")
@@ -415,7 +442,11 @@ def render_param_ranges(
 
 
 def render_byte_rulers(
-    display: "ByteDisplay", params: list[ParamRow], *, prefix_width: int = 8
+    display: "ByteDisplay",
+    params: list[ParamRow],
+    *,
+    prefix_width: int = 8,
+    map_bytes: Collection[int] = (),
 ) -> Text:
     """Return a byte-index ruler row for a payload, as Rich Text.
 
@@ -426,8 +457,8 @@ def render_byte_rulers(
     from the same :class:`~canlib.uds.notation.ByteDisplay`, so the two always agree.
 
     Numbers are coverage-coloured (green=verified, yellow=unverified,
-    grey=uncovered) to match the hex view, on a dark background bar, and aligned
-    under each hex byte column.
+    grey=uncovered, :data:`MAP_BYTE_STYLE` for ``map_bytes``) to match the hex
+    view, on a dark background bar, and aligned under each hex byte column.
 
     ``prefix_width`` must equal the width of the prefix used on the hex lines
     rendered below (e.g. timestamp column) so the ruler columns line up. The row
@@ -437,7 +468,7 @@ def render_byte_rulers(
     bg = "on grey23"
     # Lift uncovered grey to a readable tone against the dark background.
     fg_map = {"green": "green", "yellow": "yellow", "bright_black": "grey58"}
-    byte_colors = _build_byte_colors(params, n_bytes) if params else None
+    byte_colors = _build_byte_colors(params, n_bytes, map_bytes) if params or map_bytes else None
 
     out = Text()
     # Label sits in the leftmost 6 chars, padded out to the full prefix width.
@@ -531,7 +562,8 @@ def print_ecu_results(
 
         # Raw hex line (shared renderer; no prev_raw → no change highlighting).
         if raw_hex:
-            c.print(_render_hex_line(raw_hex, params, unmapped), end="")
+            line = _render_hex_line(raw_hex, params, unmapped, map_bytes=entry.get("map_bytes", ()))
+            c.print(line, end="")
 
 
 def print_hexdump(data: bytes, prefix: str = "  ", *, layout: ByteLayout = "isotp"):

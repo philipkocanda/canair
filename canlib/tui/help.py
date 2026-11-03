@@ -10,13 +10,16 @@ Mix :class:`HelpMixin` into an ``App`` and add a ``Binding("question_mark",
 Keys the app does *not* declare because the framework already handles them
 (``Home``/``End``/``PgUp``/``PgDn`` on a focused scroll container) can be listed
 via ``HELP_EXTRA_ROWS`` — otherwise they are real, working keys the cheat-sheet
-would silently omit.
+would silently omit. An app whose screen uses colour to carry meaning sets
+``HELP_LEGEND`` to draw a colour legend under the keys.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import ClassVar
 
+from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical, VerticalScroll
@@ -24,6 +27,9 @@ from textual.screen import ModalScreen
 from textual.widgets import Label, Static
 
 from canlib.tui.keys import DISMISS_DESCRIPTION, bind
+
+# One colour-legend row: a sample glyph, the Rich style it is drawn in, and what it means.
+LegendRow = tuple[str, str, str]
 
 # Keys the focused scroll container handles for free, so there is no ``Binding``
 # to derive a cheat-sheet row from — but they are real, working keys in every
@@ -76,8 +82,20 @@ def _display_key(key: str) -> str:
     return format_key(key)
 
 
+def legend_text(legend: Sequence[LegendRow], width: int) -> Text:
+    """A ``Colours`` block: each sample drawn in its own style, right-aligned like the keys."""
+    out = Text("Colours\n", style="bold")
+    for i, (sample, style, meaning) in enumerate(legend):
+        out.append(" " * max(0, width - len(sample)))
+        out.append(sample, style=style)
+        out.append(f"  {meaning}")
+        if i < len(legend) - 1:
+            out.append("\n")
+    return out
+
+
 class HelpModal(ModalScreen[None]):
-    """A dismissable keyboard cheat-sheet overlay."""
+    """A dismissable keyboard cheat-sheet overlay, with an optional colour legend."""
 
     CSS = """
     HelpModal { align: center middle; background: $background 60%; }
@@ -87,6 +105,7 @@ class HelpModal(ModalScreen[None]):
     }
     #help-title { text-style: bold; margin-bottom: 1; }
     #help-rows { height: auto; }
+    #help-legend { margin-top: 1; }
     #help-hint { color: $text-muted; margin-top: 1; }
     """
 
@@ -100,10 +119,16 @@ class HelpModal(ModalScreen[None]):
         *bind("axis_end", "to_bottom", show=False),
     ]
 
-    def __init__(self, title: str, rows: list[tuple[str, str]]):
+    def __init__(
+        self,
+        title: str,
+        rows: list[tuple[str, str]],
+        legend: Sequence[LegendRow] = (),
+    ):
         super().__init__()
         self._title = title
         self._rows = rows
+        self._legend = tuple(legend)
 
     def compose(self) -> ComposeResult:
         width = max((len(k) for k, _ in self._rows), default=4)
@@ -112,6 +137,8 @@ class HelpModal(ModalScreen[None]):
             yield Label(self._title, id="help-title")
             with VerticalScroll(id="help-rows"):
                 yield Static(lines or "(no shortcuts)", markup=False)
+                if self._legend:
+                    yield Static(legend_text(self._legend, width), id="help-legend")
             yield Label("j/k g/G scroll · ? / esc / q to close", id="help-hint")
 
     def on_mount(self) -> None:
@@ -152,6 +179,8 @@ class HelpMixin:
     #: ``(keys, description)`` rows appended after the derived ones. Defaults to
     #: the framework scroll keys; override to reword them for the app's axis.
     HELP_EXTRA_ROWS: ClassVar[tuple[tuple[str, str], ...]] = SCROLL_HELP_ROWS
+    #: ``(sample, style, meaning)`` rows drawn as a colour legend under the keys.
+    HELP_LEGEND: ClassVar[tuple[LegendRow, ...]] = ()
 
     def action_help(self) -> None:
         assert isinstance(self, App)
@@ -159,4 +188,4 @@ class HelpMixin:
         if len(self.screen_stack) > 1:
             return
         rows = bindings_help_rows(self) + list(self.HELP_EXTRA_ROWS)
-        self.push_screen(HelpModal(self.HELP_TITLE, rows))
+        self.push_screen(HelpModal(self.HELP_TITLE, rows, self.HELP_LEGEND))

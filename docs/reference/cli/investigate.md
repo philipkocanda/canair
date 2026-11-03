@@ -145,7 +145,8 @@ options:
                         bytes) outside the map before rejecting a fit (default
                         0)
   --map-all             With --support-map in a sweep: also list PIDs with no
-                        map-shaped leading bytes
+                        map (each with the reason: varying leading bytes mean
+                        the data starts there) and thin fits
   --independent-of ECU:PID:PARAM
                         Rank bytes that separate by state yet DON'T track this
                         driver signal — the 'active-but-independent' finder

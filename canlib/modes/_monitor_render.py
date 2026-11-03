@@ -15,6 +15,7 @@ from canlib.sensitive import MASK
 from canlib.uds.notation import ByteDisplay, ByteNotation, subfunction_bytes_for_pid
 
 from ..formatting import (
+    BYTE_COLOUR_LEGEND,
     _render_hex_line,
     changed_param_highlights,
     render_byte_rulers,
@@ -43,6 +44,17 @@ _RENDER_MAX_ROWS = 200
 # to choke the TUI. Keep the live view compact — every poll is still in the journal
 # when --save. `--keep N` overrides it.
 _RENDER_DEFAULT_ROWS = 4
+
+# The monitor's own glyphs, for the help legend (the byte colours come from
+# canlib.formatting.BYTE_COLOUR_LEGEND). Styles match _render_entry and render_param_table.
+MARKER_LEGEND: tuple[tuple[str, str, str], ...] = (
+    ("○", "green", "PID answered this cycle"),
+    ("○", "grey58", "stale: the last good value, held"),
+    ("●", "bright_green", "payload changed this cycle"),
+    ("✓", "green", "verified signal"),
+    ("?", "yellow", "unverified signal"),
+)
+MONITOR_LEGEND = BYTE_COLOUR_LEGEND + MARKER_LEGEND
 
 
 class RenderCache:
@@ -110,6 +122,7 @@ def _entry_signature(
     return (
         entry.get("pid", ""),
         entry.get("raw_hex", ""),
+        entry.get("map_bytes", ()),
         entry.get("error"),
         entry.get("decode"),
         bool(entry.get("unmapped", False)),
@@ -208,6 +221,7 @@ def _render_entry(
     decode = entry.get("decode")
     unmapped = entry.get("unmapped", False)
     stale = entry.get("stale", False)
+    map_bytes = entry.get("map_bytes", ())
     show_hex = view_mode == "full"
 
     entry_text = Text()
@@ -297,7 +311,9 @@ def _render_entry(
         # Byte-index ruler, once per PID, above the hex lines.
         if byte_display is not None:
             ruler_pw = 16 if history is not None else 6
-            entry_text.append_text(render_byte_rulers(byte_display, params, prefix_width=ruler_pw))
+            entry_text.append_text(
+                render_byte_rulers(byte_display, params, prefix_width=ruler_pw, map_bytes=map_bytes)
+            )
         if history is not None:
             # One row per run of identical payloads, oldest first, each diffed
             # against its predecessor. Include the current payload when it is not
@@ -329,11 +345,14 @@ def _render_entry(
                         prefix=prefix,
                         prefix_style="dim" if run.time else "",
                         suffix=f"  ×{run.polls}" if run.polls > 1 else "",
+                        map_bytes=map_bytes,
                     )
                 )
                 prev_row = run.payload
         else:
-            entry_text.append_text(_render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw))
+            entry_text.append_text(
+                _render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw, map_bytes=map_bytes)
+            )
 
     if stale:
         entry_text.stylize("dim")  # grey the whole PID block

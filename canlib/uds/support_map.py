@@ -24,6 +24,7 @@ from canlib.analysis.support_map import (
     marked_bits,
     marked_byte_indices,
 )
+from canlib.uds.notation import subfunction_bytes_for_pid
 
 UNITS: tuple[str, ...] = ("bit", "byte")
 ORDERS: tuple[str, ...] = ("msb",)
@@ -80,6 +81,22 @@ def declaration(pid_def: Mapping[str, Any] | None) -> MapDecl | None:
     if not isinstance(raw, Mapping):
         raise SupportMapError("support_map must be a mapping")
     return MapDecl.from_mapping(raw)
+
+
+def map_byte_indices(pid_def: Mapping[str, Any] | None, pid: str) -> tuple[int, ...]:
+    """Payload indices (SID first) of the PID's declared map bytes, for display.
+
+    Empty when the PID declares no map or a malformed one (``validate pids`` reports that); a
+    renderer has nothing to do with the error.
+    """
+    try:
+        decl = declaration(pid_def)
+    except SupportMapError:
+        return ()
+    if decl is None:
+        return ()
+    first = 1 + subfunction_bytes_for_pid(pid) + decl.at
+    return tuple(range(first, first + decl.length))
 
 
 @dataclass(frozen=True)

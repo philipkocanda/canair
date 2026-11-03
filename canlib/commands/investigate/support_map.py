@@ -19,9 +19,12 @@ from dataclasses import dataclass, field
 from canlib import ansi
 from canlib.analysis.align import LoadedPid, discover_signal_specs, load_signal_captures
 from canlib.analysis.support_map import (
+    ABSENCE_TEXT,
     MIN_EXPLAINED,
+    Absence,
     MapFit,
     Slot,
+    absence_reason,
     best_fit,
     corroborated,
     family_chance_log10,
@@ -60,6 +63,7 @@ class PidScan:
     verdict: str = "none"
     family_log10: float = 0.0
     labels: dict[int, int] = field(default_factory=dict)
+    absence: Absence | None = None  # why there is no fit, when there is none
 
 
 def _modal_payload(lp: LoadedPid) -> bytes:
@@ -86,6 +90,7 @@ def scan_pid(ecu: str, pid: str, lp: LoadedPid, params: dict, args) -> PidScan |
     return PidScan(
         ecu, pid, len(rows), header, sample, fits, best, params,
         labels=payload_index_to_wican(list(sample)),
+        absence=None if best else absence_reason(rows, max_at=args.map_max_offset),
     )  # fmt: skip
 
 
@@ -179,6 +184,8 @@ def _as_json(scan: PidScan, args) -> dict:
     fit = scan.best
     base = {"ecu": scan.ecu, "pid": scan.pid, "verdict": scan.verdict, "rows": scan.n_rows}
     if fit is None:
+        if scan.absence:
+            base |= {"absence": scan.absence, "absence_text": ABSENCE_TEXT[scan.absence]}
         return base
     notation = resolve_notation(args.notation)
 
@@ -241,7 +248,8 @@ def _print_scan(scan: PidScan, args) -> None:
     colour = _VERDICT_COLOUR[scan.verdict]
     head = f"  {ansi.BOLD}{ansi.CYAN}{scan.ecu} {scan.pid}{ansi.RESET}"
     if fit is None:
-        print(f"{head}  {ansi.DIM}no constant leading map found ({scan.n_rows} rows){ansi.RESET}")
+        why = ABSENCE_TEXT[scan.absence] if scan.absence else "no constant leading map found"
+        print(f"{head}  {ansi.DIM}no map: {why} ({scan.n_rows} rows){ansi.RESET}")
         return
     notation = resolve_notation(args.notation)
     marked = fit.marked
@@ -283,6 +291,22 @@ def _print_scan(scan: PidScan, args) -> None:
         print(f"      {ansi.DIM}declare: {cmd}{ansi.RESET}")
     elif scan.verdict == "rejected":
         print(f"      {ansi.DIM}closest fit only; not proposed for declaration{ansi.RESET}")
+
+
+_ABSENCE_SHORT: dict[str, str] = {
+    "varies": "data right after the DID echo",
+    "variants": "map differs between captures",
+    "empty": "constant 00",
+    "full": "constant FF",
+    "still": "nothing moves",
+    "few-rows": "too few captures",
+}
+
+
+def _absence_tally(scans: list[PidScan]) -> str:
+    """One line counting why the PIDs without a map have none, most informative first."""
+    counts: Counter[str] = Counter(str(s.absence) for s in scans if s.best is None and s.absence)
+    return ", ".join(f"{counts[k]} {text}" for k, text in _ABSENCE_SHORT.items() if counts[k])
 
 
 def run_support_map(specs: list[tuple[str, str]], args, since, until) -> int:
@@ -331,8 +355,12 @@ def run_support_map(specs: list[tuple[str, str]], args, since, until) -> int:
     found = sum(1 for s in scans if s.verdict in ("strong", "corroborated"))
     print(
         f"\n{ansi.BOLD}Support maps{ansi.RESET} {ansi.DIM}— {found} of {len(scans)} PID(s) carry "
-        f"one{ansi.RESET}\n"
+        f"one{ansi.RESET}"
     )
+    tally = _absence_tally(scans)
+    if tally and len(scans) > 1:
+        print(f"{ansi.DIM}No map: {tally}{ansi.RESET}")
+    print()
     order = {"strong": 0, "corroborated": 1, "weak": 2, "rejected": 3, "none": 4}
     for scan in sorted(shown, key=lambda s: (order[s.verdict], s.ecu, s.pid)):
         _print_scan(scan, args)

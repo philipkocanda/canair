@@ -276,14 +276,78 @@ def detect_support_maps(
 def best_fit(fits: Iterable[MapFit]) -> MapFit | None:
     """The fit to report: the strongest evidence among those with something moving inside.
 
-    Violations do not demote a fit here, so a PID whose real map is broken by one stray byte is
-    reported as that map, rejected, rather than as a shorter stub that fits trivially. The caller
-    reads the verdict off the result.
+    Violations alone do not demote a fit, so a PID whose real map is broken by one stray byte is
+    reported as that map, rejected, rather than as a shorter stub that fits trivially. A fit with
+    violations is set aside only when a violation-free fit of the same unit explains at least as
+    many moving bits: that is the wrong length read over the right map (a 3-byte stub that takes
+    the fourth map byte for data), not the map itself. Units are not compared: a per-byte reading
+    marks a whole byte, so it "explains" any stray bit of a per-bit map by construction. The
+    caller reads the verdict off the result.
     """
     candidates = [f for f in fits if f.inside >= 1]
-    if not candidates:
+    clean = [f for f in candidates if not f.violations]
+
+    def dominated(fit: MapFit) -> bool:
+        return bool(fit.violations) and any(
+            c.unit == fit.unit and c.inside >= fit.inside for c in clean
+        )
+
+    kept = [f for f in candidates if not dominated(f)]
+    if not kept:
         return None
-    return min(candidates, key=lambda f: (f.penalised_log10, f.unit != "bit"))
+    return min(kept, key=lambda f: (f.penalised_log10, f.unit != "bit"))
+
+
+Absence = Literal["few-rows", "varies", "variants", "empty", "full", "still"]
+
+# Why a PID shows no map. ``varies`` is the informative one: the bytes right after the DID echo
+# change between captures, so they are data and no map can sit there.
+ABSENCE_TEXT: dict[str, str] = {
+    "few-rows": "too few captures to judge",
+    "varies": "leading bytes vary: data starts right after the DID echo, no map there",
+    "variants": (
+        "leading bytes hold a few fixed values: maps that differ between cars or sessions; "
+        "scope to one (--date, --label) to test each"
+    ),
+    "empty": "leading bytes are constant 00: an empty map or zero data, cannot be tested",
+    "full": "leading bytes are constant FF: a map marking everything or fill, cannot be tested",
+    "still": "constant leading bytes, but nothing after them moves: no evidence either way",
+}
+# A prefix value must hold this many rows to count as one of a few map variants.
+MAX_VARIANTS = 3
+
+
+def absence_reason(rows: Sequence[bytes], *, max_at: int = DEFAULT_MAX_AT) -> Absence:
+    """Why :func:`detect_support_maps` found nothing usable in ``rows`` (data bytes only).
+
+    Judged on the first byte at each searched offset: a map byte is constant, so a first byte
+    that takes many values rules a map out at that offset.
+    """
+    if len(rows) < MIN_ROWS:
+        return "few-rows"
+    width = min(len(r) for r in rows)
+    starts = [at for at in range(max_at + 1) if at < width]
+    if not starts:
+        return "few-rows"
+    modal = [Counter(r[at] for r in rows).most_common() for at in starts]
+    if all(m[0][1] < MODAL_FRAC * len(rows) for m in modal):
+        prefixes = Counter(r[: min(MAX_MAP_LEN, width)] for r in rows).most_common()
+        common = [c for _p, c in prefixes[:MAX_VARIANTS] if c >= MIN_ROWS]
+        if len(common) > 1 and sum(common) >= MODAL_FRAC * len(rows):
+            return "variants"
+        return "varies"
+    at = next(a for a, m in zip(starts, modal, strict=True) if m[0][1] >= MODAL_FRAC * len(rows))
+    lead = bytearray()
+    for j in range(at, min(at + MAX_MAP_LEN, width)):
+        value, count = Counter(r[j] for r in rows).most_common(1)[0]
+        if count < MODAL_FRAC * len(rows):
+            break
+        lead.append(value)
+    if not any(lead):
+        return "empty"
+    if all(b == 0xFF for b in lead):
+        return "full"
+    return "still"
 
 
 def _witness(fit: MapFit) -> bool:

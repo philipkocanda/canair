@@ -196,6 +196,39 @@ class TestReport:
         assert wican["marked"][0]["label"] != torque["marked"][0]["label"]
 
 
+class TestAbsence:
+    @staticmethod
+    def _noise_scan():
+        rng = random.Random(8)
+        lp = LoadedPid("HVAC", "2201A0")
+        for i in range(60):
+            noise = bytes(rng.getrandbits(8) for _ in range(8)).hex()
+            lp.captures.append(_capture("HVAC", "2201A0", i, "6201A0" + noise))
+        scan = inv_map.scan_pid("HVAC", "2201A0", lp, {}, _args())
+        inv_map.judge({"2201A0": scan}, _args())
+        return scan
+
+    def test_varying_leading_bytes_say_the_data_starts_there(self, capsys):
+        scan = self._noise_scan()
+        assert scan.best is None and scan.absence == "varies"
+        inv_map._print_scan(scan, _args())
+        assert "no map: leading bytes vary" in capsys.readouterr().out
+
+    def test_json_carries_the_reason(self):
+        doc = inv_map._as_json(self._noise_scan(), _args())
+        assert doc["absence"] == "varies" and "data starts" in doc["absence_text"]
+
+    def test_a_found_map_has_no_absence(self):
+        assert inv_map.scan_pid("IGPM", "22BC03", _lp(), {}, _args()).absence is None
+
+    def test_the_sweep_tally_counts_each_reason(self):
+        few = inv_map.scan_pid("IGPM", "22BC03", _lp(n=5), {}, _args())
+        scans = [self._noise_scan(), self._noise_scan(), few]
+        assert inv_map._absence_tally(scans) == (
+            "2 data right after the DID echo, 1 too few captures"
+        )
+
+
 class TestCli:
     def _parse(self, *argv):
         top = argparse.ArgumentParser()
