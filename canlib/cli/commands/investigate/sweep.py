@@ -166,7 +166,7 @@ def _pid_summary(lp: LoadedPid, params_def: dict, args, fill) -> dict | None:
     from canlib.analysis.physical.bands import resolve_physical_bands
     from canlib.analysis.xanalysis import build_byte_series, byte_state_buckets, physical_scan
     from canlib.cli.commands.investigate.report import _state_f
-    from canlib.grid_prompt import resolve_grid_region
+    from canlib.cli.grid_prompt import resolve_grid_region
     from canlib.profile import active
 
     target = build_byte_series(lp, min_distinct=2, fill=fill)

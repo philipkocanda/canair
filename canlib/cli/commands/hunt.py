@@ -608,7 +608,7 @@ def _run_physical(args, ecu: str, pid: str, since, until) -> int:
     """Reference-free physical-value band scan on one PID."""
     from canlib.analysis.physical.bands import resolve_physical_bands
     from canlib.analysis.xanalysis import physical_scan
-    from canlib.grid_prompt import resolve_grid_region
+    from canlib.cli.grid_prompt import resolve_grid_region
     from canlib.profile import active
 
     loaded = load_signal_captures(

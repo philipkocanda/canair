@@ -1,4 +1,4 @@
-"""Tests for the first-run profile chooser (canlib.first_run)."""
+"""Tests for the first-run profile chooser (canlib.cli.first_run)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,8 @@ import argparse
 
 import pytest
 
-from canlib import first_run, profile
+from canlib import profile
+from canlib.cli import first_run
 from canlib.ecus.pids import clear_cache
 
 

@@ -56,7 +56,7 @@ canair reaches the bus through one **explicitly selected** transport, registered
 
 All backends satisfy the `Terminal` protocol (`canlib/transport/protocol.py`) and live commands
 run through the **single shared** `canlib/live/session.py::run_session_guarded`, called by both the
-ELM path (`commands/_live/runtime.py::async_main`) and the raw path (`live/raw_ops.py::run_raw`).
+ELM path (`cli/commands/_live/runtime.py::async_main`) and the raw path (`live/raw_ops.py::run_raw`).
 
 **The design contract:**
 
@@ -100,7 +100,7 @@ The WiCAN is one device we reach the bus through, not the tool's definition.
   future `socketcan`, serial-SLCAN, or `.asc`/`.blf` *replay* transport should slot in by
   implementing the transport surface, with no command edits.
 - **Isolate WiCAN-specifics** (mode switch, datarate/port discovery, reboot, AutoPID, AP-mode IP) in
-  the `wican_*` modules and `commands/wican.py`. `sniff.py` still reaches into them for
+  the `wican_*` modules and `cli/commands/wican.py`. `sniff.py` still reaches into them for
   port/bitrate/mode — route that through the transport/config layer when you touch it.
 - `wican-ws` is WiCAN-coupled by nature; that's fine *behind* the transport surface. Don't let it
   leak upward.
@@ -148,7 +148,7 @@ only purpose is to hide a cycle.
 
 Commands live in `canlib/cli/commands/<name>.py`, exposing `NAME`, `add_parser(subparsers)` (which calls
 `parser.set_defaults(func=run)`), and `run(args) -> int | None`; register `NAME` in
-`commands/__init__.py::COMMAND_NAMES` (order = help order).
+`cli/commands/__init__.py::COMMAND_NAMES` (order = help order).
 
 **Live (device-talking) commands** additionally call `add_connection_args` +
 `live_command` from `canlib/commands/_live/` (or call `run_live(args, operation)` from their own
@@ -158,7 +158,7 @@ arguments. Nothing picks a handler by inspecting flags, so add the command's row
 `tests/cli/commands/test_live_operations.py`: it pins the operation the command reaches and that the
 parser defines every `args.x` its handler reads directly (use `getattr` for an optional one).
 
-Follow an existing command as a template: `commands/dtc/` + `live/dtc/`.
+Follow an existing command as a template: `cli/commands/dtc/` + `live/dtc/`.
 
 ## Selecting ECUs/PIDs — prefer the query mini-language
 
@@ -169,8 +169,8 @@ consistent, composable and multi-ECU-capable for free; a flag pair is single-tar
 
 - **Parse through the shared helper, never re-implement the grammar:** `canlib/query.py`
   (`parse_query`/`parse_selector`); capture/analysis commands use the alias-aware `_parse_query` in
-  `commands/captures/query.py`; device-pipeline commands use `query/steps.py`. Templates:
-  `commands/captures/` (positional QUERY), `commands/correlate/` (optional `ECU[:PID]`).
+  `cli/commands/captures/query.py`; device-pipeline commands use `query/steps.py`. Templates:
+  `cli/commands/captures/` (positional QUERY), `cli/commands/correlate/` (optional `ECU[:PID]`).
 - Surviving `--ecu`/`--pid`/`--param` flags are **legacy narrow filters, not precedent**.
 - If you need a genuine *filter* on top of a QUERY, extend the shared scoping surface below rather
   than adding a one-off flag.
@@ -207,7 +207,7 @@ data itself is **`contributing-profiles`**.
   `EditError` (a subclass per file kind) and never prints or exits — `cli.py` reports it. It never
   opens or writes the file itself, and never `del`s or rebuilds a ruamel mapping to remove or rename
   an entry: `ruamel_ops.remove_key`/`remove_item`/`rename_key` keep the comments around it. The
-  command is `run_edit(lambda: editor(...), "confirmation")` from `commands/_edit.py`.
+  command is `run_edit(lambda: editor(...), "confirmation")` from `cli/commands/_edit.py`.
 - **Free-text fields render themselves** via one shared policy (`canlib/core/yaml_rt.py`): short
   notes inline, longer ones a wrapped folded `>-` block (double-quoted when folding can't carry
   the text exactly), never reflowing the rest of the file. A new ruamel-written free-text field
@@ -290,8 +290,8 @@ up** when a structural change is warranted instead of bolting on more.
   helpers, async device orchestration, TUI, record/table data). `live/identity.py` splitting out
   `identity_decode.py`/`identity_records.py` is the pattern.
 - **A command is one module until it needs two — then it becomes a package.** Create
-  `commands/<name>/`; do **not** add a flat `_<name>_*.py` sibling (retired for new work).
-  `commands/captures/` and `commands/decode/` are the precedents, and the command registries are
+  `cli/commands/<name>/`; do **not** add a flat `_<name>_*.py` sibling (retired for new work).
+  `cli/commands/captures/` and `cli/commands/decode/` are the precedents, and the command registries are
   keyed by the name *string*, so module layout is free to change. Two corollaries: packaging
   discharges nothing — the ~500-line rule still binds every member; and **split and package in one
   commit**, since splitting now and packaging "later" books the rename twice. Existing flat-sibling

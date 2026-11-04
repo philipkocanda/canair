@@ -332,7 +332,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # On a genuine first run, offer to pick or create a vehicle profile (only
     # when interactive and the command actually needs one).
-    from canlib.first_run import run_first_run_setup, should_offer
+    from canlib.cli.first_run import run_first_run_setup, should_offer
 
     if should_offer(args, seeded=seeded):
         run_first_run_setup(args)

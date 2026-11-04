@@ -344,7 +344,7 @@ and **`g`/`G` address the view's primary axis**.
   **requires** a scope filter so it can't blanket-relabel history),
   `--set-notes`/`--set-transport`/`--set-variant` (correct a session's notes, recorded transport or
   car, same scope rule — the global `--variant untagged` counts as one; one editor in
-  `commands/captures/session_fields.py`, and every `--set-*` shares
+  `cli/commands/captures/session_fields.py`, and every `--set-*` shares
   `session_gate.py::refuse_write` for the base-layer refusal and confirmation), `--recover`, and
   the one-time `migrate` (YAML→JSON) / `migrate-rx` (`ecu`→`rx`) / `migrate-discover` (gives legacy
   discover responders their `tx`; `canlib/migrations/discover.py`) / `split-batched` (splits a
@@ -385,7 +385,7 @@ and **`g`/`G` address the view's primary axis**.
   set-support-map`), never inferred at read time. The service-21 pages carry the per-*field*
   kind (one bit per parameter of any width, as Hyundai's spec defines it): the leaf
   `canlib/analysis/support_fields.py` splits the bytes into parameters from the defined
-  signals (`exact`/`consistent`/`broken`), bridged by `commands/investigate/support_fields.py`;
+  signals (`exact`/`consistent`/`broken`), bridged by `cli/commands/investigate/support_fields.py`;
   a PID whose captures hold several maps is fitted per map (`VARIANTS`). Plan:
   `plans/2026-11-03-support-map-field-maps.md`. Sibling DIDs of one ECU that share a placement
   corroborate each other, because one DID with few moving bits cannot be significant alone. A
@@ -416,7 +416,7 @@ and **`g`/`G` address the view's primary axis**.
 - **`canair research`** — The open RE backlog from the per-ECU `research:` sections. Complements
   `coverage` (undecoded *bytes*) by surfacing *planned* work. **`--gaps`** derives unplanned work:
   IOControl DID families no `0x22` read has reached (leaf `canlib/ecus/did_families.py`, evidence from
-  `scan_log:`/`research:`/saved scans in `commands/research/gaps.py`). An `iocontrol_discoveries:`
+  `scan_log:`/`research:`/saved scans in `cli/commands/research/gaps.py`). An `iocontrol_discoveries:`
   entry that only drew an NRC is not evidence: the DDM refuses whole ranges with one NRC.
 
 **Shared flags are declared once so their defaults cannot drift** — when adding an analysis command,
@@ -446,7 +446,7 @@ An editor declares a `Target` (file, section, checks), registers it in `yaml_edi
 writes through `edit_doc` (ruamel round-trip) or `edit_ecu_text` (text surgery on an ECU file);
 both end in `commit.commit_text`, which writes atomically, re-checks and **reverts on any
 failure**. A rejected edit raises `EditError`; no command catches it — `cli.py` prints
-`  Error: …` and exits 1. On the command side `commands/_edit.py::run_edit` is the whole sequence
+`  Error: …` and exits 1. On the command side `cli/commands/_edit.py::run_edit` is the whole sequence
 (read-only-profile refusal, `--no-validate`, the editor call, the `✓` confirmation). Use
 `yaml_edit.ruamel_ops` to remove or rename an entry (it keeps the comments around it; a bare
 `del`/rebuild does not). A new editor never opens the file itself.
@@ -698,7 +698,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   reply; the log's own clock does the rest). Always `--dry-run` first. The pieces: the passive
   ISO-TP state machine is the leaf `canlib/uds/isotp_passive.py` (a lost frame costs exactly one
   message, counted once, never repaired), pairing and stamping are `canlib/interop/frame_log.py`,
-  and the CLI is `commands/import_uds/log.py`. **Replies are filed by their own echo, never by the
+  and the CLI is `cli/commands/import_uds/log.py`. **Replies are filed by their own echo, never by the
   last request** (a tool that pipelines requests or interleaves a scan mis-files them). Every
   data-read request is kept until answered or for P2\*max (5 s), so a reply starting with an
   outstanding batch's first DID is skipped even when later requests were pipelined, and so is a
@@ -715,8 +715,8 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   (cantools with `strict=False`, to tolerate real-world overlapping-signal DBCs; `--dry-run`
   previews). A DBC cantools rejects as written goes through the in-memory dialect repairs of
   `canlib/interop/dbc/repair.py::load_dbc` (each reported with its line); add a new quirk there, never
-  as a pre-edited copy of the file. Module note: `commands/import_.py` (`import` is a keyword)
-  with `NAME="import"`; the `uds` kind lives in the `commands/import_uds/` package. Fetch the
+  as a pre-edited copy of the file. Module note: `cli/commands/import_.py` (`import` is a keyword)
+  with `NAME="import"`; the `uds` kind lives in the `cli/commands/import_uds/` package. Fetch the
   reference corpus with `scripts/fetch/fetch_can_corpus.py` (into gitignored `references/can/`).
 - **`canair export dbc`** — Writes `signals/` out as a DBC for SavvyCAN/cabana/Wireshark;
   round-trips with `import dbc`. (Domain-A decoded-value export is future work.)
@@ -758,7 +758,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   `--diff` and gated (`_contribute_gates.py::captures`, which also warns on unsplit multi-DID
   replies the contribution adds), since a stale source looks identical. `--diff` previews,
   `--dry-run` stops before pushing, `--yes` skips prompts, `--no-captures` ships definitions only.
-  Layering: `canlib/contribute/__init__.py` = git/gh orchestration; `commands/contribute.py` = CLI +
+  Layering: `canlib/contribute/__init__.py` = git/gh orchestration; `cli/commands/contribute.py` = CLI +
   pipeline; `_contribute_gates.py` = the pre-flight policy; `_contribute_report.py` = the
   human/`--json` reporting duality. Read the **contributing-profiles** skill before using it.
 - **`canair update`** — Updates the CLI from its git-clone install: reports current vs latest
@@ -813,7 +813,7 @@ block, its meta description). Give a new profile or variant the names owners act
 default; a bare `canair profile` opens an arrow-key picker on a TTY. `profile create <name>
 --car-model "…"` scaffolds a new vehicle and **`profile adopt <name>`** copies a read-only one into
 `~/.config/canair/profiles/` (where it shadows the original) so it can be written to. Both live in
-the library module `canlib/profile/scaffold.py`; `commands/profile.py` is CLI only. `adopt` **refuses
+the library module `canlib/profile/scaffold.py`; `cli/commands/profile.py` is CLI only. `adopt` **refuses
 when a higher-precedence discovery root would keep winning** (an explicit `--profiles-dir` or
 `$CANAIR_PROFILES_DIR`), because the copy would then never be read — the message names the blocking
 root. It skips `role: generated` members (`out/` is regenerated, not inherited). The bundle
@@ -843,7 +843,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   lets an overlay copy sharing a base session's `session_anchor` but not its content supersede it
   (an edited copy — never counted twice), and sorts chronologically **only when layered**, so
   single-layer results stay byte-identical. A reader that bypasses `load_all_captures` needs
-  deciding per call site: `validation/captures.py` and `commands/coverage/` walk **both**
+  deciding per call site: `validation/captures.py` and `cli/commands/coverage/` walk **both**
   layers (a schema break or a payload in the base still matters); `canlib/privacy/pii.py` and
   `capture_migrate.py` intentionally stay on `captures_dir` (= the overlay, which is exactly what
   `contribute` ships and the only layer a migration may rewrite).
@@ -874,7 +874,7 @@ path emits that note**: `canlib/captures.py::saved_banner` for captures and
 `groups`/`ecu add` all route their `✓ …` confirmation through it, which is also what guarantees the
 confirmation names a **full path** rather than a bare `bms.yaml`). `canair update` refuses to be the
 thing that erases the data: `::snapshot_profile_risks` diffs the snapshot's profiles against the
-clone's and lists what a reinstall would delete before asking to proceed. `canlib/first_run.py`
+clone's and lists what a reinstall would delete before asking to proceed. `canlib/cli/first_run.py`
 offers to adopt rather than recording a doomed `default_profile`. Fix an existing setup with `canair
 config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and contributable) or
 `canair profile adopt <name>`. Plan:
@@ -1123,7 +1123,7 @@ set `disconnected` itself). Gaps bound forward fill (`analysis/fill.py::next_gap
 holes no event explains are inferred for display only (`captures/inferred_gaps.py`). Bounded by
 `transport.reconnect_max_wait` (default 60.0s); `--wait` retries forever. Infra
 `canlib/live/monitor_reconnect.py` plus the per-transport connect closures in
-`commands/_live/connect.py` and `live/raw_monitor.py`. Plan:
+`cli/commands/_live/connect.py` and `live/raw_monitor.py`. Plan:
 `plans/2026-08-03-monitor-reconnect-and-wait.md`.
 
 **Reconnect is correctness-triggered, not only liveness-triggered.** A session can stop being usable

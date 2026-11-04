@@ -2,7 +2,7 @@
 
 The physical-band scan's mains-voltage / line-frequency bands assume a region
 (default: 230 V / 50 Hz EU). When the user hasn't set ``grid_region`` yet, offer
-to set it — once — modelled on the conservative :mod:`canlib.first_run` pattern:
+to set it — once — modelled on the conservative :mod:`canlib.cli.first_run` pattern:
 a TTY gets an interactive prompt, a piped run gets a single stderr note, and a
 ``grid_region_prompted`` sentinel ensures it never asks twice. Fully
 best-effort: any failure falls through to the built-in defaults and never blocks
@@ -14,8 +14,7 @@ from __future__ import annotations
 import sys
 
 from canlib.analysis.physical.grid_regions import GRID_REGIONS
-
-from .config import get_config_key, set_config_key
+from canlib.config import get_config_key, set_config_key
 
 _SENTINEL_KEY = "grid_region_prompted"
 

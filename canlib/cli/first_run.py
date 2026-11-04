@@ -21,11 +21,10 @@ import os
 import sys
 from pathlib import Path
 
+from canlib.config import set_config_value, user_profiles_dir
 from canlib.install.context import installed_snapshot_kind
+from canlib.profile import selectable_profiles
 from canlib.profile.scaffold import adopt_profile, create_profile
-
-from .config import set_config_value, user_profiles_dir
-from .profile import selectable_profiles
 
 # Commands that manage config/profiles themselves, or don't touch a profile —
 # never interrupt these with the wizard.

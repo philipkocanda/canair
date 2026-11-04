@@ -1,8 +1,8 @@
-"""Tests for canlib.grid_prompt — one-shot grid_region resolution/prompt."""
+"""Tests for canlib.cli.grid_prompt — one-shot grid_region resolution/prompt."""
 
 from __future__ import annotations
 
-import canlib.grid_prompt as gp
+import canlib.cli.grid_prompt as gp
 
 
 def _reset():
