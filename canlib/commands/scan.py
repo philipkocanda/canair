@@ -22,12 +22,8 @@ import argparse
 import sys
 
 from canlib.commands._group import group_help
-from canlib.commands._live import (
-    add_connection_args,
-    ecu_completer,
-    finalize_live_parser,
-    run_live,
-)
+from canlib.commands._live import add_connection_args, ecu_completer, live_command, run_live
+from canlib.commands._live.handlers import scans
 from canlib.id_ranges import format_id_ranges, parse_id_ranges
 from canlib.scan_presets import (
     FAMILY_SIZE,
@@ -166,8 +162,7 @@ tips:
     parser.add_argument("--state", metavar="TEXT", default=None, help="Session state for --save")
     parser.add_argument("--notes", metavar="TEXT", default=None, help="Session notes for --save")
     add_connection_args(parser)
-    finalize_live_parser(parser, scan=True)
-    # Override the shared dispatch with our resolve-then-run wrapper.
+    # The wizard and plan resolution run before the shared live runtime.
     parser.set_defaults(func=run_range)
     return parser
 
@@ -235,7 +230,7 @@ def _add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
         "not known to drive nothing (every profile without the nissan_c0_session quirk)",
     )
     add_connection_args(parser)
-    finalize_live_parser(parser)
+    parser.set_defaults(func=live_command(scans.IOCONTROL))
     return parser
 
 
@@ -293,7 +288,7 @@ def _add_routines_parser(kinds) -> argparse.ArgumentParser:
         "side-effect-free (a nissan_c0_session profile)",
     )
     add_connection_args(parser)
-    finalize_live_parser(parser)
+    parser.set_defaults(func=live_command(scans.ROUTINES))
     return parser
 
 
@@ -337,7 +332,7 @@ def _add_sessions_parser(kinds) -> argparse.ArgumentParser:
         "--throttle-ms", type=int, default=200, help="Delay in ms between probes (default 200)"
     )
     add_connection_args(parser)
-    finalize_live_parser(parser)
+    parser.set_defaults(func=live_command(scans.SESSIONS))
     return parser
 
 
@@ -620,4 +615,4 @@ def run_range(args) -> int:
                 return 0
 
     _resolve_plan(args)
-    return run_live(args)
+    return run_live(args, scans.RANGE)

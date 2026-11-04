@@ -17,15 +17,16 @@ import argparse
 import sys
 
 from canlib.commands._live import (
+    LiveOperation,
     add_connection_args,
     expand_step_groups,
-    finalize_live_parser,
     param_completer,
     report_merged_selectors,
     run_live,
     step_completer,
     to_step,
 )
+from canlib.commands._live.handlers import elm_only, multi, reads
 
 NAME = "read"
 ALIASES = ["query"]
@@ -85,7 +86,6 @@ examples:
         "queries it.",
     )
     add_connection_args(parser)
-    finalize_live_parser(parser)
     parser.set_defaults(func=run)
     return parser
 
@@ -98,6 +98,7 @@ def run(args) -> int:
         from canlib.sensitive import set_reveal
 
         set_reveal(True)
+    operation = LiveOperation(elm_only.handle_interactive, interactive=True)
     if args.steps:
         # Expand any @group references into their member selectors before the
         # mini-language parser sees them (composes with ad-hoc selectors).
@@ -132,7 +133,12 @@ def run(args) -> int:
                 print(f"Error: {ecu_err}", file=sys.stderr)
                 return 2
             report_merged_selectors(query_steps)
-    # else: --param / interactive fall through to async_main's dispatch
+        operation = LiveOperation(
+            multi.handle_multi, records=any(c["type"] in ("query", "raw") for c in commands)
+        )
+    elif args.param:
+        operation = LiveOperation(reads.handle_param)
+    # else: no steps and no --param: the interactive REPL
 
     # On an interactive terminal, nudge toward the live monitor — `read` is a
     # one-shot read, while `canair monitor` gives a continuously-refreshing view
@@ -144,4 +150,4 @@ def run(args) -> int:
             "(same query steps).",
             file=sys.stderr,
         )
-    return run_live(args)
+    return run_live(args, operation)

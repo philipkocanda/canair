@@ -15,6 +15,7 @@ import pytest
 from canlib.addressing import EcuAddress
 from canlib.modes.monitor import MonitorController
 from canlib.safety import SafetyBlocked, SessionPolicy
+from canlib.transport.config import ConnectionOptions
 from canlib.uds.protocol import KWP
 
 PIDS = {
@@ -193,28 +194,27 @@ class TestRawUdsClientGuard:
         monkeypatch.setattr(slcan_tcp, "SlcanTcpBus", lambda *a, **k: object())
         monkeypatch.setattr("canlib.transport.SlcanTcpBus", lambda *a, **k: object())
 
-        class _Args:
-            timeout = None
-
-        raw_monitor.build_raw_client("h", 1, 500_000, {}, _Args(), PIDS)
+        raw_monitor.build_raw_client("h", 1, 500_000, {}, ConnectionOptions(), PIDS)
         assert seen["policy"].protocol(0x7E4) == KWP
 
 
 class TestRefusalIsReportedNotRaised:
     def test_run_session_guarded_reports_and_exits_2(self, monkeypatch, capsys):
-        from canlib.modes import dispatch
+        from canlib.modes import session
 
         async def _blocked(*a, **k):
             raise SafetyBlocked("BLOCKED: programmingSession")
 
-        monkeypatch.setattr(dispatch, "dispatch_mode", _blocked)
-        monkeypatch.setattr(dispatch, "_persist_frame_counts", lambda *a: None)
-
-        class _Args:
-            pass
-
+        monkeypatch.setattr(session, "_persist_frame_counts", lambda *a: None)
         rc = asyncio.run(
-            dispatch.run_session_guarded(_Args(), object(), {}, "h", transport_label="x")
+            session.run_session_guarded(
+                object(),  # type: ignore[arg-type]
+                {},
+                "h",
+                _blocked,
+                options=session.SessionOptions(),
+                transport_label="x",
+            )
         )
         assert rc == 2
         assert "error: BLOCKED: programmingSession" in capsys.readouterr().err

@@ -174,6 +174,7 @@ def _profile_can_bitrate() -> int | None:
 def run(args) -> int:
     import sys
 
+    from canlib.commands._transport_args import transport_overrides
     from canlib.lock import WiCANLock
     from canlib.lock_watchdog import LockWatchdog
     from canlib.modes.raw_ops import slcan_preflight
@@ -184,7 +185,7 @@ def run(args) -> int:
     from canlib.wican.mode import ModeError
 
     require_variant(active(), "sniff the car")
-    t = resolve_transport(args)
+    t = resolve_transport(transport_overrides(args))
     try:
         filters = _parse_filters(args.filter)
     except ValueError:

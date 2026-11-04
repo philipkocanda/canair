@@ -24,9 +24,11 @@ import sys
 
 from canlib import ansi
 from canlib.commands._edit import run_edit, subcommand_dispatch
-from canlib.commands._live import add_connection_args, finalize_live_parser
+from canlib.commands._live import LiveOperation, add_connection_args, live_command
+from canlib.commands._live.handlers import actuators
 
 NAME = "action"
+_RUN = LiveOperation(actuators.handle_action)
 
 
 def _records(actions) -> list[dict]:
@@ -182,7 +184,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "--dry-run", action="store_true", help="Read and check the car, but send nothing"
     )
     add_connection_args(run_p)
-    finalize_live_parser(run_p)
+    run_p.set_defaults(func=live_command(_RUN))
 
     add = sub.add_parser("add", help="Add an action")
     add.add_argument("name", help="Action name (lower-cased)")

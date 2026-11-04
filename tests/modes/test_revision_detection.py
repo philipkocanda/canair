@@ -57,15 +57,10 @@ class FakeTerminal:
         return {"ok": request in self.answers, "nrc": None}
 
 
-class _Args:
-    def __init__(self, *steps):
-        self.multi = list(steps)
-
-
 def _detect(terminal, *steps):
     from canlib.modes.revision_probe import detect_revisions, targeted_ecus
 
-    return asyncio.run(detect_revisions(terminal, targeted_ecus(_Args(*steps))))
+    return asyncio.run(detect_revisions(terminal, targeted_ecus(steps)))
 
 
 class TestMatching:

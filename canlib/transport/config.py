@@ -281,7 +281,34 @@ def _wican_ws_pro_error() -> TransportError:
     )
 
 
-def _build_candidate(args, device, block) -> TransportConfig:
+@dataclass(frozen=True)
+class TransportOverrides:
+    """What the command line asked of the transport (each field optional)."""
+
+    transport: str | None = None
+    wican: str | None = None
+    port: int | None = None
+    bitrate: int | None = None
+    no_fallback: bool = False
+
+
+@dataclass(frozen=True)
+class ConnectionOptions:
+    """The per-run connection flags: how to talk to the device, and what to do afterwards."""
+
+    verbose: bool = False
+    unsafe: bool = False
+    # ``--timeout`` in seconds: when set it overrides every per-ECU budget.
+    timeout: float | None = None
+    # ``--elm-timeout`` in ms (an ELM327 ``ATST`` budget).
+    elm_timeout: int | None = None
+    # ``--wait``: retry the connect (and any mid-session reconnect) without a deadline.
+    wait: bool = False
+    # ``--reboot``: restore the device's AutoPID mode after the session.
+    reboot: bool = False
+
+
+def _build_candidate(overrides: TransportOverrides, device, block) -> TransportConfig:
     """Resolve one device into a :class:`TransportConfig`.
 
     Per-field precedence (highest first): the CLI flag, then the device's own
@@ -289,18 +316,17 @@ def _build_candidate(args, device, block) -> TransportConfig:
     then the default. Raises :class:`TransportError` for an unknown type.
     """
 
-    def arg(name):
-        return getattr(args, name, None) if args is not None else None
-
     ttype = _checked_type(
-        _first(arg("transport"), device.transport, block.get("type"), DEFAULT_TRANSPORT)
+        _first(overrides.transport, device.transport, block.get("type"), DEFAULT_TRANSPORT)
     )
-    port = _int(_first(arg("port"), device.port, block.get("port")))
-    bitrate = _int(_first(arg("bitrate"), device.bitrate, block.get("bitrate")))
+    port = _int(_first(overrides.port, device.port, block.get("port")))
+    bitrate = _int(_first(overrides.bitrate, device.bitrate, block.get("bitrate")))
     return TransportConfig(type=ttype, host=device.host, port=port, bitrate=bitrate)
 
 
-def resolve_transport_candidates(args=None) -> list[TransportConfig]:
+def resolve_transport_candidates(
+    overrides: TransportOverrides | None = None,
+) -> list[TransportConfig]:
     """Resolve the ordered list of transports to try (primary first).
 
     ``candidates[0]`` is the explicitly selected device (``--wican`` > config
@@ -313,15 +339,13 @@ def resolve_transport_candidates(args=None) -> list[TransportConfig]:
     """
     from ..config import DeviceEntry, load_config
 
-    def arg(name):
-        return getattr(args, name, None) if args is not None else None
-
+    overrides = overrides or TransportOverrides()
     raw_block = load_config().get("transport")
     block = raw_block if isinstance(raw_block, dict) else {}
     devices, default_alias = _wican_devices()
 
     # Determine the primary device (candidate 0).
-    explicit = arg("wican")
+    explicit = overrides.wican
     if explicit:
         primary_key: str | None = explicit
         primary_dev = devices.get(explicit) or DeviceEntry(host=_resolve_host(explicit) or explicit)
@@ -334,13 +358,13 @@ def resolve_transport_candidates(args=None) -> list[TransportConfig]:
             host=_resolve_host(default_alias) or default_alias
         )
 
-    primary = _build_candidate(args, primary_dev, block)
+    primary = _build_candidate(overrides, primary_dev, block)
     if primary.type == "wican-ws" and not _is_pro():
         raise _wican_ws_pro_error()
     candidates = [primary]
 
     enabled, _timeout, order = _fallback_settings()
-    if not enabled or arg("no_fallback"):
+    if not enabled or overrides.no_fallback:
         return candidates
 
     ordered = order or [default_alias, *[a for a in devices if a != default_alias]]
@@ -352,7 +376,7 @@ def resolve_transport_candidates(args=None) -> list[TransportConfig]:
         if dev is None:
             continue
         try:
-            cand = _build_candidate(args, dev, block)
+            cand = _build_candidate(overrides, dev, block)
         except TransportError:
             continue
         # Skip a wican-ws candidate we can't actually use, and any duplicate host.
@@ -371,13 +395,11 @@ def _is_pro() -> bool:
     return is_wican_pro()
 
 
-def resolve_transport(args=None) -> TransportConfig:
-    """Resolve the active (primary) transport from CLI args + user config.
+def resolve_transport(overrides: TransportOverrides | None = None) -> TransportConfig:
+    """Resolve the active (primary) transport from the command-line overrides + user config.
 
-    ``args`` is an argparse Namespace that may expose ``transport`` and ``wican``
-    (both optional). Port and bitrate are taken from the selected device or the
-    config ``transport:`` block (no dedicated CLI flags). Raises
-    :class:`TransportError` for an unknown transport type. Equivalent to the
-    first entry of :func:`resolve_transport_candidates`.
+    Port and bitrate are taken from the selected device or the config ``transport:`` block
+    (no dedicated CLI flags). Raises :class:`TransportError` for an unknown transport type.
+    Equivalent to the first entry of :func:`resolve_transport_candidates`.
     """
-    return resolve_transport_candidates(args)[0]
+    return resolve_transport_candidates(overrides)[0]

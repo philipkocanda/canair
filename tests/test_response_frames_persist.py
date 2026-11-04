@@ -12,12 +12,11 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 from canlib.frame_counts import FrameCountLedger, frames_for_payload
-from canlib.modes.dispatch import run_session_guarded
+from canlib.modes.session import SessionOptions, run_session_guarded
 from canlib.yaml_edit.pids import set_response_frames
 from tests.support.fakes import FakeTerminal
 
@@ -77,22 +76,12 @@ def redirect_writes(pids_dir: Path, monkeypatch):
     return pids_dir
 
 
-def _args(**kw):
-    base = {"no_learn_frames": False, "verbose": False, "timings": False, "json": False}
-    base.update(kw)
-    return SimpleNamespace(**base)
+def _args(*, no_learn_frames=False):
+    return SessionOptions(learn_frames=not no_learn_frames)
 
 
-async def _noop_dispatch(*a, **kw):
+async def _noop_operation(terminal, pids_data):
     return None
-
-
-@pytest.fixture
-def stub_dispatch(monkeypatch):
-    """Reduce the session to just its teardown, which is what is under test."""
-    import canlib.modes.dispatch as dispatch
-
-    monkeypatch.setattr(dispatch, "dispatch_mode", _noop_dispatch)
 
 
 class TestRawPathObservesFrameCounts:
@@ -118,12 +107,19 @@ class TestRawPathObservesFrameCounts:
 class TestSessionWriteBack:
     """``run_session_guarded`` banks the session's confirmed counts on the way out."""
 
-    def _run(self, args, terminal, pids_data) -> int:
+    def _run(self, options, terminal, pids_data, operation=_noop_operation) -> int:
         return asyncio.run(
-            run_session_guarded(args, terminal, pids_data, "10.0.0.1", transport_label="TEST")
+            run_session_guarded(
+                terminal,
+                pids_data,
+                "10.0.0.1",
+                operation,
+                options=options,
+                transport_label="TEST",
+            )
         )
 
-    def test_a_confirmed_count_reaches_the_yaml(self, pids_data, redirect_writes, stub_dispatch):
+    def test_a_confirmed_count_reaches_the_yaml(self, pids_data, redirect_writes):
         term = FakeTerminal()
         term.frame_counts.observe((0x7E4, "2101"), 4)
         term.frame_counts.confirm((0x7E4, "2101"), 4)
@@ -131,7 +127,7 @@ class TestSessionWriteBack:
         assert self._run(_args(), term, pids_data) == 0
         assert _reload(redirect_writes)["2101"]["response_frames"] == 4
 
-    def test_an_unconfirmed_count_is_not_written(self, pids_data, redirect_writes, stub_dispatch):
+    def test_an_unconfirmed_count_is_not_written(self, pids_data, redirect_writes):
         # One observation is not evidence: an undercount must never be persisted.
         term = FakeTerminal()
         term.frame_counts.observe((0x7E4, "2101"), 4)
@@ -139,9 +135,7 @@ class TestSessionWriteBack:
         self._run(_args(), term, pids_data)
         assert "response_frames" not in _reload(redirect_writes)["2101"]
 
-    def test_a_retired_count_is_cleared_from_the_yaml(
-        self, pids_dir, redirect_writes, stub_dispatch
-    ):
+    def test_a_retired_count_is_cleared_from_the_yaml(self, pids_dir, redirect_writes):
         set_response_frames("BMS", "2101", 4, pids_dir=pids_dir)
         from canlib.pids import load_pids
 
@@ -154,7 +148,7 @@ class TestSessionWriteBack:
         self._run(_args(), term, data)
         assert "response_frames" not in _reload(pids_dir)["2101"]
 
-    def test_no_learn_frames_writes_nothing(self, pids_data, redirect_writes, stub_dispatch):
+    def test_no_learn_frames_writes_nothing(self, pids_data, redirect_writes):
         term = FakeTerminal()
         term.frame_counts.observe((0x7E4, "2101"), 4)
         term.frame_counts.confirm((0x7E4, "2101"), 4)
@@ -166,21 +160,17 @@ class TestSessionWriteBack:
         self, pids_data, redirect_writes, monkeypatch
     ):
         # The evidence was already collected; a dropped bus must not discard it.
-        import canlib.modes.dispatch as dispatch
-
         async def _boom(*a, **kw):
             raise ConnectionError("bus went away")
-
-        monkeypatch.setattr(dispatch, "dispatch_mode", _boom)
 
         term = FakeTerminal()
         term.frame_counts.observe((0x7E4, "2105"), 2)
         term.frame_counts.confirm((0x7E4, "2105"), 2)
 
-        assert self._run(_args(), term, pids_data) == 1
+        assert self._run(_args(), term, pids_data, _boom) == 1
         assert _reload(redirect_writes)["2105"]["response_frames"] == 2
 
-    def test_a_write_failure_never_fails_the_session(self, pids_data, monkeypatch, stub_dispatch):
+    def test_a_write_failure_never_fails_the_session(self, pids_data, monkeypatch):
         # Persisting is bookkeeping on the way out; it must not turn a good read
         # into a non-zero exit.
         import canlib.profile as profile
@@ -199,9 +189,7 @@ class TestSessionWriteBack:
 
         assert self._run(_args(), term, pids_data) == 0
 
-    def test_a_steady_state_session_rewrites_nothing(
-        self, pids_dir, redirect_writes, stub_dispatch
-    ):
+    def test_a_steady_state_session_rewrites_nothing(self, pids_dir, redirect_writes):
         set_response_frames("BMS", "2101", 4, pids_dir=pids_dir)
         from canlib.pids import load_pids
 
@@ -215,7 +203,7 @@ class TestSessionWriteBack:
         self._run(_args(), term, data)
         assert (pids_dir / "bms.yaml").read_text() == before
 
-    def test_an_empty_ledger_touches_nothing(self, pids_data, redirect_writes, stub_dispatch):
+    def test_an_empty_ledger_touches_nothing(self, pids_data, redirect_writes):
         before = (redirect_writes / "bms.yaml").read_text()
         self._run(_args(), FakeTerminal(), pids_data)
         assert (redirect_writes / "bms.yaml").read_text() == before

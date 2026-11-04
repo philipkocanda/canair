@@ -2,7 +2,6 @@
 
 from .discover import mode_discover
 from .dtc import mode_dtc_clear, mode_dtc_read, mode_dtc_scan_all
-from .ecu import mode_ecu
 from .identity import (
     IDENTITY_DIDS,
     KWP_IDENTITY_RECORDS,
@@ -32,7 +31,6 @@ __all__ = [
     "mode_dtc_clear",
     "mode_dtc_read",
     "mode_dtc_scan_all",
-    "mode_ecu",
     "mode_identity",
     "mode_interactive",
     "mode_iocontrol_execute",

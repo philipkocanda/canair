@@ -4,31 +4,70 @@
 handling that makes SIGTERM/SIGHUP unwind like Ctrl-C, the lock watchdog);
 ``async_main`` owns one session's lifecycle (transport selection and fallback,
 pre-flight checks, terminal construction, and the ``finally`` that closes and
-reboots). The mode dispatch itself is not here — it lives in
-:mod:`canlib.modes.dispatch`, which this calls into.
+reboots). What the session does is the command's :class:`LiveOperation`; the session
+itself (error classification, revision detection, frame-count write-back) is
+:mod:`canlib.modes.session`.
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import contextlib
 import sys
 
-from canlib.commands._notation import resolve_notation
+from canlib.commands._transport_args import transport_overrides
 from canlib.keepmode import wants_save
 from canlib.lock import WiCANLock
 from canlib.lock_watchdog import LockWatchdog
 from canlib.log import init_logging, log_command
-from canlib.modes.dispatch import run_session_guarded
+from canlib.modes.session import SessionOptions, run_session_guarded
 from canlib.pids import load_pids
 from canlib.stop_signals import graceful_stop
+from canlib.transport.config import ConnectionOptions
 from canlib.transport.protocol import Terminal
 from canlib.transport.reboot import reboot_after_session
 
 from .connect import _print_sleep_banner, build_elm_reconnector, connect_elm_terminal
+from .operation import LiveOperation
 
 
-async def async_main(args):
+def connection_options(args: argparse.Namespace) -> ConnectionOptions:
+    """The connection flags on ``args``."""
+    return ConnectionOptions(
+        verbose=bool(getattr(args, "verbose", False)),
+        unsafe=bool(getattr(args, "unsafe", False)),
+        timeout=getattr(args, "timeout", None),
+        elm_timeout=getattr(args, "elm_timeout", None),
+        wait=bool(getattr(args, "wait", False)),
+        reboot=bool(getattr(args, "reboot", False)),
+    )
+
+
+def saving(args: argparse.Namespace) -> bool:
+    """Whether the run intends to record captures (``--save`` or a metadata flag)."""
+    return wants_save(
+        save=bool(getattr(args, "save", False)),
+        label=getattr(args, "label", None),
+        state=getattr(args, "state", None),
+        notes=getattr(args, "notes", None),
+    )
+
+
+def session_options(args: argparse.Namespace) -> SessionOptions:
+    """The session flags on ``args``."""
+    steps = getattr(args, "multi", None)
+    return SessionOptions(
+        as_json=bool(getattr(args, "json", False)),
+        timings=bool(getattr(args, "timings", False)),
+        verbose=bool(getattr(args, "verbose", False)),
+        learn_frames=not getattr(args, "no_learn_frames", False),
+        saving=saving(args),
+        steps=tuple(steps) if steps else None,
+    )
+
+
+async def async_main(args, operation: LiveOperation):
     """Main async entry point."""
     from canlib.config import fallback_settings
     from canlib.transport import (
@@ -37,9 +76,10 @@ async def async_main(args):
         wait_for_reachable,
     )
 
-    candidates = resolve_transport_candidates(args)
+    conn = connection_options(args)
+    candidates = resolve_transport_candidates(transport_overrides(args))
     _, _connect_timeout, _ = fallback_settings()
-    if getattr(args, "wait", False):
+    if conn.wait:
         # --wait: block until a candidate comes online (Ctrl-C to stop). No custom
         # signal handler is installed yet, so a SIGINT here raises KeyboardInterrupt
         # which run_live reports cleanly.
@@ -57,11 +97,13 @@ async def async_main(args):
     host = transport.host
 
     init_logging()
+    mode = "interactive" if operation.interactive else "batch"
     log_command(
-        f"--- SESSION START (host={host}, mode={'interactive' if not any([args.param, args.ecu, args.raw, args.scan, args.discover, args.skm_wakeup, args.identity, args.dtc, args.iocontrol, args.routines, args.routines_scan is not None, args.iocontrol_scan is not None, getattr(args, 'sessions_scan', None) is not None, getattr(args, 'action', None)]) else 'batch'}, unsafe={args.unsafe}, session={getattr(args, 'session', False)}) ---"
+        f"--- SESSION START (host={host}, mode={mode}, unsafe={conn.unsafe}, "
+        f"session={getattr(args, 'session', False)}) ---"
     )
 
-    if args.unsafe:
+    if conn.unsafe:
         print("!! WARNING: --unsafe mode active. Dangerous command blocklist is bypassed.")
         print("!! Each blocked command will require explicit user consent before execution.")
         print()
@@ -73,7 +115,18 @@ async def async_main(args):
     if transport.is_raw:
         from canlib.modes.raw_ops import run_raw
 
-        return await run_raw(args, transport, pids_data)
+        async def operate(terminal: Terminal, pids_data: dict) -> None:
+            await operation.handler(args, terminal, pids_data, host)
+
+        return await run_raw(
+            transport,
+            pids_data,
+            conn=conn,
+            session=session_options(args),
+            operation=operate,
+            monitor=operation.monitor,
+            candidates=candidates,
+        )
 
     # Past the raw early-return we're on the WebSocket (WiCANTerminal) path,
     # which always resolves a host (via --wican/config/default_wican).
@@ -82,18 +135,10 @@ async def async_main(args):
     # Warn about any aborted scans from a previous interrupted session — but
     # only in the scan subcommand that produces that scan type, so unrelated
     # commands (query, io, identity, ...) stay quiet.
-    _scan_types: set[str] = set()
-    if args.scan:
-        _scan_types.add("scan")
-    if args.iocontrol_scan is not None:
-        _scan_types.add("iocontrol")
-    if args.routines_scan is not None:
-        _scan_types.add("routines")
-
-    if _scan_types:
+    if operation.scan_types:
         from canlib.scan_state import find_aborted_scans
 
-        _aborted = [s for s in find_aborted_scans() if s.get("type") in _scan_types]
+        _aborted = [s for s in find_aborted_scans() if s.get("type") in operation.scan_types]
         if _aborted:
             print("!! Aborted scan(s) detected from a previous session:")
             for _s in _aborted:
@@ -120,17 +165,12 @@ async def async_main(args):
         sys.exit(1)
 
     # Fail loud: --save (and metadata flags) only apply to capture-producing modes.
-    _wants_save = wants_save(args)
+    _wants_save = saving(args)
     if _wants_save:
-        _save_ok = bool(args.scan or args.raw or args.discover)
-        if not _save_ok and args.multi:
-            from canlib.modes.multi import parse_sub_commands
-
-            _save_ok = any(c["type"] in ("query", "raw") for c in parse_sub_commands(args.multi))
-        if not _save_ok:
+        if not operation.records:
             print(
-                "Error: --save/--label/--state/--notes only apply to --scan, --raw, "
-                "--discover, or --multi with a 'query'/'raw' step.",
+                "Error: --save/--label/--state/--notes only apply to a scan, raw, discover or "
+                "dtc run, or to read/monitor with a 'query'/'raw' step.",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -178,11 +218,11 @@ async def async_main(args):
     terminal: Terminal | None = None
     try:
         try:
-            terminal = await connect_elm_terminal(transport, pids_data, args)
+            terminal = await connect_elm_terminal(transport, pids_data, conn)
             if transport.is_wican_http:
                 _print_sleep_banner(host)
 
-            if args.wake:
+            if getattr(args, "wake", False):
                 args.session = True
         except transport_error_types() as e:
             # Connection setup failed (connect / ELM init). Classify + report
@@ -197,19 +237,24 @@ async def async_main(args):
             return 1
 
         # Session dispatch under the shared, transport-agnostic error guard.
+        reconnect = build_elm_reconnector(candidates, pids_data, conn)
+
+        async def operate(terminal: Terminal, pids_data: dict) -> None:
+            await operation.handler(args, terminal, pids_data, host, reconnect=reconnect)
+
         rc = await run_session_guarded(
-            args,
             terminal,
             pids_data,
             host,
+            operate,
+            options=session_options(args),
             transport_label=transport_label,
-            reconnect=build_elm_reconnector(args, pids_data),
         )
     finally:
         if terminal is not None:
             await terminal.close()
         log_command("--- SESSION END ---")
-        if args.reboot:
+        if conn.reboot:
             reboot_after_session(transport)
     return rc
 
@@ -230,12 +275,9 @@ def _require_car(args) -> None:
     require_variant(active(), "record captures" if saving else "talk to the car")
 
 
-def run_live(args) -> int:
+def run_live(args, operation: LiveOperation) -> int:
     """Acquire the device lock and run ``async_main`` for a live subcommand."""
     _require_car(args)
-    # Settle the byte notation here, where the config is the command layer's to read: the modes
-    # below take the value as given.
-    args.notation = resolve_notation(getattr(args, "notation", None))
     lock = WiCANLock()
     lock.acquire(force=args.force)
 
@@ -258,7 +300,7 @@ def run_live(args) -> int:
         with graceful_stop(_on_stop):
             watchdog.start()
             try:
-                result = asyncio.run(async_main(args))
+                result = asyncio.run(async_main(args, operation))
             finally:
                 watchdog.stop()
     except KeyboardInterrupt:
@@ -270,8 +312,3 @@ def run_live(args) -> int:
     finally:
         lock.release()
     return result if isinstance(result, int) else 0
-
-
-def run(args) -> int:
-    """Default live dispatch used by most subcommands (set via finalize_live_parser)."""
-    return run_live(args)

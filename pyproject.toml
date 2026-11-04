@@ -453,8 +453,6 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-    "canlib.modes.dispatch -> argparse",
-    "canlib.modes.dispatch.ranges -> argparse",
 ]
 
 [[tool.importlinter.contracts]]

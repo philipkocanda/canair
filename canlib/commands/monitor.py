@@ -24,12 +24,12 @@ import sys
 from canlib.commands._live import (
     add_connection_args,
     expand_step_groups,
-    finalize_live_parser,
     report_merged_selectors,
     run_live,
     step_completer,
     to_step,
 )
+from canlib.commands._live.handlers.multi import monitor_operation, monitor_options
 from canlib.commands._notation import add_notation_arg
 from canlib.poll_schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
 
@@ -41,8 +41,7 @@ def _interval(value: str) -> float:
     """``--interval``: seconds, no shorter than the TUI's own =/- floor.
 
     Zero or negative would make every PID without a profile period due on every tick
-    (the monitor never pauses between polls), and a zero interval also reads as "no
-    monitor" to the dispatcher.
+    (the monitor never pauses between polls).
     """
     try:
         seconds = float(value)
@@ -167,7 +166,6 @@ For a single one-shot read (no live refresh) use `canair read` instead.
         "polls it.",
     )
     add_connection_args(parser)
-    finalize_live_parser(parser)
     parser.set_defaults(func=run)
     return parser
 
@@ -215,9 +213,6 @@ def run(args) -> int:
         return 2
 
     args.multi = [to_step(s) for s in args.steps]
-    # dispatch_mode routes to the monitor when both args.multi and args.monitor
-    # are set; the interval flag is the poll period.
-    args.monitor = args.interval
 
     from canlib.modes.multi import parse_sub_commands
 
@@ -244,4 +239,4 @@ def run(args) -> int:
         print(f"Error: {ecu_err}", file=sys.stderr)
         return 2
 
-    return run_live(args)
+    return run_live(args, monitor_operation(monitor_options(args)))

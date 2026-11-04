@@ -69,13 +69,13 @@ class ReconnectPolicy:
         return None if self.forever else now + self.max_wait
 
 
-def reconnect_policy(args) -> ReconnectPolicy:
-    """Build a :class:`ReconnectPolicy` from CLI args + user config."""
+def reconnect_policy(*, wait: bool = False) -> ReconnectPolicy:
+    """Build a :class:`ReconnectPolicy` from ``--wait`` + user config."""
     from ..config import fallback_settings, reconnect_max_wait
 
     _, connect_timeout, _ = fallback_settings()
     return ReconnectPolicy(
-        forever=bool(getattr(args, "wait", False)),
+        forever=wait,
         max_wait=reconnect_max_wait(),
         connect_timeout=connect_timeout,
     )

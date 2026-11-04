@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 
-from canlib.commands._live import add_connection_args, finalize_live_parser
+from canlib.commands._live import LiveOperation, add_connection_args, live_command
+from canlib.commands._live.handlers import reads
 
 NAME = "identity"
 ALIASES = ["id"]
+_OPERATION = LiveOperation(reads.handle_identity)
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -39,5 +41,5 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "(registry hint, else on-device probe). Default: auto",
     )
     add_connection_args(parser)
-    finalize_live_parser(parser, identity=True)
+    parser.set_defaults(func=live_command(_OPERATION))
     return parser

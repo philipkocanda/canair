@@ -57,16 +57,16 @@ class TestMonitorRegistered:
 
 
 class TestMonitorRunWiring:
-    """``run`` translates the surface flags into the attrs ``dispatch_mode`` reads."""
+    """``run`` turns the surface flags into the steps and the monitor operation."""
 
-    def test_run_sets_multi_and_monitor(self, monkeypatch):
+    def test_run_builds_the_steps_and_the_monitor_options(self, monkeypatch):
         from canlib.commands import monitor
 
         captured = {}
 
-        def fake_run_live(args):
+        def fake_run_live(args, operation):
             captured["multi"] = args.multi
-            captured["monitor"] = args.monitor
+            captured["options"] = operation.monitor
             return 0
 
         # Skip the ECU-name preflight (needs a profile) and the device connect.
@@ -77,7 +77,8 @@ class TestMonitorRunWiring:
         args = _parse(["monitor", "BMS:2101", "--interval", "3"])
         assert monitor.run(args) == 0
         assert captured["multi"] == ["query BMS:2101"]
-        assert captured["monitor"] == 3.0
+        assert captured["options"].interval == 3.0
+        assert [s["ecu"] for s in captured["options"].query_steps] == ["BMS"]
 
     def test_run_requires_a_step(self):
         from canlib.commands import monitor
@@ -90,7 +91,7 @@ class TestMonitorRunWiring:
 
         captured = {}
 
-        def fake_run_live(args):
+        def fake_run_live(args, operation):
             captured["multi"] = args.multi
             return 0
 
@@ -107,7 +108,7 @@ class TestMonitorRunWiring:
     def test_cancelled_picker_exits_cleanly_without_connecting(self, monkeypatch):
         from canlib.commands import monitor
 
-        monkeypatch.setattr(monitor, "run_live", lambda args: pytest.fail("must not connect"))
+        monkeypatch.setattr(monitor, "run_live", lambda *a: pytest.fail("must not connect"))
         monkeypatch.setattr(monitor, "_pick_steps", lambda args: None)
         monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
         monkeypatch.setattr("sys.stdout.isatty", lambda: True, raising=False)
@@ -122,13 +123,13 @@ class TestQueryNoLongerMonitors:
 
 
 class TestMonitorGroupExpansion:
-    """``@group`` refs expand into their member selectors before dispatch."""
+    """``@group`` refs expand into their member selectors before the session starts."""
 
     def _stub(self, monkeypatch, captured):
         from canlib.commands import monitor
         from canlib.ecus.ecu_groups import Group
 
-        def fake_run_live(args):
+        def fake_run_live(args, operation):
             captured["multi"] = args.multi
             return 0
 

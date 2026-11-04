@@ -9,40 +9,26 @@ from canlib.keepmode import (
     KEEP_MODES,
     KEEP_UNIQUE,
     PERSISTED_KEEP_MODES,
-    keep_mode_from_args,
     parse_keep_mode,
     persisted_keep_mode,
+    resolve_keep_mode,
     scope_is_keep_changes,
     scope_is_keep_unique,
     wants_save,
 )
 
 
-class _Args:
-    def __init__(self, **kw):
-        self.keep_changes = False
-        self.keep_all = False
-        self.keep = None
-        self.__dict__.update(kw)
-
-
-class TestKeepModeFromArgs:
+class TestResolveKeepMode:
     def test_default_is_all(self):
         # No keep flag => every poll is recorded (the on-disk folding keeps the
         # capture file compact for stationary signals).
-        assert keep_mode_from_args(_Args()) == "all"
-
-    def test_keep_all_explicit(self):
-        assert keep_mode_from_args(_Args(keep_all=True)) == "all"
+        assert resolve_keep_mode() == "all"
 
     def test_keep_changes_overrides(self):
-        assert keep_mode_from_args(_Args(keep_changes=True)) == "changes"
+        assert resolve_keep_mode(keep_changes=True) == "changes"
 
     def test_keep_n_is_last(self):
-        assert keep_mode_from_args(_Args(keep=5)) == "last"
-
-    def test_tolerates_missing_attrs(self):
-        assert keep_mode_from_args(object()) == "all"
+        assert resolve_keep_mode(keep=5) == "last"
 
     def test_keep_unique_flag_is_gone(self):
         from canlib.cli import build_parser
@@ -117,12 +103,12 @@ class TestKeepModeVocabulary:
         assert set(KEEP_MODES) - set(PERSISTED_KEEP_MODES) == {KEEP_ALL, KEEP_LAST}
         assert set(PERSISTED_KEEP_MODES) - set(KEEP_MODES) == {KEEP_UNIQUE}
 
-    def test_every_mode_is_reachable_from_args(self):
+    def test_every_mode_is_reachable_from_the_flags(self):
         # No mode may be declared-but-unproducible (or vice versa).
         produced = {
-            keep_mode_from_args(_Args()),
-            keep_mode_from_args(_Args(keep_changes=True)),
-            keep_mode_from_args(_Args(keep=5)),
+            resolve_keep_mode(),
+            resolve_keep_mode(keep_changes=True),
+            resolve_keep_mode(keep=5),
         }
         assert produced == set(KEEP_MODES)
 
@@ -169,24 +155,16 @@ class TestWantsSave:
     """
 
     def test_no_flags_is_false(self):
-        assert wants_save(_Args()) is False
+        assert wants_save() is False
 
     def test_save_flag(self):
-        assert wants_save(_Args(save=True)) is True
+        assert wants_save(save=True) is True
 
     def test_metadata_alone_counts_as_intent(self):
-        assert wants_save(_Args(label="charging")) is True
-        assert wants_save(_Args(state="READY")) is True
-        assert wants_save(_Args(notes="hood open")) is True
+        assert wants_save(label="charging") is True
+        assert wants_save(state="READY") is True
+        assert wants_save(notes="hood open") is True
 
     def test_empty_string_metadata_still_counts(self):
         """`--label ""` was passed explicitly; None means "not passed"."""
-        assert wants_save(_Args(label="")) is True
-
-    def test_tolerates_a_namespace_missing_the_attributes(self):
-        """Callers include modes that build a partial namespace."""
-
-        class Bare:
-            pass
-
-        assert wants_save(Bare()) is False
+        assert wants_save(label="") is True

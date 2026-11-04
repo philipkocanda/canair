@@ -6,7 +6,7 @@ describe itself (:mod:`canlib.dtc.snapshot`). The decoded records are attached t
 under ``snapshots``. An ECU that refuses ``19 03`` is not asked again in the run.
 
 Written against the :class:`~canlib.transport.protocol.Terminal` surface only, so it runs
-on every transport through ``dispatch_mode``. KWP2000 ECUs are skipped: their freeze frames
+on every transport through ``run_session_guarded``. KWP2000 ECUs are skipped: their freeze frames
 (``0x12``) are a different service the plan leaves for later.
 """
 

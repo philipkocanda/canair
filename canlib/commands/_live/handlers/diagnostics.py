@@ -1,6 +1,6 @@
-"""Dispatch for ``canair dtc``: read, clear, or scan every ECU's fault memory.
+"""Handlers for ``canair dtc``: read, clear, or scan every ECU's fault memory.
 
-The only dispatch family with a **destructive** path: ``--clear`` erases stored
+The only handler family with a **destructive** path: ``--clear`` erases stored
 fault memory, so it confirms interactively unless ``--yes``. Read and scan-all are
 read-only.
 """

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import argparse
 
-from canlib.commands._live import add_connection_args, ecu_completer, finalize_live_parser, run_live
+from canlib.commands._live import LiveOperation, add_connection_args, ecu_completer, run_live
+from canlib.commands._live.handlers import actuators
 
 NAME = "routines"
+_OPERATION = LiveOperation(actuators.handle_routines)
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -35,7 +37,6 @@ examples:
         help="Sub-function: results (0x03, safe default), start (0x01, actuates), stop (0x02)",
     )
     add_connection_args(parser)
-    finalize_live_parser(parser)
     parser.set_defaults(func=run)
     return parser
 
@@ -53,4 +54,4 @@ def run(args) -> int:
         from canlib.pids import load_pids
 
         return 0 if mode_routines_list(load_pids(), args.routines, as_json=True) else 1
-    return run_live(args)
+    return run_live(args, _OPERATION)

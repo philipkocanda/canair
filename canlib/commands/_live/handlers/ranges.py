@@ -1,9 +1,7 @@
 """Parsing the hex PID/DID ranges the scan surfaces take.
 
-Its own module because it is the one piece of the dispatcher with no async, no
-terminal and no modes — and because it raises ``argparse.ArgumentTypeError``,
-which is the reason it did not move further down into the library when the
-dispatcher did.
+Its own module because it has no async, no terminal and no modes, and because it raises
+``argparse.ArgumentTypeError``, which keeps it in the command layer.
 
 Note ``canlib.modes.iocontrol_scan._parse_range_str`` parses the same
 ``START-END`` form but returns ``None`` instead of raising. Unifying them is a

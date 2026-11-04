@@ -2,21 +2,21 @@
 
 All live subcommands talk to the vehicle over the configured transport (raw
 SLCAN-over-TCP by default, or an ELM327 terminal over the WiCAN WebSocket or a
-plain TCP socket — see :mod:`canlib.transport.config`). They share one argument
-namespace, one connection lifecycle, and one mode dispatcher. Each subcommand is a
-thin argparse surface that populates the namespace and then calls
-:func:`run_live`.
+plain TCP socket — see :mod:`canlib.transport.config`). They share one connection
+lifecycle. Each subcommand is a thin argparse surface that picks its
+:class:`~.runtime.LiveOperation` and calls :func:`run_live` with it.
 
 Private to the command layer, hence the underscore: it is CLI plumbing, not
-library API. The parts that were neither — the mode dispatcher, ``wants_save``,
-``split_ecus_by_protocol`` — have been pushed down to :mod:`canlib.modes.dispatch`,
+library API. The parts that were neither — the session (:mod:`canlib.modes.session`),
+``wants_save``, ``split_ecus_by_protocol`` — live in :mod:`canlib.modes`,
 :mod:`canlib.keepmode` and :mod:`canlib.ecus`, so nothing under ``canlib/`` imports
-this any more.
+this.
 
 Submodules, in the order a run passes through them:
 
-* :mod:`.defaults`   — the argument namespace and every attribute's default.
-* :mod:`.parser`     — the shared flags, and the namespace backfill.
+* :mod:`.parser`     — the shared flags, and :func:`live_command`.
+* :mod:`.handlers`   — what each subcommand does once connected (the only code that reads
+  the parsed flags on its way to a ``mode_*``).
 * :mod:`.completers` — argcomplete callbacks for those arguments.
 * :mod:`.steps`      — multi mini-language STEP handling (``@group`` expansion).
 * :mod:`.connect`    — building/connecting the ELM327 terminal, and re-homing it.
@@ -54,26 +54,25 @@ from .completers import (
     step_completer,
 )
 from .connect import build_elm_reconnector, connect_elm_terminal
-from .defaults import CANAIR_DEFAULTS
-from .parser import add_connection_args, finalize_live_parser
-from .runtime import async_main, run, run_live
+from .operation import LiveOperation
+from .parser import add_connection_args, live_command
+from .runtime import async_main, run_live
 from .steps import STEP_VERBS, expand_step_groups, report_merged_selectors, to_step
 
 __all__ = [
-    "CANAIR_DEFAULTS",
     "STEP_VERBS",
+    "LiveOperation",
     "add_connection_args",
     "async_main",
     "build_elm_reconnector",
     "connect_elm_terminal",
     "ecu_completer",
     "expand_step_groups",
-    "finalize_live_parser",
+    "live_command",
     "load_pids",
     "param_completer",
     "pid_completer",
     "report_merged_selectors",
-    "run",
     "run_live",
     "step_completer",
     "to_step",

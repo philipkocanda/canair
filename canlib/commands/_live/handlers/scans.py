@@ -1,4 +1,4 @@
-"""Dispatch for the sweeps: PID/DID scans, routine and IOControl probes, discovery.
+"""Handlers for the sweeps: PID/DID scans, routine and IOControl probes, discovery.
 
 Three of these pick their UDS or KWP2000 variant per ECU via
 :func:`canlib.ecus.split_ecus_by_protocol` — a safety boundary, not a convenience:
@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sys
 
+from canlib.commands._live.operation import LiveOperation
 from canlib.ecus import split_ecus_by_protocol
 from canlib.modes import mode_discover, mode_scan
 from canlib.modes.iocontrol_scan import mode_iocontrol_scan
@@ -267,3 +268,12 @@ async def handle_discover(args, terminal: Terminal, pids_data, host, *, reconnec
         mode=_addr_mode,
         tester=DEFAULT_TESTER_ADDRESS,
     )
+
+
+# What the sweeping subcommands run: ``scan`` and ``discover`` record captures, and a scan's
+# aborted previous run is announced by its type.
+RANGE = LiveOperation(handle_scan, records=True, scan_types=frozenset({"scan"}))
+IOCONTROL = LiveOperation(handle_iocontrol_scan, scan_types=frozenset({"iocontrol"}))
+ROUTINES = LiveOperation(handle_routines_scan, scan_types=frozenset({"routines"}))
+SESSIONS = LiveOperation(handle_sessions_scan)
+DISCOVER = LiveOperation(handle_discover, records=True)

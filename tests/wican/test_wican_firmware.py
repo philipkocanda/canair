@@ -509,9 +509,18 @@ def _elm_session(monkeypatch, ttype: str, *, calls: list):
 
 
 def _live_args(**kw):
-    from canlib.commands._live import CANAIR_DEFAULTS
+    from tests.support.live_args import live_args
 
-    return argparse.Namespace(**{**CANAIR_DEFAULTS, **kw})
+    return live_args(**kw)
+
+
+def _operation():
+    from canlib.commands._live import LiveOperation
+
+    async def _handler(*a, **k):
+        return None
+
+    return LiveOperation(_handler)
 
 
 def _recording_detect(monkeypatch, info: FirmwareInfo, calls: list):
@@ -529,7 +538,7 @@ class TestLiveSurfaces:
         calls: list = []
         _elm_session(monkeypatch, "wican-ws", calls=calls)
         _recording_detect(monkeypatch, V6, calls)
-        rc = asyncio.run(runtime.async_main(_live_args()))
+        rc = asyncio.run(runtime.async_main(_live_args(), _operation()))
         assert rc == 2
         # The cheap TCP pre-check first: an offline host must not also pay the probe.
         assert calls == ["reach", "probe:wican-ws"]
@@ -549,7 +558,7 @@ class TestLiveSurfaces:
 
         monkeypatch.setattr("canlib.wican.mode.require_ws_reachable", _down)
         with pytest.raises(SystemExit):
-            asyncio.run(runtime.async_main(_live_args()))
+            asyncio.run(runtime.async_main(_live_args(), _operation()))
         assert calls == []
 
     def test_v4_out_of_range_warns_and_connects(self, monkeypatch, capsys):
@@ -558,7 +567,7 @@ class TestLiveSurfaces:
         calls: list = []
         _elm_session(monkeypatch, "wican-ws", calls=calls)
         _recording_detect(monkeypatch, FirmwareInfo("v4", version="4.60"), calls)
-        assert asyncio.run(runtime.async_main(_live_args())) == 0
+        assert asyncio.run(runtime.async_main(_live_args(), _operation())) == 0
         assert "session" in calls
         assert "newer than canair has tested" in capsys.readouterr().err
 
@@ -571,7 +580,7 @@ class TestLiveSurfaces:
         seen = []
         monkeypatch.setattr(wf, "probe", lambda host, *, timeout: seen.append(host) or V6)
         monkeypatch.setattr(cfg, "firmware_check_mode", lambda: "on")
-        assert asyncio.run(runtime.async_main(_live_args())) == 0
+        assert asyncio.run(runtime.async_main(_live_args(), _operation())) == 0
         assert seen == []
         assert "AutoPID" not in capsys.readouterr().err
 
@@ -583,7 +592,7 @@ class TestLiveSurfaces:
         _elm_session(monkeypatch, "elm327-tcp", calls=calls)
         monkeypatch.setattr(wf, "probe", lambda host, *, timeout: V6)
         monkeypatch.setattr(cfg, "firmware_check_mode", lambda: "always")
-        assert asyncio.run(runtime.async_main(_live_args())) == 0
+        assert asyncio.run(runtime.async_main(_live_args(), _operation())) == 0
         err = capsys.readouterr().err
         assert err.startswith("note: ") and "AutoPID" in err
         assert "session" in calls
@@ -607,7 +616,7 @@ class TestLiveSurfaces:
         monkeypatch.setattr(
             wican_api.requests, "post", lambda *a, **k: posts.append(a) or FakeResponse(200)
         )
-        assert asyncio.run(runtime.async_main(_live_args(reboot=True))) == 0
+        assert asyncio.run(runtime.async_main(_live_args(reboot=True), _operation())) == 0
         assert bool(posts) is posted
         captured = capsys.readouterr()
         assert text in captured.out + captured.err
@@ -619,7 +628,7 @@ class TestLiveSurfaces:
         calls: list = []
         _elm_session(monkeypatch, "elm327-tcp", calls=calls)
         monkeypatch.setattr(wican_api.requests, "post", lambda *a, **k: pytest.fail("no API"))
-        assert asyncio.run(runtime.async_main(_live_args(reboot=True))) == 0
+        assert asyncio.run(runtime.async_main(_live_args(reboot=True), _operation())) == 0
         assert "skipping --reboot" in capsys.readouterr().err
 
     # --- slcan-tcp ---------------------------------------------------------------
@@ -651,24 +660,37 @@ class TestLiveSurfaces:
 
         return TransportConfig(type="slcan-tcp", host="192.0.2.1", **kw)
 
-    def _raw_args(self, **kw):
-        return argparse.Namespace(
-            multi=["query BMS"], monitor=1.0, verbose=False, unsafe=False, **kw
+    def _run_raw(self, transport, *, reboot=False):
+        from canlib.modes import raw_ops
+        from canlib.modes.monitor_options import MonitorOptions
+        from canlib.modes.session import SessionOptions
+        from canlib.transport.config import ConnectionOptions
+
+        async def _operation(terminal, pids_data):
+            return None
+
+        return asyncio.run(
+            raw_ops.run_raw(
+                transport,
+                {},
+                conn=ConnectionOptions(reboot=reboot),
+                session=SessionOptions(),
+                operation=_operation,
+                monitor=MonitorOptions(query_steps=[{"type": "query", "ecu": "BMS", "pids": []}]),
+            )
         )
 
     def test_slcan_on_v6_warns_and_skips_the_mode_check(self, monkeypatch, capsys):
-        from canlib.modes import raw_ops
 
         calls = self._raw(monkeypatch)
         _v6(monkeypatch)
-        rc = asyncio.run(raw_ops.run_raw(self._raw_args(), self._cand(), {}))
+        rc = self._run_raw(self._cand())
         assert rc == 0
         assert calls == [("slcan_reachable", True), "monitor"]  # require_protocol skipped
         assert "slcan0" in capsys.readouterr().err
 
     def test_slcan_on_v6_does_not_read_the_4x_device_config(self, monkeypatch):
         """No /load_config on v6: a gated one answered 401/403 and printed noise."""
-        from canlib.modes import raw_ops
         from canlib.transport.config import TransportConfig
 
         self._raw(monkeypatch)
@@ -678,20 +700,18 @@ class TestLiveSurfaces:
             "_wican_device_config",
             lambda self: pytest.fail("v6 has no /load_config"),
         )
-        assert asyncio.run(raw_ops.run_raw(self._raw_args(), self._cand(), {})) == 0
+        assert self._run_raw(self._cand()) == 0
 
     def test_slcan_on_v4_still_checks_the_mode(self, monkeypatch, capsys):
-        from canlib.modes import raw_ops
 
         calls = self._raw(monkeypatch)
         _v6(monkeypatch, V4)
-        asyncio.run(raw_ops.run_raw(self._raw_args(), self._cand(port=3333, bitrate=500000), {}))
+        self._run_raw(self._cand(port=3333, bitrate=500000))
         assert calls == ["require_protocol", ("slcan_reachable", True), "monitor"]
         assert capsys.readouterr().err == ""
 
     def test_slcan_with_the_http_port_down_skips_every_http_request(self, monkeypatch):
         """An offline host used to pay the probe, the mode check and the config read."""
-        from canlib.modes import raw_ops
         from canlib.transport.config import TransportConfig
 
         calls = self._raw(monkeypatch, http_up=False)
@@ -699,7 +719,7 @@ class TestLiveSurfaces:
         monkeypatch.setattr(
             TransportConfig, "_wican_device_config", lambda self: pytest.fail("no config read")
         )
-        asyncio.run(raw_ops.run_raw(self._raw_args(), self._cand(), {}))
+        self._run_raw(self._cand())
         assert calls == [("slcan_reachable", False), "monitor"]
 
     @pytest.mark.parametrize(
@@ -707,7 +727,6 @@ class TestLiveSurfaces:
     )
     def test_reboot_works_after_a_raw_session(self, monkeypatch, capsys, info, posted):
         """--reboot used to be ignored on slcan-tcp: run_raw returned before the reboot."""
-        from canlib.modes import raw_ops
         from canlib.wican import api as wican_api
 
         self._raw(monkeypatch)
@@ -716,12 +735,10 @@ class TestLiveSurfaces:
         monkeypatch.setattr(
             wican_api.requests, "post", lambda *a, **k: posts.append(a) or FakeResponse(200)
         )
-        args = self._raw_args(reboot=True)
-        assert asyncio.run(raw_ops.run_raw(args, self._cand(port=3333, bitrate=500000), {})) == 0
+        assert self._run_raw(self._cand(port=3333, bitrate=500000), reboot=True) == 0
         assert bool(posts) is posted
 
     def test_no_reboot_when_the_raw_preflight_fails(self, monkeypatch):
-        from canlib.modes import raw_ops
         from canlib.wican import api as wican_api
         from canlib.wican import mode as wican_mode
 
@@ -733,8 +750,7 @@ class TestLiveSurfaces:
 
         monkeypatch.setattr(wican_mode, "require_protocol", _wrong_mode)
         monkeypatch.setattr(wican_api, "reboot_device", lambda *a, **k: pytest.fail("no session"))
-        args = self._raw_args(reboot=True)
-        assert asyncio.run(raw_ops.run_raw(args, self._cand(port=3333, bitrate=500000), {})) == 2
+        assert self._run_raw(self._cand(port=3333, bitrate=500000), reboot=True) == 2
 
     # --- sniff -------------------------------------------------------------------
 

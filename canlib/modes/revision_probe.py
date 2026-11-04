@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 from canlib.transport.protocol import Terminal
 
@@ -29,13 +29,12 @@ def _tokens(steps: Iterable[str]) -> set[str]:
     return out
 
 
-def targeted_ecus(args) -> set[str] | None:
+def targeted_ecus(steps: Sequence[str] | None) -> set[str] | None:
     """Upper-cased names the command's query steps mention, or None when it has none.
 
     Only the multi mini-language (``read``/``monitor`` steps) decodes revision-gated
     PIDs, so only it probes; a group reference is expanded first.
     """
-    steps = getattr(args, "multi", None)
     if not steps:
         return None
     steps = list(steps)

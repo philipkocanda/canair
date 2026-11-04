@@ -1,4 +1,4 @@
-"""Tests for raw-CAN command dispatch (canlib.modes.raw_ops.run_raw)."""
+"""Tests for raw-CAN live commands (canlib.modes.raw_ops.run_raw)."""
 
 import asyncio
 from typing import ClassVar
@@ -6,6 +6,9 @@ from typing import ClassVar
 import pytest
 
 from canlib.modes import raw_monitor, raw_ops
+from canlib.modes.monitor_options import MonitorOptions
+from canlib.modes.session import SessionOptions
+from canlib.transport.config import ConnectionOptions
 from canlib.wican import mode as wican_mode
 from canlib.wican.mode import ModeError
 
@@ -22,12 +25,25 @@ def _http_port_open(monkeypatch):
     monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: True)
 
 
-class Args:
-    def __init__(self, **kw):
-        self.__dict__.update(
-            {"multi": None, "monitor": None, "raw": None, "verbose": False, "unsafe": False}
+MONITOR = MonitorOptions(query_steps=[{"type": "query", "ecu": "BMS", "pids": []}])
+
+
+def run_raw(transport, *, operation=None, monitor=None, session=None):
+    """``raw_ops.run_raw`` with the options a bare command would pass."""
+
+    async def _nothing(terminal, pids_data):
+        return None
+
+    return asyncio.run(
+        raw_ops.run_raw(
+            transport,
+            {},
+            conn=ConnectionOptions(),
+            session=session or SessionOptions(),
+            operation=operation or _nothing,
+            monitor=monitor,
         )
-        self.__dict__.update(kw)
+    )
 
 
 class FakeRawTerminal:
@@ -47,50 +63,41 @@ def routed(monkeypatch):
     monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
     monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda host, port, **kw: None)
 
-    async def _mon(args, host, port, bitrate, pids):
+    async def _mon(monitor, host, port, bitrate, pids, **kw):
         calls.append("monitor")
         return 0
 
     monkeypatch.setattr(raw_monitor, "run_raw_monitor", _mon)
 
-    async def _dispatch(args, terminal, pids, host, *, reconnect=None):
-        # The raw path never supplies a reconnector: raw_ops routes monitoring to
-        # its own pipelined client before reaching dispatch, so the monitor branch
-        # here is unreachable on this transport. Recorded so an accidental
-        # cross-transport wiring shows up as a failure rather than a latent bug.
-        calls.append(("dispatch", type(terminal).__name__, reconnect))
-
-    import canlib.modes.dispatch as live
-
-    monkeypatch.setattr(live, "dispatch_mode", _dispatch)
-
     import canlib.transport as transport
 
     FakeRawTerminal.instances = []
     monkeypatch.setattr(transport, "RawTerminal", FakeRawTerminal)
-    return calls
+
+    async def _operation(terminal, pids):
+        calls.append(("operation", type(terminal).__name__))
+
+    return calls, _operation
 
 
 def test_routes_monitor_to_optimized_path(routed):
-    rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"], monitor=1.0), T(), {}))
-    assert rc == 0 and routed == ["monitor"]
+    calls, operation = routed
+    assert run_raw(T(), operation=operation, monitor=MONITOR) == 0
+    assert calls == ["monitor"]
     assert FakeRawTerminal.instances == []  # no RawTerminal for monitor
 
 
-def test_routes_query_to_dispatch(routed):
-    rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"]), T(), {}))
-    assert rc == 0 and routed == [("dispatch", "FakeRawTerminal", None)]
+def test_runs_the_operation_over_a_raw_terminal(routed):
+    calls, operation = routed
+    assert run_raw(T(), operation=operation) == 0
+    assert calls == [("operation", "FakeRawTerminal")]
     assert FakeRawTerminal.instances[0].closed is True  # cleaned up
 
 
-def test_routes_scan_to_dispatch(routed):
-    rc = asyncio.run(raw_ops.run_raw(Args(scan=True, tx="7E4"), T(), {}))
-    assert rc == 0 and routed == [("dispatch", "FakeRawTerminal", None)]
-
-
 def test_no_host_errors(routed):
-    rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"]), T(host=None), {}))
-    assert rc == 2 and routed == []
+    calls, operation = routed
+    assert run_raw(T(host=None), operation=operation) == 2
+    assert calls == []
 
 
 def test_mode_mismatch_errors(monkeypatch, routed):
@@ -98,8 +105,9 @@ def test_mode_mismatch_errors(monkeypatch, routed):
         raise ModeError("wrong mode")
 
     monkeypatch.setattr(wican_mode, "require_protocol", boom)
-    rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"]), T(), {}))
-    assert rc == 2 and routed == []
+    calls, operation = routed
+    assert run_raw(T(), operation=operation) == 2
+    assert calls == []
 
 
 def test_slcan_port_unreachable_errors(monkeypatch, routed):
@@ -109,8 +117,9 @@ def test_slcan_port_unreachable_errors(monkeypatch, routed):
         raise ModeError("port not reachable")
 
     monkeypatch.setattr(wican_mode, "require_slcan_reachable", boom)
-    rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"]), T(), {}))
-    assert rc == 2 and routed == []
+    calls, operation = routed
+    assert run_raw(T(), operation=operation) == 2
+    assert calls == []
     assert FakeRawTerminal.instances == []  # never got to constructing the terminal
 
 
@@ -123,8 +132,9 @@ def test_terminal_connect_oserror_is_clean(monkeypatch, routed, capsys):
     import canlib.transport as transport
 
     monkeypatch.setattr(transport, "RawTerminal", boom)
-    rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"]), T(), {}))
-    assert rc == 1 and routed == []
+    calls, operation = routed
+    assert run_raw(T(), operation=operation) == 1
+    assert calls == []
     # The message names the real reason, not a bare exception repr.
     err = capsys.readouterr().err
     assert "timed out" in err
@@ -137,18 +147,15 @@ def test_mid_session_drop_is_clean(monkeypatch, capsys):
     monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
     monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda host, port, **kw: None)
 
-    async def _drop(args, terminal, pids, host, *, reconnect=None):
+    async def _drop(terminal, pids):
         raise can.CanError("SLCAN TCP connection closed by peer")
 
-    import canlib.modes.dispatch as live
-
-    monkeypatch.setattr(live, "dispatch_mode", _drop)
     import canlib.transport as transport
 
     FakeRawTerminal.instances = []
     monkeypatch.setattr(transport, "RawTerminal", FakeRawTerminal)
 
-    rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"]), T(), {}))
+    rc = run_raw(T(), operation=_drop)
     assert rc == 1  # clean exit code, no traceback
     assert FakeRawTerminal.instances[0].closed is True  # terminal still closed
     err = capsys.readouterr().err
@@ -160,18 +167,15 @@ def test_mid_session_drop_while_saving_points_at_recover(monkeypatch, capsys):
     monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
     monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda host, port, **kw: None)
 
-    async def _drop(args, terminal, pids, host, *, reconnect=None):
+    async def _drop(terminal, pids):
         raise ConnectionResetError("reset by peer")
 
-    import canlib.modes.dispatch as live
-
-    monkeypatch.setattr(live, "dispatch_mode", _drop)
     import canlib.transport as transport
 
     FakeRawTerminal.instances = []
     monkeypatch.setattr(transport, "RawTerminal", FakeRawTerminal)
 
-    rc = asyncio.run(raw_ops.run_raw(Args(multi=["query BMS"], save=True, label="drive"), T(), {}))
+    rc = run_raw(T(), operation=_drop, session=SessionOptions(saving=True))
     assert rc == 1
     err = capsys.readouterr().err
     assert "--recover" in err

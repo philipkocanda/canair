@@ -55,13 +55,13 @@ canair reaches the bus through one **explicitly selected** transport, registered
 | ELM327 | `wican-ws`, `elm327-tcp` | device-side ISO-TP via the shared `Elm327Terminal` engine over a swappable `Channel` |
 
 All backends satisfy the `Terminal` protocol (`canlib/transport/protocol.py`) and live commands
-dispatch through the **single shared** `canlib/modes/dispatch/::dispatch_mode`, called by both the
+run through the **single shared** `canlib/modes/session.py::run_session_guarded`, called by both the
 ELM path (`commands/_live/runtime.py::async_main`) and the raw path (`modes/raw_ops.py::run_raw`).
 
 **The design contract:**
 
 - Write mode handlers against the `Terminal` surface **only**. A command that goes through
-  `dispatch_mode` and uses just those methods works on every transport for free — that's how `dtc`,
+  `run_session_guarded` and uses just those methods works on every transport for free — that's how `dtc`,
   `identity`, `scan`, `routines` get multi-transport support from one implementation.
 - **Do not** open your own WebSocket, python-can bus, or socket, and do not branch on
   `transport.type` inside a mode. If you think you must, add the method to *all* terminal
@@ -151,12 +151,12 @@ Commands live in `canlib/commands/<name>.py`, exposing `NAME`, `add_parser(subpa
 `commands/__init__.py::COMMAND_NAMES` (order = help order).
 
 **Live (device-talking) commands** additionally call `add_connection_args` +
-`finalize_live_parser` from `canlib/commands/_live/`, register any new mode-selector attribute in
-`CANAIR_DEFAULTS` (`_live/defaults.py`) with a falsy default **and** in
-`canlib/modes/dispatch/::_DISPATCH`, then delegate to a handler in `canlib/modes/<name>.py`.
-A selector missing from `_DISPATCH` is not an error — it silently falls through to the interactive
-REPL, which is why `tests/modes/test_dispatch_table.py` pins both membership and the table's
-(load-bearing) order.
+`live_command` from `canlib/commands/_live/` (or call `run_live(args, operation)` from their own
+`run`). The command names its `LiveOperation`: a handler in `canlib/commands/_live/handlers/` that
+reads the parsed flags and calls a `mode_*` coroutine in `canlib/modes/<name>.py` with typed
+arguments. Nothing picks a handler by inspecting flags, so add the command's row to `CASES` in
+`tests/commands/test_live_operations.py`: it pins the operation the command reaches and that the
+parser defines every `args.x` its handler reads directly (use `getattr` for an optional one).
 
 Follow an existing command as a template: `commands/dtc/` + `modes/dtc/`.
 
@@ -274,7 +274,7 @@ tree is a **security incident**: flag it (history purge, key rotation), don't de
   device.
 - Cover the failure paths that matter: NRC responses, `NO DATA`, malformed payloads, declined
   confirmations.
-- For anything bus-touching, prove it runs through the shared `dispatch_mode` (see
+- For anything bus-touching, prove it runs through its handler over the fake terminal (see
   `TestDispatchTransportAgnostic` in `tests/dtc/test_dtc.py`) so every transport stays covered.
 - **Analysis tests must not read an unbounded capture range** — `captures/` grows with every
   `--save`, so scope to a frozen date or a fixture profile, or the test gets slower forever and

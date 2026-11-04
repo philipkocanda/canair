@@ -8,13 +8,15 @@ mode (the caller / ``run_raw`` verifies this — no auto-switching).
 from __future__ import annotations
 
 import sys
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from collections.abc import Mapping
+from ..transport.config import ConnectionOptions, TransportConfig
+from .monitor_options import MonitorOptions
+from .session import SessionOptions
 
+if TYPE_CHECKING:
     from ..addressing import EcuAddress
-    from ..keepmode import KeepMode
     from ..pids import EcuIndexEntry
 
 
@@ -31,18 +33,12 @@ def query_ecu_addresses(
     return out
 
 
-def _keep_mode(args) -> KeepMode:
-    from ..keepmode import keep_mode_from_args
-
-    return keep_mode_from_args(args)
-
-
 def build_raw_client(
     host: str,
     port: int,
     bitrate: int,
     ecus: dict[str, EcuAddress],
-    args,
+    conn: ConnectionOptions,
     pids_data: dict,
 ):
     """Construct a connected :class:`RawUdsClient` (SLCAN bus + client-side ISO-TP).
@@ -57,7 +53,7 @@ def build_raw_client(
     from ..transport import RawUdsClient, SlcanTcpBus
 
     bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
-    cli = cli_timeout(args)
+    cli = cli_timeout(conn.timeout)
     return RawUdsClient(
         bus,
         ecus,
@@ -68,7 +64,12 @@ def build_raw_client(
     )
 
 
-def build_raw_reconnector(args, ecus: dict[str, EcuAddress], pids_data: dict):
+def build_raw_reconnector(
+    candidates: Sequence[TransportConfig],
+    ecus: dict[str, EcuAddress],
+    conn: ConnectionOptions,
+    pids_data: dict,
+):
     """A :class:`MonitorReconnector` that re-homes to a reachable slcan-tcp device.
 
     Restricts the candidate list to raw (slcan-tcp) devices and reuses
@@ -77,37 +78,37 @@ def build_raw_reconnector(args, ecus: dict[str, EcuAddress], pids_data: dict):
     """
     import asyncio
 
-    from ..transport import resolve_transport_candidates
-    from ..transport.config import TransportConfig
     from .monitor_reconnect import MonitorReconnector, reconnect_policy
 
-    candidates = [c for c in resolve_transport_candidates(args) if c.is_raw]
+    raw_candidates = [c for c in candidates if c.is_raw]
 
     async def connect(cand: TransportConfig):
         assert cand.host is not None  # wait_for_reachable only yields hosted candidates
         port, bitrate = cand.resolve_device_defaults(pids_data.get("can_bitrate"))
         return await asyncio.to_thread(
-            build_raw_client, cand.host, port, bitrate, ecus, args, pids_data
+            build_raw_client, cand.host, port, bitrate, ecus, conn, pids_data
         )
 
-    return MonitorReconnector(candidates, connect, reconnect_policy(args))
+    return MonitorReconnector(raw_candidates, connect, reconnect_policy(wait=conn.wait))
 
 
-async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: dict) -> int:
+async def run_raw_monitor(
+    monitor: MonitorOptions,
+    host: str,
+    port: int,
+    bitrate: int,
+    pids_data: dict,
+    *,
+    conn: ConnectionOptions,
+    session: SessionOptions,
+    candidates: Sequence[TransportConfig] = (),
+) -> int:
     """Run the live monitor over raw CAN. Assumes the device is in slcan mode."""
     from ..pids import build_ecu_index
     from .monitor import mode_monitor
-    from .multi import parse_sub_commands
-
-    commands = parse_sub_commands(args.multi)
-    session_steps = [c for c in commands if c["type"] in ("session", "skm-wake", "sleep")]
-    query_steps = [c for c in commands if c["type"] == "query"]
-    if not query_steps:
-        print("Error: monitor requires at least one 'query' step", file=sys.stderr)
-        return 1
 
     ecu_index = build_ecu_index(pids_data)
-    ecus = query_ecu_addresses(query_steps, ecu_index)
+    ecus = query_ecu_addresses(monitor.query_steps, ecu_index)
     if not ecus:
         print("Error: no known ECUs in the query steps.", file=sys.stderr)
         return 1
@@ -117,7 +118,7 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
         f"(ECUs: {', '.join(sorted(ecus))})"
     )
     try:
-        client = build_raw_client(host, port, bitrate, ecus, args, pids_data)
+        client = build_raw_client(host, port, bitrate, ecus, conn, pids_data)
     except OSError as e:
         from canlib.core.oserrors import connect_error_detail
 
@@ -129,46 +130,31 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
     # The monitor reconciles its --save journal in its own finally even on a
     # disconnect (so no data loss), then re-raises the transport error — catch it
     # here through the shared classifier so a dropped bus is a clean message, not
-    # a traceback. (The ELM monitor gets this via dispatch_mode/run_session_guarded;
-    # the raw monitor bypasses dispatch_mode for its pipelined client, so guard here.)
-    from ..keepmode import wants_save
-    from ..poll_schedule import DEFAULT_SCHEDULE
+    # a traceback. (The ELM monitor gets this via run_session_guarded; the raw
+    # monitor bypasses it for its pipelined client, so guard here.)
     from ..transport.errors import describe_transport_error, transport_error_types
-    from ..uds.notation import ByteNotation
 
     try:
         await mode_monitor(
             None,
-            query_steps,
+            monitor.query_steps,
             pids_data,
-            args.verbose,
-            interval=args.monitor,
-            session_steps=session_steps,
-            keep_mode=_keep_mode(args),
-            keep_n=getattr(args, "keep", None),
-            save=args.save,
-            show_rulers=getattr(args, "rulers", False),
-            notation=ByteNotation(getattr(args, "notation", None) or ByteNotation.WICAN),
-            label=args.label,
-            vehicle_states=args.state,
-            notes=args.notes,
+            monitor.verbose,
             raw_client=client,
-            include_static=getattr(args, "include_static", False),
-            reconnect=build_raw_reconnector(args, ecus, pids_data),
-            schedule=getattr(args, "schedule", DEFAULT_SCHEDULE),
-            backoff=not getattr(args, "no_backoff", False),
+            reconnect=build_raw_reconnector(candidates, ecus, conn, pids_data),
+            **monitor.mode_kwargs(),
         )
     except transport_error_types() as e:
         print(
             "error: "
             + describe_transport_error(
-                e, host=host, transport_label="SLCAN", saving=wants_save(args)
+                e, host=host, transport_label="SLCAN", saving=session.saving
             ),
             file=sys.stderr,
         )
         return 1
-    if getattr(args, "timings", False):
+    if session.timings:
         from ..timing import print_timings
 
-        print_timings(client.timings, as_json=getattr(args, "json", False))
+        print_timings(client.timings, as_json=session.as_json)
     return 0

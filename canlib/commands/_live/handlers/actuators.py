@@ -1,4 +1,4 @@
-"""Dispatch for the surfaces that can actuate hardware: IOControl, routines, actions.
+"""Handlers for the surfaces that can actuate hardware: IOControl, routines, actions.
 
 IOControl and routines have a read-only listing/TUI path and an execute path.
 ``routines --sf start`` sends startRoutine, which may move something, so it

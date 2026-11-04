@@ -2,7 +2,7 @@
 
 Device-free. The raw path is driven through a fake bus that answers the request
 frame; the ELM327 path through the real engine over a queued channel; the mode
-through the shared fake terminal and ``dispatch_mode``.
+through the shared fake terminal and the ``discover`` handler.
 """
 
 from __future__ import annotations
@@ -142,7 +142,7 @@ class TestDispatchForwardsTheParsedValues:
     def _run(self, monkeypatch, **kw) -> dict:
         import asyncio
 
-        from canlib.modes.dispatch.scans import handle_discover
+        from canlib.commands._live.handlers.scans import handle_discover
 
         seen: dict = {}
 
@@ -486,11 +486,9 @@ def gateway_profile(tmp_path):
 
 
 def _mode_args(**kw) -> argparse.Namespace:
-    from canlib.commands._live import CANAIR_DEFAULTS
+    from tests.support.live_args import live_args
 
     base = {
-        **CANAIR_DEFAULTS,
-        "discover": True,
         "functional": True,
         "request": None,
         "window": None,
@@ -498,18 +496,18 @@ def _mode_args(**kw) -> argparse.Namespace:
         "interval": 1.0,
         "identify": False,
     }
-    return argparse.Namespace(**{**base, **kw})
+    return live_args(**{**base, **kw})
 
 
 class TestMode:
     @pytest.mark.asyncio
     async def test_dispatch_reports_buses_unknowns_and_silent(self, gateway_profile, capsys):
-        from canlib.modes.dispatch import dispatch_mode
+        from canlib.commands._live.handlers.scans import handle_discover
         from canlib.pids import load_pids
 
         term = FakeTerminal()
         term.functional_replies = {"3E00": [(0x7EC, "7E00"), (0x778, "7E00"), (0x7C8, "7E00")]}
-        await dispatch_mode(_mode_args(json=True), term, load_pids(), "1.2.3.4")
+        await handle_discover(_mode_args(json=True), term, load_pids(), "1.2.3.4")
         assert term.calls[0] == ("send_functional", (0x7DF, "3E00", DEFAULT_WINDOW_S))
         out = capsys.readouterr()
         doc = json.loads(out.out)
@@ -527,8 +525,8 @@ class TestMode:
 
     @pytest.mark.asyncio
     async def test_repeat_sends_each_round(self, gateway_profile, monkeypatch, capsys):
+        from canlib.commands._live.handlers.scans import handle_discover
         from canlib.modes import discover_functional
-        from canlib.modes.dispatch import dispatch_mode
         from canlib.pids import load_pids
 
         async def _no_sleep(_s):
@@ -537,7 +535,7 @@ class TestMode:
         monkeypatch.setattr(discover_functional.asyncio, "sleep", _no_sleep)
         term = FakeTerminal()
         term.functional_replies = {"22F18C": [(0x7EC, "62F18C31")]}
-        await dispatch_mode(_mode_args(request="22F18C", repeat=3), term, load_pids(), "1.2.3.4")
+        await handle_discover(_mode_args(request="22F18C", repeat=3), term, load_pids(), "1.2.3.4")
         assert [c for c in term.calls if c[0] == "send_functional"] == [
             ("send_functional", (0x7DF, "22F18C", DEFAULT_WINDOW_S))
         ] * 3

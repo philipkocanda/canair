@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 
+from canlib.transport.config import ConnectionOptions
 from canlib.transport.protocol import Terminal
 from canlib.transport.wican_terminal import WiCANTerminal
 
@@ -62,7 +63,7 @@ def _print_sleep_banner(host: str, timeout: int = 5) -> None:
     console.print(f"  [WiCAN] Sleep: {sleep_str}  |  Battery: {batt}")
 
 
-async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
+async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptions) -> Terminal:
     """Construct, connect, and ELM-initialise the ELM327 terminal for ``transport``.
 
     Builds a :class:`WiCANTerminal` (WebSocket) for ``wican-ws`` or a
@@ -87,7 +88,7 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
     host = transport.host
     assert host is not None  # ELM transports always resolve a host
 
-    _cli_timeout = cli_timeout(args)
+    _cli_timeout = cli_timeout(conn.timeout)
     _ws_timeout = _cli_timeout if _cli_timeout is not None else 3.0
     counts = config.expected_responses()
     # Counts previous sessions proved, so the first read of each PID is already
@@ -101,8 +102,8 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
             host,
             port,
             timeout=_ws_timeout,
-            verbose=args.verbose,
-            unsafe=args.unsafe,
+            verbose=conn.verbose,
+            unsafe=conn.unsafe,
             expected_responses=counts,
             response_frames=seeds,
             variable_length=variable,
@@ -112,8 +113,8 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
         terminal = WiCANTerminal(
             host=host,
             timeout=_ws_timeout,
-            verbose=args.verbose,
-            unsafe=args.unsafe,
+            verbose=conn.verbose,
+            unsafe=conn.unsafe,
             expected_responses=counts,
             response_frames=seeds,
             variable_length=variable,
@@ -136,8 +137,8 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
 
         atst_cmd: str | None = None
         label = ""
-        if args.elm_timeout is not None:
-            atst_val = max(1, min(255, round(args.elm_timeout / 4.096)))
+        if conn.elm_timeout is not None:
+            atst_val = max(1, min(255, round(conn.elm_timeout / 4.096)))
             atst_cmd = f"ATST{atst_val:02X}"
         elif pids_data.get("response_timeout_ms") is not None:
             atst_val = max(1, min(255, round(pids_data["response_timeout_ms"] / 4.096)))
@@ -160,21 +161,21 @@ async def connect_elm_terminal(transport, pids_data: dict, args) -> Terminal:
         raise
 
 
-def build_elm_reconnector(args, pids_data: dict):
+def build_elm_reconnector(candidates, pids_data: dict, conn: ConnectionOptions):
     """A :class:`MonitorReconnector` that re-homes to a reachable ELM device.
 
-    Restricts the candidate list to ELM (``wican-ws`` / ``elm327-tcp``) devices
-    and reuses :func:`connect_elm_terminal` as the per-candidate connect step, so
-    a mid-session drop reconnects exactly the way the initial connect did.
+    ``candidates`` is the resolved transport list, restricted here to the ELM
+    (``wican-ws`` / ``elm327-tcp``) devices. It reuses :func:`connect_elm_terminal` as the
+    per-candidate connect step, so a mid-session drop reconnects exactly the way the initial
+    connect did.
     """
     from canlib.modes.monitor_reconnect import MonitorReconnector, reconnect_policy
-    from canlib.transport import resolve_transport_candidates
     from canlib.transport.config import TransportConfig
 
-    candidates = [c for c in resolve_transport_candidates(args) if c.is_elm]
+    elm_candidates = [c for c in candidates if c.is_elm]
 
     async def connect(cand: TransportConfig):
         assert cand.host is not None  # wait_for_reachable only yields hosted candidates
-        return await connect_elm_terminal(cand, pids_data, args)
+        return await connect_elm_terminal(cand, pids_data, conn)
 
-    return MonitorReconnector(candidates, connect, reconnect_policy(args))
+    return MonitorReconnector(elm_candidates, connect, reconnect_policy(wait=conn.wait))

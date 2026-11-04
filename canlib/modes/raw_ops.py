@@ -1,4 +1,4 @@
-"""Raw-CAN command dispatch (transport = ``slcan-tcp``).
+"""Raw-CAN live commands (transport = ``slcan-tcp``).
 
 When the configured transport is raw, live commands run over python-can + our
 client-side ISO-TP instead of the ELM327 WebSocket. The device must already be
@@ -7,7 +7,7 @@ in ``slcan`` mode — we verify and error clearly, never switch.
 - ``monitor`` uses the optimized :class:`RawUdsClient` path (request pipelining
   across ECUs + per-ECU multi-DID batching).
 - Everything else (query, raw, scan, discover, identity, iocontrol, routines,
-  and the ``*-scan`` probers) runs the normal ELM-path dispatch over a
+  and the ``*-scan`` probers) runs the command's operation, as on the ELM path, over a
   :class:`~canlib.transport.raw_terminal.RawTerminal` adapter, which speaks
   ISO-TP under the same ``set_header`` / ``send_uds`` interface the modes expect.
 """
@@ -15,13 +15,16 @@ in ``slcan`` mode — we verify and error clearly, never switch.
 from __future__ import annotations
 
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from ..transport.config import ConnectionOptions, TransportConfig
+from .monitor_options import MonitorOptions
+from .session import Operation, SessionOptions
+
 if TYPE_CHECKING:
     from canlib.wican.firmware import FirmwareInfo
-
-    from ..transport.config import TransportConfig
 
 
 @dataclass(frozen=True)
@@ -90,8 +93,22 @@ def slcan_preflight(
     return SlcanTarget(host, port, bitrate, firmware)
 
 
-async def run_raw(args, transport, pids_data) -> int:
-    """Entry point for a live command over a raw (slcan-tcp) transport."""
+async def run_raw(
+    transport,
+    pids_data,
+    *,
+    conn: ConnectionOptions,
+    session: SessionOptions,
+    operation: Operation,
+    monitor: MonitorOptions | None = None,
+    candidates: Sequence[TransportConfig] = (),
+) -> int:
+    """Entry point for a live command over a raw (slcan-tcp) transport.
+
+    ``monitor`` selects the pipelined monitor backend; ``operation`` runs everything else
+    over a :class:`~canlib.transport.raw_terminal.RawTerminal`. ``candidates`` are the devices
+    a monitor may re-home to.
+    """
     from canlib.wican.mode import ModeError
 
     try:
@@ -100,33 +117,50 @@ async def run_raw(args, transport, pids_data) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 2
     try:
-        return await _run_session(args, target, pids_data)
+        return await _run_session(target, pids_data, conn, session, operation, monitor, candidates)
     finally:
-        if getattr(args, "reboot", False):
+        if conn.reboot:
             from canlib.transport.reboot import reboot_after_session
 
             reboot_after_session(transport)
 
 
-async def _run_session(args, target: SlcanTarget, pids_data) -> int:
+async def _run_session(
+    target: SlcanTarget,
+    pids_data,
+    conn: ConnectionOptions,
+    session: SessionOptions,
+    operation: Operation,
+    monitor: MonitorOptions | None,
+    candidates: Sequence[TransportConfig],
+) -> int:
     host, port, bitrate = target.host, target.port, target.bitrate
 
     # Monitor: optimized pipelined + batched backend.
-    if args.multi and args.monitor:
+    if monitor is not None:
         from .raw_monitor import run_raw_monitor
 
-        return await run_raw_monitor(args, host, port, bitrate, pids_data)
+        return await run_raw_monitor(
+            monitor,
+            host,
+            port,
+            bitrate,
+            pids_data,
+            conn=conn,
+            session=session,
+            candidates=candidates,
+        )
 
-    # All other commands: reuse the shared dispatch over a RawTerminal adapter.
+    # All other commands: reuse the shared session over a RawTerminal adapter.
     from canlib.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
 
     from ..addressing import AddressBook
     from ..safety import SessionPolicy
     from ..transport import RawTerminal
-    from .dispatch import run_session_guarded
+    from .session import run_session_guarded
 
     print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
-    cli = cli_timeout(args)
+    cli = cli_timeout(conn.timeout)
     # Resolved tx->EcuAddress map (per-ECU mode/rx_id/extended/FC bytes) so
     # RawTerminal builds each ISO-TP stack from the full addressing; unknown TX
     # ids (a discovery sweep) fall back to the profile's rx_offset/mode.
@@ -136,8 +170,8 @@ async def _run_session(args, target: SlcanTarget, pids_data) -> int:
             host,
             port,
             bitrate,
-            verbose=args.verbose,
-            unsafe=getattr(args, "unsafe", False),
+            verbose=conn.verbose,
+            unsafe=conn.unsafe,
             timeout=(cli if cli is not None else 2.0),
             isotp_config=pids_data.get("isotp"),
             addr_map=dict(addresses.by_tx),
@@ -160,6 +194,8 @@ async def _run_session(args, target: SlcanTarget, pids_data) -> int:
         terminal.ecu_timeouts = ecu_timeouts_by_tx(pids_data)
     terminal.session_policy = SessionPolicy.from_profile(pids_data)
     try:
-        return await run_session_guarded(args, terminal, pids_data, host, transport_label="SLCAN")
+        return await run_session_guarded(
+            terminal, pids_data, host, operation, options=session, transport_label="SLCAN"
+        )
     finally:
         await terminal.close()

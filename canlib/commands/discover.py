@@ -6,7 +6,8 @@ import argparse
 import sys
 from collections.abc import Mapping
 
-from canlib.commands._live import add_connection_args, finalize_live_parser, run_live
+from canlib.commands._live import add_connection_args, run_live
+from canlib.commands._live.handlers import scans
 
 NAME = "discover"
 ALIASES = ["disc"]
@@ -112,7 +113,6 @@ functional requests:
     parser.add_argument("--state", metavar="TEXT", default=None, help="Session state for --save")
     parser.add_argument("--notes", metavar="TEXT", default=None, help="Session notes for --save")
     add_connection_args(parser)
-    finalize_live_parser(parser, discover=True)
     parser.set_defaults(func=run)
     return parser
 
@@ -185,4 +185,4 @@ def run(args) -> int:
     if error is not None:
         print(f"error: {error}", file=sys.stderr)
         return 2
-    return run_live(args)
+    return run_live(args, scans.DISCOVER)

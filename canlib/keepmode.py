@@ -134,8 +134,8 @@ def scope_is_keep_changes(captures) -> bool:
     return False
 
 
-def keep_mode_from_args(args) -> KeepMode:
-    """Resolve the monitor keep-mode from parsed ``--keep*`` flags.
+def resolve_keep_mode(*, keep: int | None = None, keep_changes: bool = False) -> KeepMode:
+    """Resolve the monitor keep-mode from the ``--keep*`` flags.
 
     The default is ``"all"`` (every poll): a stored row is then a real sample, so
     row counts measure the polling rate and joins need no forward fill, while the
@@ -144,28 +144,29 @@ def keep_mode_from_args(args) -> KeepMode:
     dedup), ``--keep N`` → ``"last"``. Shared by both the ELM and raw-CAN monitor
     paths so the default can't drift between transports.
     """
-    if getattr(args, "keep", None):
+    if keep:
         return KEEP_LAST
-    if getattr(args, "keep_changes", False):
+    if keep_changes:
         return KEEP_CHANGES
     return KEEP_ALL
 
 
-def wants_save(args) -> bool:
+def wants_save(
+    *,
+    save: bool = False,
+    label: str | None = None,
+    state: str | None = None,
+    notes: str | None = None,
+) -> bool:
     """True when the invocation intends to record captures (``--save`` or metadata flags).
 
     Passing ``--label``/``--state``/``--notes`` without ``--save`` is treated as
     intent to record, not as a no-op — the metadata has nowhere else to go.
 
-    Lives here beside :func:`keep_mode_from_args` (the other predicate over the
+    Lives here beside :func:`resolve_keep_mode` (the other predicate over the
     recording flags) rather than in the CLI layer, because ``modes.raw_monitor``
     needs it to decide whether a dropped session should point the user at
     ``--recover``, and a mode reaching up into a command helper for that was a
     layering inversion.
     """
-    return bool(
-        getattr(args, "save", False)
-        or getattr(args, "label", None) is not None
-        or getattr(args, "state", None) is not None
-        or getattr(args, "notes", None) is not None
-    )
+    return bool(save or label is not None or state is not None or notes is not None)

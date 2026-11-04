@@ -15,14 +15,11 @@ import argparse
 import sys
 
 from canlib.commands._group import group_help
-from canlib.commands._live import (
-    add_connection_args,
-    ecu_completer,
-    finalize_live_parser,
-    run_live,
-)
+from canlib.commands._live import LiveOperation, add_connection_args, ecu_completer, run_live
+from canlib.commands._live.handlers import diagnostics
 
 NAME = "dtc"
+_OPERATION = LiveOperation(diagnostics.handle_dtc, records=True)
 
 # Kept in sync with the ``dtc`` entry in ``cli._GROUP_DEFAULTS``.
 DTC_KINDS = ("read", "log")
@@ -184,7 +181,6 @@ examples:
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
     parser.add_argument("--wake", action="store_true", help="Wake ECU from deep sleep (10 01)")
     add_connection_args(parser)
-    finalize_live_parser(parser)
     parser.set_defaults(func=run)
     return parser
 
@@ -210,4 +206,4 @@ def run(args) -> int:
         if hint:
             print(f"\n{hint}")
         return 2
-    return run_live(args)
+    return run_live(args, _OPERATION)

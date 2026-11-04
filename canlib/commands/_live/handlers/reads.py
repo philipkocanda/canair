@@ -1,4 +1,4 @@
-"""Dispatch for the plain read surfaces: identity, one signal, one ECU, raw hex.
+"""Handlers for the plain read surfaces: identity, named signals, raw hex.
 
 Read-only single requests. Each resolves its ECU/PID arguments, reports a clean
 error for an unresolvable one, and hands off to its mode.
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sys
 
-from canlib.modes import mode_ecu, mode_identity, mode_param, mode_raw
+from canlib.modes import mode_identity, mode_param, mode_raw
 from canlib.transport.protocol import Terminal
 
 
@@ -38,19 +38,6 @@ async def handle_param(args, terminal: Terminal, pids_data, host, *, reconnect=N
         terminal,
         pids_data,
         args.param,
-        args.verbose,
-        args.json,
-        session=args.session,
-        wake=args.wake,
-    )
-
-
-async def handle_ecu(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    await mode_ecu(
-        terminal,
-        pids_data,
-        args.ecu,
-        args.pid,
         args.verbose,
         args.json,
         session=args.session,

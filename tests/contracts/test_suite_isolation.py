@@ -121,12 +121,12 @@ class TestNoEagerConfigReadAtImportTime:
             "constants inside function bodies so they resolve at access time"
         )
 
-    def test_live_defaults_do_not_bake_in_a_device_address(self):
-        from canlib.commands._live import CANAIR_DEFAULTS
+    def test_live_commands_do_not_bake_in_a_device_address(self):
+        from canlib.cli import build_parser
 
-        # Must stay None (matching the real `--wican` default). A config-derived
-        # value here is resolved at import time and re-introduces the eager read.
-        assert CANAIR_DEFAULTS["wican"] is None
+        # Must stay None. A config-derived default is resolved when the parser is built and
+        # re-introduces an eager read of the user's config.
+        assert build_parser().parse_args(["read", "BMS:2101"]).wican is None
 
     def test_constants_exposes_no_lazy_config_magic(self):
         """`canlib.constants` must hold only static values.

@@ -27,7 +27,7 @@ Wire bindings are separate too: :class:`canlib.transport.elm327_tcp.Elm327TcpTer
 and :class:`canlib.transport.wican_terminal.WiCANTerminal`.
 
 It structurally satisfies :class:`canlib.transport.protocol.Terminal`, so every
-live mode drives it through the shared ``dispatch_mode`` unchanged.
+live mode drives it through the shared ``run_session_guarded`` unchanged.
 """
 
 from __future__ import annotations

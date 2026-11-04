@@ -1,32 +1,34 @@
-"""Transport guards in the shared live dispatcher (canlib/modes/dispatch/).
+"""Transport guards and the stop-signal wiring of the shared live runtime.
 
-``dispatch_mode`` is typed against the :class:`~canlib.transport.protocol.Terminal`
-contract, so WiCAN-only modes must narrow explicitly. The interactive REPL sets
-the ECU header via raw ``ATSH`` sends, which are no-ops on the raw transport
-(RawTerminal uses ``set_header()``), so a UDS request there would fire with no
-header set — dispatch refuses it with a clear error rather than a broken prompt,
-mirroring the skm-wake guard.
+The handlers are typed against the :class:`~canlib.transport.protocol.Terminal` contract, so
+WiCAN-only ones must narrow explicitly. The interactive REPL sets the ECU header via raw ``ATSH``
+sends, which are no-ops on the raw transport (RawTerminal uses ``set_header()``), so a UDS request
+there would fire with no header set: the handler refuses it with a clear error rather than a
+broken prompt.
 """
 
 import argparse
 
 import pytest
 
+from canlib.commands._live import LiveOperation
+from tests.support.live_args import live_args
+
 
 class TestInteractiveTransportGuard:
     @pytest.mark.asyncio
     async def test_interactive_refused_on_non_elm_terminal(self, capsys):
-        from canlib.commands._live import CANAIR_DEFAULTS
-        from canlib.modes.dispatch import dispatch_mode
+        from canlib.commands._live.handlers.elm_only import handle_interactive
 
-        class NotWiCAN:  # not a WiCANTerminal -> raw path; no mode selector set
+        class NotWiCAN:  # not a WiCANTerminal -> raw path
             pass
 
-        # No mode selector => the else (interactive) branch.
-        args = argparse.Namespace(**CANAIR_DEFAULTS)
         with pytest.raises(SystemExit):
-            await dispatch_mode(args, NotWiCAN(), {}, "1.2.3.4")
+            await handle_interactive(live_args(), NotWiCAN(), {}, "1.2.3.4")
         assert "wican-ws" in capsys.readouterr().err
+
+
+_OPERATION = LiveOperation(lambda *a, **k: None)
 
 
 class _FakeLock:
@@ -57,14 +59,14 @@ class TestRunLiveStopSignals:
 
         captured = {}
 
-        async def fake_main(args):
+        async def fake_main(args, operation):
             captured["handlers"] = {sig: signal.getsignal(sig) for sig in STOP_SIGNALS}
             return 0
 
         monkeypatch.setattr(_live, "async_main", fake_main)
 
         before = {sig: signal.getsignal(sig) for sig in STOP_SIGNALS}
-        rc = _live.run_live(argparse.Namespace(force=False))
+        rc = _live.run_live(argparse.Namespace(force=False), _OPERATION)
         assert rc == 0
         for sig in STOP_SIGNALS:
             with pytest.raises(KeyboardInterrupt):
@@ -77,11 +79,11 @@ class TestRunLiveStopSignals:
 
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: _FakeLock())
 
-        async def fake_main(args):
+        async def fake_main(args, operation):
             raise KeyboardInterrupt
 
         monkeypatch.setattr(_live, "async_main", fake_main)
-        rc = _live.run_live(argparse.Namespace(force=False))
+        rc = _live.run_live(argparse.Namespace(force=False), _OPERATION)
         assert rc == 0
         assert "Interrupted" in capsys.readouterr().out
 
@@ -94,7 +96,7 @@ class TestRunLiveStopSignals:
         lock = _FakeLock()
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: lock)
 
-        async def fake_main(args):
+        async def fake_main(args, operation):
             raise KeyboardInterrupt
 
         monkeypatch.setattr(_live, "async_main", fake_main)
@@ -102,7 +104,7 @@ class TestRunLiveStopSignals:
             builtins, "print", lambda *a, **kw: (_ for _ in ()).throw(OSError(5, "I/O error"))
         )
 
-        assert _live.run_live(argparse.Namespace(force=False)) == 0
+        assert _live.run_live(argparse.Namespace(force=False), _OPERATION) == 0
         assert lock.released
 
     def test_runs_a_lock_watchdog_for_the_session(self, monkeypatch):
@@ -127,12 +129,12 @@ class TestRunLiveStopSignals:
 
         monkeypatch.setattr(_live, "LockWatchdog", _SpyWatchdog)
 
-        async def fake_main(args):
+        async def fake_main(args, operation):
             events.append("session")
             return 0
 
         monkeypatch.setattr(_live, "async_main", fake_main)
-        assert _live.run_live(argparse.Namespace(force=False)) == 0
+        assert _live.run_live(argparse.Namespace(force=False), _OPERATION) == 0
         # Watching spans the whole session, and stops before the lock is released
         # (so a normal teardown never looks like a takeover).
         assert events == ["built", "start", "session", "stop"]

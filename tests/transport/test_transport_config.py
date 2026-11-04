@@ -4,22 +4,11 @@ import pytest
 
 import canlib.config as cfg_mod
 from canlib.transport import config as tc
-from canlib.transport.config import TransportError, resolve_transport
+from canlib.transport.config import TransportError, TransportOverrides, resolve_transport
 
 
-class Args:
-    def __init__(self, **kw):
-        self.__dict__.update(
-            {
-                "transport": None,
-                "wican": None,
-                "port": None,
-                "bitrate": None,
-                "timeout": 4.0,
-                "no_fallback": False,
-            }
-        )
-        self.__dict__.update(kw)
+def Args(**kw):
+    return TransportOverrides(**kw)
 
 
 @pytest.fixture

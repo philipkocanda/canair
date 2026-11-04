@@ -1,17 +1,17 @@
-"""The live argument namespace: every attribute the runtime reads, and its default.
+"""A full live-command namespace, for tests that call a handler or the runtime directly.
 
-Live subcommands expose only the flags they need;
-:func:`canlib.commands._live.parser.finalize_live_parser` backfills the rest from
-here, so the runtime and the mode dispatcher can read one uniform namespace no
-matter which subcommand built it.
+A real command's parser exposes only the flags it means; a test that builds the namespace by hand
+starts from every flag any live command has, at its default.
 """
 
 from __future__ import annotations
 
+import argparse
+
 from canlib.poll_schedule import DEFAULT_SCHEDULE
 
-CANAIR_DEFAULTS: dict = {
-    # mode selectors
+LIVE_ARGS_DEFAULTS: dict = {
+    # the operand each handler reads
     "param": None,
     "ecu": None,
     "raw": None,
@@ -28,7 +28,7 @@ CANAIR_DEFAULTS: dict = {
     "sessions_scan": None,
     "multi": None,
     "action": None,
-    # options
+    # flags
     "pid": None,
     "did": None,
     "off": False,
@@ -85,6 +85,6 @@ CANAIR_DEFAULTS: dict = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Shell completion helpers (argcomplete)
-# ---------------------------------------------------------------------------
+def live_args(**overrides) -> argparse.Namespace:
+    """The namespace of a live command at its defaults, with ``overrides`` applied."""
+    return argparse.Namespace(**{**LIVE_ARGS_DEFAULTS, **overrides})

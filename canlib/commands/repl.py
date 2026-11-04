@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import argparse
 
-from canlib.commands._live import add_connection_args, finalize_live_parser
+from canlib.commands._live import LiveOperation, add_connection_args, live_command
+from canlib.commands._live.handlers import elm_only
 
 NAME = "repl"
+_OPERATION = LiveOperation(elm_only.handle_interactive, interactive=True)
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -39,5 +41,5 @@ examples:
 """,
     )
     add_connection_args(parser)
-    finalize_live_parser(parser)
+    parser.set_defaults(func=live_command(_OPERATION))
     return parser

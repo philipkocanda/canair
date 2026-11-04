@@ -168,11 +168,3 @@ def test_a_request_to_an_ecu_resolves_its_tx_id():
     )
     (planned,) = mode.plan_requests(action, PIDS)
     assert planned.tx_id == 0x770
-
-
-def test_dispatches_through_the_shared_table():
-    from canlib.modes.dispatch import _DISPATCH
-    from canlib.modes.dispatch.actuators import handle_action
-
-    (selects,) = [sel for h, sel in _DISPATCH if h is handle_action]
-    assert selects(type("Args", (), {"action": "sleep"})())

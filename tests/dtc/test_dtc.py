@@ -9,6 +9,7 @@ from canlib.modes import dtc
 from canlib.modes.dtc import sweep as dtc_sweep
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok
+from tests.support.live_args import live_args
 
 
 class TestFormatDtc:
@@ -389,18 +390,17 @@ class TestScanAll:
     async def test_scan_all_dispatch_logs_by_default(self, monkeypatch, tmp_path, capsys):
         # No --log flag in the args: dispatch must log by default (dtc_log unset
         # -> getattr default True).
-        from canlib.commands._live import CANAIR_DEFAULTS
+        from canlib.commands._live.handlers.diagnostics import handle_dtc
         from canlib.dtc import log as dtc_log
-        from canlib.modes.dispatch import dispatch_mode
 
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
         monkeypatch.setattr("canlib.modes.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})  # BCM: 1 DTC
-        args = argparse.Namespace(**{**CANAIR_DEFAULTS, "dtc_all": True, "mask": "FF"})
+        args = live_args(dtc_all=True, mask="FF")
         assert not hasattr(args, "dtc_log")  # nothing opted in
-        await dispatch_mode(args, t, {}, "1.2.3.4")
+        await handle_dtc(args, t, {}, "1.2.3.4")
         out = capsys.readouterr().out
         assert "P0123-00" in out
         assert logp.exists()  # recorded without any flag
@@ -438,38 +438,36 @@ class TestModeClear:
 
 
 class TestDispatchTransportAgnostic:
-    """The dtc branch of dispatch_mode is shared by both transports.
+    """The dtc handler is shared by both transports.
 
     Both the WiCAN WebSocket (WiCANTerminal) and slcan-tcp (RawTerminal) run
-    live commands through the same ``dispatch_mode``. Exercising it with a fake
+    live commands through the same handlers. Exercising it with a fake
     terminal proves the dtc command is transport-agnostic — the same code path
     the RawTerminal adapter drives over SLCAN.
     """
 
     def _args(self, **kw):
-        from canlib.commands._live import CANAIR_DEFAULTS
-
         # Routing tests: default --no-log (dtc_log=False) so they never touch the
         # real profile's dtc_log.yaml. Logging-by-default is covered separately.
-        return argparse.Namespace(**{**CANAIR_DEFAULTS, "dtc_log": False, **kw})
+        return live_args(dtc_log=False, **kw)
 
     @pytest.mark.asyncio
     async def test_dispatch_read(self, capsys):
-        from canlib.modes.dispatch import dispatch_mode
+        from canlib.commands._live.handlers.diagnostics import handle_dtc
 
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
         args = self._args(dtc="7E4", mask="FF", protocol="uds", clear=False)
-        await dispatch_mode(args, t, {}, "1.2.3.4")
+        await handle_dtc(args, t, {}, "1.2.3.4")
         assert t.sent == ["1902FF", "1903"]
         assert "P0123-00" in capsys.readouterr().out
 
     @pytest.mark.asyncio
     async def test_dispatch_clear_with_yes(self, capsys):
-        from canlib.modes.dispatch import dispatch_mode
+        from canlib.commands._live.handlers.diagnostics import handle_dtc
 
         t = FakeTerminal({"14FFFFFF": _ok("54")})
         args = self._args(dtc="7E4", clear=True, group="FFFFFF", protocol="uds", yes=True)
-        await dispatch_mode(args, t, {}, "1.2.3.4")
+        await handle_dtc(args, t, {}, "1.2.3.4")
         assert t.sent == ["14FFFFFF"]
         assert "cleared" in capsys.readouterr().out.lower()
 

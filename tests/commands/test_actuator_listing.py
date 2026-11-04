@@ -30,7 +30,7 @@ PROFILE = {
 def _offline(monkeypatch):
     monkeypatch.setattr("canlib.pids.load_pids", lambda *a, **k: PROFILE)
 
-    def _no_device(_args):
+    def _no_device(_args, _operation=None):
         raise AssertionError("a --json listing must not start a live session")
 
     monkeypatch.setattr(io_cmd, "run_live", _no_device)

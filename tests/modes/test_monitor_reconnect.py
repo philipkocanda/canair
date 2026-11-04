@@ -98,30 +98,24 @@ class TestReconnectPolicy:
         p = ReconnectPolicy(forever=False, max_wait=6.0, connect_timeout=2.0)
         assert p.deadline_from(100.0) == 106.0
 
-    def test_from_args_wait_is_forever(self, monkeypatch):
+    def test_wait_is_forever(self, monkeypatch):
         monkeypatch.setattr(
             "canlib.config.fallback_settings", lambda: (True, 2.0, None), raising=True
         )
         monkeypatch.setattr("canlib.config.reconnect_max_wait", lambda: 9.0, raising=True)
 
-        class Args:
-            wait = True
-
-        p = reconnect_policy(Args())
+        p = reconnect_policy(wait=True)
         assert p.forever is True
         assert p.max_wait == 9.0
         assert p.connect_timeout == 2.0
 
-    def test_from_args_default_is_bounded(self, monkeypatch):
+    def test_default_is_bounded(self, monkeypatch):
         monkeypatch.setattr(
             "canlib.config.fallback_settings", lambda: (True, 2.0, None), raising=True
         )
         monkeypatch.setattr("canlib.config.reconnect_max_wait", lambda: 6.0, raising=True)
 
-        class Args:
-            wait = False
-
-        assert reconnect_policy(Args()).forever is False
+        assert reconnect_policy(wait=False).forever is False
 
 
 # ---------------------------------------------------------------------------
@@ -593,7 +587,7 @@ class TestWaitInitialConnect:
 
         captured = {}
 
-        async def fake_run_raw(args, transport, pids_data):
+        async def fake_run_raw(transport, pids_data, **kw):
             captured["host"] = transport.host
             return 0
 
@@ -605,14 +599,12 @@ class TestWaitInitialConnect:
             unsafe = False
             verbose = False
             reboot = False
-            # mode selectors dispatch_mode/log_command peek at:
-            param = ecu = raw = None
-            scan = skm_wakeup = identity = discover = False
-            dtc = iocontrol = routines = None
-            routines_scan = iocontrol_scan = sessions_scan = None
             session = False
 
-        rc = asyncio.run(_live.async_main(Args()))
+        async def operate(*a, **k):
+            raise AssertionError("the raw path is faked out")
+
+        rc = asyncio.run(_live.async_main(Args(), _live.LiveOperation(operate)))
         assert rc == 0
         assert waited["n"] == 1
         assert captured["host"] == "dev"

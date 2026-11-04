@@ -3,7 +3,6 @@
 The CCM replies are the Ioniq's real ones (DTC C182C, records 01 and 02, DID 4710).
 """
 
-import argparse
 import json
 from contextlib import contextmanager
 
@@ -13,6 +12,7 @@ from canlib.modes import dtc
 from canlib.modes.dtc import snapshots as snap_mode
 from tests.support.fakes import FakeTerminal, nrc
 from tests.support.fakes import ok as _ok
+from tests.support.live_args import live_args
 
 CCM = 0x733
 CODES = _ok("590209" + "582C0008")
@@ -211,45 +211,32 @@ class TestSkipListener:
 
 class TestDispatch:
     @pytest.mark.asyncio
-    async def test_runs_through_dispatch_mode_with_the_profile(self, capsys):
-        from canlib.commands._live import CANAIR_DEFAULTS
-        from canlib.modes.dispatch import dispatch_mode
+    async def test_runs_through_the_dtc_handler_with_the_profile(self, capsys):
+        from canlib.commands._live.handlers.diagnostics import handle_dtc
 
-        args = argparse.Namespace(
-            **{
-                **CANAIR_DEFAULTS,
-                "dtc_log": False,
-                "dtc": "733",
-                "mask": "FF",
-                "protocol": "uds",
-                "clear": False,
-                "json": True,
-            }
+        args = live_args(
+            dtc_log=False, dtc="733", mask="FF", protocol="uds", clear=False, json=True
         )
         t = FakeTerminal(CCM_REPLIES)
-        await dispatch_mode(args, t, PIDS_DATA, "1.2.3.4")
+        await handle_dtc(args, t, PIDS_DATA, "1.2.3.4")
         assert "1904582C0002" in t.sent
         code = json.loads(capsys.readouterr().out)["dtcs"][0]
         assert code["snapshots"][0]["dids"][0]["signals"]
 
     @pytest.mark.asyncio
     async def test_no_snapshots_flag(self):
-        from canlib.commands._live import CANAIR_DEFAULTS
-        from canlib.modes.dispatch import dispatch_mode
+        from canlib.commands._live.handlers.diagnostics import handle_dtc
 
-        args = argparse.Namespace(
-            **{
-                **CANAIR_DEFAULTS,
-                "dtc_log": False,
-                "dtc_snapshots": False,
-                "dtc": "733",
-                "mask": "FF",
-                "protocol": "uds",
-                "clear": False,
-            }
+        args = live_args(
+            dtc_log=False,
+            dtc_snapshots=False,
+            dtc="733",
+            mask="FF",
+            protocol="uds",
+            clear=False,
         )
         t = FakeTerminal(CCM_REPLIES)
-        await dispatch_mode(args, t, PIDS_DATA, "1.2.3.4")
+        await handle_dtc(args, t, PIDS_DATA, "1.2.3.4")
         assert t.sent == ["1902FF"]
 
 

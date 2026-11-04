@@ -118,11 +118,12 @@ def _gather(args) -> dict:
         resolve_transport_candidates,
         select_reachable_transport,
     )
+    from ._transport_args import transport_overrides
 
     info: dict = {"exit": _OK, "warnings": [], "errors": [], "canair_version": full_version()}
 
     try:
-        candidates = resolve_transport_candidates(args)
+        candidates = resolve_transport_candidates(transport_overrides(args))
     except TransportError as e:
         info["errors"].append(str(e))
         info["exit"] = _MISCONFIGURED

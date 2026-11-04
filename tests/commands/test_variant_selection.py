@@ -175,14 +175,17 @@ class TestLiveGate:
             _require_car(argparse.Namespace(command=command, save=True))
 
     def test_run_live_refuses_before_touching_the_device(self, unnamed, monkeypatch):
-        from canlib.commands._live import runtime
+        from canlib.commands._live import LiveOperation, runtime
 
         def _boom(*a, **k):
             raise AssertionError("the device lock must not be taken")
 
         monkeypatch.setattr(runtime, "WiCANLock", _boom)
         with pytest.raises(ProfileError):
-            runtime.run_live(argparse.Namespace(command="read", save=False, force=False))
+            runtime.run_live(
+                argparse.Namespace(command="read", save=False, force=False),
+                LiveOperation(_boom),
+            )
 
     def test_autopid_generation_refuses(self, unnamed):
         from canlib.commands import wican

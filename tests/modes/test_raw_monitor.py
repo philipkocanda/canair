@@ -4,32 +4,10 @@ import asyncio
 
 from canlib.addressing import EcuAddress
 from canlib.modes.monitor import MonitorController, _raw_pid_result
-from canlib.modes.raw_monitor import _keep_mode, query_ecu_addresses
+from canlib.modes.raw_monitor import query_ecu_addresses
 from canlib.poll_backoff import PollCost
 from tests.support.raw_monitor import FakeRawClient
 from tests.support.raw_monitor import TimedRawClient as _TimedRawClient
-
-
-class _Args:
-    def __init__(self, **kw):
-        self.keep_changes = self.keep_all = False
-        self.keep = None
-        self.__dict__.update(kw)
-
-
-class TestKeepMode:
-    def test_default_is_all(self):
-        # No keep flag records every poll (folded on disk, so still compact).
-        assert _keep_mode(_Args()) == "all"
-
-    def test_changes(self):
-        assert _keep_mode(_Args(keep_changes=True)) == "changes"
-
-    def test_all(self):
-        assert _keep_mode(_Args(keep_all=True)) == "all"
-
-    def test_last(self):
-        assert _keep_mode(_Args(keep=5)) == "last"
 
 
 class TestQueryEcuAddresses:

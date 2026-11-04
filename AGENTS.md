@@ -1227,7 +1227,7 @@ makes a cold first read fast instead of paying one plain read per PID to re-lear
   wire never sets the flag: it only *clears* a stored count, because a clone that mangles the
   digit looks identical.
 - **The write-back seam is `Terminal.frame_counts`**, so one implementation covers every transport:
-  `canlib/modes/dispatch/__init__.py::run_session_guarded` calls `_persist_frame_counts` in a
+  `canlib/modes/session.py::run_session_guarded` calls `_persist_frame_counts` in a
   `finally`, so an interrupted or failed session still banks what it proved (Ctrl-C is the *normal*
   way a long `monitor` ends). `--no-learn-frames` opts out. A failure there never propagates — the
   measurement is a by-product of whatever the user actually ran. It is deliberately **not** wrapped
@@ -1310,7 +1310,7 @@ not in the terminal:
 
 The engine exposes `drain()` + `recv_frame(timeout)` so modes that collect late frames go through
 the transport-agnostic surface, not a raw socket. All three backends satisfy the `Terminal` protocol
-(`transport/protocol.py`) and run through the shared `dispatch_mode`. ELM-only features (`repl`,
+(`transport/protocol.py`) and run through the shared `run_session_guarded`. ELM-only features (`repl`,
 `skm-wake`) gate on `isinstance(terminal, Elm327Terminal)`, so they work on `wican-ws` **and**
 `elm327-tcp` but are refused on raw `slcan-tcp` (which parses no ELM text).
 

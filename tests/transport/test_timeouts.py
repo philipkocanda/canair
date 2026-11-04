@@ -2,23 +2,16 @@
 
 from __future__ import annotations
 
-import argparse
-
 from canlib.transport.timeouts import cli_timeout, ecu_timeouts_by_name, ecu_timeouts_by_tx
 
 
-def _args(**kw):
-    return argparse.Namespace(**kw)
-
-
 def test_cli_timeout_none_when_unset():
-    assert cli_timeout(_args(timeout=None)) is None
-    assert cli_timeout(_args()) is None  # attribute missing
+    assert cli_timeout(None) is None
 
 
 def test_cli_timeout_returns_seconds():
-    assert cli_timeout(_args(timeout=5)) == 5.0
-    assert cli_timeout(_args(timeout=0.5)) == 0.5
+    assert cli_timeout(5) == 5.0
+    assert cli_timeout(0.5) == 0.5
 
 
 _PIDS = {

@@ -54,9 +54,9 @@ class TestResolveWicanUrl:
     @pytest.mark.parametrize("value", ["vpn", "192.0.2.7", "hmoe", None])
     def test_matches_the_live_commands_host(self, config, value):
         """One semantics: the host a live command would connect to is the one we call."""
-        from canlib.transport.config import resolve_transport_candidates
+        from canlib.transport.config import TransportOverrides, resolve_transport_candidates
 
-        live = resolve_transport_candidates(argparse.Namespace(wican=value, no_fallback=True))
+        live = resolve_transport_candidates(TransportOverrides(wican=value, no_fallback=True))
         assert resolve_wican_url(value) == f"http://{live[0].host}"
 
 

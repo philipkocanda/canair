@@ -20,10 +20,9 @@ timeouts. Per-ECU budgets are the knob for lengthening a specific ECU's wait.
 from __future__ import annotations
 
 
-def cli_timeout(args) -> float | None:
+def cli_timeout(timeout: float | None) -> float | None:
     """The user's explicit ``--timeout`` in seconds, or None when not given."""
-    t = getattr(args, "timeout", None)
-    return float(t) if t is not None else None
+    return float(timeout) if timeout is not None else None
 
 
 def ecu_timeouts_by_tx(pids_data: dict) -> dict[int, float]:

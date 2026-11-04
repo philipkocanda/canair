@@ -1,19 +1,21 @@
-"""The argparse flags every live subcommand shares, and the namespace backfill.
+"""The argparse flags every live subcommand shares, and how a command runs its operation.
 
-Each live subcommand exposes only the arguments it needs and then calls
-:func:`finalize_live_parser`, which fills in every remaining attribute the runtime
-reads from :data:`canlib.commands._live.defaults.CANAIR_DEFAULTS`. That is what lets
-the runtime read one uniform namespace regardless of which subcommand built it.
+Each live subcommand exposes only the arguments it needs, plus
+:func:`add_connection_args`, and runs its own :class:`~.runtime.LiveOperation` through
+:func:`live_command` (or :func:`~.runtime.run_live` from its own ``run``). The runtime reads
+the connection flags through ``getattr``, so a parser exposes only what it means.
 """
 
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
+from functools import partial
 
 from canlib.transport.config import DEFAULT_TRANSPORT, VALID_TRANSPORTS
 
-from .defaults import CANAIR_DEFAULTS
-from .runtime import run
+from .operation import LiveOperation
+from .runtime import run_live
 
 
 def add_connection_args(parser: argparse.ArgumentParser) -> None:
@@ -100,15 +102,6 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def finalize_live_parser(parser: argparse.ArgumentParser, **active_mode) -> None:
-    """Fill in every canair live default attribute the parser does not already expose.
-
-    ``active_mode`` sets the mode selector(s) for this subcommand (e.g.
-    ``scan=True`` or ``discover=True``). Also wires ``func=run``.
-    """
-    exposed = {a.dest for a in parser._actions}
-    for dest, default in CANAIR_DEFAULTS.items():
-        if dest in exposed or dest in active_mode:
-            continue
-        parser.set_defaults(**{dest: default})
-    parser.set_defaults(**active_mode, func=run)
+def live_command(operation: LiveOperation) -> Callable[[argparse.Namespace], int]:
+    """The ``func`` of a subcommand that runs ``operation`` on the device as it is."""
+    return partial(run_live, operation=operation)
