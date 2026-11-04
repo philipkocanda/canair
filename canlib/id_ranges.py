@@ -36,6 +36,17 @@ def parse_id_ranges(text: str) -> tuple[IdRange, ...]:
     return tuple(ranges)
 
 
+def parse_id_range(text: str) -> IdRange:
+    """Parse exactly one ``START-END`` (hex) range.
+
+    Raises :class:`ValueError` on a list, a malformed range or one that runs backwards.
+    """
+    ranges = parse_id_ranges(text)
+    if len(ranges) != 1:
+        raise ValueError(f"expected one START-END range, got {len(ranges)}")
+    return ranges[0]
+
+
 def as_id_ranges(value: IdRange | Sequence[IdRange]) -> tuple[IdRange, ...]:
     """Normalize one ``(start, end)`` pair or a sequence of them to a tuple of ranges."""
     if isinstance(value[0], int):

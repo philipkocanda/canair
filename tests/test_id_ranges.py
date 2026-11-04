@@ -2,7 +2,14 @@
 
 import pytest
 
-from canlib.id_ranges import as_id_ranges, count_ids, format_id_ranges, iter_ids, parse_id_ranges
+from canlib.id_ranges import (
+    as_id_ranges,
+    count_ids,
+    format_id_ranges,
+    iter_ids,
+    parse_id_range,
+    parse_id_ranges,
+)
 
 
 def test_parse_a_list_in_the_order_given():
@@ -31,3 +38,11 @@ def test_format_round_trips():
     text = "B000-B0FF,C000-C0FF"
     assert format_id_ranges(parse_id_ranges(text), 4) == text
     assert format_id_ranges(((0x01, 0xFF),), 2) == "01-FF"
+
+
+def test_parse_id_range_takes_exactly_one_range():
+    assert parse_id_range("E000-E0FF") == (0xE000, 0xE0FF)
+    assert parse_id_range(" 01-FF ") == (0x01, 0xFF)
+    for text in ("01-FF,02-03", "", "01", "0x01-0xFF", "FF-01", "01-FF-02"):
+        with pytest.raises(ValueError):
+            parse_id_range(text)

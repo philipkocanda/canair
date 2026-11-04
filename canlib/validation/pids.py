@@ -16,6 +16,7 @@ from canlib.dtc.definitions import split_section as split_dtc_section
 from canlib.dtc.snapshot import did_of_read
 from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.expression.lint import firmware_grammar_problems, signed_low_bytes
+from canlib.id_ranges import parse_id_range
 from canlib.pids import PID_STATUSES, effective_param, pid_ships, pid_status
 from canlib.sensitive import param_sensitive
 from canlib.signal_category import category_findings
@@ -278,6 +279,7 @@ def _validate_iocontrol_scan_ranges(value, label: str, errors: list) -> None:
     both in the 16-bit DID space. Shape-only — the resolver
     (``iocontrol_scan.resolve_iocontrol_ranges``) tolerates a malformed entry by
     dropping it, but a definition committed to ``ecus/`` should be well-formed.
+    Both read an entry through :func:`canlib.id_ranges.parse_id_range`.
     """
     if value is None:
         return
@@ -286,20 +288,13 @@ def _validate_iocontrol_scan_ranges(value, label: str, errors: list) -> None:
         return
     for spec in value:
         rng = f"{label}: iocontrol_scan_ranges entry '{spec}'"
-        parts = str(spec).split("-")
-        if len(parts) != 2:
-            errors.append(f"{rng} must be 'START-END' (e.g. 'B000-BFFF')")
-            continue
         try:
-            lo = int(parts[0], 16)
-            hi = int(parts[1], 16)
-        except ValueError:
-            errors.append(f"{rng} has non-hex bounds")
+            lo, hi = parse_id_range(str(spec))
+        except ValueError as e:
+            errors.append(f"{rng}: {e}")
             continue
         if not 0 <= lo <= 0xFFFF or not 0 <= hi <= 0xFFFF:
             errors.append(f"{rng} bounds must be within 0000-FFFF")
-        elif lo > hi:
-            errors.append(f"{rng} start (0x{lo:04X}) must be <= end (0x{hi:04X})")
 
 
 def _profile_for_ecu_file(path: Path):

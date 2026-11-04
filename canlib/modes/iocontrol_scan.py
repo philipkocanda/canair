@@ -41,6 +41,7 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
+from canlib.id_ranges import parse_id_range
 from canlib.modes.discovery_scan import DiscoveryProbe, mode_discovery_scan
 from canlib.transport.protocol import Terminal
 from canlib.uds.response import UdsResponse
@@ -145,17 +146,12 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
 FULL_DID_RANGE: tuple[int, int] = (0x0000, 0xFFFF)
 
 
-def _parse_range_str(spec: str) -> tuple[int, int] | None:
-    """Parse a ``"START-END"`` hex range string into an ``(int, int)`` pair."""
-    parts = str(spec).split("-")
-    if len(parts) != 2:
-        return None
+def _profile_range(spec: object) -> tuple[int, int] | None:
+    """One ``iocontrol_scan_ranges:`` entry, or None for one that is not a valid range."""
     try:
-        lo = int(parts[0], 16)
-        hi = int(parts[1], 16)
+        return parse_id_range(str(spec))
     except ValueError:
         return None
-    return (lo, hi) if lo <= hi else None
 
 
 def resolve_iocontrol_ranges(ecu_def: dict) -> list[tuple[int, int]] | None:
@@ -172,7 +168,7 @@ def resolve_iocontrol_ranges(ecu_def: dict) -> list[tuple[int, int]] | None:
     """
     explicit = ecu_def.get("iocontrol_scan_ranges")
     if isinstance(explicit, list):
-        parsed = [r for spec in explicit if (r := _parse_range_str(spec)) is not None]
+        parsed = [r for spec in explicit if (r := _profile_range(spec)) is not None]
         if parsed:
             return parsed
     from canlib.scan_presets import infer_iocontrol_ranges
