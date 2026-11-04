@@ -13,8 +13,8 @@ import pytest
 
 import canlib.profile as profile
 from canlib import can_logs
-from canlib.commands import validate
 from canlib.profile import Profile
+from canlib.validation import other as validate
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "can" / "ioniq28_drive_slice.log"
 EXPECT_IDS = ["0x200", "0x220", "0x2B0", "0x386"]

@@ -30,7 +30,7 @@ def schema_validator(error: type[EditError]) -> Callable[[Path], None]:
     """
 
     def validate(path: Path) -> None:
-        from canlib.commands.validate import validate_pids_file
+        from canlib.validation.pids import validate_pids_file
 
         ok, msg = validate_pids_file(path)
         if not ok:

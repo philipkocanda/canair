@@ -577,7 +577,7 @@ class TestLayerAwareReaders:
 
     def test_validate_captures_reads_every_layer(self):
         """A schema break in the base still breaks analysis, so it must be reported."""
-        src = (CANLIB_CMD / "validate" / "captures.py").read_text()
+        src = (CANLIB_CMD.parent / "validation" / "captures.py").read_text()
         assert "capture_layers" in src
 
 

@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.commands.validate import collect_pids_validation
+from canlib.validation.pids import collect_pids_validation
 from canlib.yaml_edit.ecu import (
     EcusEditError,
     append_scan_log,

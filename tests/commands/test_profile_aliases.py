@@ -20,9 +20,9 @@ import pytest
 
 from canlib.captures.store import load_all_captures
 from canlib.commands.profile import _cmd_list, _cmd_use
-from canlib.commands.validate.profile_names import profile_name_findings
 from canlib.profile import ProfileError, alias_index, resolve_profile, selectable_profiles
 from canlib.profile_names import build_alias_index, convention_problem
+from canlib.validation.profile_names import profile_name_findings
 
 OLD, NEW = "ev6-2022", "kia-ev6-cv-ev"
 
@@ -47,7 +47,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.delenv("CANAIR_PROFILE", raising=False)
     monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
     monkeypatch.setattr(
-        "canlib.commands.validate.profile_names.BUNDLED_PROFILES_DIR", tmp_path / "profiles"
+        "canlib.validation.profile_names.BUNDLED_PROFILES_DIR", tmp_path / "profiles"
     )
     return argparse.Namespace(
         bundled=tmp_path / "profiles",

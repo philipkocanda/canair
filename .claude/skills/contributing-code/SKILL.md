@@ -291,7 +291,7 @@ up** when a structural change is warranted instead of bolting on more.
   `identity_decode.py`/`identity_records.py` is the pattern.
 - **A command is one module until it needs two — then it becomes a package.** Create
   `commands/<name>/`; do **not** add a flat `_<name>_*.py` sibling (retired for new work).
-  `commands/captures/` and `commands/validate/` are the precedents, and the command registries are
+  `commands/captures/` and `commands/decode/` are the precedents, and the command registries are
   keyed by the name *string*, so module layout is free to change. Two corollaries: packaging
   discharges nothing — the ~500-line rule still binds every member; and **split and package in one
   commit**, since splitting now and packaging "later" books the rename twice. Existing flat-sibling

@@ -9,7 +9,6 @@ import pytest
 import yaml
 
 from canlib.commands import pids as cli
-from canlib.commands.validate import load_schema, validate_ecu_file
 from canlib.signal_category import (
     BINARY_CATEGORIES,
     CATEGORIES,
@@ -18,6 +17,7 @@ from canlib.signal_category import (
     category_of,
     unit_category,
 )
+from canlib.validation.pids import load_schema, validate_ecu_file
 from canlib.wican.autopid_class import autopid_class
 from canlib.yaml_edit.pids import migrate_categories, upsert_parameter
 from canlib.yaml_edit.pids.categories import convert

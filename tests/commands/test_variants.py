@@ -275,7 +275,7 @@ class TestCommands:
         assert cmd.cmd_show(argparse.Namespace(id="nope", json=False)) == 1
 
     def test_validate_target(self, prof, capsys):
-        from canlib.commands.validate import _run_variants
+        from canlib.validation.variants import _run_variants
 
         assert _run_variants() == 0
         edit.add_variant("a1", "A", profile=prof)

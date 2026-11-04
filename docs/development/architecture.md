@@ -41,7 +41,7 @@ From the interface at the top to the leaf at the bottom.
 | evaluates a WiCAN expression | `expression/` | `expression/` |
 | parses a profile's definition YAML | `ecus/`, `states/`, `variants/`, `broadcast/`, `actions/` | the same, plus `pids.py`, `signals.py` |
 | finds, creates or layers a profile bundle | `profile/` | `profile.py`, `profile_create.py` |
-| checks a profile | `validation/` | `commands/validate/` |
+| checks a profile | `validation/` | `validation/` |
 | edits a profile's YAML | `yaml_edit/` | `yaml_edit/` |
 | reads or writes recordings | `captures/` (DTC log: `dtc/`) | `captures/`, `dtc/` |
 | computes over captures or definitions, with no device | `analysis/` | `analysis/` |

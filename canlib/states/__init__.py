@@ -55,7 +55,7 @@ from canlib import yaml_io
 from canlib.yaml_edit.errors import EditError
 
 if TYPE_CHECKING:
-    from canlib.modes.multi_batch import EcuFrame
+    from canlib.expression.results import EcuFrame
 
 # The canonical base power-state vocabulary shared across every vehicle profile.
 # This is the **powertrain-neutral ignition-switch ladder** every road vehicle

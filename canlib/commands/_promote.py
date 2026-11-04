@@ -30,7 +30,7 @@ def _reject_pci_reads(ecu: str, pid: str, name: str, expr: str) -> None:
     skips the framing byte (``(B7 << 8) | B9``) rather than a range spanning it
     (``[B7:B9]``).
     """
-    from canlib.commands.validate.pids import check_pci_bytes
+    from canlib.validation.pids import check_pci_bytes
     from canlib.yaml_edit.pids import PidsEditError
 
     problems = check_pci_bytes(expr, name, pid, ecu)

@@ -26,8 +26,9 @@ from ..poll_schedule import Key
 from ..uds.protocol import DiagProtocol, classify_protocol
 
 if TYPE_CHECKING:
+    from canlib.expression.results import EcuFrame, ResultEntry
+
     from .monitor import MonitorController
-    from .multi_batch import EcuFrame, ResultEntry
 
 # One query-plan entry: ``(pid_code, pid_info or None, unmapped)``.
 PlanEntry = tuple[str, dict | None, bool]

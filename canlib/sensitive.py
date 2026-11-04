@@ -283,7 +283,7 @@ def masked_response(response: Mapping[str, Any]) -> Any:
 def mask_result(entry: Any, target: int | str, pid_info: Any, sset: SensitiveSet | None = None):
     """Mask one live read result in place when it answers a sensitive PID.
 
-    ``entry`` is a :data:`~canlib.modes.multi_batch.ResultEntry`; ``target`` the
+    ``entry`` is a :data:`~canlib.expression.results.ResultEntry`; ``target`` the
     request id (or the ECU's name); ``pid_info`` the PID's index entry (its own
     ``sensitive`` flag and ``parameters``). The entry is tagged ``sensitive`` either
     way, and — unless revealed — its raw payload, UDS decode and sensitive signal

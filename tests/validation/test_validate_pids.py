@@ -2,7 +2,7 @@
 
 import pytest
 
-from canlib.commands import validate as validate_pids
+from canlib.validation import pids as validate_pids
 
 check_pci_bytes = validate_pids.check_pci_bytes
 

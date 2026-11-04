@@ -249,8 +249,8 @@ def apply_state_rename(plan: StateRenamePlan, *, profile: Profile | None = None)
     already written (the vocabulary included) is restored before the error is
     re-raised.
     """
-    from canlib.commands.validate import validate_pids_file
     from canlib.profile import active
+    from canlib.validation.pids import validate_pids_file
     from canlib.yaml_edit.states import rename_state
 
     profile = profile or active()

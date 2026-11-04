@@ -769,7 +769,7 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
         return rc
 
     # Re-validate the edited file (not auto-reverted — the user owns the edit).
-    from canlib.commands.validate.pids import _run_pids
+    from canlib.validation.pids import _run_pids
 
     print(f"\n{ansi.DIM}Validating {path.name} …{ansi.RESET}")
     vrc = _run_pids([str(path)], stats=False)

@@ -12,63 +12,15 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from datetime import datetime
-from typing import NotRequired, TypedDict
 
-from canlib.expression.decoding import ParamRow, decode_param_rows
-from canlib.uds.multi_did import split_chain
+from canlib.expression.decoding import decode_param_rows
+from canlib.expression.results import ResultEntry
+from canlib.uds.multi_did import MULTI_DID_MAX_DEFAULT, split_chain
 from canlib.uds.response import UdsResponse
 from canlib.uds.support_map import map_byte_indices
 
 from ..formatting import decode_uds_response
 from ..log import log_event
-
-
-class ResultEntry(TypedDict):
-    """One PID's shaped poll result, as emitted by the multi/monitor pipeline.
-
-    The single dict shape shared across the live monitor renderer
-    (:mod:`canlib.modes._monitor_render`), the compact printer
-    (:func:`canlib.formatting.print_ecu_results`), the capture collectors
-    (:mod:`canlib.modes.multi`), and state auto-suggestion
-    (:func:`canlib.states.collect_values`). ``pid`` is always present; the rest
-    depend on the outcome — a successful decode carries ``params``/``raw_hex``,
-    an unmapped PID adds ``decode``/``unmapped``, a failed query carries
-    ``error``, and the monitor tags a timed-out-but-retained row ``stale``.
-    """
-
-    pid: str
-    params: NotRequired[list[ParamRow]]
-    raw_hex: NotRequired[str]
-    acquired_at: NotRequired[float | None]
-    elapsed_ms: NotRequired[int]
-    # Seconds the request behind this entry held the pipe, keepalives excluded (a batch's
-    # members share their one request's). Feeds the monitor's backoff; never recorded.
-    request_s: NotRequired[float]
-    decode: NotRequired[str | None]
-    unmapped: NotRequired[bool]
-    error: NotRequired[str]
-    # The negative response code when ``error`` is a negative response.
-    nrc: NotRequired[int]
-    stale: NotRequired[bool]
-    sensitive: NotRequired[bool]
-    # Payload indices of the PID's declared support-map bytes (display only; never recorded).
-    map_bytes: NotRequired[tuple[int, ...]]
-
-
-# One render/collect frame: per-ECU ``(label, results)`` pairs, where ``label``
-# is e.g. ``"BMS (0x7E4)"`` and ``results`` is that ECU's PID entries in order.
-EcuFrame = tuple[str, list[ResultEntry]]
-
-
-# Max service-22 DIDs to combine into one multi-DID request when an ECU opts into
-# batching. Bounded because a batch is only as fast as its slowest member (one
-# stalled DID holds up the whole group) and a very large group grows the ISO-TP
-# response. 3 is deliberately conservative — it keeps the *request* within a
-# single CAN frame (``22`` + 3 two-byte DIDs = 7 data bytes); larger groups make
-# the request itself multi-frame, which the ECUs tested tolerate but which adds
-# request-side flow-control. Override per profile with ``multi_did_max`` (or
-# per-ECU with the same key); resolved by :func:`resolve_multi_did_max`.
-MULTI_DID_MAX_DEFAULT = 3
 
 # Consecutive unanswered batches (each with a successful per-DID fallback) before an
 # ECU is read singly for the rest of the session; see BatchState.batch_unanswered.
@@ -87,24 +39,6 @@ def transport_did_cap(max_request_bytes: int) -> int:
     batching entirely the moment it ran over ``wican-ws``.
     """
     return max(1, (max_request_bytes - 1) // 2)
-
-
-def resolve_multi_did_max(pids_data: dict | None, ecu_def: dict | None = None) -> int:
-    """Resolve the multi-DID batch size cap (per-ECU → profile → default).
-
-    ``multi_did_max`` may be set profile-wide (top level of the profile data) and
-    overridden per ECU (in the ECU's definition), mirroring how ``multi_did`` /
-    ``multi_did_batching`` resolve. A non-positive or missing value falls back to
-    :data:`MULTI_DID_MAX_DEFAULT`; a value < 1 is clamped to 1 (batching off).
-    """
-    val = None
-    if ecu_def is not None and "multi_did_max" in ecu_def:
-        val = ecu_def["multi_did_max"]
-    elif pids_data is not None:
-        val = pids_data.get("multi_did_max")
-    if not isinstance(val, int) or val < 1:
-        return MULTI_DID_MAX_DEFAULT
-    return val
 
 
 class BatchState:

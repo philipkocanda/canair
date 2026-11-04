@@ -15,7 +15,7 @@ import textwrap
 
 import yaml
 
-from canlib.commands.validate import _capture_echo_warnings, _capture_nonhex_warnings
+from canlib.validation.captures import _capture_echo_warnings, _capture_nonhex_warnings
 
 
 def _write(tmp_path, body: str):

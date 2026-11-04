@@ -111,7 +111,7 @@ def _slug(name: str) -> str:
 
 
 def _allowed_identity_fields() -> set[str]:
-    from canlib.commands.validate import load_schema
+    from canlib.validation.pids import load_schema
 
     schema = load_schema()
     ident = schema.get("identity_fields", {}) or {}

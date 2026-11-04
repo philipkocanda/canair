@@ -16,8 +16,8 @@ from canlib.commands.profile import (
     _cmd_show,
     _cmd_use,
 )
-from canlib.commands.validate import collect_pids_validation
 from canlib.profile_create import DEFAULT_INIT
+from canlib.validation.pids import collect_pids_validation
 
 
 @pytest.fixture(autouse=True)
@@ -99,9 +99,9 @@ class TestProfileCreate:
         assert yaml.safe_load((root / "variants.yaml").read_text()) == {"variants": {}}
 
     def test_every_scaffolded_file_validates(self, tmp_path, capsys):
-        from canlib.commands.validate import _run_variants
-        from canlib.commands.validate.other import _run_can_buses, _run_groups, _run_states
         from canlib.profile import set_active
+        from canlib.validation.other import _run_can_buses, _run_groups, _run_states
+        from canlib.validation.variants import _run_variants
 
         root = tmp_path / "prof"
         _cmd_create(_args(path=root))

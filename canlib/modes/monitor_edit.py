@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from canlib.expression.decoding import ParamRow
+    from canlib.expression.results import EcuFrame, ResultEntry
     from canlib.modes.monitor import MonitorController
-    from canlib.modes.multi_batch import EcuFrame, ResultEntry
 
 # Ordered display filters cycled by the TUI's filter key.
 FILTERS = ("all", "verified", "unverified", "enabled", "disabled")

@@ -2,7 +2,7 @@
 
 The pure policy (canlib.transport.elm327_eeprom), what the connect actually sends
 (Elm327Terminal.init_elm, over a scripted channel), and the `validate` warning for
-init commands that still write the EEPROM (canlib.commands.validate.init_eeprom).
+init commands that still write the EEPROM (canlib.validation.init_eeprom).
 """
 
 import asyncio
@@ -11,10 +11,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.commands.validate.init_eeprom import init_eeprom_warnings
-from canlib.commands.validate.pids import _elm327_warnings
 from canlib.transport.elm327_eeprom import init_commands, ram_only, writes_eeprom
 from canlib.transport.elm327_terminal import Elm327Terminal
+from canlib.validation.init_eeprom import init_eeprom_warnings
+from canlib.validation.pids import _elm327_warnings
 
 
 class TestRamOnly:

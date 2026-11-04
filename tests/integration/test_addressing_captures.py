@@ -76,7 +76,7 @@ class TestCaptureSchemaAccepts29BitRx:
     def _validate(self, path, rx_addrs):
         from jsonschema import Draft202012Validator
 
-        from canlib.commands.validate.captures import CAPTURES_SCHEMA_FILE, validate_captures_file
+        from canlib.validation.captures import CAPTURES_SCHEMA_FILE, validate_captures_file
 
         schema = json.loads(CAPTURES_SCHEMA_FILE.read_text())
         return validate_captures_file(path, Draft202012Validator(schema), rx_addrs)
@@ -132,8 +132,8 @@ class TestDiscoverRxConsistency:
     async def test_a_29bit_sweep_saves_valid_29bit_addresses(self, make_profile, capsys):
         from jsonschema import Draft202012Validator
 
-        from canlib.commands.validate.captures import CAPTURES_SCHEMA_FILE, validate_captures_file
         from canlib.modes import discover as disc
+        from canlib.validation.captures import CAPTURES_SCHEMA_FILE, validate_captures_file
 
         root = make_profile(FIXED_29)
         term = FakeTerminal({(0x18DA10F1, "1001"): ok("5001")}, key_by_header=True)

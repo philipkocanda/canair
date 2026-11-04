@@ -298,7 +298,7 @@ class TestChecks:
         assert any("did you mean VCU" in e for e in errors)
 
     def test_one_signal_name_across_disjoint_revisions_is_allowed(self, copy):
-        from canlib.commands.validate.pids import _duplicate_param_errors
+        from canlib.validation.pids import _duplicate_param_errors
 
         files = sorted((copy / "ecus").glob("*.yaml"))
         assert _duplicate_param_errors(files) == []

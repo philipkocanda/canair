@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING
 
 from rich.text import Text
 
+from canlib.expression.results import EcuFrame, ResultEntry
 from canlib.uds.notation import ByteNotation
 
 from .. import config
@@ -65,7 +66,6 @@ from ._monitor_sessions import MonitorSessions
 from ._monitor_state import STATE_INPUT_STALE_CYCLES, MonitorStateSuggester
 from ._monitor_stats import ParamStats
 from .monitor_raw import MonitorRawPoller, Submission, _raw_pid_result
-from .multi_batch import EcuFrame, ResultEntry
 
 if TYPE_CHECKING:
     from ..captures.link_events import DisconnectCause

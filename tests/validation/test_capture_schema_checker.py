@@ -5,8 +5,8 @@ import json
 from jsonschema import Draft202012Validator
 
 from canlib.captures import io as capture_io
-from canlib.commands.validate._common import CAPTURES_SCHEMA_FILE
-from canlib.commands.validate.capture_schema import CaptureSchemaChecker
+from canlib.validation._common import CAPTURES_SCHEMA_FILE
+from canlib.validation.capture_schema import CaptureSchemaChecker
 
 SCHEMA = json.loads(CAPTURES_SCHEMA_FILE.read_text())
 

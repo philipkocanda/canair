@@ -11,6 +11,7 @@ import time
 
 from rich.text import Text
 
+from canlib.expression.results import EcuFrame, ResultEntry
 from canlib.sensitive import MASK
 from canlib.uds.notation import ByteDisplay, ByteNotation, subfunction_bytes_for_pid
 
@@ -23,7 +24,6 @@ from ..formatting import (
     render_param_table,
 )
 from ._monitor_history import HistoryRun, PayloadHistory
-from .multi_batch import EcuFrame, ResultEntry
 
 # Ordered display view modes cycled by the TUI 'V' key. Increasing detail:
 #   ecus    — just the responding ECUs (+ a PID/signal count)

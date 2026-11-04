@@ -38,17 +38,14 @@ The names that layers below use are re-exported here so existing callers
 import asyncio
 
 from canlib.captures.types import Quality
+from canlib.expression.results import ResultEntry
 from canlib.transport.stats import client_transport
 
 from ..formatting import print_ecu_results
 from ..pids import build_ecu_index
 from ..session_manager import SessionManager
 from ..transport.protocol import Terminal
-from .multi_batch import (
-    BatchState,
-    ResultEntry,
-    _capture_stamp,
-)
+from .multi_batch import BatchState, _capture_stamp
 from .multi_exec import (
     _exec_iocontrol,
     _exec_query,

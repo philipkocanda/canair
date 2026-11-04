@@ -14,10 +14,10 @@ from canlib import profile
 from canlib.analysis.misfiled import PayloadSample
 from canlib.captures import io as capture_io
 from canlib.commands.captures.maint import cmd_split_batched
-from canlib.commands.validate import _run_captures
-from canlib.commands.validate.unsplit import unsplit_batch_warnings
 from canlib.pids import clear_cache
 from canlib.uds.unsplit_batches import find_unsplit_batches, split_unsplit_batches
+from canlib.validation.captures import _run_captures
+from canlib.validation.unsplit import unsplit_batch_warnings
 
 IGPM, BCM = 0x778, 0x7A8
 BC01 = "62BC01400000000002"
@@ -458,7 +458,7 @@ def test_validate_loads_the_corpus_once_for_both_cross_file_checks(
 ):
     """One row can be both misfiled and an unsplit batch; both warn, from one corpus load."""
     from canlib.captures import payload_corpus as payload_corpus
-    from canlib.commands.validate import misfiled, unsplit
+    from canlib.validation import misfiled, unsplit
 
     # BCM answers 22BC01 with 25 bytes, which is exactly the IGPM batch's length: the batch
     # row is an unsplit IGPM batch and, by length, looks like BCM's reply filed under IGPM.

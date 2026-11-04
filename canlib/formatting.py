@@ -15,9 +15,8 @@ from canlib.uds.obd import is_support_bitmap_pid, supported_pids
 from canlib.uds.response import UdsResponse
 
 if TYPE_CHECKING:
+    from canlib.expression.results import ResultEntry
     from canlib.uds.notation import ByteDisplay
-
-    from .modes.multi_batch import ResultEntry
 
 # Which byte space a raw buffer is in. Both are plain ``bytes`` and they differ by
 # the ISO-TP PCI framing bytes, so the distinction has to be carried explicitly —

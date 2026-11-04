@@ -114,7 +114,7 @@ class TestAutoPid:
         assert ("DRIVE_MODE", "B5") in exprs
 
     def test_send_to_may_repeat_across_disjoint_revisions(self, copy):
-        from canlib.commands.validate.send_to import send_to_findings
+        from canlib.validation.send_to import send_to_findings
 
         vcu = copy / "ecus" / "vcu.yaml"
         text = vcu.read_text()

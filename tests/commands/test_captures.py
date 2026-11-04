@@ -744,7 +744,7 @@ class TestTimeEnforcement:
         assert cap.get("time")
 
     def test_validator_warns_missing_time_on_payload(self, tmp_path):
-        from canlib.commands.validate import _capture_missing_time_warnings
+        from canlib.validation.captures import _capture_missing_time_warnings
 
         doc = {
             "sessions": [
@@ -1413,7 +1413,7 @@ class TestBuildDiscoverSession:
         from jsonschema import Draft202012Validator
 
         from canlib.captures import build_discover_session
-        from canlib.commands.validate._common import CAPTURES_SCHEMA_FILE
+        from canlib.validation._common import CAPTURES_SCHEMA_FILE
 
         alive = [(0x74E, 0x76E, "positive", "")]
         s = build_discover_session(alive, 0, 0, (0x700, 0x7EF), "L", [], "", transport="wican-ws")

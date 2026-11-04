@@ -13,8 +13,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from canlib.commands.validate.profile_names import profile_name_findings
 from canlib.profile_names import AlsoKnownAs, VariantNames, also_known_as, duplicate_names
+from canlib.validation.profile_names import profile_name_findings
 from canlib.variants import check_variants_doc
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

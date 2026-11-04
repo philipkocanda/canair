@@ -20,8 +20,8 @@ from canlib.captures.link_events import (
     session_link_events,
     summarize,
 )
-from canlib.commands.validate._common import CAPTURES_SCHEMA_FILE
 from canlib.modes._monitor_link_events import LinkEventTracker
+from canlib.validation._common import CAPTURES_SCHEMA_FILE
 
 DAY = "2026-11-02"
 T0 = datetime(2026, 11, 2, 14, 0, 0)
@@ -391,7 +391,7 @@ class TestSessionsView:
 
 class TestValidateWarning:
     def test_a_payload_inside_a_closed_disconnect_warns(self, tmp_path):
-        from canlib.commands.validate.link_events import link_event_warnings
+        from canlib.validation.link_events import link_event_warnings
 
         events = [{"at": "14:01:00.000", "until": "14:10:00.000", "kind": "disconnect"}]
         path = tmp_path / f"{DAY}.json"
@@ -400,7 +400,7 @@ class TestValidateWarning:
         assert "1 payload capture(s) timed inside a recorded gap" in str(warning)
 
     def test_payloads_at_the_bounds_do_not_warn(self, tmp_path):
-        from canlib.commands.validate.link_events import link_event_warnings
+        from canlib.validation.link_events import link_event_warnings
 
         events = [{"at": "14:00:00.000", "until": "14:05:00.000", "kind": "disconnect"}]
         path = tmp_path / f"{DAY}.json"

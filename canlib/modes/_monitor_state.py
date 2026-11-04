@@ -28,8 +28,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from canlib.expression.results import EcuFrame
+
     from .monitor import MonitorController
-    from .multi_batch import EcuFrame
 
 # How many polls a decoded value stays eligible for state auto-suggestion.
 # Counted in polls of the signal's own PID rather than seconds so it adapts to

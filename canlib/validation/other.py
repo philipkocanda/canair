@@ -279,7 +279,7 @@ def _run_actions() -> int:
     must be granted by one of the profile's quirks, or the action could never run.
     """
     from canlib.actions import ActionError, parse_actions_doc, registry_issues
-    from canlib.modes.action import action_policy, plan_requests
+    from canlib.actions.plan import action_policy, plan_requests
     from canlib.pids import load_pids
     from canlib.profile import active
     from canlib.safety import SafetyBlocked, SessionPolicy

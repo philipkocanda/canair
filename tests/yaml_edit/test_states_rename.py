@@ -168,7 +168,7 @@ class TestApply:
         def _reject(path, profile=None):
             return False, "  ERROR: injected"
 
-        monkeypatch.setattr("canlib.commands.validate.validate_pids_file", _reject)
+        monkeypatch.setattr("canlib.validation.pids.validate_pids_file", _reject)
         with pytest.raises(StateRenameError, match="invalid after the rename"):
             apply_state_rename(plan, profile=prof)
         assert {p: p.read_text() for p in prof.root.rglob("*") if p.is_file()} == before
@@ -202,7 +202,7 @@ class TestBooleanWordStates:
             load_states(prof)
 
     def test_validate_pids_errors_on_a_bare_boolean(self, prof):
-        from canlib.commands.validate import validate_pids_file
+        from canlib.validation.pids import validate_pids_file
 
         path = prof.ecus_dir / "engine.yaml"
         path.write_text(_ECU.replace("[READY, ACC2]", "[READY, ON]"))
@@ -211,7 +211,7 @@ class TestBooleanWordStates:
         assert "unquoted YAML boolean" in msg
 
     def test_validate_states_errors_on_a_bare_boolean(self, prof, monkeypatch, capsys):
-        from canlib.commands.validate.other import _run_states
+        from canlib.validation.other import _run_states
 
         prof.states_file.write_text(_STATES.replace("implies: [ACC2]", "implies: [ON]"))
         monkeypatch.setattr("canlib.profile.active", lambda: prof)

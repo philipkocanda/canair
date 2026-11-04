@@ -435,8 +435,8 @@ class TestReport:
 
         from canlib.captures import build_manual_session
         from canlib.captures import io as capture_io
-        from canlib.commands.validate._common import CAPTURES_SCHEMA_FILE
-        from canlib.commands.validate.captures import validate_captures_file
+        from canlib.validation._common import CAPTURES_SCHEMA_FILE
+        from canlib.validation.captures import validate_captures_file
 
         sweep = classify_round(_result((0x7EC, "7E00"), (0x7C8, "7E00")), ECUS, time="12:00:00")
         capture = round_to_capture(sweep, 0x7DF, "3E00")

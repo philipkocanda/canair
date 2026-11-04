@@ -21,11 +21,11 @@ from canlib.modes.multi_batch import (
     BatchState,
     _did_data_len,
     is_leaked_batch_reply,
-    resolve_multi_did_max,
     split_multi_did,
     transport_did_cap,
 )
 from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
+from canlib.uds.multi_did import resolve_multi_did_max
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import nrc as _nrc
 from tests.support.fakes import ok as _ok

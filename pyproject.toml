@@ -204,11 +204,7 @@ forbidden_modules = [
     "canlib.commands",
 ]
 allow_indirect_imports = true
-ignore_imports = [
-    "canlib.yaml_edit.ecu -> canlib.commands.validate",
-    "canlib.yaml_edit.ecufile -> canlib.commands.validate",
-    "canlib.yaml_edit.state_rename -> canlib.commands.validate",
-]
+ignore_imports = []
 
 [[tool.importlinter.contracts]]
 name = "Nothing below the interface imports the live operations (modes)"
@@ -287,9 +283,6 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-    "canlib.formatting -> canlib.modes.multi_batch",
-    "canlib.pids -> canlib.modes.multi_batch",
-    "canlib.states -> canlib.modes.multi_batch",
 ]
 
 [[tool.importlinter.contracts]]

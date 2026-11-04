@@ -12,7 +12,7 @@ import textwrap
 
 import yaml
 
-from canlib.commands.validate import _capture_quality_warnings
+from canlib.validation.captures import _capture_quality_warnings
 
 
 def _write(tmp_path, body: str):

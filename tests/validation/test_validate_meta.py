@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from canlib.commands.validate import validate_meta
+from canlib.validation.pids import validate_meta
 
 REQUIRED = {"car_model", "init"}
 
@@ -146,7 +146,7 @@ class TestQuirks:
         assert validate_meta(p, REQUIRED) == []
 
     def test_a_retired_quirk_warns_instead_of_failing(self, tmp_path):
-        from canlib.commands.validate.pids import retired_quirk_warnings
+        from canlib.validation.pids import retired_quirk_warnings
 
         p = _write(tmp_path, self._base("quirks:\n  - hk_f1xx_minus_one\n  - skm_wakeup\n"))
         assert validate_meta(p, REQUIRED) == []
@@ -195,7 +195,7 @@ class TestProfileWideDtcs:
     FIELDS = frozenset({"description", "causes", "source", "source_links", "verified"})
 
     def _findings(self, tmp_path, dtcs: str):
-        from canlib.commands.validate.pids import profile_dtc_findings
+        from canlib.validation.pids import profile_dtc_findings
 
         p = _write(tmp_path, 'car_model: "C"\ninit: "ATSP6;"\ndtcs:\n' + dtcs)
         return profile_dtc_findings(p, self.FIELDS)
@@ -219,7 +219,7 @@ class TestProfileWideDtcs:
         assert errors == ["profile.yaml: 'dtcs' must be a dict"]
 
     def test_failure_types_is_retired(self, tmp_path):
-        from canlib.commands.validate.pids import profile_dtc_findings
+        from canlib.validation.pids import profile_dtc_findings
 
         p = _write(tmp_path, 'car_model: "C"\ninit: "ATSP6;"\nfailure_types: {0xF3: x}\n')
         errors, warnings = profile_dtc_findings(p, self.FIELDS)

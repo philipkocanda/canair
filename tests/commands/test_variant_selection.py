@@ -221,7 +221,7 @@ class TestProfileUse:
 
 
 def test_validate_checks_an_alias_variant(env):
-    from canlib.commands.validate.profile_names import profile_name_findings
+    from canlib.validation.profile_names import profile_name_findings
 
     text = (env / "profile.yaml").read_text().replace("{variant: 28kwh}", "{variant: 64kwh, x: 1}")
     (env / "profile.yaml").write_text(text)

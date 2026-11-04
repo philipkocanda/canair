@@ -14,77 +14,29 @@ Validators merged into one subcommand:
   * ``validate can`` — captures/can/index.yaml (raw-CAN log index)
   * ``validate all`` (default) — run all of them
 
-Split by domain into submodules (pids/captures/other) under this package; the
-public API and the ``canair validate`` CLI are re-exported here so callers that
-``from canlib.commands.validate import …`` keep working.
+This package is only the CLI shell: the parser and ``run``. The validators themselves are
+library code in :mod:`canlib.validation`, which the profile editors call as their post-write
+guard.
 """
 
 import argparse
 
-from .captures import (
-    _capture_echo_warnings,
-    _capture_missing_time_warnings,
-    _capture_nonhex_warnings,
-    _capture_quality_warnings,
-    _capture_state_warnings,
-    _run_captures,
-    load_valid_rx_addrs,
-    validate_captures_file,
-)
-from .other import (
+from canlib.validation.captures import _run_captures
+from canlib.validation.other import (
     _run_actions,
     _run_can,
     _run_can_buses,
     _run_groups,
     _run_signals,
     _run_states,
-    _state_reference_errors,
 )
-from .pids import (
-    _duplicate_param_errors,
-    _run_pids,
-    _validate_param_type,
-    check_pci_bytes,
-    collect_pids_validation,
-    load_schema,
-    validate_ecu_file,
-    validate_expression,
-    validate_meta,
-    validate_pids_file,
-)
-from .variants import _run_variants
+from canlib.validation.pids import _run_pids
+from canlib.validation.variants import _run_variants
 
 NAME = "validate"
 ALIASES = ["val"]
 
-__all__ = [
-    "NAME",
-    "_capture_echo_warnings",
-    "_capture_missing_time_warnings",
-    "_capture_nonhex_warnings",
-    "_capture_quality_warnings",
-    "_capture_state_warnings",
-    "_duplicate_param_errors",
-    "_run_actions",
-    "_run_can",
-    "_run_can_buses",
-    "_run_groups",
-    "_run_signals",
-    "_run_states",
-    "_state_reference_errors",
-    "_validate_param_type",
-    "add_parser",
-    "check_pci_bytes",
-    "collect_pids_validation",
-    "load_schema",
-    "load_valid_rx_addrs",
-    "run",
-    "validate_captures_file",
-    "validate_ecu_file",
-    "validate_expression",
-    "validate_meta",
-    "validate_pids_file",
-]
+__all__ = ["NAME", "add_parser", "run"]
 
 
 def add_parser(subparsers):

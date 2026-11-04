@@ -118,7 +118,7 @@ def test_expand_ignores_blanks():
 
 
 def test_validate_rejects_non_boolean_private(tmp_path, monkeypatch, capsys):
-    from canlib.commands.validate.other import _run_can_buses
+    from canlib.validation.other import _run_can_buses
 
     prof = _profile(tmp_path, "can_buses:\n  B-CAN:\n    private: maybe\n")
     monkeypatch.setattr("canlib.profile.active", lambda: prof)

@@ -140,8 +140,8 @@ class TestPidStatusVocabulary:
         assert PID_STATUSES == get_args(PidStatus)
 
     def test_schema_matches_the_literal(self):
-        from canlib.commands.validate._common import SCHEMA_FILE
-        from canlib.commands.validate.pids import load_schema
+        from canlib.validation._common import SCHEMA_FILE
+        from canlib.validation.pids import load_schema
 
         schema_statuses = load_schema(SCHEMA_FILE).get("valid_pid_status")
         assert schema_statuses, "pids_schema.yaml must declare valid_pid_status"

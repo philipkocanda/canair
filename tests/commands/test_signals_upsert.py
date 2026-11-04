@@ -13,8 +13,8 @@ import pytest
 import yaml
 
 import canlib.profile as profile
-from canlib.commands import validate
 from canlib.profile import Profile
+from canlib.validation import other as validate
 from canlib.yaml_edit.signals import SignalsEditError, merge_bus, upsert_signal
 
 

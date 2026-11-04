@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.commands.validate import collect_pids_validation, load_schema, validate_ecu_file
 from canlib.modes.sessions_scan import (
     KWP_SESSION_MODES,
     UDS_SESSION_MODES,
@@ -16,6 +15,7 @@ from canlib.modes.sessions_scan import (
     mode_sessions_scan,
     scan_ecu_sessions,
 )
+from canlib.validation.pids import collect_pids_validation, load_schema, validate_ecu_file
 from canlib.yaml_edit.pids import append_sessions_block
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import nrc as _nrc

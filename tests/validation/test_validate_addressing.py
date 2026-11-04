@@ -1,16 +1,12 @@
-"""Tests for the ELM327/AutoPID addressing warnings (canlib.commands.validate.addressing)."""
+"""Tests for the ELM327/AutoPID addressing warnings (canlib.validation.addressing)."""
 
 from pathlib import Path
 
 import pytest
 import yaml
 
-from canlib.commands.validate.addressing import (
-    _init_commands,
-    _init_protocol,
-    addressing_warnings,
-)
-from canlib.commands.validate.pids import _elm327_warnings, _run_pids
+from canlib.validation.addressing import _init_commands, _init_protocol, addressing_warnings
+from canlib.validation.pids import _elm327_warnings, _run_pids
 
 
 def _data(init: str = "ATSP6;ATS0;", **ecus) -> dict:

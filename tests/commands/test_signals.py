@@ -12,9 +12,9 @@ import argparse
 import pytest
 
 import canlib.profile as profile
-from canlib.commands import validate
 from canlib.profile import Profile
 from canlib.signals import signal_byte_span
+from canlib.validation import other as validate
 from canlib.validation.signals import check_signals_doc
 from canlib.yaml_edit import signals as signals_edit
 

@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from canlib.captures.types import Quality
+from canlib.expression.results import EcuFrame
 
 from ..keepmode import (
     KEEP_CHANGES,
@@ -35,7 +36,6 @@ from ._monitor_history import PayloadHistory, extend_runs
 
 if TYPE_CHECKING:
     from .monitor import MonitorController
-    from .multi_batch import EcuFrame
 
 
 def _merge_history(

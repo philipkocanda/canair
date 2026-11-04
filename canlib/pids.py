@@ -15,9 +15,10 @@ from typing import Any, Literal, TypedDict, get_args
 
 from canlib import yaml_io
 from canlib.actuation import default_release, normalize_request
-from canlib.addressing import AddressingMode, EcuAddress
+from canlib.addressing import AddressingMode, EcuAddress, resolve_ecu_address
 from canlib.dtc.definitions import effective_entries as _effective_dtc_entries
 from canlib.signal_category import category_of
+from canlib.uds.multi_did import resolve_multi_did_max
 from canlib.uds.protocol import DiagProtocol, classify_protocol
 
 # ── PID visibility lifecycle ──────────────────────────────────────────────
@@ -699,8 +700,6 @@ def build_sessions_index(pids_data: dict) -> dict[str, SessionIndexEntry]:
 
 def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
     """Build lookup: ECU_NAME -> {tx_id, rx_id, pids: {PID: {parameters: ...}}}."""
-    from .addressing import resolve_ecu_address
-    from .modes.multi_batch import resolve_multi_did_max
     from .wake import resolve_wake
 
     index: dict[str, EcuIndexEntry] = {}

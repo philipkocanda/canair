@@ -4,8 +4,8 @@ import textwrap
 
 import pytest
 
-from canlib.commands.validate import collect_pids_validation
-from canlib.commands.validate.send_to import send_to_findings
+from canlib.validation.pids import collect_pids_validation
+from canlib.validation.send_to import send_to_findings
 
 
 def _ecu_file(tmp_path, name, body):

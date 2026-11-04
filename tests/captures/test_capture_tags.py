@@ -340,7 +340,7 @@ class TestRenameAndRemove:
 
 class TestValidation:
     def test_untagged_and_undeclared_tags_are_reported(self, prof, capsys):
-        from canlib.commands.validate.variant_tags import report_variant_tags
+        from canlib.validation.variant_tags import report_variant_tags
 
         path = _write(
             prof.captures_dir / "2026-01-01.json",
@@ -354,7 +354,7 @@ class TestValidation:
         assert "1 untagged session(s)" in out
 
     def test_untagged_sessions_are_not_flagged_on_a_single_variant_profile(self, prof, capsys):
-        from canlib.commands.validate.variant_tags import report_variant_tags
+        from canlib.validation.variant_tags import report_variant_tags
 
         variants_edit.remove_variant("38kwh", profile=prof)
         path = _write(prof.captures_dir / "2026-01-01.json", _session("a"))
@@ -362,7 +362,7 @@ class TestValidation:
         assert "untagged" not in capsys.readouterr().out
 
     def test_the_untagged_ratchet(self, prof, capsys):
-        from canlib.commands.validate.variant_tags import report_variant_tags
+        from canlib.validation.variant_tags import report_variant_tags
 
         path = _write(prof.captures_dir / "2026-01-01.json", _session("a"), _session("b"))
         assert report_variant_tags([path], prof, max_untagged=2) == (0, False)
@@ -385,8 +385,8 @@ def test_sessions_view_names_each_car(prof, capsys):
 
 def test_bundled_history_is_tagged_where_the_car_is_known():
     """Ioniq, Kona and XPeng captures came from one known car each; all are tagged."""
-    from canlib.commands.validate.variant_tags import variant_tag_findings
     from canlib.profile import resolve_profile
+    from canlib.validation.variant_tags import variant_tag_findings
     from canlib.variants import load_variants
 
     for name in ("hyundai-ioniq-ae-ev", "hyundai-kona-os-ev", "xpeng-g6-f30-ev"):

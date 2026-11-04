@@ -614,7 +614,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   `canlib/states/refs.py`. The same check runs as a **non-blocking warning** from `states add
   --when`/`set-predicate` and `pids rename-param`/`rm-param`. **Every target errors on a repeated
   YAML key** in the files it checks (the loaders, ruamel included, silently keep the later value;
-  `canlib/yaml_io.py::duplicate_keys`, message in `commands/validate/_common.py`). **`validate
+  `canlib/yaml_io.py::duplicate_keys`, message in `validation/_common.py`). **`validate
   pids`** also errors on a duplicate *shipped* signal name across PIDs (each becomes a distinct
   device signal), on a
   hand-built word whose lower byte is read signed (`(S15 << 8) | S17`; structural lint over the
@@ -843,7 +843,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   lets an overlay copy sharing a base session's `session_anchor` but not its content supersede it
   (an edited copy — never counted twice), and sorts chronologically **only when layered**, so
   single-layer results stay byte-identical. A reader that bypasses `load_all_captures` needs
-  deciding per call site: `commands/validate/captures.py` and `commands/coverage/` walk **both**
+  deciding per call site: `validation/captures.py` and `commands/coverage/` walk **both**
   layers (a schema break or a payload in the base still matters); `canlib/pii.py` and
   `capture_migrate.py` intentionally stay on `captures_dir` (= the overlay, which is exactly what
   `contribute` ships and the only layer a migration may rewrite).

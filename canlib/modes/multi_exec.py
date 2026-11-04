@@ -14,6 +14,7 @@ import time
 from collections.abc import Callable
 from typing import Literal
 
+from canlib.expression.results import ResultEntry
 from canlib.query import QueryError, inferred_request, pids_named_by
 from canlib.uds.echo import request_echo
 from canlib.uds.response import UdsResponse
@@ -34,7 +35,6 @@ from .multi_batch import (
     LEAKED_BATCH_ERROR,
     LEAKED_BATCH_REASON,
     BatchState,
-    ResultEntry,
     _decode_pid_result,
     _did4,
     _error_result,

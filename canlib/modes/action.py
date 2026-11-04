@@ -26,20 +26,15 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any
 
-from canlib.actions import FUNCTIONAL, Action, ActionError, ActionRequest
-from canlib.safety import SafetyBlocked, SessionPolicy, check_command_safety
+from canlib.actions import Action, ActionError
+from canlib.actions.plan import PlannedRequest, action_policy, plan_requests
+from canlib.safety import SafetyBlocked, SessionPolicy
 from canlib.transport.protocol import Terminal
 
 # How long a request that expects no reply waits before it counts as sent.
 _NO_RESPONSE_WAIT_S = 1.0
 # Pause before the one re-read that an UNKNOWN verdict gets.
 _REREAD_DELAY_S = 0.5
-
-
-@dataclass(frozen=True)
-class PlannedRequest:
-    request: ActionRequest
-    tx_id: int
 
 
 @dataclass
@@ -52,63 +47,6 @@ class Verdict:
     @property
     def passed(self) -> bool:
         return self.result == "TRUE"
-
-
-def functional_id(pids_data: dict) -> int:
-    """The functional request id for the profile's addressing mode."""
-    from canlib.addressing import functional_request_id, resolve_mode
-
-    return functional_request_id(resolve_mode(pids_data))
-
-
-def plan_requests(action: Action, pids_data: dict) -> list[PlannedRequest]:
-    """Resolve each request's target to a request id (raises :class:`ActionError`)."""
-    from canlib.ecus import canonical_ecu_name_safe
-    from canlib.pids import build_ecu_index
-
-    index = build_ecu_index(pids_data)
-    planned: list[PlannedRequest] = []
-    for req in action.requests:
-        if req.target == FUNCTIONAL:
-            planned.append(PlannedRequest(req, functional_id(pids_data)))
-            continue
-        entry = index.get(req.target) or index.get(canonical_ecu_name_safe(req.target).upper())
-        if entry is None:
-            raise ActionError(f"action {action.name!r}: unknown request target {req.target!r}")
-        planned.append(PlannedRequest(req, int(entry["tx_id"])))
-    return planned
-
-
-def action_policy(
-    action: Action, planned: list[PlannedRequest], base: SessionPolicy, pids_data: dict
-) -> SessionPolicy:
-    """The policy the requests go out under, or :class:`SafetyBlocked` if one is refused.
-
-    The base policy plus only those quirk grants this action needs, so the
-    exemption is no wider than the requests themselves.
-    """
-    from canlib.quirks import action_grants
-
-    available = action_grants(pids_data)
-    needed: set[tuple[int, str]] = set()
-    for p in planned:
-        if check_command_safety(p.request.send, base, p.tx_id) is None:
-            continue
-        key = (p.tx_id, p.request.send)
-        if key not in available:
-            blocked = check_command_safety(p.request.send, base, p.tx_id)
-            raise SafetyBlocked(
-                f"action {action.name!r}: {p.request.send} to 0x{p.tx_id:03X} is refused by the "
-                f"command blocklist ({blocked}), and none of the profile's quirks grants it. "
-                "Actions never take --unsafe."
-            )
-        needed.add(key)
-    policy = base.granting(needed)
-    for p in planned:
-        blocked = check_command_safety(p.request.send, policy, p.tx_id)
-        if blocked is not None:  # a hard block no grant can lift
-            raise SafetyBlocked(f"action {action.name!r}: {blocked}")
-    return policy
 
 
 async def read_verdict(sm, action: Action, pids_data: dict, verbose: bool) -> Verdict:
