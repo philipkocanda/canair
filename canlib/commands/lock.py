@@ -51,7 +51,7 @@ exit codes: 0 = lock is free (or was freed), 1 = still held.
             "let go, and leaves the lock free. Never signals or kills anything."
         ),
     )
-    from ..lock import FORCE_WAIT_S
+    from canlib.device.lock import FORCE_WAIT_S
 
     steal.add_argument(
         "--wait",
@@ -102,7 +102,7 @@ def run(args) -> int:
 
 
 def _show(args) -> int:
-    from ..lock import lock_state
+    from canlib.device.lock import lock_state
 
     state = lock_state()
     payload = state.as_dict()
@@ -143,7 +143,7 @@ def _confirm(prompt: str, assume_yes: bool) -> bool:
 def _steal(args) -> int:
     import sys
 
-    from ..lock import WiCANLock, describe_acquire_failure, lock_state
+    from canlib.device.lock import WiCANLock, describe_acquire_failure, lock_state
 
     state = lock_state()
     if not state.held:
@@ -191,7 +191,7 @@ def _kill(args) -> int:
     import signal
     import time
 
-    from ..lock import holder_info, lock_state
+    from canlib.device.lock import holder_info, lock_state
 
     state = lock_state()
     if not state.held or state.pid is None:

@@ -3,8 +3,8 @@
 import pytest
 
 from canlib.core.oserrors import connect_error_detail
-from canlib.wican import mode as wican_mode
-from canlib.wican.mode import (
+from canlib.device.wican import mode as wican_mode
+from canlib.device.wican.mode import (
     ModeError,
     require_protocol,
     require_slcan_reachable,
@@ -182,7 +182,7 @@ class TestRequireSlcanReachable:
         assert "offline" in str(exc.value).lower()
 
     def test_v6_hints_name_its_settings_not_the_4x_mode(self, monkeypatch):
-        from canlib.wican.firmware import FirmwareInfo
+        from canlib.device.wican.firmware import FirmwareInfo
 
         monkeypatch.setattr(wican_mode, "_tcp_probe", _ports({80}))
         with pytest.raises(ModeError) as exc:

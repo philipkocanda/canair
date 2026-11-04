@@ -91,7 +91,7 @@ def _tcp_open(host: str, port: int, timeout: float) -> bool:
 def _load_device_config(host: str, timeout: float) -> dict | None:
     """Best-effort GET /load_config; None if the WiCAN HTTP API isn't reachable."""
     try:
-        from canlib.wican.mode import load_config
+        from canlib.device.wican.mode import load_config
 
         return load_config(f"http://{host}", timeout=timeout)
     except Exception:
@@ -189,7 +189,7 @@ def _gather(args) -> dict:
     # that firmware really allows: a v6 device has no /ws however the check is
     # set. elm327-tcp is probed under the same rule as a live connect (only with
     # `firmware_check: always`), since it is usually a clone with no HTTP server.
-    from canlib.wican.firmware import UNKNOWN, compatibility, probe, probes
+    from canlib.device.wican.firmware import UNKNOWN, compatibility, probe, probes
 
     from ..config import firmware_check_mode
 
@@ -318,7 +318,7 @@ def _gather(args) -> dict:
     # Connection mutex (local-only): who, if anyone, currently owns the device
     # connection. Read-only — it never takes or clears the lock.
     try:
-        from ..lock import lock_state
+        from canlib.device.lock import lock_state
 
         info["lock"] = lock_state().as_dict()
     except Exception:

@@ -36,7 +36,7 @@ reference lives in **AGENTS.md**, `docs/reference/cli/`, and `canair <cmd>
   in a safe state.
 - Be gentle: the ECUs are old and slow. **No concurrent requests to one ECU.**
 - **One `canair` connection at a time, any transport.** canair enforces this with
-  a `flock` mutex (`/tmp/wican-connection.lock`, `canlib/lock.py`); a second
+  a `flock` mutex (`/tmp/wican-connection.lock`, `canlib/device/lock.py`); a second
   concurrent command fails fast. The WiCAN serves a single client per protocol —
   a second `slcan-tcp` client hangs unserved until the first disconnects, and a
   second `wican-ws` WebSocket can lock up the device (power-cycle to recover).

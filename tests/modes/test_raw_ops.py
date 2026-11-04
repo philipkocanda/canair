@@ -5,12 +5,12 @@ from typing import ClassVar
 
 import pytest
 
+from canlib.device.wican import mode as wican_mode
+from canlib.device.wican.mode import ModeError
 from canlib.modes import raw_monitor, raw_ops
 from canlib.modes.monitor_options import MonitorOptions
 from canlib.modes.session import SessionOptions
 from canlib.transport.config import ConnectionOptions
-from canlib.wican import mode as wican_mode
-from canlib.wican.mode import ModeError
 
 
 def T(host="1.2.3.4", port=35000, bitrate=500000):

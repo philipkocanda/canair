@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import sys
 
+from canlib.device.wican.api import RebootOutcome, reboot_device
 from canlib.transport.config import TransportConfig
-from canlib.wican.api import RebootOutcome, reboot_device
 
 
 def reboot_after_session(transport: TransportConfig) -> RebootOutcome:

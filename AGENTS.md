@@ -307,7 +307,7 @@ and **`g`/`G` address the view's primary axis**.
   **canair never kills another process on its own:** `--force` on a live command *asks* the holder
   to leave and polls for `FORCE_WAIT_S`, then gives up naming the PID and the exact `kill` to run —
   it never blocks indefinitely. The holder side is the watchdog
-  (`canlib/lock_watchdog.py::LockWatchdog`, started by `run_live`/`sniff`): a daemon thread that
+  (`canlib/device/lock_watchdog.py::LockWatchdog`, started by `run_live`/`sniff`): a daemon thread that
   self-`SIGTERM`s into the normal graceful shutdown when the lock is stolen or its file replaced, so
   an **orphaned session** (terminal gone, no `SIGHUP`) stands down instead of holding the device
   hostage. Steal requests are target-scoped and TTL'd, so a stale one can't abort a later session.
@@ -1089,7 +1089,7 @@ WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type
 
 **Firmware generation** — everything above is WiCAN firmware **4.x**; the v6 rewrite drops `/ws`,
 the protocol mode and the legacy HTTP routes (plan `plans/2026-10-20-wican-fw-v6-compatibility.md`).
-`canlib/wican/firmware.py` probes the generation (GET-only — `/api/info`, then `/check_status`
+`canlib/device/wican/firmware.py` probes the generation (GET-only — `/api/info`, then `/check_status`
 unless that was v6 — memoised per host) and owns the one policy table, `compatibility(info,
 surface)`, used by live connect, `sniff`, `wican mode`/`autopid`, `--reboot`, the monitor's
 reconnect and `canair status`. Whether a surface is probed is `probes(surface)` over

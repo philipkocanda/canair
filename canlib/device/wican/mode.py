@@ -17,8 +17,8 @@ from __future__ import annotations
 import socket
 import time
 
-from canlib.wican.api import get_config, resolve_wican_url, store_config
-from canlib.wican.firmware import FirmwareInfo
+from canlib.device.wican.api import get_config, resolve_wican_url, store_config
+from canlib.device.wican.firmware import FirmwareInfo
 
 
 class ModeError(RuntimeError):
@@ -44,7 +44,7 @@ def require_protocol(
     device that's offline) — in that case the transport connect itself will
     surface the problem. This never switches the mode (explicit-only policy).
     A 4.x concept: firmware v6 has no ``protocol`` setting, so callers skip this
-    there (:mod:`canlib.wican.firmware`) and its hints can assume 4.x.
+    there (:mod:`canlib.device.wican.firmware`) and its hints can assume 4.x.
     """
     base_url = resolve_wican_url(wican)
     try:

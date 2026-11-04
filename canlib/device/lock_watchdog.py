@@ -5,7 +5,7 @@ dropped without a hangup ever being delivered) keeps both the connection lock an
 the device's single connection. Nothing external can reliably clear it, and
 canair never signals another process — so the session watches the mutex itself.
 
-This thread polls :meth:`canlib.lock.WiCANLock.still_ours` and, the moment the
+This thread polls :meth:`canlib.device.lock.WiCANLock.still_ours` and, the moment the
 mutex is no longer ours (another run asked for it with ``--force``, or the lock
 file was taken over/replaced), stops this process the same way Ctrl-C would: by
 raising SIGTERM on ourselves, which every live command maps onto its graceful
@@ -23,7 +23,7 @@ import sys
 import threading
 from collections.abc import Callable
 
-from .lock import WiCANLock
+from canlib.device.lock import WiCANLock
 
 #: How often the mutex is re-checked. Fast enough that a ``--force`` contender
 #: (which waits ~10s) sees the connection freed well within its window.

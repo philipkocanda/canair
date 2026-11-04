@@ -38,9 +38,10 @@ from pathlib import Path
 import requests
 
 from canlib.commands._group import group_help
+from canlib.device.wican.api import resolve_wican_url
+from canlib.device.wican.firmware import Surface
 from canlib.response_frames import stored_count
 from canlib.transport.config import TransportType
-from canlib.wican.api import resolve_wican_url
 from canlib.wican.autopid_profile import (
     ProfileGenerationError,
     ShippedProfile,
@@ -50,7 +51,6 @@ from canlib.wican.autopid_profile import (
     to_device_format,
 )
 from canlib.wican.autopid_v6 import to_v6
-from canlib.wican.firmware import Surface
 
 NAME = "wican"
 
@@ -92,7 +92,7 @@ def _require_v4_api(base_url: str, surface: Surface, *, writes: bool = False) ->
     unusual or offline-configured device is not locked out; v6 answers the 4.x
     write routes with an error, so going ahead fails loudly, not silently.
     """
-    from canlib.wican.firmware import (
+    from canlib.device.wican.firmware import (
         compatibility,
         detect,
         print_verdict,
@@ -312,7 +312,7 @@ def upload_profile(base_url: str, device_payload: dict, reboot: bool = False) ->
         sys.exit(1)
 
     if reboot:
-        from canlib.wican.api import reboot_device
+        from canlib.device.wican.api import reboot_device
 
         time.sleep(0.3)
         reboot_device(base_url, timeout=WICAN_TIMEOUT)
@@ -766,7 +766,7 @@ def _cmd_autopid_stats(args) -> int:
 
 
 def _cmd_mode_show(args) -> int:
-    from canlib.wican.mode import current_protocol
+    from canlib.device.wican.mode import current_protocol
 
     base_url = resolve_wican_url(args.wican)
     guard = _require_v4_api(base_url, "wican-mode")
@@ -814,7 +814,7 @@ def _sync_transport_to_mode(mode: str, *, no_transport: bool) -> None:
 
 def _cmd_mode_set(args) -> int:
     """Explicitly set the WiCAN device protocol/mode (reboots). Opt-in only."""
-    from canlib.wican.mode import ModeError, current_protocol, set_protocol
+    from canlib.device.wican.mode import ModeError, current_protocol, set_protocol
 
     guard = _require_pro("mode set")
     if guard is not None:

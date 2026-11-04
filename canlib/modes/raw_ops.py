@@ -24,7 +24,7 @@ from .monitor_options import MonitorOptions
 from .session import Operation, SessionOptions
 
 if TYPE_CHECKING:
-    from canlib.wican.firmware import FirmwareInfo
+    from canlib.device.wican.firmware import FirmwareInfo
 
 
 @dataclass(frozen=True)
@@ -43,13 +43,13 @@ def slcan_preflight(
     """Check a ``slcan-tcp`` device is usable before any session opens on it.
 
     Shared by the raw live commands and ``canair sniff``. Raises
-    :class:`~canlib.wican.mode.ModeError` with the message to print (a refusal
+    :class:`~canlib.device.wican.mode.ModeError` with the message to print (a refusal
     included). One TCP check of the HTTP port runs first and gates every HTTP
     request after it — the firmware probe, the protocol check, the device-config
     read — so an offline device costs one connect timeout before the fail-fast
     SLCAN message rather than one per request.
     """
-    from canlib.wican.firmware import (
+    from canlib.device.wican.firmware import (
         UNKNOWN,
         compatibility,
         detect,
@@ -57,7 +57,12 @@ def slcan_preflight(
         probes,
         unconfirmed,
     )
-    from canlib.wican.mode import ModeError, _tcp_open, require_protocol, require_slcan_reachable
+    from canlib.device.wican.mode import (
+        ModeError,
+        _tcp_open,
+        require_protocol,
+        require_slcan_reachable,
+    )
 
     from ..config import fallback_settings
 
@@ -109,7 +114,7 @@ async def run_raw(
     over a :class:`~canlib.transport.raw_terminal.RawTerminal`. ``candidates`` are the devices
     a monitor may re-home to.
     """
-    from canlib.wican.mode import ModeError
+    from canlib.device.wican.mode import ModeError
 
     try:
         target = slcan_preflight(transport, pids_data.get("can_bitrate"))

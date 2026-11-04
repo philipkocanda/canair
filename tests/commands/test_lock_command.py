@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from canlib.commands import lock as lock_cmd
-from canlib.lock import WiCANLock
+from canlib.device.lock import WiCANLock
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -26,8 +26,8 @@ _HOLDER_SCRIPT = """
 import sys, time
 sys.path.insert(0, {root!r})
 from pathlib import Path
-from canlib.lock import WiCANLock
-from canlib.lock_watchdog import LockWatchdog
+from canlib.device.lock import WiCANLock
+from canlib.device.lock_watchdog import LockWatchdog
 from canlib.core.stop_signals import graceful_stop
 
 lock = WiCANLock(lock_file=Path(sys.argv[1]), steal_file=Path(sys.argv[2]))
@@ -60,7 +60,7 @@ def holder(tmp_path, monkeypatch):
     script.write_text(_HOLDER_SCRIPT.format(root=str(REPO_ROOT)))
     procs: list[subprocess.Popen] = []
 
-    import canlib.lock as lock_mod
+    import canlib.device.lock as lock_mod
 
     monkeypatch.setattr(lock_mod, "LOCK_FILE", lock_file)
     monkeypatch.setattr(lock_mod, "STEAL_FILE", steal_file)
@@ -91,7 +91,7 @@ def _args(**kwargs) -> argparse.Namespace:
 
 class TestShow:
     def test_free_lock_exits_zero(self, tmp_path, monkeypatch, capsys):
-        import canlib.lock as lock_mod
+        import canlib.device.lock as lock_mod
 
         monkeypatch.setattr(lock_mod, "LOCK_FILE", tmp_path / "absent")
         monkeypatch.setattr(lock_mod, "STEAL_FILE", tmp_path / "steal")
@@ -124,12 +124,12 @@ class TestSteal:
         assert proc.wait(timeout=5) == 0  # it stood down on its own
         assert "released" in capsys.readouterr().out
         # Freed, not held by us: the next command must be able to take it.
-        from canlib.lock import lock_state
+        from canlib.device.lock import lock_state
 
         assert not lock_state().held
 
     def test_free_lock_is_a_no_op(self, tmp_path, monkeypatch, capsys):
-        import canlib.lock as lock_mod
+        import canlib.device.lock as lock_mod
 
         monkeypatch.setattr(lock_mod, "LOCK_FILE", tmp_path / "absent")
         monkeypatch.setattr(lock_mod, "STEAL_FILE", tmp_path / "steal")
@@ -159,7 +159,7 @@ class TestKill:
 
     def test_refuses_a_pid_that_does_not_look_like_canair(self, tmp_path, monkeypatch, capsys):
         """PID reuse: the recorded PID may now belong to something unrelated."""
-        import canlib.lock as lock_mod
+        import canlib.device.lock as lock_mod
 
         lock_file, steal_file = tmp_path / "lock", tmp_path / "steal"
         monkeypatch.setattr(lock_mod, "LOCK_FILE", lock_file)
@@ -181,7 +181,7 @@ class TestKill:
             sleeper.wait(timeout=5)
 
     def test_refuses_to_signal_itself(self, tmp_path, monkeypatch, capsys):
-        import canlib.lock as lock_mod
+        import canlib.device.lock as lock_mod
 
         lock_file, steal_file = tmp_path / "lock", tmp_path / "steal"
         monkeypatch.setattr(lock_mod, "LOCK_FILE", lock_file)
@@ -195,7 +195,7 @@ class TestKill:
             held.release()
 
     def test_free_lock_is_a_no_op(self, tmp_path, monkeypatch, capsys):
-        import canlib.lock as lock_mod
+        import canlib.device.lock as lock_mod
 
         monkeypatch.setattr(lock_mod, "LOCK_FILE", tmp_path / "absent")
         monkeypatch.setattr(lock_mod, "STEAL_FILE", tmp_path / "steal")
@@ -232,7 +232,7 @@ class TestStatusIntegration:
 
     def test_status_lock_probe_does_not_hold_it(self, tmp_path, monkeypatch):
         """`canair status` is documented side-effect-free — including the mutex."""
-        import canlib.lock as lock_mod
+        import canlib.device.lock as lock_mod
         from canlib.commands import status
 
         lock_file, steal_file = tmp_path / "lock", tmp_path / "steal"
@@ -253,7 +253,7 @@ class TestForceEndToEnd:
     def test_a_live_session_releases_for_force_within_the_window(self, holder):
         """The whole point: --force gets the connection instead of hanging."""
         proc = holder()
-        import canlib.lock as lock_mod
+        import canlib.device.lock as lock_mod
 
         contender = WiCANLock(lock_file=lock_mod.LOCK_FILE, steal_file=lock_mod.STEAL_FILE)
         started = time.monotonic()

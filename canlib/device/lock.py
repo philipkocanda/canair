@@ -12,7 +12,7 @@ therefore doesn't just take the lock — it asks the holder to leave:
 
 1. The contender records a **steal request** in :data:`STEAL_FILE`, naming the
    holder it targets (``target=``) and itself (``by=``).
-2. The holder's watchdog (:mod:`canlib.lock_watchdog`) polls
+2. The holder's watchdog (:mod:`canlib.device.lock_watchdog`) polls
    :meth:`WiCANLock.still_ours`, sees the request, and stops gracefully —
    reconciling any ``--save`` journal and closing the device connection.
 3. The contender polls for the lock and takes it once freed.
@@ -380,7 +380,7 @@ class WiCANLock:
     def still_ours(self) -> str | None:
         """Why we no longer own the mutex, or None while we still do.
 
-        The check an orphaned session runs (via :mod:`canlib.lock_watchdog`) so
+        The check an orphaned session runs (via :mod:`canlib.device.lock_watchdog`) so
         it stands down instead of holding the device connection hostage: a
         pending steal request aimed at us, another PID recorded as holder, or the
         lock file removed/replaced underneath us.

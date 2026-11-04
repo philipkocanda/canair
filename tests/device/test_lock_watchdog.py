@@ -1,4 +1,4 @@
-"""Tests for canlib.lock_watchdog — a session standing down when the mutex is taken.
+"""Tests for canlib.device.lock_watchdog — a session standing down when the mutex is taken.
 
 An orphaned session (terminal gone, no hangup ever delivered) otherwise holds the
 device's single connection indefinitely. Since canair never kills another
@@ -9,8 +9,8 @@ import os
 import signal
 import time
 
-from canlib.lock import WiCANLock
-from canlib.lock_watchdog import LockWatchdog, _default_on_lost
+from canlib.device.lock import WiCANLock
+from canlib.device.lock_watchdog import LockWatchdog, _default_on_lost
 
 
 class TestCheckOnce:
