@@ -193,7 +193,7 @@ class QueuedChannel:
     """A fake byte channel with a queue of chunks, independent of how many sends.
 
     One layer *below* :class:`FakeTerminal`: this drives the real
-    :class:`~canlib.transport.elm327_terminal.Elm327Terminal` engine, so tests can
+    :class:`~canlib.transport.elm327.terminal.Elm327Terminal` engine, so tests can
     exercise prompt accounting, resync and request framing rather than stubbing
     them out. Unlike a reply-per-send fake it can express the situations those
     features exist for — one command with *two* prompt-terminated blocks already

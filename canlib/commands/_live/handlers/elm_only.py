@@ -2,7 +2,7 @@
 
 An ELM327 command prompt depends on behaviour the raw SLCAN terminal does not provide (it uses
 ``set_header()``, not ``ATSH`` parsing), so it guards on the shared
-:class:`~canlib.transport.elm327_terminal.Elm327Terminal` engine and reports a clear error on
+:class:`~canlib.transport.elm327.terminal.Elm327Terminal` engine and reports a clear error on
 ``slcan-tcp`` rather than half-working.
 """
 
@@ -11,7 +11,7 @@ from __future__ import annotations
 import sys
 
 from canlib.modes import mode_interactive
-from canlib.transport.elm327_terminal import Elm327Terminal
+from canlib.transport.elm327.terminal import Elm327Terminal
 from canlib.transport.protocol import Terminal
 
 

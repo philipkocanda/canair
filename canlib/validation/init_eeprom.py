@@ -1,14 +1,14 @@
 """Warnings for ``init`` commands that wear the ELM327 adapter's EEPROM.
 
 The init is sent on every connect, so a command in it that writes the adapter's
-EEPROM is written again each time (see :mod:`canlib.transport.elm327_eeprom`).
+EEPROM is written again each time (see :mod:`canlib.transport.elm327.eeprom`).
 ``AT SP h`` and ``AT M1`` are not reported: canair sends them as ``AT TP h`` and
 ``AT M0``, and both WiCAN firmware generations do the same for AutoPID.
 """
 
 from __future__ import annotations
 
-from canlib.transport.elm327_eeprom import ram_only, writes_eeprom
+from canlib.transport.elm327.eeprom import ram_only, writes_eeprom
 
 
 def init_eeprom_warnings(init: object) -> list[str]:

@@ -1,8 +1,8 @@
 """Transport diagnostics — per-exchange outcome counting (drops/errors/decode).
 
-Every request client (:class:`~canlib.transport.wican_terminal.WiCANTerminal`,
-:class:`~canlib.transport.raw_terminal.RawTerminal`,
-:class:`~canlib.transport.uds_raw.RawUdsClient`) already keeps a
+Every request client (:class:`~canlib.transport.elm327.wican.WiCANTerminal`,
+:class:`~canlib.transport.raw.terminal.RawTerminal`,
+:class:`~canlib.transport.raw.uds_client.RawUdsClient`) already keeps a
 :class:`~canlib.transport.timing.TimingRecorder` (``.timings``); this is the sibling that
 counts *outcomes* rather than *latency*. Each completed UDS exchange is
 classified (:func:`canlib.uds.response.classify_response`) into an outcome bucket
@@ -35,7 +35,7 @@ from canlib.uds.response import (
 def classify_raw_value(value) -> str:
     """Classify a raw poll result (``bytes`` / ``Exception`` / ``None``).
 
-    The pipelined raw-CAN client (:class:`~canlib.transport.uds_raw.RawUdsClient`)
+    The pipelined raw-CAN client (:class:`~canlib.transport.raw.uds_client.RawUdsClient`)
     returns reassembled bytes, an ``Exception`` (per-request failure), or
     ``None``/``TimeoutError`` (no answer) — it does not go through
     :func:`parse_uds_response`. Map those to the same taxonomy so raw-path drops

@@ -49,7 +49,7 @@
     "canlib.modes.routines": 676,
     "canlib.profile": 705,
     "canlib.states": 987,
-    "canlib.transport.elm327_terminal": 836,
+    "canlib.transport.elm327.terminal": 835,
     "canlib.uds.byteindex": 541,
     "canlib.validation.pids": 1849,
     "canlib.variants.revisions": 770,

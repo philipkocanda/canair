@@ -12,10 +12,11 @@ seam). The fake's conformance is what would have caught the divergent
 
 import pytest
 
-from canlib.transport import Terminal, raw_terminal
-from canlib.transport import slcan_tcp as slcan_mod
+from canlib.transport import Terminal
+from canlib.transport.elm327.wican import WiCANTerminal
 from canlib.transport.link_latency import LinkLatency
-from canlib.transport.wican_terminal import WiCANTerminal
+from canlib.transport.raw import slcan_tcp as slcan_mod
+from canlib.transport.raw import terminal as raw_terminal
 from tests.support.fakes import FakeTerminal
 
 
@@ -60,7 +61,7 @@ def test_elm327_tcp_terminal_satisfies_protocol():
     # The third transport. It was absent from this module entirely, which is how
     # it shipped with a connect() missing the timeout/settle/drain its WebSocket
     # twin had — isinstance only checks method *presence*, never signatures.
-    from canlib.transport.elm327_tcp import Elm327TcpTerminal
+    from canlib.transport.elm327.tcp import Elm327TcpTerminal
 
     assert isinstance(Elm327TcpTerminal("h", 35000), Terminal)
 
@@ -70,7 +71,7 @@ def test_elm327_tcp_terminal_satisfies_protocol():
     [
         lambda: WiCANTerminal(host="10.0.2.86"),
         lambda: __import__(
-            "canlib.transport.elm327_tcp", fromlist=["Elm327TcpTerminal"]
+            "canlib.transport.elm327.tcp", fromlist=["Elm327TcpTerminal"]
         ).Elm327TcpTerminal("h", 35000),
     ],
     ids=["wican-ws", "elm327-tcp"],

@@ -34,7 +34,7 @@ from canlib.interop.autopid.profile import (
     ShippedProfile,
     make_pid_init,
 )
-from canlib.transport.elm327_addressing import elm_id
+from canlib.transport.elm327.addressing import elm_id
 
 ROW_TYPE = "specific"
 GROUP = "default"

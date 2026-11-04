@@ -75,7 +75,7 @@ ELM path (`commands/_live/runtime.py::async_main`) and the raw path (`modes/raw_
 
 Diagnostics (request/response UDS/KWP2000, decoded via `ecus/` params) is mature; the raw broadcast
 domain (`canair sniff`/`import can`/`correlate can`, `signals/<bus>.yaml`, `captures/can/`) is
-younger but **parallel, not bolted on**. `SlcanTcpBus` (`transport/slcan_tcp.py`) is a clean,
+younger but **parallel, not bolted on**. `SlcanTcpBus` (`transport/raw/slcan_tcp.py`) is a clean,
 vehicle-neutral `can.BusABC` — the seam to build on. Keep the domains symmetric:
 
 - **Capture parity** — frame captures go through the shared capture/journal machinery (scoped,

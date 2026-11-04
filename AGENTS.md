@@ -225,9 +225,9 @@ and **`g`/`G` address the view's primary axis**.
   `check_command_safety` applies the same allow-list to *every* request sent to an unregistered
   functional id, so `raw 7DF:…` and the REPL cannot broadcast a state change either; reception is
   `Terminal.send_functional` over the pure collector `canlib/transport/functional.py` (raw:
-  `functional_raw.py` flow-controls only a First Frame that answers the request, sent to the
+  `raw/functional.py` flow-controls only a First Frame that answers the request, sent to the
   responder's *physical* id via `addressing.physical_request_id`, and times each responder on its
-  own N_Cr under an absolute cap; ELM: `elm327_functional.py` brackets the request with
+  own N_Cr under an absolute cap; ELM: `elm327/functional.py` brackets the request with
   `ATH1`/`ATH0` in one transaction, tracked by `AdapterState.headers`, and opens the receive
   filter with `ATCF`/`ATCM` for it, since the auto filter behind `0x7DF` passes only
   `0x7E8`–`0x7EF`); classification is `canlib/modes/functional_sweep.py`. CAN-FD and
@@ -650,7 +650,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   ~614 ms budget. Safe by default only because the **firmware has no desync recovery** — it
   accumulates into one static buffer cleared only *after* a parse, so an undercount's queued tail
   would silently prefix the next PID's response — so the emit path goes through
-  `elm327_frame_count.requestable()` and skips anything unproven, `variable_length`, over the
+  `elm327/frame_count.py::requestable()` and skips anything unproven, `variable_length`, over the
   9-frame ceiling, or on an odd-length request. `autopid stats` shows a `Frames` column so you can
   see which PIDs have earned one. **A signal with `send_to: TOPIC` streams to that MQTT topic on
   every poll** (emitted as `type: MQTT_Topic`; rule in
@@ -1009,8 +1009,8 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     (`tx_id + rx_offset`, default `0x08`; may be **negative** — PSA `-0x20`). Resolver
     `canlib/uds/addressing.py`
     (`resolve_mode`/`resolve_rx`/`resolve_ecu_address`/`AddressBook`/`build_isotp_address`), with
-    the flow-control address override in `canlib/transport/isotp_stack.py` (raw path) and the
-    ELM327 receive filter/flow control in `canlib/transport/elm327_addressing.py`.
+    the flow-control address override in `canlib/transport/raw/isotp_stack.py` (raw path) and the
+    ELM327 receive filter/flow control in `canlib/transport/elm327/addressing.py`.
   - **`isotp:`** — client-side ISO-TP tuning for `slcan-tcp` (padding, blocksize, stmin, timeouts,
     CAN-FD); defaults in `canlib/transport/isotp_params.py`. `tx_padding` is what canair sends
     (raw path only; an ELM327 pads its own requests); `rx_padding` (defaulting to `tx_padding`)
@@ -1161,7 +1161,7 @@ scales `rx_flowcontrol_timeout`/`rx_consecutive_frame_timeout`, `RawUdsClient._b
 per-request deadline (a caller-forced `--timeout` is an instruction, not a budget, so it is
 untouched), and `Elm327Terminal._resync` the quiet window. Two once-per-session INFO hints are
 derived from it rather than from a hostname heuristic: `isotp_params._warn_blocksize_cost` and
-`uds_raw._hint_transport_choice`. User-facing guidance:
+`raw/uds_client.py::_hint_transport_choice`. User-facing guidance:
 `docs/concepts/remote-and-cellular.md`; plan `plans/2026-08-08-high-latency-link-hardening.md`.
 
 Two config keys back this: `transport.ws_ping_interval` (default 20s, `0` disables) makes a dead
@@ -1173,7 +1173,7 @@ answered coherently (an **NRC counts as answered**: the reply landed in the righ
 **An ELM327 request's odd-length final nibble is an expected-response-frame count**, and supplying
 it is the dominant per-read win on the ELM327 transports (measured ~206→53 ms on a WiCAN Pro,
 variance collapsing too) because the adapter stops waiting out its `ATST` budget to be sure no
-further frame is coming. `canlib/transport/elm327_frame_count.py` owns the whole policy —
+further frame is coming. `canlib/transport/elm327/frame_count.py` owns the whole policy —
 `FrameCountCache` the learned counts, `CountAttempt`/`CountVerdict` the per-request decision — while
 `Elm327Terminal.send_uds` keeps only the I/O; `transport.expected_responses` (default true) is the
 kill switch. **The count is learned, never guessed** — and the asymmetry is the whole design: an
@@ -1235,10 +1235,10 @@ makes a cold first read fast instead of paying one plain read per PID to re-lear
   unrelated pre-existing breakage in the same file.
 - **The raw `slcan-tcp` path participates too**, but must *derive* the count: `parse_uds_response`
   counts response *lines* and the raw stack hands it one already-reassembled message, so every raw
-  read reported `isotp_frame_count: 1` until `raw_terminal.send_uds` began computing
+  read reported `isotp_frame_count: 1` until `raw/terminal.py::send_uds` began computing
   `frames_for_payload(len(resp_bytes))` (classic CAN only — CAN-FD carries up to 64 B/frame). It has
   no digit to hold, so its evidence is only ever `observe()`.
-- **`requestable()`/`annotate_request()` in `canlib/transport/elm327_frame_count.py` are the single
+- **`requestable()`/`annotate_request()` in `canlib/transport/elm327/frame_count.py` are the single
   home for the wire rules** — even-length request, `1..MAX_REQUESTABLE_FRAMES`, never clamped — read
   by both the live transport and `interop/autopid/profile.py::request_with_count`, so the two cannot disagree.
 
@@ -1258,30 +1258,30 @@ default `slcan-tcp`. Registry-driven — each is a `TransportSpec` in
 
 - **`slcan-tcp`** (default, `raw=True`) — raw SLCAN over TCP; canair runs client-side ISO-TP/UDS
   (pipelined). Works on any WiCAN (Pro *and* classic) or gateway; also powers `canair sniff`.
-  Backend `RawTerminal` (`canlib/transport/raw_terminal.py`) over `SlcanTcpBus`.
+  Backend `RawTerminal` (`canlib/transport/raw/terminal.py`) over `SlcanTcpBus`.
 - **`wican-ws`** (Pro-only, `raw=False`) — ELM327 terminal over the WiCAN's `ws://host/ws`; the
-  dongle does ISO-TP. Backend `WiCANTerminal` (`canlib/transport/wican_terminal.py`).
+  dongle does ISO-TP. Backend `WiCANTerminal` (`canlib/transport/elm327/wican.py`).
 - **`elm327-tcp`** (`raw=False`, `wican_http=False`) — a **generic ELM327 adapter over a plain TCP
   socket**: WiFi clones (Kiwi, vLinker, OBDLink) and the ELM327-Emulator's `-n` mode. No WiCAN, no
   HTTP config API. Backend `Elm327TcpTerminal` over a `TcpChannel`; default port 35000.
 
 **Shared ELM327 engine.** The protocol logic lives once in `Elm327Terminal`
-(`canlib/transport/elm327_terminal.py`), driven by a swappable async byte `Channel`
-(`canlib/transport/channel.py`: `WebSocketChannel` for the WiCAN, `TcpChannel` for a clone).
-`WiCANTerminal` (`canlib/transport/wican_terminal.py`) and `Elm327TcpTerminal`
-(`canlib/transport/elm327_tcp.py`) are thin subclasses wiring their channel — a new ELM327 wire
+(`canlib/transport/elm327/terminal.py`), driven by a swappable async byte `Channel`
+(`canlib/transport/elm327/channel.py`: `WebSocketChannel` for the WiCAN, `TcpChannel` for a clone).
+`WiCANTerminal` (`canlib/transport/elm327/wican.py`) and `Elm327TcpTerminal`
+(`canlib/transport/elm327/tcp.py`) are thin subclasses wiring their channel — a new ELM327 wire
 (e.g. serial) is a new `Channel`, not a
 duplicated engine. **The engine keeps the I/O; four sibling modules own the stateful policies it
 used to inline**, each exercisable with no channel at all — so put new protocol policy in a sibling,
 not in the terminal:
-- **`canlib/transport/elm327_pipe.py::ResponsePipe`** — the `>`-prompt ledger (owed prompts,
+- **`canlib/transport/elm327/pipe.py::ResponsePipe`** — the `>`-prompt ledger (owed prompts,
   carry-over of a half-arrived block, the dirty-pipe flag, ResponsePending). `carry` deliberately
   *prefixes* the next collection, so a reply whose prompt merely arrived late is reassembled whole.
-- **`canlib/transport/elm327_frame_count.py`** — the expected-response-count digit:
+- **`canlib/transport/elm327/frame_count.py`** — the expected-response-count digit:
   `FrameCountCache` (learn/opt-out) plus `CountAttempt`/`CountVerdict`, the per-request decision
   procedure. See the frame-count paragraph under WiCAN Access for the four rules a change here must
   not break.
-- **`canlib/transport/elm327_addressing.py`** — what `set_header` sends: `AdapterState` caches the
+- **`canlib/transport/elm327/addressing.py`** — what `set_header` sends: `AdapterState` caches the
   adapter's header, flow-control and receive-filter state (observing *every* command, so a mode's
   direct `ATSH` cannot desync it) and plans the commands to reach an ECU's `ElmTarget`. A
   *conventional* ECU (11-bit `tx + 0x08`, fixed-29-bit swap) keeps the filter the profile `init`
@@ -1298,11 +1298,11 @@ not in the terminal:
   resync, a reset banner and an idle gap (a WiCAN's AutoPID resumes after 10 s) all make the cache
   restate. AutoPID generation uses the same policy.
   Plan `plans/2026-10-20-elm327-ecu-addressing.md`.
-- **`canlib/transport/elm327_session.py::enter_extended_session`** — session open, the wake ritual,
-  the TesterPresent keepalive loop. **`canlib/transport/raw_terminal.py` has its own, divergent
+- **`canlib/transport/elm327/session.py::enter_extended_session`** — session open, the wake ritual,
+  the TesterPresent keepalive loop. **`canlib/transport/raw/terminal.py` has its own, divergent
   copy** (shorter timeout, no retry, an unvalidated + exception-swallowed keepalive); unifying them
   changes raw-path behaviour, so it is a deliberate open item, not shared code you can assume.
-- **`canlib/transport/elm327_eeprom.py`** — what `init_elm` sends so a connect never writes the
+- **`canlib/transport/elm327/eeprom.py`** — what `init_elm` sends so a connect never writes the
   chip's EEPROM (~10,000-write rating): `ATM0` after every reset, every `ATSP h` as `ATTP h`.
   4.52p and generic adapters pass both through unchanged. Never send an init or a protocol
   selection around `init_commands`/`ram_only`; `validate pids` warns about init commands that still

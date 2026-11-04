@@ -12,7 +12,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from canlib.transport import elm327_session, keepalive
+from canlib.transport import keepalive
+from canlib.transport.elm327 import session as elm327_session
 from canlib.transport.session_manager import SessionManager
 from canlib.uds.nrc import NRC_SERVICE_NOT_SUPPORTED
 from tests.support.fakes import FakeTerminal, nrc, ok

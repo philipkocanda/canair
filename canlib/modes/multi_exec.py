@@ -21,13 +21,13 @@ from canlib.privacy.sensitive import MASK, request_hidden
 from canlib.query import QueryError, inferred_request, pids_named_by
 from canlib.query.steps import resolve_tx_id
 from canlib.safety.actuation import on_refusal
+from canlib.transport.elm327.terminal import Elm327Terminal
 from canlib.transport.session_manager import SessionManager
 from canlib.uds.describe import decode_uds_response
 from canlib.uds.echo import request_echo
 from canlib.uds.response import UdsResponse
 
 from ..formatting import print_ecu_results, print_hexdump
-from ..transport.elm327_terminal import Elm327Terminal
 from ._iocontrol_actuate import send_iocontrol
 from .multi_batch import (
     LEAKED_BATCH_ERROR,

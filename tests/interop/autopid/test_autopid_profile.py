@@ -17,7 +17,7 @@ from canlib.interop.autopid.profile import (
     with_flow_control,
 )
 from canlib.interop.autopid.send_to import topic_problem
-from canlib.transport.elm327_addressing import AdapterState, target_in
+from canlib.transport.elm327.addressing import AdapterState, target_in
 from canlib.uds.addressing import AddressBook
 
 

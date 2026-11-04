@@ -177,7 +177,7 @@ the firmware source** — they come from the chip. Firmware matches `VTVERS`'s r
 
 > `OBDLink MX` is the *emulator's* `ATI` string (`wican-fw/main/elm327.c:71`), which is not
 > compiled on Pro — never expect it from a WiCAN Pro. (canair's resync comment once claimed
-> otherwise; fixed in `canlib/transport/elm327_terminal.py`.)
+> otherwise; fixed in `canlib/transport/elm327/terminal.py`.)
 
 ## The two paths to the vehicle bus — the fact that matters most
 
@@ -195,7 +195,7 @@ canair ── WiFi ── ESP32-S3 ─┤     (elm327, auto_pid)
 |---|---|---|
 | Device mode | `elm327`, `auto_pid` | `slcan` |
 | Silicon on the bus | **MIC3624** | **ESP32-S3 TWAI** |
-| ISO-TP done by | the chip | **canair** (`canlib/transport/isotp_stack.py`) |
+| ISO-TP done by | the chip | **canair** (`canlib/transport/raw/isotp_stack.py`) |
 | ESP32 TWAI state | **disabled** | enabled |
 
 **Under `auto_pid`/`elm327` the TWAI controller is not idle — it is off.** `can_enable()` is
@@ -575,7 +575,7 @@ therefore saves **one** command per ECU switch, not two. Multi-frame reassembly 
 `ATFCSH`, so the STN answers flow control from the received first frame's address.
 
 **canair sets the receive filter and flow control itself, per ECU**
-(`canlib/transport/elm327_addressing.py`, applied by `Elm327Terminal.set_header`). The datasheet
+(`canlib/transport/elm327/addressing.py`, applied by `Elm327Terminal.set_header`). The datasheet
 facts it rests on: `ATFCSH` is honoured **only in flow-control mode 1** (`ATFCSM1`), and the adapter
 rejects `ATFCSM1` with `?` until both `ATFCSH` and `ATFCSD` are set. In the default mode 0 the
 adapter derives the flow-control id from the First Frame by the ISO convention, so the `ATFCSH`
@@ -611,7 +611,7 @@ flow control only in answer to a First Frame. Plan: `plans/2026-10-20-elm327-ecu
 > time it is sent, whatever `ATM` says, and with the memory function on (`ATM1`, the STN2120's
 > state after every reset) even an `ATTP h` the next request validates is stored. The EEPROM is
 > rated for about 10,000 writes, and the init runs on every connect, so `init_elm` sends `ATM0`
-> after each reset and every `ATSP` as `ATTP` (`canlib/transport/elm327_eeprom.py`). 4.52p passes
+> after each reset and every `ATSP` as `ATTP` (`canlib/transport/elm327/eeprom.py`). 4.52p passes
 > both to the chip unchanged (it only swaps `ATZ` for `ATWS`); v6 rewrites them itself, and only
 > from `beta.7` on also switches the memory function off. In `canair repl`, prefer `ATTP`.
 

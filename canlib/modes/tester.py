@@ -3,8 +3,8 @@
 import asyncio
 from datetime import datetime
 
-from ..transport.elm327_addressing import FUNCTIONAL_11BIT_ID
-from ..transport.elm327_terminal import Elm327Terminal
+from canlib.transport.elm327.addressing import FUNCTIONAL_11BIT_ID
+from canlib.transport.elm327.terminal import Elm327Terminal
 
 
 def parse_target(target: str | None) -> int | None:

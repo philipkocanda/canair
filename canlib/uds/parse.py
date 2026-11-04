@@ -110,7 +110,7 @@ def _is_request_echo(data_lines: list[str], request: str | None) -> bool:
     repeats each command before its reply. With the request known, only a line
     *equal to it* is an echo — spaces and case aside, and optionally followed by the
     one-digit expected-frame count canair appends
-    (:func:`canlib.transport.elm327_frame_count.annotate_request`). A positive reply
+    (:func:`canlib.transport.elm327.frame_count.annotate_request`). A positive reply
     starts with SID + 0x40 and a negative one with ``7F``, so no reply can equal its
     request; a guess by first byte could not say the same, since the bare ISO-TP
     length token that opens a multi-frame reply with echo off (``017``, ``117``) and
@@ -305,7 +305,7 @@ def parse_uds_response(
 
     Args:
         raw: Raw response text — ELM327 terminal output, or the hex line
-            :class:`~canlib.transport.raw_terminal.RawTerminal` formats from the
+            :class:`~canlib.transport.raw.terminal.RawTerminal` formats from the
             reassembled ISO-TP payload.
         expected_sid: If set, the response must answer this request SID: a positive
             one starts with ``expected_sid + 0x40`` and a negative one names it as
@@ -366,7 +366,7 @@ def parse_uds_response(
 
     # How many frames the adapter actually handed back. This is the ground truth
     # the ELM327 expected-response-count optimization validates its learned count
-    # against (see canlib/transport/elm327_frame_count.py); recorded before the
+    # against (see canlib/transport/elm327/frame_count.py); recorded before the
     # truncation checks below so a short read still reports what did arrive.
     result["isotp_frame_count"] = frame_count
 

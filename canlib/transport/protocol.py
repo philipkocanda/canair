@@ -1,8 +1,8 @@
 """The ``Terminal`` protocol — the async surface every transport exposes.
 
 canair reaches the CAN bus through one of two transports
-(:class:`canlib.transport.wican_terminal.WiCANTerminal` over the WebSocket ELM327 terminal,
-:class:`canlib.transport.raw_terminal.RawTerminal` over raw SLCAN + client-side
+(:class:`canlib.transport.elm327.wican.WiCANTerminal` over the WebSocket ELM327 terminal,
+:class:`canlib.transport.raw.terminal.RawTerminal` over raw SLCAN + client-side
 ISO-TP), and every live operation runs through the shared
 :func:`canlib.modes.session.run_session_guarded` against *this surface only*. Typing
 the seam against :class:`Terminal` — rather than a concrete class — is the

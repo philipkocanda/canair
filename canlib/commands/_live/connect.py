@@ -10,8 +10,8 @@ from __future__ import annotations
 import contextlib
 
 from canlib.transport.config import ConnectionOptions
+from canlib.transport.elm327.wican import WiCANTerminal
 from canlib.transport.protocol import Terminal
-from canlib.transport.wican_terminal import WiCANTerminal
 
 
 def _print_sleep_banner(host: str, timeout: int = 5) -> None:
@@ -67,7 +67,7 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
     """Construct, connect, and ELM-initialise the ELM327 terminal for ``transport``.
 
     Builds a :class:`WiCANTerminal` (WebSocket) for ``wican-ws`` or a
-    :class:`~canlib.transport.elm327_terminal.Elm327TcpTerminal` (plain TCP) for
+    :class:`~canlib.transport.elm327.terminal.Elm327TcpTerminal` (plain TCP) for
     ``elm327-tcp`` — the ELM init + ATST response-timeout + per-ECU budgets are
     identical because they live in the shared engine. The single build path
     shared by the initial connect (``async_main``) and the monitor's mid-session
@@ -78,7 +78,7 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
     from canlib.response_frames import seed_counts, variable_length_keys
     from canlib.safety.blocklist import SessionPolicy
     from canlib.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal, Elm327Terminal
-    from canlib.transport.elm327_addressing import flow_control_data
+    from canlib.transport.elm327.addressing import flow_control_data
     from canlib.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
     from canlib.uds.addressing import AddressBook
 

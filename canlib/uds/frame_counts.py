@@ -29,7 +29,7 @@ a stale count is the one that corrupts readings, so a contradicted key is retire
 and its stored value cleared.
 
 Deliberately transport-neutral and dependency-free — the ELM327 digit policy
-(what to *ask for*) lives in ``canlib/transport/elm327_frame_count.py``, while
+(what to *ask for*) lives in ``canlib/transport/elm327/frame_count.py``, while
 this records only what the wire *showed*.
 """
 

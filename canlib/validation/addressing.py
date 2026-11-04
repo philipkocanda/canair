@@ -2,7 +2,7 @@
 
 canair sets each ECU's header, flow control and receive filter itself, from the
 profile's ``addressing:`` and the per-ECU ``rx_id``/``fc_id`` (see
-:mod:`canlib.transport.elm327_addressing`). These checks catch a profile that works
+:mod:`canlib.transport.elm327.addressing`). These checks catch a profile that works
 against that: an ``init:`` string that sets the same things session-wide, a
 functional-request ECU with no physical flow-control id, ECUs that share a request id
 but not an address, and an init protocol whose
@@ -16,7 +16,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from canlib.transport.elm327_addressing import is_functional_id
+from canlib.transport.elm327.addressing import is_functional_id
 from canlib.uds.addressing import (
     AddressingMode,
     is_extended,

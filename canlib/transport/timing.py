@@ -1,8 +1,8 @@
 """Per-(ECU, PID) round-trip timing — lightweight request instrumentation.
 
-Every request client (:class:`~canlib.transport.wican_terminal.WiCANTerminal`,
-:class:`~canlib.transport.raw_terminal.RawTerminal`,
-:class:`~canlib.transport.uds_raw.RawUdsClient`) already measures per-command
+Every request client (:class:`~canlib.transport.elm327.wican.WiCANTerminal`,
+:class:`~canlib.transport.raw.terminal.RawTerminal`,
+:class:`~canlib.transport.raw.uds_client.RawUdsClient`) already measures per-command
 elapsed time; this keeps a small per-``(ecu, pid)`` aggregate so slow PIDs/ECUs
 can be surfaced (``canair read --timings``) and used to validate timeout /
 pipeline changes. Purely additive and cheap — a dict update per request, no

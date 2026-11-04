@@ -18,7 +18,7 @@ import asyncio
 import re
 import time
 
-from ..transport.elm327_terminal import Elm327Terminal
+from canlib.transport.elm327.terminal import Elm327Terminal
 
 # SKM relay control DIDs
 SKM_RELAYS = {

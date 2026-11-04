@@ -23,14 +23,14 @@ from canlib.interop.autopid.classes import autopid_class
 from canlib.interop.autopid.send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
 from canlib.privacy.sensitive import param_sensitive
 from canlib.response_frames import stored_count
-from canlib.transport.elm327_addressing import (
+from canlib.transport.elm327.addressing import (
     AUTO,
     elm_id,
     flow_control_data,
     pinned_target,
     target_for,
 )
-from canlib.transport.elm327_frame_count import annotate_request, requestable
+from canlib.transport.elm327.frame_count import annotate_request, requestable
 from canlib.uds.addressing import EcuAddress, resolve_ecu_address
 
 

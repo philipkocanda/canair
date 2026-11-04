@@ -15,6 +15,7 @@ import pytest
 from canlib.modes.monitor import MonitorController
 from canlib.safety.blocklist import SafetyBlocked, SessionPolicy
 from canlib.transport.config import ConnectionOptions
+from canlib.transport.raw import uds_client as uds_raw
 from canlib.uds.addressing import EcuAddress
 from canlib.uds.protocol import KWP
 
@@ -141,7 +142,6 @@ class TestRawUdsClientGuard:
     """The pipelined client checks every request itself, so no caller can bypass it."""
 
     def _client(self, monkeypatch, policy=None):
-        from canlib.transport import uds_raw
         from tests.support.uds_raw import FakeNotifier, FakeStack
 
         table = {(0x7E4, bytes.fromhex("1082")): bytes.fromhex("5082")}
@@ -182,7 +182,7 @@ class TestRawUdsClientGuard:
 
     def test_build_raw_client_wires_the_profile_policy(self, monkeypatch):
         from canlib.modes import raw_monitor
-        from canlib.transport import slcan_tcp
+        from canlib.transport.raw import slcan_tcp
 
         seen = {}
 
@@ -233,7 +233,7 @@ class TestRefusalIsReportedNotRaised:
     def test_a_blocked_iocontrol_session_mode_surfaces_as_safety_blocked(self):
         """The ValueError the terminal raises is the dedicated, catchable type."""
         from canlib.modes.iocontrol import mode_iocontrol_execute
-        from canlib.transport.raw_terminal import RawTerminal
+        from canlib.transport.raw.terminal import RawTerminal
 
         term = RawTerminal.__new__(RawTerminal)
         term.unsafe = False

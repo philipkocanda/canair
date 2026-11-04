@@ -1,7 +1,7 @@
 """Client-side ISO-TP parameters, profile-configurable.
 
-Both raw-CAN clients (:class:`~canlib.transport.raw_terminal.RawTerminal` and
-:class:`~canlib.transport.uds_raw.RawUdsClient`) drive the bus with python-can +
+Both raw-CAN clients (:class:`~canlib.transport.raw.terminal.RawTerminal` and
+:class:`~canlib.transport.raw.uds_client.RawUdsClient`) drive the bus with python-can +
 ``can-isotp``. The ISO-TP flow-control / padding / CAN-FD parameters used to be
 hard-coded identically in both; they now live here so the two clients share one
 definition *and* a profile can override them per vehicle.

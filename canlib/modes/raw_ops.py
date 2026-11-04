@@ -8,7 +8,7 @@ in ``slcan`` mode — we verify and error clearly, never switch.
   across ECUs + per-ECU multi-DID batching).
 - Everything else (query, raw, scan, discover, identity, iocontrol, routines,
   and the ``*-scan`` probers) runs the command's operation, as on the ELM path, over a
-  :class:`~canlib.transport.raw_terminal.RawTerminal` adapter, which speaks
+  :class:`~canlib.transport.raw.terminal.RawTerminal` adapter, which speaks
   ISO-TP under the same ``set_header`` / ``send_uds`` interface the modes expect.
 """
 
@@ -111,7 +111,7 @@ async def run_raw(
     """Entry point for a live command over a raw (slcan-tcp) transport.
 
     ``monitor`` selects the pipelined monitor backend; ``operation`` runs everything else
-    over a :class:`~canlib.transport.raw_terminal.RawTerminal`. ``candidates`` are the devices
+    over a :class:`~canlib.transport.raw.terminal.RawTerminal`. ``candidates`` are the devices
     a monitor may re-home to.
     """
     from canlib.device.wican.mode import ModeError

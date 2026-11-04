@@ -22,13 +22,13 @@ be type-checked. Keep it that way — it must stay free of side effects.
 
 from __future__ import annotations
 
-from canlib.transport.wican_terminal import WiCANTerminal
+from canlib.transport.elm327.channel import Channel, TcpChannel, WebSocketChannel
+from canlib.transport.elm327.tcp import Elm327TcpTerminal
+from canlib.transport.elm327.terminal import Elm327Terminal
+from canlib.transport.elm327.wican import WiCANTerminal
+from canlib.transport.raw.terminal import RawTerminal
 
-from .channel import Channel, TcpChannel, WebSocketChannel
-from .elm327_tcp import Elm327TcpTerminal
-from .elm327_terminal import Elm327Terminal
 from .protocol import Terminal
-from .raw_terminal import RawTerminal
 
 
 def _static_conformance(

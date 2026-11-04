@@ -19,9 +19,9 @@ from canlib.commands import discover as discover_cmd
 from canlib.ecus.pids import clear_cache
 from canlib.modes.functional_sweep import classify_round, group_by_bus, round_to_capture
 from canlib.safety.blocklist import SafetyBlocked, check_functional_request
-from canlib.transport.elm327_addressing import AdapterState
-from canlib.transport.elm327_functional import elm_functional_exchange, parse_header_lines
-from canlib.transport.elm327_terminal import Elm327Terminal
+from canlib.transport.elm327.addressing import AdapterState
+from canlib.transport.elm327.functional import elm_functional_exchange, parse_header_lines
+from canlib.transport.elm327.terminal import Elm327Terminal
 from canlib.transport.functional import (
     DEFAULT_WINDOW_S,
     FunctionalCollector,
@@ -29,7 +29,7 @@ from canlib.transport.functional import (
     FunctionalResult,
     single_frame,
 )
-from canlib.transport.functional_raw import raw_functional_exchange
+from canlib.transport.raw.functional import raw_functional_exchange
 from canlib.uds.addressing import EcuAddress, physical_request_id
 from tests.support.fakes import FakeTerminal, QueuedChannel
 

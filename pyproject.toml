@@ -419,3 +419,11 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = []
+
+[[tool.importlinter.contracts]]
+name = "The ELM327 and raw transports are independent"
+type = "independence"
+modules = [
+    "canlib.transport.elm327",
+    "canlib.transport.raw",
+]
