@@ -118,3 +118,46 @@ jobs:
         # The explorer's analysis maths (docs/assets/explorer/analysis.js) is pure and
         # dependency-free, so Node's built-in runner covers it; Node ships on the runner.
         run: node --test tests/js/analysis.test.js
+
+  wheel:
+    # CI otherwise tests the checkout only, so a file missing from the wheel would be found by
+    # a user. Build the wheel, install it into a clean environment away from the checkout and
+    # run the commands a new user runs first.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+
+      - name: Build the wheel
+        run: uv build --wheel --out-dir dist
+
+      - name: The wheel holds the package and its bundled data, and nothing at the top level
+        run: |
+          python3 - <<'PY'
+          import glob, zipfile
+          names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
+          top = {n.split("/")[0] for n in names if not n.split("/")[0].endswith(".dist-info")}
+          assert top == {"canair"}, f"unexpected top-level entries: {sorted(top)}"
+          for needed in (
+              "canair/_bundled/config.example.yaml",
+              "canair/_bundled/templates/profile.yaml.tmpl",
+              "canair/_bundled/profiles/hyundai-ioniq-ae-ev/profile.yaml",
+              "canair/schema/pids_schema.yaml",
+          ):
+              assert needed in names, f"{needed} is missing from the wheel"
+          PY
+
+      - name: Install it in a clean environment and run it
+        run: |
+          uv venv --python 3.12 "$RUNNER_TEMP/wheel-venv"
+          uv pip install --python "$RUNNER_TEMP/wheel-venv/bin/python" dist/*.whl
+          cd "$RUNNER_TEMP"
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/config" CANAIR_NO_UPDATE_CHECK=1
+          canair="$RUNNER_TEMP/wheel-venv/bin/canair"
+          "$canair" --help
+          "$canair" profile list
+          "$canair" --profile hyundai-ioniq-ae-ev validate pids
+          "$canair" config example > /dev/null
+          "$canair" profile create wheel-smoke-test --car-model "Wheel smoke test"
