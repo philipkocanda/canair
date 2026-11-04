@@ -174,7 +174,7 @@ def summary(result: Scan) -> dict:
         "deferred_internal_imports": sum(result.deferred.values()),
         "deferred_in_files": sum(1 for n in result.deferred.values() if n),
         "argparse_importers_outside_cli": len(
-            [m for m in result.argparse_importers if not m.startswith(f"{PACKAGE}.commands")]
+            [m for m in result.argparse_importers if not m.startswith(f"{PACKAGE}.cli")]
         ),
         "textual_importers_outside_tui": len(
             [m for m in result.textual_importers if not m.startswith(f"{PACKAGE}.tui")]
@@ -206,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
         f" in {data['deferred_in_files']} files"
     )
     print(f"modules over {OVERSIZED_LINES} lines: {data['modules_over_limit']}")
-    print(f"argparse outside commands/: {data['argparse_importers_outside_cli']}")
+    print(f"argparse outside cli/: {data['argparse_importers_outside_cli']}")
     print(f"textual outside tui/: {data['textual_importers_outside_tui']}")
     print(f"import cycles between units: {len(comps)}")
     for comp in comps:

@@ -385,3 +385,23 @@ modules = [
     "canlib.transport.elm327",
     "canlib.transport.raw",
 ]
+
+# The middle group is the part of the tree that still imports itself in a cycle (definitions,
+# the store, analysis, transport, validation and the editors reach into each other through
+# function-level imports). Splitting it into the layers of plans/2026-11-04-package-layout-and-
+# layering.md section 6 is the remaining work; everything outside it is already ordered.
+[[tool.importlinter.contracts]]
+name = "The layers hold"
+type = "layers"
+layers = [
+    "canlib.cli",
+    "canlib.contribute",
+    "canlib.live",
+    "canlib.actions : canlib.analysis : canlib.broadcast : canlib.captures : canlib.dtc : canlib.ecus : canlib.install : canlib.interop : canlib.migrations : canlib.privacy : canlib.profile : canlib.query : canlib.render : canlib.states : canlib.transport : canlib.validation : canlib.variants : canlib.yaml_edit",
+    "canlib.tui | canlib.device",
+    "canlib.safety",
+    "canlib.expression : canlib.uds",
+    "canlib.config",
+    "canlib.core",
+]
+ignore_imports = []
