@@ -15,7 +15,7 @@ import pytest
 from canlib import profile
 from canlib.addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET, AddressingMode
 from canlib.pids import clear_cache
-from tests._fakes import FakeTerminal, ok
+from tests.support.fakes import FakeTerminal, ok
 
 FIXED_29 = (
     'car_model: "T"\ninit: "ATSP7;"\naddressing:\n  mode: normal_fixed_29bit\n  rx_offset: 0x08\n'

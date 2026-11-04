@@ -16,7 +16,7 @@ from canlib.transport import Terminal, raw_terminal
 from canlib.transport import slcan_tcp as slcan_mod
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.wican_terminal import WiCANTerminal
-from tests._fakes import FakeTerminal
+from tests.support.fakes import FakeTerminal
 
 
 class _FakeBus:

@@ -13,8 +13,8 @@ from canlib.modes.kwp_routines_scan import (
     probe_kwp_routine_results,
 )
 from canlib.yaml_edit.pids import append_routines_block
-from tests._fakes import FakeTerminal
-from tests._fakes import ok as _ok
+from tests.support.fakes import FakeTerminal
+from tests.support.fakes import ok as _ok
 
 # ── probe: 0x33 read-only, never 0x31 ────────────────────────────────────────
 
@@ -101,7 +101,7 @@ def test_split_unknown_ecu_defaults_to_uds():
 @pytest.mark.asyncio
 async def test_a_nissan_profile_warns_that_0x33_is_unproven(capsys):
     from canlib.modes.kwp_routines_scan import mode_kwp_routines_scan
-    from tests._fakes import nrc
+    from tests.support.fakes import nrc
 
     pids = {"quirks": ["nissan_c0_session"], "ecus": {"VCM": {"tx_id": 0x797}}}
     term = FakeTerminal(default=nrc(0x31))
@@ -114,7 +114,7 @@ async def test_a_nissan_profile_warns_that_0x33_is_unproven(capsys):
 @pytest.mark.asyncio
 async def test_other_profiles_scan_without_the_warning(capsys):
     from canlib.modes.kwp_routines_scan import mode_kwp_routines_scan
-    from tests._fakes import nrc
+    from tests.support.fakes import nrc
 
     term = FakeTerminal(default=nrc(0x31))
     await mode_kwp_routines_scan(

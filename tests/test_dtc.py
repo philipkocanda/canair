@@ -7,8 +7,8 @@ import pytest
 
 from canlib.modes import dtc
 from canlib.modes.dtc import sweep as dtc_sweep
-from tests._fakes import FakeTerminal
-from tests._fakes import ok as _ok
+from tests.support.fakes import FakeTerminal
+from tests.support.fakes import ok as _ok
 
 
 class TestFormatDtc:

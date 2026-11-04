@@ -10,7 +10,7 @@ import pytest
 from canlib import can_logs
 from canlib.captures import io as capture_io
 from canlib.commands.import_uds import run
-from tests._isotp_frames import message_frames
+from tests.support.isotp_frames import message_frames
 
 BMS_TX, BMS_RX = 0x7E4, 0x7EC
 BODY = bytes(range(1, 30))

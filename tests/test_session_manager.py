@@ -6,8 +6,8 @@ import time
 import pytest
 
 from canlib.session_manager import SessionManager
-from tests._fakes import FakeTerminal
-from tests._fakes import ok as _ok
+from tests.support.fakes import FakeTerminal
+from tests.support.fakes import ok as _ok
 
 
 def MockTerminal(uds_responses=None):

@@ -10,8 +10,8 @@ from canlib.wake import (
     WakePlan,
     resolve_wake,
 )
-from tests._fakes import FakeTerminal
-from tests._fakes import ok as _ok
+from tests.support.fakes import FakeTerminal
+from tests.support.fakes import ok as _ok
 
 # ── resolve_wake ─────────────────────────────────────────────────────────────
 

@@ -13,7 +13,7 @@ import pytest
 from canlib import profile
 from canlib.modes import discover as disc
 from canlib.pids import clear_cache
-from tests._fakes import FakeTerminal as _SharedFakeTerminal
+from tests.support.fakes import FakeTerminal as _SharedFakeTerminal
 
 
 @pytest.fixture(autouse=True)

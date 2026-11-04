@@ -8,50 +8,12 @@ import pytest
 from canlib.addressing import EcuAddress
 from canlib.transport import uds_raw
 from canlib.transport.uds_raw import RawUdsClient, response_id
+from tests.support.uds_raw import FakeNotifier, FakeStack
 
 
 def _addrs(mapping: dict[str, tuple[int, int]]) -> dict[str, EcuAddress]:
     """Convert a {name: (tx, rx)} test map to {name: EcuAddress} (11-bit)."""
     return {name: EcuAddress(tx, rx) for name, (tx, rx) in mapping.items()}
-
-
-class FakeStack:
-    """Stand-in for isotp.NotifierBasedCanStack keyed by txid + request bytes."""
-
-    def __init__(self, txid, table):
-        self.txid = txid
-        self.table = table
-        self.sent = []
-        self._resp = None
-        self.started = False
-
-    def start(self):
-        self.started = True
-
-    def stop(self):
-        self.started = False
-
-    def available(self):
-        return self._resp is not None
-
-    def send(self, data, *a, **k):
-        self.sent.append(bytes(data))
-        self._resp = self.table.get((self.txid, bytes(data)))
-
-    def recv(self, block=False, timeout=None):
-        r, self._resp = self._resp, None
-        return bytearray(r) if r is not None else None
-
-
-class FakeNotifier:
-    def __init__(self, *a, **k):
-        pass
-
-    def add_listener(self, *a, **k):
-        pass
-
-    def stop(self):
-        pass
 
 
 def _client(monkeypatch, table, ecus):

@@ -1295,7 +1295,7 @@ def test_the_elm327_warmup_read_is_one_validated_transaction(monkeypatch):
     import asyncio
 
     from canlib.modes.monitor import MonitorController
-    from tests._fakes import FakeTerminal, ok
+    from tests.support.fakes import FakeTerminal, ok
 
     terminal = FakeTerminal({"22BC03": ok("62BC03AA")})
     c = MonitorController(terminal, [{"ecu": "IGPM", "pids": []}], {}, verbose=False)

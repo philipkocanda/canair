@@ -24,7 +24,7 @@ import pytest
 from canlib import profile
 from canlib.modes import discover as disc
 from canlib.pids import clear_cache
-from tests._fakes import FakeTerminal, nrc, ok
+from tests.support.fakes import FakeTerminal, nrc, ok
 
 PROFILE_YAML = 'car_model: "T"\ninit: "ATSP6;"\naddressing:\n  rx_offset: 0x20\n'
 BRAKE = "BRAKE:\n  tx_id: 0x70E\n  rx_id: 0x70F\n  identity:\n    id_protocol: KWP2000\n"

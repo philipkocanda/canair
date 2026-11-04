@@ -53,7 +53,7 @@
     "wake",
     "yaml_io"
   ],
-  "root_init_internal_imports": 11,
+  "root_init_internal_imports": 0,
   "oversized_modules": {
     "canlib.analysis.align": 934,
     "canlib.analysis.counters": 591,
@@ -137,16 +137,5 @@
     "canlib.yaml_edit",
     "canlib.yaml_edit.pids"
   ],
-  "test_to_test_imports": [
-    "tests/test_link_events.py -> test_monitor_record",
-    "tests/test_link_latency.py -> tests.test_terminal",
-    "tests/test_monitor_select.py -> test_tui_modal_access",
-    "tests/test_network_guard.py -> tests.conftest",
-    "tests/test_poll_backoff.py -> tests.test_raw_monitor",
-    "tests/test_search_haystack.py -> tests.test_search",
-    "tests/test_session_safety.py -> tests.test_uds_raw",
-    "tests/test_tui_modal_access.py -> test_captures_step",
-    "tests/test_tui_modal_access.py -> test_decode_plot",
-    "tests/test_tui_modal_access.py -> test_monitor_tui"
-  ]
+  "test_to_test_imports": []
 }

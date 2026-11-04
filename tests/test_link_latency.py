@@ -12,7 +12,7 @@ import pytest
 
 from canlib.transport.elm327_terminal import _LINK_LATENCY_MARGIN, _RESYNC_QUIET_MAX
 from canlib.transport.link_latency import _K, _MIN_SAMPLES, LinkLatency
-from tests.test_terminal import _term_prog
+from tests.support.elm_ws import term_prog as _term_prog
 
 
 class TestNoOpinionUntilMeasured:

@@ -35,8 +35,7 @@ from canlib.transport.elm327_frame_count import (
 )
 from canlib.transport.elm327_terminal import Elm327Terminal
 from canlib.uds.response import CAT_BUS, CAT_DROP, CAT_NO_DATA
-
-from ._fakes import QueuedChannel
+from tests.support.fakes import QueuedChannel
 
 # Real wire format of a live BCM 22C00B read: declared 0x017 = 23 bytes across
 # four ISO-TP frames (the body shared with tests/test_uds_parse.py).

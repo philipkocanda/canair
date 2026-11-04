@@ -8,7 +8,7 @@ import json
 import pytest
 
 from canlib.modes.param import mode_param
-from tests._fakes import FakeTerminal, ok
+from tests.support.fakes import FakeTerminal, ok
 
 
 def _pids_data() -> dict:

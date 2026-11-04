@@ -6,7 +6,7 @@ import asyncio
 from types import SimpleNamespace
 
 from canlib.modes.monitor import MonitorController
-from tests._fakes import FakeTerminal
+from tests.support.fakes import FakeTerminal
 
 
 class TestControllerDiagDelta:

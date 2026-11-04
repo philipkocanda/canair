@@ -6,6 +6,8 @@ from canlib.addressing import EcuAddress
 from canlib.modes.monitor import MonitorController, _raw_pid_result
 from canlib.modes.raw_monitor import _keep_mode, query_ecu_addresses
 from canlib.poll_backoff import PollCost
+from tests.support.raw_monitor import FakeRawClient
+from tests.support.raw_monitor import TimedRawClient as _TimedRawClient
 
 
 class _Args:
@@ -92,25 +94,6 @@ class TestRawPidResult:
     def test_empty_response(self):
         r = _raw_pid_result("2101", None, False, b"", 7.0)
         assert "empty" in r["error"]
-
-
-class FakeRawClient:
-    """Maps (ecu, request_bytes) -> response bytes (or None = timeout)."""
-
-    def __init__(self, table):
-        self.table = table
-
-    def read(self, ecu, req, timeout=None):
-        return self.table.get((ecu, bytes(req)))
-
-    def poll(self, requests, timeout=None, on_result=None):
-        out = {}
-        for e, r in requests:
-            val = self.table.get((e, bytes(r)))
-            out[(e, bytes(r))] = val
-            if on_result is not None:  # mirror the real client's incremental callback
-                on_result((e, bytes(r)), val)
-        return out
 
 
 def _mk_ctrl(steps, ecu_index, lengths=None, nobatch=None, table=None):
@@ -488,22 +471,6 @@ class TestRawBatchRepliesNeverLandUnderOneDid:
         c.raw_poller.apply_submission(sub, bytes.fromhex(self.BATCH), 0.0, by_pid)
         assert "raw_hex" not in by_pid[("IGPM", "22bc03")]
         assert c._raw_lengths[("IGPM", "BC03")] == 8
-
-
-class _TimedRawClient(FakeRawClient):
-    """A FakeRawClient whose unanswered requests each cost ``timeout_s``."""
-
-    def __init__(self, table, timeout_s=1.0):
-        super().__init__(table)
-        self.timeout_s = timeout_s
-        self.last_latency = {}
-
-    def poll(self, requests, timeout=None, on_result=None):
-        out = super().poll(requests, timeout, on_result)
-        self.last_latency = {
-            key: (self.timeout_s if val is None else 0.02) for key, val in out.items()
-        }
-        return out
 
 
 class TestSlowPidBackoff:

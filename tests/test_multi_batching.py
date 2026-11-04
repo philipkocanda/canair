@@ -26,9 +26,9 @@ from canlib.modes.multi_batch import (
     transport_did_cap,
 )
 from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
-from tests._fakes import FakeTerminal
-from tests._fakes import nrc as _nrc
-from tests._fakes import ok as _ok
+from tests.support.fakes import FakeTerminal
+from tests.support.fakes import nrc as _nrc
+from tests.support.fakes import ok as _ok
 
 # Single reads at their exact ISO-TP length, as both live transports return them.
 BC03_SINGLE = "62BC03FDEE3C730A000000"

@@ -19,8 +19,7 @@ import pytest
 from canlib.frame_counts import FrameCountLedger, frames_for_payload
 from canlib.modes.dispatch import run_session_guarded
 from canlib.yaml_edit.pids import set_response_frames
-
-from ._fakes import FakeTerminal
+from tests.support.fakes import FakeTerminal
 
 _ECU_YAML = """\
 BMS:

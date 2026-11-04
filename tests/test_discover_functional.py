@@ -31,8 +31,7 @@ from canlib.transport.functional import (
     single_frame,
 )
 from canlib.transport.functional_raw import raw_functional_exchange
-
-from ._fakes import FakeTerminal, QueuedChannel
+from tests.support.fakes import FakeTerminal, QueuedChannel
 
 # --------------------------------------------------------------------------- allow-list
 

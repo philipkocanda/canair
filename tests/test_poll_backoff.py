@@ -15,7 +15,7 @@ from canlib.poll_backoff import (
     slowdown_log_message,
     summarize_slowed,
 )
-from tests._fakes import FakeTerminal, nrc, ok
+from tests.support.fakes import FakeTerminal, nrc, ok
 
 SILENT = PollCost(reads=4, seconds=4.0, answered=0)
 SLUGGISH = PollCost(reads=2, seconds=1.6, answered=2)
@@ -319,7 +319,7 @@ class TestOnlyTheDeadPidIsSlowed:
 
     def test_raw(self):
         from canlib.modes.monitor import MonitorController
-        from tests.test_raw_monitor import _TimedRawClient
+        from tests.support.raw_monitor import TimedRawClient as _TimedRawClient
 
         table = {
             ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("62BC03FDEE3C730A000000"),

@@ -26,8 +26,7 @@ from canlib.query import (
 from canlib.transport.elm327_terminal import Elm327Terminal
 from canlib.uds.echo import request_echo
 from canlib.uds.obd import supported_pids
-
-from ._fakes import QueuedChannel
+from tests.support.fakes import QueuedChannel
 
 
 class TestExplicitToken:

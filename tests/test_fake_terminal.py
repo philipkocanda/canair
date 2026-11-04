@@ -6,7 +6,7 @@ terminals it stands in for (WiCANTerminal / RawTerminal).
 
 import pytest
 
-from tests._fakes import NO_DATA, FakeTerminal, nrc, ok
+from tests.support.fakes import NO_DATA, FakeTerminal, nrc, ok
 
 
 class TestResponseBuilders:

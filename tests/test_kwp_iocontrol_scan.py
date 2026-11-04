@@ -21,8 +21,8 @@ from canlib.modes.kwp_iocontrol_scan import (
     probe_nissan_iocontrol,
 )
 from canlib.yaml_edit.pids import append_iocontrol_discoveries_block
-from tests._fakes import FakeTerminal, nrc
-from tests._fakes import ok as _ok
+from tests.support.fakes import FakeTerminal, nrc
+from tests.support.fakes import ok as _ok
 
 # ── safety guard ─────────────────────────────────────────────────────────────
 

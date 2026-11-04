@@ -22,8 +22,7 @@ import pytest
 
 from canlib.transport.elm327_pipe import MAX_OWED_PROMPTS
 from canlib.transport.elm327_terminal import Elm327Terminal
-
-from ._fakes import QueuedChannel
+from tests.support.fakes import QueuedChannel
 
 
 def _compact(text: str) -> str:

@@ -306,8 +306,8 @@ class TestBundledIoniqIdentity:
     async def test_identity_does_not_print_the_vin(self, ioniq, monkeypatch, capsys):
         from canlib.modes import identity as ident
         from canlib.modes import identity_decode as idec
-        from tests._fakes import FakeTerminal
-        from tests._fakes import ok as _ok
+        from tests.support.fakes import FakeTerminal
+        from tests.support.fakes import ok as _ok
 
         monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "kwp")
         vin_hex = self.VIN.encode().hex().upper()

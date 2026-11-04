@@ -14,7 +14,7 @@ from canlib.modes.monitor_raw import MonitorRawPoller, _raw_pid_result
 from canlib.modes.routines import _RoutinesTUI
 from canlib.safety import SessionPolicy
 from canlib.uds.protocol import KWP, UDS
-from tests._fakes import FakeTerminal, nrc
+from tests.support.fakes import FakeTerminal, nrc
 
 
 class TestRawMonitor:

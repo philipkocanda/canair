@@ -11,7 +11,7 @@ import socket
 
 import pytest
 
-from tests.conftest import NetworkBlocked
+from tests.support.network import NetworkBlocked
 
 
 def test_sync_connect_off_loopback_is_blocked_and_recorded(_no_real_sockets):

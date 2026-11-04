@@ -17,7 +17,10 @@ from canlib.commands.search.haystack import (
     payload_rows,
     text_rows,
 )
-from tests.test_search import _cap, _payload, _run, _write
+from tests.support.search import cap as _cap
+from tests.support.search import payload as _payload
+from tests.support.search import run as _run
+from tests.support.search import write as _write
 
 
 def _entry(**kw) -> dict:

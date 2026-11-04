@@ -11,8 +11,8 @@ import pytest
 
 from canlib.modes import dtc
 from canlib.modes.dtc import snapshots as snap_mode
-from tests._fakes import FakeTerminal, nrc
-from tests._fakes import ok as _ok
+from tests.support.fakes import FakeTerminal, nrc
+from tests.support.fakes import ok as _ok
 
 CCM = 0x733
 CODES = _ok("590209" + "582C0008")

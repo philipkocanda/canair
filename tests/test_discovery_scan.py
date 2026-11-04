@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from canlib.modes.discovery_scan import DiscoveryProbe, scan_ecu
-from tests._fakes import FakeTerminal
-from tests._fakes import nrc as _nrc
+from tests.support.fakes import FakeTerminal
+from tests.support.fakes import nrc as _nrc
 
 
 def _FakeTerminal(responses=None):

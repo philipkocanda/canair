@@ -15,7 +15,7 @@ import pytest
 from canlib.session_manager import SessionManager
 from canlib.transport import elm327_session, keepalive
 from canlib.uds.nrc import NRC_SERVICE_NOT_SUPPORTED
-from tests._fakes import FakeTerminal, nrc, ok
+from tests.support.fakes import FakeTerminal, nrc, ok
 
 BMS = 0x7E4
 

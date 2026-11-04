@@ -327,8 +327,7 @@ class TestControllerHooks:
 class TestSegmentRotation:
     def test_an_open_gap_is_restated_in_the_next_segment(self, tmp_path):
         from canlib.modes._monitor_record import MonitorRecorder
-
-        from .test_monitor_record import FakeController
+        from tests.support.monitor_recorder import FakeController
 
         c = FakeController(tmp_path)
         rec = MonitorRecorder(c)

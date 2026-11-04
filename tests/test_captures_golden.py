@@ -14,7 +14,7 @@ against a committed golden file — the safety net for the
 **Why not in :mod:`tests.test_analysis_golden`?** That module is specifically a
 *byte-label* gate — its ``test_goldens_contain_byte_labels`` would reject a
 ``--summary``/``--sessions`` golden, which legitimately carries no ``Bnn``. The
-shared harness lives in :mod:`tests._golden`; only the case lists differ.
+shared harness lives in :mod:`tests.support.golden`; only the case lists differ.
 
 **No real capture labels/notes in the goldens.** ``cmd_sessions`` and the default
 list view render free-text session/capture ``label``/``notes``, which is exactly
@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests._golden import FIXTURE_PROFILES_DIR, SCOPE_FLAGS, check_golden, run_cli
+from tests.support.golden import FIXTURE_PROFILES_DIR, SCOPE_FLAGS, check_golden, run_cli
 
 # Synthetic two-ECU profile with 24 timed sessions across two dated files. Frozen
 # test data no recording session appends to, and its labels/states are invented —

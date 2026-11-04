@@ -392,9 +392,9 @@ class TestLivePicker:
     """The running monitor's ``p`` opens this same picker."""
 
     def _app(self):
-        from .test_tui_modal_access import _monitor
+        from tests.support.monitor_picker import monitor_app
 
-        return _monitor()
+        return monitor_app()
 
     @pytest.mark.asyncio
     async def test_p_opens_on_the_polled_selection_and_applies(self):

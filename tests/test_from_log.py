@@ -8,7 +8,7 @@ import pytest
 
 from canlib.captures.from_log import ExtractedReply, extract_replies, stamp
 from canlib.ecus import load_ecus
-from tests._isotp_frames import flow_control, message_frames
+from tests.support.isotp_frames import flow_control, message_frames
 
 BMS_TX, BMS_RX = 0x7E4, 0x7EC
 BODY = bytes(range(1, 30))

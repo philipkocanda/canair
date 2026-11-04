@@ -12,7 +12,6 @@ from textual.widgets import Input, OptionList
 
 from canlib.commands.captures.step_tui import CapturesStepApp
 from canlib.modes._monitor_select_tui import LiveMonitorSelectScreen
-from canlib.modes._monitor_selectors import PickerSeed
 from canlib.modes._monitor_tui import (
     EditParamDialog,
     EventLogModal,
@@ -21,43 +20,10 @@ from canlib.modes._monitor_tui import (
     SessionInfoModal,
     SessionPickerScreen,
 )
-from canlib.modes.monitor_select import build_choices
 from canlib.tui.help import HelpModal
-
-from .test_captures_step import _model
-from .test_monitor_tui import FakeController, FakeEditor
-
-
-class PickerController(FakeController):
-    """FakeController plus the registry surface the two pickers query."""
-
-    def available_ecus(self):
-        return ["BMS", "HVAC", "IGPM"]
-
-    def picker_seed(self):
-        def pid(**params):
-            return {"parameters": params, "status": "active", "swept": True}
-
-        index = {
-            name: {"tx_id": 0x7E0 + i, "pids": {"2101": pid(pack={}), "2102": pid(cell={})}}
-            for i, name in enumerate(("BMS", "HVAC", "IGPM"))
-        }
-        return PickerSeed(build_choices(index), [], {"BMS": ["2101"]}, False)
-
-    def active_session_modes(self):
-        return {}
-
-    def known_session_types(self, ecu):
-        return [("uds", "UDS", True), ("kwp", "KWP2000", False)]
-
-    def apply_selection(self, selected):
-        self.applied = selected
-        return [f"{ecu}:{','.join(pids)}" for ecu, pids in selected.items()]
-
-
-def _monitor(**kw):
-    kw.setdefault("editor", FakeEditor())
-    return MonitorApp(PickerController(**kw))
+from tests.support.monitor_picker import monitor_app as _monitor
+from tests.support.monitor_tui import FakeController, FakeEditor
+from tests.support.step_model import model as _model
 
 
 def _focused_is_scroll(app) -> bool:
@@ -202,8 +168,7 @@ class TestPickersAreFilterable:
     @pytest.mark.asyncio
     async def test_plot_pid_picker_filters(self):
         from canlib.commands.decode.plot_tui import PidPickerModal, PlotApp
-
-        from .test_decode_plot import _plot_model
+        from tests.support.plot_model import plot_model as _plot_model
 
         options_in = [("BMS", "2101"), ("HVAC", "220100"), ("IGPM", "22BC07")]
         app = PlotApp(_plot_model(), reload_pid=lambda *a: None, pid_options=options_in)

@@ -7,8 +7,8 @@ import pytest
 from canlib.modes import identity as ident
 from canlib.modes import identity_decode as idec
 from canlib.uds.parse import parse_uds_response
-from tests._fakes import FakeTerminal
-from tests._fakes import ok as _ok
+from tests.support.fakes import FakeTerminal
+from tests.support.fakes import ok as _ok
 
 
 class TestProbeProtocol:

@@ -14,7 +14,7 @@ import pytest
 from canlib.actions import ActionError, parse_action
 from canlib.modes import action as mode
 from canlib.safety import SafetyBlocked, SessionPolicy, check_command_safety
-from tests._fakes import FakeTerminal
+from tests.support.fakes import FakeTerminal
 
 SLEEP = parse_action(
     "sleep",

@@ -29,8 +29,8 @@ import pytest
 
 from canlib import cli
 
-GOLDEN_DIR = Path(__file__).parent / "fixtures" / "golden"
-FIXTURE_PROFILES_DIR = Path(__file__).parent / "fixtures" / "profiles"
+GOLDEN_DIR = Path(__file__).parents[1] / "fixtures" / "golden"
+FIXTURE_PROFILES_DIR = Path(__file__).parents[1] / "fixtures" / "profiles"
 REGEN = os.environ.get("CANAIR_REGEN_GOLDEN") == "1"
 
 # Flags that pin a case to a closed date range. ``captures/`` is append-only and

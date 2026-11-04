@@ -27,7 +27,7 @@ enforced by :meth:`TestGoldenHarnessItself.test_cases_cannot_drift_as_captures_g
 out of scope here and is covered by the screenshot check). Labels are what matter.
 
 The harness itself (golden dir, regen switch, normalizer, runner) is shared with
-:mod:`tests.test_captures_golden` — see :mod:`tests._golden`.
+:mod:`tests.test_captures_golden` — see :mod:`tests.support.golden`.
 
 Regenerate after an *intended* change, then **read the diff**::
 
@@ -42,7 +42,7 @@ from typing import ClassVar
 
 import pytest
 
-from tests._golden import (
+from tests.support.golden import (
     FIXTURE_PROFILES_DIR,
     GOLDEN_DIR,
     REGEN,

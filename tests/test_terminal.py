@@ -11,6 +11,7 @@ import pytest
 
 from canlib.transport.elm327_terminal import _RESYNC_QUIET_MAX
 from canlib.transport.wican_terminal import WiCANTerminal
+from tests.support.elm_ws import term_prog as _term_prog
 
 
 class FakeWS:
@@ -133,32 +134,6 @@ class TestInstrumentation:
         await t.send_uds("2101")  # recorded under 0x7E4
         rows = t.timings.snapshot()
         assert [(r["ecu"], r["pid"]) for r in rows] == [("0x7E4", "2101")]
-
-
-class ProgrammableWS:
-    """FakeWS returning a queued reply per send (defaults to NO DATA)."""
-
-    def __init__(self, replies):
-        self.sent: list[str] = []
-        self._replies = list(replies)
-        self._q: asyncio.Queue[str] = asyncio.Queue()
-
-    async def send(self, data: str):
-        self.sent.append(data)
-        reply = self._replies.pop(0) if self._replies else "NO DATA\r>"
-        await self._q.put(reply)
-
-    async def recv(self) -> str:
-        return await self._q.get()
-
-    async def close(self):
-        pass
-
-
-def _term_prog(replies) -> WiCANTerminal:
-    t = WiCANTerminal(host="test")
-    t.ws = ProgrammableWS(replies)
-    return t
 
 
 def _reads(t: WiCANTerminal, pid: str) -> int:

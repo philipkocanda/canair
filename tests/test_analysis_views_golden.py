@@ -16,7 +16,7 @@ splits (``plans/2026-08-06-command-packages-and-live-split.md``).
 ``test_goldens_contain_byte_labels`` gate would reject a ``--stats``/``--compact``
 golden, which legitimately carries no ``Bnn`` — and its docstring scopes it to
 byte-label emission. Bolting these on would corrupt its stated purpose. The shared
-harness lives in :mod:`tests._golden`; only the case lists differ.
+harness lives in :mod:`tests.support.golden`; only the case lists differ.
 
 **No free text in these goldens.** None of the views pinned here renders a session
 ``label`` or capture ``notes`` (``--compact`` prints only the ``[STATE]`` divider,
@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests._golden import FIXTURE_PROFILES_DIR, SCOPE_FLAGS, check_golden, run_cli
+from tests.support.golden import FIXTURE_PROFILES_DIR, SCOPE_FLAGS, check_golden, run_cli
 
 # Synthetic two-ECU profile: ALPHA:22F001 (a ramp + a toggling flag bit) and
 # BETA:22F002 (a co-polled ramp), 24 timed captures each. Frozen — no recording

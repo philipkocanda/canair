@@ -141,7 +141,7 @@ class TestRawUdsClientGuard:
 
     def _client(self, monkeypatch, policy=None):
         from canlib.transport import uds_raw
-        from tests.test_uds_raw import FakeNotifier, FakeStack
+        from tests.support.uds_raw import FakeNotifier, FakeStack
 
         table = {(0x7E4, bytes.fromhex("1082")): bytes.fromhex("5082")}
         monkeypatch.setattr(uds_raw.can, "Notifier", FakeNotifier)

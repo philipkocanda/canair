@@ -191,30 +191,7 @@ class TestOverlayCycle:
 import pytest  # noqa: E402
 
 from canlib.commands.decode.plot import INSPECT_TYPES, PlotModel  # noqa: E402
-
-
-def _plot_results(values, pid="2101", ecu="BMS"):
-    out = []
-    for i, v in enumerate(values):
-        out.append(
-            {
-                "capture": {
-                    "payload": "6101" + f"{int(v) & 0xFF:02X}" + "00",
-                    "date": "2026-07-22",
-                    "time": f"12:00:{i:02d}",
-                    "ecu": ecu,
-                    "pid": pid,
-                },
-                "decoded": {"P": {"value": float(v)}},
-            }
-        )
-    return out
-
-
-def _plot_model(values=(1, 2, 3, 4, 5)):
-    results = _plot_results(values)
-    params = {"P": {"expression": "B4", "verified": True}}
-    return PlotModel(results, ["P"], params, set(), None, "BMS", "2101", defined_params=params)
+from tests.support.plot_model import plot_model as _plot_model  # noqa: E402
 
 
 class TestPlotModel:

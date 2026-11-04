@@ -13,6 +13,8 @@ import os
 
 import pytest
 
+from tests.support.network import NetworkBlocked
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _pin_bundled_profile():
@@ -133,10 +135,6 @@ def _no_real_http(monkeypatch):
         raise requests.ConnectionError(f"network disabled in tests: {method} {url}")
 
     monkeypatch.setattr(requests.Session, "request", _blocked)
-
-
-class NetworkBlocked(ConnectionRefusedError):
-    """A test tried to open a connection to a non-loopback address."""
 
 
 def _is_local(host) -> bool:
