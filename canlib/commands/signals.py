@@ -162,7 +162,7 @@ def run(args) -> int:
 
 
 def cmd_list(args) -> int:
-    from canlib.signals import load_signals
+    from canlib.broadcast import load_signals
 
     docs = load_signals(getattr(args, "bus", None))
     if getattr(args, "json", False):

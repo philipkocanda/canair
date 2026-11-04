@@ -39,7 +39,7 @@ From the interface at the top to the leaf at the bottom.
 | decides whether a request may go on the bus | `safety/` | `safety/` |
 | describes protocol bytes with no I/O | `uds/` | `uds/` |
 | evaluates a WiCAN expression | `expression/` | `expression/` |
-| parses a profile's definition YAML | `ecus/`, `states/`, `variants/`, `broadcast/`, `actions/` | the same, plus `signals.py` |
+| parses a profile's definition YAML | `ecus/`, `states/`, `variants/`, `broadcast/`, `actions/` | the same |
 | finds, creates or layers a profile bundle | `profile/` | `profile/` |
 | checks a profile | `validation/` | `validation/` |
 | edits a profile's YAML | `yaml_edit/` | `yaml_edit/` |

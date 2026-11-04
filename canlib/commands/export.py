@@ -54,7 +54,7 @@ def _run_dbc(args) -> int:
         print("export dbc: cantools is required (pip install cantools).", file=sys.stderr)
         return 1
 
-    from canlib.signals import load_signals, signals_dir
+    from canlib.broadcast import load_signals, signals_dir
     from canlib.validation.signals import check_signals_doc
 
     if not signals_dir().is_dir():

@@ -7,6 +7,11 @@ that resolves the profile's signal directory and parses its per-bus documents, s
 
 A signal map is domain B (passively-broadcast frames): arbitration ID → named
 linear signals. Distinct from a PID's freeform WiCAN ``expression`` params.
+
+Belongs: loading the broadcast signal maps of a profile.
+Not here: the checks (``validation/signals.py``), edits (``yaml_edit/signals.py``) and DBC
+import/export (the ``import``/``export`` commands).
+Imports: ``profile`` and ``validation.signals`` (the shared structural check).
 """
 
 from __future__ import annotations
@@ -14,8 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from .profile import Profile
-from .validation.signals import signal_byte_span
+from canlib.profile import Profile
+from canlib.validation.signals import signal_byte_span
 
 __all__ = ["SignalDoc", "load_signals", "signal_byte_span", "signals_dir"]
 
@@ -31,7 +36,7 @@ class SignalDoc:
 
 def signals_dir(profile: Profile | None = None) -> Path:
     """The profile's signal-map directory (may not exist — signals/ is optional)."""
-    from .profile import active
+    from canlib.profile import active
 
     return (profile or active()).signals_dir
 

@@ -393,7 +393,7 @@ def _run_signals() -> int:
     keyed by arbitration ID, each signal a DBC-compatible linear model. Structural
     checks mirror the signals_schema.yaml companion.
     """
-    from canlib.signals import load_signals, signals_dir
+    from canlib.broadcast import load_signals, signals_dir
     from canlib.validation.signals import check_signals_doc
 
     if not signals_dir().is_dir():

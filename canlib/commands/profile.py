@@ -345,7 +345,7 @@ def _detail_actions(prof) -> str:
 
 
 def _detail_signals(prof) -> str:
-    from canlib.signals import load_signals
+    from canlib.broadcast import load_signals
 
     names = sorted(d.path.name for d in load_signals(profile=prof))
     return f"{len(names)} files: {', '.join(names) if names else 'empty'}"
