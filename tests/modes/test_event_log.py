@@ -97,3 +97,23 @@ class TestEventLog:
         shown = EventLogModal()._render_events().plain
         assert "from this session" in shown
         assert "earlier session" not in shown
+
+
+class TestEcuLog:
+    def test_responses_are_logged_beside_the_event_log(self, isolated_log, monkeypatch):
+        monkeypatch.setattr(clog, "_ecu_loggers", {})
+        monkeypatch.setattr(clog, "_initialized", True)
+        monkeypatch.setattr(clog, "_active_ecu", "BMS")
+        monkeypatch.setattr(clog, "_date_str", "2026-11-04")
+        try:
+            assert clog.ecu_log_dir() == isolated_log.parent / "ecu"
+            clog.log_response("2101", "7EC 03 61 01 00")
+            for handler in logging.getLogger("can_request.ecu.BMS").handlers:
+                handler.flush()
+            written = (isolated_log.parent / "ecu" / "BMS-2026-11-04.log").read_text()
+            assert "2101 -> 7EC 03 61 01 00" in written
+        finally:
+            logger = logging.getLogger("can_request.ecu.BMS")
+            for handler in list(logger.handlers):
+                handler.close()
+                logger.removeHandler(handler)

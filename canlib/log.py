@@ -4,7 +4,7 @@ Two independent facilities live here:
 
 1. **Per-ECU response log** (``log_command``/``log_response``): tracks the active
    ECU from ATSH headers and appends UDS query responses to per-ECU, per-day
-   files under the repo ``logs/ecu/``. AT commands are not logged.
+   files under ``~/.config/canair/logs/ecu/``. AT commands are not logged.
 2. **Central diagnostics event log** (``log_event``/``log_exception``): a single
    **size-rotated** file at ``~/.config/canair/logs/canair.log`` where transport
    error/drop events and unexpected internal exceptions are recorded so they are
@@ -22,11 +22,6 @@ import re
 import secrets
 import traceback
 from datetime import UTC, datetime
-
-from .constants import SCRIPT_DIR
-
-LOG_DIR = SCRIPT_DIR / "logs"
-ECU_LOG_DIR = LOG_DIR / "ecu"
 
 _ecu_loggers: dict[str, logging.Logger] = {}  # ecu_name -> logger
 _active_ecu: str | None = None  # current ECU name (from ATSH header)
@@ -58,17 +53,27 @@ def _clear_ecu_lookup() -> None:
     _ecu_lookup = None
 
 
+def ecu_log_dir():
+    """Directory of the per-ECU response logs, beside the central event log.
+
+    User state under the config directory: a path derived from the package location would be
+    ``site-packages/logs`` in an installed copy, which a reinstall deletes.
+    """
+    return event_log_path().parent / "ecu"
+
+
 def _get_ecu_logger(ecu_name: str) -> logging.Logger:
     """Get or create a per-ECU logger."""
     if ecu_name in _ecu_loggers:
         return _ecu_loggers[ecu_name]
 
-    ECU_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    log_dir = ecu_log_dir()
+    log_dir.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger(f"can_request.ecu.{ecu_name}")
     logger.setLevel(logging.INFO)
     logger.propagate = False
     if not logger.handlers:
-        fh = logging.FileHandler(ECU_LOG_DIR / f"{ecu_name}-{_date_str}.log", encoding="utf-8")
+        fh = logging.FileHandler(log_dir / f"{ecu_name}-{_date_str}.log", encoding="utf-8")
         fh.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(fh)
     _ecu_loggers[ecu_name] = logger
