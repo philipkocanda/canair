@@ -18,12 +18,8 @@ import sys
 
 from canlib import ansi
 from canlib.analysis.align import longest_payload_len
+from canlib.captures.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 from canlib.commands._notation import resolve_notation
-from canlib.keepmode import (
-    CHANGES_BANNER,
-    scope_is_keep_changes,
-    scope_is_keep_unique,
-)
 from canlib.uds.notation import relabel_signal, subfunction_bytes_for_pid
 
 

@@ -36,9 +36,9 @@ from datetime import datetime, time, timedelta
 from typing import Literal, get_args
 
 from canlib.captures.dates import entry_date, entry_datetime
+from canlib.captures.keepmode import KEEP_CHANGES, KEEP_UNIQUE, scope_is_keep_unique
 from canlib.captures.link_events import gap_intervals
 from canlib.captures.types import CaptureEntry
-from canlib.keepmode import KEEP_CHANGES, KEEP_UNIQUE, scope_is_keep_unique
 
 __all__ = [
     "FILL_AUTO",

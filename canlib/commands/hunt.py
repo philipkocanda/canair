@@ -276,7 +276,7 @@ def _run_can_log(args) -> int:
     from pathlib import Path
 
     from canlib.analysis import frame_series as frame_series
-    from canlib.can_logs import CanLogError
+    from canlib.captures.can_logs import CanLogError
 
     path = Path(args.file)
     if not path.is_file():

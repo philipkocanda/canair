@@ -26,9 +26,9 @@ from pathlib import Path
 from canlib.analysis.misfiled import PayloadSample
 from canlib.captures import io as capture_io
 from canlib.captures import merge as captures_merge
+from canlib.captures.keepmode import KEEP_CHANGES, KEEP_UNIQUE
 from canlib.captures.payload_corpus import Locator, load_payload_corpus
 from canlib.captures.types import CaptureRecord, CaptureSession
-from canlib.keepmode import KEEP_CHANGES, KEEP_UNIQUE
 from canlib.uds.multi_did import POSITIVE_READ_SID, is_fill, is_padding, split_chain
 
 # A DID's data length is "established" only once it is seen often and almost exclusively, so

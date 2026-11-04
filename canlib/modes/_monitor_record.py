@@ -23,15 +23,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+from canlib.captures.keepmode import KEEP_CHANGES, KEEP_LAST, KeepMode, persisted_keep_mode
 from canlib.captures.types import Quality
 from canlib.expression.results import EcuFrame
 
-from ..keepmode import (
-    KEEP_CHANGES,
-    KEEP_LAST,
-    KeepMode,
-    persisted_keep_mode,
-)
 from ._monitor_history import PayloadHistory, extend_runs
 
 if TYPE_CHECKING:

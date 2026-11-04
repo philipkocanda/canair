@@ -16,10 +16,10 @@ import asyncio
 import contextlib
 import sys
 
+from canlib.captures.keepmode import wants_save
 from canlib.commands._transport_args import transport_overrides
 from canlib.core.stop_signals import graceful_stop
 from canlib.ecus.pids import load_pids
-from canlib.keepmode import wants_save
 from canlib.lock import WiCANLock
 from canlib.lock_watchdog import LockWatchdog
 from canlib.modes.session import SessionOptions, run_session_guarded

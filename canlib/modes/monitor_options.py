@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from canlib.keepmode import KeepMode
+from canlib.captures.keepmode import KeepMode
 from canlib.poll_schedule import DEFAULT_SCHEDULE, Schedule
 from canlib.uds.notation import ByteNotation
 

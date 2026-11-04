@@ -1,8 +1,8 @@
-"""Tests for canlib.keepmode helpers (T2)."""
+"""Tests for canlib.captures.keepmode helpers (T2)."""
 
 import pytest
 
-from canlib.keepmode import (
+from canlib.captures.keepmode import (
     KEEP_ALL,
     KEEP_CHANGES,
     KEEP_LAST,
@@ -84,14 +84,14 @@ class TestKeepModeVocabulary:
     def test_keep_modes_derive_from_the_literal(self):
         from typing import get_args
 
-        from canlib.keepmode import KeepMode
+        from canlib.captures.keepmode import KeepMode
 
         assert KEEP_MODES == get_args(KeepMode)
 
     def test_persisted_modes_derive_from_the_literal(self):
         from typing import get_args
 
-        from canlib.keepmode import PersistedKeepMode
+        from canlib.captures.keepmode import PersistedKeepMode
 
         assert PERSISTED_KEEP_MODES == get_args(PersistedKeepMode)
 

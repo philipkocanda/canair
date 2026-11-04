@@ -1,8 +1,8 @@
-"""Shared capture file save logic.
+"""The capture store: saving (here), the file format, reading back, journal and merge driver.
 
-Provides functions for prompting session metadata and appending captures
-to per-date JSON files in captures/. Used by scan, raw, discover, and
-monitor modes.
+Belongs: appending captures to per-date JSON files, their format, store, journal, merge driver.
+Not here: computing over captures (``analysis/``), the DTC log (``dtc/``) and flag parsing.
+Imports: ``states``, ``uds``, ``privacy`` and ``core``.
 """
 
 from collections.abc import Sequence
@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import cast
 
 from canlib.captures import io as capture_io
+from canlib.captures.keepmode import KeepMode, PersistedKeepMode, persisted_keep_mode
 from canlib.captures.link_events import LinkEvent
 from canlib.captures.types import (
     CaptureFile,
@@ -24,7 +25,6 @@ from canlib.captures.types import (
     StateSpanSource,
 )
 from canlib.core.id_ranges import IdRange, as_id_ranges, format_id_ranges
-from canlib.keepmode import KeepMode, PersistedKeepMode, persisted_keep_mode
 from canlib.states import join_states as _join_states
 from canlib.states import parse_states as _parse_states
 from canlib.states.spans import StateSpan

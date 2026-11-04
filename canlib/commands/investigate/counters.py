@@ -29,9 +29,9 @@ from canlib.analysis.counters import (
     find_counters,
 )
 from canlib.analysis.triage import bit_flip_rates
+from canlib.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canlib.commands._notation import resolve_notation
 from canlib.commands._scope import active_scope_flags
-from canlib.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canlib.uds.byteindex import mapped_offsets, wican_to_isotp
 from canlib.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
 

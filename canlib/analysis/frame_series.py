@@ -17,7 +17,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from canlib.analysis.align import TimePoint
-from canlib.can_logs import detect_format, iter_frames
+from canlib.captures.can_logs import detect_format, iter_frames
 from canlib.uds.inspect_bytes import INSPECT_TYPES, NO_EXPR, float_series_is_noise, interpret_bytes
 
 # Frame-signal label: "0xID:rN" (byte) / "0xID:rN.k" (bit). The single ":" keeps

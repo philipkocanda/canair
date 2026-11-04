@@ -1,7 +1,6 @@
 {
   "root_modules": [
     "ansi",
-    "can_logs",
     "cli",
     "contribute",
     "contribute_logs",
@@ -12,7 +11,6 @@
     "formatting",
     "grid_prompt",
     "grid_regions",
-    "keepmode",
     "lock",
     "lock_watchdog",
     "physical_bands",
@@ -56,7 +54,7 @@
     "canlib.ecus.pids": 763,
     "canlib.formatting": 621,
     "canlib.lock": 581,
-    "canlib.modes._monitor_record": 545,
+    "canlib.modes._monitor_record": 540,
     "canlib.modes._monitor_render": 550,
     "canlib.modes._monitor_tui": 1602,
     "canlib.modes.iocontrol": 745,
@@ -75,12 +73,11 @@
     "canlib.yaml_edit.revisions": 560,
     "canlib.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 1160,
+  "deferred_internal_imports": 1159,
   "import_linter_ignores": 5,
   "packages_without_charter": [
     "canlib.actions",
     "canlib.analysis",
-    "canlib.captures",
     "canlib.commands",
     "canlib.commands._live",
     "canlib.commands.captures",
@@ -118,7 +115,6 @@
     "test_grid_prompt.py",
     "test_grid_regions.py",
     "test_help_alias.py",
-    "test_keepmode.py",
     "test_lock.py",
     "test_lock_watchdog.py",
     "test_physical_bands.py",

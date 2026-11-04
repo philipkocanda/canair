@@ -22,10 +22,10 @@ from typing import TYPE_CHECKING
 
 from rich.console import Console
 
+from canlib.captures.keepmode import KeepMode
 from canlib.core.stop_signals import graceful_stop
 from canlib.uds.notation import ByteNotation
 
-from ..keepmode import KeepMode
 from ..poll_schedule import DEFAULT_SCHEDULE, Schedule
 from ._monitor_record import _open_journal
 from .monitor import MonitorController

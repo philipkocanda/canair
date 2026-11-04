@@ -6,9 +6,9 @@ monitor. The monitor is the only handler that uses ``reconnect``.
 
 from __future__ import annotations
 
+from canlib.captures.keepmode import resolve_keep_mode
 from canlib.commands._live.operation import LiveOperation
 from canlib.commands._notation import resolve_notation
-from canlib.keepmode import resolve_keep_mode
 from canlib.modes import mode_monitor, mode_multi
 from canlib.modes.monitor_options import MonitorOptions
 from canlib.poll_schedule import DEFAULT_SCHEDULE

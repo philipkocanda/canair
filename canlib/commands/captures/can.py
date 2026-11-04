@@ -14,7 +14,7 @@ def cmd_can_logs(as_json: bool = False) -> int:
     """List imported raw broadcast-CAN frame logs from captures/can/index.yaml."""
     import json as _json
 
-    from canlib import can_logs
+    from canlib.captures import can_logs
     from canlib.profile import active
 
     logs = can_logs.list_logs(active())

@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from canlib import can_logs
+from canlib.captures import can_logs
 from canlib.captures import io as capture_io
 from canlib.commands.import_uds import run
 from tests.support.isotp_frames import message_frames

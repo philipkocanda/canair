@@ -48,6 +48,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
+from canlib.captures.keepmode import KEEP_CHANGES, KeepMode, PersistedKeepMode, parse_keep_mode
 from canlib.captures.link_events import (
     JOURNAL_EVENT,
     JOURNAL_EVENT_END,
@@ -56,7 +57,6 @@ from canlib.captures.link_events import (
     format_time,
 )
 from canlib.captures.types import CaptureSession, Quality
-from canlib.keepmode import KEEP_CHANGES, KeepMode, PersistedKeepMode, parse_keep_mode
 from canlib.privacy.sensitive import SensitiveSet
 
 JOURNAL_VERSION = 1

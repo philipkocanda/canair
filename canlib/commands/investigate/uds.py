@@ -22,13 +22,13 @@ from canlib.analysis.xanalysis import (
     build_byte_series,
     build_param_series,
 )
+from canlib.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canlib.commands._join import (
     fill_policy_from_args,
     fill_summaries,
     fill_summary_line,
 )
 from canlib.commands._scope import resolve_scope_bounds
-from canlib.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canlib.uds.byteindex import mapped_bits, mapped_offsets
 
 from .counters import run_counters

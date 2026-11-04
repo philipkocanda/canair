@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
+from canlib.captures.keepmode import EntryKeepMode, PersistedKeepMode
 from canlib.captures.link_events import LinkEvent
-from canlib.keepmode import EntryKeepMode, PersistedKeepMode
 from canlib.states.spans import StateSpan
 
 StateSpanSource = Literal["record", "live", "backfill"]

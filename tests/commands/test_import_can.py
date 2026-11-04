@@ -1,6 +1,6 @@
 """Stage-1 tests: `canair import can` (raw broadcast-CAN frame-log import).
 
-Covers the log-store layer (`canlib.can_logs`), the `import can` command, and the
+Covers the log-store layer (`canlib.captures.can_logs`), the `import can` command, and the
 `canair captures can` listing. Fixtures use a tiny candump slice with real
 Ioniq-28 arbitration IDs (tests/fixtures/can/) plus formats generated in-test.
 """
@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 import canlib.profile as profile
-from canlib import can_logs
+from canlib.captures import can_logs
 from canlib.profile import Profile
 from canlib.validation import other as validate
 

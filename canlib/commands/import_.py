@@ -113,7 +113,7 @@ def run(args) -> int:
 def _run_can(args) -> int:
     import json
 
-    from canlib import can_logs
+    from canlib.captures import can_logs
     from canlib.profile import active
     from canlib.variants.selection import require_named_car
 

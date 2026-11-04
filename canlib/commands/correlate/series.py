@@ -18,10 +18,10 @@ from canlib.analysis.xanalysis import (
     build_byte_series,
     build_param_series,
 )
+from canlib.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canlib.commands._join import (
     fill_summaries,
 )
-from canlib.keepmode import scope_is_keep_changes, scope_is_keep_unique
 
 NAME = "correlate"
 

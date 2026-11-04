@@ -30,13 +30,13 @@ from canlib.analysis.xanalysis import (
     reference_is_bimodal,
     transform_ref,
 )
+from canlib.captures.keepmode import CHANGES_BANNER
 from canlib.commands._join import (
     fill_policy_from_args,
     fill_summary_line,
 )
 from canlib.commands._notation import resolve_notation
 from canlib.commands._scope import resolve_scope_bounds
-from canlib.keepmode import CHANGES_BANNER
 from canlib.uds.notation import relabel_signal
 
 from .calc import _apply_gate

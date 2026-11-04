@@ -54,8 +54,7 @@ def run_from_log(args: argparse.Namespace) -> int:
 
 
 def _import_log(args: argparse.Namespace) -> int:
-    from canlib import can_logs
-    from canlib.captures import build_manual_session, save_session
+    from canlib.captures import build_manual_session, can_logs, save_session
     from canlib.ecus import load_ecus
     from canlib.ecus.pids import load_pids
     from canlib.states import parse_states
