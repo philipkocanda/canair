@@ -49,7 +49,7 @@ sockets, ad-hoc scripts, or hand-edited YAML.
   every payload lands in `captures/`. Works with `read`/`monitor`/`scan`/`raw`/`discover`. Saves are
   **journaled** (write-ahead log in `captures/.journal/`) and reconciled on exit, so a
   killed/crashed session is never lost — recover leftovers with `canair captures uds --recover`.
-- **Every write prints the capture file it landed in** (`src/canair/captures.py::saved_banner`) — read
+- **Every write prints the capture file it landed in** (`src/canair/captures/__init__.py::saved_banner`) — read
   it back to confirm which profile got the data. A save made *inside* the monitor TUI has its banner
   deferred to exit, since Textual owns stdout while the app is up.
 - **`monitor` records every poll (`--keep-all`) by default**, so a stored-row count measures the
@@ -174,7 +174,7 @@ and **`g`/`G` address the view's primary axis**.
   each PID to its ECU with a colon (`IGPM:22BC07`), never a space**: in a query step a space
   separates *independent ECU selectors*, so `"query IGPM 22BC07"` means "all of IGPM plus a bogus
   ECU" and is rejected. A **`@group`** token expands to a saved selector set (`canair groups`).
-  **An undefined PID token is inferred by `src/canair/query.py::inferred_request`**: two digits are a
+  **An undefined PID token is inferred by `src/canair/query/__init__.py::inferred_request`**: two digits are a
   KWP local identifier (`01` → `2101`), four starting `21` stay a KWP read, any other four are a
   service-22 DID (`0101` → `220101`, `2201` → `222201`), six starting `22` go as written; anything
   else (odd length, `BC0301`) is refused, never guessed. A token picks defined PIDs by prefix *or*
@@ -379,15 +379,15 @@ and **`g`/`G` address the view's primary axis**.
 - **`canair investigate`** — One-shot per-byte verdict for a PID (mapped?, state-separation F, best
   co-polled anchor, triage class from `src/canair/analysis/triage.py`, physical band, probable
   multi-byte words). **ECU and PID are both optional** — omit one or both to sweep an ECU or the
-  whole profile (`src/canair/commands/investigate/sweep.py`). `--events`/`--dwell`/`--bits` are the
+  whole profile (`src/canair/cli/commands/investigate/sweep.py`). `--events`/`--dwell`/`--bits` are the
   narrated and bit-level views. **`--counters`** finds monotonic counters (odometer, hour meter,
   cycle count): detection is the leaf `src/canair/analysis/counters.py` (numpy-free, so the raw-CAN
-  domain can reuse it) and the capture-model bridge is `src/canair/commands/investigate/counters.py`,
+  domain can reuse it) and the capture-model bridge is `src/canair/cli/commands/investigate/counters.py`,
   which aligns a **prefix** payload matrix — aligning on the *modal* length would silently discard
   every capture of a minority length. Plan: `plans/2026-08-07-monotonic-counter-detection.md`.
   **`--support-map`** finds the constant leading bytes some body/climate DIDs use to mark which
   following bits (or bytes) are real signals: leaf `src/canair/analysis/support_map.py` (scoring and
-  the one marking rule), bridge `src/canair/commands/investigate/support_map.py`. **It is per-PID,
+  the one marking rule), bridge `src/canair/cli/commands/investigate/support_map.py`. **It is per-PID,
   not make-wide** — BCM `22B005` is a documented exception — so a map is *declared* (`pids
   set-support-map`), never inferred at read time. The service-21 pages carry the per-*field*
   kind (one bit per parameter of any width, as Hyundai's spec defines it): the leaf
@@ -408,7 +408,7 @@ and **`g`/`G` address the view's primary axis**.
   plausibility filter (`src/canair/core/textscan.py::is_plausible_token`) **is** the inventory — numeric
   telemetry is often printable, so `--all-runs` is mostly noise — and the VIN-shape test is shared
   with the `contribute` PII gate (one definition, in `textscan`). Only the `uds` kind exists; the
-  leaf primitives are `src/canair/core/textscan.py`, the command is `src/canair/commands/search/`. Plan:
+  leaf primitives are `src/canair/core/textscan.py`, the command is `src/canair/cli/commands/search/`. Plan:
   `plans/2026-08-07-search-all-captures.md`.
 - **`canair coverage`** (alias `cov`) — Audits definitions for decoding gaps: **UNMAPPED** data
   bytes, incomplete **BITS**, **NO CAPTURE** PIDs. Bit coverage counts both models (the
@@ -429,7 +429,7 @@ and **`g`/`G` address the view's primary axis**.
 **Shared flags are declared once so their defaults cannot drift** — when adding an analysis command,
 reuse these instead of re-declaring a flag:
 
-- `--join-tol` / `--fill` / `--max-hold` — `src/canair/commands/_join.py::add_join_args`, used by
+- `--join-tol` / `--fill` / `--max-hold` — `src/canair/cli/commands/_join.py::add_join_args`, used by
   `align`/`correlate`/`hunt`/`investigate`/`decode` (`captures uds --step` deliberately keeps its
   own wider *viewer* tolerance). Fill policy is `src/canair/analysis/fill.py`, resolved at series-build
   time so the join primitives never learn what a keep mode is; a value is never carried across a
@@ -443,7 +443,7 @@ reuse these instead of re-declaring a flag:
   rendered via `ByteDisplay`); WiCAN/Torque/bix are derived views. Persist a default with
   `config set display.byte_notation`.
 - Scope flags (`--since`/`--until`/`--date`/`--today`/`--state`/`--label`/`--last-session`/
-  `--first`/`--last`) — `src/canair/commands/_scope.py::add_scope_args`, shared by `captures` and every
+  `--first`/`--last`) — `src/canair/cli/commands/_scope.py::add_scope_args`, shared by `captures` and every
   analysis command.
 
 ### Authoring (writes into a profile — pass `--profile`)
@@ -452,7 +452,7 @@ reuse these instead of re-declaring a flag:
 An editor declares a `Target` (file, section, checks), registers it in `yaml_edit/targets.py`, and
 writes through `edit_doc` (ruamel round-trip) or `edit_ecu_text` (text surgery on an ECU file);
 both end in `commit.commit_text`, which writes atomically, re-checks and **reverts on any
-failure**. A rejected edit raises `EditError`; no command catches it — `cli.py` prints
+failure**. A rejected edit raises `EditError`; no command catches it — `cli/__init__.py` prints
 `  Error: …` and exits 1. On the command side `cli/commands/_edit.py::run_edit` is the whole sequence
 (read-only-profile refusal, `--no-validate`, the editor call, the `✓` confirmation). Use
 `yaml_edit.ruamel_ops` to remove or rename an entry (it keeps the comments around it; a bare
@@ -514,7 +514,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   `$EDITOR` and is **TTY-only — agents cannot drive it**; use `pids …`/`ecu add` instead.
 - **`canair states`** — List/edit the profile's vehicle-state vocabulary (`vehicle_states.yaml`);
   `canair states <STATE>` is the reverse lookup (which ECUs are readable in that state, via
-  `src/canair/states.py::ecus_in_state`). A state with a `when:` predicate is marked ● — or **`✗` with
+  `src/canair/states/__init__.py::ecus_in_state`). A state with a `when:` predicate is marked ● — or **`✗` with
   the reason** when the predicate references a signal the registry doesn't define, so a dead
   predicate can't hide behind a healthy ●. `set-implies NAME [STATES]` (and `add --implies`)
   declares the **specificity hierarchy** — see `vehicle_states.yaml` under Key Files; the list view
@@ -539,7 +539,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   selectors, distinct PIDs union, aliases resolve to the canonical name, and first-mention position
   is kept. A non-`query` step ends the run, so a deliberate pipeline re-read survives. Overlaps are
   reported (never silently collapsed) by `merged_selector_notes` via
-  `src/canair/commands/_live/steps.py::report_merged_selectors`. This is load-bearing for `monitor`: a
+  `src/canair/cli/commands/_live/steps.py::report_merged_selectors`. This is load-bearing for `monitor`: a
   duplicated ECU was polled twice per cycle *and* its rows collided on the
   `(ecu_label, pid, param_name)` selection key, snapping the TUI cursor and viewport back to the
   first copy.
@@ -824,7 +824,7 @@ the library module `src/canair/profile/scaffold.py`; `cli/commands/profile.py` i
 when a higher-precedence discovery root would keep winning** (an explicit `--profiles-dir` or
 `$CANAIR_PROFILES_DIR`), because the copy would then never be read — the message names the blocking
 root. It skips `role: generated` members (`out/` is regenerated, not inherited). The bundle
-component list is **not hand-written** — it is the `BUNDLE_MEMBERS` registry in `src/canair/profile.py`,
+component list is **not hand-written** — it is the `BUNDLE_MEMBERS` registry in `src/canair/profile/__init__.py`,
 which also decides what `contribute` ships and what the blind-test strip withholds, so a new bundle
 member is one edit there.
 
@@ -832,7 +832,7 @@ member is one edit there.
 (`src/canair/profile/scaffold.py::overlay_profile`) writes *only* `~/.config/canair/profiles/<name>/
 profile.yaml` with `extends: <name>` plus an empty `captures/`; the base then keeps tracking
 upstream while every recording lands in the layer. Adopt when you want to change definitions,
-overlay when you only want to record. Resolution is `src/canair/profile.py::profile_layers` (walks
+overlay when you only want to record. Resolution is `src/canair/profile/__init__.py::profile_layers` (walks
 `profiles_roots`, stops at the first bundle with no `extends:`) + `::_from_layers`, which errors on
 a **dangling** overlay (nothing underneath) and on `extends:` naming a *different* profile (deferred
 to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberately that plan's key).
@@ -840,8 +840,8 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   `write_root` and `capture_layers`. Definitions (`ecus_dir`, `states_file`, `signals_dir`,
   `can_buses_file`, `groups_file`, `meta_file`) stay on `root`; `captures_dir`/
   `out_dir` derive from `write_root`. **Definitions do not overlay in this slice** — an edit is
-  refused by `src/canair/profile.py::require_writable_definitions()`, called from the one edit funnel
-  every authoring command shares (`src/canair/commands/_edit.py::edit_scope`). It raises
+  refused by `src/canair/profile/__init__.py::require_writable_definitions()`, called from the one edit funnel
+  every authoring command shares (`src/canair/cli/commands/_edit.py::edit_scope`). It raises
   `ProfileError`, which `src/canair/cli/__init__.py` already turns into `error: …` + exit 2, so no command
   handles it.
 - **Reads span layers, writes do not.** `src/canair/captures/io.py::resolve_capture_layers` is the read
@@ -854,7 +854,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   layers (a schema break or a payload in the base still matters); `src/canair/privacy/pii.py` and
   `capture_migrate.py` intentionally stay on `captures_dir` (= the overlay, which is exactly what
   `contribute` ships and the only layer a migration may rewrite).
-- **Base captures are read-only**, enforced by `src/canair/commands/captures/layers.py::refusal` in
+- **Base captures are read-only**, enforced by `src/canair/cli/commands/captures/layers.py::refusal` in
   `--delete`/the `--set-*` editors/`--backfill-states` and in the `captures uds --step` TUI.
   `--dry-run` still previews. Tombstones and copy-on-write were rejected: a session has no id —
   **its identity is its content**, plus an **anchor** (`captures_merge.session_anchor`: date,
@@ -876,7 +876,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
 `canair` from `uv tool install`/`pipx`/`pip`) accepts writes that the next reinstall deletes — this
 really happened, costing two sessions' captures. The detection and the user-facing remedy are
 `src/canair/install/context.py::installed_snapshot_kind` and `::snapshot_write_note`, and **every write
-path emits that note**: `src/canair/captures.py::saved_banner` for captures and
+path emits that note**: `src/canair/captures/__init__.py::saved_banner` for captures and
 `src/canair/yaml_edit/echo.py::echo_edit` for every definition edit (`pids`/`signals`/`states`/
 `groups`/`ecu add` all route their `✓ …` confirmation through it, which is also what guarantees the
 confirmation names a **full path** rather than a bare `bms.yaml`). `canair update` refuses to be the
@@ -934,7 +934,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   from a tracked file, so each clone must run **`canair captures merge-driver --install`** once;
   until then merges just fall back to conflict markers. A capture's **`rx`** field is the ECU CAN
   *response* address (its `rx_id`, else request TX + the profile `rx_offset`, resolved by
-  `src/canair/ecus.py::rx_for_tx`) — **not** an ECU name; that is why it was renamed from `ecu`. A
+  `src/canair/ecus/__init__.py::rx_for_tx`) — **not** an ECU name; that is why it was renamed from `ecu`. A
   discover capture's `rx` is `broadcast`, and each responder records its probed `tx` plus `rx`.
   **Every `--save` path records `transport` from the live client**
   (`src/canair/transport/stats.py::client_transport`), never by re-resolving config — that ignored
@@ -956,7 +956,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   priority. **A view with one state slot instead takes the most SPECIFIC match**, resolved from each
   entry's optional `implies:` list — an entailment DAG (`DRIVING implies [READY]` means driving *is*
   a narrower reading of READY), not a priority number, so adding a state never renumbers anything.
-  `src/canair/states.py::most_specific_states` drops every matched state that another match implies
+  `src/canair/states/__init__.py::most_specific_states` drops every matched state that another match implies
   (transitively); it **preserves the caller's order** and never re-sorts, and file order only
   tie-breaks states unrelated in the DAG. It backs `suggest_state` (and so the monitor status bar);
   `suggest_states` deliberately does **not** apply it, because a recorded session keeps every state
@@ -1038,7 +1038,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     ECU's `id_protocol` + the quirk allowances) set on every terminal as `session_policy` and
     passed to `RawUdsClient`, keyed by the current target; `validate pids` uses the same function
     for `session_mode`. A refusal raises `SafetyBlocked` (a `ValueError`), which
-    `run_session_guarded` and `cli.py` report as `error: …` + exit 2.
+    `run_session_guarded` and `cli/__init__.py` report as `error: …` + exit 2.
   - **`physical_bands:`** / **`unit_guess_candidates:`** — vehicle-axis overrides for
     `hunt --physical` and make-specific scalings for the slope→unit sniffer. Resolvers
     `src/canair/analysis/physical/bands.py`, `src/canair/analysis/physical/unit_guess.py`. (The grid-axis bands come from the
@@ -1089,7 +1089,7 @@ Each device carries a `host` plus optional `transport`/`port`/`bitrate` (precede
 `--wican home|vpn|<ip>`; with no config it falls back to `192.168.80.1` (WiCAN AP mode). The legacy
 flat `wican_addresses: {alias: host}` form still works when no `devices:` block exists and is
 **auto-migrated into `devices:` on first run** (`src/canair/migrations/devices.py`); once `devices:`
-exists it is ignored. Resolvers: `src/canair/config.py::wican_devices` (authoritative map +
+exists it is ignored. Resolvers: `src/canair/config/__init__.py::wican_devices` (authoritative map +
 `DeviceEntry`) and `fallback_settings`; `wican_settings` is a back-compat shim.
 
 WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type": "elm327"}`).

@@ -42,7 +42,7 @@ Output size (default list view):
                         --limit 0 or a tighter scope (--since/--last-session) to
                         see the rest.
 
-QUERY mini-language (see src/canair/query.py):
+QUERY mini-language (see src/canair/query/__init__.py):
   ECU PID               one PID (bare ECU + PID)       e.g. BMS 2102
   ECU                   all PIDs for an ECU            e.g. VCU
   ECU:PID               one PID                        e.g. VCU:2101

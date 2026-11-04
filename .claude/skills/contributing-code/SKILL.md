@@ -157,8 +157,8 @@ Commands live in `src/canair/cli/commands/<name>.py`, exposing `NAME`, `add_pars
 `cli/commands/__init__.py::COMMAND_NAMES` (order = help order).
 
 **Live (device-talking) commands** additionally call `add_connection_args` +
-`live_command` from `src/canair/commands/_live/` (or call `run_live(args, operation)` from their own
-`run`). The command names its `LiveOperation`: a handler in `src/canair/commands/_live/handlers/` that
+`live_command` from `src/canair/cli/commands/_live/` (or call `run_live(args, operation)` from their own
+`run`). The command names its `LiveOperation`: a handler in `src/canair/cli/commands/_live/handlers/` that
 reads the parsed flags and calls a `mode_*` coroutine in `src/canair/live/<name>.py` with typed
 arguments. Nothing picks a handler by inspecting flags, so add the command's row to `CASES` in
 `tests/cli/commands/test_live_operations.py`: it pins the operation the command reaches and that the
@@ -173,7 +173,7 @@ mini-language rather than adding `--ecu`/`--pid`/`--param` flags.** The mini-lan
 canonical selection surface across `read`/`captures`/`decode`/`correlate`, so reusing it is
 consistent, composable and multi-ECU-capable for free; a flag pair is single-target and drifts.
 
-- **Parse through the shared helper, never re-implement the grammar:** `src/canair/query.py`
+- **Parse through the shared helper, never re-implement the grammar:** `src/canair/query/__init__.py`
   (`parse_query`/`parse_selector`); capture/analysis commands use the alias-aware `_parse_query` in
   `cli/commands/captures/query.py`; device-pipeline commands use `query/steps.py`. Templates:
   `cli/commands/captures/` (positional QUERY), `cli/commands/correlate/` (optional `ECU[:PID]`).
@@ -184,7 +184,7 @@ consistent, composable and multi-ECU-capable for free; a flag pair is single-tar
 ## Time & scoping conventions
 
 Capture-consuming commands share one scoping surface via
-`src/canair/commands/_scope.py::add_scope_args`, and the join/mirror/notation flags are likewise declared
+`src/canair/cli/commands/_scope.py::add_scope_args`, and the join/mirror/notation flags are likewise declared
 once (`AGENTS.md` → Analysis lists the shared-flag homes). Two standing rules:
 
 - **A time-bound flag accepts a timestamp down to microseconds, not a date only** — use
@@ -210,7 +210,7 @@ data itself is **`contributing-profiles`**.
 - **Every definition editor lives in `src/canair/yaml_edit/` and shares one write path.** A new one
   declares a `Target` beside its rules, lists it in `yaml_edit/targets.py` (a test fails if you
   forget), and writes through `edit_doc` (ruamel) or `edit_ecu_text` (text surgery). It raises
-  `EditError` (a subclass per file kind) and never prints or exits — `cli.py` reports it. It never
+  `EditError` (a subclass per file kind) and never prints or exits — `cli/__init__.py` reports it. It never
   opens or writes the file itself, and never `del`s or rebuilds a ruamel mapping to remove or rename
   an entry: `ruamel_ops.remove_key`/`remove_item`/`rename_key` keep the comments around it. The
   command is `run_edit(lambda: editor(...), "confirmation")` from `cli/commands/_edit.py`.

@@ -1,7 +1,7 @@
 """Which capture layer a mutation is allowed to touch.
 
 A layered profile reads captures from a read-only base bundle *and* from the
-user's overlay (``src/canair/profile.py`` → :func:`profile_layers`). Reads merge the
+user's overlay (``src/canair/profile/__init__.py`` → :func:`profile_layers`). Reads merge the
 two; writes must not. Editing a base session would either fail on a read-only
 directory or — when the base is an install snapshot — appear to work and be
 erased by the next reinstall.

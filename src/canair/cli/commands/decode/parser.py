@@ -42,7 +42,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "query",
         nargs="*",
         metavar="QUERY",
-        help="ECU/PID selection (mini-language, see src/canair/query.py): 'BMS 2101', "
+        help="ECU/PID selection (mini-language, see src/canair/query/__init__.py): 'BMS 2101', "
         "'BMS:2101', 'BMS:2101,2102', 'BMS' (all defined PIDs), or a quoted "
         "cross-ECU query 'MCU:2102 VCU:2101'. Multi-PID queries are supported for "
         "the default value-range, --compact and --json views; the analysis modes "

@@ -61,7 +61,7 @@ A `BITS` line is exactly this skill's work item: `have{}` = bit indices some
 param reads (0 = LSB), `missing{}` = the unknowns. A byte is listed when (a) ≥1
 param reads it bit-wise (`Bn:k`/`Sn:k`) **or** a `type: bitmask` param labels
 some of its bits, (b) it is a real data byte (PCI/SID/DID echo excluded), and
-(c) fewer than 8 bits are covered (`src/canair/commands/coverage.py::analyze_pid`).
+(c) fewer than 8 bits are covered (`src/canair/cli/commands/coverage.py::analyze_pid`).
 
 **`(also read whole)`** means some param *additionally* reads the byte as a
 whole (`Bn`), the `DEBUG_*_FLAGS` convention. That is not a decoding of the
