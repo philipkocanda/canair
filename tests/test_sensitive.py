@@ -278,3 +278,41 @@ class TestEditor:
 
         assert main(["validate", "pids"]) != 0
         assert "cannot declare send_to" in capsys.readouterr().out
+
+
+class TestBundledIoniqIdentity:
+    """KWP2000 1A80 and 1A90 on the VCU both carry the VIN, so both are masked."""
+
+    VIN = "TESTVIN0000000000"
+
+    @pytest.fixture
+    def ioniq(self):
+        saved = profile._active
+        profile.set_active("hyundai-ioniq-ae-ev")
+        clear_cache()
+        yield
+        profile._active = saved
+        clear_cache()
+
+    @pytest.mark.parametrize("request_hex", ["1A80", "1A90"])
+    def test_the_vin_records_are_hidden(self, ioniq, request_hex):
+        assert sensitive.request_hidden(0x7E2, request_hex)
+
+    def test_the_part_number_records_are_not(self, ioniq):
+        assert not sensitive.request_hidden(0x7E2, "1A8C")
+        assert not sensitive.request_hidden(0x7E2, "1A91")
+
+    @pytest.mark.asyncio
+    async def test_identity_does_not_print_the_vin(self, ioniq, monkeypatch, capsys):
+        from canlib.modes import identity as ident
+        from canlib.modes import identity_decode as idec
+        from tests._fakes import FakeTerminal
+        from tests._fakes import ok as _ok
+
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "kwp")
+        vin_hex = self.VIN.encode().hex().upper()
+        term = FakeTerminal({"1A80": _ok("5A80" + vin_hex), "1A90": _ok("5A90" + vin_hex)})
+        await ident.mode_identity(term, 0x7E2, session=False, wake=False, as_json=False)
+        out = capsys.readouterr().out
+        assert self.VIN not in out and vin_hex not in out
+        assert out.count(sensitive.MASK) >= 2
