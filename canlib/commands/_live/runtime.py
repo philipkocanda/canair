@@ -6,7 +6,7 @@ handling that makes SIGTERM/SIGHUP unwind like Ctrl-C, the lock watchdog);
 pre-flight checks, terminal construction, and the ``finally`` that closes and
 reboots). What the session does is the command's :class:`LiveOperation`; the session
 itself (error classification, revision detection, frame-count write-back) is
-:mod:`canlib.modes.session`.
+:mod:`canlib.live.session`.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from canlib.core.stop_signals import graceful_stop
 from canlib.device.lock import WiCANLock
 from canlib.device.lock_watchdog import LockWatchdog
 from canlib.ecus.pids import load_pids
-from canlib.modes.session import SessionOptions, run_session_guarded
+from canlib.live.session import SessionOptions, run_session_guarded
 from canlib.transport.config import ConnectionOptions
 from canlib.transport.ecu_log import init_logging
 from canlib.transport.protocol import Terminal
@@ -108,7 +108,7 @@ async def async_main(args, operation: LiveOperation):
     # Raw transport (slcan-tcp): route to the client-side ISO-TP/UDS path instead
     # of the ELM327 WebSocket. The device must already be in slcan mode.
     if transport.is_raw:
-        from canlib.modes.raw_ops import run_raw
+        from canlib.live.raw_ops import run_raw
 
         async def operate(terminal: Terminal, pids_data: dict) -> None:
             await operation.handler(args, terminal, pids_data, host)
@@ -131,7 +131,7 @@ async def async_main(args, operation: LiveOperation):
     # only in the scan subcommand that produces that scan type, so unrelated
     # commands (query, io, identity, ...) stay quiet.
     if operation.scan_types:
-        from canlib.scan_state import find_aborted_scans
+        from canlib.live.scan_state import find_aborted_scans
 
         _aborted = [s for s in find_aborted_scans() if s.get("type") in operation.scan_types]
         if _aborted:

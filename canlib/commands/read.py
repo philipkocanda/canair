@@ -112,7 +112,7 @@ def run(args) -> int:
         args.multi = [to_step(s) for s in args.steps]
         # Validate the mini-language up front so ambiguous/malformed steps fail
         # loudly *before* we acquire the device lock and open a connection.
-        from canlib.modes.multi import parse_sub_commands
+        from canlib.live.multi import parse_sub_commands
 
         try:
             commands = parse_sub_commands(args.multi)
@@ -126,7 +126,7 @@ def run(args) -> int:
         query_steps = [c for c in commands if c["type"] == "query"]
         if query_steps:
             from canlib.commands._live import load_pids
-            from canlib.modes.monitor import query_ecu_error
+            from canlib.live.monitor import query_ecu_error
 
             ecu_err = query_ecu_error(query_steps, load_pids())
             if ecu_err:

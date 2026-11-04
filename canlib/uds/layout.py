@@ -10,14 +10,14 @@ module is the one table that says so, so a byte can be *named* (``DID`` / ``LID`
 
 It builds on :mod:`canlib.uds.services` (the SID registry); response-code names are
 :mod:`canlib.uds.nrc`'s, per protocol. The roles use the same ``DID``/``LID``/``RID``
-vocabulary as :class:`canlib.modes.discovery_scan.DiscoveryProbe`.
+vocabulary as :class:`canlib.live.discovery_scan.DiscoveryProbe`.
 Data-only plus small resolvers: no I/O, no formatting decisions (a caller renders
 the labels and picks which definitions to show).
 
 The layouts are grounded in this repo's existing per-service knowledge — chiefly
 :func:`canlib.uds.describe.decode_uds_response`, :func:`canlib.uds.echo.request_echo`,
-and the scanner docstrings in :mod:`canlib.modes.kwp_routines_scan` /
-:mod:`canlib.modes.kwp_iocontrol_scan` — and a service is deliberately **omitted**
+and the scanner docstrings in :mod:`canlib.live.kwp_routines_scan` /
+:mod:`canlib.live.kwp_iocontrol_scan` — and a service is deliberately **omitted**
 rather than guessed when its layout isn't established, so callers fall back to
 their previous behaviour instead of asserting a wrong one.
 """
@@ -271,7 +271,7 @@ SUBFUNCTION_NAMES: dict[int, dict[int, str]] = {
     0x85: {0x01: "on", 0x02: "off"},
 }
 # KWP2000 InputOutputControlByLocalIdentifier takes the same control parameter
-# values as UDS 0x2F (see canlib/modes/kwp_iocontrol_scan.py).
+# values as UDS 0x2F (see canlib/live/kwp_iocontrol_scan.py).
 SUBFUNCTION_NAMES[0x30] = SUBFUNCTION_NAMES[0x2F]
 
 

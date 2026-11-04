@@ -33,7 +33,7 @@ From the interface at the top to the leaf at the bottom.
 | defines flags, reads `args`, prints a command's output | `cli/commands/<cmd>/` | `commands/<cmd>/` |
 | is a Textual app, screen or widget | `tui/apps/<app>/` (shared: `tui/kit/`) | `tui/` for shared widgets; the app next to its command or mode |
 | turns results into text for both CLI and TUI | `render/` | `formatting.py`, or the mode's `*_render.py` |
-| talks to the car over a `Terminal` | `live/<family>/` | `modes/` |
+| talks to the car over a `Terminal` | `live/<family>/` | `live/` |
 | moves bytes, frames ISO-TP, drives an ELM327 | `transport/` | `transport/` |
 | calls the adapter's HTTP API, or guards the connection | `device/` | `device/` |
 | decides whether a request may go on the bus | `safety/` | `safety/` |

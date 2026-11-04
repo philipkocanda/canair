@@ -55,8 +55,8 @@ canair reaches the bus through one **explicitly selected** transport, registered
 | ELM327 | `wican-ws`, `elm327-tcp` | device-side ISO-TP via the shared `Elm327Terminal` engine over a swappable `Channel` |
 
 All backends satisfy the `Terminal` protocol (`canlib/transport/protocol.py`) and live commands
-run through the **single shared** `canlib/modes/session.py::run_session_guarded`, called by both the
-ELM path (`commands/_live/runtime.py::async_main`) and the raw path (`modes/raw_ops.py::run_raw`).
+run through the **single shared** `canlib/live/session.py::run_session_guarded`, called by both the
+ELM path (`commands/_live/runtime.py::async_main`) and the raw path (`live/raw_ops.py::run_raw`).
 
 **The design contract:**
 
@@ -141,7 +141,7 @@ than trusting a list copied here.
    full suite.
 
 Never reintroduce: a loose module at the root, `argparse` or `textual` outside the interface, a
-library module importing up into `commands`, `modes` or `cli`, or a function-level import whose
+library module importing up into `commands`, `live` or `cli`, or a function-level import whose
 only purpose is to hide a cycle.
 
 ## Adding a CLI subcommand
@@ -153,12 +153,12 @@ Commands live in `canlib/commands/<name>.py`, exposing `NAME`, `add_parser(subpa
 **Live (device-talking) commands** additionally call `add_connection_args` +
 `live_command` from `canlib/commands/_live/` (or call `run_live(args, operation)` from their own
 `run`). The command names its `LiveOperation`: a handler in `canlib/commands/_live/handlers/` that
-reads the parsed flags and calls a `mode_*` coroutine in `canlib/modes/<name>.py` with typed
+reads the parsed flags and calls a `mode_*` coroutine in `canlib/live/<name>.py` with typed
 arguments. Nothing picks a handler by inspecting flags, so add the command's row to `CASES` in
 `tests/commands/test_live_operations.py`: it pins the operation the command reaches and that the
 parser defines every `args.x` its handler reads directly (use `getattr` for an optional one).
 
-Follow an existing command as a template: `commands/dtc/` + `modes/dtc/`.
+Follow an existing command as a template: `commands/dtc/` + `live/dtc/`.
 
 ## Selecting ECUs/PIDs — prefer the query mini-language
 
@@ -169,7 +169,7 @@ consistent, composable and multi-ECU-capable for free; a flag pair is single-tar
 
 - **Parse through the shared helper, never re-implement the grammar:** `canlib/query.py`
   (`parse_query`/`parse_selector`); capture/analysis commands use the alias-aware `_parse_query` in
-  `commands/captures/query.py`; device-pipeline commands use `modes/multi_parse.py`. Templates:
+  `commands/captures/query.py`; device-pipeline commands use `query/steps.py`. Templates:
   `commands/captures/` (positional QUERY), `commands/correlate/` (optional `ECU[:PID]`).
 - Surviving `--ecu`/`--pid`/`--param` flags are **legacy narrow filters, not precedent**.
 - If you need a genuine *filter* on top of a QUERY, extend the shared scoping surface below rather
@@ -270,7 +270,7 @@ tree is a **security incident**: flag it (history purge, key rotation), don't de
 - **Every behavioral change ships with tests**; a bug fix ships a regression test that fails before
   and passes after.
 - Prefer fast, device-free unit tests — drive modes with a fake terminal implementing the `Terminal`
-  surface (`tests/dtc/test_dtc.py`, `tests/modes/test_identity.py` are templates). Never require a live
+  surface (`tests/dtc/test_dtc.py`, `tests/live/test_identity.py` are templates). Never require a live
   device.
 - Cover the failure paths that matter: NRC responses, `NO DATA`, malformed payloads, declined
   confirmations.
@@ -287,7 +287,7 @@ Don't silently pile onto a design that no longer fits. Fix the defect you walked
 up** when a structural change is warranted instead of bolting on more.
 
 - **File size is a smell.** Approaching ~500 lines — and *well* before 1000 — split by concern (pure
-  helpers, async device orchestration, TUI, record/table data). `modes/identity.py` splitting out
+  helpers, async device orchestration, TUI, record/table data). `live/identity.py` splitting out
   `identity_decode.py`/`identity_records.py` is the pattern.
 - **A command is one module until it needs two — then it becomes a package.** Create
   `commands/<name>/`; do **not** add a flat `_<name>_*.py` sibling (retired for new work).

@@ -1,12 +1,12 @@
-"""Tests for canlib.modes.dtc — DTC decoding + read/clear mode orchestration."""
+"""Tests for canlib.live.dtc — DTC decoding + read/clear mode orchestration."""
 
 import argparse
 import json
 
 import pytest
 
-from canlib.modes import dtc
-from canlib.modes.dtc import sweep as dtc_sweep
+from canlib.live import dtc
+from canlib.live.dtc import sweep as dtc_sweep
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok
 from tests.support.live_args import live_args
@@ -210,7 +210,7 @@ class TestSupportedList:
     @pytest.mark.asyncio
     async def test_never_written_to_the_dtc_log(self, capsys, monkeypatch):
         logged = []
-        monkeypatch.setattr("canlib.modes.dtc.read._log_scan", lambda *a, **k: logged.append(a))
+        monkeypatch.setattr("canlib.live.dtc.read._log_scan", lambda *a, **k: logged.append(a))
         t = FakeTerminal({"1803FF00": _ok("5801" + "0123" + "10")})
         await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True, log=True)
         assert logged == []
@@ -334,7 +334,7 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_text_no_dtcs(self, monkeypatch, capsys):
-        monkeypatch.setattr("canlib.modes.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr(
             "canlib.ecus.load_ecus",
             lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
@@ -352,7 +352,7 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_reports_no_response_separately(self, monkeypatch, capsys):
-        monkeypatch.setattr("canlib.modes.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr(
             "canlib.ecus.load_ecus",
             lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
@@ -366,7 +366,7 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_retry_recovers_slow_ecu(self, monkeypatch, capsys):
-        monkeypatch.setattr("canlib.modes.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
         # NO DATA on first read, a DTC once retried (after the wake).
         t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
@@ -378,7 +378,7 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_no_retry_leaves_no_response(self, monkeypatch, capsys):
-        monkeypatch.setattr("canlib.modes.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
         await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False)
@@ -395,7 +395,7 @@ class TestScanAll:
 
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
-        monkeypatch.setattr("canlib.modes.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canlib.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})  # BCM: 1 DTC
         args = live_args(dtc_all=True, mask="FF")

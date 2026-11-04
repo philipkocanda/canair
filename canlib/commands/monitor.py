@@ -6,10 +6,10 @@ a bare selector (no leading verb) is treated as a ``query`` step, so
 ``canair monitor BMS:2101`` and
 ``canair monitor "session IGPM --wake" "query IGPM"`` both work. With no STEP at
 all, a terminal gets an interactive picker (groups/ECUs, then PIDs —
-:mod:`canlib.modes.monitor_select`) whose result becomes the STEPs.
+:mod:`canlib.live.monitor_select`) whose result becomes the STEPs.
 
 On a terminal this opens the scrollable Textual monitor (the polling / decoding /
-capture-saving logic lives in :mod:`canlib.modes.monitor`); piped/non-interactive
+capture-saving logic lives in :mod:`canlib.live.monitor`); piped/non-interactive
 it polls silently until Ctrl+C. Recording (``--save`` + metadata) and keep-modes
 apply here, not to the one-shot ``canair read``.
 """
@@ -31,7 +31,7 @@ from canlib.commands._live import (
 )
 from canlib.commands._live.handlers.multi import monitor_operation, monitor_options
 from canlib.commands._notation import add_notation_arg
-from canlib.poll_schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
+from canlib.live.poll_schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
 
 NAME = "monitor"
 ALIASES = ["mon"]
@@ -177,7 +177,7 @@ def _pick_steps(args) -> list[str] | None:
     Raises ``ValueError`` if there is nothing in the active profile to pick from.
     """
     from canlib.commands._live import load_pids
-    from canlib.modes.monitor_select import pick_selectors
+    from canlib.live.monitor_select import pick_selectors
 
     return pick_selectors(load_pids(), include_static=args.include_static)
 
@@ -214,7 +214,7 @@ def run(args) -> int:
 
     args.multi = [to_step(s) for s in args.steps]
 
-    from canlib.modes.multi import parse_sub_commands
+    from canlib.live.multi import parse_sub_commands
 
     # Validate the mini-language up front so ambiguous/malformed steps fail
     # loudly *before* we acquire the device lock and open a connection.
@@ -232,7 +232,7 @@ def run(args) -> int:
 
     # Reject typo'd/unknown ECU names before connecting (mirrors `canair read`).
     from canlib.commands._live import load_pids
-    from canlib.modes.monitor import query_ecu_error
+    from canlib.live.monitor import query_ecu_error
 
     ecu_err = query_ecu_error(query_steps, load_pids())
     if ecu_err:

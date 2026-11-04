@@ -1,10 +1,8 @@
 """A monitor app over a controller that also serves the two pickers."""
 
-from canlib.modes._monitor_selectors import PickerSeed
-from canlib.modes._monitor_tui import (
-    MonitorApp,
-)
-from canlib.modes.monitor_select import build_choices
+from canlib.live._monitor_selectors import PickerSeed
+from canlib.live._monitor_tui import MonitorApp
+from canlib.live.monitor_select import build_choices
 from tests.support.monitor_tui import FakeController, FakeEditor
 
 

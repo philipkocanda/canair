@@ -182,7 +182,7 @@ and **`g`/`G` address the view's primary axis**.
   (`--save`/`--label`/`--state`/`--notes`) and the keep-modes live **here, not on `read`**. On a TTY
   it opens the scrollable Textual monitor (press `?` for keys); piped it polls silently until
   Ctrl+C; **a bare `canair monitor` on a TTY opens a group/ECU → PID checklist first**
-  (`canlib/modes/monitor_select.py` = pure choice/selector logic,
+  (`canlib/live/monitor_select.py` = pure choice/selector logic,
   `_monitor_select_tui.py` = the screen; it needs only the profile, never the device, and prints
   the equivalent command; saved `@groups` are listed above the ECUs and expand to their ECUs and
   PIDs). **The running monitor's `p` key opens that same screen** on what is polled now
@@ -193,7 +193,7 @@ and **`g`/`G` address the view's primary axis**.
   (`--schedule dynamic`): each PID is read at half its profile `period:`
   (`MONITOR_PERIOD_SPEEDUP`), a PID without one every `--interval` (`--schedule fixed` reads
   every PID every cycle). A slow or silent PID holds up every other PID's next read, so the
-  leaf `canlib/poll_backoff.py::PollBackoff` slows that PID alone (×2 up to ×32,
+  leaf `canlib/live/poll_backoff.py::PollBackoff` slows that PID alone (×2 up to ×32,
   `--no-backoff` off; its ECU's healthy PIDs keep their rate) from the per-`(ECU, PID)`
   `PollCost`s the pollers leave in `MonitorController.poll_costs`; the slowdown is shown on
   the PID's row. A reconnect restores every PID's rate (`MonitorController.reset_backoff`,
@@ -202,8 +202,8 @@ and **`g`/`G` address the view's primary axis**.
   path each result carries its request's `request_s` (`multi_exec.timed_exchange`), which
   excludes keepalive time (`SessionManager.keepalive_seconds`); a multi-DID batch is one
   request for each PID it answers, timed as the whole batch. The scheduler is a
-  dependency-free leaf, `canlib/poll_schedule.py::PollScheduler` (the parser imports its
-  vocabulary at CLI start-up, so it must not reach into `canlib/modes`); it drives which PIDs each
+  dependency-free leaf, `canlib/live/poll_schedule.py::PollScheduler` (the parser imports its
+  vocabulary at CLI start-up, so it must not reach into `canlib/live`); it drives which PIDs each
   tick reads and, since a slow PID is now polled far less often than a fast one, also supplies the
   per-signal *clock* the state-suggestion staleness is counted on (polls of that PID, not ticks of
   a faster neighbour).
@@ -230,7 +230,7 @@ and **`g`/`G` address the view's primary axis**.
   own N_Cr under an absolute cap; ELM: `elm327/functional.py` brackets the request with
   `ATH1`/`ATH0` in one transaction, tracked by `AdapterState.headers`, and opens the receive
   filter with `ATCF`/`ATCM` for it, since the auto filter behind `0x7DF` passes only
-  `0x7E8`–`0x7EF`); classification is `canlib/modes/functional_sweep.py`. CAN-FD and
+  `0x7E8`–`0x7EF`); classification is `canlib/live/functional_sweep.py`. CAN-FD and
   `normal_29bit` profiles are refused.
 - **`canair identity`** (alias `id`) — Identity DIDs/records (UDS `22 F1xx`, KWP2000 `1A 8x/9x`),
   printed only: nothing is written to the ECU's `identity:` (which can hold a live VIN when
@@ -248,7 +248,7 @@ and **`g`/`G` address the view's primary axis**.
   release you have not seen hand the output back on the car.
 - **`canair action`** — List, run and edit the profile's guarded, make-specific actions
   (`actions.yaml`; `action run NAME [--dry-run] [--yes]`). Model, rules and loader
-  `canlib/actions/`, editor `canlib/yaml_edit/actions.py`, live run `canlib/modes/action.py` (its
+  `canlib/actions/`, editor `canlib/yaml_edit/actions.py`, live run `canlib/live/action.py` (its
   docstring fixes the plan → check → confirm → re-check → send order). Two rules a change must
   keep: **every request still passes the blocklist** — a refused one goes out only when a quirk
   grants exactly that `(tx_id, request)` (`canlib/safety/quirks.py::action_grants`), applied through
@@ -280,7 +280,7 @@ and **`g`/`G` address the view's primary axis**.
   **Snapshots:** `dtc read` also reads the snapshots a UDS ECU stored with each code it
   reports (`19 03`, then `19 04` per record; `--no-snapshots` opts out), as a skippable final
   step with `--all` (`canlib/tui/skip_key.py`), and before a `--clear` erases them. The mode
-  package is `canlib/modes/dtc/` (one module per concern; device side `snapshots.py`, `--save`
+  package is `canlib/live/dtc/` (one module per concern; device side `snapshots.py`, `--save`
   `snapshot_capture.py`), the I/O-free parser `canlib/dtc/snapshot.py`, the profile bridge
   (lengths, decoding as a `62 <DID>` reply) `canlib/dtc/snapshot_decode.py`, the text
   `canlib/dtc/snapshot_report.py`. The log keeps only each record's raw reply and decodes it
@@ -573,7 +573,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   count can never seed — and undercount — a read of another. `pids upsert-param --revision R`
   writes `per_revision.R` on an existing signal and gates a new one to `[R]`.
   **Detection** ranks after "only one" and before undetermined: `run_session_guarded` calls
-  `canlib/modes/revision_probe.py::detect_revisions` before dispatch, which sends each
+  `canlib/live/revision_probe.py::detect_revisions` before dispatch, which sends each
   ambiguous ECU the current `read`/`monitor` steps target its cheapest `responds:` fingerprint
   (matcher: the I/O-free `canlib/variants/fingerprints.py`), remembers a single match in user
   state (`canlib/variants/detected.py`, carried as `Profile.revision_detections` and in
@@ -670,7 +670,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   `(response_SID, sub-function)` table for headers whose shape depends on the sub-function, such as
   the `59 04` snapshot record; `layout_of(payload)` picks the right one), which also owns
   **`SUBFUNCTION_NAMES`**, the single home for per-SID sub-function enums —
-  `canlib/formatting.py::decode_uds_response` and `modes/sessions_scan.py` both read it, and a test
+  `canlib/formatting.py::decode_uds_response` and `live/sessions_scan.py` both read it, and a test
   cross-checks the two layout models.
 - **`canair config`** — View/manage user config (`~/.config/canair/config.yaml`): `show`, `example`
   (prints `config.example.yaml`, the authoritative fully-commented reference for every key), `path`,
@@ -1117,13 +1117,13 @@ rather than abandoned: it re-probes reachable **same-transport** devices (raw↔
 *initial* connect crosses transports), rebuilds the client, re-opens sessions and resumes, with a
 `--save` recording continuing on the same journal. The gap is recorded in the session's
 `link_events` (`canlib/captures/link_events.py`, which also records pauses, silent ECUs,
-unpolled PIDs and backoff; the monitor side is `modes/_monitor_link_events.py`, fed through
+unpolled PIDs and backoff; the monitor side is `live/_monitor_link_events.py`, fed through
 `MonitorController.mark_disconnected`, so a new link-failure path must call that rather than
 set `disconnected` itself). Gaps bound forward fill (`analysis/fill.py::next_gap_starts`);
 holes no event explains are inferred for display only (`captures/inferred_gaps.py`). Bounded by
 `transport.reconnect_max_wait` (default 60.0s); `--wait` retries forever. Infra
-`canlib/modes/monitor_reconnect.py` plus the per-transport connect closures in
-`commands/_live/connect.py` and `modes/raw_monitor.py`. Plan:
+`canlib/live/monitor_reconnect.py` plus the per-transport connect closures in
+`commands/_live/connect.py` and `live/raw_monitor.py`. Plan:
 `plans/2026-08-03-monitor-reconnect-and-wait.md`.
 
 **Reconnect is correctness-triggered, not only liveness-triggered.** A session can stop being usable
@@ -1210,7 +1210,7 @@ makes a cold first read fast instead of paying one plain read per PID to re-lear
   `observe()` (a count merely seen, needing `OBSERVATIONS_REQUIRED = 3` agreeing sightings). **Any
   disagreement retires the key permanently** and further agreement cannot rehabilitate it: if the
   length varies, every single count is an undercount for some response.
-- **`canlib/response_frames.py`** is the bidirectional bridge — `stored_count()` is the **single
+- **`canlib/ecus/response_frames.py`** is the bidirectional bridge — `stored_count()` is the **single
   reader** of the field (its `bool` exclusion is load-bearing: `bool` is an `int` subclass, so a
   stray `response_frames: true` would read as a 1-frame count), `seed_counts()` builds the
   `{(tx_id, request): frames}` seed, `resolve_edits()` diffs a ledger against the profile, and
@@ -1227,7 +1227,7 @@ makes a cold first read fast instead of paying one plain read per PID to re-lear
   wire never sets the flag: it only *clears* a stored count, because a clone that mangles the
   digit looks identical.
 - **The write-back seam is `Terminal.frame_counts`**, so one implementation covers every transport:
-  `canlib/modes/session.py::run_session_guarded` calls `_persist_frame_counts` in a
+  `canlib/live/session.py::run_session_guarded` calls `_persist_frame_counts` in a
   `finally`, so an interrupted or failed session still banks what it proved (Ctrl-C is the *normal*
   way a long `monitor` ends). `--no-learn-frames` opts out. A failure there never propagates — the
   measurement is a by-product of whatever the user actually ran. It is deliberately **not** wrapped

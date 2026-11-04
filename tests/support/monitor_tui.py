@@ -21,7 +21,7 @@ class FakeController:
     ):
         self.cycle = 0
         self.elapsed = 0.0
-        from canlib.poll_schedule import PollScheduler
+        from canlib.live.poll_schedule import PollScheduler
 
         self.schedule = PollScheduler("fixed", 0.05)
         self.last_cmds = 0
@@ -66,7 +66,7 @@ class FakeController:
         return self.session_label or self._query_label or "Monitor"
 
     def cycle_view(self) -> str:
-        from canlib.modes._monitor_render import VIEW_MODES
+        from canlib.live._monitor_render import VIEW_MODES
 
         idx = VIEW_MODES.index(self.view_mode) if self.view_mode in VIEW_MODES else 0
         self.view_mode = VIEW_MODES[(idx + 1) % len(VIEW_MODES)]

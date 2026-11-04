@@ -75,7 +75,7 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
     terminal first); the caller classifies it.
     """
     from canlib import config
-    from canlib.response_frames import seed_counts, variable_length_keys
+    from canlib.ecus.response_frames import seed_counts, variable_length_keys
     from canlib.safety.blocklist import SessionPolicy
     from canlib.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal, Elm327Terminal
     from canlib.transport.elm327.addressing import flow_control_data
@@ -169,7 +169,7 @@ def build_elm_reconnector(candidates, pids_data: dict, conn: ConnectionOptions):
     per-candidate connect step, so a mid-session drop reconnects exactly the way the initial
     connect did.
     """
-    from canlib.modes.monitor_reconnect import MonitorReconnector, reconnect_policy
+    from canlib.live.monitor_reconnect import MonitorReconnector, reconnect_policy
     from canlib.transport.config import TransportConfig
 
     elm_candidates = [c for c in candidates if c.is_elm]

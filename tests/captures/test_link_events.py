@@ -1,7 +1,7 @@
 """Tests for capture link events: when a recording could not see the car, and why.
 
 Covers the pure leaf (``canlib.captures.link_events``), the journal round trip into a
-capture file, the monitor's recorder (``canlib.modes._monitor_link_events``) and its
+capture file, the monitor's recorder (``canlib.live._monitor_link_events``) and its
 hooks in the controller, and the readers (``--sessions``, ``validate captures``).
 Plan: ``plans/2026-11-02-capture-link-events.md``.
 """
@@ -20,7 +20,7 @@ from canlib.captures.link_events import (
     session_link_events,
     summarize,
 )
-from canlib.modes._monitor_link_events import LinkEventTracker
+from canlib.live._monitor_link_events import LinkEventTracker
 from canlib.validation._common import CAPTURES_SCHEMA_FILE
 
 DAY = "2026-11-02"
@@ -290,7 +290,7 @@ class TestTracker:
 
 class TestControllerHooks:
     def _controller(self):
-        from canlib.modes.monitor import MonitorController
+        from canlib.live.monitor import MonitorController
 
         steps = [{"type": "query", "ecu": "BMS", "pids": ["2101"]}]
         c = MonitorController(object(), steps, {"ecus": {}}, verbose=False)
@@ -326,7 +326,7 @@ class TestControllerHooks:
 
 class TestSegmentRotation:
     def test_an_open_gap_is_restated_in_the_next_segment(self, tmp_path):
-        from canlib.modes._monitor_record import MonitorRecorder
+        from canlib.live._monitor_record import MonitorRecorder
         from tests.support.monitor_recorder import FakeController
 
         c = FakeController(tmp_path)
@@ -629,7 +629,7 @@ class TestScopedTracker:
 
 class TestControllerScopedHooks:
     def _controller(self):
-        from canlib.modes.monitor import MonitorController
+        from canlib.live.monitor import MonitorController
 
         c = MonitorController(object(), [], {"ecus": {}}, verbose=False)
         journal = _ListJournal()
@@ -637,7 +637,7 @@ class TestControllerScopedHooks:
         return c, journal
 
     def test_a_silent_ecu_among_answering_ones(self):
-        from canlib.poll_backoff import PollCost
+        from canlib.live.poll_backoff import PollCost
 
         c, journal = self._controller()
         for _ in range(3):
@@ -651,7 +651,7 @@ class TestControllerScopedHooks:
         assert journal.scopes == [{"kind": "ecu_silent", "id": 1, "rx": "0x7EC"}]
 
     def test_backoff_changes_are_recorded(self, monkeypatch):
-        from canlib.poll_backoff import PollCost
+        from canlib.live.poll_backoff import PollCost
 
         c, journal = self._controller()
         monkeypatch.setattr(c.backoff, "observe", lambda _key, _cost: 4)
@@ -662,7 +662,7 @@ class TestControllerScopedHooks:
         ]
 
     def test_an_ecu_with_one_answering_pid_is_not_silent(self):
-        from canlib.poll_backoff import PollCost
+        from canlib.live.poll_backoff import PollCost
 
         c, journal = self._controller()
         for _ in range(3):

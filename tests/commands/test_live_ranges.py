@@ -10,7 +10,7 @@ import argparse
 import pytest
 
 from canlib.commands._live.handlers.ranges import parse_range, parse_ranges
-from canlib.modes.iocontrol_scan import resolve_iocontrol_ranges
+from canlib.live.iocontrol_scan import resolve_iocontrol_ranges
 from canlib.validation.pids import _validate_iocontrol_scan_ranges
 
 

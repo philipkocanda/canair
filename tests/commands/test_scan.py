@@ -1,11 +1,11 @@
-"""Tests for scan service presets and smart per-ECU defaults (canlib.scan_presets)."""
+"""Tests for scan service presets and smart per-ECU defaults (canlib.live.scan_presets)."""
 
 from types import SimpleNamespace
 
 import pytest
 
-from canlib import scan_presets as sp
-from canlib.scan_presets import (
+from canlib.live import scan_presets as sp
+from canlib.live.scan_presets import (
     ServiceError,
     is_wide_service,
     plan_scan,

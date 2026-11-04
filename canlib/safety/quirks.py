@@ -10,7 +10,7 @@ ECUs actually exhibit.
 Today there are four quirks:
 
 - :data:`SKM_WAKEUP` — the Ioniq/HKMC Smart Key Module *relay*-wake procedure
-  (:mod:`canlib.modes.skm_wakeup`): rouse the SKM then close a power relay
+  (:mod:`canlib.live.skm_wakeup`): rouse the SKM then close a power relay
   (ACC/IGN) via IOControl. The relay DIDs / magic bytes / addresses are
   Ioniq-particular, so the ``skm-wake`` relay command is refused for profiles
   that don't declare this capability. (Merely *reading* a fast-sleeping ECU is
@@ -22,7 +22,7 @@ Today there are four quirks:
   profile's KWP2000 ECUs only (on a UDS ECU the same byte is an OEM session with
   the suppress-response bit). It also
   switches the KWP2000 IOControl scan to Nissan's ``0x30`` layout
-  (:mod:`canlib.modes.kwp_iocontrol_scan`), where the ISO probe would begin a
+  (:mod:`canlib.live.kwp_iocontrol_scan`), where the ISO probe would begin a
   one-shot command.
 - :data:`HK_90_SESSION` — Hyundai/Kia KWP2000 ECUs take the OEM session
   ``10 90`` before an actuator test (``0x30``): the OVMS Kia Soul EV firmware
@@ -48,7 +48,7 @@ from typing import Any, Final
 from canlib.uds.addressing import FUNCTIONAL_11BIT_ID
 from canlib.uds.protocol import KWP
 
-# The Ioniq/HKMC Smart Key Module relay-wake procedure (canlib.modes.skm_wakeup):
+# The Ioniq/HKMC Smart Key Module relay-wake procedure (canlib.live.skm_wakeup):
 # rouse the SKM, then actuate a power relay (ACC/IGN) via IOControl. Make-specific
 # (relay DIDs / magic bytes / addresses are Ioniq-particular), so the `skm-wake`
 # relay command is gated behind this capability. Reading a fast-sleeping ECU is

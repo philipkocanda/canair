@@ -7,8 +7,8 @@ lifecycle. Each subcommand is a thin argparse surface that picks its
 :class:`~.runtime.LiveOperation` and calls :func:`run_live` with it.
 
 Private to the command layer, hence the underscore: it is CLI plumbing, not
-library API. The parts that were neither — the session (:mod:`canlib.modes.session`),
-``wants_save``, ``split_ecus_by_protocol`` — live in :mod:`canlib.modes`,
+library API. The parts that were neither — the session (:mod:`canlib.live.session`),
+``wants_save``, ``split_ecus_by_protocol`` — live in :mod:`canlib.live`,
 :mod:`canlib.captures.keepmode` and :mod:`canlib.ecus`, so nothing under ``canlib/`` imports
 this.
 

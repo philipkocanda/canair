@@ -296,7 +296,7 @@ class TestCrossCheckedAgainstUdsLayout:
     def test_subfunction_names_are_shared_not_copied(self):
         # The session table lives in one place now; a private copy is what let
         # formatting.py's drift out of step (missing the KWP2000 0x8x range).
-        from canlib.modes.sessions_scan import SESSION_NAMES
+        from canlib.live.sessions_scan import SESSION_NAMES
 
         assert SESSION_NAMES is SUBFUNCTION_NAMES[0x10]
 
@@ -310,7 +310,7 @@ class TestSubfunctionCoverage:
         assert f"0x{session:02X}" not in decoded, f"session 0x{session:02X} rendered as hex"
 
     def test_scanned_session_modes_are_all_named(self):
-        from canlib.modes.sessions_scan import KWP_SESSION_MODES, UDS_SESSION_MODES
+        from canlib.live.sessions_scan import KWP_SESSION_MODES, UDS_SESSION_MODES
 
         for mode in (*UDS_SESSION_MODES, *KWP_SESSION_MODES):
             assert subfunction_name(0x10, mode) is not None
@@ -323,7 +323,7 @@ class TestSubfunctionCoverage:
 
     def test_iocontrol_params_match_the_scanner_constants(self):
         # formatting.py and the two IOControl scanners must agree on these values.
-        from canlib.modes.iocontrol_scan import (
+        from canlib.live.iocontrol_scan import (
             SF_FREEZE,
             SF_RESET_TO_DEFAULT,
             SF_RETURN_CONTROL,
@@ -336,12 +336,12 @@ class TestSubfunctionCoverage:
         assert subfunction_name(0x2F, SF_SHORT_TERM_ADJ) == "shortTermAdjustment"
 
     def test_kwp_iocontrol_shares_the_uds_control_values(self):
-        from canlib.modes.kwp_iocontrol_scan import IOCP_RETURN_CONTROL
+        from canlib.live.kwp_iocontrol_scan import IOCP_RETURN_CONTROL
 
         assert subfunction_name(0x30, IOCP_RETURN_CONTROL) == "returnControlToECU"
 
     def test_routine_subfunctions_match_the_routines_module(self):
-        from canlib.modes.routines import SF_RESULTS, SF_START, SF_STOP
+        from canlib.live.routines import SF_RESULTS, SF_START, SF_STOP
 
         assert subfunction_name(0x31, SF_START) == "startRoutine"
         assert subfunction_name(0x31, SF_STOP) == "stopRoutine"

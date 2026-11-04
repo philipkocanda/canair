@@ -27,7 +27,7 @@ Two rules keep a profile from using this to get around canair's safety policy:
 
 This module is device-free: the model, the structural checks shared by the
 loader, the editor and ``canair validate actions``, and :func:`load_actions`. The
-live run is :mod:`canlib.modes.action`.
+live run is :mod:`canlib.live.action`.
 """
 
 from __future__ import annotations

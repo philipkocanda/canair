@@ -174,7 +174,7 @@ class TestPerEcuMeaning:
     def test_a_read_and_a_logged_scan_are_described_by_their_ecu(self, monkeypatch):
         from canlib.dtc import log as dtc_log
         from canlib.dtc.refs import EcuRefs
-        from canlib.modes.dtc import reading as dtc
+        from canlib.live.dtc import reading as dtc
 
         monkeypatch.setattr("canlib.ecus.ecu_name", lambda tx: {0x7D4: "EPS"}[tx])
         refs = EcuRefs(tx_by_rx={0x7DC: 0x7D4}, names={0x7DC: "EPS"})

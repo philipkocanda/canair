@@ -9,7 +9,7 @@ knows. Two kinds of caller need that walk:
   pretending to be (both start ``62 D1``, so the echo check passes it); and
 - ``validate captures``, to find such a reply already stored under its first DID.
 
-Pure and device-free. :func:`canlib.modes.multi_batch.split_multi_did` is the stricter sibling
+Pure and device-free. :func:`canlib.live.multi_batch.split_multi_did` is the stricter sibling
 for a reply to a known request, where the DIDs and their order are given rather than discovered.
 """
 

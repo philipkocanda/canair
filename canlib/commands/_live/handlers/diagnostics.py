@@ -16,7 +16,7 @@ from canlib.uds.protocol import KWP
 
 async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
     from canlib.ecus import resolve_tx
-    from canlib.modes.dtc import mode_dtc_clear, mode_dtc_read, mode_dtc_scan_all, resolve_protocol
+    from canlib.live.dtc import mode_dtc_clear, mode_dtc_read, mode_dtc_scan_all, resolve_protocol
 
     if getattr(args, "dtc_all", False):
         try:

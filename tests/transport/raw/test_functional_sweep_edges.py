@@ -12,7 +12,7 @@ import contextlib
 import can
 import pytest
 
-from canlib.modes.functional_sweep import classify_round
+from canlib.live.functional_sweep import classify_round
 from canlib.transport.elm327.addressing import AUTO
 from canlib.transport.elm327.functional import elm_functional_exchange
 from canlib.transport.elm327.terminal import Elm327Terminal

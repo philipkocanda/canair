@@ -1,6 +1,6 @@
 """Multi-ECU pipeline — sub-command parsing and ECU/PID token resolution.
 
-Device-free parsing helpers for :mod:`canlib.modes.multi`: resolving an ECU
+Device-free parsing helpers for :mod:`canlib.live.multi`: resolving an ECU
 name/hex to a TX id, recognising a bare PID token, expanding a ``query`` step
 into ``(ecu, pids)`` pairs, normalising overlapping selectors, and turning the
 raw sub-command strings into structured dicts. Kept separate from the

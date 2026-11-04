@@ -3,7 +3,7 @@
 Re-decodes historical capture payloads and evaluates the profile's
 ``vehicle_states.yaml`` predicates to infer which power/operating state(s) a
 session was in — the offline analogue of the live monitor's span-aware state
-back-fill (:mod:`canlib.modes._monitor_record`), for sessions recorded before
+back-fill (:mod:`canlib.live._monitor_record`), for sessions recorded before
 that existed or with a missing/incorrect state.
 
 Nothing here talks to the device; it is pure analysis over ``captures/`` (like

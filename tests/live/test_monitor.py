@@ -1,0 +1,1339 @@
+"""Tests for canlib.live.monitor — rendering and helper functions."""
+
+import json
+
+from canlib.live._monitor_history import HistoryRun, extend_runs
+from canlib.live.monitor import (
+    _HIGHLIGHT_STYLE,
+    MonitorController,
+    RenderCache,
+    _bytes_to_ascii,
+    _merge_history,
+    _render_hex_line,
+    _render_results,
+    query_ecu_error,
+)
+
+
+class TestBytesToAscii:
+    def test_printable(self):
+        assert _bytes_to_ascii("48656C6C6F") == "Hello"
+
+    def test_non_printable_replaced(self):
+        # 0x00='.', 0x01='.', 0x7f=DEL='.', 0x80='.', 0xff='.'
+        assert _bytes_to_ascii("00017F80FF") == "....."
+
+    def test_non_printable_dots(self):
+        # 0x00, 0x01, 0x1f are all non-printable
+        assert _bytes_to_ascii("00011F") == "..."
+
+    def test_mixed(self):
+        # "62 C0 0B 41" -> 'b' is printable, 0xC0/0x0B not, 'A' is printable
+        assert _bytes_to_ascii("62C00B41") == "b..A"
+
+    def test_empty(self):
+        assert _bytes_to_ascii("") == ""
+
+    def test_space_is_printable(self):
+        assert _bytes_to_ascii("20") == " "
+
+    def test_tilde_is_printable(self):
+        assert _bytes_to_ascii("7E") == "~"
+
+    def test_del_is_not_printable(self):
+        assert _bytes_to_ascii("7F") == "."
+
+
+class TestRenderHexLine:
+    """Test _render_hex_line Rich Text output."""
+
+    def test_unmapped_shows_ascii(self):
+        t = _render_hex_line("62B00140", [], unmapped=True)
+        text = t.plain
+        assert "62 B0 01 40" in text
+        assert "b..@" in text
+        assert "(4 B)" in text
+
+    def test_unmapped_no_params(self):
+        t = _render_hex_line("AABB", [], unmapped=False)
+        text = t.plain
+        assert "AA BB" in text
+        assert "(2 B)" in text
+
+    def test_mapped_shows_byte_count(self):
+        params = [("SOC", 50.0, "%", "B02/2", None, True)]
+        t = _render_hex_line("62010064", params, unmapped=False)
+        text = t.plain
+        assert "(4 B)" in text
+
+    def test_empty_hex(self):
+        t = _render_hex_line("", [], unmapped=True)
+        text = t.plain
+        assert "(0 B)" in text
+
+    def test_changed_byte_highlighted_unmapped(self):
+        """Changed bytes in unmapped PID get highlight style."""
+        t = _render_hex_line("62B00140", [], unmapped=True, prev_raw="62B00150")
+        styles = [str(s.style) for s in t._spans]
+        assert any(_HIGHLIGHT_STYLE["bright_black"] in s for s in styles)
+
+    def test_changed_byte_highlighted_mapped(self):
+        """Changed bytes in mapped PID get highlight style based on base color."""
+        params = [("SOC", 50.0, "%", "B02/2", None, True)]
+        t = _render_hex_line("620100FF", params, unmapped=False, prev_raw="62010064")
+        # Byte 3 changed (FF vs 64)
+        styles = [str(s.style) for s in t._spans]
+        has_highlight = any(any(hs in s for hs in _HIGHLIGHT_STYLE.values()) for s in styles)
+        assert has_highlight
+
+    def test_no_change_no_highlight(self):
+        """Identical prev_raw produces no highlight styles."""
+        t = _render_hex_line("62B001", [], unmapped=True, prev_raw="62B001")
+        styles = [str(s.style) for s in t._spans]
+        for hs in _HIGHLIGHT_STYLE.values():
+            assert not any(hs in s for s in styles)
+
+    def test_no_prev_raw_no_highlight(self):
+        """No prev_raw (first cycle) produces no highlight styles."""
+        t = _render_hex_line("62B001", [], unmapped=True, prev_raw="")
+        styles = [str(s.style) for s in t._spans]
+        for hs in _HIGHLIGHT_STYLE.values():
+            assert not any(hs in s for s in styles)
+
+
+class TestRenderResults:
+    """Test _render_results composites."""
+
+    def _make_pid_result(
+        self, pid="2101", params=None, raw_hex="610100", error=None, unmapped=False
+    ):
+        return {
+            "pid": pid,
+            "params": params or [],
+            "raw_hex": raw_hex,
+            "error": error,
+            "unmapped": unmapped,
+        }
+
+    def test_empty_queries(self):
+        t = _render_results([], verbose=False, cycle=1, elapsed=0.5, interval=5.0)
+        text = t.plain
+        assert "cycle 1" in text
+        assert "Ctrl+C" in text
+
+    def test_cycle_header(self):
+        t = _render_results([], verbose=False, cycle=42, elapsed=1.2, interval=3.0)
+        text = t.plain
+        assert "cycle 42" in text
+        assert "1.2s" in text
+        assert "3.0s" in text
+
+    def test_ecu_label_shown(self):
+        results = [("BMS (0x7E4)", [self._make_pid_result()])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        assert "BMS (0x7E4)" in t.plain
+
+    def test_pid_shown(self):
+        results = [("BMS (0x7E4)", [self._make_pid_result(pid="2101")])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        assert "2101" in t.plain
+
+    def test_error_shown(self):
+        entry = self._make_pid_result(error="NRC 0x12")
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        assert "NRC 0x12" in t.plain
+
+    def test_unmapped_label(self):
+        entry = self._make_pid_result(unmapped=True)
+        results = [("BCM (0x7A0)", [entry])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        assert "(unmapped)" in t.plain
+
+    def test_rulers_annotate_signals_with_byte_reference(self):
+        # With show_rulers, each signal gets its byte-reference column, rendered
+        # in the same notation as the ruler (WiCAN by default — so it echoes B2).
+        params = [("VOLT", 12.3, "V", "B02", None, True)]
+        entry = self._make_pid_result(pid="2101", params=params, raw_hex="6101AB")
+        results = [("BMS (0x7E4)", [entry])]
+        with_r = _render_results(
+            results, verbose=False, cycle=1, elapsed=0.1, interval=5.0, show_rulers=True
+        ).plain
+        line = next(ln for ln in with_r.splitlines() if "VOLT" in ln)
+        # Byte reference trails the verified mark.
+        assert line.rstrip().endswith("✓  B2")
+        # One ruler row, labelled with the notation it is drawn in.
+        assert len([ln for ln in with_r.splitlines() if ln.strip().startswith("wican")]) == 1
+        assert "idx" not in with_r
+
+    def test_ruler_notation_follows_request(self):
+        from canlib.uds.notation import ByteNotation
+
+        params = [("VOLT", 12.3, "V", "B02", None, True)]
+        entry = self._make_pid_result(pid="2101", params=params, raw_hex="6101AB")
+        results = [("BMS (0x7E4)", [entry])]
+        out = _render_results(
+            results,
+            verbose=False,
+            cycle=1,
+            elapsed=0.1,
+            interval=5.0,
+            show_rulers=True,
+            notation=ByteNotation.ISOTP,
+        ).plain
+        line = next(ln for ln in out.splitlines() if "VOLT" in ln)
+        assert line.rstrip().endswith("✓  i1")
+        assert any(ln.strip().startswith("isotp") for ln in out.splitlines())
+
+    def test_history_render_is_capped(self):
+        # A noisy PID can accrue thousands of runs; the render must cap to the
+        # newest _RENDER_MAX_ROWS and summarize the rest.
+        from canlib.live.monitor import _RENDER_MAX_ROWS
+
+        n = _RENDER_MAX_ROWS + 50
+        hexes = [f"6101{i:04X}" for i in range(n)]
+        history = [HistoryRun(h, f"12:{i // 60:02d}:{i % 60:02d}") for i, h in enumerate(hexes)]
+        hist = {("BMS (0x7E4)", "2101"): history}
+        entry = self._make_pid_result(pid="2101", raw_hex=hexes[-1])  # already in history
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(
+            results, verbose=False, cycle=5, elapsed=0.1, interval=5.0, hex_history=hist
+        )
+        text = t.plain
+        assert "50 earlier entries hidden" in text
+        # Only the newest _RENDER_MAX_ROWS payload rows are rendered (each payload
+        # renders once as space-separated bytes "61 01 ..").
+        assert text.count("61 01 ") == _RENDER_MAX_ROWS
+
+    def test_history_render_respects_max_history_rows(self):
+        # A caller-supplied cap (e.g. the compact live-view default) bounds the
+        # rendered rows to the newest N and hides the rest.
+        n = 60
+        hexes = [f"6101{i:04X}" for i in range(n)]
+        history = [HistoryRun(h, f"12:{i // 60:02d}:{i % 60:02d}") for i, h in enumerate(hexes)]
+        hist = {("BMS (0x7E4)", "2101"): history}
+        entry = self._make_pid_result(pid="2101", raw_hex=hexes[-1])
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(
+            results,
+            verbose=False,
+            cycle=5,
+            elapsed=0.1,
+            interval=5.0,
+            hex_history=hist,
+            max_history_rows=4,
+        )
+        text = t.plain
+        assert "56 earlier entries hidden" in text
+        assert text.count("61 01 ") == 4
+
+    def test_stale_entry_kept_and_marked_not_hidden(self):
+        # A timed-out PID re-shown as stale keeps its params on screen (dimmed)
+        # with a "(stale)" marker — it must NOT be hidden or shown as an error.
+        params = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
+        entry = {
+            "pid": "2101",
+            "params": params,
+            "raw_hex": "6101000000000000006400",
+            "stale": True,
+        }
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(results, verbose=False, cycle=3, elapsed=0.1, interval=5.0)
+        text = t.plain
+        assert "(stale)" in text
+        assert "SOC_BMS" in text  # params still visible, not hidden
+        # Dimmed as a unit: a "dim" span covers part of the entry.
+        assert any("dim" in str(span.style) for span in t.spans)
+
+    def test_stale_entry_shows_how_long_it_has_been_held(self):
+        entry = {"pid": "2101", "raw_hex": "6101AA", "stale": True, "acquired_at": 1000.0}
+        results = [("BMS (0x7E4)", [entry])]
+        for now, label in (
+            (1012.4, "(stale 12s)"),
+            (1200.0, "(stale 3m)"),
+            (8500.0, "(stale 2h05m)"),
+        ):
+            t = _render_results(results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, now=now)
+            assert label in t.plain
+
+    def test_stale_age_invalidates_the_render_cache(self):
+        from canlib.live._monitor_render import RenderCache
+
+        cache = RenderCache()
+        entry = {"pid": "2101", "raw_hex": "6101AA", "stale": True, "acquired_at": 1000.0}
+        results = [("BMS (0x7E4)", [entry])]
+        kw = {"verbose": False, "cycle": 3, "elapsed": 0.1, "interval": 5.0, "cache": cache}
+        assert "(stale 5s)" in _render_results(results, now=1005.0, **kw).plain
+        assert "(stale 9s)" in _render_results(results, now=1009.0, **kw).plain
+
+    def test_pid_note_follows_its_row(self):
+        slow = {"pid": "2101", "raw_hex": "6101AA"}
+        healthy = {"pid": "2102", "raw_hex": "6102AA"}
+        kw = {"verbose": False, "cycle": 3, "elapsed": 0.1, "interval": 5.0}
+        notes = {("SKM (0x7A5)", "2101"): "slow · polled 2× less often"}
+        for cache in (None, RenderCache()):
+            lines = _render_results(
+                [("SKM (0x7A5)", [slow, healthy])], cache=cache, pid_notes=notes, **kw
+            ).plain.splitlines()
+            assert any(
+                "2101" in line and line.endswith("slow · polled 2× less often") for line in lines
+            )
+            assert not any("polled" in line for line in lines if "SKM" in line or "2102" in line)
+
+    def test_a_pid_note_invalidates_the_cached_row(self):
+        entry = {"pid": "2101", "raw_hex": "6101AA"}
+        kw = {"verbose": False, "cycle": 3, "elapsed": 0.1, "interval": 5.0}
+        cache = RenderCache()
+        results = [("SKM (0x7A5)", [entry])]
+        assert "polled" not in _render_results(results, cache=cache, **kw).plain
+        notes = {("SKM (0x7A5)", "2101"): "slow · polled 2× less often"}
+        assert "polled" in _render_results(results, cache=cache, pid_notes=notes, **kw).plain
+
+    def test_params_rendered(self):
+        params = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
+        entry = self._make_pid_result(params=params, raw_hex="6101000000000000006400")
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        text = t.plain
+        assert "SOC_BMS" in text
+        assert "50 %" in text
+
+    def test_params_verbose_shows_expression(self):
+        params = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
+        entry = self._make_pid_result(params=params, raw_hex="6101000000000000006400")
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(results, verbose=True, cycle=1, elapsed=0.1, interval=5.0)
+        assert "B09/2" in t.plain
+
+    def test_view_mode_ecus_hides_pid_rows(self):
+        params = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
+        entry = self._make_pid_result(params=params, raw_hex="6101000000000000006400")
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(
+            results, verbose=False, cycle=1, elapsed=0.1, interval=5.0, view_mode="ecus"
+        )
+        text = t.plain
+        assert "BMS (0x7E4)" in text  # ECU still listed
+        assert "1 PID(s)" in text and "1 signal(s)" in text
+        assert "SOC_BMS" not in text  # no per-signal detail
+        assert "64 00" not in text  # no hex payload
+        assert "view: ecus" in text
+
+    def test_view_mode_signals_hides_hex(self):
+        params = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
+        entry = self._make_pid_result(params=params, raw_hex="6101000000000000006400")
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(
+            results, verbose=False, cycle=1, elapsed=0.1, interval=5.0, view_mode="signals"
+        )
+        text = t.plain
+        assert "SOC_BMS" in text and "50 %" in text  # decoded signal shown
+        assert "61 01 " not in text  # raw hex payload hidden
+        assert "view: signals" in text
+
+    def test_view_mode_ranges_shows_span(self):
+        from canlib.live._monitor_stats import ParamStats
+
+        stats = ParamStats()
+        key = ("BMS (0x7E4)", "2101")
+        stats.observe(key, [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")])
+        stats.observe(key, [("SOC_BMS", 62.5, "%", "B09/2", None, True, "")])
+        entry = self._make_pid_result(
+            params=[("SOC_BMS", 62.5, "%", "B09/2", None, True, "")],
+            raw_hex="6101000000000000006400",
+        )
+        results = [(key[0], [entry])]
+        t = _render_results(
+            results,
+            verbose=False,
+            cycle=3,
+            elapsed=0.1,
+            interval=5.0,
+            view_mode="ranges",
+            param_stats=stats,
+        )
+        text = t.plain
+        assert "SOC_BMS" in text
+        assert "50 – 62.50 %" in text  # accumulated span
+        assert "61 01 " not in text  # no hex in ranges view
+
+    def test_params_verified_mark(self):
+        params_v = [("SOC_BMS", 50.0, "%", "B09/2", None, True, "")]
+        params_u = [("UNKNOWN", 1.0, "", "B03", None, False, "")]
+        entry_v = self._make_pid_result(params=params_v, raw_hex="610100")
+        entry_u = self._make_pid_result(pid="2102", params=params_u, raw_hex="610200")
+        results = [("BMS (0x7E4)", [entry_v, entry_u])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        assert "✓" in t.plain
+        assert "?" in t.plain
+
+    def test_param_error_shown(self):
+        params = [("BAD_PARAM", None, "", "B99/0", "division by zero", False, "")]
+        entry = self._make_pid_result(params=params, raw_hex="610100")
+        results = [("BMS (0x7E4)", [entry])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        assert "division by zero" in t.plain
+
+    def test_display_field(self):
+        params = [
+            ("PREHEAT_TIME", 480.0, "min", "B07", None, True, "f'{int(v)//60:02d}:{int(v)%60:02d}'")
+        ]
+        entry = self._make_pid_result(params=params, raw_hex="610100000000000001E0")
+        results = [("BCM (0x7A0)", [entry])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        assert "480 min (08:00)" in t.plain
+
+    def test_multiple_ecus(self):
+        r1 = [self._make_pid_result(pid="2101")]
+        r2 = [self._make_pid_result(pid="BC03")]
+        results = [("BMS (0x7E4)", r1), ("IGPM (0x770)", r2)]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        text = t.plain
+        assert "BMS (0x7E4)" in text
+        assert "IGPM (0x770)" in text
+
+    def test_skip_empty_ecu(self):
+        results = [("EMPTY (0x000)", [])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        assert "EMPTY" not in t.plain
+
+    def test_decode_fallback(self):
+        entry = {
+            "pid": "22B001",
+            "params": [],
+            "raw_hex": "62B001FF",
+            "error": None,
+            "unmapped": True,
+            "decode": "raw: FF",
+        }
+        results = [("BCM (0x7A0)", [entry])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        assert "raw: FF" in t.plain
+
+    def test_changed_pid_shows_indicator(self):
+        """Changed PID between cycles shows ● indicator."""
+        entry = self._make_pid_result(pid="2101", raw_hex="610100")
+        results = [("BMS (0x7E4)", [entry])]
+        prev = {("BMS (0x7E4)", "2101"): "610199"}  # different from current
+        t = _render_results(
+            results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, prev_hex=prev
+        )
+        assert "●" in t.plain
+
+    def test_unchanged_pid_no_indicator(self):
+        """Unchanged PID shows no ● indicator."""
+        entry = self._make_pid_result(pid="2101", raw_hex="610100")
+        results = [("BMS (0x7E4)", [entry])]
+        prev = {("BMS (0x7E4)", "2101"): "610100"}  # same as current
+        t = _render_results(
+            results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, prev_hex=prev
+        )
+        assert "●" not in t.plain
+
+    def test_first_cycle_no_indicator(self):
+        """First cycle never shows change indicator even with prev_hex."""
+        entry = self._make_pid_result(pid="2101", raw_hex="610100")
+        results = [("BMS (0x7E4)", [entry])]
+        prev = {("BMS (0x7E4)", "2101"): "610199"}
+        t = _render_results(
+            results, verbose=False, cycle=1, elapsed=0.1, interval=5.0, prev_hex=prev
+        )
+        assert "●" not in t.plain
+
+    def test_new_pid_no_indicator(self):
+        """PID not in prev_hex (first time seen) shows no indicator."""
+        entry = self._make_pid_result(pid="2101", raw_hex="610100")
+        results = [("BMS (0x7E4)", [entry])]
+        prev = {}  # never seen before
+        t = _render_results(
+            results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, prev_hex=prev
+        )
+        assert "●" not in t.plain
+
+
+class TestRenderCache:
+    """The per-PID render cache must be transparent — identical output, reused blocks."""
+
+    def _queries(self, val=1.0, raw="620102030405"):
+        params = [
+            ("SOC", val, "%", "B1", None, True, ""),
+            ("V", val + 1, "V", "B2", None, False, ""),
+        ]
+        return [
+            (
+                "BMS",
+                [
+                    {
+                        "pid": "2101",
+                        "params": params,
+                        "raw_hex": raw,
+                        "error": None,
+                        "unmapped": False,
+                    }
+                ],
+            ),
+            (
+                "VCU",
+                [
+                    {
+                        "pid": "2102",
+                        "params": params,
+                        "raw_hex": raw,
+                        "error": None,
+                        "unmapped": False,
+                    }
+                ],
+            ),
+        ]
+
+    def _render(self, queries, cache, cycle=2, prev=None, sel=None):
+        return _render_results(
+            queries,
+            verbose=False,
+            cycle=cycle,
+            elapsed=0.1,
+            interval=5.0,
+            prev_hex=prev or {},
+            selected=sel,
+            cache=cache,
+        )
+
+    def test_cached_output_matches_uncached(self):
+        q = self._queries()
+        cached = self._render(q, RenderCache())
+        uncached = self._render(q, None)
+        assert cached.plain == uncached.plain
+        assert cached.spans == uncached.spans
+
+    def test_cache_hit_reuses_same_block_object(self):
+        cache = RenderCache()
+        q = self._queries()
+        self._render(q, cache)
+        first_block = cache.get(("BMS", "2101"), cache._blocks[("BMS", "2101")][0])
+        # Re-render with identical inputs: the cached block object is returned as-is.
+        self._render(q, cache)
+        second_block = cache.get(("BMS", "2101"), cache._blocks[("BMS", "2101")][0])
+        assert first_block is second_block
+
+    def test_changed_data_invalidates_and_matches_uncached(self):
+        cache = RenderCache()
+        self._render(self._queries(val=1.0), cache)
+        q2 = self._queries(val=2.0, raw="62AABBCCDDEE")
+        cached = self._render(q2, cache)
+        uncached = self._render(q2, None)
+        assert cached.plain == uncached.plain
+        assert cached.spans == uncached.spans
+
+    def test_selection_change_rerenders(self):
+        cache = RenderCache()
+        q = self._queries()
+        self._render(q, cache)
+        # Move the edit cursor onto a param: output must reflect the ▶ cursor.
+        cached = self._render(q, cache, sel=("BMS", "2101", "SOC"))
+        uncached = self._render(q, None, sel=("BMS", "2101", "SOC"))
+        assert cached.plain == uncached.plain
+        assert "▶" in cached.plain
+
+    def test_prune_drops_stale_keys(self):
+        cache = RenderCache()
+        self._render(self._queries(), cache)
+        assert ("VCU", "2102") in cache._blocks
+        # A subsequent render polling only BMS should evict VCU's cached block.
+        bms_only = [self._queries()[0]]
+        self._render(bms_only, cache)
+        assert ("VCU", "2102") not in cache._blocks
+        assert ("BMS", "2101") in cache._blocks
+
+
+class TestKeepHistory:
+    """Tests for --keep history rendering."""
+
+    @staticmethod
+    def _make_pid_result(pid="22B003", raw_hex="62B003AABB", **kw):
+        return {"pid": pid, "raw_hex": raw_hex, "params": [], "unmapped": True, **kw}
+
+    def test_no_history_no_extra_lines(self):
+        """Without hex_history, only one hex line per PID."""
+        entry = self._make_pid_result(raw_hex="62B003AABB")
+        results = [("BCM (0x7A0)", [entry])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
+        assert t.plain.count("62 B0 03 AA BB") == 1
+
+    def test_history_shows_all_chronologically(self):
+        """With hex_history, all unique payloads shown oldest to newest."""
+        entry = self._make_pid_result(raw_hex="62B003CC")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {
+            ("BCM (0x7A0)", "22B003"): [
+                HistoryRun("62B003AA", "10:00:00"),
+                HistoryRun("62B003BB", "10:01:00"),
+            ]
+        }
+        t = _render_results(
+            results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        plain = t.plain
+        assert "62 B0 03 AA" in plain
+        assert "62 B0 03 BB" in plain
+        assert "62 B0 03 CC" in plain
+        # Chronological order: AA, BB, CC
+        pos_aa = plain.index("62 B0 03 AA")
+        pos_bb = plain.index("62 B0 03 BB")
+        pos_cc = plain.index("62 B0 03 CC")
+        assert pos_aa < pos_bb < pos_cc
+
+    def test_history_skips_duplicate_of_current(self):
+        """If the current payload is the newest run, it's not shown again."""
+        entry = self._make_pid_result(raw_hex="62B003BB")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {
+            ("BCM (0x7A0)", "22B003"): [
+                HistoryRun("62B003AA", "10:00:00"),
+                HistoryRun("62B003BB", "10:01:00"),
+            ]
+        }
+        t = _render_results(
+            results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        plain = t.plain
+        assert plain.count("62 B0 03 BB") == 1
+        assert "62 B0 03 AA" in plain
+
+    def test_unique_count_shown(self):
+        """When history has multiple unique payloads, count is displayed."""
+        entry = self._make_pid_result(raw_hex="62B003CC")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {
+            ("BCM (0x7A0)", "22B003"): [
+                HistoryRun("62B003AA", "10:00:00"),
+                HistoryRun("62B003BB", "10:01:00"),
+            ]
+        }
+        t = _render_results(
+            results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        assert "(3 entries)" in t.plain
+
+    def test_no_unique_count_when_single(self):
+        """No count shown when only one unique payload exists."""
+        entry = self._make_pid_result(raw_hex="62B003AA")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {("BCM (0x7A0)", "22B003"): [HistoryRun("62B003AA", "10:00:00")]}
+        t = _render_results(
+            results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        assert "entries" not in t.plain
+
+    def test_history_change_highlighting(self):
+        """Each history row highlights bytes that differ from its predecessor."""
+        entry = self._make_pid_result(raw_hex="62B003CC")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {
+            ("BCM (0x7A0)", "22B003"): [
+                HistoryRun("62B003AA", "10:00:00"),
+                HistoryRun("62B003BB", "10:01:00"),
+            ]
+        }
+        t = _render_results(
+            results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        spans = t._spans
+        highlight_styles = [str(s.style) for s in spans if "grey37" in str(s.style)]
+        assert len(highlight_styles) >= 2  # at least BB and CC have highlighted bytes
+
+    def test_history_chronological_order(self):
+        """History entries shown chronologically oldest to newest."""
+        entry = self._make_pid_result(raw_hex="62B003DD")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {
+            ("BCM (0x7A0)", "22B003"): [
+                HistoryRun("62B003AA", "10:00:00"),
+                HistoryRun("62B003BB", "10:01:00"),
+                HistoryRun("62B003CC", "10:02:00"),
+            ]
+        }
+        t = _render_results(
+            results, verbose=False, cycle=4, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        plain = t.plain
+        pos_aa = plain.index("62 B0 03 AA")
+        pos_bb = plain.index("62 B0 03 BB")
+        pos_cc = plain.index("62 B0 03 CC")
+        pos_dd = plain.index("62 B0 03 DD")
+        assert pos_aa < pos_bb < pos_cc < pos_dd
+
+    def test_a_run_of_repeats_is_one_row_with_its_poll_count(self):
+        entry = self._make_pid_result(raw_hex="62B003BB")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {
+            ("BCM (0x7A0)", "22B003"): [
+                HistoryRun("62B003AA", "10:00:00", 37),
+                HistoryRun("62B003BB", "10:03:05"),
+            ]
+        }
+        plain = _render_results(
+            results, verbose=False, cycle=3, elapsed=0.1, interval=5.0, hex_history=history
+        ).plain
+        assert plain.count("62 B0 03 AA") == 1
+        line = next(ln for ln in plain.splitlines() if "62 B0 03 AA" in ln)
+        assert line.rstrip().endswith("×37")
+        line = next(ln for ln in plain.splitlines() if "62 B0 03 BB" in ln)
+        assert "×" not in line
+
+    def test_timestamp_shown_for_history_entries(self):
+        """Timestamps are shown for history entries."""
+        entry = self._make_pid_result(raw_hex="62B003BB")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {("BCM (0x7A0)", "22B003"): [HistoryRun("62B003AA", "14:23:05")]}
+        t = _render_results(
+            results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        assert "14:23:05" in t.plain
+
+    def test_no_timestamp_for_current_entry(self):
+        """Current (newest, not yet in history) entry has no timestamp."""
+        entry = self._make_pid_result(raw_hex="62B003BB")
+        results = [("BCM (0x7A0)", [entry])]
+        history = {("BCM (0x7A0)", "22B003"): [HistoryRun("62B003AA", "14:23:05")]}
+        t = _render_results(
+            results, verbose=False, cycle=2, elapsed=0.1, interval=5.0, hex_history=history
+        )
+        plain = t.plain
+        # AA has timestamp, BB (current) does not — verify BB hex is present without extra timestamp
+        assert "14:23:05" in plain
+        # BB appears after AA
+        pos_aa = plain.index("62 B0 03 AA")
+        pos_bb = plain.index("62 B0 03 BB")
+        assert pos_aa < pos_bb
+
+
+class TestMergeHistory:
+    def test_current_snapshot_appended_when_absent(self):
+        merged = _merge_history({}, {("BMS (0x7E4)", "2101"): "6101AA"})
+        (entries,) = merged.values()
+        assert entries[0][0] == "6101AA"
+
+    def test_current_not_duplicated(self):
+        history = {("BMS (0x7E4)", "2101"): [("6101AA", "10:00:00")]}
+        merged = _merge_history(history, {("BMS (0x7E4)", "2101"): "6101AA"})
+        assert len(merged[("BMS (0x7E4)", "2101")]) == 1  # no dup of the last entry
+
+    def test_empty(self):
+        assert _merge_history({}, {}) == {}
+
+
+class TestControllerSnapshot:
+    """MonitorController must diff against the *previous* cycle, not the just-recorded one."""
+
+    def _controller(self):
+        return MonitorController(terminal=None, query_steps=[], pids_data={}, verbose=False)
+
+    def test_prev_snapshot_lags_one_cycle(self):
+        c = self._controller()
+        key = ("BMS (0x7E4)", "2101")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        assert c.prev_snapshot == {}  # first cycle: nothing before
+        assert c.prev_hex[key] == "6101AA"
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
+        assert c.prev_snapshot[key] == "6101AA"  # previous cycle's value
+        assert c.prev_hex[key] == "6101BB"  # current value
+
+    def test_single_frame_render_highlights_change(self):
+        c = self._controller()
+        c.cycle = 2
+        c.last_queries = [("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])]
+        c.prev_snapshot = {("BMS (0x7E4)", "2101"): "6101AA"}
+        # Byte 2 (AA→BB) must render with a change-highlight background style.
+        styles = {str(s.style) for s in c.render().spans}
+        assert any("on " in s for s in styles)
+
+    def test_has_captures(self):
+        c = self._controller()
+        assert c.has_captures() is False
+        c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
+        assert c.has_captures() is True
+
+    def test_frame_counters_captured_vs_unique(self):
+        c = self._controller()
+        assert c.total_frames == 0 and c.unique_frames == 0
+        # Same payload twice: two captured, one unique.
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        assert c.total_frames == 2
+        assert c.unique_frames == 1
+        # A new value bumps both.
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
+        assert c.total_frames == 3
+        assert c.unique_frames == 2
+
+    def test_frame_counters_ignore_stale_and_empty(self):
+        c = self._controller()
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA", "stale": True}])])
+        c._record([("BMS (0x7E4)", [{"pid": "2102", "raw_hex": ""}])])
+        assert c.total_frames == 0
+        assert c.unique_frames == 0
+
+    def test_history_render_limit_by_keep_mode(self):
+        from canlib.live.monitor import _RENDER_DEFAULT_ROWS, MonitorController
+
+        def _c(**kw):
+            return MonitorController(
+                terminal=None, query_steps=[], pids_data={}, verbose=False, **kw
+            )
+
+        # The default (all) and --keep-changes stay compact: repeats collapse into
+        # runs, and only the newest few runs are drawn.
+        assert _c(keep_mode="all")._history_render_limit() == _RENDER_DEFAULT_ROWS
+        assert _c(keep_mode="changes")._history_render_limit() == _RENDER_DEFAULT_ROWS
+        assert _c(keep_mode=None)._history_render_limit() == _RENDER_DEFAULT_ROWS
+        # --keep N shows N.
+        assert _c(keep_mode="last", keep_n=25)._history_render_limit() == 25
+
+    def test_segment_title_and_meta(self):
+        from canlib.live.monitor import MonitorController
+
+        c = MonitorController(
+            terminal=None,
+            query_steps=[{"ecu": "BCM", "pids": []}, {"ecu": "VCU", "pids": ["2101"]}],
+            pids_data={},
+            verbose=False,
+        )
+        # No label -> falls back to the polled-selectors summary.
+        assert c.segment_title() == "BCM VCU:2101"
+        # Metadata sync is last-wins on non-None; a label overrides the title.
+        c._set_segment_meta("drive A", ["driving"], "hard accel")
+        assert c.segment_title() == "drive A"
+        assert c.session_states == ["driving"]
+        assert c.session_notes == "hard accel"
+        # None fields leave prior values intact...
+        c._set_segment_meta(None, None, None)
+        assert c.session_label == "drive A" and c.session_notes == "hard accel"
+        # ...but an explicit empty note clears it (mirrors journal update_meta).
+        c._set_segment_meta(None, None, "")
+        assert c.session_notes == ""
+
+    def test_save_now(self, tmp_path):
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
+        msg = c.save_now("Live ref", "ready", "note")
+        assert "Saved" in msg
+        files = list(tmp_path.glob("*.json"))
+        assert len(files) == 1
+        s = json.loads(files[0].read_text())["sessions"][0]
+        assert s["label"] == "Live ref"
+        assert s["captures"][0]["payload"] == "6101AA"
+
+    def test_save_now_defers_destination_banner(self, tmp_path, capsys):
+        """An in-run save keeps the screen clean but queues its full path for exit."""
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
+        c.save_now("Live ref", "ready", "note")
+        assert capsys.readouterr().out == ""  # the TUI owns the screen
+        written = next(tmp_path.glob("*.json"))
+        banners = c.recorder.drain_deferred_saves()
+        assert len(banners) == 1
+        assert str(written) in banners[0]
+        assert c.recorder.drain_deferred_saves() == []  # drained once
+
+    def test_save_now_nothing_to_save(self, tmp_path):
+        c = self._controller()
+        c.captures_dir = tmp_path
+        assert "nothing to save" in c.save_now("x").lower()
+        assert list(tmp_path.glob("*.json")) == []
+
+    def test_repeated_save_dedupes(self, tmp_path):
+        """Pressing 's' twice with no new data doesn't re-save the same payloads."""
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
+        first = c.save_now("ref")
+        assert "Saved 1 payload" in first
+        # Nothing changed since — a second press writes nothing new.
+        second = c.save_now("ref")
+        assert "Nothing new since last save" in second
+        payloads = [
+            cap["payload"]
+            for f in tmp_path.glob("*.json")
+            for s in json.loads(f.read_text())["sessions"]
+            for cap in s["captures"]
+        ]
+        assert payloads == ["6101AA"]  # exactly once
+
+    def test_repeated_save_writes_only_new(self, tmp_path):
+        """A second save records only payloads that arrived after the first."""
+        c = MonitorController(
+            terminal=None, query_steps=[], pids_data={}, verbose=False, keep_mode="all"
+        )
+        c.captures_dir = tmp_path
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        c.save_now("ref")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
+        msg = c.save_now("ref")
+        assert "Saved 1 payload" in msg  # only the new BB row
+        payloads = sorted(
+            cap["payload"]
+            for f in tmp_path.glob("*.json")
+            for s in json.loads(f.read_text())["sessions"]
+            for cap in s["captures"]
+        )
+        assert payloads == ["6101AA", "6101BB"]  # each once, no duplicate AA
+
+
+class TestControllerJournal:
+    """--save wires a write-ahead journal that survives a dropped connection."""
+
+    def _controller(self):
+        c = MonitorController(terminal=None, query_steps=[], pids_data={}, verbose=False, save=True)
+        return c
+
+    def test_record_appends_to_journal(self, tmp_path):
+        from canlib.captures.journal import CaptureJournal
+
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.journal = CaptureJournal.open(tmp_path, label="L", source="monitor")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        # Reconcile as the mode_monitor finally-block would (even on disconnect).
+        written = c.journal.reconcile()
+        assert written is not None
+        s = json.loads(written.read_text())["sessions"][0]
+        assert s["label"] == "L"
+        # ECU label resolved to its CAN response address (0x7E4 + 8 = 0x7EC).
+        assert s["captures"][0]["rx"] == "0x7EC"
+        assert s["captures"][0]["payload"] == "6101AA"
+
+    def test_journaling_skips_dead_save_history(self, tmp_path):
+        from canlib.captures.journal import CaptureJournal
+
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.journal = CaptureJournal.open(tmp_path, label="L", source="monitor")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        # Journal is the source of truth on exit → don't grow the redundant dict.
+        assert c.save_history == {}
+
+    def test_no_journal_populates_save_history(self):
+        c = self._controller()  # save=True but journal stays None (fallback path)
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        assert ("BMS (0x7E4)", "2101") in c.save_history
+
+    def test_save_now_updates_journal_meta_not_a_second_session(self, tmp_path):
+        from canlib.captures.journal import CaptureJournal
+
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.journal = CaptureJournal.open(tmp_path, label="orig", source="monitor")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        msg = c.save_now("edited", "ready", "note")
+        assert "Label set" in msg
+        # No immediate write — journal reconciles once on exit.
+        assert list(tmp_path.glob("*.json")) == []
+        written = c.journal.reconcile()
+        data = json.loads(written.read_text())
+        assert len(data["sessions"]) == 1
+        assert data["sessions"][0]["label"] == "edited"
+        assert data["sessions"][0]["vehicle_states"] == ["READY"]
+
+    def test_new_segment_rotates_journal(self, tmp_path):
+        """'n' reconciles the current segment and opens a fresh, newly-labelled one."""
+        from canlib.captures.journal import CaptureJournal
+
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.journal = CaptureJournal.open(tmp_path, label="seg1", source="monitor")
+        first_path = c.journal.path
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+
+        msg = c.new_segment("seg2", "ready", "note")
+        assert "Session saved" in msg
+        # A fresh journal is now active for the new segment.
+        assert c.journal is not None
+        assert not first_path.exists()  # the closed segment's journal was reconciled away
+        # Segment 1 already landed on disk with its own label.
+        seg1 = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"]
+        assert any(s["label"] == "seg1" for s in seg1)
+
+        # Record into segment 2, then reconcile as exit would.
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
+        c.journal.reconcile()
+        labels = {
+            s["label"]
+            for f in tmp_path.glob("*.json")
+            for s in json.loads(f.read_text())["sessions"]
+        }
+        assert {"seg1", "seg2"} <= labels
+
+    def test_new_segment_defers_destination_banner(self, tmp_path, capsys):
+        """Rotating a segment writes a file — its full path is queued, not lost."""
+        from canlib.captures.journal import CaptureJournal
+
+        c = self._controller()
+        c.captures_dir = tmp_path
+        c.journal = CaptureJournal.open(tmp_path, label="seg1", source="monitor")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        c.new_segment("seg2", "ready", "note")
+        assert capsys.readouterr().out == ""  # nothing leaks onto the TUI screen
+        written = next(tmp_path.glob("*.json"))
+        banners = c.recorder.drain_deferred_saves()
+        assert len(banners) == 1
+        assert str(written) in banners[0]
+
+    def test_new_segment_requires_save(self):
+        c = MonitorController(
+            terminal=None, query_steps=[], pids_data={}, verbose=False, save=False
+        )
+        assert c.journal is None
+        msg = c.new_segment("x")
+        assert "needs --save" in msg
+
+
+class TestControllerSuggestedState:
+    def _controller(self, monkeypatch, rules):
+        from canlib import states
+
+        c = MonitorController(terminal=None, query_steps=[], pids_data={}, verbose=False)
+        monkeypatch.setattr(states, "load_states", lambda profile=None: rules)
+        return c
+
+    def test_suggests_from_decoded_values(self, monkeypatch):
+        from canlib.states import StateRule, compile_predicate
+
+        rules = [
+            StateRule("charging", predicate=compile_predicate("BMS.BATTERY_CURRENT < -1")),
+            StateRule("deep sleep", predicate=compile_predicate("__no_response__")),
+        ]
+        c = self._controller(monkeypatch, rules)
+        # Decoded param rows: (name, value, unit, expr, error, verified, display)
+        c._record(
+            [
+                (
+                    "BMS (0x7E4)",
+                    [
+                        {
+                            "pid": "2101",
+                            "raw_hex": "6101",
+                            "params": [("BATTERY_CURRENT", -5.0, "A", "", None, True, "")],
+                        }
+                    ],
+                )
+            ]
+        )
+        assert c.suggested_state() == "charging"
+
+    def test_no_response_when_nothing_polled(self, monkeypatch):
+        from canlib.states import StateRule, compile_predicate
+
+        rules = [StateRule("deep sleep", predicate=compile_predicate("__no_response__"))]
+        c = self._controller(monkeypatch, rules)
+        assert c.suggested_state() == "deep sleep"
+
+    def test_none_without_states_file(self, monkeypatch):
+        c = self._controller(monkeypatch, [])
+        assert c.suggested_state() is None
+
+    def _frame(self, ecu, pid, params):
+        return [(ecu, [{"pid": pid, "raw_hex": "6101", "params": params}])]
+
+    def _driving_rules(self):
+        from canlib.states import StateRule, compile_predicate
+
+        # READY is declared first, so file order alone would report READY while
+        # driving even though DRIVING is the specific reading. This is the bug.
+        return [
+            StateRule("READY", predicate=compile_predicate("VCU.EV_READY == 1")),
+            StateRule(
+                "DRIVING",
+                predicate=compile_predicate("ESC.SPEED > 0.5"),
+                implies=("READY",),
+            ),
+        ]
+
+    def _poll(self, c, speed):
+        c.cycle += 1
+        c._record(
+            self._frame("VCU (0x7E2)", "2101", [("EV_READY", 1.0, "", "", None, True, "")])
+            + self._frame("ESC (0x7D1)", "22C101", [("SPEED", speed, "km/h", "", None, True, "")])
+        )
+
+    def test_driving_beats_the_ready_it_implies(self, monkeypatch):
+        c = self._controller(monkeypatch, self._driving_rules())
+        self._poll(c, 42.0)
+        assert c.suggested_state() == "DRIVING"
+        # The recorded session still keeps both — a segment is composite.
+        assert c.suggested_states() == ["READY", "DRIVING"]
+
+    def test_stale_speed_expires_so_driving_stops_matching(self, monkeypatch):
+        from canlib.live.monitor import STATE_INPUT_STALE_CYCLES
+
+        c = self._controller(monkeypatch, self._driving_rules())
+        self._poll(c, 42.0)
+        assert c.suggested_state() == "DRIVING"
+        # Car parks: ESC stops answering entirely (its rows vanish from the
+        # cycle). An unbounded value map would keep matching DRIVING forever.
+        for _ in range(STATE_INPUT_STALE_CYCLES + 1):
+            c.cycle += 1
+            c._record(
+                self._frame("VCU (0x7E2)", "2101", [("EV_READY", 1.0, "", "", None, True, "")])
+            )
+        assert "ESC.SPEED" not in c.decoded_values
+        assert c.suggested_state() == "READY"
+
+    def test_refreshed_values_never_expire(self, monkeypatch):
+        from canlib.live.monitor import STATE_INPUT_STALE_CYCLES
+
+        c = self._controller(monkeypatch, self._driving_rules())
+        for _ in range(STATE_INPUT_STALE_CYCLES * 3):
+            self._poll(c, 42.0)
+        assert c.suggested_state() == "DRIVING"
+
+    def test_a_single_dropped_cycle_is_tolerated(self, monkeypatch):
+        # Expiry must ride out a transient drop, or the status bar flaps.
+        c = self._controller(monkeypatch, self._driving_rules())
+        self._poll(c, 42.0)
+        c.cycle += 1
+        c._record([])
+        assert c.suggested_state() == "DRIVING"
+
+    def test_responded_expires_too(self, monkeypatch):
+        from canlib.live.monitor import STATE_INPUT_STALE_CYCLES
+        from canlib.states import StateRule, compile_predicate
+
+        rules = [StateRule("SLEEP", predicate=compile_predicate("__no_response__"))]
+        c = self._controller(monkeypatch, rules)
+        self._poll(c, 0.0)
+        assert c.suggested_state() is None  # something answered → not asleep
+        for _ in range(STATE_INPUT_STALE_CYCLES + 1):
+            c.cycle += 1
+            c._record([])
+        assert c.responded == set()
+        assert c.suggested_state() == "SLEEP"
+
+
+class TestDynamicSchedulePerPidClock:
+    """Under the per-PID schedule a slow PID's value must stay eligible across the
+    many ticks a fast neighbour is read in — its clock is its own poll count, not
+    the tick count. Drives the real scheduler + _record together."""
+
+    def _controller(self, monkeypatch):
+        from canlib import states
+        from canlib.states import StateRule, compile_predicate
+
+        rules = [
+            StateRule("READY", predicate=compile_predicate("VCU.EV_READY == 1")),
+            StateRule(
+                "DRIVING", predicate=compile_predicate("ESC.SPEED > 0.5"), implies=("READY",)
+            ),
+        ]
+        monkeypatch.setattr(states, "load_states", lambda profile=None: rules)
+        steps = [
+            {"type": "query", "ecu": "VCU", "pids": ["2101"]},
+            {"type": "query", "ecu": "ESC", "pids": ["22C101"]},
+        ]
+        return MonitorController(None, steps, {}, verbose=False, schedule="dynamic")
+
+    def _tick(self, c, t, *, speed=None):
+        c.schedule.begin_tick(t)
+        fresh = []
+        vcu = c.schedule.take_due("VCU", [("2101", {"period": 1000}, False)])
+        if vcu:
+            fresh.append(
+                (
+                    "VCU (0x7E2)",
+                    [
+                        {
+                            "pid": "2101",
+                            "raw_hex": "61",
+                            "params": [("EV_READY", 1.0, "", "", None, True, "")],
+                        }
+                    ],
+                )
+            )
+        esc = c.schedule.take_due("ESC", [("22C101", {"period": 10000}, False)])
+        if esc and speed is not None:
+            fresh.append(
+                (
+                    "ESC (0x7D1)",
+                    [
+                        {
+                            "pid": "22C101",
+                            "raw_hex": "62",
+                            "params": [("SPEED", speed, "km/h", "", None, True, "")],
+                        }
+                    ],
+                )
+            )
+        c.schedule.end_tick()
+        c._record(fresh)
+
+    def test_slow_speed_survives_fast_ready_ticks(self, monkeypatch):
+        c = self._controller(monkeypatch)
+        self._tick(c, 0.0, speed=42.0)  # both read; DRIVING
+        assert c.suggested_state() == "DRIVING"
+        # ESC (10 s) is not due again for ten 1 s VCU ticks. A tick-counted clock
+        # would expire SPEED after three; its own poll count must not advance.
+        for i in range(1, 10):
+            self._tick(c, float(i))
+        assert c.decoded_values.get("ESC.SPEED") == 42.0
+        assert c.suggested_state() == "DRIVING"
+
+    def test_speed_expires_after_its_own_polls_stop_refreshing(self, monkeypatch):
+        c = self._controller(monkeypatch)
+        self._tick(c, 0.0, speed=42.0)
+        # ESC keeps being polled (due at 10/20/30/40 s) but now reads nothing: after
+        # STATE_INPUT_STALE_CYCLES of its own polls, SPEED expires.
+        for t in (10.0, 20.0, 30.0, 40.0):
+            self._tick(c, t, speed=None)
+        assert "ESC.SPEED" not in c.decoded_values
+        assert c.suggested_state() == "READY"
+
+
+class TestQueryLabel:
+    def _controller(self, steps):
+        return MonitorController(terminal=None, query_steps=steps, pids_data={}, verbose=False)
+
+    def test_bare_ecu_and_pid_selector(self):
+        c = self._controller(
+            [
+                {"type": "query", "ecu": "bcm", "pids": []},
+                {"type": "query", "ecu": "vcu", "pids": ["2101"]},
+            ]
+        )
+        assert c.query_label() == "BCM VCU:2101"
+
+    def test_multiple_pids(self):
+        c = self._controller([{"type": "query", "ecu": "IGPM", "pids": ["BC03", "BC06"]}])
+        assert c.query_label() == "IGPM:BC03,BC06"
+
+    def test_empty(self):
+        assert self._controller([]).query_label() == ""
+
+
+class TestQueryEcuError:
+    def _pids(self):
+        return {"ecus": {"BMS": {"tx_id": 0x7E4, "pids": {}}, "ESC": {"tx_id": 0x7D1, "pids": {}}}}
+
+    def test_all_known(self):
+        steps = [{"type": "query", "ecu": "BMS", "pids": []}]
+        assert query_ecu_error(steps, self._pids()) is None
+
+    def test_case_insensitive(self):
+        steps = [{"type": "query", "ecu": "bms", "pids": []}]
+        assert query_ecu_error(steps, self._pids()) is None
+
+    def test_unknown_ecu_flagged(self):
+        # The typo "ECS" (meant "ESC") must be reported, not silently skipped.
+        steps = [
+            {"type": "query", "ecu": "ESC", "pids": []},
+            {"type": "query", "ecu": "ECS", "pids": []},
+        ]
+        err = query_ecu_error(steps, self._pids())
+        assert err is not None
+        assert "ECS" in err
+        assert "ESC" not in err.split("\n")[0]  # ESC is valid, only ECS flagged
+        assert "Available ECUs" in err
+
+    def test_unknown_deduped(self):
+        steps = [
+            {"type": "query", "ecu": "ECS", "pids": []},
+            {"type": "query", "ecu": "ecs", "pids": ["2101"]},
+        ]
+        err = query_ecu_error(steps, self._pids())
+        assert err.split("\n")[0].count("ECS") + err.split("\n")[0].count("ecs") == 1
+
+
+class TestExtendRuns:
+    def test_repeats_extend_the_newest_run(self):
+        runs: list[HistoryRun] = []
+        for payload, ts in [("AA", "1"), ("AA", "2"), ("BB", "3"), ("AA", "4"), ("AA", "5")]:
+            extend_runs(runs, payload, ts, limit=None)
+        assert runs == [HistoryRun("AA", "1", 2), HistoryRun("BB", "3"), HistoryRun("AA", "4", 2)]
+
+    def test_limit_keeps_the_newest_runs(self):
+        runs: list[HistoryRun] = []
+        for payload in ["AA", "BB", "CC", "CC"]:
+            extend_runs(runs, payload, "t", limit=2)
+        assert runs == [HistoryRun("BB", "t"), HistoryRun("CC", "t", 2)]
+
+
+class TestRecorderKeepModes:
+    @staticmethod
+    def _poll(c, *payloads):
+        for raw in payloads:
+            c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": raw}])])
+
+    def test_keep_all_saves_every_poll_but_shows_runs(self, tmp_path):
+        c = MonitorController(
+            terminal=None, query_steps=[], pids_data={}, verbose=False, keep_mode="all"
+        )
+        c.captures_dir = tmp_path
+        self._poll(c, "6101AA", "6101AA", "6101BB", "6101AA")
+        runs = c.hex_history[("BMS (0x7E4)", "2101")]
+        assert [(r.payload, r.polls) for r in runs] == [("6101AA", 2), ("6101BB", 1), ("6101AA", 1)]
+        assert "Saved 4 payload" in c.save_now("ref")
+        (session,) = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"]
+        assert "keep_mode" not in session
+
+    def test_keep_changes_saves_transitions_and_says_so(self, tmp_path):
+        from canlib.captures import io as capture_io
+
+        c = MonitorController(
+            terminal=None, query_steps=[], pids_data={}, verbose=False, keep_mode="changes"
+        )
+        c.captures_dir = tmp_path
+        self._poll(c, "6101AA", "6101AA", "6101BB", "6101AA")
+        assert "Saved 3 payload" in c.save_now("ref")
+        (session,) = capture_io.load_capture_file(next(tmp_path.glob("*.json")))["sessions"]
+        assert [cap["payload"] for cap in session["captures"]] == ["6101AA", "6101BB", "6101AA"]
+        assert session["keep_mode"] == "changes"
+
+
+def test_the_elm327_warmup_read_is_one_validated_transaction(monkeypatch):
+    # The background keepalive is already running when the warm-up reads go out, so a
+    # bare set_header + send_uds could be re-pointed at another ECU in between.
+    import asyncio
+
+    from canlib.live.monitor import MonitorController
+    from tests.support.fakes import FakeTerminal, ok
+
+    terminal = FakeTerminal({"22BC03": ok("62BC03AA")})
+    c = MonitorController(terminal, [{"ecu": "IGPM", "pids": []}], {}, verbose=False)
+    monkeypatch.setattr(
+        "canlib.ecus.pids.build_ecu_index",
+        lambda _data: {"IGPM": {"tx_id": 0x770, "pids": {"22BC03": {"parameters": {}}}}},
+    )
+
+    async def run():
+        await c.setup([])
+        assert c.sm is not None
+        c.sm.stop_background_keepalive()
+
+    asyncio.run(run())
+    assert terminal.calls == [
+        ("transaction_enter", None),
+        ("set_header", 0x770),
+        ("send_uds", "22BC03"),
+        ("transaction_exit", None),
+    ]
+    assert terminal.uds_kwargs[0]["expected_sid"] == 0x22
+    assert terminal.uds_kwargs[0]["expected_echo"] == bytes.fromhex("BC03")
+
+
+class TestNrcClassification:
+    """A negative response is told apart by its code, not by its error text."""
+
+    def test_the_elm327_error_result_carries_the_code(self):
+        from canlib.live.multi_batch import _error_result
+
+        r = _error_result("2101", False, {"ok": False, "nrc": 0x31, "nrc_desc": "ROOR"}, 1.0)
+        assert r["nrc"] == 0x31 and r["error"] == "NRC 0x31 (ROOR)"
+        assert "nrc" not in _error_result("2101", False, {"ok": False, "error": "NO DATA"}, 1.0)
+
+    def test_is_nrc_reads_the_code(self):
+        from canlib.live.monitor import _answered, _is_nrc
+
+        assert _is_nrc({"pid": "2101", "error": "NRC 0x31 (ROOR)", "nrc": 0x31})
+        # An error whose text merely starts with the letters is not an answer.
+        assert not _is_nrc({"pid": "2101", "error": "NRC-like adapter text"})
+        assert not _answered({"pid": "2101", "error": "timeout"})

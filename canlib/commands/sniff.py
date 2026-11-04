@@ -179,7 +179,7 @@ def run(args) -> int:
     from canlib.device.lock import WiCANLock
     from canlib.device.lock_watchdog import LockWatchdog
     from canlib.device.wican.mode import ModeError
-    from canlib.modes.raw_ops import slcan_preflight
+    from canlib.live.raw_ops import slcan_preflight
     from canlib.profile import active
     from canlib.transport import resolve_transport
     from canlib.variants.selection import require_variant

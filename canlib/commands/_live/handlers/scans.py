@@ -12,9 +12,10 @@ import sys
 
 from canlib.commands._live.operation import LiveOperation
 from canlib.ecus import split_ecus_by_protocol
-from canlib.modes import mode_discover, mode_scan
-from canlib.modes.iocontrol_scan import mode_iocontrol_scan
-from canlib.modes.routines_scan import mode_routines_scan
+from canlib.live.discover import mode_discover
+from canlib.live.iocontrol_scan import mode_iocontrol_scan
+from canlib.live.routines_scan import mode_routines_scan
+from canlib.live.scan import mode_scan
 from canlib.transport.protocol import Terminal
 
 from .ranges import parse_range, parse_ranges
@@ -63,7 +64,7 @@ async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=No
 async def handle_routines_scan(
     args, terminal: Terminal, pids_data, host, *, reconnect=None
 ) -> None:
-    from canlib.modes.kwp_routines_scan import (
+    from canlib.live.kwp_routines_scan import (
         UNPROVEN_WARNING,
         mode_kwp_routines_scan,
         needs_confirmation,
@@ -132,7 +133,7 @@ async def handle_routines_scan(
 async def handle_iocontrol_scan(
     args, terminal: Terminal, pids_data, host, *, reconnect=None
 ) -> None:
-    from canlib.modes.kwp_iocontrol_scan import (
+    from canlib.live.kwp_iocontrol_scan import (
         UNPROVEN_WARNING,
         mode_kwp_iocontrol_scan,
         needs_confirmation,
@@ -198,7 +199,7 @@ async def handle_iocontrol_scan(
 async def handle_sessions_scan(
     args, terminal: Terminal, pids_data, host, *, reconnect=None
 ) -> None:
-    from canlib.modes.sessions_scan import mode_sessions_scan
+    from canlib.live.sessions_scan import mode_sessions_scan
 
     modes = None
     if getattr(args, "modes", None):
@@ -215,11 +216,11 @@ async def handle_sessions_scan(
 
 
 async def handle_discover(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    from canlib.modes.discover import DEFAULT_TESTER_ADDRESS
+    from canlib.live.discover import DEFAULT_TESTER_ADDRESS
     from canlib.uds.addressing import is_extended, resolve_mode
 
     if getattr(args, "functional", False):
-        from canlib.modes.discover_functional import DEFAULT_REQUEST, mode_discover_functional
+        from canlib.live.discover_functional import DEFAULT_REQUEST, mode_discover_functional
         from canlib.transport.functional import DEFAULT_WINDOW_S
 
         # Set only by the discover parser, whose --request/--window default to None

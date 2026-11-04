@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sys
 
-from canlib.modes import mode_interactive
+from canlib.live.interactive import mode_interactive
 from canlib.transport.elm327.terminal import Elm327Terminal
 from canlib.transport.protocol import Terminal
 

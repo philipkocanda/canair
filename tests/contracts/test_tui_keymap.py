@@ -140,7 +140,7 @@ def test_same_action_key_across_apps():
     """
     from canlib.commands.captures.step_tui import CapturesStepApp
     from canlib.commands.decode.plot_tui import PlotApp
-    from canlib.modes._monitor_tui import MonitorApp
+    from canlib.live._monitor_tui import MonitorApp
 
     def keys_of(cls: type, needle: str) -> set[str]:
         return {b.key for b in _bindings(cls) if needle in b.action}

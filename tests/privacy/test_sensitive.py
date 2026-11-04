@@ -88,7 +88,7 @@ class TestFlags:
 
 class TestLiveMasking:
     def _entry(self, pid: str, payload: str, tx: int | str = 0x733):
-        from canlib.modes.multi_batch import _decode_pid_result
+        from canlib.live.multi_batch import _decode_pid_result
 
         info = build_ecu_index(load_pids())["CCM"]["pids"][pid]
         return _decode_pid_result(
@@ -305,8 +305,8 @@ class TestBundledIoniqIdentity:
 
     @pytest.mark.asyncio
     async def test_identity_does_not_print_the_vin(self, ioniq, monkeypatch, capsys):
-        from canlib.modes import identity as ident
-        from canlib.modes import identity_decode as idec
+        from canlib.live import identity as ident
+        from canlib.live import identity_decode as idec
         from tests.support.fakes import FakeTerminal
         from tests.support.fakes import ok as _ok
 

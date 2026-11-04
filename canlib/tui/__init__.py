@@ -1,7 +1,7 @@
 """Small terminal helpers shared across modes.
 
 Kept intentionally dependency-light so any mode can import it. The live monitor
-now uses Textual (:mod:`canlib.modes._monitor_tui`); the remaining consumers here
+now uses Textual (:mod:`canlib.live._monitor_tui`); the remaining consumers here
 are the IOControl / routines TUIs (viewport sizing) and the capture stepper
 (single-key reads).
 """

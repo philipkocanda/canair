@@ -50,8 +50,8 @@ def test_an_unregistered_ecu_is_unknown():
 
 
 def test_dtc_and_identity_resolve_through_the_registry(monkeypatch):
-    from canlib.modes import identity_decode
-    from canlib.modes.dtc import codes
+    from canlib.live import identity_decode
+    from canlib.live.dtc import codes
 
     monkeypatch.setattr("canlib.ecus.ecu_protocol", lambda tx: UNKNOWN)
     monkeypatch.setattr(identity_decode, "ecu_protocol", lambda tx: UNKNOWN)

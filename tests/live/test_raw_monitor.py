@@ -1,0 +1,507 @@
+"""Tests for the raw-CAN monitor backend helpers (pure, no device)."""
+
+import asyncio
+
+from canlib.live.monitor import MonitorController, _raw_pid_result
+from canlib.live.poll_backoff import PollCost
+from canlib.live.raw_monitor import query_ecu_addresses
+from canlib.uds.addressing import EcuAddress
+from tests.support.raw_monitor import FakeRawClient
+from tests.support.raw_monitor import TimedRawClient as _TimedRawClient
+
+
+class TestQueryEcuAddresses:
+    def test_maps_ecu_address(self):
+        # build_ecu_index supplies the resolved EcuAddress; query_ecu_addresses
+        # just passes it through per queried ECU.
+        ecu_index = {
+            "IGPM": {"tx_id": 0x770, "rx_id": 0x778, "address": EcuAddress(0x770, 0x778)},
+            "BMS": {"tx_id": 0x7E4, "rx_id": 0x7EC, "address": EcuAddress(0x7E4, 0x7EC)},
+        }
+        steps = [{"ecu": "igpm", "pids": []}, {"ecu": "BMS", "pids": ["2101"]}]
+        out = query_ecu_addresses(steps, ecu_index)
+        assert out == {"IGPM": EcuAddress(0x770, 0x778), "BMS": EcuAddress(0x7E4, 0x7EC)}
+
+    def test_uses_nonstandard_rx(self):
+        # A non-+8 rx (e.g. XPeng 0x704 -> 0x784) is honored, not recomputed.
+        ecu_index = {"VCU": {"tx_id": 0x704, "rx_id": 0x784, "address": EcuAddress(0x704, 0x784)}}
+        out = query_ecu_addresses([{"ecu": "VCU", "pids": ["2211011"]}], ecu_index)
+        assert out == {"VCU": EcuAddress(0x704, 0x784)}
+
+    def test_skips_unknown_ecu(self):
+        out = query_ecu_addresses(
+            [{"ecu": "NOPE", "pids": []}],
+            {"IGPM": {"tx_id": 0x770, "rx_id": 0x778, "address": EcuAddress(0x770, 0x778)}},
+        )
+        assert out == {}
+
+
+class TestRawPidResult:
+    def test_positive_mapped(self):
+        r = _raw_pid_result("22BC03", {"parameters": {}}, False, bytes.fromhex("62BC03FDEE"), 1.0)
+        assert r["raw_hex"] == "62BC03FDEE"
+        assert r["acquired_at"] == 1.0
+        assert "error" not in r
+
+    def test_positive_unmapped(self):
+        r = _raw_pid_result("22B003", None, True, bytes.fromhex("62B003AA"), 2.0)
+        assert r["raw_hex"] == "62B003AA"
+        assert r["unmapped"] is True
+
+    def test_negative_response_nrc(self):
+        r = _raw_pid_result("22B004", None, False, bytes.fromhex("7F2213"), 3.0)
+        assert "NRC 0x13" in r["error"]
+        assert r["nrc"] == 0x13
+
+    def test_a_truncated_negative_response_carries_no_code(self):
+        r = _raw_pid_result("22B004", None, False, bytes.fromhex("7F22"), 3.0)
+        assert "too short" in r["error"] and "nrc" not in r
+
+    def test_timeout_none(self):
+        r = _raw_pid_result("2101", {"parameters": {}}, False, None, 4.0)
+        assert r["error"] == "timeout"
+
+    def test_exception_value(self):
+        r = _raw_pid_result("2101", {"parameters": {}}, False, TimeoutError("x"), 5.0)
+        assert r["error"] == "timeout"
+
+    def test_other_exception(self):
+        r = _raw_pid_result("2101", None, False, ValueError("boom"), 6.0)
+        assert "boom" in r["error"]
+
+    def test_empty_response(self):
+        r = _raw_pid_result("2101", None, False, b"", 7.0)
+        assert "empty" in r["error"]
+
+
+def _mk_ctrl(steps, ecu_index, lengths=None, nobatch=None, table=None):
+    c = MonitorController(
+        None, steps, {}, verbose=False, raw_client=FakeRawClient(table or {}), schedule="fixed"
+    )
+    c._ecu_index = ecu_index
+    if lengths:
+        c._raw_lengths.update(lengths)
+    if nobatch:
+        c._raw_nobatch.update(nobatch)
+    return c
+
+
+_IGPM_BMS_INDEX = {
+    "IGPM": {
+        "tx_id": 0x770,
+        "multi_did": True,
+        "pids": {
+            "22BC03": {"parameters": {}},
+            "22BC06": {"parameters": {}},
+            "22BC07": {"parameters": {}},
+        },
+    },
+    "BMS": {"tx_id": 0x7E4, "pids": {"2101": {"parameters": {}}}},
+}
+
+
+class TestBuildRawSubmissions:
+    def test_batches_multi_did_when_lengths_known(self):
+        steps = [
+            {"ecu": "IGPM", "pids": ["BC03", "BC06", "BC07"]},
+            {"ecu": "BMS", "pids": ["2101"]},
+        ]
+        c = _mk_ctrl(
+            steps,
+            _IGPM_BMS_INDEX,
+            lengths={("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8, ("IGPM", "BC07"): 8},
+        )
+        subs, _plan = c._build_raw_submissions()
+        igpm = [s for s in subs if s["ecu"] == "IGPM"]
+        assert len(igpm) == 1
+        assert igpm[0]["req"] == bytes.fromhex("22BC03BC06BC07")
+        assert igpm[0]["lengths"] == [("BC03", 8), ("BC06", 8), ("BC07", 8)]
+        bms = [s for s in subs if s["ecu"] == "BMS"]
+        assert bms[0]["req"] == bytes.fromhex("2101") and bms[0]["lengths"] is None
+
+    def test_no_batch_without_lengths(self):
+        steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06", "BC07"]}]
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX)  # no learned lengths
+        subs, _plan = c._build_raw_submissions()
+        assert len(subs) == 3
+        assert all(s["lengths"] is None for s in subs)
+
+    def test_nobatch_forces_singles(self):
+        steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06", "BC07"]}]
+        c = _mk_ctrl(
+            steps,
+            _IGPM_BMS_INDEX,
+            lengths={("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8, ("IGPM", "BC07"): 8},
+            nobatch={"IGPM"},
+        )
+        subs, _plan = c._build_raw_submissions()
+        assert len(subs) == 3 and all(s["lengths"] is None for s in subs)
+
+    def test_batch_capped_at_three(self):
+        idx = {
+            "IGPM": {
+                "tx_id": 0x770,
+                "multi_did": True,
+                "pids": {f"22BC0{i}": {"parameters": {}} for i in range(1, 6)},
+            }
+        }
+        steps = [{"ecu": "IGPM", "pids": [f"BC0{i}" for i in range(1, 6)]}]
+        lengths = {("IGPM", f"BC0{i}"): 4 for i in range(1, 6)}
+        c = _mk_ctrl(steps, idx, lengths=lengths)
+        subs, _plan = c._build_raw_submissions()
+        # 5 DIDs -> batch of 3 + batch of 2.
+        assert [len(s["members"]) for s in subs] == [3, 2]
+
+    def test_an_alias_resolves_to_the_key_the_elm_path_uses(self, monkeypatch):
+        import canlib.ecus
+
+        monkeypatch.setattr(
+            canlib.ecus,
+            "canonical_ecu_name_safe",
+            lambda name, *a, **k: "IGPM" if name.upper() == "SJB" else name.upper(),
+        )
+        c = _mk_ctrl([{"ecu": "sjb", "pids": ["BC03"]}], _IGPM_BMS_INDEX)
+        subs, plan_by_ecu = c._build_raw_submissions()
+        assert [s["ecu"] for s in subs] == ["IGPM"]
+        assert [ecu for ecu, _tx, _plan in plan_by_ecu] == ["IGPM"]
+
+
+class TestPollRaw:
+    def test_learn_then_batch_and_decode(self):
+        bc03 = "62BC03FDEE3C730A000000"
+        bc06 = "62BC06B480000000000000"
+        batch = "62BC03FDEE3C730A000000BC06B480000000000000"
+        table = {
+            ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex(bc03),
+            ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex(bc06),
+            ("IGPM", bytes.fromhex("22BC03BC06")): bytes.fromhex(batch),
+        }
+        steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06"]}]
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
+
+        # Cycle 1: no lengths -> two single reads that learn lengths.
+        asyncio.run(c._poll_raw())
+        assert c._raw_lengths[("IGPM", "BC03")] == 8
+        assert c._raw_lengths[("IGPM", "BC06")] == 8
+        subs, _ = c._build_raw_submissions()
+        assert len(subs) == 1 and subs[0]["req"] == bytes.fromhex("22BC03BC06")
+
+        # Cycle 2: one batched request, split back into two decoded PIDs.
+        asyncio.run(c._poll_raw())
+        (_label, results) = c.last_queries[0]
+        got = {r["pid"]: r.get("raw_hex") for r in results}
+        assert got["22BC03"] == "62BC03FDEE3C730A000000"
+        assert got["22BC06"] == "62BC06B480000000000000"
+
+    def test_learns_a_length_whose_data_ends_in_the_fill_byte(self):
+        # The raw stack trims a reply to its PCI length, so trailing AAs are data.
+        table = {("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("62BC031122AAAA")}
+        c = _mk_ctrl([{"ecu": "IGPM", "pids": ["BC03"]}], _IGPM_BMS_INDEX, table=table)
+        asyncio.run(c._poll_raw())
+        assert c._raw_lengths[("IGPM", "BC03")] == 4
+
+    def test_batch_nrc_falls_back_to_nobatch(self):
+        table = {
+            ("IGPM", bytes.fromhex("22BC03BC06")): bytes.fromhex("7F2213"),  # rejected
+            ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("62BC03AA"),
+            ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex("62BC06BB"),
+        }
+        steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06"]}]
+        c = _mk_ctrl(
+            steps,
+            _IGPM_BMS_INDEX,
+            lengths={("IGPM", "BC03"): 1, ("IGPM", "BC06"): 1},
+            table=table,
+        )
+        # First cycle attempts the batch, gets NRC 0x13 -> disables batching.
+        asyncio.run(c._poll_raw())
+        assert "IGPM" in c._raw_nobatch
+        # Next cycle uses single reads.
+        subs, _ = c._build_raw_submissions()
+        assert len(subs) == 2 and all(s["lengths"] is None for s in subs)
+
+    def test_partial_render_fires_and_pending_pid_keeps_last_value(self):
+        # Incremental rendering: fast PIDs render mid-cycle via _on_partial, and a
+        # PID still pending (not yet resolved) keeps its previous value (no
+        # flicker) rather than vanishing from the frame.
+        table = {
+            ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("62BC03AA"),
+            ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex("62BC06BB"),
+        }
+        steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06"]}]
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
+        renders = []
+        c._on_partial = lambda: renders.append(1)
+
+        asyncio.run(c._poll_raw())
+        assert len(renders) >= 1  # repainted mid-cycle, not just at the end
+        got = {r["pid"]: r.get("raw_hex") for _lbl, res in c.last_queries for r in res}
+        assert got["22BC03"] == "62BC03AA"
+        assert got["22BC06"] == "62BC06BB"
+
+        # The cycle remembered both entries, so a frame built with nothing yet
+        # resolved this cycle (all PIDs still pending) shows their last values —
+        # this is what keeps other PIDs visible while a slow one is in flight.
+        _subs, plan_by_ecu = c._build_raw_submissions()
+        frame = c._raw_build_queries(plan_by_ecu, {})
+        pending = {r["pid"]: r.get("raw_hex") for _lbl, res in frame for r in res}
+        assert pending["22BC03"] == "62BC03AA"
+        assert pending["22BC06"] == "62BC06BB"
+
+    def test_timeout_keeps_last_good_as_stale(self):
+        # A DID that times out after a good cycle keeps its last-good values,
+        # marked stale (dimmed on screen) — never collapses to an error line.
+        table = {("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("62BC03AA")}
+        steps = [{"ecu": "IGPM", "pids": ["BC03"]}]
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
+
+        asyncio.run(c._poll_raw())  # cycle 1: good
+        good = c.last_queries[0][1][0]
+        assert good.get("raw_hex") == "62BC03AA" and not good.get("stale")
+
+        c.raw_client.table.clear()  # cycle 2: BC03 times out
+        asyncio.run(c._poll_raw())
+        entry = c.last_queries[0][1][0]
+        assert entry.get("stale") is True
+        assert entry.get("raw_hex") == "62BC03AA"  # last-good values retained
+        assert not entry.get("error")  # not shown as an error row
+
+    def test_record_skips_stale_entries(self):
+        # A re-shown (stale) value must not be re-recorded as a fresh capture.
+        c = MonitorController(None, [], {}, verbose=False, save=True)
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA", "stale": True}])])
+        assert c.save_history == {}
+
+
+class TestControllerInterrupt:
+    def test_delegates_to_raw_client(self):
+        class IClient(FakeRawClient):
+            def __init__(self):
+                super().__init__({})
+                self.interrupted = False
+
+            def interrupt(self):
+                self.interrupted = True
+
+        client = IClient()
+        c = MonitorController(None, [], {}, verbose=False, raw_client=client)
+        c.interrupt()
+        assert client.interrupted is True
+
+    def test_noop_on_elm_backend(self):
+        # No raw_client (ELM path): interrupt must be a safe no-op, not raise.
+        c = MonitorController(None, [], {}, verbose=False)
+        c.interrupt()  # no raise
+
+
+class TestLayoutStability:
+    """A cycle must not add or remove rows — every removal shifts the whole view."""
+
+    def test_nrc_only_pid_keeps_its_row_while_pending(self):
+        # A DID whose only ever answer is a negative response has no last-*good*
+        # entry, so keying the mid-cycle fallback on _last_good made its row vanish
+        # at every cycle start and reappear on resolve — a per-cycle layout jump.
+        table = {("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("7F2231")}
+        steps = [{"ecu": "IGPM", "pids": ["BC03"]}]
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
+
+        asyncio.run(c._poll_raw())
+        entry = c.last_queries[0][1][0]
+        assert "NRC 0x31" in entry["error"]
+
+        _subs, plan_by_ecu = c._build_raw_submissions()
+        pending = c._raw_build_queries(plan_by_ecu, {})  # nothing resolved yet
+        assert [r["pid"] for _lbl, res in pending for r in res] == ["22BC03"]
+        assert "NRC 0x31" in pending[0][1][0]["error"]
+
+    def test_never_answered_pid_has_no_row_to_hold(self):
+        # Nothing has ever been shown for it, so there is nothing to carry — the
+        # row simply doesn't exist yet (it appears once the first answer lands).
+        steps = [{"ecu": "IGPM", "pids": ["BC03"]}]
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX)
+        _subs, plan_by_ecu = c._build_raw_submissions()
+        assert c._raw_build_queries(plan_by_ecu, {}) == [("IGPM (0x770)", [])]
+
+    def test_selection_keys_are_unique(self):
+        # (ecu_label, pid, param_name) is the monitor's selection cursor. A repeated
+        # ECU made two rows share a key, so MonitorEditor.move()'s items.index()
+        # snapped the cursor (and the viewport) back to the earlier copy.
+        from canlib.query.steps import normalize_query_steps
+
+        steps = normalize_query_steps(
+            [
+                {"type": "query", "ecu": "IGPM", "pids": []},
+                {"type": "query", "ecu": "IGPM", "pids": ["BC03"]},
+                {"type": "query", "ecu": "BMS", "pids": ["2101"]},
+            ],
+            name_index={},
+        )
+        table = {
+            ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("62BC03AA"),
+            ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex("62BC06BB"),
+            ("IGPM", bytes.fromhex("22BC07")): bytes.fromhex("62BC07CC"),
+            ("BMS", bytes.fromhex("2101")): bytes.fromhex("6101AA"),
+        }
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
+        asyncio.run(c._poll_raw())
+
+        keys = [(lbl, r["pid"]) for lbl, res in c.last_queries for r in res]
+        assert len(keys) == len(set(keys))
+        assert [lbl for lbl, _res in c.last_queries] == ["IGPM (0x770)", "BMS (0x7E4)"]
+
+
+class TestRawBatchRepliesNeverLandUnderOneDid:
+    """A multi-DID reply is either split per DID or recorded under none of them."""
+
+    BC03 = "62BC03FDEE3C730A000000"
+    BC06 = "62BC06B480000000000000"
+    BATCH = "62BC03FDEE3C730A000000BC06B480000000000000"
+
+    def _ctrl(self, table):
+        steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06"]}]
+        lengths = {("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8}
+        return _mk_ctrl(steps, _IGPM_BMS_INDEX, lengths=lengths, table=table)
+
+    def _results(self, c):
+        asyncio.run(c._poll_raw())
+        return {r["pid"]: r for _lbl, res in c.last_queries for r in res}
+
+    def test_an_unsplittable_batch_is_an_error_for_every_member(self):
+        # Positive, but BC06's data is one byte short of its learned length.
+        c = self._ctrl({("IGPM", bytes.fromhex("22BC03BC06")): bytes.fromhex(self.BATCH[:-2])})
+        got = self._results(c)
+        assert "IGPM" in c._raw_nobatch
+        assert all("raw_hex" not in got[p] and "error" in got[p] for p in ("22BC03", "22BC06"))
+
+    def test_a_single_read_answered_by_a_batch_is_discarded(self):
+        c = self._ctrl(
+            {
+                ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex(self.BATCH),
+                ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex(self.BC06),
+            }
+        )
+        c._raw_nobatch.add("IGPM")  # single reads only
+        got = self._results(c)
+        assert "raw_hex" not in got["22BC03"]
+        assert got["22BC06"]["raw_hex"] == self.BC06
+        assert c._raw_lengths[("IGPM", "BC03")] == 8  # not re-learned as the batch's length
+
+    def test_a_leak_stops_batching_the_ecu_and_is_logged(self, monkeypatch):
+        events: list[tuple] = []
+        monkeypatch.setattr(
+            "canlib.core.eventlog.log_event",
+            lambda cat, detail="", **kw: events.append((cat, detail, kw)),
+        )
+        c = self._ctrl(
+            {
+                ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex(self.BATCH),
+                ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex(self.BC06),
+            }
+        )
+        # Planned while batching was on, answered by a late batch reply on the single read.
+        c.raw_poller.apply_submission(
+            {
+                "ecu": "IGPM",
+                "req": bytes.fromhex("22BC03"),
+                "members": [("22BC03", {"parameters": {}}, False)],
+                "lengths": None,
+            },
+            bytes.fromhex(self.BATCH),
+            0.0,
+            {},
+        )
+        assert "IGPM" in c._raw_nobatch
+        assert [(cat, kw.get("ecu"), kw.get("pid")) for cat, _d, kw in events] == [
+            ("stale", "0x770", "22BC03"),
+            ("config", "0x770", None),
+        ]
+        assert "multi-DID batch reply" in events[0][1]
+        assert "batching disabled" in events[1][1]
+
+    def test_a_lower_case_pid_key_learns_batches_and_catches_leaks(self):
+        index = {
+            "IGPM": {
+                "tx_id": 0x770,
+                "multi_did": True,
+                "pids": {"22bc03": {"parameters": {}}, "22bc06": {"parameters": {}}},
+            }
+        }
+        table = {
+            ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex(self.BC03),
+            ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex(self.BC06),
+            ("IGPM", bytes.fromhex("22BC03BC06")): bytes.fromhex(self.BATCH),
+        }
+        c = _mk_ctrl([{"ecu": "IGPM", "pids": ["BC03", "BC06"]}], index, table=table)
+        asyncio.run(c._poll_raw())
+        assert c._raw_lengths == {("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8}
+        subs, _ = c._build_raw_submissions()
+        assert [s["req"] for s in subs] == [bytes.fromhex("22BC03BC06")]
+        asyncio.run(c._poll_raw())
+        got = {r["pid"]: r.get("raw_hex") for _lbl, res in c.last_queries for r in res}
+        assert got == {"22bc03": self.BC03, "22bc06": self.BC06}
+
+        by_pid: dict = {}
+        sub = {
+            "ecu": "IGPM",
+            "req": bytes.fromhex("22bc03"),
+            "members": [("22bc03", {"parameters": {}}, False)],
+            "lengths": None,
+        }
+        c.raw_poller.apply_submission(sub, bytes.fromhex(self.BATCH), 0.0, by_pid)
+        assert "raw_hex" not in by_pid[("IGPM", "22bc03")]
+        assert c._raw_lengths[("IGPM", "BC03")] == 8
+
+
+class TestSlowPidBackoff:
+    """A silent PID holds up every other PID's next poll, so it is polled less often."""
+
+    def _ctrl(self, backoff=True):
+        table = {("BMS", bytes.fromhex("2101")): bytes.fromhex("6101AA")}
+        steps = [{"ecu": "IGPM", "pids": ["BC03"]}, {"ecu": "BMS", "pids": ["2101"]}]
+        c = MonitorController(
+            None,
+            steps,
+            {},
+            verbose=False,
+            raw_client=_TimedRawClient(table),
+            schedule="fixed",
+            backoff=backoff,
+        )
+        c._ecu_index = _IGPM_BMS_INDEX
+        return c
+
+    def test_raw_costs_are_each_requests_latency(self):
+        c = self._ctrl()
+        asyncio.run(c._poll_raw())
+        igpm = c.poll_costs[("IGPM", "22BC03")]
+        assert (igpm.reads, igpm.answered, igpm.seconds) == (1, 0, 1.0)
+        assert c.poll_costs[("BMS", "2101")].answered == 1
+
+    def test_a_batch_charges_each_member_its_latency(self):
+        steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06"]}]
+        c = _mk_ctrl(steps, _IGPM_BMS_INDEX, lengths={("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8})
+        c.raw_client = _TimedRawClient({})
+        asyncio.run(c._poll_raw())
+        assert c.poll_costs == {
+            ("IGPM", "22BC03"): PollCost(reads=1, seconds=1.0, answered=0),
+            ("IGPM", "22BC06"): PollCost(reads=1, seconds=1.0, answered=0),
+        }
+
+    def test_a_silent_pid_is_slowed_and_flagged(self):
+        from canlib.live.poll_backoff import ESCALATE_AFTER
+
+        c = self._ctrl()
+        for _ in range(ESCALATE_AFTER):
+            asyncio.run(c.poll_once())
+        assert c.schedule.slowdown(("IGPM", "22BC03")) == 2
+        assert c.schedule.slowdown(("BMS", "2101")) == 1
+        # It now sits out the next round while BMS keeps being read.
+        asyncio.run(c.poll_once())
+        assert set(c.poll_costs) == {("BMS", "2101")}
+        assert "slow (not answering) · polled 2× less often" in c.render().plain
+
+    def test_no_backoff_keeps_polling(self):
+        c = self._ctrl(backoff=False)
+        for _ in range(6):
+            asyncio.run(c.poll_once())
+        assert c.schedule.slowed() == {}

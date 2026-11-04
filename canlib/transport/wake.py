@@ -15,7 +15,7 @@ than hardcode it, a profile declares it per ECU under a ``wake:`` block in
 shared session layer executes on **both** transports.
 
 This is the generic primitive (idea 1). The Ioniq SKM relay procedure
-(:mod:`canlib.modes.skm_wakeup`, idea 3) builds on the same
+(:mod:`canlib.live.skm_wakeup`, idea 3) builds on the same
 :func:`rapid_read <canlib.transport.session_manager.SessionManager.rapid_read_wake>`
 primitive and adds relay actuation, gated behind the ``skm_wakeup`` profile
 quirk.

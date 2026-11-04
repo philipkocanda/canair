@@ -17,7 +17,7 @@ import pytest
 from canlib import profile
 from canlib.commands import discover as discover_cmd
 from canlib.ecus.pids import clear_cache
-from canlib.modes.functional_sweep import classify_round, group_by_bus, round_to_capture
+from canlib.live.functional_sweep import classify_round, group_by_bus, round_to_capture
 from canlib.safety.blocklist import SafetyBlocked, check_functional_request
 from canlib.transport.elm327.addressing import AdapterState
 from canlib.transport.elm327.functional import elm_functional_exchange, parse_header_lines
@@ -149,14 +149,14 @@ class TestDispatchForwardsTheParsedValues:
         async def fake_mode(terminal, pids_data, **kwargs):
             seen.update(kwargs)
 
-        monkeypatch.setattr("canlib.modes.discover_functional.mode_discover_functional", fake_mode)
+        monkeypatch.setattr("canlib.live.discover_functional.mode_discover_functional", fake_mode)
         common = {"json": False, "save": False, "label": None, "state": None, "notes": None}
         args = _discover_args(functional=True, **common, **kw)
         asyncio.run(handle_discover(args, object(), {}, None))
         return seen
 
     def test_unset_flags_take_the_defaults(self, monkeypatch):
-        from canlib.modes.discover_functional import DEFAULT_REQUEST
+        from canlib.live.discover_functional import DEFAULT_REQUEST
         from canlib.transport.functional import DEFAULT_WINDOW_S
 
         seen = self._run(monkeypatch)
@@ -527,7 +527,7 @@ class TestMode:
     async def test_repeat_sends_each_round(self, gateway_profile, monkeypatch, capsys):
         from canlib.commands._live.handlers.scans import handle_discover
         from canlib.ecus.pids import load_pids
-        from canlib.modes import discover_functional
+        from canlib.live import discover_functional
 
         async def _no_sleep(_s):
             return None

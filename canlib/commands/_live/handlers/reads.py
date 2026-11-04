@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import sys
 
-from canlib.modes import mode_identity, mode_param, mode_raw
+from canlib.live.identity import mode_identity
+from canlib.live.param import mode_param
+from canlib.live.raw import mode_raw
 from canlib.transport.protocol import Terminal
 
 

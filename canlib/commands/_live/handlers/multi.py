@@ -9,15 +9,16 @@ from __future__ import annotations
 from canlib.captures.keepmode import resolve_keep_mode
 from canlib.commands._live.operation import LiveOperation
 from canlib.commands._notation import resolve_notation
-from canlib.modes import mode_monitor, mode_multi
-from canlib.modes.monitor_options import MonitorOptions
-from canlib.poll_schedule import DEFAULT_SCHEDULE
+from canlib.live.monitor import mode_monitor
+from canlib.live.monitor_options import MonitorOptions
+from canlib.live.multi import mode_multi
+from canlib.live.poll_schedule import DEFAULT_SCHEDULE
 from canlib.transport.protocol import Terminal
 
 
 def monitor_options(args) -> MonitorOptions:
     """The monitor's options from the parsed flags (``args.multi`` already holds a query step)."""
-    from canlib.modes.multi import parse_sub_commands
+    from canlib.live.multi import parse_sub_commands
 
     commands = parse_sub_commands(args.multi)
     return MonitorOptions(

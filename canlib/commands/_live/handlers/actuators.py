@@ -3,7 +3,7 @@
 IOControl and routines have a read-only listing/TUI path and an execute path.
 ``routines --sf start`` sends startRoutine, which may move something, so it
 confirms first. A profile action is always guarded by a live condition check and
-a confirmation (:mod:`canlib.modes.action`). The KWP2000 split lives in the scan
+a confirmation (:mod:`canlib.live.action`). The KWP2000 split lives in the scan
 families, not here.
 """
 
@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import sys
 
-from canlib.modes.iocontrol import mode_iocontrol_execute
-from canlib.modes.routines import mode_routines_execute
+from canlib.live.iocontrol import mode_iocontrol_execute
+from canlib.live.routines import mode_routines_execute
 from canlib.transport.protocol import Terminal
 
 
@@ -28,7 +28,7 @@ async def handle_iocontrol(args, terminal: Terminal, pids_data, host, *, reconne
             as_json=args.json,
         )
     else:
-        from canlib.modes.iocontrol import mode_iocontrol_tui
+        from canlib.live.iocontrol import mode_iocontrol_tui
 
         await mode_iocontrol_tui(
             terminal,
@@ -41,7 +41,7 @@ async def handle_iocontrol(args, terminal: Terminal, pids_data, host, *, reconne
 
 async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
     if args.rid:
-        from canlib.modes.routines import SF_RESULTS, SF_START, SF_STOP
+        from canlib.live.routines import SF_RESULTS, SF_START, SF_STOP
 
         sf_map = {"results": SF_RESULTS, "start": SF_START, "stop": SF_STOP}
         sf_name = (args.sf or "results").lower()
@@ -77,7 +77,7 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
             as_json=args.json,
         )
     else:
-        from canlib.modes.routines import mode_routines_tui
+        from canlib.live.routines import mode_routines_tui
 
         await mode_routines_tui(
             terminal,
@@ -88,9 +88,9 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
 
 
 async def handle_action(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    """``canair action run NAME``: a guarded, profile-defined action (canlib.modes.action)."""
+    """``canair action run NAME``: a guarded, profile-defined action (canlib.live.action)."""
     from canlib.actions import ActionError
-    from canlib.modes.action import mode_action
+    from canlib.live.action import mode_action
 
     try:
         await mode_action(

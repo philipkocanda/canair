@@ -4,7 +4,7 @@ canair reaches the CAN bus through one of two transports
 (:class:`canlib.transport.elm327.wican.WiCANTerminal` over the WebSocket ELM327 terminal,
 :class:`canlib.transport.raw.terminal.RawTerminal` over raw SLCAN + client-side
 ISO-TP), and every live operation runs through the shared
-:func:`canlib.modes.session.run_session_guarded` against *this surface only*. Typing
+:func:`canlib.live.session.run_session_guarded` against *this surface only*. Typing
 the seam against :class:`Terminal` — rather than a concrete class — is the
 compiler-checked form of the "keep the WiCAN replaceable" rule: a new backend
 slots in by structurally satisfying the protocol, and ``ty`` rejects any mode

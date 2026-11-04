@@ -1,0 +1,433 @@
+"""Live monitor — raw-CAN (slcan) polling backend.
+
+:class:`MonitorRawPoller` is the collaborator that owns the monitor's raw-CAN
+poll cycle: it plans each cycle's requests (batching a ``multi_did`` ECU's
+service-22 DIDs), drives the pipelined blocking client on a worker thread,
+consumes results incrementally, and splits/learns multi-DID lengths. It holds
+the per-session batch-learning state (``lengths``/``nobatch``).
+
+Factored out of :class:`canlib.live.monitor.MonitorController` (mirrors
+:class:`canlib.live.monitor_edit.MonitorEditor`) so the raw backend — only
+active when the transport is ``slcan-tcp`` — is a self-contained, independently
+testable unit rather than another arm of the controller god object. The
+controller keeps thin delegating methods for the tested public surface.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import logging
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, TypedDict
+
+from canlib.live.poll_backoff import PollCost
+from canlib.live.poll_schedule import Key
+
+from ..uds.protocol import DiagProtocol, classify_protocol
+
+if TYPE_CHECKING:
+    from canlib.expression.results import EcuFrame, ResultEntry
+
+    from .monitor import MonitorController
+
+# One query-plan entry: ``(pid_code, pid_info or None, unmapped)``.
+PlanEntry = tuple[str, dict | None, bool]
+# What the pipelined client resolved each ``(ecu, request)`` to.
+PollResults = Mapping[tuple[str, bytes], bytes | Exception]
+
+
+class Submission(TypedDict):
+    """One request of a raw poll tick and the plan entries its reply answers."""
+
+    ecu: str
+    req: bytes
+    members: list[PlanEntry]
+    lengths: list[tuple[str, int]] | None  # (DID4, data bytes) per member of a batch
+
+
+def _raw_pid_result(
+    pid_code: str,
+    pid_info: dict | None,
+    unmapped: bool,
+    value: bytes | Exception | None,
+    acquired_at: float | None,
+    ecu: str | None = None,
+    protocol: DiagProtocol | None = None,
+) -> ResultEntry:
+    """Turn a raw-CAN poll result (bytes / Exception / None) into a result dict.
+
+    Mirrors the ELM path's result shape so the renderer/decoder are unchanged;
+    ``ecu`` names the ECU so a sensitive reply is masked as on the ELM path, and
+    ``protocol`` (its :data:`~canlib.uds.protocol.DiagProtocol`) names an NRC the
+    way the ELM path's parser does.
+    """
+    from .multi_batch import _decode_pid_result
+
+    if value is None or isinstance(value, Exception):
+        err = "timeout" if value is None or isinstance(value, TimeoutError) else str(value)
+        return {"pid": pid_code, "error": err, "unmapped": unmapped, "acquired_at": acquired_at}
+    resp = bytes(value)
+    if not resp:
+        return {
+            "pid": pid_code,
+            "error": "empty response",
+            "unmapped": unmapped,
+            "acquired_at": acquired_at,
+        }
+    if resp[0] == 0x7F:  # negative response: 7F <sid> <nrc>
+        from canlib.uds.nrc import nrc_description
+
+        if len(resp) < 3:
+            return {
+                "pid": pid_code,
+                "error": f"negative response too short: {resp.hex().upper()}",
+                "unmapped": unmapped,
+                "acquired_at": acquired_at,
+            }
+        return {
+            "pid": pid_code,
+            "error": f"NRC 0x{resp[2]:02X} ({nrc_description(resp[2], protocol)})",
+            "nrc": resp[2],
+            "unmapped": unmapped,
+            "acquired_at": acquired_at,
+        }
+    return _decode_pid_result(
+        pid_code, pid_info, unmapped, resp.hex().upper(), resp, acquired_at, target=ecu
+    )
+
+
+class MonitorRawPoller:
+    """Raw-CAN poll backend + per-session multi-DID batching state.
+
+    A collaborator of :class:`~canlib.live.monitor.MonitorController` (accessed
+    as ``controller.raw_poller``); reads/writes the controller's shared live
+    state (``last_queries``, ``_last_good``, ``_last_shown``, ``disconnected``, …)
+    through the back-reference ``self.c``.
+    """
+
+    def __init__(self, controller: MonitorController):
+        self.c = controller
+        # Learned per-DID data lengths (ecu, DID4 upper-case) -> len, and ECUs that
+        # rejected batching (NRC 0x13/0x31, an unsplittable positive, or a batch reply
+        # that arrived late in a single read's slot) this session.
+        self.lengths: dict[tuple[str, str], int] = {}
+        self.nobatch: set[str] = set()
+        # The byte ECU replies are padded with (profile isotp.rx_padding), to strip/split.
+        from ..transport.isotp_params import resolve_rx_padding
+
+        self.pad = resolve_rx_padding(getattr(controller, "pids_data", None))
+
+    def build_submissions(
+        self,
+    ) -> tuple[list[Submission], list[tuple[str, int, list[PlanEntry]]]]:
+        """Plan this tick's raw requests, batching multi-DID ECUs.
+
+        Returns ``(submissions, plan_by_ecu)``. ``plan_by_ecu`` holds every ECU's
+        *full* plan (it lays out the display); the submissions cover only the
+        entries the controller's scheduler says are due this tick. Each submission
+        is a :class:`Submission`. Consecutive due service-22 DIDs on a ``multi_did``
+        ECU whose lengths are already learned are combined (up to the ECU's
+        ``multi_did_max``, default 3); everything else is a single request (and
+        22-DID lengths are learned from single reads).
+        """
+        from canlib.ecus.pids import ecu_index_key
+
+        from .multi_batch import _did4, _is_did22
+        from .multi_exec import build_query_plan
+
+        c = self.c
+        # Only reached during polling, after setup() built the ECU index.
+        assert c._ecu_index is not None
+        submissions: list[Submission] = []
+        plan_by_ecu: list[tuple[str, int, list[PlanEntry]]] = []
+        for step in c.query_steps:
+            ecu = ecu_index_key(step["ecu"], c._ecu_index)
+            if ecu is None:
+                continue
+            info = c._ecu_index[ecu]
+            plan = (
+                build_query_plan(
+                    info, step.get("pids", []), quiet=True, include_static=c.include_static
+                )
+                or []
+            )
+            plan_by_ecu.append((ecu, info["tx_id"], plan))
+            plan = c.schedule.take_due(ecu, plan)
+            batchable = info.get("multi_did", False) and ecu not in self.nobatch
+            cap = info.get("multi_did_max", 3)
+            i, n = 0, len(plan)
+            while i < n:
+                code = plan[i][0]
+                if batchable and _is_did22(code) and (ecu, _did4(code)) in self.lengths:
+                    group = []
+                    while (
+                        i < n
+                        and len(group) < cap
+                        and _is_did22(plan[i][0])
+                        and (ecu, _did4(plan[i][0])) in self.lengths
+                    ):
+                        group.append(plan[i])
+                        i += 1
+                    if len(group) > 1:
+                        dids = [_did4(g[0]) for g in group]
+                        submissions.append(
+                            {
+                                "ecu": ecu,
+                                "req": bytes.fromhex("22" + "".join(dids)),
+                                "members": group,
+                                "lengths": [(d, self.lengths[(ecu, d)]) for d in dids],
+                            }
+                        )
+                        continue
+                    g = group[0]
+                    submissions.append(
+                        {"ecu": ecu, "req": bytes.fromhex(g[0]), "members": [g], "lengths": None}
+                    )
+                    continue
+                submissions.append(
+                    {"ecu": ecu, "req": bytes.fromhex(code), "members": [plan[i]], "lengths": None}
+                )
+                i += 1
+        return submissions, plan_by_ecu
+
+    async def poll(self) -> None:
+        """Pipelined UDS read over raw CAN (blocking client run in a thread).
+
+        Multi-DID ECUs are batched (one ISO-TP request per group); results are
+        split back per-DID. Per-ECU 22-DID lengths are learned from single reads,
+        and an ECU that rejects batching (NRC 0x13/0x31), returns an unsplittable
+        response, or answers a single read with a late batch reply is dropped to
+        single reads for the session.
+
+        Results are consumed **incrementally**: the client fires a callback as
+        each request resolves, so fast PIDs render immediately and a slow/timing-
+        out PID only holds up its own row — the view never freezes for a cycle.
+        """
+        import time as _t
+
+        c = self.c
+        # The raw poll path only runs on the raw backend, where raw_client is set.
+        assert c.raw_client is not None
+        raw_client = c.raw_client  # local binding: narrowing doesn't reach the closure below
+        submissions, plan_by_ecu = self.build_submissions()
+        requests = [(s["ecu"], s["req"]) for s in submissions]
+        sub_by_req = {(s["ecu"], s["req"]): s for s in submissions}
+        by_pid: dict[tuple[str, str], ResultEntry] = {}
+        if not requests:
+            c.last_queries = self.build_queries(plan_by_ecu, by_pid)
+            c.last_cmds = 0
+            c.last_elm_time = 0.0
+            return
+
+        loop = asyncio.get_event_loop()
+        q: asyncio.Queue = asyncio.Queue()
+        sentinel = object()
+
+        def _on_result(key, value):  # fired from the executor thread
+            loop.call_soon_threadsafe(q.put_nowait, (key, value))
+
+        def _run():
+            try:
+                return raw_client.poll(requests, on_result=_on_result)
+            finally:
+                loop.call_soon_threadsafe(q.put_nowait, sentinel)
+
+        fut = loop.run_in_executor(None, _run)
+
+        applied: set = set()
+        last_render = 0.0
+        try:
+            while True:
+                item = await q.get()
+                if item is sentinel:
+                    break
+                key, val = item
+                s = sub_by_req.get(key)
+                if s is None:
+                    continue
+                self.apply_submission(s, val, _t.time(), by_pid)
+                applied.add(key)
+                c.last_queries = self.build_queries(plan_by_ecu, by_pid)
+                # Throttle mid-cycle repaints so a burst of fast PIDs doesn't thrash.
+                now = _t.monotonic()
+                if c._on_partial is not None and (now - last_render) >= 0.12:
+                    last_render = now
+                    with contextlib.suppress(Exception):
+                        c._on_partial()
+        except asyncio.CancelledError:
+            # Ctrl-C / quit cancels the poll worker. Tell the blocking pipelined
+            # poll to abort so its executor thread returns at once — otherwise
+            # asyncio joins the still-running thread at shutdown and exit hangs
+            # for seconds (a full cycle of per-ECU timeouts).
+            raw_client.interrupt()
+            raise
+        try:
+            result_dict = await fut  # surface a bus-level failure (connection dropped)
+        except Exception:
+            c.fresh_queries = self.fresh_queries(plan_by_ecu, by_pid)
+            c.mark_disconnected("error")
+            return
+
+        # Completeness net: fold in any results not delivered via the callback
+        # (a client may return the dict without implementing on_result).
+        for s in submissions:
+            key = (s["ecu"], s["req"])
+            if key not in applied and key in result_dict:
+                self.apply_submission(s, result_dict[key], _t.time(), by_pid)
+
+        c.last_queries = self.build_queries(plan_by_ecu, by_pid)
+        c.fresh_queries = self.fresh_queries(plan_by_ecu, by_pid)
+        c.last_cmds = len(requests)
+        c.last_elm_time = 0.0
+        c.poll_costs = self.poll_costs(submissions, result_dict)
+
+    def poll_costs(
+        self, submissions: list[Submission], results: PollResults
+    ) -> dict[Key, PollCost]:
+        """Each PID's cost of this tick: its request's latency and whether it was answered.
+
+        A batch's members each take the whole batch's latency as one request: each was
+        held up that long. The client works through an ECU's queue one request per round,
+        so a slow request keeps the whole tick open.
+        """
+        latency = getattr(self.c.raw_client, "last_latency", None) or {}
+        costs: dict[Key, PollCost] = {}
+        for s in submissions:
+            key = (s["ecu"], s["req"])
+            answered = int(isinstance(results.get(key), (bytes, bytearray)))
+            for code, _info, _unmapped in s["members"]:
+                costs[(s["ecu"], code)] = PollCost(
+                    reads=1, seconds=latency.get(key, 0.0), answered=answered
+                )
+        return costs
+
+    def apply_submission(
+        self,
+        s: Submission,
+        val: bytes | Exception | None,
+        acquired: float,
+        by_pid: dict[tuple[str, str], ResultEntry],
+    ) -> None:
+        """Fold one completed submission's response into ``by_pid`` (split batches,
+        learn 22-DID lengths, track ECUs that can't batch)."""
+        from canlib.core.eventlog import log_event
+
+        from .multi_batch import (
+            LEAKED_BATCH_ERROR,
+            LEAKED_BATCH_REASON,
+            _did4,
+            _did_data_len,
+            _is_did22,
+            is_leaked_batch_reply,
+            split_multi_did,
+        )
+
+        ecu = s["ecu"]
+        resp = bytes(val) if isinstance(val, (bytes, bytearray)) else None
+
+        if s["lengths"] is not None:  # batched request
+            split = None
+            if resp and resp[0] != 0x7F:
+                split = split_multi_did(resp.hex().upper(), s["lengths"], self.pad)
+            elif resp and resp[0] == 0x7F and (resp[2] if len(resp) >= 3 else 0) in (0x13, 0x31):
+                self.nobatch.add(ecu)  # ECU can't batch — fall back next cycle
+            if split is None:
+                outcome = val if resp is None else resp
+                if resp and resp[0] != 0x7F:
+                    self.nobatch.add(ecu)  # positive but unsplittable
+                    # It answers no single member, so none of them may take it as its payload.
+                    outcome = ValueError("multi-DID reply did not split into the requested DIDs")
+                for code, pi, un in s["members"]:
+                    by_pid[(ecu, code)] = _raw_pid_result(
+                        code, pi, un, outcome, acquired, ecu, self._protocol(ecu)
+                    )
+            else:
+                for code, pi, un in s["members"]:
+                    sub = bytes.fromhex(split[_did4(code)])
+                    by_pid[(ecu, code)] = _raw_pid_result(
+                        code, pi, un, sub, acquired, ecu, self._protocol(ecu)
+                    )
+            return
+
+        code, pi, un = s["members"][0]
+        if (
+            _is_did22(code)
+            and resp
+            and is_leaked_batch_reply(resp.hex(), lambda d: self.lengths.get((ecu, d)))
+        ):
+            # Neither stored nor learned as this DID's; and as on the ELM path, a batch that
+            # outlives its request would do this again every cycle, so stop batching the ECU.
+            ref = self._ecu_ref(ecu)
+            log_event("stale", LEAKED_BATCH_ERROR, level=logging.INFO, ecu=ref, pid=code)
+            if ecu not in self.nobatch:
+                self.nobatch.add(ecu)
+                log_event(
+                    "config",
+                    f"multi-DID batching disabled for {ref} for this session: "
+                    f"{LEAKED_BATCH_REASON}",
+                    level=logging.INFO,
+                    ecu=ref,
+                )
+            val = ValueError(LEAKED_BATCH_ERROR)
+            resp = None
+        by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired, ecu, self._protocol(ecu))
+        if _is_did22(code) and resp and resp[0] != 0x7F:  # learn length for batching
+            dlen = _did_data_len(resp.hex().upper(), _did4(code))
+            if dlen is not None and dlen >= 1:
+                self.lengths[(ecu, _did4(code))] = dlen
+
+    def _protocol(self, ecu: str) -> DiagProtocol:
+        """``ecu``'s diagnostic protocol, from the definitions the monitor polls."""
+        ecu_def = ((getattr(self.c, "pids_data", None) or {}).get("ecus") or {}).get(ecu)
+        identity = ecu_def.get("identity") if isinstance(ecu_def, dict) else None
+        return classify_protocol(
+            identity.get("id_protocol") if isinstance(identity, dict) else None
+        )
+
+    def _ecu_ref(self, ecu: str) -> str:
+        """``ecu``'s request id as the diagnostics log names ECUs (``0x770``), else its name."""
+        info = (self.c._ecu_index or {}).get(ecu)
+        tx = info.get("tx_id") if info else None
+        return f"0x{tx:03X}" if isinstance(tx, int) else ecu
+
+    def build_queries(
+        self, plan_by_ecu, by_pid: dict[tuple[str, str], ResultEntry]
+    ) -> list[EcuFrame]:
+        """Build the render frame in plan order. A PID resolved as a timeout keeps
+        its last-good values (stale/dimmed); a PID not yet resolved this cycle
+        re-shows whatever was last displayed for it — values, or an honest ``NRC``
+        line — so the row holds its place and the view neither flickers nor
+        stutters."""
+        c = self.c
+        new_queries: list[EcuFrame] = []
+        for ecu, tx_id, plan in plan_by_ecu:
+            label = f"{ecu} (0x{tx_id:03X})"
+            pid_results = []
+            for cd, _pi, _un in plan:
+                entry = by_pid.get((ecu, cd))
+                if entry is None:  # pending this cycle → re-show what it last showed
+                    last = c._last_shown.get((label, cd))
+                    if last is not None:
+                        pid_results.append(last)
+                    continue
+                pid_results.append(c._displayify((label, cd), entry))
+            new_queries.append((label, pid_results))
+        return new_queries
+
+    def fresh_queries(
+        self, plan_by_ecu, by_pid: dict[tuple[str, str], ResultEntry]
+    ) -> list[EcuFrame]:
+        """Only the PIDs actually read this tick, as displayed — what gets recorded.
+
+        Must run after :meth:`build_queries`, which settles each resolved entry's
+        display form (a timeout becomes the stale last-good) in ``_last_shown``.
+        """
+        c = self.c
+        fresh: list[EcuFrame] = []
+        for ecu, tx_id, plan in plan_by_ecu:
+            label = f"{ecu} (0x{tx_id:03X})"
+            rows = [c._last_shown[(label, cd)] for cd, _pi, _un in plan if (ecu, cd) in by_pid]
+            if rows:
+                fresh.append((label, rows))
+        return fresh

@@ -669,7 +669,7 @@ def build_sessions_index(pids_data: dict) -> dict[str, SessionIndexEntry]:
     """Build lookup: ECU_NAME -> {tx_id, sessions: {MODE_HEX: {name, supported, ...}}}.
 
     Reads the ``sessions:`` section from each ECU's YAML, written by
-    ``canair scan sessions`` (see :mod:`canlib.modes.sessions_scan`). Keys are
+    ``canair scan sessions`` (see :mod:`canlib.live.sessions_scan`). Keys are
     2-hex-digit DiagnosticSessionControl (0x10) sub-functions, e.g. "03"/"81".
     Used to pre-populate a session-type picker with an ECU's *known-good*
     session types instead of a blind fixed list.

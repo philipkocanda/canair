@@ -97,7 +97,7 @@ def _canair_tui_apps():
     from canlib.commands._sniff_tui import SniffApp
     from canlib.commands.captures.step_tui import CapturesStepApp
     from canlib.commands.decode.plot_tui import PlotApp
-    from canlib.modes._monitor_tui import MonitorApp
+    from canlib.live._monitor_tui import MonitorApp
 
     return [CapturesStepApp, PlotApp, MonitorApp, SniffApp]
 

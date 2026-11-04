@@ -615,7 +615,7 @@ class TestOverridesAndEvidence:
         assert pids["21F0"]["parameters"]["MODE"]["verified"] is False
 
     def test_seeds_come_from_the_resolved_revision_only(self):
-        from canlib.response_frames import seed_counts
+        from canlib.ecus.response_frames import seed_counts
 
         for rid, want in (("kwp", 3), ("uds", 5)):
             data = {"ecus": {"VCU": {**_ecu_with_overrides(), "pids": _resolve_at(rid)}}}
@@ -649,7 +649,7 @@ class TestOverridesAndEvidence:
         assert any("'category' cannot differ" in e for e in rv.check_ecu("VCU", vcu))
 
     def test_a_count_learned_on_one_revision_is_written_to_that_revision(self, copy):
-        from canlib.response_frames import persist, seed_counts
+        from canlib.ecus.response_frames import persist, seed_counts
         from canlib.uds.frame_counts import FrameCountLedger
 
         for rid, frames in (("uds", 4), ("kwp", 2)):
@@ -666,7 +666,7 @@ class TestOverridesAndEvidence:
         assert seed_counts(load_pids())[(0x7E2, "21F0")] == 4
 
     def test_an_undetermined_revision_persists_nothing(self, copy):
-        from canlib.response_frames import persist
+        from canlib.ecus.response_frames import persist
         from canlib.uds.frame_counts import FrameCountLedger
 
         _activate(copy, variant="60kwh")

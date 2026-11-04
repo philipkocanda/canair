@@ -20,7 +20,7 @@ def _stub_live(monkeypatch):
     from canlib.commands import read
 
     monkeypatch.setattr(read, "run_live", lambda args, operation: 0)
-    monkeypatch.setattr("canlib.modes.monitor.query_ecu_error", lambda steps, pids: None)
+    monkeypatch.setattr("canlib.live.monitor.query_ecu_error", lambda steps, pids: None)
     monkeypatch.setattr("canlib.commands._live.load_pids", lambda: {})
 
 

@@ -1,0 +1,814 @@
+"""Tests for canlib.live.multi — parse_sub_commands, resolve_tx_id."""
+
+import asyncio
+import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from canlib.captures.journal import CaptureJournal
+from canlib.live.multi import (
+    _exec_iocontrol,
+    _exec_query,
+    _finalize_journal,
+    merged_selector_notes,
+    normalize_query_steps,
+    parse_sub_commands,
+    resolve_tx_id,
+    selector_text,
+)
+from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
+
+# --- resolve_tx_id ---
+
+
+class TestResolveTxId:
+    """Tests for ECU name / hex ID resolution."""
+
+    def _ecu_index(self):
+        return {
+            "BMS": {"tx_id": 0x7E4, "pids": {}},
+            "IGPM": {"tx_id": 0x770, "pids": {}},
+            "SKM": {"tx_id": 0x7A5, "pids": {}},
+        }
+
+    def test_resolve_name_upper(self):
+        assert resolve_tx_id("IGPM", self._ecu_index()) == 0x770
+
+    def test_resolve_name_lower(self):
+        assert resolve_tx_id("igpm", self._ecu_index()) == 0x770
+
+    def test_resolve_name_mixed(self):
+        assert resolve_tx_id("Bms", self._ecu_index()) == 0x7E4
+
+    def test_resolve_hex_no_prefix(self):
+        assert resolve_tx_id("770", self._ecu_index()) == 0x770
+
+    def test_resolve_hex_with_prefix(self):
+        assert resolve_tx_id("0x7A5", self._ecu_index()) == 0x7A5
+
+    def test_resolve_hex_lowercase(self):
+        assert resolve_tx_id("7e4", self._ecu_index()) == 0x7E4
+
+    def test_resolve_unknown_returns_none(self):
+        assert resolve_tx_id("UNKNOWN", self._ecu_index()) is None
+
+    def test_resolve_invalid_hex_returns_none(self):
+        assert resolve_tx_id("ZZZ", self._ecu_index()) is None
+
+    def test_resolve_ecus_alias(self):
+        # ECU-registry alias 'LDC' canonicalises to the ecus/ key 'OBC' (0x7E5).
+        index = {"OBC": {"tx_id": 0x7E5, "pids": {}}}
+        assert resolve_tx_id("LDC", index) == 0x7E5
+        assert resolve_tx_id("ldc", index) == 0x7E5
+
+
+# --- parse_sub_commands ---
+
+
+class TestParseSubCommands:
+    def test_skm_wake_default(self):
+        result = parse_sub_commands(["skm-wake"])
+        assert len(result) == 1
+        assert result[0] == {"type": "skm-wake", "level": "acc"}
+
+    def test_skm_wake_with_level(self):
+        result = parse_sub_commands(["skm-wake ign1"])
+        assert result[0]["level"] == "ign1"
+
+    def test_session_basic(self):
+        result = parse_sub_commands(["session IGPM"])
+        assert result[0] == {"type": "session", "target": "IGPM", "wake": False, "mode": "03"}
+
+    def test_session_with_mode(self):
+        result = parse_sub_commands(["session BMS --mode 81"])
+        assert result[0]["target"] == "BMS"
+        assert result[0]["mode"] == "81"
+
+    def test_session_with_wake(self):
+        result = parse_sub_commands(["session SKM --wake"])
+        assert result[0]["wake"] is True
+        assert result[0]["target"] == "SKM"
+
+    def test_session_missing_target(self):
+        with pytest.raises(ValueError, match="requires"):
+            parse_sub_commands(["session"])
+
+    def test_query_with_pids(self):
+        result = parse_sub_commands(["query IGPM:BC03,BC06"])
+        assert result[0]["type"] == "query"
+        assert result[0]["ecu"] == "IGPM"
+        assert result[0]["pids"] == ["BC03", "BC06"]
+
+    def test_query_no_pids(self):
+        result = parse_sub_commands(["query BMS"])
+        assert result[0]["pids"] == []
+
+    def test_query_missing_ecu(self):
+        with pytest.raises(ValueError, match="requires"):
+            parse_sub_commands(["query"])
+
+    def test_query_cross_ecu_fans_out(self):
+        result = parse_sub_commands(["query VCU:2101 BMS:2101"])
+        assert [(c["type"], c["ecu"], c["pids"]) for c in result] == [
+            ("query", "VCU", ["2101"]),
+            ("query", "BMS", ["2101"]),
+        ]
+
+    def test_query_uppercases(self):
+        result = parse_sub_commands(["query vcu:2101"])
+        assert result[0]["ecu"] == "VCU"
+        assert result[0]["pids"] == ["2101"]
+
+    def test_query_dedups_identical_selectors(self):
+        result = parse_sub_commands(["query VCU:2101 VCU:2101"])
+        assert len(result) == 1
+
+    def test_query_all_pids_across_ecus(self):
+        result = parse_sub_commands(["query VCU BMS"])
+        assert [(c["ecu"], c["pids"]) for c in result] == [("VCU", []), ("BMS", [])]
+
+    def test_query_malformed_double_colon_raises(self):
+        with pytest.raises(ValueError):
+            parse_sub_commands(["query VCU::2101"])
+
+    def test_query_malformed_empty_ecu_raises(self):
+        with pytest.raises(ValueError):
+            parse_sub_commands(["query :2101"])
+
+    # --- space-vs-colon guard rail (a bare PID/DID in the ECU slot) ---
+
+    def test_query_space_form_pid_after_ecu_raises(self):
+        # "query IGPM 22BC07" is the classic mistake for "query IGPM:22BC07":
+        # the space makes 22BC07 an independent (bogus) ECU selector.
+        with pytest.raises(ValueError, match="looks like a PID/DID"):
+            parse_sub_commands(["query IGPM 22BC07"])
+
+    def test_query_space_form_suggests_colon_form(self):
+        with pytest.raises(ValueError, match=r"IGPM:22BC07"):
+            parse_sub_commands(["query IGPM 22BC07"])
+
+    def test_query_space_form_short_did_raises(self):
+        with pytest.raises(ValueError, match="looks like a PID/DID"):
+            parse_sub_commands(["query BCM C00B B00E"])
+
+    def test_query_lone_pid_raises(self):
+        with pytest.raises(ValueError, match="looks like a PID/DID"):
+            parse_sub_commands(["query 2101"])
+
+    def test_query_explicit_hex_tx_id_not_flagged(self):
+        # An explicit 0x-prefixed token is a deliberate hex TX-id selector, not a
+        # PID stranded from its ECU — it must parse cleanly.
+        result = parse_sub_commands(["query 0x770"])
+        assert result[0] == {"type": "query", "ecu": "0X770", "pids": []}
+
+    def test_query_bare_hex_tx_id_still_raises(self):
+        # Without the 0x prefix, a bare hex-with-digit token is ambiguous with a
+        # PID and stays rejected.
+        with pytest.raises(ValueError, match="looks like a PID/DID"):
+            parse_sub_commands(["query 770"])
+
+    def test_query_colon_form_ok(self):
+        # The correct form must still parse cleanly.
+        result = parse_sub_commands(["query IGPM:22BC07"])
+        assert result[0] == {"type": "query", "ecu": "IGPM", "pids": ["22BC07"]}
+
+    def test_query_two_alpha_ecus_not_flagged(self):
+        # Two real (alphabetic) ECU names are a legitimate cross-ECU query.
+        result = parse_sub_commands(["query VCU BMS"])
+        assert [(c["ecu"], c["pids"]) for c in result] == [("VCU", []), ("BMS", [])]
+
+    def test_query_hex_only_ecu_name_not_flagged(self):
+        # A bare hex-letters-only token (no digit) is not treated as a PID, so a
+        # hypothetical all-letter ECU name still works.
+        result = parse_sub_commands(["query BMS ABC"])
+        assert [(c["ecu"], c["pids"]) for c in result] == [("BMS", []), ("ABC", [])]
+
+    def test_raw_basic(self):
+        result = parse_sub_commands(["raw 770:22BC03"])
+        assert result[0] == {"type": "raw", "spec": "770:22BC03", "hold": False}
+
+    def test_raw_with_hold(self):
+        result = parse_sub_commands(["raw 770:2FBC1003 --hold"])
+        assert result[0]["hold"] is True
+
+    def test_raw_missing_spec(self):
+        with pytest.raises(ValueError, match="requires"):
+            parse_sub_commands(["raw"])
+
+    def test_scan(self):
+        result = parse_sub_commands(["scan 770 22 BC00-BCFF"])
+        assert result[0] == {
+            "type": "scan",
+            "tx": "770",
+            "service": "22",
+            "range": "BC00-BCFF",
+            "append": "",
+        }
+
+    def test_scan_with_append(self):
+        result = parse_sub_commands(["scan 7A0 2F B000-B0FF 00"])
+        assert result[0]["append"] == "00"
+
+    def test_scan_missing_args(self):
+        with pytest.raises(ValueError, match="requires"):
+            parse_sub_commands(["scan 770 22"])
+
+    def test_sleep_default(self):
+        result = parse_sub_commands(["sleep"])
+        assert result[0] == {"type": "sleep", "seconds": 1.0}
+
+    def test_sleep_custom(self):
+        result = parse_sub_commands(["sleep 2.5"])
+        assert result[0]["seconds"] == 2.5
+
+    def test_repl(self):
+        result = parse_sub_commands(["repl"])
+        assert result[0] == {"type": "repl"}
+
+    def test_unknown_command(self):
+        with pytest.raises(ValueError, match="Unknown sub-command"):
+            parse_sub_commands(["bogus"])
+
+    def test_empty_args_skipped(self):
+        result = parse_sub_commands(["", "repl"])
+        assert len(result) == 1
+
+    def test_multi_command_pipeline(self):
+        result = parse_sub_commands(
+            [
+                "skm-wake acc",
+                "session IGPM --wake",
+                "query IGPM:BC03",
+                "sleep 1",
+            ]
+        )
+        assert len(result) == 4
+        assert [r["type"] for r in result] == ["skm-wake", "session", "query", "sleep"]
+
+    def test_underscore_alias(self):
+        """skm_wake (underscore) should work same as skm-wake (hyphen)."""
+        result = parse_sub_commands(["skm_wake ign2"])
+        assert result[0] == {"type": "skm-wake", "level": "ign2"}
+
+
+# --- _exec_query acquisition timestamps ---
+
+
+class TestExecQueryTimestamp:
+    """Each queried PID must carry its own acquisition timestamp (moment the
+    response arrived), so sequentially-polled PIDs keep their true skew rather
+    than sharing one per-cycle time."""
+
+    def _make_sm(self, latency: float):
+        sm = MagicMock()
+        sm.keepalive_stale = AsyncMock()
+        sm.has_session = MagicMock(return_value=True)
+        sm.keepalive_seconds = 0.0
+        sm.terminal = MagicMock()
+        sm.terminal.set_header = AsyncMock()
+        sm.terminal.max_request_bytes = ISOTP_MAX_REQUEST_BYTES
+
+        async def fake_send_uds(pid_code, *a, **k):
+            await asyncio.sleep(latency)  # simulate round-trip so each PID lands at a distinct time
+            return {"ok": True, "hex": "6101F8F8", "bytes": bytes.fromhex("6101F8F8")}
+
+        sm.terminal.send_uds = fake_send_uds
+        return sm
+
+    def test_acquired_at_attached_per_pid(self):
+        ecu_index = {
+            "MCU": {
+                "tx_id": 0x7E3,
+                "pids": {"2101": {"parameters": {}}, "2102": {"parameters": {}}},
+            }
+        }
+        sm = self._make_sm(latency=0.02)
+        _label, results = asyncio.run(
+            _exec_query(sm, "MCU", [], ecu_index, {}, verbose=False, return_results=True)
+        )
+        assert len(results) == 2
+        for r in results:
+            assert isinstance(r.get("acquired_at"), float)
+        # Sequential PIDs must have distinct, increasing timestamps reflecting real skew.
+        assert results[1]["acquired_at"] > results[0]["acquired_at"]
+        assert results[1]["acquired_at"] - results[0]["acquired_at"] >= 0.01
+
+    def test_error_result_also_timestamped(self):
+        ecu_index = {"MCU": {"tx_id": 0x7E3, "pids": {"2101": {"parameters": {}}}}}
+        sm = self._make_sm(latency=0.0)
+
+        async def fail_send_uds(pid_code, *a, **k):
+            return {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"}
+
+        sm.terminal.send_uds = fail_send_uds
+        _label, results = asyncio.run(
+            _exec_query(sm, "MCU", [], ecu_index, {}, verbose=False, return_results=True)
+        )
+        assert len(results) == 1
+        assert "error" in results[0]
+        assert isinstance(results[0].get("acquired_at"), float)
+
+
+class TestFinalizeJournal:
+    """_finalize_journal resolves metadata and reconciles the write-ahead journal."""
+
+    def _journal(self, tmp_path, **kw):
+        j = CaptureJournal.open(tmp_path, label="prov", source="query", **kw)
+        j.append("0x7EC", "2101", "6101AA")
+        return j
+
+    def test_noninteractive_reconciles(self, tmp_path):
+        j = self._journal(tmp_path)
+        _finalize_journal(j, 1, "My label", ["ready"], "note")
+        files = list(tmp_path.glob("*.json"))
+        assert len(files) == 1
+        sess = json.loads(files[0].read_text())["sessions"][0]
+        assert sess["label"] == "My label"
+        assert sess["vehicle_states"] == ["READY"]
+        assert not j.path.exists()
+
+    def test_no_payloads_discards(self, tmp_path):
+        j = CaptureJournal.open(tmp_path, label="prov", source="query")
+        _finalize_journal(j, 0, "L", None, None)
+        assert not j.path.exists()
+        assert list(tmp_path.glob("*.json")) == []
+
+    def test_cancelled_prompt_discards(self, tmp_path):
+        j = self._journal(tmp_path)
+        with patch("canlib.captures.resolve_metadata", return_value=None):
+            _finalize_journal(j, 1, None, None, None)
+        assert not j.path.exists()
+        assert list(tmp_path.glob("*.json")) == []
+
+    def test_no_prompt_uses_existing_meta(self, tmp_path):
+        # Interrupted-pipeline path: reconcile with provisional metadata, no stdin.
+        j = self._journal(tmp_path)
+        with patch("builtins.input", side_effect=AssertionError("should not prompt")):
+            _finalize_journal(j, 1, None, None, None, prompt=False)
+        sess = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"][0]
+        assert sess["label"] == "prov"
+
+    def test_non_answers_alone_are_saved(self, tmp_path):
+        j = CaptureJournal.open(tmp_path, label="prov", source="query")
+        j.append_response("0x7A8", "24B004", "NRC 0x11 (serviceNotSupported)")
+        _finalize_journal(j, 0, "probe", None, None, non_answers=1)
+        sess = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"][0]
+        assert sess["captures"][0]["response"] == "NRC 0x11 (serviceNotSupported)"
+
+
+class _RawStepTerminal:
+    """Answers each request from a table; anything else gets NO DATA."""
+
+    def __init__(self, replies: dict):
+        self.replies = replies
+
+    async def set_header(self, tx_id):
+        pass
+
+    async def send_uds(self, request, *a, **k):
+        return self.replies.get(request, {"ok": False, "error": "No response from ECU (NO DATA)"})
+
+
+class TestMultiSaveRawNonAnswers:
+    """A raw step is a probe, so `read --save` keeps its refusal as well as its payload,
+    the way a standalone `canair raw --save` always has."""
+
+    def _run(self, tmp_path, monkeypatch, steps, replies):
+        from canlib.live.multi import mode_multi
+
+        real_open = CaptureJournal.open
+        monkeypatch.setattr(
+            CaptureJournal, "open", classmethod(lambda cls, _dir, **kw: real_open(tmp_path, **kw))
+        )
+        asyncio.run(
+            mode_multi(
+                _RawStepTerminal(replies),
+                steps,
+                {},
+                verbose=False,
+                no_repl=True,
+                save=True,
+                label="probe",
+            )
+        )
+        files = list(tmp_path.glob("*.json"))
+        if not files:
+            return []
+        return json.loads(files[0].read_text())["sessions"][0]["captures"]
+
+    def test_nrc_and_no_data_are_recorded(self, tmp_path, monkeypatch):
+        nrc = {"ok": False, "nrc": 0x11, "nrc_desc": "serviceNotSupported"}
+        caps = self._run(
+            tmp_path, monkeypatch, ["raw 7A0:24B004", "raw 7A0:24B003"], {"24B004": nrc}
+        )
+        assert [(c["pid"], c["response"]) for c in caps] == [
+            ("24B004", "NRC 0x11 (serviceNotSupported)"),
+            ("24B003", "No response from ECU (NO DATA)"),
+        ]
+        assert all("time" not in c for c in caps)
+
+    def test_payload_and_refusal_share_a_session(self, tmp_path, monkeypatch):
+        replies = {
+            "1902FF": {"ok": True, "hex": "590209", "bytes": bytes.fromhex("590209")},
+            "190A": {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"},
+        }
+        caps = self._run(tmp_path, monkeypatch, ["raw 7A0:1902FF", "raw 7A0:190A"], replies)
+        assert caps[0]["payload"] == "590209" and "time" in caps[0]
+        assert caps[1] == {
+            "rx": caps[0]["rx"],
+            "pid": "190A",
+            "response": "NRC 0x12 (subFunctionNotSupported)",
+        }
+
+
+class TestMultiSaveTimestamp:
+    """mode_multi --save must persist each PID's sub-second acquisition time
+    (millisecond precision) taken at response arrival, not a second-only stamp
+    at journal-append time — so cross-signal time alignment keeps the true skew
+    and midnight-crossing sessions land in the right per-day file."""
+
+    def test_capture_stamp_millisecond_precision_and_date(self):
+        from datetime import datetime
+
+        from canlib.live.multi_batch import _capture_stamp
+
+        # A known epoch → its exact date + HH:MM:SS.fff.
+        acq = datetime(2026, 7, 22, 23, 59, 58, 123000).timestamp()
+        date, ts = _capture_stamp(acq)
+        assert date == "2026-07-22"
+        assert ts == "23:59:58.123"
+
+    def test_capture_stamp_preserves_skew(self):
+        from canlib.live.multi_batch import _capture_stamp
+
+        _d0, t0 = _capture_stamp(1000.010)
+        _d1, t1 = _capture_stamp(1000.040)
+        # 30ms apart must produce distinct millisecond stamps, not one collapsed
+        # second-granularity value.
+        assert t0 != t1
+
+    def test_capture_stamp_falls_back_to_now(self):
+        from canlib.live.multi_batch import _capture_stamp
+
+        date, ts = _capture_stamp(None)
+        assert "." in ts  # still millisecond precision
+        assert len(date) == 10  # YYYY-MM-DD
+
+
+class TestExecIocontrolSession:
+    """Regression: the iocontrol pipeline step must open a session via the real
+    SessionManager API (open_session), not the non-existent ensure_session."""
+
+    def test_opens_session_when_required(self, monkeypatch):
+        from canlib.live import multi_exec
+
+        idx = {
+            "IGPM": {
+                "tx_id": 0x770,
+                "cmds": {
+                    "BC01": {
+                        "label": "low beam",
+                        "on": "2FBC0103",
+                        "off": "2FBC0100",
+                        "release": "2FBC0100",
+                        "session": True,
+                        "session_mode": "03",
+                        "hold": False,
+                        "verified": True,
+                        "notes": "",
+                        "discovery": False,
+                    }
+                },
+                "protocol": "uds",
+            }
+        }
+        monkeypatch.setattr(multi_exec, "build_iocontrol_index", lambda _pids: idx)
+
+        sm = MagicMock()
+        sm.active_sessions = []  # no active session yet
+        sm.open_session = AsyncMock(return_value=True)
+        sm.keepalive_stale = AsyncMock()
+        sm.terminal = MagicMock()
+        sm.terminal.set_header = AsyncMock()
+        sm.terminal.send_uds = AsyncMock(return_value={"ok": True, "hex": "6FBC0103"})
+
+        asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", False, {}, {}, False))
+        sm.open_session.assert_awaited_once_with(0x770, mode="03")
+        sm.terminal.send_uds.assert_awaited_once()
+
+
+class TestExecIocontrolPolarity:
+    """The ON/OFF selection must send the *requested* actuator command.
+
+    This is the only code path in canair that energises a physical vehicle
+    output, and the pre-existing test above asserted `send_uds.assert_awaited_
+    once()` — a call *count*, not its arguments. Inverting the one-line
+    `cmd_def["off"] if off else cmd_def["on"]` ternary therefore switched a relay
+    ON when the user asked for OFF while the entire suite stayed green. These
+    tests pin the actual bytes put on the bus.
+    """
+
+    ON_CMD = "2FBC0103"
+    OFF_CMD = "2FBC0100"
+
+    def _sm(self):
+        sm = MagicMock()
+        sm.active_sessions = [0x770]  # already open: isolate the actuation step
+        sm.session_mode = MagicMock(return_value="03")
+        sm.open_session = AsyncMock(return_value=True)
+        sm.keepalive_stale = AsyncMock()
+        sm.terminal = MagicMock()
+        sm.terminal.set_header = AsyncMock()
+        sm.terminal.send_uds = AsyncMock(return_value={"ok": True, "hex": "6FBC0103"})
+        return sm
+
+    def _index(self, **overrides):
+        cmd = {
+            "label": "low beam",
+            "on": self.ON_CMD,
+            "off": self.OFF_CMD,
+            "release": self.OFF_CMD,
+            "session": True,
+            "session_mode": "03",
+            "hold": False,
+            "verified": True,
+            "notes": "",
+            "discovery": False,
+        }
+        protocol = overrides.pop("protocol", "uds")
+        cmd.update(overrides)
+        return {"IGPM": {"tx_id": 0x770, "protocol": protocol, "cmds": {"BC01": cmd}}}
+
+    def _run(self, monkeypatch, *, off, cmd_overrides=None):
+        from canlib.live import multi_exec
+
+        index = self._index(**(cmd_overrides or {}))
+        monkeypatch.setattr(multi_exec, "build_iocontrol_index", lambda _pids: index)
+        sm = self._sm()
+        asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", off, {}, {}, False))
+        return sm
+
+    def test_on_request_sends_the_on_command(self, monkeypatch):
+        sm = self._run(monkeypatch, off=False)
+        sent = sm.terminal.send_uds.await_args.args[0]
+        assert sent == self.ON_CMD, f"ON must send {self.ON_CMD}, sent {sent}"
+
+    def test_off_request_sends_the_off_command(self, monkeypatch):
+        sm = self._run(monkeypatch, off=True)
+        sent = sm.terminal.send_uds.await_args.args[0]
+        assert sent == self.OFF_CMD, f"OFF must send {self.OFF_CMD}, sent {sent}"
+
+    def test_targets_the_ecu_header(self, monkeypatch):
+        sm = self._run(monkeypatch, off=False)
+        sm.terminal.set_header.assert_awaited_once_with(0x770)
+
+    def test_missing_command_for_the_requested_direction_sends_nothing(self, monkeypatch):
+        # A DID with no OFF defined must refuse, not silently fall through to ON.
+        sm = self._run(monkeypatch, off=True, cmd_overrides={"off": ""})
+        sm.terminal.send_uds.assert_not_awaited()
+
+    def test_an_open_session_of_another_mode_is_switched(self, monkeypatch):
+        # A Nissan actuator needs 10 C0; reusing the tracked 10 03 would NRC.
+        sm = self._run(monkeypatch, off=False, cmd_overrides={"session_mode": "C0"})
+        sm.open_session.assert_awaited_once_with(0x770, mode="C0", force=True)
+
+    def test_an_open_session_of_the_same_mode_is_reused(self, monkeypatch):
+        sm = self._run(monkeypatch, off=False)
+        sm.open_session.assert_not_awaited()
+
+    def test_the_on_reply_echo_is_validated(self, monkeypatch):
+        sm = self._run(monkeypatch, off=False)
+        kwargs = sm.terminal.send_uds.await_args.kwargs
+        assert kwargs["expected_sid"] == 0x2F
+        assert kwargs["expected_echo"] == bytes.fromhex("BC01")
+
+    def test_a_kwp_on_without_a_release_is_refused(self, monkeypatch, capsys):
+        overrides = {"on": "300100", "off": "300111", "release": "", "protocol": "kwp"}
+        sm = self._run(monkeypatch, off=False, cmd_overrides=overrides)
+        sm.terminal.send_uds.assert_not_awaited()
+        assert "no release declared" in capsys.readouterr().out
+
+    def test_a_kwp_on_with_a_declared_release_is_sent(self, monkeypatch):
+        overrides = {"on": "300100", "off": "300111", "release": "300111", "protocol": "kwp"}
+        sm = self._run(monkeypatch, off=False, cmd_overrides=overrides)
+        assert sm.terminal.send_uds.await_args.args[0] == "300100"
+
+
+class TestBuildQueryPlanStatic:
+    """Static config/identity PIDs are omitted from a bare-ECU sweep."""
+
+    @staticmethod
+    def _ecu_info():
+        return {
+            "tx_id": 0x7E4,
+            "multi_did": False,
+            "pids": {
+                "2101": {"parameters": {}, "period": 5000, "status": "active", "swept": True},
+                "2102": {"parameters": {}, "period": 5000, "status": "active", "swept": True},
+                "21F2": {"parameters": {}, "period": 0, "status": "static", "swept": False},
+            },
+        }
+
+    def _codes(self, plan):
+        return [p[0] for p in plan]
+
+    def test_bare_ecu_omits_static(self):
+        from canlib.live.multi import build_query_plan
+
+        plan = build_query_plan(self._ecu_info(), [])
+        assert "21F2" not in self._codes(plan)
+        assert {"2101", "2102"} == set(self._codes(plan))
+
+    def test_bare_ecu_omits_slow_but_include_static_keeps_it(self):
+        from canlib.live.multi import build_query_plan
+
+        info = self._ecu_info()
+        info["pids"]["21F3"] = {
+            "parameters": {},
+            "period": 300000,
+            "status": "slow",
+            "swept": False,
+        }
+        assert "21F3" not in self._codes(build_query_plan(info, []))
+        assert "21F3" in self._codes(build_query_plan(info, [], include_static=True))
+
+    def test_include_static_keeps_it(self):
+        from canlib.live.multi import build_query_plan
+
+        plan = build_query_plan(self._ecu_info(), [], include_static=True)
+        assert "21F2" in self._codes(plan)
+
+    def test_explicit_pid_always_queried(self):
+        from canlib.live.multi import build_query_plan
+
+        # Naming the static PID explicitly must query it even without include_static.
+        plan = build_query_plan(self._ecu_info(), ["21F2"])
+        assert self._codes(plan) == ["21F2"]
+
+    def test_non_static_unaffected_by_flag(self):
+        from canlib.live.multi import build_query_plan
+
+        info = {
+            "tx_id": 0x770,
+            "multi_did": False,
+            "pids": {"2101": {"parameters": {}, "period": 5000, "status": "active", "swept": True}},
+        }
+        assert self._codes(build_query_plan(info, [])) == ["2101"]
+
+    def test_missing_static_key_defaults_included(self):
+        from canlib.live.multi import build_query_plan
+
+        # PIDs from build_ecu_index always carry a `swept` bool; a hand-built dict
+        # without it must still be treated as swept (included) by default.
+        info = {
+            "tx_id": 0x770,
+            "multi_did": False,
+            "pids": {"BC03": {"parameters": {}, "period": 5000, "status": "active"}},
+        }
+        assert "BC03" in self._codes(build_query_plan(info, []))
+
+
+# --- selector normalisation / coalescing ---
+
+# A minimal name/alias index: LDC is the Ioniq's alias for OBC, so the two must
+# resolve to one ECU instead of becoming two steps (only one of which the monitor
+# could look up in its canonical-only ECU index).
+_NAME_INDEX = {"OBC": "OBC", "LDC": "OBC", "IGPM": "IGPM", "AAF": "AAF", "BMS": "BMS"}
+
+
+def _q(ecu, *pids):
+    return {"type": "query", "ecu": ecu, "pids": list(pids)}
+
+
+class TestSelectorText:
+    def test_bare_ecu(self):
+        assert selector_text(_q("AAF")) == "AAF"
+
+    def test_with_pids(self):
+        assert selector_text(_q("AAF", "2180", "2181")) == "AAF:2180,2181"
+
+
+class TestNormalizeQuerySteps:
+    def _norm(self, steps):
+        return normalize_query_steps(steps, name_index=_NAME_INDEX)
+
+    def test_exact_repeat_collapses(self):
+        out = self._norm([_q("IGPM"), _q("IGPM")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("IGPM", [])]
+        assert out[0]["merged_from"] == ["IGPM", "IGPM"]
+
+    def test_bare_ecu_absorbs_pid_selectors(self):
+        # `mon AAF @driving` names AAF bare *and* as AAF:2180/AAF:2181 — the bare
+        # selector already covers every PID, so it must win outright.
+        out = self._norm([_q("AAF"), _q("AAF", "2180"), _q("AAF", "2181")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("AAF", [])]
+        assert out[0]["merged_from"] == ["AAF", "AAF:2180", "AAF:2181"]
+
+    def test_pid_selector_then_bare_widens_to_all(self):
+        # Order-independent: a later bare selector subsumes the earlier specific one.
+        out = self._norm([_q("AAF", "2180"), _q("AAF")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("AAF", [])]
+        assert out[0]["merged_from"] == ["AAF:2180", "AAF"]
+
+    def test_distinct_pids_union_without_a_merge_note(self):
+        # Two different PIDs on one ECU are a legitimate combination, not an
+        # overlap: they merge into one block but must not be reported as redundant.
+        out = self._norm([_q("BMS", "2101"), _q("BMS", "2105")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("BMS", ["2101", "2105"])]
+        assert "merged_from" not in out[0]
+
+    def test_partial_pid_overlap_unions_silently(self):
+        # The second selector still contributes 2105, so the merge was necessary,
+        # not redundant — only a selector that adds *nothing* is worth reporting.
+        out = self._norm([_q("BMS", "2101"), _q("BMS", "2101", "2105")])
+        assert out[0]["pids"] == ["2101", "2105"]
+        assert "merged_from" not in out[0]
+
+    def test_fully_covered_pid_selector_is_reported(self):
+        out = self._norm([_q("BMS", "2101", "2105"), _q("BMS", "2105")])
+        assert out[0]["pids"] == ["2101", "2105"]
+        assert out[0]["merged_from"] == ["BMS:2101,2105", "BMS:2105"]
+
+    def test_alias_merges_with_canonical_name(self):
+        out = self._norm([_q("LDC"), _q("OBC", "2101")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("OBC", [])]
+
+    def test_alias_alone_is_canonicalised(self):
+        # The monitor's ECU index is keyed by canonical names only, so an alias
+        # selector left as-is would be silently skipped every poll cycle.
+        out = self._norm([_q("LDC", "2101")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("OBC", ["2101"])]
+
+    def test_first_position_is_kept(self):
+        out = self._norm([_q("IGPM"), _q("BMS", "2101"), _q("IGPM")])
+        assert [c["ecu"] for c in out] == ["IGPM", "BMS"]
+
+    def test_non_query_step_ends_the_run(self):
+        # A deliberate pipeline re-read (read BMS:2101 "sleep 5" BMS:2101) must
+        # keep both reads — the intervening step separates the runs.
+        out = self._norm([_q("BMS", "2101"), {"type": "sleep", "seconds": 5.0}, _q("BMS", "2101")])
+        assert [c["type"] for c in out] == ["query", "sleep", "query"]
+        assert all("merged_from" not in c for c in out if c["type"] == "query")
+
+    def test_unknown_ecu_passes_through_upper_cased(self):
+        out = self._norm([_q("nope", "2101")])
+        assert out[0]["ecu"] == "NOPE"
+
+    def test_empty(self):
+        assert self._norm([]) == []
+
+
+class TestMergedSelectorNotes:
+    def test_repeats_collapse_to_a_count(self):
+        out = normalize_query_steps([_q("IGPM"), _q("IGPM")], name_index=_NAME_INDEX)
+        assert merged_selector_notes(out) == ["IGPM \u2190 IGPM \u00d72"]
+
+    def test_distinct_sources_are_listed(self):
+        out = normalize_query_steps(
+            [_q("AAF"), _q("AAF", "2180"), _q("AAF", "2181")], name_index=_NAME_INDEX
+        )
+        assert merged_selector_notes(out) == ["AAF \u2190 AAF, AAF:2180, AAF:2181"]
+
+    def test_silent_when_nothing_overlapped(self):
+        out = normalize_query_steps([_q("BMS", "2101"), _q("IGPM")], name_index=_NAME_INDEX)
+        assert merged_selector_notes(out) == []
+
+
+class TestOverlappingSelectorRegression:
+    """`canair mon IGPM OBC AAF @driving` must poll each ECU exactly once.
+
+    The group already contains IGPM and AAF:2180/AAF:2181, so before coalescing
+    this rendered 14 ECU blocks and issued 33 requests per cycle (9 redundant),
+    doubling IGPM's poll-round depth and colliding on every (ecu_label, pid) key
+    in the monitor.
+    """
+
+    def _steps(self):
+        from canlib.commands._live.steps import expand_step_groups, to_step
+
+        raw = ["IGPM", "OBC", "AAF", "@driving"]
+        return parse_sub_commands(expand_step_groups([to_step(s) for s in raw]))
+
+    def test_one_step_per_ecu(self):
+        steps = [c for c in self._steps() if c["type"] == "query"]
+        ecus = [c["ecu"] for c in steps]
+        assert len(ecus) == len(set(ecus))
+
+    def test_requests_are_unique(self):
+        from canlib.ecus.pids import build_ecu_index, load_pids
+        from canlib.live.multi_exec import build_query_plan
+
+        index = build_ecu_index(load_pids())
+        requests = []
+        for step in self._steps():
+            info = index.get(step["ecu"])
+            assert info is not None, f"{step['ecu']} not resolvable in the ECU index"
+            plan = build_query_plan(info, step["pids"], quiet=True) or []
+            requests += [(step["ecu"], code) for code, _pi, _un in plan]
+        assert len(requests) == len(set(requests))
+
+    def test_overlap_is_reported(self):
+        notes = merged_selector_notes(self._steps())
+        assert any(n.startswith("IGPM \u2190") for n in notes)
+        assert any(n.startswith("AAF \u2190") for n in notes)

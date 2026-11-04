@@ -19,10 +19,10 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 
 from canlib.ecus.pids import pid_ships
+from canlib.ecus.response_frames import stored_count
 from canlib.interop.autopid.classes import autopid_class
 from canlib.interop.autopid.send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
 from canlib.privacy.sensitive import param_sensitive
-from canlib.response_frames import stored_count
 from canlib.transport.elm327.addressing import (
     AUTO,
     elm_id,
@@ -153,7 +153,7 @@ def request_with_count(pid_code: object, pid_def: dict) -> str:
     The firmware, however, has no desync recovery: it accumulates into a single
     static buffer that is cleared only *after* a parse, so an undercount's queued
     tail silently prefixes the next PID's response forever. Hence a digit is only
-    emitted for a count that :mod:`canlib.response_frames` recorded from verified
+    emitted for a count that :mod:`canlib.ecus.response_frames` recorded from verified
     wire evidence, and only when :func:`requestable` says the wire allows it.
     """
     request = str(pid_code)
