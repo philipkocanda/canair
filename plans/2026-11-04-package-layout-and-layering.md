@@ -708,6 +708,17 @@ edits a module.
 6. DONE. `yaml_edit/rt.py` is `core/yaml_rt.py`, the first member of the leaf package; `config`
    no longer imports `yaml_edit`.
 
+Measured after phase 2 (`scripts/check/import_graph.py`, 2026-11-04):
+
+| Measure | Before | After |
+|---|---:|---:|
+| Units in the largest import cycle | 38 | 26 (`cli`, `commands`, `modes`, `uds`-side and `config` are out) |
+| `ignore_imports` debt entries | 30 | 8 (`textual`: 5, `argparse`: 3) |
+| Test files directly in `tests/` | 306 | 50 (tests of root modules) |
+| Packages with a charter | 0 | 2 (`core`, `validation`) |
+| Deferred internal imports | 1,177 | 1,171 |
+| Root modules | 52 | 52 (they move in phase 4) |
+
 **Phase 3: remove the flag dispatch.** Replace `dispatch_mode` with a direct call per command. Give
 each operation an options dataclass. Remove `args.*` reads from `modes/` and `captures/dates.py`.
 Shrink `CANAIR_DEFAULTS`. Unify the two hex-range parsers while the call sites are open (their
