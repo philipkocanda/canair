@@ -278,7 +278,7 @@ def _run_dbc(args) -> int:
         print("import dbc: cantools is required (pip install cantools).", file=sys.stderr)
         return 1
 
-    from canlib.dbc_repair import DbcLoadError, load_dbc, summarize
+    from canlib.interop.dbc.repair import DbcLoadError, load_dbc, summarize
 
     path = Path(args.file)
     if not path.is_file():

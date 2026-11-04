@@ -132,7 +132,7 @@ a 29-bit ID written without the DBC extended flag, a number without its leading
 zero (`.25`), a `VAL_` table without its closing `;`, missing `BS_:`/`BU_:` header
 lines, and a message or signal name starting with a digit — the one repair you see
 in the result, as the name gains a `_` prefix (`0_COUNTER` → `_0_COUNTER`). The
-list is in `canlib/dbc_repair.py`.
+list is in `canlib/interop/dbc/repair.py`.
 
 A round trip carries:
 

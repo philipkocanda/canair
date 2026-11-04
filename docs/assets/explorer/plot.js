@@ -1,7 +1,7 @@
 /* Explorer data view: pick a session, plot captured signals from any ECU together.
  *
  * Needs explorer.js (window.canairExplorer), uPlot and analysis.js. Decoding happens at docs build
- * time (canlib/explorer_series.py); this file only draws. The discovery panels live in
+ * time (canlib/interop/explorer/series.py); this file only draws. The discovery panels live in
  * discover.js. Plan: plans/2026-10-22-explorer-capture-plots.md
  */
 (function () {

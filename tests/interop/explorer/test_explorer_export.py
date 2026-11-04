@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.explorer.export import export_profile, profile_maturity
-from canlib.explorer.layout import layout_buses
+from canlib.interop.explorer.export import export_profile, profile_maturity
+from canlib.interop.explorer.layout import layout_buses
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 PROFILES = sorted(
     p
     for p in (REPO_ROOT / "profiles").iterdir()
@@ -185,7 +185,7 @@ def test_profile_maturity(counts, expected):
 
 
 def test_signal_inherits_the_pids_provenance():
-    from canlib.explorer.export import _pid_record
+    from canlib.interop.explorer.export import _pid_record
 
     pid_def = {
         "status": "active",

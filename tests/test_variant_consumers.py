@@ -135,7 +135,7 @@ class TestAutoPid:
 
 class TestExplorer:
     def test_gates_overrides_and_presence_are_exported(self):
-        from canlib.explorer.export import export_profile
+        from canlib.interop.explorer.export import export_profile
 
         data = export_profile(FIXTURE)
         ecus = {e["name"]: e for e in data["ecus"]}
@@ -152,7 +152,7 @@ class TestExplorer:
         assert "fingerprints" not in json.dumps(data)
 
     def test_the_ioniq_38kwh_bms_is_unverified_uds(self):
-        from canlib.explorer.export import export_profile
+        from canlib.interop.explorer.export import export_profile
 
         data = export_profile(REPO / "profiles" / "hyundai-ioniq-ae-ev")
         bms = next(e for e in data["ecus"] if e["name"] == "BMS")

@@ -17,8 +17,8 @@ from canlib.ecus.signal_category import (
     category_of,
     unit_category,
 )
+from canlib.interop.autopid.classes import autopid_class
 from canlib.validation.pids import load_schema, validate_ecu_file
-from canlib.wican.autopid_class import autopid_class
 from canlib.yaml_edit.pids import migrate_categories, upsert_parameter
 from canlib.yaml_edit.pids.categories import convert
 

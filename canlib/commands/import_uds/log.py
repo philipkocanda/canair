@@ -1,6 +1,6 @@
 """``canair import uds --from-log``: extract UDS replies from a recorded frame log.
 
-The CLI half of :mod:`canlib.captures.from_log`: read the log through the same
+The CLI half of :mod:`canlib.interop.frame_log`: read the log through the same
 readers as ``import can``, narrow it (bus, log-time window), extract the replies of
 every ECU in the active profile, and record them as one imported session with
 per-reply timestamps. A dry run reports what would be recorded without writing.
@@ -17,8 +17,8 @@ from datetime import date, datetime, time
 from pathlib import Path
 
 from canlib import ansi
-from canlib.captures.from_log import Extraction, extract_replies, stamp
 from canlib.captures.types import CaptureSession, Quality
+from canlib.interop.frame_log import Extraction, extract_replies, stamp
 
 # A log whose first frame is later than this is on the wall clock (2001-09-09), not
 # relative to the start of the recording; same cut-off as ``import can``.

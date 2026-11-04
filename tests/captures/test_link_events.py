@@ -820,7 +820,7 @@ class TestStepGaps:
 
 class TestExplorerGaps:
     def test_session_wide_gaps_are_exported_as_offsets(self):
-        from canlib.explorer.series import _Clock, _gaps
+        from canlib.interop.explorer.series import _Clock, _gaps
 
         session = {
             "link_events": [

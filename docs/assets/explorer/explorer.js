@@ -2,7 +2,7 @@
  *
  * Renders the JSON that scripts/mkdocs_hooks/explorer.py writes at docs build time
  * (assets/explorer/data/<profile>.json). All content decisions live in
- * canlib/explorer_export.py; this file only draws. No framework, no bundler.
+ * canlib/interop/explorer/export.py; this file only draws. No framework, no bundler.
  * State lives in the URL hash: #<profile>/<ECU>/<tab or PID>/<signal>.
  * Plan: plans/2026-10-21-profile-explorer.md
  */

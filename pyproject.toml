@@ -141,16 +141,15 @@ source_modules = [
     "canlib.contribute_source",
     "canlib.contribute_summary",
     "canlib.core",
-    "canlib.dbc_repair",
     "canlib.device",
     "canlib.dtc",
     "canlib.ecus",
-    "canlib.explorer",
     "canlib.expression",
     "canlib.first_run",
     "canlib.formatting",
     "canlib.grid_prompt",
     "canlib.install",
+    "canlib.interop",
     "canlib.migrations",
     "canlib.modes",
     "canlib.poll_backoff",
@@ -171,7 +170,6 @@ source_modules = [
     "canlib.validation",
     "canlib.variants",
     "canlib.wake",
-    "canlib.wican",
     "canlib.yaml_edit",
 ]
 forbidden_modules = [
@@ -196,16 +194,15 @@ source_modules = [
     "canlib.contribute_source",
     "canlib.contribute_summary",
     "canlib.core",
-    "canlib.dbc_repair",
     "canlib.device",
     "canlib.dtc",
     "canlib.ecus",
-    "canlib.explorer",
     "canlib.expression",
     "canlib.first_run",
     "canlib.formatting",
     "canlib.grid_prompt",
     "canlib.install",
+    "canlib.interop",
     "canlib.migrations",
     "canlib.poll_backoff",
     "canlib.poll_schedule",
@@ -225,7 +222,6 @@ source_modules = [
     "canlib.validation",
     "canlib.variants",
     "canlib.wake",
-    "canlib.wican",
     "canlib.yaml_edit",
 ]
 forbidden_modules = [
@@ -252,16 +248,15 @@ source_modules = [
     "canlib.contribute_source",
     "canlib.contribute_summary",
     "canlib.core",
-    "canlib.dbc_repair",
     "canlib.device",
     "canlib.dtc",
     "canlib.ecus",
-    "canlib.explorer",
     "canlib.expression",
     "canlib.first_run",
     "canlib.formatting",
     "canlib.grid_prompt",
     "canlib.install",
+    "canlib.interop",
     "canlib.migrations",
     "canlib.modes",
     "canlib.poll_backoff",
@@ -281,7 +276,6 @@ source_modules = [
     "canlib.validation",
     "canlib.variants",
     "canlib.wake",
-    "canlib.wican",
     "canlib.yaml_edit",
 ]
 forbidden_modules = [
@@ -311,16 +305,15 @@ source_modules = [
     "canlib.contribute_source",
     "canlib.contribute_summary",
     "canlib.core",
-    "canlib.dbc_repair",
     "canlib.device",
     "canlib.dtc",
     "canlib.ecus",
-    "canlib.explorer",
     "canlib.expression",
     "canlib.first_run",
     "canlib.formatting",
     "canlib.grid_prompt",
     "canlib.install",
+    "canlib.interop",
     "canlib.migrations",
     "canlib.modes",
     "canlib.poll_backoff",
@@ -341,7 +334,6 @@ source_modules = [
     "canlib.validation",
     "canlib.variants",
     "canlib.wake",
-    "canlib.wican",
     "canlib.yaml_edit",
 ]
 forbidden_modules = [
@@ -362,9 +354,8 @@ forbidden_modules = [
     "canlib.captures",
     "canlib.config",
     "canlib.ecus",
-    "canlib.keepmode",
+    "canlib.interop",
     "canlib.transport",
-    "canlib.wican",
 ]
 allow_indirect_imports = true
 ignore_imports = []
@@ -377,7 +368,7 @@ source_modules = [
     "canlib.expression",
 ]
 forbidden_modules = [
-    "canlib.wican",
+    "canlib.interop",
 ]
 allow_indirect_imports = true
 ignore_imports = [
@@ -425,16 +416,15 @@ forbidden_modules = [
     "canlib.contribute_logs",
     "canlib.contribute_source",
     "canlib.contribute_summary",
-    "canlib.dbc_repair",
     "canlib.device",
     "canlib.dtc",
     "canlib.ecus",
-    "canlib.explorer",
     "canlib.expression",
     "canlib.first_run",
     "canlib.formatting",
     "canlib.grid_prompt",
     "canlib.install",
+    "canlib.interop",
     "canlib.migrations",
     "canlib.modes",
     "canlib.poll_backoff",
@@ -455,7 +445,6 @@ forbidden_modules = [
     "canlib.validation",
     "canlib.variants",
     "canlib.wake",
-    "canlib.wican",
     "canlib.yaml_edit",
 ]
 allow_indirect_imports = true

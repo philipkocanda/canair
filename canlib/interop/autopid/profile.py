@@ -19,6 +19,8 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 
 from canlib.ecus.pids import pid_ships
+from canlib.interop.autopid.classes import autopid_class
+from canlib.interop.autopid.send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
 from canlib.privacy.sensitive import param_sensitive
 from canlib.response_frames import stored_count
 from canlib.transport.elm327_addressing import (
@@ -30,8 +32,6 @@ from canlib.transport.elm327_addressing import (
 )
 from canlib.transport.elm327_frame_count import annotate_request, requestable
 from canlib.uds.addressing import EcuAddress, resolve_ecu_address
-from canlib.wican.autopid_class import autopid_class
-from canlib.wican.autopid_send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
 
 
 class ProfileGenerationError(Exception):
@@ -93,7 +93,7 @@ class ShippedProfile:
 
     ``init`` is the car-level init chain, flow-control setup included when a PID
     needs it. :func:`generate_profile` renders this for firmware 4.x;
-    :mod:`canlib.wican.autopid_v6` renders it for firmware v6.
+    :mod:`canlib.interop.autopid.v6` renders it for firmware v6.
     """
 
     car_model: str
@@ -182,7 +182,7 @@ def generate_profile(
 
     A PID entry whose shipped signals stream to their own MQTT topic carries a
     ``send_to`` map of ``{"SIGNAL_NAME": "topic"}`` alongside ``parameters`` (see
-    :mod:`canlib.wican.autopid_send_to`); the key is omitted when no signal has one, so a
+    :mod:`canlib.interop.autopid.send_to`); the key is omitted when no signal has one, so a
     profile without streams is unchanged.
     """
     return render_v4(ship_profile(data, verified_only, expected_responses))

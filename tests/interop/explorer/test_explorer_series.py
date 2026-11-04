@@ -10,8 +10,9 @@ import pytest
 
 from canlib.captures import io as capture_io
 from canlib.ecus.pids import load_pids
-from canlib.explorer.export import export_profile
-from canlib.explorer.series import (
+from canlib.expression.decoding import decode_param_rows
+from canlib.interop.explorer.export import export_profile
+from canlib.interop.explorer.series import (
     MIN_SAMPLES,
     _Clock,
     _clock_label,
@@ -20,9 +21,8 @@ from canlib.explorer.series import (
     export_sessions,
     rx_by_address,
 )
-from canlib.expression.decoding import decode_param_rows
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 PROFILES = sorted(
     p
     for p in (REPO_ROOT / "profiles").iterdir()

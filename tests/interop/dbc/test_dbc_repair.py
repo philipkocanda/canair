@@ -13,7 +13,7 @@ import pytest
 import yaml
 
 import canlib.profile as profile
-from canlib.dbc_repair import DbcLoadError, load_dbc, repair_dbc_text, summarize
+from canlib.interop.dbc.repair import DbcLoadError, load_dbc, repair_dbc_text, summarize
 from canlib.profile import Profile
 
 HEADER = 'VERSION ""\n\nNS_ :\n\nBS_:\n\nBU_: XXX\n\n'

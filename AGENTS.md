@@ -466,7 +466,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   state of charge, a bit that is a door; `--category`): the vocabulary, the unit table and the
   rules are `canlib/ecus/signal_category.py`, a category the unit implies is a validation error, a
   two-state one needs a two-entry `type: enum` saying which value is which, and it is never
-  inherited. Exporters map it onto their target (`canlib/wican/autopid_class.py`). It replaced
+  inherited. Exporters map it onto their target (`canlib/interop/autopid/classes.py`). It replaced
   `ha_class`; `pids migrate-categories` converts an old profile.
   **A PID can state `unit`/`min`/`max`/`verified`/`source`/`source_links` once
   for all its parameters** (`pids set-pid-defaults`; `pids hoist-defaults` folds up existing
@@ -637,8 +637,8 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   (`out/<variant>/` on a multi-variant profile, from the car's resolved definitions, and
   **refused while an ECU's revision is undetermined** — the device can't detect one), **one
   file per firmware generation**: `autopid-v4.json` (the 4.x vehicle profile) and
-  `autopid-v6.json` (the v6 AutoPID table, `canlib/wican/autopid_v6.py`). Both render one
-  shipping decision, `autopid_profile.py::ship_profile`, so they cannot disagree on what
+  `autopid-v6.json` (the v6 AutoPID table, `canlib/interop/autopid/v6.py`). Both render one
+  shipping decision, `interop/autopid/profile.py::ship_profile`, so they cannot disagree on what
   ships; the v6 renderer refuses, never truncates, a value the firmware's fixed buffers
   would cut short, and `validate pids` errors on a shipped expression v6's checker refuses
   (`expression/lint.py::firmware_grammar_problems`)
@@ -654,7 +654,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   9-frame ceiling, or on an odd-length request. `autopid stats` shows a `Frames` column so you can
   see which PIDs have earned one. **A signal with `send_to: TOPIC` streams to that MQTT topic on
   every poll** (emitted as `type: MQTT_Topic`; rule in
-  `canlib/wican/autopid_send_to.py`), because the batch snapshot's `cycle` (10 s default) is
+  `canlib/interop/autopid/send_to.py`), because the batch snapshot's `cycle` (10 s default) is
   **device config canair does not manage** — a faster `period` alone never reaches the broker
   faster.
   `mode set MODE` switches the device protocol and **auto-aligns the config `transport.type`**
@@ -697,7 +697,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   that some *other* tool was polling, each with its own timestamp (`--date`/`--time` stamp the first
   reply; the log's own clock does the rest). Always `--dry-run` first. The pieces: the passive
   ISO-TP state machine is the leaf `canlib/uds/isotp_passive.py` (a lost frame costs exactly one
-  message, counted once, never repaired), pairing and stamping are `canlib/captures/from_log.py`,
+  message, counted once, never repaired), pairing and stamping are `canlib/interop/frame_log.py`,
   and the CLI is `commands/import_uds/log.py`. **Replies are filed by their own echo, never by the
   last request** (a tool that pipelines requests or interleaves a scan mis-files them). Every
   data-read request is kept until answered or for P2\*max (5 s), so a reply starting with an
@@ -714,7 +714,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
 - **`canair import dbc <FILE>`** — Imports a DBC's broadcast definitions into `signals/<bus>.yaml`
   (cantools with `strict=False`, to tolerate real-world overlapping-signal DBCs; `--dry-run`
   previews). A DBC cantools rejects as written goes through the in-memory dialect repairs of
-  `canlib/dbc_repair.py::load_dbc` (each reported with its line); add a new quirk there, never
+  `canlib/interop/dbc/repair.py::load_dbc` (each reported with its line); add a new quirk there, never
   as a pre-edited copy of the file. Module note: `commands/import_.py` (`import` is a keyword)
   with `NAME="import"`; the `uds` kind lives in the `commands/import_uds/` package. Fetch the
   reference corpus with `scripts/fetch/fetch_can_corpus.py` (into gitignored `references/can/`).
@@ -1036,16 +1036,16 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     `hunt --physical` and make-specific scalings for the slope→unit sniffer. Resolvers
     `canlib/analysis/physical/bands.py`, `canlib/analysis/physical/unit_guess.py`. (The grid-axis bands come from the
     user-config `grid_region` instead — an 800 V pack or a non-EU grid otherwise gets no hit.)
-- **`canlib/explorer/export.py` / `explorer/layout.py`** — The docs-site profile explorer
+- **`canlib/interop/explorer/export.py` / `layout.py`** — The docs-site profile explorer
   (`docs/profiles/explorer.md`). The export turns a profile into an **allow-listed** JSON-able dict
   (never `identity:` values, captures or `scan_log`), with a `src: {file, line}` on every record
   read via ruamel; the layout places ECUs on bus lanes. `scripts/mkdocs_hooks/explorer.py` writes
   it as virtual files at docs build time and `docs/assets/explorer/explorer.{js,css}` only render
-  it, so content rules belong in the exporter (unit-tested in `tests/explorer/test_explorer_export.py`).
+  it, so content rules belong in the exporter (unit-tested in `tests/interop/explorer/test_explorer_export.py`).
   Plan: `plans/2026-10-21-profile-explorer.md`. Its **data view** (plot captured signals, find
   related signals) decodes captures at build time with the shared evaluator in
-  `canlib/explorer/series.py` (decoded numbers only, never payloads; size-budgeted in
-  `tests/explorer/test_explorer_series.py`); `docs/assets/explorer/{plot,discover}.js` draw it and the pure
+  `canlib/interop/explorer/series.py` (decoded numbers only, never payloads; size-budgeted in
+  `tests/interop/explorer/test_explorer_series.py`); `docs/assets/explorer/{plot,discover}.js` draw it and the pure
   maths is `analysis.js`, tested with `node --test tests/js/analysis.test.js` (a CI step; name the
   file, as older Node treats a directory argument as a module). uPlot is vendored under
   `docs/assets/explorer/vendor/` (MIT). Plan: `plans/2026-10-22-explorer-capture-plots.md`.
@@ -1240,7 +1240,7 @@ makes a cold first read fast instead of paying one plain read per PID to re-lear
   no digit to hold, so its evidence is only ever `observe()`.
 - **`requestable()`/`annotate_request()` in `canlib/transport/elm327_frame_count.py` are the single
   home for the wire rules** — even-length request, `1..MAX_REQUESTABLE_FRAMES`, never clamped — read
-  by both the live transport and `autopid_profile.request_with_count`, so the two cannot disagree.
+  by both the live transport and `interop/autopid/profile.py::request_with_count`, so the two cannot disagree.
 
 ## Transports
 

@@ -27,14 +27,14 @@ import json
 from dataclasses import dataclass
 
 from canlib.expression.lint import firmware_grammar_problems
-from canlib.transport.elm327_addressing import elm_id
-from canlib.wican.autopid_class import autopid_class
-from canlib.wican.autopid_profile import (
+from canlib.interop.autopid.classes import autopid_class
+from canlib.interop.autopid.profile import (
     ProfileGenerationError,
     ShippedPid,
     ShippedProfile,
     make_pid_init,
 )
+from canlib.transport.elm327_addressing import elm_id
 
 ROW_TYPE = "specific"
 GROUP = "default"

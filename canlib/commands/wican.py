@@ -40,9 +40,7 @@ import requests
 from canlib.commands._group import group_help
 from canlib.device.wican.api import resolve_wican_url
 from canlib.device.wican.firmware import Surface
-from canlib.response_frames import stored_count
-from canlib.transport.config import TransportType
-from canlib.wican.autopid_profile import (
+from canlib.interop.autopid.profile import (
     ProfileGenerationError,
     ShippedProfile,
     normalize_device_profile,
@@ -50,7 +48,9 @@ from canlib.wican.autopid_profile import (
     ship_profile,
     to_device_format,
 )
-from canlib.wican.autopid_v6 import to_v6
+from canlib.interop.autopid.v6 import to_v6
+from canlib.response_frames import stored_count
+from canlib.transport.config import TransportType
 
 NAME = "wican"
 

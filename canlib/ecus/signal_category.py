@@ -6,7 +6,7 @@ A signal states ``category:`` only where the unit does not: a ``%`` that is a st
 rather than a duty cycle, or a one-bit flag that is a door rather than a relay.
 
 The vocabulary is canair's own and tied to no consumer. An exporter maps it onto its
-target's vocabulary (the WiCAN AutoPID ``class``: ``canlib/wican/autopid_class.py``) and
+target's vocabulary (the WiCAN AutoPID ``class``: ``canlib/interop/autopid/classes.py``) and
 leaves out a category the target has no word for.
 
 A binary category names the *thing*, never which value means what: that is the signal's

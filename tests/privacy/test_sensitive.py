@@ -237,7 +237,7 @@ class TestNeverShared:
         assert any("sensitive" in w for w in warnings)
 
     def test_autopid_never_ships_a_sensitive_signal(self, prof):
-        from canlib.wican.autopid_profile import ship_profile
+        from canlib.interop.autopid.profile import ship_profile
 
         data = load_pids()
         data["ecus"]["CCM"]["pids"]["22F103"]["status"] = "active"
@@ -246,7 +246,7 @@ class TestNeverShared:
         assert "ID_HI" not in names and "VERSION" in names
 
     def test_the_explorer_plots_no_sensitive_pid(self):
-        from canlib.explorer.series import _parameters
+        from canlib.interop.explorer.series import _parameters
 
         ecu = {"pids": {"22F103": {"parameters": {"A": {"expression": "B04", "sensitive": True}}}}}
         assert _parameters(ecu, "22F103") is None

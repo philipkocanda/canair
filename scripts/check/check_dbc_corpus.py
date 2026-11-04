@@ -18,7 +18,7 @@ signals (not stored in signals/), messages canair refuses to store (e.g. a signa
 overrunning its frame), value tables on scaled or float signals (not carried),
 multiplexed messages (flattened on import; not decoded), and messages cantools
 cannot decode from the source DBC either. Ground truth for a DBC cantools rejects as
-written is its parse after `import dbc`'s dialect repairs (canlib/dbc_repair.py); one
+written is its parse after `import dbc`'s dialect repairs (canlib/interop/dbc/repair.py); one
 that does not parse even then, or whose standard and extended frames share a number,
 is listed and skipped.
 
@@ -190,7 +190,7 @@ class Checker:
         import cantools
 
         from canlib.commands.import_ import DbcImportError, _dbc_to_signals
-        from canlib.dbc_repair import DbcLoadError, load_dbc
+        from canlib.interop.dbc.repair import DbcLoadError, load_dbc
 
         try:
             src, repairs = load_dbc(path)
@@ -203,7 +203,7 @@ class Checker:
             self.skipped.append(f"{path.name}: {e}")
             return
         self.totals["dbcs"] += 1
-        self.totals["DBCs repaired on load (canlib/dbc_repair.py)"] += bool(repairs)
+        self.totals["DBCs repaired on load (canlib/interop/dbc/repair.py)"] += bool(repairs)
         self.totals["messages canair cannot store (skipped on import)"] += len(expected.skipped)
         self.totals["value tables on scaled/float signals (not carried)"] += len(
             expected.value_tables_dropped

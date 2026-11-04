@@ -26,7 +26,7 @@ from canlib.core.yaml_rt import round_trip_yaml
 from canlib.dtc.definitions import split_section as split_dtc_section
 from canlib.ecus.files import iter_ecu_files
 from canlib.ecus.pids import effective_param, pid_status
-from canlib.explorer.layout import layout_buses
+from canlib.interop.explorer.layout import layout_buses
 from canlib.uds.addressing import resolve_mode, resolve_rx, resolve_rx_offset
 
 DEFAULT_BLOB_BASE = "https://github.com/philipkocanda/canair/blob/main/"

@@ -1793,7 +1793,7 @@ def _duplicate_param_errors(file_paths: list[Path]) -> list[str]:
     Mirrors the wican profile-generation gate (``active`` PID + ``enabled``
     param): those params become distinct signals on the device and their names
     must be globally unique. Catching it here means CI/`validate` fails before
-    `wican autopid write` does. See ``canlib.wican.autopid_profile.generate_profile``.
+    `wican autopid write` does. See ``canlib.interop.autopid.profile.generate_profile``.
     """
     from canlib.variants.revisions import owner_revisions
 
