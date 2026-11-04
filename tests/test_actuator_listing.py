@@ -12,7 +12,6 @@ import json
 
 import pytest
 
-import canlib
 from canlib.commands import io as io_cmd
 from canlib.commands import routines as routines_cmd
 
@@ -29,7 +28,7 @@ PROFILE = {
 
 @pytest.fixture(autouse=True)
 def _offline(monkeypatch):
-    monkeypatch.setattr(canlib, "load_pids", lambda *a, **k: PROFILE)
+    monkeypatch.setattr("canlib.pids.load_pids", lambda *a, **k: PROFILE)
 
     def _no_device(_args):
         raise AssertionError("a --json listing must not start a live session")

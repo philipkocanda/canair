@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from canlib import (
-    load_pids,
-)
+from canlib.pids import load_pids
 
 
 def _load_pids_for_completion():

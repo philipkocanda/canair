@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import contextlib
 
-from canlib import (
-    WiCANTerminal,
-)
 from canlib.transport.protocol import Terminal
+from canlib.transport.wican_terminal import WiCANTerminal
 
 
 def _print_sleep_banner(host: str, timeout: int = 5) -> None:

@@ -14,15 +14,12 @@ import asyncio
 import contextlib
 import sys
 
-from canlib import (
-    init_logging,
-    load_pids,
-    log_command,
-)
 from canlib.keepmode import wants_save
 from canlib.lock import WiCANLock
 from canlib.lock_watchdog import LockWatchdog
+from canlib.log import init_logging, log_command
 from canlib.modes.dispatch import run_session_guarded
+from canlib.pids import load_pids
 from canlib.stop_signals import graceful_stop
 from canlib.transport.protocol import Terminal
 from canlib.wican.api import reboot_after_session

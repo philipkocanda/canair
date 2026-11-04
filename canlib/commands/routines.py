@@ -49,8 +49,8 @@ def run(args) -> int:
         return 2
     if args.json and not args.rid:
         # Listing reads only the profile, so it must not need (or lock) the device.
-        from canlib import load_pids
         from canlib.modes.routines import mode_routines_list
+        from canlib.pids import load_pids
 
         return 0 if mode_routines_list(load_pids(), args.routines, as_json=True) else 1
     return run_live(args)

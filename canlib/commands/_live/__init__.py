@@ -45,7 +45,7 @@ if importlib.util.find_spec("websockets") is None:  # pragma: no cover
     print("ERROR: websockets not installed. Run: pip3 install websockets", file=sys.stderr)
     sys.exit(1)
 
-from canlib import load_pids
+from canlib.pids import load_pids
 
 from .completers import (
     ecu_completer,
