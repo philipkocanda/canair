@@ -10,6 +10,7 @@ SCC:
     notes: >-
       Smart Cruise Control (front radar). Live-data DIDs 220100-0103 and 0105, all undecoded and not
       yet captured while driving.
+    serial: "1700900735"
   vehicle_states: [ACC, "ON", READY]
   multi_did: true
   scan_log: # SCC (smart cruise control)

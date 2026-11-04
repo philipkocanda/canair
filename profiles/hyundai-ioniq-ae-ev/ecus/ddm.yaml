@@ -9,8 +9,12 @@ DDM:
     mfg_date: "2017-06-02"
     hw_version: "100"
     sw_version: "100"
-    id_protocol: UDS  # F1xx (21 DIDs; the part number repeats in many fields)
-    notes: Driver door module. No readable live-data DIDs found.
+    id_protocol: UDS  # F1xx (5 DIDs answer; others repeat the previous reply)
+    notes: >-
+      Driver door module. No readable live-data DIDs found. Answers F187, F18B, F100, F193 and F195.
+      For any other F1xx DID it repeats its previous reply, so F101, F194 and F196 only look like
+      answers (READY, 2026-11-03).
+    boot_sw: "170"
   vehicle_states: [PLUGGED, ACC, "ON", READY, CHARGING]
   scan_log:
     - service: 0x22

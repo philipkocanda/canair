@@ -14,7 +14,8 @@ PSM:
     id_protocol: UDS  # F1xx
     notes: >-
       No live-data DIDs (seat position is not readable). The seat motors are driven via IOControl
-      (service 2F) and run until OFF is sent.
+      (service 2F) and run until OFF is sent. Answers an unsupported F1xx DID with a bare 62 (READY,
+      2026-11-03).
   vehicle_states: [PLUGGED, ACC, "ON", READY, CHARGING]
   scan_log: # PSM (power seat)
     - service: 0x22

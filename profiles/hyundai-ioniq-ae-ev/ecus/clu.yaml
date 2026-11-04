@@ -10,9 +10,11 @@ CLU:
     sw_version: "201"
     boot_sw: "625"
     id_protocol: UDS  # F1xx
-    notes: >
+    notes: >-
       Odometer is 22B002 [B12:B14]. The imperial odometer, range and cruise fields the e-Niro
-      exposes are absent here (22B002 is a 15-byte response).
+      exposes are absent here (22B002 is a 15-byte response). Ignores the functional (0x7DF)
+      TesterPresent but answers a physical 3E00 at once, so `discover --functional` lists it as
+      silent (READY, 2026-11-03, three rounds, 1 s window).
   vehicle_states: [ACC, "ON", READY]
   pids:
     22B002:

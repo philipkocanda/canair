@@ -10,7 +10,9 @@ AMP:
       data: 22, 1A, 21, 27, 2F and KWP 17/18 return NRC 0x11, even in the extended session. Supports
       only services 10, 14, 19 and 3E; service 19 implements only sub-function 0x02
       (readDTCByStatusMask), so no snapshot or extended DTC data. Its DTCs are open-load faults on
-      the premium-audio speaker channels, which confirms the identity.
+      the premium-audio speaker channels, which confirms the identity. Answers a functional 3E00 on
+      0x78B, but not always within 300 ms; a 1 s window caught it in every round (READY,
+      2026-11-03), so that is the functional default now.
   dtcs:
     source: owner-provided Infinity premium-audio channel map
     verified: false

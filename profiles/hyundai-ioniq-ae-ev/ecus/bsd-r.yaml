@@ -11,7 +11,9 @@ BSD-R:
     notes: >-
       Right blind-spot detection radar: part 95821-G2000 is the right-hand BSD unit. No readable
       live-data DIDs found. Named BSD-L until 2026-10-31, so the 2026-07-22 scan sessions labelled
-      BSD-L are this radar (0x755).
+      BSD-L are this radar (0x755). F190 and F188 return different bytes on each read (an 0xFF byte,
+      then fragments of the part number and serial), so neither is a VIN or a part number (READY,
+      2026-11-03).
   vehicle_states: [ACC, "ON", READY]
   scan_log:
     - service: 0x22

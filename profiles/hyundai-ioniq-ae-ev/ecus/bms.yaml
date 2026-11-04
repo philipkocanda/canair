@@ -26,6 +26,8 @@ BMS:
       front; 6 modules in 10S configuration (modules 4, 5, 6, 7, 8, 9) in the rear, where module 8
       is the middle of the three right-side modules. Source:
       https://github.com/uhi22/Ioniq28Investigations/commit/9392caa53129294ac5a7a0cec47b08b69a829a70
+      Answers 3E00 with NRC 0x11 (TesterPresent unsupported), physically and functionally (READY,
+      2026-11-03), so canair sends it no keepalive: only reads keep a BMS session open.
   revisions:
     kwp:
       identity: {id_protocol: KWP2000}

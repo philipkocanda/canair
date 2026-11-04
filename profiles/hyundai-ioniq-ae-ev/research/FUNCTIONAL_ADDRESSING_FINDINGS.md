@@ -5,16 +5,18 @@ subject: >-
   How the 11-bit functional request 0x7DF reaches each bus of the 2017 Ioniq Electric and how its
   UDS and KWP2000-style ECUs answer, time and suppress replies to it
 created: 2026-10-30
-updated: 2026-10-31
+updated: 2026-11-04
 status: active
 verification: >-
-  Unverified on this car. Firmware of three Ioniq ECUs (CCM, VESS, AVN), third-party Ioniq and
-  Kona logs, Hyundai/Kia's ES95486-00 and patents; section 7 is the on-car test.
+  Firmware of three Ioniq ECUs (CCM, VESS, AVN), third-party Ioniq and Kona logs, Hyundai/Kia's
+  ES95486-00 and patents. Step 1 of section 7 and the 1 s case of step 3 were run on the car on
+  2026-11-03 over wican-ws (section 8); the multi-frame request and the 100 ms case were not.
 sections:
   - section: "7"
     status: open
     note: >-
-      Ready to run with `canair discover --functional` (slcan-tcp for the complete view).
+      Steps 1 and the 1 s case of 3 done 2026-11-03 over wican-ws (section 8). Open: step 2
+      (`--request 190208`), the 100 ms case, and a run over slcan-tcp for the complete view.
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/research/IGPM_FINDINGS.md
@@ -312,3 +314,33 @@ With canair, over `slcan-tcp`: step 1 is `canair discover --functional --save`, 
 `--request 190208`, and the slow case of step 3 is `--repeat 2 --interval 1`. canair keeps
 functional requests at least 1 s apart, as the spec asks, so the 100 ms case needs the ELM327 REPL
 with headers on (`ATH1`).
+
+## 8. On-car results, 2026-11-03
+
+Ioniq Electric 28 kWh, READY, `canair discover --functional` over `wican-ws` (WiCAN Pro v4.50p;
+an ELM327 is best-effort, see section 6). The request was `3E 00`. Of the 30 physical responders
+of 2026-04-17, 24 answered.
+
+| Answer to the functional `3E 00` | ECUs (response ID) |
+|---|---|
+| Positive `7E 00` (15) | IGPM `0x778`, DDM `0x7A9`, ADM `0x7AA`, PSM `0x7AB`, SKM `0x7AD`, BSD-R `0x75D`, BSD-L `0x7BF`, SCC `0x7D8`, EPS `0x7DC`, ESC `0x7D9`, AMP `0x78B`, CCM `0x73B`, VESS `0x73E`, GSA `0x7BE`, HVAC `0x7BB` |
+| NRC `0x7F` serviceNotSupportedInActiveSession (4) | WPC `0x72D`, BCM `0x7A8`, MFC `0x7CC`, EPB `0x7DD` |
+| NRC `0x80` (KWP2000 spelling of the same) (3) | VCU `0x7EA`, MCU `0x7EB`, OBC `0x7ED` |
+| NRC `0x11` serviceNotSupported (1) | BMS `0x7EC`: no TesterPresent in any session |
+| NRC `0x22` conditionsNotCorrect (1) | Unknown-746 `0x74E` |
+| Silent (6) | CLU, AVN, RCAM, SRS, AAF, Unknown-7C0 |
+
+- **Every bus answered**: B-CAN, C-CAN, P-CAN, MM-CAN and the climate bus, so the gateway forwards
+  `0x7DF` to all of them (section 1). The KWP2000-style ECUs answered with NRCs, the UDS ECUs
+  mostly with a positive reply (section 2).
+- **A 1 s window catches every responder; 300 ms does not.** Three rounds 1 s apart gave the same
+  24 each time. At 300 ms AMP (MM-CAN, behind the gateway) answered one sweep of two. The default
+  window is 1 s since 2026-11-04.
+- **CLU ignores the functional request.** A physical `3E 00` to `0x7C6` is answered at once, and
+  the functional one never was, in three rounds. Either the CLU or the gateway drops it; a bus
+  sniff would tell. RCAM and AVN did not answer a physical `3E 00` either, and AAF was silent
+  because the HVAC was off, so silence on a functional request is not proof an ECU is off.
+- **BMS has no TesterPresent.** canair stops sending it `3E 00` after the first refusal.
+- **Four UDS ECUs refuse `3E 00` in the default session** (WPC, BCM, MFC, EPB). That matters only
+  for a keepalive, which follows a session (rule 5).
+- **No dropout at 1 s spacing**, as rule 4 predicts; the 100 ms case needs the REPL (section 7).

@@ -14,6 +14,7 @@ EPB:
       Shares ESC 0x7D1's app_sw "G7" (the Ioniq Electric model code, not an ECU identifier) and its
       only live-data DID, 22C101. F18C serial and F101 app SW are the only identity DIDs; no part
       number.
+    serial: "170601000039"
   vehicle_states: [ACC, "ON", READY]
   scan_log: # EPB (0x7D5)
     - service: 0x22

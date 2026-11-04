@@ -9,9 +9,14 @@ BCM:
     part_number: "95400G7470"
     mfg_date: "2017-05-31"
     id_protocol: UDS  # F1xx
-    notes: >
-      Body Control Module. Shares TX ID 0x7A0 with TPMS (same physical ECU,
-      part 95400G7470); TPMS data is read via DID 22C00B on the BCM.
+    notes: >-
+      Body Control Module. Shares TX ID 0x7A0 with TPMS (same physical ECU, part 95400G7470); TPMS
+      data is read via DID 22C00B on the BCM. F194 (supplier SW number) reads 0880 and F1A2 (HW
+      version) 620.
+    serial: "1705310070"
+    hw_version: "100"
+    sw_version: "220"
+    boot_sw: "180"
   vehicle_states: [ALL]
   scan_log:
     - service: 0x31

@@ -10,6 +10,7 @@ EPS:
     firmware: "MDPS C 1.00/1.03"
     id_protocol: UDS  # F1xx
     notes: Mounted on the steering column.
+    serial: 170601A9C11705250064
   vehicle_states: [ACC, "ON", READY]
   pids:
     220101:
