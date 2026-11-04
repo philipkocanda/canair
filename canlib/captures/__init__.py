@@ -837,7 +837,7 @@ def _decode_payload(
     from canlib.expression import evaluate_expression
     from canlib.expression.decode_value import NUMERIC, decode_typed, render
     from canlib.pids import build_ecu_index
-    from canlib.wican.autopid_layout import uds_hex_to_wican_bytes
+    from canlib.uds.wican_layout import uds_hex_to_wican_bytes
 
     if ecu_index is None:
         ecu_index = build_ecu_index(pids_data)

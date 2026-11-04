@@ -106,9 +106,9 @@ from canlib.captures.dates import (
 from canlib.captures.store import load_all_captures
 from canlib.captures.types import CaptureEntry
 from canlib.commands._hints import ecu_completer as _ecu_completer
+from canlib.commands._notation import add_notation_arg, resolve_notation
 from canlib.states import format_state_selector
 from canlib.states.infer import DEFAULT_CYCLE_TOL_S
-from canlib.uds.notation import add_notation_arg, resolve_notation
 
 from .backfill import cmd_backfill_states
 from .backfill_spans import cmd_backfill_state_spans

@@ -20,7 +20,6 @@ from canlib import ansi
 from canlib.analysis.align import LoadedPid, discover_signal_specs, load_signal_captures
 from canlib.analysis.support_fields import FieldFit
 from canlib.analysis.support_map import (
-    MAX_MAP_LEN,
     MIN_EXPLAINED,
     MIN_ROWS,
     Absence,
@@ -33,6 +32,7 @@ from canlib.analysis.support_map import (
 )
 from canlib.uds.byteindex import payload_index_to_wican
 from canlib.uds.notation import subfunction_bytes_for_pid
+from canlib.uds.support_marks import MAX_MAP_LEN
 
 from ._matrix import payload_matrix
 from .support_fields import fit_fields, thin

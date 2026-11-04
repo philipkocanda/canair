@@ -11,9 +11,7 @@ from canlib.commands._group import group_help
 from canlib.commands._join import (
     add_join_args,
 )
-from canlib.uds.notation import (
-    add_notation_arg,
-)
+from canlib.commands._notation import add_notation_arg
 
 from .can import _run_can
 from .uds import run

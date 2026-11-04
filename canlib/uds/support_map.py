@@ -19,13 +19,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from canlib.analysis.support_map import (
+from canlib.uds.notation import subfunction_bytes_for_pid
+from canlib.uds.support_marks import (
     MAX_MAP_LEN,
     continuation_bits,
     marked_bits,
     marked_byte_indices,
 )
-from canlib.uds.notation import subfunction_bytes_for_pid
 
 UNITS: tuple[str, ...] = ("bit", "byte", "field")
 ORDERS: tuple[str, ...] = ("msb", "lsb")

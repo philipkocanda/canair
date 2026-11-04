@@ -14,6 +14,7 @@ import asyncio
 import contextlib
 import sys
 
+from canlib.commands._notation import resolve_notation
 from canlib.keepmode import wants_save
 from canlib.lock import WiCANLock
 from canlib.lock_watchdog import LockWatchdog
@@ -232,6 +233,9 @@ def _require_car(args) -> None:
 def run_live(args) -> int:
     """Acquire the device lock and run ``async_main`` for a live subcommand."""
     _require_car(args)
+    # Settle the byte notation here, where the config is the command layer's to read: the modes
+    # below take the value as given.
+    args.notation = resolve_notation(getattr(args, "notation", None))
     lock = WiCANLock()
     lock.acquire(force=args.force)
 

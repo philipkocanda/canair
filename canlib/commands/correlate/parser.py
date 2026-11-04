@@ -15,7 +15,7 @@ from canlib.commands._join import (
     add_join_args,
     add_mirror_args,
 )
-from canlib.uds.notation import add_notation_arg
+from canlib.commands._notation import add_notation_arg
 
 from .can import _run_can_log
 from .uds import run

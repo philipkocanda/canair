@@ -10,13 +10,9 @@ from collections import Counter
 
 from canlib import ansi
 from canlib.analysis.support_map import ABSENCE_TEXT, MapFit, Slot
+from canlib.commands._notation import resolve_notation
 from canlib.uds.byteindex import declared_bits, extract_byte_indices, references_full_byte
-from canlib.uds.notation import (
-    ByteNotation,
-    relabel_signal,
-    resolve_notation,
-    subfunction_bytes_for_pid,
-)
+from canlib.uds.notation import ByteNotation, relabel_signal, subfunction_bytes_for_pid
 
 from .support_fields import field_declare, field_json, print_field_headline, print_field_note
 from .support_map import PidScan
@@ -64,7 +60,7 @@ def _label(scan: PidScan, slot: Slot, notation: ByteNotation) -> str:
 
 def _outside_defined(scan: PidScan, fit: MapFit) -> list[tuple[str, str, bool]]:
     """Defined signals that read a position the map does not mark: (name, where, continuation)."""
-    from canlib.analysis.support_map import continuation_bits, marked_bits
+    from canlib.uds.support_marks import continuation_bits, marked_bits
 
     if fit.unit != "bit":
         return []

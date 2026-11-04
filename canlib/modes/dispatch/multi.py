@@ -12,7 +12,7 @@ from canlib.keepmode import keep_mode_from_args
 from canlib.modes import mode_monitor, mode_multi
 from canlib.poll_schedule import DEFAULT_SCHEDULE
 from canlib.transport.protocol import Terminal
-from canlib.uds.notation import resolve_notation
+from canlib.uds.notation import ByteNotation
 
 
 async def handle_monitor(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
@@ -38,7 +38,7 @@ async def handle_monitor(args, terminal: Terminal, pids_data, host, *, reconnect
         keep_n=args.keep,
         save=args.save,
         show_rulers=args.rulers,
-        notation=resolve_notation(getattr(args, "notation", None)),
+        notation=ByteNotation(getattr(args, "notation", None) or ByteNotation.WICAN),
         label=args.label,
         vehicle_states=args.state,
         notes=args.notes,

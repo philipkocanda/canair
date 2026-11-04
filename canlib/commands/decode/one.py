@@ -28,10 +28,11 @@ from canlib.analysis.stats import compute_stats
 from canlib.analysis.stats import correlation as _correlation
 from canlib.captures.store import load_pid_captures
 from canlib.commands._join import fill_policy_from_args
+from canlib.commands._notation import resolve_notation
 from canlib.expression.decoding import decode_payload, ordered_signal_names
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 from canlib.uds.byteindex import payload_to_wican_bytes
-from canlib.uds.notation import resolve_notation, subfunction_bytes_for_pid
+from canlib.uds.notation import subfunction_bytes_for_pid
 
 from .analysis import print_correlations, print_discriminate, print_mirrors
 from .calc import _local_series, _paired, _series, axis_group_keys, load_cross_ref_series
@@ -395,6 +396,7 @@ def decode_one(
         return 1
 
     all_results = _decode_captures(captures, parameters)
+    notation, sub_bytes = resolve_notation(args.notation), subfunction_bytes_for_pid(pid_key)
 
     # --- terminal exports: each owns the whole run ---------------------------
     if args.dump_bytes:
@@ -404,8 +406,8 @@ def decode_one(
             pid_key,
             as_json=args.json,
             include_pci=args.include_pci,
-            notation=resolve_notation(args.notation),
-            sub_bytes=subfunction_bytes_for_pid(pid_key),
+            notation=notation,
+            sub_bytes=sub_bytes,
             signed=args.dump_signed,
         )
 
@@ -443,8 +445,6 @@ def decode_one(
 
     # A sequence, not a choice: any number of these may print, and the
     # value-range view is the fallback when none did.
-    notation = resolve_notation(args.notation)
-    sub_bytes = subfunction_bytes_for_pid(pid_key)
     printed = False
     if args.find_mirrors:
         print_mirrors(

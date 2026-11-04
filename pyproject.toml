@@ -470,17 +470,7 @@ forbidden_modules = [
     "canlib.wican",
 ]
 allow_indirect_imports = true
-ignore_imports = [
-    "canlib.uds.support_map -> canlib.analysis.support_map",
-    "canlib.uds.unsplit_batches -> canlib.analysis.misfiled",
-    "canlib.uds.unsplit_batches -> canlib.captures.io",
-    "canlib.uds.unsplit_batches -> canlib.captures.merge",
-    "canlib.uds.unsplit_batches -> canlib.captures.payload_corpus",
-    "canlib.uds.unsplit_batches -> canlib.captures.types",
-    "canlib.uds.notation -> canlib.config",
-    "canlib.uds.unsplit_batches -> canlib.ecus",
-    "canlib.uds.unsplit_batches -> canlib.keepmode",
-]
+ignore_imports = []
 
 [[tool.importlinter.contracts]]
 name = "Decoding does not import the WiCAN export package"
@@ -494,8 +484,6 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-    "canlib.captures -> canlib.wican.autopid_layout",
-    "canlib.expression.decoding -> canlib.wican.autopid_layout",
 ]
 
 [[tool.importlinter.contracts]]

@@ -1,4 +1,4 @@
-"""Tests for multi-DID replies stored whole under one DID (``canlib.uds.unsplit_batches``).
+"""Tests for multi-DID replies stored whole under one DID (``canlib.analysis.unsplit_batches``).
 
 A batch reply starts ``62 D1`` like a single reply to ``D1``, so one that leaked into a per-DID
 read was saved as ``D1``'s payload with every other DID's data appended.
@@ -12,10 +12,10 @@ import pytest
 
 from canlib import profile
 from canlib.analysis.misfiled import PayloadSample
+from canlib.analysis.unsplit_batches import find_unsplit_batches, split_unsplit_batches
 from canlib.captures import io as capture_io
 from canlib.commands.captures.maint import cmd_split_batched
 from canlib.pids import clear_cache
-from canlib.uds.unsplit_batches import find_unsplit_batches, split_unsplit_batches
 from canlib.validation.captures import _run_captures
 from canlib.validation.unsplit import unsplit_batch_warnings
 

@@ -40,14 +40,9 @@ from canlib.commands._join import (
     fill_summaries,
     fill_summary_line,
 )
+from canlib.commands._notation import add_notation_arg, resolve_notation
 from canlib.uds.inspect_bytes import NO_EXPR
-from canlib.uds.notation import (
-    ByteNotation,
-    ByteRef,
-    add_notation_arg,
-    resolve_notation,
-    subfunction_bytes_for_pid,
-)
+from canlib.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
 
 NAME = "hunt"
 

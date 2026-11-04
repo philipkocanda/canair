@@ -242,9 +242,9 @@ def cmd_split_batched(
     """Split multi-DID replies stored whole under one DID into one capture per DID."""
     import json as _json
 
+    from canlib.analysis.unsplit_batches import split_unsplit_batches
     from canlib.captures.io import resolve_capture_layers
     from canlib.ecus import build_rx_index
-    from canlib.uds.unsplit_batches import split_unsplit_batches
 
     cdir = resolve_captures_dir(captures_dir)
     if captures_dir is not None and not cdir.is_dir():

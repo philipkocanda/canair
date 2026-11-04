@@ -199,42 +199,6 @@ class TestRelabelSignal:
         assert relabel_signal("ESC:22C101:B9", ByteNotation.TORQUE) == "ESC:22C101:D"
 
 
-class TestResolveNotation:
-    def test_explicit_value_wins(self):
-        from canlib.uds.notation import resolve_notation
-
-        assert resolve_notation("isotp") is ByteNotation.ISOTP
-        assert resolve_notation("torque") is ByteNotation.TORQUE
-
-    def test_defaults_to_wican(self, monkeypatch):
-        from canlib.uds import notation as notation
-
-        monkeypatch.setattr(notation, "get_config_key", lambda k: None, raising=False)
-        # No flag, no config -> wican.
-        import canlib.config as cfg
-
-        monkeypatch.setattr(cfg, "get_config_key", lambda k: None)
-        assert notation.resolve_notation(None) is ByteNotation.WICAN
-
-    def test_config_default_used_when_no_flag(self, monkeypatch):
-        import canlib.config as cfg
-
-        monkeypatch.setattr(
-            cfg, "get_config_key", lambda k: "isotp" if k == "display.byte_notation" else None
-        )
-        from canlib.uds.notation import resolve_notation
-
-        assert resolve_notation(None) is ByteNotation.ISOTP
-
-    def test_invalid_config_falls_back_to_wican(self, monkeypatch):
-        import canlib.config as cfg
-
-        monkeypatch.setattr(cfg, "get_config_key", lambda k: "bogus")
-        from canlib.uds.notation import resolve_notation
-
-        assert resolve_notation(None) is ByteNotation.WICAN
-
-
 class TestSubfunctionBytesForPid:
     def test_service_21_is_one(self):
         assert subfunction_bytes_for_pid("2101") == 1

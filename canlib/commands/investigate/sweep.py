@@ -22,8 +22,9 @@ import sys
 
 from canlib import ansi
 from canlib.analysis.align import LoadedPid, load_signal_captures
+from canlib.commands._notation import resolve_notation
 from canlib.uds.byteindex import mapped_offsets
-from canlib.uds.notation import ByteNotation, resolve_notation, subfunction_bytes_for_pid
+from canlib.uds.notation import ByteNotation, subfunction_bytes_for_pid
 
 from .counters import (
     _display_label,

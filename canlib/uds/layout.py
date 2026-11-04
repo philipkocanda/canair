@@ -15,7 +15,7 @@ Data-only plus small resolvers: no I/O, no formatting decisions (a caller render
 the labels and picks which definitions to show).
 
 The layouts are grounded in this repo's existing per-service knowledge — chiefly
-:func:`canlib.formatting.decode_uds_response`, :func:`canlib.uds.echo.request_echo`,
+:func:`canlib.uds.describe.decode_uds_response`, :func:`canlib.uds.echo.request_echo`,
 and the scanner docstrings in :mod:`canlib.modes.kwp_routines_scan` /
 :mod:`canlib.modes.kwp_iocontrol_scan` — and a service is deliberately **omitted**
 rather than guessed when its layout isn't established, so callers fall back to

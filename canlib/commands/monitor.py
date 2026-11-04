@@ -30,8 +30,8 @@ from canlib.commands._live import (
     step_completer,
     to_step,
 )
+from canlib.commands._notation import add_notation_arg
 from canlib.poll_schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
-from canlib.uds.notation import add_notation_arg
 
 NAME = "monitor"
 ALIASES = ["mon"]

@@ -4,7 +4,7 @@ import asyncio
 import json
 
 from canlib.expression.decoding import decode_param_rows
-from canlib.wican.autopid_layout import uds_hex_to_wican_bytes
+from canlib.uds.wican_layout import uds_hex_to_wican_bytes
 
 from ..formatting import print_decoded_params
 from ..pids import build_ecu_index

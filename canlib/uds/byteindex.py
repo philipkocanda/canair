@@ -486,7 +486,7 @@ def declared_payload_len(framed_bytes: bytes) -> int | None:
 
     The point is telling **payload from padding**: a WiCAN buffer pads its final
     CAN frame out to 8 bytes (see
-    :func:`canlib.wican.autopid_layout.uds_hex_to_wican_bytes`), so a byte with a valid
+    :func:`canlib.uds.wican_layout.uds_hex_to_wican_bytes`), so a byte with a valid
     ISO-TP index is not necessarily a payload byte. Compare an index against this
     to drop the tail.
     """

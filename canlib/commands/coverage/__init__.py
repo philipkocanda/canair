@@ -45,8 +45,8 @@ from typing import NotRequired, TypedDict
 from canlib.captures.dates import active_scope_flags, add_scope_args, resolve_scope_bounds
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
+from canlib.commands._notation import add_notation_arg
 from canlib.pids import build_ecu_index, load_pids
-from canlib.uds.notation import add_notation_arg
 from canlib.uds.support_map import MapDecl, SupportMapError, declaration
 
 from .analysis import (

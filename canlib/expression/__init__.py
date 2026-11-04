@@ -8,7 +8,7 @@ The WiCAN indexing convention (``B0=PCI``, ``B9=first consecutive-frame data
 byte``, …) is therefore imposed entirely by the *caller*, which must pass bytes
 in the WiCAN AutoPID layout (PCI re-inserted) — see
 :func:`canlib.uds.byteindex.payload_to_wican_bytes` /
-:func:`canlib.wican.autopid_layout.uds_hex_to_wican_bytes`. Feeding a raw ISO-TP payload
+:func:`canlib.uds.wican_layout.uds_hex_to_wican_bytes`. Feeding a raw ISO-TP payload
 (PCI stripped) would silently misalign every index past the first PCI byte.
 
 **Parsing is separate from evaluation.** An expression is constant across a whole

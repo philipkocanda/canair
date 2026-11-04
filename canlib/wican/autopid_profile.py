@@ -9,7 +9,7 @@ grouped form for diffing (``normalize_device_profile``).
 These are pure ``dict`` → ``dict`` transforms — the command module
 (``commands/wican.py``) owns the HTTP upload/download, diff rendering, and
 argparse; this module owns the shape math so it can be unit-tested and reused
-without a device. Companion to :mod:`canlib.wican.autopid_layout` (byte-layout
+without a device. Companion to :mod:`canlib.uds.wican_layout` (byte-layout
 reconstruction).
 """
 

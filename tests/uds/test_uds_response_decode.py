@@ -1,4 +1,4 @@
-"""Tests for canlib.formatting.decode_uds_response — the one-line response decode.
+"""Tests for canlib.uds.describe.decode_uds_response — the one-line response decode.
 
 The function is a hand-rolled ``if sid == …`` chain that duplicates the service
 names in :mod:`canlib.uds.services`, and it had no tests at all — which is how two
@@ -16,7 +16,7 @@ import re
 
 import pytest
 
-from canlib.formatting import decode_uds_response
+from canlib.uds.describe import decode_uds_response
 from canlib.uds.layout import (
     ROLE_CTRL,
     ROLE_DID,

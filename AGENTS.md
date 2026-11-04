@@ -349,7 +349,7 @@ and **`g`/`G` address the view's primary axis**.
   the one-time `migrate` (YAML→JSON) / `migrate-rx` (`ecu`→`rx`) / `migrate-discover` (gives legacy
   discover responders their `tx`; `canlib/migrations/discover.py`) / `split-batched` (splits a
   multi-DID reply stored whole under its first DID into per-DID rows;
-  `canlib/uds/unsplit_batches.py`) / `compact` (rewrite in the folded on-disk form;
+  `canlib/analysis/unsplit_batches.py`) / `compact` (rewrite in the folded on-disk form;
   `canlib/migrations/compact.py`) / `migrate-variants ID` (tag untagged history with the car it
   came from, attributed `migrated`, never retagging; `canlib/migrations/variants.py`) /
   `merge-driver` (see Key Files).
@@ -625,7 +625,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   (a reply that looks like another ECU's answer to the same PID, which the echo check cannot see;
   cross-file pass, detection in `canlib/analysis/misfiled.py`), **unsplit multi-DID replies** (a
   batch reply starts `62 D1`, so it passes `D1`'s echo check; same corpus load via
-  `canlib/captures/payload_corpus.py`, detection in `canlib/uds/unsplit_batches.py`, reply walk in
+  `canlib/captures/payload_corpus.py`, detection in `canlib/analysis/unsplit_batches.py`, reply walk in
   `canlib/uds/multi_did.py`, which the live batched read paths also use to discard one), non-hex
   payloads, **untimed payload captures** (excluded from every time-aligned analysis) and
   **degraded-transport sessions** (recorded drops/stale frames). **`--max-untimed N` is the CI

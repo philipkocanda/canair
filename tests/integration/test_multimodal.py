@@ -6,7 +6,7 @@ from datetime import date
 
 from canlib.analysis import stats as stats
 from canlib.expression import decode_value as dv
-from canlib.wican.autopid_layout import uds_hex_to_wican_bytes
+from canlib.uds.wican_layout import uds_hex_to_wican_bytes
 
 
 class TestTypedDecode:

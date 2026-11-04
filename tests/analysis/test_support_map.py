@@ -17,15 +17,17 @@ from canlib.analysis.support_map import (
     _chance_log10,
     absence_reason,
     best_fit,
-    continuation_bits,
     corroborated,
     detect_support_maps,
     family_chance_log10,
+)
+from canlib.uds.support_map import MapDecl, SupportMapError, declaration, resolve
+from canlib.uds.support_marks import (
+    continuation_bits,
     marked_bits,
     marked_byte_indices,
     reverse_bits,
 )
-from canlib.uds.support_map import MapDecl, SupportMapError, declaration, resolve
 
 BIT_MAP = bytes([0xB5, 0x3F, 0xF4, 0xEA])  # marks: B 0,2,3,5,7 | 2-7 | 0,1,2,3,5 | 0,1,2,4,6
 

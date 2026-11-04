@@ -6,10 +6,11 @@ import random
 from typing import ClassVar
 
 from canlib.analysis.align import LoadedPid
-from canlib.analysis.support_map import MapFit, reverse_bits
+from canlib.analysis.support_map import MapFit
 from canlib.commands.investigate import parser as inv_parser
 from canlib.commands.investigate import support_map as inv_map
 from canlib.commands.investigate import support_map_report as inv_report
+from canlib.uds.support_marks import reverse_bits
 
 # Map marking bits {0,1,2,3} of each of the 4 covered bytes.
 MAP = bytes([0xF0, 0xF0, 0xF0, 0xF0])
