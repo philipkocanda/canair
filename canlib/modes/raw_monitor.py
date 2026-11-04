@@ -16,7 +16,8 @@ from .monitor_options import MonitorOptions
 from .session import SessionOptions
 
 if TYPE_CHECKING:
-    from ..addressing import EcuAddress
+    from canlib.uds.addressing import EcuAddress
+
     from ..pids import EcuIndexEntry
 
 

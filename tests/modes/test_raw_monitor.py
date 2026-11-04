@@ -2,10 +2,10 @@
 
 import asyncio
 
-from canlib.addressing import EcuAddress
 from canlib.modes.monitor import MonitorController, _raw_pid_result
 from canlib.modes.raw_monitor import query_ecu_addresses
 from canlib.poll_backoff import PollCost
+from canlib.uds.addressing import EcuAddress
 from tests.support.raw_monitor import FakeRawClient
 from tests.support.raw_monitor import TimedRawClient as _TimedRawClient
 

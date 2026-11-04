@@ -1,7 +1,6 @@
 {
   "root_modules": [
     "actuation",
-    "addressing",
     "ansi",
     "blind",
     "build_info",
@@ -17,7 +16,6 @@
     "did_families",
     "first_run",
     "formatting",
-    "frame_counts",
     "grid_prompt",
     "grid_regions",
     "install_context",
@@ -123,7 +121,6 @@
     "canlib.states",
     "canlib.transport",
     "canlib.tui",
-    "canlib.uds",
     "canlib.variants",
     "canlib.wican",
     "canlib.yaml_edit",
@@ -132,7 +129,6 @@
   "test_to_test_imports": [],
   "flat_tests": [
     "test_actuation.py",
-    "test_addressing.py",
     "test_also_known_as.py",
     "test_ansi.py",
     "test_ansi_gating.py",
@@ -146,7 +142,6 @@
     "test_ecu_files.py",
     "test_first_run.py",
     "test_formatting.py",
-    "test_frame_counts.py",
     "test_grid_prompt.py",
     "test_grid_regions.py",
     "test_help_alias.py",

@@ -155,8 +155,8 @@ async def mode_discover_functional(
     identify: bool = False,
 ) -> list[SweepRound]:
     """Broadcast ``request`` ``repeat`` times and report every responder."""
-    from canlib.addressing import functional_request_id, resolve_mode, resolve_rx_offset
     from canlib.ecus import load_ecus
+    from canlib.uds.addressing import functional_request_id, resolve_mode, resolve_rx_offset
 
     if interval < MIN_INTERVAL_S:
         raise ValueError(f"--interval must be at least {MIN_INTERVAL_S:g} s")

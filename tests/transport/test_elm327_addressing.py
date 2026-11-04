@@ -11,7 +11,6 @@ import asyncio
 
 import pytest
 
-from canlib.addressing import AddressBook, AddressingMode, EcuAddress
 from canlib.transport.elm327_addressing import (
     AUTO,
     DEFAULT_FC_DATA,
@@ -29,6 +28,7 @@ from canlib.transport.elm327_addressing import (
     target_in,
 )
 from canlib.transport.elm327_terminal import Elm327Terminal
+from canlib.uds.addressing import AddressBook, AddressingMode, EcuAddress
 
 LBC = EcuAddress(0x79B, 0x7BB)
 VCM = EcuAddress(0x797, 0x79A)

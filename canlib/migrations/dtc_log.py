@@ -109,8 +109,8 @@ class _Addresses:
 
 
 def _addresses(profile: Profile) -> _Addresses | None:
-    from canlib.addressing import resolve_mode, resolve_rx_offset
     from canlib.ecus import load_ecus, rx_for_tx
+    from canlib.uds.addressing import resolve_mode, resolve_rx_offset
 
     try:
         registry = load_ecus(profile.ecus_dir) if profile.ecus_dir.is_dir() else {}

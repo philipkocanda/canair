@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.frame_counts import OBSERVATIONS_REQUIRED
 from canlib.transport.elm327_frame_count import (
     MAX_REQUESTABLE_FRAMES,
     CountVerdict,
@@ -34,6 +33,7 @@ from canlib.transport.elm327_frame_count import (
     requestable,
 )
 from canlib.transport.elm327_terminal import Elm327Terminal
+from canlib.uds.frame_counts import OBSERVATIONS_REQUIRED
 from canlib.uds.response import CAT_BUS, CAT_DROP, CAT_NO_DATA
 from tests.support.fakes import QueuedChannel
 

@@ -55,11 +55,11 @@ def run_from_log(args: argparse.Namespace) -> int:
 
 def _import_log(args: argparse.Namespace) -> int:
     from canlib import can_logs
-    from canlib.addressing import resolve_mode
     from canlib.captures import build_manual_session, save_session
     from canlib.ecus import load_ecus
     from canlib.pids import load_pids
     from canlib.states import parse_states
+    from canlib.uds.addressing import resolve_mode
 
     mode = str(resolve_mode(load_pids()))
     if mode not in _NORMAL_ADDRESSING:

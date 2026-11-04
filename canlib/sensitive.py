@@ -146,7 +146,7 @@ def _rx_int(value: Any) -> int | None:
 
 def build_set(pids_data: Mapping[str, Any]) -> SensitiveSet:
     """The sensitive set of one set of definitions (as written: every revision)."""
-    from canlib.addressing import resolve_ecu_address
+    from canlib.uds.addressing import resolve_ecu_address
 
     by_ecu: set[tuple[str, str]] = set()
     by_tx: set[tuple[int, str]] = set()

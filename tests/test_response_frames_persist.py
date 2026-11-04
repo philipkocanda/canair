@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from canlib.frame_counts import FrameCountLedger, frames_for_payload
 from canlib.modes.session import SessionOptions, run_session_guarded
+from canlib.uds.frame_counts import FrameCountLedger, frames_for_payload
 from canlib.yaml_edit.pids import set_response_frames
 from tests.support.fakes import FakeTerminal
 

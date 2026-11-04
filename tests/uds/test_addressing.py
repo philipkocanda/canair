@@ -1,4 +1,4 @@
-"""Tests for canlib.addressing — TX→RX response-address resolution.
+"""Tests for canlib.uds.addressing — TX→RX response-address resolution.
 
 Covers the Phase 2 addressing abstraction: an explicit per-ECU rx_id, a
 profile-level addressing.rx_offset (e.g. the XPeng G6's +0x80), and the
@@ -6,7 +6,9 @@ conventional +0x08 default — plus that the ECU-index/registry builders and the
 RX↔TX lookups all honor it (see plans/2026-07-28-multi-vehicle-support.md).
 """
 
-from canlib.addressing import (
+from canlib.ecus import build_rx_index, build_rx_tx_index, resolve_tx, rx_for_tx
+from canlib.pids import build_ecu_index
+from canlib.uds.addressing import (
     DEFAULT_RX_OFFSET,
     DEFAULT_TESTER_ADDRESS,
     AddressingMode,
@@ -23,8 +25,6 @@ from canlib.addressing import (
     resolve_source_address,
     resolve_target_address,
 )
-from canlib.ecus import build_rx_index, build_rx_tx_index, resolve_tx, rx_for_tx
-from canlib.pids import build_ecu_index
 
 
 class TestResolveRx:

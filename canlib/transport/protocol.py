@@ -23,9 +23,9 @@ from contextlib import AbstractAsyncContextManager
 from typing import Protocol, runtime_checkable
 
 from canlib.transport.stats import TransportStats
+from canlib.uds.frame_counts import FrameCountLedger
 from canlib.uds.response import UdsResponse
 
-from ..frame_counts import FrameCountLedger
 from ..safety import SessionPolicy
 from ..timing import TimingRecorder
 from .functional import FunctionalResult

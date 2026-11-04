@@ -383,7 +383,7 @@ def _normalize_addressing_args(
 
     Raises :class:`EcusEditError` on an unknown mode or out-of-range byte/id.
     """
-    from canlib.addressing import AddressingMode
+    from canlib.uds.addressing import AddressingMode
 
     if mode is not None:
         try:

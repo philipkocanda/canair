@@ -10,9 +10,9 @@ import time
 import can
 import isotp
 
-from canlib.addressing import AddressingMode, EcuAddress, build_isotp_address
 from canlib.transport.isotp_params import build_isotp_params
 from canlib.transport.isotp_stack import _FcAddressStack, build_isotp_stack
+from canlib.uds.addressing import AddressingMode, EcuAddress, build_isotp_address
 
 
 class _FakeBus(can.BusABC):

@@ -13,4 +13,12 @@ re-deriving them:
 * :mod:`~canlib.uds.response` / :mod:`~canlib.uds.parse` / :mod:`~canlib.uds.echo` — the
   parsed-response shape and outcome taxonomy, reading a transport's reply into it, and the
   request echo a reply must repeat.
+* :mod:`~canlib.uds.addressing` — which CAN ids an ECU is reached on, per addressing mode.
+* :mod:`~canlib.uds.frame_counts` — the ledger of how many CAN frames a response occupies.
+
+Belongs: protocol facts and decoding of request/response bytes, with no I/O.
+Not here: reading or writing recordings or definitions (``captures/``, ``ecus/``), user config
+(``config.py``), moving bytes (``transport/``), and deciding what may be sent (``safety``).
+Imports: the standard library and ``core`` only. ``tests/contracts`` pins that it reads no data
+store, config or transport.
 """

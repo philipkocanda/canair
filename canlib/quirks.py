@@ -45,7 +45,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Final
 
-from canlib.addressing import FUNCTIONAL_11BIT_ID
+from canlib.uds.addressing import FUNCTIONAL_11BIT_ID
 from canlib.uds.protocol import KWP
 
 # The Ioniq/HKMC Smart Key Module relay-wake procedure (canlib.modes.skm_wakeup):

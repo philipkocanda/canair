@@ -32,7 +32,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import Any, Final
 
-from ..addressing import (
+from canlib.uds.addressing import (
     DEFAULT_RX_OFFSET,
     FUNCTIONAL_11BIT_ID,
     FUNCTIONAL_29BIT_ID,
@@ -42,6 +42,7 @@ from ..addressing import (
     fixed_29bit_rx,
     is_extended,
 )
+
 from .elm327_commands import RESET_COMMANDS, canonical
 
 # Flow-control modes (`ATFCSM`): 0 = the adapter derives id and data; 1 = the user's

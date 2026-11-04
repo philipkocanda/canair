@@ -312,7 +312,7 @@ def functional_block(
     reaches the bus, so it is judged without it. ``--unsafe`` cannot lift this
     refusal; an exact grant (:meth:`SessionPolicy.granting`) can.
     """
-    from .addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
+    from canlib.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 
     if tx_id not in (FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID):
         return None

@@ -14,9 +14,9 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, NamedTuple
 
-from canlib.addressing import AddressingMode, physical_request_id
 from canlib.captures.types import CaptureRecord, RespondingEntry, ScanResults
 from canlib.transport.functional import FunctionalResult
+from canlib.uds.addressing import AddressingMode, physical_request_id
 from canlib.uds.echo import request_echo
 from canlib.uds.nrc import is_response_pending
 from canlib.uds.parse import parse_uds_response

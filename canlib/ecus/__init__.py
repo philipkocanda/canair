@@ -4,7 +4,7 @@ The registry is derived from the profile's per-ECU files under ``ecus/`` (each
 keyed by the ECU short name, carrying a ``tx_id`` and an ``identity:`` block).
 The CAN *response* address is resolved per ECU (explicit ``rx_id`` → the
 profile's ``addressing.rx_offset`` → the conventional ``TX + 0x08``) by
-:mod:`canlib.addressing` and stored as ``rx_id`` on each registry entry. Capture
+:mod:`canlib.uds.addressing` and stored as ``rx_id`` on each registry entry. Capture
 files reference the **response** address as a hex string (e.g. ``"0x7EC"``); the
 helpers here convert between that reference and the canonical ECU short name.
 """
@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
-from canlib.addressing import (
+from canlib.uds.addressing import (
     DEFAULT_MODE,
     DEFAULT_RX_OFFSET,
     AddressingMode,
@@ -67,7 +67,7 @@ class EcuRegistryEntry(_EcuIdentity):
 
     ``name`` (the canonical short name — the ECU file's top key), the resolved
     CAN response address ``rx_id``, the resolved addressing ``mode``, and the full
-    resolved ``address`` (:class:`~canlib.addressing.EcuAddress`) are always
+    resolved ``address`` (:class:`~canlib.uds.addressing.EcuAddress`) are always
     present; the identity fields from :class:`_EcuIdentity` are optional. The
     registry is keyed by TX id, so ``tx_id`` itself is the dict key rather than a
     field here.
@@ -217,7 +217,7 @@ def rx_for_tx(
 
     Uses the ECU registry's resolved ``rx_id`` (which already honors a per-ECU
     ``rx_id`` override or the profile's ``addressing.rx_offset``) when the ECU
-    is known; otherwise falls back to :func:`~canlib.addressing.resolve_rx` — the
+    is known; otherwise falls back to :func:`~canlib.uds.addressing.resolve_rx` — the
     escape hatch for an address not (yet) in the registry, e.g. an unregistered
     responder seen during discovery or a ``raw`` read. That fallback applies the
     given ``rx_offset``/``mode``, or the active profile's ``addressing:`` block

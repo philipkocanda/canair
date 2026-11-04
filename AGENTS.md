@@ -1007,7 +1007,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     byte-swap, no offset), `normal_extended_11bit` (an 11-bit header plus a per-ECU `target_address`
     byte in the payload — BMW `0x6F1`/PSA), `extended_29bit`. `rx_offset` sets the 11-bit response
     (`tx_id + rx_offset`, default `0x08`; may be **negative** — PSA `-0x20`). Resolver
-    `canlib/addressing.py`
+    `canlib/uds/addressing.py`
     (`resolve_mode`/`resolve_rx`/`resolve_ecu_address`/`AddressBook`/`build_isotp_address`), with
     the flow-control address override in `canlib/transport/isotp_stack.py` (raw path) and the
     ELM327 receive filter/flow control in `canlib/transport/elm327_addressing.py`.
@@ -1204,7 +1204,7 @@ back to the PID's `response_frames:` in `ecus/` and re-seeded on the next connec
 makes a cold first read fast instead of paying one plain read per PID to re-learn. Plan:
 `plans/2026-08-13-persisted-response-frame-counts.md`.
 
-- **`canlib/frame_counts.py`** is the transport-neutral ledger (`FrameCountLedger`,
+- **`canlib/uds/frame_counts.py`** is the transport-neutral ledger (`FrameCountLedger`,
   `FrameCountRecord`, `frames_for_payload`, and `CountKey` itself). Evidence has two grades:
   `confirm()` (a digit was *held* — a direct test of the count, so `CONFIRMATIONS_REQUIRED = 1`) and
   `observe()` (a count merely seen, needing `OBSERVATIONS_REQUIRED = 3` agreeing sightings). **Any

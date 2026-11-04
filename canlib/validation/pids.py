@@ -522,7 +522,7 @@ def _validate_ecu_entry(
 
     # Resolve this ECU's addressing mode (per-ECU addressing.mode → profile → 11-bit)
     # to pick the valid arbitration-id width: 11-bit (0x7FF) vs 29-bit (0x1FFFFFFF).
-    from canlib.addressing import is_extended, resolve_mode
+    from canlib.uds.addressing import is_extended, resolve_mode
 
     _validate_ecu_addressing(ecu_def.get("addressing"), label, errors)
     mode = resolve_mode(profile_meta, ecu_def)
@@ -1437,8 +1437,8 @@ _ECU_ADDRESSING_FIELDS: set[str] = {"mode", "target_address", "source_address", 
 
 
 def _valid_addressing_modes() -> set[str]:
-    """The addressing-mode vocabulary, sourced from canlib.addressing (no drift)."""
-    from canlib.addressing import AddressingMode
+    """The addressing-mode vocabulary, sourced from canlib.uds.addressing (no drift)."""
+    from canlib.uds.addressing import AddressingMode
 
     return {m.value for m in AddressingMode}
 

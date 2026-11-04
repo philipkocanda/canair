@@ -44,8 +44,8 @@ def legacy_rx_aliases(ecus) -> dict[int, int]:
     the ECU with itself. An address that is some *other* ECU's real response address is
     never folded — that would hide exactly the misfile this check exists for.
     """
-    from canlib.addressing import DEFAULT_RX_OFFSET
     from canlib.ecus import rx_for_tx
+    from canlib.uds.addressing import DEFAULT_RX_OFFSET
 
     current = {rx_for_tx(tx, ecus) for tx in ecus}
     out: dict[int, int] = {}

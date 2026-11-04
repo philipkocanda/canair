@@ -21,8 +21,8 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 
-from canlib.frame_counts import CountKey, FrameCountLedger
 from canlib.pids import pid_status
+from canlib.uds.frame_counts import CountKey, FrameCountLedger
 
 FIELD = "response_frames"
 

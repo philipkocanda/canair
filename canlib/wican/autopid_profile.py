@@ -18,7 +18,6 @@ from __future__ import annotations
 from collections import OrderedDict
 from dataclasses import dataclass, field
 
-from canlib.addressing import EcuAddress, resolve_ecu_address
 from canlib.pids import pid_ships
 from canlib.response_frames import stored_count
 from canlib.sensitive import param_sensitive
@@ -30,6 +29,7 @@ from canlib.transport.elm327_addressing import (
     target_for,
 )
 from canlib.transport.elm327_frame_count import annotate_request, requestable
+from canlib.uds.addressing import EcuAddress, resolve_ecu_address
 from canlib.wican.autopid_class import autopid_class
 from canlib.wican.autopid_send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
 

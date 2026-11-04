@@ -1,6 +1,6 @@
 """The transport-neutral frame-count ledger and its profile bridge.
 
-Covers :mod:`canlib.frame_counts` (how evidence accumulates into a confirmed
+Covers :mod:`canlib.uds.frame_counts` (how evidence accumulates into a confirmed
 count) and :mod:`canlib.response_frames` (how a confirmed count becomes a
 ``response_frames:`` edit, and how a stored one seeds a session).
 
@@ -14,13 +14,13 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.frame_counts import (
+from canlib.response_frames import FIELD, resolve_edits, seed_counts, variable_length_keys
+from canlib.uds.frame_counts import (
     CONFIRMATIONS_REQUIRED,
     OBSERVATIONS_REQUIRED,
     FrameCountLedger,
     frames_for_payload,
 )
-from canlib.response_frames import FIELD, resolve_edits, seed_counts, variable_length_keys
 
 _KEY = (0x7E4, "2101")
 _OTHER = (0x7E4, "2105")

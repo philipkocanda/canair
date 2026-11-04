@@ -142,11 +142,11 @@ def _discover_addressing(prof):
     names against (a ``--dir`` outside any profile), which the CLI reports as an
     error rather than a traceback.
     """
-    from canlib.addressing import resolve_mode, resolve_rx_offset
     from canlib.ecus import load_ecus
     from canlib.migrations.discover import Addressing
     from canlib.pids import load_pids
     from canlib.profile import ProfileError
+    from canlib.uds.addressing import resolve_mode, resolve_rx_offset
 
     if not prof.ecus_dir.is_dir():
         raise ProfileError(

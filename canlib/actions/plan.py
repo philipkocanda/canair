@@ -21,7 +21,7 @@ class PlannedRequest:
 
 def functional_id(pids_data: dict) -> int:
     """The functional request id for the profile's addressing mode."""
-    from canlib.addressing import functional_request_id, resolve_mode
+    from canlib.uds.addressing import functional_request_id, resolve_mode
 
     return functional_request_id(resolve_mode(pids_data))
 

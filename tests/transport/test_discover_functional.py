@@ -15,7 +15,6 @@ import can
 import pytest
 
 from canlib import profile
-from canlib.addressing import EcuAddress, physical_request_id
 from canlib.commands import discover as discover_cmd
 from canlib.modes.functional_sweep import classify_round, group_by_bus, round_to_capture
 from canlib.pids import clear_cache
@@ -31,6 +30,7 @@ from canlib.transport.functional import (
     single_frame,
 )
 from canlib.transport.functional_raw import raw_functional_exchange
+from canlib.uds.addressing import EcuAddress, physical_request_id
 from tests.support.fakes import FakeTerminal, QueuedChannel
 
 # --------------------------------------------------------------------------- allow-list
@@ -297,7 +297,7 @@ class TestRawExchange:
 
 
 def _fixed_29():
-    from canlib.addressing import AddressingMode
+    from canlib.uds.addressing import AddressingMode
 
     return AddressingMode.NORMAL_FIXED_29BIT
 

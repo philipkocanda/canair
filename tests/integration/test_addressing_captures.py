@@ -13,8 +13,8 @@ import re
 import pytest
 
 from canlib import profile
-from canlib.addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET, AddressingMode
 from canlib.pids import clear_cache
+from canlib.uds.addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET, AddressingMode
 from tests.support.fakes import FakeTerminal, ok
 
 FIXED_29 = (

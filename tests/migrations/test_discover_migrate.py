@@ -12,9 +12,9 @@ import json
 
 import pytest
 
-from canlib.addressing import DEFAULT_MODE
 from canlib.captures import save_session
 from canlib.migrations.discover import Addressing, infer_tx, migrate_dir, repair_doc
+from canlib.uds.addressing import DEFAULT_MODE
 
 # A +0x20 profile, as on the Nissan Leaf ZE1, with two registered ECUs.
 ECUS = {
@@ -196,7 +196,7 @@ class TestRepairEdgeCases:
         assert "tx" not in _responding(doc)[0]
 
     def test_a_legacy_29bit_responder(self):
-        from canlib.addressing import AddressingMode
+        from canlib.uds.addressing import AddressingMode
 
         doc = _doc([{"rx": "0x18DA10F9", "response": "positive"}])
         fixed = Addressing({}, 0x08, AddressingMode.NORMAL_FIXED_29BIT)

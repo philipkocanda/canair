@@ -14,10 +14,10 @@ from pathlib import Path
 from typing import Any, Literal, TypedDict, get_args
 
 from canlib.actuation import default_release, normalize_request
-from canlib.addressing import AddressingMode, EcuAddress, resolve_ecu_address
 from canlib.core import yaml_io
 from canlib.dtc.definitions import effective_entries as _effective_dtc_entries
 from canlib.signal_category import category_of
+from canlib.uds.addressing import AddressingMode, EcuAddress, resolve_ecu_address
 from canlib.uds.multi_did import resolve_multi_did_max
 from canlib.uds.protocol import DiagProtocol, classify_protocol
 
@@ -176,7 +176,7 @@ class EcuIndexEntry(TypedDict):
     raw transport never recomputes ``tx + 8``. ``mode`` is the resolved CAN
     addressing mode (per-ECU ``addressing.mode`` → profile → 11-bit), which shapes
     the ISO-TP stack the raw transport builds for this ECU. ``address`` is the
-    full resolved :class:`~canlib.addressing.EcuAddress` (mode + RX + any extended
+    full resolved :class:`~canlib.uds.addressing.EcuAddress` (mode + RX + any extended
     target/source bytes + flow-control override) the transport builds the stack
     from; ``rx_id``/``mode`` are surfaced flat for the many callers that only need
     those two.

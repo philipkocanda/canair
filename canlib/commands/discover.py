@@ -154,11 +154,11 @@ def functional_args_error(args) -> str | None:
 
 def _profile_error() -> str | None:
     """Why the profile rules out a functional sweep (its addressing or CAN-FD), or None."""
-    from canlib.addressing import AddressingMode, resolve_mode
     from canlib.pids import load_pids
     from canlib.profile import ProfileError
     from canlib.transport.functional import CAN_FD_REFUSAL, classic_can
     from canlib.transport.isotp_params import build_isotp_params
+    from canlib.uds.addressing import AddressingMode, resolve_mode
 
     try:
         pids_data = load_pids()

@@ -16,14 +16,14 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from canlib.addressing import (
+from canlib.transport.elm327_addressing import is_functional_id
+from canlib.uds.addressing import (
     AddressingMode,
     is_extended,
     resolve_ecu_address,
     resolve_mode,
     shared_tx_ids,
 )
-from canlib.transport.elm327_addressing import is_functional_id
 
 # Modes in which several ECUs share one request id by design.
 _EXTENDED_ADDRESSING_MODES = frozenset(

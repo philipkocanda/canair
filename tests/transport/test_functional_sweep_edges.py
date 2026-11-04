@@ -12,7 +12,6 @@ import contextlib
 import can
 import pytest
 
-from canlib.addressing import AddressBook, EcuAddress
 from canlib.modes.functional_sweep import classify_round
 from canlib.transport.elm327_addressing import AUTO
 from canlib.transport.elm327_functional import elm_functional_exchange
@@ -26,6 +25,7 @@ from canlib.transport.functional import (
 )
 from canlib.transport.functional_raw import raw_functional_exchange
 from canlib.transport.stats import TransportStats
+from canlib.uds.addressing import AddressBook, EcuAddress
 
 # --------------------------------------------------------------------------- collector
 
@@ -149,7 +149,7 @@ class _RawTerminalStub:
     """Just the state ``RawTerminal._functional_fc_target`` reads."""
 
     def __init__(self, addr_map, stacks):
-        from canlib.addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET
+        from canlib.uds.addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET
 
         self.addr_map = addr_map
         self._stacks = dict.fromkeys(stacks)

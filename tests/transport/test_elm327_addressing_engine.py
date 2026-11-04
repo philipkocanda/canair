@@ -12,7 +12,6 @@ import asyncio
 
 import pytest
 
-from canlib.addressing import AddressBook, AddressingMode, EcuAddress
 from canlib.transport.elm327_addressing import IDLE_FORGET_SECONDS
 from canlib.transport.elm327_terminal import Elm327Terminal
 from canlib.transport.errors import (
@@ -20,6 +19,7 @@ from canlib.transport.errors import (
     describe_transport_error,
     is_transport_error,
 )
+from canlib.uds.addressing import AddressBook, AddressingMode, EcuAddress
 
 LBC = EcuAddress(0x79B, 0x7BB)
 BMS = EcuAddress(0x7E4, 0x7EC)

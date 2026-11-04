@@ -92,8 +92,8 @@ def functional_request_bytes(tx_id: int, request: str) -> bytes:
             (:func:`canlib.safety.check_functional_request`).
         ValueError: ``tx_id`` is not a functional id.
     """
-    from canlib.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
     from canlib.safety import SafetyBlocked, check_functional_request
+    from canlib.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 
     if tx_id not in (FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID):
         raise ValueError(f"0x{tx_id:X} is not a functional request id")

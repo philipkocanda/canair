@@ -391,7 +391,7 @@ class TestRawTerminalRxResolution:
         return seen
 
     def test_addr_map_used(self, capture_addr):
-        from canlib.addressing import EcuAddress
+        from canlib.uds.addressing import EcuAddress
 
         # Non-standard mapping 0x704 -> 0x784 (XPeng), and a fallback offset for
         # an address not in the map.
@@ -414,7 +414,7 @@ class TestRawTerminalModeResolution:
 
     @pytest.fixture
     def capture_mode(self, monkeypatch):
-        from canlib.addressing import AddressingMode
+        from canlib.uds.addressing import AddressingMode
 
         seen: list[tuple[int, int, AddressingMode]] = []
 
@@ -438,7 +438,7 @@ class TestRawTerminalModeResolution:
         return seen
 
     def test_per_ecu_addr_map(self, capture_mode):
-        from canlib.addressing import AddressingMode, EcuAddress
+        from canlib.uds.addressing import AddressingMode, EcuAddress
 
         t = raw_terminal.RawTerminal(
             "h",
@@ -454,7 +454,7 @@ class TestRawTerminalModeResolution:
         assert capture_mode[0][2] == AddressingMode.NORMAL_FIXED_29BIT
 
     def test_29bit_rx_derived_when_unmapped(self, capture_mode):
-        from canlib.addressing import AddressingMode
+        from canlib.uds.addressing import AddressingMode
 
         # No addr_map entry: RX for fixed-29 is the byte-swapped id.
         t = raw_terminal.RawTerminal("h", 3333, 500000, mode=AddressingMode.NORMAL_FIXED_29BIT)
@@ -491,7 +491,7 @@ class TestRawTerminalFcOverride:
         return seen
 
     def test_fc_id_threaded_from_addr_map(self, capture_fc):
-        from canlib.addressing import AddressingMode, EcuAddress
+        from canlib.uds.addressing import AddressingMode, EcuAddress
 
         t = raw_terminal.RawTerminal(
             "h",

@@ -24,11 +24,11 @@ import isotp
 from canlib.core.eventlog import log_event
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
+from canlib.uds.addressing import DEFAULT_RX_OFFSET, EcuAddress, build_isotp_address
 from canlib.uds.nrc import is_response_pending
 from canlib.uds.payload import payload_echo_mismatch
 from canlib.uds.response import CAT_STALE
 
-from ..addressing import DEFAULT_RX_OFFSET, EcuAddress, build_isotp_address
 from ..safety import SafetyBlocked, SessionPolicy, check_command_safety
 from ..timing import TimingRecorder
 from .isotp_stack import build_isotp_stack
@@ -39,9 +39,9 @@ from .isotp_stack import build_isotp_stack
 logging.getLogger("isotp").setLevel(logging.ERROR)
 
 # Conventional 11-bit UDS response offset (0x770->0x778, 0x7E4->0x7EC). The
-# canonical source is canlib.addressing; kept here as the default for callers
+# canonical source is canlib.uds.addressing; kept here as the default for callers
 # that pass explicit (tx, rx) pairs. Per-ECU / per-profile overrides are resolved
-# upstream (see canlib.addressing.resolve_rx) and fed in as explicit rx addresses.
+# upstream (see canlib.uds.addressing.resolve_rx) and fed in as explicit rx addresses.
 RESPONSE_OFFSET = DEFAULT_RX_OFFSET
 
 

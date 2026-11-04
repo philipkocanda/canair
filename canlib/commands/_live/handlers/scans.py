@@ -215,8 +215,8 @@ async def handle_sessions_scan(
 
 
 async def handle_discover(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    from canlib.addressing import is_extended, resolve_mode
     from canlib.modes.discover import DEFAULT_TESTER_ADDRESS
+    from canlib.uds.addressing import is_extended, resolve_mode
 
     if getattr(args, "functional", False):
         from canlib.modes.discover_functional import DEFAULT_REQUEST, mode_discover_functional

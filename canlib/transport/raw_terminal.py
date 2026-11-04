@@ -29,11 +29,7 @@ import isotp
 
 from canlib.transport.ecu_log import log_response
 from canlib.transport.stats import TransportStats
-from canlib.uds.nrc import is_response_pending
-from canlib.uds.parse import parse_uds_response
-from canlib.uds.response import UdsResponse
-
-from ..addressing import (
+from canlib.uds.addressing import (
     DEFAULT_MODE,
     DEFAULT_RX_OFFSET,
     AddressingMode,
@@ -42,7 +38,11 @@ from ..addressing import (
     physical_request_id,
     resolve_rx,
 )
-from ..frame_counts import FrameCountLedger, frames_for_payload
+from canlib.uds.frame_counts import FrameCountLedger, frames_for_payload
+from canlib.uds.nrc import is_response_pending
+from canlib.uds.parse import parse_uds_response
+from canlib.uds.response import UdsResponse
+
 from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
 from . import keepalive

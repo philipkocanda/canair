@@ -26,10 +26,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from canlib.addressing import EcuAddress
 from canlib.transport import uds_raw
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.uds_raw import _MAX_OWED_RESPONSES, RawUdsClient
+from canlib.uds.addressing import EcuAddress
 
 
 class QueuedStack:

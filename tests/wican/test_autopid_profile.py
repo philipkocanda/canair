@@ -7,9 +7,9 @@ conversion and the device→grouped normalization round-trip.
 
 import pytest
 
-from canlib.addressing import AddressBook
 from canlib.commands.wican import show_diff
 from canlib.transport.elm327_addressing import AdapterState, target_in
+from canlib.uds.addressing import AddressBook
 from canlib.wican.autopid_profile import (
     InvalidSendToError,
     generate_profile,

@@ -42,10 +42,10 @@ from canlib.core.eventlog import log_event
 from canlib.transport.ecu_log import log_command, log_response
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
+from canlib.uds.addressing import AddressBook
 from canlib.uds.parse import compact, parse_uds_response
 from canlib.uds.response import CAT_DECODE, CAT_STALE, UdsResponse
 
-from ..addressing import AddressBook
 from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
 from .channel import Channel
