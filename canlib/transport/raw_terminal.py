@@ -45,6 +45,7 @@ from ..frame_counts import FrameCountLedger, frames_for_payload
 from ..log import log_response
 from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
+from . import keepalive
 from .functional import (
     CAN_FD_REFUSAL,
     DEFAULT_WINDOW_S,
@@ -282,7 +283,10 @@ class RawTerminal:
                 while True:
                     await asyncio.sleep(2.0)
                     with _suppress():
-                        await self._exchange_tx(tx, bytes.fromhex("3E00"), 1.5)
+                        reply = await self._exchange_tx(tx, bytes.fromhex("3E00"), 1.5)
+                        if keepalive.unsupported_bytes(reply):
+                            keepalive.report_unsupported(tx, transport=self.diag.transport)
+                            return
             except asyncio.CancelledError:
                 pass
 

@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING
 
 from canlib.uds.response import UdsResponse
 
+from . import keepalive
+
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from .elm327_terminal import Elm327Terminal
 
@@ -125,6 +127,12 @@ async def _tester_present_loop(terminal: Elm327Terminal) -> None:
                 if terminal.verbose:
                     state = "ok" if resp.get("ok") else resp.get("error", "failed")
                     print(f"  [tester] 3E00 keepalive: {state}", file=sys.stderr)
+                if keepalive.unsupported(resp):
+                    # No TesterPresent in any session: the loop has nothing left to do.
+                    header = terminal._cur_header
+                    if header is not None:
+                        keepalive.report_unsupported(header, transport=terminal.diag.transport)
+                    return
             except ConnectionError:
                 # The pipe could not be realigned; the session is done for. Let the
                 # task end so the caller's reconnect path takes over rather than

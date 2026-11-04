@@ -28,6 +28,7 @@ Usage:
 import asyncio
 import time
 
+from .transport import keepalive
 from .transport.protocol import Terminal
 from .wake import WakePlan
 
@@ -47,6 +48,9 @@ class SessionManager:
         # monitor TUI status bar / session-type picker).
         self._session_modes: dict[int, str] = {}
         self._bg_task: asyncio.Task | None = None
+        # ECUs that answered TesterPresent with serviceNotSupported: asking again is wasted
+        # bus time (see canlib.transport.keepalive). Their session stays tracked.
+        self._no_keepalive: set[int] = set()
         # Seconds spent sending keepalives, inline or from the background task. The
         # live monitor takes it out of an ECU's poll cost: on a serial ELM327 pipe a
         # keepalive to another ECU is not time the polled ECU held everyone up.
@@ -220,6 +224,9 @@ class SessionManager:
             raise
         except Exception:
             resp = {}
+        if keepalive.unsupported(resp) and tx_id not in self._no_keepalive:
+            self._no_keepalive.add(tx_id)
+            keepalive.report_unsupported(tx_id, transport=self.terminal.diag.transport)
         # Refresh regardless of the reply: the *request* went out, so the ECU's S3
         # timer was reset either way, and this timestamp only rate-limits how often
         # keepalive_stale re-sends. Gating it on success would hammer an ECU that
@@ -249,14 +256,19 @@ class SessionManager:
             threshold: Seconds since last keepalive before a session is considered stale.
         """
         now = time.monotonic()
-        stale = [tx for tx, ts in self._sessions.items() if now - ts > threshold]
+        stale = [
+            tx
+            for tx, ts in self._sessions.items()
+            if now - ts > threshold and tx not in self._no_keepalive
+        ]
         for tx_id in stale:
             await self.send_keepalive(tx_id)
 
     async def keepalive_all(self):
         """Send keepalives to ALL active sessions (regardless of staleness)."""
         for tx_id in list(self._sessions.keys()):
-            await self.send_keepalive(tx_id)
+            if tx_id not in self._no_keepalive:
+                await self.send_keepalive(tx_id)
 
     def start_background_keepalive(self, interval: float = 2.0) -> asyncio.Task:
         """Start a background task that sends keepalives to all tracked sessions.

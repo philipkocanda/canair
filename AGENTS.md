@@ -149,7 +149,9 @@ and **`g`/`G` address the view's primary axis**.
   suffix (`VCU:22` = every `22xxxx`) in live reads and captures alike. Name OBD-II mode 01/09 with
   the explicit `SERVICE/ID` form (`BMS:01/0D` sends `010D`).
   **TesterPresent keepalives are automatic — there is no `tester-present` command/flag**; opening a
-  session keeps it alive with idle-aware `3E00` (shared by UDS and KWP2000). Use `--reboot` to
+  session keeps it alive with idle-aware `3E00` (shared by UDS and KWP2000). An ECU that answers
+  it with NRC 0x11 (the Ioniq's BMS) is not asked again: every sender goes through
+  `canlib/transport/keepalive.py`, and NRC 0x7F/0x80/0x22 do not stop it. Use `--reboot` to
   restore AutoPID after a WebSocket session. `--verbose` is for debugging canair itself.
 - **`canair monitor`** (alias `mon`) — Live refreshing view; same query steps as `read`. Recording
   (`--save`/`--label`/`--state`/`--notes`) and the keep-modes live **here, not on `read`**. On a TTY

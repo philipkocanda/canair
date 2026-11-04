@@ -15,6 +15,10 @@ from typing import Final
 from canlib.uds.protocol import KWP, UDS, DiagProtocol
 from canlib.uds.services import NEGATIVE_RESPONSE_SID
 
+#: serviceNotSupported: the ECU has no such service at all, in any session. Unlike 0x7F and
+#: 0x80 ("not in this session"), it never changes: a tester can stop asking.
+NRC_SERVICE_NOT_SUPPORTED: Final = 0x11
+
 #: requestCorrectlyReceivedResponsePending: an interim "still working" answer, the same
 #: code on UDS and KWP2000. The ECU sends its real answer later.
 NRC_RESPONSE_PENDING: Final = 0x78

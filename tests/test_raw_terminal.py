@@ -1,5 +1,7 @@
 """Tests for RawTerminal (WiCANTerminal-compatible raw-CAN adapter), fake ISO-TP."""
 
+import asyncio
+
 import pytest
 
 from canlib.transport import raw_terminal
@@ -254,6 +256,42 @@ class TestRawTerminalSession:
         assert ok is True
         if task:
             task.cancel()
+        await t.close()
+
+
+class TestRawTesterPresentLoop:
+    """The keepalive loop ends when the ECU answers TesterPresent with NRC 0x11."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("reply", "ends"), [("7F3E11", True), ("7F3E7F", False), ("7E00", False)]
+    )
+    async def test_the_loop_ends_only_on_service_not_supported(
+        self,
+        make_terminal,
+        monkeypatch,
+        reply,
+        ends,
+    ):
+        t = make_terminal(
+            {
+                (0x7E4, bytes.fromhex("1081")): bytes.fromhex("50810032"),
+                (0x7E4, bytes.fromhex("3E00")): bytes.fromhex(reply),
+            }
+        )
+        real_sleep = asyncio.sleep
+
+        async def quick(_seconds):
+            await real_sleep(0)
+
+        monkeypatch.setattr(raw_terminal.asyncio, "sleep", quick)
+        await t.set_header(0x7E4)
+        _, task = await t.enter_extended_session(mode="81")
+        assert task is not None
+        for _ in range(50):
+            await real_sleep(0.001)
+        assert task.done() is ends
+        task.cancel()
         await t.close()
 
 
