@@ -14,11 +14,11 @@ import subprocess
 from pathlib import Path
 
 from canlib import contribute as C
-from canlib import contribute_source as S
 from canlib.captures import io as capture_io
 from canlib.commands import _contribute_gates as gates
 from canlib.commands import _contribute_report as report
 from canlib.commands import contribute as cmd
+from canlib.contribute import source as S
 from canlib.profile import Profile
 
 _ONE = {"sessions": [{"date": "2026-01-01", "captures": [{"time": "10:00", "pid": "2101"}]}]}

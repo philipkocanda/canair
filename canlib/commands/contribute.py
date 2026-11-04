@@ -17,7 +17,7 @@ module owns the CLI surface and the actions; its collaborators own the rest:
 * :mod:`canlib.commands._contribute_report` — the human/``--json`` duality every
   outcome is reported through.
 * :mod:`canlib.contribute` — the git/gh orchestration (device-free testable).
-* :mod:`canlib.contribute_source` — which of the source checkout's changes the
+* :mod:`canlib.contribute.source` — which of the source checkout's changes the
   contribution holds, so they can be dropped once the PR is open.
 * :mod:`canlib.privacy.pii` — the privacy scan the PII gate runs.
 
@@ -182,7 +182,7 @@ class _Contribution:
     rollback: list[tuple[str, int]] = field(default_factory=list)
     replaced: list[C.CaptureReplacement] = field(default_factory=list)
     findings: list[Any] = field(default_factory=list)
-    summary: Any = None  # canlib.contribute_summary.ContributionSummary
+    summary: Any = None  # canlib.contribute.summary.ContributionSummary
 
     @property
     def target(self) -> str:
@@ -361,7 +361,7 @@ def _stage_contribution(run_: _Contribution) -> int | None:
 
 def _summarize(run_: _Contribution):
     """What the staged contribution adds, for the PR body and ``--json``."""
-    from .. import contribute_summary as S
+    from canlib.contribute import summary as S
 
     try:
         from ..ecus import build_rx_index
@@ -385,8 +385,8 @@ def _summarize(run_: _Contribution):
 
 def _pr_body(run_: _Contribution) -> str:
     """The PR body: ``--body`` as given, else the generated summary (+ logs)."""
-    from .. import contribute_logs as L
-    from .. import contribute_summary as S
+    from canlib.contribute import logs as L
+    from canlib.contribute import summary as S
 
     if run_.args.body:
         return run_.args.body
@@ -651,11 +651,11 @@ def _tidy_source(run_: _Contribution) -> dict[str, Any] | None:
 
     A profile recorded in a canair checkout keeps those changes uncommitted on its
     branch, so pulling the merged PR would conflict with them. Only changes the
-    workspace's ``HEAD`` holds exactly are offered (:mod:`canlib.contribute_source`);
+    workspace's ``HEAD`` holds exactly are offered (:mod:`canlib.contribute.source`);
     the rest are listed and left alone. Asked interactively, kept under ``--yes`` or
     ``--json`` unless ``--discard-local`` says otherwise.
     """
-    from .. import contribute_source as src
+    from canlib.contribute import source as src
 
     rep = run_.rep
     changes = src.find_changes(run_.pre, run_.profile.root, run_.profile.name, run_.workspace)

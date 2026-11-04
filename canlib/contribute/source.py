@@ -24,8 +24,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import contribute as C
-from .profile import members_by_role
+from canlib import contribute as C
+from canlib.profile import members_by_role
 
 _CAPTURE_MEMBER = members_by_role("evidence")[0].name
 
@@ -144,8 +144,8 @@ def _is_capture_log(path: str) -> bool:
 
 def _capture_log_held(git: str, workspace: Path, ref: str, path: str, src: Path) -> bool:
     """Whether the ref's capture log already has every session of ``src`` as written."""
-    from .captures.io import load_capture_file, parse_capture_text
-    from .captures.merge import overlay
+    from canlib.captures.io import load_capture_file, parse_capture_text
+    from canlib.captures.merge import overlay
 
     theirs = C._run([git, "-C", str(workspace), "show", f"{ref}:{path}"])
     if not theirs.ok:

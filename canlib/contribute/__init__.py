@@ -1,31 +1,27 @@
 """Orchestration for ``canair contribute`` — one-command profile pull requests.
 
-Turning a reverse-engineered profile into an upstream contribution normally
-means the "fork dance": fork the repo on GitHub, clone it, branch, copy the
-profile in, commit, push, open a PR. That is a lot to ask of a non-git-savvy
-contributor. This module automates the whole thing via the GitHub CLI (``gh``),
-which also handles authentication (a friendly browser/device-flow login).
+Turning a profile into an upstream contribution normally means the "fork dance": fork, clone,
+branch, copy the profile in, commit, push, open a PR. This module automates it via the GitHub
+CLI (``gh``), which also handles authentication.
 
 It adapts to the contributor's access to the upstream repo:
 
-* **No push access** (the common case) — fork the repo under the user's account,
-  clone the fork, push a branch there, and open a cross-fork PR.
-* **Push access** (the maintainer / a collaborator, or the repo owner who
-  *cannot* fork their own repo) — skip forking entirely: clone the upstream repo
-  directly, push a branch to it, and open a same-repo PR.
+* **No push access** (the common case) — fork the repo, clone the fork, push a branch there,
+  and open a cross-fork PR.
+* **Push access** (a maintainer, or the owner who *cannot* fork their own repo) — clone the
+  upstream repo directly, push a branch to it, and open a same-repo PR.
 
-Crucially, it does **not** matter where the source profile lives — bundled in
-the repo, in ``~/.config/canair/profiles/``, or at an arbitrary ``--path``. The
-destination is always ``profiles/<name>/`` inside a checkout of the upstream repo
-(a fork or the repo itself), so the profile is simply **copied** in and git
-computes the diff. That single indirection makes the source location irrelevant
-and handles both a brand-new profile (an added directory) and edits to an
-existing bundled profile (a diff) uniformly.
+It does **not** matter where the source profile lives (bundled, in ``~/.config/canair/profiles/``
+or at a ``--path``): the destination is always ``profiles/<name>/`` in a checkout of the upstream
+repo, so the profile is **copied** in and git computes the diff, for a new profile and an edit.
 
-The heavy lifting (``git``/``gh`` invocations) goes through the module-level
-:func:`_run` so tests can drive the flow with a fake runner and no network. The
-command layer (``canlib.commands.contribute``) owns the user interaction; this
-module stays pure orchestration.
+The heavy lifting (``git``/``gh`` invocations) goes through the module-level :func:`_run`, so
+tests drive the flow with a fake runner and no network.
+
+Belongs: the git/gh orchestration, the source-checkout clean-up (``source``), the log scrub
+(``logs``) and the PR summary (``summary``).
+Not here: user interaction and the pre-flight gates (``commands/contribute.py`` and its helpers).
+Imports: ``profile``, ``privacy``, ``captures``, ``config``, ``install`` and ``core``.
 """
 
 from __future__ import annotations
@@ -42,8 +38,7 @@ from pathlib import Path
 from canlib.captures.merge import SessionReplacement
 from canlib.core.paths import GITHUB_REPO as UPSTREAM_REPO
 from canlib.privacy.sensitive import SensitiveSet
-
-from .profile import member_names, members_by_role
+from canlib.profile import member_names, members_by_role
 
 UPSTREAM_URL = f"https://github.com/{UPSTREAM_REPO}.git"
 UPSTREAM_OWNER = UPSTREAM_REPO.split("/")[0]

@@ -47,7 +47,7 @@ From the interface at the top to the leaf at the bottom.
 | computes over captures or definitions, with no device | `analysis/` | `analysis/` |
 | parses a selector or a query step | `query/` | `query/` |
 | reads or writes a format canair does not own | `interop/` | `interop/` |
-| opens or updates the upstream PR | `contribute/` | `contribute*.py` |
+| opens or updates the upstream PR | `contribute/` | `contribute/` |
 | masks, withholds or scrubs data | `privacy/` | `privacy/` |
 | reads or writes user config or the device registry | `config/` | `config/` |
 | reports the install, version or updates | `install/` | `install/` |

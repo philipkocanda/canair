@@ -2,10 +2,6 @@
   "root_modules": [
     "ansi",
     "cli",
-    "contribute",
-    "contribute_logs",
-    "contribute_source",
-    "contribute_summary",
     "first_run",
     "formatting",
     "grid_prompt",
@@ -42,7 +38,7 @@
     "canlib.commands.states": 637,
     "canlib.commands.wican": 873,
     "canlib.config": 554,
-    "canlib.contribute": 940,
+    "canlib.contribute": 935,
     "canlib.device.lock": 581,
     "canlib.ecus": 502,
     "canlib.ecus.pids": 763,
@@ -98,7 +94,6 @@
   "flat_tests": [
     "test_ansi.py",
     "test_ansi_gating.py",
-    "test_contribute_summary.py",
     "test_first_run.py",
     "test_formatting.py",
     "test_grid_prompt.py",

@@ -7,8 +7,8 @@ import time
 
 import pytest
 
-from canlib import contribute_logs as L
-from canlib import contribute_summary as S
+from canlib.contribute import logs as L
+from canlib.contribute import summary as S
 
 
 @pytest.fixture

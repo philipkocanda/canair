@@ -748,7 +748,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   when the profile sits at `profiles/<name>` of a git checkout, its uncommitted changes that the
   workspace's `HEAD` holds exactly are backed up and restored to `HEAD` on request
   (`--discard-local`/`--keep-local`, else asked; kept under `--yes`/`--json`), so pulling the
-  merged PR does not conflict. "Holds exactly" is `canlib/contribute_source.py` (blob identity
+  merged PR does not conflict. "Holds exactly" is `canlib/contribute/source.py` (blob identity
   through the clone's filters, or a capture log the overlay would not change); anything else is
   left alone.
   Captures are **overlaid** (append-only, `canlib/captures/merge.py::overlay`), so a

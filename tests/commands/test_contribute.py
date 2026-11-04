@@ -1060,7 +1060,7 @@ class TestLogsDefault:
         assert self._parse("--no-logs").include_logs is False
 
     def test_a_pr_without_sessions_gets_no_log_section(self, tmp_path):
-        from canlib import contribute_summary as S
+        from canlib.contribute import summary as S
 
         run_ = cmd._Contribution(
             args=_cmd_args(include_logs=True),
