@@ -97,16 +97,12 @@ import sys
 from pathlib import Path
 
 from canlib import ansi
-from canlib.captures.dates import (
-    add_scope_args,
-    filter_by_date_range,
-    filter_by_text,
-    resolve_scope_bounds,
-)
+from canlib.captures.dates import filter_by_date_range, filter_by_text
 from canlib.captures.store import load_all_captures
 from canlib.captures.types import CaptureEntry
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._notation import add_notation_arg, resolve_notation
+from canlib.commands._scope import add_scope_args, resolve_scope_bounds
 from canlib.states import format_state_selector
 from canlib.states.infer import DEFAULT_CYCLE_TOL_S
 

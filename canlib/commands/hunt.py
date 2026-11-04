@@ -31,7 +31,6 @@ from canlib.analysis.xanalysis import (
     reference_is_bimodal,
     transform_ref,
 )
-from canlib.captures.dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._can_args import add_can_log_source_args
 from canlib.commands._group import group_help
 from canlib.commands._join import (
@@ -41,6 +40,7 @@ from canlib.commands._join import (
     fill_summary_line,
 )
 from canlib.commands._notation import add_notation_arg, resolve_notation
+from canlib.commands._scope import add_scope_args, resolve_scope_bounds
 from canlib.uds.inspect_bytes import NO_EXPR
 from canlib.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
 

@@ -33,8 +33,8 @@ from canlib.analysis.align import (
     prepare_series,
 )
 from canlib.analysis.fill import forced_hold_warning, format_hold_duration
-from canlib.captures.dates import add_scope_args, resolve_scope_bounds
 from canlib.commands._join import add_join_args, fill_policy_from_args
+from canlib.commands._scope import add_scope_args, resolve_scope_bounds
 from canlib.keepmode import CHANGES_BANNER, scope_is_keep_changes
 
 NAME = "align"

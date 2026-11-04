@@ -436,7 +436,7 @@ reuse these instead of re-declaring a flag:
   rendered via `ByteDisplay`); WiCAN/Torque/bix are derived views. Persist a default with
   `config set display.byte_notation`.
 - Scope flags (`--since`/`--until`/`--date`/`--today`/`--state`/`--label`/`--last-session`/
-  `--first`/`--last`) — `canlib/captures/dates.py::add_scope_args`, shared by `captures` and every
+  `--first`/`--last`) — `canlib/commands/_scope.py::add_scope_args`, shared by `captures` and every
   analysis command.
 
 ### Authoring (writes into a profile — pass `--profile`)

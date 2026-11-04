@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import argparse
 
-from canlib.captures.dates import add_scope_args
 from canlib.commands._group import group_help
 from canlib.commands._notation import add_notation_arg
+from canlib.commands._scope import add_scope_args
 
 from .needle import DEFAULT_MIN_LEN, IN_ALL, IN_CHOICES
 from .uds import run

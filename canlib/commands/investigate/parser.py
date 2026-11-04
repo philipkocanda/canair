@@ -6,12 +6,12 @@ import argparse
 
 from canlib.analysis.counters import DEFAULT_MAX_WIDTH, DEFAULT_MIN_BITS
 from canlib.analysis.support_map import DEFAULT_MAX_AT, DEFAULT_MAX_CHANCE
-from canlib.captures.dates import add_scope_args
 from canlib.commands._group import group_help
 from canlib.commands._join import (
     add_join_args,
 )
 from canlib.commands._notation import add_notation_arg
+from canlib.commands._scope import add_scope_args
 
 from .can import _run_can
 from .uds import run

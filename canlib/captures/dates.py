@@ -12,9 +12,9 @@ Entries are plain dicts; the helpers only read ``date``, ``state``, ``label``
 and (for captures) ``session_label`` keys, so any capture-shaped dict works.
 """
 
-import argparse
 import sys
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any
@@ -29,61 +29,31 @@ from canlib.captures.store import load_all_captures
 # precisely-typed input doesn't degrade to `list[dict]` on the way out.
 
 __all__ = [
-    "active_scope_flags",
-    "add_scope_args",
+    "Scope",
     "entry_date",
     "entry_datetime",
     "filter_by_date_range",
     "filter_by_text",
-    "parse_iso_date",
-    "parse_iso_datetime",
     "resolve_date_bounds",
     "resolve_scope_bounds",
 ]
 
-# Accepted time-of-day precisions for --since/--until, most-precise first. The
-# date-with-space form and the ISO ``T``-separated form are both accepted.
-_DATETIME_FORMATS = (
-    "%Y-%m-%d %H:%M:%S.%f",
-    "%Y-%m-%d %H:%M:%S",
-    "%Y-%m-%d %H:%M",
-)
 
+@dataclass(frozen=True)
+class Scope:
+    """The scope flags a command was given, as values (the CLI reads them off its parser).
 
-def parse_iso_date(s: str) -> date:
-    """Parse an ``YYYY-MM-DD`` string into a ``date`` (for argparse ``type=``).
-
-    Raises ``argparse.ArgumentTypeError`` on a malformed value so argparse emits
-    a clean usage error.
+    ``day`` is ``--date`` (a whole day), ``today`` shorthand for ``day=<today>``; ``last_sessions`` keeps
+    only the most recent N recorded sessions in the rest of the scope.
     """
-    try:
-        return datetime.strptime(s.strip(), "%Y-%m-%d").date()
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"invalid date {s!r} (expected YYYY-MM-DD)") from None
 
-
-def parse_iso_datetime(s: str) -> date | datetime:
-    """Parse ``YYYY-MM-DD`` **or** ``YYYY-MM-DD[ T]HH:MM[:SS[.ffffff]]``.
-
-    Returns a bare ``date`` when no time-of-day is given (so the value keeps its
-    whole-day, backward-compatible meaning) and a ``datetime`` when a time is
-    present (so ``--since``/``--until`` can narrow to a sub-day instant, down to
-    microseconds). For argparse ``type=``; raises ``ArgumentTypeError`` on a
-    malformed value.
-    """
-    raw = s.strip()
-    for fmt in _DATETIME_FORMATS:
-        for f in (fmt, fmt.replace(" ", "T")):
-            try:
-                return datetime.strptime(raw, f)
-            except ValueError:
-                continue
-    try:
-        return datetime.strptime(raw, "%Y-%m-%d").date()
-    except ValueError:
-        raise argparse.ArgumentTypeError(
-            f"invalid date/time {s!r} (expected YYYY-MM-DD[ HH:MM[:SS[.ffffff]]])"
-        ) from None
+    since: date | datetime | None = None
+    until: date | datetime | None = None
+    day: date | None = None
+    today: bool = False
+    last_sessions: int | None = None
+    state: str | Sequence[str] | None = None
+    label: str | None = None
 
 
 def _as_lower_datetime(x: date | datetime) -> datetime:
@@ -286,103 +256,8 @@ def filter_by_text[Row: Mapping[str, Any]](
     return out
 
 
-def active_scope_flags(args: argparse.Namespace) -> list[str]:
-    """Names of the scope flags actually set on ``args``.
-
-    The user-facing spelling of every scoping flag that is set (empty when the
-    invocation is unscoped), for a command that needs to warn when a scope was
-    applied — e.g. ``investigate --counters``, which wants the whole history.
-    Checks the raw flags rather than a resolved ``since``/``until`` so
-    ``--last-session`` (which resolves *into* a ``since`` cutoff) is still named.
-    """
-    out: list[str] = []
-    if getattr(args, "since", None) is not None:
-        out.append("--since")
-    if getattr(args, "until", None) is not None:
-        out.append("--until")
-    if getattr(args, "date", None) is not None:
-        out.append("--date")
-    if getattr(args, "today", False):
-        out.append("--today")
-    if getattr(args, "last_sessions", None):
-        out.append("--last-session")
-    if getattr(args, "state", None) is not None:
-        out.append("--state")
-    if getattr(args, "label", None) is not None:
-        out.append("--label")
-    return out
-
-
-def add_scope_args(parser: argparse.ArgumentParser) -> None:
-    """Add the shared ``--since/--until/--date`` and ``--state/--label`` scoping flags.
-
-    Kept in one place so ``captures`` and ``decode`` expose an identical scoping
-    surface (same flag names, metavars, and help text).
-    """
-    date_group = parser.add_argument_group(
-        "scoping",
-        "Restrict to captures within a date/time range (inclusive) and/or by "
-        "session state (token-matched) or label substring. --since/--until accept a date "
-        "(YYYY-MM-DD) or a timestamp (YYYY-MM-DD HH:MM[:SS[.ffffff]])",
-    )
-    date_group.add_argument(
-        "--since",
-        type=parse_iso_datetime,
-        metavar="WHEN",
-        help="Only captures on or after this date/time (YYYY-MM-DD[ HH:MM:SS])",
-    )
-    date_group.add_argument(
-        "--until",
-        type=parse_iso_datetime,
-        metavar="WHEN",
-        help="Only captures on or before this date/time (YYYY-MM-DD[ HH:MM:SS])",
-    )
-    date_group.add_argument(
-        "--date",
-        type=parse_iso_date,
-        metavar="YYYY-MM-DD",
-        help="Only captures on this exact date (shorthand for --since X --until X)",
-    )
-    date_group.add_argument(
-        "--today",
-        action="store_true",
-        help="Only captures recorded today (shorthand for --date <today>)",
-    )
-    date_group.add_argument(
-        "--last-sessions",
-        nargs="?",
-        type=int,
-        const=1,
-        default=None,
-        metavar="N",
-        dest="last_sessions",
-        help="Only the most recent N recorded sessions in scope (N defaults to 1)",
-    )
-    date_group.add_argument(
-        "--last-session",
-        action="store_const",
-        const=1,
-        dest="last_sessions",
-        help="Only the most recent recorded session in scope (alias for --last-sessions 1)",
-    )
-    date_group.add_argument(
-        "--state",
-        action="append",
-        metavar="STATE",
-        help="Only captures recorded in STATE, matched by token and widened by the "
-        "profile's implies: hierarchy (--state ready also matches DRIVING). "
-        "Comma-separate alternatives (--state ready,driving); repeat the flag to "
-        "require several at once (--state charging --state parked)",
-    )
-    date_group.add_argument(
-        "--label",
-        metavar="SUBSTR",
-        help="Only captures whose session/capture label contains SUBSTR (case-insensitive)",
-    )
-
-
 def resolve_date_bounds(
-    args: argparse.Namespace,
+    scope: Scope,
 ) -> tuple[date | datetime | None, date | datetime | None, str | None]:
     """Resolve ``--date``/``--since``/``--until``/``--today`` into ``(since, until, error)``.
 
@@ -393,10 +268,10 @@ def resolve_date_bounds(
     (for the caller to print and exit non-zero) instead of raising, or ``None``
     on success.
     """
-    date_ = getattr(args, "date", None)
-    since = getattr(args, "since", None)
-    until = getattr(args, "until", None)
-    today = getattr(args, "today", False)
+    date_ = scope.day
+    since = scope.since
+    until = scope.until
+    today = scope.today
     if today:
         if date_ or since or until:
             return None, None, "--today cannot be combined with --since/--until/--date"
@@ -445,7 +320,7 @@ def _session_starts(
 
 
 def resolve_scope_bounds(
-    args: argparse.Namespace, captures_dir: Path | None = None
+    scope: Scope, captures_dir: Path | None = None
 ) -> tuple[date | datetime | None, date | datetime | None, str | None]:
     """Resolve the full scope surface into ``(since, until, error)``.
 
@@ -463,10 +338,10 @@ def resolve_scope_bounds(
     rather than "no such state". Every capture-consuming command routes its scope
     through here, so the note lands once for all of them.
     """
-    since, until, err = resolve_date_bounds(args)
+    since, until, err = resolve_date_bounds(scope)
     if err:
         return since, until, err
-    state = getattr(args, "state", None)
+    state = scope.state
     if state:
         from canlib.states import allowed_states, unknown_state_tokens
 
@@ -477,9 +352,9 @@ def resolve_scope_bounds(
                 f"vocabulary ({', '.join(sorted(allowed_states()))}) — nothing can match.",
                 file=sys.stderr,
             )
-    n = getattr(args, "last_sessions", None)
+    n = scope.last_sessions
     if n:
-        label = getattr(args, "label", None)
+        label = scope.label
         starts = _session_starts(since, until, state, label, captures_dir)
         if starts:
             since = starts[-n] if n <= len(starts) else starts[0]

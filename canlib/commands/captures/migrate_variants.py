@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from canlib.captures import io as capture_io
-from canlib.captures.dates import parse_iso_date
+from canlib.commands._scope import parse_iso_date
 
 
 def cmd_migrate_variants(args) -> int:

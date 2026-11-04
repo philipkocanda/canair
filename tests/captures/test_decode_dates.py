@@ -5,11 +5,8 @@ from datetime import date, datetime
 
 import pytest
 
-from canlib.captures.dates import (
-    entry_date,
-    entry_datetime,
-    filter_by_date_range,
-    filter_by_text,
+from canlib.captures.dates import entry_date, entry_datetime, filter_by_date_range, filter_by_text
+from canlib.commands._scope import (
     parse_iso_date,
     parse_iso_datetime,
     resolve_date_bounds,
@@ -513,12 +510,13 @@ class TestSharedScopingWiring:
         # captures must import the shared module (not redefine local date helpers),
         # so both commands stay in lockstep and expose --state/--label.
         from canlib.captures import dates as capture_dates
+        from canlib.commands import _scope
         from canlib.commands.captures import uds as cap
 
         assert cap.filter_by_date_range is capture_dates.filter_by_date_range
         assert cap.filter_by_text is capture_dates.filter_by_text
-        assert cap.resolve_scope_bounds is capture_dates.resolve_scope_bounds
-        assert cap.add_scope_args is capture_dates.add_scope_args
+        assert cap.resolve_scope_bounds is _scope.resolve_scope_bounds
+        assert cap.add_scope_args is _scope.add_scope_args
 
     def test_both_commands_register_scope_flags(self):
         import argparse

@@ -10,10 +10,10 @@ from __future__ import annotations
 import argparse
 
 from canlib.analysis.stats import METHOD_CHEAT_SHEET as _METHOD_CHEAT_SHEET
-from canlib.captures.dates import add_scope_args
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._join import add_join_args, add_mirror_args
 from canlib.commands._notation import add_notation_arg
+from canlib.commands._scope import add_scope_args
 from canlib.uds.inspect_bytes import POST_TRANSFORMS
 
 from .entry import run

@@ -178,7 +178,7 @@ consistent, composable and multi-ECU-capable for free; a flag pair is single-tar
 ## Time & scoping conventions
 
 Capture-consuming commands share one scoping surface via
-`canlib/capture_dates.py::add_scope_args`, and the join/mirror/notation flags are likewise declared
+`canlib/commands/_scope.py::add_scope_args`, and the join/mirror/notation flags are likewise declared
 once (`AGENTS.md` → Analysis lists the shared-flag homes). Two standing rules:
 
 - **A time-bound flag accepts a timestamp down to microseconds, not a date only** — use
