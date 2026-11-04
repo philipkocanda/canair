@@ -51,23 +51,23 @@ install:
 setup: install
 
 screenshots:
-	uv run python scripts/gen_screenshots.py
+	uv run python scripts/gen/gen_screenshots.py
 
 # Regenerate a subset:  make screenshots-only ONLY="bus ecu decode-plot"
 .PHONY: screenshots-only
 screenshots-only:
-	uv run python scripts/gen_screenshots.py --only $(ONLY)
+	uv run python scripts/gen/gen_screenshots.py --only $(ONLY)
 
 screenshots-check:
-	uv run python scripts/gen_screenshots.py --check
+	uv run python scripts/gen/gen_screenshots.py --check
 
 gen:
-	uv run python scripts/gen_cli_reference.py
-	uv run python scripts/gen_screenshots.py
+	uv run python scripts/gen/gen_cli_reference.py
+	uv run python scripts/gen/gen_screenshots.py
 
 gen-check:
-	uv run python scripts/gen_cli_reference.py --check
-	uv run python scripts/gen_screenshots.py --check
+	uv run python scripts/gen/gen_cli_reference.py --check
+	uv run python scripts/gen/gen_screenshots.py --check
 
 docs:
 	uv run mkdocs build --strict --site-dir site
@@ -76,7 +76,7 @@ docs-serve:
 	uv run mkdocs serve
 
 lfs-check:
-	uv run python scripts/check_lfs_objects.py
+	uv run python scripts/check/check_lfs_objects.py
 
 # The package-layout gates alone, in a few seconds: the import contracts, then the structure
 # tests (root modules, module size, charters, deferred imports, test imports). Rules:

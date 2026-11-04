@@ -82,7 +82,7 @@ class TestAutoPid:
                     for name in ("autopid-v4.json", "autopid-v6.json", "autopid-v4-unverified.json")
                     if not (folder / name).exists()
                 ]
-        assert not missing, "regenerate with `scripts/gen_autopid.py`:\n" + "\n".join(missing)
+        assert not missing, "regenerate with `scripts/gen/gen_autopid.py`:\n" + "\n".join(missing)
 
     def test_the_38kwh_build_ships_none_of_the_unverified_port(self, tmp_path, capsys):
         out = tmp_path / "a.json"

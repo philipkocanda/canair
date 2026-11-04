@@ -2,7 +2,7 @@
 
 Tiny, hand-trimmed raw-CAN log slices used by the unit tests. They are kept
 minimal on purpose — the **full** third-party corpora are never committed to
-this (public) repo; fetch them on demand with `scripts/fetch_can_corpus.py`
+this (public) repo; fetch them on demand with `scripts/fetch/fetch_can_corpus.py`
 (destination `references/can/`, gitignored).
 
 These excerpts stay in **plain git** (not Git LFS) so they remain small and
@@ -32,4 +32,4 @@ reverse-engineered `powertrain` broadcast signals.
   - `0x386` — `WHL_SPD11` wheel speeds (front-left = start_bit 0, 14-bit LE,
     scale 0.03125 km/h)
 
-Reproduce with `scripts/fetch_can_corpus.py` then take the same frame subset.
+Reproduce with `scripts/fetch/fetch_can_corpus.py` then take the same frame subset.

@@ -36,7 +36,7 @@ docs-ignored/
 archive/
 css-electronics/
 # Fetched third-party CAN corpora (fetch-on-demand; never committed — see
-# scripts/fetch_can_corpus.py and plans/2026-07-24-raw-can-analysis.md)
+# scripts/fetch/fetch_can_corpus.py and plans/2026-07-24-raw-can-analysis.md)
 /references/
 
 # Secrets and local config
@@ -59,6 +59,6 @@ profiles/*/dtc_log.yaml
 profiles/*/captures/.journal/
 
 # Blind-rediscovery eval sandboxes, answer keys, and reports (on-demand tooling
-# stress-test — see scripts/blind_rediscovery.py and canlib/blind.py). Contains
+# stress-test — see scripts/research/blind_rediscovery.py and canlib/blind.py). Contains
 # held-out ground truth; never committed.
 /rediscovery/

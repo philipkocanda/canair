@@ -78,7 +78,7 @@ offset` over a contiguous bit range), deliberately DBC-compatible.
 ```bash
 canair signals upsert powertrain 0x386 WHL_SPD_FL \
     --start-bit 0 --length 14 --byte-order little --scale 0.03125 --unit km/h \
-    --source "IONIQ_PCAN_drive.csv (fetch: scripts/fetch_can_corpus.py)"
+    --source "IONIQ_PCAN_drive.csv (fetch: scripts/fetch/fetch_can_corpus.py)"
 canair signals list                    # review
 canair validate signals                # structural check
 ```
@@ -153,7 +153,7 @@ failing the whole import. One `signals/<bus>.yaml` keys messages by number, so a
 DBC with a standard and an extended frame of the same number is refused; import its
 two halves into separate buses.
 
-`scripts/check_dbc_corpus.py --fetch` checks this against
+`scripts/check/check_dbc_corpus.py --fetch` checks this against
 [commaai/opendbc](https://github.com/commaai/opendbc): it imports, validates,
 exports and re-decodes every DBC, comparing against cantools' own parse. It is
 opt-in and fetches into the gitignored `references/can/`.
@@ -168,7 +168,7 @@ from other people's cars under unclear licenses. canair splits them by
 | --- | --- | --- | --- |
 | **Your own capture** | yours | `profiles/<car>/captures/can/` | **Yes, fully** — via Git LFS when large |
 | **Third-party, redistributable** (CC0/CC-BY/MIT/public-domain/explicit permission) | permits redistribution | `profiles/<car>/captures/can/` (or `references/can/`) with the license recorded next to it | **Yes** — via Git LFS when large |
-| **Third-party, no / unclear license** (e.g. the uhi22 Ioniq-28 corpus) | none | gitignored `references/can/` | **No** — fetch on demand (`scripts/fetch_can_corpus.py`) + a tiny fair-use excerpt under `tests/fixtures/can/` |
+| **Third-party, no / unclear license** (e.g. the uhi22 Ioniq-28 corpus) | none | gitignored `references/can/` | **No** — fetch on demand (`scripts/fetch/fetch_can_corpus.py`) + a tiny fair-use excerpt under `tests/fixtures/can/` |
 
 The rule of thumb: **your data goes in; other people's data goes in only if the
 license lets you redistribute it.** A partial slice of unlicensed data is still

@@ -3,8 +3,8 @@
 # GENERATED assets live beside this file (docs/screenshots/*.svg, *.gif).
 # Regenerate them with:
 #
-#     python3 scripts/gen_screenshots.py            # all assets (needs freeze + vhs)
-#     python3 scripts/gen_screenshots.py --only ID  # a subset
+#     python3 scripts/gen/gen_screenshots.py            # all assets (needs freeze + vhs)
+#     python3 scripts/gen/gen_screenshots.py --only ID  # a subset
 #
 # CI runs `--check`, which verifies every asset is present and every declared
 # command still runs device-free against the bundled profile (it does NOT

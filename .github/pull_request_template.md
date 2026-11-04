@@ -25,7 +25,7 @@ Run from the repo root:
 - [ ] `uv run ruff check .` and `uv run ruff format --check .`
 - [ ] `uv run ty check`
 - [ ] `uv run canair validate all` (if you touched profile data)
-- [ ] `uv run python scripts/gen_cli_reference.py --check` (if you changed a command's flags)
+- [ ] `uv run python scripts/gen/gen_cli_reference.py --check` (if you changed a command's flags)
 - [ ] Docs and README updated for any user-facing change (README ↔ `docs/` policy in `AGENTS.md`)
 
 ---

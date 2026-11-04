@@ -1,4 +1,4 @@
-"""Smoke test for scripts/check_dbc_corpus.py on tiny synthetic DBCs (no network).
+"""Smoke test for scripts/check/check_dbc_corpus.py on tiny synthetic DBCs (no network).
 
 The checker is opt-in and normally runs over a fetched corpus, so without this its
 comparison logic would only ever run by hand.
@@ -16,7 +16,7 @@ from cantools.database.conversion import BaseConversion
 import canlib.profile as profile
 from canlib.commands.export import _dbc_specifics
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check_dbc_corpus.py"
+SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check" / "check_dbc_corpus.py"
 
 
 @pytest.fixture

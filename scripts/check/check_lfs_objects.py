@@ -9,7 +9,7 @@ filter. This asks the server directly, with the LFS batch API, whether each obje
 exists, and downloads nothing.
 
 Usage:
-    python scripts/check_lfs_objects.py [--all] [--remote NAME]
+    python scripts/check/check_lfs_objects.py [--all] [--remote NAME]
 
 Needs only the standard library plus the ``git`` and ``git-lfs`` binaries. Set
 ``GITHUB_TOKEN`` (CI does) to check a private repository. ``--all`` also covers

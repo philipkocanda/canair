@@ -44,7 +44,7 @@ A clean local run means a green CI; CI stays the hard gate.
     hook is already in place.)
 
     Two further guards: the `lfs-push` pre-push hook uploads the objects itself, and CI runs
-    `scripts/check_lfs_objects.py` (`make lfs-check` locally) to flag any pointer whose object is
+    `scripts/check/check_lfs_objects.py` (`make lfs-check` locally) to flag any pointer whose object is
     missing from the server.
 
 ## Checks before you open a code PR
@@ -57,9 +57,9 @@ uv run ruff check . && uv run ruff format --check .  # lint + format
 uv run ty check                                     # type check (canlib/)
 uv run lint-imports                                 # layer and boundary contracts
 uv run canair validate all                          # if you touched profile data
-uv run python scripts/validate_skills.py             # if you touched a skill's frontmatter
-uv run python scripts/gen_cli_reference.py --check   # if you changed a command's flags
-uv run python scripts/gen_screenshots.py --check     # if you changed screenshotted command output
+uv run python scripts/check/validate_skills.py             # if you touched a skill's frontmatter
+uv run python scripts/gen/gen_cli_reference.py --check   # if you changed a command's flags
+uv run python scripts/gen/gen_screenshots.py --check     # if you changed screenshotted command output
 ```
 
 The [bundled-profile](../profiles/index.md) counts need no regenerating: an MkDocs hook
@@ -88,7 +88,7 @@ real-world DBC round-trip, which fetches
 `references/can/` and expects `problems: 0`:
 
 ```bash
-uv run python scripts/check_dbc_corpus.py --fetch
+uv run python scripts/check/check_dbc_corpus.py --fetch
 ```
 
 ## Keep the docs current

@@ -85,7 +85,7 @@ jobs:
         run: |
           uv python install 3.12
           uv sync
-          uv run python scripts/gen_autopid.py
+          uv run python scripts/gen/gen_autopid.py
 
       - name: Commit to the release PR
         if: steps.pr.outputs.branch != ''

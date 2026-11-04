@@ -48,7 +48,7 @@ uv run pytest -q                                    # parallel by default; -n0 f
 uv run ruff check . && uv run ruff format --check .
 uv run ty check
 uv run canair validate all                          # if you touched profile data
-uv run python scripts/gen_cli_reference.py --check   # if you changed a command's flags
+uv run python scripts/gen/gen_cli_reference.py --check   # if you changed a command's flags
 ```
 
 The `pre-commit` hooks mirror the CI gates (ruff format/check + `ty` on commit,

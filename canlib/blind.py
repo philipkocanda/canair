@@ -1,6 +1,6 @@
 """Blind-rediscovery harness core — strip a profile, pick targets, grade guesses.
 
-This is the reusable, unit-testable core behind ``scripts/blind_rediscovery.py``
+This is the reusable, unit-testable core behind ``scripts/research/blind_rediscovery.py``
 (the on-demand "can the analysis tooling rediscover a known signal blindfolded?"
 eval). Three pure-ish pieces, no device or network:
 

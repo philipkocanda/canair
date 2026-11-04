@@ -23,14 +23,14 @@ that does not parse even then, or whose standard and extended frames share a num
 is listed and skipped.
 
 The default corpus is commaai/opendbc (MIT), fetched on demand into the gitignored
-references/can/ like scripts/fetch_can_corpus.py. Its DBCs that pull in shared
+references/can/ like scripts/fetch/fetch_can_corpus.py. Its DBCs that pull in shared
 files are built with opendbc's own generator, which means running Python from the
 fetched clone; pass --no-generated to skip that.
 
 Usage:
-    uv run python scripts/check_dbc_corpus.py --fetch     # clone/update opendbc, then check
-    uv run python scripts/check_dbc_corpus.py             # check the fetched opendbc
-    uv run python scripts/check_dbc_corpus.py car.dbc …   # check specific DBCs
+    uv run python scripts/check/check_dbc_corpus.py --fetch     # clone/update opendbc, then check
+    uv run python scripts/check/check_dbc_corpus.py             # check the fetched opendbc
+    uv run python scripts/check/check_dbc_corpus.py car.dbc …   # check specific DBCs
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 OPENDBC_DIR = REPO_ROOT / "references" / "can" / "opendbc"
 GENERATED_DIR = REPO_ROOT / "references" / "can" / "opendbc-generated"
 OPENDBC_URL = "https://github.com/commaai/opendbc.git"

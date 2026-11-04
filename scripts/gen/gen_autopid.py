@@ -8,9 +8,9 @@ with several variants, once per variant, so each car's ``out/`` files match its 
 the release PR's branch; run it by hand whenever you want ``out/`` current between releases.
 
 Usage:
-    uv run python scripts/gen_autopid.py                    # every bundled profile
-    uv run python scripts/gen_autopid.py hyundai-kona-os-ev # only the named profile(s)
-    uv run python scripts/gen_autopid.py --profiles-dir DIR # profiles in DIR instead
+    uv run python scripts/gen/gen_autopid.py                    # every bundled profile
+    uv run python scripts/gen/gen_autopid.py hyundai-kona-os-ev # only the named profile(s)
+    uv run python scripts/gen/gen_autopid.py --profiles-dir DIR # profiles in DIR instead
 
 Each run gets an empty user config, so a local default profile, revision pin or remembered
 revision detection cannot change what is generated: the output is identical on every machine.
@@ -25,7 +25,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 PROFILES_DIR = REPO_ROOT / "profiles"
 
 

@@ -48,7 +48,7 @@ repos:
 
       - id: validate-skills
         name: skill frontmatter is Claude Code / OpenCode compatible
-        entry: uv run python scripts/validate_skills.py
+        entry: uv run python scripts/check/validate_skills.py
         language: system
         files: ^\.claude/skills/.*/SKILL\.md$
         pass_filenames: false
@@ -57,14 +57,14 @@ repos:
       # Slower and repo-wide, so they run on push rather than every commit.
       - id: cli-reference-current
         name: CLI reference is current
-        entry: uv run python scripts/gen_cli_reference.py --check
+        entry: uv run python scripts/gen/gen_cli_reference.py --check
         language: system
         pass_filenames: false
         stages: [pre-push]
 
       - id: screenshots-current
         name: doc screenshots are current
-        entry: uv run python scripts/gen_screenshots.py --check
+        entry: uv run python scripts/gen/gen_screenshots.py --check
         language: system
         pass_filenames: false
         stages: [pre-push]
@@ -72,10 +72,10 @@ repos:
       # Listed last so the upload only happens once the checks above have passed.
       # `pre-commit install` replaces git-lfs's own pre-push hook if that was not
       # installed first (`make setup` does so), and a push then publishes commits whose
-      # LFS objects never arrive. CI's scripts/check_lfs_objects.py is the backstop.
+      # LFS objects never arrive. CI's scripts/check/check_lfs_objects.py is the backstop.
       - id: lfs-push
         name: upload Git LFS objects
-        entry: scripts/lfs_pre_push.sh
+        entry: scripts/check/lfs_pre_push.sh
         language: system
         pass_filenames: false
         always_run: true

@@ -37,7 +37,7 @@ version ordering — and a released install shows no suffix at all.
 
    The same workflow also regenerates every bundled profile's WiCAN AutoPID JSON
    (`profiles/*/out/`) on the release PR's branch and commits it when it changed
-   (`scripts/gen_autopid.py`, with an empty user config so the output is the same
+   (`scripts/gen/gen_autopid.py`, with an empty user config so the output is the same
    everywhere), so a release ships device profiles that match its definitions.
    Run the script by hand to refresh `out/` between releases.
 
@@ -110,7 +110,7 @@ you do not know about it.
 | `release-please-config.json` | how versions and changelog sections are computed |
 | `.release-please-manifest.json` | the last released version (`{".": "X.Y.Z"}`) |
 | `.github/workflows/release.yml` | opens/updates the release PR and regenerates its AutoPID JSON; tags and releases on merge |
-| `scripts/gen_autopid.py` | regenerates `profiles/*/out/` for every bundled profile and variant |
+| `scripts/gen/gen_autopid.py` | regenerates `profiles/*/out/` for every bundled profile and variant |
 
 Worth knowing before you change any of it:
 

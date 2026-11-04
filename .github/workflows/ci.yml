@@ -48,7 +48,7 @@ jobs:
         run: uv run lint-imports
 
       - name: Skill frontmatter is Claude Code / OpenCode compatible
-        run: uv run python scripts/validate_skills.py
+        run: uv run python scripts/check/validate_skills.py
 
       - name: Validate bundled profile data
         # The repo bundles more than one profile, so `validate all` can't
@@ -86,16 +86,16 @@ jobs:
         # endpoint still answers for a public repository.
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: uv run python scripts/check_lfs_objects.py
+        run: uv run python scripts/check/check_lfs_objects.py
 
       - name: CLI reference is current
-        run: uv run python scripts/gen_cli_reference.py --check
+        run: uv run python scripts/gen/gen_cli_reference.py --check
 
       - name: Doc screenshots are current
         # Verifies every manifest asset is present and every screenshotted
         # command still runs device-free (no re-render — freeze/vhs are not
         # needed in CI, and the images aren't byte-reproducible).
-        run: uv run python scripts/gen_screenshots.py --check
+        run: uv run python scripts/gen/gen_screenshots.py --check
 
       - name: Docs build (mkdocs --strict)
         # NO_MKDOCS_2_WARNING silences Material's red MkDocs-2.0 advocacy notice,

@@ -130,7 +130,7 @@ assume.
 - **`docs/` carries the detail** — task-first, for new-car users and profile contributors:
   `getting-started/`, `bring-your-own-car/`, `concepts/`, `reference/`, `contributing/` (contribute
   a profile) and `development/` (change canair's code). `docs/reference/cli/` is **generated** from
-  `--help` (`python3 scripts/gen_cli_reference.py`; CI checks it) — never hand-edit it.
+  `--help` (`python3 scripts/gen/gen_cli_reference.py`; CI checks it) — never hand-edit it.
 - **This file** carries the agent-facing rules, the command *map*, and the code/data map. Where a
   fact is authoritative elsewhere (`--help`, `config.example.yaml`, `canlib/schema/`, a plan doc),
   **point at it instead of copying it**.
@@ -717,7 +717,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   `canlib/dbc_repair.py::load_dbc` (each reported with its line); add a new quirk there, never
   as a pre-edited copy of the file. Module note: `commands/import_.py` (`import` is a keyword)
   with `NAME="import"`; the `uds` kind lives in the `commands/import_uds/` package. Fetch the
-  reference corpus with `scripts/fetch_can_corpus.py` (into gitignored `references/can/`).
+  reference corpus with `scripts/fetch/fetch_can_corpus.py` (into gitignored `references/can/`).
 - **`canair export dbc`** — Writes `signals/` out as a DBC for SavvyCAN/cabana/Wireshark;
   round-trips with `import dbc`. (Domain-A decoded-value export is future work.)
 - **`canair contribute`** (alias `share`) — Opens the upstream PR for the **active** profile via the

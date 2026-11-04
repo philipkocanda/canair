@@ -1,4 +1,4 @@
-"""Tests for scripts/validate_skills.py.
+"""Tests for scripts/check/validate_skills.py.
 
 Covers the frontmatter parser and the per-field validation rules (the
 intersection of OpenCode's and the Agent Skills spec's requirements), plus an
@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = REPO_ROOT / "scripts" / "validate_skills.py"
+SCRIPT = REPO_ROOT / "scripts" / "check" / "validate_skills.py"
 
 
 @pytest.fixture(scope="module")

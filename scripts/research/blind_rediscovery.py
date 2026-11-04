@@ -9,14 +9,14 @@ every answer-bearing field removed (see :mod:`canlib.blind`), so the leaky tools
 Workflow (run from the repo root):
 
     # 1. Build a sandbox + quests (curated 15 by default; ground truth kept out of it)
-    uv run python scripts/blind_rediscovery.py prepare --run-dir rediscovery/run-1
+    uv run python scripts/research/blind_rediscovery.py prepare --run-dir rediscovery/run-1
 
-    # 2. Launch one blind sub-agent per quest (see scripts/blind_prompt.md),
+    # 2. Launch one blind sub-agent per quest (see scripts/research/blind_prompt.md),
     #    each pointed ONLY at the sandbox profile; collect their expressions into
     #    an answers.json:  [{"id": "q01", "expression": "[S10:S11]"}, ...]
 
     # 3. Grade the guesses against the held-out ground truth
-    uv run python scripts/blind_rediscovery.py grade --run-dir rediscovery/run-1 \
+    uv run python scripts/research/blind_rediscovery.py grade --run-dir rediscovery/run-1 \
         --answers rediscovery/run-1/answers.json
 
 `prepare --random --seed N --n K` draws a fresh difficulty-weighted set instead of
@@ -36,7 +36,7 @@ from pathlib import Path
 from canlib import blind
 from canlib.profile import resolve_profile
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _default_run_dir() -> Path:
@@ -135,7 +135,9 @@ def cmd_prepare(args: argparse.Namespace) -> int:
         print(f"  {q['id']}  {q['ecu']:5} {q['pid']:8}  n={q['n_captures']:<5}  {q['role_hint']}")
     print()
     invoke = "canair" if args.install else "uv run canair"
-    print("Give each blind agent scripts/blind_prompt.md with its quest, and have it run e.g.:")
+    print(
+        "Give each blind agent scripts/research/blind_prompt.md with its quest, and have it run e.g.:"
+    )
     print(f"  {invoke} --profile {sandbox} decode <ECU> <PID> --dump-bytes")
     print(f"Then collect answers into {run_dir / 'answers.json'} and run `grade`.")
     return 0

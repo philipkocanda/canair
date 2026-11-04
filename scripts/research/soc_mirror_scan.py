@@ -25,8 +25,8 @@ Reference SOC is read straight from the BMS 2101 payload (raw byte / 2) so the
 scan is self-contained. BMS PIDs are excluded (SOC lives there by definition).
 
 Usage:
-    python3 scripts/soc_mirror_scan.py --date 2026-07-30 --state CHARGING
-    python3 scripts/soc_mirror_scan.py --date 2026-07-30 --state CHARGING \
+    python3 scripts/research/soc_mirror_scan.py --date 2026-07-30 --state CHARGING
+    python3 scripts/research/soc_mirror_scan.py --date 2026-07-30 --state CHARGING \
         --transport wican-ws --chg-end 14:36 --min-r 0.9
 
 Notes:

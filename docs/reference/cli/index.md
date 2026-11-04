@@ -2,7 +2,7 @@
 
 Every capability is a `canair <subcommand>`. These pages are generated from each command's `--help` (the source of truth), so they never drift from the code.
 
-> Regenerate with `python3 scripts/gen_cli_reference.py`; CI checks they are current.
+> Regenerate with `python3 scripts/gen/gen_cli_reference.py`; CI checks they are current.
 
 ## Commands
 

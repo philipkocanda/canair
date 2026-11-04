@@ -20,7 +20,7 @@ sets, so a skill that passes here loads cleanly in OpenCode and packages
 cleanly for Claude Code.
 
 Usage:
-    uv run scripts/validate_skills.py
+    uv run scripts/check/validate_skills.py
 
 Run it after adding or editing a skill's frontmatter. Pre-commit and CI both
 run it (see .pre-commit-config.yaml and .github/workflows/ci.yml).
@@ -34,7 +34,7 @@ from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 SKILL_GLOBS = [
     ".claude/skills/*/SKILL.md",

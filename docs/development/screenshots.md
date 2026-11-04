@@ -32,5 +32,5 @@ screenshots` skips them and `--check` only verifies the file is present. Re-reco
 one manually when a vehicle is reachable:
 
 ```bash
-python3 scripts/gen_screenshots.py --only monitor-bms   # needs a live car + a configured device
+python3 scripts/gen/gen_screenshots.py --only monitor-bms   # needs a live car + a configured device
 ```

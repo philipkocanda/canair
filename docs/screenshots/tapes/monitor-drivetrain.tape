@@ -3,7 +3,7 @@
 # so it is recorded manually (marked `live: true` in shots.yaml and skipped by
 # the default `gen_screenshots.py` run). Re-record with:
 #
-#   python3 scripts/gen_screenshots.py --only monitor-drivetrain
+#   python3 scripts/gen/gen_screenshots.py --only monitor-drivetrain
 #
 # Requires a reachable WiCAN (`--wican home` here) with the car awake. Uses the
 # real user config for the device, but a relative --profiles-dir + the bundled

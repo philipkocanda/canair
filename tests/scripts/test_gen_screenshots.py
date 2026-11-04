@@ -1,4 +1,4 @@
-"""Tests for scripts/gen_screenshots.py.
+"""Tests for scripts/gen/gen_screenshots.py.
 
 Covers the pure helpers, the manifest ↔ committed-asset invariant, and the
 `--check` currency logic (asset presence, orphan detection, command validity).
@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = REPO_ROOT / "scripts" / "gen_screenshots.py"
+SCRIPT = REPO_ROOT / "scripts" / "gen" / "gen_screenshots.py"
 
 
 @pytest.fixture(scope="module")

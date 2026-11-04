@@ -137,7 +137,7 @@ than trusting a list copied here.
 2. Move the package's tests in the same commit.
 3. Remove the `ignore_imports` entries the move fixes and lower the baselines
    (`uv run python -m tests.contracts.test_structure --write`).
-4. Confirm every `--help` is unchanged (`scripts/gen_cli_reference.py --check`), then run the
+4. Confirm every `--help` is unchanged (`scripts/gen/gen_cli_reference.py --check`), then run the
    full suite.
 
 Never reintroduce: a loose module at the root, `argparse` or `textual` outside the interface, a
@@ -215,7 +215,7 @@ data itself is **`contributing-profiles`**.
 - `profiles/*/captures/*.json` are written by the `--save` path, never by hand, and are
   **append-only** logs unioned by canair's git merge driver. If you touch the on-disk format, keep
   `canlib/captures_merge.py` aligned with `canlib/capture_io.py`.
-- `profiles/*/out/*.json` is generated — regenerate (`uv run python scripts/gen_autopid.py` writes
+- `profiles/*/out/*.json` is generated — regenerate (`uv run python scripts/gen/gen_autopid.py` writes
   both the verified-only and the `-unverified` build of every bundled car), never hand-edit.
 - Schemas are tool-owned in `canlib/schema/`; validate with `canair validate`.
 
@@ -331,7 +331,7 @@ the same change; if nothing user-facing changed, confirm that rather than assume
 `AGENTS.md` → Keep docs & README current; strategy in
 `plans/2026-07-24-documentation-strategy.md`. Two things that section doesn't cover:
 
-- **`docs/reference/cli/` is generated** from `--help` (`scripts/gen_cli_reference.py`, CI-checked)
+- **`docs/reference/cli/` is generated** from `--help` (`scripts/gen/gen_cli_reference.py`, CI-checked)
   — never hand-edit it. `docs/development/` (not `contributing/`) is where an *engineering* workflow
   change belongs.
 - **`CHANGELOG.md` — do not edit it.** It's release-please output. The changelog equivalent of
@@ -341,7 +341,7 @@ the same change; if nothing user-facing changed, confirm that rather than assume
 Verify internal links still resolve — a broken cross-link is a defect.
 
 **Screenshots are generated, not hand-made** from `docs/screenshots/shots.yaml` by
-`scripts/gen_screenshots.py`, against the read-only bundled profile (device-free, PII-free). If your
+`scripts/gen/gen_screenshots.py`, against the read-only bundled profile (device-free, PII-free). If your
 change alters a screenshotted command's output, re-render (`make screenshots`) and commit the asset;
 adding a shot means a `shots.yaml` entry. CI and the pre-push hook run `--check` (asset presence +
 command validity), so a renamed command/flag fails until you regenerate. Never screenshot views that

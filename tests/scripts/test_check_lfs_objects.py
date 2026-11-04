@@ -1,11 +1,11 @@
-"""scripts/check_lfs_objects.py: the pointer-vs-server comparison, with a fake batch API."""
+"""scripts/check/check_lfs_objects.py: the pointer-vs-server comparison, with a fake batch API."""
 
 from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check_lfs_objects.py"
+SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check" / "check_lfs_objects.py"
 
 spec = importlib.util.spec_from_file_location("check_lfs_objects", SCRIPT)
 assert spec and spec.loader

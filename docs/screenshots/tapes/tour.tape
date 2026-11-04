@@ -1,7 +1,7 @@
 # A quick tour of read-only canair analysis, ending in the interactive --plot
 # signal explorer (device-free). This is the docs home-page hero.
 #
-# Rendered by `python3 scripts/gen_screenshots.py` (which runs vhs from the repo
+# Rendered by `python3 scripts/gen/gen_screenshots.py` (which runs vhs from the repo
 # root). Output path is relative to the repo root. The setup block is hidden and
 # uses only portable paths (no absolute/owner-specific paths). A relative
 # --profiles-dir keeps the username out of any path shown on screen.

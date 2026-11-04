@@ -8,9 +8,9 @@ any machine and contain no owner-specific data. The manifest is
 `docs/screenshots/shots.yaml`.
 
 Usage:
-    python3 scripts/gen_screenshots.py                  # regenerate all assets
-    python3 scripts/gen_screenshots.py --only bus ecu   # regenerate a subset
-    python3 scripts/gen_screenshots.py --check           # CI: verify assets + commands (no render)
+    python3 scripts/gen/gen_screenshots.py                  # regenerate all assets
+    python3 scripts/gen/gen_screenshots.py --only bus ecu   # regenerate a subset
+    python3 scripts/gen/gen_screenshots.py --check           # CI: verify assets + commands (no render)
 
 `--check` is intentionally light and needs neither `freeze` nor `vhs`: image
 output is not byte-reproducible, so it never diffs pixels. Instead it verifies
@@ -32,7 +32,7 @@ from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 SHOTS_DIR = REPO_ROOT / "docs" / "screenshots"
 MANIFEST = SHOTS_DIR / "shots.yaml"
 
@@ -232,7 +232,7 @@ def check(manifest: dict) -> int:
         for p in problems:
             print(f"  - {p}", file=sys.stderr)
         print(
-            "\nRegenerate with `python3 scripts/gen_screenshots.py` (needs `freeze` + `vhs`).",
+            "\nRegenerate with `python3 scripts/gen/gen_screenshots.py` (needs `freeze` + `vhs`).",
             file=sys.stderr,
         )
         return 1

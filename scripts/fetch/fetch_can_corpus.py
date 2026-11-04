@@ -18,8 +18,8 @@ drive-mode/regen/thermal broadcast data the OBD port can't see. The CSVs are
 SavvyCAN **GVRET** format, importable with ``canair import can``.
 
 Usage:
-    python3 scripts/fetch_can_corpus.py            # fetch all
-    python3 scripts/fetch_can_corpus.py --list     # show what would be fetched
+    python3 scripts/fetch/fetch_can_corpus.py            # fetch all
+    python3 scripts/fetch/fetch_can_corpus.py --list     # show what would be fetched
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 DEST_DIR = REPO_ROOT / "references" / "can"
 
 _BASE = "https://raw.githubusercontent.com/uhi22/Ioniq28Investigations/main/CAN/"

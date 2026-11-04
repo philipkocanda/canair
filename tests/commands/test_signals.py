@@ -61,7 +61,7 @@ class TestSignalsEdit:
             "GEAR",
             start_bit=40,
             length=4,
-            source="uhi22 drive.csv (fetch: scripts/fetch_can_corpus.py)",
+            source="uhi22 drive.csv (fetch: scripts/fetch/fetch_can_corpus.py)",
             notes="P=1/R=2/N=3/D=4",
             profile=temp_profile,
         )
