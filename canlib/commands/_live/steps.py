@@ -41,11 +41,11 @@ def report_merged_selectors(commands: list[dict]) -> None:
     An overlap is easy to create without noticing — ``@driving`` already contains
     ``IGPM`` and ``AAF:2180``, so ``mon IGPM OBC AAF @driving`` names them twice.
     The normaliser merges them (see
-    :func:`canlib.modes.multi_parse.normalize_query_steps`); saying so teaches the
+    :func:`canlib.query.steps.normalize_query_steps`); saying so teaches the
     group's contents instead of silently rewriting the command. No output when
     nothing overlapped.
     """
-    from canlib.modes.multi_parse import merged_selector_notes
+    from canlib.query.steps import merged_selector_notes
 
     notes = merged_selector_notes(commands)
     if not notes:

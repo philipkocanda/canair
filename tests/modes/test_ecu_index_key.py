@@ -15,7 +15,7 @@ import pytest
 import canlib.ecus
 from canlib.modes.monitor import MonitorController
 from canlib.modes.multi_exec import _exec_iocontrol, _exec_query, _exec_session
-from canlib.modes.multi_parse import resolve_tx_id
+from canlib.query.steps import resolve_tx_id
 from canlib.wake import WakePlan
 from tests.support.fakes import FakeTerminal, ok
 

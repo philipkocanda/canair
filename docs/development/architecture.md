@@ -45,7 +45,7 @@ From the interface at the top to the leaf at the bottom.
 | edits a profile's YAML | `yaml_edit/` | `yaml_edit/` |
 | reads or writes recordings | `captures/` (DTC log: `dtc/`) | `captures/`, `dtc/` |
 | computes over captures or definitions, with no device | `analysis/` | `analysis/` |
-| parses a selector or a query step | `query/` | `query.py`, `modes/multi_parse.py` |
+| parses a selector or a query step | `query/` | `query/` |
 | reads or writes a format canair does not own | `interop/` | `commands/import_*`, `dbc_repair.py` |
 | opens or updates the upstream PR | `contribute/` | `contribute*.py` |
 | masks, withholds or scrubs data | `privacy/` | `privacy/` |

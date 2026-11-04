@@ -326,7 +326,7 @@ class TestLayoutStability:
         # (ecu_label, pid, param_name) is the monitor's selection cursor. A repeated
         # ECU made two rows share a key, so MonitorEditor.move()'s items.index()
         # snapped the cursor (and the viewport) back to the earlier copy.
-        from canlib.modes.multi_parse import normalize_query_steps
+        from canlib.query.steps import normalize_query_steps
 
         steps = normalize_query_steps(
             [

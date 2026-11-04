@@ -11,7 +11,7 @@ name/alias canonicalisation only, and its absence is tolerated.
 
 import shlex
 
-from ..query import looks_like_pid
+from canlib.query import looks_like_pid
 
 
 def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
@@ -59,7 +59,7 @@ def _query_selectors(tokens: list[str]) -> list[tuple[str, list[str]]]:
     (``query 0x770``) is exempt — it's an unambiguous, deliberate hex TX-id
     selector, not a PID stranded from its ECU.
     """
-    from ..query import parse_query
+    from canlib.query import parse_query
 
     query = parse_query(tokens)
     prev_ecu: str | None = None
@@ -109,7 +109,7 @@ def selector_text(step: dict) -> str:
 
 def _canonical_name_index() -> dict[str, str] | None:
     """The ECU name/alias index, or ``None`` when no registry is available."""
-    from ..ecus import build_canonical_name_index
+    from canlib.ecus import build_canonical_name_index
 
     try:
         return build_canonical_name_index()
@@ -132,7 +132,7 @@ def _merge_query_run(run: list[dict], name_index: dict[str, str] | None) -> list
     (``BMS:2101`` + ``BMS:2105``) is normal and stays silent, and an unmerged step
     is returned byte-identical (no extra key).
     """
-    from ..ecus import canonical_ecu_name_safe
+    from canlib.ecus import canonical_ecu_name_safe
 
     merged: dict[str, dict] = {}
     sources: dict[str, list[str]] = {}

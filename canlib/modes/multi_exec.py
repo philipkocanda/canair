@@ -4,7 +4,7 @@ The device-talking building blocks a multi pipeline (and the live monitor and
 REPL) compose: opening sessions, reading a single PID or a batched multi-DID
 group, resolving a query plan, and the ``query``/``raw``/``iocontrol``/``scan``
 step executors. Orchestration (looping over steps, journaling) lives in
-:mod:`canlib.modes.multi`; parsing in :mod:`canlib.modes.multi_parse`.
+:mod:`canlib.modes.multi`; parsing in :mod:`canlib.query.steps`.
 """
 
 import asyncio
@@ -19,6 +19,7 @@ from canlib.ecus.pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index
 from canlib.expression.results import ResultEntry
 from canlib.privacy.sensitive import MASK, request_hidden
 from canlib.query import QueryError, inferred_request, pids_named_by
+from canlib.query.steps import resolve_tx_id
 from canlib.safety.actuation import on_refusal
 from canlib.uds.describe import decode_uds_response
 from canlib.uds.echo import request_echo
@@ -40,7 +41,6 @@ from .multi_batch import (
     split_multi_did,
     transport_did_cap,
 )
-from .multi_parse import resolve_tx_id
 
 
 async def _exec_skm_wake(sm: SessionManager, level: str, verbose: bool):

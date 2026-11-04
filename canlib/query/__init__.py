@@ -4,6 +4,11 @@ A small, source-agnostic query syntax for picking ECUs and PIDs on the command
 line. Shared by the capture tools (``canair captures``) and intended for reuse
 anywhere an ECU/PID selection is needed (e.g. ``canair read``).
 
+Belongs: the selector grammar and matching (this module) and the ``read``/``monitor`` step
+grammar built on it (``steps``).
+Not here: running a step against the car (``modes/multi*``) or ``@group`` definitions (``ecus/``).
+Imports: ``ecus`` (to resolve names) and ``core``.
+
 Grammar
 -------
 ::

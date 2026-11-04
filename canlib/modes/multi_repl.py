@@ -1,7 +1,7 @@
 """Multi-ECU pipeline — the interactive REPL.
 
 The session-aware interactive prompt entered after (or during) a multi pipeline.
-Composes the parsing (:mod:`canlib.modes.multi_parse`) and execution
+Composes the parsing (:mod:`canlib.query.steps`) and execution
 (:mod:`canlib.modes.multi_exec`) layers; orchestration lives in
 :mod:`canlib.modes.multi`.
 """
@@ -10,12 +10,12 @@ import asyncio
 import re
 
 from canlib.ecus.pids import build_param_index
+from canlib.query.steps import _query_selectors, resolve_tx_id
 from canlib.uds.parse import parse_uds_response
 
 from ..session_manager import SessionManager
 from ..transport.elm327_terminal import Elm327Terminal
 from .multi_exec import _exec_query, _exec_raw
-from .multi_parse import _query_selectors, resolve_tx_id
 
 
 async def _multi_repl(

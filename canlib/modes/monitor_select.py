@@ -106,7 +106,7 @@ class GroupChoice:
 def _resolve_members(
     members: Sequence[str], by_name: Mapping[str, EcuChoice], include_static: bool
 ) -> tuple[dict[str, tuple[str, ...]], list[str]]:
-    from .multi_parse import parse_sub_commands
+    from canlib.query.steps import parse_sub_commands
 
     try:
         steps = parse_sub_commands([f"query {m}" for m in members])

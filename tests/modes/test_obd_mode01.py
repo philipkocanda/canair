@@ -13,7 +13,6 @@ from typing import ClassVar
 import pytest
 
 from canlib.modes.multi_exec import build_query_plan
-from canlib.modes.multi_parse import parse_sub_commands
 from canlib.query import (
     QueryError,
     explicit_request,
@@ -23,6 +22,7 @@ from canlib.query import (
     parse_selector,
     pids_named_by,
 )
+from canlib.query.steps import parse_sub_commands
 from canlib.transport.elm327_terminal import Elm327Terminal
 from canlib.uds.echo import request_echo
 from canlib.uds.obd import supported_pids

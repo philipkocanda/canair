@@ -528,7 +528,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   no PID suffix. `@group` works in `read`/`monitor` today; analysis commands don't expand groups
   yet. **Because a group routinely overlaps a hand-typed selector, `parse_sub_commands` ends by
   coalescing every contiguous run of `query` steps to one step per canonical ECU**
-  (`canlib/modes/multi_parse.py::normalize_query_steps`): a bare ECU supersedes its `ECU:PID`
+  (`canlib/query/steps.py::normalize_query_steps`): a bare ECU supersedes its `ECU:PID`
   selectors, distinct PIDs union, aliases resolve to the canonical name, and first-mention position
   is kept. A non-`query` step ends the run, so a deliberate pipeline re-read survives. Overlaps are
   reported (never silently collapsed) by `merged_selector_notes` via
