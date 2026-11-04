@@ -6,7 +6,7 @@ parse is ~60x faster than the equivalent YAML (the dominant cost of ``ecu``,
 ``coverage``, ``decode``, ``correlate``, ``hunt``, ``investigate``, ``captures``,
 ``validate captures``). This module is the single place that knows the on-disk
 format: readers/writers go through it rather than opening files directly, so the
-format lives in one seam (mirroring :mod:`canlib.yaml_io`).
+format lives in one seam (mirroring :mod:`canlib.core.yaml_io`).
 
 Capture files are **never hand-written**; they are produced by the
 ``canlib.captures`` helpers (the ``--save`` / journal-reconcile path) and edited

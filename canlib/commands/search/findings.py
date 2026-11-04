@@ -16,7 +16,7 @@ from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
-from canlib.textscan import Span, ascii_fold, folded_runs, is_plausible_token
+from canlib.core.textscan import Span, ascii_fold, folded_runs, is_plausible_token
 from canlib.uds.byteindex import elm_to_wican_idx
 from canlib.uds.layout import layout_of
 
@@ -241,7 +241,7 @@ def inventory_payloads(
 
     Without the plausibility filter this is ``strings(1)``, which drowns in numeric
     telemetry that happens to be printable; the filter is what makes an inventory
-    usable (see :func:`canlib.textscan.is_plausible_token`).
+    usable (see :func:`canlib.core.textscan.is_plausible_token`).
     """
     per_pid: dict[tuple[str, str, str], list[_Run]] = defaultdict(list)
     for row in rows:

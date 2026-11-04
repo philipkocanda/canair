@@ -43,7 +43,7 @@ def load_signals(bus: str | None = None, *, profile: Profile | None = None) -> l
     tell those apart (to explain themselves to the user) can check
     ``signals_dir(...).is_dir()``.
     """
-    from canlib import yaml_io
+    from canlib.core import yaml_io
 
     directory = signals_dir(profile)
     if not directory.is_dir():

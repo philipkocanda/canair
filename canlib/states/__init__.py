@@ -51,7 +51,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from canlib import yaml_io
+from canlib.core import yaml_io
 from canlib.yaml_edit.errors import EditError
 
 if TYPE_CHECKING:

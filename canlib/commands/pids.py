@@ -819,7 +819,7 @@ def cmd_set_wake(args: argparse.Namespace) -> int:
 
 
 def cmd_set_addressing(args: argparse.Namespace) -> int:
-    from canlib import yaml_io
+    from canlib.core import yaml_io
     from canlib.yaml_edit.ecu import set_addressing, tx_key
     from canlib.yaml_edit.pids import find_ecu_file
 

@@ -1,4 +1,4 @@
-"""Tests for canlib.stop_signals — every "stop" signal must unwind gracefully.
+"""Tests for canlib.core.stop_signals — every "stop" signal must unwind gracefully.
 
 A live session owns the device's single connection, so SIGTERM (a `kill`, or the
 lock watchdog standing down) and SIGHUP (the controlling terminal went away —
@@ -13,7 +13,7 @@ import signal
 
 import pytest
 
-from canlib.stop_signals import STOP_SIGNALS, graceful_stop, graceful_stop_async
+from canlib.core.stop_signals import STOP_SIGNALS, graceful_stop, graceful_stop_async
 
 
 class TestStopSignals:

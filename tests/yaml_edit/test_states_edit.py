@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from canlib import yaml_io
+from canlib.core import yaml_io
 from canlib.states import StatePredicateError
 from canlib.yaml_edit import states as states_edit
 from canlib.yaml_edit.states import (

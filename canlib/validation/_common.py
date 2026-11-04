@@ -2,8 +2,8 @@
 
 import re
 
-from canlib import yaml_io
-from canlib.constants import SCHEMA_DIR
+from canlib.core import yaml_io
+from canlib.core.paths import SCHEMA_DIR
 
 SCHEMA_FILE = SCHEMA_DIR / "pids_schema.yaml"
 CAPTURES_SCHEMA_FILE = SCHEMA_DIR / "captures_schema.json"

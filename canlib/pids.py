@@ -13,9 +13,9 @@ from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, Literal, TypedDict, get_args
 
-from canlib import yaml_io
 from canlib.actuation import default_release, normalize_request
 from canlib.addressing import AddressingMode, EcuAddress, resolve_ecu_address
+from canlib.core import yaml_io
 from canlib.dtc.definitions import effective_entries as _effective_dtc_entries
 from canlib.signal_category import category_of
 from canlib.uds.multi_did import resolve_multi_did_max

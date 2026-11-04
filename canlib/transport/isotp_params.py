@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 
-from ..log import log_event
+from canlib.core.eventlog import log_event
 
 # Byte an unspecified profile transmits as ISO-TP padding (Hyundai/Kia pad with
 # 0xAA). Exposed so callers/tests can reference the historical default by name.

@@ -309,7 +309,8 @@ class MonitorRawPoller:
     ) -> None:
         """Fold one completed submission's response into ``by_pid`` (split batches,
         learn 22-DID lengths, track ECUs that can't batch)."""
-        from ..log import log_event
+        from canlib.core.eventlog import log_event
+
         from .multi_batch import (
             LEAKED_BATCH_ERROR,
             LEAKED_BATCH_REASON,

@@ -74,7 +74,7 @@ import functools
 import time
 from datetime import datetime
 
-from ..log import log_event, log_exception
+from ..core.eventlog import log_event, log_exception
 from ..poll_backoff import summarize_slowed
 from ..transport.errors import transport_error_types
 from ._monitor_render import MONITOR_LEGEND
@@ -395,7 +395,7 @@ class EditParamDialog(ModalScreen[dict | None]):
 # (frames dropped/corrupted, bus errors, internal exceptions) are the loud red
 # class; the softer non-answers (stale/no-data/decode) are yellow; anything else
 # is dim. Categories are produced by canlib.uds.response.classify_response +
-# canlib.log.log_exception ("internal").
+# canlib.core.eventlog.log_exception ("internal").
 _EVENT_CATEGORY_STYLE = {
     "drop": "red",
     "bus": "red",
@@ -483,7 +483,7 @@ class EventLogModal(ModalScreen[None]):
         rows.scroll_end(animate=False)
 
     def _render_events(self) -> Text:
-        from ..log import parse_event_line, read_event_log, run_id
+        from canlib.core.eventlog import parse_event_line, read_event_log, run_id
 
         lines = read_event_log(lines=self._MAX_LINES, run=run_id())
         if not lines:
@@ -1588,7 +1588,7 @@ async def run_monitor_app(controller: MonitorController) -> None:
     reconciled) instead of a ``KeyboardInterrupt`` unwinding through Textual's
     internals.
     """
-    from ..stop_signals import graceful_stop_async
+    from canlib.core.stop_signals import graceful_stop_async
 
     app = MonitorApp(controller)
 

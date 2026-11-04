@@ -16,8 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from canlib import yaml_io
 from canlib.captures import io as capture_io
+from canlib.core import yaml_io
 from canlib.variants import normalize_variant_id
 
 from .commit import restore, write_atomic

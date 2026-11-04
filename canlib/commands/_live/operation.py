@@ -28,5 +28,3 @@ class LiveOperation:
     records: bool = False
     # The scan types whose aborted previous run is worth a notice ("scan", "iocontrol", ...).
     scan_types: frozenset[str] = frozenset()
-    # The interactive REPL, which a session logs as such.
-    interactive: bool = False

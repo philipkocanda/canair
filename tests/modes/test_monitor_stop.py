@@ -14,8 +14,8 @@ import signal
 
 import pytest
 
+from canlib.core.stop_signals import STOP_SIGNALS
 from canlib.modes import _monitor_run as run_mod
-from canlib.stop_signals import STOP_SIGNALS
 
 
 class _FakeController:

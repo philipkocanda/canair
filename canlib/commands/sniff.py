@@ -175,11 +175,11 @@ def run(args) -> int:
     import sys
 
     from canlib.commands._transport_args import transport_overrides
+    from canlib.core.stop_signals import graceful_stop
     from canlib.lock import WiCANLock
     from canlib.lock_watchdog import LockWatchdog
     from canlib.modes.raw_ops import slcan_preflight
     from canlib.profile import active
-    from canlib.stop_signals import graceful_stop
     from canlib.transport import resolve_transport
     from canlib.variants.selection import require_variant
     from canlib.wican.mode import ModeError

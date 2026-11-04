@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from canlib import yaml_io
+from canlib.core import yaml_io
 
 from ._common import duplicate_key_errors
 

@@ -392,6 +392,6 @@ class TestSourceClone:
     def test_falls_back_to_the_packages_own_repo_root(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "empty"))
         # The running tree is a git clone, so this resolves to the repo root.
-        from canlib.constants import SCRIPT_DIR
+        from canlib.core.paths import SCRIPT_DIR
 
         assert ic.source_clone() == Path(SCRIPT_DIR)

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import argparse
 
-from canlib.id_ranges import IdRange, parse_id_range, parse_id_ranges
+from canlib.core.id_ranges import IdRange, parse_id_range, parse_id_ranges
 
 
 def parse_range(range_str: str) -> IdRange:

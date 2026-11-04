@@ -5,7 +5,8 @@ import json
 import sys
 from collections.abc import Sequence
 
-from ..id_ranges import IdRange, as_id_ranges, count_ids, format_id_ranges, iter_ids
+from canlib.core.id_ranges import IdRange, as_id_ranges, count_ids, format_id_ranges, iter_ids
+
 from ..sensitive import MASK, profile_set
 from ..transport.protocol import Terminal
 

@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from canlib import yaml_io
+from canlib.core import yaml_io
 
 if TYPE_CHECKING:
     from canlib.profile import Profile

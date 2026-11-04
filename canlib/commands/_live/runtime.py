@@ -17,14 +17,14 @@ import contextlib
 import sys
 
 from canlib.commands._transport_args import transport_overrides
+from canlib.core.stop_signals import graceful_stop
 from canlib.keepmode import wants_save
 from canlib.lock import WiCANLock
 from canlib.lock_watchdog import LockWatchdog
-from canlib.log import init_logging, log_command
 from canlib.modes.session import SessionOptions, run_session_guarded
 from canlib.pids import load_pids
-from canlib.stop_signals import graceful_stop
 from canlib.transport.config import ConnectionOptions
+from canlib.transport.ecu_log import init_logging
 from canlib.transport.protocol import Terminal
 from canlib.transport.reboot import reboot_after_session
 
@@ -97,11 +97,6 @@ async def async_main(args, operation: LiveOperation):
     host = transport.host
 
     init_logging()
-    mode = "interactive" if operation.interactive else "batch"
-    log_command(
-        f"--- SESSION START (host={host}, mode={mode}, unsafe={conn.unsafe}, "
-        f"session={getattr(args, 'session', False)}) ---"
-    )
 
     if conn.unsafe:
         print("!! WARNING: --unsafe mode active. Dangerous command blocklist is bypassed.")
@@ -253,7 +248,6 @@ async def async_main(args, operation: LiveOperation):
     finally:
         if terminal is not None:
             await terminal.close()
-        log_command("--- SESSION END ---")
         if conn.reboot:
             reboot_after_session(transport)
     return rc

@@ -98,7 +98,7 @@ def run(args) -> int:
         from canlib.sensitive import set_reveal
 
         set_reveal(True)
-    operation = LiveOperation(elm_only.handle_interactive, interactive=True)
+    operation = LiveOperation(elm_only.handle_interactive)
     if args.steps:
         # Expand any @group references into their member selectors before the
         # mini-language parser sees them (composes with ad-hoc selectors).

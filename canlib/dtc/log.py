@@ -76,7 +76,7 @@ _migrated: set[tuple[Path, Path, tuple[Path, ...]]] = set()
 
 def log_dir() -> Path:
     """The directory holding every profile's DTC log (user state, not a profile)."""
-    from canlib.config import config_dir
+    from canlib.core.paths import config_dir
 
     return config_dir() / "dtc_log"
 
@@ -107,7 +107,7 @@ def log_path(path: Path | None = None) -> Path:
 
 def load_log(path: Path | None = None) -> dict:
     """Load the DTC log, or an empty ``{"scans": []}`` when absent."""
-    from canlib import yaml_io
+    from canlib.core import yaml_io
 
     p = log_path(path)
     if not p.exists():

@@ -40,9 +40,9 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 from canlib.captures.merge import SessionReplacement
+from canlib.core.paths import GITHUB_REPO as UPSTREAM_REPO
 from canlib.sensitive import SensitiveSet
 
-from .constants import GITHUB_REPO as UPSTREAM_REPO
 from .profile import member_names, members_by_role
 
 UPSTREAM_URL = f"https://github.com/{UPSTREAM_REPO}.git"
@@ -245,7 +245,7 @@ def workspace_collision(profile_root: Path, workspace: Path, profile_name: str) 
 
 def workspace_dir() -> Path:
     """Persistent clone location, reused across contributions."""
-    from .config import config_dir
+    from canlib.core.paths import config_dir
 
     return config_dir() / "contribute" / UPSTREAM_REPO.split("/")[-1]
 

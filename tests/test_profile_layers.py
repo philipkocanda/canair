@@ -293,7 +293,7 @@ class TestOverlayCommand:
         assert dest == env.user / "ev6"
 
     def test_overlay_names_the_editor_schema(self, env):
-        from canlib.constants import PROFILE_SCHEMA_MODELINE
+        from canlib.core.paths import PROFILE_SCHEMA_MODELINE
 
         _bundled(env)
         _, dest = overlay_profile("ev6")

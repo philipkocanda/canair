@@ -32,7 +32,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from canlib.constants import CONFIG_DOCS_URL, CONFIG_EXAMPLE_FILE
+from canlib.core.paths import CONFIG_DOCS_URL, CONFIG_EXAMPLE_FILE
 
 NAME = "config"
 
@@ -395,14 +395,13 @@ def _cmd_edit(args) -> int:
 def _gather(args) -> dict:
     """Collect config locations + effective settings into a plain dict."""
     from canlib.config import (
-        config_dir,
         load_config,
         user_config_file,
         user_profiles_dir,
         wican_model,
         wican_settings,
     )
-    from canlib.constants import CONFIG_FILE
+    from canlib.core.paths import CONFIG_FILE, config_dir
 
     cfg = load_config()
     user_file = user_config_file()

@@ -15,9 +15,10 @@ before any fixture could isolate it). Use the explicit accessors instead:
 - vehicle-data paths → ``canlib.profile.active().ecus_dir`` / ``.captures_dir``
 """
 
+import os
 from pathlib import Path
 
-PACKAGE_DIR = Path(__file__).parent  # canlib/
+PACKAGE_DIR = Path(__file__).parent.parent  # canlib/
 SCRIPT_DIR = PACKAGE_DIR.parent  # repo root
 BUNDLED_PROFILES_DIR = SCRIPT_DIR / "profiles"  # profiles shipped with the repo
 TEMPLATES_DIR = SCRIPT_DIR / "templates"  # scaffold templates for `profile create`
@@ -45,3 +46,9 @@ PROFILE_SCHEMA_MODELINE = f"# yaml-language-server: $schema={PROFILE_SCHEMA_URL}
 # every key (see `canair config example`). Force-included into the wheel
 # alongside `profiles`/`templates` so it's present in an installed copy too.
 CONFIG_EXAMPLE_FILE = SCRIPT_DIR / "config.example.yaml"
+
+
+def config_dir() -> Path:
+    """Return the canair config directory ($XDG_CONFIG_HOME/canair)."""
+    base = os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config")
+    return Path(base) / "canair"

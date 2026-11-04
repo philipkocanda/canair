@@ -9,14 +9,14 @@ from typing import Any
 
 import yaml
 
-from canlib import yaml_io
+from canlib.core import yaml_io
+from canlib.core.id_ranges import parse_id_range
 from canlib.dtc.definitions import SECTION_FIELDS as DTC_SECTION_FIELDS
 from canlib.dtc.definitions import is_dtc_code
 from canlib.dtc.definitions import split_section as split_dtc_section
 from canlib.dtc.snapshot import did_of_read
 from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.expression.lint import firmware_grammar_problems, signed_low_bytes
-from canlib.id_ranges import parse_id_range
 from canlib.pids import PID_STATUSES, effective_param, pid_ships, pid_status
 from canlib.sensitive import param_sensitive
 from canlib.signal_category import category_findings
@@ -279,7 +279,7 @@ def _validate_iocontrol_scan_ranges(value, label: str, errors: list) -> None:
     both in the 16-bit DID space. Shape-only — the resolver
     (``iocontrol_scan.resolve_iocontrol_ranges``) tolerates a malformed entry by
     dropping it, but a definition committed to ``ecus/`` should be well-formed.
-    Both read an entry through :func:`canlib.id_ranges.parse_id_range`.
+    Both read an entry through :func:`canlib.core.id_ranges.parse_id_range`.
     """
     if value is None:
         return

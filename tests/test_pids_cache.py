@@ -92,7 +92,7 @@ class TestDecodePreviewIndex:
 
 class TestLogEcuLookup:
     def test_switching_profile_remaps_tx_ids(self, tmp_path):
-        from canlib import log
+        from canlib.transport import ecu_log as log
 
         _activate(_mk_profile(tmp_path, "la", "BMS", "X"), "la")
         assert log._load_ecu_lookup().get(0x7E4) == "BMS"

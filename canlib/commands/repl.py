@@ -8,7 +8,7 @@ from canlib.commands._live import LiveOperation, add_connection_args, live_comma
 from canlib.commands._live.handlers import elm_only
 
 NAME = "repl"
-_OPERATION = LiveOperation(elm_only.handle_interactive, interactive=True)
+_OPERATION = LiveOperation(elm_only.handle_interactive)
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:

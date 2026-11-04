@@ -21,8 +21,9 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+from canlib.core.paths import PROFILE_SCHEMA_MODELINE
+
 from .config import set_config_value, user_profiles_dir
-from .constants import PROFILE_SCHEMA_MODELINE
 from .profile import BUNDLE_MEMBERS, looks_like_profile, profiles_roots
 
 # Default ELM327 init string for a new profile: ISO 15765-4 CAN 11-bit/500 kbit
@@ -53,7 +54,7 @@ def render_template(filename: str, **subs: str) -> str:
     """
     from string import Template
 
-    from .constants import TEMPLATES_DIR
+    from canlib.core.paths import TEMPLATES_DIR
 
     text = (TEMPLATES_DIR / filename).read_text()
     return Template(text).safe_substitute(subs)

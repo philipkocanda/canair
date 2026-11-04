@@ -17,8 +17,8 @@ from canlib.commands.search.findings import (
     inventory_payloads,
     snippet,
 )
+from canlib.core.textscan import compile_regex, find_hex, find_literal, find_regex
 from canlib.expression.decode_value import decode_typed
-from canlib.textscan import compile_regex, find_hex, find_literal, find_regex
 from canlib.uds.byteindex import payload_to_wican_bytes
 from canlib.uds.notation import ByteNotation
 

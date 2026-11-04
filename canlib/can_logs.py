@@ -310,7 +310,7 @@ def _append_index_entry(index_path: Path, entry: dict, *, replace_file: str | No
 
 def load_index(profile: Profile) -> dict:
     """The parsed ``captures/can/index.yaml`` (``{}`` when absent)."""
-    from canlib import yaml_io
+    from canlib.core import yaml_io
 
     path = profile.can_index_file
     if not path.exists():

@@ -32,7 +32,7 @@ from pathlib import Path
 
 # GitHub repository the releases are published under (shared with `canair
 # contribute`, which targets the same repo for pull requests).
-from .constants import GITHUB_REPO as REPO
+from canlib.core.paths import GITHUB_REPO as REPO
 
 RELEASES_LATEST_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 # Human-facing links used in notices and by ``canair update``.
@@ -52,7 +52,7 @@ _READ_TIMEOUT = 3.0
 
 
 def _cache_file() -> Path:
-    from .config import config_dir
+    from canlib.core.paths import config_dir
 
     return config_dir() / "update_check.json"
 

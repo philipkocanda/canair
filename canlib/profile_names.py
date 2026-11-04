@@ -22,7 +22,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from canlib import yaml_io
+from canlib.core import yaml_io
 
 DRIVETRAINS: tuple[str, ...] = ("ev", "erev", "phev", "hev", "ice", "fcev")
 

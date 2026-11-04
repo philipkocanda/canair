@@ -48,7 +48,7 @@ def _profile(profile: Profile | None) -> Profile:
 
 def _ecu_file(ecu: str, profile: Profile) -> tuple[Path, str]:
     """The ECU's file and its canonical (top-level key) name."""
-    from canlib import yaml_io
+    from canlib.core import yaml_io
 
     fpath = find_ecu_file(ecu, profile.ecus_dir, error=EcusEditError)
     keys = list(yaml_io.safe_load(fpath.read_text()) or {})

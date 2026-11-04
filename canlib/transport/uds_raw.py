@@ -21,6 +21,7 @@ from collections import defaultdict, deque
 import can
 import isotp
 
+from canlib.core.eventlog import log_event
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
 from canlib.uds.nrc import is_response_pending
@@ -28,7 +29,6 @@ from canlib.uds.payload import payload_echo_mismatch
 from canlib.uds.response import CAT_STALE
 
 from ..addressing import DEFAULT_RX_OFFSET, EcuAddress, build_isotp_address
-from ..log import log_command, log_event
 from ..safety import SafetyBlocked, SessionPolicy, check_command_safety
 from ..timing import TimingRecorder
 from .isotp_stack import build_isotp_stack
@@ -241,7 +241,6 @@ class RawUdsClient:
         """Refuse ``request`` if the shared command blocklist would."""
         blocked = check_command_safety(request.hex(), self.session_policy, self._tx_ids.get(ecu))
         if blocked:
-            log_command(f"{ecu} {request.hex().upper()}  !! {blocked}")
             raise SafetyBlocked(blocked)
 
     def read(self, ecu: str, request: bytes, timeout: float | None = None) -> bytes:

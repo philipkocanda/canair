@@ -53,7 +53,7 @@ class TestRunLiveStopSignals:
         import signal
 
         from canlib.commands._live import runtime as _live
-        from canlib.stop_signals import STOP_SIGNALS
+        from canlib.core.stop_signals import STOP_SIGNALS
 
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: _FakeLock())
 

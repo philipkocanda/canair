@@ -41,10 +41,10 @@ from functools import cached_property
 from pathlib import Path
 from typing import Literal
 
-from canlib import yaml_io
+from canlib.core import yaml_io
+from canlib.core.paths import BUNDLED_PROFILES_DIR, config_dir
 
-from .config import config_dir, load_config
-from .constants import BUNDLED_PROFILES_DIR
+from .config import load_config
 from .profile_names import AliasIndex, build_alias_index
 
 

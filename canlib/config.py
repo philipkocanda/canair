@@ -26,14 +26,13 @@ edit/path).
 from __future__ import annotations
 
 import math
-import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from canlib import yaml_io
-from canlib.constants import CONFIG_FILE
+from canlib.core import yaml_io
+from canlib.core.paths import CONFIG_FILE, config_dir
 
 # Fallback WiCAN address when nothing is configured (WiCAN AP mode).
 _DEFAULT_ADDRESSES = {"ap": "192.168.80.1"}
@@ -85,12 +84,6 @@ _DEFAULT_FIRMWARE_CHECK = True
 # terminal are Pro-only; the classic (non-Pro) WiCAN only supports raw SLCAN.
 WICAN_MODELS = ("pro", "classic")
 _DEFAULT_WICAN_MODEL = "pro"
-
-
-def config_dir() -> Path:
-    """Return the canair config directory ($XDG_CONFIG_HOME/canair)."""
-    base = os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config")
-    return Path(base) / "canair"
 
 
 def user_config_file() -> Path:

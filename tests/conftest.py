@@ -224,7 +224,7 @@ def _isolate_event_log(tmp_path_factory):
     """
     import logging
 
-    import canlib.log as clog
+    import canlib.core.eventlog as clog
 
     path = tmp_path_factory.mktemp("eventlog") / "canair.log"
     clog.event_log_path = lambda: path  # type: ignore[assignment]

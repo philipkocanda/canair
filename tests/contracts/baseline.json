@@ -9,7 +9,6 @@
     "can_logs",
     "cli",
     "config",
-    "constants",
     "contribute",
     "contribute_logs",
     "contribute_source",
@@ -21,12 +20,10 @@
     "frame_counts",
     "grid_prompt",
     "grid_regions",
-    "id_ranges",
     "install_context",
     "keepmode",
     "lock",
     "lock_watchdog",
-    "log",
     "physical_bands",
     "pids",
     "pii",
@@ -45,13 +42,10 @@
     "session_manager",
     "signal_category",
     "signals",
-    "stop_signals",
-    "textscan",
     "timing",
     "unit_guess",
     "update_check",
-    "wake",
-    "yaml_io"
+    "wake"
   ],
   "root_init_internal_imports": 0,
   "oversized_modules": {
@@ -66,7 +60,7 @@
     "canlib.commands.captures.step_model": 809,
     "canlib.commands.captures.step_tui": 682,
     "canlib.commands.captures.uds": 524,
-    "canlib.commands.config": 605,
+    "canlib.commands.config": 604,
     "canlib.commands.contribute": 721,
     "canlib.commands.decode.one": 501,
     "canlib.commands.ecu": 1047,
@@ -75,9 +69,8 @@
     "canlib.commands.profile": 691,
     "canlib.commands.scan": 618,
     "canlib.commands.states": 637,
-    "canlib.validation.pids": 1849,
     "canlib.commands.wican": 873,
-    "canlib.config": 562,
+    "canlib.config": 555,
     "canlib.contribute": 940,
     "canlib.ecus": 502,
     "canlib.formatting": 621,
@@ -94,6 +87,7 @@
     "canlib.states": 987,
     "canlib.transport.elm327_terminal": 836,
     "canlib.uds.byteindex": 541,
+    "canlib.validation.pids": 1849,
     "canlib.variants.revisions": 770,
     "canlib.yaml_edit.ecu": 527,
     "canlib.yaml_edit.pids.hits": 522,
@@ -101,7 +95,7 @@
     "canlib.yaml_edit.revisions": 560,
     "canlib.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 1161,
+  "deferred_internal_imports": 1160,
   "import_linter_ignores": 5,
   "packages_without_charter": [
     "canlib.actions",
@@ -156,7 +150,6 @@
     "test_grid_prompt.py",
     "test_grid_regions.py",
     "test_help_alias.py",
-    "test_id_ranges.py",
     "test_keepmode.py",
     "test_lock.py",
     "test_lock_watchdog.py",
@@ -176,8 +169,6 @@
     "test_session_manager.py",
     "test_signal_category.py",
     "test_signals_load.py",
-    "test_stop_signals.py",
-    "test_textscan.py",
     "test_timing.py",
     "test_unit_guess.py",
     "test_update_check.py",
@@ -185,7 +176,6 @@
     "test_variant_consumers.py",
     "test_version.py",
     "test_wake.py",
-    "test_wican_model_guard.py",
-    "test_yaml_io.py"
+    "test_wican_model_guard.py"
   ]
 }

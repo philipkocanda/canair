@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING
 
 from rich.text import Text
 
+from canlib.core.eventlog import log_event
 from canlib.expression.results import EcuFrame, ResultEntry
 from canlib.uds.notation import ByteNotation
 
@@ -43,7 +44,6 @@ from ..formatting import (
     _render_hex_line,
 )
 from ..keepmode import KEEP_LAST, KeepMode
-from ..log import log_event
 from ..poll_backoff import (
     PollBackoff,
     PollCost,

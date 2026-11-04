@@ -126,7 +126,7 @@ class TestProfileCreate:
         assert meta["init"] == "ATSP0;"
 
     def test_meta_names_the_editor_schema(self, tmp_path):
-        from canlib.constants import PROFILE_SCHEMA_MODELINE
+        from canlib.core.paths import PROFILE_SCHEMA_MODELINE
 
         root = tmp_path / "prof"
         _cmd_create(_args(path=root))

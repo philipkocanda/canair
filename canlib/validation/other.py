@@ -5,7 +5,7 @@ import json
 
 from jsonschema import Draft202012Validator
 
-from canlib import yaml_io
+from canlib.core import yaml_io
 
 from ._common import CAN_INDEX_SCHEMA_FILE, duplicate_key_errors
 

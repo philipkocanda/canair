@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from canlib import yaml_io
+from canlib.core import yaml_io
 from canlib.yaml_edit import groups as groups_edit
 from canlib.yaml_edit.groups import (
     GroupsEditError,

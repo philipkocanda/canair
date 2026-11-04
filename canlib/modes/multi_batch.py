@@ -13,14 +13,13 @@ import logging
 from collections.abc import Callable
 from datetime import datetime
 
+from canlib.core.eventlog import log_event
 from canlib.expression.decoding import decode_param_rows
 from canlib.expression.results import ResultEntry
 from canlib.uds.describe import decode_uds_response
 from canlib.uds.multi_did import MULTI_DID_MAX_DEFAULT, split_chain
 from canlib.uds.response import UdsResponse
 from canlib.uds.support_map import map_byte_indices
-
-from ..log import log_event
 
 # Consecutive unanswered batches (each with a successful per-DID fallback) before an
 # ECU is read singly for the rest of the session; see BatchState.batch_unanswered.

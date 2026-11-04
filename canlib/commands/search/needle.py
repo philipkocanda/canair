@@ -10,7 +10,7 @@ import argparse
 import re
 from dataclasses import dataclass
 
-from canlib.textscan import (
+from canlib.core.textscan import (
     compile_regex,
     data_vin_spans,
     find_hex,

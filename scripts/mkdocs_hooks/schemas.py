@@ -2,7 +2,7 @@
 
 ``canlib/schema/profile_schema.json`` is served at ``schema/profile.json``, the URL every
 ``profile.yaml`` names in its ``yaml-language-server`` modeline
-(``canlib.constants.PROFILE_SCHEMA_URL``). It is a virtual file, so the published schema always
+(``canlib.core.paths.PROFILE_SCHEMA_URL``). It is a virtual file, so the published schema always
 matches the source and is never committed under ``docs/``.
 """
 
@@ -13,7 +13,7 @@ from mkdocs.structure.files import File, Files
 
 
 def on_files(files: Files, config) -> Files:
-    from canlib.constants import DOCS_URL, PROFILE_SCHEMA_FILE, PROFILE_SCHEMA_URL
+    from canlib.core.paths import DOCS_URL, PROFILE_SCHEMA_FILE, PROFILE_SCHEMA_URL
 
     uri = PROFILE_SCHEMA_URL.removeprefix(f"{DOCS_URL}/")
     if files.get_file_from_path(uri) is not None:

@@ -24,7 +24,7 @@ import sys
 from canlib.commands._group import group_help
 from canlib.commands._live import add_connection_args, ecu_completer, live_command, run_live
 from canlib.commands._live.handlers import scans
-from canlib.id_ranges import format_id_ranges, parse_id_ranges
+from canlib.core.id_ranges import format_id_ranges, parse_id_ranges
 from canlib.scan_presets import (
     FAMILY_SIZE,
     SERVICE_PRESETS,

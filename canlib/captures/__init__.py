@@ -23,7 +23,7 @@ from canlib.captures.types import (
     StateSpans,
     StateSpanSource,
 )
-from canlib.id_ranges import IdRange, as_id_ranges, format_id_ranges
+from canlib.core.id_ranges import IdRange, as_id_ranges, format_id_ranges
 from canlib.keepmode import KeepMode, PersistedKeepMode, persisted_keep_mode
 from canlib.states import join_states as _join_states
 from canlib.states import parse_states as _parse_states

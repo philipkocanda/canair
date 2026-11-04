@@ -38,7 +38,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final, Literal
 
-from canlib import yaml_io
+from canlib.core import yaml_io
 from canlib.yaml_edit.errors import EditError
 
 if TYPE_CHECKING:

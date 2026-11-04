@@ -20,7 +20,7 @@ import pytest
 
 from canlib import profile
 from canlib.commands import validate as validate_cmd
-from canlib.constants import BUNDLED_PROFILES_DIR
+from canlib.core.paths import BUNDLED_PROFILES_DIR
 from canlib.expression.decoding import decodes_to_number
 from canlib.pids import clear_cache
 from canlib.states import StatePredicateError, predicate_references

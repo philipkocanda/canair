@@ -152,7 +152,7 @@ def _leftover(node: Any, old: str) -> bool:
 
 
 def _plan_ecus(plan: StateRenamePlan, ecus_dir: Path) -> None:
-    from canlib import yaml_io
+    from canlib.core import yaml_io
 
     for path in sorted(ecus_dir.glob("*.yaml")):
         text = path.read_text()

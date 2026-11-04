@@ -14,6 +14,7 @@ import time
 from collections.abc import Callable
 from typing import Literal
 
+from canlib.core.eventlog import log_event
 from canlib.expression.results import ResultEntry
 from canlib.query import QueryError, inferred_request, pids_named_by
 from canlib.uds.describe import decode_uds_response
@@ -22,7 +23,6 @@ from canlib.uds.response import UdsResponse
 
 from ..actuation import on_refusal
 from ..formatting import print_ecu_results, print_hexdump
-from ..log import log_event
 from ..pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index, ecu_index_key
 from ..sensitive import MASK, request_hidden
 from ..session_manager import SessionManager
@@ -568,7 +568,7 @@ async def _exec_scan(
     except ServiceError as e:
         print(f"  ERROR: {e}")
         return
-    from ..id_ranges import parse_id_ranges
+    from canlib.core.id_ranges import parse_id_ranges
 
     try:
         pid_ranges = parse_id_ranges(range_str)

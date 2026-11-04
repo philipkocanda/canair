@@ -51,8 +51,9 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from canlib.core.textscan import has_data_vin, has_vin_token, looks_redacted
+
 from .profile import Profile
-from .textscan import has_data_vin, has_vin_token, looks_redacted
 
 # ---------------------------------------------------------------------------
 # Sensitive identity identifiers

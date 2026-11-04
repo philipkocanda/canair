@@ -178,7 +178,7 @@ class TestBooleanWordStates:
     """A state named ON is legal, but YAML 1.1 reads a bare ON as true."""
 
     def test_rename_to_on_writes_it_quoted_everywhere(self, prof):
-        from canlib import yaml_io
+        from canlib.core import yaml_io
 
         apply_state_rename(plan_state_rename("ACC2", "ON", profile=prof), profile=prof)
 
@@ -219,7 +219,7 @@ class TestBooleanWordStates:
         assert "unquoted YAML boolean" in capsys.readouterr().out
 
     def test_states_editor_quotes_a_new_boolean_word(self, prof):
-        from canlib import yaml_io
+        from canlib.core import yaml_io
         from canlib.yaml_edit.states import add_state, set_state_field
 
         add_state("OFF", description="Button off", profile=prof)

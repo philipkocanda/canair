@@ -5,10 +5,9 @@ direct WiFi ELM327 clone over TCP, or — future — a serial dongle) through th
 one engine. It owns the ELM327 *conversation*: ELM init, addressing (header, flow
 control, receive filter), command serialisation and transactions, the timing loop that
 collects a reply, pipe realignment, and ``send_uds`` request/retry orchestration.
-Bytes move only through an injected
-:class:`~canlib.transport.channel.Channel`. Swapping the channel is the whole of
-"support a new ELM327 wire" (the "keep the WiCAN replaceable" rule): the delicate
-timing loop lives here exactly once, never duplicated per transport.
+Bytes move only through an injected :class:`~canlib.transport.channel.Channel`. Swapping the
+channel is the whole of "support a new ELM327 wire" (the "keep the WiCAN replaceable" rule):
+the delicate timing loop lives here exactly once, never duplicated per transport.
 
 Five concerns deliberately live in sibling modules, each testable without a
 channel, a clock, or an event loop:
@@ -39,13 +38,14 @@ import sys
 import time
 from collections.abc import AsyncIterator, Iterable
 
+from canlib.core.eventlog import log_event
+from canlib.transport.ecu_log import log_command, log_response
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
 from canlib.uds.parse import compact, parse_uds_response
 from canlib.uds.response import CAT_DECODE, CAT_STALE, UdsResponse
 
 from ..addressing import AddressBook
-from ..log import log_command, log_event, log_response
 from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
 from .channel import Channel

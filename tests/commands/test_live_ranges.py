@@ -1,6 +1,6 @@
 """The hex-range flags of the sweeping commands (``--rid-range``, ``--did-range``, ``--range``).
 
-One parser, :func:`canlib.id_ranges.parse_id_range`, reads every range: the scan flags, the
+One parser, :func:`canlib.core.id_ranges.parse_id_range`, reads every range: the scan flags, the
 ``iocontrol_scan_ranges:`` profile field and its validator. A backwards range used to be accepted
 by the flag (and swept nothing) while the profile field rejected it.
 """

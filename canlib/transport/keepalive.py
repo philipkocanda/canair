@@ -12,10 +12,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from canlib.core.eventlog import log_event
 from canlib.uds.nrc import NRC_SERVICE_NOT_SUPPORTED
 from canlib.uds.services import NEGATIVE_RESPONSE_SID
-
-from ..log import log_event
 
 TESTER_PRESENT_SID = 0x3E
 

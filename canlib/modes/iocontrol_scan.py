@@ -41,7 +41,7 @@ from __future__ import annotations
 import sys
 from typing import NamedTuple
 
-from canlib.id_ranges import parse_id_range
+from canlib.core.id_ranges import parse_id_range
 from canlib.modes.discovery_scan import DiscoveryProbe, mode_discovery_scan
 from canlib.transport.protocol import Terminal
 from canlib.uds.response import UdsResponse

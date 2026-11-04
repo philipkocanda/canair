@@ -62,9 +62,9 @@ def _resolve(path: Path | None) -> Path | None:
 
 def running_package_dir() -> Path:
     """Directory the currently-imported ``canlib`` package lives in."""
-    from . import constants
+    from canlib.core import paths
 
-    return Path(constants.PACKAGE_DIR)
+    return Path(paths.PACKAGE_DIR)
 
 
 def uv_tool_site_packages() -> Path | None:
@@ -102,7 +102,7 @@ def source_clone() -> Path | None:
     Preference order:
       1. uv's tool receipt (``~/.local/share/uv/tools/canair/uv-receipt.toml``),
          which records the ``directory`` a ``uv tool install .`` came from.
-      2. The package's own repo root (``canlib.constants.SCRIPT_DIR``), covering
+      2. The package's own repo root (``canlib.core.paths.SCRIPT_DIR``), covering
          editable / ``uv run`` dev checkouts.
     Returns the first that is an existing git working tree, else ``None``.
     """
@@ -111,7 +111,7 @@ def source_clone() -> Path | None:
     if receipt is not None:
         candidates.append(receipt)
     try:
-        from .constants import SCRIPT_DIR
+        from canlib.core.paths import SCRIPT_DIR
 
         candidates.append(Path(SCRIPT_DIR))
     except Exception:

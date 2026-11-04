@@ -35,7 +35,6 @@ from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any, Final
 
-from .log import log_command
 from .uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol, classify_protocol
 
 # Services that write ECU memory, reflash firmware, reset an ECU or silence its
@@ -447,7 +446,6 @@ async def enforce_command_safety(
         return
 
     if not unsafe or functional_block(cmd, policy, tx_id) is not None:
-        log_command(f"{cmd}  !! {blocked}")
         raise SafetyBlocked(blocked)
 
     print(f"\n  !! WARNING: {blocked}", file=sys.stderr)
@@ -462,6 +460,4 @@ async def enforce_command_safety(
     except (EOFError, KeyboardInterrupt):
         confirm = ""
     if confirm.strip() != "YES":
-        log_command(f"{cmd}  !! {blocked} -- user declined")
         raise SafetyBlocked(f"Command declined by user: {cmd}")
-    log_command(f"{cmd}  !! {blocked} -- user confirmed (unsafe mode)")

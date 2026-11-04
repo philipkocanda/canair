@@ -16,7 +16,7 @@ and tallied, so:
 
 Recording is a cheap dict update on the hot path; error-category outcomes are
 additionally emitted to the central rotating event log
-(:func:`canlib.log.log_event`) so the raw exchange is inspectable after the fact
+(:func:`canlib.core.eventlog.log_event`) so the raw exchange is inspectable after the fact
 (``canair logs``).
 """
 
@@ -96,7 +96,7 @@ class TransportStats:
             category = "other"
         self.counts[category] += 1
         if category in ERROR_CATEGORIES:
-            from canlib.log import log_event
+            from canlib.core.eventlog import log_event
 
             log_event(
                 category,
@@ -129,7 +129,7 @@ class TransportStats:
         it again would double-report one incident.
         """
         self.resyncs += 1
-        from canlib.log import log_event
+        from canlib.core.eventlog import log_event
 
         log_event(
             "resync",

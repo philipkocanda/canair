@@ -16,8 +16,8 @@ import re
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from canlib.core.id_ranges import IdRange, format_id_ranges, parse_id_ranges
 from canlib.did_families import FamilyGap, unread_families
-from canlib.id_ranges import IdRange, format_id_ranges, parse_id_ranges
 
 _READ = 0x22
 # A 4-hex DID or DID range inside free text; a 6-hex token is a PID with its 22 prefix.

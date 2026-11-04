@@ -101,12 +101,6 @@ def test_monitor_hands_its_options_to_the_raw_transport(reached):
     assert operation.monitor.keep_mode == "all"
 
 
-def test_only_the_repl_is_interactive(reached):
-    for argv, handler, *_ in CASES:
-        _, operation = reached(argv)
-        assert operation.interactive is (handler == "handle_interactive")
-
-
 def test_read_with_steps_wins_over_param(reached):
     """The old table tested ``multi`` before ``param``; a command with both still reads steps."""
     _, operation = reached(["read", "BMS:2101", "--param", "SOC"])

@@ -15,11 +15,7 @@ import pytest
 import yaml
 
 from canlib.addressing import AddressingMode
-from canlib.constants import (
-    BUNDLED_PROFILES_DIR,
-    PROFILE_SCHEMA_FILE,
-    PROFILE_SCHEMA_MODELINE,
-)
+from canlib.core.paths import BUNDLED_PROFILES_DIR, PROFILE_SCHEMA_FILE, PROFILE_SCHEMA_MODELINE
 from canlib.profile_create import create_profile
 from canlib.quirks import KNOWN_QUIRKS
 from canlib.transport.isotp_params import ISOTP_FIELDS

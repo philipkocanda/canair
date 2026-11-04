@@ -29,7 +29,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.constants import BUNDLED_PROFILES_DIR
+from canlib.core.paths import BUNDLED_PROFILES_DIR
 from canlib.expression import _compile_cached, compile_expression, evaluate_expression
 
 # --------------------------------------------------------------------------

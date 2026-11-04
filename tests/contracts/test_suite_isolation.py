@@ -90,7 +90,7 @@ class TestActiveProfilePinning:
 class TestNoEagerConfigReadAtImportTime:
     """Importing canair must not read the user config.
 
-    ``canlib.constants`` resolves config-dependent constants lazily (PEP 562) so
+    ``canlib.core.paths`` resolves config-dependent constants lazily (PEP 562) so
     the active profile is honoured at *access* time. Two modules defeated that by
     importing ``WICAN_ADDRESSES``/``DEFAULT_WICAN`` at module scope, which fired
     the lazy resolver during import — i.e. during pytest *collection*, before any
@@ -129,7 +129,7 @@ class TestNoEagerConfigReadAtImportTime:
         assert build_parser().parse_args(["read", "BMS:2101"]).wican is None
 
     def test_constants_exposes_no_lazy_config_magic(self):
-        """`canlib.constants` must hold only static values.
+        """`canlib.core.paths` must hold only static values.
 
         A module-level `__getattr__` (PEP 562) is what made the config read happen
         at import time *and* left every imported constant untyped. Re-adding one
@@ -137,7 +137,7 @@ class TestNoEagerConfigReadAtImportTime:
         old names resolve nowhere.
         """
         import canlib
-        from canlib import constants
+        from canlib.core import paths as constants
 
         assert not hasattr(constants, "__getattr__"), (
             "constants.__getattr__ is back — use an explicit typed accessor "

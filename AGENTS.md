@@ -215,7 +215,7 @@ and **`g`/`G` address the view's primary axis**.
   probes** except a KWP `0x30` sweep, which confirms first (`--yes`; Nissan profiles get a
   non-actuating query instead). Hits are written to the ECU's
   `routines:`/`iocontrol_discoveries:`. `range` takes a comma list of ranges
-  (`canlib/id_ranges.py`); without `--range` it sweeps the ECU's **DID families**
+  (`canlib/core/id_ranges.py`); without `--range` it sweeps the ECU's **DID families**
   (`canlib/did_families.py` — high bytes from its `22`/`2F` PIDs and IOControl hits), not the
   span between them.
 - **`canair discover`** (alias `disc`) — Which ECUs answer right now; `--register` writes a new ECU
@@ -311,7 +311,7 @@ and **`g`/`G` address the view's primary axis**.
   self-`SIGTERM`s into the normal graceful shutdown when the lock is stolen or its file replaced, so
   an **orphaned session** (terminal gone, no `SIGHUP`) stands down instead of holding the device
   hostage. Steal requests are target-scoped and TTL'd, so a stale one can't abort a later session.
-  Stop signals are unified in `canlib/stop_signals.py`: `SIGTERM`, `SIGHUP` and Ctrl-C all reconcile
+  Stop signals are unified in `canlib/core/stop_signals.py`: `SIGTERM`, `SIGHUP` and Ctrl-C all reconcile
   the `--save` journal and release the connection. A `kill -9`'d session's data is still recoverable
   with `captures uds --recover`.
 - **`canair logs`** — The central diagnostics event log (`~/.config/canair/logs/canair.log`,
@@ -398,10 +398,10 @@ and **`g`/`G` address the view's primary axis**.
   `--regex`, `--hex` byte pattern or `--vin`, **without knowing the ECU or PID**; with no pattern it
   inventories every plausible string. Findings are grouped by *location* (ECU, PID, offset), not by
   capture, each with a paste-ready `pids upsert-param --type ascii` command. Two pitfalls: the
-  plausibility filter (`canlib/textscan.py::is_plausible_token`) **is** the inventory — numeric
+  plausibility filter (`canlib/core/textscan.py::is_plausible_token`) **is** the inventory — numeric
   telemetry is often printable, so `--all-runs` is mostly noise — and the VIN-shape test is shared
   with the `contribute` PII gate (one definition, in `textscan`). Only the `uds` kind exists; the
-  leaf primitives are `canlib/textscan.py`, the command is `canlib/commands/search/`. Plan:
+  leaf primitives are `canlib/core/textscan.py`, the command is `canlib/commands/search/`. Plan:
   `plans/2026-08-07-search-all-captures.md`.
 - **`canair coverage`** (alias `cov`) — Audits definitions for decoding gaps: **UNMAPPED** data
   bytes, incomplete **BITS**, **NO CAPTURE** PIDs. Bit coverage counts both models (the
@@ -614,7 +614,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   `canlib/states/refs.py`. The same check runs as a **non-blocking warning** from `states add
   --when`/`set-predicate` and `pids rename-param`/`rm-param`. **Every target errors on a repeated
   YAML key** in the files it checks (the loaders, ruamel included, silently keep the later value;
-  `canlib/yaml_io.py::duplicate_keys`, message in `validation/_common.py`). **`validate
+  `canlib/core/yaml_io.py::duplicate_keys`, message in `validation/_common.py`). **`validate
   pids`** also errors on a duplicate *shipped* signal name across PIDs (each becomes a distinct
   device signal), on a
   hand-built word whose lower byte is read signed (`(S15 << 8) | S17`; structural lint over the
@@ -995,7 +995,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   SavvyCAN exports, charge curves). Distinct from the per-ECU `research:` backlog.
 - **`profiles/<car>/profile.yaml`** — Profile-wide settings. Only `car_model` + `init` are required;
   `canair validate` type-checks the rest. Its first line is a `yaml-language-server` modeline
-  (`canlib/constants.py::PROFILE_SCHEMA_MODELINE`) naming the editor schema
+  (`canlib/core/paths.py::PROFILE_SCHEMA_MODELINE`) naming the editor schema
   `canlib/schema/profile_schema.json`, published on the docs site by
   `scripts/mkdocs_hooks/schemas.py`. **A new profile.yaml field goes in that schema too**;
   `tests/contracts/test_profile_schema.py` pins its enums to the validator's. The fields:

@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 
-from canlib.textscan import VIN_RE
+from canlib.core.textscan import VIN_RE
 
 MAX_LINES = 300
 MAX_CHARS = 30_000  # a GitHub PR body holds 65,536 characters in total
@@ -114,7 +114,7 @@ def collect(
 ) -> LogExcerpt:
     """The newest scrubbed event-log lines written inside any of ``windows``."""
     if lines is None:
-        from canlib.log import read_event_log
+        from canlib.core.eventlog import read_event_log
 
         lines = read_event_log()
     lines = [ln for ln in lines if _within(_event_time(ln), windows)]

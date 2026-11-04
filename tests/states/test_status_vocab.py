@@ -29,7 +29,7 @@ class TestVocabularySource:
     def test_base_tokens_are_not_yaml_booleans(self):
         # A bare `vehicle_states: [ON]` would parse as `True` under YAML 1.1, so
         # no base token may collide with a YAML bool/null keyword.
-        import canlib.yaml_io as yaml_io
+        import canlib.core.yaml_io as yaml_io
 
         for tok in POWER_STATES:
             loaded = yaml_io.safe_load(f"[{tok}, {tok.lower()}]")

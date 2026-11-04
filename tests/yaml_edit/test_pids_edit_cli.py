@@ -63,7 +63,7 @@ class _Args:
 
 
 def test_set_addressing_writes_block(pids_dir):
-    import canlib.yaml_io as yaml_io
+    import canlib.core.yaml_io as yaml_io
 
     rc = cli.cmd_set_addressing(
         _Args(dir=pids_dir, mode="normal_extended_11bit", target_address="0x12", rx_id="0x708")
@@ -104,7 +104,7 @@ def _io_args(io_dir, **kw):
 
 
 def test_set_iocontrol_writes_only_the_given_fields(io_dir):
-    import canlib.yaml_io as yaml_io
+    import canlib.core.yaml_io as yaml_io
 
     rc = cli.cmd_set_iocontrol(_io_args(io_dir, session_mode="0xc0", hold=False))
     assert rc == 0
@@ -115,7 +115,7 @@ def test_set_iocontrol_writes_only_the_given_fields(io_dir):
 
 
 def test_set_iocontrol_writes_a_quoted_release(io_dir):
-    import canlib.yaml_io as yaml_io
+    import canlib.core.yaml_io as yaml_io
 
     assert cli.cmd_set_iocontrol(_io_args(io_dir, release="30690000")) == 0
     text = (io_dir / "e.yaml").read_text()
@@ -156,7 +156,7 @@ class _RangeArgs:
 
 
 def test_set_iocontrol_ranges_writes_field(pids_dir):
-    import canlib.yaml_io as yaml_io
+    import canlib.core.yaml_io as yaml_io
 
     rc = cli.cmd_set_iocontrol_ranges(_RangeArgs(["b000-bfff", "C000-C0FF"], dir=pids_dir))
     assert rc == 0
@@ -182,7 +182,7 @@ class _NotesArgs:
 
 
 def test_set_pid_notes_writes_and_clears(pids_dir, capsys):
-    import canlib.yaml_io as yaml_io
+    import canlib.core.yaml_io as yaml_io
 
     def notes():
         doc = yaml_io.safe_load((pids_dir / "e.yaml").read_text())
@@ -239,7 +239,7 @@ def research_pids_dir(tmp_path):
 
 
 def test_set_status_index_disambiguates(research_pids_dir):
-    import canlib.yaml_io as yaml_io
+    import canlib.core.yaml_io as yaml_io
 
     args = _ResearchArgs(status="done", type="decode", index=1, dir=research_pids_dir)
     assert cli.cmd_set_status(args) == 0
@@ -257,7 +257,7 @@ def test_set_status_ambiguous_without_index_exits(research_pids_dir):
 
 
 def test_rm_research_removes_selected_item(research_pids_dir):
-    import canlib.yaml_io as yaml_io
+    import canlib.core.yaml_io as yaml_io
 
     args = _ResearchArgs(type="decode", index=0, dir=research_pids_dir)
     assert cli.cmd_rm_research(args) == 0
@@ -267,7 +267,7 @@ def test_rm_research_removes_selected_item(research_pids_dir):
 
 @pytest.mark.parametrize("field", ["notes", "result", "capture_protocol"])
 def test_set_research_text_sets_and_clears(research_pids_dir, field):
-    import canlib.yaml_io as yaml_io
+    import canlib.core.yaml_io as yaml_io
 
     def value(index):
         doc = yaml_io.safe_load((research_pids_dir / "e.yaml").read_text())
@@ -319,7 +319,7 @@ def _upsert_args(pids_dir, *flags):
 
 
 def test_upsert_send_to_round_trips(pids_dir):
-    import canlib.yaml_io as yaml_io
+    import canlib.core.yaml_io as yaml_io
 
     assert cli.cmd_upsert_param(_upsert_args(pids_dir, "--send-to", "car/stream/power")) == 0
     doc = yaml_io.safe_load((pids_dir / "e.yaml").read_text())

@@ -17,13 +17,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from canlib import yaml_io
+from canlib.core import yaml_io
 
 NO_VARIANT = ""
 
 
 def cache_file() -> Path:
-    from canlib.config import config_dir
+    from canlib.core.paths import config_dir
 
     return config_dir() / "state" / "detected_revisions.yaml"
 

@@ -13,10 +13,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from canlib.core.id_ranges import IdRange
 from canlib.uds.protocol import KWP, classify_protocol
 
 from .did_families import FAMILY_SIZE, did_families, family_ranges
-from .id_ranges import IdRange
 
 
 @dataclass(frozen=True)

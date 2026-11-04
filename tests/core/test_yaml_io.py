@@ -1,10 +1,10 @@
-"""Tests for the shared YAML loading helper (canlib.yaml_io)."""
+"""Tests for the shared YAML loading helper (canlib.core.yaml_io)."""
 
 import io
 
 import yaml
 
-from canlib import yaml_io
+from canlib.core import yaml_io
 
 
 def test_prefers_c_loader_when_available():

@@ -18,7 +18,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from .id_ranges import IdRange
+from canlib.core.id_ranges import IdRange
 
 FAMILY_SIZE = 0x100
 

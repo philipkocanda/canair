@@ -28,7 +28,7 @@ sys.path.insert(0, {root!r})
 from pathlib import Path
 from canlib.lock import WiCANLock
 from canlib.lock_watchdog import LockWatchdog
-from canlib.stop_signals import graceful_stop
+from canlib.core.stop_signals import graceful_stop
 
 lock = WiCANLock(lock_file=Path(sys.argv[1]), steal_file=Path(sys.argv[2]))
 lock.acquire()

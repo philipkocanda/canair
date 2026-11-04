@@ -52,7 +52,7 @@ From the interface at the top to the leaf at the bottom.
 | reads or writes user config or the device registry | `config/` | `config.py` |
 | reports the install, version or updates | `install/` | `install_context.py`, `update_check.py` |
 | rewrites stored data once | `migrations/` | `migrations/` |
-| is generic and needs nothing from the package | `core/` | `yaml_io.py`, `textscan.py`, `id_ranges.py` |
+| is generic and needs nothing from the package | `core/` | `core/` |
 | is developer tooling that does not ship | `scripts/` | `scripts/` |
 
 If two rows fit, choose the lower layer. If none fits, stop and ask: a new top-level package
