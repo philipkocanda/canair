@@ -1,4 +1,4 @@
-"""Tests for the cross-signal analysis engine (canlib.analysis.xanalysis) and the
+"""Tests for the cross-signal analysis engine (canair.analysis.xanalysis) and the
 correlate/hunt commands."""
 
 import json
@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 import pytest
 import yaml
 
-from canlib.analysis import xanalysis as xanalysis
-from canlib.analysis.align import TimePoint
+from canair.analysis import xanalysis as xanalysis
+from canair.analysis.align import TimePoint
 
 
 def _tp(sec, val):
@@ -26,8 +26,8 @@ def _temp_ecu_profile(tmp_path, filename: str, ecu: str = "AAF", pid: str = "218
     """
     import textwrap
 
-    from canlib import profile
-    from canlib.ecus.pids import clear_cache
+    from canair import profile
+    from canair.ecus.pids import clear_cache
 
     root = tmp_path / "prof"
     ecus = root / "ecus"
@@ -52,8 +52,8 @@ def _temp_ecu_profile(tmp_path, filename: str, ecu: str = "AAF", pid: str = "218
 @pytest.fixture(autouse=True)
 def _never_write_the_bundled_profile():
     """Restore the active profile after every test in this module."""
-    from canlib import profile
-    from canlib.ecus.pids import clear_cache
+    from canair import profile
+    from canair.ecus.pids import clear_cache
 
     saved = profile._active
     yield
@@ -219,7 +219,7 @@ class TestSniffUnit:
         assert "cell V" in (xanalysis.sniff_unit(xs, ys) or "")
 
     def test_no_hyundai_label_in_builtins(self):
-        from canlib.analysis.physical.unit_guess import DEFAULT_UNIT_CANDIDATES
+        from canair.analysis.physical.unit_guess import DEFAULT_UNIT_CANDIDATES
 
         hints = [c[3] for c in DEFAULT_UNIT_CANDIDATES]
         labels = [c[2] for c in DEFAULT_UNIT_CANDIDATES]
@@ -287,14 +287,14 @@ class TestCorrelateGate:
     """T2.3 — signal-predicate gating on correlate --against."""
 
     def test_parse_gate_reference_form(self):
-        from canlib.cli.commands.correlate.calc import _parse_gate
+        from canair.cli.commands.correlate.calc import _parse_gate
 
         signal, op_fn, value, _ = _parse_gate("> 0")
         assert signal is None and value == 0.0
         assert op_fn(1, 0) and not op_fn(-1, 0)
 
     def test_parse_gate_named_signal(self):
-        from canlib.cli.commands.correlate.calc import _parse_gate
+        from canair.cli.commands.correlate.calc import _parse_gate
 
         signal, op_fn, value, _ = _parse_gate("MCU:2102:MCU_MOTOR_RPM >= 100")
         assert signal == "MCU:2102:MCU_MOTOR_RPM" and value == 100.0
@@ -304,13 +304,13 @@ class TestCorrelateGate:
         # The documented '[SIGNAL] OP VALUE' form must parse to the same bare
         # signal — otherwise the brackets leak into SignalRef.parse, yield a bogus
         # ECU, and the gate silently matches nothing (the field-observed trap).
-        from canlib.cli.commands.correlate.calc import _parse_gate
+        from canair.cli.commands.correlate.calc import _parse_gate
 
         signal, _op, value, _ = _parse_gate("[MCU:2102:MCU_MOTOR_RPM] > 0")
         assert signal == "MCU:2102:MCU_MOTOR_RPM" and value == 0.0
 
     def test_parse_gate_bracketed_matches_bare(self):
-        from canlib.cli.commands.correlate.calc import _parse_gate
+        from canair.cli.commands.correlate.calc import _parse_gate
 
         assert (
             _parse_gate("[HVAC:220102:HVAC_HEAT_PUMP_ON] > 0")[0]
@@ -320,13 +320,13 @@ class TestCorrelateGate:
     def test_parse_gate_invalid(self):
         import pytest
 
-        from canlib.cli.commands.correlate.calc import _parse_gate
+        from canair.cli.commands.correlate.calc import _parse_gate
 
         with pytest.raises(ValueError):
             _parse_gate("not a gate")
 
     def test_apply_gate_reference_value(self):
-        from canlib.cli.commands.correlate.calc import _apply_gate
+        from canair.cli.commands.correlate.calc import _apply_gate
 
         ref = [_tp(0, -5.0), _tp(1, 0.0), _tp(2, 10.0), _tp(3, 20.0)]
         kept = _apply_gate(ref, "> 0", 1.0, since=None, until=None, state=None, label=None)
@@ -338,7 +338,7 @@ class TestCorrelateGate:
 # ---------------------------------------------------------------------------
 class TestBuildByteSeries:
     def _loaded(self, payloads):
-        from canlib.analysis.align import LoadedPid
+        from canair.analysis.align import LoadedPid
 
         lp = LoadedPid("BMS", "2101")
         lp.captures = [
@@ -362,7 +362,7 @@ class TestBuildByteSeries:
         assert max(offsets) >= raw_len
 
     def test_skips_pci_offsets(self):
-        from canlib.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
+        from canair.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
 
         # Vary EVERY byte so nothing is filtered by min_distinct; then assert no
         # PCI offset (wican_to_isotp is None) appears in the output.
@@ -385,7 +385,7 @@ class TestBuildByteSeries:
 
 
 # ---------------------------------------------------------------------------
-# correlate_matrix / signal_group_key live in canlib.analysis.corrmatrix — see
+# correlate_matrix / signal_group_key live in canair.analysis.corrmatrix — see
 # tests/analysis/test_corrmatrix.py (this module keeps the series-building + hunt engine).
 # ---------------------------------------------------------------------------
 
@@ -417,7 +417,7 @@ def _write_hunt_fixture(tmp_path):
 
 class TestHuntByte:
     def test_finds_matching_byte(self, tmp_path):
-        from canlib.analysis.align import extract_series, load_signal_captures
+        from canair.analysis.align import extract_series, load_signal_captures
 
         _write_hunt_fixture(tmp_path)
         loaded = load_signal_captures([("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path)
@@ -442,8 +442,8 @@ class TestHuntByte:
         """
         from datetime import date, datetime, time
 
-        from canlib.analysis.align import LoadedPid
-        from canlib.uds.byteindex import wican_to_isotp
+        from canair.analysis.align import LoadedPid
+        from canair.uds.byteindex import wican_to_isotp
 
         lp = LoadedPid("AAF", "2181")
         ref: list[TimePoint] = []
@@ -470,7 +470,7 @@ class TestHuntByte:
         """
         from datetime import date, datetime, time
 
-        from canlib.analysis.align import LoadedPid
+        from canair.analysis.align import LoadedPid
 
         lp = LoadedPid("BMS", "2101")
         ref: list[TimePoint] = []
@@ -494,7 +494,7 @@ class TestHuntByte:
     def test_per_session_flag_accepted(self):
         from datetime import date, datetime, time
 
-        from canlib.analysis.align import LoadedPid
+        from canair.analysis.align import LoadedPid
 
         lp = LoadedPid("AAF", "2181")
         ref: list[TimePoint] = []
@@ -515,13 +515,13 @@ class TestHuntByte:
 # ---------------------------------------------------------------------------
 class TestCommandParsers:
     def test_correlate_registered(self):
-        from canlib.cli.commands import correlate
+        from canair.cli.commands import correlate
 
         assert correlate.NAME == "correlate"
         assert hasattr(correlate, "run") and hasattr(correlate, "add_parser")
 
     def test_hunt_registered(self):
-        from canlib.cli.commands import hunt
+        from canair.cli.commands import hunt
 
         assert hunt.NAME == "hunt"
         assert hasattr(hunt, "run") and hasattr(hunt, "add_parser")
@@ -529,7 +529,7 @@ class TestCommandParsers:
     def test_hunt_has_transform_flag(self):
         import argparse
 
-        from canlib.cli.commands import hunt
+        from canair.cli.commands import hunt
 
         p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(["uds", "MCU", "2102", "--against", "X:Y:Z", "--transform", "delta"])
@@ -539,9 +539,9 @@ class TestCommandParsers:
     def test_hunt_notation_flag_and_label_rendering(self):
         import argparse
 
-        from canlib.analysis.xanalysis import HuntHit
-        from canlib.cli.commands import hunt
-        from canlib.uds.notation import ByteNotation
+        from canair.analysis.xanalysis import HuntHit
+        from canair.cli.commands import hunt
+        from canair.uds.notation import ByteNotation
 
         p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
         # Flag parses; default is None (resolved to wican downstream).
@@ -569,7 +569,7 @@ class TestCommandParsers:
     def test_correlate_has_transform_flag(self):
         import argparse
 
-        from canlib.cli.commands import correlate
+        from canair.cli.commands import correlate
 
         p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(["uds", "--against", "X:Y:Z", "--transform", "abs"])
@@ -581,7 +581,7 @@ class TestOutputHygiene:
     tests/analysis/test_corrmatrix.py, alongside the engine that produces the hits)."""
 
     def test_hunt_collapses_to_one_per_offset(self, tmp_path):
-        from canlib.analysis.align import load_signal_captures
+        from canair.analysis.align import load_signal_captures
 
         # target byte B4 ramps; hunt should not emit u8+u16+u24 all at offset 4
         caps, refs = [], []
@@ -596,7 +596,7 @@ class TestOutputHygiene:
         }
         (tmp_path / "2026-07-22.json").write_text(json.dumps(doc))
         loaded = load_signal_captures([("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path)
-        from canlib.analysis.align import extract_series
+        from canair.analysis.align import extract_series
 
         ref = extract_series(loaded[("ESC", "22C101")], "B5")
         collapsed = xanalysis.hunt_byte(loaded[("AAF", "2181")], ref, tol_s=1.0, min_n=10)
@@ -612,8 +612,8 @@ class TestOverlap:
     """T3.1 — co-poll overlap matrix."""
 
     def test_reports_overlapping_pairs(self, capsys, monkeypatch):
-        from canlib.analysis.align import LoadedPid
-        from canlib.cli.commands.correlate import render as correlate_render
+        from canair.analysis.align import LoadedPid
+        from canair.cli.commands.correlate import render as correlate_render
 
         def lp(ecu, pid, secs):
             x = LoadedPid(ecu, pid)
@@ -644,7 +644,7 @@ class TestHuntPromote:
     """Tranche 2.5 — promoting a hunt hit to a candidate param."""
 
     def _hit(self, expr="B12", no_expr=False):
-        from canlib.analysis.xanalysis import HuntHit
+        from canair.analysis.xanalysis import HuntHit
 
         return HuntHit(
             expr="<no-expr>" if no_expr else expr,
@@ -660,7 +660,7 @@ class TestHuntPromote:
         )
 
     def test_promote_calls_upsert_with_evidence(self, monkeypatch):
-        from canlib.cli.commands import hunt
+        from canair.cli.commands import hunt
 
         captured = {}
 
@@ -671,7 +671,7 @@ class TestHuntPromote:
             return Path("aaf.yaml")
 
         monkeypatch.setattr(hunt, "_promote", hunt._promote)  # keep real
-        monkeypatch.setattr("canlib.yaml_edit.pids.upsert_parameter", fake_upsert)
+        monkeypatch.setattr("canair.yaml_edit.pids.upsert_parameter", fake_upsert)
         rc = hunt._promote("AAF_SPEED", "AAF", "2181", [self._hit()], "ESC:22C101:REAL_SPEED_KMH")
         assert rc == 0
         assert captured["name"] == "AAF_SPEED"
@@ -682,20 +682,20 @@ class TestHuntPromote:
         assert "mph" in captured["notes"].lower()
 
     def test_promote_refuses_no_expr(self, capsys):
-        from canlib.cli.commands import hunt
+        from canair.cli.commands import hunt
 
         rc = hunt._promote("X", "AAF", "2181", [self._hit(no_expr=True)], "REF")
         assert rc == 1
         assert "no WiCAN expression" in capsys.readouterr().err
 
     def test_promote_empty_hits(self, capsys):
-        from canlib.cli.commands import hunt
+        from canair.cli.commands import hunt
 
         assert hunt._promote("X", "AAF", "2181", [], "REF") == 1
 
     def test_promote_end_to_end_writes_enabled_unverified(self, tmp_path, monkeypatch):
         """Real guarded write into a temp ecus/ dir: schema-validated + committed."""
-        from canlib.cli.commands import hunt
+        from canair.cli.commands import hunt
 
         f = _temp_ecu_profile(tmp_path, "test.yaml")
 
@@ -723,7 +723,7 @@ class TestCorrelatePromote:
         return rows, series, ramp
 
     def test_promote_picks_first_raw_byte(self, tmp_path, monkeypatch):
-        from canlib.cli.commands.correlate import promote
+        from canair.cli.commands.correlate import promote
 
         f = _temp_ecu_profile(tmp_path, "aaf.yaml")
 
@@ -738,7 +738,7 @@ class TestCorrelatePromote:
         assert "r=+0.950" in p["notes"]
 
     def test_promote_refuses_when_no_byte_hit(self, capsys):
-        from canlib.cli.commands.correlate import promote
+        from canair.cli.commands.correlate import promote
 
         # only a defined-param hit — nothing raw to promote
         rows = [("MCU:2102:MCU_MOTOR_RPM", 0.99, 20)]
@@ -753,7 +753,7 @@ class TestCorrelatePromote:
 # ---------------------------------------------------------------------------
 class TestPhysicalScan:
     def _loaded(self, payloads):
-        from canlib.analysis.align import LoadedPid
+        from canair.analysis.align import LoadedPid
 
         lp = LoadedPid("OBC", "2101")
         lp.captures = [
@@ -799,7 +799,7 @@ class TestPhysicalScan:
         assert not [h for h in default_hits if h.band == "HV pack V"]
 
         # With an 800 V override the /10 word lands in the widened band.
-        from canlib.analysis.physical.bands import resolve_physical_bands
+        from canair.analysis.physical.bands import resolve_physical_bands
 
         bands = resolve_physical_bands({"physical_bands": {"hv_pack": [450, 850]}})
         hits = xanalysis.physical_scan(lp, min_n=3, bands=bands)
@@ -919,7 +919,7 @@ class TestAxisGroupKeys:
         return [{"capture": {"date": "2026-07-22", "time": f"09:00:{s:02d}"}} for s in secs]
 
     def test_discretizes_and_maps(self, monkeypatch):
-        from canlib.cli.commands.decode import calc
+        from canair.cli.commands.decode import calc
 
         axis = [_tp(s, v) for s, v in [(0, 0.0), (2, 0.0), (4, 1.0), (6, 1.0)]]
         monkeypatch.setattr(calc, "load_cross_ref_series", lambda spec, **kw: (axis, "AXIS"))
@@ -932,7 +932,7 @@ class TestAxisGroupKeys:
         assert keys[id(results[3])] == "1"
 
     def test_rejects_high_cardinality(self, monkeypatch):
-        from canlib.cli.commands.decode import calc
+        from canair.cli.commands.decode import calc
 
         axis = [_tp(s, float(s)) for s in range(20)]  # 20 distinct values
         monkeypatch.setattr(calc, "load_cross_ref_series", lambda spec, **kw: (axis, "AXIS"))
@@ -941,7 +941,7 @@ class TestAxisGroupKeys:
             calc.axis_group_keys(results, "E:P:X", scope={}, tol_s=2.5)
 
     def test_no_alignment_raises(self, monkeypatch):
-        from canlib.cli.commands.decode import calc
+        from canair.cli.commands.decode import calc
 
         axis = [_tp(1000 + s, 1.0) for s in range(4)]  # far from the captures
         monkeypatch.setattr(calc, "load_cross_ref_series", lambda spec, **kw: (axis, "AXIS"))
@@ -972,8 +972,8 @@ class TestPromotePciGuard:
         ],
     )
     def test_refuses_pci_reads(self, expr):
-        from canlib.cli.commands._promote import write_candidate
-        from canlib.yaml_edit.pids import PidsEditError
+        from canair.cli.commands._promote import write_candidate
+        from canair.yaml_edit.pids import PidsEditError
 
         with pytest.raises(PidsEditError, match="refusing to promote"):
             write_candidate("BMS", "2101", "X", expr, source="s", notes="n")
@@ -995,16 +995,16 @@ class TestPromotePciGuard:
         """
         from pathlib import Path
 
-        from canlib.cli.commands._promote import write_candidate
+        from canair.cli.commands._promote import write_candidate
 
         monkeypatch.setattr(
-            "canlib.yaml_edit.pids.upsert_parameter", lambda *a, **k: Path("x.yaml")
+            "canair.yaml_edit.pids.upsert_parameter", lambda *a, **k: Path("x.yaml")
         )
         write_candidate("BMS", "2101", "X", expr, source="s", notes="n")
 
     def test_the_refusal_names_the_offending_byte_and_the_fix(self):
-        from canlib.cli.commands._promote import write_candidate
-        from canlib.yaml_edit.pids import PidsEditError
+        from canair.cli.commands._promote import write_candidate
+        from canair.yaml_edit.pids import PidsEditError
 
         with pytest.raises(PidsEditError) as exc:
             write_candidate("BMS", "2101", "X", "[B7:B9]", source="s", notes="n")

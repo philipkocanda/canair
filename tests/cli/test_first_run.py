@@ -1,4 +1,4 @@
-"""Tests for the first-run profile chooser (canlib.cli.first_run)."""
+"""Tests for the first-run profile chooser (canair.cli.first_run)."""
 
 from __future__ import annotations
 
@@ -6,9 +6,9 @@ import argparse
 
 import pytest
 
-from canlib import profile
-from canlib.cli import first_run
-from canlib.ecus.pids import clear_cache
+from canair import profile
+from canair.cli import first_run
+from canair.ecus.pids import clear_cache
 
 
 @pytest.fixture(autouse=True)
@@ -67,7 +67,7 @@ class TestRunFirstRunSetup:
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
         (tmp_path / "profiles").mkdir()
-        from canlib import config
+        from canair import config
 
         config.load_config.cache_clear()
 
@@ -81,7 +81,7 @@ class TestRunFirstRunSetup:
         self._seed_profile(tmp_path, "car-a")
         monkeypatch.setattr(first_run, "_prompt", lambda _t: "1")
         first_run.run_first_run_setup(_args())
-        from canlib import config
+        from canair import config
 
         config.load_config.cache_clear()
         assert config.get_config_key("default_profile") == "car-a"
@@ -91,7 +91,7 @@ class TestRunFirstRunSetup:
         self._seed_profile(tmp_path, "car-a")
         monkeypatch.setattr(first_run, "_prompt", lambda _t: "s")
         first_run.run_first_run_setup(_args())
-        from canlib import config
+        from canair import config
 
         config.load_config.cache_clear()
         assert config.get_config_key("default_profile") is None
@@ -103,7 +103,7 @@ class TestRunFirstRunSetup:
         answers = iter(["n", "my-car", "VW e-Golf 2019"])
         monkeypatch.setattr(first_run, "_prompt", lambda _t: next(answers))
         first_run.run_first_run_setup(_args())
-        from canlib import config
+        from canair import config
 
         config.load_config.cache_clear()
         assert config.get_config_key("default_profile") == "my-car"
@@ -115,7 +115,7 @@ class TestRunFirstRunSetup:
         answers = iter(["n", ""])
         monkeypatch.setattr(first_run, "_prompt", lambda _t: next(answers))
         first_run.run_first_run_setup(_args())
-        from canlib import config
+        from canair import config
 
         config.load_config.cache_clear()
         assert config.get_config_key("default_profile") is None
@@ -144,8 +144,8 @@ class TestSnapshotProfileIsOffered:
         root = snapshot / "hyundai-ioniq-ae-ev"
         (root / "ecus").mkdir(parents=True)
         (root / "profile.yaml").write_text('car_model: "T"\ninit: "x"\n')
-        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", snapshot)
-        from canlib import config
+        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", snapshot)
+        from canair import config
 
         config.load_config.cache_clear()
         return root
@@ -162,7 +162,7 @@ class TestSnapshotProfileIsOffered:
         assert "deleted by the next reinstall" in out
         dest = tmp_path / "cfg" / "canair" / "profiles" / "hyundai-ioniq-ae-ev"
         assert (dest / "profile.yaml").exists()
-        from canlib import config
+        from canair import config
 
         config.load_config.cache_clear()
         assert config.get_config_key("default_profile") == "hyundai-ioniq-ae-ev"
@@ -178,7 +178,7 @@ class TestSnapshotProfileIsOffered:
 
         assert "canair profile adopt hyundai-ioniq-ae-ev" in capsys.readouterr().out
         assert not (tmp_path / "cfg" / "canair" / "profiles" / "hyundai-ioniq-ae-ev").exists()
-        from canlib import config
+        from canair import config
 
         config.load_config.cache_clear()
         assert config.get_config_key("default_profile") == "hyundai-ioniq-ae-ev"

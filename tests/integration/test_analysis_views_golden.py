@@ -117,7 +117,7 @@ def _deterministic_grid_region(tmp_path, monkeypatch):
     "no grid_region set" note and records a sentinel in the user config — making
     output depend on which test scanned first.
     """
-    from canlib import config
+    from canair import config
 
     cfg = tmp_path / "canair"
     cfg.mkdir(parents=True, exist_ok=True)

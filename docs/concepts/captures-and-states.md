@@ -94,7 +94,7 @@ Ioniq's largest day went from 9.0 MB to 2.0 MB). Read the files through canair; 
 parser sees the folded form.
 
 The **authoritative, machine-checked** schema (all fields, `scan_results`,
-deprecated fields) is `canlib/schema/captures_schema.json`; `canair validate
+deprecated fields) is `src/canair/schema/captures_schema.json`; `canair validate
 captures` checks every file against it. A profile created before the JSON
 cutover is converted once with `canair captures migrate`.
 
@@ -309,7 +309,7 @@ until the history is rewritten.
 
 A text row someone already redacted by hand is not a reply, so none of this
 applies to it. For now only one exact mask counts as redacted: the Ioniq VIN
-placeholder `KMHCXXXXXXXXXXXXX` (`REDACTED_VALUES` in `canlib/privacy/sensitive.py`). A row
+placeholder `KMHCXXXXXXXXXXXXX` (`REDACTED_VALUES` in `src/canair/privacy/sensitive.py`). A row
 that also stores payload bytes is still sensitive.
 
 ## Journaling — you won't lose data

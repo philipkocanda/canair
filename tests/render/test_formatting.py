@@ -1,8 +1,8 @@
-"""Tests for canlib.render.formatting — output formatting helpers."""
+"""Tests for canair.render.formatting — output formatting helpers."""
 
 import pytest
 
-from canlib.render.formatting import (
+from canair.render.formatting import (
     _HIGHLIGHT_STYLE,
     changed_param_highlights,
     format_value,
@@ -12,7 +12,7 @@ from canlib.render.formatting import (
     render_byte_rulers,
     render_param_table,
 )
-from canlib.uds.notation import ByteDisplay, ByteNotation
+from canair.uds.notation import ByteDisplay, ByteNotation
 
 
 def _display(payload_len: int, notation: ByteNotation = ByteNotation.WICAN, sub_bytes: int = 1):
@@ -303,7 +303,7 @@ class TestPrintHexdump:
         assert labels[6] == "B09", "PCI byte B08 must be skipped"
 
     def test_wican_frame_labels_are_the_identity(self, capsys):
-        from canlib.uds.wican_layout import uds_hex_to_wican_bytes
+        from canair.uds.wican_layout import uds_hex_to_wican_bytes
 
         print_hexdump(uds_hex_to_wican_bytes(self.HEX), layout="wican")
         labels = self._labels(capsys)
@@ -313,7 +313,7 @@ class TestPrintHexdump:
 
     def test_both_layouts_agree_on_where_a_data_byte_lives(self, capsys):
         """The same physical byte must carry the same label in either view."""
-        from canlib.uds.wican_layout import uds_hex_to_wican_bytes
+        from canair.uds.wican_layout import uds_hex_to_wican_bytes
 
         payload = bytes.fromhex(self.HEX)
         first_data = payload.index(0xAB)  # first byte after SID + PID echo

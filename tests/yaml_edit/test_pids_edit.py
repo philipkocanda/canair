@@ -1,4 +1,4 @@
-"""Tests for canlib.yaml_edit.pids — surgical DID field editing.
+"""Tests for canair.yaml_edit.pids — surgical DID field editing.
 
 Uses a tmp_path-backed copy of a single fixture YAML so tests don't mutate
 the real pids/ directory.
@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.yaml_edit.pids import (
+from canair.yaml_edit.pids import (
     EDITABLE_FIELDS,
     PidsEditError,
     find_ecu_file,
@@ -583,13 +583,13 @@ class TestRemoveFieldLine:
     """Unit tests for the _remove_field_line block-scalar trap (Part C)."""
 
     def test_removes_a_plain_scalar_line_exactly(self):
-        from canlib.yaml_edit.text import _remove_field_line
+        from canair.yaml_edit.text import _remove_field_line
 
         block = "      status: draft\n      verified: true\n"
         assert _remove_field_line(block, "status", indent=6) == "      verified: true\n"
 
     def test_absent_field_returns_block_unchanged(self):
-        from canlib.yaml_edit.text import _remove_field_line
+        from canair.yaml_edit.text import _remove_field_line
 
         block = "      verified: true\n      notes: hi\n"
         assert _remove_field_line(block, "status", indent=6) == block
@@ -605,7 +605,7 @@ class TestRemoveFieldLine:
             "        across two physical lines\n"
             "      verified: true\n"
         )
-        from canlib.yaml_edit.text import _remove_field_line
+        from canair.yaml_edit.text import _remove_field_line
 
         out = _remove_field_line(block, "notes", indent=6)
         assert "folded note" not in out, "the block body must be removed with its header"
@@ -621,7 +621,7 @@ class TestRemoveFieldLine:
             "        45: fanMAX\n"
             "      verified: true\n"
         )
-        from canlib.yaml_edit.text import _remove_field_line
+        from canair.yaml_edit.text import _remove_field_line
 
         out = _remove_field_line(block, "values", indent=6)
         assert "fan1" not in out

@@ -11,9 +11,9 @@ import time
 
 import pytest
 
-from canlib.live.monitor_reconnect import MonitorReconnector, ReconnectPolicy, reconnect_policy
-from canlib.transport import fallback
-from canlib.transport.config import TransportConfig
+from canair.live.monitor_reconnect import MonitorReconnector, ReconnectPolicy, reconnect_policy
+from canair.transport import fallback
+from canair.transport.config import TransportConfig
 
 
 def _raw(host: str) -> TransportConfig:
@@ -32,7 +32,7 @@ def _ws(host: str) -> TransportConfig:
 class TestWaitForReachable:
     def test_returns_first_reachable_now(self, monkeypatch):
         monkeypatch.setattr(
-            "canlib.device.wican.mode._tcp_open", lambda host, port, timeout: host == "up"
+            "canair.device.wican.mode._tcp_open", lambda host, port, timeout: host == "up"
         )
         cand = fallback.wait_for_reachable(
             [_raw("down"), _raw("up")], connect_timeout=0.01, poll_interval=0.01
@@ -46,7 +46,7 @@ class TestWaitForReachable:
             calls["n"] += 1
             return calls["n"] >= 3  # unreachable for the first two rounds
 
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", probe)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", probe)
         notes: list[str] = []
         cand = fallback.wait_for_reachable(
             [_raw("dev")],
@@ -60,7 +60,7 @@ class TestWaitForReachable:
         assert notes and "waiting" in notes[0].lower()
 
     def test_deadline_gives_up(self, monkeypatch):
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: False)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: False)
         start = time.monotonic()
         cand = fallback.wait_for_reachable(
             [_raw("dev")],
@@ -72,7 +72,7 @@ class TestWaitForReachable:
         assert time.monotonic() - start < 1.0  # bounded, didn't hang
 
     def test_stop_aborts(self, monkeypatch):
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: False)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: False)
         cand = fallback.wait_for_reachable(
             [_raw("dev")],
             connect_timeout=0.001,
@@ -98,9 +98,9 @@ class TestReconnectPolicy:
 
     def test_wait_is_forever(self, monkeypatch):
         monkeypatch.setattr(
-            "canlib.config.fallback_settings", lambda: (True, 2.0, None), raising=True
+            "canair.config.fallback_settings", lambda: (True, 2.0, None), raising=True
         )
-        monkeypatch.setattr("canlib.config.reconnect_max_wait", lambda: 9.0, raising=True)
+        monkeypatch.setattr("canair.config.reconnect_max_wait", lambda: 9.0, raising=True)
 
         p = reconnect_policy(wait=True)
         assert p.forever is True
@@ -109,9 +109,9 @@ class TestReconnectPolicy:
 
     def test_default_is_bounded(self, monkeypatch):
         monkeypatch.setattr(
-            "canlib.config.fallback_settings", lambda: (True, 2.0, None), raising=True
+            "canair.config.fallback_settings", lambda: (True, 2.0, None), raising=True
         )
-        monkeypatch.setattr("canlib.config.reconnect_max_wait", lambda: 6.0, raising=True)
+        monkeypatch.setattr("canair.config.reconnect_max_wait", lambda: 6.0, raising=True)
 
         assert reconnect_policy(wait=False).forever is False
 
@@ -170,7 +170,7 @@ def _run_bounded(reconnector, *args, timeout=5.0, **kwargs):
 
 class TestMonitorReconnector:
     def test_resumes_on_reachable(self, monkeypatch):
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: True)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: True)
 
         async def connect(cand):
             return f"client@{cand.host}"
@@ -185,7 +185,7 @@ class TestMonitorReconnector:
         assert ctl.disconnected is False
 
     def test_bounded_gives_up_when_unreachable(self, monkeypatch):
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: False)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: False)
 
         async def connect(cand):  # never called
             raise AssertionError("should not connect")
@@ -198,9 +198,9 @@ class TestMonitorReconnector:
 
     def test_skips_a_candidate_whose_firmware_refuses_the_transport(self, monkeypatch):
         """A v6 wican-ws candidate used to be re-homed onto, then loop on WebSocket 404s."""
-        import canlib.device.wican.firmware as wf
+        import canair.device.wican.firmware as wf
 
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: True)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: True)
         firmware = {"v6dev": wf.FirmwareInfo("v6", version="6.0.0"), "v4dev": wf.UNKNOWN}
         monkeypatch.setattr(wf, "detect", lambda host, surface, **k: firmware[host])
         tried: list[str] = []
@@ -218,9 +218,9 @@ class TestMonitorReconnector:
         assert any("not reconnecting to wican-ws (v6dev)" in n and "/ws" in n for n in notes)
 
     def test_gives_up_when_every_candidate_is_refused(self, monkeypatch):
-        import canlib.device.wican.firmware as wf
+        import canair.device.wican.firmware as wf
 
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: True)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: True)
         monkeypatch.setattr(wf, "detect", lambda *a, **k: wf.FirmwareInfo("v6"))
 
         async def connect(cand):
@@ -237,7 +237,7 @@ class TestMonitorReconnector:
         assert ok is False
 
     def test_retries_when_connect_fails_then_succeeds(self, monkeypatch):
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: True)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: True)
         attempts = {"n": 0}
 
         async def connect(cand):
@@ -255,7 +255,7 @@ class TestMonitorReconnector:
         assert ctl.rebound == ["client"]
 
     def test_stop_during_wait_gives_up(self, monkeypatch):
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: False)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: False)
 
         async def connect(cand):
             raise AssertionError
@@ -276,7 +276,7 @@ class TestMonitorReconnector:
     # cannot observe a deadline, so nothing covered this.
 
     def test_bounded_gives_up_when_probe_answers_but_connect_always_fails(self, monkeypatch):
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: True)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: True)
         attempts = {"n": 0}
 
         async def connect(cand):
@@ -293,7 +293,7 @@ class TestMonitorReconnector:
         assert attempts["n"] < 200, f"hot-spinning: {attempts['n']} connect attempts"
 
     def test_bounded_reconnect_respects_max_wait_duration(self, monkeypatch):
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: True)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: True)
 
         async def connect(cand):
             raise ConnectionError("nope")
@@ -307,7 +307,7 @@ class TestMonitorReconnector:
         assert elapsed < 3.0, f"took {elapsed:.2f}s for a 0.3s budget"
 
     def test_zero_budget_attempts_once_then_gives_up(self, monkeypatch):
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: True)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: True)
         attempts = {"n": 0}
 
         async def connect(cand):
@@ -320,7 +320,7 @@ class TestMonitorReconnector:
 
     def test_forever_keeps_retrying_a_failing_connect_but_paces_itself(self, monkeypatch):
         """`--wait` must retry indefinitely — without busy-looping."""
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: True)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: True)
         attempts = {"n": 0}
 
         async def connect(cand):
@@ -339,7 +339,7 @@ class TestMonitorReconnector:
         assert attempts["n"] < 200, f"hot-spinning: {attempts['n']} attempts in 0.2s"
 
     def test_stop_is_honoured_during_the_retry_backoff(self, monkeypatch):
-        monkeypatch.setattr("canlib.device.wican.mode._tcp_open", lambda *a: True)
+        monkeypatch.setattr("canair.device.wican.mode._tcp_open", lambda *a: True)
         stopped = {"v": False}
 
         async def connect(cand):
@@ -364,7 +364,7 @@ class TestMonitorReconnector:
 
 class TestControllerRebind:
     def _controller(self, *, raw: bool):
-        from canlib.live.monitor import MonitorController
+        from canair.live.monitor import MonitorController
 
         steps = [{"type": "query", "ecu": "BMS", "pids": ["2101"]}]
         if raw:
@@ -396,7 +396,7 @@ class TestControllerRebind:
         # A desynced pipe makes every ECU look unanswered, so all are backed off by the
         # time the liveness check reconnects. Resetting the backoff alone would leave the
         # scheduler's factor behind with nothing left to ever restore it.
-        from canlib.live.poll_backoff import ESCALATE_AFTER, PollCost
+        from canair.live.poll_backoff import ESCALATE_AFTER, PollCost
 
         c = self._controller(raw=False)
         BMS = ("BMS", "2101")
@@ -419,7 +419,7 @@ class TestControllerRebind:
         # recorded quality must still count what the old link exchanged.
         from types import SimpleNamespace
 
-        from canlib.transport.stats import TransportStats
+        from canair.transport.stats import TransportStats
 
         def client():
             return SimpleNamespace(diag=TransportStats(transport="wican-ws"))
@@ -477,7 +477,7 @@ class TestStaleEscalation:
     values on a connection that will never answer again — the reported bug."""
 
     def _controller(self):
-        from canlib.live.monitor import MonitorController
+        from canair.live.monitor import MonitorController
 
         steps = [{"type": "query", "ecu": "BMS", "pids": ["2101"]}]
         c = MonitorController(object(), steps, {"ecus": {}}, verbose=False)
@@ -492,7 +492,7 @@ class TestStaleEscalation:
         c._check_liveness({"BMS"}, {"BMS"})
 
     def test_all_stale_cycles_escalate_at_the_threshold(self, monkeypatch):
-        from canlib import config
+        from canair import config
 
         monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 3)
         c = self._controller()
@@ -506,7 +506,7 @@ class TestStaleEscalation:
         assert c.dead_cycles == 0  # armed afresh for the post-reconnect run
 
     def test_one_good_response_resets_the_count(self, monkeypatch):
-        from canlib import config
+        from canair import config
 
         monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 3)
         c = self._controller()
@@ -521,7 +521,7 @@ class TestStaleEscalation:
         # A negative response proves the request reached the ECU and its reply
         # came back in the right slot: the pipe is healthy and refusing, which is
         # not something reconnecting would fix.
-        from canlib import config
+        from canair import config
 
         monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 2)
         c = self._controller()
@@ -532,7 +532,7 @@ class TestStaleEscalation:
         assert c.disconnected is False
 
     def test_zero_disables_escalation(self, monkeypatch):
-        from canlib import config
+        from canair import config
 
         monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 0)
         c = self._controller()
@@ -544,7 +544,7 @@ class TestStaleEscalation:
     def test_an_idle_cycle_is_not_a_dead_cycle(self, monkeypatch):
         # Every PID filtered out (or a paused/empty plan) means nothing was asked,
         # so nothing failing to answer is not evidence of a broken link.
-        from canlib import config
+        from canair import config
 
         monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 1)
         c = self._controller()
@@ -563,11 +563,11 @@ class TestStaleEscalation:
 class TestWaitInitialConnect:
     def test_async_main_waits_then_proceeds(self, monkeypatch):
         """--wait blocks on wait_for_reachable until a device appears, then runs."""
-        from canlib.cli.commands import _live
+        from canair.cli.commands import _live
 
         cand = _raw("dev")
-        monkeypatch.setattr("canlib.transport.resolve_transport_candidates", lambda args: [cand])
-        monkeypatch.setattr("canlib.config.fallback_settings", lambda: (True, 2.0, None))
+        monkeypatch.setattr("canair.transport.resolve_transport_candidates", lambda args: [cand])
+        monkeypatch.setattr("canair.config.fallback_settings", lambda: (True, 2.0, None))
 
         waited = {"n": 0}
 
@@ -576,10 +576,10 @@ class TestWaitInitialConnect:
             assert kw["deadline"] is None  # forever
             return candidates[0]
 
-        monkeypatch.setattr("canlib.transport.wait_for_reachable", fake_wait)
+        monkeypatch.setattr("canair.transport.wait_for_reachable", fake_wait)
         # select_reachable_transport must NOT be used on the --wait path.
         monkeypatch.setattr(
-            "canlib.transport.select_reachable_transport",
+            "canair.transport.select_reachable_transport",
             lambda *a, **k: pytest.fail("should not select on --wait"),
         )
 
@@ -589,7 +589,7 @@ class TestWaitInitialConnect:
             captured["host"] = transport.host
             return 0
 
-        monkeypatch.setattr("canlib.live.raw_ops.run_raw", fake_run_raw)
+        monkeypatch.setattr("canair.live.raw_ops.run_raw", fake_run_raw)
         monkeypatch.setattr(_live, "load_pids", lambda: {"ecus": {}})
 
         class Args:

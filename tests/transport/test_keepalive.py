@@ -1,4 +1,4 @@
-"""A TesterPresent keepalive stops once the ECU answers NRC 0x11 (canlib.transport.keepalive); the raw terminal's loop
+"""A TesterPresent keepalive stops once the ECU answers NRC 0x11 (canair.transport.keepalive); the raw terminal's loop
 is tested in test_raw_terminal.py.
 
 The Ioniq's BMS has no TesterPresent in any session, so a keepalive to it only costs bus time.
@@ -12,10 +12,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from canlib.transport import keepalive
-from canlib.transport.elm327 import session as elm327_session
-from canlib.transport.session_manager import SessionManager
-from canlib.uds.nrc import NRC_SERVICE_NOT_SUPPORTED
+from canair.transport import keepalive
+from canair.transport.elm327 import session as elm327_session
+from canair.transport.session_manager import SessionManager
+from canair.uds.nrc import NRC_SERVICE_NOT_SUPPORTED
 from tests.support.fakes import FakeTerminal, nrc, ok
 
 BMS = 0x7E4

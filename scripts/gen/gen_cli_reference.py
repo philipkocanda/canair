@@ -48,7 +48,7 @@ def _isolate_environment() -> None:
         os.environ.pop(var, None)
 
     # Neutralize both config sources (user + legacy repo-local) deterministically.
-    from canlib import config
+    from canair import config
 
     config.load_config.cache_clear()
     config.load_config = lambda: {}  # type: ignore[assignment]
@@ -100,7 +100,7 @@ def _command_names() -> list[str]:
     trailing underscore avoids shadowing the ``import`` keyword). The parser
     registers under ``NAME``, so the reference pages must key off ``NAME`` too.
     """
-    from canlib.cli.commands import iter_command_modules
+    from canair.cli.commands import iter_command_modules
 
     return [module.NAME for module in iter_command_modules()]
 
@@ -109,11 +109,11 @@ def _index_page(names: list[str]) -> str:
     """Rewrite the cli/ index to list the generated per-command pages.
 
     Commands are grouped under the same categories the top-level ``canair
-    --help`` uses (``canlib.cli.commands._categories``); anything absent from a
+    --help`` uses (``canair.cli.commands._categories``); anything absent from a
     category falls under a trailing "Other" heading, so the two never drift.
     """
-    from canlib.cli import build_parser
-    from canlib.cli.commands._categories import CATEGORIES, OTHER_TITLE
+    from canair.cli import build_parser
+    from canair.cli.commands._categories import CATEGORIES, OTHER_TITLE
 
     parser = build_parser()
     sub = _subparsers_action(parser)
@@ -169,7 +169,7 @@ def _index_page(names: list[str]) -> str:
 
 def generate() -> dict[str, str]:
     """Build the full set of {relative_path: content} for the cli/ reference."""
-    from canlib.cli import build_parser
+    from canair.cli import build_parser
 
     parser = build_parser()
     sub = _subparsers_action(parser)

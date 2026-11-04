@@ -1,8 +1,8 @@
-"""Tests for canlib.transport.timeouts — response-budget resolution."""
+"""Tests for canair.transport.timeouts — response-budget resolution."""
 
 from __future__ import annotations
 
-from canlib.transport.timeouts import cli_timeout, ecu_timeouts_by_name, ecu_timeouts_by_tx
+from canair.transport.timeouts import cli_timeout, ecu_timeouts_by_name, ecu_timeouts_by_tx
 
 
 def test_cli_timeout_none_when_unset():

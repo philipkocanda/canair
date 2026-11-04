@@ -209,7 +209,7 @@ charging captures while driving power was a few kW out. Tells, each usable on it
 
 Hence: **verify a signed signal on both sides of zero**, and in any hand-built word only the
 top byte is `Sn` — every lower byte is `Bn`. `validate pids` rejects a signed lower byte
-(`canlib/expression/lint.py`), so `pids upsert-param` reverts one.
+(`src/canair/expression/lint.py`), so `pids upsert-param` reverts one.
 
 ---
 

@@ -5,7 +5,7 @@ import textwrap
 import pytest
 import yaml
 
-from canlib.yaml_edit.pids import PidsEditError, remove_identity_field, set_identity_field
+from canair.yaml_edit.pids import PidsEditError, remove_identity_field, set_identity_field
 
 
 @pytest.fixture

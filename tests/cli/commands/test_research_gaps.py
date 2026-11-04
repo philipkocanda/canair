@@ -1,9 +1,9 @@
-"""Tests for `canair research --gaps` (canlib.cli.commands.research.gaps)."""
+"""Tests for `canair research --gaps` (canair.cli.commands.research.gaps)."""
 
 from types import SimpleNamespace
 
-from canlib.cli.commands import research
-from canlib.cli.commands.research.gaps import (
+from canair.cli.commands import research
+from canair.cli.commands.research.gaps import (
     capture_read_ranges,
     did_ranges_in_text,
     find_gaps,

@@ -15,15 +15,15 @@ import argparse
 
 import pytest
 
-from canlib.cli.commands import captures as cap
-from canlib.cli.commands.captures.mode_select import (
+from canair.cli.commands import captures as cap
+from canair.cli.commands.captures.mode_select import (
     STANDALONE_MODES,
     VIEW_MODES,
     ModeError,
     has_scope_filter,
     resolve_mode,
 )
-from canlib.cli.commands.captures.query import build_query
+from canair.cli.commands.captures.query import build_query
 
 
 def _args(*argv: str) -> argparse.Namespace:

@@ -7,7 +7,7 @@ session) — so a renamed signal silently disables its state. That happened: the
 ``PARKED`` predicate referenced ``VCU.GEAR_PARK`` after the signal was renamed,
 ``canair validate all`` stayed green, and only the backfill-states tests noticed.
 
-These tests cover the machinery that closes the hole (``canlib.states.refs``), the
+These tests cover the machinery that closes the hole (``canair.states.refs``), the
 ``canair validate states`` gate that reports it, and a guard that every predicate
 in every bundled profile still resolves.
 """
@@ -18,13 +18,13 @@ import argparse
 
 import pytest
 
-from canlib import profile
-from canlib.cli.commands import validate as validate_cmd
-from canlib.core.paths import BUNDLED_PROFILES_DIR
-from canlib.ecus.pids import clear_cache
-from canlib.expression.decoding import decodes_to_number
-from canlib.states import StatePredicateError, predicate_references
-from canlib.states.refs import (
+from canair import profile
+from canair.cli.commands import validate as validate_cmd
+from canair.core.paths import BUNDLED_PROFILES_DIR
+from canair.ecus.pids import clear_cache
+from canair.expression.decoding import decodes_to_number
+from canair.states import StatePredicateError, predicate_references
+from canair.states.refs import (
     IGNORED_PID,
     MALFORMED,
     NOT_NUMERIC,
@@ -74,7 +74,7 @@ PIDS_DATA = {
 
 
 class TestPredicateReferences:
-    """canlib.states.predicate_references — what a `when:` expression reads."""
+    """canair.states.predicate_references — what a `when:` expression reads."""
 
     def test_dotted_names_only_once_each(self):
         expr = "VCU.GEAR_P == 1 or ESC.REAL_SPEED_KMH > 0.5 or VCU.GEAR_P == 2"
@@ -99,7 +99,7 @@ class TestPredicateReferences:
 
 
 class TestDecodesToNumber:
-    """canlib.expression.decoding.decodes_to_number — only numerics reach a predicate."""
+    """canair.expression.decoding.decodes_to_number — only numerics reach a predicate."""
 
     @pytest.mark.parametrize("ptype", [None, "numeric", "enum", "bitmask", "bcd"])
     def test_numeric_yielding_types(self, ptype):
@@ -115,7 +115,7 @@ class TestDecodesToNumber:
 
 
 class TestCheckReferences:
-    """canlib.states.refs.check_references — why a reference cannot resolve."""
+    """canair.states.refs.check_references — why a reference cannot resolve."""
 
     def _kinds(self, expr):
         return [i.kind for i in check_references([("S", expr)], PIDS_DATA)]
@@ -288,7 +288,7 @@ class TestPidsEditWarnsAboutPredicates:
         return argparse.Namespace(**base)
 
     def test_rename_warns(self, tmp_path, capsys):
-        from canlib.cli.commands import pids as pids_cmd
+        from canair.cli.commands import pids as pids_cmd
 
         root = _mk_profile(tmp_path, GOOD_STATES)
         pids_cmd.cmd_rename_param(
@@ -298,7 +298,7 @@ class TestPidsEditWarnsAboutPredicates:
         assert "PARKED" in out and "VCU.GEAR_P" in out
 
     def test_remove_warns(self, tmp_path, capsys):
-        from canlib.cli.commands import pids as pids_cmd
+        from canair.cli.commands import pids as pids_cmd
 
         root = _mk_profile(tmp_path, GOOD_STATES)
         pids_cmd.cmd_rm_param(self._args(root, ecu="VCU", pid="2101", name="GEAR_P"))
@@ -306,7 +306,7 @@ class TestPidsEditWarnsAboutPredicates:
         assert "PARKED" in out
 
     def test_unreferenced_signal_is_quiet(self, tmp_path, capsys):
-        from canlib.cli.commands import pids as pids_cmd
+        from canair.cli.commands import pids as pids_cmd
 
         root = _mk_profile(tmp_path, "states:\n  - name: SLEEP\n    when: __no_response__\n")
         pids_cmd.cmd_rm_param(self._args(root, ecu="VCU", pid="2101", name="GEAR_P"))
@@ -324,8 +324,8 @@ class TestBundledProfiles:
         "name", [p.name for p in sorted(BUNDLED_PROFILES_DIR.iterdir()) if p.is_dir()]
     )
     def test_predicates_resolve(self, name):
-        from canlib.ecus.pids import load_pids
-        from canlib.states.refs import profile_predicates
+        from canair.ecus.pids import load_pids
+        from canair.states.refs import profile_predicates
 
         prof = profile.set_active(name)
         issues = check_references(profile_predicates(prof), load_pids())
@@ -333,7 +333,7 @@ class TestBundledProfiles:
 
     def test_the_reference_profile_actually_has_predicates(self):
         """Keeps the guard above from passing vacuously if predicate loading breaks."""
-        from canlib.states.refs import profile_predicates
+        from canair.states.refs import profile_predicates
 
         prof = profile.set_active("hyundai-ioniq-ae-ev")
         predicates = profile_predicates(prof)

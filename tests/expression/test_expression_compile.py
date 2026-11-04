@@ -1,20 +1,20 @@
 """Fidelity tests for the compiled expression evaluator.
 
-:func:`canlib.expression.evaluate_expression` used to re-parse its expression on
+:func:`canair.expression.evaluate_expression` used to re-parse its expression on
 every call; it now compiles once into a closure tree (see
 ``plans/2026-08-04-expression-evaluator-performance.md``). The evaluator's output
 is what ``--promote`` persists and what the WiCAN device itself computes, so
 **any** divergence is a silently wrong decoded value rather than a crash.
 
 The load-bearing guard is therefore differential: a verbatim copy of the
-pre-change implementation lives *here* (deliberately not in ``canlib/``, so the
+pre-change implementation lives *here* (deliberately not in ``src/canair/``, so the
 production module keeps one code path) and every test asserts the two agree on
 the returned float **or** the exception type — including for the evaluator's
 inherited quirks, which are out of scope to fix.
 
 ``TestModuleLayering`` additionally pins the subsystem's shape: the evaluator is
-split across ``canlib.expression`` (entry point) / ``canlib.expression.compile``
-(grammar) / ``canlib.expression.nodes`` (semantics), and stays a ``canlib`` leaf so
+split across ``canair.expression`` (entry point) / ``canair.expression.compile``
+(grammar) / ``canair.expression.nodes`` (semantics), and stays a ``canair`` leaf so
 every consumer can import it without a cycle.
 """
 
@@ -29,8 +29,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.core.paths import BUNDLED_PROFILES_DIR
-from canlib.expression import _compile_cached, compile_expression, evaluate_expression
+from canair.core.paths import BUNDLED_PROFILES_DIR
+from canair.expression import _compile_cached, compile_expression, evaluate_expression
 
 # --------------------------------------------------------------------------
 # Preserved reference implementation (pre-compile, verbatim). Do not "clean up":
@@ -620,8 +620,8 @@ class TestCompileAndCache:
 # Module layering
 # --------------------------------------------------------------------------
 
-_CANLIB = Path(__file__).resolve().parents[2] / "canlib"
-# The evaluator subsystem is the `canlib.expression` package. Its public entry
+_CANLIB = Path(__file__).resolve().parents[2] / "src" / "canair"
+# The evaluator subsystem is the `canair.expression` package. Its public entry
 # point is the package __init__; `compile` and `nodes` are the private halves.
 _SUBSYSTEM = {
     "expression": _CANLIB / "expression" / "__init__.py",
@@ -630,16 +630,16 @@ _SUBSYSTEM = {
 }
 
 
-def _canlib_imports(path: Path) -> set[str]:
-    """Top-level ``canlib`` subpackage names imported by the file at ``path``."""
+def _canair_imports(path: Path) -> set[str]:
+    """Top-level ``canair`` subpackage names imported by the file at ``path``."""
     found: set[str] = set()
     for node in ast.walk(ast.parse(path.read_text())):
         if isinstance(node, ast.ImportFrom):
             if not node.level:  # absolute
-                if (node.module or "").split(".")[0] != "canlib":
+                if (node.module or "").split(".")[0] != "canair":
                     continue
                 parts = (node.module or "").split(".")
-                # record the subpackage path under canlib (e.g. "expression.compile")
+                # record the subpackage path under canair (e.g. "expression.compile")
                 found.add(".".join(parts[1:3]) if len(parts) > 2 else parts[1])
                 continue
             if node.module:  # from .sibling import name
@@ -648,25 +648,25 @@ def _canlib_imports(path: Path) -> set[str]:
                 found.update(f"expression.{a.name.split('.')[0]}" for a in node.names)
         elif isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name.split(".")[0] == "canlib":
+                if alias.name.split(".")[0] == "canair":
                     parts = alias.name.split(".")
                     found.add(".".join(parts[1:3]) if len(parts) > 2 else parts[1])
     return found
 
 
 class TestModuleLayering:
-    """The evaluator subsystem stays a `canlib` leaf, so anything can import it."""
+    """The evaluator subsystem stays a `canair` leaf, so anything can import it."""
 
     @pytest.mark.parametrize("module", list(_SUBSYSTEM))
     def test_imports_nothing_outside_the_subsystem(self, module: str):
         # decode_value's docstring (and every consumer that imports it without a
         # cycle) depends on this holding.
-        assert _canlib_imports(_SUBSYSTEM[module]) <= set(_SUBSYSTEM)
+        assert _canair_imports(_SUBSYSTEM[module]) <= set(_SUBSYSTEM)
 
     def test_public_surface_is_re_exported(self):
-        # Consumers and docstrings reference `canlib.expression.<name>`; the split
+        # Consumers and docstrings reference `canair.expression.<name>`; the split
         # must not force them to reach into the private halves.
-        import canlib.expression as expr
+        import canair.expression as expr
 
         for name in expr.__all__:
             assert hasattr(expr, name), name

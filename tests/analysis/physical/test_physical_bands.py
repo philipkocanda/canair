@@ -1,8 +1,8 @@
-"""Tests for canlib.analysis.physical.bands — band resolution precedence."""
+"""Tests for canair.analysis.physical.bands — band resolution precedence."""
 
 from __future__ import annotations
 
-from canlib.analysis.physical.bands import DEFAULT_PHYSICAL_BANDS, resolve_physical_bands
+from canair.analysis.physical.bands import DEFAULT_PHYSICAL_BANDS, resolve_physical_bands
 
 
 def _as_dict(bands):

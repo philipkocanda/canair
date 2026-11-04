@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-import canlib.cli.commands.groups as groups_cmd
-from canlib.ecus.ecu_groups import Group
+import canair.cli.commands.groups as groups_cmd
+from canair.ecus.ecu_groups import Group
 
 
 class _FakeProfile:
@@ -24,8 +24,8 @@ def _patched(monkeypatch):
         "driving": Group("driving", "", ("BMS", "VCU", "MCU")),
     }
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canlib.ecus.ecu_groups.load_groups", lambda profile=None: groups)
-    monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
+    monkeypatch.setattr("canair.ecus.ecu_groups.load_groups", lambda profile=None: groups)
+    monkeypatch.setattr("canair.profile.active", lambda: _FakeProfile())
 
 
 def _run(**kw):
@@ -60,8 +60,8 @@ def test_no_color_when_piped(_patched, capsys):
 
 def test_empty_profile_message(monkeypatch, capsys):
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canlib.ecus.ecu_groups.load_groups", lambda profile=None: {})
-    monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
+    monkeypatch.setattr("canair.ecus.ecu_groups.load_groups", lambda profile=None: {})
+    monkeypatch.setattr("canair.profile.active", lambda: _FakeProfile())
     rc = _run()
     out = capsys.readouterr().out
     assert rc == 0

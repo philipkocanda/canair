@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rewrite importers when code moves between modules (the codemod behind the layout plan).
 
-Three operations, each applied to every ``*.py`` under ``canlib/``, ``tests/`` and ``scripts/``:
+Three operations, each applied to every ``*.py`` under ``src/canair/``, ``tests/`` and ``scripts/``:
 
     move-names OLD_MODULE NEW_MODULE NAME [NAME ...]
         Names moved from one module to another: ``from OLD import a, b`` becomes
@@ -17,7 +17,7 @@ Three operations, each applied to every ``*.py`` under ``canlib/``, ``tests/`` a
         their relative imports still resolve.
 
     retarget-paths OLD_PATH NEW_PATH [OLD_PATH NEW_PATH ...]
-        ``canlib/x/y.py`` style paths in docs, skills, comments and config (tracked text files
+        ``src/canair/x/y.py`` style paths in docs, skills, comments and config (tracked text files
         outside ``plans/``, ``profiles/``, ``tests/fixtures/`` and ``CHANGELOG.md``).
 
 What it does not handle, learnt the hard way:
@@ -27,7 +27,7 @@ What it does not handle, learnt the hard way:
 * ``import pkg.mod as alias`` style module attribute access (``alias.func``) in tests: the
   importers are rewritten but ``alias.func`` still points at the old module. ``ty``/the suite
   will find them; fix by hand.
-* Names resolved through a module-level ``__getattr__`` (``canlib.render.ansi.BOLD``) must never be
+* Names resolved through a module-level ``__getattr__`` (``canair.render.ansi.BOLD``) must never be
   patched with ``monkeypatch.setattr``; use ``monkeypatch.setitem(module.__dict__, ...)``.
 * Imports it writes are absolute and may land in their own isort group; run
   ``ruff check --fix`` and ``ruff format`` afterwards, and mind the size ceilings in
@@ -46,13 +46,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOTS = ("canlib", "tests", "scripts")
+ROOTS = ("src/canair", "tests", "scripts")
 TEXT_SUFFIXES = (".py", ".md", ".yml", ".yaml", ".toml", ".sh", ".tape")
 PATH_SKIP = ("plans/", "profiles/", "tests/fixtures/")
 
 
 def module_name(path: Path) -> str:
     parts = list(path.with_suffix("").parts)
+    if parts[0] == "src":
+        parts = parts[1:]
     if parts[-1] == "__init__":
         parts = parts[:-1]
     return ".".join(parts)

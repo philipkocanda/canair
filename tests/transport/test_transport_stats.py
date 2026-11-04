@@ -6,15 +6,15 @@ import json
 
 from jsonschema import Draft202012Validator
 
-from canlib.transport.stats import TransportStats, classify_raw_value
-from canlib.uds.parse import parse_uds_response
-from canlib.uds.response import (
+from canair.transport.stats import TransportStats, classify_raw_value
+from canair.uds.parse import parse_uds_response
+from canair.uds.response import (
     ERROR_CATEGORIES,
     RESPONSE_CATEGORIES,
     classify_error,
     classify_response,
 )
-from canlib.validation._common import CAPTURES_SCHEMA_FILE
+from canair.validation._common import CAPTURES_SCHEMA_FILE
 
 
 class TestClassifyResponse:

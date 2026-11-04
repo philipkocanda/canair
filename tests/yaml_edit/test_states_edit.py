@@ -1,4 +1,4 @@
-"""Tests for canlib.yaml_edit.states — surgical vehicle_states.yaml editing."""
+"""Tests for canair.yaml_edit.states — surgical vehicle_states.yaml editing."""
 
 from __future__ import annotations
 
@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from canlib.core import yaml_io
-from canlib.states import StatePredicateError
-from canlib.yaml_edit import states as states_edit
-from canlib.yaml_edit.states import (
+from canair.core import yaml_io
+from canair.states import StatePredicateError
+from canair.yaml_edit import states as states_edit
+from canair.yaml_edit.states import (
     StatesEditError,
     add_state,
     normalize_name,

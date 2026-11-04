@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.validation.signals import (
+from canair.validation.signals import (
     check_signals_doc,
     frame_length_for,
     is_message_length,
@@ -81,7 +81,7 @@ class TestTypedMaps:
         assert any("label for 1 must be a string" in e for e in errors)
 
     def test_quoted_int_keys_accepted(self):
-        # The typed decoder reads int and str keys alike (canlib/decode_value.py).
+        # The typed decoder reads int and str keys alike (src/canair/decode_value.py).
         assert _errors(_doc(type="enum", values={"1": "P", 2: "R"})) == []
 
     def test_bits_must_be_mapping_in_range(self):

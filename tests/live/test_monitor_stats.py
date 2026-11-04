@@ -1,12 +1,12 @@
 """Unit tests for the monitor's per-signal value-range accumulator.
 
-Covers :class:`canlib.live._monitor_stats.ParamStats` (numeric min/max, distinct
+Covers :class:`canair.live._monitor_stats.ParamStats` (numeric min/max, distinct
 non-numeric labels, bool-as-flag handling, overflow) and the
-:func:`canlib.render.formatting.render_param_ranges` renderer that presents it.
+:func:`canair.render.formatting.render_param_ranges` renderer that presents it.
 """
 
-from canlib.live._monitor_stats import ParamStats
-from canlib.render.formatting import render_param_ranges
+from canair.live._monitor_stats import ParamStats
+from canair.render.formatting import render_param_ranges
 
 
 def _row(name, value, unit="", verified=True):

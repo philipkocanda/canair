@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from canlib.profile import ProfileError, resolve_profile
+from canair.profile import ProfileError, resolve_profile
 
 LEGACY = {
     "date": "2026-10-21",
@@ -36,13 +36,13 @@ LEGACY = {
 @pytest.fixture
 def layered(tmp_path, monkeypatch):
     """A bundled base ``ev6`` (a +0x20 profile) and the user's overlay, made active."""
-    from canlib import config
-    from canlib import profile as profile_mod
-    from canlib.ecus.pids import clear_cache
+    from canair import config
+    from canair import profile as profile_mod
+    from canair.ecus.pids import clear_cache
 
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
-    monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
+    monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
     config.load_config.cache_clear()
     base = tmp_path / "profiles" / "ev6"
     (base / "ecus").mkdir(parents=True)
@@ -69,7 +69,7 @@ def _write(path: Path, *sessions) -> Path:
 
 
 def _migrate(*argv: str) -> int:
-    from canlib.cli.commands import captures as cap
+    from canair.cli.commands import captures as cap
 
     parser = cap.add_parser(argparse.ArgumentParser().add_subparsers())
     args = parser.parse_args(["migrate-discover", *argv])
@@ -131,7 +131,7 @@ def _session(label: str, time: str = "10:00:00") -> dict:
 
 
 def _entries():
-    from canlib.captures.store import load_all_captures
+    from canair.captures.store import load_all_captures
 
     return load_all_captures()
 
@@ -141,7 +141,7 @@ class TestSessionEditorsRefuseTheBase:
         "editor,value", [("cmd_set_notes", "corrected"), ("cmd_set_transport", "wican-ws")]
     )
     def test_a_base_session_is_refused(self, layered, capsys, editor, value):
-        from canlib.cli.commands.captures import session_fields
+        from canair.cli.commands.captures import session_fields
 
         theirs = _write(layered.base / "captures" / "2026-10-21.json", _session("upstream"))
         before = theirs.read_text()
@@ -150,7 +150,7 @@ class TestSessionEditorsRefuseTheBase:
         assert theirs.read_text() == before
 
     def test_set_state_refuses_a_base_session(self, layered, capsys):
-        from canlib.cli.commands.captures.set_state import cmd_set_state
+        from canair.cli.commands.captures.set_state import cmd_set_state
 
         theirs = _write(layered.base / "captures" / "2026-10-21.json", _session("upstream"))
         before = theirs.read_text()
@@ -167,8 +167,8 @@ class TestSessionEditorsBehaviour:
         return cdir
 
     def test_a_partial_write_failure_exits_1(self, tmp_path, monkeypatch, capsys):
-        from canlib.captures.store import load_all_captures
-        from canlib.cli.commands.captures import session_fields
+        from canair.captures.store import load_all_captures
+        from canair.cli.commands.captures import session_fields
 
         cdir = self._store(tmp_path)
         real = session_fields._notes_field().write
@@ -192,8 +192,8 @@ class TestSessionEditorsBehaviour:
 
     @pytest.mark.parametrize("answer,rc,written", [("y", 0, True), ("n", 1, False)])
     def test_the_confirmation_prompt(self, tmp_path, monkeypatch, capsys, answer, rc, written):
-        from canlib.captures.store import load_all_captures
-        from canlib.cli.commands.captures import session_fields
+        from canair.captures.store import load_all_captures
+        from canair.cli.commands.captures import session_fields
 
         cdir = self._store(tmp_path)
         tty = io.StringIO(answer + "\n")
@@ -211,9 +211,9 @@ class TestSessionEditorsBehaviour:
         [("notes", "corrected"), ("transport", "wican-ws"), ("state", "ACC")],
     )
     def test_json_without_dry_run_keeps_stdout_pure(self, tmp_path, capsys, editor, value):
-        from canlib.captures.store import load_all_captures
-        from canlib.cli.commands.captures import session_fields
-        from canlib.cli.commands.captures.set_state import cmd_set_state
+        from canair.captures.store import load_all_captures
+        from canair.cli.commands.captures import session_fields
+        from canair.cli.commands.captures.set_state import cmd_set_state
 
         cdir = self._store(tmp_path)
         entries = load_all_captures(cdir)

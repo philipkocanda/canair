@@ -14,23 +14,23 @@ import re
 import can
 import pytest
 
-from canlib import profile
-from canlib.cli.commands import discover as discover_cmd
-from canlib.ecus.pids import clear_cache
-from canlib.live.functional_sweep import classify_round, group_by_bus, round_to_capture
-from canlib.safety.blocklist import SafetyBlocked, check_functional_request
-from canlib.transport.elm327.addressing import AdapterState
-from canlib.transport.elm327.functional import elm_functional_exchange, parse_header_lines
-from canlib.transport.elm327.terminal import Elm327Terminal
-from canlib.transport.functional import (
+from canair import profile
+from canair.cli.commands import discover as discover_cmd
+from canair.ecus.pids import clear_cache
+from canair.live.functional_sweep import classify_round, group_by_bus, round_to_capture
+from canair.safety.blocklist import SafetyBlocked, check_functional_request
+from canair.transport.elm327.addressing import AdapterState
+from canair.transport.elm327.functional import elm_functional_exchange, parse_header_lines
+from canair.transport.elm327.terminal import Elm327Terminal
+from canair.transport.functional import (
     DEFAULT_WINDOW_S,
     FunctionalCollector,
     FunctionalMessage,
     FunctionalResult,
     single_frame,
 )
-from canlib.transport.raw.functional import raw_functional_exchange
-from canlib.uds.addressing import EcuAddress, physical_request_id
+from canair.transport.raw.functional import raw_functional_exchange
+from canair.uds.addressing import EcuAddress, physical_request_id
 from tests.support.fakes import FakeTerminal, QueuedChannel
 
 # --------------------------------------------------------------------------- allow-list
@@ -80,7 +80,7 @@ class TestAllowList:
         import argparse
         from pathlib import Path
 
-        from canlib.safety.blocklist import FUNCTIONAL_READS
+        from canair.safety.blocklist import FUNCTIONAL_READS
 
         parser = discover_cmd.add_parser(argparse.ArgumentParser().add_subparsers())
         epilog = " ".join((parser.epilog or "").split())
@@ -142,22 +142,22 @@ class TestDispatchForwardsTheParsedValues:
     def _run(self, monkeypatch, **kw) -> dict:
         import asyncio
 
-        from canlib.cli.commands._live.handlers.scans import handle_discover
+        from canair.cli.commands._live.handlers.scans import handle_discover
 
         seen: dict = {}
 
         async def fake_mode(terminal, pids_data, **kwargs):
             seen.update(kwargs)
 
-        monkeypatch.setattr("canlib.live.discover_functional.mode_discover_functional", fake_mode)
+        monkeypatch.setattr("canair.live.discover_functional.mode_discover_functional", fake_mode)
         common = {"json": False, "save": False, "label": None, "state": None, "notes": None}
         args = _discover_args(functional=True, **common, **kw)
         asyncio.run(handle_discover(args, object(), {}, None))
         return seen
 
     def test_unset_flags_take_the_defaults(self, monkeypatch):
-        from canlib.live.discover_functional import DEFAULT_REQUEST
-        from canlib.transport.functional import DEFAULT_WINDOW_S
+        from canair.live.discover_functional import DEFAULT_REQUEST
+        from canair.transport.functional import DEFAULT_WINDOW_S
 
         seen = self._run(monkeypatch)
         assert (seen["request"], seen["window"], seen["repeat"]) == (
@@ -297,7 +297,7 @@ class TestRawExchange:
 
 
 def _fixed_29():
-    from canlib.uds.addressing import AddressingMode
+    from canair.uds.addressing import AddressingMode
 
     return AddressingMode.NORMAL_FIXED_29BIT
 
@@ -433,10 +433,10 @@ class TestReport:
     def test_capture_round_trips_through_validate_captures(self, tmp_path):
         from jsonschema import Draft202012Validator
 
-        from canlib.captures import build_manual_session
-        from canlib.captures import io as capture_io
-        from canlib.validation._common import CAPTURES_SCHEMA_FILE
-        from canlib.validation.captures import validate_captures_file
+        from canair.captures import build_manual_session
+        from canair.captures import io as capture_io
+        from canair.validation._common import CAPTURES_SCHEMA_FILE
+        from canair.validation.captures import validate_captures_file
 
         sweep = classify_round(_result((0x7EC, "7E00"), (0x7C8, "7E00")), ECUS, time="12:00:00")
         capture = round_to_capture(sweep, 0x7DF, "3E00")
@@ -502,8 +502,8 @@ def _mode_args(**kw) -> argparse.Namespace:
 class TestMode:
     @pytest.mark.asyncio
     async def test_dispatch_reports_buses_unknowns_and_silent(self, gateway_profile, capsys):
-        from canlib.cli.commands._live.handlers.scans import handle_discover
-        from canlib.ecus.pids import load_pids
+        from canair.cli.commands._live.handlers.scans import handle_discover
+        from canair.ecus.pids import load_pids
 
         term = FakeTerminal()
         term.functional_replies = {"3E00": [(0x7EC, "7E00"), (0x778, "7E00"), (0x7C8, "7E00")]}
@@ -525,9 +525,9 @@ class TestMode:
 
     @pytest.mark.asyncio
     async def test_repeat_sends_each_round(self, gateway_profile, monkeypatch, capsys):
-        from canlib.cli.commands._live.handlers.scans import handle_discover
-        from canlib.ecus.pids import load_pids
-        from canlib.live import discover_functional
+        from canair.cli.commands._live.handlers.scans import handle_discover
+        from canair.ecus.pids import load_pids
+        from canair.live import discover_functional
 
         async def _no_sleep(_s):
             return None

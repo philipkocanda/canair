@@ -2,9 +2,9 @@
 
 import pytest
 
-import canlib.config as cfg_mod
-from canlib.transport import config as tc
-from canlib.transport.config import TransportError, TransportOverrides, resolve_transport
+import canair.config as cfg_mod
+from canair.transport import config as tc
+from canair.transport.config import TransportError, TransportOverrides, resolve_transport
 
 
 def Args(**kw):
@@ -13,7 +13,7 @@ def Args(**kw):
 
 @pytest.fixture
 def env(monkeypatch):
-    from canlib.config import DeviceEntry
+    from canair.config import DeviceEntry
 
     monkeypatch.setattr(tc, "_wican_addresses", lambda: {"vpn": "1.2.3.4", "home": "10.0.0.9"})
 
@@ -79,7 +79,7 @@ class TestResolveCandidates:
 
     @pytest.fixture
     def devenv(self, monkeypatch):
-        from canlib.config import DeviceEntry
+        from canair.config import DeviceEntry
 
         devices = {
             "home": DeviceEntry(host="10.0.0.9", transport="slcan-tcp", port=3333),
@@ -149,7 +149,7 @@ class TestSelectReachable:
     """Fallback connect-probe selection (fake liveness probe)."""
 
     def _cands(self):
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         return [
             TransportConfig("slcan-tcp", "10.0.0.9"),
@@ -157,8 +157,8 @@ class TestSelectReachable:
         ]
 
     def test_single_candidate_no_probe(self):
-        from canlib.transport.config import TransportConfig
-        from canlib.transport.fallback import select_reachable_transport
+        from canair.transport.config import TransportConfig
+        from canair.transport.fallback import select_reachable_transport
 
         chosen = select_reachable_transport(
             [TransportConfig("slcan-tcp", "10.0.0.9")], connect_timeout=2.0
@@ -166,8 +166,8 @@ class TestSelectReachable:
         assert chosen.host == "10.0.0.9"
 
     def test_primary_reachable(self, monkeypatch):
-        from canlib.device.wican import mode as wican_mode
-        from canlib.transport.fallback import select_reachable_transport
+        from canair.device.wican import mode as wican_mode
+        from canair.transport.fallback import select_reachable_transport
 
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: True)
         chosen = select_reachable_transport(
@@ -176,8 +176,8 @@ class TestSelectReachable:
         assert chosen.host == "10.0.0.9"
 
     def test_falls_back_to_second(self, monkeypatch):
-        from canlib.device.wican import mode as wican_mode
-        from canlib.transport.fallback import select_reachable_transport
+        from canair.device.wican import mode as wican_mode
+        from canair.transport.fallback import select_reachable_transport
 
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: h == "1.2.3.4")
         msgs: list[str] = []
@@ -186,8 +186,8 @@ class TestSelectReachable:
         assert any("falling back" in m for m in msgs)
 
     def test_all_down_returns_primary(self, monkeypatch):
-        from canlib.device.wican import mode as wican_mode
-        from canlib.transport.fallback import select_reachable_transport
+        from canair.device.wican import mode as wican_mode
+        from canair.transport.fallback import select_reachable_transport
 
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: False)
         chosen = select_reachable_transport(
@@ -196,8 +196,8 @@ class TestSelectReachable:
         assert chosen.host == "10.0.0.9"  # primary, so the normal error path fires
 
     def test_probes_port_80_for_wican(self, monkeypatch):
-        from canlib.device.wican import mode as wican_mode
-        from canlib.transport.fallback import select_reachable_transport
+        from canair.device.wican import mode as wican_mode
+        from canair.transport.fallback import select_reachable_transport
 
         seen: list[tuple] = []
 
@@ -212,7 +212,7 @@ class TestSelectReachable:
 
 class TestTransportConfigProps:
     def test_is_raw_elm(self):
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         assert TransportConfig("wican-ws").is_elm
         assert not TransportConfig("wican-ws").is_raw
@@ -220,7 +220,7 @@ class TestTransportConfigProps:
         assert not TransportConfig("slcan-tcp").is_elm
 
     def test_elm327_tcp_is_elm_not_raw_not_wican_http(self):
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         t = TransportConfig("elm327-tcp", "1.2.3.4", port=35000)
         assert t.is_elm
@@ -229,7 +229,7 @@ class TestTransportConfigProps:
         assert not t.is_wican_http
 
     def test_wican_transports_are_wican_http_with_host(self):
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         assert TransportConfig("slcan-tcp", "1.2.3.4").is_wican_http
         assert TransportConfig("wican-ws", "1.2.3.4").is_wican_http
@@ -237,7 +237,7 @@ class TestTransportConfigProps:
         assert not TransportConfig("wican-ws", host=None).is_wican_http
 
     def test_unregistered_type_raises_instead_of_guessing_a_family(self):
-        from canlib.transport.config import TransportConfig, TransportError
+        from canair.transport.config import TransportConfig, TransportError
 
         t = TransportConfig("not-a-transport", "1.2.3.4")  # type: ignore[arg-type]
         for prop in ("is_raw", "is_elm", "summary", "is_wican_http"):
@@ -245,8 +245,8 @@ class TestTransportConfigProps:
                 getattr(t, prop)
 
     def test_elm327_tcp_probe_port_default(self):
-        from canlib.transport.config import DEFAULT_ELM327_TCP_PORT, TransportConfig
-        from canlib.transport.fallback import _probe_port
+        from canair.transport.config import DEFAULT_ELM327_TCP_PORT, TransportConfig
+        from canair.transport.fallback import _probe_port
 
         # No HTTP -> probe the ELM socket port, defaulting to 35000.
         assert _probe_port(TransportConfig("elm327-tcp", "1.2.3.4")) == DEFAULT_ELM327_TCP_PORT
@@ -255,28 +255,28 @@ class TestTransportConfigProps:
         assert _probe_port(TransportConfig("slcan-tcp", "1.2.3.4")) == 80
 
     def test_describe(self):
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         assert (
             TransportConfig("slcan-tcp", "1.2.3.4", 3333).describe() == "slcan-tcp (1.2.3.4:3333)"
         )
 
     def test_resolve_device_defaults_uses_explicit(self):
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         # Both explicit -> no device probe, values passed through.
         t = TransportConfig("slcan-tcp", "1.2.3.4", port=35000, bitrate=250000)
         assert t.resolve_device_defaults() == (35000, 250000)
 
     def test_resolve_device_defaults_no_host_falls_back(self):
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         # No host -> not is_wican_http -> conventional SLCAN defaults, no probe.
         t = TransportConfig("slcan-tcp", host=None)
         assert t.resolve_device_defaults() == (3333, 500000)
 
     def test_resolve_device_defaults_probes_wican(self, monkeypatch):
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         # Gaps + a WiCAN host -> query the live device config for port/bitrate.
         monkeypatch.setattr(
@@ -288,21 +288,21 @@ class TestTransportConfigProps:
         assert t.resolve_device_defaults() == (3333, 500000)
 
     def test_profile_bitrate_used_when_config_silent(self):
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         # No config bitrate, no host -> the profile's can_bitrate wins over 500k.
         t = TransportConfig("slcan-tcp", host=None)
         assert t.resolve_device_defaults(250000) == (3333, 250000)
 
     def test_config_bitrate_beats_profile(self):
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         # Explicit config transport.bitrate outranks the profile can_bitrate.
         t = TransportConfig("slcan-tcp", "1.2.3.4", port=35000, bitrate=500000)
         assert t.resolve_device_defaults(250000) == (35000, 500000)
 
     def test_profile_bitrate_beats_device_probe(self, monkeypatch):
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         # A profile can_bitrate is preferred over the device's live config; with
         # bitrate resolved, only the port gap triggers a probe.
@@ -318,7 +318,7 @@ class TestTransportConfigProps:
     def test_missing_config_route_is_silent(self, monkeypatch, capsys, status, noisy):
         import requests
 
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         # WiCAN firmware v6 (or a non-WiCAN host) has no /load_config: that is
         # not a failure worth reporting, unlike a device that errors on it.
@@ -328,7 +328,7 @@ class TestTransportConfigProps:
         def boom(base_url, timeout=10.0):
             raise requests.HTTPError(f"{status} Error", response=resp)
 
-        monkeypatch.setattr("canlib.device.wican.mode.load_config", boom)
+        monkeypatch.setattr("canair.device.wican.mode.load_config", boom)
         t = TransportConfig("slcan-tcp", "1.2.3.4")
         assert t.resolve_device_defaults() == (3333, 500000)
         assert ("could not read device config" in capsys.readouterr().err) is noisy
@@ -371,7 +371,7 @@ class TestTransportTypeVocabulary:
 
 class TestParseDatarate:
     def test_suffixes_and_garbage(self):
-        from canlib.transport.config import _parse_datarate
+        from canair.transport.config import _parse_datarate
 
         assert _parse_datarate("500K") == 500_000
         assert _parse_datarate("1M") == 1_000_000
@@ -383,7 +383,7 @@ class TestParseDatarate:
 class TestStatusGather:
     @pytest.fixture
     def patch_status(self, monkeypatch, env):
-        from canlib.cli.commands import status
+        from canair.cli.commands import status
 
         def setup(*, cfg=None, st=None, tcp=True):
             monkeypatch.setattr(status, "_load_device_config", lambda h, t: cfg)
@@ -432,8 +432,8 @@ class TestStatusFallback:
 
     @pytest.fixture
     def patch_status(self, monkeypatch, env):
-        from canlib.cli.commands import status
-        from canlib.device.wican import mode as wican_mode
+        from canair.cli.commands import status
+        from canair.device.wican import mode as wican_mode
 
         # Two candidates (vpn primary, home fallback), fallback enabled.
         monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 2.0, None))
@@ -488,11 +488,11 @@ class TestStatusFallback:
 
     def test_probe_timeout_honours_a_raised_connect_timeout(self, monkeypatch, env):
         """A user who raised `transport.connect_timeout` must not be second-guessed."""
-        from canlib.cli.commands import status
-        from canlib.device.wican import mode as wican_mode
+        from canair.cli.commands import status
+        from canair.device.wican import mode as wican_mode
 
         monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 30.0, None))
-        monkeypatch.setattr("canlib.config.fallback_settings", lambda: (True, 30.0, None))
+        monkeypatch.setattr("canair.config.fallback_settings", lambda: (True, 30.0, None))
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: True)
         seen: list[float] = []
 

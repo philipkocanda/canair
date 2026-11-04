@@ -1,9 +1,9 @@
-"""Tests for canlib.uds.notation — the typed ByteRef model + display notation."""
+"""Tests for canair.uds.notation — the typed ByteRef model + display notation."""
 
 import pytest
 
-from canlib.uds.byteindex import wican_to_isotp
-from canlib.uds.notation import (
+from canair.uds.byteindex import wican_to_isotp
+from canair.uds.notation import (
     ByteNotation,
     ByteRef,
     ByteSpace,
@@ -65,9 +65,9 @@ class TestToWicanExpression:
         The firmware sign-extends a signed range from the top bit of the native
         container it accumulates into (int8/16/32/64), so only 1/2/4/8-byte spans
         are exact. A 3-byte `[S4:S6]` reads bit 31 as the sign bit and can never
-        be negative — see canlib.expression.signed_range_is_exact.
+        be negative — see canair.expression.signed_range_is_exact.
         """
-        from canlib.expression import evaluate_expression
+        from canair.expression import evaluate_expression
 
         for width in (3, 5, 6, 7):
             ref = ByteRef.from_wican(2, width=width, signed=True)
@@ -118,7 +118,7 @@ class TestToWicanExpression:
 
     def test_matches_decode_plot_wican_expr_for_common_cases(self):
         # Parity with the shared inspector expression generator.
-        from canlib.uds.inspect_bytes import INSPECT_TYPES, wican_expr
+        from canair.uds.inspect_bytes import INSPECT_TYPES, wican_expr
 
         by_name = {spec[0]: spec for spec in INSPECT_TYPES}
         for name, width, signed, little in [
@@ -214,7 +214,7 @@ class TestCommandsAcceptNotationFlag:
     def test_all_analysis_commands_accept_notation(self):
         import argparse
 
-        from canlib.cli.commands import correlate, coverage, decode, hunt, investigate
+        from canair.cli.commands import correlate, coverage, decode, hunt, investigate
 
         # Minimal required positionals/flags per command to reach a parseable state.
         # correlate/hunt/investigate are uds/can groups — the notation flag lives on each kind.
@@ -233,7 +233,7 @@ class TestCommandsAcceptNotationFlag:
     def test_notation_defaults_to_none(self):
         import argparse
 
-        from canlib.cli.commands import coverage
+        from canair.cli.commands import coverage
 
         p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
         assert p.parse_args([]).notation is None
@@ -243,7 +243,7 @@ class TestCommandsAcceptNotationFlag:
 
         import pytest
 
-        from canlib.cli.commands import coverage
+        from canair.cli.commands import coverage
 
         p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
         with pytest.raises(SystemExit):
@@ -305,7 +305,7 @@ class TestLengthAwareLabels:
             assert render(wican) == render(wican, payload_len=15), f"B{wican} shifted"
 
     def test_relabel_signal_threads_the_payload_length(self):
-        from canlib.uds.notation import relabel_signal
+        from canair.uds.notation import relabel_signal
 
         assert (
             relabel_signal("IGPM:22BC02:B4", ByteNotation.TORQUE, payload_len=7) == "IGPM:22BC02:A"
@@ -315,7 +315,7 @@ class TestLengthAwareLabels:
 
     def test_wican_notation_never_depends_on_the_length(self):
         """WiCAN is the identity view, so it must be immune to the layout."""
-        from canlib.uds.notation import relabel_signal
+        from canair.uds.notation import relabel_signal
 
         for length in (None, 7, 15, 64):
             kw = {} if length is None else {"payload_len": length}

@@ -31,8 +31,8 @@ PROFILES_DIR = REPO_ROOT / "profiles"
 
 def _variants(profile_dir: Path) -> list[str]:
     """The profile's variant IDs, or ``[]`` when it declares at most one."""
-    from canlib.profile import resolve_profile
-    from canlib.variants import load_variants
+    from canair.profile import resolve_profile
+    from canair.variants import load_variants
 
     variants = list(load_variants(resolve_profile(str(profile_dir))))
     return variants if len(variants) > 1 else []
@@ -58,7 +58,7 @@ def _write(
     limit, say), and that must not hold back the verified files every release ships, so its
     failure is reported as a warning instead.
     """
-    cmd = [sys.executable, "-m", "canlib.cli", "--profile", str(profile_dir)]
+    cmd = [sys.executable, "-m", "canair.cli", "--profile", str(profile_dir)]
     if variant:
         cmd += ["--variant", variant]
     cmd += ["wican", "autopid", "write"]

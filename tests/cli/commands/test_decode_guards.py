@@ -6,7 +6,7 @@ one silently would read to the user as "the flag did nothing" instead of "you
 asked for the wrong base view", so each is rejected with a message and exit 2.
 
 These messages were entirely untested before the guards became a declarative
-table in :data:`canlib.cli.commands.decode.entry._MODIFIER_REQUIRES` — the point of the
+table in :data:`canair.cli.commands.decode.entry._MODIFIER_REQUIRES` — the point of the
 table is that adding a modifier cannot forget its guard, which only holds if
 something asserts the table *is* what runs.
 """
@@ -17,8 +17,8 @@ import argparse
 
 import pytest
 
-from canlib.cli.commands import decode
-from canlib.cli.commands.decode.entry import _MODIFIER_REQUIRES, _flag, check_modifier_flags
+from canair.cli.commands import decode
+from canair.cli.commands.decode.entry import _MODIFIER_REQUIRES, _flag, check_modifier_flags
 
 
 def _args(**overrides) -> argparse.Namespace:
@@ -99,7 +99,7 @@ class TestThroughRun:
         def _explode():
             raise AssertionError("load_pids() called — a guard was moved after profile loading")
 
-        monkeypatch.setattr("canlib.cli.commands.decode.entry.load_pids", _explode)
+        monkeypatch.setattr("canair.cli.commands.decode.entry.load_pids", _explode)
         sub = argparse.ArgumentParser().add_subparsers()
         parser = decode.add_parser(sub)
         assert decode.run(parser.parse_args(argv)) == 2

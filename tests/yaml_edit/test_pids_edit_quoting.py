@@ -16,9 +16,9 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
-from canlib.core.yaml_rt import round_trip_yaml
-from canlib.yaml_edit import text as _text
-from canlib.yaml_edit.pids import (
+from canair.core.yaml_rt import round_trip_yaml
+from canair.yaml_edit import text as _text
+from canair.yaml_edit.pids import (
     PidsEditError,
     add_research_entry,
     append_iocontrol_discoveries_block,
@@ -156,7 +156,7 @@ class TestBothReadersCheck:
             def load(self, doc):
                 raise RuamelYAMLError("boom")
 
-        monkeypatch.setattr("canlib.core.yaml_rt.round_trip_yaml", lambda: _Broken())
+        monkeypatch.setattr("canair.core.yaml_rt.round_trip_yaml", lambda: _Broken())
         assert _text._needs_key_quoting("2101")
         assert _text._yaml_reinterprets("plain")
 

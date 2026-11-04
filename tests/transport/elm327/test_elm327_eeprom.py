@@ -1,8 +1,8 @@
 """Tests for keeping the ELM327 adapter's EEPROM from wearing out.
 
-The pure policy (canlib.transport.elm327.eeprom), what the connect actually sends
+The pure policy (canair.transport.elm327.eeprom), what the connect actually sends
 (Elm327Terminal.init_elm, over a scripted channel), and the `validate` warning for
-init commands that still write the EEPROM (canlib.validation.init_eeprom).
+init commands that still write the EEPROM (canair.validation.init_eeprom).
 """
 
 import asyncio
@@ -11,10 +11,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.transport.elm327.eeprom import init_commands, ram_only, writes_eeprom
-from canlib.transport.elm327.terminal import Elm327Terminal
-from canlib.validation.init_eeprom import init_eeprom_warnings
-from canlib.validation.pids import _elm327_warnings
+from canair.transport.elm327.eeprom import init_commands, ram_only, writes_eeprom
+from canair.transport.elm327.terminal import Elm327Terminal
+from canair.validation.init_eeprom import init_eeprom_warnings
+from canair.validation.pids import _elm327_warnings
 
 
 class TestRamOnly:

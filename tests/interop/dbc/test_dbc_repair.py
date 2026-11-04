@@ -12,9 +12,9 @@ import json
 import pytest
 import yaml
 
-import canlib.profile as profile
-from canlib.interop.dbc.repair import DbcLoadError, load_dbc, repair_dbc_text, summarize
-from canlib.profile import Profile
+import canair.profile as profile
+from canair.interop.dbc.repair import DbcLoadError, load_dbc, repair_dbc_text, summarize
+from canair.profile import Profile
 
 HEADER = 'VERSION ""\n\nNS_ :\n\nBS_:\n\nBU_: XXX\n\n'
 MESSAGE = 'BO_ 100 A: 8 XXX\n SG_ S : 0|8@1+ (1,0) [0|255] "" XXX\n\n'
@@ -37,7 +37,7 @@ def temp_profile(tmp_path):
 
 
 def _import(argv):
-    from canlib.cli.commands import import_ as imp
+    from canair.cli.commands import import_ as imp
 
     p = imp.add_parser(argparse.ArgumentParser().add_subparsers())
     return imp.run(p.parse_args(argv))

@@ -1,0 +1,779 @@
+"""Shared primitives for surgical in-place editing of per-ECU PID YAML files.
+
+These helpers locate ECU/DID/param blocks and mutate a single field without
+rewriting the whole file — preserving comments, anchors, block-scalar styles,
+and hand-curated ordering that a ``yaml.safe_dump`` round-trip would destroy.
+The domain editors (``hits`` for scanner sections, ``params`` for the
+hand-authored pids:/research:/identity: structures) build on these.
+
+Assumptions about file layout (all current ecus/*.yaml files conform):
+
+    ECU:                           <- 0-space indent
+      tx_id: 0x770
+      iocontrol:                   <- 2-space indent
+        DID:                       <- 4-space indent
+          label: "..."             <- 6-space indent
+          verified: true
+          notes: "..."
+          notes: >                 <- block-scalar form
+            multi-line text        <- 8+-space indent
+
+The matchers below are intentionally anchored on indentation to avoid
+accidentally editing similarly-named keys elsewhere in the file.
+"""
+
+from __future__ import annotations
+
+import datetime
+import functools
+import re
+from collections.abc import Callable, Sequence
+from pathlib import Path
+from typing import NamedTuple
+
+from .commit import commit_text, resolve_validate
+from .ecufile import clear_cache, schema_validator
+from .ecufile import find_ecu_file as _find_ecu_file
+from .errors import EditError
+
+
+class PidsEditError(EditError):
+    """Raised when a DID or file cannot be located / edited safely."""
+
+
+# ── File discovery ───────────────────────────────────────────────────────────
+
+
+def find_ecu_file(ecu_name: str, pids_dir: Path | None = None) -> Path:
+    """Return the ``ecus/<ecu>.yaml`` file that defines ``ecu_name``.
+
+    The write-target resolver for every name-keyed editor: the file returned is
+    the one that will be rewritten. Raises when no file claims the ECU (an edit
+    must never invent a definition file — that is `canair ecu add`'s job).
+    """
+    return _find_ecu_file(ecu_name, pids_dir, error=PidsEditError)
+
+
+# ── DID block location ───────────────────────────────────────────────────────
+
+
+def _find_did_block(text: str, did: str) -> tuple[int, int]:
+    """Find the character range of a DID block inside the ``iocontrol:`` section.
+
+    Returns (start, end) offsets spanning from the DID key line up to (but
+    not including) the next sibling line at the same or lower indent, or the
+    comments heading it. The search is confined to ``iocontrol:``, so a PID that
+    shares the key (``2200:`` under ``pids:``) is never edited by mistake.
+    """
+    return _find_section_entry(text, "iocontrol", did, noun="DID")
+
+
+def _find_section_entry(text: str, section: str, key: str, *, noun: str) -> tuple[int, int]:
+    """(start, end) of the 4-space ``key:`` entry under the 2-space ``section:``.
+
+    The key may be quoted: a DID with a leading zero has to be, or YAML reads
+    ``"0700"`` as the octal integer 448. Raises ``PidsEditError`` when either is
+    missing.
+    """
+    key_u = key.strip().upper()
+    sec = _keyed_block(text, section, 2, 0, len(text))
+    if not sec:
+        raise PidsEditError(f"No {section}: section found")
+    entry = _keyed_block(text, key_u, 4, sec[2], sec[3])
+    if not entry:
+        raise PidsEditError(
+            f"{noun} {key_u!r} not found under {section}: (expected 4-space indent)"
+        )
+    return entry[0], entry[3]
+
+
+# ── Field reads (for diffing / initial values) ───────────────────────────────
+
+
+_FIELD_RE_CACHE: dict[str, re.Pattern] = {}
+
+
+def _field_line_re(field: str) -> re.Pattern:
+    """Regex that matches ``      field: <value>`` within a DID block."""
+    if field not in _FIELD_RE_CACHE:
+        _FIELD_RE_CACHE[field] = re.compile(
+            rf"^( {{6}}){re.escape(field)}:[ \t]*(.*)$",
+            re.MULTILINE,
+        )
+    return _FIELD_RE_CACHE[field]
+
+
+# ── Value formatting ─────────────────────────────────────────────────────────
+
+
+@functools.lru_cache(maxsize=4096)
+def _plain_reads_back(token: str, *, as_key: bool) -> bool:
+    """True if both YAML readers read the bare ``token`` back as itself.
+
+    The one "is it safe unquoted?" check behind key *and* value quoting. The
+    project reads ECU files with two parsers — PyYAML (every runtime reader) and
+    ruamel's round-trip reader in YAML 1.1 mode (:func:`canair.core.yaml_rt.round_trip_yaml`,
+    used by ``canair.yaml_edit.ecu``) — and they disagree on exponent-shaped hex:
+    PyYAML keeps ``220E01`` a string, ruamel reads it as the float ``2200.0`` and
+    warns on every load. A token is bare-safe only when *both* agree.
+
+    ``as_key`` checks it in key position, where the editors compare keys via
+    ``str(k)``, so a key that stringifies back (``2101`` -> int ``2101``) is safe.
+    In value position the scalar must load as exactly this ``str``.
+    """
+    import warnings
+
+    import yaml
+    from ruamel.yaml.error import YAMLError as RuamelYAMLError
+
+    from canair.core.yaml_rt import round_trip_yaml
+
+    doc = f"{token}: x\n" if as_key else f"k: {token}\n"
+    try:
+        loaded = [yaml.safe_load(doc)]
+    except yaml.YAMLError:
+        return False
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            loaded.append(round_trip_yaml().load(doc))
+    except RuamelYAMLError:
+        return False
+    for data in loaded:
+        if not isinstance(data, dict) or len(data) != 1:
+            return False
+        ((k, v),) = data.items()
+        if as_key:
+            if str(k) != token:
+                return False
+        elif k != "k" or not isinstance(v, str) or v != token:
+            return False
+    return True
+
+
+def _yaml_reinterprets(value: str) -> bool:
+    """True if a bare ``value`` would not read back as this exact string.
+
+    Bare scalars like ``220101`` (int), ``1.5`` (float), ``true`` (bool),
+    ``null``, ``2026-04-15`` (date) or ``220E01`` (a float to the round-trip
+    reader) round-trip to a non-``str`` type, which breaks downstream string
+    comparisons (e.g. a numeric research ``target``); others (``a #b``) lose
+    content. Such values must be quoted to stay what was written.
+    """
+    return not _plain_reads_back(value, as_key=False)
+
+
+def _format_label(value: str, *, flow: bool = False) -> str:
+    """Render a scalar value as a YAML line body that reads back as exactly ``value``.
+
+    Bare when safe, else double-quoted with escapes (:func:`canair.core.yaml_rt.double_quoted`)
+    — leading/trailing whitespace, line breaks and control characters included.
+    ``flow`` is for an item inside a flow list (``[a, b]``), where ``,``/brackets
+    end a bare item.
+    """
+    from canair.core.yaml_rt import double_quoted
+
+    if not value:
+        return '""'
+    # Characters special at the start of a YAML scalar, a ': '/' #' sequence, or a
+    # bare scalar that would re-parse as something else (int/float/bool/null/date).
+    needs_quote = (
+        value[0] in "!&*[]{}|>%@`\"'#,"
+        or ": " in value
+        or " #" in value
+        or value != value.strip()
+        or (flow and any(c in value for c in ",[]{}"))
+        or _yaml_reinterprets(value)
+    )
+    return double_quoted(value) if needs_quote else value
+
+
+def _format_verified(value: bool) -> str:
+    return "true" if value else "false"
+
+
+# ── Block mutation ───────────────────────────────────────────────────────────
+
+
+def _replace_field_in_block(block: str, field: str, new_line_or_lines: str | list[str]) -> str:
+    """Return ``block`` with the 6-space ``field:`` replaced, or added if missing.
+
+    ``new_line_or_lines`` is either a complete replacement line (no trailing
+    newline) or a list of full lines for multi-line values (notes). The 6-space
+    form of :func:`_replace_field_in_block_at`, for iocontrol/routine entries.
+    """
+    return _replace_field_in_block_at(block, field, new_line_or_lines, indent=6)
+
+
+def _nested_body_end(lines: Sequence[str], i: int, indent: int) -> int:
+    """Index just past the field body that starts at ``lines[i]``.
+
+    The body is the run of lines indented deeper than the field's ``indent``
+    (a block scalar's text, a nested list/map), with any blank or whitespace-only
+    lines inside it. Blank lines *after* its last line are not part of it — they
+    separate the field from what follows — so they are left in place.
+    """
+    deeper = " " * (indent + 1)
+    end = i
+    while i < len(lines) and (not lines[i].strip() or lines[i].startswith(deeper)):
+        i += 1
+        if lines[i - 1].strip():
+            end = i
+    return end
+
+
+def _find_ecu_block(text: str, ecu_name: str) -> tuple[int, int]:
+    """Return (start, end) of the ECU's top-level block in ``text``.
+
+    start = offset of the ``ECU:`` line.
+    end   = offset just before the next top-level sibling (or EOF).
+    """
+    target = ecu_name.strip().upper()
+    # Top-level ECU key — 0-space indent
+    start_re = re.compile(r"^([A-Za-z][A-Za-z0-9_\-]*):\s*$", re.MULTILINE)
+    ecu_start = None
+    for m in start_re.finditer(text):
+        if m.group(1).upper() == target:
+            ecu_start = m.start()
+            break
+    if ecu_start is None:
+        raise PidsEditError(f"ECU {ecu_name!r} not found at top level")
+
+    # Next top-level sibling (not indented, not a comment-only line)
+    # Start the search after the ECU's header line, not mid-token.
+    header_end = text.find("\n", ecu_start)
+    if header_end == -1:
+        return ecu_start, len(text)
+    search_from = header_end + 1
+    after = text[search_from:]
+    sibling_re = re.compile(r"^[A-Za-z][A-Za-z0-9_\-]*:\s*$", re.MULTILINE)
+    m2 = sibling_re.search(after)
+    if m2:
+        return ecu_start, search_from + m2.start()
+    return ecu_start, len(text)
+
+
+def _attached_comments_start(text: str, body_start: int, body_end: int, indent: int) -> int:
+    """Where the comments heading whatever follows a block begin (else ``body_end``).
+
+    A block's body runs up to the next same-or-shallower *content* line, which
+    sweeps in the comment lines written above that next key — a section banner,
+    a note about the next PID. Those belong to the next key, not to this block:
+    an edit that removes or appends to the block must leave them where they are.
+
+    Ownership rule, applied to the run of blank and comment lines after the body's
+    last content line: the first comment indented at or left of the block's key
+    (``indent``) and everything after it belongs to what follows; blank lines
+    before it are the block's own trailing separation, and comments before it —
+    indented deeper than the key, like a commented-out field — stay with the
+    block. A comment followed by more body content is part of the body, whatever
+    its indent.
+    """
+    start = None
+    pos = body_start
+    while pos < body_end:
+        nl = text.find("\n", pos, body_end)
+        line_end = body_end if nl == -1 else nl + 1
+        stripped = text[pos:line_end].strip()
+        if stripped.startswith("#"):
+            line_indent = len(text[pos:line_end]) - len(text[pos:line_end].lstrip(" "))
+            if start is None and line_indent <= indent:
+                start = pos
+        elif stripped:
+            start = None
+        pos = line_end
+    return body_end if start is None else start
+
+
+class Block(NamedTuple):
+    """Where a keyed block sits in the text (what :func:`_keyed_block` locates)."""
+
+    hdr: int
+    """Offset of the key line."""
+    line_end: int
+    """Offset of the newline ending the key line."""
+    body: int
+    """Offset of the first child line."""
+    end: int
+    """Offset just past the block's own lines and trailing blank lines."""
+    inline: str
+    """Any text after ``name:`` on the header line (e.g. ``{}``)."""
+
+
+def _keyed_block(text: str, name: str, indent: int, win_start: int, win_end: int) -> Block | None:
+    """Locate ``<indent spaces><name>:`` within ``[win_start, win_end)``.
+
+    The key may be bare or quoted (``0105:`` / ``"0105":`` / ``'0105':``) — a PID
+    code that YAML would otherwise coerce (e.g. a leading-zero decimal like
+    ``0105``) is written quoted by :func:`_key_token`, so the finder must match
+    either form.
+
+    Returns ``(hdr_start, line_end, body_start, body_end, inline)`` or ``None``:
+      - ``hdr_start``  offset of the key line
+      - ``line_end``   offset of the newline ending the key line
+      - ``body_start`` offset of the first child line
+      - ``body_end``   offset just past the block's own lines (and its trailing
+        blank lines) — before the next same-or-shallower key and any comments
+        heading it (:func:`_attached_comments_start`)
+      - ``inline``     any text after ``name:`` on the header line (e.g. ``{}``)
+    """
+    q = re.escape(name)
+    pat = re.compile(rf'^ {{{indent}}}(?:"{q}"|\'{q}\'|{q}):[ \t]*(.*)$', re.MULTILINE)
+    m = pat.search(text, win_start, win_end)
+    if not m:
+        return None
+    inline = m.group(1).strip()
+    line_end = text.find("\n", m.start())
+    if line_end == -1:
+        line_end = win_end
+    body_start = min(line_end + 1, win_end)
+    tail = re.compile(rf"^ {{0,{indent}}}[^\s#]", re.MULTILINE).search(text, body_start, win_end)
+    body_end = tail.start() if tail else win_end
+    body_end = _attached_comments_start(text, body_start, body_end, indent)
+    return Block(m.start(), line_end, body_start, body_end, inline)
+
+
+def _needs_key_quoting(key: str) -> bool:
+    """True if a bare YAML scalar ``key`` wouldn't stringify back to ``key``.
+
+    PID codes are hex strings, but a code of all decimal digits with a leading
+    zero (``0105``, ``0902`` — standard OBD-II Mode-01/09 PIDs) is parsed by YAML
+    as an *integer*, losing the leading zero (ruamel reads ``0105`` as ``105``; the
+    YAML 1.1 loader behind :func:`canair.ecus.pids.load_pids` reads it as the octal
+    ``69``). The surgical editors compare keys via ``str(k)``, so such a key
+    silently fails to round-trip and the edit reverts — unless it's quoted. Keys
+    that already round-trip via ``str()`` (``2101`` -> ``2101``) or are
+    non-numeric (``22B004``, ``010C``) are left unquoted, so existing profiles
+    don't churn. Both readers must agree (:func:`_plain_reads_back`): ruamel reads
+    ``220E01`` as the float ``2200.0``.
+    """
+    return not _plain_reads_back(key, as_key=True)
+
+
+def _key_token(key: str) -> str:
+    """Render a mapping key, double-quoting it only when a bare token wouldn't
+    round-trip (see :func:`_needs_key_quoting`)."""
+    return f'"{key}"' if _needs_key_quoting(key) else key
+
+
+_TRAILING_BLANK_LINES = re.compile(r"\n(?:[ \t]*\n)+\Z")
+
+
+def _next_content_indent(text: str) -> int | None:
+    """Indent of the first non-blank, non-comment line of ``text`` (None if none)."""
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            return len(line) - len(line.lstrip(" "))
+    return None
+
+
+def _cut_block(text: str, start: int, end: int) -> str:
+    """Remove the keyed block ``text[start:end]`` without leaving a gap behind.
+
+    A :func:`_keyed_block` body ends after the block's own trailing blank lines,
+    before whatever follows — including the comments heading it, which stay. Ahead
+    of a sibling those blank lines go with the block. Ahead of a *shallower* line
+    (the next PID after a PID's last field, the next section) they are the
+    parent's separator, so they replace whatever blank lines separated the block
+    from the sibling before it; at the end of the file nothing is left behind.
+    """
+    block = text[start:end]
+    head, tail = text[:start], text[end:]
+    indent = len(block) - len(block.lstrip(" "))
+    tail_indent = _next_content_indent(tail)
+    if tail_indent is not None and tail_indent >= indent:
+        return head + tail
+    terminator = block.find("\n", len(block.rstrip(" \t\n")))
+    separator = block[terminator + 1 :] if terminator != -1 and tail.strip() else ""
+    return _TRAILING_BLANK_LINES.sub("\n", head) + separator + tail
+
+
+def _format_scalar_field(indent: str, key: str, value) -> str:
+    """Render one ``key: value`` scalar line with schema-appropriate quoting."""
+    from canair.core.yaml_rt import double_quoted
+
+    if isinstance(value, bool):
+        return f"{indent}{key}: {'true' if value else 'false'}"
+    if key in ("min", "max"):
+        return f"{indent}{key}: {double_quoted(str(value))}"  # schema convention: strings
+    return f"{indent}{key}: {_format_label(str(value))}"
+
+
+def _format_block_scalar(indent: str, key: str, value: str) -> list[str]:
+    """Render a free-text field per the shared note policy (canair.core.yaml_rt).
+
+    A short single-line value stays an inline scalar (``key: value``); a longer
+    or multi-line value becomes a folded ``key: >-`` block, word-wrapped at
+    ~``NOTE_WRAP_WIDTH`` columns with its line breaks kept
+    (:func:`canair.core.yaml_rt.wrap_note_lines`). A value folding can't represent
+    exactly (:func:`canair.core.yaml_rt.note_foldable` — e.g. trailing whitespace or a
+    first line that starts indented) is written as a wrapped double-quoted scalar
+    instead. Either way the field reads back as exactly ``value``.
+    """
+    from canair.core.yaml_rt import (
+        NOTE_WRAP_WIDTH,
+        double_quoted_lines,
+        note_foldable,
+        note_should_inline,
+        wrap_note_lines,
+    )
+
+    value = str(value)
+    prefix = f"{indent}{key}: "
+    if note_should_inline(value, len(prefix)):
+        inline = _format_scalar_field(indent, key, value)
+        # _format_scalar_field may add quotes; keep inline only if it still fits.
+        if len(inline) <= NOTE_WRAP_WIDTH:
+            return [inline]
+    body_indent = indent + "  "
+    width = max(20, NOTE_WRAP_WIDTH - len(body_indent))
+    if not note_foldable(value):
+        first_width = max(20, NOTE_WRAP_WIDTH - len(prefix))
+        first, *rest = double_quoted_lines(value, first_width, width)
+        return [prefix + first, *(body_indent + ln for ln in rest)]
+    out = [f"{indent}{key}: >-"]
+    out.extend(f"{body_indent}{piece}" if piece else "" for piece in wrap_note_lines(value, width))
+    return out
+
+
+def _format_list_field(indent: str, key: str, values: Sequence[object]) -> list[str]:
+    """Render a block list ``key:`` / ``  - item`` (empty -> ``key: []``)."""
+    if not values:
+        return [f"{indent}{key}: []"]
+    out = [f"{indent}{key}:"]
+    for item in values:
+        out.append(f"{indent}  - {_format_label(str(item))}")
+    return out
+
+
+def _format_inline_list_field(indent: str, key: str, values: Sequence[object]) -> list[str]:
+    """Render a flow (inline) list ``key: [a, b, c]`` (empty -> ``key: []``).
+
+    Used for short, hand-curated code lists (e.g. ``can_bus: [B-CAN, P-CAN]``)
+    where the inline form reads better than a multi-line block list. Items are
+    quoted only when a bare scalar would be unsafe (via ``_format_label``).
+    """
+    if not values:
+        return [f"{indent}{key}: []"]
+    items = ", ".join(_format_label(str(v), flow=True) for v in values)
+    return [f"{indent}{key}: [{items}]"]
+
+
+def _format_map_field(indent: str, key: str, mapping: dict) -> list[str]:
+    """Render a nested ``key:`` mapping (``values:``/``bits:`` typed-decode maps).
+
+    Keys are emitted as integers (sorted numerically) and labels quoted, e.g.::
+
+        values:
+          33: "park"
+          40: "drive"
+    """
+    if not mapping:
+        return [f"{indent}{key}: {{}}"]
+    out = [f"{indent}{key}:"]
+    try:
+        items = sorted(mapping.items(), key=lambda kv: int(kv[0]))
+    except (ValueError, TypeError):
+        items = list(mapping.items())
+    for k, v in items:
+        out.append(f"{indent}  {int(k)}: {_format_label(str(v))}")
+    return out
+
+
+def _reparse_or_raise(fpath: Path) -> dict:
+    """Re-read the file as YAML; raise ``PidsEditError`` if it no longer parses."""
+    import yaml
+
+    try:
+        data = yaml.safe_load(fpath.read_text())
+    except yaml.YAMLError as e:
+        raise PidsEditError(f"edit produced invalid YAML: {e}") from e
+    if not isinstance(data, dict):
+        raise PidsEditError("edit produced a non-mapping top-level document")
+    return data
+
+
+def _reparse_or_raise(fpath: Path) -> dict:
+    """Re-read the file as YAML; raise ``PidsEditError`` if it no longer parses."""
+    import yaml
+
+    try:
+        data = yaml.safe_load(fpath.read_text())
+    except yaml.YAMLError as e:
+        raise PidsEditError(f"edit produced invalid YAML: {e}") from e
+    if not isinstance(data, dict):
+        raise PidsEditError("edit produced a non-mapping top-level document")
+    return data
+
+
+def _ecu_def_of(data: dict, ecu: str) -> dict:
+    """The ECU's mapping in a parsed file (the key's case may differ from ``ecu``)."""
+    ecu_def = data.get(ecu)
+    if not isinstance(ecu_def, dict):
+        # ECU file keys may be mixed-case (e.g. `Unknown-746`) while callers
+        # pass the upper-cased key — resolve case-insensitively.
+        ecu_def = next((v for k, v in data.items() if str(k).upper() == str(ecu).upper()), None)
+    if not isinstance(ecu_def, dict):
+        raise PidsEditError(f"ECU {ecu!r} missing after edit")
+    return ecu_def
+
+
+def write_ecu_text(
+    fpath: Path,
+    original: str,
+    new_text: str,
+    ecu: str,
+    checker: Callable[[dict], None] | None = None,
+    *,
+    validate: bool = False,
+) -> None:
+    """Write ``new_text`` over ``original``, re-parse, and run ``checker(data[ecu])``.
+
+    Restores ``original`` and raises ``PidsEditError`` if the result is invalid
+    YAML or ``checker`` fails — so a broken surgical edit never persists. The
+    file's line endings are kept. ``validate`` adds the schema check of
+    ``canair validate pids`` (the caller's ``--no-validate`` can override it, see
+    :func:`canair.yaml_edit.commit.schema_validation`).
+    """
+
+    def check(path: Path) -> None:
+        ecu_def = _ecu_def_of(_reparse_or_raise(path), ecu)
+        if checker is not None:
+            checker(ecu_def)
+
+    commit_text(
+        fpath,
+        new_text,
+        original,
+        check=check,
+        error=PidsEditError,
+        validate=schema_validator(PidsEditError) if resolve_validate(validate) else None,
+        after_write=clear_cache,
+    )
+
+
+def edit_ecu_text(
+    ecu_name: str,
+    transform: Callable[[str], str],
+    checker: Callable[[dict], None] | None = None,
+    *,
+    pids_dir: Path | None = None,
+    validate: bool = False,
+) -> Path:
+    """Apply a text edit to the ECU's file; the one entry point of every text editor.
+
+    ``transform`` maps the file's text to the edited text (raising ``PidsEditError`` when it
+    cannot find what it must change); ``checker`` judges the re-parsed ECU mapping and raises
+    ``PidsEditError`` to reject the result. The file is restored on any failure. Returns the
+    path written.
+    """
+    fpath = find_ecu_file(ecu_name, pids_dir)
+    original = fpath.read_text()
+    write_ecu_text(
+        fpath, original, transform(original), ecu_name.strip().upper(), checker, validate=validate
+    )
+    return fpath
+
+
+# ── Locating a PID, a signal, and the PID-level scalars ──────────────────────
+
+
+def locate_section(text: str, ecu_name: str, section: str) -> Block:
+    """The ECU's top-level ``section:`` block (``pids``, ``identity``, ...)."""
+    ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
+    block = _keyed_block(text, section, 2, ecu_start, ecu_end)
+    if not block:
+        raise PidsEditError(f"ECU {ecu_name!r} has no {section}: section")
+    return block
+
+
+def locate_pid(text: str, ecu_name: str, pid_u: str) -> Block:
+    """The ``pids:`` entry for ``pid_u`` in ``ecu_name``'s block."""
+    pids = locate_section(text, ecu_name, "pids")
+    pidb = _keyed_block(text, pid_u, 4, pids.body, pids.end)
+    if not pidb:
+        raise PidsEditError(f"PID {pid_u!r} not found under {ecu_name!r}")
+    return pidb
+
+
+def pid_span(text: str, ecu_name: str, pid_u: str) -> tuple[int, int]:
+    """``(start, end)`` offsets of the PID's own block in ``text``."""
+    b = locate_pid(text, ecu_name, pid_u)
+    return b.hdr, b.end
+
+
+def locate_param(
+    text: str, ecu_name: str, pid_u: str, param: str, *, noun: str = "parameter"
+) -> tuple[Block, Block, Block]:
+    """``(pid, parameters:, signal)`` blocks for one signal of a PID."""
+    pidb = locate_pid(text, ecu_name, pid_u)
+    params = _keyed_block(text, "parameters", 6, pidb.body, pidb.end)
+    if not params:
+        raise PidsEditError(f"PID {pid_u!r} has no parameters:")
+    existing = _keyed_block(text, param, 8, params.body, params.end)
+    if not existing:
+        raise PidsEditError(f"{noun} {param!r} not found on {ecu_name} {pid_u}")
+    return pidb, params, existing
+
+
+def edit_pid_block(text: str, ecu_name: str, pid_u: str, edit: Callable[[str], str]) -> str:
+    """``text`` with the PID's own block (header line included) replaced by ``edit(block)``."""
+    b = locate_pid(text, ecu_name, pid_u)
+    return text[: b.hdr] + edit(text[b.hdr : b.end]) + text[b.end :]
+
+
+def edit_pid(
+    ecu_name: str,
+    pid: str,
+    edit_block: Callable[[str], str],
+    assert_pid: Callable[[dict], None],
+    *,
+    pids_dir: Path | None = None,
+) -> Path:
+    """Edit one PID's own block; ``assert_pid`` judges the re-parsed PID mapping.
+
+    The shape of every PID-level setter: ``edit_block`` maps the PID's block text (header line
+    first) to its new text, and ``assert_pid`` raises ``PidsEditError`` unless the PID reads back
+    as the edit intended. The PID going missing is reported for it.
+    """
+    pid_u = str(pid).strip().upper()
+    return edit_ecu_text(
+        ecu_name,
+        lambda text: edit_pid_block(text, ecu_name, pid_u, edit_block),
+        pid_checker(pid_u, assert_pid),
+        pids_dir=pids_dir,
+    )
+
+
+def set_scalar(block: str, field: str, line: str | None, *, indent: int = 6) -> str:
+    """Put ``field: …`` straight after the block's header line, or drop the field (``None``).
+
+    Any earlier occurrence (and a block scalar or nested body it owns) goes first, so the field
+    moves to the top of the block.
+    """
+    block = _remove_field_line(block, field, indent=indent)
+    if line is None:
+        return block
+    lines = block.splitlines(keepends=True)
+    return lines[0] + f"{' ' * indent}{line}\n" + "".join(lines[1:])
+
+
+def pid_def_of(ecu_def: dict, pid_u: str) -> dict:
+    """The parsed PID mapping, or ``PidsEditError`` if the edit lost it."""
+    pids_map = ecu_def.get("pids", {}) or {}
+    pdef = next((v for k, v in pids_map.items() if str(k).upper() == pid_u), None)
+    if pdef is None:
+        raise PidsEditError(f"PID {pid_u!r} missing after edit")
+    return pdef or {}
+
+
+def pid_checker(pid_u: str, assert_pid: Callable[[dict], None]) -> Callable[[dict], None]:
+    """A ``checker`` that finds the PID in the re-parsed ECU and hands it to ``assert_pid``."""
+
+    def checker(ecu_def: dict) -> None:
+        assert_pid(pid_def_of(ecu_def, pid_u))
+
+    return checker
+
+
+def _remove_field_line(block: str, field: str, indent: int) -> str:
+    """Drop a ``field:`` entry at ``indent`` spaces from ``block``.
+
+    Removes the field's header line **and any continuation that belongs to it** —
+    a folded/literal block scalar's indented body (``notes: >-`` + wrapped text)
+    or a nested list/map body. Removing only the header line would orphan that
+    body and produce invalid YAML — a trap the caller cannot see from the name.
+    A plain single-line scalar (the common case) is removed byte-for-byte, so the
+    surrounding whitespace is preserved exactly. Only the first match is removed;
+    if ``field`` is absent the block is returned unchanged.
+    """
+    header_re = re.compile(rf"^ {{{indent}}}{re.escape(field)}:(.*)$")
+    lines = block.splitlines(keepends=True)
+    out: list[str] = []
+    i = 0
+    removed = False
+    while i < len(lines):
+        line = lines[i]
+        if not removed and header_re.match(line):
+            # Everything indented deeper than the field is its value — a block
+            # scalar's text, a nested list/map, or a multi-line quoted scalar's
+            # continuation — so it goes too, else it would be orphaned.
+            i = _nested_body_end(lines, i + 1, indent)
+            removed = True
+            continue
+        out.append(line)
+        i += 1
+    return "".join(out)
+
+
+def _insert_lines(text: str, region_start: int, region_end: int, lines: list[str]) -> str:
+    """Insert ``lines`` at the end of ``[region_start, region_end)``.
+
+    Backs up over trailing blank lines so the insertion sits adjacent to the
+    last real content line rather than after a gap.
+    """
+    ins = region_end
+    while ins > region_start and text[ins - 1] == "\n" and (ins < 2 or text[ins - 2] == "\n"):
+        ins -= 1
+    payload = "".join(ln + "\n" for ln in lines)
+    if ins and text[ins - 1] != "\n":
+        payload = "\n" + payload  # the region's last line has no line break (EOF)
+    return text[:ins] + payload + text[ins:]
+
+
+def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent: int) -> str:
+    """Like ``_replace_field_in_block`` but for an arbitrary field indent.
+
+    Replaces ``field:`` (and any block-scalar or nested list/map continuation)
+    at ``indent`` spaces within ``block``; appends the field if absent.
+    """
+    replacement_lines = (
+        [new_line_or_lines] if isinstance(new_line_or_lines, str) else list(new_line_or_lines)
+    )
+    lines = block.splitlines()
+    out: list[str] = []
+    i = 0
+    replaced = False
+    field_re = re.compile(rf"^ {{{indent}}}{re.escape(field)}:(.*)$")
+    while i < len(lines):
+        line = lines[i]
+        if not replaced and field_re.match(line):
+            # The OLD value's deeper-indented body (block scalar text, a nested
+            # list/map such as values:/bits: or a block-style can_bus:, a multi-
+            # line quoted scalar) is replaced with the header. Keyed on the old
+            # body's shape, not the replacement's, so a block field can become an
+            # inline one (block can_bus: -> can_bus: [B-CAN, P-CAN]).
+            i = _nested_body_end(lines, i + 1, indent)
+            out.extend(replacement_lines)
+            replaced = True
+            continue
+        out.append(line)
+        i += 1
+    if not replaced:
+        while out and out[-1].strip() == "":
+            out.pop()
+        out.extend(replacement_lines)
+    # ``splitlines()`` + ``"\n".join()`` collapses a trailing blank line, which
+    # would silently eat the blank separator between this block and its next
+    # sibling — and compound over repeated edits. Re-attach the block's exact
+    # trailing newline run instead.
+    trailing = block[len(block.rstrip("\n")) :]
+    return "\n".join(out).rstrip("\n") + (trailing or ("\n" if block.endswith("\n") else ""))
+
+
+def _today() -> str:
+    """Today's date as ``YYYY-MM-DD`` (local time) for research timestamps."""
+    return datetime.date.today().isoformat()
+
+
+def _norm_states(value: object) -> list[str]:
+    """Normalize a ``vehicle_states`` value to the canonical UPPERCASE token list.
+
+    Delegates to :func:`canair.states.parse_states` so the normalization rule
+    (strip + upper-case, drop empties, accept a list or comma-string) is shared
+    with the runtime readers rather than reimplemented in the text editors.
+    """
+    from canair.states import parse_states
+
+    return parse_states(value)

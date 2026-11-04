@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from canlib import config
-from canlib.cli import main
+from canair import config
+from canair.cli import main
 
 FIXTURE = Path(__file__).parent / "fixtures" / "profiles" / "variants"
 

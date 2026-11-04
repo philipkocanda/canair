@@ -1,7 +1,7 @@
-"""Tests for the shared free-text (notes) rendering policy (canlib.core.yaml_rt).
+"""Tests for the shared free-text (notes) rendering policy (canair.core.yaml_rt).
 
-Both writer subsystems — the text-based per-field editor (canlib.yaml_edit.text)
-and the ruamel round-trip writer (canlib.yaml_edit.ecu via canlib.core.yaml_rt.folded) —
+Both writer subsystems — the text-based per-field editor (canair.yaml_edit.text)
+and the ruamel round-trip writer (canair.yaml_edit.ecu via canair.core.yaml_rt.folded) —
 render notes the same way: inline when short, else a wrapped folded ``>-`` block
 that round-trips to the original text. These tests pin that policy at the seam.
 """
@@ -15,7 +15,7 @@ import yaml
 from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.scalarstring import FoldedScalarString
 
-from canlib.core.yaml_rt import (
+from canair.core.yaml_rt import (
     NOTE_WRAP_WIDTH,
     dump,
     folded,
@@ -24,7 +24,7 @@ from canlib.core.yaml_rt import (
     round_trip_yaml,
     wrap_note_lines,
 )
-from canlib.yaml_edit.text import _format_block_scalar
+from canair.yaml_edit.text import _format_block_scalar
 
 LONG = (
     "Seeded device-free from the upstream WiCAN community profile meatpiHQ/wican-fw "

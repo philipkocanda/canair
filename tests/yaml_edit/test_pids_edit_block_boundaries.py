@@ -1,6 +1,6 @@
 """Tests for the surgical editors' block boundaries, line endings and parse guards.
 
-The text editors in :mod:`canlib.yaml_edit.pids` cut and append blocks by indentation.
+The text editors in :mod:`canair.yaml_edit.pids` cut and append blocks by indentation.
 A block ends after its own last line and blank separation — never inside the
 comments that head the *next* key — and an edit keeps the file's line endings.
 """
@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.yaml_edit.pids import (
+from canair.yaml_edit.pids import (
     PidsEditError,
     delete_parameter,
     delete_pid,

@@ -1,4 +1,4 @@
-"""Tests for the explorer's decoded capture series (canlib/explorer_series.py)."""
+"""Tests for the explorer's decoded capture series (src/canair/explorer_series.py)."""
 
 from __future__ import annotations
 
@@ -8,11 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from canlib.captures import io as capture_io
-from canlib.ecus.pids import load_pids
-from canlib.expression.decoding import decode_param_rows
-from canlib.interop.explorer.export import export_profile
-from canlib.interop.explorer.series import (
+from canair.captures import io as capture_io
+from canair.ecus.pids import load_pids
+from canair.expression.decoding import decode_param_rows
+from canair.interop.explorer.export import export_profile
+from canair.interop.explorer.series import (
     MIN_SAMPLES,
     _Clock,
     _clock_label,

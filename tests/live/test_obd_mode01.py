@@ -12,8 +12,8 @@ from typing import ClassVar
 
 import pytest
 
-from canlib.live.multi_exec import build_query_plan
-from canlib.query import (
+from canair.live.multi_exec import build_query_plan
+from canair.query import (
     QueryError,
     explicit_request,
     inferred_request,
@@ -22,10 +22,10 @@ from canlib.query import (
     parse_selector,
     pids_named_by,
 )
-from canlib.query.steps import parse_sub_commands
-from canlib.transport.elm327.terminal import Elm327Terminal
-from canlib.uds.echo import request_echo
-from canlib.uds.obd import supported_pids
+from canair.query.steps import parse_sub_commands
+from canair.transport.elm327.terminal import Elm327Terminal
+from canair.uds.echo import request_echo
+from canair.uds.obd import supported_pids
 from tests.support.fakes import QueuedChannel
 
 

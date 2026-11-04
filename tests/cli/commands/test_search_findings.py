@@ -1,4 +1,4 @@
-"""Tests for ``canair search``'s location grouping (:mod:`canlib.cli.commands.search.findings`).
+"""Tests for ``canair search``'s location grouping (:mod:`canair.cli.commands.search.findings`).
 
 Pure functions over hand-built payload rows: no captures, no parser. The command-level
 behaviour is in ``tests/commands/test_search.py``.
@@ -8,19 +8,19 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.cli.commands.search import render
-from canlib.cli.commands.search.findings import (
+from canair.cli.commands.search import render
+from canair.cli.commands.search.findings import (
     PayloadRow,
     data_start,
     find_in_payloads,
     inventory_payloads,
     snippet,
 )
-from canlib.core.textscan import compile_regex, find_hex, find_literal, find_regex
-from canlib.expression.decode_value import decode_typed
-from canlib.render import ansi
-from canlib.uds.byteindex import payload_to_wican_bytes
-from canlib.uds.notation import ByteNotation
+from canair.core.textscan import compile_regex, find_hex, find_literal, find_regex
+from canair.expression.decode_value import decode_typed
+from canair.render import ansi
+from canair.uds.byteindex import payload_to_wican_bytes
+from canair.uds.notation import ByteNotation
 
 # 62 F1 00: a ReadDataByIdentifier response for a DID whose bytes are not printable,
 # so only the body under test can form a printable run.
@@ -217,7 +217,7 @@ class TestSnippetAndHighlight:
 
 
 def test_string_locations_never_produce_an_empty_core():
-    from canlib.cli.commands.search.findings import _Run, string_locations
+    from canair.cli.commands.search.findings import _Run, string_locations
 
     row = _row(b"")
     runs = [_Run(0, 8, "A" * 8, row), _Run(4, 18, "B" * 14, row), _Run(12, 20, "C" * 8, row)]

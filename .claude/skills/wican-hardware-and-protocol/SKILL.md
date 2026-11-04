@@ -1,6 +1,6 @@
 ---
 name: wican-hardware-and-protocol
-description: "Ground truth about the WiCAN device itself — the WiCAN Pro hardware (ESP32-S3 + MIC3624/STN2120 co-processor), the two physically distinct paths from canair to the vehicle CAN bus, the firmware's protocol modes and their mutual exclusions, the WebSocket/HTTP API surface, sleep/power behaviour, and measured ELM327 throughput limits. Load this ONLY for deep protocol, transport or device-API work — changing a transport backend in canlib/transport/, debugging ISO-TP/ELM327 desync or timeouts, adding a WiCAN API call, reasoning about throughput/latency, or reading the wican-fw C source. NOT needed for ordinary work: decoding signals (use reverse-engineer-signal), profile data (use contributing-profiles), or general canair code changes (use contributing-code)."
+description: "Ground truth about the WiCAN device itself — the WiCAN Pro hardware (ESP32-S3 + MIC3624/STN2120 co-processor), the two physically distinct paths from canair to the vehicle CAN bus, the firmware's protocol modes and their mutual exclusions, the WebSocket/HTTP API surface, sleep/power behaviour, and measured ELM327 throughput limits. Load this ONLY for deep protocol, transport or device-API work — changing a transport backend in src/canair/transport/, debugging ISO-TP/ELM327 desync or timeouts, adding a WiCAN API call, reasoning about throughput/latency, or reading the wican-fw C source. NOT needed for ordinary work: decoding signals (use reverse-engineer-signal), profile data (use contributing-profiles), or general canair code changes (use contributing-code)."
 ---
 
 # WiCAN hardware, firmware and protocol — ground truth
@@ -35,7 +35,7 @@ Companion analysis with the full throughput argument and the reclaimable-win ran
 `plans/2026-08-09-wican-ws-throughput-ceiling.md`.
 
 **Do not load this skill for normal work.** It is for people editing
-`canlib/transport/`, chasing a desync or timeout, calling a device API, or reading the firmware.
+`src/canair/transport/`, chasing a desync or timeout, calling a device API, or reading the firmware.
 
 ## Rule 0 — read the right source, or every conclusion is wrong
 
@@ -123,7 +123,7 @@ AutoPID schema, and the bundled chip firmware pinned back to `V2.3.22` (so a chi
 - **The release tag does not pin a components commit**, so no checkout proves what a given v6
   build contains. Read `fw_build` from `GET /api/info` on the device, and treat every
   meatpi-components citation as "at commit X", never "in v6".
-- Identify it the way canair does (`canlib/device/wican/firmware.py`): `GET /api/info` answers v6 with an
+- Identify it the way canair does (`src/canair/device/wican/firmware.py`): `GET /api/info` answers v6 with an
   integer `api_level` (or a 401/403 gate) and answers 4.x with 404.
 
 The audit, what still works (`elm327-tcp`), and the follow-up work:
@@ -177,7 +177,7 @@ the firmware source** — they come from the chip. Firmware matches `VTVERS`'s r
 
 > `OBDLink MX` is the *emulator's* `ATI` string (`wican-fw/main/elm327.c:71`), which is not
 > compiled on Pro — never expect it from a WiCAN Pro. (canair's resync comment once claimed
-> otherwise; fixed in `canlib/transport/elm327/terminal.py`.)
+> otherwise; fixed in `src/canair/transport/elm327/terminal.py`.)
 
 ## The two paths to the vehicle bus — the fact that matters most
 
@@ -195,7 +195,7 @@ canair ── WiFi ── ESP32-S3 ─┤     (elm327, auto_pid)
 |---|---|---|
 | Device mode | `elm327`, `auto_pid` | `slcan` |
 | Silicon on the bus | **MIC3624** | **ESP32-S3 TWAI** |
-| ISO-TP done by | the chip | **canair** (`canlib/transport/raw/isotp_stack.py`) |
+| ISO-TP done by | the chip | **canair** (`src/canair/transport/raw/isotp_stack.py`) |
 | ESP32 TWAI state | **disabled** | enabled |
 
 **Under `auto_pid`/`elm327` the TWAI controller is not idle — it is off.** `can_enable()` is
@@ -326,7 +326,7 @@ The distinction that matters for transport work:
   only what the gateway forwards onto the port's segment — an absent frame is not evidence the
   signal does not exist.
 - **canair does not model which segment the OBD port physically reaches** (no `D-CAN` reference
-  anywhere in `canlib/`). `can_bus:` is documentation for humans and for `canair bus`; nothing
+  anywhere in `src/canair/`). `can_bus:` is documentation for humans and for `canair bus`; nothing
   routes on it. Do not add code that assumes otherwise without designing it deliberately.
 
 ## The MIC3624 co-processor link
@@ -454,7 +454,7 @@ Two behaviours worth knowing before designing a batching or pipelining scheme:
   `uart_flush_input`.
 - On mutex contention the router replies the literal text `"Terminal busy\n"` and returns `ESP_OK`
   (`wican-fw/components/ws_server/ws_router.c:204-206`). **canair could parse that as a UDS
-  response.** Check `classify_response` in `canlib/uds/response.py` against that exact string.
+  response.** Check `classify_response` in `src/canair/uds/response.py` against that exact string.
 
 Monitor mode streams **SLCAN ASCII** built by `slcan_parse_frame` from `can_receive()`
 (`wican-fw/main/main.c:403-413`) — so on Pro under `auto_pid`/`elm327` it yields **nothing**,
@@ -575,7 +575,7 @@ therefore saves **one** command per ECU switch, not two. Multi-frame reassembly 
 `ATFCSH`, so the STN answers flow control from the received first frame's address.
 
 **canair sets the receive filter and flow control itself, per ECU**
-(`canlib/transport/elm327/addressing.py`, applied by `Elm327Terminal.set_header`). The datasheet
+(`src/canair/transport/elm327/addressing.py`, applied by `Elm327Terminal.set_header`). The datasheet
 facts it rests on: `ATFCSH` is honoured **only in flow-control mode 1** (`ATFCSM1`), and the adapter
 rejects `ATFCSM1` with `?` until both `ATFCSH` and `ATFCSD` are set. In the default mode 0 the
 adapter derives the flow-control id from the First Frame by the ISO convention, so the `ATFCSH`
@@ -611,7 +611,7 @@ flow control only in answer to a First Frame. Plan: `plans/2026-10-20-elm327-ecu
 > time it is sent, whatever `ATM` says, and with the memory function on (`ATM1`, the STN2120's
 > state after every reset) even an `ATTP h` the next request validates is stored. The EEPROM is
 > rated for about 10,000 writes, and the init runs on every connect, so `init_elm` sends `ATM0`
-> after each reset and every `ATSP` as `ATTP` (`canlib/transport/elm327/eeprom.py`). 4.52p passes
+> after each reset and every `ATSP` as `ATTP` (`src/canair/transport/elm327/eeprom.py`). 4.52p passes
 > both to the chip unchanged (it only swaps `ATZ` for `ATWS`); v6 rewrites them itself, and only
 > from `beta.7` on also switches the memory function off. In `canair repl`, prefer `ATTP`.
 
@@ -624,7 +624,7 @@ link.
 - [ ] `wican-fw` on `wican-pro`, and the tag diffed against the device's `git_version`.
 - [ ] Device firmware generation known (`canair status`); anything that uses a 4.x-only interface
       (`/ws`, the protocol mode, the legacy HTTP routes, AutoPID sync) is gated through
-      `canlib/device/wican/firmware.py`'s policy table, not an ad-hoc version check.
+      `src/canair/device/wican/firmware.py`'s policy table, not an ad-hoc version check.
 - [ ] Not reading the `!= WICAN_PRO` emulator block, or `wican-fw/main/ws_router.c`.
 - [ ] Clear on which chip the change affects — MIC3624 (`wican-ws`, `elm327-tcp`) or ESP32 TWAI
       (`slcan-tcp`) — and whether it must work on both.

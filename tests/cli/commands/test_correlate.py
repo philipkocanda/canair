@@ -3,7 +3,7 @@
 import argparse
 import json
 
-from canlib.cli.commands import correlate
+from canair.cli.commands import correlate
 
 
 def _write(tmp_path, keep_mode="unique"):
@@ -38,7 +38,7 @@ def _write(tmp_path, keep_mode="unique"):
 
 
 def _run(tmp_path, monkeypatch, argv):
-    import canlib.analysis.align as align
+    import canair.analysis.align as align
 
     orig = align.load_signal_captures
 
@@ -49,15 +49,15 @@ def _run(tmp_path, monkeypatch, argv):
 
     # Every module that imports the loader must be redirected. `from ... import
     # load_signal_captures` binds the name in the importer, so patching
-    # canlib.analysis.align (its definition) would not reach any of them. Two modules
+    # canair.analysis.align (its definition) would not reach any of them. Two modules
     # import it: `series` builds the ranked series, and `render` re-loads for the
     # mirror/overlap views. Missing one leaves those views reading the *active
     # profile's* whole capture corpus — slow, and the assertions then pass on real
     # data instead of the fixture.
-    monkeypatch.setattr("canlib.cli.commands.correlate.series.load_signal_captures", scoped)
-    monkeypatch.setattr("canlib.cli.commands.correlate.render.load_signal_captures", scoped)
+    monkeypatch.setattr("canair.cli.commands.correlate.series.load_signal_captures", scoped)
+    monkeypatch.setattr("canair.cli.commands.correlate.render.load_signal_captures", scoped)
     monkeypatch.setattr(
-        "canlib.cli.commands.correlate.uds.discover_signal_specs",
+        "canair.cli.commands.correlate.uds.discover_signal_specs",
         lambda *a, **k: [("IGPM", "22BC03"), ("IGPM", "22BC05")],
     )
     p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
@@ -134,7 +134,7 @@ class TestAgainstFile:
             "2026-07-24 09:00:06,7.0\n"
         )
         monkeypatch.setattr(
-            "canlib.cli.commands.correlate.uds.discover_signal_specs",
+            "canair.cli.commands.correlate.uds.discover_signal_specs",
             lambda *a, **k: [("IGPM", "22BC03")],
         )
         rc = _run(
@@ -196,17 +196,17 @@ class TestControl:
         return x, zc
 
     def _run_obc(self, tmp_path, monkeypatch, argv):
-        import canlib.analysis.align as align
+        import canair.analysis.align as align
 
         orig = align.load_signal_captures
         scoped = lambda s, **kw: orig(  # noqa: E731
             s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
         )
         # See _run above: both importers of the loader must be redirected.
-        monkeypatch.setattr("canlib.cli.commands.correlate.series.load_signal_captures", scoped)
-        monkeypatch.setattr("canlib.cli.commands.correlate.render.load_signal_captures", scoped)
+        monkeypatch.setattr("canair.cli.commands.correlate.series.load_signal_captures", scoped)
+        monkeypatch.setattr("canair.cli.commands.correlate.render.load_signal_captures", scoped)
         monkeypatch.setattr(
-            "canlib.cli.commands.correlate.uds.discover_signal_specs",
+            "canair.cli.commands.correlate.uds.discover_signal_specs",
             lambda *a, **k: [("OBC", "2101")],
         )
         p = correlate.add_parser(argparse.ArgumentParser().add_subparsers())
@@ -354,7 +354,7 @@ class TestWeakCorrelationHint:
     """The data-derived retry hint for an empty --min-r result (Part D)."""
 
     def test_names_the_strongest_subthreshold_and_a_reachable_min_r(self):
-        from canlib.cli.commands.correlate.render import weak_correlation_hint
+        from canair.cli.commands.correlate.render import weak_correlation_hint
 
         hint = weak_correlation_hint(-0.573, "A ~ B", min_r=0.6)
         assert hint is not None
@@ -364,7 +364,7 @@ class TestWeakCorrelationHint:
         assert "--min-r 0.57" in hint
 
     def test_none_when_nothing_below(self):
-        from canlib.cli.commands.correlate.render import weak_correlation_hint
+        from canair.cli.commands.correlate.render import weak_correlation_hint
 
         assert weak_correlation_hint(None, None, min_r=0.6) is None
         assert weak_correlation_hint(0.0, None, min_r=0.6) is None

@@ -20,10 +20,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.captures.store import load_all_captures
-from canlib.cli.commands.captures import layers as capture_layers
-from canlib.cli.commands.profile import _cmd_list, _cmd_overlay, _cmd_show
-from canlib.profile import (
+from canair.captures.store import load_all_captures
+from canair.cli.commands.captures import layers as capture_layers
+from canair.cli.commands.profile import _cmd_list, _cmd_overlay, _cmd_show
+from canair.profile import (
     Profile,
     ProfileError,
     extends_target,
@@ -31,9 +31,11 @@ from canlib.profile import (
     require_writable_definitions,
     resolve_profile,
 )
-from canlib.profile.scaffold import overlay_profile
+from canair.profile.scaffold import overlay_profile
 
-CAPTURES_CMD = Path(__file__).resolve().parents[2] / "canlib" / "cli" / "commands" / "captures"
+CAPTURES_CMD = (
+    Path(__file__).resolve().parents[2] / "src" / "canair" / "cli" / "commands" / "captures"
+)
 CANLIB_CMD = CAPTURES_CMD.parent
 
 # Anything referencing one of these rewrites a capture file, so it owes the
@@ -60,7 +62,7 @@ _MUTATING_CAPTURE_MODULES = {
 @pytest.fixture(autouse=True)
 def _isolate_profile_state():
     """Drop the memoized active profile so a tmp_path Profile cannot leak."""
-    from canlib import config, profile
+    from canair import config, profile
 
     profile._active = None
     config.load_config.cache_clear()
@@ -78,8 +80,8 @@ def env(tmp_path, monkeypatch):
     """
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
-    monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
-    from canlib import config
+    monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
+    from canair import config
 
     config.load_config.cache_clear()
     return argparse.Namespace(
@@ -143,7 +145,7 @@ def _force_a_timeline(monkeypatch) -> None:
     covered elsewhere. What needs pinning here is which file the command opens and
     whether it consults the base-layer policy.
     """
-    from canlib.states import infer as state_infer
+    from canair.states import infer as state_infer
 
     spans = [
         {"at": "09:00:00", "states": ["ACC"]},
@@ -158,7 +160,7 @@ def _force_a_timeline(monkeypatch) -> None:
             ),
         )
 
-    monkeypatch.setattr("canlib.cli.commands.captures.backfill_spans.session_state_spans", fake)
+    monkeypatch.setattr("canair.cli.commands.captures.backfill_spans.session_state_spans", fake)
 
 
 class TestResolution:
@@ -293,7 +295,7 @@ class TestOverlayCommand:
         assert dest == env.user / "ev6"
 
     def test_overlay_names_the_editor_schema(self, env):
-        from canlib.core.paths import PROFILE_SCHEMA_MODELINE
+        from canair.core.paths import PROFILE_SCHEMA_MODELINE
 
         _bundled(env)
         _, dest = overlay_profile("ev6")
@@ -322,13 +324,13 @@ class TestDefinitionsAreReadOnly:
         "module, func, extra",
         [
             (
-                "canlib.cli.commands.pids",
+                "canair.cli.commands.pids",
                 "cmd_upsert_param",
                 {"values": None, "bits": None, "ptype": None, "ecu": "BMS", "no_validate": False},
             ),
-            ("canlib.cli.commands.states", "cmd_add", {"name": "TOWING"}),
-            ("canlib.cli.commands.groups", "cmd_add", {"name": "mine"}),
-            ("canlib.cli.commands.signals", "cmd_upsert", {}),
+            ("canair.cli.commands.states", "cmd_add", {"name": "TOWING"}),
+            ("canair.cli.commands.groups", "cmd_add", {"name": "mine"}),
+            ("canair.cli.commands.signals", "cmd_upsert", {}),
         ],
     )
     def test_authoring_commands_refuse(self, env, module, func, extra):
@@ -338,7 +340,7 @@ class TestDefinitionsAreReadOnly:
         _bundled(env)
         _overlay(env)
         mod = importlib.import_module(module)
-        from canlib import profile as profile_mod
+        from canair import profile as profile_mod
 
         profile_mod._active = resolve_profile("ev6")
         # Beyond what the command reads before the guard, every attribute is absent
@@ -392,7 +394,7 @@ class TestLayeredCaptureReads:
 
 def load_all_captures_for(name: str) -> list[dict]:
     """Load through the active profile so the layer list is exercised."""
-    from canlib import profile as profile_mod
+    from canair import profile as profile_mod
 
     profile_mod._active = resolve_profile(name)
     return load_all_captures()
@@ -410,7 +412,7 @@ class TestBaseLayerWritePolicy:
     def test_base_files_are_read_only_when_layered(self, env):
         base = _bundled(env)
         dest = _overlay(env)
-        from canlib import profile as profile_mod
+        from canair import profile as profile_mod
 
         profile_mod._active = resolve_profile("ev6")
         mine = dest / "captures" / "2026-01-02.json"
@@ -427,7 +429,7 @@ class TestBaseLayerWritePolicy:
     def test_own_files_are_writable(self, env):
         _bundled(env)
         dest = _overlay(env)
-        from canlib import profile as profile_mod
+        from canair import profile as profile_mod
 
         profile_mod._active = resolve_profile("ev6")
         mine = dest / "captures" / "2026-01-02.json"
@@ -442,7 +444,7 @@ class TestBaseLayerMutationsAreRefused:
     def test_delete_refuses_a_base_layer_capture(self, env, capsys):
         base = _bundled(env)
         _overlay(env)
-        from canlib.cli.commands.captures.delete import cmd_delete
+        from canair.cli.commands.captures.delete import cmd_delete
 
         entries = load_all_captures_for("ev6")
         before = (base / "captures" / "2026-01-01.json").read_text()
@@ -454,7 +456,7 @@ class TestBaseLayerMutationsAreRefused:
         """A ``--dry-run`` is a read; refusing it would hide what is there."""
         _bundled(env)
         _overlay(env)
-        from canlib.cli.commands.captures.delete import cmd_delete
+        from canair.cli.commands.captures.delete import cmd_delete
 
         entries = load_all_captures_for("ev6")
         assert cmd_delete(entries, "BMS:2101", dry_run=True) == 0
@@ -464,7 +466,7 @@ class TestBaseLayerMutationsAreRefused:
         _bundled(env)
         dest = _overlay(env)
         _seed(dest / "captures" / "2026-01-02.json", "mine", date="2026-01-02")
-        from canlib.cli.commands.captures.delete import cmd_delete
+        from canair.cli.commands.captures.delete import cmd_delete
 
         entries = [e for e in load_all_captures_for("ev6") if e["date"] == "2026-01-02"]
         assert cmd_delete(entries, "BMS:2101", assume_yes=True) == 0
@@ -475,7 +477,7 @@ class TestBaseLayerMutationsAreRefused:
         _overlay(env)
         _seed(base / "captures" / "2026-01-01.json", "upstream", states=["ACC", "READY"])
         _force_a_timeline(monkeypatch)
-        from canlib.cli.commands.captures.backfill_spans import cmd_backfill_state_spans
+        from canair.cli.commands.captures.backfill_spans import cmd_backfill_state_spans
 
         entries = load_all_captures_for("ev6")
         before = (base / "captures" / "2026-01-01.json").read_text()
@@ -491,7 +493,7 @@ class TestBaseLayerMutationsAreRefused:
         mine = dest / "captures" / "2026-01-01.json"
         _seed(mine, "mine", time="10:00:00", states=["ACC", "READY"])
         _force_a_timeline(monkeypatch)
-        from canlib.cli.commands.captures.backfill_spans import cmd_backfill_state_spans
+        from canair.cli.commands.captures.backfill_spans import cmd_backfill_state_spans
 
         theirs = base / "captures" / "2026-01-01.json"
         before = theirs.read_text()
@@ -521,7 +523,7 @@ class TestBaseLayerMutationsAreRefused:
         mine = dest / "captures" / "2026-01-01.json"
         _seed(mine, "mine", time="10:00:00", states=["ACC", "READY"])
         _force_a_timeline(monkeypatch)
-        from canlib.cli.commands.captures.backfill_spans import cmd_backfill_state_spans
+        from canair.cli.commands.captures.backfill_spans import cmd_backfill_state_spans
 
         entries = load_all_captures_for("ev6")
         assert cmd_backfill_state_spans(entries, assume_yes=True) == 0
@@ -568,8 +570,8 @@ class TestLayerAwareReaders:
     def test_coverage_sees_base_layer_payloads(self, env):
         _bundled(env)
         _overlay(env)
-        from canlib import profile as profile_mod
-        from canlib.cli.commands.coverage import load_representative_payloads
+        from canair import profile as profile_mod
+        from canair.cli.commands.coverage import load_representative_payloads
 
         profile_mod._active = resolve_profile("ev6")
         # Without the layer walk a layered profile reports false "NO CAPTURE".

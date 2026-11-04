@@ -1,4 +1,4 @@
-"""Tests for the DTC snapshot reply parser (`canlib.dtc.snapshot`).
+"""Tests for the DTC snapshot reply parser (`canair.dtc.snapshot`).
 
 The two CCM replies are real (Ioniq 28 kWh, DTC C182C, 2026-11-01): one record each, holding
 DID 4710 with 9 bytes.
@@ -6,7 +6,7 @@ DID 4710 with 9 bytes.
 
 import pytest
 
-from canlib.dtc.snapshot import (
+from canair.dtc.snapshot import (
     SnapshotDid,
     SnapshotError,
     did_of_read,
@@ -126,7 +126,7 @@ class TestSnapshotReply:
 
 class TestLengthResolver:
     def test_a_declared_length_wins_without_reading_captures(self):
-        from canlib.dtc.snapshot_decode import length_resolver
+        from canair.dtc.snapshot_decode import length_resolver
 
         def no_captures(ecu, pid):
             raise AssertionError("the captures must not be read")
@@ -135,7 +135,7 @@ class TestLengthResolver:
         assert length_of(0x4710) == 9
 
     def test_falls_back_to_the_live_length(self):
-        from canlib.dtc.snapshot_decode import length_resolver
+        from canair.dtc.snapshot_decode import length_resolver
 
         seen = []
 
@@ -148,8 +148,8 @@ class TestLengthResolver:
 
     def test_a_variable_length_pid_has_no_live_length(self):
         # Its most common live length is a guess, and a wrong one mis-splits the record.
-        from canlib.dtc.snapshot_decode import length_resolver
-        from canlib.ecus.pids import build_ecu_index
+        from canair.dtc.snapshot_decode import length_resolver
+        from canair.ecus.pids import build_ecu_index
 
         def no_captures(ecu, pid):
             raise AssertionError("the captures must not be read")
@@ -159,13 +159,13 @@ class TestLengthResolver:
         assert length_resolver(index["BCM"]["pids"], "BCM", no_captures)(0xB004) is None
 
     def test_a_declared_length_still_wins_on_a_variable_length_pid(self):
-        from canlib.dtc.snapshot_decode import length_resolver
+        from canair.dtc.snapshot_decode import length_resolver
 
         pids = {"22B004": {"variable_length": True, "snapshot_length": 4}}
         assert length_resolver(pids, "BCM", lambda *_: 9)(0xB004) == 4
 
     def test_live_length_is_the_most_common_echoing_reply(self, monkeypatch):
-        from canlib.dtc import snapshot_decode
+        from canair.dtc import snapshot_decode
 
         rows = [
             {"payload": "62B00411223344"},
@@ -173,7 +173,7 @@ class TestLengthResolver:
             {"payload": "62B004112233"},
             {"payload": "62C00B1122334455"},  # misfiled: another DID's reply
         ]
-        monkeypatch.setattr("canlib.captures.store.load_pid_captures", lambda ecu, pid: rows)
+        monkeypatch.setattr("canair.captures.store.load_pid_captures", lambda ecu, pid: rows)
         snapshot_decode.live_reply_length.cache_clear()
         try:
             assert snapshot_decode.live_reply_length("BCM", "22B004") == 4
@@ -181,9 +181,9 @@ class TestLengthResolver:
             snapshot_decode.live_reply_length.cache_clear()
 
     def test_no_live_reply_means_unknown(self, monkeypatch):
-        from canlib.dtc import snapshot_decode
+        from canair.dtc import snapshot_decode
 
-        monkeypatch.setattr("canlib.captures.store.load_pid_captures", lambda ecu, pid: [])
+        monkeypatch.setattr("canair.captures.store.load_pid_captures", lambda ecu, pid: [])
         snapshot_decode.live_reply_length.cache_clear()
         try:
             assert snapshot_decode.live_reply_length("BCM", "22B004") is None
@@ -193,7 +193,7 @@ class TestLengthResolver:
 
 class TestSnapshotEntries:
     def test_an_incomplete_record_keeps_its_raw_rest(self):
-        from canlib.dtc.snapshot_decode import snapshot_entries
+        from canair.dtc.snapshot_decode import snapshot_entries
 
         reply = parse_snapshot_reply(BOTH, _unknown)
         entry = snapshot_entries(reply.records[0], BOTH.hex(), {})
@@ -202,7 +202,7 @@ class TestSnapshotEntries:
         assert entry["dids"] == []
 
     def test_an_undefined_did_has_no_signals(self):
-        from canlib.dtc.snapshot_decode import snapshot_entries
+        from canair.dtc.snapshot_decode import snapshot_entries
 
         reply = parse_snapshot_reply(RECORD_01, _unknown, single_record=True)
         entry = snapshot_entries(reply.records[0], RECORD_01.hex(), {})
@@ -213,17 +213,17 @@ class TestSnapshotEntries:
 
 class TestDidReplies:
     def test_a_one_did_record_becomes_its_live_reply(self):
-        from canlib.dtc.snapshot import did_replies
+        from canair.dtc.snapshot import did_replies
 
         assert did_replies(RECORD_01.hex()) == [("224710", "624710021AA7207C0AFFFFFF")]
 
     def test_a_malformed_reply_gives_nothing(self):
-        from canlib.dtc.snapshot import did_replies
+        from canair.dtc.snapshot import did_replies
 
         assert did_replies("5904") == [] and did_replies("zz") == []
 
     def test_a_several_did_record_gives_nothing(self):
         # Splitting it needs the first DID's length, which this helper does not know.
-        from canlib.dtc.snapshot import did_replies
+        from canair.dtc.snapshot import did_replies
 
         assert did_replies("5904582C0008" + "0102" + "0101AABB" + "0102CC") == []

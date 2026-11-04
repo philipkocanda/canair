@@ -18,18 +18,18 @@ from pathlib import Path
 
 import pytest
 
-from canlib.captures.store import load_all_captures
-from canlib.cli.commands.profile import _cmd_list, _cmd_use
-from canlib.profile import ProfileError, alias_index, resolve_profile, selectable_profiles
-from canlib.profile.names import build_alias_index, convention_problem
-from canlib.validation.profile_names import profile_name_findings
+from canair.captures.store import load_all_captures
+from canair.cli.commands.profile import _cmd_list, _cmd_use
+from canair.profile import ProfileError, alias_index, resolve_profile, selectable_profiles
+from canair.profile.names import build_alias_index, convention_problem
+from canair.validation.profile_names import profile_name_findings
 
 OLD, NEW = "ev6-2022", "kia-ev6-cv-ev"
 
 
 @pytest.fixture(autouse=True)
 def _isolate_profile_state():
-    from canlib import config, profile
+    from canair import config, profile
 
     profile._active = None
     profile._noted_renames.clear()
@@ -45,9 +45,9 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
     monkeypatch.delenv("CANAIR_PROFILE", raising=False)
-    monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
+    monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
     monkeypatch.setattr(
-        "canlib.validation.profile_names.BUNDLED_PROFILES_DIR", tmp_path / "profiles"
+        "canair.validation.profile_names.BUNDLED_PROFILES_DIR", tmp_path / "profiles"
     )
     return argparse.Namespace(
         bundled=tmp_path / "profiles",
@@ -172,7 +172,7 @@ class TestOldNamedOverlay:
         overlay = _bundle(env.user / OLD, extends=OLD)
         _seed(root / "captures" / "2026-01-01.json", "upstream")
         _seed(overlay / "captures" / "2026-01-02.json", "mine")
-        from canlib import profile as profile_mod
+        from canair import profile as profile_mod
 
         profile_mod._active = resolve_profile(NEW)
         assert {c["session_label"] for c in load_all_captures()} == {"upstream", "mine"}
@@ -247,7 +247,7 @@ class TestValidation:
 
 class TestContribute:
     def test_an_old_named_copy_is_contributed_under_the_current_name(self, env):
-        from canlib.cli.commands import contribute as cmd
+        from canair.cli.commands import contribute as cmd
 
         _renamed(env)
         adopted = _bundle(env.user / OLD)
@@ -268,7 +268,7 @@ class TestContribute:
         assert rep.notes == {"renamed_from": OLD}
 
     def test_a_current_name_is_left_alone(self, env):
-        from canlib.cli.commands import contribute as cmd
+        from canair.cli.commands import contribute as cmd
 
         root = _renamed(env)
         prof = resolve_profile(NEW)

@@ -1,4 +1,4 @@
-"""Tests for canlib.transport.elm327.channel.WebSocketChannel — the primary WiCAN wire.
+"""Tests for canair.transport.elm327.channel.WebSocketChannel — the primary WiCAN wire.
 
 The ELM327 engine is transport-agnostic: it speaks to a ``Channel`` that owns the
 transport-specific framing. ``TcpChannel`` (the ``elm327-tcp`` clone path) was well
@@ -25,9 +25,9 @@ import json
 import pytest
 import websockets
 
-from canlib import config as canair_config
-from canlib.transport.elm327 import channel
-from canlib.transport.elm327.channel import WebSocketChannel
+from canair import config as canair_config
+from canair.transport.elm327 import channel
+from canair.transport.elm327.channel import WebSocketChannel
 
 
 class FakeWS:

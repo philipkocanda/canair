@@ -35,7 +35,7 @@ import re
 import sys
 from pathlib import Path
 
-from canlib.states import parse_states
+from canair.states import parse_states
 
 # A `vehicle_states:` line, capturing (indent, remainder-after-colon).
 _FIELD_RE = re.compile(r"^(?P<indent>\s*)vehicle_states:(?P<rest>.*)$")
@@ -145,7 +145,7 @@ def main() -> int:
     ap.add_argument("--apply", action="store_true", help="Write changes (default: dry run)")
     args = ap.parse_args()
 
-    from canlib.profile import active, resolve_profile
+    from canair.profile import active, resolve_profile
 
     prof = resolve_profile(args.profile) if args.profile else active()
     print(f"Profile: {prof.name}  ({'APPLY' if args.apply else 'DRY RUN'})\n")

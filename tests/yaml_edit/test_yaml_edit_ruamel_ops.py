@@ -1,4 +1,4 @@
-"""Tests for canlib.yaml_edit.ruamel_ops — comment-safe edits of ruamel trees."""
+"""Tests for canair.yaml_edit.ruamel_ops — comment-safe edits of ruamel trees."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import itertools
 
 import pytest
 
-from canlib.core.yaml_rt import dump, round_trip_yaml
-from canlib.yaml_edit import ruamel_ops as ops
+from canair.core.yaml_rt import dump, round_trip_yaml
+from canair.yaml_edit import ruamel_ops as ops
 
 
 def _load(text: str):

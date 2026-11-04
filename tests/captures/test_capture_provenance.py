@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from canlib.captures import build_manual_session, build_query_session, save_session
-from canlib.captures import io as capture_io
-from canlib.captures.journal import CaptureJournal, build_session_from_records
+from canair.captures import build_manual_session, build_query_session, save_session
+from canair.captures import io as capture_io
+from canair.captures.journal import CaptureJournal, build_session_from_records
 
 
 class TestSessionBuilders:
@@ -80,7 +80,7 @@ class TestJournalProvenance:
 
 class TestVersionStamping:
     def test_save_session_stamps_current_version(self, tmp_path):
-        from canlib.install.build_info import full_version
+        from canair.install.build_info import full_version
 
         s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "lbl", [], "")
         assert "version" not in s  # builders don't stamp it; save_session does
@@ -94,15 +94,15 @@ class TestVersionStamping:
         That's what lets a suspect reading be traced to the exact code that
         decoded it, rather than to whatever release it happened to sit near.
         """
-        import canlib
-        from canlib.install import build_info
+        import canair
+        from canair.install import build_info
 
         monkeypatch.setattr(
             build_info,
             "running_build",
             lambda: build_info.GitBuild(branch="main", commit="343b244", dirty=True),
         )
-        monkeypatch.setattr(canlib, "__version__", "1.2.3")
+        monkeypatch.setattr(canair, "__version__", "1.2.3")
         s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "lbl", [], "")
         written = save_session(s, tmp_path)
         data = capture_io.load_capture_file(written)
@@ -123,7 +123,7 @@ class TestVersionStamping:
         assert data["sessions"][0]["version"] == "0.0.1-pinned"
 
     def test_journaled_session_carries_version(self, tmp_path):
-        from canlib.install.build_info import full_version
+        from canair.install.build_info import full_version
 
         j = CaptureJournal.open(tmp_path, label="run", transport="wican-ws")
         j.append("0x7EC", "2101", "6101AA")
@@ -185,7 +185,7 @@ class TestDecodePidResultElapsed:
     """_decode_pid_result carries elapsed only for single reads."""
 
     def test_single_read_carries_elapsed(self):
-        from canlib.live.multi_batch import _decode_pid_result
+        from canair.live.multi_batch import _decode_pid_result
 
         entry = _decode_pid_result(
             "2101", None, True, "6101AA", bytes.fromhex("6101AA"), 1.0, elapsed_ms=55
@@ -193,7 +193,7 @@ class TestDecodePidResultElapsed:
         assert entry["elapsed_ms"] == 55
 
     def test_batched_read_omits_elapsed(self):
-        from canlib.live.multi_batch import _decode_pid_result
+        from canair.live.multi_batch import _decode_pid_result
 
         # Batched callers don't pass elapsed_ms (defaults to None → omitted).
         entry = _decode_pid_result("22B001", None, True, "62B00100", bytes.fromhex("62B00100"), 1.0)

@@ -12,20 +12,20 @@ import contextlib
 import can
 import pytest
 
-from canlib.live.functional_sweep import classify_round
-from canlib.transport.elm327.addressing import AUTO
-from canlib.transport.elm327.functional import elm_functional_exchange
-from canlib.transport.elm327.terminal import Elm327Terminal
-from canlib.transport.functional import (
+from canair.live.functional_sweep import classify_round
+from canair.transport.elm327.addressing import AUTO
+from canair.transport.elm327.functional import elm_functional_exchange
+from canair.transport.elm327.terminal import Elm327Terminal
+from canair.transport.functional import (
     ABSOLUTE_CAP_S,
     CONSECUTIVE_FRAME_TIMEOUT_S,
     FunctionalCollector,
     FunctionalMessage,
     FunctionalResult,
 )
-from canlib.transport.raw.functional import raw_functional_exchange
-from canlib.transport.stats import TransportStats
-from canlib.uds.addressing import AddressBook, EcuAddress
+from canair.transport.raw.functional import raw_functional_exchange
+from canair.transport.stats import TransportStats
+from canair.uds.addressing import AddressBook, EcuAddress
 
 # --------------------------------------------------------------------------- collector
 
@@ -149,7 +149,7 @@ class _RawTerminalStub:
     """Just the state ``RawTerminal._functional_fc_target`` reads."""
 
     def __init__(self, addr_map, stacks):
-        from canlib.uds.addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET
+        from canair.uds.addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET
 
         self.addr_map = addr_map
         self._stacks = dict.fromkeys(stacks)
@@ -159,7 +159,7 @@ class _RawTerminalStub:
 
 class TestRawTerminal:
     def _target(self, stub, rx_id):
-        from canlib.transport.raw.terminal import RawTerminal
+        from canair.transport.raw.terminal import RawTerminal
 
         return RawTerminal._functional_fc_target(stub, rx_id)  # type: ignore[arg-type]
 
@@ -174,7 +174,7 @@ class TestRawTerminal:
 
     @pytest.mark.asyncio
     async def test_can_fd_is_refused(self):
-        from canlib.transport.raw.terminal import RawTerminal
+        from canair.transport.raw.terminal import RawTerminal
 
         term = RawTerminal.__new__(RawTerminal)
         term._classic_can = False
@@ -358,8 +358,8 @@ class TestPendingOnly:
 
 @pytest.fixture
 def profile_with(tmp_path):
-    from canlib import profile
-    from canlib.ecus.pids import clear_cache
+    from canair import profile
+    from canair.ecus.pids import clear_cache
 
     saved = profile._active
 
@@ -377,19 +377,19 @@ def profile_with(tmp_path):
 
 class TestProfileRefusals:
     def test_normal_29bit_is_refused(self, profile_with):
-        from canlib.cli.commands.discover import _profile_error
+        from canair.cli.commands.discover import _profile_error
 
         profile_with("addressing:\n  mode: normal_29bit\n")
         assert "normal_29bit" in (_profile_error() or "")
 
     def test_can_fd_is_refused(self, profile_with):
-        from canlib.cli.commands.discover import _profile_error
+        from canair.cli.commands.discover import _profile_error
 
         profile_with("isotp:\n  can_fd: true\n")
         assert "CAN-FD" in (_profile_error() or "")
 
     def test_fixed_29bit_and_classic_pass(self, profile_with):
-        from canlib.cli.commands.discover import _profile_error
+        from canair.cli.commands.discover import _profile_error
 
         profile_with("addressing:\n  mode: normal_fixed_29bit\n")
         assert _profile_error() is None

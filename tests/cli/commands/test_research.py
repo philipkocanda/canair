@@ -2,7 +2,7 @@
 
 import pytest
 
-from canlib.cli.commands import research
+from canair.cli.commands import research
 
 
 @pytest.fixture

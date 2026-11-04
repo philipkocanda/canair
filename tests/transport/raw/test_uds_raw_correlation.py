@@ -9,7 +9,7 @@ a one-PID poll would report a cycle-old reading indefinitely.
 
 Two defences, tested here:
 
-- **Echo validation** (`canlib.uds.payload.payload_echo_mismatch`) rejects a reply whose
+- **Echo validation** (`canair.uds.payload.payload_echo_mismatch`) rejects a reply whose
   SID+identifier isn't what was asked for. Cheap and immediate, but blind when the
   stale reply echoes the same PID.
 - **The owed-response ledger** covers exactly that blind spot: an ISO-TP stack
@@ -26,10 +26,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from canlib.transport.link_latency import LinkLatency
-from canlib.transport.raw import uds_client as uds_raw
-from canlib.transport.raw.uds_client import _MAX_OWED_RESPONSES, RawUdsClient
-from canlib.uds.addressing import EcuAddress
+from canair.transport.link_latency import LinkLatency
+from canair.transport.raw import uds_client as uds_raw
+from canair.transport.raw.uds_client import _MAX_OWED_RESPONSES, RawUdsClient
+from canair.uds.addressing import EcuAddress
 
 
 class QueuedStack:

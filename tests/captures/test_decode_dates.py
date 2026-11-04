@@ -5,14 +5,14 @@ from datetime import date, datetime
 
 import pytest
 
-from canlib.captures.dates import entry_date, entry_datetime, filter_by_date_range, filter_by_text
-from canlib.cli.commands._scope import (
+from canair.captures.dates import entry_date, entry_datetime, filter_by_date_range, filter_by_text
+from canair.cli.commands._scope import (
     parse_iso_date,
     parse_iso_datetime,
     resolve_date_bounds,
     resolve_scope_bounds,
 )
-from canlib.cli.commands.decode import query, views
+from canair.cli.commands.decode import query, views
 
 # ---------------------------------------------------------------------------
 # capture_dates helpers
@@ -258,7 +258,7 @@ class TestResolveScopeBounds:
             {"file": "b.yaml", "_session_idx": 0, "date": "2026-07-22", "time": "14:00:00"},
             {"file": "b.yaml", "_session_idx": 0, "date": "2026-07-22", "time": "14:10:00"},
         ]
-        monkeypatch.setattr("canlib.captures.dates.load_all_captures", lambda *a, **k: entries)
+        monkeypatch.setattr("canair.captures.dates.load_all_captures", lambda *a, **k: entries)
         since, _until, err = resolve_scope_bounds(self._args(last_sessions=1))
         assert err is None
         assert since == datetime(2026, 7, 22, 14, 0, 0)
@@ -270,7 +270,7 @@ class TestResolveScopeBounds:
         entries = [
             {"file": "a.yaml", "_session_idx": 0, "date": "2026-07-20", "time": "08:00:00"},
         ]
-        monkeypatch.setattr("canlib.captures.dates.load_all_captures", lambda *a, **k: entries)
+        monkeypatch.setattr("canair.captures.dates.load_all_captures", lambda *a, **k: entries)
         since, _, err = resolve_scope_bounds(self._args(last_sessions=5))
         assert err is None
         assert since == datetime(2026, 7, 20, 8, 0, 0)
@@ -509,9 +509,9 @@ class TestSharedScopingWiring:
     def test_captures_uses_shared_helpers(self):
         # captures must import the shared module (not redefine local date helpers),
         # so both commands stay in lockstep and expose --state/--label.
-        from canlib.captures import dates as capture_dates
-        from canlib.cli.commands import _scope
-        from canlib.cli.commands.captures import uds as cap
+        from canair.captures import dates as capture_dates
+        from canair.cli.commands import _scope
+        from canair.cli.commands.captures import uds as cap
 
         assert cap.filter_by_date_range is capture_dates.filter_by_date_range
         assert cap.filter_by_text is capture_dates.filter_by_text
@@ -521,8 +521,8 @@ class TestSharedScopingWiring:
     def test_both_commands_register_scope_flags(self):
         import argparse
 
-        from canlib.cli.commands import captures as cap
-        from canlib.cli.commands import decode as dec
+        from canair.cli.commands import captures as cap
+        from canair.cli.commands import decode as dec
 
         # decode is flat; captures is a uds/can group — its scope flags live on
         # the uds kind (parsed via a resolved sub-namespace).
@@ -549,7 +549,7 @@ class TestSharedScopingWiring:
     def test_decode_has_analysis_modifiers(self):
         import argparse
 
-        from canlib.cli.commands import decode as dec
+        from canair.cli.commands import decode as dec
 
         sub = argparse.ArgumentParser().add_subparsers()
         parser = dec.add_parser(sub)

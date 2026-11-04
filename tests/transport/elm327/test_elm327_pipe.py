@@ -8,13 +8,13 @@ without any I/O — which is the point of it being a separate module.
 
 import pytest
 
-from canlib.transport.elm327.pipe import (
+from canair.transport.elm327.pipe import (
     MAX_OWED_PROMPTS,
     PipeRead,
     ResponsePipe,
     split_prompt_blocks,
 )
-from canlib.uds.parse import compact
+from canair.uds.parse import compact
 
 # A ResponsePending interim frame (7F <sid> 78) and an ordinary positive reply.
 PENDING = "7F2278"

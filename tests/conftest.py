@@ -32,11 +32,11 @@ def _pin_bundled_profile():
 def _isolate_user_config(tmp_path_factory):
     """Point ``$XDG_CONFIG_HOME`` at a throwaway directory for the whole suite.
 
-    Resolving the active profile (``canlib.profile.resolve_profile`` →
+    Resolving the active profile (``canair.profile.resolve_profile`` →
     ``load_config().get("profiles_dir")``) legitimately reads the user config
     file to see whether the profile search path was overridden — so *any* test
     that loads a real profile (most of them) reads ``config_dir()`` at some
-    point, not just tests that exercise ``canlib.config`` directly. Left
+    point, not just tests that exercise ``canair.config`` directly. Left
     unpinned, the suite's outcome depends on whatever happens to be in the
     developer's real ``~/.config/canair/config.yaml`` (a malformed value there
     fails collection/tests that have nothing to do with config; a `default_
@@ -77,9 +77,9 @@ def _reset_active_profile():
     parameters — and only shows up in a serial run, since ``--dist loadscope`` puts
     each module in its own worker.
     """
-    import canlib.profile as profile
-    from canlib.config import load_config
-    from canlib.ecus.pids import clear_cache
+    import canair.profile as profile
+    from canair.config import load_config
+    from canair.ecus.pids import clear_cache
 
     # The config is memoized too, and the active profile's variant is read from it: a
     # test that points XDG_CONFIG_HOME elsewhere must not leave its config cached for
@@ -106,7 +106,7 @@ def _no_firmware_probe(monkeypatch):
     """
     import requests
 
-    import canlib.device.wican.firmware as wican_firmware
+    import canair.device.wican.firmware as wican_firmware
 
     def _unreachable(url, timeout):
         raise requests.ConnectionError(f"network disabled in tests: {url}")
@@ -224,7 +224,7 @@ def _isolate_event_log(tmp_path_factory):
     """
     import logging
 
-    import canlib.core.eventlog as clog
+    import canair.core.eventlog as clog
 
     path = tmp_path_factory.mktemp("eventlog") / "canair.log"
     clog.event_log_path = lambda: path  # type: ignore[assignment]

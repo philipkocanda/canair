@@ -1,11 +1,11 @@
-"""Tests for canlib.transport.session_manager — SessionManager with mock terminal."""
+"""Tests for canair.transport.session_manager — SessionManager with mock terminal."""
 
 import asyncio
 import time
 
 import pytest
 
-from canlib.transport.session_manager import SessionManager
+from canair.transport.session_manager import SessionManager
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok
 

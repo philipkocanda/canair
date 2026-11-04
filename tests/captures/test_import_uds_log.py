@@ -7,9 +7,9 @@ import json
 
 import pytest
 
-from canlib.captures import can_logs
-from canlib.captures import io as capture_io
-from canlib.cli.commands.import_uds import run
+from canair.captures import can_logs
+from canair.captures import io as capture_io
+from canair.cli.commands.import_uds import run
 from tests.support.isotp_frames import message_frames
 
 BMS_TX, BMS_RX = 0x7E4, 0x7EC
@@ -46,7 +46,7 @@ def _named_car(monkeypatch):
     """Imports must name the car on a multi-variant profile: give the suite's one."""
     import dataclasses
 
-    from canlib import profile as profile_mod
+    from canair import profile as profile_mod
 
     prof = dataclasses.replace(profile_mod.active(), variant="28kwh", variant_source="flag")
     monkeypatch.setattr(profile_mod, "_active", prof)

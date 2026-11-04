@@ -10,7 +10,7 @@ usage: canair signals [-h] {list,upsert,rm} ...
 The broadcast-frame (domain-B) authoring counterpart to ``canair pids`` (which
 authors domain-A diagnostic UDS PID params): manage the ``signals/<bus>.yaml``
 sidecar (arbitration ID → named linear signals) with surgical, validated,
-comment-preserving edits (via :mod:`canlib.yaml_edit.signals`). See
+comment-preserving edits (via :mod:`canair.yaml_edit.signals`). See
 ``plans/2026-07-24-raw-can-analysis.md``.
 
   canair signals                     # list all broadcast signals

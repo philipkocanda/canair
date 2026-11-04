@@ -20,22 +20,23 @@ dependencies = [
 ]
 
 [project.scripts]
-canair = "canlib.cli:main"
+canair = "canair.cli:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["canlib"]
-# Ship the bundled example profile(s) so a fresh install has a working default
-# (resolves to site-packages/profiles, matching BUNDLED_PROFILES_DIR).
+packages = ["src/canair"]
+# Ship the bundled profile(s), the scaffold templates and the example config inside the
+# package (core/paths.py finds them under canair/_bundled/ in a wheel and at the repo root in a
+# checkout), so a fresh install has a working default and no stray top-level directories.
 exclude = ["profiles/*/logs", "**/__pycache__"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"profiles" = "profiles"
-"templates" = "templates"
-"config.example.yaml" = "config.example.yaml"
+"profiles" = "canair/_bundled/profiles"
+"templates" = "canair/_bundled/templates"
+"config.example.yaml" = "canair/_bundled/config.example.yaml"
 
 [dependency-groups]
 dev = [
@@ -107,8 +108,8 @@ indent-style = "space"
 
 [tool.ty.src]
 # Type-check the library package only. Tests lean heavily on fakes/fixtures
-# where strict typing is high-noise, low-value; the CI gate targets canlib/.
-include = ["canlib"]
+# where strict typing is high-noise, low-value; the CI gate targets src/canair/.
+include = ["src/canair"]
 
 [tool.ty.environment]
 python-version = "3.12"
@@ -123,43 +124,43 @@ python-version = "3.12"
 # (tests/contracts/test_structure.py pins the count). An entry whose import no longer exists
 # fails the check, so a fixed import has to leave the list.
 [tool.importlinter]
-root_package = "canlib"
+root_package = "canair"
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Nothing below the interface imports the CLI"
 type = "forbidden"
 source_modules = [
-    "canlib.actions",
-    "canlib.analysis",
-    "canlib.broadcast",
-    "canlib.captures",
-    "canlib.config",
-    "canlib.contribute",
-    "canlib.core",
-    "canlib.device",
-    "canlib.dtc",
-    "canlib.ecus",
-    "canlib.expression",
-    "canlib.install",
-    "canlib.interop",
-    "canlib.live",
-    "canlib.migrations",
-    "canlib.privacy",
-    "canlib.profile",
-    "canlib.query",
-    "canlib.render",
-    "canlib.safety",
-    "canlib.states",
-    "canlib.transport",
-    "canlib.tui",
-    "canlib.uds",
-    "canlib.validation",
-    "canlib.variants",
-    "canlib.yaml_edit",
+    "canair.actions",
+    "canair.analysis",
+    "canair.broadcast",
+    "canair.captures",
+    "canair.config",
+    "canair.contribute",
+    "canair.core",
+    "canair.device",
+    "canair.dtc",
+    "canair.ecus",
+    "canair.expression",
+    "canair.install",
+    "canair.interop",
+    "canair.live",
+    "canair.migrations",
+    "canair.privacy",
+    "canair.profile",
+    "canair.query",
+    "canair.render",
+    "canair.safety",
+    "canair.states",
+    "canair.transport",
+    "canair.tui",
+    "canair.uds",
+    "canair.validation",
+    "canair.variants",
+    "canair.yaml_edit",
 ]
 forbidden_modules = [
-    "canlib.cli",
+    "canair.cli",
 ]
 allow_indirect_imports = true
 ignore_imports = []
@@ -168,36 +169,36 @@ ignore_imports = []
 name = "Nothing below the interface imports the live operations"
 type = "forbidden"
 source_modules = [
-    "canlib.actions",
-    "canlib.analysis",
-    "canlib.broadcast",
-    "canlib.captures",
-    "canlib.config",
-    "canlib.contribute",
-    "canlib.core",
-    "canlib.device",
-    "canlib.dtc",
-    "canlib.ecus",
-    "canlib.expression",
-    "canlib.install",
-    "canlib.interop",
-    "canlib.live",
-    "canlib.migrations",
-    "canlib.privacy",
-    "canlib.profile",
-    "canlib.query",
-    "canlib.render",
-    "canlib.safety",
-    "canlib.states",
-    "canlib.transport",
-    "canlib.tui",
-    "canlib.uds",
-    "canlib.validation",
-    "canlib.variants",
-    "canlib.yaml_edit",
+    "canair.actions",
+    "canair.analysis",
+    "canair.broadcast",
+    "canair.captures",
+    "canair.config",
+    "canair.contribute",
+    "canair.core",
+    "canair.device",
+    "canair.dtc",
+    "canair.ecus",
+    "canair.expression",
+    "canair.install",
+    "canair.interop",
+    "canair.live",
+    "canair.migrations",
+    "canair.privacy",
+    "canair.profile",
+    "canair.query",
+    "canair.render",
+    "canair.safety",
+    "canair.states",
+    "canair.transport",
+    "canair.tui",
+    "canair.uds",
+    "canair.validation",
+    "canair.variants",
+    "canair.yaml_edit",
 ]
 forbidden_modules = [
-    "canlib.live",
+    "canair.live",
 ]
 allow_indirect_imports = true
 ignore_imports = [
@@ -207,77 +208,77 @@ ignore_imports = [
 name = "Only the TUI imports textual"
 type = "forbidden"
 source_modules = [
-    "canlib.actions",
-    "canlib.analysis",
-    "canlib.broadcast",
-    "canlib.captures",
-    "canlib.cli",
-    "canlib.config",
-    "canlib.contribute",
-    "canlib.core",
-    "canlib.device",
-    "canlib.dtc",
-    "canlib.ecus",
-    "canlib.expression",
-    "canlib.install",
-    "canlib.interop",
-    "canlib.live",
-    "canlib.migrations",
-    "canlib.privacy",
-    "canlib.profile",
-    "canlib.query",
-    "canlib.render",
-    "canlib.safety",
-    "canlib.states",
-    "canlib.transport",
-    "canlib.uds",
-    "canlib.validation",
-    "canlib.variants",
-    "canlib.yaml_edit",
+    "canair.actions",
+    "canair.analysis",
+    "canair.broadcast",
+    "canair.captures",
+    "canair.cli",
+    "canair.config",
+    "canair.contribute",
+    "canair.core",
+    "canair.device",
+    "canair.dtc",
+    "canair.ecus",
+    "canair.expression",
+    "canair.install",
+    "canair.interop",
+    "canair.live",
+    "canair.migrations",
+    "canair.privacy",
+    "canair.profile",
+    "canair.query",
+    "canair.render",
+    "canair.safety",
+    "canair.states",
+    "canair.transport",
+    "canair.uds",
+    "canair.validation",
+    "canair.variants",
+    "canair.yaml_edit",
 ]
 forbidden_modules = [
     "textual",
 ]
 allow_indirect_imports = true
 ignore_imports = [
-    "canlib.cli.commands._sniff_tui -> textual",
-    "canlib.cli.commands.captures.step_tui -> textual",
-    "canlib.cli.commands.decode.plot_tui -> textual",
-    "canlib.live._monitor_select_tui -> textual",
-    "canlib.live._monitor_tui -> textual",
+    "canair.cli.commands._sniff_tui -> textual",
+    "canair.cli.commands.captures.step_tui -> textual",
+    "canair.cli.commands.decode.plot_tui -> textual",
+    "canair.live._monitor_select_tui -> textual",
+    "canair.live._monitor_tui -> textual",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Only the CLI imports argparse"
 type = "forbidden"
 source_modules = [
-    "canlib.actions",
-    "canlib.analysis",
-    "canlib.broadcast",
-    "canlib.captures",
-    "canlib.config",
-    "canlib.contribute",
-    "canlib.core",
-    "canlib.device",
-    "canlib.dtc",
-    "canlib.ecus",
-    "canlib.expression",
-    "canlib.install",
-    "canlib.interop",
-    "canlib.live",
-    "canlib.migrations",
-    "canlib.privacy",
-    "canlib.profile",
-    "canlib.query",
-    "canlib.render",
-    "canlib.safety",
-    "canlib.states",
-    "canlib.transport",
-    "canlib.tui",
-    "canlib.uds",
-    "canlib.validation",
-    "canlib.variants",
-    "canlib.yaml_edit",
+    "canair.actions",
+    "canair.analysis",
+    "canair.broadcast",
+    "canair.captures",
+    "canair.config",
+    "canair.contribute",
+    "canair.core",
+    "canair.device",
+    "canair.dtc",
+    "canair.ecus",
+    "canair.expression",
+    "canair.install",
+    "canair.interop",
+    "canair.live",
+    "canair.migrations",
+    "canair.privacy",
+    "canair.profile",
+    "canair.query",
+    "canair.render",
+    "canair.safety",
+    "canair.states",
+    "canair.transport",
+    "canair.tui",
+    "canair.uds",
+    "canair.validation",
+    "canair.variants",
+    "canair.yaml_edit",
 ]
 forbidden_modules = [
     "argparse",
@@ -290,15 +291,15 @@ ignore_imports = [
 name = "The protocol layer (uds) reads no data store, config or transport"
 type = "forbidden"
 source_modules = [
-    "canlib.uds",
+    "canair.uds",
 ]
 forbidden_modules = [
-    "canlib.analysis",
-    "canlib.captures",
-    "canlib.config",
-    "canlib.ecus",
-    "canlib.interop",
-    "canlib.transport",
+    "canair.analysis",
+    "canair.captures",
+    "canair.config",
+    "canair.ecus",
+    "canair.interop",
+    "canair.transport",
 ]
 allow_indirect_imports = true
 ignore_imports = []
@@ -307,11 +308,11 @@ ignore_imports = []
 name = "Decoding does not import the WiCAN export package"
 type = "forbidden"
 source_modules = [
-    "canlib.captures",
-    "canlib.expression",
+    "canair.captures",
+    "canair.expression",
 ]
 forbidden_modules = [
-    "canlib.interop",
+    "canair.interop",
 ]
 allow_indirect_imports = true
 ignore_imports = [
@@ -321,11 +322,11 @@ ignore_imports = [
 name = "The WiCAN device API does not import the transport"
 type = "forbidden"
 source_modules = [
-    "canlib.device.wican.api",
-    "canlib.device.wican.firmware",
-    "canlib.device.wican.mode",
+    "canair.device.wican.api",
+    "canair.device.wican.firmware",
+    "canair.device.wican.mode",
 ]
-forbidden_modules = ["canlib.transport"]
+forbidden_modules = ["canair.transport"]
 allow_indirect_imports = true
 ignore_imports = []
 
@@ -333,47 +334,47 @@ ignore_imports = []
 name = "User config does not import the profile editor"
 type = "forbidden"
 source_modules = [
-    "canlib.config",
+    "canair.config",
 ]
 forbidden_modules = [
-    "canlib.yaml_edit",
+    "canair.yaml_edit",
 ]
 allow_indirect_imports = true
 ignore_imports = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "The leaf package (core) imports nothing else from canlib"
+name = "The leaf package (core) imports nothing else from canair"
 type = "forbidden"
-source_modules = ["canlib.core"]
+source_modules = ["canair.core"]
 forbidden_modules = [
-    "canlib.actions",
-    "canlib.analysis",
-    "canlib.broadcast",
-    "canlib.captures",
-    "canlib.cli",
-    "canlib.config",
-    "canlib.contribute",
-    "canlib.device",
-    "canlib.dtc",
-    "canlib.ecus",
-    "canlib.expression",
-    "canlib.install",
-    "canlib.interop",
-    "canlib.live",
-    "canlib.migrations",
-    "canlib.privacy",
-    "canlib.profile",
-    "canlib.query",
-    "canlib.render",
-    "canlib.safety",
-    "canlib.states",
-    "canlib.transport",
-    "canlib.tui",
-    "canlib.uds",
-    "canlib.validation",
-    "canlib.variants",
-    "canlib.yaml_edit",
+    "canair.actions",
+    "canair.analysis",
+    "canair.broadcast",
+    "canair.captures",
+    "canair.cli",
+    "canair.config",
+    "canair.contribute",
+    "canair.device",
+    "canair.dtc",
+    "canair.ecus",
+    "canair.expression",
+    "canair.install",
+    "canair.interop",
+    "canair.live",
+    "canair.migrations",
+    "canair.privacy",
+    "canair.profile",
+    "canair.query",
+    "canair.render",
+    "canair.safety",
+    "canair.states",
+    "canair.transport",
+    "canair.tui",
+    "canair.uds",
+    "canair.validation",
+    "canair.variants",
+    "canair.yaml_edit",
 ]
 allow_indirect_imports = true
 ignore_imports = []
@@ -382,8 +383,8 @@ ignore_imports = []
 name = "The ELM327 and raw transports are independent"
 type = "independence"
 modules = [
-    "canlib.transport.elm327",
-    "canlib.transport.raw",
+    "canair.transport.elm327",
+    "canair.transport.raw",
 ]
 
 # The middle group is the part of the tree that still imports itself in a cycle (definitions,
@@ -394,14 +395,14 @@ modules = [
 name = "The layers hold"
 type = "layers"
 layers = [
-    "canlib.cli",
-    "canlib.contribute",
-    "canlib.live",
-    "canlib.actions : canlib.analysis : canlib.broadcast : canlib.captures : canlib.dtc : canlib.ecus : canlib.install : canlib.interop : canlib.migrations : canlib.privacy : canlib.profile : canlib.query : canlib.render : canlib.states : canlib.transport : canlib.validation : canlib.variants : canlib.yaml_edit",
-    "canlib.tui | canlib.device",
-    "canlib.safety",
-    "canlib.expression : canlib.uds",
-    "canlib.config",
-    "canlib.core",
+    "canair.cli",
+    "canair.contribute",
+    "canair.live",
+    "canair.actions : canair.analysis : canair.broadcast : canair.captures : canair.dtc : canair.ecus : canair.install : canair.interop : canair.migrations : canair.privacy : canair.profile : canair.query : canair.render : canair.states : canair.transport : canair.validation : canair.variants : canair.yaml_edit",
+    "canair.tui | canair.device",
+    "canair.safety",
+    "canair.expression : canair.uds",
+    "canair.config",
+    "canair.core",
 ]
 ignore_imports = []

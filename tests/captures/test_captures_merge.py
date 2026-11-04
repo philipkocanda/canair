@@ -1,4 +1,4 @@
-"""Tests for the capture-file merge driver (canlib.captures.merge + the
+"""Tests for the capture-file merge driver (canair.captures.merge + the
 ``canair captures merge-driver`` command).
 
 Covers the pure 3-way union (disjoint appends, shared history, deletions, the
@@ -16,9 +16,9 @@ from pathlib import Path
 
 import pytest
 
-from canlib.captures import io as capture_io
-from canlib.captures import merge as captures_merge
-from canlib.cli.commands.captures import merge_driver
+from canair.captures import io as capture_io
+from canair.captures import merge as captures_merge
+from canair.cli.commands.captures import merge_driver
 
 
 def _session(label, time, *, date="2026-07-28", ecu="0x7EC", pid="2101", payload="6101AA"):
@@ -249,7 +249,7 @@ class TestGitMergeIntegration:
         # on PATH is needed inside the temp repo.
         import sys
 
-        driver = f'"{sys.executable}" -m canlib.cli captures merge-driver %O %A %B %P'
+        driver = f'"{sys.executable}" -m canair.cli captures merge-driver %O %A %B %P'
         _git(repo, "config", "merge.canair-captures.name", "canair session-union merge")
         _git(repo, "config", "merge.canair-captures.driver", driver)
 

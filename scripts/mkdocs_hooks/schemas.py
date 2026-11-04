@@ -1,8 +1,8 @@
 """MkDocs hook: publish the editor-facing JSON Schemas on the docs site.
 
-``canlib/schema/profile_schema.json`` is served at ``schema/profile.json``, the URL every
+``src/canair/schema/profile_schema.json`` is served at ``schema/profile.json``, the URL every
 ``profile.yaml`` names in its ``yaml-language-server`` modeline
-(``canlib.core.paths.PROFILE_SCHEMA_URL``). It is a virtual file, so the published schema always
+(``canair.core.paths.PROFILE_SCHEMA_URL``). It is a virtual file, so the published schema always
 matches the source and is never committed under ``docs/``.
 """
 
@@ -13,7 +13,7 @@ from mkdocs.structure.files import File, Files
 
 
 def on_files(files: Files, config) -> Files:
-    from canlib.core.paths import DOCS_URL, PROFILE_SCHEMA_FILE, PROFILE_SCHEMA_URL
+    from canair.core.paths import DOCS_URL, PROFILE_SCHEMA_FILE, PROFILE_SCHEMA_URL
 
     uri = PROFILE_SCHEMA_URL.removeprefix(f"{DOCS_URL}/")
     if files.get_file_from_path(uri) is not None:

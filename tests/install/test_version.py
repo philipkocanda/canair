@@ -6,14 +6,14 @@ import re
 
 import pytest
 
-import canlib
-from canlib.cli import main
-from canlib.install.build_info import full_version
+import canair
+from canair.cli import main
+from canair.install.build_info import full_version
 
 
 def test_package_exposes_version():
-    assert isinstance(canlib.__version__, str)
-    assert canlib.__version__
+    assert isinstance(canair.__version__, str)
+    assert canair.__version__
 
 
 def test_version_matches_installed_metadata():
@@ -21,7 +21,7 @@ def test_version_matches_installed_metadata():
 
     # __version__ is single-sourced from the installed package metadata
     # (pyproject.toml [project].version), not duplicated in Python.
-    assert canlib.__version__ == version("canair")
+    assert canair.__version__ == version("canair")
 
 
 def test_version_flag_prints_version_and_exits(capsys):
@@ -45,14 +45,14 @@ def test_version_output_is_semver_shaped(capsys):
 
 def test_version_flag_reports_the_checkout_provenance(capsys, monkeypatch):
     """From a git checkout, --version names the branch and short commit."""
-    from canlib.install import build_info
+    from canair.install import build_info
 
     monkeypatch.setattr(
         build_info,
         "running_build",
         lambda: build_info.GitBuild(branch="main", commit="343b244", dirty=False),
     )
-    monkeypatch.setattr(canlib, "__version__", "1.2.3")
+    monkeypatch.setattr(canair, "__version__", "1.2.3")
     with pytest.raises(SystemExit):
         main(["--version"])
     assert capsys.readouterr().out.strip() == "canair 1.2.3+main.343b244"
@@ -60,8 +60,8 @@ def test_version_flag_reports_the_checkout_provenance(capsys, monkeypatch):
 
 def test_version_is_not_resolved_while_building_the_parser(monkeypatch):
     """Building the parser must not shell out to git — it happens every run."""
-    from canlib.cli import build_parser
-    from canlib.install import build_info
+    from canair.cli import build_parser
+    from canair.install import build_info
 
     def boom():
         raise AssertionError("version resolved eagerly at parser-build time")

@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://canair/captures/schema.json",
+  "title": "canair capture file",
+  "description": "Machine schema for captures/*.json (format-agnostic — validates the parsed structure, after loading has expanded every folded repeat: on disk a capture may carry a repeat_ms or repeat_inline_ms gap list, see src/canair/captures/folding.py, but in memory every poll is its own capture, so neither field is valid here). Authoritative; the human-readable companion is docs/concepts/captures-and-states.md. Cross-checks that can't be expressed here (rx address must resolve via ecus/, filename must match session date) live in src/canair/validation/captures.py.",
+  "type": "object",
+  "required": ["sessions"],
+  "additionalProperties": false,
+  "properties": {
+    "sessions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/session" }
+    }
+  },
+  "$defs": {
+    "session": {
+      "type": "object",
+      "required": ["date", "label", "captures"],
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "YYYY-MM-DD, optionally with a -<suffix> for a second same-day session.",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(-.+)?$"
+        },
+        "label": { "type": "string" },
+        "version": {
+          "description": "The canair version that recorded this session. A plain release for an installed copy (e.g. '1.4.2'); recorded from a git checkout it carries that checkout's branch and short commit as a local version segment (e.g. '1.15.0+main.343b244', '+…dirty' when tracked files were modified), so the exact code that produced the payloads is identifiable. Provenance for debugging capture issues traced to a specific tool build. Absent on sessions recorded before version stamping was added.",
+          "type": "string"
+        },
+        "vehicle_states": {
+          "description": "Power states the car was in during this session (vocabulary from vehicle_states.yaml). Array of tokens, e.g. [ready, parked]. A UNION over the whole recording: it answers 'what did this session cover?', not 'what was the car doing when this capture was sampled?'. For that, see state_spans.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "state_spans": { "$ref": "#/$defs/state_spans" },
+        "notes": { "type": "string" },
+        "keep_mode": {
+          "description": "How the monitor deduplicated payloads: 'changes' (run-length) stores a payload only when it differs from the immediately preceding one per PID, so value-transitions and dwell durations are preserved; 'unique' (legacy global dedup) stores a payload only when it differs from any seen before, so return-to-previous transitions and durations are absent. Absent/other = every polled payload kept.",
+          "type": "string"
+        },
+        "transport": {
+          "description": "How the payloads were acquired: the transport label ('slcan-tcp' / 'wican-ws') for a device-recorded session, or 'import' for a device-free import. Provenance for judging data trustworthiness.",
+          "type": "string"
+        },
+        "quality": { "$ref": "#/$defs/quality" },
+        "link_events": {
+          "description": "When the recording could not see the car, and why. Gaps (nothing was gathered for their scope): 'disconnect' (no ECU answered coherently), 'paused' (polling was paused), 'ecu_silent' (one ECU stopped answering while others still did), 'unpolled' (a PID, or a whole ECU, was taken out of the poll set). Not gaps: 'backoff' (a slow PID was polled less often) and 'resync' (an instant: the transport realigned a desynchronised pipe). Recorded live by the monitor, never derived from payloads (so never rebuilt by a back-fill). Explains holes and sparse stretches in the timestamps, and bounds forward fill. Absent when nothing happened, and on sessions recorded before it existed.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/link_event" }
+        },
+        "variant": {
+          "description": "The profile variant the recorded car is: an ID from the profile's variants.yaml (e.g. '28kwh'). Absent when the session was recorded without one (untagged). Written by a save given --variant, by `captures migrate-variants`, or by `captures uds --set-variant`.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "revisions": {
+          "description": "ECU name -> the revision (an ID from that ECU's revisions: in ecus/) it was on, for each captured ECU that declares more than one revision. Absent when no such ECU was captured, or its revision was not determined.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          }
+        },
+        "attribution": {
+          "description": "How each tag was decided, per tagged field: 'selected' (the recording named the car: --variant, CANAIR_VARIANT or the config), 'alias' (implied by the old profile name it was recorded under; unconfirmed), 'only' (the profile declares one variant), 'migrated' (stamped onto existing history by `captures migrate-variants`), 'asserted' (set afterwards with `captures uds --set-variant`). Under revisions, per ECU: 'pinned' (--revision or a profile_settings pin), 'only' (the only revision the car can carry), 'detected' (from the ECU's own answers to its revisions' fingerprints), 'migrated', 'asserted'.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "variant": { "enum": ["selected", "alias", "only", "migrated", "asserted"] },
+            "revisions": {
+              "type": "object",
+              "additionalProperties": { "enum": ["pinned", "only", "detected", "migrated", "asserted"] }
+            }
+          }
+        },
+        "captures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capture" }
+        }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "required": ["rx", "pid"],
+      "additionalProperties": false,
+      "description": "Exactly one payload field (payload, response, or scan_results) must be present.",
+      "properties": {
+        "rx": {
+          "description": "ECU CAN response address under the profile's addressing (the ECU's rx_id, else request TX + addressing.rx_offset, or the byte-swapped id for normal_fixed_29bit): 3 hex digits for an 11-bit id (e.g. 0x7EC), up to 8 for a 29-bit one (e.g. 0x18DAF110); or the 'broadcast' sentinel for multi-ECU scans.",
+          "type": "string",
+          "pattern": "^(0x[0-9A-Fa-f]{3,8}|broadcast)$"
+        },
+        "pid": {
+          "description": "PID/DID string, e.g. 2101, 22BC03. Bare-integer values are tolerated.",
+          "type": ["string", "integer"]
+        },
+        "payload": { "type": "string" },
+        "response": { "type": "string" },
+        "scan_results": { "$ref": "#/$defs/scan_results" },
+        "label": { "type": "string" },
+        "time": { "type": "string" },
+        "notes": { "type": "string" },
+        "elapsed_ms": {
+          "description": "Wall-clock UDS round-trip in ms (transport + ECU, not pure ECU time). Recorded only for single per-DID reads on the live query path; absent for batched multi-DID reads, monitor --save, scans, and imports. Comparable only within the same session 'transport'.",
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "oneOf": [
+        { "required": ["payload"] },
+        { "required": ["response"] },
+        { "required": ["scan_results"] }
+      ]
+    },
+    "scan_results": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "responding": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/responding_entry" }
+        },
+        "rejected": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "responding_entry": {
+      "type": "object",
+      "required": ["response"],
+      "additionalProperties": false,
+      "description": "A responder is keyed by 'did' (DID/service scans) or 'rx' (broadcast/discover scans). A discover responder also records 'tx', the request id that was probed; its 'rx' is the response address under the profile's addressing.",
+      "properties": {
+        "did": { "type": "string" },
+        "tx": { "type": "string" },
+        "rx": { "type": "string" },
+        "response": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "anyOf": [
+        { "required": ["did"] },
+        { "required": ["rx"] }
+      ]
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Transport data-quality footprint recorded at capture time (from the client's exchange tally). Always carries 'exchanges'; error categories and 'resyncs' appear only when non-zero. NRCs are legitimate ECU answers and are not counted here.",
+      "properties": {
+        "exchanges": { "type": "integer", "description": "Total UDS exchanges during the session." },
+        "drop": { "type": "integer", "description": "Dropped/duplicate/out-of-order/truncated ISO-TP multi-frame reads." },
+        "stale": { "type": "integer", "description": "SID/echo/NRC-echo mismatches (a stale frame leaking from a prior request)." },
+        "no_data": { "type": "integer", "description": "No answer (NO DATA / empty / timeout)." },
+        "bus": { "type": "integer", "description": "Transport/bus-level failures." },
+        "decode": { "type": "integer", "description": "Malformed/undecodable responses." },
+        "other": { "type": "integer", "description": "Unclassified errors." },
+        "resyncs": { "type": "integer", "description": "Times the transport realigned a desynchronised pipe (a recovery, not a lost payload) — several means a marginal link." }
+      }
+    },
+    "link_event": {
+      "type": "object",
+      "required": ["at", "kind"],
+      "additionalProperties": false,
+      "description": "One link event. Enums, addresses and counts only, never free text: an error message can name a device address, and capture files are shared.",
+      "properties": {
+        "at": {
+          "description": "When it began, HH:MM:SS[.fff] on the session's own date. A disconnect or ecu_silent begins at the last coherent answer before it.",
+          "type": "string"
+        },
+        "until": {
+          "description": "When an interval event ended (a disconnect or ecu_silent: the first coherent answer after it). Absent on an interval event = it lasted until the recording ended.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "See the session's link_events.",
+          "enum": ["disconnect", "paused", "ecu_silent", "unpolled", "backoff", "resync"]
+        },
+        "rx": {
+          "description": "The ECU an ecu_silent, unpolled or backoff event is about: its CAN response address, as a capture's rx. Absent = the whole session.",
+          "type": "string",
+          "pattern": "^0x[0-9A-Fa-f]{3,8}$"
+        },
+        "pid": {
+          "description": "The PID an unpolled or backoff event is about. Absent = every PID of its ECU (a backoff recorded before the backoff was per PID covered its whole ECU).",
+          "type": "string"
+        },
+        "cause": {
+          "description": "Why a disconnect began: 'error' (the transport raised), 'stale' (several poll cycles with no coherent answer), 'manual' (a user-requested reconnect).",
+          "enum": ["error", "stale", "manual"]
+        },
+        "factor": {
+          "description": "How many times less often a backoff polled its PID (or ECU).",
+          "type": "integer",
+          "minimum": 2
+        },
+        "count": {
+          "description": "How many resyncs landed in one poll cycle, when more than one.",
+          "type": "integer",
+          "minimum": 2
+        }
+      }
+    },
+    "state_spans": {
+      "type": "object",
+      "required": ["spans"],
+      "additionalProperties": false,
+      "description": "The session's vehicle state resolved over TIME, because state is piecewise constant: vehicle_states is a union over the whole recording, so a session that drove then charged is tagged both and filtering it by either returns the other's captures. Spans fix that. Provenance is nested with the data it describes rather than glued on as sibling keys.",
+      "properties": {
+        "source": {
+          "description": "What produced the spans. 'record' — derived at save time from the payloads this session just wrote, the normal case for a new recording. 'live' — observed per poll cycle while recording, and never overwritten by a back-fill (the live evaluation saw signals a stored capture may not). 'backfill' — reconstructed later from stored payloads by 'canair captures uds --backfill-state-spans', which is deterministic only given the definitions current at that time.",
+          "type": "string",
+          "enum": ["record", "live", "backfill"]
+        },
+        "version": {
+          "description": "The canair version that computed the spans. Distinct from the session's 'version' (which recorded the payloads): a back-fill runs later, under later definitions.",
+          "type": "string"
+        },
+        "spans": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/state_span" }
+        }
+      }
+    },
+    "state_span": {
+      "type": "object",
+      "required": ["at", "states"],
+      "additionalProperties": false,
+      "description": "One piece of the session's timeline. Carries only its START: the states hold from 'at' until the next span begins (half-open intervals), and the last span runs to the end of the session. A start-only model cannot express a gap or an overlap, so there is no 'which span owns this capture?' ambiguity to arbitrate at read time.",
+      "properties": {
+        "at": {
+          "description": "Time of day the span begins, HH:MM:SS[.fff], on the session's own date (as a capture's 'time' is stored). A session crossing midnight is out of scope, as it already is for time-joined analysis.",
+          "type": "string"
+        },
+        "states": {
+          "description": "The states holding across this span, vocabulary-ordered. May be EMPTY, which is a real answer ('nothing matched here') and distinct from a capture that falls outside every span ('no information').",
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

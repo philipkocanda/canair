@@ -1,4 +1,4 @@
-"""Tests for spotting a reply saved under the wrong ECU (``canlib.analysis.misfiled``).
+"""Tests for spotting a reply saved under the wrong ECU (``canair.analysis.misfiled``).
 
 Two ECUs that answer the same PID with the same header defeat the echo check: a queued reply
 from one lands in the next ECU's request slot and is stored under the wrong ``rx``. See
@@ -11,11 +11,11 @@ import json
 
 import pytest
 
-from canlib import profile
-from canlib.analysis.misfiled import PayloadSample, find_misfiled
-from canlib.ecus.pids import clear_cache
-from canlib.validation.captures import _run_captures
-from canlib.validation.misfiled import misfile_warnings
+from canair import profile
+from canair.analysis.misfiled import PayloadSample, find_misfiled
+from canair.ecus.pids import clear_cache
+from canair.validation.captures import _run_captures
+from canair.validation.misfiled import misfile_warnings
 
 MCU, VCU, BMS = 0x7EB, 0x7EA, 0x7EC
 NAMES = {MCU: "MCU", VCU: "VCU", BMS: "BMS"}
@@ -195,7 +195,7 @@ def test_one_ecus_history_under_two_rx_values_is_not_compared_with_itself():
 
 
 def test_legacy_aliases_fold_only_addresses_no_other_ecu_owns():
-    from canlib.validation.misfiled import legacy_rx_aliases
+    from canair.validation.misfiled import legacy_rx_aliases
 
     ecus = {
         0x7E4: {"name": "BMS", "rx_id": 0x804},  # legacy 0x7EC is free → folded

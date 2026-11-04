@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from canlib.cli.commands.captures.step_model import StepModel
+from canair.cli.commands.captures.step_model import StepModel
 
 PARAMS = {
     "P_STATIC": {"expression": "B04", "unit": "", "verified": True},

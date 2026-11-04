@@ -1,6 +1,6 @@
 """Tests for discover cross-referencing + offer-to-identify.
 
-Covers canlib.live.discover._classify_alive and _offer_identify (the
+Covers canair.live.discover._classify_alive and _offer_identify (the
 "check results against the existing ECU list and offer to identify" path).
 """
 
@@ -10,9 +10,9 @@ import re
 
 import pytest
 
-from canlib import profile
-from canlib.ecus.pids import clear_cache
-from canlib.live import discover as disc
+from canair import profile
+from canair.ecus.pids import clear_cache
+from canair.live import discover as disc
 from tests.support.fakes import FakeTerminal as _SharedFakeTerminal
 
 

@@ -1,8 +1,8 @@
-"""Tests for the capture-store data layer (:mod:`canlib.captures.store`).
+"""Tests for the capture-store data layer (:mod:`canair.captures.store`).
 
 The loader, PID-definition resolution and decode preview used to live beside the
-``captures`` command, which forced :mod:`canlib.analysis.align`, :mod:`canlib.captures.dates`
-and :mod:`canlib.states.infer` to import *up* into ``canlib.cli.commands`` (with lazy
+``captures`` command, which forced :mod:`canair.analysis.align`, :mod:`canair.captures.dates`
+and :mod:`canair.states.infer` to import *up* into ``canair.cli.commands`` (with lazy
 in-function imports to dodge the resulting cycle). They are library concerns; these
 tests cover them directly, and :class:`TestLayering` keeps the inversion from
 coming back.
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from canlib.captures.store import (
+from canair.captures.store import (
     decoded_preview,
     entry_path,
     load_all_captures,
@@ -24,9 +24,9 @@ from canlib.captures.store import (
     resolve_pid_defs,
     unresolved_state_summary,
 )
-from canlib.states.spans import span_keys
+from canair.states.spans import span_keys
 
-CANLIB = Path(__file__).resolve().parents[2] / "canlib"
+CANLIB = Path(__file__).resolve().parents[2] / "src" / "canair"
 
 
 def _seed(dirpath: Path, name: str, sessions: list[dict]) -> None:
@@ -143,14 +143,14 @@ class TestLoadAllCaptures:
 
 class TestResolvePidDefs:
     def test_exact_pid_match_returns_parameters_and_tx_id(self):
-        from canlib.captures.store import load_ecu_index
+        from canair.captures.store import load_ecu_index
 
         params, tx_id, _maps = resolve_pid_defs(load_ecu_index(), "BMS", "2101")
         assert tx_id == 0x7E4
         assert "SOC_BMS" in params
 
     def test_case_insensitive_on_both_ecu_and_pid(self):
-        from canlib.captures.store import load_ecu_index
+        from canair.captures.store import load_ecu_index
 
         index = load_ecu_index()
         assert resolve_pid_defs(index, "bms", "2101") == resolve_pid_defs(index, "BMS", "2101")
@@ -161,7 +161,7 @@ class TestResolvePidDefs:
     def test_unknown_pid_keeps_the_tx_id(self):
         # A capture with no exact PID definition renders as raw hex (no params),
         # but the ECU is still known, so its request address is still reported.
-        from canlib.captures.store import load_ecu_index
+        from canair.captures.store import load_ecu_index
 
         params, tx_id, _maps = resolve_pid_defs(load_ecu_index(), "BMS", "FFFF")
         assert params == {}
@@ -225,8 +225,8 @@ class TestLayering:
     def _imported_modules(path: Path) -> set[str]:
         """Every module named by an ``import``/``from … import`` in ``path``.
 
-        Relative imports are resolved against ``canlib`` so ``from .commands.x``
-        and ``from canlib.cli.commands.x`` compare equal.
+        Relative imports are resolved against ``canair`` so ``from .commands.x``
+        and ``from canair.cli.commands.x`` compare equal.
         """
         tree = ast.parse(path.read_text())
         names: set[str] = set()
@@ -234,15 +234,15 @@ class TestLayering:
             if isinstance(node, ast.Import):
                 names.update(alias.name for alias in node.names)
             elif isinstance(node, ast.ImportFrom):
-                if node.level:  # relative: level 1 == the canlib package
-                    prefix = "canlib" + "." * (node.level - 1)
+                if node.level:  # relative: level 1 == the canair package
+                    prefix = "canair" + "." * (node.level - 1)
                     names.add(f"{prefix}.{node.module}" if node.module else prefix)
                 elif node.module:
                     names.add(node.module)
         return names
 
     def test_no_library_module_imports_the_captures_command(self):
-        # "Library" = canlib modules below the command/mode layer. They span the
+        # "Library" = canair modules below the command/mode layer. They span the
         # top level and the feature subpackages (captures/, states/, analysis/, …),
         # but not cli/ or live/, which legitimately compose the command layer.
         lib_files = [
@@ -253,22 +253,22 @@ class TestLayering:
         ]
         offenders = {
             str(path.relative_to(CANLIB)): sorted(
-                m for m in mods if m.startswith("canlib.cli.commands")
+                m for m in mods if m.startswith("canair.cli.commands")
             )
             for path in lib_files
             for mods in [self._imported_modules(path)]
-            if any(m.startswith("canlib.cli.commands.captures") for m in mods)
+            if any(m.startswith("canair.cli.commands.captures") for m in mods)
         }
         assert not offenders, (
-            "library modules must read captures through canlib.captures.store, not "
-            f"canlib.cli.commands.captures: {offenders}"
+            "library modules must read captures through canair.captures.store, not "
+            f"canair.cli.commands.captures: {offenders}"
         )
 
     def test_capture_store_imports_nothing_from_commands(self):
         offenders = sorted(
             m
             for m in self._imported_modules(CANLIB / "captures" / "store.py")
-            if m.startswith("canlib.cli.commands")
+            if m.startswith("canair.cli.commands")
         )
         assert not offenders, f"capture_store must stay below the command layer: {offenders}"
 
@@ -280,7 +280,7 @@ class TestPerCaptureStateResolution:
     `monitor --save` across a drive -> charge -> drive trip is tagged both and
     filtering it by either used to return the other's captures. `state_spans`
     narrows each row to its own instant; these cover the three-case ladder in
-    :func:`canlib.captures.store.resolve_capture_states`.
+    :func:`canair.captures.store.resolve_capture_states`.
     """
 
     def _seed_trip(self, tmp_path, *, spans: bool = True):

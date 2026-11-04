@@ -1,13 +1,13 @@
-"""Tests for the structural expression lints (canlib.expression.lint)."""
+"""Tests for the structural expression lints (canair.expression.lint)."""
 
 from pathlib import Path
 
 import pytest
 import yaml
 
-from canlib.expression import evaluate_expression
-from canlib.expression.lint import firmware_grammar_problems, signed_low_bytes
-from canlib.validation import pids as validate_pids
+from canair.expression import evaluate_expression
+from canair.expression.lint import firmware_grammar_problems, signed_low_bytes
+from canair.validation import pids as validate_pids
 
 
 class TestFlagsSignedLowByte:
@@ -112,7 +112,7 @@ class TestFirmwareGrammar:
         assert firmware_grammar_problems("((B1 << 8) |") == []
 
     def test_validate_names_the_signal(self):
-        from canlib.validation.pids import firmware_expression_errors
+        from canair.validation.pids import firmware_expression_errors
 
         (msg,) = firmware_expression_errors("[B0:B8]", "X", "2101", "BMS")
         assert "BMS/2101/X" in msg and "firmware v6" in msg
@@ -120,7 +120,7 @@ class TestFirmwareGrammar:
 
 @pytest.mark.parametrize(("status", "refused"), [("active", True), ("draft", False)])
 def test_validate_judges_only_what_ships(tmp_path, status, refused):
-    from canlib.validation.pids import validate_pids_file
+    from canair.validation.pids import validate_pids_file
 
     path = tmp_path / "test.yaml"
     path.write_text(

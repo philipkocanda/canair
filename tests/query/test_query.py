@@ -1,8 +1,8 @@
-"""Tests for the ECU/PID query mini-language (canlib.query)."""
+"""Tests for the ECU/PID query mini-language (canair.query)."""
 
 import pytest
 
-from canlib.query import (
+from canair.query import (
     QueryError,
     Selector,
     looks_like_pid,

@@ -1,4 +1,4 @@
-"""Tests for the shared Textual help modal (canlib.tui.help).
+"""Tests for the shared Textual help modal (canair.tui.help).
 
 Unit-covers the BINDINGS->rows derivation (including key-label rendering for
 every shipped TUI) and drives the ``?`` help modal headlessly.
@@ -13,7 +13,7 @@ import pytest
 from textual.app import App
 from textual.binding import Binding
 
-from canlib.tui.help import HelpMixin, HelpModal, bindings_help_rows
+from canair.tui.help import HelpMixin, HelpModal, bindings_help_rows
 
 
 class TestBindingsHelpRows:
@@ -94,10 +94,10 @@ _RAW_IDENTIFIER = re.compile(r"[a-z]{2,}_[a-z]{2,}")
 
 
 def _canair_tui_apps():
-    from canlib.cli.commands._sniff_tui import SniffApp
-    from canlib.cli.commands.captures.step_tui import CapturesStepApp
-    from canlib.cli.commands.decode.plot_tui import PlotApp
-    from canlib.live._monitor_tui import MonitorApp
+    from canair.cli.commands._sniff_tui import SniffApp
+    from canair.cli.commands.captures.step_tui import CapturesStepApp
+    from canair.cli.commands.decode.plot_tui import PlotApp
+    from canair.live._monitor_tui import MonitorApp
 
     return [CapturesStepApp, PlotApp, MonitorApp, SniffApp]
 
@@ -121,7 +121,7 @@ class TestRealAppsHaveReadableHelp:
             assert all(desc for _keys, desc in rows)
 
     def test_step_app_shows_its_symbolic_keys(self):
-        from canlib.cli.commands.captures.step_tui import CapturesStepApp
+        from canair.cli.commands.captures.step_tui import CapturesStepApp
 
         rows = {
             desc: keys

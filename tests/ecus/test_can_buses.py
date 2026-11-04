@@ -1,6 +1,6 @@
-"""Tests for canlib.ecus.can_buses — per-profile CAN bus vocabulary loader."""
+"""Tests for canair.ecus.can_buses — per-profile CAN bus vocabulary loader."""
 
-from canlib.ecus.can_buses import (
+from canair.ecus.can_buses import (
     ALL_CODE,
     allowed_can_buses,
     bus_names,
@@ -8,7 +8,7 @@ from canlib.ecus.can_buses import (
     load_can_bus_codes,
     load_can_buses,
 )
-from canlib.profile import Profile
+from canair.profile import Profile
 
 
 def _profile(tmp_path, text=None):
@@ -118,9 +118,9 @@ def test_expand_ignores_blanks():
 
 
 def test_validate_rejects_non_boolean_private(tmp_path, monkeypatch, capsys):
-    from canlib.validation.other import _run_can_buses
+    from canair.validation.other import _run_can_buses
 
     prof = _profile(tmp_path, "can_buses:\n  B-CAN:\n    private: maybe\n")
-    monkeypatch.setattr("canlib.profile.active", lambda: prof)
+    monkeypatch.setattr("canair.profile.active", lambda: prof)
     assert _run_can_buses() == 1
     assert "private must be true or false" in capsys.readouterr().out

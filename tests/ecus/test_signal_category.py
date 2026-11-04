@@ -8,8 +8,8 @@ import argparse
 import pytest
 import yaml
 
-from canlib.cli.commands import pids as cli
-from canlib.ecus.signal_category import (
+from canair.cli.commands import pids as cli
+from canair.ecus.signal_category import (
     BINARY_CATEGORIES,
     CATEGORIES,
     UNIT_CATEGORIES,
@@ -17,10 +17,10 @@ from canlib.ecus.signal_category import (
     category_of,
     unit_category,
 )
-from canlib.interop.autopid.classes import autopid_class
-from canlib.validation.pids import load_schema, validate_ecu_file
-from canlib.yaml_edit.pids import migrate_categories, upsert_parameter
-from canlib.yaml_edit.pids.categories import convert
+from canair.interop.autopid.classes import autopid_class
+from canair.validation.pids import load_schema, validate_ecu_file
+from canair.yaml_edit.pids import migrate_categories, upsert_parameter
+from canair.yaml_edit.pids.categories import convert
 
 DOOR = {"type": "enum", "values": {0: "closed", 1: "open"}}
 

@@ -1,11 +1,11 @@
-"""Tests for canlib.uds.protocol and the registry lookup every feature classifies through."""
+"""Tests for canair.uds.protocol and the registry lookup every feature classifies through."""
 
 from typing import Any, cast
 
 import pytest
 
-from canlib.ecus import EcuRegistryEntry, ecu_protocol
-from canlib.uds.protocol import KWP, UDS, UNKNOWN, classify_protocol
+from canair.ecus import EcuRegistryEntry, ecu_protocol
+from canair.uds.protocol import KWP, UDS, UNKNOWN, classify_protocol
 
 
 @pytest.mark.parametrize(
@@ -50,16 +50,16 @@ def test_an_unregistered_ecu_is_unknown():
 
 
 def test_dtc_and_identity_resolve_through_the_registry(monkeypatch):
-    from canlib.live import identity_decode
-    from canlib.live.dtc import codes
+    from canair.live import identity_decode
+    from canair.live.dtc import codes
 
-    monkeypatch.setattr("canlib.ecus.ecu_protocol", lambda tx: UNKNOWN)
+    monkeypatch.setattr("canair.ecus.ecu_protocol", lambda tx: UNKNOWN)
     monkeypatch.setattr(identity_decode, "ecu_protocol", lambda tx: UNKNOWN)
     # An unknown ECU reads DTCs over UDS (the historical default) but probes identity.
     assert codes.resolve_protocol("auto", 0x7E0) == UDS
     assert identity_decode.resolve_protocol_hint(0x7E0, "auto") is None
 
-    monkeypatch.setattr("canlib.ecus.ecu_protocol", lambda tx: KWP)
+    monkeypatch.setattr("canair.ecus.ecu_protocol", lambda tx: KWP)
     monkeypatch.setattr(identity_decode, "ecu_protocol", lambda tx: KWP)
     assert codes.resolve_protocol("auto", 0x7E0) == KWP
     assert identity_decode.resolve_protocol_hint(0x7E0, "auto") == KWP

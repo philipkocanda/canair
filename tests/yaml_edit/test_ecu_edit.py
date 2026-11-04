@@ -10,15 +10,15 @@ from __future__ import annotations
 
 import pytest
 
-from canlib import profile
-from canlib.cli.commands.ecu import cmd_edit
-from canlib.ecus.pids import clear_cache
-from canlib.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu
+from canair import profile
+from canair.cli.commands.ecu import cmd_edit
+from canair.ecus.pids import clear_cache
+from canair.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu
 
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
-    from canlib import config
+    from canair import config
 
     saved = profile._active
     clear_cache()

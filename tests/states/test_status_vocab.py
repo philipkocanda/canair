@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from canlib.interop.autopid.profile import DuplicateParameterError, generate_profile
-from canlib.states import POWER_STATES, allowed_states, join_states, parse_states
-from canlib.validation.pids import collect_pids_validation
-from canlib.yaml_edit.pids import PidsEditError, set_pid_status
+from canair.interop.autopid.profile import DuplicateParameterError, generate_profile
+from canair.states import POWER_STATES, allowed_states, join_states, parse_states
+from canair.validation.pids import collect_pids_validation
+from canair.yaml_edit.pids import PidsEditError, set_pid_status
 
 # ── vocabulary single source ───────────────────────────────────────────────
 
@@ -29,7 +29,7 @@ class TestVocabularySource:
     def test_base_tokens_are_not_yaml_booleans(self):
         # A bare `vehicle_states: [ON]` would parse as `True` under YAML 1.1, so
         # no base token may collide with a YAML bool/null keyword.
-        import canlib.core.yaml_io as yaml_io
+        import canair.core.yaml_io as yaml_io
 
         for tok in POWER_STATES:
             loaded = yaml_io.safe_load(f"[{tok}, {tok.lower()}]")

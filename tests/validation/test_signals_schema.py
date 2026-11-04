@@ -1,7 +1,7 @@
 """Pin the human-readable signals_schema.yaml to the validator's authoritative field lists.
 
 The schema file is documentation, so nothing reads it at runtime; without this test its
-field lists and comment block drift from canlib/validation/signals.py silently.
+field lists and comment block drift from src/canair/validation/signals.py silently.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-from canlib.validation import signals as v
+from canair.validation import signals as v
 
 SCHEMA = Path(v.__file__).resolve().parent.parent / "schema" / "signals_schema.yaml"
 

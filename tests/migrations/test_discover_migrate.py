@@ -12,9 +12,9 @@ import json
 
 import pytest
 
-from canlib.captures import save_session
-from canlib.migrations.discover import Addressing, infer_tx, migrate_dir, repair_doc
-from canlib.uds.addressing import DEFAULT_MODE
+from canair.captures import save_session
+from canair.migrations.discover import Addressing, infer_tx, migrate_dir, repair_doc
+from canair.uds.addressing import DEFAULT_MODE
 
 # A +0x20 profile, as on the Nissan Leaf ZE1, with two registered ECUs.
 ECUS = {
@@ -106,7 +106,7 @@ class TestRepairDoc:
 
     def test_matches_what_the_fixed_writer_records(self):
         """A repaired legacy capture is indistinguishable from a fresh one."""
-        from canlib.captures import build_discover_session
+        from canair.captures import build_discover_session
 
         doc = _doc(LEGACY)
         repair_doc(doc, ADDRESSING)
@@ -155,7 +155,7 @@ class TestMigrateDir:
     def test_the_cli_resolves_the_profile_owning_the_captures(self, tmp_path, capsys):
         import argparse
 
-        from canlib.cli.commands import captures as cap
+        from canair.cli.commands import captures as cap
 
         root = tmp_path / "prof"
         (root / "ecus").mkdir(parents=True)
@@ -196,7 +196,7 @@ class TestRepairEdgeCases:
         assert "tx" not in _responding(doc)[0]
 
     def test_a_legacy_29bit_responder(self):
-        from canlib.uds.addressing import AddressingMode
+        from canair.uds.addressing import AddressingMode
 
         doc = _doc([{"rx": "0x18DA10F9", "response": "positive"}])
         fixed = Addressing({}, 0x08, AddressingMode.NORMAL_FIXED_29BIT)

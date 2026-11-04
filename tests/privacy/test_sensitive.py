@@ -1,4 +1,4 @@
-"""Sensitive PIDs and signals: masked on screen, never saved, never shared (canlib.privacy.sensitive)."""
+"""Sensitive PIDs and signals: masked on screen, never saved, never shared (canair.privacy.sensitive)."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ import json
 
 import pytest
 
-from canlib import profile
-from canlib.captures import io as capture_io
-from canlib.ecus.pids import build_ecu_index, clear_cache, load_pids
-from canlib.privacy import sensitive
+from canair import profile
+from canair.captures import io as capture_io
+from canair.ecus.pids import build_ecu_index, clear_cache, load_pids
+from canair.privacy import sensitive
 
 META = 'car_model: "T"\ninit: "ATSP6;"\n'
 
@@ -88,7 +88,7 @@ class TestFlags:
 
 class TestLiveMasking:
     def _entry(self, pid: str, payload: str, tx: int | str = 0x733):
-        from canlib.live.multi_batch import _decode_pid_result
+        from canair.live.multi_batch import _decode_pid_result
 
         info = build_ecu_index(load_pids())["CCM"]["pids"][pid]
         return _decode_pid_result(
@@ -115,13 +115,13 @@ class TestLiveMasking:
         assert entry["raw_hex"] == "62F102AABBCCDDEEFF" and entry["sensitive"]
 
     def test_the_masked_hex_line_says_how_to_reveal(self):
-        from canlib.render.formatting import _render_hex_line
+        from canair.render.formatting import _render_hex_line
 
         line = _render_hex_line(sensitive.MASK, [], True).plain
         assert sensitive.MASK in line and "--reveal" in line
 
     def test_read_refuses_reveal_with_save(self, prof, capsys):
-        from canlib.cli import main
+        from canair.cli import main
 
         assert main(["read", "CCM:22F102", "--reveal", "--save"]) == 2
         assert "--reveal cannot be combined with --save" in capsys.readouterr().err
@@ -129,7 +129,7 @@ class TestLiveMasking:
 
 class TestNeverSaved:
     def test_the_journal_never_holds_a_sensitive_reply(self, prof, capsys):
-        from canlib.captures.journal import CaptureJournal
+        from canair.captures.journal import CaptureJournal
 
         journal = CaptureJournal.open(prof / "captures", label="t")
         sensitive.set_reveal(True)  # reveal is display-only: still never written
@@ -146,7 +146,7 @@ class TestNeverSaved:
         assert "Not saved: CCM:22F102" in capsys.readouterr().out
 
     def test_save_session_drops_sensitive_rows_whoever_built_them(self, prof, capsys):
-        from canlib.captures import save_session
+        from canair.captures import save_session
 
         session = {
             "date": "2026-11-02",
@@ -167,7 +167,7 @@ def _write_store(prof, captures: list[dict]) -> None:
 
 class TestStoredHistory:
     def test_analyses_never_see_a_sensitive_reply(self, prof, capsys):
-        from canlib.captures.store import _noted_sensitive, load_all_captures
+        from canair.captures.store import _noted_sensitive, load_all_captures
 
         _noted_sensitive.clear()
         _write_store(prof, [_cap("22F102", "62F102AABBCCDDEEFF"), _cap("22F101", "62F101")])
@@ -175,7 +175,7 @@ class TestStoredHistory:
         assert "purge-sensitive" in capsys.readouterr().err
 
     def test_validate_reports_and_purge_removes_it(self, prof):
-        from canlib.captures.sensitive_purge import purge_dir, sensitive_findings
+        from canair.captures.sensitive_purge import purge_dir, sensitive_findings
 
         _write_store(prof, [_cap("22F102", "62F102AABBCCDDEEFF"), _cap("22F101", "62F101")])
         path = prof / "captures" / "2026-11-02.json"
@@ -187,7 +187,7 @@ class TestStoredHistory:
         assert "AABBCC" not in path.read_text() and not sensitive_findings(path, sset)
 
     def test_a_session_of_only_sensitive_replies_is_dropped(self, prof):
-        from canlib.captures.sensitive_purge import purge_dir
+        from canair.captures.sensitive_purge import purge_dir
 
         _write_store(prof, [_cap("22F102", "62F102AABBCCDDEEFF")])
         (result,) = purge_dir(prof / "captures", sensitive.profile_set())
@@ -196,7 +196,7 @@ class TestStoredHistory:
         assert doc["sessions"] == []
 
     def test_purge_command_json_needs_yes(self, prof, capsys):
-        from canlib.cli import main
+        from canair.cli import main
 
         _write_store(prof, [_cap("22F102", "62F102AABBCCDDEEFF")])
         assert main(["captures", "purge-sensitive", "--json"]) == 1
@@ -205,8 +205,8 @@ class TestStoredHistory:
         assert json.loads(capsys.readouterr().out)["removed"] == 1
 
     def test_a_hand_redacted_value_is_kept_everywhere(self, prof):
-        from canlib.captures.sensitive_purge import purge_dir, sensitive_findings
-        from canlib.captures.store import load_all_captures
+        from canair.captures.sensitive_purge import purge_dir, sensitive_findings
+        from canair.captures.store import load_all_captures
 
         (mask,) = sensitive.REDACTED_VALUES
         redacted = {"rx": "0x73B", "pid": "22F102", "response": mask, "notes": "redacted"}
@@ -226,7 +226,7 @@ class TestStoredHistory:
 
 class TestNeverShared:
     def test_contribute_strips_the_staged_copy(self, prof, tmp_path):
-        from canlib.contribute import copy_profile
+        from canair.contribute import copy_profile
 
         _write_store(prof, [_cap("22F102", "62F102AABBCCDDEEFF"), _cap("22F101", "62F101")])
         warnings: list[str] = []
@@ -237,7 +237,7 @@ class TestNeverShared:
         assert any("sensitive" in w for w in warnings)
 
     def test_autopid_never_ships_a_sensitive_signal(self, prof):
-        from canlib.interop.autopid.profile import ship_profile
+        from canair.interop.autopid.profile import ship_profile
 
         data = load_pids()
         data["ecus"]["CCM"]["pids"]["22F103"]["status"] = "active"
@@ -246,7 +246,7 @@ class TestNeverShared:
         assert "ID_HI" not in names and "VERSION" in names
 
     def test_the_explorer_plots_no_sensitive_pid(self):
-        from canlib.interop.explorer.series import _parameters
+        from canair.interop.explorer.series import _parameters
 
         ecu = {"pids": {"22F103": {"parameters": {"A": {"expression": "B04", "sensitive": True}}}}}
         assert _parameters(ecu, "22F103") is None
@@ -254,7 +254,7 @@ class TestNeverShared:
 
 class TestEditor:
     def test_set_sensitive_on_a_pid_and_a_signal_round_trips(self, prof):
-        from canlib.yaml_edit.pids import set_sensitive
+        from canair.yaml_edit.pids import set_sensitive
 
         set_sensitive("CCM", "22F101", True, pids_dir=prof / "ecus")
         set_sensitive("CCM", "22F101", True, param="APP_SW", pids_dir=prof / "ecus")
@@ -275,7 +275,7 @@ class TestEditor:
         )
         (prof / "ecus" / "ccm.yaml").write_text(text)
         clear_cache()
-        from canlib.cli import main
+        from canair.cli import main
 
         assert main(["validate", "pids"]) != 0
         assert "cannot declare send_to" in capsys.readouterr().out
@@ -305,8 +305,8 @@ class TestBundledIoniqIdentity:
 
     @pytest.mark.asyncio
     async def test_identity_does_not_print_the_vin(self, ioniq, monkeypatch, capsys):
-        from canlib.live import identity as ident
-        from canlib.live import identity_decode as idec
+        from canair.live import identity as ident
+        from canair.live import identity_decode as idec
         from tests.support.fakes import FakeTerminal
         from tests.support.fakes import ok as _ok
 

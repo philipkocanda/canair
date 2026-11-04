@@ -1,4 +1,4 @@
-"""Tests for canlib.ecus.ecu_groups — group loading + @group reference expansion."""
+"""Tests for canair.ecus.ecu_groups — group loading + @group reference expansion."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from canlib.ecus.ecu_groups import (
+from canair.ecus.ecu_groups import (
     Group,
     GroupError,
     expand_group_refs,
@@ -127,7 +127,7 @@ class TestExpandGroupRefs:
 def test_non_query_verbs_match_live_step_verbs():
     """Drift guard: our passthrough verb set is the non-query subset of the
     canonical mini-language leading verbs."""
-    from canlib.cli.commands._live import STEP_VERBS
-    from canlib.ecus.ecu_groups import _NON_QUERY_VERBS
+    from canair.cli.commands._live import STEP_VERBS
+    from canair.ecus.ecu_groups import _NON_QUERY_VERBS
 
     assert _NON_QUERY_VERBS | {"query"} == set(STEP_VERBS)

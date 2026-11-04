@@ -5,9 +5,9 @@ import time
 
 import pytest
 
-from canlib.transport.raw import uds_client as uds_raw
-from canlib.transport.raw.uds_client import RawUdsClient, response_id
-from canlib.uds.addressing import EcuAddress
+from canair.transport.raw import uds_client as uds_raw
+from canair.transport.raw.uds_client import RawUdsClient, response_id
+from canair.uds.addressing import EcuAddress
 from tests.support.uds_raw import FakeNotifier, FakeStack
 
 
@@ -279,7 +279,7 @@ class TestRawUdsClientAddressing:
     """
 
     def test_fc_id_and_address_threaded_per_ecu(self, monkeypatch):
-        from canlib.uds.addressing import AddressingMode
+        from canair.uds.addressing import AddressingMode
 
         seen: dict[str, dict] = {}
 

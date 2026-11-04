@@ -2,7 +2,7 @@
 
 ``dispatch_mode`` used to choose a handler by testing which of sixteen mode-selector attributes
 was truthy, in an order that mattered (``multi`` + ``monitor`` before bare ``multi``). A command
-now hands :func:`~canlib.cli.commands._live.runtime.run_live` its :class:`LiveOperation`. Two things
+now hands :func:`~canair.cli.commands._live.runtime.run_live` its :class:`LiveOperation`. Two things
 can go wrong that the type checker cannot see, and both are pinned here:
 
 * **which operation** — a command wired to the wrong handler, or to none, falls through to the
@@ -20,9 +20,9 @@ from pathlib import Path
 
 import pytest
 
-from canlib.cli import build_parser
-from canlib.cli.commands._live import runtime
-from canlib.cli.commands._live.handlers import actuators, diagnostics, elm_only, multi, reads, scans
+from canair.cli import build_parser
+from canair.cli.commands._live import runtime
+from canair.cli.commands._live.handlers import actuators, diagnostics, elm_only, multi, reads, scans
 
 # (argv, handler name, records, scan types): the operation each live subcommand reaches.
 CASES = [
@@ -52,7 +52,7 @@ IDS = [" ".join(argv) for argv, *_ in CASES]
 @pytest.fixture
 def reached(monkeypatch):
     """Run a command's ``func`` and return the ``(args, operation)`` it handed the runtime."""
-    from canlib.cli.commands import monitor, read
+    from canair.cli.commands import monitor, read
 
     seen: list = []
 
@@ -61,14 +61,14 @@ def reached(monkeypatch):
         return 0
 
     monkeypatch.setattr(runtime, "run_live", fake_run_live)
-    monkeypatch.setattr("canlib.cli.commands._live.parser.run_live", fake_run_live)
+    monkeypatch.setattr("canair.cli.commands._live.parser.run_live", fake_run_live)
     # The pre-flight reads of read/monitor/scan need a profile, not a device.
-    monkeypatch.setattr("canlib.live.monitor.query_ecu_error", lambda steps, pids: None)
-    monkeypatch.setattr("canlib.cli.commands._live.load_pids", lambda: {})
+    monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
+    monkeypatch.setattr("canair.cli.commands._live.load_pids", lambda: {})
     monkeypatch.setattr(monitor, "run_live", fake_run_live)
     monkeypatch.setattr(read, "run_live", fake_run_live)
     for name in ("scan", "discover", "dtc", "io", "routines"):
-        module = __import__(f"canlib.cli.commands.{name}", fromlist=["run_live"])
+        module = __import__(f"canair.cli.commands.{name}", fromlist=["run_live"])
         if hasattr(module, "run_live"):
             monkeypatch.setattr(module, "run_live", fake_run_live)
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)

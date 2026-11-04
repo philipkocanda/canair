@@ -9,7 +9,7 @@ import random
 
 import pytest
 
-from canlib.analysis.support_map import (
+from canair.analysis.support_map import (
     ABSENCE_TEXT,
     MIN_EXPLAINED,
     MapFit,
@@ -21,8 +21,8 @@ from canlib.analysis.support_map import (
     detect_support_maps,
     family_chance_log10,
 )
-from canlib.uds.support_map import MapDecl, SupportMapError, declaration, resolve
-from canlib.uds.support_marks import (
+from canair.uds.support_map import MapDecl, SupportMapError, declaration, resolve
+from canair.uds.support_marks import (
     continuation_bits,
     marked_bits,
     marked_byte_indices,

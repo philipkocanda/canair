@@ -1,12 +1,12 @@
-"""Tests for the ELM327/AutoPID addressing warnings (canlib.validation.addressing)."""
+"""Tests for the ELM327/AutoPID addressing warnings (canair.validation.addressing)."""
 
 from pathlib import Path
 
 import pytest
 import yaml
 
-from canlib.validation.addressing import _init_commands, _init_protocol, addressing_warnings
-from canlib.validation.pids import _elm327_warnings, _run_pids
+from canair.validation.addressing import _init_commands, _init_protocol, addressing_warnings
+from canair.validation.pids import _elm327_warnings, _run_pids
 
 
 def _data(init: str = "ATSP6;ATS0;", **ecus) -> dict:
@@ -125,9 +125,9 @@ class TestThroughValidatePids:
         assert _elm327_warnings(ecus_dir) == []
 
     def test_run_pids_prints_them(self, tmp_path, monkeypatch, capsys):
-        from canlib.profile import profile_for_path
+        from canair.profile import profile_for_path
 
         ecus_dir = self._profile(tmp_path, "ATSP6;", {"OBD": {"tx_id": 0x7DF}})
-        monkeypatch.setattr("canlib.profile.active", lambda: profile_for_path(ecus_dir))
+        monkeypatch.setattr("canair.profile.active", lambda: profile_for_path(ecus_dir))
         _run_pids(None, stats=False)
         assert "WARN: OBD: tx_id 0x7DF is a functional broadcast id" in capsys.readouterr().out

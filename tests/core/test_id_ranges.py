@@ -1,8 +1,8 @@
-"""Tests for canlib.core.id_ranges — the shared hex range-list primitives."""
+"""Tests for canair.core.id_ranges — the shared hex range-list primitives."""
 
 import pytest
 
-from canlib.core.id_ranges import (
+from canair.core.id_ranges import (
     as_id_ranges,
     count_ids,
     format_id_ranges,

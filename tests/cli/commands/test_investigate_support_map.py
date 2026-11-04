@@ -5,12 +5,12 @@ import json
 import random
 from typing import ClassVar
 
-from canlib.analysis.align import LoadedPid
-from canlib.analysis.support_map import MapFit
-from canlib.cli.commands.investigate import parser as inv_parser
-from canlib.cli.commands.investigate import support_map as inv_map
-from canlib.cli.commands.investigate import support_map_report as inv_report
-from canlib.uds.support_marks import reverse_bits
+from canair.analysis.align import LoadedPid
+from canair.analysis.support_map import MapFit
+from canair.cli.commands.investigate import parser as inv_parser
+from canair.cli.commands.investigate import support_map as inv_map
+from canair.cli.commands.investigate import support_map_report as inv_report
+from canair.uds.support_marks import reverse_bits
 
 # Map marking bits {0,1,2,3} of each of the 4 covered bytes.
 MAP = bytes([0xF0, 0xF0, 0xF0, 0xF0])
@@ -274,7 +274,7 @@ VCU = [(1, False), (1, True), (1, True), (2, True), (2, True), (2, True), (2, Tr
 
 def _vcu_params(lp, layout=VCU, skip_first=True):
     """One signal per parameter, written in WiCAN indices for the page's frame layout."""
-    from canlib.uds.byteindex import payload_index_to_wican
+    from canair.uds.byteindex import payload_index_to_wican
 
     sample = bytes.fromhex(lp.captures[0]["payload"])
     to_w = payload_index_to_wican(list(sample))
@@ -329,7 +329,7 @@ class TestFieldMaps:
         assert scan.field_fit is None  # four data bytes: the bitmapped layout
 
     def test_a_split_resting_on_nothing_is_thin(self):
-        from canlib.cli.commands.investigate.support_fields import thin
+        from canair.cli.commands.investigate.support_fields import thin
 
         lp = _page("2101", bytes.fromhex("FFE00000"), VCU)
         assert thin(self._scan(lp, {}).field_fit)

@@ -1,6 +1,6 @@
 # Development
 
-This section is for people changing **canair itself** (the `canlib/` package —
+This section is for people changing **canair itself** (the `src/canair/` package —
 CLI, transports, modes, library code, tests). Contributing a *vehicle profile* or
 decoded signals needs none of this — that's [Contributing](../contributing/index.md),
 and it's the most wanted contribution.
@@ -54,7 +54,7 @@ Run from the repo root:
 ```bash
 uv run pytest -q                                    # tests (parallel; ~14s)
 uv run ruff check . && uv run ruff format --check .  # lint + format
-uv run ty check                                     # type check (canlib/)
+uv run ty check                                     # type check (src/canair/)
 uv run lint-imports                                 # layer and boundary contracts
 uv run canair validate all                          # if you touched profile data
 uv run python scripts/check/validate_skills.py             # if you touched a skill's frontmatter
@@ -65,7 +65,7 @@ uv run python scripts/gen/gen_screenshots.py --check     # if you changed screen
 The [bundled-profile](../profiles/index.md) counts need no regenerating: an MkDocs hook
 (`scripts/mkdocs_hooks/profiles_index.py`) computes them from `profiles/*/ecus/` each time
 the site is built. The same goes for the [profile explorer](../profiles/explorer.md): its data is
-exported at build time (`canlib/interop/explorer/export.py`, written out by
+exported at build time (`src/canair/interop/explorer/export.py`, written out by
 `scripts/mkdocs_hooks/explorer.py`), and `docs/assets/explorer/explorer.{js,css}` only render it.
 Change what the explorer shows in the exporter, which is unit-tested; the JavaScript is
 checked by hand in a browser.

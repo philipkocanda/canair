@@ -3,8 +3,8 @@
 canair's four Textual apps and their modals grew independently and drifted: ``a``
 added PIDs in the stepper while the monitor used ``p``, ``escape`` quit one app
 and cleared a selection in another, ``l`` was both vim-right and "open the event
-log". :mod:`canlib.tui.keys` is now the single home for what a key means; these
-tests walk every ``App``/``Screen`` in ``canlib`` and fail when a binding
+log". :mod:`canair.tui.keys` is now the single home for what a key means; these
+tests walk every ``App``/``Screen`` in ``canair`` and fail when a binding
 escapes it, so the drift cannot come back one commit at a time.
 
 They are deliberately structural (they read ``BINDINGS``, they do not drive a
@@ -24,8 +24,8 @@ from textual.app import App
 from textual.binding import Binding
 from textual.screen import ModalScreen, Screen
 
-import canlib
-from canlib.tui.keys import DISMISS_DESCRIPTION, KEY_ROLES, ROLES, bind
+import canair
+from canair.tui.keys import DISMISS_DESCRIPTION, KEY_ROLES, ROLES, bind
 
 # `n` is "new" in an app and "no" in a yes/no dialog. The second is near-universal
 # terminal convention and confined to ConfirmModal, so it is the one sanctioned
@@ -34,14 +34,14 @@ _ALLOWED_MULTI_ROLE_KEYS = {"n"}
 
 
 def _tui_classes() -> list[type]:
-    """Every Textual ``App``/``Screen`` subclass defined in ``canlib``.
+    """Every Textual ``App``/``Screen`` subclass defined in ``canair``.
 
     Discovered by import rather than listed, so a new TUI is covered the moment
     it exists — a hand-maintained list would be exactly as driftable as the
     keymap it is meant to police.
     """
     found: dict[str, type] = {}
-    for mod_info in pkgutil.walk_packages(canlib.__path__, prefix="canlib."):
+    for mod_info in pkgutil.walk_packages(canair.__path__, prefix="canair."):
         try:
             module = importlib.import_module(mod_info.name)
         except Exception:  # optional/heavy deps are not this test's business
@@ -76,7 +76,7 @@ def test_every_declared_key_is_in_the_keymap():
     """A binding may not invent a key: it must resolve to a :mod:`tui_keys` role."""
     unknown = [(cls.__name__, b.key, b.action) for cls, b in _declared() if b.key not in KEY_ROLES]
     assert not unknown, (
-        "keys not in canlib.tui.keys.ROLES — add a role there (or reuse one) "
+        "keys not in canair.tui.keys.ROLES — add a role there (or reuse one) "
         f"instead of hardcoding: {unknown}"
     )
 
@@ -138,9 +138,9 @@ def test_same_action_key_across_apps():
     the same thing in every view, and a derived assertion would happily pass on a
     keymap that had been renamed out from under the user.
     """
-    from canlib.cli.commands.captures.step_tui import CapturesStepApp
-    from canlib.cli.commands.decode.plot_tui import PlotApp
-    from canlib.live._monitor_tui import MonitorApp
+    from canair.cli.commands.captures.step_tui import CapturesStepApp
+    from canair.cli.commands.decode.plot_tui import PlotApp
+    from canair.live._monitor_tui import MonitorApp
 
     def keys_of(cls: type, needle: str) -> set[str]:
         return {b.key for b in _bindings(cls) if needle in b.action}

@@ -18,7 +18,7 @@ signals (not stored in signals/), messages canair refuses to store (e.g. a signa
 overrunning its frame), value tables on scaled or float signals (not carried),
 multiplexed messages (flattened on import; not decoded), and messages cantools
 cannot decode from the source DBC either. Ground truth for a DBC cantools rejects as
-written is its parse after `import dbc`'s dialect repairs (canlib/interop/dbc/repair.py); one
+written is its parse after `import dbc`'s dialect repairs (src/canair/interop/dbc/repair.py); one
 that does not parse even then, or whose standard and extended frames share a number,
 is listed and skipped.
 
@@ -162,7 +162,7 @@ def _multiplexed(msg) -> bool:
 
 
 def _canair(argv: list[str]) -> tuple[int, str]:
-    from canlib.cli import main
+    from canair.cli import main
 
     out = io.StringIO()
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
@@ -189,8 +189,8 @@ class Checker:
     def check(self, path: Path) -> None:
         import cantools
 
-        from canlib.cli.commands.import_ import DbcImportError, _dbc_to_signals
-        from canlib.interop.dbc.repair import DbcLoadError, load_dbc
+        from canair.cli.commands.import_ import DbcImportError, _dbc_to_signals
+        from canair.interop.dbc.repair import DbcLoadError, load_dbc
 
         try:
             src, repairs = load_dbc(path)
@@ -203,7 +203,7 @@ class Checker:
             self.skipped.append(f"{path.name}: {e}")
             return
         self.totals["dbcs"] += 1
-        self.totals["DBCs repaired on load (canlib/interop/dbc/repair.py)"] += bool(repairs)
+        self.totals["DBCs repaired on load (src/canair/interop/dbc/repair.py)"] += bool(repairs)
         self.totals["messages canair cannot store (skipped on import)"] += len(expected.skipped)
         self.totals["value tables on scaled/float signals (not carried)"] += len(
             expected.value_tables_dropped
@@ -242,7 +242,7 @@ class Checker:
     def _check_import(self, src, bus: str, stored_ids: set[str], problems: list[str]) -> None:
         import yaml
 
-        from canlib.validation.signals import message_is_extended, message_is_fd
+        from canair.validation.signals import message_is_extended, message_is_fd
 
         doc = yaml.safe_load((self.signals_dir / f"{bus}.yaml").read_text())
         messages = doc.get("messages") or {}

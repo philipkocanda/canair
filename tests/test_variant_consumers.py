@@ -12,10 +12,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib import config
-from canlib.cli import main
-from canlib.ecus.pids import load_pids
-from canlib.profile import set_active
+from canair import config
+from canair.cli import main
+from canair.ecus.pids import load_pids
+from canair.profile import set_active
 
 FIXTURE = Path(__file__).parent / "fixtures" / "profiles" / "variants"
 REPO = Path(__file__).parent.parent
@@ -39,7 +39,7 @@ def copy(tmp_path) -> Path:
 
 class TestAutoPid:
     def test_each_car_gets_its_own_file(self):
-        from canlib.cli.commands.wican import _profile_out
+        from canair.cli.commands.wican import _profile_out
 
         set_active(str(FIXTURE), variant="40kwh")
         assert _profile_out("4") == FIXTURE / "out" / "40kwh" / "autopid-v4.json"
@@ -68,8 +68,8 @@ class TestAutoPid:
         assert out.read_bytes() == committed.read_bytes()
 
     def test_every_bundled_car_carries_both_firmware_files(self):
-        from canlib.profile import resolve_profile
-        from canlib.variants import load_variants
+        from canair.profile import resolve_profile
+        from canair.variants import load_variants
 
         missing = []
         for root in sorted((REPO / "profiles").glob("*/profile.yaml")):
@@ -114,7 +114,7 @@ class TestAutoPid:
         assert ("DRIVE_MODE", "B5") in exprs
 
     def test_send_to_may_repeat_across_disjoint_revisions(self, copy):
-        from canlib.validation.send_to import send_to_findings
+        from canair.validation.send_to import send_to_findings
 
         vcu = copy / "ecus" / "vcu.yaml"
         text = vcu.read_text()
@@ -135,7 +135,7 @@ class TestAutoPid:
 
 class TestExplorer:
     def test_gates_overrides_and_presence_are_exported(self):
-        from canlib.interop.explorer.export import export_profile
+        from canair.interop.explorer.export import export_profile
 
         data = export_profile(FIXTURE)
         ecus = {e["name"]: e for e in data["ecus"]}
@@ -152,7 +152,7 @@ class TestExplorer:
         assert "fingerprints" not in json.dumps(data)
 
     def test_the_ioniq_38kwh_bms_is_unverified_uds(self):
-        from canlib.interop.explorer.export import export_profile
+        from canair.interop.explorer.export import export_profile
 
         data = export_profile(REPO / "profiles" / "hyundai-ioniq-ae-ev")
         bms = next(e for e in data["ecus"] if e["name"] == "BMS")
@@ -173,7 +173,7 @@ class TestResearch:
         assert len(load_pids()["ecus"]["VCU"]["research"]) == 1
 
     def test_a_research_gate_must_name_a_revision(self):
-        from canlib.variants.revisions import check_ecu
+        from canair.variants.revisions import check_ecu
 
         vcu = yaml.safe_load((FIXTURE / "ecus" / "vcu.yaml").read_text())["VCU"]
         vcu["research"] = [{"type": "verify", "target": "x", "status": "pending",

@@ -9,9 +9,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from canlib.ecus.pids import normalize_session_mode
-from canlib.live import kwp_iocontrol_scan, kwp_routines_scan
-from canlib.live.sessions_scan import mode_sessions_scan
+from canair.ecus.pids import normalize_session_mode
+from canair.live import kwp_iocontrol_scan, kwp_routines_scan
+from canair.live.sessions_scan import mode_sessions_scan
 from tests.support.fakes import FakeTerminal, nrc
 
 KWP_BCM = {"BCM": {"tx_id": 0x745, "identity": {"id_protocol": "KWP2000"}}}
@@ -110,7 +110,7 @@ def test_kwp_wrong_session_nrc_escalates_lazily_on_a_non_nissan_profile():
 
 class TestIOControlScanDispatch:
     def _run(self, monkeypatch, *, yes, stdin, quirks=("skm_wakeup",)):
-        from canlib.cli.commands._live.handlers import scans
+        from canair.cli.commands._live.handlers import scans
 
         calls: list[dict] = []
 
@@ -183,7 +183,7 @@ def test_other_profiles_need_no_confirmation():
 
 class TestRoutinesScanDispatch:
     def _run(self, monkeypatch, *, yes, stdin):
-        from canlib.cli.commands._live.handlers import scans
+        from canair.cli.commands._live.handlers import scans
 
         calls: list[dict] = []
 
@@ -218,7 +218,7 @@ class TestRoutinesScanDispatch:
 
 
 def test_iocontrol_scan_defaults_uds_ecus_to_03_in_a_mixed_scan(monkeypatch):
-    from canlib.cli.commands._live.handlers import scans
+    from canair.cli.commands._live.handlers import scans
 
     seen: dict[str, object] = {}
 
@@ -260,8 +260,8 @@ def test_normalize_session_mode_rejects_anything_else(value):
 
 
 def test_build_iocontrol_index_reports_a_bad_session_mode_as_a_profile_error():
-    from canlib.ecus.pids import build_iocontrol_index
-    from canlib.profile import ProfileError
+    from canair.ecus.pids import build_iocontrol_index
+    from canair.profile import ProfileError
 
     data = {"ecus": {"BCM": {"tx_id": 0x745, "iocontrol": {"6900": {"session_mode": 192}}}}}
     with pytest.raises(ProfileError, match="BCM/iocontrol/6900"):
@@ -273,10 +273,10 @@ def test_build_iocontrol_index_reports_a_bad_session_mode_as_a_profile_error():
 
 @pytest.mark.parametrize("command", ["io", "routines"])
 def test_json_listing_of_an_unknown_ecu_is_a_json_error(command, monkeypatch, capsys):
-    from canlib.cli.commands import io as io_cmd
-    from canlib.cli.commands import routines as routines_cmd
+    from canair.cli.commands import io as io_cmd
+    from canair.cli.commands import routines as routines_cmd
 
-    monkeypatch.setattr("canlib.ecus.pids.load_pids", lambda: {"ecus": {}})
+    monkeypatch.setattr("canair.ecus.pids.load_pids", lambda: {"ecus": {}})
     mod = io_cmd if command == "io" else routines_cmd
     args = SimpleNamespace(json=True, did=None, rid=None, iocontrol="NOPE", routines="NOPE")
     assert mod.run(args) == 1

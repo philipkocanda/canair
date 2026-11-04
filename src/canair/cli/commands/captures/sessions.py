@@ -1,0 +1,308 @@
+"""Aggregate views over capture *metadata*: ``--summary`` and ``--sessions``.
+
+Neither view decodes a payload — they answer "what is in the captures?" from the
+session envelopes alone (counts per ECU/date, and the session table of contents
+with each session's span, state, label, notes, transport and quality). The
+payload-level views live in :mod:`listing` and :mod:`diff`.
+"""
+
+import re
+import sys
+from collections import defaultdict
+from collections.abc import Mapping, Sequence
+
+from canair.analysis.fill import format_hold_duration
+from canair.captures.inferred_gaps import format_key, infer_gaps
+from canair.captures.link_events import (
+    BACKOFF,
+    DISCONNECT,
+    ECU_SILENT,
+    PAUSED,
+    RESYNC,
+    UNPOLLED,
+    LinkEvent,
+    summarize,
+)
+from canair.captures.types import CaptureEntry, Quality
+from canair.render import ansi
+from canair.states import join_states as _join_states
+from canair.states.spans import parse_time_key
+
+from .query import SessionGroup, _dump_json, group_sessions
+
+
+def cmd_summary(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
+    """Print overview statistics."""
+    by_ecu = defaultdict(int)
+    by_date = defaultdict(int)
+    payloads = 0
+    scans = 0
+    responses = 0
+
+    for e in entries:
+        by_ecu[e["ecu"]] += 1
+        by_date[e["date"]] += 1
+        if e["payload"]:
+            payloads += 1
+        elif e["scan_results"]:
+            scans += 1
+        elif e["response"]:
+            responses += 1
+
+    # Count sessions through the same grouping --sessions lists, so the two views
+    # can't disagree. Counting distinct (file, label) pairs here used to collapse
+    # every same-label session into one — a monitor run that writes many sessions
+    # under one label reported a handful instead of hundreds.
+    n_sessions = len(group_sessions(entries))
+
+    if as_json:
+        _dump_json(
+            {
+                "files": len({e["file"] for e in entries}),
+                "sessions": n_sessions,
+                "entries": len(entries),
+                "payloads": payloads,
+                "scans": scans,
+                "responses": responses,
+                "by_ecu": dict(sorted(by_ecu.items(), key=lambda x: -x[1])),
+                "by_date": dict(sorted(by_date.items())),
+            }
+        )
+        return
+
+    print(f"\n  {ansi.BOLD}Capture Summary{ansi.RESET}")
+    print(f"  Files:    {len({e['file'] for e in entries})}")
+    print(f"  Sessions: {n_sessions}")
+    print(f"  Entries:  {len(entries)} ({payloads} payloads, {scans} scans, {responses} responses)")
+
+    print(f"\n  {ansi.BOLD}By ECU:{ansi.RESET}")
+    for ecu, count in sorted(by_ecu.items(), key=lambda x: -x[1]):
+        print(f"    {ecu:<12} {count:>4}")
+
+    print(f"\n  {ansi.BOLD}By Date:{ansi.RESET}")
+    for day, count in sorted(by_date.items()):
+        print(f"    {day}  {count:>4}")
+    print()
+
+
+# ---------------------------------------------------------------------------
+# Sessions mode (metadata table of contents)
+# ---------------------------------------------------------------------------
+
+_CTRL_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|[\x00-\x08\x0b-\x1f\x7f]")
+
+
+def _clean(text) -> str:
+    """Sanitize a metadata string for terminal display (drop control sequences).
+
+    Also collapses any whitespace run (incl. newlines from YAML block scalars)
+    into single spaces so each field renders on one tidy line.
+    """
+    return " ".join(_CTRL_RE.sub("", str(text)).split())
+
+
+def _quality_tag(quality: Quality | None) -> str:
+    """A colored one-liner flagging a session's recorded drops/errors, or ''.
+
+    Clean sessions (no drops/errors) return an empty string so the TOC stays
+    uncluttered; only a session that recorded transport trouble gets a line —
+    drops in red (the ISO-TP integrity signal), other errors in yellow, with the
+    exchange total for context.
+    """
+    if not quality:
+        return ""
+    drops = (quality.get("drop", 0) or 0) + (quality.get("stale", 0) or 0)
+    errs = sum(quality.get(k, 0) or 0 for k in ("no_data", "bus", "decode", "other"))
+    parts: list[str] = []
+    if drops:
+        parts.append(f"{ansi.RED}drops {drops}{ansi.RESET}")
+    if errs:
+        parts.append(f"{ansi.YELLOW}errors {errs}{ansi.RESET}")
+    if not parts:
+        return ""
+    ex = quality.get("exchanges")
+    ex_txt = f" {ansi.DIM}/ {ex} exchanges{ansi.RESET}" if ex else ""
+    return f"{ansi.DIM}⚠ quality:{ansi.RESET} " + " ".join(parts) + ex_txt
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}{'s' if n != 1 else ''}"
+
+
+def _ecu_names(rxs: Sequence[str], names: Mapping[str, str]) -> str:
+    return ", ".join(names.get(rx.upper(), rx) for rx in rxs)
+
+
+def _gaps_tag(
+    events: Sequence[LinkEvent], times: Sequence[str], names: Mapping[str, str] | None = None
+) -> str:
+    """A one-liner saying when the recording could not see the car, or ''.
+
+    An open interval (the recording ended inside it) is measured to the session's last
+    capture. ``names`` maps a response address (upper-case) to its ECU name.
+    """
+    if not events:
+        return ""
+    names = names or {}
+    keys = [k for k in (parse_time_key(t) for t in times) if k is not None]
+    summary = summarize(events, max(keys) if keys else None)
+
+    def length(kind: str) -> str:
+        return format_hold_duration(summary[kind].seconds)
+
+    parts: list[str] = []
+    if s := summary.get(DISCONNECT):
+        parts.append(
+            f"{ansi.YELLOW}{_plural(s.count, 'disconnect')} ({length(DISCONNECT)}){ansi.RESET}"
+        )
+    if s := summary.get(PAUSED):
+        parts.append(f"paused {s.count}× ({length(PAUSED)})")
+    if s := summary.get(ECU_SILENT):
+        parts.append(
+            f"{ansi.YELLOW}silent: {_ecu_names(s.rxs, names)} ({length(ECU_SILENT)}){ansi.RESET}"
+        )
+    if s := summary.get(UNPOLLED):
+        parts.append(f"unpolled: {_ecu_names(s.rxs, names)} ({length(UNPOLLED)})")
+    if s := summary.get(BACKOFF):
+        parts.append(f"slowed: {_ecu_names(s.rxs, names)} (up to ×{s.factor})")
+    if s := summary.get(RESYNC):
+        parts.append(_plural(s.count, "resync"))
+    if not parts:
+        return ""
+    return f"{ansi.DIM}⚠ gaps:{ansi.RESET} " + f"{ansi.DIM} · {ansi.RESET}".join(parts)
+
+
+def _inferred(session: SessionGroup) -> list[tuple[float, float]]:
+    return infer_gaps(session["times"], session["link_events"], session["keep_mode"])
+
+
+def _inferred_tag(gaps: Sequence[tuple[float, float]]) -> str:
+    """A dim one-liner for holes the timestamps imply but no link event records, or ''."""
+    if not gaps:
+        return ""
+    total = format_hold_duration(sum(b - a for a, b in gaps))
+    longest = max(gaps, key=lambda g: g[1] - g[0])
+    return (
+        f"{ansi.DIM}⚠ inferred gaps: {len(gaps)} ({total}), longest "
+        f"{format_key(longest[0])}-{format_key(longest[1])} — nothing stored, not "
+        f"recorded as a link event{ansi.RESET}"
+    )
+
+
+def _declared_variants() -> dict:
+    """The active profile's variants (empty when it declares none or can't be read)."""
+    from canair.profile import ProfileError, active
+    from canair.variants import VariantsError, load_variants
+
+    try:
+        return load_variants(active())
+    except (ProfileError, VariantsError):
+        return {}
+
+
+def cmd_sessions(
+    entries: Sequence[CaptureEntry], as_json: bool = False, max_notes: int = 6
+) -> None:
+    """List capture *sessions* with their metadata — a searchable table of contents.
+
+    Answers "what's in the captures?" without dumping payloads: one block per
+    session showing date, time span, state, label, session notes, capture count,
+    the ECUs touched, and distinct capture-level notes. Honors the shared scope
+    filters (``--since``/``--until``/``--date``/``--state``/``--label``), so e.g.
+    ``--sessions --state driving`` is a quick index of every drive.
+    """
+    sessions = group_sessions(entries)
+    names = {str(e.get("ecu_addr") or "").upper(): e["ecu"] for e in entries if e.get("ecu")}
+
+    if as_json:
+        import json
+
+        out = [
+            {
+                "file": s["file"],
+                "date": s["date"],
+                "label": s["label"],
+                "version": s["version"],
+                "vehicle_states": s["vehicle_states"],
+                "notes": s["notes"],
+                "keep_mode": s["keep_mode"],
+                "transport": s["transport"],
+                "quality": s["quality"],
+                "link_events": s["link_events"],
+                "inferred_gaps": [
+                    {"at": format_key(a), "until": format_key(b)} for a, b in _inferred(s)
+                ],
+                "variant": s["variant"] or None,
+                "captures": s["n"],
+                "ecus": list(s["ecus"]),
+                "time_start": min(s["times"]) if s["times"] else None,
+                "time_end": max(s["times"]) if s["times"] else None,
+                "capture_notes": s["cap_notes"],
+            }
+            for s in sessions
+        ]
+        json.dump(out, sys.stdout, indent=2, default=str)
+        print()
+        return
+
+    if not sessions:
+        print("  No sessions found.")
+        return
+
+    print(f"\n  {ansi.BOLD}Sessions{ansi.RESET} — {len(sessions)} total\n")
+    # Only a profile with several variants needs every untagged session called out.
+    flag_untagged = len(_declared_variants()) > 1
+    for s in sessions:
+        span = ""
+        if s["times"]:
+            lo, hi = min(s["times"]), max(s["times"])
+            lo, hi = lo.split(".")[0], hi.split(".")[0]
+            span = lo if lo == hi else f"{lo}-{hi}"
+        state_str = _join_states(s["vehicle_states"])
+        state = f"  {ansi.CYAN}{_clean(state_str)}{ansi.RESET}" if state_str else ""
+        print(
+            f"  {ansi.BOLD}{s['date']}{ansi.RESET}{('  ' + ansi.DIM + span + ansi.RESET) if span else ''}{state}"
+        )
+        if s["label"]:
+            print(f"    {_clean(s['label'])}")
+        if s["notes"]:
+            print(f"    {ansi.DIM}{_clean(s['notes'])}{ansi.RESET}")
+        ecus = ", ".join(s["ecus"]) or "—"
+        keep = s.get("keep_mode")
+        keep_tag = f" · {ansi.CYAN}keep:{keep}{ansi.RESET}{ansi.DIM}" if keep else ""
+        transport = s.get("transport")
+        transport_tag = f" · {transport}" if transport else ""
+        version = s.get("version")
+        version_tag = f" · v{version}" if version else ""
+        variant = s.get("variant")
+        if variant:
+            variant_tag = f" · {ansi.CYAN}{variant}{ansi.RESET}{ansi.DIM}"
+        elif flag_untagged:
+            variant_tag = f" · {ansi.YELLOW}untagged{ansi.RESET}{ansi.DIM}"
+        else:
+            variant_tag = ""
+        print(
+            f"    {ansi.DIM}{s['n']} captures · {ecus}{variant_tag}{keep_tag}{transport_tag}"
+            f"{version_tag} · {s['file']}{ansi.RESET}"
+        )
+        # Data-quality footprint: flag any drops/errors recorded for the session
+        # (the transport-health provenance) so a suspect capture stands out.
+        qtag = _quality_tag(s.get("quality"))
+        if qtag:
+            print(f"    {qtag}")
+        gtag = _gaps_tag(s["link_events"], s["times"], names)
+        if gtag:
+            print(f"    {gtag}")
+        itag = _inferred_tag(_inferred(s))
+        if itag:
+            print(f"    {itag}")
+        # Distinct capture-level notes (RE annotations) — the other place notes live.
+        for cn in s["cap_notes"][:max_notes]:
+            clean = _clean(cn)
+            trunc = clean if len(clean) <= 100 else clean[:97] + "..."
+            print(f"      {ansi.DIM}▸ {trunc}{ansi.RESET}")
+        if len(s["cap_notes"]) > max_notes:
+            print(
+                f"      {ansi.DIM}… +{len(s['cap_notes']) - max_notes} more capture-notes{ansi.RESET}"
+            )
+        print()

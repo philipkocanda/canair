@@ -1,4 +1,4 @@
-"""Tests for canlib.live.sessions_scan, the sessions: YAML writer, and schema."""
+"""Tests for canair.live.sessions_scan, the sessions: YAML writer, and schema."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.live.sessions_scan import (
+from canair.live.sessions_scan import (
     KWP_SESSION_MODES,
     UDS_SESSION_MODES,
     SessionHit,
@@ -15,8 +15,8 @@ from canlib.live.sessions_scan import (
     mode_sessions_scan,
     scan_ecu_sessions,
 )
-from canlib.validation.pids import collect_pids_validation, load_schema, validate_ecu_file
-from canlib.yaml_edit.pids import append_sessions_block
+from canair.validation.pids import collect_pids_validation, load_schema, validate_ecu_file
+from canair.yaml_edit.pids import append_sessions_block
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import nrc as _nrc
 

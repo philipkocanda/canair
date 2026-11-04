@@ -1,4 +1,4 @@
-"""Tests for the DTC snapshot step of ``canair dtc`` (`canlib.live.dtc.snapshots`).
+"""Tests for the DTC snapshot step of ``canair dtc`` (`canair.live.dtc.snapshots`).
 
 The CCM replies are the Ioniq's real ones (DTC C182C, records 01 and 02, DID 4710).
 """
@@ -8,8 +8,8 @@ from contextlib import contextmanager
 
 import pytest
 
-from canlib.live import dtc
-from canlib.live.dtc import snapshots as snap_mode
+from canair.live import dtc
+from canair.live.dtc import snapshots as snap_mode
 from tests.support.fakes import FakeTerminal, nrc
 from tests.support.fakes import ok as _ok
 from tests.support.live_args import live_args
@@ -45,7 +45,7 @@ PIDS_DATA = {
 @pytest.fixture(autouse=True)
 def _ccm_name(monkeypatch):
     monkeypatch.setattr(
-        "canlib.ecus.ecu_name", lambda tx, *a, **k: {CCM: "CCM"}.get(tx, f"X{tx:03X}")
+        "canair.ecus.ecu_name", lambda tx, *a, **k: {CCM: "CCM"}.get(tx, f"X{tx:03X}")
     )
 
 
@@ -143,8 +143,8 @@ class _Pressed:
 
 class TestSweep:
     def _registry(self, monkeypatch, tx_ids):
-        monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {tx: {} for tx in tx_ids})
-        monkeypatch.setattr("canlib.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canair.ecus.load_ecus", lambda: {tx: {} for tx in tx_ids})
+        monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
 
     @pytest.mark.asyncio
     async def test_snapshots_are_a_final_step(self, monkeypatch, capsys):
@@ -177,7 +177,7 @@ class TestSweep:
         def pressed(enabled=True):
             yield _Pressed()
 
-        monkeypatch.setattr("canlib.tui.skip_key.skip_listener", pressed)
+        monkeypatch.setattr("canair.tui.skip_key.skip_listener", pressed)
         t = FakeTerminal(CCM_REPLIES)
         await dtc.mode_dtc_scan_all(t, retry=False, pids_data=PIDS_DATA)
         assert "1904582C0001" not in t.sent
@@ -196,14 +196,14 @@ class TestSweep:
 
 class TestSkipListener:
     def test_inert_off_a_tty(self, monkeypatch):
-        from canlib.tui.skip_key import skip_listener
+        from canair.tui.skip_key import skip_listener
 
         monkeypatch.setattr("sys.stdin.isatty", lambda: False, raising=False)
         with skip_listener() as keys:
             assert not keys.active and not keys.pressed
 
     def test_disabled_is_inert(self):
-        from canlib.tui.skip_key import skip_listener
+        from canair.tui.skip_key import skip_listener
 
         with skip_listener(enabled=False) as keys:
             assert not keys.active and not keys.pressed
@@ -212,7 +212,7 @@ class TestSkipListener:
 class TestDispatch:
     @pytest.mark.asyncio
     async def test_runs_through_the_dtc_handler_with_the_profile(self, capsys):
-        from canlib.cli.commands._live.handlers.diagnostics import handle_dtc
+        from canair.cli.commands._live.handlers.diagnostics import handle_dtc
 
         args = live_args(
             dtc_log=False, dtc="733", mask="FF", protocol="uds", clear=False, json=True
@@ -225,7 +225,7 @@ class TestDispatch:
 
     @pytest.mark.asyncio
     async def test_no_snapshots_flag(self):
-        from canlib.cli.commands._live.handlers.diagnostics import handle_dtc
+        from canair.cli.commands._live.handlers.diagnostics import handle_dtc
 
         args = live_args(
             dtc_log=False,
@@ -248,7 +248,7 @@ def test_wants_snapshots():
 
 @pytest.fixture
 def logp(monkeypatch, tmp_path):
-    from canlib.dtc import log as dtc_log
+    from canair.dtc import log as dtc_log
 
     path = tmp_path / "dtc_log.yaml"
     monkeypatch.setattr(dtc_log, "log_path", lambda p=None: path if p is None else p)
@@ -257,18 +257,18 @@ def logp(monkeypatch, tmp_path):
 
 def _ccm_pids(monkeypatch):
     """Decode logged snapshots with PIDS_DATA's CCM definitions."""
-    from canlib.ecus.pids import build_ecu_index
+    from canair.ecus.pids import build_ecu_index
 
     pids = build_ecu_index(PIDS_DATA)["CCM"]["pids"]
     monkeypatch.setattr(
-        "canlib.dtc.snapshot_decode.ecu_pids_index", lambda ecu: pids if ecu == "CCM" else {}
+        "canair.dtc.snapshot_decode.ecu_pids_index", lambda ecu: pids if ecu == "CCM" else {}
     )
 
 
 class TestLog:
     @pytest.mark.asyncio
     async def test_the_raw_replies_are_logged_with_the_code(self, logp):
-        from canlib.dtc import log as dtc_log
+        from canair.dtc import log as dtc_log
 
         t = FakeTerminal(CCM_REPLIES)
         await dtc.mode_dtc_read(t, CCM, protocol="uds", log=True, pids_data=PIDS_DATA)
@@ -283,7 +283,7 @@ class TestLog:
 
     @pytest.mark.asyncio
     async def test_dtc_log_decodes_them_and_notes_when_unchanged(self, logp, monkeypatch, capsys):
-        from canlib.dtc import log as dtc_log
+        from canair.dtc import log as dtc_log
 
         _ccm_pids(monkeypatch)
         for _ in range(2):
@@ -298,7 +298,7 @@ class TestLog:
         assert f"snapshots unchanged since the scan of {first['timestamp']}" in text
 
     def test_a_record_that_failed_is_not_logged(self):
-        from canlib.live.dtc.scan_log import logged_snapshots
+        from canair.live.dtc.scan_log import logged_snapshots
 
         dtcs = [{"dtc": "C182C-00", "snapshots": [{"record": 1, "error": "NRC 0x31"}]}]
         assert logged_snapshots(dtcs) == {}
@@ -307,7 +307,7 @@ class TestLog:
 class TestClear:
     @pytest.mark.asyncio
     async def test_snapshots_are_read_and_logged_before_the_clear(self, logp, capsys):
-        from canlib.dtc import log as dtc_log
+        from canair.dtc import log as dtc_log
 
         t = FakeTerminal({**CCM_REPLIES, "14FFFFFF": _ok("54")})
         await dtc.mode_dtc_clear(t, CCM, protocol="uds", log=True, pids_data=PIDS_DATA)
@@ -318,7 +318,7 @@ class TestClear:
 
     @pytest.mark.asyncio
     async def test_dtc_log_shows_what_the_clear_erased(self, logp, monkeypatch):
-        from canlib.dtc import log as dtc_log
+        from canair.dtc import log as dtc_log
 
         _ccm_pids(monkeypatch)
         t = FakeTerminal({**CCM_REPLIES, "14FFFFFF": _ok("54")})
@@ -347,10 +347,10 @@ class TestClear:
 class TestSave:
     @pytest.mark.asyncio
     async def test_replies_are_saved_under_their_own_request(self, monkeypatch):
-        from canlib.live.dtc.snapshot_capture import SESSION_NOTE
+        from canair.live.dtc.snapshot_capture import SESSION_NOTE
 
         saved = []
-        monkeypatch.setattr("canlib.captures.save_session_journaled", saved.append)
+        monkeypatch.setattr("canair.captures.save_session_journaled", saved.append)
         t = FakeTerminal(CCM_REPLIES)
         await dtc.mode_dtc_read(
             t, CCM, protocol="uds", pids_data=PIDS_DATA, save=True, label="fault", notes="n"
@@ -366,7 +366,7 @@ class TestSave:
     @pytest.mark.asyncio
     async def test_nothing_to_save_says_so(self, monkeypatch, capsys):
         saved = []
-        monkeypatch.setattr("canlib.captures.save_session_journaled", saved.append)
+        monkeypatch.setattr("canair.captures.save_session_journaled", saved.append)
         t = FakeTerminal({"1902FF": _ok("590209")})
         await dtc.mode_dtc_read(t, CCM, protocol="uds", save=True, label="x")
         assert saved == []
@@ -387,18 +387,18 @@ SNAPSHOT_CAPTURE = {
 
 class TestCoverage:
     def test_a_snapshot_capture_stands_in_for_a_snapshot_only_pid(self):
-        from canlib.cli.commands.coverage.payloads import select_captures
+        from canair.cli.commands.coverage.payloads import select_captures
 
         picked = select_captures([SNAPSHOT_CAPTURE], snapshot_only={("CCM", "224710")})
         assert picked.payloads[("CCM", "224710")]["payload"] == "624710C02E6736FC0AFFFFF8"
 
     def test_not_for_a_pid_without_the_flag(self):
-        from canlib.cli.commands.coverage.payloads import select_captures
+        from canair.cli.commands.coverage.payloads import select_captures
 
         assert ("CCM", "224710") not in select_captures([SNAPSHOT_CAPTURE]).payloads
 
     def test_the_flagged_keys_come_from_the_profile(self):
-        from canlib.cli.commands.coverage import snapshot_only_pids
+        from canair.cli.commands.coverage import snapshot_only_pids
 
         assert snapshot_only_pids(PIDS_DATA) == {("CCM", "224710")}
 
@@ -415,11 +415,11 @@ class TestSensitive:
 
     @pytest.mark.asyncio
     async def test_masked_not_logged_not_saved(self, logp, monkeypatch, capsys):
-        from canlib.dtc import log as dtc_log
-        from canlib.privacy.sensitive import MASK
+        from canair.dtc import log as dtc_log
+        from canair.privacy.sensitive import MASK
 
         saved = []
-        monkeypatch.setattr("canlib.captures.save_session_journaled", saved.append)
+        monkeypatch.setattr("canair.captures.save_session_journaled", saved.append)
         t = FakeTerminal(CCM_REPLIES)
         await dtc.mode_dtc_read(
             t,

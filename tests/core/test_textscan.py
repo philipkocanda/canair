@@ -1,10 +1,10 @@
-"""Tests for the pure text-scanning primitives (:mod:`canlib.core.textscan`)."""
+"""Tests for the pure text-scanning primitives (:mod:`canair.core.textscan`)."""
 
 from __future__ import annotations
 
 import pytest
 
-from canlib.core import textscan as ts
+from canair.core import textscan as ts
 
 # Synthetic: VIN-shaped (17 characters, no I/O/Q, has letters) but no real vehicle.
 SYNTH_VIN = "SYNTHVXN012345678"

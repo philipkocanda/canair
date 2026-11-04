@@ -1,11 +1,11 @@
-"""Integration tests for the sniff Textual app (canlib.cli.commands._sniff_tui)."""
+"""Integration tests for the sniff Textual app (canair.cli.commands._sniff_tui)."""
 
 from __future__ import annotations
 
 import pytest
 
-from canlib.cli.commands._sniff_tui import SniffApp
-from canlib.cli.commands.sniff import SniffStats
+from canair.cli.commands._sniff_tui import SniffApp
+from canair.cli.commands.sniff import SniffStats
 
 
 def _plain(renderable) -> str:
@@ -15,7 +15,7 @@ def _plain(renderable) -> str:
 class TestSniffApp:
     @pytest.mark.asyncio
     async def test_help_modal_opens_with_question_mark(self):
-        from canlib.tui.help import HelpModal
+        from canair.tui.help import HelpModal
 
         app = SniffApp(SniffStats(), host="10.0.0.1")
         async with app.run_test(size=(100, 30)) as pilot:

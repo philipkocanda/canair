@@ -1,11 +1,11 @@
-"""Tests for canlib.live.monitor_edit — selection, filtering, in-place editing."""
+"""Tests for canair.live.monitor_edit — selection, filtering, in-place editing."""
 
 import textwrap
 
 import pytest
 import yaml
 
-from canlib.live.monitor_edit import MonitorEditor
+from canair.live.monitor_edit import MonitorEditor
 
 
 class FakeController:
@@ -18,7 +18,7 @@ class FakeController:
         self.reloaded = 0
 
     def reload_pids(self):
-        from canlib.ecus.pids import load_pids
+        from canair.ecus.pids import load_pids
 
         self.reloaded += 1
         if self.pids_dir is not None:
@@ -196,7 +196,7 @@ def ecus_dir(tmp_path):
 
 
 def _editor_on_disk(ecus_dir):
-    from canlib.ecus.pids import load_pids
+    from canair.ecus.pids import load_pids
 
     pids_data = load_pids(ecus_dir)
     lq = [("BMS (0x7E4)", [{"pid": "2101", "params": [_row("SOC", expr="B4/2")]}])]

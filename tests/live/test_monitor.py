@@ -1,9 +1,9 @@
-"""Tests for canlib.live.monitor — rendering and helper functions."""
+"""Tests for canair.live.monitor — rendering and helper functions."""
 
 import json
 
-from canlib.live._monitor_history import HistoryRun, extend_runs
-from canlib.live.monitor import (
+from canair.live._monitor_history import HistoryRun, extend_runs
+from canair.live.monitor import (
     _HIGHLIGHT_STYLE,
     MonitorController,
     RenderCache,
@@ -167,7 +167,7 @@ class TestRenderResults:
         assert "idx" not in with_r
 
     def test_ruler_notation_follows_request(self):
-        from canlib.uds.notation import ByteNotation
+        from canair.uds.notation import ByteNotation
 
         params = [("VOLT", 12.3, "V", "B02", None, True)]
         entry = self._make_pid_result(pid="2101", params=params, raw_hex="6101AB")
@@ -188,7 +188,7 @@ class TestRenderResults:
     def test_history_render_is_capped(self):
         # A noisy PID can accrue thousands of runs; the render must cap to the
         # newest _RENDER_MAX_ROWS and summarize the rest.
-        from canlib.live.monitor import _RENDER_MAX_ROWS
+        from canair.live.monitor import _RENDER_MAX_ROWS
 
         n = _RENDER_MAX_ROWS + 50
         hexes = [f"6101{i:04X}" for i in range(n)]
@@ -257,7 +257,7 @@ class TestRenderResults:
             assert label in t.plain
 
     def test_stale_age_invalidates_the_render_cache(self):
-        from canlib.live._monitor_render import RenderCache
+        from canair.live._monitor_render import RenderCache
 
         cache = RenderCache()
         entry = {"pid": "2101", "raw_hex": "6101AA", "stale": True, "acquired_at": 1000.0}
@@ -332,7 +332,7 @@ class TestRenderResults:
         assert "view: signals" in text
 
     def test_view_mode_ranges_shows_span(self):
-        from canlib.live._monitor_stats import ParamStats
+        from canair.live._monitor_stats import ParamStats
 
         stats = ParamStats()
         key = ("BMS (0x7E4)", "2101")
@@ -774,7 +774,7 @@ class TestControllerSnapshot:
         assert c.unique_frames == 0
 
     def test_history_render_limit_by_keep_mode(self):
-        from canlib.live.monitor import _RENDER_DEFAULT_ROWS, MonitorController
+        from canair.live.monitor import _RENDER_DEFAULT_ROWS, MonitorController
 
         def _c(**kw):
             return MonitorController(
@@ -790,7 +790,7 @@ class TestControllerSnapshot:
         assert _c(keep_mode="last", keep_n=25)._history_render_limit() == 25
 
     def test_segment_title_and_meta(self):
-        from canlib.live.monitor import MonitorController
+        from canair.live.monitor import MonitorController
 
         c = MonitorController(
             terminal=None,
@@ -889,7 +889,7 @@ class TestControllerJournal:
         return c
 
     def test_record_appends_to_journal(self, tmp_path):
-        from canlib.captures.journal import CaptureJournal
+        from canair.captures.journal import CaptureJournal
 
         c = self._controller()
         c.captures_dir = tmp_path
@@ -905,7 +905,7 @@ class TestControllerJournal:
         assert s["captures"][0]["payload"] == "6101AA"
 
     def test_journaling_skips_dead_save_history(self, tmp_path):
-        from canlib.captures.journal import CaptureJournal
+        from canair.captures.journal import CaptureJournal
 
         c = self._controller()
         c.captures_dir = tmp_path
@@ -920,7 +920,7 @@ class TestControllerJournal:
         assert ("BMS (0x7E4)", "2101") in c.save_history
 
     def test_save_now_updates_journal_meta_not_a_second_session(self, tmp_path):
-        from canlib.captures.journal import CaptureJournal
+        from canair.captures.journal import CaptureJournal
 
         c = self._controller()
         c.captures_dir = tmp_path
@@ -938,7 +938,7 @@ class TestControllerJournal:
 
     def test_new_segment_rotates_journal(self, tmp_path):
         """'n' reconciles the current segment and opens a fresh, newly-labelled one."""
-        from canlib.captures.journal import CaptureJournal
+        from canair.captures.journal import CaptureJournal
 
         c = self._controller()
         c.captures_dir = tmp_path
@@ -967,7 +967,7 @@ class TestControllerJournal:
 
     def test_new_segment_defers_destination_banner(self, tmp_path, capsys):
         """Rotating a segment writes a file — its full path is queued, not lost."""
-        from canlib.captures.journal import CaptureJournal
+        from canair.captures.journal import CaptureJournal
 
         c = self._controller()
         c.captures_dir = tmp_path
@@ -991,14 +991,14 @@ class TestControllerJournal:
 
 class TestControllerSuggestedState:
     def _controller(self, monkeypatch, rules):
-        from canlib import states
+        from canair import states
 
         c = MonitorController(terminal=None, query_steps=[], pids_data={}, verbose=False)
         monkeypatch.setattr(states, "load_states", lambda profile=None: rules)
         return c
 
     def test_suggests_from_decoded_values(self, monkeypatch):
-        from canlib.states import StateRule, compile_predicate
+        from canair.states import StateRule, compile_predicate
 
         rules = [
             StateRule("charging", predicate=compile_predicate("BMS.BATTERY_CURRENT < -1")),
@@ -1023,7 +1023,7 @@ class TestControllerSuggestedState:
         assert c.suggested_state() == "charging"
 
     def test_no_response_when_nothing_polled(self, monkeypatch):
-        from canlib.states import StateRule, compile_predicate
+        from canair.states import StateRule, compile_predicate
 
         rules = [StateRule("deep sleep", predicate=compile_predicate("__no_response__"))]
         c = self._controller(monkeypatch, rules)
@@ -1037,7 +1037,7 @@ class TestControllerSuggestedState:
         return [(ecu, [{"pid": pid, "raw_hex": "6101", "params": params}])]
 
     def _driving_rules(self):
-        from canlib.states import StateRule, compile_predicate
+        from canair.states import StateRule, compile_predicate
 
         # READY is declared first, so file order alone would report READY while
         # driving even though DRIVING is the specific reading. This is the bug.
@@ -1065,7 +1065,7 @@ class TestControllerSuggestedState:
         assert c.suggested_states() == ["READY", "DRIVING"]
 
     def test_stale_speed_expires_so_driving_stops_matching(self, monkeypatch):
-        from canlib.live.monitor import STATE_INPUT_STALE_CYCLES
+        from canair.live.monitor import STATE_INPUT_STALE_CYCLES
 
         c = self._controller(monkeypatch, self._driving_rules())
         self._poll(c, 42.0)
@@ -1081,7 +1081,7 @@ class TestControllerSuggestedState:
         assert c.suggested_state() == "READY"
 
     def test_refreshed_values_never_expire(self, monkeypatch):
-        from canlib.live.monitor import STATE_INPUT_STALE_CYCLES
+        from canair.live.monitor import STATE_INPUT_STALE_CYCLES
 
         c = self._controller(monkeypatch, self._driving_rules())
         for _ in range(STATE_INPUT_STALE_CYCLES * 3):
@@ -1097,8 +1097,8 @@ class TestControllerSuggestedState:
         assert c.suggested_state() == "DRIVING"
 
     def test_responded_expires_too(self, monkeypatch):
-        from canlib.live.monitor import STATE_INPUT_STALE_CYCLES
-        from canlib.states import StateRule, compile_predicate
+        from canair.live.monitor import STATE_INPUT_STALE_CYCLES
+        from canair.states import StateRule, compile_predicate
 
         rules = [StateRule("SLEEP", predicate=compile_predicate("__no_response__"))]
         c = self._controller(monkeypatch, rules)
@@ -1117,8 +1117,8 @@ class TestDynamicSchedulePerPidClock:
     the tick count. Drives the real scheduler + _record together."""
 
     def _controller(self, monkeypatch):
-        from canlib import states
-        from canlib.states import StateRule, compile_predicate
+        from canair import states
+        from canair.states import StateRule, compile_predicate
 
         rules = [
             StateRule("READY", predicate=compile_predicate("VCU.EV_READY == 1")),
@@ -1276,7 +1276,7 @@ class TestRecorderKeepModes:
         assert "keep_mode" not in session
 
     def test_keep_changes_saves_transitions_and_says_so(self, tmp_path):
-        from canlib.captures import io as capture_io
+        from canair.captures import io as capture_io
 
         c = MonitorController(
             terminal=None, query_steps=[], pids_data={}, verbose=False, keep_mode="changes"
@@ -1294,13 +1294,13 @@ def test_the_elm327_warmup_read_is_one_validated_transaction(monkeypatch):
     # bare set_header + send_uds could be re-pointed at another ECU in between.
     import asyncio
 
-    from canlib.live.monitor import MonitorController
+    from canair.live.monitor import MonitorController
     from tests.support.fakes import FakeTerminal, ok
 
     terminal = FakeTerminal({"22BC03": ok("62BC03AA")})
     c = MonitorController(terminal, [{"ecu": "IGPM", "pids": []}], {}, verbose=False)
     monkeypatch.setattr(
-        "canlib.ecus.pids.build_ecu_index",
+        "canair.ecus.pids.build_ecu_index",
         lambda _data: {"IGPM": {"tx_id": 0x770, "pids": {"22BC03": {"parameters": {}}}}},
     )
 
@@ -1324,14 +1324,14 @@ class TestNrcClassification:
     """A negative response is told apart by its code, not by its error text."""
 
     def test_the_elm327_error_result_carries_the_code(self):
-        from canlib.live.multi_batch import _error_result
+        from canair.live.multi_batch import _error_result
 
         r = _error_result("2101", False, {"ok": False, "nrc": 0x31, "nrc_desc": "ROOR"}, 1.0)
         assert r["nrc"] == 0x31 and r["error"] == "NRC 0x31 (ROOR)"
         assert "nrc" not in _error_result("2101", False, {"ok": False, "error": "NO DATA"}, 1.0)
 
     def test_is_nrc_reads_the_code(self):
-        from canlib.live.monitor import _answered, _is_nrc
+        from canair.live.monitor import _answered, _is_nrc
 
         assert _is_nrc({"pid": "2101", "error": "NRC 0x31 (ROOR)", "nrc": 0x31})
         # An error whose text merely starts with the letters is not an answer.

@@ -1,18 +1,18 @@
-"""Tests for canlib.live.kwp_routines_scan and the KWP/UDS routine-scan split."""
+"""Tests for canair.live.kwp_routines_scan and the KWP/UDS routine-scan split."""
 
 from __future__ import annotations
 
 import pytest
 import yaml
 
-from canlib.ecus import split_ecus_by_protocol
-from canlib.live.kwp_routines_scan import (
+from canair.ecus import split_ecus_by_protocol
+from canair.live.kwp_routines_scan import (
     KWP_ROUTINES_PROBE,
     KwpRoutineHit,
     classify,
     probe_kwp_routine_results,
 )
-from canlib.yaml_edit.pids import append_routines_block
+from canair.yaml_edit.pids import append_routines_block
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok
 
@@ -100,7 +100,7 @@ def test_split_unknown_ecu_defaults_to_uds():
 
 @pytest.mark.asyncio
 async def test_a_nissan_profile_warns_that_0x33_is_unproven(capsys):
-    from canlib.live.kwp_routines_scan import mode_kwp_routines_scan
+    from canair.live.kwp_routines_scan import mode_kwp_routines_scan
     from tests.support.fakes import nrc
 
     pids = {"quirks": ["nissan_c0_session"], "ecus": {"VCM": {"tx_id": 0x797}}}
@@ -113,7 +113,7 @@ async def test_a_nissan_profile_warns_that_0x33_is_unproven(capsys):
 
 @pytest.mark.asyncio
 async def test_other_profiles_scan_without_the_warning(capsys):
-    from canlib.live.kwp_routines_scan import mode_kwp_routines_scan
+    from canair.live.kwp_routines_scan import mode_kwp_routines_scan
     from tests.support.fakes import nrc
 
     term = FakeTerminal(default=nrc(0x31))

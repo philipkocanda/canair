@@ -8,7 +8,7 @@ to the same command.
 
 from __future__ import annotations
 
-from canlib.cli import build_parser
+from canair.cli import build_parser
 
 
 def _parse(argv: list[str]):
@@ -17,16 +17,16 @@ def _parse(argv: list[str]):
 
 def _stub_live(monkeypatch):
     """Skip the ECU-name preflight (needs a profile) and the device connect."""
-    from canlib.cli.commands import read
+    from canair.cli.commands import read
 
     monkeypatch.setattr(read, "run_live", lambda args, operation: 0)
-    monkeypatch.setattr("canlib.live.monitor.query_ecu_error", lambda steps, pids: None)
-    monkeypatch.setattr("canlib.cli.commands._live.load_pids", lambda: {})
+    monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
+    monkeypatch.setattr("canair.cli.commands._live.load_pids", lambda: {})
 
 
 class TestMonitorHint:
     def test_hint_shown_on_tty(self, monkeypatch, capsys):
-        from canlib.cli.commands import read
+        from canair.cli.commands import read
 
         _stub_live(monkeypatch)
         monkeypatch.setattr("sys.stdout.isatty", lambda: True)
@@ -36,7 +36,7 @@ class TestMonitorHint:
         assert "canair monitor" in capsys.readouterr().err
 
     def test_hint_suppressed_when_piped(self, monkeypatch, capsys):
-        from canlib.cli.commands import read
+        from canair.cli.commands import read
 
         _stub_live(monkeypatch)
         monkeypatch.setattr("sys.stdout.isatty", lambda: False)
@@ -46,7 +46,7 @@ class TestMonitorHint:
         assert "canair monitor" not in capsys.readouterr().err
 
     def test_hint_suppressed_with_json(self, monkeypatch, capsys):
-        from canlib.cli.commands import read
+        from canair.cli.commands import read
 
         _stub_live(monkeypatch)
         monkeypatch.setattr("sys.stdout.isatty", lambda: True)
@@ -58,7 +58,7 @@ class TestMonitorHint:
 
 class TestQueryAlias:
     def test_query_alias_dispatches_to_read(self, monkeypatch, capsys):
-        from canlib.cli.commands import read
+        from canair.cli.commands import read
 
         _stub_live(monkeypatch)
         monkeypatch.setattr("sys.stdout.isatty", lambda: False)

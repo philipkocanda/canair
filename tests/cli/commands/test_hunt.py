@@ -3,8 +3,8 @@
 import argparse
 import json
 
-from canlib.cli.commands import hunt
-from canlib.uds.inspect_bytes import NO_EXPR
+from canair.cli.commands import hunt
+from canair.uds.inspect_bytes import NO_EXPR
 
 
 def _write_ramp(tmp_path):
@@ -19,16 +19,16 @@ def _write_ramp(tmp_path):
 
 
 def _run(tmp_path, monkeypatch, argv):
-    import canlib.analysis.align as align
+    import canair.analysis.align as align
 
     orig = align.load_signal_captures
     monkeypatch.setattr(
-        "canlib.cli.commands.hunt.load_signal_captures",
+        "canair.cli.commands.hunt.load_signal_captures",
         lambda s, **kw: orig(
             s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
         ),
     )
-    monkeypatch.setattr("canlib.ecus.canonical_ecu_name_safe", lambda e: e.upper())
+    monkeypatch.setattr("canair.ecus.canonical_ecu_name_safe", lambda e: e.upper())
     p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
     args = p.parse_args(["uds", *argv])
     return args.func(args)
@@ -286,7 +286,7 @@ class TestNoExprConstant:
         ints once printed ``<no-expr>`` though they are expressible as arithmetic
         shift forms, which made a top-ranked hit un-promotable for no reason.
         """
-        from canlib.uds.inspect_bytes import INSPECT_TYPES, wican_expr
+        from canair.uds.inspect_bytes import INSPECT_TYPES, wican_expr
 
         for spec in INSPECT_TYPES:
             for little in (False, True):
@@ -297,7 +297,7 @@ class TestNoExprConstant:
                     assert expr, f"{spec.name} (little={little}) must be expressible"
 
     def test_le_signed_uses_arithmetic_form(self):
-        from canlib.uds.inspect_bytes import INSPECT_TYPES, wican_expr
+        from canair.uds.inspect_bytes import INSPECT_TYPES, wican_expr
 
         i16 = next(s for s in INSPECT_TYPES if s.name == "i16")
         assert wican_expr(9, i16, little=True) == "B9 + S10*256"

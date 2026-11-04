@@ -15,8 +15,8 @@ from rich.cells import cell_len
 from textual.app import App, ComposeResult
 from textual.widgets.selection_list import Selection
 
-from canlib.tui import widgets
-from canlib.tui.widgets import CheckBox, CheckSelectionList
+from canair.tui import widgets
+from canair.tui.widgets import CheckBox, CheckSelectionList
 
 
 def test_both_glyphs_are_the_same_width():

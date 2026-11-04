@@ -12,12 +12,12 @@ import asyncio
 
 import pytest
 
-from canlib.live.monitor import MonitorController
-from canlib.safety.blocklist import SafetyBlocked, SessionPolicy
-from canlib.transport.config import ConnectionOptions
-from canlib.transport.raw import uds_client as uds_raw
-from canlib.uds.addressing import EcuAddress
-from canlib.uds.protocol import KWP
+from canair.live.monitor import MonitorController
+from canair.safety.blocklist import SafetyBlocked, SessionPolicy
+from canair.transport.config import ConnectionOptions
+from canair.transport.raw import uds_client as uds_raw
+from canair.uds.addressing import EcuAddress
+from canair.uds.protocol import KWP
 
 PIDS = {
     "ecus": {
@@ -181,8 +181,8 @@ class TestRawUdsClientGuard:
         assert c._stacks["BMS"].sent == []
 
     def test_build_raw_client_wires_the_profile_policy(self, monkeypatch):
-        from canlib.live import raw_monitor
-        from canlib.transport.raw import slcan_tcp
+        from canair.live import raw_monitor
+        from canair.transport.raw import slcan_tcp
 
         seen = {}
 
@@ -190,9 +190,9 @@ class TestRawUdsClientGuard:
             def __init__(self, *a, session_policy=None, **k):
                 seen["policy"] = session_policy
 
-        monkeypatch.setattr("canlib.transport.RawUdsClient", _Client)
+        monkeypatch.setattr("canair.transport.RawUdsClient", _Client)
         monkeypatch.setattr(slcan_tcp, "SlcanTcpBus", lambda *a, **k: object())
-        monkeypatch.setattr("canlib.transport.SlcanTcpBus", lambda *a, **k: object())
+        monkeypatch.setattr("canair.transport.SlcanTcpBus", lambda *a, **k: object())
 
         raw_monitor.build_raw_client("h", 1, 500_000, {}, ConnectionOptions(), PIDS)
         assert seen["policy"].protocol(0x7E4) == KWP
@@ -200,7 +200,7 @@ class TestRawUdsClientGuard:
 
 class TestRefusalIsReportedNotRaised:
     def test_run_session_guarded_reports_and_exits_2(self, monkeypatch, capsys):
-        from canlib.live import session
+        from canair.live import session
 
         async def _blocked(*a, **k):
             raise SafetyBlocked("BLOCKED: programmingSession")
@@ -220,8 +220,8 @@ class TestRefusalIsReportedNotRaised:
         assert "error: BLOCKED: programmingSession" in capsys.readouterr().err
 
     def test_cli_main_reports_and_exits_2(self, monkeypatch, capsys):
-        from canlib import cli
-        from canlib.cli.commands import io
+        from canair import cli
+        from canair.cli.commands import io
 
         def _blocked(args):
             raise SafetyBlocked("BLOCKED: nope")
@@ -232,8 +232,8 @@ class TestRefusalIsReportedNotRaised:
 
     def test_a_blocked_iocontrol_session_mode_surfaces_as_safety_blocked(self):
         """The ValueError the terminal raises is the dedicated, catchable type."""
-        from canlib.live.iocontrol import mode_iocontrol_execute
-        from canlib.transport.raw.terminal import RawTerminal
+        from canair.live.iocontrol import mode_iocontrol_execute
+        from canair.transport.raw.terminal import RawTerminal
 
         term = RawTerminal.__new__(RawTerminal)
         term.unsafe = False

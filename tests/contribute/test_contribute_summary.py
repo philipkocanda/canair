@@ -7,8 +7,8 @@ import time
 
 import pytest
 
-from canlib.contribute import logs as L
-from canlib.contribute import summary as S
+from canair.contribute import logs as L
+from canair.contribute import summary as S
 
 
 @pytest.fixture

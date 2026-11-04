@@ -6,9 +6,9 @@ import pytest
 from textual.app import App
 from textual.binding import Binding
 
-from canlib.live._monitor_render import MONITOR_LEGEND, _render_results
-from canlib.live.multi_batch import _decode_pid_result
-from canlib.render.formatting import (
+from canair.live._monitor_render import MONITOR_LEGEND, _render_results
+from canair.live.multi_batch import _decode_pid_result
+from canair.render.formatting import (
     _HIGHLIGHT_STYLE,
     BYTE_COLOUR_LEGEND,
     MAP_BYTE_STYLE,
@@ -16,9 +16,9 @@ from canlib.render.formatting import (
     _render_hex_line,
     render_byte_rulers,
 )
-from canlib.tui.help import HelpMixin, HelpModal, legend_text
-from canlib.uds.notation import ByteDisplay, ByteNotation
-from canlib.uds.support_map import map_byte_indices
+from canair.tui.help import HelpMixin, HelpModal, legend_text
+from canair.uds.notation import ByteDisplay, ByteNotation
+from canair.uds.support_map import map_byte_indices
 
 # 62 BC03 | map FD EE 3C 73 | data 0A 00 00 00 — WiCAN B10 is the first data byte (index 7).
 PAYLOAD = "62BC03FDEE3C730A000000"

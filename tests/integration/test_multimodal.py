@@ -4,13 +4,13 @@ date/bcd/struct), categorical statistics, and the event field-transition view.
 
 from datetime import date
 
-from canlib.analysis import stats as stats
-from canlib.expression import decode_value as dv
-from canlib.uds.wican_layout import uds_hex_to_wican_bytes
+from canair.analysis import stats as stats
+from canair.expression import decode_value as dv
+from canair.uds.wican_layout import uds_hex_to_wican_bytes
 
 
 class TestTypedDecode:
-    """canlib.expression.decode_value.decode_typed — the parallel typed decoder."""
+    """canair.expression.decode_value.decode_typed — the parallel typed decoder."""
 
     def test_numeric_default_is_unchanged(self):
         d = dv.decode_typed({"expression": "B3"}, bytes([0, 0, 0, 42]))
@@ -195,7 +195,7 @@ class TestIdentityRegression:
     """De-siloing date/ASCII into decode_value must not change identity output."""
 
     def test_identity_date_and_ascii(self):
-        from canlib.live.identity_decode import decode_identity_payload
+        from canair.live.identity_decode import decode_identity_payload
 
         assert decode_identity_payload(bytes([0x20, 0x17, 0x06, 0x06]), "date") == "2017-06-06"
         assert decode_identity_payload(b"HELLO", "ascii") == "HELLO"

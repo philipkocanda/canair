@@ -1,7 +1,7 @@
 """Tests for capture link events: when a recording could not see the car, and why.
 
-Covers the pure leaf (``canlib.captures.link_events``), the journal round trip into a
-capture file, the monitor's recorder (``canlib.live._monitor_link_events``) and its
+Covers the pure leaf (``canair.captures.link_events``), the journal round trip into a
+capture file, the monitor's recorder (``canair.live._monitor_link_events``) and its
 hooks in the controller, and the readers (``--sessions``, ``validate captures``).
 Plan: ``plans/2026-11-02-capture-link-events.md``.
 """
@@ -11,17 +11,17 @@ from datetime import datetime, timedelta
 
 from jsonschema import Draft202012Validator
 
-from canlib.captures import io as capture_io
-from canlib.captures.journal import CaptureJournal, build_session_from_records, recover
-from canlib.captures.link_events import (
+from canair.captures import io as capture_io
+from canair.captures.journal import CaptureJournal, build_session_from_records, recover
+from canair.captures.link_events import (
     events_by_date,
     gap_intervals,
     in_closed_gap,
     session_link_events,
     summarize,
 )
-from canlib.live._monitor_link_events import LinkEventTracker
-from canlib.validation._common import CAPTURES_SCHEMA_FILE
+from canair.live._monitor_link_events import LinkEventTracker
+from canair.validation._common import CAPTURES_SCHEMA_FILE
 
 DAY = "2026-11-02"
 T0 = datetime(2026, 11, 2, 14, 0, 0)
@@ -290,7 +290,7 @@ class TestTracker:
 
 class TestControllerHooks:
     def _controller(self):
-        from canlib.live.monitor import MonitorController
+        from canair.live.monitor import MonitorController
 
         steps = [{"type": "query", "ecu": "BMS", "pids": ["2101"]}]
         c = MonitorController(object(), steps, {"ecus": {}}, verbose=False)
@@ -300,7 +300,7 @@ class TestControllerHooks:
         return c, journal
 
     def test_a_stale_trip_opens_a_gap_at_the_last_answer(self, monkeypatch):
-        from canlib import config
+        from canair import config
 
         monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 2)
         c, journal = self._controller()
@@ -326,7 +326,7 @@ class TestControllerHooks:
 
 class TestSegmentRotation:
     def test_an_open_gap_is_restated_in_the_next_segment(self, tmp_path):
-        from canlib.live._monitor_record import MonitorRecorder
+        from canair.live._monitor_record import MonitorRecorder
         from tests.support.monitor_recorder import FakeController
 
         c = FakeController(tmp_path)
@@ -354,8 +354,8 @@ def _session(events, times=("14:00:00.000", "14:05:00.000")):
 
 class TestSessionsView:
     def test_text_view_reports_gaps(self, tmp_path, capsys):
-        from canlib.captures.store import flatten_session
-        from canlib.cli.commands.captures.sessions import cmd_sessions
+        from canair.captures.store import flatten_session
+        from canair.cli.commands.captures.sessions import cmd_sessions
 
         events = [
             {"at": "14:01:00.000", "until": "14:02:00.000", "kind": "disconnect"},
@@ -371,8 +371,8 @@ class TestSessionsView:
         assert "3 resyncs" in out
 
     def test_json_view_carries_the_events(self, tmp_path, capsys):
-        from canlib.captures.store import flatten_session
-        from canlib.cli.commands.captures.sessions import cmd_sessions
+        from canair.captures.store import flatten_session
+        from canair.cli.commands.captures.sessions import cmd_sessions
 
         events = [{"at": "14:01:00.000", "kind": "resync"}]
         entries = flatten_session(tmp_path / f"{DAY}.json", 0, _session(events), rx_index={})
@@ -380,8 +380,8 @@ class TestSessionsView:
         assert json.loads(capsys.readouterr().out)[0]["link_events"] == events
 
     def test_a_session_without_events_prints_no_gaps_line(self, tmp_path, capsys):
-        from canlib.captures.store import flatten_session
-        from canlib.cli.commands.captures.sessions import cmd_sessions
+        from canair.captures.store import flatten_session
+        from canair.cli.commands.captures.sessions import cmd_sessions
 
         session = _session([])
         del session["link_events"]
@@ -391,7 +391,7 @@ class TestSessionsView:
 
 class TestValidateWarning:
     def test_a_payload_inside_a_closed_disconnect_warns(self, tmp_path):
-        from canlib.validation.link_events import link_event_warnings
+        from canair.validation.link_events import link_event_warnings
 
         events = [{"at": "14:01:00.000", "until": "14:10:00.000", "kind": "disconnect"}]
         path = tmp_path / f"{DAY}.json"
@@ -400,7 +400,7 @@ class TestValidateWarning:
         assert "1 payload capture(s) timed inside a recorded gap" in str(warning)
 
     def test_payloads_at_the_bounds_do_not_warn(self, tmp_path):
-        from canlib.validation.link_events import link_event_warnings
+        from canair.validation.link_events import link_event_warnings
 
         events = [{"at": "14:00:00.000", "until": "14:05:00.000", "kind": "disconnect"}]
         path = tmp_path / f"{DAY}.json"
@@ -461,7 +461,7 @@ class TestScopedEvents:
         ]
 
     def test_applies_to(self):
-        from canlib.captures.link_events import applies_to
+        from canair.captures.link_events import applies_to
 
         whole = {"kind": "disconnect"}
         ecu = {"kind": "ecu_silent", "rx": "0x7EC"}
@@ -472,7 +472,7 @@ class TestScopedEvents:
         assert applies_to(pid, "0x7EC", "2105") and not applies_to(pid, "0x7EC", "2101")
 
     def test_gap_intervals_by_scope_and_kind(self):
-        from canlib.captures.link_events import SESSION_GAP_KINDS
+        from canair.captures.link_events import SESSION_GAP_KINDS
 
         events = [
             {"at": "14:00:00", "until": "14:00:10", "kind": "paused"},
@@ -515,7 +515,7 @@ class TestScopedEvents:
 
 
 def parse_key(raw: str) -> float:
-    from canlib.states.spans import parse_time_key
+    from canair.states.spans import parse_time_key
 
     key = parse_time_key(raw)
     assert key is not None
@@ -629,7 +629,7 @@ class TestScopedTracker:
 
 class TestControllerScopedHooks:
     def _controller(self):
-        from canlib.live.monitor import MonitorController
+        from canair.live.monitor import MonitorController
 
         c = MonitorController(object(), [], {"ecus": {}}, verbose=False)
         journal = _ListJournal()
@@ -637,7 +637,7 @@ class TestControllerScopedHooks:
         return c, journal
 
     def test_a_silent_ecu_among_answering_ones(self):
-        from canlib.live.poll_backoff import PollCost
+        from canair.live.poll_backoff import PollCost
 
         c, journal = self._controller()
         for _ in range(3):
@@ -651,7 +651,7 @@ class TestControllerScopedHooks:
         assert journal.scopes == [{"kind": "ecu_silent", "id": 1, "rx": "0x7EC"}]
 
     def test_backoff_changes_are_recorded(self, monkeypatch):
-        from canlib.live.poll_backoff import PollCost
+        from canair.live.poll_backoff import PollCost
 
         c, journal = self._controller()
         monkeypatch.setattr(c.backoff, "observe", lambda _key, _cost: 4)
@@ -662,7 +662,7 @@ class TestControllerScopedHooks:
         ]
 
     def test_an_ecu_with_one_answering_pid_is_not_silent(self):
-        from canlib.live.poll_backoff import PollCost
+        from canair.live.poll_backoff import PollCost
 
         c, journal = self._controller()
         for _ in range(3):
@@ -677,7 +677,7 @@ class TestControllerScopedHooks:
 
 class TestScopedFill:
     def _rows(self, events, rx="0x7EC", pid="2101"):
-        from canlib.analysis.fill import FillPolicy, hold_until_vector, session_end_times
+        from canair.analysis.fill import FillPolicy, hold_until_vector, session_end_times
 
         rows = []
         for sec in (0, 600):
@@ -715,9 +715,9 @@ class TestScopedFill:
 
 class TestFillReport:
     def test_cut_carries_are_counted_and_reported(self):
-        from canlib.analysis.align import LoadedPid
-        from canlib.analysis.fill import FillPolicy, session_end_times
-        from canlib.cli.commands._join import fill_summaries, fill_summary_line
+        from canair.analysis.align import LoadedPid
+        from canair.analysis.fill import FillPolicy, session_end_times
+        from canair.cli.commands._join import fill_summaries, fill_summary_line
 
         events = [{"at": "14:01:00.000", "until": "14:02:00.000", "kind": "disconnect"}]
         caps = [
@@ -747,34 +747,34 @@ class TestInferredGaps:
         return [_at(s).strftime("%H:%M:%S.%f")[:-3] for s in secs]
 
     def test_a_long_hole_in_a_keep_all_session_is_inferred(self):
-        from canlib.captures.inferred_gaps import infer_gaps
+        from canair.captures.inferred_gaps import infer_gaps
 
         times = self._times(*range(0, 20, 2), 200, 202)
         assert infer_gaps(times) == [(parse_key("14:00:18"), parse_key("14:03:20"))]
 
     def test_run_length_sessions_and_short_sessions_infer_nothing(self):
-        from canlib.captures.inferred_gaps import infer_gaps
+        from canair.captures.inferred_gaps import infer_gaps
 
         times = self._times(*range(0, 20, 2), 200)
         assert infer_gaps(times, keep_mode="changes") == []
         assert infer_gaps(self._times(0, 200)) == []
 
     def test_a_recorded_gap_explains_the_hole(self):
-        from canlib.captures.inferred_gaps import infer_gaps
+        from canair.captures.inferred_gaps import infer_gaps
 
         times = self._times(*range(0, 20, 2), 200, 202)
         events = [{"at": "14:00:18.000", "until": "14:03:20.000", "kind": "disconnect"}]
         assert infer_gaps(times, events) == []
 
     def test_the_spacing_scales_the_threshold(self):
-        from canlib.captures.inferred_gaps import infer_gaps
+        from canair.captures.inferred_gaps import infer_gaps
 
         # One PID polled once a minute: a two-minute hole is not ten times its spacing.
         assert infer_gaps(self._times(*range(0, 600, 60), 720)) == []
 
     def test_sessions_view_prints_inferred_gaps(self, tmp_path, capsys):
-        from canlib.captures.store import flatten_session
-        from canlib.cli.commands.captures.sessions import cmd_sessions
+        from canair.captures.store import flatten_session
+        from canair.cli.commands.captures.sessions import cmd_sessions
 
         session = _session([], times=self._times(*range(0, 20, 2), 200, 202))
         del session["link_events"]
@@ -799,7 +799,7 @@ class TestStepGaps:
         }
 
     def test_a_gap_between_two_frames_is_reported_once(self):
-        from canlib.cli.commands.captures.step_gaps import describe_gap, gaps_before
+        from canair.cli.commands.captures.step_gaps import describe_gap, gaps_before
 
         events = [{"at": "14:00:10.000", "until": "14:01:10.000", "kind": "disconnect"}]
         a, b, c = (self._entry(s, events) for s in (0, 80, 90))
@@ -808,7 +808,7 @@ class TestStepGaps:
         assert gaps_before([c], _at(90), [b], _at(80)) == []
 
     def test_scoped_gaps_show_only_for_the_ecu_in_view(self):
-        from canlib.cli.commands.captures.step_gaps import describe_gap, gaps_before
+        from canair.cli.commands.captures.step_gaps import describe_gap, gaps_before
 
         events = [{"at": "14:00:10.000", "kind": "ecu_silent", "rx": "0x7EC"}]
         mine = self._entry(80, events)
@@ -820,7 +820,7 @@ class TestStepGaps:
 
 class TestExplorerGaps:
     def test_session_wide_gaps_are_exported_as_offsets(self):
-        from canlib.interop.explorer.series import _Clock, _gaps
+        from canair.interop.explorer.series import _Clock, _gaps
 
         session = {
             "link_events": [

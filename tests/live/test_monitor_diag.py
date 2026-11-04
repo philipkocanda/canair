@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from canlib.live.monitor import MonitorController
+from canair.live.monitor import MonitorController
 from tests.support.fakes import FakeTerminal
 
 
@@ -87,7 +87,7 @@ class TestHealthLineSegments:
 
     @staticmethod
     def _items(*, drops: int, stale: int, errors: int, resyncs: int, last_stale: int = 0):
-        from canlib.live._monitor_tui import MonitorApp
+        from canair.live._monitor_tui import MonitorApp
 
         diag = SimpleNamespace(drops=drops, stale=stale, errors=errors, resyncs=resyncs)
         stub = SimpleNamespace(
@@ -115,7 +115,7 @@ class TestHealthLineSegments:
         assert self._items(drops=0, stale=0, errors=0, resyncs=0) == []
 
     def test_no_diag_recorder_is_empty(self):
-        from canlib.live._monitor_tui import MonitorApp
+        from canair.live._monitor_tui import MonitorApp
 
         stub = SimpleNamespace(controller=SimpleNamespace(), _last_stale=lambda: 0)
         assert MonitorApp._health_items(stub) == []  # type: ignore[arg-type]
@@ -126,7 +126,7 @@ class TestLinkLatencySegment:
 
     @staticmethod
     def _controller(rtt):
-        from canlib.transport.link_latency import LinkLatency
+        from canair.transport.link_latency import LinkLatency
 
         link = LinkLatency()
         if rtt is not None:
@@ -135,7 +135,7 @@ class TestLinkLatencySegment:
         return SimpleNamespace(link=lambda: link)
 
     def _markup(self, rtt):
-        from canlib.live._monitor_tui import _link_items
+        from canair.live._monitor_tui import _link_items
 
         return " ".join(i.markup for i in _link_items(self._controller(rtt)))
 
@@ -152,19 +152,19 @@ class TestLinkLatencySegment:
         assert "800ms" in markup
 
     def test_a_controller_without_a_link_is_tolerated(self):
-        from canlib.live._monitor_tui import _link_items
+        from canair.live._monitor_tui import _link_items
 
         # The raw client exposes no estimator yet.
         assert _link_items(SimpleNamespace(link=lambda: None)) == []
 
     def test_a_controller_without_the_accessor_is_tolerated(self):
-        from canlib.live._monitor_tui import _link_items
+        from canair.live._monitor_tui import _link_items
 
         assert _link_items(SimpleNamespace()) == []
 
     def test_the_segment_lands_on_the_health_line(self):
-        from canlib.live._monitor_tui import MonitorApp
-        from canlib.transport.stats import TransportStats
+        from canair.live._monitor_tui import MonitorApp
+        from canair.transport.stats import TransportStats
 
         controller = self._controller(0.8)
         controller.diag = lambda: TransportStats(transport="wican-ws")

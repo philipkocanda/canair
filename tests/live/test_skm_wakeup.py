@@ -1,6 +1,6 @@
-"""Tests for canlib.live.skm_wakeup — parsing helpers."""
+"""Tests for canair.live.skm_wakeup — parsing helpers."""
 
-from canlib.live.skm_wakeup import parse_bcm_b003, parse_igpm_bc03
+from canair.live.skm_wakeup import parse_bcm_b003, parse_igpm_bc03
 
 # ── parse_igpm_bc03 ──────────────────────────────────────────────────────────
 

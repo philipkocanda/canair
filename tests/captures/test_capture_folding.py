@@ -8,8 +8,8 @@ from typing import ClassVar
 
 import pytest
 
-from canlib.captures import io as capture_io
-from canlib.captures.folding import (
+from canair.captures import io as capture_io
+from canair.captures.folding import (
     INLINE_FIELD,
     MERGED_FIELD,
     CaptureFormatError,

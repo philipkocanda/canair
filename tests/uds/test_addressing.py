@@ -1,4 +1,4 @@
-"""Tests for canlib.uds.addressing — TX→RX response-address resolution.
+"""Tests for canair.uds.addressing — TX→RX response-address resolution.
 
 Covers the Phase 2 addressing abstraction: an explicit per-ECU rx_id, a
 profile-level addressing.rx_offset (e.g. the XPeng G6's +0x80), and the
@@ -6,9 +6,9 @@ conventional +0x08 default — plus that the ECU-index/registry builders and the
 RX↔TX lookups all honor it (see plans/2026-07-28-multi-vehicle-support.md).
 """
 
-from canlib.ecus import build_rx_index, build_rx_tx_index, resolve_tx, rx_for_tx
-from canlib.ecus.pids import build_ecu_index
-from canlib.uds.addressing import (
+from canair.ecus import build_rx_index, build_rx_tx_index, resolve_tx, rx_for_tx
+from canair.ecus.pids import build_ecu_index
+from canair.uds.addressing import (
     DEFAULT_RX_OFFSET,
     DEFAULT_TESTER_ADDRESS,
     AddressingMode,
@@ -86,7 +86,7 @@ class TestBuildEcuIndexRx:
 
 class TestRxLookupsHonorResolution:
     def _ecus(self):
-        # Shape mirrors canlib.ecus.load_ecus output (keyed by tx, rx_id resolved).
+        # Shape mirrors canair.ecus.load_ecus output (keyed by tx, rx_id resolved).
         return {
             0x7E4: {"name": "BMS", "rx_id": 0x7EC},
             0x704: {"name": "VCU", "rx_id": 0x784},  # non-standard +0x80

@@ -1,9 +1,9 @@
-"""Locating a profile's per-ECU definition files (canlib.ecus.files)."""
+"""Locating a profile's per-ECU definition files (canair.ecus.files)."""
 
 import pytest
 
-from canlib.ecus import files as ecu_files
-from canlib.profile import Profile
+from canair.ecus import files as ecu_files
+from canair.profile import Profile
 
 AAF = """\
 AAF:
@@ -84,7 +84,7 @@ class TestDirResolution:
         assert ecu_files.ecus_dir(None, profile=prof) == tmp_path / "ecus"
 
     def test_defaults_to_the_active_profile(self, tmp_path, monkeypatch):
-        from canlib import profile
+        from canair import profile
 
         monkeypatch.setattr(profile, "_active", Profile("p", tmp_path))
         assert ecu_files.ecus_dir() == tmp_path / "ecus"

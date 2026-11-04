@@ -6,8 +6,8 @@ import logging
 
 import pytest
 
-import canlib.core.eventlog as clog
-from canlib.transport import ecu_log
+import canair.core.eventlog as clog
+from canair.transport import ecu_log
 
 
 @pytest.fixture

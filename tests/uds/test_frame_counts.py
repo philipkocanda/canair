@@ -1,7 +1,7 @@
 """The transport-neutral frame-count ledger and its profile bridge.
 
-Covers :mod:`canlib.uds.frame_counts` (how evidence accumulates into a confirmed
-count) and :mod:`canlib.ecus.response_frames` (how a confirmed count becomes a
+Covers :mod:`canair.uds.frame_counts` (how evidence accumulates into a confirmed
+count) and :mod:`canair.ecus.response_frames` (how a confirmed count becomes a
 ``response_frames:`` edit, and how a stored one seeds a session).
 
 The invariant under test throughout is that a count is only ever persisted from
@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.ecus.response_frames import FIELD, resolve_edits, seed_counts, variable_length_keys
-from canlib.uds.frame_counts import (
+from canair.ecus.response_frames import FIELD, resolve_edits, seed_counts, variable_length_keys
+from canair.uds.frame_counts import (
     CONFIRMATIONS_REQUIRED,
     OBSERVATIONS_REQUIRED,
     FrameCountLedger,

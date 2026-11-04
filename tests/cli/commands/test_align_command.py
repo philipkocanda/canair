@@ -3,7 +3,7 @@
 import argparse
 import json
 
-from canlib.cli.commands import align
+from canair.cli.commands import align
 
 
 def _write(tmp_path):
@@ -32,11 +32,11 @@ def _write(tmp_path):
 
 
 def _run(tmp_path, monkeypatch, argv):
-    import canlib.analysis.align as align_lib
+    import canair.analysis.align as align_lib
 
     orig = align_lib.load_signal_captures
     monkeypatch.setattr(
-        "canlib.cli.commands.align.load_signal_captures",
+        "canair.cli.commands.align.load_signal_captures",
         lambda s, **kw: orig(
             s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
         ),

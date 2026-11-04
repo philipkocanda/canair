@@ -7,8 +7,8 @@ taken for the ISO-TP length, frame lines printed with spaces, and so on.
 
 import pytest
 
-from canlib.uds.parse import ADAPTER_STATUS, parse_uds_response
-from canlib.uds.response import (
+from canair.uds.parse import ADAPTER_STATUS, parse_uds_response
+from canair.uds.response import (
     CAT_BUS,
     CAT_DECODE,
     CAT_DROP,

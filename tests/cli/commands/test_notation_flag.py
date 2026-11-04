@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from canlib.cli.commands._notation import resolve_notation
-from canlib.uds.notation import ByteNotation
+from canair.cli.commands._notation import resolve_notation
+from canair.uds.notation import ByteNotation
 
 
 class TestResolveNotation:
@@ -12,14 +12,14 @@ class TestResolveNotation:
         assert resolve_notation("torque") is ByteNotation.TORQUE
 
     def test_defaults_to_wican(self, monkeypatch):
-        import canlib.config as cfg
+        import canair.config as cfg
 
         # No flag, no config -> wican.
         monkeypatch.setattr(cfg, "get_config_key", lambda k: None)
         assert resolve_notation(None) is ByteNotation.WICAN
 
     def test_config_default_used_when_no_flag(self, monkeypatch):
-        import canlib.config as cfg
+        import canair.config as cfg
 
         monkeypatch.setattr(
             cfg, "get_config_key", lambda k: "isotp" if k == "display.byte_notation" else None
@@ -28,7 +28,7 @@ class TestResolveNotation:
         assert resolve_notation(None) is ByteNotation.ISOTP
 
     def test_invalid_config_falls_back_to_wican(self, monkeypatch):
-        import canlib.config as cfg
+        import canair.config as cfg
 
         monkeypatch.setattr(cfg, "get_config_key", lambda k: "bogus")
 

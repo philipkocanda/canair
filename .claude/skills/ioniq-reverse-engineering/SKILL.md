@@ -36,7 +36,7 @@ reference lives in **AGENTS.md**, `docs/reference/cli/`, and `canair <cmd>
   in a safe state.
 - Be gentle: the ECUs are old and slow. **No concurrent requests to one ECU.**
 - **One `canair` connection at a time, any transport.** canair enforces this with
-  a `flock` mutex (`/tmp/wican-connection.lock`, `canlib/device/lock.py`); a second
+  a `flock` mutex (`/tmp/wican-connection.lock`, `src/canair/device/lock.py`); a second
   concurrent command fails fast. The WiCAN serves a single client per protocol —
   a second `slcan-tcp` client hangs unserved until the first disconnects, and a
   second `wican-ws` WebSocket can lock up the device (power-cycle to recover).
@@ -236,7 +236,7 @@ Per-ECU YAML under `ecus/` (one ECU per file, with its `tx_id`, `identity:`, and
 SOC_BMS:
   expression: "B09/2"      # WiCAN formula (see reverse-engineer-signal skill)
   unit: "%"
-  category: state_of_charge  # only where the unit does not say it (canlib/ecus/signal_category.py)
+  category: state_of_charge  # only where the unit does not say it (src/canair/ecus/signal_category.py)
   mqtt_topic: soc_bms
   min: "0"
   max: "100"
@@ -274,7 +274,7 @@ hand-editing. After changes: `canair validate pids` then `canair wican autopid w
 ## Transports
 
 canair reaches the bus over an **explicit, config-chosen transport** (never
-auto-switched). Registered in `canlib/transport/config.py`; today there are two:
+auto-switched). Registered in `src/canair/transport/config.py`; today there are two:
 
 - **`slcan-tcp`** (default) — raw SLCAN over TCP with client-side ISO-TP.
   Requires the device in `slcan` mode. `monitor` uses the pipelined/batched
@@ -312,7 +312,7 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
   `n` to close the current segment and start a fresh one (several labelled
   sessions per run); a `● REC` blinks while `--save` is recording. The **state is
   auto-suggested** from decoded PID values via the profile's
-  `vehicle_states.yaml`. For edits/removals use `canlib.captures`
+  `vehicle_states.yaml`. For edits/removals use `canair.captures`
   (`set_capture_note`/`delete_capture`). After saving, run `canair captures uds
   --summary` to spot patterns missed live, or `canair captures uds --sessions` for a
   metadata table of contents (date/state/label/notes/ECUs per session; `--json`).

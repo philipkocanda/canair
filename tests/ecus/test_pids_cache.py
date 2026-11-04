@@ -1,11 +1,11 @@
-"""Invalidation of caches derived from ECU definitions (canlib.ecus.pids)."""
+"""Invalidation of caches derived from ECU definitions (canair.ecus.pids)."""
 
 import textwrap
 
 import pytest
 
-from canlib import profile
-from canlib.ecus.pids import clear_cache, register_derived_cache
+from canair import profile
+from canair.ecus.pids import clear_cache, register_derived_cache
 
 
 def _mk_profile(tmp_path, name, ecu, param):
@@ -66,7 +66,7 @@ class TestDecodePreviewIndex:
     """The capture-preview PID index is built from load_pids() — derived state."""
 
     def test_switching_profile_redecodes_with_the_new_definitions(self, tmp_path):
-        from canlib.captures.store import decoded_preview
+        from canair.captures.store import decoded_preview
 
         entry = {"payload": "6101AABBCCDD", "ecu": "BMS", "pid": "2101"}
         _activate(_mk_profile(tmp_path, "a", "BMS", "A_VOLTS"), "a")
@@ -77,8 +77,8 @@ class TestDecodePreviewIndex:
         assert "B_VOLTS" in preview, f"stale index decoded {sorted(preview)}"
 
     def test_editing_a_param_is_reflected(self, tmp_path):
-        from canlib.captures.store import decoded_preview
-        from canlib.yaml_edit.pids import rename_parameter
+        from canair.captures.store import decoded_preview
+        from canair.yaml_edit.pids import rename_parameter
 
         root = _mk_profile(tmp_path, "c", "BMS", "OLD_NAME")
         _activate(root, "c")
@@ -92,7 +92,7 @@ class TestDecodePreviewIndex:
 
 class TestLogEcuLookup:
     def test_switching_profile_remaps_tx_ids(self, tmp_path):
-        from canlib.transport import ecu_log as log
+        from canair.transport import ecu_log as log
 
         _activate(_mk_profile(tmp_path, "la", "BMS", "X"), "la")
         assert log._load_ecu_lookup().get(0x7E4) == "BMS"
@@ -128,7 +128,7 @@ class TestMergeEcuDocuments:
     def test_merges_across_files(self):
         from pathlib import Path
 
-        from canlib.ecus.pids import merge_ecu_documents
+        from canair.ecus.pids import merge_ecu_documents
 
         merged = merge_ecu_documents(
             [
@@ -141,7 +141,7 @@ class TestMergeEcuDocuments:
     def test_empty_and_none_documents_are_skipped(self):
         from pathlib import Path
 
-        from canlib.ecus.pids import merge_ecu_documents
+        from canair.ecus.pids import merge_ecu_documents
 
         merged = merge_ecu_documents(
             [(Path("a.yaml"), {}), (Path("b.yaml"), None), (Path("c.yaml"), {"BMS": {}})]
@@ -151,7 +151,7 @@ class TestMergeEcuDocuments:
     def test_duplicate_key_keeps_first_and_warns(self, capsys):
         from pathlib import Path
 
-        from canlib.ecus.pids import merge_ecu_documents
+        from canair.ecus.pids import merge_ecu_documents
 
         merged = merge_ecu_documents(
             [
@@ -168,7 +168,7 @@ class TestMergeEcuDocuments:
     def test_non_mapping_document_is_skipped_with_a_warning(self, capsys):
         from pathlib import Path
 
-        from canlib.ecus.pids import merge_ecu_documents
+        from canair.ecus.pids import merge_ecu_documents
 
         # Every reader of ecus/ funnels through here, so a stray scalar must not
         # raise — that turns one malformed file into an opaque AttributeError in
@@ -188,8 +188,8 @@ class TestMergeEcuDocuments:
 
 class TestLoadPidsCacheKey:
     def test_two_profiles_do_not_share_a_cache_entry(self, tmp_path):
-        from canlib import profile
-        from canlib.ecus.pids import clear_cache, load_pids
+        from canair import profile
+        from canair.ecus.pids import clear_cache, load_pids
 
         saved = profile._active
         try:

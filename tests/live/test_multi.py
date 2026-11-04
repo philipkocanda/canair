@@ -1,4 +1,4 @@
-"""Tests for canlib.live.multi — parse_sub_commands, resolve_tx_id."""
+"""Tests for canair.live.multi — parse_sub_commands, resolve_tx_id."""
 
 import asyncio
 import json
@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from canlib.captures.journal import CaptureJournal
-from canlib.live.multi import (
+from canair.captures.journal import CaptureJournal
+from canair.live.multi import (
     _exec_iocontrol,
     _exec_query,
     _finalize_journal,
@@ -17,7 +17,7 @@ from canlib.live.multi import (
     resolve_tx_id,
     selector_text,
 )
-from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
+from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 
 # --- resolve_tx_id ---
 
@@ -336,7 +336,7 @@ class TestFinalizeJournal:
 
     def test_cancelled_prompt_discards(self, tmp_path):
         j = self._journal(tmp_path)
-        with patch("canlib.captures.resolve_metadata", return_value=None):
+        with patch("canair.captures.resolve_metadata", return_value=None):
             _finalize_journal(j, 1, None, None, None)
         assert not j.path.exists()
         assert list(tmp_path.glob("*.json")) == []
@@ -375,7 +375,7 @@ class TestMultiSaveRawNonAnswers:
     the way a standalone `canair raw --save` always has."""
 
     def _run(self, tmp_path, monkeypatch, steps, replies):
-        from canlib.live.multi import mode_multi
+        from canair.live.multi import mode_multi
 
         real_open = CaptureJournal.open
         monkeypatch.setattr(
@@ -431,7 +431,7 @@ class TestMultiSaveTimestamp:
     def test_capture_stamp_millisecond_precision_and_date(self):
         from datetime import datetime
 
-        from canlib.live.multi_batch import _capture_stamp
+        from canair.live.multi_batch import _capture_stamp
 
         # A known epoch → its exact date + HH:MM:SS.fff.
         acq = datetime(2026, 7, 22, 23, 59, 58, 123000).timestamp()
@@ -440,7 +440,7 @@ class TestMultiSaveTimestamp:
         assert ts == "23:59:58.123"
 
     def test_capture_stamp_preserves_skew(self):
-        from canlib.live.multi_batch import _capture_stamp
+        from canair.live.multi_batch import _capture_stamp
 
         _d0, t0 = _capture_stamp(1000.010)
         _d1, t1 = _capture_stamp(1000.040)
@@ -449,7 +449,7 @@ class TestMultiSaveTimestamp:
         assert t0 != t1
 
     def test_capture_stamp_falls_back_to_now(self):
-        from canlib.live.multi_batch import _capture_stamp
+        from canair.live.multi_batch import _capture_stamp
 
         date, ts = _capture_stamp(None)
         assert "." in ts  # still millisecond precision
@@ -461,7 +461,7 @@ class TestExecIocontrolSession:
     SessionManager API (open_session), not the non-existent ensure_session."""
 
     def test_opens_session_when_required(self, monkeypatch):
-        from canlib.live import multi_exec
+        from canair.live import multi_exec
 
         idx = {
             "IGPM": {
@@ -541,7 +541,7 @@ class TestExecIocontrolPolarity:
         return {"IGPM": {"tx_id": 0x770, "protocol": protocol, "cmds": {"BC01": cmd}}}
 
     def _run(self, monkeypatch, *, off, cmd_overrides=None):
-        from canlib.live import multi_exec
+        from canair.live import multi_exec
 
         index = self._index(**(cmd_overrides or {}))
         monkeypatch.setattr(multi_exec, "build_iocontrol_index", lambda _pids: index)
@@ -614,14 +614,14 @@ class TestBuildQueryPlanStatic:
         return [p[0] for p in plan]
 
     def test_bare_ecu_omits_static(self):
-        from canlib.live.multi import build_query_plan
+        from canair.live.multi import build_query_plan
 
         plan = build_query_plan(self._ecu_info(), [])
         assert "21F2" not in self._codes(plan)
         assert {"2101", "2102"} == set(self._codes(plan))
 
     def test_bare_ecu_omits_slow_but_include_static_keeps_it(self):
-        from canlib.live.multi import build_query_plan
+        from canair.live.multi import build_query_plan
 
         info = self._ecu_info()
         info["pids"]["21F3"] = {
@@ -634,20 +634,20 @@ class TestBuildQueryPlanStatic:
         assert "21F3" in self._codes(build_query_plan(info, [], include_static=True))
 
     def test_include_static_keeps_it(self):
-        from canlib.live.multi import build_query_plan
+        from canair.live.multi import build_query_plan
 
         plan = build_query_plan(self._ecu_info(), [], include_static=True)
         assert "21F2" in self._codes(plan)
 
     def test_explicit_pid_always_queried(self):
-        from canlib.live.multi import build_query_plan
+        from canair.live.multi import build_query_plan
 
         # Naming the static PID explicitly must query it even without include_static.
         plan = build_query_plan(self._ecu_info(), ["21F2"])
         assert self._codes(plan) == ["21F2"]
 
     def test_non_static_unaffected_by_flag(self):
-        from canlib.live.multi import build_query_plan
+        from canair.live.multi import build_query_plan
 
         info = {
             "tx_id": 0x770,
@@ -657,7 +657,7 @@ class TestBuildQueryPlanStatic:
         assert self._codes(build_query_plan(info, [])) == ["2101"]
 
     def test_missing_static_key_defaults_included(self):
-        from canlib.live.multi import build_query_plan
+        from canair.live.multi import build_query_plan
 
         # PIDs from build_ecu_index always carry a `swept` bool; a hand-built dict
         # without it must still be treated as swept (included) by default.
@@ -785,7 +785,7 @@ class TestOverlappingSelectorRegression:
     """
 
     def _steps(self):
-        from canlib.cli.commands._live.steps import expand_step_groups, to_step
+        from canair.cli.commands._live.steps import expand_step_groups, to_step
 
         raw = ["IGPM", "OBC", "AAF", "@driving"]
         return parse_sub_commands(expand_step_groups([to_step(s) for s in raw]))
@@ -796,8 +796,8 @@ class TestOverlappingSelectorRegression:
         assert len(ecus) == len(set(ecus))
 
     def test_requests_are_unique(self):
-        from canlib.ecus.pids import build_ecu_index, load_pids
-        from canlib.live.multi_exec import build_query_plan
+        from canair.ecus.pids import build_ecu_index, load_pids
+        from canair.live.multi_exec import build_query_plan
 
         index = build_ecu_index(load_pids())
         requests = []

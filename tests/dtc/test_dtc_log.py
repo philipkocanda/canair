@@ -1,6 +1,6 @@
-"""Tests for canlib.dtc.log — DTC scan history (append + diff)."""
+"""Tests for canair.dtc.log — DTC scan history (append + diff)."""
 
-from canlib.dtc import log as dtc_log
+from canair.dtc import log as dtc_log
 
 
 def test_append_and_load(tmp_path):

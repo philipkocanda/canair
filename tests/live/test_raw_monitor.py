@@ -2,10 +2,10 @@
 
 import asyncio
 
-from canlib.live.monitor import MonitorController, _raw_pid_result
-from canlib.live.poll_backoff import PollCost
-from canlib.live.raw_monitor import query_ecu_addresses
-from canlib.uds.addressing import EcuAddress
+from canair.live.monitor import MonitorController, _raw_pid_result
+from canair.live.poll_backoff import PollCost
+from canair.live.raw_monitor import query_ecu_addresses
+from canair.uds.addressing import EcuAddress
 from tests.support.raw_monitor import FakeRawClient
 from tests.support.raw_monitor import TimedRawClient as _TimedRawClient
 
@@ -153,10 +153,10 @@ class TestBuildRawSubmissions:
         assert [len(s["members"]) for s in subs] == [3, 2]
 
     def test_an_alias_resolves_to_the_key_the_elm_path_uses(self, monkeypatch):
-        import canlib.ecus
+        import canair.ecus
 
         monkeypatch.setattr(
-            canlib.ecus,
+            canair.ecus,
             "canonical_ecu_name_safe",
             lambda name, *a, **k: "IGPM" if name.upper() == "SJB" else name.upper(),
         )
@@ -326,7 +326,7 @@ class TestLayoutStability:
         # (ecu_label, pid, param_name) is the monitor's selection cursor. A repeated
         # ECU made two rows share a key, so MonitorEditor.move()'s items.index()
         # snapped the cursor (and the viewport) back to the earlier copy.
-        from canlib.query.steps import normalize_query_steps
+        from canair.query.steps import normalize_query_steps
 
         steps = normalize_query_steps(
             [
@@ -389,7 +389,7 @@ class TestRawBatchRepliesNeverLandUnderOneDid:
     def test_a_leak_stops_batching_the_ecu_and_is_logged(self, monkeypatch):
         events: list[tuple] = []
         monkeypatch.setattr(
-            "canlib.core.eventlog.log_event",
+            "canair.core.eventlog.log_event",
             lambda cat, detail="", **kw: events.append((cat, detail, kw)),
         )
         c = self._ctrl(
@@ -488,7 +488,7 @@ class TestSlowPidBackoff:
         }
 
     def test_a_silent_pid_is_slowed_and_flagged(self):
-        from canlib.live.poll_backoff import ESCALATE_AFTER
+        from canair.live.poll_backoff import ESCALATE_AFTER
 
         c = self._ctrl()
         for _ in range(ESCALATE_AFTER):

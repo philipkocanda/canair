@@ -1,11 +1,11 @@
-"""Layout of the discover and identity reports (:mod:`canlib.live.discover_render`)."""
+"""Layout of the discover and identity reports (:mod:`canair.live.discover_render`)."""
 
 from __future__ import annotations
 
 import io
 import re
 
-from canlib.live.discover_render import (
+from canair.live.discover_render import (
     POSITIVE,
     REFUSED,
     Painter,
@@ -13,7 +13,7 @@ from canlib.live.discover_render import (
     render_row,
     status_cell,
 )
-from canlib.render import ansi
+from canair.render import ansi
 
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
 

@@ -1,4 +1,4 @@
-"""The live action run (canlib.live.action): plan, check, confirm, re-check, send.
+"""The live action run (canair.live.action): plan, check, confirm, re-check, send.
 
 Driven against a fake terminal that enforces the command blocklist with whatever
 policy it holds, so these prove the grant is what lets ``10 D1`` through and that
@@ -11,9 +11,9 @@ import asyncio
 
 import pytest
 
-from canlib.actions import ActionError, parse_action
-from canlib.live import action as mode
-from canlib.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
+from canair.actions import ActionError, parse_action
+from canair.live import action as mode
+from canair.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
 from tests.support.fakes import FakeTerminal
 
 SLEEP = parse_action(
@@ -58,10 +58,10 @@ def _values(*rounds):
 @pytest.fixture
 def run(monkeypatch):
     monkeypatch.setattr(mode, "_REREAD_DELAY_S", 0)
-    monkeypatch.setattr("canlib.actions.load_actions", lambda profile=None: {"sleep": SLEEP})
+    monkeypatch.setattr("canair.actions.load_actions", lambda profile=None: {"sleep": SLEEP})
 
     def _run(terminal, rounds, **kw):
-        monkeypatch.setattr("canlib.live.multi_exec._exec_query", _values(*rounds))
+        monkeypatch.setattr("canair.live.multi_exec._exec_query", _values(*rounds))
         return asyncio.run(mode.mode_action(terminal, PIDS, "sleep", **kw))
 
     return _run
@@ -134,8 +134,8 @@ def test_without_the_quirk_the_action_is_refused_before_any_read(monkeypatch):
         reads.append("read")
         return None
 
-    monkeypatch.setattr("canlib.live.multi_exec._exec_query", fake_exec_query)
-    monkeypatch.setattr("canlib.actions.load_actions", lambda profile=None: {"sleep": SLEEP})
+    monkeypatch.setattr("canair.live.multi_exec._exec_query", fake_exec_query)
+    monkeypatch.setattr("canair.actions.load_actions", lambda profile=None: {"sleep": SLEEP})
     t = PolicedTerminal()
     with pytest.raises(SafetyBlocked, match="none of the profile's quirks grants it"):
         asyncio.run(mode.mode_action(t, {"ecus": PIDS["ecus"]}, "sleep", yes=True))
@@ -152,7 +152,7 @@ def test_unsafe_does_not_help(monkeypatch):
 
 
 def test_an_unknown_action(monkeypatch):
-    monkeypatch.setattr("canlib.actions.load_actions", lambda profile=None: {})
+    monkeypatch.setattr("canair.actions.load_actions", lambda profile=None: {})
     with pytest.raises(ActionError, match="no action"):
         asyncio.run(mode.mode_action(PolicedTerminal(), PIDS, "sleep"))
 

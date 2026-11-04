@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from canlib.cli.commands.captures import build_query
-from canlib.cli.commands.decode.query import resolve_targets
+from canair.cli.commands.captures import build_query
+from canair.cli.commands.decode.query import resolve_targets
 
 
 def _index():

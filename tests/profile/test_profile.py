@@ -2,7 +2,7 @@
 
 import pytest
 
-from canlib.profile import (
+from canair.profile import (
     BUNDLE_MEMBERS,
     Profile,
     member_names,
@@ -98,7 +98,7 @@ class TestBundleRegistry:
         assert member.contributable is expected
 
     def test_required_members_identify_a_profile(self, tmp_path):
-        from canlib.profile import looks_like_profile
+        from canair.profile import looks_like_profile
 
         assert not looks_like_profile(tmp_path)
         for member in (m for m in BUNDLE_MEMBERS if m.required):
@@ -141,7 +141,7 @@ class TestProfileForPath:
         assert profile_for_path(log).root == root
 
     def test_ignores_the_active_profile(self, tmp_path, monkeypatch):
-        from canlib import profile as profile_mod
+        from canair import profile as profile_mod
 
         other = self._bundle(tmp_path, "other")
         monkeypatch.setattr(profile_mod, "_active", Profile("other", other))

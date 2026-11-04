@@ -1,4 +1,4 @@
-"""Fields a ``dtcs:`` section states once for its codes (canlib/dtc/definitions.py)."""
+"""Fields a ``dtcs:`` section states once for its codes (src/canair/dtc/definitions.py)."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from canlib.dtc.definitions import effective_entries, is_dtc_code, split_section
-from canlib.ecus.pids import load_pids
-from canlib.interop.explorer.export import _dtc_records
-from canlib.validation.pids import load_schema, validate_ecu_file
+from canair.dtc.definitions import effective_entries, is_dtc_code, split_section
+from canair.ecus.pids import load_pids
+from canair.interop.explorer.export import _dtc_records
+from canair.validation.pids import load_schema, validate_ecu_file
 
 ECU = """\
 ESC:
@@ -130,7 +130,7 @@ class TestValidation:
 
 
 def test_explorer_exports_codes_only(ecus_dir):
-    from canlib.core.yaml_rt import round_trip_yaml
+    from canair.core.yaml_rt import round_trip_yaml
 
     doc = round_trip_yaml().load(ECU)
     records = _dtc_records(doc["ESC"], "esc.yaml")

@@ -1,6 +1,6 @@
-"""Tests for canlib.ecus.did_families — DID families and the IOControl families never read."""
+"""Tests for canair.ecus.did_families — DID families and the IOControl families never read."""
 
-from canlib.ecus.did_families import did_families, unread_families
+from canair.ecus.did_families import did_families, unread_families
 
 
 def _ecu(**fields):

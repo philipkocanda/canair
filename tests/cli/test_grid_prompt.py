@@ -1,12 +1,12 @@
-"""Tests for canlib.cli.grid_prompt — one-shot grid_region resolution/prompt."""
+"""Tests for canair.cli.grid_prompt — one-shot grid_region resolution/prompt."""
 
 from __future__ import annotations
 
-import canlib.cli.grid_prompt as gp
+import canair.cli.grid_prompt as gp
 
 
 def _reset():
-    from canlib import config
+    from canair import config
 
     config.load_config.cache_clear()
 
@@ -15,7 +15,7 @@ class TestResolveGridRegion:
     def test_returns_configured_region(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        from canlib.config import set_config_key
+        from canair.config import set_config_key
 
         set_config_key("grid_region", "US")
         _reset()
@@ -48,7 +48,7 @@ class TestResolveGridRegion:
 
         assert gp.resolve_grid_region() == "US"
         _reset()
-        from canlib.config import get_config_key
+        from canair.config import get_config_key
 
         assert get_config_key("grid_region") == "US"
 
@@ -60,7 +60,7 @@ class TestResolveGridRegion:
 
         assert gp.resolve_grid_region() is None
         _reset()
-        from canlib.config import get_config_key
+        from canair.config import get_config_key
 
         assert get_config_key("grid_region") is None
         assert get_config_key("grid_region_prompted") is True

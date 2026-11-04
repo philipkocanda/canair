@@ -1,11 +1,11 @@
-"""Tests for scan service presets and smart per-ECU defaults (canlib.live.scan_presets)."""
+"""Tests for scan service presets and smart per-ECU defaults (canair.live.scan_presets)."""
 
 from types import SimpleNamespace
 
 import pytest
 
-from canlib.live import scan_presets as sp
-from canlib.live.scan_presets import (
+from canair.live import scan_presets as sp
+from canair.live.scan_presets import (
     ServiceError,
     is_wide_service,
     plan_scan,
@@ -199,13 +199,13 @@ class TestPlanScan:
 
 class TestCommandHelpers:
     def test_fmt_ranges(self):
-        from canlib.cli.commands.scan import _fmt_ranges
+        from canair.cli.commands.scan import _fmt_ranges
 
         assert _fmt_ranges(((0x01, 0xFF),), wide=False) == "01-FF"
         assert _fmt_ranges(((0xB000, 0xB0FF), (0xC000, 0xC0FF)), wide=True) == "B000-B0FF,C000-C0FF"
 
     def test_slots_needs_the_smart_default(self, capsys):
-        from canlib.cli.commands.scan import _resolve_plan
+        from canair.cli.commands.scan import _resolve_plan
 
         args = SimpleNamespace(
             tx="BCM",
@@ -221,7 +221,7 @@ class TestCommandHelpers:
         assert "--slots" in capsys.readouterr().err
 
     def test_a_malformed_range_list_is_refused_up_front(self, capsys):
-        from canlib.cli.commands.scan import _resolve_plan
+        from canair.cli.commands.scan import _resolve_plan
 
         args = SimpleNamespace(
             tx="7A0",
@@ -237,7 +237,7 @@ class TestCommandHelpers:
         assert "nope" in capsys.readouterr().err
 
     def test_equiv_command(self):
-        from canlib.cli.commands.scan import _equiv_command
+        from canair.cli.commands.scan import _equiv_command
 
         args = SimpleNamespace(
             tx="BMS", service="21", range="01-FF", append=None, session=False, wake=False
@@ -245,7 +245,7 @@ class TestCommandHelpers:
         assert _equiv_command(args) == "canair scan range BMS --service 21 --range 01-FF"
 
     def test_equiv_command_with_flags(self):
-        from canlib.cli.commands.scan import _equiv_command
+        from canair.cli.commands.scan import _equiv_command
 
         args = SimpleNamespace(
             tx="IGPM", service="2F", range="E000-E0FF", append="03", session=True, wake=True
@@ -256,7 +256,7 @@ class TestCommandHelpers:
         assert "--wake" in cmd
 
     def test_resolve_ecu_selection_by_number(self):
-        from canlib.cli.commands.scan import _resolve_ecu_selection
+        from canair.cli.commands.scan import _resolve_ecu_selection
 
         choices = [("BMS", 0x7E4, "batt"), ("IGPM", 0x770, "gw")]
         assert _resolve_ecu_selection("2", choices) == "IGPM"

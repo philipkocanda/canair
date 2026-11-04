@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from canlib.transport.isotp_params import (
+from canair.transport.isotp_params import (
     DEFAULT_TX_PADDING,
     ISOTP_FIELDS,
     build_isotp_params,
@@ -108,7 +108,7 @@ class TestBlocksizeAdvice:
     """A non-zero BlockSize buys a round trip per block — say so once, on a slow link."""
 
     def _logged(self, monkeypatch, config, budget):
-        from canlib.transport import isotp_params
+        from canair.transport import isotp_params
 
         seen: list[tuple[str, str]] = []
         monkeypatch.setattr(

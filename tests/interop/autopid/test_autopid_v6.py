@@ -1,4 +1,4 @@
-"""Tests for the firmware v6 AutoPID table (canlib.interop.autopid.v6).
+"""Tests for the firmware v6 AutoPID table (canair.interop.autopid.v6).
 
 Firmware facts these pin (field sizes, the parser's number handling, the chains it
 drops) are cited in plans/2026-10-31-wican-fw-v6-autopid-profile.md. Every bundled
@@ -8,8 +8,8 @@ the host, when this was written.
 
 import pytest
 
-from canlib.interop.autopid.profile import generate_profile, render_v4, ship_profile
-from canlib.interop.autopid.v6 import V6LimitError, to_v6
+from canair.interop.autopid.profile import generate_profile, render_v4, ship_profile
+from canair.interop.autopid.v6 import V6LimitError, to_v6
 
 
 def _param(expression="B9", **extra) -> dict:

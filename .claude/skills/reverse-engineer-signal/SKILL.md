@@ -78,7 +78,7 @@ orient → prerequisites → discover → capture → inspect → hypothesize
 ```
 
 Progress is tracked per-ECU in the `research:` block of `ecus/<ecu>.yaml` (schema
-`canlib/schema/pids_schema.yaml`): `pending → captured → done` (plus `nrc` for a dead
+`src/canair/schema/pids_schema.yaml`): `pending → captured → done` (plus `nrc` for a dead
 scan), ending in a real `parameters:` entry marked `verified: true`.
 
 **Two domains.** The above is **domain A** (diagnostic request/response: `ecus/` PIDs,
@@ -265,9 +265,9 @@ bit) maps each byte and flags `unmapped` ones — the fastest way to catch a wro
 
 !!! note "Scripting over captures — use `load_all_captures()`, mind the RX address"
     For a bulk edit/delete keyed on a predicate the QUERY can't express, go through
-    `canlib.commands.captures.query.load_all_captures()`: flat entries with `ecu`
+    `canair.commands.captures.query.load_all_captures()`: flat entries with `ecu`
     already **resolved to the short name** (`OBC`), the raw `ecu_addr` (`0x7ED`), and
-    `_session_idx`/`_capture_idx` locators for `canlib.captures.delete_capture` (delete
+    `_session_idx`/`_capture_idx` locators for `canair.captures.delete_capture` (delete
     in reverse `(file, session, capture)` order). **Do not re-derive the list with a raw
     `ecu == "OBC"` filter** — the stored `rx` field is the CAN **response address**, not
     the short name, so that scan silently matches nothing. Prefer
@@ -361,13 +361,13 @@ A new profile is often seeded device-free from someone else's definitions. Do it
 reads as if each page were written by hand, once:
 
 1. **Convert offsets with the framing in mind.** OBDb `bix` and Torque letters count from the
-   first data byte after the DID echo (`canlib/uds/byteindex.py`); the WiCAN index then depends
+   first data byte after the DID echo (`src/canair/uds/byteindex.py`); the WiCAN index then depends
    on whether the reply is single- or multi-frame (see the byte-index reference below). Take the
    reply length from a recorded response, never a guess. Multi-byte values that straddle a frame
    boundary need shift-and-or expressions; OBDb's `blsb` means little-endian.
 2. **Check every expression against recorded replies before writing anything.** OBDb's
    `tests/test_cases/` hold real multi-frame replies with expected values: frame them in the
-   WiCAN layout, run `canlib.expression.evaluate_expression`, and compare. A signal that
+   WiCAN layout, run `canair.expression.evaluate_expression`, and compare. A signal that
    disagrees on more than a stray corrupt frame or a clamped value is wrong — fix or drop it.
 3. **Write each PID's shared fields and note first.** `pids add-pid --status active`, then
    `set-pid-defaults` with `verified: false`, the `source`/`source_links`, and every

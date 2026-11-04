@@ -5,11 +5,11 @@ import argparse
 import pytest
 import yaml
 
-from canlib.cli.commands import pids as cli
-from canlib.uds.support_map import MapDecl
-from canlib.validation import pids as validate_pids
-from canlib.yaml_edit.errors import EditError
-from canlib.yaml_edit.pids import PidsEditError, set_support_map
+from canair.cli.commands import pids as cli
+from canair.uds.support_map import MapDecl
+from canair.validation import pids as validate_pids
+from canair.yaml_edit.errors import EditError
+from canair.yaml_edit.pids import PidsEditError, set_support_map
 
 YAML = """\
 TEST:
@@ -153,7 +153,7 @@ class TestCommand:
     def test_the_schema_gate_can_veto_and_revert(self, pids_dir, monkeypatch):
         before = (pids_dir / "test.yaml").read_text()
         monkeypatch.setattr(
-            "canlib.validation.pids.validate_pids_file", lambda p, *a: (False, "  ERROR: nope")
+            "canair.validation.pids.validate_pids_file", lambda p, *a: (False, "  ERROR: nope")
         )
         with pytest.raises(EditError):
             cli.cmd_set_support_map(_Args(pids_dir, no_validate=False))

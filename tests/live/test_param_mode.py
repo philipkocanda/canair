@@ -1,4 +1,4 @@
-"""``canair read`` of named signals (:mod:`canlib.live.param`)."""
+"""``canair read`` of named signals (:mod:`canair.live.param`)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from canlib.live.param import mode_param
+from canair.live.param import mode_param
 from tests.support.fakes import FakeTerminal, ok
 
 
@@ -68,7 +68,7 @@ def _keepalive_headers(terminal: FakeTerminal) -> list[int | None]:
 @pytest.fixture
 def clock(monkeypatch) -> _Clock:
     clock = _Clock()
-    monkeypatch.setattr("canlib.transport.session_manager.time.monotonic", clock)
+    monkeypatch.setattr("canair.transport.session_manager.time.monotonic", clock)
     return clock
 
 

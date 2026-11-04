@@ -6,8 +6,8 @@ from datetime import datetime
 
 import pytest
 
-from canlib.ecus import load_ecus
-from canlib.interop.frame_log import ExtractedReply, extract_replies, stamp
+from canair.ecus import load_ecus
+from canair.interop.frame_log import ExtractedReply, extract_replies, stamp
 from tests.support.isotp_frames import flow_control, message_frames
 
 BMS_TX, BMS_RX = 0x7E4, 0x7EC

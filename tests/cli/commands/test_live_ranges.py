@@ -1,6 +1,6 @@
 """The hex-range flags of the sweeping commands (``--rid-range``, ``--did-range``, ``--range``).
 
-One parser, :func:`canlib.core.id_ranges.parse_id_range`, reads every range: the scan flags, the
+One parser, :func:`canair.core.id_ranges.parse_id_range`, reads every range: the scan flags, the
 ``iocontrol_scan_ranges:`` profile field and its validator. A backwards range used to be accepted
 by the flag (and swept nothing) while the profile field rejected it.
 """
@@ -9,9 +9,9 @@ import argparse
 
 import pytest
 
-from canlib.cli.commands._live.handlers.ranges import parse_range, parse_ranges
-from canlib.live.iocontrol_scan import resolve_iocontrol_ranges
-from canlib.validation.pids import _validate_iocontrol_scan_ranges
+from canair.cli.commands._live.handlers.ranges import parse_range, parse_ranges
+from canair.live.iocontrol_scan import resolve_iocontrol_ranges
+from canair.validation.pids import _validate_iocontrol_scan_ranges
 
 
 @pytest.mark.parametrize(

@@ -1,16 +1,16 @@
-"""Tests for canlib.uds.nrc — negative response code names per diagnostic protocol."""
+"""Tests for canair.uds.nrc — negative response code names per diagnostic protocol."""
 
 import pytest
 
-from canlib.uds.nrc import (
+from canair.uds.nrc import (
     NRC_ABBREV,
     NRC_CODES,
     is_response_pending,
     nrc_abbrev,
     nrc_description,
 )
-from canlib.uds.parse import parse_uds_response
-from canlib.uds.protocol import KWP, UDS, UNKNOWN
+from canair.uds.parse import parse_uds_response
+from canair.uds.protocol import KWP, UDS, UNKNOWN
 
 
 class TestNrcNames:

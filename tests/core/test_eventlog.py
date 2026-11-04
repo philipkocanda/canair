@@ -6,7 +6,7 @@ import logging
 
 import pytest
 
-import canlib.core.eventlog as clog
+import canair.core.eventlog as clog
 
 
 @pytest.fixture
@@ -86,7 +86,7 @@ class TestEventLog:
         assert len(clog.read_event_log()) == 8
 
     def test_monitor_modal_shows_only_this_session(self, isolated_log, monkeypatch):
-        from canlib.live._monitor_tui import EventLogModal
+        from canair.live._monitor_tui import EventLogModal
 
         monkeypatch.setattr(clog, "_RUN_ID", "earlier")
         clog.log_event("drop", "from an earlier session")

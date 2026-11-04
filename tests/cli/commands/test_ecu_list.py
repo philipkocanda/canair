@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from canlib import profile
-from canlib.cli.commands.ecu import _detail_record, _list_records, cmd_list
-from canlib.ecus.pids import clear_cache
+from canair import profile
+from canair.cli.commands.ecu import _detail_record, _list_records, cmd_list
+from canair.ecus.pids import clear_cache
 
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
-    from canlib import config
+    from canair import config
 
     saved = profile._active
     clear_cache()
@@ -105,7 +105,7 @@ def test_sort_by_verif_descending():
 def test_sort_by_caps_descending_none_last(monkeypatch):
     from collections import Counter
 
-    import canlib.cli.commands.ecu as ecu
+    import canair.cli.commands.ecu as ecu
 
     monkeypatch.setattr(ecu, "_all_captures_by_ecu", lambda: Counter({"A": 5, "B": 9}))
     ecus = {0x1: {"name": "A"}, 0x2: {"name": "B"}, 0x3: {"name": "C"}}
@@ -117,7 +117,7 @@ def test_sort_by_caps_descending_none_last(monkeypatch):
 def test_header_counts_only_ecus_with_pids(monkeypatch, capsys):
     from collections import Counter
 
-    import canlib.cli.commands.ecu as ecu
+    import canair.cli.commands.ecu as ecu
 
     monkeypatch.setattr(ecu, "_all_captures_by_ecu", lambda: Counter())
     pids_data = _pids_data_counts()
@@ -177,7 +177,7 @@ def _pids_data_bms():
 def test_list_captures_counted_by_default(monkeypatch):
     from collections import Counter
 
-    import canlib.cli.commands.ecu as ecu
+    import canair.cli.commands.ecu as ecu
 
     monkeypatch.setattr(ecu, "_all_captures_by_ecu", lambda: Counter({"BMS": 42}))
     recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms())
@@ -187,7 +187,7 @@ def test_list_captures_counted_by_default(monkeypatch):
 def test_list_caps_column_shows_zero_when_no_captures(monkeypatch, capsys):
     from collections import Counter
 
-    import canlib.cli.commands.ecu as ecu
+    import canair.cli.commands.ecu as ecu
 
     monkeypatch.setattr(ecu, "_all_captures_by_ecu", lambda: Counter())
     recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms())
@@ -199,7 +199,7 @@ def test_list_caps_column_shows_zero_when_no_captures(monkeypatch, capsys):
 def test_detail_captures_counted(monkeypatch):
     from collections import Counter
 
-    import canlib.cli.commands.ecu as ecu
+    import canair.cli.commands.ecu as ecu
 
     monkeypatch.setattr(ecu, "_captures_by_pid", lambda _name: (Counter({"2101": 7}), 7))
     info = {"name": "BMS"}
@@ -212,8 +212,8 @@ def test_detail_captures_counted(monkeypatch):
 def test_detail_display_shows_captures(monkeypatch, capsys):
     from collections import Counter
 
-    import canlib.cli.commands.ecu as ecu
-    from canlib.cli.commands.ecu import cmd_detail
+    import canair.cli.commands.ecu as ecu
+    from canair.cli.commands.ecu import cmd_detail
 
     monkeypatch.setattr(ecu, "_captures_by_pid", lambda _name: (Counter({"2101": 7}), 7))
     info = {"name": "BMS"}
@@ -240,7 +240,7 @@ def _pids_data_multi():
 
 
 def test_value_grid_shrinks_to_fit_width():
-    from canlib.cli.commands.ecu import _value_grid
+    from canair.cli.commands.ecu import _value_grid
 
     values = {"A": "1", "B": "2", "C": "3"}
     # width just enough for one name+value cell → one pair per line
@@ -254,7 +254,7 @@ def test_value_grid_shrinks_to_fit_width():
 
 
 def test_pids_latest_records_shape(monkeypatch):
-    import canlib.cli.commands.ecu as ecu
+    import canair.cli.commands.ecu as ecu
 
     # Latest capture only for 2101; 2102/2180 have none.
     monkeypatch.setattr(
@@ -269,7 +269,7 @@ def test_pids_latest_records_shape(monkeypatch):
             }
         },
     )
-    monkeypatch.setattr("canlib.captures.store.decoded_preview", lambda e: {"SOC": "79.0 %"})
+    monkeypatch.setattr("canair.captures.store.decoded_preview", lambda e: {"SOC": "79.0 %"})
     recs = ecu._pids_latest_records(_pids_data_multi(), "BMS")
     by_pid = {r["pid"]: r for r in recs}
     assert by_pid["2101"]["values"] == {"SOC": "79.0 %"}
@@ -280,14 +280,14 @@ def test_pids_latest_records_shape(monkeypatch):
 
 
 def test_cmd_pids_renders_values_not_hex(monkeypatch, capsys):
-    import canlib.cli.commands.ecu as ecu
+    import canair.cli.commands.ecu as ecu
 
     monkeypatch.setattr(
         ecu,
         "_latest_capture_by_pid",
         lambda name: {"2101": {"payload": "6201DEADBEEF", "date": "2026-07-22"}},
     )
-    monkeypatch.setattr("canlib.captures.store.decoded_preview", lambda e: {"SOC": "79.0 %"})
+    monkeypatch.setattr("canair.captures.store.decoded_preview", lambda e: {"SOC": "79.0 %"})
     rc = ecu.cmd_pids({"name": "BMS"}, 0x7E4, _pids_data_multi(), as_json=False)
     out = capsys.readouterr().out
     assert rc == 0
@@ -301,7 +301,7 @@ def test_cmd_pids_renders_values_not_hex(monkeypatch, capsys):
 def test_cmd_pids_json(monkeypatch, capsys):
     import json
 
-    import canlib.cli.commands.ecu as ecu
+    import canair.cli.commands.ecu as ecu
 
     monkeypatch.setattr(ecu, "_latest_capture_by_pid", lambda name: {})
     rc = ecu.cmd_pids({"name": "BMS"}, 0x7E4, _pids_data_multi(), as_json=True)
@@ -313,7 +313,7 @@ def test_cmd_pids_json(monkeypatch, capsys):
 
 
 def test_cmd_pids_identity_only(capsys):
-    import canlib.cli.commands.ecu as ecu
+    import canair.cli.commands.ecu as ecu
 
     rc = ecu.cmd_pids({"name": "SRS"}, 0x7D2, None, as_json=False)
     out = capsys.readouterr().out

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.cli import build_parser
+from canair.cli import build_parser
 
 
 def _parse(argv: list[str]):
@@ -44,7 +44,7 @@ class TestMonitorRegistered:
         assert "--interval" in capsys.readouterr().err
 
     def test_interval_floor_is_the_tui_floor(self):
-        from canlib.live.poll_schedule import MIN_INTERVAL
+        from canair.live.poll_schedule import MIN_INTERVAL
 
         args = _parse(["monitor", "BMS:2101", "--interval", str(MIN_INTERVAL)])
         assert args.interval == MIN_INTERVAL
@@ -60,7 +60,7 @@ class TestMonitorRunWiring:
     """``run`` turns the surface flags into the steps and the monitor operation."""
 
     def test_run_builds_the_steps_and_the_monitor_options(self, monkeypatch):
-        from canlib.cli.commands import monitor
+        from canair.cli.commands import monitor
 
         captured = {}
 
@@ -71,8 +71,8 @@ class TestMonitorRunWiring:
 
         # Skip the ECU-name preflight (needs a profile) and the device connect.
         monkeypatch.setattr(monitor, "run_live", fake_run_live)
-        monkeypatch.setattr("canlib.live.monitor.query_ecu_error", lambda steps, pids: None)
-        monkeypatch.setattr("canlib.cli.commands._live.load_pids", lambda: {})
+        monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
+        monkeypatch.setattr("canair.cli.commands._live.load_pids", lambda: {})
 
         args = _parse(["monitor", "BMS:2101", "--interval", "3"])
         assert monitor.run(args) == 0
@@ -81,13 +81,13 @@ class TestMonitorRunWiring:
         assert [s["ecu"] for s in captured["options"].query_steps] == ["BMS"]
 
     def test_run_requires_a_step(self):
-        from canlib.cli.commands import monitor
+        from canair.cli.commands import monitor
 
         args = _parse(["monitor"])
         assert monitor.run(args) == 2
 
     def test_bare_monitor_on_a_tty_uses_the_picker(self, monkeypatch):
-        from canlib.cli.commands import monitor
+        from canair.cli.commands import monitor
 
         captured = {}
 
@@ -99,14 +99,14 @@ class TestMonitorRunWiring:
         monkeypatch.setattr(monitor, "_pick_steps", lambda args: ["BMS", "VCU:2101"])
         monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
         monkeypatch.setattr("sys.stdout.isatty", lambda: True, raising=False)
-        monkeypatch.setattr("canlib.live.monitor.query_ecu_error", lambda steps, pids: None)
-        monkeypatch.setattr("canlib.cli.commands._live.load_pids", lambda: {})
+        monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
+        monkeypatch.setattr("canair.cli.commands._live.load_pids", lambda: {})
 
         assert monitor.run(_parse(["monitor"])) == 0
         assert captured["multi"] == ["query BMS", "query VCU:2101"]
 
     def test_cancelled_picker_exits_cleanly_without_connecting(self, monkeypatch):
-        from canlib.cli.commands import monitor
+        from canair.cli.commands import monitor
 
         monkeypatch.setattr(monitor, "run_live", lambda *a: pytest.fail("must not connect"))
         monkeypatch.setattr(monitor, "_pick_steps", lambda args: None)
@@ -126,18 +126,18 @@ class TestMonitorGroupExpansion:
     """``@group`` refs expand into their member selectors before the session starts."""
 
     def _stub(self, monkeypatch, captured):
-        from canlib.cli.commands import monitor
-        from canlib.ecus.ecu_groups import Group
+        from canair.cli.commands import monitor
+        from canair.ecus.ecu_groups import Group
 
         def fake_run_live(args, operation):
             captured["multi"] = args.multi
             return 0
 
         monkeypatch.setattr(monitor, "run_live", fake_run_live)
-        monkeypatch.setattr("canlib.live.monitor.query_ecu_error", lambda steps, pids: None)
-        monkeypatch.setattr("canlib.cli.commands._live.load_pids", lambda: {})
+        monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
+        monkeypatch.setattr("canair.cli.commands._live.load_pids", lambda: {})
         monkeypatch.setattr(
-            "canlib.ecus.ecu_groups.load_groups",
+            "canair.ecus.ecu_groups.load_groups",
             lambda profile=None: {
                 "charging": Group("charging", "", ("BMS:2101", "OBC", "VCU")),
             },

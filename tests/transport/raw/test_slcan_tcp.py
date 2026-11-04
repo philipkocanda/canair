@@ -1,4 +1,4 @@
-"""Tests for canlib.transport.raw.slcan_tcp — SLCAN framing/parse + TCP bus.
+"""Tests for canair.transport.raw.slcan_tcp — SLCAN framing/parse + TCP bus.
 
 A fake socket exercises the real SlcanTcpBus open/send/recv logic without
 hardware.
@@ -7,8 +7,8 @@ hardware.
 import can
 import pytest
 
-from canlib.transport.raw import slcan_tcp
-from canlib.transport.raw.slcan_tcp import SlcanTcpBus, format_slcan_frame, parse_slcan_frame
+from canair.transport.raw import slcan_tcp
+from canair.transport.raw.slcan_tcp import SlcanTcpBus, format_slcan_frame, parse_slcan_frame
 
 
 class TestFormat:

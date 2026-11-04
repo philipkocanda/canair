@@ -14,8 +14,8 @@ import signal
 
 import pytest
 
-from canlib.core.stop_signals import STOP_SIGNALS
-from canlib.live import _monitor_run as run_mod
+from canair.core.stop_signals import STOP_SIGNALS
+from canair.live import _monitor_run as run_mod
 
 
 class _FakeController:
@@ -135,8 +135,8 @@ class TestTeardown:
         """A SIGHUP leaves stdout broken; the recorded data must still be written."""
         import builtins
 
-        import canlib.profile
-        import canlib.states
+        import canair.profile
+        import canair.states
 
         journal = _FakeJournal(tmp_path / "journal.jsonl")
         controller_box: dict[str, _TeardownController] = {}
@@ -148,9 +148,9 @@ class TestTeardown:
         monkeypatch.setattr(run_mod, "MonitorController", _make_controller)
         monkeypatch.setattr(run_mod, "_open_journal", lambda *a, **k: journal)
         monkeypatch.setattr(
-            canlib.profile, "active", lambda: type("P", (), {"captures_dir": tmp_path})()
+            canair.profile, "active", lambda: type("P", (), {"captures_dir": tmp_path})()
         )
-        monkeypatch.setattr(canlib.states, "parse_states", lambda v: [])
+        monkeypatch.setattr(canair.states, "parse_states", lambda v: [])
 
         async def _noop(controller):
             # The terminal goes away mid-session: every write fails from here on.
@@ -188,7 +188,7 @@ class TestTuiStop:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("sig", STOP_SIGNALS)
     async def test_stop_signal_quits_the_app(self, monkeypatch, sig):
-        from canlib.live import _monitor_tui
+        from canair.live import _monitor_tui
 
         class _FakeApp:
             def __init__(self, controller):

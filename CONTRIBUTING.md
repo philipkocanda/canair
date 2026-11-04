@@ -33,7 +33,7 @@ help most: the command you ran, what you expected, and what happened.
 
 ## Contribute code
 
-Changes to the `canlib/` package are welcome. The full dev guide — setup, hooks,
+Changes to the `src/canair/` package are welcome. The full dev guide — setup, hooks,
 the pre-PR checks, commit messages, and the screenshot pipeline — is
 [docs/development](https://philipkocanda.github.io/canair/development/).
 Engineering guidelines (transport contract, adding subcommands, testing,

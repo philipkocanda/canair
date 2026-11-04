@@ -1,4 +1,4 @@
-"""Tests for the pure AutoPID profile transforms (canlib.autopid_profile).
+"""Tests for the pure AutoPID profile transforms (canair.autopid_profile).
 
 Complements tests/states/test_status_vocab.py (which exercises generate_profile's
 shipping gate and duplicate-name rejection) by covering the device-format
@@ -7,8 +7,8 @@ conversion and the device→grouped normalization round-trip.
 
 import pytest
 
-from canlib.cli.commands.wican import show_diff
-from canlib.interop.autopid.profile import (
+from canair.cli.commands.wican import show_diff
+from canair.interop.autopid.profile import (
     InvalidSendToError,
     generate_profile,
     make_pid_init,
@@ -16,9 +16,9 @@ from canlib.interop.autopid.profile import (
     to_device_format,
     with_flow_control,
 )
-from canlib.interop.autopid.send_to import topic_problem
-from canlib.transport.elm327.addressing import AdapterState, target_in
-from canlib.uds.addressing import AddressBook
+from canair.interop.autopid.send_to import topic_problem
+from canair.transport.elm327.addressing import AdapterState, target_in
+from canair.uds.addressing import AddressBook
 
 
 def _data():

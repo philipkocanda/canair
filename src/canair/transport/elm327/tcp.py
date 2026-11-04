@@ -1,0 +1,47 @@
+"""``Elm327TcpTerminal`` — the ELM327 engine bound to a plain TCP socket.
+
+The transport ``elm327-tcp``: a generic WiFi ELM327 adapter (Kiwi, vLinker,
+OBDLink) or the ELM327-Emulator's ``-n`` network mode. The counterpart to
+:class:`canair.transport.elm327.wican.WiCANTerminal`, which binds the same engine to the WiCAN's
+WebSocket — a wire binding is deliberately a separate module from the engine, so
+"support a new ELM327 wire" stays a new :class:`~canair.transport.elm327.channel.Channel`
+plus a few lines here, never a second copy of the protocol logic.
+
+Unlike the WiCAN there is no HTTP config API and no ``reboot``, which is why
+``TransportSpec.wican_http`` is false for this transport.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+
+from canair.transport.elm327.channel import TcpChannel
+from canair.transport.elm327.frame_count import CountKey
+from canair.transport.elm327.terminal import Elm327Terminal
+
+
+class Elm327TcpTerminal(Elm327Terminal):
+    """ELM327 engine over a direct TCP socket (transport ``elm327-tcp``)."""
+
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        timeout: float = 3.0,
+        verbose: bool = False,
+        unsafe: bool = False,
+        expected_responses: bool = True,
+        response_frames: dict[CountKey, int] | None = None,
+        variable_length: Iterable[CountKey] | None = None,
+    ):
+        self.port = port
+        channel = TcpChannel(host, port, verbose=verbose)
+        super().__init__(
+            channel,
+            timeout=timeout,
+            verbose=verbose,
+            unsafe=unsafe,
+            expected_responses=expected_responses,
+            response_frames=response_frames,
+            variable_length=variable_length,
+        )

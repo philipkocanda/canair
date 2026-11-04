@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.live.discovery_scan import DiscoveryProbe, scan_ecu
+from canair.live.discovery_scan import DiscoveryProbe, scan_ecu
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import nrc as _nrc
 

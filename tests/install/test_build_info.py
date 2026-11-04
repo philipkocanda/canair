@@ -1,4 +1,4 @@
-"""Tests for build provenance (canlib.install.build_info).
+"""Tests for build provenance (canair.install.build_info).
 
 canair reports and *records* a version that identifies the code that ran, not
 just the release it was near: from a git checkout the version carries the branch
@@ -13,7 +13,7 @@ import subprocess
 
 import pytest
 
-from canlib.install import build_info as bi
+from canair.install import build_info as bi
 
 
 @pytest.fixture(autouse=True)
@@ -67,18 +67,18 @@ class TestLocalSegment:
 class TestFullVersion:
     def test_plain_package_version_without_a_checkout(self, monkeypatch):
         monkeypatch.setattr(bi, "running_build", lambda: None)
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.2.3")
+        monkeypatch.setattr(canair, "__version__", "1.2.3")
         assert bi.full_version() == "1.2.3"
 
     def test_appends_the_checkout_provenance(self, monkeypatch):
         monkeypatch.setattr(
             bi, "running_build", lambda: bi.GitBuild(branch="main", commit="343b244", dirty=False)
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.2.3")
+        monkeypatch.setattr(canair, "__version__", "1.2.3")
         assert bi.full_version() == "1.2.3+main.343b244"
 
     def test_uses_a_dot_when_the_base_already_has_a_local_segment(self, monkeypatch):
@@ -87,14 +87,14 @@ class TestFullVersion:
         monkeypatch.setattr(
             bi, "running_build", lambda: bi.GitBuild(branch="main", commit="343b244", dirty=True)
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "0+unknown")
+        monkeypatch.setattr(canair, "__version__", "0+unknown")
         assert bi.full_version() == "0+unknown.main.343b244.dirty"
 
     def test_update_check_still_orders_a_provenance_version(self):
         """A local segment must not confuse the release comparison."""
-        from canlib.install.update_check import _is_newer, _parse_version
+        from canair.install.update_check import _is_newer, _parse_version
 
         assert _parse_version("1.2.3+main.343b244.dirty") == (1, 2, 3)
         assert _is_newer("v1.3.0", "1.2.3+main.343b244.dirty") is True
@@ -211,15 +211,15 @@ class TestHeadLabel:
 
 class TestRunningClone:
     def test_none_for_an_installed_copy(self, monkeypatch):
-        from canlib.install import context as ic
+        from canair.install import context as ic
 
         monkeypatch.setattr(ic, "running_origin", lambda: "uv-tool")
         assert bi.running_clone() is None
         assert bi.running_build() is None
 
     def test_the_clone_containing_the_running_package(self, monkeypatch, tmp_path):
-        from canlib.install import context as ic
+        from canair.install import context as ic
 
         monkeypatch.setattr(ic, "running_origin", lambda: "repo")
-        monkeypatch.setattr(ic, "running_package_dir", lambda: tmp_path / "canlib")
+        monkeypatch.setattr(ic, "running_package_dir", lambda: tmp_path / "canair")
         assert bi.running_clone() == tmp_path

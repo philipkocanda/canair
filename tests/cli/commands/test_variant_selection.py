@@ -10,11 +10,11 @@ import dataclasses
 
 import pytest
 
-from canlib import config
-from canlib import profile as profile_mod
-from canlib.profile import Profile, ProfileError
-from canlib.variants.selection import apply_variant, require_variant
-from canlib.variants.tags import capture_tag
+from canair import config
+from canair import profile as profile_mod
+from canair.profile import Profile, ProfileError
+from canair.variants.selection import apply_variant, require_variant
+from canair.variants.tags import capture_tag
 
 VARIANTS = (
     "variants:\n"
@@ -30,7 +30,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
     monkeypatch.delenv("CANAIR_PROFILE", raising=False)
     monkeypatch.delenv("CANAIR_VARIANT", raising=False)
-    monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
+    monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
     root = tmp_path / "profiles" / "hyundai-ioniq-ae-ev"
     (root / "ecus").mkdir(parents=True)
     (root / "profile.yaml").write_text(
@@ -161,21 +161,21 @@ class TestLiveGate:
 
     @pytest.mark.parametrize("command", ["read", "monitor", "scan", "raw", "io", "dtc"])
     def test_live_commands_refuse(self, unnamed, command):
-        from canlib.cli.commands._live.runtime import _require_car
+        from canair.cli.commands._live.runtime import _require_car
 
         with pytest.raises(ProfileError):
             _require_car(argparse.Namespace(command=command, save=False))
 
     @pytest.mark.parametrize("command", ["discover", "disc", "identity", "id"])
     def test_identifying_commands_run_until_they_save(self, unnamed, command):
-        from canlib.cli.commands._live.runtime import _require_car
+        from canair.cli.commands._live.runtime import _require_car
 
         _require_car(argparse.Namespace(command=command, save=False))
         with pytest.raises(ProfileError, match="record captures"):
             _require_car(argparse.Namespace(command=command, save=True))
 
     def test_run_live_refuses_before_touching_the_device(self, unnamed, monkeypatch):
-        from canlib.cli.commands._live import LiveOperation, runtime
+        from canair.cli.commands._live import LiveOperation, runtime
 
         def _boom(*a, **k):
             raise AssertionError("the device lock must not be taken")
@@ -188,7 +188,7 @@ class TestLiveGate:
             )
 
     def test_autopid_generation_refuses(self, unnamed):
-        from canlib.cli.commands import wican
+        from canair.cli.commands import wican
 
         with pytest.raises(ProfileError, match="generate the AutoPID profile"):
             wican._generate(argparse.Namespace())
@@ -196,7 +196,7 @@ class TestLiveGate:
 
 class TestProfileUse:
     def _use(self, name, variant=None):
-        from canlib.cli.commands.profile import _cmd_use
+        from canair.cli.commands.profile import _cmd_use
 
         return _cmd_use(argparse.Namespace(name=name, use_variant=variant, profiles_dir=None))
 
@@ -224,7 +224,7 @@ class TestProfileUse:
 
 
 def test_validate_checks_an_alias_variant(env):
-    from canlib.validation.profile_names import profile_name_findings
+    from canair.validation.profile_names import profile_name_findings
 
     text = (env / "profile.yaml").read_text().replace("{variant: 28kwh}", "{variant: 64kwh, x: 1}")
     (env / "profile.yaml").write_text(text)

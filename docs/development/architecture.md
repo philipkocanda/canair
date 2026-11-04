@@ -6,7 +6,7 @@ rules behind it, and the migration that gets the tree there, are in
 [`plans/2026-11-04-package-layout-and-layering.md`](https://github.com/philipkocanda/canair/blob/main/plans/2026-11-04-package-layout-and-layering.md).
 
 !!! note "Migration in progress"
-    The tree is moving from a flat `canlib/` of 52 loose modules to the layout below. Until a
+    The tree is moving from a flat `src/canair/` of 52 loose modules to the layout below. Until a
     package has moved, put new code in the package listed in the **Until it moves** column. The
     `import-linter` contracts in `pyproject.toml` already enforce the boundaries that hold today.
 
@@ -60,7 +60,7 @@ needs a plan that names its layer.
 
 ## Rules
 
-1. **No new module at the `canlib/` root.** Use the table above.
+1. **No new module at the `src/canair/` root.** Use the table above.
 2. **Put code in the lowest layer that can hold it.** If it needs no device, it is not a live
    operation. If it needs no flags, it is not in `cli/`. If it does no I/O, it may be protocol or
    leaf code.

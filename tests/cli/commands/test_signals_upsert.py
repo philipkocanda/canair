@@ -12,10 +12,10 @@ import argparse
 import pytest
 import yaml
 
-import canlib.profile as profile
-from canlib.profile import Profile
-from canlib.validation import other as validate
-from canlib.yaml_edit.signals import SignalsEditError, merge_bus, upsert_signal
+import canair.profile as profile
+from canair.profile import Profile
+from canair.validation import other as validate
+from canair.yaml_edit.signals import SignalsEditError, merge_bus, upsert_signal
 
 
 @pytest.fixture
@@ -237,7 +237,7 @@ class TestMergeBus:
 
 
 def _cli(argv):
-    from canlib.cli.commands import signals
+    from canair.cli.commands import signals
 
     p = signals.add_parser(argparse.ArgumentParser().add_subparsers())
     return signals.run(p.parse_args(argv))

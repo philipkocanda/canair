@@ -1,4 +1,4 @@
-"""A capture session's identity survives an edit (``canlib.captures.merge`` anchors).
+"""A capture session's identity survives an edit (``canair.captures.merge`` anchors).
 
 A session has no id: its *content* identifies it, which is what the git merge driver, the
 contribute overlay and the layered read dedupe by. Every metadata editor and repair
@@ -18,12 +18,12 @@ from pathlib import Path
 
 import pytest
 
-from canlib import contribute as C
-from canlib.captures import merge as captures_merge
-from canlib.cli.commands import _contribute_gates as gates
-from canlib.cli.commands import _contribute_report as report
-from canlib.cli.commands import contribute as cmd
-from canlib.profile import Profile, resolve_profile
+from canair import contribute as C
+from canair.captures import merge as captures_merge
+from canair.cli.commands import _contribute_gates as gates
+from canair.cli.commands import _contribute_report as report
+from canair.cli.commands import contribute as cmd
+from canair.profile import Profile, resolve_profile
 
 
 def _session(label="drive", time="10:00:00", *, notes=None, date="2026-07-28", pid="2101"):
@@ -136,12 +136,12 @@ class TestMergeDriverIdenticalReplacements:
 @pytest.fixture
 def layered(tmp_path, monkeypatch):
     """A bundled base ``ev6`` and the user's overlay on top of it, made active."""
-    from canlib import config
-    from canlib import profile as profile_mod
+    from canair import config
+    from canair import profile as profile_mod
 
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
-    monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
+    monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
     config.load_config.cache_clear()
     base = tmp_path / "profiles" / "ev6"
     (base / "ecus").mkdir(parents=True)
@@ -164,7 +164,7 @@ def _write(path: Path, *sessions) -> None:
 
 class TestLayeredReadCountsAnEditedSessionOnce:
     def test_the_overlays_edited_copy_supersedes_the_base_original(self, layered):
-        from canlib.captures.store import load_all_captures
+        from canair.captures.store import load_all_captures
 
         _write(layered.base / "captures" / "2026-07-28.json", _session())
         mine = layered.overlay / "captures" / "2026-07-28.json"
@@ -175,7 +175,7 @@ class TestLayeredReadCountsAnEditedSessionOnce:
         assert rows[0]["_path"] == str(mine)
 
     def test_an_identical_copy_still_reads_from_the_base(self, layered):
-        from canlib.captures.store import load_all_captures
+        from canair.captures.store import load_all_captures
 
         theirs = layered.base / "captures" / "2026-07-28.json"
         _write(theirs, _session())
@@ -185,7 +185,7 @@ class TestLayeredReadCountsAnEditedSessionOnce:
 
     def test_a_single_layer_with_shared_anchors_is_unchanged(self, tmp_path):
         """Anchors only arbitrate *between* layers; one store reads as it always did."""
-        from canlib.captures.store import load_all_captures
+        from canair.captures.store import load_all_captures
 
         cdir = tmp_path / "captures"
         cdir.mkdir()
@@ -196,7 +196,7 @@ class TestLayeredReadCountsAnEditedSessionOnce:
 class TestLayeredScopeKeysByPath:
     def test_last_session_does_not_fold_layers_together(self, layered):
         """Both layers hold ``2026-07-28.json``; keyed by name their sessions merged."""
-        from canlib.captures.dates import _session_starts
+        from canair.captures.dates import _session_starts
 
         _write(layered.base / "captures" / "2026-07-28.json", _session("base", "08:00:00"))
         _write(layered.overlay / "captures" / "2026-07-28.json", _session("mine", "18:00:00"))
@@ -204,7 +204,7 @@ class TestLayeredScopeKeysByPath:
         assert [s.strftime("%H:%M") for s in starts] == ["08:00", "18:00"]
 
     def test_unresolved_state_summary_counts_both_layers_sessions(self, layered):
-        from canlib.captures.store import load_all_captures, unresolved_state_summary
+        from canair.captures.store import load_all_captures, unresolved_state_summary
 
         def multi(label, time):
             return {**_session(label, time), "vehicle_states": ["ACC", "READY"]}

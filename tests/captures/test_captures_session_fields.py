@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from canlib.captures import build_query_session, save_session
+from canair.captures import build_query_session, save_session
 
 
 def _seed(cdir, *sessions: tuple[str, str], transport: str | None = None) -> None:
@@ -32,14 +32,14 @@ def _field(cdir, key: str) -> dict[str, str | None]:
 
 
 def _run(cdir, editor: str, value: str, **kw) -> int:
-    from canlib.captures.store import load_all_captures
-    from canlib.cli.commands.captures import session_fields
+    from canair.captures.store import load_all_captures
+    from canair.cli.commands.captures import session_fields
 
     return getattr(session_fields, editor)(load_all_captures(cdir), value, **kw)
 
 
 def _cli(cdir, *argv: str) -> int:
-    from canlib.cli.commands import captures as cap
+    from canair.cli.commands import captures as cap
 
     parser = cap.add_parser(argparse.ArgumentParser().add_subparsers())
     args = parser.parse_args(["uds", *argv, "--dir", str(cdir)])

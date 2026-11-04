@@ -29,7 +29,7 @@ repos:
         require_serial: true
 
       - id: ty
-        name: ty check (canlib/)
+        name: ty check (src/canair/)
         entry: uv run ty check
         language: system
         types_or: [python, pyi]

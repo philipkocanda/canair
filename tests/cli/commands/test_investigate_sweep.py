@@ -12,9 +12,9 @@ from __future__ import annotations
 import argparse
 import json
 
-from canlib import profile
-from canlib.cli.commands import investigate
-from canlib.ecus.pids import clear_cache
+from canair import profile
+from canair.cli.commands import investigate
+from canair.ecus.pids import clear_cache
 
 _ODO_DAYS = [
     ("2026-04-16", 70047),

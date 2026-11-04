@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from canlib.transport.elm327 import addressing as elm327_addressing
-from canlib.transport.elm327 import eeprom as elm327_eeprom
-from canlib.transport.elm327 import terminal as elm327_terminal
-from canlib.transport.elm327.commands import RESET_COMMANDS, canonical
-from canlib.transport.elm327.pipe import PENDING_RE
+from canair.transport.elm327 import addressing as elm327_addressing
+from canair.transport.elm327 import eeprom as elm327_eeprom
+from canair.transport.elm327 import terminal as elm327_terminal
+from canair.transport.elm327.commands import RESET_COMMANDS, canonical
+from canair.transport.elm327.pipe import PENDING_RE
 
 
 def test_canonical_drops_whitespace_and_case():

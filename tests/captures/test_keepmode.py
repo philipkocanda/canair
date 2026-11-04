@@ -1,8 +1,8 @@
-"""Tests for canlib.captures.keepmode helpers (T2)."""
+"""Tests for canair.captures.keepmode helpers (T2)."""
 
 import pytest
 
-from canlib.captures.keepmode import (
+from canair.captures.keepmode import (
     KEEP_ALL,
     KEEP_CHANGES,
     KEEP_LAST,
@@ -31,7 +31,7 @@ class TestResolveKeepMode:
         assert resolve_keep_mode(keep=5) == "last"
 
     def test_keep_unique_flag_is_gone(self):
-        from canlib.cli import build_parser
+        from canair.cli import build_parser
 
         parser = build_parser()
         assert parser.parse_args(["monitor", "BMS"]).keep_all is False
@@ -84,14 +84,14 @@ class TestKeepModeVocabulary:
     def test_keep_modes_derive_from_the_literal(self):
         from typing import get_args
 
-        from canlib.captures.keepmode import KeepMode
+        from canair.captures.keepmode import KeepMode
 
         assert KEEP_MODES == get_args(KeepMode)
 
     def test_persisted_modes_derive_from_the_literal(self):
         from typing import get_args
 
-        from canlib.captures.keepmode import PersistedKeepMode
+        from canair.captures.keepmode import PersistedKeepMode
 
         assert PERSISTED_KEEP_MODES == get_args(PersistedKeepMode)
 

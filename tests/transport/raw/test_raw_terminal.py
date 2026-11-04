@@ -4,9 +4,9 @@ import asyncio
 
 import pytest
 
-from canlib.transport.link_latency import LinkLatency
-from canlib.transport.raw import slcan_tcp as slcan_mod
-from canlib.transport.raw import terminal as raw_terminal
+from canair.transport.link_latency import LinkLatency
+from canair.transport.raw import slcan_tcp as slcan_mod
+from canair.transport.raw import terminal as raw_terminal
 
 
 class FakeBus:
@@ -329,8 +329,8 @@ class TestRawTerminalSafety:
 
     @pytest.mark.asyncio
     async def test_oem_session_honours_the_profile_allowance(self, make_terminal):
-        from canlib.safety.blocklist import SessionPolicy
-        from canlib.uds.protocol import KWP, UDS
+        from canair.safety.blocklist import SessionPolicy
+        from canair.uds.protocol import KWP, UDS
 
         t = make_terminal({(0x745, bytes.fromhex("10C0")): bytes.fromhex("50C0")})
         await t.set_header(0x745)
@@ -348,8 +348,8 @@ class TestRawTerminalSafety:
 
     @pytest.mark.asyncio
     async def test_nrc_name_follows_the_addressed_ecus_protocol(self, make_terminal):
-        from canlib.safety.blocklist import SessionPolicy
-        from canlib.uds.protocol import KWP
+        from canair.safety.blocklist import SessionPolicy
+        from canair.uds.protocol import KWP
 
         t = make_terminal({(0x7E4, bytes.fromhex("3301")): bytes.fromhex("7F3323")})
         await t.set_header(0x7E4)
@@ -391,7 +391,7 @@ class TestRawTerminalRxResolution:
         return seen
 
     def test_addr_map_used(self, capture_addr):
-        from canlib.uds.addressing import EcuAddress
+        from canair.uds.addressing import EcuAddress
 
         # Non-standard mapping 0x704 -> 0x784 (XPeng), and a fallback offset for
         # an address not in the map.
@@ -414,7 +414,7 @@ class TestRawTerminalModeResolution:
 
     @pytest.fixture
     def capture_mode(self, monkeypatch):
-        from canlib.uds.addressing import AddressingMode
+        from canair.uds.addressing import AddressingMode
 
         seen: list[tuple[int, int, AddressingMode]] = []
 
@@ -438,7 +438,7 @@ class TestRawTerminalModeResolution:
         return seen
 
     def test_per_ecu_addr_map(self, capture_mode):
-        from canlib.uds.addressing import AddressingMode, EcuAddress
+        from canair.uds.addressing import AddressingMode, EcuAddress
 
         t = raw_terminal.RawTerminal(
             "h",
@@ -454,7 +454,7 @@ class TestRawTerminalModeResolution:
         assert capture_mode[0][2] == AddressingMode.NORMAL_FIXED_29BIT
 
     def test_29bit_rx_derived_when_unmapped(self, capture_mode):
-        from canlib.uds.addressing import AddressingMode
+        from canair.uds.addressing import AddressingMode
 
         # No addr_map entry: RX for fixed-29 is the byte-swapped id.
         t = raw_terminal.RawTerminal("h", 3333, 500000, mode=AddressingMode.NORMAL_FIXED_29BIT)
@@ -491,7 +491,7 @@ class TestRawTerminalFcOverride:
         return seen
 
     def test_fc_id_threaded_from_addr_map(self, capture_fc):
-        from canlib.uds.addressing import AddressingMode, EcuAddress
+        from canair.uds.addressing import AddressingMode, EcuAddress
 
         t = raw_terminal.RawTerminal(
             "h",

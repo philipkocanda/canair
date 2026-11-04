@@ -6,11 +6,11 @@ import argparse
 import pytest
 import yaml
 
-from canlib.cli.commands import pids as cli
-from canlib.ecus.pids import build_ecu_index, pid_ships, pid_swept
-from canlib.validation import pids as validate_pids
-from canlib.yaml_edit.errors import EditError
-from canlib.yaml_edit.pids import PidsEditError, set_snapshot_only
+from canair.cli.commands import pids as cli
+from canair.ecus.pids import build_ecu_index, pid_ships, pid_swept
+from canair.validation import pids as validate_pids
+from canair.yaml_edit.errors import EditError
+from canair.yaml_edit.pids import PidsEditError, set_snapshot_only
 
 YAML = """\
 TEST:
@@ -111,7 +111,7 @@ class TestCommand:
     def test_the_schema_gate_can_veto_and_revert(self, pids_dir, monkeypatch):
         before = (pids_dir / "test.yaml").read_text()
         monkeypatch.setattr(
-            "canlib.validation.pids.validate_pids_file", lambda p, *a: (False, "  ERROR: nope")
+            "canair.validation.pids.validate_pids_file", lambda p, *a: (False, "  ERROR: nope")
         )
         with pytest.raises(EditError):
             cli.cmd_set_snapshot_only(_Args(pids_dir, no_validate=False))

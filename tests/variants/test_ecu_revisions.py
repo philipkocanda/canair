@@ -16,14 +16,14 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib import config
-from canlib import profile as profile_mod
-from canlib.cli import main
-from canlib.ecus.pids import clear_cache, load_pids, load_raw_pids, revision_resolutions
-from canlib.profile import ProfileError, set_active
-from canlib.variants import check_variants_doc, load_variants
-from canlib.variants import revisions as rv
-from canlib.variants.tags import capture_tag, narrow_to_captured, revisions_in_scope
+from canair import config
+from canair import profile as profile_mod
+from canair.cli import main
+from canair.ecus.pids import clear_cache, load_pids, load_raw_pids, revision_resolutions
+from canair.profile import ProfileError, set_active
+from canair.variants import check_variants_doc, load_variants
+from canair.variants import revisions as rv
+from canair.variants.tags import capture_tag, narrow_to_captured, revisions_in_scope
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "profiles" / "variants"
 
@@ -34,7 +34,7 @@ def _fresh(monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_VARIANT", raising=False)
     config.load_config.cache_clear()
-    import canlib.ecus.pids as pids_mod
+    import canair.ecus.pids as pids_mod
 
     pids_mod._noted_skips.clear()
     yield
@@ -128,8 +128,8 @@ class TestResolution:
         assert _ecus()["VCU"]["identity"]["part_number"] == "SYN-0001"
 
     def test_ecu_detail_says_why_identity_is_missing_on_another_revision(self, capsys):
-        from canlib.cli.commands.ecu import _detail_record, cmd_detail
-        from canlib.ecus import load_ecus, resolve_tx
+        from canair.cli.commands.ecu import _detail_record, cmd_detail
+        from canair.ecus import load_ecus, resolve_tx
 
         for pins, expected in (
             (["VCU=uds"], "None recorded for the uds revision (the recorded values belong to kwp)"),
@@ -289,7 +289,7 @@ class TestChecks:
         doc = yaml.safe_load((FIXTURE / "variants.yaml").read_text())
         doc["variants"]["40kwh"]["revisions"] = {"VCU": ["can"], "BMS": ["kwp"], "vcu": ["kwp"]}
         assert check_variants_doc(doc) == []
-        from canlib.variants import _variant_from
+        from canair.variants import _variant_from
 
         bad = {"40kwh": _variant_from("40kwh", doc["variants"]["40kwh"])}
         errors = rv.variant_reference_errors(bad, ecus)
@@ -298,7 +298,7 @@ class TestChecks:
         assert any("did you mean VCU" in e for e in errors)
 
     def test_one_signal_name_across_disjoint_revisions_is_allowed(self, copy):
-        from canlib.validation.pids import _duplicate_param_errors
+        from canair.validation.pids import _duplicate_param_errors
 
         files = sorted((copy / "ecus").glob("*.yaml"))
         assert _duplicate_param_errors(files) == []
@@ -307,7 +307,7 @@ class TestChecks:
         assert any("VEHICLE_SPEED" in e for e in _duplicate_param_errors(files))
 
     def test_a_predicate_must_resolve_on_every_car(self, copy):
-        from canlib.states.refs import check_references_on_every_car
+        from canair.states.refs import check_references_on_every_car
 
         _activate(copy)
         assert check_references_on_every_car([("DRIVING", "VCU.VEHICLE_SPEED > 0")]) == []
@@ -334,7 +334,7 @@ class TestChecks:
 
 
 def _labels() -> set[str]:
-    from canlib.captures.store import load_all_captures
+    from canair.captures.store import load_all_captures
 
     return {e["session_label"] for e in load_all_captures()}
 
@@ -372,7 +372,7 @@ class TestCaptures:
         assert "revisions" not in capture_tag(_activate(variant="60kwh"))
 
     def test_save_session_narrows_to_captured_ecus(self, copy):
-        from canlib.captures import apply_capture_tag
+        from canair.captures import apply_capture_tag
 
         prof = _activate(copy, variant="60kwh", pins=["VCU=uds"])
         bms_only = {
@@ -385,7 +385,7 @@ class TestCaptures:
         assert apply_capture_tag(vcu, capture_tag(prof))["revisions"] == {"VCU": "uds"}
 
     def test_an_import_ignores_a_config_pin(self, copy):
-        from canlib.variants.selection import require_named_car
+        from canair.variants.selection import require_named_car
 
         config.set_config_key("profile_settings.variants.revisions.VCU", "uds")
         config.load_config.cache_clear()
@@ -503,7 +503,7 @@ class TestEditors:
         cap = copy / "captures" / "2026-01-01.json"
         data = json.loads(cap.read_text())
         data["sessions"] = [s for s in data["sessions"] if s["variant"] != "60kwh"]
-        from canlib.captures import io as capture_io
+        from canair.captures import io as capture_io
 
         cap.write_text(capture_io.capture_text(data))
         assert _run(copy, "variants", "rm", "60kwh") == 1
@@ -518,7 +518,7 @@ class TestEditors:
         assert session["attribution"]["revisions"] == {"PCU": "only"}
 
     def test_revision_and_ecu_renames_follow_into_the_dtc_log(self, copy, tmp_path, monkeypatch):
-        monkeypatch.setattr("canlib.dtc.log.log_dir", lambda: tmp_path / "dtc_log")
+        monkeypatch.setattr("canair.dtc.log.log_dir", lambda: tmp_path / "dtc_log")
         log = tmp_path / "dtc_log" / "variants.yaml"
         log.parent.mkdir()
         log.write_text(
@@ -615,7 +615,7 @@ class TestOverridesAndEvidence:
         assert pids["21F0"]["parameters"]["MODE"]["verified"] is False
 
     def test_seeds_come_from_the_resolved_revision_only(self):
-        from canlib.ecus.response_frames import seed_counts
+        from canair.ecus.response_frames import seed_counts
 
         for rid, want in (("kwp", 3), ("uds", 5)):
             data = {"ecus": {"VCU": {**_ecu_with_overrides(), "pids": _resolve_at(rid)}}}
@@ -649,8 +649,8 @@ class TestOverridesAndEvidence:
         assert any("'category' cannot differ" in e for e in rv.check_ecu("VCU", vcu))
 
     def test_a_count_learned_on_one_revision_is_written_to_that_revision(self, copy):
-        from canlib.ecus.response_frames import persist, seed_counts
-        from canlib.uds.frame_counts import FrameCountLedger
+        from canair.ecus.response_frames import persist, seed_counts
+        from canair.uds.frame_counts import FrameCountLedger
 
         for rid, frames in (("uds", 4), ("kwp", 2)):
             _activate(copy, variant="60kwh", pins=[f"VCU={rid}"])
@@ -666,8 +666,8 @@ class TestOverridesAndEvidence:
         assert seed_counts(load_pids())[(0x7E2, "21F0")] == 4
 
     def test_an_undetermined_revision_persists_nothing(self, copy):
-        from canlib.ecus.response_frames import persist
-        from canlib.uds.frame_counts import FrameCountLedger
+        from canair.ecus.response_frames import persist
+        from canair.uds.frame_counts import FrameCountLedger
 
         _activate(copy, variant="60kwh")
         ledger = FrameCountLedger()

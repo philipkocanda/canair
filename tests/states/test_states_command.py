@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-import canlib.cli.commands.states as states_cmd
-from canlib.states import StateRule
+import canair.cli.commands.states as states_cmd
+from canair.states import StateRule
 
 
 class _FakeProfile:
@@ -27,9 +27,9 @@ def _patched(monkeypatch):
     ]
     usage = {"CHARGING": 12, "READY": 30, "SLEEP": 0, "ALL": 0, "FOB PRESENT": 1}
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canlib.states.load_states", lambda profile=None: rules)
+    monkeypatch.setattr("canair.states.load_states", lambda profile=None: rules)
     monkeypatch.setattr(states_cmd, "_load_usage", lambda: usage)
-    monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
+    monkeypatch.setattr("canair.profile.active", lambda: _FakeProfile())
 
 
 def _run(**kw):
@@ -77,9 +77,9 @@ def test_no_color_when_piped(_patched, capsys):
 
 def test_empty_vocabulary(monkeypatch, capsys):
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canlib.states.load_states", lambda profile=None: [])
+    monkeypatch.setattr("canair.states.load_states", lambda profile=None: [])
     monkeypatch.setattr(states_cmd, "_load_usage", lambda: {})
-    monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
+    monkeypatch.setattr("canair.profile.active", lambda: _FakeProfile())
     rc = _run()
     out = capsys.readouterr().out
     assert rc == 0
@@ -102,7 +102,7 @@ class TestEditDispatch:
             )
             return tmp_path / "vehicle_states.yaml"
 
-        monkeypatch.setattr("canlib.yaml_edit.states.add_state", _add)
+        monkeypatch.setattr("canair.yaml_edit.states.add_state", _add)
         monkeypatch.setenv("NO_COLOR", "1")
         args = argparse.Namespace(
             name="precondition",
@@ -124,12 +124,12 @@ class TestEditDispatch:
         assert "added state PRECONDITION" in capsys.readouterr().out
 
     def test_add_error_reaches_the_central_handler(self, monkeypatch):
-        from canlib.yaml_edit.states import StatesEditError
+        from canair.yaml_edit.states import StatesEditError
 
         def _add(*a, **k):
             raise StatesEditError("already exists")
 
-        monkeypatch.setattr("canlib.yaml_edit.states.add_state", _add)
+        monkeypatch.setattr("canair.yaml_edit.states.add_state", _add)
         args = argparse.Namespace(
             name="READY",
             description=None,
@@ -161,10 +161,10 @@ class TestReverseLookup:
         }
         ecus = {0x7E4: {"can_bus": ["P-CAN"]}, 0x7C6: {"can_bus": ["C-CAN"]}, 0x770: {}}
         monkeypatch.setenv("NO_COLOR", "1")
-        monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
-        monkeypatch.setattr("canlib.states.load_states", lambda profile=None: rules)
-        monkeypatch.setattr("canlib.ecus.pids.load_pids", lambda: pids_data)
-        monkeypatch.setattr("canlib.ecus.load_ecus", lambda: ecus)
+        monkeypatch.setattr("canair.profile.active", lambda: _FakeProfile())
+        monkeypatch.setattr("canair.states.load_states", lambda profile=None: rules)
+        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda: pids_data)
+        monkeypatch.setattr("canair.ecus.load_ecus", lambda: ecus)
 
     def test_human_output(self, _patched_lookup, capsys):
         rc = _run(state="READY")

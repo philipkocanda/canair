@@ -7,11 +7,11 @@ import argparse
 import pytest
 import yaml
 
-from canlib.cli.commands import pids as cli
-from canlib.ecus.pids import effective_param, load_pids
-from canlib.validation.pids import load_schema, validate_ecu_file, validate_pids_file
-from canlib.yaml_edit.pids import PidsEditError, hoist_defaults, set_pid_defaults
-from canlib.yaml_edit.pids.defaults import plan_hoist
+from canair.cli.commands import pids as cli
+from canair.ecus.pids import effective_param, load_pids
+from canair.validation.pids import load_schema, validate_ecu_file, validate_pids_file
+from canair.yaml_edit.pids import PidsEditError, hoist_defaults, set_pid_defaults
+from canair.yaml_edit.pids.defaults import plan_hoist
 
 LINK = "https://example.org/sheet"
 

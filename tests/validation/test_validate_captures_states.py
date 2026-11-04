@@ -12,8 +12,8 @@ import textwrap
 
 import yaml
 
-from canlib.states import StateRule
-from canlib.validation.captures import _capture_state_warnings
+from canair.states import StateRule
+from canair.validation.captures import _capture_state_warnings
 
 VOCAB = {"charging", "driving", "parked", "plugged", "ready"}
 RULES = [StateRule(name="DRIVING", excludes=("PARKED", "CHARGING"))]

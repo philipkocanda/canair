@@ -1,4 +1,4 @@
-"""Tests for the shared ISO-TP stack factory (canlib.transport.raw.isotp_stack).
+"""Tests for the shared ISO-TP stack factory (canair.transport.raw.isotp_stack).
 
 Covers the flow-control arbitration-id override (gap G-J: functional-TX /
 physical-RX ECUs like Renault/Mitsubishi). See
@@ -10,9 +10,9 @@ import time
 import can
 import isotp
 
-from canlib.transport.isotp_params import build_isotp_params
-from canlib.transport.raw.isotp_stack import _FcAddressStack, build_isotp_stack
-from canlib.uds.addressing import AddressingMode, EcuAddress, build_isotp_address
+from canair.transport.isotp_params import build_isotp_params
+from canair.transport.raw.isotp_stack import _FcAddressStack, build_isotp_stack
+from canair.uds.addressing import AddressingMode, EcuAddress, build_isotp_address
 
 
 class _FakeBus(can.BusABC):

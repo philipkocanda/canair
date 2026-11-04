@@ -22,7 +22,7 @@ import os
 from pathlib import Path
 from typing import ClassVar
 
-from canlib import config, profile
+from canair import config, profile
 
 
 class TestUserConfigIsolation:
@@ -90,7 +90,7 @@ class TestActiveProfilePinning:
 class TestNoEagerConfigReadAtImportTime:
     """Importing canair must not read the user config.
 
-    ``canlib.core.paths`` resolves config-dependent constants lazily (PEP 562) so
+    ``canair.core.paths`` resolves config-dependent constants lazily (PEP 562) so
     the active profile is honoured at *access* time. Two modules defeated that by
     importing ``WICAN_ADDRESSES``/``DEFAULT_WICAN`` at module scope, which fired
     the lazy resolver during import — i.e. during pytest *collection*, before any
@@ -114,9 +114,9 @@ class TestNoEagerConfigReadAtImportTime:
         # Re-import the modules that previously resolved a config-backed default
         # at module scope.
         for mod in (
-            "canlib.device.wican.api",
-            "canlib.cli.commands.wican",
-            "canlib.cli.commands._live",
+            "canair.device.wican.api",
+            "canair.cli.commands.wican",
+            "canair.cli.commands._live",
         ):
             importlib.reload(importlib.import_module(mod))
 
@@ -126,34 +126,34 @@ class TestNoEagerConfigReadAtImportTime:
         )
 
     def test_live_commands_do_not_bake_in_a_device_address(self):
-        from canlib.cli import build_parser
+        from canair.cli import build_parser
 
         # Must stay None. A config-derived default is resolved when the parser is built and
         # re-introduces an eager read of the user's config.
         assert build_parser().parse_args(["read", "BMS:2101"]).wican is None
 
     def test_constants_exposes_no_lazy_config_magic(self):
-        """`canlib.core.paths` must hold only static values.
+        """`canair.core.paths` must hold only static values.
 
         A module-level `__getattr__` (PEP 562) is what made the config read happen
         at import time *and* left every imported constant untyped. Re-adding one
         would silently reintroduce both problems, so assert it's gone and that the
         old names resolve nowhere.
         """
-        import canlib
-        from canlib.core import paths as constants
+        import canair
+        from canair.core import paths as constants
 
         assert not hasattr(constants, "__getattr__"), (
             "constants.__getattr__ is back — use an explicit typed accessor "
             "(config.wican_addresses / profile.active()) instead"
         )
-        assert not hasattr(canlib, "__getattr__")
+        assert not hasattr(canair, "__getattr__")
         for name in ("WICAN_ADDRESSES", "DEFAULT_WICAN", "ECUS_DIR", "CAPTURES_DIR"):
             assert not hasattr(constants, name), f"constants.{name} should be gone"
-            assert not hasattr(canlib, name), f"canlib.{name} should be gone"
+            assert not hasattr(canair, name), f"canair.{name} should be gone"
 
     def test_the_typed_accessors_work_and_are_typed(self):
-        from canlib.config import default_wican, wican_addresses
+        from canair.config import default_wican, wican_addresses
 
         addresses = wican_addresses()
         assert isinstance(addresses, dict)

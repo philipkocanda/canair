@@ -1,18 +1,18 @@
 """Unit tests for the monitor recorder's span-aware state back-fill.
 
-The recorder (``canlib.live._monitor_record.MonitorRecorder``) accumulates the
+The recorder (``canair.live._monitor_record.MonitorRecorder``) accumulates the
 states auto-suggested across a segment's whole lifetime, so a segment that
 charged then went idle still reconciles as ``charging`` — a point-in-time
 snapshot at reconcile time alone would miss it (the 2026-07-27 bug).
 
 Drives the recorder with a lightweight fake controller (no CAN, no TTY) and a
-real :class:`canlib.captures.journal.CaptureJournal` so reconciliation is
+real :class:`canair.captures.journal.CaptureJournal` so reconciliation is
 exercised end-to-end into an on-disk capture file.
 """
 
 import json
 
-from canlib.live._monitor_record import MonitorRecorder
+from canair.live._monitor_record import MonitorRecorder
 from tests.support.monitor_recorder import FakeController
 
 

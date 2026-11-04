@@ -1,8 +1,8 @@
-"""Tests for canlib.ecus.pids — PID loading and index building."""
+"""Tests for canair.ecus.pids — PID loading and index building."""
 
 import pytest
 
-from canlib.ecus.pids import (
+from canair.ecus.pids import (
     DEFAULT_PID_STATUS,
     PID_STATUSES,
     build_ecu_index,
@@ -127,7 +127,7 @@ class TestPidStatus:
 class TestPidStatusVocabulary:
     """`PidStatus` (Python) and `valid_pid_status:` (schema) must not drift.
 
-    Both are deliberate: `canlib/schema/` validates *data* without importing
+    Both are deliberate: `src/canair/schema/` validates *data* without importing
     Python, while the `Literal` gives the Python side static checking. Deleting
     either would cost one of those properties, so instead they're pinned equal.
     """
@@ -135,13 +135,13 @@ class TestPidStatusVocabulary:
     def test_statuses_derive_from_the_literal(self):
         from typing import get_args
 
-        from canlib.ecus.pids import PidStatus
+        from canair.ecus.pids import PidStatus
 
         assert PID_STATUSES == get_args(PidStatus)
 
     def test_schema_matches_the_literal(self):
-        from canlib.validation._common import SCHEMA_FILE
-        from canlib.validation.pids import load_schema
+        from canair.validation._common import SCHEMA_FILE
+        from canair.validation.pids import load_schema
 
         schema_statuses = load_schema(SCHEMA_FILE).get("valid_pid_status")
         assert schema_statuses, "pids_schema.yaml must declare valid_pid_status"

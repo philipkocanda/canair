@@ -1,8 +1,8 @@
-"""Tests for canlib.safety.blocklist.enforce_command_safety — the shared, transport-independent guard."""
+"""Tests for canair.safety.blocklist.enforce_command_safety — the shared, transport-independent guard."""
 
 import pytest
 
-from canlib.safety.blocklist import SafetyBlocked, enforce_command_safety
+from canair.safety.blocklist import SafetyBlocked, enforce_command_safety
 
 
 class TestEnforceCommandSafety:

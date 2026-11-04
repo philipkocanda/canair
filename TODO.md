@@ -76,13 +76,13 @@ Status: NOT located in any polled PID as of 2026-07-20.
 
 Added 2026-10-30. The tooling is in place; what is left needs the car. An IOControl entry now
 carries its own `release:` (the request that hands the output back), resolved per entry by
-`canlib/ecus/pids.py::build_iocontrol_index`: UDS implies `2F {DID} 00`, KWP2000 `0x30` implies nothing.
+`src/canair/ecus/pids.py::build_iocontrol_index`: UDS implies `2F {DID} 00`, KWP2000 `0x30` implies nothing.
 `canair io` sends that release on exit and on Ctrl-C, `--poll` sends it, and a `0x30` ON without
-one is refused (`canlib/safety/actuation.py::on_refusal`). The Ioniq's KWP ECUs (BMS, VCU, MCU, OBC, LDC,
+one is refused (`src/canair/safety/actuation.py::on_refusal`). The Ioniq's KWP ECUs (BMS, VCU, MCU, OBC, LDC,
 AAF) still have no actuators defined.
 
 - [x] **Model KWP actuators** — `30 {LID} {option} [state…]` with an 8-bit local identifier
-  (`canlib/safety/actuation.py::parse_io_request`); each entry's `on`/`off`/`release` carry their own
+  (`src/canair/safety/actuation.py::parse_io_request`); each entry's `on`/`off`/`release` carry their own
   option byte. `scan iocontrol` still sends only `30 {LID} 00`, but now confirms first on every
   non-Nissan profile (`--yes`), since that probe is not proven to drive nothing.
 - [ ] **Settle the option-byte convention on the Ioniq.** ISO 14230-3 leaves it to the
@@ -99,7 +99,7 @@ AAF) still have no actuators defined.
   it with `canair pids set-iocontrol ECU KEY --release HEX`. Never declare a release that was not
   seen to hand the output back.
 - [x] **Gate it on the actuation safety interlock** — the plan's §1 classifier exists
-  (`canlib/safety/actuation.py::classify`), with a `0x30` table that classifies only a declared release
+  (`src/canair/safety/actuation.py::classify`), with a `0x30` table that classifies only a declared release
   as `release`. The interlock itself (funnel, `interlock.yaml`, watchdog) is still the open plan
   `plans/2026-10-22-actuation-safety-interlock.md`.
 - [ ] **Reference traffic** — Kona KWP and UDS diagnostic logs are in

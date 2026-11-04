@@ -21,9 +21,9 @@ import re
 
 import pytest
 
-from canlib import profile
-from canlib.ecus.pids import clear_cache
-from canlib.live import discover as disc
+from canair import profile
+from canair.ecus.pids import clear_cache
+from canair.live import discover as disc
 from tests.support.fakes import FakeTerminal, nrc, ok
 
 PROFILE_YAML = 'car_model: "T"\ninit: "ATSP6;"\naddressing:\n  rx_offset: 0x20\n'
@@ -57,19 +57,19 @@ def _saved_session(root):
 
 class TestRxForTxHonoursTheProfile:
     def test_unregistered_tx_uses_the_profile_rx_offset(self, prof):
-        from canlib.ecus import rx_addr_str, rx_for_tx
+        from canair.ecus import rx_addr_str, rx_for_tx
 
         assert rx_for_tx(0x74E) == 0x76E
         assert rx_addr_str(0x74E) == "0x76E"
 
     def test_registered_rx_id_override_wins(self, prof):
-        from canlib.ecus import rx_for_tx
+        from canair.ecus import rx_for_tx
 
         assert rx_for_tx(0x70E) == 0x70F
         assert rx_for_tx(0x740) == 0x760
 
     def test_an_explicit_offset_still_wins(self, prof):
-        from canlib.ecus import rx_for_tx
+        from canair.ecus import rx_for_tx
 
         assert rx_for_tx(0x74E, rx_offset=0x08) == 0x756
 
@@ -113,7 +113,7 @@ class TestDiscoverSave:
 class TestScanAndRawSave:
     @pytest.mark.asyncio
     async def test_scan_records_the_client_transport(self, prof):
-        from canlib.live.scan import mode_scan
+        from canair.live.scan import mode_scan
 
         term = FakeTerminal({"220100": ok("620100AA")})
         await mode_scan(term, 0x74E, 0x22, (0x0100, 0x0100), False, False, save=True, label="scan")
@@ -123,7 +123,7 @@ class TestScanAndRawSave:
 
     @pytest.mark.asyncio
     async def test_raw_records_the_client_transport(self, prof):
-        from canlib.live.raw import mode_raw
+        from canair.live.raw import mode_raw
 
         term = FakeTerminal({"2101": ok("6101AA")})
         await mode_raw(term, "74E:2101", False, False, save=True, label="raw")
@@ -135,7 +135,7 @@ class TestScanAndRawSave:
 class TestJournaledSaveNeverGuesses:
     def test_a_session_without_transport_is_saved_without_one(self, prof):
         """Re-resolving config would ignore --transport/--wican and fallback."""
-        from canlib.captures import build_raw_session, save_session_journaled
+        from canair.captures import build_raw_session, save_session_journaled
 
         session = build_raw_session("0x76E", 0x74E, "2101", ok("6101AA"), "L", [], "")
         save_session_journaled(session, prof / "captures")
@@ -143,7 +143,7 @@ class TestJournaledSaveNeverGuesses:
 
     @pytest.mark.asyncio
     async def test_scan_of_a_range_list_sends_each_id_once_and_records_the_list(self, prof):
-        from canlib.live.scan import mode_scan
+        from canair.live.scan import mode_scan
 
         term = FakeTerminal({"22B401": ok("62B401AA")})
         ranges = ((0xB400, 0xB401), (0xB100, 0xB100), (0xB401, 0xB401))

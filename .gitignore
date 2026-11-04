@@ -59,6 +59,6 @@ profiles/*/dtc_log.yaml
 profiles/*/captures/.journal/
 
 # Blind-rediscovery eval sandboxes, answer keys, and reports (on-demand tooling
-# stress-test — see scripts/research/blind_rediscovery.py and canlib/blind.py). Contains
+# stress-test — see scripts/research/blind_rediscovery.py and src/canair/blind.py). Contains
 # held-out ground truth; never committed.
 /rediscovery/

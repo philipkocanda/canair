@@ -10,22 +10,22 @@ from __future__ import annotations
 import argparse
 import json
 
-from canlib.cli.commands import investigate
-from canlib.cli.commands.investigate import counters as inv_counters
+from canair.cli.commands import investigate
+from canair.cli.commands.investigate import counters as inv_counters
 
 
 def _run(tmp_path, monkeypatch, argv, specs=()):
-    import canlib.analysis.align as align
+    import canair.analysis.align as align
 
     orig = align.load_signal_captures
     monkeypatch.setattr(
-        "canlib.cli.commands.investigate.uds.load_signal_captures",
+        "canair.cli.commands.investigate.uds.load_signal_captures",
         lambda s, **kw: orig(
             s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
         ),
     )
     monkeypatch.setattr(
-        "canlib.cli.commands.investigate.uds.discover_signal_specs", lambda *a, **k: list(specs)
+        "canair.cli.commands.investigate.uds.discover_signal_specs", lambda *a, **k: list(specs)
     )
     p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
     return investigate.run(p.parse_args(["uds", *argv]))
@@ -129,7 +129,7 @@ class TestCountersCli:
     def test_unmapped_only_hides_a_mapped_window(self, tmp_path, monkeypatch, capsys):
         _write_odometer(tmp_path, days=_DAYS)
         monkeypatch.setattr(
-            "canlib.ecus.pids.load_pids",
+            "canair.ecus.pids.load_pids",
             lambda *a, **k: {
                 "ecus": {
                     "CLU": {
@@ -177,7 +177,7 @@ class TestCountersCli:
         """
         _write_odometer(tmp_path, days=_DAYS)
         monkeypatch.setattr(
-            "canlib.ecus.pids.load_pids",
+            "canair.ecus.pids.load_pids",
             lambda *a, **k: {
                 "ecus": {
                     "CLU": {
@@ -211,7 +211,7 @@ class TestCountersCli:
     def test_verified_mapping_is_reported_as_settled(self, tmp_path, monkeypatch, capsys):
         _write_odometer(tmp_path, days=_DAYS)
         monkeypatch.setattr(
-            "canlib.ecus.pids.load_pids",
+            "canair.ecus.pids.load_pids",
             lambda *a, **k: {
                 "ecus": {
                     "CLU": {
@@ -247,7 +247,7 @@ class TestCountersCli:
 
     def test_notation_torque_relabels_the_label(self, tmp_path, monkeypatch, capsys):
         """--notation re-renders the ISO-TP label; the expression stays WiCAN."""
-        from canlib.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
+        from canair.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
 
         _write_odometer(tmp_path, days=_DAYS)
         rc = _run(
@@ -333,7 +333,7 @@ class TestCountersCli:
 
 class TestPayloadMatrix:
     def _lp(self, payloads):
-        from canlib.analysis.align import LoadedPid
+        from canair.analysis.align import LoadedPid
 
         lp = LoadedPid("CLU", "22B002")
         for i, p in enumerate(payloads):
@@ -383,7 +383,7 @@ class TestPayloadMatrix:
 
 class TestExpressionRendering:
     def _cand(self, offsets, little=False):
-        from canlib.analysis.counters import CounterCandidate
+        from canair.analysis.counters import CounterCandidate
 
         return CounterCandidate(
             keys=tuple(offsets),

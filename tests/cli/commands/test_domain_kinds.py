@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.cli import _GROUP_DEFAULTS, _inject_default_subcommand
+from canair.cli import _GROUP_DEFAULTS, _inject_default_subcommand
 
 
 class TestGroupDefaults:
@@ -59,7 +59,7 @@ class TestGroupDefaults:
         """
         import argparse
 
-        from canlib.cli.commands import iter_command_modules
+        from canair.cli.commands import iter_command_modules
 
         parser = argparse.ArgumentParser()
         subparsers = parser.add_subparsers(dest="command")

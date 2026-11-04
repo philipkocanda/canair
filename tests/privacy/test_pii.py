@@ -1,4 +1,4 @@
-"""Tests for the PII pre-flight scanner (:mod:`canlib.privacy.pii`)."""
+"""Tests for the PII pre-flight scanner (:mod:`canair.privacy.pii`)."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from canlib.privacy import pii
-from canlib.profile import Profile
+from canair.privacy import pii
+from canair.profile import Profile
 
 
 def _write_profile(root, *, car_model="Test Car 2020", captures=None, ecus=None):

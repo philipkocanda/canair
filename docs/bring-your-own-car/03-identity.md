@@ -40,7 +40,7 @@ canair pids set-identity MyECU notes "Body control module; mirrors IGPM door bit
 canair pids rm-identity  MyECU sw_version   # drop a field you filed wrongly
 ```
 
-The field name must be one the schema declares (`canlib/schema/pids_schema.yaml`,
+The field name must be one the schema declares (`src/canair/schema/pids_schema.yaml`,
 `identity_fields`) — a typo is a validation **error** and the edit is reverted, so
 a misfiled `sofware:` can't sit in the profile unnoticed.
 

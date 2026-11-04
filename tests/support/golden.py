@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pytest
 
-from canlib import cli
+from canair import cli
 
 GOLDEN_DIR = Path(__file__).parents[1] / "fixtures" / "golden"
 FIXTURE_PROFILES_DIR = Path(__file__).parents[1] / "fixtures" / "profiles"

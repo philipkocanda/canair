@@ -3,7 +3,7 @@
 
 On-demand stress-test of canair's analysis tooling: can it rediscover an
 already-solved signal *blindfolded*? The blindfold is a copy of a profile with
-every answer-bearing field removed (see :mod:`canlib.analysis.blind`), so the leaky tools
+every answer-bearing field removed (see :mod:`canair.analysis.blind`), so the leaky tools
 (`investigate`/`coverage`/`decode`/`captures`) have no stored names to echo.
 
 Workflow (run from the repo root):
@@ -33,8 +33,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from canlib.analysis import blind
-from canlib.profile import resolve_profile
+from canair.analysis import blind
+from canair.profile import resolve_profile
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

@@ -12,12 +12,12 @@ from pathlib import Path
 
 import pytest
 
-from canlib import profile as profile_mod
-from canlib.captures import io as capture_io
-from canlib.dtc.log import log_file
-from canlib.profile import Profile, ProfileError
-from canlib.variants.selection import apply_variant, require_named_car
-from canlib.yaml_edit import variants as variants_edit
+from canair import profile as profile_mod
+from canair.captures import io as capture_io
+from canair.dtc.log import log_file
+from canair.profile import Profile, ProfileError
+from canair.variants.selection import apply_variant, require_named_car
+from canair.yaml_edit import variants as variants_edit
 
 VARIANTS = "variants:\n  28kwh:\n    name: A\n  38kwh:\n    name: B\n"
 
@@ -35,7 +35,7 @@ def _session(label: str, *, variant: str | None = None, time: str = "09:00:00") 
 def prof(tmp_path, monkeypatch):
     """A two-variant profile with an empty capture store, made active."""
     monkeypatch.delenv("CANAIR_VARIANT", raising=False)
-    monkeypatch.setattr("canlib.dtc.log.log_dir", lambda: tmp_path / "dtc_log")
+    monkeypatch.setattr("canair.dtc.log.log_dir", lambda: tmp_path / "dtc_log")
     root = tmp_path / "kia-ev6-cv-ev"
     (root / "ecus").mkdir(parents=True)
     (root / "captures").mkdir()
@@ -85,7 +85,7 @@ class TestSelection:
 
 class TestStamping:
     def test_save_session_tags_the_selected_variant(self, prof):
-        from canlib.captures import build_manual_session, save_session
+        from canair.captures import build_manual_session, save_session
 
         _select(prof, "38kwh")
         session = build_manual_session(
@@ -99,7 +99,7 @@ class TestStamping:
 
     @pytest.mark.parametrize("variant", [None, "all", "untagged"])
     def test_no_car_named_means_no_tag(self, prof, variant):
-        from canlib.captures import build_manual_session, save_session
+        from canair.captures import build_manual_session, save_session
 
         _select(prof, variant)
         path = save_session(build_manual_session([{"rx": "0x7EC", "pid": "2101"}], label="L"))
@@ -107,7 +107,7 @@ class TestStamping:
         assert "variant" not in saved
 
     def test_a_write_to_another_directory_is_not_tagged(self, prof, tmp_path):
-        from canlib.captures import build_manual_session, save_session
+        from canair.captures import build_manual_session, save_session
 
         _select(prof, "28kwh")
         other = tmp_path / "elsewhere"
@@ -118,7 +118,7 @@ class TestStamping:
         assert "variant" not in capture_io.load_capture_file(path)["sessions"][0]
 
     def test_a_recovered_journal_keeps_the_car_it_recorded(self, prof):
-        from canlib.captures.journal import CaptureJournal, recover
+        from canair.captures.journal import CaptureJournal, recover
 
         _select(prof, "38kwh")
         journal = CaptureJournal.open(prof.captures_dir, label="drive")
@@ -155,7 +155,7 @@ class TestScope:
         ],
     )
     def test_load_all_captures_honours_the_scope(self, store, scope, labels):
-        from canlib.captures.store import load_all_captures
+        from canair.captures.store import load_all_captures
 
         _select(store, scope)
         rows = load_all_captures()
@@ -163,14 +163,14 @@ class TestScope:
         assert {r["session_variant"] for r in rows} <= {"28kwh", "38kwh", ""}
 
     def test_a_single_variant_profile_reads_everything(self, store):
-        from canlib.captures.store import load_all_captures
+        from canair.captures.store import load_all_captures
 
         variants_edit.remove_variant("38kwh", profile=store)
         _select(store, None)
         assert len(load_all_captures()) == 3
 
     def test_the_untagged_sessions_are_noted_once(self, store, capsys):
-        from canlib.captures import store as capture_store
+        from canair.captures import store as capture_store
 
         capture_store._noted_untagged.clear()
         _select(store, None)
@@ -180,7 +180,7 @@ class TestScope:
         assert err.count("1 untagged capture session(s) left out") == 1
 
     def test_an_explicit_directory_is_never_scoped(self, store):
-        from canlib.captures.store import load_all_captures
+        from canair.captures.store import load_all_captures
 
         _select(store, "28kwh")
         assert len(load_all_captures(store.captures_dir)) == 3
@@ -188,7 +188,7 @@ class TestScope:
 
 class TestTaggedCopyWins:
     def test_layered_read_keeps_the_tagged_copy(self, prof, tmp_path):
-        from canlib.captures.store import load_all_captures
+        from canair.captures.store import load_all_captures
 
         overlay = tmp_path / "overlay"
         (overlay / "captures").mkdir(parents=True)
@@ -199,7 +199,7 @@ class TestTaggedCopyWins:
         assert row["session_variant"] == "28kwh"
 
     def test_merge_driver_keeps_one_tagged_copy(self):
-        from canlib.captures.merge import merge_documents
+        from canair.captures.merge import merge_documents
 
         merged = merge_documents(
             {"sessions": []},
@@ -209,14 +209,14 @@ class TestTaggedCopyWins:
         assert [s.get("variant") for s in merged["sessions"]] == ["28kwh"]
 
     def test_merge_driver_accepts_a_migration_on_one_side(self):
-        from canlib.captures.merge import merge_documents
+        from canair.captures.merge import merge_documents
 
         base = {"sessions": [_session("a")]}
         merged = merge_documents(base, {"sessions": [_session("a", variant="28kwh")]}, base)
         assert [s.get("variant") for s in merged["sessions"]] == ["28kwh"]
 
     def test_overlay_never_strips_an_upstream_tag(self):
-        from canlib.captures.merge import overlay
+        from canair.captures.merge import overlay
 
         result = overlay(
             {"sessions": [_session("a", variant="28kwh")]}, {"sessions": [_session("a")]}
@@ -224,7 +224,7 @@ class TestTaggedCopyWins:
         assert result.doc is None
 
     def test_overlay_still_contributes_a_tag(self):
-        from canlib.captures.merge import overlay
+        from canair.captures.merge import overlay
 
         result = overlay(
             {"sessions": [_session("a")]}, {"sessions": [_session("a", variant="28kwh")]}
@@ -236,7 +236,7 @@ class TestTaggedCopyWins:
 
 class TestMigrateVariants:
     def _run(self, **kw):
-        from canlib.cli.commands.captures.migrate_variants import cmd_migrate_variants
+        from canair.cli.commands.captures.migrate_variants import cmd_migrate_variants
 
         base = {"id": "28kwh", "date": None, "since": None, "until": None, "label": None}
         base.update(dry_run=False, json=True, dir=None)
@@ -274,7 +274,7 @@ class TestMigrateVariants:
 
 class TestSetVariant:
     def test_asserts_and_clears(self, prof):
-        from canlib.captures import set_session_variant
+        from canair.captures import set_session_variant
 
         path = _write(prof.captures_dir / "2026-01-01.json", _session("a", variant="28kwh"))
         set_session_variant(path, 0, "38kwh")
@@ -285,8 +285,8 @@ class TestSetVariant:
         assert "variant" not in session and "attribution" not in session
 
     def test_an_undeclared_variant_is_refused(self, prof, capsys):
-        from canlib.captures.store import load_all_captures
-        from canlib.cli.commands.captures.session_fields import cmd_set_variant
+        from canair.captures.store import load_all_captures
+        from canair.cli.commands.captures.session_fields import cmd_set_variant
 
         _write(prof.captures_dir / "2026-01-01.json", _session("a"))
         assert cmd_set_variant(load_all_captures(), "64kwh", assume_yes=True) == 2
@@ -308,7 +308,7 @@ class TestImportsNameTheCar:
 
 class TestRenameAndRemove:
     def test_rename_retags_history(self, prof):
-        from canlib.yaml_edit.variant_refs import find_references, rename_everywhere
+        from canair.yaml_edit.variant_refs import find_references, rename_everywhere
 
         path = _write(
             prof.captures_dir / "2026-01-01.json", _session("a", variant="28kwh"), _session("b")
@@ -328,8 +328,8 @@ class TestRenameAndRemove:
         assert find_references(prof, "28kwh").total == 0
 
     def test_remove_is_refused_while_referenced(self, prof):
-        from canlib.yaml_edit.variant_refs import remove_unreferenced
-        from canlib.yaml_edit.variants import VariantsEditError
+        from canair.yaml_edit.variant_refs import remove_unreferenced
+        from canair.yaml_edit.variants import VariantsEditError
 
         _write(prof.captures_dir / "2026-01-01.json", _session("a", variant="38kwh"))
         with pytest.raises(VariantsEditError, match="still used by 1 capture session"):
@@ -340,7 +340,7 @@ class TestRenameAndRemove:
 
 class TestValidation:
     def test_untagged_and_undeclared_tags_are_reported(self, prof, capsys):
-        from canlib.validation.variant_tags import report_variant_tags
+        from canair.validation.variant_tags import report_variant_tags
 
         path = _write(
             prof.captures_dir / "2026-01-01.json",
@@ -354,7 +354,7 @@ class TestValidation:
         assert "1 untagged session(s)" in out
 
     def test_untagged_sessions_are_not_flagged_on_a_single_variant_profile(self, prof, capsys):
-        from canlib.validation.variant_tags import report_variant_tags
+        from canair.validation.variant_tags import report_variant_tags
 
         variants_edit.remove_variant("38kwh", profile=prof)
         path = _write(prof.captures_dir / "2026-01-01.json", _session("a"))
@@ -362,7 +362,7 @@ class TestValidation:
         assert "untagged" not in capsys.readouterr().out
 
     def test_the_untagged_ratchet(self, prof, capsys):
-        from canlib.validation.variant_tags import report_variant_tags
+        from canair.validation.variant_tags import report_variant_tags
 
         path = _write(prof.captures_dir / "2026-01-01.json", _session("a"), _session("b"))
         assert report_variant_tags([path], prof, max_untagged=2) == (0, False)
@@ -371,8 +371,8 @@ class TestValidation:
 
 
 def test_sessions_view_names_each_car(prof, capsys):
-    from canlib.captures.store import load_all_captures
-    from canlib.cli.commands.captures.sessions import cmd_sessions
+    from canair.captures.store import load_all_captures
+    from canair.cli.commands.captures.sessions import cmd_sessions
 
     _write(prof.captures_dir / "2026-01-01.json", _session("a", variant="28kwh"), _session("b"))
     _select(prof, "all")
@@ -385,9 +385,9 @@ def test_sessions_view_names_each_car(prof, capsys):
 
 def test_bundled_history_is_tagged_where_the_car_is_known():
     """Ioniq, Kona and XPeng captures came from one known car each; all are tagged."""
-    from canlib.profile import resolve_profile
-    from canlib.validation.variant_tags import variant_tag_findings
-    from canlib.variants import load_variants
+    from canair.profile import resolve_profile
+    from canair.validation.variant_tags import variant_tag_findings
+    from canair.variants import load_variants
 
     for name in ("hyundai-ioniq-ae-ev", "hyundai-kona-os-ev", "xpeng-g6-f30-ev"):
         prof = resolve_profile(name)

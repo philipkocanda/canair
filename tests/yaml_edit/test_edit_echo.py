@@ -1,4 +1,4 @@
-"""The shared authoring-confirmation line (:mod:`canlib.yaml_edit.echo`).
+"""The shared authoring-confirmation line (:mod:`canair.yaml_edit.echo`).
 
 Two behaviours are load-bearing enough to pin: the confirmation names the *full*
 path (a bare ``bms.yaml`` does not say which profile got the edit, and canair
@@ -8,7 +8,7 @@ the next reinstall erases it.
 
 from pathlib import Path
 
-from canlib.yaml_edit.echo import echo_edit, edit_line
+from canair.yaml_edit.echo import echo_edit, edit_line
 
 
 def _plain(text: str) -> str:
@@ -65,7 +65,7 @@ class TestAuthoringCommandsUseIt:
     """
 
     def test_no_authoring_command_prints_a_bare_file_name(self):
-        root = Path(__file__).resolve().parents[2] / "canlib" / "cli" / "commands"
+        root = Path(__file__).resolve().parents[2] / "src" / "canair" / "cli" / "commands"
         for name in ("pids.py", "signals.py", "states.py", "groups.py", "ecu.py"):
             text = (root / name).read_text()
             assert "echo_edit" in text or "run_edit" in text, (

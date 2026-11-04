@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`canlib.render.ansi` — the palette + colour-gating policy.
+"""Unit tests for :mod:`canair.render.ansi` — the palette + colour-gating policy.
 
 These pin the policy itself. Command-level gating (that piped commands emit
 zero escapes across the full CLI surface) is proven by
@@ -11,7 +11,7 @@ import io
 
 import pytest
 
-from canlib.render import ansi
+from canair.render import ansi
 
 
 @pytest.fixture(autouse=True)

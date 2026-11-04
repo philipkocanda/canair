@@ -1,7 +1,7 @@
 """Tests for ``also_known_as:`` — the other names owners call a car by.
 
 They live in ``profile.yaml`` (the whole car) and ``variants.yaml`` (one variant), are
-read by ``canlib.profile.names.also_known_as``, and are rendered by the docs hook so a
+read by ``canair.profile.names.also_known_as``, and are rendered by the docs hook so a
 search for "Classic Ioniq" finds the profile. Labels only: nothing resolves them.
 """
 
@@ -13,9 +13,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from canlib.profile.names import AlsoKnownAs, VariantNames, also_known_as, duplicate_names
-from canlib.validation.profile_names import profile_name_findings
-from canlib.variants import check_variants_doc
+from canair.profile.names import AlsoKnownAs, VariantNames, also_known_as, duplicate_names
+from canair.validation.profile_names import profile_name_findings
+from canair.variants import check_variants_doc
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

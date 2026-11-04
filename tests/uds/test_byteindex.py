@@ -1,8 +1,8 @@
-"""Tests for canlib.uds.byteindex — byte index conversion between notations."""
+"""Tests for canair.uds.byteindex — byte index conversion between notations."""
 
 import pytest
 
-from canlib.uds.byteindex import (
+from canair.uds.byteindex import (
     NotAFrameError,
     bix_to_torque,
     conversion_table,

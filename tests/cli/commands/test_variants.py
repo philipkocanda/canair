@@ -13,9 +13,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib import variants as v
-from canlib.yaml_edit import variants as edit
-from canlib.yaml_edit.variants import VariantsEditError
+from canair import variants as v
+from canair.yaml_edit import variants as edit
+from canair.yaml_edit.variants import VariantsEditError
 
 SCHEMA = Path(v.__file__).resolve().parent.parent / "schema" / "variants_schema.yaml"
 
@@ -23,8 +23,8 @@ SCHEMA = Path(v.__file__).resolve().parent.parent / "schema" / "variants_schema.
 @pytest.fixture
 def prof(tmp_path, monkeypatch):
     """A writable throwaway profile, active for the commands under test."""
-    from canlib import profile as profile_mod
-    from canlib.profile import Profile
+    from canair import profile as profile_mod
+    from canair.profile import Profile
 
     root = tmp_path / "kia-ev6-cv-ev"
     (root / "ecus").mkdir(parents=True)
@@ -259,7 +259,7 @@ class TestEdit:
 
 class TestCommands:
     def test_list_and_show_json(self, prof, capsys):
-        from canlib.cli.commands import variants as cmd
+        from canair.cli.commands import variants as cmd
 
         edit.add_variant("58kwh", "58 kWh", [("battery.gross_kwh", "58")], profile=prof)
         capsys.readouterr()
@@ -270,12 +270,12 @@ class TestCommands:
         assert json.loads(capsys.readouterr().out)["battery"]["gross_kwh"] == 58
 
     def test_show_unknown(self, prof, capsys):
-        from canlib.cli.commands import variants as cmd
+        from canair.cli.commands import variants as cmd
 
         assert cmd.cmd_show(argparse.Namespace(id="nope", json=False)) == 1
 
     def test_validate_target(self, prof, capsys):
-        from canlib.validation.variants import _run_variants
+        from canair.validation.variants import _run_variants
 
         assert _run_variants() == 0
         edit.add_variant("a1", "A", profile=prof)
@@ -296,7 +296,7 @@ class TestCommands:
     ],
 )
 def test_every_bundled_profile_declares_valid_variants(name):
-    from canlib.profile import resolve_profile
+    from canair.profile import resolve_profile
 
     assert len(v.load_variants(resolve_profile(name))) >= 2
 

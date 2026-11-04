@@ -12,11 +12,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-import canlib.ecus
-from canlib.live.monitor import MonitorController
-from canlib.live.multi_exec import _exec_iocontrol, _exec_query, _exec_session
-from canlib.query.steps import resolve_tx_id
-from canlib.transport.wake import WakePlan
+import canair.ecus
+from canair.live.monitor import MonitorController
+from canair.live.multi_exec import _exec_iocontrol, _exec_query, _exec_session
+from canair.query.steps import resolve_tx_id
+from canair.transport.wake import WakePlan
 from tests.support.fakes import FakeTerminal, ok
 
 INDEX = {
@@ -31,7 +31,7 @@ INDEX = {
 @pytest.fixture(autouse=True)
 def sjb_is_an_alias_of_igpm(monkeypatch):
     monkeypatch.setattr(
-        canlib.ecus,
+        canair.ecus,
         "canonical_ecu_name_safe",
         lambda name, *a, **k: "IGPM" if name.upper() == "SJB" else name.upper(),
     )
@@ -67,7 +67,7 @@ def test_exec_session_finds_the_wake_plan():
 
 def test_exec_iocontrol(monkeypatch, capsys):
     monkeypatch.setattr(
-        "canlib.live.multi_exec.build_iocontrol_index",
+        "canair.live.multi_exec.build_iocontrol_index",
         lambda _data: {"IGPM": {"tx_id": 0x770, "protocol": "UDS", "cmds": {}}},
     )
     asyncio.run(_exec_iocontrol(_sm(), "sjb", "BC01", False, {}, INDEX, False))
@@ -91,7 +91,7 @@ class TestMonitor:
     def test_raw_setup_opens_an_aliased_session(self, monkeypatch):
         client = MagicMock()
         c = self._controller(raw_client=client)
-        monkeypatch.setattr("canlib.ecus.pids.build_ecu_index", lambda _data: INDEX)
+        monkeypatch.setattr("canair.ecus.pids.build_ecu_index", lambda _data: INDEX)
         asyncio.run(c.setup([{"type": "session", "target": "sjb", "mode": "03"}]))
         reads = [(call.args[0], call.args[1]) for call in client.read.call_args_list]
         assert ("IGPM", bytes.fromhex("1003")) in reads

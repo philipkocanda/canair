@@ -1,6 +1,6 @@
 """Integration test: piped canair commands must emit zero ANSI escape codes.
 
-The point of consolidating the palette onto :mod:`canlib.render.ansi` was to give the
+The point of consolidating the palette onto :mod:`canair.render.ansi` was to give the
 tree one place to answer "should this be coloured?" — so that redirecting into
 a file, piping into ``less``, or a caller (agent) parsing the output never sees
 raw escape codes. Before this consolidation the leak was measured across the
@@ -8,7 +8,7 @@ whole CLI surface (see ``plans/2026-08-06-ansi-palette-consolidation.md``);
 this test pins the fix so it can't regress.
 
 Each subtest runs the CLI end-to-end (through a subprocess so the whole run —
-including the subcommand-default injection in :func:`canlib.cli.main` — sees the
+including the subcommand-default injection in :func:`canair.cli.main` — sees the
 real captured stdout) against the bundled ``hyundai-ioniq-ae-ev`` profile, and asserts
 the output contains no ``\\x1b[`` bytes. The command list intentionally spans
 every command the plan counted as leaking, so a regression in any of them fails
@@ -58,7 +58,7 @@ def _run(args: list[str], env: Mapping[str, str] | None = None) -> str:
     """Run ``canair <args>`` as a subprocess and return its merged stdout+stderr.
 
     A subprocess (rather than in-process) is needed here because
-    :func:`canlib.cli.main` rewrites ``argv`` for command-group defaults (bare
+    :func:`canair.cli.main` rewrites ``argv`` for command-group defaults (bare
     ``ecu`` → ``ecu show``), and bypassing it would skip that. Slower per case
     but nothing else in these tests exercises that shape.
     """
@@ -69,7 +69,7 @@ def _run(args: list[str], env: Mapping[str, str] | None = None) -> str:
     if env:
         base_env.update(env)
     result = subprocess.run(
-        [sys.executable, "-m", "canlib.cli", "--profile", "hyundai-ioniq-ae-ev", *args],
+        [sys.executable, "-m", "canair.cli", "--profile", "hyundai-ioniq-ae-ev", *args],
         capture_output=True,
         text=True,
         env=base_env,

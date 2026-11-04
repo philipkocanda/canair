@@ -1,8 +1,8 @@
-"""Tests for canlib.expression — WiCAN expression evaluator."""
+"""Tests for canair.expression — WiCAN expression evaluator."""
 
 import pytest
 
-from canlib.expression import evaluate_expression
+from canair.expression import evaluate_expression
 
 
 class TestEvaluateExpression:

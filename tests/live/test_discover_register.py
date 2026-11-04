@@ -1,12 +1,12 @@
-"""Tests for `canair discover --register` (canlib.live.discover._register_discovered)."""
+"""Tests for `canair discover --register` (canair.live.discover._register_discovered)."""
 
 from __future__ import annotations
 
 import pytest
 import yaml
 
-from canlib import profile
-from canlib.ecus.pids import clear_cache
+from canair import profile
+from canair.ecus.pids import clear_cache
 
 
 @pytest.fixture(autouse=True)
@@ -43,7 +43,7 @@ ALIVE = [
 
 class TestRegisterDiscovered:
     def test_registers_new_ecus(self, tmp_path):
-        from canlib.live.discover import _register_discovered
+        from canair.live.discover import _register_discovered
 
         root = _mk_profile(tmp_path)
         _register_discovered(ALIVE, dry_run=False)
@@ -54,7 +54,7 @@ class TestRegisterDiscovered:
         assert "Discovered" in e0["identity"]["notes"]
 
     def test_no_id_protocol_guess(self, tmp_path):
-        from canlib.live.discover import _register_discovered
+        from canair.live.discover import _register_discovered
 
         root = _mk_profile(tmp_path)
         _register_discovered(ALIVE, dry_run=False)
@@ -62,14 +62,14 @@ class TestRegisterDiscovered:
         assert "id_protocol" not in _load(root, "unknown-7e0.yaml")["Unknown-7E0"]["identity"]
 
     def test_dry_run_writes_nothing(self, tmp_path):
-        from canlib.live.discover import _register_discovered
+        from canair.live.discover import _register_discovered
 
         root = _mk_profile(tmp_path)
         _register_discovered(ALIVE, dry_run=True)
         assert list((root / "ecus").glob("*.yaml")) == []
 
     def test_idempotent_skips_known(self, tmp_path):
-        from canlib.live.discover import _register_discovered
+        from canair.live.discover import _register_discovered
 
         root = _mk_profile(tmp_path)
         _register_discovered(ALIVE, dry_run=False)
@@ -79,7 +79,7 @@ class TestRegisterDiscovered:
         assert (root / "ecus" / "unknown-7e0.yaml").read_text() == before
 
     def test_preserves_existing_named_ecu(self, tmp_path):
-        from canlib.live.discover import _register_discovered
+        from canair.live.discover import _register_discovered
 
         root = _mk_profile(
             tmp_path, seed_ecus="ECM:\n  tx_id: 0x7E0\n  identity:\n    id_protocol: UDS\n"
@@ -91,7 +91,7 @@ class TestRegisterDiscovered:
         assert not (root / "ecus" / "unknown-7e0.yaml").exists()
 
     def test_handles_empty_ecus_dir(self, tmp_path):
-        from canlib.live.discover import _register_discovered
+        from canair.live.discover import _register_discovered
 
         root = _mk_profile(tmp_path)
         _register_discovered(ALIVE, dry_run=False)

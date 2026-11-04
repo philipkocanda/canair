@@ -1,7 +1,7 @@
-"""Tests for canlib.states.infer — offline session-state inference."""
+"""Tests for canair.states.infer — offline session-state inference."""
 
-from canlib.states import StateRule, compile_predicate
-from canlib.states.infer import (
+from canair.states import StateRule, compile_predicate
+from canair.states.infer import (
     _bucket_cycles,
     infer_session_states,
     infer_state_spans,

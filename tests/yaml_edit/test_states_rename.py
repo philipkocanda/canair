@@ -1,4 +1,4 @@
-"""Tests for canlib.yaml_edit.state_rename — renaming a state across a whole profile."""
+"""Tests for canair.yaml_edit.state_rename — renaming a state across a whole profile."""
 
 from __future__ import annotations
 
@@ -6,9 +6,9 @@ import json
 
 import pytest
 
-from canlib.dtc.log import log_file
-from canlib.profile import Profile
-from canlib.yaml_edit.state_rename import (
+from canair.dtc.log import log_file
+from canair.profile import Profile
+from canair.yaml_edit.state_rename import (
     StateRenameError,
     apply_state_rename,
     plan_state_rename,
@@ -62,7 +62,7 @@ def _session(states, spans=None):
 
 @pytest.fixture
 def prof(tmp_path, monkeypatch):
-    monkeypatch.setattr("canlib.dtc.log.log_dir", lambda: tmp_path / "dtc_log")
+    monkeypatch.setattr("canair.dtc.log.log_dir", lambda: tmp_path / "dtc_log")
     root = tmp_path / "car"
     (root / "ecus").mkdir(parents=True)
     (root / "captures").mkdir()
@@ -168,7 +168,7 @@ class TestApply:
         def _reject(path, profile=None):
             return False, "  ERROR: injected"
 
-        monkeypatch.setattr("canlib.validation.pids.validate_pids_file", _reject)
+        monkeypatch.setattr("canair.validation.pids.validate_pids_file", _reject)
         with pytest.raises(StateRenameError, match="invalid after the rename"):
             apply_state_rename(plan, profile=prof)
         assert {p: p.read_text() for p in prof.root.rglob("*") if p.is_file()} == before
@@ -178,7 +178,7 @@ class TestBooleanWordStates:
     """A state named ON is legal, but YAML 1.1 reads a bare ON as true."""
 
     def test_rename_to_on_writes_it_quoted_everywhere(self, prof):
-        from canlib.core import yaml_io
+        from canair.core import yaml_io
 
         apply_state_rename(plan_state_rename("ACC2", "ON", profile=prof), profile=prof)
 
@@ -195,14 +195,14 @@ class TestBooleanWordStates:
         assert sessions[1]["vehicle_states"] == ["ON", "PARKED"]
 
     def test_load_states_refuses_a_bare_boolean(self, prof):
-        from canlib.states import StatePredicateError, load_states
+        from canair.states import StatePredicateError, load_states
 
         prof.states_file.write_text(_STATES.replace("name: ACC2", "name: ON"))
         with pytest.raises(StatePredicateError, match="unquoted YAML boolean"):
             load_states(prof)
 
     def test_validate_pids_errors_on_a_bare_boolean(self, prof):
-        from canlib.validation.pids import validate_pids_file
+        from canair.validation.pids import validate_pids_file
 
         path = prof.ecus_dir / "engine.yaml"
         path.write_text(_ECU.replace("[READY, ACC2]", "[READY, ON]"))
@@ -211,16 +211,16 @@ class TestBooleanWordStates:
         assert "unquoted YAML boolean" in msg
 
     def test_validate_states_errors_on_a_bare_boolean(self, prof, monkeypatch, capsys):
-        from canlib.validation.other import _run_states
+        from canair.validation.other import _run_states
 
         prof.states_file.write_text(_STATES.replace("implies: [ACC2]", "implies: [ON]"))
-        monkeypatch.setattr("canlib.profile.active", lambda: prof)
+        monkeypatch.setattr("canair.profile.active", lambda: prof)
         assert _run_states() == 1
         assert "unquoted YAML boolean" in capsys.readouterr().out
 
     def test_states_editor_quotes_a_new_boolean_word(self, prof):
-        from canlib.core import yaml_io
-        from canlib.yaml_edit.states import add_state, set_state_field
+        from canair.core import yaml_io
+        from canair.yaml_edit.states import add_state, set_state_field
 
         add_state("OFF", description="Button off", profile=prof)
         set_state_field("READY", "excludes", "OFF", profile=prof)
@@ -231,7 +231,7 @@ class TestBooleanWordStates:
 
 
 def test_research_writer_quotes_a_boolean_word():
-    from canlib.yaml_edit.pids.research import _format_research_item
+    from canair.yaml_edit.pids.research import _format_research_item
 
     lines = _format_research_item({"type": "decode", "vehicle_states": ["ON", "READY"]})
     assert '  vehicle_states: ["ON", READY]' in "\n".join(lines)

@@ -14,8 +14,8 @@ import pytest
 from rich.console import Console
 from textual.containers import VerticalScroll
 
-from canlib.cli.commands.captures.step import cmd_step
-from canlib.cli.commands.captures.step_model import (
+from canair.cli.commands.captures.step import cmd_step
+from canair.cli.commands.captures.step_model import (
     AUTO_STACK_MAX_KEYS,
     BLOCK_NO_FRAME,
     BLOCK_NON_PAYLOAD,
@@ -29,7 +29,7 @@ from canlib.cli.commands.captures.step_model import (
     StepModel,
     resolve_view,
 )
-from canlib.cli.commands.captures.step_render import capture_block_text
+from canair.cli.commands.captures.step_render import capture_block_text
 from tests.support.step_model import PARAMS, _entry, _three_pid_entries
 from tests.support.step_model import model as _model
 
@@ -86,7 +86,7 @@ class TestCaptureBlockText:
         assert "P_STATIC" not in out
 
     def test_declared_map_bytes_are_drawn_muted(self):
-        from canlib.render.formatting import MAP_BYTE_STYLE
+        from canair.render.formatting import MAP_BYTE_STYLE
 
         caps = [_entry(time="12:00:00", payload="6201005A6414")]
         defs = {("HVAC", "220100"): (PARAMS, 0x7B3, (2,))}
@@ -130,7 +130,7 @@ class TestJoinToleranceDefault:
         """The stepper is a viewer (every block shows its Δt), so it can afford a
         looser join than the statistics tools, where a loose pairing would
         silently move a correlation coefficient."""
-        from canlib.analysis.align import DEFAULT_JOIN_TOL_S
+        from canair.analysis.align import DEFAULT_JOIN_TOL_S
 
         assert DEFAULT_STEP_JOIN_TOL_S > DEFAULT_JOIN_TOL_S
 
@@ -426,8 +426,8 @@ class TestStepModelJson:
 
 def _write_captures(tmp_path) -> list[dict]:
     """Save two real capture files and return the loaded entries."""
-    from canlib.captures import build_query_session, save_session
-    from canlib.captures.store import load_all_captures
+    from canair.captures import build_query_session, save_session
+    from canair.captures.store import load_all_captures
 
     save_session(
         build_query_session(
@@ -501,7 +501,7 @@ def _marker_visible(app) -> bool:
     """Whether the ``▶`` block cursor lies inside the scroll viewport."""
     from textual.widgets import Static
 
-    from canlib.tui.scroll import marker_line
+    from canair.tui.scroll import marker_line
 
     scroll = app.query_one("#scroll", VerticalScroll)
     line = marker_line(app.query_one("#body", Static))
@@ -514,7 +514,7 @@ class TestCapturesStepApp:
     """The Textual shell. Model behavior is covered above; these drive the keys."""
 
     def _app(self, **kw):
-        from canlib.cli.commands.captures.step_tui import CapturesStepApp
+        from canair.cli.commands.captures.step_tui import CapturesStepApp
 
         return CapturesStepApp(_model(**kw))
 
@@ -611,7 +611,7 @@ class TestCapturesStepApp:
     @pytest.mark.asyncio
     async def test_help_lists_the_framework_scroll_keys(self):
         """Home/End have no Binding to derive a row from, so they're declared."""
-        from canlib.cli.commands.captures.step_tui import CapturesStepApp
+        from canair.cli.commands.captures.step_tui import CapturesStepApp
 
         rows = dict(CapturesStepApp.HELP_EXTRA_ROWS)
         assert "top / bottom of this frame" in rows.values()
@@ -787,7 +787,7 @@ class TestCapturesStepApp:
 
     @pytest.mark.asyncio
     async def test_help_modal_lists_bindings(self):
-        from canlib.tui.help import bindings_help_rows
+        from canair.tui.help import bindings_help_rows
 
         app = self._app()
         async with app.run_test(size=(120, 30)) as pilot:
@@ -803,11 +803,11 @@ class TestCapturesStepApp:
 
 
 class TestCapturesStepAppEdits:
-    """Note/delete act on the focused block and write through canlib.captures."""
+    """Note/delete act on the focused block and write through canair.captures."""
 
     def _app(self, tmp_path):
-        from canlib.cli.commands.captures.step import build_model
-        from canlib.cli.commands.captures.step_tui import CapturesStepApp
+        from canair.cli.commands.captures.step import build_model
+        from canair.cli.commands.captures.step_tui import CapturesStepApp
 
         entries = _write_captures(tmp_path)
         model = build_model(entries, "BMS", captures_dir=tmp_path, warn=False)
@@ -1171,13 +1171,13 @@ class TestEmptyReason:
 
 class TestJumpModal:
     def _open(self, model=None):
-        from canlib.cli.commands.captures.step_tui import CapturesStepApp
+        from canair.cli.commands.captures.step_tui import CapturesStepApp
 
         return CapturesStepApp(model or _jump_model())
 
     @pytest.mark.asyncio
     async def test_s_opens_the_modal_listing_sessions_and_notes(self):
-        from canlib.cli.commands.captures.step_tui import JumpModal
+        from canair.cli.commands.captures.step_tui import JumpModal
 
         app = self._open()
         async with app.run_test(size=(130, 40)) as pilot:
@@ -1211,7 +1211,7 @@ class TestJumpModal:
             await pilot.pause()
             await pilot.press("s")
             await pilot.pause()
-            from canlib.cli.commands.captures.step_tui import _JUMP_ROW_WIDTH
+            from canair.cli.commands.captures.step_tui import _JUMP_ROW_WIDTH
 
             for t in app.screen._shown:
                 assert len(app.screen._row(t).plain) <= _JUMP_ROW_WIDTH
@@ -1360,7 +1360,7 @@ class TestJumpModal:
 
     @pytest.mark.asyncio
     async def test_jump_is_advertised_in_the_help(self):
-        from canlib.tui.help import bindings_help_rows
+        from canair.tui.help import bindings_help_rows
 
         app = self._open()
         async with app.run_test(size=(130, 40)) as pilot:

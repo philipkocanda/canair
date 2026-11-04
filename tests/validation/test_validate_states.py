@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from canlib.validation.other import _state_relation_errors
+from canair.validation.other import _state_relation_errors
 
 DECLARED = {"ACC", "ACC2", "READY", "DRIVING", "CHARGING", "PLUGGED", "PARKED", "ALL"}
 

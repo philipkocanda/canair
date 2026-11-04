@@ -34,7 +34,7 @@ CHARTER_MARKERS = ("Belongs:", "Not here:", "Imports:")
 MODULE_LINE_LIMIT = 500
 RESERVED_TEST_DIRS = {"support", "integration", "contracts"}
 TEST_DATA_DIRS = {"fixtures", "js"}
-# Directories that mirror something other than a canlib package.
+# Directories that mirror something other than a canair package.
 OTHER_MIRRORS = {"scripts"}
 
 
@@ -56,8 +56,8 @@ def _baseline() -> dict:
 
 
 def _packages() -> dict[str, Path]:
-    """Every package under canlib (not the root), by dotted name."""
-    root = REPO / graph.PACKAGE
+    """Every package under canair (not the root), by dotted name."""
+    root = REPO / "src" / graph.PACKAGE
     return {
         graph.module_name(init, root): init
         for init in sorted(root.rglob("__init__.py"))
@@ -153,8 +153,8 @@ def test_no_new_module_at_the_package_root(scan):
 
 
 def _root_reexports() -> int:
-    """Top-level imports in ``canlib/__init__.py`` that reach into the package's own modules."""
-    tree = ast.parse((REPO / graph.PACKAGE / "__init__.py").read_text(encoding="utf8"))
+    """Top-level imports in ``src/canair/__init__.py`` that reach into the package's own modules."""
+    tree = ast.parse((REPO / "src" / graph.PACKAGE / "__init__.py").read_text(encoding="utf8"))
     return sum(
         1
         for n in tree.body
@@ -165,7 +165,7 @@ def _root_reexports() -> int:
 def test_root_init_only_defines_the_version():
     count, ceiling = _root_reexports(), _baseline()["root_init_internal_imports"]
     assert count <= ceiling, (
-        f"canlib/__init__.py imports from {count} submodules (ceiling {ceiling}). "
+        f"src/canair/__init__.py imports from {count} submodules (ceiling {ceiling}). "
         "The root must not import the packages beneath it."
     )
 
@@ -189,7 +189,7 @@ def test_deferred_imports_do_not_grow(scan):
     total = sum(scan.deferred.values())
     ceiling = _baseline()["deferred_internal_imports"]
     assert total <= ceiling, (
-        f"{total} imports of canlib modules sit inside functions or `if` blocks (ceiling "
+        f"{total} imports of canair modules sit inside functions or `if` blocks (ceiling "
         f"{ceiling}). A deferred import needs a measured reason; otherwise import at the top and "
         "fix the layering."
     )
@@ -238,20 +238,20 @@ def test_test_directories_mirror_the_source_tree():
     packages = {name.split(".")[1] for name in _packages()}
     allowed = packages | OTHER_MIRRORS | RESERVED_TEST_DIRS | TEST_DATA_DIRS
     problems = [
-        f"tests/{d.name}/ matches no package under canlib/. Mirror a package, or use one of "
+        f"tests/{d.name}/ matches no package under src/canair/. Mirror a package, or use one of "
         f"{sorted(RESERVED_TEST_DIRS)}."
         for d in _test_dirs()
         if d.name not in allowed
     ]
     problems += [
-        f"canlib.{name} uses the reserved test directory name {name!r}; rename the package."
+        f"canair.{name} uses the reserved test directory name {name!r}; rename the package."
         for name in sorted(packages & (RESERVED_TEST_DIRS | TEST_DATA_DIRS))
     ]
     assert not problems, "\n".join(problems)
 
 
 def test_mirrored_tests_import_their_package():
-    """A test in ``tests/<pkg>/`` tests ``canlib.<pkg>``; one with another subject lives elsewhere."""
+    """A test in ``tests/<pkg>/`` tests ``canair.<pkg>``; one with another subject lives elsewhere."""
     mirrored = {name.split(".")[1] for name in _packages()}
     problems = []
     for d in _test_dirs():

@@ -1,8 +1,8 @@
-"""Tests for canlib.analysis.physical.unit_guess — make-neutral built-ins + profile extension."""
+"""Tests for canair.analysis.physical.unit_guess — make-neutral built-ins + profile extension."""
 
 from __future__ import annotations
 
-from canlib.analysis.physical.unit_guess import DEFAULT_UNIT_CANDIDATES, resolve_unit_candidates
+from canair.analysis.physical.unit_guess import DEFAULT_UNIT_CANDIDATES, resolve_unit_candidates
 
 
 def test_builtins_are_make_neutral():

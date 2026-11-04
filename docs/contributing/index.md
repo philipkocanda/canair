@@ -42,7 +42,7 @@ Rough edges in the CLI or docs are fair game too.
 
 ## Contribute code
 
-Changes to canair itself (the `canlib/` package) are welcome — the dev setup, the
+Changes to canair itself (the `src/canair/` package) are welcome — the dev setup, the
 checks to run before a PR, commit-message format, and the screenshot pipeline all
 live in [Development](../development/index.md).
 

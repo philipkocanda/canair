@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from canlib.cli.commands import coverage
+from canair.cli.commands import coverage
 
 
 class TestAnalyzePid:
@@ -138,7 +138,7 @@ class TestKeepFilter:
             "build_ecu_index",
             lambda *_: {"MCU": {"pids": {"2102": {"parameters": {"GUESS": {"expression": "B4"}}}}}},
         )
-        monkeypatch.setattr("canlib.ecus.canonical_ecu_name_safe", lambda n: n)
+        monkeypatch.setattr("canair.ecus.canonical_ecu_name_safe", lambda n: n)
         p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(argv)
         rc = coverage.run(args)
@@ -291,6 +291,6 @@ class TestRepresentativePayload:
             | {"payload": p}
             for d, p in (("2026-04-17", self.PADDED), ("2026-08-09", self.CLEAN))
         ]
-        monkeypatch.setattr("canlib.captures.store.load_all_captures", lambda: rows)
+        monkeypatch.setattr("canair.captures.store.load_all_captures", lambda: rows)
         got = coverage.load_representative_payloads(until=date(2026, 7, 27))
         assert len(got[("HVAC", "220102")]["payload"]) // 2 == 20

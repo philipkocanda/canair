@@ -19,7 +19,7 @@ a scriptable per-request response map, and a uniform set of recorders. Per-test
 *scripting* stays local — pass a ``responses`` map, tweak ``default``/
 ``flaky_recover``/``session_result``, or subclass and override ``send_uds``.
 
-Response dicts mirror :func:`canlib.uds.parse.parse_uds_response`: positives are
+Response dicts mirror :func:`canair.uds.parse.parse_uds_response`: positives are
 ``{"ok": True, "hex", "bytes", "raw"}`` (build with :func:`ok`); negatives are
 ``{"ok": False, "nrc", "nrc_desc", ...}`` or ``{"ok": False, "error"}``.
 """
@@ -29,12 +29,12 @@ from __future__ import annotations
 import asyncio
 import contextlib
 
-from canlib.safety.blocklist import SessionPolicy
-from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
-from canlib.transport.stats import TransportStats
-from canlib.transport.timing import TimingRecorder
-from canlib.uds.frame_counts import FrameCountLedger
-from canlib.uds.response import UdsResponse
+from canair.safety.blocklist import SessionPolicy
+from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
+from canair.transport.stats import TransportStats
+from canair.transport.timing import TimingRecorder
+from canair.uds.frame_counts import FrameCountLedger
+from canair.uds.response import UdsResponse
 
 NO_DATA: UdsResponse = {"ok": False, "error": "NO DATA", "raw": "NO DATA"}
 
@@ -166,7 +166,7 @@ class FakeTerminal:
         Checks the request exactly as the real terminals do, so an allow-list
         refusal surfaces the same way.
         """
-        from canlib.transport.functional import (
+        from canair.transport.functional import (
             FunctionalMessage,
             FunctionalResult,
             functional_request_bytes,
@@ -193,7 +193,7 @@ class QueuedChannel:
     """A fake byte channel with a queue of chunks, independent of how many sends.
 
     One layer *below* :class:`FakeTerminal`: this drives the real
-    :class:`~canlib.transport.elm327.terminal.Elm327Terminal` engine, so tests can
+    :class:`~canair.transport.elm327.terminal.Elm327Terminal` engine, so tests can
     exercise prompt accounting, resync and request framing rather than stubbing
     them out. Unlike a reply-per-send fake it can express the situations those
     features exist for — one command with *two* prompt-terminated blocks already

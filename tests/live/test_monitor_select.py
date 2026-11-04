@@ -5,13 +5,13 @@ from __future__ import annotations
 import pytest
 from textual.widgets import Input, SelectionList
 
-from canlib.ecus.ecu_groups import Group
-from canlib.live._monitor_select_tui import (
+from canair.ecus.ecu_groups import Group
+from canair.live._monitor_select_tui import (
     LiveMonitorSelectScreen,
     MonitorSelectApp,
     MonitorSelectScreen,
 )
-from canlib.live.monitor_select import (
+from canair.live.monitor_select import (
     build_choices,
     build_group_choices,
     current_selection,
@@ -303,7 +303,7 @@ class TestPresentation:
     async def test_uses_the_shared_status_bar_not_a_footer(self):
         from textual.widgets import Footer
 
-        from canlib.tui.status import StatusBar
+        from canair.tui.status import StatusBar
 
         app = MonitorSelectApp(build_choices(_index()))
         async with app.run_test(size=(100, 30)) as pilot:
@@ -329,7 +329,7 @@ class TestPresentation:
 
     @pytest.mark.asyncio
     async def test_help_advertises_enter_and_space(self):
-        from canlib.tui.help import HelpModal
+        from canair.tui.help import HelpModal
 
         app = MonitorSelectApp(build_choices(_index()))
         async with app.run_test(size=(100, 40)) as pilot:

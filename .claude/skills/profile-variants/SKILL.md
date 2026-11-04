@@ -156,7 +156,7 @@ say which: its `variant` tag, set by the global `--variant ID` flag (see
   strings (`canair identity`, or `canair search` over the captures) — the Ioniq Electric's BMS
   answers `AEEV__ BMS`, which is the model code `AEEV` (Ioniq `AE`, `EV`). Then the maker's
   documentation, then a well-sourced reference, and record where it came from.
-- The rule and its pattern live once, in `canlib/profile/names.py`; `canair validate` enforces
+- The rule and its pattern live once, in `src/canair/profile/names.py`; `canair validate` enforces
   them for bundled profiles, and `canair profile create` notes a non-conforming name.
 
 ## Renaming a profile

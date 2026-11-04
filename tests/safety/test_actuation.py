@@ -1,12 +1,12 @@
-"""Tests for canlib.safety.actuation: the read / release / actuate request classifier."""
+"""Tests for canair.safety.actuation: the read / release / actuate request classifier."""
 
 from __future__ import annotations
 
 import pytest
 
-from canlib.ecus.pids import build_iocontrol_index
-from canlib.profile import ProfileError
-from canlib.safety.actuation import (
+from canair.ecus.pids import build_iocontrol_index
+from canair.profile import ProfileError
+from canair.safety.actuation import (
     ACTUATE,
     READ,
     RELEASE,
@@ -17,7 +17,7 @@ from canlib.safety.actuation import (
     parse_io_request,
     release_mismatch,
 )
-from canlib.uds.protocol import KWP, UDS, UNKNOWN
+from canair.uds.protocol import KWP, UDS, UNKNOWN
 
 PROTOCOLS = (UDS, KWP, UNKNOWN)
 

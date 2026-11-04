@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.cli import main
+from canair.cli import main
 
 ECU = """\
 TESTECU:
@@ -85,7 +85,7 @@ def test_the_schema_check_can_veto_an_edit_and_no_validate_skips_it(
         calls.append(p)
         return False, "  ERROR: nope"
 
-    monkeypatch.setattr("canlib.validation.pids.validate_pids_file", veto)
+    monkeypatch.setattr("canair.validation.pids.validate_pids_file", veto)
 
     assert _run(profile, *argv) == 1
     assert "nope" in capsys.readouterr().err
@@ -98,7 +98,7 @@ def test_the_schema_check_can_veto_an_edit_and_no_validate_skips_it(
 
 
 def test_clear_sentinel_and_verbs():
-    from canlib.cli.commands._edit import clear_sentinel, set_or_clear
+    from canair.cli.commands._edit import clear_sentinel, set_or_clear
 
     assert clear_sentinel("clear") is None
     assert clear_sentinel(" Clear ") is None
@@ -111,7 +111,7 @@ def test_clear_sentinel_and_verbs():
 def test_subcommand_dispatch_falls_back_to_the_default():
     import argparse
 
-    from canlib.cli.commands._edit import subcommand_dispatch
+    from canair.cli.commands._edit import subcommand_dispatch
 
     run = subcommand_dispatch("_func", lambda a: 7)
     assert run(argparse.Namespace()) == 7

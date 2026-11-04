@@ -14,11 +14,11 @@ from pathlib import Path
 
 import pytest
 
-import canlib.profile as profile
-from canlib.cli.commands import import_ as import_cmd
-from canlib.cli.commands import validate
-from canlib.profile import Profile
-from canlib.validation import other as validate_other
+import canair.profile as profile
+from canair.cli.commands import import_ as import_cmd
+from canair.cli.commands import validate
+from canair.profile import Profile
+from canair.validation import other as validate_other
 
 
 @pytest.fixture
@@ -197,7 +197,7 @@ class TestImportStub:
         return p.parse_args(argv)
 
     def test_name_and_registered(self):
-        from canlib.cli.commands import COMMAND_NAMES
+        from canair.cli.commands import COMMAND_NAMES
 
         assert import_cmd.NAME == "import"
         assert "import_" in COMMAND_NAMES  # module filename; NAME drives the CLI name

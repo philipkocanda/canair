@@ -258,7 +258,7 @@ def _deterministic_grid_region(tmp_path, monkeypatch):
     full-suite run, and keeps the golden free of a message that is really about
     first-run onboarding rather than byte labels.
     """
-    from canlib import config
+    from canair import config
 
     cfg = tmp_path / "canair"
     cfg.mkdir(parents=True, exist_ok=True)

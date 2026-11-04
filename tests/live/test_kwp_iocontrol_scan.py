@@ -1,11 +1,11 @@
-"""Tests for canlib.live.kwp_iocontrol_scan — KWP2000 IOControl (0x30) scanner."""
+"""Tests for canair.live.kwp_iocontrol_scan — KWP2000 IOControl (0x30) scanner."""
 
 from __future__ import annotations
 
 import pytest
 import yaml
 
-from canlib.live.kwp_iocontrol_scan import (
+from canair.live.kwp_iocontrol_scan import (
     IOCP_FREEZE_CURRENT_STATE,
     IOCP_LONG_TERM_ADJ,
     IOCP_REPORT_CURRENT_STATE,
@@ -20,7 +20,7 @@ from canlib.live.kwp_iocontrol_scan import (
     probe_kwp_iocontrol,
     probe_nissan_iocontrol,
 )
-from canlib.yaml_edit.pids import append_iocontrol_discoveries_block
+from canair.yaml_edit.pids import append_iocontrol_discoveries_block
 from tests.support.fakes import FakeTerminal, nrc
 from tests.support.fakes import ok as _ok
 

@@ -15,16 +15,16 @@ import argparse
 import pytest
 import yaml
 
-from canlib import profile
-from canlib.cli.commands.ecu import cmd_add, cmd_rename
-from canlib.ecus.pids import clear_cache
-from canlib.yaml_edit.ecu import register_ecu
-from canlib.yaml_edit.errors import EditError
+from canair import profile
+from canair.cli.commands.ecu import cmd_add, cmd_rename
+from canair.ecus.pids import clear_cache
+from canair.yaml_edit.ecu import register_ecu
+from canair.yaml_edit.errors import EditError
 
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
-    from canlib import config
+    from canair import config
 
     saved = profile._active
     clear_cache()
@@ -156,7 +156,7 @@ class TestEcuRename:
     rewrites its key + file via the comment-preserving writer."""
 
     def _activate(self, tmp_path, monkeypatch, name="prof"):
-        from canlib import config
+        from canair import config
 
         root = _mk_profile(tmp_path, name)
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
@@ -214,7 +214,7 @@ class TestOfflineValidationProfileScoping:
         root_a = _mk_profile(tmp_path, "car-a")
         _mk_profile(tmp_path, "car-b")
         # Isolate config so a real ~/.config/canair default_profile can't leak in.
-        from canlib import config
+        from canair import config
 
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path))

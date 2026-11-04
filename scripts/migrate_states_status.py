@@ -36,9 +36,9 @@ import sys
 from io import StringIO
 from pathlib import Path
 
-from canlib.core.yaml_rt import detect_sequence_indent, round_trip_yaml
-from canlib.core.yaml_rt import dump as _dump
-from canlib.states import POWER_STATES
+from canair.core.yaml_rt import detect_sequence_indent, round_trip_yaml
+from canair.core.yaml_rt import dump as _dump
+from canair.states import POWER_STATES
 
 SYNONYMS = {"asleep": "sleep"}
 # Vocabulary accepted verbatim into a vehicle_states list (composites included).
@@ -223,7 +223,7 @@ def main() -> int:
     ap.add_argument("--apply", action="store_true", help="Write changes (default: dry run)")
     args = ap.parse_args()
 
-    from canlib.profile import active, resolve_profile
+    from canair.profile import active, resolve_profile
 
     prof = resolve_profile(args.profile) if args.profile else active()
     print(f"Profile: {prof.name}  ({'APPLY' if args.apply else 'DRY RUN'})\n")

@@ -1,10 +1,10 @@
-"""Tests for canlib.dtc_describe — structural DTC interpretation."""
+"""Tests for canair.dtc_describe — structural DTC interpretation."""
 
 from typing import ClassVar
 
 import pytest
 
-from canlib.dtc.describe import describe_dtc, dtc_kind
+from canair.dtc.describe import describe_dtc, dtc_kind
 
 
 class TestDtcKind:
@@ -129,14 +129,14 @@ class TestPerEcuMeaning:
 
     @pytest.fixture(autouse=True)
     def _profile(self, monkeypatch):
-        monkeypatch.setattr("canlib.ecus.pids.load_pids", lambda: {"ecus": self.ECUS})
+        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda: {"ecus": self.ECUS})
 
     def _with_shared(self, monkeypatch):
         data = {"dtcs": self.SHARED, "ecus": self.ECUS}
-        monkeypatch.setattr("canlib.ecus.pids.load_pids", lambda: data)
+        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda: data)
 
     def test_a_profile_wide_code_applies_to_every_ecu(self, monkeypatch):
-        from canlib.dtc.describe import profile_dtc_defs
+        from canair.dtc.describe import profile_dtc_defs
 
         self._with_shared(monkeypatch)
         assert describe_dtc("U1100-87", ecu="BMS")["description"] == "Time-out ESP"
@@ -172,11 +172,11 @@ class TestPerEcuMeaning:
         assert describe_dtc("U0100", ecu="EPS")["description"] == "Lost communication with ECM/PCM"
 
     def test_a_read_and_a_logged_scan_are_described_by_their_ecu(self, monkeypatch):
-        from canlib.dtc import log as dtc_log
-        from canlib.dtc.refs import EcuRefs
-        from canlib.live.dtc import reading as dtc
+        from canair.dtc import log as dtc_log
+        from canair.dtc.refs import EcuRefs
+        from canair.live.dtc import reading as dtc
 
-        monkeypatch.setattr("canlib.ecus.ecu_name", lambda tx: {0x7D4: "EPS"}[tx])
+        monkeypatch.setattr("canair.ecus.ecu_name", lambda tx: {0x7D4: "EPS"}[tx])
         refs = EcuRefs(tx_by_rx={0x7DC: 0x7D4}, names={0x7DC: "EPS"})
         monkeypatch.setattr(EcuRefs, "current", classmethod(lambda cls: refs))
         rec = {"dtc": "C1616-00", "raw": "561600", "status": 0x09, "status_bits": []}

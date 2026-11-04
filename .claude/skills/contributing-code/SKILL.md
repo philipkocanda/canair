@@ -5,7 +5,7 @@ description: Guidelines for agents making code or architecture changes to the ca
 
 # Contributing code to canair
 
-Guidelines for *engineering* canair itself (the `canlib/` package: CLI, transports, modes, library,
+Guidelines for *engineering* canair itself (the `src/canair/` package: CLI, transports, modes, library,
 tests). Related skills: **`contributing-profiles`** if your change is profile *data* rather than
 Python; **`reverse-engineer-signal`** / **`ioniq-reverse-engineering`** for the RE workflow itself.
 
@@ -16,7 +16,7 @@ and the generated `docs/reference/cli/` — read them there rather than trusting
 ## First principle — describe intent, not code that will drift
 
 Snippets, signatures, and name lists go stale silently, and an agent that trusts them builds on a
-false premise. Point at the file to read *now* ("the guard is in `canlib/safety/blocklist.py`") instead of
+false premise. Point at the file to read *now* ("the guard is in `src/canair/safety/blocklist.py`") instead of
 pasting its contents; treat every specific below as a pointer to verify against the tree, and fix it
 if it has drifted (Boy Scout). This applies to this skill too — keep it intent-level.
 
@@ -36,7 +36,7 @@ if it has drifted (Boy Scout). This applies to this skill too — keep it intent
    both the WiCAN Pro and the classic). Don't reintroduce a transport-specific default or code path.
    See Transports.
 3. **Never break the real car.** No UDS programming session (`10 02`), no firmware/write/upload
-   services. The blocklist in `canlib/safety/blocklist.py` exists for this — extend it, never bypass it.
+   services. The blocklist in `src/canair/safety/blocklist.py` exists for this — extend it, never bypass it.
 4. **Tests pass and cover the change** (see Test coverage).
 5. **Two data domains, one tool.** canair analyzes diagnostic request/response traffic *and* raw
    broadcast CAN frames; treat frames as first-class and the WiCAN as a replaceable transport.
@@ -46,7 +46,7 @@ if it has drifted (Boy Scout). This applies to this skill too — keep it intent
 ## Transports — the most important architectural rule
 
 canair reaches the bus through one **explicitly selected** transport, registered as a
-`TransportSpec` in `canlib/transport/config.py::TRANSPORTS` (precedence and the current list:
+`TransportSpec` in `src/canair/transport/config.py::TRANSPORTS` (precedence and the current list:
 `AGENTS.md` → Transports). Two families sit behind one surface:
 
 | Family | Transports | How bytes move |
@@ -54,8 +54,8 @@ canair reaches the bus through one **explicitly selected** transport, registered
 | raw | `slcan-tcp` (default) | python-can + **client-side ISO-TP** (`RawTerminal`) |
 | ELM327 | `wican-ws`, `elm327-tcp` | device-side ISO-TP via the shared `Elm327Terminal` engine over a swappable `Channel` |
 
-All backends satisfy the `Terminal` protocol (`canlib/transport/protocol.py`) and live commands
-run through the **single shared** `canlib/live/session.py::run_session_guarded`, called by both the
+All backends satisfy the `Terminal` protocol (`src/canair/transport/protocol.py`) and live commands
+run through the **single shared** `src/canair/live/session.py::run_session_guarded`, called by both the
 ELM path (`cli/commands/_live/runtime.py::async_main`) and the raw path (`live/raw_ops.py::run_raw`).
 
 **The design contract:**
@@ -66,7 +66,7 @@ ELM path (`cli/commands/_live/runtime.py::async_main`) and the raw path (`live/r
 - **Do not** open your own WebSocket, python-can bus, or socket, and do not branch on
   `transport.type` inside a mode. If you think you must, add the method to *all* terminal
   implementations instead so the mode stays transport-agnostic (matching signatures, identical
-  returned dict shape — everything funnels through `canlib/uds/parse.py::parse_uds_response`).
+  returned dict shape — everything funnels through `src/canair/uds/parse.py::parse_uds_response`).
 - A genuinely transport-specific optimization (e.g. the pipelined `raw_monitor` fast path) must
   *optimize* an already-working shared path, and the shared path must still work everywhere.
 - A new ELM327 wire is a new `Channel`, not a duplicated engine.
@@ -86,7 +86,7 @@ vehicle-neutral `can.BusABC` — the seam to build on. Keep the domains symmetri
   modelled in the profile with the same edit-via-tool/schema-validated discipline
   (`canair signals`).
 - **Shared primitives, separate concerns** — frame parsing lives in its own module (mirroring
-  `canlib/uds/parse.py`); shared logic (byte/bit extraction, expression eval, correlation) goes
+  `src/canair/uds/parse.py`); shared logic (byte/bit extraction, expression eval, correlation) goes
   in a neutral helper both domains call.
 
 If a diagnostics assumption leaks into shared code (e.g. a loader assuming an ISO-TP `payload` +
@@ -112,7 +112,7 @@ If it works "only with edits to the command", push the device-specific part into
 
 ## Placing and moving code — the layer structure
 
-`canlib/` is layered and the layering is enforced, not advisory. The map is
+`src/canair/` is layered and the layering is enforced, not advisory. The map is
 `docs/development/architecture.md` (placement table, what each package may import); the reasoning
 and the migration are `plans/2026-11-04-package-layout-and-layering.md`. Read the page rather
 than trusting a list copied here.
@@ -132,7 +132,7 @@ than trusting a list copied here.
 
 **Moving code** (one package per commit, mechanical, nothing else in the commit)
 
-1. `git mv`, then rewrite every import, every `monkeypatch.setattr("canlib.…")` string and the
+1. `git mv`, then rewrite every import, every `monkeypatch.setattr("canair.…")` string and the
    dotted names in `[tool.importlinter]`. No compatibility alias for the old path.
 2. Move the package's tests in the same commit.
 3. Remove the `ignore_imports` entries the move fixes and lower the baselines
@@ -146,14 +146,14 @@ only purpose is to hide a cycle.
 
 ## Adding a CLI subcommand
 
-Commands live in `canlib/cli/commands/<name>.py`, exposing `NAME`, `add_parser(subparsers)` (which calls
+Commands live in `src/canair/cli/commands/<name>.py`, exposing `NAME`, `add_parser(subparsers)` (which calls
 `parser.set_defaults(func=run)`), and `run(args) -> int | None`; register `NAME` in
 `cli/commands/__init__.py::COMMAND_NAMES` (order = help order).
 
 **Live (device-talking) commands** additionally call `add_connection_args` +
-`live_command` from `canlib/commands/_live/` (or call `run_live(args, operation)` from their own
-`run`). The command names its `LiveOperation`: a handler in `canlib/commands/_live/handlers/` that
-reads the parsed flags and calls a `mode_*` coroutine in `canlib/live/<name>.py` with typed
+`live_command` from `src/canair/commands/_live/` (or call `run_live(args, operation)` from their own
+`run`). The command names its `LiveOperation`: a handler in `src/canair/commands/_live/handlers/` that
+reads the parsed flags and calls a `mode_*` coroutine in `src/canair/live/<name>.py` with typed
 arguments. Nothing picks a handler by inspecting flags, so add the command's row to `CASES` in
 `tests/cli/commands/test_live_operations.py`: it pins the operation the command reaches and that the
 parser defines every `args.x` its handler reads directly (use `getattr` for an optional one).
@@ -167,7 +167,7 @@ mini-language rather than adding `--ecu`/`--pid`/`--param` flags.** The mini-lan
 canonical selection surface across `read`/`captures`/`decode`/`correlate`, so reusing it is
 consistent, composable and multi-ECU-capable for free; a flag pair is single-target and drifts.
 
-- **Parse through the shared helper, never re-implement the grammar:** `canlib/query.py`
+- **Parse through the shared helper, never re-implement the grammar:** `src/canair/query.py`
   (`parse_query`/`parse_selector`); capture/analysis commands use the alias-aware `_parse_query` in
   `cli/commands/captures/query.py`; device-pipeline commands use `query/steps.py`. Templates:
   `cli/commands/captures/` (positional QUERY), `cli/commands/correlate/` (optional `ECU[:PID]`).
@@ -178,7 +178,7 @@ consistent, composable and multi-ECU-capable for free; a flag pair is single-tar
 ## Time & scoping conventions
 
 Capture-consuming commands share one scoping surface via
-`canlib/commands/_scope.py::add_scope_args`, and the join/mirror/notation flags are likewise declared
+`src/canair/commands/_scope.py::add_scope_args`, and the join/mirror/notation flags are likewise declared
 once (`AGENTS.md` → Analysis lists the shared-flag homes). Two standing rules:
 
 - **A time-bound flag accepts a timestamp down to microseconds, not a date only** — use
@@ -199,25 +199,25 @@ This is about the *code* that reads/writes profile data; the authoring/scrubbing
 data itself is **`contributing-profiles`**.
 
 - `profiles/*/ecus/` is the source of truth, edited only through the surgical/validated editors
-  (`canlib/yaml_edit/`: `pids/` and `ecu.py`). **Keep editor coverage complete** — a field
+  (`src/canair/yaml_edit/`: `pids/` and `ecu.py`). **Keep editor coverage complete** — a field
   reachable only by hand is a bug to close, not a reason to normalize hand-editing.
-- **Every definition editor lives in `canlib/yaml_edit/` and shares one write path.** A new one
+- **Every definition editor lives in `src/canair/yaml_edit/` and shares one write path.** A new one
   declares a `Target` beside its rules, lists it in `yaml_edit/targets.py` (a test fails if you
   forget), and writes through `edit_doc` (ruamel) or `edit_ecu_text` (text surgery). It raises
   `EditError` (a subclass per file kind) and never prints or exits — `cli.py` reports it. It never
   opens or writes the file itself, and never `del`s or rebuilds a ruamel mapping to remove or rename
   an entry: `ruamel_ops.remove_key`/`remove_item`/`rename_key` keep the comments around it. The
   command is `run_edit(lambda: editor(...), "confirmation")` from `cli/commands/_edit.py`.
-- **Free-text fields render themselves** via one shared policy (`canlib/core/yaml_rt.py`): short
+- **Free-text fields render themselves** via one shared policy (`src/canair/core/yaml_rt.py`): short
   notes inline, longer ones a wrapped folded `>-` block (double-quoted when folding can't carry
   the text exactly), never reflowing the rest of the file. A new ruamel-written free-text field
-  just needs adding to `canlib/yaml_edit/ecu.py::FREE_TEXT_FIELDS`.
+  just needs adding to `src/canair/yaml_edit/ecu.py::FREE_TEXT_FIELDS`.
 - `profiles/*/captures/*.json` are written by the `--save` path, never by hand, and are
   **append-only** logs unioned by canair's git merge driver. If you touch the on-disk format, keep
-  `canlib/captures_merge.py` aligned with `canlib/capture_io.py`.
+  `src/canair/captures_merge.py` aligned with `src/canair/capture_io.py`.
 - `profiles/*/out/*.json` is generated — regenerate (`uv run python scripts/gen/gen_autopid.py` writes
   both the verified-only and the `-unverified` build of every bundled car), never hand-edit.
-- Schemas are tool-owned in `canlib/schema/`; validate with `canair validate`.
+- Schemas are tool-owned in `src/canair/schema/`; validate with `canair validate`.
 
 ## No PII or location data — the tree is public
 
@@ -299,10 +299,10 @@ up** when a structural change is warranted instead of bolting on more.
   `plans/2026-08-06-command-packages-and-live-split.md`.
 - **Command-private vs shared command-layer infra.** Before moving a `_x.py` into a package, check
   who imports it: one command (+ its test) → package-private, move it in; several commands → a
-  shared layer, leave it a flat sibling or push it down to `canlib/` if nothing about it is
-  CLI-specific. A *library* module importing up into `canlib.commands` is always a bug.
+  shared layer, leave it a flat sibling or push it down to `src/canair/` if nothing about it is
+  CLI-specific. A *library* module importing up into `canair.commands` is always a bug.
 - **Duplication across transports/commands is a refactor signal.** The command blocklist was once
-  duplicated *and divergent* between terminals; it now lives once in `canlib/safety/blocklist.py` and both
+  duplicated *and divergent* between terminals; it now lives once in `src/canair/safety/blocklist.py` and both
   await it. Extract to one shared home rather than maintaining two.
 - **When incremental changes compound complexity, propose a redesign** before adding another layer —
   surfacing the tradeoff is part of the job even if the user declines.
@@ -318,7 +318,7 @@ up** when a structural change is warranted instead of bolting on more.
 - **Type-hint the critical paths** — UDS/CAN byte handling (`bytes`/`int` offsets, PID/DID IDs), the
   terminal surface and its returned dict shapes, expression eval, capture/schema records, and
   anything crossing the transport boundary. Use a `TypedDict`/dataclass over a bare `dict` where the
-  shape matters. CI runs `ty` over `canlib/`, so hints are **enforced**: prefer narrowing a nullable
+  shape matters. CI runs `ty` over `src/canair/`, so hints are **enforced**: prefer narrowing a nullable
   or a precise annotation over `# type: ignore` (reserve those for stdlib false-positives, with a
   comment). Prioritize where hints prevent real mistakes, not as ceremony on trivial locals.
 
@@ -410,7 +410,7 @@ shipped.
 ```bash
 uv run pytest -q                 # green (parallel by default; -n0 when iterating on one file)
 uv run ruff check . && uv run ruff format --check .
-uv run ty check                  # canlib/ — must be clean
+uv run ty check                  # src/canair/ — must be clean
 make structure                   # import contracts + structure gates (seconds)
 uv run canair <yourcmd> --help   # parser sane
 uv run canair validate all       # if you touched ecus/captures/schema

@@ -1,10 +1,10 @@
-"""The live monitor's per-PID poll scheduler (:mod:`canlib.live.poll_schedule`)."""
+"""The live monitor's per-PID poll scheduler (:mod:`canair.live.poll_schedule`)."""
 
 from __future__ import annotations
 
 import pytest
 
-from canlib.live.poll_schedule import (
+from canair.live.poll_schedule import (
     DEFAULT_SCHEDULE,
     MAX_RATE_STEPS,
     PollScheduler,

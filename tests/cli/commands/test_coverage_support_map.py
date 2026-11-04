@@ -2,9 +2,9 @@
 
 import json
 
-from canlib.cli.commands import coverage
-from canlib.uds.byteindex import payload_index_to_wican
-from canlib.uds.support_map import MapDecl
+from canair.cli.commands import coverage
+from canair.uds.byteindex import payload_index_to_wican
+from canair.uds.support_map import MapDecl
 
 # 62 BC03 | map FD 00 3C 00 | data 0A 00 00 00   (WiCAN: map B5 B6 B7 B9, data B10 B11 B12 B13)
 PAYLOAD = "62BC03FD003C000A000000"
@@ -155,7 +155,7 @@ class TestAudit:
         }
 
     def _captures(self):
-        from canlib.cli.commands.coverage.payloads import CoverageCaptures
+        from canair.cli.commands.coverage.payloads import CoverageCaptures
 
         cap = {
             "payload": PAYLOAD,
@@ -296,7 +296,7 @@ class TestFieldMaps:
         assert fs["verdict"] == "broken" and "at most 4" in fs["reason"]
 
     def test_the_text_view(self, capsys):
-        from canlib.cli.commands.coverage.render import render_text
+        from canair.cli.commands.coverage.render import render_text
 
         entry = {"ecu": "VCU", "pid": "2101", "params": 3, "verified": 3, "capture": {}}
         entry |= _field(_params(B="B10", C=WIDE, D="B15"), mask="F0000000")

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 
-from canlib.captures.journal import CaptureJournal, list_orphans, recover
+from canair.captures.journal import CaptureJournal, list_orphans, recover
 
 
 def _discover_session(**extra) -> dict:

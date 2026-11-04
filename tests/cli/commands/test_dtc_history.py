@@ -9,11 +9,11 @@ from typing import ClassVar
 import pytest
 import yaml
 
-from canlib.dtc import history
-from canlib.dtc import log as dtc_log
-from canlib.dtc.refs import EcuRefs
-from canlib.dtc.scope import ANY_CAR, Car
-from canlib.profile import Profile
+from canair.dtc import history
+from canair.dtc import log as dtc_log
+from canair.dtc.refs import EcuRefs
+from canair.dtc.scope import ANY_CAR, Car
+from canair.profile import Profile
 
 # A two-ECU registry as the log sees it: rx -> name, rx -> request id.
 REFS = EcuRefs(tx_by_rx={0x7EC: 0x7E4, 0x7EA: 0x7E2}, names={0x7EC: "BMS", 0x7EA: "VCU"})
@@ -86,7 +86,7 @@ class TestCar:
 class TestTagging:
     def test_entries_carry_the_car_and_the_scoped_ecus_revision(self, logp, refs, monkeypatch):
         tag = {"variant": "28kwh", "revisions": {"VCU": "kwp", "BMS": "uds"}, "attribution": {}}
-        monkeypatch.setattr("canlib.variants.tags.capture_tag", lambda _p: dict(tag))
+        monkeypatch.setattr("canair.variants.tags.capture_tag", lambda _p: dict(tag))
         dtc_log.append_scan(_scan("all"))
         dtc_log.append_scan(_scan(VCU))
         dtc_log.append_clear(dtc_log.build_clear(BMS, timestamp="t"))
@@ -311,7 +311,7 @@ class TestFormatUpgrade:
     ]
 
     def test_labels_become_addresses_and_derived_entries_go(self):
-        from canlib.migrations.dtc_log import upgrade
+        from canair.migrations.dtc_log import upgrade
 
         out = upgrade(
             {"scans": self.V1_SCANS, "clears": self.V1_CLEARS}, lambda tx: f"0x{tx + 8:03X}"
@@ -340,7 +340,7 @@ class TestFormatUpgrade:
         ]
 
     def test_a_current_format_doc_is_untouched(self):
-        from canlib.migrations.dtc_log import upgrade
+        from canair.migrations.dtc_log import upgrade
 
         doc = {"format": 2, "scans": [_scan("BMS (0x7E4)")]}  # not a label in format 2
         assert upgrade(doc, lambda tx: "never")["scans"] == doc["scans"]
@@ -361,7 +361,7 @@ class TestFormatUpgrade:
 
 class TestCommands:
     def test_bare_dtc_hints_at_the_log(self, logp, refs, capsys):
-        from canlib.cli.commands import dtc as dtc_cmd
+        from canair.cli.commands import dtc as dtc_cmd
 
         _write(logp, _scan("all", {BMS: _codes("B1", "B2")}))
         args = argparse.Namespace(dtc=None, dtc_all=False)
@@ -371,13 +371,13 @@ class TestCommands:
         assert "2 open on 1 ECU(s)" in out and "`canair dtc log`" in out
 
     def test_bare_dtc_without_a_log_says_nothing_about_it(self, logp, capsys):
-        from canlib.cli.commands import dtc as dtc_cmd
+        from canair.cli.commands import dtc as dtc_cmd
 
         assert dtc_cmd.run(argparse.Namespace(dtc=None, dtc_all=False)) == 2
         assert "DTC log" not in capsys.readouterr().out
 
     def test_history_flag_still_works(self, logp, capsys):
-        from canlib.cli.commands import dtc as dtc_cmd
+        from canair.cli.commands import dtc as dtc_cmd
 
         _write(logp, _scan("all"))
         args = argparse.Namespace(dtc=None, dtc_all=False, dtc_history=True, json=False)
@@ -387,7 +387,7 @@ class TestCommands:
         assert "canair dtc log" in captured.err
 
     def test_log_json(self, logp, refs, capsys):
-        from canlib.cli.commands.dtc import log as log_cmd
+        from canair.cli.commands.dtc import log as log_cmd
 
         _write(
             logp,
@@ -403,7 +403,7 @@ class TestCommands:
         assert out["log"]["scans"] == 2
 
     def test_kinds_are_injected(self):
-        from canlib.cli import _inject_default_subcommand as inject
+        from canair.cli import _inject_default_subcommand as inject
 
         assert inject(["dtc", "BMS"]) == ["dtc", "read", "BMS"]
         assert inject(["dtc", "--all"]) == ["dtc", "read", "--all"]
@@ -411,9 +411,9 @@ class TestCommands:
         assert inject(["dtc", "log", "BMS"]) == ["dtc", "log", "BMS"]
 
     def test_ecu_detail_shows_open_dtcs(self, logp, capsys):
-        from canlib.cli.commands import ecu as ecu_cmd
-        from canlib.dtc.refs import ecu_ref
-        from canlib.ecus import resolve_tx
+        from canair.cli.commands import ecu as ecu_cmd
+        from canair.dtc.refs import ecu_ref
+        from canair.ecus import resolve_tx
 
         tx = resolve_tx("BMS")
         assert tx is not None
@@ -423,10 +423,10 @@ class TestCommands:
         assert "1 open" in out and "P1AAA-00" in out
 
     def test_config_reports_dtc_logs(self, tmp_path, monkeypatch):
-        from canlib.cli.commands.config import _dtc_log_stats
+        from canair.cli.commands.config import _dtc_log_stats
 
         monkeypatch.setattr(dtc_log, "log_dir", lambda: tmp_path)
-        monkeypatch.setattr("canlib.migrations.dtc_log.migrate_all", lambda: None)
+        monkeypatch.setattr("canair.migrations.dtc_log.migrate_all", lambda: None)
         _write(tmp_path / "other.yaml", _scan("all", {"0x708": _codes("B1")}))
         stats = _dtc_log_stats(None)
         assert stats["dir"] == str(tmp_path)
@@ -444,7 +444,7 @@ _BACKFILL_ECUS = {
 
 class TestBackfill:
     def _variants(self, **revisions):
-        from canlib.variants import Variant
+        from canair.variants import Variant
 
         return {
             vid: Variant(id=vid, name=vid, revisions={"VCU": revs})
@@ -452,7 +452,7 @@ class TestBackfill:
         }
 
     def test_tags_only_what_the_profile_settles(self):
-        from canlib.migrations.dtc_log import implied_tags
+        from canair.migrations.dtc_log import implied_tags
 
         variants = self._variants(**{"40kwh": ("kwp",), "60kwh": ("kwp", "uds")})
         assert implied_tags(
@@ -467,7 +467,7 @@ class TestBackfill:
         assert implied_tags(tagged, variants, _BACKFILL_ECUS, NAMES) == {}
 
     def test_a_single_ecu_scan_is_tagged_only_for_its_ecu(self):
-        from canlib.migrations.dtc_log import implied_tags
+        from canair.migrations.dtc_log import implied_tags
 
         variants = self._variants(**{"40kwh": ("kwp",)})
         assert implied_tags({"scope": BMS}, variants, _BACKFILL_ECUS, NAMES) == {"variant": "40kwh"}
@@ -492,7 +492,7 @@ class TestBackfill:
 
 class TestMigrateAll:
     def test_moves_every_profiles_legacy_log(self, tmp_path, monkeypatch):
-        from canlib.migrations.dtc_log import migrate_all
+        from canair.migrations.dtc_log import migrate_all
 
         roots = tmp_path / "profiles"
         for name in ("car-a", "car-b"):
@@ -501,10 +501,10 @@ class TestMigrateAll:
             _write(roots / name / "dtc_log.yaml", _scan("all", ts=name))
         monkeypatch.setattr(dtc_log, "log_dir", lambda: tmp_path / "state")
         monkeypatch.setattr(
-            "canlib.profile.selectable_profiles", lambda: {n: roots / n for n in ("car-a", "car-b")}
+            "canair.profile.selectable_profiles", lambda: {n: roots / n for n in ("car-a", "car-b")}
         )
         monkeypatch.setattr(
-            "canlib.profile.resolve_profile", lambda name: Profile(name, roots / name)
+            "canair.profile.resolve_profile", lambda name: Profile(name, roots / name)
         )
         migrate_all()
         for name in ("car-a", "car-b"):
@@ -513,10 +513,10 @@ class TestMigrateAll:
             assert [s["timestamp"] for s in moved] == [name]
 
     def test_update_moves_them_before_a_reinstall(self, monkeypatch):
-        from canlib.cli.commands import update
+        from canair.cli.commands import update
 
         calls = []
-        monkeypatch.setattr("canlib.migrations.dtc_log.migrate_all", lambda: calls.append(1))
-        monkeypatch.setattr("canlib.install.context.snapshot_profile_risks", lambda clone: [])
+        monkeypatch.setattr("canair.migrations.dtc_log.migrate_all", lambda: calls.append(1))
+        monkeypatch.setattr("canair.install.context.snapshot_profile_risks", lambda clone: [])
         update._warn_about_snapshot_data(None, None)
         assert calls == [1]

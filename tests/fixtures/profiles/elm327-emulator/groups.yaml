@@ -10,7 +10,7 @@
 #
 # Members are plain selectors (ECU or ECU:PID) — not full mini-language steps.
 # List or edit with `canair groups`.
-# See canlib/schema/groups_schema.yaml and `canair validate groups`.
+# See src/canair/schema/groups_schema.yaml and `canair validate groups`.
 
 groups: {}
   # charging:

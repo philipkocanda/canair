@@ -1,10 +1,10 @@
-"""Tests for canlib.transport.errors — centralized transport-error classification."""
+"""Tests for canair.transport.errors — centralized transport-error classification."""
 
 import errno
 import socket
 
-from canlib.core.oserrors import connect_error_detail
-from canlib.transport.errors import (
+from canair.core.oserrors import connect_error_detail
+from canair.transport.errors import (
     describe_transport_error,
     is_transport_error,
     transport_error_types,

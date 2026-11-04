@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from canlib.live._monitor_selectors import MonitorSelectors
+from canair.live._monitor_selectors import MonitorSelectors
 
 
 class _Schedule:
@@ -62,7 +62,7 @@ def _q(ecu: str, *pids: str) -> dict:
 
 class TestPickerSeed:
     def test_opens_on_the_polled_selection(self, monkeypatch):
-        monkeypatch.setattr("canlib.ecus.ecu_groups.load_groups", lambda: {})
+        monkeypatch.setattr("canair.ecus.ecu_groups.load_groups", lambda: {})
         seed = MonitorSelectors(_controller([_q("BMS"), _q("VCU", "2102")])).picker_seed()
         assert [c.name for c in seed.choices] == ["BMS", "VCU"]
         assert seed.current == {"BMS": ["2101", "2105"], "VCU": ["2102"]}

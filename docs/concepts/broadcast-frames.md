@@ -84,7 +84,7 @@ canair validate signals                # structural check
 ```
 
 Edits are surgical, comment-preserving, validated, and auto-reverted on failure
-(via `canair signals` / `canlib/yaml_edit/signals.py`).
+(via `canair signals` / `src/canair/yaml_edit/signals.py`).
 
 `--start-bit` follows DBC numbering, so for `--byte-order big` it names the field's
 *most significant* bit: a 16-bit big-endian field in data bytes 4-5 is
@@ -132,7 +132,7 @@ a 29-bit ID written without the DBC extended flag, a number without its leading
 zero (`.25`), a `VAL_` table without its closing `;`, missing `BS_:`/`BU_:` header
 lines, and a message or signal name starting with a digit — the one repair you see
 in the result, as the name gains a `_` prefix (`0_COUNTER` → `_0_COUNTER`). The
-list is in `canlib/interop/dbc/repair.py`.
+list is in `src/canair/interop/dbc/repair.py`.
 
 A round trip carries:
 
@@ -197,10 +197,10 @@ than committed.
 ## Where things live
 
 - **`captures/can/`** — imported frame logs, native, indexed by `index.yaml`
-  (schema `canlib/schema/can_index_schema.json`). Large logs are stored via Git
+  (schema `src/canair/schema/can_index_schema.json`). Large logs are stored via Git
   LFS (see [Storing raw-CAN logs](#storing-raw-can-logs-whats-committed-vs-fetched)).
 - **`signals/<bus>.yaml`** — broadcast signal maps, one file per bus (schema
-  `canlib/schema/signals_schema.yaml`).
+  `src/canair/schema/signals_schema.yaml`).
 
 Both are optional and absent until you import broadcast data; `canair validate
 can` and `canair validate signals` check them and quietly skip when they don't

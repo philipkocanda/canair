@@ -61,7 +61,7 @@ A `BITS` line is exactly this skill's work item: `have{}` = bit indices some
 param reads (0 = LSB), `missing{}` = the unknowns. A byte is listed when (a) ≥1
 param reads it bit-wise (`Bn:k`/`Sn:k`) **or** a `type: bitmask` param labels
 some of its bits, (b) it is a real data byte (PCI/SID/DID echo excluded), and
-(c) fewer than 8 bits are covered (`canlib/commands/coverage.py::analyze_pid`).
+(c) fewer than 8 bits are covered (`src/canair/commands/coverage.py::analyze_pid`).
 
 **`(also read whole)`** means some param *additionally* reads the byte as a
 whole (`Bn`), the `DEBUG_*_FLAGS` convention. That is not a decoding of the
@@ -280,7 +280,7 @@ read does **not** suppress the bitfield-gap report, because
 
 - **Mirror agreement must beat coincidence.** Two mostly-zero flags "agree" 99%
   of the time by construction; the matcher guards this with Cohen's κ
-  (`canlib/mirrors.py:196`). Trust the reported κ, not the raw agreement.
+  (`src/canair/mirrors.py:196`). Trust the reported κ, not the raw agreement.
 - **A high correlation with a named signal may mean SUPERSET, not equality.**
   This is the single most productive check in the skill, because it catches
   *already-verified* mistakes. `VCU 2101 B26:3` shipped as `GEAR_DRIVE` on the
@@ -304,7 +304,7 @@ read does **not** suppress the bitfield-gap report, because
   survived scrutiny until the capture itself was withdrawn as untrustworthy.
   Naming it `UNKNOWN_B14_*` per the rule below is what kept the profile honest.
 - **Never-toggling bits are unknowable, not absent.** Constant bits are dropped
-  from every `--bits` series by design (`canlib/xanalysis.py:334-361`). A bit
+  from every `--bits` series by design (`src/canair/xanalysis.py:334-361`). A bit
   in `missing{}` that never appears in `--events` simply wasn't exercised — file
   a `research:` lead naming the state/action to try, don't conclude "unused".
 - **A constant-decoding param is a defect, whatever its `verified` flag.** Sweep

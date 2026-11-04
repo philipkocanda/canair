@@ -1,6 +1,6 @@
 """Stage-1 tests: `canair import can` (raw broadcast-CAN frame-log import).
 
-Covers the log-store layer (`canlib.captures.can_logs`), the `import can` command, and the
+Covers the log-store layer (`canair.captures.can_logs`), the `import can` command, and the
 `canair captures can` listing. Fixtures use a tiny candump slice with real
 Ioniq-28 arbitration IDs (tests/fixtures/can/) plus formats generated in-test.
 """
@@ -11,10 +11,10 @@ from pathlib import Path
 
 import pytest
 
-import canlib.profile as profile
-from canlib.captures import can_logs
-from canlib.profile import Profile
-from canlib.validation import other as validate
+import canair.profile as profile
+from canair.captures import can_logs
+from canair.profile import Profile
+from canair.validation import other as validate
 
 FIXTURE = Path(__file__).parents[2] / "fixtures" / "can" / "ioniq28_drive_slice.log"
 EXPECT_IDS = ["0x200", "0x220", "0x2B0", "0x386"]
@@ -199,7 +199,7 @@ class TestImportCanCommand:
     def _run(self, argv):
         import argparse
 
-        from canlib.cli.commands import import_ as import_cmd
+        from canair.cli.commands import import_ as import_cmd
 
         p = import_cmd.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(argv)
@@ -235,7 +235,7 @@ class TestCapturesCanListing:
     def _run_captures(self, argv):
         import argparse
 
-        from canlib.cli.commands import captures
+        from canair.cli.commands import captures
 
         p = captures.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(argv)

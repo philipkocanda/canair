@@ -111,7 +111,7 @@ per this car's needs (e.g. a car whose ECUs pad their replies with `0x00` instea
 or a CAN-FD bus). The accepted keys — `tx_padding`, `rx_padding`, `blocksize`, `stmin`,
 `rx_flowcontrol_timeout`, `rx_consecutive_frame_timeout`, `can_fd`,
 `tx_data_length` — and their defaults are defined in
-[`canlib/transport/isotp_params.py`](https://github.com/philipkocanda/canair/blob/main/canlib/transport/isotp_params.py).
+[`src/canair/transport/isotp_params.py`](https://github.com/philipkocanda/canair/blob/main/canair/transport/isotp_params.py).
 `canair validate` type-checks every field and rejects an unknown `isotp:` key.
 
 The two padding keys are different bytes:

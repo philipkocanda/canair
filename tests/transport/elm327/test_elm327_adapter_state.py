@@ -9,7 +9,7 @@ applied, and commands canair never plans still invalidate what they touch.
 
 import pytest
 
-from canlib.transport.elm327.addressing import (
+from canair.transport.elm327.addressing import (
     AUTO,
     FC_MODE_ADAPTER,
     FC_MODE_USER,
@@ -18,7 +18,7 @@ from canlib.transport.elm327.addressing import (
     functional_target,
     target_for,
 )
-from canlib.uds.addressing import EcuAddress
+from canair.uds.addressing import EcuAddress
 
 LBC = EcuAddress(0x79B, 0x7BB)
 BMS = EcuAddress(0x7E4, 0x7EC)

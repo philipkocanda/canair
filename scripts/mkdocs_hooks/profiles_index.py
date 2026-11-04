@@ -31,7 +31,7 @@ from mkdocs.exceptions import PluginError
 from mkdocs.structure.files import File, Files
 
 if TYPE_CHECKING:
-    from canlib.profile.names import AlsoKnownAs
+    from canair.profile.names import AlsoKnownAs
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PROFILES_DIR = REPO_ROOT / "profiles"
@@ -53,7 +53,7 @@ DEDICATED_PAGES = {
 
 def profile_stats(ecus_dir: Path) -> dict[str, int]:
     """Headline counts for one profile, loaded straight from its ecus/ files."""
-    from canlib.ecus.pids import load_pids, pid_status
+    from canair.ecus.pids import load_pids, pid_status
 
     data = load_pids(ecus_dir) if ecus_dir.is_dir() else {"ecus": {}}
     ecus = data.get("ecus") or {}
@@ -89,7 +89,7 @@ def profile_stats(ecus_dir: Path) -> dict[str, int]:
 
 
 def _also_known_as(root: Path) -> AlsoKnownAs:
-    from canlib.profile.names import also_known_as
+    from canair.profile.names import also_known_as
 
     return also_known_as(root)
 
@@ -119,7 +119,7 @@ def discover_bundled(profiles_dir: Path = PROFILES_DIR) -> list[tuple[str, Path]
 
 def _maturity(counts: dict[str, int]) -> str:
     """A one-word maturity hint from the counts."""
-    from canlib.interop.explorer.export import profile_maturity
+    from canair.interop.explorer.export import profile_maturity
 
     return profile_maturity(counts)
 

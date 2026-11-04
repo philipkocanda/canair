@@ -4,8 +4,8 @@ import argparse
 
 import pytest
 
-from canlib.cli.commands import bix
-from canlib.render import ansi
+from canair.cli.commands import bix
+from canair.render import ansi
 
 
 def _parse(argv):
@@ -130,7 +130,7 @@ def test_annotate_overlay_flags_unmapped_bytes_on_a_pid_without_a_map(capsys):
 
 
 def _resolved(payload_hex, unit="bit", length=4):
-    from canlib.uds.support_map import MapDecl, resolve
+    from canair.uds.support_map import MapDecl, resolve
 
     return resolve(MapDecl(0, length, unit), bytes.fromhex(payload_hex), header=3)
 
@@ -411,7 +411,7 @@ def test_unconclusive_pid_keeps_the_plain_default(capsys):
 def test_derived_width_never_disagrees_with_shared_helper():
     # The value comes from the shared derivation, so a conclusive PID can't be
     # labelled one way here and another by decode/hunt/coverage.
-    from canlib.uds.notation import subfunction_bytes_for_pid
+    from canair.uds.notation import subfunction_bytes_for_pid
 
     for pid in ("2101", "2102", "22BC03", "22C101", "22B002"):
         assert bix._pid_sub_bytes(pid) == subfunction_bytes_for_pid(pid)
@@ -771,7 +771,7 @@ def test_torque1_vs_torque2_first_data_byte_offset(capsys):
 
 def test_isotp_to_torque_respects_subfunction_width():
     # Unit-level guard for the offset the annotate columns rely on.
-    from canlib.uds.byteindex import isotp_to_torque
+    from canair.uds.byteindex import isotp_to_torque
 
     # 1-byte subfunction: header = SID + PID = ISO-TP 0,1 → data starts at 2.
     assert isotp_to_torque(1, 1) is None  # PID byte, not data

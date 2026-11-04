@@ -12,9 +12,9 @@ import json
 
 import pytest
 
-import canlib.config as cfg_mod
-from canlib.cli import build_parser
-from canlib.cli.commands import wican
+import canair.config as cfg_mod
+from canair.cli import build_parser
+from canair.cli.commands import wican
 
 
 def _classic(monkeypatch):
@@ -211,7 +211,7 @@ class TestLocalOps:
             variants_file = tmp_path / "variants.yaml"  # absent: one implicit car
             variant = None
 
-        monkeypatch.setattr("canlib.profile.active", lambda: _Prof())
+        monkeypatch.setattr("canair.profile.active", lambda: _Prof())
         # No ECU here declares revisions, so there is nothing to resolve.
         monkeypatch.setattr(wican, "_require_resolved_revisions", lambda: None)
         rc = wican.run(_parse("wican", "autopid", "write"))
@@ -228,7 +228,7 @@ class TestLocalOps:
             variants_file = tmp_path / "variants.yaml"  # absent: one implicit car
             variant = None
 
-        monkeypatch.setattr("canlib.profile.active", lambda: _Prof())
+        monkeypatch.setattr("canair.profile.active", lambda: _Prof())
         # No ECU here declares revisions, so there is nothing to resolve.
         monkeypatch.setattr(wican, "_require_resolved_revisions", lambda: None)
         out = tmp_path / "custom.json"

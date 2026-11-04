@@ -75,7 +75,7 @@ variants:
 | `sources` | Where the facts came from |
 | `notes` | Free text |
 
-The authoritative field list is `canlib/variants/__init__.py`; `canlib/schema/variants_schema.yaml`
+The authoritative field list is `src/canair/variants/__init__.py`; `src/canair/schema/variants_schema.yaml`
 documents it.
 
 ## Editing

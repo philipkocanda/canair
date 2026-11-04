@@ -10,9 +10,9 @@ import pytest
 from textual.containers import VerticalScroll
 from textual.widgets import Input, OptionList
 
-from canlib.cli.commands.captures.step_tui import CapturesStepApp
-from canlib.live._monitor_select_tui import LiveMonitorSelectScreen
-from canlib.live._monitor_tui import (
+from canair.cli.commands.captures.step_tui import CapturesStepApp
+from canair.live._monitor_select_tui import LiveMonitorSelectScreen
+from canair.live._monitor_tui import (
     EditParamDialog,
     EventLogModal,
     MonitorApp,
@@ -20,7 +20,7 @@ from canlib.live._monitor_tui import (
     SessionInfoModal,
     SessionPickerScreen,
 )
-from canlib.tui.help import HelpModal
+from canair.tui.help import HelpModal
 from tests.support.monitor_picker import monitor_app as _monitor
 from tests.support.monitor_tui import FakeController, FakeEditor
 from tests.support.step_model import model as _model
@@ -70,7 +70,7 @@ class TestScrollableModalsFocusTheirScroll:
 
     def test_help_modal_binds_scroll_keys(self):
         """A focused container is useless if no key is bound to move it."""
-        from canlib.tui.keys import keys_for
+        from canair.tui.keys import keys_for
 
         bound = {k for b in HelpModal.BINDINGS for k in (b.key,)}
         for role in ("move_down", "move_up", "axis_start", "axis_end"):
@@ -167,7 +167,7 @@ class TestPickersAreFilterable:
 
     @pytest.mark.asyncio
     async def test_plot_pid_picker_filters(self):
-        from canlib.cli.commands.decode.plot_tui import PidPickerModal, PlotApp
+        from canair.cli.commands.decode.plot_tui import PidPickerModal, PlotApp
         from tests.support.plot_model import plot_model as _plot_model
 
         options_in = [("BMS", "2101"), ("HVAC", "220100"), ("IGPM", "22BC07")]

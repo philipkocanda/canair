@@ -29,7 +29,7 @@ init: "ATE0;ATL0;ATH0;ATS0;ATSP6;ATCRA7E8;ATAL;"
 
 # Client-side ISO-TP tuning for the slcan-tcp transport. Defaults suit most
 # 11-bit/classic-CAN vehicles; override per this car's needs. See
-# canlib/transport/isotp_params.py for every field + default.
+# src/canair/transport/isotp_params.py for every field + default.
 # isotp:
 #   tx_padding: 0xAA   # fill byte canair pads its requests with (0x00/0xCC on some makes)
 #   rx_padding: 0xAA   # fill byte the ECUs pad replies with (default: tx_padding)

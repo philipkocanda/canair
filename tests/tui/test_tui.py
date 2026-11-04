@@ -1,8 +1,8 @@
-"""Tests for canlib.tui — small shared terminal helpers."""
+"""Tests for canair.tui — small shared terminal helpers."""
 
 import os
 
-from canlib.tui import key_to_action, read_key_raw, terminal_columns, terminal_lines
+from canair.tui import key_to_action, read_key_raw, terminal_columns, terminal_lines
 
 
 class TestTerminalSize:

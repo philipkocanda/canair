@@ -1,4 +1,4 @@
-"""Tests for ``canair search``'s row loaders (:mod:`canlib.cli.commands.search.haystack`) and the
+"""Tests for ``canair search``'s row loaders (:mod:`canair.cli.commands.search.haystack`) and the
 command paths around them: query errors, ``--defs`` failures, layered profiles, routing.
 """
 
@@ -9,8 +9,8 @@ import json
 
 import pytest
 
-from canlib.cli import _inject_default_subcommand, build_parser
-from canlib.cli.commands.search.haystack import (
+from canair.cli import _inject_default_subcommand, build_parser
+from canair.cli.commands.search.haystack import (
     FIELD_SCAN_NOTES,
     _Tally,
     identity_rows,
@@ -153,7 +153,7 @@ class TestCommandPaths:
         def broken(*a, **k):
             raise yaml.YAMLError("bad indentation")
 
-        monkeypatch.setattr("canlib.ecus.pids.load_pids", broken)
+        monkeypatch.setattr("canair.ecus.pids.load_pids", broken)
         assert _run(tmp_path, monkeypatch, ["95400", "--defs", "--json"]) == 0
         captured = capsys.readouterr()
         assert "--defs skipped" in captured.err and "bad indentation" in captured.err
@@ -162,12 +162,12 @@ class TestCommandPaths:
 
 class TestLayeredProfile:
     def test_search_reads_both_layers(self, tmp_path, monkeypatch, capsys):
-        from canlib import config, profile
+        from canair import config, profile
 
         bundled, user = tmp_path / "profiles", tmp_path / "cfg" / "canair" / "profiles"
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
-        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
         config.load_config.cache_clear()
         base = bundled / "ev6"
         (base / "ecus").mkdir(parents=True)
@@ -210,7 +210,7 @@ class TestKindNamedPattern:
 
     def test_the_help_says_how(self, capsys):
         parser = argparse.ArgumentParser()
-        from canlib.cli.commands import search
+        from canair.cli.commands import search
 
         group = search.add_parser(parser.add_subparsers())
         assert "canair search -- uds" in group.format_help()

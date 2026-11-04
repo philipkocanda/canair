@@ -189,7 +189,7 @@ def generate(manifest: dict, only: set[str] | None) -> int:
 def _run_command(base_argv: list[str], argv: list[str]) -> int:
     """Run one canair command device-free, non-interactively; return exit code."""
     proc = subprocess.run(
-        [sys.executable, "-m", "canlib.cli", *base_argv, *argv],
+        [sys.executable, "-m", "canair.cli", *base_argv, *argv],
         cwd=REPO_ROOT,
         env=_isolated_env(),
         stdin=subprocess.DEVNULL,

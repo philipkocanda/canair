@@ -1,6 +1,6 @@
 """Transport guards and the stop-signal wiring of the shared live runtime.
 
-The handlers are typed against the :class:`~canlib.transport.protocol.Terminal` contract, so
+The handlers are typed against the :class:`~canair.transport.protocol.Terminal` contract, so
 WiCAN-only ones must narrow explicitly. The interactive REPL sets the ECU header via raw ``ATSH``
 sends, which are no-ops on the raw transport (RawTerminal uses ``set_header()``), so a UDS request
 there would fire with no header set: the handler refuses it with a clear error rather than a
@@ -11,14 +11,14 @@ import argparse
 
 import pytest
 
-from canlib.cli.commands._live import LiveOperation
+from canair.cli.commands._live import LiveOperation
 from tests.support.live_args import live_args
 
 
 class TestInteractiveTransportGuard:
     @pytest.mark.asyncio
     async def test_interactive_refused_on_non_elm_terminal(self, capsys):
-        from canlib.cli.commands._live.handlers.elm_only import handle_interactive
+        from canair.cli.commands._live.handlers.elm_only import handle_interactive
 
         class NotWiCAN:  # not a WiCANTerminal -> raw path
             pass
@@ -52,8 +52,8 @@ class TestRunLiveStopSignals:
         device connection released."""
         import signal
 
-        from canlib.cli.commands._live import runtime as _live
-        from canlib.core.stop_signals import STOP_SIGNALS
+        from canair.cli.commands._live import runtime as _live
+        from canair.core.stop_signals import STOP_SIGNALS
 
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: _FakeLock())
 
@@ -75,7 +75,7 @@ class TestRunLiveStopSignals:
             assert signal.getsignal(sig) == before[sig]
 
     def test_keyboardinterrupt_exits_cleanly(self, monkeypatch, capsys):
-        from canlib.cli.commands._live import runtime as _live
+        from canair.cli.commands._live import runtime as _live
 
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: _FakeLock())
 
@@ -91,7 +91,7 @@ class TestRunLiveStopSignals:
         """After a SIGHUP the tty is gone, so the closing print can fail (EIO)."""
         import builtins
 
-        from canlib.cli.commands._live import runtime as _live
+        from canair.cli.commands._live import runtime as _live
 
         lock = _FakeLock()
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: lock)
@@ -109,7 +109,7 @@ class TestRunLiveStopSignals:
 
     def test_runs_a_lock_watchdog_for_the_session(self, monkeypatch):
         """An orphaned session must notice when another run asks for the device."""
-        from canlib.cli.commands._live import runtime as _live
+        from canair.cli.commands._live import runtime as _live
 
         lock = _FakeLock()
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: lock)

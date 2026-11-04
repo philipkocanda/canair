@@ -2,7 +2,7 @@
 
 import asyncio
 
-from canlib.transport.elm327.wican import WiCANTerminal
+from canair.transport.elm327.wican import WiCANTerminal
 
 
 class ProgrammableWS:

@@ -18,11 +18,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib import config
-from canlib.ecus.pids import load_pids, revision_resolutions
-from canlib.profile import ProfileError, set_active
-from canlib.variants import detected as cache
-from canlib.variants import fingerprints as fp
+from canair import config
+from canair.ecus.pids import load_pids, revision_resolutions
+from canair.profile import ProfileError, set_active
+from canair.variants import detected as cache
+from canair.variants import fingerprints as fp
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "profiles" / "variants"
 VCU = yaml.safe_load((FIXTURE / "ecus" / "vcu.yaml").read_text())["VCU"]
@@ -58,7 +58,7 @@ class FakeTerminal:
 
 
 def _detect(terminal, *steps):
-    from canlib.live.revision_probe import detect_revisions, targeted_ecus
+    from canair.live.revision_probe import detect_revisions, targeted_ecus
 
     return asyncio.run(detect_revisions(terminal, targeted_ecus(steps)))
 
@@ -114,7 +114,7 @@ class TestResolution:
         assert cache.remembered("variants", "60kwh") == {}
 
     def test_a_recording_is_attributed_detected(self):
-        from canlib.variants.tags import capture_tag
+        from canair.variants.tags import capture_tag
 
         cache.remember("variants", "60kwh", "VCU", "kwp")
         tag = capture_tag(set_active(str(FIXTURE), variant="60kwh"))
@@ -167,7 +167,7 @@ class TestProbe:
 
 class TestIdentity:
     def test_a_reading_names_the_revision_and_the_cars(self):
-        from canlib.live.revision_probe import describe_identity_report, identity_report
+        from canair.live.revision_probe import describe_identity_report, identity_report
 
         set_active(str(FIXTURE))
         report = identity_report(0x7E2, {"1A90": True, "1A91": False})
@@ -178,7 +178,7 @@ class TestIdentity:
         assert cache.remembered("variants", None) == {"VCU": "uds"}
 
     def test_a_contradicting_reading_replaces_the_detection(self):
-        from canlib.live.revision_probe import identity_report
+        from canair.live.revision_probe import identity_report
 
         cache.remember("variants", "60kwh", "VCU", "uds")
         set_active(str(FIXTURE), variant="60kwh")
@@ -186,7 +186,7 @@ class TestIdentity:
         assert cache.remembered("variants", "60kwh") == {"VCU": "kwp"}
 
     def test_a_reading_matching_nothing_is_a_question(self):
-        from canlib.live.revision_probe import describe_identity_report, identity_report
+        from canair.live.revision_probe import describe_identity_report, identity_report
 
         set_active(str(FIXTURE))
         report = identity_report(0x7E2, {"1A90": False})
@@ -194,22 +194,22 @@ class TestIdentity:
         assert "doesn't know yet" in describe_identity_report(report)[0]
 
     def test_an_ecu_without_revisions_reports_nothing(self):
-        from canlib.live.revision_probe import identity_report
+        from canair.live.revision_probe import identity_report
 
         set_active(str(FIXTURE))
         assert identity_report(0x7E4, {"1A90": True}) is None
 
 
 def test_the_refusal_points_at_identity():
-    from canlib.variants.selection import require_variant
+    from canair.variants.selection import require_variant
 
     with pytest.raises(ProfileError, match="canair identity VCU"):
         require_variant(set_active(str(FIXTURE)), "talk to the car")
 
 
 def test_validate_captures_flags_replies_outside_the_tagged_revision(tmp_path, capsys):
-    from canlib.captures import io as capture_io
-    from canlib.cli import main
+    from canair.captures import io as capture_io
+    from canair.cli import main
 
     copy = tmp_path / "variants"
     shutil.copytree(FIXTURE, copy)

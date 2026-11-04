@@ -1,4 +1,4 @@
-"""Tests for canlib.capture_migrate — YAML→JSON capture-store migration."""
+"""Tests for canair.capture_migrate — YAML→JSON capture-store migration."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import json
 import pytest
 import yaml
 
-from canlib.captures import io as capture_io
-from canlib.migrations.captures import MigrationError, migrate_dir, migrate_file
+from canair.captures import io as capture_io
+from canair.migrations.captures import MigrationError, migrate_dir, migrate_file
 
 _DOC = {
     "sessions": [

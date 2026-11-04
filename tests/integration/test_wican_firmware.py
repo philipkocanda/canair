@@ -12,8 +12,8 @@ import asyncio
 import pytest
 import requests
 
-import canlib.device.wican.firmware as wf
-from canlib.device.wican.firmware import FirmwareInfo, compatibility, probe
+import canair.device.wican.firmware as wf
+from canair.device.wican.firmware import FirmwareInfo, compatibility, probe
 
 # A v4 /check_status body is full of secrets; these must never survive the probe.
 _V4_SECRETS = {
@@ -208,7 +208,7 @@ class TestProbe:
 
 class TestDetect:
     def test_disabled_check_sends_nothing(self, device, monkeypatch):
-        import canlib.config as cfg
+        import canair.config as cfg
 
         seen = device({"/api/info": FakeResponse(200, dict(_V6_INFO))})
         monkeypatch.setattr(cfg, "firmware_check_mode", lambda: "off")
@@ -217,7 +217,7 @@ class TestDetect:
         assert seen == []
 
     def test_uses_the_connect_timeout(self, monkeypatch):
-        import canlib.config as cfg
+        import canair.config as cfg
 
         got = {}
 
@@ -234,7 +234,7 @@ class TestDetect:
     @pytest.mark.parametrize(("mode", "probed"), [("on", False), ("always", True), ("off", False)])
     def test_elm327_tcp_is_probed_only_when_asked(self, device, monkeypatch, mode, probed):
         """It is usually a clone with no HTTP server: a default probe cost a timeout."""
-        import canlib.config as cfg
+        import canair.config as cfg
 
         seen = device({"/api/info": FakeResponse(200, dict(_V6_INFO))})
         monkeypatch.setattr(cfg, "firmware_check_mode", lambda: mode)
@@ -244,7 +244,7 @@ class TestDetect:
 
     @pytest.mark.parametrize("surface", ["wican-ws", "slcan-tcp", "wican-mode", "reboot"])
     def test_wican_surfaces_are_probed_by_default(self, device, monkeypatch, surface):
-        import canlib.config as cfg
+        import canair.config as cfg
 
         device({"/api/info": FakeResponse(200, dict(_V6_INFO))})
         monkeypatch.setattr(cfg, "firmware_check_mode", lambda: "on")
@@ -355,7 +355,7 @@ class TestPolicyTable:
 
 class TestFirmwareCheckConfig:
     def _with(self, monkeypatch, block):
-        import canlib.config as cfg
+        import canair.config as cfg
 
         monkeypatch.setattr(cfg, "load_config", lambda: {"transport": block})
         return cfg.firmware_check()
@@ -383,7 +383,7 @@ class TestFirmwareCheckConfig:
         ],
     )
     def test_mode(self, monkeypatch, value, mode):
-        import canlib.config as cfg
+        import canair.config as cfg
 
         block = {} if value is None else {"firmware_check": value}
         monkeypatch.setattr(cfg, "load_config", lambda: {"transport": block})
@@ -391,7 +391,7 @@ class TestFirmwareCheckConfig:
         assert cfg.firmware_check() is (mode != "off")
 
     def test_is_a_known_config_key(self):
-        from canlib.cli.commands.config import _KNOWN_KEYS
+        from canair.cli.commands.config import _KNOWN_KEYS
 
         assert "transport.firmware_check" in _KNOWN_KEYS
 
@@ -405,8 +405,8 @@ def _v6(monkeypatch, info: FirmwareInfo = V6):
 
 class TestRebootRegression:
     def test_reboot_on_405_reports_failure(self, monkeypatch, capsys):
-        from canlib.device.wican import api as wican_api
-        from canlib.transport.elm327 import wican as terminal
+        from canair.device.wican import api as wican_api
+        from canair.transport.elm327 import wican as terminal
 
         monkeypatch.setattr(wican_api.requests, "post", lambda *a, **k: FakeResponse(405))
         assert terminal.reboot_wican("192.0.2.1") is False
@@ -415,16 +415,16 @@ class TestRebootRegression:
         assert "Rebooting" not in captured.out
 
     def test_reboot_on_200_succeeds(self, monkeypatch, capsys):
-        from canlib.device.wican import api as wican_api
-        from canlib.transport.elm327 import wican as terminal
+        from canair.device.wican import api as wican_api
+        from canair.transport.elm327 import wican as terminal
 
         monkeypatch.setattr(wican_api.requests, "post", lambda *a, **k: FakeResponse(200))
         assert terminal.reboot_wican("192.0.2.1") is True
         assert "Rebooting" in capsys.readouterr().out
 
     def test_reboot_skipped_on_v6(self, monkeypatch, capsys):
-        from canlib.device.wican import api as wican_api
-        from canlib.transport.elm327 import wican as terminal
+        from canair.device.wican import api as wican_api
+        from canair.transport.elm327 import wican as terminal
 
         _v6(monkeypatch)
         monkeypatch.setattr(
@@ -445,7 +445,7 @@ class TestRebootRegression:
         ids=["v6", "v4-ok", "unknown-ok", "v4-405", "unreachable"],
     )
     def test_reboot_device_tells_skipped_from_failed(self, monkeypatch, info, post, outcome):
-        from canlib.device.wican import api as wican_api
+        from canair.device.wican import api as wican_api
 
         _v6(monkeypatch, info)
 
@@ -460,7 +460,7 @@ class TestRebootRegression:
         assert wican_api.reboot_device("192.0.2.1") == outcome
 
     def test_autopid_upload_reboot_on_405_reports_failure(self, monkeypatch, capsys):
-        from canlib.cli.commands import wican
+        from canair.cli.commands import wican
 
         def post(url, **kw):
             return FakeResponse(405 if url.endswith("/system_reboot") else 200)
@@ -476,18 +476,18 @@ class TestRebootRegression:
 
 def _elm_session(monkeypatch, ttype: str, *, calls: list):
     """Drive ``async_main`` for one ELM candidate with every device seam stubbed."""
-    from canlib.cli.commands._live import connect, runtime
-    from canlib.transport.config import TransportConfig
+    from canair.cli.commands._live import connect, runtime
+    from canair.transport.config import TransportConfig
 
     cand = TransportConfig(type=ttype, host="192.0.2.1")
-    monkeypatch.setattr("canlib.transport.resolve_transport_candidates", lambda args: [cand])
-    monkeypatch.setattr("canlib.transport.select_reachable_transport", lambda c, **k: c[0])
+    monkeypatch.setattr("canair.transport.resolve_transport_candidates", lambda args: [cand])
+    monkeypatch.setattr("canair.transport.select_reachable_transport", lambda c, **k: c[0])
     monkeypatch.setattr(runtime, "load_pids", lambda: {"init": "ATZ;"})
     monkeypatch.setattr(
-        "canlib.device.wican.mode.require_ws_reachable", lambda *a, **k: calls.append("reach")
+        "canair.device.wican.mode.require_ws_reachable", lambda *a, **k: calls.append("reach")
     )
     monkeypatch.setattr(
-        "canlib.device.wican.mode.require_elm327_tcp_reachable",
+        "canair.device.wican.mode.require_elm327_tcp_reachable",
         lambda *a, **k: calls.append("reach"),
     )
 
@@ -516,7 +516,7 @@ def _live_args(**kw):
 
 
 def _operation():
-    from canlib.cli.commands._live import LiveOperation
+    from canair.cli.commands._live import LiveOperation
 
     async def _handler(*a, **k):
         return None
@@ -534,7 +534,7 @@ def _recording_detect(monkeypatch, info: FirmwareInfo, calls: list):
 
 class TestLiveSurfaces:
     def test_wican_ws_connect_refused_on_v6_after_the_reachability_check(self, monkeypatch, capsys):
-        from canlib.cli.commands._live import runtime
+        from canair.cli.commands._live import runtime
 
         calls: list = []
         _elm_session(monkeypatch, "wican-ws", calls=calls)
@@ -547,8 +547,8 @@ class TestLiveSurfaces:
         assert "no /ws ELM327 terminal" in err and "elm327-tcp" in err
 
     def test_an_unreachable_host_fails_fast_without_the_probe(self, monkeypatch, capsys):
-        from canlib.cli.commands._live import runtime
-        from canlib.device.wican.mode import ModeError
+        from canair.cli.commands._live import runtime
+        from canair.device.wican.mode import ModeError
 
         calls: list = []
         _elm_session(monkeypatch, "wican-ws", calls=calls)
@@ -557,13 +557,13 @@ class TestLiveSurfaces:
         def _down(*a, **k):
             raise ModeError("can't reach the WiCAN")
 
-        monkeypatch.setattr("canlib.device.wican.mode.require_ws_reachable", _down)
+        monkeypatch.setattr("canair.device.wican.mode.require_ws_reachable", _down)
         with pytest.raises(SystemExit):
             asyncio.run(runtime.async_main(_live_args(), _operation()))
         assert calls == []
 
     def test_v4_out_of_range_warns_and_connects(self, monkeypatch, capsys):
-        from canlib.cli.commands._live import runtime
+        from canair.cli.commands._live import runtime
 
         calls: list = []
         _elm_session(monkeypatch, "wican-ws", calls=calls)
@@ -573,8 +573,8 @@ class TestLiveSurfaces:
         assert "newer than canair has tested" in capsys.readouterr().err
 
     def test_elm327_tcp_is_not_probed_by_default(self, monkeypatch, capsys):
-        import canlib.config as cfg
-        from canlib.cli.commands._live import runtime
+        import canair.config as cfg
+        from canair.cli.commands._live import runtime
 
         calls: list = []
         _elm_session(monkeypatch, "elm327-tcp", calls=calls)
@@ -586,8 +586,8 @@ class TestLiveSurfaces:
         assert "AutoPID" not in capsys.readouterr().err
 
     def test_elm327_tcp_note_when_opted_in(self, monkeypatch, capsys):
-        import canlib.config as cfg
-        from canlib.cli.commands._live import runtime
+        import canair.config as cfg
+        from canair.cli.commands._live import runtime
 
         calls: list = []
         _elm_session(monkeypatch, "elm327-tcp", calls=calls)
@@ -604,8 +604,8 @@ class TestLiveSurfaces:
         ids=["v6-skips", "unknown-reboots"],
     )
     def test_reboot_after_an_elm_session(self, monkeypatch, capsys, info, posted, text):
-        from canlib.cli.commands._live import runtime
-        from canlib.device.wican import api as wican_api
+        from canair.cli.commands._live import runtime
+        from canair.device.wican import api as wican_api
 
         calls: list = []
         _elm_session(monkeypatch, "wican-ws", calls=calls)
@@ -623,8 +623,8 @@ class TestLiveSurfaces:
         assert text in captured.out + captured.err
 
     def test_reboot_on_elm327_tcp_is_reported_not_dropped(self, monkeypatch, capsys):
-        from canlib.cli.commands._live import runtime
-        from canlib.device.wican import api as wican_api
+        from canair.cli.commands._live import runtime
+        from canair.device.wican import api as wican_api
 
         calls: list = []
         _elm_session(monkeypatch, "elm327-tcp", calls=calls)
@@ -635,8 +635,8 @@ class TestLiveSurfaces:
     # --- slcan-tcp ---------------------------------------------------------------
 
     def _raw(self, monkeypatch, *, http_up: bool = True):
-        from canlib.device.wican import mode as wican_mode
-        from canlib.live import raw_monitor
+        from canair.device.wican import mode as wican_mode
+        from canair.live import raw_monitor
 
         calls: list = []
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: http_up)
@@ -657,15 +657,15 @@ class TestLiveSurfaces:
         return calls
 
     def _cand(self, **kw):
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         return TransportConfig(type="slcan-tcp", host="192.0.2.1", **kw)
 
     def _run_raw(self, transport, *, reboot=False):
-        from canlib.live import raw_ops
-        from canlib.live.monitor_options import MonitorOptions
-        from canlib.live.session import SessionOptions
-        from canlib.transport.config import ConnectionOptions
+        from canair.live import raw_ops
+        from canair.live.monitor_options import MonitorOptions
+        from canair.live.session import SessionOptions
+        from canair.transport.config import ConnectionOptions
 
         async def _operation(terminal, pids_data):
             return None
@@ -692,7 +692,7 @@ class TestLiveSurfaces:
 
     def test_slcan_on_v6_does_not_read_the_4x_device_config(self, monkeypatch):
         """No /load_config on v6: a gated one answered 401/403 and printed noise."""
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         self._raw(monkeypatch)
         _v6(monkeypatch, V6_GATED)
@@ -713,7 +713,7 @@ class TestLiveSurfaces:
 
     def test_slcan_with_the_http_port_down_skips_every_http_request(self, monkeypatch):
         """An offline host used to pay the probe, the mode check and the config read."""
-        from canlib.transport.config import TransportConfig
+        from canair.transport.config import TransportConfig
 
         calls = self._raw(monkeypatch, http_up=False)
         monkeypatch.setattr(wf, "detect", lambda *a, **k: pytest.fail("no probe when down"))
@@ -728,7 +728,7 @@ class TestLiveSurfaces:
     )
     def test_reboot_works_after_a_raw_session(self, monkeypatch, capsys, info, posted):
         """--reboot used to be ignored on slcan-tcp: run_raw returned before the reboot."""
-        from canlib.device.wican import api as wican_api
+        from canair.device.wican import api as wican_api
 
         self._raw(monkeypatch)
         _v6(monkeypatch, info)
@@ -740,8 +740,8 @@ class TestLiveSurfaces:
         assert bool(posts) is posted
 
     def test_no_reboot_when_the_raw_preflight_fails(self, monkeypatch):
-        from canlib.device.wican import api as wican_api
-        from canlib.device.wican import mode as wican_mode
+        from canair.device.wican import api as wican_api
+        from canair.device.wican import mode as wican_mode
 
         self._raw(monkeypatch)
         _v6(monkeypatch, V4)
@@ -756,19 +756,19 @@ class TestLiveSurfaces:
     # --- sniff -------------------------------------------------------------------
 
     def _sniff(self, monkeypatch, *, http_up: bool = True):
-        from canlib.cli.commands import sniff
-        from canlib.device.wican import mode as wican_mode
+        from canair.cli.commands import sniff
+        from canair.device.wican import mode as wican_mode
 
         ran: list = []
-        monkeypatch.setattr("canlib.transport.resolve_transport", lambda args: self._cand())
+        monkeypatch.setattr("canair.transport.resolve_transport", lambda args: self._cand())
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: http_up)
         monkeypatch.setattr(wican_mode, "require_protocol", lambda *a, **k: None)
         monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda *a, **k: None)
         monkeypatch.setattr(
-            "canlib.transport.config.TransportConfig._wican_device_config", lambda self: {}
+            "canair.transport.config.TransportConfig._wican_device_config", lambda self: {}
         )
-        monkeypatch.setattr("canlib.device.lock.WiCANLock.acquire", lambda *a, **k: None)
-        monkeypatch.setattr("canlib.device.lock.WiCANLock.release", lambda *a, **k: None)
+        monkeypatch.setattr("canair.device.lock.WiCANLock.acquire", lambda *a, **k: None)
+        monkeypatch.setattr("canair.device.lock.WiCANLock.release", lambda *a, **k: None)
         monkeypatch.setattr(sniff, "_run_sniff", lambda *a, **k: ran.append(a))
         return ran
 
@@ -777,11 +777,11 @@ class TestLiveSurfaces:
         return argparse.Namespace(**{**base, "force": False, **kw})
 
     def test_sniff_listen_only_refused_on_v6(self, monkeypatch, capsys):
-        from canlib.cli.commands import sniff
+        from canair.cli.commands import sniff
 
         self._sniff(monkeypatch)
         monkeypatch.setattr(
-            "canlib.device.lock.WiCANLock.acquire",
+            "canair.device.lock.WiCANLock.acquire",
             lambda *a, **k: pytest.fail("must refuse before taking the device"),
         )
         _v6(monkeypatch)
@@ -789,7 +789,7 @@ class TestLiveSurfaces:
         assert "can_manager.silent" in capsys.readouterr().err
 
     def test_sniff_on_v6_without_listen_only_warns_and_sniffs(self, monkeypatch, capsys):
-        from canlib.cli.commands import sniff
+        from canair.cli.commands import sniff
 
         ran = self._sniff(monkeypatch)
         _v6(monkeypatch)
@@ -805,8 +805,8 @@ class TestLiveSurfaces:
         self, monkeypatch, capsys, mode, word
     ):
         """Unknown used to pass silently, though it may well be a v6 WiCAN."""
-        import canlib.config as cfg
-        from canlib.cli.commands import sniff
+        import canair.config as cfg
+        from canair.cli.commands import sniff
 
         ran = self._sniff(monkeypatch)
         monkeypatch.setattr(cfg, "firmware_check_mode", lambda: mode)
@@ -817,7 +817,7 @@ class TestLiveSurfaces:
 
     def test_listen_only_without_an_http_server_stays_quiet(self, monkeypatch, capsys):
         """No HTTP server: not a v6 WiCAN (v6 always serves one), so nothing to warn about."""
-        from canlib.cli.commands import sniff
+        from canair.cli.commands import sniff
 
         ran = self._sniff(monkeypatch, http_up=False)
         assert sniff.run(self._sniff_args(listen_only=True)) == 0
@@ -825,7 +825,7 @@ class TestLiveSurfaces:
         assert "listen-only" not in capsys.readouterr().err
 
     def test_sniff_listen_only_on_v4_is_silent(self, monkeypatch, capsys):
-        from canlib.cli.commands import sniff
+        from canair.cli.commands import sniff
 
         self._sniff(monkeypatch)
         _v6(monkeypatch, V4)
@@ -833,17 +833,17 @@ class TestLiveSurfaces:
         assert capsys.readouterr().err == ""
 
     def test_sniff_fails_fast_when_the_slcan_port_is_closed(self, monkeypatch, capsys):
-        from canlib.cli.commands import sniff
-        from canlib.device.wican.mode import ModeError
+        from canair.cli.commands import sniff
+        from canair.device.wican.mode import ModeError
 
         self._sniff(monkeypatch)
 
         def _closed(host, port, **kw):
             raise ModeError(f"can't reach the WiCAN's SLCAN data port at {host}:{port}")
 
-        monkeypatch.setattr("canlib.device.wican.mode.require_slcan_reachable", _closed)
+        monkeypatch.setattr("canair.device.wican.mode.require_slcan_reachable", _closed)
         monkeypatch.setattr(
-            "canlib.device.lock.WiCANLock.acquire",
+            "canair.device.lock.WiCANLock.acquire",
             lambda *a, **k: pytest.fail("must fail before taking the device"),
         )
         _v6(monkeypatch, V4)
@@ -856,12 +856,12 @@ class TestWicanCommandSurfaces:
         "handler", ["_cmd_mode_show", "_cmd_mode_set", "_cmd_autopid_download"]
     )
     def test_refused_on_v6_before_any_request(self, monkeypatch, capsys, handler):
-        import canlib.config as cfg
-        from canlib.cli.commands import wican
+        import canair.config as cfg
+        from canair.cli.commands import wican
 
         monkeypatch.setattr(cfg, "wican_model", lambda: "pro")
         monkeypatch.setattr(
-            "canlib.device.wican.mode.current_protocol",
+            "canair.device.wican.mode.current_protocol",
             lambda *a, **k: pytest.fail("must not talk to the 4.x API on v6"),
         )
         monkeypatch.setattr(
@@ -876,8 +876,8 @@ class TestWicanCommandSurfaces:
 
     @pytest.mark.parametrize("handler", ["_cmd_autopid_upload", "_cmd_autopid_diff"])
     def test_autopid_writes_refused_on_v6(self, monkeypatch, capsys, handler):
-        import canlib.config as cfg
-        from canlib.cli.commands import wican
+        import canair.config as cfg
+        from canair.cli.commands import wican
 
         monkeypatch.setattr(cfg, "wican_model", lambda: "pro")
         monkeypatch.setattr(wican, "upload_profile", lambda *a, **k: pytest.fail("no upload"))
@@ -900,8 +900,8 @@ class TestWicanCommandSurfaces:
         self, monkeypatch, capsys, info, mode, warned
     ):
         """Unknown used to pass silently; it warns, but still uploads (no lock-out)."""
-        import canlib.config as cfg
-        from canlib.cli.commands import wican
+        import canair.config as cfg
+        from canair.cli.commands import wican
 
         monkeypatch.setattr(cfg, "wican_model", lambda: "pro")
         monkeypatch.setattr(cfg, "firmware_check_mode", lambda: mode)
@@ -923,9 +923,9 @@ class TestWicanCommandSurfaces:
 class TestStatusSurface:
     @pytest.fixture
     def gather(self, monkeypatch):
-        import canlib.config as cfg
-        from canlib.cli.commands import status
-        from canlib.transport.config import TransportConfig
+        import canair.config as cfg
+        from canair.cli.commands import status
+        from canair.transport.config import TransportConfig
 
         def run(
             ttype: str,
@@ -938,9 +938,9 @@ class TestStatusSurface:
         ):
             cand = TransportConfig(type=ttype, host="192.0.2.1")
             monkeypatch.setattr(
-                "canlib.transport.resolve_transport_candidates", lambda args: [cand]
+                "canair.transport.resolve_transport_candidates", lambda args: [cand]
             )
-            monkeypatch.setattr("canlib.transport.select_reachable_transport", lambda c, **k: c[0])
+            monkeypatch.setattr("canair.transport.select_reachable_transport", lambda c, **k: c[0])
             monkeypatch.setattr(cfg, "firmware_check_mode", lambda: mode)
 
             def _probe(host, *, timeout):
@@ -1015,14 +1015,14 @@ class TestStatusSurface:
         assert any("AutoPID" in n for n in info["notes"])
 
     def test_render_shows_the_firmware_line(self, gather, capsys):
-        from canlib.cli.commands import status
+        from canair.cli.commands import status
 
         status._render(gather("wican-ws", V6))
         out = capsys.readouterr().out
         assert "6.0.0-beta.1" in out and "api_level 6" in out
 
     def test_render_shows_a_known_v4_firmware_line(self, gather, capsys):
-        from canlib.cli.commands import status
+        from canair.cli.commands import status
 
         body = {"protocol": "elm327", "port": 3333, "sleep_status": "disable"}
         info = gather(
@@ -1037,7 +1037,7 @@ class TestStatusSurface:
         assert "elm327" in out
 
     def test_render_known_firmware_without_config_says_config_unreachable(self, gather, capsys):
-        from canlib.cli.commands import status
+        from canair.cli.commands import status
 
         info = gather("slcan-tcp", V4, cfg_body=None)
         status._render(info)
@@ -1047,7 +1047,7 @@ class TestStatusSurface:
         assert "non-WiCAN gateway" not in out
 
     def test_render_marks_the_check_off(self, gather, capsys):
-        from canlib.cli.commands import status
+        from canair.cli.commands import status
 
         status._render(gather("slcan-tcp", V6, mode="off"))
         assert "firmware check off" in capsys.readouterr().out

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 
-from canlib.captures import io as capture_io
-from canlib.cli.commands.captures.compact import cmd_compact
+from canair.captures import io as capture_io
+from canair.cli.commands.captures.compact import cmd_compact
 
 DOC = {
     "sessions": [

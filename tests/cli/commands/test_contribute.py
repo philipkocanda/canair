@@ -4,7 +4,7 @@ The git/gh calls go through the module-level ``contribute._run``; unit tests
 drive the orchestration with a fake runner (no network, no real GitHub). The
 command-level dry-run test uses a real throwaway git repo as ``--repo-dir`` so
 the branch/copy/commit path is exercised end-to-end without pushing. The gates
-report through :mod:`canlib.cli.commands._contribute_report`, whose human/``--json``
+report through :mod:`canair.cli.commands._contribute_report`, whose human/``--json``
 duality is covered directly by :class:`TestReporter`.
 """
 
@@ -17,11 +17,11 @@ from pathlib import Path
 
 import pytest
 
-from canlib import contribute as C
-from canlib.cli.commands import _contribute_gates as gates
-from canlib.cli.commands import _contribute_report as report
-from canlib.cli.commands import contribute as cmd
-from canlib.profile import Profile
+from canair import contribute as C
+from canair.cli.commands import _contribute_gates as gates
+from canair.cli.commands import _contribute_report as report
+from canair.cli.commands import contribute as cmd
+from canair.profile import Profile
 
 
 class FakeRunner:
@@ -399,7 +399,7 @@ class TestCopyProfileCapturesUnion:
 
     def _capture_pair(self, tmp_path, *, upstream_doc, source_doc):
         """A src profile + workspace dest, each with one dated capture file."""
-        from canlib.captures import io as capture_io
+        from canair.captures import io as capture_io
 
         src = tmp_path / "src"
         (src / "ecus").mkdir(parents=True)
@@ -1060,7 +1060,7 @@ class TestLogsDefault:
         assert self._parse("--no-logs").include_logs is False
 
     def test_a_pr_without_sessions_gets_no_log_section(self, tmp_path):
-        from canlib.contribute import summary as S
+        from canair.contribute import summary as S
 
         run_ = cmd._Contribution(
             args=_cmd_args(include_logs=True),

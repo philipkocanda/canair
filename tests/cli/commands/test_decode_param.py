@@ -7,7 +7,7 @@ values (the pre-2026-07-27 nargs="+" behaviour kept only the last occurrence).
 
 import argparse
 
-from canlib.cli.commands import decode as decode_script
+from canair.cli.commands import decode as decode_script
 
 
 def _parser() -> argparse.ArgumentParser:

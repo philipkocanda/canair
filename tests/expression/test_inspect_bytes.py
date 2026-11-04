@@ -1,16 +1,16 @@
-"""Tests for canlib.uds.inspect_bytes: byte interpretation, WiCAN expression
+"""Tests for canair.uds.inspect_bytes: byte interpretation, WiCAN expression
 synthesis, series transforms, and float-noise filtering.
 
 These primitives were extracted from ``commands/decode/plot`` into the neutral
-library leaf ``canlib.uds.inspect_bytes`` so the analysis engine (``xanalysis`` /
+library leaf ``canair.uds.inspect_bytes`` so the analysis engine (``xanalysis`` /
 ``frame_series``) imports *down* rather than up from a command helper.
 """
 
 import math
 import struct
 
-from canlib.uds import inspect_bytes as ib
-from canlib.uds.inspect_bytes import InspectType
+from canair.uds import inspect_bytes as ib
+from canair.uds.inspect_bytes import InspectType
 
 U8 = InspectType("u8", 1, "int", False)
 I8 = InspectType("i8", 1, "int", True)
@@ -75,7 +75,7 @@ class TestWicanExpr:
         assert "[S" not in (ib.wican_expr(5, I24) or "")
 
     def test_big_endian_signed_i24_expr_matches_interpretation(self):
-        from canlib.expression import evaluate_expression
+        from canair.expression import evaluate_expression
 
         # 0xFFFFFE as a 24-bit signed value is -2; the old `[S5:S7]` form
         # evaluated to 16777214.
@@ -100,7 +100,7 @@ class TestWicanExpr:
         """
         import math
 
-        from canlib.expression import evaluate_expression
+        from canair.expression import evaluate_expression
 
         frame = bytes([0xFF, 0x80, 0x7F, 0x01, 0xFE, 0xFF, 0xFF, 0xFE, 0x00, 0x81] * 3)
         for spec in ib.INSPECT_TYPES:
@@ -137,7 +137,7 @@ class TestWicanExpr:
         assert ib.wican_expr(3, I24, little=True) == "B3 + B4*256 + S5*65536"
 
     def test_little_endian_signed_expr_matches_interpretation(self):
-        from canlib.expression import evaluate_expression
+        from canair.expression import evaluate_expression
 
         frame = bytes([0] * 3 + [0x30, 0xFF] + [0] * 6)  # B3=0x30, B4=0xFF
         expr = ib.wican_expr(3, I16, little=True)
@@ -233,7 +233,7 @@ class TestWicanExprIndices:
         assert ib.wican_expr_indices([14, 15, 17], signed=False) == "B14*65536 + B15*256 + B17"
 
     def test_expression_evaluates_to_read_indices(self):
-        from canlib.expression import evaluate_expression
+        from canair.expression import evaluate_expression
 
         fr = TestReadIndices.FR
         expr = ib.wican_expr_indices([15, 17], signed=True)

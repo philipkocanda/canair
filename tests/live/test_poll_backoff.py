@@ -1,10 +1,10 @@
-"""The live monitor's slow-PID backoff (:mod:`canlib.live.poll_backoff`)."""
+"""The live monitor's slow-PID backoff (:mod:`canair.live.poll_backoff`)."""
 
 from __future__ import annotations
 
 import asyncio
 
-from canlib.live.poll_backoff import (
+from canair.live.poll_backoff import (
     ESCALATE_AFTER,
     MAX_SLOWDOWN,
     RECOVER_AFTER,
@@ -151,7 +151,7 @@ class TestElmPollCost:
     """Each PID is charged its own request's time, as the executor stamps it."""
 
     def test_each_pid_gets_its_own_cost(self, monkeypatch):
-        from canlib.live.monitor import MonitorController
+        from canair.live.monitor import MonitorController
 
         async def fake_exec_query(sm, ecu, pids, index, pids_data, verbose, **kw):
             plan = [(p, None, False) for p in pids]
@@ -165,7 +165,7 @@ class TestElmPollCost:
                 {"pid": "2102", "error": "NRC 0x31 (ROOR)", "nrc": 0x31, "request_s": 0.03},
             ]
 
-        monkeypatch.setattr("canlib.live.multi._exec_query", fake_exec_query)
+        monkeypatch.setattr("canair.live.multi._exec_query", fake_exec_query)
 
         class FakeTerminal:
             cmd_count = 0
@@ -203,8 +203,8 @@ class _ElmTerminal(FakeTerminal):
 
 def _igpm_controller(terminal: _ElmTerminal, **index_extra):
     """A real controller polling IGPM's three DIDs through the real executor."""
-    from canlib.live.monitor import MonitorController
-    from canlib.live.multi_batch import BatchState
+    from canair.live.monitor import MonitorController
+    from canair.live.multi_batch import BatchState
 
     steps = [{"type": "query", "ecu": "IGPM", "pids": []}]
     c = MonitorController(terminal, steps, {}, verbose=False, schedule="fixed")
@@ -269,8 +269,8 @@ class TestElmCostAttribution:
         # wait behind it on the serial pipe; that wait is session upkeep, not the read.
         from contextlib import asynccontextmanager
 
-        from canlib.live.multi_exec import _read_single
-        from canlib.transport.session_manager import SessionManager
+        from canair.live.multi_exec import _read_single
+        from canair.transport.session_manager import SessionManager
 
         class SerialTerminal(_ElmTerminal):
             """Serialises transactions like the real ELM327 engine."""
@@ -318,7 +318,7 @@ class TestOnlyTheDeadPidIsSlowed:
         assert set(c.poll_costs) == {("IGPM", "22BC03"), ("IGPM", "22BC06")}
 
     def test_raw(self):
-        from canlib.live.monitor import MonitorController
+        from canair.live.monitor import MonitorController
         from tests.support.raw_monitor import TimedRawClient as _TimedRawClient
 
         table = {

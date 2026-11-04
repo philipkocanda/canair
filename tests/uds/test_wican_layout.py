@@ -1,6 +1,6 @@
-"""Tests for canlib.uds.wican_layout — WiCAN AutoPID byte-layout reconstruction."""
+"""Tests for canair.uds.wican_layout — WiCAN AutoPID byte-layout reconstruction."""
 
-from canlib.uds.wican_layout import uds_hex_to_wican_bytes
+from canair.uds.wican_layout import uds_hex_to_wican_bytes
 
 
 class TestUdsHexToWicanBytes:
@@ -60,7 +60,7 @@ class TestUdsHexToWicanBytes:
         byte-for-byte up to payload_to_wican_bytes's length, differing only by
         trailing 0x00 padding that completes the final consecutive frame.
         """
-        from canlib.uds.byteindex import payload_to_wican_bytes
+        from canair.uds.byteindex import payload_to_wican_bytes
 
         cases = [
             "6101FF",  # single frame (no padding)

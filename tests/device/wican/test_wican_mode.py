@@ -1,10 +1,10 @@
-"""Tests for canlib.wican_mode — protocol switching with mocked HTTP."""
+"""Tests for canair.wican_mode — protocol switching with mocked HTTP."""
 
 import pytest
 
-from canlib.core.oserrors import connect_error_detail
-from canlib.device.wican import mode as wican_mode
-from canlib.device.wican.mode import (
+from canair.core.oserrors import connect_error_detail
+from canair.device.wican import mode as wican_mode
+from canair.device.wican.mode import (
     ModeError,
     require_protocol,
     require_slcan_reachable,
@@ -182,7 +182,7 @@ class TestRequireSlcanReachable:
         assert "offline" in str(exc.value).lower()
 
     def test_v6_hints_name_its_settings_not_the_4x_mode(self, monkeypatch):
-        from canlib.device.wican.firmware import FirmwareInfo
+        from canair.device.wican.firmware import FirmwareInfo
 
         monkeypatch.setattr(wican_mode, "_tcp_probe", _ports({80}))
         with pytest.raises(ModeError) as exc:

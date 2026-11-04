@@ -1,4 +1,4 @@
-"""Tests for canlib.captures.io — the JSON capture-file format seam."""
+"""Tests for canair.captures.io — the JSON capture-file format seam."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from canlib.captures import io as capture_io
+from canair.captures import io as capture_io
 
 
 class TestCaptureRx:
@@ -147,7 +147,7 @@ class TestEnsureMigrated:
 
 def test_load_all_captures_fails_fast_on_legacy_yaml(tmp_path):
     # The bulk reader raises the actionable error rather than silently skipping.
-    from canlib.captures.store import load_all_captures
+    from canair.captures.store import load_all_captures
 
     (tmp_path / "2026-01-01.yaml").write_text("sessions: []\n")
     with pytest.raises(capture_io.LegacyCaptureError):
@@ -159,8 +159,8 @@ def test_migrate_then_load_all_captures_roundtrip(tmp_path):
     # production bulk loader (the Stage-2 reader path).
     import yaml
 
-    from canlib.captures.store import load_all_captures
-    from canlib.migrations.captures import migrate_dir
+    from canair.captures.store import load_all_captures
+    from canair.migrations.captures import migrate_dir
 
     doc = {
         "sessions": [

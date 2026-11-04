@@ -1,11 +1,11 @@
-"""Tests for canlib.capture_field_migrate — the capture `ecu` → `rx` field rename."""
+"""Tests for canair.capture_field_migrate — the capture `ecu` → `rx` field rename."""
 
 from __future__ import annotations
 
 import json
 
-from canlib.captures import io as capture_io
-from canlib.migrations.capture_fields import migrate_dir, migrate_file
+from canair.captures import io as capture_io
+from canair.migrations.capture_fields import migrate_dir, migrate_file
 
 
 def _write(dirp, name, doc):

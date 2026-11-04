@@ -1,8 +1,8 @@
-"""Tests for canlib.uds.services — the diagnostic service (SID) registry."""
+"""Tests for canair.uds.services — the diagnostic service (SID) registry."""
 
 import pytest
 
-from canlib.uds.services import (
+from canair.uds.services import (
     BOTH,
     KWP2000,
     RESPONSE_SID_OFFSET,
@@ -77,7 +77,7 @@ class TestKwpServices:
     def test_every_blocked_service_is_a_registered_actuating_or_memory_service(self):
         # The blocklist and the registry must not drift: a blocked SID without a registry
         # entry would print as an unnamed service in scan output.
-        from canlib.safety.blocklist import BLOCKED_UDS_SERVICES
+        from canair.safety.blocklist import BLOCKED_UDS_SERVICES
 
         for sid in BLOCKED_UDS_SERVICES:
             if sid in (0x28, 0x87):  # UDS-only services the registry does not enumerate

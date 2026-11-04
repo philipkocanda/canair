@@ -15,9 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from canlib.live.session import SessionOptions, run_session_guarded
-from canlib.uds.frame_counts import FrameCountLedger, frames_for_payload
-from canlib.yaml_edit.pids import set_response_frames
+from canair.live.session import SessionOptions, run_session_guarded
+from canair.uds.frame_counts import FrameCountLedger, frames_for_payload
+from canair.yaml_edit.pids import set_response_frames
 from tests.support.fakes import FakeTerminal
 
 _ECU_YAML = """\
@@ -47,13 +47,13 @@ def pids_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def pids_data(pids_dir: Path) -> dict:
-    from canlib.ecus.pids import load_pids
+    from canair.ecus.pids import load_pids
 
     return load_pids(pids_dir)
 
 
 def _reload(pids_dir: Path) -> dict:
-    from canlib.ecus.pids import load_pids
+    from canair.ecus.pids import load_pids
 
     return load_pids(pids_dir)["ecus"]["BMS"]["pids"]
 
@@ -63,10 +63,10 @@ def redirect_writes(pids_dir: Path, monkeypatch):
     """Point ``persist``'s editor at the temp profile instead of the active one.
 
     ``persist`` imports its collaborators lazily, so the patch has to land on the
-    modules it resolves them from rather than on ``canlib.ecus.response_frames``.
+    modules it resolves them from rather than on ``canair.ecus.response_frames``.
     """
-    import canlib.profile as profile
-    import canlib.yaml_edit.pids as pids_edit
+    import canair.profile as profile
+    import canair.yaml_edit.pids as pids_edit
 
     def _set(ecu, pid, frames):
         return set_response_frames(ecu, pid, frames, pids_dir=pids_dir)
@@ -137,7 +137,7 @@ class TestSessionWriteBack:
 
     def test_a_retired_count_is_cleared_from_the_yaml(self, pids_dir, redirect_writes):
         set_response_frames("BMS", "2101", 4, pids_dir=pids_dir)
-        from canlib.ecus.pids import load_pids
+        from canair.ecus.pids import load_pids
 
         data = load_pids(pids_dir)
 
@@ -173,8 +173,8 @@ class TestSessionWriteBack:
     def test_a_write_failure_never_fails_the_session(self, pids_data, monkeypatch):
         # Persisting is bookkeeping on the way out; it must not turn a good read
         # into a non-zero exit.
-        import canlib.profile as profile
-        import canlib.yaml_edit.pids as pids_edit
+        import canair.profile as profile
+        import canair.yaml_edit.pids as pids_edit
 
         monkeypatch.setattr(profile, "require_writable_definitions", lambda: None)
         monkeypatch.setattr(
@@ -191,7 +191,7 @@ class TestSessionWriteBack:
 
     def test_a_steady_state_session_rewrites_nothing(self, pids_dir, redirect_writes):
         set_response_frames("BMS", "2101", 4, pids_dir=pids_dir)
-        from canlib.ecus.pids import load_pids
+        from canair.ecus.pids import load_pids
 
         data = load_pids(pids_dir)
         before = (pids_dir / "bms.yaml").read_text()

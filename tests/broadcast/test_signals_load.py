@@ -1,7 +1,7 @@
-"""Reading a profile's broadcast signal maps (canlib.broadcast)."""
+"""Reading a profile's broadcast signal maps (canair.broadcast)."""
 
-from canlib.broadcast import load_signals, signals_dir
-from canlib.profile import Profile
+from canair.broadcast import load_signals, signals_dir
+from canair.profile import Profile
 
 PT = """\
 messages:

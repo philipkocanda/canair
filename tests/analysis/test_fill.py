@@ -1,4 +1,4 @@
-"""Tests for the run-length validity model (canlib.analysis.fill).
+"""Tests for the run-length validity model (canair.analysis.fill).
 
 The unit that decides *policy*: which stored rows may be carried forward and how
 far. The join mechanism that consumes it is covered in ``test_align.py``
@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from canlib.analysis.fill import (
+from canair.analysis.fill import (
     FILL_AUTO,
     FILL_HOLD,
     FILL_MODES,

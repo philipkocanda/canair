@@ -1,4 +1,4 @@
-"""Tests for the update checker (canlib.install.update_check) and `canair update`."""
+"""Tests for the update checker (canair.install.update_check) and `canair update`."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from canlib.install import build_info, update_check
-from canlib.install import context as ic
+from canair.install import build_info, update_check
+from canair.install import context as ic
 
 
 @pytest.fixture(autouse=True)
@@ -18,7 +18,7 @@ def _isolate_config(tmp_path, monkeypatch):
     """Point config_dir at a temp dir and clear the update-check opt-out state."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     monkeypatch.delenv(update_check.DISABLE_ENV, raising=False)
-    from canlib import config
+    from canair import config
 
     config.load_config.cache_clear()
     yield
@@ -133,7 +133,7 @@ class TestCacheAndDisable:
         assert update_check.should_check_now() is False
 
     def test_disabled_by_config(self):
-        from canlib import config
+        from canair import config
 
         config.set_config_key("check_for_updates", False)
         config.load_config.cache_clear()
@@ -165,9 +165,9 @@ class TestPendingNotice:
     def test_notice_when_newer(self, monkeypatch):
         monkeypatch.setattr(update_check, "__version__", "1.0.0", raising=False)
         # __version__ lives on the package, not the module — patch the source.
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         update_check.write_cache("v2.0.0", "https://example/changelog")
         notice = update_check.pending_notice()
         assert notice is not None
@@ -176,9 +176,9 @@ class TestPendingNotice:
         assert "https://example/changelog" in notice
 
     def test_no_notice_when_up_to_date(self, monkeypatch):
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "2.0.0")
+        monkeypatch.setattr(canair, "__version__", "2.0.0")
         update_check.write_cache("v2.0.0", "https://example")
         assert update_check.pending_notice() is None
 
@@ -193,16 +193,16 @@ class TestUpdateCommand:
         return argparse.Namespace(**base)
 
     def test_json_reports_versions(self, monkeypatch, capsys):
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
             "fetch_latest_release",
             lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: None)
 
         rc = update_cmd.run(self._args(json=True))
@@ -216,16 +216,16 @@ class TestUpdateCommand:
 
     def test_json_current_carries_build_provenance(self, monkeypatch, capsys):
         """From a git checkout, the reported version names the branch and commit."""
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
             "fetch_latest_release",
             lambda *a, **k: {"tag": "v1.0.0", "url": "https://example/rel"},
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: None)
         monkeypatch.setattr(
             build_info,
@@ -245,16 +245,16 @@ class TestUpdateCommand:
         }
 
     def test_json_reports_clone_head(self, monkeypatch, capsys, tmp_path):
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
             "fetch_latest_release",
             lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
 
@@ -265,16 +265,16 @@ class TestUpdateCommand:
 
     def test_shows_branch_in_console(self, monkeypatch, capsys, tmp_path):
         """The clone's current branch is surfaced in the human-readable report."""
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
             "fetch_latest_release",
             lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
         monkeypatch.setattr(build_info, "is_dirty", lambda clone: False)
@@ -287,7 +287,7 @@ class TestUpdateCommand:
         assert "main" in out
 
     def test_check_makes_no_changes(self, monkeypatch, capsys):
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         # --check may issue read-only git queries (e.g. reading the clone's HEAD)
         # but must never run a mutating command (fetch/checkout).
@@ -308,9 +308,9 @@ class TestUpdateCommand:
             "fetch_latest_release",
             lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
 
         rc = update_cmd.run(self._args(check=True))
         assert rc == 0
@@ -318,16 +318,16 @@ class TestUpdateCommand:
         assert not any(a and a[0] in mutating for a in git_args)
 
     def test_no_clone_prints_manual_instructions(self, monkeypatch, capsys):
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
             "fetch_latest_release",
             lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: None)
 
         rc = update_cmd.run(self._args(yes=True))
@@ -337,12 +337,12 @@ class TestUpdateCommand:
         assert "git fetch --tags" in out
 
     def test_offline_still_offers_update(self, monkeypatch, capsys):
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         monkeypatch.setattr(update_cmd, "fetch_latest_release", lambda *a, **k: None)
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: None)
 
         rc = update_cmd.run(self._args(check=True))
@@ -352,12 +352,12 @@ class TestUpdateCommand:
 
     def test_offline_refuses_to_update(self, monkeypatch, capsys, tmp_path):
         """Without a known release tag there is nothing to check out; refuse."""
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         monkeypatch.setattr(update_cmd, "fetch_latest_release", lambda *a, **k: None)
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
 
@@ -370,16 +370,16 @@ class TestUpdateCommand:
 
     def test_checks_out_release_tag(self, monkeypatch, capsys, tmp_path):
         """The happy path fetches tags and checks out the advertised release tag."""
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
             "fetch_latest_release",
             lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "is_dirty", lambda clone: False)
         monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
@@ -421,16 +421,16 @@ class TestUpdateCommand:
         A bare ``canair … --save`` writes there, so the update that refreshes the
         CLI is also the one that destroys those captures.
         """
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
             "fetch_latest_release",
             lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path / "clone")
         monkeypatch.setattr(build_info, "is_dirty", lambda clone: False)
         monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
@@ -461,16 +461,16 @@ class TestUpdateCommand:
         assert out.index("2026-08-05.json") < out.index("Reinstalling")
 
     def test_checkout_failure_reports(self, monkeypatch, capsys, tmp_path):
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
             "fetch_latest_release",
             lambda *a, **k: {"tag": "v9.9.9", "url": "https://example/rel"},
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "is_dirty", lambda clone: False)
         monkeypatch.setattr(update_cmd.shutil, "which", lambda name: "/usr/bin/uv")
@@ -495,7 +495,7 @@ class TestUpdateCommand:
         base = {
             "running_origin": "uv-tool",
             "running_version": "1.0.0",
-            "running_package_dir": "/tmp/canlib",
+            "running_package_dir": "/tmp/canair",
             "clone_dir": None,
             "clone_version": "1.1.0",
             "tool_install_dir": "/tmp/uvtool",
@@ -507,7 +507,7 @@ class TestUpdateCommand:
 
     def test_out_of_sync_reinstalls_without_new_release(self, monkeypatch, capsys, tmp_path):
         """No newer release, but the tool copy drifted from the clone -> resync."""
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         # Latest release equals the running version, so nothing to check out.
         monkeypatch.setattr(
@@ -515,9 +515,9 @@ class TestUpdateCommand:
             "fetch_latest_release",
             lambda *a, **k: {"tag": "v1.0.0", "url": "https://example/rel"},
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
         monkeypatch.setattr(
@@ -553,16 +553,16 @@ class TestUpdateCommand:
         assert "out of sync" in out
 
     def test_out_of_sync_no_uv_reports_manual(self, monkeypatch, capsys, tmp_path):
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
             "fetch_latest_release",
             lambda *a, **k: {"tag": "v1.0.0", "url": "https://example/rel"},
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
         monkeypatch.setattr(
@@ -579,16 +579,16 @@ class TestUpdateCommand:
         assert "--reinstall" in out
 
     def test_up_to_date_and_in_sync_does_nothing(self, monkeypatch, capsys, tmp_path):
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
             "fetch_latest_release",
             lambda *a, **k: {"tag": "v1.0.0", "url": "https://example/rel"},
         )
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.0.0")
+        monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: tmp_path)
         monkeypatch.setattr(build_info, "head_label", lambda clone: "main")
         monkeypatch.setattr(

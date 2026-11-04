@@ -1,11 +1,11 @@
-"""Tests for canlib.transport.timing — per-(ECU, PID) round-trip timing instrumentation."""
+"""Tests for canair.transport.timing — per-(ECU, PID) round-trip timing instrumentation."""
 
 from __future__ import annotations
 
 import json
 
-import canlib.transport.timing as timing_mod
-from canlib.transport.timing import Stat, TimingRecorder, print_timings, render_timings
+import canair.transport.timing as timing_mod
+from canair.transport.timing import Stat, TimingRecorder, print_timings, render_timings
 
 
 def test_stat_aggregation():
@@ -44,7 +44,7 @@ def test_recorder_bool():
 
 def test_resolve_ecu_hex_label(monkeypatch):
     # Hex request-id labels are resolved to names at render time.
-    import canlib.ecus as ecus_mod
+    import canair.ecus as ecus_mod
 
     monkeypatch.setattr(
         ecus_mod, "ecu_name", lambda tx, e=None: "BMS" if tx == 0x7E4 else f"0x{tx:03X}"
@@ -58,7 +58,7 @@ def test_render_timings_empty_is_none():
 
 
 def test_render_timings_table(monkeypatch):
-    import canlib.ecus as ecus_mod
+    import canair.ecus as ecus_mod
 
     monkeypatch.setattr(
         ecus_mod, "ecu_name", lambda tx, e=None: "BMS" if tx == 0x7E4 else f"0x{tx:03X}"
@@ -71,7 +71,7 @@ def test_render_timings_table(monkeypatch):
 
 
 def test_print_timings_json_to_stderr(capsys, monkeypatch):
-    import canlib.ecus as ecus_mod
+    import canair.ecus as ecus_mod
 
     monkeypatch.setattr(
         ecus_mod, "ecu_name", lambda tx, e=None: "VCU" if tx == 0x7E2 else f"0x{tx:03X}"

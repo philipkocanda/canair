@@ -14,10 +14,10 @@ import yaml
 from cantools.database import Database, Message, Signal
 from cantools.database.conversion import BaseConversion
 
-import canlib.profile as profile
-from canlib.cli.commands.import_ import DbcImportError, _dbc_to_signals
-from canlib.profile import Profile
-from canlib.yaml_edit.signals import merge_bus, upsert_signal
+import canair.profile as profile
+from canair.cli.commands.import_ import DbcImportError, _dbc_to_signals
+from canair.profile import Profile
+from canair.yaml_edit.signals import merge_bus, upsert_signal
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def _sig(name, start=0, length=8, **conv):
 
 
 def _write(tmp_path, *messages, name="car.dbc"):
-    from canlib.cli.commands.export import _dbc_specifics
+    from canair.cli.commands.export import _dbc_specifics
 
     path = tmp_path / name
     db = Database(messages=list(messages), strict=False, dbc_specifics=_dbc_specifics(messages))
@@ -55,14 +55,14 @@ def _msg(frame_id, *signals, length=8, **kw):
 
 
 def _import(argv):
-    from canlib.cli.commands import import_ as imp
+    from canair.cli.commands import import_ as imp
 
     p = imp.add_parser(argparse.ArgumentParser().add_subparsers())
     return imp.run(p.parse_args(argv))
 
 
 def _export(argv):
-    from canlib.cli.commands import export
+    from canair.cli.commands import export
 
     p = export.add_parser(argparse.ArgumentParser().add_subparsers())
     return export.run(p.parse_args(argv))

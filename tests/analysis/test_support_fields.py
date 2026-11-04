@@ -6,7 +6,7 @@ Kona BMS 220101, Ioniq BMS 21F2), so the expected split is known by construction
 
 import random
 
-from canlib.analysis.support_fields import Field, known_fields, mask_bit, solve_fields
+from canair.analysis.support_fields import Field, known_fields, mask_bit, solve_fields
 
 
 def _rows(mask: bytes, layout, n=60, seed=1):

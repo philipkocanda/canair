@@ -12,14 +12,14 @@ import asyncio
 
 import pytest
 
-from canlib.transport.elm327.addressing import IDLE_FORGET_SECONDS
-from canlib.transport.elm327.terminal import Elm327Terminal
-from canlib.transport.errors import (
+from canair.transport.elm327.addressing import IDLE_FORGET_SECONDS
+from canair.transport.elm327.terminal import Elm327Terminal
+from canair.transport.errors import (
     AdapterRefusedError,
     describe_transport_error,
     is_transport_error,
 )
-from canlib.uds.addressing import AddressBook, AddressingMode, EcuAddress
+from canair.uds.addressing import AddressBook, AddressingMode, EcuAddress
 
 LBC = EcuAddress(0x79B, 0x7BB)
 BMS = EcuAddress(0x7E4, 0x7EC)
@@ -284,7 +284,7 @@ class TestSharedRequestId:
     async def test_a_shared_request_id_is_addressed_as_a_broadcast(self, monkeypatch):
         events = []
         monkeypatch.setattr(
-            "canlib.transport.elm327.terminal.log_event", lambda *a, **k: events.append(a)
+            "canair.transport.elm327.terminal.log_event", lambda *a, **k: events.append(a)
         )
         evc = {"tx_id": 0x18DB33F1, "rx_id": 0x18DAF1DB, "addressing": {"fc_id": 0x18DADBF1}}
         bms = {"tx_id": 0x18DB33F1, "rx_id": 0x18DAF1DA, "addressing": {"fc_id": 0x18DADAF1}}

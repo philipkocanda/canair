@@ -10,10 +10,10 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from canlib.live.monitor_raw import MonitorRawPoller, _raw_pid_result
-from canlib.live.routines import _RoutinesTUI
-from canlib.safety.blocklist import SessionPolicy
-from canlib.uds.protocol import KWP, UDS
+from canair.live.monitor_raw import MonitorRawPoller, _raw_pid_result
+from canair.live.routines import _RoutinesTUI
+from canair.safety.blocklist import SessionPolicy
+from canair.uds.protocol import KWP, UDS
 from tests.support.fakes import FakeTerminal, nrc
 
 
@@ -60,8 +60,8 @@ class TestRoutinesTui:
 
 class TestBix:
     def test_the_service_line_names_an_nrc_for_the_ecus_protocol(self, capsys):
-        from canlib.cli.commands.bix import _print_service_line
-        from canlib.uds.layout import layout_of
+        from canair.cli.commands.bix import _print_service_line
+        from canair.uds.layout import layout_of
 
         payload = bytes.fromhex("7F2172")
         layout = layout_of(payload)

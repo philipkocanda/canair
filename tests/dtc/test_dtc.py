@@ -1,12 +1,12 @@
-"""Tests for canlib.live.dtc — DTC decoding + read/clear mode orchestration."""
+"""Tests for canair.live.dtc — DTC decoding + read/clear mode orchestration."""
 
 import argparse
 import json
 
 import pytest
 
-from canlib.live import dtc
-from canlib.live.dtc import sweep as dtc_sweep
+from canair.live import dtc
+from canair.live.dtc import sweep as dtc_sweep
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok
 from tests.support.live_args import live_args
@@ -210,7 +210,7 @@ class TestSupportedList:
     @pytest.mark.asyncio
     async def test_never_written_to_the_dtc_log(self, capsys, monkeypatch):
         logged = []
-        monkeypatch.setattr("canlib.live.dtc.read._log_scan", lambda *a, **k: logged.append(a))
+        monkeypatch.setattr("canair.live.dtc.read._log_scan", lambda *a, **k: logged.append(a))
         t = FakeTerminal({"1803FF00": _ok("5801" + "0123" + "10")})
         await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True, log=True)
         assert logged == []
@@ -239,7 +239,7 @@ class TestFormatKwpDtc:
 class TestScanLog:
     @pytest.mark.asyncio
     async def test_read_logs_baseline_then_cleared(self, monkeypatch, tmp_path, capsys):
-        from canlib.dtc import log as dtc_log
+        from canair.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
@@ -267,7 +267,7 @@ class TestScanLog:
 
     @pytest.mark.asyncio
     async def test_manual_clear_logs_event_and_clean_baseline(self, monkeypatch, tmp_path, capsys):
-        from canlib.dtc import log as dtc_log
+        from canair.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
@@ -312,7 +312,7 @@ class TestScanAll:
             lambda proto, tx: "kwp" if tx == 0x7E4 else "uds",
         )
         monkeypatch.setattr(
-            "canlib.ecus.load_ecus",
+            "canair.ecus.load_ecus",
             lambda: {
                 0x7A0: {"name": "BCM", "id_protocol": "UDS"},
                 0x7E4: {"name": "BMS", "id_protocol": "KWP2000"},
@@ -334,9 +334,9 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_text_no_dtcs(self, monkeypatch, capsys):
-        monkeypatch.setattr("canlib.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr(
-            "canlib.ecus.load_ecus",
+            "canair.ecus.load_ecus",
             lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
         )
         t = FakeTerminal({"1902FF": _ok("5902FF")})  # both clean
@@ -352,9 +352,9 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_reports_no_response_separately(self, monkeypatch, capsys):
-        monkeypatch.setattr("canlib.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         monkeypatch.setattr(
-            "canlib.ecus.load_ecus",
+            "canair.ecus.load_ecus",
             lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
         )
         # BCM clean; IGPM never answers (not in table).
@@ -366,8 +366,8 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_retry_recovers_slow_ecu(self, monkeypatch, capsys):
-        monkeypatch.setattr("canlib.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
-        monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
+        monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canair.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
         # NO DATA on first read, a DTC once retried (after the wake).
         t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
         await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=True)
@@ -378,8 +378,8 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_no_retry_leaves_no_response(self, monkeypatch, capsys):
-        monkeypatch.setattr("canlib.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
-        monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
+        monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canair.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
         await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False)
         data = json.loads(capsys.readouterr().out)
@@ -390,13 +390,13 @@ class TestScanAll:
     async def test_scan_all_dispatch_logs_by_default(self, monkeypatch, tmp_path, capsys):
         # No --log flag in the args: dispatch must log by default (dtc_log unset
         # -> getattr default True).
-        from canlib.cli.commands._live.handlers.diagnostics import handle_dtc
-        from canlib.dtc import log as dtc_log
+        from canair.cli.commands._live.handlers.diagnostics import handle_dtc
+        from canair.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
-        monkeypatch.setattr("canlib.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
-        monkeypatch.setattr("canlib.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
+        monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr("canair.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})  # BCM: 1 DTC
         args = live_args(dtc_all=True, mask="FF")
         assert not hasattr(args, "dtc_log")  # nothing opted in
@@ -453,7 +453,7 @@ class TestDispatchTransportAgnostic:
 
     @pytest.mark.asyncio
     async def test_dispatch_read(self, capsys):
-        from canlib.cli.commands._live.handlers.diagnostics import handle_dtc
+        from canair.cli.commands._live.handlers.diagnostics import handle_dtc
 
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
         args = self._args(dtc="7E4", mask="FF", protocol="uds", clear=False)
@@ -463,7 +463,7 @@ class TestDispatchTransportAgnostic:
 
     @pytest.mark.asyncio
     async def test_dispatch_clear_with_yes(self, capsys):
-        from canlib.cli.commands._live.handlers.diagnostics import handle_dtc
+        from canair.cli.commands._live.handlers.diagnostics import handle_dtc
 
         t = FakeTerminal({"14FFFFFF": _ok("54")})
         args = self._args(dtc="7E4", clear=True, group="FFFFFF", protocol="uds", yes=True)
@@ -480,15 +480,15 @@ class TestLogOffline:
         return argparse.Namespace(**{**base, **kw})
 
     def _seed(self, monkeypatch, tmp_path):
-        from canlib.dtc import log as dtc_log
+        from canair.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
         return logp
 
     def test_log_all_shows_latest_and_diff(self, monkeypatch, tmp_path, capsys):
-        from canlib.cli.commands.dtc import log as dtc_cmd
-        from canlib.dtc import log as dtc_log
+        from canair.cli.commands.dtc import log as dtc_cmd
+        from canair.dtc import log as dtc_log
 
         self._seed(monkeypatch, tmp_path)
         dtc_log.append_scan(
@@ -521,10 +521,10 @@ class TestLogOffline:
         assert "B2916-00" in out
 
     def test_log_single_ecu_scope(self, monkeypatch, tmp_path, capsys):
-        from canlib.cli.commands.dtc import log as dtc_cmd
-        from canlib.dtc import log as dtc_log
-        from canlib.dtc.refs import ecu_ref
-        from canlib.ecus import ecu_display, resolve_tx
+        from canair.cli.commands.dtc import log as dtc_cmd
+        from canair.dtc import log as dtc_log
+        from canair.dtc.refs import ecu_ref
+        from canair.ecus import ecu_display, resolve_tx
 
         self._seed(monkeypatch, tmp_path)
         tx = resolve_tx("BMS")
@@ -538,7 +538,7 @@ class TestLogOffline:
         assert "No DTCs stored" in out
 
     def test_log_no_log_entry(self, monkeypatch, tmp_path, capsys):
-        from canlib.cli.commands.dtc import log as dtc_cmd
+        from canair.cli.commands.dtc import log as dtc_cmd
 
         self._seed(monkeypatch, tmp_path)
         rc = dtc_cmd.run(self._args())
@@ -546,7 +546,7 @@ class TestLogOffline:
         assert "No logged DTC scan" in capsys.readouterr().out
 
     def test_log_unknown_ecu(self, monkeypatch, tmp_path, capsys):
-        from canlib.cli.commands.dtc import log as dtc_cmd
+        from canair.cli.commands.dtc import log as dtc_cmd
 
         self._seed(monkeypatch, tmp_path)
         rc = dtc_cmd.run(self._args(dtc="ZZZNOPE"))

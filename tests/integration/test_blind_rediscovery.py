@@ -1,11 +1,11 @@
 """Deterministic regression tests for the blind-rediscovery harness (no LLM).
 
 Covers the three mechanical guarantees the on-demand eval relies on:
-* :func:`canlib.analysis.blind.strip_profile` removes every answer-bearing field yet leaves
+* :func:`canair.analysis.blind.strip_profile` removes every answer-bearing field yet leaves
   a profile that still validates and resolves captures;
-* :func:`canlib.analysis.blind.grade_answer` scores exact / scale-equivalent / partial /
+* :func:`canair.analysis.blind.grade_answer` scores exact / scale-equivalent / partial /
   miss / categorical guesses correctly;
-* :func:`canlib.analysis.blind.select_targets` yields the curated corpus and a reproducible
+* :func:`canair.analysis.blind.select_targets` yields the curated corpus and a reproducible
   seeded-random draw.
 """
 
@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.analysis import blind
-from canlib.profile import resolve_profile
+from canair.analysis import blind
+from canair.profile import resolve_profile
 
 
 @pytest.fixture(scope="module")
@@ -62,7 +62,7 @@ def test_generated_and_reference_dirs_dropped(sandbox):
 
 def test_stripped_profile_validates(sandbox):
     dst, _ = sandbox
-    from canlib.cli import main
+    from canair.cli import main
 
     # `validate all` returns 0 on a WARN-only profile (parameter-less draft PIDs).
     rc = main(["--profile", str(dst), "validate", "all"])

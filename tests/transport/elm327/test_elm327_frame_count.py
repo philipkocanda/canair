@@ -25,16 +25,16 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.transport.elm327.frame_count import (
+from canair.transport.elm327.frame_count import (
     MAX_REQUESTABLE_FRAMES,
     CountVerdict,
     FrameCountCache,
     annotate_request,
     requestable,
 )
-from canlib.transport.elm327.terminal import Elm327Terminal
-from canlib.uds.frame_counts import OBSERVATIONS_REQUIRED
-from canlib.uds.response import CAT_BUS, CAT_DROP, CAT_NO_DATA
+from canair.transport.elm327.terminal import Elm327Terminal
+from canair.uds.frame_counts import OBSERVATIONS_REQUIRED
+from canair.uds.response import CAT_BUS, CAT_DROP, CAT_NO_DATA
 from tests.support.fakes import QueuedChannel
 
 # Real wire format of a live BCM 22C00B read: declared 0x017 = 23 bytes across

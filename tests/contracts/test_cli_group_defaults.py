@@ -1,4 +1,4 @@
-"""Pins `canlib.cli._GROUP_DEFAULTS` against the commands' real subparsers.
+"""Pins `canair.cli._GROUP_DEFAULTS` against the commands' real subparsers.
 
 Default-kind injection runs on raw argv, before a parser exists, so each group's
 known-kind set is duplicated in `cli.py`. A kind missing from that copy is not an
@@ -14,7 +14,7 @@ import argparse
 
 import pytest
 
-from canlib.cli import _GROUP_DEFAULTS, _RELOCATED_COMMANDS, build_parser
+from canair.cli import _GROUP_DEFAULTS, _RELOCATED_COMMANDS, build_parser
 
 
 def _subparser_kinds(parser: argparse.ArgumentParser, command: str) -> set[str]:

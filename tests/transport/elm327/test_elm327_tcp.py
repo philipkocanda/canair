@@ -1,4 +1,4 @@
-"""Tests for the direct-ELM327 TCP transport (canlib.transport, elm327-tcp).
+"""Tests for the direct-ELM327 TCP transport (canair.transport, elm327-tcp).
 
 Device-free: a fake asyncio stream drives the real :class:`TcpChannel` framing,
 and a fake :class:`Channel` drives the real :class:`Elm327Terminal` engine — so
@@ -17,11 +17,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.expression.decoding import decode_param_rows
-from canlib.transport.elm327 import channel
-from canlib.transport.elm327.channel import Channel, TcpChannel
-from canlib.transport.elm327.tcp import Elm327TcpTerminal
-from canlib.transport.elm327.terminal import Elm327Terminal
+from canair.expression.decoding import decode_param_rows
+from canair.transport.elm327 import channel
+from canair.transport.elm327.channel import Channel, TcpChannel
+from canair.transport.elm327.tcp import Elm327TcpTerminal
+from canair.transport.elm327.terminal import Elm327Terminal
 
 _EMU_ENGINE_YAML = Path(__file__).parents[2] / "fixtures/profiles/elm327-emulator/ecus/engine.yaml"
 
@@ -275,8 +275,8 @@ class TestEngineOverArbitraryChannel:
 
     @pytest.mark.asyncio
     async def test_oem_session_honours_the_profile_allowance(self):
-        from canlib.safety.blocklist import SessionPolicy
-        from canlib.uds.protocol import KWP
+        from canair.safety.blocklist import SessionPolicy
+        from canair.uds.protocol import KWP
 
         ch = FakeChannel(["OK\r>", "OK\r>", "50C0\r>"])
         term = Elm327Terminal(ch)
@@ -293,8 +293,8 @@ class TestEngineOverArbitraryChannel:
     @pytest.mark.asyncio
     async def test_nrc_name_follows_the_addressed_ecus_protocol(self):
         # 7F 33 23 is routineNotComplete on KWP2000, a code UDS leaves unnamed.
-        from canlib.safety.blocklist import SessionPolicy
-        from canlib.uds.protocol import KWP
+        from canair.safety.blocklist import SessionPolicy
+        from canair.uds.protocol import KWP
 
         ch = FakeChannel(["OK\r>", "OK\r>", "7F3323\r>", "7F3323\r>"])
         term = Elm327Terminal(ch)
@@ -309,8 +309,8 @@ class TestEngineOverArbitraryChannel:
     async def test_session_rule_follows_the_addressed_ecus_protocol(self):
         # 10 82 is a KWP2000 diagnostic session but UDS programmingSession with the
         # suppress bit: the terminal judges it by the ECU its header points at.
-        from canlib.safety.blocklist import SessionPolicy
-        from canlib.uds.protocol import KWP, UDS
+        from canair.safety.blocklist import SessionPolicy
+        from canair.uds.protocol import KWP, UDS
 
         ch = FakeChannel(["OK\r>", "OK\r>", "5082\r>", "OK\r>", "OK\r>"])
         term = Elm327Terminal(ch)
@@ -357,7 +357,7 @@ class TestEngineOverArbitraryChannel:
     def test_host_derived_from_channel(self):
         # Single source of truth: the engine reads host off its channel.
         assert Elm327TcpTerminal("1.2.3.4", 35000).host == "1.2.3.4"
-        from canlib.transport.elm327.wican import WiCANTerminal
+        from canair.transport.elm327.wican import WiCANTerminal
 
         assert WiCANTerminal(host="10.0.2.86").host == "10.0.2.86"
 
@@ -369,12 +369,12 @@ class TestElmEngineGate:
 
     def test_elm_tcp_is_elm_engine(self):
         assert issubclass(Elm327TcpTerminal, Elm327Terminal)
-        from canlib.transport.elm327.wican import WiCANTerminal
+        from canair.transport.elm327.wican import WiCANTerminal
 
         assert issubclass(WiCANTerminal, Elm327Terminal)
 
     def test_raw_terminal_is_not_elm_engine(self):
-        from canlib.transport.raw.terminal import RawTerminal
+        from canair.transport.raw.terminal import RawTerminal
 
         assert not issubclass(RawTerminal, Elm327Terminal)
 
@@ -413,5 +413,5 @@ class TestEmulatorProfile:
 
     def test_coolant_temp_leading_zero_pid(self):
         # PID key "0105" is all-decimal-with-leading-zero — quoted so it round-
-        # trips (see canlib.yaml_edit.pids._key_token). 41 05 7B -> 0x7B - 40 = 83 degC.
+        # trips (see canair.yaml_edit.pids._key_token). 41 05 7B -> 0x7B - 40 = 83 degC.
         assert self._decode("0105", "41057B", "COOLANT_TEMP_C") == 83

@@ -1,8 +1,8 @@
-"""Tests for canlib.ecus — ECU address lookup and RX resolution."""
+"""Tests for canair.ecus — ECU address lookup and RX resolution."""
 
 import pytest
 
-from canlib.ecus import (
+from canair.ecus import (
     EcuNameCollision,
     build_alias_index,
     build_canonical_name_index,
@@ -166,7 +166,7 @@ class TestCanonicalEcuNameSafe:
     def test_missing_registry_falls_back_to_upper(self, monkeypatch):
         # A profile may ship pids/ without ecus.yaml: degrade to the raw name
         # instead of crashing (unlike bare canonical_ecu_name).
-        import canlib.ecus as ecus_mod
+        import canair.ecus as ecus_mod
 
         def _raise(*a, **k):
             raise FileNotFoundError("ecus.yaml")

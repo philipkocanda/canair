@@ -12,7 +12,7 @@ import argparse
 
 import pytest
 
-from canlib.device.wican.api import resolve_wican_url
+from canair.device.wican.api import resolve_wican_url
 
 _CONFIG = {
     "devices": {"home": {"host": "10.0.0.5"}, "vpn": {"host": "10.8.0.2", "port": 3333}},
@@ -22,7 +22,7 @@ _CONFIG = {
 
 @pytest.fixture
 def config(monkeypatch):
-    import canlib.config as cfg
+    import canair.config as cfg
 
     def install(data: dict):
         monkeypatch.setattr(cfg, "load_config", lambda: data)
@@ -54,7 +54,7 @@ class TestResolveWicanUrl:
     @pytest.mark.parametrize("value", ["vpn", "192.0.2.7", "hmoe", None])
     def test_matches_the_live_commands_host(self, config, value):
         """One semantics: the host a live command would connect to is the one we call."""
-        from canlib.transport.config import TransportOverrides, resolve_transport_candidates
+        from canair.transport.config import TransportOverrides, resolve_transport_candidates
 
         live = resolve_transport_candidates(TransportOverrides(wican=value, no_fallback=True))
         assert resolve_wican_url(value) == f"http://{live[0].host}"
@@ -62,7 +62,7 @@ class TestResolveWicanUrl:
 
 class TestWicanCommands:
     def test_parser_default_is_unset(self):
-        from canlib.cli import build_parser
+        from canair.cli import build_parser
 
         args = build_parser().parse_args(["wican", "mode", "show"])
         assert args.wican is None
@@ -72,10 +72,10 @@ class TestWicanCommands:
         [("192.0.2.7", "http://192.0.2.7"), ("vpn", "http://10.8.0.2"), (None, "http://10.0.0.5")],
     )
     def test_mode_set_targets_the_named_device(self, config, monkeypatch, value, url):
-        import canlib.config as cfg
-        import canlib.device.wican.firmware as wf
-        from canlib.cli.commands import wican
-        from canlib.device.wican import mode as wican_mode
+        import canair.config as cfg
+        import canair.device.wican.firmware as wf
+        from canair.cli.commands import wican
+        from canair.device.wican import mode as wican_mode
 
         monkeypatch.setattr(cfg, "wican_model", lambda: "pro")
         monkeypatch.setattr(wf, "detect", lambda *a, **k: wf.FirmwareInfo("v4", version="4.52"))

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import can
 
-from canlib.uds.isotp_passive import ReassemblyStats, reassemble
+from canair.uds.isotp_passive import ReassemblyStats, reassemble
 from tests.support.isotp_frames import flow_control, frame, message_frames
 
 ECU = 0x7EC

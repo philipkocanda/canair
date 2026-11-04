@@ -1,4 +1,4 @@
-"""Tests for UDS service-22 multi-DID batching (canlib.live.multi).
+"""Tests for UDS service-22 multi-DID batching (canair.live.multi).
 
 Uses the real IGPM (0x770) responses captured on-device:
     22BC03      -> 62BC03 FDEE3C730A000000 (padded AAAA)
@@ -11,8 +11,8 @@ import asyncio
 import logging
 from unittest.mock import AsyncMock, MagicMock
 
-from canlib.live.multi import _exec_query, _read_single
-from canlib.live.multi_batch import (
+from canair.live.multi import _exec_query, _read_single
+from canair.live.multi_batch import (
     BATCH_UNANSWERED_BEFORE_DISABLE,
     LEAKED_BATCH_ERROR,
     BatchState,
@@ -21,8 +21,8 @@ from canlib.live.multi_batch import (
     split_multi_did,
     transport_did_cap,
 )
-from canlib.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
-from canlib.uds.multi_did import resolve_multi_did_max
+from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
+from canair.uds.multi_did import resolve_multi_did_max
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import nrc as _nrc
 from tests.support.fakes import ok as _ok
@@ -84,8 +84,8 @@ class TestSplitHelpers:
         # ES95486: canair pads requests with 0x55, the ECU pads its reply with 0xAA.
         from types import SimpleNamespace
 
-        from canlib.live.monitor_raw import MonitorRawPoller
-        from canlib.transport.isotp_params import resolve_rx_padding
+        from canair.live.monitor_raw import MonitorRawPoller
+        from canair.transport.isotp_params import resolve_rx_padding
 
         data = {"isotp": {"tx_padding": 0x55, "rx_padding": 0xAA}}
         multi = "62BC03FDEE3C730A000000BC06B480000000000000AAAAAA"
@@ -135,7 +135,7 @@ class TestLoudDemotion:
     def test_disable_logs_once_with_the_reason(self, monkeypatch):
         events: list[tuple] = []
         monkeypatch.setattr(
-            "canlib.live.multi_batch.log_event",
+            "canair.live.multi_batch.log_event",
             lambda cat, detail="", **kw: events.append((cat, detail, kw)),
         )
         bs = BatchState()
@@ -426,7 +426,7 @@ class TestReadSingleEchoValidation:
         # Response depends on the passed echo/SID (the parser rejecting a 6101
         # response to a 2102 request), so this stays a local computed closure.
         async def send_uds(req, *a, **k):
-            from canlib.uds.parse import parse_uds_response
+            from canair.uds.parse import parse_uds_response
 
             return parse_uds_response(
                 "6101FFE0",
@@ -495,7 +495,7 @@ class TestLeakedBatchReply:
         """Two cycles: the leak costs one reading once, not D1 and D2 every cycle."""
         events: list[tuple] = []
         monkeypatch.setattr(
-            "canlib.live.multi_exec.log_event",
+            "canair.live.multi_exec.log_event",
             lambda cat, detail="", **kw: events.append((cat, detail, kw)),
         )
         replies = {"22BC03": [_ok(MULTI), _ok(BC03_SINGLE)], "22BC06": [_ok(BC06_SINGLE)] * 2}
@@ -529,7 +529,7 @@ class TestLeakedBatchReply:
     def test_the_leak_is_logged_as_a_stale_event(self, monkeypatch):
         events: list[tuple] = []
         monkeypatch.setattr(
-            "canlib.live.multi_exec.log_event",
+            "canair.live.multi_exec.log_event",
             lambda cat, detail="", **kw: events.append((cat, detail, kw)),
         )
         sm = _mk_sm(FakeTerminal({"22BC03": _ok(MULTI)}).send_uds)

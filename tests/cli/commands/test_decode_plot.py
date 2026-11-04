@@ -2,10 +2,10 @@
 
 import math
 
-from canlib.analysis.stats import fmt_num
-from canlib.cli.commands.decode import plot as dp
-from canlib.cli.commands.decode import plot_draw
-from canlib.uds.inspect_bytes import InspectType
+from canair.analysis.stats import fmt_num
+from canair.cli.commands.decode import plot as dp
+from canair.cli.commands.decode import plot_draw
+from canair.uds.inspect_bytes import InspectType
 
 U16 = InspectType("u16", 2, "int", False)
 
@@ -39,7 +39,7 @@ _VIEW_CAPS = [
 class TestInterpretBytes:
     def test_endianness(self):
         # Spot-check that the plot module still exposes the shared primitive
-        # (imported from canlib.uds.inspect_bytes); exhaustive coverage lives in
+        # (imported from canair.uds.inspect_bytes); exhaustive coverage lives in
         # tests/expression/test_inspect_bytes.py.
         assert dp.interpret_bytes(FRAME, 3, U16) == 0xABCD
 
@@ -190,7 +190,7 @@ class TestOverlayCycle:
 
 import pytest  # noqa: E402
 
-from canlib.cli.commands.decode.plot import INSPECT_TYPES, PlotModel  # noqa: E402
+from canair.cli.commands.decode.plot import INSPECT_TYPES, PlotModel  # noqa: E402
 from tests.support.plot_model import plot_model as _plot_model  # noqa: E402
 
 
@@ -251,7 +251,7 @@ class TestPlotModel:
 class TestPlotApp:
     @pytest.mark.asyncio
     async def test_renders_and_navigates(self):
-        from canlib.cli.commands.decode.plot_tui import PlotApp
+        from canair.cli.commands.decode.plot_tui import PlotApp
 
         app = PlotApp(_plot_model())
         async with app.run_test(size=(110, 30)) as pilot:
@@ -266,8 +266,8 @@ class TestPlotApp:
 
     @pytest.mark.asyncio
     async def test_help_modal(self):
-        from canlib.cli.commands.decode.plot_tui import PlotApp
-        from canlib.tui.help import HelpModal
+        from canair.cli.commands.decode.plot_tui import PlotApp
+        from canair.tui.help import HelpModal
 
         app = PlotApp(_plot_model())
         async with app.run_test(size=(110, 30)) as pilot:
@@ -280,7 +280,7 @@ class TestPlotApp:
 
     @pytest.mark.asyncio
     async def test_pid_switch_reloads_model(self):
-        from canlib.cli.commands.decode.plot_tui import PlotApp
+        from canair.cli.commands.decode.plot_tui import PlotApp
 
         other = _plot_model((9, 8, 7))
         other.ecu_key, other.pid_key = "VCU", "2102"
@@ -302,7 +302,7 @@ class TestPlotApp:
 
     @pytest.mark.asyncio
     async def test_annotate_param_calls_upsert(self, monkeypatch):
-        from canlib.cli.commands.decode.plot_tui import PlotApp
+        from canair.cli.commands.decode.plot_tui import PlotApp
 
         calls = []
 
@@ -310,7 +310,7 @@ class TestPlotApp:
             calls.append((ecu, pid, name, expr, kw))
             return None
 
-        monkeypatch.setattr("canlib.yaml_edit.pids.upsert_parameter", fake_upsert)
+        monkeypatch.setattr("canair.yaml_edit.pids.upsert_parameter", fake_upsert)
 
         app = PlotApp(_plot_model())
         async with app.run_test(size=(110, 30)) as pilot:

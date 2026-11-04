@@ -1,4 +1,4 @@
-"""Tests for canlib.live.routines_scan and the routines: YAML writer."""
+"""Tests for canair.live.routines_scan and the routines: YAML writer."""
 
 from __future__ import annotations
 
@@ -7,14 +7,14 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.live.routines_scan import (
+from canair.live.routines_scan import (
     NRC_ABSENT,
     NRC_EXISTS_HINTS,
     NRC_WRONG_SESSION,
     RoutineHit,
     classify,
 )
-from canlib.yaml_edit.pids import PidsEditError, append_routines_block, update_routines_field
+from canair.yaml_edit.pids import PidsEditError, append_routines_block, update_routines_field
 
 # ── classify() ───────────────────────────────────────────────────────────────
 

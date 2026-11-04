@@ -1,4 +1,4 @@
-"""Tests for install-context detection (canlib.install.context).
+"""Tests for install-context detection (canair.install.context).
 
 These verify that canair can tell *how* it was invoked — from the repo working
 tree (``uv run`` / dev checkout) vs. the ``uv tool install`` snapshot copy — and
@@ -12,24 +12,24 @@ import argparse
 import json
 from pathlib import Path
 
-from canlib.install import context as ic
+from canair.install import context as ic
 
 
 def _make_clone(tmp_path, version: str):
     """Create a fake source clone with a git dir + pyproject at ``version``."""
     clone = tmp_path / "clone"
-    (clone / "canlib").mkdir(parents=True)
+    (clone / "canair").mkdir(parents=True)
     (clone / ".git").mkdir()
     (clone / "pyproject.toml").write_text(f'[project]\nname = "canair"\nversion = "{version}"\n')
     return clone
 
 
 def _make_tool_venv(tmp_path, version: str):
-    """Create a fake uv-tool venv with a canlib copy + dist-info at ``version``."""
+    """Create a fake uv-tool venv with a canair copy + dist-info at ``version``."""
     root = tmp_path / "data" / "uv" / "tools" / "canair"
     sp = root / "lib" / "python3.13" / "site-packages"
-    (sp / "canlib").mkdir(parents=True)
-    (sp / "canlib" / "__init__.py").write_text("")
+    (sp / "canair").mkdir(parents=True)
+    (sp / "canair" / "__init__.py").write_text("")
     (sp / f"canair-{version}.dist-info").mkdir()
     return tmp_path / "data", sp
 
@@ -61,7 +61,7 @@ class TestInstalledToolVersion:
 class TestRunningOrigin:
     def test_repo_when_package_in_git_clone(self, tmp_path, monkeypatch):
         clone = _make_clone(tmp_path, "1.0.0")
-        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canlib")
+        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canair")
         # No uv-tool venv on this XDG path.
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "nothing"))
         assert ic.running_origin() == "repo"
@@ -69,11 +69,11 @@ class TestRunningOrigin:
     def test_uv_tool_when_package_is_the_copy(self, tmp_path, monkeypatch):
         data_home, sp = _make_tool_venv(tmp_path, "0.1.0")
         monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
-        monkeypatch.setattr(ic, "running_package_dir", lambda: sp / "canlib")
+        monkeypatch.setattr(ic, "running_package_dir", lambda: sp / "canair")
         assert ic.running_origin() == "uv-tool"
 
     def test_other_when_neither(self, tmp_path, monkeypatch):
-        pkg = tmp_path / "site-packages" / "canlib"
+        pkg = tmp_path / "site-packages" / "canair"
         pkg.mkdir(parents=True)
         monkeypatch.setattr(ic, "running_package_dir", lambda: pkg)
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "nothing"))
@@ -84,12 +84,12 @@ class TestBundledProfilesAreSnapshot:
     def test_true_when_running_uv_tool_copy(self, tmp_path, monkeypatch):
         data_home, sp = _make_tool_venv(tmp_path, "0.1.0")
         monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
-        monkeypatch.setattr(ic, "running_package_dir", lambda: sp / "canlib")
+        monkeypatch.setattr(ic, "running_package_dir", lambda: sp / "canair")
         assert ic.bundled_profiles_are_snapshot() is True
 
     def test_false_when_running_from_repo(self, tmp_path, monkeypatch):
         clone = _make_clone(tmp_path, "1.0.0")
-        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canlib")
+        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canair")
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "nothing"))
         assert ic.bundled_profiles_are_snapshot() is False
 
@@ -99,7 +99,7 @@ class TestDescribeSyncVerdict:
         clone = _make_clone(tmp_path, "1.2.0")
         data_home, _sp = _make_tool_venv(tmp_path, "0.1.0")
         monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
-        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canlib")
+        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canair")
 
         result = ic.describe(clone)
         assert result["running_origin"] == "repo"
@@ -111,7 +111,7 @@ class TestDescribeSyncVerdict:
         clone = _make_clone(tmp_path, "1.2.0")
         data_home, _sp = _make_tool_venv(tmp_path, "1.2.0")
         monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
-        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canlib")
+        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canair")
 
         result = ic.describe(clone)
         assert result["out_of_sync"] is False
@@ -119,7 +119,7 @@ class TestDescribeSyncVerdict:
     def test_not_out_of_sync_without_tool_copy(self, tmp_path, monkeypatch):
         clone = _make_clone(tmp_path, "1.2.0")
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "nothing"))
-        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canlib")
+        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canair")
 
         result = ic.describe(clone)
         assert result["tool_version"] is None
@@ -133,17 +133,17 @@ class TestUpdateCommandReportsInstall:
         return argparse.Namespace(**base)
 
     def test_json_includes_install_block(self, tmp_path, monkeypatch, capsys):
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         clone = _make_clone(tmp_path, "1.2.0")
         data_home, _sp = _make_tool_venv(tmp_path, "0.1.0")
         monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
         monkeypatch.setattr(update_cmd, "source_clone", lambda: clone)
-        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canlib")
+        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canair")
         monkeypatch.setattr(update_cmd, "fetch_latest_release", lambda *a, **k: None)
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.2.0")
+        monkeypatch.setattr(canair, "__version__", "1.2.0")
 
         rc = update_cmd.run(self._args())
         assert rc == 0
@@ -153,17 +153,17 @@ class TestUpdateCommandReportsInstall:
         assert out["install"]["clone_version"] == "1.2.0"
 
     def test_text_warns_on_out_of_sync(self, tmp_path, monkeypatch, capsys):
-        from canlib.cli.commands import update as update_cmd
+        from canair.cli.commands import update as update_cmd
 
         clone = _make_clone(tmp_path, "1.2.0")
         data_home, _sp = _make_tool_venv(tmp_path, "0.1.0")
         monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
         monkeypatch.setattr(update_cmd, "source_clone", lambda: clone)
-        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canlib")
+        monkeypatch.setattr(ic, "running_package_dir", lambda: clone / "canair")
         monkeypatch.setattr(update_cmd, "fetch_latest_release", lambda *a, **k: None)
-        import canlib
+        import canair
 
-        monkeypatch.setattr(canlib, "__version__", "1.2.0")
+        monkeypatch.setattr(canair, "__version__", "1.2.0")
 
         rc = update_cmd.run(self._args(json=False))
         assert rc == 0
@@ -250,7 +250,7 @@ class TestSnapshotProfileRisks:
 
     def test_no_clone_makes_no_claim(self, tmp_path, monkeypatch):
         bundled, _root = self._snapshot(tmp_path)
-        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
         assert ic.snapshot_profile_risks(None) == []
 
     def test_a_dev_checkout_is_never_at_risk(self, tmp_path, monkeypatch):
@@ -259,20 +259,20 @@ class TestSnapshotProfileRisks:
         root = bundled / "hyundai-ioniq-ae-ev"
         (root / "ecus").mkdir(parents=True)
         (root / "profile.yaml").write_text('car_model: "T"\ninit: "x"\n')
-        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
         assert ic.snapshot_profile_risks(tmp_path / "clone") == []
 
     def test_an_identical_copy_is_not_a_risk(self, tmp_path, monkeypatch):
         bundled, root = self._snapshot(tmp_path)
         clone = self._clone_copy(tmp_path, root)
-        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
         assert ic.snapshot_profile_risks(clone) == []
 
     def test_reports_a_capture_written_only_into_the_snapshot(self, tmp_path, monkeypatch):
         bundled, root = self._snapshot(tmp_path)
         clone = self._clone_copy(tmp_path, root)
         (root / "captures" / "2026-08-05.json").write_text('{"sessions": []}')
-        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
 
         (risk,) = ic.snapshot_profile_risks(clone)
 
@@ -284,7 +284,7 @@ class TestSnapshotProfileRisks:
         bundled, root = self._snapshot(tmp_path)
         clone = self._clone_copy(tmp_path, root)
         (root / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E4\n  # edited\n")
-        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
 
         (risk,) = ic.snapshot_profile_risks(clone)
 
@@ -306,7 +306,7 @@ class TestSnapshotProfileRisks:
         )
         (old / "profile.yaml").write_text((renamed / "profile.yaml").read_text())
         (old / "captures" / "2026-08-05.json").write_text('{"sessions": []}')
-        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
 
         (risk,) = ic.snapshot_profile_risks(clone)
 
@@ -319,7 +319,7 @@ class TestSnapshotProfileRisks:
         clone = self._clone_copy(tmp_path, root)
         (root / "out").mkdir()
         (root / "out" / "autopid.json").write_text("[]")
-        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
         assert ic.snapshot_profile_risks(clone) == []
 
     @staticmethod
@@ -346,7 +346,7 @@ class TestSnapshotProfileRisks:
         self._write_record(bundled)
         (clone / "profiles" / root.name / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E5\n")
         (clone / "profiles" / root.name / "profile.yaml").unlink()  # renamed upstream
-        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
 
         assert ic.snapshot_profile_risks(clone) == []
 
@@ -356,7 +356,7 @@ class TestSnapshotProfileRisks:
         self._write_record(bundled)
         (root / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E4\n  # edited\n")
         (root / "captures" / "2026-08-05.json").write_text('{"sessions": []}')
-        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
 
         (risk,) = ic.snapshot_profile_risks(clone)
 
@@ -371,7 +371,7 @@ class TestSnapshotProfileRisks:
         (user / "ecus").mkdir(parents=True)
         (user / "profile.yaml").write_text('car_model: "U"\ninit: "x"\n')
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(user.parent))
-        monkeypatch.setattr("canlib.profile.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
 
         assert ic.snapshot_profile_risks(clone) == []
 
@@ -392,6 +392,6 @@ class TestSourceClone:
     def test_falls_back_to_the_packages_own_repo_root(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "empty"))
         # The running tree is a git clone, so this resolves to the repo root.
-        from canlib.core.paths import SCRIPT_DIR
+        from canair.core.paths import REPO_ROOT
 
-        assert ic.source_clone() == Path(SCRIPT_DIR)
+        assert ic.source_clone() == REPO_ROOT

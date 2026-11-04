@@ -1,12 +1,12 @@
-"""Tests for canlib.live.identity — UDS/KWP2000 probe + mode orchestration."""
+"""Tests for canair.live.identity — UDS/KWP2000 probe + mode orchestration."""
 
 import json
 
 import pytest
 
-from canlib.live import identity as ident
-from canlib.live import identity_decode as idec
-from canlib.uds.parse import parse_uds_response
+from canair.live import identity as ident
+from canair.live import identity_decode as idec
+from canair.uds.parse import parse_uds_response
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok
 

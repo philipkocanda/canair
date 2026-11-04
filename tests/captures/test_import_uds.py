@@ -7,8 +7,8 @@ import json
 
 import pytest
 
-from canlib.captures import build_manual_session
-from canlib.cli.commands.import_uds import _build_capture, _parse_spec, run
+from canair.captures import build_manual_session
+from canair.cli.commands.import_uds import _build_capture, _parse_spec, run
 
 _NAME_INDEX = {"CLU": 0x7C6}
 
@@ -83,7 +83,7 @@ def _named_car(monkeypatch):
     """Imports must name the car on a multi-variant profile: give the suite's one."""
     import dataclasses
 
-    from canlib import profile as profile_mod
+    from canair import profile as profile_mod
 
     prof = dataclasses.replace(profile_mod.active(), variant="28kwh", variant_source="flag")
     monkeypatch.setattr(profile_mod, "_active", prof)
@@ -151,7 +151,7 @@ class TestRun:
         cap = data["sessions"][0]["captures"][0]
         assert cap.get("time"), "import uds without --time must still stamp one"
         # ...and it must be a time the validator can actually parse.
-        from canlib.captures.dates import entry_datetime
+        from canair.captures.dates import entry_datetime
 
         assert entry_datetime({"date": "2026-07-25", "time": cap["time"]}) is not None
 

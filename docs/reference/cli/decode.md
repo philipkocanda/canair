@@ -25,7 +25,7 @@ usage: canair decode [-h] [--param NAME [NAME ...]] [--verified]
 
 positional arguments:
   QUERY                 ECU/PID selection (mini-language, see
-                        canlib/query.py): 'BMS 2101', 'BMS:2101',
+                        src/canair/query.py): 'BMS 2101', 'BMS:2101',
                         'BMS:2101,2102', 'BMS' (all defined PIDs), or a quoted
                         cross-ECU query 'MCU:2102 VCU:2101'. Multi-PID queries
                         are supported for the default value-range, --compact

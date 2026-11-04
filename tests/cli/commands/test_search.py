@@ -6,10 +6,10 @@ import json
 
 import pytest
 
-from canlib.cli import _inject_default_subcommand
-from canlib.cli.commands.search.findings import PayloadRow, inventory_payloads
-from canlib.expression.decode_value import decode_typed
-from canlib.uds.byteindex import payload_to_wican_bytes
+from canair.cli import _inject_default_subcommand
+from canair.cli.commands.search.findings import PayloadRow, inventory_payloads
+from canair.expression.decode_value import decode_typed
+from canair.uds.byteindex import payload_to_wican_bytes
 from tests.support.search import cap as _cap
 from tests.support.search import payload as _payload
 from tests.support.search import run as _run
@@ -214,7 +214,7 @@ class TestScopeAndQuery:
 
     def test_defs_searches_identity_fields(self, corpus, monkeypatch, capsys):
         monkeypatch.setattr(
-            "canlib.ecus.pids.load_pids",
+            "canair.ecus.pids.load_pids",
             lambda *a, **k: {"ecus": {"BCM": {"identity": {"part_number": "95400G7470"}}}},
         )
         assert _run(corpus, monkeypatch, ["95400", "--defs", "--in", "payload", "--json"]) == 0

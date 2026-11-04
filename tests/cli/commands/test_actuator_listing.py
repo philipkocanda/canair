@@ -12,8 +12,8 @@ import json
 
 import pytest
 
-from canlib.cli.commands import io as io_cmd
-from canlib.cli.commands import routines as routines_cmd
+from canair.cli.commands import io as io_cmd
+from canair.cli.commands import routines as routines_cmd
 
 PROFILE = {
     "ecus": {
@@ -28,7 +28,7 @@ PROFILE = {
 
 @pytest.fixture(autouse=True)
 def _offline(monkeypatch):
-    monkeypatch.setattr("canlib.ecus.pids.load_pids", lambda *a, **k: PROFILE)
+    monkeypatch.setattr("canair.ecus.pids.load_pids", lambda *a, **k: PROFILE)
 
     def _no_device(_args, _operation=None):
         raise AssertionError("a --json listing must not start a live session")

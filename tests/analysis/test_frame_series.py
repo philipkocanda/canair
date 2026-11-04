@@ -1,6 +1,6 @@
 """Stage-2 tests: raw broadcast-CAN frame time-series + `correlate can` / `hunt can`.
 
-Frame byte/bit series (`canlib.analysis.frame_series`) feed the *same* correlate core as
+Frame byte/bit series (`canair.analysis.frame_series`) feed the *same* correlate core as
 diagnostic captures. Logs are generated in-test (candump text) with real Ioniq-28
 arbitration IDs and a deliberately co-moving cross-ID pair + a noise byte.
 """
@@ -11,8 +11,8 @@ import argparse
 
 import pytest
 
-from canlib.analysis import frame_series as frame_series
-from canlib.cli.commands import correlate
+from canair.analysis import frame_series as frame_series
+from canair.cli.commands import correlate
 
 
 def _write_log(tmp_path, n=40):
@@ -190,7 +190,7 @@ class TestHuntFrame:
     def test_finds_matching_byte(self, tmp_path):
         from datetime import datetime
 
-        from canlib.analysis.align import TimePoint
+        from canair.analysis.align import TimePoint
 
         log = _write_hunt_log(tmp_path)
         ref = [TimePoint(datetime.fromtimestamp(i * 0.1), float(i % 256)) for i in range(40)]
@@ -209,7 +209,7 @@ class TestHuntFrame:
 
 class TestHuntCanLogCommand:
     def _run(self, argv):
-        from canlib.cli.commands import hunt
+        from canair.cli.commands import hunt
 
         p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(argv)

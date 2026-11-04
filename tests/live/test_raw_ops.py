@@ -1,20 +1,20 @@
-"""Tests for raw-CAN live commands (canlib.live.raw_ops.run_raw)."""
+"""Tests for raw-CAN live commands (canair.live.raw_ops.run_raw)."""
 
 import asyncio
 from typing import ClassVar
 
 import pytest
 
-from canlib.device.wican import mode as wican_mode
-from canlib.device.wican.mode import ModeError
-from canlib.live import raw_monitor, raw_ops
-from canlib.live.monitor_options import MonitorOptions
-from canlib.live.session import SessionOptions
-from canlib.transport.config import ConnectionOptions
+from canair.device.wican import mode as wican_mode
+from canair.device.wican.mode import ModeError
+from canair.live import raw_monitor, raw_ops
+from canair.live.monitor_options import MonitorOptions
+from canair.live.session import SessionOptions
+from canair.transport.config import ConnectionOptions
 
 
 def T(host="1.2.3.4", port=35000, bitrate=500000):
-    from canlib.transport.config import TransportConfig
+    from canair.transport.config import TransportConfig
 
     return TransportConfig(type="slcan-tcp", host=host, port=port, bitrate=bitrate)
 
@@ -69,7 +69,7 @@ def routed(monkeypatch):
 
     monkeypatch.setattr(raw_monitor, "run_raw_monitor", _mon)
 
-    import canlib.transport as transport
+    import canair.transport as transport
 
     FakeRawTerminal.instances = []
     monkeypatch.setattr(transport, "RawTerminal", FakeRawTerminal)
@@ -129,7 +129,7 @@ def test_terminal_connect_oserror_is_clean(monkeypatch, routed, capsys):
     def boom(*a, **k):
         raise TimeoutError("timed out")
 
-    import canlib.transport as transport
+    import canair.transport as transport
 
     monkeypatch.setattr(transport, "RawTerminal", boom)
     calls, operation = routed
@@ -150,7 +150,7 @@ def test_mid_session_drop_is_clean(monkeypatch, capsys):
     async def _drop(terminal, pids):
         raise can.CanError("SLCAN TCP connection closed by peer")
 
-    import canlib.transport as transport
+    import canair.transport as transport
 
     FakeRawTerminal.instances = []
     monkeypatch.setattr(transport, "RawTerminal", FakeRawTerminal)
@@ -170,7 +170,7 @@ def test_mid_session_drop_while_saving_points_at_recover(monkeypatch, capsys):
     async def _drop(terminal, pids):
         raise ConnectionResetError("reset by peer")
 
-    import canlib.transport as transport
+    import canair.transport as transport
 
     FakeRawTerminal.instances = []
     monkeypatch.setattr(transport, "RawTerminal", FakeRawTerminal)

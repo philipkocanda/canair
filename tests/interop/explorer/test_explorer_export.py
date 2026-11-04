@@ -1,4 +1,4 @@
-"""Tests for the docs explorer export and bus layout (canlib/explorer_*.py)."""
+"""Tests for the docs explorer export and bus layout (src/canair/explorer_*.py)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.interop.explorer.export import export_profile, profile_maturity
-from canlib.interop.explorer.layout import layout_buses
+from canair.interop.explorer.export import export_profile, profile_maturity
+from canair.interop.explorer.layout import layout_buses
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROFILES = sorted(
@@ -88,7 +88,7 @@ def test_every_source_line_contains_the_records_key(exported):
 
 def test_no_identity_values_are_exported(exported):
     root, data = exported
-    from canlib.core.yaml_rt import round_trip_yaml
+    from canair.core.yaml_rt import round_trip_yaml
 
     secrets: set[str] = set()
     for path in (root / "ecus").glob("*.yaml"):
@@ -185,7 +185,7 @@ def test_profile_maturity(counts, expected):
 
 
 def test_signal_inherits_the_pids_provenance():
-    from canlib.interop.explorer.export import _pid_record
+    from canair.interop.explorer.export import _pid_record
 
     pid_def = {
         "status": "active",

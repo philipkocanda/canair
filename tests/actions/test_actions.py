@@ -1,4 +1,4 @@
-"""Profile actions (canlib.actions): the definition rules, the editor and the loader.
+"""Profile actions (canair.actions): the definition rules, the editor and the loader.
 
 The rules here are the safety contract a profile cannot get around: every action
 is guarded by live reads and a TRUE-only condition, the condition can only get
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.actions import (
+from canair.actions import (
     FUNCTIONAL,
     ActionError,
     ActionRequest,
@@ -19,8 +19,8 @@ from canlib.actions import (
     parse_request_spec,
     registry_issues,
 )
-from canlib.profile import Profile
-from canlib.yaml_edit.actions import add_action, remove_action, update_action
+from canair.profile import Profile
+from canair.yaml_edit.actions import add_action, remove_action, update_action
 
 GOOD = {
     "description": "Put every ECU to sleep.",

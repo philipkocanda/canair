@@ -11,12 +11,12 @@ import argparse
 
 import pytest
 
-import canlib.profile as profile
-from canlib.broadcast import signal_byte_span
-from canlib.profile import Profile
-from canlib.validation import other as validate
-from canlib.validation.signals import check_signals_doc
-from canlib.yaml_edit import signals as signals_edit
+import canair.profile as profile
+from canair.broadcast import signal_byte_span
+from canair.profile import Profile
+from canair.validation import other as validate
+from canair.validation.signals import check_signals_doc
+from canair.yaml_edit import signals as signals_edit
 
 
 @pytest.fixture
@@ -267,7 +267,7 @@ class TestSignalByteSpan:
 
 class TestSignalsCommand:
     def _run(self, argv):
-        from canlib.cli.commands import signals
+        from canair.cli.commands import signals
 
         p = signals.add_parser(argparse.ArgumentParser().add_subparsers())
         return signals.run(p.parse_args(argv))
@@ -313,7 +313,7 @@ class TestSignalsCommand:
 
     def test_bare_signals_lists(self, temp_profile, capsys):
         # `canair signals` with no subcommand defaults to list.
-        from canlib.cli.commands import signals
+        from canair.cli.commands import signals
 
         p = signals.add_parser(argparse.ArgumentParser().add_subparsers())
         assert signals.run(p.parse_args([])) == 0
@@ -355,13 +355,13 @@ def _write_dbc(tmp_path):
 
 class TestDbcInterop:
     def _import(self, argv):
-        from canlib.cli.commands import import_ as imp
+        from canair.cli.commands import import_ as imp
 
         p = imp.add_parser(argparse.ArgumentParser().add_subparsers())
         return imp.run(p.parse_args(argv))
 
     def _export(self, argv):
-        from canlib.cli.commands import export
+        from canair.cli.commands import export
 
         p = export.add_parser(argparse.ArgumentParser().add_subparsers())
         return export.run(p.parse_args(argv))

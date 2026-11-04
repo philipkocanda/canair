@@ -9,7 +9,7 @@ Usage:
     uv run python scripts/check/import_graph.py --json      # the same numbers, machine-readable
     uv run python scripts/check/import_graph.py --edges A:B # module edges from unit A to unit B
 
-A *unit* is a top-level subpackage or root module of the package (``canlib.uds`` -> ``uds``).
+A *unit* is a top-level subpackage or root module of the package (``canair.uds`` -> ``uds``).
 Edges from or to the package root itself are left out of the cycle count, because the root
 ``__init__`` re-exports from many units and would join them all.
 """
@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PACKAGE = "canlib"
+PACKAGE = "canair"
 OVERSIZED_LINES = 500
 
 
@@ -58,7 +58,7 @@ def _resolve(node: ast.ImportFrom, module: str, is_package: bool) -> str:
 
 def scan(root: Path | None = None) -> Scan:
     """Parse every module under the package and collect its imports."""
-    root = root or REPO_ROOT / PACKAGE
+    root = root or REPO_ROOT / "src" / PACKAGE
     out = Scan()
     for path in sorted(root.rglob("*.py")):
         if "__pycache__" in path.parts:
@@ -152,7 +152,7 @@ def cycles(result: Scan) -> list[list[str]]:
 
 def root_modules(result: Scan) -> list[str]:
     """Modules that sit directly in the package root (not ``__init__``/``__main__``)."""
-    root = REPO_ROOT / PACKAGE
+    root = REPO_ROOT / "src" / PACKAGE
     return sorted(
         path.stem
         for path in result.modules.values()

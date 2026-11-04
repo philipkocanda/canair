@@ -1,6 +1,6 @@
 """Tests for ELM327 addressing: receive filter and flow control per ECU.
 
-The pure policy (canlib.transport.elm327.addressing) and the engine that applies it
+The pure policy (canair.transport.elm327.addressing) and the engine that applies it
 (Elm327Terminal.set_header), over a scripted channel. The cars: the Ioniq's
 conventional ``tx + 0x08`` ECUs must send exactly what they always did; the Leaf's
 ``0x79B -> 0x7BB`` and ``0x797 -> 0x79A`` need the filter and flow-control mode 1;
@@ -11,7 +11,7 @@ import asyncio
 
 import pytest
 
-from canlib.transport.elm327.addressing import (
+from canair.transport.elm327.addressing import (
     AUTO,
     DEFAULT_FC_DATA,
     FC_MODE_ADAPTER,
@@ -27,8 +27,8 @@ from canlib.transport.elm327.addressing import (
     target_for,
     target_in,
 )
-from canlib.transport.elm327.terminal import Elm327Terminal
-from canlib.uds.addressing import AddressBook, AddressingMode, EcuAddress
+from canair.transport.elm327.terminal import Elm327Terminal
+from canair.uds.addressing import AddressBook, AddressingMode, EcuAddress
 
 LBC = EcuAddress(0x79B, 0x7BB)
 VCM = EcuAddress(0x797, 0x79A)
@@ -295,7 +295,7 @@ class TestTerminal:
     async def test_rejected_command_is_logged_once_and_not_resent(self, monkeypatch):
         events = []
         monkeypatch.setattr(
-            "canlib.transport.elm327.terminal.log_event", lambda *a, **k: events.append(a)
+            "canair.transport.elm327.terminal.log_event", lambda *a, **k: events.append(a)
         )
         term, ch = _terminal({"ATFCSM1": "?"}, LBC=LBC)
         await term.set_header(0x79B)

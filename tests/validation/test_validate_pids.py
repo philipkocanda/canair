@@ -2,7 +2,7 @@
 
 import pytest
 
-from canlib.validation import pids as validate_pids
+from canair.validation import pids as validate_pids
 
 check_pci_bytes = validate_pids.check_pci_bytes
 
@@ -66,7 +66,7 @@ class TestRealPidsHaveNoPciBytes:
         import yaml
 
         offenders = []
-        from canlib.profile import active
+        from canair.profile import active
 
         for path in glob.glob(str(active().ecus_dir / "*.yaml")):
             data = yaml.safe_load(open(path))
@@ -161,7 +161,7 @@ class TestRxIdValidation:
 
 
 class TestWakeValidation:
-    """The per-ECU wake: block (canlib.transport.wake) is schema-validated."""
+    """The per-ECU wake: block (canair.transport.wake) is schema-validated."""
 
     def _validate(self, tmp_path, body: str):
         import textwrap
@@ -493,7 +493,7 @@ class TestCanBusValidation:
     def _errors(self, tmp_path, can_bus_yaml, *, vocab="[B-CAN, P-CAN, C-CAN, M-CAN, H-CAN, All]"):
         import textwrap
 
-        from canlib.profile import Profile
+        from canair.profile import Profile
 
         ecus = tmp_path / "ecus"
         ecus.mkdir(exist_ok=True)

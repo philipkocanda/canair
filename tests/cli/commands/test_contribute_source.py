@@ -13,13 +13,13 @@ import json
 import subprocess
 from pathlib import Path
 
-from canlib import contribute as C
-from canlib.captures import io as capture_io
-from canlib.cli.commands import _contribute_gates as gates
-from canlib.cli.commands import _contribute_report as report
-from canlib.cli.commands import contribute as cmd
-from canlib.contribute import source as S
-from canlib.profile import Profile
+from canair import contribute as C
+from canair.captures import io as capture_io
+from canair.cli.commands import _contribute_gates as gates
+from canair.cli.commands import _contribute_report as report
+from canair.cli.commands import contribute as cmd
+from canair.contribute import source as S
+from canair.profile import Profile
 
 _ONE = {"sessions": [{"date": "2026-01-01", "captures": [{"time": "10:00", "pid": "2101"}]}]}
 _TWO = {

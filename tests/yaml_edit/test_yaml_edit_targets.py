@@ -8,10 +8,10 @@ import pkgutil
 import pytest
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
-import canlib.yaml_edit as package
-from canlib.yaml_edit.doc import Target
-from canlib.yaml_edit.errors import EditError
-from canlib.yaml_edit.targets import open_target, target, targets
+import canair.yaml_edit as package
+from canair.yaml_edit.doc import Target
+from canair.yaml_edit.errors import EditError
+from canair.yaml_edit.targets import open_target, target, targets
 
 
 def test_every_target_declared_in_the_package_is_registered():
@@ -21,7 +21,9 @@ def test_every_target_declared_in_the_package_is_registered():
         for value in vars(module).values():
             if isinstance(value, Target):
                 declared[value.key] = value
-    assert set(declared) == set(targets()), "a Target is not listed in canlib/yaml_edit/targets.py"
+    assert set(declared) == set(targets()), (
+        "a Target is not listed in src/canair/yaml_edit/targets.py"
+    )
 
 
 @pytest.mark.parametrize("key", list(targets()))

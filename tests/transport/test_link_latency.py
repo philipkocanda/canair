@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.transport.elm327.terminal import _LINK_LATENCY_MARGIN, _RESYNC_QUIET_MAX
-from canlib.transport.link_latency import _K, _MIN_SAMPLES, LinkLatency
+from canair.transport.elm327.terminal import _LINK_LATENCY_MARGIN, _RESYNC_QUIET_MAX
+from canair.transport.link_latency import _K, _MIN_SAMPLES, LinkLatency
 from tests.support.elm_ws import term_prog as _term_prog
 
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.cli import _rewrite_help_tokens
+from canair.cli import _rewrite_help_tokens
 
 
 class TestRewriteHelpTokens:

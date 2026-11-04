@@ -12,9 +12,9 @@ import re
 
 import pytest
 
-from canlib import profile
-from canlib.ecus.pids import clear_cache
-from canlib.uds.addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET, AddressingMode
+from canair import profile
+from canair.ecus.pids import clear_cache
+from canair.uds.addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET, AddressingMode
 from tests.support.fakes import FakeTerminal, ok
 
 FIXED_29 = (
@@ -46,17 +46,17 @@ def make_profile(tmp_path):
 
 class TestProfileAddressing:
     def test_no_profile_falls_back_to_the_defaults(self, monkeypatch):
-        from canlib import ecus
-        from canlib.profile import ProfileError
+        from canair import ecus
+        from canair.profile import ProfileError
 
         def boom():
             raise ProfileError("no profile")
 
-        monkeypatch.setattr("canlib.ecus.pids.load_pids", lambda *a, **k: boom())
+        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda *a, **k: boom())
         assert ecus._profile_addressing() == (DEFAULT_RX_OFFSET, DEFAULT_MODE)
 
     def test_a_fixed_29bit_profile_swaps_an_unregistered_id(self, make_profile):
-        from canlib import ecus
+        from canair import ecus
 
         make_profile(FIXED_29)
         assert ecus._profile_addressing() == (0x08, AddressingMode.NORMAL_FIXED_29BIT)
@@ -64,7 +64,7 @@ class TestProfileAddressing:
 
     def test_a_profile_without_ecus_dir_still_answers(self, make_profile):
         """A freshly scaffolded bundle has no ecus/ yet; that is not an error here."""
-        from canlib import ecus
+        from canair import ecus
 
         make_profile(
             'car_model: "T"\ninit: "x"\naddressing:\n  rx_offset: 0x20\n', with_ecus_dir=False
@@ -76,7 +76,7 @@ class TestCaptureSchemaAccepts29BitRx:
     def _validate(self, path, rx_addrs):
         from jsonschema import Draft202012Validator
 
-        from canlib.validation.captures import CAPTURES_SCHEMA_FILE, validate_captures_file
+        from canair.validation.captures import CAPTURES_SCHEMA_FILE, validate_captures_file
 
         schema = json.loads(CAPTURES_SCHEMA_FILE.read_text())
         return validate_captures_file(path, Draft202012Validator(schema), rx_addrs)
@@ -109,7 +109,7 @@ def _saved(root) -> dict:
 class TestDiscoverRxConsistency:
     @pytest.mark.asyncio
     async def test_json_rx_matches_the_saved_capture(self, make_profile, capsys):
-        from canlib.live import discover as disc
+        from canair.live import discover as disc
 
         root = make_profile(
             'car_model: "T"\ninit: "ATSP6;"\naddressing:\n  rx_offset: 0x20\n',
@@ -132,8 +132,8 @@ class TestDiscoverRxConsistency:
     async def test_a_29bit_sweep_saves_valid_29bit_addresses(self, make_profile, capsys):
         from jsonschema import Draft202012Validator
 
-        from canlib.live import discover as disc
-        from canlib.validation.captures import CAPTURES_SCHEMA_FILE, validate_captures_file
+        from canair.live import discover as disc
+        from canair.validation.captures import CAPTURES_SCHEMA_FILE, validate_captures_file
 
         root = make_profile(FIXED_29)
         term = FakeTerminal({(0x18DA10F1, "1001"): ok("5001")}, key_by_header=True)

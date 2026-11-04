@@ -1,4 +1,4 @@
-"""Tests for the capture echo-mismatch lint (canlib.cli.commands.validate).
+"""Tests for the capture echo-mismatch lint (canair.cli.commands.validate).
 
 Cross-checks each capture's stored ``pid`` against its ``payload``'s SID +
 identifier echo, flagging stale/misfiled frames (e.g. a 6101 response filed
@@ -15,7 +15,7 @@ import textwrap
 
 import yaml
 
-from canlib.validation.captures import _capture_echo_warnings, _capture_nonhex_warnings
+from canair.validation.captures import _capture_echo_warnings, _capture_nonhex_warnings
 
 
 def _write(tmp_path, body: str):

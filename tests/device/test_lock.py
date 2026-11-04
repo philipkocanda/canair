@@ -1,4 +1,4 @@
-"""Tests for canlib.device.lock — the WiCAN connection mutex + its cooperative steal.
+"""Tests for canair.device.lock — the WiCAN connection mutex + its cooperative steal.
 
 The mutex exists because the device serves a single connection. A *dead* holder
 is free (the kernel drops its flock), so the interesting behaviour is a *live*
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from canlib.device.lock import (
+from canair.device.lock import (
     StealRequest,
     WiCANLock,
     _pid_alive,
@@ -34,8 +34,8 @@ _HOLDER_SCRIPT = """
 import sys, signal, time
 sys.path.insert(0, {root!r})
 from pathlib import Path
-from canlib.device.lock import WiCANLock
-from canlib.device.lock_watchdog import LockWatchdog
+from canair.device.lock import WiCANLock
+from canair.device.lock_watchdog import LockWatchdog
 
 lock_file, steal_file, mode = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
 lock = WiCANLock(lock_file=lock_file, steal_file=steal_file)
@@ -114,7 +114,7 @@ class TestHolderInfo:
 
     def test_foreignness_needs_positive_evidence(self):
         """An unreadable command line is *unknown*, not proof of innocence/guilt."""
-        from canlib.device.lock import HolderInfo
+        from canair.device.lock import HolderInfo
 
         assert HolderInfo(pid=1, alive=True, cmdline="uv run canair monitor").looks_foreign is False
         assert HolderInfo(pid=1, alive=True, cmdline="sleep 30").looks_foreign is True
