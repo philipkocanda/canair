@@ -5,7 +5,7 @@ each candidate ``physical = raw*factor + offset`` against a known reference and
 picking the closest. The candidate list used to bake a Hyundai/Kia-specific
 ``raw/2−40 "HK temp"`` entry into the shared tool; it is now make-neutral here,
 and a profile can *extend* it (the same tool-neutral / profile-declares pattern
-as :mod:`canlib.physical_bands`).
+as :mod:`canlib.analysis.physical.bands`).
 
 A candidate is ``(factor, offset, numeric_label, hint, dimension)``:
 

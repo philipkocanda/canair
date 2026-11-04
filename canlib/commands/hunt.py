@@ -374,9 +374,9 @@ def _run_can_log(args) -> int:
 
 
 def run(args) -> int:
+    from canlib.analysis.physical.unit_guess import resolve_unit_candidates
     from canlib.ecus import canonical_ecu_name_safe
     from canlib.profile import active
-    from canlib.unit_guess import resolve_unit_candidates
 
     if not args.ecu or not args.pid:
         print(
@@ -606,9 +606,9 @@ def run(args) -> int:
 
 def _run_physical(args, ecu: str, pid: str, since, until) -> int:
     """Reference-free physical-value band scan on one PID."""
+    from canlib.analysis.physical.bands import resolve_physical_bands
     from canlib.analysis.xanalysis import physical_scan
     from canlib.grid_prompt import resolve_grid_region
-    from canlib.physical_bands import resolve_physical_bands
     from canlib.profile import active
 
     loaded = load_signal_captures(

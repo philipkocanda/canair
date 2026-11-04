@@ -163,10 +163,10 @@ def _sweep_counters(specs, loaded, args, params_of) -> int:
 
 def _pid_summary(lp: LoadedPid, params_def: dict, args, fill) -> dict | None:
     """Cheap, LOCAL per-PID facts for the sweep summary (no cross-PID joins)."""
+    from canlib.analysis.physical.bands import resolve_physical_bands
     from canlib.analysis.xanalysis import build_byte_series, byte_state_buckets, physical_scan
     from canlib.commands.investigate.report import _state_f
     from canlib.grid_prompt import resolve_grid_region
-    from canlib.physical_bands import resolve_physical_bands
     from canlib.profile import active
 
     target = build_byte_series(lp, min_distinct=2, fill=fill)

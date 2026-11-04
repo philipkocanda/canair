@@ -33,8 +33,9 @@ from canlib.analysis.corrmatrix import (
     signal_group_key,
 )
 from canlib.analysis.fill import FillPolicy
+from canlib.analysis.physical.bands import DEFAULT_PHYSICAL_BANDS
+from canlib.analysis.physical.unit_guess import DEFAULT_UNIT_CANDIDATES as _UNIT_CANDIDATES
 from canlib.analysis.stats import correlation, linear_fit, pearson
-from canlib.physical_bands import DEFAULT_PHYSICAL_BANDS
 from canlib.uds.inspect_bytes import (
     INSPECT_TYPES,
     NO_EXPR,
@@ -45,7 +46,6 @@ from canlib.uds.inspect_bytes import (
     wican_expr,
     wican_expr_indices,
 )
-from canlib.unit_guess import DEFAULT_UNIT_CANDIDATES as _UNIT_CANDIDATES
 
 __all__ = [
     "PHYSICAL_BANDS",
@@ -149,7 +149,7 @@ def reference_is_absolute_level(
 # Stats: unit sniffing (pearson/spearman/linear_fit live in canlib.analysis.stats)
 # ---------------------------------------------------------------------------
 # Common physical scalings for the unit sniffer. The candidate table + resolver
-# live in canlib.unit_guess (make-neutral built-ins + profile extension); this
+# live in canlib.analysis.physical.unit_guess (make-neutral built-ins + profile extension); this
 # module just consumes the resolved list (imported above as _UNIT_CANDIDATES for
 # the callers/tests that referenced it from xanalysis historically).
 
@@ -189,7 +189,7 @@ def sniff_unit(
     be identified as a temperature rather than a plain ``×1`` scaling.
 
     ``candidates`` is the resolved scaling list (see
-    :func:`canlib.unit_guess.resolve_unit_candidates`); ``None`` uses the
+    :func:`canlib.analysis.physical.unit_guess.resolve_unit_candidates`); ``None`` uses the
     make-neutral built-ins.
 
     ``ref_unit`` (the reference signal's unit, when known) gates the domain hint:
@@ -794,7 +794,7 @@ def ref_unit_for(ref_spec: str) -> str | None:
 # raw value is multiplied by a candidate scaling before the band test, so e.g. a
 # 16-bit centivolt word (raw ~22200) is caught by the mains-RMS band at x0.01.
 # Bands are car-class + grid-region assumptions (mains/HV/12V are EV/region
-# -typical). The built-in defaults live in canlib.physical_bands; a profile
+# -typical). The built-in defaults live in canlib.analysis.physical.bands; a profile
 # (vehicle axis) and the user's grid_region (grid axis) override them via
 # resolve_physical_bands(). This constant is the default when no bands are
 # threaded in (preserves the historical no-config behaviour).
@@ -864,7 +864,7 @@ def physical_scan(
     ranks by fraction.
 
     ``bands`` is the resolved ``(label, low, high)`` list (see
-    :func:`canlib.physical_bands.resolve_physical_bands`); ``None`` falls back to
+    :func:`canlib.analysis.physical.bands.resolve_physical_bands`); ``None`` falls back to
     the built-in :data:`PHYSICAL_BANDS` defaults.
     """
     from canlib.uds.byteindex import mappable_data_indices

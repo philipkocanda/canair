@@ -76,7 +76,7 @@ def _transport_types() -> tuple[str, ...]:
 
 
 def _grid_regions() -> tuple[str, ...]:
-    from canlib.grid_regions import GRID_REGIONS
+    from canlib.analysis.physical.grid_regions import GRID_REGIONS
 
     return GRID_REGIONS
 

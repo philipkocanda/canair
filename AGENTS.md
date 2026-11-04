@@ -676,7 +676,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   (prints `config.example.yaml`, the authoritative fully-commented reference for every key), `path`,
   `get`, `set` (dotted keys create nested mappings; enum keys validated up front; unknown keys
   warned), `unset`, `edit`. Comment-preserving — prefer it over hand-editing.
-  **`grid_region`** (`EU`/`UK`/`US`/`JP`/`CN`/`AU`; presets `canlib/grid_regions.py`) selects the
+  **`grid_region`** (`EU`/`UK`/`US`/`JP`/`CN`/`AU`; presets `canlib/analysis/physical/grid_regions.py`) selects the
   mains-voltage/line-frequency bands for `hunt --physical`/`investigate`. It is a property of *where
   the car charges*, so it lives in user config, not the profile; unset assumes EU and the first
   physical scan offers to set it.
@@ -1034,7 +1034,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     `run_session_guarded` and `cli.py` report as `error: …` + exit 2.
   - **`physical_bands:`** / **`unit_guess_candidates:`** — vehicle-axis overrides for
     `hunt --physical` and make-specific scalings for the slope→unit sniffer. Resolvers
-    `canlib/physical_bands.py`, `canlib/unit_guess.py`. (The grid-axis bands come from the
+    `canlib/analysis/physical/bands.py`, `canlib/analysis/physical/unit_guess.py`. (The grid-axis bands come from the
     user-config `grid_region` instead — an 800 V pack or a non-EU grid otherwise gets no hit.)
 - **`canlib/explorer/export.py` / `explorer/layout.py`** — The docs-site profile explorer
   (`docs/profiles/explorer.md`). The export turns a profile into an **allow-listed** JSON-able dict

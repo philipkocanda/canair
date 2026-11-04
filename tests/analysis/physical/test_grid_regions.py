@@ -1,10 +1,10 @@
-"""Tests for canlib.grid_regions — regional charging-grid presets."""
+"""Tests for canlib.analysis.physical.grid_regions — regional charging-grid presets."""
 
 from __future__ import annotations
 
 import pytest
 
-from canlib.grid_regions import GRID_REGIONS, resolve_grid_bands
+from canlib.analysis.physical.grid_regions import GRID_REGIONS, resolve_grid_bands
 
 
 class TestPresetShape:

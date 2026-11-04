@@ -170,9 +170,9 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
 
     # Physical-band hits per starting offset (plausibility, needs no reference).
     # Computed after the --events short-circuit so it isn't wasted there.
+    from canlib.analysis.physical.bands import resolve_physical_bands
     from canlib.analysis.xanalysis import physical_scan
     from canlib.grid_prompt import resolve_grid_region
-    from canlib.physical_bands import resolve_physical_bands
     from canlib.profile import active
 
     bands = resolve_physical_bands(active().meta, grid_region=resolve_grid_region())

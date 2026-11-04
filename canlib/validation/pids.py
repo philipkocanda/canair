@@ -1348,7 +1348,7 @@ def _validate_unit_guess_candidates(candidates: Any) -> list[str]:
 
     A list of mappings ``{factor, offset?, label, hint?, dimension?}``. Only the
     shape/types are checked — the resolver
-    (``canlib.unit_guess.resolve_unit_candidates``) drops a malformed entry.
+    (``canlib.analysis.physical.unit_guess.resolve_unit_candidates``) drops a malformed entry.
     """
     if not isinstance(candidates, list):
         return ["profile.yaml: 'unit_guess_candidates' must be a list of {factor, label, …}"]

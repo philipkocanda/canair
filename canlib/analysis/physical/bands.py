@@ -13,7 +13,7 @@ Bands split across two independent axes with different owners:
   ``physical_bands:``.
 - **Grid axis** (``mains_rms``, ``mains_peak``, ``line_freq``) — a fact about
   *where the car charges*, not the car → set once per user via the user-config
-  ``grid_region`` preset (see :mod:`canlib.grid_regions`).
+  ``grid_region`` preset (see :mod:`canlib.analysis.physical.grid_regions`).
 
 Precedence, first match wins: ``profile.yaml physical_bands.<key>`` (final say)
 → ``grid_region`` preset (grid bands only) → built-in default.
@@ -86,7 +86,7 @@ def resolve_physical_bands(
     }
 
     if grid_region is not None:
-        from .grid_regions import resolve_grid_bands
+        from canlib.analysis.physical.grid_regions import resolve_grid_bands
 
         preset = resolve_grid_bands(grid_region)
         for key in GRID_KEYS:

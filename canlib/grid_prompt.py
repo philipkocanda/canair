@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import sys
 
+from canlib.analysis.physical.grid_regions import GRID_REGIONS
+
 from .config import get_config_key, set_config_key
-from .grid_regions import GRID_REGIONS
 
 _SENTINEL_KEY = "grid_region_prompted"
 

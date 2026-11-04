@@ -219,7 +219,7 @@ class TestSniffUnit:
         assert "cell V" in (xanalysis.sniff_unit(xs, ys) or "")
 
     def test_no_hyundai_label_in_builtins(self):
-        from canlib.unit_guess import DEFAULT_UNIT_CANDIDATES
+        from canlib.analysis.physical.unit_guess import DEFAULT_UNIT_CANDIDATES
 
         hints = [c[3] for c in DEFAULT_UNIT_CANDIDATES]
         labels = [c[2] for c in DEFAULT_UNIT_CANDIDATES]
@@ -799,7 +799,7 @@ class TestPhysicalScan:
         assert not [h for h in default_hits if h.band == "HV pack V"]
 
         # With an 800 V override the /10 word lands in the widened band.
-        from canlib.physical_bands import resolve_physical_bands
+        from canlib.analysis.physical.bands import resolve_physical_bands
 
         bands = resolve_physical_bands({"physical_bands": {"hv_pack": [450, 850]}})
         hits = xanalysis.physical_scan(lp, min_n=3, bands=bands)
