@@ -44,7 +44,7 @@ SECTIONS = ("scans", "clears")
 
 def legacy_sources(profile: Profile, dest: Path) -> list[Path]:
     """Every legacy DTC log ``profile`` still has, beside ``dest``."""
-    from canlib.profile_names import declared_aliases
+    from canlib.profile.names import declared_aliases
 
     candidates = [profile.root / LEGACY_NAME, *(o / LEGACY_NAME for o in profile.overlays)]
     candidates += [dest.with_name(f"{old}.yaml") for old in declared_aliases(profile.root)]

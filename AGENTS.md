@@ -794,7 +794,7 @@ bundled ones by name — **unless the user one declares `extends:`, which layers
 Layered profiles).
 
 **Names follow `make-model-code-drivetrain`, never a year** (rule and pattern:
-`canlib/profile_names.py`; `validate` enforces it for bundled profiles; reasoning in the
+`canlib/profile/names.py`; `validate` enforces it for bundled profiles; reasoning in the
 **profile-variants** skill). A renamed profile lists its old names under `aliases:` in
 `profile.yaml`, and `resolve_profile` maps an old name to it (`alias_index`). A real directory
 of the old name always wins, a capture overlay filed under the old name layers onto the renamed
@@ -805,7 +805,7 @@ since a config is often shared with older checkouts that only know the old name.
 
 **Other names for a car** (`also_known_as:` in `profile.yaml`, and per variant in `variants.yaml`)
 are labels people search by — "Classic Ioniq", "Ioniq 28", "Ioniq vFL" — and resolve nothing,
-unlike `aliases:`. One reader, `canlib/profile_names.py::also_known_as`, feeds `profile show`
+unlike `aliases:`. One reader, `canlib/profile/names.py::also_known_as`, feeds `profile show`
 and the docs hook (`scripts/mkdocs_hooks/profiles_index.py`: the index, a tour page's managed
 block, its meta description). Give a new profile or variant the names owners actually use.
 
@@ -813,7 +813,7 @@ block, its meta description). Give a new profile or variant the names owners act
 default; a bare `canair profile` opens an arrow-key picker on a TTY. `profile create <name>
 --car-model "…"` scaffolds a new vehicle and **`profile adopt <name>`** copies a read-only one into
 `~/.config/canair/profiles/` (where it shadows the original) so it can be written to. Both live in
-the library module `canlib/profile_create.py`; `commands/profile.py` is CLI only. `adopt` **refuses
+the library module `canlib/profile/scaffold.py`; `commands/profile.py` is CLI only. `adopt` **refuses
 when a higher-precedence discovery root would keep winning** (an explicit `--profiles-dir` or
 `$CANAIR_PROFILES_DIR`), because the copy would then never be read — the message names the blocking
 root. It skips `role: generated` members (`out/` is regenerated, not inherited). The bundle
@@ -822,7 +822,7 @@ which also decides what `contribute` ships and what the blind-test strip withhol
 member is one edit there.
 
 **Layered profiles — a read-only base plus your capture layer.** `canair profile overlay <name>`
-(`canlib/profile_create.py::overlay_profile`) writes *only* `~/.config/canair/profiles/<name>/
+(`canlib/profile/scaffold.py::overlay_profile`) writes *only* `~/.config/canair/profiles/<name>/
 profile.yaml` with `extends: <name>` plus an empty `captures/`; the base then keeps tracking
 upstream while every recording lands in the layer. Adopt when you want to change definitions,
 overlay when you only want to record. Resolution is `canlib/profile.py::profile_layers` (walks

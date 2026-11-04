@@ -16,7 +16,7 @@ from canlib.commands.profile import (
     _cmd_show,
     _cmd_use,
 )
-from canlib.profile_create import DEFAULT_INIT
+from canlib.profile.scaffold import DEFAULT_INIT
 from canlib.validation.pids import collect_pids_validation
 
 
@@ -406,7 +406,7 @@ class TestProfileDefaultDispatch:
 
         config.load_config.cache_clear()
         profile._active = None
-        fixture = Path(__file__).parent / "fixtures" / "profiles" / "variants"
+        fixture = Path(__file__).parents[1] / "fixtures" / "profiles" / "variants"
         shutil.copytree(fixture, tmp_path / "profiles" / "variants")
         config.set_config_key("profile_settings.variants.variant", "40kwh")
         config.load_config.cache_clear()

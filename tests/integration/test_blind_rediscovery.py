@@ -1,11 +1,11 @@
 """Deterministic regression tests for the blind-rediscovery harness (no LLM).
 
 Covers the three mechanical guarantees the on-demand eval relies on:
-* :func:`canlib.blind.strip_profile` removes every answer-bearing field yet leaves
+* :func:`canlib.analysis.blind.strip_profile` removes every answer-bearing field yet leaves
   a profile that still validates and resolves captures;
-* :func:`canlib.blind.grade_answer` scores exact / scale-equivalent / partial /
+* :func:`canlib.analysis.blind.grade_answer` scores exact / scale-equivalent / partial /
   miss / categorical guesses correctly;
-* :func:`canlib.blind.select_targets` yields the curated corpus and a reproducible
+* :func:`canlib.analysis.blind.select_targets` yields the curated corpus and a reproducible
   seeded-random draw.
 """
 
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from canlib import blind
+from canlib.analysis import blind
 from canlib.profile import resolve_profile
 
 

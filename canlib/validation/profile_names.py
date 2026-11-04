@@ -8,7 +8,7 @@ named anything, and ``profile create`` merely warns.
 from __future__ import annotations
 
 from canlib.core.paths import BUNDLED_PROFILES_DIR
-from canlib.profile_names import convention_problem, duplicate_names
+from canlib.profile.names import convention_problem, duplicate_names
 
 
 def _is_bundled(prof) -> bool:

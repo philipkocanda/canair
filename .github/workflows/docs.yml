@@ -16,7 +16,7 @@ on:
       - "profiles/*/ecus/**"
       - "profiles/*/profile.yaml"
       - "profiles/*/variants.yaml"
-      - "canlib/profile_names.py"
+      - "canlib/profile/names.py"
       - "profiles/*/can_buses.yaml"
       - "profiles/*/signals/**"
       - "profiles/*/captures/**"

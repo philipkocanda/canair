@@ -16,8 +16,8 @@ from canlib.profile import (
     resolve_profile,
     selectable_profiles,
 )
-from canlib.profile_create import DEFAULT_INIT, adopt_profile, create_profile, overlay_profile
-from canlib.profile_names import convention_problem
+from canlib.profile.names import convention_problem
+from canlib.profile.scaffold import DEFAULT_INIT, adopt_profile, create_profile, overlay_profile
 
 NAME = "profile"
 ALIASES = ["prof"]
@@ -404,7 +404,7 @@ def _cmd_show(args) -> int:
     for overlay in prof.overlays:
         print(f"overlay:    {overlay}  (your layer — captures land here)")
     print(f"car_model:  {meta.get('car_model', '?')}")
-    from canlib.profile_names import also_known_as
+    from canlib.profile.names import also_known_as
 
     if known_as := also_known_as(prof.root).all():
         print(f"known as:   {', '.join(known_as)}")

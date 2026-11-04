@@ -31,7 +31,7 @@ from mkdocs.exceptions import PluginError
 from mkdocs.structure.files import File, Files
 
 if TYPE_CHECKING:
-    from canlib.profile_names import AlsoKnownAs
+    from canlib.profile.names import AlsoKnownAs
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PROFILES_DIR = REPO_ROOT / "profiles"
@@ -89,7 +89,7 @@ def profile_stats(ecus_dir: Path) -> dict[str, int]:
 
 
 def _also_known_as(root: Path) -> AlsoKnownAs:
-    from canlib.profile_names import also_known_as
+    from canlib.profile.names import also_known_as
 
     return also_known_as(root)
 

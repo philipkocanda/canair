@@ -317,8 +317,9 @@ def snapshot_profile_risks(clone: Path | None) -> list[SnapshotRisk]:
     Without a readable ``RECORD`` every file differing from the clone is reported,
     since nothing then distinguishes an edit from upstream drift.
     """
+    from canlib.profile.names import build_alias_index
+
     from .profile import BUNDLE_MEMBERS, BUNDLED_PROFILES_DIR, looks_like_profile
-    from .profile_names import build_alias_index
 
     if clone is None or not installed_snapshot_kind(BUNDLED_PROFILES_DIR):
         return []

@@ -31,9 +31,9 @@ from canlib.profile import (
     require_writable_definitions,
     resolve_profile,
 )
-from canlib.profile_create import overlay_profile
+from canlib.profile.scaffold import overlay_profile
 
-CAPTURES_CMD = Path(__file__).resolve().parents[1] / "canlib" / "commands" / "captures"
+CAPTURES_CMD = Path(__file__).resolve().parents[2] / "canlib" / "commands" / "captures"
 CANLIB_CMD = CAPTURES_CMD.parent
 
 # Anything referencing one of these rewrites a capture file, so it owes the

@@ -16,19 +16,20 @@ A *profile* is a self-contained directory bundling one vehicle's data:
       references/          external reference material (spreadsheets, other logs)
       out/                 generated WiCAN JSON profiles (optional)
 
-Only ``profile.yaml`` and ``ecus/`` are required; every other member is optional
-and absent in a freshly-created profile.
+Only ``profile.yaml`` and ``ecus/`` are required; every other member is optional.
 
-Profiles are discovered from several roots (user config dir shadows the
-repo-bundled ones). The active profile is chosen by ``--profile`` /
-``CANAIR_PROFILE`` / ``default_profile`` in config, or auto-selected when only
-one profile exists.
+Profiles are discovered from several roots (user config dir shadows the repo-bundled ones).
+The active profile is chosen by ``--profile`` / ``CANAIR_PROFILE`` / ``default_profile`` in
+config, or auto-selected when only one profile exists. A same-named user bundle that declares
+``extends:`` **layers** onto the bundled one instead of shadowing it (:func:`profile_layers`):
+definitions keep resolving from the read-only base while captures read from every layer and are
+written to the user's.
 
-A same-named user bundle that declares ``extends:`` **layers** onto the bundled
-one instead of shadowing it (:func:`profile_layers`): definitions keep resolving
-from the read-only base while captures read from every layer and are written to
-the user's. That is how a shipped profile can accumulate your recordings without
-you forking it.
+Belongs: finding, resolving, layering and creating a profile bundle (this module, ``scaffold``),
+and what cars call a profile (``names``).
+Not here: parsing a bundle's definitions (``ecus/``, ``states/``, ``variants/``, ``broadcast/``),
+checking them (``validation/``) or editing them (``yaml_edit/``).
+Imports: ``config``, ``core`` and ``uds``.
 """
 
 from __future__ import annotations
@@ -41,11 +42,10 @@ from functools import cached_property
 from pathlib import Path
 from typing import Literal
 
+from canlib.config import load_config
 from canlib.core import yaml_io
 from canlib.core.paths import BUNDLED_PROFILES_DIR, config_dir
-
-from .config import load_config
-from .profile_names import AliasIndex, build_alias_index
+from canlib.profile.names import AliasIndex, build_alias_index
 
 
 class ProfileError(Exception):
@@ -528,7 +528,7 @@ _noted_renames: set[str] = set()
 
 def _note_renamed(alias: str, prof: Profile) -> None:
     """Say once per process that an old profile name was used, and what to use instead."""
-    from .profile_names import declared_aliases
+    from canlib.profile.names import declared_aliases
 
     if alias in _noted_renames:
         return
@@ -651,7 +651,7 @@ def set_active(
     previous = _active
     _active = apply_variant(resolve_profile(name, profiles_dir), variant, revisions)
     if previous is not None and previous != _active:
-        from .pids import clear_cache
+        from canlib.pids import clear_cache
 
         clear_cache()
     return _active
@@ -662,7 +662,7 @@ def replace_active(profile: Profile) -> Profile:
     global _active
     if profile != _active:
         _active = profile
-        from .pids import clear_cache
+        from canlib.pids import clear_cache
 
         clear_cache()
     return _active

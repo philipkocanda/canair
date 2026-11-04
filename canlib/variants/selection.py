@@ -56,7 +56,7 @@ def configured_variant(profile: Profile) -> str | None:
 
 def alias_variant(profile: Profile) -> str | None:
     """The variant the old name ``profile`` was resolved through implies, if any."""
-    from canlib.profile_names import declared_aliases
+    from canlib.profile.names import declared_aliases
 
     alias = getattr(profile, "alias", None)
     if not alias:
