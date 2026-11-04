@@ -24,6 +24,7 @@ from canlib.transport.elm327_addressing import AdapterState
 from canlib.transport.elm327_functional import elm_functional_exchange, parse_header_lines
 from canlib.transport.elm327_terminal import Elm327Terminal
 from canlib.transport.functional import (
+    DEFAULT_WINDOW_S,
     FunctionalCollector,
     FunctionalMessage,
     FunctionalResult,
@@ -175,6 +176,14 @@ class TestDispatchForwardsTheParsedValues:
 
 
 class TestCollector:
+    def test_the_default_window_catches_a_late_responder(self):
+        # The Ioniq's AMP (MM-CAN, behind the gateway) missed a 300 ms window in one sweep.
+        c = FunctionalCollector(0x7DF, b"\x3e\x00", started=0.0, window=DEFAULT_WINDOW_S)
+        assert not c.done(0.5)
+        assert c.feed(0x78B, bytes.fromhex("027E00AAAAAAAAAA"), 0.9) is False
+        assert c.done(DEFAULT_WINDOW_S + 0.01)
+        assert [m.rx_id for m in c.result().messages] == [0x78B]
+
     def test_single_frames_from_several_ecus(self):
         c = FunctionalCollector(0x7DF, b"\x3e\x00", started=0.0, window=0.3)
         assert c.feed(0x7EC, bytes.fromhex("027E00AAAAAAAAAA"), 0.010) is False
@@ -502,7 +511,7 @@ class TestMode:
         term = FakeTerminal()
         term.functional_replies = {"3E00": [(0x7EC, "7E00"), (0x778, "7E00"), (0x7C8, "7E00")]}
         await dispatch_mode(_mode_args(json=True), term, load_pids(), "1.2.3.4")
-        assert term.calls[0] == ("send_functional", (0x7DF, "3E00", 0.3))
+        assert term.calls[0] == ("send_functional", (0x7DF, "3E00", DEFAULT_WINDOW_S))
         out = capsys.readouterr()
         doc = json.loads(out.out)
         (rnd,) = doc["rounds"]
@@ -513,6 +522,9 @@ class TestMode:
         }
         assert [s["name"] for s in rnd["silent"]] == ["AVN"]
         assert "not in profile" in out.err and re.search(r"MM-CAN\s+AVN", out.err)
+        # Silent is not off: some ECUs answer a physical request only.
+        assert "did not answer the functional request" in out.err
+        assert "canair raw ECU:3E00" in out.err
 
     @pytest.mark.asyncio
     async def test_repeat_sends_each_round(self, gateway_profile, monkeypatch, capsys):
@@ -528,6 +540,6 @@ class TestMode:
         term.functional_replies = {"22F18C": [(0x7EC, "62F18C31")]}
         await dispatch_mode(_mode_args(request="22F18C", repeat=3), term, load_pids(), "1.2.3.4")
         assert [c for c in term.calls if c[0] == "send_functional"] == [
-            ("send_functional", (0x7DF, "22F18C", 0.3))
+            ("send_functional", (0x7DF, "22F18C", DEFAULT_WINDOW_S))
         ] * 3
         assert re.search(r"BMS\s+3/3", capsys.readouterr().out)

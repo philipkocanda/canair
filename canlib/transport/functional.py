@@ -31,9 +31,10 @@ from canlib.uds.response import CAT_DROP
 if TYPE_CHECKING:
     from .stats import TransportStats
 
-# How long to listen after a functional request: the 50 ms an ECU has to start its
-# answer, plus gateway delay and the 100 kbit/s buses, with room to spare.
-DEFAULT_WINDOW_S: Final = 0.3
+# How long to listen after a functional request. An ECU has 50 ms to start its answer, but
+# the Ioniq's AMP, on the slow MM-CAN behind the gateway, missed a 300 ms window in one of two
+# sweeps and answered every round at 1 s, the only value tried that caught every responder.
+DEFAULT_WINDOW_S: Final = 1.0
 
 # ISO-TP N_Cr: the longest gap between two frames of one message (1000 ms on
 # Hyundai/Kia, the ISO 15765-2 default).

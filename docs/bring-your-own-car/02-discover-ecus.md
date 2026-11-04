@@ -67,7 +67,7 @@ canair discover --functional
 ```
 
 It sends `3E 00` (TesterPresent, harmless and answered by both UDS and KWP2000 ECUs), listens for
-300 ms (`--window`), and lists every responder grouped by the `can_bus:` your profile gives it.
+1 s (`--window`), and lists every responder grouped by the `can_bus:` your profile gives it.
 Responders the profile does not know are flagged, and known ECUs that stayed silent are listed per
 bus: a whole bus that stays silent is probably not routed. `--register` and `--identify` work as in
 the physical sweep.
@@ -91,6 +91,9 @@ the physical sweep.
   replies are where it is weakest. For the request canair opens the adapter's receive filter to
   every diagnostic reply ID, since its automatic filter would pass only `0x7E8`-`0x7EF`; an
   adapter that refuses is named in the report.
+- **Silent is not off:** an ECU can ignore a functional request and still answer a physical one.
+  The Ioniq's cluster does, and its audio amplifier needs the 1 s window. Before you decide an ECU
+  is asleep or unreachable, ask it directly: `canair raw ECU:3E00`.
 - **Slow answers:** an ECU that only sent ResponsePending (`7F xx 78`) by the end of the window
   is listed as `pending`, not as silent.
 - **Limits:** profiles on CAN-FD, and on `normal_29bit` addressing (free-form 29-bit reply IDs),

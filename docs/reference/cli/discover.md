@@ -78,7 +78,7 @@ functional sweep:
   --request HEX         With --functional: the read to broadcast (default
                         3E00; see below)
   --window SECONDS      With --functional: how long to collect replies
-                        (default 0.3)
+                        (default 1.0)
   --repeat N            With --functional: send the request N times (default
                         1)
   --interval SECONDS    With --functional --repeat: seconds between requests

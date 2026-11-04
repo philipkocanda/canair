@@ -94,13 +94,14 @@ def _print_round(sweep: SweepRound, total: int, out: TextIO) -> None:
             print(render_row(row, widths, paint), file=out)
     if sweep.silent:
         silent = silent_by_bus(sweep.silent)
-        print(
-            paint.heading("Silent", f"{len(sweep.silent)} in the profile did not answer"), file=out
-        )
+        heading = f"{len(sweep.silent)} in the profile did not answer the functional request"
+        print(paint.heading("Silent", heading), file=out)
         width = max(len(bus) for bus in silent)
         for bus, members in silent.items():
             names = ", ".join(s.name for s in members)
             print(f"{INDENT}{paint(bus.ljust(width), ansi.raw.DIM)}{GAP}{names}", file=out)
+        hint = "Some ECUs answer only a physical request; ask one with `canair raw ECU:3E00`."
+        print(f"{INDENT}{paint(hint, ansi.raw.DIM)}", file=out)
     if sweep.other:
         print(paint.heading("Other traffic", "did not answer the request"), file=out)
         other = [[(hex_id(o.rx_id), ""), (o.payload_hex, ansi.raw.DIM)] for o in sweep.other]

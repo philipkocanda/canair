@@ -75,7 +75,7 @@ functional requests:
         type=float,
         default=None,
         metavar="SECONDS",
-        help="With --functional: how long to collect replies (default 0.3)",
+        help="With --functional: how long to collect replies (default 1.0)",
     )
     functional.add_argument(
         "--repeat",
