@@ -87,7 +87,7 @@ TRANSPORTS: dict[TransportType, TransportSpec] = {
 }
 
 # Derived from the type, not from the registry keys, so the two can't disagree
-# (tests/test_transport_config.py asserts they stay equal).
+# (tests/transport/test_transport_config.py asserts they stay equal).
 VALID_TRANSPORTS: tuple[TransportType, ...] = get_args(TransportType)
 
 # Canonical default when nothing is configured (see module docstring).

@@ -77,7 +77,7 @@ if TYPE_CHECKING:
 # monitor_raw; _merge_history/_write_merged/_open_journal + the recording/journaling
 # logic to _monitor_record; STATE_INPUT_STALE_CYCLES + the state-suggestion logic to
 # _monitor_state; mode_monitor + the poll loops to _monitor_run. All re-exported here
-# for backward-compatible imports (e.g. tests/test_monitor.py).
+# for backward-compatible imports (e.g. tests/modes/test_monitor.py).
 __all__ = [
     "STATE_INPUT_STALE_CYCLES",
     "_HIGHLIGHT_STYLE",

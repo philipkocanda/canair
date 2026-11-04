@@ -14,7 +14,7 @@ that trigger it (first is canonical, the rest are hidden aliases) and the help
 text it is advertised with. Apps never write a key string — they call
 :func:`bind`, which expands a role into the right ``Binding`` objects.
 
-``tests/test_tui_keymap.py`` walks every app and modal in ``canlib`` and asserts
+``tests/contracts/test_tui_keymap.py`` walks every app and modal in ``canlib`` and asserts
 each declared key resolves to a role and is described in that role's words, so a
 new binding cannot quietly reintroduce a collision.
 

@@ -105,7 +105,7 @@ def classify_response(resp: UdsResponse) -> ResponseCategory:
 # error string. First match wins, so order matters (drops before the generic
 # reassembly wording, mismatch before the rest). They must agree with the
 # ``error_kind`` the parser stamps for the same message, which
-# ``tests/test_uds_parse_adapter_text.py`` checks for every message it can produce.
+# ``tests/uds/test_uds_parse_adapter_text.py`` checks for every message it can produce.
 _ERROR_RULES: tuple[tuple[str, ResponseCategory], ...] = (
     ("non-contiguous iso-tp", CAT_DROP),
     ("truncated iso-tp", CAT_DROP),

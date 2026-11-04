@@ -3,7 +3,7 @@
 The ranked/comparative tables — ``--discriminate``, ``--find-mirrors``,
 ``--corr`` — as opposed to the value views in :mod:`.views`. These are the ones
 that render **byte labels**, so they are the renderers the notation goldens in
-``tests/test_analysis_golden.py`` pin.
+``tests/integration/test_analysis_golden.py`` pin.
 """
 
 from __future__ import annotations

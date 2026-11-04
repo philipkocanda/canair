@@ -2,10 +2,10 @@
 
 Two modules pin committed stdout snapshots, for different reasons:
 
-* :mod:`tests.test_analysis_golden` — the analysis verbs' **byte labels**
+* :mod:`tests.integration.test_analysis_golden` — the analysis verbs' **byte labels**
   (``Bnn``/``iN``/Torque/bix), because a silent off-by-PCI is invisible to
   free-running assertions and those labels are what ``--promote`` persists.
-* :mod:`tests.test_captures_golden` — the ``captures`` **views' human text**
+* :mod:`tests.integration.test_captures_golden` — the ``captures`` **views' human text**
   (spacing, footers, per-view layout), which unit tests on the ``--json`` shapes
   cannot see.
 
@@ -15,7 +15,7 @@ helper — so they live here rather than being copy-pasted.
 
 Regenerate after an *intended* change, then **read the diff**::
 
-    CANAIR_REGEN_GOLDEN=1 uv run pytest tests/test_captures_golden.py -q
+    CANAIR_REGEN_GOLDEN=1 uv run pytest tests/integration/test_captures_golden.py -q
     git diff tests/fixtures/golden/
 """
 

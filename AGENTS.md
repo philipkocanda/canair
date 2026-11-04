@@ -155,7 +155,7 @@ command's purpose plus the agent-facing rules and code pointers that `--help` do
 **TUI keys are not in `--help`.** Every Textual view's keymap is assembled from the shared role
 registry **`canlib/tui/keys.py`** (`ROLES` + `bind(role, action)`), so one key means one thing in
 every view; press `?` in any TUI for its live cheat-sheet. Never hardcode a `Binding` key in a TUI —
-add or reuse a role, or `tests/test_tui_keymap.py` fails (it pins that every declared key resolves
+add or reuse a role, or `tests/contracts/test_tui_keymap.py` fails (it pins that every declared key resolves
 to a role, that its description matches the role's accepted wording, and that `escape` never quits).
 Two standing conventions: **`escape` backs out one level and never exits** (`q` is the only exit),
 and **`g`/`G` address the view's primary axis**.
@@ -998,7 +998,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   (`canlib/constants.py::PROFILE_SCHEMA_MODELINE`) naming the editor schema
   `canlib/schema/profile_schema.json`, published on the docs site by
   `scripts/mkdocs_hooks/schemas.py`. **A new profile.yaml field goes in that schema too**;
-  `tests/test_profile_schema.py` pins its enums to the validator's. The fields:
+  `tests/contracts/test_profile_schema.py` pins its enums to the validator's. The fields:
   `response_timeout_ms`, `multi_did_batching`,
   `multi_did_max` (per-ECU overridable), `can_bitrate`, shared DTC meanings (`dtcs:`), plus these
   blocks:
@@ -1041,11 +1041,11 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   (never `identity:` values, captures or `scan_log`), with a `src: {file, line}` on every record
   read via ruamel; the layout places ECUs on bus lanes. `scripts/mkdocs_hooks/explorer.py` writes
   it as virtual files at docs build time and `docs/assets/explorer/explorer.{js,css}` only render
-  it, so content rules belong in the exporter (unit-tested in `tests/test_explorer_export.py`).
+  it, so content rules belong in the exporter (unit-tested in `tests/explorer/test_explorer_export.py`).
   Plan: `plans/2026-10-21-profile-explorer.md`. Its **data view** (plot captured signals, find
   related signals) decodes captures at build time with the shared evaluator in
   `canlib/explorer/series.py` (decoded numbers only, never payloads; size-budgeted in
-  `tests/test_explorer_series.py`); `docs/assets/explorer/{plot,discover}.js` draw it and the pure
+  `tests/explorer/test_explorer_series.py`); `docs/assets/explorer/{plot,discover}.js` draw it and the pure
   maths is `analysis.js`, tested with `node --test tests/js/analysis.test.js` (a CI step; name the
   file, as older Node treats a directory argument as a module). uPlot is vendored under
   `docs/assets/explorer/vendor/` (MIT). Plan: `plans/2026-10-22-explorer-capture-plots.md`.
@@ -1328,7 +1328,7 @@ None`: true only for the WiCAN transports (queryable `/load_config`, `/check_sta
 [ELM327-Emulator](https://github.com/ircama/ELM327-emulator) (`elm -n 35000`) for a device-free
 ELM327 wire. It is **not** a canair dependency (its legacy build breaks `uv sync`; install manually
 with `uv pip install "setuptools<80"` then `uv pip install --no-build-isolation ELM327-emulator`).
-The opt-in test `tests/test_elm327_emulator.py` auto-skips when absent, so the core suite stays
+The opt-in test `tests/integration/test_elm327_emulator.py` auto-skips when absent, so the core suite stays
 device-free, and the bundled test profile `tests/fixtures/profiles/elm327-emulator/` (an ENGINE ECU
 at 0x7E0 with standard OBD-II Mode-01 PIDs) makes `canair read` decode against it. Docs
 `docs/development/offline-testing.md`; plan `plans/2026-08-03-elm327-direct-transport.md`.

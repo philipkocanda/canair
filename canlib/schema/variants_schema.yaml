@@ -48,7 +48,7 @@
 # Validated by `canair validate variants` (canlib/variants/__init__.py::check_variants_doc,
 # whose VARIANT_FIELDS, BATTERY_FIELDS and PROFILE_OVERRIDE_FIELDS are the authoritative
 # field lists;
-# tests/test_variants.py pins this file to them).
+# tests/commands/test_variants.py pins this file to them).
 
 variant_id_pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
 

@@ -25,7 +25,7 @@ _GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir", "--variant", "--revisi
 # The kind sets are duplicated from each command's subparsers because injection
 # runs on raw argv, before a parser exists. A kind missing here is not an error —
 # it is silently rewritten into the default kind and then rejected as a stray
-# argument, which is why tests/test_cli_group_defaults.py pins each set against
+# argument, which is why tests/contracts/test_cli_group_defaults.py pins each set against
 # the real subparsers.
 _GROUP_DEFAULTS = {
     # Only `uds` exists today; a `can` kind joins when raw-frame search is designed.

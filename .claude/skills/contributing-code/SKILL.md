@@ -155,7 +155,7 @@ Commands live in `canlib/commands/<name>.py`, exposing `NAME`, `add_parser(subpa
 `CANAIR_DEFAULTS` (`_live/defaults.py`) with a falsy default **and** in
 `canlib/modes/dispatch/::_DISPATCH`, then delegate to a handler in `canlib/modes/<name>.py`.
 A selector missing from `_DISPATCH` is not an error — it silently falls through to the interactive
-REPL, which is why `tests/test_dispatch_table.py` pins both membership and the table's
+REPL, which is why `tests/modes/test_dispatch_table.py` pins both membership and the table's
 (load-bearing) order.
 
 Follow an existing command as a template: `commands/dtc/` + `modes/dtc/`.
@@ -270,15 +270,15 @@ tree is a **security incident**: flag it (history purge, key rotation), don't de
 - **Every behavioral change ships with tests**; a bug fix ships a regression test that fails before
   and passes after.
 - Prefer fast, device-free unit tests — drive modes with a fake terminal implementing the `Terminal`
-  surface (`tests/test_dtc.py`, `tests/test_identity.py` are templates). Never require a live
+  surface (`tests/dtc/test_dtc.py`, `tests/modes/test_identity.py` are templates). Never require a live
   device.
 - Cover the failure paths that matter: NRC responses, `NO DATA`, malformed payloads, declined
   confirmations.
 - For anything bus-touching, prove it runs through the shared `dispatch_mode` (see
-  `TestDispatchTransportAgnostic` in `tests/test_dtc.py`) so every transport stays covered.
+  `TestDispatchTransportAgnostic` in `tests/dtc/test_dtc.py`) so every transport stays covered.
 - **Analysis tests must not read an unbounded capture range** — `captures/` grows with every
   `--save`, so scope to a frozen date or a fixture profile, or the test gets slower forever and
-  eventually breaks (`tests/test_analysis_golden.py::test_cases_cannot_drift_as_captures_grow`).
+  eventually breaks (`tests/integration/test_analysis_golden.py::test_cases_cannot_drift_as_captures_grow`).
 - Cross-cutting policy gets its own test module (e.g. `tests/test_safety.py`).
 
 ## Refactor proactively — no monoliths

@@ -7,7 +7,7 @@ holding one slot per selected (ECU, PID) key. Pure data — the rendering lives 
 
 The nearest-within-tolerance rule deliberately mirrors
 :func:`canlib.analysis.align.join_prepared`, so the stepper pairs captures exactly as
-``align``/``correlate``/``hunt`` do (``tests/test_captures.py`` asserts the
+``align``/``correlate``/``hunt`` do (``tests/commands/test_captures.py`` asserts the
 parity).
 """
 

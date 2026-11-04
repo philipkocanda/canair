@@ -8,7 +8,7 @@ session editors need a scope filter", "an aggregate mode takes no QUERY" — wer
 reachable only by invoking the whole CLI.
 
 This module holds that policy as data plus one pure function, so the rules are
-stated once and testable directly (see ``tests/test_captures_mode_select.py``).
+stated once and testable directly (see ``tests/commands/test_captures_mode_select.py``).
 :func:`resolve_mode` decides; :class:`ModeError` carries how to report a rejection
 so the caller stays a three-liner. The user-facing surface is unchanged — same
 flags, same messages, same exit codes.

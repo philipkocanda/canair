@@ -7,7 +7,7 @@ a contract cannot say, and runs ``lint-imports`` so plain ``pytest`` is a comple
 
 Each check compares the tree with ``baseline.json``:
 
-* a **list** baseline (root modules, test-to-test imports, packages without a charter) fails on a
+* a **list** baseline (root modules, flat tests, packages without a charter) fails on a
   new entry *and* on an entry that no longer applies, so a fix has to leave the baseline;
 * a **ceiling** baseline (module sizes, deferred imports, import-linter debt) fails when the
   number grows. Lower it when it falls: ``uv run python -m tests.contracts.test_structure --write``.
@@ -31,6 +31,10 @@ REPO = Path(__file__).resolve().parents[2]
 BASELINE = Path(__file__).with_name("baseline.json")
 CHARTER_MARKERS = ("Belongs:", "Not here:", "Imports:")
 MODULE_LINE_LIMIT = 500
+RESERVED_TEST_DIRS = {"support", "integration", "contracts"}
+TEST_DATA_DIRS = {"fixtures", "js"}
+# Directories that mirror something other than a canlib package.
+OTHER_MIRRORS = {"scripts"}
 
 
 def _load_graph():
@@ -88,6 +92,17 @@ def _test_to_test_imports() -> list[str]:
                 if leaf.startswith("test_") or leaf == "conftest":
                     found.append(f"{rel} -> {name.lstrip('.')}")
     return sorted(set(found))
+
+
+def _test_dirs() -> list[Path]:
+    return sorted(
+        d for d in (REPO / "tests").iterdir() if d.is_dir() and not d.name.startswith(("_", "."))
+    )
+
+
+def _flat_tests() -> list[str]:
+    """Test files directly in ``tests/``: tests of a module that is not in a package yet."""
+    return sorted(p.name for p in (REPO / "tests").glob("test_*.py"))
 
 
 def _ignore_import_count() -> int:
@@ -210,6 +225,55 @@ def test_tests_do_not_import_other_tests():
     assert not problems, "\n".join(problems)
 
 
+def test_test_directories_mirror_the_source_tree():
+    packages = {name.split(".")[1] for name in _packages()}
+    allowed = packages | OTHER_MIRRORS | RESERVED_TEST_DIRS | TEST_DATA_DIRS
+    problems = [
+        f"tests/{d.name}/ matches no package under canlib/. Mirror a package, or use one of "
+        f"{sorted(RESERVED_TEST_DIRS)}."
+        for d in _test_dirs()
+        if d.name not in allowed
+    ]
+    problems += [
+        f"canlib.{name} uses the reserved test directory name {name!r}; rename the package."
+        for name in sorted(packages & (RESERVED_TEST_DIRS | TEST_DATA_DIRS))
+    ]
+    assert not problems, "\n".join(problems)
+
+
+def test_mirrored_tests_import_their_package():
+    """A test in ``tests/<pkg>/`` tests ``canlib.<pkg>``; one with another subject lives elsewhere."""
+    mirrored = {name.split(".")[1] for name in _packages()}
+    problems = []
+    for d in _test_dirs():
+        if d.name not in mirrored:
+            continue
+        own = f"{graph.PACKAGE}.{d.name}"
+        for path in sorted(d.rglob("test_*.py")):
+            modules: list[str] = []
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf8"))):
+                if isinstance(node, ast.ImportFrom) and node.module:
+                    modules += [node.module] + [f"{node.module}.{a.name}" for a in node.names]
+                elif isinstance(node, ast.Import):
+                    modules += [a.name for a in node.names]
+            if not any(m == own or m.startswith(own + ".") for m in modules):
+                problems.append(
+                    f"{path.relative_to(REPO).as_posix()} never imports {own}. Move it to the "
+                    "directory of the package it tests (tests/integration/ if it spans several)."
+                )
+    assert not problems, "\n".join(problems)
+
+
+def test_no_new_test_file_at_the_tests_root():
+    problems = _diff(
+        "flat test",
+        set(_flat_tests()),
+        set(_baseline()["flat_tests"]),
+        "Put it in the tests/ directory that mirrors the package it tests.",
+    )
+    assert not problems, "\n".join(problems)
+
+
 def _fresh_baseline(old: dict) -> dict:
     """The baseline as the tree is now, refusing to add anything."""
     result = graph.scan()
@@ -231,6 +295,7 @@ def _fresh_baseline(old: dict) -> dict:
         for p in old["packages_without_charter"]
         if p in packages and not _has_charter(packages[p])
     ]
+    new["flat_tests"] = [t for t in old["flat_tests"] if t in set(_flat_tests())]
     current_tests = set(_test_to_test_imports())
     new["test_to_test_imports"] = [t for t in old["test_to_test_imports"] if t in current_tests]
     return new
@@ -247,6 +312,7 @@ def _initial_baseline() -> dict:
         "import_linter_ignores": _ignore_import_count(),
         "packages_without_charter": sorted(p for p, i in packages.items() if not _has_charter(i)),
         "test_to_test_imports": _test_to_test_imports(),
+        "flat_tests": _flat_tests(),
     }
 
 

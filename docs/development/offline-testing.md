@@ -120,11 +120,11 @@ The emulator is a functional stand-in, not a real car:
 
 ## Automated tests
 
-canair ships an **opt-in** integration test (`tests/test_elm327_emulator.py`)
+canair ships an **opt-in** integration test (`tests/integration/test_elm327_emulator.py`)
 that spawns the emulator on an ephemeral port and drives it through the real
 `elm327-tcp` engine. It **auto-skips** when the emulator isn't installed, so the
 normal `uv run pytest` stays device-free and fast. Install the emulator (step 1)
-to run it. Device-free unit tests (`tests/test_elm327_tcp.py`) additionally guard
+to run it. Device-free unit tests (`tests/transport/test_elm327_tcp.py`) additionally guard
 the `elm327-emulator` profile's decode expressions.
 
 !!! note "`uv sync` uninstalls the emulator"

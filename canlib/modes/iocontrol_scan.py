@@ -94,7 +94,7 @@ async def probe_iocontrol(
     caught and reported as errors rather than misattributed to the wrong
     DID. Observed failure mode: a late-arriving ``6F {prev_did} 00`` from
     the previous probe leaks into the next read, silently shifting every
-    subsequent hit by -1 DID. See `tests/test_iocontrol_scan.py`.
+    subsequent hit by -1 DID. See `tests/modes/test_iocontrol_scan.py`.
     """
     if sub_function != SF_RETURN_CONTROL:
         raise ValueError(
