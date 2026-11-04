@@ -155,7 +155,7 @@ async def run_raw_monitor(
         )
         return 1
     if session.timings:
-        from ..timing import print_timings
+        from canlib.transport.timing import print_timings
 
         print_timings(client.timings, as_json=session.as_json)
     return 0

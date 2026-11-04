@@ -3,7 +3,7 @@
 Some modules power their CAN transceiver only briefly. A Smart Key Module, for
 instance, answers a single diagnostic request and then sleeps again within a
 second or two, so the usual single ``10 01`` wake (see
-:meth:`canlib.session_manager.SessionManager.open_session`) races the sleep
+:meth:`canlib.transport.session_manager.SessionManager.open_session`) races the sleep
 timer: the wake frame lands, the ECU stirs, but by the time the follow-up read
 arrives it is asleep again and returns ``NO DATA``.
 
@@ -16,7 +16,7 @@ shared session layer executes on **both** transports.
 
 This is the generic primitive (idea 1). The Ioniq SKM relay procedure
 (:mod:`canlib.modes.skm_wakeup`, idea 3) builds on the same
-:func:`rapid_read <canlib.session_manager.SessionManager.rapid_read_wake>`
+:func:`rapid_read <canlib.transport.session_manager.SessionManager.rapid_read_wake>`
 primitive and adds relay actuation, gated behind the ``skm_wakeup`` profile
 quirk.
 

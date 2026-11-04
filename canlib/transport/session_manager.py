@@ -28,9 +28,9 @@ Usage:
 import asyncio
 import time
 
-from .transport import keepalive
-from .transport.protocol import Terminal
-from .wake import WakePlan
+from canlib.transport import keepalive
+from canlib.transport.protocol import Terminal
+from canlib.transport.wake import WakePlan
 
 
 class SessionManager:
@@ -137,7 +137,7 @@ class SessionManager:
                 ``10 03`` (e.g. the BMS). Programming/unknown modes are refused by
                 the command-safety guard unless ``--unsafe``.
             wake_plan: Optional profile-declared wake ritual (see
-                :mod:`canlib.wake`). When ``wake`` is set and a plan is given, its
+                :mod:`canlib.transport.wake`). When ``wake`` is set and a plan is given, its
                 rapid-fire prime loop is used instead of the single ``10 01`` —
                 the way to rouse a fast-sleeping ECU (e.g. a Smart Key Module).
                 The plan's ``session_mode`` overrides ``mode`` when it differs

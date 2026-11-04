@@ -1,9 +1,9 @@
-"""Tests for canlib.wake (per-ECU wake ritual resolver) + SessionManager wiring."""
+"""Tests for canlib.transport.wake (per-ECU wake ritual resolver) + SessionManager wiring."""
 
 import pytest
 
-from canlib.session_manager import SessionManager
-from canlib.wake import (
+from canlib.transport.session_manager import SessionManager
+from canlib.transport.wake import (
     DEFAULT_ATTEMPTS,
     DEFAULT_INTERVAL_MS,
     DEFAULT_PRIME,

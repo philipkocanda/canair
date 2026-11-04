@@ -9,10 +9,7 @@
     "poll_schedule",
     "response_frames",
     "scan_presets",
-    "scan_state",
-    "session_manager",
-    "timing",
-    "wake"
+    "scan_state"
   ],
   "root_init_internal_imports": 0,
   "oversized_modules": {
@@ -84,7 +81,6 @@
     "canlib.modes",
     "canlib.modes.dtc",
     "canlib.states",
-    "canlib.transport",
     "canlib.tui",
     "canlib.variants",
     "canlib.yaml_edit",
@@ -101,11 +97,8 @@
     "test_poll_schedule.py",
     "test_response_frames_persist.py",
     "test_session_identity.py",
-    "test_session_manager.py",
-    "test_timing.py",
     "test_validate_duplicate_keys.py",
     "test_variant_consumers.py",
-    "test_wake.py",
     "test_wican_model_guard.py"
   ]
 }

@@ -153,7 +153,7 @@ async def mode_action(
 ) -> None:
     """Check, confirm and send one profile action (see the module docstring)."""
     from canlib.actions import load_actions
-    from canlib.session_manager import SessionManager
+    from canlib.transport.session_manager import SessionManager
 
     out = sys.stderr if as_json else sys.stdout
     actions = load_actions()

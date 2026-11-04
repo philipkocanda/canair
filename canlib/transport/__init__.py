@@ -7,6 +7,14 @@ which drives the bus with client-side ISO-TP. The ELM327 WebSocket terminal
 dongle does ISO-TP. Transports are described once in
 :data:`canlib.transport.config.TRANSPORTS`; register a new spec there to add
 another backend.
+
+Belongs: moving bytes to and from the car, ISO-TP framing, the ELM327 and raw SLCAN engines, the
+per-exchange policies (keepalive, link latency, wake, timeouts, frame counts), the transport
+choice and fallback, the session manager and the per-ECU response log.
+Not here: what a live operation does with a terminal (``modes/``), what may be sent
+(``safety/``) and the adapter's HTTP API (``device/``).
+Imports: ``safety``, ``uds``, ``ecus``, ``device``, ``config`` and ``core``. Operations see only
+the ``Terminal`` protocol, never a concrete terminal.
 """
 
 from .channel import Channel, TcpChannel, WebSocketChannel

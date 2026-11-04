@@ -270,7 +270,7 @@ class TestElmCostAttribution:
         from contextlib import asynccontextmanager
 
         from canlib.modes.multi_exec import _read_single
-        from canlib.session_manager import SessionManager
+        from canlib.transport.session_manager import SessionManager
 
         class SerialTerminal(_ElmTerminal):
             """Serialises transactions like the real ELM327 engine."""

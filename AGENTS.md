@@ -758,7 +758,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   `--diff` and gated (`_contribute_gates.py::captures`, which also warns on unsplit multi-DID
   replies the contribution adds), since a stale source looks identical. `--diff` previews,
   `--dry-run` stops before pushing, `--yes` skips prompts, `--no-captures` ships definitions only.
-  Layering: `canlib/contribute.py` = git/gh orchestration; `commands/contribute.py` = CLI +
+  Layering: `canlib/contribute/__init__.py` = git/gh orchestration; `commands/contribute.py` = CLI +
   pipeline; `_contribute_gates.py` = the pre-flight policy; `_contribute_report.py` = the
   human/`--json` reporting duality. Read the **contributing-profiles** skill before using it.
 - **`canair update`** — Updates the CLI from its git-clone install: reports current vs latest
@@ -889,7 +889,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   `addressing.rx_offset`, itself `+0x08`, or the byte-swapped id for `normal_fixed_29bit`), optional
   per-ECU `addressing:` (`mode` + the make-specific `target_address`/`source_address`/`fc_id`),
   `can_bus:` (flow list of `can_buses.yaml` codes), optional `wake:` (a per-ECU **wake ritual** for
-  a fast-sleeping ECU — resolver `canlib/wake.py`), `scan_log:`, `dtcs:`, `pids:`, `iocontrol:`,
+  a fast-sleeping ECU — resolver `canlib/transport/wake.py`), `scan_log:`, `dtcs:`, `pids:`, `iocontrol:`,
   optional `iocontrol_scan_ranges:`, `routines:`, `research:`. Identity-only modules (AMP/SRS) have
   no `pids:`. A `dtcs:` section may state `source`/`source_links`/`verified` once, next to its
   codes (`canlib/dtc/definitions.py`); the loader resolves them into each code like PID defaults,

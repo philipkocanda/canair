@@ -35,6 +35,7 @@ from rich.text import Text
 from canlib.captures.keepmode import KEEP_LAST, KeepMode
 from canlib.core.eventlog import log_event
 from canlib.expression.results import EcuFrame, ResultEntry
+from canlib.transport.session_manager import SessionManager
 from canlib.uds.notation import ByteNotation
 
 from .. import config
@@ -51,7 +52,6 @@ from ..poll_backoff import (
     slowdown_log_message,
 )
 from ..poll_schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, Key, PollScheduler, Schedule
-from ..session_manager import SessionManager
 from ._monitor_link_events import LinkEventTracker
 from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _write_merged
 from ._monitor_render import (

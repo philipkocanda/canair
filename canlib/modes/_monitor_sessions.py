@@ -14,7 +14,7 @@ The controller keeps thin delegating methods for the TUI/tested surface and hold
 the transport state (``sm``/``raw_client``/``_ecu_index``) the sessions read via
 their ``self.c`` back-ref.
 
-The raw backend has no :class:`~canlib.session_manager.SessionManager` (sessions
+The raw backend has no :class:`~canlib.transport.session_manager.SessionManager` (sessions
 and keepalives are not tracked there at all), so its opened-session mode is held
 here as ``raw_modes``: ECU name (upper) -> last-opened ``10 xx`` sub-function.
 """

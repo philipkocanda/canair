@@ -3,7 +3,7 @@
 Every request client (:class:`~canlib.transport.wican_terminal.WiCANTerminal`,
 :class:`~canlib.transport.raw_terminal.RawTerminal`,
 :class:`~canlib.transport.uds_raw.RawUdsClient`) already keeps a
-:class:`~canlib.timing.TimingRecorder` (``.timings``); this is the sibling that
+:class:`~canlib.transport.timing.TimingRecorder` (``.timings``); this is the sibling that
 counts *outcomes* rather than *latency*. Each completed UDS exchange is
 classified (:func:`canlib.uds.response.classify_response`) into an outcome bucket
 and tallied, so:

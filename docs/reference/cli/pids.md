@@ -843,11 +843,12 @@ usage: canair pids set-wake [-h] --method {rapid_read,session,relay}
                             [--no-validate]
                             ecu
 
-Declare a per-ECU wake ritual (canlib.wake). Some modules (e.g. a Smart Key
-Module) power their CAN transceiver only briefly and sleep again within a
-second or two, so a single 10 01 wake races the sleep timer. `rapid_read`
-fires a cheap prime PID back-to-back to hold the transceiver awake, then opens
-a session — honoured by `session <ECU> --wake` on both transports.
+Declare a per-ECU wake ritual (canlib.transport.wake). Some modules (e.g. a
+Smart Key Module) power their CAN transceiver only briefly and sleep again
+within a second or two, so a single 10 01 wake races the sleep timer.
+`rapid_read` fires a cheap prime PID back-to-back to hold the transceiver
+awake, then opens a session — honoured by `session <ECU> --wake` on both
+transports.
 
 positional arguments:
   ecu

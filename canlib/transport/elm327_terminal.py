@@ -43,11 +43,11 @@ from canlib.safety.blocklist import SessionPolicy, enforce_command_safety
 from canlib.transport.ecu_log import log_command, log_response
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
+from canlib.transport.timing import TimingRecorder
 from canlib.uds.addressing import AddressBook
 from canlib.uds.parse import compact, parse_uds_response
 from canlib.uds.response import CAT_DECODE, CAT_STALE, UdsResponse
 
-from ..timing import TimingRecorder
 from .channel import Channel
 from .elm327_addressing import (
     DEFAULT_FC_DATA,

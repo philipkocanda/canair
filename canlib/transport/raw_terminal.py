@@ -30,6 +30,7 @@ import isotp
 from canlib.safety.blocklist import SessionPolicy, enforce_command_safety
 from canlib.transport.ecu_log import log_response
 from canlib.transport.stats import TransportStats
+from canlib.transport.timing import TimingRecorder
 from canlib.uds.addressing import (
     DEFAULT_MODE,
     DEFAULT_RX_OFFSET,
@@ -44,7 +45,6 @@ from canlib.uds.nrc import is_response_pending
 from canlib.uds.parse import parse_uds_response
 from canlib.uds.response import UdsResponse
 
-from ..timing import TimingRecorder
 from . import keepalive
 from .functional import (
     CAN_FD_REFUSAL,

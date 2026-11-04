@@ -11,9 +11,9 @@ import re
 
 from canlib.ecus.pids import build_param_index
 from canlib.query.steps import _query_selectors, resolve_tx_id
+from canlib.transport.session_manager import SessionManager
 from canlib.uds.parse import parse_uds_response
 
-from ..session_manager import SessionManager
 from ..transport.elm327_terminal import Elm327Terminal
 from .multi_exec import _exec_query, _exec_raw
 

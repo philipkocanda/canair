@@ -86,7 +86,7 @@ async def run_session_guarded(
             pids_data = load_pids()
         await operation(terminal, pids_data)
         if options.timings:
-            from canlib.timing import print_timings
+            from canlib.transport.timing import print_timings
 
             print_timings(terminal.timings, as_json=options.as_json)
         return 0

@@ -1,11 +1,11 @@
-"""Tests for canlib.timing — per-(ECU, PID) round-trip timing instrumentation."""
+"""Tests for canlib.transport.timing — per-(ECU, PID) round-trip timing instrumentation."""
 
 from __future__ import annotations
 
 import json
 
-import canlib.timing as timing_mod
-from canlib.timing import Stat, TimingRecorder, print_timings, render_timings
+import canlib.transport.timing as timing_mod
+from canlib.transport.timing import Stat, TimingRecorder, print_timings, render_timings
 
 
 def test_stat_aggregation():

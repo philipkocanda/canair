@@ -25,12 +25,12 @@ from canlib.core.eventlog import log_event
 from canlib.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
+from canlib.transport.timing import TimingRecorder
 from canlib.uds.addressing import DEFAULT_RX_OFFSET, EcuAddress, build_isotp_address
 from canlib.uds.nrc import is_response_pending
 from canlib.uds.payload import payload_echo_mismatch
 from canlib.uds.response import CAT_STALE
 
-from ..timing import TimingRecorder
 from .isotp_stack import build_isotp_stack
 
 # Quiet can-isotp's transient recovered-timeout warnings (e.g. a cold ECU's first

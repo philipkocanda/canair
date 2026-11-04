@@ -21,12 +21,12 @@ from canlib.privacy.sensitive import MASK, request_hidden
 from canlib.query import QueryError, inferred_request, pids_named_by
 from canlib.query.steps import resolve_tx_id
 from canlib.safety.actuation import on_refusal
+from canlib.transport.session_manager import SessionManager
 from canlib.uds.describe import decode_uds_response
 from canlib.uds.echo import request_echo
 from canlib.uds.response import UdsResponse
 
 from ..formatting import print_ecu_results, print_hexdump
-from ..session_manager import SessionManager
 from ..transport.elm327_terminal import Elm327Terminal
 from ._iocontrol_actuate import send_iocontrol
 from .multi_batch import (
@@ -68,7 +68,7 @@ async def _exec_session(
     if tx_id is None:
         print(f"  ERROR: Unknown ECU '{target}'. Use a name (IGPM) or hex ID (770).")
         return False
-    # A profile-declared wake ritual (canlib.wake) for a fast-sleeping ECU is
+    # A profile-declared wake ritual (canlib.transport.wake) for a fast-sleeping ECU is
     # honoured when --wake is set — the rapid-fire prime loop instead of a single
     # 10 01. Resolved into the ECU index by build_ecu_index; None = default wake.
     wake_plan = None

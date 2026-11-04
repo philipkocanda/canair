@@ -304,7 +304,7 @@ sessions_fields:
 #     notes: str             # optional — free text (why this ritual, quirks)
 # The `relay` method additionally uses the ECU's iocontrol: block to close a power
 # relay after waking (the Ioniq SKM ACC/IGN procedure); it is gated behind the
-# profile `skm_wakeup` quirk. See canlib/wake.py (resolver) and canlib/safety/quirks.py.
+# profile `skm_wakeup` quirk. See canlib/transport/wake.py (resolver) and canlib/safety/quirks.py.
 wake_fields:
   required: [method]
   optional: [prime_pid, attempts, interval_ms, sleep_timer_ms, session_mode, notes]

@@ -14,7 +14,7 @@ Today there are four quirks:
   (ACC/IGN) via IOControl. The relay DIDs / magic bytes / addresses are
   Ioniq-particular, so the ``skm-wake`` relay command is refused for profiles
   that don't declare this capability. (Merely *reading* a fast-sleeping ECU is
-  the make-neutral per-ECU ``wake:`` block — :mod:`canlib.wake` — not this quirk.)
+  the make-neutral per-ECU ``wake:`` block — :mod:`canlib.transport.wake` — not this quirk.)
 - :data:`NISSAN_C0_SESSION` — Nissan ECUs gate their KWP2000 actuator tests
   (``0x30``) and many ``0x21`` reads behind the OEM diagnostic session ``10 C0``.
   The KWP2000 ``0x80``-``0xFF`` session band is OEM-defined, so the command
@@ -52,7 +52,7 @@ from canlib.uds.protocol import KWP
 # rouse the SKM, then actuate a power relay (ACC/IGN) via IOControl. Make-specific
 # (relay DIDs / magic bytes / addresses are Ioniq-particular), so the `skm-wake`
 # relay command is gated behind this capability. Reading a fast-sleeping ECU is
-# the make-neutral per-ECU `wake:` block (canlib.wake); this quirk is only the
+# the make-neutral per-ECU `wake:` block (canlib.transport.wake); this quirk is only the
 # relay-actuation extension.
 SKM_WAKEUP: Final = "skm_wakeup"
 

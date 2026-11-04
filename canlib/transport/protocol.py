@@ -24,10 +24,10 @@ from typing import Protocol, runtime_checkable
 
 from canlib.safety.blocklist import SessionPolicy
 from canlib.transport.stats import TransportStats
+from canlib.transport.timing import TimingRecorder
 from canlib.uds.frame_counts import FrameCountLedger
 from canlib.uds.response import UdsResponse
 
-from ..timing import TimingRecorder
 from .functional import FunctionalResult
 
 

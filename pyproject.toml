@@ -158,15 +158,12 @@ source_modules = [
     "canlib.safety",
     "canlib.scan_presets",
     "canlib.scan_state",
-    "canlib.session_manager",
     "canlib.states",
-    "canlib.timing",
     "canlib.transport",
     "canlib.tui",
     "canlib.uds",
     "canlib.validation",
     "canlib.variants",
-    "canlib.wake",
     "canlib.yaml_edit",
 ]
 forbidden_modules = [
@@ -207,15 +204,12 @@ source_modules = [
     "canlib.safety",
     "canlib.scan_presets",
     "canlib.scan_state",
-    "canlib.session_manager",
     "canlib.states",
-    "canlib.timing",
     "canlib.transport",
     "canlib.tui",
     "canlib.uds",
     "canlib.validation",
     "canlib.variants",
-    "canlib.wake",
     "canlib.yaml_edit",
 ]
 forbidden_modules = [
@@ -259,14 +253,11 @@ source_modules = [
     "canlib.safety",
     "canlib.scan_presets",
     "canlib.scan_state",
-    "canlib.session_manager",
     "canlib.states",
-    "canlib.timing",
     "canlib.transport",
     "canlib.uds",
     "canlib.validation",
     "canlib.variants",
-    "canlib.wake",
     "canlib.yaml_edit",
 ]
 forbidden_modules = [
@@ -313,15 +304,12 @@ source_modules = [
     "canlib.safety",
     "canlib.scan_presets",
     "canlib.scan_state",
-    "canlib.session_manager",
     "canlib.states",
-    "canlib.timing",
     "canlib.transport",
     "canlib.tui",
     "canlib.uds",
     "canlib.validation",
     "canlib.variants",
-    "canlib.wake",
     "canlib.yaml_edit",
 ]
 forbidden_modules = [
@@ -421,15 +409,12 @@ forbidden_modules = [
     "canlib.safety",
     "canlib.scan_presets",
     "canlib.scan_state",
-    "canlib.session_manager",
     "canlib.states",
-    "canlib.timing",
     "canlib.transport",
     "canlib.tui",
     "canlib.uds",
     "canlib.validation",
     "canlib.variants",
-    "canlib.wake",
     "canlib.yaml_edit",
 ]
 allow_indirect_imports = true
