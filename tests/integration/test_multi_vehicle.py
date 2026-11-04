@@ -8,7 +8,7 @@ import can
 import isotp
 
 from canlib.modes.discover import discovery_targets, fmt_id
-from canlib.quirks import SKM_WAKEUP, has_quirk, resolve_quirks
+from canlib.safety.quirks import SKM_WAKEUP, has_quirk, resolve_quirks
 from canlib.transport.slcan_tcp import format_slcan_frame
 from canlib.uds.addressing import AddressingMode, EcuAddress, build_isotp_address
 

@@ -18,7 +18,7 @@ from canlib import profile
 from canlib.commands import discover as discover_cmd
 from canlib.modes.functional_sweep import classify_round, group_by_bus, round_to_capture
 from canlib.pids import clear_cache
-from canlib.safety import SafetyBlocked, check_functional_request
+from canlib.safety.blocklist import SafetyBlocked, check_functional_request
 from canlib.transport.elm327_addressing import AdapterState
 from canlib.transport.elm327_functional import elm_functional_exchange, parse_header_lines
 from canlib.transport.elm327_terminal import Elm327Terminal
@@ -80,7 +80,7 @@ class TestAllowList:
         import argparse
         from pathlib import Path
 
-        from canlib.safety import FUNCTIONAL_READS
+        from canlib.safety.blocklist import FUNCTIONAL_READS
 
         parser = discover_cmd.add_parser(argparse.ArgumentParser().add_subparsers())
         epilog = " ".join((parser.epilog or "").split())

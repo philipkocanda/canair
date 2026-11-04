@@ -13,7 +13,7 @@ import asyncio
 import pytest
 
 from canlib.modes.monitor import MonitorController
-from canlib.safety import SafetyBlocked, SessionPolicy
+from canlib.safety.blocklist import SafetyBlocked, SessionPolicy
 from canlib.transport.config import ConnectionOptions
 from canlib.uds.addressing import EcuAddress
 from canlib.uds.protocol import KWP

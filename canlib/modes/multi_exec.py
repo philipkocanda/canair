@@ -17,11 +17,11 @@ from typing import Literal
 from canlib.core.eventlog import log_event
 from canlib.expression.results import ResultEntry
 from canlib.query import QueryError, inferred_request, pids_named_by
+from canlib.safety.actuation import on_refusal
 from canlib.uds.describe import decode_uds_response
 from canlib.uds.echo import request_echo
 from canlib.uds.response import UdsResponse
 
-from ..actuation import on_refusal
 from ..formatting import print_ecu_results, print_hexdump
 from ..pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index, ecu_index_key
 from ..sensitive import MASK, request_hidden

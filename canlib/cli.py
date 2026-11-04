@@ -334,7 +334,7 @@ def main(argv: list[str] | None = None) -> int:
     from canlib import ansi
     from canlib.captures.io import LegacyCaptureError
     from canlib.profile import ProfileError, set_active
-    from canlib.safety import SafetyBlocked
+    from canlib.safety.blocklist import SafetyBlocked
     from canlib.yaml_edit.errors import EditError
 
     # Resolve the active vehicle profile before dispatching.

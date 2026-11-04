@@ -255,7 +255,7 @@ async def mode_multi(
             step = f"[{i + 1}/{len(commands)}]"
 
             if cmd_type == "skm-wake":
-                from ..quirks import SKM_WAKEUP, has_quirk
+                from canlib.safety.quirks import SKM_WAKEUP, has_quirk
 
                 if not has_quirk(pids_data, SKM_WAKEUP):
                     print(

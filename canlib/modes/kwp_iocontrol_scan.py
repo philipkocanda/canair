@@ -51,7 +51,7 @@ import sys
 from typing import NamedTuple
 
 from canlib.modes.discovery_scan import DiscoveryProbe, mode_discovery_scan
-from canlib.quirks import NISSAN_C0_SESSION, has_quirk
+from canlib.safety.quirks import NISSAN_C0_SESSION, has_quirk
 from canlib.transport.protocol import Terminal
 from canlib.uds.response import UdsResponse
 

@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 from canlib.modes.monitor_raw import MonitorRawPoller, _raw_pid_result
 from canlib.modes.routines import _RoutinesTUI
-from canlib.safety import SessionPolicy
+from canlib.safety.blocklist import SessionPolicy
 from canlib.uds.protocol import KWP, UDS
 from tests.support.fakes import FakeTerminal, nrc
 

@@ -22,11 +22,11 @@ import asyncio
 from contextlib import AbstractAsyncContextManager
 from typing import Protocol, runtime_checkable
 
+from canlib.safety.blocklist import SessionPolicy
 from canlib.transport.stats import TransportStats
 from canlib.uds.frame_counts import FrameCountLedger
 from canlib.uds.response import UdsResponse
 
-from ..safety import SessionPolicy
 from ..timing import TimingRecorder
 from .functional import FunctionalResult
 
@@ -60,7 +60,7 @@ class Terminal(Protocol):
     max_request_bytes: int
 
     # Each ECU's session protocol plus the profile's allowances, applied by the
-    # command blocklist on every outbound request (canlib.safety). Set from the
+    # command blocklist on every outbound request (canlib.safety.blocklist). Set from the
     # profile when the terminal is built; a guarded profile action swaps in a
     # policy with its exact grants for the length of its own send.
     session_policy: SessionPolicy
@@ -96,7 +96,7 @@ class Terminal(Protocol):
 
         The one request that draws many replies, which ``send_uds`` cannot carry.
         Refuses (``SafetyBlocked``) anything outside
-        :func:`canlib.safety.check_functional_request`.
+        :func:`canlib.safety.blocklist.check_functional_request`.
         """
         ...
 

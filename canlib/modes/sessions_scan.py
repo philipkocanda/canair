@@ -12,7 +12,7 @@ This is a read-only probe: entering a diagnostic session has no side effects and
 the ECU auto-reverts to the default session once TesterPresent stops. Only the
 SAFE session modes are probed — the programming sessions (UDS ``0x02``, also as
 ``0x82`` with the suppress bit, and KWP2000 ``0x85``) are NEVER sent: every mode is
-checked against :mod:`canlib.safety` for the ECU's protocol before the sweep.
+checked against :mod:`canlib.safety.blocklist` for the ECU's protocol before the sweep.
 
 Results are written to each ``ecus/<ecu>.yaml`` under a structured ``sessions:``
 section (see the schema's ``sessions_fields``), replacing the free-text session
@@ -28,8 +28,8 @@ import asyncio
 import sys
 from typing import NamedTuple
 
-from canlib.quirks import allowed_session_modes
-from canlib.safety import SessionPolicy
+from canlib.safety.blocklist import SessionPolicy
+from canlib.safety.quirks import allowed_session_modes
 from canlib.transport.protocol import Terminal
 from canlib.uds.layout import SUBFUNCTION_NAMES
 from canlib.uds.protocol import KWP, classify_protocol
@@ -43,7 +43,7 @@ SESSION_NAMES = SUBFUNCTION_NAMES[0x10]
 
 # Safe session sub-functions to probe, per protocol. Programming sessions
 # (UDS 0x02, KWP2000 0x85) are deliberately excluded — they are blocked by
-# canlib.safety and must never be sent to this car.
+# canlib.safety.blocklist and must never be sent to this car.
 UDS_SESSION_MODES = (0x01, 0x03)
 KWP_SESSION_MODES = (0x81, 0x82, 0x83)
 
@@ -194,7 +194,7 @@ async def mode_sessions_scan(
     For each ECU the session-mode set is auto-selected from its ``id_protocol``
     (UDS → 01/03; KWP2000 → 81/82/83 plus any OEM session a profile quirk permits
     on KWP2000, e.g. Nissan's C0) unless an explicit ``modes`` tuple is given.
-    Every mode is checked against :mod:`canlib.safety` for that ECU first; a
+    Every mode is checked against :mod:`canlib.safety.blocklist` for that ECU first; a
     refused one is skipped with its reason. Hits are written to each
     ``ecus/<ecu>.yaml`` under a ``sessions:`` section.
 

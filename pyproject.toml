@@ -131,7 +131,6 @@ name = "Nothing below the interface imports the CLI"
 type = "forbidden"
 source_modules = [
     "canlib.actions",
-    "canlib.actuation",
     "canlib.analysis",
     "canlib.ansi",
     "canlib.blind",
@@ -170,7 +169,6 @@ source_modules = [
     "canlib.profile_create",
     "canlib.profile_names",
     "canlib.query",
-    "canlib.quirks",
     "canlib.response_frames",
     "canlib.safety",
     "canlib.scan_presets",
@@ -204,7 +202,6 @@ name = "Nothing below the interface imports the live operations (modes)"
 type = "forbidden"
 source_modules = [
     "canlib.actions",
-    "canlib.actuation",
     "canlib.analysis",
     "canlib.ansi",
     "canlib.blind",
@@ -242,7 +239,6 @@ source_modules = [
     "canlib.profile_create",
     "canlib.profile_names",
     "canlib.query",
-    "canlib.quirks",
     "canlib.response_frames",
     "canlib.safety",
     "canlib.scan_presets",
@@ -276,7 +272,6 @@ name = "Only the TUI imports textual"
 type = "forbidden"
 source_modules = [
     "canlib.actions",
-    "canlib.actuation",
     "canlib.analysis",
     "canlib.ansi",
     "canlib.blind",
@@ -317,7 +312,6 @@ source_modules = [
     "canlib.profile_create",
     "canlib.profile_names",
     "canlib.query",
-    "canlib.quirks",
     "canlib.response_frames",
     "canlib.safety",
     "canlib.scan_presets",
@@ -355,7 +349,6 @@ name = "Only the CLI imports argparse"
 type = "forbidden"
 source_modules = [
     "canlib.actions",
-    "canlib.actuation",
     "canlib.analysis",
     "canlib.ansi",
     "canlib.blind",
@@ -394,7 +387,6 @@ source_modules = [
     "canlib.profile_create",
     "canlib.profile_names",
     "canlib.query",
-    "canlib.quirks",
     "canlib.response_frames",
     "canlib.safety",
     "canlib.scan_presets",
@@ -486,7 +478,6 @@ type = "forbidden"
 source_modules = ["canlib.core"]
 forbidden_modules = [
     "canlib.actions",
-    "canlib.actuation",
     "canlib.analysis",
     "canlib.ansi",
     "canlib.blind",
@@ -526,7 +517,6 @@ forbidden_modules = [
     "canlib.profile_create",
     "canlib.profile_names",
     "canlib.query",
-    "canlib.quirks",
     "canlib.response_frames",
     "canlib.safety",
     "canlib.scan_presets",

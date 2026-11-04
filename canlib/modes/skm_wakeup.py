@@ -4,7 +4,7 @@ Ioniq/HKMC-specific: the Smart Key Module relay DIDs (``B108``–``B10B``), the
 magic IOControl bytes (``0A0A05``), and the ECU addresses (SKM ``0x7A5``, IGPM
 ``0x770``, BCM ``0x7A0``) are all Ioniq-particular, so the ``skm-wake`` command
 is gated behind the profile ``skm_wakeup`` capability (see
-:mod:`canlib.quirks`) — it is refused for profiles that don't declare it.
+:mod:`canlib.safety.quirks`) — it is refused for profiles that don't declare it.
 
 This module is the *relay-actuation* extension (idea 3): rouse the SKM, then
 close a power relay (ACC/IGN). Merely *reading* a fast-sleeping ECU is the

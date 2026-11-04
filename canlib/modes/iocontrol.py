@@ -13,11 +13,11 @@ import termios
 import tty
 from pathlib import Path
 
-from canlib.actuation import on_refusal
 from canlib.modes._iocontrol_actuate import ActuatorState, IOControlActuator, send_iocontrol
 from canlib.modes._iocontrol_render import _truncate_text, render_iocontrol
 from canlib.modes.status import format_status_value, query_param_status
 from canlib.pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
+from canlib.safety.actuation import on_refusal
 from canlib.transport.protocol import Terminal
 from canlib.tui import terminal_columns as _terminal_columns
 from canlib.tui import terminal_lines as _terminal_lines
@@ -307,7 +307,7 @@ class _IOControlTUI:
         self.verbose = verbose
         # A KWP2000 ECU's actuators are service 0x30, whose control-option byte is
         # manufacturer-defined: an ON needs a declared release, and the UDS-shaped
-        # value keys are refused (canlib.actuation).
+        # value keys are refused (canlib.safety.actuation).
         self.protocol: DiagProtocol = ecu_info["protocol"]
         # Background status polling is OPT-IN. When enabled, the poll loop sends
         # each DID's release (2F{DID}00, returnControlToECU, on UDS) — which can

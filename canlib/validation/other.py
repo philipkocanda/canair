@@ -282,7 +282,7 @@ def _run_actions() -> int:
     from canlib.actions.plan import action_policy, plan_requests
     from canlib.pids import load_pids
     from canlib.profile import active
-    from canlib.safety import SafetyBlocked, SessionPolicy
+    from canlib.safety.blocklist import SafetyBlocked, SessionPolicy
 
     path = active().actions_file
     if not path.exists():

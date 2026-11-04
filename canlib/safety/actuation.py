@@ -24,10 +24,9 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Final, Literal
 
+from canlib.safety.blocklist import check_command_safety
 from canlib.uds.protocol import KWP, UDS, DiagProtocol
-
-from .safety import check_command_safety
-from .uds.services import service_info
+from canlib.uds.services import service_info
 
 RequestClass = Literal["read", "release", "actuate"]
 READ: Final[RequestClass] = "read"

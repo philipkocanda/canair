@@ -89,10 +89,10 @@ def functional_request_bytes(tx_id: int, request: str) -> bytes:
 
     Raises:
         SafetyBlocked: ``request`` is not one of the allowed reads
-            (:func:`canlib.safety.check_functional_request`).
+            (:func:`canlib.safety.blocklist.check_functional_request`).
         ValueError: ``tx_id`` is not a functional id.
     """
-    from canlib.safety import SafetyBlocked, check_functional_request
+    from canlib.safety.blocklist import SafetyBlocked, check_functional_request
     from canlib.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 
     if tx_id not in (FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID):

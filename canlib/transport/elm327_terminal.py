@@ -39,6 +39,7 @@ import time
 from collections.abc import AsyncIterator, Iterable
 
 from canlib.core.eventlog import log_event
+from canlib.safety.blocklist import SessionPolicy, enforce_command_safety
 from canlib.transport.ecu_log import log_command, log_response
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
@@ -46,7 +47,6 @@ from canlib.uds.addressing import AddressBook
 from canlib.uds.parse import compact, parse_uds_response
 from canlib.uds.response import CAT_DECODE, CAT_STALE, UdsResponse
 
-from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
 from .channel import Channel
 from .elm327_addressing import (
@@ -163,7 +163,7 @@ class Elm327Terminal:
         self.verbose = verbose
         self.unsafe = unsafe
         # Each ECU's session protocol + the profile's quirk allowances
-        # (canlib.safety.SessionPolicy); set by whoever builds the terminal from a
+        # (canlib.safety.blocklist.SessionPolicy); set by whoever builds the terminal from a
         # profile. The default knows no ECU, so the stricter reading applies.
         self.session_policy = SessionPolicy()
         # Expected-response-count digits, which let the adapter return as soon as a
@@ -811,8 +811,8 @@ class Elm327Terminal:
         """Broadcast ``request`` on the functional id ``tx_id`` and collect every reply.
 
         Best-effort on an ELM327 (see :mod:`canlib.transport.elm327_functional`).
-        Raises :class:`~canlib.safety.SafetyBlocked` for anything but an allowed
-        read (:func:`~canlib.safety.check_functional_request`).
+        Raises :class:`~canlib.safety.blocklist.SafetyBlocked` for anything but an allowed
+        read (:func:`~canlib.safety.blocklist.check_functional_request`).
         """
         req = functional_request_bytes(tx_id, request)
         return await elm_functional_exchange(self, tx_id, req, window)

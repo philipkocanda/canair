@@ -74,11 +74,11 @@ class MonitorSessions:
     def check(self, ecu_name: str, mode: str) -> str | None:
         """The command blocklist's verdict on ``10 <mode>`` for one ECU (None = safe).
 
-        Through the same :class:`~canlib.safety.SessionPolicy` the terminals use,
+        Through the same :class:`~canlib.safety.blocklist.SessionPolicy` the terminals use,
         so the picker, a live switch and the raw-backend setup can never disagree
         with what the transport itself would refuse.
         """
-        from ..safety import SessionPolicy
+        from canlib.safety.blocklist import SessionPolicy
 
         if len(mode) != 2 or any(c not in "0123456789ABCDEFabcdef" for c in mode):
             return f"Invalid session mode {mode!r} (expected one hex byte, e.g. 03)."
@@ -94,7 +94,7 @@ class MonitorSessions:
         picker shows what's *actually confirmed* on this ECU (``supported``
         True/False); falls back to a fixed candidate list with
         ``supported=None`` (untested) when the ECU has no scan history yet.
-        Either way only modes canlib.safety permits for *this* ECU's protocol
+        Either way only modes canlib.safety.blocklist permits for *this* ECU's protocol
         are offered — never a programming session, and never ``0x82`` on an ECU
         that is not known to speak KWP2000 (on UDS it is programmingSession).
         """

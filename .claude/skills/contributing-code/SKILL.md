@@ -16,7 +16,7 @@ and the generated `docs/reference/cli/` — read them there rather than trusting
 ## First principle — describe intent, not code that will drift
 
 Snippets, signatures, and name lists go stale silently, and an agent that trusts them builds on a
-false premise. Point at the file to read *now* ("the guard is in `canlib/safety.py`") instead of
+false premise. Point at the file to read *now* ("the guard is in `canlib/safety/blocklist.py`") instead of
 pasting its contents; treat every specific below as a pointer to verify against the tree, and fix it
 if it has drifted (Boy Scout). This applies to this skill too — keep it intent-level.
 
@@ -36,7 +36,7 @@ if it has drifted (Boy Scout). This applies to this skill too — keep it intent
    both the WiCAN Pro and the classic). Don't reintroduce a transport-specific default or code path.
    See Transports.
 3. **Never break the real car.** No UDS programming session (`10 02`), no firmware/write/upload
-   services. The blocklist in `canlib/safety.py` exists for this — extend it, never bypass it.
+   services. The blocklist in `canlib/safety/blocklist.py` exists for this — extend it, never bypass it.
 4. **Tests pass and cover the change** (see Test coverage).
 5. **Two data domains, one tool.** canair analyzes diagnostic request/response traffic *and* raw
    broadcast CAN frames; treat frames as first-class and the WiCAN as a replaceable transport.
@@ -302,7 +302,7 @@ up** when a structural change is warranted instead of bolting on more.
   shared layer, leave it a flat sibling or push it down to `canlib/` if nothing about it is
   CLI-specific. A *library* module importing up into `canlib.commands` is always a bug.
 - **Duplication across transports/commands is a refactor signal.** The command blocklist was once
-  duplicated *and divergent* between terminals; it now lives once in `canlib/safety.py` and both
+  duplicated *and divergent* between terminals; it now lives once in `canlib/safety/blocklist.py` and both
   await it. Extract to one shared home rather than maintaining two.
 - **When incremental changes compound complexity, propose a redesign** before adding another layer —
   surfacing the tradeoff is part of the job even if the user declines.

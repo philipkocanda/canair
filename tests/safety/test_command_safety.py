@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.safety import (
+from canlib.safety.blocklist import (
     SessionPolicy,
     check_command_safety,
     check_session_mode,
@@ -115,7 +115,7 @@ def test_programming_sessions_cannot_be_allowed():
 
 
 def test_nissan_quirk_allows_only_the_c0_session_and_only_on_kwp():
-    from canlib.quirks import NISSAN_C0_SESSION, allowed_session_modes
+    from canlib.safety.quirks import NISSAN_C0_SESSION, allowed_session_modes
 
     meta = {"quirks": [NISSAN_C0_SESSION]}
     assert allowed_session_modes(meta, KWP) == {0xC0}
@@ -126,7 +126,7 @@ def test_nissan_quirk_allows_only_the_c0_session_and_only_on_kwp():
 
 
 def test_hk_quirk_allows_only_the_90_session_and_only_on_kwp():
-    from canlib.quirks import HK_90_SESSION, allowed_session_modes
+    from canlib.safety.quirks import HK_90_SESSION, allowed_session_modes
 
     meta = {"quirks": [HK_90_SESSION]}
     assert allowed_session_modes(meta, KWP) == {0x90}
@@ -329,7 +329,7 @@ class TestActionGrants:
         assert check_command_safety("10D1", SessionPolicy.from_profile(data), self.FUNCTIONAL)
 
     def test_the_quirk_declares_only_the_functional_sleep_request(self):
-        from canlib.quirks import action_grants
+        from canlib.safety.quirks import action_grants
 
         assert action_grants({"quirks": ["hk_forced_sleep"]}) == {(self.FUNCTIONAL, "10D1")}
         assert action_grants({"quirks": ["hk_90_session"]}) == frozenset()

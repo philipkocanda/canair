@@ -57,7 +57,7 @@ from canlib.uds.protocol import KWP
 SKM_WAKEUP: Final = "skm_wakeup"
 
 # The Nissan OEM diagnostic session (10 C0), which the shared blocklist refuses on
-# makes that never declared it (canlib.safety).
+# makes that never declared it (canlib.safety.blocklist).
 NISSAN_C0_SESSION: Final = "nissan_c0_session"
 
 # The Hyundai/Kia KWP2000 OEM session (10 90) their actuator tests run in.
@@ -82,7 +82,7 @@ RETIRED_QUIRKS: Final[dict[str, str]] = {
 # DiagnosticSessionControl sub-functions a quirk makes safe to enter, keyed by the
 # protocol whose ECUs it applies to. Only ever widens the OEM band the blocklist
 # guards; it cannot reach the programming or safety-system sessions, which
-# canlib.safety refuses regardless. Nissan's C0 is a KWP2000 session: on a UDS ECU
+# canlib.safety.blocklist refuses regardless. Nissan's C0 is a KWP2000 session: on a UDS ECU
 # the same byte is OEM session 0x40 with the suppress-response bit, so the
 # allowance is scoped to KWP2000 ECUs.
 _QUIRK_SESSIONS: Final[dict[str, dict[str, frozenset[int]]]] = {
@@ -93,7 +93,7 @@ _QUIRK_SESSIONS: Final[dict[str, dict[str, frozenset[int]]]] = {
 
 # Exact (request id, request hex) pairs a quirk lets a guarded profile action send
 # although the command blocklist refuses them. Only soft blocks can be lifted
-# (canlib.safety never lifts a programming or safety-system session), and the
+# (canlib.safety.blocklist never lifts a programming or safety-system session), and the
 # exemption is never part of the profile's ordinary session policy.
 _QUIRK_ACTION_GRANTS: Final[dict[str, frozenset[tuple[int, str]]]] = {
     HK_FORCED_SLEEP: frozenset({(FUNCTIONAL_11BIT_ID, "10D1")}),

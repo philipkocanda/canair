@@ -13,9 +13,9 @@ from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, Literal, TypedDict, get_args
 
-from canlib.actuation import default_release, normalize_request
 from canlib.core import yaml_io
 from canlib.dtc.definitions import effective_entries as _effective_dtc_entries
+from canlib.safety.actuation import default_release, normalize_request
 from canlib.signal_category import category_of
 from canlib.uds.addressing import AddressingMode, EcuAddress, resolve_ecu_address
 from canlib.uds.multi_did import resolve_multi_did_max
@@ -208,7 +208,7 @@ class IoControlCommand(TypedDict):
     ``release`` is the request that hands the output back to the ECU, sent on exit,
     on Ctrl-C and by ``--poll``: the entry's declared ``release:``, else the one a
     UDS ``0x2F`` request implies (``2F {DID} 00``), else ``""``. A KWP2000 ``0x30``
-    command implies none (:mod:`canlib.actuation`), so it has a release only when
+    command implies none (:mod:`canlib.safety.actuation`), so it has a release only when
     the profile declares one, and ``canair io`` refuses its ``on`` until then.
 
     ``discovery`` marks an entry merged in from ``iocontrol_discoveries:``

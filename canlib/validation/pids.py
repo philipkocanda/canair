@@ -819,13 +819,13 @@ def _validate_session_mode(
     """Validate an actuator's optional ``session_mode`` (one quoted hex byte).
 
     The byte is judged by the same rule the runtime guard applies
-    (:func:`canlib.safety.session_mode_block`) for the ECU's protocol: a hard
+    (:func:`canlib.safety.blocklist.session_mode_block`) for the ECU's protocol: a hard
     block (programming / safety-system session) is an error; a mode the guard
     would refuse without a profile allowance is a warning, because the actuator
     could only ever be reached with ``--unsafe``.
     """
-    from canlib.quirks import allowed_session_modes
-    from canlib.safety import session_mode_block
+    from canlib.safety.blocklist import session_mode_block
+    from canlib.safety.quirks import allowed_session_modes
 
     if value is None:
         return
@@ -923,7 +923,7 @@ def _validate_iocontrol_release(did_def, did_label, protocol, errors, warnings) 
     addresses another output, or repeats the ON request, would leave it driven. A
     KWP2000 ``0x30`` ON without one is refused at run time; say so here too.
     """
-    from canlib.actuation import (
+    from canlib.safety.actuation import (
         IOCONTROL_UDS,
         UDS_RETURN_CONTROL,
         default_release,
@@ -1395,7 +1395,7 @@ def _validate_physical_bands(bands: Any) -> list[str]:
 
 def _validate_quirks(quirks: Any) -> list[str]:
     """Validate the profile.yaml ``quirks:`` list against the known vocabulary."""
-    from canlib.quirks import KNOWN_QUIRKS, RETIRED_QUIRKS
+    from canlib.safety.quirks import KNOWN_QUIRKS, RETIRED_QUIRKS
 
     if not isinstance(quirks, list):
         return ["profile.yaml: 'quirks' must be a list of quirk tokens"]
@@ -1410,7 +1410,7 @@ def _validate_quirks(quirks: Any) -> list[str]:
 
 def retired_quirk_warnings(path: Path) -> list[str]:
     """A warning per retired quirk the profile.yaml still lists (see ``RETIRED_QUIRKS``)."""
-    from canlib.quirks import RETIRED_QUIRKS
+    from canlib.safety.quirks import RETIRED_QUIRKS
 
     try:
         data = yaml_io.safe_load(path.read_text())

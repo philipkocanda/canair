@@ -275,7 +275,7 @@ class TestEngineOverArbitraryChannel:
 
     @pytest.mark.asyncio
     async def test_oem_session_honours_the_profile_allowance(self):
-        from canlib.safety import SessionPolicy
+        from canlib.safety.blocklist import SessionPolicy
         from canlib.uds.protocol import KWP
 
         ch = FakeChannel(["OK\r>", "OK\r>", "50C0\r>"])
@@ -293,7 +293,7 @@ class TestEngineOverArbitraryChannel:
     @pytest.mark.asyncio
     async def test_nrc_name_follows_the_addressed_ecus_protocol(self):
         # 7F 33 23 is routineNotComplete on KWP2000, a code UDS leaves unnamed.
-        from canlib.safety import SessionPolicy
+        from canlib.safety.blocklist import SessionPolicy
         from canlib.uds.protocol import KWP
 
         ch = FakeChannel(["OK\r>", "OK\r>", "7F3323\r>", "7F3323\r>"])
@@ -309,7 +309,7 @@ class TestEngineOverArbitraryChannel:
     async def test_session_rule_follows_the_addressed_ecus_protocol(self):
         # 10 82 is a KWP2000 diagnostic session but UDS programmingSession with the
         # suppress bit: the terminal judges it by the ECU its header points at.
-        from canlib.safety import SessionPolicy
+        from canlib.safety.blocklist import SessionPolicy
         from canlib.uds.protocol import KWP, UDS
 
         ch = FakeChannel(["OK\r>", "OK\r>", "5082\r>", "OK\r>", "OK\r>"])

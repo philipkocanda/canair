@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from canlib.actions import FUNCTIONAL, Action, ActionError, ActionRequest
-from canlib.safety import SafetyBlocked, SessionPolicy, check_command_safety
+from canlib.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
 
 
 @dataclass(frozen=True)
@@ -52,7 +52,7 @@ def action_policy(
     The base policy plus only those quirk grants this action needs, so the
     exemption is no wider than the requests themselves.
     """
-    from canlib.quirks import action_grants
+    from canlib.safety.quirks import action_grants
 
     available = action_grants(pids_data)
     needed: set[tuple[int, str]] = set()

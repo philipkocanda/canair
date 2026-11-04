@@ -48,9 +48,9 @@ def build_raw_client(
     mid-session reconnect, so both apply the same timeouts / ISO-TP config.
     Raises ``OSError`` if the SLCAN socket can't be opened.
     """
+    from canlib.safety.blocklist import SessionPolicy
     from canlib.transport.timeouts import cli_timeout, ecu_timeouts_by_name
 
-    from ..safety import SessionPolicy
     from ..transport import RawUdsClient, SlcanTcpBus
 
     bus = SlcanTcpBus(host, port=port, bitrate=bitrate)

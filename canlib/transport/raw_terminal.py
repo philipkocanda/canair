@@ -27,6 +27,7 @@ from collections.abc import AsyncIterator
 import can
 import isotp
 
+from canlib.safety.blocklist import SessionPolicy, enforce_command_safety
 from canlib.transport.ecu_log import log_response
 from canlib.transport.stats import TransportStats
 from canlib.uds.addressing import (
@@ -43,7 +44,6 @@ from canlib.uds.nrc import is_response_pending
 from canlib.uds.parse import parse_uds_response
 from canlib.uds.response import UdsResponse
 
-from ..safety import SessionPolicy, enforce_command_safety
 from ..timing import TimingRecorder
 from . import keepalive
 from .functional import (
@@ -84,7 +84,7 @@ class RawTerminal:
         self.verbose = verbose
         self.unsafe = unsafe
         # Each ECU's session protocol + the profile's quirk allowances
-        # (canlib.safety.SessionPolicy); set by whoever builds the terminal from a
+        # (canlib.safety.blocklist.SessionPolicy); set by whoever builds the terminal from a
         # profile. The default knows no ECU, so the stricter reading applies.
         self.session_policy = SessionPolicy()
         self.timeout = timeout
@@ -210,8 +210,8 @@ class RawTerminal:
     ) -> FunctionalResult:
         """Broadcast ``request`` on the functional id ``tx_id`` and collect every reply.
 
-        Raises :class:`~canlib.safety.SafetyBlocked` for anything but an allowed
-        read (:func:`~canlib.safety.check_functional_request`), and ValueError on
+        Raises :class:`~canlib.safety.blocklist.SafetyBlocked` for anything but an allowed
+        read (:func:`~canlib.safety.blocklist.check_functional_request`), and ValueError on
         a CAN-FD profile (the request and its flow control are classic frames).
         """
         req = functional_request_bytes(tx_id, request)

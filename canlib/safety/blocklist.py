@@ -35,7 +35,7 @@ from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any, Final
 
-from .uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol, classify_protocol
+from canlib.uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol, classify_protocol
 
 # Services that write ECU memory, reflash firmware, reset an ECU or silence its
 # traffic. Blocked by default to prevent accidental damage. The SIDs mean the same
@@ -193,7 +193,7 @@ def session_mode_block(
     """Why ``10 {sub}`` is refused on an ECU speaking ``protocol``, or None if safe.
 
     ``allowed`` lists sub-functions the profile declared safe for *this* protocol
-    (:func:`canlib.quirks.allowed_session_modes`); it never lifts a hard block. A
+    (:func:`canlib.safety.quirks.allowed_session_modes`); it never lifts a hard block. A
     UDS ECU is judged on ``sub & 0x7F``. KWP2000 programming (``0x85``) is refused
     on every protocol, in case ``id_protocol`` is wrong. An unknown protocol is
     refused when *either* reading refuses it.
@@ -240,7 +240,7 @@ class SessionPolicy:
     @classmethod
     def from_profile(cls, pids_data: Mapping[str, Any] | None) -> SessionPolicy:
         """Build the policy from loaded profile data (``ecus`` + ``quirks``)."""
-        from .quirks import allowed_session_modes
+        from canlib.safety.quirks import allowed_session_modes
 
         protocols: dict[int, DiagProtocol] = {}
         ecus = (pids_data or {}).get("ecus") or {}

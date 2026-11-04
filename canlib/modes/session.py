@@ -66,14 +66,14 @@ async def run_session_guarded(
     (never a traceback), with a ``--recover`` hint when a ``--save`` session was
     in flight (its data is safe in the write-ahead journal). Returns a process
     exit code: 0 on success, 1 on a transport failure, 2 when the command
-    blocklist (:mod:`canlib.safety`) refused a request.
+    blocklist (:mod:`canlib.safety.blocklist`) refused a request.
 
     The caller owns the terminal lifecycle (construct/close) and any
     transport-specific ``finally`` (session-end logging, reboot). ``KeyboardInterrupt``
     is intentionally *not* caught here — the operations reconcile their journals
     on interrupt, and ``run_live`` reports the interrupt.
     """
-    from canlib.safety import SafetyBlocked
+    from canlib.safety.blocklist import SafetyBlocked
     from canlib.transport.errors import describe_transport_error, transport_error_types
 
     try:

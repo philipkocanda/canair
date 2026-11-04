@@ -76,7 +76,7 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
     """
     from canlib import config
     from canlib.response_frames import seed_counts, variable_length_keys
-    from canlib.safety import SessionPolicy
+    from canlib.safety.blocklist import SessionPolicy
     from canlib.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal, Elm327Terminal
     from canlib.transport.elm327_addressing import flow_control_data
     from canlib.transport.timeouts import cli_timeout, ecu_timeouts_by_tx

@@ -1,6 +1,5 @@
 {
   "root_modules": [
-    "actuation",
     "ansi",
     "blind",
     "build_info",
@@ -31,9 +30,7 @@
     "profile_create",
     "profile_names",
     "query",
-    "quirks",
     "response_frames",
-    "safety",
     "scan_presets",
     "scan_state",
     "sensitive",
@@ -128,13 +125,11 @@
   ],
   "test_to_test_imports": [],
   "flat_tests": [
-    "test_actuation.py",
     "test_also_known_as.py",
     "test_ansi.py",
     "test_ansi_gating.py",
     "test_build_info.py",
     "test_can_buses.py",
-    "test_command_safety.py",
     "test_config.py",
     "test_contribute_summary.py",
     "test_dbc_repair.py",
@@ -158,7 +153,6 @@
     "test_profile_layers.py",
     "test_query.py",
     "test_response_frames_persist.py",
-    "test_safety.py",
     "test_sensitive.py",
     "test_session_identity.py",
     "test_session_manager.py",

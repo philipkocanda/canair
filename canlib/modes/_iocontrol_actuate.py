@@ -20,12 +20,12 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Literal, get_args
 
+from canlib.safety.actuation import IOCONTROL_KWP, on_refusal, parse_io_request
 from canlib.uds.nrc import nrc_abbrev
 from canlib.uds.protocol import KWP
 from canlib.uds.response import UdsResponse
 from canlib.uds.services import RESPONSE_SID_OFFSET, service_info
 
-from ..actuation import IOCONTROL_KWP, on_refusal, parse_io_request
 from ..pids import DEFAULT_IOCONTROL_SESSION_MODE
 
 if TYPE_CHECKING:
@@ -142,7 +142,7 @@ class IOControlActuator:
         """Why the ON request of ``did`` must not be sent, or None.
 
         An actuating ON goes out only when its release is known, so that exit,
-        Ctrl-C and a dropped session can hand the output back (``canlib.actuation``).
+        Ctrl-C and a dropped session can hand the output back (``canlib.safety.actuation``).
         """
         cmd = self.t.cmds[did]
         reason = on_refusal(cmd["on"], cmd.get("release", ""), self.t.protocol)

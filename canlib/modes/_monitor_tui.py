@@ -695,7 +695,7 @@ class SessionPickerScreen(ModalScreen[tuple[str, str] | None]):
     ECU's own known-good scan history (``MonitorController.known_session_types``,
     from ``canair scan sessions``) tagged known-good/known-unsupported, or the
     fixed safe fallback (01/03/81/82/83, tagged untested) when it has none.
-    ``0x02``/``0x85`` (programming sessions) are never offered — canlib.safety
+    ``0x02``/``0x85`` (programming sessions) are never offered — canlib.safety.blocklist
     blocks them outright. Dismisses with ``(ecu, mode)`` to switch, or
     ``None`` on cancel. The actual ``10 xx`` send is async, so it happens back
     in ``MonitorApp.action_session_type`` rather than in this modal.

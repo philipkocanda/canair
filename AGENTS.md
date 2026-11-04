@@ -221,7 +221,7 @@ and **`g`/`G` address the view's primary axis**.
 - **`canair discover`** (alias `disc`) — Which ECUs answer right now; `--register` writes a new ECU
   into `ecus/`. **`--functional`** sends one read on the functional id instead and groups every
   responder by `can_bus:` (the gateway routing map). Its request is an **allow-list**
-  (`canlib/safety.py::check_functional_request`, never widened by `--unsafe`), and
+  (`canlib/safety/blocklist.py::check_functional_request`, never widened by `--unsafe`), and
   `check_command_safety` applies the same allow-list to *every* request sent to an unregistered
   functional id, so `raw 7DF:…` and the REPL cannot broadcast a state change either; reception is
   `Terminal.send_functional` over the pure collector `canlib/transport/functional.py` (raw:
@@ -242,7 +242,7 @@ and **`g`/`G` address the view's primary axis**.
   confirm-first, and actuators auto-release when the session ends, with each entry's resolved
   `release` (`canlib/pids.py::build_iocontrol_index`). UDS implies `2F {DID} 00`; KWP `0x30` has
   no standard release, so `canair io` refuses a `0x30` ON until the entry declares `release:`
-  (`pids set-iocontrol --release`). That gate is `canlib/actuation.py::on_refusal`, over the
+  (`pids set-iocontrol --release`). That gate is `canlib/safety/actuation.py::on_refusal`, over the
   read/release/actuate classifier the actuation interlock plan
   (`plans/2026-10-22-actuation-safety-interlock.md`) will build its funnel on. Never declare a
   release you have not seen hand the output back on the car.
@@ -251,7 +251,7 @@ and **`g`/`G` address the view's primary axis**.
   `canlib/actions/`, editor `canlib/yaml_edit/actions.py`, live run `canlib/modes/action.py` (its
   docstring fixes the plan → check → confirm → re-check → send order). Two rules a change must
   keep: **every request still passes the blocklist** — a refused one goes out only when a quirk
-  grants exactly that `(tx_id, request)` (`canlib/quirks.py::action_grants`), applied through
+  grants exactly that `(tx_id, request)` (`canlib/safety/quirks.py::action_grants`), applied through
   `SessionPolicy.granting` for the action's own send and never by `from_profile`, so `read`/`raw`
   steps still refuse it and `--unsafe` plays no part; and **every action is guarded** — mandatory
   `reads`/`require`, only TRUE passes, no `or`/`not`, only read ECUs. The Ioniq's `sleep` sends
@@ -1017,12 +1017,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
     is what replies carry, and drives multi-DID split/strip (`resolve_rx_padding`).
   - **`quirks:`** — make-specific behaviour the profile opts into. Known: `skm_wakeup` (enables
     the Ioniq SKM relay-wake), `nissan_c0_session` (permits the Nissan OEM session `10 C0` on
-    KWP2000 ECUs, which the `canlib/safety.py` blocklist otherwise refuses, and switches the
+    KWP2000 ECUs, which the `canlib/safety/blocklist.py` blocklist otherwise refuses, and switches the
     KWP2000 IOControl scan to Nissan's `30 {LID} 01 00` probe), `hk_90_session` (permits the
     Hyundai/Kia KWP2000 actuator-test session `10 90` on KWP2000 ECUs) and `hk_forced_sleep`
     (lets a guarded `canair action` send the functional `10 D1`; not a session allowance). A
     retired quirk (`RETIRED_QUIRKS`) is a `validate` warning, not an error. Resolver
-    `canlib/quirks.py`; a quirk may only *widen* the OEM session band for one protocol
+    `canlib/safety/quirks.py`; a quirk may only *widen* the OEM session band for one protocol
     (`allowed_session_modes(meta, protocol)`) or grant an action one exact request
     (`action_grants`), never reach a programming or safety-system session.
     **The session rule is protocol-aware and lives once:** `safety.py::session_mode_block` (UDS

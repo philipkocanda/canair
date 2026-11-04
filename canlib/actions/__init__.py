@@ -15,9 +15,9 @@ requests do it and which live signals prove it is safe to send them::
 
 Two rules keep a profile from using this to get around canair's safety policy:
 
-- **Every request still passes the command blocklist** (:mod:`canlib.safety`).
+- **Every request still passes the command blocklist** (:mod:`canlib.safety.blocklist`).
   A request it refuses can only be sent when a code-owned quirk grants exactly
-  that request (:func:`canlib.quirks.action_grants`), and never with
+  that request (:func:`canlib.safety.quirks.action_grants`), and never with
   ``--unsafe``. So an action can't send ``11 01`` or a programming session.
 - **Every action is guarded.** ``reads`` and ``require`` are mandatory; the
   condition is evaluated on values read live just before the requests are sent,

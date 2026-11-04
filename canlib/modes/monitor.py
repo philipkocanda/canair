@@ -583,7 +583,7 @@ class MonitorController:
             # the safety policy refuses aborts setup rather than being swallowed
             # with the transport errors (the ELM path raises the same way).
             from ..pids import ecu_index_key
-            from ..safety import SafetyBlocked
+            from ..safety.blocklist import SafetyBlocked
 
             assert self.raw_client is not None  # self.raw is True ⟺ raw_client was provided
             for step in session_steps or []:

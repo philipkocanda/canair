@@ -16,7 +16,7 @@ import yaml
 
 from canlib.core.paths import BUNDLED_PROFILES_DIR, PROFILE_SCHEMA_FILE, PROFILE_SCHEMA_MODELINE
 from canlib.profile_create import create_profile
-from canlib.quirks import KNOWN_QUIRKS
+from canlib.safety.quirks import KNOWN_QUIRKS
 from canlib.transport.isotp_params import ISOTP_FIELDS
 from canlib.uds.addressing import AddressingMode
 from canlib.validation.pids import _ADDRESSING_FIELDS

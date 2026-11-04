@@ -77,7 +77,7 @@ class TestKwpServices:
     def test_every_blocked_service_is_a_registered_actuating_or_memory_service(self):
         # The blocklist and the registry must not drift: a blocked SID without a registry
         # entry would print as an unnamed service in scan output.
-        from canlib.safety import BLOCKED_UDS_SERVICES
+        from canlib.safety.blocklist import BLOCKED_UDS_SERVICES
 
         for sid in BLOCKED_UDS_SERVICES:
             if sid in (0x28, 0x87):  # UDS-only services the registry does not enumerate

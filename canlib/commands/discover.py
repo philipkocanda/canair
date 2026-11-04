@@ -120,7 +120,7 @@ functional requests:
 def functional_args_error(args) -> str | None:
     """Why the functional-sweep flags are inconsistent, or None."""
     from canlib.modes.discover_functional import MIN_INTERVAL_S
-    from canlib.safety import check_functional_request
+    from canlib.safety.blocklist import check_functional_request
 
     if not getattr(args, "functional", False):
         given = [

@@ -152,10 +152,10 @@ async def _run_session(
         )
 
     # All other commands: reuse the shared session over a RawTerminal adapter.
+    from canlib.safety.blocklist import SessionPolicy
     from canlib.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
     from canlib.uds.addressing import AddressBook
 
-    from ..safety import SessionPolicy
     from ..transport import RawTerminal
     from .session import run_session_guarded
 

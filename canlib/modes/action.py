@@ -4,7 +4,7 @@ The order is the safety argument, so it is fixed here:
 
 1. **Plan, before touching the bus.** Every request is resolved to its request id
    and checked against the command blocklist. A refused request must be granted
-   exactly by one of the profile's quirks (:func:`canlib.quirks.action_grants`),
+   exactly by one of the profile's quirks (:func:`canlib.safety.quirks.action_grants`),
    or the action is refused outright; ``--unsafe`` plays no part.
 2. **Check the car.** The action's ``reads`` are read live and its ``require``
    condition evaluated on them. Only TRUE passes: FALSE refuses, and UNKNOWN (a
@@ -28,7 +28,7 @@ from typing import Any
 
 from canlib.actions import Action, ActionError
 from canlib.actions.plan import PlannedRequest, action_policy, plan_requests
-from canlib.safety import SafetyBlocked, SessionPolicy
+from canlib.safety.blocklist import SafetyBlocked, SessionPolicy
 from canlib.transport.protocol import Terminal
 
 # How long a request that expects no reply waits before it counts as sent.

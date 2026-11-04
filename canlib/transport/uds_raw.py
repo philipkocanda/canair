@@ -22,6 +22,7 @@ import can
 import isotp
 
 from canlib.core.eventlog import log_event
+from canlib.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
 from canlib.transport.link_latency import LinkLatency
 from canlib.transport.stats import TransportStats
 from canlib.uds.addressing import DEFAULT_RX_OFFSET, EcuAddress, build_isotp_address
@@ -29,7 +30,6 @@ from canlib.uds.nrc import is_response_pending
 from canlib.uds.payload import payload_echo_mismatch
 from canlib.uds.response import CAT_STALE
 
-from ..safety import SafetyBlocked, SessionPolicy, check_command_safety
 from ..timing import TimingRecorder
 from .isotp_stack import build_isotp_stack
 
@@ -108,7 +108,7 @@ class RawUdsClient:
         CAN-FD). Each ECU's :class:`EcuAddress` shapes its ISO-TP stack (11-bit vs
         29-bit normal/fixed/extended, plus any flow-control-address override).
         ``session_policy``: the profile's per-ECU session context for the command
-        blocklist (:mod:`canlib.safety`). Every request is checked against it, so
+        blocklist (:mod:`canlib.safety.blocklist`). Every request is checked against it, so
         this client can never send what the terminals would refuse; there is no
         ``--unsafe`` prompt on this pipelined path, so a blocked request raises.
         """
