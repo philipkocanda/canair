@@ -36,6 +36,16 @@ repos:
         pass_filenames: false
         require_serial: true
 
+      # The layer and boundary contracts in [tool.importlinter]. Runs on every Python change
+      # because a wrong-way import is cheapest to fix before the commit exists.
+      - id: import-contracts
+        name: import contracts (lint-imports)
+        entry: uv run lint-imports
+        language: system
+        types_or: [python, pyi, toml]
+        pass_filenames: false
+        require_serial: true
+
       - id: validate-skills
         name: skill frontmatter is Claude Code / OpenCode compatible
         entry: uv run python scripts/validate_skills.py

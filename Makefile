@@ -10,7 +10,7 @@
 # Rationale: plans/2026-07-24-documentation-strategy.md.
 export NO_MKDOCS_2_WARNING := 1
 
-.PHONY: help install setup lfs-check docs docs-serve screenshots screenshots-check gen gen-check check
+.PHONY: help install setup lfs-check docs docs-serve screenshots screenshots-check gen gen-check check structure
 
 help:
 	@echo "Targets:"
@@ -23,6 +23,7 @@ help:
 	@echo "  docs               Build the docs site (mkdocs --strict)"
 	@echo "  docs-serve         Serve the docs locally with live reload"
 	@echo "  lfs-check          Verify every Git LFS pointer has its object on the server"
+	@echo "  structure          Check the package layout: import contracts and the structure gates"
 	@echo "  check              Lint, type-check, validate, and run tests"
 
 # One-time per-clone bootstrap: sync the pinned toolchain and install the git
@@ -77,8 +78,16 @@ docs-serve:
 lfs-check:
 	uv run python scripts/check_lfs_objects.py
 
+# The package-layout gates alone, in a few seconds: the import contracts, then the structure
+# tests (root modules, module size, charters, deferred imports, test imports). Rules:
+# plans/2026-11-04-package-layout-and-layering.md section 9.
+structure:
+	uv run lint-imports
+	uv run pytest -n0 -q tests/contracts
+
 check:
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run ty check
+	uv run lint-imports
 	uv run pytest -q

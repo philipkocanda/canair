@@ -39,6 +39,7 @@ exclude = ["profiles/*/logs", "**/__pycache__"]
 
 [dependency-groups]
 dev = [
+    "import-linter>=2.15",
     "pre-commit>=4.0",
     "pytest>=8.0",
     "pytest-asyncio>=1.0",
@@ -107,3 +108,426 @@ include = ["canlib"]
 
 [tool.ty.environment]
 python-version = "3.12"
+
+# Architecture contracts. Dependencies point down; see
+# plans/2026-11-04-package-layout-and-layering.md for the target layers and
+# docs/development/architecture.md for what each package is for.
+#
+# These are written against the packages that exist today. Each package move adds its new
+# name to the contract it belongs to, and the codemod that moves a package rewrites the names
+# in this section. `ignore_imports` is the debt list: an entry may be removed, never added
+# (tests/contracts/test_structure.py pins the count). An entry whose import no longer exists
+# fails the check, so a fixed import has to leave the list.
+[tool.importlinter]
+root_package = "canlib"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Nothing below the interface imports the CLI"
+type = "forbidden"
+source_modules = [
+    "canlib.actions",
+    "canlib.actuation",
+    "canlib.addressing",
+    "canlib.analysis",
+    "canlib.ansi",
+    "canlib.blind",
+    "canlib.build_info",
+    "canlib.can_buses",
+    "canlib.can_logs",
+    "canlib.captures",
+    "canlib.config",
+    "canlib.constants",
+    "canlib.contribute",
+    "canlib.contribute_logs",
+    "canlib.contribute_source",
+    "canlib.contribute_summary",
+    "canlib.dbc_repair",
+    "canlib.did_families",
+    "canlib.dtc",
+    "canlib.ecus",
+    "canlib.explorer",
+    "canlib.expression",
+    "canlib.first_run",
+    "canlib.formatting",
+    "canlib.frame_counts",
+    "canlib.grid_prompt",
+    "canlib.grid_regions",
+    "canlib.id_ranges",
+    "canlib.install_context",
+    "canlib.keepmode",
+    "canlib.lock",
+    "canlib.lock_watchdog",
+    "canlib.log",
+    "canlib.migrations",
+    "canlib.modes",
+    "canlib.physical_bands",
+    "canlib.pids",
+    "canlib.pii",
+    "canlib.poll_backoff",
+    "canlib.poll_schedule",
+    "canlib.profile",
+    "canlib.profile_create",
+    "canlib.profile_names",
+    "canlib.query",
+    "canlib.quirks",
+    "canlib.response_frames",
+    "canlib.safety",
+    "canlib.scan_presets",
+    "canlib.scan_state",
+    "canlib.sensitive",
+    "canlib.session_manager",
+    "canlib.signal_category",
+    "canlib.signals",
+    "canlib.states",
+    "canlib.stop_signals",
+    "canlib.textscan",
+    "canlib.timing",
+    "canlib.transport",
+    "canlib.tui",
+    "canlib.uds",
+    "canlib.unit_guess",
+    "canlib.update_check",
+    "canlib.validation",
+    "canlib.variants",
+    "canlib.wake",
+    "canlib.wican",
+    "canlib.yaml_edit",
+    "canlib.yaml_io",
+]
+forbidden_modules = [
+    "canlib.cli",
+    "canlib.commands",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    "canlib.yaml_edit.ecu -> canlib.commands.validate",
+    "canlib.yaml_edit.ecufile -> canlib.commands.validate",
+    "canlib.yaml_edit.state_rename -> canlib.commands.validate",
+]
+
+[[tool.importlinter.contracts]]
+name = "Nothing below the interface imports the live operations (modes)"
+type = "forbidden"
+source_modules = [
+    "canlib.actions",
+    "canlib.actuation",
+    "canlib.addressing",
+    "canlib.analysis",
+    "canlib.ansi",
+    "canlib.blind",
+    "canlib.build_info",
+    "canlib.can_buses",
+    "canlib.can_logs",
+    "canlib.captures",
+    "canlib.config",
+    "canlib.constants",
+    "canlib.contribute",
+    "canlib.contribute_logs",
+    "canlib.contribute_source",
+    "canlib.contribute_summary",
+    "canlib.dbc_repair",
+    "canlib.did_families",
+    "canlib.dtc",
+    "canlib.ecus",
+    "canlib.explorer",
+    "canlib.expression",
+    "canlib.first_run",
+    "canlib.formatting",
+    "canlib.frame_counts",
+    "canlib.grid_prompt",
+    "canlib.grid_regions",
+    "canlib.id_ranges",
+    "canlib.install_context",
+    "canlib.keepmode",
+    "canlib.lock",
+    "canlib.lock_watchdog",
+    "canlib.log",
+    "canlib.migrations",
+    "canlib.physical_bands",
+    "canlib.pids",
+    "canlib.pii",
+    "canlib.poll_backoff",
+    "canlib.poll_schedule",
+    "canlib.profile",
+    "canlib.profile_create",
+    "canlib.profile_names",
+    "canlib.query",
+    "canlib.quirks",
+    "canlib.response_frames",
+    "canlib.safety",
+    "canlib.scan_presets",
+    "canlib.scan_state",
+    "canlib.sensitive",
+    "canlib.session_manager",
+    "canlib.signal_category",
+    "canlib.signals",
+    "canlib.states",
+    "canlib.stop_signals",
+    "canlib.textscan",
+    "canlib.timing",
+    "canlib.transport",
+    "canlib.tui",
+    "canlib.uds",
+    "canlib.unit_guess",
+    "canlib.update_check",
+    "canlib.validation",
+    "canlib.variants",
+    "canlib.wake",
+    "canlib.wican",
+    "canlib.yaml_edit",
+    "canlib.yaml_io",
+]
+forbidden_modules = [
+    "canlib.modes",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    "canlib.formatting -> canlib.modes.multi_batch",
+    "canlib.pids -> canlib.modes.multi_batch",
+    "canlib.states -> canlib.modes.multi_batch",
+]
+
+[[tool.importlinter.contracts]]
+name = "Only the TUI imports textual"
+type = "forbidden"
+source_modules = [
+    "canlib.actions",
+    "canlib.actuation",
+    "canlib.addressing",
+    "canlib.analysis",
+    "canlib.ansi",
+    "canlib.blind",
+    "canlib.build_info",
+    "canlib.can_buses",
+    "canlib.can_logs",
+    "canlib.captures",
+    "canlib.cli",
+    "canlib.commands",
+    "canlib.config",
+    "canlib.constants",
+    "canlib.contribute",
+    "canlib.contribute_logs",
+    "canlib.contribute_source",
+    "canlib.contribute_summary",
+    "canlib.dbc_repair",
+    "canlib.did_families",
+    "canlib.dtc",
+    "canlib.ecus",
+    "canlib.explorer",
+    "canlib.expression",
+    "canlib.first_run",
+    "canlib.formatting",
+    "canlib.frame_counts",
+    "canlib.grid_prompt",
+    "canlib.grid_regions",
+    "canlib.id_ranges",
+    "canlib.install_context",
+    "canlib.keepmode",
+    "canlib.lock",
+    "canlib.lock_watchdog",
+    "canlib.log",
+    "canlib.migrations",
+    "canlib.modes",
+    "canlib.physical_bands",
+    "canlib.pids",
+    "canlib.pii",
+    "canlib.poll_backoff",
+    "canlib.poll_schedule",
+    "canlib.profile",
+    "canlib.profile_create",
+    "canlib.profile_names",
+    "canlib.query",
+    "canlib.quirks",
+    "canlib.response_frames",
+    "canlib.safety",
+    "canlib.scan_presets",
+    "canlib.scan_state",
+    "canlib.sensitive",
+    "canlib.session_manager",
+    "canlib.signal_category",
+    "canlib.signals",
+    "canlib.states",
+    "canlib.stop_signals",
+    "canlib.textscan",
+    "canlib.timing",
+    "canlib.transport",
+    "canlib.uds",
+    "canlib.unit_guess",
+    "canlib.update_check",
+    "canlib.validation",
+    "canlib.variants",
+    "canlib.wake",
+    "canlib.wican",
+    "canlib.yaml_edit",
+    "canlib.yaml_io",
+]
+forbidden_modules = [
+    "textual",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    "canlib.commands._sniff_tui -> textual",
+    "canlib.commands.captures.step_tui -> textual",
+    "canlib.commands.decode.plot_tui -> textual",
+    "canlib.modes._monitor_select_tui -> textual",
+    "canlib.modes._monitor_tui -> textual",
+]
+
+[[tool.importlinter.contracts]]
+name = "Only the CLI imports argparse"
+type = "forbidden"
+source_modules = [
+    "canlib.actions",
+    "canlib.actuation",
+    "canlib.addressing",
+    "canlib.analysis",
+    "canlib.ansi",
+    "canlib.blind",
+    "canlib.build_info",
+    "canlib.can_buses",
+    "canlib.can_logs",
+    "canlib.captures",
+    "canlib.config",
+    "canlib.constants",
+    "canlib.contribute",
+    "canlib.contribute_logs",
+    "canlib.contribute_source",
+    "canlib.contribute_summary",
+    "canlib.dbc_repair",
+    "canlib.did_families",
+    "canlib.dtc",
+    "canlib.ecus",
+    "canlib.explorer",
+    "canlib.expression",
+    "canlib.first_run",
+    "canlib.formatting",
+    "canlib.frame_counts",
+    "canlib.grid_prompt",
+    "canlib.grid_regions",
+    "canlib.id_ranges",
+    "canlib.install_context",
+    "canlib.keepmode",
+    "canlib.lock",
+    "canlib.lock_watchdog",
+    "canlib.log",
+    "canlib.migrations",
+    "canlib.modes",
+    "canlib.physical_bands",
+    "canlib.pids",
+    "canlib.pii",
+    "canlib.poll_backoff",
+    "canlib.poll_schedule",
+    "canlib.profile",
+    "canlib.profile_create",
+    "canlib.profile_names",
+    "canlib.query",
+    "canlib.quirks",
+    "canlib.response_frames",
+    "canlib.safety",
+    "canlib.scan_presets",
+    "canlib.scan_state",
+    "canlib.sensitive",
+    "canlib.session_manager",
+    "canlib.signal_category",
+    "canlib.signals",
+    "canlib.states",
+    "canlib.stop_signals",
+    "canlib.textscan",
+    "canlib.timing",
+    "canlib.transport",
+    "canlib.tui",
+    "canlib.uds",
+    "canlib.unit_guess",
+    "canlib.update_check",
+    "canlib.validation",
+    "canlib.variants",
+    "canlib.wake",
+    "canlib.wican",
+    "canlib.yaml_edit",
+    "canlib.yaml_io",
+]
+forbidden_modules = [
+    "argparse",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    "canlib.captures.dates -> argparse",
+    "canlib.modes.dispatch -> argparse",
+    "canlib.modes.dispatch.ranges -> argparse",
+]
+
+[[tool.importlinter.contracts]]
+name = "The protocol layer (uds) reads no data store, config or transport"
+type = "forbidden"
+source_modules = [
+    "canlib.uds",
+]
+forbidden_modules = [
+    "canlib.analysis",
+    "canlib.captures",
+    "canlib.config",
+    "canlib.ecus",
+    "canlib.keepmode",
+    "canlib.transport",
+    "canlib.wican",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    "canlib.uds.support_map -> canlib.analysis.support_map",
+    "canlib.uds.unsplit_batches -> canlib.analysis.misfiled",
+    "canlib.uds.unsplit_batches -> canlib.captures.io",
+    "canlib.uds.unsplit_batches -> canlib.captures.merge",
+    "canlib.uds.unsplit_batches -> canlib.captures.payload_corpus",
+    "canlib.uds.unsplit_batches -> canlib.captures.types",
+    "canlib.uds.notation -> canlib.config",
+    "canlib.uds.unsplit_batches -> canlib.ecus",
+    "canlib.uds.unsplit_batches -> canlib.keepmode",
+]
+
+[[tool.importlinter.contracts]]
+name = "Decoding does not import the WiCAN export package"
+type = "forbidden"
+source_modules = [
+    "canlib.captures",
+    "canlib.expression",
+]
+forbidden_modules = [
+    "canlib.wican",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    "canlib.captures -> canlib.wican.autopid_layout",
+    "canlib.expression.decoding -> canlib.wican.autopid_layout",
+]
+
+[[tool.importlinter.contracts]]
+name = "Transport does not import the WiCAN device package"
+type = "forbidden"
+source_modules = [
+    "canlib.transport",
+]
+forbidden_modules = [
+    "canlib.wican",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    "canlib.transport.config -> canlib.wican.api",
+    "canlib.transport.config -> canlib.wican.mode",
+    "canlib.transport.fallback -> canlib.wican.mode",
+    "canlib.transport.wican_terminal -> canlib.wican.api",
+]
+
+[[tool.importlinter.contracts]]
+name = "User config does not import the profile editor"
+type = "forbidden"
+source_modules = [
+    "canlib.config",
+]
+forbidden_modules = [
+    "canlib.yaml_edit",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    "canlib.config -> canlib.yaml_edit.rt",
+]

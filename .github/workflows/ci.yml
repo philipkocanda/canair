@@ -44,6 +44,9 @@ jobs:
       - name: Type check (ty)
         run: uv run ty check
 
+      - name: Import contracts (layers and boundaries)
+        run: uv run lint-imports
+
       - name: Skill frontmatter is Claude Code / OpenCode compatible
         run: uv run python scripts/validate_skills.py
 
