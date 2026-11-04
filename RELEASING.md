@@ -22,7 +22,7 @@ There is no second copy to keep in sync — release-please updates `pyproject.to
 and `uv.lock` together in the release PR.
 
 `canair --version` (and `canair status`/`update`, and every recorded capture)
-reports the *provenance* version from `canlib/build_info.py`: the same package
+reports the *provenance* version from `canlib/install/build_info.py`: the same package
 version, plus the branch and short commit when canair is running from a git
 checkout rather than an installed release (`1.15.0+main.343b244`). Release
 comparisons always use the pure `canlib.__version__`, so the suffix never affects
@@ -115,7 +115,7 @@ you do not know about it.
 Worth knowing before you change any of it:
 
 - **Tags must stay `vX.Y.Z`** (`include-component-in-tag: false`). `canair update`
-  and `canlib/update_check.py` both depend on that exact shape — a `canair-v…`
+  and `canlib/install/update_check.py` both depend on that exact shape — a `canair-v…`
   tag would silently break update checking for every installed copy.
 - **`uv.lock` is updated by a targeted TOML splice**, not by re-locking, and that
   updater only *warns* when its jsonpath matches nothing. CI's `uv lock --check`

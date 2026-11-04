@@ -291,7 +291,7 @@ and **`g`/`G` address the view's primary axis**.
 - **`canair raw`** — Last resort: hex in, hex out, no decoding. **`canair repl`** — interactive
   ELM327 terminal (ELM transports only; `!tester` for a manual keepalive loop).
 - **`canair status`** (alias `st`) — "What am I talking to, in what mode, is it usable?" Also prints
-  the running canair version (`canlib/build_info.py::full_version` — branch + commit from a
+  the running canair version (`canlib/install/build_info.py::full_version` — branch + commit from a
   checkout), the device firmware/hardware version when the WiCAN HTTP API answers, and the
   connection-mutex state (read-only, probed without taking it). It resolves the **whole candidate
   list** and runs the same connect-time fallback probe as a live command, so it reports the device
@@ -765,11 +765,11 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   **released** version, then **checks out that release tag** and reinstalls
   (`uv tool install --reinstall`). Checking out the tag — not fast-forwarding a branch — guarantees
   the installed code is exactly the released version, so it **refuses to update when the latest tag
-  can't be determined**. Also reports the **install context** (`canlib/install_context.py`): which
+  can't be determined**. Also reports the **install context** (`canlib/install/context.py`): which
   copy is running (repo working tree vs `uv tool` snapshot), the clone's git HEAD, and an **out of
   sync** warning when the installed tool copy's version differs from the clone's — a bare `canair`
   would then run different code than `uv run canair`. Refuses to touch a dirty clone. Backed by
-  `canlib/update_check.py`, which also drives the once-a-day background check (offline-safe, never
+  `canlib/install/update_check.py`, which also drives the once-a-day background check (offline-safe, never
   blocks a command; disable with `check_for_updates: false` or `CANAIR_NO_UPDATE_CHECK`).
 
 ### Profiles
@@ -868,7 +868,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
 **Never let a write land in the install snapshot.** A profile resolved from `site-packages` (a bare
 `canair` from `uv tool install`/`pipx`/`pip`) accepts writes that the next reinstall deletes — this
 really happened, costing two sessions' captures. The detection and the user-facing remedy are
-`canlib/install_context.py::installed_snapshot_kind` and `::snapshot_write_note`, and **every write
+`canlib/install/context.py::installed_snapshot_kind` and `::snapshot_write_note`, and **every write
 path emits that note**: `canlib/captures.py::saved_banner` for captures and
 `canlib/yaml_edit/echo.py::echo_edit` for every definition edit (`pids`/`signals`/`states`/
 `groups`/`ecu add` all route their `✓ …` confirmation through it, which is also what guarantees the

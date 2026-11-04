@@ -11,7 +11,7 @@ per-command f-string kept getting wrong:
 * **A write into an install snapshot has to say so.** Editing definitions under
   ``site-packages`` appears to work and is erased by the next reinstall, so the
   warning belongs where the data landed rather than only at contribution time
-  (see :func:`canlib.install_context.snapshot_write_note`).
+  (see :func:`canlib.install.context.snapshot_write_note`).
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from canlib import ansi
-from canlib.install_context import snapshot_write_note
+from canlib.install.context import snapshot_write_note
 
 
 def edit_line(what: str, path: Path) -> str:

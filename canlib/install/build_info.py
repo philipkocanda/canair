@@ -190,7 +190,7 @@ def running_clone() -> Path | None:
     ``None`` for an installed copy (a ``uv tool install`` snapshot or a
     site-packages install), which carries no checkout to describe.
     """
-    from .install_context import running_origin, running_package_dir
+    from canlib.install.context import running_origin, running_package_dir
 
     if running_origin() != "repo":
         return None
@@ -211,7 +211,7 @@ def full_version() -> str:
     ``0+unknown`` sentinel of an uninstalled source tree) the provenance is
     appended with a ``.`` — a version may hold only one ``+``.
     """
-    from . import __version__
+    from canlib import __version__
 
     build = running_build()
     segment = build.local_segment() if build is not None else ""

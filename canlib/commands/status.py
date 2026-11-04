@@ -111,7 +111,8 @@ def _device_status(host: str, timeout: float) -> dict | None:
 
 def _gather(args) -> dict:
     """Collect everything status reports into a plain dict (also used for --json)."""
-    from ..build_info import full_version
+    from canlib.install.build_info import full_version
+
     from ..config import fallback_settings
     from ..transport import (
         TransportError,
@@ -325,7 +326,7 @@ def _gather(args) -> dict:
 
     # Cached update notice (local-only; no network on the status hot path).
     try:
-        from ..update_check import pending_notice
+        from canlib.install.update_check import pending_notice
 
         info["update_notice"] = pending_notice()
     except Exception:
@@ -334,8 +335,8 @@ def _gather(args) -> dict:
     # Install context (local-only): warn when a bare `canair` would run a
     # different version than `uv run canair` in the source clone.
     try:
-        from ..install_context import describe as describe_install
-        from ..install_context import source_clone
+        from canlib.install.context import describe as describe_install
+        from canlib.install.context import source_clone
 
         install = describe_install(source_clone())
         info["install"] = install

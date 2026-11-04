@@ -1,4 +1,4 @@
-"""Tests for install-context detection (canlib.install_context).
+"""Tests for install-context detection (canlib.install.context).
 
 These verify that canair can tell *how* it was invoked — from the repo working
 tree (``uv run`` / dev checkout) vs. the ``uv tool install`` snapshot copy — and
@@ -12,7 +12,7 @@ import argparse
 import json
 from pathlib import Path
 
-from canlib import install_context as ic
+from canlib.install import context as ic
 
 
 def _make_clone(tmp_path, version: str):

@@ -1,4 +1,4 @@
-"""Tests for build provenance (canlib.build_info).
+"""Tests for build provenance (canlib.install.build_info).
 
 canair reports and *records* a version that identifies the code that ran, not
 just the release it was near: from a git checkout the version carries the branch
@@ -13,7 +13,7 @@ import subprocess
 
 import pytest
 
-from canlib import build_info as bi
+from canlib.install import build_info as bi
 
 
 @pytest.fixture(autouse=True)
@@ -94,7 +94,7 @@ class TestFullVersion:
 
     def test_update_check_still_orders_a_provenance_version(self):
         """A local segment must not confuse the release comparison."""
-        from canlib.update_check import _is_newer, _parse_version
+        from canlib.install.update_check import _is_newer, _parse_version
 
         assert _parse_version("1.2.3+main.343b244.dirty") == (1, 2, 3)
         assert _is_newer("v1.3.0", "1.2.3+main.343b244.dirty") is True
@@ -211,14 +211,14 @@ class TestHeadLabel:
 
 class TestRunningClone:
     def test_none_for_an_installed_copy(self, monkeypatch):
-        from canlib import install_context as ic
+        from canlib.install import context as ic
 
         monkeypatch.setattr(ic, "running_origin", lambda: "uv-tool")
         assert bi.running_clone() is None
         assert bi.running_build() is None
 
     def test_the_clone_containing_the_running_package(self, monkeypatch, tmp_path):
-        from canlib import install_context as ic
+        from canlib.install import context as ic
 
         monkeypatch.setattr(ic, "running_origin", lambda: "repo")
         monkeypatch.setattr(ic, "running_package_dir", lambda: tmp_path / "canlib")

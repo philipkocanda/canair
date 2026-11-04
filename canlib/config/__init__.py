@@ -9,18 +9,17 @@ Recognized keys:
   profiles_dir:     extra directory to search for profiles
   wican_addresses:  mapping of alias -> IP/host for the --wican flag
   default_wican:    default --wican alias
-  wican_model:      "pro" or "classic" — the WiCAN hardware model. AutoPID
-                    profile features (canair wican device sync) and the
-                    wican-ws ELM327 terminal are WiCAN Pro-only. Defaults to
-                    "pro".
+  wican_model:      "pro" (default) or "classic". AutoPID sync and wican-ws are Pro-only.
   transport:        transport-selection block (type/host/port/bitrate); see
                     canlib.transport.config
-  check_for_updates: set to false to disable the automatic once-a-day check for
-                    a newer released version (also disabled by the
-                    CANAIR_NO_UPDATE_CHECK env var). See canlib.update_check.
+  check_for_updates: false disables the once-a-day check for a newer release (also the
+                    CANAIR_NO_UPDATE_CHECK env var). See canlib.install.update_check.
 
-View and edit config from the CLI with ``canair config`` (show/get/set/unset/
-edit/path).
+View and edit config with ``canair config``. For the full key reference see config.example.yaml.
+
+Belongs: reading and writing the user config file and the device registry in it.
+Not here: the config directory path (``core.paths``) and what a key means to a feature.
+Imports: ``core`` only.
 """
 
 from __future__ import annotations

@@ -34,7 +34,7 @@ reinstall-only resync (``uv tool install <clone> --reinstall``) — no network o
 tag checkout needed — to bring the bare ``canair`` back in line with the clone.
 
 The reported *current* version is the provenance-bearing one
-(:func:`canlib.build_info.full_version`) — from a checkout it names the branch and
+(:func:`canlib.install.build_info.full_version`) — from a checkout it names the branch and
 commit — while the release comparison runs on the pure package version.
 
 Because a reinstall replaces the installed package directory wholesale, it also

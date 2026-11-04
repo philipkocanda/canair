@@ -1,10 +1,8 @@
 {
   "root_modules": [
     "ansi",
-    "build_info",
     "can_logs",
     "cli",
-    "config",
     "contribute",
     "contribute_logs",
     "contribute_source",
@@ -14,7 +12,6 @@
     "formatting",
     "grid_prompt",
     "grid_regions",
-    "install_context",
     "keepmode",
     "lock",
     "lock_watchdog",
@@ -28,7 +25,6 @@
     "session_manager",
     "timing",
     "unit_guess",
-    "update_check",
     "wake"
   ],
   "root_init_internal_imports": 0,
@@ -54,7 +50,7 @@
     "canlib.commands.scan": 618,
     "canlib.commands.states": 637,
     "canlib.commands.wican": 873,
-    "canlib.config": 555,
+    "canlib.config": 554,
     "canlib.contribute": 940,
     "canlib.ecus": 502,
     "canlib.ecus.pids": 763,
@@ -115,8 +111,6 @@
   "flat_tests": [
     "test_ansi.py",
     "test_ansi_gating.py",
-    "test_build_info.py",
-    "test_config.py",
     "test_contribute_summary.py",
     "test_dbc_repair.py",
     "test_first_run.py",
@@ -135,10 +129,8 @@
     "test_session_manager.py",
     "test_timing.py",
     "test_unit_guess.py",
-    "test_update_check.py",
     "test_validate_duplicate_keys.py",
     "test_variant_consumers.py",
-    "test_version.py",
     "test_wake.py",
     "test_wican_model_guard.py"
   ]

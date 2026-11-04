@@ -7,8 +7,8 @@ import re
 import pytest
 
 import canlib
-from canlib.build_info import full_version
 from canlib.cli import main
+from canlib.install.build_info import full_version
 
 
 def test_package_exposes_version():
@@ -45,7 +45,7 @@ def test_version_output_is_semver_shaped(capsys):
 
 def test_version_flag_reports_the_checkout_provenance(capsys, monkeypatch):
     """From a git checkout, --version names the branch and short commit."""
-    from canlib import build_info
+    from canlib.install import build_info
 
     monkeypatch.setattr(
         build_info,
@@ -60,8 +60,8 @@ def test_version_flag_reports_the_checkout_provenance(capsys, monkeypatch):
 
 def test_version_is_not_resolved_while_building_the_parser(monkeypatch):
     """Building the parser must not shell out to git — it happens every run."""
-    from canlib import build_info
     from canlib.cli import build_parser
+    from canlib.install import build_info
 
     def boom():
         raise AssertionError("version resolved eagerly at parser-build time")

@@ -49,8 +49,8 @@ From the interface at the top to the leaf at the bottom.
 | reads or writes a format canair does not own | `interop/` | `commands/import_*`, `dbc_repair.py` |
 | opens or updates the upstream PR | `contribute/` | `contribute*.py` |
 | masks, withholds or scrubs data | `privacy/` | `privacy/` |
-| reads or writes user config or the device registry | `config/` | `config.py` |
-| reports the install, version or updates | `install/` | `install_context.py`, `update_check.py` |
+| reads or writes user config or the device registry | `config/` | `config/` |
+| reports the install, version or updates | `install/` | `install/` |
 | rewrites stored data once | `migrations/` | `migrations/` |
 | is generic and needs nothing from the package | `core/` | `core/` |
 | is developer tooling that does not ship | `scripts/` | `scripts/` |

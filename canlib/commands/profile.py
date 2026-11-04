@@ -292,7 +292,7 @@ def _cmd_list(args) -> int:
 def _warn_if_bundled_snapshot() -> None:
     """Warn contributors that a bare `canair` reads a frozen copy of the bundled
     profiles, so edits to the git checkout's `profiles/` aren't picked up."""
-    from canlib.install_context import bundled_profiles_are_snapshot
+    from canlib.install.context import bundled_profiles_are_snapshot
 
     if bundled_profiles_are_snapshot():
         print()

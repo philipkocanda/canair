@@ -403,14 +403,14 @@ def _stamp_version(session: CaptureSession) -> CaptureSession:
     version that wrote it (provenance for debugging capture issues traced to a
     specific release). Recorded from a git checkout, the stamp carries that
     checkout's branch and commit too (``1.15.0+main.343b244``, see
-    :mod:`canlib.build_info`), so a reading can be traced to the exact code that
+    :mod:`canlib.install.build_info`), so a reading can be traced to the exact code that
     produced it — not just the release it was near. An existing ``version`` (e.g.
     on a recovered/re-saved session) is left untouched. Inserted right after
     ``label`` so the on-disk field order stays readable (date, label, version, …).
     """
     if session.get("version"):
         return session
-    from canlib.build_info import full_version
+    from canlib.install.build_info import full_version
 
     version = full_version()
 
@@ -500,7 +500,7 @@ def saved_banner(capture_file: Path, n_captures: int) -> str:
     reinstall — the loudest place to say so is next to the path itself.
     """
     banner = f"  \u2192 Saved {n_captures} capture(s) to {capture_file}"
-    from canlib.install_context import snapshot_write_note
+    from canlib.install.context import snapshot_write_note
     from canlib.privacy.sensitive import take_withheld_note
 
     notes = [n for n in (take_withheld_note(), snapshot_write_note(capture_file)) if n]
@@ -794,7 +794,7 @@ def annotate_session_spans(
         )
         if not result.is_timeline:
             return None
-        from canlib.build_info import full_version
+        from canlib.install.build_info import full_version
 
         set_session_state_spans(fpath, idx, result.spans, source="record", version=full_version())
         return list(result.spans)

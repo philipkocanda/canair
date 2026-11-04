@@ -25,7 +25,7 @@ It answers three questions, all without touching the network:
    ``pyproject.toml`` (:func:`clone_version`).
 
 :func:`describe` bundles all three into one dict, adds the running code's git
-build provenance (:mod:`canlib.build_info`), and computes whether the tool copy is
+build provenance (:mod:`canlib.install.build_info`), and computes whether the tool copy is
 **out of sync** with the clone.
 """
 
@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .profile import BundleMember
+    from canlib.profile import BundleMember
 
 # --- Locations -------------------------------------------------------------
 
@@ -148,13 +148,13 @@ def running_origin() -> str:
 def running_version() -> str:
     """Version of the package that is currently executing.
 
-    The **provenance** version (:func:`canlib.build_info.full_version`): the
+    The **provenance** version (:func:`canlib.install.build_info.full_version`): the
     package version, plus the checkout's branch/commit when running from a git
     working tree. Version *comparisons* (the out-of-sync verdict below, the
     release check in ``canair update``) deliberately use the pure versions
     instead — a local segment says nothing about ordering.
     """
-    from .build_info import full_version
+    from canlib.install.build_info import full_version
 
     return full_version()
 
@@ -317,9 +317,8 @@ def snapshot_profile_risks(clone: Path | None) -> list[SnapshotRisk]:
     Without a readable ``RECORD`` every file differing from the clone is reported,
     since nothing then distinguishes an edit from upstream drift.
     """
+    from canlib.profile import BUNDLE_MEMBERS, BUNDLED_PROFILES_DIR, looks_like_profile
     from canlib.profile.names import build_alias_index
-
-    from .profile import BUNDLE_MEMBERS, BUNDLED_PROFILES_DIR, looks_like_profile
 
     if clone is None or not installed_snapshot_kind(BUNDLED_PROFILES_DIR):
         return []
@@ -416,7 +415,7 @@ def describe(clone: Path | None) -> dict:
     (branch/commit/dirty), or is ``None`` for an installed copy — the structured
     form of the provenance suffix in ``running_version``.
     """
-    from .build_info import running_build
+    from canlib.install.build_info import running_build
 
     origin = running_origin()
     tool_version = installed_tool_version()

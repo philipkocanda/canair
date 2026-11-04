@@ -94,7 +94,7 @@ def is_disabled() -> bool:
     if os.environ.get(DISABLE_ENV):
         return True
     try:
-        from .config import get_config_key
+        from canlib.config import get_config_key
 
         value = get_config_key(DISABLE_CONFIG_KEY)
     except Exception:
@@ -114,7 +114,7 @@ def read_cache() -> dict | None:
 
 def write_cache(latest_tag: str | None, html_url: str | None) -> None:
     """Persist the latest-known release (best-effort; errors are swallowed)."""
-    from .config import ensure_config_dir
+    from canlib.config import ensure_config_dir
 
     payload = {
         "checked_at": time.time(),
@@ -218,7 +218,7 @@ def pending_notice() -> str | None:
         if not cache:
             return None
         latest = cache.get("latest_tag")
-        from . import __version__
+        from canlib import __version__
 
         if not _is_newer(latest, __version__):
             return None

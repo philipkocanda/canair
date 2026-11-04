@@ -27,7 +27,7 @@ reinstall-only resync (``uv tool install <clone> --reinstall``) — no network o
 tag checkout needed — to bring the bare ``canair`` back in line with the clone.
 
 The reported *current* version is the provenance-bearing one
-(:func:`canlib.build_info.full_version`) — from a checkout it names the branch and
+(:func:`canlib.install.build_info.full_version`) — from a checkout it names the branch and
 commit — while the release comparison runs on the pure package version.
 
 Because a reinstall replaces the installed package directory wholesale, it also
@@ -45,15 +45,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .. import build_info
-from ..install_context import describe as describe_install
-from ..install_context import source_clone
-from ..update_check import (
-    CHANGELOG_URL,
-    _is_newer,
-    fetch_latest_release,
-    write_cache,
-)
+from canlib.install import build_info
+from canlib.install.context import describe as describe_install
+from canlib.install.context import source_clone
+from canlib.install.update_check import CHANGELOG_URL, _is_newer, fetch_latest_release, write_cache
 
 NAME = "update"
 
@@ -199,7 +194,8 @@ def _warn_about_snapshot_data(c, clone: Path | None) -> None:
     ``--yes`` still skips the prompt) because refusing outright would strand a
     user who has no intention of keeping them.
     """
-    from ..install_context import snapshot_profile_risks
+    from canlib.install.context import snapshot_profile_risks
+
     from ..migrations.dtc_log import migrate_all
 
     # The DTC log is user state now; move any legacy copy out before it is deleted.

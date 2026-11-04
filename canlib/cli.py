@@ -215,7 +215,7 @@ class _VersionAction(argparse.Action):
     """``--version``, resolved only when actually asked for.
 
     The reported version is provenance-bearing — from a git checkout it names the
-    branch and commit, which costs a ``git`` call (see :mod:`canlib.build_info`).
+    branch and commit, which costs a ``git`` call (see :mod:`canlib.install.build_info`).
     argparse's stock ``version`` action captures its string at ``add_argument``
     time, i.e. while *building* the parser, which would tax every single canair
     invocation; this one defers the lookup to the flag's use.
@@ -233,7 +233,7 @@ class _VersionAction(argparse.Action):
         )
 
     def __call__(self, parser, namespace, values, option_string=None):
-        from canlib.build_info import full_version
+        from canlib.install.build_info import full_version
 
         print(f"{parser.prog} {full_version()}")
         parser.exit()
@@ -357,7 +357,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Fire a non-blocking, cached update check (interactive only; opt-out via
     # config/env). Never blocks or affects the command's outcome.
-    from canlib import update_check
+    from canlib.install import update_check
 
     check_updates = _update_check_allowed(args)
     if check_updates:

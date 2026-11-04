@@ -22,10 +22,10 @@ import io
 from pathlib import Path
 from typing import Any
 
+from canlib.install.context import installed_snapshot_kind
 from canlib.privacy import pii
 
 from .. import contribute as C
-from ..install_context import installed_snapshot_kind
 from ._contribute_report import (
     CANNOT,
     Reporter,

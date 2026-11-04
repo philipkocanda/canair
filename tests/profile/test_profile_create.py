@@ -285,7 +285,8 @@ class TestProfileListSnapshotWarning:
     def test_warns_when_running_uv_tool_snapshot(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
-        from canlib import config, install_context, profile
+        from canlib import config, profile
+        from canlib.install import context as install_context
 
         config.load_config.cache_clear()
         profile._active = None
@@ -299,7 +300,8 @@ class TestProfileListSnapshotWarning:
     def test_no_warning_when_running_from_repo(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
-        from canlib import config, install_context, profile
+        from canlib import config, profile
+        from canlib.install import context as install_context
 
         config.load_config.cache_clear()
         profile._active = None

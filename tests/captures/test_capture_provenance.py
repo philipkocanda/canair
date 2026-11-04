@@ -80,7 +80,7 @@ class TestJournalProvenance:
 
 class TestVersionStamping:
     def test_save_session_stamps_current_version(self, tmp_path):
-        from canlib.build_info import full_version
+        from canlib.install.build_info import full_version
 
         s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "lbl", [], "")
         assert "version" not in s  # builders don't stamp it; save_session does
@@ -95,7 +95,7 @@ class TestVersionStamping:
         decoded it, rather than to whatever release it happened to sit near.
         """
         import canlib
-        from canlib import build_info
+        from canlib.install import build_info
 
         monkeypatch.setattr(
             build_info,
@@ -123,7 +123,7 @@ class TestVersionStamping:
         assert data["sessions"][0]["version"] == "0.0.1-pinned"
 
     def test_journaled_session_carries_version(self, tmp_path):
-        from canlib.build_info import full_version
+        from canlib.install.build_info import full_version
 
         j = CaptureJournal.open(tmp_path, label="run", transport="wican-ws")
         j.append("0x7EC", "2101", "6101AA")

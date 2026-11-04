@@ -1,4 +1,4 @@
-"""Tests for the update checker (canlib.update_check) and `canair update`."""
+"""Tests for the update checker (canlib.install.update_check) and `canair update`."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from canlib import build_info, update_check
-from canlib import install_context as ic
+from canlib.install import build_info, update_check
+from canlib.install import context as ic
 
 
 @pytest.fixture(autouse=True)

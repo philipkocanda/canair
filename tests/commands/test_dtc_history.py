@@ -517,6 +517,6 @@ class TestMigrateAll:
 
         calls = []
         monkeypatch.setattr("canlib.migrations.dtc_log.migrate_all", lambda: calls.append(1))
-        monkeypatch.setattr("canlib.install_context.snapshot_profile_risks", lambda clone: [])
+        monkeypatch.setattr("canlib.install.context.snapshot_profile_risks", lambda clone: [])
         update._warn_about_snapshot_data(None, None)
         assert calls == [1]
