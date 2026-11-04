@@ -55,11 +55,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from canlib import ansi
 from canlib.cli.commands._edit import add_edit_args, clear_sentinel, edit_scope, run_edit
 from canlib.cli.commands._hexarg import parse_hex_arg
 from canlib.ecus.pids import INHERITED_PARAM_FIELDS, PID_STATUSES
 from canlib.ecus.signal_category import CATEGORIES, QUANTITY_CATEGORIES
+from canlib.render import ansi
 from canlib.uds.support_map import MapDecl, SupportMapError
 from canlib.yaml_edit.echo import echo_edit
 from canlib.yaml_edit.errors import EditError, translate

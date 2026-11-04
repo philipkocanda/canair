@@ -42,8 +42,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from canlib import ansi
 from canlib.captures.types import CaptureRecord
+from canlib.render import ansi
 
 
 def _parse_spec(spec: str) -> tuple[str, str, str]:

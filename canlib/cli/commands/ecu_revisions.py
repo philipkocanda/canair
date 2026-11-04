@@ -24,9 +24,9 @@ import argparse
 import json
 import sys
 
-from canlib import ansi
 from canlib.cli.commands._edit import run_edit
 from canlib.cli.commands._hints import ecu_completer as _ecu_completer
+from canlib.render import ansi
 from canlib.yaml_edit.errors import EditError
 
 _EXAMPLES = __doc__.split("Examples:")[1]

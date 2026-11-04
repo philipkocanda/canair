@@ -32,8 +32,8 @@ import dataclasses
 import json
 import sys
 
-from canlib import ansi
 from canlib.cli.commands._edit import run_edit, subcommand_dispatch
+from canlib.render import ansi
 from canlib.yaml_edit.errors import EditError
 
 NAME = "variants"

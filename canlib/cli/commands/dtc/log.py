@@ -10,8 +10,8 @@ from __future__ import annotations
 import argparse
 import json
 
-from canlib import ansi
 from canlib.cli.commands._live import ecu_completer
+from canlib.render import ansi
 
 
 def add_parser(kinds) -> argparse.ArgumentParser:

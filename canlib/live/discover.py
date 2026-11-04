@@ -4,9 +4,9 @@ import asyncio
 import json
 import sys
 
+from canlib.render import ansi
 from canlib.uds.addressing import DEFAULT_MODE, AddressingMode, is_extended
 
-from .. import ansi
 from ..transport.protocol import Terminal
 from .discover_render import (
     INDENT,

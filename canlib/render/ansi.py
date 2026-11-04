@@ -89,7 +89,7 @@ def __getattr__(name: str) -> str:
     """
     if name in _GATED_NAMES:
         return getattr(raw, name) if use_color() else ""
-    raise AttributeError(f"module 'canlib.ansi' has no attribute {name!r}")
+    raise AttributeError(f"module 'canlib.render.ansi' has no attribute {name!r}")
 
 
 def c(text: str, code: str, *, stream: TextIO | None = None) -> str:

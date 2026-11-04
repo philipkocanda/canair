@@ -56,9 +56,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from canlib import ansi
 from canlib.dtc.refs import EcuRefs
 from canlib.dtc.scope import ALL_SCOPE, Car, current_car, entry_revision
+from canlib.render import ansi
 
 if TYPE_CHECKING:
     from canlib.profile import Profile

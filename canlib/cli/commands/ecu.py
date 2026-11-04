@@ -48,7 +48,6 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from canlib import ansi
 from canlib.captures.types import CaptureEntry
 from canlib.cli.commands._edit import edit_scope
 from canlib.cli.commands._group import group_help
@@ -56,6 +55,7 @@ from canlib.cli.commands._hexarg import parse_hex_arg
 from canlib.cli.commands._hints import ecu_completer as _ecu_completer
 from canlib.ecus import load_ecus, resolve_tx, rx_addr_str
 from canlib.ecus.pids import load_pids, pid_status
+from canlib.render import ansi
 from canlib.states import ecu_states
 from canlib.yaml_edit.echo import echo_edit
 from canlib.yaml_edit.errors import EditError

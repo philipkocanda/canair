@@ -15,11 +15,11 @@ import json
 import sys
 
 from canlib.privacy.sensitive import MASK, request_hidden
+from canlib.render import ansi
 from canlib.uds.echo import request_echo
 from canlib.uds.protocol import KWP, UDS
 from canlib.uds.response import UdsResponse
 
-from .. import ansi
 from ..ecus import ecu_display
 from ..transport.protocol import Terminal
 from .discover_render import Painter

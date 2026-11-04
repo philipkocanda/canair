@@ -20,7 +20,6 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 
-from canlib import ansi
 from canlib.analysis.align import DEFAULT_SESSION_GAP_S, LoadedPid
 from canlib.analysis.counters import (
     SCAN_FLOOR_BITS,
@@ -32,6 +31,7 @@ from canlib.analysis.triage import bit_flip_rates
 from canlib.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canlib.cli.commands._notation import resolve_notation
 from canlib.cli.commands._scope import active_scope_flags
+from canlib.render import ansi
 from canlib.uds.byteindex import mapped_offsets, wican_to_isotp
 from canlib.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
 

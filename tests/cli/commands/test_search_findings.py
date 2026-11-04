@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import pytest
 
-from canlib import ansi
 from canlib.cli.commands.search import render
 from canlib.cli.commands.search.findings import (
     PayloadRow,
@@ -19,6 +18,7 @@ from canlib.cli.commands.search.findings import (
 )
 from canlib.core.textscan import compile_regex, find_hex, find_literal, find_regex
 from canlib.expression.decode_value import decode_typed
+from canlib.render import ansi
 from canlib.uds.byteindex import payload_to_wican_bytes
 from canlib.uds.notation import ByteNotation
 

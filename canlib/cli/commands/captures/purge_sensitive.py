@@ -7,8 +7,8 @@ import json
 import sys
 from pathlib import Path
 
-from canlib import ansi
 from canlib.captures import io as capture_io
+from canlib.render import ansi
 
 
 def cmd_purge_sensitive(

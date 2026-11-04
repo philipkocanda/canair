@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from canlib import ansi
+from canlib.render import ansi
 from canlib.uds.protocol import KWP
 
 from ...ecus import ecu_display

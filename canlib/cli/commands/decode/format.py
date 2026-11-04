@@ -8,7 +8,7 @@ use, so the three of them cannot drift apart.
 
 from __future__ import annotations
 
-from canlib import ansi
+from canlib.render import ansi
 
 
 def format_value(v: float | None, unit: str) -> str:

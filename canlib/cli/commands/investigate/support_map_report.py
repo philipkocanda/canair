@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from collections import Counter
 
-from canlib import ansi
 from canlib.analysis.support_map import ABSENCE_TEXT, MapFit, Slot
 from canlib.cli.commands._notation import resolve_notation
+from canlib.render import ansi
 from canlib.uds.byteindex import declared_bits, extract_byte_indices, references_full_byte
 from canlib.uds.notation import ByteNotation, relabel_signal, subfunction_bytes_for_pid
 

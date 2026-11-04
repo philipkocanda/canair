@@ -21,12 +21,12 @@ import math
 import shutil
 import sys
 
-from canlib import ansi
 from canlib.analysis.stats import pearson as _pearson
 from canlib.captures.store import load_pid_captures
 from canlib.cli.commands._scope import resolve_scope_bounds
 from canlib.ecus.pids import build_ecu_index, load_pids
 from canlib.expression.decoding import decode_payload, ordered_signal_names
+from canlib.render import ansi
 from canlib.uds.byteindex import payload_to_wican_bytes
 from canlib.uds.inspect_bytes import (
     INSPECT_TYPES,

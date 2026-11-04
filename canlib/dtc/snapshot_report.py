@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from canlib import ansi
-from canlib.formatting import format_value
+from canlib.render import ansi
+from canlib.render.formatting import format_value
 
 
 def snapshot_lines(code: Mapping[str, Any], indent: str) -> list[str]:

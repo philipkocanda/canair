@@ -115,7 +115,7 @@ class TestLiveMasking:
         assert entry["raw_hex"] == "62F102AABBCCDDEEFF" and entry["sensitive"]
 
     def test_the_masked_hex_line_says_how_to_reveal(self):
-        from canlib.formatting import _render_hex_line
+        from canlib.render.formatting import _render_hex_line
 
         line = _render_hex_line(sensitive.MASK, [], True).plain
         assert sensitive.MASK in line and "--reveal" in line

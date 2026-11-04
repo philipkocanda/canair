@@ -1,8 +1,8 @@
-"""Tests for canlib.formatting — output formatting helpers."""
+"""Tests for canlib.render.formatting — output formatting helpers."""
 
 import pytest
 
-from canlib.formatting import (
+from canlib.render.formatting import (
     _HIGHLIGHT_STYLE,
     changed_param_highlights,
     format_value,

@@ -5,7 +5,6 @@ from __future__ import annotations
 import io
 import re
 
-from canlib import ansi
 from canlib.live.discover_render import (
     POSITIVE,
     REFUSED,
@@ -14,6 +13,7 @@ from canlib.live.discover_render import (
     render_row,
     status_cell,
 )
+from canlib.render import ansi
 
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
 

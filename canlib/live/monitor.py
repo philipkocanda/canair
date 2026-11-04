@@ -35,16 +35,12 @@ from rich.text import Text
 from canlib.captures.keepmode import KEEP_LAST, KeepMode
 from canlib.core.eventlog import log_event
 from canlib.expression.results import EcuFrame, ResultEntry
+from canlib.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, _render_hex_line
 from canlib.transport.session_manager import SessionManager
 from canlib.uds.notation import ByteNotation
 
 from .. import config
 from ..captures.link_events import is_rx
-from ..formatting import (
-    _HIGHLIGHT_STYLE,
-    _bytes_to_ascii,
-    _render_hex_line,
-)
 from ._monitor_link_events import LinkEventTracker
 from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _write_merged
 from ._monitor_render import (
@@ -67,7 +63,7 @@ if TYPE_CHECKING:
     from ..ecus.pids import EcuIndexEntry
     from .monitor_reconnect import Reconnector
 
-# _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
+# _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.render.formatting;
 # _render_results/_RENDER_MAX_ROWS/RenderCache to _monitor_render; _raw_pid_result to
 # monitor_raw; _merge_history/_write_merged/_open_journal + the recording/journaling
 # logic to _monitor_record; STATE_INPUT_STALE_CYCLES + the state-suggestion logic to

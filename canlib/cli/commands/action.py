@@ -22,10 +22,10 @@ import argparse
 import json
 import sys
 
-from canlib import ansi
 from canlib.cli.commands._edit import run_edit, subcommand_dispatch
 from canlib.cli.commands._live import LiveOperation, add_connection_args, live_command
 from canlib.cli.commands._live.handlers import actuators
+from canlib.render import ansi
 
 NAME = "action"
 _RUN = LiveOperation(actuators.handle_action)

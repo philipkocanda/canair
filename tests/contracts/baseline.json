@@ -1,8 +1,5 @@
 {
-  "root_modules": [
-    "ansi",
-    "formatting"
-  ],
+  "root_modules": [],
   "root_init_internal_imports": 0,
   "oversized_modules": {
     "canlib.analysis.align": 934,
@@ -31,15 +28,15 @@
     "canlib.device.lock": 581,
     "canlib.ecus": 502,
     "canlib.ecus.pids": 763,
-    "canlib.formatting": 621,
     "canlib.live._monitor_record": 540,
     "canlib.live._monitor_render": 550,
     "canlib.live._monitor_tui": 1602,
     "canlib.live.iocontrol": 745,
-    "canlib.live.monitor": 1190,
+    "canlib.live.monitor": 1186,
     "canlib.live.multi_exec": 616,
     "canlib.live.routines": 676,
     "canlib.profile": 705,
+    "canlib.render.formatting": 621,
     "canlib.states": 987,
     "canlib.transport.elm327.terminal": 835,
     "canlib.uds.byteindex": 541,
@@ -78,9 +75,6 @@
   ],
   "test_to_test_imports": [],
   "flat_tests": [
-    "test_ansi.py",
-    "test_ansi_gating.py",
-    "test_formatting.py",
     "test_session_identity.py",
     "test_validate_duplicate_keys.py",
     "test_variant_consumers.py",

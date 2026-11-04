@@ -18,7 +18,6 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
-from canlib import ansi
 from canlib.captures.keepmode import EntryKeepMode
 from canlib.captures.link_events import LinkEvent
 from canlib.captures.store import (
@@ -29,6 +28,7 @@ from canlib.captures.store import (
     resolve_pid_defs,
 )
 from canlib.captures.types import CaptureEntry, Quality
+from canlib.render import ansi
 
 
 # ANSI color helpers (shared across the captures command family).

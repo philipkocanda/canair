@@ -77,7 +77,7 @@ def capture_block_text(
     byte-reference column are drawn in.
     """
     from canlib.expression.decoding import decode_param_rows
-    from canlib.formatting import (
+    from canlib.render.formatting import (
         _render_hex_line,
         changed_param_highlights,
         render_byte_rulers,

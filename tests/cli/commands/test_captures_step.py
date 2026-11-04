@@ -86,7 +86,7 @@ class TestCaptureBlockText:
         assert "P_STATIC" not in out
 
     def test_declared_map_bytes_are_drawn_muted(self):
-        from canlib.formatting import MAP_BYTE_STYLE
+        from canlib.render.formatting import MAP_BYTE_STYLE
 
         caps = [_entry(time="12:00:00", payload="6201005A6414")]
         defs = {("HVAC", "220100"): (PARAMS, 0x7B3, (2,))}

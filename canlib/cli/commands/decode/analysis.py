@@ -11,12 +11,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from canlib import ansi
 from canlib.analysis.align import longest_payload_len
 from canlib.analysis.mirrors import DEFAULT_MIRROR_MATCH
 from canlib.analysis.stats import correlation as _correlation
 from canlib.analysis.xanalysis import byte_state_buckets as _byte_state_buckets
 from canlib.analysis.xanalysis import discriminability as _discriminability
+from canlib.render import ansi
 from canlib.states import load_states, state_bucket_key
 from canlib.uds.inspect_bytes import apply_transform
 from canlib.uds.notation import ByteNotation, relabel_signal

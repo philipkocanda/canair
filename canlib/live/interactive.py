@@ -4,12 +4,11 @@ import re
 
 from canlib.ecus.pids import build_ecu_index
 from canlib.expression.decoding import decode_param_rows
+from canlib.render.formatting import print_decoded_params, print_hexdump
 from canlib.transport.elm327.terminal import Elm327Terminal
 from canlib.transport.elm327.wican import WiCANTerminal, reboot_wican
 from canlib.uds.parse import parse_uds_response
 from canlib.uds.wican_layout import uds_hex_to_wican_bytes
-
-from ..formatting import print_decoded_params, print_hexdump
 
 
 async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: bool):

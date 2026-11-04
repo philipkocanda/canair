@@ -337,9 +337,9 @@ def main(argv: list[str] | None = None) -> int:
     if should_offer(args, seeded=seeded):
         run_first_run_setup(args)
 
-    from canlib import ansi
     from canlib.captures.io import LegacyCaptureError
     from canlib.profile import ProfileError, set_active
+    from canlib.render import ansi
     from canlib.safety.blocklist import SafetyBlocked
     from canlib.yaml_edit.errors import EditError
 

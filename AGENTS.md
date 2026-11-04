@@ -670,7 +670,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   `(response_SID, sub-function)` table for headers whose shape depends on the sub-function, such as
   the `59 04` snapshot record; `layout_of(payload)` picks the right one), which also owns
   **`SUBFUNCTION_NAMES`**, the single home for per-SID sub-function enums —
-  `canlib/formatting.py::decode_uds_response` and `live/sessions_scan.py` both read it, and a test
+  `canlib/render/formatting.py::decode_uds_response` and `live/sessions_scan.py` both read it, and a test
   cross-checks the two layout models.
 - **`canair config`** — View/manage user config (`~/.config/canair/config.yaml`): `show`, `example`
   (prints `config.example.yaml`, the authoritative fully-commented reference for every key), `path`,

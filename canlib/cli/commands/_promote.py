@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from canlib import ansi
+from canlib.render import ansi
 
 
 def _reject_pci_reads(ecu: str, pid: str, name: str, expr: str) -> None:

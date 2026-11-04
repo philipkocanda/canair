@@ -12,9 +12,9 @@ from collections import Counter
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from canlib import ansi
 from canlib.analysis.support_fields import FieldFit, known_fields, solve_fields
 from canlib.analysis.support_map import MIN_ROWS, MODAL_FRAC
+from canlib.render import ansi
 from canlib.uds.byteindex import extract_byte_indices
 from canlib.uds.notation import ByteNotation, relabel_signal, subfunction_bytes_for_pid
 from canlib.uds.support_marks import MAX_MAP_LEN

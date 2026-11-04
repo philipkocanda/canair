@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from canlib import ansi
 from canlib.cli.commands._notation import resolve_notation
+from canlib.render import ansi
 from canlib.uds.notation import relabel_signal, subfunction_bytes_for_pid
 
 if TYPE_CHECKING:

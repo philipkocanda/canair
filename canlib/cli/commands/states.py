@@ -45,8 +45,8 @@ import sys
 from pathlib import Path
 from typing import TypedDict
 
-from canlib import ansi
 from canlib.cli.commands._edit import run_edit, set_or_clear, subcommand_dispatch
+from canlib.render import ansi
 from canlib.yaml_edit.echo import echo_edit
 from canlib.yaml_edit.errors import EditError
 

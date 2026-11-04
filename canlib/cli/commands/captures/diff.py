@@ -33,7 +33,7 @@ def _render_diff_group(
 
     parameters, tx_id, map_bytes = pdefs
     from canlib.expression.decoding import decode_param_rows
-    from canlib.formatting import _render_hex_line, render_byte_rulers, render_param_table
+    from canlib.render.formatting import _render_hex_line, render_byte_rulers, render_param_table
     from canlib.uds.notation import ByteDisplay, subfunction_bytes_for_pid
 
     # Decode the most recent payload into param rows (drives the table + colours).

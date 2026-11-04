@@ -17,7 +17,7 @@ class ResultEntry(TypedDict):
 
     The single dict shape shared across the live monitor renderer
     (:mod:`canlib.live._monitor_render`), the compact printer
-    (:func:`canlib.formatting.print_ecu_results`), the capture collectors
+    (:func:`canlib.render.formatting.print_ecu_results`), the capture collectors
     (:mod:`canlib.live.multi`), and state auto-suggestion
     (:func:`canlib.states.collect_values`). ``pid`` is always present; the rest
     depend on the outcome — a successful decode carries ``params``/``raw_hex``,

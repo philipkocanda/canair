@@ -18,7 +18,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from canlib import ansi
+from canlib.render import ansi
 
 # ANSI styling for category headers (match the sibling tools: bix, decode, …).
 # Emitted only when stdout is a TTY so piped/redirected help stays plain.

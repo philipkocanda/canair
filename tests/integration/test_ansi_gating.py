@@ -1,6 +1,6 @@
 """Integration test: piped canair commands must emit zero ANSI escape codes.
 
-The point of consolidating the palette onto :mod:`canlib.ansi` was to give the
+The point of consolidating the palette onto :mod:`canlib.render.ansi` was to give the
 tree one place to answer "should this be coloured?" — so that redirecting into
 a file, piping into ``less``, or a caller (agent) parsing the output never sees
 raw escape codes. Before this consolidation the leak was measured across the

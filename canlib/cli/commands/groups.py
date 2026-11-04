@@ -24,8 +24,8 @@ import json
 import sys
 from typing import TypedDict
 
-from canlib import ansi
 from canlib.cli.commands._edit import run_edit, set_or_clear, subcommand_dispatch
+from canlib.render import ansi
 
 NAME = "groups"
 

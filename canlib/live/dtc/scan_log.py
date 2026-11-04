@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from canlib import ansi
+from canlib.render import ansi
 
 from ...dtc.refs import ecu_ref
 

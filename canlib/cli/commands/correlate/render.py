@@ -14,7 +14,6 @@ from __future__ import annotations
 import json as _json
 import sys
 
-from canlib import ansi
 from canlib.analysis.align import (
     TimePoint,
     join_prepared,
@@ -25,6 +24,7 @@ from canlib.analysis.align import (
 )
 from canlib.analysis.xanalysis import build_bit_series, build_byte_series, build_param_series
 from canlib.captures.dates import entry_datetime
+from canlib.render import ansi
 from canlib.uds.notation import ByteNotation, relabel_signal
 
 

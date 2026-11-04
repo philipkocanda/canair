@@ -7,7 +7,7 @@ Ingest is ``canair import can`` (:mod:`canlib.cli.commands.import_`).
 
 import argparse
 
-from canlib import ansi
+from canlib.render import ansi
 
 
 def cmd_can_logs(as_json: bool = False) -> int:

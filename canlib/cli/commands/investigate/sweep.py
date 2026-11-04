@@ -20,9 +20,9 @@ from __future__ import annotations
 import json as _json
 import sys
 
-from canlib import ansi
 from canlib.analysis.align import LoadedPid, load_signal_captures
 from canlib.cli.commands._notation import resolve_notation
+from canlib.render import ansi
 from canlib.uds.byteindex import mapped_offsets
 from canlib.uds.notation import ByteNotation, subfunction_bytes_for_pid
 

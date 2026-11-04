@@ -16,7 +16,6 @@ import sys
 from collections import Counter
 from dataclasses import dataclass, field
 
-from canlib import ansi
 from canlib.analysis.align import LoadedPid, discover_signal_specs, load_signal_captures
 from canlib.analysis.support_fields import FieldFit
 from canlib.analysis.support_map import (
@@ -30,6 +29,7 @@ from canlib.analysis.support_map import (
     detect_support_maps,
     family_chance_log10,
 )
+from canlib.render import ansi
 from canlib.uds.byteindex import payload_index_to_wican
 from canlib.uds.notation import subfunction_bytes_for_pid
 from canlib.uds.support_marks import MAX_MAP_LEN

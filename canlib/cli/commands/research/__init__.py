@@ -49,9 +49,9 @@ from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 
-from canlib import ansi
 from canlib.cli.commands._hints import ecu_completer as _ecu_completer
 from canlib.ecus.pids import load_pids
+from canlib.render import ansi
 from canlib.states import allowed_states, state_matcher, unknown_state_tokens
 
 NAME = "research"
@@ -68,7 +68,7 @@ _STATUS_RANK = {"pending": 0, "nrc": 1, "captured": 2, "done": 3}
 
 
 # Priority + status colour lookups. Defined as functions (not module-level
-# dicts) because the values come from :mod:`canlib.ansi`'s gated attributes,
+# dicts) because the values come from :mod:`canlib.render.ansi`'s gated attributes,
 # which resolve to the escape code or ``""`` based on whether stdout is a TTY;
 # a dict evaluated at import time would freeze the decision the process started
 # with and misgate every subsequent print. Callers use ``_prio_color(prio)``.

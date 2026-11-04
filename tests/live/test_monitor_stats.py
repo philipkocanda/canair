@@ -2,11 +2,11 @@
 
 Covers :class:`canlib.live._monitor_stats.ParamStats` (numeric min/max, distinct
 non-numeric labels, bool-as-flag handling, overflow) and the
-:func:`canlib.formatting.render_param_ranges` renderer that presents it.
+:func:`canlib.render.formatting.render_param_ranges` renderer that presents it.
 """
 
-from canlib.formatting import render_param_ranges
 from canlib.live._monitor_stats import ParamStats
+from canlib.render.formatting import render_param_ranges
 
 
 def _row(name, value, unit="", verified=True):

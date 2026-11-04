@@ -4,8 +4,8 @@ import argparse
 
 import pytest
 
-from canlib import ansi
 from canlib.cli.commands import bix
+from canlib.render import ansi
 
 
 def _parse(argv):

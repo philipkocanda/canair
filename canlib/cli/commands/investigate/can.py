@@ -10,10 +10,10 @@ from __future__ import annotations
 import json as _json
 import sys
 
-from canlib import ansi
 from canlib.analysis.align import (
     prepare_series,
 )
+from canlib.render import ansi
 
 from .report import _best_anchor
 

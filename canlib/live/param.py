@@ -5,10 +5,10 @@ import json
 from canlib.ecus.pids import build_param_index
 from canlib.expression.decoding import decode_param_rows
 from canlib.privacy.sensitive import mask_rows
+from canlib.render.formatting import print_decoded_params
 from canlib.transport.session_manager import SessionManager
 from canlib.uds.echo import request_echo
 
-from ..formatting import print_decoded_params
 from ..transport.protocol import Terminal
 from .multi_exec import timed_exchange
 

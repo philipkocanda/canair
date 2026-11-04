@@ -19,7 +19,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, TextIO
 
-from canlib import ansi
+from canlib.render import ansi
 from canlib.transport.functional import DEFAULT_WINDOW_S
 from canlib.transport.protocol import Terminal
 

@@ -10,7 +10,6 @@ from __future__ import annotations
 import json as _json
 import sys
 
-from canlib import ansi
 from canlib.analysis.align import (
     join_prepared,
     prepare_series,
@@ -20,6 +19,7 @@ from canlib.analysis.xanalysis import (
     correlate_matrix,
     correlation,
 )
+from canlib.render import ansi
 
 from .promote import _warn_thin_reference_join
 from .render import (

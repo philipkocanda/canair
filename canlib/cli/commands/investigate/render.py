@@ -16,10 +16,10 @@ from __future__ import annotations
 import json as _json
 import sys
 
-from canlib import ansi
 from canlib.analysis.align import longest_payload_len
 from canlib.captures.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 from canlib.cli.commands._notation import resolve_notation
+from canlib.render import ansi
 from canlib.uds.notation import relabel_signal, subfunction_bytes_for_pid
 
 

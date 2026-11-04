@@ -27,7 +27,7 @@ What it does not handle, learnt the hard way:
 * ``import pkg.mod as alias`` style module attribute access (``alias.func``) in tests: the
   importers are rewritten but ``alias.func`` still points at the old module. ``ty``/the suite
   will find them; fix by hand.
-* Names resolved through a module-level ``__getattr__`` (``canlib.ansi.BOLD``) must never be
+* Names resolved through a module-level ``__getattr__`` (``canlib.render.ansi.BOLD``) must never be
   patched with ``monkeypatch.setattr``; use ``monkeypatch.setitem(module.__dict__, ...)``.
 * Imports it writes are absolute and may land in their own isort group; run
   ``ruff check --fix`` and ``ruff format`` afterwards, and mind the size ceilings in

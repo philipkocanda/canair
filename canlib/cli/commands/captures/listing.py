@@ -9,9 +9,9 @@ these two views are their only callers.
 import sys
 from collections.abc import Sequence
 
-from canlib import ansi
 from canlib.captures.store import decoded_preview
 from canlib.captures.types import CaptureEntry
+from canlib.render import ansi
 from canlib.states import join_states as _join_states
 
 from .query import _dump_json, _entry_to_dict, _parse_query

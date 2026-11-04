@@ -49,10 +49,10 @@ from canlib.query.steps import (
     resolve_tx_id,
     selector_text,
 )
+from canlib.render.formatting import print_ecu_results
 from canlib.transport.session_manager import SessionManager
 from canlib.transport.stats import client_transport
 
-from ..formatting import print_ecu_results
 from ..transport.protocol import Terminal
 from .multi_batch import BatchState, _capture_stamp
 from .multi_exec import (

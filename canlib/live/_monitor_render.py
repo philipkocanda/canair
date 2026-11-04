@@ -13,9 +13,7 @@ from rich.text import Text
 
 from canlib.expression.results import EcuFrame, ResultEntry
 from canlib.privacy.sensitive import MASK
-from canlib.uds.notation import ByteDisplay, ByteNotation, subfunction_bytes_for_pid
-
-from ..formatting import (
+from canlib.render.formatting import (
     BYTE_COLOUR_LEGEND,
     _render_hex_line,
     changed_param_highlights,
@@ -23,6 +21,8 @@ from ..formatting import (
     render_param_ranges,
     render_param_table,
 )
+from canlib.uds.notation import ByteDisplay, ByteNotation, subfunction_bytes_for_pid
+
 from ._monitor_history import HistoryRun, PayloadHistory
 
 # Ordered display view modes cycled by the TUI 'V' key. Increasing detail:
@@ -46,7 +46,7 @@ _RENDER_MAX_ROWS = 200
 _RENDER_DEFAULT_ROWS = 4
 
 # The monitor's own glyphs, for the help legend (the byte colours come from
-# canlib.formatting.BYTE_COLOUR_LEGEND). Styles match _render_entry and render_param_table.
+# canlib.render.formatting.BYTE_COLOUR_LEGEND). Styles match _render_entry and render_param_table.
 MARKER_LEGEND: tuple[tuple[str, str, str], ...] = (
     ("○", "green", "PID answered this cycle"),
     ("○", "grey58", "stale: the last good value, held"),

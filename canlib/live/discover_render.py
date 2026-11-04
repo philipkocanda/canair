@@ -1,7 +1,7 @@
 """How ``canair discover`` and ``canair identity`` lay out their human output.
 
 Pure formatting: column alignment, section headings and the colours that tell
-the kinds of row apart. Colour follows :mod:`canlib.ansi`'s policy for the stream
+the kinds of row apart. Colour follows :mod:`canlib.render.ansi`'s policy for the stream
 the text goes to (``--json`` sends the human report to stderr), and padding is
 measured on the plain text, so the columns stay aligned with colour on or off.
 """
@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TextIO
 
-from canlib import ansi
+from canlib.render import ansi
 
 # One table cell: its plain text and the ANSI codes to show it in ("" = plain).
 Cell = tuple[str, str]

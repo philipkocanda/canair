@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from canlib import ansi
 from canlib.install.context import snapshot_write_note
+from canlib.render import ansi
 
 
 def edit_line(what: str, path: Path) -> str:

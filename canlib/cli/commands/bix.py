@@ -6,7 +6,7 @@ import argparse
 import re
 import sys
 
-from canlib import ansi
+from canlib.render import ansi
 from canlib.uds.byteindex import (
     bix_to_wican,
     conversion_table,

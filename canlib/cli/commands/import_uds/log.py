@@ -16,9 +16,9 @@ from collections import Counter
 from datetime import date, datetime, time
 from pathlib import Path
 
-from canlib import ansi
 from canlib.captures.types import CaptureSession, Quality
 from canlib.interop.frame_log import Extraction, extract_replies, stamp
+from canlib.render import ansi
 
 # A log whose first frame is later than this is on the wall clock (2001-09-09), not
 # relative to the start of the recording; same cut-off as ``import can``.

@@ -20,8 +20,8 @@ from __future__ import annotations
 import argparse
 import json
 
-from canlib import ansi
 from canlib.cli.commands._edit import run_edit
+from canlib.render import ansi
 from canlib.yaml_edit.signals import CLEARABLE_SIGNAL_FIELDS
 
 NAME = "signals"

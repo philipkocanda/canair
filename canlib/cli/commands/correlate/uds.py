@@ -10,7 +10,6 @@ from __future__ import annotations
 import json as _json
 import sys
 
-from canlib import ansi
 from canlib.analysis.align import (
     detrend_by_session,
     discover_signal_specs,
@@ -37,6 +36,7 @@ from canlib.cli.commands._join import (
 )
 from canlib.cli.commands._notation import resolve_notation
 from canlib.cli.commands._scope import resolve_scope_bounds
+from canlib.render import ansi
 from canlib.uds.notation import relabel_signal
 
 from .calc import _apply_gate

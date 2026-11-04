@@ -16,7 +16,6 @@ import argparse
 import json as _json
 import sys
 
-from canlib import ansi
 from canlib.analysis.align import (
     DEFAULT_SESSION_GAP_S,
     load_signal_captures,
@@ -41,6 +40,7 @@ from canlib.cli.commands._join import (
 )
 from canlib.cli.commands._notation import add_notation_arg, resolve_notation
 from canlib.cli.commands._scope import add_scope_args, resolve_scope_bounds
+from canlib.render import ansi
 from canlib.uds.inspect_bytes import NO_EXPR
 from canlib.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
 

@@ -8,7 +8,7 @@ import sys
 from collections.abc import Sequence
 from dataclasses import asdict
 
-from canlib import ansi
+from canlib.render import ansi
 from canlib.uds.notation import ByteDisplay, ByteNotation
 
 from .findings import FIELD_PAYLOAD, Finding

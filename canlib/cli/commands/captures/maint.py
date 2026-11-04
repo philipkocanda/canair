@@ -12,8 +12,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from canlib import ansi
 from canlib.captures.io import resolve_captures_dir
+from canlib.render import ansi
 
 
 def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:

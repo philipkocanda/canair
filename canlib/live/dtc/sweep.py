@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from canlib import ansi
+from canlib.render import ansi
 
 from ...dtc.snapshot_report import snapshot_lines, undefined_hints
 from ...ecus import ecu_display

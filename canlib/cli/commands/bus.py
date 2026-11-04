@@ -21,7 +21,7 @@ import json
 import sys
 from typing import TypedDict
 
-from canlib import ansi
+from canlib.render import ansi
 
 NAME = "bus"
 

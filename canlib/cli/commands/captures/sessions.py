@@ -11,7 +11,6 @@ import sys
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 
-from canlib import ansi
 from canlib.analysis.fill import format_hold_duration
 from canlib.captures.inferred_gaps import format_key, infer_gaps
 from canlib.captures.link_events import (
@@ -25,6 +24,7 @@ from canlib.captures.link_events import (
     summarize,
 )
 from canlib.captures.types import CaptureEntry, Quality
+from canlib.render import ansi
 from canlib.states import join_states as _join_states
 from canlib.states.spans import parse_time_key
 

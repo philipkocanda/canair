@@ -5,11 +5,11 @@ import functools
 import re
 
 from canlib.privacy.sensitive import MASK, masked_response, request_hidden
+from canlib.render.formatting import format_raw_with_bnn, print_hexdump, print_json_result
 from canlib.transport.stats import client_transport
 from canlib.uds.describe import decode_uds_response
 from canlib.uds.response import UdsResponse
 
-from ..formatting import format_raw_with_bnn, print_hexdump, print_json_result
 from ..transport.protocol import Terminal
 
 
