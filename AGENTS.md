@@ -91,14 +91,16 @@ you spotted, describe the fix, let the user decide. Don't silently balloon a sma
 
 ## Code structure — where code goes
 
-`src/canair/` is a stack of layers (interface → applications → live operations → transport → data →
-the car → protocol → environment → leaf). A layer imports only from the layers below it. **Read
-`docs/development/architecture.md` before adding or moving code**: it has the placement table
-(which package a new piece of code belongs in) and what each package may import. The tree is
-mid-migration (`plans/2026-11-04-package-layout-and-layering.md`); the table's *Until it moves*
-column says where to put code while a package has not moved yet.
+`src/canair/` is a stack of layers (`cli` → `contribute` → `live` → one group of data packages
+that still import each other → `tui`/`device` → `safety` → `expression`/`uds` → `config` →
+`core`). A layer imports only from the layers below it. **Read `docs/development/architecture.md`
+before adding or moving code**: it has the placement table (which package a new piece of code
+belongs in) and, generated from the import contract and the package charters, what each package
+is for and may import. Paths below that read `src/canair/<package>/…` use the package names of
+that page. The remaining work of the layout is in `plans/2026-11-04-package-layout-and-layering.md`.
 
-- **No new module at the `src/canair/` root.** Find its package in the placement table.
+- **No new module at the `src/canair/` root** (it holds `__init__.py` and `__main__.py`). Find the
+  package in the placement table.
 - **Lowest layer that can hold it.** No device needed → not a live operation. No flags → not in
   the CLI. No I/O → protocol or leaf code.
 - **Only the CLI imports `argparse`; only the TUI imports `textual`.** Code below them takes typed
@@ -112,7 +114,12 @@ column says where to put code while a package has not moved yet.
 - **Gates:** `make structure` (import contracts + `tests/contracts/`) runs in seconds; pre-commit
   and CI run it too. A moved or fixed import lowers a baseline in `tests/contracts/baseline.json`
   (`uv run python -m tests.contracts.test_structure --write`); nothing may raise one without the
-  user's approval.
+  user's approval. `scripts/gen/gen_architecture.py` regenerates the architecture page
+  (`--check` runs in CI); edit a package's charter, not the page.
+- **Paths:** shipped data is found through `canair.core.paths` (`BUNDLED_PROFILES_DIR`,
+  `TEMPLATES_DIR`, `CONFIG_EXAMPLE_FILE`), which means `canair/_bundled/` in a wheel and the repo
+  root in a checkout. Never derive a path from `__file__` in a new module, and never call
+  `PACKAGE_DIR.parent` the repo root: `REPO_ROOT` is `None` in an installed copy.
 
 ## Keep docs & README current — every user-facing change
 

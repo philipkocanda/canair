@@ -63,10 +63,12 @@ screenshots-check:
 
 gen:
 	uv run python scripts/gen/gen_cli_reference.py
+	uv run python scripts/gen/gen_architecture.py
 	uv run python scripts/gen/gen_screenshots.py
 
 gen-check:
 	uv run python scripts/gen/gen_cli_reference.py --check
+	uv run python scripts/gen/gen_architecture.py --check
 	uv run python scripts/gen/gen_screenshots.py --check
 
 docs:

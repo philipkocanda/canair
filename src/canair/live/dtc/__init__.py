@@ -23,7 +23,7 @@ The package is split by concern:
 * :mod:`.scan_log` — recording scans and clears to the DTC log
 
 Belongs: reading and clearing a car's fault memory over a ``Terminal``.
-Not here: the DTC log, meanings and history (``canair.dtc``) and the flags (``commands/dtc``).
+Not here: the DTC log, meanings and history (``canair.dtc``) and the flags (``cli/commands/dtc``).
 Imports: ``dtc`` (the data), ``transport`` (the protocol only), ``safety`` and ``uds``.
 """
 

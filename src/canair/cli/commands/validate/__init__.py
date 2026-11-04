@@ -17,6 +17,10 @@ Validators merged into one subcommand:
 This package is only the CLI shell: the parser and ``run``. The validators themselves are
 library code in :mod:`canair.validation`, which the profile editors call as their post-write
 guard.
+
+Belongs: `canair validate`: the parser and the runner for each target.
+Not here: the checks themselves (`validation/`).
+Imports: `validation` and below.
 """
 
 import argparse

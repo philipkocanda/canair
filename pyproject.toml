@@ -240,6 +240,11 @@ forbidden_modules = [
     "textual",
 ]
 allow_indirect_imports = true
+# The five Textual apps still sit beside the command or the live operation that starts them
+# (plans/2026-11-04-package-layout-and-layering.md, section 4: tui/apps/). Each imports the
+# model or controller of its own command or operation, which tui/ cannot import under the
+# layers contract, so moving them needs those models split from the apps first. The count is
+# pinned by tests/contracts/baseline.json and may only fall.
 ignore_imports = [
     "canair.cli.commands._sniff_tui -> textual",
     "canair.cli.commands.captures.step_tui -> textual",

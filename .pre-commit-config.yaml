@@ -62,6 +62,13 @@ repos:
         pass_filenames: false
         stages: [pre-push]
 
+      - id: architecture-current
+        name: architecture page is current
+        entry: uv run python scripts/gen/gen_architecture.py --check
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
       - id: screenshots-current
         name: doc screenshots are current
         entry: uv run python scripts/gen/gen_screenshots.py --check

@@ -9,6 +9,10 @@ Each command module exposes:
 
 New commands are registered in :data:`COMMAND_MODULES` below (import order
 determines help ordering).
+
+Belongs: one module or package per subcommand: its flags, its output and the glue to a library call.
+Not here: anything a test could call without the CLI: it goes to the package that owns it.
+Imports: any package below ``cli``; shared flag helpers are the ``_*.py`` modules here.
 """
 
 from __future__ import annotations

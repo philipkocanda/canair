@@ -20,7 +20,7 @@ tests drive the flow with a fake runner and no network.
 
 Belongs: the git/gh orchestration, the source-checkout clean-up (``source``), the log scrub
 (``logs``) and the PR summary (``summary``).
-Not here: user interaction and the pre-flight gates (``commands/contribute.py`` and its helpers).
+Not here: user interaction and the pre-flight gates (``cli/commands/contribute.py`` and its helpers).
 Imports: ``profile``, ``privacy``, ``captures``, ``config``, ``install`` and ``core``.
 """
 

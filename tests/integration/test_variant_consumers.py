@@ -17,8 +17,8 @@ from canair.cli import main
 from canair.ecus.pids import load_pids
 from canair.profile import set_active
 
-FIXTURE = Path(__file__).parent / "fixtures" / "profiles" / "variants"
-REPO = Path(__file__).parent.parent
+FIXTURE = Path(__file__).parent.parent / "fixtures" / "profiles" / "variants"
+REPO = Path(__file__).parents[2]
 
 
 @pytest.fixture(autouse=True)

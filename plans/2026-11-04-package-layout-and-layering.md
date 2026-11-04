@@ -1,7 +1,8 @@
 # Package layout and layering: give `canlib/` seams, and tests the same shape
 
-Status: **IN PROGRESS** (2026-11-04, branch `refactor/package-layout`). Not user-facing: no
-command, flag, output or profile changes. Section 9 is the part that outlives the migration:
+Status: **DONE for phases 0 to 5 except the items under "Left over" below** (2026-11-04, branch
+`refactor/package-layout`). The package is `src/canair/` now; this plan keeps the `canlib/` names it
+was written with. Not user-facing: no command, flag, output or profile changes. Section 9 is the part that outlives the migration:
 the rules, documents and gates that keep agents (and people) on this structure afterwards.
 
 Related plans this one absorbs or depends on:
@@ -719,33 +720,82 @@ Measured after phase 2 (`scripts/check/import_graph.py`, 2026-11-04):
 | Deferred internal imports | 1,177 | 1,171 |
 | Root modules | 52 | 52 (they move in phase 4) |
 
-**Phase 3: remove the flag dispatch.** Replace `dispatch_mode` with a direct call per command. Give
-each operation an options dataclass. Remove `args.*` reads from `modes/` and `captures/dates.py`.
-Shrink `CANAIR_DEFAULTS`. Unify the two hex-range parsers while the call sites are open (their
-error contracts differ, so this is a behaviour change: test it on its own).
+**Phase 3: remove the flag dispatch. DONE.**
 
-**Phase 4: moves, one package per commit, in dependency order (leaf first).**
+1. A command passes `run_live(args, operation)` a `LiveOperation` (handler, monitor options, whether
+   `--save` means anything, which scan types to announce). `modes/dispatch/` is gone; the
+   handlers are `commands/_live/handlers/` and `modes/session.py` (now `live/session.py`) takes the
+   operation plus a typed `SessionOptions`. `CANAIR_DEFAULTS` (60 attributes) is gone: every flag
+   the runtime reads is defined by `add_connection_args`, and
+   `tests/cli/commands/test_live_operations.py` pins which operation each command reaches and that
+   its parser defines every `args.x` the handler reads directly.
+2. `MonitorOptions`, `ConnectionOptions`, `TransportOverrides` and `Scope` carry what the monitor,
+   the raw path, the transport selection and the capture scope read off the namespace.
+3. The three hex-range parsers are one (`id_ranges.parse_id_range`). Behaviour change: a backwards
+   range flag is refused, and a `0x`-prefixed profile entry is dropped.
+4. Fixed on the way: `dtc --save/--label/--state` was refused on the ELM327 transports. Removed:
+   the unreachable `ecu` and `skm-wakeup` handlers and `mode_ecu`; `log_command(...)` calls that
+   matched nothing.
+5. The `argparse` contract has no ignored imports.
 
-`core` → `uds` additions → `safety` → `privacy` → `profile` and the definition packages →
-`config`/`install` → `query` → `captures` additions → `analysis` additions → `device` →
-`transport/{elm327,raw}` → `live` (rename of `modes`) → `render` → `tui/apps` → `interop` →
-`contribute` → `cli` (rename of `commands`). Each commit removes its entries from `ignore_imports`
-and lowers the baselines.
+**Phase 4: moves, one package per commit, in dependency order (leaf first). DONE.** Deviations
+from the target layout, each because the plan's placement would have broken a contract:
 
-**Phase 4b: `src/canair/`.** `git mv canlib src/canair`, rewrite every `canlib` import, string and
-path to `canair` with the phase 4 codemod, set `packages = ["src/canair"]` for hatch, update the
-`[tool.*]` source roots, `mkdocs.yml` hook paths and CI. Move the bundled data into the package and
-find it with `importlib.resources`. Add the wheel-install CI job. One commit for the rename, one
-for the data move, one for CI.
+- `blind.py` is `analysis/blind.py` (it imports analysis and captures), not `profile/blind.py`.
+- `response_frames.py` is `ecus/response_frames.py`: interop depends on it and may not import `live`.
+- `privacy/` sits with the definitions: `sensitive` and `pii` read the loaded definitions.
+- `render/` (`ansi`, `formatting`) sits below `live/`, because live operations print through it.
+- `poll_backoff`, `poll_schedule`, `scan_presets` and `scan_state` are flat modules in `live/`;
+  `live/__init__` imports nothing, so `poll_schedule` is still cheap for the parser.
+- `live/` keeps its flat module layout (`live/monitor.py`, `live/scan.py`, ...); the sub-packages
+  of section 4 (`read/`, `monitor/`, `scan/` ...) are not made.
+- `commands/_live/` is still `cli/commands/_live/`; the shared flag helpers (`_scope.py`,
+  `_join.py`, ...) are still `cli/commands/_*.py`, not `cli/args/`.
+- `profile.py`, `config.py`, `query.py`, `contribute.py` became the `__init__` of their packages, so
+  every caller and `monkeypatch` string kept its name. `broadcast` is `signals.py` renamed.
 
-**Phase 5: finish.**
+**Phase 4b: `src/canair/`. DONE.** `canlib` is `canair` and lives in `src/canair/`. The bundled
+`profiles/`, `templates/` and `config.example.yaml` stay in the repo, and the wheel maps them to
+`canair/_bundled/`; `core/paths.py` resolves them (`DATA_ROOT`), and `REPO_ROOT` is `None` in an
+installed copy. A CI job builds the wheel, installs it in a clean environment and runs it.
 
-1. `ignore_imports` is empty, or each remaining entry has a one-line reason and a plan reference.
-2. Retarget the docs. AGENTS.md has 180 `canlib/…` path references, and the skills and `docs/`
-   have 68 in 22 files. Plans are historical records and keep their old paths. AGENTS.md keeps
-   paths only where an agent needs one *always*; the rest points at the generated architecture
-   page.
-3. The `param` → `signal` identifier rename (its own plan) can now run on a stable tree.
+**Phase 5: finish. DONE except as listed.** The layers contract (`The layers hold`) is written
+against the tree as it is: `cli`, `contribute`, `live`, one group of 18 packages that still import
+each other, then `tui`/`device`, `safety`, `expression`/`uds`, `config`, `core`.
+`scripts/gen/gen_architecture.py` generates the layer and package tables of the architecture page
+from that contract and the charters (CI and pre-push run `--check`).
+
+Measured after phase 5 (`scripts/check/import_graph.py`, 2026-11-04):
+
+| Measure | Start | After phase 2 | After phase 5 |
+|---|---:|---:|---:|
+| Units in the largest import cycle | 38 | 26 | 18 |
+| `ignore_imports` entries | 30 | 8 | 5 (all `textual`) |
+| Test files directly in `tests/` | 306 | 50 | 0 |
+| Root modules in the package | 52 | 52 | 0 |
+| Packages without a charter | all | all but 2 | 3 (command help text is built from them) |
+| Deferred internal imports | 1,177 | 1,171 | 1,159 |
+
+Left over:
+
+1. The five Textual apps (`cli/commands/_sniff_tui`, `captures/step_tui`, `decode/plot_tui`,
+   `live/_monitor_tui`, `_monitor_select_tui`) are not in `tui/apps/`. Each imports the model or
+   controller of its own command or operation, which `tui/` cannot import: split each model from
+   its app first. Then the `textual` ignores go.
+2. The 18-package cycle: definitions, the store, analysis, transport, validation and the editors
+   reach into each other through function-level imports. Splitting it into the layers of
+   section 6 is the next layering step; the 1,159 deferred imports are mostly this.
+3. The three open items from phase 2: the `cli.main` re-entries of `groups`/`pids`/`states`; the
+   `validation/` debt (`_run_*` print, `validation/pids.py` is 1,854 lines, and it imports
+   `yaml_edit` for one constant); the two `scripts/migrate_states_*.py` as `canair` commands
+   (user-facing, needs a decision).
+4. `commands/_*.py` flag helpers to `cli/args/`, `commands/_live` to `cli/live/`, and the `live/`
+   sub-packages.
+5. AGENTS.md still names about 180 `src/canair/...` paths. Cut it to what an agent needs always and
+   point the rest at the generated page.
+6. The `param` to `signal` identifier rename of `plans/2026-08-06-signal-naming-convention.md`.
+7. The three command packages whose `--help` text is their module docstring (`coverage`,
+   `research`, `import uds`) have no charter, since the charter would show in the help.
 
 ---
 

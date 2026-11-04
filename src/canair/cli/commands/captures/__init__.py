@@ -19,6 +19,10 @@ handful of names other commands consume. Each kind and view lives in its own
 submodule — ``uds`` (parser + orchestration), ``listing``/``sessions``/``diff``
 (views), ``delete``/``backfill``/``set_state`` (QUERY-driven mutating modes),
 ``maint`` (whole-store operations), ``can``, and the shared ``query`` data layer.
+
+Belongs: `canair captures`: querying, stepping, diffing and maintaining recorded captures.
+Not here: the store itself (`captures/`) and the analysis behind a view (`analysis/`).
+Imports: `captures`, `analysis`, `states`, `ecus` and below.
 """
 
 import argparse

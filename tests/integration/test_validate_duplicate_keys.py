@@ -14,7 +14,7 @@ import pytest
 from canair import config
 from canair.cli import main
 
-FIXTURE = Path(__file__).parent / "fixtures" / "profiles" / "variants"
+FIXTURE = Path(__file__).parent.parent / "fixtures" / "profiles" / "variants"
 
 SIGNALS = """messages:
   '0x5C5':

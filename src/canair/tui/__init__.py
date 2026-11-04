@@ -4,6 +4,10 @@ Kept intentionally dependency-light so any mode can import it. The live monitor
 now uses Textual (:mod:`canair.live._monitor_tui`); the remaining consumers here
 are the IOControl / routines TUIs (viewport sizing) and the capture stepper
 (single-key reads).
+
+Belongs: the shared Textual kit: key roles, help, modals, scrolling, status and widgets.
+Not here: a whole app (they live next to their command or in ``live/``) and any non-Textual code.
+Imports: ``core`` and Textual. Only this kit and the apps built on it import ``textual``.
 """
 
 from __future__ import annotations

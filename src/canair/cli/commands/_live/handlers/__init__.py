@@ -17,7 +17,7 @@ Every handler has the signature ``(args, terminal, pids_data, host, *, reconnect
 Belongs: the code that reads a live command's parsed flags and calls one ``mode_*`` coroutine
 with typed arguments, plus the :class:`~canair.cli.commands._live.operation.LiveOperation` each
 subcommand runs.
-Not here: the operations themselves (``modes/``), the session and its error policy
+Not here: the operations themselves (``live/``), the session and its error policy
 (``modes/session.py``), and flag declarations (the command modules).
 Imports: ``modes`` and everything below it. Handlers are the only code between the CLI and
 ``modes`` that sees an ``argparse.Namespace``.

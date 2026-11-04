@@ -14,6 +14,10 @@ Split by concern into a package:
 
 The full public API is re-exported here so callers that
 ``from canair.yaml_edit.pids import …`` are unaffected by the split.
+
+Belongs: the editors for a per-ECU file: parameters, PIDs, scanner hits, research, defaults.
+Not here: the generic write path (``yaml_edit.commit``) and the ``canair pids`` parser.
+Imports: ``yaml_edit`` helpers, the definition packages and ``core``.
 """
 
 from canair.yaml_edit.pids.categories import Migrated, migrate_categories

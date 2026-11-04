@@ -6,7 +6,7 @@ anywhere an ECU/PID selection is needed (e.g. ``canair read``).
 
 Belongs: the selector grammar and matching (this module) and the ``read``/``monitor`` step
 grammar built on it (``steps``).
-Not here: running a step against the car (``modes/multi*``) or ``@group`` definitions (``ecus/``).
+Not here: running a step against the car (``live/multi*``) or ``@group`` definitions (``ecus/``).
 Imports: ``ecus`` (to resolve names) and ``core``.
 
 Grammar

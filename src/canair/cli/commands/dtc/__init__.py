@@ -7,6 +7,10 @@ Two kinds live under one command:
     recorded to the DTC log. A bare ``canair dtc BMS`` (or ``canair dtc --all``) is
     shorthand for it — see ``_inject_default_subcommand`` in ``src/canair/cli/__init__.py``.
   * ``canair dtc log [ECU]`` — the last logged scan, offline (:mod:`.log`).
+
+Belongs: `canair dtc`: reading, the log view and the parser.
+Not here: the DTC log and meanings (`dtc/`) and the car reads (`live/dtc/`).
+Imports: `dtc`, `live` and below.
 """
 
 from __future__ import annotations

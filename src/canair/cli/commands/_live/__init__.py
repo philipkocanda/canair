@@ -24,6 +24,10 @@ Submodules, in the order a run passes through them:
 
 This module re-exports the surface the subcommands import; the import-time
 side effects below have to happen once, on any live command, so they live here.
+
+Belongs: the live-command runtime: the shared connection flags, `live_command`, the session lifecycle and the handlers.
+Not here: what an operation does on the car (`live/`) and the session error policy (`live/session.py`).
+Imports: `live`, `transport`, `device` and below.
 """
 
 from __future__ import annotations

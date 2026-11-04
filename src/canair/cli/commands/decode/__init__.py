@@ -23,6 +23,10 @@ and the presentation layer, split by what it renders:
 * :mod:`.dump`     — ``--dump-bytes``, the CSV/JSON byte matrix.
 * :mod:`.plot`     — the ``--plot`` model, with :mod:`.plot_draw` the braille
   chart it draws through and :mod:`.plot_tui` the Textual app that drives it.
+
+Belongs: `canair decode`: the parser, the views and the signal explorer.
+Not here: the decoding (`expression/`) and the series maths (`analysis/`).
+Imports: `captures`, `expression`, `analysis` and below.
 """
 
 from .entry import run

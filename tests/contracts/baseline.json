@@ -51,33 +51,10 @@
   "deferred_internal_imports": 1159,
   "import_linter_ignores": 5,
   "packages_without_charter": [
-    "canair.actions",
-    "canair.cli.commands",
-    "canair.cli.commands._live",
-    "canair.cli.commands.captures",
-    "canair.cli.commands.correlate",
     "canair.cli.commands.coverage",
-    "canair.cli.commands.decode",
-    "canair.cli.commands.dtc",
     "canair.cli.commands.import_uds",
-    "canair.cli.commands.investigate",
-    "canair.cli.commands.research",
-    "canair.cli.commands.search",
-    "canair.cli.commands.validate",
-    "canair.dtc",
-    "canair.expression",
-    "canair.migrations",
-    "canair.states",
-    "canair.tui",
-    "canair.variants",
-    "canair.yaml_edit",
-    "canair.yaml_edit.pids"
+    "canair.cli.commands.research"
   ],
   "test_to_test_imports": [],
-  "flat_tests": [
-    "test_session_identity.py",
-    "test_validate_duplicate_keys.py",
-    "test_variant_consumers.py",
-    "test_wican_model_guard.py"
-  ]
+  "flat_tests": []
 }

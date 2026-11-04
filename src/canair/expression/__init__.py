@@ -24,6 +24,10 @@ The implementation is split by concern, both halves re-exported here:
   sign-extension container ladder and its :func:`signed_range_is_exact` guard.
 - :mod:`canair.expression.compile` — the grammar: the shunting-yard scan that
   assembles those nodes into a tree.
+
+Belongs: evaluating a WiCAN expression over response bytes and decoding typed values.
+Not here: where a response comes from (``transport/``) or which signals a profile defines (``ecus/``).
+Imports: ``uds`` and ``core`` only.
 """
 
 from functools import lru_cache

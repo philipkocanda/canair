@@ -18,6 +18,10 @@ shorthand for ``uds``, injected by ``cli.py``'s ``_GROUP_DEFAULTS``):
 with the supporting layers :mod:`.parser` (argparse), :mod:`.series` (building the
 series to rank), :mod:`.calc` (numeric helpers), :mod:`.render` (output), and
 :mod:`.promote` (persisting a hit, and warning on a thin join).
+
+Belongs: `canair correlate`: the parser, the run and the report.
+Not here: the correlation maths (`analysis/`).
+Imports: `analysis`, `captures` and below.
 """
 
 from .parser import NAME, add_parser

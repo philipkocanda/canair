@@ -2,7 +2,7 @@
 
 Belongs: the checks behind ``canair validate`` (pids/ecus, captures, states, signals, variants,
 CAN buses, groups, actions) and the post-write guard the profile editors call.
-Not here: the ``canair validate`` parser and its dispatch (``commands/validate/``), and the edits
+Not here: the ``canair validate`` parser and its dispatch (``cli/commands/validate/``), and the edits
 themselves (``yaml_edit/``).
 Imports: the definition packages, ``uds``, ``expression`` and ``safety``. Never ``commands``,
 ``modes`` or ``cli``.

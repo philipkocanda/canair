@@ -19,6 +19,10 @@ lists and the structural check live here once, shared by the loader, ``canair va
 variants`` and the editor (:mod:`canair.yaml_edit.variants`), so a field one accepts is never
 rejected by another; ``src/canair/schema/variants_schema.yaml`` documents the same fields for
 humans.
+
+Belongs: loading ``variants.yaml``, ECU revisions, fingerprints and the variant selection.
+Not here: editing them (``yaml_edit/``) and probing the car (``live/revision_probe.py``).
+Imports: ``profile``, ``ecus``, ``uds`` and ``core``.
 """
 
 from __future__ import annotations

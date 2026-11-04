@@ -119,8 +119,7 @@ than trusting a list copied here.
 
 **Placing new code**
 
-1. Find the package in the placement table. If two fit, take the lower layer. While a package has
-   not moved yet, use the table's *Until it moves* column.
+1. Find the package in the placement table. If two fit, take the lower layer.
 2. Read that package's `__init__.py` docstring (its charter: *Belongs / Not here / Imports*). If
    the code does not fit the charter, stop and ask rather than stretching the package.
 3. Write the code, and its tests in the directory that mirrors it.
@@ -136,9 +135,16 @@ than trusting a list copied here.
    dotted names in `[tool.importlinter]`. No compatibility alias for the old path.
 2. Move the package's tests in the same commit.
 3. Remove the `ignore_imports` entries the move fixes and lower the baselines
-   (`uv run python -m tests.contracts.test_structure --write`).
-4. Confirm every `--help` is unchanged (`scripts/gen/gen_cli_reference.py --check`), then run the
+   (`uv run python -m tests.contracts.test_structure --write`). That command also drops the
+   baseline entry of a module that no longer exists, so rename the key of a moved oversized
+   module in `baseline.json` by hand first, or its ceiling is lost.
+4. Give a new package its charter and regenerate the architecture page
+   (`uv run python scripts/gen/gen_architecture.py`).
+5. Confirm every `--help` is unchanged (`scripts/gen/gen_cli_reference.py --check`), then run the
    full suite.
+6. A codemod drops the alias of `from canair import module as alias` and skips the files it moves,
+   so read the `ruff` output after `--fix` for undefined names, and watch the ceilings: an import
+   that lands in its own isort group adds a line.
 
 Never reintroduce: a loose module at the root, `argparse` or `textual` outside the interface, a
 library module importing up into `commands`, `live` or `cli`, or a function-level import whose

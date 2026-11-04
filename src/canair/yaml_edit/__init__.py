@@ -28,4 +28,8 @@ Editors, one per file kind
 
 A new editor declares a ``Target`` beside its rules, registers it in :mod:`.targets`, and writes
 through ``edit_doc`` (or ``edit_ecu_text``). It never opens the file itself.
+
+Belongs: every write to a profile's definition YAML: the editors and their commit path.
+Not here: reading definitions (``ecus/``, ``states/`` ...) and the ``canair pids``/``signals`` commands.
+Imports: ``validation``, the definition packages and ``core``.
 """

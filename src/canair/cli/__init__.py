@@ -6,7 +6,7 @@ A single entry point dispatching to subcommands (query, scan, decode,
 captures, coverage, research, pids, validate, wican, bix, ...). Run
 ``canair <command> --help`` for command-specific help.
 
-Belongs: the interface: the argument parser, the subcommand modules under ``commands/`` (flags,
+Belongs: the interface: the argument parser, the subcommand modules under ``cli/commands/`` (flags,
 output and glue only) and the live runtime that connects a device and runs a command's operation.
 Not here: anything a test could call without the CLI (it goes to the package that owns it) and
 Textual apps (``tui/``).

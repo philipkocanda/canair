@@ -17,6 +17,10 @@ is shorthand for ``uds``, injected by ``cli.py``'s ``_GROUP_DEFAULTS``):
 
 with :mod:`.parser` (argparse), :mod:`.report` (the per-byte record and its
 scoring), and :mod:`.render` (output).
+
+Belongs: `canair investigate`: the parser, the sweep and the per-byte report.
+Not here: the per-byte analysis (`analysis/`).
+Imports: `analysis`, `captures` and below.
 """
 
 from .parser import NAME, add_parser

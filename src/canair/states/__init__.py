@@ -30,17 +30,17 @@ broader states it is a *specialization* of::
         implies: [READY]
         when: "ESC.REAL_SPEED_KMH > 0.5"
 
-``most_specific_states`` uses that hierarchy to reduce a composite match to the
-states nothing else implies, which is how a single-state display picks DRIVING
-over READY while both are true. ``suggest_state`` is that single-result wrapper.
+``most_specific_states`` uses that hierarchy to reduce a composite match to the states nothing
+else implies (a single-state display picks DRIVING over READY); ``suggest_state`` wraps it.
 
-Predicates are evaluated with a whitelisted-AST evaluator (no ``eval``): only
-boolean/comparison operators, ``ECU.PARAM`` names, numeric/string/bool literals,
-and the sentinels ``__no_response__`` / ``__responded__`` are permitted.
-Evaluation is three-valued (Kleene): a sub-expression that depends on an
-unavailable parameter is :data:`UNKNOWN` rather than ``False``, so a rule is
-suggested only on positive evidence and never mislabels a partially-polled cycle
-(``UNKNOWN or True == True``, ``UNKNOWN and False == False``).
+Predicates use a whitelisted-AST evaluator (no ``eval``): boolean/comparison operators,
+``ECU.PARAM`` names, literals and the sentinels ``__no_response__`` / ``__responded__``.
+Evaluation is three-valued (Kleene): a sub-expression on an unavailable parameter is
+:data:`UNKNOWN`, not ``False``, so a rule is suggested only on positive evidence.
+
+Belongs: the state vocabulary, ``when:`` predicates (Kleene logic) and suggestion.
+Not here: editing ``vehicle_states.yaml`` (``yaml_edit/``) and inferring from captures (``analysis``).
+Imports: ``core``, ``expression`` and ``yaml_edit.errors``.
 """
 
 from __future__ import annotations

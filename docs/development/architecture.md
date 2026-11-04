@@ -5,55 +5,103 @@ from the layers above. This page says what each package is for and where new cod
 rules behind it, and the migration that gets the tree there, are in
 [`plans/2026-11-04-package-layout-and-layering.md`](https://github.com/philipkocanda/canair/blob/main/plans/2026-11-04-package-layout-and-layering.md).
 
-!!! note "Migration in progress"
-    The tree is moving from a flat `src/canair/` of 52 loose modules to the layout below. Until a
-    package has moved, put new code in the package listed in the **Until it moves** column. The
-    `import-linter` contracts in `pyproject.toml` already enforce the boundaries that hold today.
+!!! note "Migration state"
+    The code lives in `src/canair/`. The 52 loose modules that used to sit at its root are in
+    packages now. What is left is listed in the plan: the cycle between the definition, store,
+    analysis and transport packages, and the Textual apps that still sit in `live/` and `cli/`.
 
 ## Layers
 
-From the interface at the top to the leaf at the bottom.
+<!-- BEGIN GENERATED: layers -->
 
-| Layer | Packages (target) | Role |
+Top to bottom. A package imports only from the layers below its own.
+
+| Layer | Packages | May import |
 |---|---|---|
-| Interface | `cli/`, `tui/`, `render/` | Parse flags, run Textual apps, turn results into text. The only code that imports `argparse` (`cli/`) or `textual` (`tui/`). |
-| Applications | `contribute/`, `interop/`, `yaml_edit/` | Work over profile data: open the upstream PR, read and write foreign formats, edit definitions. |
-| Live operations | `live/` | One coroutine per job against the car (read, monitor, scan, DTC, actuate). Takes a `Terminal` and typed options. No `argparse`, no `textual`. |
-| Reaching the bus | `transport/` (`elm327/`, `raw/`), `device/` | Move bytes and frame ISO-TP. Manage the adapter: its HTTP API, firmware, protocol mode, connection lock. |
-| Data | `analysis/`, `captures/`, `dtc/`, `query/` | Offline computation, the recording store, the DTC log, the selector language. |
-| The car | `ecus/`, `states/`, `variants/`, `broadcast/`, `actions/`, `validation/`, `profile/`, `privacy/`, `safety/` | What a profile says and where it is. What may be sent. What must never leave. |
-| Protocol | `expression/`, `uds/` | Wire-format knowledge with no I/O and no data store. |
-| Environment | `config/`, `install/`, `migrations/` | User config, the install and its updates, one-time data migrations. |
-| Leaf | `core/` | Generic helpers. Imports nothing from the package. |
+| 1 | `cli/` | the layers below |
+| 2 | `contribute/` | the layers below |
+| 3 | `live/` | the layers below |
+| 4 | `actions/`, `analysis/`, `broadcast/`, `captures/`, `dtc/`, `ecus/`, `install/`, `interop/`, `migrations/`, `privacy/`, `profile/`, `query/`, `render/`, `states/`, `transport/`, `validation/`, `variants/`, `yaml_edit/` | each other (one cycle still to split) and the layers below |
+| 5 | `tui/`, `device/` | the layers below, not each other |
+| 6 | `safety/` | the layers below |
+| 7 | `expression/`, `uds/` | each other (one cycle still to split) and the layers below |
+| 8 | `config/` | the layers below |
+| 9 | `core/` | the layers below |
+
+<!-- END GENERATED: layers -->
+
+The first three layers are the interface and the live operations. The fourth is the part of the
+tree that still imports itself in a cycle (definitions, the store, analysis, transport,
+validation and the editors); splitting it is the remaining work of the layout plan. Everything
+outside it is already ordered, and `lint-imports` fails on a wrong-way import.
+
+`render/` sits below `live/` rather than beside the CLI, because live operations print through it.
+
+## Packages
+
+<!-- BEGIN GENERATED: packages -->
+
+| Package | What it is | Belongs | Not here | Imports |
+|---|---|---|---|---|
+| `actions/` | Profile-defined actions: named, guarded requests a profile declares in ``actions.yaml``. | parsing a profile's ``actions.yaml`` into guarded actions and planning their requests. | running one against the car (``live/action.py``) and the ``canair action`` command. | ``safety``, ``uds``, ``ecus`` and ``core``. |
+| `analysis/` | Offline analysis over captures and definitions: alignment, correlation, counters, mirrors, stats. | pure computation over loaded captures and profile definitions, with no device, no flags and no output: time alignment and fill, correlation, mirrors, counters, support maps, triage, the blind-rediscovery strip (``blind``), and physical-plausibility bands (``physical``). | reading the store (``captures/``), rendering (the command's ``render.py``) and anything that talks to the car (``live/``). | ``captures``, ``ecus``, ``states``, ``expression``, ``uds`` and ``core``. |
+| `broadcast/` | Reading a profile's broadcast signal maps (``signals/<bus>.yaml``). | loading the broadcast signal maps of a profile. | the checks (``validation/signals.py``), edits (``yaml_edit/signals.py``) and DBC import/export (the ``import``/``export`` commands). | ``profile`` and ``validation.signals`` (the shared structural check). |
+| `captures/` | The capture store: saving (here), the file format, reading back, journal and merge driver. | appending captures to per-date JSON files, their format, store, journal, merge driver. | computing over captures (``analysis/``), the DTC log (``dtc/``) and flag parsing. | ``states``, ``uds``, ``privacy`` and ``core``. |
+| `cli/` | ``canair`` — unified CAN/UDS/KWP2000 diagnostic reverse-engineering CLI. | the interface: the argument parser, the subcommand modules under ``cli/commands/`` (flags, output and glue only) and the live runtime that connects a device and runs a command's operation. | anything a test could call without the CLI (it goes to the package that owns it) and Textual apps (``tui/``). | every package below it. It is the only code that imports ``argparse``. |
+| `config/` | User/host configuration (XDG-aware) for canair. | reading and writing the user config file and the device registry in it. | the config directory path (``core.paths``) and what a key means to a feature. | ``core`` only. |
+| `contribute/` | Orchestration for ``canair contribute`` — one-command profile pull requests. | the git/gh orchestration, the source-checkout clean-up (``source``), the log scrub (``logs``) and the PR summary (``summary``). | user interaction and the pre-flight gates (``cli/commands/contribute.py`` and its helpers). | ``profile``, ``privacy``, ``captures``, ``config``, ``install`` and ``core``. |
+| `core/` | Generic helpers that need nothing else from canair. | code with no knowledge of vehicles, profiles, captures or transports that several packages share: the path roots and config directory (``paths``), how YAML is read and round-tripped (``yaml_io``, ``yaml_rt``), hex id ranges, text scanning, stop signals, and the central diagnostics event log (``eventlog``). | anything that imports another canair package, which belongs in the package it serves. The per-ECU response log reads the ECU registry, so it is ``transport/ecu_log.py``. | the standard library and third-party packages only, never another canair package. |
+| `device/` | The adapter as a managed device, not a byte pipe. | the WiCAN's HTTP API, firmware generation and protocol mode (``wican``), and the connection mutex that keeps two sessions off its one connection (``lock``, ``lock_watchdog``). | moving CAN bytes (``transport/``) or building the AutoPID profile (``interop/``). | ``config`` and ``core``. It never imports ``transport``, which imports it. |
+| `dtc/` | DTC (diagnostic trouble code) reading, history, and interpretation. | the DTC log, meanings, history, scope and snapshot decoding (data about codes). | reading or clearing codes on the car (``live/dtc/``) and the ``canair dtc`` command. | ``captures``, ``ecus``, ``states``, ``uds`` and ``core``. |
+| `ecus/` | The ECU registry and the per-ECU PID definitions. | ECU and PID definitions (``pids``), CAN buses, DID families, signal categories. | where the bundle lives (``profile``), checks (``validation``), edits (``yaml_edit``). | ``profile``, ``safety``, ``uds``, ``dtc.definitions``, ``core``. |
+| `expression/` | WiCAN expression evaluator — the public entry point. | evaluating a WiCAN expression over response bytes and decoding typed values. | where a response comes from (``transport/``) or which signals a profile defines (``ecus/``). | ``uds`` and ``core`` only. |
+| `install/` | The install: which copy is running, its version and build, and whether a newer one exists. | the running copy's origin (checkout, tool snapshot), version and build info, and the once-a-day update check behind ``canair update``. | the update command itself (``cli/commands/update.py``) and user config (``config/``). | ``config``, ``core`` and ``profile`` (to tell which profiles a reinstall would delete). |
+| `interop/` | Formats canair does not own: DBC files, foreign frame logs, WiCAN AutoPID JSON, the docs explorer. | reading or writing an external format (``dbc``, ``frame_log``, ``autopid``, ``explorer``) so the rest of canair never learns a foreign shape. | canair's own file formats (``captures/``, ``ecus/``) and the commands that call these (``cli/commands/import_*``, ``cli/commands/export.py``, ``cli/commands/wican.py``). | any package below it. Decoding code does not import it back: an import contract pins that ``expression`` and ``captures`` stay free of it. |
+| `live/` | Live operations against the car: one coroutine per job, over a connected ``Terminal``. | device orchestration over the ``Terminal`` protocol, the monitor's controller and recorder, the step executor, scans, DTC reads, identity, IOControl and routines. | flags (``cli/commands/``), choosing a transport (``transport/``), what may be sent (``safety/``) and the selector and step grammar (``query/``). | ``transport`` (the protocol only), ``safety``, ``captures``, ``ecus``, ``query``, ``analysis``, ``uds`` and below. It does not import ``cli``. |
+| `migrations/` | One-shot data/config migration shims (captures, device config, discover rows). | one-time rewrites of stored data and config (captures, devices, the DTC log). | anything a normal run needs; a migration runs once, from a ``canair`` command. | the stores it rewrites (``captures``, ``config``, ``dtc``) and ``core``. |
+| `privacy/` | What must never leave the machine, and what to mask on screen. | the ``sensitive: true`` rule (``sensitive``: mask on screen, never journal, save or export) and the contribute-time scrub for personal data in a profile (``pii``: VINs, keys, vehicle-bound identifiers). | the upstream PR itself (``contribute``) and where a profile lives (``profile``). | ``core``, ``uds`` and, for the loaded definitions, ``pids``, ``ecus`` and ``profile``, which it reads through function-level imports because they import it back to apply the rule. |
+| `profile/` | Vehicle profile resolution. | finding, resolving, layering and creating a profile bundle (this module, ``scaffold``), and what cars call a profile (``names``). | parsing a bundle's definitions (``ecus/``, ``states/``, ``variants/``, ``broadcast/``), checking them (``validation/``) or editing them (``yaml_edit/``). | ``config``, ``core`` and ``uds``. |
+| `query/` | ECU / PID selection mini-language. | the selector grammar and matching (this module) and the ``read``/``monitor`` step grammar built on it (``steps``). | running a step against the car (``live/multi*``) or ``@group`` definitions (``ecus/``). | ``ecus`` (to resolve names) and ``core``. |
+| `render/` | Text for the terminal: the colour palette and the shared result formatters. | the ANSI palette and its colour gating (``ansi``) and the formatters several packages print through: hex lines, byte rulers, parameter tables, UDS response blocks (``formatting``). | a command's own output (its ``render.py``), Textual apps (``tui/``) and decoding itself (``expression/``, ``uds/``). | ``expression``, ``privacy``, ``uds`` and ``core``. It sits below ``live`` because live operations print through it. |
+| `safety/` | What may be sent to the car. | the command blocklist and session rules (``blocklist``), the make-specific quirks that widen them for one protocol or grant an action one exact request (``quirks``), and the read/release/actuate classifier (``actuation``). | moving bytes (``transport/``), the actions themselves (``actions/``) or their live run (``modes/action.py``). | ``uds`` and ``core``. The blocklist is the one place a refusal is decided, so transports and live operations depend on it and it depends on neither. |
+| `states/` | Vehicle operating-state definitions + auto-suggestion. | the state vocabulary, ``when:`` predicates (Kleene logic) and suggestion. | editing ``vehicle_states.yaml`` (``yaml_edit/``) and inferring from captures (``analysis``). | ``core``, ``expression`` and ``yaml_edit.errors``. |
+| `transport/` | Alternate CAN transports for canair (raw-CAN backends). | moving bytes to and from the car, ISO-TP framing, the ELM327 and raw SLCAN engines, the per-exchange policies (keepalive, link latency, wake, timeouts, frame counts), the transport choice and fallback, the session manager and the per-ECU response log. | what a live operation does with a terminal (``live/``), what may be sent (``safety/``) and the adapter's HTTP API (``device/``). | ``safety``, ``uds``, ``ecus``, ``device``, ``config`` and ``core``. Operations see only the ``Terminal`` protocol, never a concrete terminal. |
+| `tui/` | Small terminal helpers shared across modes. | the shared Textual kit: key roles, help, modals, scrolling, status and widgets. | a whole app (they live next to their command or in ``live/``) and any non-Textual code. | ``core`` and Textual. Only this kit and the apps built on it import ``textual``. |
+| `uds/` | The diagnostic request/response protocol layer (domain A), I/O-free. | protocol facts and decoding of request/response bytes, with no I/O. | reading or writing recordings or definitions (``captures/``, ``ecus/``), user config (``config.py``), moving bytes (``transport/``), and deciding what may be sent (``safety``). | the standard library and ``core`` only. ``tests/contracts`` pins that it reads no data store, config or transport. |
+| `validation/` | Profile validators: files and parsed data in, errors and warnings out. | the checks behind ``canair validate`` (pids/ecus, captures, states, signals, variants, CAN buses, groups, actions) and the post-write guard the profile editors call. | the ``canair validate`` parser and its dispatch (``cli/commands/validate/``), and the edits themselves (``yaml_edit/``). | the definition packages, ``uds``, ``expression`` and ``safety``. Never ``commands``, ``modes`` or ``cli``. |
+| `variants/` | The variants of one car: ``variants.yaml``. | loading ``variants.yaml``, ECU revisions, fingerprints and the variant selection. | editing them (``yaml_edit/``) and probing the car (``live/revision_probe.py``). | ``profile``, ``ecus``, ``uds`` and ``core``. |
+| `yaml_edit/` | Everything that writes a profile's YAML: the editors, their shared write path and helpers. | every write to a profile's definition YAML: the editors and their commit path. | reading definitions (``ecus/``, ``states/`` ...) and the ``canair pids``/``signals`` commands. | ``validation``, the definition packages and ``core``. |
+
+<!-- END GENERATED: packages -->
 
 ## Where does my code go?
 
-| If the code … | Target | Until it moves |
-|---|---|---|
-| defines flags, reads `args`, prints a command's output | `cli/commands/<cmd>/` | `cli/commands/<cmd>/` |
-| is a Textual app, screen or widget | `tui/apps/<app>/` (shared: `tui/kit/`) | `tui/` for shared widgets; the app next to its command or mode |
-| turns results into text for both CLI and TUI | `render/` (a command-only renderer stays in its `render.py`) | `render/` |
-| talks to the car over a `Terminal` | `live/<family>/` | `live/` |
-| moves bytes, frames ISO-TP, drives an ELM327 | `transport/` | `transport/` |
-| calls the adapter's HTTP API, or guards the connection | `device/` | `device/` |
-| decides whether a request may go on the bus | `safety/` | `safety/` |
-| describes protocol bytes with no I/O | `uds/` | `uds/` |
-| evaluates a WiCAN expression | `expression/` | `expression/` |
-| parses a profile's definition YAML | `ecus/`, `states/`, `variants/`, `broadcast/`, `actions/` | the same |
-| finds, creates or layers a profile bundle | `profile/` | `profile/` |
-| checks a profile | `validation/` | `validation/` |
-| edits a profile's YAML | `yaml_edit/` | `yaml_edit/` |
-| reads or writes recordings | `captures/` (DTC log: `dtc/`) | `captures/`, `dtc/` |
-| computes over captures or definitions, with no device | `analysis/` | `analysis/` |
-| parses a selector or a query step | `query/` | `query/` |
-| reads or writes a format canair does not own | `interop/` | `interop/` |
-| opens or updates the upstream PR | `contribute/` | `contribute/` |
-| masks, withholds or scrubs data | `privacy/` | `privacy/` |
-| reads or writes user config or the device registry | `config/` | `config/` |
-| reports the install, version or updates | `install/` | `install/` |
-| rewrites stored data once | `migrations/` | `migrations/` |
-| is generic and needs nothing from the package | `core/` | `core/` |
-| is developer tooling that does not ship | `scripts/` | `scripts/` |
+| If the code … | It goes in |
+|---|---|
+| defines flags, reads `args`, prints a command's output | `cli/commands/<cmd>/` |
+| is a Textual app, screen or widget | `tui/apps/<app>/` (shared: `tui/kit/`) |
+| turns results into text for both CLI and TUI | `render/` (a command-only renderer stays in its `render.py`) |
+| talks to the car over a `Terminal` | `live/<family>/` |
+| moves bytes, frames ISO-TP, drives an ELM327 | `transport/` |
+| calls the adapter's HTTP API, or guards the connection | `device/` |
+| decides whether a request may go on the bus | `safety/` |
+| describes protocol bytes with no I/O | `uds/` |
+| evaluates a WiCAN expression | `expression/` |
+| parses a profile's definition YAML | `ecus/`, `states/`, `variants/`, `broadcast/`, `actions/` |
+| finds, creates or layers a profile bundle | `profile/` |
+| checks a profile | `validation/` |
+| edits a profile's YAML | `yaml_edit/` |
+| reads or writes recordings | `captures/` (DTC log: `dtc/`) |
+| computes over captures or definitions, with no device | `analysis/` |
+| parses a selector or a query step | `query/` |
+| reads or writes a format canair does not own | `interop/` |
+| opens or updates the upstream PR | `contribute/` |
+| masks, withholds or scrubs data | `privacy/` |
+| reads or writes user config or the device registry | `config/` |
+| reports the install, version or updates | `install/` |
+| rewrites stored data once | `migrations/` |
+| is generic and needs nothing from the package | `core/` |
+| is developer tooling that does not ship | `scripts/` |
 
 If two rows fit, choose the lower layer. If none fits, stop and ask: a new top-level package
 needs a plan that names its layer.

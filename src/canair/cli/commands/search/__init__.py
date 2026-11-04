@@ -11,6 +11,10 @@ search …`` is shorthand for ``uds``, injected by ``cli.py``'s ``_GROUP_DEFAULT
 Supporting layers: :mod:`.parser` (argparse), :mod:`.needle` (flag rules → matchers),
 :mod:`.haystack` (capture entries → distinct rows), :mod:`.findings` (grouping by
 location) and :mod:`.render` (table, paste-ready command, JSON).
+
+Belongs: `canair search`: finding a string or byte pattern across captures.
+Not here: the text-scan primitives (`core/textscan.py`).
+Imports: `captures`, `core` and below.
 """
 
 from .parser import NAME, add_parser
