@@ -2,8 +2,8 @@
 
 import json
 
-from canlib.commands import investigate
-from canlib.commands.investigate import render, report
+from canlib.cli.commands import investigate
+from canlib.cli.commands.investigate import render, report
 
 
 def _write(tmp_path):
@@ -51,7 +51,7 @@ class TestInvestigate:
 
         orig = align.load_signal_captures
         monkeypatch.setattr(
-            "canlib.commands.investigate.uds.load_signal_captures",
+            "canlib.cli.commands.investigate.uds.load_signal_captures",
             lambda specs, **kw: orig(
                 specs,
                 captures_dir=tmp_path,
@@ -59,7 +59,7 @@ class TestInvestigate:
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.investigate.uds.discover_signal_specs",
+            "canlib.cli.commands.investigate.uds.discover_signal_specs",
             lambda *a, **k: [("AAF", "2181"), ("ESC", "22C101")],
         )
 
@@ -147,13 +147,13 @@ def _run(tmp_path, monkeypatch, argv, specs):
 
     orig = align.load_signal_captures
     monkeypatch.setattr(
-        "canlib.commands.investigate.uds.load_signal_captures",
+        "canlib.cli.commands.investigate.uds.load_signal_captures",
         lambda s, **kw: orig(
             s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
         ),
     )
     monkeypatch.setattr(
-        "canlib.commands.investigate.uds.discover_signal_specs", lambda *a, **k: specs
+        "canlib.cli.commands.investigate.uds.discover_signal_specs", lambda *a, **k: specs
     )
     p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
     return investigate.run(p.parse_args(["uds", *argv]))
@@ -374,13 +374,13 @@ class TestIndependentOf:
 
         orig = align.load_signal_captures
         monkeypatch.setattr(
-            "canlib.commands.investigate.uds.load_signal_captures",
+            "canlib.cli.commands.investigate.uds.load_signal_captures",
             lambda specs, **kw: orig(
                 specs, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.investigate.uds.discover_signal_specs",
+            "canlib.cli.commands.investigate.uds.discover_signal_specs",
             lambda *a, **k: [("AAF", "2181")],
         )
         p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
@@ -427,13 +427,13 @@ class TestTriageIntegration:
 
         orig = align.load_signal_captures
         monkeypatch.setattr(
-            "canlib.commands.investigate.uds.load_signal_captures",
+            "canlib.cli.commands.investigate.uds.load_signal_captures",
             lambda specs, **kw: orig(
                 specs, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.investigate.uds.discover_signal_specs",
+            "canlib.cli.commands.investigate.uds.discover_signal_specs",
             lambda *a, **k: [("OBC", "2101")],
         )
         p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
@@ -469,13 +469,13 @@ class TestTriageIntegration:
 
         orig = align.load_signal_captures
         monkeypatch.setattr(
-            "canlib.commands.investigate.uds.load_signal_captures",
+            "canlib.cli.commands.investigate.uds.load_signal_captures",
             lambda specs, **kw: orig(
                 specs, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
             ),
         )
         monkeypatch.setattr(
-            "canlib.commands.investigate.uds.discover_signal_specs",
+            "canlib.cli.commands.investigate.uds.discover_signal_specs",
             lambda *a, **k: [("OBC", "2101")],
         )
         p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())

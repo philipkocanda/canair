@@ -8,7 +8,7 @@ import argparse
 import pytest
 import yaml
 
-from canlib.commands import pids as cli
+from canlib.cli.commands import pids as cli
 from canlib.ecus.signal_category import (
     BINARY_CATEGORIES,
     CATEGORIES,

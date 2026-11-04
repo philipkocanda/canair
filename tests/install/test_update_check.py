@@ -193,7 +193,7 @@ class TestUpdateCommand:
         return argparse.Namespace(**base)
 
     def test_json_reports_versions(self, monkeypatch, capsys):
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
@@ -216,7 +216,7 @@ class TestUpdateCommand:
 
     def test_json_current_carries_build_provenance(self, monkeypatch, capsys):
         """From a git checkout, the reported version names the branch and commit."""
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
@@ -245,7 +245,7 @@ class TestUpdateCommand:
         }
 
     def test_json_reports_clone_head(self, monkeypatch, capsys, tmp_path):
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
@@ -265,7 +265,7 @@ class TestUpdateCommand:
 
     def test_shows_branch_in_console(self, monkeypatch, capsys, tmp_path):
         """The clone's current branch is surfaced in the human-readable report."""
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
@@ -287,7 +287,7 @@ class TestUpdateCommand:
         assert "main" in out
 
     def test_check_makes_no_changes(self, monkeypatch, capsys):
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         # --check may issue read-only git queries (e.g. reading the clone's HEAD)
         # but must never run a mutating command (fetch/checkout).
@@ -318,7 +318,7 @@ class TestUpdateCommand:
         assert not any(a and a[0] in mutating for a in git_args)
 
     def test_no_clone_prints_manual_instructions(self, monkeypatch, capsys):
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
@@ -337,7 +337,7 @@ class TestUpdateCommand:
         assert "git fetch --tags" in out
 
     def test_offline_still_offers_update(self, monkeypatch, capsys):
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         monkeypatch.setattr(update_cmd, "fetch_latest_release", lambda *a, **k: None)
         import canlib
@@ -352,7 +352,7 @@ class TestUpdateCommand:
 
     def test_offline_refuses_to_update(self, monkeypatch, capsys, tmp_path):
         """Without a known release tag there is nothing to check out; refuse."""
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         monkeypatch.setattr(update_cmd, "fetch_latest_release", lambda *a, **k: None)
         import canlib
@@ -370,7 +370,7 @@ class TestUpdateCommand:
 
     def test_checks_out_release_tag(self, monkeypatch, capsys, tmp_path):
         """The happy path fetches tags and checks out the advertised release tag."""
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
@@ -421,7 +421,7 @@ class TestUpdateCommand:
         A bare ``canair … --save`` writes there, so the update that refreshes the
         CLI is also the one that destroys those captures.
         """
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
@@ -461,7 +461,7 @@ class TestUpdateCommand:
         assert out.index("2026-08-05.json") < out.index("Reinstalling")
 
     def test_checkout_failure_reports(self, monkeypatch, capsys, tmp_path):
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
@@ -507,7 +507,7 @@ class TestUpdateCommand:
 
     def test_out_of_sync_reinstalls_without_new_release(self, monkeypatch, capsys, tmp_path):
         """No newer release, but the tool copy drifted from the clone -> resync."""
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         # Latest release equals the running version, so nothing to check out.
         monkeypatch.setattr(
@@ -553,7 +553,7 @@ class TestUpdateCommand:
         assert "out of sync" in out
 
     def test_out_of_sync_no_uv_reports_manual(self, monkeypatch, capsys, tmp_path):
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,
@@ -579,7 +579,7 @@ class TestUpdateCommand:
         assert "--reinstall" in out
 
     def test_up_to_date_and_in_sync_does_nothing(self, monkeypatch, capsys, tmp_path):
-        from canlib.commands import update as update_cmd
+        from canlib.cli.commands import update as update_cmd
 
         monkeypatch.setattr(
             update_cmd,

@@ -189,7 +189,7 @@ class Checker:
     def check(self, path: Path) -> None:
         import cantools
 
-        from canlib.commands.import_ import DbcImportError, _dbc_to_signals
+        from canlib.cli.commands.import_ import DbcImportError, _dbc_to_signals
         from canlib.interop.dbc.repair import DbcLoadError, load_dbc
 
         try:

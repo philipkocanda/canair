@@ -138,8 +138,8 @@ def test_same_action_key_across_apps():
     the same thing in every view, and a derived assertion would happily pass on a
     keymap that had been renamed out from under the user.
     """
-    from canlib.commands.captures.step_tui import CapturesStepApp
-    from canlib.commands.decode.plot_tui import PlotApp
+    from canlib.cli.commands.captures.step_tui import CapturesStepApp
+    from canlib.cli.commands.decode.plot_tui import PlotApp
     from canlib.live._monitor_tui import MonitorApp
 
     def keys_of(cls: type, needle: str) -> set[str]:

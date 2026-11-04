@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from canlib import profile
-from canlib.commands.ecu import cmd_edit
+from canlib.cli.commands.ecu import cmd_edit
 from canlib.ecus.pids import clear_cache
 from canlib.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu
 

@@ -377,19 +377,19 @@ def profile_with(tmp_path):
 
 class TestProfileRefusals:
     def test_normal_29bit_is_refused(self, profile_with):
-        from canlib.commands.discover import _profile_error
+        from canlib.cli.commands.discover import _profile_error
 
         profile_with("addressing:\n  mode: normal_29bit\n")
         assert "normal_29bit" in (_profile_error() or "")
 
     def test_can_fd_is_refused(self, profile_with):
-        from canlib.commands.discover import _profile_error
+        from canlib.cli.commands.discover import _profile_error
 
         profile_with("isotp:\n  can_fd: true\n")
         assert "CAN-FD" in (_profile_error() or "")
 
     def test_fixed_29bit_and_classic_pass(self, profile_with):
-        from canlib.commands.discover import _profile_error
+        from canlib.cli.commands.discover import _profile_error
 
         profile_with("addressing:\n  mode: normal_fixed_29bit\n")
         assert _profile_error() is None

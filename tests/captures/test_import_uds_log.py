@@ -9,7 +9,7 @@ import pytest
 
 from canlib.captures import can_logs
 from canlib.captures import io as capture_io
-from canlib.commands.import_uds import run
+from canlib.cli.commands.import_uds import run
 from tests.support.isotp_frames import message_frames
 
 BMS_TX, BMS_RX = 0x7E4, 0x7EC

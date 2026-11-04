@@ -406,14 +406,14 @@ class TestBuildSessionFromRecords:
 
 class TestRecoverCommand:
     def test_cmd_recover_no_orphans(self, tmp_path, capsys):
-        from canlib.commands.captures.maint import cmd_recover
+        from canlib.cli.commands.captures.maint import cmd_recover
 
         rc = cmd_recover(tmp_path)
         assert rc == 0
         assert "No orphaned" in capsys.readouterr().out
 
     def test_cmd_recover_reconciles(self, tmp_path, capsys):
-        from canlib.commands.captures.maint import cmd_recover
+        from canlib.cli.commands.captures.maint import cmd_recover
 
         j = CaptureJournal.open(tmp_path, label="L")
         j.append("0x7EC", "2101", "6101")
@@ -426,7 +426,7 @@ class TestRecoverCommand:
         assert list_orphans(tmp_path) == []
 
     def test_cmd_recover_discard(self, tmp_path, capsys):
-        from canlib.commands.captures.maint import cmd_recover
+        from canlib.cli.commands.captures.maint import cmd_recover
 
         j = CaptureJournal.open(tmp_path, label="L")
         j.append("0x7EC", "2101", "6101")
@@ -438,7 +438,7 @@ class TestRecoverCommand:
         assert not list(tmp_path.glob("*.json"))
 
     def test_orphan_notice(self, tmp_path, capsys):
-        from canlib.commands.captures.maint import orphan_notice
+        from canlib.cli.commands.captures.maint import orphan_notice
 
         orphan_notice(tmp_path)
         assert capsys.readouterr().out == ""

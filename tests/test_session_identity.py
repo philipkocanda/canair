@@ -20,9 +20,9 @@ import pytest
 
 from canlib import contribute as C
 from canlib.captures import merge as captures_merge
-from canlib.commands import _contribute_gates as gates
-from canlib.commands import _contribute_report as report
-from canlib.commands import contribute as cmd
+from canlib.cli.commands import _contribute_gates as gates
+from canlib.cli.commands import _contribute_report as report
+from canlib.cli.commands import contribute as cmd
 from canlib.profile import Profile, resolve_profile
 
 

@@ -155,7 +155,7 @@ class TestMigrateDir:
     def test_the_cli_resolves_the_profile_owning_the_captures(self, tmp_path, capsys):
         import argparse
 
-        from canlib.commands import captures as cap
+        from canlib.cli.commands import captures as cap
 
         root = tmp_path / "prof"
         (root / "ecus").mkdir(parents=True)

@@ -10,7 +10,7 @@ import pytest
 from textual.containers import VerticalScroll
 from textual.widgets import Input, OptionList
 
-from canlib.commands.captures.step_tui import CapturesStepApp
+from canlib.cli.commands.captures.step_tui import CapturesStepApp
 from canlib.live._monitor_select_tui import LiveMonitorSelectScreen
 from canlib.live._monitor_tui import (
     EditParamDialog,
@@ -167,7 +167,7 @@ class TestPickersAreFilterable:
 
     @pytest.mark.asyncio
     async def test_plot_pid_picker_filters(self):
-        from canlib.commands.decode.plot_tui import PidPickerModal, PlotApp
+        from canlib.cli.commands.decode.plot_tui import PidPickerModal, PlotApp
         from tests.support.plot_model import plot_model as _plot_model
 
         options_in = [("BMS", "2101"), ("HVAC", "220100"), ("IGPM", "22BC07")]

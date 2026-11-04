@@ -236,7 +236,7 @@ class TestTaggedCopyWins:
 
 class TestMigrateVariants:
     def _run(self, **kw):
-        from canlib.commands.captures.migrate_variants import cmd_migrate_variants
+        from canlib.cli.commands.captures.migrate_variants import cmd_migrate_variants
 
         base = {"id": "28kwh", "date": None, "since": None, "until": None, "label": None}
         base.update(dry_run=False, json=True, dir=None)
@@ -286,7 +286,7 @@ class TestSetVariant:
 
     def test_an_undeclared_variant_is_refused(self, prof, capsys):
         from canlib.captures.store import load_all_captures
-        from canlib.commands.captures.session_fields import cmd_set_variant
+        from canlib.cli.commands.captures.session_fields import cmd_set_variant
 
         _write(prof.captures_dir / "2026-01-01.json", _session("a"))
         assert cmd_set_variant(load_all_captures(), "64kwh", assume_yes=True) == 2
@@ -372,7 +372,7 @@ class TestValidation:
 
 def test_sessions_view_names_each_car(prof, capsys):
     from canlib.captures.store import load_all_captures
-    from canlib.commands.captures.sessions import cmd_sessions
+    from canlib.cli.commands.captures.sessions import cmd_sessions
 
     _write(prof.captures_dir / "2026-01-01.json", _session("a", variant="28kwh"), _session("b"))
     _select(prof, "all")

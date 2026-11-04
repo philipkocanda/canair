@@ -6,7 +6,7 @@ import argparse
 
 import yaml
 
-from canlib.commands import config as config_cmd
+from canlib.cli.commands import config as config_cmd
 
 
 def _reset():

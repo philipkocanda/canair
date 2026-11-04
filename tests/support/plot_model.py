@@ -1,6 +1,6 @@
 """A PlotModel builder for the decode plot tests."""
 
-from canlib.commands.decode.plot import PlotModel
+from canlib.cli.commands.decode.plot import PlotModel
 
 
 def _plot_results(values, pid="2101", ecu="BMS"):

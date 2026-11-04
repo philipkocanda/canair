@@ -19,7 +19,7 @@ import argparse
 import pytest
 
 from canlib import profile
-from canlib.commands import validate as validate_cmd
+from canlib.cli.commands import validate as validate_cmd
 from canlib.core.paths import BUNDLED_PROFILES_DIR
 from canlib.ecus.pids import clear_cache
 from canlib.expression.decoding import decodes_to_number
@@ -288,7 +288,7 @@ class TestPidsEditWarnsAboutPredicates:
         return argparse.Namespace(**base)
 
     def test_rename_warns(self, tmp_path, capsys):
-        from canlib.commands import pids as pids_cmd
+        from canlib.cli.commands import pids as pids_cmd
 
         root = _mk_profile(tmp_path, GOOD_STATES)
         pids_cmd.cmd_rename_param(
@@ -298,7 +298,7 @@ class TestPidsEditWarnsAboutPredicates:
         assert "PARKED" in out and "VCU.GEAR_P" in out
 
     def test_remove_warns(self, tmp_path, capsys):
-        from canlib.commands import pids as pids_cmd
+        from canlib.cli.commands import pids as pids_cmd
 
         root = _mk_profile(tmp_path, GOOD_STATES)
         pids_cmd.cmd_rm_param(self._args(root, ecu="VCU", pid="2101", name="GEAR_P"))
@@ -306,7 +306,7 @@ class TestPidsEditWarnsAboutPredicates:
         assert "PARKED" in out
 
     def test_unreferenced_signal_is_quiet(self, tmp_path, capsys):
-        from canlib.commands import pids as pids_cmd
+        from canlib.cli.commands import pids as pids_cmd
 
         root = _mk_profile(tmp_path, "states:\n  - name: SLEEP\n    when: __no_response__\n")
         pids_cmd.cmd_rm_param(self._args(root, ecu="VCU", pid="2101", name="GEAR_P"))

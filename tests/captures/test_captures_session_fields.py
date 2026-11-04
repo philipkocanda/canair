@@ -33,13 +33,13 @@ def _field(cdir, key: str) -> dict[str, str | None]:
 
 def _run(cdir, editor: str, value: str, **kw) -> int:
     from canlib.captures.store import load_all_captures
-    from canlib.commands.captures import session_fields
+    from canlib.cli.commands.captures import session_fields
 
     return getattr(session_fields, editor)(load_all_captures(cdir), value, **kw)
 
 
 def _cli(cdir, *argv: str) -> int:
-    from canlib.commands import captures as cap
+    from canlib.cli.commands import captures as cap
 
     parser = cap.add_parser(argparse.ArgumentParser().add_subparsers())
     args = parser.parse_args(["uds", *argv, "--dir", str(cdir)])

@@ -7,7 +7,7 @@ import json
 
 import canlib.captures.store as capture_store
 from canlib.cli import _inject_default_subcommand
-from canlib.commands import search
+from canlib.cli.commands import search
 
 
 def payload(did: str, body: bytes) -> str:
@@ -36,7 +36,7 @@ def cap(ecu, pid, payload, **extra):
 def run(tmp_path, monkeypatch, argv):
     orig = capture_store.load_all_captures
     monkeypatch.setattr(
-        "canlib.commands.search.uds.load_all_captures", lambda *a, **k: orig(tmp_path)
+        "canlib.cli.commands.search.uds.load_all_captures", lambda *a, **k: orig(tmp_path)
     )
     parser = search.add_parser(argparse.ArgumentParser().add_subparsers())
     args = parser.parse_args(_inject_default_subcommand(["search", *argv])[1:])

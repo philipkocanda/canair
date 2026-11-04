@@ -10,8 +10,8 @@ from __future__ import annotations
 import argparse
 import json
 
-from canlib.commands import investigate
-from canlib.commands.investigate import counters as inv_counters
+from canlib.cli.commands import investigate
+from canlib.cli.commands.investigate import counters as inv_counters
 
 
 def _run(tmp_path, monkeypatch, argv, specs=()):
@@ -19,13 +19,13 @@ def _run(tmp_path, monkeypatch, argv, specs=()):
 
     orig = align.load_signal_captures
     monkeypatch.setattr(
-        "canlib.commands.investigate.uds.load_signal_captures",
+        "canlib.cli.commands.investigate.uds.load_signal_captures",
         lambda s, **kw: orig(
             s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
         ),
     )
     monkeypatch.setattr(
-        "canlib.commands.investigate.uds.discover_signal_specs", lambda *a, **k: list(specs)
+        "canlib.cli.commands.investigate.uds.discover_signal_specs", lambda *a, **k: list(specs)
     )
     p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
     return investigate.run(p.parse_args(["uds", *argv]))

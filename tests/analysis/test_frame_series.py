@@ -12,7 +12,7 @@ import argparse
 import pytest
 
 from canlib.analysis import frame_series as frame_series
-from canlib.commands import correlate
+from canlib.cli.commands import correlate
 
 
 def _write_log(tmp_path, n=40):
@@ -209,7 +209,7 @@ class TestHuntFrame:
 
 class TestHuntCanLogCommand:
     def _run(self, argv):
-        from canlib.commands import hunt
+        from canlib.cli.commands import hunt
 
         p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(argv)

@@ -65,7 +65,7 @@ class TestAuthoringCommandsUseIt:
     """
 
     def test_no_authoring_command_prints_a_bare_file_name(self):
-        root = Path(__file__).resolve().parents[2] / "canlib" / "commands"
+        root = Path(__file__).resolve().parents[2] / "canlib" / "cli" / "commands"
         for name in ("pids.py", "signals.py", "states.py", "groups.py", "ecu.py"):
             text = (root / name).read_text()
             assert "echo_edit" in text or "run_edit" in text, (

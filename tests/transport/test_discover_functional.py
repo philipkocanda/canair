@@ -15,7 +15,7 @@ import can
 import pytest
 
 from canlib import profile
-from canlib.commands import discover as discover_cmd
+from canlib.cli.commands import discover as discover_cmd
 from canlib.ecus.pids import clear_cache
 from canlib.live.functional_sweep import classify_round, group_by_bus, round_to_capture
 from canlib.safety.blocklist import SafetyBlocked, check_functional_request
@@ -142,7 +142,7 @@ class TestDispatchForwardsTheParsedValues:
     def _run(self, monkeypatch, **kw) -> dict:
         import asyncio
 
-        from canlib.commands._live.handlers.scans import handle_discover
+        from canlib.cli.commands._live.handlers.scans import handle_discover
 
         seen: dict = {}
 
@@ -502,7 +502,7 @@ def _mode_args(**kw) -> argparse.Namespace:
 class TestMode:
     @pytest.mark.asyncio
     async def test_dispatch_reports_buses_unknowns_and_silent(self, gateway_profile, capsys):
-        from canlib.commands._live.handlers.scans import handle_discover
+        from canlib.cli.commands._live.handlers.scans import handle_discover
         from canlib.ecus.pids import load_pids
 
         term = FakeTerminal()
@@ -525,7 +525,7 @@ class TestMode:
 
     @pytest.mark.asyncio
     async def test_repeat_sends_each_round(self, gateway_profile, monkeypatch, capsys):
-        from canlib.commands._live.handlers.scans import handle_discover
+        from canlib.cli.commands._live.handlers.scans import handle_discover
         from canlib.ecus.pids import load_pids
         from canlib.live import discover_functional
 

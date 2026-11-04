@@ -785,7 +785,7 @@ class TestOverlappingSelectorRegression:
     """
 
     def _steps(self):
-        from canlib.commands._live.steps import expand_step_groups, to_step
+        from canlib.cli.commands._live.steps import expand_step_groups, to_step
 
         raw = ["IGPM", "OBC", "AAF", "@driving"]
         return parse_sub_commands(expand_step_groups([to_step(s) for s in raw]))

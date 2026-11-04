@@ -14,7 +14,7 @@ from cantools.database import Database, Message, Signal
 from cantools.database.conversion import BaseConversion
 
 import canlib.profile as profile
-from canlib.commands.export import _dbc_specifics
+from canlib.cli.commands.export import _dbc_specifics
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check" / "check_dbc_corpus.py"
 

@@ -128,7 +128,7 @@ class TestResolution:
         assert _ecus()["VCU"]["identity"]["part_number"] == "SYN-0001"
 
     def test_ecu_detail_says_why_identity_is_missing_on_another_revision(self, capsys):
-        from canlib.commands.ecu import _detail_record, cmd_detail
+        from canlib.cli.commands.ecu import _detail_record, cmd_detail
         from canlib.ecus import load_ecus, resolve_tx
 
         for pins, expected in (

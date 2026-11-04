@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from canlib.captures import io as capture_io
-from canlib.commands.captures.compact import cmd_compact
+from canlib.cli.commands.captures.compact import cmd_compact
 
 DOC = {
     "sessions": [

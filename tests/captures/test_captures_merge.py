@@ -18,7 +18,7 @@ import pytest
 
 from canlib.captures import io as capture_io
 from canlib.captures import merge as captures_merge
-from canlib.commands.captures import merge_driver
+from canlib.cli.commands.captures import merge_driver
 
 
 def _session(label, time, *, date="2026-07-28", ecu="0x7EC", pid="2101", payload="6101AA"):

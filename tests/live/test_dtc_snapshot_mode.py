@@ -212,7 +212,7 @@ class TestSkipListener:
 class TestDispatch:
     @pytest.mark.asyncio
     async def test_runs_through_the_dtc_handler_with_the_profile(self, capsys):
-        from canlib.commands._live.handlers.diagnostics import handle_dtc
+        from canlib.cli.commands._live.handlers.diagnostics import handle_dtc
 
         args = live_args(
             dtc_log=False, dtc="733", mask="FF", protocol="uds", clear=False, json=True
@@ -225,7 +225,7 @@ class TestDispatch:
 
     @pytest.mark.asyncio
     async def test_no_snapshots_flag(self):
-        from canlib.commands._live.handlers.diagnostics import handle_dtc
+        from canlib.cli.commands._live.handlers.diagnostics import handle_dtc
 
         args = live_args(
             dtc_log=False,
@@ -387,18 +387,18 @@ SNAPSHOT_CAPTURE = {
 
 class TestCoverage:
     def test_a_snapshot_capture_stands_in_for_a_snapshot_only_pid(self):
-        from canlib.commands.coverage.payloads import select_captures
+        from canlib.cli.commands.coverage.payloads import select_captures
 
         picked = select_captures([SNAPSHOT_CAPTURE], snapshot_only={("CCM", "224710")})
         assert picked.payloads[("CCM", "224710")]["payload"] == "624710C02E6736FC0AFFFFF8"
 
     def test_not_for_a_pid_without_the_flag(self):
-        from canlib.commands.coverage.payloads import select_captures
+        from canlib.cli.commands.coverage.payloads import select_captures
 
         assert ("CCM", "224710") not in select_captures([SNAPSHOT_CAPTURE]).payloads
 
     def test_the_flagged_keys_come_from_the_profile(self):
-        from canlib.commands.coverage import snapshot_only_pids
+        from canlib.cli.commands.coverage import snapshot_only_pids
 
         assert snapshot_only_pids(PIDS_DATA) == {("CCM", "224710")}
 

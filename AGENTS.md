@@ -835,7 +835,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   `out_dir` derive from `write_root`. **Definitions do not overlay in this slice** — an edit is
   refused by `canlib/profile.py::require_writable_definitions()`, called from the one edit funnel
   every authoring command shares (`canlib/commands/_edit.py::edit_scope`). It raises
-  `ProfileError`, which `canlib/cli.py` already turns into `error: …` + exit 2, so no command
+  `ProfileError`, which `canlib/cli/__init__.py` already turns into `error: …` + exit 2, so no command
   handles it.
 - **Reads span layers, writes do not.** `canlib/captures/io.py::resolve_capture_layers` is the read
   seam; `capture_store.load_all_captures` iterates it, dedupes sessions across layers by

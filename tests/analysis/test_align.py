@@ -107,7 +107,7 @@ class TestDefaultJoinTol:
     def test_align_parser_defaults_to_shared_constant(self):
         import argparse
 
-        from canlib.commands import align as align_cmd
+        from canlib.cli.commands import align as align_cmd
 
         sub = argparse.ArgumentParser().add_subparsers()
         align_cmd.add_parser(sub)

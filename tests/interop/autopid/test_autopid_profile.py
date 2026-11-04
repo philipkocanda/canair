@@ -7,7 +7,7 @@ conversion and the device→grouped normalization round-trip.
 
 import pytest
 
-from canlib.commands.wican import show_diff
+from canlib.cli.commands.wican import show_diff
 from canlib.interop.autopid.profile import (
     InvalidSendToError,
     generate_profile,

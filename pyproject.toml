@@ -163,7 +163,6 @@ source_modules = [
 ]
 forbidden_modules = [
     "canlib.cli",
-    "canlib.commands",
 ]
 allow_indirect_imports = true
 ignore_imports = []
@@ -220,7 +219,6 @@ source_modules = [
     "canlib.broadcast",
     "canlib.captures",
     "canlib.cli",
-    "canlib.commands",
     "canlib.config",
     "canlib.contribute",
     "canlib.core",
@@ -251,9 +249,9 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-    "canlib.commands._sniff_tui -> textual",
-    "canlib.commands.captures.step_tui -> textual",
-    "canlib.commands.decode.plot_tui -> textual",
+    "canlib.cli.commands._sniff_tui -> textual",
+    "canlib.cli.commands.captures.step_tui -> textual",
+    "canlib.cli.commands.decode.plot_tui -> textual",
     "canlib.live._monitor_select_tui -> textual",
     "canlib.live._monitor_tui -> textual",
 ]
@@ -367,7 +365,6 @@ forbidden_modules = [
     "canlib.broadcast",
     "canlib.captures",
     "canlib.cli",
-    "canlib.commands",
     "canlib.config",
     "canlib.contribute",
     "canlib.device",

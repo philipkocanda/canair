@@ -74,7 +74,7 @@ class TestWicanCommands:
     def test_mode_set_targets_the_named_device(self, config, monkeypatch, value, url):
         import canlib.config as cfg
         import canlib.device.wican.firmware as wf
-        from canlib.commands import wican
+        from canlib.cli.commands import wican
         from canlib.device.wican import mode as wican_mode
 
         monkeypatch.setattr(cfg, "wican_model", lambda: "pro")

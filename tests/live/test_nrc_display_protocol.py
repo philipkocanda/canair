@@ -60,7 +60,7 @@ class TestRoutinesTui:
 
 class TestBix:
     def test_the_service_line_names_an_nrc_for_the_ecus_protocol(self, capsys):
-        from canlib.commands.bix import _print_service_line
+        from canlib.cli.commands.bix import _print_service_line
         from canlib.uds.layout import layout_of
 
         payload = bytes.fromhex("7F2172")

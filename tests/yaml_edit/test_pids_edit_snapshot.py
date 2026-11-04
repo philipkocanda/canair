@@ -6,7 +6,7 @@ import argparse
 import pytest
 import yaml
 
-from canlib.commands import pids as cli
+from canlib.cli.commands import pids as cli
 from canlib.ecus.pids import build_ecu_index, pid_ships, pid_swept
 from canlib.validation import pids as validate_pids
 from canlib.yaml_edit.errors import EditError

@@ -110,7 +110,7 @@ def test_kwp_wrong_session_nrc_escalates_lazily_on_a_non_nissan_profile():
 
 class TestIOControlScanDispatch:
     def _run(self, monkeypatch, *, yes, stdin, quirks=("skm_wakeup",)):
-        from canlib.commands._live.handlers import scans
+        from canlib.cli.commands._live.handlers import scans
 
         calls: list[dict] = []
 
@@ -183,7 +183,7 @@ def test_other_profiles_need_no_confirmation():
 
 class TestRoutinesScanDispatch:
     def _run(self, monkeypatch, *, yes, stdin):
-        from canlib.commands._live.handlers import scans
+        from canlib.cli.commands._live.handlers import scans
 
         calls: list[dict] = []
 
@@ -218,7 +218,7 @@ class TestRoutinesScanDispatch:
 
 
 def test_iocontrol_scan_defaults_uds_ecus_to_03_in_a_mixed_scan(monkeypatch):
-    from canlib.commands._live.handlers import scans
+    from canlib.cli.commands._live.handlers import scans
 
     seen: dict[str, object] = {}
 
@@ -273,8 +273,8 @@ def test_build_iocontrol_index_reports_a_bad_session_mode_as_a_profile_error():
 
 @pytest.mark.parametrize("command", ["io", "routines"])
 def test_json_listing_of_an_unknown_ecu_is_a_json_error(command, monkeypatch, capsys):
-    from canlib.commands import io as io_cmd
-    from canlib.commands import routines as routines_cmd
+    from canlib.cli.commands import io as io_cmd
+    from canlib.cli.commands import routines as routines_cmd
 
     monkeypatch.setattr("canlib.ecus.pids.load_pids", lambda: {"ecus": {}})
     mod = io_cmd if command == "io" else routines_cmd

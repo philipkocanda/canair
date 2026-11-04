@@ -4,7 +4,7 @@ import pytest
 
 from canlib.analysis.stats import compute_stats
 from canlib.analysis.xanalysis import discriminability as _discriminability
-from canlib.commands.decode import analysis, calc, query, views
+from canlib.cli.commands.decode import analysis, calc, query, views
 
 parse_try_expr = query.parse_try_expr
 build_try_params = query.build_try_params

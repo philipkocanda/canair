@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canlib.commands.profile import (
+from canlib.cli.commands.profile import (
     _cmd_adopt,
     _cmd_create,
     _cmd_default,

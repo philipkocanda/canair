@@ -146,7 +146,7 @@ only purpose is to hide a cycle.
 
 ## Adding a CLI subcommand
 
-Commands live in `canlib/commands/<name>.py`, exposing `NAME`, `add_parser(subparsers)` (which calls
+Commands live in `canlib/cli/commands/<name>.py`, exposing `NAME`, `add_parser(subparsers)` (which calls
 `parser.set_defaults(func=run)`), and `run(args) -> int | None`; register `NAME` in
 `commands/__init__.py::COMMAND_NAMES` (order = help order).
 
@@ -155,7 +155,7 @@ Commands live in `canlib/commands/<name>.py`, exposing `NAME`, `add_parser(subpa
 `run`). The command names its `LiveOperation`: a handler in `canlib/commands/_live/handlers/` that
 reads the parsed flags and calls a `mode_*` coroutine in `canlib/live/<name>.py` with typed
 arguments. Nothing picks a handler by inspecting flags, so add the command's row to `CASES` in
-`tests/commands/test_live_operations.py`: it pins the operation the command reaches and that the
+`tests/cli/commands/test_live_operations.py`: it pins the operation the command reaches and that the
 parser defines every `args.x` its handler reads directly (use `getattr` for an optional one).
 
 Follow an existing command as a template: `commands/dtc/` + `live/dtc/`.

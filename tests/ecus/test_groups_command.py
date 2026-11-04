@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-import canlib.commands.groups as groups_cmd
+import canlib.cli.commands.groups as groups_cmd
 from canlib.ecus.ecu_groups import Group
 
 

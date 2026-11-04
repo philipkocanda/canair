@@ -355,7 +355,7 @@ def _session(events, times=("14:00:00.000", "14:05:00.000")):
 class TestSessionsView:
     def test_text_view_reports_gaps(self, tmp_path, capsys):
         from canlib.captures.store import flatten_session
-        from canlib.commands.captures.sessions import cmd_sessions
+        from canlib.cli.commands.captures.sessions import cmd_sessions
 
         events = [
             {"at": "14:01:00.000", "until": "14:02:00.000", "kind": "disconnect"},
@@ -372,7 +372,7 @@ class TestSessionsView:
 
     def test_json_view_carries_the_events(self, tmp_path, capsys):
         from canlib.captures.store import flatten_session
-        from canlib.commands.captures.sessions import cmd_sessions
+        from canlib.cli.commands.captures.sessions import cmd_sessions
 
         events = [{"at": "14:01:00.000", "kind": "resync"}]
         entries = flatten_session(tmp_path / f"{DAY}.json", 0, _session(events), rx_index={})
@@ -381,7 +381,7 @@ class TestSessionsView:
 
     def test_a_session_without_events_prints_no_gaps_line(self, tmp_path, capsys):
         from canlib.captures.store import flatten_session
-        from canlib.commands.captures.sessions import cmd_sessions
+        from canlib.cli.commands.captures.sessions import cmd_sessions
 
         session = _session([])
         del session["link_events"]
@@ -717,7 +717,7 @@ class TestFillReport:
     def test_cut_carries_are_counted_and_reported(self):
         from canlib.analysis.align import LoadedPid
         from canlib.analysis.fill import FillPolicy, session_end_times
-        from canlib.commands._join import fill_summaries, fill_summary_line
+        from canlib.cli.commands._join import fill_summaries, fill_summary_line
 
         events = [{"at": "14:01:00.000", "until": "14:02:00.000", "kind": "disconnect"}]
         caps = [
@@ -774,7 +774,7 @@ class TestInferredGaps:
 
     def test_sessions_view_prints_inferred_gaps(self, tmp_path, capsys):
         from canlib.captures.store import flatten_session
-        from canlib.commands.captures.sessions import cmd_sessions
+        from canlib.cli.commands.captures.sessions import cmd_sessions
 
         session = _session([], times=self._times(*range(0, 20, 2), 200, 202))
         del session["link_events"]
@@ -799,7 +799,7 @@ class TestStepGaps:
         }
 
     def test_a_gap_between_two_frames_is_reported_once(self):
-        from canlib.commands.captures.step_gaps import describe_gap, gaps_before
+        from canlib.cli.commands.captures.step_gaps import describe_gap, gaps_before
 
         events = [{"at": "14:00:10.000", "until": "14:01:10.000", "kind": "disconnect"}]
         a, b, c = (self._entry(s, events) for s in (0, 80, 90))
@@ -808,7 +808,7 @@ class TestStepGaps:
         assert gaps_before([c], _at(90), [b], _at(80)) == []
 
     def test_scoped_gaps_show_only_for_the_ecu_in_view(self):
-        from canlib.commands.captures.step_gaps import describe_gap, gaps_before
+        from canlib.cli.commands.captures.step_gaps import describe_gap, gaps_before
 
         events = [{"at": "14:00:10.000", "kind": "ecu_silent", "rx": "0x7EC"}]
         mine = self._entry(80, events)

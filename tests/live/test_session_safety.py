@@ -221,7 +221,7 @@ class TestRefusalIsReportedNotRaised:
 
     def test_cli_main_reports_and_exits_2(self, monkeypatch, capsys):
         from canlib import cli
-        from canlib.commands import io
+        from canlib.cli.commands import io
 
         def _blocked(args):
             raise SafetyBlocked("BLOCKED: nope")

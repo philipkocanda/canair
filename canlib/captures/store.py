@@ -18,7 +18,7 @@ Three concerns, in dependency order:
 * :func:`decoded_preview` — regenerate a capture's decoded parameter values.
 
 Presentation (colour, JSON shaping, the QUERY mini-language) stays in the command
-layer: see :mod:`canlib.commands.captures.query`.
+layer: see :mod:`canlib.cli.commands.captures.query`.
 """
 
 from __future__ import annotations

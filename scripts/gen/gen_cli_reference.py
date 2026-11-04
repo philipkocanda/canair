@@ -100,7 +100,7 @@ def _command_names() -> list[str]:
     trailing underscore avoids shadowing the ``import`` keyword). The parser
     registers under ``NAME``, so the reference pages must key off ``NAME`` too.
     """
-    from canlib.commands import iter_command_modules
+    from canlib.cli.commands import iter_command_modules
 
     return [module.NAME for module in iter_command_modules()]
 
@@ -109,11 +109,11 @@ def _index_page(names: list[str]) -> str:
     """Rewrite the cli/ index to list the generated per-command pages.
 
     Commands are grouped under the same categories the top-level ``canair
-    --help`` uses (``canlib.commands._categories``); anything absent from a
+    --help`` uses (``canlib.cli.commands._categories``); anything absent from a
     category falls under a trailing "Other" heading, so the two never drift.
     """
     from canlib.cli import build_parser
-    from canlib.commands._categories import CATEGORIES, OTHER_TITLE
+    from canlib.cli.commands._categories import CATEGORIES, OTHER_TITLE
 
     parser = build_parser()
     sub = _subparsers_action(parser)

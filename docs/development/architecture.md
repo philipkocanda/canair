@@ -30,7 +30,7 @@ From the interface at the top to the leaf at the bottom.
 
 | If the code … | Target | Until it moves |
 |---|---|---|
-| defines flags, reads `args`, prints a command's output | `cli/commands/<cmd>/` | `commands/<cmd>/` |
+| defines flags, reads `args`, prints a command's output | `cli/commands/<cmd>/` | `cli/commands/<cmd>/` |
 | is a Textual app, screen or widget | `tui/apps/<app>/` (shared: `tui/kit/`) | `tui/` for shared widgets; the app next to its command or mode |
 | turns results into text for both CLI and TUI | `render/` | `formatting.py`, or the mode's `*_render.py` |
 | talks to the car over a `Terminal` | `live/<family>/` | `live/` |

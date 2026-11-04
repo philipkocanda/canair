@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-import canlib.commands.states as states_cmd
+import canlib.cli.commands.states as states_cmd
 from canlib.states import StateRule
 
 

@@ -1,0 +1,162 @@
+"""Tests for the top-level ``canair monitor`` command.
+
+The live monitor was promoted from the former ``canair query --monitor`` flag
+into its own command. These tests guard that split at the parser level:
+
+- ``monitor`` is registered and populates the shared-runtime attributes
+  (``multi`` + ``monitor``) that ``dispatch_mode`` routes on;
+- ``--interval`` sets the poll period;
+- ``query`` no longer accepts ``--monitor`` (the flag moved).
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from canlib.cli import build_parser
+
+
+def _parse(argv: list[str]):
+    return build_parser().parse_args(argv)
+
+
+class TestMonitorRegistered:
+    def test_monitor_is_a_command(self):
+        args = _parse(["monitor", "BMS:2101"])
+        assert args.command == "monitor"
+        assert args.steps == ["BMS:2101"]
+
+    def test_default_interval_is_five_seconds(self):
+        args = _parse(["monitor", "BMS:2101"])
+        assert args.interval == 5.0
+
+    def test_interval_flag(self):
+        args = _parse(["monitor", "BMS:2101", "--interval", "2"])
+        assert args.interval == 2.0
+
+    @pytest.mark.parametrize("value", ["0", "-1", "0.05", "nan", "inf", "fast"])
+    def test_interval_must_be_a_usable_number_of_seconds(self, value, capsys):
+        # 0 made every period-less PID due on every tick (polling never paused), and a
+        # zero args.monitor reads as "no monitor" to the dispatcher.
+        with pytest.raises(SystemExit) as exc:
+            _parse(["monitor", "BMS:2101", "--interval", value])
+        assert exc.value.code == 2
+        assert "--interval" in capsys.readouterr().err
+
+    def test_interval_floor_is_the_tui_floor(self):
+        from canlib.live.poll_schedule import MIN_INTERVAL
+
+        args = _parse(["monitor", "BMS:2101", "--interval", str(MIN_INTERVAL)])
+        assert args.interval == MIN_INTERVAL
+
+    def test_keep_and_save_flags_live_on_monitor(self):
+        args = _parse(["monitor", "BMS:2101", "--keep-all", "--save", "--label", "drive"])
+        assert args.keep_all is True
+        assert args.save is True
+        assert args.label == "drive"
+
+
+class TestMonitorRunWiring:
+    """``run`` turns the surface flags into the steps and the monitor operation."""
+
+    def test_run_builds_the_steps_and_the_monitor_options(self, monkeypatch):
+        from canlib.cli.commands import monitor
+
+        captured = {}
+
+        def fake_run_live(args, operation):
+            captured["multi"] = args.multi
+            captured["options"] = operation.monitor
+            return 0
+
+        # Skip the ECU-name preflight (needs a profile) and the device connect.
+        monkeypatch.setattr(monitor, "run_live", fake_run_live)
+        monkeypatch.setattr("canlib.live.monitor.query_ecu_error", lambda steps, pids: None)
+        monkeypatch.setattr("canlib.cli.commands._live.load_pids", lambda: {})
+
+        args = _parse(["monitor", "BMS:2101", "--interval", "3"])
+        assert monitor.run(args) == 0
+        assert captured["multi"] == ["query BMS:2101"]
+        assert captured["options"].interval == 3.0
+        assert [s["ecu"] for s in captured["options"].query_steps] == ["BMS"]
+
+    def test_run_requires_a_step(self):
+        from canlib.cli.commands import monitor
+
+        args = _parse(["monitor"])
+        assert monitor.run(args) == 2
+
+    def test_bare_monitor_on_a_tty_uses_the_picker(self, monkeypatch):
+        from canlib.cli.commands import monitor
+
+        captured = {}
+
+        def fake_run_live(args, operation):
+            captured["multi"] = args.multi
+            return 0
+
+        monkeypatch.setattr(monitor, "run_live", fake_run_live)
+        monkeypatch.setattr(monitor, "_pick_steps", lambda args: ["BMS", "VCU:2101"])
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
+        monkeypatch.setattr("sys.stdout.isatty", lambda: True, raising=False)
+        monkeypatch.setattr("canlib.live.monitor.query_ecu_error", lambda steps, pids: None)
+        monkeypatch.setattr("canlib.cli.commands._live.load_pids", lambda: {})
+
+        assert monitor.run(_parse(["monitor"])) == 0
+        assert captured["multi"] == ["query BMS", "query VCU:2101"]
+
+    def test_cancelled_picker_exits_cleanly_without_connecting(self, monkeypatch):
+        from canlib.cli.commands import monitor
+
+        monkeypatch.setattr(monitor, "run_live", lambda *a: pytest.fail("must not connect"))
+        monkeypatch.setattr(monitor, "_pick_steps", lambda args: None)
+        monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
+        monkeypatch.setattr("sys.stdout.isatty", lambda: True, raising=False)
+
+        assert monitor.run(_parse(["monitor"])) == 0
+
+
+class TestQueryNoLongerMonitors:
+    def test_query_rejects_monitor_flag(self):
+        with pytest.raises(SystemExit):
+            _parse(["query", "BMS:2101", "--monitor"])
+
+
+class TestMonitorGroupExpansion:
+    """``@group`` refs expand into their member selectors before the session starts."""
+
+    def _stub(self, monkeypatch, captured):
+        from canlib.cli.commands import monitor
+        from canlib.ecus.ecu_groups import Group
+
+        def fake_run_live(args, operation):
+            captured["multi"] = args.multi
+            return 0
+
+        monkeypatch.setattr(monitor, "run_live", fake_run_live)
+        monkeypatch.setattr("canlib.live.monitor.query_ecu_error", lambda steps, pids: None)
+        monkeypatch.setattr("canlib.cli.commands._live.load_pids", lambda: {})
+        monkeypatch.setattr(
+            "canlib.ecus.ecu_groups.load_groups",
+            lambda profile=None: {
+                "charging": Group("charging", "", ("BMS:2101", "OBC", "VCU")),
+            },
+        )
+        return monitor
+
+    def test_group_expands(self, monkeypatch):
+        captured: dict = {}
+        monitor = self._stub(monkeypatch, captured)
+        assert monitor.run(_parse(["monitor", "@charging"])) == 0
+        assert captured["multi"] == ["query BMS:2101 OBC VCU"]
+
+    def test_group_plus_extra_selector(self, monkeypatch):
+        captured: dict = {}
+        monitor = self._stub(monkeypatch, captured)
+        assert monitor.run(_parse(["monitor", "@charging", "CLU:220B"])) == 0
+        assert captured["multi"] == ["query BMS:2101 OBC VCU", "query CLU:220B"]
+
+    def test_unknown_group_errors(self, monkeypatch):
+        captured: dict = {}
+        monitor = self._stub(monkeypatch, captured)
+        assert monitor.run(_parse(["monitor", "@bogus"])) == 2

@@ -1,0 +1,618 @@
+"""``canair scan`` — the scan command group.
+
+Three kinds of scan live under one command:
+
+  * ``canair scan range <ECU>``      — sweep a PID/DID range on one ECU (the
+    general-purpose scan, with friendly ``--service`` presets + a wizard).
+  * ``canair scan iocontrol <ECU>``  — IOControl discovery. Auto-selects UDS
+    ``0x2F`` or KWP2000 ``0x30`` from the ECU's ``id_protocol`` and only ever sends
+    the returnControlToECU probe (never an actuating option). On KWP2000 that probe
+    is not proven to drive nothing, so the sweep confirms first.
+  * ``canair scan routines <ECU>``   — SAFE RoutineControl (``0x31``) discovery
+    (probes requestRoutineResults only).
+
+For convenience, a bare ``canair scan <ECU>`` (or ``canair scan`` with no args)
+is treated as ``canair scan range …`` — see ``_inject_default_subcommand`` in
+``canlib/cli/__init__.py``.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+
+from canlib.cli.commands._group import group_help
+from canlib.cli.commands._live import add_connection_args, ecu_completer, live_command, run_live
+from canlib.cli.commands._live.handlers import scans
+from canlib.core.id_ranges import format_id_ranges, parse_id_ranges
+from canlib.live.scan_presets import (
+    FAMILY_SIZE,
+    SERVICE_PRESETS,
+    ScanPlan,
+    ServiceError,
+    is_wide_service,
+    plan_scan,
+    preset_by_service,
+    presets_help,
+    resolve_service,
+    service_label,
+)
+
+NAME = "scan"
+
+# Subcommand names under ``canair scan``. Kept in sync with the ``scan`` entry in
+# ``cli._GROUP_DEFAULTS`` (which injects "range" when the token after ``scan``
+# isn't one of these).
+SCAN_KINDS = ("range", "iocontrol", "routines", "sessions")
+
+
+def add_parser(subparsers) -> argparse.ArgumentParser:
+    parser = subparsers.add_parser(
+        NAME,
+        help="Scan an ECU: range | iocontrol | routines | sessions",
+        description="Scan an ECU. Choose a kind:\n"
+        "  range      sweep a PID/DID range (general purpose)\n"
+        "  iocontrol  IOControl discovery (UDS 0x2F; KWP2000 0x30 asks first)\n"
+        "  routines   SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33, auto)\n"
+        "  sessions   SAFE diagnostic session-type discovery (0x10, auto UDS/KWP2000)\n\n"
+        "A bare `canair scan BMS` (or `canair scan` alone) is shorthand for "
+        "`canair scan range …`.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+examples:
+  canair scan BMS                         # sweep a PID range on BMS (bare = range)
+  canair scan range                       # interactive wizard (pick ECU/service/range)
+  canair scan range IGPM --range BC01-BC0B  # scan a specific DID range
+  canair scan iocontrol IGPM              # SAFE actuator (IOControl) discovery
+  canair scan routines BCM                # SAFE routine discovery
+  canair scan sessions BMS                # SAFE diagnostic session-type discovery
+
+Run `canair scan <kind> --help` for the flags of each kind.""",
+    )
+    kinds = parser.add_subparsers(dest="scan_kind", metavar="<kind>")
+    _add_range_parser(kinds)
+    _add_iocontrol_parser(kinds)
+    _add_routines_parser(kinds)
+    _add_sessions_parser(kinds)
+    parser.set_defaults(func=group_help("_scan_group_parser"), _scan_group_parser=parser)
+    return parser
+
+
+# ---------------------------------------------------------------------------
+# scan range — the general-purpose PID/DID sweep
+# ---------------------------------------------------------------------------
+
+
+def _add_range_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "range",
+        help="Sweep a range of PIDs/DIDs on an ECU",
+        description="Scan one or more ranges of PIDs/DIDs on an ECU. One scan at a time only. "
+        "Without --range, a UDS ECU's DID families are swept: every high byte the profile "
+        "shows it using (its 22/2F PIDs and its IOControl DIDs), the whole family by default "
+        "(--slots narrows it).",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+getting started:
+  canair scan range                 # interactive wizard — pick ECU/service/range
+  canair scan BMS                   # smart defaults for that ECU (bare = range)
+  canair scan range IGPM            # UDS ECU → read-did over its known DID families
+  canair scan range PSM --slots 32  # first 32 DIDs of each family (xx00-xx1F)
+
+"""
+        + presets_help()
+        + """
+
+examples:
+  canair scan range BMS --service live-data --range 01-FF
+  canair scan range 7E4 --service read-did --range BC01-BC0B
+  canair scan range SKM --service read-did --range B000-B01F,B100-B11F
+  canair scan range IGPM --service iocontrol --range E000-E0FF --append 03 --session
+
+tips:
+  * Run ONE scan at a time — parallel scans lock up the WiCAN.
+  * Start with a small --range to gauge ECU response time, then widen.
+  * Add --save --label "..." to record results to captures/.
+  * For SAFE actuator/routine discovery use `canair scan iocontrol`/`routines`.
+""",
+    )
+    ecu_arg = parser.add_argument(
+        "tx",
+        metavar="ECU",
+        nargs="?",
+        default=None,
+        help="ECU name or TX ID (e.g. BMS or 7E4). Omit for the interactive wizard.",
+    )
+    try:
+        ecu_arg.completer = ecu_completer  # type: ignore[attr-defined]
+    except Exception:
+        pass
+    parser.add_argument(
+        "-i",
+        "--interactive",
+        action="store_true",
+        help="Force the interactive wizard even when an ECU is given",
+    )
+    parser.add_argument(
+        "--service",
+        metavar="SVC",
+        default=None,
+        help="UDS service: a preset name (live-data, read-did, iocontrol, routine) "
+        "or a hex byte (default: smart per-ECU)",
+    )
+    parser.add_argument(
+        "--range",
+        metavar="START-END[,...]",
+        default=None,
+        help="PID/DID range in hex, or a comma list of ranges (default: smart per-ECU)",
+    )
+    parser.add_argument(
+        "--slots",
+        metavar="N",
+        type=_slots,
+        default=None,
+        help="With the smart default: sweep only the first N DIDs of each DID family "
+        "(1-256, default 256 = the whole family). Can't be combined with --range.",
+    )
+    parser.add_argument("--append", metavar="HEX", help="Hex bytes to append after each DID")
+    parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
+    parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")
+    parser.add_argument("--save", action="store_true", help="Save results to captures/")
+    parser.add_argument("--label", metavar="TEXT", default=None, help="Session label for --save")
+    parser.add_argument("--state", metavar="TEXT", default=None, help="Session state for --save")
+    parser.add_argument("--notes", metavar="TEXT", default=None, help="Session notes for --save")
+    add_connection_args(parser)
+    # The wizard and plan resolution run before the shared live runtime.
+    parser.set_defaults(func=run_range)
+    return parser
+
+
+# ---------------------------------------------------------------------------
+# scan iocontrol — IOControl discovery (UDS 0x2F / KWP2000 0x30, auto)
+# ---------------------------------------------------------------------------
+
+
+def _add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "iocontrol",
+        help="IOControl discovery (UDS 0x2F; KWP2000 0x30 asks first)",
+        description="Probe returnControlToECU across an id range on one or more ECUs. "
+        "The service is auto-selected per ECU from its id_protocol: UDS ECUs use "
+        "InputOutputControlByIdentifier (0x2F, 16-bit DID); KWP2000 ECUs (BMS, VCU, "
+        "MCU, LDC, AAF) use InputOutputControlByLocalIdentifier (0x30, 8-bit LID). "
+        "Only returnControlToECU (00) is ever sent, never an actuating option. On UDS "
+        "that is the standard release. ISO 14230-3 leaves the 0x30 option byte "
+        "manufacturer-defined, so a KWP2000 sweep may actuate outputs: it asks for "
+        "confirmation first (--yes to "
+        "skip; it refuses non-interactively without it). On a profile with the "
+        "nissan_c0_session quirk, KWP2000 ECUs get Nissan's layout instead, with no "
+        "prompt: 30 {LID} 01 00 (is value 00 supported?) inside the Nissan session "
+        "10 C0, because there 30 {LID} 00 begins a one-shot command. "
+        "Hits are written to pids/<ecu>.yaml under an iocontrol_discoveries: "
+        "section.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="examples:\n"
+        "  canair scan iocontrol IGPM              # UDS 0x2F DID scan\n"
+        "  canair scan iocontrol BMS               # KWP2000 0x30 LID scan (asks first)\n"
+        "  canair scan iocontrol BMS --session --mode 81   # sweep inside KWP2000 session\n"
+        "  canair scan iocontrol IGPM BCM --did-range B000-BFFF\n",
+    )
+    parser.add_argument(
+        "iocontrol_scan", nargs="+", metavar="ECU", help="ECUs to scan (at least one required)"
+    ).completer = ecu_completer
+    parser.add_argument(
+        "--did-range",
+        metavar="START-END",
+        default=None,
+        help="Id range: DID for UDS (per-ECU defaults), LID 00-FF for KWP2000 (default 00-FF)",
+    )
+    parser.add_argument(
+        "--throttle-ms", type=int, default=150, help="Delay in ms between probes (default 150)"
+    )
+    parser.add_argument(
+        "--session", action="store_true", help="Open a diagnostic session before scanning"
+    )
+    parser.add_argument("--wake", action="store_true", help="Wake ECU from deep sleep first")
+    parser.add_argument(
+        "--mode",
+        dest="session_mode",
+        metavar="HEX",
+        default=None,
+        help="Session mode for --session (default 03 = UDS extended; 81 = KWP2000 standard, "
+        "e.g. BMS; on a profile with the nissan_c0_session quirk KWP2000 ECUs default to C0 "
+        "and always open a session)",
+    )
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip the confirmation a KWP2000 0x30 sweep asks for, since 30 {LID} 00 is "
+        "not known to drive nothing (every profile without the nissan_c0_session quirk)",
+    )
+    add_connection_args(parser)
+    parser.set_defaults(func=live_command(scans.IOCONTROL))
+    return parser
+
+
+# ---------------------------------------------------------------------------
+# scan routines — SAFE RoutineControl (0x31) discovery
+# ---------------------------------------------------------------------------
+
+
+def _add_routines_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "routines",
+        help="SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33, auto)",
+        description="Probe routine results across a range on one or more ECUs. The service "
+        "is auto-selected per ECU from its id_protocol: UDS ECUs use RoutineControl "
+        "(0x31, requestRoutineResults SF 0x03); KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) use "
+        "RequestRoutineResultsByLocalIdentifier (0x33). 0x31 (StartRoutine on KWP2000) is "
+        "NEVER sent to a KWP2000 ECU — only the read-only results service. Hits are written "
+        "to pids/<ecu>.yaml under a routines: section.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="examples:\n"
+        "  canair scan routines IGPM               # UDS 0x31 SF03\n"
+        "  canair scan routines BMS                # KWP2000 0x33 LID scan (auto)\n"
+        "  canair scan routines BMS --session --mode 81    # sweep inside KWP2000 session\n"
+        "  canair scan routines IGPM BCM --rid-range F000-F0FF\n",
+    )
+    parser.add_argument(
+        "routines_scan", nargs="+", metavar="ECU", help="ECUs to scan (at least one required)"
+    ).completer = ecu_completer
+    parser.add_argument(
+        "--rid-range",
+        metavar="START-END",
+        default="F000-F0FF",
+        help="RID range for UDS (default F000-F0FF); KWP2000 ECUs use LID 00-FF",
+    )
+    parser.add_argument(
+        "--throttle-ms", type=int, default=150, help="Delay in ms between probes (default 150)"
+    )
+    parser.add_argument(
+        "--session", action="store_true", help="Open a diagnostic session before scanning"
+    )
+    parser.add_argument("--wake", action="store_true", help="Wake ECU from deep sleep first")
+    parser.add_argument(
+        "--mode",
+        dest="session_mode",
+        metavar="HEX",
+        default="03",
+        help="Session mode for --session (default 03 = UDS extended; 81 = KWP2000 standard, "
+        "e.g. BMS)",
+    )
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip the confirmation a KWP2000 sweep asks for where 0x33 is not known to be "
+        "side-effect-free (a nissan_c0_session profile)",
+    )
+    add_connection_args(parser)
+    parser.set_defaults(func=live_command(scans.ROUTINES))
+    return parser
+
+
+# ---------------------------------------------------------------------------
+# scan sessions — SAFE diagnostic session-type discovery (service 0x10)
+# ---------------------------------------------------------------------------
+
+
+def _add_sessions_parser(kinds) -> argparse.ArgumentParser:
+    parser = kinds.add_parser(
+        "sessions",
+        help="SAFE diagnostic session-type discovery (0x10, auto UDS/KWP2000)",
+        description="Probe which DiagnosticSessionControl (service 0x10) session types an "
+        "ECU supports. The session-mode set is auto-selected per ECU from its id_protocol: "
+        "UDS ECUs are probed with 01 (default) + 03 (extended); KWP2000 ECUs (BMS, VCU, MCU, "
+        "LDC, AAF) with 81 (standard) + 82 + 83 (extended), plus any OEM session a profile "
+        "quirk permits on KWP2000 (C0 with nissan_c0_session). Every mode is checked against "
+        "the safety policy for the ECU's protocol first and a refused one is skipped — the "
+        "programming sessions (UDS 0x02, also 0x82 on a UDS ECU; KWP2000 0x85) are NEVER "
+        "probed. "
+        "Results are written to ecus/<ecu>.yaml under a sessions: section.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="examples:\n"
+        "  canair scan sessions IGPM             # UDS: probe 10 01 / 10 03\n"
+        "  canair scan sessions BMS              # KWP2000: probe 10 81 / 82 / 83 (auto)\n"
+        "  canair scan sessions BMS VCU MCU      # several ECUs in one run\n"
+        "  canair scan sessions IGPM --modes 01,03,10   # override the probed modes\n",
+    )
+    parser.add_argument(
+        "sessions_scan", nargs="+", metavar="ECU", help="ECUs to scan (at least one required)"
+    ).completer = ecu_completer
+    parser.add_argument(
+        "--modes",
+        metavar="HEX[,HEX...]",
+        default=None,
+        help="Comma-separated 0x10 sub-functions to probe, overriding the per-ECU "
+        "protocol default (e.g. 01,03 or 81,82,83). Modes the safety policy refuses for "
+        "the ECU's protocol (02/85, 82 on UDS, the OEM band) are skipped.",
+    )
+    parser.add_argument(
+        "--throttle-ms", type=int, default=200, help="Delay in ms between probes (default 200)"
+    )
+    add_connection_args(parser)
+    parser.set_defaults(func=live_command(scans.SESSIONS))
+    return parser
+
+
+def _slots(value: str) -> int:
+    try:
+        n = int(value, 0)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"--slots must be a number, got {value!r}") from None
+    if not 1 <= n <= FAMILY_SIZE:
+        raise argparse.ArgumentTypeError(f"--slots must be 1-{FAMILY_SIZE}, got {n}")
+    return n
+
+
+def _fmt_ranges(ranges, wide: bool) -> str:
+    return format_id_ranges(ranges, 4 if wide else 2)
+
+
+def _resolve_plan(args) -> None:
+    """Populate ``args.service`` (hex str) and ``args.range`` ('START-END').
+
+    Applies smart per-ECU defaults when the user left ``--service``/``--range``
+    unset, and resolves friendly service preset names to hex. Prints a short
+    summary of the resolved plan so the user learns the underlying command.
+    """
+    auto = args.service is None and args.range is None
+    slots = getattr(args, "slots", None)
+    if slots is not None and args.range is not None:
+        print("Error: --slots shapes the smart default; drop it or drop --range.", file=sys.stderr)
+        sys.exit(2)
+    plan: ScanPlan | None = None
+    if args.service is None or args.range is None:
+        try:
+            plan = plan_scan(args.tx, slots=slots or FAMILY_SIZE)
+        except Exception:
+            plan = None
+
+    # --- service ---
+    if args.service is None:
+        if plan is not None:
+            service_int = plan.service
+            preset_name = plan.service_name
+        else:
+            service_int, preset_name = 0x21, "live-data"
+    else:
+        try:
+            service_int, preset_name = resolve_service(args.service)
+        except ServiceError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(2)
+    args.service = f"{service_int:02X}"
+    wide = is_wide_service(service_int)
+
+    # --- range ---
+    if args.range is None:
+        if plan is not None and plan.service == service_int:
+            args.range = _fmt_ranges(plan.ranges, wide)
+        else:
+            preset = preset_by_service(service_int)
+            args.range = preset.default_range if preset else ("0000-00FF" if wide else "01-FF")
+
+    # --- session/wake: only auto-apply in pure smart mode ---
+    if auto and plan is not None:
+        if plan.session and not args.session:
+            args.session = True
+        if plan.wake and not args.wake:
+            args.wake = True
+
+    try:
+        parse_id_ranges(args.range)
+    except ValueError as e:
+        print(f"Error: --range {args.range}: {e}", file=sys.stderr)
+        sys.exit(2)
+
+    _print_plan_summary(args, service_int, preset_name, plan if auto else None)
+
+
+def _print_plan_summary(args, service_int, preset_name, plan) -> None:
+    from rich.console import Console
+
+    console = Console(stderr=True)
+    svc = service_label(service_int, preset_name)
+    parts = [f"[bold]{args.tx}[/bold]", f"service {svc}", f"range {args.range}"]
+    if args.append:
+        parts.append(f"append {args.append}")
+    if args.session:
+        parts.append("session")
+    if args.wake:
+        parts.append("wake")
+    console.print("  [dim]Scan plan:[/dim] " + "  |  ".join(parts))
+    if plan is not None and plan.reason:
+        console.print(f"  [dim]         → {plan.reason}[/dim]")
+
+
+# ---------------------------------------------------------------------------
+# Interactive wizard
+# ---------------------------------------------------------------------------
+
+
+def _prompt(text: str, default: str | None = None) -> str:
+    suffix = f" [{default}]" if default else ""
+    try:
+        raw = input(f"{text}{suffix}: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        raise KeyboardInterrupt from None
+    if not raw and default is not None:
+        return default
+    return raw
+
+
+def _ecu_choices() -> list[tuple[str, int, str]]:
+    """Return [(name, tx_id, description)] for ECUs known to the profile."""
+    from canlib.ecus import load_ecus
+    from canlib.ecus.pids import load_pids
+
+    try:
+        ecus = load_ecus()
+    except Exception:
+        ecus = {}
+    try:
+        pids = load_pids()
+    except Exception:
+        pids = {}
+
+    seen: dict[str, tuple[str, int, str]] = {}
+    # ECUs with defined PIDs first (most actionable), then any others from ecus.yaml.
+    for name, defn in (pids.get("ecus", {}) or {}).items():
+        tx = defn.get("tx_id")
+        if tx is None:
+            continue
+        desc = ecus.get(tx, {}).get("description", "") if ecus else ""
+        seen[name.upper()] = (name, int(tx), desc)
+    for tx, info in (ecus or {}).items():
+        name = info.get("name")
+        if not name or name.upper() in seen:
+            continue
+        seen[name.upper()] = (name, int(tx), info.get("description", ""))
+    return sorted(seen.values(), key=lambda t: t[0])
+
+
+def _run_wizard(args) -> bool:
+    """Interactively populate ``args`` for a scan. Returns False if cancelled."""
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+    console.print("\n[bold cyan]canair scan — interactive setup[/bold cyan]")
+    console.print("[dim]Press Ctrl+C to cancel at any time.[/dim]\n")
+
+    try:
+        # 1. ECU
+        if args.tx is None:
+            choices = _ecu_choices()
+            if choices:
+                table = Table(title="ECUs in the active profile", title_justify="left")
+                table.add_column("#", justify="right", style="cyan")
+                table.add_column("ECU", style="bold")
+                table.add_column("TX", style="magenta")
+                table.add_column("Description")
+                for i, (name, tx, desc) in enumerate(choices, 1):
+                    table.add_row(str(i), name, f"0x{tx:03X}", desc or "")
+                console.print(table)
+                sel = _prompt("Select an ECU (number, name, or hex TX id)")
+                args.tx = _resolve_ecu_selection(sel, choices)
+            else:
+                args.tx = _prompt("ECU name or hex TX id")
+            if not args.tx:
+                console.print("[yellow]No ECU selected — cancelled.[/yellow]")
+                return False
+
+        # Compute the smart plan to seed defaults.
+        try:
+            plan = plan_scan(args.tx)
+        except Exception:
+            plan = None
+
+        # 2. Service
+        console.print()
+        stable = Table(title="Services", title_justify="left")
+        stable.add_column("name", style="bold cyan")
+        stable.add_column("hex", style="magenta")
+        stable.add_column("description")
+        for p in SERVICE_PRESETS:
+            note = f"  ⚠ {p.caution}" if p.caution else ""
+            stable.add_row(p.name, f"0x{p.service:02X}", p.summary + note)
+        console.print(stable)
+        default_service = plan.service_name if plan and plan.service_name else "live-data"
+        svc_in = _prompt("Service (preset name or hex byte)", default_service)
+        try:
+            service_int, _preset_name = resolve_service(svc_in)
+        except ServiceError as e:
+            console.print(f"[red]{e}[/red]")
+            return False
+        args.service = f"{service_int:02X}"
+        wide = is_wide_service(service_int)
+
+        # 3. Range
+        if plan is not None and plan.service == service_int:
+            default_range = _fmt_ranges(plan.ranges, wide)
+        else:
+            preset = preset_by_service(service_int)
+            default_range = preset.default_range if preset else ("0000-00FF" if wide else "01-FF")
+        args.range = _prompt("Range (START-END[,...], hex)", default_range)
+
+        # 4. Session / wake
+        console.print()
+        default_session = "y" if (args.session or (plan and plan.session)) else "n"
+        args.session = (
+            _prompt("Enter extended session (10 03)? (y/n)", default_session)
+            .lower()
+            .startswith("y")
+        )
+        default_wake = "y" if (args.wake or (plan and plan.wake)) else "n"
+        args.wake = (
+            _prompt("Wake ECU from deep sleep first (10 01)? (y/n)", default_wake)
+            .lower()
+            .startswith("y")
+        )
+
+        # 5. Confirm — show the equivalent one-liner so the user learns it.
+        console.print()
+        console.print("[bold]Ready to scan:[/bold]  " + _equiv_command(args))
+        go = _prompt("Run this scan now? (y/n)", "y")
+        if not go.lower().startswith("y"):
+            console.print("[yellow]Cancelled.[/yellow]")
+            return False
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled.[/yellow]")
+        return False
+
+    return True
+
+
+def _resolve_ecu_selection(sel: str, choices: list[tuple[str, int, str]]) -> str:
+    """Map a wizard ECU selection (number/name/hex) to an ECU token."""
+    sel = sel.strip()
+    if sel.isdigit():
+        idx = int(sel) - 1
+        if 0 <= idx < len(choices):
+            return choices[idx][0]
+    return sel
+
+
+def _equiv_command(args) -> str:
+    parts = [
+        "canair scan range",
+        str(args.tx),
+        f"--service {args.service}",
+        f"--range {args.range}",
+    ]
+    if args.append:
+        parts.append(f"--append {args.append}")
+    if args.session:
+        parts.append("--session")
+    if args.wake:
+        parts.append("--wake")
+    return " ".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+
+def run_range(args) -> int:
+    """Resolve friendly/absent args, optionally run the wizard, then scan."""
+    want_wizard = args.interactive or args.tx is None
+    if want_wizard:
+        if not sys.stdin.isatty():
+            if args.tx is None:
+                print(
+                    "Error: no ECU given. Specify one (e.g. `canair scan BMS`), run "
+                    "`canair scan range` in a terminal for the wizard, or `canair discover` "
+                    "to find live ECUs.",
+                    file=sys.stderr,
+                )
+                return 2
+            # -i without a TTY: fall through to non-interactive resolution.
+        else:
+            if not _run_wizard(args):
+                return 0
+
+    _resolve_plan(args)
+    return run_live(args, scans.RANGE)

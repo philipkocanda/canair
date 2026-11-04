@@ -390,7 +390,7 @@ class TestScanAll:
     async def test_scan_all_dispatch_logs_by_default(self, monkeypatch, tmp_path, capsys):
         # No --log flag in the args: dispatch must log by default (dtc_log unset
         # -> getattr default True).
-        from canlib.commands._live.handlers.diagnostics import handle_dtc
+        from canlib.cli.commands._live.handlers.diagnostics import handle_dtc
         from canlib.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
@@ -453,7 +453,7 @@ class TestDispatchTransportAgnostic:
 
     @pytest.mark.asyncio
     async def test_dispatch_read(self, capsys):
-        from canlib.commands._live.handlers.diagnostics import handle_dtc
+        from canlib.cli.commands._live.handlers.diagnostics import handle_dtc
 
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
         args = self._args(dtc="7E4", mask="FF", protocol="uds", clear=False)
@@ -463,7 +463,7 @@ class TestDispatchTransportAgnostic:
 
     @pytest.mark.asyncio
     async def test_dispatch_clear_with_yes(self, capsys):
-        from canlib.commands._live.handlers.diagnostics import handle_dtc
+        from canlib.cli.commands._live.handlers.diagnostics import handle_dtc
 
         t = FakeTerminal({"14FFFFFF": _ok("54")})
         args = self._args(dtc="7E4", clear=True, group="FFFFFF", protocol="uds", yes=True)
@@ -487,7 +487,7 @@ class TestLogOffline:
         return logp
 
     def test_log_all_shows_latest_and_diff(self, monkeypatch, tmp_path, capsys):
-        from canlib.commands.dtc import log as dtc_cmd
+        from canlib.cli.commands.dtc import log as dtc_cmd
         from canlib.dtc import log as dtc_log
 
         self._seed(monkeypatch, tmp_path)
@@ -521,7 +521,7 @@ class TestLogOffline:
         assert "B2916-00" in out
 
     def test_log_single_ecu_scope(self, monkeypatch, tmp_path, capsys):
-        from canlib.commands.dtc import log as dtc_cmd
+        from canlib.cli.commands.dtc import log as dtc_cmd
         from canlib.dtc import log as dtc_log
         from canlib.dtc.refs import ecu_ref
         from canlib.ecus import ecu_display, resolve_tx
@@ -538,7 +538,7 @@ class TestLogOffline:
         assert "No DTCs stored" in out
 
     def test_log_no_log_entry(self, monkeypatch, tmp_path, capsys):
-        from canlib.commands.dtc import log as dtc_cmd
+        from canlib.cli.commands.dtc import log as dtc_cmd
 
         self._seed(monkeypatch, tmp_path)
         rc = dtc_cmd.run(self._args())
@@ -546,7 +546,7 @@ class TestLogOffline:
         assert "No logged DTC scan" in capsys.readouterr().out
 
     def test_log_unknown_ecu(self, monkeypatch, tmp_path, capsys):
-        from canlib.commands.dtc import log as dtc_cmd
+        from canlib.cli.commands.dtc import log as dtc_cmd
 
         self._seed(monkeypatch, tmp_path)
         rc = dtc_cmd.run(self._args(dtc="ZZZNOPE"))

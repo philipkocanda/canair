@@ -2,7 +2,7 @@
 
 The loader, PID-definition resolution and decode preview used to live beside the
 ``captures`` command, which forced :mod:`canlib.analysis.align`, :mod:`canlib.captures.dates`
-and :mod:`canlib.states.infer` to import *up* into ``canlib.commands`` (with lazy
+and :mod:`canlib.states.infer` to import *up* into ``canlib.cli.commands`` (with lazy
 in-function imports to dodge the resulting cycle). They are library concerns; these
 tests cover them directly, and :class:`TestLayering` keeps the inversion from
 coming back.
@@ -226,7 +226,7 @@ class TestLayering:
         """Every module named by an ``import``/``from … import`` in ``path``.
 
         Relative imports are resolved against ``canlib`` so ``from .commands.x``
-        and ``from canlib.commands.x`` compare equal.
+        and ``from canlib.cli.commands.x`` compare equal.
         """
         tree = ast.parse(path.read_text())
         names: set[str] = set()
@@ -244,32 +244,31 @@ class TestLayering:
     def test_no_library_module_imports_the_captures_command(self):
         # "Library" = canlib modules below the command/mode layer. They span the
         # top level and the feature subpackages (captures/, states/, analysis/, …),
-        # but not commands/ or modes/, which legitimately compose the command layer.
+        # but not cli/ or live/, which legitimately compose the command layer.
         lib_files = [
             p
             for p in sorted(CANLIB.rglob("*.py"))
-            if "commands" not in p.relative_to(CANLIB).parts
-            and "modes" not in p.relative_to(CANLIB).parts
-            and p.name != "cli.py"  # the CLI entry point legitimately imports commands
+            if "cli" not in p.relative_to(CANLIB).parts
+            and "live" not in p.relative_to(CANLIB).parts
         ]
         offenders = {
             str(path.relative_to(CANLIB)): sorted(
-                m for m in mods if m.startswith("canlib.commands")
+                m for m in mods if m.startswith("canlib.cli.commands")
             )
             for path in lib_files
             for mods in [self._imported_modules(path)]
-            if any(m.startswith("canlib.commands.captures") for m in mods)
+            if any(m.startswith("canlib.cli.commands.captures") for m in mods)
         }
         assert not offenders, (
             "library modules must read captures through canlib.captures.store, not "
-            f"canlib.commands.captures: {offenders}"
+            f"canlib.cli.commands.captures: {offenders}"
         )
 
     def test_capture_store_imports_nothing_from_commands(self):
         offenders = sorted(
             m
             for m in self._imported_modules(CANLIB / "captures" / "store.py")
-            if m.startswith("canlib.commands")
+            if m.startswith("canlib.cli.commands")
         )
         assert not offenders, f"capture_store must stay below the command layer: {offenders}"
 

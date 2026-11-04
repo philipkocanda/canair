@@ -37,7 +37,7 @@ def temp_profile(tmp_path):
 
 
 def _import(argv):
-    from canlib.commands import import_ as imp
+    from canlib.cli.commands import import_ as imp
 
     p = imp.add_parser(argparse.ArgumentParser().add_subparsers())
     return imp.run(p.parse_args(argv))

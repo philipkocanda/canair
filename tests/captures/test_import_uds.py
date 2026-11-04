@@ -8,7 +8,7 @@ import json
 import pytest
 
 from canlib.captures import build_manual_session
-from canlib.commands.import_uds import _build_capture, _parse_spec, run
+from canlib.cli.commands.import_uds import _build_capture, _parse_spec, run
 
 _NAME_INDEX = {"CLU": 0x7C6}
 

@@ -4,7 +4,7 @@ canair is installed from a git clone (``git clone`` + ``uv tool install .``), so
 "is there a newer version?" is answered by comparing the local
 :data:`canlib.__version__` against the latest **GitHub release** tag
 (``vX.Y.Z``) of the repo. The actual upgrade is driven by ``canair update``
-(see :mod:`canlib.commands.update`).
+(see :mod:`canlib.cli.commands.update`).
 
 Design constraints (all satisfied here):
 

@@ -834,7 +834,7 @@ def thin_join_warning(
 ) -> str | None:
     """Message for a reference that time-aligned onto few/none of its candidates.
 
-    The single-reference counterpart to :func:`canlib.commands.align._warn_thin_joins`
+    The single-reference counterpart to :func:`canlib.cli.commands.align._warn_thin_joins`
     (which warns per *column*). ``correlate --against`` / ``hunt --against`` sweep
     many candidates against **one** reference and drop each one that fails
     ``min_n`` — so a reference whose scope simply doesn't overlap the target

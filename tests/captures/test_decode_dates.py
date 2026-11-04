@@ -6,13 +6,13 @@ from datetime import date, datetime
 import pytest
 
 from canlib.captures.dates import entry_date, entry_datetime, filter_by_date_range, filter_by_text
-from canlib.commands._scope import (
+from canlib.cli.commands._scope import (
     parse_iso_date,
     parse_iso_datetime,
     resolve_date_bounds,
     resolve_scope_bounds,
 )
-from canlib.commands.decode import query, views
+from canlib.cli.commands.decode import query, views
 
 # ---------------------------------------------------------------------------
 # capture_dates helpers
@@ -510,8 +510,8 @@ class TestSharedScopingWiring:
         # captures must import the shared module (not redefine local date helpers),
         # so both commands stay in lockstep and expose --state/--label.
         from canlib.captures import dates as capture_dates
-        from canlib.commands import _scope
-        from canlib.commands.captures import uds as cap
+        from canlib.cli.commands import _scope
+        from canlib.cli.commands.captures import uds as cap
 
         assert cap.filter_by_date_range is capture_dates.filter_by_date_range
         assert cap.filter_by_text is capture_dates.filter_by_text
@@ -521,8 +521,8 @@ class TestSharedScopingWiring:
     def test_both_commands_register_scope_flags(self):
         import argparse
 
-        from canlib.commands import captures as cap
-        from canlib.commands import decode as dec
+        from canlib.cli.commands import captures as cap
+        from canlib.cli.commands import decode as dec
 
         # decode is flat; captures is a uds/can group — its scope flags live on
         # the uds kind (parsed via a resolved sub-namespace).
@@ -549,7 +549,7 @@ class TestSharedScopingWiring:
     def test_decode_has_analysis_modifiers(self):
         import argparse
 
-        from canlib.commands import decode as dec
+        from canlib.cli.commands import decode as dec
 
         sub = argparse.ArgumentParser().add_subparsers()
         parser = dec.add_parser(sub)

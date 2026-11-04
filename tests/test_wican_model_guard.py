@@ -14,7 +14,7 @@ import pytest
 
 import canlib.config as cfg_mod
 from canlib.cli import build_parser
-from canlib.commands import wican
+from canlib.cli.commands import wican
 
 
 def _classic(monkeypatch):

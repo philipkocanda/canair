@@ -16,7 +16,7 @@ import pytest
 import yaml
 
 from canlib import profile
-from canlib.commands.ecu import cmd_add, cmd_rename
+from canlib.cli.commands.ecu import cmd_add, cmd_rename
 from canlib.ecus.pids import clear_cache
 from canlib.yaml_edit.ecu import register_ecu
 from canlib.yaml_edit.errors import EditError

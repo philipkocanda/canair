@@ -4,7 +4,7 @@ import argparse
 
 import pytest
 
-from canlib.commands import pids as cli
+from canlib.cli.commands import pids as cli
 from canlib.yaml_edit.errors import EditError
 from canlib.yaml_edit.pids import PidsEditError
 

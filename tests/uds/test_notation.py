@@ -214,7 +214,7 @@ class TestCommandsAcceptNotationFlag:
     def test_all_analysis_commands_accept_notation(self):
         import argparse
 
-        from canlib.commands import correlate, coverage, decode, hunt, investigate
+        from canlib.cli.commands import correlate, coverage, decode, hunt, investigate
 
         # Minimal required positionals/flags per command to reach a parseable state.
         # correlate/hunt/investigate are uds/can groups — the notation flag lives on each kind.
@@ -233,7 +233,7 @@ class TestCommandsAcceptNotationFlag:
     def test_notation_defaults_to_none(self):
         import argparse
 
-        from canlib.commands import coverage
+        from canlib.cli.commands import coverage
 
         p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
         assert p.parse_args([]).notation is None
@@ -243,7 +243,7 @@ class TestCommandsAcceptNotationFlag:
 
         import pytest
 
-        from canlib.commands import coverage
+        from canlib.cli.commands import coverage
 
         p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
         with pytest.raises(SystemExit):

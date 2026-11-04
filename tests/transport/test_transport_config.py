@@ -383,7 +383,7 @@ class TestParseDatarate:
 class TestStatusGather:
     @pytest.fixture
     def patch_status(self, monkeypatch, env):
-        from canlib.commands import status
+        from canlib.cli.commands import status
 
         def setup(*, cfg=None, st=None, tcp=True):
             monkeypatch.setattr(status, "_load_device_config", lambda h, t: cfg)
@@ -432,7 +432,7 @@ class TestStatusFallback:
 
     @pytest.fixture
     def patch_status(self, monkeypatch, env):
-        from canlib.commands import status
+        from canlib.cli.commands import status
         from canlib.device.wican import mode as wican_mode
 
         # Two candidates (vpn primary, home fallback), fallback enabled.
@@ -488,7 +488,7 @@ class TestStatusFallback:
 
     def test_probe_timeout_honours_a_raised_connect_timeout(self, monkeypatch, env):
         """A user who raised `transport.connect_timeout` must not be second-guessed."""
-        from canlib.commands import status
+        from canlib.cli.commands import status
         from canlib.device.wican import mode as wican_mode
 
         monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 30.0, None))

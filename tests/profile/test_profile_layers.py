@@ -21,8 +21,8 @@ import pytest
 import yaml
 
 from canlib.captures.store import load_all_captures
-from canlib.commands.captures import layers as capture_layers
-from canlib.commands.profile import _cmd_list, _cmd_overlay, _cmd_show
+from canlib.cli.commands.captures import layers as capture_layers
+from canlib.cli.commands.profile import _cmd_list, _cmd_overlay, _cmd_show
 from canlib.profile import (
     Profile,
     ProfileError,
@@ -33,7 +33,7 @@ from canlib.profile import (
 )
 from canlib.profile.scaffold import overlay_profile
 
-CAPTURES_CMD = Path(__file__).resolve().parents[2] / "canlib" / "commands" / "captures"
+CAPTURES_CMD = Path(__file__).resolve().parents[2] / "canlib" / "cli" / "commands" / "captures"
 CANLIB_CMD = CAPTURES_CMD.parent
 
 # Anything referencing one of these rewrites a capture file, so it owes the
@@ -158,7 +158,7 @@ def _force_a_timeline(monkeypatch) -> None:
             ),
         )
 
-    monkeypatch.setattr("canlib.commands.captures.backfill_spans.session_state_spans", fake)
+    monkeypatch.setattr("canlib.cli.commands.captures.backfill_spans.session_state_spans", fake)
 
 
 class TestResolution:
@@ -322,13 +322,13 @@ class TestDefinitionsAreReadOnly:
         "module, func, extra",
         [
             (
-                "canlib.commands.pids",
+                "canlib.cli.commands.pids",
                 "cmd_upsert_param",
                 {"values": None, "bits": None, "ptype": None, "ecu": "BMS", "no_validate": False},
             ),
-            ("canlib.commands.states", "cmd_add", {"name": "TOWING"}),
-            ("canlib.commands.groups", "cmd_add", {"name": "mine"}),
-            ("canlib.commands.signals", "cmd_upsert", {}),
+            ("canlib.cli.commands.states", "cmd_add", {"name": "TOWING"}),
+            ("canlib.cli.commands.groups", "cmd_add", {"name": "mine"}),
+            ("canlib.cli.commands.signals", "cmd_upsert", {}),
         ],
     )
     def test_authoring_commands_refuse(self, env, module, func, extra):
@@ -442,7 +442,7 @@ class TestBaseLayerMutationsAreRefused:
     def test_delete_refuses_a_base_layer_capture(self, env, capsys):
         base = _bundled(env)
         _overlay(env)
-        from canlib.commands.captures.delete import cmd_delete
+        from canlib.cli.commands.captures.delete import cmd_delete
 
         entries = load_all_captures_for("ev6")
         before = (base / "captures" / "2026-01-01.json").read_text()
@@ -454,7 +454,7 @@ class TestBaseLayerMutationsAreRefused:
         """A ``--dry-run`` is a read; refusing it would hide what is there."""
         _bundled(env)
         _overlay(env)
-        from canlib.commands.captures.delete import cmd_delete
+        from canlib.cli.commands.captures.delete import cmd_delete
 
         entries = load_all_captures_for("ev6")
         assert cmd_delete(entries, "BMS:2101", dry_run=True) == 0
@@ -464,7 +464,7 @@ class TestBaseLayerMutationsAreRefused:
         _bundled(env)
         dest = _overlay(env)
         _seed(dest / "captures" / "2026-01-02.json", "mine", date="2026-01-02")
-        from canlib.commands.captures.delete import cmd_delete
+        from canlib.cli.commands.captures.delete import cmd_delete
 
         entries = [e for e in load_all_captures_for("ev6") if e["date"] == "2026-01-02"]
         assert cmd_delete(entries, "BMS:2101", assume_yes=True) == 0
@@ -475,7 +475,7 @@ class TestBaseLayerMutationsAreRefused:
         _overlay(env)
         _seed(base / "captures" / "2026-01-01.json", "upstream", states=["ACC", "READY"])
         _force_a_timeline(monkeypatch)
-        from canlib.commands.captures.backfill_spans import cmd_backfill_state_spans
+        from canlib.cli.commands.captures.backfill_spans import cmd_backfill_state_spans
 
         entries = load_all_captures_for("ev6")
         before = (base / "captures" / "2026-01-01.json").read_text()
@@ -491,7 +491,7 @@ class TestBaseLayerMutationsAreRefused:
         mine = dest / "captures" / "2026-01-01.json"
         _seed(mine, "mine", time="10:00:00", states=["ACC", "READY"])
         _force_a_timeline(monkeypatch)
-        from canlib.commands.captures.backfill_spans import cmd_backfill_state_spans
+        from canlib.cli.commands.captures.backfill_spans import cmd_backfill_state_spans
 
         theirs = base / "captures" / "2026-01-01.json"
         before = theirs.read_text()
@@ -521,7 +521,7 @@ class TestBaseLayerMutationsAreRefused:
         mine = dest / "captures" / "2026-01-01.json"
         _seed(mine, "mine", time="10:00:00", states=["ACC", "READY"])
         _force_a_timeline(monkeypatch)
-        from canlib.commands.captures.backfill_spans import cmd_backfill_state_spans
+        from canlib.cli.commands.captures.backfill_spans import cmd_backfill_state_spans
 
         entries = load_all_captures_for("ev6")
         assert cmd_backfill_state_spans(entries, assume_yes=True) == 0
@@ -569,7 +569,7 @@ class TestLayerAwareReaders:
         _bundled(env)
         _overlay(env)
         from canlib import profile as profile_mod
-        from canlib.commands.coverage import load_representative_payloads
+        from canlib.cli.commands.coverage import load_representative_payloads
 
         profile_mod._active = resolve_profile("ev6")
         # Without the layer walk a layered profile reports false "NO CAPTURE".
@@ -577,7 +577,7 @@ class TestLayerAwareReaders:
 
     def test_validate_captures_reads_every_layer(self):
         """A schema break in the base still breaks analysis, so it must be reported."""
-        src = (CANLIB_CMD.parent / "validation" / "captures.py").read_text()
+        src = (CANLIB_CMD.parents[1] / "validation" / "captures.py").read_text()
         assert "capture_layers" in src
 
 
