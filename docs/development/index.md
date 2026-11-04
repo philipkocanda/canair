@@ -55,6 +55,7 @@ Run from the repo root:
 uv run pytest -q                                    # tests (parallel; ~14s)
 uv run ruff check . && uv run ruff format --check .  # lint + format
 uv run ty check                                     # type check (canlib/)
+uv run lint-imports                                 # layer and boundary contracts
 uv run canair validate all                          # if you touched profile data
 uv run python scripts/validate_skills.py             # if you touched a skill's frontmatter
 uv run python scripts/gen_cli_reference.py --check   # if you changed a command's flags
@@ -99,6 +100,8 @@ screenshots are **generated**, not hand-made — see
 
 ## Also in this section
 
+- [Architecture](architecture.md) — the layers, where new code goes, and the checks that keep
+  the structure.
 - [Commit messages](commit-messages.md) — the Conventional Commits format that
   drives the version bump and the changelog.
 - [Documentation screenshots](screenshots.md) — how the docs' SVG/GIF assets are

@@ -110,6 +110,40 @@ The WiCAN is one device we reach the bus through, not the tool's definition.
 Litmus test: *would this feature still make sense from a SocketCAN interface or a replayed `.asc`?*
 If it works "only with edits to the command", push the device-specific part into `transport/`.
 
+## Placing and moving code — the layer structure
+
+`canlib/` is layered and the layering is enforced, not advisory. The map is
+`docs/development/architecture.md` (placement table, what each package may import); the reasoning
+and the migration are `plans/2026-11-04-package-layout-and-layering.md`. Read the page rather
+than trusting a list copied here.
+
+**Placing new code**
+
+1. Find the package in the placement table. If two fit, take the lower layer. While a package has
+   not moved yet, use the table's *Until it moves* column.
+2. Read that package's `__init__.py` docstring (its charter: *Belongs / Not here / Imports*). If
+   the code does not fit the charter, stop and ask rather than stretching the package.
+3. Write the code, and its tests in the directory that mirrors it.
+4. Run `make structure` (`uv run lint-imports` and `tests/contracts/`).
+5. **If a gate fails, change the structure, not the gate.** Never add an `ignore_imports` entry or
+   raise a number in `tests/contracts/baseline.json` to get green — move the function down, pass
+   the value in, or split the module. If that cannot be done, tell the user what the edge is and
+   why.
+
+**Moving code** (one package per commit, mechanical, nothing else in the commit)
+
+1. `git mv`, then rewrite every import, every `monkeypatch.setattr("canlib.…")` string and the
+   dotted names in `[tool.importlinter]`. No compatibility alias for the old path.
+2. Move the package's tests in the same commit.
+3. Remove the `ignore_imports` entries the move fixes and lower the baselines
+   (`uv run python -m tests.contracts.test_structure --write`).
+4. Confirm every `--help` is unchanged (`scripts/gen_cli_reference.py --check`), then run the
+   full suite.
+
+Never reintroduce: a loose module at the root, `argparse` or `textual` outside the interface, a
+library module importing up into `commands`, `modes` or `cli`, or a function-level import whose
+only purpose is to hide a cycle.
+
 ## Adding a CLI subcommand
 
 Commands live in `canlib/commands/<name>.py`, exposing `NAME`, `add_parser(subparsers)` (which calls
@@ -377,6 +411,7 @@ shipped.
 uv run pytest -q                 # green (parallel by default; -n0 when iterating on one file)
 uv run ruff check . && uv run ruff format --check .
 uv run ty check                  # canlib/ — must be clean
+make structure                   # import contracts + structure gates (seconds)
 uv run canair <yourcmd> --help   # parser sane
 uv run canair validate all       # if you touched ecus/captures/schema
 ```

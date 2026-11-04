@@ -89,6 +89,31 @@ The exception: if the fix is **too much work** (a large refactor, a risky/behavi
 anything sensitive/irreversible, or clearly outside the task's scope), **ask first**. Surface what
 you spotted, describe the fix, let the user decide. Don't silently balloon a small task.
 
+## Code structure — where code goes
+
+`canlib/` is a stack of layers (interface → applications → live operations → transport → data →
+the car → protocol → environment → leaf). A layer imports only from the layers below it. **Read
+`docs/development/architecture.md` before adding or moving code**: it has the placement table
+(which package a new piece of code belongs in) and what each package may import. The tree is
+mid-migration (`plans/2026-11-04-package-layout-and-layering.md`); the table's *Until it moves*
+column says where to put code while a package has not moved yet.
+
+- **No new module at the `canlib/` root.** Find its package in the placement table.
+- **Lowest layer that can hold it.** No device needed → not a live operation. No flags → not in
+  the CLI. No I/O → protocol or leaf code.
+- **Only the CLI imports `argparse`; only the TUI imports `textual`.** Code below them takes typed
+  options and returns data.
+- **Never add an `ignore_imports` entry to make `lint-imports` pass.** Fix the import (move the
+  function down, pass the value in, split the module) or ask the user.
+- **A new top-level package needs a plan** naming its layer and why no existing package fits.
+- **Tests go in the directory that mirrors the code under test**; several subjects →
+  `tests/integration/`, repo-wide invariants → `tests/contracts/`, helpers → `tests/support/`.
+  A test module never imports another test module.
+- **Gates:** `make structure` (import contracts + `tests/contracts/`) runs in seconds; pre-commit
+  and CI run it too. A moved or fixed import lowers a baseline in `tests/contracts/baseline.json`
+  (`uv run python -m tests.contracts.test_structure --write`); nothing may raise one without the
+  user's approval.
+
 ## Keep docs & README current — every user-facing change
 
 Docs are part of the change. **Any** change that adds, removes or alters a user-facing capability (a

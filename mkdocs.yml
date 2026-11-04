@@ -165,6 +165,7 @@ nav:
       - Nissan Leaf (ZE1): profiles/nissan-leaf-ze1-ev.md
   - Development:
       - Overview: development/index.md
+      - Architecture: development/architecture.md
       - Commit messages: development/commit-messages.md
       - Documentation screenshots: development/screenshots.md
       - Offline testing (emulator): development/offline-testing.md

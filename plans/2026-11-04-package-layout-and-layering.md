@@ -1,8 +1,8 @@
 # Package layout and layering: give `canlib/` seams, and tests the same shape
 
-Status: **IN PROGRESS** (2026-11-04, branch `refactor/package-layout`). Not user-facing: no command, flag, output or
-profile changes. Section 9 is the part that outlives the migration: the rules, documents and gates
-that keep agents (and people) on this structure afterwards.
+Status: **IN PROGRESS** (2026-11-04, branch `refactor/package-layout`). Not user-facing: no
+command, flag, output or profile changes. Section 9 is the part that outlives the migration:
+the rules, documents and gates that keep agents (and people) on this structure afterwards.
 
 Related plans this one absorbs or depends on:
 
@@ -659,15 +659,25 @@ Every commit is green on its own: full suite (parallel and `-n0`), `ruff`, `ruff
 `monkeypatch.setattr("canlib.…")` (222 such strings in 51 test files). No commit both moves and
 edits a module.
 
-**Phase 0: guardrails (no moves).**
+**Phase 0: guardrails (no moves). DONE.**
 
-1. Commit the import-graph script (Appendix A) as `scripts/check/import_graph.py`.
-2. Add `import-linter` with the target contracts and every current violation in `ignore_imports`.
-3. Add `tests/contracts/test_structure.py` with baselines that match today's tree, so it passes on
-   day one and every later commit can only tighten it.
-4. Snapshot every `--help` text as a test fixture (the command-packages plan did this by hand).
-5. Add the "Code structure" section to AGENTS.md and the procedure to the contributing-code skill.
-   From this commit on, new work follows the target layout even before the old code moves.
+1. `scripts/check/import_graph.py` reproduces the section 1 numbers (38-unit cycle, 1,177 deferred
+   imports) and is what `tests/contracts/test_structure.py` reads.
+2. `import-linter` with eight contracts written against the packages that exist today: nothing
+   below the interface imports `cli`/`commands`/`modes`, `textual` only in the TUI, `argparse` only
+   in the CLI, `uds` reads no data store, decoding and transport do not import `wican`, `config`
+   does not import `yaml_edit`. The 30 current violations are the `ignore_imports` debt list. The
+   `layers` contract of section 6 cannot be written yet, because most target packages do not
+   exist: each phase 4 move adds its package to it. The `argparse` check is a contract here, so
+   the test of section 9.3 item 3 is not needed.
+3. `tests/contracts/test_structure.py` with `baseline.json` set to today's tree. It also runs
+   `lint-imports`, so plain `pytest` is a complete gate.
+4. **No `--help` snapshots.** `scripts/gen_cli_reference.py --check` already pins every parser's
+   help text, in pre-push and CI.
+5. `docs/development/architecture.md` (hand-written for now), the "Code structure" section of
+   AGENTS.md, the "Placing and moving code" section of the contributing-code skill, `make
+   structure`, a pre-commit hook and a CI step. The generator of section 9.2 waits until the
+   packages have charters (phase 5), because there is nothing to generate it from yet.
 
 **Phase 1: cheap wins.**
 
