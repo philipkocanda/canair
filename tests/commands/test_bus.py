@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 import canlib.commands.bus as bus
-from canlib.can_buses import BusDef
+from canlib.ecus.can_buses import BusDef
 
 
 class _FakeProfile:
@@ -31,7 +31,7 @@ def _patched(monkeypatch):
         0x7D2: {"name": "SRS"},  # unbussed
     }
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canlib.can_buses.load_can_buses", lambda prof=None: buses)
+    monkeypatch.setattr("canlib.ecus.can_buses.load_can_buses", lambda prof=None: buses)
     monkeypatch.setattr("canlib.ecus.load_ecus", lambda path=None: ecus)
     monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
 
@@ -89,7 +89,7 @@ def test_gateway_all_counted_on_every_segment(monkeypatch, capsys):
         0x7A0: {"name": "BCM", "can_bus": ["B-CAN"]},
     }
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canlib.can_buses.load_can_buses", lambda prof=None: buses)
+    monkeypatch.setattr("canlib.ecus.can_buses.load_can_buses", lambda prof=None: buses)
     monkeypatch.setattr("canlib.ecus.load_ecus", lambda path=None: ecus)
     monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
 
@@ -113,7 +113,7 @@ def test_gateway_all_skips_private_segment(monkeypatch, capsys):
         0x7B3: {"name": "HVAC", "can_bus": ["P-CAN", "CLIMATE-CAN"]},
     }
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canlib.can_buses.load_can_buses", lambda prof=None: buses)
+    monkeypatch.setattr("canlib.ecus.can_buses.load_can_buses", lambda prof=None: buses)
     monkeypatch.setattr("canlib.ecus.load_ecus", lambda path=None: ecus)
     monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
 

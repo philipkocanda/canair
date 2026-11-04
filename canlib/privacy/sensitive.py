@@ -180,9 +180,9 @@ def profile_set(profile=None) -> SensitiveSet:
 
     Built from the definitions *as written* (every variant and revision), so a flag
     on any revision of a PID protects it on every car. Memoized per profile root and
-    cleared with the definitions (:func:`canlib.pids.register_derived_cache`).
+    cleared with the definitions (:func:`canlib.ecus.pids.register_derived_cache`).
     """
-    from canlib.pids import load_raw_pids, register_derived_cache
+    from canlib.ecus.pids import load_raw_pids, register_derived_cache
     from canlib.profile import ProfileError, active
 
     try:

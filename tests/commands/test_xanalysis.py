@@ -27,7 +27,7 @@ def _temp_ecu_profile(tmp_path, filename: str, ecu: str = "AAF", pid: str = "218
     import textwrap
 
     from canlib import profile
-    from canlib.pids import clear_cache
+    from canlib.ecus.pids import clear_cache
 
     root = tmp_path / "prof"
     ecus = root / "ecus"
@@ -53,7 +53,7 @@ def _temp_ecu_profile(tmp_path, filename: str, ecu: str = "AAF", pid: str = "218
 def _never_write_the_bundled_profile():
     """Restore the active profile after every test in this module."""
     from canlib import profile
-    from canlib.pids import clear_cache
+    from canlib.ecus.pids import clear_cache
 
     saved = profile._active
     yield

@@ -2,7 +2,7 @@
 
 ``ha_class`` was a Home Assistant ``device_class`` stated on nearly every signal, though the
 unit already implied it for almost all of them. ``category`` is stated only where the unit
-does not (:mod:`canlib.signal_category`). Each ``ha_class`` becomes:
+does not (:mod:`canlib.ecus.signal_category`). Each ``ha_class`` becomes:
 
 * nothing, when the signal's unit implies a category (or the value was empty or unknown);
 * the matching category otherwise (``battery`` → ``state_of_charge``, ``light`` → ``lamp``).
@@ -19,8 +19,8 @@ from pathlib import Path
 
 import yaml
 
-from canlib.pids import effective_param
-from canlib.signal_category import CATEGORIES, unit_category
+from canlib.ecus.pids import effective_param
+from canlib.ecus.signal_category import CATEGORIES, unit_category
 from canlib.yaml_edit.pids.defaults import _ecu_def, _params
 from canlib.yaml_edit.text import (
     PidsEditError,

@@ -15,8 +15,8 @@ from typing import Any, Literal, TypedDict, get_args
 
 from canlib.core import yaml_io
 from canlib.dtc.definitions import effective_entries as _effective_dtc_entries
+from canlib.ecus.signal_category import category_of
 from canlib.safety.actuation import default_release, normalize_request
-from canlib.signal_category import category_of
 from canlib.uds.addressing import AddressingMode, EcuAddress, resolve_ecu_address
 from canlib.uds.multi_did import resolve_multi_did_max
 from canlib.uds.protocol import DiagProtocol, classify_protocol
@@ -305,7 +305,7 @@ def load_pids(path: Path | None = None) -> dict:
     active profile.
     """
     if path is None:
-        from .profile import active
+        from canlib.profile import active
 
         prof = active()
         key = prof.cache_key
@@ -318,7 +318,7 @@ def load_pids(path: Path | None = None) -> dict:
 
     path = Path(path)
     if path.is_dir():
-        from .profile import profile_for_path
+        from canlib.profile import profile_for_path
 
         meta_file = profile_for_path(path).meta_file
         meta = {}
@@ -338,7 +338,7 @@ def load_raw_pids(profile=None) -> dict:
     For the variant-aware readers — ``validate``, the editors, and anything that must
     see every revision at once. Memoized like :func:`load_pids`.
     """
-    from .profile import active, read_meta
+    from canlib.profile import active, read_meta
 
     prof = profile or active()
     key = f"{prof.root}|raw"
@@ -350,10 +350,9 @@ def load_raw_pids(profile=None) -> dict:
 
 
 def _selected_variant_def(prof):
+    from canlib.profile import ProfileError
     from canlib.variants import VariantsError, load_variants
     from canlib.variants.tags import selected_variant
-
-    from .profile import ProfileError
 
     vid = selected_variant(prof)
     if vid is None:
@@ -370,9 +369,8 @@ def revision_resolutions(profile=None) -> dict:
     Only ECUs that declare revisions appear. Raises :class:`~canlib.profile.ProfileError`
     when a pin names an ECU or revision that cannot be.
     """
+    from canlib.profile import ProfileError, active
     from canlib.variants.revisions import RevisionError, resolve
-
-    from .profile import ProfileError, active
 
     prof = profile or active()
     key = prof.cache_key
@@ -567,7 +565,7 @@ def build_iocontrol_index(
                 off_cmd = str(cdef.get("off") or cdef.get(False, ""))
                 release = _resolve_release(cdef.get("release"), on_cmd, off_cmd, protocol, did_str)
             except ValueError as exc:
-                from .profile import ProfileError
+                from canlib.profile import ProfileError
 
                 raise ProfileError(f"{ecu_name}/iocontrol/{did_str}: {exc}") from None
             cmds[did_str] = {
@@ -700,7 +698,7 @@ def build_sessions_index(pids_data: dict) -> dict[str, SessionIndexEntry]:
 
 def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
     """Build lookup: ECU_NAME -> {tx_id, rx_id, pids: {PID: {parameters: ...}}}."""
-    from .wake import resolve_wake
+    from canlib.wake import resolve_wake
 
     index: dict[str, EcuIndexEntry] = {}
     default_batch = bool(pids_data.get("multi_did_batching", False))
@@ -759,7 +757,7 @@ def ecu_index_key(name: str, index: Mapping[str, object]) -> str | None:
     upper = name.upper()
     if upper in index:
         return upper
-    from .ecus import canonical_ecu_name_safe
+    from canlib.ecus import canonical_ecu_name_safe
 
     canonical = canonical_ecu_name_safe(name).upper()
     return canonical if canonical in index else None

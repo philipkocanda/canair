@@ -431,7 +431,7 @@ def add_pid(
 
     The write is verified by a YAML re-parse; on failure the file is restored.
     """
-    from canlib.pids import PID_STATUSES
+    from canlib.ecus.pids import PID_STATUSES
 
     status = str(status).strip().lower()
     if status not in PID_STATUSES:
@@ -492,7 +492,7 @@ def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | Non
     written (as the first field under the PID header), including ``active``. The
     write is verified by a YAML re-parse; on failure the original file is restored.
     """
-    from canlib.pids import PID_STATUSES
+    from canlib.ecus.pids import PID_STATUSES
 
     status = str(status).strip().lower()
     if status not in PID_STATUSES:

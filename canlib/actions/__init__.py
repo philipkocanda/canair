@@ -219,7 +219,7 @@ def registry_issues(action: Action, pids_data: Mapping[str, Any]) -> list[str]:
     defined, and that every signal the condition tests resolves (the same check
     ``canair validate states`` runs on state predicates).
     """
-    from canlib.pids import build_ecu_index
+    from canlib.ecus.pids import build_ecu_index
     from canlib.query import parse_selector, pids_named_by
     from canlib.states.refs import check_references
 

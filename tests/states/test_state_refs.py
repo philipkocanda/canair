@@ -21,8 +21,8 @@ import pytest
 from canlib import profile
 from canlib.commands import validate as validate_cmd
 from canlib.core.paths import BUNDLED_PROFILES_DIR
+from canlib.ecus.pids import clear_cache
 from canlib.expression.decoding import decodes_to_number
-from canlib.pids import clear_cache
 from canlib.states import StatePredicateError, predicate_references
 from canlib.states.refs import (
     IGNORED_PID,
@@ -324,7 +324,7 @@ class TestBundledProfiles:
         "name", [p.name for p in sorted(BUNDLED_PROFILES_DIR.iterdir()) if p.is_dir()]
     )
     def test_predicates_resolve(self, name):
-        from canlib.pids import load_pids
+        from canlib.ecus.pids import load_pids
         from canlib.states.refs import profile_predicates
 
         prof = profile.set_active(name)

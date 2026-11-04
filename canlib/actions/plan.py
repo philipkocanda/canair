@@ -29,7 +29,7 @@ def functional_id(pids_data: dict) -> int:
 def plan_requests(action: Action, pids_data: dict) -> list[PlannedRequest]:
     """Resolve each request's target to a request id (raises :class:`ActionError`)."""
     from canlib.ecus import canonical_ecu_name_safe
-    from canlib.pids import build_ecu_index
+    from canlib.ecus.pids import build_ecu_index
 
     index = build_ecu_index(pids_data)
     planned: list[PlannedRequest] = []

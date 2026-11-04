@@ -359,7 +359,7 @@ class TestPendingOnly:
 @pytest.fixture
 def profile_with(tmp_path):
     from canlib import profile
-    from canlib.pids import clear_cache
+    from canlib.ecus.pids import clear_cache
 
     saved = profile._active
 

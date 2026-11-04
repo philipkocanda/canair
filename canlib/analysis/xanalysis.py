@@ -743,7 +743,7 @@ def load_ref(
     ``fill`` stamps the samples with their validity windows, so a run-length
     reference can still be joined onto instants it has no sample at.
     """
-    from canlib.pids import build_ecu_index, load_pids
+    from canlib.ecus.pids import build_ecu_index, load_pids
 
     sref = SignalRef.parse(ref_spec)
     loaded = load_signal_captures(
@@ -776,7 +776,7 @@ def ref_unit_for(ref_spec: str) -> str | None:
     Returns None for an expression reference (no named param) or when anything
     can't be resolved — the sniffer treats None as "don't gate".
     """
-    from canlib.pids import build_ecu_index, load_pids
+    from canlib.ecus.pids import build_ecu_index, load_pids
 
     try:
         sref = SignalRef.parse(ref_spec)

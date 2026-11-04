@@ -14,7 +14,7 @@ import json
 import pytest
 
 from canlib import profile
-from canlib.pids import clear_cache
+from canlib.ecus.pids import clear_cache
 from canlib.validation.captures import _run_captures
 
 # The hyundai-ioniq-ae-ev baseline gated in .github/workflows/ci.yml. The count can only

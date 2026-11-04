@@ -62,8 +62,8 @@ def run(args) -> int:
         return 2
     if args.json and not args.did:
         # Listing reads only the profile, so it must not need (or lock) the device.
+        from canlib.ecus.pids import load_pids
         from canlib.modes.iocontrol import mode_iocontrol_list
-        from canlib.pids import load_pids
 
         return 0 if mode_iocontrol_list(load_pids(), args.iocontrol, as_json=True) else 1
     return run_live(args, _OPERATION)

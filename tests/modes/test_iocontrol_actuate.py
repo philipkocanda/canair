@@ -566,8 +566,8 @@ class TestTuiProtocol:
         assert "no BCM entry has one" in capsys.readouterr().err
 
     def test_the_tui_knows_its_ecu_is_kwp(self):
+        from canlib.ecus.pids import build_iocontrol_index
         from canlib.modes.iocontrol import _IOControlTUI
-        from canlib.pids import build_iocontrol_index
 
         entry = build_iocontrol_index(self.KWP_DATA, include_discoveries=True)["BCM"]
         tui = _IOControlTUI(FakeTerminal(), "BCM", entry, self.KWP_DATA)  # type: ignore[arg-type]

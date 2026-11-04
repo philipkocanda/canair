@@ -7,7 +7,7 @@ RX↔TX lookups all honor it (see plans/2026-07-28-multi-vehicle-support.md).
 """
 
 from canlib.ecus import build_rx_index, build_rx_tx_index, resolve_tx, rx_for_tx
-from canlib.pids import build_ecu_index
+from canlib.ecus.pids import build_ecu_index
 from canlib.uds.addressing import (
     DEFAULT_RX_OFFSET,
     DEFAULT_TESTER_ADDRESS,

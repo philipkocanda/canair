@@ -59,7 +59,7 @@ def _gather_series(
     notation.relabel_signal); ``fills`` names which PIDs contribute forward-filled
     run-length values, for the report header.
     """
-    from canlib.pids import build_ecu_index, load_pids
+    from canlib.ecus.pids import build_ecu_index, load_pids
 
     loaded = load_signal_captures(
         specs,

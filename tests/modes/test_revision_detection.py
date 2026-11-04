@@ -19,7 +19,7 @@ import pytest
 import yaml
 
 from canlib import config
-from canlib.pids import load_pids, revision_resolutions
+from canlib.ecus.pids import load_pids, revision_resolutions
 from canlib.profile import ProfileError, set_active
 from canlib.variants import detected as cache
 from canlib.variants import fingerprints as fp

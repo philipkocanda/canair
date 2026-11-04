@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from canlib.signal_category import category_of
+from canlib.ecus.signal_category import category_of
 
 _CLASS = {
     "state_of_charge": "battery",

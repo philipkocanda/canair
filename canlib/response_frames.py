@@ -21,7 +21,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass
 
-from canlib.pids import pid_status
+from canlib.ecus.pids import pid_status
 from canlib.uds.frame_counts import CountKey, FrameCountLedger
 
 FIELD = "response_frames"
@@ -301,7 +301,7 @@ def revision_target(ecu: str, pid: str) -> tuple[bool, str | None]:
     this routing is what keeps one revision's count from seeding — and undercounting — a
     read of the other, which would desynchronise an ELM327 pipe.
     """
-    from canlib.pids import load_raw_pids, revision_resolutions
+    from canlib.ecus.pids import load_raw_pids, revision_resolutions
     from canlib.variants.revisions import declared, gate, reference_of
 
     ecus = load_raw_pids().get("ecus") or {}

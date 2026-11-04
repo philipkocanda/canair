@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from canlib.pids import build_iocontrol_index
+from canlib.ecus.pids import build_iocontrol_index
 from canlib.profile import ProfileError
 from canlib.safety.actuation import (
     ACTUATE,

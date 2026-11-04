@@ -1,6 +1,6 @@
-"""Tests for canlib.can_buses — per-profile CAN bus vocabulary loader."""
+"""Tests for canlib.ecus.can_buses — per-profile CAN bus vocabulary loader."""
 
-from canlib.can_buses import (
+from canlib.ecus.can_buses import (
     ALL_CODE,
     allowed_can_buses,
     bus_names,

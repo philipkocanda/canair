@@ -130,7 +130,8 @@ class MonitorRawPoller:
         ``multi_did_max``, default 3); everything else is a single request (and
         22-DID lengths are learned from single reads).
         """
-        from ..pids import ecu_index_key
+        from canlib.ecus.pids import ecu_index_key
+
         from .multi_batch import _did4, _is_did22
         from .multi_exec import build_query_plan
 

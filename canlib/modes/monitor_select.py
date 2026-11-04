@@ -188,8 +188,7 @@ def pick_selectors(pids_data: dict, *, include_static: bool = False) -> list[str
     The caller is responsible for only calling this on an interactive terminal.
     """
     from canlib.ecus.ecu_groups import load_groups
-
-    from ..pids import build_ecu_index
+    from canlib.ecus.pids import build_ecu_index
 
     choices = build_choices(build_ecu_index(pids_data))
     if not choices:

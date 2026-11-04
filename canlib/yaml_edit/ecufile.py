@@ -17,7 +17,7 @@ from .errors import EditError
 
 def clear_cache() -> None:
     """Drop the memoized ECU-definition load (stale after any write to ``ecus/``)."""
-    from canlib.pids import clear_cache as clear
+    from canlib.ecus.pids import clear_cache as clear
 
     clear()
 

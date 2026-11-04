@@ -84,7 +84,7 @@ def cmd_backfill_states(
     import json as _json
 
     from canlib.captures import set_session_states
-    from canlib.pids import build_ecu_index, load_pids
+    from canlib.ecus.pids import build_ecu_index, load_pids
     from canlib.states import StatePredicateError, join_states, load_states
 
     from . import layers

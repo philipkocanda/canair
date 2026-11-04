@@ -8,7 +8,7 @@ import pytest
 
 from canlib import profile
 from canlib.captures import io as capture_io
-from canlib.pids import build_ecu_index, clear_cache, load_pids
+from canlib.ecus.pids import build_ecu_index, clear_cache, load_pids
 from canlib.privacy import sensitive
 
 META = 'car_model: "T"\ninit: "ATSP6;"\n'

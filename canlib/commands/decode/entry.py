@@ -12,7 +12,7 @@ import json
 import sys
 
 from canlib.commands._scope import resolve_scope_bounds
-from canlib.pids import build_ecu_index, load_pids
+from canlib.ecus.pids import build_ecu_index, load_pids
 
 from .one import decode_one
 from .query import SINGLE_PID_FLAGS, build_try_params, resolve_targets, tolerates_missing_pid

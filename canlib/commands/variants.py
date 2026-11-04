@@ -156,7 +156,7 @@ def cmd_unset_meta(args) -> int:
 
 
 def cmd_set_revisions(args) -> int:
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.variants.revisions import canonical_ecu, declared
     from canlib.yaml_edit.variants import set_variant_revisions
 

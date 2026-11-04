@@ -1,11 +1,11 @@
-"""Invalidation of caches derived from ECU definitions (canlib.pids)."""
+"""Invalidation of caches derived from ECU definitions (canlib.ecus.pids)."""
 
 import textwrap
 
 import pytest
 
 from canlib import profile
-from canlib.pids import clear_cache, register_derived_cache
+from canlib.ecus.pids import clear_cache, register_derived_cache
 
 
 def _mk_profile(tmp_path, name, ecu, param):
@@ -128,7 +128,7 @@ class TestMergeEcuDocuments:
     def test_merges_across_files(self):
         from pathlib import Path
 
-        from canlib.pids import merge_ecu_documents
+        from canlib.ecus.pids import merge_ecu_documents
 
         merged = merge_ecu_documents(
             [
@@ -141,7 +141,7 @@ class TestMergeEcuDocuments:
     def test_empty_and_none_documents_are_skipped(self):
         from pathlib import Path
 
-        from canlib.pids import merge_ecu_documents
+        from canlib.ecus.pids import merge_ecu_documents
 
         merged = merge_ecu_documents(
             [(Path("a.yaml"), {}), (Path("b.yaml"), None), (Path("c.yaml"), {"BMS": {}})]
@@ -151,7 +151,7 @@ class TestMergeEcuDocuments:
     def test_duplicate_key_keeps_first_and_warns(self, capsys):
         from pathlib import Path
 
-        from canlib.pids import merge_ecu_documents
+        from canlib.ecus.pids import merge_ecu_documents
 
         merged = merge_ecu_documents(
             [
@@ -168,7 +168,7 @@ class TestMergeEcuDocuments:
     def test_non_mapping_document_is_skipped_with_a_warning(self, capsys):
         from pathlib import Path
 
-        from canlib.pids import merge_ecu_documents
+        from canlib.ecus.pids import merge_ecu_documents
 
         # Every reader of ecus/ funnels through here, so a stray scalar must not
         # raise — that turns one malformed file into an opaque AttributeError in
@@ -189,7 +189,7 @@ class TestMergeEcuDocuments:
 class TestLoadPidsCacheKey:
     def test_two_profiles_do_not_share_a_cache_entry(self, tmp_path):
         from canlib import profile
-        from canlib.pids import clear_cache, load_pids
+        from canlib.ecus.pids import clear_cache, load_pids
 
         saved = profile._active
         try:

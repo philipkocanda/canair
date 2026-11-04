@@ -1,8 +1,8 @@
 """PID-level defaults for parameter fields: set them, and hoist them out of the parameters.
 
-A PID can state :data:`canlib.pids.INHERITED_PARAM_FIELDS` (``unit``, ``min``, ``verified``,
+A PID can state :data:`canlib.ecus.pids.INHERITED_PARAM_FIELDS` (``unit``, ``min``, ``verified``,
 ``source`` …) once; a parameter that sets none of its own inherits it
-(:func:`canlib.pids.effective_param`). :func:`hoist_defaults` moves existing repetition up;
+(:func:`canlib.ecus.pids.effective_param`). :func:`hoist_defaults` moves existing repetition up;
 :func:`set_pid_defaults` edits the PID-level values directly. Same discipline as the other
 editors: a surgical text edit, a YAML re-parse, and a restore on any failure.
 """
@@ -19,7 +19,7 @@ from typing import Any
 
 import yaml
 
-from canlib.pids import INHERITED_PARAM_FIELDS, effective_param
+from canlib.ecus.pids import INHERITED_PARAM_FIELDS, effective_param
 from canlib.yaml_edit.text import (
     PidsEditError,
     _format_list_field,
@@ -149,7 +149,7 @@ def set_pid_defaults(
 ) -> Path:
     """Set (and/or clear) a PID's shared parameter fields.
 
-    ``fields`` maps names from :data:`~canlib.pids.INHERITED_PARAM_FIELDS` to values; ``clear``
+    ``fields`` maps names from :data:`~canlib.ecus.pids.INHERITED_PARAM_FIELDS` to values; ``clear``
     names fields to remove. An existing field keeps its position, a new one goes above
     ``parameters:``. Every parameter that sets none of its own then inherits the value.
     """

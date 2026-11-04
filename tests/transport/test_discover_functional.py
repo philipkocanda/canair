@@ -16,8 +16,8 @@ import pytest
 
 from canlib import profile
 from canlib.commands import discover as discover_cmd
+from canlib.ecus.pids import clear_cache
 from canlib.modes.functional_sweep import classify_round, group_by_bus, round_to_capture
-from canlib.pids import clear_cache
 from canlib.safety.blocklist import SafetyBlocked, check_functional_request
 from canlib.transport.elm327_addressing import AdapterState
 from canlib.transport.elm327_functional import elm_functional_exchange, parse_header_lines
@@ -503,7 +503,7 @@ class TestMode:
     @pytest.mark.asyncio
     async def test_dispatch_reports_buses_unknowns_and_silent(self, gateway_profile, capsys):
         from canlib.commands._live.handlers.scans import handle_discover
-        from canlib.pids import load_pids
+        from canlib.ecus.pids import load_pids
 
         term = FakeTerminal()
         term.functional_replies = {"3E00": [(0x7EC, "7E00"), (0x778, "7E00"), (0x7C8, "7E00")]}
@@ -526,8 +526,8 @@ class TestMode:
     @pytest.mark.asyncio
     async def test_repeat_sends_each_round(self, gateway_profile, monkeypatch, capsys):
         from canlib.commands._live.handlers.scans import handle_discover
+        from canlib.ecus.pids import load_pids
         from canlib.modes import discover_functional
-        from canlib.pids import load_pids
 
         async def _no_sleep(_s):
             return None

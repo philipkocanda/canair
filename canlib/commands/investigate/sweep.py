@@ -48,7 +48,7 @@ def run_sweep(specs: list[tuple[str, str]], args, since, until, fill) -> int:
         print("No timed captures in scope to investigate.", file=sys.stderr)
         return 1
 
-    from canlib.pids import build_ecu_index, load_pids
+    from canlib.ecus.pids import build_ecu_index, load_pids
 
     ecu_index = build_ecu_index(load_pids())
     loaded = load_signal_captures(

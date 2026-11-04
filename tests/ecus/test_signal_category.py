@@ -9,7 +9,7 @@ import pytest
 import yaml
 
 from canlib.commands import pids as cli
-from canlib.signal_category import (
+from canlib.ecus.signal_category import (
     BINARY_CATEGORIES,
     CATEGORIES,
     UNIT_CATEGORIES,

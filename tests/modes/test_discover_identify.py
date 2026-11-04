@@ -11,8 +11,8 @@ import re
 import pytest
 
 from canlib import profile
+from canlib.ecus.pids import clear_cache
 from canlib.modes import discover as disc
-from canlib.pids import clear_cache
 from tests.support.fakes import FakeTerminal as _SharedFakeTerminal
 
 

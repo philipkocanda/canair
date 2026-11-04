@@ -90,7 +90,7 @@ def find_references(profile: Profile, variant_id: str) -> References:
 
 def _fitted_ecus(profile: Profile, vid: str) -> tuple[str, ...]:
     """ECUs whose ``variants:`` names ``vid``."""
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.variants.revisions import presence
 
     ecus = load_raw_pids(profile).get("ecus") or {}
@@ -166,7 +166,7 @@ def rename_everywhere(old: str, new: str, profile: Profile) -> tuple[Path, list[
     Returns ``variants.yaml`` and the history files rewritten. If rewriting the
     history fails, ``variants.yaml`` is restored, so the two never disagree.
     """
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.variants.revisions import presence
     from canlib.yaml_edit.revisions import set_ecu_variants
     from canlib.yaml_edit.variants import rename_variant

@@ -153,7 +153,7 @@ class TestCommandPaths:
         def broken(*a, **k):
             raise yaml.YAMLError("bad indentation")
 
-        monkeypatch.setattr("canlib.pids.load_pids", broken)
+        monkeypatch.setattr("canlib.ecus.pids.load_pids", broken)
         assert _run(tmp_path, monkeypatch, ["95400", "--defs", "--json"]) == 0
         captured = capsys.readouterr()
         assert "--defs skipped" in captured.err and "bad indentation" in captured.err

@@ -55,7 +55,7 @@ _REVISION_ATTRIBUTION = {
 
 def _revision_tags(profile: Profile) -> tuple[dict[str, str], dict[str, str]]:
     """``({ECU: revision}, {ECU: attribution})`` for every determined multi-revision ECU."""
-    from canlib.pids import load_raw_pids, revision_resolutions
+    from canlib.ecus.pids import load_raw_pids, revision_resolutions
     from canlib.variants.revisions import declared
 
     try:

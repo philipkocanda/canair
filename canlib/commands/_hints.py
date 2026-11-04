@@ -5,7 +5,7 @@ from __future__ import annotations
 
 def _pids_data() -> dict:
     try:
-        from canlib.pids import load_pids
+        from canlib.ecus.pids import load_pids
 
         return load_pids()
     except Exception:

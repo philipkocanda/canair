@@ -198,7 +198,7 @@ def require_variant(profile: Profile, what: str) -> None:
 
 def _identity_hint(profile: Profile) -> str:
     """The "not sure?" line, naming an ECU whose revision tells the variants apart."""
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.variants.revisions import declared, revision_entry
 
     try:

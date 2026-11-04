@@ -25,8 +25,8 @@ from typing import Any
 from canlib.captures import io as capture_io
 from canlib.captures.link_events import SESSION_GAP_KINDS, session_link_events
 from canlib.captures.merge import session_anchor
+from canlib.ecus.pids import load_pids, pid_status
 from canlib.expression.decoding import decode_param_rows
-from canlib.pids import load_pids, pid_status
 from canlib.privacy.sensitive import pid_sensitive
 from canlib.states.spans import parse_time_key
 

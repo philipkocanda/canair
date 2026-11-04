@@ -176,7 +176,7 @@ def _profile_dtc_index() -> _DtcIndex | None:
     """``(profile-wide {code: entry}, {ECU: {code: entry}})`` for the active profile."""
     global _index_cache
     try:
-        from canlib.pids import load_pids
+        from canlib.ecus.pids import load_pids
 
         data = load_pids()
     except Exception:

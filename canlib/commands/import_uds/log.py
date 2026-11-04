@@ -57,7 +57,7 @@ def _import_log(args: argparse.Namespace) -> int:
     from canlib import can_logs
     from canlib.captures import build_manual_session, save_session
     from canlib.ecus import load_ecus
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
     from canlib.states import parse_states
     from canlib.uds.addressing import resolve_mode
 

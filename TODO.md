@@ -76,7 +76,7 @@ Status: NOT located in any polled PID as of 2026-07-20.
 
 Added 2026-10-30. The tooling is in place; what is left needs the car. An IOControl entry now
 carries its own `release:` (the request that hands the output back), resolved per entry by
-`canlib/pids.py::build_iocontrol_index`: UDS implies `2F {DID} 00`, KWP2000 `0x30` implies nothing.
+`canlib/ecus/pids.py::build_iocontrol_index`: UDS implies `2F {DID} 00`, KWP2000 `0x30` implies nothing.
 `canair io` sends that release on exit and on Ctrl-C, `--poll` sends it, and a `0x30` ON without
 one is refused (`canlib/safety/actuation.py::on_refusal`). The Ioniq's KWP ECUs (BMS, VCU, MCU, OBC, LDC,
 AAF) still have no actuators defined.

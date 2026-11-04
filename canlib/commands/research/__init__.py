@@ -51,7 +51,7 @@ from pathlib import Path
 
 from canlib import ansi
 from canlib.commands._hints import ecu_completer as _ecu_completer
-from canlib.pids import load_pids
+from canlib.ecus.pids import load_pids
 from canlib.states import allowed_states, state_matcher, unknown_state_tokens
 
 NAME = "research"

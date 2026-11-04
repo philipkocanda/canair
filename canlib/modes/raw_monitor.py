@@ -16,9 +16,8 @@ from .monitor_options import MonitorOptions
 from .session import SessionOptions
 
 if TYPE_CHECKING:
+    from canlib.ecus.pids import EcuIndexEntry
     from canlib.uds.addressing import EcuAddress
-
-    from ..pids import EcuIndexEntry
 
 
 def query_ecu_addresses(
@@ -105,7 +104,8 @@ async def run_raw_monitor(
     candidates: Sequence[TransportConfig] = (),
 ) -> int:
     """Run the live monitor over raw CAN. Assumes the device is in slcan mode."""
-    from ..pids import build_ecu_index
+    from canlib.ecus.pids import build_ecu_index
+
     from .monitor import mode_monitor
 
     ecu_index = build_ecu_index(pids_data)

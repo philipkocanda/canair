@@ -20,13 +20,12 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Literal, get_args
 
+from canlib.ecus.pids import DEFAULT_IOCONTROL_SESSION_MODE
 from canlib.safety.actuation import IOCONTROL_KWP, on_refusal, parse_io_request
 from canlib.uds.nrc import nrc_abbrev
 from canlib.uds.protocol import KWP
 from canlib.uds.response import UdsResponse
 from canlib.uds.services import RESPONSE_SID_OFFSET, service_info
-
-from ..pids import DEFAULT_IOCONTROL_SESSION_MODE
 
 if TYPE_CHECKING:
     from ..transport.protocol import Terminal

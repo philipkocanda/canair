@@ -33,7 +33,7 @@ _EXAMPLES = __doc__.split("Examples:")[1]
 
 
 def cmd_list(args) -> int:
-    from canlib.pids import load_raw_pids, revision_resolutions
+    from canlib.ecus.pids import load_raw_pids, revision_resolutions
     from canlib.variants import load_variants
     from canlib.variants.revisions import canonical_ecu, declared, describe_resolution
 

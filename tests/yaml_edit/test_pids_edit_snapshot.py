@@ -7,7 +7,7 @@ import pytest
 import yaml
 
 from canlib.commands import pids as cli
-from canlib.pids import build_ecu_index, pid_ships, pid_swept
+from canlib.ecus.pids import build_ecu_index, pid_ships, pid_swept
 from canlib.validation import pids as validate_pids
 from canlib.yaml_edit.errors import EditError
 from canlib.yaml_edit.pids import PidsEditError, set_snapshot_only

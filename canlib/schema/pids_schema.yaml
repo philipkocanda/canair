@@ -468,7 +468,7 @@ optional_param_fields:
   - unit
   - category        # What the signal measures or represents, stated ONLY where its unit does
                     #   not imply it (a % that is a state of charge, a bit that is a door).
-                    #   Vocabulary and the unit table: canlib/signal_category.py. A binary
+                    #   Vocabulary and the unit table: canlib/ecus/signal_category.py. A binary
                     #   category (door, lock, lamp…) names the thing; its two-state
                     #   `type: enum` `values:` says which value is which. Never inherited.
   - mqtt_topic

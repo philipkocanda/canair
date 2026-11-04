@@ -152,7 +152,7 @@ def _gather(args) -> dict:
 
     # Active vehicle profile.
     try:
-        from canlib.pids import revision_resolutions
+        from canlib.ecus.pids import revision_resolutions
         from canlib.variants import load_variants
 
         from ..profile import active

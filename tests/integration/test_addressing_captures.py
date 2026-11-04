@@ -13,7 +13,7 @@ import re
 import pytest
 
 from canlib import profile
-from canlib.pids import clear_cache
+from canlib.ecus.pids import clear_cache
 from canlib.uds.addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET, AddressingMode
 from tests.support.fakes import FakeTerminal, ok
 
@@ -52,7 +52,7 @@ class TestProfileAddressing:
         def boom():
             raise ProfileError("no profile")
 
-        monkeypatch.setattr("canlib.pids.load_pids", lambda *a, **k: boom())
+        monkeypatch.setattr("canlib.ecus.pids.load_pids", lambda *a, **k: boom())
         assert ecus._profile_addressing() == (DEFAULT_RX_OFFSET, DEFAULT_MODE)
 
     def test_a_fixed_29bit_profile_swaps_an_unregistered_id(self, make_profile):

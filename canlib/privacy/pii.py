@@ -229,7 +229,7 @@ def _scan_ecus(profile: Profile) -> list[Finding]:
     ``--no-captures`` contribution — which is exactly the case the capture-only
     scan could never see.
     """
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
 
     if not profile.ecus_dir.is_dir():
         return []

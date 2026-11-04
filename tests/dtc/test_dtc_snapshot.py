@@ -149,7 +149,7 @@ class TestLengthResolver:
     def test_a_variable_length_pid_has_no_live_length(self):
         # Its most common live length is a guess, and a wrong one mis-splits the record.
         from canlib.dtc.snapshot_decode import length_resolver
-        from canlib.pids import build_ecu_index
+        from canlib.ecus.pids import build_ecu_index
 
         def no_captures(ecu, pid):
             raise AssertionError("the captures must not be read")

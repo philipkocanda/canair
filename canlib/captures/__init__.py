@@ -767,7 +767,7 @@ def annotate_session_spans(
     """
     try:
         from canlib.captures.store import flatten_session
-        from canlib.pids import build_ecu_index, load_pids
+        from canlib.ecus.pids import build_ecu_index, load_pids
         from canlib.states import load_states
         from canlib.states.infer import DEFAULT_CYCLE_TOL_S, session_state_spans
 
@@ -834,9 +834,9 @@ def _decode_payload(
     regenerate them on demand for display (see query-captures.py). Pass a
     prebuilt ``ecu_index`` to avoid rebuilding it on every call.
     """
+    from canlib.ecus.pids import build_ecu_index
     from canlib.expression import evaluate_expression
     from canlib.expression.decode_value import NUMERIC, decode_typed, render
-    from canlib.pids import build_ecu_index
     from canlib.uds.wican_layout import uds_hex_to_wican_bytes
 
     if ecu_index is None:

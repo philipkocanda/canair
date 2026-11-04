@@ -1300,7 +1300,7 @@ def test_the_elm327_warmup_read_is_one_validated_transaction(monkeypatch):
     terminal = FakeTerminal({"22BC03": ok("62BC03AA")})
     c = MonitorController(terminal, [{"ecu": "IGPM", "pids": []}], {}, verbose=False)
     monkeypatch.setattr(
-        "canlib.pids.build_ecu_index",
+        "canlib.ecus.pids.build_ecu_index",
         lambda _data: {"IGPM": {"tx_id": 0x770, "pids": {"22BC03": {"parameters": {}}}}},
     )
 

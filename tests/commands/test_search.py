@@ -214,7 +214,7 @@ class TestScopeAndQuery:
 
     def test_defs_searches_identity_fields(self, corpus, monkeypatch, capsys):
         monkeypatch.setattr(
-            "canlib.pids.load_pids",
+            "canlib.ecus.pids.load_pids",
             lambda *a, **k: {"ecus": {"BCM": {"identity": {"part_number": "95400G7470"}}}},
         )
         assert _run(corpus, monkeypatch, ["95400", "--defs", "--in", "payload", "--json"]) == 0

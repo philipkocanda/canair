@@ -79,7 +79,7 @@ def _reset_active_profile():
     """
     import canlib.profile as profile
     from canlib.config import load_config
-    from canlib.pids import clear_cache
+    from canlib.ecus.pids import clear_cache
 
     # The config is memoized too, and the active profile's variant is read from it: a
     # test that points XDG_CONFIG_HOME elsewhere must not leave its config cached for

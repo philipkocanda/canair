@@ -278,7 +278,7 @@ def backfill_tags(profile: Profile, dest: Path, addresses: _Addresses | None = N
     addresses = addresses or _addresses(profile)
     if not dest.exists() or addresses is None:
         return 0
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.variants import load_variants
 
     try:

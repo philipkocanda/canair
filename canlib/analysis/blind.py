@@ -35,14 +35,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from canlib import pids as pids_mod
 from canlib.analysis.stats import cramers_v, pearson, spearman
 from canlib.analysis.xanalysis import linear_fit
 from canlib.captures import io as capture_io
 from canlib.core import yaml_rt
+from canlib.ecus import pids as pids_mod
+from canlib.ecus.pids import INHERITED_PARAM_FIELDS
 from canlib.expression import evaluate_expression
 from canlib.expression.decode_value import decode_typed
-from canlib.pids import INHERITED_PARAM_FIELDS
 from canlib.profile import BUNDLE_MEMBERS, Profile, profile_for_path
 from canlib.uds.byteindex import payload_to_wican_bytes
 

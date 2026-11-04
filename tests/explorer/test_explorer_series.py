@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from canlib.captures import io as capture_io
+from canlib.ecus.pids import load_pids
 from canlib.explorer.export import export_profile
 from canlib.explorer.series import (
     MIN_SAMPLES,
@@ -20,7 +21,6 @@ from canlib.explorer.series import (
     rx_by_address,
 )
 from canlib.expression.decoding import decode_param_rows
-from canlib.pids import load_pids
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PROFILES = sorted(

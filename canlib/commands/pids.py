@@ -58,8 +58,8 @@ from pathlib import Path
 from canlib import ansi
 from canlib.commands._edit import add_edit_args, clear_sentinel, edit_scope, run_edit
 from canlib.commands._hexarg import parse_hex_arg
-from canlib.pids import INHERITED_PARAM_FIELDS, PID_STATUSES
-from canlib.signal_category import CATEGORIES, QUANTITY_CATEGORIES
+from canlib.ecus.pids import INHERITED_PARAM_FIELDS, PID_STATUSES
+from canlib.ecus.signal_category import CATEGORIES, QUANTITY_CATEGORIES
 from canlib.uds.support_map import MapDecl, SupportMapError
 from canlib.yaml_edit.echo import echo_edit
 from canlib.yaml_edit.errors import EditError, translate
@@ -257,7 +257,7 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
 
 
 def _signal_exists(ecu: str, pid: str, name: str, pids_dir) -> bool:
-    from canlib.pids import load_pids, load_raw_pids
+    from canlib.ecus.pids import load_pids, load_raw_pids
 
     data = load_pids(pids_dir) if pids_dir else load_raw_pids()
     ecu_def = next(
@@ -704,7 +704,7 @@ def cmd_rm_identity(args: argparse.Namespace) -> int:
 
 
 def cmd_set_can_bus(args: argparse.Namespace) -> int:
-    from canlib.can_buses import allowed_can_buses
+    from canlib.ecus.can_buses import allowed_can_buses
     from canlib.profile import active, profile_for_path
 
     # Resolve the vocabulary from the profile owning the target ecus/ dir
@@ -774,7 +774,7 @@ def cmd_set_iocontrol(args: argparse.Namespace) -> int:
     if not fields:
         raise EditError("nothing to set — pass at least one field")
     if args.session_mode is not None:
-        from canlib.pids import normalize_session_mode
+        from canlib.ecus.pids import normalize_session_mode
 
         try:
             fields["session_mode"] = normalize_session_mode(args.session_mode)

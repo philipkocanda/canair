@@ -148,7 +148,7 @@ def _print_cross_mirrors(specs, since, until, args, notation=ByteNotation.WICAN)
     """
     from canlib.analysis.mirrors import find_series_mirrors
     from canlib.commands._join import fill_policy_from_args
-    from canlib.pids import build_ecu_index, load_pids
+    from canlib.ecus.pids import build_ecu_index, load_pids
 
     fill = fill_policy_from_args(args)
     loaded = load_signal_captures(

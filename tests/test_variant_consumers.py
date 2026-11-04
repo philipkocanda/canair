@@ -14,7 +14,7 @@ import yaml
 
 from canlib import config
 from canlib.cli import main
-from canlib.pids import load_pids
+from canlib.ecus.pids import load_pids
 from canlib.profile import set_active
 
 FIXTURE = Path(__file__).parent / "fixtures" / "profiles" / "variants"

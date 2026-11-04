@@ -70,7 +70,7 @@ class BusDef:
 
 
 def _can_buses_path(profile: Profile | None = None) -> Path:
-    from .profile import active
+    from canlib.profile import active
 
     return (profile or active()).can_buses_file
 

@@ -304,7 +304,7 @@ def _warn_if_bundled_snapshot() -> None:
 
 
 def _detail_can_buses(prof) -> str:
-    from canlib.can_buses import load_can_buses
+    from canlib.ecus.can_buses import load_can_buses
 
     buses = load_can_buses(prof)
     codes = ", ".join(b.code for b in buses) if buses else "empty"
@@ -412,7 +412,7 @@ def _cmd_show(args) -> int:
         print(
             f"variant:    {prof.variant}  (from {_VARIANT_SOURCE[prof.variant_source or 'only']})"
         )
-    from canlib.pids import revision_resolutions
+    from canlib.ecus.pids import revision_resolutions
     from canlib.variants.revisions import describe_resolution
 
     for name, res in revision_resolutions(prof).items():
@@ -496,7 +496,7 @@ def _checked_pins(
     """
     if not texts:
         return []
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.variants import VariantsError, load_variants
     from canlib.variants.revisions import RevisionError, canonical_ecu, parse_pin, resolve
     from canlib.variants.selection import configured_variant

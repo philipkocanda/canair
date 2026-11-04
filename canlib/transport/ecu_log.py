@@ -25,7 +25,7 @@ def _load_ecu_lookup() -> dict[int, str]:
         return _ecu_lookup
     try:
         from canlib.ecus import load_ecus
-        from canlib.pids import register_derived_cache
+        from canlib.ecus.pids import register_derived_cache
 
         ecus = load_ecus()
         _ecu_lookup = {tx_id: info["name"] for tx_id, info in ecus.items()}
@@ -36,7 +36,7 @@ def _load_ecu_lookup() -> dict[int, str]:
 
 
 def _clear_ecu_lookup() -> None:
-    """Drop the tx_id → name cache (registered with canlib.pids.clear_cache)."""
+    """Drop the tx_id → name cache (registered with canlib.ecus.pids.clear_cache)."""
     global _ecu_lookup
     _ecu_lookup = None
 

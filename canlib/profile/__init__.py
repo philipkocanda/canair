@@ -314,9 +314,9 @@ class Profile:
         """ECU name -> its revision for the selected car, for every ECU that is determined.
 
         An ECU with several possible revisions and no pin is absent (undetermined); see
-        :func:`canlib.pids.revision_resolutions` for the full picture.
+        :func:`canlib.ecus.pids.revision_resolutions` for the full picture.
         """
-        from canlib.pids import revision_resolutions
+        from canlib.ecus.pids import revision_resolutions
 
         return {
             name: res.revision
@@ -651,7 +651,7 @@ def set_active(
     previous = _active
     _active = apply_variant(resolve_profile(name, profiles_dir), variant, revisions)
     if previous is not None and previous != _active:
-        from canlib.pids import clear_cache
+        from canlib.ecus.pids import clear_cache
 
         clear_cache()
     return _active
@@ -662,7 +662,7 @@ def replace_active(profile: Profile) -> Profile:
     global _active
     if profile != _active:
         _active = profile
-        from canlib.pids import clear_cache
+        from canlib.ecus.pids import clear_cache
 
         clear_cache()
     return _active

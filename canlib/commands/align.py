@@ -85,7 +85,7 @@ def _load_one(spec: str, *, since, until, state, label, fill=None):
     captures so the caller can flag ``keep:changes`` scope. Raises ``ValueError``
     with a clean message when the signal can't be built.
     """
-    from canlib.pids import build_ecu_index, load_pids
+    from canlib.ecus.pids import build_ecu_index, load_pids
 
     sref = SignalRef.parse(spec)
     loaded = load_signal_captures(

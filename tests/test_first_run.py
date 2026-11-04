@@ -7,7 +7,7 @@ import argparse
 import pytest
 
 from canlib import first_run, profile
-from canlib.pids import clear_cache
+from canlib.ecus.pids import clear_cache
 
 
 @pytest.fixture(autouse=True)

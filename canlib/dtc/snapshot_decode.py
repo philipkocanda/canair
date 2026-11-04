@@ -38,7 +38,7 @@ def length_resolver(
 ) -> Callable[[int], int | None]:
     """A ``length_of(did)`` for one ECU: its declared ``snapshot_length``, else its live length.
 
-    ``pids`` is the ECU's ``pids`` index (:func:`canlib.pids.build_ecu_index`). The live
+    ``pids`` is the ECU's ``pids`` index (:func:`canlib.ecus.pids.build_ecu_index`). The live
     length (``live_length(ecu, pid)``, :func:`live_reply_length` by default) is only
     consulted for a DID with no declaration, since it reads the capture history, and never
     for a ``variable_length:`` PID: its live replies have no one length, so their most
@@ -151,7 +151,7 @@ def ecu_pids_index(ecu: str | None) -> Mapping[str, Mapping[str, Any]]:
     """The active profile's ``pids`` index for ``ecu`` (empty when it has none or no profile)."""
     if not ecu:
         return {}
-    from canlib.pids import build_ecu_index, load_pids
+    from canlib.ecus.pids import build_ecu_index, load_pids
     from canlib.profile import ProfileError
 
     try:

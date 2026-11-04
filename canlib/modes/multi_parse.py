@@ -20,7 +20,7 @@ def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
     Accepts: 'IGPM', 'igpm', '770', '0x770', '7A0', and ECU-registry aliases
     ('LDC' -> OBC, 'ABS' -> ESC).
     """
-    from ..pids import ecu_index_key
+    from canlib.ecus.pids import ecu_index_key
 
     key = ecu_index_key(name_or_hex, ecu_index)
     if key is not None:

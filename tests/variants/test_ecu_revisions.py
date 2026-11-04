@@ -19,7 +19,7 @@ import yaml
 from canlib import config
 from canlib import profile as profile_mod
 from canlib.cli import main
-from canlib.pids import clear_cache, load_pids, load_raw_pids, revision_resolutions
+from canlib.ecus.pids import clear_cache, load_pids, load_raw_pids, revision_resolutions
 from canlib.profile import ProfileError, set_active
 from canlib.variants import check_variants_doc, load_variants
 from canlib.variants import revisions as rv
@@ -34,7 +34,7 @@ def _fresh(monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_VARIANT", raising=False)
     config.load_config.cache_clear()
-    import canlib.pids as pids_mod
+    import canlib.ecus.pids as pids_mod
 
     pids_mod._noted_skips.clear()
     yield

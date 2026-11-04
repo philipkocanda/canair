@@ -53,7 +53,7 @@ DEDICATED_PAGES = {
 
 def profile_stats(ecus_dir: Path) -> dict[str, int]:
     """Headline counts for one profile, loaded straight from its ecus/ files."""
-    from canlib.pids import load_pids, pid_status
+    from canlib.ecus.pids import load_pids, pid_status
 
     data = load_pids(ecus_dir) if ecus_dir.is_dir() else {"ecus": {}}
     ecus = data.get("ecus") or {}

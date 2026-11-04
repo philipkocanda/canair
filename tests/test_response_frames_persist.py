@@ -47,13 +47,13 @@ def pids_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def pids_data(pids_dir: Path) -> dict:
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
 
     return load_pids(pids_dir)
 
 
 def _reload(pids_dir: Path) -> dict:
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
 
     return load_pids(pids_dir)["ecus"]["BMS"]["pids"]
 
@@ -137,7 +137,7 @@ class TestSessionWriteBack:
 
     def test_a_retired_count_is_cleared_from_the_yaml(self, pids_dir, redirect_writes):
         set_response_frames("BMS", "2101", 4, pids_dir=pids_dir)
-        from canlib.pids import load_pids
+        from canlib.ecus.pids import load_pids
 
         data = load_pids(pids_dir)
 
@@ -191,7 +191,7 @@ class TestSessionWriteBack:
 
     def test_a_steady_state_session_rewrites_nothing(self, pids_dir, redirect_writes):
         set_response_frames("BMS", "2101", 4, pids_dir=pids_dir)
-        from canlib.pids import load_pids
+        from canlib.ecus.pids import load_pids
 
         data = load_pids(pids_dir)
         before = (pids_dir / "bms.yaml").read_text()

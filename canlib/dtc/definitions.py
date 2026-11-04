@@ -2,11 +2,11 @@
 
 A ``dtcs:`` mapping holds an entry per base DTC code (``C1616``, never ``C1616-08``) and may
 also state :data:`SECTION_FIELDS` directly under ``dtcs:``, once for every entry, the way a PID
-states fields once for its parameters (:data:`canlib.pids.INHERITED_PARAM_FIELDS`). An entry
+states fields once for its parameters (:data:`canlib.ecus.pids.INHERITED_PARAM_FIELDS`). An entry
 that sets such a field itself, even to ``""``/``[]``/``false``, keeps its own value.
 
 The loader resolves the section (:func:`effective_entries`, called from
-:func:`canlib.pids.merge_ecu_documents`), so readers of loaded definitions only ever see code
+:func:`canlib.ecus.pids.merge_ecu_documents`), so readers of loaded definitions only ever see code
 entries. Code that parses the YAML itself must split the two kinds of key with
 :func:`split_section`. They cannot be confused: a code is a letter and four hex digits.
 """

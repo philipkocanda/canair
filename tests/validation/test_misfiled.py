@@ -13,7 +13,7 @@ import pytest
 
 from canlib import profile
 from canlib.analysis.misfiled import PayloadSample, find_misfiled
-from canlib.pids import clear_cache
+from canlib.ecus.pids import clear_cache
 from canlib.validation.captures import _run_captures
 from canlib.validation.misfiled import misfile_warnings
 

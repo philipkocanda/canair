@@ -445,7 +445,7 @@ def _prompt(text: str, default: str | None = None) -> str:
 def _ecu_choices() -> list[tuple[str, int, str]]:
     """Return [(name, tx_id, description)] for ECUs known to the profile."""
     from canlib.ecus import load_ecus
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
 
     try:
         ecus = load_ecus()

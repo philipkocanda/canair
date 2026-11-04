@@ -27,7 +27,7 @@ import termios
 import tty
 from pathlib import Path
 
-from canlib.pids import RoutineIndexEntry, build_routines_index, load_pids
+from canlib.ecus.pids import RoutineIndexEntry, build_routines_index, load_pids
 from canlib.transport.protocol import Terminal
 from canlib.tui import terminal_columns as _terminal_columns
 from canlib.tui import terminal_lines as _terminal_lines
@@ -472,7 +472,7 @@ class _RoutinesTUI:
             fresh = load_pids()
             self.pids_data.clear()
             self.pids_data.update(fresh)
-            from canlib.pids import build_routines_index
+            from canlib.ecus.pids import build_routines_index
 
             idx = build_routines_index(self.pids_data)
             self.routines = idx[self.ecu_key]["routines"]

@@ -50,7 +50,7 @@ class SnapshotRun:
 def ecu_pids(pids_data: Mapping[str, Any] | None, tx_id: int) -> tuple[str, Mapping[str, Any]]:
     """The ECU's name and its ``pids`` index, for lengths and decoding (empty without a profile)."""
     from canlib.ecus import ecu_name
-    from canlib.pids import build_ecu_index
+    from canlib.ecus.pids import build_ecu_index
 
     name = ecu_name(tx_id)
     if not pids_data:

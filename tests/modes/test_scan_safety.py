@@ -9,9 +9,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from canlib.ecus.pids import normalize_session_mode
 from canlib.modes import kwp_iocontrol_scan, kwp_routines_scan
 from canlib.modes.sessions_scan import mode_sessions_scan
-from canlib.pids import normalize_session_mode
 from tests.support.fakes import FakeTerminal, nrc
 
 KWP_BCM = {"BCM": {"tx_id": 0x745, "identity": {"id_protocol": "KWP2000"}}}
@@ -260,7 +260,7 @@ def test_normalize_session_mode_rejects_anything_else(value):
 
 
 def test_build_iocontrol_index_reports_a_bad_session_mode_as_a_profile_error():
-    from canlib.pids import build_iocontrol_index
+    from canlib.ecus.pids import build_iocontrol_index
     from canlib.profile import ProfileError
 
     data = {"ecus": {"BCM": {"tx_id": 0x745, "iocontrol": {"6900": {"session_mode": 192}}}}}
@@ -276,7 +276,7 @@ def test_json_listing_of_an_unknown_ecu_is_a_json_error(command, monkeypatch, ca
     from canlib.commands import io as io_cmd
     from canlib.commands import routines as routines_cmd
 
-    monkeypatch.setattr("canlib.pids.load_pids", lambda: {"ecus": {}})
+    monkeypatch.setattr("canlib.ecus.pids.load_pids", lambda: {"ecus": {}})
     mod = io_cmd if command == "io" else routines_cmd
     args = SimpleNamespace(json=True, did=None, rid=None, iocontrol="NOPE", routines="NOPE")
     assert mod.run(args) == 1

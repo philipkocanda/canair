@@ -38,7 +38,7 @@ def layered(tmp_path, monkeypatch):
     """A bundled base ``ev6`` (a +0x20 profile) and the user's overlay, made active."""
     from canlib import config
     from canlib import profile as profile_mod
-    from canlib.pids import clear_cache
+    from canlib.ecus.pids import clear_cache
 
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)

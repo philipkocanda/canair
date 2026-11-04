@@ -18,7 +18,7 @@ class FakeController:
         self.reloaded = 0
 
     def reload_pids(self):
-        from canlib.pids import load_pids
+        from canlib.ecus.pids import load_pids
 
         self.reloaded += 1
         if self.pids_dir is not None:
@@ -196,7 +196,7 @@ def ecus_dir(tmp_path):
 
 
 def _editor_on_disk(ecus_dir):
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
 
     pids_data = load_pids(ecus_dir)
     lq = [("BMS (0x7E4)", [{"pid": "2101", "params": [_row("SOC", expr="B4/2")]}])]

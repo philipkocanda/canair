@@ -1,12 +1,12 @@
-"""ECU address lookup and name/response-address resolution.
+"""The ECU registry and the per-ECU PID definitions.
 
-The registry is derived from the profile's per-ECU files under ``ecus/`` (each
-keyed by the ECU short name, carrying a ``tx_id`` and an ``identity:`` block).
-The CAN *response* address is resolved per ECU (explicit ``rx_id`` → the
-profile's ``addressing.rx_offset`` → the conventional ``TX + 0x08``) by
-:mod:`canlib.uds.addressing` and stored as ``rx_id`` on each registry entry. Capture
-files reference the **response** address as a hex string (e.g. ``"0x7EC"``); the
-helpers here convert between that reference and the canonical ECU short name.
+The registry derives from the profile's ``ecus/`` files (keyed by short name, with a ``tx_id`` and
+an ``identity:`` block). The CAN *response* address is resolved per ECU by
+:mod:`canlib.uds.addressing`; captures hold it as hex, and the helpers here map it to the name.
+
+Belongs: ECU and PID definitions (``pids``), CAN buses, DID families, signal categories.
+Not here: where the bundle lives (``profile``), checks (``validation``), edits (``yaml_edit``).
+Imports: ``profile``, ``safety``, ``uds``, ``dtc.definitions``, ``core``.
 """
 
 from collections.abc import Mapping
@@ -87,7 +87,7 @@ def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
     ``path`` is None, the active vehicle profile's ``ecus/`` directory is used;
     otherwise ``path`` is a directory of per-ECU YAML files.
     """
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
 
     data = load_pids(path)
     result: dict[int, EcuRegistryEntry] = {}
@@ -242,7 +242,7 @@ def _profile_addressing() -> tuple[int, AddressingMode]:
     Falls back to ``TX + 0x08`` / 11-bit when no profile resolves, so a caller
     that passed its own registry still gets an answer outside a profile.
     """
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
     from canlib.profile import ProfileError
 
     try:

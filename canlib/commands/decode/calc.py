@@ -99,7 +99,7 @@ def load_cross_ref_series(ref: str, *, scope: dict, tol_s: float, fill: FillPoli
     run-length reference can be carried onto the local captures' instants.
     """
     from canlib.analysis.align import SignalRef, extract_series, load_signal_captures
-    from canlib.pids import build_ecu_index, load_pids
+    from canlib.ecus.pids import build_ecu_index, load_pids
 
     sref = SignalRef.parse(ref)
     loaded = load_signal_captures(

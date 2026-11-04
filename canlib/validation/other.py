@@ -25,7 +25,7 @@ def _state_reference_errors(predicates: list[tuple[str, str]]) -> tuple[list[str
     can't be loaded — mirroring ``_run_groups``' tolerance, since a profile with a
     broken ``ecus/`` already fails ``validate pids`` loudly.
     """
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.states.refs import check_references_on_every_car
 
     if not predicates:
@@ -193,7 +193,7 @@ def _run_states() -> int:
 def _run_groups() -> int:
     """Validate the profile's optional groups.yaml (selector-group vocabulary)."""
     from canlib.ecus import build_canonical_name_index, canonical_ecu_name_safe
-    from canlib.pids import build_ecu_index, load_pids
+    from canlib.ecus.pids import build_ecu_index, load_pids
     from canlib.profile import active
     from canlib.query import QueryError, parse_selector
 
@@ -280,7 +280,7 @@ def _run_actions() -> int:
     """
     from canlib.actions import ActionError, parse_actions_doc, registry_issues
     from canlib.actions.plan import action_policy, plan_requests
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
     from canlib.profile import active
     from canlib.safety.blocklist import SafetyBlocked, SessionPolicy
 

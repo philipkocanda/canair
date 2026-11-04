@@ -216,7 +216,7 @@ and **`g`/`G` address the view's primary axis**.
   non-actuating query instead). Hits are written to the ECU's
   `routines:`/`iocontrol_discoveries:`. `range` takes a comma list of ranges
   (`canlib/core/id_ranges.py`); without `--range` it sweeps the ECU's **DID families**
-  (`canlib/did_families.py` — high bytes from its `22`/`2F` PIDs and IOControl hits), not the
+  (`canlib/ecus/did_families.py` — high bytes from its `22`/`2F` PIDs and IOControl hits), not the
   span between them.
 - **`canair discover`** (alias `disc`) — Which ECUs answer right now; `--register` writes a new ECU
   into `ecus/`. **`--functional`** sends one read on the functional id instead and groups every
@@ -240,7 +240,7 @@ and **`g`/`G` address the view's primary axis**.
 - **`canair io`** / **`canair routines`** — IOControl (`0x2F`, or an entry's own KWP `0x30`
   commands) and RoutineControl (`0x31`): interactive TUI or a single actuation. **Mutative** —
   confirm-first, and actuators auto-release when the session ends, with each entry's resolved
-  `release` (`canlib/pids.py::build_iocontrol_index`). UDS implies `2F {DID} 00`; KWP `0x30` has
+  `release` (`canlib/ecus/pids.py::build_iocontrol_index`). UDS implies `2F {DID} 00`; KWP `0x30` has
   no standard release, so `canair io` refuses a `0x30` ON until the entry declares `release:`
   (`pids set-iocontrol --release`). That gate is `canlib/safety/actuation.py::on_refusal`, over the
   read/release/actuate classifier the actuation interlock plan
@@ -415,7 +415,7 @@ and **`g`/`G` address the view's primary axis**.
   payload, so only a unique split settles fill. No declaration, no change to the output.
 - **`canair research`** — The open RE backlog from the per-ECU `research:` sections. Complements
   `coverage` (undecoded *bytes*) by surfacing *planned* work. **`--gaps`** derives unplanned work:
-  IOControl DID families no `0x22` read has reached (leaf `canlib/did_families.py`, evidence from
+  IOControl DID families no `0x22` read has reached (leaf `canlib/ecus/did_families.py`, evidence from
   `scan_log:`/`research:`/saved scans in `commands/research/gaps.py`). An `iocontrol_discoveries:`
   entry that only drew an NRC is not evidence: the DDM refuses whole ranges with one NRC.
 
@@ -464,14 +464,14 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   `canlib/expression/decode_value.py`; the WiCAN `expression` stays the pure float.
   **A signal states `category:` only where its unit does not imply one** (a `%` that is a
   state of charge, a bit that is a door; `--category`): the vocabulary, the unit table and the
-  rules are `canlib/signal_category.py`, a category the unit implies is a validation error, a
+  rules are `canlib/ecus/signal_category.py`, a category the unit implies is a validation error, a
   two-state one needs a two-entry `type: enum` saying which value is which, and it is never
   inherited. Exporters map it onto their target (`canlib/wican/autopid_class.py`). It replaced
   `ha_class`; `pids migrate-categories` converts an old profile.
   **A PID can state `unit`/`min`/`max`/`verified`/`source`/`source_links` once
   for all its parameters** (`pids set-pid-defaults`; `pids hoist-defaults` folds up existing
   repetition): a parameter that sets none of its own inherits it, and one that does (even to
-  `""`/`[]`/`false`) keeps its value. The list is `canlib/pids.py::INHERITED_PARAM_FIELDS` and
+  `""`/`[]`/`false`) keeps its value. The list is `canlib/ecus/pids.py::INHERITED_PARAM_FIELDS` and
   `merge_ecu_documents` resolves it into every loaded parameter, so **readers of loaded
   definitions never see the gap — only code that parses the YAML itself** (the validator, the
   explorer export, the editors) **must call `effective_param`**. PID `notes` are page-level and
@@ -901,7 +901,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   (`canair pids set-support-map`; see `investigate --support-map`). A service-22 PID may carry
   **`snapshot_only: true`** (plus `snapshot_length:`) when the ECU serves that DID only inside a
   DTC snapshot (`pids set-snapshot-only`): defined so the snapshot decodes, never swept and never
-  shipped — the rule is `canlib/pids.py::pid_swept`/`pid_ships`, which every sweep and the
+  shipped — the rule is `canlib/ecus/pids.py::pid_swept`/`pid_ships`, which every sweep and the
   AutoPID gate read instead of the bare status. The reply parser is the I/O-free
   `canlib/dtc/snapshot.py`; plan `plans/2026-11-02-dtc-snapshots.md`. A PID or signal may be
   **`sensitive: true`** (`pids set-sensitive`): masked on screen, never journaled or saved, left
@@ -967,7 +967,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
 - **`profiles/<car>/can_buses.yaml`** — The profile's CAN bus segment vocabulary: code → human
   `name` + `description` + optional `bitrate`. Bus naming is **vendor-specific** (Hyundai/Kia
   `B-CAN`/`P-CAN`/`C-CAN`/`MM-CAN`/`H-CAN`/`D-CAN`/`ALL`; Ford `HS`/`MS`; BMW `PT-CAN`/`K-CAN`), so
-  it lives per profile, not in a global enum. Loader `canlib/can_buses.py`; `pids set-can-bus`
+  it lives per profile, not in a global enum. Loader `canlib/ecus/can_buses.py`; `pids set-can-bus`
   accepts only declared codes and `validate pids` errors on an out-of-vocabulary value.
 - **`profiles/<car>/groups.yaml`** — Named selector groups (`@name`) — see `canair groups`. Loader
   `canlib/ecus/ecu_groups.py`. The bundled Ioniq ships

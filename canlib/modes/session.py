@@ -80,7 +80,7 @@ async def run_session_guarded(
         from canlib.modes.revision_probe import detect_revisions, targeted_ecus
 
         if await detect_revisions(terminal, targeted_ecus(options.steps)):
-            from canlib.pids import load_pids
+            from canlib.ecus.pids import load_pids
 
             # A settled revision changes which PIDs exist; read them before the mode does.
             pids_data = load_pids()

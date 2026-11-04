@@ -51,7 +51,7 @@ def unit_category(unit: object) -> str | None:
 def category_of(param: Mapping) -> str | None:
     """A signal's category: its own ``category:``, else the one its unit implies.
 
-    Pass the *effective* parameter (:func:`canlib.pids.effective_param`), since the unit may
+    Pass the *effective* parameter (:func:`canlib.ecus.pids.effective_param`), since the unit may
     be stated on the PID.
     """
     stated = param.get("category")

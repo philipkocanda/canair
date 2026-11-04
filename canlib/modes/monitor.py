@@ -69,7 +69,7 @@ from .monitor_raw import MonitorRawPoller, Submission, _raw_pid_result
 
 if TYPE_CHECKING:
     from ..captures.link_events import DisconnectCause
-    from ..pids import EcuIndexEntry
+    from ..ecus.pids import EcuIndexEntry
     from .monitor_reconnect import Reconnector
 
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canlib.formatting;
@@ -135,7 +135,7 @@ def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
     ECU names are matched case-insensitively against the active profile.
     """
     from ..ecus import build_canonical_name_index, canonical_ecu_name_safe
-    from ..pids import build_ecu_index
+    from ..ecus.pids import build_ecu_index
 
     ecu_index = build_ecu_index(pids_data)
     try:
@@ -508,7 +508,7 @@ class MonitorController:
         picks up the just-edited expression/flags; the rebuilt ECU index makes
         the next poll decode with the new definition.
         """
-        from ..pids import build_ecu_index, load_pids
+        from ..ecus.pids import build_ecu_index, load_pids
 
         self.pids_data = load_pids(self.pids_dir)
         self._ecu_index = build_ecu_index(self.pids_data)
@@ -573,7 +573,7 @@ class MonitorController:
 
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, run one-shot session setup, start keepalives."""
-        from ..pids import build_ecu_index
+        from ..ecus.pids import build_ecu_index
 
         self._ecu_index = build_ecu_index(self.pids_data)
 
@@ -582,7 +582,7 @@ class MonitorController:
             # that need them are opened best-effort before polling — but a mode
             # the safety policy refuses aborts setup rather than being swallowed
             # with the transport errors (the ELM path raises the same way).
-            from ..pids import ecu_index_key
+            from ..ecus.pids import ecu_index_key
             from ..safety.blocklist import SafetyBlocked
 
             assert self.raw_client is not None  # self.raw is True ⟺ raw_client was provided
@@ -648,7 +648,7 @@ class MonitorController:
 
     def _warmup_reads(self) -> "list[tuple[str, EcuIndexEntry, str]]":
         """``(ECU key, its index entry, first planned request)`` per polled ECU step."""
-        from ..pids import ecu_index_key
+        from ..ecus.pids import ecu_index_key
         from .multi import build_query_plan
 
         assert self._ecu_index is not None  # built by setup() before this runs
@@ -1056,7 +1056,7 @@ class MonitorController:
         the on-demand save dialog's label.
         """
         parts: list[str] = []
-        from ..pids import ecu_index_key
+        from ..ecus.pids import ecu_index_key
 
         for step in self.query_steps:
             ecu = ecu_index_key(step["ecu"], self._ecu_index or {}) or step["ecu"].upper()

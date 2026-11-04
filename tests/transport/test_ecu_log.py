@@ -20,6 +20,11 @@ def isolated_log(tmp_path, monkeypatch):
 
 class TestEcuLog:
     def test_responses_are_logged_beside_the_event_log(self, isolated_log, monkeypatch):
+        # An earlier test in this worker may have left a handler on the shared logger.
+        stale = logging.getLogger("can_request.ecu.BMS")
+        for handler in list(stale.handlers):
+            handler.close()
+            stale.removeHandler(handler)
         monkeypatch.setattr(ecu_log, "_ecu_loggers", {})
         monkeypatch.setattr(ecu_log, "_initialized", True)
         monkeypatch.setattr(ecu_log, "_active_ecu", "BMS")

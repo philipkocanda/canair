@@ -72,7 +72,7 @@ async def detect_revisions(terminal: Terminal, targets: set[str] | None) -> bool
     On a detection the active profile is replaced by one carrying it (which drops the
     cached definitions), so the caller must reload them with ``load_pids()``.
     """
-    from canlib.pids import load_raw_pids, revision_resolutions
+    from canlib.ecus.pids import load_raw_pids, revision_resolutions
     from canlib.profile import active, replace_active
     from canlib.variants.detected import remember
     from canlib.variants.fingerprints import detected, match, probes
@@ -128,7 +128,7 @@ def identity_report(tx_id: int, responded: dict[str, bool]) -> dict | None:
     do I have?" with no variant chosen. A single match is remembered (replacing an older
     detection it contradicts). None when the ECU declares no revisions.
     """
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.profile import active
     from canlib.variants import load_variants
     from canlib.variants.detected import remember, remembered

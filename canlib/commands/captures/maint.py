@@ -143,8 +143,8 @@ def _discover_addressing(prof):
     error rather than a traceback.
     """
     from canlib.ecus import load_ecus
+    from canlib.ecus.pids import load_pids
     from canlib.migrations.discover import Addressing
-    from canlib.pids import load_pids
     from canlib.profile import ProfileError
     from canlib.uds.addressing import resolve_mode, resolve_rx_offset
 

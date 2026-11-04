@@ -72,8 +72,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 def run(args) -> int:
     from collections import Counter
 
-    from canlib.can_buses import ALL_CODE, expand_bus_membership, load_can_buses
     from canlib.ecus import load_ecus
+    from canlib.ecus.can_buses import ALL_CODE, expand_bus_membership, load_can_buses
     from canlib.profile import active
 
     prof = active()

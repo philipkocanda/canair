@@ -1,8 +1,8 @@
-"""Tests for canlib.pids — PID loading and index building."""
+"""Tests for canlib.ecus.pids — PID loading and index building."""
 
 import pytest
 
-from canlib.pids import (
+from canlib.ecus.pids import (
     DEFAULT_PID_STATUS,
     PID_STATUSES,
     build_ecu_index,
@@ -135,7 +135,7 @@ class TestPidStatusVocabulary:
     def test_statuses_derive_from_the_literal(self):
         from typing import get_args
 
-        from canlib.pids import PidStatus
+        from canlib.ecus.pids import PidStatus
 
         assert PID_STATUSES == get_args(PidStatus)
 

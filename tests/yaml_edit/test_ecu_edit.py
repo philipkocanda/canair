@@ -12,7 +12,7 @@ import pytest
 
 from canlib import profile
 from canlib.commands.ecu import cmd_edit
-from canlib.pids import clear_cache
+from canlib.ecus.pids import clear_cache
 from canlib.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu
 
 

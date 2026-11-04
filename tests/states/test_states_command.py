@@ -163,7 +163,7 @@ class TestReverseLookup:
         monkeypatch.setenv("NO_COLOR", "1")
         monkeypatch.setattr("canlib.profile.active", lambda: _FakeProfile())
         monkeypatch.setattr("canlib.states.load_states", lambda profile=None: rules)
-        monkeypatch.setattr("canlib.pids.load_pids", lambda: pids_data)
+        monkeypatch.setattr("canlib.ecus.pids.load_pids", lambda: pids_data)
         monkeypatch.setattr("canlib.ecus.load_ecus", lambda: ecus)
 
     def test_human_output(self, _patched_lookup, capsys):

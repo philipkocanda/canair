@@ -6,7 +6,7 @@ import pytest
 import yaml
 
 from canlib import profile
-from canlib.pids import clear_cache
+from canlib.ecus.pids import clear_cache
 
 
 @pytest.fixture(autouse=True)

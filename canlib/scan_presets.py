@@ -14,9 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from canlib.core.id_ranges import IdRange
+from canlib.ecus.did_families import FAMILY_SIZE, did_families, family_ranges
 from canlib.uds.protocol import KWP, classify_protocol
-
-from .did_families import FAMILY_SIZE, did_families, family_ranges
 
 
 @dataclass(frozen=True)
@@ -268,7 +267,7 @@ def plan_scan(
         except Exception:
             ecus_data = {}
     if pids_data is None:
-        from .pids import load_pids
+        from canlib.ecus.pids import load_pids
 
         try:
             pids_data = load_pids()

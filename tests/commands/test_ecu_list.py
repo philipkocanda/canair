@@ -6,7 +6,7 @@ import pytest
 
 from canlib import profile
 from canlib.commands.ecu import _detail_record, _list_records, cmd_list
-from canlib.pids import clear_cache
+from canlib.ecus.pids import clear_cache
 
 
 @pytest.fixture(autouse=True)

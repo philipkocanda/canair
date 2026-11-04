@@ -116,7 +116,7 @@ def _resolve_targets(args, since, until) -> tuple[list[tuple[str, str]], tuple[s
 
 def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
     from canlib.analysis.xanalysis import byte_state_buckets as _byte_state_buckets
-    from canlib.pids import build_ecu_index, load_pids
+    from canlib.ecus.pids import build_ecu_index, load_pids
 
     loaded = load_signal_captures(
         [(ecu, pid)],

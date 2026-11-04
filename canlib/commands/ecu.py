@@ -55,7 +55,7 @@ from canlib.commands._group import group_help
 from canlib.commands._hexarg import parse_hex_arg
 from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.ecus import load_ecus, resolve_tx, rx_addr_str
-from canlib.pids import load_pids, pid_status
+from canlib.ecus.pids import load_pids, pid_status
 from canlib.states import ecu_states
 from canlib.yaml_edit.echo import echo_edit
 from canlib.yaml_edit.errors import EditError
@@ -379,7 +379,7 @@ def _identity_note(name: str) -> str | None:
     the loader withholds them from another revision, so say why they are absent rather than
     leave the identity looking merely unrecorded.
     """
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.profile import active
     from canlib.variants.revisions import canonical_ecu, identity_reference
 
@@ -1013,7 +1013,7 @@ def cmd_rename(args) -> int:
 
 
 def run(args) -> int:
-    from canlib.can_buses import bus_names
+    from canlib.ecus.can_buses import bus_names
 
     ecus = load_ecus()
     pids_data = load_pids()

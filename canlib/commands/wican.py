@@ -143,7 +143,7 @@ def _require_resolved_revisions() -> None:
     The device polls a fixed list and cannot detect a revision, and shipping both
     revisions' PIDs would double the poll list and publish one signal name from two PIDs.
     """
-    from canlib.pids import revision_resolutions
+    from canlib.ecus.pids import revision_resolutions
     from canlib.profile import ProfileError, active
 
     open_ = [r for r in revision_resolutions().values() if r.revision is None]
@@ -162,7 +162,7 @@ def _require_resolved_revisions() -> None:
 
 def load_yaml() -> dict:
     """Load and return the YAML PID definitions."""
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
 
     return load_pids()
 

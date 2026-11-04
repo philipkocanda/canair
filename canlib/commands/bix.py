@@ -998,7 +998,7 @@ def run(args) -> int:
                 print("Error: --ecu requires --pid.", file=sys.stderr)
                 return 1
             from canlib.ecus import canonical_ecu_name_safe, ecu_protocol
-            from canlib.pids import build_ecu_index, load_pids
+            from canlib.ecus.pids import build_ecu_index, load_pids
 
             ecu = canonical_ecu_name_safe(args.ecu).upper()
             pid = args.pid.upper()

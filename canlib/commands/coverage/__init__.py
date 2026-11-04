@@ -46,7 +46,7 @@ from canlib.commands._hints import ecu_completer as _ecu_completer
 from canlib.commands._hints import pid_completer as _pid_completer
 from canlib.commands._notation import add_notation_arg
 from canlib.commands._scope import active_scope_flags, add_scope_args, resolve_scope_bounds
-from canlib.pids import build_ecu_index, load_pids
+from canlib.ecus.pids import build_ecu_index, load_pids
 from canlib.uds.support_map import MapDecl, SupportMapError, declaration
 
 from .analysis import (
@@ -191,7 +191,7 @@ def variable_length_pids(pids_data: dict) -> frozenset[PidKey]:
 
 def snapshot_only_pids(pids_data: dict) -> frozenset[PidKey]:
     """``(ECU, PID)`` keys flagged ``snapshot_only:``, whose replies come from DTC snapshots."""
-    from canlib.pids import is_snapshot_only
+    from canlib.ecus.pids import is_snapshot_only
 
     return frozenset(
         (str(ecu).upper(), str(pid).upper())

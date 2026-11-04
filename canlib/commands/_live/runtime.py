@@ -18,11 +18,11 @@ import sys
 
 from canlib.commands._transport_args import transport_overrides
 from canlib.core.stop_signals import graceful_stop
+from canlib.ecus.pids import load_pids
 from canlib.keepmode import wants_save
 from canlib.lock import WiCANLock
 from canlib.lock_watchdog import LockWatchdog
 from canlib.modes.session import SessionOptions, run_session_guarded
-from canlib.pids import load_pids
 from canlib.transport.config import ConnectionOptions
 from canlib.transport.ecu_log import init_logging
 from canlib.transport.protocol import Terminal

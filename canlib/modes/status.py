@@ -5,10 +5,10 @@ returns its current evaluated value. Used by the IOControl TUI and execute mode
 to show a live status column alongside each actuator.
 """
 
+from canlib.ecus.pids import build_param_index
 from canlib.uds.wican_layout import uds_hex_to_wican_bytes
 
 from ..expression import evaluate_expression
-from ..pids import build_param_index
 from ..transport.protocol import Terminal
 
 

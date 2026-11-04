@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from canlib.dtc.definitions import effective_entries, is_dtc_code, split_section
+from canlib.ecus.pids import load_pids
 from canlib.explorer.export import _dtc_records
-from canlib.pids import load_pids
 from canlib.validation.pids import load_schema, validate_ecu_file
 
 ECU = """\

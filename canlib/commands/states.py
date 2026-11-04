@@ -89,7 +89,7 @@ def _collect_state_usage(obj, counts: dict[str, int]) -> None:
 
 def _load_usage() -> dict[str, int]:
     """Count state-token references across the active profile's ecus/."""
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
 
     counts: dict[str, int] = {}
     try:
@@ -108,7 +108,7 @@ def cmd_show_state(args) -> int:
     whether the state is declared at the ECU level or only inferred from PIDs.
     """
     from canlib.ecus import load_ecus
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
     from canlib.profile import active
     from canlib.states import (
         StatePredicateError,
@@ -236,7 +236,7 @@ def _load_broken_refs(rules) -> dict[str, list[dict[str, str]]]:
     surfaces it here — otherwise a permanently-dead predicate still shows a
     healthy ``●``. Best-effort: an unloadable registry simply reports nothing.
     """
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.states.refs import check_references_on_every_car
 
     try:

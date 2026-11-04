@@ -300,7 +300,7 @@ def _session_revision(session: Mapping, ecu: str) -> str | None:
 
 
 def find_revision_references(ecu: str, revision: str, profile: Profile) -> RevisionReferences:
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.variants import load_variants
 
     rid = normalize_revision_id(revision)

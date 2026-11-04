@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 
 from canlib.core import yaml_io
-from canlib.pids import is_shipped, is_snapshot_only, pid_status
+from canlib.ecus.pids import is_shipped, is_snapshot_only, pid_status
 from canlib.wican.autopid_send_to import topic_problem
 
 

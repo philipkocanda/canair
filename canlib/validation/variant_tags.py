@@ -37,7 +37,7 @@ def variant_tag_findings(files: list[Path], declared: set[str]) -> tuple[int, Co
 def revision_tag_findings(files: list[Path], profile) -> Counter[str]:
     """``problem -> sessions`` for every revision tag that names what cannot be."""
     from canlib.ecus import build_rx_index, ecu_name_from_ref
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.variants import load_variants
     from canlib.variants.revisions import canonical_ecu, gate, possible_revisions
 

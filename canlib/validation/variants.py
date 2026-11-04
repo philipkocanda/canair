@@ -9,7 +9,7 @@ from ._common import duplicate_key_errors
 
 def _reference_errors() -> list[str]:
     """Every ECU or revision a variant's ``revisions:`` names that ecus/ lacks."""
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.variants import load_variants
     from canlib.variants.revisions import variant_reference_errors
 

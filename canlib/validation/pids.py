@@ -15,11 +15,11 @@ from canlib.dtc.definitions import SECTION_FIELDS as DTC_SECTION_FIELDS
 from canlib.dtc.definitions import is_dtc_code
 from canlib.dtc.definitions import split_section as split_dtc_section
 from canlib.dtc.snapshot import did_of_read
+from canlib.ecus.pids import PID_STATUSES, effective_param, pid_ships, pid_status
+from canlib.ecus.signal_category import category_findings
 from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.expression.lint import firmware_grammar_problems, signed_low_bytes
-from canlib.pids import PID_STATUSES, effective_param, pid_ships, pid_status
 from canlib.privacy.sensitive import param_sensitive
-from canlib.signal_category import category_findings
 from canlib.uds.byteindex import wican_to_isotp
 from canlib.uds.support_map import SupportMapError
 from canlib.uds.support_map import declaration as support_map_declaration
@@ -267,7 +267,7 @@ def _validate_can_bus_list(value, label: str, errors: list, allowed: set) -> Non
 
 def _allowed_can_buses(profile) -> set:
     """The profile's declared CAN bus vocabulary (empty when undeclared)."""
-    from canlib.can_buses import allowed_can_buses
+    from canlib.ecus.can_buses import allowed_can_buses
 
     return allowed_can_buses(profile)
 
@@ -356,7 +356,7 @@ class _SchemaFields:
             scan_log=set((schema.get("scan_log_entry_fields", {}) or {}).get("optional", [])),
             dtcs=set((schema.get("dtcs_fields", {}) or {}).get("optional", [])),
             sessions=set((schema.get("sessions_fields", {}) or {}).get("optional", [])),
-            # Fallback derives from the Python vocabulary (canlib.pids.PidStatus)
+            # Fallback derives from the Python vocabulary (canlib.ecus.pids.PidStatus)
             # rather than repeating the values — a third copy would be a third
             # thing to drift. tests/test_pids.py guards schema ↔ Literal agreement.
             valid_pid_status=set(schema.get("valid_pid_status", [])) or set(PID_STATUSES),
@@ -1726,7 +1726,7 @@ def _disjoint(ecu_a: str, revs_a: frozenset[str], ecu_b: str, revs_b: frozenset[
 
 def _variant_reference_errors(prof) -> list[str]:
     """Every ECU or revision a variant's ``revisions:`` names that ecus/ lacks."""
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.variants import VariantsError, load_variants
     from canlib.variants.revisions import variant_reference_errors
 
@@ -1743,7 +1743,7 @@ def _elm327_warnings(ecus_dir: Path) -> list[str]:
 
     Addressing (:mod:`.addressing`) and EEPROM wear (:mod:`.init_eeprom`).
     """
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
 
     from .addressing import addressing_warnings
     from .init_eeprom import init_eeprom_warnings

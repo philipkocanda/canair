@@ -49,7 +49,7 @@ def _error(message: str) -> int:
 def _definition_findings(needle: Needle, ecus_filter: set[str] | None) -> list[Finding]:
     import yaml
 
-    from canlib.pids import load_pids
+    from canlib.ecus.pids import load_pids
 
     if needle.text is None:
         return []

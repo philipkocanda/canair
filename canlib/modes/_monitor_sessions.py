@@ -102,7 +102,7 @@ class MonitorSessions:
 
         names = SUBFUNCTION_NAMES.get(0x10, {})
         if self._index is None:
-            from ..pids import build_sessions_index
+            from canlib.ecus.pids import build_sessions_index
 
             self._index = build_sessions_index(self.c.pids_data)
         entry = self._index.get(ecu_name.upper())

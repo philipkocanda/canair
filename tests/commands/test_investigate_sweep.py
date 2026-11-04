@@ -14,7 +14,7 @@ import json
 
 from canlib import profile
 from canlib.commands import investigate
-from canlib.pids import clear_cache
+from canlib.ecus.pids import clear_cache
 
 _ODO_DAYS = [
     ("2026-04-16", 70047),

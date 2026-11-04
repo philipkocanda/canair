@@ -28,7 +28,7 @@ PROFILE = {
 
 @pytest.fixture(autouse=True)
 def _offline(monkeypatch):
-    monkeypatch.setattr("canlib.pids.load_pids", lambda *a, **k: PROFILE)
+    monkeypatch.setattr("canlib.ecus.pids.load_pids", lambda *a, **k: PROFILE)
 
     def _no_device(_args, _operation=None):
         raise AssertionError("a --json listing must not start a live session")

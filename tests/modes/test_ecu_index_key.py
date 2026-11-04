@@ -91,7 +91,7 @@ class TestMonitor:
     def test_raw_setup_opens_an_aliased_session(self, monkeypatch):
         client = MagicMock()
         c = self._controller(raw_client=client)
-        monkeypatch.setattr("canlib.pids.build_ecu_index", lambda _data: INDEX)
+        monkeypatch.setattr("canlib.ecus.pids.build_ecu_index", lambda _data: INDEX)
         asyncio.run(c.setup([{"type": "session", "target": "sjb", "mode": "03"}]))
         reads = [(call.args[0], call.args[1]) for call in client.read.call_args_list]
         assert ("IGPM", bytes.fromhex("1003")) in reads

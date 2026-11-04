@@ -9,9 +9,9 @@ Composes the parsing (:mod:`canlib.modes.multi_parse`) and execution
 import asyncio
 import re
 
+from canlib.ecus.pids import build_param_index
 from canlib.uds.parse import parse_uds_response
 
-from ..pids import build_param_index
 from ..session_manager import SessionManager
 from ..transport.elm327_terminal import Elm327Terminal
 from .multi_exec import _exec_query, _exec_raw

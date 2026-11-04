@@ -796,8 +796,8 @@ class TestOverlappingSelectorRegression:
         assert len(ecus) == len(set(ecus))
 
     def test_requests_are_unique(self):
+        from canlib.ecus.pids import build_ecu_index, load_pids
         from canlib.modes.multi_exec import build_query_plan
-        from canlib.pids import build_ecu_index, load_pids
 
         index = build_ecu_index(load_pids())
         requests = []

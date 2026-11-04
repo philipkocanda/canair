@@ -51,8 +51,8 @@ class Verdict:
 
 async def read_verdict(sm, action: Action, pids_data: dict, verbose: bool) -> Verdict:
     """Read the action's ``reads`` live and evaluate ``require`` on them."""
+    from canlib.ecus.pids import build_ecu_index
     from canlib.modes.multi_exec import _exec_query
-    from canlib.pids import build_ecu_index
     from canlib.query import parse_selector
     from canlib.states import UNKNOWN, collect_values, compile_predicate, predicate_references
 

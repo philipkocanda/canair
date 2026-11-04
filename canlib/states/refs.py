@@ -72,7 +72,7 @@ def _signal_map(pids_data: Mapping[str, Any]) -> dict[str, dict[str, _Signal]]:
     ``ignored``, flagged as such: a predicate pointing at one resolves to nothing
     at runtime, and saying so beats reporting the signal as undefined.
     """
-    from canlib.pids import pid_status
+    from canlib.ecus.pids import pid_status
 
     out: dict[str, dict[str, _Signal]] = {}
     for ecu_name, ecu_def in (pids_data.get("ecus") or {}).items():
@@ -202,7 +202,7 @@ def check_references_on_every_car(
     is green. An issue found on some combinations names them in its message. Without
     such ECUs this is exactly :func:`check_references` on the definitions as written.
     """
-    from canlib.pids import load_raw_pids
+    from canlib.ecus.pids import load_raw_pids
     from canlib.variants import load_variants
     from canlib.variants.revisions import definitions_for, has_gates, reachable_combinations
 

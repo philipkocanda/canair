@@ -257,7 +257,7 @@ def logp(monkeypatch, tmp_path):
 
 def _ccm_pids(monkeypatch):
     """Decode logged snapshots with PIDS_DATA's CCM definitions."""
-    from canlib.pids import build_ecu_index
+    from canlib.ecus.pids import build_ecu_index
 
     pids = build_ecu_index(PIDS_DATA)["CCM"]["pids"]
     monkeypatch.setattr(

@@ -13,10 +13,10 @@ import termios
 import tty
 from pathlib import Path
 
+from canlib.ecus.pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
 from canlib.modes._iocontrol_actuate import ActuatorState, IOControlActuator, send_iocontrol
 from canlib.modes._iocontrol_render import _truncate_text, render_iocontrol
 from canlib.modes.status import format_status_value, query_param_status
-from canlib.pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
 from canlib.safety.actuation import on_refusal
 from canlib.transport.protocol import Terminal
 from canlib.tui import terminal_columns as _terminal_columns

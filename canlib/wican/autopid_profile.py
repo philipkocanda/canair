@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from dataclasses import dataclass, field
 
-from canlib.pids import pid_ships
+from canlib.ecus.pids import pid_ships
 from canlib.privacy.sensitive import param_sensitive
 from canlib.response_frames import stored_count
 from canlib.transport.elm327_addressing import (
