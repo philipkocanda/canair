@@ -146,6 +146,7 @@ source_modules = [
     "canlib.contribute_logs",
     "canlib.contribute_source",
     "canlib.contribute_summary",
+    "canlib.core",
     "canlib.dbc_repair",
     "canlib.did_families",
     "canlib.dtc",
@@ -226,6 +227,7 @@ source_modules = [
     "canlib.contribute_logs",
     "canlib.contribute_source",
     "canlib.contribute_summary",
+    "canlib.core",
     "canlib.dbc_repair",
     "canlib.did_families",
     "canlib.dtc",
@@ -307,6 +309,7 @@ source_modules = [
     "canlib.contribute_logs",
     "canlib.contribute_source",
     "canlib.contribute_summary",
+    "canlib.core",
     "canlib.dbc_repair",
     "canlib.did_families",
     "canlib.dtc",
@@ -391,6 +394,7 @@ source_modules = [
     "canlib.contribute_logs",
     "canlib.contribute_source",
     "canlib.contribute_summary",
+    "canlib.core",
     "canlib.dbc_repair",
     "canlib.did_families",
     "canlib.dtc",
@@ -487,21 +491,16 @@ ignore_imports = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "Transport does not import the WiCAN device package"
+name = "The WiCAN device API does not import the transport"
 type = "forbidden"
 source_modules = [
-    "canlib.transport",
+    "canlib.wican.api",
+    "canlib.wican.firmware",
+    "canlib.wican.mode",
 ]
-forbidden_modules = [
-    "canlib.wican",
-]
+forbidden_modules = ["canlib.transport"]
 allow_indirect_imports = true
-ignore_imports = [
-    "canlib.transport.config -> canlib.wican.api",
-    "canlib.transport.config -> canlib.wican.mode",
-    "canlib.transport.fallback -> canlib.wican.mode",
-    "canlib.transport.wican_terminal -> canlib.wican.api",
-]
+ignore_imports = []
 
 [[tool.importlinter.contracts]]
 name = "User config does not import the profile editor"
@@ -514,5 +513,83 @@ forbidden_modules = [
 ]
 allow_indirect_imports = true
 ignore_imports = [
-    "canlib.config -> canlib.yaml_edit.rt",
 ]
+
+[[tool.importlinter.contracts]]
+name = "The leaf package (core) imports nothing else from canlib"
+type = "forbidden"
+source_modules = ["canlib.core"]
+forbidden_modules = [
+    "canlib.actions",
+    "canlib.actuation",
+    "canlib.addressing",
+    "canlib.analysis",
+    "canlib.ansi",
+    "canlib.blind",
+    "canlib.build_info",
+    "canlib.can_buses",
+    "canlib.can_logs",
+    "canlib.captures",
+    "canlib.cli",
+    "canlib.commands",
+    "canlib.config",
+    "canlib.constants",
+    "canlib.contribute",
+    "canlib.contribute_logs",
+    "canlib.contribute_source",
+    "canlib.contribute_summary",
+    "canlib.dbc_repair",
+    "canlib.did_families",
+    "canlib.dtc",
+    "canlib.ecus",
+    "canlib.explorer",
+    "canlib.expression",
+    "canlib.first_run",
+    "canlib.formatting",
+    "canlib.frame_counts",
+    "canlib.grid_prompt",
+    "canlib.grid_regions",
+    "canlib.id_ranges",
+    "canlib.install_context",
+    "canlib.keepmode",
+    "canlib.lock",
+    "canlib.lock_watchdog",
+    "canlib.log",
+    "canlib.migrations",
+    "canlib.modes",
+    "canlib.physical_bands",
+    "canlib.pids",
+    "canlib.pii",
+    "canlib.poll_backoff",
+    "canlib.poll_schedule",
+    "canlib.profile",
+    "canlib.profile_create",
+    "canlib.profile_names",
+    "canlib.query",
+    "canlib.quirks",
+    "canlib.response_frames",
+    "canlib.safety",
+    "canlib.scan_presets",
+    "canlib.scan_state",
+    "canlib.sensitive",
+    "canlib.session_manager",
+    "canlib.signal_category",
+    "canlib.signals",
+    "canlib.states",
+    "canlib.stop_signals",
+    "canlib.textscan",
+    "canlib.timing",
+    "canlib.transport",
+    "canlib.tui",
+    "canlib.uds",
+    "canlib.unit_guess",
+    "canlib.update_check",
+    "canlib.validation",
+    "canlib.variants",
+    "canlib.wake",
+    "canlib.wican",
+    "canlib.yaml_edit",
+    "canlib.yaml_io",
+]
+allow_indirect_imports = true
+ignore_imports = []

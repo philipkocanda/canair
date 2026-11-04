@@ -35,6 +35,7 @@ from canlib.states import ALL_STATE, needs_yaml_quotes
 from .commit import write_atomic
 from .ecufile import clear_cache
 from .errors import EditError
+from .ruamel_ops import state_token
 
 if TYPE_CHECKING:
     from canlib.profile import Profile
@@ -122,8 +123,6 @@ def rewrite_flow_lists(text: str, old: str, new: str) -> tuple[str, int]:
 
 def _walk_state_lists(node: Any, old: str, new: str) -> int:
     """Swap ``old`` in place in every ``vehicle_states`` list under ``node``."""
-    from canlib.yaml_edit.rt import state_token
-
     count = 0
     if isinstance(node, dict):
         for key, value in node.items():
@@ -194,7 +193,7 @@ def _plan_captures(plan: StateRenamePlan, captures_dir: Path) -> None:
 def _plan_round_trip(plan: StateRenamePlan, path: Path) -> None:
     import io
 
-    from canlib.yaml_edit.rt import detect_sequence_indent, dump, round_trip_yaml
+    from canlib.core.yaml_rt import detect_sequence_indent, dump, round_trip_yaml
 
     if not path.is_file():
         return

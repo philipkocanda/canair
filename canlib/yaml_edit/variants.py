@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
+from canlib.core.yaml_rt import NOTE_WRAP_WIDTH, folded
 from canlib.variants import (
     BATTERY_FIELDS,
     PROFILE_OVERRIDE_FIELDS,
@@ -27,7 +28,6 @@ from canlib.variants import (
 
 from .doc import Target, edit_doc
 from .errors import EditError
-from .rt import NOTE_WRAP_WIDTH, folded
 from .ruamel_ops import find_key, flow_seq, place_in_order, remove_key, rename_key
 
 if TYPE_CHECKING:

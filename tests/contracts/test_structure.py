@@ -21,6 +21,7 @@ import ast
 import importlib.util
 import json
 import re
+import subprocess
 import sys
 import tomllib
 from pathlib import Path
@@ -126,10 +127,18 @@ def scan():
 
 
 def test_import_contracts_hold():
-    """Run ``lint-imports``: the layer and boundary contracts in pyproject.toml."""
-    from importlinter.cli import lint_imports
+    """Run ``lint-imports``: the layer and boundary contracts in pyproject.toml.
 
-    assert lint_imports(config_filename=str(REPO / "pyproject.toml")) == 0
+    In a subprocess: import-linter reconfigures logging and terminal state for the whole
+    process, which would leak into the tests that run after this one on the same worker.
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", "from importlinter.cli import lint_imports_command as m; m()"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_no_new_module_at_the_package_root(scan):

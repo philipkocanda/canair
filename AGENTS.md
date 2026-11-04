@@ -482,7 +482,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   the PID's defaults and note *first* and gives a signal its own value only where it differs
   (`""` to opt out of an inherited unit); `pids hoist-defaults --dry-run` must then report
   nothing. The seeding workflow is in the **reverse-engineer-signal** skill. Free-text `notes`
-  auto-format via `canlib/yaml_edit/rt.py` (short inline, long folded `>-`) — pass plain strings,
+  auto-format via `canlib/core/yaml_rt.py` (short inline, long folded `>-`) — pass plain strings,
   never hand-format block scalars.
 - **`canair signals`** — The domain-B analogue: view/edit the broadcast sidecar `signals/<bus>.yaml`
   (arbitration ID → named **linear** signals: start bit/length/byte order/signedness/scale/offset/

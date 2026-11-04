@@ -38,9 +38,9 @@ from typing import Any
 from canlib.analysis.stats import cramers_v, pearson, spearman
 from canlib.analysis.xanalysis import linear_fit
 from canlib.captures import io as capture_io
+from canlib.core import yaml_rt
 from canlib.expression.decode_value import decode_typed
 from canlib.uds.byteindex import payload_to_wican_bytes
-from canlib.yaml_edit import rt as yaml_rt
 
 from . import pids as pids_mod
 from .expression import evaluate_expression

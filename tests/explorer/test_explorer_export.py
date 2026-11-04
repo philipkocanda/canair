@@ -88,7 +88,7 @@ def test_every_source_line_contains_the_records_key(exported):
 
 def test_no_identity_values_are_exported(exported):
     root, data = exported
-    from canlib.yaml_edit.rt import round_trip_yaml
+    from canlib.core.yaml_rt import round_trip_yaml
 
     secrets: set[str] = set()
     for path in (root / "ecus").glob("*.yaml"):

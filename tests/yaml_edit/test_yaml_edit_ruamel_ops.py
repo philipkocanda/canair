@@ -7,8 +7,8 @@ import itertools
 
 import pytest
 
+from canlib.core.yaml_rt import dump, round_trip_yaml
 from canlib.yaml_edit import ruamel_ops as ops
-from canlib.yaml_edit.rt import dump, round_trip_yaml
 
 
 def _load(text: str):

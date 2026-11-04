@@ -112,7 +112,7 @@ def _plain_reads_back(token: str, *, as_key: bool) -> bool:
 
     The one "is it safe unquoted?" check behind key *and* value quoting. The
     project reads ECU files with two parsers — PyYAML (every runtime reader) and
-    ruamel's round-trip reader in YAML 1.1 mode (:func:`canlib.yaml_edit.rt.round_trip_yaml`,
+    ruamel's round-trip reader in YAML 1.1 mode (:func:`canlib.core.yaml_rt.round_trip_yaml`,
     used by ``canlib.yaml_edit.ecu``) — and they disagree on exponent-shaped hex:
     PyYAML keeps ``220E01`` a string, ruamel reads it as the float ``2200.0`` and
     warns on every load. A token is bare-safe only when *both* agree.
@@ -126,7 +126,7 @@ def _plain_reads_back(token: str, *, as_key: bool) -> bool:
     import yaml
     from ruamel.yaml.error import YAMLError as RuamelYAMLError
 
-    from canlib.yaml_edit.rt import round_trip_yaml
+    from canlib.core.yaml_rt import round_trip_yaml
 
     doc = f"{token}: x\n" if as_key else f"k: {token}\n"
     try:
@@ -166,12 +166,12 @@ def _yaml_reinterprets(value: str) -> bool:
 def _format_label(value: str, *, flow: bool = False) -> str:
     """Render a scalar value as a YAML line body that reads back as exactly ``value``.
 
-    Bare when safe, else double-quoted with escapes (:func:`canlib.yaml_edit.rt.double_quoted`)
+    Bare when safe, else double-quoted with escapes (:func:`canlib.core.yaml_rt.double_quoted`)
     — leading/trailing whitespace, line breaks and control characters included.
     ``flow`` is for an item inside a flow list (``[a, b]``), where ``,``/brackets
     end a bare item.
     """
-    from canlib.yaml_edit.rt import double_quoted
+    from canlib.core.yaml_rt import double_quoted
 
     if not value:
         return '""'
@@ -391,7 +391,7 @@ def _cut_block(text: str, start: int, end: int) -> str:
 
 def _format_scalar_field(indent: str, key: str, value) -> str:
     """Render one ``key: value`` scalar line with schema-appropriate quoting."""
-    from canlib.yaml_edit.rt import double_quoted
+    from canlib.core.yaml_rt import double_quoted
 
     if isinstance(value, bool):
         return f"{indent}{key}: {'true' if value else 'false'}"
@@ -401,17 +401,17 @@ def _format_scalar_field(indent: str, key: str, value) -> str:
 
 
 def _format_block_scalar(indent: str, key: str, value: str) -> list[str]:
-    """Render a free-text field per the shared note policy (canlib.yaml_edit.rt).
+    """Render a free-text field per the shared note policy (canlib.core.yaml_rt).
 
     A short single-line value stays an inline scalar (``key: value``); a longer
     or multi-line value becomes a folded ``key: >-`` block, word-wrapped at
     ~``NOTE_WRAP_WIDTH`` columns with its line breaks kept
-    (:func:`canlib.yaml_edit.rt.wrap_note_lines`). A value folding can't represent
-    exactly (:func:`canlib.yaml_edit.rt.note_foldable` — e.g. trailing whitespace or a
+    (:func:`canlib.core.yaml_rt.wrap_note_lines`). A value folding can't represent
+    exactly (:func:`canlib.core.yaml_rt.note_foldable` — e.g. trailing whitespace or a
     first line that starts indented) is written as a wrapped double-quoted scalar
     instead. Either way the field reads back as exactly ``value``.
     """
-    from canlib.yaml_edit.rt import (
+    from canlib.core.yaml_rt import (
         NOTE_WRAP_WIDTH,
         double_quoted_lines,
         note_foldable,

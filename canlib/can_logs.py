@@ -277,12 +277,12 @@ def import_log(
 def _append_index_entry(index_path: Path, entry: dict, *, replace_file: str | None = None) -> None:
     """Append (or replace, when re-importing) an entry in ``index.yaml``.
 
-    Comment-preserving via ``canlib.yaml_edit.rt`` so a hand-annotated index survives edits.
+    Comment-preserving via ``canlib.core.yaml_rt`` so a hand-annotated index survives edits.
     """
     from ruamel.yaml.comments import CommentedMap
 
-    from canlib.yaml_edit.rt import dump as _dump
-    from canlib.yaml_edit.rt import round_trip_yaml as _yaml
+    from canlib.core.yaml_rt import dump as _dump
+    from canlib.core.yaml_rt import round_trip_yaml as _yaml
 
     data = None
     if index_path.exists():

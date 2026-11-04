@@ -2,7 +2,7 @@
 
 import pytest
 
-from canlib.transport.errors import connect_error_detail
+from canlib.core.oserrors import connect_error_detail
 from canlib.wican import mode as wican_mode
 from canlib.wican.mode import (
     ModeError,

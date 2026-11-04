@@ -208,7 +208,7 @@ data itself is **`contributing-profiles`**.
   opens or writes the file itself, and never `del`s or rebuilds a ruamel mapping to remove or rename
   an entry: `ruamel_ops.remove_key`/`remove_item`/`rename_key` keep the comments around it. The
   command is `run_edit(lambda: editor(...), "confirmation")` from `commands/_edit.py`.
-- **Free-text fields render themselves** via one shared policy (`canlib/yaml_edit/rt.py`): short
+- **Free-text fields render themselves** via one shared policy (`canlib/core/yaml_rt.py`): short
   notes inline, longer ones a wrapped folded `>-` block (double-quoted when folding can't carry
   the text exactly), never reflowing the rest of the file. A new ruamel-written free-text field
   just needs adding to `canlib/yaml_edit/ecu.py::FREE_TEXT_FIELDS`.

@@ -203,7 +203,7 @@ def set_config_key(key: str, value) -> Path:
     """
     from ruamel.yaml.comments import CommentedMap
 
-    from canlib.yaml_edit.rt import dump, round_trip_yaml
+    from canlib.core.yaml_rt import dump, round_trip_yaml
 
     ensure_config_dir()
     path = user_config_file()
@@ -248,7 +248,7 @@ def unset_config_key(key: str) -> tuple[Path, bool]:
     Returns ``(path, removed)`` where ``removed`` is False if the key was
     absent. Comments and formatting are preserved.
     """
-    from canlib.yaml_edit.rt import dump, round_trip_yaml
+    from canlib.core.yaml_rt import dump, round_trip_yaml
 
     path = user_config_file()
     if not path.exists():

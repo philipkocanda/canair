@@ -101,8 +101,8 @@
     "canlib.yaml_edit.revisions": 560,
     "canlib.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 1174,
-  "import_linter_ignores": 13,
+  "deferred_internal_imports": 1171,
+  "import_linter_ignores": 8,
   "packages_without_charter": [
     "canlib.actions",
     "canlib.analysis",

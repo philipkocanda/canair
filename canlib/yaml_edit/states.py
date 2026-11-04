@@ -32,8 +32,8 @@ from canlib.states import (
 
 from .doc import Target, edit_doc
 from .errors import EditError
-from .rt import state_token as _token
 from .ruamel_ops import insert_item_before_last, place_in_order, remove_item
+from .ruamel_ops import state_token as _token
 
 if TYPE_CHECKING:
     from canlib.profile import Profile

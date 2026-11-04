@@ -3,8 +3,8 @@
 import errno
 import socket
 
+from canlib.core.oserrors import connect_error_detail
 from canlib.transport.errors import (
-    connect_error_detail,
     describe_transport_error,
     is_transport_error,
     transport_error_types,

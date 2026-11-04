@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING, Any
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from canlib import yaml_io
+from canlib.core import yaml_rt as rt
 
-from . import rt
 from .commit import commit_text, noop, resolve_validate
 from .errors import EditError
 

@@ -22,9 +22,9 @@ from canlib.actions import (
     parse_action,
     parse_actions_doc,
 )
+from canlib.core.yaml_rt import folded as _folded
 
 from .doc import Target, edit_doc
-from .rt import folded as _folded
 from .ruamel_ops import find_key, flow_map, flow_seq, remove_key
 
 if TYPE_CHECKING:

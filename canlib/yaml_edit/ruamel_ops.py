@@ -22,6 +22,7 @@ from typing import Any
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.error import CommentMark
+from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 from ruamel.yaml.tokens import CommentToken
 
 # ── builders and lookups ─────────────────────────────────────────────────────────────────────
@@ -278,3 +279,15 @@ def insert_item_before_last(parent: Any, key: Any, entry: CommentedMap) -> None:
     if rest:
         e_items, e_key, e_slot = _entry_tail(seq, last)
         _set_cell(e_items, e_key, e_slot, _make_token("\n" + rest))
+
+
+def state_token(token: str):
+    """A vehicle-state token as the round-trip dumper should write it.
+
+    A token YAML 1.1 reads as a boolean (``ON``, ``OFF``, ``YES``, ``NO``…) is
+    double-quoted; ruamel would otherwise pick single quotes, and the hand-written
+    files and the rename's line rewriter use double. Any other token stays plain.
+    """
+    from canlib.states import needs_yaml_quotes
+
+    return DoubleQuotedScalarString(token) if needs_yaml_quotes(token) else token

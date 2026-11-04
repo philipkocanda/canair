@@ -341,8 +341,8 @@ def _retag_dtc_log(profile: Profile, rewrite_entry) -> dict[Path, str]:
     Its entries carry the same ``revisions:`` tag a capture session does."""
     from io import StringIO
 
+    from canlib.core.yaml_rt import dump, round_trip_yaml
     from canlib.dtc.log import log_file
-    from canlib.yaml_edit.rt import dump, round_trip_yaml
 
     path = log_file(profile)
     if not path.exists():

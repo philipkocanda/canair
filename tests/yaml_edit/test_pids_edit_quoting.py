@@ -16,6 +16,7 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
+from canlib.core.yaml_rt import round_trip_yaml
 from canlib.yaml_edit import text as _text
 from canlib.yaml_edit.pids import (
     PidsEditError,
@@ -25,7 +26,6 @@ from canlib.yaml_edit.pids import (
     promote_discovery,
     update_routines_field,
 )
-from canlib.yaml_edit.rt import round_trip_yaml
 
 
 def _write(tmp_path: Path, body: str) -> Path:
@@ -156,7 +156,7 @@ class TestBothReadersCheck:
             def load(self, doc):
                 raise RuamelYAMLError("boom")
 
-        monkeypatch.setattr("canlib.yaml_edit.rt.round_trip_yaml", lambda: _Broken())
+        monkeypatch.setattr("canlib.core.yaml_rt.round_trip_yaml", lambda: _Broken())
         assert _text._needs_key_quoting("2101")
         assert _text._yaml_reinterprets("plain")
 

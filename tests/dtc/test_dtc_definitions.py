@@ -130,7 +130,7 @@ class TestValidation:
 
 
 def test_explorer_exports_codes_only(ecus_dir):
-    from canlib.yaml_edit.rt import round_trip_yaml
+    from canlib.core.yaml_rt import round_trip_yaml
 
     doc = round_trip_yaml().load(ECU)
     records = _dtc_records(doc["ESC"], "esc.yaml")

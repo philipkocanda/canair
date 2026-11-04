@@ -81,7 +81,7 @@ def find_by_tx(
     Requires parsing (``tx_id`` is a value, not a key), so an unparseable file is
     skipped rather than aborting the search.
     """
-    from canlib.yaml_edit.rt import round_trip_yaml
+    from canlib.core.yaml_rt import round_trip_yaml
 
     yaml = round_trip_yaml()
     for path in iter_ecu_files(dir_or_none, profile=profile):

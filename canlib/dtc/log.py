@@ -123,7 +123,7 @@ def write_log(data: Mapping, path: Path) -> Path:
     """Write a whole log document to ``path`` (creating its directory), with the header."""
     from ruamel.yaml.comments import CommentedMap
 
-    from canlib.yaml_edit.rt import dump
+    from canlib.core.yaml_rt import dump
 
     doc = data if isinstance(data, CommentedMap) else CommentedMap(data)
     if doc.get("format") != FORMAT:
@@ -239,7 +239,7 @@ def _append(section: str, entry: dict, path: Path | None = None) -> Path:
     entry = _with_tag(entry)
     from ruamel.yaml.comments import CommentedMap
 
-    from canlib.yaml_edit.rt import round_trip_yaml as _yaml
+    from canlib.core.yaml_rt import round_trip_yaml as _yaml
 
     p = log_path(path)
     data = None

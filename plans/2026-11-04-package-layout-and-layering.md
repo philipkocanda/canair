@@ -679,27 +679,34 @@ edits a module.
    structure`, a pre-commit hook and a CI step. The generator of section 9.2 waits until the
    packages have charters (phase 5), because there is nothing to generate it from yet.
 
-**Phase 1: cheap wins.**
+**Phase 1: cheap wins. DONE.**
 
-1. Reduce `canlib/__init__.py` to `__version__`. Rewrite the 23 importers of the root façade.
-2. Move tests into the mirror layout by current subject, plus `support/`, `integration/` and
-   `contracts/`. Switch pytest to `importlib` mode. Remove test-to-test imports.
-3. Group `scripts/`. Delete `canlib/pids_edit/`.
-4. Move the per-ECU log out of `SCRIPT_DIR/logs` into the config directory, beside the event log.
+1. `canlib/__init__.py` holds only `__version__`. Only six modules used a re-exported name.
+2. 254 of the 306 flat tests moved into `tests/<package>/`; `support/`, `integration/`,
+   `contracts/` and `scripts/` exist; pytest runs in `importlib` mode; no test imports another
+   test. The 50 tests of root modules stay flat until their module moves (a baseline list).
+3. `scripts/` is grouped into `gen/`, `check/`, `fetch/` and `research/`. The two states
+   migrations stay at the top level: making them `canair` commands is a user-facing addition and
+   waits for a decision. `canlib/pids_edit/` was an untracked leftover in the main checkout only.
+4. The per-ECU response logs go to `~/.config/canair/logs/ecu/`, beside the event log.
 
-**Phase 2: cut the wrong-way edges in place (no moves yet).** Each is small and independent.
+**Phase 2: cut the wrong-way edges in place (no moves yet).** Debt list 30 → 12 entries.
 
-1. Move the result-shape types (`ResultEntry`, `EcuFrame`) and `resolve_multi_did_max` out of
-   `modes/multi_batch.py` to the layer that `pids`, `states` and `formatting` can import.
-2. Validators out of `commands/validate/` into `validation/` (follow-ups plan Part A). This
-   removes the `yaml_edit` → `commands` edges.
-3. Remove the three `commands` → `cli.main` re-entries.
-4. Make `uds/` I/O-free: move the capture walk out of `uds/unsplit_batches.py`, the analysis import
-   out of `uds/support_map.py`, the `config` read out of `uds/notation.py`, and the byte mapping
-   from `wican/autopid_layout.py` down into `uds/`.
-5. Split the device registry out of `config.py` into a module that `transport/` and `wican/` both
-   read. This cuts the `wican.api` ↔ `transport.config` cycle.
-6. `config` stops importing `yaml_edit.rt` (move the round-trip helper it needs to `core/`).
+1. DONE. `ResultEntry`/`EcuFrame` live in `expression/results.py`, the batch-size policy in
+   `uds/multi_did.py`.
+2. DONE, with debt. The validators are in `validation/` and `commands/validate/` is only the
+   parser. Still open: the `_run_*` runners print and return exit codes from `validation/`;
+   `validation/pids.py` is 1,854 lines; `validation/pids.py` imports `yaml_edit` for one
+   constant while `yaml_edit` imports `validation/`. Action planning moved to `actions/plan.py`.
+3. OPEN. The three `commands` → `cli.main` re-entries (inside the interface layer, so no
+   contract depends on it).
+4. DONE. `uds/` reads no data store, config or transport. `unsplit_batches` moved to
+   `analysis/`, the marking rule to `uds/support_marks.py`, the byte mapping to
+   `uds/wican_layout.py`, `decode_uds_response` to `uds/describe.py`, and the `--notation` flag
+   helpers to `commands/_notation.py`.
+5. OPEN. The device registry split (4 `transport` → `wican` entries).
+6. DONE. `yaml_edit/rt.py` is `core/yaml_rt.py`, the first member of the leaf package; `config`
+   no longer imports `yaml_edit`.
 
 **Phase 3: remove the flag dispatch.** Replace `dispatch_mode` with a direct call per command. Give
 each operation an options dataclass. Remove `args.*` reads from `modes/` and `captures/dates.py`.

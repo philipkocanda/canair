@@ -416,7 +416,7 @@ IGPM:
 
 class TestIndentationPreserved:
     def test_detect_sequence_indent(self):
-        from canlib.yaml_edit.rt import detect_sequence_indent
+        from canlib.core.yaml_rt import detect_sequence_indent
 
         assert detect_sequence_indent("a:\n  0x1:\n    - x: 1\n") == (4, 2)
         assert detect_sequence_indent("scan_log:\n  0x770:  # IGPM\n    - s: 1\n") == (4, 2)

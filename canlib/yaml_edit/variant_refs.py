@@ -101,7 +101,7 @@ def _retag_yaml(path: Path, sections: tuple[str, ...], old: str, new: str) -> st
     """``path``'s text with every ``variant: old`` entry retagged, or None if unchanged."""
     from io import StringIO
 
-    from canlib.yaml_edit.rt import dump, round_trip_yaml
+    from canlib.core.yaml_rt import dump, round_trip_yaml
 
     if not path.exists():
         return None

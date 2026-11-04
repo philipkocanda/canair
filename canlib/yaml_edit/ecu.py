@@ -26,13 +26,14 @@ from pathlib import Path
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarint import HexCapsInt
 
+from canlib.core.yaml_rt import folded as _folded
+
 from .doc import Doc, Target, edit_doc
 from .ecufile import clear_cache, schema_validator
 from .errors import EditError
-from .rt import folded as _folded
-from .ruamel_ops import flow_seq, rename_key
+from .ruamel_ops import flow_seq, rename_key, state_token
 
-# Free-text ECU fields rendered per the shared note policy (canlib.yaml_edit.rt):
+# Free-text ECU fields rendered per the shared note policy (canlib.core.yaml_rt):
 # inline when short, else a wrapped folded block scalar. Kept in one place so a
 # new curated free-text field only needs adding here to gain the same treatment.
 FREE_TEXT_FIELDS = frozenset({"notes"})
@@ -75,7 +76,6 @@ def _flow_states(vehicle_states) -> CommentedSeq | None:
     Returns ``None`` for an empty/absent value so the caller omits the key.
     """
     from canlib.states import parse_states
-    from canlib.yaml_edit.rt import state_token
 
     toks = parse_states(vehicle_states)
     return flow_seq([state_token(t) for t in toks]) if toks else None

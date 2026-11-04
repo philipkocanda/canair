@@ -23,11 +23,11 @@ from pathlib import Path
 from typing import Any
 
 from canlib.addressing import resolve_mode, resolve_rx, resolve_rx_offset
+from canlib.core.yaml_rt import round_trip_yaml
 from canlib.dtc.definitions import split_section as split_dtc_section
 from canlib.ecus.files import iter_ecu_files
 from canlib.explorer.layout import layout_buses
 from canlib.pids import effective_param, pid_status
-from canlib.yaml_edit.rt import round_trip_yaml
 
 DEFAULT_BLOB_BASE = "https://github.com/philipkocanda/canair/blob/main/"
 

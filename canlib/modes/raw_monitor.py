@@ -119,7 +119,7 @@ async def run_raw_monitor(args, host: str, port: int, bitrate: int, pids_data: d
     try:
         client = build_raw_client(host, port, bitrate, ecus, args, pids_data)
     except OSError as e:
-        from ..transport.errors import connect_error_detail
+        from canlib.core.oserrors import connect_error_detail
 
         print(
             f"error: can't connect to the SLCAN port at {host}:{port} — {connect_error_detail(e)}",

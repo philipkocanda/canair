@@ -103,7 +103,7 @@ async def run_raw(args, transport, pids_data) -> int:
         return await _run_session(args, target, pids_data)
     finally:
         if getattr(args, "reboot", False):
-            from canlib.wican.api import reboot_after_session
+            from canlib.transport.reboot import reboot_after_session
 
             reboot_after_session(transport)
 
@@ -148,7 +148,7 @@ async def _run_session(args, target: SlcanTarget, pids_data) -> int:
         # The pre-flight check above should catch an unreachable port, but guard
         # the connect itself too (a race, or the port closing between probe and
         # connect) so a socket failure is a clean message, not a traceback.
-        from ..transport.errors import connect_error_detail
+        from canlib.core.oserrors import connect_error_detail
 
         print(
             f"error: can't connect to the SLCAN port at {host}:{port} — {connect_error_detail(e)}",

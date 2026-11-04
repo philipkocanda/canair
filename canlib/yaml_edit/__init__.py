@@ -2,7 +2,7 @@
 
 The ``canair`` authoring commands (``pids``, ``signals``, ``states``, ``groups``, ``variants``,
 ``action``, ``ecu``) call these editors; nothing else in canair rewrites a definition file. The
-package imports nothing at load time, so ``import canlib.yaml_edit.rt`` costs nothing extra.
+package imports nothing at load time, so ``import canlib.core.yaml_rt`` costs nothing extra.
 
 Mechanism, shared by every editor
     :mod:`.errors`      ``EditError``, the one error a rejected edit raises
@@ -10,7 +10,7 @@ Mechanism, shared by every editor
     :mod:`.doc`         ``Target`` and ``edit_doc``: open one section of one file (ruamel)
     :mod:`.targets`     the router: which file and section each kind of edit belongs to
     :mod:`.ruamel_ops`  comment-safe helpers on ruamel trees (rename, remove, place, flow lists)
-    :mod:`.rt`          how YAML is rendered: round-trip settings, notes, quoting
+    :mod:`canlib.core.yaml_rt`  how YAML is rendered: round-trip settings, notes, quoting
     :mod:`.text`        text-surgery primitives and the ``edit_ecu_text`` entry point
     :mod:`.ecufile`     finding an ECU's file; the schema check; the cache to drop
     :mod:`.echo`        the confirmation line every edit prints

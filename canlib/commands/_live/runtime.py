@@ -23,7 +23,7 @@ from canlib.modes.dispatch import run_session_guarded
 from canlib.pids import load_pids
 from canlib.stop_signals import graceful_stop
 from canlib.transport.protocol import Terminal
-from canlib.wican.api import reboot_after_session
+from canlib.transport.reboot import reboot_after_session
 
 from .connect import _print_sleep_banner, build_elm_reconnector, connect_elm_terminal
 

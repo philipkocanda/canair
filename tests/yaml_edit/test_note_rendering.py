@@ -1,7 +1,7 @@
-"""Tests for the shared free-text (notes) rendering policy (canlib.yaml_edit.rt).
+"""Tests for the shared free-text (notes) rendering policy (canlib.core.yaml_rt).
 
 Both writer subsystems — the text-based per-field editor (canlib.yaml_edit.text)
-and the ruamel round-trip writer (canlib.yaml_edit.ecu via canlib.yaml_edit.rt.folded) —
+and the ruamel round-trip writer (canlib.yaml_edit.ecu via canlib.core.yaml_rt.folded) —
 render notes the same way: inline when short, else a wrapped folded ``>-`` block
 that round-trips to the original text. These tests pin that policy at the seam.
 """
@@ -15,7 +15,7 @@ import yaml
 from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.scalarstring import FoldedScalarString
 
-from canlib.yaml_edit.rt import (
+from canlib.core.yaml_rt import (
     NOTE_WRAP_WIDTH,
     dump,
     folded,

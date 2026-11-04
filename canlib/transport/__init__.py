@@ -24,12 +24,7 @@ from .config import (
 )
 from .elm327_tcp import Elm327TcpTerminal
 from .elm327_terminal import Elm327Terminal
-from .errors import (
-    connect_error_detail,
-    describe_transport_error,
-    is_transport_error,
-    transport_error_types,
-)
+from .errors import describe_transport_error, is_transport_error, transport_error_types
 from .fallback import select_reachable_transport, wait_for_reachable
 from .protocol import Terminal
 from .raw_terminal import RawTerminal
@@ -54,7 +49,6 @@ __all__ = [
     "TransportSpec",
     "TransportType",
     "WebSocketChannel",
-    "connect_error_detail",
     "describe_transport_error",
     "format_slcan_frame",
     "is_transport_error",

@@ -203,8 +203,11 @@ class TestSnippetAndHighlight:
         assert snippet("a \n\t b  NEEDLE", (8, 14)) == "a b NEEDLE"
 
     def test_highlight_finds_a_match_whose_whitespace_was_collapsed(self, monkeypatch):
-        monkeypatch.setattr(ansi, "BOLD", "<b>")
-        monkeypatch.setattr(ansi, "RESET", "</b>")
+        # ansi.BOLD is served by a module __getattr__. setattr() would "restore" the gated value
+        # as a real attribute and shadow the gate for every later test on this worker, so patch
+        # the module dict, whose undo deletes the key again.
+        monkeypatch.setitem(ansi.__dict__, "BOLD", "<b>")
+        monkeypatch.setitem(ansi.__dict__, "RESET", "</b>")
         text = snippet("before two   spaces after", (7, 19))
         assert render._highlight(text, "two   spaces") == "'before <b>two spaces</b> after'"
 
