@@ -501,7 +501,7 @@ def saved_banner(capture_file: Path, n_captures: int) -> str:
     """
     banner = f"  \u2192 Saved {n_captures} capture(s) to {capture_file}"
     from canlib.install_context import snapshot_write_note
-    from canlib.sensitive import take_withheld_note
+    from canlib.privacy.sensitive import take_withheld_note
 
     notes = [n for n in (take_withheld_note(), snapshot_write_note(capture_file)) if n]
     return "\n".join([banner, *notes])
@@ -536,7 +536,7 @@ def save_session(
         captures_dir = active().captures_dir
     # The last gate before disk: a reply to a sensitive PID is never written,
     # whichever producer built the session (the journal applies the same rule).
-    from canlib import sensitive
+    from canlib.privacy import sensitive
 
     session = cast(
         CaptureSession,

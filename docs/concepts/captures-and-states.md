@@ -309,7 +309,7 @@ until the history is rewritten.
 
 A text row someone already redacted by hand is not a reply, so none of this
 applies to it. For now only one exact mask counts as redacted: the Ioniq VIN
-placeholder `KMHCXXXXXXXXXXXXX` (`REDACTED_VALUES` in `canlib/sensitive.py`). A row
+placeholder `KMHCXXXXXXXXXXXXX` (`REDACTED_VALUES` in `canlib/privacy/sensitive.py`). A row
 that also stores payload bytes is still sensitive.
 
 ## Journaling — you won't lose data

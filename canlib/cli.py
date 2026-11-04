@@ -374,7 +374,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     finally:
         # A save whose every row was withheld printed no banner to carry the note.
-        from canlib.sensitive import take_withheld_note
+        from canlib.privacy.sensitive import take_withheld_note
 
         if note := take_withheld_note():
             print(note, file=sys.stderr)

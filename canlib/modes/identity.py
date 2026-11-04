@@ -14,13 +14,13 @@ import asyncio
 import json
 import sys
 
+from canlib.privacy.sensitive import MASK, request_hidden
 from canlib.uds.echo import request_echo
 from canlib.uds.protocol import KWP, UDS
 from canlib.uds.response import UdsResponse
 
 from .. import ansi
 from ..ecus import ecu_display
-from ..sensitive import MASK, request_hidden
 from ..transport.protocol import Terminal
 from .discover_render import Painter
 from .identity_decode import (

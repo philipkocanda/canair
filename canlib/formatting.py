@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.text import Text
 
 from canlib.expression.decoding import ParamRow
-from canlib.sensitive import MASK
+from canlib.privacy.sensitive import MASK
 from canlib.uds.byteindex import extract_byte_indices, wican_to_elm_idx
 from canlib.uds.response import UdsResponse
 

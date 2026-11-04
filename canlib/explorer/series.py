@@ -27,7 +27,7 @@ from canlib.captures.link_events import SESSION_GAP_KINDS, session_link_events
 from canlib.captures.merge import session_anchor
 from canlib.expression.decoding import decode_param_rows
 from canlib.pids import load_pids, pid_status
-from canlib.sensitive import pid_sensitive
+from canlib.privacy.sensitive import pid_sensitive
 from canlib.states.spans import parse_time_key
 
 # Sessions with fewer numeric samples than this are not worth a plot and are left out.

@@ -195,7 +195,7 @@ def _check_captures(
     total_warnings = 0
     total_time_gaps = 0
     from canlib.captures.sensitive_purge import sensitive_findings
-    from canlib.sensitive import profile_set
+    from canlib.privacy.sensitive import profile_set
 
     sset = profile_set(prof)
     for path in files:

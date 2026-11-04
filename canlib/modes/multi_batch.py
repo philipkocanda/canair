@@ -244,7 +244,7 @@ def _decode_pid_result(
 
     With the request's ``target`` (its TX id, or the ECU's name), a reply to a
     sensitive PID is masked here, before anything renders or records it
-    (:func:`canlib.sensitive.mask_result`).
+    (:func:`canlib.privacy.sensitive.mask_result`).
     """
     entry: ResultEntry
     if pid_info:
@@ -269,7 +269,7 @@ def _decode_pid_result(
     if elapsed_ms is not None:
         entry["elapsed_ms"] = elapsed_ms
     if target is not None:
-        from canlib.sensitive import mask_result
+        from canlib.privacy.sensitive import mask_result
 
         mask_result(entry, target, pid_info)
     return entry

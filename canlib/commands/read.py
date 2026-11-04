@@ -95,7 +95,7 @@ def run(args) -> int:
         if args.save:
             print("Error: --reveal cannot be combined with --save", file=sys.stderr)
             return 2
-        from canlib.sensitive import set_reveal
+        from canlib.privacy.sensitive import set_reveal
 
         set_reveal(True)
     operation = LiveOperation(elm_only.handle_interactive)

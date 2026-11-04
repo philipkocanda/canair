@@ -41,7 +41,7 @@ from pathlib import Path
 
 from canlib.captures.merge import SessionReplacement
 from canlib.core.paths import GITHUB_REPO as UPSTREAM_REPO
-from canlib.sensitive import SensitiveSet
+from canlib.privacy.sensitive import SensitiveSet
 
 from .profile import member_names, members_by_role
 
@@ -600,7 +600,7 @@ def copy_profile(
 
     if include_captures:
         from canlib.captures.sensitive_purge import purge_dir
-        from canlib.sensitive import profile_set
+        from canlib.privacy.sensitive import profile_set
 
         sset = profile_set(profile)
         _overlay_captures(

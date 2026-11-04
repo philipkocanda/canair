@@ -165,7 +165,7 @@ class PidIndexEntry(TypedDict):
     snapshot_only: bool  # served only inside a DTC snapshot (see is_snapshot_only)
     snapshot_length: int | None  # the DID's data length in a snapshot record, when declared
     variable_length: bool  # the PID's replies legitimately vary in length (no one length)
-    sensitive: bool  # the PID's own `sensitive:` flag (signals carry theirs; canlib.sensitive)
+    sensitive: bool  # the PID's own `sensitive:` flag (signals carry theirs; privacy.sensitive)
 
 
 class EcuIndexEntry(TypedDict):
@@ -481,7 +481,7 @@ def build_param_index(pids_data: dict) -> dict:
 
     ``sensitive`` is the signal's effective flag: its own, or its PID's.
     """
-    from .sensitive import param_sensitive
+    from canlib.privacy.sensitive import param_sensitive
 
     index = {}
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():

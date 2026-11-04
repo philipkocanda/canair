@@ -3,11 +3,11 @@
 import json
 
 from canlib.expression.decoding import decode_param_rows
+from canlib.privacy.sensitive import mask_rows
 from canlib.uds.echo import request_echo
 
 from ..formatting import print_decoded_params
 from ..pids import build_param_index
-from ..sensitive import mask_rows
 from ..session_manager import SessionManager
 from ..transport.protocol import Terminal
 from .multi_exec import timed_exchange

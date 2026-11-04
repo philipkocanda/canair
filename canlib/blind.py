@@ -283,7 +283,7 @@ def strip_profile(src: Path, dst: Path, *, scrub_labels: bool = True) -> StripRe
     sandbox = Profile(dst.name, dst)
     # Before the definitions lose their signals (and so their signal-level flags).
     from canlib.captures.sensitive_purge import purge_dir
-    from canlib.sensitive import profile_set
+    from canlib.privacy.sensitive import profile_set
 
     purge_dir(sandbox.captures_dir, profile_set(sandbox))
     report = StripReport()

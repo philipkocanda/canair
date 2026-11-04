@@ -520,8 +520,8 @@ def cmd_set_sensitive(args: argparse.Namespace) -> int:
     echo_edit(f"{what} sensitive -> {state}", fpath)
     if value:
         from canlib.captures.sensitive_purge import purge_dir
+        from canlib.privacy.sensitive import profile_set
         from canlib.profile import active
-        from canlib.sensitive import profile_set
 
         found = sum(
             r.removed for r in purge_dir(active().captures_dir, profile_set(), dry_run=True)

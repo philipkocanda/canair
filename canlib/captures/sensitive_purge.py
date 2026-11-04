@@ -1,6 +1,6 @@
 """Remove stored replies to sensitive PIDs from capture files.
 
-Nothing writes one (:mod:`canlib.sensitive`), but a PID can be marked sensitive after
+Nothing writes one (:mod:`canlib.privacy.sensitive`), but a PID can be marked sensitive after
 it was recorded, and an older checkout or a hand-copied file can carry one in. This is
 the one rewrite that takes them out, shared by ``canair captures purge-sensitive``,
 ``contribute`` (which strips its staged copy whatever the source holds) and the
@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from canlib.captures import io as capture_io
-from canlib.sensitive import SensitiveSet
+from canlib.privacy.sensitive import SensitiveSet
 
 
 @dataclass(frozen=True)

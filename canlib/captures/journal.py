@@ -57,7 +57,7 @@ from canlib.captures.link_events import (
 )
 from canlib.captures.types import CaptureSession, Quality
 from canlib.keepmode import KEEP_CHANGES, KeepMode, PersistedKeepMode, parse_keep_mode
-from canlib.sensitive import SensitiveSet
+from canlib.privacy.sensitive import SensitiveSet
 
 JOURNAL_VERSION = 1
 JOURNAL_DIRNAME = ".journal"
@@ -150,7 +150,7 @@ class CaptureJournal:
         The gate sits here, not only in :func:`~canlib.captures.save_session`, because
         the journal is on disk from the first append and outlives a crash.
         """
-        from canlib import sensitive
+        from canlib.privacy import sensitive
 
         if self._sensitive is None:
             self._sensitive = sensitive.set_for_captures(self.captures_dir)

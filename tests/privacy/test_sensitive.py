@@ -1,4 +1,4 @@
-"""Sensitive PIDs and signals: masked on screen, never saved, never shared (canlib.sensitive)."""
+"""Sensitive PIDs and signals: masked on screen, never saved, never shared (canlib.privacy.sensitive)."""
 
 from __future__ import annotations
 
@@ -6,9 +6,10 @@ import json
 
 import pytest
 
-from canlib import profile, sensitive
+from canlib import profile
 from canlib.captures import io as capture_io
 from canlib.pids import build_ecu_index, clear_cache, load_pids
+from canlib.privacy import sensitive
 
 META = 'car_model: "T"\ninit: "ATSP6;"\n'
 

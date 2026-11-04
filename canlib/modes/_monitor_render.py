@@ -12,7 +12,7 @@ import time
 from rich.text import Text
 
 from canlib.expression.results import EcuFrame, ResultEntry
-from canlib.sensitive import MASK
+from canlib.privacy.sensitive import MASK
 from canlib.uds.notation import ByteDisplay, ByteNotation, subfunction_bytes_for_pid
 
 from ..formatting import (

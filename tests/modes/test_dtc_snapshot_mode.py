@@ -416,7 +416,7 @@ class TestSensitive:
     @pytest.mark.asyncio
     async def test_masked_not_logged_not_saved(self, logp, monkeypatch, capsys):
         from canlib.dtc import log as dtc_log
-        from canlib.sensitive import MASK
+        from canlib.privacy.sensitive import MASK
 
         saved = []
         monkeypatch.setattr("canlib.captures.save_session_journaled", saved.append)

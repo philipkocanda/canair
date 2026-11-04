@@ -15,7 +15,7 @@ def cmd_purge_sensitive(
     captures_dir: Path | None, *, dry_run: bool = False, yes: bool = False, as_json: bool = False
 ) -> int:
     from canlib.captures.sensitive_purge import purge_dir
-    from canlib.sensitive import set_for_captures
+    from canlib.privacy.sensitive import set_for_captures
 
     from . import layers
 

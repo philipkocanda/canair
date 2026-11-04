@@ -356,11 +356,11 @@ _noted_sensitive: list[int] = []
 def _hide_sensitive(entries: list[CaptureEntry], captures_dir: Path | None) -> list[CaptureEntry]:
     """``entries`` minus every reply to a sensitive PID, said once per process.
 
-    Nothing writes one any more (:mod:`canlib.sensitive`), but a PID marked
+    Nothing writes one any more (:mod:`canlib.privacy.sensitive`), but a PID marked
     sensitive after it was recorded still has history on disk. Leaving it out here
     keeps it off every analysis and display; ``captures purge-sensitive`` removes it.
     """
-    from canlib import sensitive
+    from canlib.privacy import sensitive
 
     sset = sensitive.set_for_captures(captures_dir)
     if not sset:

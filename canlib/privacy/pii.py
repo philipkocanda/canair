@@ -52,8 +52,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from canlib.core.textscan import has_data_vin, has_vin_token, looks_redacted
-
-from .profile import Profile
+from canlib.profile import Profile
 
 # ---------------------------------------------------------------------------
 # Sensitive identity identifiers
@@ -230,7 +229,7 @@ def _scan_ecus(profile: Profile) -> list[Finding]:
     ``--no-captures`` contribution — which is exactly the case the capture-only
     scan could never see.
     """
-    from .pids import load_pids
+    from canlib.pids import load_pids
 
     if not profile.ecus_dir.is_dir():
         return []

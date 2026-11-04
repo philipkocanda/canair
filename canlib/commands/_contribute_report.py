@@ -86,7 +86,7 @@ def unsplit_json(unsplit: list[Any]) -> list[dict[str, Any]]:
 
 
 def findings_json(findings: list[Any]) -> list[dict[str, str]]:
-    """The ``findings`` payload shape (see :mod:`canlib.pii`)."""
+    """The ``findings`` payload shape (see :mod:`canlib.privacy.pii`)."""
     return [{"location": f.location, "kind": f.kind, "detail": f.detail} for f in findings]
 
 

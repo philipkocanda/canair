@@ -1,4 +1,4 @@
-"""Editor for the ``sensitive:`` flag on a PID or one of its signals (:mod:`canlib.sensitive`).
+"""Editor for the ``sensitive:`` flag on a PID or one of its signals (:mod:`canlib.privacy.sensitive`).
 
 Same discipline as the other PID-level editors: a surgical text edit, a YAML re-parse, and a
 restore on any failure — the rest of the file is byte-for-byte untouched. ``true`` writes the

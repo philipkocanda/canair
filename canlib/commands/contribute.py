@@ -19,7 +19,7 @@ module owns the CLI surface and the actions; its collaborators own the rest:
 * :mod:`canlib.contribute` — the git/gh orchestration (device-free testable).
 * :mod:`canlib.contribute_source` — which of the source checkout's changes the
   contribution holds, so they can be dropped once the PR is open.
-* :mod:`canlib.pii` — the privacy scan the PII gate runs.
+* :mod:`canlib.privacy.pii` — the privacy scan the PII gate runs.
 
 The user-facing ``--help`` text is :data:`_DESCRIPTION`, deliberately separate
 from this docstring so internal structure never leaks into it.

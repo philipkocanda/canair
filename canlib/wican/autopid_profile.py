@@ -19,8 +19,8 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 
 from canlib.pids import pid_ships
+from canlib.privacy.sensitive import param_sensitive
 from canlib.response_frames import stored_count
-from canlib.sensitive import param_sensitive
 from canlib.transport.elm327_addressing import (
     AUTO,
     elm_id,

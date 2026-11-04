@@ -18,7 +18,7 @@ from canlib.dtc.snapshot import did_of_read
 from canlib.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canlib.expression.lint import firmware_grammar_problems, signed_low_bytes
 from canlib.pids import PID_STATUSES, effective_param, pid_ships, pid_status
-from canlib.sensitive import param_sensitive
+from canlib.privacy.sensitive import param_sensitive
 from canlib.signal_category import category_findings
 from canlib.uds.byteindex import wican_to_isotp
 from canlib.uds.support_map import SupportMapError
@@ -1820,7 +1820,7 @@ def _duplicate_param_errors(file_paths: list[Path]) -> list[str]:
                     if not isinstance(param, dict) or not param.get("enabled", True):
                         continue
                     if param_sensitive(pid_def, param):
-                        continue  # never shipped (canlib.sensitive)
+                        continue  # never shipped (canlib.privacy.sensitive)
                     where = f"{ecu_name} {pid_code}"
                     revs = owner_revisions(ecu_def, pid_def, param)
                     clash = next(

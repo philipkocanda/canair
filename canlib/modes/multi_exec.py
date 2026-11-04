@@ -16,6 +16,7 @@ from typing import Literal
 
 from canlib.core.eventlog import log_event
 from canlib.expression.results import ResultEntry
+from canlib.privacy.sensitive import MASK, request_hidden
 from canlib.query import QueryError, inferred_request, pids_named_by
 from canlib.safety.actuation import on_refusal
 from canlib.uds.describe import decode_uds_response
@@ -24,7 +25,6 @@ from canlib.uds.response import UdsResponse
 
 from ..formatting import print_ecu_results, print_hexdump
 from ..pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index, ecu_index_key
-from ..sensitive import MASK, request_hidden
 from ..session_manager import SessionManager
 from ..transport.elm327_terminal import Elm327Terminal
 from ._iocontrol_actuate import send_iocontrol

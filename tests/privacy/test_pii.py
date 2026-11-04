@@ -1,4 +1,4 @@
-"""Tests for the PII pre-flight scanner (:mod:`canlib.pii`)."""
+"""Tests for the PII pre-flight scanner (:mod:`canlib.privacy.pii`)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from canlib import pii
+from canlib.privacy import pii
 from canlib.profile import Profile
 
 

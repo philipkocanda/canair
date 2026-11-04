@@ -80,10 +80,10 @@ def live_reply_length(ecu: str, pid: str) -> int | None:
 def decode_did(snap: SnapshotDid, pids: Mapping[str, Mapping[str, Any]]) -> list[dict] | None:
     """The signals of ``snap``'s ``22<DID>`` PID decoded from its data, or None if undefined.
 
-    A sensitive signal's value is masked (:func:`canlib.sensitive.mask_rows`), like a live
+    A sensitive signal's value is masked (:func:`canlib.privacy.sensitive.mask_rows`), like a live
     read's.
     """
-    from canlib.sensitive import mask_rows
+    from canlib.privacy.sensitive import mask_rows
 
     pid_info = pids.get(read_pid(snap.did)) or {}
     parameters = pid_info.get("parameters") or {}
@@ -112,11 +112,11 @@ def snapshot_entries(
     ``signals`` is None for a DID the profile does not define. A record that could not be
     split completely also carries ``unresolved_did`` and the raw ``undecoded`` rest.
 
-    A record holding a sensitive DID (:mod:`canlib.sensitive`) is tagged ``sensitive``,
+    A record holding a sensitive DID (:mod:`canlib.privacy.sensitive`) is tagged ``sensitive``,
     which keeps it out of the DTC log and the captures, and unless revealed its raw bytes
     are masked on screen: the reply gives the value away.
     """
-    from canlib.sensitive import MASK, masked, pid_sensitive
+    from canlib.privacy.sensitive import MASK, masked, pid_sensitive
 
     dids = []
     hidden = False

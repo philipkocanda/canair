@@ -725,7 +725,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli.py
   profile is *copied* into a managed fork checkout (`~/.config/canair/contribute/canair/`), so it
   works whether the source is repo-bundled, in `~/.config/canair/profiles/`, or a `--path` bundle.
   Pipeline: `validate all` → **installed-snapshot guard** (the active profile came from a frozen
-  `site-packages`/`uv tool`/`pipx` copy) → **PII pre-flight** (`canlib/pii.py`) → **workspace
+  `site-packages`/`uv tool`/`pipx` copy) → **PII pre-flight** (`canlib/privacy/pii.py`) → **workspace
   self-collision guard** (hard-refuses, not `--yes`-overridable, when the active profile *is* the
   workspace's own copy) → **rollback guard** (the contribution would remove committed upstream
   definition lines, signalling a stale source) → branch → copy → commit → push → `gh pr create`.
@@ -844,7 +844,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   (an edited copy — never counted twice), and sorts chronologically **only when layered**, so
   single-layer results stay byte-identical. A reader that bypasses `load_all_captures` needs
   deciding per call site: `validation/captures.py` and `commands/coverage/` walk **both**
-  layers (a schema break or a payload in the base still matters); `canlib/pii.py` and
+  layers (a schema break or a payload in the base still matters); `canlib/privacy/pii.py` and
   `capture_migrate.py` intentionally stay on `captures_dir` (= the overlay, which is exactly what
   `contribute` ships and the only layer a migration may rewrite).
 - **Base captures are read-only**, enforced by `canlib/commands/captures/layers.py::refusal` in
@@ -906,7 +906,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   `canlib/dtc/snapshot.py`; plan `plans/2026-11-02-dtc-snapshots.md`. A PID or signal may be
   **`sensitive: true`** (`pids set-sensitive`): masked on screen, never journaled or saved, left
   out of `load_all_captures`, contribute, blind strip, explorer and AutoPID. The rule lives once
-  in `canlib/sensitive.py`; a new display or save path must go through it (`mask_result`,
+  in `canlib/privacy/sensitive.py`; a new display or save path must go through it (`mask_result`,
   `withhold`), never re-check the flag itself. Edit via `canair pids`/`ecu`;
   validate with `canair validate pids`.
 - **`profiles/<car>/captures/`** — Recorded UDS payloads, one **JSON** file per date
