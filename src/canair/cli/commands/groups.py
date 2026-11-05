@@ -180,11 +180,3 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 
 run = subcommand_dispatch("_groups_func", cmd_list)
-
-
-if __name__ == "__main__":
-    import sys as _sys
-
-    from canair.cli import main
-
-    _sys.exit(main(["groups", *_sys.argv[1:]]))

@@ -627,11 +627,3 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 
 run = subcommand_dispatch("_states_func", cmd_list)
-
-
-if __name__ == "__main__":
-    import sys as _sys
-
-    from canair.cli import main
-
-    _sys.exit(main(["states", *_sys.argv[1:]]))

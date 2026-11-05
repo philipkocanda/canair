@@ -18,10 +18,10 @@
     "canair.cli.commands.decode.one": 501,
     "canair.cli.commands.ecu": 1047,
     "canair.cli.commands.hunt": 750,
-    "canair.cli.commands.pids": 1565,
+    "canair.cli.commands.pids": 1557,
     "canair.cli.commands.profile": 691,
     "canair.cli.commands.scan": 618,
-    "canair.cli.commands.states": 637,
+    "canair.cli.commands.states": 629,
     "canair.cli.commands.wican": 873,
     "canair.config": 554,
     "canair.contribute": 935,
@@ -48,7 +48,7 @@
     "canair.yaml_edit.revisions": 560,
     "canair.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 1154,
+  "deferred_internal_imports": 1151,
   "import_linter_ignores": 0,
   "packages_without_charter": [
     "canair.cli.commands.coverage",

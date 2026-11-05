@@ -1555,11 +1555,3 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 def run(args) -> int:
     return args._pids_func(args)
-
-
-if __name__ == "__main__":
-    import sys
-
-    from canair.cli import main
-
-    sys.exit(main(["pids", *sys.argv[1:]]))
