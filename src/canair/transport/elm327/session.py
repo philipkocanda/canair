@@ -21,6 +21,7 @@ import sys
 from typing import TYPE_CHECKING
 
 from canair.transport import keepalive
+from canair.uds.requests import session_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import (
     DEFAULT_SESSION_REQUEST,
@@ -60,7 +61,7 @@ async def enter_extended_session(
         established; the caller owns cancelling the keepalive task.
     """
     mode = mode.upper().removeprefix("0X").zfill(2)
-    req = f"10{mode}"
+    req = session_request(mode)
     if wake:
         await _wake(terminal)
 

@@ -32,7 +32,7 @@
     "canair.live._monitor_render": 550,
     "canair.tui.apps.monitor": 1602,
     "canair.live.iocontrol": 745,
-    "canair.live.monitor": 1186,
+    "canair.live.monitor": 1170,
     "canair.live.multi_exec": 616,
     "canair.live.routines": 669,
     "canair.profile": 705,
@@ -47,7 +47,7 @@
     "canair.yaml_edit.revisions": 560,
     "canair.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 1146,
+  "deferred_internal_imports": 1144,
   "import_linter_ignores": 0,
   "packages_without_charter": [],
   "test_to_test_imports": [],

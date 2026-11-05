@@ -26,6 +26,7 @@ from typing import Final, Literal
 
 from canair.safety.blocklist import check_command_safety
 from canair.uds.protocol import KWP, UDS, DiagProtocol
+from canair.uds.requests import io_control_request
 from canair.uds.services import (
     DIAGNOSTIC_SESSION_CONTROL,
     INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
@@ -217,7 +218,7 @@ def default_release(request: str | bytes, protocol: DiagProtocol) -> str:
         return ""
     if io is None or io.service != INPUT_OUTPUT_CONTROL_BY_IDENTIFIER or protocol == KWP:
         return ""
-    return f"2F{io.identifier.hex().upper()}{_UDS_RETURN_CONTROL:02X}"
+    return io_control_request(int.from_bytes(io.identifier, "big"), _UDS_RETURN_CONTROL)
 
 
 def release_mismatch(on: str, release: str) -> str | None:

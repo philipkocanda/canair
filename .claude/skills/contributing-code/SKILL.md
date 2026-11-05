@@ -318,9 +318,11 @@ up** when a structural change is warranted instead of bolting on more.
   literal hides which one the code means, and grep cannot find its users. If the name you need
   does not exist, add it there. Literals stay where they *are* the data or the mask: the
   registry, NRC and sub-function tables, bit masks (`sub & 0x7F`), byte ranges, and test
-  payloads. `make structure` fails on any literal it finds outside `canair.uds`
-  (`scripts/check/protocol_literals.py` names the patterns; the history is
-  `plans/2026-11-05-named-protocol-constants.md`).
+  payloads. Build a session, I/O control, routine control or DTC-clear request with
+  `src/canair/uds/requests.py`, so a field that actuates reads as its name; read requests
+  (`f"22{did:04X}"`) stay hex templates. `make structure` fails on any literal it finds
+  outside `canair.uds` (`scripts/check/protocol_literals.py` names the patterns; the history
+  is `plans/2026-11-05-named-protocol-constants.md`).
 - **When incremental changes compound complexity, propose a redesign** before adding another layer —
   surfacing the tradeoff is part of the job even if the user declines.
 - Prefer plain functions over single-method classes; decompose god objects into focused

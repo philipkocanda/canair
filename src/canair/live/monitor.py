@@ -569,25 +569,9 @@ class MonitorController:
         self._ecu_index = build_ecu_index(self.pids_data)
 
         if self.raw:
-            # Raw backend: no ELM sessions/keepalive. Sessions (10 03) for ECUs
-            # that need them are opened best-effort before polling — but a mode
-            # the safety policy refuses aborts setup rather than being swallowed
-            # with the transport errors (the ELM path raises the same way).
-            from ..ecus.pids import ecu_index_key
-            from ..safety.blocklist import SafetyBlocked
-
+            # Raw backend: no ELM sessions/keepalive.
             assert self.raw_client is not None  # self.raw is True ⟺ raw_client was provided
-            for step in session_steps or []:
-                if step["type"] == "session":
-                    tgt = ecu_index_key(step["target"], self._ecu_index)
-                    if tgt is not None:
-                        mode = str(step.get("mode", "03")).upper().removeprefix("0X").zfill(2)
-                        blocked = self._session_check(tgt, mode)
-                        if blocked:
-                            raise SafetyBlocked(f"session {tgt} --mode {mode}: {blocked}")
-                        with contextlib.suppress(Exception):
-                            self.raw_client.read(tgt, bytes.fromhex(f"10{mode}"), timeout=1.0)
-                        self.sessions.record_opened(tgt, mode)
+            self.sessions.open_raw(session_steps)
             # Warm each ECU up: the first diagnostic request after idle is slow
             # (the ECU/gateway has to wake). Prime with one throwaway read per ECU
             # on a longer timeout so the first *monitored* cycle is already warm.

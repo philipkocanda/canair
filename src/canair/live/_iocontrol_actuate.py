@@ -24,12 +24,14 @@ from canair.ecus.pids import DEFAULT_IOCONTROL_SESSION_MODE
 from canair.safety.actuation import on_refusal, parse_io_request
 from canair.uds.nrc import nrc_abbrev
 from canair.uds.protocol import KWP
+from canair.uds.requests import io_control_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import (
     KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
     identifier_width,
     request_sid_of,
 )
+from canair.uds.subfunctions import IoControlParameter
 
 if TYPE_CHECKING:
     from ..transport.protocol import Terminal
@@ -318,8 +320,9 @@ class IOControlActuator:
             t._status = refusal
             _tui_logger.warning("ADJ %s refused: %s", did, refusal)
             return
-        did_hex = did.upper()
-        hex_cmd = f"2F{did_hex}03{value_bytes.hex().upper()}"
+        hex_cmd = io_control_request(
+            int(did, 16), IoControlParameter.SHORT_TERM_ADJUSTMENT, value_bytes
+        )
 
         t._busy = True
         t._status = f"Adjust: {did} → {hex_cmd}"

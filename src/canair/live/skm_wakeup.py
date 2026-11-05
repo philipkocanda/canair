@@ -25,12 +25,14 @@ from canair.uds.nrc import (
     is_response_pending,
 )
 from canair.uds.parse import reply_lines
+from canair.uds.requests import io_control_request
 from canair.uds.services import (
     DEFAULT_SESSION_REQUEST,
     EXTENDED_SESSION_REQUEST,
     INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
     positive_response_sid,
 )
+from canair.uds.subfunctions import IoControlParameter
 
 # SKM relay control DIDs
 SKM_RELAYS = {
@@ -41,7 +43,7 @@ SKM_RELAYS = {
 }
 
 # Magic bytes required for SKM IOControl ON
-SKM_MAGIC = "0A0A05"
+SKM_MAGIC = bytes.fromhex("0A0A05")
 
 _IO_CONTROL = INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
 
@@ -243,7 +245,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
 
     # Step 3: Send relay ON command
     await terminal.drain()
-    cmd = f"2F{did}03{SKM_MAGIC}"
+    cmd = io_control_request(int(did, 16), IoControlParameter.SHORT_TERM_ADJUSTMENT, SKM_MAGIC)
     print(f"  [3/4] Sending {desc} ON ({cmd})...")
     resp = await terminal.send_command(cmd, timeout=10.0)
 

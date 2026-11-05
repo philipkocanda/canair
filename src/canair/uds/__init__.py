@@ -11,6 +11,8 @@ re-deriving them:
 * :mod:`~canair.uds.nrc` — negative response code names, per protocol.
 * :mod:`~canair.uds.subfunctions` — the sub-function and control-parameter values of each
   service, and their names.
+* :mod:`~canair.uds.requests` — the byte layout of the session, I/O control, routine control
+  and DTC-clear requests canair sends.
 * :mod:`~canair.uds.obd` — OBD-II facts beyond the service table.
 * :mod:`~canair.uds.response` / :mod:`~canair.uds.parse` / :mod:`~canair.uds.echo` — the
   parsed-response shape and outcome taxonomy, reading a transport's reply into it, and the

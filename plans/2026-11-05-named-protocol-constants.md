@@ -135,8 +135,16 @@ text. Each got its own commit with a regression test; each commit body names wha
 - A later pass added two patterns: a hex literal passed to a keyword named for a protocol byte
   (`expected_sid=0x22`, `service=0x2F`), and requests into a standard session (`"1001"`,
   `"1003"`, `"1081"`-`"1085"`). Their sites read the registry names and the new
-  `DEFAULT_SESSION_REQUEST`/`EXTENDED_SESSION_REQUEST`. Requests built in an f-string
-  (`f"10{mode}"`, `f"2F{did:04X}00"`) are still not seen.
+  `DEFAULT_SESSION_REQUEST`/`EXTENDED_SESSION_REQUEST`.
+- Requests built in an f-string get **no scanner pattern** (decided 2026-11-05). Of 30 such
+  f-strings, one was an ISO-TP flow-control frame (`f"3000{…}"`), so the pattern would have
+  false positives, and naming the bytes of a read request (`f"22{did:04X}"`) makes it harder to
+  read without making it safer: echo validation catches a wrong SID, and the blocklist judges
+  every request. Instead `uds/requests.py` builds the requests whose fields matter: sessions
+  (`session_request`, six copies of `f"10{mode}"`), UDS and KWP2000 I/O control,
+  routine control and DTC clear. Two IOControl sites keep their templates for now, for lack of
+  room under their module size ceilings: `ecus/pids.py`'s implied release and
+  `yaml_edit/pids/hits.py`'s promoted `on`/`off`.
 - `_HKMC_PROGRAMMING_MODE` (`0x05`) stays in the blocklist: it is a Hyundai/Kia session, and
   make-specific values live with the code that handles the make.
 

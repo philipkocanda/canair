@@ -54,6 +54,7 @@ from canair.uds.nrc import (
     NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
     NRC_SUB_FUNCTION_NOT_SUPPORTED,
 )
+from canair.uds.requests import io_control_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
 from canair.uds.subfunctions import IoControlParameter
@@ -106,7 +107,7 @@ async def probe_iocontrol(
             f"Refusing to probe with sub-function 0x{sub_function:02X}; "
             f"only 0x00 returnControlToECU is safe for scanning."
         )
-    req = f"2F{did:04X}{sub_function:02X}"
+    req = io_control_request(did, sub_function)
     return await terminal.send_uds(
         req,
         timeout=2.0,

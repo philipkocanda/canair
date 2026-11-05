@@ -32,6 +32,7 @@ from canair.core.terminal import terminal_lines as _terminal_lines
 from canair.ecus.pids import RoutineIndexEntry, build_routines_index, load_pids
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import nrc_abbrev
+from canair.uds.requests import routine_control_request
 from canair.uds.services import ROUTINE_CONTROL
 from canair.uds.subfunctions import RoutineControlType, subfunction_name
 from canair.yaml_edit.pids import PidsEditError, update_routines_field
@@ -149,9 +150,8 @@ async def mode_routines_execute(
 ):
     """Execute a RoutineControl sub-function on a specific RID.
 
-    Defaults to REQUEST_ROUTINE_RESULTS (0x03 — safe read-only).
-    Pass sub_function=RoutineControlType.START_ROUTINE to send startRoutine; the caller is responsible
-    for confirming this is intentional.
+    Defaults to REQUEST_ROUTINE_RESULTS (0x03, read-only). START_ROUTINE sends startRoutine;
+    the caller is responsible for confirming that is intentional.
     """
     rindex = build_routines_index(pids_data)
     ecu_key = ecu_name.upper()
@@ -179,7 +179,7 @@ async def mode_routines_execute(
     sf_name = _sf_label(sub_function)
     label = rdef["label"] or rid_key
 
-    hex_cmd = f"31{sub_function:02X}{rid_key}"
+    hex_cmd = routine_control_request(sub_function, int(rid_key, 16))
 
     print(f"\n  {ecu_key} 0x{tx_id:03X} -- {label} ({rid_key}) -- {sf_name}")
     print(f"  Command: {hex_cmd}")
@@ -422,7 +422,7 @@ class _RoutinesTUI:
 
     async def _send_sf(self, rid: str, sub_function: int):
         """Send ``31 {SF} {RID_HI} {RID_LO}`` and update state."""
-        hex_cmd = f"31{sub_function:02X}{rid}"
+        hex_cmd = routine_control_request(sub_function, int(rid, 16))
         self._busy = True
         self._status = f"Sending {_sf_label(sub_function)}: {rid}..."
         _tui_logger.info("SF %s %s cmd=%s", _sf_label(sub_function), rid, hex_cmd)

@@ -33,6 +33,7 @@ from canair.safety.quirks import allowed_session_modes
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import NRC_SERVICE_NOT_SUPPORTED, NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION
 from canair.uds.protocol import KWP, classify_protocol
+from canair.uds.requests import session_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import DIAGNOSTIC_SESSION_CONTROL
 from canair.uds.subfunctions import SUBFUNCTION_NAMES, KwpSessionType, SessionType
@@ -90,7 +91,7 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
 
 async def probe_session(terminal: Terminal, mode: int) -> UdsResponse:
     """Send ``10 {mode}`` and return the parsed response (SID echo validated)."""
-    req = f"10{mode:02X}"
+    req = session_request(mode)
     return await terminal.send_uds(req, timeout=3.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL)
 
 

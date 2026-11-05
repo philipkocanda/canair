@@ -54,6 +54,7 @@ from canair.uds.addressing import (
 from canair.uds.frame_counts import FrameCountLedger, frames_for_payload
 from canair.uds.nrc import is_response_pending
 from canair.uds.parse import parse_uds_response
+from canair.uds.requests import session_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import DEFAULT_SESSION_REQUEST, TESTER_PRESENT_REQUEST
 
@@ -272,7 +273,7 @@ class RawTerminal:
         if wake:
             await self.send_uds(DEFAULT_SESSION_REQUEST, timeout=3.0)
             await asyncio.sleep(0.3)
-        resp = await self.send_uds(f"10{mode}", timeout=3.0)
+        resp = await self.send_uds(session_request(mode), timeout=3.0)
         if resp.get("ok"):
             print(f"  Session (10 {mode}) established.")
         elif resp.get("nrc") is not None:

@@ -31,6 +31,7 @@ import time
 from canair.ecus.wake import WakePlan
 from canair.transport import keepalive
 from canair.transport.protocol import Terminal
+from canair.uds.requests import session_request
 from canair.uds.services import (
     DEFAULT_SESSION_REQUEST,
     DIAGNOSTIC_SESSION_CONTROL,
@@ -160,7 +161,7 @@ class SessionManager:
         if wake_plan is not None and wake_plan.session_mode:
             mode = wake_plan.session_mode
         mode = mode.upper().removeprefix("0X").zfill(2)
-        req = f"10{mode}"
+        req = session_request(mode)
         await self.terminal.set_header(tx_id)
 
         if not wake and not force and tx_id in self._sessions:

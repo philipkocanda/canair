@@ -47,6 +47,7 @@ from canair.uds.nrc import (
     NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
     NRC_SUB_FUNCTION_NOT_SUPPORTED,
 )
+from canair.uds.requests import routine_control_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import ROUTINE_CONTROL
 from canair.uds.subfunctions import RoutineControlType
@@ -84,7 +85,7 @@ async def probe_routine(
     sub_function: int = RoutineControlType.REQUEST_ROUTINE_RESULTS,
 ) -> UdsResponse:
     """Send ``31 {SF} {RID_HI} {RID_LO}`` and return the parsed response."""
-    req = f"31{sub_function:02X}{rid:04X}"
+    req = routine_control_request(sub_function, rid)
     return await terminal.send_uds(req, timeout=2.0)
 
 

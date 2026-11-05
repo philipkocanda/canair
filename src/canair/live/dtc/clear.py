@@ -7,6 +7,7 @@ import json
 
 from canair.render import ansi
 from canair.uds.protocol import KWP
+from canair.uds.requests import clear_dtc_request
 from canair.uds.services import CLEAR_DIAGNOSTIC_INFORMATION
 
 from ...ecus import ecu_display
@@ -63,12 +64,7 @@ async def mode_dtc_clear(
                 pre_snapshots = logged_snapshots(pre["dtcs"])
             await terminal.set_header(tx_id)
 
-        if proto == KWP:
-            g = group & 0xFFFF
-            cmd = f"14{g:04X}"
-        else:
-            g = group & 0xFFFFFF
-            cmd = f"14{g:06X}"
+        cmd = clear_dtc_request(group, kwp=proto == KWP)
 
         if not as_json:
             print(f"\n  DTC clear: {ecu_display(tx_id)}")
@@ -82,7 +78,7 @@ async def mode_dtc_clear(
             "ecu": ecu_display(tx_id),
             "protocol": proto,
             "command": cmd,
-            "group": f"0x{g:0{4 if proto == 'kwp' else 6}X}",
+            "group": f"0x{cmd[2:]}",  # the group as sent, after the SID
         }
         if response["ok"]:
             if log:

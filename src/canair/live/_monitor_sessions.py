@@ -21,7 +21,12 @@ here as ``raw_modes``: ECU name (upper) -> last-opened ``10 xx`` sub-function.
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING
+
+from canair.ecus.pids import ecu_index_key
+from canair.safety.blocklist import SafetyBlocked
+from canair.uds.requests import session_request
 
 if TYPE_CHECKING:
     from .monitor import MonitorController
@@ -41,6 +46,28 @@ class MonitorSessions:
         # ..pids.build_sessions_index). Backs the picker's "known-good"
         # suggestions; rebuilt lazily after a PID reload.
         self._index: dict | None = None
+
+    def open_raw(self, session_steps: list[dict] | None) -> None:
+        """Open the sessions (``10 03``) the steps ask for on the raw backend, before polling.
+
+        Best-effort: a transport error is swallowed. A mode the safety policy refuses raises
+        :class:`SafetyBlocked` and aborts setup instead, as the ELM path does.
+        """
+        c = self.c
+        assert c.raw_client is not None and c._ecu_index is not None  # set by setup()
+        for step in session_steps or []:
+            if step["type"] != "session":
+                continue
+            tgt = ecu_index_key(step["target"], c._ecu_index)
+            if tgt is None:
+                continue
+            mode = str(step.get("mode", "03")).upper().removeprefix("0X").zfill(2)
+            blocked = self.check(tgt, mode)
+            if blocked:
+                raise SafetyBlocked(f"session {tgt} --mode {mode}: {blocked}")
+            with contextlib.suppress(Exception):
+                c.raw_client.read(tgt, bytes.fromhex(session_request(mode)), timeout=1.0)
+            self.record_opened(tgt, mode)
 
     def invalidate_index(self) -> None:
         """Drop the cached sessions index (rebuilt lazily on next access)."""
@@ -146,7 +173,7 @@ class MonitorSessions:
         if c.raw:
             assert c.raw_client is not None  # c.raw ⟺ raw_client was provided
             try:
-                c.raw_client.read(ecu, bytes.fromhex(f"10{mode}"), timeout=2.0)
+                c.raw_client.read(ecu, bytes.fromhex(session_request(mode)), timeout=2.0)
             except Exception as exc:
                 return f"{ecu}: session switch failed ({exc})"
             self.raw_modes[ecu] = mode

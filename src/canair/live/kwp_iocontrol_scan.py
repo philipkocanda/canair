@@ -63,6 +63,7 @@ from canair.uds.nrc import (
     NRC_SECURITY_ACCESS_DENIED,
     NRC_SERVICE_NOT_SUPPORTED,
 )
+from canair.uds.requests import kwp_io_control_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER
 from canair.uds.subfunctions import KwpIoControlParameter
@@ -121,7 +122,7 @@ async def probe_kwp_iocontrol(
             f"Refusing to probe with IOCP 0x{iocp:02X}; the scanner only sends 0x00 "
             "(returnControlToECU under SSF 14230-3)."
         )
-    return await _send_probe(terminal, lid, f"{iocp:02X}")
+    return await _send_probe(terminal, lid, bytes([iocp]))
 
 
 async def probe_nissan_iocontrol(terminal: Terminal, lid: int) -> UdsResponse:
@@ -130,14 +131,14 @@ async def probe_nissan_iocontrol(terminal: Terminal, lid: int) -> UdsResponse:
     Value ``00`` is the one that means "nothing" or "off" in Nissan's other
     functions, so even an ECU that misread the function byte would not actuate.
     """
-    return await _send_probe(terminal, lid, f"{NISSAN_FN_QUERY_SUPPORTED:02X}00")
+    return await _send_probe(terminal, lid, bytes([NISSAN_FN_QUERY_SUPPORTED, 0x00]))
 
 
-async def _send_probe(terminal: Terminal, lid: int, tail: str) -> UdsResponse:
+async def _send_probe(terminal: Terminal, lid: int, option: bytes) -> UdsResponse:
     if not 0 <= lid <= 0xFF:
         raise ValueError(f"KWP2000 local identifier must be a single byte, got 0x{lid:X}")
     resp = await terminal.send_uds(
-        f"30{lid:02X}{tail}",
+        kwp_io_control_request(lid, option),
         timeout=2.0,
         expected_sid=KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
     )
