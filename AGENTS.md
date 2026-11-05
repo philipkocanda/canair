@@ -347,9 +347,10 @@ and **`g`/`G` address the view's primary axis**.
   **The default list view is capped at `--limit N` (default 50) with a loud footer** for hidden
   history, so a bare query can't blow the context window; widen with `--limit 0` or scope tighter.
   Mutating modes: `--delete` (refuses a bare `--delete`, previews with `--dry-run`, confirms unless
-  `--yes`), `--backfill-states` (offline state inference, `src/canair/states/infer.py`; fills unset
-  states and *reports* contradicted ones unless `--overwrite`), `--set-state` (manual counterpart —
-  **requires** a scope filter so it can't blanket-relabel history),
+  `--yes`), `--backfill-states` (offline state inference,
+  `src/canair/captures/state_inference.py`; fills unset states and *reports* contradicted ones
+  unless `--overwrite`), `--set-state` (manual counterpart — **requires** a scope filter so it
+  can't blanket-relabel history),
   `--set-notes`/`--set-transport`/`--set-variant` (correct a session's notes, recorded transport or
   car, same scope rule — the global `--variant untagged` counts as one; one editor in
   `cli/commands/captures/session_fields.py`, and every `--set-*` shares

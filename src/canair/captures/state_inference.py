@@ -7,7 +7,8 @@ back-fill (:mod:`canair.live._monitor_record`), for sessions recorded before
 that existed or with a missing/incorrect state.
 
 Nothing here talks to the device; it is pure analysis over ``captures/`` (like
-:mod:`canair.analysis.align`). A capture existing *is* a response, so ``responded`` is
+:mod:`canair.analysis.align`), and it sits in the store because every save annotates the new
+session with its state timeline (:func:`canair.captures.annotate_session_spans`). A capture existing *is* a response, so ``responded`` is
 ``None`` (unobservable) — a predicate using ``__no_response__`` / ``__responded__``
 cleanly abstains (evaluates to :data:`canair.states.UNKNOWN`) rather than firing
 on absent evidence.

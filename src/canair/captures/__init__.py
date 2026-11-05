@@ -1,8 +1,8 @@
 """The capture store: saving (here), the file format, reading back, journal and merge driver.
 
-Belongs: appending captures to per-date JSON files, their format, store, journal, merge driver.
-Not here: computing over captures (``analysis/``), the DTC log (``dtc/``) and flag parsing.
-Imports: ``states``, ``uds``, ``privacy`` and ``core``.
+Belongs: per-date capture files: format, store, journal, merge driver, saved state timelines.
+Not here: other computing over captures (``analysis/``), the DTC log (``dtc/``), flag parsing.
+Imports: the definitions (``states``, ``ecus``, ``variants``, ``profile``, ``privacy``) and below.
 """
 
 from collections.abc import Sequence
@@ -755,7 +755,7 @@ def annotate_session_spans(
 
     Called right after a session lands on disk, so a recording is queryable at
     per-capture state resolution without a manual back-fill. It reconstructs the
-    timeline from the *saved payloads* (:func:`canair.states.infer.session_state_spans`)
+    timeline from the *saved payloads* (:func:`canair.captures.state_inference.session_state_spans`)
     rather than from what the monitor happened to suggest per cycle — the same
     single model ``--backfill-state-spans`` uses, on strictly better evidence
     (every decoded signal, not just the ones the live suggester had fresh).
@@ -766,10 +766,10 @@ def annotate_session_spans(
     just saved, so the session simply keeps its state union.
     """
     try:
+        from canair.captures.state_inference import DEFAULT_CYCLE_TOL_S, session_state_spans
         from canair.captures.store import flatten_session
         from canair.ecus.pids import build_ecu_index, load_pids
         from canair.states import load_states
-        from canair.states.infer import DEFAULT_CYCLE_TOL_S, session_state_spans
 
         data = capture_io.load_capture_file(fpath)
         sessions = data.get("sessions") or []

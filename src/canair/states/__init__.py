@@ -39,8 +39,8 @@ Evaluation is three-valued (Kleene): a sub-expression on an unavailable paramete
 :data:`UNKNOWN`, not ``False``, so a rule is suggested only on positive evidence.
 
 Belongs: the state vocabulary, ``when:`` predicates (Kleene logic) and suggestion.
-Not here: editing ``vehicle_states.yaml`` (``yaml_edit/``) and state inference from captures.
-Imports: ``core`` and ``expression``.
+Not here: edits (``yaml_edit/``) and inference from captures (``captures/state_inference.py``).
+Imports: ``expression`` and ``core``; ``refs`` also reads ``ecus``, ``variants`` and ``profile``.
 """
 
 from __future__ import annotations

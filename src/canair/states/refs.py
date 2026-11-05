@@ -18,7 +18,7 @@ It answers two questions:
   rename-param`` / ``rm-param``).
 
 Resolution mirrors how the decoded value map is actually keyed at evaluation time
-(``canair.states.infer._decode_cycle`` and ``canair.states.collect_values``):
+(``canair.captures.state_inference._decode_cycle`` and ``canair.states.collect_values``):
 ``ECU`` is the **canonical** ECU short name, upper-cased; ``PARAM`` is the
 ``parameters:`` key **verbatim**; and only *numeric* values are ever stored. A
 reference that deviates on any of those axes silently never resolves, so each is

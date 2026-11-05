@@ -2,7 +2,7 @@
 
 The loader, PID-definition resolution and decode preview used to live beside the
 ``captures`` command, which forced :mod:`canair.analysis.align`, :mod:`canair.captures.dates`
-and :mod:`canair.states.infer` to import *up* into ``canair.cli.commands`` (with lazy
+and :mod:`canair.captures.state_inference` to import *up* into ``canair.cli.commands`` (with lazy
 in-function imports to dodge the resulting cycle). They are library concerns; these
 tests cover them directly, and :class:`TestLayering` keeps the inversion from
 coming back.

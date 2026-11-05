@@ -3,7 +3,7 @@
 The data layer under every capture-consuming surface. It lives in the library, not
 beside the ``captures`` command, because non-command modules need it too:
 :mod:`canair.analysis.align` and :mod:`canair.captures.dates` load entries, and
-:mod:`canair.states.infer` resolves PID definitions. Those previously imported *up*
+:mod:`canair.captures.state_inference` resolves PID definitions. Those previously imported *up*
 into ``commands/captures/`` — a layering inversion the lazy in-function imports
 were working around.
 

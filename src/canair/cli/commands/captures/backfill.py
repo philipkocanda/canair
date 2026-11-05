@@ -1,7 +1,7 @@
 """``canair captures uds --backfill-states`` — offline state inference back-fill.
 
 Infers each session's ``vehicle_states`` from its decoded captures (see
-:mod:`canair.states.infer`) and writes them back into ``captures/`` via the
+:mod:`canair.captures.state_inference`) and writes them back into ``captures/`` via the
 session-level state writer. By default it only *fills* sessions that have no
 recorded state; a session whose recorded state contradicts the decoded evidence
 is reported but left untouched unless ``--overwrite`` is given.
@@ -17,13 +17,13 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from canair.captures.store import entry_path
-from canair.states import parse_states
-from canair.states.infer import (
+from canair.captures.state_inference import (
     DEFAULT_CYCLE_TOL_S,
     SessionInference,
     infer_session_states,
 )
+from canair.captures.store import entry_path
+from canair.states import parse_states
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
