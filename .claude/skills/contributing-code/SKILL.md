@@ -221,7 +221,7 @@ data itself is **`contributing-profiles`**.
   just needs adding to `src/canair/yaml_edit/ecu.py::FREE_TEXT_FIELDS`.
 - `profiles/*/captures/*.json` are written by the `--save` path, never by hand, and are
   **append-only** logs unioned by canair's git merge driver. If you touch the on-disk format, keep
-  `src/canair/captures_merge.py` aligned with `src/canair/capture_io.py`.
+  `src/canair/captures/merge.py` aligned with `src/canair/captures/io.py`.
 - `profiles/*/out/*.json` is generated — regenerate (`uv run python scripts/gen/gen_autopid.py` writes
   both the verified-only and the `-unverified` build of every bundled car), never hand-edit.
 - Schemas are tool-owned in `src/canair/schema/`; validate with `canair validate`.
@@ -286,7 +286,7 @@ tree is a **security incident**: flag it (history purge, key rotation), don't de
 - **Analysis tests must not read an unbounded capture range** — `captures/` grows with every
   `--save`, so scope to a frozen date or a fixture profile, or the test gets slower forever and
   eventually breaks (`tests/integration/test_analysis_golden.py::test_cases_cannot_drift_as_captures_grow`).
-- Cross-cutting policy gets its own test module (e.g. `tests/test_safety.py`).
+- Cross-cutting policy gets its own test module (e.g. `tests/safety/test_safety.py`).
 
 ## Refactor proactively — no monoliths
 

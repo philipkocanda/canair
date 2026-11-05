@@ -868,19 +868,19 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   `ProfileError`, which `src/canair/cli/__init__.py` already turns into `error: …` + exit 2, so no command
   handles it.
 - **Reads span layers, writes do not.** `src/canair/captures/io.py::resolve_capture_layers` is the read
-  seam; `capture_store.load_all_captures` iterates it, dedupes sessions across layers by
-  `captures_merge.session_key` (base wins, so a contributed-then-pulled session stays read-only),
+  seam; `src/canair/captures/store.py::load_all_captures` iterates it, dedupes sessions across layers by
+  `src/canair/captures/merge.py::session_key` (base wins, so a contributed-then-pulled session stays read-only),
   lets an overlay copy sharing a base session's `session_anchor` but not its content supersede it
   (an edited copy — never counted twice), and sorts chronologically **only when layered**, so
   single-layer results stay byte-identical. A reader that bypasses `load_all_captures` needs
   deciding per call site: `validation/captures.py` and `cli/commands/coverage/` walk **both**
   layers (a schema break or a payload in the base still matters); `src/canair/contribute/pii.py` and
-  `capture_migrate.py` intentionally stay on `captures_dir` (= the overlay, which is exactly what
+  `src/canair/migrations/captures.py` intentionally stay on `captures_dir` (= the overlay, which is exactly what
   `contribute` ships and the only layer a migration may rewrite).
 - **Base captures are read-only**, enforced by `src/canair/captures/layers.py::refusal` in
   `--delete`/the `--set-*` editors/`--backfill-states` and in the `captures uds --step` TUI.
   `--dry-run` still previews. Tombstones and copy-on-write were rejected: a session has no id —
-  **its identity is its content**, plus an **anchor** (`captures_merge.session_anchor`: date,
+  **its identity is its content**, plus an **anchor** (`src/canair/captures/merge.py::session_anchor`: date,
   label, version, first capture's time/rx/pid — the fields no editor or repair rewrites) that
   pairs an edited copy with its original in the merge driver, the contribute overlay and the
   layered read. A new editor must keep the anchor fields intact. `read_only_files` returns `[]`
@@ -947,7 +947,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   **On disk, repeated polls are folded** (a poll repeating its PID's previous payload becomes a
   millisecond gap in the run's first row, `repeat_ms`/`repeat_inline_ms`;
   `src/canair/captures/folding.py`) and each capture and each `state_spans` span is one line; loading
-  expands every fold back, so only `capture_io.parse_capture_text`/`capture_text` ever see it —
+  expands every fold back, so only `src/canair/captures/io.py::parse_capture_text`/`capture_text` ever see it —
   **never `json.loads` a capture file directly**. Folding is lossless, row order included, and
   every write applies it; `canair captures compact` converts files nothing has rewritten since.
   Schema `src/canair/schema/captures_schema.json` (format-agnostic, validates the parsed structure) with
@@ -963,7 +963,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   **Every `--save` path records `transport` from the live client**
   (`src/canair/transport/stats.py::client_transport`), never by re-resolving config — that ignored
   `--transport`/`--wican` and fallback, and mislabelled real sessions.
-  Read it via `capture_io.capture_rx` (tolerates the legacy key) and rename old files with `captures
+  Read it via `src/canair/captures/io.py::capture_rx` (tolerates the legacy key) and rename old files with `captures
   migrate-rx`. Optional **`elapsed_ms`** is the wall-clock UDS round-trip (transport + ECU, a
   *relative* speed signal), recorded **only for single per-DID reads** on the live `read` path and
   comparable only within one session's `transport`. **Truncated multi-frame reads are rejected at
