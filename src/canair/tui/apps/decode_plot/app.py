@@ -1,6 +1,6 @@
 """Textual TUI for ``canair decode --plot`` — the interactive signal explorer.
 
-Wraps a :class:`~canair.tui.apps.decode_plot_model.PlotModel` (which owns all state
+Wraps a :class:`~canair.tui.apps.decode_plot.model.PlotModel` (which owns all state
 and produces the ANSI-colored frame) in a Textual app, so it shares the look and
 feel of the query monitor / sniff TUIs and inherits the shared ``?`` help modal.
 
@@ -36,7 +36,7 @@ from canair.tui.scroll import APP_BASE_CSS
 from canair.tui.status import P_ESSENTIAL, P_LOW, P_NORMAL, StatusBar, hint_item
 
 if TYPE_CHECKING:
-    from canair.tui.apps.decode_plot_model import PlotModel
+    from canair.tui.apps.decode_plot.model import PlotModel
 
 # Callback: (ecu, pid) -> a fresh PlotModel, or None if it can't be built.
 ReloadFn = Callable[[str, str], "PlotModel | None"]

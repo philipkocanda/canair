@@ -26,6 +26,7 @@ print(json.dumps(sorted(sys.modules)))
 CASES = [
     ("canair.live.monitor.schedule", ("canair.live",), ("textual",)),
     ("canair.live.scan.presets", ("canair.live",), ("textual",)),
+    ("canair.tui.apps.decode_plot.model", ("canair.tui.apps.decode_plot.app",), ("textual",)),
 ]
 
 
@@ -43,7 +44,9 @@ def test_the_module_loads_only_what_it_needs(module, forbidden_prefixes, forbidd
     loaded = _loaded(module)
     own = {module} | {module.rsplit(".", n)[0] for n in range(1, module.count(".") + 1)}
     extra = sorted(
-        m for m in loaded if m not in own and any(m.startswith(p + ".") for p in forbidden_prefixes)
+        m
+        for m in loaded
+        if m not in own and any(m == p or m.startswith(p + ".") for p in forbidden_prefixes)
     )
     assert not extra, f"importing {module} also loaded {extra}"
     heavy = sorted(m for m in loaded if m.split(".")[0] in forbidden_roots)

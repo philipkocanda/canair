@@ -5,7 +5,7 @@ import math
 from canair.analysis.stats import fmt_num
 from canair.expression import inspect_bytes
 from canair.expression.inspect_bytes import INSPECT_TYPES, InspectType
-from canair.tui.apps import decode_plot_draw
+from canair.tui.apps.decode_plot import draw as decode_plot_draw
 
 U16 = InspectType("u16", 2, "int", False)
 
@@ -198,7 +198,7 @@ class TestOverlayCycle:
 
 import pytest  # noqa: E402
 
-from canair.tui.apps.decode_plot_model import PlotModel  # noqa: E402
+from canair.tui.apps.decode_plot.model import PlotModel  # noqa: E402
 from tests.support.plot_model import plot_model as _plot_model  # noqa: E402
 
 
@@ -259,7 +259,7 @@ class TestPlotModel:
 class TestPlotApp:
     @pytest.mark.asyncio
     async def test_renders_and_navigates(self):
-        from canair.tui.apps.decode_plot import PlotApp
+        from canair.tui.apps.decode_plot.app import PlotApp
 
         app = PlotApp(_plot_model())
         async with app.run_test(size=(110, 30)) as pilot:
@@ -274,7 +274,7 @@ class TestPlotApp:
 
     @pytest.mark.asyncio
     async def test_help_modal(self):
-        from canair.tui.apps.decode_plot import PlotApp
+        from canair.tui.apps.decode_plot.app import PlotApp
         from canair.tui.help import HelpModal
 
         app = PlotApp(_plot_model())
@@ -288,7 +288,7 @@ class TestPlotApp:
 
     @pytest.mark.asyncio
     async def test_pid_switch_reloads_model(self):
-        from canair.tui.apps.decode_plot import PlotApp
+        from canair.tui.apps.decode_plot.app import PlotApp
 
         other = _plot_model((9, 8, 7))
         other.ecu_key, other.pid_key = "VCU", "2102"
@@ -310,7 +310,7 @@ class TestPlotApp:
 
     @pytest.mark.asyncio
     async def test_annotate_param_calls_upsert(self, monkeypatch):
-        from canair.tui.apps.decode_plot import PlotApp
+        from canair.tui.apps.decode_plot.app import PlotApp
 
         calls = []
 

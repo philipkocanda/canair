@@ -1,7 +1,7 @@
 """State and rendering for the ``decode --plot`` signal explorer.
 
 :class:`PlotModel` holds the capture-derived data and the view state; the Textual app
-(:mod:`canair.tui.apps.decode_plot`) binds keys to its mutators, and ``canair decode --plot``
+(:mod:`canair.tui.apps.decode_plot.app`) binds keys to its mutators, and ``canair decode --plot``
 off a TTY prints one frame of it, so it stays free of Textual.
 """
 
@@ -22,7 +22,7 @@ from canair.render import ansi
 from canair.render.glyphs import WARN
 from canair.uds.byteindex import payload_to_wican_bytes
 
-from .decode_plot_draw import (
+from .draw import (
     _cycle_overlay,
     _info_lines,
     _mapping_for_offset,
@@ -47,7 +47,7 @@ class PlotModel:
     Holds the capture-derived data and the mutable view state (byte/signal mode,
     offset, interpretation type, endianness, transform, overlay reference, x-axis
     window, info modal). :meth:`render_lines` produces the ANSI-colored frame; the
-    Textual app (:mod:`canair.tui.apps.decode_plot`) binds keys to the mutator methods. Kept
+    Textual app (:mod:`canair.tui.apps.decode_plot.app`) binds keys to the mutator methods. Kept
     UI-framework-free so the non-TTY path can render one frame without Textual.
     """
 

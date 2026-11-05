@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Entry point for ``canair decode --plot``: build the explorer's model, pick an output path.
 
-A TTY gets the Textual app (:mod:`canair.tui.apps.decode_plot`); otherwise one static frame
-is printed. The model and its chart (:mod:`canair.tui.apps.decode_plot_model`) interpret raw
+A TTY gets the Textual app (:mod:`canair.tui.apps.decode_plot.app`); otherwise one static frame
+is printed. The model and its chart (:mod:`canair.tui.apps.decode_plot.model`) interpret raw
 payload bytes at an offset as a type, post-process the series and draw it as a braille line
 chart with an optional reference signal overlaid.
 """
@@ -15,7 +15,7 @@ from canair.captures.store import load_pid_captures
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.ecus.pids import build_ecu_index, load_pids
 from canair.expression.decoding import decode_payload, ordered_signal_names
-from canair.tui.apps.decode_plot_model import PlotModel
+from canair.tui.apps.decode_plot.model import PlotModel
 from canair.uds.byteindex import payload_to_wican_bytes
 
 from .query import scope_captures
@@ -66,7 +66,7 @@ def cmd_plot(
         print("  (interactive --plot needs a TTY for navigation)")
         return
 
-    from canair.tui.apps.decode_plot import run_plot_app
+    from canair.tui.apps.decode_plot.app import run_plot_app
 
     run_plot_app(model, reload_pid=reload_pid, pid_options=pid_options)
 

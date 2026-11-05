@@ -167,7 +167,7 @@ class TestPickersAreFilterable:
 
     @pytest.mark.asyncio
     async def test_plot_pid_picker_filters(self):
-        from canair.tui.apps.decode_plot import PidPickerModal, PlotApp
+        from canair.tui.apps.decode_plot.app import PidPickerModal, PlotApp
         from tests.support.plot_model import plot_model as _plot_model
 
         options_in = [("BMS", "2101"), ("HVAC", "220100"), ("IGPM", "22BC07")]
