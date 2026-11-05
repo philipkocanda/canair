@@ -22,17 +22,19 @@ Top to bottom. A package imports only from the layers below its own.
 | 2 | `contribute/` | the layers below |
 | 3 | `live/` | the layers below |
 | 4 | `yaml_edit/` | the layers below |
-| 5 | `actions/`, `analysis/`, `broadcast/`, `captures/`, `dtc/`, `ecus/`, `install/`, `interop/`, `migrations/`, `privacy/`, `profile/`, `query/`, `render/`, `states/`, `transport/`, `validation/`, `variants/` | each other (one cycle still to split) and the layers below |
-| 6 | `tui/`, `device/` | the layers below, not each other |
-| 7 | `safety/` | the layers below |
-| 8 | `expression/`, `uds/` | each other (one cycle still to split) and the layers below |
-| 9 | `config/` | the layers below |
-| 10 | `core/` | the layers below |
+| 5 | `validation/` | the layers below |
+| 6 | `actions/`, `analysis/`, `broadcast/`, `captures/`, `dtc/`, `ecus/`, `install/`, `interop/`, `migrations/`, `privacy/`, `profile/`, `query/`, `render/`, `states/`, `transport/`, `variants/` | each other (one cycle still to split) and the layers below |
+| 7 | `tui/`, `device/` | the layers below, not each other |
+| 8 | `safety/` | the layers below |
+| 9 | `expression/`, `uds/` | each other (one cycle still to split) and the layers below |
+| 10 | `config/` | the layers below |
+| 11 | `core/` | the layers below |
 
 <!-- END GENERATED: layers -->
 
 The first three layers are the interface and the live operations. The profile editors
-(`yaml_edit/`) sit below them and above everything they write through. The large layer marked
+(`yaml_edit/`) and the validators they run after each write (`validation/`) sit below them and
+above everything they read. The large layer marked
 "one cycle still to split" is the part of the tree that still imports itself (definitions, the
 store, analysis and transport); splitting it is the remaining work of the layout plan.
 Everything outside it is already ordered, and `lint-imports` fails on a wrong-way import.
@@ -47,7 +49,7 @@ Everything outside it is already ordered, and `lint-imports` fails on a wrong-wa
 |---|---|---|---|---|
 | `actions/` | Profile-defined actions: named, guarded requests a profile declares in ``actions.yaml``. | parsing a profile's ``actions.yaml`` into guarded actions and planning their requests. | running one against the car (``live/action.py``) and the ``canair action`` command. | ``safety``, ``uds``, ``ecus`` and ``core``. |
 | `analysis/` | Offline analysis over captures and definitions: alignment, correlation, counters, mirrors, stats. | pure computation over loaded captures and profile definitions, with no device, no flags and no output: time alignment and fill, correlation, mirrors, counters, support maps, triage, the blind-rediscovery strip (``blind``), and physical-plausibility bands (``physical``). | reading the store (``captures/``), rendering (the command's ``render.py``) and anything that talks to the car (``live/``). | ``captures``, ``ecus``, ``states``, ``expression``, ``uds`` and ``core``. |
-| `broadcast/` | Reading a profile's broadcast signal maps (``signals/<bus>.yaml``). | loading the broadcast signal maps of a profile. | the checks (``validation/signals.py``), edits (``yaml_edit/signals.py``) and DBC import/export (the ``import``/``export`` commands). | ``profile`` and ``validation.signals`` (the shared structural check). |
+| `broadcast/` | Reading a profile's broadcast signal maps (``signals/<bus>.yaml``). | loading the broadcast signal maps of a profile. | the checks (``validation/signals.py``), edits (``yaml_edit/signals.py``) and DBC import/export (the ``import``/``export`` commands). | ``profile``. The structural check (``validation/signals.py``) imports this package's readers, never the other way round. |
 | `captures/` | The capture store: saving (here), the file format, reading back, journal and merge driver. | appending captures to per-date JSON files, their format, store, journal, merge driver. | computing over captures (``analysis/``), the DTC log (``dtc/``) and flag parsing. | ``states``, ``uds``, ``privacy`` and ``core``. |
 | `cli/` | ``canair`` — unified CAN/UDS/KWP2000 diagnostic reverse-engineering CLI. | the interface: the argument parser, the subcommand modules under ``cli/commands/`` (flags, output and glue only) and the live runtime that connects a device and runs a command's operation. | anything a test could call without the CLI (it goes to the package that owns it) and Textual apps (``tui/``). | every package below it. It is the only code that imports ``argparse``. |
 | `config/` | User/host configuration (XDG-aware) for canair. | reading and writing the user config file and the device registry in it. | the config directory path (``core.paths``) and what a key means to a feature. | ``core`` only. |
@@ -70,7 +72,7 @@ Everything outside it is already ordered, and `lint-imports` fails on a wrong-wa
 | `transport/` | Alternate CAN transports for canair (raw-CAN backends). | moving bytes to and from the car, ISO-TP framing, the ELM327 and raw SLCAN engines, the per-exchange policies (keepalive, link latency, wake, timeouts, frame counts), the transport choice and fallback, the session manager and the per-ECU response log. | what a live operation does with a terminal (``live/``), what may be sent (``safety/``) and the adapter's HTTP API (``device/``). | ``safety``, ``uds``, ``ecus``, ``device``, ``config`` and ``core``. Operations see only the ``Terminal`` protocol, never a concrete terminal. |
 | `tui/` | Small terminal helpers shared across modes. | the shared Textual kit: key roles, help, modals, scrolling, status and widgets. | a whole app (they live next to their command or in ``live/``) and any non-Textual code. | ``core`` and Textual. Only this kit and the apps built on it import ``textual``. |
 | `uds/` | The diagnostic request/response protocol layer (domain A), I/O-free. | protocol facts and decoding of request/response bytes, with no I/O. | reading or writing recordings or definitions (``captures/``, ``ecus/``), user config (``config.py``), moving bytes (``transport/``), and deciding what may be sent (``safety``). | the standard library and ``core`` only. ``tests/contracts`` pins that it reads no data store, config or transport. |
-| `validation/` | Profile validators: files and parsed data in, errors and warnings out. | the checks behind ``canair validate`` (pids/ecus, captures, states, signals, variants, CAN buses, groups, actions) and the post-write guard the profile editors call. | the ``canair validate`` parser and its dispatch (``cli/commands/validate/``), and the edits themselves (``yaml_edit/``). | the definition packages, ``uds``, ``expression`` and ``safety``. Never ``yaml_edit``, which imports this package, nor ``live`` or ``cli``. |
+| `validation/` | Profile validators: files and parsed data in, errors and warnings out. | the checks behind ``canair validate`` (pids/ecus, captures, states, signals, variants, CAN buses, groups, actions) and the post-write guard the profile editors call. | the ``canair validate`` parser and its dispatch (``cli/commands/validate/``), and the edits themselves (``yaml_edit/``). | the layers below it: the definition packages, ``captures`` and ``analysis`` (the capture checks), ``interop`` and ``transport`` (rules they own), ``uds``, ``expression`` and ``safety``. Never ``yaml_edit``, which imports this package, nor ``live`` or ``cli``. |
 | `variants/` | The variants of one car: ``variants.yaml``. | loading ``variants.yaml``, ECU revisions, fingerprints and the variant selection. | editing them (``yaml_edit/``) and probing the car (``live/revision_probe.py``). | ``profile``, ``ecus``, ``uds`` and ``core``. |
 | `yaml_edit/` | Everything that writes a profile's YAML: the editors, their shared write path and helpers. | every write to a profile's definition YAML: the editors and their commit path. | reading definitions (``ecus/``, ``states/`` ...) and the ``canair pids``/``signals`` commands. | the layers below it: ``validation``, the definition packages, ``captures`` (a rename rewrites recorded history), ``render``, ``install`` and ``core``. Never ``live`` or ``cli``. |
 

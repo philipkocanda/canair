@@ -11,7 +11,8 @@ linear signals. Distinct from a PID's freeform WiCAN ``expression`` params.
 Belongs: loading the broadcast signal maps of a profile.
 Not here: the checks (``validation/signals.py``), edits (``yaml_edit/signals.py``) and DBC
 import/export (the ``import``/``export`` commands).
-Imports: ``profile`` and ``validation.signals`` (the shared structural check).
+Imports: ``profile``. The structural check (``validation/signals.py``) imports this package's
+readers, never the other way round.
 """
 
 from __future__ import annotations
@@ -20,9 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from canair.profile import Profile
-from canair.validation.signals import signal_byte_span
 
-__all__ = ["SignalDoc", "load_signals", "signal_byte_span", "signals_dir"]
+__all__ = ["SignalDoc", "load_signals", "signals_dir"]
 
 
 @dataclass(frozen=True)

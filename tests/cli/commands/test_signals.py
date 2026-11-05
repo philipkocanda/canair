@@ -12,10 +12,9 @@ import argparse
 import pytest
 
 import canair.profile as profile
-from canair.broadcast import signal_byte_span
 from canair.profile import Profile
 from canair.validation import other as validate
-from canair.validation.signals import check_signals_doc
+from canair.validation.signals import check_signals_doc, signal_byte_span
 from canair.yaml_edit import signals as signals_edit
 
 
