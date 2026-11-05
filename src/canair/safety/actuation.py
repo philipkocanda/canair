@@ -26,19 +26,44 @@ from typing import Final, Literal
 
 from canair.safety.blocklist import check_command_safety
 from canair.uds.protocol import KWP, UDS, DiagProtocol
-from canair.uds.services import service_info
+from canair.uds.services import (
+    DIAGNOSTIC_SESSION_CONTROL,
+    INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
+    KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
+    KWP_READ_DATA_BY_LOCAL_IDENTIFIER,
+    KWP_READ_DTC_BY_STATUS,
+    KWP_READ_DTCS,
+    KWP_READ_ECU_IDENTIFICATION,
+    KWP_READ_FREEZE_FRAME_DATA,
+    KWP_READ_STATUS_OF_DTCS,
+    KWP_REQUEST_ROUTINE_RESULTS_BY_ADDRESS,
+    KWP_REQUEST_ROUTINE_RESULTS_BY_LOCAL_IDENTIFIER,
+    KWP_STOP_DIAGNOSTIC_SESSION,
+    KWP_STOP_ROUTINE_BY_LOCAL_IDENTIFIER,
+    OBD_REQUEST_VEHICLE_INFORMATION,
+    OBD_SHOW_CURRENT_DATA,
+    OBD_SHOW_FREEZE_FRAME_DATA,
+    OBD_SHOW_PENDING_DTCS,
+    OBD_SHOW_PERMANENT_DTCS,
+    OBD_SHOW_STORED_DTCS,
+    READ_DATA_BY_IDENTIFIER,
+    READ_DTC_INFORMATION,
+    READ_MEMORY_BY_ADDRESS,
+    ROUTINE_CONTROL,
+    SECURITY_ACCESS,
+    TESTER_PRESENT,
+    service_info,
+)
+from canair.uds.subfunctions import IoControlParameter, RoutineControlType
 
 RequestClass = Literal["read", "release", "actuate"]
 READ: Final[RequestClass] = "read"
 RELEASE: Final[RequestClass] = "release"
 ACTUATE: Final[RequestClass] = "actuate"
 
-IOCONTROL_UDS = 0x2F
-IOCONTROL_KWP = 0x30
-
 # UDS InputOutputControlParameter (ISO 14229-1): 00 returnControlToECU. 01-03
 # (resetToDefault, freezeCurrentState, shortTermAdjustment) drive the output.
-UDS_RETURN_CONTROL = 0x00
+_UDS_RETURN_CONTROL = IoControlParameter.RETURN_CONTROL_TO_ECU
 
 # Services that only read, or only move the diagnostic session, on every protocol:
 # the OBD-II read modes, session control, DTC and data reads, SecurityAccess and
@@ -46,39 +71,39 @@ UDS_RETURN_CONTROL = 0x00
 # deliberately absent: clearing DTCs changes ECU state.
 _READ_SERVICES: Final = frozenset(
     {
-        0x01,
-        0x02,
-        0x03,
-        0x07,
-        0x09,
-        0x0A,
-        0x10,
-        0x12,
-        0x13,
-        0x17,
-        0x18,
-        0x19,
-        0x1A,
-        0x21,
-        0x22,
-        0x23,
-        0x27,
-        0x3E,
+        OBD_SHOW_CURRENT_DATA,
+        OBD_SHOW_FREEZE_FRAME_DATA,
+        OBD_SHOW_STORED_DTCS,
+        OBD_SHOW_PENDING_DTCS,
+        OBD_REQUEST_VEHICLE_INFORMATION,
+        OBD_SHOW_PERMANENT_DTCS,
+        DIAGNOSTIC_SESSION_CONTROL,
+        KWP_READ_FREEZE_FRAME_DATA,
+        KWP_READ_DTCS,
+        KWP_READ_STATUS_OF_DTCS,
+        KWP_READ_DTC_BY_STATUS,
+        READ_DTC_INFORMATION,
+        KWP_READ_ECU_IDENTIFICATION,
+        KWP_READ_DATA_BY_LOCAL_IDENTIFIER,
+        READ_DATA_BY_IDENTIFIER,
+        READ_MEMORY_BY_ADDRESS,
+        SECURITY_ACCESS,
+        TESTER_PRESENT,
     }
 )
 
 # KWP2000 services that read or hand control back, judged on a KWP2000 ECU (and,
 # being KWP2000-only bytes, on an ECU of unknown protocol too).
-_KWP_READ: Final = frozenset({0x33, 0x3A})  # routine results by LID / by address
+_KWP_READ: Final = frozenset(
+    {KWP_REQUEST_ROUTINE_RESULTS_BY_LOCAL_IDENTIFIER, KWP_REQUEST_ROUTINE_RESULTS_BY_ADDRESS}
+)
 # StopDiagnosticSession ends the session, and ISO 14230-3 has the ECU release every
 # actuator the tester drove; StopRoutineByLocalIdentifier stops a started routine.
-_KWP_RELEASE: Final = frozenset({0x20, 0x32})
-_KWP_STOP_SESSION: Final = bytes([0x20])
+_KWP_RELEASE: Final = frozenset({KWP_STOP_DIAGNOSTIC_SESSION, KWP_STOP_ROUTINE_BY_LOCAL_IDENTIFIER})
+_KWP_STOP_SESSION: Final = bytes([KWP_STOP_DIAGNOSTIC_SESSION])
 
-# UDS RoutineControl (0x31) sub-functions. On KWP2000 the same byte is
-# StartRoutineByLocalIdentifier, which actuates whatever follows it.
-_UDS_ROUTINE_STOP = 0x02
-_UDS_ROUTINE_RESULTS = 0x03
+# The UDS RoutineControl (0x31) sub-functions are RoutineControlType. On KWP2000 the same
+# byte is StartRoutineByLocalIdentifier, which actuates whatever follows it.
 
 
 @dataclass(frozen=True)
@@ -119,7 +144,10 @@ def parse_io_request(request: str | bytes) -> IoRequest | None:
     Returns None when the request is too short to carry its whole identifier.
     """
     data = request_bytes(request)
-    if not data or data[0] not in (IOCONTROL_UDS, IOCONTROL_KWP):
+    if not data or data[0] not in (
+        INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
+        KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
+    ):
         return None
     info = service_info(data[0])
     width = info.id_width if info else 0
@@ -158,15 +186,15 @@ def classify(
         return RELEASE
     if sid in _READ_SERVICES:
         return READ
-    if sid == IOCONTROL_UDS:
-        if protocol != KWP and len(data) == 4 and data[3] == UDS_RETURN_CONTROL:
+    if sid == INPUT_OUTPUT_CONTROL_BY_IDENTIFIER:
+        if protocol != KWP and len(data) == 4 and data[3] == _UDS_RETURN_CONTROL:
             return RELEASE
         return ACTUATE
-    if sid == 0x31:
+    if sid == ROUTINE_CONTROL:
         if protocol == UDS and len(data) >= 2:
-            if data[1] == _UDS_ROUTINE_RESULTS:
+            if data[1] == RoutineControlType.REQUEST_ROUTINE_RESULTS:
                 return READ
-            if data[1] == _UDS_ROUTINE_STOP:
+            if data[1] == RoutineControlType.STOP_ROUTINE:
                 return RELEASE
         return ACTUATE
     if protocol != UDS:
@@ -188,9 +216,9 @@ def default_release(request: str | bytes, protocol: DiagProtocol) -> str:
         io = parse_io_request(request)
     except ValueError:
         return ""
-    if io is None or io.service != IOCONTROL_UDS or protocol == KWP:
+    if io is None or io.service != INPUT_OUTPUT_CONTROL_BY_IDENTIFIER or protocol == KWP:
         return ""
-    return f"2F{io.identifier.hex().upper()}{UDS_RETURN_CONTROL:02X}"
+    return f"2F{io.identifier.hex().upper()}{_UDS_RETURN_CONTROL:02X}"
 
 
 def release_mismatch(on: str, release: str) -> str | None:
@@ -211,12 +239,19 @@ def release_mismatch(on: str, release: str) -> str | None:
     if on_io is None:
         return None
     if rel_io is None:
-        if on_io.service == IOCONTROL_KWP and request_bytes(release) == _KWP_STOP_SESSION:
+        if (
+            on_io.service == KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER
+            and request_bytes(release) == _KWP_STOP_SESSION
+        ):
             return None
         return (
             f"release {normalize_request(release)} is not an IOControl request on "
             f"{on_io.service:02X} {on_io.identifier.hex().upper()}"
-            + (" or StopDiagnosticSession (20)" if on_io.service == IOCONTROL_KWP else "")
+            + (
+                " or StopDiagnosticSession (20)"
+                if on_io.service == KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER
+                else ""
+            )
             + ", so it would not hand the output back"
         )
     if (on_io.service, on_io.identifier) != (rel_io.service, rel_io.identifier):
@@ -253,7 +288,7 @@ def _on_refusal(on: str, release: str, protocol: DiagProtocol) -> str | None:
     io = parse_io_request(on)
     what = (
         "a KWP2000 0x30 request, whose option byte has no standard release"
-        if io is not None and io.service == IOCONTROL_KWP
+        if io is not None and io.service == KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER
         else "a request with no implied release"
     )
     return (

@@ -21,11 +21,15 @@ import logging
 from typing import TYPE_CHECKING, Literal, get_args
 
 from canair.ecus.pids import DEFAULT_IOCONTROL_SESSION_MODE
-from canair.safety.actuation import IOCONTROL_KWP, on_refusal, parse_io_request
+from canair.safety.actuation import on_refusal, parse_io_request
 from canair.uds.nrc import nrc_abbrev
 from canair.uds.protocol import KWP
 from canair.uds.response import UdsResponse
-from canair.uds.services import RESPONSE_SID_OFFSET, service_info
+from canair.uds.services import (
+    KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
+    RESPONSE_SID_OFFSET,
+    service_info,
+)
 
 if TYPE_CHECKING:
     from ..transport.protocol import Terminal
@@ -303,7 +307,7 @@ class IOControlActuator:
                 io = parse_io_request(request or "")
             except ValueError:
                 continue
-            if io is not None and io.service == IOCONTROL_KWP:
+            if io is not None and io.service == KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER:
                 return True
         return False
 

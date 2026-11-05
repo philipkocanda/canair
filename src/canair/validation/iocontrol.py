@@ -2,6 +2,9 @@
 
 import re
 
+from canair.uds.services import INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
+from canair.uds.subfunctions import IoControlParameter
+
 from ._common import validate_state_list
 
 
@@ -116,8 +119,6 @@ def _validate_iocontrol_release(did_def, did_label, protocol, errors, warnings) 
     KWP2000 ``0x30`` ON without one is refused at run time; say so here too.
     """
     from canair.safety.actuation import (
-        IOCONTROL_UDS,
-        UDS_RETURN_CONTROL,
         default_release,
         normalize_request,
         on_refusal,
@@ -141,7 +142,11 @@ def _validate_iocontrol_release(did_def, did_label, protocol, errors, warnings) 
             errors.append(f"{did_label}: {mismatch}")
             return
         io = parse_io_request(release)
-        if io is not None and io.service == IOCONTROL_UDS and io.option != UDS_RETURN_CONTROL:
+        if (
+            io is not None
+            and io.service == INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
+            and io.option != IoControlParameter.RETURN_CONTROL_TO_ECU
+        ):
             warnings.append(
                 f"{did_label}: release {release} is not returnControlToECU "
                 f"(2F{io.identifier.hex().upper()}00)"

@@ -36,6 +36,8 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Final
 
 from canair.uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol, classify_protocol
+from canair.uds.services import DIAGNOSTIC_SESSION_CONTROL, ROUTINE_CONTROL, TESTER_PRESENT_REQUEST
+from canair.uds.subfunctions import RoutineControlType
 
 # Services that write ECU memory, reflash firmware, reset an ECU or silence its
 # traffic. Blocked by default to prevent accidental damage. The SIDs mean the same
@@ -77,7 +79,9 @@ BLOCKED_ROUTINES = {
     0x0440: "DeleteFoDCertificates (Hyundai/Kia features on demand)",
 }
 # startRoutine and stopRoutine act; requestRoutineResults (0x03) only reads.
-_ROUTINE_ACTING_SUBS = frozenset({0x01, 0x02})
+_ROUTINE_ACTING_SUBS = frozenset(
+    {RoutineControlType.START_ROUTINE, RoutineControlType.STOP_ROUTINE}
+)
 
 
 class SafetyBlocked(ValueError):
@@ -365,7 +369,7 @@ def check_command_safety(
         desc = BLOCKED_UDS_SERVICES[service_byte]
         return f"BLOCKED: UDS service 0x{service_byte:02X} -- {desc}"
 
-    if service_byte == 0x10 and len(hex_only) >= 4:
+    if service_byte == DIAGNOSTIC_SESSION_CONTROL and len(hex_only) >= 4:
         active = policy or _NO_POLICY
         sub = int(hex_only[2:4], 16)
         protocol = active.protocol(tx_id)
@@ -374,7 +378,7 @@ def check_command_safety(
             return None
         return active.check(sub, tx_id)
 
-    if service_byte == 0x31 and len(hex_only) >= 8:
+    if service_byte == ROUTINE_CONTROL and len(hex_only) >= 8:
         # On KWP2000, 0x31 is StartRoutineByLocalIdentifier: byte 2 is a local id.
         if (policy or _NO_POLICY).protocol(tx_id) != KWP:
             return check_routine(int(hex_only[2:4], 16), int(hex_only[4:8], 16))
@@ -397,7 +401,7 @@ def check_routine(sub: int, rid: int) -> str | None:
 # A functional frame reaches every ECU the gateway routes it to at once, so the
 # rule is an allow-list rather than the blocklist, and --unsafe cannot widen it.
 FUNCTIONAL_READS: Final = (
-    ("3E00", "TesterPresent"),
+    (TESTER_PRESENT_REQUEST, "TesterPresent"),
     ("22xxxx", "ReadDataByIdentifier, one DID"),
     ("1Axx", "KWP2000 ReadEcuIdentification"),
     ("1902xx", "ReadDTCInformation, reportDTCByStatusMask"),
