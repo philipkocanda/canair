@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
 
+from canair.analysis.signal_range import capture_range
 from canair.cli.commands._edit import add_edit_args, edit_scope, run_edit
 from canair.core.edit_errors import EditError
 from canair.ecus.pids import PID_STATUSES
@@ -167,45 +167,6 @@ def _parse_pairs(raw: list[str] | None, kind: str) -> dict | None:
     return out
 
 
-@dataclass(frozen=True)
-class _CaptureRange:
-    """What a signal's expression decodes to across the PID's existing captures."""
-
-    captures: int
-    displays: list[str]
-    values: list[float]
-    error: str | None
-
-
-def _capture_range(ecu: str, pid: str, name: str, param: dict) -> _CaptureRange:
-    """Decode ``param`` over every saved capture of the PID; no printing."""
-    from canair.captures.store import load_pid_captures
-    from canair.expression.decoding import decode_payload
-    from canair.uds.byteindex import payload_to_wican_bytes
-
-    caps = load_pid_captures(ecu, pid)
-    displays: list[str] = []
-    values: list[float] = []
-    err: str | None = None
-    for cap in caps:
-        try:
-            wb = payload_to_wican_bytes(cap["payload"])
-        except Exception:
-            continue
-        decoded = decode_payload(wb, {name: param}).get(name)
-        if not decoded:
-            continue
-        if decoded.get("error"):
-            err = decoded["error"]
-            continue
-        if decoded.get("display") is not None:
-            if decoded["display"] not in displays:
-                displays.append(decoded["display"])
-        elif decoded.get("value") is not None:
-            values.append(decoded["value"])
-    return _CaptureRange(len(caps), displays, values, err)
-
-
 def _echo_capture_range(ecu: str, pid: str, name: str, param: dict) -> None:
     """Print the just-written param's decoded value range across existing captures.
 
@@ -216,7 +177,7 @@ def _echo_capture_range(ecu: str, pid: str, name: str, param: dict) -> None:
     captures is swallowed (the edit already succeeded and was validated).
     """
     try:
-        found = _capture_range(ecu, pid, name, param)
+        found = capture_range(ecu, pid, name, param)
         if not found.captures:
             print(
                 f"    {ansi.DIM}(no captures for {ecu} {pid} yet — expression unverified){ansi.RESET}"
