@@ -16,9 +16,9 @@ from canair.core.paths import config_dir
 from canair.core.terminal import is_interactive
 from canair.core.terminal import terminal_lines as _terminal_lines
 from canair.ecus.pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
-from canair.live._iocontrol_actuate import ActuatorState, IOControlActuator
-from canair.live._iocontrol_render import render_iocontrol
-from canair.live._not_found import report_not_found
+from canair.live.actuate.iocontrol_actuate import ActuatorState, IOControlActuator
+from canair.live.actuate.iocontrol_render import render_iocontrol
+from canair.live.actuate.not_found import report_not_found
 from canair.render import ansi, glyphs, messages
 from canair.transport.protocol import Terminal
 from canair.uds.protocol import DiagProtocol
@@ -94,7 +94,7 @@ class _IOControlTUI:
 
         # Per-DID state: None=idle, else one of ActuatorState ("on"/"off"/"error").
         # Typed so a drifted sentinel can't silently disable release_all's
-        # switch-everything-back-off safety net (see _iocontrol_actuate).
+        # switch-everything-back-off safety net (see iocontrol_actuate).
         self.state: dict[str, ActuatorState | None] = dict.fromkeys(self.dids)
         self.last_response: dict[str, str] = {}  # DID → last response text
         self.last_value: dict[str, bytes] = {}  # DID → last ShortTermAdjustment value bytes
@@ -177,7 +177,7 @@ class _IOControlTUI:
     def _render(self) -> str:
         """Build the display as a plain string with ANSI codes.
 
-        Delegated to :func:`canair.live._iocontrol_render.render_iocontrol`,
+        Delegated to :func:`canair.live.actuate.iocontrol_render.render_iocontrol`,
         which reads this controller's state (and clamps ``_scroll_top``).
         """
         return render_iocontrol(self)

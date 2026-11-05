@@ -1,7 +1,7 @@
 """Plan a profile action before it touches the bus: resolve targets, check the blocklist.
 
-Pure and device-free. The live run (:mod:`canair.live.action`) plans first and sends only what
-this module has resolved and checked, and ``canair validate actions`` calls it to prove an
+Pure and device-free. The live run (:mod:`canair.live.actuate.action`) plans first and sends only
+what this module has resolved and checked, and ``canair validate actions`` calls it to prove an
 action could run at all.
 """
 

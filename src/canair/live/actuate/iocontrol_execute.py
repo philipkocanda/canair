@@ -8,8 +8,8 @@ import sys
 
 from canair.core.prompt import confirm
 from canair.ecus.pids import build_iocontrol_index
-from canair.live._iocontrol_actuate import send_iocontrol
-from canair.live._not_found import report_not_found
+from canair.live.actuate.iocontrol_actuate import send_iocontrol
+from canair.live.actuate.not_found import report_not_found
 from canair.live.status import format_status_value, query_param_status
 from canair.render import ansi, glyphs, messages
 from canair.render.paint import Painter

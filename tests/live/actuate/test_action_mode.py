@@ -1,4 +1,4 @@
-"""The live action run (canair.live.action): plan, check, confirm, re-check, send.
+"""The live action run (canair.live.actuate.action): plan, check, confirm, re-check, send.
 
 Driven against a fake terminal that enforces the command blocklist with whatever
 policy it holds, so these prove the grant is what lets ``10 D1`` through and that
@@ -13,7 +13,7 @@ import pytest
 
 from canair.actions import ActionError, parse_action
 from canair.core.prompt import PromptUnavailable
-from canair.live import action as mode
+from canair.live.actuate import action as mode
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
 from tests.support.fakes import FakeTerminal
 

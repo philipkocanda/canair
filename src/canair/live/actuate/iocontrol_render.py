@@ -1,7 +1,7 @@
 """IOControl TUI — display rendering.
 
 Builds the interactive IOControl TUI screen (an ANSI string) from the
-controller's state. Kept out of :mod:`canair.live.iocontrol` (which owns the
+controller's state. Kept out of :mod:`canair.live.actuate.iocontrol` (which owns the
 CAN actuation, key loop, and ecus/ edits) so the ~190-line renderer is its own
 concern. ``render_iocontrol`` takes the ``_IOControlTUI`` instance and reads its
 state; it also clamps the scroll viewport (``tui._scroll_top``) so the cursor
@@ -17,7 +17,7 @@ from canair.core.terminal import terminal_lines as _terminal_lines
 from canair.core.terminal import truncate_text
 from canair.render import ansi, glyphs
 
-from ._iocontrol_actuate import ACTUATOR_ERROR, ACTUATOR_OFF, ACTUATOR_ON
+from .iocontrol_actuate import ACTUATOR_ERROR, ACTUATOR_OFF, ACTUATOR_ON
 
 if TYPE_CHECKING:
     from .iocontrol import _IOControlTUI

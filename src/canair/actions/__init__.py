@@ -27,10 +27,11 @@ Two rules keep a profile from using this to get around canair's safety policy:
 
 This module is device-free: the model, the structural checks shared by the
 loader, the editor and ``canair validate actions``, and :func:`load_actions`. The
-live run is :mod:`canair.live.action`.
+live run is :mod:`canair.live.actuate.action`.
 
 Belongs: parsing a profile's ``actions.yaml`` into guarded actions and planning their requests.
-Not here: running one against the car (``live/action.py``) and the ``canair action`` command.
+Not here: running one against the car (``live/actuate/action.py``) and the ``canair action``
+command.
 Imports: ``safety``, ``uds``, ``ecus`` and ``core``.
 """
 

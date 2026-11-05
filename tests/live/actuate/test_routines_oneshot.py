@@ -7,8 +7,8 @@ import json
 
 import pytest
 
-from canair.live.routines_execute import mode_routines_execute
-from canair.live.routines_list import mode_routines_list
+from canair.live.actuate.routines_execute import mode_routines_execute
+from canair.live.actuate.routines_list import mode_routines_list
 
 DATA = {"ecus": {"BCM": {"tx_id": 0x745, "routines": {"12A1": {"label": "Self test"}}}}}
 

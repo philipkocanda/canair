@@ -232,7 +232,7 @@ class TestRefusalIsReportedNotRaised:
 
     def test_a_blocked_iocontrol_session_mode_surfaces_as_safety_blocked(self):
         """The ValueError the terminal raises is the dedicated, catchable type."""
-        from canair.live.iocontrol_execute import mode_iocontrol_execute
+        from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
         from canair.transport.raw.terminal import RawTerminal
 
         term = RawTerminal.__new__(RawTerminal)

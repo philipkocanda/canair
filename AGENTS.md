@@ -263,8 +263,8 @@ its deviations are ratcheted by `tests/contracts/test_ui_standards.py` (scanner
   release you have not seen hand the output back on the car.
 - **`canair action`** — List, run and edit the profile's guarded, make-specific actions
   (`actions.yaml`; `action run NAME [--dry-run] [--yes]`). Model, rules and loader
-  `src/canair/actions/`, editor `src/canair/yaml_edit/actions.py`, live run `src/canair/live/action.py` (its
-  docstring fixes the plan → check → confirm → re-check → send order). Two rules a change must
+  `src/canair/actions/`, editor `src/canair/yaml_edit/actions.py`, live run
+  `src/canair/live/actuate/action.py` (its docstring fixes the plan → check → confirm → re-check → send order). Two rules a change must
   keep: **every request still passes the blocklist** — a refused one goes out only when a quirk
   grants exactly that `(tx_id, request)` (`src/canair/safety/quirks.py::action_grants`), applied through
   `SessionPolicy.granting` for the action's own send and never by `from_profile`, so `read`/`raw`

@@ -31,9 +31,9 @@ from canair.core.terminal import is_interactive, truncate_text
 from canair.core.terminal import terminal_columns as _terminal_columns
 from canair.core.terminal import terminal_lines as _terminal_lines
 from canair.ecus.pids import RoutineIndexEntry, build_routines_index, load_pids
-from canair.live._iocontrol_render import CARET
-from canair.live._not_found import report_not_found
-from canair.live.routines_execute import sf_label
+from canair.live.actuate.iocontrol_render import CARET
+from canair.live.actuate.not_found import report_not_found
+from canair.live.actuate.routines_execute import sf_label
 from canair.render import ansi, glyphs, messages
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import nrc_abbrev

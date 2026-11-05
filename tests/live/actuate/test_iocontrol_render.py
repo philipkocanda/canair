@@ -7,9 +7,9 @@ import asyncio
 import pytest
 
 from canair.ecus.pids import build_iocontrol_index, build_routines_index
-from canair.live.iocontrol import _IOControlTUI, _log_file
-from canair.live.routines import _log_file as _routines_log_file
-from canair.live.routines import _RoutinesTUI
+from canair.live.actuate.iocontrol import _IOControlTUI, _log_file
+from canair.live.actuate.routines import _log_file as _routines_log_file
+from canair.live.actuate.routines import _RoutinesTUI
 
 DATA = {
     "ecus": {

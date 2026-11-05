@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from canair.live.iocontrol_execute import mode_iocontrol_execute
+from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 
 DATA = {
     "ecus": {

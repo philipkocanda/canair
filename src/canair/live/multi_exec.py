@@ -31,7 +31,7 @@ from canair.uds.multi_did import BATCH_REFUSAL_NRCS
 from canair.uds.response import UdsResponse
 from canair.uds.services import READ_DATA_BY_IDENTIFIER
 
-from ._iocontrol_actuate import send_iocontrol
+from .actuate.iocontrol_actuate import send_iocontrol
 from .multi_batch import (
     LEAKED_BATCH_ERROR,
     LEAKED_BATCH_REASON,

@@ -1,4 +1,4 @@
-"""Tests for canair.live._iocontrol_actuate: the IOControl actuator backend.
+"""Tests for canair.live.actuate.iocontrol_actuate: the IOControl actuator backend.
 
 This is the only code in canair that **energises physical vehicle outputs**, and
 it was almost entirely untested — replacing `release_all` (the "switch every
@@ -20,7 +20,7 @@ import asyncio
 
 import pytest
 
-from canair.live._iocontrol_actuate import IOControlActuator
+from canair.live.actuate.iocontrol_actuate import IOControlActuator
 
 ON_CMD = "2FBC0103"
 OFF_CMD = "2FBC0100"
@@ -277,7 +277,7 @@ class TestSingleCommand:
     """`canair io ECU --did X` opens the session mode the entry declares."""
 
     def test_execute_opens_the_declared_session_mode(self, capsys):
-        from canair.live.iocontrol_execute import mode_iocontrol_execute
+        from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 
         pids_data = {
             "ecus": {
@@ -312,7 +312,7 @@ class TestSingleCommand:
         monkeypatch.setattr("sys.stdin", _Stdin(text))
 
     def test_nothing_is_sent_when_the_user_declines(self, monkeypatch, capsys):
-        from canair.live.iocontrol_execute import mode_iocontrol_execute
+        from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 
         self._stdin(monkeypatch, "n\n")
         term = FakeTerminal()
@@ -323,7 +323,7 @@ class TestSingleCommand:
         assert "Aborted" in capsys.readouterr().err
 
     def test_a_yes_answer_sends(self, monkeypatch):
-        from canair.live.iocontrol_execute import mode_iocontrol_execute
+        from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 
         self._stdin(monkeypatch, "y\n")
         term = FakeTerminal()
@@ -332,7 +332,7 @@ class TestSingleCommand:
 
     def test_no_terminal_and_no_yes_refuses_before_anything_is_sent(self, monkeypatch):
         from canair.core.prompt import PromptUnavailable
-        from canair.live.iocontrol_execute import mode_iocontrol_execute
+        from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 
         self._stdin(monkeypatch, "y\n", tty=False)
         term = FakeTerminal()
@@ -347,7 +347,7 @@ class TestSingleCommand:
         assert args.yes is True
 
     def test_a_kwp_on_without_a_release_is_refused_before_anything_is_sent(self, capsys):
-        from canair.live.iocontrol_execute import mode_iocontrol_execute
+        from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 
         term = FakeTerminal()
         with pytest.raises(SystemExit) as exc:
@@ -357,14 +357,14 @@ class TestSingleCommand:
         assert "no release declared" in capsys.readouterr().err
 
     def test_off_is_still_sent_without_a_release(self):
-        from canair.live.iocontrol_execute import mode_iocontrol_execute
+        from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 
         term = FakeTerminal()
         asyncio.run(mode_iocontrol_execute(term, OBC_DATA, "OBC", "01", off=True, yes=True))  # type: ignore[arg-type]
         assert term.sent == ["300111"]
 
     def test_a_held_kwp_on_is_released_with_its_declared_release(self):
-        from canair.live.iocontrol_execute import mode_iocontrol_execute
+        from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 
         data = _with_release(OBC_DATA, "3001AA")
 
@@ -420,7 +420,7 @@ async def _refusing(mode: str = "03"):
 
 class TestSessionHeader:
     def _header(self, active, mode):
-        from canair.live._iocontrol_render import render_iocontrol
+        from canair.live.actuate.iocontrol_render import render_iocontrol
 
         _, tui = _actuator()
         tui._session_active, tui._session_mode = active, mode
@@ -603,7 +603,7 @@ class TestTuiProtocol:
     KWP_DATA = KWP_DATA
 
     def test_poll_is_refused_when_no_entry_has_a_release(self, capsys):
-        from canair.live.iocontrol import mode_iocontrol_tui
+        from canair.live.actuate.iocontrol import mode_iocontrol_tui
 
         with pytest.raises(SystemExit) as exc:
             asyncio.run(mode_iocontrol_tui(FakeTerminal(), self.KWP_DATA, "BCM", poll=True))  # type: ignore[arg-type]
@@ -612,7 +612,7 @@ class TestTuiProtocol:
 
     def test_the_tui_knows_its_ecu_is_kwp(self):
         from canair.ecus.pids import build_iocontrol_index
-        from canair.live.iocontrol import _IOControlTUI
+        from canair.live.actuate.iocontrol import _IOControlTUI
 
         entry = build_iocontrol_index(self.KWP_DATA, include_discoveries=True)["BCM"]
         tui = _IOControlTUI(FakeTerminal(), "BCM", entry, self.KWP_DATA)  # type: ignore[arg-type]
@@ -622,7 +622,7 @@ class TestTuiProtocol:
 
 class TestListJson:
     def test_unknown_ecu_is_an_error_on_stderr_and_nothing_on_stdout(self, capsys):
-        from canair.live.iocontrol_list import mode_iocontrol_list
+        from canair.live.actuate.iocontrol_list import mode_iocontrol_list
 
         assert mode_iocontrol_list(TestTuiProtocol.KWP_DATA, "NOPE", as_json=True) is False
         captured = capsys.readouterr()

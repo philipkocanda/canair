@@ -10,8 +10,8 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
+from canair.live.actuate.routines import _RoutinesTUI
 from canair.live.monitor_raw import MonitorRawPoller, _raw_pid_result
-from canair.live.routines import _RoutinesTUI
 from canair.safety.blocklist import SessionPolicy
 from canair.uds.protocol import KWP, UDS
 from tests.support.fakes import FakeTerminal, nrc

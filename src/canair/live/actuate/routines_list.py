@@ -6,7 +6,7 @@ import json
 
 from canair.core.terminal import terminal_columns, truncate_text
 from canair.ecus.pids import build_routines_index
-from canair.live._not_found import report_not_found
+from canair.live.actuate.not_found import report_not_found
 from canair.render import ansi, glyphs
 
 

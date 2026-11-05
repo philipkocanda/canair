@@ -72,7 +72,7 @@ def run(args) -> int:
     if args.json and not args.did:
         # Listing reads only the profile, so it must not need (or lock) the device.
         from canair.ecus.pids import load_pids
-        from canair.live.iocontrol_list import mode_iocontrol_list
+        from canair.live.actuate.iocontrol_list import mode_iocontrol_list
 
         return 0 if mode_iocontrol_list(load_pids(), args.iocontrol, as_json=True) else 1
     return run_live(args, _OPERATION)

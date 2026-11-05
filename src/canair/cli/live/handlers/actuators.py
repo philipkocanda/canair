@@ -3,17 +3,17 @@
 IOControl and routines have a read-only listing/TUI path and an execute path.
 ``routines --sf start`` sends startRoutine, which may move something, so it
 confirms first. A profile action is always guarded by a live condition check and
-a confirmation (:mod:`canair.live.action`). The KWP2000 split lives in the scan
+a confirmation (:mod:`canair.live.actuate.action`). The KWP2000 split lives in the scan
 families, not here.
 """
 
 from __future__ import annotations
 
 from canair.core.prompt import confirm
-from canair.live.iocontrol import mode_iocontrol_tui
-from canair.live.iocontrol_execute import mode_iocontrol_execute
-from canair.live.routines import mode_routines_tui
-from canair.live.routines_execute import mode_routines_execute
+from canair.live.actuate.iocontrol import mode_iocontrol_tui
+from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
+from canair.live.actuate.routines import mode_routines_tui
+from canair.live.actuate.routines_execute import mode_routines_execute
 from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.uds.subfunctions import RoutineControlType
@@ -79,9 +79,9 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
 
 
 async def handle_action(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    """``canair action run NAME``: a guarded, profile-defined action (canair.live.action)."""
+    """``canair action run NAME``: a guarded, profile-defined action (live/actuate/action)."""
     from canair.actions import ActionError
-    from canair.live.action import mode_action
+    from canair.live.actuate.action import mode_action
 
     try:
         await mode_action(
