@@ -22,6 +22,7 @@ from typing import Any, TextIO
 from canair.render import ansi
 from canair.transport.functional import DEFAULT_WINDOW_S
 from canair.transport.protocol import Terminal
+from canair.uds.services import TESTER_PRESENT_REQUEST
 
 from .discover_render import (
     GAP,
@@ -48,7 +49,7 @@ from .functional_sweep import (
     silent_by_bus,
 )
 
-DEFAULT_REQUEST = "3E00"
+DEFAULT_REQUEST = TESTER_PRESENT_REQUEST
 # The spacing ES95486 asks for between functional requests; closer bursts were
 # seen to silence the B-CAN and MM-CAN responders on a Kona EV.
 MIN_INTERVAL_S = 1.0

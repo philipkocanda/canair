@@ -23,6 +23,12 @@ from typing import TYPE_CHECKING, TypedDict
 
 from canair.live.poll_backoff import PollCost
 from canair.live.poll_schedule import Key
+from canair.uds.nrc import (
+    NRC_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT,
+    NRC_REQUEST_OUT_OF_RANGE,
+    nrc_description,
+)
+from canair.uds.services import NEGATIVE_RESPONSE_SID
 
 from ..uds.protocol import DiagProtocol, classify_protocol
 
@@ -35,6 +41,11 @@ if TYPE_CHECKING:
 PlanEntry = tuple[str, dict | None, bool]
 # What the pipelined client resolved each ``(ecu, request)`` to.
 PollResults = Mapping[tuple[str, bytes], bytes | Exception]
+
+# A multi-DID request an ECU refuses with one of these cannot be batched to it.
+_BATCH_REFUSALS = frozenset(
+    {NRC_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT, NRC_REQUEST_OUT_OF_RANGE}
+)
 
 
 class Submission(TypedDict):
@@ -75,9 +86,7 @@ def _raw_pid_result(
             "unmapped": unmapped,
             "acquired_at": acquired_at,
         }
-    if resp[0] == 0x7F:  # negative response: 7F <sid> <nrc>
-        from canair.uds.nrc import nrc_description
-
+    if resp[0] == NEGATIVE_RESPONSE_SID:  # 7F <sid> <nrc>
         if len(resp) < 3:
             return {
                 "pid": pid_code,
@@ -328,13 +337,17 @@ class MonitorRawPoller:
 
         if s["lengths"] is not None:  # batched request
             split = None
-            if resp and resp[0] != 0x7F:
+            if resp and resp[0] != NEGATIVE_RESPONSE_SID:
                 split = split_multi_did(resp.hex().upper(), s["lengths"], self.pad)
-            elif resp and resp[0] == 0x7F and (resp[2] if len(resp) >= 3 else 0) in (0x13, 0x31):
+            elif (
+                resp
+                and resp[0] == NEGATIVE_RESPONSE_SID
+                and (resp[2] if len(resp) >= 3 else 0) in _BATCH_REFUSALS
+            ):
                 self.nobatch.add(ecu)  # ECU can't batch — fall back next cycle
             if split is None:
                 outcome = val if resp is None else resp
-                if resp and resp[0] != 0x7F:
+                if resp and resp[0] != NEGATIVE_RESPONSE_SID:
                     self.nobatch.add(ecu)  # positive but unsplittable
                     # It answers no single member, so none of them may take it as its payload.
                     outcome = ValueError("multi-DID reply did not split into the requested DIDs")
@@ -372,7 +385,7 @@ class MonitorRawPoller:
             val = ValueError(LEAKED_BATCH_ERROR)
             resp = None
         by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired, ecu, self._protocol(ecu))
-        if _is_did22(code) and resp and resp[0] != 0x7F:  # learn length for batching
+        if _is_did22(code) and resp and resp[0] != NEGATIVE_RESPONSE_SID:  # learn length
             dlen = _did_data_len(resp.hex().upper(), _did4(code))
             if dlen is not None and dlen >= 1:
                 self.lengths[(ecu, _did4(code))] = dlen

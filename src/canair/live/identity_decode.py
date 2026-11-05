@@ -11,6 +11,7 @@ way); this module re-exports ``decode_date`` and layers the identity-specific
 """
 
 from canair.expression.decode_value import bytes_to_ascii, decode_date
+from canair.uds.nrc import NOT_IN_ACTIVE_SESSION_NRCS, NRC_SERVICE_NOT_SUPPORTED
 from canair.uds.protocol import KWP, UDS, UNKNOWN
 from canair.uds.response import UdsResponse
 
@@ -24,7 +25,7 @@ __all__ = [
 ]
 
 # NRCs that refuse the service itself rather than this one request.
-_SERVICE_REFUSALS = frozenset({0x11, 0x7F, 0x80})
+_SERVICE_REFUSALS = frozenset({NRC_SERVICE_NOT_SUPPORTED, *NOT_IN_ACTIVE_SESSION_NRCS})
 
 
 def decode_identity_payload(payload_bytes: bytes, fmt: str) -> str:

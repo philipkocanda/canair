@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from canair.uds.nrc import NRC_REQUEST_OUT_OF_RANGE
 from canair.uds.protocol import KWP, UDS
+from canair.uds.services import KWP_READ_DTC_BY_STATUS, READ_DTC_INFORMATION
 
 from ...ecus import ecu_display
 from ...transport.protocol import Terminal
@@ -69,18 +71,22 @@ async def _read_uds(
 ) -> dict:
     ecu = ecu_display(tx_id)
     cmd = f"1902{mask & 0xFF:02X}"
-    response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=0x19)
+    response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=READ_DTC_INFORMATION)
 
     # Mask fallback: some ECUs reject 0xFF with requestOutOfRange (0x31) and only
     # accept a mask within their availability bits. Retry once with confirmedDTC.
-    if not response["ok"] and response.get("nrc") == 0x31 and (mask & 0xFF) != _MASK_FALLBACK:
+    if (
+        not response["ok"]
+        and response.get("nrc") == NRC_REQUEST_OUT_OF_RANGE
+        and (mask & 0xFF) != _MASK_FALLBACK
+    ):
         if verbose:
             print(
                 f"  mask 0x{mask & 0xFF:02X} rejected (0x31); retrying with 0x{_MASK_FALLBACK:02X}",
                 flush=True,
             )
         cmd = f"1902{_MASK_FALLBACK:02X}"
-        response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=0x19)
+        response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=READ_DTC_INFORMATION)
 
     base = {"ecu": ecu, "tx": f"0x{tx_id:03X}", "protocol": UDS, "command": cmd}
     if response["ok"]:
@@ -106,7 +112,9 @@ async def _read_kwp(
     requests = (_KWP_SUPPORTED_REQUEST,) if supported else _KWP_READ_REQUESTS
     cmd = requests[0]
     for cmd in requests:
-        response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=0x18)
+        response = await terminal.send_uds(
+            cmd, timeout=timeout, expected_sid=KWP_READ_DTC_BY_STATUS
+        )
         if response["ok"]:
             break
         # Only probe alternate request forms if the ECU actually answered (NRC);

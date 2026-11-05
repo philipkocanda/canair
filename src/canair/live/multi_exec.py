@@ -26,6 +26,7 @@ from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import SessionManager
 from canair.uds.describe import decode_uds_response
 from canair.uds.echo import request_echo
+from canair.uds.nrc import NRC_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT, NRC_REQUEST_OUT_OF_RANGE
 from canair.uds.response import UdsResponse
 
 from ._iocontrol_actuate import send_iocontrol
@@ -199,7 +200,10 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> BatchOutcome:
     if resp.get("ok") or resp.get("nrc") is not None:
         sm.mark_active(tx_id)  # a real answer resets S3 — no redundant 3E00 needed
     if not resp.get("ok"):
-        if resp.get("nrc") in (0x13, 0x31):
+        if resp.get("nrc") in (
+            NRC_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT,
+            NRC_REQUEST_OUT_OF_RANGE,
+        ):
             batch_state.disable(tx_id, f"rejected a {len(dids)}-DID request with NRC 0x13/0x31")
         return "failed" if resp.get("nrc") is not None else "unanswered"
     split = split_multi_did(

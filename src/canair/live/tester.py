@@ -5,6 +5,7 @@ from datetime import datetime
 
 from canair.transport.elm327.addressing import FUNCTIONAL_11BIT_ID
 from canair.transport.elm327.terminal import Elm327Terminal
+from canair.uds.services import TESTER_PRESENT_REQUEST
 
 
 def parse_target(target: str | None) -> int | None:
@@ -52,7 +53,7 @@ async def mode_tester_present(
             # the header in between. Cached, so only the first round sends anything.
             async with terminal.transaction():
                 await terminal.set_header(tx_id)
-                resp = await terminal.send_command("3E00", timeout=2.0)
+                resp = await terminal.send_command(TESTER_PRESENT_REQUEST, timeout=2.0)
 
             clean = resp.replace(" ", "").replace("\n", " ").strip()
             ts = datetime.now().strftime("%H:%M:%S")

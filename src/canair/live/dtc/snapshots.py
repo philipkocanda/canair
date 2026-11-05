@@ -19,15 +19,14 @@ from typing import Any
 
 from canair.uds.protocol import UDS
 from canair.uds.response import UdsResponse
+from canair.uds.services import READ_DTC_INFORMATION
+from canair.uds.subfunctions import DtcReportType
 
 from ...dtc.snapshot import SnapshotError, parse_snapshot_ids, parse_snapshot_reply
 from ...dtc.snapshot_decode import length_resolver, snapshot_entries
 from ...transport.protocol import Terminal
 
 SNAPSHOT_IDS_REQUEST = "1903"
-_SID = 0x19
-_IDS_SF = 0x03
-_RECORD_SF = 0x04
 # 59 04 <DTC: 3> <status: 1> <record: 1> …: where a 59 04 reply names its record.
 _RECORD_BYTE = 6
 
@@ -92,8 +91,8 @@ async def fetch_snapshots(
         listing = await terminal.send_uds(
             SNAPSHOT_IDS_REQUEST,
             timeout=timeout,
-            expected_sid=_SID,
-            expected_echo=bytes([_IDS_SF]),
+            expected_sid=READ_DTC_INFORMATION,
+            expected_echo=bytes([DtcReportType.REPORT_DTC_SNAPSHOT_IDENTIFICATION]),
         )
     if not listing["ok"]:
         reason = _refusal(listing)
@@ -138,8 +137,8 @@ async def _read_record(
         reply = await terminal.send_uds(
             request,
             timeout=timeout,
-            expected_sid=_SID,
-            expected_echo=bytes([_RECORD_SF]) + dtc,
+            expected_sid=READ_DTC_INFORMATION,
+            expected_echo=bytes([DtcReportType.REPORT_DTC_SNAPSHOT_RECORD_BY_DTC_NUMBER]) + dtc,
         )
     if not reply["ok"]:
         return {"record": number, "error": _refusal(reply)}

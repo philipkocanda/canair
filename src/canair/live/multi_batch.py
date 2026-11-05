@@ -19,11 +19,14 @@ from canair.expression.results import ResultEntry
 from canair.uds.describe import decode_uds_response
 from canair.uds.multi_did import MULTI_DID_MAX_DEFAULT, split_chain
 from canair.uds.response import UdsResponse
+from canair.uds.services import READ_DATA_BY_IDENTIFIER, positive_response_sid
 from canair.uds.support_map import map_byte_indices
 
 # Consecutive unanswered batches (each with a successful per-DID fallback) before an
 # ECU is read singly for the rest of the session; see BatchState.batch_unanswered.
 BATCH_UNANSWERED_BEFORE_DISABLE = 3
+
+_POSITIVE_READ = positive_response_sid(READ_DATA_BY_IDENTIFIER)
 
 
 def transport_did_cap(max_request_bytes: int) -> int:
@@ -129,7 +132,7 @@ def _did_data_len(resp_hex: str, did4: str) -> int | None:
         did = bytes.fromhex(did4)
     except ValueError:
         return None
-    if len(b) < 3 or b[0] != 0x62 or b[1:3] != did:
+    if len(b) < 3 or b[0] != _POSITIVE_READ or b[1:3] != did:
         return None
     return len(b) - 3
 
@@ -152,7 +155,7 @@ def split_multi_did(
         b = bytes.fromhex(resp_hex)
     except ValueError:
         return None
-    if not b or b[0] != 0x62:
+    if not b or b[0] != _POSITIVE_READ:
         return None
     pos = 1
     out: dict[str, str] = {}

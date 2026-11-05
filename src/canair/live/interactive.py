@@ -8,7 +8,25 @@ from canair.render.formatting import print_decoded_params, print_hexdump
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.elm327.wican import WiCANTerminal, reboot_wican
 from canair.uds.parse import parse_uds_response
+from canair.uds.services import (
+    KWP_READ_DATA_BY_LOCAL_IDENTIFIER,
+    OBD_REQUEST_VEHICLE_INFORMATION,
+    OBD_SHOW_CURRENT_DATA,
+    READ_DATA_BY_IDENTIFIER,
+    positive_response_sid,
+    request_sid_of,
+)
 from canair.uds.wican_layout import uds_hex_to_wican_bytes
+
+# Positive replies whose identifier is one byte, so the PID is the request SID plus it.
+_ONE_BYTE_ID_REPLIES = frozenset(
+    positive_response_sid(sid)
+    for sid in (
+        OBD_SHOW_CURRENT_DATA,
+        OBD_REQUEST_VEHICLE_INFORMATION,
+        KWP_READ_DATA_BY_LOCAL_IDENTIFIER,
+    )
+)
 
 
 async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: bool):
@@ -114,9 +132,12 @@ async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: b
                 print("  No TX ID set. Use ATSH to set the ECU header first.")
                 continue
             resp_bytes = last_response["bytes"]
-            if resp_bytes[0] in (0x41, 0x49, 0x61) and len(resp_bytes) >= 2:
-                pid_str = f"{resp_bytes[0] - 0x40:02X}{resp_bytes[1]:02X}"
-            elif resp_bytes[0] == 0x62 and len(resp_bytes) >= 3:
+            if resp_bytes[0] in _ONE_BYTE_ID_REPLIES and len(resp_bytes) >= 2:
+                pid_str = f"{request_sid_of(resp_bytes[0]):02X}{resp_bytes[1]:02X}"
+            elif (
+                resp_bytes[0] == positive_response_sid(READ_DATA_BY_IDENTIFIER)
+                and len(resp_bytes) >= 3
+            ):
                 pid_str = f"22{resp_bytes[1]:02X}{resp_bytes[2]:02X}"
             else:
                 print(f"  Unknown response SID: 0x{resp_bytes[0]:02X}")
