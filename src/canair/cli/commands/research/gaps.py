@@ -18,8 +18,8 @@ from typing import Any
 
 from canair.core.id_ranges import IdRange, format_id_ranges, parse_id_ranges
 from canair.ecus.did_families import FamilyGap, unread_families
+from canair.uds.services import READ_DATA_BY_IDENTIFIER
 
-_READ = 0x22
 # A 4-hex DID or DID range inside free text; a 6-hex token is a PID with its 22 prefix.
 _DID = r"([0-9A-Fa-f]{4}|22[0-9A-Fa-f]{4})"
 _TOKEN = re.compile(rf"(?<![0-9A-Fa-f]){_DID}(?:-{_DID})?(?![0-9A-Fa-f])")
@@ -65,7 +65,7 @@ def profile_read_ranges(ecu_def: Mapping[str, Any]) -> tuple[list[IdRange], list
     """``(read, planned)`` 0x22 ranges recorded in the ECU's own definition."""
     read: list[IdRange] = []
     for entry in ecu_def.get("scan_log") or []:
-        if isinstance(entry, Mapping) and _service(entry.get("service")) == _READ:
+        if isinstance(entry, Mapping) and _service(entry.get("service")) == READ_DATA_BY_IDENTIFIER:
             read.extend(did_ranges_in_text(entry.get("range", "")))
     planned: list[IdRange] = []
     for entry in ecu_def.get("research") or []:

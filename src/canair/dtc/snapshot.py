@@ -24,10 +24,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from canair.uds.services import READ_DTC_INFORMATION, positive_response_sid
+from canair.uds.subfunctions import DtcReportType
+
 READ_DID_SERVICE = "22"
-_SNAPSHOT_IDS_SF = 0x03
-_SNAPSHOT_RECORD_SF = 0x04
-_POSITIVE = 0x59
+_POSITIVE = positive_response_sid(READ_DTC_INFORMATION)
 # ISO 14229-1: record number FF in a request means "every record"; it never names one.
 ALL_RECORDS = 0xFF
 
@@ -90,7 +91,7 @@ class SnapshotReply:
 
 def parse_snapshot_ids(data: bytes) -> list[tuple[bytes, int]]:
     """``(DTC, record number)`` pairs from a ``59 03`` reply, in reply order."""
-    _check_header(data, _SNAPSHOT_IDS_SF)
+    _check_header(data, DtcReportType.REPORT_DTC_SNAPSHOT_IDENTIFICATION)
     body = data[2:]
     if len(body) % 4:
         raise SnapshotError(
@@ -113,7 +114,7 @@ def parse_snapshot_reply(
     record takes the remaining bytes without asking ``length_of``. A reply with no records (the DTC has no
     snapshot stored) parses to an empty ``records``.
     """
-    _check_header(data, _SNAPSHOT_RECORD_SF)
+    _check_header(data, DtcReportType.REPORT_DTC_SNAPSHOT_RECORD_BY_DTC_NUMBER)
     if len(data) < 6:
         raise SnapshotError(f"59 04 reply is {len(data)} bytes, shorter than its 6-byte header")
     dtc, status = bytes(data[2:5]), data[5]

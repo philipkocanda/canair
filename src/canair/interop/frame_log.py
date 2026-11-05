@@ -49,17 +49,24 @@ from canair.ecus import EcuRegistryEntry, ecu_protocol, rx_addr_str, rx_for_tx
 from canair.uds.isotp_passive import ReassemblyStats, reassemble
 from canair.uds.multi_did import split_chain
 from canair.uds.nrc import is_response_pending, nrc_description
-from canair.uds.services import NEGATIVE_RESPONSE_SID
+from canair.uds.services import (
+    KWP_READ_DATA_BY_LOCAL_IDENTIFIER,
+    NEGATIVE_RESPONSE_SID,
+    READ_DATA_BY_IDENTIFIER,
+    positive_response_sid,
+)
 
 if TYPE_CHECKING:
     import can
 
-_READ_BY_LOCAL_ID = 0x21
-_READ_BY_ID = 0x22
 # Replies from an id outside the registry are only worth mentioning when they look like
 # the answer to a data read, otherwise every broadcast frame would be "unregistered".
 _DATA_READ_REPLY_SIDS = frozenset(
-    {_READ_BY_ID + 0x40, _READ_BY_LOCAL_ID + 0x40, NEGATIVE_RESPONSE_SID}
+    {
+        positive_response_sid(READ_DATA_BY_IDENTIFIER),
+        positive_response_sid(KWP_READ_DATA_BY_LOCAL_IDENTIFIER),
+        NEGATIVE_RESPONSE_SID,
+    }
 )
 
 
@@ -164,20 +171,30 @@ def extract_replies(
         pending.expire(msg.timestamp)
         sid = payload[0]
         notes: str | None = None
-        if sid == _READ_BY_ID + 0x40 and len(payload) >= 3:
+        if sid == positive_response_sid(READ_DATA_BY_IDENTIFIER) and len(payload) >= 3:
             echoed = payload[1:3]
             batch = pending.take(lambda r, e=echoed: _is_batch_for(r, e))
             if batch is not None or split_chain(payload, pending.lengths.get) is not None:
                 result.batched_skipped += 1
                 continue
-            pending.take(lambda r, e=echoed: r.service == _READ_BY_ID and r.first_id == e)
+            pending.take(
+                lambda r, e=echoed: r.service == READ_DATA_BY_IDENTIFIER and r.first_id == e
+            )
             pending.lengths[echoed.hex().upper()] = len(payload) - 3
             pid = f"22{echoed.hex().upper()}"
-        elif sid == _READ_BY_LOCAL_ID + 0x40 and len(payload) >= 2:
+        elif sid == positive_response_sid(KWP_READ_DATA_BY_LOCAL_IDENTIFIER) and len(payload) >= 2:
             echoed = payload[1:2]
-            pending.take(lambda r, e=echoed: r.service == _READ_BY_LOCAL_ID and r.first_id == e)
+            pending.take(
+                lambda r, e=echoed: (
+                    r.service == KWP_READ_DATA_BY_LOCAL_IDENTIFIER and r.first_id == e
+                )
+            )
             pid = f"21{echoed.hex().upper()}"
-        elif sid == NEGATIVE_RESPONSE_SID and len(payload) == 3 and payload[1] in (0x21, 0x22):
+        elif (
+            sid == NEGATIVE_RESPONSE_SID
+            and len(payload) == 3
+            and payload[1] in (KWP_READ_DATA_BY_LOCAL_IDENTIFIER, READ_DATA_BY_IDENTIFIER)
+        ):
             service = payload[1]
             if is_response_pending(payload, service):
                 pending.refresh(service, msg.timestamp)
@@ -200,16 +217,20 @@ def extract_replies(
 
 def _parse_request(payload: bytes) -> _Request | None:
     """The identifier(s) of a data-read request, or None for any other request."""
-    if payload[0] == _READ_BY_ID and len(payload) >= 3 and len(payload) % 2 == 1:
-        return _Request(_READ_BY_ID, payload[1:3], (len(payload) - 1) // 2)
-    if payload[0] == _READ_BY_LOCAL_ID and len(payload) == 2:
-        return _Request(_READ_BY_LOCAL_ID, payload[1:2], 1)
+    if payload[0] == READ_DATA_BY_IDENTIFIER and len(payload) >= 3 and len(payload) % 2 == 1:
+        return _Request(READ_DATA_BY_IDENTIFIER, payload[1:3], (len(payload) - 1) // 2)
+    if payload[0] == KWP_READ_DATA_BY_LOCAL_IDENTIFIER and len(payload) == 2:
+        return _Request(KWP_READ_DATA_BY_LOCAL_IDENTIFIER, payload[1:2], 1)
     return None
 
 
 def _is_batch_for(request: _Request, echoed_id: bytes) -> bool:
     """Is ``request`` a batched service-22 read whose reply starts ``62 echoed_id``?"""
-    return request.service == _READ_BY_ID and request.count > 1 and request.first_id == echoed_id
+    return (
+        request.service == READ_DATA_BY_IDENTIFIER
+        and request.count > 1
+        and request.first_id == echoed_id
+    )
 
 
 def stamp(replies: Iterable[ExtractedReply], start: datetime) -> list[CaptureRecord]:

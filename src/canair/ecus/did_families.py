@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from canair.core.id_ranges import IdRange
+from canair.uds.services import INPUT_OUTPUT_CONTROL_BY_IDENTIFIER, READ_DATA_BY_IDENTIFIER
 
 FAMILY_SIZE = 0x100
 
@@ -26,8 +27,6 @@ FAMILY_SIZE = 0x100
 # IOControl scan or a curated entry has found.
 _PIDS = "pids"
 _IOCONTROL_FIELDS = ("iocontrol", "iocontrol_discoveries")
-_READ_SERVICE = 0x22
-_IOCONTROL_SERVICE = 0x2F
 
 
 def did_families(ecu_def: Mapping[str, Any], *, include_iocontrol: bool = True) -> dict[int, str]:
@@ -87,7 +86,9 @@ def unread_families(
     io_by_family: dict[int, set[int]] = {}
     for did in _iocontrol_dids(ecu_def):
         io_by_family.setdefault(did >> 8, set()).add(did)
-    read_families = {did >> 8 for did, service in _pid_dids(ecu_def) if service == _READ_SERVICE}
+    read_families = {
+        did >> 8 for did, service in _pid_dids(ecu_def) if service == READ_DATA_BY_IDENTIFIER
+    }
 
     gaps: list[FamilyGap] = []
     for high in sorted(io_by_family):
@@ -121,7 +122,7 @@ def _pid_dids(ecu_def: Mapping[str, Any]) -> list[tuple[int, int]]:
             service, did = int(k[:2], 16), int(k[2:], 16)
         except ValueError:
             continue
-        if service in (_READ_SERVICE, _IOCONTROL_SERVICE):
+        if service in (READ_DATA_BY_IDENTIFIER, INPUT_OUTPUT_CONTROL_BY_IDENTIFIER):
             out.append((did, service))
     return out
 
@@ -132,7 +133,9 @@ def _iocontrol_dids(ecu_def: Mapping[str, Any]) -> list[int]:
     A discovery that only drew an NRC does not count: some ECUs (this car's DDM) refuse
     every DID of a range with the same NRC, so it proves nothing about the DID.
     """
-    out = [did for did, service in _pid_dids(ecu_def) if service == _IOCONTROL_SERVICE]
+    out = [
+        did for did, service in _pid_dids(ecu_def) if service == INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
+    ]
     for field in _IOCONTROL_FIELDS:
         entries = ecu_def.get(field) or {}
         if not isinstance(entries, Mapping):
