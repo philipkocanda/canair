@@ -88,8 +88,11 @@ def _reset_active_profile():
     the wrong vehicle and renders no parameters.
     """
     import canair.profile as profile
+    from canair.cli.profile_context import install
     from canair.config import load_config
     from canair.ecus.pids import clear_cache
+
+    install()
 
     # The config is memoized too, and the active profile's variant is read from it: a
     # test that points XDG_CONFIG_HOME elsewhere must not leave its config cached for

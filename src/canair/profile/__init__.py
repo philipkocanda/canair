@@ -37,6 +37,7 @@ from __future__ import annotations
 import dataclasses
 import os
 import sys
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -52,24 +53,17 @@ class ProfileError(Exception):
 
 
 # ── the bundle, declared once ─────────────────────────────────────────────
-# Every member of a profile directory is described here, and everything that
-# needs to reason about "what is a profile made of" reads this table rather than
-# repeating the names: Profile's path properties, `canair profile show`,
-# `canair contribute` (what to copy / what may only grow), the blind-test strip,
-# and profile discovery. A member added here is picked up by all of them at
-# once — a member added to only *some* of those lists is exactly how
-# `groups.yaml` came to be silently dropped from contributions.
+# Every member of a profile directory is described here, and everything that reasons about
+# "what is a profile made of" reads this table (Profile's path properties, `profile show`,
+# `contribute`, the blind-test strip, discovery), so a new member is one edit.
 #
 # `role` decides how a contribution treats the member:
-#   definition — curated, hand-authored: always contributed, and normally only
-#                *grows* (so a diff that removes upstream lines is suspicious).
-#   evidence   — recorded measurements: contributed opt-in (`--captures`),
-#                append-only, unioned rather than replaced.
+#   definition — curated: always contributed, and normally only *grows*.
+#   evidence   — recorded measurements: contributed opt-in (`--captures`), append-only.
 #   external   — third-party material of uncertain licence: never contributed.
 #   generated  — reproducible output: never contributed, regenerate instead.
-# Machine-local bookkeeping about *your* car (the DTC log, detected revisions) is no
-# member at all: it lives in user state under the config dir, where a reinstall or
-# re-clone of the profile cannot delete it.
+# Machine-local bookkeeping about *your* car (the DTC log, detected revisions) is no member:
+# it lives in user state under the config dir, where a reinstall cannot delete it.
 MemberRole = Literal["definition", "evidence", "external", "generated"]
 MemberKind = Literal["file", "dir"]
 
@@ -594,6 +588,22 @@ def profile_for_path(path: Path | str) -> Profile:
 _active: Profile | None = None
 
 
+# How the active profile gets its variant and revision pins applied: (profile, --variant,
+# --revision pins) -> profile. Variants sit above this package, so the CLI installs it; without
+# one a profile resolves as `resolve_profile` returns it.
+_variant_applier: Callable[[Profile, str | None, Sequence[str] | None], Profile] | None = None
+
+
+def use_variant_applier(applier: Callable[[Profile, str | None, Sequence[str] | None], Profile]):
+    """Install what :func:`set_active` and :func:`active` apply to a resolved profile."""
+    global _variant_applier
+    _variant_applier = applier
+
+
+def _applied(profile: Profile, variant=None, revisions=None) -> Profile:
+    return _variant_applier(profile, variant, revisions) if _variant_applier else profile
+
+
 def set_active(
     name: str | None = None,
     profiles_dir: str | os.PathLike | None = None,
@@ -602,16 +612,9 @@ def set_active(
 ) -> Profile:
     """Resolve and memoize the active profile (called by the CLI).
 
-    ``variant`` is the ``--variant`` flag; ``CANAIR_VARIANT`` applies without it.
-    ``revisions`` are the ``--revision ECU=ID`` pins. What is cached from a profile's
-    definitions is keyed by :attr:`Profile.cache_key`, so switching profiles (or cars) in
-    one process can't decode against the wrong vehicle.
+    ``variant`` is the ``--variant`` flag and ``revisions`` the ``--revision ECU=ID`` pins.
     """
-    from canair.variants.selection import apply_variant
-
-    global _active
-    _active = apply_variant(resolve_profile(name, profiles_dir), variant, revisions)
-    return _active
+    return replace_active(_applied(resolve_profile(name, profiles_dir), variant, revisions))
 
 
 def replace_active(profile: Profile) -> Profile:
@@ -623,12 +626,7 @@ def replace_active(profile: Profile) -> Profile:
 
 def active() -> Profile:
     """Return the active profile, resolving it lazily on first use."""
-    global _active
-    if _active is None:
-        from canair.variants.selection import apply_variant
-
-        _active = apply_variant(resolve_profile())
-    return _active
+    return _active if _active is not None else replace_active(_applied(resolve_profile()))
 
 
 def config_dir_hint() -> Path:

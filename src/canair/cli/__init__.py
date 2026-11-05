@@ -324,6 +324,10 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
+    from canair.cli.profile_context import install
+
+    install()
+
     # Ensure ~/.config/canair (and profiles/) exists so no manual setup is needed.
     from canair.config import ensure_config_dir
 
