@@ -277,7 +277,7 @@ tree is a **security incident**: flag it (history purge, key rotation), don't de
 - **Every behavioral change ships with tests**; a bug fix ships a regression test that fails before
   and passes after.
 - Prefer fast, device-free unit tests — drive modes with a fake terminal implementing the `Terminal`
-  surface (`tests/dtc/test_dtc.py`, `tests/live/test_identity.py` are templates). Never require a live
+  surface (`tests/dtc/test_dtc.py`, `tests/live/identity/test_identity.py` are templates). Never require a live
   device.
 - Cover the failure paths that matter: NRC responses, `NO DATA`, malformed payloads, declined
   confirmations.
@@ -295,7 +295,7 @@ up** when a structural change is warranted instead of bolting on more.
 
 - **File size is a smell.** Approaching ~500 lines — and *well* before 1000 — split by concern (pure
   helpers, async device orchestration, TUI, record/table data). `live/identity/read.py` splitting out
-  `identity_decode.py`/`identity_records.py` is the pattern.
+  `decode.py`/`records.py` is the pattern.
 - **A command is one module until it needs two — then it becomes a package.** Create
   `cli/commands/<name>/`; do **not** add a flat `_<name>_*.py` sibling (retired for new work).
   `cli/commands/captures/` and `cli/commands/decode/` are the precedents, and the command registries are
