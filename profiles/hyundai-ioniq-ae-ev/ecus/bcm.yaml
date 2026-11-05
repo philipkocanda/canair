@@ -546,6 +546,8 @@ BCM:
           verified: true
           notes: >-
             Scale estimated from one reading: raw 149 = 11.92 V against the WiCAN's own 12.1 V.
+            Reads a constant 0.19-0.21 V below SKM_12V_BATTERY and VCU_AUX_BATTERY_VOLTAGE_FINE from
+            11.6 to 15 V (slope 1.011, n=1503), a calibration offset.
         BCM_AMBIENT_LIGHT:
           expression: B12
           display: ""

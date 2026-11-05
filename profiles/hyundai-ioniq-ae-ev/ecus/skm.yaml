@@ -183,9 +183,14 @@ SKM:
         SKM_12V_BATTERY:
           expression: B10*0.08
           notes: >-
-            GDS 'Battery Voltage Monitoring Input (by CPU)'. Reads 2-3 counts (about 0.2 V) above
-            BCM_12V_BATTERY in 175 of 186 co-polled rows (r=0.96), the same 0.08 V/count scale:
-            about 12.4 V parked, 14.8 V in READY and while charging.
+            GDS 'Battery Voltage Monitoring Input (by CPU)'. With the LDC on (above 14.2 V) it reads
+            within 0.01 V on average of VCU_AUX_BATTERY_VOLTAGE_FINE (n=138, 2026-10-25; +0.07 to
+            +0.09 V on 2026-10-22 and 10-24). BCM_12V_BATTERY reads a constant 0.19-0.21 V lower
+            from 11.6 to 15 V (slope 1.011, n=1503) and OBC LDC_OUTPUT_V 0.28-0.36 V lower, so the
+            gaps are calibration offsets, not wiring drop. Not checked with a multimeter. About 12.0
+            V parked since 2026-10-30, 14.8 V in READY, up to 15.04 V while charging (2026-11-05).
+          source: Co-polled vs VCU 2102, BCM 22B003 and OBC 2101, 2026-08-15 to 2026-11-05
+          verified: true
         SKM_12V_BATTERY_BY_LOAD:
           expression: B21*0.08
           notes: >-
@@ -308,7 +313,9 @@ SKM:
       period: 10000
       vehicle_states: [SLEEP]
       notes: >-
-        17 bytes, mostly 0. B13 is the power mode (SKM_POWER_MODE). Sample in READY:
+        17 bytes, mostly 0. B13 is the power mode (SKM_POWER_MODE). B12 reads 3 with the ignition
+        off, 4 in about 7 % of those reads and 0 with the ignition on and in some ignition-off
+        periods; 22B00B B43 is a copy (see research). Sample in READY:
         62B0080000000000000009000000000000.
       parameters:
         SKM_POWER_MODE:
@@ -351,10 +358,13 @@ SKM:
       vehicle_states: [SLEEP]
       notes: >-
         52 bytes, beginning 62B00B800000000200000000000000000000000400005319420000000002. B57 copies
-        SKM_POWER_MODE. On 2026-11-03: B31 bit 1 and B41 bit 5 are set with the ignition off and a
-        door open; B54 bit 2 and B39 bits 4 and 7 come on for about 30 s after each change to ACC or
-        ON, and B54 bit 2 and B39 bit 4 stay on through READY; B33 and B37 bit 4 are set with the
-        ignition on or in ACC until the driver door closed at 20:48:35.
+        SKM_POWER_MODE and B43 copies 22B008 B12. B27 is a wrapping 8-bit event counter and B29 a
+        copy that lags it and then catches up; B28 is 0x19 in every capture (see research). B25 read
+        4 from 2026-07-29 to 2026-08-15 and 0 on 2026-04-18 and from 2026-10-21. On 2026-11-03: B31
+        bit 1 and B41 bit 5 are set with the ignition off and a door open; B54 bit 2 and B39 bits 4
+        and 7 come on for about 30 s after each change to ACC or ON, and B54 bit 2 and B39 bit 4
+        stay on through READY; B33 and B37 bit 4 are set with the ignition on or in ACC until the
+        driver door closed at 20:48:35.
       parameters:
         SKM_POWER_MODE_B00B:
           expression: B57
@@ -665,6 +675,60 @@ SKM:
       capture_protocol: >-
         canair monitor SKM:22B007,22B00B IGPM:22BC03 --save --keep-all --interval 0.5 --label 'SKM
         fob search and 30 s window' --state ON; press s at every action.
+    - type: decode
+      target: 22B00B B27/B29 event counter
+      status: captured
+      priority: P2
+      vehicle_states: ["OFF"]
+      created: "2026-11-05"
+      updated: "2026-11-05"
+      result: >-
+        B27 (ISO-TP 0x16) is a wrapping 8-bit counter: 72 (07-29), 87 (08-03), 95 (08-15), 221
+        (10-21), 240 (10-24), 243 (10-25), 6 after wrapping (10-30), 21 (10-31), 29 (11-03 and
+        11-05). B29 (0x18) lags it and catches up: 76 to 95 on 08-15, 218 to 243 on 10-25, 19 to 29
+        between 10-31 and 11-03. B28 is 0x19 in every capture. No change over 4 READY episodes and
+        door openings on 11-03, nor across the unlock and lock between 11-03 and 11-05. On
+        2026-08-15 10:11:03, locked, B27 rose by 1 and B29 caught up while the IGPM interior lamp
+        autocut relay pulsed for 18 s and B43 read 1.
+      notes: >-
+        Hypothesis: fob (RKE) button commands received, with B29 the last saved value. Unconfirmed:
+        no fob press has been narrated during a capture.
+      sources:
+        - SKM capture history 2026-07-29 to 2026-11-05
+      what_to_test:
+        - "Car locked, fob outside: poll 22B00B and press the fob lock button 3 times about 10 s apart; B27 should rise by 3."
+        - Unlock and lock once with the door-handle button only; B27 should not change.
+        - Note when B29 catches up to B27 (lock, sleep, ignition on?).
+      capture_protocol: >-
+        canair monitor SKM:22B00B IGPM:22BC04 --save --interval 1 --label 'SKM fob press counter'
+        --state OFF; press s at every fob press.
+    - type: decode
+      target: 22B008 B12 / 22B00B B43 state
+      status: captured
+      priority: P3
+      vehicle_states: ["OFF"]
+      created: "2026-11-05"
+      updated: "2026-11-05"
+      result: >-
+        22B008 B12 (ISO-TP 0x09) and 22B00B B43 (0x24) carry one value: 3 with the ignition off, 4
+        in 7-8 % of those reads, 0 with the ignition on, 1 once (2026-08-15 10:11:03). The two
+        copies are read about 0.3 s apart and read 4 independently (7 joint 4s against about 6 by
+        chance), so a 4 lasts under 0.3 s. P(4) does not depend on how long the SKM had been awake
+        or on the polling gap. Also 0 in some ignition-off periods: 04-18, 10-21 to 10-25 (including
+        the overnight charge) and just after power-off on 10-25 and 11-03; 3/4 in August and from
+        10-30 through the 11-05 charge. Lock state, charging, BCM 22B003 B18 and BCM_B004_B11_6 do
+        not explain the 0 vs 3 split.
+      notes: >-
+        Hypothesis: a smart-key or alarm mode (for example armed and polling vs not armed). IGPM
+        BC10 locks without arming the alarm. Unconfirmed.
+      sources:
+        - SKM capture history 2026-04-18 to 2026-11-05
+      what_to_test:
+        - Lock with the fob button, then with IGPM BC10 on another day; record whether B12 reads 0 or 3 afterwards.
+        - Note where the fob is (in the car, near the car, away) for each ignition-off recording.
+      capture_protocol: >-
+        canair monitor SKM:22B008,22B00B --save --interval 1 --label 'SKM state 0 vs 3' --state OFF;
+        note the lock method and fob location in --notes.
   dtcs:
     source: Ioniq Electric 2017 service manual, Smart Key Unit diagnosis (EV)
     source_links:
