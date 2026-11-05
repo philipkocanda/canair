@@ -71,6 +71,7 @@ def reached(monkeypatch):
         module = __import__(f"canair.cli.commands.{name}", fromlist=["run_live"])
         if hasattr(module, "run_live"):
             monkeypatch.setattr(module, "run_live", fake_run_live)
+    monkeypatch.setattr("canair.cli.commands.scan.run.run_live", fake_run_live)
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)
 
     def go(argv: list[str]):

@@ -7,7 +7,7 @@ import io
 
 import pytest
 
-from canair.cli.commands import scan
+from canair.cli.commands.scan import plan, run, wizard
 
 
 class _Tty(io.StringIO):
@@ -32,9 +32,9 @@ def _run(monkeypatch, typed: list[str], final_answer: str) -> tuple[bool, argpar
 
     monkeypatch.setattr("builtins.input", fake_input)
     monkeypatch.setattr("sys.stdin", _Tty(final_answer))
-    monkeypatch.setattr(scan, "plan_scan", lambda *a, **k: None)
+    monkeypatch.setattr(wizard, "plan_scan", lambda *a, **k: None)
     args = _args()
-    return scan._run_wizard(args), args, asked
+    return wizard.run_wizard(args), args, asked
 
 
 def test_enter_declines_the_run_prompt(monkeypatch, capsys):
@@ -58,21 +58,21 @@ def test_session_and_wake_answers_are_kept(monkeypatch):
 
 
 def test_a_declined_wizard_exits_1(monkeypatch):
-    monkeypatch.setattr(scan, "_run_wizard", lambda args: False)
+    monkeypatch.setattr(run, "run_wizard", lambda args: False)
     monkeypatch.setattr("sys.stdin", _Tty(""))
     args = argparse.Namespace(interactive=True, tx=None)
-    assert scan.run_range(args) == 1
+    assert run.run_range(args) == 1
 
 
 def test_without_a_terminal_and_without_an_ecu_it_is_a_usage_error(monkeypatch, capsys):
     monkeypatch.setattr("sys.stdin", io.StringIO(""))
-    assert scan.run_range(argparse.Namespace(interactive=False, tx=None)) == 2
+    assert run.run_range(argparse.Namespace(interactive=False, tx=None)) == 2
     assert capsys.readouterr().err.startswith("error: no ECU given")
 
 
 def test_slots_with_a_range_is_a_usage_error(capsys):
     args = argparse.Namespace(service=None, range="01-FF", slots=3, tx="BMS")
     with pytest.raises(SystemExit) as raised:
-        scan._resolve_plan(args)
+        plan.resolve_plan(args)
     assert raised.value.code == 2
     assert capsys.readouterr().err.startswith("error: --slots")

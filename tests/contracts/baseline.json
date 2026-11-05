@@ -13,7 +13,6 @@
     "canair.tui.apps.captures_step.app": 671,
     "canair.cli.commands.captures.uds": 521,
     "canair.cli.commands.config": 603,
-    "canair.cli.commands.scan": 618,
     "canair.cli.commands.states": 617,
     "canair.config": 554,
     "canair.contribute": 934,
@@ -49,7 +48,7 @@
     "rich_console": {},
     "prompts": {
       "src/canair/cli/commands/profile/scaffold.py": 1,
-      "src/canair/cli/commands/scan.py": 1,
+      "src/canair/cli/commands/scan/wizard.py": 1,
       "src/canair/cli/first_run.py": 1,
       "src/canair/cli/grid_prompt.py": 1,
       "src/canair/live/elm/repl.py": 1
