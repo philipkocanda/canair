@@ -19,6 +19,13 @@ import re
 import time
 
 from canair.transport.elm327.terminal import Elm327Terminal
+from canair.uds.nrc import (
+    NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
+    is_negative_response,
+    is_response_pending,
+)
+from canair.uds.parse import reply_lines
+from canair.uds.services import INPUT_OUTPUT_CONTROL_BY_IDENTIFIER, positive_response_sid
 
 # SKM relay control DIDs
 SKM_RELAYS = {
@@ -30,6 +37,29 @@ SKM_RELAYS = {
 
 # Magic bytes required for SKM IOControl ON
 SKM_MAGIC = "0A0A05"
+
+_IO_CONTROL = INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
+
+
+def _answered(text: str, did: str | None = None) -> bool:
+    """Does the adapter text hold a positive IOControl reply (for ``did``'s high byte)?"""
+    head = bytes([positive_response_sid(_IO_CONTROL)])
+    if did is not None:
+        head += bytes.fromhex(did[:2])
+    return any(r.startswith(head) for r in reply_lines(text))
+
+
+def _pending(text: str) -> bool:
+    """Does the adapter text hold an IOControl ResponsePending (``7F 2F 78``)?"""
+    return any(is_response_pending(r, _IO_CONTROL) for r in reply_lines(text))
+
+
+def _refused(text: str, nrc: int | None = None) -> bool:
+    """Does the adapter text hold an IOControl refusal (``7F 2F <nrc>``), not a pending one?"""
+    return any(
+        is_negative_response(r, _IO_CONTROL, nrc) and not is_response_pending(r)
+        for r in reply_lines(text)
+    )
 
 
 def parse_igpm_bc03(raw_response: str) -> dict:
@@ -217,7 +247,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
         len(clean) <= 4 and clean.startswith("F")
     )
 
-    if is_fc_only or ("7F2F78" in clean and "6F" not in clean):
+    if is_fc_only or (_pending(resp) and not _answered(resp)):
         if verbose:
             reason = "FC echo" if is_fc_only else "pending NRC"
             print(f"        Initial response: {resp.strip()} ({reason})")
@@ -235,34 +265,27 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
             except Exception:
                 break
             if msg is None:
-                combined = "".join(extra_parts).replace(" ", "").upper()
-                if "7F2F78" in combined and "6F" not in combined:
+                combined = "".join(extra_parts)
+                if _pending(combined) and not _answered(combined):
                     continue
                 break
             if msg:
                 extra_parts.append(msg)
                 if verbose:
                     print(f"        Recv: {msg.strip()!r}")
-            combined = "".join(extra_parts).replace(" ", "").upper()
-            if "6FB1" in combined or "6F" in combined:
-                break
-            if re.search(r"7F2F(?!78)[0-9A-Fa-f]{2}", combined):
+            combined = "".join(extra_parts)
+            if _answered(combined) or _refused(combined):
                 break
         if extra_parts:
             resp = resp + "\n" + "".join(extra_parts)
             if verbose:
                 print(f"        Full response: {resp.strip()}")
 
-    success = (
-        f"6F{did[0:2]}" in resp.replace(" ", "").upper() or "6FB1" in resp.replace(" ", "").upper()
-    )
-
-    if not success:
-        clean = resp.replace(" ", "").upper()
-        if "7F2F7F" in clean:
+    if not _answered(resp, did):
+        if _refused(resp, NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION):
             print("        FAILED: serviceNotSupportedInActiveSession")
             print("        The extended session may have expired. Try again.")
-        elif "7F2F78" in clean and "6F" not in clean:
+        elif _pending(resp):
             print("        Pending response received but no positive confirmation.")
         else:
             print(f"        Response: {resp}")

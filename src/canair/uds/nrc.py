@@ -50,14 +50,20 @@ NOT_IN_ACTIVE_SESSION_NRCS: Final = frozenset(
 )
 
 
-def is_response_pending(reply: bytes, sid: int | None = None) -> bool:
-    """True when ``reply`` is a ResponsePending (``7F <sid> 78``), optionally for ``sid``."""
+def is_negative_response(reply: bytes, sid: int | None = None, nrc: int | None = None) -> bool:
+    """True when ``reply`` is a negative response (``7F <sid> <nrc>``), optionally for one
+    ``sid`` and with one ``nrc``."""
     return (
         len(reply) >= 3
         and reply[0] == NEGATIVE_RESPONSE_SID
-        and reply[2] == NRC_RESPONSE_PENDING
         and (sid is None or reply[1] == sid)
+        and (nrc is None or reply[2] == nrc)
     )
+
+
+def is_response_pending(reply: bytes, sid: int | None = None) -> bool:
+    """True when ``reply`` is a ResponsePending (``7F <sid> 78``), optionally for ``sid``."""
+    return is_negative_response(reply, sid, NRC_RESPONSE_PENDING)
 
 
 # UDS Negative Response Code descriptions

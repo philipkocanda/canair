@@ -7,7 +7,7 @@ taken for the ISO-TP length, frame lines printed with spaces, and so on.
 
 import pytest
 
-from canair.uds.parse import ADAPTER_STATUS, parse_uds_response
+from canair.uds.parse import ADAPTER_STATUS, parse_uds_response, reply_lines
 from canair.uds.response import (
     CAT_BUS,
     CAT_DECODE,
@@ -249,3 +249,15 @@ class TestSeveralSingleFrameLines:
     def test_a_non_hex_line_is_still_a_decode_failure(self):
         r = parse_uds_response("6101AA\nGARBAGE", expected_sid=0x21)
         assert r["error_kind"] == CAT_DECODE
+
+
+class TestReplyLines:
+    def test_each_whole_hex_line_is_one_reply(self):
+        text = "7F 2F 78\r6F B1 08 03\r\r>"
+        assert reply_lines(text) == [bytes.fromhex("7F2F78"), bytes.fromhex("6FB10803")]
+
+    def test_status_text_and_flow_control_echoes_are_not_replies(self):
+        assert reply_lines("SEARCHING...\nF00\nNO DATA\n62 F1 90") == [bytes.fromhex("62F190")]
+
+    def test_a_reply_is_never_read_across_two_lines(self):
+        assert reply_lines("62 01 7F\n2F 78") == [bytes.fromhex("62017F"), bytes.fromhex("2F78")]

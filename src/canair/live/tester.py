@@ -5,7 +5,11 @@ from datetime import datetime
 
 from canair.transport.elm327.addressing import FUNCTIONAL_11BIT_ID
 from canair.transport.elm327.terminal import Elm327Terminal
-from canair.uds.services import TESTER_PRESENT_REQUEST
+from canair.uds.nrc import is_negative_response
+from canair.uds.parse import reply_lines
+from canair.uds.services import TESTER_PRESENT, TESTER_PRESENT_REQUEST, positive_response_sid
+
+_POSITIVE = bytes([positive_response_sid(TESTER_PRESENT)])
 
 
 def parse_target(target: str | None) -> int | None:
@@ -61,8 +65,9 @@ async def mode_tester_present(
             if verbose:
                 print(f"  [{ts}] #{count} 3E00 -> {clean}")
             else:
-                n_pos = clean.count("7E00")
-                n_neg = clean.upper().count("7F3E")
+                replies = reply_lines(resp)
+                n_pos = sum(r[:1] == _POSITIVE for r in replies)
+                n_neg = sum(is_negative_response(r, TESTER_PRESENT) for r in replies)
                 has_nodata = "NODATA" in clean.upper().replace(" ", "")
                 if has_nodata:
                     print(f"  [{ts}] #{count} NO DATA", end="\r")

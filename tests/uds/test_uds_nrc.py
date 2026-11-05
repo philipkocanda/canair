@@ -7,6 +7,7 @@ from canair.uds.nrc import (
     NOT_IN_ACTIVE_SESSION_NRCS,
     NRC_ABBREV,
     NRC_CODES,
+    is_negative_response,
     is_response_pending,
     nrc_abbrev,
     nrc_description,
@@ -154,3 +155,16 @@ def test_not_in_active_session_is_one_code_per_protocol():
         "serviceNotSupportedInActiveSession",
         "serviceNotSupportedInActiveDiagnosticSession",
     }
+
+
+class TestIsNegativeResponse:
+    def test_matches_on_service_and_code(self):
+        assert is_negative_response(b"\x7f\x2f\x31")
+        assert is_negative_response(b"\x7f\x2f\x31", 0x2F)
+        assert is_negative_response(b"\x7f\x2f\x31", 0x2F, 0x31)
+        assert not is_negative_response(b"\x7f\x2f\x31", 0x22)
+        assert not is_negative_response(b"\x7f\x2f\x31", 0x2F, 0x78)
+
+    def test_a_short_or_positive_reply_is_not_one(self):
+        assert not is_negative_response(b"\x7f\x2f")
+        assert not is_negative_response(b"\x6f\x2f\x31")

@@ -33,12 +33,16 @@ from canair.captures import IMPORT_TRANSPORT
 from canair.uds.echo import request_echo
 from canair.uds.nrc import nrc_description
 from canair.uds.payload import payload_echo_mismatch
+from canair.uds.services import NEGATIVE_RESPONSE_SID
 
 PidKey = tuple[str, str]
 
 # Bytes ECUs commonly pad an ISO-TP frame with. Old captures kept that filler, so a
 # payload ending in anything else cannot have a padded tail.
 _FILL_BYTES = frozenset({"00", "55", "AA", "CC", "FF"})
+
+# A stored payload is hex text; a negative reply's starts with this.
+_NEGATIVE = f"{NEGATIVE_RESPONSE_SID:02X}"
 
 
 class RepresentativePayload(TypedDict):
@@ -109,7 +113,7 @@ def _nrc_code(pid: str, payload: str) -> int | None:
     A negative reply echoes the request SID, so one naming another service is a
     misfiled frame rather than this PID's answer.
     """
-    if len(payload) < 6 or payload[:2].upper() != "7F":
+    if len(payload) < 6 or payload[:2].upper() != _NEGATIVE:
         return None
     try:
         sid, code = int(payload[2:4], 16), int(payload[4:6], 16)
@@ -179,7 +183,7 @@ def select_captures(
                         reply
                     )
             continue
-        if payload[:2].upper() == "7F":
+        if payload[:2].upper() == _NEGATIVE:
             code = _nrc_code(pid, payload)
             if code is not None:
                 nrcs.setdefault(pkey, []).append((skey, code))

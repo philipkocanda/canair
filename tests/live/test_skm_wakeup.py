@@ -1,6 +1,6 @@
 """Tests for canair.live.skm_wakeup — parsing helpers."""
 
-from canair.live.skm_wakeup import parse_bcm_b003, parse_igpm_bc03
+from canair.live.skm_wakeup import _answered, _pending, _refused, parse_bcm_b003, parse_igpm_bc03
 
 # ── parse_igpm_bc03 ──────────────────────────────────────────────────────────
 
@@ -141,3 +141,26 @@ class TestParseBcmB003:
         assert r["ok"] is True
         assert r["power_byte"] == 0x09
         # This is the ambiguity — 0x09 in both sleep and ACC
+
+
+class TestRelayReply:
+    """The relay-ON reply is read line by line, never as a substring of all the text."""
+
+    def test_a_positive_reply_for_the_relay(self):
+        assert _answered("6F B1 08 03\r>", "B108")
+        assert not _answered("6F B2 08 03\r>", "B108")
+
+    def test_pending_then_positive(self):
+        text = "7F 2F 78\r6F B1 08 03\r"
+        assert _pending(text) and _answered(text) and not _refused(text)
+
+    def test_bytes_inside_another_reply_are_not_an_answer(self):
+        # The old substring test read the 6F inside this reply's data as a positive answer.
+        assert not _answered("7F 2F 78\r62 6F 01\r")
+        # ...and the 7F 2F 78 inside a positive reply as a pending one.
+        assert not _pending("6F B1 08 7F 2F 78\r")
+
+    def test_a_session_refusal(self):
+        text = "7F 2F 7F\r"
+        assert _refused(text) and _refused(text, 0x7F) and not _refused(text, 0x22)
+        assert not _refused("7F 2F 78\r")

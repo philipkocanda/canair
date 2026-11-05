@@ -70,6 +70,22 @@ def compact(text: str) -> str:
     return text.replace(" ", "").replace("\r", "").replace("\n", "")
 
 
+def reply_lines(text: str) -> list[bytes]:
+    """Each line of adapter text that is whole hex bytes, as bytes, in order.
+
+    For code that reads raw adapter output instead of one parsed reply: a line counts only
+    when all of it is hex, so bytes inside a longer reply, or split across two lines, never
+    read as a reply of their own. Prompts, status text and odd-length lines (a flow-control
+    echo such as ``F00``) are left out.
+    """
+    out = []
+    for line in text.replace("\r", "\n").split("\n"):
+        hex_text = _compact(line.strip().rstrip(">"))
+        if len(hex_text) >= 2 and len(hex_text) % 2 == 0 and _is_hex(hex_text):
+            out.append(bytes.fromhex(hex_text))
+    return out
+
+
 def _compact(line: str) -> str:
     return compact(line).upper()
 
