@@ -1,6 +1,12 @@
-"""Tests for canair.live.skm_wakeup — parsing helpers."""
+"""Tests for canair.live.elm.skm_wakeup — parsing helpers."""
 
-from canair.live.skm_wakeup import _answered, _pending, _refused, parse_bcm_b003, parse_igpm_bc03
+from canair.live.elm.skm_wakeup import (
+    _answered,
+    _pending,
+    _refused,
+    parse_bcm_b003,
+    parse_igpm_bc03,
+)
 
 # ── parse_igpm_bc03 ──────────────────────────────────────────────────────────
 

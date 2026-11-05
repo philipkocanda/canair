@@ -57,7 +57,7 @@
       "src/canair/cli/commands/scan.py": 1,
       "src/canair/cli/first_run.py": 1,
       "src/canair/cli/grid_prompt.py": 1,
-      "src/canair/live/interactive.py": 1
+      "src/canair/live/elm/repl.py": 1
     },
     "message_prefixes": {
       "src/canair/cli/commands/decode/format.py": 1,

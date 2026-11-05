@@ -10,7 +10,7 @@ ECUs actually exhibit.
 Today there are four quirks:
 
 - :data:`SKM_WAKEUP` — the Ioniq/HKMC Smart Key Module *relay*-wake procedure
-  (:mod:`canair.live.skm_wakeup`): rouse the SKM then close a power relay
+  (:mod:`canair.live.elm.skm_wakeup`): rouse the SKM then close a power relay
   (ACC/IGN) via IOControl. The relay DIDs / magic bytes / addresses are
   Ioniq-particular, so the ``skm-wake`` relay command is refused for profiles
   that don't declare this capability. (Merely *reading* a fast-sleeping ECU is
@@ -48,7 +48,7 @@ from typing import Any, Final
 from canair.uds.addressing import FUNCTIONAL_11BIT_ID
 from canair.uds.protocol import KWP
 
-# The Ioniq/HKMC Smart Key Module relay-wake procedure (canair.live.skm_wakeup):
+# The Ioniq/HKMC Smart Key Module relay-wake procedure (canair.live.elm.skm_wakeup):
 # rouse the SKM, then actuate a power relay (ACC/IGN) via IOControl. Make-specific
 # (relay DIDs / magic bytes / addresses are Ioniq-particular), so the `skm-wake`
 # relay command is gated behind this capability. Reading a fast-sleeping ECU is

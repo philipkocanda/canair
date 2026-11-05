@@ -30,7 +30,7 @@ async def _multi_repl(
 
     Extends the standard REPL with session keepalives and multi-ECU commands.
     """
-    from .skm_wakeup import mode_skm_wakeup
+    from .elm.skm_wakeup import mode_skm_wakeup
 
     terminal = sm.terminal
     _param_index = build_param_index(pids_data)

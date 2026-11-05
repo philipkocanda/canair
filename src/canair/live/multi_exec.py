@@ -48,7 +48,7 @@ from .multi_batch import (
 
 async def _exec_skm_wake(sm: SessionManager, level: str, verbose: bool):
     """Execute skm-wake sub-command using the existing mode_skm_wakeup logic."""
-    from .skm_wakeup import mode_skm_wakeup
+    from .elm.skm_wakeup import mode_skm_wakeup
 
     terminal = sm.terminal
 

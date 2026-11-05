@@ -10,8 +10,8 @@ import contextlib
 
 import pytest
 
-from canair.live import skm_wakeup
-from canair.live.tester import mode_tester_present, parse_target
+from canair.live.elm import skm_wakeup
+from canair.live.elm.tester import mode_tester_present, parse_target
 
 
 class RecordingTerminal:

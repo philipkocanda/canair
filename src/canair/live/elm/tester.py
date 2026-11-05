@@ -10,7 +10,7 @@ from canair.uds.nrc import is_negative_response
 from canair.uds.parse import reply_lines
 from canair.uds.services import TESTER_PRESENT, TESTER_PRESENT_REQUEST, positive_response_sid
 
-from .progress_line import ProgressLine
+from ..progress_line import ProgressLine
 
 _POSITIVE = bytes([positive_response_sid(TESTER_PRESENT)])
 
