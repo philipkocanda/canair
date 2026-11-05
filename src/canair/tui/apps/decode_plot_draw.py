@@ -7,18 +7,18 @@ or the Textual app — they call *down* into this, never the reverse, which is w
 keeps the chart testable without a terminal.
 
 The byte-interpretation primitives themselves (INSPECT_TYPES, interpret_bytes,
-wican_expr, ...) live one level further down in :mod:`canair.uds.inspect_bytes`.
+wican_expr, ...) live one level further down in :mod:`canair.expression.inspect_bytes`.
 """
 
 from __future__ import annotations
 
 from canair.analysis.stats import fmt_num as _fmt_num
 from canair.analysis.stats import mean as _mean
+from canair.expression.inspect_bytes import norm01
 from canair.render import ansi
 from canair.render.glyphs import ELLIPSIS, EMPTY, SEP
 from canair.states import join_states as _join_states
 from canair.uds.byteindex import extract_byte_indices, payload_to_wican_frame
-from canair.uds.inspect_bytes import norm01
 
 _V_AXIS = "\u2502"  # box vertical
 _CORNER = "\u2514"  # box corner

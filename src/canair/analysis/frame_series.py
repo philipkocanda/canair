@@ -18,7 +18,12 @@ from datetime import datetime
 
 from canair.analysis.align import TimePoint
 from canair.captures.can_logs import detect_format, iter_frames
-from canair.uds.inspect_bytes import INSPECT_TYPES, NO_EXPR, float_series_is_noise, interpret_bytes
+from canair.expression.inspect_bytes import (
+    INSPECT_TYPES,
+    NO_EXPR,
+    float_series_is_noise,
+    interpret_bytes,
+)
 
 # Frame-signal label: "0xID:rN" (byte) / "0xID:rN.k" (bit). The single ":" keeps
 # arbitration-ID grouping working in cross_signal._same_pid (which rsplits on ":").

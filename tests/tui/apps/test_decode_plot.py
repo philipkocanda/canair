@@ -3,9 +3,9 @@
 import math
 
 from canair.analysis.stats import fmt_num
+from canair.expression import inspect_bytes
+from canair.expression.inspect_bytes import INSPECT_TYPES, InspectType
 from canair.tui.apps import decode_plot_draw
-from canair.uds import inspect_bytes
-from canair.uds.inspect_bytes import INSPECT_TYPES, InspectType
 
 U16 = InspectType("u16", 2, "int", False)
 
@@ -39,7 +39,7 @@ _VIEW_CAPS = [
 class TestInterpretBytes:
     def test_endianness(self):
         # Spot-check that the plot module still exposes the shared primitive
-        # (imported from canair.uds.inspect_bytes); exhaustive coverage lives in
+        # (imported from canair.expression.inspect_bytes); exhaustive coverage lives in
         # tests/expression/test_inspect_bytes.py.
         assert inspect_bytes.interpret_bytes(FRAME, 3, U16) == 0xABCD
 

@@ -46,7 +46,7 @@ def signed_range_is_exact(width: int) -> bool:
     """True if ``[Sn:Sm]`` spanning ``width`` bytes sign-extends correctly.
 
     See :data:`SIGNED_RANGE_WIDTHS`. Callers that build expressions (the byte
-    sweeps in :mod:`canair.uds.inspect_bytes` and :class:`canair.expression.notation.ByteRef`)
+    sweeps in :mod:`canair.expression.inspect_bytes` and :class:`canair.expression.notation.ByteRef`)
     must fall back to an arithmetic composition when this is False, or they emit
     an expression that decodes to a different value than they measured.
     """

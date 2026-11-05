@@ -40,9 +40,9 @@ from canair.cli.args.join import (
 from canair.cli.args.notation import add_notation_arg, resolve_notation
 from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
+from canair.expression.inspect_bytes import NO_EXPR
 from canair.expression.notation import ByteNotation, ByteRef
 from canair.render import ansi, messages
-from canair.uds.inspect_bytes import NO_EXPR
 from canair.uds.layout import subfunction_bytes_for_pid
 
 NAME = "hunt"

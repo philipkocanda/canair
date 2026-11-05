@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Byte-interpretation primitives: read raw payload bytes at an offset as a
 typed value, and post-process a value series.
 

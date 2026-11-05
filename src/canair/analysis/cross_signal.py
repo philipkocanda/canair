@@ -36,7 +36,7 @@ from canair.analysis.fill import FillPolicy
 from canair.analysis.physical.bands import DEFAULT_PHYSICAL_BANDS
 from canair.analysis.physical.unit_guess import DEFAULT_UNIT_CANDIDATES as _UNIT_CANDIDATES
 from canair.analysis.stats import correlation, linear_fit, pearson
-from canair.uds.inspect_bytes import (
+from canair.expression.inspect_bytes import (
     INSPECT_TYPES,
     NO_EXPR,
     apply_transform,
@@ -575,7 +575,7 @@ def hunt_byte(
     """Sweep every byte offset × interpretation, rank by |r| vs ``ref``.
 
     Uses the shared byte-interpretation primitives (``INSPECT_TYPES``,
-    ``interpret_bytes``, ``wican_expr`` from ``canair.uds.inspect_bytes``) so hunt and
+    ``interpret_bytes``, ``wican_expr`` from ``canair.expression.inspect_bytes``) so hunt and
     plot agree on how bytes are
     read and expressed. PCI-crossing multi-byte reads are skipped. Ranking uses
     ``method`` (pearson/spearman); the reported linear fit is always least-squares

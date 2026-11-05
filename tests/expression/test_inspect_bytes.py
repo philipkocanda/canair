@@ -1,16 +1,16 @@
-"""Tests for canair.uds.inspect_bytes: byte interpretation, WiCAN expression
+"""Tests for canair.expression.inspect_bytes: byte interpretation, WiCAN expression
 synthesis, series transforms, and float-noise filtering.
 
 These primitives were extracted from ``commands/decode/plot`` into the neutral
-library leaf ``canair.uds.inspect_bytes`` so the analysis engine (``cross_signal`` /
+library leaf ``canair.expression.inspect_bytes`` so the analysis engine (``cross_signal`` /
 ``frame_series``) imports *down* rather than up from a command helper.
 """
 
 import math
 import struct
 
-from canair.uds import inspect_bytes as ib
-from canair.uds.inspect_bytes import InspectType
+from canair.expression import inspect_bytes as ib
+from canair.expression.inspect_bytes import InspectType
 
 U8 = InspectType("u8", 1, "int", False)
 I8 = InspectType("i8", 1, "int", True)

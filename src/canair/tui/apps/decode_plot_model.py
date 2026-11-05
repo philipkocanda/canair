@@ -11,16 +11,16 @@ import math
 import shutil
 
 from canair.analysis.stats import pearson as _pearson
-from canair.render import ansi
-from canair.render.glyphs import WARN
-from canair.uds.byteindex import payload_to_wican_bytes
-from canair.uds.inspect_bytes import (
+from canair.expression.inspect_bytes import (
     INSPECT_TYPES,
     POST_TRANSFORMS,
     apply_transform,
     interpret_bytes,
     wican_expr,
 )
+from canair.render import ansi
+from canair.render.glyphs import WARN
+from canair.uds.byteindex import payload_to_wican_bytes
 
 from .decode_plot_draw import (
     _cycle_overlay,
