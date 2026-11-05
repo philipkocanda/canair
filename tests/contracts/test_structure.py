@@ -9,8 +9,9 @@ Each check compares the tree with ``baseline.json``:
 
 * a **list** baseline (root modules, flat tests, packages without a charter) fails on a
   new entry *and* on an entry that no longer applies, so a fix has to leave the baseline;
-* a **ceiling** baseline (module sizes, deferred imports, import-linter debt) fails when the
-  number grows. Lower it when it falls: ``uv run python -m tests.contracts.test_structure --write``.
+* a **ceiling** baseline (module sizes, deferred imports, import-linter debt, protocol bytes
+  written as literals) fails when the number grows. Lower it when it falls:
+  ``uv run python -m tests.contracts.test_structure --write``.
 
 Raising a baseline is a decision for the user, and it shows in the diff.
 """
@@ -38,17 +39,18 @@ TEST_DATA_DIRS = {"fixtures", "js"}
 OTHER_MIRRORS = {"scripts"}
 
 
-def _load_graph():
-    path = REPO / "scripts" / "check" / "import_graph.py"
-    spec = importlib.util.spec_from_file_location("import_graph", path)
+def _load_check(name: str):
+    path = REPO / "scripts" / "check" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
-    sys.modules["import_graph"] = module
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
 
-graph = _load_graph()
+graph = _load_check("import_graph")
+protocol_literals = _load_check("protocol_literals")
 
 
 def _baseline() -> dict:
@@ -185,6 +187,35 @@ def test_modules_stay_small(scan):
     assert not problems, "\n".join(problems)
 
 
+def test_protocol_literals_do_not_spread():
+    """Protocol bytes are read by name from ``canair.uds``; the bare literals left only fall.
+
+    The patterns are in scripts/check/protocol_literals.py, the migration of the existing sites
+    in plans/2026-11-05-named-protocol-constants.md.
+    """
+    found = protocol_literals.scan()
+    now = protocol_literals.counts(found)
+    ceilings = _baseline()["protocol_literals"]
+    fix = (
+        "Read the byte by name from canair.uds (services.py, nrc.py), and add the name there "
+        "if it does not exist."
+    )
+    problems = []
+    for module, count in now.items():
+        sites = "\n".join(f"    {f}" for f in found if f.module == module)
+        if module not in ceilings:
+            problems.append(f"{module} writes {count} protocol bytes as literals. {fix}\n{sites}")
+        elif count > ceilings[module]:
+            problems.append(
+                f"{module} has {count} protocol literals (ceiling {ceilings[module]}). {fix}\n"
+                f"{sites}"
+            )
+    for module in ceilings:
+        if module not in now:
+            problems.append(f"{module} has no protocol literals now; remove it from the baseline.")
+    assert not problems, "\n".join(problems)
+
+
 def test_deferred_imports_do_not_grow(scan):
     total = sum(scan.deferred.values())
     ceiling = _baseline()["deferred_internal_imports"]
@@ -307,6 +338,10 @@ def _fresh_baseline(old: dict) -> dict:
     new["flat_tests"] = [t for t in old["flat_tests"] if t in set(_flat_tests())]
     current_tests = set(_test_to_test_imports())
     new["test_to_test_imports"] = [t for t in old["test_to_test_imports"] if t in current_tests]
+    literals = protocol_literals.counts(protocol_literals.scan())
+    new["protocol_literals"] = {
+        m: min(n, literals[m]) for m, n in old["protocol_literals"].items() if m in literals
+    }
     return new
 
 
@@ -322,6 +357,7 @@ def _initial_baseline() -> dict:
         "packages_without_charter": sorted(p for p, i in packages.items() if not _has_charter(i)),
         "test_to_test_imports": _test_to_test_imports(),
         "flat_tests": _flat_tests(),
+        "protocol_literals": protocol_literals.counts(protocol_literals.scan()),
     }
 
 

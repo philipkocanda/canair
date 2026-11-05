@@ -163,14 +163,15 @@ charter or move.
 | Gate | Catches | Runs |
 |---|---|---|
 | `uv run lint-imports` (`[tool.importlinter]` in `pyproject.toml`) | a wrong-way import, `argparse` or `textual` outside the interface, the protocol layer reaching a data store | pre-commit, CI |
-| `tests/contracts/test_structure.py` | a new root module, a module over the size limit, more deferred imports, more `ignore_imports` entries, a package without a charter, a test importing a test | `pytest`, CI |
+| `tests/contracts/test_structure.py` | a new root module, a module over the size limit, more deferred imports, more `ignore_imports` entries, a package without a charter, a test importing a test, more protocol bytes written as literals | `pytest`, CI |
 | `scripts/check/import_graph.py` | trend numbers: import cycles between packages, deferred imports, root modules, oversized modules | on request |
+| `scripts/check/protocol_literals.py` | each protocol byte (service ID, NRC, response marker, sub-function, canned request) written as a literal outside `uds/services.py` and `uds/nrc.py` | on request, and through `test_structure.py` |
 
 `make structure` runs the first two in a few seconds.
 
 The two baselines work as ratchets. A list baseline (root modules, packages without a charter,
 test-to-test imports) fails when the tree gains an entry and when an entry stops applying, so a fix
-has to leave the list. A ceiling baseline (module sizes, deferred imports, `ignore_imports`) fails
-when the number grows. Lower a ceiling with
+has to leave the list. A ceiling baseline (module sizes, deferred imports, `ignore_imports`,
+protocol literals per module) fails when the number grows. Lower a ceiling with
 `uv run python -m tests.contracts.test_structure --write`. That command never raises a baseline.
 Raising one is a decision for the user and shows in the diff.
