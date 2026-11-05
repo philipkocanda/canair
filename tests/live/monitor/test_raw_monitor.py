@@ -3,7 +3,8 @@
 import asyncio
 
 from canair.live.monitor.backoff import PollCost
-from canair.live.monitor.controller import MonitorController, _raw_pid_result
+from canair.live.monitor.controller import MonitorController
+from canair.live.monitor.raw_poller import _raw_pid_result
 from canair.live.monitor.raw_run import query_ecu_addresses
 from canair.uds.addressing import EcuAddress
 from tests.support.raw_monitor import FakeRawClient
@@ -498,7 +499,7 @@ class TestSlowPidBackoff:
         # It now sits out the next round while BMS keeps being read.
         asyncio.run(c.poll_once())
         assert set(c.health.poll_costs) == {("BMS", "2101")}
-        assert "slow (not answering) · polled 2× less often" in c.render().plain
+        assert "slow (not answering) · polled 2× less often" in c.renderer.render().plain
 
     def test_no_backoff_keeps_polling(self):
         c = self._ctrl(backoff=False)

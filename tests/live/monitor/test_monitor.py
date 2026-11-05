@@ -2,17 +2,12 @@
 
 import json
 
-from canair.live.monitor.controller import (
-    _HIGHLIGHT_STYLE,
-    MonitorController,
-    RenderCache,
-    _bytes_to_ascii,
-    _merge_history,
-    _render_hex_line,
-    _render_results,
-    query_ecu_error,
-)
+from canair.live.monitor.controller import MonitorController, query_ecu_error
 from canair.live.monitor.history import HistoryRun, extend_runs
+from canair.live.monitor.record import _merge_history
+from canair.live.monitor.render import _render_results
+from canair.live.monitor.render_cache import RenderCache
+from canair.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, _render_hex_line
 
 
 class TestBytesToAscii:
@@ -188,7 +183,7 @@ class TestRenderResults:
     def test_history_render_is_capped(self):
         # A noisy PID can accrue thousands of runs; the render must cap to the
         # newest _RENDER_MAX_ROWS and summarize the rest.
-        from canair.live.monitor.controller import _RENDER_MAX_ROWS
+        from canair.live.monitor.render import _RENDER_MAX_ROWS
 
         n = _RENDER_MAX_ROWS + 50
         hexes = [f"6101{i:04X}" for i in range(n)]
@@ -257,7 +252,7 @@ class TestRenderResults:
             assert label in t.plain
 
     def test_stale_age_invalidates_the_render_cache(self):
-        from canair.live.monitor.render import RenderCache
+        from canair.live.monitor.render_cache import RenderCache
 
         cache = RenderCache()
         entry = {"pid": "2101", "raw_hex": "6101AA", "stale": True, "acquired_at": 1000.0}
@@ -744,7 +739,7 @@ class TestControllerSnapshot:
         c.last_queries = [("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])]
         c.prev_snapshot = {("BMS (0x7E4)", "2101"): "6101AA"}
         # Byte 2 (AA→BB) must render with a change-highlight background style.
-        styles = {str(s.style) for s in c.render().spans}
+        styles = {str(s.style) for s in c.renderer.render().spans}
         assert any("on " in s for s in styles)
 
     def test_has_captures(self):
@@ -774,7 +769,8 @@ class TestControllerSnapshot:
         assert c.recorder.unique_frames == 0
 
     def test_history_render_limit_by_keep_mode(self):
-        from canair.live.monitor.controller import _RENDER_DEFAULT_ROWS, MonitorController
+        from canair.live.monitor.controller import MonitorController
+        from canair.live.monitor.view import DEFAULT_HISTORY_ROWS
 
         def _c(**kw):
             return MonitorController(
@@ -783,11 +779,11 @@ class TestControllerSnapshot:
 
         # The default (all) and --keep-changes stay compact: repeats collapse into
         # runs, and only the newest few runs are drawn.
-        assert _c(keep_mode="all")._history_render_limit() == _RENDER_DEFAULT_ROWS
-        assert _c(keep_mode="changes")._history_render_limit() == _RENDER_DEFAULT_ROWS
-        assert _c(keep_mode=None)._history_render_limit() == _RENDER_DEFAULT_ROWS
+        assert _c(keep_mode="all").view.history_limit() == DEFAULT_HISTORY_ROWS
+        assert _c(keep_mode="changes").view.history_limit() == DEFAULT_HISTORY_ROWS
+        assert _c(keep_mode=None).view.history_limit() == DEFAULT_HISTORY_ROWS
         # --keep N shows N.
-        assert _c(keep_mode="last", keep_n=25)._history_render_limit() == 25
+        assert _c(keep_mode="last", keep_n=25).view.history_limit() == 25
 
     def test_segment_title_and_meta(self):
         from canair.live.monitor.controller import MonitorController
@@ -799,10 +795,10 @@ class TestControllerSnapshot:
             verbose=False,
         )
         # No label -> falls back to the polled-selectors summary.
-        assert c.segment_title() == "BCM VCU:2101"
+        assert c.view.segment_title() == "BCM VCU:2101"
         # Metadata sync is last-wins on non-None; a label overrides the title.
         c.recorder.set_segment_meta("drive A", ["driving"], "hard accel")
-        assert c.segment_title() == "drive A"
+        assert c.view.segment_title() == "drive A"
         assert c.recorder.session_states == ["driving"]
         assert c.recorder.session_notes == "hard accel"
         # None fields leave prior values intact...
@@ -1065,7 +1061,7 @@ class TestControllerSuggestedState:
         assert c.state.suggested_states() == ["READY", "DRIVING"]
 
     def test_stale_speed_expires_so_driving_stops_matching(self, monkeypatch):
-        from canair.live.monitor.controller import STATE_INPUT_STALE_CYCLES
+        from canair.live.monitor.state import STATE_INPUT_STALE_CYCLES
 
         c = self._controller(monkeypatch, self._driving_rules())
         self._poll(c, 42.0)
@@ -1081,7 +1077,7 @@ class TestControllerSuggestedState:
         assert c.state.suggested_state() == "READY"
 
     def test_refreshed_values_never_expire(self, monkeypatch):
-        from canair.live.monitor.controller import STATE_INPUT_STALE_CYCLES
+        from canair.live.monitor.state import STATE_INPUT_STALE_CYCLES
 
         c = self._controller(monkeypatch, self._driving_rules())
         for _ in range(STATE_INPUT_STALE_CYCLES * 3):
@@ -1097,7 +1093,7 @@ class TestControllerSuggestedState:
         assert c.state.suggested_state() == "DRIVING"
 
     def test_responded_expires_too(self, monkeypatch):
-        from canair.live.monitor.controller import STATE_INPUT_STALE_CYCLES
+        from canair.live.monitor.state import STATE_INPUT_STALE_CYCLES
         from canair.states import StateRule, compile_predicate
 
         rules = [StateRule("SLEEP", predicate=compile_predicate("__no_response__"))]
@@ -1200,14 +1196,14 @@ class TestQueryLabel:
                 {"type": "query", "ecu": "vcu", "pids": ["2101"]},
             ]
         )
-        assert c.query_label() == "BCM VCU:2101"
+        assert c.view.query_label() == "BCM VCU:2101"
 
     def test_multiple_pids(self):
         c = self._controller([{"type": "query", "ecu": "IGPM", "pids": ["BC03", "BC06"]}])
-        assert c.query_label() == "IGPM:BC03,BC06"
+        assert c.view.query_label() == "IGPM:BC03,BC06"
 
     def test_empty(self):
-        assert self._controller([]).query_label() == ""
+        assert self._controller([]).view.query_label() == ""
 
 
 class TestQueryEcuError:

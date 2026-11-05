@@ -58,6 +58,71 @@ class FakeSessions:
         return {}
 
 
+class FakeView:
+    """Stand-in for MonitorView."""
+
+    def __init__(self, owner):
+        self.o = owner
+
+    def query_label(self) -> str:
+        return self.o._query_label
+
+    def segment_title(self) -> str:
+        return self.o.recorder.session_label or self.o._query_label or "Monitor"
+
+    def cycle(self) -> str:
+        from canair.live.monitor.view import VIEW_MODES
+
+        o = self.o
+        idx = VIEW_MODES.index(o.view_mode) if o.view_mode in VIEW_MODES else 0
+        o.view_mode = VIEW_MODES[(idx + 1) % len(VIEW_MODES)]
+        return o.view_mode
+
+    def session_summary(self) -> dict:
+        from datetime import datetime
+
+        o = self.o
+        return {
+            "recording": o.recorder.journal is not None,
+            "label": self.segment_title(),
+            "states": list(o.recorder.session_states),
+            "notes": o.recorder.session_notes,
+            "query": o._query_label,
+            "keep_mode": o.keep_mode,
+            "keep_n": o.keep_n,
+            "view_mode": o.view_mode,
+            "interval": o.schedule.interval,
+            "schedule": o.schedule.describe(),
+            "cycle": o.cycle,
+            "total_frames": o.recorder.total_frames,
+            "unique_frames": o.recorder.unique_frames,
+            "transport": o.transport_type,
+            "captures_dir": "/tmp/captures",
+            "journal_path": "/tmp/captures/.journal/20260806T101010-42.jsonl"
+            if o.recorder.journal is not None
+            else None,
+            "run_started_at": datetime.now(),
+            "segment_started_at": datetime.now(),
+            "segment_frames": o.recorder.total_frames,
+            "completed_segments": 0,
+        }
+
+
+class FakeRenderer:
+    """Stand-in for MonitorRenderer: a canned body."""
+
+    def __init__(self, owner):
+        self.o = owner
+
+    def render(self) -> Text:
+        o = self.o
+        t = Text()
+        t.append(f"  Monitor cycle {o.cycle}\n", style="dim")
+        for i in range(o._n_lines):
+            t.append(f"  BMS 21{i:02X}: value={o.cycle * i}\n")
+        return t
+
+
 class FakeController:
     """Stand-in for MonitorController: canned render + counting poll."""
 
@@ -82,6 +147,8 @@ class FakeController:
         self.recorder = FakeRecorder(journal=journal, has_captures=has_captures)
         self.state = FakeState()
         self.sessions = FakeSessions()
+        self.view = FakeView(self)
+        self.renderer = FakeRenderer(self)
         self.keep_mode = keep_mode
         self.disconnected = False
         self._n_lines = n_lines
@@ -100,44 +167,6 @@ class FakeController:
 
         return self.schedule.seconds_until_due(time.monotonic())
 
-    def segment_title(self) -> str:
-        return self.recorder.session_label or self._query_label or "Monitor"
-
-    def cycle_view(self) -> str:
-        from canair.live.monitor.render import VIEW_MODES
-
-        idx = VIEW_MODES.index(self.view_mode) if self.view_mode in VIEW_MODES else 0
-        self.view_mode = VIEW_MODES[(idx + 1) % len(VIEW_MODES)]
-        return self.view_mode
-
-    def session_summary(self) -> dict:
-        from datetime import datetime
-
-        return {
-            "recording": self.recorder.journal is not None,
-            "label": self.segment_title(),
-            "states": list(self.recorder.session_states),
-            "notes": self.recorder.session_notes,
-            "query": self._query_label,
-            "keep_mode": self.keep_mode,
-            "keep_n": self.keep_n,
-            "view_mode": self.view_mode,
-            "interval": self.schedule.interval,
-            "schedule": self.schedule.describe(),
-            "cycle": self.cycle,
-            "total_frames": self.recorder.total_frames,
-            "unique_frames": self.recorder.unique_frames,
-            "transport": self.transport_type,
-            "captures_dir": "/tmp/captures",
-            "journal_path": "/tmp/captures/.journal/20260806T101010-42.jsonl"
-            if self.recorder.journal is not None
-            else None,
-            "run_started_at": datetime.now(),
-            "segment_started_at": datetime.now(),
-            "segment_frames": self.recorder.total_frames,
-            "completed_segments": 0,
-        }
-
     async def poll_once(self):
         self.cycle += 1
         self.elapsed = 0.01
@@ -147,16 +176,6 @@ class FakeController:
         self.recorder.unique_frames += 1
         if self._disconnect_after and self.cycle >= self._disconnect_after:
             self.disconnected = True
-
-    def render(self) -> Text:
-        t = Text()
-        t.append(f"  Monitor cycle {self.cycle}\n", style="dim")
-        for i in range(self._n_lines):
-            t.append(f"  BMS 21{i:02X}: value={self.cycle * i}\n")
-        return t
-
-    def query_label(self) -> str:
-        return self._query_label
 
 
 class FakeEditor:

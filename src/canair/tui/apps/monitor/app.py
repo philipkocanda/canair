@@ -199,7 +199,7 @@ class MonitorApp(HelpMixin, App):
     def compose(self) -> ComposeResult:
         yield Static("", id="header", markup=True)
         with VerticalScroll(id="scroll"):
-            yield Static(self.controller.render(), id="body", markup=False)
+            yield Static(self.controller.renderer.render(), id="body", markup=False)
         yield StatusBar(id="status")
 
     def on_mount(self) -> None:
@@ -304,7 +304,7 @@ class MonitorApp(HelpMixin, App):
             body = self.query_one("#body", Static)
         except NoMatches:
             return
-        body.update(self.controller.render())
+        body.update(self.controller.renderer.render())
         self._update_status()
 
     def _update_status(self) -> None:
@@ -446,7 +446,7 @@ class MonitorApp(HelpMixin, App):
         except NoMatches:
             return
         c = self.controller
-        title = c.segment_title()
+        title = c.view.segment_title()
         states = c.recorder.session_states
         notes = c.recorder.session_notes.replace("\n", " ").strip()
 
@@ -561,8 +561,7 @@ class MonitorApp(HelpMixin, App):
         if self._modal_active():
             return
         c = self.controller
-        summary_fn = getattr(c, "session_summary", None)
-        summary = summary_fn() if callable(summary_fn) else {}
+        summary = c.view.session_summary()
         segments = list(c.recorder.segments)
         self.push_screen(SessionInfoModal(summary, segments))
 
@@ -570,10 +569,7 @@ class MonitorApp(HelpMixin, App):
         """Cycle the display view mode (ecus → ranges → signals → full)."""
         if self._modal_active():
             return
-        cycle_fn = getattr(self.controller, "cycle_view", None)
-        if not callable(cycle_fn):
-            return
-        mode = cycle_fn()
+        mode = self.controller.view.cycle()
         self._refresh_body()
         self._flash(f"View: {mode}")
 
@@ -767,10 +763,7 @@ class MonitorApp(HelpMixin, App):
         the span being saved, or — for ``next_segment`` (the ``n`` dialog, which
         labels the segment about to start) — the state active now.
         """
-        suggested = ""
-        label_fn = getattr(self.controller, "query_label", None)
-        if callable(label_fn):
-            suggested = label_fn()
+        suggested = self.controller.view.query_label()
         if not suggested:
             suggested = f"Monitor {datetime.now():%H:%M}"
 

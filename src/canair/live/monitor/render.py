@@ -1,12 +1,17 @@
 """Live monitor — result rendering.
 
-The pure presentation helper that turns a cycle's decoded query results into a
-Rich :class:`~rich.text.Text` block. Shared by the Textual TUI
-(:mod:`canair.tui.apps.monitor.app`) and the non-interactive fallback, so both
-paths render identically. The polling/recording controller is :mod:`canair.live.monitor.controller`.
+The only monitor module that builds Rich text. :func:`_render_results` turns a cycle's
+decoded query results into a :class:`~rich.text.Text` block, and :class:`MonitorRenderer`
+(``controller.renderer``) draws the controller's state with it. Shared by the Textual TUI
+(:mod:`canair.tui.apps.monitor.app`) and the non-interactive fallback, so both paths render
+identically. What the display shows (labels, titles, view modes) is
+:mod:`canair.live.monitor.view`; the polling controller is :mod:`canair.live.monitor.controller`.
 """
 
+from __future__ import annotations
+
 import time
+from typing import TYPE_CHECKING
 
 from rich.text import Text
 
@@ -24,26 +29,16 @@ from canair.render.formatting import (
 from canair.uds.layout import subfunction_bytes_for_pid
 
 from .history import HistoryRun, PayloadHistory
+from .render_cache import RenderCache, entry_signature, pid_stat_signature, stale_age
 
-# Ordered display view modes cycled by the TUI 'V' key. Increasing detail:
-#   ecus    — just the responding ECUs (+ a PID/signal count)
-#   ranges  — each signal's captured value span (min-max / distinct labels)
-#   signals — the decoded signal table (no raw hex)
-#   full    — signals + the raw byte payloads (the default)
-VIEW_MODES = ("ecus", "ranges", "signals", "full")
+if TYPE_CHECKING:
+    from .controller import MonitorController
 
 # Cap how many history rows a single PID renders per cycle when the caller sets
 # none. A noisy PID accrues thousands of runs over a long drive; rendering them all
 # every cycle is O(cycles²·PIDs) and unbounded. The full history still lives in the
 # journal (--save) — this only bounds the on-screen buffer to the newest rows.
 _RENDER_MAX_ROWS = 200
-
-# Default on-screen history depth (runs of identical payloads per PID). A noisy PID
-# can amass hundreds of runs over a session; rendering them all every cycle both
-# clutters the view and (on a big multi-PID sweep) can make the frame large enough
-# to choke the TUI. Keep the live view compact — every poll is still in the journal
-# when --save. `--keep N` overrides it.
-_RENDER_DEFAULT_ROWS = 4
 
 # The monitor's glyphs and status colours for the help legend; byte colours: BYTE_COLOUR_LEGEND.
 MARKER_LEGEND: tuple[tuple[str, str, str], ...] = (
@@ -58,132 +53,6 @@ MARKER_LEGEND: tuple[tuple[str, str, str], ...] = (
     ("stale 2", "bold red", "replies that landed in another request's slot"),
 )
 MONITOR_LEGEND = BYTE_COLOUR_LEGEND + MARKER_LEGEND
-
-
-class RenderCache:
-    """Per-PID rendered-block cache for the live monitor.
-
-    A monitor repaints its whole body on every poll cycle *and* on every
-    mid-cycle partial resolve, but between paints most PIDs are unchanged. Each
-    PID entry's rendered :class:`~rich.text.Text` is deterministic in its
-    inputs, so we key the block on a signature of everything that affects its
-    output and reuse the cached block on a hit — skipping the per-byte
-    ``Text.append`` churn and the expression byte-index re-parsing that
-    dominated render cost.
-
-    A cached ``Text`` is only ever appended into a parent via
-    ``Text.append_text`` (which copies, not mutates), so sharing one cached
-    instance across many renders is safe. Held by the monitor controller so it
-    persists across paints; a fresh cache renders everything once.
-    """
-
-    def __init__(self) -> None:
-        self._blocks: dict[tuple[str, str], tuple[tuple, Text]] = {}
-
-    def get(self, key: tuple[str, str], sig: tuple) -> Text | None:
-        hit = self._blocks.get(key)
-        if hit is not None and hit[0] == sig:
-            return hit[1]
-        return None
-
-    def put(self, key: tuple[str, str], sig: tuple, block: Text) -> None:
-        self._blocks[key] = (sig, block)
-
-    def prune(self, live_keys: set[tuple[str, str]]) -> None:
-        """Drop cached blocks for PIDs no longer polled (e.g. after a filter change)."""
-        for key in [k for k in self._blocks if k not in live_keys]:
-            del self._blocks[key]
-
-
-def _entry_signature(
-    entry: ResultEntry,
-    *,
-    changed: bool,
-    verbose: bool,
-    show_rulers: bool,
-    is_selected: bool,
-    sel_name: str | None,
-    row_cap: int,
-    prev_raw: str,
-    prev_values: dict[str, object] | None,
-    history: list[HistoryRun] | None,
-    view_mode: str = "full",
-    stat_sig: tuple | None = None,
-    notation: ByteNotation = ByteNotation.WICAN,
-    stale_label: str = "",
-    note: str = "",
-) -> tuple:
-    """A hashable signature of everything that affects one PID entry's render.
-
-    Two renders with equal signatures produce byte-identical output, so a match
-    lets :class:`RenderCache` reuse the prior block. ``params`` are flattened to
-    a tuple (name/value/unit/expr/error/verified/display) because their values
-    and verification state drive both the table and the per-byte colours.
-    ``view_mode`` and ``stat_sig`` (the ranges-view accumulated span) are part of
-    the signature so a view switch or a moving range invalidates the cache.
-    """
-    params = tuple(tuple(row) for row in entry.get("params", []))
-    return (
-        entry.get("pid", ""),
-        entry.get("raw_hex", ""),
-        entry.get("map_bytes", ()),
-        entry.get("error"),
-        entry.get("decode"),
-        bool(entry.get("unmapped", False)),
-        bool(entry.get("stale", False)),
-        stale_label,
-        changed,
-        verbose,
-        show_rulers,
-        is_selected,
-        sel_name if is_selected else None,
-        row_cap,
-        prev_raw,
-        tuple(sorted(prev_values.items())) if prev_values is not None else None,
-        # The rendered tail plus the run count: the rows above the cap only show as
-        # the "earlier entries hidden" count, so hashing them is wasted work.
-        (len(history), tuple(history[-(row_cap + 1) :])) if history is not None else None,
-        params,
-        view_mode,
-        stat_sig,
-        notation,
-        note,
-    )
-
-
-def stale_age(entry: ResultEntry, now: float) -> str:
-    """How long a stale entry's last-good value has been held, e.g. ``12s``, ``3m``.
-
-    Coarse on purpose: the label is part of the render-cache signature, so it should
-    change no more often than a reader can use.
-    """
-    acquired = entry.get("acquired_at")
-    if not entry.get("stale") or not acquired:
-        return ""
-    secs = max(0, int(now - acquired))
-    if secs < 60:
-        return f"{secs}s"
-    if secs < 3600:
-        return f"{secs // 60}m"
-    return f"{secs // 3600}h{secs % 3600 // 60:02d}m"
-
-
-def _stat_signature(stat: dict) -> tuple:
-    """A hashable signature of a signal's accumulated range (for the ranges view)."""
-    return (
-        stat.get("unit", ""),
-        bool(stat.get("verified")),
-        stat.get("n", 0),
-        stat.get("min"),
-        stat.get("max"),
-        tuple(stat.get("values") or ()),
-        int(stat.get("overflow", 0)),
-    )
-
-
-def _pid_stat_signature(pid_stats: dict) -> tuple:
-    """Signature over all signals' ranges for one PID (order-stable)."""
-    return tuple((name, _stat_signature(s)) for name, s in pid_stats.items())
 
 
 def _render_entry(
@@ -416,7 +285,7 @@ def _render_results(
     ``pid_notes`` adds a note to a PID's row, keyed by ``(ECU label, PID)`` (the slow-PID
     backoff's). ``now`` is the wall clock a stale value's age is measured against.
 
-    ``view_mode`` (see :data:`VIEW_MODES`) selects the presentation: ``"ecus"``
+    ``view_mode`` (see :data:`~canair.live.monitor.view.VIEW_MODES`) selects the presentation: ``"ecus"``
     lists only the responding ECUs (+ a PID/signal count); ``"ranges"`` shows
     each signal's accumulated value span (from ``param_stats``, a
     :class:`~canair.live.monitor.stats.ParamStats`); ``"signals"`` shows the
@@ -479,13 +348,13 @@ def _render_results(
             history = hex_history[hex_key] if hex_history and hex_key in hex_history else None
             pid_stats = param_stats.for_pid(hex_key) if param_stats is not None else None
             stat_sig = (
-                _pid_stat_signature(pid_stats) if (view_mode == "ranges" and pid_stats) else None
+                pid_stat_signature(pid_stats) if (view_mode == "ranges" and pid_stats) else None
             )
             stale_label = stale_age(entry, now)
             note = (pid_notes or {}).get(hex_key, "")
 
             if cache is not None:
-                sig = _entry_signature(
+                sig = entry_signature(
                     entry,
                     changed=bool(changed),
                     verbose=verbose,
@@ -548,3 +417,38 @@ def _render_results(
     if footer:
         text.append("\n  Press Ctrl+C to stop monitoring\n", style="dim")
     return text
+
+
+class MonitorRenderer:
+    """Draws a :class:`~canair.live.monitor.controller.MonitorController` as Rich text.
+
+    Holds the per-PID render cache, which persists across paints.
+    """
+
+    def __init__(self, controller: MonitorController):
+        self.c = controller
+        self._cache = RenderCache()
+
+    def render(self) -> Text:
+        """The current view as a Rich Text (rendered by the TUI / printed on exit)."""
+        c = self.c
+        c.editor.ensure_valid(c.last_queries)
+        return _render_results(
+            c.editor.visible_queries(c.last_queries),
+            c.verbose,
+            c.cycle,
+            c.elapsed,
+            c.schedule.describe(),
+            c.prev_snapshot,
+            hex_history=c.recorder.hex_history,
+            show_rulers=c.show_rulers,
+            footer=False,
+            selected=c.editor.selected,
+            max_history_rows=c.view.history_limit(),
+            cache=self._cache,
+            prev_params=c.prev_params_snapshot,
+            view_mode=c.view_mode,
+            param_stats=c.param_stats,
+            notation=c.notation,
+            pid_notes=c.health.pid_notes(c.last_queries),
+        )

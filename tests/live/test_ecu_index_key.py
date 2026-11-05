@@ -86,7 +86,7 @@ class TestMonitor:
         assert self._controller().sessions.warmup_reads() == [("IGPM", INDEX["IGPM"], "22BC03")]
 
     def test_query_label(self):
-        assert self._controller().query_label() == "IGPM"
+        assert self._controller().view.query_label() == "IGPM"
 
     def test_raw_setup_opens_an_aliased_session(self, monkeypatch):
         client = MagicMock()

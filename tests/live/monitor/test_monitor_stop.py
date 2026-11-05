@@ -110,6 +110,8 @@ class _FakeRecorder:
 class _TeardownController:
     def __init__(self, *args, **kwargs):
         self.recorder = _FakeRecorder()
+        self.view = self
+        self.renderer = self
         self.disconnected = False
         self.raw = False
         self.closed = False

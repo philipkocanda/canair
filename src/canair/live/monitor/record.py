@@ -107,7 +107,7 @@ def _open_journal(controller, label: str | None, vehicle_states, notes: str | No
     """
     from canair.captures.journal import CaptureJournal
 
-    journal_label = label or controller.query_label() or "Monitor session"
+    journal_label = label or controller.view.query_label() or "Monitor session"
     keep = persisted_keep_mode(controller.keep_mode)
     return CaptureJournal.open(
         controller.captures_dir,
@@ -125,7 +125,7 @@ class MonitorRecorder:
 
     Constructed with a back-reference to the :class:`MonitorController`
     (``self.c``), which it reads for poll/display state (``prev_hex``,
-    ``keep_mode``/``keep_n``, ``captures_dir``, ``query_label``,
+    ``keep_mode``/``keep_n``, ``captures_dir``, ``view.query_label``,
     ``suggested_state``, ``_ecu_ref``) and updates in place while recording.
     """
 
@@ -527,7 +527,7 @@ class MonitorRecorder:
         """Append a summary of the segment being closed to :attr:`segments`."""
         self.segments.append(
             {
-                "label": self.session_label or self.c.query_label() or "Monitor",
+                "label": self.session_label or self.c.view.query_label() or "Monitor",
                 "states": list(states),
                 "notes": self.session_notes,
                 "started_at": self.segment_started_at,

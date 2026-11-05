@@ -28,12 +28,9 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from rich.text import Text
-
-from canair.captures.keepmode import KEEP_LAST, KeepMode
+from canair.captures.keepmode import KeepMode
 from canair.expression.notation import ByteNotation
 from canair.expression.results import EcuFrame, ResultEntry
-from canair.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, _render_hex_line
 from canair.transport.session_manager import SessionManager
 
 from ...captures.link_events import is_rx
@@ -41,41 +38,19 @@ from .backoff import PollBackoff
 from .health import MonitorHealth, answered, is_nrc, label_ecu
 from .link_events import LinkEventTracker
 from .poll_elm import MonitorElmPoller
-from .raw_poller import MonitorRawPoller, _raw_pid_result
-from .record import MonitorRecorder, _merge_history, _open_journal, _write_merged
-from .render import _RENDER_DEFAULT_ROWS, _RENDER_MAX_ROWS, VIEW_MODES, RenderCache, _render_results
+from .raw_poller import MonitorRawPoller
+from .record import MonitorRecorder
+from .render import MonitorRenderer
 from .schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, PollScheduler, Schedule
 from .selectors import MonitorSelectors
 from .sessions import MonitorSessions
-from .state import STATE_INPUT_STALE_CYCLES, MonitorStateSuggester
+from .state import MonitorStateSuggester
 from .stats import ParamStats
+from .view import MonitorView
 
 if TYPE_CHECKING:
     from ...captures.link_events import DisconnectCause
     from .reconnect import Reconnector
-
-# _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canair.render.formatting;
-# _render_results/_RENDER_MAX_ROWS/RenderCache to render; _raw_pid_result to
-# raw_poller; _merge_history/_write_merged/_open_journal + the recording/journaling
-# logic to record; STATE_INPUT_STALE_CYCLES + the state-suggestion logic to
-# state; mode_monitor + the poll loops to run. The names in __all__ below
-# are re-exported here for the tests and the modules that import them from this one.
-__all__ = [
-    "STATE_INPUT_STALE_CYCLES",
-    "_HIGHLIGHT_STYLE",
-    "_RENDER_MAX_ROWS",
-    "MonitorController",
-    "MonitorRecorder",
-    "RenderCache",
-    "_bytes_to_ascii",
-    "_merge_history",
-    "_open_journal",
-    "_raw_pid_result",
-    "_render_hex_line",
-    "_render_results",
-    "_write_merged",
-    "query_ecu_error",
-]
 
 
 def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
@@ -271,10 +246,10 @@ class MonitorController:
 
         self.pids_dir = None  # None -> active profile's ecus/ (tests override)
         self.editor = MonitorEditor(self)
-        # Per-PID rendered-block cache: the body repaints every poll cycle and
-        # every mid-cycle partial, but most PIDs are unchanged between paints, so
-        # reuse their rendered Text instead of rebuilding it each time.
-        self._render_cache = RenderCache()
+        # The display: what it shows (view) and how it is drawn (renderer, which keeps the
+        # per-PID render cache across paints).
+        self.view = MonitorView(self)
+        self.renderer = MonitorRenderer(self)
 
     def seconds_until_due(self) -> float:
         """How long the poll loop may sleep before the next tick (0 = poll now)."""
@@ -440,46 +415,6 @@ class MonitorController:
             return {**last, "stale": True}
         return entry
 
-    def render(self) -> Text:
-        """The current view as a Rich Text (rendered by the TUI / printed on exit)."""
-        self.editor.ensure_valid(self.last_queries)
-        return _render_results(
-            self.editor.visible_queries(self.last_queries),
-            self.verbose,
-            self.cycle,
-            self.elapsed,
-            self.schedule.describe(),
-            self.prev_snapshot,
-            hex_history=self.recorder.hex_history,
-            show_rulers=self.show_rulers,
-            footer=False,
-            selected=self.editor.selected,
-            max_history_rows=self._history_render_limit(),
-            cache=self._render_cache,
-            prev_params=self.prev_params_snapshot,
-            view_mode=self.view_mode,
-            param_stats=self.param_stats,
-            notation=self.notation,
-            pid_notes=self.health.pid_notes(self.last_queries),
-        )
-
-    def cycle_view(self) -> str:
-        """Advance to the next display view mode (TUI 'V'); returns the new mode."""
-        idx = VIEW_MODES.index(self.view_mode) if self.view_mode in VIEW_MODES else 0
-        self.view_mode = VIEW_MODES[(idx + 1) % len(VIEW_MODES)]
-        return self.view_mode
-
-    def _history_render_limit(self) -> int:
-        """How many history rows (runs of identical payloads) to render per PID.
-
-        --keep N shows the requested N; every other keep-mode stays compact at a
-        handful of newest runs so a noisy/long session doesn't flood (or choke)
-        the live view — every poll is still in the --save journal.
-        """
-        if self.keep_mode == KEEP_LAST and self.keep_n:
-            return self.keep_n
-        return _RENDER_DEFAULT_ROWS
-
     def _event_rx(self, ecu: str) -> str | None:
         """``ecu``'s response address for a link event, or None when it has none."""
         try:
@@ -502,61 +437,6 @@ class MonitorController:
         assert m is not None  # ecu_label is an ECU name/label, always starts with a word char
         ecu_short = m.group(1)
         return rx_from_name(ecu_short, self._name_index) or ecu_short
-
-    def query_label(self) -> str:
-        """Short summary of the polled selectors, e.g. ``BCM VCU:2101``.
-
-        Reconstructs the query mini-language from the active steps (ECU name,
-        with its PID list attached by a colon when filtered). Used to pre-fill
-        the on-demand save dialog's label.
-        """
-        parts: list[str] = []
-        from ...ecus.pids import ecu_index_key
-
-        for step in self.query_steps:
-            ecu = ecu_index_key(step["ecu"], self._ecu_index or {}) or step["ecu"].upper()
-            pids = step.get("pids") or []
-            parts.append(f"{ecu}:{','.join(pids)}" if pids else ecu)
-        return " ".join(parts)
-
-    def segment_title(self) -> str:
-        """Display title for the current session/segment.
-
-        The user-set label when present, else the polled-selectors summary, so
-        the TUI header is meaningful even before (or without) a --save label.
-        """
-        return self.recorder.session_label or self.query_label() or "Monitor"
-
-    def session_summary(self) -> dict:
-        """A snapshot of the current run/segment for the session-info modal.
-
-        Aggregates the run-level counters (frames, cycles, transport) and the
-        active segment's metadata (label/states/notes, start time, frame count).
-        Pure read — safe to call any time.
-        """
-        r = self.recorder
-        return {
-            "recording": r.journal is not None,
-            "label": self.segment_title(),
-            "states": list(r.session_states),
-            "notes": r.session_notes,
-            "query": self.query_label(),
-            "keep_mode": self.keep_mode,
-            "keep_n": self.keep_n,
-            "view_mode": self.view_mode,
-            "interval": self.schedule.interval,
-            "schedule": self.schedule.describe(),
-            "cycle": self.cycle,
-            "total_frames": r.total_frames,
-            "unique_frames": r.unique_frames,
-            "transport": self.transport_type,
-            "captures_dir": str(self.captures_dir) if self.captures_dir else None,
-            "journal_path": str(r.journal.path) if r.journal is not None else None,
-            "run_started_at": r.run_started_at,
-            "segment_started_at": r.segment_started_at,
-            "segment_frames": r.total_frames - r.segment_frames_base,
-            "completed_segments": len(r.segments),
-        }
 
     def interrupt(self) -> None:
         """Abort an in-flight raw poll ASAP so Ctrl-C / SIGTERM exit is prompt.

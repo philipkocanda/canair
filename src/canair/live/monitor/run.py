@@ -206,7 +206,7 @@ async def mode_monitor(
     # capture file; a disconnect/crash leaves it on disk for `--recover`.
     if save:
         controller.recorder.journal = _open_journal(controller, label, states, notes)
-        journal_label = label or controller.query_label() or "Monitor session"
+        journal_label = label or controller.view.query_label() or "Monitor session"
         print(
             f"  --save: journaling to {controller.recorder.journal.path.name} "
             f"(label: {journal_label!r}); auto-saves on stop. "
@@ -233,7 +233,7 @@ async def mode_monitor(
         # Print the final values so a stopped session leaves them in scrollback
         # (best-effort: the terminal may be gone after a SIGHUP).
         with contextlib.suppress(OSError):
-            console().print(controller.render())
+            console().print(controller.renderer.render())
             print("  Monitoring stopped.", file=sys.stderr)
 
     finally:

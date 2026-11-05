@@ -341,7 +341,7 @@ class TestOnlyTheDeadPidIsSlowed:
         assert c.health.poll_costs[("IGPM", "22BC03")].seconds == 0.02
         asyncio.run(c.poll_once())
         assert set(c.health.poll_costs) == {("IGPM", "22BC03"), ("IGPM", "22BC06")}
-        rows = c.render().plain.splitlines()
+        rows = c.renderer.render().plain.splitlines()
         dead = next(line for line in rows if "22BC04" in line)
         assert "slow (not answering) · polled 2× less often" in dead
         assert not any("polled" in line for line in rows if "22BC03" in line)

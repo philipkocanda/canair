@@ -17,6 +17,7 @@ class FakeController:
         self.prev_hex: dict = {}
         self.next_state: str | list[str] | None = None
         self.state = self
+        self.view = self
 
     def query_label(self) -> str:
         return "BMS:2101"
