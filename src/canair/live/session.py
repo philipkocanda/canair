@@ -120,7 +120,7 @@ def _persist_frame_counts(options: SessionOptions, terminal: Terminal, pids_data
     """
     if not options.learn_frames:
         return
-    from canair.ecus.response_frames import persist
+    from canair.yaml_edit.response_frames import persist
 
     try:
         persist(pids_data, terminal.frame_counts, verbose=options.verbose)

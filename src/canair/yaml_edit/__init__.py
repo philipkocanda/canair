@@ -23,6 +23,8 @@ Editors, one per file kind
         ``ecus/``: registration, addressing, scan log, revisions, gates, overrides (ruamel)
     :mod:`.pids`
         ``ecus/``: signals, PIDs, research, identity, IOControl, wake, scanner hits (text)
+    :mod:`.response_frames`
+        ``ecus/``: the response-frame counts a live session proved, written as it ends
     :mod:`.state_rename` :mod:`.variant_refs`
         a rename that also rewrites every reference in the profile's history
 

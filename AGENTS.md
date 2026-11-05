@@ -1217,11 +1217,11 @@ makes a cold first read fast instead of paying one plain read per PID to re-lear
   `observe()` (a count merely seen, needing `OBSERVATIONS_REQUIRED = 3` agreeing sightings). **Any
   disagreement retires the key permanently** and further agreement cannot rehabilitate it: if the
   length varies, every single count is an undercount for some response.
-- **`src/canair/ecus/response_frames.py`** is the bidirectional bridge — `stored_count()` is the **single
-  reader** of the field (its `bool` exclusion is load-bearing: `bool` is an `int` subclass, so a
-  stray `response_frames: true` would read as a 1-frame count), `seed_counts()` builds the
-  `{(tx_id, request): frames}` seed, `resolve_edits()` diffs a ledger against the profile, and
-  `persist()` applies the edits. Two deliberate boundaries: `seed_counts` **does not** apply
+- **`src/canair/ecus/response_frames.py`** is the bidirectional bridge — `stored_count()` is the
+  **single reader** of the field (its `bool` exclusion is load-bearing: `bool` is an `int`
+  subclass, so a stray `response_frames: true` would read as a 1-frame count), `seed_counts()`
+  builds the `{(tx_id, request): frames}` seed and `resolve_edits()` diffs a ledger against the
+  profile; `src/canair/yaml_edit/response_frames.py::persist()` applies the edits. Two deliberate boundaries: `seed_counts` **does not** apply
   `MAX_REQUESTABLE_FRAMES` (the ceiling belongs to the layer that must emit the nibble, so a profile
   fact is never silently rewritten by whoever reads it), and `resolve_edits` **refuses a TX header
   shared by several ECUs** (under `normal_extended_11bit` they are told apart by a target-address

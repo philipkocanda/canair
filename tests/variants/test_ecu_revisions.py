@@ -649,8 +649,9 @@ class TestOverridesAndEvidence:
         assert any("'category' cannot differ" in e for e in rv.check_ecu("VCU", vcu))
 
     def test_a_count_learned_on_one_revision_is_written_to_that_revision(self, copy):
-        from canair.ecus.response_frames import persist, seed_counts
+        from canair.ecus.response_frames import seed_counts
         from canair.uds.frame_counts import FrameCountLedger
+        from canair.yaml_edit.response_frames import persist
 
         for rid, frames in (("uds", 4), ("kwp", 2)):
             _activate(copy, variant="60kwh", pins=[f"VCU={rid}"])
@@ -666,8 +667,8 @@ class TestOverridesAndEvidence:
         assert seed_counts(load_pids())[(0x7E2, "21F0")] == 4
 
     def test_an_undetermined_revision_persists_nothing(self, copy):
-        from canair.ecus.response_frames import persist
         from canair.uds.frame_counts import FrameCountLedger
+        from canair.yaml_edit.response_frames import persist
 
         _activate(copy, variant="60kwh")
         ledger = FrameCountLedger()
