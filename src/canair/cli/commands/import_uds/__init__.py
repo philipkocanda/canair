@@ -20,6 +20,12 @@ reply from an ECU in the profile becomes a capture with its own timestamp.
 This is the UDS (domain-A, request/response) half of ``canair import``; the
 raw broadcast-frame (domain-B) half is ``import can`` / ``import dbc``.
 
+Belongs: the ``canair import uds`` flags, recording each payload through the capture store,
+and the frame-log extraction (``log``).
+Not here: the passive ISO-TP reassembly (``uds/isotp_passive.py``), pairing replies in a frame
+log (``interop/frame_log.py``) and the store itself (``captures/``).
+Imports: any package below ``cli`` and the shared flag helpers (``cli/args/``).
+
 Examples:
   # One verified odometer reading with context
   canair import uds CLU:22B002=62B002E0000000FFB7008D08000000 \\

@@ -29,6 +29,11 @@ Modes / filters (all combine with AND):
   --json                Machine-readable output
   --dir DIR             Override ecus/ directory
 
+Belongs: the ``canair research`` flags, the backlog report and the derived gaps (``gaps``).
+Not here: editing a ``research:`` entry (``canair pids``, ``yaml_edit/``) and the DID families
+themselves (``ecus/did_families.py``).
+Imports: any package below ``cli`` and the shared flag helpers (``cli/args/``).
+
 Examples:
   canair research                      # all open items, highest priority first
   canair research --summary            # overview counts

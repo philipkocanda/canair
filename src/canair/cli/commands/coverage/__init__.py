@@ -24,6 +24,11 @@ Byte indices are WiCAN Bnn (the flat CAN-frame index used by expressions,
 including PCI bytes). PCI, SID, and subfunction/DID-echo bytes are excluded
 from the "mappable data" set, so they never show up as UNMAPPED.
 
+Belongs: the ``canair coverage`` flags, the audit over the definitions and captures, and its
+report (``analysis``, ``payloads``, ``render``).
+Not here: decoding itself (``expression/``) and the capture store (``captures/``).
+Imports: any package below ``cli`` and the shared flag helpers (``cli/args/``).
+
 Examples:
   canair coverage                 # audit every ECU/PID
   canair coverage IGPM            # only the IGPM ECU
