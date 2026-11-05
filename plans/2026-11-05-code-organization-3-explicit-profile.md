@@ -181,7 +181,7 @@ scope.
 ## As built, part A (2026-11-05, branch `refactor/co-3a-cycle`)
 
 Part A is done: `ecus`, `variants` and `profile` are three layers in `[tool.importlinter]`, top to
-bottom, and `scripts/check/import_graph.py` reports one cycle (`expression`/`uds`). The edges
+bottom, and `scripts/check/import_graph.py` reports no cycle (sub-plan 4 split `expression`/`uds`). The edges
 re-measured before the work were the plan's: `ecus` to `profile` 5 modules (stays, allowed),
 `ecus` to `variants` 4 (stays, allowed), `profile` to `variants` 1, `profile` to `ecus` 1,
 `variants` to `profile` 4 (stays, allowed), `variants` to `ecus` 2. The last three wrong-way
