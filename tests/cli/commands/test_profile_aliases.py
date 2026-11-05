@@ -19,7 +19,8 @@ from pathlib import Path
 import pytest
 
 from canair.captures.store import load_all_captures
-from canair.cli.commands.profile import _cmd_list, _cmd_use
+from canair.cli.commands.profile.listing import cmd_list as _cmd_list
+from canair.cli.commands.profile.use import cmd_use as _cmd_use
 from canair.profile import ProfileError, alias_index, resolve_profile, selectable_profiles
 from canair.profile.names import build_alias_index, convention_problem
 from canair.validation.profile_names import profile_name_findings

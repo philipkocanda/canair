@@ -196,7 +196,7 @@ class TestLiveGate:
 
 class TestProfileUse:
     def _use(self, name, variant=None):
-        from canair.cli.commands.profile import _cmd_use
+        from canair.cli.commands.profile.use import cmd_use as _cmd_use
 
         return _cmd_use(argparse.Namespace(name=name, use_variant=variant, profiles_dir=None))
 

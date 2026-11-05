@@ -8,14 +8,12 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canair.cli.commands.profile import (
-    _cmd_adopt,
-    _cmd_create,
-    _cmd_default,
-    _cmd_list,
-    _cmd_show,
-    _cmd_use,
-)
+from canair.cli.commands.profile.listing import cmd_list as _cmd_list
+from canair.cli.commands.profile.pick import cmd_default as _cmd_default
+from canair.cli.commands.profile.scaffold import cmd_adopt as _cmd_adopt
+from canair.cli.commands.profile.scaffold import cmd_create as _cmd_create
+from canair.cli.commands.profile.show import cmd_show as _cmd_show
+from canair.cli.commands.profile.use import cmd_use as _cmd_use
 from canair.profile.scaffold import DEFAULT_INIT
 from canair.validation.pids import collect_pids_validation
 

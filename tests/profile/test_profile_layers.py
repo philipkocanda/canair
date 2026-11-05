@@ -22,7 +22,9 @@ import yaml
 
 from canair.captures import layers as capture_layers
 from canair.captures.store import load_all_captures
-from canair.cli.commands.profile import _cmd_list, _cmd_overlay, _cmd_show
+from canair.cli.commands.profile.listing import cmd_list as _cmd_list
+from canair.cli.commands.profile.scaffold import cmd_overlay as _cmd_overlay
+from canair.cli.commands.profile.show import cmd_show as _cmd_show
 from canair.profile import (
     Profile,
     ProfileError,
