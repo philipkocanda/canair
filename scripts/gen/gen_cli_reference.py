@@ -109,11 +109,11 @@ def _index_page(names: list[str]) -> str:
     """Rewrite the cli/ index to list the generated per-command pages.
 
     Commands are grouped under the same categories the top-level ``canair
-    --help`` uses (``canair.cli.commands._categories``); anything absent from a
+    --help`` uses (``canair.cli.args.categories``); anything absent from a
     category falls under a trailing "Other" heading, so the two never drift.
     """
     from canair.cli import build_parser
-    from canair.cli.commands._categories import CATEGORIES, OTHER_TITLE
+    from canair.cli.args.categories import CATEGORIES, OTHER_TITLE
 
     parser = build_parser()
     sub = _subparsers_action(parser)

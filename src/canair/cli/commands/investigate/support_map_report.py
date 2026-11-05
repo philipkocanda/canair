@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections import Counter
 
 from canair.analysis.support_map import ABSENCE_TEXT, MapFit, Slot
-from canair.cli.commands._notation import resolve_notation
+from canair.cli.args.notation import resolve_notation
 from canair.render import ansi
 from canair.uds.byteindex import declared_bits, extract_byte_indices, references_full_byte
 from canair.uds.notation import ByteNotation, relabel_signal, subfunction_bytes_for_pid

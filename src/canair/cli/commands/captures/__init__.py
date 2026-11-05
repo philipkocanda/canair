@@ -27,7 +27,7 @@ Imports: `captures`, `analysis`, `states`, `ecus` and below.
 
 import argparse
 
-from canair.cli.commands._group import group_help
+from canair.cli.args.group import group_help
 
 from .maint import orphan_notice
 from .query import build_query

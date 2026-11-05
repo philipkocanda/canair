@@ -12,7 +12,7 @@ from __future__ import annotations
 import sys
 
 from canair.captures.store import load_pid_captures
-from canair.cli.commands._scope import resolve_scope_bounds
+from canair.cli.args.scope import resolve_scope_bounds
 from canair.ecus.pids import build_ecu_index, load_pids
 from canair.expression.decoding import decode_payload, ordered_signal_names
 from canair.tui.apps.decode_plot_model import PlotModel

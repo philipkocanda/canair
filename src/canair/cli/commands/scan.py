@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from canair.cli.commands._group import group_help
+from canair.cli.args.group import group_help
 from canair.cli.live import add_connection_args, ecu_completer, live_command, run_live
 from canair.cli.live.handlers import scans
 from canair.core.id_ranges import format_id_ranges, parse_id_ranges

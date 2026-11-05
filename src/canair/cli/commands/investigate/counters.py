@@ -29,8 +29,8 @@ from canair.analysis.counters import (
 )
 from canair.analysis.triage import bit_flip_rates
 from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
-from canair.cli.commands._notation import resolve_notation
-from canair.cli.commands._scope import active_scope_flags
+from canair.cli.args.notation import resolve_notation
+from canair.cli.args.scope import active_scope_flags
 from canair.render import ansi
 from canair.uds.byteindex import mapped_offsets, wican_to_isotp
 from canair.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid

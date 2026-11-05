@@ -6,7 +6,7 @@ from datetime import date, datetime
 import pytest
 
 from canair.captures.dates import entry_date, entry_datetime, filter_by_date_range, filter_by_text
-from canair.cli.commands._scope import (
+from canair.cli.args.scope import (
     parse_iso_date,
     parse_iso_datetime,
     resolve_date_bounds,
@@ -510,7 +510,7 @@ class TestSharedScopingWiring:
         # captures must import the shared module (not redefine local date helpers),
         # so both commands stay in lockstep and expose --state/--label.
         from canair.captures import dates as capture_dates
-        from canair.cli.commands import _scope
+        from canair.cli.args import scope as _scope
         from canair.cli.commands.captures import uds as cap
 
         assert cap.filter_by_date_range is capture_dates.filter_by_date_range

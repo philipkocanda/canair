@@ -23,12 +23,8 @@ from canair.analysis.xanalysis import (
     build_param_series,
 )
 from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
-from canair.cli.commands._join import (
-    fill_policy_from_args,
-    fill_summaries,
-    fill_summary_line,
-)
-from canair.cli.commands._scope import resolve_scope_bounds
+from canair.cli.args.join import fill_policy_from_args, fill_summaries, fill_summary_line
+from canair.cli.args.scope import resolve_scope_bounds
 from canair.uds.byteindex import mapped_bits, mapped_offsets
 
 from .counters import run_counters

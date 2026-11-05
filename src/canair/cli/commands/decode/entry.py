@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import sys
 
-from canair.cli.commands._scope import resolve_scope_bounds
+from canair.cli.args.scope import resolve_scope_bounds
 from canair.ecus.pids import build_ecu_index, load_pids
 
 from .one import decode_one

@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from canair.captures import io as capture_io
-from canair.cli.commands._scope import parse_iso_date
+from canair.cli.args.scope import parse_iso_date
 
 
 def cmd_migrate_variants(args) -> int:

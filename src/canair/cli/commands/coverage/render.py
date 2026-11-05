@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from canair.cli.commands._notation import resolve_notation
+from canair.cli.args.notation import resolve_notation
 from canair.render import ansi
 from canair.uds.notation import relabel_signal, subfunction_bytes_for_pid
 

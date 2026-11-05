@@ -8,7 +8,7 @@ raw broadcast-CAN frame logs, or both.
 from __future__ import annotations
 
 from canair.cli import build_parser
-from canair.cli.commands._domain import DOMAINS, apply_domain_tags, tag_for
+from canair.cli.args.domain import DOMAINS, apply_domain_tags, tag_for
 
 
 class TestTagFor:

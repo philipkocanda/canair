@@ -30,16 +30,16 @@ from canair.analysis.xanalysis import (
     reference_is_bimodal,
     transform_ref,
 )
-from canair.cli.commands._can_args import add_can_log_source_args
-from canair.cli.commands._group import group_help
-from canair.cli.commands._join import (
+from canair.cli.args.can import add_can_log_source_args
+from canair.cli.args.group import group_help
+from canair.cli.args.join import (
     add_join_args,
     fill_policy_from_args,
     fill_summaries,
     fill_summary_line,
 )
-from canair.cli.commands._notation import add_notation_arg, resolve_notation
-from canair.cli.commands._scope import add_scope_args, resolve_scope_bounds
+from canair.cli.args.notation import add_notation_arg, resolve_notation
+from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.render import ansi
 from canair.uds.inspect_bytes import NO_EXPR
 from canair.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid

@@ -6,12 +6,10 @@ import argparse
 
 from canair.analysis.counters import DEFAULT_MAX_WIDTH, DEFAULT_MIN_BITS
 from canair.analysis.support_map import DEFAULT_MAX_AT, DEFAULT_MAX_CHANCE
-from canair.cli.commands._group import group_help
-from canair.cli.commands._join import (
-    add_join_args,
-)
-from canair.cli.commands._notation import add_notation_arg
-from canair.cli.commands._scope import add_scope_args
+from canair.cli.args.group import group_help
+from canair.cli.args.join import add_join_args
+from canair.cli.args.notation import add_notation_arg
+from canair.cli.args.scope import add_scope_args
 
 from .can import _run_can
 from .uds import run

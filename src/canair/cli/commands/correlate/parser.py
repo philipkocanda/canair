@@ -8,14 +8,11 @@ from canair.analysis.align import (
     DEFAULT_SESSION_GAP_S,
 )
 from canair.analysis.stats import METHOD_CHEAT_SHEET as _METHOD_CHEAT_SHEET
-from canair.cli.commands._can_args import add_can_log_source_args
-from canair.cli.commands._group import group_help
-from canair.cli.commands._join import (
-    add_join_args,
-    add_mirror_args,
-)
-from canair.cli.commands._notation import add_notation_arg
-from canair.cli.commands._scope import add_scope_args
+from canair.cli.args.can import add_can_log_source_args
+from canair.cli.args.group import group_help
+from canair.cli.args.join import add_join_args, add_mirror_args
+from canair.cli.args.notation import add_notation_arg
+from canair.cli.args.scope import add_scope_args
 
 from .can import _run_can_log
 from .uds import run

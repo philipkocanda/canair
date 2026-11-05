@@ -21,8 +21,8 @@ It also owns the *reporting* half: a filled row is reconstructed rather than
 measured, so a report that fills must say which signals it filled and how far —
 from one spelling, so the phrasing and units can't diverge across five commands.
 
-Mirrors :func:`canair.cli.commands._scope.add_scope_args` and
-:func:`canair.cli.commands._notation.add_notation_arg`: one helper owning one group of flags
+Mirrors :func:`canair.cli.args.scope.add_scope_args` and
+:func:`canair.cli.args.notation.add_notation_arg`: one helper owning one group of flags
 shared across the analysis verbs.
 
 ``captures uds --step`` deliberately keeps its own ``--join-tol``: it is a

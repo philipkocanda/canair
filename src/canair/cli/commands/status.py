@@ -111,6 +111,7 @@ def _device_status(host: str, timeout: float) -> dict | None:
 
 def _gather(args) -> dict:
     """Collect everything status reports into a plain dict (also used for --json)."""
+    from canair.cli.args.transport import transport_overrides
     from canair.config import fallback_settings
     from canair.install.build_info import full_version
     from canair.transport import (
@@ -118,8 +119,6 @@ def _gather(args) -> dict:
         resolve_transport_candidates,
         select_reachable_transport,
     )
-
-    from ._transport_args import transport_overrides
 
     info: dict = {"exit": _OK, "warnings": [], "errors": [], "canair_version": full_version()}
 

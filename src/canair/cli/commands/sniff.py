@@ -90,7 +90,7 @@ def _profile_can_bitrate() -> int | None:
 def run(args) -> int:
     import sys
 
-    from canair.cli.commands._transport_args import transport_overrides
+    from canair.cli.args.transport import transport_overrides
     from canair.core.stop_signals import graceful_stop
     from canair.device.lock import WiCANLock
     from canair.device.lock_watchdog import LockWatchdog

@@ -13,8 +13,8 @@ import sys
 
 from canair.captures.dates import filter_by_date_range, filter_by_text
 from canair.captures.store import load_all_captures
-from canair.cli.commands._notation import resolve_notation
-from canair.cli.commands._scope import resolve_scope_bounds
+from canair.cli.args.notation import resolve_notation
+from canair.cli.args.scope import resolve_scope_bounds
 from canair.profile import active
 from canair.query import QueryError
 from canair.render import ansi

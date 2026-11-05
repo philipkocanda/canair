@@ -21,7 +21,7 @@ import json as _json
 import sys
 
 from canair.analysis.align import LoadedPid, load_signal_captures
-from canair.cli.commands._notation import resolve_notation
+from canair.cli.args.notation import resolve_notation
 from canair.render import ansi
 from canair.uds.byteindex import mapped_offsets
 from canair.uds.notation import ByteNotation, subfunction_bytes_for_pid
@@ -72,7 +72,7 @@ def run_sweep(specs: list[tuple[str, str]], args, since, until, fill) -> int:
 
 
 def _sweep_counters(specs, loaded, args, params_of) -> int:
-    from canair.cli.commands._scope import active_scope_flags
+    from canair.cli.args.scope import active_scope_flags
 
     scope_flags = active_scope_flags(args)
     if scope_flags:

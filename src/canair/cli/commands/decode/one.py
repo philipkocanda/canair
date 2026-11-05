@@ -27,8 +27,8 @@ from canair.analysis.stats import compute_stats
 from canair.analysis.stats import correlation as _correlation
 from canair.captures.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 from canair.captures.store import load_pid_captures
-from canair.cli.commands._join import fill_policy_from_args
-from canair.cli.commands._notation import resolve_notation
+from canair.cli.args.join import fill_policy_from_args
+from canair.cli.args.notation import resolve_notation
 from canair.expression.decoding import decode_payload, ordered_signal_names
 from canair.render import ansi
 from canair.uds.byteindex import payload_to_wican_bytes

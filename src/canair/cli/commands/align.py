@@ -33,8 +33,8 @@ from canair.analysis.align import (
 )
 from canair.analysis.fill import forced_hold_warning, format_hold_duration
 from canair.captures.keepmode import CHANGES_BANNER, scope_is_keep_changes
-from canair.cli.commands._join import add_join_args, fill_policy_from_args
-from canair.cli.commands._scope import add_scope_args, resolve_scope_bounds
+from canair.cli.args.join import add_join_args, fill_policy_from_args
+from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.render import ansi
 
 NAME = "align"

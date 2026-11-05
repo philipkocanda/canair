@@ -30,12 +30,9 @@ from canair.analysis.xanalysis import (
     transform_ref,
 )
 from canair.captures.keepmode import CHANGES_BANNER
-from canair.cli.commands._join import (
-    fill_policy_from_args,
-    fill_summary_line,
-)
-from canair.cli.commands._notation import resolve_notation
-from canair.cli.commands._scope import resolve_scope_bounds
+from canair.cli.args.join import fill_policy_from_args, fill_summary_line
+from canair.cli.args.notation import resolve_notation
+from canair.cli.args.scope import resolve_scope_bounds
 from canair.render import ansi
 from canair.uds.notation import relabel_signal
 

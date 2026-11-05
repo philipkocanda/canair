@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from canair.cli.commands._notation import resolve_notation
+from canair.cli.args.notation import resolve_notation
 from canair.uds.notation import ByteNotation
 
 

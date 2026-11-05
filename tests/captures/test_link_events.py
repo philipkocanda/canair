@@ -717,7 +717,7 @@ class TestFillReport:
     def test_cut_carries_are_counted_and_reported(self):
         from canair.analysis.align import LoadedPid
         from canair.analysis.fill import FillPolicy, session_end_times
-        from canair.cli.commands._join import fill_summaries, fill_summary_line
+        from canair.cli.args.join import fill_summaries, fill_summary_line
 
         events = [{"at": "14:01:00.000", "until": "14:02:00.000", "kind": "disconnect"}]
         caps = [

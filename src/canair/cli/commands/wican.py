@@ -37,7 +37,7 @@ from pathlib import Path
 
 import requests
 
-from canair.cli.commands._group import group_help
+from canair.cli.args.group import group_help
 from canair.device.wican.api import resolve_wican_url
 from canair.device.wican.firmware import Surface
 from canair.ecus.response_frames import stored_count

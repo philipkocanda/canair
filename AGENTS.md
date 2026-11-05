@@ -431,7 +431,7 @@ and **`g`/`G` address the view's primary axis**.
 **Shared flags are declared once so their defaults cannot drift** — when adding an analysis command,
 reuse these instead of re-declaring a flag:
 
-- `--join-tol` / `--fill` / `--max-hold` — `src/canair/cli/commands/_join.py::add_join_args`, used by
+- `--join-tol` / `--fill` / `--max-hold` — `src/canair/cli/args/join.py::add_join_args`, used by
   `align`/`correlate`/`hunt`/`investigate`/`decode` (`captures uds --step` deliberately keeps its
   own wider *viewer* tolerance). Fill policy is `src/canair/analysis/fill.py`, resolved at series-build
   time so the join primitives never learn what a keep mode is; a value is never carried across a
@@ -445,8 +445,8 @@ reuse these instead of re-declaring a flag:
   rendered via `ByteDisplay`); WiCAN/Torque/bix are derived views. Persist a default with
   `config set display.byte_notation`.
 - Scope flags (`--since`/`--until`/`--date`/`--today`/`--state`/`--label`/`--last-session`/
-  `--first`/`--last`) — `src/canair/cli/commands/_scope.py::add_scope_args`, shared by `captures` and every
-  analysis command.
+  `--first`/`--last`) — `src/canair/cli/args/scope.py::add_scope_args`, shared by `captures` and
+  every analysis command.
 
 ### Authoring (writes into a profile — pass `--profile`)
 

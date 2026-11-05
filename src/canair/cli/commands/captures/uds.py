@@ -100,9 +100,9 @@ from canair.captures.dates import filter_by_date_range, filter_by_text
 from canair.captures.state_inference import DEFAULT_CYCLE_TOL_S
 from canair.captures.store import load_all_captures
 from canair.captures.types import CaptureEntry
+from canair.cli.args.notation import add_notation_arg, resolve_notation
+from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
-from canair.cli.commands._notation import add_notation_arg, resolve_notation
-from canair.cli.commands._scope import add_scope_args, resolve_scope_bounds
 from canair.render import ansi
 from canair.states import format_state_selector
 from canair.tui.apps.captures_step_model import (

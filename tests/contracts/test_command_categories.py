@@ -2,7 +2,7 @@
 
 The subcommand list is grouped under labelled categories (Live device /
 Analysis / Authoring / Import·export / Setup) driven by a single central map in
-``canair.cli.commands._categories``. These tests guard that map against drift with
+``canair.cli.args.categories``. These tests guard that map against drift with
 the actual registered subcommands and check the grouped help renders correctly.
 """
 
@@ -11,8 +11,8 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from canair.cli import _inject_default_subcommand, build_parser
+from canair.cli.args.categories import CATEGORIES, OTHER_TITLE, categorized_names
 from canair.cli.commands import iter_command_modules
-from canair.cli.commands._categories import CATEGORIES, OTHER_TITLE, categorized_names
 
 
 def _registered_names() -> set[str]:

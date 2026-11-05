@@ -4,7 +4,7 @@ argparse renders every subcommand as one flat list under ``<command>``. This
 module centralizes, in one place, which category each subcommand belongs to so
 the top-level help can present the commands in labelled groups (Live device /
 Analysis / Authoring / Import·export / Setup) instead of an undifferentiated
-wall — mirroring the ``_domain.py`` pattern (one central map, applied uniformly
+wall — mirroring the ``domain.py`` pattern (one central map, applied uniformly
 in ``canair.cli.build_parser``, rather than hand-wiring 30 modules).
 
 Not every command needs a category: any command absent from :data:`CATEGORIES`

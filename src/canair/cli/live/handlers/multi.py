@@ -7,7 +7,7 @@ monitor. The monitor is the only handler that uses ``reconnect``.
 from __future__ import annotations
 
 from canair.captures.keepmode import resolve_keep_mode
-from canair.cli.commands._notation import resolve_notation
+from canair.cli.args.notation import resolve_notation
 from canair.cli.live.operation import LiveOperation
 from canair.live.monitor import mode_monitor
 from canair.live.monitor_options import MonitorOptions

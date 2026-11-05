@@ -19,9 +19,7 @@ from canair.analysis.xanalysis import (
     build_param_series,
 )
 from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
-from canair.cli.commands._join import (
-    fill_summaries,
-)
+from canair.cli.args.join import fill_summaries
 
 NAME = "correlate"
 

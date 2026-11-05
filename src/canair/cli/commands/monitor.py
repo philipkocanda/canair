@@ -21,7 +21,7 @@ import math
 import shlex
 import sys
 
-from canair.cli.commands._notation import add_notation_arg
+from canair.cli.args.notation import add_notation_arg
 from canair.cli.live import (
     add_connection_args,
     expand_step_groups,

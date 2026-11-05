@@ -12,7 +12,8 @@ determines help ordering).
 
 Belongs: one module or package per subcommand: its flags, its output and the glue to a library call.
 Not here: anything a test could call without the CLI: it goes to the package that owns it.
-Imports: any package below ``cli``; shared flag helpers are the ``_*.py`` modules here.
+Imports: any package below ``cli``, the shared flag helpers (``cli/args/``) and the live-command
+runtime (``cli/live/``); the ``_*.py`` modules here are plumbing several commands share.
 """
 
 from __future__ import annotations

@@ -247,7 +247,7 @@ class _VersionAction(argparse.Action):
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level argument parser with all subcommands registered."""
-    from canair.cli.commands._categories import CategorizedHelpFormatter
+    from canair.cli.args.categories import CategorizedHelpFormatter
 
     parser = _CanairParser(
         prog="canair",
@@ -295,7 +295,7 @@ def build_parser() -> argparse.ArgumentParser:
     for module in iter_command_modules():
         module.add_parser(subparsers)
 
-    from canair.cli.commands._domain import apply_domain_tags
+    from canair.cli.args.domain import apply_domain_tags
 
     apply_domain_tags(subparsers)
 
