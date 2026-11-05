@@ -5,7 +5,7 @@
 *Alias: `iocontrol`*
 
 ```
-usage: canair io [-h] [--did DID] [--off] [--poll] [--wican WICAN]
+usage: canair io [-h] [--did DID] [--off] [--poll] [--yes] [--wican WICAN]
                  [--transport {slcan-tcp,wican-ws,elm327-tcp}] [--no-fallback]
                  [--wait] [--elm-timeout MS] [--timeout SECONDS]
                  [--no-learn-frames] [--json] [--verbose] [--timings]
@@ -27,6 +27,8 @@ options:
                         can actuate relay/solenoid-backed DIDs (audible click)
                         — off by default. A KWP2000 entry is polled only when
                         it declares a release.
+  --yes, -y             With --did: send without asking first (required when
+                        stdin is not a terminal)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}
@@ -70,6 +72,7 @@ examples:
   canair io IGPM                 Interactive TUI (navigate + toggle)
   canair io IGPM --poll          TUI with background status polling enabled
   canair io IGPM --json          List all IGPM IOControl DIDs (offline JSON)
-  canair io IGPM --did BC01      Turn on low beam (hold until Ctrl+C)
+  canair io IGPM --did BC01      Turn on low beam (asks first; hold until Ctrl+C)
   canair io IGPM --did BC01 --off
+  canair io IGPM --did BC01 -y   Skip the question (scripts)
 ```

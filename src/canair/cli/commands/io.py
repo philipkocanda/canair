@@ -29,8 +29,9 @@ examples:
   canair io IGPM                 Interactive TUI (navigate + toggle)
   canair io IGPM --poll          TUI with background status polling enabled
   canair io IGPM --json          List all IGPM IOControl DIDs (offline JSON)
-  canair io IGPM --did BC01      Turn on low beam (hold until Ctrl+C)
+  canair io IGPM --did BC01      Turn on low beam (asks first; hold until Ctrl+C)
   canair io IGPM --did BC01 --off
+  canair io IGPM --did BC01 -y   Skip the question (scripts)
 """,
     )
     parser.add_argument(
@@ -47,6 +48,12 @@ examples:
         "(2F{DID}00, returnControlToECU, on UDS) every 3s, inside each entry's own session. "
         "This can actuate relay/solenoid-backed DIDs (audible click) — off by default. "
         "A KWP2000 entry is polled only when it declares a release.",
+    )
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="With --did: send without asking first (required when stdin is not a terminal)",
     )
     add_connection_args(parser)
     parser.set_defaults(func=run)

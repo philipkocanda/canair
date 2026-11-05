@@ -13,6 +13,7 @@ import termios
 import tty
 from pathlib import Path
 
+from canair.core.prompt import confirm
 from canair.core.terminal import terminal_columns as _terminal_columns
 from canair.core.terminal import terminal_lines as _terminal_lines
 from canair.ecus.pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
@@ -128,8 +129,9 @@ async def mode_iocontrol_execute(
     off: bool = False,
     verbose: bool = False,
     as_json: bool = False,
+    yes: bool = False,
 ):
-    """Execute an IOControl ON or OFF command."""
+    """Execute an IOControl ON or OFF command, after asking (``yes`` answers for the user)."""
     ioctrl_index = build_iocontrol_index(pids_data)
     ecu_key = ecu_name.upper()
     did_key = did.upper()
@@ -175,6 +177,13 @@ async def mode_iocontrol_execute(
     print(f"  Command: {hex_cmd}")
     if status_param:
         print(f"  Readback PID: {status_param}")
+
+    if not confirm(
+        f"Send {action} to {ecu_key} {did_key} ({label})? This drives an output.",
+        yes=yes,
+        danger=True,
+    ):
+        raise SystemExit(1)
 
     await terminal.set_header(tx_id)
 

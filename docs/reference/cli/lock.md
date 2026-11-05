@@ -38,7 +38,8 @@ examples:
   canair lock kill             # signal a holder that won't release (confirms)
   canair lock kill --hard -y   # SIGKILL it, no prompt (data is in the journal)
 
-exit codes: 0 = lock is free (or was freed), 1 = still held.
+exit codes: 0 = lock is free (or was freed), 1 = still held or the prompt was declined,
+2 = a confirmation was needed but stdin is not a terminal (pass --yes).
 ```
 
 ## `canair lock steal`

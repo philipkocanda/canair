@@ -27,6 +27,7 @@ async def handle_iocontrol(args, terminal: Terminal, pids_data, host, *, reconne
             off=args.off,
             verbose=args.verbose,
             as_json=args.json,
+            yes=getattr(args, "yes", False),
         )
     else:
         from canair.live.iocontrol import mode_iocontrol_tui

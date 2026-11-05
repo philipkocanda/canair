@@ -297,9 +297,54 @@ class TestSingleCommand:
             }
         }
         term = FakeTerminal()
-        asyncio.run(mode_iocontrol_execute(term, pids_data, "BCM", "6900"))  # type: ignore[arg-type]
+        asyncio.run(mode_iocontrol_execute(term, pids_data, "BCM", "6900", yes=True))  # type: ignore[arg-type]
         assert term.sessions == ["C0"]
         assert term.sent == ["30690001"]
+
+    @staticmethod
+    def _stdin(monkeypatch, text: str, *, tty: bool = True) -> None:
+        import io
+
+        class _Stdin(io.StringIO):
+            def isatty(self) -> bool:
+                return tty
+
+        monkeypatch.setattr("sys.stdin", _Stdin(text))
+
+    def test_nothing_is_sent_when_the_user_declines(self, monkeypatch, capsys):
+        from canair.live.iocontrol import mode_iocontrol_execute
+
+        self._stdin(monkeypatch, "n\n")
+        term = FakeTerminal()
+        with pytest.raises(SystemExit) as exc:
+            asyncio.run(mode_iocontrol_execute(term, OBC_DATA, "OBC", "01", off=True))  # type: ignore[arg-type]
+        assert exc.value.code == 1
+        assert term.sent == [] and term.sessions == [] and term.headers == []
+        assert "Aborted" in capsys.readouterr().err
+
+    def test_a_yes_answer_sends(self, monkeypatch):
+        from canair.live.iocontrol import mode_iocontrol_execute
+
+        self._stdin(monkeypatch, "y\n")
+        term = FakeTerminal()
+        asyncio.run(mode_iocontrol_execute(term, OBC_DATA, "OBC", "01", off=True))  # type: ignore[arg-type]
+        assert term.sent == ["300111"]
+
+    def test_no_terminal_and_no_yes_refuses_before_anything_is_sent(self, monkeypatch):
+        from canair.core.prompt import PromptUnavailable
+        from canair.live.iocontrol import mode_iocontrol_execute
+
+        self._stdin(monkeypatch, "y\n", tty=False)
+        term = FakeTerminal()
+        with pytest.raises(PromptUnavailable, match="--yes"):
+            asyncio.run(mode_iocontrol_execute(term, OBC_DATA, "OBC", "01", off=True))  # type: ignore[arg-type]
+        assert term.sent == [] and term.headers == []
+
+    def test_the_command_has_a_yes_flag(self):
+        from canair.cli import build_parser
+
+        args = build_parser().parse_args(["io", "IGPM", "--did", "BC01", "-y"])
+        assert args.yes is True
 
     def test_a_kwp_on_without_a_release_is_refused_before_anything_is_sent(self, capsys):
         from canair.live.iocontrol import mode_iocontrol_execute
@@ -315,7 +360,7 @@ class TestSingleCommand:
         from canair.live.iocontrol import mode_iocontrol_execute
 
         term = FakeTerminal()
-        asyncio.run(mode_iocontrol_execute(term, OBC_DATA, "OBC", "01", off=True))  # type: ignore[arg-type]
+        asyncio.run(mode_iocontrol_execute(term, OBC_DATA, "OBC", "01", off=True, yes=True))  # type: ignore[arg-type]
         assert term.sent == ["300111"]
 
     def test_a_held_kwp_on_is_released_with_its_declared_release(self):
@@ -325,7 +370,7 @@ class TestSingleCommand:
 
         async def run():
             task = asyncio.ensure_future(
-                mode_iocontrol_execute(term, data, "OBC", "01")  # type: ignore[arg-type]
+                mode_iocontrol_execute(term, data, "OBC", "01", yes=True)  # type: ignore[arg-type]
             )
             while "300100" not in term.sent:
                 await asyncio.sleep(0)

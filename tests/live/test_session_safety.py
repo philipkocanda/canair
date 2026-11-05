@@ -254,4 +254,4 @@ class TestRefusalIsReportedNotRaised:
             }
         }
         with pytest.raises(SafetyBlocked):
-            asyncio.run(mode_iocontrol_execute(term, data, "IGPM", "BC01"))
+            asyncio.run(mode_iocontrol_execute(term, data, "IGPM", "BC01", yes=True))
