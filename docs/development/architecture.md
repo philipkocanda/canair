@@ -92,10 +92,10 @@ import a package of the `ecus/`, `profile/`, `variants/` cycle. They move down w
 
 | If the code … | It goes in |
 |---|---|
-| defines flags, reads `args`, prints a command's output | `cli/commands/<cmd>/` |
-| is a Textual app, screen or widget | `tui/apps/<app>/` (shared: `tui/kit/`) |
+| defines flags, reads `args`, prints a command's output | `cli/commands/<cmd>.py`, or `cli/commands/<cmd>/` when it has several modules |
+| is a Textual app, screen or widget | `tui/apps/` (shared Textual code stays in `tui/`) |
 | turns results into text for both CLI and TUI | `render/` (a command-only renderer stays in its `render.py`) |
-| talks to the car over a `Terminal` | `live/<family>/` |
+| talks to the car over a `Terminal` | `live/` (`live/dtc/` is the one sub-package) |
 | moves bytes, frames ISO-TP, drives an ELM327 | `transport/` |
 | calls the adapter's HTTP API, or guards the connection | `device/` |
 | decides whether a request may go on the bus | `safety/` |
@@ -116,6 +116,9 @@ import a package of the `ecus/`, `profile/`, `variants/` cycle. They move down w
 | rewrites stored data once | `migrations/` |
 | is generic and needs nothing from the package | `core/` |
 | is developer tooling that does not ship | `scripts/` |
+
+`live/` and `tui/apps/` are flat today. Sub-plan 5 of
+`plans/2026-11-05-code-organization.md` groups them into sub-packages.
 
 If two rows fit, choose the lower layer. If none fits, stop and ask: a new top-level package
 needs a plan that names its layer.
