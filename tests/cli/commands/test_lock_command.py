@@ -289,13 +289,13 @@ class TestKill:
 
 class TestStatusIntegration:
     def test_status_reports_the_lock(self, holder, monkeypatch):
-        from canair.cli.commands import status
+        from canair.cli.commands.status import gather as gather_mod
 
         proc = holder()
         # --no-fallback: otherwise the default device joins the candidate list and the
         # fallback liveness probe opens real sockets to it.
-        monkeypatch.setattr(status, "_tcp_open", lambda *a, **k: False)
-        info = status._gather(
+        monkeypatch.setattr(gather_mod, "tcp_open", lambda *a, **k: False)
+        info = gather_mod.gather(
             argparse.Namespace(transport=None, wican="192.0.2.1", json=True, no_fallback=True)
         )
         assert info["lock"]["held"] is True
@@ -304,14 +304,14 @@ class TestStatusIntegration:
     def test_status_lock_probe_does_not_hold_it(self, tmp_path, monkeypatch):
         """`canair status` is documented side-effect-free — including the mutex."""
         import canair.device.lock as lock_mod
-        from canair.cli.commands import status
+        from canair.cli.commands.status import gather as gather_mod
 
         lock_file, steal_file = tmp_path / "lock", tmp_path / "steal"
         monkeypatch.setattr(lock_mod, "LOCK_FILE", lock_file)
         monkeypatch.setattr(lock_mod, "STEAL_FILE", steal_file)
-        monkeypatch.setattr(status, "_tcp_open", lambda *a, **k: False)
+        monkeypatch.setattr(gather_mod, "tcp_open", lambda *a, **k: False)
 
-        status._gather(
+        gather_mod.gather(
             argparse.Namespace(transport=None, wican="192.0.2.1", json=True, no_fallback=True)
         )
 

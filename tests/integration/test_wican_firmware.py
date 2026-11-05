@@ -930,7 +930,7 @@ class TestStatusSurface:
     @pytest.fixture
     def gather(self, monkeypatch):
         import canair.config as cfg
-        from canair.cli.commands import status
+        from canair.cli.commands.status import gather as gather_mod
         from canair.transport.config import TransportConfig
 
         def run(
@@ -956,15 +956,15 @@ class TestStatusSurface:
 
             monkeypatch.setattr(wf, "probe", _probe)
             monkeypatch.setattr(
-                status,
-                "_load_device_config",
+                gather_mod,
+                "load_device_config",
                 lambda *a: (
                     pytest.fail("no 4.x routes on v6") if info.generation == "v6" else cfg_body
                 ),
             )
-            monkeypatch.setattr(status, "_device_status", lambda *a: None)
-            monkeypatch.setattr(status, "_tcp_open", lambda *a: tcp)
-            return status._gather(argparse.Namespace(transport=None, wican=None))
+            monkeypatch.setattr(gather_mod, "device_status", lambda *a: None)
+            monkeypatch.setattr(gather_mod, "tcp_open", lambda *a: tcp)
+            return gather_mod.gather(argparse.Namespace(transport=None, wican=None))
 
         return run
 
@@ -1021,14 +1021,14 @@ class TestStatusSurface:
         assert any("AutoPID" in n for n in info["notes"])
 
     def test_render_shows_the_firmware_line(self, gather, capsys):
-        from canair.cli.commands import status
+        from canair.cli.commands.status import render as render_mod
 
-        status._render(gather("wican-ws", V6))
+        render_mod.render_status(gather("wican-ws", V6))
         out = capsys.readouterr().out
         assert "6.0.0-beta.1" in out and "api_level 6" in out
 
     def test_render_shows_a_known_v4_firmware_line(self, gather, capsys):
-        from canair.cli.commands import status
+        from canair.cli.commands.status import render as render_mod
 
         body = {"protocol": "elm327", "port": 3333, "sleep_status": "disable"}
         info = gather(
@@ -1036,24 +1036,24 @@ class TestStatusSurface:
             FirmwareInfo("v4", version="4.52", build="v4.52p", hw_version="WiCAN-OBD-PRO"),
             cfg_body=body,
         )
-        status._render(info)
+        render_mod.render_status(info)
         out = capsys.readouterr().out
         assert "WiCAN-OBD-PRO" in out and "4.52 (v4.52p)" in out
         assert "version    " not in out  # the firmware line replaces the legacy one
         assert "elm327" in out
 
     def test_render_known_firmware_without_config_says_config_unreachable(self, gather, capsys):
-        from canair.cli.commands import status
+        from canair.cli.commands.status import render as render_mod
 
         info = gather("slcan-tcp", V4, cfg_body=None)
-        status._render(info)
+        render_mod.render_status(info)
         out = capsys.readouterr().out
         assert "4.52 (v4.52p)" in out
         assert "config" in out and "HTTP config API not reachable" in out
         assert "non-WiCAN gateway" not in out
 
     def test_render_marks_the_check_off(self, gather, capsys):
-        from canair.cli.commands import status
+        from canair.cli.commands.status import render as render_mod
 
-        status._render(gather("slcan-tcp", V6, mode="off"))
+        render_mod.render_status(gather("slcan-tcp", V6, mode="off"))
         assert "firmware check off" in capsys.readouterr().out

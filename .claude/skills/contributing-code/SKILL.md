@@ -302,8 +302,8 @@ up** when a structural change is warranted instead of bolting on more.
   `cli/commands/captures/` and `cli/commands/decode/` are the precedents, and the command registries are
   keyed by the name *string*, so module layout is free to change. Two corollaries: packaging
   discharges nothing — the ~500-line rule still binds every member; and **split and package in one
-  commit**, since splitting now and packaging "later" books the rename twice. Existing flat-sibling
-  commands are grandfathered — convert opportunistically, not as a campaign. Rationale:
+  commit**, since splitting now and packaging "later" books the rename twice. No command has a flat
+  sibling now: the `_x.py` files left in `cli/commands/` are shared by several commands. Rationale:
   `plans/2026-08-06-command-packages-and-live-split.md`.
 - **Command-private vs shared command-layer infra.** Before moving a `_x.py` into a package, check
   who imports it: one command (+ its test) → package-private, move it in; several commands → a

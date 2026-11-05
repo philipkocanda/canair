@@ -16,7 +16,6 @@ import pytest
 
 from canair.captures import build_query_session, save_session
 from canair.captures.store import load_all_captures
-from canair.cli.commands import status as status_cmd
 from canair.cli.commands import update as update_cmd
 from canair.cli.commands.captures.backfill import cmd_backfill_states
 from canair.cli.commands.captures.backfill_render import print_report
@@ -24,6 +23,7 @@ from canair.cli.commands.captures.backfill_spans_render import print_span_report
 from canair.cli.commands.captures.delete import cmd_delete
 from canair.cli.commands.captures.set_state import cmd_set_state
 from canair.cli.commands.contribute import report
+from canair.cli.commands.status import render as status_cmd
 from canair.core.prompt import PromptUnavailable
 
 ESC = re.compile(r"\x1b\[")
@@ -247,7 +247,7 @@ class TestReporterConfirm:
 class TestRichMarkupIsEscaped:
     def test_status_prints_names_and_paths_with_brackets_literally(self, monkeypatch, capsys):
         monkeypatch.setenv("NO_COLOR", "1")
-        status_cmd._render(
+        status_cmd.render_status(
             {
                 "profile": {"name": "car[bold]x[/bold]", "root": "/tmp/[red]p"},
                 "warnings": ["see [link=x]this[/link]"],
@@ -262,17 +262,17 @@ class TestRichMarkupIsEscaped:
 
     def test_status_uses_the_plain_cross_for_a_failure(self, monkeypatch, capsys):
         monkeypatch.setenv("NO_COLOR", "1")
-        status_cmd._render({"errors": ["boom"]})
+        status_cmd.render_status({"errors": ["boom"]})
         out = capsys.readouterr().out
         assert "✗ boom" in out and "✖" not in out
 
     def test_status_follows_force_color_and_no_color(self, monkeypatch, capsys):
         monkeypatch.setenv("FORCE_COLOR", "1")
-        status_cmd._render({"warnings": ["careful"]})
+        status_cmd.render_status({"warnings": ["careful"]})
         assert ESC.search(capsys.readouterr().out)
         monkeypatch.delenv("FORCE_COLOR")
         monkeypatch.setenv("NO_COLOR", "1")
-        status_cmd._render({"warnings": ["careful"]})
+        status_cmd.render_status({"warnings": ["careful"]})
         assert not ESC.search(capsys.readouterr().out)
 
     def test_update_prints_install_paths_with_brackets_literally(self, monkeypatch, capsys):

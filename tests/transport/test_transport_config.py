@@ -383,19 +383,19 @@ class TestParseDatarate:
 class TestStatusGather:
     @pytest.fixture
     def patch_status(self, monkeypatch, env):
-        from canair.cli.commands import status
+        from canair.cli.commands.status import gather as gather_mod
 
         def setup(*, cfg=None, st=None, tcp=True):
-            monkeypatch.setattr(status, "_load_device_config", lambda h, t: cfg)
-            monkeypatch.setattr(status, "_device_status", lambda h, t: st)
-            monkeypatch.setattr(status, "_tcp_open", lambda h, p, t: tcp)
+            monkeypatch.setattr(gather_mod, "load_device_config", lambda h, t: cfg)
+            monkeypatch.setattr(gather_mod, "device_status", lambda h, t: st)
+            monkeypatch.setattr(gather_mod, "tcp_open", lambda h, p, t: tcp)
 
-        return setup, status
+        return setup, gather_mod
 
     def test_wican_ws_ready(self, patch_status):
         setup, status = patch_status
         setup(cfg={"protocol": "auto_pid", "port": "35000"}, st={"batt_voltage": "14.6V"})
-        info = status._gather(Args(transport="wican-ws"))
+        info = status.gather(Args(transport="wican-ws"))
         assert info["exit"] == 0
         assert info["transport"]["usable"] is True
         assert info["device"]["protocol"] == "auto_pid"
@@ -403,14 +403,14 @@ class TestStatusGather:
     def test_wican_ws_unreachable(self, patch_status):
         setup, status = patch_status
         setup(cfg=None)
-        info = status._gather(Args(transport="wican-ws"))
+        info = status.gather(Args(transport="wican-ws"))
         assert info["exit"] == 1
         assert info["transport"]["usable"] is False
 
     def test_slcan_mode_mismatch(self, patch_status):
         setup, status = patch_status
         setup(cfg={"protocol": "auto_pid", "port": "35000"}, tcp=True)
-        info = status._gather(Args(transport="slcan-tcp"))
+        info = status.gather(Args(transport="slcan-tcp"))
         assert info["exit"] == 2
         assert info["transport"]["usable"] is False  # open port but wrong mode
         assert any("slcan" in w for w in info["warnings"])
@@ -418,7 +418,7 @@ class TestStatusGather:
     def test_slcan_ready(self, patch_status):
         setup, status = patch_status
         setup(cfg={"protocol": "slcan", "port": "3333"}, tcp=True)
-        info = status._gather(Args(transport="slcan-tcp"))
+        info = status.gather(Args(transport="slcan-tcp"))
         assert info["exit"] == 0
         assert info["transport"]["usable"] is True
 
@@ -432,7 +432,7 @@ class TestStatusFallback:
 
     @pytest.fixture
     def patch_status(self, monkeypatch, env):
-        from canair.cli.commands import status
+        from canair.cli.commands.status import gather as gather_mod
         from canair.device.wican import mode as wican_mode
 
         # Two candidates (vpn primary, home fallback), fallback enabled.
@@ -440,20 +440,20 @@ class TestStatusFallback:
 
         def setup(*, reachable: set[str]):
             monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: h in reachable)
-            monkeypatch.setattr(status, "_tcp_open", lambda h, p, t: h in reachable)
+            monkeypatch.setattr(gather_mod, "tcp_open", lambda h, p, t: h in reachable)
             monkeypatch.setattr(
-                status,
-                "_load_device_config",
+                gather_mod,
+                "load_device_config",
                 lambda h, t: {"protocol": "slcan", "port": "3333"} if h in reachable else None,
             )
-            monkeypatch.setattr(status, "_device_status", lambda h, t: None)
+            monkeypatch.setattr(gather_mod, "device_status", lambda h, t: None)
 
-        return setup, status
+        return setup, gather_mod
 
     def test_falls_back_to_reachable_device(self, patch_status):
         setup, status = patch_status
         setup(reachable={"10.0.0.9"})  # primary (vpn, 1.2.3.4) is down
-        info = status._gather(Args())
+        info = status.gather(Args())
         assert info["transport"]["host"] == "10.0.0.9"
         assert info["transport"]["fell_back"] is True
         assert info["transport"]["usable"] is True
@@ -463,7 +463,7 @@ class TestStatusFallback:
     def test_no_fallback_pins_the_selected_device(self, patch_status):
         setup, status = patch_status
         setup(reachable={"10.0.0.9"})
-        info = status._gather(Args(no_fallback=True))
+        info = status.gather(Args(no_fallback=True))
         assert info["transport"]["host"] == "1.2.3.4"
         assert info["transport"]["fell_back"] is False
         assert info["exit"] == 1
@@ -471,7 +471,7 @@ class TestStatusFallback:
     def test_all_down_reports_the_primary_and_names_the_others(self, patch_status):
         setup, status = patch_status
         setup(reachable=set())
-        info = status._gather(Args())
+        info = status.gather(Args())
         assert info["transport"]["host"] == "1.2.3.4"  # primary, for the familiar error
         assert info["transport"]["fell_back"] is False
         assert info["exit"] == 1
@@ -480,7 +480,7 @@ class TestStatusFallback:
     def test_primary_reachable_is_unchanged(self, patch_status):
         setup, status = patch_status
         setup(reachable={"1.2.3.4", "10.0.0.9"})
-        info = status._gather(Args())
+        info = status.gather(Args())
         assert info["transport"]["host"] == "1.2.3.4"
         assert info["transport"]["fell_back"] is False
         assert info["notes"] == []
@@ -488,7 +488,7 @@ class TestStatusFallback:
 
     def test_probe_timeout_honours_a_raised_connect_timeout(self, monkeypatch, env):
         """A user who raised `transport.connect_timeout` must not be second-guessed."""
-        from canair.cli.commands import status
+        from canair.cli.commands.status import gather as gather_mod
         from canair.device.wican import mode as wican_mode
 
         monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 30.0, None))
@@ -500,8 +500,8 @@ class TestStatusFallback:
             seen.append(t)
             return True
 
-        monkeypatch.setattr(status, "_tcp_open", probe)
-        monkeypatch.setattr(status, "_load_device_config", lambda h, t: seen.append(t) or None)
-        monkeypatch.setattr(status, "_device_status", lambda h, t: None)
-        status._gather(Args(transport="elm327-tcp"))
+        monkeypatch.setattr(gather_mod, "tcp_open", probe)
+        monkeypatch.setattr(gather_mod, "load_device_config", lambda h, t: seen.append(t) or None)
+        monkeypatch.setattr(gather_mod, "device_status", lambda h, t: None)
+        gather_mod.gather(Args(transport="elm327-tcp"))
         assert seen and max(seen) == 30.0

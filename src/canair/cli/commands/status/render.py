@@ -30,7 +30,7 @@ def _firmware_line(fw: dict) -> str:
 
 
 def render_status(info: dict) -> None:
-    """Print the report for ``info`` (the dict ``status._gather`` builds)."""
+    """Print the report for ``info`` (the dict ``status.gather`` builds)."""
     c = make_console()
     ver = info.get("canair_version")
     if ver:

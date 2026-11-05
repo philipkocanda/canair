@@ -1,36 +1,18 @@
-"""``canair status`` — show the configured transport, device state, and profile.
-
-Read-only and side-effect-free: it never connects a session, never changes the
-device mode. Designed to answer "what am I talking to, in what mode, and is it
-reachable/usable?" at a glance, with actionable hints and Unix-style exit codes.
-Also reports the running canair version — which, when canair is running from a
-git checkout rather than an installed release, names that checkout's branch and
-short commit (``1.15.0+main.343b244``) — and, when the WiCAN HTTP API answers,
-the device's firmware generation, version and hardware version. On WiCAN
-firmware v6 it also says which canair transports work there, and exits 2 when
-the selected one cannot.
-
-It reports the device a live command would actually use: like ``read``/
-``monitor`` it resolves the whole candidate list and runs the same connect-time
-fallback probe, so a setup where the selected device is down but another
-configured one answers reads as ready here too (``--no-fallback`` to pin the
-selected device).
-"""
+"""Collecting everything ``canair status`` reports into a plain dict."""
 
 from __future__ import annotations
 
-import argparse
-import socket
-
-from ._status_render import render_status as _render
-
-NAME = "status"
-ALIASES = ["st"]
+from .probe import device_status, load_device_config, tcp_open
 
 # Exit codes.
 _OK = 0
+
+
 _UNREACHABLE = 1
+
+
 _MISCONFIGURED = 2
+
 
 # Floor for the read-only reachability probes (s). The effective timeout is the
 # larger of this and the configured `transport.connect_timeout`, so a user who
@@ -39,79 +21,7 @@ _MISCONFIGURED = 2
 _PROBE_TIMEOUT = 4.0
 
 
-def _valid_transports():
-    from canair.transport.config import VALID_TRANSPORTS
-
-    return VALID_TRANSPORTS
-
-
-def add_parser(subparsers) -> argparse.ArgumentParser:
-    parser = subparsers.add_parser(
-        NAME,
-        aliases=ALIASES,
-        help="Show the configured transport, device mode, and reachability",
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""\
-examples:
-  canair status                       # what am I talking to, in what mode, is it up?
-  canair status --wican vpn           # check the device at the 'vpn' address
-  canair status --no-fallback         # only the selected device, no fallback probe
-  canair status --json                # machine-readable (for scripts/CI)
-
-exit codes: 0 = reachable & usable, 1 = unreachable, 2 = misconfigured.
-""",
-    )
-    parser.add_argument(
-        "--transport",
-        choices=_valid_transports(),
-        default=None,
-        help="Override the configured transport type",
-    )
-    parser.add_argument("--wican", default=None, help="Override device host (alias or IP)")
-    parser.add_argument(
-        "--no-fallback",
-        dest="no_fallback",
-        action="store_true",
-        help="Report only the selected device — don't fall back to the other "
-        "configured devices when it's unreachable (see config transport.fallback). "
-        "Without it, status reports the device a live command would use.",
-    )
-    parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
-    parser.set_defaults(func=run)
-    return parser
-
-
-def _tcp_open(host: str, port: int, timeout: float) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
-
-
-def _load_device_config(host: str, timeout: float) -> dict | None:
-    """Best-effort GET /load_config; None if the WiCAN HTTP API isn't reachable."""
-    try:
-        from canair.device.wican.mode import load_config
-
-        return load_config(f"http://{host}", timeout=timeout)
-    except Exception:
-        return None
-
-
-def _device_status(host: str, timeout: float) -> dict | None:
-    try:
-        import requests
-
-        r = requests.get(f"http://{host}/check_status", timeout=timeout)
-        r.raise_for_status()
-        return r.json()
-    except Exception:
-        return None
-
-
-def _gather(args) -> dict:
+def gather(args) -> dict:
     """Collect everything status reports into a plain dict (also used for --json)."""
     from canair.cli.args.transport import transport_overrides
     from canair.config import fallback_settings
@@ -216,8 +126,8 @@ def _gather(args) -> dict:
     # (slcan-tcp / wican-ws) on 4.x. A direct ELM327 adapter (elm327-tcp) has no
     # such API, and v6 removed these routes, so skip the probe and report
     # device: None.
-    cfg = _load_device_config(host, probe_timeout) if t.is_wican_http and not v6 else None
-    st = _device_status(host, probe_timeout) if cfg is not None else None
+    cfg = load_device_config(host, probe_timeout) if t.is_wican_http and not v6 else None
+    st = device_status(host, probe_timeout) if cfg is not None else None
     device_protocol = str(cfg.get("protocol")) if cfg else None
     dev_port = None
     if cfg and cfg.get("port"):
@@ -275,7 +185,7 @@ def _gather(args) -> dict:
 
         elm_port = t.port or DEFAULT_ELM327_TCP_PORT
         info["transport"]["port"] = elm_port
-        elm_ok = _tcp_open(host, elm_port, probe_timeout)
+        elm_ok = tcp_open(host, elm_port, probe_timeout)
         info["transport"]["usable"] = elm_ok
         if not elm_ok:
             info["errors"].append(
@@ -286,7 +196,7 @@ def _gather(args) -> dict:
     else:
         raw_port = t.port or dev_port or 3333
         info["transport"]["port"] = raw_port
-        raw_ok = _tcp_open(host, raw_port, probe_timeout)
+        raw_ok = tcp_open(host, raw_port, probe_timeout)
         mismatch = bool(device_protocol and device_protocol != "slcan")
         # Usable only if the port is open AND the device is actually serving SLCAN
         # (an open port in the wrong mode won't speak SLCAN).
@@ -355,14 +265,3 @@ def _gather(args) -> dict:
         info["install"] = None
 
     return info
-
-
-def run(args) -> int:
-    info = _gather(args)
-    if args.json:
-        import json
-
-        print(json.dumps(info, indent=2))
-    else:
-        _render(info)
-    return info["exit"]
