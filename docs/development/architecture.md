@@ -32,9 +32,10 @@ Top to bottom. A package imports only from the layers below its own.
 | 11 | `ecus/`, `profile/`, `variants/` | each other (one cycle still to split) and the layers below |
 | 12 | `device/` | the layers below |
 | 13 | `safety/` | the layers below |
-| 14 | `expression/`, `uds/` | each other (one cycle still to split) and the layers below |
-| 15 | `config/` | the layers below |
-| 16 | `core/` | the layers below |
+| 14 | `expression/` | the layers below |
+| 15 | `uds/` | the layers below |
+| 16 | `config/` | the layers below |
+| 17 | `core/` | the layers below |
 
 <!-- END GENERATED: layers -->
 
@@ -68,7 +69,7 @@ import a package of the `ecus/`, `profile/`, `variants/` cycle. They move down w
 | `device/` | The adapter as a managed device, not a byte pipe. | the WiCAN's HTTP API, firmware generation and protocol mode (``wican``), and the connection mutex that keeps two sessions off its one connection (``lock``, ``lock_watchdog``). | moving CAN bytes (``transport/``) or building the AutoPID profile (``interop/``). | ``config`` and ``core``. It never imports ``transport``, which imports it. |
 | `dtc/` | DTC (diagnostic trouble code) reading, history, and interpretation. | the DTC log and the upgrade that brings an older one up to date on first use (``log_upgrade``), meanings, history, scope and snapshot decoding (data about codes). | reading or clearing codes on the car (``live/dtc/``) and the ``canair dtc`` command. | ``captures``, the definitions (``ecus``, ``variants``, ``profile``, ``privacy``), ``render``, ``uds`` and ``core``. |
 | `ecus/` | The ECU registry and the per-ECU PID definitions. | ECU, PID, ``dtcs:`` and ``wake:`` definitions, CAN buses, DID families, categories. | the bundle (``profile``), checks (``validation``), edits (``yaml_edit``), scans (``dtc``). | ``profile``, ``variants``, ``safety``, ``uds``, ``core``. |
-| `expression/` | WiCAN expression evaluator — the public entry point. | evaluating a WiCAN expression over response bytes and decoding typed values. | where a response comes from (``transport/``) or which signals a profile defines (``ecus/``). | ``uds`` and ``core`` only. |
+| `expression/` | WiCAN expression evaluator — the public entry point. | evaluating a WiCAN expression over response bytes, decoding typed values, and building expressions from byte positions (``notation``: the typed byte reference and the ``--notation`` views; ``inspect_bytes``: the byte sweeps that propose candidate expressions). | where a response comes from (``transport/``) or which signals a profile defines (``ecus/``). | ``uds`` and ``core`` only. |
 | `install/` | The install: which copy is running, its version and build, and whether a newer one exists. | the running copy's origin (checkout, tool snapshot), version and build info, and the once-a-day update check behind ``canair update``. | the update command itself (``cli/commands/update.py``) and user config (``config/``). | ``config``, ``core`` and ``profile`` (to tell which profiles a reinstall would delete). |
 | `interop/` | Formats canair does not own: DBC files, foreign frame logs, WiCAN AutoPID JSON, the docs explorer. | reading or writing an external format (``dbc``, ``frame_log``, ``autopid``, ``explorer``) so the rest of canair never learns a foreign shape. | canair's own file formats (``captures/``, ``ecus/``) and the commands that call these (``cli/commands/import_*``, ``cli/commands/export.py``, ``cli/commands/wican.py``). | any package below it. Decoding code does not import it back: an import contract pins that ``expression`` and ``captures`` stay free of it. |
 | `live/` | Live operations against the car: one coroutine per job, over a connected ``Terminal``. | device orchestration over the ``Terminal`` protocol, the monitor's controller and recorder, the step executor, scans, DTC reads, identity, IOControl and routines. | flags (``cli/commands/``), choosing a transport (``transport/``), what may be sent (``safety/``) and the selector and step grammar (``query/``). | ``transport`` (the protocol only), ``safety``, ``captures``, ``ecus``, ``query``, ``analysis``, ``uds`` and below. It does not import ``cli``. |

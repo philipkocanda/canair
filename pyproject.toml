@@ -405,7 +405,8 @@ layers = [
     "canair.ecus : canair.profile : canair.variants",
     "canair.device",
     "canair.safety",
-    "canair.expression : canair.uds",
+    "canair.expression",
+    "canair.uds",
     "canair.config",
     "canair.core",
 ]

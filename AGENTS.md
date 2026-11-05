@@ -453,9 +453,9 @@ reuse these instead of re-declaring a flag:
   `src/canair/analysis/mirrors.py`, behind three sweeps (`decode` intra-PID, `correlate` cross-ECU,
   `correlate can` cross-ID).
 - `--notation {wican,isotp,torque,bix}` — **display only**; `--json`/`--promote` always emit the
-  canonical WiCAN expression. A byte is modelled in ISO-TP space (`src/canair/uds/notation.py::ByteRef`,
-  rendered via `ByteDisplay`); WiCAN/Torque/bix are derived views. Persist a default with
-  `config set display.byte_notation`.
+  canonical WiCAN expression. A byte is modelled in ISO-TP space
+  (`src/canair/expression/notation.py::ByteRef`, rendered via `ByteDisplay`); WiCAN/Torque/bix are
+  derived views. Persist a default with `config set display.byte_notation`.
 - Scope flags (`--since`/`--until`/`--date`/`--today`/`--state`/`--label`/`--last-session`/
   `--first`/`--last`) — `src/canair/cli/args/scope.py::add_scope_args`, shared by `captures` and
   every analysis command.

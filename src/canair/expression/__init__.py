@@ -25,7 +25,9 @@ The implementation is split by concern, both halves re-exported here:
 - :mod:`canair.expression.compile` — the grammar: the shunting-yard scan that
   assembles those nodes into a tree.
 
-Belongs: evaluating a WiCAN expression over response bytes and decoding typed values.
+Belongs: evaluating a WiCAN expression over response bytes, decoding typed values, and building
+expressions from byte positions (``notation``: the typed byte reference and the ``--notation``
+views; ``inspect_bytes``: the byte sweeps that propose candidate expressions).
 Not here: where a response comes from (``transport/``) or which signals a profile defines (``ecus/``).
 Imports: ``uds`` and ``core`` only.
 """
