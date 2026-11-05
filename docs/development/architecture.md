@@ -76,7 +76,7 @@ import.
 | `expression/` | WiCAN expression evaluator — the public entry point. | evaluating a WiCAN expression over response bytes, decoding typed values, and building expressions from byte positions (``notation``: the typed byte reference and the ``--notation`` views; ``inspect_bytes``: the byte sweeps that propose candidate expressions). | where a response comes from (``transport/``) or which signals a profile defines (``ecus/``). | ``uds`` and ``core`` only. |
 | `install/` | The install: which copy is running, its version and build, and whether a newer one exists. | the running copy's origin (checkout, tool snapshot), version and build info, and the once-a-day update check behind ``canair update``. | the update command itself (``cli/commands/update.py``) and user config (``config/``). | ``config``, ``core`` and ``profile`` (to tell which profiles a reinstall would delete). |
 | `interop/` | Formats canair does not own: DBC files, foreign frame logs, WiCAN AutoPID JSON, the docs explorer. | reading or writing an external format (``dbc``, ``frame_log``, ``autopid``, ``explorer``) so the rest of canair never learns a foreign shape. | canair's own file formats (``captures/``, ``ecus/``) and the commands that call these (``cli/commands/import_*``, ``cli/commands/export.py``, ``cli/commands/wican.py``). | any package below it. Decoding code does not import it back: an import contract pins that ``expression`` and ``captures`` stay free of it. |
-| `live/` | Live operations against the car: one coroutine per job, over a connected ``Terminal``. | device orchestration over the ``Terminal`` protocol, the monitor's controller and recorder, the step executor, scans, DTC reads, identity, IOControl and routines. | flags (``cli/commands/``), choosing a transport (``transport/``), what may be sent (``safety/``) and the selector and step grammar (``query/``). | ``transport`` (the protocol only), ``safety``, ``captures``, ``ecus``, ``query``, ``analysis``, ``uds`` and below. It does not import ``cli``. |
+| `live/` | Live operations against the car: one coroutine per job, over a connected ``Terminal``. | device orchestration over the ``Terminal`` protocol, in one sub-package per family: ``read`` (the step executor, ``raw``), ``monitor`` (the controller, recorder, poller and picker logic), ``scan`` (the sweeps), ``discover``, ``identity``, ``actuate`` (IOControl, routines and profile actions), ``dtc`` and ``elm`` (the ELM327-only tools). ``session``, ``status`` and ``revision_probe`` serve all of them. | flags (``cli/commands/``), choosing a transport (``transport/``), what may be sent (``safety/``) and the selector and step grammar (``query/``). | ``transport`` (the protocol only), ``safety``, ``captures``, ``ecus``, ``query``, ``analysis``, ``uds`` and below. It does not import ``cli``. |
 | `migrations/` | One-shot data/config migration shims (captures, device config, discover rows). | one-time rewrites of stored data and config (captures, devices, discover rows). | anything a normal run needs; a migration runs once, from a ``canair`` command. The DTC log upgrades itself on first use, so its upgrade is ``dtc/log_upgrade.py``. | the stores it rewrites (``captures``, ``config``) and the definitions they name. |
 | `privacy/` | What must never leave the machine, and what to mask on screen. | the ``sensitive: true`` rule (``sensitive``: mask on screen, never journal, save or export). | the contribute-time scan for personal data in a profile (``contribute/pii.py``), reading the flag off a definition (``ecus/sensitivity.py``) and where a profile lives (``profile``). | the loaded definitions (``ecus``, ``profile``), ``uds`` and ``core``. |
 | `profile/` | Vehicle profile resolution. | finding, resolving, layering and creating a profile bundle (this module, ``scaffold``), and what cars call a profile (``names``). | parsing a bundle's definitions (``ecus/``, ``states/``, ``variants/``, ``broadcast/``), checking them (``validation/``) or editing them (``yaml_edit/``). | ``config`` and ``core``. |
@@ -98,9 +98,9 @@ import.
 | If the code … | It goes in |
 |---|---|
 | defines flags, reads `args`, prints a command's output | `cli/commands/<cmd>.py`, or `cli/commands/<cmd>/` when it has several modules |
-| is a Textual app, screen or widget | `tui/apps/` (shared Textual code stays in `tui/`) |
+| is a Textual app, screen or widget | `tui/apps/<app>/` (shared Textual code stays in `tui/`) |
 | turns results into text for both CLI and TUI | `render/` (a command-only renderer stays in its `render.py`) |
-| talks to the car over a `Terminal` | `live/` (`live/dtc/` is the one sub-package) |
+| talks to the car over a `Terminal` | `live/<family>/`: `read`, `monitor`, `scan`, `discover`, `identity`, `actuate`, `dtc`, `elm` |
 | moves bytes, frames ISO-TP, drives an ELM327 | `transport/` |
 | calls the adapter's HTTP API, or guards the connection | `device/` |
 | decides whether a request may go on the bus | `safety/` |
@@ -122,8 +122,10 @@ import.
 | is generic and needs nothing from the package | `core/` |
 | is developer tooling that does not ship | `scripts/` |
 
-`live/` and `tui/apps/` are flat today. Sub-plan 5 of
-`plans/2026-11-05-code-organization.md` groups them into sub-packages.
+`live/` and `tui/apps/` hold sub-packages, one per family or app. A module in one needs no
+leading underscore: the sub-package is the unit of privacy, and its charter says what other
+packages may import. A sub-package `__init__.py` holds only the charter and imports nothing
+(`tests/contracts/test_cheap_imports.py` pins why).
 
 If two rows fit, choose the lower layer. If none fits, stop and ask: a new top-level package
 needs a plan that names its layer.

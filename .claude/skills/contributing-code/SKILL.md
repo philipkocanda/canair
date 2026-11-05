@@ -160,8 +160,9 @@ Commands live in `src/canair/cli/commands/<name>.py`, exposing `NAME`, `add_pars
 **Live (device-talking) commands** additionally call `add_connection_args` +
 `live_command` from `src/canair/cli/live/` (or call `run_live(args, operation)` from their own
 `run`). The command names its `LiveOperation`: a handler in `src/canair/cli/live/handlers/` that
-reads the parsed flags and calls a `mode_*` coroutine in `src/canair/live/<name>.py` with typed
-arguments. Nothing picks a handler by inspecting flags, so add the command's row to `CASES` in
+reads the parsed flags and calls a `mode_*` coroutine in `src/canair/live/<family>/<name>.py` with typed
+arguments (`read`, `monitor`, `scan`, `discover`, `identity`, `actuate`, `dtc`, `elm`; a family
+is a sub-package whose `__init__.py` holds only the charter and imports nothing). Nothing picks a handler by inspecting flags, so add the command's row to `CASES` in
 `tests/cli/commands/test_live_operations.py`: it pins the operation the command reaches and that the
 parser defines every `args.x` its handler reads directly (use `getattr` for an optional one).
 
@@ -277,8 +278,8 @@ tree is a **security incident**: flag it (history purge, key rotation), don't de
 - **Every behavioral change ships with tests**; a bug fix ships a regression test that fails before
   and passes after.
 - Prefer fast, device-free unit tests — drive modes with a fake terminal implementing the `Terminal`
-  surface (`tests/dtc/test_dtc.py`, `tests/live/identity/test_identity.py` are templates). Never require a live
-  device.
+  surface (`tests/dtc/test_dtc.py`, `tests/live/identity/test_identity.py` are templates). Never require a
+  live device.
 - Cover the failure paths that matter: NRC responses, `NO DATA`, malformed payloads, declined
   confirmations.
 - For anything bus-touching, prove it runs through its handler over the fake terminal (see
