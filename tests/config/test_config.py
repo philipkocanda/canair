@@ -6,7 +6,8 @@ import argparse
 
 import yaml
 
-from canair.cli.commands import config as config_cmd
+from canair.cli.commands.config import edit as edit_cmd
+from canair.cli.commands.config import show as show_cmd
 
 
 def _reset():
@@ -170,7 +171,7 @@ class TestConfigCommand:
     def test_show_json(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        rc = config_cmd._cmd_show(argparse.Namespace(json=True))
+        rc = show_cmd.cmd_show(argparse.Namespace(json=True))
         assert rc == 0
         import json
 
@@ -180,13 +181,11 @@ class TestConfigCommand:
     def test_set_then_get(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        rc = config_cmd._cmd_set(
-            argparse.Namespace(key="transport.port", value="35000", string=False)
-        )
+        rc = edit_cmd.cmd_set(argparse.Namespace(key="transport.port", value="35000", string=False))
         assert rc == 0
         _reset()
         capsys.readouterr()
-        rc = config_cmd._cmd_get(argparse.Namespace(key="transport.port"))
+        rc = edit_cmd.cmd_get(argparse.Namespace(key="transport.port"))
         assert rc == 0
         assert capsys.readouterr().out.strip() == "35000"
 
@@ -195,29 +194,27 @@ class TestConfigCommand:
         from canair import config
 
         _reset()
-        config_cmd._cmd_set(argparse.Namespace(key="some_id", value="007", string=True))
+        edit_cmd.cmd_set(argparse.Namespace(key="some_id", value="007", string=True))
         _reset()
         assert config.load_config()["some_id"] == "007"
 
     def test_set_reports_before_after(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        config_cmd._cmd_set(argparse.Namespace(key="default_wican", value="home", string=False))
+        edit_cmd.cmd_set(argparse.Namespace(key="default_wican", value="home", string=False))
         _reset()
         capsys.readouterr()
-        rc = config_cmd._cmd_set(argparse.Namespace(key="default_wican", value="vpn", string=False))
+        rc = edit_cmd.cmd_set(argparse.Namespace(key="default_wican", value="vpn", string=False))
         assert rc == 0
         assert "default_wican: 'home' → 'vpn'" in capsys.readouterr().out
 
     def test_set_already_set_is_unchanged(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        config_cmd._cmd_set(argparse.Namespace(key="default_wican", value="home", string=False))
+        edit_cmd.cmd_set(argparse.Namespace(key="default_wican", value="home", string=False))
         _reset()
         capsys.readouterr()
-        rc = config_cmd._cmd_set(
-            argparse.Namespace(key="default_wican", value="home", string=False)
-        )
+        rc = edit_cmd.cmd_set(argparse.Namespace(key="default_wican", value="home", string=False))
         assert rc == 0
         out = capsys.readouterr().out
         assert "already 'home' (unchanged)" in out
@@ -226,9 +223,7 @@ class TestConfigCommand:
     def test_set_invalid_transport_type_errors(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        rc = config_cmd._cmd_set(
-            argparse.Namespace(key="transport.type", value="bogus", string=False)
-        )
+        rc = edit_cmd.cmd_set(argparse.Namespace(key="transport.type", value="bogus", string=False))
         assert rc == 2
         err = capsys.readouterr().err
         assert "slcan-tcp" in err and "wican-ws" in err
@@ -236,16 +231,14 @@ class TestConfigCommand:
     def test_set_invalid_wican_model_errors(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        rc = config_cmd._cmd_set(
-            argparse.Namespace(key="wican_model", value="deluxe", string=False)
-        )
+        rc = edit_cmd.cmd_set(argparse.Namespace(key="wican_model", value="deluxe", string=False))
         assert rc == 2
         assert "pro, classic" in capsys.readouterr().err
 
     def test_set_invalid_grid_region_errors(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        rc = config_cmd._cmd_set(argparse.Namespace(key="grid_region", value="mars", string=False))
+        rc = edit_cmd.cmd_set(argparse.Namespace(key="grid_region", value="mars", string=False))
         assert rc == 2
         err = capsys.readouterr().err
         assert "invalid grid_region" in err and "US" in err
@@ -256,7 +249,7 @@ class TestConfigCommand:
 
         _reset()
         # Case-insensitive: lower-case token accepted (enum check upper-cases).
-        rc = config_cmd._cmd_set(argparse.Namespace(key="grid_region", value="us", string=False))
+        rc = edit_cmd.cmd_set(argparse.Namespace(key="grid_region", value="us", string=False))
         assert rc == 0
         _reset()
         assert config.load_config()["grid_region"] == "us"
@@ -266,9 +259,7 @@ class TestConfigCommand:
         from canair import config
 
         _reset()
-        rc = config_cmd._cmd_set(
-            argparse.Namespace(key="defualt_wican", value="home", string=False)
-        )
+        rc = edit_cmd.cmd_set(argparse.Namespace(key="defualt_wican", value="home", string=False))
         assert rc == 0
         assert "not a recognized config key" in capsys.readouterr().err
         _reset()
@@ -277,32 +268,32 @@ class TestConfigCommand:
     def test_get_missing_returns_1(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        rc = config_cmd._cmd_get(argparse.Namespace(key="nope"))
+        rc = edit_cmd.cmd_get(argparse.Namespace(key="nope"))
         assert rc == 1
 
     def test_unset_missing_returns_1(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        rc = config_cmd._cmd_unset(argparse.Namespace(key="nope"))
+        rc = edit_cmd.cmd_unset(argparse.Namespace(key="nope"))
         assert rc == 1
 
     def test_path_prints_user_config(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        rc = config_cmd._cmd_path(argparse.Namespace())
+        rc = edit_cmd.cmd_path(argparse.Namespace())
         assert rc == 0
         assert str(tmp_path) in capsys.readouterr().out
 
     def test_example_prints_the_example_file(self, capsys):
-        rc = config_cmd._cmd_example(argparse.Namespace())
+        rc = edit_cmd.cmd_example(argparse.Namespace())
         assert rc == 0
         out = capsys.readouterr().out
         assert "canair configuration" in out
         assert "default_profile" in out
 
     def test_example_missing_file_errors(self, tmp_path, monkeypatch, capsys):
-        monkeypatch.setattr(config_cmd, "CONFIG_EXAMPLE_FILE", tmp_path / "nope.yaml")
-        rc = config_cmd._cmd_example(argparse.Namespace())
+        monkeypatch.setattr(edit_cmd, "CONFIG_EXAMPLE_FILE", tmp_path / "nope.yaml")
+        rc = edit_cmd.cmd_example(argparse.Namespace())
         assert rc == 1
         err = capsys.readouterr().err
         assert "not found" in err
@@ -503,7 +494,7 @@ class TestConfigCommandDevices:
         from canair import config
 
         _reset()
-        rc = config_cmd._cmd_set(_ns(key="devices.home.transport", value="wican-ws"))
+        rc = edit_cmd.cmd_set(_ns(key="devices.home.transport", value="wican-ws"))
         assert rc == 0
         _reset()
         assert config.load_config()["devices"]["home"]["transport"] == "wican-ws"
@@ -511,7 +502,7 @@ class TestConfigCommandDevices:
     def test_set_device_transport_invalid(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        rc = config_cmd._cmd_set(_ns(key="devices.home.transport", value="bogus"))
+        rc = edit_cmd.cmd_set(_ns(key="devices.home.transport", value="bogus"))
         assert rc == 2
         err = capsys.readouterr().err
         assert "devices.home.transport" in err and "slcan-tcp" in err
@@ -521,7 +512,7 @@ class TestConfigCommandDevices:
         from canair import config
 
         _reset()
-        rc = config_cmd._cmd_set(_ns(key="transport.fallback_order", value="home, vpn ,ap"))
+        rc = edit_cmd.cmd_set(_ns(key="transport.fallback_order", value="home, vpn ,ap"))
         assert rc == 0
         _reset()
         assert config.load_config()["transport"]["fallback_order"] == ["home", "vpn", "ap"]
@@ -529,7 +520,7 @@ class TestConfigCommandDevices:
     def test_wican_addresses_deprecation_warning(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        rc = config_cmd._cmd_set(_ns(key="wican_addresses.home", value="10.0.0.9"))
+        rc = edit_cmd.cmd_set(_ns(key="wican_addresses.home", value="10.0.0.9"))
         assert rc == 0
         err = capsys.readouterr().err
         assert "deprecated" in err and "devices.home.host" in err
@@ -544,7 +535,7 @@ class TestConfigCommandDevices:
         config.set_config_key("devices.home.host", "10.0.0.9")
         _reset()
         capsys.readouterr()
-        config_cmd._cmd_set(_ns(key="wican_addresses.legacy", value="1.1.1.1"))
+        edit_cmd.cmd_set(_ns(key="wican_addresses.legacy", value="1.1.1.1"))
         assert "ignored at runtime" in capsys.readouterr().err
 
     def test_show_json_has_devices_and_fallback(self, tmp_path, monkeypatch, capsys):
@@ -555,7 +546,7 @@ class TestConfigCommandDevices:
         config.set_config_key("devices.home.host", "10.0.0.9")
         config.set_config_key("devices.home.transport", "wican-ws")
         _reset()
-        rc = config_cmd._cmd_show(argparse.Namespace(json=True))
+        rc = show_cmd.cmd_show(argparse.Namespace(json=True))
         assert rc == 0
         import json
 

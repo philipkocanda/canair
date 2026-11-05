@@ -392,7 +392,7 @@ class TestFirmwareCheckConfig:
         assert cfg.firmware_check() is (mode != "off")
 
     def test_is_a_known_config_key(self):
-        from canair.cli.commands.config import _KNOWN_KEYS
+        from canair.cli.commands.config.keys import KNOWN_KEYS as _KNOWN_KEYS
 
         assert "transport.firmware_check" in _KNOWN_KEYS
 

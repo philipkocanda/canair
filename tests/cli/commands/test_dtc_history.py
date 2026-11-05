@@ -425,7 +425,7 @@ class TestCommands:
         assert "1 open" in out and "P1AAA-00" in out
 
     def test_config_reports_dtc_logs(self, tmp_path, monkeypatch):
-        from canair.cli.commands.config import _dtc_log_stats
+        from canair.cli.commands.config.show import dtc_log_stats as _dtc_log_stats
 
         monkeypatch.setattr(dtc_log, "log_dir", lambda: tmp_path)
         monkeypatch.setattr("canair.dtc.log_upgrade.migrate_all", lambda: None)

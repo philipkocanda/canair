@@ -12,7 +12,6 @@
     "canair.tui.apps.captures_step.model": 809,
     "canair.tui.apps.captures_step.app": 671,
     "canair.cli.commands.captures.uds": 521,
-    "canair.cli.commands.config": 603,
     "canair.config": 554,
     "canair.contribute": 934,
     "canair.device.lock": 563,
