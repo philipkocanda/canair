@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from .errors import EditError
+from canair.core.edit_errors import EditError
 
 
 def clear_cache() -> None:

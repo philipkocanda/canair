@@ -43,7 +43,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final, Literal
 
 from canair.core import yaml_io
-from canair.yaml_edit.errors import EditError
+from canair.core.edit_errors import EditError
 
 if TYPE_CHECKING:
     from canair.profile import Profile

@@ -9,10 +9,10 @@ import stat
 import pytest
 from ruamel.yaml.comments import CommentedSeq
 
+from canair.core.edit_errors import EditError, translate
 from canair.yaml_edit import commit
 from canair.yaml_edit import groups as groups_edit
 from canair.yaml_edit.doc import Target, edit_doc
-from canair.yaml_edit.errors import EditError, translate
 
 
 class DemoError(EditError):

@@ -9,8 +9,8 @@ import pytest
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 import canair.yaml_edit as package
+from canair.core.edit_errors import EditError
 from canair.yaml_edit.doc import Target
-from canair.yaml_edit.errors import EditError
 from canair.yaml_edit.targets import open_target, target, targets
 
 

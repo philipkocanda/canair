@@ -17,9 +17,9 @@ import yaml
 
 from canair import profile
 from canair.cli.commands.ecu import cmd_add, cmd_rename
+from canair.core.edit_errors import EditError
 from canair.ecus.pids import clear_cache
 from canair.yaml_edit.ecu import register_ecu
-from canair.yaml_edit.errors import EditError
 
 
 @pytest.fixture(autouse=True)

@@ -338,10 +338,10 @@ def main(argv: list[str] | None = None) -> int:
         run_first_run_setup(args)
 
     from canair.captures.io import LegacyCaptureError
+    from canair.core.edit_errors import EditError
     from canair.profile import ProfileError, set_active
     from canair.render import ansi
     from canair.safety.blocklist import SafetyBlocked
-    from canair.yaml_edit.errors import EditError
 
     # Resolve the active vehicle profile before dispatching.
     if (

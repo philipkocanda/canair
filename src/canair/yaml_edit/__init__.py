@@ -5,7 +5,7 @@ The ``canair`` authoring commands (``pids``, ``signals``, ``states``, ``groups``
 package imports nothing at load time, so ``import canair.core.yaml_rt`` costs nothing extra.
 
 Mechanism, shared by every editor
-    :mod:`.errors`      ``EditError``, the one error a rejected edit raises
+    :mod:`canair.core.edit_errors`  ``EditError``, the one error a rejected edit raises
     :mod:`.commit`      ``commit_text``: write atomically, re-check, revert on any failure
     :mod:`.doc`         ``Target`` and ``edit_doc``: open one section of one file (ruamel)
     :mod:`.targets`     the router: which file and section each kind of edit belongs to
@@ -30,6 +30,7 @@ A new editor declares a ``Target`` beside its rules, registers it in :mod:`.targ
 through ``edit_doc`` (or ``edit_ecu_text``). It never opens the file itself.
 
 Belongs: every write to a profile's definition YAML: the editors and their commit path.
-Not here: reading definitions (``ecus/``, ``states/`` ...) and the ``canair pids``/``signals`` commands.
+Not here: reading definitions (``ecus/``, ``states/`` ...) and the ``canair pids``/``signals``
+commands.
 Imports: ``validation``, the definition packages and ``core``.
 """

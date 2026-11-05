@@ -53,12 +53,12 @@ from canair.cli.commands._edit import edit_scope
 from canair.cli.commands._group import group_help
 from canair.cli.commands._hexarg import parse_hex_arg
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
+from canair.core.edit_errors import EditError
 from canair.ecus import load_ecus, resolve_tx, rx_addr_str
 from canair.ecus.pids import load_pids, pid_status
 from canair.render import ansi
 from canair.states import ecu_states
 from canair.yaml_edit.echo import echo_edit
-from canair.yaml_edit.errors import EditError
 
 NAME = "ecu"
 

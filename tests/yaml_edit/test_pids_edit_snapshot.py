@@ -7,9 +7,9 @@ import pytest
 import yaml
 
 from canair.cli.commands import pids as cli
+from canair.core.edit_errors import EditError
 from canair.ecus.pids import build_ecu_index, pid_ships, pid_swept
 from canair.validation import pids as validate_pids
-from canair.yaml_edit.errors import EditError
 from canair.yaml_edit.pids import PidsEditError, set_snapshot_only
 
 YAML = """\

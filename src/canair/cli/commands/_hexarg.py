@@ -13,7 +13,7 @@ free of any one command's control-flow shape.
 
 from __future__ import annotations
 
-from canair.yaml_edit.errors import EditError
+from canair.core.edit_errors import EditError
 
 
 class HexArgError(EditError, ValueError):

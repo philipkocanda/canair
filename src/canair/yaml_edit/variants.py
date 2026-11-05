@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
+from canair.core.edit_errors import EditError
 from canair.core.yaml_rt import NOTE_WRAP_WIDTH, folded
 from canair.variants import (
     BATTERY_FIELDS,
@@ -27,7 +28,6 @@ from canair.variants import (
 )
 
 from .doc import Target, edit_doc
-from .errors import EditError
 from .ruamel_ops import find_key, flow_seq, place_in_order, remove_key, rename_key
 
 if TYPE_CHECKING:

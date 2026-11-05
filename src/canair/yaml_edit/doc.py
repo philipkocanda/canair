@@ -24,9 +24,9 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from canair.core import yaml_io
 from canair.core import yaml_rt as rt
+from canair.core.edit_errors import EditError
 
 from .commit import commit_text, noop, resolve_validate
-from .errors import EditError
 
 if TYPE_CHECKING:
     from canair.profile import Profile

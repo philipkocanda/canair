@@ -6,9 +6,9 @@ import pytest
 import yaml
 
 from canair.cli.commands import pids as cli
+from canair.core.edit_errors import EditError
 from canair.uds.support_map import MapDecl
 from canair.validation import pids as validate_pids
-from canair.yaml_edit.errors import EditError
 from canair.yaml_edit.pids import PidsEditError, set_support_map
 
 YAML = """\

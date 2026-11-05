@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from ruamel.yaml.comments import CommentedMap
 
+from canair.core.edit_errors import EditError
 from canair.validation.signals import (
     BYTE_ORDERS,
     CLASSIC_MAX_LENGTH,
@@ -31,7 +32,6 @@ from canair.validation.signals import (
 )
 
 from .doc import Target, edit_doc
-from .errors import EditError
 from .ruamel_ops import place_in_order, remove_key
 
 if TYPE_CHECKING:

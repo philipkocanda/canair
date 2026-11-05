@@ -16,7 +16,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
 
-from .errors import EditError
+from canair.core.edit_errors import EditError
 
 
 def noop() -> None:

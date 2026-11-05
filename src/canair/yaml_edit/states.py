@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
+from canair.core.edit_errors import EditError
 from canair.states import (
     ALL_STATE,
     StateRule,
@@ -31,7 +32,6 @@ from canair.states import (
 )
 
 from .doc import Target, edit_doc
-from .errors import EditError
 from .ruamel_ops import insert_item_before_last, place_in_order, remove_item
 from .ruamel_ops import state_token as _token
 

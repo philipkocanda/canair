@@ -5,7 +5,7 @@ import argparse
 import pytest
 
 from canair.cli.commands import pids as cli
-from canair.yaml_edit.errors import EditError
+from canair.core.edit_errors import EditError
 from canair.yaml_edit.pids import PidsEditError
 
 

@@ -46,9 +46,9 @@ from pathlib import Path
 from typing import TypedDict
 
 from canair.cli.commands._edit import run_edit, set_or_clear, subcommand_dispatch
+from canair.core.edit_errors import EditError
 from canair.render import ansi
 from canair.yaml_edit.echo import echo_edit
-from canair.yaml_edit.errors import EditError
 
 NAME = "states"
 

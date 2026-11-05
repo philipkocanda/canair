@@ -10,9 +10,9 @@ class EditError(Exception):
     """An edit was rejected: bad input, a missing target, or a failed post-check.
 
     The editors raise a subclass per file kind (``GroupsEditError``, ``PidsEditError``, ...) so a
-    caller can still tell them apart, but ``src/canair/cli/__init__.py`` catches this base class once and
-    prints it, so no command handles an edit failure itself. A rejected edit never leaves a
-    changed file behind.
+    caller can still tell them apart, but ``src/canair/cli/__init__.py`` catches this base class
+    once and prints it, so no command handles an edit failure itself. A rejected edit never
+    leaves a changed file behind.
     """
 
 

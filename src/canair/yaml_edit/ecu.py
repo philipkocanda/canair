@@ -26,11 +26,11 @@ from pathlib import Path
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarint import HexCapsInt
 
+from canair.core.edit_errors import EditError
 from canair.core.yaml_rt import folded as _folded
 
 from .doc import Doc, Target, edit_doc
 from .ecufile import clear_cache, schema_validator
-from .errors import EditError
 from .ruamel_ops import flow_seq, rename_key, state_token
 
 # Free-text ECU fields rendered per the shared note policy (canair.core.yaml_rt):

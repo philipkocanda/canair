@@ -26,8 +26,8 @@ import sys
 
 from canair.cli.commands._edit import run_edit
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
+from canair.core.edit_errors import EditError
 from canair.render import ansi
-from canair.yaml_edit.errors import EditError
 
 _EXAMPLES = __doc__.split("Examples:")[1]
 

@@ -39,8 +39,8 @@ Evaluation is three-valued (Kleene): a sub-expression on an unavailable paramete
 :data:`UNKNOWN`, not ``False``, so a rule is suggested only on positive evidence.
 
 Belongs: the state vocabulary, ``when:`` predicates (Kleene logic) and suggestion.
-Not here: editing ``vehicle_states.yaml`` (``yaml_edit/``) and inferring from captures (``analysis``).
-Imports: ``core``, ``expression`` and ``yaml_edit.errors``.
+Not here: editing ``vehicle_states.yaml`` (``yaml_edit/``) and state inference from captures.
+Imports: ``core`` and ``expression``.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from canair.core import yaml_io
-from canair.yaml_edit.errors import EditError
+from canair.core.edit_errors import EditError
 
 if TYPE_CHECKING:
     from canair.expression.results import EcuFrame

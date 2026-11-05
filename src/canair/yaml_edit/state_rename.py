@@ -30,11 +30,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from canair.core.edit_errors import EditError
 from canair.states import ALL_STATE, needs_yaml_quotes
 
 from .commit import write_atomic
 from .ecufile import clear_cache
-from .errors import EditError
 from .ruamel_ops import state_token
 
 if TYPE_CHECKING:

@@ -1,10 +1,9 @@
 """Shared primitives for surgical in-place editing of per-ECU PID YAML files.
 
-These helpers locate ECU/DID/param blocks and mutate a single field without
-rewriting the whole file — preserving comments, anchors, block-scalar styles,
-and hand-curated ordering that a ``yaml.safe_dump`` round-trip would destroy.
-The domain editors (``hits`` for scanner sections, ``params`` for the
-hand-authored pids:/research:/identity: structures) build on these.
+These helpers locate ECU/DID/signal blocks and mutate a single field without rewriting the whole
+file — preserving comments, anchors, block-scalar styles, and hand-curated ordering that a
+``yaml.safe_dump`` round-trip would destroy. The domain editors (``hits`` for scanner sections,
+``params`` for the hand-authored pids:/research:/identity: structures) build on these.
 
 Assumptions about file layout (all current ecus/*.yaml files conform):
 
@@ -31,10 +30,11 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import NamedTuple
 
+from canair.core.edit_errors import EditError
+
 from .commit import commit_text, resolve_validate
 from .ecufile import clear_cache, schema_validator
 from .ecufile import find_ecu_file as _find_ecu_file
-from .errors import EditError
 
 
 class PidsEditError(EditError):

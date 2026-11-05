@@ -57,12 +57,12 @@ from pathlib import Path
 
 from canair.cli.commands._edit import add_edit_args, clear_sentinel, edit_scope, run_edit
 from canair.cli.commands._hexarg import parse_hex_arg
+from canair.core.edit_errors import EditError, translate
 from canair.ecus.pids import INHERITED_PARAM_FIELDS, PID_STATUSES
 from canair.ecus.signal_category import CATEGORIES, QUANTITY_CATEGORIES
 from canair.render import ansi
 from canair.uds.support_map import MapDecl, SupportMapError
 from canair.yaml_edit.echo import echo_edit
-from canair.yaml_edit.errors import EditError, translate
 from canair.yaml_edit.pids import (
     Migrated,
     add_pid,

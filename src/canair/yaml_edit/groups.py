@@ -21,11 +21,11 @@ from typing import TYPE_CHECKING
 
 from ruamel.yaml.comments import CommentedMap
 
+from canair.core.edit_errors import EditError
 from canair.ecus.ecu_groups import normalize_group_name
 from canair.query import QueryError, parse_selector
 
 from .doc import Target, edit_doc
-from .errors import EditError
 from .ruamel_ops import find_key, flow_seq, remove_key, rename_key
 
 if TYPE_CHECKING:
