@@ -253,7 +253,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser = _CanairParser(
         prog="canair",
-        description=__doc__,
+        description=__doc__.split("Belongs:")[0].rstrip(),
         formatter_class=CategorizedHelpFormatter,
     )
     parser.add_argument(
