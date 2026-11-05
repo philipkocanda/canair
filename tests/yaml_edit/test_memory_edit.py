@@ -71,3 +71,26 @@ class TestEditor:
         ]
         text = (ecus_dir / "bcm.yaml").read_text()
         assert "start: 0x00001800" in text
+
+
+class TestMemoryPidKey:
+    def test_token_becomes_the_request(self, ecus_dir):
+        from canair.yaml_edit.memory import memory_pid_key
+
+        set_memory(0x7A0, fmt=parse_format("24"), ecus_dir=ecus_dir)
+        assert memory_pid_key("BCM", "23/FEDE1234+02", ecus_dir) == "2324FEDE12340002"
+        assert memory_pid_key("BCM", "22B003", ecus_dir) == "22B003"
+
+    def test_without_a_format_it_says_how_to_set_one(self, ecus_dir):
+        from canair.yaml_edit.memory import memory_pid_key
+
+        with pytest.raises(EcusEditError, match="canair memory set"):
+            memory_pid_key("BCM", "23/FEDE1234+02", ecus_dir)
+
+    def test_upsert_param_takes_the_token(self, ecus_dir):
+        from canair.cli import main
+
+        set_memory(0x7A0, fmt=parse_format("24"), ecus_dir=ecus_dir)
+        argv = ["pids", "upsert-param", "BCM", "23/FEDE1234+02", "RAM_X", "B04"]
+        assert main([*argv, "--dir", str(ecus_dir), "--no-validate"]) == 0
+        assert "2324FEDE12340002" in {str(k) for k in _bcm(ecus_dir)["pids"]}

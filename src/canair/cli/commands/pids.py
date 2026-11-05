@@ -38,6 +38,7 @@ from canair.render import ansi, messages
 from canair.transport.isotp_params import ECU_ISOTP_FIELDS
 from canair.uds.support_map import MapDecl, SupportMapError
 from canair.yaml_edit.echo import echo_edit
+from canair.yaml_edit.memory import memory_pid_key
 from canair.yaml_edit.pids import (
     Migrated,
     add_pid,
@@ -1547,4 +1548,6 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 
 def run(args) -> int:
+    if isinstance(getattr(args, "pid", None), str):  # a 23/ADDRESS+SIZE token names its request
+        args.pid = memory_pid_key(args.ecu, args.pid, getattr(args, "dir", None))
     return args._pids_func(args)

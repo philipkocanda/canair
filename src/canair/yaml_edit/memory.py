@@ -1,67 +1,127 @@
 """Editor for an ECU's ``memory:`` section (see :mod:`canair.ecus.memory`).
 
-Two writers share one shape: ``canair pids set-memory`` sets the format, the largest block
-and the session, and ``canair scan memory`` records the regions it mapped (and the
-largest block it found). Both go through :func:`canair.yaml_edit.ecu.edit_ecu`, so the
-write is validated, comment-preserving and reverted on any failure.
+Two writers share one shape: ``canair memory set`` sets the format, the largest block and
+the session, and ``canair scan memory`` records the regions it mapped (and the largest
+block it found). The section is tool-owned, so it is rendered whole from its parsed value
+and swapped in by text surgery (:func:`canair.yaml_edit.text.edit_ecu_text`): every other
+byte of the file is left alone, and the write is re-parsed, checked and reverted on failure.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
-from contextlib import contextmanager
+from collections.abc import Iterable, Mapping
 from pathlib import Path
+from typing import Any
 
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from ruamel.yaml.scalarint import HexCapsInt
-from ruamel.yaml.scalarstring import DoubleQuotedScalarString
+from canair.core import yaml_io
+from canair.ecus.memory import (
+    MEMORY_FIELDS,
+    SECTION,
+    MemoryRegion,
+    memory_format_of,
+    section_problems,
+)
+from canair.uds.memory import MemoryFormat, MemoryRequestError, memory_request, parse_memory_token
 
-from canair.ecus.memory import MEMORY_FIELDS, SECTION, MemoryRegion, section_problems
-from canair.uds.memory import MemoryFormat
+from .ecu import EcusEditError, find_ecu_file_by_tx, tx_key
+from .text import _find_ecu_block, _keyed_block, edit_ecu_text, find_ecu_file
 
-from .ecu import EcusEditError, edit_ecu, find_ecu_file_by_tx, tx_key
+_CLEARABLE = ("format", "max_block", "session")
 
 
-@contextmanager
-def _edit_ecu_def(tx_id: int, ecus_dir: Path | None) -> Iterator[tuple[Path, CommentedMap]]:
-    """Open the ECU whose ``tx_id`` this is; yields its file and its own mapping."""
+def _ecu_of(tx_id: int, ecus_dir: Path | None) -> tuple[Path, str, dict]:
+    """The file, YAML key and parsed mapping of the ECU whose ``tx_id`` this is."""
     fpath = find_ecu_file_by_tx(tx_id, ecus_dir)
     if fpath is None:
         raise EcusEditError(f"ECU {tx_key(tx_id)} not registered; call `canair ecu add` first")
-    with edit_ecu(fpath, None) as doc:
-        ecu_def = next(
-            (
-                v
-                for v in doc.data.values()
-                if isinstance(v, CommentedMap) and v.get("tx_id") == tx_id
-            ),
-            None,
-        )
-        if ecu_def is None:
-            raise EcusEditError(f"{fpath.name}: no ECU with tx_id {tx_key(tx_id)}")
-        yield fpath, ecu_def
+    data = yaml_io.safe_load(fpath.read_text()) or {}
+    for name, ecu_def in data.items():
+        if isinstance(ecu_def, dict) and ecu_def.get("tx_id") == tx_id:
+            return fpath, str(name), ecu_def
+    raise EcusEditError(f"{fpath.name}: no ECU with tx_id {tx_key(tx_id)}")
 
 
-def _section(ecu_def: CommentedMap) -> CommentedMap:
-    section = ecu_def.get(SECTION)
-    if section is None:
-        section = CommentedMap()
-        ecu_def[SECTION] = section
-    if not isinstance(section, CommentedMap):
-        raise EcusEditError("memory: must be a mapping to edit it")
-    return section
+def _num(value: Any) -> int:
+    return value if isinstance(value, int) else int(str(value), 0)
 
 
-def _ordered(section: CommentedMap) -> None:
-    """Put the section's keys in the documented order (each value keeps its comments)."""
-    for key in [k for k in MEMORY_FIELDS if k in section]:
-        section.move_to_end(key)
+def _render(section: Mapping[str, Any], width: int) -> list[str]:
+    lines = [f"  {SECTION}:"]
+    for key in MEMORY_FIELDS:
+        if key not in section or section[key] is None:
+            continue
+        value = section[key]
+        if key == "max_block":
+            lines.append(f"    max_block: {int(value)}")
+        elif key == "regions":
+            lines.append("    regions:")
+            for r in value:
+                lines.append(f"      - start: 0x{_num(r['start']):0{width}X}")
+                lines.append(f"        end: 0x{_num(r['end']):0{width}X}")
+                lines.append(f"        result: {r['result']}")
+                if r.get("nrc") is not None:
+                    lines.append(f"        nrc: 0x{_num(r['nrc']):02X}")
+                for text_key in ("software", "scanned"):
+                    if r.get(text_key) is not None:
+                        escaped = str(r[text_key]).replace("\\", "\\\\").replace('"', '\\"')
+                        lines.append(f'        {text_key}: "{escaped}"')
+        else:
+            lines.append(f'    {key}: "{value}"')
+    return lines
 
 
-def _checked(section: CommentedMap) -> None:
+def _write(fpath: Path, name: str, section: dict[str, Any], width: int) -> Path:
     errors, _ = section_problems(section)
     if errors:
         raise EcusEditError("; ".join(errors))
+    rendered = "".join(line + "\n" for line in _render(section, width)) if section else ""
+
+    def transform(text: str) -> str:
+        ecu_start, ecu_end = _find_ecu_block(text, name)
+        block = _keyed_block(text, SECTION, 2, ecu_start, ecu_end)
+        if block is not None:
+            hdr, _line_end, _body_start, body_end, _inline = block
+            return text[:hdr] + rendered + text[body_end:]
+        body = text[ecu_start:ecu_end].rstrip("\n")
+        if not rendered:
+            return text
+        return text[:ecu_start] + body + "\n" + rendered + text[ecu_end:]
+
+    def check(ecu_def: dict) -> None:
+        got = ecu_def.get(SECTION) or {}
+        if {k: got.get(k) for k in ("format", "max_block", "session")} != {
+            k: section.get(k) for k in ("format", "max_block", "session")
+        }:
+            raise EcusEditError(f"memory: mismatch after edit (got {got!r})")
+
+    return edit_ecu_text(name, transform, check, pids_dir=fpath.parent)
+
+
+def memory_pid_key(ecu_name: str, pid: str, ecus_dir: Path | None = None) -> str:
+    """The PID key a ``23/ADDRESS+SIZE`` token names on this ECU; any other PID unchanged.
+
+    The key is the full request, built with the ECU's memory format, so an editor can be
+    handed the token a user reads with (``canair pids upsert-param BCM 23/FEDE1234+02 …``).
+    """
+    try:
+        if parse_memory_token(pid) is None:
+            return pid
+    except MemoryRequestError as e:
+        raise EcusEditError(str(e)) from None
+    fpath = find_ecu_file(ecu_name, ecus_dir)
+    data = yaml_io.safe_load(fpath.read_text()) or {}
+    ecu_def = next((v for k, v in data.items() if str(k).upper() == ecu_name.upper()), None)
+    fmt = memory_format_of(ecu_def)
+    if fmt is None:
+        raise EcusEditError(
+            f"{ecu_name} has no memory format for {pid}: set one with `canair memory set "
+            f"{ecu_name} --format 24`, or run `canair scan memory`"
+        )
+    address, size = parse_memory_token(pid) or (0, 0)
+    try:
+        return memory_request(fmt, address, size)
+    except MemoryRequestError as e:
+        raise EcusEditError(str(e)) from None
 
 
 def set_memory(
@@ -78,38 +138,28 @@ def set_memory(
     Returns the file written. Raises :class:`EcusEditError` for an unknown ECU or a value
     the section's checks refuse.
     """
-    with _edit_ecu_def(tx_id, ecus_dir) as (fpath, ecu_def):
-        section = _section(ecu_def)
-        for key in clear:
-            if key not in ("format", "max_block", "session"):
-                raise EcusEditError(f"cannot clear memory field {key!r}")
-            section.pop(key, None)
-        if fmt is not None:
-            section["format"] = DoubleQuotedScalarString(fmt.name)
-        if max_block is not None:
-            section["max_block"] = int(max_block)
-        if session is not None:
-            section["session"] = DoubleQuotedScalarString(session.strip().upper())
-        _ordered(section)
-        _checked(section)
-        if not section:
-            del ecu_def[SECTION]
-    return fpath
+    fpath, name, ecu_def = _ecu_of(tx_id, ecus_dir)
+    section = dict(ecu_def.get(SECTION) or {})
+    for key in clear:
+        if key not in _CLEARABLE:
+            raise EcusEditError(f"cannot clear memory field {key!r}")
+        section.pop(key, None)
+    if fmt is not None:
+        section["format"] = fmt.name
+    if max_block is not None:
+        section["max_block"] = int(max_block)
+    if session is not None:
+        section["session"] = session.strip().upper()
+    width = 2 * fmt.address_bytes if fmt is not None else 8
+    return _write(fpath, name, section, width)
 
 
-def _region_map(region: MemoryRegion, width: int) -> CommentedMap:
-    entry = CommentedMap()
-    entry["start"] = HexCapsInt(region.start, width=width)
-    entry["end"] = HexCapsInt(region.end, width=width)
-    entry["result"] = str(region.result)
-    if region.nrc is not None:
-        entry["nrc"] = HexCapsInt(region.nrc, width=2)
-    if region.software is not None:
-        entry["software"] = DoubleQuotedScalarString(region.software)
-    if region.scanned is not None:
-        entry["scanned"] = DoubleQuotedScalarString(region.scanned)
-    entry.fa.set_flow_style()
-    return entry
+def _overlaps(entry: Mapping, region: MemoryRegion) -> bool:
+    try:
+        start, end = _num(entry.get("start")), _num(entry.get("end"))
+    except (TypeError, ValueError):
+        return False
+    return start <= region.end and region.start <= end
 
 
 def record_scan(
@@ -125,31 +175,29 @@ def record_scan(
     A new region replaces every recorded region it overlaps; the rest are kept, so a scan of
     one range never erases what a scan of another found. Regions stay sorted by address.
     """
+    fpath, name, ecu_def = _ecu_of(tx_id, ecus_dir)
+    section = dict(ecu_def.get(SECTION) or {})
+    if fmt is not None:
+        section["format"] = fmt.name
+    if max_block is not None:
+        section["max_block"] = int(max_block)
+    old = section.get("regions")
+    kept = [
+        dict(e)
+        for e in (old if isinstance(old, list) else [])
+        if isinstance(e, Mapping) and not any(_overlaps(e, r) for r in regions)
+    ]
+    new = [
+        {
+            "start": r.start,
+            "end": r.end,
+            "result": str(r.result),
+            "nrc": r.nrc,
+            "software": r.software,
+            "scanned": r.scanned,
+        }
+        for r in regions
+    ]
+    section["regions"] = sorted(kept + new, key=lambda e: _num(e["start"]))
     width = 2 * fmt.address_bytes if fmt is not None else 8
-    with _edit_ecu_def(tx_id, ecus_dir) as (fpath, ecu_def):
-        section = _section(ecu_def)
-        if fmt is not None:
-            section["format"] = DoubleQuotedScalarString(fmt.name)
-        if max_block is not None:
-            section["max_block"] = int(max_block)
-        old = section.get("regions")
-        kept = [
-            e
-            for e in (old if isinstance(old, list) else [])
-            if not any(_overlaps(e, r) for r in regions)
-        ]
-        merged = kept + [_region_map(r, width) for r in regions]
-        merged.sort(key=lambda e: int(e.get("start", 0)))
-        seq = CommentedSeq(merged)
-        section["regions"] = seq
-        _ordered(section)
-        _checked(section)
-    return fpath
-
-
-def _overlaps(entry, region: MemoryRegion) -> bool:
-    try:
-        start, end = int(entry.get("start")), int(entry.get("end"))
-    except (AttributeError, TypeError, ValueError):
-        return False
-    return start <= region.end and region.start <= end
+    return _write(fpath, name, section, width)

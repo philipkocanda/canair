@@ -108,6 +108,7 @@ nav:
       - Typed (multi-modal) signals: concepts/typed-signals.md
       - Captures & states: concepts/captures-and-states.md
       - Reading & interpreting DTCs: concepts/dtcs.md
+      - Reading ECU memory: concepts/memory-reads.md
       - Remote & cellular links: concepts/remote-and-cellular.md
       - Safety: concepts/safety.md
   - Case studies:

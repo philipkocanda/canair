@@ -484,6 +484,7 @@ Flags live in each command's `--help`; `docs/concepts/analysis-commands.md` is t
 | write definitions | `canair pids upsert-param`/`add-pid`/`rename-param`/`rm-param`/`add-research`/`set-status` |
 | correct a stale PID note | `canair pids set-pid-notes <ECU> <PID> "…"` (omit text to clear) |
 | validate · ship | `canair validate pids`, `canair coverage` · `canair wican autopid write` |
+| a value behind no DID (RAM, calibration) | `canair scan memory` → `memory dump` ×2 → `memory diff` → define `ECU:23/ADDRESS+SIZE` ([memory reads](../../../docs/concepts/memory-reads.md)); never shipped, gate it to a `software:` revision |
 
 ---
 

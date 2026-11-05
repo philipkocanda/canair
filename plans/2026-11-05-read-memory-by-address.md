@@ -1,7 +1,7 @@
 # ReadMemoryByAddress: map, dump and poll ECU memory
 
-Status: **DRAFT** (2026-11-05). Phase 0 is done (see "Phase 0 results"): five ECUs on the
-reference car answer `0x23` in the default session. Nothing is built.
+Status: **PHASES 0-4 DONE, 5 PARTLY, 6 OPEN** (2026-11-05). See "As built" for where the code
+differs from the design below, and for the live test that hung the climate unit.
 
 ## Problem
 
@@ -359,3 +359,53 @@ Charging continued.
   and `mode_raw`.
 - A 1-byte reply to a 1024-byte memory request was stored as a valid capture (see above). That
   capture is deleted. The length check in phase 1 stops the next one.
+
+## As built (2026-11-05)
+
+Phases 1-4 shipped, phase 5 except the scheduler rule, phase 6 not started. Where the code
+differs from the design above:
+
+- **`canair memory set`, not `pids set-memory`.** `cli/commands/pids.py` sits at its size
+  ceiling, and the new `memory` command group is where the other memory commands are.
+- **`pids` takes the memory token.** Every `canair pids` subcommand turns a `23/ADDRESS+SIZE`
+  PID argument into its request key with the ECU's format (`yaml_edit.memory.memory_pid_key`).
+- **The reply check lives in the parser.** `parse_uds_response` derives the expected length
+  from the request it is given (`echo.reply_check`), so no `Terminal.send_uds` signature
+  changed. The raw terminal now passes its request; the pipelined raw client checks through
+  `payload_echo_mismatch`.
+- **The editor is text surgery.** `yaml_edit/memory.py` renders the tool-owned section whole
+  and swaps it in with `edit_ecu_text`. The ruamel round trip re-flowed an unrelated folded
+  scalar in `hvac.yaml`, so it was dropped.
+- **A refused dump block finds its edge.** A block that straddles a hole is refused whole, so
+  `dump` reads one byte at each end of it and bisects to the exact address, instead of losing
+  the readable bytes to the gap.
+- **Software fingerprints.** A revision's `{software: "RECORD:TEXT glob"}` fingerprint is matched
+  at connect (`live/revision_probe.py`) when no `responds:` fingerprint answered. The reading
+  is `live/software_version.py`'s, the same one `scan memory` records with each region.
+- **Not built:** the `monitor` scheduler rule for equal-size memory reads (open question 2).
+  Memory PIDs poll like any other PID. `read BCM:23/FEDE0000+04` works on the car; `monitor`
+  over a memory PID was not run live.
+- **Module moves.** The PID lifecycle helpers moved to `ecus/pid_status.py`, the fingerprint
+  vocabulary to `variants/fingerprint_kinds.py`, and `cli/commands/scan.py` became a package,
+  each to stay under the size ceilings.
+
+### Live test and the climate unit (2026-11-05, charging)
+
+- `scan memory BCM --range FEDC0000-FEE0FFFF` mapped 320 KiB as readable with a 254-byte
+  block; `memory dump` read 2 KiB of it, all zeros, as in phase 0. Whether this window is
+  real RAM is not settled.
+- `scan memory HVAC --range 000000-00FFFF` found ALFID `13` by itself and mapped 64 KiB as
+  readable. The block search then asked for 255, 192, 160 … 129 bytes, none answered, and the
+  HVAC stopped answering every diagnostic request, `22 0100` included.
+- Restarting the charge brought it back. Two 8 KiB dumps then read fine at 128 bytes. The
+  address space repeats the same 255-byte image (65 blocks, 64 identical), which looks like
+  `22 0100`'s live record: the ECU probably ignores the high address bits.
+- A single 192-byte read (`23 13 000000 C0`) hung it again, confirmed by six failed `22 0100`
+  reads over two minutes. **A read larger than the HVAC supports hangs its diagnostics until
+  its supply is cycled.** It set no fault code in the IGPM or the BCM.
+- The block search now doubles from 16 bytes up to `--block-limit` (default 128), stops at
+  the first size that fails, and checks with a 1-byte read that the ECU still answers. `dump`
+  refuses a `--block` above the ECU's recorded `max_block`.
+- `scan memory IGPM` and `scan memory CCM` stop on the first read: both answer
+  serviceNotSupported (`0x11`), in the default and the extended session. Neither can be dumped
+  with `0x23`.

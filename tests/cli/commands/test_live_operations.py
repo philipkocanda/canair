@@ -22,7 +22,7 @@ import pytest
 
 from canair.cli import build_parser
 from canair.cli.live import runtime
-from canair.cli.live.handlers import actuators, diagnostics, elm_only, multi, reads, scans
+from canair.cli.live.handlers import actuators, diagnostics, elm_only, memory, multi, reads, scans
 
 # (argv, handler name, records, scan types): the operation each live subcommand reaches.
 CASES = [
@@ -38,6 +38,8 @@ CASES = [
     (["scan", "iocontrol", "BCM"], "handle_iocontrol_scan", False, {"iocontrol"}),
     (["scan", "routines", "BCM"], "handle_routines_scan", False, {"routines"}),
     (["scan", "sessions", "BCM"], "handle_sessions_scan", False, set()),
+    (["scan", "memory", "BCM", "--range", "0-FF", "--yes"], "handle_memory_scan", False, set()),
+    (["memory", "dump", "BCM", "0-FF", "--yes"], "handle_memory_dump", False, set()),
     (["discover"], "handle_discover", True, set()),
     (["dtc", "read", "BMS"], "handle_dtc", True, set()),
     (["dtc", "read", "--all"], "handle_dtc", True, set()),
@@ -67,7 +69,15 @@ def reached(monkeypatch):
     monkeypatch.setattr("canair.cli.live.load_pids", lambda: {})
     monkeypatch.setattr(monitor, "run_live", fake_run_live)
     monkeypatch.setattr(read, "run_live", fake_run_live)
-    for name in ("scan.range_sweep", "discover", "dtc", "io", "routines"):
+    for name in (
+        "scan.range_sweep",
+        "scan.memory_kind",
+        "memory",
+        "discover",
+        "dtc",
+        "io",
+        "routines",
+    ):
         module = __import__(f"canair.cli.commands.{name}", fromlist=["run_live"])
         if hasattr(module, "run_live"):
             monkeypatch.setattr(module, "run_live", fake_run_live)
@@ -143,7 +153,7 @@ def test_parser_defines_what_the_handler_reads(reached, argv, handler, records, 
 
 def test_every_handler_is_reached_by_some_command():
     """A handler no command names is dead code (``handle_ecu`` and ``handle_skm_wake`` were)."""
-    modules = (actuators, diagnostics, elm_only, multi, reads, scans)
+    modules = (actuators, diagnostics, elm_only, memory, multi, reads, scans)
     defined = {
         name
         for module in modules
@@ -157,5 +167,5 @@ def test_every_handler_is_reached_by_some_command():
 
 def test_the_package_documents_every_handler_module():
     doc = Path(inspect.getfile(reads)).with_name("__init__.py").read_text()
-    for module in (actuators, diagnostics, elm_only, multi, reads, scans):
+    for module in (actuators, diagnostics, elm_only, memory, multi, reads, scans):
         assert f":mod:`.{module.__name__.rsplit('.', 1)[-1]}`" in doc

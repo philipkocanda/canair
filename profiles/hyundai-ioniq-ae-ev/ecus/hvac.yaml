@@ -1444,3 +1444,11 @@ HVAC:
     "03":
       name: "extendedDiagnosticSession"
       supported: true
+  memory:
+    format: "13"
+    max_block: 128
+    regions:
+      - start: 0x000000
+        end: 0x00FFFF
+        result: readable
+        scanned: "2026-11-05"
