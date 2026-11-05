@@ -281,7 +281,7 @@ def register_derived_cache(clear: Callable[[], None]) -> None:
 def clear_cache() -> None:
     """Drop the memoized ECU-definition load and everything derived from it.
 
-    Call after writing any ECU file, or after switching the active profile.
+    Call after writing any ECU file; a profile switch needs none (the caches are keyed).
     """
     _cache.clear()
     _resolution_cache.clear()

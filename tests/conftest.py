@@ -82,14 +82,10 @@ def _isolate_connection_lock(tmp_path, monkeypatch):
 def _reset_active_profile():
     """Clear the memoized active profile — and its derived caches — around each test.
 
-    Nulling ``_active`` alone is not enough: ``profile.set_active`` only drops the
-    definition caches when it sees a *different* previous profile, so a test that
-    starts from ``_active is None`` takes the "first activation" path and inherits
-    whatever the previous test's profile left in the memoized ECU definitions and
-    everything derived from them (e.g. the capture views' decode index). That
-    leaks across modules — a view decodes against the wrong vehicle and renders no
-    parameters — and only shows up in a serial run, since ``--dist loadscope`` puts
-    each module in its own worker.
+    The caches are keyed by the profile, so a switch cannot return the wrong car's data, but
+    a test that rewrites a profile directory in place (same path, new content) still needs
+    them dropped. The capture views' decode index is one: left stale, a view decodes against
+    the wrong vehicle and renders no parameters.
     """
     import canair.profile as profile
     from canair.config import load_config

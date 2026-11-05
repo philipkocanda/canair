@@ -8,7 +8,7 @@ from canair import profile
 from canair.ecus.pids import clear_cache, register_derived_cache
 
 
-def _mk_profile(tmp_path, name, ecu, param):
+def _mk_profile(tmp_path, name, ecu, param, sensitive=False):
     root = tmp_path / name
     (root / "ecus").mkdir(parents=True)
     (root / "profile.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
@@ -19,6 +19,7 @@ def _mk_profile(tmp_path, name, ecu, param):
               pids:
                 2101:
                   status: active
+                  sensitive: {str(sensitive).lower()}
                   parameters:
                     {param}:
                       expression: B04
@@ -29,8 +30,7 @@ def _mk_profile(tmp_path, name, ecu, param):
 
 
 def _activate(root, name):
-    profile._active = profile.Profile(name, root)
-    clear_cache()
+    profile.replace_active(profile.Profile(name, root))
 
 
 @pytest.fixture(autouse=True)
@@ -101,24 +101,48 @@ class TestLogEcuLookup:
         assert log._load_ecu_lookup().get(0x7E4) == "MCU"
 
 
-class TestSetActive:
-    def test_switching_via_set_active_clears_derived_state(self, tmp_path, monkeypatch):
+class TestSwitchingProfiles:
+    """A profile switch needs no cache clearing: every derived cache is keyed by the profile."""
+
+    def test_each_profile_reads_its_own_definitions_decode_index_and_sensitive_set(
+        self, tmp_path, monkeypatch
+    ):
+        from canair.captures.store import decoded_preview
+        from canair.ecus.pids import load_pids
+        from canair.privacy.sensitive import profile_set
+        from canair.transport import ecu_log
+
+        _mk_profile(tmp_path, "one", "BMS", "ONE_VOLTS", sensitive=True)
+        _mk_profile(tmp_path, "two", "MCU", "TWO_VOLTS")
+        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path))
+        entry = {"payload": "6101AABBCCDD", "ecu": "BMS", "pid": "2101"}
+
+        def read():
+            return (
+                sorted(load_pids()["ecus"]),
+                sorted(decoded_preview(dict(entry, ecu=sorted(load_pids()["ecus"])[0])) or {}),
+                ecu_log._load_ecu_lookup().get(0x7E4),
+                profile_set().has("BMS", "2101"),
+            )
+
+        profile.set_active("one", profiles_dir=tmp_path)
+        first = read()
+        profile.set_active("two", profiles_dir=tmp_path)
+        second = read()
+        profile.set_active("one", profiles_dir=tmp_path)
+        assert read() == first
+
+        assert first == (["BMS"], ["ONE_VOLTS"], "BMS", True)
+        assert second == (["MCU"], ["TWO_VOLTS"], "MCU", False)
+
+    def test_switching_does_not_clear_the_caches(self, tmp_path):
         calls = []
         _mk_profile(tmp_path, "one", "BMS", "X")
         _mk_profile(tmp_path, "two", "MCU", "Y")
-        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path))
 
         profile.set_active("one", profiles_dir=tmp_path)
         register_derived_cache(lambda: calls.append(1))
         profile.set_active("two", profiles_dir=tmp_path)
-        assert calls == [1]
-
-    def test_reselecting_the_same_profile_does_not_clear(self, tmp_path):
-        calls = []
-        _mk_profile(tmp_path, "same", "BMS", "X")
-        profile.set_active("same", profiles_dir=tmp_path)
-        register_derived_cache(lambda: calls.append(1))
-        profile.set_active("same", profiles_dir=tmp_path)
         assert calls == []
 
 

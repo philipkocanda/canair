@@ -603,30 +603,21 @@ def set_active(
     """Resolve and memoize the active profile (called by the CLI).
 
     ``variant`` is the ``--variant`` flag; ``CANAIR_VARIANT`` applies without it.
-    ``revisions`` are the ``--revision ECU=ID`` pins. Drops any state cached from the
-    previous profile's definitions, so switching profiles (or cars) in one process
-    can't decode against the wrong vehicle.
+    ``revisions`` are the ``--revision ECU=ID`` pins. What is cached from a profile's
+    definitions is keyed by :attr:`Profile.cache_key`, so switching profiles (or cars) in
+    one process can't decode against the wrong vehicle.
     """
     from canair.variants.selection import apply_variant
 
     global _active
-    previous = _active
     _active = apply_variant(resolve_profile(name, profiles_dir), variant, revisions)
-    if previous is not None and previous != _active:
-        from canair.ecus.pids import clear_cache
-
-        clear_cache()
     return _active
 
 
 def replace_active(profile: Profile) -> Profile:
-    """Make ``profile`` the active profile, dropping what was cached from the previous one."""
+    """Make ``profile`` the active profile."""
     global _active
-    if profile != _active:
-        _active = profile
-        from canair.ecus.pids import clear_cache
-
-        clear_cache()
+    _active = profile
     return _active
 
 

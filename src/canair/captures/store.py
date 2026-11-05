@@ -43,19 +43,30 @@ from canair.variants.tags import SCOPE_ALL, SCOPE_UNTAGGED
 # data). We regenerate them on demand from the payload + PID definitions when
 # displaying previews. The PID index is built once and cached.
 
-_ecu_index = None
-_decode_fn = None
+# Keyed by the active profile's cache key, so a profile switch never decodes with the previous
+# car's definitions; an ECU edit drops it through the clear hook.
+_decoders: dict[str, tuple[Any, Any]] = {}
 
 
 def _clear_decode_index() -> None:
-    """Drop the PID index (registered with canair.ecus.pids.clear_cache).
+    """Drop the PID indexes (registered with canair.ecus.pids.clear_cache)."""
+    _decoders.clear()
 
-    Without this, a profile switch or an ECU edit leaves previews decoding with
-    the previous definitions — reporting the wrong profile's parameter names.
-    """
-    global _ecu_index, _decode_fn
-    _ecu_index = None
-    _decode_fn = None
+
+def _decoder() -> tuple[Any, Any] | None:
+    """``(decode function, ECU index)`` for the active profile, or None when unavailable."""
+    try:
+        from canair.captures import _decode_payload
+        from canair.ecus.pids import build_ecu_index, load_pids, register_derived_cache
+        from canair.profile import active
+
+        key = active().cache_key
+        if key not in _decoders:
+            _decoders[key] = (_decode_payload, build_ecu_index(load_pids()))
+            register_derived_cache(_clear_decode_index)
+        return _decoders[key]
+    except Exception:
+        return None
 
 
 def decoded_preview(entry: Mapping[str, Any]) -> dict | None:
@@ -65,30 +76,18 @@ def decoded_preview(entry: Mapping[str, Any]) -> dict | None:
     ``param_name -> "value unit (formatted)"`` strings, matching the format
     previously stored in the (now removed) ``decoded`` field.
     """
-    global _ecu_index, _decode_fn
-
     payload = entry.get("payload")
     ecu = entry.get("ecu")
     pid = entry.get("pid")
     if not payload or not ecu or not pid:
         return None
 
-    if _decode_fn is None:
-        try:
-            from canair.captures import _decode_payload
-            from canair.ecus.pids import build_ecu_index, load_pids, register_derived_cache
-
-            _decode_fn = _decode_payload
-            _ecu_index = build_ecu_index(load_pids())
-            register_derived_cache(_clear_decode_index)
-        except Exception:
-            _decode_fn = False  # sentinel: decoding unavailable
-            return None
-    if _decode_fn is False:
+    decoder = _decoder()
+    if decoder is None:
         return None
-
+    decode, ecu_index = decoder
     try:
-        return _decode_fn(ecu, str(pid), payload, {}, ecu_index=_ecu_index)
+        return decode(ecu, str(pid), payload, {}, ecu_index=ecu_index)
     except Exception:
         return None
 

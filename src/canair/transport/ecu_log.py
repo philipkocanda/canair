@@ -13,32 +13,30 @@ from canair.core import eventlog
 
 _ecu_loggers: dict[str, logging.Logger] = {}  # ecu_name -> logger
 _active_ecu: str | None = None  # current ECU name (from ATSH header)
-_ecu_lookup: dict[int, str] | None = None  # tx_id -> name cache
+_ecu_lookups: dict[str, dict[int, str]] = {}  # profile cache key -> (tx_id -> name)
 _date_str: str = ""
 _initialized: bool = False
 
 
 def _load_ecu_lookup() -> dict[int, str]:
-    """Lazy-load ECU TX ID → name mapping from the ECU registry."""
-    global _ecu_lookup
-    if _ecu_lookup is not None:
-        return _ecu_lookup
+    """Lazy-load the active profile's ECU TX ID → name mapping from the ECU registry."""
     try:
         from canair.ecus import load_ecus
         from canair.ecus.pids import register_derived_cache
+        from canair.profile import active
 
-        ecus = load_ecus()
-        _ecu_lookup = {tx_id: info["name"] for tx_id, info in ecus.items()}
-        register_derived_cache(_clear_ecu_lookup)
+        key = active().cache_key
+        if key not in _ecu_lookups:
+            _ecu_lookups[key] = {tx_id: info["name"] for tx_id, info in load_ecus().items()}
+            register_derived_cache(_clear_ecu_lookup)
+        return _ecu_lookups[key]
     except Exception:
-        _ecu_lookup = {}
-    return _ecu_lookup
+        return {}
 
 
 def _clear_ecu_lookup() -> None:
-    """Drop the tx_id → name cache (registered with canair.ecus.pids.clear_cache)."""
-    global _ecu_lookup
-    _ecu_lookup = None
+    """Drop the tx_id → name caches (registered with canair.ecus.pids.clear_cache)."""
+    _ecu_lookups.clear()
 
 
 def ecu_log_dir():
