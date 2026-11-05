@@ -16,6 +16,7 @@ from canair.live.monitor.backoff import (
     summarize_slowed,
 )
 from tests.support.fakes import FakeTerminal, nrc, ok
+from tests.support.monitor_controller import make_controller
 
 SILENT = PollCost(reads=4, seconds=4.0, answered=0)
 SLUGGISH = PollCost(reads=2, seconds=1.6, answered=2)
@@ -151,7 +152,6 @@ class TestElmPollCost:
     """Each PID is charged its own request's time, as the executor stamps it."""
 
     def test_each_pid_gets_its_own_cost(self, monkeypatch):
-        from canair.live.monitor.controller import MonitorController
 
         async def fake_exec_query(sm, ecu, pids, index, pids_data, verbose, **kw):
             plan = [(p, None, False) for p in pids]
@@ -175,7 +175,7 @@ class TestElmPollCost:
             {"ecu": "SKM", "pids": ["22B002", "22B003"]},
             {"ecu": "BMS", "pids": ["2101", "2102"]},
         ]
-        c = MonitorController(FakeTerminal(), steps, {}, verbose=False, schedule="fixed")
+        c = make_controller(FakeTerminal(), steps, {}, verbose=False, schedule="fixed")
         c._ecu_index = {}
         c.schedule.begin_tick(0.0)
         asyncio.run(c.elm_poller.poll())
@@ -203,11 +203,10 @@ class _ElmTerminal(FakeTerminal):
 
 def _igpm_controller(terminal: _ElmTerminal, **index_extra):
     """A real controller polling IGPM's three DIDs through the real executor."""
-    from canair.live.monitor.controller import MonitorController
     from canair.live.read.batch import BatchState
 
     steps = [{"type": "query", "ecu": "IGPM", "pids": []}]
-    c = MonitorController(terminal, steps, {}, verbose=False, schedule="fixed")
+    c = make_controller(terminal, steps, {}, verbose=False, schedule="fixed")
     c._ecu_index = {
         "IGPM": {
             "tx_id": 0x770,
@@ -318,7 +317,6 @@ class TestOnlyTheDeadPidIsSlowed:
         assert set(c.health.poll_costs) == {("IGPM", "22BC03"), ("IGPM", "22BC06")}
 
     def test_raw(self):
-        from canair.live.monitor.controller import MonitorController
         from tests.support.raw_monitor import TimedRawClient as _TimedRawClient
 
         table = {
@@ -326,7 +324,7 @@ class TestOnlyTheDeadPidIsSlowed:
             ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex("62BC06B480000000000000"),
         }  # 22BC04 times out, costing a second each time
         steps = [{"ecu": "IGPM", "pids": []}]
-        c = MonitorController(
+        c = make_controller(
             None, steps, {}, verbose=False, raw_client=_TimedRawClient(table), schedule="fixed"
         )
         c._ecu_index = {

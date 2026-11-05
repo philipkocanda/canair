@@ -14,10 +14,10 @@ import pytest
 
 import canair.ecus
 from canair.ecus.wake import WakePlan
-from canair.live.monitor.controller import MonitorController
 from canair.live.read.exec import _exec_iocontrol, _exec_query, _exec_session
 from canair.query.steps import resolve_tx_id
 from tests.support.fakes import FakeTerminal, ok
+from tests.support.monitor_controller import make_controller
 
 INDEX = {
     "IGPM": {
@@ -78,7 +78,7 @@ def test_exec_iocontrol(monkeypatch, capsys):
 class TestMonitor:
     def _controller(self, **kw):
         steps = [{"type": "query", "ecu": "sjb", "pids": []}]
-        c = MonitorController(FakeTerminal(), steps, {}, verbose=False, **kw)
+        c = make_controller(FakeTerminal(), steps, {}, verbose=False, **kw)
         c._ecu_index = INDEX
         return c
 

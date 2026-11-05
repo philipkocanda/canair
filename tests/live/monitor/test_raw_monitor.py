@@ -3,10 +3,10 @@
 import asyncio
 
 from canair.live.monitor.backoff import PollCost
-from canair.live.monitor.controller import MonitorController
 from canair.live.monitor.raw_poller import _raw_pid_result
 from canair.live.monitor.raw_run import query_ecu_addresses
 from canair.uds.addressing import EcuAddress
+from tests.support.monitor_controller import make_controller
 from tests.support.raw_monitor import FakeRawClient
 from tests.support.raw_monitor import TimedRawClient as _TimedRawClient
 
@@ -76,7 +76,7 @@ class TestRawPidResult:
 
 
 def _mk_ctrl(steps, ecu_index, lengths=None, nobatch=None, table=None):
-    c = MonitorController(
+    c = make_controller(
         None, steps, {}, verbose=False, raw_client=FakeRawClient(table or {}), schedule="fixed"
     )
     c._ecu_index = ecu_index
@@ -269,7 +269,7 @@ class TestPollRaw:
 
     def test_record_skips_stale_entries(self):
         # A re-shown (stale) value must not be re-recorded as a fresh capture.
-        c = MonitorController(None, [], {}, verbose=False, save=True)
+        c = make_controller(None, [], {}, verbose=False, save=True)
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA", "stale": True}])])
         assert c.recorder.save_history == {}
 
@@ -285,13 +285,13 @@ class TestControllerInterrupt:
                 self.interrupted = True
 
         client = IClient()
-        c = MonitorController(None, [], {}, verbose=False, raw_client=client)
+        c = make_controller(None, [], {}, verbose=False, raw_client=client)
         c.interrupt()
         assert client.interrupted is True
 
     def test_noop_on_elm_backend(self):
         # No raw_client (ELM path): interrupt must be a safe no-op, not raise.
-        c = MonitorController(None, [], {}, verbose=False)
+        c = make_controller(None, [], {}, verbose=False)
         c.interrupt()  # no raise
 
 
@@ -459,7 +459,7 @@ class TestSlowPidBackoff:
     def _ctrl(self, backoff=True):
         table = {("BMS", bytes.fromhex("2101")): bytes.fromhex("6101AA")}
         steps = [{"ecu": "IGPM", "pids": ["BC03"]}, {"ecu": "BMS", "pids": ["2101"]}]
-        c = MonitorController(
+        c = make_controller(
             None,
             steps,
             {},

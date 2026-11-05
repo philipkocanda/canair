@@ -16,6 +16,7 @@ import pytest
 
 from canair.core.stop_signals import STOP_SIGNALS
 from canair.live.monitor import run as run_mod
+from canair.live.monitor.options import MonitorOptions
 
 
 class _FakeController:
@@ -173,10 +174,10 @@ class TestTeardown:
         asyncio.run(
             run_mod.mode_monitor(
                 object(),
-                [{"type": "query", "ecu": "BMS", "pids": ["2101"]}],
+                MonitorOptions(
+                    query_steps=[{"type": "query", "ecu": "BMS", "pids": ["2101"]}], save=True
+                ),
                 {"ecus": {}},
-                False,
-                save=True,
             )
         )
 
@@ -206,10 +207,11 @@ class TestInteractiveScreen:
         asyncio.run(
             run_mod.mode_monitor(
                 object(),
-                [{"type": "query", "ecu": "BMS", "pids": ["2101"]}],
+                MonitorOptions(
+                    query_steps=[{"type": "query", "ecu": "BMS", "pids": ["2101"]}],
+                    interactive=interactive,
+                ),
                 {"ecus": {}},
-                False,
-                interactive=interactive,
             )
         )
         return ran

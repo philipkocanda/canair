@@ -2,12 +2,13 @@
 
 import json
 
-from canair.live.monitor.controller import MonitorController, query_ecu_error
+from canair.live.monitor.controller import query_ecu_error
 from canair.live.monitor.history import HistoryRun, extend_runs
 from canair.live.monitor.record import _merge_history
 from canair.live.monitor.render import _render_results
 from canair.live.monitor.render_cache import RenderCache
 from canair.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, _render_hex_line
+from tests.support.monitor_controller import make_controller
 
 
 class TestBytesToAscii:
@@ -721,7 +722,7 @@ class TestControllerSnapshot:
     """MonitorController must diff against the *previous* cycle, not the just-recorded one."""
 
     def _controller(self):
-        return MonitorController(terminal=None, query_steps=[], pids_data={}, verbose=False)
+        return make_controller(terminal=None, query_steps=[], pids_data={}, verbose=False)
 
     def test_prev_snapshot_lags_one_cycle(self):
         c = self._controller()
@@ -769,13 +770,10 @@ class TestControllerSnapshot:
         assert c.recorder.unique_frames == 0
 
     def test_history_render_limit_by_keep_mode(self):
-        from canair.live.monitor.controller import MonitorController
         from canair.live.monitor.view import DEFAULT_HISTORY_ROWS
 
         def _c(**kw):
-            return MonitorController(
-                terminal=None, query_steps=[], pids_data={}, verbose=False, **kw
-            )
+            return make_controller(terminal=None, query_steps=[], pids_data={}, verbose=False, **kw)
 
         # The default (all) and --keep-changes stay compact: repeats collapse into
         # runs, and only the newest few runs are drawn.
@@ -786,9 +784,8 @@ class TestControllerSnapshot:
         assert _c(keep_mode="last", keep_n=25).view.history_limit() == 25
 
     def test_segment_title_and_meta(self):
-        from canair.live.monitor.controller import MonitorController
 
-        c = MonitorController(
+        c = make_controller(
             terminal=None,
             query_steps=[{"ecu": "BCM", "pids": []}, {"ecu": "VCU", "pids": ["2101"]}],
             pids_data={},
@@ -859,7 +856,7 @@ class TestControllerSnapshot:
 
     def test_repeated_save_writes_only_new(self, tmp_path):
         """A second save records only payloads that arrived after the first."""
-        c = MonitorController(
+        c = make_controller(
             terminal=None, query_steps=[], pids_data={}, verbose=False, keep_mode="all"
         )
         c.captures_dir = tmp_path
@@ -881,7 +878,7 @@ class TestControllerJournal:
     """--save wires a write-ahead journal that survives a dropped connection."""
 
     def _controller(self):
-        c = MonitorController(terminal=None, query_steps=[], pids_data={}, verbose=False, save=True)
+        c = make_controller(terminal=None, query_steps=[], pids_data={}, verbose=False, save=True)
         return c
 
     def test_record_appends_to_journal(self, tmp_path):
@@ -977,9 +974,7 @@ class TestControllerJournal:
         assert str(written) in banners[0]
 
     def test_new_segment_requires_save(self):
-        c = MonitorController(
-            terminal=None, query_steps=[], pids_data={}, verbose=False, save=False
-        )
+        c = make_controller(terminal=None, query_steps=[], pids_data={}, verbose=False, save=False)
         assert c.recorder.journal is None
         msg = c.recorder.new_segment("x")
         assert "needs --save" in msg
@@ -989,7 +984,7 @@ class TestControllerSuggestedState:
     def _controller(self, monkeypatch, rules):
         from canair import states
 
-        c = MonitorController(terminal=None, query_steps=[], pids_data={}, verbose=False)
+        c = make_controller(terminal=None, query_steps=[], pids_data={}, verbose=False)
         monkeypatch.setattr(states, "load_states", lambda profile=None: rules)
         return c
 
@@ -1127,7 +1122,7 @@ class TestDynamicSchedulePerPidClock:
             {"type": "query", "ecu": "VCU", "pids": ["2101"]},
             {"type": "query", "ecu": "ESC", "pids": ["22C101"]},
         ]
-        return MonitorController(None, steps, {}, verbose=False, schedule="dynamic")
+        return make_controller(None, steps, {}, verbose=False, schedule="dynamic")
 
     def _tick(self, c, t, *, speed=None):
         c.schedule.begin_tick(t)
@@ -1187,7 +1182,7 @@ class TestDynamicSchedulePerPidClock:
 
 class TestQueryLabel:
     def _controller(self, steps):
-        return MonitorController(terminal=None, query_steps=steps, pids_data={}, verbose=False)
+        return make_controller(terminal=None, query_steps=steps, pids_data={}, verbose=False)
 
     def test_bare_ecu_and_pid_selector(self):
         c = self._controller(
@@ -1260,7 +1255,7 @@ class TestRecorderKeepModes:
             c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": raw}])])
 
     def test_keep_all_saves_every_poll_but_shows_runs(self, tmp_path):
-        c = MonitorController(
+        c = make_controller(
             terminal=None, query_steps=[], pids_data={}, verbose=False, keep_mode="all"
         )
         c.captures_dir = tmp_path
@@ -1274,7 +1269,7 @@ class TestRecorderKeepModes:
     def test_keep_changes_saves_transitions_and_says_so(self, tmp_path):
         from canair.captures import io as capture_io
 
-        c = MonitorController(
+        c = make_controller(
             terminal=None, query_steps=[], pids_data={}, verbose=False, keep_mode="changes"
         )
         c.captures_dir = tmp_path
@@ -1290,11 +1285,10 @@ def test_the_elm327_warmup_read_is_one_validated_transaction(monkeypatch):
     # bare set_header + send_uds could be re-pointed at another ECU in between.
     import asyncio
 
-    from canair.live.monitor.controller import MonitorController
     from tests.support.fakes import FakeTerminal, ok
 
     terminal = FakeTerminal({"22BC03": ok("62BC03AA")})
-    c = MonitorController(terminal, [{"ecu": "IGPM", "pids": []}], {}, verbose=False)
+    c = make_controller(terminal, [{"ecu": "IGPM", "pids": []}], {}, verbose=False)
     monkeypatch.setattr(
         "canair.ecus.pids.build_ecu_index",
         lambda _data: {"IGPM": {"tx_id": 0x770, "pids": {"22BC03": {"parameters": {}}}}},

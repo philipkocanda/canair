@@ -140,12 +140,10 @@ async def run_raw_monitor(
     try:
         await mode_monitor(
             None,
-            monitor.query_steps,
+            monitor,
             pids_data,
-            monitor.verbose,
             raw_client=client,
             reconnect=build_raw_reconnector(candidates, ecus, conn, pids_data),
-            **monitor.mode_kwargs(),
         )
     except transport_error_types() as e:
         messages.error(

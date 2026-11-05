@@ -22,6 +22,7 @@ from canair.captures.link_events import (
 )
 from canair.live.monitor.link_events import LinkEventTracker
 from canair.validation._common import CAPTURES_SCHEMA_FILE
+from tests.support.monitor_controller import make_controller
 
 DAY = "2026-11-02"
 T0 = datetime(2026, 11, 2, 14, 0, 0)
@@ -290,10 +291,9 @@ class TestTracker:
 
 class TestControllerHooks:
     def _controller(self):
-        from canair.live.monitor.controller import MonitorController
 
         steps = [{"type": "query", "ecu": "BMS", "pids": ["2101"]}]
-        c = MonitorController(object(), steps, {"ecus": {}}, verbose=False)
+        c = make_controller(object(), steps, {"ecus": {}}, verbose=False)
         c.last_queries = [{"ecu": "BMS"}]
         journal = _ListJournal()
         c.link_events = LinkEventTracker(lambda: journal)
@@ -629,9 +629,8 @@ class TestScopedTracker:
 
 class TestControllerScopedHooks:
     def _controller(self):
-        from canair.live.monitor.controller import MonitorController
 
-        c = MonitorController(object(), [], {"ecus": {}}, verbose=False)
+        c = make_controller(object(), [], {"ecus": {}}, verbose=False)
         journal = _ListJournal()
         c.link_events = LinkEventTracker(lambda: journal, rx_of={"BMS": "0x7EC"}.get)
         c.health.link_events = c.link_events

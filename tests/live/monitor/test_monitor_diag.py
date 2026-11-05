@@ -7,11 +7,12 @@ from types import SimpleNamespace
 
 from canair.live.monitor.controller import MonitorController
 from tests.support.fakes import FakeTerminal
+from tests.support.monitor_controller import make_controller
 
 
 class TestControllerDiagDelta:
-    def _controller(self, terminal):
-        return MonitorController(terminal=terminal, query_steps=[], pids_data={}, verbose=False)
+    def _controller(self, terminal) -> MonitorController:
+        return make_controller(terminal=terminal, query_steps=[], pids_data={}, verbose=False)
 
     def test_diag_recorder_is_the_terminals(self):
         term = FakeTerminal()

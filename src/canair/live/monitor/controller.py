@@ -28,8 +28,6 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from canair.captures.keepmode import KeepMode
-from canair.expression.notation import ByteNotation
 from canair.expression.results import EcuFrame, ResultEntry
 from canair.transport.session_manager import SessionManager
 
@@ -37,11 +35,12 @@ from ...captures.link_events import is_rx
 from .backoff import PollBackoff
 from .health import MonitorHealth, answered, is_nrc, label_ecu
 from .link_events import LinkEventTracker
+from .options import MonitorOptions
 from .poll_elm import MonitorElmPoller
 from .raw_poller import MonitorRawPoller
 from .record import MonitorRecorder
 from .render import MonitorRenderer
-from .schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, PollScheduler, Schedule
+from .schedule import MONITOR_PERIOD_SPEEDUP, PollScheduler
 from .selectors import MonitorSelectors
 from .sessions import MonitorSessions
 from .state import MonitorStateSuggester
@@ -87,53 +86,40 @@ class MonitorController:
     Holds all monitor state and the CAN-facing logic (session setup, polling,
     history bookkeeping, capture saving). The presentation layer — the Textual
     TUI or the non-interactive fallback — drives it via :meth:`poll_once`,
-    :meth:`seconds_until_due` and :meth:`render`, so the two share identical
+    :meth:`seconds_until_due` and ``renderer.render()``, so the two share identical
     behaviour. Which PIDs a tick reads is the :class:`PollScheduler`'s call.
     """
 
-    def __init__(
-        self,
-        terminal,
-        query_steps: list[dict],
-        pids_data: dict,
-        verbose: bool,
-        interval: float = 5.0,
-        keep_mode: KeepMode | None = None,
-        keep_n: int | None = None,
-        save: bool = False,
-        show_rulers: bool = False,
-        notation: ByteNotation = ByteNotation.WICAN,
-        raw_client=None,
-        include_static: bool = False,
-        schedule: Schedule = DEFAULT_SCHEDULE,
-        backoff: bool = True,
-    ):
+    def __init__(self, terminal, options: MonitorOptions, pids_data: dict, raw_client=None):
         self.terminal = terminal
         self.raw_client = raw_client  # transport.RawUdsClient when using the raw backend
         self.raw = raw_client is not None
-        self.query_steps = query_steps
+        self.options = options
+        self.query_steps = options.query_steps
         self.pids_data = pids_data
-        self.verbose = verbose
-        self.schedule = PollScheduler(schedule, interval, period_speedup=MONITOR_PERIOD_SPEEDUP)
+        self.verbose = options.verbose
+        self.schedule = PollScheduler(
+            options.schedule, options.interval, period_speedup=MONITOR_PERIOD_SPEEDUP
+        )
         # Slow-PID backoff: a PID that times out or is answered very slowly holds up
         # every other PID's next poll, so it is polled less often until it recovers.
-        # Fed each PID's cost of a tick, which the poll backends leave in poll_costs.
-        self.backoff = PollBackoff(enabled=backoff)
-        self.keep_mode = keep_mode
-        self.keep_n = keep_n
-        self.save = save
-        self.show_rulers = show_rulers
+        # Fed each PID's cost of a tick, which the poll backends leave in health.poll_costs.
+        self.backoff = PollBackoff(enabled=options.backoff)
+        self.keep_mode = options.keep_mode
+        self.keep_n = options.keep_n
+        self.save = options.save
+        self.show_rulers = options.show_rulers
         # Byte-index notation for the rulers + per-signal byte-reference column
         # (the user's display.byte_notation, or --notation).
-        self.notation = notation
-        self.include_static = include_static
+        self.notation = options.notation
+        self.include_static = options.include_static
         # Live display view mode (cycled with 'V' in the TUI). See VIEW_MODES:
         # "full" (signals + hex payloads, the default), "signals" (decoded params
         # only), "ranges" (each signal's captured value span), "ecus" (just the
         # responding ECUs). Named views only change presentation, not recording.
         self.view_mode = "full"
 
-        self.sm = SessionManager(terminal, verbose=verbose) if not self.raw else None
+        self.sm = SessionManager(terminal, verbose=self.verbose) if not self.raw else None
         self._ecu_index: dict | None = None
         # Diagnostic session-type concern (active modes, the safety check, the
         # picker's known-good suggestions, live switching) lives in the

@@ -14,6 +14,7 @@ import pytest
 from canair.live.monitor.reconnect import MonitorReconnector, ReconnectPolicy, reconnect_policy
 from canair.transport import fallback
 from canair.transport.config import TransportConfig
+from tests.support.monitor_controller import make_controller
 
 
 def _raw(host: str) -> TransportConfig:
@@ -364,12 +365,11 @@ class TestMonitorReconnector:
 
 class TestControllerRebind:
     def _controller(self, *, raw: bool):
-        from canair.live.monitor.controller import MonitorController
 
         steps = [{"type": "query", "ecu": "BMS", "pids": ["2101"]}]
         if raw:
-            return MonitorController(None, steps, {"ecus": {}}, verbose=False, raw_client=object())
-        return MonitorController(object(), steps, {"ecus": {}}, verbose=False)
+            return make_controller(None, steps, {"ecus": {}}, verbose=False, raw_client=object())
+        return make_controller(object(), steps, {"ecus": {}}, verbose=False)
 
     def test_rebind_raw_swaps_client_and_poller(self):
         c = self._controller(raw=True)
@@ -477,10 +477,9 @@ class TestStaleEscalation:
     values on a connection that will never answer again — the reported bug."""
 
     def _controller(self):
-        from canair.live.monitor.controller import MonitorController
 
         steps = [{"type": "query", "ecu": "BMS", "pids": ["2101"]}]
-        c = MonitorController(object(), steps, {"ecus": {}}, verbose=False)
+        c = make_controller(object(), steps, {"ecus": {}}, verbose=False)
         c.last_queries = [{"ecu": "BMS"}]  # a cycle that did ask for something
         return c
 

@@ -17,17 +17,14 @@ import asyncio
 import contextlib
 import signal
 import sys
-from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
-from canair.captures.keepmode import KeepMode
 from canair.core.stop_signals import graceful_stop
-from canair.expression.notation import ByteNotation
-from canair.live.monitor.schedule import DEFAULT_SCHEDULE, Schedule
 from canair.render.console import console, escape
 from canair.render.glyphs import FAIL
 
 from .controller import MonitorController
+from .options import MonitorOptions
 from .record import _open_journal
 
 if TYPE_CHECKING:
@@ -102,63 +99,32 @@ async def _attempt_reconnect(controller: MonitorController, stop_flag: dict, not
 
 async def mode_monitor(
     terminal,
-    query_steps: list[dict],
+    monitor: MonitorOptions,
     pids_data: dict,
-    verbose: bool,
-    interval: float = 5.0,
-    session_steps: list[dict] | None = None,
-    keep_mode: KeepMode | None = None,
-    keep_n: int | None = None,
-    save: bool = False,
-    show_rulers: bool = False,
-    notation: ByteNotation = ByteNotation.WICAN,
-    label: str | None = None,
-    vehicle_states=None,
-    notes: str | None = None,
+    *,
     raw_client=None,
-    include_static: bool = False,
     transport_type: str | None = None,
     reconnect: Reconnector | None = None,
-    schedule: Schedule = DEFAULT_SCHEDULE,
-    backoff: bool = True,
-    interactive: Callable[[MonitorController], Awaitable[None]] | None = None,
 ):
-    """Live-refresh ECU parameter monitor.
+    """Live-refresh ECU signal monitor.
 
-    On a TTY this runs ``interactive`` (the CLI passes the Textual monitor app:
+    On a TTY this runs ``monitor.interactive`` (the CLI passes the Textual monitor app:
     scrollable, in-place value updates, mouse + keyboard). Otherwise, or without
     one, it polls silently until Ctrl+C and prints the final values. Sessions are
-    opened once (from session_steps) and kept alive with background keepalives.
+    opened once (from ``monitor.session_steps``) and kept alive with background keepalives.
 
     Args:
-        terminal:       Connected terminal (WiCANTerminal or RawTerminal).
-        query_steps:    list of {'type': 'query', 'ecu': ..., 'pids': [...]} dicts.
+        terminal:       Connected terminal (WiCANTerminal), or None with ``raw_client``.
+        monitor:        What to poll and how to show and record it
+                        (:class:`~canair.live.monitor.options.MonitorOptions`): the
+                        steps, the poll interval and schedule, the backoff, the
+                        keep-mode, ``--save`` and its label/state/notes (auto-suggested
+                        when omitted), the rulers, the byte notation and the screen
+                        to run on a TTY.
         pids_data:      Loaded PID definitions.
-        verbose:        Show expressions.
-        interval:       Seconds between poll cycles on the fixed schedule, and the
-                        period of any PID without a ``period:`` on the per-PID
-                        one (default: 5.0).
-        schedule:       ``"dynamic"`` (default) polls each PID at its own profile
-                        ``period:`` (twice as often, see MONITOR_PERIOD_SPEEDUP);
-                        ``"fixed"`` polls every PID every cycle.
-        backoff:        Poll a PID that times out or is answered very slowly less
-                        often, so it stops holding up the rest (canair.live.monitor.backoff).
-        session_steps:  Optional list of session/skm-wake steps to run once before
-                        the first poll cycle.
-        keep_mode:      None = no history, "all" = every poll (the CLI default),
-                        "changes" = only value-transitions per PID,
-                        "last" = sliding window of last N runs (see keep_n).
-        keep_n:         For keep_mode="last": number of recent runs to display.
-        save:           Journal every polled payload as it arrives and reconcile
-                        into captures/ on stop (crash/disconnect leaves a
-                        recoverable journal). Metadata comes from label/state/
-                        notes (auto-suggested when omitted) and the TUI 's' key;
-                        'n' rotates to a fresh segment mid-run.
-        show_rulers:    Show a byte-index ruler once per PID.
-        notation:       Byte-index notation for the ruler + the per-signal
-                        byte-reference column (default WiCAN ``Bnn``).
-        interactive:    The screen to run on a TTY, given the controller
-                        (:func:`canair.tui.apps.monitor.app.run_monitor_app`).
+        raw_client:     The pipelined raw client, for the ``slcan-tcp`` path.
+        transport_type: The transport label recorded with saved captures.
+        reconnect:      Re-homes a dropped session.
 
     TUI keys come from the shared role registry (:mod:`canair.tui.keys`); press
     ``?`` in the app for the live cheat-sheet rather than trusting a copy here. A
@@ -170,23 +136,9 @@ async def mode_monitor(
     from ...states import parse_states
 
     captures_dir = active().captures_dir
-    states = parse_states(vehicle_states)
-    controller = MonitorController(
-        terminal,
-        query_steps,
-        pids_data,
-        verbose,
-        interval=interval,
-        keep_mode=keep_mode,
-        keep_n=keep_n,
-        save=save,
-        show_rulers=show_rulers,
-        notation=notation,
-        raw_client=raw_client,
-        include_static=include_static,
-        schedule=schedule,
-        backoff=backoff,
-    )
+    states = parse_states(monitor.vehicle_states)
+    label, notes = monitor.label, monitor.notes
+    controller = MonitorController(terminal, monitor, pids_data, raw_client=raw_client)
     controller.captures_dir = captures_dir
     # Seed the header's segment metadata from the initial --label/--state/--notes.
     controller.recorder.session_label = label or ""
@@ -199,12 +151,12 @@ async def mode_monitor(
     # Mid-session reconnect / auto-failover: the poll loops re-home a dropped
     # session via this reconnector (replaying session_steps to re-open sessions).
     controller.reconnect = reconnect
-    controller.session_steps = session_steps
+    controller.session_steps = monitor.session_steps
 
     # --save: open the write-ahead journal up front so every polled payload is
     # durably recorded as it arrives. On a clean stop we reconcile it into a
     # capture file; a disconnect/crash leaves it on disk for `--recover`.
-    if save:
+    if monitor.save:
         controller.recorder.journal = _open_journal(controller, label, states, notes)
         journal_label = label or controller.view.query_label() or "Monitor session"
         print(
@@ -215,10 +167,10 @@ async def mode_monitor(
         )
 
     try:
-        await controller.setup(session_steps)
+        await controller.setup(monitor.session_steps)
 
-        if interactive is not None and sys.stdout.isatty():
-            await interactive(controller)
+        if monitor.interactive is not None and sys.stdout.isatty():
+            await monitor.interactive(controller)
         else:
             await _monitor_noninteractive(controller)
 

@@ -12,12 +12,12 @@ import asyncio
 
 import pytest
 
-from canair.live.monitor.controller import MonitorController
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 from canair.transport.config import ConnectionOptions
 from canair.transport.raw import uds_client as uds_raw
 from canair.uds.addressing import EcuAddress
 from canair.uds.protocol import KWP
+from tests.support.monitor_controller import make_controller
 
 PIDS = {
     "ecus": {
@@ -45,7 +45,7 @@ class RecordingRawClient:
 
 def _raw_monitor(pids_data):
     client = RecordingRawClient()
-    ctrl = MonitorController(None, [], pids_data, verbose=False, raw_client=client)
+    ctrl = make_controller(None, [], pids_data, verbose=False, raw_client=client)
     return ctrl, client
 
 
