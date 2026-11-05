@@ -121,8 +121,8 @@ text. Each got its own commit with a regression test; each commit body names wha
 ## Phase 4 — close the ratchet
 
 The baseline is empty, so the ceiling already works as an absolute rule: a module with any
-match fails. Remove the `protocol_literals` key and state the test as absolute. Then widen the scanner with what it misses today,
-each found by hand while writing this plan:
+match fails. Remove the `protocol_literals` key and state the test as absolute. Then widen the
+scanner with what it misses today, each found by hand while writing this plan:
 
 - range tests on a plain name: `cli/commands/bix.py` (`0x40 <= b <= 0x7F`, `b < 0x40`) and
   `uds/parse.py` (`0x10 <= … <= 0x3E`);
