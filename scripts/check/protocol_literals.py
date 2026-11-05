@@ -2,10 +2,10 @@
 """Find diagnostic-protocol bytes written as bare literals outside their named home.
 
 A service ID, response marker, NRC, sub-function or canned request has one home in
-``canair.uds`` (``services.py``, ``nrc.py``). Everywhere else it is read by name. This scan
-finds the places that write such a byte as a literal instead, so tests/contracts/
-test_structure.py can hold the count per module to a ceiling that only falls. The plan that
-moves the existing sites is plans/2026-11-05-named-protocol-constants.md.
+``canair.uds`` (``services.py``, ``nrc.py``, ``subfunctions.py``). Everywhere else it is read
+by name. This scan finds the places that write such a byte as a literal instead, so
+tests/contracts/test_structure.py can hold the count per module to a ceiling that only falls.
+The plan that moves the existing sites is plans/2026-11-05-named-protocol-constants.md.
 
 Only hex-written integers count (``0x7F``, not ``127``), so timeouts and counts never match.
 Four patterns:
@@ -42,7 +42,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = "canair"
 # The named homes: the literals live here, and only here.
-HOMES = frozenset({"canair.uds.services", "canair.uds.nrc"})
+HOMES = frozenset({"canair.uds.services", "canair.uds.nrc", "canair.uds.subfunctions"})
 RESPONSE_OFFSET = 0x40
 RANGE_BOUNDS = frozenset({0x00, 0xFF})
 # Words that mark a name as holding a protocol byte.

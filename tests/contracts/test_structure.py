@@ -197,8 +197,8 @@ def test_protocol_literals_do_not_spread():
     now = protocol_literals.counts(found)
     ceilings = _baseline()["protocol_literals"]
     fix = (
-        "Read the byte by name from canair.uds (services.py, nrc.py), and add the name there "
-        "if it does not exist."
+        "Read the byte by name from canair.uds (services.py, nrc.py, subfunctions.py), and add "
+        "the name there if it does not exist."
     )
     problems = []
     for module, count in now.items():

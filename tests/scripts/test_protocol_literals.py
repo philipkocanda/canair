@@ -69,6 +69,7 @@ def test_ignores_literals_that_are_not_re_declared_protocol_bytes(tmp_path, sour
 def test_the_named_homes_are_not_scanned(tmp_path):
     assert _scan(tmp_path, "NEGATIVE_RESPONSE_SID = 0x7F\n", module="uds.services") == []
     assert _scan(tmp_path, "NRC_RESPONSE_PENDING = 0x78\n", module="uds.nrc") == []
+    assert _scan(tmp_path, "SF_START = 0x01\n", module="uds.subfunctions") == []
 
 
 def test_counts_group_findings_by_module(tmp_path):

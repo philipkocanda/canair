@@ -5,8 +5,8 @@ Pure and device-free: bytes in, text (or ``None`` for a response it has no words
 
 from __future__ import annotations
 
-from canair.uds.layout import subfunction_name
 from canair.uds.obd import is_support_bitmap_pid, supported_pids
+from canair.uds.subfunctions import subfunction_name
 
 
 def decode_uds_response(data: bytes) -> str | None:

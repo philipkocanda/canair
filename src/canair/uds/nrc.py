@@ -23,6 +23,32 @@ NRC_SERVICE_NOT_SUPPORTED: Final = 0x11
 #: code on UDS and KWP2000. The ECU sends its real answer later.
 NRC_RESPONSE_PENDING: Final = 0x78
 
+# The codes callers test, by their ISO 14229-1 name. The tables below stay literal, since they
+# are the data; tests/uds/test_uds_nrc.py pins every name to its table. A code that means
+# something else on KWP2000 also has a KWP_NRC_ name, so the code says which meaning it tests.
+NRC_SUB_FUNCTION_NOT_SUPPORTED: Final = 0x12
+NRC_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT: Final = 0x13
+NRC_BUSY_REPEAT_REQUEST: Final = 0x21
+NRC_CONDITIONS_NOT_CORRECT: Final = 0x22
+NRC_REQUEST_SEQUENCE_ERROR: Final = 0x24
+NRC_REQUEST_OUT_OF_RANGE: Final = 0x31
+NRC_SECURITY_ACCESS_DENIED: Final = 0x33
+NRC_GENERAL_PROGRAMMING_FAILURE: Final = 0x72
+NRC_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION: Final = 0x7E
+NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION: Final = 0x7F
+KWP_NRC_SUB_FUNCTION_NOT_SUPPORTED_OR_INVALID_FORMAT: Final = 0x12
+KWP_NRC_CONDITIONS_NOT_CORRECT_OR_REQUEST_SEQUENCE_ERROR: Final = 0x22
+KWP_NRC_TRANSFER_ABORTED: Final = 0x72
+KWP_NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_DIAGNOSTIC_SESSION: Final = 0x80
+
+#: "Not in this session", on either protocol: a session change can turn it into an answer.
+NOT_IN_ACTIVE_SESSION_NRCS: Final = frozenset(
+    {
+        NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
+        KWP_NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_DIAGNOSTIC_SESSION,
+    }
+)
+
 
 def is_response_pending(reply: bytes, sid: int | None = None) -> bool:
     """True when ``reply`` is a ResponsePending (``7F <sid> 78``), optionally for ``sid``."""

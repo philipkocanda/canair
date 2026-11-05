@@ -683,13 +683,13 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   overlays which signal maps each byte and flags `unmapped` ones). **Never convert a byte index by
   hand** — the mapping depends on the response's *length* (one vs two PCI bytes) and its *service*
   (header width and field order), which `bix` reads off the payload; the skill's byte-index
-  reference explains the trap. Code map: roles come from **`src/canair/uds/layout.py`** (a `response_SID
-  → [(role, width)]` table over the `src/canair/uds/services.py` registry, plus a
+  reference explains the trap. Code map: roles come from **`src/canair/uds/layout.py`** (a
+  `response_SID → [(role, width)]` table over the `src/canair/uds/services.py` registry, plus a
   `(response_SID, sub-function)` table for headers whose shape depends on the sub-function, such as
-  the `59 04` snapshot record; `layout_of(payload)` picks the right one), which also owns
-  **`SUBFUNCTION_NAMES`**, the single home for per-SID sub-function enums —
-  `src/canair/render/formatting.py::decode_uds_response` and `live/sessions_scan.py` both read it, and a test
-  cross-checks the two layout models.
+  the `59 04` snapshot record; `layout_of(payload)` picks the right one). Sub-function values live
+  once in **`src/canair/uds/subfunctions.py`**: the `IntEnum` constants code sends, and
+  **`SUBFUNCTION_NAMES`**, which `src/canair/uds/describe.py::decode_uds_response` and
+  `live/sessions_scan.py` read. A test cross-checks the two layout models.
 - **`canair config`** — View/manage user config (`~/.config/canair/config.yaml`): `show`, `example`
   (prints `config.example.yaml`, the authoritative fully-commented reference for every key), `path`,
   `get`, `set` (dotted keys create nested mappings; enum keys validated up front; unknown keys

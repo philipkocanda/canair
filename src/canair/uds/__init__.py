@@ -9,6 +9,8 @@ re-deriving them:
 * :mod:`~canair.uds.protocol` — which protocol an ECU speaks (``id_protocol`` → ``uds``/``kwp``).
 * :mod:`~canair.uds.services` — what each request SID means, per protocol family.
 * :mod:`~canair.uds.nrc` — negative response code names, per protocol.
+* :mod:`~canair.uds.subfunctions` — the sub-function and control-parameter values of each
+  service, and their names.
 * :mod:`~canair.uds.obd` — OBD-II facts beyond the service table.
 * :mod:`~canair.uds.response` / :mod:`~canair.uds.parse` / :mod:`~canair.uds.echo` — the
   parsed-response shape and outcome taxonomy, reading a transport's reply into it, and the

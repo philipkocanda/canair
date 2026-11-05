@@ -165,7 +165,7 @@ charter or move.
 | `uv run lint-imports` (`[tool.importlinter]` in `pyproject.toml`) | a wrong-way import, `argparse` or `textual` outside the interface, the protocol layer reaching a data store | pre-commit, CI |
 | `tests/contracts/test_structure.py` | a new root module, a module over the size limit, more deferred imports, more `ignore_imports` entries, a package without a charter, a test importing a test, more protocol bytes written as literals | `pytest`, CI |
 | `scripts/check/import_graph.py` | trend numbers: import cycles between packages, deferred imports, root modules, oversized modules | on request |
-| `scripts/check/protocol_literals.py` | each protocol byte (service ID, NRC, response marker, sub-function, canned request) written as a literal outside `uds/services.py` and `uds/nrc.py` | on request, and through `test_structure.py` |
+| `scripts/check/protocol_literals.py` | each protocol byte (service ID, NRC, response marker, sub-function, canned request) written as a literal outside `uds/services.py`, `uds/nrc.py` and `uds/subfunctions.py` | on request, and through `test_structure.py` |
 
 `make structure` runs the first two in a few seconds.
 

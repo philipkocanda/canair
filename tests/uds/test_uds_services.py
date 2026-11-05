@@ -1,12 +1,22 @@
 """Tests for canair.uds.services — the diagnostic service (SID) registry."""
 
+import re
+
 import pytest
 
+from canair.uds import services
 from canair.uds.services import (
     BOTH,
+    CONTROL_DTC_SETTING,
     KWP2000,
+    OBD2,
+    READ_DATA_BY_IDENTIFIER,
     RESPONSE_SID_OFFSET,
     SERVICES,
+    TESTER_PRESENT,
+    TESTER_PRESENT_REQUEST,
+    positive_response_sid,
+    request_sid_of,
     service_info,
     service_name,
     service_response_name,
@@ -140,3 +150,48 @@ class TestServiceResponseName:
 def test_registry_has_no_duplicate_sids():
     sids = [s.sid for s in SERVICES]
     assert len(sids) == len(set(sids))
+
+
+def _words(text: str) -> str:
+    return "".join(ch for ch in text.lower() if ch.isalnum())
+
+
+def _sid_constants() -> dict[str, int]:
+    skip = {"NEGATIVE_RESPONSE_SID", "RESPONSE_SID_OFFSET"}
+    return {
+        name: value
+        for name, value in vars(services).items()
+        if name.isupper() and type(value) is int and name not in skip
+    }
+
+
+def _registry_names(info) -> set[str]:
+    """Each alternative of a row's name, without its protocol tag: ``A (UDS) / B`` -> a, b."""
+    return {_words(re.sub(r"\(.*?\)", "", part)) for part in info.name.split(" / ")}
+
+
+@pytest.mark.parametrize(("name", "sid"), sorted(_sid_constants().items()))
+def test_every_sid_constant_names_its_registry_row(name, sid):
+    info = service_info(sid)
+    assert info is not None, f"{name} = 0x{sid:02X} is not in SERVICES"
+    bare = name.removeprefix("KWP_").removeprefix("OBD_")
+    assert _words(bare) in _registry_names(info), f"{name} does not name {info.name!r}"
+    if name.startswith("KWP_"):
+        assert info.family in (KWP2000, BOTH)
+    if name.startswith("OBD_"):
+        assert info.family == OBD2
+
+
+def test_every_registry_row_has_a_constant():
+    named = set(_sid_constants().values())
+    assert [f"0x{s.sid:02X}" for s in SERVICES if s.sid not in named] == []
+
+
+def test_positive_response_sid_round_trips():
+    assert positive_response_sid(READ_DATA_BY_IDENTIFIER) == 0x62
+    assert request_sid_of(0x62) == READ_DATA_BY_IDENTIFIER
+    assert positive_response_sid(CONTROL_DTC_SETTING) == 0xC5
+
+
+def test_tester_present_request_is_the_tester_present_service():
+    assert bytes.fromhex(TESTER_PRESENT_REQUEST) == bytes([TESTER_PRESENT, 0x00])

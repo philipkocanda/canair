@@ -17,6 +17,7 @@ protocol we keep the entry that matches how *this* project's ECUs actually use i
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
 
 # Protocol/family tags.
 UDS = "UDS"
@@ -146,9 +147,72 @@ SERVICES: tuple[ServiceInfo, ...] = (
 _BY_SID: dict[int, ServiceInfo] = {s.sid: s for s in SERVICES}
 
 # Negative-response marker (not a request service).
-NEGATIVE_RESPONSE_SID = 0x7F
+NEGATIVE_RESPONSE_SID: Final = 0x7F
 # Positive responses echo the request SID + this offset.
-RESPONSE_SID_OFFSET = 0x40
+RESPONSE_SID_OFFSET: Final = 0x40
+
+# The request SIDs by name, for code that sends or recognises one. The registry rows above stay
+# literal, since they are the table; tests/uds/test_uds_services.py pins every name to a row.
+# A KWP2000-only service has a KWP_ prefix and an OBD-II mode an OBD_ prefix. Where one byte is
+# a different service on each protocol, both names exist, so the code says which one it means.
+OBD_SHOW_CURRENT_DATA: Final = 0x01
+OBD_SHOW_FREEZE_FRAME_DATA: Final = 0x02
+OBD_SHOW_STORED_DTCS: Final = 0x03
+OBD_CLEAR_DTCS_AND_STORED_VALUES: Final = 0x04
+OBD_SHOW_PENDING_DTCS: Final = 0x07
+OBD_REQUEST_VEHICLE_INFORMATION: Final = 0x09
+OBD_SHOW_PERMANENT_DTCS: Final = 0x0A
+DIAGNOSTIC_SESSION_CONTROL: Final = 0x10
+ECU_RESET: Final = 0x11
+KWP_READ_FREEZE_FRAME_DATA: Final = 0x12
+KWP_READ_DTCS: Final = 0x13
+CLEAR_DIAGNOSTIC_INFORMATION: Final = 0x14
+KWP_READ_STATUS_OF_DTCS: Final = 0x17
+KWP_READ_DTC_BY_STATUS: Final = 0x18
+READ_DTC_INFORMATION: Final = 0x19
+KWP_READ_ECU_IDENTIFICATION: Final = 0x1A
+KWP_STOP_DIAGNOSTIC_SESSION: Final = 0x20
+KWP_READ_DATA_BY_LOCAL_IDENTIFIER: Final = 0x21
+READ_DATA_BY_IDENTIFIER: Final = 0x22
+READ_MEMORY_BY_ADDRESS: Final = 0x23
+KWP_STOP_REPEATED_DATA_TRANSMISSION: Final = 0x25
+KWP_SET_DATA_RATES: Final = 0x26
+SECURITY_ACCESS: Final = 0x27
+COMMUNICATION_CONTROL: Final = 0x28
+DYNAMICALLY_DEFINE_DATA_IDENTIFIER: Final = 0x2C
+WRITE_DATA_BY_IDENTIFIER: Final = 0x2E
+INPUT_OUTPUT_CONTROL_BY_IDENTIFIER: Final = 0x2F
+KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER: Final = 0x30
+ROUTINE_CONTROL: Final = 0x31
+KWP_START_ROUTINE_BY_LOCAL_IDENTIFIER: Final = 0x31
+KWP_STOP_ROUTINE_BY_LOCAL_IDENTIFIER: Final = 0x32
+KWP_REQUEST_ROUTINE_RESULTS_BY_LOCAL_IDENTIFIER: Final = 0x33
+REQUEST_DOWNLOAD: Final = 0x34
+REQUEST_UPLOAD: Final = 0x35
+TRANSFER_DATA: Final = 0x36
+REQUEST_TRANSFER_EXIT: Final = 0x37
+REQUEST_FILE_TRANSFER: Final = 0x38
+KWP_START_ROUTINE_BY_ADDRESS: Final = 0x38
+KWP_STOP_ROUTINE_BY_ADDRESS: Final = 0x39
+KWP_REQUEST_ROUTINE_RESULTS_BY_ADDRESS: Final = 0x3A
+KWP_WRITE_DATA_BY_LOCAL_IDENTIFIER: Final = 0x3B
+WRITE_MEMORY_BY_ADDRESS: Final = 0x3D
+TESTER_PRESENT: Final = 0x3E
+KWP_ESCAPE_CODE: Final = 0x80
+CONTROL_DTC_SETTING: Final = 0x85
+
+#: TesterPresent with a response (sub-function 0x00), as the hex text every sender passes.
+TESTER_PRESENT_REQUEST: Final = "3E00"
+
+
+def positive_response_sid(request_sid: int) -> int:
+    """The first byte of a positive reply to ``request_sid`` (``0x22`` -> ``0x62``)."""
+    return request_sid + RESPONSE_SID_OFFSET
+
+
+def request_sid_of(positive_sid: int) -> int:
+    """The request SID a positive reply's first byte answers (``0x62`` -> ``0x22``)."""
+    return positive_sid - RESPONSE_SID_OFFSET
 
 
 def service_info(sid: int) -> ServiceInfo | None:
@@ -176,6 +240,6 @@ def service_response_name(resp_sid: int) -> str | None:
         return "NegativeResponse"
     if resp_sid in _BY_SID:  # a request SID echoed verbatim (rare)
         return _BY_SID[resp_sid].name
-    request_sid = resp_sid - RESPONSE_SID_OFFSET
+    request_sid = request_sid_of(resp_sid)
     info = _BY_SID.get(request_sid)
     return f"{info.name} (response)" if info else None

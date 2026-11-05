@@ -2,7 +2,9 @@
 
 import pytest
 
+from canair.uds import nrc as nrc_module
 from canair.uds.nrc import (
+    NOT_IN_ACTIVE_SESSION_NRCS,
     NRC_ABBREV,
     NRC_CODES,
     is_response_pending,
@@ -122,3 +124,33 @@ class TestNameAndMnemonicAgree:
     def test_uds_does_not_borrow_kwp_mnemonics(self):
         assert nrc_abbrev(0x23, UDS) == "?"
         assert nrc_abbrev(0x23) == "RNC"
+
+
+def _words(text: str) -> str:
+    return "".join(ch for ch in text.lower() if ch.isalnum())
+
+
+def _constants(prefix: str) -> list[tuple[str, int]]:
+    return sorted(
+        (name, value)
+        for name, value in vars(nrc_module).items()
+        if name.startswith(prefix) and type(value) is int
+    )
+
+
+@pytest.mark.parametrize(("name", "code"), _constants("NRC_"))
+def test_every_uds_nrc_constant_names_its_code(name, code):
+    assert _words(name.removeprefix("NRC_")) in _words(NRC_CODES[code])
+
+
+@pytest.mark.parametrize(("name", "code"), _constants("KWP_NRC_"))
+def test_every_kwp_nrc_constant_names_its_code(name, code):
+    assert _words(name.removeprefix("KWP_NRC_")) in _words(nrc_description(code, KWP))
+
+
+def test_not_in_active_session_is_one_code_per_protocol():
+    names = {nrc_description(c, UDS if c in NRC_CODES else KWP) for c in NOT_IN_ACTIVE_SESSION_NRCS}
+    assert names == {
+        "serviceNotSupportedInActiveSession",
+        "serviceNotSupportedInActiveDiagnosticSession",
+    }

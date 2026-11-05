@@ -23,11 +23,10 @@ from canair.uds.layout import (
     ROLE_LID,
     ROLE_RID,
     ROLE_SF,
-    SUBFUNCTION_NAMES,
     response_layout,
-    subfunction_name,
 )
 from canair.uds.services import RESPONSE_SID_OFFSET, SERVICES, service_name
+from canair.uds.subfunctions import SUBFUNCTION_NAMES, subfunction_name
 
 
 def _decode(hex_: str) -> str | None:

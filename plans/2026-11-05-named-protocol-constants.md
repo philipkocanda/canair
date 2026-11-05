@@ -1,6 +1,6 @@
 # Named protocol constants: read every protocol byte from `canair.uds`
 
-Status: **PROPOSED** (2026-11-05). Phase 0 is done. Not user-facing: no command, flag, output or
+Status: **IN PROGRESS** (2026-11-05). Phases 0 and 1 are done; phase 2 is in progress. Not user-facing: no command, flag, output or
 profile changes, except where phase 3 names a behaviour change and asks first.
 
 ## Why
@@ -43,29 +43,34 @@ Three costs follow:
 
 Baseline at the start: **126 literals in 36 modules.**
 
-## Decisions to make before phase 1
+## Decisions (2026-11-05)
 
-| # | Question | Proposal |
+| # | Question | Decision |
 |---|---|---|
 | 1 | Name style for SIDs | The ISO service name in upper snake case: `READ_DATA_BY_IDENTIFIER`, `TESTER_PRESENT`. A KWP2000-only service gets a `KWP_` prefix (`KWP_READ_DATA_BY_LOCAL_IDENTIFIER`). Short forms such as `SID_22` say nothing a literal does not. |
 | 2 | Positive-response SIDs | One function, `positive_response_sid(sid)`, not a second constant per service. Module-level sets build from it (`{positive_response_sid(READ_DATA_BY_IDENTIFIER)}`). |
-| 3 | Home for sub-functions | A new module `uds/subfunctions.py`, one small namespace per service (`RoutineControl.START`, `IoControlParameter.RETURN_CONTROL_TO_ECU`, KWP `0x30` parameters, ReadDTCInformation report types, session modes). `uds/layout.py::SUBFUNCTION_NAMES` then builds from it, so the display names and the constants cannot disagree. The scanner adds it to `HOMES`. |
+| 3 | Home for sub-functions | A new module `uds/subfunctions.py`: one `IntEnum` per service, named after the standard (`RoutineControlType.START_ROUTINE`, `IoControlParameter.RETURN_CONTROL_TO_ECU`, `KwpIoControlParameter`, `DtcReportType`, `SessionType`, `KwpSessionType`). `SUBFUNCTION_NAMES` and `subfunction_name()` move there from `uds/layout.py` and stay a literal table, like decision 4; a test pins every member to the name the table gives its value, so the two cannot disagree. The scanner adds the module to `HOMES`. |
 | 4 | Do the registry rows use the constants? | No. `SERVICES` and the NRC tables stay literal: they *are* the data, and they read like the standard. A test asserts that every SID constant names a registry row and every NRC constant a row of its protocol's table. |
 | 5 | Canned requests | `TESTER_PRESENT_REQUEST = "3E00"` (and the suppressed `"3E80"` if a caller needs it) in `uds/services.py`, as hex text, because every caller passes hex text. |
 
-## Phase 1 — add the names (one commit, no caller changes)
+## Phase 1 — add the names (done, 2026-11-05)
 
-1. `uds/services.py`: a `Final` constant for each SID that a caller outside the homes uses, and
-   `positive_response_sid()` / `request_sid_of_response()`. Keep `RESPONSE_SID_OFFSET` and
-   `NEGATIVE_RESPONSE_SID`.
-2. `uds/nrc.py`: constants for the NRCs callers test — at least `0x12`, `0x13`, `0x22`, `0x31`,
-   `0x7E`, the UDS `0x7F` and the KWP2000 `0x80` — next to the two that exist. Add one set,
-   `WRONG_SESSION_NRCS` (UDS `0x7F`, KWP2000 `0x80`), because `transport/keepalive.py`,
-   `live/identity_decode.py` and the scans each restate "not in this session".
-3. `uds/subfunctions.py` (decision 3), and `SUBFUNCTION_NAMES` rebuilt from it.
-4. Tests in `tests/uds/`: each constant matches its registry or table row (decision 4).
+1. `uds/services.py`: a `Final` constant for every registry row (`KWP_`/`OBD_` prefixes per
+   decision 1, and both names where one byte is a different service on each protocol), plus
+   `positive_response_sid()`, `request_sid_of()` and `TESTER_PRESENT_REQUEST`.
+2. `uds/nrc.py`: constants for the NRCs callers test, a `KWP_NRC_` name where KWP2000 gives the
+   code another meaning (`0x12`, `0x22`, `0x72`, `0x80`), and `NOT_IN_ACTIVE_SESSION_NRCS`
+   (UDS `0x7F`, KWP2000 `0x80`).
+3. `uds/subfunctions.py` (decision 3).
+4. Tests: `tests/uds/test_uds_services.py`, `test_uds_nrc.py` and `test_uds_subfunctions.py`
+   pin each name to its registry or table row.
 
 The scanner count does not change in this phase.
+
+**Found while pinning:** `SUBFUNCTION_NAMES[0x30]` reuses the UDS `0x2F` names, but SSF
+14230-3 (the table `live/kwp_iocontrol_scan.py` cites) gives `0x01` reportCurrentState, not
+resetToDefault, and `0x04`-`0x09` other meanings again. A strict `xfail` in
+`test_uds_subfunctions.py` records it; phase 3 item 4 fixes it.
 
 ## Phase 2 — mechanical replacement (one package per commit)
 
@@ -110,6 +115,15 @@ behaviour change in its body. Ask the user before a change that alters output.
    Parse the reply into bytes and use `is_response_pending()` and a matching
    `is_negative_response(reply, sid, nrc)` in `uds/nrc.py`. Add a test with a positive reply
    that contains the old substring.
+
+4. **KWP2000 `0x30` names.** Name `0x30` values with `KwpIoControlParameter` instead of the UDS
+   table, and remove the `xfail`. This changes what `bix`/`decode_uds_response` print for a
+   KWP2000 IOControl reply, so ask first.
+5. **UDS-only codes on KWP2000 paths.** `live/kwp_routines_scan.py` and
+   `live/kwp_iocontrol_scan.py` test `0x7F` as "wrong session" and `0x24` as "exists", but
+   SSF 14230-3 leaves both reserved on KWP2000 (its "not in this session" is `0x80`). Phase 2
+   keeps the behaviour and names them with the UDS constants; decide here whether a KWP2000
+   scan should test the KWP2000 codes instead.
 
 ## Phase 4 — close the ratchet
 

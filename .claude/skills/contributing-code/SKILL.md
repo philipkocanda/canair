@@ -313,11 +313,12 @@ up** when a structural change is warranted instead of bolting on more.
   maintaining two.
 - **A protocol fact has one named home.** A service ID, response marker, NRC, sub-function,
   positive-response offset or canned request (`3E00`) is read by name from `src/canair/uds/`
-  (`services.py`, `nrc.py`), never re-declared as a module constant or compared as a bare
-  literal. `0x7F` is both the negative-response SID and an NRC, so a bare literal hides which one
-  the code means, and grep cannot find its users. If the name you need does not exist, add it
-  there. Literals stay where they *are* the data or the mask: the registry and NRC tables, bit
-  masks (`sub & 0x7F`), byte ranges, and test payloads. `make structure` holds the remaining
+  (`services.py`, `nrc.py`, `subfunctions.py`), never re-declared as a module constant or
+  compared as a bare literal. `0x7F` is both the negative-response SID and an NRC, so a bare
+  literal hides which one the code means, and grep cannot find its users. If the name you need
+  does not exist, add it there. Literals stay where they *are* the data or the mask: the
+  registry, NRC and sub-function tables, bit masks (`sub & 0x7F`), byte ranges, and test
+  payloads. `make structure` holds the remaining
   literals to a per-module ceiling (`scripts/check/protocol_literals.py` names the patterns); the
   migration of the existing sites is `plans/2026-11-05-named-protocol-constants.md`.
 - **When incremental changes compound complexity, propose a redesign** before adding another layer —

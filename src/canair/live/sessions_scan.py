@@ -31,9 +31,9 @@ from typing import NamedTuple
 from canair.safety.blocklist import SessionPolicy
 from canair.safety.quirks import allowed_session_modes
 from canair.transport.protocol import Terminal
-from canair.uds.layout import SUBFUNCTION_NAMES
 from canair.uds.protocol import KWP, classify_protocol
 from canair.uds.response import UdsResponse
+from canair.uds.subfunctions import SUBFUNCTION_NAMES
 
 # Human labels for the session sub-functions, from the shared table in
 # canair.uds.layout — the single home for these enums. Keeping a private copy here
