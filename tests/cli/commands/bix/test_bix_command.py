@@ -5,7 +5,8 @@ import argparse
 import pytest
 
 from canair.cli.commands import bix
-from canair.cli.commands.bix import convert, payload, rows, subfunction, table
+from canair.cli.commands.bix import convert, payload, subfunction, table
+from canair.expression import byte_rows as rows
 from canair.render import ansi
 
 

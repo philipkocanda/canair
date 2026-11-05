@@ -27,7 +27,8 @@ The implementation is split by concern, both halves re-exported here:
 
 Belongs: evaluating a WiCAN expression over response bytes, decoding typed values, and building
 expressions from byte positions (``notation``: the typed byte reference and the ``--notation``
-views; ``inspect_bytes``: the byte sweeps that propose candidate expressions).
+views; ``inspect_bytes``: the byte sweeps that propose candidate expressions;
+``byte_rows``: the byte-by-byte annotation of a response payload).
 Not here: where a response comes from (``transport/``) or which signals a profile defines (``ecus/``).
 Imports: ``uds`` and ``core`` only.
 """

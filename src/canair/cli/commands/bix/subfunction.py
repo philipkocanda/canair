@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+from canair.expression.byte_rows import WidthConflict, resolve_width
 from canair.uds.services import service_response_name
 
 from .payload import emit_warning
-from .rows import WidthConflict, resolve_width
 
 
 def resolve_sub_bytes(args) -> tuple[int, bool]:
     """Effective subfunction width and whether it was derived from ``--pid``.
 
-    The rule is :func:`.rows.resolve_width`; an explicit width that contradicts
+    The rule is :func:`canair.expression.byte_rows.resolve_width`; an explicit width that contradicts
     ``--pid`` is reported here, and still wins.
     """
     width = resolve_width(args.sub_bytes, getattr(args, "pid", None))

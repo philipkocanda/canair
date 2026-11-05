@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from canair.expression.byte_rows import annotate_rows, resolve_annotate_layout
 from canair.render import ansi, messages
 from canair.uds.byteindex import payload_to_wican_frame
 from canair.uds.layout import (
@@ -15,7 +16,6 @@ from canair.uds.services import service_response_name
 from canair.uds.support_map import MapDecl
 
 from .payload import parse_hex_payload, warn_payload_kind_mismatch
-from .rows import annotate_rows, resolve_annotate_layout
 from .subfunction import report_conflict
 from .table import pad
 
