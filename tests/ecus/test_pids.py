@@ -141,7 +141,7 @@ class TestPidStatusVocabulary:
 
     def test_schema_matches_the_literal(self):
         from canair.validation._common import SCHEMA_FILE
-        from canair.validation.pids import load_schema
+        from canair.validation.schema_fields import load_schema
 
         schema_statuses = load_schema(SCHEMA_FILE).get("valid_pid_status")
         assert schema_statuses, "pids_schema.yaml must declare valid_pid_status"

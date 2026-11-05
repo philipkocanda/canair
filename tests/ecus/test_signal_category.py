@@ -18,7 +18,8 @@ from canair.ecus.signal_category import (
     unit_category,
 )
 from canair.interop.autopid.classes import autopid_class
-from canair.validation.pids import load_schema, validate_ecu_file
+from canair.validation.ecu_file import validate_ecu_file
+from canair.validation.schema_fields import load_schema
 from canair.yaml_edit.pids import migrate_categories, upsert_parameter
 from canair.yaml_edit.pids.categories import convert
 

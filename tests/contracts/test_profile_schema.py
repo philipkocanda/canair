@@ -19,7 +19,7 @@ from canair.profile.scaffold import create_profile
 from canair.safety.quirks import KNOWN_QUIRKS
 from canair.transport.isotp_params import ISOTP_FIELDS
 from canair.uds.addressing import AddressingMode
-from canair.validation.pids import _ADDRESSING_FIELDS
+from canair.validation.addressing import ADDRESSING_FIELDS
 
 FIXTURE_PROFILES_DIR = Path(__file__).parents[1] / "fixtures" / "profiles"
 PROFILE_FILES = sorted(
@@ -60,7 +60,7 @@ def test_quirks_match_known_quirks():
 
 def test_addressing_matches_validator():
     addressing = PROPS["addressing"]
-    assert set(addressing["properties"]) == _ADDRESSING_FIELDS
+    assert set(addressing["properties"]) == ADDRESSING_FIELDS
     assert set(addressing["properties"]["mode"]["enum"]) == {m.value for m in AddressingMode}
 
 

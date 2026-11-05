@@ -9,5 +9,5 @@ checks), ``interop`` and ``transport`` (rules they own), ``uds``, ``expression``
 Never ``yaml_edit``, which imports this package, nor ``live`` or ``cli``.
 
 Known debt (plans/2026-11-04-package-layout-and-layering.md): the ``_run_*`` functions still
-print and return an exit code from here, and ``pids.py`` is over the size limit.
+print and return an exit code from here.
 """

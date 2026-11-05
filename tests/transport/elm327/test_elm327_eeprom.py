@@ -13,8 +13,8 @@ import yaml
 
 from canair.transport.elm327.eeprom import init_commands, ram_only, writes_eeprom
 from canair.transport.elm327.terminal import Elm327Terminal
+from canair.validation.cross_file import elm327_warnings
 from canair.validation.init_eeprom import init_eeprom_warnings
-from canair.validation.pids import _elm327_warnings
 
 
 class TestRamOnly:
@@ -236,5 +236,5 @@ class TestValidateWarning:
         ecus_dir = tmp_path / "ecus"
         ecus_dir.mkdir()
         (ecus_dir / "bms.yaml").write_text(yaml.safe_dump({"BMS": {"tx_id": 0x7E4}}))
-        (warning,) = _elm327_warnings(ecus_dir)
+        (warning,) = elm327_warnings(ecus_dir)
         assert warning.startswith("profile.yaml: init sends ATCV1240")

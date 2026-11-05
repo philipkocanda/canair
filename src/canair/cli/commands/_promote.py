@@ -30,7 +30,7 @@ def _reject_pci_reads(ecu: str, pid: str, name: str, expr: str) -> None:
     skips the framing byte (``(B7 << 8) | B9``) rather than a range spanning it
     (``[B7:B9]``).
     """
-    from canair.validation.pids import check_pci_bytes
+    from canair.validation.expressions import check_pci_bytes
     from canair.yaml_edit.pids import PidsEditError
 
     problems = check_pci_bytes(expr, name, pid, ecu)

@@ -298,13 +298,13 @@ class TestChecks:
         assert any("did you mean VCU" in e for e in errors)
 
     def test_one_signal_name_across_disjoint_revisions_is_allowed(self, copy):
-        from canair.validation.pids import _duplicate_param_errors
+        from canair.validation.cross_file import duplicate_param_errors
 
         files = sorted((copy / "ecus").glob("*.yaml"))
-        assert _duplicate_param_errors(files) == []
+        assert duplicate_param_errors(files) == []
         vcu = copy / "ecus" / "vcu.yaml"
         vcu.write_text(vcu.read_text().replace("      revisions: [uds]\n", "", 1))
-        assert any("VEHICLE_SPEED" in e for e in _duplicate_param_errors(files))
+        assert any("VEHICLE_SPEED" in e for e in duplicate_param_errors(files))
 
     def test_a_predicate_must_resolve_on_every_car(self, copy):
         from canair.states.refs import check_references_on_every_car

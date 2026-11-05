@@ -2,9 +2,11 @@
 
 import pytest
 
-from canair.validation import pids as validate_pids
-
-check_pci_bytes = validate_pids.check_pci_bytes
+from canair.validation.cross_file import duplicate_param_errors
+from canair.validation.ecu_file import validate_ecu_file
+from canair.validation.expressions import check_pci_bytes
+from canair.validation.pid_defs import _validate_param_type
+from canair.validation.schema_fields import load_schema
 
 
 def _warn(expr):
@@ -124,15 +126,15 @@ class TestDuplicateParamNames:
         return sorted(tmp_path.glob("*.yaml"))
 
     def test_flags_duplicate_shipped_name(self, tmp_path):
-        errs = validate_pids._duplicate_param_errors(self._write(tmp_path))
+        errs = duplicate_param_errors(self._write(tmp_path))
         assert any("SHARED" in e and "ECUB 2102" in e for e in errs)
 
     def test_ignores_when_second_pid_not_active(self, tmp_path):
-        errs = validate_pids._duplicate_param_errors(self._write(tmp_path, second_status="draft"))
+        errs = duplicate_param_errors(self._write(tmp_path, second_status="draft"))
         assert not errs
 
     def test_ignores_when_second_param_disabled(self, tmp_path):
-        errs = validate_pids._duplicate_param_errors(self._write(tmp_path, second_enabled=False))
+        errs = duplicate_param_errors(self._write(tmp_path, second_enabled=False))
         assert not errs
 
 
@@ -144,7 +146,7 @@ class TestRxIdValidation:
 
         p = tmp_path / "e.yaml"
         p.write_text(textwrap.dedent(body))
-        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
         return errors
 
     def test_valid_rx_id(self, tmp_path):
@@ -168,7 +170,7 @@ class TestWakeValidation:
 
         p = tmp_path / "e.yaml"
         p.write_text(textwrap.dedent(body))
-        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
         return errors
 
     def test_valid_wake_block(self, tmp_path):
@@ -211,7 +213,7 @@ class TestPeriodValidation:
             f"ECU:\n  tx_id: 0x745\n  pids:\n    2101:\n      status: draft\n"
             f"      period: {period}\n"
         )
-        errors, warnings, _ = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        errors, warnings, _ = validate_ecu_file(p, load_schema())
         return errors, warnings
 
     def test_zero_warns(self, tmp_path):
@@ -231,7 +233,7 @@ class TestSlowStatusNeedsAPeriod:
     def _errors(self, tmp_path, period_line: str):
         p = tmp_path / "e.yaml"
         p.write_text(f"ECU:\n  tx_id: 0x745\n  pids:\n    21F2:\n      status: slow\n{period_line}")
-        errors, _warnings, _ = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        errors, _warnings, _ = validate_ecu_file(p, load_schema())
         return errors
 
     def test_missing_period_is_an_error(self, tmp_path):
@@ -247,7 +249,7 @@ class TestOctalPidKey:
     def _errors(self, tmp_path, key: str) -> list[str]:
         p = tmp_path / "e.yaml"
         p.write_text(f"ECU:\n  tx_id: 0x7E0\n  pids:\n    {key}:\n      status: draft\n")
-        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
         return errors
 
     def test_unquoted_mode_01_key_is_an_error(self, tmp_path):
@@ -267,7 +269,7 @@ class TestIoControlValidation:
         p.write_text(
             f"ECU:\n  tx_id: 0x745\n{head}  iocontrol:\n    {key}:\n      label: x\n{entry}"
         )
-        errors, warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        errors, warnings, _stats = validate_ecu_file(p, load_schema())
         return errors, warnings
 
     def test_quoted_session_mode_is_valid(self, tmp_path):
@@ -292,7 +294,7 @@ class TestIoControlValidation:
             "ECU:\n  tx_id: 0x745\n  identity:\n    id_protocol: KWP2000\n  iocontrol:\n"
             '    BC01:\n      label: x\n      session_mode: "C0"\n'
         )
-        errors, warnings, _ = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        errors, warnings, _ = validate_ecu_file(p, load_schema())
         assert errors == []
         assert not any("session_mode" in w for w in warnings)
 
@@ -372,7 +374,7 @@ class TestAddressingModeValidation:
 
         p = tmp_path / "e.yaml"
         p.write_text(textwrap.dedent(body))
-        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
         return errors
 
     def test_29bit_tx_id_rejected_without_mode(self, tmp_path):
@@ -439,7 +441,7 @@ class TestTypedParamValidation:
     VALID = frozenset({"numeric", "enum", "bitmask", "ascii", "date", "bcd", "struct"})
 
     def _v(self, param):
-        return validate_pids._validate_param_type(param, "P", "2101", "ECU", self.VALID)
+        return _validate_param_type(param, "P", "2101", "ECU", self.VALID)
 
     def test_numeric_untyped_ok(self):
         assert self._v({"expression": "B3"}) == []
@@ -513,9 +515,9 @@ class TestCanBusValidation:
                 """
             )
         )
-        schema = validate_pids.load_schema()
+        schema = load_schema()
         profile = Profile(tmp_path.name, tmp_path)
-        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, schema, profile)
+        errors, _warnings, _stats = validate_ecu_file(p, schema, profile)
         return errors
 
     def test_valid_codes_ok(self, tmp_path):
@@ -555,7 +557,7 @@ class TestResponseFramesValidation:
             "        SOC:\n"
             "          expression: B09/2\n"
         )
-        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
         return errors
 
     def test_a_valid_count_passes(self, tmp_path):
@@ -603,7 +605,7 @@ class TestDuplicateKeys:
         (tmp_path / "ecus").mkdir()
         path = tmp_path / "ecus" / "vcu.yaml"
         path.write_text(doc)
-        errors, _, _ = validate_pids.validate_ecu_file(path, validate_pids.load_schema())
+        errors, _, _ = validate_ecu_file(path, load_schema())
         return errors
 
     def test_a_repeated_signal_is_an_error(self, tmp_path):

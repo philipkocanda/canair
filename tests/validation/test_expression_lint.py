@@ -7,7 +7,7 @@ import yaml
 
 from canair.expression import evaluate_expression
 from canair.expression.lint import firmware_grammar_problems, signed_low_bytes
-from canair.validation import pids as validate_pids
+from canair.validation.expressions import validate_expression
 
 
 class TestFlagsSignedLowByte:
@@ -63,7 +63,7 @@ def test_parse_shares_the_evaluator_grammar():
 
 
 def test_validate_reports_it_as_an_error_with_the_fix():
-    (msg,) = validate_pids.validate_expression("((S15 << 8) | S17)/10", "I", "2101", "BMS")
+    (msg,) = validate_expression("((S15 << 8) | S17)/10", "I", "2101", "BMS")
     assert "BMS/2101/I" in msg and "'S17'" in msg and "use 'B17'" in msg
 
 
@@ -112,7 +112,7 @@ class TestFirmwareGrammar:
         assert firmware_grammar_problems("((B1 << 8) |") == []
 
     def test_validate_names_the_signal(self):
-        from canair.validation.pids import firmware_expression_errors
+        from canair.validation.expressions import firmware_expression_errors
 
         (msg,) = firmware_expression_errors("[B0:B8]", "X", "2101", "BMS")
         assert "BMS/2101/X" in msg and "firmware v6" in msg

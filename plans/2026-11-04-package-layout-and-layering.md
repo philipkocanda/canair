@@ -699,7 +699,7 @@ edits a module.
    `uds/multi_did.py`.
 2. DONE, with debt. The validators are in `validation/` and `commands/validate/` is only the
    parser. Still open: the `_run_*` runners print and return exit codes from `validation/`;
-   `validation/pids.py` is 1,854 lines; `validation/pids.py` imports `yaml_edit` for one
+   `validation/pids.py` imports `yaml_edit` for one
    constant while `yaml_edit` imports `validation/`. Action planning moved to `actions/plan.py`.
 3. OPEN. The three `commands` → `cli.main` re-entries (inside the interface layer, so no
    contract depends on it).

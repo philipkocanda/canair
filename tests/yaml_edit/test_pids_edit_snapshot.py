@@ -9,7 +9,8 @@ import yaml
 from canair.cli.commands import pids as cli
 from canair.core.edit_errors import EditError
 from canair.ecus.pids import build_ecu_index, pid_ships, pid_swept
-from canair.validation import pids as validate_pids
+from canair.validation.ecu_file import validate_ecu_file
+from canair.validation.schema_fields import load_schema
 from canair.yaml_edit.pids import PidsEditError, set_snapshot_only
 
 YAML = """\
@@ -133,7 +134,7 @@ class TestValidation:
             "        A:\n"
             "          expression: B05\n"
         )
-        errors, _warnings, _stats = validate_pids.validate_ecu_file(p, validate_pids.load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
         return errors
 
     def test_a_valid_declaration_passes(self, tmp_path):
@@ -157,7 +158,7 @@ class TestValidation:
         assert any("service-22 DID key" in e for e in errs), errs
 
     def test_the_fields_are_known_to_the_schema(self):
-        fields = validate_pids.load_schema()["optional_pid_fields"]
+        fields = load_schema()["optional_pid_fields"]
         assert "snapshot_only" in fields and "snapshot_length" in fields
 
 

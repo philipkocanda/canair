@@ -6,7 +6,8 @@ import pytest
 import yaml
 
 from canair.validation.addressing import _init_commands, _init_protocol, addressing_warnings
-from canair.validation.pids import _elm327_warnings, _run_pids
+from canair.validation.cross_file import elm327_warnings
+from canair.validation.pids import _run_pids
 
 
 def _data(init: str = "ATSP6;ATS0;", **ecus) -> dict:
@@ -104,7 +105,7 @@ class TestInitProtocol:
 
 
 class TestThroughValidatePids:
-    """The warnings reach `validate pids` via `_elm327_warnings`."""
+    """The warnings reach `validate pids` via `elm327_warnings`."""
 
     def _profile(self, tmp_path: Path, init: str, ecus: dict) -> Path:
         (tmp_path / "profile.yaml").write_text(yaml.safe_dump({"car_model": "Car", "init": init}))
@@ -116,13 +117,13 @@ class TestThroughValidatePids:
 
     def test_warnings_come_from_the_profile_on_disk(self, tmp_path):
         ecus_dir = self._profile(tmp_path, "ATSP6;ATFCSM1;", {"OBD": {"tx_id": 0x7DF}})
-        warnings = _elm327_warnings(ecus_dir)
+        warnings = elm327_warnings(ecus_dir)
         assert len(warnings) == 2 and "ATFCSM1" in warnings[0]
 
-    def test_an_unparseable_file_yields_no_elm327_warnings(self, tmp_path):
+    def test_an_unparseable_file_yields_noelm327_warnings(self, tmp_path):
         ecus_dir = self._profile(tmp_path, "ATSP6;", {})
         (ecus_dir / "bad.yaml").write_text("BMS: [unclosed\n")
-        assert _elm327_warnings(ecus_dir) == []
+        assert elm327_warnings(ecus_dir) == []
 
     def test_run_pids_prints_them(self, tmp_path, monkeypatch, capsys):
         from canair.profile import profile_for_path

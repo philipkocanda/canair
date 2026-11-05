@@ -15,7 +15,9 @@ from canair.live.sessions_scan import (
     mode_sessions_scan,
     scan_ecu_sessions,
 )
-from canair.validation.pids import collect_pids_validation, load_schema, validate_ecu_file
+from canair.validation.ecu_file import validate_ecu_file
+from canair.validation.pids import collect_pids_validation
+from canair.validation.schema_fields import load_schema
 from canair.yaml_edit.pids import append_sessions_block
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import nrc as _nrc

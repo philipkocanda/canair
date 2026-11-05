@@ -40,7 +40,6 @@
     "canair.states": 987,
     "canair.transport.elm327.terminal": 835,
     "canair.uds.byteindex": 541,
-    "canair.validation.pids": 1848,
     "canair.variants.revisions": 770,
     "canair.yaml_edit.ecu": 527,
     "canair.yaml_edit.pids.hits": 522,
@@ -48,7 +47,7 @@
     "canair.yaml_edit.revisions": 560,
     "canair.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 1151,
+  "deferred_internal_imports": 1150,
   "import_linter_ignores": 0,
   "packages_without_charter": [],
   "test_to_test_imports": [],

@@ -111,7 +111,7 @@ def _slug(name: str) -> str:
 
 
 def _allowed_identity_fields() -> set[str]:
-    from canair.validation.pids import load_schema
+    from canair.validation.schema_fields import load_schema
 
     schema = load_schema()
     ident = schema.get("identity_fields", {}) or {}

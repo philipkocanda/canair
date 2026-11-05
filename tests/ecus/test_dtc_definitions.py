@@ -9,7 +9,8 @@ import pytest
 from canair.ecus.dtc_definitions import effective_entries, is_dtc_code, split_section
 from canair.ecus.pids import load_pids
 from canair.interop.explorer.export import _dtc_records
-from canair.validation.pids import load_schema, validate_ecu_file
+from canair.validation.ecu_file import validate_ecu_file
+from canair.validation.schema_fields import load_schema
 
 ECU = """\
 ESC:
