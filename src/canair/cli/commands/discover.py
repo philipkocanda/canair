@@ -8,6 +8,16 @@ from collections.abc import Mapping
 
 from canair.cli.live import add_connection_args, run_live
 from canair.cli.live.handlers import scans
+from canair.cli.live.handlers.ranges import parse_range
+from canair.ecus.pids import load_pids
+from canair.live.discover import discovery_targets, fmt_id
+from canair.profile import ProfileError
+from canair.uds.addressing import (
+    DEFAULT_MODE,
+    AddressingMode,
+    functional_request_id,
+    resolve_mode,
+)
 
 NAME = "discover"
 ALIASES = ["disc"]
@@ -53,7 +63,8 @@ functional requests:
         "--range",
         metavar="START-END",
         default=None,
-        help="Address range (default: 700-7EF for 11-bit, 00-FF for 29-bit target bytes)",
+        help="Address range (default: 700-7EF for 11-bit, 00-FF for 29-bit target bytes). "
+        "The functional id 0x7DF is skipped; --functional sends on it",
     )
     parser.add_argument(
         "--delay", type=float, default=0.2, help="Delay between probes in seconds (default 0.2)"
@@ -160,11 +171,8 @@ def functional_args_error(args) -> str | None:
 
 def _profile_error() -> str | None:
     """Why the profile rules out a functional sweep (its addressing or CAN-FD), or None."""
-    from canair.ecus.pids import load_pids
-    from canair.profile import ProfileError
     from canair.transport.functional import CAN_FD_REFUSAL, classic_can
     from canair.transport.isotp_params import build_isotp_params
-    from canair.uds.addressing import AddressingMode, resolve_mode
 
     try:
         pids_data = load_pids()
@@ -184,8 +192,32 @@ def _profile_error() -> str | None:
     return None
 
 
+def _range_error(args) -> str | None:
+    """Why ``--range`` leaves the physical sweep nothing to probe, or None.
+
+    Checked before connecting, so a bad range costs no connection. Only the functional id can
+    empty a range, as :func:`canair.live.discover.discovery_targets` leaves it out.
+    """
+    if getattr(args, "functional", False) or args.range is None:
+        return None
+    try:
+        addr_range = parse_range(args.range)
+    except argparse.ArgumentTypeError as e:
+        return str(e)
+    try:
+        mode = resolve_mode(load_pids())
+    except ProfileError:
+        mode = DEFAULT_MODE
+    if discovery_targets(addr_range, mode):
+        return None
+    return (
+        f"--range {args.range} holds only {fmt_id(functional_request_id(mode))}, the functional "
+        "id, which the physical sweep skips; use --functional to send on it"
+    )
+
+
 def run(args) -> int:
-    error = functional_args_error(args)
+    error = functional_args_error(args) or _range_error(args)
     if error is None and getattr(args, "functional", False):
         error = _profile_error()
     if error is not None:

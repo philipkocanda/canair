@@ -10,7 +10,12 @@ from canair.core.prompt import confirm
 from canair.render import ansi
 from canair.render.glyphs import ELLIPSIS
 from canair.render.paint import INDENT, Cell, Painter, column_widths, render_row
-from canair.uds.addressing import DEFAULT_MODE, AddressingMode, is_extended
+from canair.uds.addressing import (
+    DEFAULT_MODE,
+    AddressingMode,
+    functional_request_id,
+    is_extended,
+)
 from canair.uds.services import DEFAULT_SESSION_REQUEST
 
 from ..transport.protocol import Terminal
@@ -32,17 +37,24 @@ def discovery_targets(
     mode: AddressingMode = DEFAULT_MODE,
     tester: int = DEFAULT_TESTER_ADDRESS,
 ) -> list[int]:
-    """Build the list of request (TX) arbitration ids to probe.
+    """Build the list of physical request (TX) arbitration ids to probe.
 
     For 11-bit modes the range is swept directly as arbitration ids. For 29-bit
     modes the range is interpreted as *target-address bytes* and each is formed
     into a physical diagnostic request id ``0x18DA{target}{tester}`` (normal-fixed
     convention) — so ``--range 00-FF`` sweeps every ECU address.
+
+    The functional id (``0x7DF``, inside the default 11-bit range) is left out: it
+    addresses every ECU at once, the safety guard refuses the ``10 01`` probe on it,
+    and ``discover --functional`` is the sweep that uses it.
     """
     start, end = addr_range
     if is_extended(mode):
-        return [0x18DA0000 | (target << 8) | tester for target in range(start, end + 1)]
-    return list(range(start, end + 1))
+        ids = [0x18DA0000 | (target << 8) | tester for target in range(start, end + 1)]
+    else:
+        ids = list(range(start, end + 1))
+    functional = functional_request_id(mode)
+    return [tx_id for tx_id in ids if tx_id != functional]
 
 
 def _alive_row(tx_id: int, rx_id: int, name: str | None, status: str, detail: str) -> list[Cell]:
@@ -97,6 +109,9 @@ async def mode_discover(
             (skips the interactive prompt). When unset, offer interactively.
     """
     tx_ids = discovery_targets(addr_range, mode, tester)
+    functional_id = functional_request_id(mode)
+    if not tx_ids:
+        raise ValueError(f"the range holds only the functional id {fmt_id(functional_id)}")
     total = len(tx_ids)
     start, end = addr_range
 
@@ -118,6 +133,8 @@ async def mode_discover(
         ("probe", "10 01 (default session request)"),
         ("delay", f"{delay}s between addresses"),
     ]
+    if not is_extended(mode) and start <= functional_id <= end:
+        settings.append(("skips", f"{fmt_id(functional_id)}, the functional id (see --functional)"))
     say("\n".join(paint.fields(settings)))
     say()
 
