@@ -55,7 +55,6 @@
   "protocol_literals": {
     "canair.cli.commands.coverage.payloads": 2,
     "canair.live.skm_wakeup": 4,
-    "canair.live.tester": 1,
-    "canair.uds.describe": 20
+    "canair.live.tester": 1
   }
 }

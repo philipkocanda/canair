@@ -11,11 +11,9 @@ response — was unrecognised.
 it asserts each branch names the service the response SID actually belongs to.
 """
 
-import inspect
-import re
-
 import pytest
 
+from canair.uds import describe
 from canair.uds.describe import decode_uds_response
 from canair.uds.layout import (
     ROLE_CTRL,
@@ -25,7 +23,7 @@ from canair.uds.layout import (
     ROLE_SF,
     response_layout,
 )
-from canair.uds.services import RESPONSE_SID_OFFSET, SERVICES, service_name
+from canair.uds.services import RESPONSE_SID_OFFSET, SERVICES, positive_response_sid, service_name
 from canair.uds.subfunctions import SUBFUNCTION_NAMES, subfunction_name
 
 
@@ -275,15 +273,13 @@ class TestCrossCheckedAgainstUdsLayout:
     def test_every_decoded_response_sid_has_a_layout(self):
         """Total, self-maintaining version of the check above.
 
-        The set of response SIDs is read out of ``decode_uds_response`` itself, so
-        adding a branch there without a matching ``uds_layout`` entry fails here —
-        no hand-maintained list to forget. The exemptions are services whose header
+        The set of response SIDs is the describer table itself, so adding a
+        describer without a matching ``uds_layout`` entry fails here — no
+        hand-maintained list to forget. The exemptions are services whose header
         is genuinely variable-length or absent (documented in ``_RESPONSE_FIELDS``).
         """
         variable_or_headerless = {0x63, 0x74, 0x75, 0x76, 0x77}
-        src = inspect.getsource(decode_uds_response)
-        decoded = {int(m, 16) for m in re.findall(r"sid == (0x[0-9A-Fa-f]{2})", src)}
-        assert decoded, "could not extract any response SIDs — did the source change?"
+        decoded = set(describe._DESCRIBERS)
         missing = sorted(
             sid for sid in decoded - variable_or_headerless if response_layout(sid) is None
         )
@@ -371,3 +367,13 @@ class TestFirmwareTransferBlockSize:
             assert decoded is not None
             assert decoded.startswith("WARNING:")
             assert word in decoded
+
+
+@pytest.mark.parametrize("sid", sorted(describe._BY_SERVICE), ids=lambda s: f"0x{s:02X}")
+def test_each_described_service_needs_its_shortest_reply(sid):
+    """A reply as short as the describer can read is described, and one byte less is not."""
+    shortest, _ = describe._BY_SERVICE[sid]
+    reply = bytes([positive_response_sid(sid)]) + bytes(range(1, 8))
+    assert decode_uds_response(reply[:shortest]) is not None
+    if shortest > 1:
+        assert decode_uds_response(reply[: shortest - 1]) is None
