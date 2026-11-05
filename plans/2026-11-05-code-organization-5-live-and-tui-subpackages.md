@@ -1,6 +1,7 @@
 # Code organization, part 5: sub-packages in `live/` and `tui/apps/`
 
-Status: **PROPOSED** (2026-11-05). Part of
+Status: **IN PROGRESS** (2026-11-05): `live/identity`, `elm`, `discover`, `actuate`, `scan` done;
+`read`, `monitor` and the `tui/apps` sub-packages follow. Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 2
 (hoisted imports make a move safer). This is left-over item 4 of
 `plans/2026-11-04-package-layout-and-layering.md`, with the layout of its section 4.
@@ -134,3 +135,16 @@ Order, smallest first, so the procedure is proven before the large families:
   family on a quiet tree, and check with the user before the `monitor` and `read` commits.
 - **Sub-plan 6 changes the monitor.** Do the `live/monitor/` move first, then the split.
   Splitting first would book every rename twice.
+
+## As built (in progress)
+
+- The codemod is a script outside the repo (`codemods/p5/codemod.py`): it rewrites absolute and
+  relative imports, `from pkg import module` forms and dotted strings in one pass, then moves the
+  files. `scripts/refactor/move_symbols.py rename-module` cannot do a family at once, because
+  `monitor` to `monitor.controller` would rewrite the new names again.
+- `live/` held seven modules the plan did not list. They went to: `_not_found`, `iocontrol_list`,
+  `routines_list`, `routines_execute` to `actuate/` (`not_found`, ...), `multi_json` to `read/`,
+  and `progress_line` (printed through by discover, scan and tester) to `render/progress.py`
+  beside `render/discover.py`.
+- Tests that span several families (`test_json_hygiene`, `test_oneshot_save_provenance`,
+  `test_sweep_markers`, ...) stay in `tests/live/`.
