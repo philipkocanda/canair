@@ -53,6 +53,8 @@ def test_classify():
     assert classify({"ok": False, "nrc": 0x24})[0] == "exists"  # never run yet
     assert classify({"ok": False, "nrc": 0x22})[0] == "exists"
     assert classify({"ok": False, "nrc": 0x7F}) == ("wrong-session", 0x7F)
+    # KWP2000's own "not in this session": never a hit on every LID.
+    assert classify({"ok": False, "nrc": 0x80}) == ("wrong-session", 0x80)
     assert classify({"ok": False, "error": "timeout"}) == ("error", None)
 
 

@@ -30,20 +30,19 @@ from canair.transport.protocol import Terminal
 from canair.uds.nrc import (
     KWP_NRC_CONDITIONS_NOT_CORRECT_OR_REQUEST_SEQUENCE_ERROR,
     KWP_NRC_TRANSFER_ABORTED,
+    NOT_IN_ACTIVE_SESSION_NRCS,
     NRC_REQUEST_OUT_OF_RANGE,
-    NRC_REQUEST_SEQUENCE_ERROR,
     NRC_RESPONSE_PENDING,
     NRC_SECURITY_ACCESS_DENIED,
     NRC_SERVICE_NOT_SUPPORTED,
-    NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
 )
 from canair.uds.response import UdsResponse
 from canair.uds.services import KWP_REQUEST_ROUTINE_RESULTS_BY_LOCAL_IDENTIFIER
 
-# NRCs that still indicate "routine local identifier exists"
+# NRCs that still indicate "routine local identifier exists". Any NRC not named in classify()
+# counts as a hit too, so 0x24 (requestSequenceError on UDS, reserved by SSF 14230-3) still is.
 NRC_EXISTS_HINTS = {
     KWP_NRC_CONDITIONS_NOT_CORRECT_OR_REQUEST_SEQUENCE_ERROR,  # present, preconditions unmet
-    NRC_REQUEST_SEQUENCE_ERROR,  # present, never started (no results yet)
     NRC_SECURITY_ACCESS_DENIED,  # present, locked
     KWP_NRC_TRANSFER_ABORTED,  # present, error state
     NRC_RESPONSE_PENDING,
@@ -97,7 +96,9 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
     nrc = response.get("nrc")
     if nrc is None:
         return "error", None
-    if nrc == NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION:
+    # KWP2000 says "not in this session" with 0x80; the UDS 0x7F is kept for ECUs that mix
+    # the two. Read as "exists", 0x80 would record every LID as a hit.
+    if nrc in NOT_IN_ACTIVE_SESSION_NRCS:
         return "wrong-session", nrc
     if nrc == NRC_SERVICE_NOT_SUPPORTED:  # the ECU has no 0x33: abort
         return "service-absent", nrc
