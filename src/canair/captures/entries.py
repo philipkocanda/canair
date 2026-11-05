@@ -1,7 +1,7 @@
 """Helpers over flat capture entries: JSON shaping, keying, dedup, and grouping into sessions.
 
 The data layer the ``captures`` command's views and the capture stepper
-(``captures uds --step``) share. An entry is a row of
+(:mod:`canair.tui.apps.captures_step`) share. An entry is a row of
 :func:`canair.captures.store.load_all_captures`; nothing here reads files or prints.
 """
 

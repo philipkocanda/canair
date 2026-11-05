@@ -10,8 +10,8 @@
     "canair.captures.journal": 552,
     "canair.captures.store": 548,
     "canair.cli.commands.bix": 1049,
-    "canair.cli.commands.captures.step_model": 809,
-    "canair.cli.commands.captures.step_tui": 681,
+    "canair.tui.apps.captures_step_model": 809,
+    "canair.tui.apps.captures_step": 681,
     "canair.cli.commands.captures.uds": 524,
     "canair.cli.commands.config": 604,
     "canair.cli.commands.contribute": 721,
@@ -49,7 +49,7 @@
     "canair.yaml_edit.text": 779
   },
   "deferred_internal_imports": 1154,
-  "import_linter_ignores": 1,
+  "import_linter_ignores": 0,
   "packages_without_charter": [
     "canair.cli.commands.coverage",
     "canair.cli.commands.import_uds",

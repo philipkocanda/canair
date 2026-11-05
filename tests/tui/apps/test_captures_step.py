@@ -15,7 +15,7 @@ from rich.console import Console
 from textual.containers import VerticalScroll
 
 from canair.cli.commands.captures.step import cmd_step
-from canair.cli.commands.captures.step_model import (
+from canair.tui.apps.captures_step_model import (
     AUTO_STACK_MAX_KEYS,
     BLOCK_NO_FRAME,
     BLOCK_NON_PAYLOAD,
@@ -29,7 +29,7 @@ from canair.cli.commands.captures.step_model import (
     StepModel,
     resolve_view,
 )
-from canair.cli.commands.captures.step_render import capture_block_text
+from canair.tui.apps.captures_step_render import capture_block_text
 from tests.support.step_model import PARAMS, _entry, _three_pid_entries
 from tests.support.step_model import model as _model
 
@@ -514,7 +514,7 @@ class TestCapturesStepApp:
     """The Textual shell. Model behavior is covered above; these drive the keys."""
 
     def _app(self, **kw):
-        from canair.cli.commands.captures.step_tui import CapturesStepApp
+        from canair.tui.apps.captures_step import CapturesStepApp
 
         return CapturesStepApp(_model(**kw))
 
@@ -611,7 +611,7 @@ class TestCapturesStepApp:
     @pytest.mark.asyncio
     async def test_help_lists_the_framework_scroll_keys(self):
         """Home/End have no Binding to derive a row from, so they're declared."""
-        from canair.cli.commands.captures.step_tui import CapturesStepApp
+        from canair.tui.apps.captures_step import CapturesStepApp
 
         rows = dict(CapturesStepApp.HELP_EXTRA_ROWS)
         assert "top / bottom of this frame" in rows.values()
@@ -807,7 +807,7 @@ class TestCapturesStepAppEdits:
 
     def _app(self, tmp_path):
         from canair.cli.commands.captures.step import build_model
-        from canair.cli.commands.captures.step_tui import CapturesStepApp
+        from canair.tui.apps.captures_step import CapturesStepApp
 
         entries = _write_captures(tmp_path)
         model = build_model(entries, "BMS", captures_dir=tmp_path, warn=False)
@@ -1171,13 +1171,13 @@ class TestEmptyReason:
 
 class TestJumpModal:
     def _open(self, model=None):
-        from canair.cli.commands.captures.step_tui import CapturesStepApp
+        from canair.tui.apps.captures_step import CapturesStepApp
 
         return CapturesStepApp(model or _jump_model())
 
     @pytest.mark.asyncio
     async def test_s_opens_the_modal_listing_sessions_and_notes(self):
-        from canair.cli.commands.captures.step_tui import JumpModal
+        from canair.tui.apps.captures_step import JumpModal
 
         app = self._open()
         async with app.run_test(size=(130, 40)) as pilot:
@@ -1211,7 +1211,7 @@ class TestJumpModal:
             await pilot.pause()
             await pilot.press("s")
             await pilot.pause()
-            from canair.cli.commands.captures.step_tui import _JUMP_ROW_WIDTH
+            from canair.tui.apps.captures_step import _JUMP_ROW_WIDTH
 
             for t in app.screen._shown:
                 assert len(app.screen._row(t).plain) <= _JUMP_ROW_WIDTH

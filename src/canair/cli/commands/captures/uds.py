@@ -105,6 +105,12 @@ from canair.cli.commands._notation import add_notation_arg, resolve_notation
 from canair.cli.commands._scope import add_scope_args, resolve_scope_bounds
 from canair.render import ansi
 from canair.states import format_state_selector
+from canair.tui.apps.captures_step_model import (
+    AUTO_STACK_MAX_KEYS,
+    DEFAULT_STEP_JOIN_TOL_S,
+    VIEW_AUTO,
+    VIEW_CHOICES,
+)
 
 from .backfill import cmd_backfill_states
 from .backfill_spans import cmd_backfill_state_spans
@@ -118,12 +124,6 @@ from .session_fields import cmd_set_notes, cmd_set_transport, cmd_set_variant, k
 from .sessions import cmd_sessions, cmd_summary
 from .set_state import cmd_set_state
 from .step import cmd_step
-from .step_model import (
-    AUTO_STACK_MAX_KEYS,
-    DEFAULT_STEP_JOIN_TOL_S,
-    VIEW_AUTO,
-    VIEW_CHOICES,
-)
 
 
 def _add_uds_parser(kinds) -> argparse.ArgumentParser:

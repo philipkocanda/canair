@@ -138,7 +138,7 @@ def test_same_action_key_across_apps():
     the same thing in every view, and a derived assertion would happily pass on a
     keymap that had been renamed out from under the user.
     """
-    from canair.cli.commands.captures.step_tui import CapturesStepApp
+    from canair.tui.apps.captures_step import CapturesStepApp
     from canair.tui.apps.decode_plot import PlotApp
     from canair.tui.apps.monitor import MonitorApp
 

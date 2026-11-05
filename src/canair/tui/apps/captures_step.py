@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Textual TUI for ``canair captures --step`` — the capture stepper/comparator.
 
-A thin shell over :class:`~canair.cli.commands.captures.step_model.StepModel`, which
+A thin shell over :class:`~canair.tui.apps.captures_step_model.StepModel`, which
 owns all state and renders the frame. The app contributes only interaction:
 
 - frame navigation, plus **scrolling** (a stacked multi-PID frame is routinely
@@ -38,10 +38,10 @@ from canair.tui.scroll import reveal_marker
 from canair.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 from canair.tui.widgets import CheckSelectionList
 
-from .step_render import key_label
+from .captures_step_render import key_label
 
 if TYPE_CHECKING:
-    from .step_model import JumpList, JumpTarget, StepModel
+    from .captures_step_model import JumpList, JumpTarget, StepModel
 
 Key = tuple[str, str]
 
@@ -473,7 +473,7 @@ class CapturesStepApp(HelpMixin, App):
         self._refresh()
 
     def action_page(self, direction: int) -> None:
-        from .step_model import PAGE_JUMP
+        from .captures_step_model import PAGE_JUMP
 
         self.action_advance(PAGE_JUMP * direction)
 

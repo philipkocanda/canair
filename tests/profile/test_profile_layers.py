@@ -37,6 +37,8 @@ CAPTURES_CMD = (
     Path(__file__).resolve().parents[2] / "src" / "canair" / "cli" / "commands" / "captures"
 )
 CANLIB_CMD = CAPTURES_CMD.parent
+# The capture stepper edits notes and deletes captures from its Textual app.
+TUI_APPS = CAPTURES_CMD.parents[2] / "tui" / "apps"
 
 # Anything referencing one of these rewrites a capture file, so it owes the
 # base-layer check. Discovering the modules beats listing them: the list cannot go
@@ -52,11 +54,12 @@ _CAPTURE_WRITERS = (
     "set_session_state_spans",
     "set_session_transport",
 )
-_MUTATING_CAPTURE_MODULES = {
-    p.name
-    for p in CAPTURES_CMD.glob("*.py")
+_MUTATING_CAPTURE_PATHS = {
+    p.name: p
+    for p in (*CAPTURES_CMD.glob("*.py"), *TUI_APPS.glob("*.py"))
     if any(re.search(rf"\b{w}\b", p.read_text()) for w in _CAPTURE_WRITERS)
 }
+_MUTATING_CAPTURE_MODULES = set(_MUTATING_CAPTURE_PATHS)
 
 
 @pytest.fixture(autouse=True)
@@ -539,7 +542,7 @@ class TestBaseLayerMutationsAreRefused:
         hand-maintained, so adding a capture-mutating command fails this test until
         it consults the policy.
         """
-        src = (CAPTURES_CMD / module).read_text()
+        src = _MUTATING_CAPTURE_PATHS[module].read_text()
         # session_gate.refuse_write wraps layers.refusal for the metadata editors.
         policy_calls = ("layers.refusal(", "layers.read_only_files(", "refuse_write(")
         assert any(call in src for call in policy_calls), (
@@ -560,7 +563,7 @@ class TestBaseLayerMutationsAreRefused:
             "maint.py",
             "session_fields.py",
             "set_state.py",
-            "step_tui.py",
+            "captures_step.py",
         }
 
 
