@@ -30,15 +30,16 @@ OLD, NEW = "ev6-2022", "kia-ev6-cv-ev"
 
 @pytest.fixture(autouse=True)
 def _isolate_profile_state():
-    from canair import config, profile
+    from canair import profile
+    from canair.config import file as config_file
 
     profile._active = None
     profile._noted_renames.clear()
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     yield
     profile._active = None
     profile._noted_renames.clear()
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 @pytest.fixture

@@ -20,8 +20,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Sequence
 
-from canair import config
 from canair.captures.link_events import DisconnectCause
+from canair.config import transport as config_transport
 from canair.core.eventlog import log_event
 from canair.expression.results import ResultEntry
 
@@ -173,7 +173,7 @@ class MonitorHealth:
         for ecu in polled:
             self.unanswered[ecu] = self.unanswered.get(ecu, 0) + 1
         self.dead_cycles = min(self.unanswered.get(ecu, 0) for ecu in live | polled)
-        limit = config.stale_cycles_before_reconnect()
+        limit = config_transport.stale_cycles_before_reconnect()
         if limit <= 0 or self.dead_cycles < limit:
             return
         log_event(

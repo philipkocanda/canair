@@ -14,7 +14,7 @@ from __future__ import annotations
 import sys
 
 from canair.analysis.physical.grid_regions import GRID_REGIONS
-from canair.config import get_config_key, set_config_key
+from canair.config.file import get_config_key, set_config_key
 from canair.render import messages
 from canair.yaml_edit.echo import echo_edit
 

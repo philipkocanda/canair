@@ -31,7 +31,7 @@ def cmd_default(args) -> int:
 
 def cmd_pick(args) -> int:
     """Interactive arrow-key profile picker → set default_profile."""
-    from canair.config import set_config_value
+    from canair.config.file import set_config_value
     from canair.tui import select_from_list
 
     profiles = selectable_profiles(getattr(args, "profiles_dir", None))
@@ -71,7 +71,7 @@ def cmd_pick(args) -> int:
     )
     variant = choose_variant(name, getattr(args, "profiles_dir", None), None)
     if variant:
-        from canair.config import set_config_key
+        from canair.config.file import set_config_key
 
         set_config_key(f"profile_settings.{name}.variant", variant)
         what += f", variant = {variant}"

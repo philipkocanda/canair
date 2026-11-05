@@ -22,7 +22,9 @@ import os
 from pathlib import Path
 from typing import ClassVar
 
-from canair import config, profile
+from canair import profile
+from canair.config import file as config_file
+from canair.core.paths import config_dir
 
 
 class TestUserConfigIsolation:
@@ -35,7 +37,7 @@ class TestUserConfigIsolation:
         )
 
     def test_resolved_config_dir_is_not_the_developers(self):
-        assert config.config_dir().resolve() != (Path.home() / ".config" / "canair").resolve()
+        assert config_dir().resolve() != (Path.home() / ".config" / "canair").resolve()
 
     # Keys canair legitimately writes into the config *itself* during a run, as
     # one-shot markers rather than user settings. `grid_region_prompted` is
@@ -53,7 +55,7 @@ class TestUserConfigIsolation:
         happen is any other setting — that would mean the developer's own file (or a
         leaked write) is steering the suite.
         """
-        path = config.user_config_file()
+        path = config_file.user_config_file()
         if not path.exists():
             return
         active = [
@@ -67,11 +69,11 @@ class TestUserConfigIsolation:
         assert active == [], f"pinned config has real settings: {active}"
 
     def test_load_config_sees_no_user_settings(self):
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         try:
-            cfg = config.load_config()
+            cfg = config_file.load_config()
         finally:
-            config.load_config.cache_clear()
+            config_file.load_config.cache_clear()
         # A developer's real `default_profile`, `devices`, or `transport` block
         # must not leak into the suite. (The seeded starter config is entirely
         # commented out, so this holds whether or not it has been written.)
@@ -102,14 +104,14 @@ class TestNoEagerConfigReadAtImportTime:
         import importlib
 
         called: list[str] = []
-        real_load = config.load_config.__wrapped__  # bypass the lru_cache
+        real_load = config_file.load_config.__wrapped__  # bypass the lru_cache
 
         def spy():
             called.append("load_config")
             return real_load()
 
-        config.load_config.cache_clear()
-        monkeypatch.setattr(config, "load_config", spy)
+        config_file.load_config.cache_clear()
+        monkeypatch.setattr(config_file, "load_config", spy)
 
         # Re-import the modules that previously resolved a config-backed default
         # at module scope.
@@ -153,7 +155,7 @@ class TestNoEagerConfigReadAtImportTime:
             assert not hasattr(canair, name), f"canair.{name} should be gone"
 
     def test_the_typed_accessors_work_and_are_typed(self):
-        from canair.config import default_wican, wican_addresses
+        from canair.config.devices import default_wican, wican_addresses
 
         addresses = wican_addresses()
         assert isinstance(addresses, dict)

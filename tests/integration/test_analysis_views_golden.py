@@ -117,7 +117,7 @@ def _deterministic_grid_region(tmp_path, monkeypatch):
     "no grid_region set" note and records a sentinel in the user config — making
     output depend on which test scanned first.
     """
-    from canair import config
+    from canair.config import file as config_file
 
     cfg = tmp_path / "canair"
     cfg.mkdir(parents=True, exist_ok=True)
@@ -126,9 +126,9 @@ def _deterministic_grid_region(tmp_path, monkeypatch):
         "grid_region: EU\nprofile_settings:\n  hyundai-ioniq-ae-ev:\n    variant: 28kwh\n"
     )
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     yield
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 @pytest.mark.parametrize("name,profile,argv", CASES, ids=[c[0] for c in CASES])

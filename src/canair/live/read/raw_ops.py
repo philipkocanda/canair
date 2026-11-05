@@ -52,6 +52,7 @@ def slcan_preflight(
     read — so an offline device costs one connect timeout before the fail-fast
     SLCAN message rather than one per request.
     """
+    from canair.config.devices import fallback_settings
     from canair.device.wican.firmware import (
         UNKNOWN,
         compatibility,
@@ -66,8 +67,6 @@ def slcan_preflight(
         require_protocol,
         require_slcan_reachable,
     )
-
-    from ...config import fallback_settings
 
     host = transport.host
     if not host:

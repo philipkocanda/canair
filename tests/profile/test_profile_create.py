@@ -26,13 +26,14 @@ def _isolate_profile_state():
     points it at a tmp_path that's later deleted, it would pollute unrelated
     tests that resolve the active profile.
     """
-    from canair import config, profile
+    from canair import profile
+    from canair.config import file as config_file
 
     profile._active = None
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     yield
     profile._active = None
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 def _args(**kw) -> argparse.Namespace:
@@ -169,7 +170,7 @@ class TestProfileCreate:
 
     def test_set_default_writes_config(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
-        from canair.config import load_config
+        from canair.config.file import load_config
 
         load_config.cache_clear()
         root = tmp_path / "prof"
@@ -181,32 +182,32 @@ class TestProfileCreate:
 class TestSetConfigValue:
     def test_appends_new_key(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
-        path = config.set_config_value("default_profile", "foo")
+        config_file.load_config.cache_clear()
+        path = config_file.set_config_value("default_profile", "foo")
         assert "default_profile: foo" in path.read_text()
-        config.load_config.cache_clear()
-        assert config.load_config()["default_profile"] == "foo"
+        config_file.load_config.cache_clear()
+        assert config_file.load_config()["default_profile"] == "foo"
 
     def test_replaces_existing_uncommented_key(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
-        config.set_config_value("default_profile", "foo")
-        config.set_config_value("default_profile", "bar")
+        config_file.load_config.cache_clear()
+        config_file.set_config_value("default_profile", "foo")
+        config_file.set_config_value("default_profile", "bar")
         text = (tmp_path / "canair" / "config.yaml").read_text()
         assert "default_profile: bar" in text
         assert "default_profile: foo" not in text
 
     def test_leaves_commented_line_untouched(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         # Starter config has a commented `# default_profile: ...` line.
-        path = config.set_config_value("default_profile", "foo")
+        path = config_file.set_config_value("default_profile", "foo")
         text = path.read_text()
         assert "# default_profile:" in text  # commented example preserved
         assert "default_profile: foo" in text
@@ -224,9 +225,9 @@ class TestProfileUse:
     def test_sets_default_profile(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         _scaffold(tmp_path, "ev6")
         args = argparse.Namespace(name="ev6", profiles_dir=None)
         assert _cmd_use(args) == 0
@@ -236,9 +237,9 @@ class TestProfileUse:
     def test_rejects_unknown_profile(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         _scaffold(tmp_path, "ev6")
         args = argparse.Namespace(name="nope", profiles_dir=None)
         assert _cmd_use(args) == 1
@@ -255,9 +256,10 @@ class TestProfileListHint:
     def test_hint_when_no_default(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
-        from canair import config, profile
+        from canair import profile
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         profile._active = None
         _scaffold(tmp_path, "ev6")
         _scaffold(tmp_path, "leaf")
@@ -269,13 +271,14 @@ class TestProfileListHint:
     def test_no_hint_when_default_set(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
-        from canair import config, profile
+        from canair import profile
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         profile._active = None
         _scaffold(tmp_path, "ev6")
-        config.set_config_value("default_profile", "ev6")
-        config.load_config.cache_clear()
+        config_file.set_config_value("default_profile", "ev6")
+        config_file.load_config.cache_clear()
         _cmd_list(argparse.Namespace(profiles_dir=None))
         out = capsys.readouterr().out
         assert "No default_profile set" not in out
@@ -285,10 +288,11 @@ class TestProfileListSnapshotWarning:
     def test_warns_when_running_uv_tool_snapshot(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
-        from canair import config, profile
+        from canair import profile
+        from canair.config import file as config_file
         from canair.install import context as install_context
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         profile._active = None
         _scaffold(tmp_path, "ev6")
         monkeypatch.setattr(install_context, "bundled_profiles_are_snapshot", lambda: True)
@@ -300,10 +304,11 @@ class TestProfileListSnapshotWarning:
     def test_no_warning_when_running_from_repo(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
-        from canair import config, profile
+        from canair import profile
+        from canair.config import file as config_file
         from canair.install import context as install_context
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         profile._active = None
         _scaffold(tmp_path, "ev6")
         monkeypatch.setattr(install_context, "bundled_profiles_are_snapshot", lambda: False)
@@ -316,9 +321,10 @@ class TestProfileShow:
     def test_show_lists_all_bundle_components(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
-        from canair import config, profile
+        from canair import profile
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         profile._active = None
         root = tmp_path / "profiles" / "ev6"
         _cmd_create(_args(name="ev6", path=root))
@@ -340,9 +346,10 @@ class TestProfileDefaultDispatch:
     def test_bare_profile_lists_when_not_a_tty(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
-        from canair import config, profile
+        from canair import profile
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         profile._active = None
         _scaffold(tmp_path, "ev6")
         monkeypatch.setattr("sys.stdin.isatty", lambda: False)
@@ -355,9 +362,10 @@ class TestProfileDefaultDispatch:
     def test_bare_profile_picker_sets_default_on_a_tty(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
-        from canair import config, profile
+        from canair import profile
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         profile._active = None
         _scaffold(tmp_path, "ev6")
         _scaffold(tmp_path, "leaf")
@@ -379,9 +387,10 @@ class TestProfileDefaultDispatch:
     def test_bare_profile_picker_cancel_makes_no_change(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
-        from canair import config, profile
+        from canair import profile
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         profile._active = None
         _scaffold(tmp_path, "ev6")
         monkeypatch.setattr("sys.stdin.isatty", lambda: True)
@@ -404,14 +413,15 @@ class TestProfileDefaultDispatch:
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
         monkeypatch.setenv("CANAIR_PROFILE", "variants")
-        from canair import config, profile
+        from canair import profile
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         profile._active = None
         fixture = Path(__file__).parents[1] / "fixtures" / "profiles" / "variants"
         shutil.copytree(fixture, tmp_path / "profiles" / "variants")
-        config.set_config_key("profile_settings.variants.variant", "40kwh")
-        config.load_config.cache_clear()
+        config_file.set_config_key("profile_settings.variants.variant", "40kwh")
+        config_file.load_config.cache_clear()
         monkeypatch.setattr("sys.stdin.isatty", lambda: True)
         monkeypatch.setattr("sys.stdout.isatty", lambda: True)
         asked: list[str] = []
@@ -449,9 +459,9 @@ class TestProfileAdopt:
         # Pose tmp_path/profiles as the repo-bundled root — the lowest-precedence
         # search root, which is what adopting is meant to lift a profile out of.
         monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         self.user_dir = tmp_path / "cfg" / "canair" / "profiles"
 
     def test_copies_bundle_members(self, tmp_path, capsys):

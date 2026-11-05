@@ -29,7 +29,7 @@ def resolve_notation(value: str | None) -> ByteNotation:
     """Effective notation: explicit ``--notation`` > ``display.byte_notation`` > wican."""
     if value:
         return ByteNotation(value)
-    from canair.config import get_config_key
+    from canair.config.file import get_config_key
 
     configured = get_config_key("display.byte_notation")
     if configured:

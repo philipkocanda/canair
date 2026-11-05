@@ -16,10 +16,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canair import config
 from canair import profile as profile_mod
 from canair.captures.tags import capture_tag
 from canair.cli import main
+from canair.config import file as config_file
 from canair.ecus.pids import clear_cache, load_pids, load_raw_pids, revision_resolutions
 from canair.profile import ProfileError, set_active
 from canair.variants import check_variants_doc, effective_meta, load_variants
@@ -34,12 +34,12 @@ def _fresh(monkeypatch, tmp_path):
     """An empty user config, and nothing remembered between tests."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_VARIANT", raising=False)
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     import canair.ecus.pids as pids_mod
 
     pids_mod._noted_skips.clear()
     yield
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 @pytest.fixture
@@ -146,8 +146,8 @@ class TestResolution:
             assert (expected in out) if expected else ("None recorded" not in out)
 
     def test_a_config_pin_and_the_flag_outranking_it(self):
-        config.set_config_key("profile_settings.variants.revisions.VCU", "kwp")
-        config.load_config.cache_clear()
+        config_file.set_config_key("profile_settings.variants.revisions.VCU", "kwp")
+        config_file.load_config.cache_clear()
         _activate(variant="60kwh")
         assert revision_resolutions()["VCU"].source == "config"
         assert "2101" in _pids("VCU")
@@ -394,8 +394,8 @@ class TestCaptures:
     def test_an_import_ignores_a_config_pin(self, copy):
         from canair.variants.selection import require_named_car
 
-        config.set_config_key("profile_settings.variants.revisions.VCU", "uds")
-        config.load_config.cache_clear()
+        config_file.set_config_key("profile_settings.variants.revisions.VCU", "uds")
+        config_file.load_config.cache_clear()
         prof = _activate(copy, variant="60kwh")
         assert prof.revision_pins == (("VCU", "uds", "config"),)
         require_named_car(prof, "import uds")
@@ -540,8 +540,8 @@ class TestEditors:
     def test_profile_use_pin(self, monkeypatch, tmp_path):
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(FIXTURE.parent))
         assert main(["profile", "use", "variants", "--variant", "60kwh", "--pin", "vcu=uds"]) == 0
-        config.load_config.cache_clear()
-        cfg = config.load_config()
+        config_file.load_config.cache_clear()
+        cfg = config_file.load_config()
         assert cfg["profile_settings"]["variants"] == {
             "variant": "60kwh",
             "revisions": {"VCU": "uds"},
@@ -551,8 +551,8 @@ class TestEditors:
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(FIXTURE.parent))
         assert main(["profile", "use", "variants", "--variant", "40kwh", "--pin", "VCU=uds"]) == 2
         assert "can only carry kwp" in capsys.readouterr().err
-        config.load_config.cache_clear()
-        assert "default_profile" not in config.load_config()
+        config_file.load_config.cache_clear()
+        assert "default_profile" not in config_file.load_config()
 
 
 # ── phase 7: per-revision overrides and evidence ────────────────────────────

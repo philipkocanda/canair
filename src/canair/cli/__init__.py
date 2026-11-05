@@ -329,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
     install()
 
     # Ensure ~/.config/canair (and profiles/) exists so no manual setup is needed.
-    from canair.config import ensure_config_dir
+    from canair.config.file import ensure_config_dir
 
     seeded = ensure_config_dir()
 

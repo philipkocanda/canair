@@ -19,7 +19,7 @@ def require_pro(operation: str) -> int | None:
     instead of letting them fail obscurely against the device. Returns ``None``
     when the model is Pro (proceed) or an int exit code to abort.
     """
-    from canair.config import is_wican_pro
+    from canair.config.devices import is_wican_pro
 
     if is_wican_pro():
         return None
@@ -65,7 +65,7 @@ def require_v4_api(base_url: str, surface: Surface, *, writes: bool = False) -> 
 
 
 def add_wican_arg(parser: argparse.ArgumentParser) -> None:
-    from canair.config import default_wican, wican_addresses
+    from canair.config.devices import default_wican, wican_addresses
 
     # Resolved exactly like the live commands' --wican (wican_api.resolve_wican_url):
     # a device alias, else the value itself as the host — never another device.

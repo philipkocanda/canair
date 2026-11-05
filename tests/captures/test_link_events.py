@@ -300,9 +300,9 @@ class TestControllerHooks:
         return c, journal
 
     def test_a_stale_trip_opens_a_gap_at_the_last_answer(self, monkeypatch):
-        from canair import config
+        from canair.config import transport as config_transport
 
-        monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 2)
+        monkeypatch.setattr(config_transport, "stale_cycles_before_reconnect", lambda: 2)
         c, journal = self._controller()
         c._displayify(("BMS", "2101"), {"raw_hex": "6101AA", "acquired_at": _at(1).timestamp()})
         for _ in range(2):

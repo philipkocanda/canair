@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from canair import config
 from canair.cli import main
+from canair.config import file as config_file
 
 FIXTURE = Path(__file__).parent.parent / "fixtures" / "profiles" / "variants"
 
@@ -36,9 +36,9 @@ CAN_INDEX = "logs: []\nlogs: []\n"
 def _fresh(monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_VARIANT", raising=False)
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     yield
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 @pytest.fixture

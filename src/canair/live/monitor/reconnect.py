@@ -13,7 +13,7 @@ caller (``build_elm_reconnector`` in :mod:`canair.cli.live.connect`,
 ``build_raw_reconnector`` in :mod:`canair.live.monitor.raw_run`), which reuses the
 same build path as the initial connect. The bounded-vs-forever retry policy is
 derived from the user's ``--wait`` flag and config
-(:func:`canair.config.reconnect_max_wait`).
+(:func:`canair.config.transport.reconnect_max_wait`).
 """
 
 from __future__ import annotations
@@ -71,7 +71,8 @@ class ReconnectPolicy:
 
 def reconnect_policy(*, wait: bool = False) -> ReconnectPolicy:
     """Build a :class:`ReconnectPolicy` from ``--wait`` + user config."""
-    from ...config import fallback_settings, reconnect_max_wait
+    from canair.config.devices import fallback_settings
+    from canair.config.transport import reconnect_max_wait
 
     _, connect_timeout, _ = fallback_settings()
     return ReconnectPolicy(

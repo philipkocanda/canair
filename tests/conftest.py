@@ -89,7 +89,7 @@ def _reset_active_profile():
     """
     import canair.profile as profile
     from canair.cli.profile_context import install
-    from canair.config import load_config
+    from canair.config.file import load_config
     from canair.ecus.pids import clear_cache
 
     install()

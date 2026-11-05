@@ -47,7 +47,7 @@ def _declared(profile: Profile) -> dict[str, Variant]:
 
 def configured_variant(profile: Profile) -> str | None:
     """The variant remembered for ``profile`` in the user config, if any."""
-    from canair.config import load_config
+    from canair.config.file import load_config
 
     settings = load_config().get("profile_settings")
     entry = settings.get(profile.name) if isinstance(settings, dict) else None
@@ -68,7 +68,7 @@ def alias_variant(profile: Profile) -> str | None:
 
 def configured_pins(profile: Profile) -> dict[str, str]:
     """The ECU revisions pinned for ``profile`` in the user config (ECU -> revision)."""
-    from canair.config import load_config
+    from canair.config.file import load_config
 
     settings = load_config().get("profile_settings")
     entry = settings.get(profile.name) if isinstance(settings, dict) else None

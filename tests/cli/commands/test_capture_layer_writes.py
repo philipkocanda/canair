@@ -36,14 +36,14 @@ LEGACY = {
 @pytest.fixture
 def layered(tmp_path, monkeypatch):
     """A bundled base ``ev6`` (a +0x20 profile) and the user's overlay, made active."""
-    from canair import config
     from canair import profile as profile_mod
+    from canair.config import file as config_file
     from canair.ecus.pids import clear_cache
 
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
     monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     base = tmp_path / "profiles" / "ev6"
     (base / "ecus").mkdir(parents=True)
     (base / "captures").mkdir()
@@ -59,7 +59,7 @@ def layered(tmp_path, monkeypatch):
     clear_cache()
     yield argparse.Namespace(base=base, overlay=overlay)
     profile_mod._active = saved
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     clear_cache()
 
 

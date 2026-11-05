@@ -15,15 +15,15 @@ from canair.ecus.pids import clear_cache
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
-    from canair import config
+    from canair.config import file as config_file
 
     saved = profile._active
     clear_cache()
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     yield
     profile._active = saved
     clear_cache()
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 def _ecus():

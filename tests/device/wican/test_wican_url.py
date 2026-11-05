@@ -22,10 +22,12 @@ _CONFIG = {
 
 @pytest.fixture
 def config(monkeypatch):
-    import canair.config as cfg
+    from canair.config import devices as cfg_devices
+    from canair.config import file as cfg_file
 
     def install(data: dict):
-        monkeypatch.setattr(cfg, "load_config", lambda: data)
+        monkeypatch.setattr(cfg_file, "load_config", lambda: data)
+        monkeypatch.setattr(cfg_devices, "load_config", lambda: data)
 
     install(_CONFIG)
     return install
@@ -72,12 +74,12 @@ class TestWicanCommands:
         [("192.0.2.7", "http://192.0.2.7"), ("vpn", "http://10.8.0.2"), (None, "http://10.0.0.5")],
     )
     def test_mode_set_targets_the_named_device(self, config, monkeypatch, value, url):
-        import canair.config as cfg
         import canair.device.wican.firmware as wf
         from canair.cli.commands.wican import mode as mode_cmd
+        from canair.config import devices as cfg_devices
         from canair.device.wican import mode as wican_mode
 
-        monkeypatch.setattr(cfg, "wican_model", lambda: "pro")
+        monkeypatch.setattr(cfg_devices, "wican_model", lambda: "pro")
         monkeypatch.setattr(wf, "detect", lambda *a, **k: wf.FirmwareInfo("v4", version="4.52"))
         seen: list[str] = []
         monkeypatch.setattr(

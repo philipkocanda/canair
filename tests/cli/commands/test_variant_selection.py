@@ -10,9 +10,9 @@ import dataclasses
 
 import pytest
 
-from canair import config
 from canair import profile as profile_mod
 from canair.captures.tags import capture_tag
+from canair.config import file as config_file
 from canair.profile import Profile, ProfileError
 from canair.variants.selection import apply_variant, require_variant
 
@@ -37,15 +37,15 @@ def env(tmp_path, monkeypatch):
         'car_model: "x"\ninit: "ATSP6;"\naliases:\n  ioniq-2017: {variant: 28kwh}\n  ioniq-ev: {}\n'
     )
     (root / "variants.yaml").write_text(VARIANTS)
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     profile_mod._noted_renames.clear()
     yield root
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 def _set(key: str, value: str) -> None:
-    config.set_config_key(key, value)
-    config.load_config.cache_clear()
+    config_file.set_config_key(key, value)
+    config_file.load_config.cache_clear()
 
 
 class TestPrecedence:
@@ -202,15 +202,15 @@ class TestProfileUse:
 
     def test_remembers_the_variant(self, env, capsys):
         assert self._use("hyundai-ioniq-ae-ev", "38KWH") == 0
-        config.load_config.cache_clear()
-        cfg = config.load_config()
+        config_file.load_config.cache_clear()
+        cfg = config_file.load_config()
         assert cfg["default_profile"] == "hyundai-ioniq-ae-ev"
         assert cfg["profile_settings"]["hyundai-ioniq-ae-ev"]["variant"] == "38kwh"
 
     def test_an_old_name_is_saved_as_the_current_one(self, env, capsys):
         assert self._use("ioniq-2017", "28kwh") == 0
-        config.load_config.cache_clear()
-        assert config.load_config()["default_profile"] == "hyundai-ioniq-ae-ev"
+        config_file.load_config.cache_clear()
+        assert config_file.load_config()["default_profile"] == "hyundai-ioniq-ae-ev"
 
     def test_an_undeclared_variant_is_refused(self, env, capsys):
         assert self._use("hyundai-ioniq-ae-ev", "64kwh") == 2
@@ -219,8 +219,8 @@ class TestProfileUse:
     def test_without_a_variant_off_a_terminal_it_says_how(self, env, capsys):
         assert self._use("hyundai-ioniq-ae-ev") == 0
         assert "--variant ID" in capsys.readouterr().err
-        config.load_config.cache_clear()
-        assert "profile_settings" not in config.load_config()
+        config_file.load_config.cache_clear()
+        assert "profile_settings" not in config_file.load_config()
 
 
 def test_validate_checks_an_alias_variant(env):

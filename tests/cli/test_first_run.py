@@ -67,9 +67,9 @@ class TestRunFirstRunSetup:
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
         (tmp_path / "profiles").mkdir()
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
 
     def _seed_profile(self, tmp_path, name):
         root = tmp_path / "profiles" / name
@@ -81,20 +81,20 @@ class TestRunFirstRunSetup:
         self._seed_profile(tmp_path, "car-a")
         monkeypatch.setattr(first_run, "_prompt", lambda _t: "1")
         first_run.run_first_run_setup(_args())
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
-        assert config.get_config_key("default_profile") == "car-a"
+        config_file.load_config.cache_clear()
+        assert config_file.get_config_key("default_profile") == "car-a"
 
     def test_skip_writes_nothing(self, tmp_path, monkeypatch):
         self._isolate(tmp_path, monkeypatch)
         self._seed_profile(tmp_path, "car-a")
         monkeypatch.setattr(first_run, "_prompt", lambda _t: "s")
         first_run.run_first_run_setup(_args())
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
-        assert config.get_config_key("default_profile") is None
+        config_file.load_config.cache_clear()
+        assert config_file.get_config_key("default_profile") is None
 
     def test_create_new_profile(self, tmp_path, monkeypatch):
         self._isolate(tmp_path, monkeypatch)
@@ -103,10 +103,10 @@ class TestRunFirstRunSetup:
         answers = iter(["n", "my-car", "VW e-Golf 2019"])
         monkeypatch.setattr(first_run, "_prompt", lambda _t: next(answers))
         first_run.run_first_run_setup(_args())
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
-        assert config.get_config_key("default_profile") == "my-car"
+        config_file.load_config.cache_clear()
+        assert config_file.get_config_key("default_profile") == "my-car"
         assert (tmp_path / "cfg" / "canair" / "profiles" / "my-car" / "profile.yaml").exists()
 
     def test_empty_new_name_skips(self, tmp_path, monkeypatch):
@@ -115,10 +115,10 @@ class TestRunFirstRunSetup:
         answers = iter(["n", ""])
         monkeypatch.setattr(first_run, "_prompt", lambda _t: next(answers))
         first_run.run_first_run_setup(_args())
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
-        assert config.get_config_key("default_profile") is None
+        config_file.load_config.cache_clear()
+        assert config_file.get_config_key("default_profile") is None
 
 
 class TestSnapshotProfileIsOffered:
@@ -145,9 +145,9 @@ class TestSnapshotProfileIsOffered:
         (root / "ecus").mkdir(parents=True)
         (root / "profile.yaml").write_text('car_model: "T"\ninit: "x"\n')
         monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", snapshot)
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         return root
 
     def test_accepting_adopts_the_profile(self, tmp_path, monkeypatch, capsys):
@@ -163,10 +163,10 @@ class TestSnapshotProfileIsOffered:
         assert "deleted by the next reinstall" in out
         dest = tmp_path / "cfg" / "canair" / "profiles" / "hyundai-ioniq-ae-ev"
         assert (dest / "profile.yaml").exists()
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
-        assert config.get_config_key("default_profile") == "hyundai-ioniq-ae-ev"
+        config_file.load_config.cache_clear()
+        assert config_file.get_config_key("default_profile") == "hyundai-ioniq-ae-ev"
 
     def test_declining_leaves_it_alone_but_still_sets_the_default(
         self, tmp_path, monkeypatch, capsys
@@ -180,7 +180,7 @@ class TestSnapshotProfileIsOffered:
 
         assert "canair profile adopt hyundai-ioniq-ae-ev" in capsys.readouterr().err
         assert not (tmp_path / "cfg" / "canair" / "profiles" / "hyundai-ioniq-ae-ev").exists()
-        from canair import config
+        from canair.config import file as config_file
 
-        config.load_config.cache_clear()
-        assert config.get_config_key("default_profile") == "hyundai-ioniq-ae-ev"
+        config_file.load_config.cache_clear()
+        assert config_file.get_config_key("default_profile") == "hyundai-ioniq-ae-ev"

@@ -21,7 +21,7 @@ import os
 import sys
 from pathlib import Path
 
-from canair.config import set_config_value, user_profiles_dir
+from canair.config.file import set_config_value, user_profiles_dir
 from canair.core.prompt import confirm
 from canair.install.context import installed_snapshot_kind
 from canair.profile import selectable_profiles

@@ -1141,7 +1141,7 @@ Each device carries a `host` plus optional `transport`/`port`/`bitrate` (precede
 `--wican home|vpn|<ip>`; with no config it falls back to `192.168.80.1` (WiCAN AP mode). The legacy
 flat `wican_addresses: {alias: host}` form still works when no `devices:` block exists and is
 **auto-migrated into `devices:` on first run** (`src/canair/migrations/devices.py`); once `devices:`
-exists it is ignored. Resolvers: `src/canair/config/__init__.py::wican_devices` (authoritative map +
+exists it is ignored. Resolvers: `src/canair/config/devices.py::wican_devices` (authoritative map +
 `DeviceEntry`) and `fallback_settings`; `wican_settings` is a back-compat shim.
 
 WebSocket terminal: `ws://<ip>/ws` (send `{"ws_mode": "terminal", "terminal_type": "elm327"}`).

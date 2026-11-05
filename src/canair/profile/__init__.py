@@ -42,7 +42,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from canair.config import load_config
+from canair.config.file import load_config
 from canair.core import yaml_io
 from canair.core.paths import BUNDLED_PROFILES_DIR, config_dir
 from canair.profile.names import AliasIndex, build_alias_index

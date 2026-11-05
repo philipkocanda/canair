@@ -1,7 +1,7 @@
 """Cross-device connect-time fallback selection.
 
 When the user has several configured devices (see
-:func:`canair.config.wican_devices`) and the selected one is unreachable, try
+:func:`canair.config.devices.wican_devices`) and the selected one is unreachable, try
 the others rather than failing outright. :func:`resolve_transport_candidates`
 produces the ordered candidate list; this module picks the first one that
 answers a fast liveness probe, using a short, configurable connect timeout so a

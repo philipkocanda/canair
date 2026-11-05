@@ -6,16 +6,16 @@ import canair.cli.grid_prompt as gp
 
 
 def _reset():
-    from canair import config
+    from canair.config import file as config_file
 
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 class TestResolveGridRegion:
     def test_returns_configured_region(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
-        from canair.config import set_config_key
+        from canair.config.file import set_config_key
 
         set_config_key("grid_region", "US")
         _reset()
@@ -48,7 +48,7 @@ class TestResolveGridRegion:
 
         assert gp.resolve_grid_region() == "US"
         _reset()
-        from canair.config import get_config_key
+        from canair.config.file import get_config_key
 
         assert get_config_key("grid_region") == "US"
 
@@ -60,7 +60,7 @@ class TestResolveGridRegion:
 
         assert gp.resolve_grid_region() is None
         _reset()
-        from canair.config import get_config_key
+        from canair.config.file import get_config_key
 
         assert get_config_key("grid_region") is None
         assert get_config_key("grid_region_prompted") is True

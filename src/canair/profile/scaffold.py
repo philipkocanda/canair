@@ -21,7 +21,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from canair.config import set_config_value, user_profiles_dir
+from canair.config.file import set_config_value, user_profiles_dir
 from canair.core.paths import PROFILE_SCHEMA_MODELINE, schema_modeline
 from canair.profile import BUNDLE_MEMBERS, looks_like_profile, profiles_roots
 

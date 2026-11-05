@@ -18,15 +18,15 @@ from canair.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
-    from canair import config
+    from canair.config import file as config_file
 
     saved = profile._active
     clear_cache()
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     yield
     profile._active = saved
     clear_cache()
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 def _mk_profile(tmp_path, name="prof"):

@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+from canair.config.file import (
+    coerce_scalar,
+    ensure_config_dir,
+    get_config_key,
+    load_config,
+    set_config_key,
+    unset_config_key,
+    user_config_file,
+)
 from canair.core.paths import CONFIG_DOCS_URL, CONFIG_EXAMPLE_FILE
 from canair.render import messages
 from canair.yaml_edit.echo import echo_edit
@@ -16,8 +25,6 @@ from .keys import (
 
 
 def cmd_path(args) -> int:
-    from canair.config import user_config_file
-
     print(user_config_file())
     return 0
 
@@ -31,8 +38,6 @@ def cmd_example(args) -> int:
 
 
 def cmd_get(args) -> int:
-    from canair.config import get_config_key
-
     value = get_config_key(args.key)
     if value is None:
         messages.error(f"{args.key} is not set")
@@ -47,8 +52,6 @@ def cmd_get(args) -> int:
 
 
 def cmd_set(args) -> int:
-    from canair.config import coerce_scalar, get_config_key, load_config, set_config_key
-
     if args.key is None:
         missing_key_help()
         return 2
@@ -98,8 +101,6 @@ def cmd_set(args) -> int:
 
 
 def cmd_unset(args) -> int:
-    from canair.config import unset_config_key
-
     path, removed = unset_config_key(args.key)
     if not removed:
         messages.error(f"{args.key} was not set")
@@ -112,8 +113,6 @@ def cmd_edit(args) -> int:
     import os
     import shutil
     import subprocess
-
-    from canair.config import ensure_config_dir, user_config_file
 
     ensure_config_dir()
     path = user_config_file()

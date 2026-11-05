@@ -76,7 +76,7 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
     reconnect. Raises a transport error on failure (closing the partially-opened
     terminal first); the caller classifies it.
     """
-    from canair import config
+    from canair.config import transport as config_transport
     from canair.ecus.response_frames import seed_counts, variable_length_keys
     from canair.safety.blocklist import SessionPolicy
     from canair.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal, Elm327Terminal
@@ -92,7 +92,7 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
 
     _cli_timeout = cli_timeout(conn.timeout)
     _ws_timeout = _cli_timeout if _cli_timeout is not None else 3.0
-    counts = config.expected_responses()
+    counts = config_transport.expected_responses()
     # Counts previous sessions proved, so the first read of each PID is already
     # fast instead of paying the adapter's full ATST wait to re-learn it.
     seeds = seed_counts(pids_data) if counts else {}

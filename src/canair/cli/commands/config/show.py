@@ -8,13 +8,8 @@ from canair.render.console import console, escape
 
 def _gather(args) -> dict:
     """Collect config locations + effective settings into a plain dict."""
-    from canair.config import (
-        load_config,
-        user_config_file,
-        user_profiles_dir,
-        wican_model,
-        wican_settings,
-    )
+    from canair.config.devices import wican_model, wican_settings
+    from canair.config.file import load_config, user_config_file, user_profiles_dir
     from canair.core.paths import CONFIG_FILE, config_dir
 
     cfg = load_config()
@@ -37,7 +32,7 @@ def _gather(args) -> dict:
         "model": wican_model(),
     }
 
-    from canair.config import fallback_settings, wican_devices
+    from canair.config.devices import fallback_settings, wican_devices
 
     devices, _ = wican_devices()
     info["devices"] = {

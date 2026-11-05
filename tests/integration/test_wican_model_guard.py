@@ -12,18 +12,19 @@ import json
 
 import pytest
 
-import canair.config as cfg_mod
 from canair.cli import build_parser
 from canair.cli.commands import wican
 from canair.cli.commands.wican import autopid, common, generate, mode
+from canair.config import devices as cfg_mod_devices
+from canair.config import file as cfg_mod_file
 
 
 def _classic(monkeypatch):
-    monkeypatch.setattr(cfg_mod, "wican_model", lambda: "classic")
+    monkeypatch.setattr(cfg_mod_devices, "wican_model", lambda: "classic")
 
 
 def _pro(monkeypatch):
-    monkeypatch.setattr(cfg_mod, "wican_model", lambda: "pro")
+    monkeypatch.setattr(cfg_mod_devices, "wican_model", lambda: "pro")
 
 
 def _parse(*argv):
@@ -120,49 +121,49 @@ class TestModeSetTransportAlign:
 
     def _fresh(self, tmp_path, monkeypatch):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-        cfg_mod.load_config.cache_clear()
+        cfg_mod_file.load_config.cache_clear()
 
     def test_slcan_aligns_transport_to_slcan_tcp(self, tmp_path, monkeypatch, capsys):
         self._fresh(tmp_path, monkeypatch)
-        cfg_mod.set_config_key("transport.type", "wican-ws")
-        cfg_mod.load_config.cache_clear()
+        cfg_mod_file.set_config_key("transport.type", "wican-ws")
+        cfg_mod_file.load_config.cache_clear()
         mode.sync_transport_to_mode("slcan", no_transport=False)
-        cfg_mod.load_config.cache_clear()
-        assert cfg_mod.get_config_key("transport.type") == "slcan-tcp"
+        cfg_mod_file.load_config.cache_clear()
+        assert cfg_mod_file.get_config_key("transport.type") == "slcan-tcp"
         assert "'wican-ws' → 'slcan-tcp'" in capsys.readouterr().out
 
     def test_elm327_aligns_transport_to_wican_ws(self, tmp_path, monkeypatch, capsys):
         self._fresh(tmp_path, monkeypatch)
-        cfg_mod.set_config_key("transport.type", "slcan-tcp")
-        cfg_mod.load_config.cache_clear()
+        cfg_mod_file.set_config_key("transport.type", "slcan-tcp")
+        cfg_mod_file.load_config.cache_clear()
         mode.sync_transport_to_mode("elm327", no_transport=False)
-        cfg_mod.load_config.cache_clear()
-        assert cfg_mod.get_config_key("transport.type") == "wican-ws"
+        cfg_mod_file.load_config.cache_clear()
+        assert cfg_mod_file.get_config_key("transport.type") == "wican-ws"
         assert "→ 'wican-ws'" in capsys.readouterr().out
 
     def test_already_aligned_reports_and_skips_write(self, tmp_path, monkeypatch, capsys):
         self._fresh(tmp_path, monkeypatch)
-        cfg_mod.set_config_key("transport.type", "slcan-tcp")
-        cfg_mod.load_config.cache_clear()
+        cfg_mod_file.set_config_key("transport.type", "slcan-tcp")
+        cfg_mod_file.load_config.cache_clear()
         mode.sync_transport_to_mode("slcan", no_transport=False)
         assert "already 'slcan-tcp'" in capsys.readouterr().out
 
     def test_unmapped_mode_leaves_transport_untouched(self, tmp_path, monkeypatch, capsys):
         self._fresh(tmp_path, monkeypatch)
-        cfg_mod.set_config_key("transport.type", "slcan-tcp")
-        cfg_mod.load_config.cache_clear()
+        cfg_mod_file.set_config_key("transport.type", "slcan-tcp")
+        cfg_mod_file.load_config.cache_clear()
         mode.sync_transport_to_mode("auto_pid", no_transport=False)
-        cfg_mod.load_config.cache_clear()
-        assert cfg_mod.get_config_key("transport.type") == "slcan-tcp"
+        cfg_mod_file.load_config.cache_clear()
+        assert cfg_mod_file.get_config_key("transport.type") == "slcan-tcp"
         assert "Transport unchanged" in capsys.readouterr().out
 
     def test_no_transport_flag_skips_alignment(self, tmp_path, monkeypatch, capsys):
         self._fresh(tmp_path, monkeypatch)
-        cfg_mod.set_config_key("transport.type", "wican-ws")
-        cfg_mod.load_config.cache_clear()
+        cfg_mod_file.set_config_key("transport.type", "wican-ws")
+        cfg_mod_file.load_config.cache_clear()
         mode.sync_transport_to_mode("slcan", no_transport=True)
-        cfg_mod.load_config.cache_clear()
-        assert cfg_mod.get_config_key("transport.type") == "wican-ws"
+        cfg_mod_file.load_config.cache_clear()
+        assert cfg_mod_file.get_config_key("transport.type") == "wican-ws"
         assert capsys.readouterr().out == ""
 
 

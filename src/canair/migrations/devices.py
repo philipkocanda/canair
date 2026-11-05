@@ -1,14 +1,14 @@
 """One-time migration of the legacy ``wican_addresses:`` config block.
 
 The richer ``devices:`` block supersedes the flat ``wican_addresses`` map (see
-:func:`canair.config.wican_devices`): each ``alias: ip`` becomes
+:func:`canair.config.devices.wican_devices`): each ``alias: ip`` becomes
 ``alias: {host: ip}``, gaining optional per-device ``transport``/``port``/
 ``bitrate``. This module rewrites an old config into the new shape in place,
 comment-preservingly, so users never have to.
 
 It is intentionally *transitional*: there is no manual ``config`` subcommand for
 it. :func:`maybe_auto_migrate` runs once at startup (best-effort — any failure is
-swallowed, and runtime precedence in :func:`canair.config.wican_devices` keeps a
+swallowed, and runtime precedence in :func:`canair.config.devices.wican_devices` keeps a
 legacy config working regardless). Detection is self-clearing: migration only
 fires when ``wican_addresses`` is present *and* ``devices`` is absent, which is
 false after one successful run.
@@ -20,7 +20,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from canair.config import load_config, user_config_file
+from canair.config.file import load_config, user_config_file
 
 
 @dataclass(frozen=True)
@@ -102,7 +102,7 @@ def maybe_auto_migrate() -> None:
     """Best-effort auto-migration at startup; prints a one-line notice on success.
 
     Never raises: any IO/parse error is swallowed (runtime precedence in
-    :func:`canair.config.wican_devices` keeps a legacy config working). Runs on
+    :func:`canair.config.devices.wican_devices` keeps a legacy config working). Runs on
     any invocation, at most once (detection is self-clearing).
     """
     try:

@@ -162,13 +162,14 @@ class TestCommandPaths:
 
 class TestLayeredProfile:
     def test_search_reads_both_layers(self, tmp_path, monkeypatch, capsys):
-        from canair import config, profile
+        from canair import profile
+        from canair.config import file as config_file
 
         bundled, user = tmp_path / "profiles", tmp_path / "cfg" / "canair" / "profiles"
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
         monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
-        config.load_config.cache_clear()
+        config_file.load_config.cache_clear()
         base = bundled / "ev6"
         (base / "ecus").mkdir(parents=True)
         (base / "profile.yaml").write_text('car_model: "ev6"\ninit: "ATSP6;"\n')
@@ -195,7 +196,7 @@ class TestLayeredProfile:
             assert finding["ecu"] == "BCM" and finding["text"] == "95400G7470"
         finally:
             profile._active = None
-            config.load_config.cache_clear()
+            config_file.load_config.cache_clear()
 
 
 class TestKindNamedPattern:

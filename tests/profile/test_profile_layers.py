@@ -68,13 +68,14 @@ _MUTATING_CAPTURE_MODULES = set(_MUTATING_CAPTURE_PATHS)
 @pytest.fixture(autouse=True)
 def _isolate_profile_state():
     """Drop the memoized active profile so a tmp_path Profile cannot leak."""
-    from canair import config, profile
+    from canair import profile
+    from canair.config import file as config_file
 
     profile._active = None
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     yield
     profile._active = None
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 @pytest.fixture
@@ -87,9 +88,9 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
     monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
-    from canair import config
+    from canair.config import file as config_file
 
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     return argparse.Namespace(
         bundled=tmp_path / "profiles",
         user=tmp_path / "cfg" / "canair" / "profiles",

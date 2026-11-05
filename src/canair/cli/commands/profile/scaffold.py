@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 
-from canair.config import user_config_file
+from canair.config.file import user_config_file
 from canair.profile import (
     selectable_profiles,
 )

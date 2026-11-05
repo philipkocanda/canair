@@ -11,7 +11,6 @@
     "canair.captures.store": 544,
     "canair.tui.apps.captures_step.model": 809,
     "canair.tui.apps.captures_step.app": 671,
-    "canair.config": 554,
     "canair.contribute": 934,
     "canair.device.lock": 563,
     "canair.ecus": 502,
@@ -31,7 +30,7 @@
     "canair.yaml_edit.revisions": 560,
     "canair.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 1104,
+  "deferred_internal_imports": 1103,
   "import_linter_ignores": 0,
   "packages_without_charter": [],
   "test_to_test_imports": [],

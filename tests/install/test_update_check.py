@@ -18,11 +18,11 @@ def _isolate_config(tmp_path, monkeypatch):
     """Point config_dir at a temp dir and clear the update-check opt-out state."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     monkeypatch.delenv(update_check.DISABLE_ENV, raising=False)
-    from canair import config
+    from canair.config import file as config_file
 
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     yield
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 @pytest.fixture(autouse=True)
@@ -133,10 +133,10 @@ class TestCacheAndDisable:
         assert update_check.should_check_now() is False
 
     def test_disabled_by_config(self):
-        from canair import config
+        from canair.config import file as config_file
 
-        config.set_config_key("check_for_updates", False)
-        config.load_config.cache_clear()
+        config_file.set_config_key("check_for_updates", False)
+        config_file.load_config.cache_clear()
         assert update_check.is_disabled() is True
         assert update_check.should_check_now() is False
 

@@ -12,24 +12,24 @@ class TestResolveNotation:
         assert resolve_notation("torque") is ByteNotation.TORQUE
 
     def test_defaults_to_wican(self, monkeypatch):
-        import canair.config as cfg
+        from canair.config import file as cfg_file
 
         # No flag, no config -> wican.
-        monkeypatch.setattr(cfg, "get_config_key", lambda k: None)
+        monkeypatch.setattr(cfg_file, "get_config_key", lambda k: None)
         assert resolve_notation(None) is ByteNotation.WICAN
 
     def test_config_default_used_when_no_flag(self, monkeypatch):
-        import canair.config as cfg
+        from canair.config import file as cfg_file
 
         monkeypatch.setattr(
-            cfg, "get_config_key", lambda k: "isotp" if k == "display.byte_notation" else None
+            cfg_file, "get_config_key", lambda k: "isotp" if k == "display.byte_notation" else None
         )
 
         assert resolve_notation(None) is ByteNotation.ISOTP
 
     def test_invalid_config_falls_back_to_wican(self, monkeypatch):
-        import canair.config as cfg
+        from canair.config import file as cfg_file
 
-        monkeypatch.setattr(cfg, "get_config_key", lambda k: "bogus")
+        monkeypatch.setattr(cfg_file, "get_config_key", lambda k: "bogus")
 
         assert resolve_notation(None) is ByteNotation.WICAN

@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canair import config
 from canair.cli import main
+from canair.config import file as config_file
 from canair.ecus.pids import load_pids
 from canair.profile import set_active
 
@@ -25,9 +25,9 @@ REPO = Path(__file__).parents[2]
 def _fresh(monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_VARIANT", raising=False)
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     yield
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 @pytest.fixture

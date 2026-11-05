@@ -93,7 +93,7 @@ def is_disabled() -> bool:
     if os.environ.get(DISABLE_ENV):
         return True
     try:
-        from canair.config import get_config_key
+        from canair.config.file import get_config_key
 
         value = get_config_key(DISABLE_CONFIG_KEY)
     except Exception:
@@ -113,7 +113,7 @@ def read_cache() -> dict | None:
 
 def write_cache(latest_tag: str | None, html_url: str | None) -> None:
     """Persist the latest-known release (best-effort; errors are swallowed)."""
-    from canair.config import ensure_config_dir
+    from canair.config.file import ensure_config_dir
 
     payload = {
         "checked_at": time.time(),

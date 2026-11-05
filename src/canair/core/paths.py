@@ -15,8 +15,8 @@ untyped at every import site and, because a plain ``from … import`` triggers t
 hook, read the user's config file at *import* time (during pytest collection,
 before any fixture could isolate it). Use the explicit accessors instead:
 
-- devices/aliases → :func:`canair.config.wican_addresses` /
-  :func:`canair.config.default_wican`
+- devices/aliases → :func:`canair.config.devices.wican_addresses` /
+  :func:`canair.config.devices.default_wican`
 - vehicle-data paths → ``canair.profile.active().ecus_dir`` / ``.captures_dir``
 """
 

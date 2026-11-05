@@ -100,7 +100,7 @@ class WebSocketChannel:
         # raises, so every read merely times out and the session hangs forever
         # looking like an unresponsive ECU. With them, the drop surfaces as
         # ConnectionClosed -> ConnectionError -> the normal reconnect path.
-        from canair.config import ws_ping_interval
+        from canair.config.transport import ws_ping_interval
 
         ping = ws_ping_interval()
         self.ws = await websockets.connect(

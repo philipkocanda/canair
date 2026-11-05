@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from canair.config import load_config
+from canair.config.file import load_config
 from canair.profile import (
     ProfileError,
     active,

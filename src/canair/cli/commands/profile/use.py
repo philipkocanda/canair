@@ -16,7 +16,7 @@ from .common import current_name
 
 
 def cmd_use(args) -> int:
-    from canair.config import set_config_value
+    from canair.config.file import set_config_value
 
     profiles_dir = getattr(args, "profiles_dir", None)
     name = current_name(args.name.strip(), profiles_dir)
@@ -32,7 +32,7 @@ def cmd_use(args) -> int:
     pins = _checked_pins(name, profiles_dir, variant, getattr(args, "pins", None) or [])
     if pins is None:
         return 2
-    from canair.config import set_config_key
+    from canair.config.file import set_config_key
 
     path = set_config_value("default_profile", name)
     changes = []

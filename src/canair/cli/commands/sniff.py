@@ -38,7 +38,7 @@ examples:
   canair sniff --filter 770,7E4 --listen-only
 """,
     )
-    from canair.config import default_wican, wican_addresses
+    from canair.config.devices import default_wican, wican_addresses
 
     parser.add_argument(
         "--wican",

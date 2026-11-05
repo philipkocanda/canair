@@ -25,7 +25,7 @@ import json
 import pytest
 import websockets
 
-from canair import config as canair_config
+from canair.config import transport as canair_config_transport
 from canair.transport.elm327 import channel
 from canair.transport.elm327.channel import WebSocketChannel
 
@@ -102,7 +102,7 @@ class TestConnectHandshake:
 
         monkeypatch.setattr(channel.websockets, "connect", fake_connect)
         monkeypatch.setattr(channel, "SETTLE_SECONDS", 0)
-        monkeypatch.setattr(canair_config, "ws_ping_interval", lambda: 20.0)
+        monkeypatch.setattr(canair_config_transport, "ws_ping_interval", lambda: 20.0)
         await WebSocketChannel("h").connect()
 
         assert captured["open_timeout"] == channel.CONNECT_TIMEOUT
@@ -124,11 +124,11 @@ class TestConnectHandshake:
         monkeypatch.setattr(channel.websockets, "connect", fake_connect)
         monkeypatch.setattr(channel, "SETTLE_SECONDS", 0)
 
-        monkeypatch.setattr(canair_config, "ws_ping_interval", lambda: 5.0)
+        monkeypatch.setattr(canair_config_transport, "ws_ping_interval", lambda: 5.0)
         await WebSocketChannel("h").connect()
         assert captured["ping_interval"] == 5.0
 
-        monkeypatch.setattr(canair_config, "ws_ping_interval", lambda: None)
+        monkeypatch.setattr(canair_config_transport, "ws_ping_interval", lambda: None)
         await WebSocketChannel("h").connect()
         assert captured["ping_interval"] is None
 

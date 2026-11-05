@@ -48,10 +48,10 @@ def _isolate_environment() -> None:
         os.environ.pop(var, None)
 
     # Neutralize both config sources (user + legacy repo-local) deterministically.
-    from canair import config
+    from canair.config import file as config_file
 
-    config.load_config.cache_clear()
-    config.load_config = lambda: {}  # type: ignore[assignment]
+    config_file.load_config.cache_clear()
+    config_file.load_config = lambda: {}  # type: ignore[assignment]
 
 
 def _format_help(parser: argparse.ArgumentParser) -> str:

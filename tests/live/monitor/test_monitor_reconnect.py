@@ -99,9 +99,9 @@ class TestReconnectPolicy:
 
     def test_wait_is_forever(self, monkeypatch):
         monkeypatch.setattr(
-            "canair.config.fallback_settings", lambda: (True, 2.0, None), raising=True
+            "canair.config.devices.fallback_settings", lambda: (True, 2.0, None), raising=True
         )
-        monkeypatch.setattr("canair.config.reconnect_max_wait", lambda: 9.0, raising=True)
+        monkeypatch.setattr("canair.config.transport.reconnect_max_wait", lambda: 9.0, raising=True)
 
         p = reconnect_policy(wait=True)
         assert p.forever is True
@@ -110,9 +110,9 @@ class TestReconnectPolicy:
 
     def test_default_is_bounded(self, monkeypatch):
         monkeypatch.setattr(
-            "canair.config.fallback_settings", lambda: (True, 2.0, None), raising=True
+            "canair.config.devices.fallback_settings", lambda: (True, 2.0, None), raising=True
         )
-        monkeypatch.setattr("canair.config.reconnect_max_wait", lambda: 6.0, raising=True)
+        monkeypatch.setattr("canair.config.transport.reconnect_max_wait", lambda: 6.0, raising=True)
 
         assert reconnect_policy(wait=False).forever is False
 
@@ -491,9 +491,9 @@ class TestStaleEscalation:
         c.health.check_liveness({"BMS"}, {"BMS"})
 
     def test_all_stale_cycles_escalate_at_the_threshold(self, monkeypatch):
-        from canair import config
+        from canair.config import transport as config_transport
 
-        monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 3)
+        monkeypatch.setattr(config_transport, "stale_cycles_before_reconnect", lambda: 3)
         c = self._controller()
         c._last_good[("BMS", "2101")] = {"raw_hex": "6101AA"}  # so rows carry forward
         for expected in (1, 2):
@@ -505,9 +505,9 @@ class TestStaleEscalation:
         assert c.health.dead_cycles == 0  # armed afresh for the post-reconnect run
 
     def test_one_good_response_resets_the_count(self, monkeypatch):
-        from canair import config
+        from canair.config import transport as config_transport
 
-        monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 3)
+        monkeypatch.setattr(config_transport, "stale_cycles_before_reconnect", lambda: 3)
         c = self._controller()
         self._cycle(c, {"error": "timeout"})
         self._cycle(c, {"error": "timeout"})
@@ -520,9 +520,9 @@ class TestStaleEscalation:
         # A negative response proves the request reached the ECU and its reply
         # came back in the right slot: the pipe is healthy and refusing, which is
         # not something reconnecting would fix.
-        from canair import config
+        from canair.config import transport as config_transport
 
-        monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 2)
+        monkeypatch.setattr(config_transport, "stale_cycles_before_reconnect", lambda: 2)
         c = self._controller()
         self._cycle(c, {"error": "NRC 0x31 requestOutOfRange", "nrc": 0x31})
         self._cycle(c, {"error": "NRC 0x31 requestOutOfRange", "nrc": 0x31})
@@ -531,9 +531,9 @@ class TestStaleEscalation:
         assert c.disconnected is False
 
     def test_zero_disables_escalation(self, monkeypatch):
-        from canair import config
+        from canair.config import transport as config_transport
 
-        monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 0)
+        monkeypatch.setattr(config_transport, "stale_cycles_before_reconnect", lambda: 0)
         c = self._controller()
         for _ in range(20):
             self._cycle(c, {"error": "timeout"})
@@ -543,9 +543,9 @@ class TestStaleEscalation:
     def test_an_idle_cycle_is_not_a_dead_cycle(self, monkeypatch):
         # Every PID filtered out (or a paused/empty plan) means nothing was asked,
         # so nothing failing to answer is not evidence of a broken link.
-        from canair import config
+        from canair.config import transport as config_transport
 
-        monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 1)
+        monkeypatch.setattr(config_transport, "stale_cycles_before_reconnect", lambda: 1)
         c = self._controller()
         c.last_queries = []
         c.health.cycle_answered = False
@@ -566,7 +566,7 @@ class TestWaitInitialConnect:
 
         cand = _raw("dev")
         monkeypatch.setattr("canair.transport.resolve_transport_candidates", lambda args: [cand])
-        monkeypatch.setattr("canair.config.fallback_settings", lambda: (True, 2.0, None))
+        monkeypatch.setattr("canair.config.devices.fallback_settings", lambda: (True, 2.0, None))
 
         waited = {"n": 0}
 

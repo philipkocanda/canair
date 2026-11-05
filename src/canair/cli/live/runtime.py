@@ -70,7 +70,7 @@ def session_options(args: argparse.Namespace) -> SessionOptions:
 
 async def async_main(args, operation: LiveOperation):
     """Main async entry point."""
-    from canair.config import fallback_settings
+    from canair.config.devices import fallback_settings
     from canair.transport import (
         resolve_transport_candidates,
         select_reachable_transport,

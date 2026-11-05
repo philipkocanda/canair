@@ -228,19 +228,19 @@ def _resolve_host(name: str | None) -> str | None:
 
 
 def _wican_addresses():  # small indirection so tests can monkeypatch cheaply
-    from ..config import wican_addresses
+    from canair.config.devices import wican_addresses
 
     return wican_addresses()
 
 
 def _wican_devices():  # small indirection so tests can monkeypatch cheaply
-    from ..config import wican_devices
+    from canair.config.devices import wican_devices
 
     return wican_devices()
 
 
 def _fallback_settings():  # small indirection so tests can monkeypatch cheaply
-    from ..config import fallback_settings
+    from canair.config.devices import fallback_settings
 
     return fallback_settings()
 
@@ -337,7 +337,8 @@ def resolve_transport_candidates(
     ``--wican X`` always stays first; the ``fallback_order`` only sequences the
     rest.
     """
-    from ..config import DeviceEntry, load_config
+    from canair.config.devices import DeviceEntry
+    from canair.config.file import load_config
 
     overrides = overrides or TransportOverrides()
     raw_block = load_config().get("transport")
@@ -390,7 +391,7 @@ def resolve_transport_candidates(
 
 
 def _is_pro() -> bool:
-    from ..config import is_wican_pro
+    from canair.config.devices import is_wican_pro
 
     return is_wican_pro()
 

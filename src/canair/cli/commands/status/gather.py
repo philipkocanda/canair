@@ -24,7 +24,7 @@ _PROBE_TIMEOUT = 4.0
 def gather(args) -> dict:
     """Collect everything status reports into a plain dict (also used for --json)."""
     from canair.cli.args.transport import transport_overrides
-    from canair.config import fallback_settings
+    from canair.config.devices import fallback_settings
     from canair.install.build_info import build_summary, full_version
     from canair.transport import (
         TransportError,
@@ -100,7 +100,7 @@ def gather(args) -> dict:
     # that firmware really allows: a v6 device has no /ws however the check is
     # set. elm327-tcp is probed under the same rule as a live connect (only with
     # `firmware_check: always`), since it is usually a clone with no HTTP server.
-    from canair.config import firmware_check_mode
+    from canair.config.transport import firmware_check_mode
     from canair.device.wican.firmware import UNKNOWN, compatibility, probe, probes
 
     check_mode = firmware_check_mode()

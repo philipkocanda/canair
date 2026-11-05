@@ -25,7 +25,8 @@ def resolve_wican_url(wican: str | None = None) -> str:
     given does the selection fall back to ``transport.host``, then the
     ``default_wican`` device.
     """
-    from canair.config import load_config, wican_devices
+    from canair.config.devices import wican_devices
+    from canair.config.file import load_config
 
     if wican and wican.startswith(("http://", "https://")):
         return wican.rstrip("/")

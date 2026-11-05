@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import yaml
 
-from canair import config
+from canair.config import devices as config_devices
+from canair.config import file as config_file
 from canair.migrations import devices as devices_migrate
 
 
 def _reset():
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 def _write(tmp_path, text):
@@ -97,7 +98,7 @@ class TestMigrate:
         _reset()
         devices_migrate.migrate_config()
         _reset()
-        devices, default = config.wican_devices()
+        devices, default = config_devices.wican_devices()
         assert default == "vpn"
         assert devices["home"].host == "10.0.2.86"
 

@@ -258,7 +258,7 @@ def _deterministic_grid_region(tmp_path, monkeypatch):
     full-suite run, and keeps the golden free of a message that is really about
     first-run onboarding rather than byte labels.
     """
-    from canair import config
+    from canair.config import file as config_file
 
     cfg = tmp_path / "canair"
     cfg.mkdir(parents=True, exist_ok=True)
@@ -267,9 +267,9 @@ def _deterministic_grid_region(tmp_path, monkeypatch):
         "grid_region: EU\nprofile_settings:\n  hyundai-ioniq-ae-ev:\n    variant: 28kwh\n"
     )
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
     yield
-    config.load_config.cache_clear()
+    config_file.load_config.cache_clear()
 
 
 @pytest.mark.parametrize("name,profile,argv", CASES, ids=[c[0] for c in CASES])

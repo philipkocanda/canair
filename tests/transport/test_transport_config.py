@@ -2,7 +2,8 @@
 
 import pytest
 
-import canair.config as cfg_mod
+from canair.config import devices as cfg_mod_devices
+from canair.config import file as cfg_mod_file
 from canair.transport import config as tc
 from canair.transport.config import TransportError, TransportOverrides, resolve_transport
 
@@ -13,7 +14,7 @@ def Args(**kw):
 
 @pytest.fixture
 def env(monkeypatch):
-    from canair.config import DeviceEntry
+    from canair.config.devices import DeviceEntry
 
     monkeypatch.setattr(tc, "_wican_addresses", lambda: {"vpn": "1.2.3.4", "home": "10.0.0.9"})
 
@@ -24,7 +25,9 @@ def env(monkeypatch):
     monkeypatch.setattr(tc, "_fallback_settings", lambda: (False, 2.0, None))
 
     def set_block(block):
-        monkeypatch.setattr(cfg_mod, "load_config", lambda: {"transport": block} if block else {})
+        monkeypatch.setattr(
+            cfg_mod_file, "load_config", lambda: {"transport": block} if block else {}
+        )
 
     set_block(None)
     return set_block
@@ -64,13 +67,13 @@ class TestResolveTransport:
 
     def test_wican_ws_refused_on_classic(self, env, monkeypatch):
         env({"type": "slcan-tcp"})
-        monkeypatch.setattr(cfg_mod, "wican_model", lambda: "classic")
+        monkeypatch.setattr(cfg_mod_devices, "wican_model", lambda: "classic")
         with pytest.raises(TransportError, match="Pro-only"):
             resolve_transport(Args(transport="wican-ws"))
 
     def test_wican_ws_allowed_on_pro(self, env, monkeypatch):
         env({"type": "slcan-tcp"})
-        monkeypatch.setattr(cfg_mod, "wican_model", lambda: "pro")
+        monkeypatch.setattr(cfg_mod_devices, "wican_model", lambda: "pro")
         assert resolve_transport(Args(transport="wican-ws")).type == "wican-ws"
 
 
@@ -79,7 +82,7 @@ class TestResolveCandidates:
 
     @pytest.fixture
     def devenv(self, monkeypatch):
-        from canair.config import DeviceEntry
+        from canair.config.devices import DeviceEntry
 
         devices = {
             "home": DeviceEntry(host="10.0.0.9", transport="slcan-tcp", port=3333),
@@ -89,7 +92,7 @@ class TestResolveCandidates:
         monkeypatch.setattr(tc, "_wican_devices", lambda: (dict(devices), "home"))
         monkeypatch.setattr(tc, "_wican_addresses", lambda: {a: d.host for a, d in devices.items()})
         monkeypatch.setattr(tc, "_is_pro", lambda: True)
-        monkeypatch.setattr(cfg_mod, "load_config", lambda: {})
+        monkeypatch.setattr(cfg_mod_file, "load_config", lambda: {})
 
         def set_fallback(enabled=True, timeout=2.0, order=None):
             monkeypatch.setattr(tc, "_fallback_settings", lambda: (enabled, timeout, order))
@@ -492,7 +495,7 @@ class TestStatusFallback:
         from canair.device.wican import mode as wican_mode
 
         monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 30.0, None))
-        monkeypatch.setattr("canair.config.fallback_settings", lambda: (True, 30.0, None))
+        monkeypatch.setattr("canair.config.devices.fallback_settings", lambda: (True, 30.0, None))
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: True)
         seen: list[float] = []
 

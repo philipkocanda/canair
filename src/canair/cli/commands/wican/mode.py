@@ -113,7 +113,7 @@ def sync_transport_to_mode(mode: str, *, no_transport: bool) -> None:
         )
         return
 
-    from canair.config import get_config_key, set_config_key
+    from canair.config.file import get_config_key, set_config_key
     from canair.transport.config import DEFAULT_TRANSPORT
 
     current = get_config_key("transport.type") or DEFAULT_TRANSPORT
