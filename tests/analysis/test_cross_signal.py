@@ -543,6 +543,7 @@ class TestCommandParsers:
 
         from canair.analysis.cross_signal import HuntHit
         from canair.cli.commands import hunt
+        from canair.cli.commands.hunt import render
         from canair.expression.notation import ByteNotation
 
         p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
@@ -564,9 +565,9 @@ class TestCommandParsers:
             unit_guess=None,
             width=1,
         )
-        assert hunt._hit_label(hit, ByteNotation.WICAN, 1) == "B9"
-        assert hunt._hit_label(hit, ByteNotation.ISOTP, 1) == "i6"
-        assert hunt._hit_label(hit, ByteNotation.TORQUE, 1) == "E"
+        assert render.hit_label(hit, ByteNotation.WICAN, 1) == "B9"
+        assert render.hit_label(hit, ByteNotation.ISOTP, 1) == "i6"
+        assert render.hit_label(hit, ByteNotation.TORQUE, 1) == "E"
 
     def test_correlate_has_transform_flag(self):
         import argparse
@@ -662,7 +663,7 @@ class TestHuntPromote:
         )
 
     def test_promote_calls_upsert_with_evidence(self, monkeypatch):
-        from canair.cli.commands import hunt
+        from canair.cli.commands.hunt import promote
 
         captured = {}
 
@@ -672,9 +673,8 @@ class TestHuntPromote:
 
             return Path("aaf.yaml")
 
-        monkeypatch.setattr(hunt, "_promote", hunt._promote)  # keep real
         monkeypatch.setattr("canair.yaml_edit.pids.upsert_parameter", fake_upsert)
-        rc = hunt._promote("AAF_SPEED", "AAF", "2181", [self._hit()], "ESC:22C101:REAL_SPEED_KMH")
+        rc = promote.promote("AAF_SPEED", "AAF", "2181", [self._hit()], "ESC:22C101:REAL_SPEED_KMH")
         assert rc == 0
         assert captured["name"] == "AAF_SPEED"
         assert captured["expr"] == "B12"
@@ -684,24 +684,24 @@ class TestHuntPromote:
         assert "mph" in captured["notes"].lower()
 
     def test_promote_refuses_no_expr(self, capsys):
-        from canair.cli.commands import hunt
+        from canair.cli.commands.hunt import promote
 
-        rc = hunt._promote("X", "AAF", "2181", [self._hit(no_expr=True)], "REF")
+        rc = promote.promote("X", "AAF", "2181", [self._hit(no_expr=True)], "REF")
         assert rc == 1
         assert "no WiCAN expression" in capsys.readouterr().err
 
     def test_promote_empty_hits(self, capsys):
-        from canair.cli.commands import hunt
+        from canair.cli.commands.hunt import promote
 
-        assert hunt._promote("X", "AAF", "2181", [], "REF") == 1
+        assert promote.promote("X", "AAF", "2181", [], "REF") == 1
 
     def test_promote_end_to_end_writes_unverified(self, tmp_path, monkeypatch):
         """Real guarded write into a temp ecus/ dir: schema-validated + committed."""
-        from canair.cli.commands import hunt
+        from canair.cli.commands.hunt import promote
 
         f = _temp_ecu_profile(tmp_path, "test.yaml")
 
-        rc = hunt._promote("AAF_SPEED", "AAF", "2181", [self._hit(expr="B12")], "ESC:22C101:X")
+        rc = promote.promote("AAF_SPEED", "AAF", "2181", [self._hit(expr="B12")], "ESC:22C101:X")
         assert rc == 0
         doc = yaml.safe_load(f.read_text())
         # PID key round-trips as an int (2181) in YAML.

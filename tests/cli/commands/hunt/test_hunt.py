@@ -22,12 +22,13 @@ def _run(tmp_path, monkeypatch, argv):
     import canair.analysis.align as align
 
     orig = align.load_signal_captures
-    monkeypatch.setattr(
-        "canair.cli.commands.hunt.load_signal_captures",
-        lambda s, **kw: orig(
-            s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
-        ),
-    )
+    for module in ("uds", "physical"):
+        monkeypatch.setattr(
+            f"canair.cli.commands.hunt.{module}.load_signal_captures",
+            lambda s, **kw: orig(
+                s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
+            ),
+        )
     monkeypatch.setattr("canair.ecus.canonical_ecu_name_safe", lambda e: e.upper())
     p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
     args = p.parse_args(["uds", *argv])
