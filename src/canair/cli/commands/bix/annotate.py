@@ -3,12 +3,7 @@
 from __future__ import annotations
 
 from canair.render import ansi, messages
-from canair.uds.byteindex import (
-    isotp_to_torque,
-    payload_to_wican_frame,
-    torque_label,
-    torque_to_bix,
-)
+from canair.uds.byteindex import payload_to_wican_frame
 from canair.uds.layout import (
     ROLE_PCI,
     ResponseLayout,
@@ -17,10 +12,11 @@ from canair.uds.layout import (
 from canair.uds.nrc import nrc_description
 from canair.uds.protocol import DiagProtocol
 from canair.uds.services import service_response_name
-from canair.uds.support_map import MapDecl, ResolvedMap, resolve
+from canair.uds.support_map import MapDecl
 
 from .payload import parse_hex_payload, warn_payload_kind_mismatch
-from .subfunction import generic_role, resolve_annotate_layout
+from .rows import annotate_rows, resolve_annotate_layout
+from .subfunction import report_conflict
 from .table import pad
 
 
@@ -118,12 +114,7 @@ def annotate_payload(
     map's own bytes, marks covered bytes that carry no signal, and lists which bits of an
     unmapped byte the map marks.
     """
-    from canair.uds.byteindex import (
-        NotAFrameError,
-        framed_to_wican_frame,
-        mapped_bits,
-        mapped_offsets,
-    )
+    from canair.uds.byteindex import NotAFrameError, framed_to_wican_frame
 
     payload_bytes = parse_hex_payload(payload_hex)
     if payload_bytes:
@@ -137,14 +128,21 @@ def annotate_payload(
     else:
         frame = payload_to_wican_frame(payload_bytes)
 
-    sub_bytes, layout, derived_from = resolve_annotate_layout(frame, explicit_sub_bytes, pid)
+    chosen = resolve_annotate_layout(frame, explicit_sub_bytes, pid)
+    if chosen.conflict is not None:
+        report_conflict(chosen.conflict)
+    sub_bytes, layout, derived_from = chosen.sub_bytes, chosen.layout, chosen.derived_from
     overlay = params is not None
-    mapped = mapped_offsets(params) if overlay else {}
-    mbits = mapped_bits(params) if overlay else {}
     # A raw (already framed) paste has no reassembled payload to read the map off.
-    resolved = None
-    if overlay and support is not None and not raw_frame:
-        resolved = resolve(support, bytes(payload_bytes), 1 + sub_bytes)
+    rows = annotate_rows(
+        frame,
+        bytes(payload_bytes),
+        layout,
+        sub_bytes,
+        params=params,
+        support=None if raw_frame else support,
+        torque_columns=show_torque or show_obdb,
+    )
 
     if layout is not None:
         print_service_line(layout, frame, protocol)
@@ -181,16 +179,7 @@ def annotate_payload(
             )
         print(ansi.c(caption.rstrip(";").rstrip(), ansi.DIM))
 
-    # Per-byte roles come from the payload's own service when it is recognised, so
-    # every header field is named (SF/RID/CTRL/NRC/…); otherwise fall back to the
-    # width-based SID + PID/DID labelling. Computed up front so the Role column can
-    # be sized to the widest label actually rendered.
-    roles = [
-        ROLE_PCI
-        if pi is None
-        else (layout.role_at(pi) or "" if layout is not None else generic_role(pi, sub_bytes))
-        for _, pi in frame
-    ]
+    roles = [row.role for row in rows]
 
     # Column widths, shared by header / separator / data rows so everything lines
     # up (the Role cell must be padded to width, else the trailing Param divider
@@ -243,81 +232,27 @@ def annotate_payload(
     print(seg)
 
     prev_frame = -1
-    for w, (byte_val, pi) in enumerate(frame):
-        cur_frame = w // 8
-        if cur_frame != prev_frame and len(frame) > 8:
+    for row in rows:
+        cur_frame = row.wican // 8
+        if cur_frame != prev_frame and len(rows) > 8:
             # Only mark boundaries for genuinely multi-frame responses.
             label = f"  ── Frame {cur_frame} "
             label += "─" * max(0, divider_width - len(label))
             print(ansi.c(label, ansi.CYAN))
             prev_frame = cur_frame
 
-        # Derive every notation from the byte's ACTUAL ISO-TP index (pi) in the
-        # reconstructed frame, so single-frame (1 PCI byte) and multi-frame
-        # (2 FF + 1/CF PCI bytes) payloads are both correct. The length-agnostic
-        # wican_to_isotp() assumes the multi-frame layout and is off-by-one for
-        # single-frame responses — using pi keeps this column in step with Role.
-        isotp = pi
-        # Torque/bix are only rendered when their column is enabled; skip the
-        # work otherwise (and avoid computing the letter past the ZZ boundary).
-        if show_torque or show_obdb:
-            torque = isotp_to_torque(pi, sub_bytes) if pi is not None else None
-            bix = torque_to_bix(torque) if torque is not None else None
-            letter = torque_label(torque)
-        else:
-            torque = bix = letter = None
-
-        role = roles[w]
-        param = param_cell(w, byte_val, role, mapped, mbits) if overlay else None
-        if resolved is not None and pi is not None:
-            param = support_cell(resolved, pi, param or "")
         line = _row(
-            f"B{w:02d}",
-            f"0x{isotp:02X}" if isotp is not None else "—",
-            f"0x{byte_val:02X}",
-            str(byte_val),
-            role,
-            param,
-            torque=letter if letter else "—",
-            bix=str(bix) if bix is not None else "—",
+            f"B{row.wican:02d}",
+            f"0x{row.isotp:02X}" if row.isotp is not None else "—",
+            f"0x{row.value:02X}",
+            str(row.value),
+            row.role,
+            row.signal,
+            torque=row.torque if row.torque else "—",
+            bix=str(row.bix) if row.bix is not None else "—",
         )
-        print(ansi.c(line, ansi.DIM) if role == ROLE_PCI else line)
+        print(ansi.c(line, ansi.DIM) if row.role == ROLE_PCI else line)
 
     if legend:
         print_role_legend(roles, has_data=any(r == "" for r in roles))
     return 0
-
-
-def support_cell(rm: ResolvedMap, index: int, cell: str) -> str:
-    """Fold the declared support map into a byte's Param cell (``index`` is the ISO-TP index)."""
-    if index in rm.map_indices:
-        return "support map"
-    if index not in rm.covered:
-        return cell
-    marks = sorted(rm.signal_bits(index))
-    if not marks:
-        return "not a signal" if cell == "unmapped" else cell
-    if cell == "unmapped" and rm.decl.unit == "bit":
-        return f"unmapped (marked bits {','.join(map(str, marks))})"
-    return cell
-
-
-def param_cell(offset: int, byte_val: int, role: str, mapped: dict, mbits: dict) -> str:
-    """The Param-overlay cell for one byte: covering param(s), or 'unmapped'.
-
-    Any non-empty ``role`` is ISO-TP framing or a UDS header field, which a
-    parameter can never read — an empty role is the only thing that means "data",
-    so new roles (``SF``/``RID``/``CTRL``/``NRC``/…) are excluded automatically.
-    """
-    if role:
-        return ""
-    bit_hits = sorted((k, mbits[(offset, k)]) for k in range(8) if (offset, k) in mbits)
-    parts = []
-    byte_map = mapped.get(offset)
-    if byte_map and not bit_hits:
-        parts.append(f"[{byte_map[0]}]" if byte_map[1] else f"[{byte_map[0]}?]")
-    for k, (name, verified) in bit_hits:
-        parts.append(f"[{name}:{k}]" if verified else f"[{name}?:{k}]")
-    if not parts:
-        return "unmapped"
-    return " ".join(parts)

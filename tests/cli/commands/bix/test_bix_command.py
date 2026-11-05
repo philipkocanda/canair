@@ -5,7 +5,7 @@ import argparse
 import pytest
 
 from canair.cli.commands import bix
-from canair.cli.commands.bix import annotate, convert, payload, subfunction, table
+from canair.cli.commands.bix import convert, payload, rows, subfunction, table
 from canair.render import ansi
 
 
@@ -141,26 +141,26 @@ class TestSupportCell:
     RM = _resolved("62BC038000000001020304")
 
     def test_map_bytes_are_named(self):
-        assert annotate.support_cell(self.RM, 3, "unmapped") == "support map"
+        assert rows.support_cell(self.RM, 3, "unmapped") == "support map"
 
     def test_an_unmapped_byte_with_marks_lists_them(self):
-        assert annotate.support_cell(self.RM, 7, "unmapped") == "unmapped (marked bits 0)"
+        assert rows.support_cell(self.RM, 7, "unmapped") == "unmapped (marked bits 0)"
 
     def test_an_unmapped_byte_without_marks_is_not_a_signal(self):
-        assert annotate.support_cell(self.RM, 8, "unmapped") == "not a signal"
+        assert rows.support_cell(self.RM, 8, "unmapped") == "not a signal"
 
     def test_a_defined_byte_keeps_its_signal_name(self):
-        assert annotate.support_cell(self.RM, 7, "[DOOR:0]") == "[DOOR:0]"
-        assert annotate.support_cell(self.RM, 8, "[ODD:3]") == "[ODD:3]"
+        assert rows.support_cell(self.RM, 7, "[DOOR:0]") == "[DOOR:0]"
+        assert rows.support_cell(self.RM, 8, "[ODD:3]") == "[ODD:3]"
 
     def test_a_byte_beyond_the_covered_data_is_untouched(self):
         rm = _resolved("62BC03800000000102030405")
-        assert annotate.support_cell(rm, 11, "unmapped") == "unmapped"
+        assert rows.support_cell(rm, 11, "unmapped") == "unmapped"
 
     def test_per_byte_marks_do_not_list_bits(self):
         rm = _resolved("62BC038000000001020304", unit="byte")
-        assert annotate.support_cell(rm, 7, "unmapped") == "unmapped"
-        assert annotate.support_cell(rm, 8, "unmapped") == "not a signal"
+        assert rows.support_cell(rm, 7, "unmapped") == "unmapped"
+        assert rows.support_cell(rm, 8, "unmapped") == "not a signal"
 
 
 def test_annotate_ecu_requires_pid(capsys):
@@ -360,7 +360,7 @@ def test_resolve_sub_bytes_precedence():
 
 @pytest.mark.parametrize("pid", ["2101", "21F2", "22BC03", "22b004"])
 def test_pid_sub_bytes_conclusive_for_service_prefixes(pid):
-    assert subfunction.pid_sub_bytes(pid) == (2 if pid.upper().startswith("22") else 1)
+    assert rows.pid_sub_bytes(pid) == (2 if pid.upper().startswith("22") else 1)
 
 
 @pytest.mark.parametrize(
@@ -377,7 +377,7 @@ def test_pid_sub_bytes_none_when_service_is_unstated(pid):
     # subfunction_bytes_for_pid() answers 1 for all of these as a DEFAULT; treating
     # that as a determination would state a width with false confidence — and for a
     # short-form DID, the wrong one.
-    assert subfunction.pid_sub_bytes(pid) is None
+    assert rows.pid_sub_bytes(pid) is None
 
 
 def test_short_form_did_is_read_from_the_payload_instead(capsys):
@@ -417,7 +417,7 @@ def test_derived_width_never_disagrees_with_shared_helper():
     from canair.uds.layout import subfunction_bytes_for_pid
 
     for pid in ("2101", "2102", "22BC03", "22C101", "22B002"):
-        assert subfunction.pid_sub_bytes(pid) == subfunction_bytes_for_pid(pid)
+        assert rows.pid_sub_bytes(pid) == subfunction_bytes_for_pid(pid)
 
 
 # ── service-driven Role labels (DID / LID / PID / RID / SF / CTRL / NRC) ──
