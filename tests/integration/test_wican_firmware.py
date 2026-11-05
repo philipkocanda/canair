@@ -636,7 +636,7 @@ class TestLiveSurfaces:
 
     def _raw(self, monkeypatch, *, http_up: bool = True):
         from canair.device.wican import mode as wican_mode
-        from canair.live import raw_monitor
+        from canair.live.monitor import raw_run as raw_monitor
 
         calls: list = []
         monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: http_up)
@@ -662,7 +662,7 @@ class TestLiveSurfaces:
         return TransportConfig(type="slcan-tcp", host="192.0.2.1", **kw)
 
     def _run_raw(self, transport, *, reboot=False):
-        from canair.live.monitor_options import MonitorOptions
+        from canair.live.monitor.options import MonitorOptions
         from canair.live.read import raw_ops
         from canair.live.session import SessionOptions
         from canair.transport.config import ConnectionOptions

@@ -6,8 +6,8 @@ service-22 DIDs), drives the pipelined blocking client on a worker thread,
 consumes results incrementally, and splits/learns multi-DID lengths. It holds
 the per-session batch-learning state (``lengths``/``nobatch``).
 
-Factored out of :class:`canair.live.monitor.MonitorController` (mirrors
-:class:`canair.live.monitor_edit.MonitorEditor`) so the raw backend — only
+Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirrors
+:class:`canair.live.monitor.edit.MonitorEditor`) so the raw backend — only
 active when the transport is ``slcan-tcp`` — is a self-contained, independently
 testable unit rather than another arm of the controller god object. The
 controller keeps thin delegating methods for the tested public surface.
@@ -21,18 +21,18 @@ import logging
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, TypedDict
 
-from canair.live.poll_backoff import PollCost
-from canair.live.poll_schedule import Key
+from canair.live.monitor.backoff import PollCost
+from canair.live.monitor.schedule import Key
 from canair.uds.multi_did import BATCH_REFUSAL_NRCS
 from canair.uds.nrc import nrc_description
 from canair.uds.services import NEGATIVE_RESPONSE_SID
 
-from ..uds.protocol import DiagProtocol, classify_protocol
+from ...uds.protocol import DiagProtocol, classify_protocol
 
 if TYPE_CHECKING:
     from canair.expression.results import EcuFrame, ResultEntry
 
-    from .monitor import MonitorController
+    from .controller import MonitorController
 
 # One query-plan entry: ``(pid_code, pid_info or None, unmapped)``.
 PlanEntry = tuple[str, dict | None, bool]
@@ -65,7 +65,7 @@ def _raw_pid_result(
     ``protocol`` (its :data:`~canair.uds.protocol.DiagProtocol`) names an NRC the
     way the ELM path's parser does.
     """
-    from .read.batch import _decode_pid_result
+    from ..read.batch import _decode_pid_result
 
     if value is None or isinstance(value, Exception):
         err = "timeout" if value is None or isinstance(value, TimeoutError) else str(value)
@@ -101,7 +101,7 @@ def _raw_pid_result(
 class MonitorRawPoller:
     """Raw-CAN poll backend + per-session multi-DID batching state.
 
-    A collaborator of :class:`~canair.live.monitor.MonitorController` (accessed
+    A collaborator of :class:`~canair.live.monitor.controller.MonitorController` (accessed
     as ``controller.raw_poller``); reads/writes the controller's shared live
     state (``last_queries``, ``_last_good``, ``_last_shown``, ``disconnected``, …)
     through the back-reference ``self.c``.
@@ -115,7 +115,7 @@ class MonitorRawPoller:
         self.lengths: dict[tuple[str, str], int] = {}
         self.nobatch: set[str] = set()
         # The byte ECU replies are padded with (profile isotp.rx_padding), to strip/split.
-        from ..transport.isotp_params import resolve_rx_padding
+        from ...transport.isotp_params import resolve_rx_padding
 
         self.pad = resolve_rx_padding(getattr(controller, "pids_data", None))
 
@@ -134,8 +134,8 @@ class MonitorRawPoller:
         """
         from canair.ecus.pids import ecu_index_key
 
-        from .read.batch import _did4, _is_did22
-        from .read.exec import build_query_plan
+        from ..read.batch import _did4, _is_did22
+        from ..read.exec import build_query_plan
 
         c = self.c
         # Only reached during polling, after setup() built the ECU index.
@@ -314,7 +314,7 @@ class MonitorRawPoller:
         learn 22-DID lengths, track ECUs that can't batch)."""
         from canair.core.eventlog import log_event
 
-        from .read.batch import (
+        from ..read.batch import (
             LEAKED_BATCH_ERROR,
             LEAKED_BATCH_REASON,
             _did4,

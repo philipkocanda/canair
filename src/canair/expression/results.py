@@ -16,7 +16,7 @@ class ResultEntry(TypedDict):
     """One PID's shaped poll result, as emitted by the multi/monitor pipeline.
 
     The single dict shape shared across the live monitor renderer
-    (:mod:`canair.live._monitor_render`), the compact printer
+    (:mod:`canair.live.monitor.render`), the compact printer
     (:func:`canair.render.formatting.print_ecu_results`), the capture collectors
     (:mod:`canair.live.read.multi`), and state auto-suggestion
     (:func:`canair.states.collect_values`). ``pid`` is always present; the rest

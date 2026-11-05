@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import argparse
 
-from canair.live.poll_schedule import DEFAULT_SCHEDULE
+from canair.live.monitor.schedule import DEFAULT_SCHEDULE
 
 LIVE_ARGS_DEFAULTS: dict = {
     # the operand each handler reads

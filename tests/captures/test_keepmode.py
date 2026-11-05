@@ -150,7 +150,7 @@ class TestWantsSave:
     The metadata flags count as intent on their own — ``--label`` without
     ``--save`` has nowhere to put the label, so treating it as a no-op would
     silently discard it. The predicate also drives whether a dropped session
-    points the user at ``--recover``, which is why ``modes.raw_monitor`` needs it
+    points the user at ``--recover``, which is why ``live.monitor.raw_run`` needs it
     and why it lives here rather than in the CLI layer.
     """
 

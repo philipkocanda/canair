@@ -15,7 +15,7 @@ import signal
 import pytest
 
 from canair.core.stop_signals import STOP_SIGNALS
-from canair.live import _monitor_run as run_mod
+from canair.live.monitor import run as run_mod
 
 
 class _FakeController:

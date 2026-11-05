@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from canair.live._monitor_selectors import MonitorSelectors
+from canair.live.monitor.selectors import MonitorSelectors
 
 
 class _Schedule:

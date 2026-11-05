@@ -13,7 +13,7 @@ Usage (via canair monitor):
     canair monitor "session IGPM --wake" "query IGPM:BC03,BC06"
 
 Every 'query' step in the pipeline is polled repeatedly: by default each PID at its
-own profile ``period:`` (:mod:`canair.live.poll_schedule`), or every PID on
+own profile ``period:`` (:mod:`canair.live.monitor.schedule`), or every PID on
 every cycle with ``--schedule fixed``.
 
 The polling / decoding / capture-saving logic lives in :class:`MonitorController`
@@ -39,35 +39,29 @@ from canair.expression.results import EcuFrame, ResultEntry
 from canair.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, _render_hex_line
 from canair.transport.session_manager import SessionManager
 
-from .. import config
-from ..captures.link_events import is_rx
-from ._monitor_link_events import LinkEventTracker
-from ._monitor_record import MonitorRecorder, _merge_history, _open_journal, _write_merged
-from ._monitor_render import (
-    _RENDER_DEFAULT_ROWS,
-    _RENDER_MAX_ROWS,
-    VIEW_MODES,
-    RenderCache,
-    _render_results,
-)
-from ._monitor_selectors import MonitorSelectors, PickerSeed
-from ._monitor_sessions import MonitorSessions
-from ._monitor_state import STATE_INPUT_STALE_CYCLES, MonitorStateSuggester
-from ._monitor_stats import ParamStats
-from .monitor_raw import MonitorRawPoller, Submission, _raw_pid_result
-from .poll_backoff import PollBackoff, PollCost, describe_slowdown, slowdown_log_message
-from .poll_schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, Key, PollScheduler, Schedule
+from ... import config
+from ...captures.link_events import is_rx
+from .backoff import PollBackoff, PollCost, describe_slowdown, slowdown_log_message
+from .link_events import LinkEventTracker
+from .raw_poller import MonitorRawPoller, Submission, _raw_pid_result
+from .record import MonitorRecorder, _merge_history, _open_journal, _write_merged
+from .render import _RENDER_DEFAULT_ROWS, _RENDER_MAX_ROWS, VIEW_MODES, RenderCache, _render_results
+from .schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, Key, PollScheduler, Schedule
+from .selectors import MonitorSelectors, PickerSeed
+from .sessions import MonitorSessions
+from .state import STATE_INPUT_STALE_CYCLES, MonitorStateSuggester
+from .stats import ParamStats
 
 if TYPE_CHECKING:
-    from ..captures.link_events import DisconnectCause
-    from ..ecus.pids import EcuIndexEntry
-    from .monitor_reconnect import Reconnector
+    from ...captures.link_events import DisconnectCause
+    from ...ecus.pids import EcuIndexEntry
+    from .reconnect import Reconnector
 
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canair.render.formatting;
-# _render_results/_RENDER_MAX_ROWS/RenderCache to _monitor_render; _raw_pid_result to
-# monitor_raw; _merge_history/_write_merged/_open_journal + the recording/journaling
-# logic to _monitor_record; STATE_INPUT_STALE_CYCLES + the state-suggestion logic to
-# _monitor_state; mode_monitor + the poll loops to _monitor_run. The names in __all__ below
+# _render_results/_RENDER_MAX_ROWS/RenderCache to render; _raw_pid_result to
+# raw_poller; _merge_history/_write_merged/_open_journal + the recording/journaling
+# logic to record; STATE_INPUT_STALE_CYCLES + the state-suggestion logic to
+# state; mode_monitor + the poll loops to run. The names in __all__ below
 # are re-exported here for the tests and the modules that import them from this one.
 __all__ = [
     "STATE_INPUT_STALE_CYCLES",
@@ -125,8 +119,8 @@ def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
     non-existent ECU) that would otherwise be silently skipped every poll cycle.
     ECU names are matched case-insensitively against the active profile.
     """
-    from ..ecus import build_canonical_name_index, canonical_ecu_name_safe
-    from ..ecus.pids import build_ecu_index
+    from ...ecus import build_canonical_name_index, canonical_ecu_name_safe
+    from ...ecus.pids import build_ecu_index
 
     ecu_index = build_ecu_index(pids_data)
     try:
@@ -317,7 +311,7 @@ class MonitorController:
         # In-place editing / filtering of PID definitions from the TUI. The
         # editor owns the selection cursor + display filter and writes edits
         # through canair.pids_edit; this controller reloads on its request.
-        from .monitor_edit import MonitorEditor
+        from .edit import MonitorEditor
 
         self.pids_dir = None  # None -> active profile's ecus/ (tests override)
         self.editor = MonitorEditor(self)
@@ -328,7 +322,7 @@ class MonitorController:
 
     # --- Recording / journaling: delegated to the MonitorRecorder collaborator.
     # These facades keep the tested public surface (and the TUI/renderer reads)
-    # stable while the durability logic lives in _monitor_record.py.
+    # stable while the durability logic lives in record.py.
     @property
     def total_frames(self) -> int:
         return self.recorder.total_frames
@@ -406,7 +400,7 @@ class MonitorController:
         return self.recorder.has_captures()
 
     # --- State auto-suggestion: delegated to the MonitorStateSuggester
-    # (_monitor_state.py). These facades keep the tested public surface
+    # (state.py). These facades keep the tested public surface
     # (decoded_values/responded/suggested_state) and the TUI reads stable.
 
     @property
@@ -439,7 +433,7 @@ class MonitorController:
         """The save dialog's state pre-fill. See :meth:`MonitorRecorder.offer_states`."""
         return self.recorder.offer_states(next_segment=next_segment)
 
-    # --- Poll scheduling: delegated to the PollScheduler (poll_schedule.py).
+    # --- Poll scheduling: delegated to the PollScheduler (schedule.py).
 
     @property
     def interval(self) -> float:
@@ -499,14 +493,14 @@ class MonitorController:
         picks up the just-edited expression/flags; the rebuilt ECU index makes
         the next poll decode with the new definition.
         """
-        from ..ecus.pids import build_ecu_index, load_pids
+        from ...ecus.pids import build_ecu_index, load_pids
 
         self.pids_data = load_pids(self.pids_dir)
         self._ecu_index = build_ecu_index(self.pids_data)
         self.sessions.invalidate_index()  # rebuilt lazily on next access
 
     # --- Live PID selection: delegated to the MonitorSelectors collaborator
-    # (_monitor_selectors.py). Mutating self.query_steps mid-poll is safe —
+    # (selectors.py). Mutating self.query_steps mid-poll is safe —
     # _poll_elm/_poll_raw iterate a fresh `for step in self.query_steps` each
     # cycle, so a new selection takes effect on the very next cycle. These
     # facades keep the TUI 'p' picker's surface stable.
@@ -530,7 +524,7 @@ class MonitorController:
         return self.selectors.apply(selected)
 
     # --- Diagnostic session type: delegated to the MonitorSessions collaborator
-    # (_monitor_sessions.py). Session *opening* on setup() forwards a
+    # (sessions.py). Session *opening* on setup() forwards a
     # mini-language `--mode` (see setup()); these facades keep the TUI 't' picker's
     # surface (active modes, the safety check, known types, a live switch) stable.
 
@@ -564,7 +558,7 @@ class MonitorController:
 
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, run one-shot session setup, start keepalives."""
-        from ..ecus.pids import build_ecu_index
+        from ...ecus.pids import build_ecu_index
 
         self._ecu_index = build_ecu_index(self.pids_data)
 
@@ -580,13 +574,13 @@ class MonitorController:
                     self.raw_client.read(ecu, bytes.fromhex(request), timeout=3.0)
             return
 
-        from ..uds.echo import request_echo
-        from .read.batch import BatchState
-        from .read.exec import timed_exchange
-        from .read.multi import _exec_session, _exec_skm_wake
+        from ...uds.echo import request_echo
+        from ..read.batch import BatchState
+        from ..read.exec import timed_exchange
+        from ..read.multi import _exec_session, _exec_skm_wake
 
         assert self.sm is not None  # not self.raw ⟺ sm was constructed
-        from ..transport.isotp_params import resolve_rx_padding
+        from ...transport.isotp_params import resolve_rx_padding
 
         self._batch_state = BatchState(resolve_rx_padding(self.pids_data))
         for step in session_steps or []:
@@ -623,8 +617,8 @@ class MonitorController:
 
     def _warmup_reads(self) -> "list[tuple[str, EcuIndexEntry, str]]":
         """``(ECU key, its index entry, first planned request)`` per polled ECU step."""
-        from ..ecus.pids import ecu_index_key
-        from .read.multi import build_query_plan
+        from ...ecus.pids import ecu_index_key
+        from ..read.multi import build_query_plan
 
         assert self._ecu_index is not None  # built by setup() before this runs
         reads: list[tuple[str, EcuIndexEntry, str]] = []
@@ -821,7 +815,7 @@ class MonitorController:
     async def _poll_elm(self) -> None:
         import time as _t
 
-        from .read.multi import _exec_query
+        from ..read.multi import _exec_query
 
         # The ELM poll path only runs on the non-raw backend, where setup() has
         # constructed sm and built the ECU index.
@@ -1014,7 +1008,7 @@ class MonitorController:
         Falls back to the label's leading token when it isn't a known ECU name.
         Caches the name→TX index for repeated calls during polling.
         """
-        from ..ecus import build_name_tx_index, rx_from_name
+        from ...ecus import build_name_tx_index, rx_from_name
 
         if self._name_index is None:
             self._name_index = build_name_tx_index()
@@ -1031,7 +1025,7 @@ class MonitorController:
         the on-demand save dialog's label.
         """
         parts: list[str] = []
-        from ..ecus.pids import ecu_index_key
+        from ...ecus.pids import ecu_index_key
 
         for step in self.query_steps:
             ecu = ecu_index_key(step["ecu"], self._ecu_index or {}) or step["ecu"].upper()

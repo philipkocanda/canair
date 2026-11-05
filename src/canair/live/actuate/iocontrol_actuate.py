@@ -5,7 +5,7 @@ the interactive IOControl TUI: opening the extended session, sending ON/OFF/
 ShortTermAdjustment, background status polling (each entry's release, ``2F {DID}
 00`` on UDS), and release/cleanup on exit. Extracting it from
 :class:`canair.live.actuate.iocontrol._IOControlTUI`
-(mirroring :class:`canair.live.monitor_raw.MonitorRawPoller`) keeps the
+(mirroring :class:`canair.live.monitor.raw_poller.MonitorRawPoller`) keeps the
 CAN-facing side-effecting logic in a focused, self-contained unit while the TUI
 class keeps view state, keyboard input, rendering, and the ``ecus/`` edits.
 

@@ -6,9 +6,9 @@ safety-policy check that gates a switch, the picker's "known-good" suggestions
 (from the profile's recorded ``sessions:`` scan history), and the live mid-run
 switch itself (TUI 't').
 
-Factored out of :class:`canair.live.monitor.MonitorController` (mirrors
-:class:`canair.live._monitor_state.MonitorStateSuggester` and
-:class:`canair.live._monitor_record.MonitorRecorder`) so the session-type logic
+Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirrors
+:class:`canair.live.monitor.state.MonitorStateSuggester` and
+:class:`canair.live.monitor.record.MonitorRecorder`) so the session-type logic
 is a self-contained unit rather than another arm of the controller god object.
 The controller keeps thin delegating methods for the TUI/tested surface and holds
 the transport state (``sm``/``raw_client``/``_ecu_index``) the sessions read via
@@ -29,7 +29,7 @@ from canair.safety.blocklist import SafetyBlocked
 from canair.uds.requests import session_request
 
 if TYPE_CHECKING:
-    from .monitor import MonitorController
+    from .controller import MonitorController
 
 
 class MonitorSessions:

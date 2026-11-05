@@ -171,7 +171,7 @@ def build_elm_reconnector(candidates, pids_data: dict, conn: ConnectionOptions):
     per-candidate connect step, so a mid-session drop reconnects exactly the way the initial
     connect did.
     """
-    from canair.live.monitor_reconnect import MonitorReconnector, reconnect_policy
+    from canair.live.monitor.reconnect import MonitorReconnector, reconnect_policy
     from canair.transport.config import TransportConfig
 
     elm_candidates = [c for c in candidates if c.is_elm]

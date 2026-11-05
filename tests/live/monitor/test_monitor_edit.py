@@ -1,11 +1,11 @@
-"""Tests for canair.live.monitor_edit — selection, filtering, in-place editing."""
+"""Tests for canair.live.monitor.edit — selection, filtering, in-place editing."""
 
 import textwrap
 
 import pytest
 import yaml
 
-from canair.live.monitor_edit import MonitorEditor
+from canair.live.monitor.edit import MonitorEditor
 
 
 class FakeController:

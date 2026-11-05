@@ -9,9 +9,9 @@ from __future__ import annotations
 from canair.captures.keepmode import resolve_keep_mode
 from canair.cli.args.notation import resolve_notation
 from canair.cli.live.operation import LiveOperation
-from canair.live._monitor_run import mode_monitor
-from canair.live.monitor_options import MonitorOptions
-from canair.live.poll_schedule import DEFAULT_SCHEDULE
+from canair.live.monitor.options import MonitorOptions
+from canair.live.monitor.run import mode_monitor
+from canair.live.monitor.schedule import DEFAULT_SCHEDULE
 from canair.live.read.multi import mode_multi
 from canair.transport.protocol import Terminal
 

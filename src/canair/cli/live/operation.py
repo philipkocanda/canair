@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from canair.live.monitor_options import MonitorOptions
+from canair.live.monitor.options import MonitorOptions
 
 # A handler owns the whole subcommand once connected: ``(args, terminal, pids_data, host, *,
 # reconnect=None)``. It reads the flags it needs and calls one ``mode_*`` coroutine.

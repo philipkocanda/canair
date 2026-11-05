@@ -84,7 +84,7 @@ class TestSplitHelpers:
         # ES95486: canair pads requests with 0x55, the ECU pads its reply with 0xAA.
         from types import SimpleNamespace
 
-        from canair.live.monitor_raw import MonitorRawPoller
+        from canair.live.monitor.raw_poller import MonitorRawPoller
         from canair.transport.isotp_params import resolve_rx_padding
 
         data = {"isotp": {"tx_padding": 0x55, "rx_padding": 0xAA}}

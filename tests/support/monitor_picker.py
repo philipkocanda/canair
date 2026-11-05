@@ -1,7 +1,7 @@
 """A monitor app over a controller that also serves the two pickers."""
 
-from canair.live._monitor_selectors import PickerSeed
-from canair.live.monitor_select import build_choices
+from canair.live.monitor.select import build_choices
+from canair.live.monitor.selectors import PickerSeed
 from canair.tui.apps.monitor import MonitorApp
 from tests.support.monitor_tui import FakeController, FakeEditor
 

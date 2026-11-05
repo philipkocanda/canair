@@ -2,7 +2,7 @@
 
 Steps are normally canonicalised by ``normalize_query_steps`` already, so these pin
 consistency: an alias in a hand-built step resolves the same everywhere (the raw
-poller's copy is in ``tests/modes/test_raw_monitor.py``).
+poller's copy is in ``tests/live/monitor/test_raw_monitor.py``).
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import pytest
 
 import canair.ecus
 from canair.ecus.wake import WakePlan
-from canair.live.monitor import MonitorController
+from canair.live.monitor.controller import MonitorController
 from canair.live.read.exec import _exec_iocontrol, _exec_query, _exec_session
 from canair.query.steps import resolve_tx_id
 from tests.support.fakes import FakeTerminal, ok

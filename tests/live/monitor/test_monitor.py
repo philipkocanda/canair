@@ -1,9 +1,8 @@
-"""Tests for canair.live.monitor — rendering and helper functions."""
+"""Tests for canair.live.monitor.controller — rendering and helper functions."""
 
 import json
 
-from canair.live._monitor_history import HistoryRun, extend_runs
-from canair.live.monitor import (
+from canair.live.monitor.controller import (
     _HIGHLIGHT_STYLE,
     MonitorController,
     RenderCache,
@@ -13,6 +12,7 @@ from canair.live.monitor import (
     _render_results,
     query_ecu_error,
 )
+from canair.live.monitor.history import HistoryRun, extend_runs
 
 
 class TestBytesToAscii:
@@ -188,7 +188,7 @@ class TestRenderResults:
     def test_history_render_is_capped(self):
         # A noisy PID can accrue thousands of runs; the render must cap to the
         # newest _RENDER_MAX_ROWS and summarize the rest.
-        from canair.live.monitor import _RENDER_MAX_ROWS
+        from canair.live.monitor.controller import _RENDER_MAX_ROWS
 
         n = _RENDER_MAX_ROWS + 50
         hexes = [f"6101{i:04X}" for i in range(n)]
@@ -257,7 +257,7 @@ class TestRenderResults:
             assert label in t.plain
 
     def test_stale_age_invalidates_the_render_cache(self):
-        from canair.live._monitor_render import RenderCache
+        from canair.live.monitor.render import RenderCache
 
         cache = RenderCache()
         entry = {"pid": "2101", "raw_hex": "6101AA", "stale": True, "acquired_at": 1000.0}
@@ -332,7 +332,7 @@ class TestRenderResults:
         assert "view: signals" in text
 
     def test_view_mode_ranges_shows_span(self):
-        from canair.live._monitor_stats import ParamStats
+        from canair.live.monitor.stats import ParamStats
 
         stats = ParamStats()
         key = ("BMS (0x7E4)", "2101")
@@ -774,7 +774,7 @@ class TestControllerSnapshot:
         assert c.unique_frames == 0
 
     def test_history_render_limit_by_keep_mode(self):
-        from canair.live.monitor import _RENDER_DEFAULT_ROWS, MonitorController
+        from canair.live.monitor.controller import _RENDER_DEFAULT_ROWS, MonitorController
 
         def _c(**kw):
             return MonitorController(
@@ -790,7 +790,7 @@ class TestControllerSnapshot:
         assert _c(keep_mode="last", keep_n=25)._history_render_limit() == 25
 
     def test_segment_title_and_meta(self):
-        from canair.live.monitor import MonitorController
+        from canair.live.monitor.controller import MonitorController
 
         c = MonitorController(
             terminal=None,
@@ -1065,7 +1065,7 @@ class TestControllerSuggestedState:
         assert c.suggested_states() == ["READY", "DRIVING"]
 
     def test_stale_speed_expires_so_driving_stops_matching(self, monkeypatch):
-        from canair.live.monitor import STATE_INPUT_STALE_CYCLES
+        from canair.live.monitor.controller import STATE_INPUT_STALE_CYCLES
 
         c = self._controller(monkeypatch, self._driving_rules())
         self._poll(c, 42.0)
@@ -1081,7 +1081,7 @@ class TestControllerSuggestedState:
         assert c.suggested_state() == "READY"
 
     def test_refreshed_values_never_expire(self, monkeypatch):
-        from canair.live.monitor import STATE_INPUT_STALE_CYCLES
+        from canair.live.monitor.controller import STATE_INPUT_STALE_CYCLES
 
         c = self._controller(monkeypatch, self._driving_rules())
         for _ in range(STATE_INPUT_STALE_CYCLES * 3):
@@ -1097,7 +1097,7 @@ class TestControllerSuggestedState:
         assert c.suggested_state() == "DRIVING"
 
     def test_responded_expires_too(self, monkeypatch):
-        from canair.live.monitor import STATE_INPUT_STALE_CYCLES
+        from canair.live.monitor.controller import STATE_INPUT_STALE_CYCLES
         from canair.states import StateRule, compile_predicate
 
         rules = [StateRule("SLEEP", predicate=compile_predicate("__no_response__"))]
@@ -1294,7 +1294,7 @@ def test_the_elm327_warmup_read_is_one_validated_transaction(monkeypatch):
     # bare set_header + send_uds could be re-pointed at another ECU in between.
     import asyncio
 
-    from canair.live.monitor import MonitorController
+    from canair.live.monitor.controller import MonitorController
     from tests.support.fakes import FakeTerminal, ok
 
     terminal = FakeTerminal({"22BC03": ok("62BC03AA")})
@@ -1331,7 +1331,7 @@ class TestNrcClassification:
         assert "nrc" not in _error_result("2101", False, {"ok": False, "error": "NO DATA"}, 1.0)
 
     def test_is_nrc_reads_the_code(self):
-        from canair.live.monitor import _answered, _is_nrc
+        from canair.live.monitor.controller import _answered, _is_nrc
 
         assert _is_nrc({"pid": "2101", "error": "NRC 0x31 (ROOR)", "nrc": 0x31})
         # An error whose text merely starts with the letters is not an answer.

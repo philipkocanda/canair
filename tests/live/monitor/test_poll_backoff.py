@@ -1,10 +1,10 @@
-"""The live monitor's slow-PID backoff (:mod:`canair.live.poll_backoff`)."""
+"""The live monitor's slow-PID backoff (:mod:`canair.live.monitor.backoff`)."""
 
 from __future__ import annotations
 
 import asyncio
 
-from canair.live.poll_backoff import (
+from canair.live.monitor.backoff import (
     ESCALATE_AFTER,
     MAX_SLOWDOWN,
     RECOVER_AFTER,
@@ -151,7 +151,7 @@ class TestElmPollCost:
     """Each PID is charged its own request's time, as the executor stamps it."""
 
     def test_each_pid_gets_its_own_cost(self, monkeypatch):
-        from canair.live.monitor import MonitorController
+        from canair.live.monitor.controller import MonitorController
 
         async def fake_exec_query(sm, ecu, pids, index, pids_data, verbose, **kw):
             plan = [(p, None, False) for p in pids]
@@ -203,7 +203,7 @@ class _ElmTerminal(FakeTerminal):
 
 def _igpm_controller(terminal: _ElmTerminal, **index_extra):
     """A real controller polling IGPM's three DIDs through the real executor."""
-    from canair.live.monitor import MonitorController
+    from canair.live.monitor.controller import MonitorController
     from canair.live.read.batch import BatchState
 
     steps = [{"type": "query", "ecu": "IGPM", "pids": []}]
@@ -318,7 +318,7 @@ class TestOnlyTheDeadPidIsSlowed:
         assert set(c.poll_costs) == {("IGPM", "22BC03"), ("IGPM", "22BC06")}
 
     def test_raw(self):
-        from canair.live.monitor import MonitorController
+        from canair.live.monitor.controller import MonitorController
         from tests.support.raw_monitor import TimedRawClient as _TimedRawClient
 
         table = {

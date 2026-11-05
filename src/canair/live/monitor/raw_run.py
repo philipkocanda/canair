@@ -13,9 +13,9 @@ from typing import TYPE_CHECKING
 
 from canair.render import messages
 
-from ..transport.config import ConnectionOptions, TransportConfig
-from .monitor_options import MonitorOptions
-from .session import SessionOptions
+from ...transport.config import ConnectionOptions, TransportConfig
+from ..session import SessionOptions
+from .options import MonitorOptions
 
 if TYPE_CHECKING:
     from canair.ecus.pids import EcuIndexEntry
@@ -52,7 +52,7 @@ def build_raw_client(
     from canair.safety.blocklist import SessionPolicy
     from canair.transport.timeouts import cli_timeout, ecu_timeouts_by_name
 
-    from ..transport import RawUdsClient, SlcanTcpBus
+    from ...transport import RawUdsClient, SlcanTcpBus
 
     bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
     cli = cli_timeout(conn.timeout)
@@ -80,7 +80,7 @@ def build_raw_reconnector(
     """
     import asyncio
 
-    from .monitor_reconnect import MonitorReconnector, reconnect_policy
+    from .reconnect import MonitorReconnector, reconnect_policy
 
     raw_candidates = [c for c in candidates if c.is_raw]
 
@@ -108,7 +108,7 @@ async def run_raw_monitor(
     """Run the live monitor over raw CAN. Assumes the device is in slcan mode."""
     from canair.ecus.pids import build_ecu_index
 
-    from ._monitor_run import mode_monitor
+    from .run import mode_monitor
 
     ecu_index = build_ecu_index(pids_data)
     ecus = query_ecu_addresses(monitor.query_steps, ecu_index)
@@ -135,7 +135,7 @@ async def run_raw_monitor(
     # here through the shared classifier so a dropped bus is a clean message, not
     # a traceback. (The ELM monitor gets this via run_session_guarded; the raw
     # monitor bypasses it for its pipelined client, so guard here.)
-    from ..transport.errors import describe_transport_error, transport_error_types
+    from ...transport.errors import describe_transport_error, transport_error_types
 
     try:
         await mode_monitor(

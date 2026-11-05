@@ -11,6 +11,6 @@ Not here: flags (``cli/commands/``), choosing a transport (``transport/``), what
 Imports: ``transport`` (the protocol only), ``safety``, ``captures``, ``ecus``, ``query``,
 ``analysis``, ``uds`` and below. It does not import ``cli``.
 
-This package imports nothing eagerly, so a module such as ``poll_schedule`` stays a cheap import
+This package imports nothing eagerly, so a module such as ``monitor/schedule`` stays a cheap import
 for the CLI parser.
 """

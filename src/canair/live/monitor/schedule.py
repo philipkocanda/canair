@@ -93,7 +93,7 @@ class PollScheduler:
         # already the caller's own choice of seconds).
         self.period_speedup = period_speedup
         self.rate_steps = 0
-        # Per-PID period multiplier set by the slow-PID backoff (canair.live.poll_backoff).
+        # Per-PID period multiplier set by the slow-PID backoff (canair.live.monitor.backoff).
         self._slowdown: dict[Key, int] = {}
         # Fixed schedule only: rounds a slowed-down PID still sits out.
         self._skip: dict[Key, int] = {}

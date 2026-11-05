@@ -1,7 +1,7 @@
 """What ``monitor`` needs, as values: the steps it polls and how it records them.
 
 Both monitor paths take this: the ELM327 terminal through ``mode_monitor``, and the raw SLCAN
-pipelined client through :mod:`canair.live.raw_monitor`. Building it once, in the command, is
+pipelined client through :mod:`canair.live.monitor.raw_run`. Building it once, in the command, is
 what keeps the two from drifting apart on a default.
 """
 
@@ -13,7 +13,7 @@ from typing import Any
 
 from canair.captures.keepmode import KeepMode
 from canair.expression.notation import ByteNotation
-from canair.live.poll_schedule import DEFAULT_SCHEDULE, Schedule
+from canair.live.monitor.schedule import DEFAULT_SCHEDULE, Schedule
 
 
 @dataclass(frozen=True)

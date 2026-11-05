@@ -22,7 +22,7 @@ def _stub_live(monkeypatch):
     from canair.cli.commands import read
 
     monkeypatch.setattr(read, "run_live", lambda args, operation: 0)
-    monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
+    monkeypatch.setattr("canair.live.monitor.controller.query_ecu_error", lambda steps, pids: None)
     monkeypatch.setattr("canair.cli.live.load_pids", lambda: {})
 
 

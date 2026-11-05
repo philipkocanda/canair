@@ -12,7 +12,7 @@ import asyncio
 
 import pytest
 
-from canair.live.monitor import MonitorController
+from canair.live.monitor.controller import MonitorController
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 from canair.transport.config import ConnectionOptions
 from canair.transport.raw import uds_client as uds_raw
@@ -181,7 +181,7 @@ class TestRawUdsClientGuard:
         assert c._stacks["BMS"].sent == []
 
     def test_build_raw_client_wires_the_profile_policy(self, monkeypatch):
-        from canair.live import raw_monitor
+        from canair.live.monitor import raw_run as raw_monitor
         from canair.transport.raw import slcan_tcp
 
         seen = {}

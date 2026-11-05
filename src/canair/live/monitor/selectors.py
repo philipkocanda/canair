@@ -5,11 +5,11 @@
 and saved groups opened on what is polled now, and swapping in a new selection
 mid-run. The picker itself is the same screen a bare ``canair monitor`` shows
 (:mod:`canair.tui.apps.monitor_select`), and the pick ↔ selector mapping is the
-same pure logic (:mod:`canair.live.monitor_select`).
+same pure logic (:mod:`canair.live.monitor.select`).
 
-Factored out of :class:`canair.live.monitor.MonitorController` (mirrors
-:class:`canair.live._monitor_sessions.MonitorSessions` and
-:class:`canair.live._monitor_state.MonitorStateSuggester`) so the picker logic is
+Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirrors
+:class:`canair.live.monitor.sessions.MonitorSessions` and
+:class:`canair.live.monitor.state.MonitorStateSuggester`) so the picker logic is
 a self-contained unit rather than another arm of the controller god object. The
 controller keeps thin delegating methods for the TUI surface and holds the
 ``query_steps``/schedule/caches the selectors mutate via their ``self.c`` back-ref.
@@ -25,7 +25,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .monitor_select import (
+from .select import (
     EcuChoice,
     GroupChoice,
     build_choices,
@@ -35,7 +35,7 @@ from .monitor_select import (
 )
 
 if TYPE_CHECKING:
-    from .monitor import MonitorController
+    from .controller import MonitorController
 
 
 @dataclass(frozen=True)
@@ -122,7 +122,7 @@ class MonitorSelectors:
 
     def _polled_pairs(self, steps: Sequence[Mapping]) -> set[tuple[str, str]]:
         """``(ECU, PID)`` for every request ``steps`` polls, raw ones included."""
-        from .read.exec import build_query_plan
+        from ..read.exec import build_query_plan
 
         out: set[tuple[str, str]] = set()
         for step in steps:
@@ -137,7 +137,7 @@ class MonitorSelectors:
         return out
 
     def _forget(self, ecu: str, pid: str) -> None:
-        from .monitor import _label_ecu
+        from .controller import _label_ecu
 
         c = self.c
         for cache in (c._last_good, c._last_shown):

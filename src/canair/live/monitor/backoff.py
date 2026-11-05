@@ -9,7 +9,7 @@ answered very slowly delays the next poll of every other PID, not just its own r
 period by a power-of-two *slowdown* while it is slow, then steps back once it answers
 promptly again. Per PID, not per ECU: one dead PID must not slow its healthy neighbours,
 and an ECU that is asleep slows every one of its PIDs anyway. A dependency-free leaf,
-like :mod:`canair.live.poll_schedule`, which applies the slowdown.
+like :mod:`canair.live.monitor.schedule`, which applies the slowdown.
 
 The wording a slowdown is shown and logged with lives here too, so the monitor's PID row,
 status line and diagnostics log cannot describe it differently.
@@ -21,7 +21,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal
 
-from canair.live.poll_schedule import Key
+from canair.live.monitor.schedule import Key
 
 # Mean seconds per read above which a PID counts as slow on a poll. A healthy read is
 # tens of milliseconds on the raw path and well under that on an ELM327 with a learned

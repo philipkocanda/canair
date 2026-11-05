@@ -25,7 +25,7 @@ from textual.binding import Binding
 from textual.widgets import Input, Label, SelectionList
 from textual.widgets.selection_list import Selection
 
-from canair.live.monitor_select import (
+from canair.live.monitor.select import (
     EcuChoice,
     GroupChoice,
     build_choices,

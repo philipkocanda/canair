@@ -1,7 +1,7 @@
 """In-place PID editing + filtering for the live monitor.
 
 :class:`MonitorEditor` is a focused collaborator of
-:class:`canair.live.monitor.MonitorController`. It owns the two pieces of state
+:class:`canair.live.monitor.controller.MonitorController`. It owns the two pieces of state
 that turn the read-only monitor into an editor:
 
 - a **selection cursor** over the currently displayed parameter rows, and
@@ -25,7 +25,7 @@ from canair.ecus.shipping import param_ships
 if TYPE_CHECKING:
     from canair.expression.decoding import ParamRow
     from canair.expression.results import EcuFrame, ResultEntry
-    from canair.live.monitor import MonitorController
+    from canair.live.monitor.controller import MonitorController
 
 # Ordered display filters cycled by the TUI's filter key.
 FILTERS = ("all", "verified", "unverified", "ship", "no-ship")

@@ -1,12 +1,12 @@
 """Live monitor — the run driver (entry point + poll loops).
 
 :func:`mode_monitor` is the live monitor's entry point: it builds a
-:class:`~canair.live.monitor.MonitorController`, wires up recording/reconnect,
+:class:`~canair.live.monitor.controller.MonitorController`, wires up recording/reconnect,
 and drives either the Textual TUI (on a TTY) or the non-interactive poll loop
 (:func:`_monitor_noninteractive`, piped/scripted runs), then reconciles the
 ``--save`` journal and closes the device on the way out.
 
-Factored out of :mod:`canair.live.monitor` so the controller class and the
+Factored out of :mod:`canair.live.monitor.controller` so the controller class and the
 process-level driver (signal handling, the poll loop, the TTY/non-TTY branch,
 journal reconcile) are separate concerns. Callers import ``mode_monitor`` from here.
 """
@@ -23,15 +23,15 @@ from typing import TYPE_CHECKING
 from canair.captures.keepmode import KeepMode
 from canair.core.stop_signals import graceful_stop
 from canair.expression.notation import ByteNotation
-from canair.live.poll_schedule import DEFAULT_SCHEDULE, Schedule
+from canair.live.monitor.schedule import DEFAULT_SCHEDULE, Schedule
 from canair.render.console import console, escape
 from canair.render.glyphs import FAIL
 
-from ._monitor_record import _open_journal
-from .monitor import MonitorController
+from .controller import MonitorController
+from .record import _open_journal
 
 if TYPE_CHECKING:
-    from .monitor_reconnect import Reconnector
+    from .reconnect import Reconnector
 
 
 async def _monitor_noninteractive(controller: MonitorController) -> None:
@@ -142,7 +142,7 @@ async def mode_monitor(
                         ``period:`` (twice as often, see MONITOR_PERIOD_SPEEDUP);
                         ``"fixed"`` polls every PID every cycle.
         backoff:        Poll a PID that times out or is answered very slowly less
-                        often, so it stops holding up the rest (canair.live.poll_backoff).
+                        often, so it stops holding up the rest (canair.live.monitor.backoff).
         session_steps:  Optional list of session/skm-wake steps to run once before
                         the first poll cycle.
         keep_mode:      None = no history, "all" = every poll (the CLI default),
@@ -166,8 +166,8 @@ async def mode_monitor(
     status item shows each ECU's currently-open diagnostic session type; each
     signal row shows a small circle (green when fresh, grey when stale).
     """
-    from ..profile import active
-    from ..states import parse_states
+    from ...profile import active
+    from ...states import parse_states
 
     captures_dir = active().captures_dir
     states = parse_states(vehicle_states)

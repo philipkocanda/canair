@@ -6,10 +6,10 @@ a bare selector (no leading verb) is treated as a ``query`` step, so
 ``canair monitor BMS:2101`` and
 ``canair monitor "session IGPM --wake" "query IGPM"`` both work. With no STEP at
 all, a terminal gets an interactive picker (groups/ECUs, then PIDs —
-:mod:`canair.live.monitor_select`) whose result becomes the STEPs.
+:mod:`canair.live.monitor.select`) whose result becomes the STEPs.
 
 On a terminal this opens the scrollable Textual monitor (the polling / decoding /
-capture-saving logic lives in :mod:`canair.live.monitor`); piped/non-interactive
+capture-saving logic lives in :mod:`canair.live.monitor.controller`); piped/non-interactive
 it polls silently until Ctrl+C. Recording (``--save`` + metadata) and keep-modes
 apply here, not to the one-shot ``canair read``.
 """
@@ -31,7 +31,7 @@ from canair.cli.live import (
     to_step,
 )
 from canair.cli.live.handlers.multi import monitor_operation, monitor_options
-from canair.live.poll_schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
+from canair.live.monitor.schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
 from canair.render import messages
 
 NAME = "monitor"
@@ -232,7 +232,7 @@ def run(args) -> int:
 
     # Reject typo'd/unknown ECU names before connecting (mirrors `canair read`).
     from canair.cli.live import load_pids
-    from canair.live.monitor import query_ecu_error
+    from canair.live.monitor.controller import query_ecu_error
 
     ecu_err = query_ecu_error(query_steps, load_pids())
     if ecu_err:

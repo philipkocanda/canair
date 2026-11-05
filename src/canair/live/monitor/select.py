@@ -48,7 +48,7 @@ class EcuChoice:
         :func:`canair.query.pids_named_by` (``BC03`` picks ``22BC03``), the same
         rule :func:`canair.live.read.exec.build_query_plan` polls by.
         """
-        from ..query import pids_named_by
+        from ...query import pids_named_by
 
         wanted = [f.upper() for f in filters]
         if not wanted:

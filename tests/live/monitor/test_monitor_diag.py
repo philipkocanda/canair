@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from canair.live.monitor import MonitorController
+from canair.live.monitor.controller import MonitorController
 from tests.support.fakes import FakeTerminal
 
 

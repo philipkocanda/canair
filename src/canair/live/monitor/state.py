@@ -6,9 +6,9 @@ snapshot, the per-signal/per-ECU clocks that age those inputs, their expiry, and
 the evaluation of the profile's ``vehicle_states.yaml`` rules into a suggested
 state for the status bar and the save dialog.
 
-Factored out of :class:`canair.live.monitor.MonitorController` (mirrors
-:class:`canair.live.monitor_raw.MonitorRawPoller` and
-:class:`canair.live._monitor_record.MonitorRecorder`) so the suggestion logic is
+Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirrors
+:class:`canair.live.monitor.raw_poller.MonitorRawPoller` and
+:class:`canair.live.monitor.record.MonitorRecorder`) so the suggestion logic is
 a self-contained, independently testable unit rather than another arm of the
 controller god object. The controller keeps thin delegating
 properties/methods for the tested public surface (``decoded_values``,
@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from canair.expression.results import EcuFrame
 
-    from .monitor import MonitorController
+    from .controller import MonitorController
 
 # How many polls a decoded value stays eligible for state auto-suggestion.
 # Counted in polls of the signal's own PID rather than seconds so it adapts to
@@ -80,8 +80,8 @@ class MonitorStateSuggester:
 
     def observe(self, new_queries: list[EcuFrame]) -> None:
         """Fold a cycle's freshly-polled payloads into the state-input snapshot."""
-        from ..states import collect_values
-        from .monitor import _label_ecu
+        from ...states import collect_values
+        from .controller import _label_ecu
 
         for ecu_label, pid_results in new_queries:
             ecu = _label_ecu(ecu_label)
@@ -127,7 +127,7 @@ class MonitorStateSuggester:
         state another match specializes (:func:`canair.states.most_specific_states`).
         Among states unrelated in that hierarchy, file order still decides.
         """
-        from ..states import most_specific_states
+        from ...states import most_specific_states
 
         matched = self.suggested_states()
         if not matched:
@@ -144,7 +144,7 @@ class MonitorStateSuggester:
         ``[READY, PARKED]``), or ``[]`` when no rule matches / the profile
         declares no states.
         """
-        from ..states import StatePredicateError, load_states, suggest_states
+        from ...states import StatePredicateError, load_states, suggest_states
 
         if self._state_rules is None:
             try:
@@ -158,7 +158,7 @@ class MonitorStateSuggester:
 
     def state_options(self) -> list[tuple[str, str]]:
         """The profile's ordered ``(state, description)`` vocabulary for the save dialog."""
-        from ..states import state_options
+        from ...states import state_options
 
         try:
             return state_options()

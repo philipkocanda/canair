@@ -36,7 +36,7 @@ from canair.tui.scroll import OVERLAY_SCROLL_BINDINGS, OverlayScroll
 from canair.tui.styles import dialog_css
 
 if TYPE_CHECKING:
-    from canair.live.monitor import MonitorController
+    from canair.live.monitor.controller import MonitorController
 
 # Central-log categories mapped to a display colour. Data-integrity faults (frames dropped
 # or corrupted, replies in the wrong slot, bus errors, internal exceptions) are red, as the

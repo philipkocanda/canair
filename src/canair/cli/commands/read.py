@@ -139,7 +139,7 @@ def run(args) -> int:
         query_steps = [c for c in commands if c["type"] == "query"]
         if query_steps:
             from canair.cli.live import load_pids
-            from canair.live.monitor import query_ecu_error
+            from canair.live.monitor.controller import query_ecu_error
 
             ecu_err = query_ecu_error(query_steps, load_pids())
             if ecu_err:

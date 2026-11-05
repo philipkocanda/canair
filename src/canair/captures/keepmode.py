@@ -164,7 +164,7 @@ def wants_save(
     intent to record, not as a no-op — the metadata has nowhere else to go.
 
     Lives here beside :func:`resolve_keep_mode` (the other predicate over the
-    recording flags) rather than in the CLI layer, because ``modes.raw_monitor``
+    recording flags) rather than in the CLI layer, because ``live.monitor.raw_run``
     needs it to decide whether a dropped session should point the user at
     ``--recover``, and a mode reaching up into a command helper for that was a
     layering inversion.

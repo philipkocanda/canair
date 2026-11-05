@@ -10,7 +10,7 @@ without needing the on-screen keep-history (which the default keep-mode trims).
 Pure in-memory accumulation over the decoded parameter rows the poller already
 produces (:data:`canair.expression.decoding.ParamRow`); no I/O, no CAN access — a
 self-contained, independently testable collaborator (mirroring
-:class:`canair.live._monitor_record.MonitorRecorder`).
+:class:`canair.live.monitor.record.MonitorRecorder`).
 """
 
 from __future__ import annotations

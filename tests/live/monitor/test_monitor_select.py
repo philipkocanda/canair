@@ -6,7 +6,7 @@ import pytest
 from textual.widgets import Input, SelectionList
 
 from canair.ecus.ecu_groups import Group
-from canair.live.monitor_select import (
+from canair.live.monitor.select import (
     build_choices,
     build_group_choices,
     current_selection,

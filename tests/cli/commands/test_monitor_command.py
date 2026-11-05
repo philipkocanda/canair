@@ -44,7 +44,7 @@ class TestMonitorRegistered:
         assert "--interval" in capsys.readouterr().err
 
     def test_interval_floor_is_the_tui_floor(self):
-        from canair.live.poll_schedule import MIN_INTERVAL
+        from canair.live.monitor.schedule import MIN_INTERVAL
 
         args = _parse(["monitor", "BMS:2101", "--interval", str(MIN_INTERVAL)])
         assert args.interval == MIN_INTERVAL
@@ -71,7 +71,9 @@ class TestMonitorRunWiring:
 
         # Skip the ECU-name preflight (needs a profile) and the device connect.
         monkeypatch.setattr(monitor, "run_live", fake_run_live)
-        monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
+        monkeypatch.setattr(
+            "canair.live.monitor.controller.query_ecu_error", lambda steps, pids: None
+        )
         monkeypatch.setattr("canair.cli.live.load_pids", lambda: {})
 
         args = _parse(["monitor", "BMS:2101", "--interval", "3"])
@@ -99,7 +101,9 @@ class TestMonitorRunWiring:
         monkeypatch.setattr(monitor, "_pick_steps", lambda args: ["BMS", "VCU:2101"])
         monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
         monkeypatch.setattr("sys.stdout.isatty", lambda: True, raising=False)
-        monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
+        monkeypatch.setattr(
+            "canair.live.monitor.controller.query_ecu_error", lambda steps, pids: None
+        )
         monkeypatch.setattr("canair.cli.live.load_pids", lambda: {})
 
         assert monitor.run(_parse(["monitor"])) == 0
@@ -135,7 +139,9 @@ class TestMonitorGroupExpansion:
             return 0
 
         monkeypatch.setattr(monitor, "run_live", fake_run_live)
-        monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
+        monkeypatch.setattr(
+            "canair.live.monitor.controller.query_ecu_error", lambda steps, pids: None
+        )
         monkeypatch.setattr("canair.cli.live.load_pids", lambda: {})
         monkeypatch.setattr(
             "canair.ecus.ecu_groups.load_groups",

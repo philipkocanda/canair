@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 from canair.render import messages
 
 from ...transport.config import ConnectionOptions, TransportConfig
-from ..monitor_options import MonitorOptions
+from ..monitor.options import MonitorOptions
 from ..session import Operation, SessionOptions
 
 if TYPE_CHECKING:
@@ -145,7 +145,7 @@ async def _run_session(
 
     # Monitor: optimized pipelined + batched backend.
     if monitor is not None:
-        from ..raw_monitor import run_raw_monitor
+        from ..monitor.raw_run import run_raw_monitor
 
         return await run_raw_monitor(
             monitor,

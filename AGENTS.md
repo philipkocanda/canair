@@ -197,18 +197,18 @@ its deviations are ratcheted by `tests/contracts/test_ui_standards.py` (scanner
   (`--save`/`--label`/`--state`/`--notes`) and the keep-modes live **here, not on `read`**. On a TTY
   it opens the scrollable Textual monitor (press `?` for keys); piped it polls silently until
   Ctrl+C; **a bare `canair monitor` on a TTY opens a group/ECU → PID checklist first**
-  (`src/canair/live/monitor_select.py` = pure choice/selector logic,
+  (`src/canair/live/monitor/select.py` = pure choice/selector logic,
   `src/canair/tui/apps/monitor_select.py` = the screen; it needs only the profile, never the device,
   and prints the equivalent command; saved `@groups` are listed above the ECUs and expand to their
   ECUs and PIDs). **The running monitor's `p` key opens that same screen** on what is polled now
-  (`LiveMonitorSelectScreen`, backed by `_monitor_selectors.py`), so there is one picker, not
+  (`LiveMonitorSelectScreen`, backed by `monitor/selectors.py`), so there is one picker, not
   two. Non-TTY with no STEP is still an error. **`read` never had a
   `--monitor` flag.** `--wait` blocks until the device is online and makes a mid-session drop
   reconnect forever (see Mid-session reconnect). **Polling is per-PID by default**
   (`--schedule dynamic`): each PID is read at half its profile `period:`
   (`MONITOR_PERIOD_SPEEDUP`), a PID without one every `--interval` (`--schedule fixed` reads
   every PID every cycle). A slow or silent PID holds up every other PID's next read, so the
-  leaf `src/canair/live/poll_backoff.py::PollBackoff` slows that PID alone (×2 up to ×32,
+  leaf `src/canair/live/monitor/backoff.py::PollBackoff` slows that PID alone (×2 up to ×32,
   `--no-backoff` off; its ECU's healthy PIDs keep their rate) from the per-`(ECU, PID)`
   `PollCost`s the pollers leave in `MonitorController.poll_costs`; the slowdown is shown on
   the PID's row. A reconnect restores every PID's rate (`MonitorController.reset_backoff`,
@@ -217,7 +217,7 @@ its deviations are ratcheted by `tests/contracts/test_ui_standards.py` (scanner
   path each result carries its request's `request_s` (`read/exec.py::timed_exchange`), which
   excludes keepalive time (`SessionManager.keepalive_seconds`); a multi-DID batch is one
   request for each PID it answers, timed as the whole batch. The scheduler is a
-  dependency-free leaf, `src/canair/live/poll_schedule.py::PollScheduler` (the parser imports its
+  dependency-free leaf, `src/canair/live/monitor/schedule.py::PollScheduler` (the parser imports its
   vocabulary at CLI start-up, so it must not reach into `src/canair/live`); it drives which PIDs each
   tick reads and, since a slow PID is now polled far less often than a fast one, also supplies the
   per-signal *clock* the state-suggestion staleness is counted on (polls of that PID, not ticks of
@@ -1155,13 +1155,13 @@ rather than abandoned: it re-probes reachable **same-transport** devices (raw↔
 *initial* connect crosses transports), rebuilds the client, re-opens sessions and resumes, with a
 `--save` recording continuing on the same journal. The gap is recorded in the session's
 `link_events` (`src/canair/captures/link_events.py`, which also records pauses, silent ECUs,
-unpolled PIDs and backoff; the monitor side is `live/_monitor_link_events.py`, fed through
+unpolled PIDs and backoff; the monitor side is `live/monitor/link_events.py`, fed through
 `MonitorController.mark_disconnected`, so a new link-failure path must call that rather than
 set `disconnected` itself). Gaps bound forward fill (`analysis/fill.py::next_gap_starts`);
 holes no event explains are inferred for display only (`captures/inferred_gaps.py`). Bounded by
 `transport.reconnect_max_wait` (default 60.0s); `--wait` retries forever. Infra
-`src/canair/live/monitor_reconnect.py` plus the per-transport connect closures in
-`cli/live/connect.py` and `live/raw_monitor.py`. Plan:
+`src/canair/live/monitor/reconnect.py` plus the per-transport connect closures in
+`cli/live/connect.py` and `live/monitor/raw_run.py`. Plan:
 `plans/2026-08-03-monitor-reconnect-and-wait.md`.
 
 **Reconnect is correctness-triggered, not only liveness-triggered.** A session can stop being usable

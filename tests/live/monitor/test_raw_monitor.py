@@ -2,9 +2,9 @@
 
 import asyncio
 
-from canair.live.monitor import MonitorController, _raw_pid_result
-from canair.live.poll_backoff import PollCost
-from canair.live.raw_monitor import query_ecu_addresses
+from canair.live.monitor.backoff import PollCost
+from canair.live.monitor.controller import MonitorController, _raw_pid_result
+from canair.live.monitor.raw_run import query_ecu_addresses
 from canair.uds.addressing import EcuAddress
 from tests.support.raw_monitor import FakeRawClient
 from tests.support.raw_monitor import TimedRawClient as _TimedRawClient
@@ -488,7 +488,7 @@ class TestSlowPidBackoff:
         }
 
     def test_a_silent_pid_is_slowed_and_flagged(self):
-        from canair.live.poll_backoff import ESCALATE_AFTER
+        from canair.live.monitor.backoff import ESCALATE_AFTER
 
         c = self._ctrl()
         for _ in range(ESCALATE_AFTER):

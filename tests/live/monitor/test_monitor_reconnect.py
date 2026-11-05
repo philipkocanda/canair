@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-from canair.live.monitor_reconnect import MonitorReconnector, ReconnectPolicy, reconnect_policy
+from canair.live.monitor.reconnect import MonitorReconnector, ReconnectPolicy, reconnect_policy
 from canair.transport import fallback
 from canair.transport.config import TransportConfig
 
@@ -364,7 +364,7 @@ class TestMonitorReconnector:
 
 class TestControllerRebind:
     def _controller(self, *, raw: bool):
-        from canair.live.monitor import MonitorController
+        from canair.live.monitor.controller import MonitorController
 
         steps = [{"type": "query", "ecu": "BMS", "pids": ["2101"]}]
         if raw:
@@ -396,7 +396,7 @@ class TestControllerRebind:
         # A desynced pipe makes every ECU look unanswered, so all are backed off by the
         # time the liveness check reconnects. Resetting the backoff alone would leave the
         # scheduler's factor behind with nothing left to ever restore it.
-        from canair.live.poll_backoff import ESCALATE_AFTER, PollCost
+        from canair.live.monitor.backoff import ESCALATE_AFTER, PollCost
 
         c = self._controller(raw=False)
         BMS = ("BMS", "2101")
@@ -477,7 +477,7 @@ class TestStaleEscalation:
     values on a connection that will never answer again — the reported bug."""
 
     def _controller(self):
-        from canair.live.monitor import MonitorController
+        from canair.live.monitor.controller import MonitorController
 
         steps = [{"type": "query", "ecu": "BMS", "pids": ["2101"]}]
         c = MonitorController(object(), steps, {"ecus": {}}, verbose=False)

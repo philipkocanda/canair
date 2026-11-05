@@ -4,13 +4,13 @@ Connect-time cross-device fallback lives in :mod:`canair.transport.fallback`.
 This module adds the *mid-session* counterpart: when a monitor session's
 transport drops, re-probe the (same-transport) candidate list until one answers,
 rebuild the client, and rebind it onto the running
-:class:`~canair.live.monitor.MonitorController` — preserving its journal and
+:class:`~canair.live.monitor.controller.MonitorController` — preserving its journal and
 history so the ``--save`` session simply continues (the gap shows in the
 timestamps).
 
 The transport-specific "connect to this candidate" step is supplied by the
 caller (``build_elm_reconnector`` in :mod:`canair.cli.live.connect`,
-``build_raw_reconnector`` in :mod:`canair.live.raw_monitor`), which reuses the
+``build_raw_reconnector`` in :mod:`canair.live.monitor.raw_run`), which reuses the
 same build path as the initial connect. The bounded-vs-forever retry policy is
 derived from the user's ``--wait`` flag and config
 (:func:`canair.config.reconnect_max_wait`).
@@ -25,8 +25,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from ..transport.config import TransportConfig
-    from .monitor import MonitorController
+    from ...transport.config import TransportConfig
+    from .controller import MonitorController
 
 # A transport-specific "connect to this candidate, return the ready client".
 ConnectFn = Callable[["TransportConfig"], Awaitable[Any]]
@@ -71,7 +71,7 @@ class ReconnectPolicy:
 
 def reconnect_policy(*, wait: bool = False) -> ReconnectPolicy:
     """Build a :class:`ReconnectPolicy` from ``--wait`` + user config."""
-    from ..config import fallback_settings, reconnect_max_wait
+    from ...config import fallback_settings, reconnect_max_wait
 
     _, connect_timeout, _ = fallback_settings()
     return ReconnectPolicy(
@@ -128,8 +128,8 @@ class MonitorReconnector:
         stop: StopFn | None = None,
         notice: NoticeFn | None = None,
     ) -> bool:
-        from ..transport.errors import transport_error_types
-        from ..transport.fallback import wait_for_reachable
+        from ...transport.errors import transport_error_types
+        from ...transport.fallback import wait_for_reachable
 
         stopped: StopFn = stop or (lambda: False)
         say: NoticeFn = notice or (lambda _m: None)

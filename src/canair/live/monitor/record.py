@@ -5,9 +5,9 @@ concern: per-cycle payload recording (frame accounting + display/`--save`
 history), the write-ahead capture journal, on-demand (`s`) saves, segment rotation
 (`n`), and the current segment's label/state/notes metadata.
 
-Factored out of :class:`canair.live.monitor.MonitorController` (mirrors
-:class:`canair.live.monitor_raw.MonitorRawPoller` and
-:class:`canair.live.monitor_edit.MonitorEditor`) so the recording/journaling
+Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirrors
+:class:`canair.live.monitor.raw_poller.MonitorRawPoller` and
+:class:`canair.live.monitor.edit.MonitorEditor`) so the recording/journaling
 logic is a self-contained, independently testable unit rather than another arm of
 the controller god object. The controller keeps thin delegating
 properties/methods for the tested public surface and holds the poll/display state
@@ -27,10 +27,10 @@ from canair.captures.keepmode import KEEP_CHANGES, KEEP_LAST, KeepMode, persiste
 from canair.captures.types import Quality
 from canair.expression.results import EcuFrame
 
-from ._monitor_history import PayloadHistory, extend_runs
+from .history import PayloadHistory, extend_runs
 
 if TYPE_CHECKING:
-    from .monitor import MonitorController
+    from .controller import MonitorController
 
 
 def _merge_history(
@@ -72,8 +72,8 @@ def _write_merged(
     The ECU label (e.g. "BMS") is resolved to its CAN response address; an
     unknown label falls back to its leading token verbatim.
     """
-    from ..captures import build_query_session, save_session
-    from ..ecus import build_name_tx_index, rx_from_name
+    from ...captures import build_query_session, save_session
+    from ...ecus import build_name_tx_index, rx_from_name
 
     name_index = build_name_tx_index()
     results: list[tuple[str, str, str, str]] = []
@@ -318,7 +318,7 @@ class MonitorRecorder:
     @staticmethod
     def _is_offer(states: list[str], offered: list[str] | None) -> bool:
         """Whether ``states`` is a dialog's pre-fill, accepted unchanged."""
-        from ..states import parse_states
+        from ...states import parse_states
 
         return offered is not None and set(states) == set(parse_states(offered))
 
@@ -363,7 +363,7 @@ class MonitorRecorder:
 
         The capture writer prints its own "Saved N capture(s) to <path>" banner to stderr;
         inside the TUI that is discarded. Collecting it here lets
-        :func:`~canair.live.monitor.mode_monitor` replay it once the screen is handed back
+        :func:`~canair.live.monitor.controller.mode_monitor` replay it once the screen is handed back
         (a multi-day reconcile writes one file per day, so it emits several banners).
         """
         for line in buf.getvalue().splitlines():
@@ -386,7 +386,7 @@ class MonitorRecorder:
         Never writes to stdout (the TUI owns the screen); the destination banner
         is deferred to :attr:`deferred_saves` and printed after the app exits.
         """
-        from ..states import parse_states
+        from ...states import parse_states
 
         states = parse_states(vehicle_states)
 
@@ -426,7 +426,7 @@ class MonitorRecorder:
 
         captures_dir = self.c.captures_dir
         if captures_dir is None:
-            from ..profile import active
+            from ...profile import active
 
             captures_dir = active().captures_dir
 
@@ -462,7 +462,7 @@ class MonitorRecorder:
         summary; never writes to stdout (the TUI owns the screen) — the destination
         banner is deferred to :attr:`deferred_saves` and printed after the app exits.
         """
-        from ..states import parse_states
+        from ...states import parse_states
 
         if self.journal is None:
             return "Start a new session needs --save (nothing is being recorded)."

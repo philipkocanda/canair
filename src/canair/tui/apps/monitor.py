@@ -80,7 +80,7 @@ from canair.tui.status import (
 )
 
 if TYPE_CHECKING:
-    from canair.live.monitor import MonitorController
+    from canair.live.monitor.controller import MonitorController
 
 import asyncio
 import functools
@@ -88,8 +88,8 @@ import time
 from datetime import datetime
 
 from canair.core.eventlog import log_event, log_exception
-from canair.live._monitor_render import MONITOR_LEGEND
-from canair.live.poll_backoff import summarize_slowed
+from canair.live.monitor.backoff import summarize_slowed
+from canair.live.monitor.render import MONITOR_LEGEND
 from canair.render.glyphs import CURSOR, ELLIPSIS
 from canair.states import join_states
 from canair.transport.errors import transport_error_types

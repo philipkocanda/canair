@@ -377,7 +377,7 @@ def render_param_table(
 
 
 def _format_range_value(stat: dict) -> str:
-    """One-line value-span string for a :class:`~canair.live._monitor_stats.SignalStat`.
+    """One-line value-span string for a :class:`~canair.live.monitor.stats.SignalStat`.
 
     A numeric signal renders as ``lo – hi unit`` (or a single value when it never
     moved); a non-numeric signal lists its distinct labels (with a ``+N more``
@@ -409,7 +409,7 @@ def render_param_ranges(
     """Render each signal's captured value *span* as an aligned Rich Text block.
 
     ``stats`` maps ``{param_name: SignalStat}`` (from
-    :class:`canair.live._monitor_stats.ParamStats`). Each row is
+    :class:`canair.live.monitor.stats.ParamStats`). Each row is
     ``{indent}{name}  {range}  ✓|?  n=N`` — the numeric min–max (or distinct
     labels) accumulated across the run, the way ``canair investigate``/``decode``
     report a signal's range. ``selected_name`` marks the in-place-edit cursor row

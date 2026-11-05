@@ -3,7 +3,7 @@
 The pure presentation helper that turns a cycle's decoded query results into a
 Rich :class:`~rich.text.Text` block. Shared by the Textual TUI
 (:mod:`canair.tui.apps.monitor`) and the non-interactive fallback, so both
-paths render identically. The polling/recording controller is :mod:`canair.live.monitor`.
+paths render identically. The polling/recording controller is :mod:`canair.live.monitor.controller`.
 """
 
 import time
@@ -23,7 +23,7 @@ from canair.render.formatting import (
 )
 from canair.uds.layout import subfunction_bytes_for_pid
 
-from ._monitor_history import HistoryRun, PayloadHistory
+from .history import HistoryRun, PayloadHistory
 
 # Ordered display view modes cycled by the TUI 'V' key. Increasing detail:
 #   ecus    — just the responding ECUs (+ a PID/signal count)
@@ -419,7 +419,7 @@ def _render_results(
     ``view_mode`` (see :data:`VIEW_MODES`) selects the presentation: ``"ecus"``
     lists only the responding ECUs (+ a PID/signal count); ``"ranges"`` shows
     each signal's accumulated value span (from ``param_stats``, a
-    :class:`~canair.live._monitor_stats.ParamStats`); ``"signals"`` shows the
+    :class:`~canair.live.monitor.stats.ParamStats`); ``"signals"`` shows the
     decoded table without the raw hex; ``"full"`` (default) shows table + hex.
     """
     row_cap = _RENDER_MAX_ROWS if max_history_rows is None else max(1, max_history_rows)

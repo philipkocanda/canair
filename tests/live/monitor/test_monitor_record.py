@@ -1,6 +1,6 @@
 """Unit tests for the monitor recorder's span-aware state back-fill.
 
-The recorder (``canair.live._monitor_record.MonitorRecorder``) accumulates the
+The recorder (``canair.live.monitor.record.MonitorRecorder``) accumulates the
 states auto-suggested across a segment's whole lifetime, so a segment that
 charged then went idle still reconciles as ``charging`` — a point-in-time
 snapshot at reconcile time alone would miss it (the 2026-07-27 bug).
@@ -12,7 +12,7 @@ exercised end-to-end into an on-disk capture file.
 
 import json
 
-from canair.live._monitor_record import MonitorRecorder
+from canair.live.monitor.record import MonitorRecorder
 from tests.support.monitor_recorder import FakeController
 
 
