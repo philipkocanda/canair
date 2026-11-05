@@ -799,7 +799,7 @@ class TestStepGaps:
         }
 
     def test_a_gap_between_two_frames_is_reported_once(self):
-        from canair.tui.apps.captures_step_gaps import describe_gap, gaps_before
+        from canair.tui.apps.captures_step.gaps import describe_gap, gaps_before
 
         events = [{"at": "14:00:10.000", "until": "14:01:10.000", "kind": "disconnect"}]
         a, b, c = (self._entry(s, events) for s in (0, 80, 90))
@@ -808,7 +808,7 @@ class TestStepGaps:
         assert gaps_before([c], _at(90), [b], _at(80)) == []
 
     def test_scoped_gaps_show_only_for_the_ecu_in_view(self):
-        from canair.tui.apps.captures_step_gaps import describe_gap, gaps_before
+        from canair.tui.apps.captures_step.gaps import describe_gap, gaps_before
 
         events = [{"at": "14:00:10.000", "kind": "ecu_silent", "rx": "0x7EC"}]
         mine = self._entry(80, events)

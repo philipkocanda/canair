@@ -22,7 +22,7 @@ from canair.cli.commands.captures.listing import (
 from canair.cli.commands.captures.query import _gather_query
 from canair.cli.commands.captures.sessions import _clean, _quality_tag, cmd_sessions, cmd_summary
 from canair.core.prompt import PromptUnavailable
-from canair.tui.apps.captures_step_join import _nearest_within, build_join_frames
+from canair.tui.apps.captures_step.join import _nearest_within, build_join_frames
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 

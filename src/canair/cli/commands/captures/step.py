@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Entry point for ``captures --step``: build the model, pick an output path.
 
-Three paths over one :class:`~canair.tui.apps.captures_step_model.StepModel`:
+Three paths over one :class:`~canair.tui.apps.captures_step.model.StepModel`:
 
-* a TTY gets the interactive Textual app (:mod:`canair.tui.apps.captures_step`);
+* a TTY gets the interactive Textual app (:mod:`canair.tui.apps.captures_step.app`);
 * piped output renders the most recent frames statically;
 * ``--json`` emits the same frames as data.
 
@@ -20,7 +20,7 @@ from canair.captures.types import CaptureEntry
 from canair.expression.notation import ByteNotation
 from canair.render import ansi, messages
 from canair.render.console import console as make_console
-from canair.tui.apps.captures_step_model import DEFAULT_STEP_JOIN_TOL_S, VIEW_AUTO, StepModel
+from canair.tui.apps.captures_step.model import DEFAULT_STEP_JOIN_TOL_S, VIEW_AUTO, StepModel
 
 from .query import _dump_json, _gather_query
 
@@ -130,7 +130,7 @@ def cmd_step(
         _print_frames(model, limit=limit)
         return
 
-    from canair.tui.apps.captures_step import run_step_app
+    from canair.tui.apps.captures_step.app import run_step_app
 
     run_step_app(model)
 

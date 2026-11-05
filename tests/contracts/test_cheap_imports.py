@@ -27,6 +27,7 @@ CASES = [
     ("canair.live.monitor.schedule", ("canair.live",), ("textual",)),
     ("canair.live.scan.presets", ("canair.live",), ("textual",)),
     ("canair.tui.apps.decode_plot.model", ("canair.tui.apps.decode_plot.app",), ("textual",)),
+    ("canair.tui.apps.captures_step.model", ("canair.tui.apps.captures_step.app",), ("textual",)),
 ]
 
 

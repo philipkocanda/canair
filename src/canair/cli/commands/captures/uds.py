@@ -104,7 +104,7 @@ from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.render import messages
 from canair.states import format_state_selector
-from canair.tui.apps.captures_step_model import (
+from canair.tui.apps.captures_step.model import (
     AUTO_STACK_MAX_KEYS,
     DEFAULT_STEP_JOIN_TOL_S,
     VIEW_AUTO,

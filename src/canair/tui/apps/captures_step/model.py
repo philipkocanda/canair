@@ -50,9 +50,9 @@ from canair.captures.types import CaptureEntry
 from canair.expression.notation import ByteNotation
 from canair.states import join_states as _join_states
 
-from .captures_step_gaps import describe_gap, gaps_before
-from .captures_step_join import JoinFrame, build_join_frames
-from .captures_step_render import (
+from .gaps import describe_gap, gaps_before
+from .join import JoinFrame, build_join_frames
+from .render import (
     capture_block_text,
     frame_header_text,
     key_label,

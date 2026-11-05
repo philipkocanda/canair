@@ -55,8 +55,9 @@ _CAPTURE_WRITERS = (
     "set_session_transport",
 )
 _MUTATING_CAPTURE_PATHS = {
-    p.name: p
-    for p in (*CAPTURES_CMD.glob("*.py"), *TUI_APPS.glob("*.py"))
+    # An app is a sub-package, so its modules are told apart by the app's name.
+    (f"{p.parent.name}/{p.name}" if p.parent.parent == TUI_APPS else p.name): p
+    for p in (*CAPTURES_CMD.glob("*.py"), *TUI_APPS.glob("*/*.py"))
     if any(re.search(rf"\b{w}\b", p.read_text()) for w in _CAPTURE_WRITERS)
 }
 _MUTATING_CAPTURE_MODULES = set(_MUTATING_CAPTURE_PATHS)
@@ -563,7 +564,7 @@ class TestBaseLayerMutationsAreRefused:
             "maint.py",
             "session_fields.py",
             "set_state.py",
-            "captures_step.py",
+            "captures_step/app.py",
         }
 
 
