@@ -104,7 +104,8 @@ def cmd_set_field(
     as_json: bool = False,
 ) -> int:
     """Set ``field`` on every scope-selected session to ``value`` ('' clears it)."""
-    from .query import group_sessions
+    from canair.captures.entries import group_sessions
+
     from .session_gate import refuse_write
 
     value = value.strip()

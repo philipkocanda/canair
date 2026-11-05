@@ -9,12 +9,13 @@ these two views are their only callers.
 import sys
 from collections.abc import Sequence
 
+from canair.captures.entries import _entry_to_dict
 from canair.captures.store import decoded_preview
 from canair.captures.types import CaptureEntry
 from canair.render import ansi
 from canair.states import join_states as _join_states
 
-from .query import _dump_json, _entry_to_dict, _parse_query
+from .query import _dump_json, _parse_query
 
 
 def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limit: int = 0) -> None:

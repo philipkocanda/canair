@@ -19,9 +19,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from canair.captures.dates import entry_datetime
+from canair.captures.entries import _capture_key
 from canair.captures.types import CaptureEntry
-
-from .query import _capture_key
 
 
 @dataclass(frozen=True)

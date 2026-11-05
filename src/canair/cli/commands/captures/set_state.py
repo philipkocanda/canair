@@ -40,8 +40,8 @@ def cmd_set_state(
     import json as _json
 
     from canair.captures import set_session_states
+    from canair.captures.entries import group_sessions
 
-    from .query import group_sessions
     from .session_gate import refuse_write
 
     states = parse_states(states_arg)

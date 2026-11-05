@@ -19,12 +19,11 @@ from typing import Any
 
 from rich.text import Text
 
+from canair.captures.entries import _capture_key
 from canair.captures.store import NO_DEFS, PidDefs
 from canair.captures.types import CaptureEntry
 from canair.states import join_states as _join_states
 from canair.uds.notation import ByteNotation
-
-from .query import _capture_key
 
 # Width of the rule drawn between stacked capture blocks.
 _SEPARATOR_WIDTH = 44

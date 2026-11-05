@@ -13,6 +13,7 @@ from canair.captures import (
     resolve_metadata,
     save_session,
 )
+from canair.captures.entries import _is_hex_payload, group_sessions
 from canair.cli.commands.captures.diff import cmd_diff
 from canair.cli.commands.captures.join import _nearest_within, build_join_frames
 from canair.cli.commands.captures.listing import (
@@ -21,7 +22,7 @@ from canair.cli.commands.captures.listing import (
     cmd_latest,
     cmd_list,
 )
-from canair.cli.commands.captures.query import _gather_query, _is_hex_payload, group_sessions
+from canair.cli.commands.captures.query import _gather_query
 from canair.cli.commands.captures.sessions import _clean, _quality_tag, cmd_sessions, cmd_summary
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")

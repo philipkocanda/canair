@@ -15,11 +15,12 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from canair.captures.entries import _capture_key
 from canair.captures.types import CaptureEntry
 from canair.render import ansi
 from canair.uds.notation import ByteNotation
 
-from .query import _capture_key, _dump_json, _gather_query
+from .query import _dump_json, _gather_query
 from .step_model import (
     DEFAULT_STEP_JOIN_TOL_S,
     VIEW_AUTO,

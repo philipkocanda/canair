@@ -30,6 +30,15 @@ from typing import Any
 from rich.text import Text
 
 from canair.captures.dates import entry_datetime
+from canair.captures.entries import (
+    _capture_key,
+    _dedupe_payloads,
+    _is_hex_payload,
+    _key_ordinals,
+    _prev_same_index,
+    group_sessions,
+    key_index,
+)
 from canair.captures.store import (
     PidDefs,
     entry_path,
@@ -42,15 +51,6 @@ from canair.states import join_states as _join_states
 from canair.uds.notation import ByteNotation
 
 from .join import JoinFrame, build_join_frames
-from .query import (
-    _capture_key,
-    _dedupe_payloads,
-    _is_hex_payload,
-    _key_ordinals,
-    _prev_same_index,
-    group_sessions,
-    key_index,
-)
 from .step_gaps import describe_gap, gaps_before
 from .step_render import (
     capture_block_text,
@@ -767,7 +767,7 @@ class StepModel:
         ``limit`` keeps only the most recent N frames (0 = all), mirroring the
         ``--limit`` cap of the list view.
         """
-        from .query import _entry_to_dict
+        from canair.captures.entries import _entry_to_dict
 
         total = self.frame_count()
         start = max(total - limit, 0) if limit > 0 else 0

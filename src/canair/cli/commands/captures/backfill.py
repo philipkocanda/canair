@@ -84,12 +84,12 @@ def cmd_backfill_states(
     import json as _json
 
     from canair.captures import set_session_states
+    from canair.captures.entries import group_sessions
     from canair.ecus.pids import build_ecu_index, load_pids
     from canair.states import StatePredicateError, join_states, load_states
 
     from . import layers
     from .backfill_render import print_report
-    from .query import group_sessions
 
     try:
         rules = load_states()

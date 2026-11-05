@@ -12,6 +12,7 @@ from collections import defaultdict
 from collections.abc import Mapping, Sequence
 
 from canair.analysis.fill import format_hold_duration
+from canair.captures.entries import SessionGroup, group_sessions
 from canair.captures.inferred_gaps import format_key, infer_gaps
 from canair.captures.link_events import (
     BACKOFF,
@@ -28,7 +29,7 @@ from canair.render import ansi
 from canair.states import join_states as _join_states
 from canair.states.spans import parse_time_key
 
-from .query import SessionGroup, _dump_json, group_sessions
+from .query import _dump_json
 
 
 def cmd_summary(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:

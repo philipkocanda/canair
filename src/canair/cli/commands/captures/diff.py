@@ -8,16 +8,12 @@ information one time-joined frame at a time.
 
 from collections.abc import Sequence
 
+from canair.captures.entries import _dedupe_payloads, _group_by_key
 from canair.captures.store import NO_DEFS, PidDefs, decoded_preview
 from canair.captures.types import CaptureEntry
 from canair.uds.notation import ByteNotation
 
-from .query import (
-    _dedupe_payloads,
-    _dump_json,
-    _gather_query,
-    _group_by_key,
-)
+from .query import _dump_json, _gather_query
 
 
 def _render_diff_group(

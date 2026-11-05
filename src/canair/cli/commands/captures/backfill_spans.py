@@ -82,13 +82,13 @@ def cmd_backfill_state_spans(
     import json as _json
 
     from canair.captures import set_session_state_spans
+    from canair.captures.entries import group_sessions
     from canair.ecus.pids import build_ecu_index, load_pids
     from canair.install.build_info import full_version
     from canair.states import StatePredicateError, join_states, load_states
 
     from . import layers
     from .backfill_spans_render import print_span_report
-    from .query import group_sessions
 
     try:
         rules = load_states()
