@@ -29,7 +29,9 @@ options:
   --identify            Run `canair identity` on each alive ECU after the
                         sweep (otherwise offer interactively)
   --save                Save results to captures/
-  --label TEXT          Session label for --save
+  --label TEXT          Session label for --save (asked for when omitted; with
+                        no terminal the session is saved under a generated
+                        label)
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
   --wican WICAN         WiCAN address: ap or IP (default: config

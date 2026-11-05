@@ -334,12 +334,25 @@ class TestFinalizeJournal:
         assert not j.path.exists()
         assert list(tmp_path.glob("*.json")) == []
 
-    def test_cancelled_prompt_discards(self, tmp_path):
+    def test_deliberate_skip_discards(self, tmp_path):
         j = self._journal(tmp_path)
-        with patch("canair.captures.resolve_metadata", return_value=None):
+        with patch("canair.live.multi.resolve_metadata", return_value=None):
             _finalize_journal(j, 1, None, None, None)
         assert not j.path.exists()
         assert list(tmp_path.glob("*.json")) == []
+
+    def test_no_terminal_for_the_label_prompt_still_saves(self, tmp_path, monkeypatch, capsys):
+        """`read --save` with no --label and stdin a pipe used to discard the recording."""
+        import io
+
+        monkeypatch.setattr("sys.stdin", io.StringIO(""))  # not a terminal
+        j = self._journal(tmp_path)
+        _finalize_journal(j, 1, None, None, None, suggested_state="READY")
+        sess = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"][0]
+        assert sess["label"] == "Multi query session"
+        assert sess["vehicle_states"] == ["READY"]
+        assert not j.path.exists()
+        assert "captures uds --delete --last-session" in capsys.readouterr().err
 
     def test_no_prompt_uses_existing_meta(self, tmp_path):
         # Interrupted-pipeline path: reconcile with provisional metadata, no stdin.

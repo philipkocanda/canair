@@ -22,7 +22,9 @@ options:
   --hold                Keep session alive until Ctrl+C
   --wake                Wake ECUs from deep sleep (10 01)
   --save                Save result to captures/
-  --label TEXT          Session label for --save
+  --label TEXT          Session label for --save (asked for when omitted; with
+                        no terminal the session is saved under a generated
+                        label)
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
   --wican WICAN         WiCAN address: ap or IP (default: config

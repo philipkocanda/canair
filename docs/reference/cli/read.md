@@ -29,7 +29,9 @@ options:
   --wake                Wake ECUs from deep sleep (10 01)
   --repl                Drop into REPL after the pipeline
   --save                Save results to captures/
-  --label TEXT          Session label for --save
+  --label TEXT          Session label for --save (asked for when omitted; with
+                        no terminal the session is saved under a generated
+                        label)
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
   --reveal              Show sensitive PIDs and signals (`sensitive: true`,

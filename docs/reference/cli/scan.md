@@ -71,7 +71,9 @@ options:
   --session             Enter extended session (10 03)
   --wake                Wake ECUs from deep sleep (10 01)
   --save                Save results to captures/
-  --label TEXT          Session label for --save
+  --label TEXT          Session label for --save (asked for when omitted; with
+                        no terminal the session is saved under a generated
+                        label)
   --state TEXT          Session state for --save
   --notes TEXT          Session notes for --save
   --wican WICAN         WiCAN address: ap or IP (default: config

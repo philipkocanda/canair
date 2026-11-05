@@ -158,7 +158,13 @@ tips:
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
     parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")
     parser.add_argument("--save", action="store_true", help="Save results to captures/")
-    parser.add_argument("--label", metavar="TEXT", default=None, help="Session label for --save")
+    parser.add_argument(
+        "--label",
+        metavar="TEXT",
+        default=None,
+        help="Session label for --save (asked for when omitted; with no terminal the "
+        "session is saved under a generated label)",
+    )
     parser.add_argument("--state", metavar="TEXT", default=None, help="Session state for --save")
     parser.add_argument("--notes", metavar="TEXT", default=None, help="Session notes for --save")
     add_connection_args(parser)

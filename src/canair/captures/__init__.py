@@ -25,7 +25,6 @@ from canair.captures.types import (
     StateSpanSource,
 )
 from canair.core.id_ranges import IdRange, as_id_ranges, format_id_ranges
-from canair.states import join_states as _join_states
 from canair.states import parse_states as _parse_states
 from canair.states.spans import StateSpan
 from canair.uds.response import UdsResponse
@@ -34,71 +33,6 @@ from canair.uds.services import identifier_width
 # The ``transport`` of a device-free session (``canair import uds``): its payloads
 # never came off a live bus here.
 IMPORT_TRANSPORT = "import"
-
-# ---------------------------------------------------------------------------
-# Metadata prompt
-# ---------------------------------------------------------------------------
-
-
-def prompt_metadata(
-    suggested_label: str = "",
-    last_state: list | str | None = None,
-) -> tuple[str, list, str] | None:
-    """Prompt user for session label, vehicle_states, notes.
-
-    Returns ``(label, vehicle_states, notes)`` (vehicle_states is a token list)
-    or None if cancelled. The suggested_label is shown in brackets and accepted
-    on Enter. last_state (a list or string) is shown as the default and re-used
-    across saves when the user just presses Enter.
-    """
-    last_str = _join_states(last_state)
-    try:
-        if suggested_label:
-            label = input(f"  Session label [{suggested_label}]: ").strip()
-            if not label:
-                label = suggested_label
-        else:
-            label = input("  Session label (required, empty to skip): ").strip()
-            if not label:
-                print("  Cancelled (empty label).")
-                return None
-
-        state_prompt = (
-            f"  States [{last_str}]: "
-            if last_str
-            else "  States (comma-separated, e.g. sleep, acc, charging) []: "
-        )
-        raw = input(state_prompt).strip()
-        if not raw and last_str:
-            raw = last_str
-
-        notes = input("  Notes []: ").strip()
-    except (KeyboardInterrupt, EOFError):
-        print("\n  Cancelled.")
-        return None
-
-    return label, _parse_states(raw), notes
-
-
-def resolve_metadata(
-    label: str | None,
-    vehicle_states: list | str | None,
-    notes: str | None,
-    suggested_label: str = "",
-    last_state: list | str | None = None,
-) -> tuple[str, list, str] | None:
-    """Resolve session metadata, non-interactively when a label is supplied.
-
-    If ``label`` is given (e.g. from the ``--label`` CLI flag), use the flag
-    values directly and do NOT prompt — this is what agents/scripts use. When
-    ``label`` is None, fall back to the interactive :func:`prompt_metadata`.
-    Returns ``(label, vehicle_states, notes)`` (vehicle_states as a token list)
-    or None if cancelled.
-    """
-    if label is not None:
-        return label, _parse_states(vehicle_states), (notes or "")
-    return prompt_metadata(suggested_label=suggested_label, last_state=last_state)
-
 
 # ---------------------------------------------------------------------------
 # Session builders

@@ -4,6 +4,7 @@ import asyncio
 import json
 import sys
 
+from canair.captures.metadata import resolve_metadata
 from canair.render import ansi
 from canair.uds.addressing import DEFAULT_MODE, AddressingMode, is_extended
 from canair.uds.services import DEFAULT_SESSION_REQUEST
@@ -222,7 +223,6 @@ async def mode_discover(
 
         from ..captures import (
             build_discover_session,
-            resolve_metadata,
             save_session_journaled,
             suggest_discover_label,
         )

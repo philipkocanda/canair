@@ -3,14 +3,12 @@
 import json
 import re
 from typing import ClassVar
-from unittest.mock import patch
 
 import pytest
 
 from canair.captures import (
     build_query_session,
     build_raw_session,
-    resolve_metadata,
     save_session,
 )
 from canair.captures.entries import _is_hex_payload, group_sessions
@@ -62,30 +60,6 @@ class TestGatherQueryFiltersNonHex:
         ]
         matched, _ = _gather_query(entries, "IGPM:1001", warn=False)
         assert [e["payload"] for e in matched] == ["5001"]
-
-
-class TestResolveMetadata:
-    def test_label_given_is_noninteractive(self):
-        """When a label is supplied, no prompt is shown and flags are used verbatim."""
-        # input() would raise if called — proving non-interactive.
-        with patch("builtins.input", side_effect=AssertionError("should not prompt")):
-            meta = resolve_metadata("My label", "ready, parked", "some notes")
-        assert meta == ("My label", ["READY", "PARKED"], "some notes")
-
-    def test_label_given_defaults_empty_state_notes(self):
-        with patch("builtins.input", side_effect=AssertionError("should not prompt")):
-            meta = resolve_metadata("Only label", None, None)
-        assert meta == ("Only label", [], "")
-
-    def test_no_label_falls_back_to_prompt(self):
-        with patch("builtins.input", side_effect=["Prompted", "charging", "n"]):
-            meta = resolve_metadata(None, None, None, suggested_label="sugg")
-        assert meta == ("Prompted", ["CHARGING"], "n")
-
-    def test_no_label_prompt_cancelled(self):
-        with patch("builtins.input", side_effect=KeyboardInterrupt):
-            meta = resolve_metadata(None, None, None)
-        assert meta is None
 
 
 class TestBuildQuerySession:

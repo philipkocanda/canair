@@ -37,6 +37,7 @@ The names that layers below use are re-exported here so existing callers
 
 import asyncio
 
+from canair.captures.metadata import resolve_metadata
 from canair.captures.types import Quality
 from canair.ecus.pids import build_ecu_index
 from canair.expression.results import ResultEntry
@@ -112,7 +113,8 @@ def _finalize_journal(
     """Resolve metadata (optionally prompting) and reconcile the write-ahead journal.
 
     ``journal`` is a :class:`~canair.captures.journal.CaptureJournal` (or None).
-    On a cancelled interactive prompt the journal is discarded. When ``prompt``
+    Only a deliberate skip (an empty label with no suggestion) discards the journal; a prompt
+    nobody can answer saves under the suggested label. When ``prompt``
     is False (e.g. an interrupted pipeline) the journal is reconciled with the
     metadata already on it — no stdin interaction. ``suggested_state`` pre-fills
     the interactive state prompt (auto-suggested from decoded PID values).
@@ -120,7 +122,6 @@ def _finalize_journal(
     session before reconcile. ``count`` is the payloads journaled and
     ``non_answers`` the refusals (NRC or no reply); either alone is worth saving.
     """
-    from ..captures import resolve_metadata
 
     if journal is None:
         return

@@ -19,6 +19,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, TextIO
 
+from canair.captures.metadata import resolve_metadata
 from canair.render import ansi
 from canair.transport.functional import DEFAULT_WINDOW_S
 from canair.transport.protocol import Terminal
@@ -235,7 +236,7 @@ def _save(
     vehicle_states: list[str] | str | None,
     notes: str | None,
 ) -> None:
-    from canair.captures import build_manual_session, resolve_metadata, save_session_journaled
+    from canair.captures import build_manual_session, save_session_journaled
     from canair.transport.stats import client_transport
 
     suggested = f"Functional discovery {request}"

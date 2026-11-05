@@ -4,6 +4,7 @@ import asyncio
 import functools
 import re
 
+from canair.captures.metadata import resolve_metadata
 from canair.privacy.sensitive import MASK, masked_response, request_hidden
 from canair.render.formatting import format_raw_with_bnn, print_hexdump, print_json_result
 from canair.transport.stats import client_transport
@@ -134,7 +135,6 @@ def _save_raw(
     """Prompt (or use provided metadata) and save a raw request result to captures."""
     from ..captures import (
         build_raw_session,
-        resolve_metadata,
         save_session_journaled,
         suggest_raw_label,
     )
