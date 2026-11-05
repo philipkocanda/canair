@@ -7,7 +7,7 @@ import io
 
 import pytest
 
-from canair.cli.commands import scan
+from canair.cli.commands.scan import range_sweep as scan
 
 
 class _Tty(io.StringIO):

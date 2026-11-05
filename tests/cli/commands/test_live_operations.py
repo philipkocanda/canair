@@ -67,7 +67,7 @@ def reached(monkeypatch):
     monkeypatch.setattr("canair.cli.live.load_pids", lambda: {})
     monkeypatch.setattr(monitor, "run_live", fake_run_live)
     monkeypatch.setattr(read, "run_live", fake_run_live)
-    for name in ("scan", "discover", "dtc", "io", "routines"):
+    for name in ("scan.range_sweep", "discover", "dtc", "io", "routines"):
         module = __import__(f"canair.cli.commands.{name}", fromlist=["run_live"])
         if hasattr(module, "run_live"):
             monkeypatch.setattr(module, "run_live", fake_run_live)
