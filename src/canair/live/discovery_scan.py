@@ -26,9 +26,9 @@ from canair.render import messages
 from canair.render.paint import Painter
 from canair.uds.response import UdsResponse
 
+from ..render.discover import ABSENT, POSITIVE, PROBE_FAILED, REFUSED
+from ..render.progress import ProgressLine
 from ..transport.protocol import Terminal
-from .discover_render import ABSENT, POSITIVE, PROBE_FAILED, REFUSED
-from .progress_line import ProgressLine
 
 
 @dataclass(frozen=True)

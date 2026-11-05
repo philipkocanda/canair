@@ -109,7 +109,7 @@ def _saved(root) -> dict:
 class TestDiscoverRxConsistency:
     @pytest.mark.asyncio
     async def test_json_rx_matches_the_saved_capture(self, make_profile, capsys):
-        from canair.live import discover as disc
+        from canair.live.discover import physical as disc
 
         root = make_profile(
             'car_model: "T"\ninit: "ATSP6;"\naddressing:\n  rx_offset: 0x20\n',
@@ -132,7 +132,7 @@ class TestDiscoverRxConsistency:
     async def test_a_29bit_sweep_saves_valid_29bit_addresses(self, make_profile, capsys):
         from jsonschema import Draft202012Validator
 
-        from canair.live import discover as disc
+        from canair.live.discover import physical as disc
         from canair.validation.captures import CAPTURES_SCHEMA_FILE, validate_captures_file
 
         root = make_profile(FIXED_29)

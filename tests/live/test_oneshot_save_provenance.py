@@ -23,7 +23,7 @@ import pytest
 
 from canair import profile
 from canair.ecus.pids import clear_cache
-from canair.live import discover as disc
+from canair.live.discover import physical as disc
 from tests.support.fakes import FakeTerminal, nrc, ok
 
 PROFILE_YAML = 'car_model: "T"\ninit: "ATSP6;"\naddressing:\n  rx_offset: 0x20\n'

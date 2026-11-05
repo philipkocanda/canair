@@ -6,7 +6,7 @@ import io
 
 import pytest
 
-from canair.live.progress_line import ProgressLine
+from canair.render.progress import ProgressLine
 
 
 class _Tty(io.StringIO):
@@ -53,7 +53,7 @@ async def test_discover_progress_never_reaches_stdout(capsys, monkeypatch, tmp_p
     """A 16-address sweep that finds nothing draws a counter: stderr, and only on a tty."""
     from canair import profile
     from canair.ecus.pids import clear_cache
-    from canair.live import discover as disc
+    from canair.live.discover import physical as disc
     from tests.support.fakes import FakeTerminal
 
     saved = profile._active

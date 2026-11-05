@@ -164,7 +164,7 @@ Use `canair.core.prompt`. Never call `input()` or `sys.stdin.readline()` for a y
 - Confirm every definition write with `echo_edit` and every capture write with `echo_write` or
   `saved_banner`. All name the full path.
 - Progress and `\r` status lines go to stderr, only on a terminal, and are cleared when done
-  (`live/progress_line.py`).
+  (`render/progress.py`).
 - Say "signal", not "parameter" or "param" (`AGENTS.md` → Vocabulary).
 
 ## TUI

@@ -40,7 +40,7 @@ from canair.uds.response import UdsResponse
 from canair.uds.services import DIAGNOSTIC_SESSION_CONTROL
 from canair.uds.subfunctions import SUBFUNCTION_NAMES, KwpSessionType, SessionType
 
-from .discover_render import ABSENT, POSITIVE, PROBE_FAILED, REFUSED
+from ..render.discover import ABSENT, POSITIVE, PROBE_FAILED, REFUSED
 
 # Human labels for the session sub-functions, from the shared table in
 # canair.uds.subfunctions — the single home for these enums. Keeping a private copy here

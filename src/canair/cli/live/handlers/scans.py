@@ -11,7 +11,7 @@ from __future__ import annotations
 from canair.cli.live.operation import LiveOperation
 from canair.core.prompt import confirm
 from canair.ecus import split_ecus_by_protocol
-from canair.live.discover import mode_discover
+from canair.live.discover.physical import mode_discover
 from canair.live.iocontrol_scan import mode_iocontrol_scan
 from canair.live.routines_scan import mode_routines_scan
 from canair.live.scan import mode_scan
@@ -195,11 +195,11 @@ async def handle_sessions_scan(
 
 
 async def handle_discover(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    from canair.live.discover import DEFAULT_TESTER_ADDRESS
+    from canair.live.discover.physical import DEFAULT_TESTER_ADDRESS
     from canair.uds.addressing import is_extended, resolve_mode
 
     if getattr(args, "functional", False):
-        from canair.live.discover_functional import DEFAULT_REQUEST, mode_discover_functional
+        from canair.live.discover.functional import DEFAULT_REQUEST, mode_discover_functional
         from canair.transport.functional import DEFAULT_WINDOW_S
 
         # Set only by the discover parser, whose --request/--window default to None

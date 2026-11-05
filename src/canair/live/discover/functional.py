@@ -6,7 +6,7 @@ stayed silent. A gateway car only answers on the buses it forwards the functiona
 id to, and only for responders whose reply ids it routes back, so the result is
 that car's routing map. ``--repeat`` sends it again ``--interval`` seconds later
 (at least 1 s; faster bursts silence some buses). The classification is the pure
-:mod:`canair.live.functional_sweep`; the reception is the terminal's
+:mod:`canair.live.discover.sweep`; the reception is the terminal's
 ``send_functional``.
 """
 
@@ -26,8 +26,8 @@ from canair.transport.functional import DEFAULT_WINDOW_S
 from canair.transport.protocol import Terminal
 from canair.uds.services import TESTER_PRESENT_REQUEST
 
-from .discover_render import NO_ANSWER, POSITIVE, REFUSED, status_cell
-from .functional_sweep import (
+from ...render.discover import NO_ANSWER, POSITIVE, REFUSED, status_cell
+from .sweep import (
     NOT_IN_PROFILE,
     UNKNOWN_BUS,
     Responder,
@@ -207,7 +207,7 @@ async def mode_discover_functional(
     for sweep in rounds:
         for r in sweep.responders:
             alive.setdefault(r.tx_id, (r.tx_id, r.status, r.payload_hex))
-    from .discover import _offer_identify, _register_discovered
+    from .physical import _offer_identify, _register_discovered
 
     if register:
         _register_discovered(

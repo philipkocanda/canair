@@ -294,7 +294,7 @@ Don't silently pile onto a design that no longer fits. Fix the defect you walked
 up** when a structural change is warranted instead of bolting on more.
 
 - **File size is a smell.** Approaching ~500 lines — and *well* before 1000 — split by concern (pure
-  helpers, async device orchestration, TUI, record/table data). `live/identity.py` splitting out
+  helpers, async device orchestration, TUI, record/table data). `live/identity/read.py` splitting out
   `identity_decode.py`/`identity_records.py` is the pattern.
 - **A command is one module until it needs two — then it becomes a package.** Create
   `cli/commands/<name>/`; do **not** add a flat `_<name>_*.py` sibling (retired for new work).

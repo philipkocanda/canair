@@ -7,7 +7,7 @@ See plans/2026-07-28-multi-vehicle-support.md (Phases 3–4).
 import can
 import isotp
 
-from canair.live.discover import discovery_targets, fmt_id
+from canair.live.discover.physical import discovery_targets, fmt_id
 from canair.safety.quirks import SKM_WAKEUP, has_quirk, resolve_quirks
 from canair.transport.raw.slcan_tcp import format_slcan_frame
 from canair.uds.addressing import AddressingMode, EcuAddress, build_isotp_address

@@ -245,7 +245,7 @@ its deviations are ratcheted by `tests/contracts/test_ui_standards.py` (scanner
   own N_Cr under an absolute cap; ELM: `elm327/functional.py` brackets the request with
   `ATH1`/`ATH0` in one transaction, tracked by `AdapterState.headers`, and opens the receive
   filter with `ATCF`/`ATCM` for it, since the auto filter behind `0x7DF` passes only
-  `0x7E8`–`0x7EF`); classification is `src/canair/live/functional_sweep.py`. CAN-FD and
+  `0x7E8`–`0x7EF`); classification is `src/canair/live/discover/sweep.py`. CAN-FD and
   `normal_29bit` profiles are refused.
 - **`canair identity`** (alias `id`) — Identity DIDs/records (UDS `22 F1xx`, KWP2000 `1A 8x/9x`),
   printed only: nothing is written to the ECU's `identity:` (which can hold a live VIN when
