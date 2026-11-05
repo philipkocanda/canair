@@ -9,15 +9,13 @@ plausible string.
 
 from __future__ import annotations
 
-import sys
-
 from canair.captures.dates import filter_by_date_range, filter_by_text
 from canair.captures.store import load_all_captures
 from canair.cli.args.notation import resolve_notation
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.profile import active
 from canair.query import QueryError
-from canair.render import ansi
+from canair.render import ansi, messages
 
 from .findings import (
     Finding,
@@ -42,7 +40,7 @@ NAME = "search"
 
 
 def _error(message: str) -> int:
-    print(f"error: {message}", file=sys.stderr)
+    messages.error(f"{message}")
     return 2
 
 
@@ -58,7 +56,7 @@ def _definition_findings(needle: Needle, ecus_filter: set[str] | None) -> list[F
     except (OSError, yaml.YAMLError) as e:
         # The captures were searched already; one unreadable definition file should
         # cost the --defs part of the answer, loudly, not the whole of it.
-        print(f"warning: --defs skipped, the ecus/ definitions did not load: {e}", file=sys.stderr)
+        messages.warning(f"--defs skipped, the ecus/ definitions did not load: {e}")
         return []
     return find_in_definitions(identity_rows(ecus, only=ecus_filter), needle.text)
 
@@ -100,7 +98,7 @@ def _apply_query(args, entries: list) -> tuple[list, set[str] | None, str | None
         entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"])
     )
     for selector in empty:
-        print(f"note: no captures matched selector '{selector}'", file=sys.stderr)
+        messages.note(f"no captures matched selector '{selector}'")
     return matched, {s.ecu for s in query.selectors}, None
 
 
@@ -149,7 +147,7 @@ def run(args) -> int:
         return 0 if findings else 1
 
     if not findings:
-        print(f"  No matches for {label}." if needle else "  No plausible strings found.")
+        messages.note(f"no matches for {label}" if needle else "no plausible strings found")
         return 1
 
     hits = sum(f.hits for f in findings)

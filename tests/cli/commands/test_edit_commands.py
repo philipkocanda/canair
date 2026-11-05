@@ -54,7 +54,7 @@ def test_every_engine_reports_a_rejected_edit_the_same_way(profile, capsys, argv
     before = {p: p.read_text() for p in profile.rglob("*.yaml")}
     assert _run(profile, *argv) == 1
     err = capsys.readouterr().err
-    assert err.startswith("  Error: "), err
+    assert err.startswith("error: "), err
     assert words in err
     assert {p: p.read_text() for p in profile.rglob("*.yaml")} == before
 
@@ -83,7 +83,7 @@ def test_the_schema_check_can_veto_an_edit_and_no_validate_skips_it(
 
     def veto(p, *a, **k):
         calls.append(p)
-        return False, "  ERROR: nope"
+        return False, "error: nope"
 
     monkeypatch.setattr("canair.validation.pids.validate_pids_file", veto)
 

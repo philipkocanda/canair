@@ -321,13 +321,13 @@ class TestChecks:
         states = copy / "vehicle_states.yaml"
         states.write_text(states.read_text().replace("VEHICLE_SPEED", "DRIVE_MODE"))
         assert main(["--profile", str(copy), "validate", "states"]) == 1
-        assert "VCU=kwp" in capsys.readouterr().out
+        assert "VCU=kwp" in capsys.readouterr().err
 
     def test_validate_captures_flags_an_impossible_revision_tag(self, copy, capsys):
         cap = copy / "captures" / "2026-01-01.json"
         cap.write_text(cap.read_text().replace('"VCU": "kwp"', '"VCU": "can"', 1))
         main(["--profile", str(copy), "validate", "captures"])
-        assert "VCU revision 'can'" in capsys.readouterr().out
+        assert "VCU revision 'can'" in capsys.readouterr().err
 
 
 # ── captures ────────────────────────────────────────────────────────────────

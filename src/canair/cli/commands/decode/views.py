@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from canair.analysis.stats import compute_stats
 from canair.analysis.stats import fmt_num as _fmt_num
-from canair.render import ansi
+from canair.render import ansi, glyphs
 from canair.states import join_states as _join_states
 from canair.states import load_states, state_bucket_key
 
@@ -70,7 +70,7 @@ def print_compact(
 
     def _colored_header(n: str) -> str:
         color = (
-            ansi.CYAN
+            ansi.DIM
             if n in candidate_names
             else (ansi.GREEN if parameters.get(n, {}).get("verified") else ansi.YELLOW)
         )
@@ -141,13 +141,13 @@ def print_value_ranges(
         is_cand = name in candidate_names
         verified = parameters[name].get("verified", False)
         mark = (
-            f"{ansi.CYAN}»{ansi.RESET}"
+            f"{ansi.DIM}»{ansi.RESET}"
             if is_cand
             else f"{ansi.GREEN}✓{ansi.RESET}"
             if verified
             else f"{ansi.YELLOW}?{ansi.RESET}"
         )
-        try_tag = f"  {ansi.CYAN}(try){ansi.RESET}" if is_cand else ""
+        try_tag = f"  {ansi.DIM}(try){ansi.RESET}" if is_cand else ""
         unit = parameters[name].get("unit", "")
 
         values = [
@@ -185,7 +185,7 @@ def print_value_ranges(
                 None,
             )
             msg = (
-                f"{ansi.RED}ERROR: {err}{ansi.RESET}" if err else f"{ansi.DIM}no value{ansi.RESET}"
+                f"{ansi.RED}error: {err}{ansi.RESET}" if err else f"{ansi.DIM}no value{ansi.RESET}"
             )
             print(f"    {mark} {name:<{name_w}}  {msg}{try_tag}")
             continue
@@ -193,7 +193,7 @@ def print_value_ranges(
         mn, mx = min(values), max(values)
         mm = {"min": parameters[name].get("min"), "max": parameters[name].get("max")}
         warn = check_range(mn, mm) or check_range(mx, mm)
-        warn_str = f"  {ansi.RED}⚠ {warn}{ansi.RESET}" if warn else ""
+        warn_str = f"  {ansi.YELLOW}{glyphs.WARN} {warn}{ansi.RESET}" if warn else ""
 
         if ptype in ("enum", "bitmask", "bcd"):
             # Categorical/typed: show the distinct decoded labels, not a numeric
@@ -235,7 +235,7 @@ def print_stats_table(
     """
     for name in param_names:
         mark = _mark_for(name, parameters, candidate_names)
-        try_tag = f" {ansi.CYAN}(try){ansi.RESET}" if name in candidate_names else ""
+        try_tag = f" {ansi.DIM}(try){ansi.RESET}" if name in candidate_names else ""
         values = _series(all_results, name)
         if not values:
             print(f"    {mark} {name}{try_tag}: {ansi.DIM}no value{ansi.RESET}")

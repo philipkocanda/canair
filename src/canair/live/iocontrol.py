@@ -5,7 +5,6 @@ buffer + raw ANSI rendering for keyboard-driven actuator toggling.
 """
 
 import asyncio
-import json
 import logging
 import os
 import sys
@@ -13,110 +12,24 @@ import termios
 import tty
 from pathlib import Path
 
-from canair.core.terminal import terminal_columns as _terminal_columns
+from canair.core.paths import config_dir
+from canair.core.terminal import is_interactive
 from canair.core.terminal import terminal_lines as _terminal_lines
 from canair.ecus.pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
 from canair.live._iocontrol_actuate import ActuatorState, IOControlActuator
-from canair.live._iocontrol_render import _truncate_text, render_iocontrol
-from canair.safety.actuation import on_refusal
+from canair.live._iocontrol_render import render_iocontrol
+from canair.live._not_found import report_not_found
+from canair.render import ansi, glyphs, messages
 from canair.transport.protocol import Terminal
 from canair.uds.protocol import DiagProtocol
 from canair.yaml_edit.pids import PidsEditError, promote_discovery, update_iocontrol_field
 
-# TUI debug log — cleared each session, written to logs/iocontrol-tui.log
-_LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
-_LOG_FILE = _LOGS_DIR / "iocontrol-tui.log"
 _tui_logger = logging.getLogger("iocontrol-tui")
 
 
-def mode_iocontrol_list(pids_data: dict, ecu_name: str, as_json: bool = False) -> bool:
-    """List all IOControl DIDs for an ECU (no CAN connection needed).
-
-    Returns False when the ECU has no IOControl entries; with ``as_json`` that
-    outcome is a JSON ``{"error": …}`` object rather than prose.
-    """
-    ioctrl_index = build_iocontrol_index(pids_data)
-    ecu_key = ecu_name.upper()
-
-    if ecu_key not in ioctrl_index:
-        available = sorted(ioctrl_index.keys())
-        if as_json:
-            error = {"error": f"no IOControl DIDs for ECU: {ecu_name}", "available": available}
-            print(json.dumps(error, indent=2))
-        elif available:
-            print(f"  No IOControl DIDs for ECU: {ecu_name}")
-            print(f"  ECUs with IOControl: {', '.join(available)}")
-        else:
-            print("  No IOControl DIDs defined in any ECU file.")
-        return False
-
-    ecu_info = ioctrl_index[ecu_key]
-    cmds = ecu_info["cmds"]
-
-    if as_json:
-        out = {
-            "ecu": ecu_key,
-            "tx_id": f"0x{ecu_info['tx_id']:03X}",
-            "iocontrol": {
-                did: {
-                    "label": c["label"],
-                    "on": c["on"],
-                    "off": c["off"],
-                    "release": c["release"],
-                    "on_refused": on_refusal(c["on"], c["release"], ecu_info["protocol"]),
-                    "session": c["session"],
-                    "session_mode": c["session_mode"],
-                    "hold": c["hold"],
-                    "verified": c["verified"],
-                    "status_param": c.get("status_param"),
-                }
-                for did, c in cmds.items()
-            },
-        }
-        print(json.dumps(out, indent=2))
-        return True
-
-    print(f"\n  {ecu_key} -- TX 0x{ecu_info['tx_id']:03X} -- {len(cmds)} IOControl DIDs\n")
-
-    # Column-aligned table
-    term_w = _terminal_columns()
-    did_w = max(len(d) for d in cmds) if cmds else 4
-    label_w = max(len(c["label"]) for c in cmds.values()) if cmds else 5
-    on_w = max(len(c["on"]) for c in cmds.values()) if cmds else 2
-    off_w = max(len(c["off"]) for c in cmds.values()) if cmds else 3
-    sp_w = max((len(c.get("status_param") or "") for c in cmds.values()), default=0)
-    sp_w = max(sp_w, len("Read PID"))
-    fixed_w = 2 + did_w + 2 + label_w + 2 + on_w + 2 + off_w + 2 + 2 + len("Verified  Hold")
-    sp_w = min(sp_w, 100, max(len("Read PID"), term_w - fixed_w))
-
-    hdr = (
-        f"  {'DID':<{did_w}}  {'Label':<{label_w}}  {'ON cmd':<{on_w}}  "
-        f"{'OFF cmd':<{off_w}}  {'Read PID':<{sp_w}}  Verified  Hold"
-    )
-    print(hdr)
-    print(f"  {'─' * (len(hdr) - 2)}")
-
-    for did, c in cmds.items():
-        v = "✓" if c["verified"] else " "
-        h = "✓" if c["hold"] else " "
-        sp = c.get("status_param") or ""
-        print(
-            f"  {did:<{did_w}}  {c['label']:<{label_w}}  {c['on']:<{on_w}}  {c['off']:<{off_w}}  "
-            f"{_truncate_text(sp, sp_w):<{sp_w}}     {v}        {h}"
-        )
-    print()
-    # The release is what exit and Ctrl-C send; it only needs naming where it is
-    # not simply the OFF command (always the case on UDS).
-    notes = []
-    for did, c in cmds.items():
-        refusal = on_refusal(c["on"], c["release"], ecu_info["protocol"])
-        if refusal:
-            notes.append(f"  {did}: ON refused — {refusal}")
-        elif c["release"] and c["release"] != c["off"].upper():
-            notes.append(f"  {did}: released with {c['release']}")
-    if notes:
-        print("\n".join(notes) + "\n")
-    return True
+def _log_file() -> Path:
+    """The TUI debug log, cleared each session, next to canair's other logs."""
+    return config_dir() / "logs" / "iocontrol-tui.log"
 
 
 # ── TUI ──────────────────────────────────────────────────────────────────────
@@ -279,7 +192,7 @@ class _IOControlTUI:
         try:
             fpath = update_iocontrol_field(self.ecu_key, did, field, value)
         except PidsEditError as exc:
-            self._status = f"\033[31mEdit failed: {exc}\033[0m"
+            self._status = ansi.c(f"{glyphs.FAIL} Edit failed: {exc}", ansi.RED)
             _tui_logger.error("edit %s %s=%r: %s", did, field, value, exc)
             return
 
@@ -300,7 +213,8 @@ class _IOControlTUI:
         except Exception as exc:  # reload failure is non-fatal; in-memory stale
             _tui_logger.warning("reload after edit failed: %s", exc)
 
-        self._status = f"\033[32mSaved {field} on {did} → {fpath.name}\033[0m"
+        saved = f"{glyphs.OK} Saved {field} on {did} {glyphs.ARROW} {fpath.name}"
+        self._status = ansi.c(saved, ansi.GREEN)
         _tui_logger.info("edit %s %s=%r -> %s", did, field, value, fpath)
 
     def _apply_promote(self, did: str, label: str) -> None:
@@ -312,12 +226,12 @@ class _IOControlTUI:
         """
         label = label.strip()
         if not label:
-            self._status = "\033[31mPromote cancelled: empty label\033[0m"
+            self._status = ansi.c(f"{glyphs.FAIL} Promote cancelled: empty label", ansi.RED)
             return
         try:
             fpath = promote_discovery(self.ecu_key, did, label)
         except PidsEditError as exc:
-            self._status = f"\033[31mPromote failed: {exc}\033[0m"
+            self._status = ansi.c(f"{glyphs.FAIL} Promote failed: {exc}", ansi.RED)
             _tui_logger.error("promote %s label=%r: %s", did, label, exc)
             return
 
@@ -341,15 +255,16 @@ class _IOControlTUI:
         except Exception as exc:
             _tui_logger.warning("reload after promote failed: %s", exc)
 
-        self._status = (
-            f"\033[32mPromoted {did} → curated (on/off inferred) — verify & refine via 'e'\033[0m"
+        promoted = (
+            f"{glyphs.OK} Promoted {did} {glyphs.ARROW} curated (on/off inferred) "
+            f"{glyphs.EMPTY} verify & refine via 'e'"
         )
+        self._status = ansi.c(promoted, ansi.GREEN)
         _tui_logger.info("promote %s label=%r -> %s", did, label, fpath)
 
     def _draw(self) -> None:
         """Clear screen and draw the full frame."""
-        # Move to top-left and clear screen
-        sys.stdout.write("\033[2J\033[H")
+        sys.stdout.write(ansi.screen.CLEAR + ansi.screen.HOME)
         sys.stdout.write(self._render())
         sys.stdout.write("\n")
         sys.stdout.flush()
@@ -357,12 +272,18 @@ class _IOControlTUI:
     async def run(self) -> None:
         """Main TUI event loop."""
         if not self.dids:
-            print("  No IOControl DIDs available.")
-            return
+            messages.fail(f"no IOControl DIDs available for {self.ecu_key}")
+        if not is_interactive():
+            messages.fail(
+                "the IOControl view needs a terminal; use `canair io ECU --json` to list DIDs "
+                "or `canair io ECU --did DID` to send one",
+                code=2,
+            )
 
         # Set up debug log file (cleared each session)
-        _LOGS_DIR.mkdir(exist_ok=True)
-        handler = logging.FileHandler(_LOG_FILE, mode="w")
+        log_file = _log_file()
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        handler = logging.FileHandler(log_file, mode="w")
         handler.setFormatter(logging.Formatter("%(asctime)s  %(message)s", datefmt="%H:%M:%S"))
         _tui_logger.addHandler(handler)
         _tui_logger.setLevel(logging.DEBUG)
@@ -388,8 +309,7 @@ class _IOControlTUI:
         loop = asyncio.get_event_loop()
 
         # Enter alternate screen buffer for clean rendering
-        sys.stdout.write("\033[?1049h")  # enter alt screen
-        sys.stdout.write("\033[?25l")  # hide cursor
+        sys.stdout.write(ansi.screen.ALT_SCREEN_ON + ansi.screen.HIDE_CURSOR)
         sys.stdout.flush()
 
         try:
@@ -425,12 +345,12 @@ class _IOControlTUI:
                     elif self._edit_input is not None:
                         self._edit_input = None
                     else:
-                        self._status = "Releasing actuators..."
+                        self._status = f"Releasing actuators{glyphs.ELLIPSIS}"
                         self._draw()
                         self._quit = True
                 elif key in ("q", "Q") and self._hex_input is None and self._edit_input is None:
                     # q only quits in nav mode — allow it as a typed char in edits.
-                    self._status = "Releasing actuators..."
+                    self._status = f"Releasing actuators{glyphs.ELLIPSIS}"
                     self._draw()
                     self._quit = True
                 elif self._edit_input is not None:
@@ -462,7 +382,9 @@ class _IOControlTUI:
                             value_bytes = bytes.fromhex(hex_str)
                             await self.actuator.send_adjust(did, value_bytes)
                         elif hex_str:
-                            self._status = "Invalid: need even number of hex chars"
+                            self._status = ansi.c(
+                                "Invalid: need an even number of hex chars", ansi.YELLOW
+                            )
                     elif key in ("\x7f", "\x08"):  # Backspace/Delete
                         self._hex_input = self._hex_input[:-1]
                     elif len(key) == 1 and key.lower() in "0123456789abcdef":
@@ -532,8 +454,9 @@ class _IOControlTUI:
                 elif key == "P" and not self._busy:  # Promote discovery
                     did = self.dids[self.cursor]
                     if not self.cmds[did].get("discovery"):
-                        self._status = (
-                            "\033[33mNot a discovery — use 'e' to edit curated entries\033[0m"
+                        self._status = ansi.c(
+                            f"Not a discovery {glyphs.EMPTY} use 'e' to edit curated entries",
+                            ansi.YELLOW,
                         )
                     else:
                         self._edit_input = ("promote", "")
@@ -553,14 +476,13 @@ class _IOControlTUI:
             # Capture final render before leaving alternate screen
             final_render = self._render()
             # Leave alternate screen buffer
-            sys.stdout.write("\033[?25h")  # show cursor
-            sys.stdout.write("\033[?1049l")  # leave alt screen
+            sys.stdout.write(ansi.screen.SHOW_CURSOR + ansi.screen.ALT_SCREEN_OFF)
             sys.stdout.flush()
             # Print final state to main screen
             print(final_render)
             await self.actuator.cleanup()
             _tui_logger.info("TUI session end")
-            print(f"  Debug log: {_LOG_FILE}")
+            messages.note(f"debug log: {log_file}")
 
 
 async def mode_iocontrol_tui(
@@ -575,22 +497,20 @@ async def mode_iocontrol_tui(
     ecu_key = ecu_name.upper()
 
     if ecu_key not in ioctrl_index:
-        available = sorted(ioctrl_index.keys())
-        print(f"  No IOControl DIDs for ECU: {ecu_name}")
-        if available:
-            print(f"  ECUs with IOControl: {', '.join(available)}")
-        return
+        report_not_found(
+            f"no IOControl DIDs for ECU: {ecu_name}", ioctrl_index.keys(), "ECUs with IOControl"
+        )
+        raise SystemExit(1)
 
     ecu_info = ioctrl_index[ecu_key]
     if poll and not any(c["release"] for c in ecu_info["cmds"].values()):
         # The poll sends each entry's release. Service 0x30's control-option byte
         # is manufacturer-defined, so a KWP2000 entry has one only when declared.
-        print(
-            f"error: --poll sends each actuator's release, and no {ecu_key} entry has one "
+        messages.fail(
+            f"--poll sends each actuator's release, and no {ecu_key} entry has one "
             "(a KWP2000 0x30 entry needs a declared release:); run without --poll",
-            file=sys.stderr,
+            code=2,
         )
-        raise SystemExit(2)
 
     tui = _IOControlTUI(
         terminal, ecu_key, ecu_info, pids_data=pids_data, verbose=verbose, poll=poll

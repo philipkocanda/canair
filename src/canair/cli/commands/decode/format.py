@@ -67,6 +67,6 @@ def _compact_cell(v: float | None) -> str:
 
 def _mark_for(name: str, parameters: dict, candidate_names: set[str]) -> str:
     if name in candidate_names:
-        return f"{ansi.CYAN}»{ansi.RESET}"
+        return f"{ansi.DIM}»{ansi.RESET}"
     verified = parameters.get(name, {}).get("verified", False)
     return f"{ansi.GREEN}✓{ansi.RESET}" if verified else f"{ansi.YELLOW}?{ansi.RESET}"

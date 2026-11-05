@@ -6,7 +6,7 @@ import argparse
 import re
 import sys
 
-from canair.render import ansi
+from canair.render import ansi, messages
 from canair.uds.byteindex import (
     bix_to_wican,
     conversion_table,
@@ -148,12 +148,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--ecu",
-        help="With --annotate: overlay which defined parameter maps each byte "
+        help="With --annotate: overlay which defined signal maps each byte "
         "(and flag unmapped bytes). Requires --pid.",
     )
     parser.add_argument(
         "--pid",
-        help="With --annotate --ecu: the PID whose parameters to overlay (e.g. 22BC03). "
+        help="With --annotate --ecu: the PID whose signals to overlay (e.g. 22BC03). "
         "Also sets the subfunction width when it names its service (22xxxx DID → 2 "
         "bytes, 21xx → 1) unless -1/-2 is passed explicitly.",
     )
@@ -209,11 +209,7 @@ def _parse_input(value: str) -> tuple[str, int]:
     except ValueError:
         pass
 
-    print(
-        f"Error: cannot parse '{value}'. Use w9, B9, i6, b32, E, AA, or a plain number.",
-        file=sys.stderr,
-    )
-    sys.exit(1)
+    messages.fail(f"cannot parse '{value}'. Use w9, B9, i6, b32, E, AA, or a plain number.", code=2)
 
 
 def _print_result(notation: str, idx: int, sub_bytes: int):
@@ -435,19 +431,16 @@ def _parse_hex_payload(raw: str) -> list[int]:
     """Parse a hex string (with or without spaces) into a list of byte values."""
     cleaned = raw.replace(" ", "").strip()
     if not cleaned:
-        print("Error: --annotate requires a non-empty hex payload.", file=sys.stderr)
-        sys.exit(1)
+        messages.fail("--annotate requires a non-empty hex payload", code=2)
     if len(cleaned) % 2 != 0:
-        print(f"Error: odd number of hex characters in '{raw}'.", file=sys.stderr)
-        sys.exit(1)
+        messages.fail(f"odd number of hex characters in '{raw}'", code=2)
     payload = []
     for i in range(0, len(cleaned), 2):
         token = cleaned[i : i + 2]
         try:
             payload.append(int(token, 16))
         except ValueError:
-            print(f"Error: invalid hex byte '{token}' in '{raw}'.", file=sys.stderr)
-            sys.exit(1)
+            messages.fail(f"invalid hex byte '{token}' in '{raw}'", code=2)
     return payload
 
 
@@ -472,19 +465,9 @@ def _looks_like_uds_sid(b: int) -> bool:
 
 
 def _emit_warning(headline: str, *detail_lines: str):
-    """Print an emphasized, visually separated warning to stderr.
-
-    A blank line above and below sets it apart from the table that follows on
-    stdout; a bold-yellow ``⚠ WARNING`` banner and an indented rule draw the eye.
-    """
-    bar = ansi.cerr("⚠ WARNING", ansi.BOLD + ansi.YELLOW)
-    rule = ansi.cerr("  " + "─" * 68, ansi.YELLOW)
-    print("", file=sys.stderr)
-    print(f"  {bar}  {ansi.cerr(headline, ansi.BOLD)}", file=sys.stderr)
-    print(rule, file=sys.stderr)
-    for line in detail_lines:
-        print(f"  {line}", file=sys.stderr)
-    print("", file=sys.stderr)
+    """Print a warning to stderr, set apart by a blank line from the table that follows."""
+    messages.warning("\n".join((headline.rstrip("."), *detail_lines)))
+    print(file=sys.stderr)
 
 
 def _warn_payload_kind_mismatch(first_byte: int, raw_frame: bool):
@@ -499,13 +482,13 @@ def _warn_payload_kind_mismatch(first_byte: int, raw_frame: bool):
         _emit_warning(
             f"first byte 0x{first_byte:02X} looks like an ISO-TP PCI byte, not a UDS response SID.",
             "--annotate expects the reassembled UDS payload (SID-first, PCI stripped).",
-            f"If this is a raw CAN frame straight off the bus, pass {ansi.cerr('--raw', ansi.BOLD)}.",
+            "If this is a raw CAN frame straight off the bus, pass `--raw`.",
         )
     elif raw_frame and _looks_like_uds_sid(first_byte):
         _emit_warning(
             f"first byte 0x{first_byte:02X} looks like a UDS response SID, not an ISO-TP PCI byte.",
             "--raw expects an already-framed CAN payload (PCI present).",
-            f"If this is a PCI-stripped UDS payload, drop {ansi.cerr('--raw', ansi.BOLD)}.",
+            "If this is a PCI-stripped UDS payload, drop `--raw`.",
         )
 
 
@@ -566,8 +549,8 @@ def _warn_sub_bytes_contradicts_pid(sub_bytes: int, pid: str, implied: int):
     kind = "2-byte DID" if implied == 2 else "1-byte PID"
     _emit_warning(
         f"-{sub_bytes} contradicts --pid {pid.upper()}, which is a {kind} subfunction.",
-        f"Honouring the explicit -{sub_bytes}; the header/Param columns will be off by one",
-        f"if that is not what you meant. Drop it (or pass {ansi.cerr(f'-{implied}', ansi.BOLD)}) "
+        f"Honouring the explicit -{sub_bytes}; the header/Signal columns will be off by one",
+        f"if that is not what you meant. Drop it (or pass `-{implied}`) "
         "to use the PID's own width.",
     )
 
@@ -758,8 +741,8 @@ def _annotate_payload(
         try:
             frame = framed_to_wican_frame(payload_bytes)
         except NotAFrameError as e:
-            print(f"Error: {e}.", file=sys.stderr)
-            return 1
+            messages.error(str(e))
+            return 2
     else:
         frame = payload_to_wican_frame(payload_bytes)
 
@@ -857,7 +840,7 @@ def _annotate_payload(
         "Hex",
         "Dec",
         "Role",
-        "Param" if overlay else None,
+        "Signal" if overlay else None,
         torque="Torque",
         bix="bix",
     )
@@ -995,8 +978,8 @@ def run(args) -> int:
         protocol = None
         if args.ecu:
             if not args.pid:
-                print("Error: --ecu requires --pid.", file=sys.stderr)
-                return 1
+                messages.error("--ecu requires --pid")
+                return 2
             from canair.ecus import canonical_ecu_name_safe, ecu_protocol
             from canair.ecus.pids import build_ecu_index, load_pids
 
@@ -1013,14 +996,11 @@ def run(args) -> int:
             except SupportMapError:
                 support = None  # a malformed declaration is `validate`'s to report
             if not params:
-                print(
-                    f"Note: no defined parameters for {ecu} {pid} — showing unmapped overlay.",
-                    file=sys.stderr,
-                )
+                messages.note(f"no defined signals for {ecu} {pid} — showing unmapped overlay")
                 params = {}
         elif args.pid:
-            print("Error: --pid requires --ecu.", file=sys.stderr)
-            return 1
+            messages.error("--pid requires --ecu")
+            return 2
         return _annotate_payload(
             " ".join(args.annotate),
             args.sub_bytes,
@@ -1035,8 +1015,8 @@ def run(args) -> int:
         )
 
     if args.raw_frame:
-        print("Error: --raw only applies to --annotate.", file=sys.stderr)
-        return 1
+        messages.error("--raw only applies to --annotate")
+        return 2
 
     if not args.value:
         sub_bytes, _ = _resolve_sub_bytes(args)

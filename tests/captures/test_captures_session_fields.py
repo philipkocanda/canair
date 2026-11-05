@@ -11,7 +11,10 @@ from __future__ import annotations
 import argparse
 import json
 
+import pytest
+
 from canair.captures import build_query_session, save_session
+from canair.core.prompt import PromptUnavailable
 
 
 def _seed(cdir, *sessions: tuple[str, str], transport: str | None = None) -> None:
@@ -72,8 +75,8 @@ class TestSetNotes:
 
     def test_non_tty_without_yes_refuses(self, tmp_path, capsys):
         _seed(tmp_path, ("sweep", "old"))
-        assert _run(tmp_path, "cmd_set_notes", "new") == 2
-        assert "refusing to set notes" in capsys.readouterr().err
+        with pytest.raises(PromptUnavailable, match="--yes"):
+            _run(tmp_path, "cmd_set_notes", "new")
         assert _field(tmp_path, "notes") == {"sweep": "old"}
 
     def test_json_dry_run_emits_rows(self, tmp_path, capsys):

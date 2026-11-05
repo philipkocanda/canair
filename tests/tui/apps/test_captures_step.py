@@ -30,6 +30,7 @@ from canair.tui.apps.captures_step_model import (
     resolve_view,
 )
 from canair.tui.apps.captures_step_render import capture_block_text
+from canair.tui.modals import TextPromptModal
 from tests.support.step_model import PARAMS, _entry, _three_pid_entries
 from tests.support.step_model import model as _model
 
@@ -449,17 +450,16 @@ class TestCmdStep:
         monkeypatch.setattr("sys.stdin.isatty", lambda: False)
         entries = _write_captures(tmp_path)
         cmd_step(entries, "BMS", captures_dir=tmp_path)
-        out = capsys.readouterr().out
-        assert "not a TTY" in out
-        assert "2101" in out and "2102" in out
-        assert "frame" in out
+        captured = capsys.readouterr()
+        assert "note: not a terminal" in captured.err
+        assert "2101" in captured.out and "2102" in captured.out
+        assert "frame" in captured.out
 
     def test_non_tty_limit_reports_hidden_frames(self, tmp_path, capsys, monkeypatch):
         monkeypatch.setattr("sys.stdin.isatty", lambda: False)
         entries = _write_captures(tmp_path)
         cmd_step(entries, "BMS", captures_dir=tmp_path, tol_s=0.0, limit=1)
-        out = capsys.readouterr().out
-        assert "earlier frame(s) hidden" in out
+        assert "warning: 1 earlier frame(s) hidden" in capsys.readouterr().err
 
     def test_json_output(self, tmp_path, capsys):
         entries = _write_captures(tmp_path)
@@ -700,8 +700,11 @@ class TestCapturesStepApp:
                 await pilot.press(ch)
             await pilot.press("enter")
             await pilot.pause()
+            # The dialog stays open and says why, in its own words and colour.
+            assert isinstance(app.screen, TextPromptModal)
+            assert "Not a number of seconds" in str(app.screen.query_one("#prompt-error").render())
             assert app.model.tol_s == DEFAULT_STEP_JOIN_TOL_S
-            assert "Not a number" in app._flash_msg
+            assert app.flash.message == ""
 
     @pytest.mark.asyncio
     async def test_goto_modal(self):
@@ -722,7 +725,7 @@ class TestCapturesStepApp:
             await pilot.pause()
             await pilot.press("x")
             assert app.model.keys == [("HVAC", "2201A0"), ("HVAC", "2201A2")]
-            assert "Dropped HVAC:220100" in app._flash_msg
+            assert "Dropped HVAC:220100" in app.flash.message
 
     @pytest.mark.asyncio
     async def test_drop_pid_refuses_the_last_one(self):
@@ -731,7 +734,7 @@ class TestCapturesStepApp:
             await pilot.pause()
             await pilot.press("x")
             assert app.model.keys == [("HVAC", "220100")]
-            assert "Cannot drop the last PID" in app._flash_msg
+            assert "Cannot drop the last PID" in app.flash.message
 
     @pytest.mark.asyncio
     async def test_pid_modal_removes_and_adds(self):
@@ -794,7 +797,7 @@ class TestCapturesStepApp:
             await pilot.pause()
             rows = bindings_help_rows(app)
             descs = {d for _k, d in rows}
-            assert "add/remove signals" in descs
+            assert "compare PIDs" in descs
             assert "join tolerance" in descs
             assert "view mode" in descs
             await pilot.press("?")
@@ -826,7 +829,7 @@ class TestCapturesStepAppEdits:
                 await pilot.press(ch)
             await pilot.press("enter")
             await pilot.pause()
-            assert "Note saved" in app._flash_msg
+            assert "Note saved" in app.flash.message
         doc = json.loads((tmp_path / f"{target['date']}.json").read_text())
         notes = [c.get("notes") for c in doc["sessions"][0]["captures"]]
         assert "hello" in notes
@@ -841,7 +844,7 @@ class TestCapturesStepAppEdits:
             await pilot.pause()
             await pilot.press("escape")  # decline
             await pilot.pause()
-            assert "Delete cancelled" in app._flash_msg
+            assert "Delete cancelled" in app.flash.message
             assert len(app.model.captures) == before
 
     @pytest.mark.asyncio
@@ -1225,7 +1228,7 @@ class TestJumpModal:
             await pilot.pause()
             await pilot.press("s")
             await pilot.pause()
-            lst = app.screen.query_one("#jump-list", OptionList)
+            lst = app.screen.query_one("#picker-list", OptionList)
             blocked = [n for n, t in enumerate(app.screen._shown) if t.blocked]
             assert blocked, "fixture should contain unreachable rows"
             for n in blocked:
@@ -1260,7 +1263,7 @@ class TestJumpModal:
             await pilot.pause()
             await pilot.press("s")
             await pilot.pause()
-            footer = app.screen.query_one("#jump-footer").render()
+            footer = app.screen.query_one("#picker-footer").render()
             text = footer.plain if hasattr(footer, "plain") else str(footer)
             assert "sessions hidden" in text
 
@@ -1273,7 +1276,7 @@ class TestJumpModal:
             await pilot.pause()
             await pilot.press("s")
             await pilot.pause()
-            footer = app.screen.query_one("#jump-footer").render()
+            footer = app.screen.query_one("#picker-footer").render()
             text = footer.plain if hasattr(footer, "plain") else str(footer)
             assert "untimed notes hidden" in text
             assert "captures --sessions" in text
@@ -1304,7 +1307,7 @@ class TestJumpModal:
             await pilot.pause()
             await pilot.press("s")
             await pilot.pause()
-            app.screen.query_one("#jump-filter", Input).value = "heating"
+            app.screen.query_one("#picker-filter", Input).value = "heating"
             await pilot.pause()
             rows = [app.screen._row(t).plain for t in app.screen._shown]
             assert any("Heating started" in r for r in rows)
@@ -1321,10 +1324,11 @@ class TestJumpModal:
             target = next(
                 n for n, t in enumerate(app.screen._shown) if t.label == "Heating started"
             )
-            app.screen.query_one("#jump-list").highlighted = target
-            await pilot.press("enter")
+            app.screen.query_one("#picker-list").highlighted = target
+            await pilot.press("enter")  # the filter hands focus to the list
+            await pilot.press("enter")  # the list picks the row
             await pilot.pause()
-            assert "added HVAC:2201A0" in app._flash_msg
+            assert "added HVAC:2201A0" in app.flash.message
             assert ("HVAC", "2201A0") in app.model.keys
             assert app.model.focused_capture()["notes"] == "Heating started"
 
@@ -1340,10 +1344,11 @@ class TestJumpModal:
                 for n, t in enumerate(app.screen._shown)
                 if not t.is_note and t.session[0] == "2026-08-01.json"
             )
-            app.screen.query_one("#jump-list").highlighted = target
-            await pilot.press("enter")
+            app.screen.query_one("#picker-list").highlighted = target
+            await pilot.press("enter")  # the filter hands focus to the list
+            await pilot.press("enter")  # the list picks the row
             await pilot.pause()
-            assert "Jumped to 2026-08-01.json#0" in app._flash_msg
+            assert "Jumped to 2026-08-01.json#0" in app.flash.message
             assert app.model.frame_time().date().isoformat() == "2026-08-01"
 
     @pytest.mark.asyncio

@@ -69,8 +69,15 @@ class TestGatedPalette:
     def test_unknown_attribute_still_raises(self) -> None:
         # __getattr__ falls through — a typo should still error, not silently
         # produce an empty string.
-        with pytest.raises(AttributeError, match="MAGENTA"):
-            _ = ansi.MAGENTA
+        with pytest.raises(AttributeError, match="PURPLE"):
+            _ = ansi.PURPLE
+
+    def test_magenta_is_gated_like_the_rest(self, monkeypatch) -> None:
+        monkeypatch.setenv("FORCE_COLOR", "1")
+        assert ansi.MAGENTA == ansi.raw.MAGENTA
+        monkeypatch.delenv("FORCE_COLOR")
+        monkeypatch.setenv("NO_COLOR", "1")
+        assert ansi.MAGENTA == ""
 
 
 class TestUseColor:

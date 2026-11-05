@@ -18,8 +18,12 @@ from .operation import LiveOperation
 from .runtime import run_live
 
 
-def add_connection_args(parser: argparse.ArgumentParser) -> None:
-    """Add the connection/output flags common to every live subcommand."""
+def add_connection_args(parser: argparse.ArgumentParser, *, json: bool = True) -> None:
+    """Add the connection/output flags common to every live subcommand.
+
+    ``json=False`` leaves out ``--json`` for a command that has no JSON result to print
+    (a flag a command accepts must be one it honours).
+    """
     from canair.config import default_wican, wican_addresses
 
     parser.add_argument(
@@ -75,7 +79,8 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
         "count that lets the adapter answer without waiting out its full ECU "
         "timeout). Use when reading a car the active profile doesn't describe.",
     )
-    parser.add_argument("--json", action="store_true", help="Output results as JSON")
+    if json:
+        parser.add_argument("--json", action="store_true", help="Output results as JSON")
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Show raw transport traffic and expressions"
     )

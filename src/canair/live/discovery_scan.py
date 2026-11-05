@@ -22,9 +22,13 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from canair.live.scan_state import ScanStateWriter
+from canair.render import messages
+from canair.render.paint import Painter
 from canair.uds.response import UdsResponse
 
 from ..transport.protocol import Terminal
+from .discover_render import ABSENT, POSITIVE, PROBE_FAILED, REFUSED
+from .progress_line import ProgressLine
 
 
 @dataclass(frozen=True)
@@ -84,6 +88,8 @@ async def scan_ecu[HitT](
     total = end - start + 1
     fmt = probe.id_fmt()
 
+    paint = Painter(sys.stdout)
+    progress = ProgressLine()
     print(
         f"\n  [{ecu_name} @ 0x{tx_id:03X}] {probe.name}: scanning "
         f"{probe.id_label}s 0x{start:{fmt}}..0x{end:{fmt}} ({total})"
@@ -108,17 +114,16 @@ async def scan_ecu[HitT](
         for id_ in range(start, end + 1):
             idx = id_ - start + 1
             pct = idx / total * 100
-            print(
+            progress.update(
                 f"    [{idx}/{total} {pct:.0f}%] probing 0x{id_:{fmt}}  "
-                f"({probe.request_display(id_)})" + " " * 4,
-                end="\r",
-                file=sys.stderr,
+                f"({probe.request_display(id_)})"
             )
 
             response = await probe.probe(terminal, id_)
             category, nrc = probe.classify(response)
 
             if category == "service-absent":
+                progress.clear()
                 print(
                     f"  [{ecu_name}] NRC 0x{nrc:02X} — ECU doesn't implement "
                     f"service 0x{probe.service:02X}, aborting scan"
@@ -127,6 +132,7 @@ async def scan_ecu[HitT](
 
             if category == "wrong-session" and not in_extended:
                 if verbose:
+                    progress.clear()
                     print(f"    0x{id_:{fmt}}: NRC 7F — entering session (10 {session_mode})")
                 _, tester_task = await terminal.enter_extended_session(
                     wake=False, mode=session_mode
@@ -144,8 +150,9 @@ async def scan_ecu[HitT](
                     probe.write_hit(ecu_name, hit)
                 resp_hex = response.get("hex", "")
                 nbytes = len(response.get("bytes", []))
+                progress.clear()
                 print(
-                    f"    + 0x{id_:{fmt}}: positive ({nbytes} bytes)"
+                    f"    {paint(*POSITIVE)} 0x{id_:{fmt}}: positive ({nbytes} bytes)"
                     + (f"  [{resp_hex}]" if resp_hex else "")
                 )
             elif category == "exists":
@@ -154,15 +161,21 @@ async def scan_ecu[HitT](
                 hits.append(hit)
                 if probe.write_hit:
                     probe.write_hit(ecu_name, hit)
-                print(f"    ~ 0x{id_:{fmt}}: exists (NRC 0x{nrc:02X} {desc})")
+                progress.clear()
+                print(f"    {paint(*REFUSED)} 0x{id_:{fmt}}: exists (NRC 0x{nrc:02X} {desc})")
             elif category == "absent":
                 absent += 1
                 if verbose:
-                    print(f"    - 0x{id_:{fmt}}: NRC 0x{nrc:02X}")
+                    progress.clear()
+                    print(f"    {paint(*ABSENT)} 0x{id_:{fmt}}: absent (NRC 0x{nrc:02X})")
             else:
                 errors += 1
                 if verbose:
-                    print(f"    ! 0x{id_:{fmt}}: {response.get('error', 'unknown')}")
+                    progress.clear()
+                    print(
+                        f"    {paint(*PROBE_FAILED)} 0x{id_:{fmt}}: "
+                        f"{response.get('error', 'unknown')}"
+                    )
 
             state.update(id_, hits=len(hits))
 
@@ -176,7 +189,7 @@ async def scan_ecu[HitT](
             except asyncio.CancelledError:
                 pass
 
-    print(" " * 60, end="\r", file=sys.stderr)
+    progress.clear()
     print(f"  [{ecu_name}] done — {len(hits)} hits, {absent} absent, {errors} errors")
     state.close()
     return hits
@@ -223,11 +236,11 @@ async def mode_discovery_scan[HitT](
     for ecu in ecus:
         key = ecu.upper()
         if key not in ecu_defs:
-            print(f"  WARNING: ECU {ecu!r} not in pids_data, skipping", file=sys.stderr)
+            messages.warning(f"ECU {ecu!r} not in the profile, skipping")
             continue
         tx_id = ecu_defs[key].get("tx_id")
         if tx_id is None:
-            print(f"  WARNING: ECU {ecu!r} has no tx_id, skipping", file=sys.stderr)
+            messages.warning(f"ECU {ecu!r} has no tx_id, skipping")
             continue
 
         if id_range is not None:

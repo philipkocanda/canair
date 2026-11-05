@@ -49,3 +49,22 @@ class TestKeyToAction:
     def test_unknown_key_ignored(self):
         assert key_to_action("x") == ""
         assert key_to_action("") == ""
+
+
+class TestPickerKeys:
+    def test_every_home_and_end_sequence_a_terminal_sends(self):
+        for key in ("\x1b[H", "\x1b[1~", "\x1bOH", "g"):
+            assert key_to_action(key) == "home"
+        for key in ("\x1b[F", "\x1b[4~", "\x1bOF", "G"):
+            assert key_to_action(key) == "end"
+
+    def test_the_footer_is_built_from_the_key_roles(self):
+        from canair.tui import PICKER_FOOTER
+
+        assert PICKER_FOOTER == "↑/↓ select · enter accept · q quit · esc cancel"
+
+    def test_the_cursor_marker_is_the_shared_glyph(self):
+        from canair.render.glyphs import CURSOR
+        from canair.tui.scroll import SELECTION_MARKER
+
+        assert SELECTION_MARKER == CURSOR == "▶"

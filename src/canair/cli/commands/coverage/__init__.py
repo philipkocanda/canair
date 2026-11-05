@@ -52,6 +52,7 @@ from canair.cli.args.scope import active_scope_flags, add_scope_args, resolve_sc
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.cli.commands._hints import pid_completer as _pid_completer
 from canair.ecus.pids import build_ecu_index, load_pids
+from canair.render import messages
 from canair.uds.support_map import MapDecl, SupportMapError, declaration
 
 from .analysis import (
@@ -296,7 +297,7 @@ def keep(e: CoverageEntry, args) -> bool:
 def run(args) -> int:
     since, until, err = resolve_scope_bounds(args)
     if err:
-        print(f"error: {err}", file=sys.stderr)
+        messages.error(f"{err}")
         return 2
     pids_data = load_pids()
     ecu_index = build_ecu_index(pids_data)

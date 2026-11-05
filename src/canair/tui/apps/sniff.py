@@ -14,9 +14,19 @@ from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.widgets import Static
 
+from canair.render.sniff import SNIFF_LEGEND, render_sniff_table
 from canair.tui.help import HelpMixin
-from canair.tui.keys import bind
-from canair.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
+from canair.tui.keys import bind, key_hint
+from canair.tui.scroll import APP_BASE_CSS
+from canair.tui.status import (
+    P_ESSENTIAL,
+    P_HIGH,
+    P_LOW,
+    P_NORMAL,
+    StatusBar,
+    StatusItem,
+    hint_item,
+)
 
 if TYPE_CHECKING:
     from canair.analysis.sniff_stats import SniffStats
@@ -28,20 +38,19 @@ class SniffApp(HelpMixin, App):
     """Live per-ID sniff table."""
 
     HELP_TITLE = "canair sniff — keyboard shortcuts"
+    HELP_LEGEND = SNIFF_LEGEND
 
     # canair uses no command-palette commands; disable Textual's ctrl+p palette.
     ENABLE_COMMAND_PALETTE = False
 
-    CSS = """
-    Screen { layout: vertical; background: transparent; }
-    #scroll { height: 1fr; scrollbar-gutter: stable; scrollbar-size-vertical: 1; background: transparent; }
-    #body { height: auto; padding: 0 1; background: transparent; }
-    """
+    CSS = APP_BASE_CSS
 
     BINDINGS: ClassVar[list[Binding]] = [
-        *bind("quit", "quit", priority=True),
+        *bind("quit", "quit"),
         *bind("quit_force", "quit", show=False, priority=True),
         *bind("help", "help"),
+        # The top level has nothing to back out of: escape stays inert rather than quitting.
+        *bind("back", "stay", show=False),
         *bind("clear", "clear"),
         *bind("move_down", "scroll(1)", desc="scroll down", show=False),
         *bind("move_up", "scroll(-1)", desc="scroll up", show=False),
@@ -69,8 +78,6 @@ class SniffApp(HelpMixin, App):
         self._refresh()
 
     def _refresh(self) -> None:
-        from canair.render.sniff import render_sniff_table
-
         rows = self.stats.snapshot()
         try:
             self.query_one("#body", Static).update(render_sniff_table(rows))
@@ -81,15 +88,18 @@ class SniffApp(HelpMixin, App):
                     StatusItem(f"{len(rows)} [dim]IDs[/]", P_HIGH),
                     StatusItem(f"{self.stats.total_frames} [dim]frames[/]", P_NORMAL),
                     StatusItem(f"{elapsed:.0f}[dim]s[/]", P_LOW),
-                    StatusItem("[dim]c clear[/]", P_NORMAL),
-                    StatusItem("[dim]? help[/]", P_ESSENTIAL),
-                    StatusItem("[dim]q quit[/]", P_ESSENTIAL),
+                    hint_item(key_hint("clear"), P_NORMAL),
+                    hint_item(key_hint("help"), P_ESSENTIAL),
+                    hint_item(key_hint("quit"), P_ESSENTIAL),
                 ]
             )
         except Exception:  # transient teardown query misses are harmless
             return
         if self.duration and (time.monotonic() - self._start) >= self.duration:
             self.exit()
+
+    def action_stay(self) -> None:
+        """Escape: the table has no level to back out of, so it does nothing."""
 
     def action_clear(self) -> None:
         self.stats.clear()

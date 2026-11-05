@@ -41,8 +41,12 @@ import os
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NoReturn
+
+from canair.device.lock_report import describe_acquire_failure
 
 LOCK_FILE = Path("/tmp/wican-connection.lock")
 #: Sibling of the lock file holding a pending steal request. Kept separate so the
@@ -470,11 +474,17 @@ class WiCANLock:
             waited_s=waited,
         )
 
-    def acquire(self, force: bool = False, wait: float = FORCE_WAIT_S):
-        """Acquire the lock, or print an actionable error and exit(1).
+    def acquire(
+        self,
+        force: bool = False,
+        wait: float = FORCE_WAIT_S,
+        fail: Callable[[str], NoReturn] | None = None,
+    ):
+        """Acquire the lock, or report an actionable error and exit(1).
 
         The CLI-facing wrapper around :meth:`try_acquire` used by every live
-        command.
+        command. ``fail`` prints the failure text as an ``error:`` message and exits (the
+        commands pass ``canair.render.messages.fail``; this layer cannot import it).
         """
 
         def _say(msg: str) -> None:
@@ -485,7 +495,10 @@ class WiCANLock:
             if result.outcome == "stolen":
                 _say(f"connection released after {result.waited_s:.1f}s — continuing")
             return
-        print(describe_acquire_failure(result), file=sys.stderr)
+        text = describe_acquire_failure(result)
+        if fail is not None:
+            fail(text)
+        print(f"error: {text}", file=sys.stderr)
         sys.exit(1)
 
     def release(self):
@@ -548,34 +561,3 @@ class WiCANLock:
                 pass
         self._fd = None
         self._ident = None
-
-
-def describe_acquire_failure(result: AcquireResult) -> str:
-    """Human-facing explanation + next step for a failed acquire."""
-    if result.outcome == "permission":
-        return (
-            f"ERROR: {result.detail}.\n"
-            "  Another user's canair session appears to hold the device connection.\n"
-            "  Ask them to stop it (or clear it as that user / with sudo)."
-        )
-    if result.outcome == "contended":
-        who = result.holder.describe() if result.holder else "another session"
-        return (
-            f"ERROR: Another canair session is already using the WiCAN — {who}.\n"
-            "  Only one canair session can talk to the device at a time.\n"
-            "  Inspect it with `canair lock`, or re-run with --force to ask it to stop."
-        )
-    if result.outcome == "timeout":
-        who = result.holder.describe() if result.holder else "the holder"
-        pid = result.holder.pid if result.holder else None
-        kill = f"kill {pid}" if pid else "kill <pid>"
-        hard = f"kill -9 {pid}" if pid else "kill -9 <pid>"
-        return (
-            f"ERROR: The session holding the connection did not release it within "
-            f"{result.waited_s:.0f}s — {who}.\n"
-            "  It may predate canair's cooperative release, or be wedged. It still holds\n"
-            "  the device's single connection, so a new session would time out.\n"
-            f"  Stop it with:  {kill}    (if it ignores that:  {hard})\n"
-            "  Any --save data it recorded is safe: `canair captures uds --recover`."
-        )
-    return f"ERROR: could not acquire the connection lock ({result.outcome})."

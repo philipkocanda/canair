@@ -38,6 +38,8 @@ from pathlib import Path
 import requests
 
 from canair.cli.args.group import group_help
+from canair.core.prompt import confirm
+from canair.core.terminal import terminal_columns
 from canair.device.wican.api import resolve_wican_url
 from canair.device.wican.firmware import Surface
 from canair.ecus.response_frames import stored_count
@@ -50,7 +52,9 @@ from canair.interop.autopid.profile import (
     to_device_format,
 )
 from canair.interop.autopid.v6 import to_v6
+from canair.render import messages
 from canair.transport.config import TransportType
+from canair.yaml_edit.echo import echo_edit
 
 NAME = "wican"
 
@@ -70,14 +74,15 @@ def _require_pro(operation: str) -> int | None:
 
     if is_wican_pro():
         return None
-    print(
-        f"error: `canair wican {operation}` needs a WiCAN Pro — the classic "
-        "(non-Pro) WiCAN has no AutoPID / vehicle-profile support.\n"
-        "        Your config sets wican_model: classic. Generating the AutoPID "
-        "JSON still works — run `canair wican autopid write` to write it to out/.\n"
-        "        If this device is actually a Pro, run: canair config set wican_model pro",
-        file=sys.stderr,
+    messages.error(
+        f"`canair wican {operation}` needs a WiCAN Pro — the classic "
+        "(non-Pro) WiCAN has no AutoPID / vehicle-profile support"
     )
+    messages.note(
+        "your config sets wican_model: classic. Generating the AutoPID "
+        "JSON still works — run `canair wican autopid write` to write it to out/"
+    )
+    messages.hint("if this device is actually a Pro, run: canair config set wican_model pro")
     return 2
 
 
@@ -173,7 +178,7 @@ def write_json(data: dict, path: Path) -> None:
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
         f.write("\n")
-    print(f"  Written: {path} ({len(json.dumps(data))} bytes)")
+    echo_edit(f"wrote {len(json.dumps(data))} bytes", path)
 
 
 def download_profile(base_url: str) -> dict | None:
@@ -184,10 +189,10 @@ def download_profile(base_url: str) -> dict | None:
         resp.raise_for_status()
         data = resp.json()
         n_entries = len(data.get("cars", [{}])[0].get("pids", []))
-        print(f"  Downloaded from {url} ({n_entries} entries)")
+        print(f"  Downloaded from {url} ({n_entries} entries)", file=sys.stderr)
         return data
     except requests.RequestException as e:
-        print(f"  FAILED to download from {url}: {e}", file=sys.stderr)
+        messages.error(f"failed to download from {url}: {e}")
         return None
 
 
@@ -215,7 +220,7 @@ def show_diff(current_raw: dict | None, generated: dict) -> bool:
     Returns True if there are differences.
     """
     if current_raw is None:
-        print("\n  No current config to compare (download failed)")
+        messages.error("no current config to compare (download failed)")
         return True
 
     cur_map = _signal_map(normalize_device_profile(current_raw))
@@ -308,7 +313,7 @@ def upload_profile(base_url: str, device_payload: dict, reboot: bool = False) ->
         resp.raise_for_status()
         print(f"  Uploaded to {url} — {resp.status_code} ({n_pids} PIDs, {n_params} signals)")
     except requests.RequestException as e:
-        print(f"  FAILED to upload to {url}: {e}", file=sys.stderr)
+        messages.error(f"failed to upload to {url}: {e}")
         sys.exit(1)
 
     if reboot:
@@ -328,10 +333,11 @@ def print_stats(data: dict) -> None:
 
     header = (
         f"\n{'ECU':<10} {'TX ID':<8} {'PID':<10} {'Period':<8} {'Frames':<8} "
-        f"{'Params':<8} {'Verified':<10} {'Source Summary'}"
+        f"{'Signals':<8} {'Verified':<10} {'Source Summary'}"
     )
+    rule = "─" * min(terminal_columns(), 100)
     print(header)
-    print("─" * 100)
+    print(rule)
 
     for ecu_name, ecu in data["ecus"].items():
         tx_id = ecu["tx_id"]
@@ -362,7 +368,7 @@ def print_stats(data: dict) -> None:
                 f"{n_params:<8} {v_str:<10} {source_str}"
             )
 
-    print("─" * 100)
+    print(rule)
     print(
         f"{'TOTAL':<10} {'':8} {'':10} {'':8} {f'{counted}/{total_pids}':<8} "
         f"{total_params:<8} {verified_count}/{total_params} verified "
@@ -624,12 +630,11 @@ def _ship(args) -> tuple[dict, ShippedProfile]:
     verified_only = _verified_only(args)
     label = "" if getattr(args, "include_unverified", False) else " (verified only)"
     counts = getattr(args, "expected_responses", True)
-    print(f"\nGenerating AutoPID profile{label}...")
+    print(f"\nGenerating AutoPID profile{label}…")
     try:
         shipped = ship_profile(data, verified_only, expected_responses=counts)
     except ProfileGenerationError as e:
-        print(f"error: {e}", file=sys.stderr)
-        sys.exit(1)
+        messages.fail(str(e))
     n_groups = len(shipped.pids)
     n_params = sum(len(p.params) for p in shipped.pids)
     print(f"  {n_groups} PID groups, {n_params} signals")
@@ -655,14 +660,12 @@ def _render_v6(shipped: ShippedProfile) -> dict:
     try:
         v6 = to_v6(shipped)
     except ProfileGenerationError as e:
-        print(f"error: {e}", file=sys.stderr)
-        sys.exit(1)
+        messages.fail(str(e))
     if v6.dropped_streams:
-        print(
-            f"warning: firmware v6 has no per-signal MQTT stream, so the send_to of "
+        messages.warning(
+            f"firmware v6 has no per-signal MQTT stream, so the send_to of "
             f"{', '.join(v6.dropped_streams)} is left out of the v6 table (a v6 event rule "
-            "on autopid.param → mqtt.publish is the nearest equivalent)",
-            file=sys.stderr,
+            "on autopid.param → mqtt.publish is the nearest equivalent)"
         )
     return v6.document
 
@@ -671,10 +674,9 @@ def _cmd_autopid_write(args) -> int:
     firmware = getattr(args, "firmware", None)
     out = getattr(args, "out", None)
     if out is not None and firmware is None:
-        print(
-            "error: --out writes one file, but `autopid write` makes one per firmware "
-            "generation: add --firmware 4 or --firmware 6",
-            file=sys.stderr,
+        messages.error(
+            "--out writes one file, but `autopid write` makes one per firmware "
+            "generation: add --firmware 4 or --firmware 6"
         )
         return 2
     _data, shipped = _ship(args)
@@ -684,7 +686,7 @@ def _cmd_autopid_write(args) -> int:
     }
     wanted = [firmware] if firmware else sorted(FIRMWARE_FILES)
     rendered = {fw: documents[fw]() for fw in wanted}
-    print("\nWriting output...")
+    print("\nWriting output…")
     for fw, document in rendered.items():
         write_json(
             document,
@@ -711,13 +713,13 @@ def _cmd_autopid_upload(args) -> int:
 
     data, profile = _generate(args)
 
-    print("\nConverting to device format...")
+    print("\nConverting to device format…")
     device_payload = to_device_format(profile, data)
     n_pids = len(device_payload["cars"][0]["pids"])
     n_dev_params = sum(len(p["parameters"]) for p in device_payload["cars"][0]["pids"])
     print(f"  {n_pids} PID groups, {n_dev_params} signals (array-of-objects)")
 
-    print(f"\nUploading to {base_url}...")
+    print(f"\nUploading to {base_url}…")
     upload_profile(base_url, device_payload, reboot=args.reboot)
     print("\nDone.")
     return 0
@@ -732,14 +734,11 @@ def _cmd_autopid_download(args) -> int:
     guard = _require_v4_api(base_url, "autopid-sync")
     if guard is not None:
         return guard
-    print(f"Downloading current AutoPID profile from {base_url}...")
+    print(f"Downloading current AutoPID profile from {base_url}…", file=sys.stderr)
     current_raw = download_profile(base_url)
     if current_raw:
-        normalized = normalize_device_profile(current_raw)
-        print("\n=== Current device profile (normalized) ===")
-        print(json.dumps(normalized, indent=2))
-    print("\nDone.")
-    return 0
+        print(json.dumps(normalize_device_profile(current_raw), indent=2))
+    return 0 if current_raw else 1
 
 
 def _cmd_autopid_diff(args) -> int:
@@ -753,7 +752,7 @@ def _cmd_autopid_diff(args) -> int:
         return guard
 
     _data, profile = _generate(args)
-    print(f"\nDownloading current AutoPID profile from {base_url}...")
+    print(f"\nDownloading current AutoPID profile from {base_url}…")
     current_raw = download_profile(base_url)
     show_diff(current_raw, profile)
     print("\nDone.")
@@ -775,7 +774,7 @@ def _cmd_mode_show(args) -> int:
     try:
         proto = current_protocol(base_url)
     except Exception as e:
-        print(f"error: cannot reach WiCAN at {base_url}: {e}", file=sys.stderr)
+        messages.error(f"cannot reach WiCAN at {base_url}: {e}")
         return 1
     print(f"WiCAN protocol: {proto or '?'}")
     return 0
@@ -809,7 +808,7 @@ def _sync_transport_to_mode(mode: str, *, no_transport: bool) -> None:
         print(f"  Transport already '{desired}'.")
         return
     set_config_key("transport.type", desired)
-    print(f"  Transport '{current}' -> '{desired}'.")
+    print(f"  Transport '{current}' → '{desired}'.")
 
 
 def _cmd_mode_set(args) -> int:
@@ -828,7 +827,7 @@ def _cmd_mode_set(args) -> int:
     try:
         cur = current_protocol(base_url)
     except Exception as e:
-        print(f"error: cannot reach WiCAN at {base_url}: {e}", file=sys.stderr)
+        messages.error(f"cannot reach WiCAN at {base_url}: {e}")
         return 1
 
     if cur == target:
@@ -836,26 +835,18 @@ def _cmd_mode_set(args) -> int:
         _sync_transport_to_mode(target, no_transport=args.no_transport)
         return 0
 
-    if not args.yes:
-        if not sys.stdin.isatty():
-            print(
-                f"error: refusing to switch '{cur}' -> '{target}' without --yes (non-interactive).",
-                file=sys.stderr,
-            )
-            return 2
-        resp = input(
-            f"Switch WiCAN from '{cur}' to '{target}'? This reboots the device "
-            f"(~5s) and interrupts its current mode. [y/N] "
-        )
-        if resp.strip().lower() not in ("y", "yes"):
-            print("Aborted.")
-            return 1
+    question = (
+        f"Switch WiCAN from '{cur}' to '{target}'? This reboots the device "
+        "(~5s) and interrupts its current mode."
+    )
+    if not confirm(question, yes=args.yes, danger=True):
+        return 1
 
-    print(f"Switching WiCAN '{cur}' -> '{target}' (rebooting)...")
+    print(f"Switching WiCAN '{cur}' → '{target}' (rebooting)…")
     try:
         set_protocol(base_url, target)
     except ModeError as e:
-        print(f"error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 1
     try:
         now = current_protocol(base_url)
@@ -865,7 +856,7 @@ def _cmd_mode_set(args) -> int:
         print(f"WiCAN now in '{target}' mode.")
         _sync_transport_to_mode(target, no_transport=args.no_transport)
         return 0
-    print(f"warning: WiCAN reports '{now}' after switch.", file=sys.stderr)
+    messages.warning(f"WiCAN reports '{now}' after switch")
     return 1
 
 

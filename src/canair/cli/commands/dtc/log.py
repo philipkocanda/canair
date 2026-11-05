@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 
 from canair.cli.live import ecu_completer
-from canair.render import ansi
+from canair.render import ansi, messages
 
 
 def add_parser(kinds) -> argparse.ArgumentParser:
@@ -69,8 +70,8 @@ def run(args) -> int:
     if scope is None:
         from canair.cli.commands._hints import ecu_hint
 
-        print(f"Unknown ECU '{args.dtc}'.\n")
-        print(ecu_hint())
+        messages.error(f"unknown ECU '{args.dtc}'")
+        print(ecu_hint(), file=sys.stderr)
         return 2
 
     stats = log_stats()

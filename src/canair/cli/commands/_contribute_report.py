@@ -18,24 +18,29 @@ it instead:
   the caller must notice and forward, which is what keeps the pipeline in
   :mod:`canair.cli.commands.contribute` readable as a sequence of steps.
 
-The three outcome kinds map to the exit codes: :data:`OK` (done),
-:data:`FAILED` (an operation went wrong — git/gh/network) and :data:`CANNOT`
-(the contribution is impossible or was declined).
+The outcome kinds map to the exit codes: :data:`OK` (done), :data:`FAILED` (an operation
+went wrong — git/gh/network), :data:`DECLINED` (the user answered no) and :data:`CANNOT` (the
+contribution is impossible, or a prompt had to be answered with no terminal to answer it).
 """
 
 from __future__ import annotations
 
 import json
-import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn
+
+from canair.core.prompt import confirm
+from canair.render import glyphs
+from canair.render.console import escape
 
 if TYPE_CHECKING:
     from rich.console import Console
 
 OK = 0
 FAILED = 1
+DECLINED = 1
 CANNOT = 2
 
 
@@ -45,19 +50,6 @@ class Stop(Exception):
     def __init__(self, code: int) -> None:
         super().__init__(f"contribution stopped with exit code {code}")
         self.code = code
-
-
-def confirm(prompt: str, yes: bool, *, json_mode: bool) -> bool:
-    """Ask to proceed unless ``yes``; non-interactive without ``yes`` declines."""
-    if yes:
-        return True
-    if json_mode or not (sys.stdin.isatty() and sys.stdout.isatty()):
-        return False
-    try:
-        return input(f"{prompt} [y/N]: ").strip().lower() in ("y", "yes")
-    except (EOFError, KeyboardInterrupt):
-        print()
-        return False
 
 
 def rollback_json(rollback: list[tuple[str, int]]) -> list[dict[str, Any]]:
@@ -114,7 +106,7 @@ class Reporter:
         """Record a non-fatal advisory (printed now; reported in every payload)."""
         self.warnings.append(message)
         if not self.json_mode:
-            self.console.print(f"  [yellow]⚠[/yellow] {message}")
+            self.console.print(f"  [yellow]{glyphs.WARN}[/yellow] {escape(message)}")
 
     def payload(self, **extra: Any) -> dict[str, Any]:
         return {**self.base, **extra, "warnings": list(self.warnings)}
@@ -162,9 +154,23 @@ class Reporter:
                 self.refuse(f"{error}; re-run with --yes to proceed", **extra)
             return
         human()
-        if not confirm(prompt, self.yes, json_mode=self.json_mode):
-            self.console.print("  Aborted — nothing was contributed.")
-            raise Stop(CANNOT)
+        self.confirm(prompt, error=error)
+
+    def confirm(self, prompt: str, *, error: str, after_decline: str = "") -> None:
+        """Return when the user agrees; end the run (exit 1) when they decline.
+
+        ``--yes`` agrees ahead of time. ``--json`` never does: it cannot be asked, so it
+        refuses and names ``error``. With no terminal the shared prompt raises
+        ``PromptUnavailable``, which the top level reports (exit 2).
+        """
+        if self.yes:
+            return
+        if self.json_mode:
+            self.refuse(f"{error}; re-run with --yes to proceed")
+        if not confirm(prompt, yes=False):
+            if after_decline:
+                self.console.print(f"  {after_decline}")
+            raise Stop(DECLINED)
 
     def rollback_warning(self, rollback: list[tuple[str, int]]) -> None:
         """Explain that the contribution removes committed upstream definition lines.
@@ -173,12 +179,14 @@ class Reporter:
         asking), hence a method rather than inline prose.
         """
         self.console.print(
-            "\n[yellow]⚠ This contribution removes committed upstream definition "
+            f"\n[yellow]{glyphs.WARN} This contribution removes committed upstream definition "
             "lines[/yellow] — curated definitions normally only grow, so if your source\n"
             "  is stale this would revert work already merged upstream:\n"
         )
         for path, removed in rollback:
-            self.console.print(f"  [yellow]•[/yellow] {path}  [dim](−{removed} line(s))[/dim]")
+            self.console.print(
+                f"  [yellow]•[/yellow] {escape(path)}  [dim](−{removed} line(s))[/dim]"
+            )
         self.console.print(
             "\n  If this is a deliberate cleanup, proceed. Otherwise sync your source "
             "first\n  (e.g. [cyan]git pull[/cyan], and run [cyan]uv run canair[/cyan] "
@@ -195,21 +203,42 @@ class Reporter:
         ``--diff`` and by the replacement gate, like :meth:`rollback_warning`.
         """
         self.console.print(
-            f"\n[yellow]⚠ This contribution replaces {len(replaced)} upstream capture "
+            f"\n[yellow]{glyphs.WARN} This contribution replaces {len(replaced)} upstream capture "
             "session(s)[/yellow] with your copies of the same recordings:\n"
         )
-        from rich.markup import escape
-
         for r in replaced:
             s = r.session
             when = f"{s.date} {s.time}".strip()
             changed = ", ".join(s.fields) or "content"
             self.console.print(
-                f"  [yellow]•[/yellow] {escape(r.file)} [{s.index}] {when}  {escape(s.label)}  "
-                f"[dim](changes: {changed})[/dim]"
+                f"  [yellow]•[/yellow] {escape(r.file)} \\[{s.index}] {escape(when)}  "
+                f"{escape(s.label)}  [dim](changes: {escape(changed)})[/dim]"
             )
         self.console.print(
             "\n  That is expected for sessions you edited or repaired. If you did not, "
             "your\n  source is probably behind upstream and this would revert upstream's "
             "edit —\n  sync first (e.g. [cyan]git pull[/cyan]).\n"
+        )
+
+    def show_source_changes(self, changes: Any, profile_name: str, backup: Path) -> None:
+        """List the source checkout's uncommitted changes that the contribution already holds."""
+        console = self.console
+        console.print(
+            f"\n  Your checkout [dim]{escape(str(changes.checkout))}[/dim] still holds "
+            f"{len(changes.held)} uncommitted change(s)\n  under "
+            f"[cyan]profiles/{escape(profile_name)}/[/cyan] that "
+            "the contribution already holds:\n"
+        )
+        for path in changes.held[:10]:
+            console.print(f"    [dim]{escape(str(path))}[/dim]")
+        if len(changes.held) > 10:
+            console.print(f"    [dim]… and {len(changes.held) - 10} more[/dim]")
+        if changes.not_held:
+            console.print(
+                f"\n  {len(changes.not_held)} other change(s) there are not in the PR and are "
+                "left alone."
+            )
+        console.print(
+            "\n  Pulling the merged PR would conflict with them. Discarding restores them to\n"
+            f"  your last commit, after a backup to [cyan]{escape(str(backup))}[/cyan].\n"
         )

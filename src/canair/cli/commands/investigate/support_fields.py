@@ -151,7 +151,9 @@ def field_json(scan: PidScan, notation: ByteNotation) -> dict:
     return doc
 
 
-_COLOUR = {"exact": ansi.GREEN, "consistent": ansi.YELLOW, "broken": ansi.RED}
+def _colour(verdict: str) -> str:
+    """The code for a verdict, read at print time so ``NO_COLOR`` is honoured when it is set."""
+    return {"exact": ansi.GREEN, "consistent": ansi.YELLOW, "broken": ansi.RED}[verdict]
 
 
 def print_field_headline(scan: PidScan, notation: ByteNotation, head: str) -> None:
@@ -161,7 +163,7 @@ def print_field_headline(scan: PidScan, notation: ByteNotation, head: str) -> No
     label = _labeller(scan, notation)
     order = "" if fit.order == "msb" else ", LSB first"
     print(
-        f"{head}  {_COLOUR[fit.verdict]}{fit.verdict.upper()}{ansi.RESET} per-field map "
+        f"{head}  {_colour(fit.verdict)}{fit.verdict.upper()}{ansi.RESET} per-field map "
         f"{ansi.BOLD}{' '.join(f'{b:02X}' for b in fit.mask)}{ansi.RESET} "
         f"{ansi.DIM}at data+{fit.at}{order}, {fit.n_rows} rows{ansi.RESET}"
     )

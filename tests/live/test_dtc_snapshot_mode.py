@@ -370,7 +370,7 @@ class TestSave:
         t = FakeTerminal({"1902FF": _ok("590209")})
         await dtc.mode_dtc_read(t, CCM, protocol="uds", save=True, label="x")
         assert saved == []
-        assert "no snapshot replies to save" in capsys.readouterr().out
+        assert "no snapshot replies to save" in capsys.readouterr().err
 
 
 SNAPSHOT_CAPTURE = {

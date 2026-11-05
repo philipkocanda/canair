@@ -11,6 +11,8 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING
 
+from canair.render import messages
+
 from ..transport.config import ConnectionOptions, TransportConfig
 from .monitor_options import MonitorOptions
 from .session import SessionOptions
@@ -111,21 +113,21 @@ async def run_raw_monitor(
     ecu_index = build_ecu_index(pids_data)
     ecus = query_ecu_addresses(monitor.query_steps, ecu_index)
     if not ecus:
-        print("Error: no known ECUs in the query steps.", file=sys.stderr)
+        messages.error("no known ECUs in the query steps.")
         return 1
 
     print(
         f"  Raw CAN monitor via SLCAN — {host}:{port} @ {bitrate} bps  "
-        f"(ECUs: {', '.join(sorted(ecus))})"
+        f"(ECUs: {', '.join(sorted(ecus))})",
+        file=sys.stderr,
     )
     try:
         client = build_raw_client(host, port, bitrate, ecus, conn, pids_data)
     except OSError as e:
         from canair.core.oserrors import connect_error_detail
 
-        print(
-            f"error: can't connect to the SLCAN port at {host}:{port} — {connect_error_detail(e)}",
-            file=sys.stderr,
+        messages.error(
+            f"can't connect to the SLCAN port at {host}:{port} — {connect_error_detail(e)}"
         )
         return 1
     # The monitor reconciles its --save journal in its own finally even on a
@@ -146,12 +148,8 @@ async def run_raw_monitor(
             **monitor.mode_kwargs(),
         )
     except transport_error_types() as e:
-        print(
-            "error: "
-            + describe_transport_error(
-                e, host=host, transport_label="SLCAN", saving=session.saving
-            ),
-            file=sys.stderr,
+        messages.error(
+            describe_transport_error(e, host=host, transport_label="SLCAN", saving=session.saving)
         )
         return 1
     if session.timings:

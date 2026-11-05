@@ -40,7 +40,8 @@ from canair.cli.args.join import (
 )
 from canair.cli.args.notation import add_notation_arg, resolve_notation
 from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
-from canair.render import ansi
+from canair.cli.commands._analysis_warning import warn_analysis
+from canair.render import ansi, messages
 from canair.uds.inspect_bytes import NO_EXPR
 from canair.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
 
@@ -280,7 +281,7 @@ def _run_can_log(args) -> int:
 
     path = Path(args.file)
     if not path.is_file():
-        print(f"hunt can: no such file: {path}", file=sys.stderr)
+        messages.error(f"no such file: {path}")
         return 1
     try:
         target = int(args.id, 16)
@@ -294,16 +295,15 @@ def _run_can_log(args) -> int:
             path, args.can_format, min_distinct=2, id_filter=id_filter
         )
     except (ValueError, CanLogError) as e:
-        print(f"hunt can: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 1
 
     ref = ref_series_map.get(args.against)
     if ref is None:
         avail = ", ".join(sorted(ref_series_map)[:6])
-        print(
+        messages.error(
             f"--against {args.against!r}: not a varying byte in {path.name}. "
-            f"Expected a frame label like 0x386:r0. Available e.g.: {avail} …",
-            file=sys.stderr,
+            f"Expected a frame label like 0x386:r0. Available e.g.: {avail} …"
         )
         return 1
     ref_label = args.against
@@ -324,7 +324,7 @@ def _run_can_log(args) -> int:
             all_interps=args.all_interps,
         )
     except CanLogError as e:
-        print(f"hunt can: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 1
 
     if args.json:
@@ -363,7 +363,7 @@ def _run_can_log(args) -> int:
     )
     for h in hits:
         color = ansi.GREEN if abs(h.r) >= 0.7 else ansi.YELLOW if abs(h.r) >= 0.3 else ansi.DIM
-        unit = f"  {ansi.CYAN}{h.unit_guess}{ansi.RESET}" if h.unit_guess else ""
+        unit = f"  {ansi.DIM}{h.unit_guess}{ansi.RESET}" if h.unit_guess else ""
         print(
             f"    {color}r={h.r:+.3f}{ansi.RESET}  {ansi.BOLD}{h.expr}{ansi.RESET} "
             f"{ansi.DIM}({h.interp}){ansi.RESET}  fit y={h.slope:.4f}·x{h.intercept:+.2f} "
@@ -379,15 +379,12 @@ def run(args) -> int:
     from canair.profile import active
 
     if not args.ecu or not args.pid:
-        print(
-            "hunt uds: ECU and PID are required (e.g. `hunt AAF 2181 --against …`).",
-            file=sys.stderr,
-        )
+        messages.error("ECU and PID are required (e.g. `hunt AAF 2181 --against …`)")
         return 2
 
     since, until, err = resolve_scope_bounds(args)
     if err:
-        print(f"error: {err}", file=sys.stderr)
+        messages.error(f"{err}")
         return 2
 
     ecu = canonical_ecu_name_safe(args.ecu)
@@ -405,15 +402,14 @@ def run(args) -> int:
             if active
         ]
         if ignored:
-            print(
-                f"warning: --physical ignores {', '.join(ignored)} "
-                "(it scans value plausibility, not a reference correlation).",
-                file=sys.stderr,
+            messages.warning(
+                f"--physical ignores {', '.join(ignored)} "
+                "(it scans value plausibility, not a reference correlation)"
             )
         return _run_physical(args, ecu, pid, since, until)
 
     if args.control and args.control_file:
-        print("error: --control and --control-file are mutually exclusive", file=sys.stderr)
+        messages.error("--control and --control-file are mutually exclusive")
         return 2
 
     fill = fill_policy_from_args(args)
@@ -433,7 +429,7 @@ def run(args) -> int:
             )
     except ValueError as e:
         flag = "--against-file" if args.against_file else "--against"
-        print(f"{flag} error: {e}", file=sys.stderr)
+        messages.error(f"{flag}: {e}")
         return 1
 
     if args.transform and args.transform != "raw":
@@ -443,22 +439,20 @@ def run(args) -> int:
     if reference_is_bimodal([tp.value for tp in ref_series]):
         from canair.analysis.stats import categorical_method_nudge
 
-        print(
-            f"hunt: warning: reference {ref_label!r} collapses into ~2 clusters "
+        messages.warning(
+            f"reference {ref_label!r} collapses into ~2 clusters "
             "(bimodal) \u2014 |r| then ranks cluster separation, not a signal match, so "
             "the top hits are unreliable. Use a scope with continuous variation "
             f"(a keep-all drive), not a bimodal regime flip.{categorical_method_nudge(args.method)} "
-            "See docs/concepts/analysis-commands.md.",
-            file=sys.stderr,
+            "See docs/concepts/analysis-commands.md."
         )
     elif reference_is_absolute_level([tp.value for tp in ref_series]):
-        print(
-            f"hunt: warning: reference {ref_label!r} looks like a slowly-varying "
+        messages.warning(
+            f"reference {ref_label!r} looks like a slowly-varying "
             "absolute level (small swing on a large baseline) \u2014 Pearson |r| is then "
             "corrupted by cross-session DC offsets, so --against ranking is unreliable "
             "for it. Prefer `hunt --physical` (named bands) plus comparing per-state "
-            "absolute readings to a known value. See docs/concepts/analysis-commands.md.",
-            file=sys.stderr,
+            "absolute readings to a known value. See docs/concepts/analysis-commands.md."
         )
 
     control_series = None
@@ -479,7 +473,7 @@ def run(args) -> int:
                 )
         except ValueError as e:
             flag = "--control-file" if args.control_file else "--control"
-            print(f"{flag} error: {e}", file=sys.stderr)
+            messages.error(f"{flag}: {e}")
             return 1
         ref_label = f"{ref_label} · control {control_label}"
 
@@ -493,10 +487,9 @@ def run(args) -> int:
     )
     lp = loaded[(ecu.upper(), pid)]
     if not lp.captures:
-        print(
-            f"No timed captures for {ecu} {pid} in scope"
-            + (f" ({lp.n_no_time} untimed skipped)." if lp.n_no_time else "."),
-            file=sys.stderr,
+        messages.error(
+            f"no timed captures for {ecu} {pid} in scope"
+            + (f" ({lp.n_no_time} untimed skipped)" if lp.n_no_time else "")
         )
         return 1
 
@@ -506,7 +499,7 @@ def run(args) -> int:
     # correlates" — indistinguishable from a real negative result.
     forced = forced_hold_warning(lp.captures, fill)
     if forced:
-        print(f"hunt: {forced}", file=sys.stderr)
+        warn_analysis(forced)
     fills = fill_summaries([lp], fill, args.join_tol)
     _warn_thin_reference_join(args, lp, ref_series, ref_label)
 
@@ -572,10 +565,10 @@ def run(args) -> int:
     )
     fill_line = fill_summary_line(fills, fill)
     if fill_line:
-        print(f"  {ansi.CYAN}{fill_line}{ansi.RESET}")
+        print(f"  {ansi.DIM}{fill_line}{ansi.RESET}")
     for h in hits:
         color = ansi.GREEN if abs(h.r) >= 0.7 else ansi.YELLOW if abs(h.r) >= 0.3 else ansi.DIM
-        unit = f"  {ansi.CYAN}{h.unit_guess}{ansi.RESET}" if h.unit_guess else ""
+        unit = f"  {ansi.DIM}{h.unit_guess}{ansi.RESET}" if h.unit_guess else ""
         label = _hit_label(
             h, notation, sub_bytes, longest_payload_len(getattr(lp, "captures", None))
         )
@@ -594,12 +587,11 @@ def run(args) -> int:
     n_noexpr = sum(1 for h in hits if h.expr == NO_EXPR)
     if hits and hits[0].expr == NO_EXPR:
         extra = f" ({n_noexpr} of the {len(hits)} shown)" if n_noexpr > 1 else ""
-        print(
-            f"  hunt: warning: the top hit is a float reinterpretation{extra} with no WiCAN "
-            "expression, so it cannot be promoted or defined as a parameter. Float reads of "
+        messages.warning(
+            f"the top hit is a float reinterpretation{extra} with no WiCAN "
+            "expression, so it cannot be promoted or defined as a signal. Float reads of "
             "integer byte runs correlate spuriously — prefer the best expressible hit below "
-            "it unless this ECU really transmits IEEE floats.",
-            file=sys.stderr,
+            "it unless this ECU really transmits IEEE floats."
         )
     return 0
 
@@ -621,10 +613,9 @@ def _run_physical(args, ecu: str, pid: str, since, until) -> int:
     )
     lp = loaded[(ecu.upper(), pid)]
     if not lp.captures:
-        print(
-            f"No timed captures for {ecu} {pid} in scope"
-            + (f" ({lp.n_no_time} untimed skipped)." if lp.n_no_time else "."),
-            file=sys.stderr,
+        messages.error(
+            f"no timed captures for {ecu} {pid} in scope"
+            + (f" ({lp.n_no_time} untimed skipped)" if lp.n_no_time else "")
         )
         return 1
 
@@ -677,7 +668,7 @@ def _run_physical(args, ecu: str, pid: str, since, until) -> int:
             ).render(notation, sub_bytes=sub_bytes)
         print(
             f"    {color}{h.frac * 100:3.0f}% in-band{ansi.RESET}  {ansi.BOLD}{h.scaling}·{label}{ansi.RESET} "
-            f"{ansi.DIM}({h.interp}){ansi.RESET}  {ansi.CYAN}{h.band}{ansi.RESET} "
+            f"{ansi.DIM}({h.interp}){ansi.RESET}  {ansi.DIM}{h.band}{ansi.RESET} "
             f"{ansi.DIM}median≈{h.median:.1f} n={h.n}{ansi.RESET}"
         )
     print()
@@ -708,7 +699,7 @@ def _warn_thin_reference_join(args, lp, ref_series, ref_label: str) -> None:
         min_n=args.min_n,
     )
     if msg:
-        print(msg, file=sys.stderr)
+        warn_analysis(msg)
 
 
 def _promote(name: str, ecu: str, pid: str, hits, ref_label: str) -> int:
@@ -722,14 +713,13 @@ def _promote(name: str, ecu: str, pid: str, hits, ref_label: str) -> int:
     from canair.yaml_edit.pids import PidsEditError
 
     if not hits:
-        print("Nothing to promote — no correlating byte found.", file=sys.stderr)
+        messages.error("nothing to promote: no correlating byte found")
         return 1
     top = hits[0]
     if top.expr == NO_EXPR:
-        print(
-            f"Top hit ({top.interp} @ B{top.offset}) has no WiCAN expression "
-            "(a float reinterpretation) — cannot promote. Pick an expressible hit instead.",
-            file=sys.stderr,
+        messages.error(
+            f"top hit ({top.interp} @ B{top.offset}) has no WiCAN expression "
+            "(a float reinterpretation); cannot promote. Pick an expressible hit instead"
         )
         return 1
     unit_note = f" {top.unit_guess}" if top.unit_guess else ""
@@ -744,7 +734,7 @@ def _promote(name: str, ecu: str, pid: str, hits, ref_label: str) -> int:
             ecu, pid, name, top.expr, source=f"canair hunt vs {ref_label}", notes=notes
         )
     except (PidsEditError, SystemExit) as e:
-        print(f"promote failed: {e}", file=sys.stderr)
+        messages.error(f"promote failed: {e}")
         return 1
     print_promoted(ecu, pid, name, top.expr, top.r, fpath)
     return 0

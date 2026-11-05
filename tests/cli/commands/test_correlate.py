@@ -99,15 +99,15 @@ class TestCrossMirrors:
     def test_keep_unique_transform_caveat(self, tmp_path, monkeypatch, capsys):
         _write(tmp_path)
         _run(tmp_path, monkeypatch, ["IGPM", "--min-n", "3", "--transform", "delta"])
-        out = capsys.readouterr().out
-        assert "--transform delta on keep:unique data is unreliable" in out
+        err = capsys.readouterr().err
+        assert "warning: --transform delta on keep:unique data is unreliable" in err
 
     def test_keep_changes_banner_text_mode(self, tmp_path, monkeypatch, capsys):
         _write(tmp_path, keep_mode="changes")
         _run(tmp_path, monkeypatch, ["IGPM", "--min-n", "3"])
-        out = capsys.readouterr().out
-        assert "keep:changes" in out
-        assert "keep:unique" not in out
+        captured = capsys.readouterr()
+        assert "warning: scope includes keep:changes" in captured.err
+        assert "keep:unique" not in captured.out + captured.err
 
 
 def _write_ramp(tmp_path):

@@ -66,7 +66,7 @@ class TestEcuEditTtyGuard:
         _activate(root)
         # Non-interactive stdin/stdout (pytest capture) — must refuse.
         rc = cmd_edit({"name": "CLU"}, 0x7C6)
-        assert rc == 1
+        assert rc == 2
         err = capsys.readouterr().err
         assert "requires an interactive terminal" in err
         assert "canair pids" in err
@@ -102,7 +102,7 @@ class TestEcuEditInteractive:
         monkeypatch.setenv("EDITOR", "true")
         rc = cmd_edit({"name": "CLU"}, 0x7C6)
         assert rc == 1
-        assert "No ecus/ file found" in capsys.readouterr().err
+        assert "no ecus/ file found" in capsys.readouterr().err
 
     def test_editor_nonzero_skips_validation(self, tmp_path, capsys, monkeypatch):
         root = _mk_profile(tmp_path)
@@ -113,4 +113,4 @@ class TestEcuEditInteractive:
         monkeypatch.setattr("subprocess.call", lambda cmd: 3)
         rc = cmd_edit({"name": "CLU"}, 0x7C6)
         assert rc == 3
-        assert "skipping validation" in capsys.readouterr().out
+        assert "skipping validation" in capsys.readouterr().err

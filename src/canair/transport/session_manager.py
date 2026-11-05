@@ -26,6 +26,7 @@ Usage:
 """
 
 import asyncio
+import sys
 import time
 
 from canair.ecus.wake import WakePlan
@@ -38,6 +39,11 @@ from canair.uds.services import (
     TESTER_PRESENT,
     TESTER_PRESENT_REQUEST,
 )
+
+
+def _status(*args, **kwargs) -> None:
+    """Session progress and verbose traces: stderr, so a command's stdout stays its result."""
+    print(*args, file=sys.stderr, **kwargs)
 
 
 class SessionManager:
@@ -88,7 +94,7 @@ class SessionManager:
         # frame's round-trip feasible on either transport).
         prime_timeout = max(0.1, plan.interval_s)
         if self.verbose:
-            print(
+            _status(
                 f"  [wake] 0x{tx_id:03X}: rapid_read up to {plan.attempts}× "
                 f"{plan.prime} @ ~{int(prime_timeout * 1000)}ms..."
             )
@@ -104,10 +110,10 @@ class SessionManager:
             if clean and "NODATA" not in clean and "?" not in clean:
                 awake = True
                 if self.verbose:
-                    print(f"  [wake] 0x{tx_id:03X}: awake (attempt {attempt + 1})")
+                    _status(f"  [wake] 0x{tx_id:03X}: awake (attempt {attempt + 1})")
                 break
         if not awake and self.verbose:
-            print(
+            _status(
                 f"  [wake] 0x{tx_id:03X}: no prime response after {plan.attempts} — "
                 "proceeding to session anyway (frames may have roused it)"
             )
@@ -169,7 +175,7 @@ class SessionManager:
             # re-sending 10xx (a repeated `session <ECU>` step / REPL command).
             self._sessions[tx_id] = time.monotonic()
             if self.verbose:
-                print(f"  [session] 0x{tx_id:03X}: already active — refreshed.")
+                _status(f"  [session] 0x{tx_id:03X}: already active — refreshed.")
             return True
 
         if wake:
@@ -179,14 +185,14 @@ class SessionManager:
                 await self.terminal.set_header(tx_id)
             else:
                 if self.verbose:
-                    print(f"  [session] Sending wake-up (1001) to 0x{tx_id:03X}...")
+                    _status(f"  [session] Sending wake-up (1001) to 0x{tx_id:03X}...")
                 await self.terminal.send_uds(
                     DEFAULT_SESSION_REQUEST, timeout=15.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
                 )
                 await asyncio.sleep(0.5)
 
         if self.verbose:
-            print(f"  [session] Entering session (10{mode}) on 0x{tx_id:03X}...")
+            _status(f"  [session] Entering session (10{mode}) on 0x{tx_id:03X}...")
         # Checked by service, so a stale reply to an earlier read is not taken for
         # an open session (see elm327_session for why the sub-function is not).
         resp = await self.terminal.send_uds(
@@ -195,14 +201,14 @@ class SessionManager:
 
         if resp.get("ok"):
             if self.verbose:
-                print(f"  [session] 0x{tx_id:03X}: session established.")
+                _status(f"  [session] 0x{tx_id:03X}: session established.")
         elif resp.get("nrc") is not None:
             nrc = resp["nrc"]
             desc = resp["nrc_desc"]
-            print(f"  [session] 0x{tx_id:03X}: NRC 0x{nrc:02X} ({desc}) -- continuing anyway")
+            _status(f"  [session] 0x{tx_id:03X}: NRC 0x{nrc:02X} ({desc}) -- continuing anyway")
         else:
             error = resp.get("error", "unknown")
-            print(f"  [session] 0x{tx_id:03X}: failed ({error}) -- continuing anyway")
+            _status(f"  [session] 0x{tx_id:03X}: failed ({error}) -- continuing anyway")
 
         self._sessions[tx_id] = time.monotonic()
         self._session_modes[tx_id] = mode
@@ -247,7 +253,7 @@ class SessionManager:
         self._sessions[tx_id] = time.monotonic()
         if self.verbose:
             state = "ok" if resp.get("ok") else resp.get("error", "failed")
-            print(f"  [session] 3E00 -> 0x{tx_id:03X}: {state}", end="")
+            _status(f"  [session] 3E00 -> 0x{tx_id:03X}: {state}", end="")
 
     def mark_active(self, tx_id: int) -> None:
         """Note real traffic to an ECU as keepalive-equivalent.
@@ -319,7 +325,7 @@ class SessionManager:
             del self._sessions[tx_id]
             self._session_modes.pop(tx_id, None)
             if self.verbose:
-                print(f"  [session] 0x{tx_id:03X}: closed (returned to default session)")
+                _status(f"  [session] 0x{tx_id:03X}: closed (returned to default session)")
 
     async def close_all(self):
         """Close all active sessions."""

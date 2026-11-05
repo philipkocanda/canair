@@ -180,7 +180,7 @@ def cmd_list(args) -> int:
         nsig = sum(len((m or {}).get("signals") or {}) for m in messages.values())
         total += nsig
         print(
-            f"\n  {ansi.BOLD}{bus}{ansi.RESET} "
+            f"\n  {ansi.BOLD}{ansi.CYAN}{bus}{ansi.RESET} "
             f"{ansi.DIM}({len(messages)} messages, {nsig} signals){ansi.RESET}"
         )
         for mid, msg in messages.items():

@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 from canair.captures import io as capture_io
-from canair.render import ansi
+from canair.render import ansi, messages
 
 
 def _size(n: int) -> str:
@@ -23,7 +22,7 @@ def _fail(msg: str, as_json: bool, code: int) -> int:
     if as_json:
         print(json.dumps({"error": msg}))
     else:
-        print(msg if msg.startswith("error:") else f"error: {msg}", file=sys.stderr)
+        messages.error(msg.removeprefix("error: "))
     return code
 
 

@@ -32,6 +32,7 @@ from canair.cli.live import (
 )
 from canair.cli.live.handlers.multi import monitor_operation, monitor_options
 from canair.live.poll_schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
+from canair.render import messages
 
 NAME = "monitor"
 ALIASES = ["mon"]
@@ -165,7 +166,7 @@ For a single one-shot read (no live refresh) use `canair read` instead.
         "PIDs with status: static or slow; naming one explicitly (ECU:21F2) always "
         "polls it.",
     )
-    add_connection_args(parser)
+    add_connection_args(parser, json=False)
     parser.set_defaults(func=run)
     return parser
 
@@ -185,22 +186,21 @@ def _pick_steps(args) -> list[str] | None:
 def run(args) -> int:
     if not args.steps:
         if not (sys.stdin.isatty() and sys.stdout.isatty()):
-            print(
-                "Error: monitor needs at least one query step, e.g. `canair monitor BMS:2101` "
-                "(run it on a terminal without steps for an interactive picker)",
-                file=sys.stderr,
+            messages.error(
+                "monitor needs at least one query step, e.g. `canair monitor BMS:2101` "
+                "(run it on a terminal without steps for an interactive picker)"
             )
             return 2
         try:
             picked = _pick_steps(args)
         except ValueError as e:
-            print(f"Error: {e}", file=sys.stderr)
+            messages.error(str(e))
             return 2
         if not picked:
-            print("Cancelled — nothing selected.")
-            return 0
+            print("Cancelled — nothing selected.", file=sys.stderr)
+            return 1
         args.steps = picked
-        print(f"Monitoring: canair monitor {shlex.join(picked)}")
+        print(f"Monitoring: canair monitor {shlex.join(picked)}", file=sys.stderr)
 
     # Expand any @group references into their member selectors before the
     # mini-language parser sees them (composes with ad-hoc selectors).
@@ -209,7 +209,7 @@ def run(args) -> int:
     try:
         args.steps = expand_step_groups(args.steps)
     except GroupError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 2
 
     args.multi = [to_step(s) for s in args.steps]
@@ -221,12 +221,12 @@ def run(args) -> int:
     try:
         commands = parse_sub_commands(args.multi)
     except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 2
 
     query_steps = [c for c in commands if c["type"] == "query"]
     if not query_steps:
-        print("Error: monitor requires at least one 'query' step", file=sys.stderr)
+        messages.error("monitor requires at least one 'query' step")
         return 2
     report_merged_selectors(query_steps)
 
@@ -236,7 +236,7 @@ def run(args) -> int:
 
     ecu_err = query_ecu_error(query_steps, load_pids())
     if ecu_err:
-        print(f"Error: {ecu_err}", file=sys.stderr)
+        messages.error(ecu_err)
         return 2
 
     return run_live(args, monitor_operation(monitor_options(args)))

@@ -123,4 +123,4 @@ def test_validate_rejects_non_boolean_private(tmp_path, monkeypatch, capsys):
     prof = _profile(tmp_path, "can_buses:\n  B-CAN:\n    private: maybe\n")
     monkeypatch.setattr("canair.profile.active", lambda: prof)
     assert run_can_buses() == 1
-    assert "can_buses.B-CAN.private: must be true or false" in capsys.readouterr().out
+    assert "can_buses.B-CAN.private: must be true or false" in capsys.readouterr().err

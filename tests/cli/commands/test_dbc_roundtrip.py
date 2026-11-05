@@ -191,7 +191,7 @@ class TestImportSkipsInvalid:
 
     def test_bad_ids_filter_reports(self, temp_profile, tmp_path, capsys):
         dbc = _write(tmp_path, _msg(0x10, _sig("A")))
-        assert _import(["dbc", str(dbc), "--ids", "0xZZ"]) == 1
+        assert _import(["dbc", str(dbc), "--ids", "0xZZ"]) == 2
         assert "--ids must be hex" in capsys.readouterr().err
 
 

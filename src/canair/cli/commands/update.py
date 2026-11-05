@@ -42,13 +42,16 @@ from __future__ import annotations
 import argparse
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
+from canair.core.prompt import confirm
 from canair.install import build_info
 from canair.install.context import describe as describe_install
 from canair.install.context import source_clone
 from canair.install.update_check import CHANGELOG_URL, _is_newer, fetch_latest_release, write_cache
+from canair.render import glyphs
+from canair.render.console import console as make_console
+from canair.render.console import escape
 
 NAME = "update"
 
@@ -106,27 +109,6 @@ def _reinstall_instructions(clone: Path | None) -> str:
     return f"  To reinstall manually:\n    uv tool install {loc} --reinstall\n"
 
 
-def _confirm(c, yes: bool) -> bool:
-    """Ask for confirmation (unless ``--yes``); True to proceed, False to abort.
-
-    Prints the standard non-interactive / aborted notices as a side effect.
-    """
-    if yes:
-        return True
-    if not (sys.stdin.isatty() and sys.stdout.isatty()):
-        c.print("  Non-interactive; pass --yes to proceed. Nothing changed.\n")
-        return False
-    try:
-        answer = input("  Proceed? [y/N]: ").strip().lower()
-    except (EOFError, KeyboardInterrupt):
-        print()
-        answer = ""
-    if answer not in ("y", "yes"):
-        c.print("  Aborted. Nothing changed.\n")
-        return False
-    return True
-
-
 def _do_reinstall(c, uv: str, clone: Path) -> int:
     """Run ``uv tool install <clone> --reinstall``; return an exit code."""
     c.print("  Reinstalling the CLI …")
@@ -137,7 +119,7 @@ def _do_reinstall(c, uv: str, clone: Path) -> int:
     )
     if result.returncode != 0:
         c.print("  [red]reinstall failed:[/red]")
-        c.print(f"  [dim]{(result.stderr or result.stdout).strip()}[/dim]\n")
+        c.print(f"  [dim]{escape((result.stderr or result.stdout).strip())}[/dim]\n")
         return _FAILED
     return _OK
 
@@ -154,33 +136,36 @@ def _sync_reinstall(c, args, clone: Path | None, install: dict) -> int:
     tool_version = install.get("tool_version")
     src_version = install.get("clone_version")
     c.print(
-        f"  The installed `canair` ([bold]{tool_version}[/bold]) is out of sync "
-        f"with the clone ([bold]{src_version}[/bold])."
+        f"  The installed `canair` ([bold]{escape(str(tool_version))}[/bold]) is out of sync "
+        f"with the clone ([bold]{escape(str(src_version))}[/bold])."
     )
     if clone is None:
         c.print("  [yellow]Couldn't locate a git clone to reinstall from.[/yellow]")
-        c.print(_reinstall_instructions(None))
+        c.print(escape(_reinstall_instructions(None)))
         return _CANNOT
 
     uv = shutil.which("uv")
     if uv is None:
         c.print("  [yellow]`uv` not found on PATH — can't reinstall automatically.[/yellow]")
-        c.print(_reinstall_instructions(clone))
+        c.print(escape(_reinstall_instructions(clone)))
         return _CANNOT
 
-    c.print(f"  This will reinstall from [bold]{clone}[/bold] to sync them:")
-    c.print(f"    uv tool install {clone} --reinstall\n")
+    c.print(f"  This will reinstall from [bold]{escape(str(clone))}[/bold] to sync them:")
+    c.print(escape(f"    uv tool install {clone} --reinstall") + "\n")
 
     _warn_about_snapshot_data(c, clone)
 
-    if not _confirm(c, args.yes):
-        return _CANNOT
+    if not confirm("Proceed?", yes=args.yes):
+        return _FAILED
 
     rc = _do_reinstall(c, uv, clone)
     if rc != _OK:
-        c.print(_reinstall_instructions(clone))
+        c.print(escape(_reinstall_instructions(clone)))
         return rc
-    c.print("\n  [green]✓ Reinstalled.[/green] The installed `canair` now matches the clone.\n")
+    c.print(
+        f"\n  [green]{glyphs.OK} Reinstalled.[/green] "
+        "The installed `canair` now matches the clone.\n"
+    )
     return _OK
 
 
@@ -201,7 +186,10 @@ def _warn_about_snapshot_data(c, clone: Path | None) -> None:
     try:
         migrate_all()
     except Exception as e:  # say so, but never block an update over it
-        c.print(f"  [yellow]Couldn't move the legacy DTC logs out of the profiles: {e}[/yellow]")
+        c.print(
+            "  [yellow]Couldn't move the legacy DTC logs out of the profiles: "
+            f"{escape(str(e))}[/yellow]"
+        )
 
     risks = snapshot_profile_risks(clone)
     if not risks:
@@ -209,18 +197,20 @@ def _warn_about_snapshot_data(c, clone: Path | None) -> None:
 
     total = sum(len(r.files) for r in risks)
     c.print(
-        f"  [yellow]⚠ {total} file(s) in the installed copy's profiles are not in the "
+        f"  [yellow]{glyphs.WARN} {total} file(s) in the installed copy's profiles are not in the "
         "clone[/yellow]"
     )
     c.print("  [dim]The reinstall replaces that directory, so they would be lost:[/dim]")
     for risk in risks:
-        c.print(f"    [bold]{risk.name}[/bold]  [dim]{risk.root}[/dim]")
+        c.print(f"    [bold]{escape(risk.name)}[/bold]  [dim]{escape(str(risk.root))}[/dim]")
         if risk.clone_name and risk.clone_name != risk.name:
-            c.print(f"      [dim]renamed: keep them under profiles/{risk.clone_name}/[/dim]")
+            c.print(
+                f"      [dim]renamed: keep them under profiles/{escape(risk.clone_name)}/[/dim]"
+            )
         shown = risk.files[:5]
         for rel in shown:
             state = "edited after install" if rel in risk.differing else "only here"
-            c.print(f"      {rel}  [dim]({state})[/dim]")
+            c.print(f"      {escape(str(rel))}  [dim]({state})[/dim]")
         if len(risk.files) > len(shown):
             c.print(f"      [dim]… and {len(risk.files) - len(shown)} more[/dim]")
     c.print(
@@ -241,20 +231,20 @@ def _print_install_context(c, install: dict) -> None:
     """Render which copy is running and whether the tool copy is out of sync."""
     origin = install["running_origin"]
     c.print(f"  running:  {_origin_label(origin)}")
-    c.print(f"  [dim]  from {install['running_package_dir']}[/dim]")
+    c.print(f"  [dim]  from {escape(str(install['running_package_dir']))}[/dim]")
     if origin != "repo":
-        c.print(f"  built:    {build_info.build_summary()}")
+        c.print(f"  built:    {escape(build_info.build_summary())}")
 
     tool_version = install["tool_version"]
     clone_version = install["clone_version"]
     if tool_version is not None:
-        c.print(f"  installed `canair`: {tool_version}  [dim](uv tool copy)[/dim]")
+        c.print(f"  installed `canair`: {escape(str(tool_version))}  [dim](uv tool copy)[/dim]")
 
     if install["out_of_sync"]:
         c.print(
-            "\n  [yellow]⚠ out of sync:[/yellow] the installed `canair` "
-            f"([bold]{tool_version}[/bold]) differs from the source clone "
-            f"([bold]{clone_version}[/bold])."
+            f"\n  [yellow]{glyphs.WARN} out of sync:[/yellow] the installed `canair` "
+            f"([bold]{escape(str(tool_version))}[/bold]) differs from the source clone "
+            f"([bold]{escape(str(clone_version))}[/bold])."
         )
         if origin == "repo":
             c.print(
@@ -306,24 +296,22 @@ def run(args) -> int:
         )
         return _OK
 
-    from rich.console import Console
-
-    c = Console()
-    c.print(f"\n  [bold]canair[/bold]  current: {current}")
+    c = make_console()
+    c.print(f"\n  [bold]canair[/bold]  current: {escape(current)}")
     if latest is None:
         c.print("  [yellow]could not reach GitHub to check the latest release[/yellow]")
         c.print("  [dim](offline, or GitHub unreachable — a release tag is needed to update)[/dim]")
     elif update_available:
-        c.print(f"          latest:  [green]{latest}[/green]  (update available)")
+        c.print(f"          latest:  [yellow]{escape(latest)}[/yellow]  (update available)")
     else:
-        c.print(f"          latest:  {latest}  [green](up to date)[/green]")
-    c.print(f"  changelog: [dim]{changelog}[/dim]\n")
+        c.print(f"          latest:  {escape(latest)}  [green](up to date)[/green]")
+    c.print(f"  changelog: [dim]{escape(changelog)}[/dim]\n")
 
     _print_install_context(c, install)
 
     if clone is not None and clone_head is not None:
-        c.print(f"  clone:    {clone}")
-        c.print(f"  on:       [cyan]{clone_head}[/cyan]\n")
+        c.print(f"  clone:    {escape(str(clone))}")
+        c.print(f"  on:       [cyan]{escape(clone_head)}[/cyan]\n")
 
     # Refresh the cache so any pending auto-notice clears after an explicit check.
     write_cache(latest, changelog)
@@ -344,7 +332,7 @@ def run(args) -> int:
 
     if clone is None:
         c.print("  [yellow]Couldn't locate a git clone to update from.[/yellow]")
-        c.print(_manual_instructions(None, latest))
+        c.print(escape(_manual_instructions(None, latest)))
         return _CANNOT
 
     if latest is None:
@@ -353,60 +341,67 @@ def run(args) -> int:
             "  Refusing to guess a version to check out. Try again when online, or\n"
             "  update manually:\n"
         )
-        c.print(_manual_instructions(clone, None))
+        c.print(escape(_manual_instructions(clone, None)))
         return _CANNOT
 
     if build_info.is_dirty(clone):
         c.print(
-            f"  [yellow]The clone at {clone} has uncommitted changes.[/yellow]\n"
+            f"  [yellow]The clone at {escape(str(clone))} has uncommitted changes.[/yellow]\n"
             "  Refusing to touch it so your work isn't clobbered. Commit or stash first,\n"
             "  then re-run, or update manually:\n"
         )
-        c.print(_manual_instructions(clone, latest))
+        c.print(escape(_manual_instructions(clone, latest)))
         return _CANNOT
 
     uv = shutil.which("uv")
     if uv is None:
         c.print("  [yellow]`uv` not found on PATH — can't reinstall automatically.[/yellow]")
-        c.print(_manual_instructions(clone, latest))
+        c.print(escape(_manual_instructions(clone, latest)))
         return _CANNOT
 
-    c.print(f"  This will check out [bold]{latest}[/bold] in the clone at [bold]{clone}[/bold]:")
     c.print(
-        f"    git fetch --tags  &&  git checkout {latest}  &&  uv tool install {clone} --reinstall\n"
+        f"  This will check out [bold]{escape(latest)}[/bold] in the clone at "
+        f"[bold]{escape(str(clone))}[/bold]:"
+    )
+    c.print(
+        escape(
+            f"    git fetch --tags  &&  git checkout {latest}  &&  "
+            f"uv tool install {clone} --reinstall"
+        )
+        + "\n"
     )
 
     _warn_about_snapshot_data(c, clone)
 
-    if not _confirm(c, args.yes):
-        return _CANNOT
+    if not confirm("Proceed?", yes=args.yes):
+        return _FAILED
 
     c.print("\n  Fetching tags …")
     fetch = build_info.run_git(clone, "fetch", "--tags", "--force")
     if fetch.returncode != 0:
         c.print("  [red]git fetch failed:[/red]")
-        c.print(f"  [dim]{(fetch.stderr or fetch.stdout).strip()}[/dim]\n")
-        c.print(_manual_instructions(clone, latest))
+        c.print(f"  [dim]{escape((fetch.stderr or fetch.stdout).strip())}[/dim]\n")
+        c.print(escape(_manual_instructions(clone, latest)))
         return _FAILED
 
-    c.print(f"  Checking out [bold]{latest}[/bold] …")
+    c.print(f"  Checking out [bold]{escape(latest)}[/bold] …")
     checkout = build_info.run_git(clone, "checkout", latest)
     if checkout.returncode != 0:
         c.print("  [red]git checkout failed:[/red]")
-        c.print(f"  [dim]{(checkout.stderr or checkout.stdout).strip()}[/dim]\n")
+        c.print(f"  [dim]{escape((checkout.stderr or checkout.stdout).strip())}[/dim]\n")
         c.print(
-            f"  The tag {latest} may not exist locally, or the checkout was blocked.\n"
+            f"  The tag {escape(latest)} may not exist locally, or the checkout was blocked.\n"
             "  Resolve it, then re-run, or update manually:\n"
         )
-        c.print(_manual_instructions(clone, latest))
+        c.print(escape(_manual_instructions(clone, latest)))
         return _FAILED
     if checkout.stderr.strip():
-        c.print(f"  [dim]{checkout.stderr.strip()}[/dim]")
+        c.print(f"  [dim]{escape(checkout.stderr.strip())}[/dim]")
 
     rc = _do_reinstall(c, uv, clone)
     if rc != _OK:
-        c.print(_manual_instructions(clone, latest))
+        c.print(escape(_manual_instructions(clone, latest)))
         return rc
 
-    c.print("\n  [green]✓ Updated.[/green] Run `canair --version` to confirm.\n")
+    c.print(f"\n  [green]{glyphs.OK} Updated.[/green] Run `canair --version` to confirm.\n")
     return _OK

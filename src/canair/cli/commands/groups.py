@@ -25,7 +25,7 @@ import sys
 from typing import TypedDict
 
 from canair.cli.commands._edit import run_edit, set_or_clear, subcommand_dispatch
-from canair.render import ansi
+from canair.render import ansi, messages
 
 NAME = "groups"
 
@@ -46,7 +46,7 @@ def cmd_list(args) -> int:
     try:
         groups = load_groups(prof)
     except GroupError as e:
-        print(f"{ansi.c('Invalid groups.yaml:', ansi.RED)} {e}", file=sys.stderr)
+        messages.error(f"invalid groups.yaml: {e}")
         return 1
 
     records: list[GroupRecord] = [

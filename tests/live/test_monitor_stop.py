@@ -63,14 +63,17 @@ class TestNoninteractiveLoop:
 
     def test_notices_survive_a_dead_terminal(self, monkeypatch):
         """Rendering to a hung-up tty must not crash the shutdown path."""
-        monkeypatch.setattr(
-            run_mod._console,
-            "print",
-            lambda *a, **kw: (_ for _ in ()).throw(OSError(5, "I/O error")),
-        )
+        monkeypatch.setattr(run_mod, "console", lambda **kw: _DeadConsole())
         controller = _FakeController(raise_on_poll=signal.SIGTERM)
         controller.disconnected = False
         asyncio.run(run_mod._monitor_noninteractive(controller))
+
+
+class _DeadConsole:
+    """The console of a hung-up terminal: every write fails."""
+
+    def print(self, *args, **kwargs):
+        raise OSError(5, "I/O error")
 
 
 class _FakeJournal:
@@ -155,11 +158,7 @@ class TestTeardown:
         async def _noop(controller):
             # The terminal goes away mid-session: every write fails from here on.
             monkeypatch.setattr(builtins, "print", _broken_print)
-            monkeypatch.setattr(
-                run_mod._console,
-                "print",
-                lambda *a, **kw: (_ for _ in ()).throw(OSError(5, "I/O error")),
-            )
+            monkeypatch.setattr(run_mod, "console", lambda **kw: _DeadConsole())
 
         monkeypatch.setattr(run_mod, "_monitor_noninteractive", _noop)
         monkeypatch.setattr(run_mod.sys.stdout, "isatty", lambda: False)

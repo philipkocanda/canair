@@ -24,7 +24,7 @@ from canair.analysis.align import (
 )
 from canair.analysis.xanalysis import build_bit_series, build_byte_series, build_param_series
 from canair.captures.dates import entry_datetime
-from canair.render import ansi
+from canair.render import ansi, messages
 from canair.uds.notation import ByteNotation, relabel_signal
 
 
@@ -97,7 +97,7 @@ def _print_overlap(specs, since, until, state, label, tol, min_n, as_json) -> in
         return 0
 
     if not stamps:
-        print("No timed captures in scope.", file=sys.stderr)
+        messages.error("no timed captures in scope")
         return 1
     print(
         f"\n  {ansi.BOLD}Co-poll overlap{ansi.RESET} {ansi.DIM}(nearest-join ≤{tol:g}s){ansi.RESET}"
@@ -215,7 +215,7 @@ def _print_cross_mirrors(specs, since, until, args, notation=ByteNotation.WICAN)
         la = relabel_signal(hit.a, notation, payload_lens=plens)
         lb = relabel_signal(hit.b, notation, payload_lens=plens)
         print(
-            f"    {ansi.GREEN}{la}{ansi.RESET}  {ansi.DIM}=={ansi.RESET}  {hit.relation.describe(lb)}  "
+            f"    {la}  {ansi.DIM}=={ansi.RESET}  {hit.relation.describe(lb)}  "
             f"{_mirror_summary(hit)}"
         )
     print()
@@ -269,7 +269,7 @@ def _print_can_mirrors(series: dict, path, args) -> int:
         return 0
     for hit in mirrors:
         print(
-            f"    {ansi.GREEN}{hit.a}{ansi.RESET}  {ansi.DIM}=={ansi.RESET}  "
+            f"    {hit.a}  {ansi.DIM}=={ansi.RESET}  "
             f"{hit.relation.describe(hit.b)}  {_mirror_summary(hit)}"
         )
     print()

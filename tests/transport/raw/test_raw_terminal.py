@@ -1,12 +1,23 @@
 """Tests for RawTerminal (WiCANTerminal-compatible raw-CAN adapter), fake ISO-TP."""
 
 import asyncio
+import io
 
 import pytest
 
 from canair.transport.link_latency import LinkLatency
 from canair.transport.raw import slcan_tcp as slcan_mod
 from canair.transport.raw import terminal as raw_terminal
+
+
+class _Tty(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+def _answer(monkeypatch, typed: str) -> None:
+    """Stdin is a terminal and the user types ``typed`` at the --unsafe consent prompt."""
+    monkeypatch.setattr("sys.stdin", _Tty(typed))
 
 
 class FakeBus:
@@ -308,7 +319,7 @@ class TestRawTerminalSafety:
     async def test_blocked_service_allowed_with_unsafe(self, make_terminal, monkeypatch):
         # Unsafe mode is unified across transports: it prompts for confirmation
         # (same as WiCANTerminal). Simulate the user typing YES.
-        monkeypatch.setattr("builtins.input", lambda *a: "YES")
+        _answer(monkeypatch, "YES\n")
         t = make_terminal({(0x770, bytes.fromhex("2E1234AA")): bytes.fromhex("6E1234")})
         t.unsafe = True
         await t.set_header(0x770)
@@ -319,7 +330,7 @@ class TestRawTerminalSafety:
     @pytest.mark.asyncio
     async def test_blocked_service_declined_in_unsafe_raises(self, make_terminal, monkeypatch):
         # Declining the confirmation prompt refuses the command on every transport.
-        monkeypatch.setattr("builtins.input", lambda *a: "no")
+        _answer(monkeypatch, "no\n")
         t = make_terminal({})
         t.unsafe = True
         await t.set_header(0x770)

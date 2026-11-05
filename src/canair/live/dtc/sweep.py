@@ -101,7 +101,7 @@ async def mode_dtc_scan_all(
     if not as_json:
         print(
             f"\n  Scanning {len(tx_ids)} ECUs for DTCs "
-            f"(protocol={protocol}, mask=0x{mask & 0xFF:02X})...\n"
+            f"(protocol={protocol}, mask=0x{mask & 0xFF:02X})…\n"
         )
 
     results = []
@@ -119,7 +119,7 @@ async def mode_dtc_scan_all(
         if not as_json:
             print(
                 f"\n  {ansi.DIM}Retrying {len(retry_idx)} unresponsive ECU(s) "
-                f"with wake + {retry_timeout:.0f}s timeout...{ansi.RESET}\n"
+                f"with wake + {retry_timeout:.0f}s timeout…{ansi.RESET}\n"
             )
         for i in retry_idx:
             res2 = await _wake_read(terminal, tx_ids[i], mask, protocol, verbose, retry_timeout)
@@ -191,7 +191,10 @@ async def mode_dtc_scan_all(
     print()
 
     if faulty:
-        print(f"  ⚠ {len(faulty)} ECU(s) with DTCs — {total_codes} code(s) total:\n")
+        print(
+            f"  {ansi.YELLOW}⚠{ansi.RESET} {len(faulty)} ECU(s) with DTCs — "
+            f"{total_codes} code(s) total:\n"
+        )
         for r in faulty:
             print(f"  {r['ecu']} ({r['protocol']}):")
             for d in r["dtcs"]:
@@ -225,7 +228,7 @@ async def _snapshot_step(
         run = SnapshotRun(skip=lambda: keys.pressed)
         if not as_json:
             hint = f"  {ansi.DIM}(press s or esc to skip){ansi.RESET}" if keys.active else ""
-            print(f"\n  Reading snapshots for {codes} code(s) on {len(pending)} ECU(s)...{hint}\n")
+            print(f"\n  Reading snapshots for {codes} code(s) on {len(pending)} ECU(s)…{hint}\n")
         for result in pending:
             tx_id = int(result["tx"], 16)
             ecu, pids = ecu_pids(pids_data, tx_id)

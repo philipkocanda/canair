@@ -33,7 +33,8 @@ from canair.captures.keepmode import CHANGES_BANNER
 from canair.cli.args.join import fill_policy_from_args, fill_summary_line
 from canair.cli.args.notation import resolve_notation
 from canair.cli.args.scope import resolve_scope_bounds
-from canair.render import ansi
+from canair.cli.commands._analysis_warning import warn_analysis
+from canair.render import ansi, messages
 from canair.uds.notation import relabel_signal
 
 from .calc import _apply_gate
@@ -52,11 +53,11 @@ NAME = "correlate"
 def run(args) -> int:
     since, until, err = resolve_scope_bounds(args)
     if err:
-        print(f"error: {err}", file=sys.stderr)
+        messages.error(f"{err}")
         return 2
 
     if args.against and args.against_file:
-        print("error: --against and --against-file are mutually exclusive", file=sys.stderr)
+        messages.error("--against and --against-file are mutually exclusive")
         return 2
 
     notation = resolve_notation(args.notation)
@@ -75,7 +76,7 @@ def run(args) -> int:
     keep_unique, keep_changes = _scope_keep_flags(specs, since, until, args.state, args.label)
     fill = fill_policy_from_args(args)
     if keep_unique and fill.mode == FILL_HOLD:
-        print(f"correlate: {FORCED_HOLD_WARNING}", file=sys.stderr)
+        warn_analysis(FORCED_HOLD_WARNING)
     if not args.json:
         transform_caveat = args.transform in ("delta", "cumsum") or args.lag_scan
         what = (
@@ -86,20 +87,19 @@ def run(args) -> int:
         caveats: list[str] = []
         if keep_unique and transform_caveat:
             caveats.append(
-                f"⚠ {what} on keep:unique data is unreliable — stored-row time "
+                f"{what} on keep:unique data is unreliable — stored-row time "
                 f"gaps are dedup artifacts, not real sampling intervals."
             )
         if keep_changes:
-            caveats.append(f"⚠ {CHANGES_BANNER}.")
+            caveats.append(f"{CHANGES_BANNER}.")
             if transform_caveat:
                 caveats.append(
-                    f"⚠ {what} on keep:changes data is unreliable — stored rows are "
+                    f"{what} on keep:changes data is unreliable — stored rows are "
                     f"value-transitions, not fixed-rate samples."
                 )
         if caveats:
             for line in caveats:
-                print(f"  {ansi.YELLOW}{line}{ansi.RESET}")
-            print()
+                messages.warning(line)
 
     series, plens, fills = _gather_series(
         specs,
@@ -113,20 +113,19 @@ def run(args) -> int:
         args.join_tol,
     )
     if not series:
-        print("No time-aligned signals found in scope.", file=sys.stderr)
+        messages.error("no time-aligned signals found in scope")
         return 1
 
     fill_line = fill_summary_line(fills, fill)
     if fill_line and not args.json:
-        print(f"  {ansi.CYAN}{fill_line}{ansi.RESET}\n")
+        print(f"  {ansi.DIM}{fill_line}{ansi.RESET}\n")
 
     per_session = getattr(args, "per_session", False)
     if per_session:
         series = {k: detrend_by_session(v, args.session_gap) for k, v in series.items()}
-        print(
-            "correlate: --per-session active — each recording's DC baseline removed; "
-            "ranking in-session variation, not absolute level.",
-            file=sys.stderr,
+        messages.note(
+            "--per-session active — each recording's DC baseline removed; "
+            "ranking in-session variation, not absolute level"
         )
 
     # --against / --against-file: rank every signal vs one reference.
@@ -147,7 +146,7 @@ def run(args) -> int:
                 )
         except ValueError as e:
             flag = "--against-file" if args.against_file else "--against"
-            print(f"{flag} error: {e}", file=sys.stderr)
+            messages.error(f"{flag}: {e}")
             return 1
         if args.transform and args.transform != "raw":
             ref_series = transform_ref(ref_series, args.transform)
@@ -164,52 +163,46 @@ def run(args) -> int:
                     label=args.label,
                 )
             except ValueError as e:
-                print(f"--gate error: {e}", file=sys.stderr)
+                messages.error(f"--gate: {e}")
                 return 1
             ref_label = f"{ref_label} [gate: {args.gate.strip()}]"
             if not ref_series:
-                print(
-                    f"--gate '{args.gate.strip()}' left no reference points in scope.",
-                    file=sys.stderr,
-                )
+                messages.error(f"--gate '{args.gate.strip()}' left no reference points in scope")
                 return 1
 
         if reference_is_bimodal([tp.value for tp in ref_series]):
             from canair.analysis.stats import categorical_method_nudge
 
-            print(
-                f"correlate: warning: reference {ref_label!r} collapses into ~2 clusters "
+            messages.warning(
+                f"reference {ref_label!r} collapses into ~2 clusters "
                 "(bimodal) \u2014 |r| then ranks cluster separation, not a real relationship, "
                 "so --against results are unreliable. Prefer a scope with continuous "
                 f"variation.{categorical_method_nudge(args.method)} "
-                "See docs/concepts/analysis-commands.md.",
-                file=sys.stderr,
+                "See docs/concepts/analysis-commands.md."
             )
         elif reference_is_absolute_level([tp.value for tp in ref_series]):
-            print(
-                f"correlate: warning: reference {ref_label!r} looks like a slowly-varying "
+            messages.warning(
+                f"reference {ref_label!r} looks like a slowly-varying "
                 "absolute level (small swing on a large baseline) \u2014 Pearson |r| is then "
                 "corrupted by cross-session DC offsets, so --against results are unreliable "
                 "for it. Prefer `hunt --physical` (named bands) plus comparing per-state "
-                "absolute readings to a known value. See docs/concepts/analysis-commands.md.",
-                file=sys.stderr,
+                "absolute readings to a known value. See docs/concepts/analysis-commands.md."
             )
 
         # --control: rank by partial correlation with a nuisance signal removed.
         control_series = None
         if args.control and args.control_file:
-            print("error: --control and --control-file are mutually exclusive", file=sys.stderr)
+            messages.error("--control and --control-file are mutually exclusive")
             return 2
         if args.control or args.control_file:
             if args.method in ("cramers_v", "mutual_info"):
-                print(
-                    "error: --control (partial correlation) is undefined for a "
-                    "categorical --method (cramers_v/mutual_info)",
-                    file=sys.stderr,
+                messages.error(
+                    "--control (partial correlation) is undefined for a "
+                    "categorical --method (cramers_v/mutual_info)"
                 )
                 return 2
             if args.lag_scan:
-                print("error: --control cannot be combined with --lag-scan", file=sys.stderr)
+                messages.error("--control cannot be combined with --lag-scan")
                 return 2
             try:
                 if args.control_file:
@@ -227,7 +220,7 @@ def run(args) -> int:
                     )
             except ValueError as e:
                 flag = "--control-file" if args.control_file else "--control"
-                print(f"{flag} error: {e}", file=sys.stderr)
+                messages.error(f"{flag}: {e}")
                 return 1
             ref_label = f"{ref_label} · control {control_label}"
 
@@ -341,11 +334,10 @@ def run(args) -> int:
                 else None,
                 args.min_r,
             )
-            print(
-                f"    {ansi.DIM}{hint}{ansi.RESET}"
-                if hint
-                else f"    {ansi.DIM}no signal cleared the thresholds.{ansi.RESET}"
-            )
+            if hint:
+                messages.hint(hint)
+            else:
+                print(f"    {ansi.DIM}no signal cleared the thresholds.{ansi.RESET}")
         print()
         return 0
 
@@ -393,7 +385,7 @@ def run(args) -> int:
             )
             hint = weak_correlation_hint(top.r, label, args.min_r)
             if hint:
-                print(f"  {ansi.DIM}{hint}{ansi.RESET}")
+                messages.hint(hint)
         return 0
 
     clusters = [] if args.no_cluster else colinear_clusters(hits)
@@ -420,7 +412,7 @@ def run(args) -> int:
             f", +{len(members) - 4} more" if len(members) > 4 else ""
         )
         print(
-            f"    {ansi.GREEN}≈ cluster{ansi.RESET} {ansi.DIM}(|r|≥{CLUSTER_THRESHOLD:g}, "
+            f"    {ansi.BOLD}≈ cluster{ansi.RESET} {ansi.DIM}(|r|≥{CLUSTER_THRESHOLD:g}, "
             f"{len(members)} signals){ansi.RESET}  {shown}"
         )
     for h in remaining:

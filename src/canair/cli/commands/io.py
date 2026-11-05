@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from canair.cli.live import LiveOperation, add_connection_args, ecu_completer, run_live
 from canair.cli.live.handlers import actuators
+from canair.render import messages
 
 NAME = "io"
 _OPERATION = LiveOperation(actuators.handle_iocontrol)
@@ -64,13 +66,13 @@ def run(args) -> int:
     if not args.iocontrol:
         from canair.cli.commands._hints import ecu_hint
 
-        print("Specify an ECU, e.g. `canair io IGPM`.\n")
-        print(ecu_hint())
+        messages.error("specify an ECU, e.g. `canair io IGPM`")
+        print(ecu_hint(), file=sys.stderr)
         return 2
     if args.json and not args.did:
         # Listing reads only the profile, so it must not need (or lock) the device.
         from canair.ecus.pids import load_pids
-        from canair.live.iocontrol import mode_iocontrol_list
+        from canair.live.iocontrol_list import mode_iocontrol_list
 
         return 0 if mode_iocontrol_list(load_pids(), args.iocontrol, as_json=True) else 1
     return run_live(args, _OPERATION)

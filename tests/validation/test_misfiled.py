@@ -156,7 +156,7 @@ def test_validate_captures_reports_it_as_a_warning(tmp_path, capsys, _restore_ac
     profile.set_active(str(root))
     clear_cache()
     assert run_captures() == 0
-    out = capsys.readouterr().out
+    out = capsys.readouterr().err
     assert "probably VCU's reply misfiled under MCU" in out
 
 

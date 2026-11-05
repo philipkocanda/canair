@@ -177,9 +177,8 @@ class TestRejections:
     def test_no_query_and_no_mode_asks_for_a_query(self):
         err = _resolve()
         assert isinstance(err, ModeError)
-        assert "Specify a QUERY" in err.message
+        assert "specify a QUERY" in err.message
         assert err.with_ecu_hint
-        assert not err.to_stderr  # a usage hint, not an error stream message
 
 
 class TestModeErrorReporting:
@@ -190,14 +189,14 @@ class TestModeErrorReporting:
         assert cap_out.err.strip() == "error: nope"
         assert cap_out.out == ""
 
-    def test_the_query_hint_goes_to_stdout_with_the_ecu_list(self, capsys):
-        err = ModeError("Specify a QUERY", to_stderr=False, with_ecu_hint=True)
+    def test_the_query_hint_goes_to_stderr_with_the_ecu_list(self, capsys):
+        err = ModeError("specify a QUERY", with_ecu_hint=True)
         assert err.report() == 2
         cap_out = capsys.readouterr()
-        assert "Specify a QUERY" in cap_out.out
+        assert "error: specify a QUERY" in cap_out.err
         # ecu_hint() names some real ECUs from the active profile.
-        assert "BMS" in cap_out.out
-        assert cap_out.err == ""
+        assert "hint: Available ECUs:" in cap_out.err and "BMS" in cap_out.err
+        assert cap_out.out == ""
 
 
 class TestHasScopeFilter:

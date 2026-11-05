@@ -143,13 +143,15 @@ def declare_command(scan: PidScan) -> str | None:
     )
 
 
-_VERDICT_COLOUR = {
-    "strong": ansi.GREEN,
-    "corroborated": ansi.GREEN,
-    "weak": ansi.YELLOW,
-    "rejected": ansi.RED,
-    "none": ansi.DIM,
-}
+def _verdict_colour(verdict: str) -> str:
+    """The code for a verdict, read at print time so ``NO_COLOR`` is honoured when it is set."""
+    return {
+        "strong": ansi.GREEN,
+        "corroborated": ansi.GREEN,
+        "weak": ansi.YELLOW,
+        "rejected": ansi.RED,
+        "none": ansi.DIM,
+    }[verdict]
 
 
 def variant_diff(scan: PidScan) -> list[int]:
@@ -206,7 +208,7 @@ def print_scan(scan: PidScan, args) -> None:
         print(f"{head}  {ansi.DIM}no map: {why} ({scan.n_rows} rows){ansi.RESET}")
         print_field_note(scan)
         return
-    colour = _VERDICT_COLOUR[scan.verdict]
+    colour = _verdict_colour(scan.verdict)
     marked = fit.marked
     defined = [s for s in marked if _slot_definer(scan, s)]
     open_ = [s for s in marked if not _slot_definer(scan, s)]

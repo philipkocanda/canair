@@ -9,6 +9,7 @@ only those, so pulling the merged PR does not conflict with them.
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import subprocess
 from pathlib import Path
@@ -167,6 +168,11 @@ class TestDiscard:
         assert "Contributed changes discarded" in (backup / "MANIFEST.txt").read_text()
 
 
+class _Tty(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
 def _args(**kw) -> argparse.Namespace:
     base = {
         "captures": True,
@@ -230,7 +236,10 @@ class TestAfterTheContribution:
     def test_asked_interactively(self, tmp_path, monkeypatch, capsys):
         prof, _ = _contributing(tmp_path, monkeypatch)
         asked: list[str] = []
-        monkeypatch.setattr(cmd, "confirm", lambda prompt, *a, **k: asked.append(prompt) or True)
+        ask = lambda prompt, *a, **k: asked.append(prompt) or True  # noqa: E731
+        monkeypatch.setattr(cmd, "confirm", ask)
+        monkeypatch.setattr(report, "confirm", ask)
+        monkeypatch.setattr("sys.stdin", _Tty())
 
         assert cmd.run(_args(yes=False, json=False)) == report.OK
 

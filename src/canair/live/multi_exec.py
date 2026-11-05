@@ -20,6 +20,7 @@ from canair.expression.results import ResultEntry
 from canair.privacy.sensitive import MASK, request_hidden
 from canair.query import QueryError, inferred_request, pids_named_by
 from canair.query.steps import resolve_tx_id
+from canair.render import messages
 from canair.render.formatting import print_ecu_results, print_hexdump
 from canair.safety.actuation import on_refusal
 from canair.transport.elm327.terminal import Elm327Terminal
@@ -52,7 +53,7 @@ async def _exec_skm_wake(sm: SessionManager, level: str, verbose: bool):
     terminal = sm.terminal
 
     if not isinstance(terminal, Elm327Terminal):
-        print("  skm-wake is only supported on the ELM327 transports (wican-ws / elm327-tcp).")
+        messages.error("skm-wake needs an ELM327 transport (wican-ws / elm327-tcp).")
         return False
 
     success = await mode_skm_wakeup(terminal, level, verbose)
@@ -68,7 +69,7 @@ async def _exec_session(
     """Execute session sub-command."""
     tx_id = resolve_tx_id(target, ecu_index)
     if tx_id is None:
-        print(f"  ERROR: Unknown ECU '{target}'. Use a name (IGPM) or hex ID (770).")
+        messages.error(f"unknown ECU '{target}'. Use a name (IGPM) or hex ID (770).")
         return False
     # A profile-declared wake ritual (canair.ecus.wake) for a fast-sleeping ECU is
     # honoured when --wake is set — the rapid-fire prime loop instead of a single
@@ -80,8 +81,8 @@ async def _exec_session(
         if isinstance(entry, dict):
             wake_plan = entry.get("wake")
     if wake_plan is not None:
-        print(f"  Waking 0x{tx_id:03X} ({target}) — {wake_plan.method} ritual...")
-    print(f"  Opening session (10{mode.upper().zfill(2)}) on 0x{tx_id:03X} ({target})...")
+        print(f"  Waking 0x{tx_id:03X} ({target}) — {wake_plan.method} ritual…")
+    print(f"  Opening session (10{mode.upper().zfill(2)}) on 0x{tx_id:03X} ({target})…")
     return await sm.open_session(tx_id, wake=wake, mode=mode, wake_plan=wake_plan)
 
 
@@ -258,13 +259,13 @@ def build_query_plan(
                 request = inferred_request(token)
             except QueryError as e:
                 if not quiet:
-                    print(f"  WARNING: {e}; skipping")
+                    messages.warning(f"{e}; skipping")
                 continue
             if request not in raw_pids:
                 raw_pids.append(request)
         pids_to_query = picked
         if raw_pids and not quiet:
-            print(f"  NOTE: {', '.join(raw_pids)} not in ecus/ — querying raw")
+            messages.note(f"{', '.join(raw_pids)} not in ecus/ — querying raw")
         if not pids_to_query and not raw_pids:
             return None
     elif not include_static:
@@ -388,7 +389,7 @@ async def _exec_query(
     """
     ecu_key = ecu_index_key(ecu_name_str, ecu_index)
     if ecu_key is None:
-        print(f"  ERROR: Unknown ECU '{ecu_name_str}'. Available: {', '.join(ecu_index.keys())}")
+        messages.error(f"unknown ECU '{ecu_name_str}'. Available: {', '.join(ecu_index.keys())}")
         return
 
     ecu_info = ecu_index[ecu_key]
@@ -397,8 +398,8 @@ async def _exec_query(
 
     query_plan = build_query_plan(ecu_info, pid_filter, quiet=quiet, include_static=include_static)
     if query_plan is None:
-        print(f"  No matching PIDs for filter: {pid_filter}")
-        print(f"  Available: {', '.join(sorted(ecu_info['pids'].keys()))}")
+        messages.error(f"no matching PIDs for filter: {pid_filter}")
+        messages.hint(f"available: {', '.join(sorted(ecu_info['pids']))}")
         return
     if plan_filter is not None:
         query_plan = plan_filter(ecu_key, query_plan)
@@ -435,7 +436,7 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
     """Execute raw sub-command."""
     match = re.match(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$", spec)
     if not match:
-        print(f"  ERROR: Invalid raw format: {spec}. Expected: TX:PID (e.g., 770:22BC03)")
+        messages.error(f"invalid raw format: {spec}. Expected: TX:PID (e.g., 770:22BC03)")
         return
 
     tx_id = int(match.group(1), 16)
@@ -452,7 +453,7 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
         if response.get("nrc") is not None:
             print(f"  NRC: 0x{response['nrc']:02X} -- {response['nrc_desc']}")
         else:
-            print(f"  Error: {error}")
+            messages.error(str(error))
     elif request_hidden(tx_id, service_pid):
         print(f"  Response: {MASK}  (sensitive — read --reveal to show)")
     else:
@@ -466,12 +467,12 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
             print_hexdump(response["bytes"])
 
     if hold:
-        print("\n  Holding session (Ctrl+C to continue pipeline)...")
+        print("\n  Holding session (Ctrl+C to continue pipeline)…")
         sm.start_background_keepalive()
         try:
             await asyncio.Event().wait()
         except (KeyboardInterrupt, asyncio.CancelledError):
-            print("  Continuing...")
+            print("  Continuing…")
         finally:
             sm.stop_background_keepalive()
 
@@ -493,10 +494,9 @@ async def _exec_iocontrol(
     did_key = did.upper()
 
     if ecu_key is None:
-        available = sorted(ioctrl_index.keys())
-        print(f"  ERROR: No IOControl DIDs for ECU: {ecu_name}")
-        if available:
-            print(f"  ECUs with IOControl: {', '.join(available)}")
+        messages.error(f"no IOControl DIDs for ECU: {ecu_name}")
+        if ioctrl_index:
+            messages.hint(f"ECUs with IOControl: {', '.join(sorted(ioctrl_index))}")
         return
 
     ecu_info = ioctrl_index[ecu_key]
@@ -504,9 +504,9 @@ async def _exec_iocontrol(
 
     if did_key not in cmds:
         available = sorted(cmds.keys())
-        print(f"  ERROR: Unknown DID {did_key} for {ecu_key}")
+        messages.error(f"unknown DID {did_key} for {ecu_key}")
         if available:
-            print(f"  Available: {', '.join(available)}")
+            messages.hint(f"available: {', '.join(available)}")
         return
 
     cmd_def = cmds[did_key]
@@ -516,12 +516,12 @@ async def _exec_iocontrol(
     label = cmd_def["label"]
 
     if not hex_cmd:
-        print(f"  ERROR: No {action} command defined for {ecu_key} {did_key} ({label})")
+        messages.error(f"no {action} command defined for {ecu_key} {did_key} ({label})")
         return
     if not off:
         refusal = on_refusal(hex_cmd, cmd_def["release"], ecu_info["protocol"])
         if refusal:
-            print(f"  ERROR: {ecu_key} {did_key} ON refused — {refusal}")
+            messages.error(f"{ecu_key} {did_key} ON refused — {refusal}")
             return
 
     # Ensure a session of the actuator's mode is open on this ECU if needed
@@ -561,19 +561,19 @@ async def _exec_scan(
 
     tx_id = resolve_tx(tx_str)
     if tx_id is None:
-        print(f"  ERROR: could not resolve ECU {tx_str!r}")
+        messages.error(f"could not resolve ECU {tx_str!r}")
         return
     try:
         service, _ = resolve_service(service_str)
     except ServiceError as e:
-        print(f"  ERROR: {e}")
+        messages.error(str(e))
         return
     from canair.core.id_ranges import parse_id_ranges
 
     try:
         pid_ranges = parse_id_ranges(range_str)
     except ValueError as e:
-        print(f"  ERROR: Invalid range: {range_str} ({e})")
+        messages.error(f"invalid range: {range_str} ({e})")
         return
 
     await sm.keepalive_stale()

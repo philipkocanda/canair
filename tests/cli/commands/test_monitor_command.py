@@ -105,7 +105,7 @@ class TestMonitorRunWiring:
         assert monitor.run(_parse(["monitor"])) == 0
         assert captured["multi"] == ["query BMS", "query VCU:2101"]
 
-    def test_cancelled_picker_exits_cleanly_without_connecting(self, monkeypatch):
+    def test_cancelled_picker_exits_1_without_connecting(self, monkeypatch, capsys):
         from canair.cli.commands import monitor
 
         monkeypatch.setattr(monitor, "run_live", lambda *a: pytest.fail("must not connect"))
@@ -113,7 +113,8 @@ class TestMonitorRunWiring:
         monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
         monkeypatch.setattr("sys.stdout.isatty", lambda: True, raising=False)
 
-        assert monitor.run(_parse(["monitor"])) == 0
+        assert monitor.run(_parse(["monitor"])) == 1
+        assert "nothing selected" in capsys.readouterr().err
 
 
 class TestQueryNoLongerMonitors:

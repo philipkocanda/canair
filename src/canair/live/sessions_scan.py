@@ -28,6 +28,8 @@ import asyncio
 import sys
 from typing import NamedTuple
 
+from canair.render import messages
+from canair.render.paint import Painter
 from canair.safety.blocklist import SessionPolicy
 from canair.safety.quirks import allowed_session_modes
 from canair.transport.protocol import Terminal
@@ -37,6 +39,8 @@ from canair.uds.requests import session_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import DIAGNOSTIC_SESSION_CONTROL
 from canair.uds.subfunctions import SUBFUNCTION_NAMES, KwpSessionType, SessionType
+
+from .discover_render import ABSENT, POSITIVE, PROBE_FAILED, REFUSED
 
 # Human labels for the session sub-functions, from the shared table in
 # canair.uds.subfunctions — the single home for these enums. Keeping a private copy here
@@ -101,7 +105,7 @@ def _write_hit(ecu_name: str, hits: list[SessionHit]) -> None:
     try:
         append_sessions_block(ecu_name, hits)
     except Exception as exc:  # pragma: no cover - defensive I/O guard
-        print(f"  [{ecu_name}] ERROR writing YAML: {exc}", file=sys.stderr)
+        messages.error(f"[{ecu_name}] writing YAML failed: {exc}")
 
 
 def _modes_for_protocol(proto: str | None, pids_data: dict | None = None) -> tuple[int, ...]:
@@ -136,6 +140,7 @@ async def scan_ecu_sessions(
     )
     await terminal.set_header(tx_id)
 
+    paint = Painter(sys.stdout)
     hits: list[SessionHit] = []
     for mode in modes:
         response = await probe_session(terminal, mode)
@@ -153,21 +158,28 @@ async def scan_ecu_sessions(
         if category == "supported":
             hit = SessionHit(mode=mode, name=name, supported=True, nrc=None, nrc_desc=None)
             hits.append(hit)
-            print(f"    + 10 {mode:02X}: supported" + (f" ({name})" if name else ""))
+            print(
+                f"    {paint(*POSITIVE)} 10 {mode:02X}: supported" + (f" ({name})" if name else "")
+            )
         elif category == "wrong-session":
             # Rejected in the current session — record as unsupported-in-context.
             desc = response.get("nrc_desc", "")
             hit = SessionHit(mode=mode, name=name, supported=False, nrc=nrc, nrc_desc=desc)
             hits.append(hit)
-            print(f"    ~ 10 {mode:02X}: NRC 0x{nrc:02X} {desc} (rejected in active session)")
+            print(
+                f"    {paint(*REFUSED)} 10 {mode:02X}: exists, rejected in the active session "
+                f"(NRC 0x{nrc:02X} {desc})"
+            )
         elif category == "not-supported":
             desc = response.get("nrc_desc", "")
             hit = SessionHit(mode=mode, name=name, supported=False, nrc=nrc, nrc_desc=desc)
             hits.append(hit)
-            print(f"    - 10 {mode:02X}: not supported (NRC 0x{nrc:02X} {desc})")
+            print(f"    {paint(*ABSENT)} 10 {mode:02X}: not supported (NRC 0x{nrc:02X} {desc})")
         else:
             if verbose:
-                print(f"    ! 10 {mode:02X}: {response.get('error', 'unknown')}")
+                print(
+                    f"    {paint(*PROBE_FAILED)} 10 {mode:02X}: {response.get('error', 'unknown')}"
+                )
 
         if throttle_ms > 0:
             await asyncio.sleep(throttle_ms / 1000.0)
@@ -210,11 +222,11 @@ async def mode_sessions_scan(
     for ecu in ecus:
         key = ecu.upper()
         if key not in ecu_defs:
-            print(f"  WARNING: ECU {ecu!r} not in pids_data, skipping", file=sys.stderr)
+            messages.warning(f"ECU {ecu!r} not in the profile, skipping")
             continue
         tx_id = ecu_defs[key].get("tx_id")
         if tx_id is None:
-            print(f"  WARNING: ECU {ecu!r} has no tx_id, skipping", file=sys.stderr)
+            messages.warning(f"ECU {ecu!r} has no tx_id, skipping")
             continue
 
         if modes is not None:
@@ -228,7 +240,7 @@ async def mode_sessions_scan(
         for mode in ecu_modes:
             blocked = policy.check(mode, tx_id)
             if blocked:
-                print(f"  [{key}] skipping 10 {mode:02X}: {blocked}", file=sys.stderr)
+                messages.warning(f"[{key}] skipping 10 {mode:02X}: {blocked}")
             else:
                 allowed_modes.append(mode)
 

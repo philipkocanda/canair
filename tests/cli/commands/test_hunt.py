@@ -65,7 +65,7 @@ class TestHuntAgainstFile:
             tmp_path, monkeypatch, ["AAF", "2181", "--against-file", str(tmp_path / "nope.csv")]
         )
         assert rc == 1
-        assert "--against-file error" in capsys.readouterr().err
+        assert "error: --against-file:" in capsys.readouterr().err
 
     def test_against_and_against_file_mutually_exclusive(self, tmp_path):
         # argparse enforces the mutually-exclusive required group at parse time.

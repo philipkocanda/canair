@@ -54,9 +54,11 @@ from canair.cli.args.hexarg import parse_hex_arg
 from canair.cli.commands._edit import edit_scope
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.core.edit_errors import EditError
+from canair.core.terminal import terminal_columns
 from canair.ecus import load_ecus, resolve_tx, rx_addr_str
 from canair.ecus.pids import load_pids, pid_status
-from canair.render import ansi
+from canair.profile import ProfileError, active
+from canair.render import ansi, messages
 from canair.states import ecu_states
 from canair.yaml_edit.echo import echo_edit
 
@@ -249,7 +251,8 @@ def cmd_list(records: list[dict], as_json: bool, show_states: bool = False) -> i
     # An ECU file with an empty `pids:` (identity-only, or a fresh seed) has a
     # definition but nothing to read, so count only ECUs with an active PID.
     n_pids = sum(1 for r in records if r.get("pids"))
-    print(f"\n  {ansi.BOLD}ECUs{ansi.RESET} — {len(records)} in registry, {n_pids} with PIDs\n")
+    prof = active()
+    print(f"\n  {ansi.BOLD}ECUs{ansi.RESET} — {len(records)} in {prof.name}, {n_pids} with PIDs\n")
 
     # Column header. BUS (and optional STATES) are last: they're the widest,
     # most-variable columns, so trailing them keeps the numeric columns aligned.
@@ -291,7 +294,7 @@ def cmd_list(records: list[dict], as_json: bool, show_states: bool = False) -> i
             f"{r['pids']:>4} {vcolor}{vstr:>7}{ansi.RESET} "
             f"{cstr}  {ansi.CYAN}{bus_disp}{ansi.RESET}{states_seg}"
         )
-    print()
+    print(f"\n  {ansi.DIM}source: {prof.ecus_dir}{ansi.RESET}\n")
     return 0
 
 
@@ -339,7 +342,6 @@ def _dtc_status(tx_id: int) -> dict | None:
     """The ECU's codes after its latest logged reading or clear on this car (None: none)."""
     from canair.dtc.history import ecu_status
     from canair.dtc.refs import ecu_ref
-    from canair.profile import ProfileError
 
     try:
         status = ecu_status(ecu_ref(tx_id))
@@ -380,7 +382,6 @@ def _identity_note(name: str) -> str | None:
     leave the identity looking merely unrecorded.
     """
     from canair.ecus.pids import load_raw_pids
-    from canair.profile import active
     from canair.variants.revisions import canonical_ecu, identity_reference
 
     raw = load_raw_pids().get("ecus") or {}
@@ -477,7 +478,7 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
             f"    {'PIDs':<14} {stats['pids']}"
             + (f"  {ansi.DIM}(+{stats['ignored']} ignored){ansi.RESET}" if stats["ignored"] else "")
         )
-        print(f"    {'Parameters':<14} {params}")
+        print(f"    {'Signals':<14} {params}")
         print(f"    {'Verified':<14} {vcolor}{verified}/{params}{ansi.RESET}")
         print(f"    {'Captures':<14} {rec['captures']}")
         if stats["research_total"]:
@@ -516,7 +517,7 @@ def cmd_detail(rec: dict, as_json: bool) -> int:
             cap_seg = f"  {ansi.DIM}{caps} cap{ansi.RESET}"
             print(
                 f"    {ansi.CYAN}{p['pid']:<8}{ansi.RESET} "
-                f"{p['params']:>2}p  {vcolor}{p['verified']:>2} verified{ansi.RESET}"
+                f"{p['params']:>2} signals  {vcolor}{p['verified']:>2} verified{ansi.RESET}"
                 f"{cap_seg}{flag_str}"
             )
         print(
@@ -676,7 +677,7 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
 
     from canair.states import join_states
 
-    width = 96
+    width = min(terminal_columns(), 120)
     for r in records:
         flags = []
         if r["status"] != "active":
@@ -688,11 +689,9 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
             when = " ".join(x for x in [r.get("date") or "", r.get("time") or ""] if x).strip()
             bits = []
             if st:
-                bits.append(
-                    f"{ansi.DIM}vehicle_state{ansi.RESET} {ansi.BOLD}{ansi.GREEN}{st}{ansi.RESET}"
-                )
+                bits.append(f"{ansi.DIM}state{ansi.RESET} {ansi.CYAN}{st}{ansi.RESET}")
             if when:
-                bits.append(f"{ansi.CYAN}{when}{ansi.RESET}")
+                bits.append(f"{ansi.DIM}{when}{ansi.RESET}")
             ctx = (
                 f"  {ansi.DIM}·{ansi.RESET} " + f" {ansi.DIM}·{ansi.RESET} ".join(bits)
                 if bits
@@ -705,10 +704,10 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
             for line in _value_grid(r["values"], width, "      "):
                 print(line)
         elif r["n_params"] == 0:
-            print(f"      {ansi.DIM}(no parameters defined){ansi.RESET}")
+            print(f"      {ansi.DIM}(no signals defined){ansi.RESET}")
         else:
             print(
-                f"      {ansi.YELLOW}no capture{ansi.RESET} {ansi.DIM}({r['n_params']} params defined){ansi.RESET}"
+                f"      {ansi.YELLOW}no capture{ansi.RESET} {ansi.DIM}({r['n_params']} signals defined){ansi.RESET}"
             )
 
     print(
@@ -736,57 +735,47 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
     name = info.get("name") or f"0x{tx_id:03X}"
 
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
-        print(
-            f"{ansi.RED}`canair ecu {name} edit` requires an interactive terminal.{ansi.RESET}\n"
-            f"{ansi.DIM}It opens $EDITOR by design, so it can't be scripted or driven by an "
-            f"agent.\nUse the surgical, validated editors instead — e.g. "
-            f"`canair pids upsert-param`, `canair pids set-can-bus`, "
-            f"`canair ecu add`.{ansi.RESET}",
-            file=sys.stderr,
+        messages.error(f"`canair ecu {name} edit` requires an interactive terminal")
+        messages.note("it opens $EDITOR by design, so it can't be scripted or driven by an agent")
+        messages.hint(
+            "use the surgical, validated editors instead: `canair pids upsert-param`, "
+            "`canair pids set-can-bus`, `canair ecu add`"
         )
-        return 1
+        return 2
 
     path = find_ecu_file_by_tx(tx_id)
     if path is None or not path.exists():
-        print(
-            f"{ansi.RED}No ecus/ file found for {name} (0x{tx_id:03X}).{ansi.RESET}\n"
-            f"{ansi.DIM}Register it first with `canair ecu add`.{ansi.RESET}",
-            file=sys.stderr,
-        )
+        messages.error(f"no ecus/ file found for {name} (0x{tx_id:03X})")
+        messages.hint("register it first with `canair ecu add`")
         return 1
 
     editor = os.environ.get("EDITOR") or os.environ.get("VISUAL")
     if not editor:
         editor = next((e for e in ("nano", "vim", "vi") if shutil.which(e)), None)
     if not editor:
-        print("No editor found. Set $EDITOR or edit directly:", file=sys.stderr)
-        print(f"  {path}", file=sys.stderr)
+        messages.error(f"no editor found: set $EDITOR or edit {path} directly")
         return 1
 
     rc = subprocess.call([*editor.split(), str(path)])
     if rc != 0:
-        print(f"{ansi.YELLOW}Editor exited with status {rc}; skipping validation.{ansi.RESET}")
+        messages.warning(f"editor exited with status {rc}; skipping validation")
         return rc
 
     # Re-validate the edited file (not auto-reverted — the user owns the edit).
     from canair.cli.commands.validate.pids import run_pids
 
-    print(f"\n{ansi.DIM}Validating {path.name} …{ansi.RESET}")
+    messages.note(f"validating {path.name} …")
     vrc = run_pids([str(path)], stats=False)
     if vrc:
-        print(
-            f"{ansi.YELLOW}Validation failed — re-run `canair ecu {name} edit` to fix, "
-            f"or `canair validate pids`.{ansi.RESET}",
-            file=sys.stderr,
+        messages.warning(
+            f"validation failed: re-run `canair ecu {name} edit` to fix, or `canair validate pids`"
         )
     return vrc
 
 
 def _unknown_ecu(value: str, records: list[dict]) -> int:
-    print(f"{ansi.RED}Unknown ECU {value!r}.{ansi.RESET}", file=sys.stderr)
-    names = [r["name"] for r in records]
-    print("\nAvailable ECUs:", file=sys.stderr)
-    print("  " + ", ".join(names), file=sys.stderr)
+    messages.error(f"unknown ECU {value!r}")
+    messages.hint("available ECUs: " + ", ".join(r["name"] for r in records))
     return 1
 
 
@@ -956,12 +945,10 @@ def cmd_add(args) -> int:
     label = args.name or f"Unknown-{tx_id:03X}"
     if wrote:
         fpath = find_ecu_file_by_tx(tx_id, args.dir)
-        if fpath is None:  # pragma: no cover - a write that left no file is a bug
-            print(f"{ansi.GREEN}  ✓ registered {label} ({disp}){ansi.RESET}")
-        else:
+        if fpath is not None:
             echo_edit(f"registered {label} ({disp})", fpath)
     else:
-        print(f"{ansi.DIM}  {label} ({disp}) already registered; nothing to change.{ansi.RESET}")
+        messages.note(f"{label} ({disp}) already registered; nothing to change")
     return 0
 
 
@@ -1004,11 +991,10 @@ def cmd_rename(args) -> int:
     echo_edit(f"renamed {args.ecu} → {args.new_name} ({tx_key(tx_id)})", new_path)
     if args.dir is None and old_name and old_name != args.new_name:
         # Variants' revisions: lists and capture revision tags are keyed by ECU name.
-        from canair.profile import active
         from canair.yaml_edit.revisions import retag_ecu_rename
 
         for path in retag_ecu_rename(old_name, args.new_name.strip(), active()):
-            print(f"  {ansi.c('rewrote', ansi.DIM)} {path}")
+            echo_edit("retagged revisions", path)
     return 0
 
 
@@ -1022,7 +1008,8 @@ def run(args) -> int:
     if not args.ecu:
         records = _list_records(ecus, pids_data, sort=getattr(args, "sort", "bus"))
         if not records:
-            print("No ECUs found in the active profile (see `canair profile show`).")
+            messages.error("no ECUs found in the active profile")
+            messages.hint("see `canair profile show`")
             return 1
         # Sorting by states implies showing the column (else the order is invisible).
         show_states = getattr(args, "states", False) or getattr(args, "sort", "bus") == "states"

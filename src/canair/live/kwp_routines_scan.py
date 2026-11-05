@@ -21,10 +21,10 @@ supplies the 0x33-specific probe, classification and writeback.
 
 from __future__ import annotations
 
-import sys
 from typing import NamedTuple
 
 from canair.live.discovery_scan import DiscoveryProbe, mode_discovery_scan
+from canair.render import messages
 from canair.safety.quirks import NISSAN_C0_SESSION, has_quirk
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import (
@@ -121,7 +121,7 @@ def _write_hit(ecu_name: str, hit: KwpRoutineHit) -> None:
         # KWP routine local identifiers are a single byte → 2-hex-digit keys.
         append_routines_block(ecu_name, [hit], key_width=2)
     except Exception as exc:
-        print(f"  [{ecu_name}] ERROR writing YAML: {exc}", file=sys.stderr)
+        messages.error(f"[{ecu_name}] writing YAML failed: {exc}")
 
 
 KWP_ROUTINES_PROBE = DiscoveryProbe(
@@ -176,10 +176,9 @@ async def mode_kwp_routines_scan(
     caller's prompt or ``--yes``).
     """
     if needs_confirmation(pids_data) and not confirmed:
-        print(
-            f"  Refusing the KWP2000 routine scan: {UNPROVEN_WARNING} Re-run with --yes "
-            "to accept that.",
-            file=sys.stderr,
+        messages.error(
+            f"refusing the KWP2000 routine scan: {UNPROVEN_WARNING} Re-run with --yes "
+            "to accept that."
         )
         return {}
     return await mode_discovery_scan(

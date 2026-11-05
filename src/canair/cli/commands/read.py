@@ -27,6 +27,7 @@ from canair.cli.live import (
     to_step,
 )
 from canair.cli.live.handlers import elm_only, multi, reads
+from canair.render import messages
 
 NAME = "read"
 ALIASES = ["query"]
@@ -36,8 +37,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
         aliases=ALIASES,
-        help="Read ECUs/parameters over the WiCAN terminal (multi-pipeline default)",
-        description="Read ECUs/parameters live. Positional STEPs use the multi mini-language.",
+        help="Read ECUs/signals over the WiCAN terminal (multi-pipeline default)",
+        description="Read ECUs/signals live. Positional STEPs use the multi mini-language.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
@@ -48,7 +49,7 @@ examples:
   canair read @charging                     Read a saved group (see `canair groups`)
   canair read @driving CLU:220B             A group plus an extra selector
   canair read "skm-wake acc" "query IGPM:BC03,BC06"
-  canair read --param SOC_BMS SOC_DISP      Read named parameters
+  canair read --param SOC_BMS SOC_DISP      Read named signals
 
 `canair query` is a kept alias. For a live, continuously-refreshing view use
 `canair monitor` instead.
@@ -61,7 +62,7 @@ examples:
         help="Read selector(s), @group(s), or multi mini-language step(s)",
     ).completer = step_completer
     parser.add_argument(
-        "--param", nargs="+", metavar="NAME", help="Read named parameters instead of selectors"
+        "--param", nargs="+", metavar="NAME", help="Read named signals instead of selectors"
     ).completer = param_completer
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
     parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")
@@ -99,11 +100,17 @@ examples:
 def run(args) -> int:
     if args.reveal:
         if args.save:
-            print("Error: --reveal cannot be combined with --save", file=sys.stderr)
+            messages.error("--reveal cannot be combined with --save")
             return 2
         from canair.privacy.sensitive import set_reveal
 
         set_reveal(True)
+    if args.json and not (args.steps or args.param):
+        messages.error("--json needs a STEP or --param: the interactive REPL has no JSON output")
+        return 2
+    if args.json and args.repl:
+        messages.error("--json cannot be combined with --repl")
+        return 2
     operation = LiveOperation(elm_only.handle_interactive)
     if args.steps:
         # Expand any @group references into their member selectors before the
@@ -113,7 +120,7 @@ def run(args) -> int:
         try:
             args.steps = expand_step_groups(args.steps)
         except GroupError as e:
-            print(f"Error: {e}", file=sys.stderr)
+            messages.error(str(e))
             return 2
         args.multi = [to_step(s) for s in args.steps]
         # Validate the mini-language up front so ambiguous/malformed steps fail
@@ -123,7 +130,7 @@ def run(args) -> int:
         try:
             commands = parse_sub_commands(args.multi)
         except ValueError as e:
-            print(f"Error: {e}", file=sys.stderr)
+            messages.error(str(e))
             return 2
 
         # Reject typo'd/unknown ECU names in query steps before connecting, so a
@@ -136,7 +143,7 @@ def run(args) -> int:
 
             ecu_err = query_ecu_error(query_steps, load_pids())
             if ecu_err:
-                print(f"Error: {ecu_err}", file=sys.stderr)
+                messages.error(ecu_err)
                 return 2
             report_merged_selectors(query_steps)
         operation = LiveOperation(
@@ -151,9 +158,7 @@ def run(args) -> int:
     # of the same steps. Skip when piped or emitting JSON so machine output stays
     # clean.
     if sys.stdout.isatty() and not args.json:
-        print(
-            "hint: for a live, continuously-refreshing view use `canair monitor` "
-            "(same query steps).",
-            file=sys.stderr,
+        messages.hint(
+            "for a live, continuously-refreshing view use `canair monitor` (same query steps)."
         )
     return run_live(args, operation)

@@ -19,7 +19,11 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
+from canair.render import messages
 from canair.states import allowed_states, join_states, parse_states
+
+from .echo import echo_write
+from .session_gate import refuse_write
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -42,15 +46,11 @@ def cmd_set_state(
     from canair.captures import set_session_states
     from canair.captures.entries import group_sessions
 
-    from .session_gate import refuse_write
-
     states = parse_states(states_arg)
     if not states:
-        print(
-            "  error: --set-state needs at least one state token "
-            "(e.g. --set-state ACC). To clear a session's state, use the "
-            "monitor/back-fill flow.",
-            file=sys.stderr,
+        messages.error(
+            "--set-state needs at least one state token (e.g. --set-state ACC). "
+            "To clear a session's state, use the monitor/back-fill flow."
         )
         return 2
 
@@ -58,9 +58,9 @@ def cmd_set_state(
     vocab = allowed_states()
     unknown = [s for s in states if s not in vocab]
     if unknown and not as_json:
-        print(
-            f"  warning: {', '.join(unknown)} not in the vehicle_states.yaml "
-            "vocabulary (writing anyway; see `canair states`)."
+        messages.warning(
+            f"{', '.join(unknown)} not in the vehicle_states.yaml "
+            "vocabulary (writing anyway; see `canair states`)"
         )
 
     sessions = group_sessions(entries)
@@ -102,9 +102,7 @@ def cmd_set_state(
         (Path(r["path"]) for r in to_write),
         verb="relabelled",
         prompt=f"Set state to {join_states(states)!r} on these {len(to_write)} session(s)?",
-        what="set state",
         assume_yes=assume_yes,
-        out=out,
     )
     if stop is not None:
         return stop
@@ -119,9 +117,9 @@ def cmd_set_state(
                 file=out,
             )
         except Exception as ex:  # keep going; report the failure
-            print(f"    ! {r['file']} [{r['session_idx']}]: {ex}", file=out)
+            messages.error(f"{r['file']} [{r['session_idx']}]: {ex}")
 
-    print(f"  Set state on {written} session(s).", file=out)
+    echo_write(f"Set state on {written} session(s)", (Path(r["path"]) for r in to_write), out)
     if as_json:
         print(_json.dumps(rows, indent=2))
     return 0 if written == len(to_write) else 1

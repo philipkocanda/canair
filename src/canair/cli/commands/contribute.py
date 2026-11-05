@@ -29,18 +29,22 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import sys
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 from ... import contribute as C
+from ...core.prompt import confirm
 from ...profile import ProfileError, active, alias_index
+from ...render import glyphs
+from ...render.console import console as make_console
+from ...render.console import escape
 from . import _contribute_gates as gates
 from ._contribute_report import (
     Reporter,
     Stop,
-    confirm,
     findings_json,
     replaced_json,
     rollback_json,
@@ -191,9 +195,7 @@ class _Contribution:
 
 
 def run(args) -> int:
-    from rich.console import Console
-
-    rep = Reporter(console=Console(), json_mode=bool(args.json), yes=bool(args.yes))
+    rep = Reporter(console=make_console(), json_mode=bool(args.json), yes=bool(args.yes))
     try:
         return _contribute(args, rep)
     except Stop as stop:
@@ -260,7 +262,7 @@ def _resolve_profile(args, rep: Reporter) -> tuple[Any, str]:
         profile = active()
     except ProfileError as e:
         error = str(e)  # `e` is unbound outside the except block
-        rep.refuse(error, human=lambda: rep.console.print(f"[red]error:[/red] {error}"))
+        rep.refuse(error, human=lambda: rep.console.print(f"[red]error:[/red] {escape(error)}"))
 
     profile = _upstream_named(profile, rep)
     branch = args.branch or f"contribute/{profile.name}-{date.today():%Y%m%d}"
@@ -286,8 +288,8 @@ def _upstream_named(profile, rep: Reporter):
     rep.note(renamed_from=profile.name)
     if not rep.json_mode:
         rep.console.print(
-            f"  [yellow]note:[/yellow] '{profile.name}' was renamed upstream; contributing "
-            f"it as [cyan]profiles/{target}/[/cyan]."
+            f"  [yellow]note:[/yellow] '{escape(profile.name)}' was renamed upstream; contributing "
+            f"it as [cyan]profiles/{escape(target)}/[/cyan]."
         )
     return dataclasses.replace(profile, name=target)
 
@@ -301,8 +303,8 @@ def _stage_contribution(run_: _Contribution) -> int | None:
     rep, pre, workspace = run_.rep, run_.pre, run_.workspace
 
     if not rep.json_mode:
-        rep.console.print(f"\n  reading profile from: [dim]{run_.profile.root}[/dim]")
-        rep.console.print(f"  staging in workspace: [dim]{workspace}[/dim]")
+        rep.console.print(f"\n  reading profile from: [dim]{escape(str(run_.profile.root))}[/dim]")
+        rep.console.print(f"  staging in workspace: [dim]{escape(str(workspace))}[/dim]")
         rep.console.print("  syncing (first run clones — may take a moment) …")
 
     steps, mode, ok = C.ensure_workspace(pre, workspace)
@@ -314,12 +316,14 @@ def _stage_contribution(run_: _Contribution) -> int | None:
 
         def explain() -> None:
             rep.console.print("  [red]failed to prepare the workspace:[/red]")
-            rep.console.print(f"  [dim]{detail}[/dim]")
-            rep.console.print("\n" + C.manual_instructions(run_.profile.name, run_.branch))
+            rep.console.print(f"  [dim]{escape(detail)}[/dim]")
+            rep.console.print("\n" + escape(C.manual_instructions(run_.profile.name, run_.branch)))
 
         rep.fail("workspace prep failed", detail=detail, human=explain)
     if not rep.json_mode:
-        rep.console.print(f"  mode: [cyan]{mode}[/cyan] (will push to {run_.target})")
+        rep.console.print(
+            f"  mode: [cyan]{escape(mode)}[/cyan] (will push to {escape(run_.target)})"
+        )
 
     _clear_leftovers(run_)
 
@@ -329,7 +333,8 @@ def _stage_contribution(run_: _Contribution) -> int | None:
             "branch failed",
             detail=br.output,
             human=lambda: rep.console.print(
-                f"  [red]could not create branch {run_.branch}:[/red] [dim]{br.output}[/dim]"
+                f"  [red]could not create branch {escape(run_.branch)}:[/red] "
+                f"[dim]{escape(br.output)}[/dim]"
             ),
         )
     run_.staged = True
@@ -347,7 +352,7 @@ def _stage_contribution(run_: _Contribution) -> int | None:
     if not C.has_changes(pre, workspace, run_.profile.name):
         msg = "No changes to contribute — the upstream profile already matches yours."
         if not rep.json_mode:
-            rep.console.print(f"\n  [green]{msg}[/green]")
+            rep.console.print(f"\n  [green]{glyphs.OK} {msg}[/green]")
         local = None if run_.args.diff or run_.args.dry_run else _tidy_source(run_)
         return rep.done(lambda: None, no_changes=True, message=msg, local_changes=local)
 
@@ -425,12 +430,15 @@ def _clear_leftovers(run_: _Contribution) -> None:
             detail=detail,
             human=lambda: rep.console.print(
                 "  [red]could not discard the earlier contribution:[/red] "
-                f"[dim]{detail}[/dim]\n"
-                f"  Delete the workspace and retry: [cyan]rm -rf {run_.workspace}[/cyan]"
+                f"[dim]{escape(detail)}[/dim]\n"
+                "  Delete the workspace and retry: "
+                f"[cyan]rm -rf {escape(str(run_.workspace))}[/cyan]"
             ),
         )
     if not rep.json_mode:
-        rep.console.print(f"  backed up and discarded {len(paths)} leftover file(s) → {backup}")
+        rep.console.print(
+            f"  backed up and discarded {len(paths)} leftover file(s) → {escape(str(backup))}"
+        )
 
 
 def _make_hermetic(run_: _Contribution) -> None:
@@ -454,8 +462,8 @@ def _make_hermetic(run_: _Contribution) -> None:
         detail=detail,
         human=lambda: rep.console.print(
             "  [red]could not clean the staging workspace:[/red] "
-            f"[dim]{detail}[/dim]\n"
-            f"  Delete it and retry: [cyan]rm -rf {run_.workspace}[/cyan]"
+            f"[dim]{escape(detail)}[/dim]\n"
+            f"  Delete it and retry: [cyan]rm -rf {escape(str(run_.workspace))}[/cyan]"
         ),
     )
 
@@ -468,7 +476,9 @@ def _report_diff(run_: _Contribution) -> int:
     def show() -> None:
         from rich.syntax import Syntax
 
-        rep.console.print(f"\n  diff of [cyan]profiles/{run_.profile.name}/[/cyan] vs upstream:\n")
+        rep.console.print(
+            f"\n  diff of [cyan]profiles/{escape(run_.profile.name)}/[/cyan] vs upstream:\n"
+        )
         if diff.strip():
             rep.console.print(Syntax(diff, "diff", theme="ansi_dark", background_color="default"))
         else:
@@ -517,8 +527,8 @@ def _submit(run_: _Contribution) -> int:
             rep.console.print("\n  pull request body:\n")
             rep.console.print(body, markup=False, highlight=False)
             rep.console.print(
-                f"\n  [green]✓ Prepared[/green] branch [cyan]{run_.branch}[/cyan] "
-                f"in {run_.workspace}"
+                f"\n  [green]{glyphs.OK} Prepared[/green] branch "
+                f"[cyan]{escape(run_.branch)}[/cyan] in {escape(str(run_.workspace))}"
             )
             rep.console.print("  [dim](dry run — nothing pushed; no PR opened)[/dim]")
 
@@ -547,7 +557,7 @@ def _commit(run_: _Contribution) -> None:
             "commit failed",
             detail=commit.output,
             human=lambda: rep.console.print(
-                f"  [red]commit failed:[/red] [dim]{commit.output}[/dim]"
+                f"  [red]commit failed:[/red] [dim]{escape(commit.output)}[/dim]"
             ),
         )
 
@@ -558,28 +568,30 @@ def _push_and_open_pr(run_: _Contribution) -> int:
 
     if not rep.json_mode:
         rep.console.print(
-            f"\n  Ready to push [cyan]{run_.branch}[/cyan] to {run_.target} and open a pull "
-            f"request against [cyan]{C.UPSTREAM_REPO}[/cyan]."
+            f"\n  Ready to push [cyan]{escape(run_.branch)}[/cyan] to {escape(run_.target)} "
+            f"and open a pull request against [cyan]{C.UPSTREAM_REPO}[/cyan]."
         )
         rep.console.print(
             "  [dim](tip: `canair contribute --diff` shows the full change first)[/dim]"
         )
-    if not confirm("Push and open the PR?", rep.yes, json_mode=rep.json_mode):
-        rep.refuse(
-            "push not confirmed (pass --yes to proceed non-interactively)",
-            human=lambda: rep.console.print(
-                "  Aborted — nothing was pushed. Your branch is prepared locally in the workspace."
-            ),
-        )
+    rep.confirm(
+        "Push and open the PR?",
+        error="push not confirmed",
+        after_decline="Nothing was pushed. Your branch is prepared locally in the workspace.",
+    )
 
     if not rep.json_mode:
-        rep.console.print(f"  pushing [cyan]{run_.branch}[/cyan] to {run_.target} …")
+        rep.console.print(
+            f"  pushing [cyan]{escape(run_.branch)}[/cyan] to {escape(run_.target)} …"
+        )
     push = C.push_branch(pre, workspace, run_.branch)
     if not push.ok:
         rep.fail(
             "push failed",
             detail=push.output,
-            human=lambda: rep.console.print(f"  [red]push failed:[/red] [dim]{push.output}[/dim]"),
+            human=lambda: rep.console.print(
+                f"  [red]push failed:[/red] [dim]{escape(push.output)}[/dim]"
+            ),
         )
 
     body = _pr_body(run_)
@@ -594,7 +606,9 @@ def _push_and_open_pr(run_: _Contribution) -> int:
             rep.warn(f"could not update the PR description: {edit.output}")
 
         def updated() -> None:
-            rep.console.print(f"\n  [green]✓ Updated pull request #{number}:[/green] {url}")
+            rep.console.print(
+                f"\n  [green]{glyphs.OK} Updated pull request #{number}:[/green] {escape(url)}"
+            )
             rep.console.print("  Thank you for contributing! 🎉")
 
         return _finish(
@@ -618,7 +632,7 @@ def _push_and_open_pr(run_: _Contribution) -> int:
     if not pr.ok:
 
         def explain() -> None:
-            rep.console.print(f"  [red]opening the PR failed:[/red] [dim]{pr.output}[/dim]")
+            rep.console.print(f"  [red]opening the PR failed:[/red] [dim]{escape(pr.output)}[/dim]")
             rep.console.print("  Your branch was pushed — you can open the PR manually on GitHub.")
 
         rep.fail("pr create failed", detail=pr.output, human=explain)
@@ -626,7 +640,7 @@ def _push_and_open_pr(run_: _Contribution) -> int:
     pr_url = pr.stdout.strip().splitlines()[-1] if pr.stdout.strip() else ""
 
     def celebrate() -> None:
-        rep.console.print(f"\n  [green]✓ Pull request opened:[/green] {pr_url}")
+        rep.console.print(f"\n  [green]{glyphs.OK} Pull request opened:[/green] {escape(pr_url)}")
         rep.console.print("  Thank you for contributing! 🎉")
 
     return _finish(
@@ -670,9 +684,9 @@ def _tidy_source(run_: _Contribution) -> dict[str, Any] | None:
     }
     backup = C.backup_dir() / f"{datetime.now():%Y%m%d-%H%M%S}-source"
     choice = getattr(run_.args, "local_changes", None)
-    if choice is None and not (rep.json_mode or rep.yes):
-        _show_source_changes(run_, changes, backup)
-        choice = "discard" if confirm("Discard them?", False, json_mode=False) else "keep"
+    if choice is None and not (rep.json_mode or rep.yes) and sys.stdin.isatty():
+        rep.show_source_changes(changes, run_.profile.name, backup)
+        choice = "discard" if confirm("Discard them?") else "keep"
     if choice != "discard":
         if not rep.json_mode and getattr(run_.args, "local_changes", None) is None:
             rep.console.print(
@@ -690,32 +704,10 @@ def _tidy_source(run_: _Contribution) -> dict[str, Any] | None:
     report["action"] = "discarded"
     if not rep.json_mode:
         rep.console.print(
-            f"  [green]✓[/green] Discarded {len(changes.held)} change(s) from "
-            f"{changes.checkout}; backup → {backup}"
+            f"  [green]{glyphs.OK}[/green] Discarded {len(changes.held)} change(s) from "
+            f"{escape(str(changes.checkout))}; backup → {escape(str(backup))}"
         )
     return report
-
-
-def _show_source_changes(run_: _Contribution, changes, backup: Path) -> None:
-    console = run_.rep.console
-    console.print(
-        f"\n  Your checkout [dim]{changes.checkout}[/dim] still holds {len(changes.held)} "
-        f"uncommitted change(s)\n  under [cyan]profiles/{run_.profile.name}/[/cyan] that "
-        "the contribution already holds:\n"
-    )
-    for path in changes.held[:10]:
-        console.print(f"    [dim]{path}[/dim]")
-    if len(changes.held) > 10:
-        console.print(f"    [dim]… and {len(changes.held) - 10} more[/dim]")
-    if changes.not_held:
-        console.print(
-            f"\n  {len(changes.not_held)} other change(s) there are not in the PR and are "
-            "left alone."
-        )
-    console.print(
-        "\n  Pulling the merged PR would conflict with them. Discarding restores them to\n"
-        f"  your last commit, after a backup to [cyan]{backup}[/cyan].\n"
-    )
 
 
 # --- helpers ----------------------------------------------------------------

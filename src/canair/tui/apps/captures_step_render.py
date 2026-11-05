@@ -22,7 +22,9 @@ from rich.text import Text
 from canair.captures.entries import _capture_key
 from canair.captures.store import NO_DEFS, PidDefs
 from canair.captures.types import CaptureEntry
+from canair.render.glyphs import CURSOR, WARN
 from canair.states import join_states as _join_states
+from canair.tui import styles
 from canair.uds.notation import ByteNotation
 
 # Width of the rule drawn between stacked capture blocks.
@@ -109,29 +111,29 @@ def capture_block_text(
     out = Text()
 
     # Header: ECU / PID + position, timestamp, state, label, file.
-    cursor = "▶ " if selected else "  "
+    cursor = f"{CURSOR} " if selected else "  "
     tx_str = f" (0x{tx_id:03X})" if isinstance(tx_id, int) else ""
     out.append("\n")
-    out.append(cursor, style="bold cyan")
-    out.append(f"{e['ecu']}{tx_str}", style="bold cyan")
+    out.append(cursor, style=styles.HEADING_NAME)
+    out.append(f"{e['ecu']}{tx_str}", style=styles.HEADING_NAME)
     alias = (aliases or {}).get(e["ecu"])
     if alias:
-        out.append(f"  (alias {alias})", style="dim")
+        out.append(f"  (alias {alias})", style=styles.MUTED)
     if dt_label:
-        out.append(f"   {dt_label}", style="dim")
+        out.append(f"   {dt_label}", style=styles.MUTED)
     out.append("\n")
 
     ord_n, ord_m = ordinals[i]
     per_pid = f" · this PID {ord_n}/{ord_m}" if show_per_pid else ""
     pos = f"{position}{per_pid}".strip()
     out.append("    ")
-    out.append(str(e["pid"]), style="yellow")
+    out.append(str(e["pid"]), style=styles.NAME)
     if pos:
-        out.append(f"  {pos}", style="dim")
+        out.append(f"  {pos}", style=styles.MUTED)
     out.append("\n")
 
     ts = e.get("time") or e.get("date") or ""
-    out.append(f"    {ts}", style="bold")
+    out.append(f"    {ts}", style=styles.HEADING)
     meta = Text()
     st = _join_states(e.get("vehicle_states"))
     if st:
@@ -140,13 +142,13 @@ def capture_block_text(
         meta.append(f"  [{e['label']}]")
     if e.get("file"):
         meta.append(f"  ({e['file']})")
-    meta.stylize("dim")
+    meta.stylize(styles.MUTED)
     out.append(meta)
     out.append("\n")
 
     note = (e.get("notes") or "").strip()
     if note:
-        out.append("    note:", style="dim")
+        out.append("    note:", style=styles.MUTED)
         out.append(f" {note}\n")
 
     # Decoded-signal block (aligned columns, verification marks, byte references).
@@ -154,7 +156,7 @@ def capture_block_text(
     if table_rows:
         out.append(render_param_table(table_rows, display=display, changed_styles=changed_styles))
     elif changed_only and rows:
-        out.append("      (no signal changes)\n", style="dim")
+        out.append("      (no signal changes)\n", style=styles.MUTED)
 
     if not show_hex:
         return out
@@ -174,7 +176,7 @@ def capture_block_text(
                 rows,
                 unmapped,
                 prefix=f"      {prev_ts:<{max_ts}}  ",
-                prefix_style="dim",
+                prefix_style=styles.MUTED,
                 map_bytes=map_bytes,
             )
         )
@@ -195,14 +197,14 @@ def missing_block_text(key: tuple[str, str], tol_s: float, *, selected: bool = F
     """Placeholder for a key with no capture within the join tolerance."""
     out = Text()
     out.append("\n")
-    out.append("▶ " if selected else "  ", style="bold cyan")
-    out.append(f"— no {key_label(key)} capture within {tol_s:g}s —\n", style="dim")
+    out.append(f"{CURSOR} " if selected else "  ", style=styles.HEADING_NAME)
+    out.append(f"— no {key_label(key)} capture within {tol_s:g}s —\n", style=styles.MUTED)
     return out
 
 
 def separator_text() -> Text:
     """The rule drawn between two stacked capture blocks."""
-    return Text(f"  {'─' * _SEPARATOR_WIDTH}\n", style="dim")
+    return Text(f"  {'─' * _SEPARATOR_WIDTH}\n", style=styles.MUTED)
 
 
 def frame_header_text(
@@ -220,7 +222,7 @@ def frame_header_text(
     """
     out = Text()
     out.append("\n  ")
-    out.append(position, style="bold")
+    out.append(position, style=styles.HEADING)
     detail = Text()
     if timestamp:
         detail.append(f"   {timestamp}")
@@ -230,9 +232,9 @@ def frame_header_text(
         detail.append(f"   states={states}")
     if label:
         detail.append(f"   [{label}]")
-    detail.stylize("dim")
+    detail.stylize(styles.MUTED)
     out.append(detail)
     out.append("\n")
     if gaps:
-        out.append(f"  ⚠ since the previous frame: {gaps}\n", style="yellow")
+        out.append(f"  {WARN} since the previous frame: {gaps}\n", style=styles.WARNING)
     return out

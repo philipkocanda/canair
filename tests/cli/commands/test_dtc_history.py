@@ -366,15 +366,17 @@ class TestCommands:
         _write(logp, _scan("all", {BMS: _codes("B1", "B2")}))
         args = argparse.Namespace(dtc=None, dtc_all=False)
         assert dtc_cmd.run(args) == 2
-        out = capsys.readouterr().out
-        assert "DTC log: 2 DTC(s) seen in 1 scan(s)" in out
-        assert "2 open on 1 ECU(s)" in out and "`canair dtc log`" in out
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err.startswith("error: specify an ECU")
+        assert "DTC log: 2 DTC(s) seen in 1 scan(s)" in captured.err
+        assert "2 open on 1 ECU(s)" in captured.err and "`canair dtc log`" in captured.err
 
     def test_bare_dtc_without_a_log_says_nothing_about_it(self, logp, capsys):
         from canair.cli.commands import dtc as dtc_cmd
 
         assert dtc_cmd.run(argparse.Namespace(dtc=None, dtc_all=False)) == 2
-        assert "DTC log" not in capsys.readouterr().out
+        assert "DTC log" not in capsys.readouterr().err
 
     def test_history_flag_still_works(self, logp, capsys):
         from canair.cli.commands import dtc as dtc_cmd

@@ -157,7 +157,7 @@ class TestValidateCan:
             "version https://git-lfs.github.com/spec/v1\noid sha256:f951bb\nsize 10633\n"
         )
         assert run_can() == 1
-        assert "Git LFS pointer" in capsys.readouterr().out
+        assert "Git LFS pointer" in capsys.readouterr().err
 
 
 def test_bundled_can_indexes_are_not_lfs_tracked():

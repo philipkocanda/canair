@@ -18,7 +18,8 @@ from pathlib import Path
 
 from canair.captures.types import CaptureSession, Quality
 from canair.interop.frame_log import Extraction, extract_replies, stamp
-from canair.render import ansi
+from canair.render import ansi, glyphs, messages
+from canair.render.paint import Painter
 
 # A log whose first frame is later than this is on the wall clock (2001-09-09), not
 # relative to the start of the recording; same cut-off as ``import can``.
@@ -49,7 +50,7 @@ def run_from_log(args: argparse.Namespace) -> int:
         check_args(args)
         return _import_log(args)
     except LogImportError as e:
-        print(f"{ansi.RED}error: {e}{ansi.RESET}", file=sys.stderr)
+        messages.error(str(e))
         return 2
 
 
@@ -152,10 +153,8 @@ def _start_datetime(args: argparse.Namespace, first_ts: float) -> datetime:
     except ValueError as e:
         raise LogImportError(f"--date must be YYYY-MM-DD and --time HH:MM:SS ({e})") from e
     if logged is None and day is None:
-        print(
-            f"{ansi.YELLOW}  warning: the log has relative timestamps and no --date was given; "
-            f"dating the session today{ansi.RESET}",
-            file=sys.stderr,
+        messages.warning(
+            "the log has relative timestamps and no --date was given; dating the session today"
         )
     return datetime.combine(
         day or (logged.date() if logged else date.today()),
@@ -217,10 +216,14 @@ def _report(
         print(file=file)
         return
 
+    paint = Painter(file)
     verb = "Extracted" if written else "Would extract"
     print(f"{verb} {len(extraction.replies)} reply(ies) from {path.name}", file=file)
     for (rx, pid), n in sorted(by_pid.items()):
-        print(f"  {ansi.GREEN}✓{ansi.RESET} {rx} {pid}  ×{n}", file=file)
+        print(
+            f"  {paint(glyphs.OK, ansi.raw.GREEN)} {rx} {paint(pid, ansi.raw.CYAN)}  ×{n}",
+            file=file,
+        )
     if written is None and extraction.replies:
         print("  (dry run: nothing written)", file=file)
 
@@ -233,19 +236,14 @@ def _report(
     ]
     for count, what in left_out:
         if count:
-            print(f"  {ansi.YELLOW}skipped {count} {what}{ansi.RESET}", file=file)
+            print(f"  {paint(f'skipped {count} {what}', ansi.raw.YELLOW)}", file=file)
     if extraction.other_services:
         sids = ", ".join(f"0x{s:02X} ×{n}" for s, n in extraction.other_services.most_common(5))
-        print(f"  {ansi.DIM}ignored replies of other services: {sids}{ansi.RESET}", file=file)
+        print(f"  {paint(f'ignored replies of other services: {sids}', ansi.raw.DIM)}", file=file)
     if extraction.unregistered:
         ids = ", ".join(f"0x{i:X} (×{n})" for i, n in extraction.unregistered.most_common(6))
-        print(
-            f"  {ansi.YELLOW}replies from ids not in the profile: {ids}; "
-            f"register with canair ecu add{ansi.RESET}",
-            file=file,
-        )
+        text = f"replies from ids not in the profile: {ids}; register with canair ecu add"
+        print(f"  {paint(text, ansi.raw.YELLOW)}", file=file)
     if extraction.lost:
-        print(
-            f"  {ansi.DIM}session quality records {extraction.lost} dropped message(s){ansi.RESET}",
-            file=file,
-        )
+        text = f"session quality records {extraction.lost} dropped message(s)"
+        print(f"  {paint(text, ansi.raw.DIM)}", file=file)

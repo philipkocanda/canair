@@ -3,9 +3,11 @@
 import asyncio
 import functools
 import re
+import sys
 
 from canair.captures.metadata import resolve_metadata
 from canair.privacy.sensitive import MASK, masked_response, request_hidden
+from canair.render import messages
 from canair.render.formatting import format_raw_with_bnn, print_hexdump, print_json_result
 from canair.transport.stats import client_transport
 from canair.uds.describe import decode_uds_response
@@ -40,9 +42,10 @@ async def mode_raw(
     """
     match = re.match(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$", raw_spec)
     if not match:
-        print(f"  Invalid format: {raw_spec}")
-        print("  Expected: <TX_ID>:<SERVICE_PID>  (e.g., 7E4:2101)")
-        return
+        messages.error(
+            f"invalid format: {raw_spec} (expected <TX_ID>:<SERVICE_PID>, e.g. 7E4:2101)"
+        )
+        raise SystemExit(2)
 
     tx_id = int(match.group(1), 16)
     service_pid = match.group(2).upper()
@@ -50,7 +53,7 @@ async def mode_raw(
     if hold or wake:
         session = True
 
-    print(f"\n  TX: 0x{tx_id:03X}  Request: {service_pid}")
+    print(f"\n  TX: 0x{tx_id:03X}  Request: {service_pid}", file=sys.stderr if as_json else None)
 
     save_result = functools.partial(
         _save_raw,
@@ -85,7 +88,7 @@ async def mode_raw(
                 print(f"  NRC: 0x{response['nrc']:02X} -- {response['nrc_desc']}")
                 print(f"  Service: 0x{response.get('nrc_service', 0):02X}")
             else:
-                print(f"  Error: {error}")
+                messages.error(str(error))
             if not hold:
                 if save:
                     save_result(response)
@@ -104,13 +107,14 @@ async def mode_raw(
                 print_hexdump(response["bytes"])
 
         if hold and tester_task:
-            print()
-            print("  Session held open (TesterPresent keepalive active).")
-            print("  Press Ctrl+C to release.")
+            human = sys.stderr if as_json else sys.stdout
+            print(file=human)
+            print("  Session held open (TesterPresent keepalive active).", file=human)
+            print("  Press Ctrl+C to release.", file=human)
             try:
                 await asyncio.Event().wait()
             except (KeyboardInterrupt, asyncio.CancelledError):
-                print("\n  Releasing session...")
+                print("\n  Releasing session…", file=human)
         elif save:
             save_result(response)
     finally:

@@ -35,7 +35,8 @@ from canair.analysis.fill import forced_hold_warning, format_hold_duration
 from canair.captures.keepmode import CHANGES_BANNER, scope_is_keep_changes
 from canair.cli.args.join import add_join_args, fill_policy_from_args
 from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
-from canair.render import ansi
+from canair.cli.commands._analysis_warning import warn_analysis
+from canair.render import ansi, glyphs, messages
 
 NAME = "align"
 
@@ -108,7 +109,7 @@ def _load_one(spec: str, *, since, until, state, label, fill=None):
 def run(args) -> int:
     since, until, err = resolve_scope_bounds(args)
     if err:
-        print(err, file=sys.stderr)
+        messages.error(err)
         return 2
 
     # Accept both `align A:B:C D:E:F` and `align "A:B:C D:E:F"`.
@@ -116,10 +117,7 @@ def run(args) -> int:
     for tok in args.selectors:
         tokens.extend(tok.split())
     if len(tokens) < 2:
-        print(
-            "align: need at least two signals to align (the first is the reference)",
-            file=sys.stderr,
-        )
+        messages.error("need at least two signals to align (the first is the reference)")
         return 2
 
     fill = fill_policy_from_args(args)
@@ -133,10 +131,10 @@ def run(args) -> int:
                 tok, since=since, until=until, state=args.state, label=args.label, fill=fill
             )
         except ValueError as e:
-            print(f"align: {e}", file=sys.stderr)
+            messages.error(str(e))
             return 1
         if label in series_by_label:
-            print(f"align: duplicate signal {label!r} ignored", file=sys.stderr)
+            messages.warning(f"duplicate signal {label!r} ignored")
             continue
         labels.append(label)
         series_by_label[label] = series
@@ -144,12 +142,12 @@ def run(args) -> int:
         all_caps.extend(caps)
 
     if len(labels) < 2:
-        print("align: need at least two distinct signals", file=sys.stderr)
+        messages.error("need at least two distinct signals")
         return 2
 
     forced = forced_hold_warning(all_caps, fill)
     if forced:
-        print(f"align: {forced}", file=sys.stderr)
+        warn_analysis(forced)
 
     ref_label = labels[0]
     ref_series = series_by_label[ref_label]
@@ -198,11 +196,10 @@ def _warn_csv_fills(fills: dict[str, JoinStats]) -> None:
         f"{lbl} +{st.n_filled} (up to {format_hold_duration(st.max_hold_s)})"
         for lbl, st in held.items()
     )
-    print(
-        f"align: note: some values are forward-filled run-length segments, not samples "
+    messages.note(
+        f"some values are forward-filled run-length segments, not samples "
         f"at these instants — {detail}. Use --json for per-row provenance, or "
-        f"--fill none to keep only measured rows.",
-        file=sys.stderr,
+        f"--fill none to keep only measured rows."
     )
 
 
@@ -219,16 +216,14 @@ def _warn_thin_joins(cols, labels, n_ref: int, tol: float) -> None:
     for lbl in labels[1:]:
         n_joined = sum(1 for v in cols[lbl] if v is not None)
         if n_joined == 0:
-            print(
-                f"align: warning: {lbl!r} joined 0 of {n_ref} reference rows "
-                f"(within \u2264{tol:g}s) \u2014 widen --join-tol or check the scope overlaps",
-                file=sys.stderr,
+            messages.warning(
+                f"{lbl!r} joined 0 of {n_ref} reference rows "
+                f"(within \u2264{tol:g}s) \u2014 widen --join-tol or check the scope overlaps"
             )
         elif n_joined < floor:
-            print(
-                f"align: warning: {lbl!r} joined only {n_joined} of {n_ref} reference rows "
-                f"(within \u2264{tol:g}s) \u2014 consider a larger --join-tol",
-                file=sys.stderr,
+            messages.warning(
+                f"{lbl!r} joined only {n_joined} of {n_ref} reference rows "
+                f"(within \u2264{tol:g}s) \u2014 consider a larger --join-tol"
             )
 
 
@@ -292,13 +287,13 @@ def _emit_table(
         f"{ansi.DIM}(nearest-join ≤{tol}s; c1 is the reference){ansi.RESET}"
     )
     if keep_changes:
-        print(f"  {ansi.YELLOW}⚠ {CHANGES_BANNER}{ansi.RESET}")
+        print(f"  {ansi.YELLOW}{glyphs.WARN} {CHANGES_BANNER}{ansi.RESET}")
     for h, lbl in zip(handles, labels, strict=True):
         st = (fills or {}).get(lbl)
         note = ""
         if st is not None and st.n_filled:
             note = (
-                f"  {ansi.CYAN}[{st.n_direct} joined + {st.n_filled} held"
+                f"  {ansi.DIM}[{st.n_direct} joined + {st.n_filled} held"
                 f", up to {format_hold_duration(st.max_hold_s)}]{ansi.RESET}"
             )
         print(f"  {ansi.DIM}{h} = {lbl}{ansi.RESET}{note}")

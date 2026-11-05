@@ -1,8 +1,20 @@
 """Tests for canair.safety.blocklist.enforce_command_safety — the shared, transport-independent guard."""
 
+import io
+
 import pytest
 
-from canair.safety.blocklist import SafetyBlocked, enforce_command_safety
+from canair.safety.blocklist import CommandDeclined, SafetyBlocked, enforce_command_safety
+
+
+class _Tty(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+def _terminal(monkeypatch, typed: str) -> None:
+    """Stdin is a terminal and the user types ``typed``."""
+    monkeypatch.setattr("sys.stdin", _Tty(typed))
 
 
 class TestEnforceCommandSafety:
@@ -19,24 +31,37 @@ class TestEnforceCommandSafety:
 
     @pytest.mark.asyncio
     async def test_blocked_command_confirmed_in_unsafe_mode(self, monkeypatch):
-        monkeypatch.setattr("builtins.input", lambda *a: "YES")
+        _terminal(monkeypatch, "YES\n")
         # Confirmed -> returns without raising.
         await enforce_command_safety("2E1234AA", unsafe=True)
 
     @pytest.mark.asyncio
-    async def test_blocked_command_declined_in_unsafe_mode(self, monkeypatch):
-        monkeypatch.setattr("builtins.input", lambda *a: "n")
-        with pytest.raises(ValueError):
+    async def test_blocked_command_declined_in_unsafe_mode(self, monkeypatch, capsys):
+        _terminal(monkeypatch, "n\n")
+        with pytest.raises(CommandDeclined):
+            await enforce_command_safety("2E1234AA", unsafe=True)
+        err = capsys.readouterr().err
+        assert "!! BLOCKED" in err
+        assert "Aborted — nothing changed." in err
+
+    @pytest.mark.asyncio
+    async def test_a_lower_case_yes_is_not_consent(self, monkeypatch):
+        _terminal(monkeypatch, "yes\n")
+        with pytest.raises(CommandDeclined):
             await enforce_command_safety("2E1234AA", unsafe=True)
 
     @pytest.mark.asyncio
     async def test_declines_on_eof(self, monkeypatch):
-        def _raise(*a):
-            raise EOFError
-
-        monkeypatch.setattr("builtins.input", _raise)
-        with pytest.raises(ValueError):
+        _terminal(monkeypatch, "")
+        with pytest.raises(CommandDeclined):
             await enforce_command_safety("3400", unsafe=True)
+
+    @pytest.mark.asyncio
+    async def test_no_terminal_is_a_refusal_not_a_prompt(self, monkeypatch):
+        monkeypatch.setattr("sys.stdin", io.StringIO("YES\n"))
+        with pytest.raises(SafetyBlocked, match="needs a terminal") as raised:
+            await enforce_command_safety("2E1234AA", unsafe=True)
+        assert not isinstance(raised.value, CommandDeclined)
 
     @pytest.mark.asyncio
     async def test_unsafe_cannot_broadcast_a_refused_request(self, monkeypatch):

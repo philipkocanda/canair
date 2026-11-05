@@ -40,6 +40,6 @@ examples:
   canair interactive              # 'interactive' is an alias for 'repl'
 """,
     )
-    add_connection_args(parser)
+    add_connection_args(parser, json=False)
     parser.set_defaults(func=live_command(_OPERATION))
     return parser

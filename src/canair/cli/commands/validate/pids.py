@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from canair.render import messages
 from canair.validation.pids import check_pids
 
 
@@ -9,15 +10,13 @@ def run_pids(files: list[str] | None, stats: bool) -> int:
     report = check_pids([Path(f) for f in files] if files else None)
     all_errors, all_warnings, total_stats = report.errors, report.warnings, report.stats
 
-    if all_warnings:
-        for w in all_warnings:
-            print(f"  WARN: {w}")
-        print()
+    for w in all_warnings:
+        messages.warning(w)
 
     if all_errors:
         for e in all_errors:
-            print(f"  ERROR: {e}")
-        print(f"\n{len(all_errors)} error(s), {len(all_warnings)} warning(s)")
+            messages.error(e)
+        print(f"{len(all_errors)} error(s), {len(all_warnings)} warning(s)")
         return 1
 
     ignored = total_stats["ignored"]
@@ -35,7 +34,7 @@ def run_pids(files: list[str] | None, stats: bool) -> int:
     print(
         f"OK — {report.n_files} ECU files, {total_stats['pids']} PIDs{ignored_str}{ioctl_str}"
         f"{research_str}{routines_str}{ioctl_disc_str}{dtcs_str}, "
-        f"{total_stats['params']} parameters "
+        f"{total_stats['params']} signals "
         f"({total_stats['verified']} verified, {total_stats['unverified']} unverified)"
     )
 
@@ -46,7 +45,7 @@ def run_pids(files: list[str] | None, stats: bool) -> int:
         print(f"\n  ECUs:       {total_stats['ecus']}")
         print(f"  PIDs:       {total_stats['pids']}")
         print(f"  Ignored:    {total_stats['ignored']}")
-        print(f"  Parameters: {total_stats['params']}")
+        print(f"  Signals:    {total_stats['params']}")
         print(f"  Verified:   {total_stats['verified']}")
         print(f"  Unverified: {total_stats['unverified']}")
         print(f"  IOControl:  {total_stats['iocontrol']}")

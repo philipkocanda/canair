@@ -20,6 +20,7 @@ import asyncio
 import sys
 from typing import TYPE_CHECKING
 
+from canair.render import messages
 from canair.transport import keepalive
 from canair.uds.requests import session_request
 from canair.uds.response import UdsResponse
@@ -70,25 +71,26 @@ async def enter_extended_session(
     # some KWP2000 ECUs are not known to repeat it.
     resp = await terminal.send_uds(req, timeout=5.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL)
     if resp.get("ok"):
-        print(f"  Session (10 {mode}) established.")
+        print(f"  Session (10 {mode}) established.", file=sys.stderr)
     elif resp.get("nrc") is not None:
         _report_nrc(
             "Session request",
             resp,
-            "Continuing anyway -- some ECUs may not need extended session.",
+            "continuing anyway — some ECUs may not need an extended session",
         )
     else:
         error = resp.get("error", "unknown")
-        print(f"  Session request failed: {error} — retrying in 0.5s...")
+        print(f"  Session request failed: {error} — retrying in 0.5s…", file=sys.stderr)
         await asyncio.sleep(0.5)
         resp = await terminal.send_uds(req, timeout=5.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL)
         if resp.get("ok"):
-            print(f"  Session (10 {mode}) established (on retry).")
+            print(f"  Session (10 {mode}) established (on retry).", file=sys.stderr)
         elif resp.get("nrc") is not None:
-            _report_nrc("Session retry", resp, "Continuing anyway.")
+            _report_nrc("Session retry", resp, "continuing anyway")
         else:
-            print(f"  WARNING: Session retry also failed: {resp.get('error', 'unknown')}")
-            print("  Continuing anyway.")
+            messages.warning(
+                f"session retry also failed: {resp.get('error', 'unknown')} — continuing anyway"
+            )
 
     task = asyncio.create_task(_tester_present_loop(terminal))
     return resp.get("ok", False), task
@@ -106,7 +108,7 @@ async def _wake(terminal: Elm327Terminal) -> None:
             DEFAULT_SESSION_REQUEST, timeout=3.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
         )
     if wake_resp.get("ok"):
-        print("  Wake-up: ECU responded.")
+        print("  Wake-up: ECU responded.", file=sys.stderr)
     await terminal.send_command(terminal.elm_timeout_cmd)  # restore
 
 
@@ -116,8 +118,7 @@ def _report_nrc(what: str, resp: UdsResponse, note: str) -> None:
     Not every ECU needs an extended session, and several answer the request with
     an NRC while happily serving the reads that follow.
     """
-    print(f"  WARNING: {what} returned NRC 0x{resp['nrc']:02X} ({resp['nrc_desc']})")
-    print(f"  {note}")
+    messages.warning(f"{what} returned NRC 0x{resp['nrc']:02X} ({resp['nrc_desc']}) — {note}")
 
 
 async def _tester_present_loop(terminal: Elm327Terminal) -> None:

@@ -13,7 +13,7 @@ import sys
 from canair.analysis.align import (
     prepare_series,
 )
-from canair.render import ansi
+from canair.render import ansi, messages
 
 from .report import _best_anchor
 
@@ -34,15 +34,12 @@ def _run_can(args) -> int:
 
     path = Path(args.file)
     if not path.is_file():
-        print(f"investigate can: no such file: {path}", file=sys.stderr)
+        messages.error(f"no such file: {path}")
         return 1
     try:
         target_ids = frame_series.parse_id_filter(args.id)
         if target_ids is None or len(target_ids) != 1:
-            print(
-                f"investigate can: --id must be a single arbitration ID, got {args.id!r}",
-                file=sys.stderr,
-            )
+            messages.error(f"--id must be a single arbitration ID, got {args.id!r}")
             return 1
         # Build ALL varying series once (target + anchors share the single read).
         if args.bits:
@@ -50,17 +47,15 @@ def _run_can(args) -> int:
         else:
             all_series = frame_series.build_frame_series(path, args.can_format, min_distinct=4)
     except (ValueError, CanLogError) as e:
-        print(f"investigate can: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 1
 
     target_label = frame_series._id_label(next(iter(target_ids)))
     target = {n: s for n, s in all_series.items() if n.split(":", 1)[0] == target_label}
     anchors = {n: s for n, s in all_series.items() if n.split(":", 1)[0] != target_label}
     if not target:
-        print(
-            f"investigate can: {target_label} has no varying "
-            f"{'bits' if args.bits else 'bytes'} in {path.name}.",
-            file=sys.stderr,
+        messages.error(
+            f"{target_label} has no varying {'bits' if args.bits else 'bytes'} in {path.name}"
         )
         return 1
 
@@ -109,7 +104,7 @@ def _run_can(args) -> int:
             _label, r, n, m, c, unit = best
             rc = ansi.GREEN if abs(r) >= 0.7 else ansi.YELLOW
             fit = f" fit y={m:.4f}·x{c:+.2f}" if m is not None else ""
-            unit_s = f" {ansi.CYAN}{unit}{ansi.RESET}" if unit else ""
+            unit_s = f" {ansi.DIM}{unit}{ansi.RESET}" if unit else ""
             print(
                 f"    {ansi.BOLD}{name}{ansi.RESET}  {rc}r={r:+.3f}{ansi.RESET} vs {best.label} "
                 f"{ansi.DIM}n={n}{fit}{ansi.RESET}{unit_s}"

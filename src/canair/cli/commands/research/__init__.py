@@ -56,7 +56,7 @@ from pathlib import Path
 
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.ecus.pids import load_pids
-from canair.render import ansi
+from canair.render import ansi, messages
 from canair.states import allowed_states, state_matcher, unknown_state_tokens
 
 NAME = "research"
@@ -78,13 +78,13 @@ _STATUS_RANK = {"pending": 0, "nrc": 1, "captured": 2, "done": 3}
 # a dict evaluated at import time would freeze the decision the process started
 # with and misgate every subsequent print. Callers use ``_prio_color(prio)``.
 def _prio_color(prio: str) -> str:
-    return {"P1": ansi.RED, "P2": ansi.YELLOW, "P3": ansi.DIM}.get(prio, ansi.DIM)
+    return {"P1": ansi.BOLD, "P2": ansi.YELLOW, "P3": ansi.DIM}.get(prio, ansi.DIM)
 
 
 def _status_color(status: str) -> str:
     return {
         "pending": ansi.YELLOW,
-        "captured": ansi.CYAN,
+        "captured": "",
         "nrc": ansi.DIM,
         "done": ansi.GREEN,
     }.get(status, "")
@@ -261,10 +261,7 @@ def cmd_list(records: list[dict], hidden_done: int = 0, verbose: bool = False) -
         status_str = f"{_status_color(status)}{status:<8}{ansi.RESET}"
 
         # Aligned, scannable header row; target (variable width) ends the line.
-        print(
-            f"  {prio_str} {status_str} {rtype:<14} {ansi.CYAN}{ecu:<11}{ansi.RESET} "
-            f"{ansi.BOLD}{target}{ansi.RESET}"
-        )
+        print(f"  {prio_str} {status_str} {rtype:<14} {ansi.CYAN}{ecu:<11}{ansi.RESET} {target}")
 
         # Dim meta line: where it can be tested + when it was last touched.
         meta = []
@@ -362,7 +359,7 @@ def run(args) -> int:
         return run_gaps(args)
     records = load_research(args.dir)
     if not records:
-        print("  No research entries found in ecus/.")
+        messages.error("no research entries found in ecus/")
         return 1
 
     # Friendly (non-fatal) note when filtering on a state outside the profile's
@@ -370,10 +367,9 @@ def run(args) -> int:
     if args.state:
         unknown = unknown_state_tokens(args.state)
         if unknown:
-            print(
-                f"  note: {', '.join(unknown)} not in this profile's state vocabulary "
-                f"({', '.join(sorted(allowed_states()))}).",
-                file=sys.stderr,
+            messages.note(
+                f"{', '.join(unknown)} not in this profile's state vocabulary "
+                f"({', '.join(sorted(allowed_states()))})"
             )
 
     filtered = filter_records(
@@ -420,10 +416,7 @@ def run_gaps(args) -> int:
         if value
     ]
     if clashing:
-        print(
-            f"error: --gaps lists derived work, which {', '.join(clashing)} cannot filter",
-            file=sys.stderr,
-        )
+        messages.error(f"--gaps lists derived work, which {', '.join(clashing)} cannot filter")
         return 2
 
     ecus = load_pids(args.dir).get("ecus", {}) or {}
@@ -453,9 +446,9 @@ def run_gaps(args) -> int:
         n = len(g["iocontrol_dids"])
         tracked = f"  {ansi.DIM}(planned in research:){ansi.RESET}" if g["tracked"] else ""
         print(
-            f"  {ansi.CYAN}{g['ecu']:<11}{ansi.RESET} {ansi.BOLD}{g['family']}{ansi.RESET}  "
+            f"  {ansi.CYAN}{g['ecu']:<11}{ansi.RESET} {ansi.CYAN}{g['family']}{ansi.RESET}  "
             f"{n} actuator DID(s) {g['iocontrol_span']}{tracked}"
         )
-        print(f"       {ansi.DIM}→ {g['command']}{ansi.RESET}")
+        print(f"       {ansi.DIM}→{ansi.RESET} {ansi.CYAN}{g['command']}{ansi.RESET}")
     print()
     return 0

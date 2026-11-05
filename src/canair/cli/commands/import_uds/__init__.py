@@ -44,12 +44,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from datetime import datetime
 from pathlib import Path
 
 from canair.captures.types import CaptureRecord
-from canair.render import ansi
+from canair.render import ansi, glyphs, messages
 
 
 def _parse_spec(spec: str) -> tuple[str, str, str]:
@@ -105,7 +104,7 @@ def run(args) -> int:
         else None
     )
     if problem:
-        print(f"{ansi.RED}error: {problem}{ansi.RESET}", file=sys.stderr)
+        messages.error(problem)
         return 2
 
     from canair.profile import active
@@ -125,7 +124,7 @@ def run(args) -> int:
         try:
             capture, warns = _build_capture(spec, name_index)
         except ValueError as e:
-            print(f"{ansi.RED}error: {e}{ansi.RESET}", file=sys.stderr)
+            messages.error(str(e))
             return 2
         # A payload capture must always be timestamped, or it is silently excluded
         # from every time-aligned analysis (and from the long-horizon counter
@@ -148,7 +147,7 @@ def run(args) -> int:
     )
 
     for w in warnings:
-        print(f"{ansi.YELLOW}  warning: {w}{ansi.RESET}", file=sys.stderr)
+        messages.warning(w)
 
     fpath = save_session(session, args.dir)
 
@@ -157,7 +156,8 @@ def run(args) -> int:
     else:
         for c in captures:
             print(
-                f"{ansi.GREEN}  ✓ {c['rx']} {c['pid']}{ansi.RESET}  {ansi.DIM}{c['payload']}{ansi.RESET}"
+                f"{ansi.GREEN}  {glyphs.OK} {c['rx']} {ansi.CYAN}{c['pid']}{ansi.RESET}  "
+                f"{ansi.DIM}{c['payload']}{ansi.RESET}"
             )
     return 0
 

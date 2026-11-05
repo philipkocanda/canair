@@ -1,4 +1,4 @@
-  No captures matched selector 'GAMMA:22F009'
+  ⚠ No captures matched selector 'GAMMA:22F009'
   Available ECUs: ALPHA, BETA
 
   ALPHA:22F001 GAMMA:22F009 — latest 2 of 24 captures

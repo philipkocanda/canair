@@ -47,10 +47,10 @@ ECUs require for service ``0x30``.
 from __future__ import annotations
 
 import dataclasses
-import sys
 from typing import NamedTuple
 
 from canair.live.discovery_scan import DiscoveryProbe, mode_discovery_scan
+from canair.render import messages
 from canair.safety.quirks import NISSAN_C0_SESSION, has_quirk
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import (
@@ -191,7 +191,7 @@ def _write_hit(ecu_name: str, hit: KwpIOControlHit) -> None:
         # KWP local identifiers are a single byte → 2-hex-digit keys.
         append_iocontrol_discoveries_block(ecu_name, [hit], key_width=2)
     except Exception as exc:
-        print(f"  [{ecu_name}] ERROR writing YAML: {exc}", file=sys.stderr)
+        messages.error(f"[{ecu_name}] writing YAML failed: {exc}")
 
 
 KWP_IOCONTROL_PROBE = DiscoveryProbe(
@@ -259,10 +259,9 @@ async def mode_kwp_iocontrol_scan(
         session = True
         session_mode = session_mode or NISSAN_SESSION_MODE
     elif not confirmed:
-        print(
-            f"  Refusing the KWP2000 IOControl scan: {UNPROVEN_WARNING} Re-run with --yes "
-            "to accept that.",
-            file=sys.stderr,
+        messages.error(
+            f"refusing the KWP2000 IOControl scan: {UNPROVEN_WARNING} Re-run with --yes "
+            "to accept that."
         )
         return {}
     return await mode_discovery_scan(

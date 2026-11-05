@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import Any, TextIO
 
 from canair.captures.metadata import resolve_metadata
-from canair.render import ansi
+from canair.render import ansi, messages
 from canair.render.paint import GAP, INDENT, Cell, Painter, column_widths, render_row
 from canair.transport.functional import DEFAULT_WINDOW_S
 from canair.transport.protocol import Terminal
@@ -102,10 +102,9 @@ def _print_round(sweep: SweepRound, total: int, out: TextIO) -> None:
     if sweep.lost or sweep.notes:
         print(file=out)
     if sweep.lost:
-        lost = paint("Lost:", ansi.raw.YELLOW)
-        print(f"  {lost} {sweep.lost} reply/replies missing frames (not shown)", file=out)
+        messages.warning(f"{sweep.lost} reply/replies missing frames (not shown)")
     for note in sweep.notes:
-        print(f"  {paint('Note:', ansi.raw.YELLOW)} {note}", file=out)
+        messages.note(note)
 
 
 def _print_summary(rounds: list[SweepRound], out: TextIO) -> None:
@@ -211,7 +210,9 @@ async def mode_discover_functional(
     from .discover import _offer_identify, _register_discovered
 
     if register:
-        _register_discovered(list(alive.values()), dry_run=dry_run, via=f"functional {request}")
+        _register_discovered(
+            list(alive.values()), dry_run=dry_run, via=f"functional {request}", out=out
+        )
     await _offer_identify(terminal, list(alive.values()), identify, as_json)
     print(file=out)
     return rounds

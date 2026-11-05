@@ -323,7 +323,7 @@ class TestFieldEvents:
         args = type("A", (), {"field": "NOPE", "json": False})()
         render.print_events("HVAC", "220100", LP(), {}, {}, args, {})
         err = capsys.readouterr().err
-        assert "no parameter" in err
+        assert "error: no signal 'NOPE'" in err
 
 
 class TestIndependenceScore:

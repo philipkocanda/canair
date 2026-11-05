@@ -11,6 +11,7 @@ import re
 
 from canair.ecus.pids import build_param_index
 from canair.query.steps import _query_selectors, resolve_tx_id
+from canair.render import messages
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import SessionManager
 from canair.uds.parse import parse_uds_response
@@ -50,7 +51,7 @@ async def _multi_repl(
     print("  session <ECU>    Open extended session on ECU")
     print("  sessions         List active sessions")
     print("  skm [level]      SKM wakeup")
-    print("  query <ECU> [PID ...]  Query ECU parameters")
+    print("  query <ECU> [PID ...]  Query ECU signals")
     print("  raw <TX:PID>     Raw UDS request")
     print("  quit / Ctrl+C    Exit REPL")
     print("  (! prefix optional: !query = query)")
@@ -91,7 +92,7 @@ async def _multi_repl(
                 t.cancel()
 
             if repl_quit.is_set():
-                print("\nExiting REPL...")
+                print("\nExiting REPL…")
                 break
 
             if read_task in done:
@@ -100,7 +101,7 @@ async def _multi_repl(
                 break
 
             if not line:  # EOF
-                print("\nExiting REPL...")
+                print("\nExiting REPL…")
                 break
 
             cmd = line.decode("utf-8", errors="replace").strip()
@@ -130,7 +131,7 @@ async def _multi_repl(
                 target = cmd.split()[1]
                 tx_id = resolve_tx_id(target, ecu_index)
                 if tx_id is None:
-                    print(f"  Unknown ECU: {target}")
+                    messages.error(f"unknown ECU: {target}")
                 else:
                     sm.stop_background_keepalive()
                     await sm.open_session(tx_id)
@@ -142,9 +143,7 @@ async def _multi_repl(
                 parts = cmd.split()
                 level = parts[1] if len(parts) > 1 else "acc"
                 if not isinstance(terminal, Elm327Terminal):
-                    print(
-                        "  skm is only supported on the ELM327 transports (wican-ws / elm327-tcp)."
-                    )
+                    messages.error("skm needs an ELM327 transport (wican-ws / elm327-tcp).")
                     continue
                 sm.stop_background_keepalive()
                 await mode_skm_wakeup(terminal, level, verbose)
@@ -158,7 +157,7 @@ async def _multi_repl(
                 try:
                     selectors = _query_selectors(parts[1:])
                 except ValueError as ex:
-                    print(f"  Invalid query: {ex}")
+                    messages.error(f"invalid query: {ex}")
                     continue
                 sm.stop_background_keepalive()
                 for ecu, pids in selectors:
@@ -202,10 +201,8 @@ async def _multi_repl(
                         nrc = response["nrc"]
                         desc = response.get("nrc_desc", "unknown")
                         print(f"  [NRC] 0x{nrc:02X} ({desc})")
-            except ValueError as e:
-                print(f"  !! {e}")
             except Exception as e:
-                print(f"  Error: {e}")
+                messages.error(str(e))
 
             sm.start_background_keepalive(interval=2.0)
 

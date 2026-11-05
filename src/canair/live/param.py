@@ -5,6 +5,7 @@ import json
 from canair.ecus.pids import build_param_index
 from canair.expression.decoding import decode_param_rows
 from canair.privacy.sensitive import mask_rows
+from canair.render import messages
 from canair.render.formatting import print_decoded_params
 from canair.transport.session_manager import SessionManager
 from canair.uds.echo import request_echo
@@ -46,13 +47,15 @@ async def mode_param(
     param_index = build_param_index(pids_data)
 
     groups: dict[tuple[int, str], list[dict]] = {}
+    unknown = False
     for name in param_names:
         key = name.upper()
         if key not in param_index:
-            print(f"  Unknown parameter: {name}")
+            unknown = True
+            messages.error(f"unknown signal: {name}")
             matches = [k for k in param_index if key in k]
             if matches:
-                print(f"  Did you mean: {', '.join(matches[:5])}")
+                messages.hint(f"did you mean: {', '.join(matches[:5])}")
             continue
         info = param_index[key]
         group_key = (info["tx_id"], info["pid"])
@@ -61,7 +64,9 @@ async def mode_param(
         groups[group_key].append({**info, "name": key})
 
     if not groups:
-        return
+        if as_json:
+            print("[]")
+        raise SystemExit(1)
 
     all_results = []
     # One session per ECU, each kept alive on its own header. The terminal's own
@@ -111,7 +116,7 @@ async def mode_param(
         json_out = []
         for row in all_results:
             name, value, unit, _expr, error = row[:5]
-            entry = {"name": name, "value": value, "unit": unit}
+            entry = {"name": name, "value": value, "unit": unit, "verified": bool(row[5])}
             if error:
                 entry["error"] = error
             json_out.append(entry)
@@ -120,3 +125,5 @@ async def mode_param(
         print()
         print_decoded_params(all_results, verbose=verbose)
         print()
+    if unknown:
+        raise SystemExit(1)

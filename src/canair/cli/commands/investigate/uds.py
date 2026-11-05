@@ -25,6 +25,8 @@ from canair.analysis.xanalysis import (
 from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.join import fill_policy_from_args, fill_summaries, fill_summary_line
 from canair.cli.args.scope import resolve_scope_bounds
+from canair.cli.commands._analysis_warning import warn_analysis
+from canair.render import messages
 from canair.uds.byteindex import mapped_bits, mapped_offsets
 
 from .counters import run_counters
@@ -45,7 +47,7 @@ NAME = "investigate"
 def run(args) -> int:
     since, until, err = resolve_scope_bounds(args)
     if err:
-        print(f"error: {err}", file=sys.stderr)
+        messages.error(f"{err}")
         return 2
 
     views = [
@@ -58,7 +60,7 @@ def run(args) -> int:
         if on
     ]
     if len(views) > 1:
-        print(f"error: {' and '.join(views)} are separate views; pick one", file=sys.stderr)
+        messages.error(f"{' and '.join(views)} are separate views; pick one")
         return 2
 
     fill = fill_policy_from_args(args)
@@ -124,16 +126,15 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
     )
     lp = loaded[(ecu.upper(), pid)]
     if not lp.captures:
-        print(
-            f"No timed captures for {ecu} {pid} in scope"
-            + (f" ({lp.n_no_time} untimed skipped)." if lp.n_no_time else "."),
-            file=sys.stderr,
+        messages.error(
+            f"no timed captures for {ecu} {pid} in scope"
+            + (f" ({lp.n_no_time} untimed skipped)" if lp.n_no_time else "")
         )
         return 1
 
     forced = forced_hold_warning(lp.captures, fill)
     if forced:
-        print(f"investigate: {forced}", file=sys.stderr)
+        warn_analysis(forced)
 
     # Target byte series (min_distinct=2 so near-binary relay bytes count).
     target = build_byte_series(lp, min_distinct=2, fill=fill)
@@ -180,10 +181,7 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
     driver_series = None
     driver_label = None
     if args.independent_of and args.independent_of_file:
-        print(
-            "error: --independent-of and --independent-of-file are mutually exclusive",
-            file=sys.stderr,
-        )
+        messages.error("--independent-of and --independent-of-file are mutually exclusive")
         return 2
     if args.independent_of or args.independent_of_file:
         from canair.analysis.xanalysis import load_ref
@@ -204,7 +202,7 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
                 )
         except ValueError as e:
             flag = "--independent-of-file" if args.independent_of_file else "--independent-of"
-            print(f"{flag} error: {e}", file=sys.stderr)
+            messages.error(f"{flag}: {e}")
             return 1
 
     # Anchor signals: every param on the OTHER co-polled ECU/PIDs in scope.

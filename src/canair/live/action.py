@@ -10,8 +10,8 @@ The order is the safety argument, so it is fixed here:
    condition evaluated on them. Only TRUE passes: FALSE refuses, and UNKNOWN (a
    signal that did not read) refuses after one re-read, which covers an ECU that
    was still waking up.
-3. **Confirm**, unless ``--yes``. Without a terminal to ask on, ``--yes`` is
-   required.
+3. **Confirm**, unless ``--yes``: the action's name is typed. Without a terminal to
+   ask on, ``--yes`` is required (exit 2); a wrong answer ends the run (exit 1).
 4. **Check again** with fresh reads, so a verdict from before a long pause at the
    prompt is never the one the requests go out on.
 5. **Send**, with the grants active only for these requests, then restore the
@@ -28,6 +28,7 @@ from typing import Any
 
 from canair.actions import Action, ActionError
 from canair.actions.plan import PlannedRequest, action_policy, plan_requests
+from canair.core.prompt import typed_confirm
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 from canair.transport.protocol import Terminal
 
@@ -89,21 +90,10 @@ def _format_verdict(verdict: Verdict) -> list[str]:
     return lines
 
 
-def _confirm(action: Action, yes: bool, out) -> None:
-    if yes:
-        return
-    if not sys.stdin.isatty():
-        raise SafetyBlocked(
-            f"action {action.name!r} changes the car's state; re-run with --yes to confirm "
-            "(no terminal to ask on)"
-        )
-    print(f"\n  Type '{action.name}' to send, anything else to cancel: ", end="", file=out)
-    try:
-        answer = input()
-    except (EOFError, KeyboardInterrupt):
-        answer = ""
-    if answer.strip().lower() != action.name:
-        raise SafetyBlocked(f"action {action.name!r} cancelled")
+def _confirm(action: Action, yes: bool) -> None:
+    """Ask for the action's name; a decline ends the run (exit 1), no terminal is exit 2."""
+    if not typed_confirm(f"Send action {action.name!r} to the car?", action.name, yes=yes):
+        raise SystemExit(1)
 
 
 async def _send(terminal: Terminal, planned: list[PlannedRequest], policy: SessionPolicy):
@@ -189,7 +179,7 @@ async def mode_action(
     if dry_run:
         print("  Dry run: condition met, nothing sent.", file=out)
     else:
-        _confirm(action, yes, out)
+        _confirm(action, yes)
         verdict = await read_verdict(sm, action, pids_data, verbose)
         if not verdict.passed:
             for line in _format_verdict(verdict):

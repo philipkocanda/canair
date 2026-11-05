@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 from canair.uds.nrc import NRC_REQUEST_OUT_OF_RANGE
 from canair.uds.protocol import KWP, UDS
 from canair.uds.services import KWP_READ_DTC_BY_STATUS, READ_DTC_INFORMATION
@@ -83,6 +85,7 @@ async def _read_uds(
         if verbose:
             print(
                 f"  mask 0x{mask & 0xFF:02X} rejected (0x31); retrying with 0x{_MASK_FALLBACK:02X}",
+                file=sys.stderr,
                 flush=True,
             )
         cmd = f"1902{_MASK_FALLBACK:02X}"

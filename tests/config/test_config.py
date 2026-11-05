@@ -207,7 +207,7 @@ class TestConfigCommand:
         capsys.readouterr()
         rc = config_cmd._cmd_set(argparse.Namespace(key="default_wican", value="vpn", string=False))
         assert rc == 0
-        assert "default_wican: 'home' -> 'vpn'" in capsys.readouterr().out
+        assert "default_wican: 'home' → 'vpn'" in capsys.readouterr().out
 
     def test_set_already_set_is_unchanged(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from canair.render import ansi
+from canair.render import messages
 from canair.uds.protocol import KWP, UDS
 
 from ...dtc.refs import ecu_ref
@@ -29,16 +29,15 @@ def _report_read(as_json: bool, result: dict, verbose: bool = False) -> None:
         print(f"  ✗ NRC {result['nrc']}: {result['nrc_desc']}\n")
         return
     if "error" in result:
-        print(f"  ✗ Error: {result['error']}")
+        messages.error(result["error"])
         if "NO DATA" in result["error"] or "No response" in result["error"]:
-            print("  ECU may be asleep or unpowered — try --session/--wake.")
-        print()
+            messages.hint("the ECU may be asleep or unpowered — try --session/--wake")
         return
 
     if result.get("status_availability_mask") is not None:
         print(f"  Status availability mask: {result['status_availability_mask']}")
     if result.get("note"):
-        print(f"  {ansi.YELLOW}Note:{ansi.RESET} {result['note']}")
+        messages.note(result["note"])
     dtcs = result["dtcs"]
     supported = result.get("supported")
     if not dtcs:

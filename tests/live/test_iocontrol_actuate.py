@@ -621,11 +621,11 @@ class TestTuiProtocol:
 
 
 class TestListJson:
-    def test_unknown_ecu_is_a_json_error(self, capsys):
-        import json
-
-        from canair.live.iocontrol import mode_iocontrol_list
+    def test_unknown_ecu_is_an_error_on_stderr_and_nothing_on_stdout(self, capsys):
+        from canair.live.iocontrol_list import mode_iocontrol_list
 
         assert mode_iocontrol_list(TestTuiProtocol.KWP_DATA, "NOPE", as_json=True) is False
-        out = json.loads(capsys.readouterr().out)
-        assert out == {"error": "no IOControl DIDs for ECU: NOPE", "available": ["BCM"]}
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "error: no IOControl DIDs for ECU: NOPE" in captured.err
+        assert "hint: ECUs with IOControl: BCM" in captured.err

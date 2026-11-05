@@ -25,7 +25,8 @@ from canair.captures.link_events import (
     summarize,
 )
 from canair.captures.types import CaptureEntry, Quality
-from canair.render import ansi
+from canair.core.terminal import terminal_columns, truncate_text
+from canair.render import ansi, glyphs
 from canair.states import join_states as _join_states
 from canair.states.spans import parse_time_key
 
@@ -106,9 +107,8 @@ def _quality_tag(quality: Quality | None) -> str:
     """A colored one-liner flagging a session's recorded drops/errors, or ''.
 
     Clean sessions (no drops/errors) return an empty string so the TOC stays
-    uncluttered; only a session that recorded transport trouble gets a line —
-    drops in red (the ISO-TP integrity signal), other errors in yellow, with the
-    exchange total for context.
+    uncluttered; only a session that recorded transport trouble gets a line, in
+    yellow, with the exchange total for context.
     """
     if not quality:
         return ""
@@ -116,14 +116,14 @@ def _quality_tag(quality: Quality | None) -> str:
     errs = sum(quality.get(k, 0) or 0 for k in ("no_data", "bus", "decode", "other"))
     parts: list[str] = []
     if drops:
-        parts.append(f"{ansi.RED}drops {drops}{ansi.RESET}")
+        parts.append(f"drops {drops}")
     if errs:
-        parts.append(f"{ansi.YELLOW}errors {errs}{ansi.RESET}")
+        parts.append(f"errors {errs}")
     if not parts:
         return ""
     ex = quality.get("exchanges")
     ex_txt = f" {ansi.DIM}/ {ex} exchanges{ansi.RESET}" if ex else ""
-    return f"{ansi.DIM}⚠ quality:{ansi.RESET} " + " ".join(parts) + ex_txt
+    return f"{ansi.YELLOW}{glyphs.WARN} quality: {' '.join(parts)}{ansi.RESET}" + ex_txt
 
 
 def _plural(n: int, word: str) -> str:
@@ -170,7 +170,9 @@ def _gaps_tag(
         parts.append(_plural(s.count, "resync"))
     if not parts:
         return ""
-    return f"{ansi.DIM}⚠ gaps:{ansi.RESET} " + f"{ansi.DIM} · {ansi.RESET}".join(parts)
+    return f"{ansi.YELLOW}{glyphs.WARN} gaps:{ansi.RESET} " + f"{ansi.DIM} · {ansi.RESET}".join(
+        parts
+    )
 
 
 def _inferred(session: SessionGroup) -> list[tuple[float, float]]:
@@ -184,7 +186,8 @@ def _inferred_tag(gaps: Sequence[tuple[float, float]]) -> str:
     total = format_hold_duration(sum(b - a for a, b in gaps))
     longest = max(gaps, key=lambda g: g[1] - g[0])
     return (
-        f"{ansi.DIM}⚠ inferred gaps: {len(gaps)} ({total}), longest "
+        f"{ansi.YELLOW}{glyphs.WARN} inferred gaps:{ansi.RESET} "
+        f"{ansi.DIM}{len(gaps)} ({total}), longest "
         f"{format_key(longest[0])}-{format_key(longest[1])} — nothing stored, not "
         f"recorded as a link event{ansi.RESET}"
     )
@@ -270,7 +273,7 @@ def cmd_sessions(
             print(f"    {ansi.DIM}{_clean(s['notes'])}{ansi.RESET}")
         ecus = ", ".join(s["ecus"]) or "—"
         keep = s.get("keep_mode")
-        keep_tag = f" · {ansi.CYAN}keep:{keep}{ansi.RESET}{ansi.DIM}" if keep else ""
+        keep_tag = f" · keep:{keep}" if keep else ""
         transport = s.get("transport")
         transport_tag = f" · {transport}" if transport else ""
         version = s.get("version")
@@ -300,8 +303,8 @@ def cmd_sessions(
         # Distinct capture-level notes (RE annotations) — the other place notes live.
         for cn in s["cap_notes"][:max_notes]:
             clean = _clean(cn)
-            trunc = clean if len(clean) <= 100 else clean[:97] + "..."
-            print(f"      {ansi.DIM}▸ {trunc}{ansi.RESET}")
+            trunc = truncate_text(clean, max(40, terminal_columns() - len("      note: ")))
+            print(f"      {ansi.DIM}note: {trunc}{ansi.RESET}")
         if len(s["cap_notes"]) > max_notes:
             print(
                 f"      {ansi.DIM}… +{len(s['cap_notes']) - max_notes} more capture-notes{ansi.RESET}"

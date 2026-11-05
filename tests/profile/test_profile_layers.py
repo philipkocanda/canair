@@ -261,7 +261,7 @@ class TestOverlayCommand:
         assert not (dest / "ecus").exists()
         assert not (dest / "captures" / "2026-01-01.json").exists()
         out = capsys.readouterr().out
-        assert "Layered 'ev6'" in out
+        assert "layered 'ev6'" in out
         assert str(base) in out
         assert str(dest) in out
 

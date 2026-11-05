@@ -59,7 +59,7 @@ def save_snapshot_captures(
 
 
 def report_saved(terminal, results, label, vehicle_states, notes, as_json: bool) -> None:
-    """Save the snapshot replies in ``results`` and say where they landed (stderr with --json)."""
+    """Save the snapshot replies in ``results`` and say where they landed (on stderr)."""
     import sys
 
     from canair.transport.stats import client_transport
@@ -72,4 +72,4 @@ def report_saved(terminal, results, label, vehicle_states, notes, as_json: bool)
         transport=client_transport(terminal),
     )
     if path is None:
-        print("  --save: no snapshot replies to save.", file=sys.stderr if as_json else sys.stdout)
+        print("  --save: no snapshot replies to save.", file=sys.stderr)

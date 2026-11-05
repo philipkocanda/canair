@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import io
-import json
 from types import SimpleNamespace
 
 import pytest
 
+from canair.core.prompt import PromptUnavailable
 from canair.ecus.pids import normalize_session_mode
 from canair.live import kwp_iocontrol_scan, kwp_routines_scan
 from canair.live.sessions_scan import mode_sessions_scan
@@ -108,8 +108,15 @@ def test_kwp_wrong_session_nrc_escalates_lazily_on_a_non_nissan_profile():
     assert term.sent == ["300700", "300700"]
 
 
+class _Tty(io.StringIO):
+    """A stdin that is a terminal and answers with ``text``."""
+
+    def isatty(self) -> bool:
+        return True
+
+
 class TestIOControlScanDispatch:
-    def _run(self, monkeypatch, *, yes, stdin, quirks=("skm_wakeup",)):
+    def _run(self, monkeypatch, *, yes, stdin, quirks=("skm_wakeup",), tty=True):
         from canair.cli.live.handlers import scans
 
         calls: list[dict] = []
@@ -120,18 +127,23 @@ class TestIOControlScanDispatch:
 
         monkeypatch.setattr(scans, "split_ecus_by_protocol", lambda names: ([], ["BMS"]))
         monkeypatch.setattr(kwp_iocontrol_scan, "mode_kwp_iocontrol_scan", _kwp)
-        monkeypatch.setattr("sys.stdin", io.StringIO(stdin))
+        monkeypatch.setattr("sys.stdin", (_Tty if tty else io.StringIO)(stdin))
         args = SimpleNamespace(
             iocontrol_scan=["BMS"], did_range=None, throttle_ms=0, verbose=False, yes=yes
         )
         asyncio.run(scans.handle_iocontrol_scan(args, FakeTerminal(), _data(list(quirks)), "h"))  # type: ignore[arg-type]
         return calls
 
-    def test_declined_prompt_sends_nothing(self, monkeypatch):
-        assert self._run(monkeypatch, yes=False, stdin="n\n") == []
+    def test_declined_prompt_sends_nothing_and_exits_1(self, monkeypatch):
+        calls: list = []
+        with pytest.raises(SystemExit) as raised:
+            calls = self._run(monkeypatch, yes=False, stdin="n\n")
+        assert raised.value.code == 1
+        assert calls == []
 
     def test_non_interactive_without_yes_is_refused(self, monkeypatch):
-        assert self._run(monkeypatch, yes=False, stdin="") == []
+        with pytest.raises(PromptUnavailable, match="--yes"):
+            self._run(monkeypatch, yes=False, stdin="", tty=False)
 
     def test_accepted_prompt_confirms(self, monkeypatch):
         calls = self._run(monkeypatch, yes=False, stdin="y\n")
@@ -182,7 +194,7 @@ def test_other_profiles_need_no_confirmation():
 
 
 class TestRoutinesScanDispatch:
-    def _run(self, monkeypatch, *, yes, stdin):
+    def _run(self, monkeypatch, *, yes, stdin, tty=True):
         from canair.cli.live.handlers import scans
 
         calls: list[dict] = []
@@ -193,7 +205,7 @@ class TestRoutinesScanDispatch:
 
         monkeypatch.setattr(scans, "split_ecus_by_protocol", lambda names: ([], ["BCM"]))
         monkeypatch.setattr(kwp_routines_scan, "mode_kwp_routines_scan", _kwp)
-        monkeypatch.setattr("sys.stdin", io.StringIO(stdin))
+        monkeypatch.setattr("sys.stdin", (_Tty if tty else io.StringIO)(stdin))
         args = SimpleNamespace(
             routines_scan=["BCM"], rid_range="00-FF", throttle_ms=0, verbose=False, yes=yes
         )
@@ -202,11 +214,16 @@ class TestRoutinesScanDispatch:
         )  # type: ignore[arg-type]
         return calls
 
-    def test_declined_prompt_sends_nothing(self, monkeypatch):
-        assert self._run(monkeypatch, yes=False, stdin="n\n") == []
+    def test_declined_prompt_sends_nothing_and_exits_1(self, monkeypatch):
+        calls: list = []
+        with pytest.raises(SystemExit) as raised:
+            calls = self._run(monkeypatch, yes=False, stdin="n\n")
+        assert raised.value.code == 1
+        assert calls == []
 
     def test_non_interactive_without_yes_is_refused(self, monkeypatch):
-        assert self._run(monkeypatch, yes=False, stdin="") == []
+        with pytest.raises(PromptUnavailable, match="--yes"):
+            self._run(monkeypatch, yes=False, stdin="", tty=False)
 
     def test_accepted_prompt_confirms(self, monkeypatch):
         calls = self._run(monkeypatch, yes=False, stdin="y\n")
@@ -272,7 +289,7 @@ def test_build_iocontrol_index_reports_a_bad_session_mode_as_a_profile_error():
 
 
 @pytest.mark.parametrize("command", ["io", "routines"])
-def test_json_listing_of_an_unknown_ecu_is_a_json_error(command, monkeypatch, capsys):
+def test_json_listing_of_an_unknown_ecu_is_an_error_on_stderr(command, monkeypatch, capsys):
     from canair.cli.commands import io as io_cmd
     from canair.cli.commands import routines as routines_cmd
 
@@ -280,5 +297,6 @@ def test_json_listing_of_an_unknown_ecu_is_a_json_error(command, monkeypatch, ca
     mod = io_cmd if command == "io" else routines_cmd
     args = SimpleNamespace(json=True, did=None, rid=None, iocontrol="NOPE", routines="NOPE")
     assert mod.run(args) == 1
-    out = json.loads(capsys.readouterr().out)
-    assert "NOPE" in out["error"] and out["available"] == []
+    captured = capsys.readouterr()
+    assert captured.out == ""  # no half document on stdout
+    assert captured.err.startswith("error: ")

@@ -17,7 +17,8 @@ from pathlib import Path
 
 from canair.captures.entries import _capture_key
 from canair.captures.types import CaptureEntry
-from canair.render import ansi
+from canair.render import ansi, messages
+from canair.render.console import console as make_console
 from canair.tui.apps.captures_step_model import DEFAULT_STEP_JOIN_TOL_S, VIEW_AUTO, StepModel
 from canair.uds.notation import ByteNotation
 
@@ -136,19 +137,13 @@ def cmd_step(
 
 def _print_frames(model: StepModel, *, limit: int = 0) -> None:
     """Render the most recent frames to stdout (the non-interactive fallback)."""
-    from rich.console import Console
-
-    console = Console(highlight=False)
+    console = make_console()
     total = model.frame_count()
     start = max(total - limit, 0) if limit > 0 else 0
     model.cursor = False  # nothing to focus in a static render
-    print(f"  {ansi.DIM}(not a TTY — rendering frames statically){ansi.RESET}")
+    messages.note("not a terminal; rendering frames statically")
     for n in range(start, total):
         console.print(model.render(n), end="", soft_wrap=True)
     if start:
-        hidden = start
-        print(
-            f"\n  {ansi.YELLOW}{hidden} earlier frame(s) hidden{ansi.RESET} "
-            f"{ansi.DIM}— widen with --limit N (0 = all){ansi.RESET}"
-        )
+        messages.warning(f"{start} earlier frame(s) hidden; widen with --limit N (0 = all)")
     print(f"  {ansi.DIM}{model.status_line()}{ansi.RESET}")

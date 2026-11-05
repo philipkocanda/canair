@@ -7,8 +7,8 @@ read-only.
 
 from __future__ import annotations
 
-import sys
-
+from canair.core.prompt import confirm
+from canair.render import messages
 from canair.states import parse_states
 from canair.transport.protocol import Terminal
 from canair.uds.protocol import KWP
@@ -22,8 +22,7 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
         try:
             mask = int(str(args.mask).removeprefix("0x").removeprefix("0X"), 16)
         except ValueError:
-            print(f"Error: --mask must be hex (e.g. FF), got {args.mask!r}", file=sys.stderr)
-            sys.exit(1)
+            messages.fail(f"--mask must be hex (e.g. FF), got {args.mask!r}", code=2)
         await mode_dtc_scan_all(
             terminal,
             mask=mask,
@@ -43,31 +42,23 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
 
     tx_id = resolve_tx(args.dtc)
     if tx_id is None:
-        print(
-            f"Error: could not resolve ECU '{args.dtc}' "
-            "(use a name like BMS or a hex TX id like 7E4)",
-            file=sys.stderr,
+        messages.fail(
+            f"could not resolve ECU '{args.dtc}' (use a name like BMS or a hex TX id like 7E4)"
         )
-        sys.exit(1)
     if getattr(args, "clear", False):
         try:
             group = int(str(args.group).removeprefix("0x").removeprefix("0X"), 16)
         except ValueError:
-            print(f"Error: --group must be hex (e.g. FFFFFF), got {args.group!r}", file=sys.stderr)
-            sys.exit(1)
-        if not getattr(args, "yes", False):
-            from canair.ecus import ecu_display
+            messages.fail(f"--group must be hex (e.g. FFFFFF), got {args.group!r}", code=2)
+        from canair.ecus import ecu_display
 
-            print(
-                f"!! About to CLEAR DTCs on {ecu_display(tx_id)} "
-                f"(group 0x{group & 0xFFFFFF:06X}). This erases stored fault memory.",
-                file=sys.stderr,
-            )
-            print("!! Continue? [y/N] ", end="", flush=True, file=sys.stderr)
-            answer = sys.stdin.readline().strip().lower()
-            if answer not in ("y", "yes"):
-                print("Aborted.", file=sys.stderr)
-                return
+        messages.warning("clearing DTCs erases the stored fault memory")
+        if not confirm(
+            f"Clear DTCs on {ecu_display(tx_id)} (group 0x{group & 0xFFFFFF:06X})?",
+            yes=getattr(args, "yes", False),
+            danger=True,
+        ):
+            raise SystemExit(1)
         await mode_dtc_clear(
             terminal,
             tx_id,
@@ -86,16 +77,14 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
         try:
             mask = int(str(args.mask).removeprefix("0x").removeprefix("0X"), 16)
         except ValueError:
-            print(f"Error: --mask must be hex (e.g. FF), got {args.mask!r}", file=sys.stderr)
-            sys.exit(1)
+            messages.fail(f"--mask must be hex (e.g. FF), got {args.mask!r}", code=2)
         supported = getattr(args, "dtc_supported", False)
         if supported and resolve_protocol(args.protocol, tx_id) != KWP:
-            print(
-                f"Error: --supported needs a KWP2000 ECU, but {args.dtc} is not one "
+            messages.fail(
+                f"--supported needs a KWP2000 ECU, but {args.dtc} is not one "
                 "(see `canair ecu`; --protocol kwp forces it)",
-                file=sys.stderr,
+                code=2,
             )
-            sys.exit(1)
         await mode_dtc_read(
             terminal,
             tx_id,

@@ -17,11 +17,21 @@ import os
 import sys
 from collections.abc import Callable, Sequence
 
+from canair.render import ansi
+from canair.render.console import console
+from canair.render.glyphs import CURSOR
+from canair.tui import styles
+from canair.tui.keys import CANCEL_HINT, arrows_hint, hint, key_hint
+
 __all__ = [
     "key_to_action",
     "read_key_raw",
     "select_from_list",
 ]
+
+#: The footer of the picker. ``esc`` cancels it, like any dialog: it returns a value and
+#: exits, so it is not a screen to back out of.
+PICKER_FOOTER = hint(arrows_hint("select"), "accept", key_hint("quit"), CANCEL_HINT)
 
 
 def read_key_raw(fd: int) -> str:
@@ -45,9 +55,9 @@ def key_to_action(key: str) -> str:
         return "up"
     if key in ("\x1b[B", "\x1bOB", "j"):
         return "down"
-    if key in ("\x1b[H", "g"):
+    if key in ("\x1b[H", "\x1b[1~", "\x1bOH", "g"):
         return "home"
-    if key in ("\x1b[F", "G"):
+    if key in ("\x1b[F", "\x1b[4~", "\x1bOF", "G"):
         return "end"
     return ""
 
@@ -58,7 +68,7 @@ def select_from_list[T](
     title: str,
     render: Callable[[T], str],
     initial: int = 0,
-    footer: str = "↑/↓ move · enter select · q/esc cancel",
+    footer: str = PICKER_FOOTER,
 ) -> T | None:
     """Interactive arrow-key single-select over ``items``.
 
@@ -73,39 +83,42 @@ def select_from_list[T](
     import termios
     import tty
 
-    from rich.console import Console, Group
+    from rich.console import Group
     from rich.live import Live
     from rich.text import Text
 
     if not items:
         return None
 
-    console = Console()
+    out = console()
     cursor = max(0, min(initial, len(items) - 1))
 
     def _frame() -> Group:
-        rows: list[Text] = [Text(title, style="bold cyan"), Text()]
+        rows: list[Text] = [Text(title, style=styles.HEADING_NAME), Text()]
         for i, item in enumerate(items):
             selected = i == cursor
             # Parse the caller's Rich markup, then prefix a cursor marker and,
             # when selected, overlay a highlight across the whole row.
             line = Text.from_markup(render(item))
-            marker = Text("▶ " if selected else "  ", style="bold cyan" if selected else "")
+            marker = Text(
+                f"{CURSOR} " if selected else "  ",
+                style=styles.HEADING_NAME if selected else "",
+            )
             row = marker + line
             if selected:
-                row.stylize("bold")
+                row.stylize(styles.HEADING)
             rows.append(row)
         rows.append(Text())
-        rows.append(Text(footer, style="dim"))
+        rows.append(Text(footer, style=styles.MUTED))
         return Group(*rows)
 
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
-    sys.stdout.write("\033[?1049h\033[?25l")  # alt screen + hide cursor
+    sys.stdout.write(ansi.screen.ALT_SCREEN_ON + ansi.screen.HIDE_CURSOR)
     sys.stdout.flush()
     try:
         tty.setcbreak(fd)
-        with Live(_frame(), console=console, auto_refresh=False, screen=False) as live:
+        with Live(_frame(), console=out, auto_refresh=False, screen=False) as live:
             while True:
                 action = key_to_action(read_key_raw(fd))
                 if action == "select":
@@ -127,5 +140,5 @@ def select_from_list[T](
         return None
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        sys.stdout.write("\033[?25h\033[?1049l")  # show cursor, leave alt screen
+        sys.stdout.write(ansi.screen.SHOW_CURSOR + ansi.screen.ALT_SCREEN_OFF)
         sys.stdout.flush()

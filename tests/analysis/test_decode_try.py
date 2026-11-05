@@ -86,7 +86,7 @@ class TestValueRanges:
         views.print_value_ranges(
             _results(None, None), ["P"], {"P": {"unit": "", "verified": False}}, set()
         )
-        assert "ERROR: boom" in capsys.readouterr().out
+        assert "error: boom" in capsys.readouterr().out
 
     def test_candidate_marker(self, capsys):
         views.print_value_ranges(

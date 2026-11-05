@@ -115,7 +115,7 @@ def test_annotate_ecu_pid_overlay_shows_params(capsys):
     args = _parse(["-2", "-a", "62BC03FDEE3C7320010000", "--ecu", "IGPM", "--pid", "22BC03"])
     assert bix.run(args) == 0
     out = capsys.readouterr().out
-    assert "Param" in out  # overlay column present
+    assert "Signal" in out  # overlay column present
     assert "DOOR_DRV_OPEN" in out  # a mapped bit is named
     assert "support map" in out  # the PID's declared map bytes are named, not "unmapped"
 
@@ -164,20 +164,20 @@ class TestSupportCell:
 
 def test_annotate_ecu_requires_pid(capsys):
     args = _parse(["-2", "-a", "62BC03", "--ecu", "IGPM"])
-    assert bix.run(args) == 1
+    assert bix.run(args) == 2
     assert "--ecu requires --pid" in capsys.readouterr().err
 
 
 def test_annotate_pid_requires_ecu(capsys):
     args = _parse(["-2", "-a", "62BC03", "--pid", "22BC03"])
-    assert bix.run(args) == 1
+    assert bix.run(args) == 2
     assert "--pid requires --ecu" in capsys.readouterr().err
 
 
 def test_annotate_no_overlay_has_no_param_column(capsys):
     args = _parse(["-2", "-a", "6201A055"])
     assert bix.run(args) == 0
-    assert "Param" not in capsys.readouterr().out
+    assert "Signal" not in capsys.readouterr().out
 
 
 def test_annotate_groups_index_columns_before_the_value_columns(capsys):
@@ -293,8 +293,7 @@ def test_explicit_flag_contradicting_payload_warns(capsys):
     args = _parse(["-1", "-a", "62BC0300000000", "--ecu", "IGPM", "--pid", "22BC03"])
     assert bix.run(args) == 0
     err = capsys.readouterr().err
-    assert "⚠ WARNING" in err
-    assert "-1 contradicts the payload" in err
+    assert err.startswith("warning: -1 contradicts the payload")
     assert "0x62" in err and "ReadDataByIdentifier" in err
     assert "SID + DID" in err  # states the layout it is overriding
 
@@ -312,7 +311,7 @@ def test_explicit_flag_contradicting_pid_warns_without_a_known_sid(capsys):
 def test_explicit_flag_agreeing_with_pid_does_not_warn(capsys):
     args = _parse(["-2", "-a", "62BC0300000000", "--ecu", "IGPM", "--pid", "22BC03"])
     assert bix.run(args) == 0
-    assert "WARNING" not in capsys.readouterr().err
+    assert "warning:" not in capsys.readouterr().err
 
 
 def test_no_pid_still_defaults_to_one_byte_subfunction(capsys):
@@ -851,13 +850,13 @@ def test_annotate_raw_matches_reconstructed(capsys):
 
 def test_annotate_raw_flow_control_frame_errors(capsys):
     args = _parse(["--raw", "-a", "30000A"])
-    assert bix.run(args) == 1
+    assert bix.run(args) == 2
     assert "Flow-Control" in capsys.readouterr().err
 
 
 def test_raw_without_annotate_errors(capsys):
     args = _parse(["--raw"])
-    assert bix.run(args) == 1
+    assert bix.run(args) == 2
     assert "--raw only applies to --annotate" in capsys.readouterr().err
 
 
@@ -877,35 +876,33 @@ def test_annotate_warns_when_uds_payload_passed_with_raw(capsys):
     # 0x62 first byte is a UDS SID (0x40-0x7F), not a PCI byte, so warn + suggest
     # dropping --raw. (It also then errors because 0x62 isn't a valid frame type.)
     args = _parse(["-2", "--raw", "-a", "62B004740299"])
-    assert bix.run(args) == 1
+    assert bix.run(args) == 2
     err = capsys.readouterr().err
     assert "looks like a UDS response SID" in err
-    assert "drop --raw" in err
+    assert "drop `--raw`" in err
 
 
-def test_warning_is_emphasized_and_separated(capsys):
-    # The warning must stand out: a WARNING banner, a rule, and a blank line of
-    # separation before the table caption that follows on stdout.
+def test_warning_is_one_message_followed_by_a_blank_line(capsys):
+    # The warning prints as `warning: …` with its detail indented under it, then a blank line
+    # that separates it from the table caption that follows on stdout.
     args = _parse(["-2", "-a", "0662B004"])
     assert bix.run(args) == 0
-    captured = capsys.readouterr()
-    err = captured.err
-    assert "⚠ WARNING" in err  # emphasized banner
-    assert "─" * 20 in err  # horizontal rule under the banner
-    assert err.startswith("\n")  # blank line above sets it apart
-    assert err.endswith("\n\n")  # blank line below separates it from the table
+    err = capsys.readouterr().err
+    assert err.startswith("warning: first byte 0x06")
+    assert "\n  --annotate expects the reassembled UDS payload" in err
+    assert err.endswith("\n\n")
 
 
 def test_annotate_no_warning_for_wellformed_uds_payload(capsys):
     args = _parse(["-2", "-a", "62B004740299"])
     assert bix.run(args) == 0
-    assert "WARNING" not in capsys.readouterr().err
+    assert "warning:" not in capsys.readouterr().err
 
 
 def test_annotate_no_warning_for_wellformed_raw_frame(capsys):
     args = _parse(["-2", "--raw", "-a", "0662B004740299"])
     assert bix.run(args) == 0
-    assert "WARNING" not in capsys.readouterr().err
+    assert "warning:" not in capsys.readouterr().err
 
 
 def test_looks_like_predicates_are_disjoint():

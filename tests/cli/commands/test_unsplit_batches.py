@@ -403,7 +403,7 @@ def _temp_profile(tmp_path):
 def test_validate_then_repair_end_to_end(_temp_profile, capsys):
     """A soft warning in `validate captures`; `captures split-batched` clears it."""
     assert run_captures() == 0
-    assert "stored whole as 22BC01" in capsys.readouterr().out
+    assert "stored whole as 22BC01" in capsys.readouterr().err
 
     assert cmd_split_batched(None, dry_run=True) == 0
     assert "would split 2026-08-08.json [0].3 IGPM 22BC01" in capsys.readouterr().out
@@ -411,7 +411,7 @@ def test_validate_then_repair_end_to_end(_temp_profile, capsys):
     assert "Split 1 capture(s)." in capsys.readouterr().out
 
     assert run_captures() == 0
-    assert "stored whole" not in capsys.readouterr().out
+    assert "stored whole" not in capsys.readouterr().err
 
 
 class TestSplitBatchedCommand:
@@ -488,7 +488,7 @@ def test_validate_loads_the_corpus_once_for_both_cross_file_checks(
     monkeypatch.setattr(misfiled, "load_payload_corpus", unexpected)
     monkeypatch.setattr(unsplit, "load_payload_corpus", unexpected)
     assert run_captures() == 0
-    out = capsys.readouterr().out
+    out = capsys.readouterr().err
     assert len(loads) == 1
     at = "sessions[0].captures[3] (IGPM 22BC01 @ 10:07:16.000)"
     assert out.count(at) == 2

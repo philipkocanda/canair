@@ -600,7 +600,7 @@ class TestExecIocontrolPolarity:
         overrides = {"on": "300100", "off": "300111", "release": "", "protocol": "kwp"}
         sm = self._run(monkeypatch, off=False, cmd_overrides=overrides)
         sm.terminal.send_uds.assert_not_awaited()
-        assert "no release declared" in capsys.readouterr().out
+        assert "no release declared" in capsys.readouterr().err
 
     def test_a_kwp_on_with_a_declared_release_is_sent(self, monkeypatch):
         overrides = {"on": "300100", "off": "300111", "release": "300111", "protocol": "kwp"}

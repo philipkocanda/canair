@@ -30,7 +30,7 @@ from canair.captures.store import load_pid_captures
 from canair.cli.args.join import fill_policy_from_args
 from canair.cli.args.notation import resolve_notation
 from canair.expression.decoding import decode_payload, ordered_signal_names
-from canair.render import ansi
+from canair.render import ansi, messages
 from canair.uds.byteindex import payload_to_wican_bytes
 from canair.uds.notation import subfunction_bytes_for_pid
 
@@ -78,7 +78,7 @@ def _resolve_parameters(
         parameters = {k: v for k, v in parameters.items() if k.upper() in filter_names}
         missing = filter_names - {k.upper() for k in parameters}
         if missing:
-            print(f"Warning: parameters not found: {', '.join(sorted(missing))}")
+            messages.warning(f"signals not found: {', '.join(sorted(missing))}")
     if args.verified:
         parameters = {k: v for k, v in parameters.items() if v.get("verified", False)}
     if args.unverified:
@@ -144,10 +144,7 @@ def _resolve_corr_reference(args, parameters: dict, scope: dict, fill):
     from another ECU/PID and time-aligned; otherwise it is a local signal name
     paired by shared payload (so no join is needed).
 
-    ``error`` is ``None`` or ``(message, to_stderr)`` — the two failures were
-    reported on different streams before this was extracted, and that is
-    preserved deliberately rather than unified, so ``--help``/output stays
-    byte-identical.
+    ``error`` is ``None`` or the message to report.
     """
     if not args.corr:
         return None, None, None, None
@@ -157,12 +154,12 @@ def _resolve_corr_reference(args, parameters: dict, scope: dict, fill):
                 args.corr, scope=scope, tol_s=args.join_tol, fill=fill
             )
         except ValueError as e:
-            return None, None, None, (f"--corr error: {e}", True)
+            return None, None, None, f"--corr: {e}"
         return label, series, label, None
     ref = resolve_ref(args.corr, ordered_signal_names(parameters))
     if ref is None:
         msg = f"--corr reference '{args.corr}' not found. Available: {', '.join(parameters)}"
-        return None, None, None, (msg, False)
+        return None, None, None, msg
     return ref, None, None, None
 
 
@@ -253,7 +250,7 @@ def _print_header(args, ecu_key, pid_key, parameters, candidate_names, captures,
     n_verified = sum(1 for p in parameters.values() if p.get("verified", False))
     n_total = len(parameters)
     try_note = (
-        f", {ansi.CYAN}{len(candidate_names)} candidate (--try){ansi.RESET}"
+        f", {ansi.DIM}{len(candidate_names)} candidate (--try){ansi.RESET}"
         if candidate_names
         else ""
     )
@@ -295,14 +292,13 @@ def _print_discriminate_section(
                 all_results, args.discriminate, scope=scope, tol_s=args.join_tol, fill=fill
             )
         except ValueError as e:
-            print(f"--discriminate error: {e}", file=sys.stderr)
+            messages.error(f"--discriminate: {e}")
             return 1
         group_of = lambda r: axis_keys.get(id(r))  # noqa: E731
     elif args.discriminate != "state":
-        print(
+        messages.error(
             f"--discriminate: unknown axis {args.discriminate!r} — use 'state' or a "
-            "cross-signal ECU:PID:PARAM",
-            file=sys.stderr,
+            "cross-signal ECU:PID:PARAM"
         )
         return 1
     print_discriminate(
@@ -374,8 +370,7 @@ def decode_one(
         args, parameters, scope, fill
     )
     if cerr is not None:
-        msg, to_stderr = cerr
-        print(msg, file=sys.stderr if to_stderr else sys.stdout)
+        messages.error(cerr)
         return 1
 
     captures = scope_captures(load_pid_captures(ecu_key, pid_key), **scope)
@@ -494,8 +489,8 @@ def decode_one(
     if not printed:
         print_value_ranges(all_results, param_names, parameters, candidate_names)
         if sys.stdout.isatty():
-            print(
-                f"\n  {ansi.DIM}Tip: add --plot to interactively explore these signals "
-                f"(byte interpretations, transforms, correlations).{ansi.RESET}"
+            messages.hint(
+                "add --plot to interactively explore these signals "
+                "(byte interpretations, transforms, correlations)"
             )
     return 0

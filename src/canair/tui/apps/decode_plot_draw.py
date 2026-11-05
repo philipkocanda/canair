@@ -15,12 +15,11 @@ from __future__ import annotations
 from canair.analysis.stats import fmt_num as _fmt_num
 from canair.analysis.stats import mean as _mean
 from canair.render import ansi
+from canair.render.glyphs import ELLIPSIS, EMPTY, SEP
 from canair.states import join_states as _join_states
 from canair.uds.byteindex import extract_byte_indices, payload_to_wican_frame
 from canair.uds.inspect_bytes import norm01
 
-# Terminal colors — mirror decode's palette (see decode.format for the shared set;
-# these stay local because this module is a leaf the renderers must not depend on).
 _V_AXIS = "\u2502"  # box vertical
 _CORNER = "\u2514"  # box corner
 _HLINE = "\u2500"  # box horizontal
@@ -134,7 +133,7 @@ def _window(seq: list, xlo: float, xhi: float) -> tuple[list, int, int]:
 def _mapping_for_offset(
     defined_params: dict, offset: int, width: int, current_expr: str | None
 ) -> tuple[list, list]:
-    """Which defined parameters read the byte range ``[offset, offset+width)``.
+    """Which defined signals read the byte range ``[offset, offset+width)``.
 
     Returns ``(exact, overlap)`` lists of ``(name, expression, verified)``:
     ``exact`` matches the current interpretation's expression byte-for-byte;
@@ -195,7 +194,7 @@ def _view_time_range(caps: list[dict]) -> tuple[str, str]:
 def _cycle_overlay(overlay_ref: str | None, ov_cycle: list) -> str | None:
     """Advance the overlay reference to the next entry in ``ov_cycle`` (wraps).
 
-    ``ov_cycle`` is ``[None, param, param, …]``; returns ``overlay_ref`` unchanged
+    ``ov_cycle`` is ``[None, signal, signal, …]``; returns ``overlay_ref`` unchanged
     when there is nothing to cycle (only the ``None`` entry).
     """
     if len(ov_cycle) <= 1:
@@ -215,25 +214,27 @@ def _info_lines(
 ) -> list[str]:
     """Modal body: list the captures backing the current view (date/state/label/notes/file)."""
     out = [
-        f"{ansi.BOLD}{ecu_key} {pid_key}{ansi.RESET}  {ansi.DIM}·  captures in view{ansi.RESET}",
-        f"  {ansi.DIM}{len(caps_view)} capture(s)  ·  {ts_range or 'no timestamps'}  ·  "
-        f"i/Esc to close{ansi.RESET}",
+        f"{ansi.BOLD}{ecu_key} {pid_key}{ansi.RESET}  "
+        f"{ansi.DIM}{SEP}  captures in view{ansi.RESET}",
+        f"  {ansi.DIM}{len(caps_view)} capture(s)  {SEP}  "
+        f"{ts_range or 'no timestamps'}{ansi.RESET}",
         "",
     ]
     for n, cap in enumerate(caps_view[:max_rows]):
         state = _join_states(cap.get("vehicle_states"))
         label = cap.get("label", "")
         meta = "  ".join(x for x in [f"[{state}]" if state else "", label] if x)
+        stamp = f"{ansi.BOLD}{_cap_ts(cap) or '?':<20}{ansi.RESET}"
         out.append(
-            f"  {ansi.CYAN}{i0 + n:>4}{ansi.RESET}  {ansi.BOLD}{_cap_ts(cap) or '?':<20}{ansi.RESET}  "
-            f"{ansi.DIM}{cap.get('file', '')}{ansi.RESET}" + (f"  {meta}" if meta else "")
+            f"  {i0 + n:>4}  {stamp}  {ansi.DIM}{cap.get('file', '')}{ansi.RESET}"
+            + (f"  {meta}" if meta else "")
         )
         notes = (cap.get("notes", "") or "").replace("\n", " ").strip()
         if notes:
             out.append(f"        {ansi.DIM}{notes[:100]}{ansi.RESET}")
     if len(caps_view) > max_rows:
         out.append(
-            f"  {ansi.DIM}... and {len(caps_view) - max_rows} more — "
-            f"zoom in (+ or ,/.) to narrow the window{ansi.RESET}"
+            f"  {ansi.DIM}{ELLIPSIS} and {len(caps_view) - max_rows} more {EMPTY} "
+            f"zoom in to narrow the window{ansi.RESET}"
         )
     return out

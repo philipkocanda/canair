@@ -23,7 +23,11 @@ from canair.captures.state_inference import (
     infer_session_states,
 )
 from canair.captures.store import entry_path
+from canair.core.prompt import confirm
+from canair.render import messages
 from canair.states import parse_states
+
+from .echo import echo_write
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -93,13 +97,12 @@ def cmd_backfill_states(
     try:
         rules = load_states()
     except StatePredicateError as ex:
-        print(f"error: invalid vehicle_states.yaml predicate: {ex}", file=sys.stderr)
+        messages.error(f"invalid vehicle_states.yaml predicate: {ex}")
         return 2
     if not rules or not any(r.predicate is not None for r in rules):
-        print(
-            "  No state predicates defined (vehicle_states.yaml has no `when:` rules) "
-            "— nothing to infer from.",
-            file=sys.stderr,
+        messages.error(
+            "no state predicates defined (vehicle_states.yaml has no `when:` rules); "
+            "nothing to infer from"
         )
         return 1
 
@@ -152,7 +155,8 @@ def cmd_backfill_states(
         print(_json.dumps(rows, indent=2))
         return 0
 
-    print_report(rows, overwrite=overwrite, dry_run=dry_run)
+    report = sys.stderr if as_json else sys.stdout
+    print_report(rows, overwrite=overwrite, dry_run=dry_run, out=report)
 
     if not to_write:
         if as_json:
@@ -160,25 +164,15 @@ def cmd_backfill_states(
         return 0
 
     if dry_run:
-        print("  (--dry-run: nothing written)")
+        print("  (--dry-run: nothing written)", file=report)
         return 0
 
     if blocked := layers.refusal((Path(r["path"]) for r in to_write), "back-filled"):
         print(blocked, file=sys.stderr)
         return 1
 
-    if not assume_yes:
-        if not (sys.stdin.isatty() and sys.stdout.isatty()):
-            print(
-                "  error: refusing to write states without confirmation "
-                "(pass --yes for non-interactive use, or --dry-run to preview).",
-                file=sys.stderr,
-            )
-            return 2
-        resp = input(f"  Write states to these {len(to_write)} session(s)? [y/N] ").strip().lower()
-        if resp not in ("y", "yes"):
-            print("  Cancelled — nothing written.")
-            return 1
+    if not confirm(f"Write states to these {len(to_write)} session(s)?", yes=assume_yes):
+        return 1
 
     written = 0
     for r in to_write:
@@ -187,12 +181,13 @@ def cmd_backfill_states(
             written += 1
             print(
                 f"    \u2192 {r['file']} [{r['session_idx']}] "
-                f"{r['date']} = {join_states(r['new_states'])}"
+                f"{r['date']} = {join_states(r['new_states'])}",
+                file=report,
             )
         except Exception as ex:  # keep going; report the failure
-            print(f"    ! {r['file']} [{r['session_idx']}]: {ex}")
+            messages.error(f"{r['file']} [{r['session_idx']}]: {ex}")
 
-    print(f"  Wrote states to {written} session(s).")
+    echo_write(f"Wrote states to {written} session(s)", (Path(r["path"]) for r in to_write), report)
     if as_json:
         print(_json.dumps(rows, indent=2))
     return 0 if written == len(to_write) else 1

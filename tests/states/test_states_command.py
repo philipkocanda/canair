@@ -185,6 +185,7 @@ class TestReverseLookup:
 
     def test_unknown_state_errors(self, _patched_lookup, capsys):
         rc = _run(state="BOGUS")
-        out = capsys.readouterr().out
+        captured = capsys.readouterr()
         assert rc == 1
-        assert "Unknown state" in out
+        assert "error: unknown state BOGUS" in captured.err
+        assert captured.out == ""

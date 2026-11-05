@@ -31,10 +31,10 @@ supplies the 0x31-specific probe, classification and writeback.
 
 from __future__ import annotations
 
-import sys
 from typing import NamedTuple
 
 from canair.live.discovery_scan import DiscoveryProbe, mode_discovery_scan
+from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import (
     NRC_CONDITIONS_NOT_CORRECT,
@@ -124,7 +124,7 @@ def _write_hit(ecu_name: str, hit: RoutineHit) -> None:
     try:
         append_routines_block(ecu_name, [hit])
     except Exception as exc:
-        print(f"  [{ecu_name}] ERROR writing YAML: {exc}", file=sys.stderr)
+        messages.error(f"[{ecu_name}] writing YAML failed: {exc}")
 
 
 ROUTINES_PROBE = DiscoveryProbe(

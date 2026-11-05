@@ -19,6 +19,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from canair.render import messages
+
 from ..transport.config import ConnectionOptions, TransportConfig
 from .monitor_options import MonitorOptions
 from .session import Operation, SessionOptions
@@ -119,7 +121,7 @@ async def run_raw(
     try:
         target = slcan_preflight(transport, pids_data.get("can_bitrate"))
     except ModeError as e:
-        print(f"error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 2
     try:
         return await _run_session(target, pids_data, conn, session, operation, monitor, candidates)
@@ -164,7 +166,7 @@ async def _run_session(
     from ..transport import RawTerminal
     from .session import run_session_guarded
 
-    print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
+    print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps", file=sys.stderr)
     cli = cli_timeout(conn.timeout)
     # Resolved tx->EcuAddress map (per-ECU mode/rx_id/extended/FC bytes) so
     # RawTerminal builds each ISO-TP stack from the full addressing; unknown TX
@@ -189,9 +191,8 @@ async def _run_session(
         # connect) so a socket failure is a clean message, not a traceback.
         from canair.core.oserrors import connect_error_detail
 
-        print(
-            f"error: can't connect to the SLCAN port at {host}:{port} — {connect_error_detail(e)}",
-            file=sys.stderr,
+        messages.error(
+            f"can't connect to the SLCAN port at {host}:{port} — {connect_error_detail(e)}"
         )
         return 1
     # Per-ECU budgets apply only when the user didn't force --timeout.

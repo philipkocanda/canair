@@ -23,6 +23,7 @@ from canair.device.lock import WiCANLock
 from canair.device.lock_watchdog import LockWatchdog
 from canair.ecus.pids import load_pids
 from canair.live.session import SessionOptions, run_session_guarded
+from canair.render import messages
 from canair.transport.config import ConnectionOptions
 from canair.transport.ecu_log import init_logging
 from canair.transport.protocol import Terminal
@@ -88,7 +89,7 @@ async def async_main(args, operation: LiveOperation):
                 candidates,
                 connect_timeout=_connect_timeout,
                 deadline=None,
-                notice=lambda m: print(f"note: {m}", file=sys.stderr),
+                notice=messages.note,
             )
             or candidates[0]
         )
@@ -99,9 +100,10 @@ async def async_main(args, operation: LiveOperation):
     init_logging()
 
     if conn.unsafe:
-        print("!! WARNING: --unsafe mode active. Dangerous command blocklist is bypassed.")
-        print("!! Each blocked command will require explicit user consent before execution.")
-        print()
+        messages.warning(
+            "--unsafe mode active. The dangerous-command blocklist is bypassed.\n"
+            "Each blocked command will require explicit consent before it is sent."
+        )
 
     pids_data = load_pids()
 
@@ -135,40 +137,39 @@ async def async_main(args, operation: LiveOperation):
 
         _aborted = [s for s in find_aborted_scans() if s.get("type") in operation.scan_types]
         if _aborted:
-            print("!! Aborted scan(s) detected from a previous session:")
+            lines = ["Aborted scan(s) detected from a previous session:"]
             for _s in _aborted:
-                print(
-                    f"   [{_s['type'].upper()} scan  {_s['ecu']} @ {_s['tx_id']}]"
+                lines.append(
+                    f" [{_s['type'].upper()} scan  {_s['ecu']} @ {_s['tx_id']}]"
                     f"  range {_s['range']}"
                     f"  last probe: {_s['current']}"
                     f"  ({_s['hits']} hits / {_s['total']} total)"
                     f"  started {_s.get('started', '?')}"
                 )
-            print("!! To resume, re-run with the same ECU and range starting at the last probe.")
-            print()
+            messages.warning("\n".join(lines))
+            messages.hint(
+                "to resume, re-run with the same ECU and range starting at the last probe"
+            )
 
     # ELM327 init string from the active profile. Required (validate enforces
     # it); a profile missing it fails loud rather than silently using a stale
     # Ioniq-flavoured fallback.
     init_string = pids_data.get("init")
     if not init_string:
-        print(
-            "error: the active profile has no `init:` string (profile.yaml). "
-            'Add one, e.g. `init: "ATSP6;ATS0;ATAL;"` (ISO 15765-4 11-bit).',
-            file=sys.stderr,
+        messages.fail(
+            "the active profile has no `init:` string (profile.yaml). "
+            'Add one, e.g. `init: "ATSP6;ATS0;ATAL;"` (ISO 15765-4 11-bit).'
         )
-        sys.exit(1)
 
     # Fail loud: --save (and metadata flags) only apply to capture-producing modes.
     _wants_save = saving(args)
     if _wants_save:
         if not operation.records:
-            print(
-                "Error: --save/--label/--state/--notes only apply to a scan, raw, discover or "
+            messages.fail(
+                "--save/--label/--state/--notes only apply to a scan, raw, discover or "
                 "dtc run, or to read/monitor with a 'query'/'raw' step.",
-                file=sys.stderr,
+                code=2,
             )
-            sys.exit(1)
         # Surface any orphaned journals from a previously killed --save session.
         from canair.cli.commands.captures import orphan_notice
 
@@ -197,8 +198,7 @@ async def async_main(args, operation: LiveOperation):
         else:
             require_ws_reachable(host)
     except ModeError as e:
-        print(f"error: {e}", file=sys.stderr)
-        sys.exit(1)
+        messages.fail(str(e))
 
     # Firmware v6 has no /ws terminal: refuse wican-ws with the working
     # alternative rather than letting the upgrade fail with a bare 404. An
@@ -226,12 +226,10 @@ async def async_main(args, operation: LiveOperation):
         except transport_error_types() as e:
             # Connection setup failed (connect / ELM init). Classify + report
             # cleanly rather than dumping a traceback; no session ran yet.
-            print(
-                "error: "
-                + describe_transport_error(
+            messages.error(
+                describe_transport_error(
                     e, host=host, transport_label=transport_label, saving=_wants_save
-                ),
-                file=sys.stderr,
+                )
             )
             return 1
 
@@ -277,7 +275,7 @@ def run_live(args, operation: LiveOperation) -> int:
     """Acquire the device lock and run ``async_main`` for a live subcommand."""
     _require_car(args)
     lock = WiCANLock()
-    lock.acquire(force=args.force)
+    lock.acquire(force=args.force, fail=messages.fail)
 
     # Map SIGTERM/SIGHUP onto the same graceful path as Ctrl-C (SIGINT already
     # raises KeyboardInterrupt). So a `kill`/`pkill -f canair`, a vanished
@@ -305,7 +303,7 @@ def run_live(args, operation: LiveOperation) -> int:
         with contextlib.suppress(OSError):
             # The terminal may be gone (SIGHUP) — a failed write must not mask
             # the clean shutdown that already happened.
-            print("\nInterrupted.")
+            print("\nInterrupted.", file=sys.stderr)
         return 0
     finally:
         lock.release()

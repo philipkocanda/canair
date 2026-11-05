@@ -8,7 +8,10 @@ import sys
 from pathlib import Path
 
 from canair.captures import io as capture_io
-from canair.render import ansi
+from canair.core.prompt import confirm
+from canair.render import ansi, messages
+
+from .echo import echo_write
 
 
 def cmd_purge_sensitive(
@@ -20,19 +23,20 @@ def cmd_purge_sensitive(
 
     cdir = capture_io.resolve_captures_dir(captures_dir)
     if not cdir.is_dir():
-        print(f"error: no such captures directory: {cdir}", file=sys.stderr)
+        messages.error(f"no such captures directory: {cdir}")
         return 2
     sset = set_for_captures(captures_dir)
     plan = purge_dir(cdir, sset, dry_run=True)
     if blocked := layers.refusal([r.path for r in plan], "purged", captures_dir):
-        print(blocked if blocked.startswith("error:") else f"error: {blocked}", file=sys.stderr)
+        print(blocked, file=sys.stderr)
         return 1
     total = sum(r.removed for r in plan)
     if as_json:
-        if not dry_run and plan and not yes:
-            print(json.dumps({"error": "rewriting captures needs --yes (or --dry-run)"}))
-            return 1
         if not dry_run and plan:
+            question = f"Remove {total} capture(s) of sensitive PIDs from {len(plan)} file(s)?"
+            if not confirm(question, yes=yes):
+                print(json.dumps({"error": "declined", "dry_run": False}))
+                return 1
             purge_dir(cdir, sset)
         out = {
             "dry_run": dry_run,
@@ -57,16 +61,12 @@ def cmd_purge_sensitive(
     if dry_run:
         print(f"  {ansi.DIM}Re-run without --dry-run to write.{ansi.RESET}")
         return 0
-    if not yes:
-        if not sys.stdin.isatty():
-            print("error: refusing to rewrite captures without --yes (not a TTY)", file=sys.stderr)
-            return 1
-        if input("  Proceed? [y/N] ").strip().lower() not in ("y", "yes"):
-            print("  Aborted.")
-            return 1
+    if not confirm("Remove these captures?", yes=yes):
+        return 1
     purge_dir(cdir, sset)
+    echo_write(f"Removed {total} capture(s) of sensitive PIDs", (r.path for r in plan))
     print(
-        f"  Done. {ansi.DIM}Already committed or pushed? The data stays in git history "
+        f"  {ansi.DIM}Already committed or pushed? The data stays in git history "
         f"until that is rewritten.{ansi.RESET}"
     )
     return 0

@@ -134,15 +134,15 @@ class TestQueryPlan:
 
     def test_an_undefined_mode_01_pid_is_sent_as_mode_01(self, capsys):
         assert self._plan(["01/0D"]) == [("010D", True)]
-        assert "010D not in ecus/" in capsys.readouterr().out
+        assert "010D not in ecus/" in capsys.readouterr().err
 
     def test_a_bare_four_digit_token_still_means_a_did(self):
         assert self._plan(["0102"]) == [("220102", True)]
 
     def test_an_unsendable_token_is_skipped_with_its_reason(self, capsys):
         assert self._plan(["B01", "0102"]) == [("220102", True)]
-        out = capsys.readouterr().out
-        assert "odd number of hex digits (a request is whole bytes); skipping" in out
+        err = capsys.readouterr().err
+        assert "odd number of hex digits (a request is whole bytes); skipping" in err
         assert build_query_plan(self.INFO, ["BC0301"]) is None
 
     def test_explicit_did_picks_the_defined_one(self):

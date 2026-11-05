@@ -71,8 +71,8 @@ def test_exec_iocontrol(monkeypatch, capsys):
         lambda _data: {"IGPM": {"tx_id": 0x770, "protocol": "UDS", "cmds": {}}},
     )
     asyncio.run(_exec_iocontrol(_sm(), "sjb", "BC01", False, {}, INDEX, False))
-    out = capsys.readouterr().out
-    assert "Unknown DID BC01 for IGPM" in out  # found the ECU, not "No IOControl DIDs"
+    err = capsys.readouterr().err
+    assert "unknown DID BC01 for IGPM" in err  # found the ECU, not "no IOControl DIDs"
 
 
 class TestMonitor:

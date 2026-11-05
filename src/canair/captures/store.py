@@ -23,7 +23,6 @@ layer: see :mod:`canair.cli.commands.captures.query`.
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -32,6 +31,7 @@ from canair.captures import io as capture_io
 from canair.captures import merge as captures_merge
 from canair.captures.link_events import session_link_events
 from canair.captures.types import CaptureEntry
+from canair.render import messages
 from canair.states.spans import span_keys, states_at
 from canair.variants import tags as variant_tags
 from canair.variants.tags import SCOPE_ALL, SCOPE_UNTAGGED
@@ -373,10 +373,9 @@ def _hide_sensitive(entries: list[CaptureEntry], captures_dir: Path | None) -> l
     hidden = len(entries) - len(kept)
     if hidden and not _noted_sensitive:
         _noted_sensitive.append(hidden)
-        print(
-            f"note: {hidden} capture(s) of sensitive PIDs hidden — remove them with "
-            "`canair captures purge-sensitive`.",
-            file=sys.stderr,
+        messages.note(
+            f"{hidden} capture(s) of sensitive PIDs hidden — remove them with "
+            "`canair captures purge-sensitive`."
         )
     return kept
 
@@ -412,10 +411,9 @@ def _note_untagged(count: int, scope: str | None) -> None:
         return
     _noted_untagged.add(scope)
     how = f"read as {scope}" if scope else "left out, since no car is selected"
-    print(
-        f"note: {count} untagged capture session(s) {how} — tag them with "
-        "`canair captures migrate-variants` (or scope with --variant all/untagged).",
-        file=sys.stderr,
+    messages.note(
+        f"{count} untagged capture session(s) {how} — tag them with "
+        "`canair captures migrate-variants` (or scope with --variant all/untagged)."
     )
 
 

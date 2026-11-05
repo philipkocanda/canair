@@ -25,7 +25,7 @@ import sys
 from canair.cli.commands._edit import run_edit, subcommand_dispatch
 from canair.cli.live import LiveOperation, add_connection_args, live_command
 from canair.cli.live.handlers import actuators
-from canair.render import ansi
+from canair.render import ansi, messages
 
 NAME = "action"
 _RUN = LiveOperation(actuators.handle_action)
@@ -54,7 +54,7 @@ def cmd_list(args) -> int:
     try:
         actions = load_actions(prof)
     except ActionError as e:
-        print(f"{ansi.c('Invalid actions.yaml:', ansi.RED)} {e}", file=sys.stderr)
+        messages.error(f"invalid actions.yaml: {e}")
         return 1
     if getattr(args, "json", False):
         json.dump(

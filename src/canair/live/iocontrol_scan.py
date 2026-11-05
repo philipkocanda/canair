@@ -38,11 +38,11 @@ the scanner can rerun without clobbering human-authored on/off/notes entries.
 
 from __future__ import annotations
 
-import sys
 from typing import NamedTuple
 
 from canair.core.id_ranges import parse_id_range
 from canair.live.discovery_scan import DiscoveryProbe, mode_discovery_scan
+from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import (
     NRC_CONDITIONS_NOT_CORRECT,
@@ -192,7 +192,7 @@ def _write_hit(ecu_name: str, hit: IOControlHit) -> None:
     try:
         append_iocontrol_discoveries_block(ecu_name, [hit])
     except Exception as exc:
-        print(f"  [{ecu_name}] ERROR writing YAML: {exc}", file=sys.stderr)
+        messages.error(f"[{ecu_name}] writing YAML failed: {exc}")
 
 
 IOCONTROL_PROBE = DiscoveryProbe(

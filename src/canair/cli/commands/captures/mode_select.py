@@ -20,9 +20,10 @@ see ``plans/2026-08-05-captures-command-package-split.md``.
 
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
 from typing import Literal
+
+from canair.render import messages
 
 Mode = Literal[
     "recover",
@@ -99,17 +100,16 @@ class ModeError:
     """A rejected flag combination, with everything needed to report it."""
 
     message: str
-    to_stderr: bool = True
     with_ecu_hint: bool = False
     code: int = 2
 
     def report(self) -> int:
-        """Print the rejection the way the command always has; return its exit code."""
-        print(self.message, file=sys.stderr if self.to_stderr else sys.stdout)
+        """Print the rejection as ``error: …`` on stderr; return its exit code."""
+        messages.error(self.message.removeprefix("error: ").strip())
         if self.with_ecu_hint:
             from canair.cli.commands._hints import ecu_hint
 
-            print(ecu_hint())
+            messages.hint(ecu_hint())
         return self.code
 
 
@@ -179,9 +179,8 @@ def resolve_mode(args, query: str) -> Mode | ModeError:
 
     if not query:
         return ModeError(
-            "Specify a QUERY to look up captures, e.g. `canair captures BMS 2102` "
-            "(or use --summary / --sessions / --latest).\n",
-            to_stderr=False,
+            "specify a QUERY to look up captures, e.g. `canair captures BMS 2102` "
+            "(or use --summary / --sessions / --latest)",
             with_ecu_hint=True,
         )
 

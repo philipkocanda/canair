@@ -17,6 +17,8 @@ import contextlib
 import time
 
 from canair.analysis.sniff_stats import SniffStats
+from canair.render import messages
+from canair.render.console import console
 from canair.render.sniff import render_sniff_table
 
 NAME = "sniff"
@@ -105,9 +107,7 @@ def run(args) -> int:
     try:
         filters = _parse_filters(args.filter)
     except ValueError:
-        print(
-            f"error: invalid --filter '{args.filter}' (want hex IDs like 770,7E4)", file=sys.stderr
-        )
+        messages.error(f"invalid --filter '{args.filter}' (want hex IDs like 770,7E4)")
         return 2
 
     # The same pre-flight as the raw live commands: firmware (v6 cannot honour
@@ -118,13 +118,13 @@ def run(args) -> int:
     try:
         target = slcan_preflight(t, _profile_can_bitrate(), listen_only=args.listen_only)
     except ModeError as e:
-        print(f"error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 2
     host, port, bitrate = target.host, target.port, target.bitrate
-    print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps")
+    print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps", file=sys.stderr)
 
     lock = WiCANLock()
-    lock.acquire(force=args.force)
+    lock.acquire(force=args.force, fail=messages.fail)
 
     # A vanished terminal (SIGHUP), a `kill` (SIGTERM), or another run asking for
     # the connection with --force all stop the sniff the same way Ctrl-C does —
@@ -211,15 +211,13 @@ def _run_sniff_plain(stats: SniffStats, duration: float | None) -> None:
 
 
 def _print_summary(stats: SniffStats) -> None:
-    from rich.console import Console
-
     rows = stats.snapshot()
-    console = Console()
-    console.print(f"\n  Sniffed {len(rows)} unique IDs, {stats.total_frames} frames.")
+    out = console()
+    out.print(f"\n  Sniffed {len(rows)} unique IDs, {stats.total_frames} frames.")
     if rows:
-        console.print(render_sniff_table(rows))
+        out.print(render_sniff_table(rows))
     else:
-        console.print(
+        out.print(
             "  [dim]No frames seen. The bus may be idle, or — common on OBD-II — the "
             "port is gateway-isolated: ECUs answer diagnostic requests but no broadcast "
             "traffic is forwarded, so there is nothing to sniff passively.[/dim]"

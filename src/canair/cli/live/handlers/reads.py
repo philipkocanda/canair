@@ -6,11 +6,10 @@ error for an unresolvable one, and hands off to its mode.
 
 from __future__ import annotations
 
-import sys
-
 from canair.live.identity import mode_identity
 from canair.live.param import mode_param
 from canair.live.raw import mode_raw
+from canair.render import messages
 from canair.transport.protocol import Terminal
 
 
@@ -19,12 +18,9 @@ async def handle_identity(args, terminal: Terminal, pids_data, host, *, reconnec
 
     tx_id = resolve_tx(args.tx)
     if tx_id is None:
-        print(
-            f"Error: could not resolve ECU '{args.tx}' "
-            "(use a name like IGPM or a hex TX id like 770)",
-            file=sys.stderr,
+        messages.fail(
+            f"could not resolve ECU '{args.tx}' (use a name like IGPM or a hex TX id like 770)"
         )
-        sys.exit(1)
     await mode_identity(
         terminal,
         tx_id,

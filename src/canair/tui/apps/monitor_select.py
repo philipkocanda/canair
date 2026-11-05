@@ -22,7 +22,6 @@ from typing import ClassVar, cast
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.screen import Screen
 from textual.widgets import Input, Label, SelectionList
 from textual.widgets.selection_list import Selection
 
@@ -33,15 +32,25 @@ from canair.live.monitor_select import (
     build_group_choices,
     selectors_from_selection,
 )
-from canair.tui.help import SCROLL_HELP_ROWS, HelpModal, bindings_help_rows
-from canair.tui.keys import DISMISS_DESCRIPTION, bind
-from canair.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
+from canair.tui import styles
+from canair.tui.help import SCROLL_HELP_ROWS, LegendRow
+from canair.tui.keys import DISMISS_DESCRIPTION, bind, key_hint
+from canair.tui.modals import KitModal
+from canair.tui.status import (
+    P_ESSENTIAL,
+    P_HIGH,
+    P_LOW,
+    P_NORMAL,
+    StatusBar,
+    StatusItem,
+    hint_item,
+)
 from canair.tui.widgets import CheckSelectionList
 
 Picks = dict[str, list[str]]
 
 
-class MonitorSelectScreen(Screen["Picks | None"]):
+class MonitorSelectScreen(KitModal["Picks | None"]):
     """Group/ECU → PID checklist; dismisses with the picks, or ``None`` on cancel.
 
     Step 1 offers the profile's saved ``@groups`` (rows prefixed ``@``) above its
@@ -52,15 +61,18 @@ class MonitorSelectScreen(Screen["Picks | None"]):
 
     ``enter`` is bound with priority because the list itself would otherwise take
     it as a second toggle key; in the filter it just returns to the list.
+
+    It is a modal so that the keys of an app beneath it (``s``, ``n``, ``space`` of the
+    monitor) cannot reach past it.
     """
 
-    HELP_TITLE: ClassVar[str] = "Select what to monitor"
-    #: What ``enter`` does on step 2, as shown in the status bar.
-    FINISH_HINT: ClassVar[str] = "start"
+    HELP_TITLE: ClassVar[str] = "canair monitor picker — keyboard shortcuts"
     #: How ``enter`` is advertised in the help sheet.
     ACCEPT_DESC: ClassVar[str] = "next / start"
+    #: What ``enter`` does on step 2, as shown in the status bar.
+    FINISH_DESC: ClassVar[str] = "start"
     #: What ``q`` does, as shown in the status bar.
-    QUIT_HINT: ClassVar[str] = "quit"
+    QUIT_DESC: ClassVar[str] = "quit"
     #: Whether ``escape`` on step 1 cancels. Off at the top level of the
     #: standalone picker, where ``escape`` must never quit.
     BACK_CANCELS: ClassVar[bool] = False
@@ -78,11 +90,18 @@ class MonitorSelectScreen(Screen["Picks | None"]):
     """
 
     #: Keys the list handles itself, so they are not in ``BINDINGS``.
-    HELP_ROWS: ClassVar[tuple[tuple[str, str], ...]] = (("space", "toggle the highlighted row"),)
+    HELP_EXTRA_ROWS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("space", "toggle the highlighted row"),
+        *SCROLL_HELP_ROWS,
+    )
+    HELP_LEGEND: ClassVar[tuple[LegendRow, ...]] = (
+        ("@name", styles.HEADING, "a saved group of ECUs"),
+        ("2 PIDs", styles.MUTED, "what the row holds"),
+        ("[status]", styles.WARNING, "a PID that is not swept by default"),
+    )
 
     BINDINGS: ClassVar[list[Binding]] = [
         *bind("quit", "cancel"),
-        *bind("quit_force", "cancel", show=False, priority=True),
         *bind("help", "help"),
         *bind("back", "back", show=False),
         *bind("move_down", "move_cursor(1)", show=False),
@@ -121,7 +140,7 @@ class MonitorSelectScreen(Screen["Picks | None"]):
 
     def compose(self) -> ComposeResult:
         yield Label("", id="title")
-        yield Input(placeholder="/ to filter…", id="filter")
+        yield Input(placeholder="type to filter…", id="filter")
         yield CheckSelectionList(id="choices")
         yield StatusBar(id="status")
 
@@ -144,9 +163,11 @@ class MonitorSelectScreen(Screen["Picks | None"]):
             for group in self._groups.values():
                 if needle and needle not in f"@{group.name} {group.description}".lower():
                     continue
-                label = Text(f"@{group.name:<15}", style="bold", no_wrap=True, overflow="ellipsis")
+                label = Text(
+                    f"@{group.name:<15}", style=styles.HEADING, no_wrap=True, overflow="ellipsis"
+                )
                 detail = f"{len(group.picks):>3} ECUs  {group.description}".rstrip()
-                label.append(detail, style="dim")
+                label.append(detail, style=styles.MUTED)
                 options.append(
                     Selection(label, f"@{group.name}", group.name in self._ticked_groups)
                 )
@@ -154,7 +175,7 @@ class MonitorSelectScreen(Screen["Picks | None"]):
                 if needle and needle not in ecu.name.lower():
                     continue
                 label = Text(f"{ecu.name:<16}")
-                label.append(f"{len(ecu.pids):>3} PIDs   tx 0x{ecu.tx_id:X}", style="dim")
+                label.append(f"{len(ecu.pids):>3} PIDs   tx 0x{ecu.tx_id:X}", style=styles.MUTED)
                 options.append(Selection(label, ecu.name, ecu.name in effective))
         else:
             ecu_width = max(len(n) for n in self._pids)
@@ -170,9 +191,9 @@ class MonitorSelectScreen(Screen["Picks | None"]):
                         no_wrap=True,
                         overflow="ellipsis",
                     )
-                    label.append(p.signals or "(undecoded)", style="dim")
+                    label.append(p.signals or "(undecoded)", style=styles.MUTED)
                     if not p.swept:
-                        label.append(f"  [{p.status}]", style="yellow")
+                        label.append(f"  [{p.status}]", style=styles.WARNING)
                     options.append(Selection(label, (name, p.pid), p.pid in picked))
 
         selection = self.query_one("#choices", SelectionList)
@@ -192,16 +213,14 @@ class MonitorSelectScreen(Screen["Picks | None"]):
         return selection.get_option_at_index(selection.highlighted).value
 
     def _update_header(self) -> None:
+        toggle = hint_item(key_hint("pause", "toggle"), P_NORMAL)
+        filter_ = hint_item(key_hint("filter"), P_NORMAL)
+        all_none = hint_item(key_hint("select_all"), P_LOW)
         if self._step == 1:
             picked = len(self._effective_ecus())
             title = f"Select ECUs to monitor — {picked} of {len(self._choices)} selected"
-            items = [
-                StatusItem("[dim]step 1/2[/]", P_LOW),
-                StatusItem("[dim]space toggle[/]", P_NORMAL),
-                StatusItem("[dim]/ filter[/]", P_NORMAL),
-                StatusItem("[dim]ctrl+a all/none[/]", P_LOW),
-                StatusItem("[dim]enter next[/]", P_HIGH),
-            ]
+            accept = hint_item(key_hint("accept", "next"), P_HIGH)
+            items = [StatusItem("[dim]step 1/2[/]", P_LOW), toggle, filter_, all_none, accept]
             if self._groups:
                 items.append(StatusItem("[dim]@rows are saved groups[/]", P_LOW))
         else:
@@ -209,15 +228,15 @@ class MonitorSelectScreen(Screen["Picks | None"]):
             title = f"Select PIDs to monitor — {total} selected across {len(self._pids)} ECU(s)"
             items = [
                 StatusItem("[dim]step 2/2[/]", P_LOW),
-                StatusItem("[dim]space toggle[/]", P_NORMAL),
-                StatusItem("[dim]/ filter[/]", P_NORMAL),
-                StatusItem("[dim]ctrl+a all/none[/]", P_LOW),
-                StatusItem("[dim]esc back[/]", P_NORMAL),
-                StatusItem(f"[dim]enter {self.FINISH_HINT}[/]", P_HIGH),
+                toggle,
+                filter_,
+                all_none,
+                hint_item(key_hint("back"), P_NORMAL),
+                hint_item(key_hint("accept", self.FINISH_DESC), P_HIGH),
             ]
         items += [
-            StatusItem("[dim]? help[/]", P_ESSENTIAL),
-            StatusItem(f"[dim]q {self.QUIT_HINT}[/]", P_ESSENTIAL),
+            hint_item(key_hint("help"), P_ESSENTIAL),
+            hint_item(key_hint("quit", self.QUIT_DESC), P_ESSENTIAL),
         ]
         self.query_one("#title", Label).update(title)
         self.query_one("#status", StatusBar).set_lines(items)
@@ -280,12 +299,6 @@ class MonitorSelectScreen(Screen["Picks | None"]):
     def action_cancel(self) -> None:
         self.dismiss(None)
 
-    def action_help(self) -> None:
-        if isinstance(self.app.screen, HelpModal):
-            return
-        rows = bindings_help_rows(self) + list(self.HELP_ROWS) + list(SCROLL_HELP_ROWS)
-        self.app.push_screen(HelpModal(self.HELP_TITLE, rows))
-
     def action_focus_filter(self) -> None:
         self.query_one("#filter", Input).focus()
 
@@ -335,7 +348,7 @@ class MonitorSelectScreen(Screen["Picks | None"]):
                     self._record(value, True)
                     effective = self._effective_ecus()
             if not effective:
-                self.notify("Select at least one ECU or group first.", severity="warning")
+                self.notify("Select at least one ECU or group first", severity="warning")
                 return
             self._pids = {
                 ecu.name: self._pids[ecu.name] if ecu.name in self._pids else self._seed_pids(ecu)
@@ -350,7 +363,7 @@ class MonitorSelectScreen(Screen["Picks | None"]):
             if picked
         }
         if not result:
-            self.notify("Select at least one PID first.", severity="warning")
+            self.notify("Select at least one PID first", severity="warning")
             return
         self.dismiss(result)
 
@@ -362,10 +375,9 @@ class LiveMonitorSelectScreen(MonitorSelectScreen):
     rather than the monitor; ``ctrl+c`` is left to the monitor, which quits.
     """
 
-    HELP_TITLE = "Select what to monitor (live)"
-    FINISH_HINT = "apply"
     ACCEPT_DESC = "next / apply"
-    QUIT_HINT = "close"
+    FINISH_DESC = "apply"
+    QUIT_DESC = DISMISS_DESCRIPTION
     BACK_CANCELS = True
 
     BINDINGS: ClassVar[list[Binding]] = [
@@ -383,6 +395,8 @@ class LiveMonitorSelectScreen(MonitorSelectScreen):
 
 class MonitorSelectApp(App["Picks | None"]):
     """The standalone picker a bare ``canair monitor`` runs before connecting."""
+
+    BINDINGS: ClassVar[list[Binding]] = [*bind("quit_force", "quit", show=False, priority=True)]
 
     # canair registers no command-palette commands and pins the theme, so the
     # built-in ctrl+p palette only adds an unstyled modal that overflows a narrow

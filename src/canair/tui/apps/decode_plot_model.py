@@ -12,6 +12,7 @@ import shutil
 
 from canair.analysis.stats import pearson as _pearson
 from canair.render import ansi
+from canair.render.glyphs import WARN
 from canair.uds.byteindex import payload_to_wican_bytes
 from canair.uds.inspect_bytes import (
     INSPECT_TYPES,
@@ -32,6 +33,9 @@ from .decode_plot_draw import (
     render_plot,
 )
 
+#: How a mode is named on screen; the internal ``"param"`` is the signal mode.
+MODE_LABEL = {"bytes": "byte", "param": "signal"}
+
 _V_AXIS = "\u2502"  # box vertical
 _CORNER = "\u2514"  # box corner
 _HLINE = "\u2500"  # box horizontal
@@ -40,7 +44,7 @@ _HLINE = "\u2500"  # box horizontal
 class PlotModel:
     """State + rendering for the ``decode --plot`` signal explorer.
 
-    Holds the capture-derived data and the mutable view state (byte/param mode,
+    Holds the capture-derived data and the mutable view state (byte/signal mode,
     offset, interpretation type, endianness, transform, overlay reference, x-axis
     window, info modal). :meth:`render_lines` produces the ANSI-colored frame; the
     Textual app (:mod:`canair.tui.apps.decode_plot`) binds keys to the mutator methods. Kept
@@ -92,7 +96,7 @@ class PlotModel:
         ]
 
         # Overlay reference is selectable at runtime (cycled with `o`), seeded by
-        # --corr when given. Any numeric param can be overlaid — no --corr required.
+        # --corr when given. Any numeric signal can be overlaid — no --corr required.
         self.ov_cycle = [
             None,
             *dict.fromkeys(([corr_ref] if corr_ref else []) + self.plottable_params),
@@ -104,8 +108,8 @@ class PlotModel:
         self.ti = 0  # INSPECT_TYPES index
         self.little = False
         self.tmode = "raw"  # post-transform
-        self.pi = 0  # param index (param mode)
-        self.overlay_ref = corr_ref  # overlay reference param (None = off)
+        self.pi = 0  # signal index (signal mode)
+        self.overlay_ref = corr_ref  # overlay reference signal (None = off)
         self.xlo, self.xhi = 0.0, 1.0  # fractional x-axis window (zoom/pan)
         self.show_info = False  # captures-in-view modal
 
@@ -130,7 +134,7 @@ class PlotModel:
             endian = "" if width == 1 else ("  LE" if self.little else "  BE")
             src = f"B{self.offset} as {spec[0]}{endian}"
             expr_line = f"expr: {expr}" if expr else "expr: (no direct WiCAN expression)"
-            # Feature: flag bytes already mapped by a defined parameter.
+            # Feature: flag bytes already mapped by a defined signal.
             exact, overlap = _mapping_for_offset(self.defined_params, self.offset, width, expr)
             if exact:
                 n_, e_, v_ = exact[0]
@@ -148,7 +152,7 @@ class PlotModel:
             if not self.plottable_params:
                 return [
                     f"{ansi.BOLD}{self.ecu_key} {self.pid_key}{ansi.RESET}",
-                    "  No numeric parameters to plot — press m for byte mode.",
+                    "  No numeric signals to plot — switch to byte mode.",
                 ]
             name = self.plottable_params[self.pi % len(self.plottable_params)]
             per_cap = [r["decoded"].get(name, {}).get("value") for r in self.all_results]
@@ -205,7 +209,7 @@ class PlotModel:
         if overlay and refseries is not None:
             r = _pearson(refseries, series)
             rstr = (
-                f"  {ansi.CYAN}r={r:+.3f} vs {self.overlay_ref}{ansi.RESET}"
+                f"  {ansi.BOLD}r={r:+.3f} vs {self.overlay_ref}{ansi.RESET}"
                 if r is not None
                 else f"  {ansi.DIM}r=n/a vs {self.overlay_ref}{ansi.RESET}"
             )
@@ -221,36 +225,19 @@ class PlotModel:
         )
 
         out = [
-            f"{ansi.BOLD}{self.ecu_key} {self.pid_key}{ansi.RESET}  {ansi.DIM}·  {self.mode} mode{ansi.RESET}",
+            f"{ansi.BOLD}{self.ecu_key} {self.pid_key}{ansi.RESET}  "
+            f"{ansi.DIM}·  {MODE_LABEL[self.mode]} mode{ansi.RESET}",
             f"  {ansi.CYAN}{src}{ansi.RESET}   {ansi.DIM}{expr_line}{ansi.RESET}",
         ]
         if map_line:
             out.append(map_line)
         out.append(
-            f"  transform={ansi.YELLOW}{self.tmode}{ansi.RESET}  {_series_stats_str(series)}{rstr}"
-            + (f"   {ansi.RED}\u26a0 {warn}{ansi.RESET}" if warn else "")
+            f"  transform={ansi.BOLD}{self.tmode}{ansi.RESET}  {_series_stats_str(series)}{rstr}"
+            + (f"   {ansi.YELLOW}{WARN} {warn}{ansi.RESET}" if warn else "")
         )
         out.append("")
         out.extend(render_plot(series, ref=refseries if overlay else None, caption=caption))
         return out
-
-    def hint_bits(self) -> list[str]:
-        """Key hints for the current mode as separate segments, most useful first.
-
-        Segments (not one joined string) so the TUI's status bar can drop the
-        least essential ones on a narrow terminal rather than clipping the line;
-        :meth:`hint` joins them for anything that wants the whole thing.
-        """
-        mode = (
-            ["←/→ offset", "t/T type", "e endian", "m param"]
-            if self.mode == "bytes"
-            else ["←/→ param", "m bytes"]
-        )
-        return [*mode, "f transform", "o overlay", "i captures", "+/- zoom", ",/. pan", "0 reset-x"]
-
-    def hint(self) -> str:
-        """The one-line key hint for the current mode."""
-        return " · ".join([*self.hint_bits(), "? help", "q quit"])
 
     # -- current-interpretation accessors (for annotation / promotion) -----
     def current_expr(self) -> str | None:
@@ -260,7 +247,7 @@ class PlotModel:
         return wican_expr(self.offset, INSPECT_TYPES[self.ti], self.little)
 
     def current_param_name(self) -> str | None:
-        """The parameter currently plotted in param mode, if any."""
+        """The signal currently plotted in signal mode, if any."""
         if self.mode != "param" or not self.plottable_params:
             return None
         return self.plottable_params[self.pi % len(self.plottable_params)]
@@ -297,7 +284,7 @@ class PlotModel:
         if len(self.ov_cycle) > 1:
             self.overlay_ref = _cycle_overlay(self.overlay_ref, self.ov_cycle)
             return f"overlay: {self.overlay_ref}" if self.overlay_ref else "overlay: off"
-        return "no numeric param to overlay (define one or use --try)"
+        return "no numeric signal to overlay (define one or use --try)"
 
     def zoom_in(self) -> None:
         c, half = (self.xlo + self.xhi) / 2, (self.xhi - self.xlo) / 4

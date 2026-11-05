@@ -84,7 +84,7 @@ class TestTesterPresent:
         term = RecordingTerminal()
         await mode_tester_present(term, "ZZ", 0, verbose=False)
         assert term.calls == []
-        assert "Invalid target 'ZZ'" in capsys.readouterr().out
+        assert "error: invalid target 'ZZ'" in capsys.readouterr().err
 
 
 class TestSkmWakeAddressing:

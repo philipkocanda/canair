@@ -218,4 +218,4 @@ def test_validate_captures_flags_replies_outside_the_tagged_revision(tmp_path, c
     data["sessions"][2]["revisions"]["VCU"] = "uds"  # holds a KWP2000 2101 reply
     path.write_text(capture_io.capture_text(data))
     main(["--profile", str(copy), "validate", "captures"])
-    assert "a reply to VCU 2101" in capsys.readouterr().out
+    assert "a reply to VCU 2101" in capsys.readouterr().err

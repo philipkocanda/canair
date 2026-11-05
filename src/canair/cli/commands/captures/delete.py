@@ -13,8 +13,11 @@ from pathlib import Path
 
 from canair.captures.store import entry_path
 from canair.captures.types import CaptureEntry
-from canair.render import ansi
+from canair.core.prompt import confirm
+from canair.render import ansi, messages
+from canair.render.paint import Painter
 
+from .echo import echo_write
 from .query import _parse_query
 
 
@@ -46,14 +49,14 @@ def cmd_delete(
             entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"])
         )
     except QueryError as ex:
-        print(f"error: invalid query: {ex}", file=sys.stderr)
+        messages.error(f"invalid query: {ex}")
         return 2
 
     if not matched:
         if as_json:
             print("[]")
             return 0
-        print(f"  No captures match {query!r} in scope — nothing to delete.")
+        messages.error(f"no captures match {query!r} in scope; nothing to delete")
         return 1
 
     def _row(e: dict) -> dict:
@@ -71,35 +74,29 @@ def cmd_delete(
         print(_json.dumps([_row(e) for e in matched], indent=2))
         return 0
 
+    out = sys.stderr if as_json else sys.stdout
+    paint = Painter(out)
     verb = "Would delete" if dry_run else "Deleting"
-    print(f"  {verb} {len(matched)} capture(s) matching {query!r}:")
+    print(f"  {verb} {len(matched)} capture(s) matching {query!r}:", file=out)
     for e in matched:
         print(
-            f"    {ansi.DIM}{e.get('file', '?')}{ansi.RESET} "
+            f"    {paint(str(e.get('file', '?')), ansi.raw.DIM)} "
             f"{e.get('ecu', '?')} {e.get('pid', '?')} @ {e.get('date', '?')} "
-            f"{e.get('time', '') or '(no time)'}  {ansi.DIM}{e.get('payload', '') or ''}{ansi.RESET}"
+            f"{e.get('time', '') or '(no time)'}  "
+            f"{paint(str(e.get('payload', '') or ''), ansi.raw.DIM)}",
+            file=out,
         )
 
     if dry_run:
-        print("  (--dry-run: nothing deleted)")
+        print("  (--dry-run: nothing deleted)", file=out)
         return 0
 
     if blocked := layers.refusal((entry_path(e, captures_dir) for e in matched), "deleted"):
         print(blocked, file=sys.stderr)
         return 1
 
-    if not assume_yes:
-        if not (sys.stdin.isatty() and sys.stdout.isatty()):
-            print(
-                "  error: refusing to delete without confirmation "
-                "(pass --yes for non-interactive use, or --dry-run to preview).",
-                file=sys.stderr,
-            )
-            return 2
-        resp = input(f"  Delete these {len(matched)} capture(s)? [y/N] ").strip().lower()
-        if resp not in ("y", "yes"):
-            print("  Cancelled — nothing deleted.")
-            return 1
+    if not confirm(f"Delete these {len(matched)} capture(s)?", yes=assume_yes):
+        return 1
 
     # Delete in reverse (file, session_idx, capture_idx) order so earlier indices
     # remain valid as we remove entries from each file.
@@ -115,7 +112,9 @@ def cmd_delete(
             delete_capture(target, e["_session_idx"], e["_capture_idx"])
             deleted += 1
         except Exception as ex:  # keep going; report the failure
-            print(f"    ! {e.get('file', '?')} {e.get('ecu', '?')} {e.get('pid', '?')}: {ex}")
+            messages.error(f"{e.get('file', '?')} {e.get('ecu', '?')} {e.get('pid', '?')}: {ex}")
 
-    print(f"  Deleted {deleted} capture(s).")
+    echo_write(f"Deleted {deleted} capture(s)", (entry_path(e, captures_dir) for e in matched), out)
+    if as_json:
+        print(_json.dumps([_row(e) for e in matched], indent=2))
     return 0 if deleted == len(matched) else 1

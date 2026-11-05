@@ -43,7 +43,8 @@ class TestSleepBannerRegression:
 
         monkeypatch.setattr(wican_api.requests, "get", boom)
         _print_sleep_banner("192.0.2.1")  # must return, not raise SystemExit
-        assert capsys.readouterr().out == ""
+        captured = capsys.readouterr()
+        assert captured.out == captured.err == ""
 
     def test_prints_when_the_api_answers(self, monkeypatch, capsys):
         from canair.cli.live.connect import _print_sleep_banner
@@ -59,9 +60,10 @@ class TestSleepBannerRegression:
 
         monkeypatch.setattr(wican_api.requests, "get", get)
         _print_sleep_banner("192.0.2.1")
-        out = capsys.readouterr().out
-        assert "12.6V" in out
-        assert "hunter2" not in out
+        captured = capsys.readouterr()
+        assert "12.6V" in captured.err  # a status line: stdout stays the command's result
+        assert captured.out == ""
+        assert "hunter2" not in captured.err
 
     @pytest.mark.parametrize(
         "bodies",
@@ -81,4 +83,5 @@ class TestSleepBannerRegression:
 
         monkeypatch.setattr(wican_api.requests, "get", get)
         _print_sleep_banner("192.0.2.1")
-        assert capsys.readouterr().out == ""
+        captured = capsys.readouterr()
+        assert captured.out == captured.err == ""

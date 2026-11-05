@@ -23,6 +23,8 @@ from pathlib import Path
 
 from canair.cli.commands.import_uds import add_uds_parser
 from canair.cli.commands.import_uds import run as _run_uds
+from canair.render import messages
+from canair.yaml_edit.echo import echo_edit
 
 NAME = "import"
 
@@ -106,7 +108,7 @@ def run(args) -> int:
         return _run_can(args)
     if kind == "dbc":
         return _run_dbc(args)
-    print("canair import: pick a subcommand (uds | can | dbc). See --help.", file=sys.stderr)
+    messages.error("pick a subcommand (uds | can | dbc); see `canair import --help`")
     return 2
 
 
@@ -134,7 +136,7 @@ def _run_can(args) -> int:
             force=args.force,
         )
     except can_logs.CanLogError as e:
-        print(f"import can: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 1
 
     if args.json:
@@ -275,49 +277,46 @@ def _run_dbc(args) -> int:
     try:
         import cantools  # noqa: F401
     except ImportError:
-        print("import dbc: cantools is required (pip install cantools).", file=sys.stderr)
+        messages.error("cantools is required (pip install cantools)")
         return 1
 
     from canair.interop.dbc.repair import DbcLoadError, load_dbc, summarize
 
     path = Path(args.file)
     if not path.is_file():
-        print(f"import dbc: no such file: {path}", file=sys.stderr)
+        messages.error(f"no such file: {path}")
         return 1
     try:
         db, repairs = load_dbc(path)
     except DbcLoadError as e:
-        print(f"import dbc: could not parse {path.name}: {e}", file=sys.stderr)
+        messages.error(f"could not parse {path.name}: {e}")
         return 1
     if repairs and not args.json:
-        print(
-            f"import dbc: {path.name} does not parse as written; repaired "
-            f"{len(repairs)} line(s) in memory (the file is unchanged):",
-            file=sys.stderr,
+        messages.warning(
+            f"{path.name} does not parse as written; repaired "
+            f"{len(repairs)} line(s) in memory (the file is unchanged):\n"
+            + "\n".join(summarize(repairs))
         )
-        for line in summarize(repairs):
-            print(f"  {line}", file=sys.stderr)
 
     id_filter = None
     if args.ids:
         try:
             id_filter = {int(t.strip(), 16) for t in args.ids.split(",") if t.strip()}
         except ValueError:
-            print(f"import dbc: --ids must be hex IDs (got {args.ids!r})", file=sys.stderr)
-            return 1
+            messages.error(f"--ids must be hex IDs (got {args.ids!r})")
+            return 2
     try:
         result = _dbc_to_signals(db, id_filter, args.tx_ecu, f"dbc:{path.name}")
     except DbcImportError as e:
-        print(f"import dbc: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 1
     imported = result.messages
     if not args.json:
         _report_left_out(result)
     if not imported:
-        print(
-            f"import dbc: no messages to import from {path.name}"
-            + (" (after --ids filter)" if args.ids else ""),
-            file=sys.stderr,
+        messages.error(
+            f"no messages to import from {path.name}"
+            + (" (after --ids filter)" if args.ids else "")
         )
         return 1
 
@@ -334,9 +333,7 @@ def _run_dbc(args) -> int:
             json.dump({"bus": bus, "messages": imported, **left_out}, sys.stdout, indent=2)
             print()
             return 0
-        print(
-            f"import dbc (dry run) → signals/{bus}.yaml: {len(imported)} messages, {n_sig} signals"
-        )
+        print(f"dry run → signals/{bus}.yaml: {len(imported)} messages, {n_sig} signals")
         for mid, m in list(imported.items())[:20]:
             print(
                 f"  {mid} {m['name']}: {', '.join(list(m['signals'])[:6])}"
@@ -353,7 +350,7 @@ def _run_dbc(args) -> int:
     try:
         out, written = merge_bus(bus, imported, profile=active())
     except SignalsEditError as e:
-        print(f"import dbc: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 1
     if args.json:
         json.dump(
@@ -369,7 +366,7 @@ def _run_dbc(args) -> int:
         )
         print()
         return 0
-    print(f"Imported {len(imported)} messages ({written} signals) → {out}")
+    echo_edit(f"imported {len(imported)} messages ({written} signals)", out)
     print("Review/verify with `canair signals list` and `canair validate signals`.")
     return 0
 
@@ -377,19 +374,16 @@ def _run_dbc(args) -> int:
 def _report_left_out(result: DbcImport) -> None:
     """Tell the user what the import leaves out (on stderr, so a dry run's diff stays clean)."""
     if result.skipped:
-        print(
-            f"import dbc: skipping {len(result.skipped)} message(s) canair cannot store:",
-            file=sys.stderr,
-        )
-        for mid, errors in list(result.skipped.items())[:10]:
-            print(f"  {mid}: {errors[0]}", file=sys.stderr)
+        lines = [f"{mid}: {errors[0]}" for mid, errors in list(result.skipped.items())[:10]]
         if len(result.skipped) > 10:
-            print(f"  … +{len(result.skipped) - 10} more", file=sys.stderr)
+            lines.append(f"… +{len(result.skipped) - 10} more")
+        messages.warning(
+            f"skipping {len(result.skipped)} message(s) canair cannot store:\n" + "\n".join(lines)
+        )
     if result.value_tables_dropped:
         names = ", ".join(result.value_tables_dropped[:5])
         more = len(result.value_tables_dropped) - 5
-        print(
-            f"import dbc: value tables not carried on {len(result.value_tables_dropped)} "
-            f"scaled or float signal(s): {names}" + (f", +{more} more" if more > 0 else ""),
-            file=sys.stderr,
+        messages.warning(
+            f"value tables not carried on {len(result.value_tables_dropped)} "
+            f"scaled or float signal(s): {names}" + (f", +{more} more" if more > 0 else "")
         )

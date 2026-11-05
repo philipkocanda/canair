@@ -167,8 +167,9 @@ class TestModeReadKwp:
             {"1800FF00": nrc, "1802FF00": nrc, "1800FFFF": _ok("5801" + "0123" + "20")}
         )
         await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp")
-        out = capsys.readouterr().out
-        assert "Note:" in out and "18 00 FF FF" in out
+        captured = capsys.readouterr()
+        assert "note: " in captured.err and "18 00 FF FF" in captured.err
+        assert "Note:" not in captured.out
 
     def test_scan_line_names_the_alternate_form(self):
         res = {
@@ -204,8 +205,8 @@ class TestSupportedList:
     async def test_text_output_says_supported_not_stored(self, capsys):
         t = FakeTerminal({"1803FF00": _ok("5801" + "0123" + "10")})
         await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True)
-        out = capsys.readouterr().out
-        assert "1 supported DTC(s)" in out and "Note:" in out
+        captured = capsys.readouterr()
+        assert "1 supported DTC(s)" in captured.out and "note: " in captured.err
 
     @pytest.mark.asyncio
     async def test_never_written_to_the_dtc_log(self, capsys, monkeypatch):
@@ -551,4 +552,4 @@ class TestLogOffline:
         self._seed(monkeypatch, tmp_path)
         rc = dtc_cmd.run(self._args(dtc="ZZZNOPE"))
         assert rc == 2
-        assert "Unknown ECU" in capsys.readouterr().out
+        assert "error: unknown ECU 'ZZZNOPE'" in capsys.readouterr().err

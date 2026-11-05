@@ -22,7 +22,7 @@ import sys
 
 from canair.analysis.align import LoadedPid, load_signal_captures
 from canair.cli.args.notation import resolve_notation
-from canair.render import ansi
+from canair.render import ansi, messages
 from canair.uds.byteindex import mapped_offsets
 from canair.uds.notation import ByteNotation, subfunction_bytes_for_pid
 
@@ -38,14 +38,13 @@ from .counters import (
 def run_sweep(specs: list[tuple[str, str]], args, since, until, fill) -> int:
     """Sweep every matching captured PID and print a ranked summary."""
     if args.events or args.dwell or args.field:
-        print(
-            "investigate: --events/--dwell/--field are per-signal timelines and need "
-            "a single ECU PID (they don't summarise across a sweep).",
-            file=sys.stderr,
+        messages.error(
+            "--events/--dwell/--field are per-signal timelines and need "
+            "a single ECU PID (they don't summarise across a sweep)"
         )
         return 2
     if not specs:
-        print("No timed captures in scope to investigate.", file=sys.stderr)
+        messages.error("no timed captures in scope to investigate")
         return 1
 
     from canair.ecus.pids import build_ecu_index, load_pids
@@ -76,7 +75,7 @@ def _sweep_counters(specs, loaded, args, params_of) -> int:
 
     scope_flags = active_scope_flags(args)
     if scope_flags:
-        print(warn_scoped_counters(scope_flags), file=sys.stderr)
+        messages.warning(warn_scoped_counters(scope_flags))
 
     notation = resolve_notation(args.notation)
     # One row per (ECU, PID, counter window); ranked across the whole scope by
@@ -149,7 +148,7 @@ def _sweep_counters(specs, loaded, args, params_of) -> int:
         else:
             tag = f"{ansi.YELLOW}[{mapped_by}?]{ansi.RESET}"
         print(
-            f"    {ansi.BOLD}{ecu:<6} {pid:<8}{ansi.RESET} {ansi.GREEN}{expr}{ansi.RESET}  "
+            f"    {ansi.BOLD}{ecu:<6} {pid:<8}{ansi.RESET} {expr}  "
             f"{ansi.DIM}{rep.kind} bits={rep.bits:.1f}{ansi.RESET}  {rep.first:.0f}→{rep.last:.0f}  {tag}"
         )
     if args.top and len(rows) > args.top:
@@ -251,7 +250,7 @@ def _sweep_default(specs, loaded, args, params_of, fill) -> int:
         f = s["best_state_f"]
         f_str = "∞" if f == float("inf") else f"{f:.1f}"
         fc = ansi.GREEN if (f == float("inf") or f >= 10) else ansi.YELLOW if f >= 2 else ansi.DIM
-        phys = f"  {ansi.CYAN}phys={s['physical']}{ansi.RESET}" if s["physical"] else ""
+        phys = f"  {ansi.DIM}phys={s['physical']}{ansi.RESET}" if s["physical"] else ""
         print(
             f"    {ansi.BOLD}{ecu:<6} {pid:<8}{ansi.RESET} "
             f"{ansi.DIM}varying={s['varying']:<3} unmapped={s['unmapped']:<3}{ansi.RESET} "

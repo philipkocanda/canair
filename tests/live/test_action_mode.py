@@ -12,6 +12,7 @@ import asyncio
 import pytest
 
 from canair.actions import ActionError, parse_action
+from canair.core.prompt import PromptUnavailable
 from canair.live import action as mode
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
 from tests.support.fakes import FakeTerminal
@@ -113,18 +114,27 @@ def test_dry_run_sends_nothing(run):
 def test_without_a_terminal_yes_is_required(run, monkeypatch):
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)
     t = PolicedTerminal()
-    with pytest.raises(SafetyBlocked, match="--yes"):
+    with pytest.raises(PromptUnavailable, match="--yes"):
         run(t, [{"IGN1_SWITCH": 0}])
     assert t.sent == []
 
 
-def test_a_wrong_confirmation_cancels(run, monkeypatch):
+def test_a_wrong_confirmation_exits_1_and_sends_nothing(run, monkeypatch):
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
-    monkeypatch.setattr("builtins.input", lambda *a: "no")
+    monkeypatch.setattr("sys.stdin.readline", lambda: "no\n")
     t = PolicedTerminal()
-    with pytest.raises(SafetyBlocked, match="cancelled"):
+    with pytest.raises(SystemExit) as raised:
         run(t, [{"IGN1_SWITCH": 0}])
+    assert raised.value.code == 1
     assert t.sent == []
+
+
+def test_the_typed_name_confirms(run, monkeypatch):
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("sys.stdin.readline", lambda: "sleep\n")
+    t = PolicedTerminal()
+    run(t, [{"IGN1_SWITCH": 0}, {"IGN1_SWITCH": 0}])
+    assert t.sent
 
 
 def test_without_the_quirk_the_action_is_refused_before_any_read(monkeypatch):

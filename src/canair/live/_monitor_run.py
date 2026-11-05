@@ -21,11 +21,11 @@ import sys
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
-from rich.console import Console
-
 from canair.captures.keepmode import KeepMode
 from canair.core.stop_signals import graceful_stop
 from canair.live.poll_schedule import DEFAULT_SCHEDULE, Schedule
+from canair.render.console import console, escape
+from canair.render.glyphs import FAIL
 from canair.uds.notation import ByteNotation
 
 from ._monitor_record import _open_journal
@@ -33,8 +33,6 @@ from .monitor import MonitorController
 
 if TYPE_CHECKING:
     from .monitor_reconnect import Reconnector
-
-_console = Console(highlight=False)
 
 
 async def _monitor_noninteractive(controller: MonitorController) -> None:
@@ -49,7 +47,7 @@ async def _monitor_noninteractive(controller: MonitorController) -> None:
 
     def _notice(msg: str) -> None:
         with contextlib.suppress(OSError):
-            _console.print(f"  [yellow]{msg}[/yellow]")
+            console(stderr=True).print(f"  [yellow]{escape(msg)}[/yellow]")
 
     # Handle interactive Ctrl-C (SIGINT), a `kill`/`pkill` or the lock
     # watchdog's self-abort (SIGTERM), and a vanished terminal (SIGHUP) the same
@@ -213,7 +211,8 @@ async def mode_monitor(
         print(
             f"  --save: journaling to {controller.journal.path.name} "
             f"(label: {journal_label!r}); auto-saves on stop. "
-            "Press 's' to edit label/states/notes, 'n' to start a new segment."
+            "Press 's' to edit label/states/notes, 'n' to start a new segment.",
+            file=sys.stderr,
         )
 
     try:
@@ -227,15 +226,16 @@ async def mode_monitor(
         if controller.disconnected:
             link = "raw CAN bus" if controller.raw else "WebSocket"
             with contextlib.suppress(OSError):
-                _console.print(f"\n  [bold red]✖ {link} disconnected[/bold red]")
-                _console.print(f"  [red]Stopped after {controller.cycle} cycles.[/red]\n")
+                err = console(stderr=True)
+                err.print(f"\n  [bold red]{FAIL} {link} disconnected[/bold red]")
+                err.print(f"  [red]Stopped after {controller.cycle} cycles.[/red]\n")
             raise ConnectionError(f"{link} disconnected")
 
         # Print the final values so a stopped session leaves them in scrollback
         # (best-effort: the terminal may be gone after a SIGHUP).
         with contextlib.suppress(OSError):
-            _console.print(controller.render())
-            print("  Monitoring stopped.")
+            console().print(controller.render())
+            print("  Monitoring stopped.", file=sys.stderr)
 
     finally:
         # Replay the save banners the TUI swallowed (an in-run 's' save / 'n'
@@ -246,7 +246,7 @@ async def mode_monitor(
         # reconcile below.
         with contextlib.suppress(OSError):
             for line in controller.recorder.drain_deferred_saves():
-                print(line)
+                print(line, file=sys.stderr)
         # Reconcile the journal even on disconnect/exception (this is the fix for
         # the old bug where a dropped connection lost the whole --save session).
         if controller.journal is not None:

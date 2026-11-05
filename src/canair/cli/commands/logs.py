@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import argparse
 
+from canair.core.prompt import confirm
+
 NAME = "logs"
 
 
@@ -64,15 +66,8 @@ def run(args) -> int:
         return 0
 
     if args.clear:
-        if not args.yes:
-            try:
-                reply = input(f"  Delete event log at {path}? [y/N]: ").strip().lower()
-            except (EOFError, KeyboardInterrupt):
-                print("\n  Cancelled.")
-                return 1
-            if reply not in ("y", "yes"):
-                print("  Cancelled.")
-                return 1
+        if not confirm(f"Delete event log at {path}?", yes=args.yes):
+            return 1
         removed = clear_event_log()
         print(f"  Event log cleared ({removed} file(s) removed).")
         return 0

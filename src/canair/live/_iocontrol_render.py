@@ -14,45 +14,45 @@ from typing import TYPE_CHECKING
 
 from canair.core.terminal import terminal_columns as _terminal_columns
 from canair.core.terminal import terminal_lines as _terminal_lines
+from canair.core.terminal import truncate_text
+from canair.render import ansi, glyphs
 
 from ._iocontrol_actuate import ACTUATOR_ERROR, ACTUATOR_OFF, ACTUATOR_ON
 
 if TYPE_CHECKING:
     from .iocontrol import _IOControlTUI
 
-
-def _truncate_text(text: str, width: int) -> str:
-    """Truncate text to visible width using ASCII ellipsis."""
-    if width <= 0:
-        return ""
-    if len(text) <= width:
-        return text
-    if width <= 3:
-        return text[:width]
-    return text[: width - 3] + "..."
+CARET = "▏"  # the text-input cursor
 
 
 def render_iocontrol(tui: _IOControlTUI) -> str:
     """Build the IOControl TUI display as a plain string with ANSI codes."""
     lines = []
-    lines.append(f"\033[1;36m  IOControl TUI — {tui.ecu_key} (0x{tui.tx_id:03X})\033[0m")
+    lines.append(
+        ansi.c(
+            f"  IOControl TUI {glyphs.EMPTY} {tui.ecu_key} (0x{tui.tx_id:03X})",
+            ansi.BOLD + ansi.CYAN,
+        )
+    )
     if tui._session_active:
-        sess = f"\033[32mactive (10 {tui._session_mode})\033[0m"
+        sess = ansi.c(f"active (10 {tui._session_mode})", ansi.GREEN)
     elif tui._session_mode:
-        sess = f"\033[33munconfirmed (10 {tui._session_mode})\033[0m"
+        sess = ansi.c(f"unconfirmed (10 {tui._session_mode})", ansi.YELLOW)
     else:
-        sess = "\033[2mnot started\033[0m"
-    poll = "  \033[2m[polling]\033[0m" if tui._status_polling else ""
+        sess = ansi.c("not started", ansi.DIM)
+    poll = "  " + ansi.c("[polling]", ansi.DIM) if tui._status_polling else ""
     # View-mode indicator: curated / all / discoveries, colour-coded.
     curated_n = sum(1 for c in tui.all_cmds.values() if not c.get("discovery"))
     disc_n = sum(1 for c in tui.all_cmds.values() if c.get("discovery"))
     if tui.view_mode == "curated":
-        mode_lbl = f"\033[36mcurated\033[0m ({curated_n})"
+        mode_lbl = f"{ansi.c('curated', ansi.BOLD)} ({curated_n})"
     elif tui.view_mode == "discoveries":
-        mode_lbl = f"\033[33mdiscoveries\033[0m ({disc_n} to triage)"
+        mode_lbl = f"{ansi.c('discoveries', ansi.YELLOW)} ({disc_n} to triage)"
     else:
-        mode_lbl = f"\033[1mall\033[0m ({curated_n}+{disc_n})"
-    lines.append(f"\033[2m  Session: \033[0m{sess}{poll}   \033[2mView: \033[0m{mode_lbl}")
+        mode_lbl = f"{ansi.c('all', ansi.BOLD)} ({curated_n}+{disc_n})"
+    lines.append(
+        f"{ansi.c('  Session: ', ansi.DIM)}{sess}{poll}   {ansi.c('View: ', ansi.DIM)}{mode_lbl}"
+    )
     lines.append("")
 
     # Fixed column widths (ANSI codes don't count toward padding — we pad
@@ -93,7 +93,8 @@ def render_iocontrol(tui: _IOControlTUI) -> str:
     ruler = "─" * max(1, total_w - 2)
 
     # Header row — plain text, dim
-    # Layout: 3 (prefix) + 2 (verified mark) + did_w + 2 + label_w + 2 + cmd_hdr_w + 2 + status_w + 2 + …
+    # Layout: 3 (prefix) + 2 (verified mark) + did_w + 2 + label_w + 2 + cmd_hdr_w + 2
+    # + status_w + 2 + …
     hdr = (
         f"     "  # 3 (prefix) + 2 (verified)
         f"{'DID':<{did_w}}  "
@@ -102,8 +103,8 @@ def render_iocontrol(tui: _IOControlTUI) -> str:
         f"{status_hdr:<{status_w}}  "
         f"Last response"
     )
-    lines.append(f"\033[2m{hdr}\033[0m")
-    lines.append(f"\033[2m  {ruler}\033[0m")
+    lines.append(ansi.c(hdr, ansi.DIM))
+    lines.append(ansi.c(f"  {ruler}", ansi.DIM))
 
     # Viewport: chrome above (3 banner + 2 column header = 5 lines) and
     # below (1 scroll-indicator + 1 status/input + 1 key-hint = 3 lines)
@@ -129,54 +130,56 @@ def render_iocontrol(tui: _IOControlTUI) -> str:
         resp = tui.last_response.get(did, "")
         sb = tui.status_bytes.get(did)
 
-        # Cursor indicator (3 chars: " ▸ " or "   ")
-        prefix = " \033[1m▸\033[0m " if is_cursor else "   "
+        # Cursor indicator (3 chars: " ▶ " or "   ")
+        prefix = f" {ansi.c(glyphs.CURSOR, ansi.BOLD)} " if is_cursor else "   "
 
         # Verified / discovery marker (1 char + space = 2):
         #   ✓  — curated, verified
         #   ?  — curated, unverified
         #   »  — scanner-discovered (not yet promoted)
         if cmd.get("discovery"):
-            v_mark = "\033[35m»\033[0m "
+            v_mark = ansi.c("»", ansi.DIM) + " "
         elif cmd["verified"]:
-            v_mark = "\033[32m✓\033[0m "
+            v_mark = ansi.c(glyphs.OK, ansi.GREEN) + " "
         else:
-            v_mark = "\033[33m?\033[0m "
+            v_mark = ansi.c("?", ansi.YELLOW) + " "
 
-        # DID + Label (bold if cursor)
-        b0 = "\033[1m" if is_cursor else ""
-        b1 = "\033[0m" if is_cursor else ""
-        label_text = _truncate_text(cmd["label"], label_w)
-        did_label = f"{b0}{did:<{did_w}}  {label_text:<{label_w}}{b1}"
+        # DID (cyan: it can be typed back as --did) + Label (bold on the cursor row)
+        label_text = truncate_text(cmd["label"], label_w)
+        did_code = ansi.BOLD + ansi.CYAN if is_cursor else ansi.CYAN
+        label_cell = f"{label_text:<{label_w}}"
+        if is_cursor:
+            label_cell = ansi.c(label_cell, ansi.BOLD)
+        did_label = f"{ansi.c(f'{did:<{did_w}}', did_code)}  {label_cell}"
 
         # "Cmd" column — what we last sent (3 visible chars)
         if state == ACTUATOR_ON:
-            cmd_part = "\033[1;32mON \033[0m"
+            cmd_part = ansi.c("ON ", ansi.BOLD + ansi.GREEN)
         elif state == ACTUATOR_OFF:
-            cmd_part = "\033[2mOFF\033[0m"
+            cmd_part = ansi.c("OFF", ansi.DIM)
         elif state == ACTUATOR_ERROR:
-            cmd_part = "\033[1;31mERR\033[0m"
+            cmd_part = ansi.c("ERR", ansi.BOLD + ansi.RED)
         else:
-            cmd_part = "\033[2m · \033[0m"
+            cmd_part = ansi.c(f" {glyphs.SEP} ", ansi.DIM)
 
         # "Status" column — trailing bytes of the last 0x2F response.
         # None = never observed (waiting for first poll). "" = positive
         # response with no tail bytes (3-byte 6F{DID} echo only).
         if sb is None:
-            text = f"{'—':<{status_w}}"
-            status_part = f"\033[2m{text}\033[0m"
+            status_part = ansi.c(f"{glyphs.EMPTY:<{status_w}}", ansi.DIM)
         elif sb == "":
-            text = f"{'·':<{status_w}}"
-            status_part = f"\033[2m{text}\033[0m"
-        elif sb.startswith("ERR") or sb.startswith("NRC"):
-            text = f"{_truncate_text(sb, status_w):<{status_w}}"
-            status_part = f"\033[31m{text}\033[0m"
+            status_part = ansi.c(f"{glyphs.SEP:<{status_w}}", ansi.DIM)
         else:
-            text = f"{_truncate_text(sb, status_w):<{status_w}}"
-            status_part = f"\033[36m{text}\033[0m"
+            text = f"{truncate_text(sb, status_w):<{status_w}}"
+            if sb.startswith("ERR"):
+                status_part = ansi.c(text, ansi.RED)
+            elif sb.startswith("NRC"):
+                status_part = ansi.c(text, ansi.YELLOW)
+            else:
+                status_part = text
 
         # Response column — raw hex, dimmed
-        resp_part = f"  \033[2m{resp}\033[0m" if resp else ""
+        resp_part = "  " + ansi.c(resp, ansi.DIM) if resp else ""
 
         lines.append(f"{prefix}{v_mark}{did_label}  {cmd_part}  {status_part}{resp_part}")
 
@@ -184,34 +187,40 @@ def render_iocontrol(tui: _IOControlTUI) -> str:
     if n_dids > viewport_rows:
         above = visible_start
         below = n_dids - visible_end
-        up = "\033[33m↑\033[0m" if above else "\033[2m·\033[0m"
-        dn = "\033[33m↓\033[0m" if below else "\033[2m·\033[0m"
+        up = "↑" if above else glyphs.SEP
+        dn = "↓" if below else glyphs.SEP
         lines.append(
-            f"\033[2m  {up}{dn} {tui.cursor + 1}/{n_dids} "
-            f"(viewing {visible_start + 1}–{visible_end}, {above}↑ {below}↓)\033[0m"
+            ansi.c(
+                f"  {up}{dn} {tui.cursor + 1}/{n_dids} "
+                f"(viewing {visible_start + 1}–{visible_end}, {above}↑ {below}↓)",
+                ansi.DIM,
+            )
         )
     else:
         lines.append("")
     if tui._hex_input is not None:
         did = tui.dids[tui.cursor]
-        lines.append(f"  \033[1;33mValue for {did} (hex): \033[0m{tui._hex_input}\033[5m▏\033[0m")
+        lines.append(f"  {ansi.c(f'Value for {did} (hex): ', ansi.BOLD)}{tui._hex_input}{CARET}")
         lines.append(
-            "\033[2m  Type hex bytes, Enter to send 2F{DID}03{value}, Esc to cancel\033[0m"
+            ansi.c("  Type hex bytes, Enter to send 2F{DID}03{value}, Esc to cancel", ansi.DIM)
         )
     elif tui._edit_input is not None:
         did = tui.dids[tui.cursor]
         field, buf = tui._edit_input
         if field == "promote":
+            prompt = ansi.c(f"Label for new curated entry from {did}: ", ansi.BOLD)
+            lines.append(f"  {prompt}{buf}{CARET}")
             lines.append(
-                f"  \033[1;33mLabel for new curated entry from {did}: \033[0m{buf}\033[5m▏\033[0m"
-            )
-            lines.append(
-                "\033[2m  on/off inferred from response length; Enter to save, Esc to cancel\033[0m"
+                ansi.c(
+                    "  on/off inferred from response length; Enter to save, Esc to cancel",
+                    ansi.DIM,
+                )
             )
         else:
-            lines.append(f"  \033[1;33m{field.capitalize()} for {did}: \033[0m{buf}\033[5m▏\033[0m")
+            prompt = ansi.c(f"{field.capitalize()} for {did}: ", ansi.BOLD)
+            lines.append(f"  {prompt}{buf}{CARET}")
             lines.append(
-                "\033[2m  Type new value, Enter to save to ecus/*.yaml, Esc to cancel\033[0m"
+                ansi.c("  Type new value, Enter to save to ecus/*.yaml, Esc to cancel", ansi.DIM)
             )
     elif tui._status:
         lines.append(f"  {tui._status}")
@@ -219,9 +228,10 @@ def render_iocontrol(tui: _IOControlTUI) -> str:
     did = tui.dids[tui.cursor]
     val_hint = ""
     if did in tui.last_value:
-        val_hint = f"  \033[2mlast value: {tui.last_value[did].hex().upper()}\033[0m"
-    lines.append(
-        f"\033[2m  ↑↓/jk Nav  PgUp/Dn  g/G Top/Bot  Enter Toggle  o OFF  v Value  +/- Step  "
-        f"e Label  n Notes  m Verified  d View  P Promote  q Quit\033[0m{val_hint}"
+        val_hint = "  " + ansi.c(f"last value: {tui.last_value[did].hex().upper()}", ansi.DIM)
+    keys = (
+        "  ↑↓/jk Nav  PgUp/Dn  g/G Top/Bot  Enter Toggle  o OFF  v Value  +/- Step  "
+        "e Label  n Notes  m Verified  d View  P Promote  q Quit"
     )
+    lines.append(ansi.c(keys, ansi.DIM) + val_hint)
     return "\n".join(lines)

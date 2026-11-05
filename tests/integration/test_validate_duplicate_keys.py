@@ -75,4 +75,4 @@ def test_a_repeated_key_fails_validation(copy, capsys, target, edit, key):
     capsys.readouterr()
     edit(copy)
     assert main(["--profile", str(copy), "validate", target]) == 1
-    assert f"duplicate key '{key}'" in capsys.readouterr().out
+    assert f"duplicate key '{key}'" in capsys.readouterr().err

@@ -19,7 +19,7 @@ from canair.analysis.xanalysis import (
     correlate_matrix,
     correlation,
 )
-from canair.render import ansi
+from canair.render import ansi, messages
 
 from .promote import _warn_thin_reference_join
 from .render import (
@@ -47,7 +47,7 @@ def _run_can_log(args) -> int:
 
     path = Path(args.file)
     if not path.is_file():
-        print(f"correlate can: no such file: {path}", file=sys.stderr)
+        messages.error(f"no such file: {path}")
         return 1
     try:
         id_filter = frame_series.parse_id_filter(args.id)
@@ -58,10 +58,10 @@ def _run_can_log(args) -> int:
                 path, args.can_format, id_filter=id_filter, min_distinct=4
             )
     except (ValueError, CanLogError) as e:
-        print(f"correlate can: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 1
     if not series:
-        print("No varying frame bytes found in scope.", file=sys.stderr)
+        messages.error("no varying frame bytes found in scope")
         return 1
 
     src = f"{path.name} ({len(series)} varying {'bits' if args.bits else 'bytes'})"
@@ -74,10 +74,9 @@ def _run_can_log(args) -> int:
         ref = series.get(args.against)
         if ref is None:
             avail = ", ".join(sorted(series)[:6])
-            print(
+            messages.error(
                 f"--against: {args.against!r} is not a varying byte in {path.name}. "
-                f"Available e.g.: {avail} …",
-                file=sys.stderr,
+                f"Available e.g.: {avail} …"
             )
             return 1
         rows = []
@@ -161,7 +160,8 @@ def _run_can_log(args) -> int:
         members = sorted(c)
         shown = ", ".join(members[:4]) + (f", +{len(members) - 4} more" if len(members) > 4 else "")
         print(
-            f"    {ansi.GREEN}≈ cluster{ansi.RESET} {ansi.DIM}({len(members)} signals){ansi.RESET}  {shown}"
+            f"    {ansi.BOLD}≈ cluster{ansi.RESET} "
+            f"{ansi.DIM}({len(members)} signals){ansi.RESET}  {shown}"
         )
     for h in remaining:
         print(

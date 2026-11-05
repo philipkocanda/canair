@@ -132,7 +132,7 @@ class TestNeverSaved:
         assert out is not None
         assert "AABBCC" not in out.read_text()
         # The note rides on the save banner.
-        assert "Not saved: CCM:22F102" in capsys.readouterr().out
+        assert "Not saved: CCM:22F102" in capsys.readouterr().err  # a status line, not the result
 
     def test_save_session_drops_sensitive_rows_whoever_built_them(self, prof, capsys):
         from canair.captures import save_session
@@ -144,7 +144,7 @@ class TestNeverSaved:
         }
         path = save_session(session, prof / "captures")
         assert "AABBCC" not in path.read_text()
-        assert "Not saved: CCM:22F102" in capsys.readouterr().out
+        assert "Not saved: CCM:22F102" in capsys.readouterr().err  # a status line, not the result
 
 
 def _write_store(prof, captures: list[dict]) -> None:
@@ -188,8 +188,10 @@ class TestStoredHistory:
         from canair.cli import main
 
         _write_store(prof, [_cap("22F102", "62F102AABBCCDDEEFF")])
-        assert main(["captures", "purge-sensitive", "--json"]) == 1
-        capsys.readouterr()
+        # --json never means yes: with no terminal to ask, the run is refused (exit 2).
+        assert main(["captures", "purge-sensitive", "--json"]) == 2
+        captured = capsys.readouterr()
+        assert captured.out == "" and "--yes" in captured.err
         assert main(["captures", "purge-sensitive", "--json", "--yes"]) == 0
         assert json.loads(capsys.readouterr().out)["removed"] == 1
 
@@ -267,7 +269,7 @@ class TestEditor:
         from canair.cli import main
 
         assert main(["validate", "pids"]) != 0
-        assert "cannot declare send_to" in capsys.readouterr().out
+        assert "cannot declare send_to" in capsys.readouterr().err
 
 
 class TestBundledIoniqIdentity:

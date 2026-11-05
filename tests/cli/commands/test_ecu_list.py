@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from canair import profile
@@ -125,7 +127,7 @@ def test_header_counts_only_ecus_with_pids(monkeypatch, capsys):
     pids_data["ecus"]["C"] = {"tx_id": 0x3, "pids": {}}
     ecus = {0x1: {"name": "A"}, 0x2: {"name": "B"}, 0x3: {"name": "C"}}
     cmd_list(_list_records(ecus, pids_data), as_json=False)
-    assert "3 in registry, 2 with PIDs" in capsys.readouterr().out
+    assert re.search(r"3 in \S+, 2 with PIDs", capsys.readouterr().out)
 
 
 def test_no_identity_confidence_in_records():
@@ -294,7 +296,7 @@ def test_cmd_pids_renders_values_not_hex(monkeypatch, capsys):
     assert "SOC" in out and "79.0 %" in out  # decoded name + value
     assert "DEADBEEF" not in out  # never shows raw hex
     assert "no capture" in out  # 2102 has params but no capture
-    assert "no parameters defined" in out  # 2180
+    assert "no signals defined" in out  # 2180
     assert "canair captures BMS" in out  # pointer to full history
 
 

@@ -7,6 +7,8 @@ mini-language parser ever sees them, so a group composes with ad-hoc selectors.
 
 from __future__ import annotations
 
+from canair.render import messages
+
 # Leading verbs recognised by the multi mini-language. A positional STEP whose
 # first token is one of these is passed through verbatim; anything else is a
 # bare selector and gets the implicit ``query`` verb prepended.
@@ -50,6 +52,4 @@ def report_merged_selectors(commands: list[dict]) -> None:
     notes = merged_selector_notes(commands)
     if not notes:
         return
-    print("Merged overlapping selectors (each ECU is polled once):")
-    for note in notes:
-        print(f"  {note}")
+    messages.note("\n".join(["merged overlapping selectors (each ECU is polled once):", *notes]))

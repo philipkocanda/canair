@@ -37,6 +37,8 @@ import importlib.util
 import io
 import sys
 
+from canair.render import messages
+
 # Force line-buffered stdout so output appears immediately when piped.
 # reconfigure() only exists on TextIOWrapper; guard so it's safe (and
 # type-correct) when stdout/stderr are redirected to a plain stream.
@@ -47,8 +49,7 @@ if not sys.stdout.isatty():
         sys.stderr.reconfigure(line_buffering=True)
 
 if importlib.util.find_spec("websockets") is None:  # pragma: no cover
-    print("ERROR: websockets not installed. Run: pip3 install websockets", file=sys.stderr)
-    sys.exit(1)
+    messages.fail("websockets not installed. Run: pip3 install websockets")
 
 from canair.ecus.pids import load_pids
 

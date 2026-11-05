@@ -117,7 +117,7 @@ def print_table(findings: Sequence[Finding], *, notation: ByteNotation, profile:
         print(f"  {row}  {ansi.DIM}{seen}{ansi.RESET}  {_highlight(f.text, f.match)}{_notes(f)}")
         command = upsert_command(f, profile)
         if command:
-            print(f"  {ansi.DIM}  → {command}{ansi.RESET}")
+            print(f"  {ansi.DIM}  →{ansi.RESET} {ansi.CYAN}{command}{ansi.RESET}")
 
 
 def print_truncation(shown: int, total: int) -> None:

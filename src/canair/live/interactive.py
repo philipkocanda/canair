@@ -4,6 +4,7 @@ import re
 
 from canair.ecus.pids import build_ecu_index
 from canair.expression.decoding import decode_param_rows
+from canair.render import messages
 from canair.render.formatting import print_decoded_params, print_hexdump
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.elm327.wican import WiCANTerminal, reboot_wican
@@ -106,7 +107,7 @@ async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: b
         if cmd.lower().startswith("!info "):
             ecu_name = cmd[6:].strip().upper()
             if ecu_name not in ecu_index:
-                print(f"  Unknown ECU: {ecu_name}. Use !list to see available ECUs.")
+                messages.error(f"unknown ECU: {ecu_name}. Use !list to see available ECUs.")
                 continue
             info = ecu_index[ecu_name]
             print(f"\n  {ecu_name} -- TX 0x{info['tx_id']:03X}")
@@ -176,7 +177,7 @@ async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: b
 
         if cmd.lower() == "!identity":
             if last_tx_id is None:
-                print("  No ECU header set. Use ATSH<id> first (e.g., ATSH7A0).")
+                messages.error("no ECU header set. Use ATSH<id> first (e.g., ATSH7A0).")
             else:
                 await mode_identity(terminal, last_tx_id, session=False, wake=False, as_json=False)
             continue
@@ -200,8 +201,6 @@ async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: b
                     desc = response.get("nrc_desc", "unknown")
                     print(f"  [NRC] Service 0x{svc:02X} rejected: 0x{nrc:02X} ({desc})")
 
-        except ValueError as e:
-            print(f"  !! {e}")
         except Exception as e:
-            print(f"  Error: {e}")
+            messages.error(str(e))
     print()

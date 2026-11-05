@@ -830,7 +830,9 @@ class TestLiveSurfaces:
         self._sniff(monkeypatch)
         _v6(monkeypatch, V4)
         assert sniff.run(self._sniff_args(listen_only=True)) == 0
-        assert capsys.readouterr().err == ""
+        # No firmware verdict (warning or note): only the connect banner is on stderr.
+        err = capsys.readouterr().err
+        assert [line.strip().split(" — ")[0] for line in err.splitlines()] == ["Raw CAN via SLCAN"]
 
     def test_sniff_fails_fast_when_the_slcan_port_is_closed(self, monkeypatch, capsys):
         from canair.cli.commands import sniff

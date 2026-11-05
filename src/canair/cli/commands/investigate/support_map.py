@@ -29,7 +29,7 @@ from canair.analysis.support_map import (
     detect_support_maps,
     family_chance_log10,
 )
-from canair.render import ansi
+from canair.render import ansi, messages
 from canair.uds.byteindex import payload_index_to_wican
 from canair.uds.notation import subfunction_bytes_for_pid
 from canair.uds.support_marks import MAX_MAP_LEN
@@ -157,7 +157,7 @@ def run_support_map(specs: list[tuple[str, str]], args, since, until) -> int:
     from .support_map_report import absence_tally, as_json, print_scan
 
     if not specs:
-        print("No timed captures in scope to investigate.", file=sys.stderr)
+        messages.error("no timed captures in scope to investigate")
         return 1
     ecu_index = build_ecu_index(load_pids())
     scans: list[PidScan] = []

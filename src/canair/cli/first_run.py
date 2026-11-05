@@ -22,9 +22,12 @@ import sys
 from pathlib import Path
 
 from canair.config import set_config_value, user_profiles_dir
+from canair.core.prompt import confirm
 from canair.install.context import installed_snapshot_kind
 from canair.profile import selectable_profiles
 from canair.profile.scaffold import adopt_profile, create_profile
+from canair.render import messages
+from canair.yaml_edit.echo import echo_edit
 
 # Commands that manage config/profiles themselves, or don't touch a profile —
 # never interrupt these with the wizard.
@@ -48,11 +51,18 @@ def should_offer(args, *, seeded: bool) -> bool:
     return True
 
 
+def _say(text: str = "") -> None:
+    """The wizard is a dialogue, so it speaks on stderr and leaves stdout to the command."""
+    print(text, file=sys.stderr)
+
+
 def _prompt(text: str) -> str:
+    """Ask for a value (a menu choice or a name). The wizard only runs on a terminal."""
+    print(text, end="", flush=True, file=sys.stderr)
     try:
-        return input(text).strip()
+        return input().strip()
     except (EOFError, KeyboardInterrupt):
-        print()
+        print(file=sys.stderr)
         return ""
 
 
@@ -64,25 +74,25 @@ def run_first_run_setup(args) -> None:
     """
     profiles = selectable_profiles(getattr(args, "profiles_dir", None))
 
-    print("\n  Welcome to canair! Let's pick a vehicle profile to work with.\n")
-    print("  Profiles are directories bundling one vehicle's data. New ones you")
-    print(f"  create live under:\n    {user_profiles_dir()}\n")
+    _say("\n  Welcome to canair! Let's pick a vehicle profile to work with.\n")
+    _say("  Profiles are directories bundling one vehicle's data. New ones you")
+    _say(f"  create live under:\n    {user_profiles_dir()}\n")
 
     items = sorted(profiles.items())
     if items:
-        print("  Discovered profiles:\n")
+        _say("  Discovered profiles:\n")
         for n, (name, path) in enumerate(items, 1):
-            print(f"    {n}) {name}")
-            print(f"       {path}")
-        print("\n    n) create a new blank profile")
-        print("    s) skip for now\n")
+            _say(f"    {n}) {name}")
+            _say(f"       {path}")
+        _say("\n    n) create a new blank profile")
+        _say("    s) skip for now\n")
         choice = _prompt(f"  Choose [1-{len(items)}/n/s]: ").lower()
     else:
-        print("  No profiles found yet.\n")
+        _say("  No profiles found yet.\n")
         choice = "n"
 
     if choice in ("", "s"):
-        print(
+        _say(
             "\n  Skipped. canair will ask you to pick a profile per-command "
             "(--profile NAME)\n  until you set one with "
             "`canair config set default_profile NAME`.\n"
@@ -95,20 +105,21 @@ def run_first_run_setup(args) -> None:
 
     if choice.isdigit() and 1 <= int(choice) <= len(items):
         name, path = items[int(choice) - 1]
-        path = _offer_adopt_if_snapshot(name, path)
-        set_config_value("default_profile", name)
-        print(f"\n  ✓ Default profile set to '{name}'.")
-        print(f"    ({path})")
-        print("    Change it anytime: canair config set default_profile NAME\n")
+        path = _offer_adopt_if_snapshot(args, name, path)
+        config_path = set_config_value("default_profile", name)
+        _say()
+        echo_edit(f"default profile set to '{name}'", config_path)
+        _say(f"    profile: {path}")
+        _say("    Change it anytime: canair config set default_profile NAME\n")
         return
 
-    print(
+    _say(
         "\n  Unrecognized choice — skipping. Set one later with "
         "`canair config set default_profile NAME`.\n"
     )
 
 
-def _offer_adopt_if_snapshot(name: str, path: Path) -> Path:
+def _offer_adopt_if_snapshot(args, name: str, path: Path) -> Path:
     """Offer to adopt a profile that only exists inside the install snapshot.
 
     Recording such a profile as the default is a trap: every ``--save``, PID edit
@@ -120,33 +131,36 @@ def _offer_adopt_if_snapshot(name: str, path: Path) -> Path:
     if not kind:
         return path
 
-    print(f"\n  Note: '{name}' ships inside the {kind} install snapshot:")
-    print(f"    {path}")
-    print("  Anything you record or edit there is deleted by the next reinstall.")
-    print(f"  A copy under {user_profiles_dir()} is yours and survives.\n")
-    if _prompt("  Copy it there now? [Y/n]: ").lower() in ("n", "no"):
-        print("\n  Left as-is. Copy it later with `canair profile adopt " + name + "`.")
+    _say()
+    messages.note(
+        f"'{name}' ships inside the {kind} install snapshot:\n{path}\n"
+        "Anything you record or edit there is deleted by the next reinstall.\n"
+        f"A copy under {user_profiles_dir()} is yours and survives."
+    )
+    if not confirm("Copy it there now?", yes=bool(getattr(args, "yes", False))):
+        _say(f"  Left as-is. Copy it later with `canair profile adopt {name}`.")
         return path
 
     try:
         _source, dest = adopt_profile(name)
     except (LookupError, ValueError, FileExistsError, OSError) as e:
-        print(f"\n  Copy failed: {e}")
-        print(f"  Do it later with `canair profile adopt {name}`.")
+        messages.error(f"copy failed: {e}")
+        messages.hint(f"do it later with `canair profile adopt {name}`")
         return path
-    print(f"\n  ✓ Copied to {dest}")
+    _say()
+    echo_edit(f"copied '{name}'", dest)
     return dest
 
 
 def _create_new_profile_interactive(args) -> None:
     name = _prompt("\n  New profile name (e.g. my-car): ")
     if not name:
-        print("  No name given — skipping.\n")
+        _say("  No name given — skipping.\n")
         return
     car_model = _prompt("  Car model description (e.g. 'VW e-Golf 2019'): ")
 
     dest = user_profiles_dir() / name
-    print(f"\n  This will create:\n    {dest}\n")
+    _say(f"\n  This will create:\n    {dest}\n")
 
     try:
         root = create_profile(
@@ -155,10 +169,9 @@ def _create_new_profile_interactive(args) -> None:
             set_default=True,
         )
     except (ValueError, FileExistsError, OSError) as e:
-        print(f"  Profile creation failed: {e}")
-        print("  Set one later with `canair profile create`.\n")
+        messages.error(f"profile creation failed: {e}")
+        messages.hint("set one later with `canair profile create`")
         return
 
-    print(f"  ✓ Created profile '{name}' and set it as your default.")
-    print(f"    ({root})")
-    print("    Next: read `canair --help`, then `canair discover` with the car plugged in.\n")
+    echo_edit(f"created profile '{name}' and set it as your default", root)
+    _say("    Next: read `canair --help`, then `canair discover` with the car plugged in.\n")

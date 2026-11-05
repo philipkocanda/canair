@@ -53,13 +53,13 @@ def _mk_profile(tmp_path, *, n_untimed: int) -> None:
 def test_over_baseline_fails(tmp_path, capsys):
     _mk_profile(tmp_path, n_untimed=5)
     assert run_captures(max_untimed=4) == 1
-    assert "exceeds the --max-untimed 4 baseline" in capsys.readouterr().out
+    assert "exceeds the --max-untimed 4 baseline" in capsys.readouterr().err
 
 
 def test_at_baseline_passes(tmp_path, capsys):
     _mk_profile(tmp_path, n_untimed=5)
     assert run_captures(max_untimed=5) == 0
-    assert "within the --max-untimed 5 baseline" in capsys.readouterr().out
+    assert "within the --max-untimed 5 baseline" in capsys.readouterr().err
 
 
 def test_under_baseline_passes(tmp_path):
@@ -71,7 +71,7 @@ def test_no_ratchet_is_warnings_only(tmp_path, capsys):
     """Default (no --max-untimed): untimed rows warn but never fail — the pre-ratchet behavior."""
     _mk_profile(tmp_path, n_untimed=5)
     assert run_captures() == 0
-    assert "untimed payload capture(s)" in capsys.readouterr().out
+    assert "untimed payload capture(s)" in capsys.readouterr().err
 
 
 def test_bundled_ioniq_2017_sits_at_its_ci_baseline(capsys):
@@ -117,16 +117,16 @@ def test_untimed_collapsed_to_a_count_by_default(tmp_path, capsys):
     """The untimed class is a footer COUNT, not a per-file stream that drowns the rest."""
     _mk_profile_with_quality_warning(tmp_path, n_untimed=5)
     assert run_captures() == 0
-    out = capsys.readouterr().out
+    captured = capsys.readouterr()
     # The real (quality) warning surfaces; the 5 untimed rows do NOT each print.
-    assert "dropped/stale" in out
-    assert "1 warning(s)" in out, "untimed rows must not inflate the warning count"
-    assert "5 untimed payload capture(s)" in out  # the collapsed footer count
+    assert "dropped/stale" in captured.err
+    assert "1 warning(s)" in captured.out, "untimed rows must not inflate the warning count"
+    assert "5 untimed payload capture(s)" in captured.err  # the collapsed footer count
 
 
 def test_show_untimed_restores_the_per_file_detail(tmp_path, capsys):
     _mk_profile_with_quality_warning(tmp_path, n_untimed=5)
     assert run_captures(show_untimed=True) == 0
-    out = capsys.readouterr().out
-    assert "6 warning(s)" in out  # 5 untimed + 1 quality
-    assert "no usable time" in out
+    captured = capsys.readouterr()
+    assert "6 warning(s)" in captured.out  # 5 untimed + 1 quality
+    assert "no usable time" in captured.err

@@ -2,6 +2,7 @@
 
 from collections import OrderedDict
 
+from canair.render import messages
 from canair.validation.captures import check_captures
 from canair.validation.report import CapturesReport, CaptureWarning
 
@@ -9,46 +10,46 @@ from canair.validation.report import CapturesReport, CaptureWarning
 _MAX_GROUP_LOCATIONS = 6
 
 
-def _print_grouped(warnings: list[CaptureWarning], marker: str) -> None:
-    """Print warnings, collapsing repeats of the same message into one line.
+def _print_grouped(warnings: list[CaptureWarning], file: str, *, error: bool = False) -> None:
+    """Print findings on stderr, collapsing repeats of the same message into one entry.
 
-    A message seen once prints inline (``marker location: message``); a message
-    seen multiple times prints once as ``marker message — N locations:`` followed
-    by an indented, capped list of them. "Locations", not "captures": the same
-    lint can be session-scoped (a state or quality warning) or capture-scoped.
+    A message seen once prints inline (``file: location: message``); a message seen multiple
+    times prints once as ``file: message — N locations:`` followed by a capped list of them.
+    "Locations", not "captures": the same lint can be session-scoped (a state or quality
+    warning) or capture-scoped.
     """
+    emit = messages.error if error else messages.warning
     groups: OrderedDict[str, list[str]] = OrderedDict()
     for w in warnings:
         groups.setdefault(w.message, []).append(w.location)
     for message, locations in groups.items():
         if len(locations) == 1:
-            print(f"  {marker} {locations[0]}: {message}")
+            emit(f"{file}: {locations[0]}: {message}")
             continue
         shown = locations[:_MAX_GROUP_LOCATIONS]
         extra = len(locations) - len(shown)
         tail = f", … (+{extra} more)" if extra else ""
-        print(f"  {marker} {message} — {len(locations)} locations:")
-        print(f"      {', '.join(shown)}{tail}")
+        emit(f"{file}: {message} — {len(locations)} locations:\n{', '.join(shown)}{tail}")
 
 
 def _print_tags(report: CapturesReport) -> None:
     tags = report.tags
     for problem in tags.problems:
-        print(f"  ⚠ {problem}")
+        messages.warning(problem)
     if tags.several_variants and tags.untagged:
         ceiling = ""
         if tags.max_untagged is not None:
             verb = "exceeds" if tags.failed else "within"
             ceiling = f", {verb} the --max-untagged {tags.max_untagged} baseline"
-        print(
-            f"  ({tags.untagged} untagged session(s){ceiling}: no car named — tag them with "
-            "`captures migrate-variants` or `captures uds --set-variant`)"
+        messages.note(
+            f"{tags.untagged} untagged session(s){ceiling}: no car named — tag them with "
+            "`captures migrate-variants` or `captures uds --set-variant`"
         )
     if tags.failed:
-        print(
-            f"\n{tags.untagged} untagged session(s) exceeds the --max-untagged "
+        messages.error(
+            f"{tags.untagged} untagged session(s) exceeds the --max-untagged "
             f"{tags.max_untagged} baseline — new recordings must name their car "
-            "(--variant / profile use)."
+            "(--variant / profile use)"
         )
 
 
@@ -68,10 +69,10 @@ def _print_untimed(report: CapturesReport) -> None:
         detail = (
             "" if report.show_untimed else " (--show-untimed lists them, --strict fails on them)"
         )
-        print(f"  ({gaps} untimed payload capture(s){ceiling}){detail}")
+        messages.note(f"{gaps} untimed payload capture(s){ceiling}{detail}")
     if report.ratchet_failed:
-        print(
-            f"\n{gaps} untimed payload capture(s) exceeds the "
+        messages.error(
+            f"{gaps} untimed payload capture(s) exceeds the "
             f"--max-untimed {limit} baseline — new untimed captures are not "
             "allowed (the write path enforces a timestamp). If this is legacy data, "
             "raise the baseline deliberately; otherwise fix the capture(s)."
@@ -91,13 +92,11 @@ def run_captures(
 
     for found in report.files:
         if found.error_count:
-            print(f"\n{found.name}: {found.error_count} errors")
+            print(f"{found.name}: {found.error_count} errors")
             for e in found.errors:
-                print(f"  - {e}")
-            _print_grouped(found.strict_gaps, marker="-")
-        else:
-            print(f"\n{found.name}:")
-        _print_grouped(found.warnings, marker="⚠")
+                messages.error(f"{found.name}: {e}")
+            _print_grouped(found.strict_gaps, found.name, error=True)
+        _print_grouped(found.warnings, found.name)
 
     _print_tags(report)
     if report.total_warnings:

@@ -152,12 +152,13 @@ class TestSnapshotProfileIsOffered:
 
     def test_accepting_adopts_the_profile(self, tmp_path, monkeypatch, capsys):
         self._isolate(tmp_path, monkeypatch)
-        answers = iter(["1", "y"])
+        answers = iter(["1"])
         monkeypatch.setattr(first_run, "_prompt", lambda _t: next(answers))
+        monkeypatch.setattr(first_run, "confirm", lambda *a, **k: True)
 
         first_run.run_first_run_setup(_args())
 
-        out = capsys.readouterr().out
+        out = capsys.readouterr().err
         assert "uv tool install snapshot" in out
         assert "deleted by the next reinstall" in out
         dest = tmp_path / "cfg" / "canair" / "profiles" / "hyundai-ioniq-ae-ev"
@@ -171,12 +172,13 @@ class TestSnapshotProfileIsOffered:
         self, tmp_path, monkeypatch, capsys
     ):
         self._isolate(tmp_path, monkeypatch)
-        answers = iter(["1", "n"])
+        answers = iter(["1"])
         monkeypatch.setattr(first_run, "_prompt", lambda _t: next(answers))
+        monkeypatch.setattr(first_run, "confirm", lambda *a, **k: False)
 
         first_run.run_first_run_setup(_args())
 
-        assert "canair profile adopt hyundai-ioniq-ae-ev" in capsys.readouterr().out
+        assert "canair profile adopt hyundai-ioniq-ae-ev" in capsys.readouterr().err
         assert not (tmp_path / "cfg" / "canair" / "profiles" / "hyundai-ioniq-ae-ev").exists()
         from canair import config
 

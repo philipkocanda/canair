@@ -14,6 +14,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+from canair.render import messages
+from canair.yaml_edit.echo import echo_edit
+
 NAME = "completion"
 
 _SHELLS = ["bash", "zsh", "fish", "tcsh", "powershell"]
@@ -148,15 +151,12 @@ def _install(shell: str) -> int:
     elif shell == "zsh":
         target, note = _install_zsh()
     else:
-        print(
-            f"error: --install is not supported for {shell!r}. "
-            f'Add this to your shell config instead:\n  eval "$(canair completion {shell})"',
-            file=sys.stderr,
-        )
+        messages.error(f"--install is not supported for {shell!r}")
+        messages.hint(f'add this to your shell config instead: eval "$(canair completion {shell})"')
         return 1
 
-    print(f"Installed canair {shell} completion → {target}")
-    print(note)
+    echo_edit(f"installed canair {shell} completion", target)
+    messages.note(note)
     return 0
 
 
@@ -164,7 +164,7 @@ def run(args) -> int:
     try:
         import argcomplete  # noqa: F401
     except ImportError:
-        print("error: argcomplete is not installed.", file=sys.stderr)
+        messages.error("argcomplete is not installed")
         return 1
 
     shell = args.shell or _detect_shell()
@@ -175,6 +175,6 @@ def run(args) -> int:
         sys.stdout.write(_shellcode(shell))
         return 0
     except Exception as e:
-        print(f"error: could not generate completion for {shell!r}: {e}", file=sys.stderr)
-        print('Fallback: eval "$(register-python-argcomplete canair)"', file=sys.stderr)
+        messages.error(f"could not generate completion for {shell!r}: {e}")
+        messages.hint('fallback: eval "$(register-python-argcomplete canair)"')
         return 1

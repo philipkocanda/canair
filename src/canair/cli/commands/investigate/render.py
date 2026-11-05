@@ -19,7 +19,7 @@ import sys
 from canair.analysis.align import longest_payload_len
 from canair.captures.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.notation import resolve_notation
-from canair.render import ansi
+from canair.render import ansi, messages
 from canair.uds.notation import relabel_signal, subfunction_bytes_for_pid
 
 
@@ -62,7 +62,7 @@ def print_report(
     )
     print_keep_banner(lp.captures)
     if fill_line:
-        print(f"  {ansi.CYAN}{fill_line}{ansi.RESET}")
+        print(f"  {ansi.DIM}{fill_line}{ansi.RESET}")
     if not reports:
         what = "varying " if not args.all else ""
         unit = "bytes/bits" if args.bits else "bytes"
@@ -84,7 +84,7 @@ def print_report(
         if r.anchor and r.anchor_r is not None and abs(r.anchor_r) >= args.min_r:
             rc = ansi.GREEN if abs(r.anchor_r) >= 0.7 else ansi.YELLOW
             fit = f" fit y={r.slope:.4f}·x{r.intercept:+.2f}" if r.slope is not None else ""
-            unit = f" {ansi.CYAN}{r.unit_guess}{ansi.RESET}" if r.unit_guess else ""
+            unit = f" {ansi.DIM}{r.unit_guess}{ansi.RESET}" if r.unit_guess else ""
             # NOTE: no payload_len here — the anchor is a signal on a *different*
             # ECU:PID (the co-polled cross-signal reference), so this PID's frame
             # layout does not apply to it. Passing it would be actively wrong; the
@@ -97,7 +97,7 @@ def print_report(
             dv = "—" if r.driver_r is None else f"{r.driver_r:+.3f}"
             dc = ansi.GREEN if (r.driver_r is None or abs(r.driver_r) < 0.3) else ansi.DIM
             drv = f"  {dc}drv={dv}{ansi.RESET}"
-        phys = f"  {ansi.CYAN}{r.physical}{ansi.RESET}" if r.physical else ""
+        phys = f"  {ansi.DIM}{r.physical}{ansi.RESET}" if r.physical else ""
         kind = ""
         if r.kind and r.bit is None and r.kind != "continuous":
             # Flag the non-analog byte classes (constant/counter/checksum/enum);
@@ -113,7 +113,7 @@ def print_report(
             f"{ansi.DIM}(near-constant hi byte + full-range lo byte){ansi.RESET}"
         )
         for w, expr in words[:6]:
-            print(f"      {ansi.CYAN}{expr}{ansi.RESET}  {ansi.DIM}score={w.score:.2f}{ansi.RESET}")
+            print(f"      {expr}  {ansi.DIM}score={w.score:.2f}{ansi.RESET}")
     if driver_label is not None:
         print(
             f"    {ansi.DIM}ranked by state separation × independence from {driver_label} "
@@ -283,7 +283,7 @@ def print_field_events(ecu, pid, lp, args, param: dict) -> None:
         return
     for dt, before, after, cap in edges:
         note = cap_note(cap)
-        note_str = f"  {ansi.DIM}~ note: {ansi.CYAN}{note}{ansi.RESET}" if note else ""
+        note_str = f"  {ansi.DIM}~ note:{ansi.RESET} {note}" if note else ""
         print(
             f"    {ansi.DIM}{dt.strftime('%H:%M:%S')}{ansi.RESET}  "
             f"{ansi.BOLD}{before}{ansi.RESET} → {ansi.BOLD}{after}{ansi.RESET}{note_str}"
@@ -297,10 +297,7 @@ def print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> Non
         params_def = params_def or {}
         param = params_def.get(args.field)
         if param is None:
-            print(
-                f"\n  {ansi.YELLOW}investigate: no parameter {args.field!r} on {ecu} {pid}.{ansi.RESET}\n",
-                file=sys.stderr,
-            )
+            messages.error(f"no signal {args.field!r} on {ecu} {pid}")
             return
         print_field_events(ecu, pid, lp, args, param)
         return
@@ -348,7 +345,7 @@ def print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> Non
         else:
             tag = f"{ansi.YELLOW}[{mapped_by}?]{ansi.RESET}"
         note = cap_note(cap)
-        note_str = f"  {ansi.DIM}~ note: {ansi.CYAN}{note}{ansi.RESET}" if note else ""
+        note_str = f"  {ansi.DIM}~ note:{ansi.RESET} {note}" if note else ""
         arrow = (
             f"{ansi.BOLD}{before:#04x}→{after:#04x}{ansi.RESET}"
             if _kind == "byte"

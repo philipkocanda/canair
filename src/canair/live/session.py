@@ -20,11 +20,11 @@ line into an operation and a :class:`SessionOptions`, and constructing the termi
 from __future__ import annotations
 
 import logging
-import sys
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
 from canair.core.prompt import PromptUnavailable
+from canair.render import messages
 from canair.transport.protocol import Terminal
 
 __all__ = ["Operation", "SessionOptions", "run_session_guarded"]
@@ -68,14 +68,14 @@ async def run_session_guarded(
     in flight (its data is safe in the write-ahead journal). Returns a process
     exit code: 0 on success, 1 on a transport failure, 2 when the command
     blocklist (:mod:`canair.safety.blocklist`) refused a request or a confirmation had no
-    terminal and no flag to answer it.
+    terminal and no flag to answer it (1 when the user declined the ``--unsafe`` prompt).
 
     The caller owns the terminal lifecycle (construct/close) and any
     transport-specific ``finally`` (session-end logging, reboot). ``KeyboardInterrupt``
     is intentionally *not* caught here — the operations reconcile their journals
     on interrupt, and ``run_live`` reports the interrupt.
     """
-    from canair.safety.blocklist import SafetyBlocked
+    from canair.safety.blocklist import CommandDeclined, SafetyBlocked
     from canair.transport.errors import describe_transport_error, transport_error_types
 
     try:
@@ -92,22 +92,24 @@ async def run_session_guarded(
 
             print_timings(terminal.timings, as_json=options.as_json)
         return 0
+    except CommandDeclined as e:
+        # The user said no to an --unsafe consent prompt: the run ends, nothing was sent.
+        messages.error(str(e))
+        return 1
     except SafetyBlocked as e:
         # The command blocklist refused something this mode was about to send
         # (e.g. a programming session): a policy outcome, not a crash.
-        print(f"error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 2
     except PromptUnavailable as e:
         # A confirmation no one can answer (no terminal, no --yes): a refusal, not a crash.
-        print(f"error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 2
     except transport_error_types() as e:
-        print(
-            "error: "
-            + describe_transport_error(
+        messages.error(
+            describe_transport_error(
                 e, host=host, transport_label=transport_label, saving=options.saving
-            ),
-            file=sys.stderr,
+            )
         )
         return 1
     finally:

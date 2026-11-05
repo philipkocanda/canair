@@ -54,8 +54,8 @@ def collect_pids_validation(files: list[Path], profile=None) -> tuple[list[str],
 
 def validate_pids_file(fpath: Path, profile=None) -> tuple[bool, str]:
     errors, warnings, _ = collect_pids_validation([fpath], profile)
-    lines = [f"  WARN: {w}" for w in warnings]
-    lines += [f"  ERROR: {e}" for e in errors]
+    lines = [f"warning: {w}" for w in warnings]
+    lines += [f"error: {e}" for e in errors]
     if errors:
         lines.append(f"\n{len(errors)} error(s), {len(warnings)} warning(s)")
     return (not errors, "\n".join(lines))

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 from canair.captures import io as capture_io
 from canair.cli.args.scope import parse_iso_date
+from canair.render import messages
 
 
 def cmd_migrate_variants(args) -> int:
@@ -20,10 +20,10 @@ def cmd_migrate_variants(args) -> int:
     declared = load_variants(active())
     if variant not in declared:
         known = ", ".join(declared) or "none (no variants.yaml)"
-        print(f"error: no variant {variant!r} in this profile (declared: {known})", file=sys.stderr)
+        messages.error(f"no variant {variant!r} in this profile (declared: {known})")
         return 2
     if args.date and (args.since or args.until):
-        print("error: --date cannot be combined with --since/--until", file=sys.stderr)
+        messages.error("--date cannot be combined with --since/--until")
         return 2
     since = args.date or args.since
     until = args.date or args.until
@@ -31,7 +31,7 @@ def cmd_migrate_variants(args) -> int:
     # Only the profile's own store: a layered profile's base is someone else's history.
     cdir = capture_io.resolve_captures_dir(args.dir)
     if not cdir.is_dir():
-        print(f"error: no such captures directory: {cdir}", file=sys.stderr)
+        messages.error(f"no such captures directory: {cdir}")
         return 2
     capture_io.ensure_migrated(cdir)
     results = stamp_untagged(

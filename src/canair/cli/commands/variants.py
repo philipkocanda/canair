@@ -34,7 +34,7 @@ import sys
 
 from canair.cli.commands._edit import run_edit, subcommand_dispatch
 from canair.core.edit_errors import EditError
-from canair.render import ansi
+from canair.render import ansi, messages
 
 NAME = "variants"
 
@@ -96,7 +96,7 @@ def cmd_show(args) -> int:
     vid = normalize_variant_id(args.id)
     if vid not in variants:
         known = ", ".join(variants) or "none"
-        print(f"error: no variant {vid!r} in {prof.name} (declared: {known})", file=sys.stderr)
+        messages.error(f"no variant {vid!r} in {prof.name} (declared: {known})")
         return 1
     record = _record(variants[vid])
     if args.json:

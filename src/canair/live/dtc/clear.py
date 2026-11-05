@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from canair.render import ansi
+from canair.render import ansi, messages
 from canair.uds.protocol import KWP
 from canair.uds.requests import clear_dtc_request
 from canair.uds.services import CLEAR_DIAGNOSTIC_INFORMATION
@@ -119,10 +119,9 @@ async def mode_dtc_clear(
             if as_json:
                 print(json.dumps({**base, "cleared": False, "error": error}))
             else:
-                print(f"  ✗ Error: {error}")
+                messages.error(error)
                 if "NO DATA" in error or "No response" in error:
-                    print("  ECU may be asleep or unpowered — try --session/--wake.")
-                print()
+                    messages.hint("the ECU may be asleep or unpowered — try --session/--wake")
     finally:
         if tester_task:
             tester_task.cancel()

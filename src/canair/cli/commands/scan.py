@@ -25,6 +25,7 @@ from canair.cli.args.group import group_help
 from canair.cli.live import add_connection_args, ecu_completer, live_command, run_live
 from canair.cli.live.handlers import scans
 from canair.core.id_ranges import format_id_ranges, parse_id_ranges
+from canair.core.prompt import confirm
 from canair.live.scan_presets import (
     FAMILY_SIZE,
     SERVICE_PRESETS,
@@ -37,6 +38,9 @@ from canair.live.scan_presets import (
     resolve_service,
     service_label,
 )
+from canair.render import messages
+from canair.render.console import console, escape
+from canair.render.glyphs import WARN
 
 NAME = "scan"
 
@@ -366,8 +370,7 @@ def _resolve_plan(args) -> None:
     auto = args.service is None and args.range is None
     slots = getattr(args, "slots", None)
     if slots is not None and args.range is not None:
-        print("Error: --slots shapes the smart default; drop it or drop --range.", file=sys.stderr)
-        sys.exit(2)
+        messages.fail("--slots shapes the smart default; drop it or drop --range.", code=2)
     plan: ScanPlan | None = None
     if args.service is None or args.range is None:
         try:
@@ -386,8 +389,7 @@ def _resolve_plan(args) -> None:
         try:
             service_int, preset_name = resolve_service(args.service)
         except ServiceError as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(2)
+            messages.fail(str(e), code=2)
     args.service = f"{service_int:02X}"
     wide = is_wide_service(service_int)
 
@@ -409,27 +411,25 @@ def _resolve_plan(args) -> None:
     try:
         parse_id_ranges(args.range)
     except ValueError as e:
-        print(f"Error: --range {args.range}: {e}", file=sys.stderr)
-        sys.exit(2)
+        messages.fail(f"--range {args.range}: {e}", code=2)
 
     _print_plan_summary(args, service_int, preset_name, plan if auto else None)
 
 
 def _print_plan_summary(args, service_int, preset_name, plan) -> None:
-    from rich.console import Console
-
-    console = Console(stderr=True)
+    out = console(stderr=True)
     svc = service_label(service_int, preset_name)
-    parts = [f"[bold]{args.tx}[/bold]", f"service {svc}", f"range {args.range}"]
+    parts = [f"[bold cyan]{escape(str(args.tx))}[/bold cyan]", f"service {escape(svc)}"]
+    parts.append(f"range {escape(args.range)}")
     if args.append:
-        parts.append(f"append {args.append}")
+        parts.append(f"append {escape(args.append)}")
     if args.session:
         parts.append("session")
     if args.wake:
         parts.append("wake")
-    console.print("  [dim]Scan plan:[/dim] " + "  |  ".join(parts))
+    out.print("  [dim]Scan plan:[/dim] " + "  |  ".join(parts))
     if plan is not None and plan.reason:
-        console.print(f"  [dim]         → {plan.reason}[/dim]")
+        out.print(f"  [dim]         → {escape(plan.reason)}[/dim]")
 
 
 # ---------------------------------------------------------------------------
@@ -446,6 +446,12 @@ def _prompt(text: str, default: str | None = None) -> str:
     if not raw and default is not None:
         return default
     return raw
+
+
+def _ask(question: str, plan: ScanPlan | None, field: str) -> bool:
+    """A wizard yes/no whose default is no; the smart plan's advice is part of the question."""
+    advice = " (recommended for this ECU)" if plan is not None and getattr(plan, field) else ""
+    return _prompt(f"{question}{advice} [y/N]").lower().startswith("y")
 
 
 def _ecu_choices() -> list[tuple[str, int, str]]:
@@ -480,12 +486,11 @@ def _ecu_choices() -> list[tuple[str, int, str]]:
 
 def _run_wizard(args) -> bool:
     """Interactively populate ``args`` for a scan. Returns False if cancelled."""
-    from rich.console import Console
     from rich.table import Table
 
-    console = Console()
-    console.print("\n[bold cyan]canair scan — interactive setup[/bold cyan]")
-    console.print("[dim]Press Ctrl+C to cancel at any time.[/dim]\n")
+    out = console()
+    out.print("\n[bold]canair scan — interactive setup[/bold]")
+    out.print("[dim]Press Ctrl+C to cancel at any time.[/dim]\n")
 
     try:
         # 1. ECU
@@ -493,19 +498,19 @@ def _run_wizard(args) -> bool:
             choices = _ecu_choices()
             if choices:
                 table = Table(title="ECUs in the active profile", title_justify="left")
-                table.add_column("#", justify="right", style="cyan")
-                table.add_column("ECU", style="bold")
-                table.add_column("TX", style="magenta")
+                table.add_column("#", justify="right", style="dim")
+                table.add_column("ECU", style="bold cyan")
+                table.add_column("TX")
                 table.add_column("Description")
                 for i, (name, tx, desc) in enumerate(choices, 1):
                     table.add_row(str(i), name, f"0x{tx:03X}", desc or "")
-                console.print(table)
+                out.print(table)
                 sel = _prompt("Select an ECU (number, name, or hex TX id)")
                 args.tx = _resolve_ecu_selection(sel, choices)
             else:
                 args.tx = _prompt("ECU name or hex TX id")
             if not args.tx:
-                console.print("[yellow]No ECU selected — cancelled.[/yellow]")
+                messages.note("no ECU selected — cancelled")
                 return False
 
         # Compute the smart plan to seed defaults.
@@ -515,21 +520,21 @@ def _run_wizard(args) -> bool:
             plan = None
 
         # 2. Service
-        console.print()
+        out.print()
         stable = Table(title="Services", title_justify="left")
         stable.add_column("name", style="bold cyan")
-        stable.add_column("hex", style="magenta")
+        stable.add_column("hex")
         stable.add_column("description")
         for p in SERVICE_PRESETS:
-            note = f"  ⚠ {p.caution}" if p.caution else ""
-            stable.add_row(p.name, f"0x{p.service:02X}", p.summary + note)
-        console.print(stable)
+            note = f"  [yellow]{WARN}[/yellow] {escape(p.caution)}" if p.caution else ""
+            stable.add_row(p.name, f"0x{p.service:02X}", escape(p.summary) + note)
+        out.print(stable)
         default_service = plan.service_name if plan and plan.service_name else "live-data"
         svc_in = _prompt("Service (preset name or hex byte)", default_service)
         try:
             service_int, _preset_name = resolve_service(svc_in)
         except ServiceError as e:
-            console.print(f"[red]{e}[/red]")
+            messages.error(str(e))
             return False
         args.service = f"{service_int:02X}"
         wide = is_wide_service(service_int)
@@ -542,30 +547,20 @@ def _run_wizard(args) -> bool:
             default_range = preset.default_range if preset else ("0000-00FF" if wide else "01-FF")
         args.range = _prompt("Range (START-END[,...], hex)", default_range)
 
-        # 4. Session / wake
-        console.print()
-        default_session = "y" if (args.session or (plan and plan.session)) else "n"
-        args.session = (
-            _prompt("Enter extended session (10 03)? (y/n)", default_session)
-            .lower()
-            .startswith("y")
+        # 4. Session / wake: the plan's advice goes in the question, the answer defaults to no.
+        out.print()
+        args.session = bool(args.session) or _ask(
+            "Enter extended session (10 03)?", plan, "session"
         )
-        default_wake = "y" if (args.wake or (plan and plan.wake)) else "n"
-        args.wake = (
-            _prompt("Wake ECU from deep sleep first (10 01)? (y/n)", default_wake)
-            .lower()
-            .startswith("y")
-        )
+        args.wake = bool(args.wake) or _ask("Wake ECU from deep sleep first (10 01)?", plan, "wake")
 
         # 5. Confirm — show the equivalent one-liner so the user learns it.
-        console.print()
-        console.print("[bold]Ready to scan:[/bold]  " + _equiv_command(args))
-        go = _prompt("Run this scan now? (y/n)", "y")
-        if not go.lower().startswith("y"):
-            console.print("[yellow]Cancelled.[/yellow]")
+        out.print()
+        out.print("[bold]Ready to scan:[/bold]  " + escape(_equiv_command(args)))
+        if not confirm("Run this scan now?"):
             return False
     except KeyboardInterrupt:
-        console.print("\n[yellow]Cancelled.[/yellow]")
+        messages.note("cancelled")
         return False
 
     return True
@@ -608,17 +603,16 @@ def run_range(args) -> int:
     if want_wizard:
         if not sys.stdin.isatty():
             if args.tx is None:
-                print(
-                    "Error: no ECU given. Specify one (e.g. `canair scan BMS`), run "
+                messages.error(
+                    "no ECU given. Specify one (e.g. `canair scan BMS`), run "
                     "`canair scan range` in a terminal for the wizard, or `canair discover` "
-                    "to find live ECUs.",
-                    file=sys.stderr,
+                    "to find live ECUs."
                 )
                 return 2
             # -i without a TTY: fall through to non-interactive resolution.
         else:
             if not _run_wizard(args):
-                return 0
+                return 1
 
     _resolve_plan(args)
     return run_live(args, scans.RANGE)

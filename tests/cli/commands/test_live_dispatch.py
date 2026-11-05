@@ -35,7 +35,7 @@ class _FakeLock:
     def __init__(self):
         self.released = False
 
-    def acquire(self, force=False):
+    def acquire(self, force=False, fail=None):
         pass
 
     def release(self):
@@ -85,7 +85,9 @@ class TestRunLiveStopSignals:
         monkeypatch.setattr(_live, "async_main", fake_main)
         rc = _live.run_live(argparse.Namespace(force=False), _OPERATION)
         assert rc == 0
-        assert "Interrupted" in capsys.readouterr().out
+        captured = capsys.readouterr()
+        assert "Interrupted" in captured.err
+        assert captured.out == ""
 
     def test_a_dead_terminal_does_not_turn_a_clean_stop_into_a_crash(self, monkeypatch, capsys):
         """After a SIGHUP the tty is gone, so the closing print can fail (EIO)."""

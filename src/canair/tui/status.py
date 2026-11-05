@@ -23,6 +23,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
+from rich.markup import escape
 from rich.text import Text
 from textual.widgets import Static
 
@@ -49,6 +50,11 @@ class StatusItem:
     def width(self) -> int:
         """The segment's *visible* width — markup tags excluded."""
         return Text.from_markup(self.markup).cell_len
+
+
+def hint_item(text: str, priority: int = P_NORMAL) -> StatusItem:
+    """A dim key hint such as ``e edit``; build *text* with :func:`canair.tui.keys.key_hint`."""
+    return StatusItem(f"[dim]{escape(text)}[/]", priority)
 
 
 def compose_status(items: Iterable[StatusItem], width: int) -> str:

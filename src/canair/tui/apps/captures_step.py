@@ -9,7 +9,7 @@ owns all state and renders the frame. The app contributes only interaction:
   between frames keeps the scroll position, so one byte deep in a stacked frame
   can be watched *across* frames instead of being scrolled back to every step;
 - a **block cursor** (``tab``) so note/delete/drop act on a chosen stacked block;
-- **live editing of the comparison**: ``p`` adds/removes PIDs, ``J``/``,``/``.``
+- **live editing of the comparison**: ``p`` picks the PIDs compared, ``J``/``,``/``.``
   change the join tolerance, ``V`` cycles the view — no restart needed.
 
 Keys come from the shared keymap (:mod:`canair.tui.keys`), never from a literal
@@ -26,16 +26,28 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.css.query import NoMatches
-from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Label, OptionList, SelectionList, Static
+from textual.widgets import Button, Input, Label, SelectionList, Static
 from textual.widgets.option_list import Option
 
 from canair.captures.types import CaptureEntry
-from canair.tui.help import HelpMixin
-from canair.tui.keys import bind
-from canair.tui.modals import ConfirmModal, TextPromptModal
-from canair.tui.scroll import reveal_marker
-from canair.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
+from canair.render.formatting import BYTE_COLOUR_LEGEND
+from canair.render.glyphs import CURSOR, EMPTY, SEP, WARN
+from canair.tui import styles
+from canair.tui.flash import Flash, Severity, severity_of
+from canair.tui.help import FRAME_SCROLL_HELP_ROWS, HelpMixin, LegendRow
+from canair.tui.keys import CANCEL_HINT, bind, hint, key_hint, side_hint
+from canair.tui.modals import ConfirmModal, KitModal, ListPickerModal, TextPromptModal
+from canair.tui.scroll import APP_BASE_CSS, reveal_marker
+from canair.tui.status import (
+    P_ESSENTIAL,
+    P_HIGH,
+    P_LOW,
+    P_NORMAL,
+    StatusBar,
+    StatusItem,
+    hint_item,
+)
+from canair.tui.styles import dialog_css
 from canair.tui.widgets import CheckSelectionList
 
 from .captures_step_render import key_label
@@ -46,8 +58,8 @@ if TYPE_CHECKING:
 Key = tuple[str, str]
 
 
-class PidSelectModal(ModalScreen["list[Key] | None"]):
-    """Add/remove the (ECU, PID) keys being compared.
+class PidSelectModal(KitModal["list[Key] | None"]):
+    """Choose the (ECU, PID) keys being compared.
 
     A filterable checklist of every PID with captures in scope. Filtering
     re-populates the list, so the checked set is tracked separately from the
@@ -55,16 +67,10 @@ class PidSelectModal(ModalScreen["list[Key] | None"]):
     stays checked when it scrolls out of view.
     """
 
-    CSS = """
-    PidSelectModal { align: center middle; background: $background 60%; }
-    #pid-box { width: 76; height: auto; max-height: 90%; padding: 1 2;
-               border: round $accent; background: $surface; }
-    #pid-title { text-style: bold; }
-    #pid-hint { color: $text-muted; margin-bottom: 1; }
-    #pid-list { height: auto; max-height: 20; }
-    #pid-buttons { height: auto; align-horizontal: right; margin-top: 1; }
-    #pid-buttons Button { margin-left: 2; }
-    """
+    CSS = (
+        dialog_css("PidSelectModal", "pid", width=76)
+        + "#pid-list { height: auto; max-height: 20; }\n#pid-filter { margin-bottom: 1; }"
+    )
 
     BINDINGS: ClassVar[list[Binding]] = [
         *bind("back", "cancel", desc="cancel"),
@@ -82,15 +88,14 @@ class PidSelectModal(ModalScreen["list[Key] | None"]):
     def compose(self) -> ComposeResult:
         with Vertical(id="pid-box"):
             yield Label("Compare PIDs", id="pid-title")
-            yield Label(
-                "space toggle · / filter · ctrl+s apply · esc cancel",
-                id="pid-hint",
-            )
-            yield Input(placeholder="filter (e.g. hvac or 2201)", id="pid-filter")
+            yield Input(placeholder="type to filter…", id="pid-filter")
             yield CheckSelectionList(id="pid-list")
             with Horizontal(id="pid-buttons"):
                 yield Button("Apply", variant="primary", id="ok")
                 yield Button("Cancel", id="cancel")
+            yield Label(
+                hint(key_hint("pause", "toggle"), "filter", "apply", CANCEL_HINT), id="pid-hint"
+            )
 
     def on_mount(self) -> None:
         self._repopulate()
@@ -149,7 +154,7 @@ class PidSelectModal(ModalScreen["list[Key] | None"]):
 _JUMP_ROW_WIDTH = 84
 
 
-class JumpModal(ModalScreen["JumpTarget | None"]):
+class JumpModal(ListPickerModal["JumpTarget"]):
     """Jump to a session, or to a capture carrying a note.
 
     Sessions are listed newest first, each followed by its noted captures. Rows
@@ -158,19 +163,9 @@ class JumpModal(ModalScreen["JumpTarget | None"]):
     user wrote and should be able to find.
     """
 
-    CSS = """
-    JumpModal { align: center middle; background: $background 60%; }
-    #jump-box { width: 96; height: auto; max-height: 90%; padding: 1 2;
-                border: round $accent; background: $surface; }
-    #jump-title { text-style: bold; }
-    #jump-hint { color: $text-muted; margin-bottom: 1; }
-    #jump-list { height: auto; max-height: 22; }
-    #jump-footer { color: $text-muted; margin-top: 1; }
-    """
+    CSS = ListPickerModal.picker_css("JumpModal", 96, rows=22)
 
     BINDINGS: ClassVar[list[Binding]] = [
-        *bind("back", "cancel", desc="cancel"),
-        *bind("filter", "focus_filter", show=False),
         # ctrl+n, not `n`: the stepper beneath uses `n` for "next" and a modal
         # that redefines a host key to something unrelated is exactly the
         # inconsistency this keymap exists to prevent.
@@ -178,46 +173,31 @@ class JumpModal(ModalScreen["JumpTarget | None"]):
     ]
 
     def __init__(self, targets: JumpList, *, notes_only: bool = False):
-        super().__init__()
+        super().__init__("Jump to session / note")
         self._targets = targets.rows
         self._hidden_sessions = targets.hidden_sessions
         self._hidden_notes = targets.hidden_notes
         self._notes_only = notes_only
-        self._filter = ""
         self._shown: list[JumpTarget] = []
 
-    def compose(self) -> ComposeResult:
-        with Vertical(id="jump-box"):
-            yield Label("Jump to session / note", id="jump-title")
-            yield Label("enter jump · / filter · ctrl+n notes-only · esc cancel", id="jump-hint")
-            yield Input(placeholder="filter (date, label, state, note text)", id="jump-filter")
-            yield OptionList(id="jump-list")
-            yield Label("", id="jump-footer")
+    def hint_text(self) -> str:
+        return hint("accept", "filter", "notes_only", CANCEL_HINT)
 
-    def on_mount(self) -> None:
-        self._repopulate()
-        self.query_one("#jump-list", OptionList).focus()
-
-    def _visible(self) -> list[JumpTarget]:
+    def _visible(self, needle: str) -> list[JumpTarget]:
         rows = self._targets
         if self._notes_only:
             # Keep a session header only when it still has a note under it.
             with_notes = {t.session for t in rows if t.is_note}
             rows = [t for t in rows if t.is_note or t.session in with_notes]
-        if self._filter:
-            needle = self._filter.lower()
+        if needle:
             hit = {t.session for t in rows if needle in t.searchable}
             rows = [
                 t for t in rows if needle in t.searchable or (not t.is_note and t.session in hit)
             ]
         return rows
 
-    def _repopulate(self) -> None:
-        lst = self.query_one("#jump-list", OptionList)
-        lst.clear_options()
-        self._shown = self._visible()
-        for n, t in enumerate(self._shown):
-            lst.add_option(Option(self._row(t), id=str(n), disabled=bool(t.blocked)))
+    def options(self, needle: str) -> list[Option]:
+        self._shown = self._visible(needle)
         blocked = sum(1 for t in self._shown if t.blocked and t.is_note)
         total_notes = sum(1 for t in self._targets if t.is_note)
         # Terse on purpose: the footer gets one line inside a 96-wide box.
@@ -229,12 +209,11 @@ class JumpModal(ModalScreen["JumpTarget | None"]):
         if self._hidden_notes:
             # Never silently drop a note the user wrote — say where to read it.
             parts.append(f"{self._hidden_notes} untimed notes hidden — captures --sessions")
-        self.query_one("#jump-footer", Label).update(" · ".join(parts))
-        if self._shown:
-            lst.highlighted = next(
-                (n for n, t in enumerate(self._shown) if not t.blocked),
-                0,
-            )
+        self.set_footer(f" {SEP} ".join(parts))
+        return [
+            Option(self._row(t), id=str(n), disabled=bool(t.blocked))
+            for n, t in enumerate(self._shown)
+        ]
 
     def _row(self, t: JumpTarget) -> Text:
         """One list row.
@@ -251,44 +230,29 @@ class JumpModal(ModalScreen["JumpTarget | None"]):
         reason = f"   ({t.blocked})" if t.blocked and t.is_note else ""
         row = Text(no_wrap=True, overflow="ellipsis")
         if t.is_note:
-            row.append("    ▸ ")
-            row.append(t.detail, style="dim")
+            row.append(f"    {SEP} ")
+            row.append(t.detail, style=styles.MUTED)
             row.append("   ")
             row.append(t.label)
         else:
             row.append(t.label)
-            row.append(f"   {t.detail}", style="dim")
+            row.append(f"   {t.detail}", style=styles.MUTED)
         # Hard-truncate: a wrapped row would break the indentation that ties a
         # note to the session above it (notes are arbitrarily long free text).
         # The reason is budgeted out first so it is never the part cut off.
         row.truncate(_JUMP_ROW_WIDTH - len(reason), overflow="ellipsis")
         if reason:
-            row.append(reason, style="dim italic")
+            row.append(reason, style=f"{styles.MUTED} italic")
         return row
 
-    def on_input_changed(self, event: Input.Changed) -> None:
-        if event.input.id != "jump-filter":
+    def chosen(self, option: Option) -> None:
+        if option.id is None:
             return
-        self._filter = event.value.strip()
-        self._repopulate()
-
-    def on_input_submitted(self, _event: Input.Submitted) -> None:
-        self.query_one("#jump-list", OptionList).focus()
-
-    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        if event.option.id is None:
-            return
-        self.dismiss(self._shown[int(event.option.id)])
-
-    def action_focus_filter(self) -> None:
-        self.query_one("#jump-filter", Input).focus()
+        self.dismiss(self._shown[int(option.id)])
 
     def action_toggle_notes(self) -> None:
         self._notes_only = not self._notes_only
-        self._repopulate()
-
-    def action_cancel(self) -> None:
-        self.dismiss(None)
+        self.refill()
 
 
 class CapturesStepApp(HelpMixin, App):
@@ -302,22 +266,27 @@ class CapturesStepApp(HelpMixin, App):
     # Handled by the focused scroll container itself, so there is no Binding to
     # derive these from — but they are the way back to a tall frame's header,
     # which matters now that a frame move keeps the scroll position.
-    HELP_EXTRA_ROWS: ClassVar[tuple[tuple[str, str], ...]] = (
-        ("home/end", "top / bottom of this frame"),
-        ("pgup/pgdn", "page within this frame"),
+    HELP_EXTRA_ROWS: ClassVar[tuple[tuple[str, str], ...]] = FRAME_SCROLL_HELP_ROWS
+    HELP_LEGEND: ClassVar[tuple[LegendRow, ...]] = (
+        *BYTE_COLOUR_LEGEND,
+        (CURSOR, styles.HEADING_NAME, "the focused block"),
+        (WARN, styles.WARNING, "a gap in the recording since the previous frame"),
+        ("dim", styles.MUTED, "the previous capture of the PID, for reference"),
     )
 
-    CSS = """
-    Screen { layout: vertical; background: transparent; }
+    CSS = (
+        APP_BASE_CSS
+        + """
     #header { dock: top; height: 1; padding: 0 1; background: transparent; }
-    #scroll { height: 1fr; scrollbar-gutter: stable; scrollbar-size-vertical: 1; background: transparent; }
-    #body { height: auto; padding: 0 1; background: transparent; }
     """
+    )
 
     BINDINGS: ClassVar[list[Binding]] = [
         *bind("quit", "quit"),
         *bind("quit_force", "quit", show=False, priority=True),
         *bind("help", "help"),
+        # The top level has nothing to back out of: escape stays inert rather than quitting.
+        *bind("back", "stay", show=False),
         # Frame navigation (the primary axis, so g/G address it).
         *bind("next", "advance(1)", desc="next frame"),
         *bind("prev", "advance(-1)", desc="prev frame"),
@@ -334,7 +303,7 @@ class CapturesStepApp(HelpMixin, App):
         *bind("block_next", "block(1)", show=False, priority=True),
         *bind("block_prev", "block(-1)", show=False, priority=True),
         *bind("session", "jump", desc="sessions & notes"),
-        *bind("pick", "pick_pids", desc="add/remove signals"),
+        *bind("pick", "pick_pids", desc="compare PIDs"),
         *bind("exclude", "drop_pid", desc="drop this PID"),
         *bind("join_tol", "set_tol"),
         *bind("nudge_up", "nudge_tol(1)", desc="wider tolerance", show=False),
@@ -352,7 +321,7 @@ class CapturesStepApp(HelpMixin, App):
     def __init__(self, model: StepModel):
         super().__init__()
         self.model = model
-        self._flash_msg = ""
+        self.flash = Flash()
 
     def compose(self) -> ComposeResult:
         yield Static("", id="header", markup=True)
@@ -385,27 +354,26 @@ class CapturesStepApp(HelpMixin, App):
         except NoMatches:  # transient teardown query misses are harmless
             return
         body.update(self.model.render())
-        header.update(f"[b]captures step[/] [dim]·[/] {self.model.keys_label()}")
+        header.update(f"[b]Captures step[/] [dim]{SEP}[/] {self.model.keys_label()}")
         # Deliberately terse: `?` is the cheat-sheet, so the status bar does not
         # have to be one — and it drops its least essential parts rather than
         # clipping its tail on a narrow terminal.
         bits = self.model.status_bits()
         # The frame position is the one segment always worth the space.
-        items = [
-            StatusItem(f"[dim]{bit}[/]", P_HIGH if i == 0 else P_LOW) for i, bit in enumerate(bits)
-        ]
+        items = [hint_item(bit, P_HIGH if i == 0 else P_LOW) for i, bit in enumerate(bits)]
         # The frame's own timestamp lives in the body header, which scrolls out
         # of view in a tall frame — so keep it in the always-visible bar too, or
         # stepping while scrolled down says nothing about *when* you are.
         items[1:1] = self._time_items()
-        if self._flash_msg:
-            items.append(StatusItem(f"[b green]{self._flash_msg}[/]", P_ESSENTIAL))
+        flash = self.flash.item()
+        if flash is not None:
+            items.append(flash)
         items += [
-            StatusItem("[dim]←/→ frame[/]", P_NORMAL),
-            StatusItem("[dim]p PIDs[/]", P_NORMAL),
-            StatusItem("[dim]J tol[/]", P_LOW),
-            StatusItem("[dim]? help[/]", P_ESSENTIAL),
-            StatusItem("[dim]q quit[/]", P_ESSENTIAL),
+            hint_item(side_hint("frame"), P_NORMAL),
+            hint_item(key_hint("pick", "compare PIDs"), P_NORMAL),
+            hint_item(key_hint("join_tol"), P_LOW),
+            hint_item(key_hint("help"), P_ESSENTIAL),
+            hint_item(key_hint("quit"), P_ESSENTIAL),
         ]
         status.set_lines(items)
         if reveal:
@@ -431,9 +399,19 @@ class CapturesStepApp(HelpMixin, App):
             return
         reveal_marker(scroll, body)
 
-    def _flash(self, msg: str) -> None:
-        self._flash_msg = msg
+    def _flash(self, msg: str, severity: Severity = "info") -> None:
+        self.flash.show(msg, severity)
         self._refresh()
+
+    def _note(self, msg: str) -> None:
+        """Keep a model's status note (``""`` clears) until the next move; no repaint."""
+        if msg:
+            self.flash.show(msg, severity_of(msg, ok="info"))
+        else:
+            self.flash.clear()
+
+    def action_stay(self) -> None:
+        """Escape: the stepper has no level to back out of, so it does nothing."""
 
     def _modal_active(self) -> bool:
         return len(self.screen_stack) > 1
@@ -469,7 +447,7 @@ class CapturesStepApp(HelpMixin, App):
     # -- navigation --------------------------------------------------------
 
     def action_advance(self, delta: int) -> None:
-        self._flash_msg = self.model.advance(delta)
+        self._note(self.model.advance(delta))
         self._refresh()
 
     def action_page(self, direction: int) -> None:
@@ -479,12 +457,12 @@ class CapturesStepApp(HelpMixin, App):
 
     def action_first(self) -> None:
         self.model.first()
-        self._flash_msg = ""
+        self.flash.clear()
         self._refresh()
 
     def action_last(self) -> None:
         self.model.last()
-        self._flash_msg = ""
+        self.flash.clear()
         self._refresh()
 
     def action_scroll(self, delta: int) -> None:
@@ -496,7 +474,7 @@ class CapturesStepApp(HelpMixin, App):
 
     def action_block(self, delta: int) -> None:
         self.model.move_block(delta)
-        self._flash_msg = ""
+        self.flash.clear()
         self._refresh(reveal=True)
 
     def action_goto(self) -> None:
@@ -505,13 +483,19 @@ class CapturesStepApp(HelpMixin, App):
         def _done(value: str | None) -> None:
             if not value:
                 return
-            try:
-                self._flash_msg = self.model.goto(int(value))
-            except ValueError:
-                self._flash_msg = f"Not a frame number: {value}"
+            self._note(self.model.goto(int(value)))
             self._refresh()
 
-        self.push_screen(TextPromptModal(f"Go to frame # (1-{total})", placeholder="1"), _done)
+        def _check(value: str) -> str | None:
+            try:
+                int(value)
+            except ValueError:
+                return f"Not a frame number: {value or 'empty'}"
+            return None
+
+        self.push_screen(
+            TextPromptModal(f"Go to frame # (1-{total})", placeholder="1", validate=_check), _done
+        )
 
     # -- the comparison ----------------------------------------------------
 
@@ -521,7 +505,7 @@ class CapturesStepApp(HelpMixin, App):
             if keys is None:
                 return
             if not keys:
-                self._flash("Keep at least one PID selected.")
+                self._flash("Keep at least one PID selected", "warning")
                 return
             self.model.set_keys(keys)
             self._flash(f"Comparing {len(keys)} PID{'s' if len(keys) != 1 else ''}")
@@ -533,12 +517,12 @@ class CapturesStepApp(HelpMixin, App):
             if target is None:
                 return
             if target.is_note and target.ref is not None:
-                self._flash_msg = self.model.seek_capture(target.ref, target.key)
+                self._note(self.model.seek_capture(target.ref, target.key))
                 # Jumping to a note is a request to *see* that capture, so its
                 # block is brought on screen even when it sits below the fold.
                 self._refresh(reveal=True)
                 return
-            self._flash_msg = self.model.seek_session(target.session)
+            self._note(self.model.seek_session(target.session))
             self._refresh()
 
         self.push_screen(JumpModal(self.model.jump_targets()), _done)
@@ -550,23 +534,29 @@ class CapturesStepApp(HelpMixin, App):
         if self.model.remove_key(key):
             self._flash(f"Dropped {key_label(key)}")
         else:
-            self._flash("Cannot drop the last PID.")
+            self._flash("Cannot drop the last PID", "warning")
 
     def action_set_tol(self) -> None:
 
         def _done(value: str | None) -> None:
             if not value:
                 return
-            try:
-                self.model.set_tol(float(value))
-            except ValueError:
-                self._flash(f"Not a number of seconds: {value}")
-                return
+            self.model.set_tol(float(value))
             self._flash(f"Join tolerance {self.model.tol_s:g}s")
+
+        def _check(value: str) -> str | None:
+            try:
+                float(value)
+            except ValueError:
+                return f"Not a number of seconds: {value or 'empty'}"
+            return None
 
         self.push_screen(
             TextPromptModal(
-                "Join tolerance in seconds", placeholder="5", value=f"{self.model.tol_s:g}"
+                "Join tolerance in seconds",
+                placeholder="5",
+                value=f"{self.model.tol_s:g}",
+                validate=_check,
             ),
             _done,
         )
@@ -589,7 +579,7 @@ class CapturesStepApp(HelpMixin, App):
     def action_edit_note(self) -> None:
         cap = self.model.focused_capture()
         if cap is None:
-            self._flash("No capture in the focused block.")
+            self._flash("No capture in the focused block", "warning")
             return
         existing = (cap.get("notes") or "").replace("\n", " ").strip()
 
@@ -616,18 +606,18 @@ class CapturesStepApp(HelpMixin, App):
         try:
             set_capture_note(target, cap["_session_idx"], cap["_capture_idx"], note)
         except Exception as ex:
-            self._flash(f"Note save failed: {ex}")
+            self._flash(f"Note save failed: {ex}", "error")
             return
         saved = "Note saved" if note.strip() else "Note cleared"
         if not self.model.reload_from_disk():
-            self.exit(message=f"  {saved} — no captures left")
+            self.exit(message=f"  {saved} {EMPTY} no captures left")
             return
-        self._flash(saved)
+        self._flash(saved, "success")
 
     def action_delete(self) -> None:
         cap = self.model.focused_capture()
         if cap is None:
-            self._flash("No capture in the focused block.")
+            self._flash("No capture in the focused block", "warning")
             return
 
         def _done(confirmed: bool | None) -> None:
@@ -655,7 +645,7 @@ class CapturesStepApp(HelpMixin, App):
 
         target = entry_path(cap, self.model.captures_dir)
         if layers.read_only_files([target], self.model.captures_dir):
-            self._flash("Read-only: this capture belongs to the profile's base layer.")
+            self._flash("Read-only: this capture belongs to the profile's base layer", "error")
             return None
         return target
 
@@ -668,12 +658,12 @@ class CapturesStepApp(HelpMixin, App):
         try:
             delete_capture(target, cap["_session_idx"], cap["_capture_idx"])
         except Exception as ex:
-            self._flash(f"Delete failed: {ex}")
+            self._flash(f"Delete failed: {ex}", "error")
             return
         if not self.model.reload_from_disk():
-            self.exit(message="  Capture deleted — no captures left")
+            self.exit(message=f"  Capture deleted {EMPTY} no captures left")
             return
-        self._flash("Capture deleted")
+        self._flash("Capture deleted", "success")
 
 
 def run_step_app(model: StepModel) -> None:

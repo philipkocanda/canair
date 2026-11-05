@@ -9,6 +9,7 @@ from rich.text import Text
 
 from canair.expression.decoding import ParamRow
 from canair.privacy.sensitive import MASK
+from canair.render import ansi, glyphs
 from canair.render.console import console
 from canair.uds.byteindex import extract_byte_indices, wican_to_elm_idx
 from canair.uds.response import UdsResponse
@@ -307,7 +308,7 @@ def render_param_table(
 
     Each row is ``(name, value, unit, expression, error, verified[, display])``.
     Layout: ``{indent}{name}  {value}  ✓|?`` with columns aligned; ``verbose``
-    appends the dimmed expression. Error rows show ``ERROR: <msg>`` in red.
+    appends the dimmed expression. Error rows show ``✗ <msg>`` in red.
 
     When ``display`` (a :class:`~canair.uds.notation.ByteDisplay`) is given, a dimmed
     byte-reference column is appended after the mark, naming which payload
@@ -330,7 +331,7 @@ def render_param_table(
 
     max_name = max(len(r[0]) for r in params)
     max_val = max(
-        len(format_value(r[1], r[2], r[6] if len(r) > 6 else "") if r[1] is not None else "ERROR")
+        len(format_value(r[1], r[2], r[6] if len(r) > 6 else "") if r[1] is not None else "")
         for r in params
     )
 
@@ -346,7 +347,7 @@ def render_param_table(
         name, value, unit, expression, perr, verified = row[:6]
         disp_expr = row[6] if len(row) > 6 else ""
         mark_style = "green" if verified else "yellow"
-        mark_char = "✓" if verified else "?"
+        mark_char = glyphs.OK if verified else "?"
         is_sel = selected_name is not None and name == selected_name
         # Replace the last two indent columns with a "▶ " cursor so the selected
         # row's value/mark columns stay aligned with its neighbours.
@@ -357,7 +358,7 @@ def render_param_table(
         name_style = "reverse bold" if is_sel else changed_style
         if perr or value is None:
             t.append(f"{name_prefix}{name:<{max_name}}  ", style=name_style)
-            t.append(f"ERROR: {perr or 'no value'}\n", style="red")
+            t.append(f"{glyphs.FAIL} {perr or 'no value'}\n", style="red")
             continue
 
         val_str = format_value(value, unit, disp_expr)
@@ -426,7 +427,7 @@ def render_param_ranges(
         stat = stats[name]
         verified = bool(stat.get("verified"))
         mark_style = "green" if verified else "yellow"
-        mark_char = "✓" if verified else "?"
+        mark_char = glyphs.OK if verified else "?"
         is_sel = selected_name is not None and name == selected_name
         name_prefix = (indent[:-2] + "▶ ") if is_sel and len(indent) >= 2 else indent
         name_style = "reverse bold" if is_sel else ""
@@ -479,7 +480,7 @@ def render_byte_rulers(
 
 
 def print_decoded_params(params_results: list, verbose: bool = False):
-    """Print decoded parameter values in a compact aligned table.
+    """Print decoded signal values in a compact aligned table (``✓``/``?``/``✗`` marks).
 
     Args:
         params_results: list of (name, value, unit, expression, error, verified[, display])
@@ -490,22 +491,20 @@ def print_decoded_params(params_results: list, verbose: bool = False):
 
     max_name = max(len(r[0]) for r in params_results)
     max_val = max(
-        len(format_value(r[1], r[2], r[6] if len(r) > 6 else "") if r[1] is not None else "ERROR")
+        len(format_value(r[1], r[2], r[6] if len(r) > 6 else "") if r[1] is not None else "")
         for r in params_results
     )
 
     for row in params_results:
         name, value, unit, expression, error, verified = row[:6]
         display = row[6] if len(row) > 6 else ""
-        v_mark = " " if verified else "?"
+        mark = ansi.c(glyphs.OK, ansi.raw.GREEN) if verified else ansi.c("?", ansi.raw.YELLOW)
         if error:
-            print(f"  {v_mark} {name:<{max_name}}  {'ERROR':<{max_val}}  !! {error}")
+            print(f"  {mark} {name:<{max_name}}  {ansi.c(f'{glyphs.FAIL} {error}', ansi.raw.RED)}")
         else:
             val_str = format_value(value, unit, display)
-            if verbose:
-                print(f"  {v_mark} {name:<{max_name}}  {val_str:<{max_val}}  [{expression}]")
-            else:
-                print(f"  {v_mark} {name:<{max_name}}  {val_str}")
+            shown = f"{val_str:<{max_val}}  [{expression}]" if verbose else val_str
+            print(f"  {mark} {name:<{max_name}}  {shown}")
 
 
 def print_ecu_results(
@@ -545,10 +544,10 @@ def print_ecu_results(
         # PID sub-header
         tag = " [dim](unmapped)[/dim]" if unmapped else ""
         if error:
-            c.print(f"    [yellow]{pid}[/yellow]{tag}  [red]{escape(str(error))}[/red]")
+            c.print(f"    [cyan]{pid}[/cyan]{tag}  [red]{escape(str(error))}[/red]")
             continue
 
-        c.print(f"    [yellow]{pid}[/yellow]{tag}")
+        c.print(f"    [cyan]{pid}[/cyan]{tag}")
 
         # Decoded parameters — aligned columns (shared renderer).
         if params:

@@ -44,6 +44,14 @@ COMMANDS: list[tuple[str, list[str]]] = [
     ("coverage-ecu", ["coverage", "IGPM"]),
     ("captures-summary", ["captures", "uds", "--summary"]),
     ("captures-list", ["captures", "BMS", "2102", "--limit", "3"]),
+    (
+        "captures-backfill-states",
+        ["captures", "uds", "--backfill-states", "--dry-run", "--last-session"],
+    ),
+    (
+        "captures-backfill-state-spans",
+        ["captures", "uds", "--backfill-state-spans", "--dry-run", "--last-session"],
+    ),
     ("dtc-log", ["dtc", "log"]),
     ("bus", ["bus"]),
     ("states", ["states"]),

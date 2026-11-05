@@ -124,7 +124,7 @@ def print_discriminate(
         else:
             mark = _mark_for(name, parameters, candidate_names)
         disp = relabel_signal(name, notation, sub_bytes=sub_bytes, payload_len=plen)
-        try_tag = f" {ansi.CYAN}(try){ansi.RESET}" if name in candidate_names else ""
+        try_tag = f" {ansi.DIM}(try){ansi.RESET}" if name in candidate_names else ""
 
         # Categorical params: report Cramér's V vs state (nominal association)
         # instead of the interval-scale F, which doesn't apply to a mode/flag set.
@@ -188,9 +188,7 @@ def print_mirrors(
         da = relabel_signal(hit.a, notation, sub_bytes=sub_bytes, payload_len=plen)
         db = relabel_signal(hit.b, notation, sub_bytes=sub_bytes, payload_len=plen)
         rel = hit.relation
-        print(
-            f"    {ansi.GREEN}{da} == {rel.describe(db)}{ansi.RESET}  {ansi.DIM}({rel.quality()}){ansi.RESET}"
-        )
+        print(f"    {da} == {rel.describe(db)}  {ansi.DIM}({rel.quality()}){ansi.RESET}")
     print()
 
 
@@ -266,7 +264,7 @@ def print_correlations(
     print(header)
     for name, r, n in rows:
         mark = _mark_for(name, parameters, candidate_names)
-        try_tag = f" {ansi.CYAN}(try){ansi.RESET}" if name in candidate_names else ""
+        try_tag = f" {ansi.DIM}(try){ansi.RESET}" if name in candidate_names else ""
         if r is None:
             print(f"    {mark} {name}{try_tag}  {ansi.DIM}r=n/a  n={n}{ansi.RESET}")
             continue

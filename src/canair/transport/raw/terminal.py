@@ -21,12 +21,14 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import sys
 import time
 from collections.abc import AsyncIterator
 
 import can
 import isotp
 
+from canair.render import messages
 from canair.safety.blocklist import SessionPolicy, enforce_command_safety
 from canair.transport import keepalive
 from canair.transport.ecu_log import log_response
@@ -275,9 +277,9 @@ class RawTerminal:
             await asyncio.sleep(0.3)
         resp = await self.send_uds(session_request(mode), timeout=3.0)
         if resp.get("ok"):
-            print(f"  Session (10 {mode}) established.")
+            print(f"  Session (10 {mode}) established.", file=sys.stderr)
         elif resp.get("nrc") is not None:
-            print(f"  WARNING: session NRC 0x{resp['nrc']:02X} ({resp['nrc_desc']}) — continuing.")
+            messages.warning(f"session NRC 0x{resp['nrc']:02X} ({resp['nrc_desc']}) — continuing")
 
         async def _tester_loop():
             try:

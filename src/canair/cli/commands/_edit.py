@@ -6,8 +6,8 @@ failure into a message, confirm where the file landed". This module is that sequ
 command body is just the editor call and the confirmation text.
 
 An editor that rejects a change raises :class:`canair.core.edit_errors.EditError`; nothing here
-catches it. ``src/canair/cli/__init__.py`` prints it (``  Error: …``, exit 1) for every command alike, and the
-file is already back to what it was.
+catches it. ``src/canair/cli/__init__.py`` prints it (``error: …``, exit 1) for every command
+alike, and the file is already back to what it was.
 """
 
 from __future__ import annotations

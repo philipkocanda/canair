@@ -11,6 +11,7 @@ duality is covered directly by :class:`TestReporter`.
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import subprocess
 from pathlib import Path
@@ -21,6 +22,7 @@ from canair import contribute as C
 from canair.cli.commands import _contribute_gates as gates
 from canair.cli.commands import _contribute_report as report
 from canair.cli.commands import contribute as cmd
+from canair.core.prompt import PromptUnavailable
 from canair.profile import Profile
 
 
@@ -104,7 +106,20 @@ class TestReporter:
         shown: list[str] = []
         with pytest.raises(report.Stop) as stop:
             rep.gate(error="risky", prompt="go on?", human=lambda: shown.append("warned"))
-        assert shown == ["warned"] and stop.value.code == report.CANNOT
+        assert shown == ["warned"] and stop.value.code == report.DECLINED == 1
+
+    def test_gate_without_a_terminal_raises_prompt_unavailable(self, monkeypatch):
+        rep = _reporter()
+        monkeypatch.setattr("sys.stdin", io.StringIO(""))
+        with pytest.raises(PromptUnavailable, match="--yes"):
+            rep.gate(error="risky", prompt="go on?", human=lambda: None)
+
+    def test_json_never_means_yes(self, monkeypatch):
+        rep = _reporter(json_mode=True)
+        monkeypatch.setattr(report, "confirm", lambda *a, **k: pytest.fail("json must not prompt"))
+        with pytest.raises(report.Stop) as stop:
+            rep.confirm("go on?", error="risky")
+        assert stop.value.code == report.CANNOT
 
     def test_done_prints_human_output_and_returns_ok(self):
         rep = _reporter()

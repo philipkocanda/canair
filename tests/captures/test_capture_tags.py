@@ -369,7 +369,7 @@ class TestValidation:
         assert not variant_tag_report([path], prof, max_untagged=2).failed
         assert variant_tag_report([path], prof, max_untagged=1).failed
         assert run_captures(max_untagged=1) == 1
-        assert "exceeds the --max-untagged 1 baseline" in capsys.readouterr().out
+        assert "exceeds the --max-untagged 1 baseline" in capsys.readouterr().err
 
 
 def test_sessions_view_names_each_car(prof, capsys):

@@ -13,6 +13,7 @@ import sys
 
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.ecus.pids import build_ecu_index, load_pids
+from canair.render import messages
 
 from .one import decode_one
 from .query import SINGLE_PID_FLAGS, build_try_params, resolve_targets, tolerates_missing_pid
@@ -62,18 +63,18 @@ def run(args) -> int:
     # Resolve date scoping (--date shorthand for equal since/until; validated here).
     since, until, err = resolve_scope_bounds(args)
     if err:
-        print(f"error: {err}", file=sys.stderr)
+        messages.error(f"{err}")
         return 2
 
     if (guard := check_modifier_flags(args)) is not None:
-        print(f"error: {guard}", file=sys.stderr)
+        messages.error(f"{guard}")
         return 2
 
     # Build any candidate expressions from --try (validated early for a clean error).
     try:
         try_params = build_try_params(args.try_expr) if args.try_expr else {}
     except ValueError as e:
-        print(f"Error: {e}")
+        messages.error(str(e))
         return 1
     candidate_names = set(try_params)
 
@@ -85,18 +86,17 @@ def run(args) -> int:
         query_str, ecu_index, tolerate_missing=tolerates_missing_pid(args)
     )
     if terr:
-        print(f"error: {terr}", file=sys.stderr)
+        messages.error(f"{terr}")
         return 1
 
     # Analysis modes bind to one PID's byte layout; require a single target.
     single_mode = any(getattr(args, f, False) for f in SINGLE_PID_FLAGS) or bool(args.try_expr)
     if single_mode and len(targets) > 1:
         which = ", ".join(f"{e} {p}" for e, p in targets[:6])
-        print(
-            f"error: this mode requires the query to resolve to a single PID, but "
+        messages.error(
+            f"this mode requires the query to resolve to a single PID, but "
             f"{query_str!r} matched {len(targets)} ({which}{'…' if len(targets) > 6 else ''}). "
-            f"Narrow it, e.g. `canair decode {targets[0][0]}:{targets[0][1]} …`.",
-            file=sys.stderr,
+            f"Narrow it, e.g. `canair decode {targets[0][0]}:{targets[0][1]} …`."
         )
         return 2
 

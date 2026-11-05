@@ -89,7 +89,7 @@ class TestDialogsHaveAKeyboardConfirm:
             await pilot.press("s")
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
-            app.screen.query_one("#f-label", Input).value = "kbd"
+            app.screen.query_one("#save-label", Input).value = "kbd"
             # Tab away from the inputs: enter would now be dead.
             for _ in range(6):
                 await pilot.press("tab")
@@ -155,7 +155,7 @@ class TestPickersAreFilterable:
             await pilot.press("t")
             await pilot.pause(0.1)
             assert isinstance(app.screen, SessionPickerScreen)
-            options = app.screen.query_one("#sess-pick-list", OptionList)
+            options = app.screen.query_one("#picker-list", OptionList)
             assert options.option_count == 3
             assert isinstance(app.focused, Input)
             for ch in "hva":

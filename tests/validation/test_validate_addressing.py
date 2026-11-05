@@ -131,4 +131,4 @@ class TestThroughValidatePids:
         ecus_dir = self._profile(tmp_path, "ATSP6;", {"OBD": {"tx_id": 0x7DF}})
         monkeypatch.setattr("canair.profile.active", lambda: profile_for_path(ecus_dir))
         run_pids(None, stats=False)
-        assert "WARN: OBD: tx_id 0x7DF is a functional broadcast id" in capsys.readouterr().out
+        assert "warning: OBD: tx_id 0x7DF is a functional broadcast id" in capsys.readouterr().err

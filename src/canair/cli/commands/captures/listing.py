@@ -12,10 +12,16 @@ from collections.abc import Sequence
 from canair.captures.entries import _entry_to_dict
 from canair.captures.store import decoded_preview
 from canair.captures.types import CaptureEntry
-from canair.render import ansi
+from canair.core.terminal import terminal_columns, truncate_text
+from canair.render import ansi, glyphs, messages
 from canair.states import join_states as _join_states
 
 from .query import _dump_json, _parse_query
+
+
+def _text_width(prefix: str) -> int:
+    """The room left on a terminal line after ``prefix``, never under 40 characters."""
+    return max(40, terminal_columns() - len(prefix))
 
 
 def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limit: int = 0) -> None:
@@ -59,7 +65,8 @@ def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limi
             hint = ""
             if not sel.pids and sel.ecu not in known and any(c.isdigit() for c in sel.ecu):
                 hint = "  (did you mean to attach it as a PID, e.g. ECU:PID?)"
-            print(f"  {ansi.YELLOW}No captures matched selector '{sel}'{ansi.RESET}{hint}")
+            warn = f"{glyphs.WARN} No captures matched selector '{sel}'"
+            print(f"  {ansi.YELLOW}{warn}{ansi.RESET}{hint}")
         print(f"  {ansi.DIM}Available ECUs: {', '.join(sorted(known))}{ansi.RESET}")
 
     if not matched:
@@ -84,10 +91,7 @@ def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limi
             f"--since/--last-session/--state.\n"
         )
     if sys.stdout.isatty():
-        print(
-            f"  {ansi.DIM}Tip: add --step to interactively step through these captures "
-            f"one at a time.{ansi.RESET}\n"
-        )
+        messages.hint("add --step to step through these captures one at a time")
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +135,7 @@ def cmd_latest(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
         date = e["date"]
         _st = _join_states(e.get("vehicle_states"))
         state = f"  ({_st})" if _st else ""
-        trunc = payload[:80] + "..." if len(payload) > 80 else payload
+        trunc = truncate_text(payload, _text_width("  "))
         print(f"  {ansi.CYAN}{ecu:<10}{ansi.RESET} {pid!s:<10} {ansi.DIM}{date}{state}{ansi.RESET}")
         print(f"    {trunc}")
         decoded = decoded_preview(e)
@@ -148,10 +152,10 @@ def cmd_latest(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
 def _print_decoded_preview(
     decoded: dict, *, limit: int, ecu: str = "", pid: str = "", indent: str = "    "
 ) -> None:
-    """Print decoded params capped at ``limit``, with a visible hint for any hidden.
+    """Print decoded signals capped at ``limit``, with a visible hint for any hidden.
 
     The capture views show only a preview of a PID's decoded parameters to stay
-    compact; without a marker a busy PID silently drops params (e.g. a mode/enum
+    compact; without a marker a busy PID silently drops signals (e.g. a mode/enum
     defined late in the file). Emit a "+N more" line so the cap is never silent,
     pointing at ``canair decode`` (which renders every param, enum labels and all).
     """
@@ -164,7 +168,8 @@ def _print_decoded_preview(
             f"canair decode {ecu} {pid}".strip() if (ecu and pid) else "canair decode <ECU> <PID>"
         )
         print(
-            f"{indent}{ansi.DIM}… +{hidden} more param(s) not shown — `{where}` for all{ansi.RESET}"
+            f"{indent}{ansi.DIM}… +{hidden} more signal(s) not shown — "
+            f"`{where}` for all{ansi.RESET}"
         )
 
 
@@ -182,8 +187,7 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
     print(f"    PID: {e['pid']}")
 
     if e["payload"]:
-        trunc = e["payload"][:80] + "..." if len(e["payload"]) > 80 else e["payload"]
-        print(f"    Payload: {trunc}")
+        print(f"    Payload: {truncate_text(e['payload'], _text_width('    Payload: '))}")
     elif e["response"]:
         print(f"    Response: {e['response']}")
     elif e["scan_results"]:
@@ -202,7 +206,5 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
         )
 
     if e.get("notes"):
-        notes_str = str(e["notes"]).strip()
-        if len(notes_str) > 80:
-            notes_str = notes_str[:77] + "..."
+        notes_str = truncate_text(str(e["notes"]).strip(), _text_width("    Notes: "))
         print(f"    {ansi.DIM}Notes: {notes_str}{ansi.RESET}")

@@ -36,6 +36,9 @@ The names that layers below use are re-exported here so existing callers
 """
 
 import asyncio
+import contextlib
+import json
+import sys
 
 from canair.captures.metadata import resolve_metadata
 from canair.captures.types import Quality
@@ -70,6 +73,7 @@ from .multi_exec import (
     _rx_addr_for_tx,
     build_query_plan,
 )
+from .multi_json import query_documents, raw_document
 from .multi_repl import _multi_repl
 
 __all__ = [
@@ -126,12 +130,12 @@ def _finalize_journal(
     if journal is None:
         return
     if count == 0 and non_answers == 0:
-        print("\n  --save: no payloads captured — nothing to save.")
+        print("\n  --save: no payloads captured — nothing to save.", file=sys.stderr)
         journal.discard()
         return
 
     refused = f" and {non_answers} non-answer(s)" if non_answers else ""
-    print(f"\n  --save: {count} payload(s){refused} captured.")
+    print(f"\n  --save: {count} payload(s){refused} captured.", file=sys.stderr)
     if prompt:
         meta = resolve_metadata(
             label,
@@ -161,6 +165,7 @@ async def mode_multi(
     vehicle_states=None,
     notes: str | None = None,
     include_static: bool = False,
+    as_json: bool = False,
 ):
     """Execute a multi-ECU pipeline and optionally drop into REPL.
 
@@ -175,7 +180,54 @@ async def mode_multi(
             pipeline completes.
         label/state/notes: Session metadata. When ``label`` is provided, saving
             is non-interactive; otherwise the user is prompted.
+        as_json: Print one ``{"results": [...]}`` document on stdout when the pipeline ends.
+            The step banners and notes go to stderr, and the results are not rendered.
     """
+    if not as_json:
+        return await _run_pipeline(
+            terminal,
+            sub_commands,
+            pids_data,
+            verbose,
+            no_repl=no_repl,
+            save=save,
+            label=label,
+            vehicle_states=vehicle_states,
+            notes=notes,
+            include_static=include_static,
+        )
+    results: list[dict] = []
+    with contextlib.redirect_stdout(sys.stderr):
+        await _run_pipeline(
+            terminal,
+            sub_commands,
+            pids_data,
+            verbose,
+            no_repl=no_repl,
+            save=save,
+            label=label,
+            vehicle_states=vehicle_states,
+            notes=notes,
+            include_static=include_static,
+            json_results=results,
+        )
+    print(json.dumps({"results": results}, indent=2))
+
+
+async def _run_pipeline(
+    terminal: Terminal,
+    sub_commands: list[str],
+    pids_data: dict,
+    verbose: bool,
+    no_repl: bool = False,
+    save: bool = False,
+    label: str | None = None,
+    vehicle_states=None,
+    notes: str | None = None,
+    include_static: bool = False,
+    json_results: list[dict] | None = None,
+):
+    """Run the steps of :func:`mode_multi`; ``json_results`` collects the JSON entries."""
     commands = parse_sub_commands(sub_commands)
     ecu_index = build_ecu_index(pids_data)
     sm = SessionManager(terminal, verbose=verbose)
@@ -266,19 +318,19 @@ async def mode_multi(
                         "`session <ECU> --wake`."
                     )
                     continue
-                print(f"\n{step} SKM wakeup ({cmd['level']})...")
+                print(f"\n{step} SKM wakeup ({cmd['level']})…")
                 await _exec_skm_wake(sm, cmd["level"], verbose)
 
             elif cmd_type == "session":
-                print(f"\n{step} Session on {cmd['target']}...")
+                print(f"\n{step} Session on {cmd['target']}…")
                 await _exec_session(
                     sm, cmd["target"], cmd["wake"], ecu_index, cmd.get("mode", "03")
                 )
 
             elif cmd_type == "query":
                 pids_str = " ".join(cmd["pids"]) if cmd["pids"] else "all"
-                print(f"\n{step} Query {cmd['ecu']} ({pids_str})...")
-                if save:
+                print(f"\n{step} Query {cmd['ecu']} ({pids_str})…")
+                if save or json_results is not None:
                     result = await _exec_query(
                         sm,
                         cmd["ecu"],
@@ -292,10 +344,14 @@ async def mode_multi(
                     )
                     if result:
                         ecu_label, pid_results = result
-                        print_ecu_results(
-                            ecu_label=ecu_label, pid_results=pid_results, verbose=verbose
-                        )
-                        _collect_query(ecu_label, pid_results)
+                        if json_results is None:
+                            print_ecu_results(
+                                ecu_label=ecu_label, pid_results=pid_results, verbose=verbose
+                            )
+                        else:
+                            json_results.extend(query_documents(ecu_label, pid_results))
+                        if save:
+                            _collect_query(ecu_label, pid_results)
                 else:
                     await _exec_query(
                         sm,
@@ -309,8 +365,10 @@ async def mode_multi(
                     )
 
             elif cmd_type == "raw":
-                print(f"\n{step} Raw {cmd['spec']}...")
+                print(f"\n{step} Raw {cmd['spec']}…")
                 raw_result = await _exec_raw(sm, cmd["spec"], cmd["hold"], verbose)
+                if json_results is not None and raw_result:
+                    json_results.append(raw_document(*raw_result))
                 if save and raw_result:
                     tx_id, req, resp = raw_result
                     ecu_ref = _rx_addr_for_tx(tx_id)
@@ -331,13 +389,13 @@ async def mode_multi(
                             )
 
             elif cmd_type == "scan":
-                print(f"\n{step} Scan {cmd['tx']} service {cmd['service']} range {cmd['range']}...")
+                print(f"\n{step} Scan {cmd['tx']} service {cmd['service']} range {cmd['range']}…")
                 await _exec_scan(
                     sm, cmd["tx"], cmd["service"], cmd["range"], cmd["append"], verbose
                 )
 
             elif cmd_type == "sleep":
-                print(f"\n{step} Sleeping {cmd['seconds']}s...")
+                print(f"\n{step} Sleeping {cmd['seconds']}s…")
                 # Send keepalives during sleep to maintain active sessions
                 remaining = cmd["seconds"]
                 while remaining > 0:
@@ -348,13 +406,13 @@ async def mode_multi(
                         await sm.keepalive_stale()
 
             elif cmd_type == "repl":
-                print(f"\n{step} Entering REPL...")
+                print(f"\n{step} Entering REPL…")
                 repl_executed = True
                 await _multi_repl(sm, ecu_index, pids_data, verbose, include_static=include_static)
 
             elif cmd_type == "iocontrol":
                 action = "OFF" if cmd["off"] else "ON"
-                print(f"\n{step} IOControl {cmd['ecu']} {cmd['did']} ({action})...")
+                print(f"\n{step} IOControl {cmd['ecu']} {cmd['did']} ({action})…")
                 await _exec_iocontrol(
                     sm, cmd["ecu"], cmd["did"], cmd["off"], pids_data, ecu_index, verbose
                 )
@@ -378,7 +436,7 @@ async def mode_multi(
             sessions_str = ", ".join(f"0x{tx:03X}" for tx in sm.active_sessions)
             if sessions_str:
                 print(f"\n  Active sessions: {sessions_str}")
-            print("\n  Pipeline complete. Entering REPL...")
+            print("\n  Pipeline complete. Entering REPL…")
             await _multi_repl(sm, ecu_index, pids_data, verbose, include_static=include_static)
 
     except KeyboardInterrupt:
@@ -399,7 +457,7 @@ async def mode_multi(
 
     finally:
         sm.stop_background_keepalive()
-        print("  Closing all sessions...")
+        print("  Closing all sessions…")
         try:
             await asyncio.wait_for(sm.close_all(), timeout=3.0)
         except (TimeoutError, KeyboardInterrupt, Exception):

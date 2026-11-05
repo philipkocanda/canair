@@ -187,8 +187,9 @@ class TestSessionEditorsBehaviour:
         )
         rc = session_fields.cmd_set_notes(load_all_captures(cdir), "x", assume_yes=True)
         assert rc == 1 and calls == [0, 1]
-        out = capsys.readouterr().out
-        assert "disk full" in out and "Set notes on 1 session(s)" in out
+        captured = capsys.readouterr()
+        assert "error: " in captured.err and "disk full" in captured.err
+        assert "✓ Set notes on 1 session(s)" in captured.out
 
     @pytest.mark.parametrize("answer,rc,written", [("y", 0, True), ("n", 1, False)])
     def test_the_confirmation_prompt(self, tmp_path, monkeypatch, capsys, answer, rc, written):
@@ -204,7 +205,12 @@ class TestSessionEditorsBehaviour:
         doc = json.loads((cdir / "2026-10-21.json").read_text())
         notes = [s.get("notes") for s in doc["sessions"]]
         assert notes == (["x", "x"] if written else [None, None])
-        assert "Set notes on these 2 session(s)? [y/N]" in capsys.readouterr().out
+        captured = capsys.readouterr()
+        # The question goes to stderr, so stdout stays the result.
+        assert "Set notes on these 2 session(s)? [y/N]" in captured.err
+        assert "[y/N]" not in captured.out
+        if not written:
+            assert "Aborted — nothing changed." in captured.err
 
     @pytest.mark.parametrize(
         "editor,value",

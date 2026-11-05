@@ -12,7 +12,6 @@ Entries are plain dicts; the helpers only read ``date``, ``state``, ``label``
 and (for captures) ``session_label`` keys, so any capture-shaped dict works.
 """
 
-import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time
@@ -20,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from canair.captures.store import load_all_captures
+from canair.render import messages
 
 # NOTE on the scope filters below: they are deliberately shape-agnostic. Each
 # reads only a handful of keys (date/time/vehicle_states/label) and is applied
@@ -347,10 +347,9 @@ def resolve_scope_bounds(
 
         unknown = unknown_state_tokens(state)
         if unknown:
-            print(
-                f"  note: --state {', '.join(unknown)} not in this profile's state "
-                f"vocabulary ({', '.join(sorted(allowed_states()))}) — nothing can match.",
-                file=sys.stderr,
+            messages.note(
+                f"--state {', '.join(unknown)} not in this profile's state "
+                f"vocabulary ({', '.join(sorted(allowed_states()))}) — nothing can match."
             )
     n = scope.last_sessions
     if n:

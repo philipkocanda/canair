@@ -31,7 +31,7 @@ from canair.analysis.triage import bit_flip_rates
 from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.notation import resolve_notation
 from canair.cli.args.scope import active_scope_flags
-from canair.render import ansi
+from canair.render import ansi, messages
 from canair.uds.byteindex import mapped_offsets, wican_to_isotp
 from canair.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
 
@@ -164,14 +164,13 @@ def run_counters(ecu: str, pid: str, lp: LoadedPid, args, params_def: dict) -> i
     # Warn loudly (stderr, and `scoped` in --json) whenever one is set.
     scope_flags = active_scope_flags(args)
     if scope_flags:
-        print(warn_scoped_counters(scope_flags), file=sys.stderr)
+        messages.warning(warn_scoped_counters(scope_flags))
 
     scan = scan_counters(pid, lp, args, params_def)
     if scan is None:
         usable = sum(1 for d in lp.decoded if d.dt is not None)
-        print(
-            f"Not enough timed captures for {ecu} {pid} to test monotonicity ({usable} usable).",
-            file=sys.stderr,
+        messages.error(
+            f"not enough timed captures for {ecu} {pid} to test monotonicity ({usable} usable)"
         )
         return 1
 
@@ -252,9 +251,9 @@ class CounterScan:
 
 
 def warn_scoped_counters(scope_flags: list[str]) -> str:
-    """The stderr banner for a scoped ``--counters`` run (shared single/sweep)."""
+    """The warning text for a scoped ``--counters`` run (shared single/sweep)."""
     return (
-        "investigate --counters: scope filter(s) "
+        "--counters with scope filter(s) "
         f"{', '.join(scope_flags)} active — a counter needs the full history to "
         "prove it only rises, so the bits score is likely understated. Prefer an "
         "unscoped run."
@@ -370,9 +369,8 @@ def _print_counters(
             if scoped:
                 # The threshold above was computed from the FILTERED subset, so it
                 # is only right for this scope — the full history could surface more.
-                print(
-                    f"  {ansi.YELLOW}Note: computed from a scoped subset — re-run unscoped "
-                    f"for the true threshold.{ansi.RESET}"
+                messages.note(
+                    "computed from a scoped subset; re-run unscoped for the true threshold"
                 )
         else:
             print(
@@ -415,8 +413,7 @@ def _print_one(
         tag = f"{ansi.YELLOW}[{mapped_by}?]{ansi.RESET}"  # mapped but unverified — still open
     print()
     print(
-        f"    {ansi.BOLD}{_display_label(rep, notation, sub_bytes):<12}{ansi.RESET} "
-        f"{ansi.GREEN}{expr}{ansi.RESET}  {tag}"
+        f"    {ansi.BOLD}{_display_label(rep, notation, sub_bytes):<12}{ansi.RESET} {expr}  {tag}"
     )
     print(
         f"      {_fmt(rep.first)} → {_fmt(rep.last)}  (Δ{_fmt(rep.total_delta)})"

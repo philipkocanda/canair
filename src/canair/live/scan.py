@@ -2,12 +2,14 @@
 
 import asyncio
 import json
-import sys
 from collections.abc import Sequence
 
 from canair.captures.metadata import resolve_metadata
 from canair.core.id_ranges import IdRange, as_id_ranges, count_ids, format_id_ranges, iter_ids
 from canair.privacy.sensitive import MASK, profile_set
+from canair.render.console import console as make_console
+from canair.render.console import escape
+from canair.render.glyphs import ELLIPSIS
 from canair.uds.services import identifier_width
 
 from ..transport.protocol import Terminal
@@ -43,7 +45,6 @@ async def mode_scan(
         - ECUs need time to recover between requests.
         - Use a modest --range first and check results before continuing.
     """
-    from rich.console import Console
     from rich.progress import (
         BarColumn,
         MofNCompleteColumn,
@@ -58,7 +59,8 @@ async def mode_scan(
 
     from ..ecus import ecu_display, ecu_name
 
-    console = Console()
+    # The human report is the result, so it goes to stdout; with --json it goes to stderr.
+    console = make_console(stderr=as_json)
 
     ranges = as_id_ranges(pid_ranges)
     total = count_ids(ranges)
@@ -72,9 +74,9 @@ async def mode_scan(
 
     ecu = ecu_name(tx_id)
     console.print(
-        f"\n  [bold]Scanning {ecu_display(tx_id)}[/bold] — {service_label(service)}, "
-        f"{did_label}s {ranges_text} "
-        f"([cyan]{total}[/cyan] {did_label}s){suffix_label}"
+        f"\n  [bold cyan]{escape(ecu_display(tx_id))}[/bold cyan] — "
+        f"scanning {escape(service_label(service))}, {did_label}s {escape(ranges_text)} "
+        f"({total} {did_label}s){escape(suffix_label)}"
     )
 
     await terminal.set_header(tx_id)
@@ -88,7 +90,7 @@ async def mode_scan(
     errors = []
     sensitive = profile_set()
 
-    is_tty = sys.stdout.isatty()
+    is_tty = console.is_terminal
 
     progress = Progress(
         SpinnerColumn(),
@@ -116,12 +118,9 @@ async def mode_scan(
                         # The hit is reported and recorded, its bytes never are.
                         response["hex"] = MASK
                     positive.append((pid_val, response))
-                    line = (
-                        f"  [green]+[/green] 0x{pid_val:{did_fmt}}: "
-                        f"OK ([cyan]{n_bytes}[/cyan] bytes)"
-                    )
+                    line = f"  [green]+[/green] 0x{pid_val:{did_fmt}}: OK ({n_bytes} bytes)"
                     if verbose:
-                        line += f"  [dim]{response['hex']}[/dim]"
+                        line += f"  [dim]{escape(response['hex'])}[/dim]"
                     progress.console.print(line)
                     progress.update(task, hits=len(positive))
                 elif response.get("nrc") is not None:
@@ -136,18 +135,19 @@ async def mode_scan(
 
                             named = service_name(nrc_svc)
                             svc_note = (
-                                f" [dim](rejecting {named or 'service'} 0x{nrc_svc:02X})[/dim]"
+                                f" [dim](rejecting {escape(named or 'service')} "
+                                f"0x{nrc_svc:02X})[/dim]"
                             )
                         progress.console.print(
-                            f"  [dim]- 0x{pid_val:{did_fmt}}: NRC 0x{nrc:02X} ({desc})[/dim]"
-                            + svc_note
+                            f"  [dim]- 0x{pid_val:{did_fmt}}: "
+                            f"NRC 0x{nrc:02X} ({escape(desc)})[/dim]" + svc_note
                         )
                 else:
                     error = response.get("error", "unknown")
                     errors.append((pid_val, error))
                     if verbose:
                         progress.console.print(
-                            f"  [yellow]! 0x{pid_val:{did_fmt}}: {error}[/yellow]"
+                            f"  [red]! 0x{pid_val:{did_fmt}}: {escape(str(error))}[/red]"
                         )
 
                 progress.advance(task)
@@ -165,22 +165,22 @@ async def mode_scan(
     summary = Table(show_header=False, box=None, pad_edge=False)
     summary.add_column(style="dim")
     summary.add_column()
-    summary.add_row("ECU", ecu_display(tx_id))
+    summary.add_row("ECU", escape(ecu_display(tx_id)))
     summary.add_row("Positive", f"[green]{len(positive)}[/green]")
     summary.add_row("Negative", str(len(negative)))
-    summary.add_row("Errors", f"[yellow]{len(errors)}[/yellow]" if errors else "0")
+    summary.add_row("Errors", f"[red]{len(errors)}[/red]" if errors else "0")
     console.print("\n  [bold]Scan results[/bold]")
     console.print(summary)
 
     if positive:
         hits = Table(title=f"Responding {did_label}s", title_justify="left")
-        hits.add_column(did_label, style="bold green")
-        hits.add_column("Bytes", justify="right", style="cyan")
+        hits.add_column(did_label, style="cyan")
+        hits.add_column("Bytes", justify="right")
         hits.add_column("Payload", style="dim", overflow="fold")
         for pid_val, resp in positive:
             n = len(resp["bytes"])
             hexstr = resp["hex"]
-            shown = f"{hexstr[:60]}…" if len(hexstr) > 60 else hexstr
+            shown = f"{hexstr[:60]}{ELLIPSIS}" if len(hexstr) > 60 else hexstr
             hits.add_row(f"0x{pid_val:{did_fmt}}", str(n), shown)
         console.print(hits)
 
@@ -214,7 +214,7 @@ async def mode_scan(
         suggested = suggest_scan_label(ecu, service, ranges, append_bytes)
         n_pos = len(positive)
         n_neg = len(negative)
-        console.print(f"\n  Save: {n_pos} positive, {n_neg} negative responses.")
+        make_console(stderr=True).print(f"\n  Save: {n_pos} positive, {n_neg} negative responses.")
         meta = resolve_metadata(label, vehicle_states, notes, suggested_label=suggested)
         if meta:
             label, vehicle_states, notes = meta
@@ -235,7 +235,9 @@ async def mode_scan(
             )
             save_session_journaled(session_dict)
 
-    _print_next_steps(console, ecu, service, positive, negative, errors, saved=save)
+    _print_next_steps(
+        make_console(stderr=True), ecu, service, positive, negative, errors, saved=save
+    )
 
 
 def _print_next_steps(console, ecu, service, positive, negative, errors, saved):
@@ -251,7 +253,8 @@ def _print_next_steps(console, ecu, service, positive, negative, errors, saved):
             f"Inspect a payload:   [cyan]canair captures {ecu} {first.removeprefix('0x')}[/cyan]"
         )
         hints.append(
-            f"Define a parameter:  [cyan]canair pids upsert-param {ecu} {first.removeprefix('0x')} NAME EXPR[/cyan]"
+            f"Define a signal:    [cyan]canair pids upsert-param {ecu} "
+            f"{first.removeprefix('0x')} NAME EXPR[/cyan]"
         )
     elif errors and not negative:
         hints.append("All requests errored — the ECU may be asleep or need --session/--wake.")

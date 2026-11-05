@@ -3,11 +3,14 @@
 import asyncio
 from datetime import datetime
 
+from canair.render import messages
 from canair.transport.elm327.addressing import FUNCTIONAL_11BIT_ID
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.uds.nrc import is_negative_response
 from canair.uds.parse import reply_lines
 from canair.uds.services import TESTER_PRESENT, TESTER_PRESENT_REQUEST, positive_response_sid
+
+from .progress_line import ProgressLine
 
 _POSITIVE = bytes([positive_response_sid(TESTER_PRESENT)])
 
@@ -38,7 +41,7 @@ async def mode_tester_present(
     """
     tx_id = parse_target(target)
     if tx_id is None:
-        print(f"  Invalid target {target!r}: give the ECU's request id in hex, e.g. 7E0.")
+        messages.error(f"invalid target {target!r}: give the ECU's request id in hex, e.g. 7E0")
         return
     if target:
         print(f"\n  TesterPresent -- targeting 0x{tx_id:03X} every {interval:.1f}s")
@@ -48,6 +51,15 @@ async def mode_tester_present(
     print("  Press Ctrl+C to stop.\n")
 
     count = 0
+    status = ProgressLine()
+
+    def show(line: str) -> None:
+        """The counter rewrites one line on a terminal; elsewhere it is a line per message."""
+        if status.enabled:
+            status.update(line)
+        else:
+            print(line)
+
     try:
         while True:
             count += 1
@@ -70,18 +82,17 @@ async def mode_tester_present(
                 n_neg = sum(is_negative_response(r, TESTER_PRESENT) for r in replies)
                 has_nodata = "NODATA" in clean.upper().replace(" ", "")
                 if has_nodata:
-                    print(f"  [{ts}] #{count} NO DATA", end="\r")
+                    show(f"  [{ts}] #{count} NO DATA")
                 else:
                     parts = []
                     if n_pos:
                         parts.append(f"{n_pos} OK")
                     if n_neg:
                         parts.append(f"{n_neg} NRC")
-                    print(
-                        f"  [{ts}] #{count} {', '.join(parts) if parts else clean[:40]}", end="\r"
-                    )
+                    show(f"  [{ts}] #{count} {', '.join(parts) if parts else clean[:40]}")
 
             await asyncio.sleep(interval)
 
     except (KeyboardInterrupt, asyncio.CancelledError):
-        print(f"\n\n  Stopped after {count} messages.")
+        status.clear()
+        print(f"\n  Stopped after {count} messages.")

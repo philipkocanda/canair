@@ -220,7 +220,8 @@ class TestValidateStates:
 
     def _run(self, capsys):
         rc = validate_cmd.run(argparse.Namespace(target="states", files=[], stats=False))
-        return rc, capsys.readouterr().out
+        captured = capsys.readouterr()
+        return rc, captured.out + captured.err
 
     def test_resolvable_predicate_passes(self, tmp_path, capsys):
         _mk_profile(tmp_path, GOOD_STATES)
@@ -294,7 +295,7 @@ class TestPidsEditWarnsAboutPredicates:
         pids_cmd.cmd_rename_param(
             self._args(root, ecu="VCU", pid="2101", old="GEAR_P", new="GEAR_PARK")
         )
-        out = capsys.readouterr().out
+        out = capsys.readouterr().err
         assert "PARKED" in out and "VCU.GEAR_P" in out
 
     def test_remove_warns(self, tmp_path, capsys):
@@ -302,7 +303,7 @@ class TestPidsEditWarnsAboutPredicates:
 
         root = _mk_profile(tmp_path, GOOD_STATES)
         pids_cmd.cmd_rm_param(self._args(root, ecu="VCU", pid="2101", name="GEAR_P"))
-        out = capsys.readouterr().out
+        out = capsys.readouterr().err
         assert "PARKED" in out
 
     def test_unreferenced_signal_is_quiet(self, tmp_path, capsys):
@@ -310,7 +311,7 @@ class TestPidsEditWarnsAboutPredicates:
 
         root = _mk_profile(tmp_path, "states:\n  - name: SLEEP\n    when: __no_response__\n")
         pids_cmd.cmd_rm_param(self._args(root, ecu="VCU", pid="2101", name="GEAR_P"))
-        assert "warn" not in capsys.readouterr().out
+        assert "warning" not in capsys.readouterr().err
 
 
 class TestBundledProfiles:

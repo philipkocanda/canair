@@ -8,14 +8,14 @@ can actuate, so the read-only 0x33/0x30 variants must be used there instead.
 
 from __future__ import annotations
 
-import sys
-
 from canair.cli.live.operation import LiveOperation
+from canair.core.prompt import confirm
 from canair.ecus import split_ecus_by_protocol
 from canair.live.discover import mode_discover
 from canair.live.iocontrol_scan import mode_iocontrol_scan
 from canair.live.routines_scan import mode_routines_scan
 from canair.live.scan import mode_scan
+from canair.render import messages
 from canair.transport.protocol import Terminal
 
 from .ranges import parse_range, parse_ranges
@@ -26,23 +26,16 @@ async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=No
 
     tx_id = resolve_tx(args.tx)
     if tx_id is None:
-        print(
-            f"Error: could not resolve ECU '{args.tx}' "
-            "(use a name like BMS or a hex TX id like 7E4)",
-            file=sys.stderr,
+        messages.fail(
+            f"could not resolve ECU '{args.tx}' (use a name like BMS or a hex TX id like 7E4)"
         )
-        sys.exit(1)
     service = int(args.service, 16) if args.service else 0x21
     pid_ranges = parse_ranges(args.range) if args.range else ((0x01, 0xFF),)
     append_bytes = ""
     if args.append:
         cleaned = args.append.replace(" ", "").upper()
         if not all(c in "0123456789ABCDEF" for c in cleaned) or len(cleaned) % 2 != 0:
-            print(
-                "Error: --append must be valid hex bytes (e.g., 03 or 030A0A05)",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+            messages.fail("--append must be valid hex bytes (e.g., 03 or 030A0A05)", code=2)
         append_bytes = cleaned
     await mode_scan(
         terminal,
@@ -82,20 +75,13 @@ async def handle_routines_scan(
     _wake = getattr(args, "wake", False)
     _mode = getattr(args, "session_mode", "03")
 
-    # Asked before anything is sent, like a DTC clear. A closed/non-interactive
-    # stdin reads as "no", so a script must pass --yes explicitly.
+    # Asked before anything is sent, like a DTC clear. With no terminal a script must pass
+    # --yes explicitly.
     confirmed = bool(getattr(args, "yes", False))
     if kwp_ecus and needs_confirmation(pids_data) and not confirmed:
-        print(f"!! WARNING: {UNPROVEN_WARNING}", file=sys.stderr)
-        print(
-            f"!! Sweep {', '.join(kwp_ecus)} with 0x33 anyway? [y/N] ",
-            end="",
-            flush=True,
-            file=sys.stderr,
-        )
-        if sys.stdin.readline().strip().lower() not in ("y", "yes"):
-            print("Aborted.", file=sys.stderr)
-            return
+        messages.warning(UNPROVEN_WARNING)
+        if not confirm(f"Sweep {', '.join(kwp_ecus)} with 0x33 anyway?", danger=True):
+            raise SystemExit(1)
         confirmed = True
 
     if uds_ecus:
@@ -151,20 +137,13 @@ async def handle_iocontrol_scan(
     # None = not given: the KWP2000 scanner then picks the profile's session.
     _mode = getattr(args, "session_mode", None)
 
-    # Asked before anything is sent, like the routine scan. A closed or
-    # non-interactive stdin reads as "no", so a script must pass --yes.
+    # Asked before anything is sent, like the routine scan. With no terminal a script must
+    # pass --yes.
     confirmed = bool(getattr(args, "yes", False))
     if kwp_ecus and needs_confirmation(pids_data) and not confirmed:
-        print(f"!! WARNING: {UNPROVEN_WARNING}", file=sys.stderr)
-        print(
-            f"!! Sweep {', '.join(kwp_ecus)} with 30 {{LID}} 00 anyway? [y/N] ",
-            end="",
-            flush=True,
-            file=sys.stderr,
-        )
-        if sys.stdin.readline().strip().lower() not in ("y", "yes"):
-            print("Aborted.", file=sys.stderr)
-            return
+        messages.warning(UNPROVEN_WARNING)
+        if not confirm(f"Sweep {', '.join(kwp_ecus)} with 30 {{LID}} 00 anyway?", danger=True):
+            raise SystemExit(1)
         confirmed = True
 
     if uds_ecus:

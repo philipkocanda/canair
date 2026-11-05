@@ -78,7 +78,7 @@ class TestMonitorApp:
             assert ctrl.show_rulers is False
             # The status line advertises the shortcut.
             status = _plain(app.query_one("#status").render())
-            assert "r ruler" in status
+            assert "r byte ruler" in status
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -144,7 +144,7 @@ class TestMonitorApp:
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
             # Suggested label is pre-filled with the active query.
-            assert app.screen.query_one("#f-label", Input).value == "BMS:2101"
+            assert app.screen.query_one("#save-label", Input).value == "BMS:2101"
             # 'q' must not quit while the modal owns the keyboard.
             await pilot.press("enter")
             await pilot.pause(0.1)
@@ -171,7 +171,7 @@ class TestMonitorApp:
             await pilot.press("s")
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
-            status = app.screen.query_one("#state-status", Label)
+            status = app.screen.query_one("#save-state-status", Label)
             assert "auto-detect" in _plain(status.render())
             await pilot.press("escape")
             await pilot.press("q")
@@ -191,8 +191,8 @@ class TestMonitorApp:
             await pilot.press("s")
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
-            assert app.screen.query_one("#f-state", Input).value == "charging"
-            status = app.screen.query_one("#state-status", Label)
+            assert app.screen.query_one("#save-state", Input).value == "charging"
+            status = app.screen.query_one("#save-state-status", Label)
             plain = _plain(status.render())
             assert "auto-detected" in plain and "charging" in plain
             await pilot.press("escape")
@@ -242,7 +242,7 @@ class TestMonitorApp:
             await pilot.press("n")
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
-            app.screen.query_one("#f-label", Input).value = "seg2"
+            app.screen.query_one("#save-label", Input).value = "seg2"
             await pilot.press("enter")
             await pilot.pause(0.1)
             assert ctrl.new_seg is not None
@@ -278,7 +278,7 @@ class TestMonitorApp:
             await pilot.press("s")
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
-            title = _plain(app.screen.query_one("#dialog-title", Label).render())
+            title = _plain(app.screen.query_one("#save-title", Label).render())
             assert "Label recording" in title
             btn = app.screen.query_one("#save", Button)
             assert "label" in str(btn.label).lower()
@@ -299,7 +299,7 @@ class TestMonitorApp:
             await pilot.press("s")
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
-            title = _plain(app.screen.query_one("#dialog-title", Label).render())
+            title = _plain(app.screen.query_one("#save-title", Label).render())
             assert "Save captures now" in title
             assert str(app.screen.query_one("#save", Button).label) == "Save"
             await pilot.press("escape")
@@ -466,7 +466,7 @@ class TestMonitorApp:
 
 class TestSaveDialogStateHelpers:
     def test_split_state_tokens(self):
-        from canair.tui.apps.monitor import _split_state_tokens
+        from canair.tui.apps.monitor_dialogs import _split_state_tokens
 
         assert _split_state_tokens("") == ([], "")
         assert _split_state_tokens("ready") == ([], "ready")
@@ -474,14 +474,14 @@ class TestSaveDialogStateHelpers:
         assert _split_state_tokens("ready, parked, ") == (["ready", "parked"], "")
 
     def test_complete_state_token(self):
-        from canair.tui.apps.monitor import _complete_state_token
+        from canair.tui.apps.monitor_dialogs import _complete_state_token
 
         assert _complete_state_token("", "ready") == "ready, "
         assert _complete_state_token("re", "ready") == "ready, "
         assert _complete_state_token("ready, pa", "parked") == "ready, parked, "
 
     def test_unknown_state_tokens(self):
-        from canair.tui.apps.monitor import _unknown_state_tokens
+        from canair.tui.apps.monitor_dialogs import _unknown_state_tokens
 
         vocab = {"ready", "parked", "charging"}
         # A completed token outside the vocabulary is flagged.
@@ -508,8 +508,8 @@ class TestSaveDialogStateUI:
             await pilot.press("s")
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
-            state = app.screen.query_one("#f-state", Input)
-            options = app.screen.query_one("#state-options", OptionList)
+            state = app.screen.query_one("#save-state", Input)
+            options = app.screen.query_one("#save-state-options", OptionList)
             # Typing a prefix filters the dropdown to matching states.
             state.value = "cha"
             await pilot.pause(0.05)
@@ -535,8 +535,8 @@ class TestSaveDialogStateUI:
             await pilot.pause(0.1)
             await pilot.press("s")
             await pilot.pause(0.1)
-            state = app.screen.query_one("#f-state", Input)
-            warning = app.screen.query_one("#state-warning", Label)
+            state = app.screen.query_one("#save-state", Input)
+            warning = app.screen.query_one("#save-state-warning", Label)
             state.value = "bogus, ready"
             await pilot.pause(0.05)
             assert "visible" in warning.classes
@@ -561,9 +561,9 @@ class TestSaveDialogStateUI:
             await pilot.press("s")
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
-            app.screen.query_one("#f-state", Input).value = "ready, parked, "
+            app.screen.query_one("#save-state", Input).value = "ready, parked, "
             # Submit from the label field so enter doesn't hop into the dropdown.
-            app.screen.query_one("#f-label", Input).focus()
+            app.screen.query_one("#save-label", Input).focus()
             await pilot.press("enter")
             await pilot.pause(0.1)
             assert ctrl.saved is not None
@@ -646,12 +646,12 @@ class TestMonitorEditing:
             from canair.tui import widgets
             from canair.tui.widgets import CheckBox
 
-            verified = app.screen.query_one("#e-verified", CheckBox).render().plain
-            ship = app.screen.query_one("#e-ship", CheckBox).render().plain
+            verified = app.screen.query_one("#edit-verified", CheckBox).render().plain
+            ship = app.screen.query_one("#edit-ship", CheckBox).render().plain
             assert widgets._UNCHECKED in verified
             assert widgets._CHECKED in ship
             # Change the expression and save.
-            expr = app.screen.query_one("#e-expr")
+            expr = app.screen.query_one("#edit-expr")
             expr.value = "B4/4"
             await pilot.press("enter")
             await pilot.pause(0.1)
@@ -680,12 +680,12 @@ class TestMonitorEditing:
             await pilot.pause(0.1)
             dialog = app.screen
             assert isinstance(dialog, EditParamDialog)
-            box = dialog.query_one("#edit-dialog").region
+            box = dialog.query_one("#edit-box").region
             for widget in [*dialog.query(Input), *dialog.query(CheckBox), *dialog.query(Button)]:
                 region = widget.region
                 assert widget.content_region.height >= 1, widget
                 assert box.contains_region(region), widget
-            expr = dialog.query_one("#e-expr", Input)
+            expr = dialog.query_one("#edit-expr", Input)
             assert expr.has_focus
             assert expr.selected_text == ""
             await pilot.press("escape")

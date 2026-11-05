@@ -345,7 +345,7 @@ def main(argv: list[str] | None = None) -> int:
     from canair.captures.io import LegacyCaptureError
     from canair.core.edit_errors import EditError
     from canair.profile import ProfileError, set_active
-    from canair.render import ansi
+    from canair.render import ansi, messages
     from canair.safety.blocklist import SafetyBlocked
 
     # Resolve the active vehicle profile before dispatching.
@@ -358,7 +358,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             set_active(args.profile, args.profiles_dir, args.variant, args.revision_pins)
         except ProfileError as e:
-            print(f"error: {e}", file=sys.stderr)
+            messages.error(str(e))
             return 2
 
     func = getattr(args, "func", None)
@@ -379,11 +379,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = func(args)
     except (ProfileError, LegacyCaptureError, SafetyBlocked, PromptUnavailable) as e:
-        print(f"error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 2
     except EditError as e:
         # A rejected profile edit: the editor has already put the file back.
-        print(ansi.cerr(f"  Error: {e}", ansi.RED), file=sys.stderr)
+        messages.error(str(e))
         return 1
     finally:
         # A save whose every row was withheld printed no banner to carry the note.

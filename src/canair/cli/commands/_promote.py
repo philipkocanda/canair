@@ -18,7 +18,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from canair.render import ansi
+from canair.render import messages
+from canair.yaml_edit.echo import echo_edit
 
 
 def _reject_pci_reads(ecu: str, pid: str, name: str, expr: str) -> None:
@@ -67,11 +68,7 @@ def write_candidate(ecu: str, pid: str, name: str, expr: str, *, source: str, no
 
 
 def print_promoted(ecu: str, pid: str, name: str, expr: str, r: float, fpath: Path) -> None:
-    print(
-        f"{ansi.GREEN}✓ promoted{ansi.RESET} {ecu} {pid} {name} = {ansi.BOLD}{expr}{ansi.RESET} "
-        f"{ansi.DIM}(r={r:+.3f}, {fpath.name}){ansi.RESET}"
-    )
-    print(
-        f"  {ansi.DIM}Review + verify, then: canair pids upsert-param {ecu} {pid} {name} "
-        f'"{expr}" --verified{ansi.RESET}'
+    echo_edit(f"promoted {ecu} {pid} {name} = {expr}  (r={r:+.3f})", fpath)
+    messages.hint(
+        f'review and verify, then: canair pids upsert-param {ecu} {pid} {name} "{expr}" --verified'
     )

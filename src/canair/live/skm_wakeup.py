@@ -18,6 +18,8 @@ import asyncio
 import re
 import time
 
+from canair.core.prompt import typed_confirm
+from canair.render import messages
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.uds.nrc import (
     NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
@@ -172,23 +174,21 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
     an extended diagnostic session and activates the requested relay level.
     """
     if level not in SKM_RELAYS:
-        print(f"  Unknown level: {level}. Available: {', '.join(SKM_RELAYS.keys())}")
+        messages.error(f"unknown level: {level}. Available: {', '.join(SKM_RELAYS)}")
         return False
 
     did, desc = SKM_RELAYS[level]
 
     if level == "start":
-        print("  !! WARNING: Start Relay can crank the motor!")
-        print("  !! Only proceed if the car is in Park and safe conditions.")
-        try:
-            confirm = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: input("  !! Type 'YES' to proceed: ")
-            )
-        except (EOFError, KeyboardInterrupt):
-            confirm = ""
-        if confirm.strip() != "YES":
-            print("  Aborted.")
-            return False
+        messages.warning("the start relay can crank the motor")
+        proceed = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: typed_confirm(
+                "Only proceed if the car is in Park and conditions are safe.", "YES"
+            ),
+        )
+        if not proceed:
+            raise SystemExit(1)
 
     print(f"\n  SKM Wakeup -- {desc}")
     print("  ---------------------------------")
@@ -196,7 +196,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
     # Step 1: Rapid-fire 1001 to wake SKM transceiver from deep sleep
     # SKM wakes on the 2nd frame but has a ~2s sleep timer — needs fast CAN
     # traffic (64ms timeout) to stay awake. Direct to 0x7A5, no broadcast needed.
-    print("  [1/4] Waking SKM (rapid-fire 1001 at 64ms timeout)...")
+    print("  [1/4] Waking SKM (rapid-fire 1001 at 64ms timeout)…")
     await terminal.set_header(0x7A5)
 
     # Save current timeout and switch to fast mode
@@ -216,14 +216,16 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
     if not skm_awake:
         # Restore timeout before returning
         await terminal.send_command(terminal.elm_timeout_cmd)
-        print("  FAILED: SKM did not wake after 10 rapid-fire attempts.")
-        print("  The SKM transceiver may be fully unpowered.")
+        messages.error(
+            "SKM did not wake after 10 rapid-fire attempts. "
+            "The SKM transceiver may be fully unpowered."
+        )
         return False
 
     print(f"        SKM awake (attempt {attempt + 1}).")
 
     # Step 2: Extended diagnostic session — send immediately while SKM is awake
-    print("  [2/4] Establishing extended session on SKM (0x7A5)...")
+    print("  [2/4] Establishing extended session on SKM (0x7A5)…")
 
     session_ok = False
     for attempt in range(5):
@@ -238,7 +240,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
     await terminal.send_command(terminal.elm_timeout_cmd)
 
     if not session_ok:
-        print("  FAILED: SKM awake but extended session failed.")
+        messages.error("SKM awake but extended session failed.")
         return False
 
     print("        Extended session (10 03) established.")
@@ -246,7 +248,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
     # Step 3: Send relay ON command
     await terminal.drain()
     cmd = io_control_request(int(did, 16), IoControlParameter.SHORT_TERM_ADJUSTMENT, SKM_MAGIC)
-    print(f"  [3/4] Sending {desc} ON ({cmd})...")
+    print(f"  [3/4] Sending {desc} ON ({cmd})…")
     resp = await terminal.send_command(cmd, timeout=10.0)
 
     clean = resp.replace(" ", "").replace("\n", "").upper()
@@ -258,7 +260,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
         if verbose:
             reason = "FC echo" if is_fc_only else "pending NRC"
             print(f"        Initial response: {resp.strip()} ({reason})")
-            print("        Waiting for UDS response...")
+            print("        Waiting for UDS response…")
         deadline = time.monotonic() + 10.0
         extra_parts = []
         while time.monotonic() < deadline:
@@ -290,13 +292,14 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
 
     if not _answered(resp, did):
         if _refused(resp, NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION):
-            print("        FAILED: serviceNotSupportedInActiveSession")
-            print("        The extended session may have expired. Try again.")
+            messages.error(
+                "serviceNotSupportedInActiveSession. "
+                "The extended session may have expired. Try again."
+            )
         elif _pending(resp):
-            print("        Pending response received but no positive confirmation.")
+            messages.warning("pending response received but no positive confirmation")
         else:
-            print(f"        Response: {resp}")
-            print("        Could not confirm relay activation.")
+            messages.error(f"could not confirm relay activation (response: {resp})")
         return False
 
     print("        UDS positive response received.")
@@ -304,7 +307,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
     # Step 4: Verify ACC actually engaged by reading IGPM and BCM
     # SKM returns positive UDS response even without keyfob nearby,
     # but the relay physically doesn't close. Read both ECUs to verify.
-    print("  [4/4] Verifying relay engagement...")
+    print("  [4/4] Verifying relay engagement…")
 
     # Small delay for relay state to settle
     await asyncio.sleep(0.3)
@@ -312,7 +315,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
     verified = False
 
     # --- IGPM BC03: ignition/ACC state ---
-    print("        IGPM (0x770) BC03...")
+    print("        IGPM (0x770) BC03…")
     igpm = await wake_and_read(terminal, "770", "22BC03")
     if igpm["ok"]:
         result = parse_igpm_bc03(igpm["response"])
@@ -332,7 +335,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
         print(f"          {igpm['error']}")
 
     # --- BCM B003: power mode byte ---
-    print("        BCM  (0x7A0) B003...")
+    print("        BCM  (0x7A0) B003…")
     bcm = await wake_and_read(terminal, "7A0", "22B003")
     if bcm["ok"]:
         result = parse_bcm_b003(bcm["response"])
@@ -346,7 +349,9 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
     if verified:
         print(f"\n  {desc} activated and verified!")
     else:
-        print(f"\n  WARNING: {desc} command accepted but relay NOT confirmed.")
-        print("  The keyfob is likely not nearby.")
+        messages.warning(
+            f"{desc} command accepted but the relay is NOT confirmed. "
+            "The keyfob is likely not nearby."
+        )
 
     return verified

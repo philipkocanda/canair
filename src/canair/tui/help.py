@@ -1,12 +1,13 @@
 """Shared Textual help modal for canair's live TUIs.
 
-Every full-screen Textual app in canair (the ``canair monitor`` monitor, the
-``sniff`` table, and any future one) advertises its keybindings the same way: a
-``?`` opens a modal cheat-sheet built **from the app's own ``BINDINGS``**, so the
-list can never drift from what the keys actually do.
+Every full-screen Textual app in canair (the monitor, the stepper, the plot explorer and
+the ``sniff`` table) advertises its keybindings the same way: a ``?`` opens a modal
+cheat-sheet built **from the app's own ``BINDINGS``**, so the list can never drift from
+what the keys actually do. A modal dialog does the same from its own bindings
+(:class:`canair.tui.modals.KitModal`).
 
-Mix :class:`HelpMixin` into an ``App`` and add a ``Binding("question_mark",
-"help", "help")`` to its ``BINDINGS``; the modal is populated automatically.
+Mix :class:`HelpMixin` into an ``App`` and bind the ``help`` role with
+``bind("help", "help")`` in its ``BINDINGS``; the modal is populated automatically.
 Keys the app does *not* declare because the framework already handles them
 (``Home``/``End``/``PgUp``/``PgDn`` on a focused scroll container) can be listed
 via ``HELP_EXTRA_ROWS`` — otherwise they are real, working keys the cheat-sheet
@@ -16,7 +17,7 @@ would silently omit. An app whose screen uses colour to carry meaning sets
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from typing import ClassVar
 
 from rich.text import Text
@@ -26,26 +27,47 @@ from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Label, Static
 
-from canair.tui.keys import DISMISS_DESCRIPTION, bind
+from canair.tui.keys import (
+    CLOSE_HINT,
+    DISMISS_DESCRIPTION,
+    PAGE_HINT,
+    arrows_hint,
+    bind,
+    display_key,
+    hint,
+)
+from canair.tui.scroll import OVERLAY_SCROLL_BINDINGS, OverlayScroll
+from canair.tui.styles import dialog_css
 
 # One colour-legend row: a sample glyph, the Rich style it is drawn in, and what it means.
 LegendRow = tuple[str, str, str]
 
 # Keys the focused scroll container handles for free, so there is no ``Binding``
 # to derive a cheat-sheet row from — but they are real, working keys in every
-# canair TUI (all four focus a ``VerticalScroll``), so every app advertises them
+# canair TUI (each focuses a ``VerticalScroll``), so every app advertises them
 # by default rather than each remembering to.
 SCROLL_HELP_ROWS: tuple[tuple[str, str], ...] = (
     ("home/end", "top / bottom"),
     ("pgup/pgdn", "page up / down"),
 )
 
+#: The same keys in a view whose scroll container holds one frame of a longer sequence.
+FRAME_SCROLL_HELP_ROWS: tuple[tuple[str, str], ...] = (
+    ("home/end", "top / bottom of this frame"),
+    ("pgup/pgdn", "page within this frame"),
+)
+
 # Keys we never advertise (framework/no-op or redundant with a shown alias).
-_HIDDEN_KEYS = frozenset({"ctrl+c"})
+_HIDDEN_KEYS = frozenset({"ctrl+c", "ctrl+q"})
 
 
 def bindings_help_rows(app) -> list[tuple[str, str]]:
-    """Build ``(keys, description)`` rows from an app's ``BINDINGS``.
+    """Build ``(keys, description)`` rows from an app's ``BINDINGS``."""
+    return binding_rows(app.BINDINGS)
+
+
+def binding_rows(bindings: Iterable[object]) -> list[tuple[str, str]]:
+    """Build ``(keys, description)`` rows from bindings.
 
     Bindings without a description, and a small set of framework keys, are
     dropped. Bindings that share a description (aliases like ``j``/``down``) are
@@ -53,33 +75,18 @@ def bindings_help_rows(app) -> list[tuple[str, str]]:
     """
     order: list[str] = []
     by_desc: dict[str, list[str]] = {}
-    for b in app.BINDINGS:
+    for b in bindings:
         key = getattr(b, "key", None) if isinstance(b, Binding) else None
         desc = getattr(b, "description", "") if isinstance(b, Binding) else ""
         if not key or not desc or key in _HIDDEN_KEYS:
             continue
-        display = _display_key(key)
+        display = display_key(key)
         if desc not in by_desc:
             by_desc[desc] = []
             order.append(desc)
         if display not in by_desc[desc]:
             by_desc[desc].append(display)
     return [("/".join(by_desc[desc]), desc) for desc in order]
-
-
-def _display_key(key: str) -> str:
-    """Human-friendly rendering of a Textual key name (``right_square_bracket`` -> ``]``).
-
-    Delegates to Textual's own :func:`~textual.keys.format_key` — the function
-    that renders keys in its Footer — rather than a hand-written table. A local
-    table only covered the handful of names it happened to list, so every other
-    symbolic binding leaked its raw identifier into the cheat-sheet (``]``, ``>``,
-    ``:``, ``=``, ``,`` all showed as words). Deriving the label from Textual
-    means a new symbolic binding is rendered correctly without touching this.
-    """
-    from textual.keys import format_key
-
-    return format_key(key)
 
 
 def legend_text(legend: Sequence[LegendRow], width: int) -> Text:
@@ -94,29 +101,26 @@ def legend_text(legend: Sequence[LegendRow], width: int) -> Text:
     return out
 
 
-class HelpModal(ModalScreen[None]):
+class HelpModal(OverlayScroll, ModalScreen[None]):
     """A dismissable keyboard cheat-sheet overlay, with an optional colour legend."""
 
-    CSS = """
-    HelpModal { align: center middle; background: $background 60%; }
-    #help-box {
-        width: auto; max-width: 72; height: auto; max-height: 90%;
-        padding: 1 2; border: round $accent; background: $surface;
-    }
-    #help-title { text-style: bold; margin-bottom: 1; }
+    SCROLL_ID: ClassVar[str] = "help-rows"
+
+    CSS = (
+        dialog_css("HelpModal", "help", width=72)
+        + """
+    #help-box { width: auto; max-width: 72; }
     #help-rows { height: auto; }
+    #help-hint { dock: bottom; }
     #help-legend { margin-top: 1; }
-    #help-hint { color: $text-muted; margin-top: 1; }
     """
+    )
 
     BINDINGS: ClassVar[list[Binding]] = [
         *bind("back", "close", desc=DISMISS_DESCRIPTION),
         *bind("help", "close", desc=DISMISS_DESCRIPTION),
         *bind("quit", "close", desc=DISMISS_DESCRIPTION),
-        *bind("move_down", "scroll_down", show=False),
-        *bind("move_up", "scroll_up", show=False),
-        *bind("axis_start", "to_top", show=False),
-        *bind("axis_end", "to_bottom", show=False),
+        *OVERLAY_SCROLL_BINDINGS,
     ]
 
     def __init__(
@@ -139,38 +143,17 @@ class HelpModal(ModalScreen[None]):
                 yield Static(lines or "(no shortcuts)", markup=False)
                 if self._legend:
                     yield Static(legend_text(self._legend, width), id="help-legend")
-            yield Label("j/k g/G scroll · ? / esc / q to close", id="help-hint")
-
-    def on_mount(self) -> None:
-        # Focus the scroll container, or the cheat-sheet cannot be paged: a long
-        # keymap overflows the 90%-height box and pgup/pgdn/arrows go nowhere
-        # unless a scrollable widget has focus.
-        self.query_one("#help-rows", VerticalScroll).focus()
+            yield Label(hint(arrows_hint("scroll"), PAGE_HINT, CLOSE_HINT), id="help-hint")
 
     def action_close(self) -> None:
         self.dismiss(None)
-
-    def _rows_scroll(self) -> VerticalScroll:
-        return self.query_one("#help-rows", VerticalScroll)
-
-    def action_scroll_down(self) -> None:
-        self._rows_scroll().scroll_relative(y=1, animate=False)
-
-    def action_scroll_up(self) -> None:
-        self._rows_scroll().scroll_relative(y=-1, animate=False)
-
-    def action_to_top(self) -> None:
-        self._rows_scroll().scroll_home(animate=False)
-
-    def action_to_bottom(self) -> None:
-        self._rows_scroll().scroll_end(animate=False)
 
 
 class HelpMixin:
     """Adds a ``?`` help modal driven by the app's own ``BINDINGS``.
 
-    Mix in *before* ``App`` in the base list and add
-    ``Binding("question_mark", "help", "help")`` to the app's ``BINDINGS``.
+    Mix in *before* ``App`` in the base list and add ``bind("help", "help")`` to the app's
+    ``BINDINGS``.
     Set :attr:`HELP_EXTRA_ROWS` for keys the framework handles on the app's
     behalf, which therefore have no ``Binding`` to derive a row from.
     """

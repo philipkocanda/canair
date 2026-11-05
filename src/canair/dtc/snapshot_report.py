@@ -41,7 +41,7 @@ def _did_lines(did: Mapping[str, Any], indent: str) -> list[str]:
     out = []
     for s in signals:
         if s.get("error"):
-            value = f"{ansi.RED}ERROR: {s['error']}{ansi.RESET}"
+            value = f"{ansi.RED}✗ {s['error']}{ansi.RESET}"
         else:
             value = format_value(s["value"], s.get("unit", ""), s.get("display", ""))
         out.append(f"{indent}{s['name']:<{width}}  {value}")

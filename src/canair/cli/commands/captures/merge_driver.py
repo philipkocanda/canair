@@ -30,6 +30,9 @@ from pathlib import Path
 
 from canair.captures import io as capture_io
 from canair.captures import merge as captures_merge
+from canair.render import messages
+
+from .echo import echo_write
 
 # The driver name referenced by .gitattributes (`merge=canair-captures`) and the
 # .git/config `[merge "canair-captures"]` stanza. Keep the three in sync.
@@ -63,13 +66,13 @@ def _run_driver(base: str, ours: str, theirs: str, path: str | None = None) -> i
         ours_doc = capture_io.load_capture_file(ours_path)
         theirs_doc = capture_io.load_capture_file(Path(theirs))
     except (OSError, ValueError) as exc:  # ValueError: bad JSON or a bad repeat encoding
-        print(f"canair merge-driver: {label}: unreadable capture input ({exc})", file=sys.stderr)
+        messages.error(f"{label}: unreadable capture input ({exc})")
         return 1
 
     try:
         merged = captures_merge.merge_documents(base_doc, ours_doc, theirs_doc)
     except captures_merge.MergeConflict as exc:
-        print(f"canair merge-driver: {label}: {exc}", file=sys.stderr)
+        messages.error(f"{label}: {exc}")
         return 1
 
     # Write via the shared seam so the on-disk shape (indent, ordering, trailing
@@ -94,14 +97,20 @@ def _git_dir() -> Path | None:
     return Path(path) if path else None
 
 
+def _refuse(message: str, as_json: bool) -> None:
+    """Report a failed install: a JSON document on stdout under ``--json``, else ``error:``."""
+    if as_json:
+        print(json.dumps({"installed": False, "error": message}), file=sys.stderr)
+    else:
+        messages.error(message)
+
+
 def _install(as_json: bool = False) -> int:
     """Register the driver in the local repo's .git/config. Idempotent."""
-    if _git_dir() is None:
+    git_dir = _git_dir()
+    if git_dir is None:
         msg = "not inside a git repository — run this from a canair clone"
-        print(
-            json.dumps({"installed": False, "error": msg}) if as_json else f"✗ {msg}",
-            file=sys.stderr,
-        )
+        _refuse(msg, as_json)
         return 1
 
     # `canair` on PATH is the end-user install; contributors run `uv run canair`.
@@ -119,16 +128,13 @@ def _install(as_json: bool = False) -> int:
             )
         except (OSError, subprocess.CalledProcessError) as exc:
             err = f"failed to write git config {key}: {exc}"
-            print(
-                json.dumps({"installed": False, "error": err}) if as_json else f"✗ {err}",
-                file=sys.stderr,
-            )
+            _refuse(err, as_json)
             return 1
 
     if as_json:
         print(json.dumps({"installed": True, "driver": DRIVER_NAME, "command": driver_cmd}))
     else:
-        print(f"✓ Registered git merge driver '{DRIVER_NAME}' in this repo's .git/config")
+        echo_write(f"Registered git merge driver '{DRIVER_NAME}'", [git_dir / "config"])
         print(f"    driver = {driver_cmd}")
         print("  Capture-file merges (profiles/*/captures/*.json) now auto-union sessions.")
     return 0
@@ -138,10 +144,9 @@ def run(args: argparse.Namespace) -> int:
     if getattr(args, "install", False):
         return _install(as_json=getattr(args, "json", False))
     if not (args.base and args.ours and args.theirs):
-        print(
-            "canair captures merge-driver: expected git's %O %A %B file arguments "
-            "(or --install to register the driver in .git/config)",
-            file=sys.stderr,
+        messages.error(
+            "expected git's %O %A %B file arguments "
+            "(or --install to register the driver in .git/config)"
         )
         return 2
     return _run_driver(args.base, args.ours, args.theirs, getattr(args, "path", None))

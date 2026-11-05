@@ -11,6 +11,8 @@ from collections.abc import Sequence
 from canair.captures.entries import _dedupe_payloads, _group_by_key
 from canair.captures.store import NO_DEFS, PidDefs, decoded_preview
 from canair.captures.types import CaptureEntry
+from canair.render.console import console as make_console
+from canair.render.console import escape
 from canair.uds.notation import ByteNotation
 
 from .query import _dump_json, _gather_query
@@ -25,8 +27,6 @@ def _render_diff_group(
     notation: ByteNotation = ByteNotation.WICAN,
 ) -> None:
     """Render one ECU+PID block: header, decoded signals, optional ruler, byte-diff hex."""
-    from rich.markup import escape
-
     parameters, tx_id, map_bytes = pdefs
     from canair.expression.decoding import decode_param_rows
     from canair.render.formatting import _render_hex_line, render_byte_rulers, render_param_table
@@ -56,7 +56,7 @@ def _render_diff_group(
     pid_display = escape(str(payloads[0]["pid"]))
     tx_str = f" (0x{tx_id:03X})" if isinstance(tx_id, int) else ""
     console.print(f"\n  [bold cyan]{ecu_display}{tx_str}[/bold cyan]")
-    console.print(f"    [yellow]{pid_display}[/yellow]  [dim]{count_str}[/dim]")
+    console.print(f"    [cyan]{pid_display}[/cyan]  [dim]{count_str}[/dim]")
 
     # Decoded-signal block (aligned columns, verification marks, byte references).
     if rows:
@@ -141,9 +141,7 @@ def cmd_diff(
         _dump_json(out)
         return
 
-    from rich.console import Console
-
-    console = Console(highlight=False)
+    console = make_console()
 
     for key, group in sorted(groups.items()):
         pdefs = defs.get(key, NO_DEFS)

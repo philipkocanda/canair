@@ -328,7 +328,7 @@ class TestCountersCli:
         )
         rc = _run(tmp_path, monkeypatch, ["CLU", "22B002", "--counters"])
         assert rc == 1
-        assert "Not enough timed captures" in capsys.readouterr().err
+        assert "not enough timed captures" in capsys.readouterr().err
 
 
 class TestPayloadMatrix:

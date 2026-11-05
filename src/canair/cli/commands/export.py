@@ -13,6 +13,10 @@ from __future__ import annotations
 import argparse
 import sys
 
+from canair.render.messages import error as print_error
+from canair.render.messages import hint
+from canair.yaml_edit.echo import echo_edit
+
 NAME = "export"
 
 
@@ -43,7 +47,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 def run(args) -> int:
     if getattr(args, "_export_kind", None) == "dbc":
         return _run_dbc(args)
-    print("canair export: pick a subcommand (dbc). See --help.", file=sys.stderr)
+    print_error("pick a subcommand (dbc); see `canair export --help`")
     return 2
 
 
@@ -51,28 +55,26 @@ def _run_dbc(args) -> int:
     try:
         from cantools.database import Database
     except ImportError:
-        print("export dbc: cantools is required (pip install cantools).", file=sys.stderr)
+        print_error("cantools is required (pip install cantools)")
         return 1
 
     from canair.broadcast import load_signals, signals_dir
     from canair.validation.signals import check_signals_doc
 
     if not signals_dir().is_dir():
-        print("export dbc: no signals/ to export.", file=sys.stderr)
+        print_error("no signals/ to export")
         return 1
     docs = load_signals(args.bus)
     if not docs:
-        print("export dbc: no matching signals files.", file=sys.stderr)
+        print_error("no matching signals files")
         return 1
     # cantools raises on what the validator rejects (an over-long ID, a short frame),
     # so refuse an invalid map up front, in the validator's words.
     for doc in docs:
         errors, _ = check_signals_doc(doc.data)
         if errors:
-            print(f"export dbc: {doc.path.name} is invalid:", file=sys.stderr)
-            for e in errors[:10]:
-                print(f"  {e}", file=sys.stderr)
-            print("  Fix it (see `canair validate signals`), then re-run.", file=sys.stderr)
+            print_error(f"{doc.path.name} is invalid:\n" + "\n".join(errors[:10]))
+            hint("fix it (see `canair validate signals`), then re-run")
             return 1
 
     messages = [
@@ -82,7 +84,7 @@ def _run_dbc(args) -> int:
         if (m := _dbc_message(mid, msg or {}, verified_only=args.verified_only)) is not None
     ]
     if not messages:
-        print("export dbc: nothing to export (no signals matched).", file=sys.stderr)
+        print_error("nothing to export (no signals matched)")
         return 1
 
     db = Database(messages=messages, strict=False, dbc_specifics=_dbc_specifics(messages))
@@ -91,7 +93,7 @@ def _run_dbc(args) -> int:
         from pathlib import Path
 
         Path(args.output).write_text(dbc_text)
-        print(f"Exported {len(messages)} messages → {args.output}", file=sys.stderr)
+        echo_edit(f"exported {len(messages)} messages", Path(args.output))
     else:
         sys.stdout.write(dbc_text)
     return 0

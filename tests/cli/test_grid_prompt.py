@@ -44,7 +44,7 @@ class TestResolveGridRegion:
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
         monkeypatch.setattr(gp, "_is_interactive", lambda: True)
-        monkeypatch.setattr("builtins.input", lambda _prompt: "us")
+        monkeypatch.setattr("builtins.input", lambda *_a: "us")
 
         assert gp.resolve_grid_region() == "US"
         _reset()
@@ -56,7 +56,7 @@ class TestResolveGridRegion:
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
         _reset()
         monkeypatch.setattr(gp, "_is_interactive", lambda: True)
-        monkeypatch.setattr("builtins.input", lambda _prompt: "skip")
+        monkeypatch.setattr("builtins.input", lambda *_a: "skip")
 
         assert gp.resolve_grid_region() is None
         _reset()

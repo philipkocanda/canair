@@ -128,7 +128,7 @@ class TestModeSetTransportAlign:
         wican._sync_transport_to_mode("slcan", no_transport=False)
         cfg_mod.load_config.cache_clear()
         assert cfg_mod.get_config_key("transport.type") == "slcan-tcp"
-        assert "'wican-ws' -> 'slcan-tcp'" in capsys.readouterr().out
+        assert "'wican-ws' → 'slcan-tcp'" in capsys.readouterr().out
 
     def test_elm327_aligns_transport_to_wican_ws(self, tmp_path, monkeypatch, capsys):
         self._fresh(tmp_path, monkeypatch)
@@ -137,7 +137,7 @@ class TestModeSetTransportAlign:
         wican._sync_transport_to_mode("elm327", no_transport=False)
         cfg_mod.load_config.cache_clear()
         assert cfg_mod.get_config_key("transport.type") == "wican-ws"
-        assert "-> 'wican-ws'" in capsys.readouterr().out
+        assert "→ 'wican-ws'" in capsys.readouterr().out
 
     def test_already_aligned_reports_and_skips_write(self, tmp_path, monkeypatch, capsys):
         self._fresh(tmp_path, monkeypatch)

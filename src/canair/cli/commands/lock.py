@@ -21,6 +21,7 @@ import argparse
 import sys
 
 from canair.core.prompt import PromptUnavailable, confirm
+from canair.render import messages
 
 NAME = "lock"
 
@@ -145,7 +146,7 @@ def _refusal(args, question: str) -> int | None:
             return None
     except PromptUnavailable as e:
         _emit({"ok": False, "outcome": "needs_confirmation", "error": str(e)}, args.json, [])
-        print(f"error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 2
     _emit({"ok": False, "outcome": "declined"}, args.json, [])
     return 1
@@ -182,16 +183,18 @@ def _steal(args) -> int:
         )
         return 0
 
-    _emit(
-        {
-            "ok": False,
-            "outcome": result.outcome,
-            "waited_s": round(result.waited_s, 2),
-            "pid": result.holder.pid if result.holder else None,
-        },
-        args.json,
-        [describe_acquire_failure(result)],
-    )
+    if args.json:
+        _emit(
+            {
+                "ok": False,
+                "outcome": result.outcome,
+                "waited_s": round(result.waited_s, 2),
+                "pid": result.holder.pid if result.holder else None,
+            },
+            True,
+            [],
+        )
+    messages.error(describe_acquire_failure(result))
     return 1
 
 

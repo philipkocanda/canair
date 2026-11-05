@@ -1,5 +1,7 @@
 """Tests for canair.render.formatting — output formatting helpers."""
 
+from typing import ClassVar
+
 import pytest
 
 from canair.render.formatting import (
@@ -65,7 +67,7 @@ class TestRenderParamTable:
         rows = [("BAD", None, "", "B99", "division by zero", False)]
         text = render_param_table(rows).plain
         assert "BAD" in text
-        assert "ERROR: division by zero" in text
+        assert "✗ division by zero" in text
 
     def test_verbose_shows_expression(self):
         rows = [("SOC", 50.0, "%", "B09/2", None, True)]
@@ -326,3 +328,37 @@ class TestPrintHexdump:
         wican_label = self._labels(capsys)[frame.index(0xAB)]
 
         assert isotp_label == wican_label == "B04"
+
+
+class TestSignalMarks:
+    """One mark per meaning in every signal view: `✓` verified, `?` unverified, `✗` failed."""
+
+    ROWS: ClassVar[list] = [
+        ("SOC", 50.0, "%", "B09/2", None, True, ""),
+        ("UNK", 1.0, "", "B03", None, False, ""),
+        ("BAD", None, "", "B99", "division by zero", False, ""),
+    ]
+
+    def test_print_decoded_params_uses_the_table_marks(self, capsys):
+        from canair.render.formatting import print_decoded_params
+
+        print_decoded_params(self.ROWS)
+        lines = capsys.readouterr().out.splitlines()
+        assert lines[0].startswith("  ✓ SOC")
+        assert lines[1].startswith("  ? UNK")  # an unverified row used to get a blank here
+        assert "✗ division by zero" in lines[2]
+        assert "ERROR" not in "\n".join(lines) and "!!" not in "\n".join(lines)
+
+    def test_render_param_table_marks_match(self):
+        text = render_param_table(self.ROWS).plain
+        assert "✓" in text and "?" in text and "✗ division by zero" in text
+
+    def test_a_pid_header_is_cyan_like_every_other_typeable_name(self, monkeypatch, capsys):
+        from canair.render.formatting import print_ecu_results
+
+        monkeypatch.setenv("FORCE_COLOR", "1")
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        print_ecu_results("BMS (0x7E4)", [{"pid": "2101", "params": [], "raw_hex": ""}])
+        out = capsys.readouterr().out
+        assert "\x1b[36m2101\x1b[0m" in out  # cyan; yellow means warning or unverified
+        assert "\x1b[33m2101" not in out

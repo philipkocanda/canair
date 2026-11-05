@@ -26,7 +26,11 @@ from typing import TYPE_CHECKING
 
 from canair.captures.state_inference import DEFAULT_CYCLE_TOL_S, session_state_spans
 from canair.captures.store import entry_path
+from canair.core.prompt import confirm
+from canair.render import messages
 from canair.states import parse_states
+
+from .echo import echo_write
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -92,14 +96,13 @@ def cmd_backfill_state_spans(
     try:
         rules = load_states()
     except StatePredicateError as ex:
-        print(f"error: invalid vehicle_states.yaml predicate: {ex}", file=sys.stderr)
+        messages.error(f"invalid vehicle_states.yaml predicate: {ex}")
         return 2
     inferable = {r.name for r in rules if r.predicate is not None}
     if not inferable:
-        print(
-            "  No state predicates defined (vehicle_states.yaml has no `when:` rules) "
-            "— nothing to reconstruct a timeline from.",
-            file=sys.stderr,
+        messages.error(
+            "no state predicates defined (vehicle_states.yaml has no `when:` rules); "
+            "nothing to reconstruct a timeline from"
         )
         return 1
 
@@ -158,7 +161,8 @@ def cmd_backfill_state_spans(
 
     to_write = [r for r in rows if r["will_write"]]
 
-    print_span_report(rows, dry_run=dry_run)
+    report = sys.stderr if as_json else sys.stdout
+    print_span_report(rows, dry_run=dry_run, out=report)
 
     if as_json and dry_run:
         print(_json.dumps(rows, indent=2))
@@ -168,25 +172,15 @@ def cmd_backfill_state_spans(
             print(_json.dumps(rows, indent=2))
         return 0
     if dry_run:
-        print("  (--dry-run: nothing written)")
+        print("  (--dry-run: nothing written)", file=report)
         return 0
 
     if blocked := layers.refusal((Path(r["path"]) for r in to_write), "back-filled"):
         print(blocked, file=sys.stderr)
         return 1
 
-    if not assume_yes:
-        if not (sys.stdin.isatty() and sys.stdout.isatty()):
-            print(
-                "  error: refusing to write state spans without confirmation "
-                "(pass --yes for non-interactive use, or --dry-run to preview).",
-                file=sys.stderr,
-            )
-            return 2
-        resp = input(f"  Write spans to these {len(to_write)} session(s)? [y/N] ").strip().lower()
-        if resp not in ("y", "yes"):
-            print("  Cancelled — nothing written.")
-            return 1
+    if not confirm(f"Write spans to these {len(to_write)} session(s)?", yes=assume_yes):
+        return 1
 
     version = full_version()
     written = 0
@@ -202,12 +196,13 @@ def cmd_backfill_state_spans(
             written += 1
             print(
                 f"    \u2192 {r['file']} [{r['session_idx']}] {r['date']} "
-                f"{r['n_spans']} span(s) over {join_states(r['recorded'])}"
+                f"{r['n_spans']} span(s) over {join_states(r['recorded'])}",
+                file=report,
             )
         except Exception as ex:  # keep going; report the failure
-            print(f"    ! {r['file']} [{r['session_idx']}]: {ex}")
+            messages.error(f"{r['file']} [{r['session_idx']}]: {ex}")
 
-    print(f"  Wrote spans to {written} session(s).")
+    echo_write(f"Wrote spans to {written} session(s)", (Path(r["path"]) for r in to_write), report)
     if as_json:
         print(_json.dumps(rows, indent=2))
     return 0 if written == len(to_write) else 1

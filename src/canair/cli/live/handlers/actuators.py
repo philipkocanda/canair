@@ -9,10 +9,12 @@ families, not here.
 
 from __future__ import annotations
 
-import sys
-
+from canair.core.prompt import confirm
+from canair.live.iocontrol import mode_iocontrol_tui
 from canair.live.iocontrol_execute import mode_iocontrol_execute
-from canair.live.routines import mode_routines_execute
+from canair.live.routines import mode_routines_tui
+from canair.live.routines_execute import mode_routines_execute
+from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.uds.subfunctions import RoutineControlType
 
@@ -30,8 +32,6 @@ async def handle_iocontrol(args, terminal: Terminal, pids_data, host, *, reconne
             yes=getattr(args, "yes", False),
         )
     else:
-        from canair.live.iocontrol import mode_iocontrol_tui
-
         await mode_iocontrol_tui(
             terminal,
             pids_data,
@@ -50,27 +50,16 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
         }
         sf_name = (args.sf or "results").lower()
         if sf_name not in sf_map:
-            print(
-                f"Error: --sf must be one of: results, start, stop (got {args.sf!r})",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+            messages.fail(f"--sf must be one of: results, start, stop (got {args.sf!r})", code=2)
         sub_function = sf_map[sf_name]
         if sub_function == RoutineControlType.START_ROUTINE:
-            print(
-                f"!! WARNING: --sf start will send startRoutine (SF 0x01) to {args.routines} RID {args.rid}.",
-                file=sys.stderr,
+            messages.warning(
+                f"--sf start sends startRoutine (SF 0x01) to {args.routines} RID {args.rid}"
             )
-            print(
-                "!! This may actuate hardware. Continue? [y/N] ",
-                end="",
-                flush=True,
-                file=sys.stderr,
-            )
-            answer = sys.stdin.readline().strip().lower()
-            if answer not in ("y", "yes"):
-                print("Aborted.", file=sys.stderr)
-                sys.exit(0)
+            if not confirm(
+                "This may actuate hardware. Continue?", yes=getattr(args, "yes", False), danger=True
+            ):
+                raise SystemExit(1)
         await mode_routines_execute(
             terminal,
             pids_data,
@@ -81,8 +70,6 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
             as_json=args.json,
         )
     else:
-        from canair.live.routines import mode_routines_tui
-
         await mode_routines_tui(
             terminal,
             pids_data,
@@ -107,5 +94,4 @@ async def handle_action(args, terminal: Terminal, pids_data, host, *, reconnect=
             verbose=args.verbose,
         )
     except ActionError as e:
-        print(f"error: {e}", file=sys.stderr)
-        sys.exit(2)
+        messages.fail(str(e), code=2)

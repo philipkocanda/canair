@@ -21,6 +21,7 @@ import logging
 from typing import TYPE_CHECKING, Literal, get_args
 
 from canair.ecus.pids import DEFAULT_IOCONTROL_SESSION_MODE
+from canair.render import ansi, glyphs
 from canair.safety.actuation import on_refusal, parse_io_request
 from canair.uds.nrc import nrc_abbrev
 from canair.uds.protocol import KWP
@@ -163,13 +164,13 @@ class IOControlActuator:
             return
         refusal = self.on_refusal(did)
         if refusal:
-            t._status = refusal
+            t._status = ansi.c(f"{glyphs.FAIL} {refusal}", ansi.RED)
             t.last_response[did] = "no release known"
             _tui_logger.warning("ON  %s refused: %s", did, refusal)
             return
 
         t._busy = True
-        t._status = f"Sending ON: {did} ({cmd['label']})..."
+        t._status = f"Sending ON: {did} ({cmd['label']}){glyphs.ELLIPSIS}"
         _tui_logger.info("ON  %s %s cmd=%s", did, cmd["label"], hex_cmd)
         try:
             if cmd["session"]:
@@ -219,7 +220,7 @@ class IOControlActuator:
             return
 
         t._busy = True
-        t._status = f"Sending {kind}: {did} ({cmd['label']})..."
+        t._status = f"Sending {kind}: {did} ({cmd['label']}){glyphs.ELLIPSIS}"
         _tui_logger.info("%-3s %s %s cmd=%s", kind, did, cmd["label"], hex_cmd)
         try:
             # The OFF belongs to the actuator's own session: after a switch to
@@ -273,7 +274,7 @@ class IOControlActuator:
             # naturally afterwards.
             refusal = self.adjust_unsupported(did)
             if refusal:
-                t._status = refusal
+                t._status = ansi.c(f"{glyphs.FAIL} {refusal}", ansi.RED)
                 return
             seed = t.last_value[did].hex().upper() if did in t.last_value else "00"
             t._hex_input = seed
@@ -317,7 +318,7 @@ class IOControlActuator:
         t = self.t
         refusal = self.adjust_unsupported(did)
         if refusal:
-            t._status = refusal
+            t._status = ansi.c(f"{glyphs.FAIL} {refusal}", ansi.RED)
             _tui_logger.warning("ADJ %s refused: %s", did, refusal)
             return
         hex_cmd = io_control_request(
@@ -325,7 +326,7 @@ class IOControlActuator:
         )
 
         t._busy = True
-        t._status = f"Adjust: {did} → {hex_cmd}"
+        t._status = f"Adjust {did}: {hex_cmd}"
         _tui_logger.info("ADJ %s cmd=%s", did, hex_cmd)
         try:
             cmd = t.cmds.get(did)

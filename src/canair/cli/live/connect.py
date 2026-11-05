@@ -8,7 +8,10 @@ sleep/battery banner, which is presentation and so stays in the command layer.
 from __future__ import annotations
 
 import contextlib
+import sys
 
+from canair.render.console import console, escape
+from canair.render.glyphs import ELLIPSIS, WARN
 from canair.transport.config import ConnectionOptions
 from canair.transport.elm327.wican import WiCANTerminal
 from canair.transport.protocol import Terminal
@@ -45,22 +48,21 @@ def _print_sleep_banner(host: str, timeout: int = 5) -> None:
         thresh_f = None
         margin = None
 
-    from rich.console import Console
-
-    console = Console()
+    out = console(stderr=True)
 
     if sleep_on:
-        sleep_str = f"[red]ON[/red] (threshold {sleep_volt}V)"
+        sleep_str = f"[red]ON[/red] (threshold {escape(str(sleep_volt))}V)"
         if margin is not None and margin < 0.5:
-            console.print(
-                f"  [bold red]⚠ Sleep: ON  |  Battery: {batt}  |  Threshold: {sleep_volt}V"
-                f"  — {margin:.2f}V above cutoff — may shut down soon![/bold red]"
+            out.print(
+                f"  [bold yellow]{WARN} Sleep: ON  |  Battery: {escape(str(batt))}  |  "
+                f"Threshold: {escape(str(sleep_volt))}V"
+                f"  — {margin:.2f}V above cutoff — may shut down soon![/bold yellow]"
             )
             return
     else:
         sleep_str = "[green]OFF[/green]"
 
-    console.print(f"  [WiCAN] Sleep: {sleep_str}  |  Battery: {batt}")
+    out.print(f"  \\[WiCAN] Sleep: {sleep_str}  |  Battery: {escape(str(batt))}")
 
 
 async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptions) -> Terminal:
@@ -108,7 +110,7 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
             response_frames=seeds,
             variable_length=variable,
         )
-        connecting = f"Connecting to ELM327 adapter at {host}:{port}..."
+        connecting = f"Connecting to ELM327 adapter at {host}:{port}{ELLIPSIS}"
     else:
         terminal = WiCANTerminal(
             host=host,
@@ -119,7 +121,7 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
             response_frames=seeds,
             variable_length=variable,
         )
-        connecting = f"Connecting to WiCAN at {host}..."
+        connecting = f"Connecting to WiCAN at {host}{ELLIPSIS}"
     # Per-ECU response budgets apply only when the user didn't force --timeout.
     if _cli_timeout is None:
         terminal.ecu_timeouts = ecu_timeouts_by_tx(pids_data)
@@ -130,9 +132,9 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
     terminal.session_policy = SessionPolicy.from_profile(pids_data)
 
     try:
-        print(connecting)
+        print(connecting, file=sys.stderr)
         await terminal.connect()
-        print("Connected. Initializing ELM327...")
+        print(f"Connected. Initializing ELM327{ELLIPSIS}", file=sys.stderr)
         await terminal.init_elm(init_string)
 
         atst_cmd: str | None = None
@@ -151,9 +153,9 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
             await terminal.send_command(atst_cmd)
             terminal.elm_timeout_cmd = atst_cmd
             actual_ms = int(atst_cmd[4:], 16) * 4.096
-            print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms{label})")
+            print(f"  ELM327 timeout: {atst_cmd} ({actual_ms:.0f}ms{label})", file=sys.stderr)
 
-        print("Ready.")
+        print("Ready.", file=sys.stderr)
         return terminal
     except BaseException:
         with contextlib.suppress(Exception):

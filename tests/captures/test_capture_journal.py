@@ -441,9 +441,12 @@ class TestRecoverCommand:
         from canair.cli.commands.captures.maint import orphan_notice
 
         orphan_notice(tmp_path)
-        assert capsys.readouterr().out == ""
+        captured = capsys.readouterr()
+        assert captured.out == "" and captured.err == ""
         j = CaptureJournal.open(tmp_path, label="L")
         j.append("0x7EC", "2101", "6101")
         j._close_fh()
         orphan_notice(tmp_path)
-        assert "orphaned capture journal" in capsys.readouterr().out
+        captured = capsys.readouterr()
+        assert captured.out == ""  # a note never shares stdout with a --json result
+        assert captured.err.startswith("note: 1 orphaned capture journal")

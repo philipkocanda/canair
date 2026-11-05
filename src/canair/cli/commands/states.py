@@ -46,8 +46,8 @@ from pathlib import Path
 from typing import TypedDict
 
 from canair.cli.commands._edit import run_edit, set_or_clear, subcommand_dispatch
-from canair.core.edit_errors import EditError
-from canair.render import ansi
+from canair.core.prompt import confirm
+from canair.render import ansi, messages
 from canair.yaml_edit.echo import echo_edit
 
 NAME = "states"
@@ -124,7 +124,7 @@ def cmd_show_state(args) -> int:
     try:
         rules = load_states(prof)
     except StatePredicateError as e:
-        print(f"{ansi.c('Invalid vehicle_states.yaml:', ansi.RED)} {e}", file=sys.stderr)
+        messages.error(f"invalid vehicle_states.yaml: {e}")
         return 1
 
     vocab = allowed_states(prof)
@@ -135,11 +135,8 @@ def cmd_show_state(args) -> int:
             )
             print()
         else:
-            print(
-                f"\n  {ansi.c('Unknown state', ansi.RED)} {ansi.c(target, ansi.YELLOW)} "
-                f"{ansi.c('(not in vehicle_states.yaml).', ansi.DIM)}"
-            )
-            print(f"  {ansi.c('Known states:', ansi.DIM)} {', '.join(sorted(vocab))}\n")
+            messages.error(f"unknown state {target} (not in vehicle_states.yaml)")
+            messages.hint(f"known states: {', '.join(sorted(vocab))}")
         return 1
 
     rule = next((r for r in rules if r.name.upper() == target), None)
@@ -264,7 +261,7 @@ def cmd_list(args) -> int:
     try:
         rules = load_states(prof)
     except StatePredicateError as e:
-        print(f"{ansi.c('Invalid vehicle_states.yaml:', ansi.RED)} {e}", file=sys.stderr)
+        messages.error(f"invalid vehicle_states.yaml: {e}")
         return 1
 
     usage = _load_usage()
@@ -386,11 +383,9 @@ def _warn_unresolved_refs(state: str, expr: str | None) -> None:
     except Exception:
         return  # never let an advisory check fail a successful write
     for issue in issues:
-        print(f"  {ansi.c('warn:', ansi.YELLOW)} {issue.ref} — {issue.message}")
+        messages.warning(f"{issue.ref} — {issue.message}")
     if issues:
-        print(
-            f"    {ansi.c('this predicate can never match until the reference resolves', ansi.DIM)}"
-        )
+        messages.note("this predicate can never match until the reference resolves")
 
 
 def cmd_add(args) -> int:
@@ -426,23 +421,16 @@ def cmd_rename(args) -> int:
     _print_rename_plan(plan, profile.root)
     journals = sorted((profile.captures_dir / ".journal").glob("*.jsonl"))
     if journals:
-        print(
-            f"  {ansi.c('note:', ansi.YELLOW)} {len(journals)} unreconciled journal(s) in "
+        messages.warning(
+            f"{len(journals)} unreconciled journal(s) in "
             f"{profile.captures_dir / '.journal'} still say {plan.old}; recover them first "
-            "(canair captures uds --recover) or they will bring it back."
+            "(canair captures uds --recover) or they will bring it back"
         )
     if args.dry_run:
         print("  (--dry-run: nothing written)")
         return 0
-    if plan.rewrites_history and not args.yes:
-        if not (sys.stdin.isatty() and sys.stdout.isatty()):
-            raise EditError(
-                "refusing to rewrite recorded data without confirmation "
-                "(pass --yes, or --dry-run to preview)."
-            )
-        if input("  Rewrite these files? [y/N] ").strip().lower() not in ("y", "yes"):
-            print("  Cancelled — nothing written.")
-            return 1
+    if plan.rewrites_history and not confirm("Rewrite these files?", yes=args.yes):
+        return 1
     apply_state_rename(plan, profile=profile)
     echo_edit(f"renamed {plan.old} → {plan.new}", plan.states_file)
     return 0

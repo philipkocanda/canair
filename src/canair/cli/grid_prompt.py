@@ -15,6 +15,8 @@ import sys
 
 from canair.analysis.physical.grid_regions import GRID_REGIONS
 from canair.config import get_config_key, set_config_key
+from canair.render import messages
+from canair.yaml_edit.echo import echo_edit
 
 _SENTINEL_KEY = "grid_region_prompted"
 
@@ -51,18 +53,21 @@ def _prompt_and_persist() -> str | None:
     print(
         "\n  No charging-grid region set — mains / line-frequency band detection\n"
         "  assumes 230 V / 50 Hz (EU). Set yours so the physical scan matches\n"
-        "  your grid (it affects only mains/line-freq bands, not the vehicle).\n"
+        "  your grid (it affects only mains/line-freq bands, not the vehicle).\n",
+        file=sys.stderr,
     )
+    print(f"  Region [{choices}/skip]: ", end="", flush=True, file=sys.stderr)
     try:
-        answer = input(f"  Region [{choices}/skip]: ").strip()
+        answer = input().strip()
     except (EOFError, KeyboardInterrupt):
-        print()
+        print(file=sys.stderr)
         answer = ""
 
     upper = answer.upper()
     if upper in GRID_REGIONS:
-        set_config_key("grid_region", upper)
-        print(f"\n  ✓ grid_region set to '{upper}'. Change it: canair config set grid_region XX\n")
+        path = set_config_key("grid_region", upper)
+        echo_edit(f"grid_region set to '{upper}'", path)
+        print("  Change it: canair config set grid_region XX\n", file=sys.stderr)
         return upper
 
     # Anything else (empty / "skip" / unrecognized) → record the sentinel so we
@@ -70,16 +75,16 @@ def _prompt_and_persist() -> str | None:
     set_config_key(_SENTINEL_KEY, True)
     print(
         "\n  Skipped — using EU (230 V / 50 Hz) defaults. Set one anytime:\n"
-        "    canair config set grid_region US\n"
+        "    canair config set grid_region US\n",
+        file=sys.stderr,
     )
     return None
 
 
 def _note_once() -> None:
     set_config_key(_SENTINEL_KEY, True)
-    print(
-        "note: no grid_region set — physical-scan mains/line-freq bands assume "
+    messages.note(
+        "no grid_region set — physical-scan mains/line-freq bands assume "
         "230 V / 50 Hz (EU). Set yours with `canair config set grid_region "
-        f"{GRID_REGIONS[0]}` (choices: {', '.join(GRID_REGIONS)}).",
-        file=sys.stderr,
+        f"{GRID_REGIONS[0]}` (choices: {', '.join(GRID_REGIONS)})."
     )

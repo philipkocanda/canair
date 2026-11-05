@@ -33,6 +33,9 @@ import argparse
 import sys
 
 from canair.core.paths import CONFIG_DOCS_URL, CONFIG_EXAMPLE_FILE
+from canair.render import messages
+from canair.render.console import console, escape
+from canair.yaml_edit.echo import echo_edit
 
 NAME = "config"
 
@@ -204,10 +207,7 @@ def _cmd_path(args) -> int:
 
 def _cmd_example(args) -> int:
     if not CONFIG_EXAMPLE_FILE.exists():
-        print(
-            f"error: {CONFIG_EXAMPLE_FILE} not found; see {CONFIG_DOCS_URL} instead",
-            file=sys.stderr,
-        )
+        messages.error(f"{CONFIG_EXAMPLE_FILE} not found; see {CONFIG_DOCS_URL} instead")
         return 1
     print(CONFIG_EXAMPLE_FILE.read_text(), end="")
     return 0
@@ -218,7 +218,7 @@ def _cmd_get(args) -> int:
 
     value = get_config_key(args.key)
     if value is None:
-        print(f"{args.key} is not set", file=sys.stderr)
+        messages.error(f"{args.key} is not set")
         return 1
     if isinstance(value, (dict, list)):
         import json
@@ -270,8 +270,8 @@ def _invalid_value(key: str, value) -> str | None:
 
 def _missing_key_help() -> None:
     """Print guidance when `config set` is called with no key."""
-    print("error: missing KEY (and VALUE) to set.\n", file=sys.stderr)
-    print("usage: canair config set KEY VALUE\n", file=sys.stderr)
+    messages.error("missing KEY (and VALUE) to set")
+    print("\nusage: canair config set KEY VALUE\n", file=sys.stderr)
     print("known keys:", file=sys.stderr)
     print(_keys_block(), file=sys.stderr)
     print("\nexamples:", file=sys.stderr)
@@ -285,8 +285,8 @@ def _missing_key_help() -> None:
 
 def _missing_value_help(key: str) -> None:
     """Print key-aware guidance when `config set KEY` is missing its value."""
-    print(f"error: missing VALUE for '{key}'.\n", file=sys.stderr)
-    print(f"usage: canair config set {key} VALUE", file=sys.stderr)
+    messages.error(f"missing VALUE for '{key}'")
+    print(f"\nusage: canair config set {key} VALUE", file=sys.stderr)
 
     vals = _enum_values(key)
     if vals:
@@ -295,10 +295,8 @@ def _missing_value_help(key: str) -> None:
         return
 
     if not _known_key(key):
-        print(
-            f"\nnote: '{key}' is not a recognized config key (see `canair config set --help`).",
-            file=sys.stderr,
-        )
+        print(file=sys.stderr)
+        messages.note(f"'{key}' is not a recognized config key (see `canair config set --help`)")
     if key.startswith("wican_addresses."):
         print("\nexample:\n  canair config set wican_addresses.home 10.0.2.86", file=sys.stderr)
     else:
@@ -322,30 +320,27 @@ def _cmd_set(args) -> int:
 
     err = _invalid_value(args.key, value)
     if err:
-        print(f"error: {err}", file=sys.stderr)
+        messages.error(err)
         return 2
 
     if not _known_key(args.key):
-        print(
-            f"note: '{args.key}' is not a recognized config key "
-            "(see `canair config set --help`); setting it anyway.",
-            file=sys.stderr,
+        messages.note(
+            f"'{args.key}' is not a recognized config key "
+            "(see `canair config set --help`); setting it anyway"
         )
 
     # wican_addresses is the legacy device map, superseded by `devices:`.
     if args.key.startswith("wican_addresses."):
         alias = args.key.split(".", 1)[1]
-        print(
-            f"warning: 'wican_addresses' is deprecated — prefer "
+        messages.warning(
+            f"'wican_addresses' is deprecated — prefer "
             f"`canair config set devices.{alias}.host {args.value}` "
-            "(devices support per-device transport/port/bitrate).",
-            file=sys.stderr,
+            "(devices support per-device transport/port/bitrate)"
         )
         if isinstance(load_config().get("devices"), dict) and load_config()["devices"]:
-            print(
-                "warning: a `devices:` block is defined, so `wican_addresses` is "
-                "ignored at runtime — this value will have no effect.",
-                file=sys.stderr,
+            messages.warning(
+                "a `devices:` block is defined, so `wican_addresses` is "
+                "ignored at runtime — this value will have no effect"
             )
 
     old = get_config_key(args.key)
@@ -354,11 +349,8 @@ def _cmd_set(args) -> int:
         return 0
 
     path = set_config_key(args.key, value)
-    if old is None:
-        print(f"{args.key} = {value!r}")
-    else:
-        print(f"{args.key}: {old!r} -> {value!r}")
-    print(f"Saved to {path}")
+    change = f"{args.key} = {value!r}" if old is None else f"{args.key}: {old!r} → {value!r}"
+    echo_edit(change, path)
     return 0
 
 
@@ -367,9 +359,9 @@ def _cmd_unset(args) -> int:
 
     path, removed = unset_config_key(args.key)
     if not removed:
-        print(f"{args.key} was not set", file=sys.stderr)
+        messages.error(f"{args.key} was not set")
         return 1
-    print(f"Removed {args.key} from {path}")
+    echo_edit(f"removed {args.key}", path)
     return 0
 
 
@@ -386,8 +378,7 @@ def _cmd_edit(args) -> int:
     if not editor:
         editor = next((e for e in ("nano", "vim", "vi") if shutil.which(e)), None)
     if not editor:
-        print("No editor found. Set $EDITOR or edit directly:", file=sys.stderr)
-        print(f"  {path}", file=sys.stderr)
+        messages.error(f"no editor found: set $EDITOR or edit {path} directly")
         return 1
     return subprocess.call([*editor.split(), str(path)])
 
@@ -502,35 +493,34 @@ _SPECIAL_KEYS = {"wican_addresses", "devices", "transport", "wican_model"}
 
 
 def _render(info: dict) -> None:
-    from rich.console import Console
-
-    c = Console()
+    c = console()
 
     files = info["files"]
     c.print("\n  [bold]Config files[/bold]")
     for label, entry in (("user", files["user"]), ("legacy", files["legacy"])):
         mark = "[green]ok[/green]" if entry["exists"] else "[dim]not present[/dim]"
-        c.print(f"    {label:<9}{entry['path']}  ({mark})")
-    c.print(f"    {'profiles':<9}{files['profiles_dir']}")
+        c.print(f"    {label:<9}{escape(str(entry['path']))}  ({mark})")
+    c.print(f"    {'profiles':<9}{escape(str(files['profiles_dir']))}")
 
     t = info.get("transport")
     if t:
         loc = t.get("host") or "?"
         if t.get("port"):
             loc = f"{loc}:{t['port']}"
-        c.print(f"\n  [bold]Transport[/bold]   {t['type']}  [dim]({loc})[/dim]")
+        c.print(f"\n  [bold]Transport[/bold]   {t['type']}  [dim]({escape(str(loc))})[/dim]")
         if t.get("bitrate"):
             c.print(f"    {'bitrate':<9}{t['bitrate']}")
         fb = info.get("fallback") or {}
         if fb.get("enabled"):
             order = fb.get("order")
             order_str = " → ".join(order) if order else "primary, then other devices"
-            c.print(f"    [dim]fallback on ({fb.get('connect_timeout')}s probe; {order_str})[/dim]")
+            probe = f"fallback on ({fb.get('connect_timeout')}s probe; {order_str})"
+            c.print(f"    [dim]{escape(probe)}[/dim]")
         else:
             c.print("    [dim]fallback off[/dim]")
         c.print("    [dim]resolved from config; override with --transport/--wican[/dim]")
     elif info.get("transport_error"):
-        c.print(f"\n  [bold]Transport[/bold]   [red]{info['transport_error']}[/red]")
+        c.print(f"\n  [bold]Transport[/bold]   [red]{escape(str(info['transport_error']))}[/red]")
 
     w = info["wican"]
     model = w.get("model", "pro")
@@ -539,13 +529,15 @@ def _render(info: dict) -> None:
     devices = info.get("devices") or {}
     c.print("  [bold]Devices[/bold]")
     for alias, dev in devices.items():
-        default = "  [green](default)[/green]" if alias == w["default"] else ""
+        default = "  [dim](default)[/dim]" if alias == w["default"] else ""
         extra = ""
         if dev.get("transport"):
-            extra = f"  [dim]{dev['transport']}[/dim]"
+            extra = f"  [dim]{escape(str(dev['transport']))}[/dim]"
         if dev.get("port"):
             extra += f"[dim]:{dev['port']}[/dim]"
-        c.print(f"    {alias:<9}{dev['host']}{extra}{default}")
+        c.print(
+            f"    [cyan]{escape(f'{alias:<9}')}[/cyan]{escape(str(dev['host']))}{extra}{default}"
+        )
 
     cfg = info["config"]
     others = {k: v for k, v in cfg.items() if k not in _SPECIAL_KEYS}
@@ -553,35 +545,42 @@ def _render(info: dict) -> None:
         c.print("\n  [bold]Settings[/bold]")
         width = max(len(k) for k in others)
         for k, v in others.items():
-            c.print(f"    {k:<{width + 2}}{v}")
+            c.print(f"    {escape(f'{k:<{width + 2}}')}{escape(str(v))}")
 
     _render_dtc_log(c, info.get("dtc_log") or {})
 
     p = info.get("profile")
     if p:
-        c.print(f"\n  [bold]Active profile[/bold]  {p['name']}  [dim]{p['root']}[/dim]")
+        c.print(
+            f"\n  [bold]Active profile[/bold]  [cyan]{escape(p['name'])}[/cyan]  "
+            f"[dim]{escape(str(p['root']))}[/dim]"
+        )
     elif info.get("profile_error"):
-        c.print(f"\n  [bold]Active profile[/bold]  [yellow]{info['profile_error']}[/yellow]")
-    c.print(f"\n  [dim]Every key documented: `canair config example` · {CONFIG_DOCS_URL}[/dim]")
+        c.print(
+            f"\n  [bold]Active profile[/bold]  [yellow]{escape(str(info['profile_error']))}[/yellow]"
+        )
+    c.print(
+        f"\n  [dim]Every key documented: `canair config example` · {escape(CONFIG_DOCS_URL)}[/dim]"
+    )
     c.print()
 
 
 def _render_dtc_log(c, dtc: dict) -> None:
     logs = dtc.get("logs") or []
-    c.print(f"\n  [bold]DTC log[/bold]   {dtc.get('dir', '?')}")
+    c.print(f"\n  [bold]DTC log[/bold]   {escape(str(dtc.get('dir', '?')))}")
     if not logs:
         c.print("    [dim]no scans logged yet (`canair dtc --all` records one)[/dim]")
         return
     width = max(len(e["profile"]) for e in logs)
     for e in logs:
-        name = f"{e['profile']:<{width}}"
+        name = f"[cyan]{escape(e['profile'])}[/cyan]" + " " * (width - len(e["profile"]))
         if e.get("error"):
-            c.print(f"    {name}  [red]{e['error']}[/red]")
+            c.print(f"    {name}  [red]{escape(str(e['error']))}[/red]")
             continue
         text = f"{e['scans']} scan(s), {e['dtcs_seen']} DTC(s) seen"
         if e.get("active"):
             n, ecus = e["open_codes"], len(e["open"])
-            text += f", [red]{n} open on {ecus} ECU(s)[/red]" if n else ", none open"
+            text += f", [yellow]{n} open on {ecus} ECU(s)[/yellow]" if n else ", none open"
         if e.get("last_scan"):
             text += f"  [dim]last {e['last_scan']}[/dim]"
         if e.get("other_car_scans"):

@@ -7,10 +7,10 @@ add --diff or --step to change how they are rendered. --summary and --sessions
 are aggregate modes that take no QUERY.
 
   QUERY                 List matching captures (default view; latest --limit)
-  QUERY --diff          Monitor-style view (decoded params + colored byte-diff),
+  QUERY --diff          Monitor-style view (decoded signals + colored byte-diff),
                         one block per ECU+PID (unique payloads only; --all = all)
   QUERY --step          Interactive: step through captures with arrow keys,
-                        decoded params + byte-diff vs the previous capture of the
+                        decoded signals + byte-diff vs the previous capture of the
                         same PID; e adds/edits a note, d deletes a capture.
                         A QUERY selecting SEVERAL PIDs stacks them underneath
                         each other in one time-joined frame (--join-tol), so
@@ -31,9 +31,9 @@ are aggregate modes that take no QUERY.
                         output. Honors the scope filters.
 
 Step views (--view; default auto — stacked for up to 6 PIDs, else interleaved):
-  stacked               One block per PID per frame: params + byte-diff hex
+  stacked               One block per PID per frame: signals + byte-diff hex
   signals               Params only (no hex) — fits more PIDs on one screen
-  changed               Only params whose decoded value moved, per block
+  changed               Only signals whose decoded value moved, per block
   interleaved           One capture per frame, chronologically across the PIDs
 
 Output size (default list view):
@@ -93,7 +93,6 @@ Examples (a bare `canair captures …` is shorthand for `canair captures uds …
 """
 
 import argparse
-import sys
 from pathlib import Path
 
 from canair.captures.dates import filter_by_date_range, filter_by_text
@@ -103,7 +102,7 @@ from canair.captures.types import CaptureEntry
 from canair.cli.args.notation import add_notation_arg, resolve_notation
 from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
-from canair.render import ansi
+from canair.render import messages
 from canair.states import format_state_selector
 from canair.tui.apps.captures_step_model import (
     AUTO_STACK_MAX_KEYS,
@@ -149,7 +148,7 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         "--diff",
         "-d",
         action="store_true",
-        help="Monitor-style view (decoded params + colored byte-diff), one block per ECU+PID",
+        help="Monitor-style view (decoded signals + colored byte-diff), one block per ECU+PID",
     )
     view.add_argument(
         "--step",
@@ -317,7 +316,7 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         choices=VIEW_CHOICES,
         default=VIEW_AUTO,
         help="For --step: how a frame is rendered — stacked (one block per PID), "
-        "signals (params only), changed (only params that moved), interleaved "
+        "signals (signals only), changed (only signals that moved), interleaved "
         "(one capture per frame). Default auto: stacked for up to "
         f"{AUTO_STACK_MAX_KEYS} PIDs, else interleaved. Cycle it live with V.",
     )
@@ -364,7 +363,7 @@ def _scope(args, since, until) -> list[CaptureEntry] | int:
         if args.json:
             print("[]")
             return 0
-        print("  No capture files found.")
+        messages.error("no capture files found")
         return 1
 
     if since or until:
@@ -375,11 +374,9 @@ def _scope(args, since, until) -> list[CaptureEntry] | int:
             if args.json:
                 print("[]")
                 return 0
-            print(f"  No captures in date range {lo} .. {hi}.")
+            messages.error(f"no captures in date range {lo} .. {hi}")
             return 1
-        # Keep JSON output clean (no human banner) when scoping --sessions --json.
-        if not args.json:
-            print(f"  {ansi.DIM}Date range: {lo} .. {hi}  ({len(entries)} entries){ansi.RESET}")
+        messages.note(f"date range {lo} .. {hi} ({len(entries)} entries)")
 
     if args.state or args.label:
         entries = filter_by_text(entries, state=args.state, label=args.label)
@@ -395,7 +392,7 @@ def _scope(args, since, until) -> list[CaptureEntry] | int:
                 ]
                 if x
             )
-            print(f"  No captures matching {crit}.")
+            messages.error(f"no captures matching {crit}")
             return 1
 
     return entries
@@ -510,7 +507,7 @@ def run(args) -> int:
     # Resolve date scoping (--date is shorthand for an equal since/until pair).
     since, until, err = resolve_scope_bounds(args)
     if err:
-        print(f"error: {err}", file=sys.stderr)
+        messages.error(f"{err}")
         return 2
 
     scoped = _scope(args, since, until)
@@ -520,5 +517,5 @@ def run(args) -> int:
     try:
         return _dispatch(mode, args, query, scoped)
     except QueryError as ex:
-        print(f"error: invalid query: {ex}", file=sys.stderr)
+        messages.error(f"invalid query: {ex}")
         return 2

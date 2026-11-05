@@ -25,12 +25,11 @@ from typing import Any
 from canair import contribute as C
 from canair.contribute import pii
 from canair.install.context import installed_snapshot_kind
+from canair.render import glyphs
+from canair.render.console import escape
 
 from ._contribute_report import (
-    CANNOT,
     Reporter,
-    Stop,
-    confirm,
     findings_json,
     replaced_json,
     rollback_json,
@@ -56,8 +55,9 @@ def snapshot(rep: Reporter, profile) -> None:
         "it may be stale",
         prompt="Contribute from the installed snapshot anyway?",
         human=lambda: rep.console.print(
-            f"\n[yellow]⚠ This profile was read from an installed {kind} "
-            f"snapshot[/yellow], not your working checkout:\n  [dim]{profile.root}[/dim]\n"
+            f"\n[yellow]{glyphs.WARN} This profile was read from an installed {escape(kind)} "
+            "snapshot[/yellow], not your working checkout:\n"
+            f"  [dim]{escape(str(profile.root))}[/dim]\n"
             "  That copy is frozen at install time — it can be behind your checkout\n"
             "  (and ahead on captures from bare `--save` runs), so contributing it may\n"
             "  revert upstream work. Prefer running [cyan]uv run canair contribute[/cyan] "
@@ -89,8 +89,8 @@ def environment(rep: Reporter, profile, branch: str) -> C.Preflight:
 
         def install_gh() -> None:
             rep.console.print("\n[yellow]The GitHub CLI (`gh`) is not installed.[/yellow]\n")
-            rep.console.print(C.gh_install_hint())
-            rep.console.print("\n" + C.manual_instructions(profile.name, branch))
+            rep.console.print(escape(C.gh_install_hint()))
+            rep.console.print("\n" + escape(C.manual_instructions(profile.name, branch)))
 
         rep.refuse("gh not found", human=install_gh)
     if not pre.git:
@@ -127,9 +127,7 @@ def capture_size(rep: Reporter, profile, *, include_captures: bool) -> None:
         f"\n[yellow]captures/ is large (~{mb:.0f} MB).[/yellow] "
         "Consider `--no-captures` or trimming it first."
     )
-    if not confirm("Include captures anyway?", rep.yes, json_mode=rep.json_mode):
-        rep.console.print("  Aborted — nothing was contributed.")
-        raise Stop(CANNOT)
+    rep.confirm("Include captures anyway?", error=f"captures/ is large (~{mb:.0f} MB)")
 
 
 def workspace(rep: Reporter, args, profile, pre: C.Preflight) -> Path:
@@ -151,8 +149,8 @@ def workspace(rep: Reporter, args, profile, pre: C.Preflight) -> Path:
         return _own_checkout_is_clean(rep, ws, profile, pre)
 
     def paths() -> None:
-        rep.console.print(f"  profile:   [dim]{profile.root}[/dim]")
-        rep.console.print(f"  workspace: [dim]{ws}[/dim]\n")
+        rep.console.print(f"  profile:   [dim]{escape(str(profile.root))}[/dim]")
+        rep.console.print(f"  workspace: [dim]{escape(str(ws))}[/dim]\n")
 
     if collision == "self":
         error = (
@@ -161,7 +159,7 @@ def workspace(rep: Reporter, args, profile, pre: C.Preflight) -> Path:
         )
 
         def explain() -> None:
-            rep.console.print(f"\n[red]error:[/red] {error}:\n")
+            rep.console.print(f"\n[red]error:[/red] {escape(error)}:\n")
             paths()
             rep.console.print(
                 "  Copying it onto itself can't contribute anything. Re-run "
@@ -178,7 +176,7 @@ def workspace(rep: Reporter, args, profile, pre: C.Preflight) -> Path:
     )
 
     def warn_inside() -> None:
-        rep.console.print(f"\n[yellow]⚠ {warning}:[/yellow]\n")
+        rep.console.print(f"\n[yellow]{glyphs.WARN} {escape(warning)}:[/yellow]\n")
         paths()
 
     rep.gate(
@@ -211,13 +209,15 @@ def _own_checkout_is_clean(rep: Reporter, ws: Path, profile, pre: C.Preflight) -
     )
 
     def show() -> None:
-        rep.console.print(f"\n[yellow]⚠ Uncommitted changes in {ws}:[/yellow]\n")
+        rep.console.print(
+            f"\n[yellow]{glyphs.WARN} Uncommitted changes in {escape(str(ws))}:[/yellow]\n"
+        )
         for entry in dirty[:10]:
-            rep.console.print(f"  [dim]{entry}[/dim]")
+            rep.console.print(f"  [dim]{escape(str(entry))}[/dim]")
         if len(dirty) > 10:
             rep.console.print(f"  [dim]… and {len(dirty) - 10} more[/dim]")
         rep.console.print(
-            f"\n  Everything under [cyan]profiles/{profile.name}/[/cyan] is staged, so "
+            f"\n  Everything under [cyan]profiles/{escape(profile.name)}/[/cyan] is staged, so "
             "these ride\n  along in the PR. canair leaves your own checkout alone — commit, "
             "stash or\n  revert them first, or drop [cyan]--repo-dir[/cyan] to use the "
             "managed workspace.\n"
@@ -248,13 +248,16 @@ def leftovers(rep: Reporter, pre: C.Preflight, ws: Path, backup: Path) -> list[s
 
     def show() -> None:
         rep.console.print(
-            f"\n[yellow]⚠ An earlier contribution is still staged in {ws}:[/yellow]\n"
+            f"\n[yellow]{glyphs.WARN} An earlier contribution is still staged in "
+            f"{escape(str(ws))}:[/yellow]\n"
         )
         for path in paths[:10]:
-            rep.console.print(f"  [dim]{path}[/dim]")
+            rep.console.print(f"  [dim]{escape(str(path))}[/dim]")
         if len(paths) > 10:
             rep.console.print(f"  [dim]… and {len(paths) - 10} more[/dim]")
-        rep.console.print(f"\n  It will be backed up to [cyan]{backup}[/cyan] first.\n")
+        rep.console.print(
+            f"\n  It will be backed up to [cyan]{escape(str(backup))}[/cyan] first.\n"
+        )
 
     rep.gate(
         error=f"an earlier contribution is still staged in {ws}",
@@ -291,11 +294,13 @@ def privacy(
 
         def list_findings() -> None:
             rep.console.print(
-                f"\n[yellow]⚠ {len(findings)} possible privacy issue(s) in this "
+                f"\n[yellow]{glyphs.WARN} {len(findings)} possible privacy issue(s) in this "
                 "contribution[/yellow] — the tree is public, so review before sharing:\n"
             )
             for f in findings:
-                rep.console.print(f"  [yellow]•[/yellow] {f.location}  [dim]({f.detail})[/dim]")
+                rep.console.print(
+                    f"  [yellow]•[/yellow] {escape(f.location)}  [dim]({escape(f.detail)})[/dim]"
+                )
             rep.console.print("")
 
         rep.gate(
@@ -349,13 +354,14 @@ def captures(
 
         def explain() -> None:
             rep.console.print(
-                f"\n[yellow]⚠ {len(unsplit)} capture(s) in this contribution hold a whole "
-                "multi-DID reply stored under one DID[/yellow] — every analysis reads that "
-                "DID past its real end:\n"
+                f"\n[yellow]{glyphs.WARN} {len(unsplit)} capture(s) in this contribution hold "
+                "a whole multi-DID reply stored under one DID[/yellow] — every analysis reads "
+                "that DID past its real end:\n"
             )
             for file, location, pids in unsplit:
                 rep.console.print(
-                    f"  [yellow]•[/yellow] {file} {location}  [dim]({' + '.join(pids)})[/dim]"
+                    f"  [yellow]•[/yellow] {escape(file)} {escape(location)}  "
+                    f"[dim]({escape(' + '.join(pids))})[/dim]"
                 )
             rep.console.print(
                 "\n  Repair them first with [cyan]canair captures split-batched[/cyan], "

@@ -21,6 +21,7 @@ import sys
 from canair.cli.args.group import group_help
 from canair.cli.live import LiveOperation, add_connection_args, ecu_completer, run_live
 from canair.cli.live.handlers import diagnostics
+from canair.render import messages
 
 NAME = "dtc"
 _OPERATION = LiveOperation(diagnostics.handle_dtc, records=True)
@@ -193,21 +194,23 @@ def run(args) -> int:
     if getattr(args, "dtc_history", False):
         from canair.cli.commands.dtc.log import run as run_log
 
-        print("note: `--history` is now `canair dtc log`.", file=sys.stderr)
+        messages.note("`--history` is now `canair dtc log`.")
         return run_log(args)
     if getattr(args, "dtc_supported", False) and (
         getattr(args, "dtc_all", False) or getattr(args, "clear", False)
     ):
-        print("--supported reads one KWP2000 ECU; it can't be combined with --all or --clear.")
+        messages.error(
+            "--supported reads one KWP2000 ECU; it can't be combined with --all or --clear"
+        )
         return 2
     if not args.dtc and not getattr(args, "dtc_all", False):
         from canair.cli.commands._hints import ecu_hint
         from canair.cli.commands.dtc.log import log_hint
 
-        print("Specify an ECU (e.g. `canair dtc BMS`) or `canair dtc --all`.\n")
-        print(ecu_hint())
+        messages.error("specify an ECU (e.g. `canair dtc BMS`) or `canair dtc --all`")
+        print(ecu_hint(), file=sys.stderr)
         hint = log_hint()
         if hint:
-            print(f"\n{hint}")
+            print(f"\n{hint}", file=sys.stderr)
         return 2
     return run_live(args, _OPERATION)

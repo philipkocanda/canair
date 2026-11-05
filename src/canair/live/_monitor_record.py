@@ -361,12 +361,10 @@ class MonitorRecorder:
     def _defer_save_output(self, buf: io.StringIO) -> None:
         """Queue save output captured while the TUI owned stdout, for post-exit printing.
 
-        The capture writer prints its own "Saved N capture(s) to <path>" banner;
-        inside the TUI that goes to Textual's redirected stdout and is discarded.
-        Collecting it here lets :func:`~canair.live.monitor.mode_monitor` replay
-        it once the screen is handed back, so an in-run save still tells the user
-        where it went (including a multi-day reconcile, which writes one file per
-        day and so emits several banners).
+        The capture writer prints its own "Saved N capture(s) to <path>" banner to stderr;
+        inside the TUI that is discarded. Collecting it here lets
+        :func:`~canair.live.monitor.mode_monitor` replay it once the screen is handed back
+        (a multi-day reconcile writes one file per day, so it emits several banners).
         """
         for line in buf.getvalue().splitlines():
             if line.strip():
@@ -435,7 +433,7 @@ class MonitorRecorder:
         n_pids = len(new_merged)
         n_payloads = sum(len(v) for v in new_merged.values())
         buf = io.StringIO()
-        with contextlib.redirect_stdout(buf):
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
             path = _write_merged(
                 new_merged,
                 label,
@@ -491,7 +489,8 @@ class MonitorRecorder:
         written = None
         buf = io.StringIO()
         with contextlib.suppress(Exception), contextlib.redirect_stdout(buf):
-            written = self.journal.reconcile()
+            with contextlib.redirect_stderr(buf):
+                written = self.journal.reconcile()
         self._defer_save_output(buf)
 
         # Record the just-closed segment's summary for the session-info modal

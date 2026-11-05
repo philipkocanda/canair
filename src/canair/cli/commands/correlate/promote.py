@@ -7,11 +7,11 @@ counterpart that says "this r is real, but it joined almost nothing".
 
 from __future__ import annotations
 
-import sys
-
 from canair.analysis.align import (
     join_nearest,
 )
+from canair.cli.commands._analysis_warning import warn_analysis
+from canair.render import messages
 
 NAME = "correlate"
 
@@ -29,7 +29,7 @@ def _warn_thin_reference_join(command: str, ref_label: str, best_n: int, n_ref: 
         min_n=args.min_n,
     )
     if msg:
-        print(msg, file=sys.stderr)
+        warn_analysis(msg)
 
 
 def _promote_top_byte(name, rows, series, ref_series, ref_label, tol, *, ref_unit=None) -> int:
@@ -52,10 +52,9 @@ def _promote_top_byte(name, rows, series, ref_series, ref_label, tol, *, ref_uni
             byte_hit = (sig, parts[0], parts[1], parts[2], r, n)
             break
     if byte_hit is None:
-        print(
-            "Nothing to promote — no raw-byte hit in the ranked list. "
-            "Re-run with --bytes so undecoded bytes are considered.",
-            file=sys.stderr,
+        messages.error(
+            "nothing to promote: no raw-byte hit in the ranked list; "
+            "re-run with --bytes so undecoded bytes are considered"
         )
         return 1
 
@@ -74,7 +73,7 @@ def _promote_top_byte(name, rows, series, ref_series, ref_label, tol, *, ref_uni
             ecu, pid, name, expr, source=f"canair correlate vs {ref_label}", notes=notes
         )
     except (PidsEditError, SystemExit) as e:
-        print(f"promote failed: {e}", file=sys.stderr)
+        messages.error(f"promote failed: {e}")
         return 1
     print_promoted(ecu, pid, name, expr, r, fpath)
     return 0

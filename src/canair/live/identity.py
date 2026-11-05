@@ -152,7 +152,7 @@ async def mode_identity(
                         }
                     )
                 else:
-                    did = paint(did_hex.ljust(did_width), ansi.raw.YELLOW)
+                    did = paint(did_hex.ljust(did_width), ansi.raw.CYAN)
                     print(f"  {did}  {label:<{label_width}}  {decoded}")
                     if (fmt != "ascii" or "." in decoded) and decoded != raw_hex:
                         raw_line = f"{'':{did_width}}  {'':>{label_width}}  raw: {raw_hex}"

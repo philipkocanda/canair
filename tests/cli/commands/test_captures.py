@@ -21,6 +21,7 @@ from canair.cli.commands.captures.listing import (
 )
 from canair.cli.commands.captures.query import _gather_query
 from canair.cli.commands.captures.sessions import _clean, _quality_tag, cmd_sessions, cmd_summary
+from canair.core.prompt import PromptUnavailable
 from canair.tui.apps.captures_step_join import _nearest_within, build_join_frames
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
@@ -120,10 +121,11 @@ class TestSavedBanner:
     def test_save_session_prints_full_path(self, tmp_path, capsys):
         s = build_query_session([("0x7EB", "2102", "6102AABB", "")], "l", [], "")
         written = save_session(s, tmp_path)
-        out = capsys.readouterr().out
-        assert str(written) in out
-        assert str(tmp_path) in out  # the directory, so the profile is unambiguous
-        assert "1 capture(s)" in out
+        captured = capsys.readouterr()
+        assert captured.out == ""  # a status line: stdout stays the command's result
+        assert str(written) in captured.err
+        assert str(tmp_path) in captured.err  # the directory, so the profile is unambiguous
+        assert "1 capture(s)" in captured.err
 
     def test_banner_formats_count_and_path(self, tmp_path):
         from canair.captures import saved_banner
@@ -312,12 +314,13 @@ class TestCmdSessions:
         assert "note 2" not in out
         assert "+3 more capture-notes" in out
 
-    def test_long_capture_note_is_shortened(self, capsys):
+    def test_long_capture_note_is_shortened(self, capsys, monkeypatch):
+        monkeypatch.setattr("canair.cli.commands.captures.sessions.terminal_columns", lambda: 100)
         entries = [_entry(session_label="long", time="10:00:00", notes="x" * 200)]
         cmd_sessions(entries)
         out = capsys.readouterr().out
-        assert "x" * 97 + "..." in out
-        assert "x" * 101 not in out
+        assert "x" * 87 + "…" in out
+        assert "x" * 89 not in out
 
 
 class TestQualityTag:
@@ -496,11 +499,12 @@ class TestPrintEntryBranches:
         _print_entry(_entry(ecu="BMS"), show_ecu=False)
         assert "BMS" not in _strip_ansi(capsys.readouterr().out)
 
-    def test_long_payload_is_truncated(self, capsys):
+    def test_long_payload_is_truncated(self, capsys, monkeypatch):
+        monkeypatch.setattr("canair.cli.commands.captures.listing.terminal_columns", lambda: 100)
         payload = "AB" * 60  # 120 hex chars
         _print_entry(_entry(payload=payload))
         out = _strip_ansi(capsys.readouterr().out)
-        assert f"Payload: {payload[:80]}..." in out
+        assert f"Payload: {payload[:86]}…" in out
         assert payload not in out
 
     def test_short_payload_is_intact(self, capsys):
@@ -540,11 +544,12 @@ class TestPrintEntryBranches:
         _print_entry(_entry(notes="fan audibly stepped up here"))
         assert "Notes: fan audibly stepped up here" in _strip_ansi(capsys.readouterr().out)
 
-    def test_long_note_is_truncated(self, capsys):
+    def test_long_note_is_truncated(self, capsys, monkeypatch):
+        monkeypatch.setattr("canair.cli.commands.captures.listing.terminal_columns", lambda: 100)
         _print_entry(_entry(notes="x" * 200))
         out = _strip_ansi(capsys.readouterr().out)
-        assert "Notes: " + "x" * 77 + "..." in out
-        assert "x" * 81 not in out
+        assert "Notes: " + "x" * 88 + "…" in out
+        assert "x" * 90 not in out
 
     def test_untimed_capture_renders_the_date_alone(self, capsys):
         _print_entry(_entry(date="2026-07-22", time=""))
@@ -566,11 +571,12 @@ class TestCmdLatestText:
         cmd_latest([])
         assert "No payload captures found." in _strip_ansi(capsys.readouterr().out)
 
-    def test_long_payload_is_truncated(self, capsys):
+    def test_long_payload_is_truncated(self, capsys, monkeypatch):
+        monkeypatch.setattr("canair.cli.commands.captures.listing.terminal_columns", lambda: 100)
         payload = "CD" * 60
         cmd_latest([_entry(payload=payload)])
         out = _strip_ansi(capsys.readouterr().out)
-        assert payload[:80] + "..." in out
+        assert payload[:97] + "…" in out
         assert payload not in out
 
     def test_one_row_per_ecu_pid_sorted(self, capsys):
@@ -1033,7 +1039,7 @@ class TestCmdDelete:
         entries = load_all_captures(tmp_path)
         rc = cmd_delete(entries, "MCU:9999", captures_dir=tmp_path, assume_yes=True)
         assert rc == 1
-        assert "nothing to delete" in capsys.readouterr().out
+        assert "nothing to delete" in capsys.readouterr().err
         assert len(load_all_captures(tmp_path)) == 3
 
     def test_json_dry_run_emits_rows(self, tmp_path, capsys):
@@ -1110,7 +1116,13 @@ class TestCmdBackfillStates:
         assert self._states(tmp_path) == ["READY", "PARKED", "IG3"]
 
     def test_conflict_not_written_by_default(self, tmp_path, capsys):
-        self._seed(tmp_path, self._VCU_PARK_NOT_READY, ["ready"])
+        rows = [
+            ("0x7EA", "2101", self._VCU_PARK_NOT_READY, ""),
+            ("0x7A8", "22B004", self._BCM_B004_OFF, ""),
+            ("0x7AD", "22B008", self._SKM_B008_OFF, ""),
+        ]
+        save_session(build_query_session(rows, "test", ["ready"], ""), tmp_path)
+        capsys.readouterr()  # discard the save banner
         rc = self._run(tmp_path, assume_yes=True)
         out = capsys.readouterr().out
         assert rc == 0
@@ -1160,10 +1172,9 @@ class TestCmdBackfillStates:
 
     def test_non_tty_without_yes_refuses(self, tmp_path, capsys):
         self._seed(tmp_path, self._VCU_READY_PARK, [])
-        # pytest runs with a non-interactive stdin/stdout → refuse without --yes.
-        rc = self._run(tmp_path, assume_yes=False)
-        assert rc == 2
-        assert "refusing to write" in capsys.readouterr().err
+        # pytest runs with a non-interactive stdin → the prompt cannot be answered.
+        with pytest.raises(PromptUnavailable, match="--yes"):
+            self._run(tmp_path, assume_yes=False)
         assert self._states(tmp_path) is None  # nothing written
 
 
@@ -1222,7 +1233,7 @@ class TestCmdSetState:
         self._seed(tmp_path, [])
         rc = self._run(tmp_path, "MADE_UP", assume_yes=True)
         assert rc == 0
-        assert "not in the vehicle_states.yaml" in capsys.readouterr().out
+        assert "warning: MADE_UP not in the vehicle_states.yaml" in capsys.readouterr().err
         assert self._states(tmp_path) == ["MADE_UP"]
 
     def test_json_dry_run_emits_rows(self, tmp_path, capsys):
@@ -1237,9 +1248,8 @@ class TestCmdSetState:
 
     def test_non_tty_without_yes_refuses(self, tmp_path, capsys):
         self._seed(tmp_path, [])
-        rc = self._run(tmp_path, "ACC", assume_yes=False)
-        assert rc == 2
-        assert "refusing to set state" in capsys.readouterr().err
+        with pytest.raises(PromptUnavailable, match="--yes"):
+            self._run(tmp_path, "ACC", assume_yes=False)
         assert self._states(tmp_path) is None
 
     def test_bare_scope_refused_via_parser(self, tmp_path, capsys):
@@ -1675,7 +1685,7 @@ class TestPrintDecodedPreview:
         _print_decoded_preview({"A": 1, "B": 2}, limit=3, ecu="HVAC", pid="2201A0")
         out = capsys.readouterr().out
         assert "A: 1" in out and "B: 2" in out
-        assert "more param" not in out
+        assert "more signal" not in out
 
     def test_over_limit_shows_count_and_decode_hint(self, capsys):
         decoded = {f"P{i}": i for i in range(8)}
@@ -1685,19 +1695,19 @@ class TestPrintDecodedPreview:
         assert "P0: 0" in out and "P2: 2" in out
         assert "P3: 3" not in out
         # the cap is visible with the hidden count + a runnable decode pointer
-        assert "+5 more param" in out
+        assert "+5 more signal" in out
         assert "canair decode HVAC 2201A0" in out
 
     def test_hint_generic_without_ecu_pid(self, capsys):
         decoded = {f"P{i}": i for i in range(5)}
         _print_decoded_preview(decoded, limit=2)
         out = capsys.readouterr().out
-        assert "+3 more param" in out
+        assert "+3 more signal" in out
         assert "canair decode <ECU> <PID>" in out
 
     def test_exactly_at_limit_no_hint(self, capsys):
         _print_decoded_preview({"A": 1, "B": 2, "C": 3}, limit=3, ecu="HVAC", pid="2201A0")
-        assert "more param" not in capsys.readouterr().out
+        assert "more signal" not in capsys.readouterr().out
 
 
 class TestCmdBackfillStateSpans:

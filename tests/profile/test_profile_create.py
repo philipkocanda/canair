@@ -295,7 +295,7 @@ class TestProfileListSnapshotWarning:
         _scaffold(tmp_path, "ev6")
         monkeypatch.setattr(install_context, "bundled_profiles_are_snapshot", lambda: True)
         _cmd_list(argparse.Namespace(profiles_dir=None))
-        out = capsys.readouterr().out
+        out = capsys.readouterr().err
         assert "frozen snapshot" in out
         assert "uv run canair" in out
 
@@ -310,8 +310,8 @@ class TestProfileListSnapshotWarning:
         _scaffold(tmp_path, "ev6")
         monkeypatch.setattr(install_context, "bundled_profiles_are_snapshot", lambda: False)
         _cmd_list(argparse.Namespace(profiles_dir=None))
-        out = capsys.readouterr().out
-        assert "frozen snapshot" not in out
+        captured = capsys.readouterr()
+        assert "frozen snapshot" not in captured.out + captured.err
 
 
 class TestProfileShow:
@@ -391,7 +391,7 @@ class TestProfileDefaultDispatch:
         monkeypatch.setattr("canair.tui.select_from_list", lambda items, **kw: None)
 
         assert _cmd_default(argparse.Namespace(profiles_dir=None)) == 0
-        out = capsys.readouterr().out
+        out = capsys.readouterr().err
         assert "Cancelled" in out
         cfg_file = tmp_path / "cfg" / "canair" / "config.yaml"
         if cfg_file.exists():
@@ -472,7 +472,7 @@ class TestProfileAdopt:
         # Generated artifacts are regenerated, never copied.
         assert not (dest / "out").exists()
         out = capsys.readouterr().out
-        assert "Adopted 'ev6'" in out
+        assert "adopted 'ev6'" in out
         assert str(dest) in out
 
     def test_adopted_copy_shadows_the_original(self, tmp_path):

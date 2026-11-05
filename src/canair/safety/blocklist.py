@@ -35,6 +35,7 @@ from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any, Final
 
+from canair.core.prompt import typed_confirm
 from canair.uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol, classify_protocol
 from canair.uds.services import DIAGNOSTIC_SESSION_CONTROL, ROUTINE_CONTROL, TESTER_PRESENT_REQUEST
 from canair.uds.subfunctions import (
@@ -97,6 +98,10 @@ class SafetyBlocked(ValueError):
     working; the CLI and the live-session guard catch it by name to report
     ``error: …`` instead of a traceback.
     """
+
+
+class CommandDeclined(SafetyBlocked):
+    """The user answered no to the ``--unsafe`` consent prompt (the run ends, exit 1)."""
 
 
 @dataclass(frozen=True)
@@ -462,16 +467,14 @@ async def enforce_command_safety(
     if not unsafe or functional_block(cmd, policy, tx_id) is not None:
         raise SafetyBlocked(blocked)
 
-    print(f"\n  !! WARNING: {blocked}", file=sys.stderr)
-    print("  !! --unsafe mode is active. The user MUST be consulted and", file=sys.stderr)
-    print("  !! must explicitly give consent before this command is executed.", file=sys.stderr)
-    print("  !! This command can cause irreversible damage to vehicle ECUs.", file=sys.stderr)
-    try:
-        confirm = await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: input("  !! Type 'YES' to execute, anything else to skip: "),
-        )
-    except (EOFError, KeyboardInterrupt):
-        confirm = ""
-    if confirm.strip() != "YES":
-        raise SafetyBlocked(f"Command declined by user: {cmd}")
+    if not sys.stdin.isatty():
+        raise SafetyBlocked(f"{blocked} (--unsafe needs a terminal to ask for consent)")
+    question = (
+        f"{blocked}\n!! --unsafe mode is active, so you must consent before this is sent."
+        f"\n!! It can cause irreversible damage to vehicle ECUs. Send {cmd}?"
+    )
+    consented = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: typed_confirm(question, "YES")
+    )
+    if not consented:
+        raise CommandDeclined(f"Command declined by user: {cmd}")

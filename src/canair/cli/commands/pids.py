@@ -60,7 +60,7 @@ from canair.cli.commands._edit import add_edit_args, clear_sentinel, edit_scope,
 from canair.core.edit_errors import EditError, translate
 from canair.ecus.pids import INHERITED_PARAM_FIELDS, PID_STATUSES
 from canair.ecus.signal_category import CATEGORIES, QUANTITY_CATEGORIES
-from canair.render import ansi
+from canair.render import ansi, messages
 from canair.uds.support_map import MapDecl, SupportMapError
 from canair.yaml_edit.echo import echo_edit
 from canair.yaml_edit.pids import (
@@ -188,7 +188,7 @@ def _echo_capture_range(ecu: str, pid: str, name: str, param: dict) -> None:
             else:
                 print(f"    {ansi.DIM}captures:{ansi.RESET} {mn:g}{unit} — {mx:g}{unit}")
         elif err:
-            print(f"    {ansi.RED}captures: ERROR — {err}{ansi.RESET}")
+            print(f"    {ansi.RED}captures: error — {err}{ansi.RESET}")
         else:
             print(f"    {ansi.DIM}(captures present but expression yielded no value){ansi.RESET}")
     except Exception:
@@ -337,11 +337,11 @@ def _warn_state_predicates(ecu: str, param: str, consequence: str, hint: str) ->
         return  # never let an advisory check fail a successful write
     if not states:
         return
-    print(
-        f"  {ansi.YELLOW}warn:{ansi.RESET} vehicle_states.yaml predicate(s) "
-        f"{', '.join(states)} read {ecu.upper()}.{param} — {consequence}"
+    messages.warning(
+        f"vehicle_states.yaml predicate(s) {', '.join(states)} read {ecu.upper()}.{param} "
+        f"— {consequence}"
     )
-    print(f"    {ansi.DIM}{hint}{ansi.RESET}")
+    messages.hint(hint.removeprefix("fix: "))
 
 
 def cmd_rename_param(args: argparse.Namespace) -> int:

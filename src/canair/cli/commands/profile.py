@@ -18,6 +18,8 @@ from canair.profile import (
 )
 from canair.profile.names import convention_problem
 from canair.profile.scaffold import DEFAULT_INIT, adopt_profile, create_profile, overlay_profile
+from canair.render import messages
+from canair.yaml_edit.echo import echo_edit
 
 NAME = "profile"
 ALIASES = ["prof"]
@@ -176,7 +178,7 @@ def _current_name(name: str, profiles_dir) -> str:
     profiles = selectable_profiles(profiles_dir, index)
     target = index.target(name)
     if name not in profiles and target in profiles:
-        print(f"note: '{name}' was renamed; using its current name, '{target}'.")
+        messages.note(f"'{name}' was renamed; using its current name, '{target}'")
         return target
     return name
 
@@ -224,23 +226,24 @@ def _cmd_pick(args) -> int:
         footer="↑/↓ move · enter set as default · q/esc cancel",
     )
     if chosen is None:
-        print("Cancelled — no change.")
+        print("Cancelled — no change.", file=sys.stderr)
         return 0
 
     name, root = chosen
     path = set_config_value("default_profile", name)
-    if name == active_name:
-        print(f"'{name}' is already the default profile.")
-    else:
-        print(f"default_profile = {name}")
-    print(f"  ({root})")
+    what = (
+        f"'{name}' is already the default profile"
+        if name == active_name
+        else f"default_profile = {name}"
+    )
     variant = _choose_variant(name, getattr(args, "profiles_dir", None), None)
     if variant:
         from canair.config import set_config_key
 
         set_config_key(f"profile_settings.{name}.variant", variant)
-        print(f"profile_settings.{name}.variant = {variant}")
-    print(f"Saved to {path}")
+        what += f", variant = {variant}"
+    echo_edit(what, path)
+    print(f"  profile: {root}")
     return 0
 
 
@@ -295,11 +298,10 @@ def _warn_if_bundled_snapshot() -> None:
     from canair.install.context import bundled_profiles_are_snapshot
 
     if bundled_profiles_are_snapshot():
-        print()
-        print(
-            "note: running the `uv tool install` copy — its bundled profiles are a\n"
-            "      frozen snapshot, so edits to the repo's profiles/ won't appear here.\n"
-            "      Run `uv run canair` from the repo root (or reinstall) to pick them up."
+        messages.note(
+            "running the `uv tool install` copy — its bundled profiles are a frozen snapshot, "
+            "so edits to the repo's profiles/ won't appear here.\n"
+            "Run `uv run canair` from the repo root (or reinstall) to pick them up."
         )
 
 
@@ -463,7 +465,7 @@ def _cmd_use(args) -> int:
     profiles = selectable_profiles(profiles_dir)
     if name not in profiles:
         avail = ", ".join(profiles) or "none"
-        print(f"error: profile '{name}' not found. Available: {avail}.", file=sys.stderr)
+        messages.error(f"profile '{name}' not found. Available: {avail}.")
         return 1
     variant = _choose_variant(name, profiles_dir, getattr(args, "use_variant", None))
     if variant == "":
@@ -475,14 +477,16 @@ def _cmd_use(args) -> int:
     from canair.config import set_config_key
 
     path = set_config_value("default_profile", name)
-    print(f"default_profile = {name}")
+    changes = []
     if variant:
         set_config_key(f"profile_settings.{name}.variant", variant)
-        print(f"profile_settings.{name}.variant = {variant}")
+        changes.append(f"profile_settings.{name}.variant = {variant}")
     for ecu, rid in pins:
         set_config_key(f"profile_settings.{name}.revisions.{ecu}", rid)
-        print(f"profile_settings.{name}.revisions.{ecu} = {rid}")
-    print(f"Saved to {path}")
+        changes.append(f"profile_settings.{name}.revisions.{ecu} = {rid}")
+    echo_edit(f"default_profile = {name}", path)
+    for change in changes:
+        print(f"    {change}")
     return 0
 
 
@@ -509,7 +513,7 @@ def _checked_pins(
         pins = [parse_pin(t) for t in texts]
         resolve(ecus, car, [(e, r, "flag") for e, r in pins])
     except (ProfileError, VariantsError, RevisionError) as e:
-        print(f"error: --pin: {e}", file=sys.stderr)
+        messages.error(f"--pin: {e}")
         return None
     return [(canonical_ecu(e, ecus) or e, r) for e, r in pins]
 
@@ -528,21 +532,21 @@ def _choose_variant(name: str, profiles_dir, requested: str | None) -> str | Non
         variants = load_variants(prof)
         remembered = configured_variant(prof)
     except (ProfileError, VariantsError) as e:
-        print(f"error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return ""
     if requested:
         vid = normalize_variant_id(requested)
         if vid not in variants:
             known = ", ".join(variants) or "none (no variants.yaml)"
-            print(f"error: '{name}' has no variant {vid!r}. Declared: {known}.", file=sys.stderr)
+            messages.error(f"'{name}' has no variant {vid!r}. Declared: {known}.")
             return ""
         return vid
     if len(variants) < 2:
         return None
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
-        print(
-            f"note: '{name}' describes {len(variants)} variants; name yours with "
-            f"`canair profile use {name} --variant ID` ({', '.join(variants)})."
+        messages.note(
+            f"'{name}' describes {len(variants)} variants; name yours with "
+            f"`canair profile use {name} --variant ID` ({', '.join(variants)})"
         )
         return None
     from canair.tui import select_from_list
@@ -566,7 +570,7 @@ def _choose_variant(name: str, profiles_dir, requested: str | None) -> str | Non
 def _cmd_create(args) -> int:
     name = args.name.strip()
     if not name:
-        print("error: profile name cannot be empty", file=sys.stderr)
+        messages.error("profile name cannot be empty")
         return 2
 
     # car_model: flag, else prompt when interactive, else error.
@@ -574,11 +578,12 @@ def _cmd_create(args) -> int:
     if not car_model:
         if sys.stdin.isatty():
             try:
-                car_model = input("Vehicle description (car_model): ").strip()
+                print("Vehicle description (car_model): ", end="", flush=True, file=sys.stderr)
+                car_model = input().strip()
             except (EOFError, KeyboardInterrupt):
                 car_model = ""
         if not car_model:
-            print("error: --car-model is required", file=sys.stderr)
+            messages.error("--car-model is required")
             return 2
 
     try:
@@ -591,10 +596,10 @@ def _cmd_create(args) -> int:
             force=args.force,
         )
     except FileExistsError as e:
-        print(f"error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 1
     except ValueError as e:
-        print(f"error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 2
 
     init = args.init or DEFAULT_INIT
@@ -606,15 +611,15 @@ def _cmd_create(args) -> int:
             "or set `default_profile` in your config."
         )
 
-    print(f"Created profile '{name}' at {root}")
+    echo_edit(f"created profile '{name}'", root)
     print(f"  car_model: {car_model}")
     print(f"  init:      {init}")
     print(default_note.lstrip("\n"))
     problem = convention_problem(name)
     if problem:
-        print(
-            f"\nnote: {problem}. Bundled profiles must follow it; rename before contributing "
-            "(see docs/concepts/profiles.md#naming-a-profile)."
+        messages.note(
+            f"{problem}. Bundled profiles must follow it; rename before contributing "
+            "(see docs/concepts/profiles.md#naming-a-profile)"
         )
     return 0
 
@@ -631,18 +636,17 @@ def _cmd_adopt(args) -> int:
     except LookupError:
         profiles = selectable_profiles(getattr(args, "profiles_dir", None))
         avail = ", ".join(profiles) or "none"
-        print(f"error: profile '{name}' not found. Available: {avail}.", file=sys.stderr)
+        messages.error(f"profile '{name}' not found. Available: {avail}.")
         return 1
     except FileExistsError as e:
-        print(f"error: {e}. Overwrite it with --force.", file=sys.stderr)
+        messages.error(f"{e}. Overwrite it with --force.")
         return 1
     except ValueError as e:
-        print(f"error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 2
 
-    print(f"Adopted '{name}'")
+    echo_edit(f"adopted '{name}'", dest)
     print(f"  from: {source}")
-    print(f"  to:   {dest}")
     print(f"\n'{name}' now resolves to your copy, which writes survive a reinstall.")
     print("The copy no longer tracks upstream, so `canair contribute` may report a")
     print("rollback once upstream moves on — for contribution work point canair at a")
@@ -663,22 +667,18 @@ def _cmd_overlay(args) -> int:
     except LookupError:
         profiles = selectable_profiles(getattr(args, "profiles_dir", None))
         avail = ", ".join(profiles) or "none"
-        print(f"error: profile '{name}' not found. Available: {avail}.", file=sys.stderr)
+        messages.error(f"profile '{name}' not found. Available: {avail}.")
         return 1
     except FileExistsError as e:
-        print(f"error: {e}.", file=sys.stderr)
-        print(
-            "A layer is only ever created once. Remove that directory, or use it as-is.",
-            file=sys.stderr,
-        )
+        messages.error(f"{e}.")
+        messages.hint("a layer is only ever created once: remove that directory, or use it as-is")
         return 1
     except ValueError as e:
-        print(f"error: {e}", file=sys.stderr)
+        messages.error(str(e))
         return 2
 
-    print(f"Layered '{name}'")
-    print(f"  base:    {base}  (definitions, read-only captures)")
-    print(f"  overlay: {dest}  (everything you record)")
+    echo_edit(f"layered '{name}' over {base}", dest)
+    print("  base: definitions, read-only captures; overlay: everything you record")
     print(f"\n`--profile {name}` now reads both layers and records into yours.")
     print("Definitions still belong to the base, so editing them is refused — run")
     print(f"`canair profile adopt {name}` if you need to change PIDs or signals too.")

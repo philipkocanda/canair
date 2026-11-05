@@ -119,7 +119,7 @@ def render_text(results: Sequence[CoverageEntry], notation_arg: str | None, scop
             ns = bf.get("not_signals")
             extra = f" {ansi.DIM}(+{len(ns)} not signals){ansi.RESET}" if ns else ""
             print(
-                f"      {ansi.RED}BITS{ansi.RESET} {label(bf['byte'])} "
+                f"      {ansi.YELLOW}BITS{ansi.RESET} {label(bf['byte'])} "
                 f"have{{{have}}} missing{{{miss}}}{whole}{extra}"
             )
         outside = e.get("outside_map") or []

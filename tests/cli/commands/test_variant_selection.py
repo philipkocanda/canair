@@ -218,7 +218,7 @@ class TestProfileUse:
 
     def test_without_a_variant_off_a_terminal_it_says_how(self, env, capsys):
         assert self._use("hyundai-ioniq-ae-ev") == 0
-        assert "--variant ID" in capsys.readouterr().out
+        assert "--variant ID" in capsys.readouterr().err
         config.load_config.cache_clear()
         assert "profile_settings" not in config.load_config()
 

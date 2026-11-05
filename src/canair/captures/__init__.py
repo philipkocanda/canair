@@ -5,6 +5,7 @@ Not here: other computing over captures (``analysis/``), the DTC log (``dtc/``),
 Imports: the definitions (``states``, ``ecus``, ``variants``, ``profile``, ``privacy``) and below.
 """
 
+import sys
 from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
@@ -495,8 +496,7 @@ def save_session(
     capture_io.dump_capture_file(capture_file, data)
     annotate_session_spans(capture_file)
 
-    n_captures = len(session.get("captures", []))
-    print(saved_banner(capture_file, n_captures))
+    print(saved_banner(capture_file, len(session.get("captures", []))), file=sys.stderr)
     return capture_file
 
 

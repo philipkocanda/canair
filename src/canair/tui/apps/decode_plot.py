@@ -4,9 +4,9 @@ Wraps a :class:`~canair.tui.apps.decode_plot_model.PlotModel` (which owns all st
 and produces the ANSI-colored frame) in a Textual app, so it shares the look and
 feel of the query monitor / sniff TUIs and inherits the shared ``?`` help modal.
 
-Beyond the byte/param sweep the model provides, the app adds:
+Beyond the byte/signal sweep the model provides, the app adds:
 - ``p`` — switch to another captured PID without leaving the explorer (B2).
-- ``e`` — annotate the current param/byte (writes through ``canair pids``) (B4).
+- ``e`` — annotate the current signal/byte (writes through ``canair pids``) (B4).
 - ``N`` — rename the current PID (``pids rename-pid``) (B4).
 
 Keys come from the shared keymap (:mod:`canair.tui.keys`), never from a literal
@@ -21,16 +21,19 @@ from typing import TYPE_CHECKING, ClassVar
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical, VerticalScroll
+from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
-from textual.screen import ModalScreen
-from textual.widgets import Input, Label, OptionList, Static
+from textual.widgets import Static
 from textual.widgets.option_list import Option
 
-from canair.tui.help import HelpMixin
-from canair.tui.keys import bind
-from canair.tui.modals import TextPromptModal
-from canair.tui.status import P_ESSENTIAL, P_LOW, P_NORMAL, StatusBar, StatusItem
+from canair.render.glyphs import ARROW
+from canair.tui import styles
+from canair.tui.flash import Flash, Severity, severity_of
+from canair.tui.help import HelpMixin, LegendRow
+from canair.tui.keys import CLOSE_HINT, DISMISS_DESCRIPTION, bind, key_hint, side_hint
+from canair.tui.modals import ListPickerModal, TextPromptModal
+from canair.tui.scroll import APP_BASE_CSS
+from canair.tui.status import P_ESSENTIAL, P_LOW, P_NORMAL, StatusBar, hint_item
 
 if TYPE_CHECKING:
     from canair.tui.apps.decode_plot_model import PlotModel
@@ -39,96 +42,56 @@ if TYPE_CHECKING:
 ReloadFn = Callable[[str, str], "PlotModel | None"]
 
 
-class PidPickerModal(ModalScreen["tuple[str, str] | None"]):
+class PidPickerModal(ListPickerModal["tuple[str, str]"]):
     """Pick an ``(ECU, PID)`` from the captured set to re-plot.
 
     Filterable: a profile with a hundred captured PIDs is unusable as an
     arrow-key-only list, and ``/`` is the filter key in every canair picker.
     """
 
-    CSS = """
-    PidPickerModal { align: center middle; background: $background 60%; }
-    #pick-box { width: 60; height: auto; max-height: 80%; padding: 1 2;
-                border: round $accent; background: $surface; }
-    #pick-title { text-style: bold; margin-bottom: 1; }
-    #pick-filter { margin-bottom: 1; }
-    #pick-list { height: auto; max-height: 20; }
-    """
-
-    BINDINGS: ClassVar[list[Binding]] = [
-        *bind("back", "cancel", desc="cancel"),
-        *bind("filter", "focus_filter", show=False),
-    ]
+    CSS = ListPickerModal.picker_css("PidPickerModal", 60)
 
     def __init__(self, options: list[tuple[str, str]]):
-        super().__init__()
+        super().__init__("Switch PID")
         self._options = options
 
-    def compose(self) -> ComposeResult:
-        with Vertical(id="pick-box"):
-            yield Label("Switch PID (↑↓ + enter · / filter · esc cancel)", id="pick-title")
-            yield Input(placeholder="type to filter…", id="pick-filter")
-            yield OptionList(id="pick-list")
+    def options(self, needle: str) -> list[Option]:
+        return [
+            Option(f"{ecu}  {pid}", id=f"{ecu}:{pid}")
+            for ecu, pid in self._options
+            if not needle or needle in f"{ecu} {pid}".lower()
+        ]
 
-    def on_mount(self) -> None:
-        self._repopulate()
-        # Focus the filter, not the list: typing narrows immediately and enter
-        # hands focus to the list. Same contract as the monitor's PidPickerScreen.
-        self.query_one("#pick-filter", Input).focus()
-
-    def _repopulate(self) -> None:
-        needle = self.query_one("#pick-filter", Input).value.strip().lower()
-        lst = self.query_one("#pick-list", OptionList)
-        lst.clear_options()
-        for ecu, pid in self._options:
-            if needle and needle not in f"{ecu} {pid}".lower():
-                continue
-            lst.add_option(Option(f"{ecu}  {pid}", id=f"{ecu}:{pid}"))
-        if lst.option_count:
-            lst.highlighted = 0
-
-    def action_focus_filter(self) -> None:
-        self.query_one("#pick-filter", Input).focus()
-
-    def on_input_changed(self, _event: Input.Changed) -> None:
-        self._repopulate()
-
-    def on_input_submitted(self, _event: Input.Submitted) -> None:
-        lst = self.query_one("#pick-list", OptionList)
-        if lst.option_count:
-            lst.focus()
-            if lst.highlighted is None:
-                lst.highlighted = 0
-
-    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        ecu, pid = (event.option.id or ":").split(":", 1)
+    def chosen(self, option: Option) -> None:
+        ecu, pid = (option.id or ":").split(":", 1)
         self.dismiss((ecu, pid))
-
-    def action_cancel(self) -> None:
-        self.dismiss(None)
 
 
 class PlotApp(HelpMixin, App):
     """Interactive signal explorer for ``decode --plot``."""
 
     HELP_TITLE = "canair decode --plot — keyboard shortcuts"
+    HELP_LEGEND: ClassVar[tuple[LegendRow, ...]] = (
+        ("⠿", styles.OK, "the plotted series"),
+        ("⠿", styles.MUTED, "the overlay reference, normalized"),
+        ("✓", styles.OK, "byte mapped by a verified signal"),
+        ("?", styles.WARNING, "byte mapped by an unverified signal"),
+        ("~", styles.WARNING, "byte a defined signal also reads"),
+        ("⚠", styles.WARNING, "the interpretation crosses an ISO-TP framing byte"),
+    )
 
     # canair uses no command-palette commands; disable Textual's ctrl+p palette.
     ENABLE_COMMAND_PALETTE = False
 
-    CSS = """
-    Screen { layout: vertical; background: transparent; }
-    #scroll { height: 1fr; scrollbar-gutter: stable; scrollbar-size-vertical: 1; background: transparent; }
-    #body { height: auto; padding: 0 1; background: transparent; }
-    """
+    CSS = APP_BASE_CSS
 
     BINDINGS: ClassVar[list[Binding]] = [
-        *bind("quit", "quit"),
+        *bind("quit", "quit_view"),
         *bind("quit_force", "quit", show=False, priority=True),
         *bind("help", "help"),
         *bind("back", "escape", show=False),
-        *bind("prev", "move(-1)", desc="prev offset/param"),
-        *bind("next", "move(1)", desc="next offset/param"),
+        *bind("prev", "move(-1)", desc="prev offset/signal"),
+        *bind("next", "move(1)", desc="next offset/signal"),
         *bind("move_down", "scroll(1)", desc="scroll down", show=False),
         *bind("move_up", "scroll(-1)", desc="scroll up", show=False),
         *bind("axis_start", "to_top", desc="top", show=False),
@@ -160,7 +123,7 @@ class PlotApp(HelpMixin, App):
         self.model = model
         self._reload_pid = reload_pid
         self._pid_options = pid_options or []
-        self._flash_msg = ""
+        self.flash = Flash()
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="scroll"):
@@ -184,20 +147,53 @@ class PlotApp(HelpMixin, App):
         # Mode-specific keys (the ones that move the plot) outrank the rest; the
         # bar sheds the tail on a narrow terminal instead of clipping it.
         items = [
-            StatusItem(f"[dim]{bit}[/]", P_NORMAL if i < 2 else P_LOW)
-            for i, bit in enumerate(self.model.hint_bits())
+            hint_item(bit, P_NORMAL if i < 2 else P_LOW) for i, bit in enumerate(self._hints())
         ]
-        if self._flash_msg:
-            items.append(StatusItem(f"[b green]{self._flash_msg}[/]", P_ESSENTIAL))
+        flash = self.flash.item()
+        if flash is not None:
+            items.append(flash)
         items += [
-            StatusItem("[dim]? help[/]", P_ESSENTIAL),
-            StatusItem("[dim]q quit[/]", P_ESSENTIAL),
+            hint_item(key_hint("help"), P_ESSENTIAL),
+            hint_item(key_hint("quit"), P_ESSENTIAL),
         ]
         status.set_lines(items)
 
-    def _flash(self, msg: str) -> None:
-        self._flash_msg = msg
+    def _hints(self) -> list[str]:
+        """The key hints for the current mode, most useful first."""
+        if self.model.show_info:
+            return [CLOSE_HINT, key_hint("info", DISMISS_DESCRIPTION)]
+        if self.model.mode == "bytes":
+            mode = [
+                side_hint("offset/signal"),
+                key_hint("value_type"),
+                key_hint("byte_order"),
+                key_hint("mode", "bytes/signal mode"),
+            ]
+        else:
+            mode = [side_hint("offset/signal"), key_hint("mode", "bytes/signal mode")]
+        return [
+            *mode,
+            key_hint("transform"),
+            key_hint("overlay"),
+            key_hint("info", "captures in view"),
+            key_hint("increase", "zoom in", key="plus"),
+            key_hint("decrease", "zoom out", key="minus"),
+            key_hint("nudge_down", "pan left"),
+            key_hint("nudge_up", "pan right"),
+            key_hint("reset"),
+        ]
+
+    def _flash(self, msg: str, severity: Severity = "info") -> None:
+        self.flash.show(msg, severity)
         self._refresh()
+
+    def action_quit_view(self) -> None:
+        """``q`` closes the in-body info view first; from the plot itself it quits."""
+        if self.model.show_info:
+            self.model.toggle_info()
+            self._refresh()
+            return
+        self.exit()
 
     def _modal_active(self) -> bool:
         return len(self.screen_stack) > 1
@@ -205,7 +201,7 @@ class PlotApp(HelpMixin, App):
     # -- navigation actions ------------------------------------------------
     def action_move(self, delta: int) -> None:
         self.model.move_right() if delta > 0 else self.model.move_left()
-        self._flash_msg = ""
+        self.flash.clear()
         self._refresh()
 
     def action_type_next(self) -> None:
@@ -229,7 +225,8 @@ class PlotApp(HelpMixin, App):
         self._refresh()
 
     def action_overlay(self) -> None:
-        self._flash(self.model.cycle_overlay())
+        msg = self.model.cycle_overlay()
+        self._flash(msg, severity_of(msg, ok="info"))
 
     def action_zoom_in(self) -> None:
         self.model.zoom_in()
@@ -289,7 +286,7 @@ class PlotApp(HelpMixin, App):
             return
         reload_fn = self._reload_pid
         if not (reload_fn and self._pid_options):
-            self._flash("PID switching unavailable.")
+            self._flash("PID switching unavailable", "warning")
             return
 
         def _done(choice: tuple[str, str] | None) -> None:
@@ -299,10 +296,10 @@ class PlotApp(HelpMixin, App):
             try:
                 new_model = reload_fn(ecu, pid)
             except Exception as exc:  # keep the TUI alive
-                self._flash(f"Load failed: {exc}")
+                self._flash(f"Load failed: {exc}", "error")
                 return
             if new_model is None:
-                self._flash(f"No plottable data for {ecu} {pid}.")
+                self._flash(f"No plottable data for {ecu} {pid}", "warning")
                 return
             self.model = new_model
             self._flash(f"Now plotting {ecu} {pid}")
@@ -317,13 +314,13 @@ class PlotApp(HelpMixin, App):
         if m.mode == "param":
             name = m.current_param_name()
             if not name:
-                self._flash("No parameter to annotate.")
+                self._flash("No signal to annotate", "warning")
                 return
             self._prompt_param_note(name)
         else:
             expr = m.current_expr()
             if not expr:
-                self._flash("This interpretation has no WiCAN expression to define.")
+                self._flash("This interpretation has no WiCAN expression to define", "warning")
                 return
             self._prompt_new_candidate(expr)
 
@@ -352,7 +349,7 @@ class PlotApp(HelpMixin, App):
             )
 
         self.push_screen(
-            TextPromptModal(f"New candidate param for {expr}", placeholder="PARAM_NAME"),
+            TextPromptModal(f"New candidate signal for {expr}", placeholder="SIGNAL_NAME"),
             _got_name,
         )
 
@@ -374,9 +371,9 @@ class PlotApp(HelpMixin, App):
                 verified=verified,
             )
         except Exception as exc:
-            self._flash(f"Write failed: {exc}")
+            self._flash(f"Write failed: {exc}", "error")
             return
-        self._flash(f"Saved {name}")
+        self._flash(f"Saved {name}", "success")
 
     def action_rename_pid(self) -> None:
         if self._modal_active():
@@ -391,10 +388,10 @@ class PlotApp(HelpMixin, App):
             try:
                 rename_pid(self.model.ecu_key, old, new)
             except Exception as exc:
-                self._flash(f"Rename failed: {exc}")
+                self._flash(f"Rename failed: {exc}", "error")
                 return
             self.model.pid_key = new
-            self._flash(f"Renamed PID {old} → {new}")
+            self._flash(f"Renamed PID {old} {ARROW} {new}", "success")
 
         self.push_screen(
             TextPromptModal(f"Rename PID {old} on {self.model.ecu_key}", value=old), _done

@@ -27,7 +27,7 @@ import sys
 from canair.cli.commands._edit import run_edit
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.core.edit_errors import EditError
-from canair.render import ansi
+from canair.render import ansi, messages
 
 _EXAMPLES = __doc__.split("Examples:")[1]
 
@@ -45,7 +45,7 @@ def cmd_list(args) -> int:
     ecus = load_raw_pids().get("ecus") or {}
     name = canonical_ecu(args.ecu, ecus)
     if name is None:
-        print(f"{ansi.RED}Unknown ECU {args.ecu!r}.{ansi.RESET}", file=sys.stderr)
+        messages.error(f"unknown ECU {args.ecu!r}")
         return 1
     ecu_def = ecus[name]
     revs = declared(ecu_def)

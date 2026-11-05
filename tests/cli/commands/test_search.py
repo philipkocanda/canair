@@ -94,7 +94,7 @@ class TestNeedle:
 
     def test_no_match_exits_1(self, corpus, monkeypatch, capsys):
         assert _run(corpus, monkeypatch, ["nothing-like-this"]) == 1
-        assert "No matches" in capsys.readouterr().out
+        assert "no matches" in capsys.readouterr().err
 
 
 class TestTextHaystack:

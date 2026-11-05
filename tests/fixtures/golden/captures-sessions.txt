@@ -1,4 +1,3 @@
-  Date range: 2026-01-02T10:03:27 .. latest  (6 entries)
 
   Sessions — 3 total
 
@@ -14,3 +13,4 @@
     synthetic single-frame ramp
     2 captures · ALPHA, BETA · import · v1.12.0 · 2026-01-02.json
 
+note: date range 2026-01-02T10:03:27 .. latest (6 entries)

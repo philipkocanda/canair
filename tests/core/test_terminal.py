@@ -1,28 +1,16 @@
-"""Tests for canair.core.terminal — the terminal's size."""
-
-import os
-
-from canair.core.terminal import terminal_columns, terminal_lines
+from canair.core.terminal import truncate_text
 
 
-class TestTerminalSize:
-    def test_lines_returns_int(self):
-        assert isinstance(terminal_lines(), int)
-        assert terminal_lines() > 0
+def test_truncate_text_ends_in_one_ellipsis_character():
+    assert truncate_text("abcdefghij", 6) == "abcde…"
+    assert len(truncate_text("abcdefghij", 6)) == 6
 
-    def test_columns_returns_int(self):
-        assert isinstance(terminal_columns(), int)
-        assert terminal_columns() > 0
 
-    def test_fallback_used_without_tty(self, monkeypatch):
-        # With no real terminal, get_terminal_size falls back to our defaults.
-        monkeypatch.delenv("COLUMNS", raising=False)
-        monkeypatch.delenv("LINES", raising=False)
+def test_truncate_text_leaves_a_fitting_string_alone():
+    assert truncate_text("abc", 3) == "abc"
+    assert truncate_text("abc", 10) == "abc"
 
-        import shutil
 
-        monkeypatch.setattr(
-            shutil, "get_terminal_size", lambda fallback: os.terminal_size(fallback)
-        )
-        assert terminal_lines(default=42) == 42
-        assert terminal_columns(default=137) == 137
+def test_truncate_text_with_no_room_is_empty():
+    assert truncate_text("abc", 0) == ""
+    assert truncate_text("abc", 1) == "…"

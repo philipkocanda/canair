@@ -32,7 +32,7 @@ from typing import TextIO
 
 
 class _RawPalette:
-    """The seven codes actually in use across the tree, in one place.
+    """The codes actually in use across the tree, in one place.
 
     Read via :attr:`raw` — this is what :func:`c` emits when gating is on, and
     what tests assert against. Consumers writing coloured output should use the
@@ -44,14 +44,31 @@ class _RawPalette:
     RED = "\033[91m"
     GREEN = "\033[92m"
     YELLOW = "\033[93m"
+    MAGENTA = "\033[95m"
     CYAN = "\033[96m"
     RESET = "\033[0m"
 
 
+class _Screen:
+    """Cursor and screen control for a full-screen view on a terminal.
+
+    Not colour, so not gated by :func:`use_color`: the caller has already checked that it is
+    drawing on a terminal. These are the only control sequences canair prints.
+    """
+
+    ALT_SCREEN_ON = "\033[?1049h"
+    ALT_SCREEN_OFF = "\033[?1049l"
+    HIDE_CURSOR = "\033[?25l"
+    SHOW_CURSOR = "\033[?25h"
+    HOME = "\033[H"
+    CLEAR = "\033[2J"
+
+
 raw = _RawPalette()
+screen = _Screen()
 
 # The set of gated attribute names (mirrors :class:`_RawPalette`).
-_GATED_NAMES = frozenset(("BOLD", "DIM", "RED", "GREEN", "YELLOW", "CYAN", "RESET"))
+_GATED_NAMES = frozenset(("BOLD", "DIM", "RED", "GREEN", "YELLOW", "MAGENTA", "CYAN", "RESET"))
 
 
 def use_color(stream: TextIO | None = None) -> bool:

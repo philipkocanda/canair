@@ -79,4 +79,5 @@ async def handle_multi(args, terminal: Terminal, pids_data, host, *, reconnect=N
         vehicle_states=args.state,
         notes=args.notes,
         include_static=getattr(args, "include_static", False),
+        as_json=getattr(args, "json", False),
     )

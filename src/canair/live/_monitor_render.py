@@ -45,14 +45,17 @@ _RENDER_MAX_ROWS = 200
 # when --save. `--keep N` overrides it.
 _RENDER_DEFAULT_ROWS = 4
 
-# The monitor's own glyphs, for the help legend (the byte colours come from
-# canair.render.formatting.BYTE_COLOUR_LEGEND). Styles match _render_entry and render_param_table.
+# The monitor's glyphs and status colours for the help legend; byte colours: BYTE_COLOUR_LEGEND.
 MARKER_LEGEND: tuple[tuple[str, str, str], ...] = (
+    ("2101", "cyan", "a PID, as you type it"),
     ("○", "green", "PID answered this cycle"),
-    ("○", "grey58", "stale: the last good value, held"),
+    ("○", "dim", "stale: the last good value, held"),
     ("●", "bright_green", "payload changed this cycle"),
     ("✓", "green", "verified signal"),
     ("?", "yellow", "unverified signal"),
+    ("● REC", "bold", "recording to the --save journal (the dot blinks)"),
+    ("drops 3", "bold red", "frames lost or corrupted on the link"),
+    ("stale 2", "bold red", "replies that landed in another request's slot"),
 )
 MONITOR_LEGEND = BYTE_COLOUR_LEGEND + MARKER_LEGEND
 
@@ -230,16 +233,13 @@ def _render_entry(
 
     entry_text = Text()
     entry_text.append("    ")
-    entry_text.append(pid, style="yellow")
+    entry_text.append(pid, style="cyan")
     entry_text.append(" ")
-    # Freshness indicator: a small hollow circle, colored green while the value
-    # came from this cycle's own answer and grey once it's a carried-forward
-    # last-good reuse (see _decide_display). Deliberately a *different* glyph
-    # from the solid "●" change flash below (bright_green, only for one cycle)
-    # so the two never look like the same dot doubling up, and grepping for the
-    # plain "●" (as existing "changed"/"unchanged" tests do) is unaffected by
-    # this being present on every row.
-    entry_text.append("○", style="grey58" if stale else "green")
+    # Freshness indicator: a hollow circle, green while the value came from this cycle's
+    # own answer and dim once it is a carried-forward last-good reuse (see _decide_display).
+    # A different glyph from the solid "●" change flash below, so the two never look like
+    # one doubled dot and grepping for "●" is unaffected by it being on every row.
+    entry_text.append("○", style="dim" if stale else "green")
     if changed and not stale:
         entry_text.append(" ●", style="bright_green")
     if stale:

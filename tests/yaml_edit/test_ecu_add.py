@@ -85,7 +85,7 @@ class TestEcuAdd:
         cmd_add(_args(tx="7C6", name="CLU", dir=root / "ecus"))
         rc = cmd_add(_args(tx="7C6", name="CLU", dir=root / "ecus"))
         assert rc == 0
-        assert "already registered" in capsys.readouterr().out
+        assert "already registered" in capsys.readouterr().err
 
     def test_invalid_hex_tx_is_error(self, tmp_path, capsys):
         root = _mk_profile(tmp_path)
@@ -195,7 +195,7 @@ class TestEcuRename:
         clear_cache()
         rc = cmd_rename(self._rargs(ecu="NOPE", new_name="EPB"))
         assert rc == 1
-        assert "Unknown ECU" in capsys.readouterr().err
+        assert "unknown ECU" in capsys.readouterr().err
 
     def test_collision_is_error(self, tmp_path, monkeypatch, capsys):
         root = self._activate(tmp_path, monkeypatch)

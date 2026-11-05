@@ -1,6 +1,6 @@
 """Cross-TUI keymap consistency — one key, one meaning, everywhere.
 
-canair's four Textual apps and their modals grew independently and drifted: ``a``
+canair's five Textual apps and their modals grew independently and drifted: ``a``
 added PIDs in the stepper while the monitor used ``p``, ``escape`` quit one app
 and cleared a selection in another, ``l`` was both vim-right and "open the event
 log". :mod:`canair.tui.keys` is now the single home for what a key means; these
@@ -25,7 +25,7 @@ from textual.binding import Binding
 from textual.screen import ModalScreen, Screen
 
 import canair
-from canair.tui.keys import DISMISS_DESCRIPTION, KEY_ROLES, ROLES, bind
+from canair.tui.keys import DISMISS_DESCRIPTION, KEY_ROLES, ROLES, bind, keys_for
 
 # `n` is "new" in an app and "no" in a yes/no dialog. The second is near-universal
 # terminal convention and confined to ConfirmModal, so it is the one sanctioned
@@ -67,9 +67,9 @@ def _declared() -> list[tuple[type, Binding]]:
 def test_tui_classes_are_discovered():
     """Guard the discovery itself — a silent import failure would pass everything."""
     names = {c.__name__ for c in _tui_classes()}
-    assert {"MonitorApp", "CapturesStepApp", "PlotApp", "SniffApp"} <= names
+    assert {"MonitorApp", "CapturesStepApp", "PlotApp", "SniffApp", "MonitorSelectApp"} <= names
     assert {"HelpModal", "ConfirmModal", "TextPromptModal", "SaveDialog"} <= names
-    assert {"MonitorSelectScreen", "LiveMonitorSelectScreen"} <= names
+    assert {"MonitorSelectScreen", "LiveMonitorSelectScreen", "ListPickerModal"} <= names
 
 
 def test_every_declared_key_is_in_the_keymap():
@@ -179,3 +179,73 @@ def test_bind_rejects_an_unaccepted_description():
     role = ROLES["pick"]
     assert "add/remove signals" in role.descriptions
     assert "open the event log" not in role.descriptions
+
+
+def _modals() -> list[type]:
+    return [c for c in _tui_classes() if issubclass(c, ModalScreen)]
+
+
+def _apps() -> list[type]:
+    return [c for c in _tui_classes() if issubclass(c, App)]
+
+
+def _resolves(cls: type, key: str) -> list[str]:
+    """The actions *cls* binds *key* to once its bases are merged, as Textual resolves them."""
+    merged = cls._merged_bindings  # type: ignore[attr-defined]
+    return [b.action for b in merged.key_to_bindings.get(key, ())]
+
+
+def test_help_resolves_on_every_modal():
+    """``?`` opens help on every dialog, because Textual cuts a modal off from the app's keys.
+
+    Where a text field has focus ``?`` is text, so the binding is still declared and fires
+    once focus is anywhere else.
+    """
+    for key in keys_for("help"):
+        wrong = {
+            c.__name__: _resolves(c, key)
+            for c in _modals()
+            if c.__name__ != "HelpModal" and "help" not in _resolves(c, key)
+        }
+        assert not wrong, f"{key} must open help on a modal: {wrong}"
+    assert _resolves(_by_name("HelpModal"), "question_mark") == ["close"]
+
+
+def _by_name(name: str) -> type:
+    return next(c for c in _tui_classes() if c.__name__ == name)
+
+
+def test_the_inherited_force_quit_is_a_declared_role():
+    """Textual gives every app ``ctrl+q``; each canair app declares it through ``quit_force``."""
+    assert set(keys_for("quit_force")) == {"ctrl+c", "ctrl+q"}
+    missing = [
+        c.__name__
+        for c in _apps()
+        if not {b.key for b in _bindings(c)} >= set(keys_for("quit_force"))
+    ]
+    assert not missing, f"apps that leave Textual's own ctrl+q in place: {missing}"
+
+
+def test_every_top_level_app_declares_escape_as_inert():
+    """``escape`` is bound, and never quits, in the four apps that have a top level."""
+    for name in ("MonitorApp", "CapturesStepApp", "PlotApp", "SniffApp"):
+        actions = [b.action for b in _bindings(_by_name(name)) if b.key == "escape"]
+        assert actions, f"{name} does not bind escape"
+        assert not any("quit" in a for a in actions)
+
+
+def test_read_only_overlays_close_on_q():
+    """``q`` closes help, the event log and the session info rather than the app below."""
+    for name in ("HelpModal", "EventLogModal", "SessionInfoModal"):
+        assert _resolves(_by_name(name), "q") == ["close"], name
+
+
+def test_a_modal_never_takes_a_printable_key_with_priority():
+    """A priority binding on a typed character would swallow it from a focused text field."""
+    offenders = [
+        (cls.__name__, b.key)
+        for cls in _modals()
+        for b in _bindings(cls)
+        if b.priority and len(b.key) == 1
+    ]
+    assert not offenders, offenders

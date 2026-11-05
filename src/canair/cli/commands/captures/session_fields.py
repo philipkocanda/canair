@@ -27,6 +27,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
+from canair.render import messages
+
+from .echo import echo_write
+from .session_gate import refuse_write
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -106,14 +111,11 @@ def cmd_set_field(
     """Set ``field`` on every scope-selected session to ``value`` ('' clears it)."""
     from canair.captures.entries import group_sessions
 
-    from .session_gate import refuse_write
-
     value = value.strip()
     if value and field.allowed is not None and value not in (allowed := field.allowed()):
-        print(
-            f"  error: {field.flag} {value!r} is not a known {field.key} "
-            f"(one of: {', '.join(allowed)}; '' clears it).",
-            file=sys.stderr,
+        messages.error(
+            f"{field.flag} {value!r} is not a known {field.key} "
+            f"(one of: {', '.join(allowed)}; '' clears it)"
         )
         return 2
 
@@ -155,9 +157,7 @@ def cmd_set_field(
         (Path(r["path"]) for r in to_write),
         verb="edited",
         prompt=f"{action} these {len(to_write)} session(s)?",
-        what=f"set {field.key}",
         assume_yes=assume_yes,
-        out=out,
     )
     if stop is not None:
         return stop
@@ -171,9 +171,13 @@ def cmd_set_field(
                 f"    \u2192 {r['file']} [{r['session_idx']}] {r['date']}  {r['label']}", file=out
             )
         except Exception as ex:  # keep going; report the failure
-            print(f"    ! {r['file']} [{r['session_idx']}]: {ex}", file=out)
+            messages.error(f"{r['file']} [{r['session_idx']}]: {ex}")
 
-    print(f"  {'Set' if value else 'Cleared'} {field.key} on {written} session(s).", file=out)
+    echo_write(
+        f"{'Set' if value else 'Cleared'} {field.key} on {written} session(s)",
+        (Path(r["path"]) for r in to_write),
+        out,
+    )
     if as_json:
         print(json.dumps(rows, indent=2))
     return 0 if written == len(to_write) else 1

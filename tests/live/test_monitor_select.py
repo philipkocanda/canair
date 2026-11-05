@@ -337,7 +337,7 @@ class TestPresentation:
             await _press(pilot, "question_mark")
             assert isinstance(app.screen, HelpModal)
             rows = dict(app.screen._rows)
-            assert rows["⏎/ctrl+s"] == "next / start"
+            assert rows["enter/ctrl+s"] == "next / start"
             assert rows["space"] == "toggle the highlighted row"
 
 

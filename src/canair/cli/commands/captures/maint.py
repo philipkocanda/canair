@@ -13,7 +13,12 @@ import sys
 from pathlib import Path
 
 from canair.captures.io import resolve_captures_dir
-from canair.render import ansi
+from canair.render import ansi, glyphs, messages
+
+
+def _problem(text: str, indent: str = "  ") -> str:
+    """A report row for something left undone: a yellow ``⚠`` and the reason."""
+    return f"{indent}{ansi.YELLOW}{glyphs.WARN} {text}{ansi.RESET}"
 
 
 def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:
@@ -34,7 +39,7 @@ def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:
         try:
             written = _recover(path, discard=discard)
         except Exception as ex:  # keep going; report the failure
-            print(f"    ! {path.name}: {ex}")
+            messages.error(f"{path.name}: {ex}")
             continue
         if discard:
             print(f"    - {path.name} (discarded)")
@@ -62,7 +67,7 @@ def cmd_migrate(captures_dir: Path | None, *, dry_run: bool = False, as_json: bo
             _json.dump({"error": str(e)}, sys.stdout)
             print()
         else:
-            print(f"  {ansi.YELLOW}migration aborted:{ansi.RESET} {e}", file=sys.stderr)
+            messages.error(f"migration aborted: {e}")
         return 1
 
     if as_json:
@@ -218,12 +223,12 @@ def cmd_migrate_discover(
     for r in touched:
         print(f"  {r.path.name}: {verb.lower()} {len(r.repairs)} responder(s)")
         for x in r.repairs:
-            moved = "" if x.rx == x.old_rx else f"  {ansi.YELLOW}(was {x.old_rx}){ansi.RESET}"
+            moved = "" if x.rx == x.old_rx else f"  {ansi.DIM}(was {x.old_rx}){ansi.RESET}"
             print(
                 f"    [{x.session_idx}] {x.tx} → {x.rx}{moved}  {ansi.DIM}{x.response}{ansi.RESET}"
             )
         for x in r.skipped:
-            print(f"    ! [{x.session_idx}] {x.response}: {x.reason}")
+            print(_problem(f"[{x.session_idx}] {x.response}: {x.reason}", indent="    "))
     total = sum(len(r.repairs) for r in results)
     print(f"  {verb} {total} responder(s).")
     print(
@@ -251,7 +256,7 @@ def cmd_split_batched(
             _json.dump({"error": f"no such captures directory: {cdir}"}, sys.stdout)
             print()
         else:
-            print(f"error: no such captures directory: {cdir}", file=sys.stderr)
+            messages.error(f"no such captures directory: {cdir}")
         return 2
     report = split_unsplit_batches(resolve_capture_layers(captures_dir), cdir, dry_run=dry_run)
     names = build_rx_index()
@@ -301,12 +306,16 @@ def cmd_split_batched(
         )
     for s in report.read_only:
         row = _row(s)
-        print(f"  ! {s.where.path} {row['ecu']} {s.pid} @ {s.where.time}: read-only base layer")
+        print(
+            _problem(f"{s.where.path} {row['ecu']} {s.pid} @ {s.where.time}: read-only base layer")
+        )
     for s in report.shadowed:
         row = _row(s)
         print(
-            f"  ! {s.where.path} {row['ecu']} {s.pid} @ {s.where.time}: the read-only base "
-            "layer holds this session too; left as is so the two copies stay one session"
+            _problem(
+                f"{s.where.path} {row['ecu']} {s.pid} @ {s.where.time}: the read-only base "
+                "layer holds this session too; left as is so the two copies stay one session"
+            )
         )
     print(f"  {verb} {len(report.split)} capture(s).")
     if dry_run:
@@ -324,9 +333,9 @@ def orphan_notice(captures_dir: Path | None = None) -> None:
     except Exception:
         return
     if orphans:
-        print(
-            f"  Note: {len(orphans)} orphaned capture journal(s) from a previous "
-            "session \u2014 run `canair captures uds --recover` to save (or --discard)."
+        messages.note(
+            f"{len(orphans)} orphaned capture journal(s) from a previous session; "
+            "run `canair captures uds --recover` to save (or --discard)"
         )
 
 

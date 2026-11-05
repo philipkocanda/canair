@@ -382,3 +382,43 @@ class TestForeignOwnedLockFile:
 
         assert not result.ok and result.outcome == "permission"
         assert "owned by" in describe_acquire_failure(result)
+
+
+class TestAcquireFailureMessage:
+    """`acquire` reports a failure as an `error:` message, not as `ERROR:` text."""
+
+    @staticmethod
+    def _contended(tmp_path):
+        from canair.device.lock import AcquireResult
+
+        lock = WiCANLock(lock_file=tmp_path / "lock", steal_file=tmp_path / "steal")
+        result = AcquireResult(ok=False, outcome="contended")
+        lock.try_acquire = lambda **kw: result  # type: ignore[method-assign]
+        return lock, result
+
+    def test_the_description_carries_no_level_and_no_indent(self):
+        from canair.device.lock import AcquireResult
+
+        text = describe_acquire_failure(AcquireResult(ok=False, outcome="contended"))
+        assert not text.startswith(("ERROR", "error"))
+        assert all(not line.startswith(" ") for line in text.splitlines())
+        assert "--force" in text
+
+    def test_acquire_hands_the_text_to_the_caller_s_fail(self, tmp_path):
+        lock, result = self._contended(tmp_path)
+        seen: list[str] = []
+
+        def fail(text):
+            seen.append(text)
+            raise SystemExit(1)
+
+        with pytest.raises(SystemExit):
+            lock.acquire(fail=fail)
+        assert seen == [describe_acquire_failure(result)]
+
+    def test_without_a_fail_it_prints_the_error_form(self, tmp_path, capsys):
+        lock, _result = self._contended(tmp_path)
+        with pytest.raises(SystemExit) as raised:
+            lock.acquire()
+        assert raised.value.code == 1
+        assert capsys.readouterr().err.startswith("error: another canair session")
