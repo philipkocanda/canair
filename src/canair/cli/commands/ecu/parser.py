@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import argparse
 
+from canair.analysis.ecu_summary import SORT_COLUMNS
 from canair.cli.args.group import group_help
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 
 from . import add, rename, revisions
 from .epilog import EPILOG
-from .records import SORT_COLUMNS
 from .show import run
 
 NAME = "ecu"

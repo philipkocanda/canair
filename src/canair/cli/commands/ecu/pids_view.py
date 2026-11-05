@@ -7,10 +7,9 @@ import sys
 from collections.abc import Mapping
 from typing import Any
 
+from canair.analysis.ecu_summary import pids_latest_records
 from canair.core.terminal import terminal_columns
 from canair.render import ansi
-
-from .records import pids_latest_records
 
 
 def _value_grid(values: Mapping[str, Any], width: int, indent: str, ncols: int = 2) -> list[str]:

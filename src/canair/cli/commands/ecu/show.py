@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from canair.analysis.ecu_summary import list_records, pids_def_for_tx
 from canair.ecus import load_ecus, resolve_tx
 from canair.ecus.pids import load_pids
 from canair.render import messages
@@ -10,7 +11,7 @@ from .detail import cmd_detail
 from .edit import cmd_edit
 from .list_view import cmd_list
 from .pids_view import cmd_pids
-from .records import detail_record, list_records, pids_def_for_tx
+from .records import detail_record
 
 
 def unknown_ecu(value: str, records: list[dict]) -> int:

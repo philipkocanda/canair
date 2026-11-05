@@ -7,9 +7,9 @@ import re
 import pytest
 
 from canair import profile
+from canair.analysis.ecu_summary import list_records as _list_records
 from canair.cli.commands.ecu.list_view import cmd_list
 from canair.cli.commands.ecu.records import detail_record as _detail_record
-from canair.cli.commands.ecu.records import list_records as _list_records
 from canair.ecus.pids import clear_cache
 
 
@@ -109,9 +109,9 @@ def test_sort_by_verif_descending():
 def test_sort_by_caps_descending_none_last(monkeypatch):
     from collections import Counter
 
-    from canair.cli.commands.ecu import records
+    from canair.analysis import ecu_summary as records
 
-    monkeypatch.setattr(records, "_all_captures_by_ecu", lambda: Counter({"A": 5, "B": 9}))
+    monkeypatch.setattr(records, "all_captures_by_ecu", lambda: Counter({"A": 5, "B": 9}))
     ecus = {0x1: {"name": "A"}, 0x2: {"name": "B"}, 0x3: {"name": "C"}}
     recs = _list_records(ecus, _pids_data_counts(), sort="caps")
     # B (9) > A (5) > C (registry-only, no captures key) last.
@@ -121,9 +121,9 @@ def test_sort_by_caps_descending_none_last(monkeypatch):
 def test_header_counts_only_ecus_with_pids(monkeypatch, capsys):
     from collections import Counter
 
-    from canair.cli.commands.ecu import records
+    from canair.analysis import ecu_summary as records
 
-    monkeypatch.setattr(records, "_all_captures_by_ecu", lambda: Counter())
+    monkeypatch.setattr(records, "all_captures_by_ecu", lambda: Counter())
     pids_data = _pids_data_counts()
     # C has an ecus/ definition but an empty pids: (identity-only / fresh seed).
     pids_data["ecus"]["C"] = {"tx_id": 0x3, "pids": {}}
@@ -181,9 +181,9 @@ def _pids_data_bms():
 def test_list_captures_counted_by_default(monkeypatch):
     from collections import Counter
 
-    from canair.cli.commands.ecu import records
+    from canair.analysis import ecu_summary as records
 
-    monkeypatch.setattr(records, "_all_captures_by_ecu", lambda: Counter({"BMS": 42}))
+    monkeypatch.setattr(records, "all_captures_by_ecu", lambda: Counter({"BMS": 42}))
     recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms())
     assert recs[0]["captures"] == 42
 
@@ -191,9 +191,9 @@ def test_list_captures_counted_by_default(monkeypatch):
 def test_list_caps_column_shows_zero_when_no_captures(monkeypatch, capsys):
     from collections import Counter
 
-    from canair.cli.commands.ecu import records
+    from canair.analysis import ecu_summary as records
 
-    monkeypatch.setattr(records, "_all_captures_by_ecu", lambda: Counter())
+    monkeypatch.setattr(records, "all_captures_by_ecu", lambda: Counter())
     recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms())
     cmd_list(recs, as_json=False)
     out = capsys.readouterr().out
@@ -203,9 +203,9 @@ def test_list_caps_column_shows_zero_when_no_captures(monkeypatch, capsys):
 def test_detail_captures_counted(monkeypatch):
     from collections import Counter
 
-    from canair.cli.commands.ecu import records
+    from canair.analysis import ecu_summary as records
 
-    monkeypatch.setattr(records, "_captures_by_pid", lambda _name: (Counter({"2101": 7}), 7))
+    monkeypatch.setattr(records, "captures_by_pid", lambda _name: (Counter({"2101": 7}), 7))
     info = {"name": "BMS"}
     ecu_def = _pids_data_bms()["ecus"]["BMS"]
     rec = _detail_record(info, 0x7E4, "BMS", ecu_def)
@@ -216,10 +216,10 @@ def test_detail_captures_counted(monkeypatch):
 def test_detail_display_shows_captures(monkeypatch, capsys):
     from collections import Counter
 
-    from canair.cli.commands.ecu import records
+    from canair.analysis import ecu_summary as records
     from canair.cli.commands.ecu.detail import cmd_detail
 
-    monkeypatch.setattr(records, "_captures_by_pid", lambda _name: (Counter({"2101": 7}), 7))
+    monkeypatch.setattr(records, "captures_by_pid", lambda _name: (Counter({"2101": 7}), 7))
     info = {"name": "BMS"}
     ecu_def = _pids_data_bms()["ecus"]["BMS"]
     rec = _detail_record(info, 0x7E4, "BMS", ecu_def)
@@ -258,12 +258,12 @@ def test_value_grid_shrinks_to_fit_width():
 
 
 def test_pids_latest_records_shape(monkeypatch):
-    from canair.cli.commands.ecu import records
+    from canair.analysis import ecu_summary as records
 
     # Latest capture only for 2101; 2102/2180 have none.
     monkeypatch.setattr(
         records,
-        "_latest_capture_by_pid",
+        "latest_capture_by_pid",
         lambda name: {
             "2101": {
                 "payload": "620...",
@@ -284,11 +284,12 @@ def test_pids_latest_records_shape(monkeypatch):
 
 
 def test_cmd_pids_renders_values_not_hex(monkeypatch, capsys):
-    from canair.cli.commands.ecu import pids_view, records
+    from canair.analysis import ecu_summary as records
+    from canair.cli.commands.ecu import pids_view
 
     monkeypatch.setattr(
         records,
-        "_latest_capture_by_pid",
+        "latest_capture_by_pid",
         lambda name: {"2101": {"payload": "6201DEADBEEF", "date": "2026-07-22"}},
     )
     monkeypatch.setattr("canair.captures.store.decoded_preview", lambda e: {"SOC": "79.0 %"})
@@ -305,9 +306,10 @@ def test_cmd_pids_renders_values_not_hex(monkeypatch, capsys):
 def test_cmd_pids_json(monkeypatch, capsys):
     import json
 
-    from canair.cli.commands.ecu import pids_view, records
+    from canair.analysis import ecu_summary as records
+    from canair.cli.commands.ecu import pids_view
 
-    monkeypatch.setattr(records, "_latest_capture_by_pid", lambda name: {})
+    monkeypatch.setattr(records, "latest_capture_by_pid", lambda name: {})
     rc = pids_view.cmd_pids({"name": "BMS"}, 0x7E4, _pids_data_multi(), as_json=True)
     out = capsys.readouterr().out
     assert rc == 0
