@@ -27,8 +27,8 @@ from canair.uds.protocol import KWP
 from canair.uds.response import UdsResponse
 from canair.uds.services import (
     KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
-    RESPONSE_SID_OFFSET,
-    service_info,
+    identifier_width,
+    request_sid_of,
 )
 
 if TYPE_CHECKING:
@@ -57,8 +57,7 @@ _tui_logger = logging.getLogger("iocontrol-tui")
 
 def _response_id_width(response_sid: int) -> int:
     """How many identifier bytes a positive response echoes after its SID."""
-    info = service_info(response_sid - RESPONSE_SID_OFFSET)
-    return info.id_width if info else 0
+    return identifier_width(request_sid_of(response_sid))
 
 
 async def send_iocontrol(terminal: Terminal, hex_cmd: str) -> UdsResponse:

@@ -53,13 +53,9 @@
   "test_to_test_imports": [],
   "flat_tests": [],
   "protocol_literals": {
-    "canair.captures": 2,
     "canair.cli.commands.coverage.payloads": 2,
-    "canair.live.scan": 2,
-    "canair.live.scan_presets": 1,
     "canair.live.skm_wakeup": 4,
     "canair.live.tester": 1,
-    "canair.uds.describe": 20,
-    "canair.uds.echo": 1
+    "canair.uds.describe": 20
   }
 }

@@ -7,6 +7,7 @@ from collections.abc import Sequence
 
 from canair.core.id_ranges import IdRange, as_id_ranges, count_ids, format_id_ranges, iter_ids
 from canair.privacy.sensitive import MASK, profile_set
+from canair.uds.services import identifier_width
 
 from ..transport.protocol import Terminal
 
@@ -61,7 +62,7 @@ async def mode_scan(
     ranges = as_id_ranges(pid_ranges)
     total = count_ids(ranges)
 
-    wide_did = service in (0x22, 0x2F, 0x31)
+    wide_did = identifier_width(service) == 2
     did_fmt = "04X" if wide_did else "02X"
     did_label = "DID" if wide_did else "PID"
     ranges_text = format_id_ranges(ranges, 4 if wide_did else 2)
@@ -241,11 +242,7 @@ def _print_next_steps(console, ecu, service, positive, negative, errors, saved):
     """Suggest sensible follow-up commands based on what the scan found."""
     hints: list[str] = []
     if positive:
-        first = (
-            f"0x{positive[0][0]:04X}"
-            if service in (0x22, 0x2F, 0x31)
-            else f"0x{positive[0][0]:02X}"
-        )
+        first = f"0x{positive[0][0]:0{identifier_width(service) * 2 or 2}X}"
         if not saved:
             hints.append(
                 f'Record these hits:   [cyan]canair scan {ecu} … --save --label "…"[/cyan]'

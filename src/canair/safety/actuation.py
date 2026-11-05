@@ -52,7 +52,7 @@ from canair.uds.services import (
     ROUTINE_CONTROL,
     SECURITY_ACCESS,
     TESTER_PRESENT,
-    service_info,
+    identifier_width,
 )
 from canair.uds.subfunctions import IoControlParameter, RoutineControlType
 
@@ -149,8 +149,7 @@ def parse_io_request(request: str | bytes) -> IoRequest | None:
         KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
     ):
         return None
-    info = service_info(data[0])
-    width = info.id_width if info else 0
+    width = identifier_width(data[0])
     if len(data) < 1 + width:
         return None
     rest = data[1 + width :]

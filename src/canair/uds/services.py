@@ -220,6 +220,15 @@ def service_info(sid: int) -> ServiceInfo | None:
     return _BY_SID.get(sid)
 
 
+def identifier_width(sid: int) -> int:
+    """Bytes of the identifier a request on ``sid`` carries after the SID, 0 if none or unknown.
+
+    1 is a KWP2000 local identifier or an OBD-II PID, 2 a UDS DID or routine id.
+    """
+    info = _BY_SID.get(sid)
+    return info.id_width if info else 0
+
+
 def service_name(sid: int) -> str | None:
     """Human name for a request SID (e.g. ``0x30`` -> ``InputOutputControlByLocalIdentifier``).
 

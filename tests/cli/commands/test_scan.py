@@ -56,6 +56,7 @@ class TestServiceHelpers:
         assert is_wide_service(0x2F)
         assert is_wide_service(0x31)
         assert not is_wide_service(0x21)
+        assert is_wide_service(0x2E)  # WriteDataByIdentifier takes a DID too
 
     def test_preset_by_service(self):
         assert preset_by_service(0x21).name == "live-data"

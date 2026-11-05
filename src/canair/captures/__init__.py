@@ -29,6 +29,7 @@ from canair.states import join_states as _join_states
 from canair.states import parse_states as _parse_states
 from canair.states.spans import StateSpan
 from canair.uds.response import UdsResponse
+from canair.uds.services import identifier_width
 
 # The ``transport`` of a device-free session (``canair import uds``): its payloads
 # never came off a live bus here.
@@ -226,7 +227,7 @@ def build_scan_session(
     transport: str | None = None,
 ) -> CaptureSession:
     """Build a capture session dict from scan results (one range or several)."""
-    wide_did = service in (0x22, 0x2F, 0x31)
+    wide_did = identifier_width(service) == 2
     did_fmt = "04X" if wide_did else "02X"
 
     range_str = format_id_ranges(as_id_ranges(pid_range), 4 if wide_did else 2)
@@ -894,8 +895,7 @@ def suggest_scan_label(
     append_bytes: str = "",
 ) -> str:
     """Generate a suggested label for a scan session."""
-    wide_did = service in (0x22, 0x2F, 0x31)
-    ranges = format_id_ranges(as_id_ranges(pid_range), 4 if wide_did else 2)
+    ranges = format_id_ranges(as_id_ranges(pid_range), 4 if identifier_width(service) == 2 else 2)
     suffix = f" +{append_bytes}" if append_bytes else ""
     return f"Scan {ecu_name} {service:02X} {ranges}{suffix}"
 

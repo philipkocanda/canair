@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from canair.core.id_ranges import IdRange
 from canair.ecus.did_families import FAMILY_SIZE, did_families, family_ranges
 from canair.uds.protocol import KWP, classify_protocol
+from canair.uds.services import identifier_width
 
 
 @dataclass(frozen=True)
@@ -24,7 +25,6 @@ class ServicePreset:
 
     name: str
     service: int
-    wide: bool  # 4-hex-digit DIDs (22/2F/31) vs 2-hex-digit PIDs (21)
     default_range: str
     summary: str
     # Whether scanning this service typically needs an extended session.
@@ -38,21 +38,18 @@ SERVICE_PRESETS: tuple[ServicePreset, ...] = (
     ServicePreset(
         name="live-data",
         service=0x21,
-        wide=False,
         default_range="01-FF",
         summary="KWP2000 paged live data (powertrain ECUs: BMS, VCU, MCU, LDC)",
     ),
     ServicePreset(
         name="read-did",
         service=0x22,
-        wide=True,
         default_range="F100-F1FF",
         summary="UDS ReadDataByIdentifier (body/comfort ECUs)",
     ),
     ServicePreset(
         name="iocontrol",
         service=0x2F,
-        wide=True,
         # Make-neutral fallback: the full DID space. Real scans PID-derive a
         # tighter per-ECU range (see `infer_iocontrol_ranges`) or read the
         # ECU's `iocontrol_scan_ranges:` profile field.
@@ -65,7 +62,6 @@ SERVICE_PRESETS: tuple[ServicePreset, ...] = (
     ServicePreset(
         name="iocontrol-kwp",
         service=0x30,
-        wide=False,  # KWP2000 local identifier is a single byte (2 hex digits)
         default_range="00-FF",
         summary="KWP2000 InputOutputControlByLocalIdentifier (powertrain actuators)",
         needs_session=True,
@@ -75,7 +71,6 @@ SERVICE_PRESETS: tuple[ServicePreset, ...] = (
     ServicePreset(
         name="routine",
         service=0x31,
-        wide=True,
         default_range="F000-F0FF",
         summary="UDS RoutineControl (diagnostic routines)",
         needs_session=True,
@@ -113,8 +108,8 @@ def preset_by_service(service: int) -> ServicePreset | None:
 
 
 def is_wide_service(service: int) -> bool:
-    """True if this service uses 4-hex-digit DIDs (22/2F/31)."""
-    return service in (0x22, 0x2F, 0x31)
+    """True if this service's identifier is a 4-hex-digit DID or routine id (22/2E/2F/31)."""
+    return identifier_width(service) == 2
 
 
 class ServiceError(ValueError):

@@ -14,13 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from canair.uds.services import READ_DATA_BY_IDENTIFIER, RESPONSE_SID_OFFSET
-
-#: Services whose request carries one 1-byte identifier that a positive reply
-#: repeats right after its SID: KWP2000 readEcuIdentification (0x1A) and
-#: readDataByLocalIdentifier (0x21), and OBD-II modes 0x01 (current data) and 0x09
-#: (vehicle information).
-_ONE_BYTE_ID_SERVICES = frozenset({0x01, 0x09, 0x1A, 0x21})
+from canair.uds.services import READ_DATA_BY_IDENTIFIER, RESPONSE_SID_OFFSET, identifier_width
 
 
 def hex_bytes(text: str) -> bytes | None:
@@ -63,7 +57,7 @@ def request_echo(request_hex: str) -> tuple[int, bytes] | None:
     if req is None:
         return None
     sid = req[0]
-    if sid in _ONE_BYTE_ID_SERVICES:
+    if identifier_width(sid) == 1:
         return (sid, req[1:2]) if len(req) == 2 else None
     if sid == READ_DATA_BY_IDENTIFIER:
         odd_length = len(req) % 2 == 1  # SID + whole 2-byte DIDs

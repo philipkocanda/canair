@@ -15,6 +15,7 @@ from canair.uds.services import (
     SERVICES,
     TESTER_PRESENT,
     TESTER_PRESENT_REQUEST,
+    identifier_width,
     positive_response_sid,
     request_sid_of,
     service_info,
@@ -195,3 +196,10 @@ def test_positive_response_sid_round_trips():
 
 def test_tester_present_request_is_the_tester_present_service():
     assert bytes.fromhex(TESTER_PRESENT_REQUEST) == bytes([TESTER_PRESENT, 0x00])
+
+
+def test_identifier_width_comes_from_the_registry():
+    assert identifier_width(READ_DATA_BY_IDENTIFIER) == 2
+    assert identifier_width(0x21) == 1
+    assert identifier_width(0x10) == 0
+    assert identifier_width(0x99) == 0

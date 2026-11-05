@@ -268,6 +268,14 @@ class TestRequestEcho:
     def test_other_service_none(self):
         assert request_echo("1003") is None
 
+    def test_every_one_byte_id_service_of_the_registry_is_validated(self):
+        # KWP2000 0x33/0x32 answer 73/72 {LID}: the registry gives them a 1-byte id,
+        # so their single-LID reads are validated like 0x21 and 0x1A.
+        assert request_echo("3301") == (0x33, b"\x01")
+        assert request_echo("3201") == (0x32, b"\x01")
+        # A 0x30 request carries its control option after the LID, so it is not a plain read.
+        assert request_echo("300A00") is None
+
     def test_obd_mode_01_and_09_single_pid(self):
         assert request_echo("010D") == (0x01, b"\x0d")
         assert request_echo("0902") == (0x09, b"\x02")
