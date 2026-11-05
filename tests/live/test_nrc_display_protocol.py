@@ -60,14 +60,14 @@ class TestRoutinesTui:
 
 class TestBix:
     def test_the_service_line_names_an_nrc_for_the_ecus_protocol(self, capsys):
-        from canair.cli.commands.bix import _print_service_line
+        from canair.cli.commands.bix.annotate import print_service_line
         from canair.uds.layout import layout_of
 
         payload = bytes.fromhex("7F2172")
         layout = layout_of(payload)
         assert layout is not None
         frame = [(b, i) for i, b in enumerate(payload)]
-        _print_service_line(layout, frame, KWP)
+        print_service_line(layout, frame, KWP)
         assert "transferAborted" in capsys.readouterr().out
-        _print_service_line(layout, frame)
+        print_service_line(layout, frame)
         assert "generalProgrammingFailure" in capsys.readouterr().out

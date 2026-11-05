@@ -5,6 +5,7 @@ import argparse
 import pytest
 
 from canair.cli.commands import bix
+from canair.cli.commands.bix import annotate, convert, payload, subfunction, table
 from canair.render import ansi
 
 
@@ -41,7 +42,7 @@ def _parse(argv):
     ],
 )
 def test_parse_input_notation_and_leading_zeros(token, expected):
-    assert bix._parse_input(token) == expected
+    assert convert.parse_input(token) == expected
 
 
 # ── --annotate accepts quoted, unquoted, and no-space hex identically ──
@@ -77,8 +78,8 @@ def test_annotate_joins_tokens_before_parsing():
 
 def test_parse_hex_payload_spacing_equivalence():
     assert (
-        bix._parse_hex_payload("62 01 A0 55")
-        == bix._parse_hex_payload("6201A055")
+        payload.parse_hex_payload("62 01 A0 55")
+        == payload.parse_hex_payload("6201A055")
         == [0x62, 0x01, 0xA0, 0x55]
     )
 
@@ -88,13 +89,13 @@ def test_parse_hex_payload_spacing_equivalence():
 
 def test_parse_hex_payload_odd_length_exits(capsys):
     with pytest.raises(SystemExit):
-        bix._parse_hex_payload("62 0")
+        payload.parse_hex_payload("62 0")
     assert "odd number of hex characters" in capsys.readouterr().err
 
 
 def test_parse_hex_payload_invalid_byte_names_token(capsys):
     with pytest.raises(SystemExit):
-        bix._parse_hex_payload("62 ZZ A0")
+        payload.parse_hex_payload("62 ZZ A0")
     err = capsys.readouterr().err
     assert "invalid hex byte 'ZZ'" in err
 
@@ -102,7 +103,7 @@ def test_parse_hex_payload_invalid_byte_names_token(capsys):
 @pytest.mark.parametrize("raw", ["", "   "])
 def test_parse_hex_payload_empty_exits(capsys, raw):
     with pytest.raises(SystemExit):
-        bix._parse_hex_payload(raw)
+        payload.parse_hex_payload(raw)
     assert "non-empty hex payload" in capsys.readouterr().err
 
 
@@ -140,26 +141,26 @@ class TestSupportCell:
     RM = _resolved("62BC038000000001020304")
 
     def test_map_bytes_are_named(self):
-        assert bix._support_cell(self.RM, 3, "unmapped") == "support map"
+        assert annotate.support_cell(self.RM, 3, "unmapped") == "support map"
 
     def test_an_unmapped_byte_with_marks_lists_them(self):
-        assert bix._support_cell(self.RM, 7, "unmapped") == "unmapped (marked bits 0)"
+        assert annotate.support_cell(self.RM, 7, "unmapped") == "unmapped (marked bits 0)"
 
     def test_an_unmapped_byte_without_marks_is_not_a_signal(self):
-        assert bix._support_cell(self.RM, 8, "unmapped") == "not a signal"
+        assert annotate.support_cell(self.RM, 8, "unmapped") == "not a signal"
 
     def test_a_defined_byte_keeps_its_signal_name(self):
-        assert bix._support_cell(self.RM, 7, "[DOOR:0]") == "[DOOR:0]"
-        assert bix._support_cell(self.RM, 8, "[ODD:3]") == "[ODD:3]"
+        assert annotate.support_cell(self.RM, 7, "[DOOR:0]") == "[DOOR:0]"
+        assert annotate.support_cell(self.RM, 8, "[ODD:3]") == "[ODD:3]"
 
     def test_a_byte_beyond_the_covered_data_is_untouched(self):
         rm = _resolved("62BC03800000000102030405")
-        assert bix._support_cell(rm, 11, "unmapped") == "unmapped"
+        assert annotate.support_cell(rm, 11, "unmapped") == "unmapped"
 
     def test_per_byte_marks_do_not_list_bits(self):
         rm = _resolved("62BC038000000001020304", unit="byte")
-        assert bix._support_cell(rm, 7, "unmapped") == "unmapped"
-        assert bix._support_cell(rm, 8, "unmapped") == "not a signal"
+        assert annotate.support_cell(rm, 7, "unmapped") == "unmapped"
+        assert annotate.support_cell(rm, 8, "unmapped") == "not a signal"
 
 
 def test_annotate_ecu_requires_pid(capsys):
@@ -344,11 +345,14 @@ def test_unset_subfunction_flag_resolves_for_every_mode(argv, capsys):
 
 
 def test_resolve_sub_bytes_precedence():
-    assert bix._resolve_sub_bytes(_parse(["-a", "62"])) == (1, False)
-    assert bix._resolve_sub_bytes(_parse(["-a", "62", "--pid", "22BC03"])) == (2, True)
-    assert bix._resolve_sub_bytes(_parse(["-a", "62", "--pid", "2101"])) == (1, True)
-    assert bix._resolve_sub_bytes(_parse(["-2", "-a", "62"])) == (2, False)
-    assert bix._resolve_sub_bytes(_parse(["-1", "-a", "62", "--pid", "22BC03"])) == (1, False)
+    assert subfunction.resolve_sub_bytes(_parse(["-a", "62"])) == (1, False)
+    assert subfunction.resolve_sub_bytes(_parse(["-a", "62", "--pid", "22BC03"])) == (2, True)
+    assert subfunction.resolve_sub_bytes(_parse(["-a", "62", "--pid", "2101"])) == (1, True)
+    assert subfunction.resolve_sub_bytes(_parse(["-2", "-a", "62"])) == (2, False)
+    assert subfunction.resolve_sub_bytes(_parse(["-1", "-a", "62", "--pid", "22BC03"])) == (
+        1,
+        False,
+    )
 
 
 # ── only a CONCLUSIVE --pid drives the derivation ──
@@ -356,7 +360,7 @@ def test_resolve_sub_bytes_precedence():
 
 @pytest.mark.parametrize("pid", ["2101", "21F2", "22BC03", "22b004"])
 def test_pid_sub_bytes_conclusive_for_service_prefixes(pid):
-    assert bix._pid_sub_bytes(pid) == (2 if pid.upper().startswith("22") else 1)
+    assert subfunction.pid_sub_bytes(pid) == (2 if pid.upper().startswith("22") else 1)
 
 
 @pytest.mark.parametrize(
@@ -373,7 +377,7 @@ def test_pid_sub_bytes_none_when_service_is_unstated(pid):
     # subfunction_bytes_for_pid() answers 1 for all of these as a DEFAULT; treating
     # that as a determination would state a width with false confidence — and for a
     # short-form DID, the wrong one.
-    assert bix._pid_sub_bytes(pid) is None
+    assert subfunction.pid_sub_bytes(pid) is None
 
 
 def test_short_form_did_is_read_from_the_payload_instead(capsys):
@@ -413,7 +417,7 @@ def test_derived_width_never_disagrees_with_shared_helper():
     from canair.uds.layout import subfunction_bytes_for_pid
 
     for pid in ("2101", "2102", "22BC03", "22C101", "22B002"):
-        assert bix._pid_sub_bytes(pid) == subfunction_bytes_for_pid(pid)
+        assert subfunction.pid_sub_bytes(pid) == subfunction_bytes_for_pid(pid)
 
 
 # ── service-driven Role labels (DID / LID / PID / RID / SF / CTRL / NRC) ──
@@ -604,17 +608,17 @@ def test_table_no_ansi_when_not_a_tty(capsys):
 
 def test_table_role_multiframe_layout():
     # sub=1 (21xx): B00/B01 FF PCI, B02 SID, B03 PID, B04.. data; B08 CF PCI.
-    assert bix._table_role(0, 1) == "FF PCI"
-    assert bix._table_role(1, 1) == "FF PCI"
-    assert bix._table_role(2, 1) == "SID"
-    assert bix._table_role(3, 1) == "PID"
-    assert bix._table_role(4, 1) == ""
-    assert bix._table_role(8, 1) == "CF PCI"
-    assert bix._table_role(16, 1) == "CF PCI"
+    assert table.table_role(0, 1) == "FF PCI"
+    assert table.table_role(1, 1) == "FF PCI"
+    assert table.table_role(2, 1) == "SID"
+    assert table.table_role(3, 1) == "PID"
+    assert table.table_role(4, 1) == ""
+    assert table.table_role(8, 1) == "CF PCI"
+    assert table.table_role(16, 1) == "CF PCI"
     # sub=2 (22xxxx): B03/B04 are the two DID bytes.
-    assert bix._table_role(3, 2) == "DID"
-    assert bix._table_role(4, 2) == "DID"
-    assert bix._table_role(5, 2) == ""
+    assert table.table_role(3, 2) == "DID"
+    assert table.table_role(4, 2) == "DID"
+    assert table.table_role(5, 2) == ""
 
 
 def test_lookup_warns_when_neighbor_is_pci(capsys):
@@ -708,9 +712,9 @@ def test_pad_aligns_before_coloring(monkeypatch):
     monkeypatch.setattr("sys.stdout.isatty", lambda: True)
     # The visible text is padded to width BEFORE the ANSI codes wrap it, so the
     # padded region stays width-correct regardless of color.
-    assert bix._pad("AB", 5, ansi.CYAN) == f"{ansi.CYAN}AB   {ansi.RESET}"
+    assert table.pad("AB", 5, ansi.CYAN) == f"{ansi.CYAN}AB   {ansi.RESET}"
     monkeypatch.setattr("sys.stdout.isatty", lambda: False)
-    assert bix._pad("AB", 5, ansi.CYAN) == "AB   "
+    assert table.pad("AB", 5, ansi.CYAN) == "AB   "
 
 
 def _row(out: str, wican: str) -> str:
@@ -909,13 +913,13 @@ def test_looks_like_predicates_are_disjoint():
     # The reliability guarantee: no byte value is both a plausible PCI first byte
     # and a plausible UDS response SID.
     for b in range(256):
-        assert not (bix._looks_like_pci_first_byte(b) and bix._looks_like_uds_sid(b))
-    assert bix._looks_like_pci_first_byte(0x06)  # SF PCI
-    assert bix._looks_like_pci_first_byte(0x10)  # FF PCI
-    assert bix._looks_like_pci_first_byte(0x21)  # CF PCI
-    assert bix._looks_like_uds_sid(0x62)  # 22xxxx response
-    assert bix._looks_like_uds_sid(0x61)  # 21xx response
-    assert bix._looks_like_uds_sid(0x7F)  # negative response
+        assert not (payload.looks_like_pci_first_byte(b) and payload.looks_like_uds_sid(b))
+    assert payload.looks_like_pci_first_byte(0x06)  # SF PCI
+    assert payload.looks_like_pci_first_byte(0x10)  # FF PCI
+    assert payload.looks_like_pci_first_byte(0x21)  # CF PCI
+    assert payload.looks_like_uds_sid(0x62)  # 22xxxx response
+    assert payload.looks_like_uds_sid(0x61)  # 21xx response
+    assert payload.looks_like_uds_sid(0x7F)  # negative response
 
 
 # ── Torque letter and OBDb bix columns are independent opt-ins ──
