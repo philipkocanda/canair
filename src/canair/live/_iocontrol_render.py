@@ -12,8 +12,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..tui import terminal_columns as _terminal_columns
-from ..tui import terminal_lines as _terminal_lines
+from canair.core.terminal import terminal_columns as _terminal_columns
+from canair.core.terminal import terminal_lines as _terminal_lines
+
 from ._iocontrol_actuate import ACTUATOR_ERROR, ACTUATOR_OFF, ACTUATOR_ON
 
 if TYPE_CHECKING:

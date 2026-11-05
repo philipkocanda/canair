@@ -177,7 +177,7 @@ class TestSweep:
         def pressed(enabled=True):
             yield _Pressed()
 
-        monkeypatch.setattr("canair.tui.skip_key.skip_listener", pressed)
+        monkeypatch.setattr("canair.core.skip_key.skip_listener", pressed)
         t = FakeTerminal(CCM_REPLIES)
         await dtc.mode_dtc_scan_all(t, retry=False, pids_data=PIDS_DATA)
         assert "1904582C0001" not in t.sent
@@ -196,14 +196,14 @@ class TestSweep:
 
 class TestSkipListener:
     def test_inert_off_a_tty(self, monkeypatch):
-        from canair.tui.skip_key import skip_listener
+        from canair.core.skip_key import skip_listener
 
         monkeypatch.setattr("sys.stdin.isatty", lambda: False, raising=False)
         with skip_listener() as keys:
             assert not keys.active and not keys.pressed
 
     def test_disabled_is_inert(self):
-        from canair.tui.skip_key import skip_listener
+        from canair.core.skip_key import skip_listener
 
         with skip_listener(enabled=False) as keys:
             assert not keys.active and not keys.pressed

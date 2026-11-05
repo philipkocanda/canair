@@ -13,14 +13,14 @@ import termios
 import tty
 from pathlib import Path
 
+from canair.core.terminal import terminal_columns as _terminal_columns
+from canair.core.terminal import terminal_lines as _terminal_lines
 from canair.ecus.pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
 from canair.live._iocontrol_actuate import ActuatorState, IOControlActuator, send_iocontrol
 from canair.live._iocontrol_render import _truncate_text, render_iocontrol
 from canair.live.status import format_status_value, query_param_status
 from canair.safety.actuation import on_refusal
 from canair.transport.protocol import Terminal
-from canair.tui import terminal_columns as _terminal_columns
-from canair.tui import terminal_lines as _terminal_lines
 from canair.uds.protocol import DiagProtocol
 from canair.yaml_edit.pids import PidsEditError, promote_discovery, update_iocontrol_field
 

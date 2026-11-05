@@ -216,7 +216,7 @@ async def _snapshot_step(
     terminal: Terminal, results: list[dict], pids_data: dict | None, as_json: bool
 ) -> SnapshotRun:
     """Read the snapshots of every code the sweep found, skippable with a keypress on a TTY."""
-    from canair.tui.skip_key import skip_listener
+    from canair.core.skip_key import skip_listener
 
     pending = [r for r in results if wants_snapshots(r)]
     codes = sum(len(r["dtcs"]) for r in pending)

@@ -27,10 +27,10 @@ import termios
 import tty
 from pathlib import Path
 
+from canair.core.terminal import terminal_columns as _terminal_columns
+from canair.core.terminal import terminal_lines as _terminal_lines
 from canair.ecus.pids import RoutineIndexEntry, build_routines_index, load_pids
 from canair.transport.protocol import Terminal
-from canair.tui import terminal_columns as _terminal_columns
-from canair.tui import terminal_lines as _terminal_lines
 from canair.uds.nrc import nrc_abbrev
 from canair.yaml_edit.pids import PidsEditError, update_routines_field
 

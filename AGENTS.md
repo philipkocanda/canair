@@ -287,7 +287,7 @@ and **`g`/`G` address the view's primary axis**.
   and `canair config`.
   **Snapshots:** `dtc read` also reads the snapshots a UDS ECU stored with each code it
   reports (`19 03`, then `19 04` per record; `--no-snapshots` opts out), as a skippable final
-  step with `--all` (`src/canair/tui/skip_key.py`), and before a `--clear` erases them. The mode
+  step with `--all` (`src/canair/core/skip_key.py`), and before a `--clear` erases them. The mode
   package is `src/canair/live/dtc/` (one module per concern; device side `snapshots.py`, `--save`
   `snapshot_capture.py`), the I/O-free parser `src/canair/dtc/snapshot.py`, the profile bridge
   (lengths, decoding as a `62 <DID>` reply) `src/canair/dtc/snapshot_decode.py`, the text

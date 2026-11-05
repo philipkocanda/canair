@@ -1,9 +1,8 @@
-"""Small terminal helpers shared across modes.
+"""The Textual kit, and the arrow-key list picker of the ``canair profile`` command.
 
-Kept intentionally dependency-light so any mode can import it. The live monitor
-now uses Textual (:mod:`canair.live._monitor_tui`); the remaining consumers here
-are the IOControl / routines TUIs (viewport sizing) and the capture stepper
-(single-key reads).
+This module holds the picker (:func:`select_from_list`, a Rich screen over single-key reads).
+The terminal's size, which the IOControl and routines screens of ``live/`` read, is
+:mod:`canair.core.terminal`.
 
 Belongs: the shared Textual kit: key roles, help, modals, scrolling, status and widgets.
 Not here: a whole app (they live next to their command or in ``live/``) and any non-Textual code.
@@ -13,7 +12,6 @@ Imports: ``core`` and Textual. Only this kit and the apps built on it import ``t
 from __future__ import annotations
 
 import os
-import shutil
 import sys
 from collections.abc import Callable, Sequence
 
@@ -21,19 +19,7 @@ __all__ = [
     "key_to_action",
     "read_key_raw",
     "select_from_list",
-    "terminal_columns",
-    "terminal_lines",
 ]
-
-
-def terminal_lines(default: int = 24) -> int:
-    """Best-effort terminal height for viewport sizing."""
-    return shutil.get_terminal_size(fallback=(120, default)).lines
-
-
-def terminal_columns(default: int = 120) -> int:
-    """Best-effort terminal width for layout."""
-    return shutil.get_terminal_size(fallback=(default, 24)).columns
 
 
 def read_key_raw(fd: int) -> str:
