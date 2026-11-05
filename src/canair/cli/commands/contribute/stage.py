@@ -89,7 +89,7 @@ def summarize(run_: Contribution):
     from canair.contribute import summary as S
 
     try:
-        from canair.ecus import build_rx_index
+        from canair.ecus.registry import build_rx_index
 
         rx_names = build_rx_index()
     except Exception:

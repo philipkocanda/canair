@@ -147,8 +147,8 @@ def _discover_addressing(prof):
     names against (a ``--dir`` outside any profile), which the CLI reports as an
     error rather than a traceback.
     """
-    from canair.ecus import load_ecus
     from canair.ecus.pids import load_pids
+    from canair.ecus.registry import load_ecus
     from canair.migrations.discover import Addressing
     from canair.profile import ProfileError
     from canair.uds.addressing import resolve_mode, resolve_rx_offset
@@ -248,7 +248,7 @@ def cmd_split_batched(
 
     from canair.analysis.unsplit_batches import split_unsplit_batches
     from canair.captures.io import resolve_capture_layers
-    from canair.ecus import build_rx_index
+    from canair.ecus.registry import build_rx_index
 
     cdir = resolve_captures_dir(captures_dir)
     if captures_dir is not None and not cdir.is_dir():

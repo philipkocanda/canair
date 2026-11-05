@@ -146,7 +146,7 @@ async def mode_discover_functional(
     identify: bool = False,
 ) -> list[SweepRound]:
     """Broadcast ``request`` ``repeat`` times and report every responder."""
-    from canair.ecus import load_ecus
+    from canair.ecus.registry import load_ecus
     from canair.uds.addressing import functional_request_id, resolve_mode, resolve_rx_offset
 
     if interval < MIN_INTERVAL_S:

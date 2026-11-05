@@ -27,7 +27,7 @@ from .query import _dump_json, _gather_query
 
 def _safe_alias_index() -> dict[str, str]:
     """Canonical-name -> alias map for display, or {} if the registry is unavailable."""
-    from canair.ecus import build_alias_index
+    from canair.ecus.names import build_alias_index
 
     try:
         return build_alias_index()

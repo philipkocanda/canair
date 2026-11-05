@@ -13,7 +13,6 @@
     "canair.tui.apps.captures_step.app": 671,
     "canair.contribute": 934,
     "canair.device.lock": 563,
-    "canair.ecus": 502,
     "canair.ecus.pids": 689,
     "canair.live.actuate.iocontrol": 518,
     "canair.live.read.exec": 614,
@@ -30,7 +29,7 @@
     "canair.yaml_edit.revisions": 560,
     "canair.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 1103,
+  "deferred_internal_imports": 1101,
   "import_linter_ignores": 0,
   "packages_without_charter": [],
   "test_to_test_imports": [],

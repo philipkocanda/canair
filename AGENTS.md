@@ -976,7 +976,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   from a tracked file, so each clone must run **`canair captures merge-driver --install`** once;
   until then merges just fall back to conflict markers. A capture's **`rx`** field is the ECU CAN
   *response* address (its `rx_id`, else request TX + the profile `rx_offset`, resolved by
-  `src/canair/ecus/__init__.py::rx_for_tx`) — **not** an ECU name; that is why it was renamed from `ecu`. A
+  `src/canair/ecus/registry.py::rx_for_tx`) — **not** an ECU name; that is why it was renamed from `ecu`. A
   discover capture's `rx` is `broadcast`, and each responder records its probed `tx` plus `rx`.
   **Every `--save` path records `transport` from the live client**
   (`src/canair/transport/stats.py::client_transport`), never by re-resolving config — that ignored

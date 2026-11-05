@@ -415,7 +415,7 @@ class TestCommands:
     def test_ecu_detail_shows_open_dtcs(self, logp, capsys):
         from canair.cli.commands import ecu as ecu_cmd
         from canair.dtc.refs import ecu_ref
-        from canair.ecus import resolve_tx
+        from canair.ecus.names import resolve_tx
 
         tx = resolve_tx("BMS")
         assert tx is not None

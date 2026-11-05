@@ -211,7 +211,7 @@ def run_coverage(monkeypatch, capsys):
         monkeypatch.setattr(
             coverage, "build_ecu_index", lambda *_: {ECU: {"pids": {PID: {"parameters": params}}}}
         )
-        monkeypatch.setattr("canair.ecus.canonical_ecu_name_safe", lambda n: n)
+        monkeypatch.setattr("canair.ecus.names.canonical_ecu_name_safe", lambda n: n)
         p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
         rc = coverage.run(p.parse_args(argv))
         captured = capsys.readouterr()

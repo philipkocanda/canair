@@ -132,7 +132,7 @@ def selector_text(step: dict) -> str:
 
 def _canonical_name_index() -> dict[str, str] | None:
     """The ECU name/alias index, or ``None`` when no registry is available."""
-    from canair.ecus import build_canonical_name_index
+    from canair.ecus.names import build_canonical_name_index
 
     try:
         return build_canonical_name_index()
@@ -155,7 +155,7 @@ def _merge_query_run(run: list[dict], name_index: dict[str, str] | None) -> list
     (``BMS:2101`` + ``BMS:2105``) is normal and stays silent, and an unmerged step
     is returned byte-identical (no extra key).
     """
-    from canair.ecus import canonical_ecu_name_safe
+    from canair.ecus.names import canonical_ecu_name_safe
 
     merged: dict[str, dict] = {}
     sources: dict[str, list[str]] = {}

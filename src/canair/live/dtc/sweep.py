@@ -8,7 +8,7 @@ from canair.render import ansi
 from canair.uds.services import DEFAULT_SESSION_REQUEST
 
 from ...dtc.snapshot_report import snapshot_lines, undefined_hints
-from ...ecus import ecu_display
+from ...ecus.names import ecu_display
 from ...transport.protocol import Terminal
 from .reading import _read_one
 from .scan_log import _log_scan, _print_log_result
@@ -92,7 +92,7 @@ async def mode_dtc_scan_all(
     read last, once every ECU's codes are in, so a slow snapshot read never delays them.
     On a TTY a keypress skips the rest of that step (:func:`_snapshot_step`).
     """
-    from ...ecus import load_ecus
+    from ...ecus.registry import load_ecus
 
     registry = load_ecus()
     tx_ids = sorted(registry)

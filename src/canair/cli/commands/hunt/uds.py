@@ -39,7 +39,7 @@ from .render import hit_label
 
 def run(args) -> int:
     from canair.analysis.physical.unit_guess import resolve_unit_candidates
-    from canair.ecus import canonical_ecu_name_safe
+    from canair.ecus.names import canonical_ecu_name_safe
 
     if not args.ecu or not args.pid:
         messages.error("ECU and PID are required (e.g. `hunt AAF 2181 --against …`)")

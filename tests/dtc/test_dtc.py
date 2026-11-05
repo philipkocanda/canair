@@ -303,6 +303,12 @@ class TestScanLog:
         assert "✓ cleared" not in out
 
 
+def _patch_load_ecus(monkeypatch, fake) -> None:
+    """Replace the registry for every module that bound ``load_ecus`` for itself."""
+    for module in ("registry", "names", "protocol"):
+        monkeypatch.setattr(f"canair.ecus.{module}.load_ecus", fake)
+
+
 class TestScanAll:
     @pytest.mark.asyncio
     async def test_scan_all_json(self, monkeypatch, capsys):
@@ -312,8 +318,8 @@ class TestScanAll:
             "resolve_protocol",
             lambda proto, tx: "kwp" if tx == 0x7E4 else "uds",
         )
-        monkeypatch.setattr(
-            "canair.ecus.load_ecus",
+        _patch_load_ecus(
+            monkeypatch,
             lambda: {
                 0x7A0: {"name": "BCM", "id_protocol": "UDS"},
                 0x7E4: {"name": "BMS", "id_protocol": "KWP2000"},
@@ -336,8 +342,8 @@ class TestScanAll:
     @pytest.mark.asyncio
     async def test_scan_all_text_no_dtcs(self, monkeypatch, capsys):
         monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
-        monkeypatch.setattr(
-            "canair.ecus.load_ecus",
+        _patch_load_ecus(
+            monkeypatch,
             lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
         )
         t = FakeTerminal({"1902FF": _ok("5902FF")})  # both clean
@@ -354,8 +360,8 @@ class TestScanAll:
     @pytest.mark.asyncio
     async def test_scan_all_reports_no_response_separately(self, monkeypatch, capsys):
         monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
-        monkeypatch.setattr(
-            "canair.ecus.load_ecus",
+        _patch_load_ecus(
+            monkeypatch,
             lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
         )
         # BCM clean; IGPM never answers (not in table).
@@ -368,7 +374,7 @@ class TestScanAll:
     @pytest.mark.asyncio
     async def test_scan_all_retry_recovers_slow_ecu(self, monkeypatch, capsys):
         monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
-        monkeypatch.setattr("canair.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
+        _patch_load_ecus(monkeypatch, lambda: {0x7A0: {"name": "BCM"}})
         # NO DATA on first read, a DTC once retried (after the wake).
         t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
         await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=True)
@@ -380,7 +386,7 @@ class TestScanAll:
     @pytest.mark.asyncio
     async def test_scan_all_no_retry_leaves_no_response(self, monkeypatch, capsys):
         monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
-        monkeypatch.setattr("canair.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
+        _patch_load_ecus(monkeypatch, lambda: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
         await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False)
         data = json.loads(capsys.readouterr().out)
@@ -397,7 +403,7 @@ class TestScanAll:
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
         monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
-        monkeypatch.setattr("canair.ecus.load_ecus", lambda: {0x7A0: {"name": "BCM"}})
+        _patch_load_ecus(monkeypatch, lambda: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})  # BCM: 1 DTC
         args = live_args(dtc_all=True, mask="FF")
         assert not hasattr(args, "dtc_log")  # nothing opted in
@@ -525,7 +531,7 @@ class TestLogOffline:
         from canair.cli.commands.dtc import log as dtc_cmd
         from canair.dtc import log as dtc_log
         from canair.dtc.refs import ecu_ref
-        from canair.ecus import ecu_display, resolve_tx
+        from canair.ecus.names import ecu_display, resolve_tx
 
         self._seed(monkeypatch, tmp_path)
         tx = resolve_tx("BMS")

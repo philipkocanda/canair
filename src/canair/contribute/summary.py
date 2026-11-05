@@ -140,7 +140,7 @@ def _key(session: dict) -> str:
 
 def _add(out: ContributionSummary, session: dict, rx_names: dict[int, str], *, replaced: bool):
     from canair.captures.io import capture_rx
-    from canair.ecus import parse_ecu_ref
+    from canair.ecus.registry import parse_ecu_ref
 
     captures = [c for c in session.get("captures") or [] if isinstance(c, dict)]
     ecus: set[str] = set()

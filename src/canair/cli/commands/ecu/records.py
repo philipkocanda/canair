@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from canair.analysis import ecu_summary
-from canair.ecus import rx_addr_str
+from canair.ecus.registry import rx_addr_str
 from canair.profile import ProfileError, active
 
 # Identity fields to surface in the detail view, in display order.

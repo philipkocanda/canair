@@ -62,7 +62,7 @@ def _parse_query(query):
 
     q = parse_query(query)
     try:
-        from canair.ecus import build_canonical_name_index
+        from canair.ecus.names import build_canonical_name_index
 
         name_index = build_canonical_name_index()
     except FileNotFoundError:

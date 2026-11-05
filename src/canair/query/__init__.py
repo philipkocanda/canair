@@ -320,7 +320,7 @@ class Query:
         ``resolver`` maps a selector ECU token (already upper-cased) to a
         canonical, upper-cased ECU name — e.g. resolving an alias to the
         module's primary name. Source-agnostic: the caller supplies the mapping
-        (see :func:`canair.ecus.canonical_ecu_name`).
+        (see :func:`canair.ecus.names.canonical_ecu_name`).
         """
         return Query(tuple(Selector(resolver(s.ecu), s.pids) for s in self.selectors))
 

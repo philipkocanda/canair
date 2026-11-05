@@ -49,7 +49,7 @@ class PayloadCorpus:
 
 def load_payload_corpus(files: list[Path]) -> PayloadCorpus:
     """Every hex payload capture in ``files``, in file/session/capture order."""
-    from canair.ecus import parse_ecu_ref
+    from canair.ecus.registry import parse_ecu_ref
 
     samples: list[PayloadSample] = []
     where: list[Locator] = []

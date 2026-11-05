@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 def ecu_ref(tx_id: int) -> str:
     """The reference the log records for the ECU asked on ``tx_id`` (its rx, as hex)."""
-    from canair.ecus import rx_addr_str
+    from canair.ecus.registry import rx_addr_str
 
     return rx_addr_str(tx_id)
 
@@ -38,7 +38,7 @@ class EcuRefs:
     @classmethod
     def current(cls) -> EcuRefs:
         """From the active profile's registry, or empty when none resolves."""
-        from canair.ecus import build_rx_index, build_rx_tx_index, load_ecus
+        from canair.ecus.registry import build_rx_index, build_rx_tx_index, load_ecus
 
         try:
             ecus = load_ecus()

@@ -15,7 +15,7 @@ from canair.uds.nrc import NOT_IN_ACTIVE_SESSION_NRCS, NRC_SERVICE_NOT_SUPPORTED
 from canair.uds.protocol import KWP, UDS, UNKNOWN
 from canair.uds.response import UdsResponse
 
-from ...ecus import ecu_protocol
+from ...ecus.protocol import ecu_protocol
 
 __all__ = [
     "decode_date",

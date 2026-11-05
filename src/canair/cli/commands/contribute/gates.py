@@ -432,7 +432,7 @@ def unsplit_in_contribution(
 
 def _rx_names(profile) -> dict[int, str]:
     """RX → ECU name from the contributed profile's own registry (empty if unreadable)."""
-    from canair.ecus import build_rx_index, load_ecus
+    from canair.ecus.registry import build_rx_index, load_ecus
 
     try:
         return build_rx_index(load_ecus(profile.ecus_dir))

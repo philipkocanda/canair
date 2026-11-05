@@ -260,8 +260,9 @@ def plan_scan(
 
     Returns ``None`` if the ECU can't be resolved to a TX id.
     """
-    from canair.ecus import build_name_tx_index, load_ecus, resolve_tx
-    from canair.ecus import ecu_name as _ecu_name
+    from canair.ecus.names import build_name_tx_index, resolve_tx
+    from canair.ecus.names import ecu_name as _ecu_name
+    from canair.ecus.registry import load_ecus
 
     if ecus_data is None:
         try:

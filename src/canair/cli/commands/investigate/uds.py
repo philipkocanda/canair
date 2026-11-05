@@ -95,7 +95,7 @@ def _resolve_targets(args, since, until) -> tuple[list[tuple[str, str]], tuple[s
     query; a full QUERY is passed through to the shared mini-language parser. A
     query that resolves to exactly one PID is still rendered in full.
     """
-    from canair.ecus import canonical_ecu_name_safe
+    from canair.ecus.names import canonical_ecu_name_safe
 
     if args.ecu and args.pid:
         ecu = canonical_ecu_name_safe(args.ecu).upper()

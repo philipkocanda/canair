@@ -15,7 +15,7 @@ from canair.uds.protocol import KWP
 
 
 async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    from canair.ecus import resolve_tx
+    from canair.ecus.names import ecu_display, resolve_tx
     from canair.live.dtc import mode_dtc_clear, mode_dtc_read, mode_dtc_scan_all, resolve_protocol
 
     if getattr(args, "dtc_all", False):
@@ -50,8 +50,6 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
             group = int(str(args.group).removeprefix("0x").removeprefix("0X"), 16)
         except ValueError:
             messages.fail(f"--group must be hex (e.g. FFFFFF), got {args.group!r}", code=2)
-        from canair.ecus import ecu_display
-
         messages.warning("clearing DTCs erases the stored fault memory")
         if not confirm(
             f"Clear DTCs on {ecu_display(tx_id)} (group 0x{group & 0xFFFFFF:06X})?",

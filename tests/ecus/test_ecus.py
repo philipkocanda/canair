@@ -2,24 +2,26 @@
 
 import pytest
 
-from canair.ecus import (
+from canair.ecus.names import (
     EcuNameCollision,
     build_alias_index,
     build_canonical_name_index,
     build_name_tx_index,
-    build_rx_index,
     canonical_ecu_name,
     canonical_ecu_name_safe,
-    derive_identity_confidence,
     ecu_display,
-    ecu_identity_confidence,
     ecu_name,
+    resolve_tx,
+    rx_from_name,
+)
+from canair.ecus.registry import (
+    build_rx_index,
+    derive_identity_confidence,
+    ecu_identity_confidence,
     ecu_name_from_ref,
     load_ecus,
     parse_ecu_ref,
-    resolve_tx,
     rx_addr_str,
-    rx_from_name,
 )
 
 
@@ -166,12 +168,12 @@ class TestCanonicalEcuNameSafe:
     def test_missing_registry_falls_back_to_upper(self, monkeypatch):
         # A profile may ship pids/ without ecus.yaml: degrade to the raw name
         # instead of crashing (unlike bare canonical_ecu_name).
-        import canair.ecus as ecus_mod
+        from canair.ecus import names as ecus_mod_names
 
         def _raise(*a, **k):
             raise FileNotFoundError("ecus.yaml")
 
-        monkeypatch.setattr(ecus_mod, "canonical_ecu_name", _raise)
+        monkeypatch.setattr(ecus_mod_names, "canonical_ecu_name", _raise)
         assert canonical_ecu_name_safe("ldc") == "LDC"
         assert canonical_ecu_name_safe(None) == ""
 

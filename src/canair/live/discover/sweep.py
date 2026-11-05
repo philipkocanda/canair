@@ -130,7 +130,7 @@ def classify_round(
 ) -> SweepRound:
     """Classify every message in ``result`` against the ECU registry ``ecus``.
 
-    ``ecus`` is :func:`canair.ecus.load_ecus` output (keyed by request id, each
+    ``ecus`` is :func:`canair.ecus.registry.load_ecus` output (keyed by request id, each
     entry with its resolved ``rx_id``/``address``/``can_bus``). A responder's
     last reply counts; ResponsePending replies before it are counted, not shown.
     A responder that sent only ResponsePending is listed as ``pending``: it is

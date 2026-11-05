@@ -49,7 +49,7 @@ def _scope(ecu: str | None) -> str | None:
     if not ecu:
         return "all"
     from canair.dtc.refs import ecu_ref
-    from canair.ecus import resolve_tx
+    from canair.ecus.names import resolve_tx
 
     tx_id = resolve_tx(ecu)
     return None if tx_id is None else ecu_ref(tx_id)

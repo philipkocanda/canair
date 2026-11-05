@@ -312,7 +312,7 @@ def run(args) -> int:
 
     # Accept an ECU-registry alias (e.g. LDC for OBC) or any case, matching
     # `canair captures`/`decode`. Canonicalises to the ecus/ key before filtering.
-    from canair.ecus import canonical_ecu_name_safe
+    from canair.ecus.names import canonical_ecu_name_safe
 
     ecu_filter = canonical_ecu_name_safe(args.ecu).upper() if args.ecu else None
     pid_filter = args.pid.upper() if args.pid else None

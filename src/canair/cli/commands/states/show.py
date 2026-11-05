@@ -16,8 +16,8 @@ def cmd_show_state(args) -> int:
     ``ALL`` matches every state. The source of each match is shown so it's clear
     whether the state is declared at the ECU level or only inferred from PIDs.
     """
-    from canair.ecus import load_ecus
     from canair.ecus.pids import load_pids
+    from canair.ecus.registry import load_ecus
     from canair.profile import active
     from canair.states import (
         StatePredicateError,

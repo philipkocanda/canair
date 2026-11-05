@@ -85,6 +85,6 @@ def resolve_protocol(protocol: str, tx_id: int) -> str:
     """Resolve ``auto`` to ``uds``/``kwp`` from the ECU's id_protocol registry."""
     if protocol in (UDS, KWP):
         return protocol
-    from ...ecus import ecu_protocol
+    from ...ecus.protocol import ecu_protocol
 
     return KWP if ecu_protocol(tx_id) == KWP else UDS

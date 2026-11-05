@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from canair.analysis.ecu_summary import list_records, pids_def_for_tx
-from canair.ecus import load_ecus, resolve_tx
+from canair.ecus.names import resolve_tx
 from canair.ecus.pids import load_pids
+from canair.ecus.registry import load_ecus
 from canair.render import messages
 
 from .detail import cmd_detail

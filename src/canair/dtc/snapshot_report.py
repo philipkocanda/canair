@@ -50,7 +50,7 @@ def _did_lines(did: Mapping[str, Any], indent: str) -> list[str]:
 
 def undefined_hints(results: Iterable[Mapping[str, Any]]) -> list[str]:
     """One "define it" hint per snapshot DID the profile has no signals for."""
-    from canair.ecus import ecu_name
+    from canair.ecus.names import ecu_name
 
     seen: dict[tuple[str, str], int] = {}
     for result in results:

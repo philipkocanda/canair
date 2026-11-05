@@ -87,7 +87,7 @@ def _resolve_ecu(label: str) -> str:
     if not _HEX_LABEL.match(label):
         return label
     try:
-        from canair.ecus import ecu_name
+        from canair.ecus.names import ecu_name
 
         return ecu_name(int(label, 16))
     except Exception:

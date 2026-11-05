@@ -131,7 +131,8 @@ class TestResolution:
     def test_ecu_detail_says_why_identity_is_missing_on_another_revision(self, capsys):
         from canair.cli.commands.ecu.detail import cmd_detail
         from canair.cli.commands.ecu.records import detail_record as _detail_record
-        from canair.ecus import load_ecus, resolve_tx
+        from canair.ecus.names import resolve_tx
+        from canair.ecus.registry import load_ecus
 
         for pins, expected in (
             (["VCU=uds"], "None recorded for the uds revision (the recorded values belong to kwp)"),

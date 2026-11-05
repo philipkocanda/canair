@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-import canair.ecus
+import canair.ecus.names
 from canair.ecus.wake import WakePlan
 from canair.live.read.exec import _exec_iocontrol, _exec_query, _exec_session
 from canair.query.steps import resolve_tx_id
@@ -31,7 +31,7 @@ INDEX = {
 @pytest.fixture(autouse=True)
 def sjb_is_an_alias_of_igpm(monkeypatch):
     monkeypatch.setattr(
-        canair.ecus,
+        canair.ecus.names,
         "canonical_ecu_name_safe",
         lambda name, *a, **k: "IGPM" if name.upper() == "SJB" else name.upper(),
     )

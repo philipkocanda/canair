@@ -54,7 +54,7 @@ def write_merged(
     unknown label falls back to its leading token verbatim.
     """
     from ...captures import build_query_session, save_session
-    from ...ecus import build_name_tx_index, rx_from_name
+    from ...ecus.names import build_name_tx_index, rx_from_name
 
     name_index = build_name_tx_index()
     results: list[tuple[str, str, str, str]] = []

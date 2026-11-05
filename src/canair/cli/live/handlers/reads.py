@@ -14,7 +14,7 @@ from canair.transport.protocol import Terminal
 
 
 async def handle_identity(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    from canair.ecus import resolve_tx
+    from canair.ecus.names import resolve_tx
 
     tx_id = resolve_tx(args.tx)
     if tx_id is None:

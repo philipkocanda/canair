@@ -154,10 +154,10 @@ class TestBuildRawSubmissions:
         assert [len(s["members"]) for s in subs] == [3, 2]
 
     def test_an_alias_resolves_to_the_key_the_elm_path_uses(self, monkeypatch):
-        import canair.ecus
+        import canair.ecus.names
 
         monkeypatch.setattr(
-            canair.ecus,
+            canair.ecus.names,
             "canonical_ecu_name_safe",
             lambda name, *a, **k: "IGPM" if name.upper() == "SJB" else name.upper(),
         )

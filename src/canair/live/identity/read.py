@@ -21,7 +21,7 @@ from canair.uds.echo import request_echo
 from canair.uds.protocol import KWP, UDS
 from canair.uds.response import UdsResponse
 
-from ...ecus import ecu_display
+from ...ecus.names import ecu_display
 from ...transport.protocol import Terminal
 from .decode import decode_identity_payload, resolve_protocol_hint, service_supported
 from .records import IDENTITY_DIDS, KWP_IDENTITY_RECORDS, PROTOCOLS, UDS_IDENTITY_DIDS

@@ -166,7 +166,7 @@ class TestReverseLookup:
         monkeypatch.setattr("canair.profile.active", lambda: _FakeProfile())
         monkeypatch.setattr("canair.states.load_states", lambda profile=None: rules)
         monkeypatch.setattr("canair.ecus.pids.load_pids", lambda: pids_data)
-        monkeypatch.setattr("canair.ecus.load_ecus", lambda: ecus)
+        monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda: ecus)
 
     def test_human_output(self, _patched_lookup, capsys):
         rc = _run(state="READY")

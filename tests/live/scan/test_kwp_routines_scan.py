@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import yaml
 
-from canair.ecus import split_ecus_by_protocol
+from canair.ecus.protocol import split_ecus_by_protocol
 from canair.live.scan.kwp_routines import (
     KWP_ROUTINES_PROBE,
     KwpRoutineHit,

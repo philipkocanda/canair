@@ -18,6 +18,7 @@ from canair.uds.addressing import (
 )
 from canair.uds.services import DEFAULT_SESSION_REQUEST
 
+from ...ecus.registry import load_ecus, rx_for_tx
 from ...render.discover import ABSENT, POSITIVE, PROBE_FAILED, REFUSED, status_cell
 from ...render.progress import ProgressLine
 from ...transport.protocol import Terminal
@@ -198,8 +199,6 @@ async def mode_discover(
 
     # Each responder's RX is resolved exactly once, so the printed table, the
     # --json document and the saved capture cannot disagree about it.
-    from ...ecus import load_ecus, rx_for_tx
-
     ecus = load_ecus()
     rx_of = {tx_id: rx_for_tx(tx_id, ecus, mode=mode) for tx_id, _, _ in alive}
     names = {tx: name for tx, _, _, name in _classify_alive(alive)[0]}
@@ -289,8 +288,6 @@ def _classify_alive(
     with no ``ecus/`` entry yet. TX ids are matched against the registry, which
     is keyed by TX-id int.
     """
-    from ...ecus import load_ecus
-
     ecus = load_ecus()
     known: list[tuple[int, str, str, str]] = []
     new: list[tuple[int, str, str, None]] = []
@@ -348,8 +345,6 @@ def _register_discovered(
     ``canair identity``). ``via`` names the probe in that note.
     """
     from datetime import date
-
-    from ...ecus import load_ecus
 
     out = out or sys.stdout
     paint = Painter(out)

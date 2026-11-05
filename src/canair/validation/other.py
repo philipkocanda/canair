@@ -178,7 +178,7 @@ def check_states() -> FileReport:
 
 def check_groups() -> FileReport:
     """Check the profile's optional groups.yaml (schema, names, selectors and member ECUs)."""
-    from canair.ecus import build_canonical_name_index, canonical_ecu_name_safe
+    from canair.ecus.names import build_canonical_name_index, canonical_ecu_name_safe
     from canair.ecus.pids import build_ecu_index, load_pids
     from canair.profile import active
     from canair.query import QueryError, parse_selector

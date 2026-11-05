@@ -184,7 +184,7 @@ def flatten_session(
     Takes the source file's ``path`` rather than its name so each row can carry
     both the display ``file`` and the ``_path`` a mutation reopens.
     """
-    from canair.ecus import ecu_name_from_ref
+    from canair.ecus.registry import ecu_name_from_ref
 
     if rx_index is None:
         rx_index = _rx_index()
@@ -241,7 +241,7 @@ def flatten_session(
 
 def _rx_index() -> dict[int, str]:
     """The rx-address → ECU-name index, tolerating an unreadable registry."""
-    from canair.ecus import build_rx_index
+    from canair.ecus.registry import build_rx_index
 
     try:
         return build_rx_index()

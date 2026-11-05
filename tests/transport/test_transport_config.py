@@ -4,6 +4,7 @@ import pytest
 
 from canair.config import devices as cfg_mod_devices
 from canair.config import file as cfg_mod_file
+from canair.config import transport as cfg_mod_transport
 from canair.transport import config as tc
 from canair.transport.config import TransportError, TransportOverrides, resolve_transport
 
@@ -25,9 +26,10 @@ def env(monkeypatch):
     monkeypatch.setattr(tc, "_fallback_settings", lambda: (False, 2.0, None))
 
     def set_block(block):
-        monkeypatch.setattr(
-            cfg_mod_file, "load_config", lambda: {"transport": block} if block else {}
-        )
+        for module in (cfg_mod_file, cfg_mod_devices, cfg_mod_transport):
+            monkeypatch.setattr(
+                module, "load_config", lambda: {"transport": block} if block else {}
+            )
 
     set_block(None)
     return set_block
@@ -92,7 +94,8 @@ class TestResolveCandidates:
         monkeypatch.setattr(tc, "_wican_devices", lambda: (dict(devices), "home"))
         monkeypatch.setattr(tc, "_wican_addresses", lambda: {a: d.host for a, d in devices.items()})
         monkeypatch.setattr(tc, "_is_pro", lambda: True)
-        monkeypatch.setattr(cfg_mod_file, "load_config", lambda: {})
+        for module in (cfg_mod_file, cfg_mod_devices, cfg_mod_transport):
+            monkeypatch.setattr(module, "load_config", lambda: {})
 
         def set_fallback(enabled=True, timeout=2.0, order=None):
             monkeypatch.setattr(tc, "_fallback_settings", lambda: (enabled, timeout, order))

@@ -391,7 +391,7 @@ def current_capture_tag(captures_dir: Path | None = None) -> dict | None:
 
 def _captured_ecus(session: CaptureSession) -> set[str]:
     """Upper-cased names of the ECUs whose replies ``session`` holds."""
-    from canair.ecus import build_rx_index, ecu_name_from_ref
+    from canair.ecus.registry import build_rx_index, ecu_name_from_ref
 
     try:
         index = build_rx_index()

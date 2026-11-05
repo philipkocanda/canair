@@ -10,7 +10,7 @@ from canair.uds.protocol import KWP, UDS
 
 from ...dtc.refs import ecu_ref
 from ...dtc.snapshot_report import snapshot_lines, status_line, undefined_hints
-from ...ecus import ecu_display
+from ...ecus.names import ecu_display
 from ...transport.protocol import Terminal
 from .codes import resolve_protocol
 from .reading import _read_one

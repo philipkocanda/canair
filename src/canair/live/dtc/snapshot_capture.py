@@ -20,7 +20,7 @@ SESSION_NOTE = (
 
 def snapshot_rows(results: Iterable[Mapping[str, Any]]) -> list[tuple[str, str, str, str]]:
     """``(rx, request, payload, time)`` for every snapshot reply in ``results``."""
-    from canair.ecus import rx_addr_str
+    from canair.ecus.registry import rx_addr_str
 
     rows = []
     for result in results:

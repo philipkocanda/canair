@@ -553,7 +553,7 @@ async def _exec_scan(
     verbose: bool,
 ):
     """Execute scan sub-command."""
-    from ...ecus import resolve_tx
+    from ...ecus.names import resolve_tx
     from ..scan.presets import ServiceError, resolve_service
     from ..scan.range import mode_scan
 
@@ -592,7 +592,7 @@ async def _exec_scan(
 
 def _rx_addr_for_tx(tx_id: int) -> str:
     """Return the ECU CAN response address string for a TX id (e.g. "0x7EC")."""
-    from ...ecus import rx_addr_str
+    from ...ecus.registry import rx_addr_str
 
     return rx_addr_str(tx_id)
 
@@ -602,7 +602,7 @@ def _rx_addr_for_ecu_label(ecu_label: str, ecu_index: dict) -> str:
 
     Falls back to the leading token verbatim if the ECU is not in the index.
     """
-    from ...ecus import rx_addr_str
+    from ...ecus.registry import rx_addr_str
 
     # An ECU label always starts with a word char (e.g. "BMS" / "BMS (0x7E4)").
     m = re.match(r"(\w+)", ecu_label)

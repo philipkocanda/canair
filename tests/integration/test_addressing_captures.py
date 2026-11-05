@@ -1,6 +1,6 @@
 """Response addresses beyond ``TX + 0x08``: the profile default, 29-bit captures, discover.
 
-``ecus._profile_addressing`` is the fallback rule for an address the registry does not know;
+``ecus.registry._profile_addressing`` is the fallback rule for an address the registry does not know;
 the capture schema must accept the 29-bit RX that raw/scan/import/discover now record on a
 29-bit profile; and a discover sweep's ``--json`` must report the RX its saved capture holds.
 """
@@ -46,30 +46,30 @@ def make_profile(tmp_path):
 
 class TestProfileAddressing:
     def test_no_profile_falls_back_to_the_defaults(self, monkeypatch):
-        from canair import ecus
+        from canair.ecus import registry as ecus_registry
         from canair.profile import ProfileError
 
         def boom():
             raise ProfileError("no profile")
 
         monkeypatch.setattr("canair.ecus.pids.load_pids", lambda *a, **k: boom())
-        assert ecus._profile_addressing() == (DEFAULT_RX_OFFSET, DEFAULT_MODE)
+        assert ecus_registry._profile_addressing() == (DEFAULT_RX_OFFSET, DEFAULT_MODE)
 
     def test_a_fixed_29bit_profile_swaps_an_unregistered_id(self, make_profile):
-        from canair import ecus
+        from canair.ecus import registry as ecus_registry
 
         make_profile(FIXED_29)
-        assert ecus._profile_addressing() == (0x08, AddressingMode.NORMAL_FIXED_29BIT)
-        assert ecus.rx_for_tx(0x18DA10F1, {}) == 0x18DAF110
+        assert ecus_registry._profile_addressing() == (0x08, AddressingMode.NORMAL_FIXED_29BIT)
+        assert ecus_registry.rx_for_tx(0x18DA10F1, {}) == 0x18DAF110
 
     def test_a_profile_without_ecus_dir_still_answers(self, make_profile):
         """A freshly scaffolded bundle has no ecus/ yet; that is not an error here."""
-        from canair import ecus
+        from canair.ecus import registry as ecus_registry
 
         make_profile(
             'car_model: "T"\ninit: "x"\naddressing:\n  rx_offset: 0x20\n', with_ecus_dir=False
         )
-        assert ecus._profile_addressing() == (0x20, DEFAULT_MODE)
+        assert ecus_registry._profile_addressing() == (0x20, DEFAULT_MODE)
 
 
 class TestCaptureSchemaAccepts29BitRx:

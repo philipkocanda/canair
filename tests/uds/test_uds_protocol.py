@@ -4,7 +4,8 @@ from typing import Any, cast
 
 import pytest
 
-from canair.ecus import EcuRegistryEntry, ecu_protocol
+from canair.ecus.protocol import ecu_protocol
+from canair.ecus.registry import EcuRegistryEntry
 from canair.uds.protocol import KWP, UDS, UNKNOWN, classify_protocol
 
 
@@ -53,13 +54,13 @@ def test_dtc_and_identity_resolve_through_the_registry(monkeypatch):
     from canair.live.dtc import codes
     from canair.live.identity import decode as identity_decode
 
-    monkeypatch.setattr("canair.ecus.ecu_protocol", lambda tx: UNKNOWN)
+    monkeypatch.setattr("canair.ecus.protocol.ecu_protocol", lambda tx: UNKNOWN)
     monkeypatch.setattr(identity_decode, "ecu_protocol", lambda tx: UNKNOWN)
     # An unknown ECU reads DTCs over UDS (the historical default) but probes identity.
     assert codes.resolve_protocol("auto", 0x7E0) == UDS
     assert identity_decode.resolve_protocol_hint(0x7E0, "auto") is None
 
-    monkeypatch.setattr("canair.ecus.ecu_protocol", lambda tx: KWP)
+    monkeypatch.setattr("canair.ecus.protocol.ecu_protocol", lambda tx: KWP)
     monkeypatch.setattr(identity_decode, "ecu_protocol", lambda tx: KWP)
     assert codes.resolve_protocol("auto", 0x7E0) == KWP
     assert identity_decode.resolve_protocol_hint(0x7E0, "auto") == KWP

@@ -59,7 +59,7 @@ def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
     non-existent ECU) that would otherwise be silently skipped every poll cycle.
     ECU names are matched case-insensitively against the active profile.
     """
-    from ...ecus import build_canonical_name_index, canonical_ecu_name_safe
+    from ...ecus.names import build_canonical_name_index, canonical_ecu_name_safe
     from ...ecus.pids import build_ecu_index
 
     ecu_index = build_ecu_index(pids_data)
@@ -415,7 +415,7 @@ class MonitorController:
         Falls back to the label's leading token when it isn't a known ECU name.
         Caches the name→TX index for repeated calls during polling.
         """
-        from ...ecus import build_name_tx_index, rx_from_name
+        from ...ecus.names import build_name_tx_index, rx_from_name
 
         if self._name_index is None:
             self._name_index = build_name_tx_index()

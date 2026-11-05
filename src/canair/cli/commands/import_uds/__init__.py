@@ -67,7 +67,8 @@ def _parse_spec(spec: str) -> tuple[str, str, str]:
 
 def _build_capture(spec: str, name_index: dict[str, int]) -> tuple[CaptureRecord, list[str]]:
     """Resolve/validate one spec into a capture dict. Returns (capture, warnings)."""
-    from canair.ecus import resolve_tx, rx_addr_str
+    from canair.ecus.names import resolve_tx
+    from canair.ecus.registry import rx_addr_str
     from canair.uds.payload import payload_echo_mismatch, payload_not_hex
 
     ecu, pid, payload = _parse_spec(spec)
@@ -113,7 +114,7 @@ def run(args) -> int:
     require_named_car(active(), "import uds")
 
     from canair.captures import build_manual_session, save_session
-    from canair.ecus import build_name_tx_index
+    from canair.ecus.names import build_name_tx_index
     from canair.states import parse_states
 
     name_index = build_name_tx_index()

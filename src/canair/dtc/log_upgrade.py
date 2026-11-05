@@ -110,7 +110,7 @@ class _Addresses:
 
 
 def _addresses(profile: Profile) -> _Addresses | None:
-    from canair.ecus import load_ecus, rx_for_tx
+    from canair.ecus.registry import load_ecus, rx_for_tx
     from canair.uds.addressing import resolve_mode, resolve_rx_offset
 
     try:

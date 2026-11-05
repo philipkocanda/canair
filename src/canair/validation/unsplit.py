@@ -32,7 +32,7 @@ def unsplit_batch_warnings(
     ``names`` and ``corpus`` work as in :func:`.misfiled.misfile_warnings`.
     """
     if names is None:
-        from canair.ecus import build_rx_index
+        from canair.ecus.registry import build_rx_index
 
         names = build_rx_index()
     if corpus is None:

@@ -19,7 +19,7 @@ from .variant_tags import variant_tag_report
 
 def load_valid_rx_addrs() -> set[int]:
     """Set of valid ECU CAN response addresses (each ECU's resolved ``rx_id``)."""
-    from canair.ecus import build_rx_index
+    from canair.ecus.registry import build_rx_index
 
     return set(build_rx_index())
 
@@ -38,7 +38,7 @@ def _path_str(abs_path) -> str:
 def validate_captures_file(
     path: Path, validator: Validator | CaptureSchemaChecker, rx_addrs: set[int]
 ) -> list[str]:
-    from canair.ecus import SENTINELS, parse_ecu_ref
+    from canair.ecus.registry import SENTINELS, parse_ecu_ref
 
     if not isinstance(validator, CaptureSchemaChecker):
         validator = CaptureSchemaChecker(validator.schema)

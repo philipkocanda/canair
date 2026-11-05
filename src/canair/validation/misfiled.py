@@ -11,6 +11,7 @@ from pathlib import Path
 
 from canair.analysis.misfiled import Misfile, find_misfiled
 from canair.captures.payload_corpus import PayloadCorpus, load_payload_corpus
+from canair.ecus.registry import build_rx_index, load_ecus, rx_for_tx
 
 from .report import CaptureWarning
 
@@ -44,7 +45,6 @@ def legacy_rx_aliases(ecus) -> dict[int, int]:
     the ECU with itself. An address that is some *other* ECU's real response address is
     never folded — that would hide exactly the misfile this check exists for.
     """
-    from canair.ecus import rx_for_tx
     from canair.uds.addressing import DEFAULT_RX_OFFSET
 
     current = {rx_for_tx(tx, ecus) for tx in ecus}
@@ -70,8 +70,6 @@ def misfile_warnings(
     the caller shares one load across several cross-file checks.
     """
     if names is None:
-        from canair.ecus import build_rx_index, load_ecus
-
         ecus = load_ecus()
         names = build_rx_index(ecus)
         if same_ecu is None:

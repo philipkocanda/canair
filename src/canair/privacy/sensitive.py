@@ -126,7 +126,7 @@ class SensitiveSet:
 
 
 def _rx_int(value: Any) -> int | None:
-    from canair.ecus import parse_ecu_ref
+    from canair.ecus.registry import parse_ecu_ref
 
     return parse_ecu_ref(value)
 

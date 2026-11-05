@@ -11,7 +11,7 @@ it labelled a *registered* responder ``"NAME (status)"`` (with that ECU's
 registry ``rx_id`` as its ``rx``) and an *unregistered* one with the bare status
 (``"positive"`` / ``"NRC 0x12"``, with ``rx = TX + 0x08``). So the label says
 which inverse to apply. The repaired entry carries ``tx`` and the ``rx`` the
-current code would record (:func:`canair.ecus.rx_for_tx` under the profile's
+current code would record (:func:`canair.ecus.registry.rx_for_tx` under the profile's
 addressing), with fields in the builder's order.
 
 Idempotent: an entry that already has ``tx`` is left alone, and a file with
@@ -31,7 +31,8 @@ from pathlib import Path
 from typing import Any
 
 from canair.captures import io as capture_io
-from canair.ecus import EcuNameCollision, EcuRegistryEntry, build_name_tx_index, rx_for_tx
+from canair.ecus.names import EcuNameCollision, build_name_tx_index
+from canair.ecus.registry import EcuRegistryEntry, rx_for_tx
 from canair.uds.addressing import AddressingMode
 
 # The offset the old writer applied to an unregistered TX, whatever the profile.

@@ -683,7 +683,7 @@ def ecu_index_key(name: str, index: Mapping[str, object]) -> str | None:
     upper = name.upper()
     if upper in index:
         return upper
-    from canair.ecus import canonical_ecu_name_safe
+    from canair.ecus.names import canonical_ecu_name_safe
 
     canonical = canonical_ecu_name_safe(name).upper()
     return canonical if canonical in index else None

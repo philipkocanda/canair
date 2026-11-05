@@ -57,7 +57,7 @@ async def mode_scan(
 
     from canair.live.scan.presets import service_label
 
-    from ...ecus import ecu_display, ecu_name
+    from ...ecus.names import ecu_display, ecu_name
 
     # The human report is the result, so it goes to stdout; with --json it goes to stderr.
     console = make_console(stderr=as_json)
@@ -205,7 +205,7 @@ async def mode_scan(
         from canair.transport.stats import client_transport
 
         from ...captures import build_scan_session, save_session_journaled, suggest_scan_label
-        from ...ecus import rx_addr_str
+        from ...ecus.registry import rx_addr_str
 
         suggested = suggest_scan_label(ecu, service, ranges, append_bytes)
         n_pos = len(positive)

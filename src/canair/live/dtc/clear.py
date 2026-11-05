@@ -10,7 +10,7 @@ from canair.uds.protocol import KWP
 from canair.uds.requests import clear_dtc_request
 from canair.uds.services import CLEAR_DIAGNOSTIC_INFORMATION
 
-from ...ecus import ecu_display
+from ...ecus.names import ecu_display
 from ...transport.protocol import Terminal
 from .codes import resolve_protocol
 from .reading import _read_one

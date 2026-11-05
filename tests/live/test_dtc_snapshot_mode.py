@@ -45,7 +45,7 @@ PIDS_DATA = {
 @pytest.fixture(autouse=True)
 def _ccm_name(monkeypatch):
     monkeypatch.setattr(
-        "canair.ecus.ecu_name", lambda tx, *a, **k: {CCM: "CCM"}.get(tx, f"X{tx:03X}")
+        "canair.ecus.names.ecu_name", lambda tx, *a, **k: {CCM: "CCM"}.get(tx, f"X{tx:03X}")
     )
 
 
@@ -143,7 +143,7 @@ class _Pressed:
 
 class TestSweep:
     def _registry(self, monkeypatch, tx_ids):
-        monkeypatch.setattr("canair.ecus.load_ecus", lambda: {tx: {} for tx in tx_ids})
+        monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda: {tx: {} for tx in tx_ids})
         monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
 
     @pytest.mark.asyncio

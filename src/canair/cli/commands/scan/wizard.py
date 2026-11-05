@@ -38,8 +38,8 @@ def _ask(question: str, plan: ScanPlan | None, field: str) -> bool:
 
 def _ecu_choices() -> list[tuple[str, int, str]]:
     """Return [(name, tx_id, description)] for ECUs known to the profile."""
-    from canair.ecus import load_ecus
     from canair.ecus.pids import load_pids
+    from canair.ecus.registry import load_ecus
 
     try:
         ecus = load_ecus()

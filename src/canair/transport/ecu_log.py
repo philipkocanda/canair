@@ -21,8 +21,8 @@ _initialized: bool = False
 def _load_ecu_lookup() -> dict[int, str]:
     """Lazy-load the active profile's ECU TX ID → name mapping from the ECU registry."""
     try:
-        from canair.ecus import load_ecus
         from canair.ecus.pids import register_derived_cache
+        from canair.ecus.registry import load_ecus
         from canair.profile import active
 
         key = active().cache_key

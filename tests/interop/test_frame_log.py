@@ -6,7 +6,7 @@ from datetime import datetime
 
 import pytest
 
-from canair.ecus import load_ecus
+from canair.ecus.registry import load_ecus
 from canair.interop.frame_log import ExtractedReply, extract_replies, stamp
 from tests.support.isotp_frames import flow_control, message_frames
 

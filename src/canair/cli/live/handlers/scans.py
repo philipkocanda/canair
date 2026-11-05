@@ -1,7 +1,7 @@
 """Handlers for the sweeps: PID/DID scans, routine and IOControl probes, discovery.
 
 Three of these pick their UDS or KWP2000 variant per ECU via
-:func:`canair.ecus.split_ecus_by_protocol` — a safety boundary, not a convenience:
+:func:`canair.ecus.protocol.split_ecus_by_protocol` — a safety boundary, not a convenience:
 UDS RoutineControl (0x31) means StartRoutineByLocalIdentifier on a KWP2000 ECU and
 can actuate, so the read-only 0x33/0x30 variants must be used there instead.
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from canair.cli.live.operation import LiveOperation
 from canair.core.prompt import confirm
-from canair.ecus import split_ecus_by_protocol
+from canair.ecus.protocol import split_ecus_by_protocol
 from canair.live.discover.physical import mode_discover
 from canair.live.scan.iocontrol import mode_iocontrol_scan
 from canair.live.scan.range import mode_scan
@@ -22,7 +22,7 @@ from .ranges import parse_range, parse_ranges
 
 
 async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    from canair.ecus import resolve_tx
+    from canair.ecus.names import resolve_tx
 
     tx_id = resolve_tx(args.tx)
     if tx_id is None:

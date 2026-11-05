@@ -138,7 +138,7 @@ class TestKeepFilter:
             "build_ecu_index",
             lambda *_: {"MCU": {"pids": {"2102": {"parameters": {"GUESS": {"expression": "B4"}}}}}},
         )
-        monkeypatch.setattr("canair.ecus.canonical_ecu_name_safe", lambda n: n)
+        monkeypatch.setattr("canair.ecus.names.canonical_ecu_name_safe", lambda n: n)
         p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
         args = p.parse_args(argv)
         rc = coverage.run(args)

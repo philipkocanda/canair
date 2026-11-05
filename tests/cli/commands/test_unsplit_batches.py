@@ -442,7 +442,7 @@ class TestSplitBatchedCommand:
         monkeypatch.setattr(
             "canair.captures.io.resolve_capture_layers", lambda d=None: [base, overlay]
         )
-        monkeypatch.setattr("canair.ecus.build_rx_index", lambda: {IGPM: "IGPM"})
+        monkeypatch.setattr("canair.ecus.registry.build_rx_index", lambda: {IGPM: "IGPM"})
         import io
         from contextlib import redirect_stdout
 
