@@ -7,7 +7,7 @@ conversion and the device→grouped normalization round-trip.
 
 import pytest
 
-from canair.cli.commands.wican import show_diff
+from canair.cli.commands.wican.diff import show_diff
 from canair.interop.autopid.profile import (
     InvalidSendToError,
     generate_profile,

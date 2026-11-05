@@ -188,10 +188,10 @@ class TestLiveGate:
             )
 
     def test_autopid_generation_refuses(self, unnamed):
-        from canair.cli.commands import wican
+        from canair.cli.commands.wican import generate
 
         with pytest.raises(ProfileError, match="generate the AutoPID profile"):
-            wican._generate(argparse.Namespace())
+            generate.generate(argparse.Namespace())
 
 
 class TestProfileUse:

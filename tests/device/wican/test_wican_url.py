@@ -74,7 +74,7 @@ class TestWicanCommands:
     def test_mode_set_targets_the_named_device(self, config, monkeypatch, value, url):
         import canair.config as cfg
         import canair.device.wican.firmware as wf
-        from canair.cli.commands import wican
+        from canair.cli.commands.wican import mode as mode_cmd
         from canair.device.wican import mode as wican_mode
 
         monkeypatch.setattr(cfg, "wican_model", lambda: "pro")
@@ -87,5 +87,5 @@ class TestWicanCommands:
             wican_mode, "set_protocol", lambda *a, **k: pytest.fail("already in the mode")
         )
         args = argparse.Namespace(wican=value, protocol="slcan", yes=True, no_transport=True)
-        assert wican._cmd_mode_set(args) == 0
+        assert mode_cmd.cmd_mode_set(args) == 0
         assert seen == [url]

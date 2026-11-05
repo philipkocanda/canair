@@ -101,7 +101,7 @@ The WiCAN is one device we reach the bus through, not the tool's definition.
   future `socketcan`, serial-SLCAN, or `.asc`/`.blf` *replay* transport should slot in by
   implementing the transport surface, with no command edits.
 - **Isolate WiCAN-specifics** (mode switch, datarate/port discovery, reboot, AutoPID, AP-mode IP) in
-  the `wican_*` modules and `cli/commands/wican.py`. `sniff.py` still reaches into them for
+  the `wican_*` modules and `cli/commands/wican/`. `sniff.py` still reaches into them for
   port/bitrate/mode — route that through the transport/config layer when you touch it.
 - `wican-ws` is WiCAN-coupled by nature; that's fine *behind* the transport surface. Don't let it
   leak upward.

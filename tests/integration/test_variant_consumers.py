@@ -39,7 +39,7 @@ def copy(tmp_path) -> Path:
 
 class TestAutoPid:
     def test_each_car_gets_its_own_file(self):
-        from canair.cli.commands.wican import _profile_out
+        from canair.cli.commands.wican.generate import profile_out as _profile_out
 
         set_active(str(FIXTURE), variant="40kwh")
         assert _profile_out("4") == FIXTURE / "out" / "40kwh" / "autopid-v4.json"

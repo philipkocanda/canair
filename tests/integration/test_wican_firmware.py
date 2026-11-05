@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib
 
 import pytest
 import requests
@@ -460,16 +461,16 @@ class TestRebootRegression:
         assert wican_api.reboot_device("192.0.2.1") == outcome
 
     def test_autopid_upload_reboot_on_405_reports_failure(self, monkeypatch, capsys):
-        from canair.cli.commands import wican
+        from canair.cli.commands.wican import sync
 
         def post(url, **kw):
             return FakeResponse(405 if url.endswith("/system_reboot") else 200)
 
-        assert wican.requests is not None
-        monkeypatch.setattr(wican.requests, "post", post)
-        monkeypatch.setattr(wican.time, "sleep", lambda *_a: None)
+        assert sync.requests is not None
+        monkeypatch.setattr(sync.requests, "post", post)
+        monkeypatch.setattr(sync.time, "sleep", lambda *_a: None)
         payload = {"cars": [{"pids": []}]}
-        wican.upload_profile("http://192.0.2.1", payload, reboot=True)
+        sync.upload_profile("http://192.0.2.1", payload, reboot=True)
         err = capsys.readouterr().err
         assert "FAILED to reboot" in err and "405" in err
 
@@ -855,11 +856,11 @@ class TestLiveSurfaces:
 
 class TestWicanCommandSurfaces:
     @pytest.mark.parametrize(
-        "handler", ["_cmd_mode_show", "_cmd_mode_set", "_cmd_autopid_download"]
+        "handler", ["mode.cmd_mode_show", "mode.cmd_mode_set", "autopid.cmd_autopid_download"]
     )
     def test_refused_on_v6_before_any_request(self, monkeypatch, capsys, handler):
         import canair.config as cfg
-        from canair.cli.commands import wican
+        from canair.cli.commands.wican import autopid
 
         monkeypatch.setattr(cfg, "wican_model", lambda: "pro")
         monkeypatch.setattr(
@@ -867,26 +868,29 @@ class TestWicanCommandSurfaces:
             lambda *a, **k: pytest.fail("must not talk to the 4.x API on v6"),
         )
         monkeypatch.setattr(
-            wican, "download_profile", lambda *a: pytest.fail("must not download on v6")
+            autopid, "download_profile", lambda *a: pytest.fail("must not download on v6")
         )
         _v6(monkeypatch)
         args = argparse.Namespace(
             wican="http://192.0.2.1", protocol="slcan", yes=True, no_transport=True
         )
-        assert getattr(wican, handler)(args) == 2
+        group, name = handler.split(".")
+        assert (
+            getattr(importlib.import_module(f"canair.cli.commands.wican.{group}"), name)(args) == 2
+        )
         assert "v6" in capsys.readouterr().err
 
-    @pytest.mark.parametrize("handler", ["_cmd_autopid_upload", "_cmd_autopid_diff"])
+    @pytest.mark.parametrize("handler", ["cmd_autopid_upload", "cmd_autopid_diff"])
     def test_autopid_writes_refused_on_v6(self, monkeypatch, capsys, handler):
         import canair.config as cfg
-        from canair.cli.commands import wican
+        from canair.cli.commands.wican import autopid
 
         monkeypatch.setattr(cfg, "wican_model", lambda: "pro")
-        monkeypatch.setattr(wican, "upload_profile", lambda *a, **k: pytest.fail("no upload"))
-        monkeypatch.setattr(wican, "_generate", lambda args: pytest.fail("refuse first"))
+        monkeypatch.setattr(autopid, "upload_profile", lambda *a, **k: pytest.fail("no upload"))
+        monkeypatch.setattr(autopid, "generate", lambda args: pytest.fail("refuse first"))
         _v6(monkeypatch)
         args = argparse.Namespace(wican="http://192.0.2.1", reboot=False)
-        assert getattr(wican, handler)(args) == 2
+        assert getattr(autopid, handler)(args) == 2
         assert "cannot sync yet" in capsys.readouterr().err
 
     @pytest.mark.parametrize(
@@ -903,17 +907,17 @@ class TestWicanCommandSurfaces:
     ):
         """Unknown used to pass silently; it warns, but still uploads (no lock-out)."""
         import canair.config as cfg
-        from canair.cli.commands import wican
+        from canair.cli.commands.wican import autopid
 
         monkeypatch.setattr(cfg, "wican_model", lambda: "pro")
         monkeypatch.setattr(cfg, "firmware_check_mode", lambda: mode)
         monkeypatch.setattr(wf, "probe", lambda host, *, timeout: info)
         uploaded: list = []
-        monkeypatch.setattr(wican, "upload_profile", lambda *a, **k: uploaded.append(a))
-        monkeypatch.setattr(wican, "_generate", lambda args: ({}, {}))
-        monkeypatch.setattr(wican, "to_device_format", lambda p, d: {"cars": [{"pids": []}]})
+        monkeypatch.setattr(autopid, "upload_profile", lambda *a, **k: uploaded.append(a))
+        monkeypatch.setattr(autopid, "generate", lambda args: ({}, {}))
+        monkeypatch.setattr(autopid, "to_device_format", lambda p, d: {"cars": [{"pids": []}]})
         args = argparse.Namespace(wican="http://192.0.2.1", reboot=False)
-        assert wican._cmd_autopid_upload(args) == 0
+        assert autopid.cmd_autopid_upload(args) == 0
         assert uploaded
         err = capsys.readouterr().err
         if warned:

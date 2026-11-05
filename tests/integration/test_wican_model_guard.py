@@ -15,6 +15,7 @@ import pytest
 import canair.config as cfg_mod
 from canair.cli import build_parser
 from canair.cli.commands import wican
+from canair.cli.commands.wican import autopid, common, generate, mode
 
 
 def _classic(monkeypatch):
@@ -32,11 +33,11 @@ def _parse(*argv):
 class TestRequirePro:
     def test_pro_allows(self, monkeypatch):
         _pro(monkeypatch)
-        assert wican._require_pro("autopid upload") is None
+        assert common.require_pro("autopid upload") is None
 
     def test_classic_blocks_with_message(self, monkeypatch, capsys):
         _classic(monkeypatch)
-        rc = wican._require_pro("autopid upload")
+        rc = common.require_pro("autopid upload")
         assert rc == 2
         err = capsys.readouterr().err
         assert "WiCAN Pro" in err
@@ -63,42 +64,42 @@ class TestParserWiring:
     def test_autopid_write_dispatch(self):
         args = _parse("wican", "autopid", "write", "--include-unverified")
         assert args.func is wican.run
-        assert args._wican_func is wican._cmd_autopid_write
+        assert args._wican_func is autopid.cmd_autopid_write
         assert args.include_unverified is True
 
     def test_autopid_write_defaults_to_verified_only(self):
         args = _parse("wican", "autopid", "write")
         assert args.include_unverified is False
-        assert wican._verified_only(args) is True
+        assert generate.want_verified_only(args) is True
 
     def test_autopid_write_include_unverified_opts_out(self):
         args = _parse("wican", "autopid", "write", "--include-unverified")
-        assert wican._verified_only(args) is False
+        assert generate.want_verified_only(args) is False
 
     def test_autopid_upload_dispatch(self):
         args = _parse("wican", "autopid", "upload", "--reboot")
-        assert args._wican_func is wican._cmd_autopid_upload
+        assert args._wican_func is autopid.cmd_autopid_upload
         assert args.reboot is True
 
     def test_autopid_download_dispatch(self):
         args = _parse("wican", "autopid", "download")
-        assert args._wican_func is wican._cmd_autopid_download
+        assert args._wican_func is autopid.cmd_autopid_download
 
     def test_autopid_diff_dispatch(self):
         args = _parse("wican", "autopid", "diff")
-        assert args._wican_func is wican._cmd_autopid_diff
+        assert args._wican_func is autopid.cmd_autopid_diff
 
     def test_autopid_stats_dispatch(self):
         args = _parse("wican", "autopid", "stats")
-        assert args._wican_func is wican._cmd_autopid_stats
+        assert args._wican_func is autopid.cmd_autopid_stats
 
     def test_mode_show_dispatch(self):
         args = _parse("wican", "mode", "show")
-        assert args._wican_func is wican._cmd_mode_show
+        assert args._wican_func is mode.cmd_mode_show
 
     def test_mode_set_dispatch(self):
         args = _parse("wican", "mode", "set", "slcan")
-        assert args._wican_func is wican._cmd_mode_set
+        assert args._wican_func is mode.cmd_mode_set
         assert args.protocol == "slcan"
 
     def test_mode_set_rejects_unknown_protocol(self):
@@ -125,7 +126,7 @@ class TestModeSetTransportAlign:
         self._fresh(tmp_path, monkeypatch)
         cfg_mod.set_config_key("transport.type", "wican-ws")
         cfg_mod.load_config.cache_clear()
-        wican._sync_transport_to_mode("slcan", no_transport=False)
+        mode.sync_transport_to_mode("slcan", no_transport=False)
         cfg_mod.load_config.cache_clear()
         assert cfg_mod.get_config_key("transport.type") == "slcan-tcp"
         assert "'wican-ws' → 'slcan-tcp'" in capsys.readouterr().out
@@ -134,7 +135,7 @@ class TestModeSetTransportAlign:
         self._fresh(tmp_path, monkeypatch)
         cfg_mod.set_config_key("transport.type", "slcan-tcp")
         cfg_mod.load_config.cache_clear()
-        wican._sync_transport_to_mode("elm327", no_transport=False)
+        mode.sync_transport_to_mode("elm327", no_transport=False)
         cfg_mod.load_config.cache_clear()
         assert cfg_mod.get_config_key("transport.type") == "wican-ws"
         assert "→ 'wican-ws'" in capsys.readouterr().out
@@ -143,14 +144,14 @@ class TestModeSetTransportAlign:
         self._fresh(tmp_path, monkeypatch)
         cfg_mod.set_config_key("transport.type", "slcan-tcp")
         cfg_mod.load_config.cache_clear()
-        wican._sync_transport_to_mode("slcan", no_transport=False)
+        mode.sync_transport_to_mode("slcan", no_transport=False)
         assert "already 'slcan-tcp'" in capsys.readouterr().out
 
     def test_unmapped_mode_leaves_transport_untouched(self, tmp_path, monkeypatch, capsys):
         self._fresh(tmp_path, monkeypatch)
         cfg_mod.set_config_key("transport.type", "slcan-tcp")
         cfg_mod.load_config.cache_clear()
-        wican._sync_transport_to_mode("auto_pid", no_transport=False)
+        mode.sync_transport_to_mode("auto_pid", no_transport=False)
         cfg_mod.load_config.cache_clear()
         assert cfg_mod.get_config_key("transport.type") == "slcan-tcp"
         assert "Transport unchanged" in capsys.readouterr().out
@@ -159,7 +160,7 @@ class TestModeSetTransportAlign:
         self._fresh(tmp_path, monkeypatch)
         cfg_mod.set_config_key("transport.type", "wican-ws")
         cfg_mod.load_config.cache_clear()
-        wican._sync_transport_to_mode("slcan", no_transport=True)
+        mode.sync_transport_to_mode("slcan", no_transport=True)
         cfg_mod.load_config.cache_clear()
         assert cfg_mod.get_config_key("transport.type") == "wican-ws"
         assert capsys.readouterr().out == ""
@@ -181,9 +182,9 @@ class TestProGuards:
         # If the guard fails to short-circuit, _generate()/download would run and
         # likely blow up — a clean exit code 2 proves we bailed out first.
         called = {"work": False}
-        monkeypatch.setattr(wican, "_generate", lambda a: called.__setitem__("work", True))
+        monkeypatch.setattr(autopid, "generate", lambda a: called.__setitem__("work", True))
         monkeypatch.setattr(
-            wican, "download_profile", lambda *a, **k: called.__setitem__("work", True)
+            autopid, "download_profile", lambda *a, **k: called.__setitem__("work", True)
         )
         rc = wican.run(_parse(*argv))
         assert rc == 2
@@ -201,9 +202,9 @@ class TestLocalOps:
     def test_write_generates_and_writes(self, monkeypatch, tmp_path):
         _classic(monkeypatch)  # local ops work regardless of model
         data = {"car_model": "X", "init": "ATZ", "ecus": {}}
-        monkeypatch.setattr(wican, "load_yaml", lambda: data)
+        monkeypatch.setattr(generate, "load_yaml", lambda: data)
         monkeypatch.setattr(
-            wican, "_profile_out", lambda fw, unverified=False: tmp_path / f"autopid-v{fw}.json"
+            autopid, "profile_out", lambda fw, unverified=False: tmp_path / f"autopid-v{fw}.json"
         )
 
         class _Prof:
@@ -213,7 +214,7 @@ class TestLocalOps:
 
         monkeypatch.setattr("canair.profile.active", lambda: _Prof())
         # No ECU here declares revisions, so there is nothing to resolve.
-        monkeypatch.setattr(wican, "_require_resolved_revisions", lambda: None)
+        monkeypatch.setattr(generate, "require_resolved_revisions", lambda: None)
         rc = wican.run(_parse("wican", "autopid", "write"))
         assert rc == 0
         assert (tmp_path / "autopid-v4.json").exists()
@@ -221,7 +222,7 @@ class TestLocalOps:
 
     def test_write_honors_out_flag(self, monkeypatch, tmp_path):
         data = {"car_model": "X", "init": "ATZ", "ecus": {}}
-        monkeypatch.setattr(wican, "load_yaml", lambda: data)
+        monkeypatch.setattr(generate, "load_yaml", lambda: data)
 
         class _Prof:
             ecus_dir = tmp_path
@@ -230,7 +231,7 @@ class TestLocalOps:
 
         monkeypatch.setattr("canair.profile.active", lambda: _Prof())
         # No ECU here declares revisions, so there is nothing to resolve.
-        monkeypatch.setattr(wican, "_require_resolved_revisions", lambda: None)
+        monkeypatch.setattr(generate, "require_resolved_revisions", lambda: None)
         out = tmp_path / "custom.json"
         rc = wican.run(_parse("wican", "autopid", "write", "--firmware", "6", "--out", str(out)))
         assert rc == 0

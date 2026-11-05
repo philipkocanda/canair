@@ -177,17 +177,17 @@ class TestConfirmations:
             logs.run(args)
 
     def test_wican_mode_set_declined_exits_1(self, monkeypatch):
-        from canair.cli.commands import wican
+        from canair.cli.commands.wican import mode
 
-        monkeypatch.setattr(wican, "_require_pro", lambda op: None)
-        monkeypatch.setattr(wican, "_require_v4_api", lambda *a, **k: None)
-        monkeypatch.setattr(wican, "resolve_wican_url", lambda w: "http://x")
+        monkeypatch.setattr(mode, "require_pro", lambda op: None)
+        monkeypatch.setattr(mode, "require_v4_api", lambda *a, **k: None)
+        monkeypatch.setattr(mode, "resolve_wican_url", lambda w: "http://x")
         monkeypatch.setattr("canair.device.wican.mode.current_protocol", lambda url: "elm327")
-        monkeypatch.setattr(wican, "confirm", lambda *a, **k: False)
+        monkeypatch.setattr(mode, "confirm", lambda *a, **k: False)
         sent = []
         monkeypatch.setattr("canair.device.wican.mode.set_protocol", lambda *a: sent.append(a))
         args = argparse.Namespace(wican=None, protocol="slcan", yes=False, no_transport=True)
-        assert wican._cmd_mode_set(args) == 1
+        assert mode.cmd_mode_set(args) == 1
         assert not sent
 
 
@@ -242,19 +242,19 @@ class TestImportReportGating:
 
 class TestWican:
     def test_autopid_download_failure_exits_1(self, monkeypatch, capsys):
-        from canair.cli.commands import wican
+        from canair.cli.commands.wican import autopid
 
-        monkeypatch.setattr(wican, "_require_pro", lambda op: None)
-        monkeypatch.setattr(wican, "_require_v4_api", lambda *a, **k: None)
-        monkeypatch.setattr(wican, "resolve_wican_url", lambda w: "http://x")
-        monkeypatch.setattr(wican, "download_profile", lambda url: None)
-        assert wican._cmd_autopid_download(argparse.Namespace(wican=None)) == 1
+        monkeypatch.setattr(autopid, "require_pro", lambda op: None)
+        monkeypatch.setattr(autopid, "require_v4_api", lambda *a, **k: None)
+        monkeypatch.setattr(autopid, "resolve_wican_url", lambda w: "http://x")
+        monkeypatch.setattr(autopid, "download_profile", lambda url: None)
+        assert autopid.cmd_autopid_download(argparse.Namespace(wican=None)) == 1
         captured = capsys.readouterr()
         assert captured.out == ""
 
     def test_stats_rule_follows_the_terminal_width(self, monkeypatch, capsys):
-        from canair.cli.commands import wican
+        from canair.cli.commands.wican import stats
 
-        monkeypatch.setattr(wican, "terminal_columns", lambda: 60)
-        wican.print_stats({"ecus": {}})
+        monkeypatch.setattr(stats, "terminal_columns", lambda: 60)
+        stats.print_stats({"ecus": {}})
         assert "─" * 60 in capsys.readouterr().out

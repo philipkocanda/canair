@@ -18,7 +18,6 @@
     "canair.cli.commands.profile": 691,
     "canair.cli.commands.scan": 618,
     "canair.cli.commands.states": 617,
-    "canair.cli.commands.wican": 864,
     "canair.config": 554,
     "canair.contribute": 934,
     "canair.device.lock": 563,
