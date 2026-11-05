@@ -93,7 +93,7 @@ you spotted, describe the fix, let the user decide. Don't silently balloon a sma
 
 `src/canair/` is a stack of layers (`cli` → `tui` → `contribute` → `live` → `yaml_edit` →
 `validation` → the packages that compute over data → the store and the transport → the
-definitions (`ecus`/`profile`/`variants` still import each other) → `device` → `safety` →
+definitions (`ecus` → `variants` → `profile`) → `device` → `safety` →
 `expression`/`uds` → `config` → `core`; the generated architecture page has the exact order).
 A layer imports only from the layers below it. **Read `docs/development/architecture.md`
 before adding or moving code**: it has the placement table (which package a new piece of code

@@ -8,8 +8,9 @@ rules behind it, and the migration that gets the tree there, are in
 !!! note "Migration state"
     The code lives in `src/canair/`. The 52 loose modules that used to sit at its root are in
     packages now, and the Textual apps are in `tui/apps/`. What is left is listed in the plan:
-    the cycle between `ecus/`, `profile/` and `variants/`, and a small one between
-    `expression/` and `uds/`.
+    library code that still finds the car through the active profile (`profile.active()`)
+    instead of taking a profile argument
+    (`plans/2026-11-05-code-organization-3-explicit-profile.md`, part B).
 
 ## Layers
 
@@ -25,30 +26,33 @@ Top to bottom. A package imports only from the layers below its own.
 | 4 | `live/` | the layers below |
 | 5 | `yaml_edit/` | the layers below |
 | 6 | `validation/` | the layers below |
-| 7 | `interop/`, `actions/`, `broadcast/`, `migrations/`, `analysis/`, `dtc/` | the layers below, not each other |
-| 8 | `transport/`, `captures/` | the layers below, not each other |
-| 9 | `states/`, `query/`, `render/`, `install/` | the layers below, not each other |
+| 7 | `interop/`, `migrations/`, `analysis/`, `dtc/` | the layers below, not each other |
+| 8 | `transport/`, `captures/`, `actions/` | the layers below, not each other |
+| 9 | `states/`, `query/`, `render/` | the layers below, not each other |
 | 10 | `privacy/` | the layers below |
-| 11 | `ecus/`, `profile/`, `variants/` | each other (one cycle still to split) and the layers below |
-| 12 | `device/` | the layers below |
-| 13 | `safety/` | the layers below |
-| 14 | `expression/` | the layers below |
-| 15 | `uds/` | the layers below |
-| 16 | `config/` | the layers below |
-| 17 | `core/` | the layers below |
+| 11 | `ecus/` | the layers below |
+| 12 | `variants/` | the layers below |
+| 13 | `broadcast/`, `install/` | the layers below, not each other |
+| 14 | `profile/` | the layers below |
+| 15 | `device/` | the layers below |
+| 16 | `safety/` | the layers below |
+| 17 | `expression/` | the layers below |
+| 18 | `uds/` | the layers below |
+| 19 | `config/` | the layers below |
+| 20 | `core/` | the layers below |
 
 <!-- END GENERATED: layers -->
 
 The first three layers are the interface and the live operations. The profile editors
 (`yaml_edit/`) and the validators they run after each write (`validation/`) sit below them and
 above everything they read. Then come the packages that compute over the store and the
-definitions, the store and the transport, and the definitions themselves. A layer marked "one
-cycle still to split" still imports itself: `ecus/`, `profile/` and `variants/` (a profile knows
-which car it describes, and loading the definitions applies that car), and `expression/` with
-`uds/`. Everything else is ordered, and `lint-imports` fails on a wrong-way import.
+definitions, the store and the transport, and the definitions themselves.
 
-Some packages sit higher than their job needs (`actions/`, `broadcast/`, `install/`), because they
-import a package of the `ecus/`, `profile/`, `variants/` cycle. They move down when it splits.
+The definitions are three layers: `ecus/` (the loaded definitions) above `variants/` (which car
+the profile describes) above `profile/` (the bundle on disk). `profile/` does not know what a
+variant is, so the CLI installs how the active profile gets its variant
+(`cli/profile_context.py`). Every layer is ordered, and `lint-imports` fails on a wrong-way
+import.
 
 `render/` sits below `live/` rather than beside the CLI, because live operations print through it.
 
@@ -75,7 +79,7 @@ import a package of the `ecus/`, `profile/`, `variants/` cycle. They move down w
 | `live/` | Live operations against the car: one coroutine per job, over a connected ``Terminal``. | device orchestration over the ``Terminal`` protocol, the monitor's controller and recorder, the step executor, scans, DTC reads, identity, IOControl and routines. | flags (``cli/commands/``), choosing a transport (``transport/``), what may be sent (``safety/``) and the selector and step grammar (``query/``). | ``transport`` (the protocol only), ``safety``, ``captures``, ``ecus``, ``query``, ``analysis``, ``uds`` and below. It does not import ``cli``. |
 | `migrations/` | One-shot data/config migration shims (captures, device config, discover rows). | one-time rewrites of stored data and config (captures, devices, discover rows). | anything a normal run needs; a migration runs once, from a ``canair`` command. The DTC log upgrades itself on first use, so its upgrade is ``dtc/log_upgrade.py``. | the stores it rewrites (``captures``, ``config``) and the definitions they name. |
 | `privacy/` | What must never leave the machine, and what to mask on screen. | the ``sensitive: true`` rule (``sensitive``: mask on screen, never journal, save or export). | the contribute-time scan for personal data in a profile (``contribute/pii.py``), reading the flag off a definition (``ecus/sensitivity.py``) and where a profile lives (``profile``). | the loaded definitions (``ecus``, ``profile``), ``uds`` and ``core``. |
-| `profile/` | Vehicle profile resolution. | finding, resolving, layering and creating a profile bundle (this module, ``scaffold``), and what cars call a profile (``names``). | parsing a bundle's definitions (``ecus/``, ``states/``, ``variants/``, ``broadcast/``), checking them (``validation/``) or editing them (``yaml_edit/``). | ``config``, ``core`` and ``uds``. |
+| `profile/` | Vehicle profile resolution. | finding, resolving, layering and creating a profile bundle (this module, ``scaffold``), and what cars call a profile (``names``). | parsing a bundle's definitions (``ecus/``, ``states/``, ``variants/``, ``broadcast/``), checking them (``validation/``) or editing them (``yaml_edit/``). | ``config`` and ``core``. |
 | `query/` | ECU / PID selection mini-language. | the selector grammar and matching (this module) and the ``read``/``monitor`` step grammar built on it (``steps``). | running a step against the car (``live/multi*``) or ``@group`` definitions (``ecus/``). | ``ecus`` (to resolve names) and ``core``. |
 | `render/` | Text for the terminal: the colour palette and the shared result formatters. | the ANSI palette and its colour gating (``ansi``), the painter that colours and aligns text for one stream (``paint``), the one Rich console factory (``console``), the four message levels (``messages``), the glyphs (``glyphs``), the sweep row markers (``discover``), the one-line progress status (``progress``) and the formatters several packages print through: hex lines, byte rulers, parameter tables, UDS response blocks (``formatting``), and the sniffer's per-ID table (``sniff``), which the CLI and the Textual view both print. | a command's own output (its ``render.py``), Textual apps (``tui/``) and decoding itself (``expression/``, ``uds/``). | ``expression``, ``privacy``, ``uds`` and ``core``. It sits below ``live`` because live operations print through it. |
 | `safety/` | What may be sent to the car. | the command blocklist and session rules (``blocklist``), the make-specific quirks that widen them for one protocol or grant an action one exact request (``quirks``), and the read/release/actuate classifier (``actuation``). | moving bytes (``transport/``), the actions themselves (``actions/``) or their live run (``live/action.py``). | ``uds`` and ``core``. The blocklist is the one place a refusal is decided, so transports and live operations depend on it and it depends on neither. |
@@ -84,7 +88,7 @@ import a package of the `ecus/`, `profile/`, `variants/` cycle. They move down w
 | `tui/` | The Textual kit, and the arrow-key list picker of the ``canair profile`` command. | the shared Textual kit (key roles, help, modals, scrolling, status and widgets) and, in ``apps/``, the Textual apps the commands open. | the state an app shows (``live/`` and the package that owns the data), the commands (``cli/``) and terminal helpers with no Textual in them (``core/terminal.py``). | every package below the CLI, and Textual. Only this package imports ``textual``. |
 | `uds/` | The diagnostic request/response protocol layer (domain A), I/O-free. | protocol facts and decoding of request/response bytes, with no I/O. | reading or writing recordings or definitions (``captures/``, ``ecus/``), user config (``config.py``), moving bytes (``transport/``), and deciding what may be sent (``safety``). | the standard library and ``core`` only. ``tests/contracts`` pins that it reads no data store, config or transport. |
 | `validation/` | Profile validators: files and parsed data in, errors and warnings out. | the checks behind ``canair validate`` (pids/ecus, captures, states, signals, variants, CAN buses, groups, actions) and the post-write guard the profile editors call. | the ``canair validate`` parser and its dispatch (``cli/commands/validate/``), and the edits themselves (``yaml_edit/``). | the layers below it: the definition packages, ``captures`` and ``analysis`` (the capture checks), ``interop`` and ``transport`` (rules they own), ``uds``, ``expression`` and ``safety``. Never ``yaml_edit``, which imports this package, nor ``live`` or ``cli``. |
-| `variants/` | The variants of one car: ``variants.yaml``. | loading ``variants.yaml``, ECU revisions, fingerprints and the variant selection. | editing them (``yaml_edit/``) and probing the car (``live/revision_probe.py``). | ``profile``, ``ecus``, ``uds`` and ``core``. |
+| `variants/` | The variants of one car: ``variants.yaml``. | loading ``variants.yaml``, ECU revisions, fingerprints and the variant selection. | editing them (``yaml_edit/``) and probing the car (``live/revision_probe.py``). | ``profile``, ``config`` and ``core``. |
 | `yaml_edit/` | Everything that writes a profile's YAML: the editors, their shared write path and helpers. | every write to a profile's definition YAML: the editors and their commit path. | reading definitions (``ecus/``, ``states/`` ...) and the ``canair pids``/``signals`` commands. | the layers below it: ``validation``, the definition packages, ``captures`` (a rename rewrites recorded history), ``render``, ``install`` and ``core``. Never ``live`` or ``cli``. |
 
 <!-- END GENERATED: packages -->

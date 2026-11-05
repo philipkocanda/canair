@@ -21,7 +21,7 @@ The check runs ``src/canair/schema/variants_schema.yaml`` for the structure.
 
 Belongs: loading ``variants.yaml``, ECU revisions, fingerprints and the variant selection.
 Not here: editing them (``yaml_edit/``) and probing the car (``live/revision_probe.py``).
-Imports: ``profile``, ``ecus``, ``uds`` and ``core``.
+Imports: ``profile``, ``config`` and ``core``.
 """
 
 from __future__ import annotations

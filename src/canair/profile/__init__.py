@@ -29,7 +29,7 @@ Belongs: finding, resolving, layering and creating a profile bundle (this module
 and what cars call a profile (``names``).
 Not here: parsing a bundle's definitions (``ecus/``, ``states/``, ``variants/``, ``broadcast/``),
 checking them (``validation/``) or editing them (``yaml_edit/``).
-Imports: ``config``, ``core`` and ``uds``.
+Imports: ``config`` and ``core``.
 """
 
 from __future__ import annotations

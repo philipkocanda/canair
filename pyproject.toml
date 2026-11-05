@@ -383,11 +383,7 @@ modules = [
     "canair.transport.raw",
 ]
 
-# The `:` group is the part of the tree that still imports itself in a cycle (definitions, the
-# store, analysis and transport reach into each other through function-level imports).
-# Splitting it into the layers of plans/2026-11-04-package-layout-and-layering.md section 6 is
-# the remaining work: each step pulls one package out of the group into a layer of its own.
-# Everything outside the group is already ordered.
+# Top to bottom. `a | b` is one layer: its packages import none of each other.
 [[tool.importlinter.contracts]]
 name = "The layers hold"
 type = "layers"
@@ -398,11 +394,14 @@ layers = [
     "canair.live",
     "canair.yaml_edit",
     "canair.validation",
-    "canair.interop | canair.actions | canair.broadcast | canair.migrations | canair.analysis | canair.dtc",
-    "canair.transport | canair.captures",
-    "canair.states | canair.query | canair.render | canair.install",
+    "canair.interop | canair.migrations | canair.analysis | canair.dtc",
+    "canair.transport | canair.captures | canair.actions",
+    "canair.states | canair.query | canair.render",
     "canair.privacy",
-    "canair.ecus : canair.profile : canair.variants",
+    "canair.ecus",
+    "canair.variants",
+    "canair.broadcast | canair.install",
+    "canair.profile",
     "canair.device",
     "canair.safety",
     "canair.expression",
