@@ -55,7 +55,7 @@ __all__ = [
     "timestamps_disjoint",
 ]
 
-# Default nearest-neighbour join window (shared by align/correlate/hunt/xanalysis).
+# Default nearest-neighbour join window (shared by align/correlate/hunt/cross_signal).
 # The sequential single-connection poller visits ECUs round-robin, so two ECUs'
 # samples are skewed by the time to poll everything in between. On a large
 # multi-ECU monitor session (e.g. 8 ECUs) adjacent-in-cycle ECUs land ~3.4 s
@@ -651,7 +651,7 @@ def timestamps_disjoint(a_ts: Sequence[float], b_ts: Sequence[float], tol_s: flo
 
     The timestamp-only core of :func:`series_time_ranges_disjoint` — a join
     depends solely on the two clocks, so the pruning guard does too, and the
-    bucketed sweep in :func:`canair.analysis.xanalysis.correlate_matrix` prunes on bare
+    bucketed sweep in :func:`canair.analysis.cross_signal.correlate_matrix` prunes on bare
     timestamp vectors (its bucket key) without materialising a series.
     """
     if not a_ts or not b_ts:
@@ -684,7 +684,7 @@ def join_indices(
 
     A join depends only on the two *clocks*, never on the values — so the mapping
     is reusable across every signal sharing a timestamp vector. That is what lets
-    :func:`canair.analysis.xanalysis.correlate_matrix` join once per timestamp-vector pair
+    :func:`canair.analysis.cross_signal.correlate_matrix` join once per timestamp-vector pair
     instead of once per signal pair (nearly every signal decoded from one
     ``(ECU, PID)`` shares one vector). :func:`join_prepared` is a thin wrapper over
     this, so the tie-breaking rule — smaller absolute delta wins, the earlier

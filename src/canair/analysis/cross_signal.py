@@ -151,7 +151,7 @@ def reference_is_absolute_level(
 # Common physical scalings for the unit sniffer. The candidate table + resolver
 # live in canair.analysis.physical.unit_guess (make-neutral built-ins + profile extension); this
 # module just consumes the resolved list (imported above as _UNIT_CANDIDATES for
-# the callers/tests that referenced it from xanalysis historically).
+# the callers/tests that referenced it from cross_signal historically).
 
 
 def unit_dimension(unit: str | None) -> str | None:
@@ -536,7 +536,7 @@ def lag_scan(
 # ---------------------------------------------------------------------------
 # The pairwise ranking engine lives in canair.analysis.corrmatrix (bucketed join + hoisted
 # per-signal statistics); re-exported here because `correlate`/`investigate` and
-# the tests have always reached for it through xanalysis.
+# the tests have always reached for it through cross_signal.
 
 
 # ---------------------------------------------------------------------------

@@ -17,8 +17,7 @@ from canair.analysis.align import (
     prepare_series,
 )
 from canair.analysis.corrmatrix import CLUSTER_THRESHOLD
-from canair.analysis.fill import FILL_HOLD, FORCED_HOLD_WARNING
-from canair.analysis.xanalysis import (
+from canair.analysis.cross_signal import (
     colinear_clusters,
     correlate_matrix,
     correlation,
@@ -29,6 +28,7 @@ from canair.analysis.xanalysis import (
     reference_is_bimodal,
     transform_ref,
 )
+from canair.analysis.fill import FILL_HOLD, FORCED_HOLD_WARNING
 from canair.captures.keepmode import CHANGES_BANNER
 from canair.cli.args.join import fill_policy_from_args, fill_summary_line
 from canair.cli.args.notation import resolve_notation

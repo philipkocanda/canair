@@ -2,8 +2,8 @@
 
 import pytest
 
+from canair.analysis.cross_signal import discriminability as _discriminability
 from canair.analysis.stats import compute_stats
-from canair.analysis.xanalysis import discriminability as _discriminability
 from canair.cli.commands.decode import analysis, calc, query, views
 
 parse_try_expr = query.parse_try_expr
@@ -251,7 +251,7 @@ class TestDiscriminate:
         """Zero within-group spread scores high but stays comparable, never inf.
 
         An unbounded score cannot be ranked against a measured one, and thin
-        buckets reach it by accident (see xanalysis.discriminability).
+        buckets reach it by accident (see cross_signal.discriminability).
         """
         groups = {"a": [10.0, 10.0], "b": [50.0, 50.0]}
         f = _discriminability(groups)

@@ -14,7 +14,7 @@ from canair.analysis.align import (
     join_prepared,
     prepare_series,
 )
-from canair.analysis.xanalysis import (
+from canair.analysis.cross_signal import (
     colinear_clusters,
     correlate_matrix,
     correlation,

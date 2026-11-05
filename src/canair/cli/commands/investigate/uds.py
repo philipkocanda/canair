@@ -15,13 +15,13 @@ from canair.analysis.align import (
     load_signal_captures,
     prepare_series,
 )
-from canair.analysis.fill import forced_hold_warning
-from canair.analysis.triage import detect_words, triage_byte
-from canair.analysis.xanalysis import (
+from canair.analysis.cross_signal import (
     build_bit_series,
     build_byte_series,
     build_param_series,
 )
+from canair.analysis.fill import forced_hold_warning
+from canair.analysis.triage import detect_words, triage_byte
 from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.join import fill_policy_from_args, fill_summaries, fill_summary_line
 from canair.cli.args.scope import resolve_scope_bounds
@@ -113,7 +113,7 @@ def _resolve_targets(args, since, until) -> tuple[list[tuple[str, str]], tuple[s
 
 
 def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
-    from canair.analysis.xanalysis import byte_state_buckets as _byte_state_buckets
+    from canair.analysis.cross_signal import byte_state_buckets as _byte_state_buckets
     from canair.ecus.pids import build_ecu_index, load_pids
 
     loaded = load_signal_captures(
@@ -167,8 +167,8 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
 
     # Physical-band hits per starting offset (plausibility, needs no reference).
     # Computed after the --events short-circuit so it isn't wasted there.
+    from canair.analysis.cross_signal import physical_scan
     from canair.analysis.physical.bands import resolve_physical_bands
-    from canair.analysis.xanalysis import physical_scan
     from canair.cli.grid_prompt import resolve_grid_region
     from canair.profile import active
 
@@ -184,7 +184,7 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
         messages.error("--independent-of and --independent-of-file are mutually exclusive")
         return 2
     if args.independent_of or args.independent_of_file:
-        from canair.analysis.xanalysis import load_ref
+        from canair.analysis.cross_signal import load_ref
 
         try:
             if args.independent_of_file:

@@ -12,10 +12,10 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from canair.analysis.align import longest_payload_len
+from canair.analysis.cross_signal import byte_state_buckets as _byte_state_buckets
+from canair.analysis.cross_signal import discriminability as _discriminability
 from canair.analysis.mirrors import DEFAULT_MIRROR_MATCH
 from canair.analysis.stats import correlation as _correlation
-from canair.analysis.xanalysis import byte_state_buckets as _byte_state_buckets
-from canair.analysis.xanalysis import discriminability as _discriminability
 from canair.render import ansi
 from canair.states import load_states, state_bucket_key
 from canair.uds.inspect_bytes import apply_transform

@@ -12,12 +12,12 @@ from canair.analysis.align import (
     load_signal_captures,
     payload_lengths,
 )
-from canair.analysis.fill import FillPolicy
-from canair.analysis.xanalysis import (
+from canair.analysis.cross_signal import (
     build_bit_series,
     build_byte_series,
     build_param_series,
 )
+from canair.analysis.fill import FillPolicy
 from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.join import fill_summaries
 

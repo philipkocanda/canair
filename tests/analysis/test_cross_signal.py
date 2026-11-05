@@ -1,4 +1,4 @@
-"""Tests for the cross-signal analysis engine (canair.analysis.xanalysis) and the
+"""Tests for the cross-signal analysis engine (canair.analysis.cross_signal) and the
 correlate/hunt commands."""
 
 import json
@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import pytest
 import yaml
 
-from canair.analysis import xanalysis as xanalysis
+from canair.analysis import cross_signal as cross_signal
 from canair.analysis.align import TimePoint
 
 
@@ -66,15 +66,15 @@ def _never_write_the_bundled_profile():
 # ---------------------------------------------------------------------------
 class TestStats:
     def test_pearson_perfect(self):
-        assert xanalysis.pearson([1, 2, 3], [2, 4, 6]) == pytest.approx(1.0)
-        assert xanalysis.pearson([1, 2, 3], [6, 4, 2]) == pytest.approx(-1.0)
+        assert cross_signal.pearson([1, 2, 3], [2, 4, 6]) == pytest.approx(1.0)
+        assert cross_signal.pearson([1, 2, 3], [6, 4, 2]) == pytest.approx(-1.0)
 
     def test_pearson_degenerate(self):
-        assert xanalysis.pearson([1], [1]) is None
-        assert xanalysis.pearson([1, 1, 1], [1, 2, 3]) is None
+        assert cross_signal.pearson([1], [1]) is None
+        assert cross_signal.pearson([1, 1, 1], [1, 2, 3]) is None
 
     def test_linear_fit(self):
-        m, c, resid = xanalysis.linear_fit([0, 1, 2, 3], [1, 3, 5, 7])  # y=2x+1
+        m, c, resid = cross_signal.linear_fit([0, 1, 2, 3], [1, 3, 5, 7])  # y=2x+1
         assert m == pytest.approx(2.0)
         assert c == pytest.approx(1.0)
         assert resid == pytest.approx(0.0)
@@ -83,28 +83,30 @@ class TestStats:
 class TestReferenceIsBimodal:
     def test_two_flat_clusters_true(self):
         # 12V-bus style: ~14.5V charging vs ~12.2V otherwise, tight within each.
-        assert xanalysis.reference_is_bimodal([14.5] * 40 + [12.2] * 20)
+        assert cross_signal.reference_is_bimodal([14.5] * 40 + [12.2] * 20)
 
     def test_minority_cluster_still_true(self):
         # Charge dominates (~92%), ACC2 minority (~8%) — still a two-cluster ref.
-        assert xanalysis.reference_is_bimodal([14.5] * 90 + [12.2] * 8)
+        assert cross_signal.reference_is_bimodal([14.5] * 90 + [12.2] * 8)
 
     def test_continuous_ramp_false(self):
-        assert not xanalysis.reference_is_bimodal([12.0 + i * 0.05 for i in range(60)])
+        assert not cross_signal.reference_is_bimodal([12.0 + i * 0.05 for i in range(60)])
 
     def test_speed_like_false(self):
         # Big flat-at-zero block + a WIDE moving cluster: the gap doesn't dominate
         # the moving cluster's own spread, so it must NOT be flagged (speed works).
-        assert not xanalysis.reference_is_bimodal([0.0] * 200 + [5 + i * 0.1 for i in range(500)])
+        assert not cross_signal.reference_is_bimodal(
+            [0.0] * 200 + [5 + i * 0.1 for i in range(500)]
+        )
 
     def test_lone_outlier_false(self):
-        assert not xanalysis.reference_is_bimodal([12.0 + i * 0.02 for i in range(200)] + [40.0])
+        assert not cross_signal.reference_is_bimodal([12.0 + i * 0.02 for i in range(200)] + [40.0])
 
     def test_too_few_samples_false(self):
-        assert not xanalysis.reference_is_bimodal([14.5] * 3 + [12.2] * 2)
+        assert not cross_signal.reference_is_bimodal([14.5] * 3 + [12.2] * 2)
 
     def test_constant_false(self):
-        assert not xanalysis.reference_is_bimodal([12.4] * 30)
+        assert not cross_signal.reference_is_bimodal([12.4] * 30)
 
 
 class TestReferenceIsAbsoluteLevel:
@@ -113,48 +115,48 @@ class TestReferenceIsAbsoluteLevel:
         import random
 
         random.seed(0)
-        assert xanalysis.reference_is_absolute_level(
+        assert cross_signal.reference_is_absolute_level(
             [360 + random.uniform(-5, 5) for _ in range(50)]
         )
 
     def test_12v_rail_true(self):
-        assert xanalysis.reference_is_absolute_level([14.2 + 0.01 * i for i in range(40)])
+        assert cross_signal.reference_is_absolute_level([14.2 + 0.01 * i for i in range(40)])
 
     def test_speed_sweep_false(self):
         # 0..100 km/h: huge relative span → dynamic, not a level.
-        assert not xanalysis.reference_is_absolute_level([float(i) for i in range(0, 100)])
+        assert not cross_signal.reference_is_absolute_level([float(i) for i in range(0, 100)])
 
     def test_rpm_sweep_false(self):
-        assert not xanalysis.reference_is_absolute_level([float(i * 60) for i in range(100)])
+        assert not cross_signal.reference_is_absolute_level([float(i * 60) for i in range(100)])
 
     def test_near_zero_baseline_false(self):
         # A temperature swinging around 0°C: baseline below the floor → not flagged
         # (DC offset doesn't dominate a near-zero mean).
-        assert not xanalysis.reference_is_absolute_level([(-2.0 + 0.1 * i) for i in range(40)])
+        assert not cross_signal.reference_is_absolute_level([(-2.0 + 0.1 * i) for i in range(40)])
 
     def test_too_few_samples_false(self):
-        assert not xanalysis.reference_is_absolute_level([360.0] * 5)
+        assert not cross_signal.reference_is_absolute_level([360.0] * 5)
 
 
 class TestDiscriminability:
     def test_clean_separation_high(self):
         # Two states, tight within each, far apart between -> large F.
         groups = {"a": [1.0, 1.0, 1.1], "b": [9.0, 9.1, 9.0]}
-        f = xanalysis.discriminability(groups)
+        f = cross_signal.discriminability(groups)
         assert f is not None and f > 100
 
     def test_noise_low(self):
         # Overlapping, noisy groups -> small F.
         groups = {"a": [1.0, 5.0, 9.0], "b": [2.0, 6.0, 8.0]}
-        f = xanalysis.discriminability(groups)
+        f = cross_signal.discriminability(groups)
         assert f is not None and f < 1
 
     def test_single_group_none(self):
-        assert xanalysis.discriminability({"a": [1.0, 2.0, 3.0]}) is None
+        assert cross_signal.discriminability({"a": [1.0, 2.0, 3.0]}) is None
 
     def test_zero_within_is_finite_but_high(self):
         groups = {"a": [1.0, 1.0], "b": [2.0, 2.0]}
-        f = xanalysis.discriminability(groups)
+        f = cross_signal.discriminability(groups)
         assert f is not None and f > 10 and f != float("inf")
 
 
@@ -163,7 +165,7 @@ class TestSniffUnit:
         # candidate = speed / 1.609 (MPH), so slope ≈ 0.6214
         xs = [0, 16, 32, 48]  # km/h reference
         ys = [x * 0.6214 for x in xs]  # candidate byte in mph
-        guess = xanalysis.sniff_unit(xs, ys)
+        guess = cross_signal.sniff_unit(xs, ys)
         assert guess is not None
         assert "mph" in guess.lower()
 
@@ -171,7 +173,7 @@ class TestSniffUnit:
         # candidate = ref (raw ≈ value), slope 1.0
         xs = [10, 20, 30]
         ys = [10.0, 20.0, 30.0]
-        guess = xanalysis.sniff_unit(xs, ys)
+        guess = cross_signal.sniff_unit(xs, ys)
         assert guess is not None and "×1" in guess
 
     def test_hk_minus40_temp_offset(self):
@@ -180,7 +182,7 @@ class TestSniffUnit:
         # match), so a -40 temp was mislabeled as a plain x1 scaling.
         xs = [float(t) for t in range(-10, 40)]  # reference temperature degC
         ys = [x + 40 for x in xs]  # raw byte
-        guess = xanalysis.sniff_unit(xs, ys)
+        guess = cross_signal.sniff_unit(xs, ys)
         assert guess is not None
         assert "−40" in guess or "-40" in guess
         assert "×1)" not in guess  # must NOT collapse to the plain x1 label
@@ -189,19 +191,19 @@ class TestSniffUnit:
         # physical = raw/2 - 40  =>  raw = (temp + 40) * 2
         xs = [float(t) for t in range(-10, 40)]
         ys = [(x + 40) * 2 for x in xs]
-        guess = xanalysis.sniff_unit(xs, ys)
+        guess = cross_signal.sniff_unit(xs, ys)
         assert guess is not None
         assert "raw/2−40" in guess or "raw/2-40" in guess
 
     def test_no_fit_returns_none(self):
-        assert xanalysis.sniff_unit([1], [1]) is None
+        assert cross_signal.sniff_unit([1], [1]) is None
 
     def test_domain_hint_suppressed_on_mismatched_ref_unit(self):
         # An RPM slope ≈64 best-fits the 0.02 "cell V" candidate; with a speed
         # reference the voltage hint must be dropped, leaving the numeric scale.
         xs = [0.0, 10.0, 20.0, 30.0]  # km/h reference
         ys = [x / 0.02 for x in xs]  # candidate byte, slope ≈ 50
-        guess = xanalysis.sniff_unit(xs, ys, ref_unit="km/h")
+        guess = cross_signal.sniff_unit(xs, ys, ref_unit="km/h")
         assert guess is not None
         assert "cell V" not in guess
         assert "raw×0.02" in guess
@@ -209,14 +211,14 @@ class TestSniffUnit:
     def test_domain_hint_kept_on_matching_ref_unit(self):
         xs = [3.6, 3.7, 3.8, 3.9]  # voltage reference
         ys = [x / 0.02 for x in xs]  # candidate byte ≈ centivolts
-        guess = xanalysis.sniff_unit(xs, ys, ref_unit="V")
+        guess = cross_signal.sniff_unit(xs, ys, ref_unit="V")
         assert guess is not None and "cell V" in guess
 
     def test_domain_hint_kept_when_ref_unit_unknown(self):
         # No/unknown reference unit → don't gate (conservative, unchanged).
         xs = [3.6, 3.7, 3.8, 3.9]
         ys = [x / 0.02 for x in xs]
-        assert "cell V" in (xanalysis.sniff_unit(xs, ys) or "")
+        assert "cell V" in (cross_signal.sniff_unit(xs, ys) or "")
 
     def test_no_hyundai_label_in_builtins(self):
         from canair.analysis.physical.unit_guess import DEFAULT_UNIT_CANDIDATES
@@ -232,16 +234,16 @@ class TestSniffUnit:
         xs = [float(t) for t in range(-10, 40)]
         ys = [(x + 50) * 4 for x in xs]
         extra = [(0.25, -50.0, "raw/4−50", None, None)]
-        guess = xanalysis.sniff_unit(xs, ys, candidates=extra)
+        guess = cross_signal.sniff_unit(xs, ys, candidates=extra)
         assert guess is not None
         assert "raw/4−50" in guess
 
     def test_unit_dimension_mapping(self):
-        assert xanalysis.unit_dimension("km/h") == "speed"
-        assert xanalysis.unit_dimension("V") == "voltage"
-        assert xanalysis.unit_dimension("°C") == "temperature"
-        assert xanalysis.unit_dimension("rpm") is None
-        assert xanalysis.unit_dimension(None) is None
+        assert cross_signal.unit_dimension("km/h") == "speed"
+        assert cross_signal.unit_dimension("V") == "voltage"
+        assert cross_signal.unit_dimension("°C") == "temperature"
+        assert cross_signal.unit_dimension("rpm") is None
+        assert cross_signal.unit_dimension(None) is None
 
 
 class TestTransformRef:
@@ -249,14 +251,14 @@ class TestTransformRef:
 
     def test_raw_and_none_passthrough(self):
         ref = [_tp(0, 1.0), _tp(1, 2.0)]
-        assert xanalysis.transform_ref(ref, "raw") is ref
-        assert xanalysis.transform_ref(ref, None) is ref
-        assert xanalysis.transform_ref([], "delta") == []
+        assert cross_signal.transform_ref(ref, "raw") is ref
+        assert cross_signal.transform_ref(ref, None) is ref
+        assert cross_signal.transform_ref([], "delta") == []
 
     def test_delta_sorts_by_time_then_differences(self):
         # deliberately out of time order; delta must sort first
         ref = [_tp(2, 4.0), _tp(0, 0.0), _tp(1, 1.0)]
-        out = xanalysis.transform_ref(ref, "delta")
+        out = cross_signal.transform_ref(ref, "delta")
         assert [tp.value for tp in out] == [0.0, 1.0, 3.0]  # delta of [0,1,4]
         assert [tp.dt for tp in out] == sorted(tp.dt for tp in ref)
 
@@ -268,7 +270,7 @@ class TestLagScan:
         # cand is ref shifted +2 samples (1 s spacing): best lag ≈ +2 samples
         ref = [_tp(i, float(i % 7)) for i in range(30)]
         cand = [_tp(i + 2, float(i % 7)) for i in range(30)]
-        hit = xanalysis.lag_scan(ref, cand, tol_s=0.6, max_lag=3)
+        hit = cross_signal.lag_scan(ref, cand, tol_s=0.6, max_lag=3)
         assert hit is not None
         assert hit.lag_samples == -2  # shift cand back 2 to align with ref
         assert hit.r == pytest.approx(1.0, abs=1e-6)
@@ -276,11 +278,11 @@ class TestLagScan:
     def test_zero_lag_when_aligned(self):
         ref = [_tp(i, float(i % 5)) for i in range(20)]
         cand = [_tp(i, float(i % 5)) for i in range(20)]
-        hit = xanalysis.lag_scan(ref, cand, tol_s=0.4, max_lag=3)
+        hit = cross_signal.lag_scan(ref, cand, tol_s=0.4, max_lag=3)
         assert hit is not None and hit.lag_samples == 0
 
     def test_empty_returns_none(self):
-        assert xanalysis.lag_scan([], [_tp(0, 1.0)], tol_s=1.0) is None
+        assert cross_signal.lag_scan([], [_tp(0, 1.0)], tol_s=1.0) is None
 
 
 class TestCorrelateGate:
@@ -355,7 +357,7 @@ class TestBuildByteSeries:
         payloads = ["6181" + "00" * 17 + f"{i * 10:02X}" for i in range(8)]
         raw_len = len(payloads[0]) // 2
         assert raw_len == 20
-        series = xanalysis.build_byte_series(self._loaded(payloads), min_distinct=2)
+        series = cross_signal.build_byte_series(self._loaded(payloads), min_distinct=2)
         offsets = sorted(int(k.rsplit(":B", 1)[1]) for k in series)
         assert offsets, "the varying tail byte must produce a series"
         # The only varying byte lands in the WiCAN tail beyond the raw length.
@@ -367,7 +369,7 @@ class TestBuildByteSeries:
         # Vary EVERY byte so nothing is filtered by min_distinct; then assert no
         # PCI offset (wican_to_isotp is None) appears in the output.
         payloads = ["61" + "".join(f"{(i + k) & 0xFF:02X}" for k in range(19)) for i in range(8)]
-        series = xanalysis.build_byte_series(self._loaded(payloads), min_distinct=2)
+        series = cross_signal.build_byte_series(self._loaded(payloads), min_distinct=2)
         offsets = {int(k.rsplit(":B", 1)[1]) for k in series}
         wlen = len(payload_to_wican_bytes(payloads[0]))
         pci = {i for i in range(wlen) if wican_to_isotp(i) is None}
@@ -378,7 +380,7 @@ class TestBuildByteSeries:
         # single-frame payload 62 C1 01 00 -> WiCAN 04 62 C1 01 00: B0=PCI, B1=SID,
         # B4=last data byte. d0 toggles bit0 only (0x00 <-> 0x01); all else const.
         lp = self._loaded(["62C10100", "62C10101", "62C10100", "62C10101"])
-        bits = xanalysis.build_bit_series(lp)
+        bits = cross_signal.build_bit_series(lp)
         keys = set(bits)
         assert "BMS:2101:B4:0" in keys
         assert all(k.endswith(":0") for k in keys)  # only bit 0 varies
@@ -422,7 +424,7 @@ class TestHuntByte:
         _write_hunt_fixture(tmp_path)
         loaded = load_signal_captures([("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path)
         ref = extract_series(loaded[("ESC", "22C101")], "B5")
-        hits = xanalysis.hunt_byte(loaded[("AAF", "2181")], ref, tol_s=1.0, min_n=10)
+        hits = cross_signal.hunt_byte(loaded[("AAF", "2181")], ref, tol_s=1.0, min_n=10)
         assert hits
         top = hits[0]
         assert top.r == pytest.approx(1.0, abs=1e-6)
@@ -454,7 +456,7 @@ class TestHuntByte:
             lp.captures.append({"date": "2026-07-22", "time": f"09:00:{i:02d}", "payload": payload})
             ref.append(TimePoint(datetime.combine(date(2026, 7, 22), time(9, 0, i)), float(i)))
 
-        hits = xanalysis.hunt_byte(lp, ref, tol_s=1.0, min_n=10)
+        hits = cross_signal.hunt_byte(lp, ref, tol_s=1.0, min_n=10)
         pci = {j for j in range(64) if wican_to_isotp(j) is None}
         spanning = [h for h in hits if any((h.offset + k) in pci for k in range(h.width))]
         assert not spanning, (
@@ -485,7 +487,7 @@ class TestHuntByte:
             )
             ref.append(TimePoint(datetime.combine(date(2026, 7, 22), time(9, 0, i)), float(val)))
 
-        hits = xanalysis.hunt_byte(lp, ref, tol_s=1.0, min_n=10, all_interps=True)
+        hits = cross_signal.hunt_byte(lp, ref, tol_s=1.0, min_n=10, all_interps=True)
         assert any("skip-PCI" in h.interp for h in hits), "no PCI-skip candidates generated"
         straddle = [h for h in hits if h.expr in ("B15*256 + B17", "S15*256 + B17")]
         assert straddle, f"frame-straddling word not surfaced: {sorted(h.expr for h in hits)}"
@@ -506,7 +508,7 @@ class TestHuntByte:
                 {"date": "2026-07-22", "time": f"09:00:{i:02d}", "payload": pb.hex()}
             )
             ref.append(TimePoint(datetime.combine(date(2026, 7, 22), time(9, 0, i)), float(i)))
-        hits = xanalysis.hunt_byte(lp, ref, tol_s=1.0, min_n=10, per_session=True)
+        hits = cross_signal.hunt_byte(lp, ref, tol_s=1.0, min_n=10, per_session=True)
         assert hits  # runs and returns candidates with per-session detrending on
 
 
@@ -539,7 +541,7 @@ class TestCommandParsers:
     def test_hunt_notation_flag_and_label_rendering(self):
         import argparse
 
-        from canair.analysis.xanalysis import HuntHit
+        from canair.analysis.cross_signal import HuntHit
         from canair.cli.commands import hunt
         from canair.uds.notation import ByteNotation
 
@@ -599,10 +601,10 @@ class TestOutputHygiene:
         from canair.analysis.align import extract_series
 
         ref = extract_series(loaded[("ESC", "22C101")], "B5")
-        collapsed = xanalysis.hunt_byte(loaded[("AAF", "2181")], ref, tol_s=1.0, min_n=10)
+        collapsed = cross_signal.hunt_byte(loaded[("AAF", "2181")], ref, tol_s=1.0, min_n=10)
         offsets = [h.offset for h in collapsed]
         assert len(offsets) == len(set(offsets))  # one row per offset
-        expanded = xanalysis.hunt_byte(
+        expanded = cross_signal.hunt_byte(
             loaded[("AAF", "2181")], ref, tol_s=1.0, min_n=10, all_interps=True
         )
         assert len(expanded) >= len(collapsed)  # --all-interps shows more
@@ -644,7 +646,7 @@ class TestHuntPromote:
     """Tranche 2.5 — promoting a hunt hit to a candidate param."""
 
     def _hit(self, expr="B12", no_expr=False):
-        from canair.analysis.xanalysis import HuntHit
+        from canair.analysis.cross_signal import HuntHit
 
         return HuntHit(
             expr="<no-expr>" if no_expr else expr,
@@ -766,7 +768,7 @@ class TestPhysicalScan:
         # A 16-bit centivolt AC-voltage word ~218-228 V -> raw 21800..22800.
         # 8-byte payload reconstructs multi-frame: SID@B2, echo@B3, word@[B4:B5].
         payloads = [f"6101{cv:04X}00000000" for cv in (21850, 22100, 22400, 22750, 22200)]
-        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        hits = cross_signal.physical_scan(self._loaded(payloads), min_n=3)
         # The [B4:B5]/100 word should land in the mains-RMS band at /100.
         mains = [h for h in hits if h.band == "mains RMS V"]
         assert mains, f"expected a mains-RMS hit, got {[(h.expr, h.band) for h in hits]}"
@@ -778,14 +780,14 @@ class TestPhysicalScan:
         # Small values (~3-7) stay out of every band (>=11 V) at every scaling,
         # including the /100 and x-sqrt2 words. Multi-frame payload at B2.
         payloads = [f"6101{v:02X}0{v}0000000" for v in (3, 4, 5, 6, 7)]
-        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        hits = cross_signal.physical_scan(self._loaded(payloads), min_n=3)
         assert hits == []
 
     def test_skips_protocol_header_bytes(self):
         # The SID (B2) and PID-echo (B3) are never sensor data — a constant echo
         # byte must not join a data byte into a spurious in-band word.
         payloads = [f"6101{cv:04X}00000000" for cv in (21850, 22100, 22400, 22750)]
-        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        hits = cross_signal.physical_scan(self._loaded(payloads), min_n=3)
         assert all(h.offset >= 4 for h in hits)  # nothing at/below the echo byte B3
 
     def test_800v_pack_missed_by_defaults_hit_by_override(self):
@@ -795,14 +797,14 @@ class TestPhysicalScan:
         lp = self._loaded(payloads)
 
         # Default bands: no HV-pack hit (out of the 300-450 band at /10).
-        default_hits = xanalysis.physical_scan(lp, min_n=3)
+        default_hits = cross_signal.physical_scan(lp, min_n=3)
         assert not [h for h in default_hits if h.band == "HV pack V"]
 
         # With an 800 V override the /10 word lands in the widened band.
         from canair.analysis.physical.bands import resolve_physical_bands
 
         bands = resolve_physical_bands({"physical_bands": {"hv_pack": [450, 850]}})
-        hits = xanalysis.physical_scan(lp, min_n=3, bands=bands)
+        hits = cross_signal.physical_scan(lp, min_n=3, bands=bands)
         hv = [h for h in hits if h.band == "HV pack V"]
         assert hv, f"expected an HV-pack hit, got {[(h.expr, h.band) for h in hits]}"
         assert hv[0].scaling == "/10"
@@ -813,7 +815,7 @@ class TestPhysicalScan:
         # 110..130 -> 15..25 °C. Must surface a temp-band hit, separate from any
         # voltage reading of the same byte.
         payloads = [f"6101{t:02X}0000000000" for t in (110, 116, 120, 124, 130)]
-        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        hits = cross_signal.physical_scan(self._loaded(payloads), min_n=3)
         temp = [h for h in hits if h.band == "temp °C"]
         assert temp, f"expected a temp-band hit, got {[(h.expr, h.band) for h in hits]}"
         assert "40" in temp[0].scaling  # a raw/2-40 (or -40) temperature scaling
@@ -831,7 +833,7 @@ class TestPhysicalScan:
         # 7-byte payload -> single frame: B0=PCI, B1=SID, B2=echo, B3..B7=data.
         # A mains-RMS-looking value sits in B3, the first data byte.
         payloads = [f"6101{v:02X}01020304" for v in (225, 228, 231, 226, 233)]
-        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        hits = cross_signal.physical_scan(self._loaded(payloads), min_n=3)
         assert "B3" in {h.expr for h in hits}, (
             f"first data byte B3 must be scanned, got {[(h.expr, h.band) for h in hits]}"
         )
@@ -840,7 +842,7 @@ class TestPhysicalScan:
         # The narrower skip-set must not swing the other way: B0 (PCI), B1 (SID)
         # and B2 (PID echo) are never sensor data.
         payloads = [f"6101{v:02X}01020304" for v in (225, 228, 231, 226, 233)]
-        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        hits = cross_signal.physical_scan(self._loaded(payloads), min_n=3)
         assert all(h.offset >= 3 for h in hits), (
             f"PCI/SID/echo must stay excluded, got {[(h.expr, h.offset) for h in hits]}"
         )
@@ -852,7 +854,7 @@ class TestPhysicalScan:
         # differs across captures.
         single = [f"6101{v:02X}01020304" for v in (225, 228, 231)]
         multi = [f"6101{v:02X}010203040506" for v in (226, 229, 232)]
-        hits = xanalysis.physical_scan(self._loaded(single + multi), min_n=3)
+        hits = cross_signal.physical_scan(self._loaded(single + multi), min_n=3)
         # B1 is the SID under the single-frame layout and a PCI byte under the
         # multi-frame one — it must never be reported.
         assert all(h.offset >= 3 for h in hits), [(h.expr, h.offset) for h in hits]
@@ -861,15 +863,15 @@ class TestPhysicalScan:
         # The mains-RMS word still surfaces though its bytes also get a
         # (lower-confidence) temperature reading — collapse is per (offset, kind).
         payloads = [f"6101{cv:04X}00000000" for cv in (21850, 22100, 22400, 22750, 22200)]
-        hits = xanalysis.physical_scan(self._loaded(payloads), min_n=3)
+        hits = cross_signal.physical_scan(self._loaded(payloads), min_n=3)
         assert [h for h in hits if h.band == "mains RMS V"]
 
     def test_bands_none_matches_default_constant(self):
         # bands=None must reproduce the built-in PHYSICAL_BANDS behaviour exactly.
         payloads = [f"6101{cv:04X}00000000" for cv in (21850, 22100, 22400, 22750, 22200)]
         lp = self._loaded(payloads)
-        a = xanalysis.physical_scan(lp, min_n=3)
-        b = xanalysis.physical_scan(lp, min_n=3, bands=xanalysis.PHYSICAL_BANDS)
+        a = cross_signal.physical_scan(lp, min_n=3)
+        b = cross_signal.physical_scan(lp, min_n=3, bands=cross_signal.PHYSICAL_BANDS)
         assert [(h.offset, h.band, h.scaling) for h in a] == [
             (h.offset, h.band, h.scaling) for h in b
         ]
@@ -886,7 +888,7 @@ class TestByteStateBucketsGroupOf:
             {"capture": {"payload": f"6101{v:02X}", "_g": g}, "decoded": {}}
             for v, g in [(0x10, "off"), (0x10, "off"), (0x40, "on"), (0x40, "on")]
         ]
-        buckets = xanalysis.byte_state_buckets(
+        buckets = cross_signal.byte_state_buckets(
             results, "axis", group_of=lambda r: r["capture"]["_g"]
         )
         # The varying data byte is bucketed by the custom key, not the state.
@@ -901,7 +903,7 @@ class TestByteStateBucketsGroupOf:
             {"capture": {"payload": "610140", "_g": None}, "decoded": {}},
             {"capture": {"payload": "610120", "_g": "a"}, "decoded": {}},
         ]
-        buckets = xanalysis.byte_state_buckets(
+        buckets = cross_signal.byte_state_buckets(
             results, "axis", group_of=lambda r: r["capture"]["_g"]
         )
         # The None-group capture (0x40) is dropped; no bucket ever holds 64.0.

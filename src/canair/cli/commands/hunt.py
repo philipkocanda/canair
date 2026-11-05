@@ -21,8 +21,7 @@ from canair.analysis.align import (
     load_signal_captures,
     longest_payload_len,
 )
-from canair.analysis.fill import forced_hold_warning
-from canair.analysis.xanalysis import (
+from canair.analysis.cross_signal import (
     hunt_byte,
     load_ref,
     ref_unit_for,
@@ -30,6 +29,7 @@ from canair.analysis.xanalysis import (
     reference_is_bimodal,
     transform_ref,
 )
+from canair.analysis.fill import forced_hold_warning
 from canair.cli.args.can import add_can_log_source_args
 from canair.cli.args.group import group_help
 from canair.cli.args.join import (
@@ -598,8 +598,8 @@ def run(args) -> int:
 
 def _run_physical(args, ecu: str, pid: str, since, until) -> int:
     """Reference-free physical-value band scan on one PID."""
+    from canair.analysis.cross_signal import physical_scan
     from canair.analysis.physical.bands import resolve_physical_bands
-    from canair.analysis.xanalysis import physical_scan
     from canair.cli.grid_prompt import resolve_grid_region
     from canair.profile import active
 

@@ -369,15 +369,15 @@ class TestSignalGroupKey:
     def test_group_key(self, label, expected):
         assert signal_group_key(label) == expected
 
-    def test_reexported_from_xanalysis(self):
+    def test_reexported_from_cross_signal(self):
         # correlate/investigate and a lot of muscle memory reach for these through
-        # xanalysis; the module split must not break that.
-        from canair.analysis import xanalysis as xanalysis
+        # cross_signal; the module split must not break that.
+        from canair.analysis import cross_signal as cross_signal
 
-        assert xanalysis.signal_group_key is signal_group_key
-        assert xanalysis.correlate_matrix is correlate_matrix
-        assert xanalysis.colinear_clusters is colinear_clusters
-        assert xanalysis.CorrHit is CorrHit
+        assert cross_signal.signal_group_key is signal_group_key
+        assert cross_signal.correlate_matrix is correlate_matrix
+        assert cross_signal.colinear_clusters is colinear_clusters
+        assert cross_signal.CorrHit is CorrHit
 
     @pytest.mark.parametrize(
         "a,b,same",

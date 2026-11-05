@@ -35,8 +35,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from canair.analysis.cross_signal import linear_fit
 from canair.analysis.stats import cramers_v, pearson, spearman
-from canair.analysis.xanalysis import linear_fit
 from canair.captures import io as capture_io
 from canair.core import yaml_rt
 from canair.ecus import pids as pids_mod

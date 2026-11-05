@@ -22,7 +22,7 @@ from canair.analysis.align import (
     prepare_series,
     series_time_ranges_disjoint,
 )
-from canair.analysis.xanalysis import build_bit_series, build_byte_series, build_param_series
+from canair.analysis.cross_signal import build_bit_series, build_byte_series, build_param_series
 from canair.captures.dates import entry_datetime
 from canair.render import ansi, messages
 from canair.uds.notation import ByteNotation, relabel_signal

@@ -162,8 +162,8 @@ def _sweep_counters(specs, loaded, args, params_of) -> int:
 
 def _pid_summary(lp: LoadedPid, params_def: dict, args, fill) -> dict | None:
     """Cheap, LOCAL per-PID facts for the sweep summary (no cross-PID joins)."""
+    from canair.analysis.cross_signal import build_byte_series, byte_state_buckets, physical_scan
     from canair.analysis.physical.bands import resolve_physical_bands
-    from canair.analysis.xanalysis import build_byte_series, byte_state_buckets, physical_scan
     from canair.cli.commands.investigate.report import _state_f
     from canair.cli.grid_prompt import resolve_grid_region
     from canair.profile import active

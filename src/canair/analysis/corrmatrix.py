@@ -2,7 +2,7 @@
 """Pairwise correlation ranking over time-aligned signals.
 
 The ranking core behind ``canair correlate``'s default report ("show me every
-strong relationship in this scope") — extracted from :mod:`canair.analysis.xanalysis`,
+strong relationship in this scope") — extracted from :mod:`canair.analysis.cross_signal`,
 which re-exports it.
 
 **Why it is bucketed.** Ranking N signals means N²/2 pairs, and each pair needs a

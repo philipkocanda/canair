@@ -2,7 +2,7 @@
 synthesis, series transforms, and float-noise filtering.
 
 These primitives were extracted from ``commands/decode/plot`` into the neutral
-library leaf ``canair.uds.inspect_bytes`` so the analysis engine (``xanalysis`` /
+library leaf ``canair.uds.inspect_bytes`` so the analysis engine (``cross_signal`` /
 ``frame_series``) imports *down* rather than up from a command helper.
 """
 

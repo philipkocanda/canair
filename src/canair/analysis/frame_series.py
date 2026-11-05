@@ -1,9 +1,9 @@
 """Time-series extraction from raw broadcast-CAN frame logs (domain B).
 
-The frame-domain analogue of :func:`canair.analysis.xanalysis.build_byte_series`: turn a
+The frame-domain analogue of :func:`canair.analysis.cross_signal.build_byte_series`: turn a
 native CAN frame log (``captures/can/``) into per-byte (and per-bit) time series
 keyed by ``arbitration-ID:byte``, so broadcast data flows into the *same*
-``TimePoint``-based analysis core (``align``/``xanalysis`` — correlate/hunt) as
+``TimePoint``-based analysis core (``align``/``cross_signal`` — correlate/hunt) as
 diagnostic captures, with no re-implementation of the analyzer.
 
 Frames have **no ISO-TP framing and no PCI**, so a byte is referenced directly by
@@ -21,7 +21,7 @@ from canair.captures.can_logs import detect_format, iter_frames
 from canair.uds.inspect_bytes import INSPECT_TYPES, NO_EXPR, float_series_is_noise, interpret_bytes
 
 # Frame-signal label: "0xID:rN" (byte) / "0xID:rN.k" (bit). The single ":" keeps
-# arbitration-ID grouping working in xanalysis._same_pid (which rsplits on ":").
+# arbitration-ID grouping working in cross_signal._same_pid (which rsplits on ":").
 
 
 def _id_label(arb_id: int) -> str:
@@ -151,17 +151,17 @@ def hunt_frame(
 ):
     """ "Which byte/interpretation of frame ``target_id`` *is* ``ref``?"
 
-    The frame-domain analogue of :func:`canair.analysis.xanalysis.hunt_byte`: sweeps every
+    The frame-domain analogue of :func:`canair.analysis.cross_signal.hunt_byte`: sweeps every
     byte offset × interpretation (u8/i16/f32/… × endianness) of one arbitration
     ID's frames, time-aligns each against ``ref``, and ranks by |r| — reusing the
     shared ``INSPECT_TYPES``/``interpret_bytes`` primitives and the shared
     ranking/collapse. No PCI to skip (frames are contiguous). Returns
-    :class:`~canair.analysis.xanalysis.HuntHit` with raw-CAN ``rN`` labels.
+    :class:`~canair.analysis.cross_signal.HuntHit` with raw-CAN ``rN`` labels.
     """
     from pathlib import Path
 
     from canair.analysis.align import join_nearest
-    from canair.analysis.xanalysis import (
+    from canair.analysis.cross_signal import (
         HuntHit,
         _rank_and_collapse,
         correlation,

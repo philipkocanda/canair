@@ -5,7 +5,7 @@ These helpers operate on decode's ``all_results`` shape — a list of
 ``{capture, decoded, error}`` dicts — turning decoded parameter values into the
 plain/time-stamped series the correlation, mirror, and stats views consume. They
 are the decode-shaped glue over the generic primitives in ``canair.analysis.align`` /
-``canair.analysis.stats`` / ``canair.analysis.xanalysis``; keeping them here leaves decode.py as
+``canair.analysis.stats`` / ``canair.analysis.cross_signal``; keeping them here leaves decode.py as
 argparse + orchestration and lets the renderers (``decode.render``) stay pure
 presentation.
 """

@@ -41,7 +41,7 @@ def _promote_top_byte(name, rows, series, ref_series, ref_label, tol, *, ref_uni
     """
     import re
 
-    from canair.analysis.xanalysis import linear_fit, sniff_unit
+    from canair.analysis.cross_signal import linear_fit, sniff_unit
     from canair.cli.commands._promote import print_promoted, write_candidate
     from canair.yaml_edit.pids import PidsEditError
 

@@ -304,7 +304,7 @@ read does **not** suppress the bitfield-gap report, because
   survived scrutiny until the capture itself was withdrawn as untrustworthy.
   Naming it `UNKNOWN_B14_*` per the rule below is what kept the profile honest.
 - **Never-toggling bits are unknowable, not absent.** Constant bits are dropped
-  from every `--bits` series by design (`src/canair/xanalysis.py:334-361`). A bit
+  from every `--bits` series by design (`src/canair/cross_signal.py:334-361`). A bit
   in `missing{}` that never appears in `--events` simply wasn't exercised — file
   a `research:` lead naming the state/action to try, don't conclude "unused".
 - **A constant-decoding param is a defect, whatever its `verified` flag.** Sweep

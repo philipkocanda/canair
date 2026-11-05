@@ -51,7 +51,7 @@ def _apply_gate(ref_series, gate_expr, tol, *, since, until, state, label):
     timestamp. Returns the filtered (time-sorted) reference series.
     """
     from canair.analysis.align import align_many
-    from canair.analysis.xanalysis import load_ref
+    from canair.analysis.cross_signal import load_ref
 
     signal, op_fn, value, _lbl = _parse_gate(gate_expr)
     if signal is None:

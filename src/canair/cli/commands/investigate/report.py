@@ -18,12 +18,12 @@ from canair.analysis.align import (
     join_prepared,
     prepare_series,
 )
-from canair.analysis.triage import WordCandidate
-from canair.analysis.xanalysis import (
+from canair.analysis.cross_signal import (
     correlation,
     linear_fit,
     sniff_unit,
 )
+from canair.analysis.triage import WordCandidate
 
 NAME = "investigate"
 
@@ -68,7 +68,7 @@ def _independence_score(state_f: float | None, driver_r: float | None) -> float 
 
 
 def _state_f(frames_by_state: dict[str, list[float]]):
-    from canair.analysis.xanalysis import discriminability
+    from canair.analysis.cross_signal import discriminability
 
     return discriminability(frames_by_state)
 

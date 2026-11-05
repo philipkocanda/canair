@@ -5,7 +5,7 @@
     "canair.analysis.align": 934,
     "canair.analysis.blind": 684,
     "canair.analysis.counters": 591,
-    "canair.analysis.xanalysis": 981,
+    "canair.analysis.cross_signal": 981,
     "canair.captures": 845,
     "canair.captures.journal": 552,
     "canair.captures.store": 546,
