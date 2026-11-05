@@ -245,7 +245,6 @@ allow_indirect_imports = true
 # layers contract, so moving them needs those models split from the apps first. The count is
 # pinned by tests/contracts/baseline.json and may only fall.
 ignore_imports = [
-    "canair.cli.commands._sniff_tui -> textual",
     "canair.cli.commands.captures.step_tui -> textual",
     "canair.cli.commands.decode.plot_tui -> textual",
 ]

@@ -1,6 +1,6 @@
 """Textual live view for ``canair sniff`` — a refreshing per-ID CAN table.
 
-The python-can Notifier feeds :class:`~canair.cli.commands.sniff.SniffStats` from a
+The python-can Notifier feeds :class:`~canair.analysis.sniff_stats.SniffStats` from a
 background thread; this app just renders a snapshot on an interval. Uses the
 terminal's own colors/background (ansi-dark) like the monitor TUI.
 """
@@ -19,7 +19,7 @@ from canair.tui.keys import bind
 from canair.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 
 if TYPE_CHECKING:
-    from canair.cli.commands.sniff import SniffStats
+    from canair.analysis.sniff_stats import SniffStats
 
 import time
 
@@ -69,7 +69,7 @@ class SniffApp(HelpMixin, App):
         self._refresh()
 
     def _refresh(self) -> None:
-        from canair.cli.commands.sniff import render_sniff_table
+        from canair.render.sniff import render_sniff_table
 
         rows = self.stats.snapshot()
         try:

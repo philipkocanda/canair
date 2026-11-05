@@ -94,10 +94,10 @@ _RAW_IDENTIFIER = re.compile(r"[a-z]{2,}_[a-z]{2,}")
 
 
 def _canair_tui_apps():
-    from canair.cli.commands._sniff_tui import SniffApp
     from canair.cli.commands.captures.step_tui import CapturesStepApp
     from canair.cli.commands.decode.plot_tui import PlotApp
     from canair.tui.apps.monitor import MonitorApp
+    from canair.tui.apps.sniff import SniffApp
 
     return [CapturesStepApp, PlotApp, MonitorApp, SniffApp]
 
