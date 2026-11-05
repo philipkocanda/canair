@@ -37,7 +37,13 @@ from typing import Any, Final
 
 from canair.uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol, classify_protocol
 from canair.uds.services import DIAGNOSTIC_SESSION_CONTROL, ROUTINE_CONTROL, TESTER_PRESENT_REQUEST
-from canair.uds.subfunctions import RoutineControlType
+from canair.uds.subfunctions import (
+    OEM_SESSION_TYPES,
+    SUPPRESS_POSITIVE_RESPONSE,
+    KwpSessionType,
+    RoutineControlType,
+    SessionType,
+)
 
 # Services that write ECU memory, reflash firmware, reset an ECU or silence its
 # traffic. Blocked by default to prevent accidental damage. The SIDs mean the same
@@ -106,24 +112,28 @@ class SessionBlock:
 
 
 # The UDS sub-function's low seven bits are the session type; bit 7 is
-# suppressPosRspMsgIndicationBit (ISO 14229-1 DiagnosticSessionControl).
-_UDS_SUPPRESS_BIT = 0x80
-_UDS_PROGRAMMING = 0x02
-_UDS_SAFETY_SYSTEM = 0x04
+# SUPPRESS_POSITIVE_RESPONSE (ISO 14229-1 DiagnosticSessionControl). The default and
+# extended sessions only read.
+_UDS_READ_SESSIONS = frozenset(
+    {SessionType.DEFAULT_SESSION, SessionType.EXTENDED_DIAGNOSTIC_SESSION}
+)
 # ISO-reserved, but Hyundai/Kia's ES95486 implements it as "ECU Programming Mode",
 # an alias of programmingSession (the UDS twin of KWP2000's 0x85).
 _HKMC_PROGRAMMING_MODE = 0x05
-# 0x40-0x5F vehicleManufacturerSpecific, 0x60-0x7E systemSupplierSpecific.
-_UDS_OEM_BAND = range(0x40, 0x7F)
 # KWP2000 StartDiagnosticSession modes that are plain diagnostic sessions:
 # 0x81 standard, 0x82 (Hyundai/Kia periodic/EOL diagnostic), 0x83 extended.
-_KWP_SAFE = frozenset({0x81, 0x82, 0x83})
-_KWP_PROGRAMMING = 0x85
+_KWP_SAFE = frozenset(
+    {
+        KwpSessionType.STANDARD_DIAGNOSTIC_SESSION,
+        KwpSessionType.PERIODIC_DIAGNOSTIC_SESSION,
+        KwpSessionType.EXTENDED_DIAGNOSTIC_SESSION,
+    }
+)
 
 
 def _low_band_block(t: int, allowed: Collection[int]) -> SessionBlock | None:
     """The UDS rule for a session *type* (sub-function without the suppress bit)."""
-    if t == _UDS_PROGRAMMING:
+    if t == SessionType.PROGRAMMING_SESSION:
         return SessionBlock(
             "DiagnosticSessionControl sub 0x02 (programmingSession) -- required for "
             "flash/write operations",
@@ -135,13 +145,13 @@ def _low_band_block(t: int, allowed: Collection[int]) -> SessionBlock | None:
             "of programmingSession) -- required for flash/write operations",
             hard=True,
         )
-    if t == _UDS_SAFETY_SYSTEM:
+    if t == SessionType.SAFETY_SYSTEM_DIAGNOSTIC_SESSION:
         return SessionBlock(
             "DiagnosticSessionControl sub 0x04 (safetySystemDiagnosticSession) -- "
             "airbag/pyrotechnic deployment tests",
             hard=True,
         )
-    if t in _UDS_OEM_BAND and t not in allowed:
+    if t in OEM_SESSION_TYPES and t not in allowed:
         return SessionBlock(
             f"DiagnosticSessionControl session type 0x{t:02X} (manufacturer/supplier-specific "
             "UDS session) -- may be a programming/development mode",
@@ -152,19 +162,19 @@ def _low_band_block(t: int, allowed: Collection[int]) -> SessionBlock | None:
 
 def _uds_block(sub: int, allowed: Collection[int]) -> SessionBlock | None:
     t = sub & 0x7F
-    if sub & _UDS_SUPPRESS_BIT and t == _UDS_PROGRAMMING:
+    if sub & SUPPRESS_POSITIVE_RESPONSE and t == SessionType.PROGRAMMING_SESSION:
         return SessionBlock(
             f"DiagnosticSessionControl sub 0x{sub:02X} (UDS programmingSession with the "
             "suppress-positive-response bit) -- required for flash/write operations",
             hard=True,
         )
     block = _low_band_block(t, allowed)
-    if block is not None or not sub & _UDS_SUPPRESS_BIT:
+    if block is not None or not sub & SUPPRESS_POSITIVE_RESPONSE:
         return block
     # The suppress-bit form of anything but default/extended (or an allowed OEM
     # session) serves no read-only purpose, and the same byte is a KWP2000 OEM
     # mode on an ECU whose id_protocol is wrong — so it stays refused.
-    if t in (0x01, 0x03) or t in allowed:
+    if t in _UDS_READ_SESSIONS or t in allowed:
         return None
     return SessionBlock(
         f"DiagnosticSessionControl sub 0x{sub:02X} (unrecognized session with the "
@@ -176,7 +186,7 @@ def _uds_block(sub: int, allowed: Collection[int]) -> SessionBlock | None:
 def _kwp_block(sub: int, allowed: Collection[int]) -> SessionBlock | None:
     if sub < 0x80:
         return _low_band_block(sub, allowed)
-    if sub == _KWP_PROGRAMMING:
+    if sub == KwpSessionType.PROGRAMMING_SESSION:
         return SessionBlock(
             "StartDiagnosticSession sub 0x85 (KWP2000 ECU programming mode) -- required "
             "for flash/write operations",
@@ -202,7 +212,7 @@ def session_mode_block(
     on every protocol, in case ``id_protocol`` is wrong. An unknown protocol is
     refused when *either* reading refuses it.
     """
-    if sub == _KWP_PROGRAMMING and protocol != KWP:
+    if sub == KwpSessionType.PROGRAMMING_SESSION and protocol != KWP:
         return _kwp_block(sub, allowed)
     if protocol == UDS:
         return _uds_block(sub, allowed)

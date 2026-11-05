@@ -201,6 +201,9 @@ TESTER_PRESENT: Final = 0x3E
 KWP_ESCAPE_CODE: Final = 0x80
 CONTROL_DTC_SETTING: Final = 0x85
 
+#: The request SIDs of the diagnostic services, 0x10-0x3E (ISO 14229-1; KWP2000 adds 0x80+).
+REQUEST_SID_RANGE: Final = range(0x10, 0x3F)
+
 #: TesterPresent with a response (sub-function 0x00), as the hex text every sender passes.
 TESTER_PRESENT_REQUEST: Final = "3E00"
 

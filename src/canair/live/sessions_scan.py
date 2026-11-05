@@ -35,10 +35,10 @@ from canair.uds.nrc import NRC_SERVICE_NOT_SUPPORTED, NRC_SERVICE_NOT_SUPPORTED_
 from canair.uds.protocol import KWP, classify_protocol
 from canair.uds.response import UdsResponse
 from canair.uds.services import DIAGNOSTIC_SESSION_CONTROL
-from canair.uds.subfunctions import SUBFUNCTION_NAMES
+from canair.uds.subfunctions import SUBFUNCTION_NAMES, KwpSessionType, SessionType
 
 # Human labels for the session sub-functions, from the shared table in
-# canair.uds.layout — the single home for these enums. Keeping a private copy here
+# canair.uds.subfunctions — the single home for these enums. Keeping a private copy here
 # is what let it drift out of step with formatting.py's (which was missing the
 # whole KWP2000 0x8x range).
 SESSION_NAMES = SUBFUNCTION_NAMES[DIAGNOSTIC_SESSION_CONTROL]
@@ -46,8 +46,12 @@ SESSION_NAMES = SUBFUNCTION_NAMES[DIAGNOSTIC_SESSION_CONTROL]
 # Safe session sub-functions to probe, per protocol. Programming sessions
 # (UDS 0x02, KWP2000 0x85) are deliberately excluded — they are blocked by
 # canair.safety.blocklist and must never be sent to this car.
-UDS_SESSION_MODES = (0x01, 0x03)
-KWP_SESSION_MODES = (0x81, 0x82, 0x83)
+UDS_SESSION_MODES = (SessionType.DEFAULT_SESSION, SessionType.EXTENDED_DIAGNOSTIC_SESSION)
+KWP_SESSION_MODES = (
+    KwpSessionType.STANDARD_DIAGNOSTIC_SESSION,
+    KwpSessionType.PERIODIC_DIAGNOSTIC_SESSION,
+    KwpSessionType.EXTENDED_DIAGNOSTIC_SESSION,
+)
 
 
 class SessionHit(NamedTuple):

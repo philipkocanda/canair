@@ -1,8 +1,8 @@
 # Named protocol constants: read every protocol byte from `canair.uds`
 
-Status: **IN PROGRESS** (2026-11-05). Phases 0 to 3 are done: no protocol byte is written as
-a literal outside `canair.uds`, and the baseline is empty. Phase 4 is open. Not user-facing:
-no command, flag or profile changes; phase 3's commits name the small output changes.
+Status: **DONE** (2026-11-05). No protocol byte is written as a literal outside `canair.uds`,
+and `tests/contracts/test_structure.py` fails on any new one. Not user-facing: no command, flag
+or profile changes; phase 3's commits name the small output changes.
 
 ## Why
 
@@ -118,21 +118,22 @@ text. Each got its own commit with a regression test; each commit body names wha
    every LID as a hit; `0x7F` stays for ECUs that mix the codes. `0x24` left the named hints:
    any NRC `classify()` does not name counts as a hit, so it still is one.
 
-## Phase 4 — close the ratchet
+## Phase 4 — close the ratchet (done, 2026-11-05)
 
-The baseline is empty, so the ceiling already works as an absolute rule: a module with any
-match fails. Remove the `protocol_literals` key and state the test as absolute. Then widen the
-scanner with what it misses today, each found by hand while writing this plan:
-
-- range tests on a plain name: `cli/commands/bix.py` (`0x40 <= b <= 0x7F`, `b < 0x40`) and
-  `uds/parse.py` (`0x10 <= … <= 0x3E`);
-- session sub-function constants without a protocol word in the name:
-  `safety/blocklist.py` (`_UDS_PROGRAMMING`, `_KWP_SAFE`, …) and `live/sessions_scan.py`
-  (`UDS_SESSION_MODES`, `KWP_SESSION_MODES`);
-- the rejected-SID position: `interop/frame_log.py` tests `payload[1] in (0x21, 0x22)`, which
-  the scan counts only because the subscript is constant.
-
-Each new pattern lands with its sites fixed in the same commit, so the absolute test stays green.
+- The `protocol_literals` baseline key is gone, and
+  `test_no_protocol_byte_is_written_as_a_literal` fails on any match.
+- The scanner also catches `0x40` as an ordering bound (`b < 0x40`), names with `UDS`, `KWP`
+  or `SESSION` in them, and `range()` constants between two hex literals. That found
+  `cli/commands/bix.py`'s response-SID range tests, the blocklist's session constants
+  (`_UDS_SUPPRESS_BIT`, `_UDS_PROGRAMMING`, `_UDS_SAFETY_SYSTEM`, `_UDS_OEM_BAND`, `_KWP_SAFE`,
+  `_KWP_PROGRAMMING`) and the session scanner's mode tuples. They now read
+  `RESPONSE_SID_OFFSET`/`NEGATIVE_RESPONSE_SID`, `SessionType`/`KwpSessionType`, and the new
+  `subfunctions.SUPPRESS_POSITIVE_RESPONSE` and `OEM_SESSION_TYPES`.
+- `uds/parse.py`'s `0x10 <= … <= 0x3E` request-SID test, which no pattern sees, reads the new
+  `services.REQUEST_SID_RANGE`. `interop/frame_log.py`'s rejected-SID test was already named in
+  phase 2.
+- `_HKMC_PROGRAMMING_MODE` (`0x05`) stays in the blocklist: it is a Hyundai/Kia session, and
+  make-specific values live with the code that handles the make.
 
 ## Out of scope
 

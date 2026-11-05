@@ -33,7 +33,7 @@ from canair.uds.layout import (
 from canair.uds.notation import subfunction_bytes_for_pid
 from canair.uds.nrc import nrc_description
 from canair.uds.protocol import DiagProtocol
-from canair.uds.services import service_response_name
+from canair.uds.services import NEGATIVE_RESPONSE_SID, RESPONSE_SID_OFFSET, service_response_name
 from canair.uds.support_map import MapDecl, ResolvedMap, SupportMapError, declaration, resolve
 
 NAME = "bix"
@@ -459,7 +459,7 @@ def _looks_like_pci_first_byte(b: int) -> bool:
     in ``0x50``–``0x7F`` (0x7F = negative response) — a disjoint range. So a
     first byte < 0x40 is reliably a framing byte, not a UDS response SID.
     """
-    return b < 0x40
+    return b < RESPONSE_SID_OFFSET
 
 
 def _looks_like_uds_sid(b: int) -> bool:
@@ -468,7 +468,7 @@ def _looks_like_uds_sid(b: int) -> bool:
     Disjoint from :func:`_looks_like_pci_first_byte` — used to warn when a
     PCI-stripped UDS payload is passed to ``--raw`` (which expects framing).
     """
-    return 0x40 <= b <= 0x7F
+    return RESPONSE_SID_OFFSET <= b <= NEGATIVE_RESPONSE_SID
 
 
 def _emit_warning(headline: str, *detail_lines: str):

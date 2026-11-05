@@ -17,6 +17,11 @@ Belongs: sub-function values and their names. Session types that only a make's q
 from __future__ import annotations
 
 from enum import IntEnum
+from typing import Final
+
+#: Bit 7 of a UDS sub-function byte: suppressPosRspMsgIndicationBit (ISO 14229-1). The low
+#: seven bits are the sub-function itself.
+SUPPRESS_POSITIVE_RESPONSE: Final = 0x80
 
 
 class SessionType(IntEnum):
@@ -26,6 +31,11 @@ class SessionType(IntEnum):
     PROGRAMMING_SESSION = 0x02
     EXTENDED_DIAGNOSTIC_SESSION = 0x03
     SAFETY_SYSTEM_DIAGNOSTIC_SESSION = 0x04
+
+
+#: The UDS session types ISO 14229-1 leaves to others: 0x40-0x5F vehicleManufacturerSpecific,
+#: 0x60-0x7E systemSupplierSpecific.
+OEM_SESSION_TYPES: Final = range(0x40, 0x7F)
 
 
 class KwpSessionType(IntEnum):

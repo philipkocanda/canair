@@ -51,6 +51,5 @@
   "import_linter_ignores": 0,
   "packages_without_charter": [],
   "test_to_test_imports": [],
-  "flat_tests": [],
-  "protocol_literals": {}
+  "flat_tests": []
 }

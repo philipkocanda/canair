@@ -3,9 +3,9 @@
 
 A service ID, response marker, NRC, sub-function or canned request has one home in
 ``canair.uds`` (``services.py``, ``nrc.py``, ``subfunctions.py``). Everywhere else it is read
-by name. This scan finds the places that write such a byte as a literal instead, so
-tests/contracts/test_structure.py can hold the count per module to a ceiling that only falls.
-The plan that moves the existing sites is plans/2026-11-05-named-protocol-constants.md.
+by name. This scan finds the places that write such a byte as a literal instead, and
+tests/contracts/test_structure.py fails on any of them. The plan that moved the earlier sites
+is plans/2026-11-05-named-protocol-constants.md.
 
 Only hex-written integers count (``0x7F``, not ``127``), so timeouts and counts never match.
 Four patterns:
@@ -14,13 +14,15 @@ Four patterns:
   subscript by a constant (``resp[0] == 0x7F``), an ``"nrc"``/``"sid"`` lookup, or a name
   whose words include ``sid``/``nrc``/``service``. ``0x00`` and ``0xFF`` are left out: as
   range bounds they say nothing about the protocol.
-* **offset** — ``+ 0x40`` or ``- 0x40``, the positive-response offset.
+* **offset** — ``+ 0x40`` or ``- 0x40``, the positive-response offset, and ``0x40`` as a
+  bound (``b < 0x40``), where it is the edge of the response SIDs.
 * **constant** — a module- or class-level name with a protocol word in it (``NRC_…``,
-  ``…_SID``, ``_READ_SERVICE``, ``SF_…``) bound to a hex literal or a collection of them.
+  ``…_SID``, ``_READ_SERVICE``, ``SF_…``, ``UDS_…``, ``…_SESSION…``) bound to a hex literal,
+  a collection of them or a ``range`` between two.
 * **hex string** — a string that is a negative response or TesterPresent request
   (``"7F"``, ``"7F2F78"``, ``"3E00"``). Docstrings are skipped.
 
-The scan is a ratchet, not a proof: a literal it cannot see is still a literal. Masks
+The scan is a net, not a proof: a literal it cannot see is still a literal. Masks
 (``sub & 0x7F``), byte ranges and data tables are not matched, because they are not
 re-declared facts.
 
@@ -61,6 +63,10 @@ NAME_WORDS = frozenset(
         "SF",
         "SID",
         "SIDS",
+        "SESSION",
+        "SESSIONS",
+        "UDS",
+        "KWP",
     }
 )
 OPERAND_WORDS = frozenset({"nrc", "sid", "service"})
@@ -108,10 +114,19 @@ class _Scanner(ast.NodeVisitor):
         return node.value
 
     def _hex_values(self, node: ast.AST) -> list[int] | None:
-        """The ints of a hex literal or a tuple/set/list/frozenset of them, else ``None``."""
+        """The ints of a hex literal, a tuple/set/list/frozenset of them or a ``range`` between
+        two, else ``None``."""
         single = self._hex(node)
         if single is not None:
             return [single]
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "range"
+            and len(node.args) == 2
+        ):
+            bounds = [self._hex(a) for a in node.args]
+            return [b for b in bounds if b is not None] if None not in bounds else None
         if (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
@@ -179,8 +194,11 @@ class _Scanner(ast.NodeVisitor):
         literal = [
             v for o in operands for v in (self._hex_values(o) or []) if v not in RANGE_BOUNDS
         ]
+        ordering = any(isinstance(op, ast.Lt | ast.LtE | ast.Gt | ast.GtE) for op in node.ops)
         if literal and any(self._holds_protocol_byte(o) for o in operands):
             self._add(node, "compare")
+        elif ordering and RESPONSE_OFFSET in literal:
+            self._add(node, "offset")
         self.generic_visit(node)
 
     def visit_BinOp(self, node: ast.BinOp) -> None:

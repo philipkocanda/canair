@@ -32,7 +32,7 @@ from canair.uds.response import (
     ResponseCategory,
     UdsResponse,
 )
-from canair.uds.services import NEGATIVE_RESPONSE_SID, RESPONSE_SID_OFFSET
+from canair.uds.services import NEGATIVE_RESPONSE_SID, REQUEST_SID_RANGE, RESPONSE_SID_OFFSET
 
 # Adapter status lines that end a reply: line -> (category, message). Each message
 # must classify to the same category under `canair.uds.response.classify_error`.
@@ -156,7 +156,7 @@ def _is_request_echo(data_lines: list[str], request: str | None) -> bool:
         )
     if len(data_lines) < 2 or len(first) < 2 or not _is_hex(first):
         return False
-    return 0x10 <= int(first[:2], 16) <= 0x3E
+    return int(first[:2], 16) in REQUEST_SID_RANGE
 
 
 class _Rejected(Exception):

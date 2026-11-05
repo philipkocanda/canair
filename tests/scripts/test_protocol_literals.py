@@ -38,6 +38,11 @@ def _scan(tmp_path: Path, source: str, module: str = "mod") -> list[str]:
         ("_READ_SERVICE = 0x22\n", "constant"),
         ("_SERVICE_REFUSALS = frozenset({0x11, 0x7F, 0x80})\n", "constant"),
         ("class C:\n    SF_START = 0x01\n", "constant"),
+        ("ok = b < 0x40\n", "offset"),
+        ("ok = 0x40 <= b <= 0x7F\n", "offset"),
+        ("_UDS_PROGRAMMING = 0x02\n", "constant"),
+        ("KWP_SESSION_MODES = (0x81, 0x82, 0x83)\n", "constant"),
+        ("_UDS_OEM_BAND = range(0x40, 0x7F)\n", "constant"),
         ("x = send('3E00')\n", "hex string"),
         ("hit = '7F2F78' in clean\n", "hex string"),
     ],
@@ -60,6 +65,8 @@ def test_flags_a_protocol_byte_written_as_a_literal(tmp_path, source, kind):
         "def f():\n    '''3E00'''\n",  # a function docstring
         "x = '7F2'\n",  # not whole bytes
         "x = from_name(SERVICE) + RESPONSE_SID_OFFSET\n",  # read by name
+        "PIDS = range(0, 10)\n",  # not hex-written
+        "ok = b >= 0x20\n",  # a bound that is not the response offset
     ],
 )
 def test_ignores_literals_that_are_not_re_declared_protocol_bytes(tmp_path, source):
