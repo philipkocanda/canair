@@ -1,6 +1,6 @@
 # Code organization, part 9: thin command modules
 
-Status: **IN PROGRESS** (2026-11-05): `contribute`, `ecu` and `pids` are done, see "As built". Part of
+Status: **IN PROGRESS** (2026-11-05): `contribute`, `ecu`, `pids`, `wican` and `hunt` are done, see "As built". Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 8 for
 the shared query helper only. Follows the command-package rule of
 `plans/2026-08-06-command-packages-and-live-split.md` and the non-goals of
@@ -136,3 +136,11 @@ Re-measured at `964f3ffb`: 11 command modules were over 500 lines (`decode/one.p
   list is unchanged: the plan's `params` and `pid` groups interleave in that order, so
   `entries` holds both. The capture-range check of `upsert-param` was split from its printing
   and moved to `analysis/signal_range.py`, in two commits.
+- **`wican`** is `cli/commands/wican/`: `parser.py`, `epilog.py` (the module docstring was the
+  whole epilog), `common.py`, `generate.py`, `sync.py`, `diff.py`, `stats.py`, `autopid.py`,
+  `mode.py`. `show_diff` was split into `diff_profiles` (returns a `ProfileDiff`) and the
+  printing, in one commit that I checked against the old function on 500 random profile
+  pairs, then `diff_profiles` moved to `interop/autopid/diff.py` in the next.
+- **`hunt`** is `cli/commands/hunt/`: `parser.py`, `uds.py`, `physical.py`, `can.py`,
+  `promote.py`, `render.py`. No compute moved: the search was already in `analysis/`, and what
+  was left in `run` is flag handling, loading and printing.
