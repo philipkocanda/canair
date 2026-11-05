@@ -255,7 +255,7 @@ class TestDialogsCheckTheirInput:
             label.value = ""
             await pilot.press("ctrl+s")
             await pilot.pause(0.1)
-            assert ctrl.saved is not None and ctrl.saved[0] == "BMS:2101"
+            assert ctrl.recorder.saved is not None and ctrl.recorder.saved[0] == "BMS:2101"
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -302,7 +302,7 @@ class TestFailuresLookLikeFailures:
         def boom(*_a, **_k):
             raise OSError("disk full")
 
-        ctrl.save_now = boom
+        ctrl.recorder.save_now = boom
         app = MonitorApp(ctrl)
         async with app.run_test(size=(110, 30)) as pilot:
             await pilot.pause(0.1)

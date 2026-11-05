@@ -2,7 +2,7 @@
 
 Both monitor paths take this: the ELM327 terminal through ``mode_monitor``, and the raw SLCAN
 pipelined client through :mod:`canair.live.monitor.raw_run`. Building it once, in the command, is
-what keeps the two from drifting apart on a default.
+what keeps the two from drifting apart on a default. The controller reads its settings from it.
 """
 
 from __future__ import annotations
@@ -38,22 +38,3 @@ class MonitorOptions:
     # The screen a TTY gets, given the monitor's controller; None polls without one. The CLI
     # passes the Textual app, which sits above this layer.
     interactive: Callable[[Any], Awaitable[None]] | None = None
-
-    def mode_kwargs(self) -> dict:
-        """The keyword arguments ``mode_monitor`` takes from the options."""
-        return {
-            "interval": self.interval,
-            "session_steps": self.session_steps,
-            "keep_mode": self.keep_mode,
-            "keep_n": self.keep_n,
-            "save": self.save,
-            "show_rulers": self.show_rulers,
-            "notation": self.notation,
-            "label": self.label,
-            "vehicle_states": self.vehicle_states,
-            "notes": self.notes,
-            "include_static": self.include_static,
-            "schedule": self.schedule,
-            "backoff": self.backoff,
-            "interactive": self.interactive,
-        }

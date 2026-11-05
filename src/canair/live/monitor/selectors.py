@@ -10,8 +10,8 @@ same pure logic (:mod:`canair.live.monitor.select`).
 Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirrors
 :class:`canair.live.monitor.sessions.MonitorSessions` and
 :class:`canair.live.monitor.state.MonitorStateSuggester`) so the picker logic is
-a self-contained unit rather than another arm of the controller god object. The
-controller keeps thin delegating methods for the TUI surface and holds the
+a self-contained unit rather than another arm of the controller god object. Callers
+read it as ``controller.selectors``; the controller holds the
 ``query_steps``/schedule/caches the selectors mutate via their ``self.c`` back-ref.
 
 Mutating ``query_steps`` mid-poll is safe — ``_poll_elm``/``_poll_raw`` both
@@ -25,6 +25,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .health import label_ecu
 from .select import (
     EcuChoice,
     GroupChoice,
@@ -137,11 +138,9 @@ class MonitorSelectors:
         return out
 
     def _forget(self, ecu: str, pid: str) -> None:
-        from .controller import _label_ecu
-
         c = self.c
         for cache in (c._last_good, c._last_shown):
-            for key in [k for k in cache if k[1] == pid and _label_ecu(k[0]) == ecu]:
+            for key in [k for k in cache if k[1] == pid and label_ecu(k[0]) == ecu]:
                 del cache[key]
         c.schedule.forget(ecu, pid)
         c.state.forget_signal(ecu, pid)

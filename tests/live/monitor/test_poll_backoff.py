@@ -16,6 +16,7 @@ from canair.live.monitor.backoff import (
     summarize_slowed,
 )
 from tests.support.fakes import FakeTerminal, nrc, ok
+from tests.support.monitor_controller import make_controller
 
 SILENT = PollCost(reads=4, seconds=4.0, answered=0)
 SLUGGISH = PollCost(reads=2, seconds=1.6, answered=2)
@@ -151,7 +152,6 @@ class TestElmPollCost:
     """Each PID is charged its own request's time, as the executor stamps it."""
 
     def test_each_pid_gets_its_own_cost(self, monkeypatch):
-        from canair.live.monitor.controller import MonitorController
 
         async def fake_exec_query(sm, ecu, pids, index, pids_data, verbose, **kw):
             plan = [(p, None, False) for p in pids]
@@ -175,11 +175,11 @@ class TestElmPollCost:
             {"ecu": "SKM", "pids": ["22B002", "22B003"]},
             {"ecu": "BMS", "pids": ["2101", "2102"]},
         ]
-        c = MonitorController(FakeTerminal(), steps, {}, verbose=False, schedule="fixed")
+        c = make_controller(FakeTerminal(), steps, {}, verbose=False, schedule="fixed")
         c._ecu_index = {}
         c.schedule.begin_tick(0.0)
-        asyncio.run(c._poll_elm())
-        assert c.poll_costs == {
+        asyncio.run(c.elm_poller.poll())
+        assert c.health.poll_costs == {
             ("SKM", "22B002"): PollCost(reads=1, seconds=1.2, answered=0),
             ("SKM", "22B003"): PollCost(reads=1, seconds=1.2, answered=0),
             ("BMS", "2101"): PollCost(reads=1, seconds=0.02, answered=1),
@@ -203,11 +203,10 @@ class _ElmTerminal(FakeTerminal):
 
 def _igpm_controller(terminal: _ElmTerminal, **index_extra):
     """A real controller polling IGPM's three DIDs through the real executor."""
-    from canair.live.monitor.controller import MonitorController
     from canair.live.read.batch import BatchState
 
     steps = [{"type": "query", "ecu": "IGPM", "pids": []}]
-    c = MonitorController(terminal, steps, {}, verbose=False, schedule="fixed")
+    c = make_controller(terminal, steps, {}, verbose=False, schedule="fixed")
     c._ecu_index = {
         "IGPM": {
             "tx_id": 0x770,
@@ -215,13 +214,13 @@ def _igpm_controller(terminal: _ElmTerminal, **index_extra):
             **index_extra,
         }
     }
-    c._batch_state = BatchState()
+    c.elm_poller.batch_state = BatchState()
     return c
 
 
 def _poll(c) -> None:
     c.schedule.begin_tick(0.0)
-    asyncio.run(c._poll_elm())
+    asyncio.run(c.elm_poller.poll())
 
 
 class TestElmCostAttribution:
@@ -230,12 +229,12 @@ class TestElmCostAttribution:
         # member was held up for the whole of it.
         multi = "62BC03FDEE3C730A000000BC04B53FF4EA01000042BC06B480000000000000AAAA"
         c = _igpm_controller(_ElmTerminal({"22BC03BC04BC06": ok(multi)}), multi_did=True)
-        assert c._batch_state is not None
+        assert c.elm_poller.batch_state is not None
         for d in ("BC03", "BC04", "BC06"):
-            c._batch_state.lengths[(0x770, d)] = 8
+            c.elm_poller.batch_state.lengths[(0x770, d)] = 8
         _poll(c)
         assert c.terminal.sent == ["22BC03BC04BC06"]
-        costs = [c.poll_costs[("IGPM", code)] for code in ("22BC03", "22BC04", "22BC06")]
+        costs = [c.health.poll_costs[("IGPM", code)] for code in ("22BC03", "22BC04", "22BC06")]
         assert {(cost.reads, cost.answered) for cost in costs} == {(1, 1)}
         assert len({cost.seconds for cost in costs}) == 1
 
@@ -246,7 +245,7 @@ class TestElmCostAttribution:
         }  # 22BC04 times out (the fake's NO DATA default)
         c = _igpm_controller(_ElmTerminal(responses))
         _poll(c)
-        answered = {pid: cost.answered for (_ecu, pid), cost in c.poll_costs.items()}
+        answered = {pid: cost.answered for (_ecu, pid), cost in c.health.poll_costs.items()}
         assert answered == {"22BC03": 1, "22BC04": 0, "22BC06": 1}
 
     def test_keepalives_for_other_ecus_are_not_its_cost(self):
@@ -262,7 +261,7 @@ class TestElmCostAttribution:
         _poll(c)
         assert "3E00" not in term.sent  # answered by the subclass, never recorded
         assert c.sm.keepalive_seconds >= 0.2
-        assert all(cost.seconds < 0.1 for cost in c.poll_costs.values())
+        assert all(cost.seconds < 0.1 for cost in c.health.poll_costs.values())
 
     def test_a_background_keepalive_queued_ahead_is_not_its_cost(self):
         # The monitor's background keepalive takes the same transaction, so a read can
@@ -315,10 +314,9 @@ class TestOnlyTheDeadPidIsSlowed:
         assert c.backoff.slowed() == {("IGPM", "22BC04"): 2}
         # Its neighbours are read on the next tick; it sits that one out.
         asyncio.run(c.poll_once())
-        assert set(c.poll_costs) == {("IGPM", "22BC03"), ("IGPM", "22BC06")}
+        assert set(c.health.poll_costs) == {("IGPM", "22BC03"), ("IGPM", "22BC06")}
 
     def test_raw(self):
-        from canair.live.monitor.controller import MonitorController
         from tests.support.raw_monitor import TimedRawClient as _TimedRawClient
 
         table = {
@@ -326,7 +324,7 @@ class TestOnlyTheDeadPidIsSlowed:
             ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex("62BC06B480000000000000"),
         }  # 22BC04 times out, costing a second each time
         steps = [{"ecu": "IGPM", "pids": []}]
-        c = MonitorController(
+        c = make_controller(
             None, steps, {}, verbose=False, raw_client=_TimedRawClient(table), schedule="fixed"
         )
         c._ecu_index = {
@@ -338,10 +336,10 @@ class TestOnlyTheDeadPidIsSlowed:
         for _ in range(ESCALATE_AFTER):
             asyncio.run(c.poll_once())
         assert c.schedule.slowed() == {("IGPM", "22BC04"): 2}
-        assert c.poll_costs[("IGPM", "22BC03")].seconds == 0.02
+        assert c.health.poll_costs[("IGPM", "22BC03")].seconds == 0.02
         asyncio.run(c.poll_once())
-        assert set(c.poll_costs) == {("IGPM", "22BC03"), ("IGPM", "22BC06")}
-        rows = c.render().plain.splitlines()
+        assert set(c.health.poll_costs) == {("IGPM", "22BC03"), ("IGPM", "22BC06")}
+        rows = c.renderer.render().plain.splitlines()
         dead = next(line for line in rows if "22BC04" in line)
         assert "slow (not answering) · polled 2× less often" in dead
         assert not any("polled" in line for line in rows if "22BC03" in line)

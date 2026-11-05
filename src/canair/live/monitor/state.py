@@ -10,10 +10,8 @@ Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirro
 :class:`canair.live.monitor.raw_poller.MonitorRawPoller` and
 :class:`canair.live.monitor.record.MonitorRecorder`) so the suggestion logic is
 a self-contained, independently testable unit rather than another arm of the
-controller god object. The controller keeps thin delegating
-properties/methods for the tested public surface (``decoded_values``,
-``responded``, ``suggested_state``) and the recorder/poll state the suggester
-reads via its ``self.c`` back-ref.
+controller god object. Callers read it as ``controller.state``; it reads the
+recorder/poll state it needs via its ``self.c`` back-ref.
 
 The live suggestion answers "what state is the car in NOW", so its inputs must
 expire — an unbounded map keeps matching DRIVING off a speed read long after the
@@ -26,6 +24,8 @@ a value only after *its own* polls stop refreshing it.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
+from .health import label_ecu
 
 if TYPE_CHECKING:
     from canair.expression.results import EcuFrame
@@ -81,10 +81,9 @@ class MonitorStateSuggester:
     def observe(self, new_queries: list[EcuFrame]) -> None:
         """Fold a cycle's freshly-polled payloads into the state-input snapshot."""
         from ...states import collect_values
-        from .controller import _label_ecu
 
         for ecu_label, pid_results in new_queries:
-            ecu = _label_ecu(ecu_label)
+            ecu = label_ecu(ecu_label)
             for entry in pid_results:
                 values, _ = collect_values([(ecu_label, [entry])])
                 self.decoded_values.update(values)

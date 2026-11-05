@@ -1,6 +1,6 @@
 # Code organization, part 6: split the monitor
 
-Status: **PROPOSED** (2026-11-05). Part of
+Status: **DONE** (2026-11-06); see "As built" at the end. Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 5
 (the files are in `live/monitor/` and `tui/apps/monitor/` first). Coordinate with
 `plans/2026-11-05-one-session-owner.md`, which changes `MonitorSessions` and the raw monitor.
@@ -141,3 +141,36 @@ One concern per commit. Each one moves code and does not change what the monitor
   correctness-triggered reconnect that `AGENTS.md` describes. Step 2 must keep every call
   site. `tests/live/test_monitor_reconnect.py` and `tests/live/test_monitor_stop.py` are the
   check.
+
+## As built
+
+All eight steps landed, one concern per commit, on `refactor/co-6-monitor-split`.
+
+| Step | Result |
+|---|---|
+| 1 Forwarding properties | Removed all of them and the pure forwarding methods. The app, `run.py` and the tests read `controller.recorder`, `.state`, `.sessions`, `.selectors`, `.raw_poller` or `.schedule`. The test fakes in `tests/support/` gained the same collaborators. |
+| 2 `health.py` | `MonitorHealth` owns `poll_costs`, the per-ECU unanswered counts, `dead_cycles`, `cycle_answered`, backoff application and the liveness check. `reset_backoff` is `controller.health.reset_backoff`, called from `rebind`. `mark_disconnected` stays on the controller and is passed in, so it is still the only way to mark the link down. |
+| 3 `poll_elm.py` | `MonitorElmPoller` has the ELM327 session setup, the poll cycle and `batch_state`. The raw setup went into `MonitorRawPoller.setup`, the shared warm-up plan into `MonitorSessions.warmup_reads`. |
+| 4 Raw glue | Nothing was left in the controller after step 1 (the `_raw_*` methods were forwarders). |
+| 5 `view.py` | `MonitorView` (`controller.view`) returns labels, titles, the session summary and view modes as plain values. `render.py` is the only module that builds a block of Rich text (`MonitorRenderer`, `controller.renderer`), with `render_cache.py` split out. The controller imports no `rich` and no private name of another package, and no longer re-exports names for old paths. |
+| 6 Options | `MonitorController(terminal, options, pids_data, raw_client=None)` and `mode_monitor(terminal, options, pids_data, *, raw_client, transport_type, reconnect)`. `MonitorOptions.mode_kwargs` is gone. `cli/live/handlers/multi.py` changed at its one call. Tests use `tests/support/monitor_controller.py::make_controller`. |
+| 7 App split | The three modals were already in `overlays.py`. `status.py` holds the status-bar and header content, `polling.py` and `recording.py` are mixins for the poll loop and the save keys. `_on_partial` is `on_partial`. |
+| 8 Ceilings | `controller`, `render`, `record` and `app` left `oversized_modules`. `deferred_internal_imports` fell from 1114 to 1107. |
+
+Also: `record.py` was 539 lines, so `merge_history`, `write_merged` and `open_journal`
+(no longer underscored) moved to `record_write.py`.
+
+Measured at the end (limit 500): `controller.py` 500 (was 1,152, 18 methods), `app.py` 478
+(was 919), `render.py` 454 (was 550), `raw_poller.py` 452, `record.py` 449 (was 539).
+No module of `live/monitor/` or `tui/apps/monitor/` is over 500 lines.
+
+Deviations: collaborators still hold a back-reference to the controller (`self.c`); principle 3
+(pass values in) was not done, because the plan's steps do not call for it. `query_ecu_error`
+stays in `controller.py` because tests and two commands patch it by that path. `diag()` and
+`diag_recorder()` are still two names for one body.
+
+Manual run: `canair monitor` piped against ELM327-Emulator (`--save`, three Mode-01 PIDs, 25 s,
+then SIGTERM) polled, journaled, reconciled 72 captures, wrote the frame counts back and
+printed the final values. The TTY screen was checked only through the Textual tests and
+`scripts/gen/gen_screenshots.py --check` (unchanged).
+

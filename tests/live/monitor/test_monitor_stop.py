@@ -16,6 +16,7 @@ import pytest
 
 from canair.core.stop_signals import STOP_SIGNALS
 from canair.live.monitor import run as run_mod
+from canair.live.monitor.options import MonitorOptions
 
 
 class _FakeController:
@@ -90,6 +91,13 @@ class _FakeJournal:
 
 
 class _FakeRecorder:
+    def __init__(self):
+        self.journal = None
+        self.state_explicit = False
+        self.session_label = ""
+        self.session_states: list[str] = []
+        self.session_notes = ""
+
     def drain_deferred_saves(self):
         return ["Saved 1 capture(s) to /tmp/somewhere.json"]
 
@@ -103,15 +111,12 @@ class _FakeRecorder:
 class _TeardownController:
     def __init__(self, *args, **kwargs):
         self.recorder = _FakeRecorder()
-        self.journal = None
+        self.view = self
+        self.renderer = self
         self.disconnected = False
         self.raw = False
         self.closed = False
-        self._state_explicit = False
         self.captures_dir = None
-        self.session_label = ""
-        self.session_states: list[str] = []
-        self.session_notes = ""
         self.transport_type = None
         self.reconnect = None
         self.session_steps = None
@@ -149,7 +154,7 @@ class TestTeardown:
             return controller_box["c"]
 
         monkeypatch.setattr(run_mod, "MonitorController", _make_controller)
-        monkeypatch.setattr(run_mod, "_open_journal", lambda *a, **k: journal)
+        monkeypatch.setattr(run_mod, "open_journal", lambda *a, **k: journal)
         monkeypatch.setattr(
             canair.profile, "active", lambda: type("P", (), {"captures_dir": tmp_path})()
         )
@@ -169,10 +174,10 @@ class TestTeardown:
         asyncio.run(
             run_mod.mode_monitor(
                 object(),
-                [{"type": "query", "ecu": "BMS", "pids": ["2101"]}],
+                MonitorOptions(
+                    query_steps=[{"type": "query", "ecu": "BMS", "pids": ["2101"]}], save=True
+                ),
                 {"ecus": {}},
-                False,
-                save=True,
             )
         )
 
@@ -202,10 +207,11 @@ class TestInteractiveScreen:
         asyncio.run(
             run_mod.mode_monitor(
                 object(),
-                [{"type": "query", "ecu": "BMS", "pids": ["2101"]}],
+                MonitorOptions(
+                    query_steps=[{"type": "query", "ecu": "BMS", "pids": ["2101"]}],
+                    interactive=interactive,
+                ),
                 {"ecus": {}},
-                False,
-                interactive=interactive,
             )
         )
         return ran

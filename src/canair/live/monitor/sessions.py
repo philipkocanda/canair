@@ -10,9 +10,8 @@ Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirro
 :class:`canair.live.monitor.state.MonitorStateSuggester` and
 :class:`canair.live.monitor.record.MonitorRecorder`) so the session-type logic
 is a self-contained unit rather than another arm of the controller god object.
-The controller keeps thin delegating methods for the TUI/tested surface and holds
-the transport state (``sm``/``raw_client``/``_ecu_index``) the sessions read via
-their ``self.c`` back-ref.
+Callers read it as ``controller.sessions``; the controller holds the transport state
+(``sm``/``raw_client``/``_ecu_index``) the sessions read via their ``self.c`` back-ref.
 
 The raw backend has no :class:`~canair.transport.session_manager.SessionManager` (sessions
 and keepalives are not tracked there at all), so its opened-session mode is held
@@ -29,6 +28,8 @@ from canair.safety.blocklist import SafetyBlocked
 from canair.uds.requests import session_request
 
 if TYPE_CHECKING:
+    from canair.ecus.pids import EcuIndexEntry
+
     from .controller import MonitorController
 
 
@@ -68,6 +69,29 @@ class MonitorSessions:
             with contextlib.suppress(Exception):
                 c.raw_client.read(tgt, bytes.fromhex(session_request(mode)), timeout=1.0)
             self.record_opened(tgt, mode)
+
+    def warmup_reads(self) -> list[tuple[str, EcuIndexEntry, str]]:
+        """``(ECU key, its index entry, first planned request)`` per polled ECU step.
+
+        The first request after idle is slow, so each backend sends this once before the
+        first displayed cycle.
+        """
+        from ..read.multi import build_query_plan
+
+        c = self.c
+        assert c._ecu_index is not None  # built by setup() before this runs
+        reads: list[tuple[str, EcuIndexEntry, str]] = []
+        for step in c.query_steps:
+            ecu = ecu_index_key(step["ecu"], c._ecu_index)
+            if ecu is None:
+                continue
+            info = c._ecu_index[ecu]
+            plan = build_query_plan(
+                info, step.get("pids", []), quiet=True, include_static=c.include_static
+            )
+            if plan:
+                reads.append((ecu, info, plan[0][0]))
+        return reads
 
     def invalidate_index(self) -> None:
         """Drop the cached sessions index (rebuilt lazily on next access)."""

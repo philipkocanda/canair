@@ -7,11 +7,12 @@ from types import SimpleNamespace
 
 from canair.live.monitor.controller import MonitorController
 from tests.support.fakes import FakeTerminal
+from tests.support.monitor_controller import make_controller
 
 
 class TestControllerDiagDelta:
-    def _controller(self, terminal):
-        return MonitorController(terminal=terminal, query_steps=[], pids_data={}, verbose=False)
+    def _controller(self, terminal) -> MonitorController:
+        return make_controller(terminal=terminal, query_steps=[], pids_data={}, verbose=False)
 
     def test_diag_recorder_is_the_terminals(self):
         term = FakeTerminal()
@@ -26,7 +27,7 @@ class TestControllerDiagDelta:
             term.diag.record("drop")
             term.diag.record("no_data")
 
-        c._poll_elm = drop_poll  # type: ignore[method-assign]
+        c.elm_poller.poll = drop_poll  # type: ignore[method-assign]
         asyncio.run(c.poll_once())
         assert c.last_drops == 1
         assert c.last_errors == 2  # drop + no_data
@@ -34,7 +35,7 @@ class TestControllerDiagDelta:
         async def clean_poll():
             term.diag.record("ok")
 
-        c._poll_elm = clean_poll  # type: ignore[method-assign]
+        c.elm_poller.poll = clean_poll  # type: ignore[method-assign]
         asyncio.run(c.poll_once())
         assert c.last_drops == 0  # deltas reset when a cycle is clean
         assert c.last_errors == 0
@@ -46,7 +47,7 @@ class TestControllerDiagDelta:
         async def noop():
             return None
 
-        c._poll_elm = noop  # type: ignore[method-assign]
+        c.elm_poller.poll = noop  # type: ignore[method-assign]
         asyncio.run(c.poll_once())
         assert c.last_drops == 0
         assert c.last_errors == 0
@@ -64,7 +65,7 @@ class TestControllerDiagDelta:
         async def stale_poll():
             term.diag.record("stale")
 
-        c._poll_elm = stale_poll  # type: ignore[method-assign]
+        c.elm_poller.poll = stale_poll  # type: ignore[method-assign]
         asyncio.run(c.poll_once())
         assert c.last_stale == 1
         assert c.last_drops == 1  # drops still conflates, hence last_stale
@@ -81,20 +82,17 @@ class TestControllerDiagDelta:
 class TestHealthLineSegments:
     """The TUI health line must not fold a desync into the drop counter.
 
-    `_health_items` reads only `self.controller` and `self._last_stale()`, so it is
-    exercised against a stub rather than a mounted Textual app.
+    `health_items` reads only the controller, so it is exercised against a stub rather
+    than a mounted Textual app.
     """
 
     @staticmethod
     def _items(*, drops: int, stale: int, errors: int, resyncs: int, last_stale: int = 0):
-        from canair.tui.apps.monitor.app import MonitorApp
+        from canair.tui.apps.monitor.status import health_items
 
         diag = SimpleNamespace(drops=drops, stale=stale, errors=errors, resyncs=resyncs)
-        stub = SimpleNamespace(
-            controller=SimpleNamespace(diag=lambda: diag, last_drops=drops),
-            _last_stale=lambda: last_stale,
-        )
-        return [i.markup for i in MonitorApp._health_items(stub)]  # type: ignore[arg-type]
+        controller = SimpleNamespace(diag=lambda: diag, last_drops=drops, last_stale=last_stale)
+        return [i.markup for i in health_items(controller)]
 
     def test_stale_is_its_own_segment(self):
         texts = self._items(drops=3, stale=2, errors=5, resyncs=0)
@@ -115,10 +113,9 @@ class TestHealthLineSegments:
         assert self._items(drops=0, stale=0, errors=0, resyncs=0) == []
 
     def test_no_diag_recorder_is_empty(self):
-        from canair.tui.apps.monitor.app import MonitorApp
+        from canair.tui.apps.monitor.status import health_items
 
-        stub = SimpleNamespace(controller=SimpleNamespace(), _last_stale=lambda: 0)
-        assert MonitorApp._health_items(stub) == []  # type: ignore[arg-type]
+        assert health_items(SimpleNamespace()) == []
 
 
 class TestLinkLatencySegment:
@@ -135,9 +132,9 @@ class TestLinkLatencySegment:
         return SimpleNamespace(link=lambda: link)
 
     def _markup(self, rtt):
-        from canair.tui.apps.monitor.app import _link_items
+        from canair.tui.apps.monitor.status import link_items
 
-        return " ".join(i.markup for i in _link_items(self._controller(rtt)))
+        return " ".join(i.markup for i in link_items(self._controller(rtt)))
 
     def test_an_unmeasured_link_shows_nothing(self):
         assert self._markup(None) == ""
@@ -152,24 +149,23 @@ class TestLinkLatencySegment:
         assert "800ms" in markup
 
     def test_a_controller_without_a_link_is_tolerated(self):
-        from canair.tui.apps.monitor.app import _link_items
+        from canair.tui.apps.monitor.status import link_items
 
         # The raw client exposes no estimator yet.
-        assert _link_items(SimpleNamespace(link=lambda: None)) == []
+        assert link_items(SimpleNamespace(link=lambda: None)) == []
 
     def test_a_controller_without_the_accessor_is_tolerated(self):
-        from canair.tui.apps.monitor.app import _link_items
+        from canair.tui.apps.monitor.status import link_items
 
-        assert _link_items(SimpleNamespace()) == []
+        assert link_items(SimpleNamespace()) == []
 
     def test_the_segment_lands_on_the_health_line(self):
         from canair.transport.stats import TransportStats
-        from canair.tui.apps.monitor.app import MonitorApp
+        from canair.tui.apps.monitor.status import health_items
 
         controller = self._controller(0.8)
         controller.diag = lambda: TransportStats(transport="wican-ws")
         controller.last_drops = 0
         controller.last_stale = 0
-        stub = SimpleNamespace(controller=controller, _last_stale=lambda: 0)
-        items = MonitorApp._health_items(stub)  # type: ignore[arg-type]
+        items = health_items(controller)
         assert any("rtt" in i.markup for i in items)

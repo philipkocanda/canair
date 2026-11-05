@@ -1,11 +1,17 @@
 """``canair monitor``: poll a set of PIDs on a schedule, show them live, optionally record them.
 
-* :mod:`.controller` — the monitor's state and what the display reads (it composes the rest)
+* :mod:`.controller` — the monitor's state and one poll tick (it composes the rest)
 * :mod:`.run` — the entry point and the poll loops, interactive and piped
-* :mod:`.raw_run` and :mod:`.raw_poller` — the pipelined raw ``slcan-tcp`` path and its poller
-* :mod:`.schedule` and :mod:`.backoff` — which PIDs a tick reads, and slowing a silent one
-* :mod:`.record`, :mod:`.history` and :mod:`.link_events` — recording, the on-screen history, gaps
-* :mod:`.render`, :mod:`.stats` and :mod:`.state` — the rendered block, value ranges, state hints
+* :mod:`.poll_elm`, :mod:`.raw_run` and :mod:`.raw_poller` — the ELM327 poller, and the pipelined
+  raw ``slcan-tcp`` path with its poller
+* :mod:`.schedule`, :mod:`.backoff` and :mod:`.health` — which PIDs a tick reads, slowing a silent
+  one, and whether the link answers at all
+* :mod:`.record`, :mod:`.record_write`, :mod:`.history` and :mod:`.link_events` — recording, the
+  on-screen history, gaps
+* :mod:`.view` — the display model as plain values (labels, titles, view modes)
+* :mod:`.render` and :mod:`.render_cache` — the only modules that build Rich text, and the
+  per-PID block cache
+* :mod:`.stats` and :mod:`.state` — value ranges, state hints
 * :mod:`.selectors`, :mod:`.select`, :mod:`.sessions` and :mod:`.edit` — changing what is polled
 * :mod:`.reconnect` and :mod:`.options` — re-homing a dropped session, and the options as values
 

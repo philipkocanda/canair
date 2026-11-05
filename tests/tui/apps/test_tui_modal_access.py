@@ -95,8 +95,8 @@ class TestDialogsHaveAKeyboardConfirm:
                 await pilot.press("tab")
             await pilot.press("ctrl+s")
             await pilot.pause(0.1)
-            assert ctrl.saved is not None
-            assert ctrl.saved[0] == "kbd"
+            assert ctrl.recorder.saved is not None
+            assert ctrl.recorder.saved[0] == "kbd"
             await pilot.press("q")
 
     @pytest.mark.asyncio

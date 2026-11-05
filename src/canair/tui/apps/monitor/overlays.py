@@ -263,7 +263,7 @@ class SessionPickerScreen(ListPickerModal["tuple[str, str]"]):
 
     Two-step ``OptionList`` flow — pick an ECU (shown with the session it's
     currently tracked in, if any), then pick a mode. Modes come from the
-    ECU's own known-good scan history (``MonitorController.known_session_types``,
+    ECU's own known-good scan history (``MonitorSessions.known_types``,
     from ``canair scan sessions``) tagged known-good/known-unsupported, or the
     fixed safe fallback (01/03/81/82/83, tagged untested) when it has none.
     ``0x02``/``0x85`` (programming sessions) are never offered — canair.safety.blocklist
@@ -288,9 +288,9 @@ class SessionPickerScreen(ListPickerModal["tuple[str, str]"]):
         return self._ecu_options(needle) if self._ecu is None else self._mode_options(needle)
 
     def _ecu_options(self, needle: str) -> list[Option]:
-        active = self._controller.active_session_modes()
+        active = self._controller.sessions.active_modes()
         found: list[Option] = []
-        for ecu in self._controller.available_ecus():
+        for ecu in self._controller.selectors.available_ecus():
             if needle and needle not in ecu.lower():
                 continue
             mode = active.get(ecu)
@@ -300,9 +300,9 @@ class SessionPickerScreen(ListPickerModal["tuple[str, str]"]):
 
     def _mode_options(self, needle: str) -> list[Option]:
         assert self._ecu is not None
-        active = self._controller.active_session_modes().get(self._ecu)
+        active = self._controller.sessions.active_modes().get(self._ecu)
         found: list[Option] = []
-        for mode, label, supported in self._controller.known_session_types(self._ecu):
+        for mode, label, supported in self._controller.sessions.known_types(self._ecu):
             if supported is True:
                 tag = "known-good"
             elif supported is False:
@@ -325,7 +325,7 @@ class SessionPickerScreen(ListPickerModal["tuple[str, str]"]):
 
     def _show_modes(self, ecu: str) -> None:
         self._ecu = ecu
-        active = self._controller.active_session_modes().get(ecu)
+        active = self._controller.sessions.active_modes().get(ecu)
         title = f"Session type {EMPTY} {ecu}"
         if active:
             title += f"  [dim](current: 0x10{active})[/]"

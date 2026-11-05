@@ -9,116 +9,26 @@ Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirro
 :class:`canair.live.monitor.raw_poller.MonitorRawPoller` and
 :class:`canair.live.monitor.edit.MonitorEditor`) so the recording/journaling
 logic is a self-contained, independently testable unit rather than another arm of
-the controller god object. The controller keeps thin delegating
-properties/methods for the tested public surface and holds the poll/display state
-(``prev_hex``/``decoded_values``) the recorder reads via its ``self.c`` back-ref.
+the controller god object. Callers read it as ``controller.recorder``; the controller
+holds the poll/display state (``prev_hex``) the recorder reads via its ``self.c`` back-ref.
 """
 
 from __future__ import annotations
 
 import contextlib
 import io
-import re
 from datetime import datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from canair.captures.keepmode import KEEP_CHANGES, KEEP_LAST, KeepMode, persisted_keep_mode
+from canair.captures.keepmode import KEEP_CHANGES, KEEP_LAST
 from canair.captures.types import Quality
 from canair.expression.results import EcuFrame
 
 from .history import PayloadHistory, extend_runs
+from .record_write import merge_history, open_journal, write_merged
 
 if TYPE_CHECKING:
     from .controller import MonitorController
-
-
-def _merge_history(
-    hex_history: dict[tuple[str, str], list[tuple[str, str]]],
-    prev_hex: dict[tuple[str, str], str],
-) -> dict[tuple[str, str], list[tuple[str, str]]]:
-    """Merge the latest ``prev_hex`` snapshot into the payload history.
-
-    Returns a ``{(ecu_label, pid): [(hex, timestamp), ...]}`` map. A PID whose
-    current payload isn't already the last history entry gets it appended with a
-    fresh timestamp, so a bare snapshot (no history kept) still yields one row
-    per PID.
-    """
-    all_keys = set(hex_history.keys()) | set(prev_hex.keys())
-    merged: dict[tuple[str, str], list[tuple[str, str]]] = {}
-    for key in all_keys:
-        entries = list(hex_history.get(key, []))
-        cur = prev_hex.get(key, "")
-        if cur and cur not in [h for h, _ts in entries]:
-            ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-            entries.append((cur, ts))
-        if entries:
-            merged[key] = entries
-    return merged
-
-
-def _write_merged(
-    merged: dict[tuple[str, str], list[tuple[str, str]]],
-    label: str,
-    vehicle_states,
-    notes: str,
-    captures_dir: Path,
-    keep_mode: KeepMode | None = None,
-    transport: str | None = None,
-    quality: Quality | None = None,
-) -> Path:
-    """Build a query-capture session from merged payloads and save it to disk.
-
-    The ECU label (e.g. "BMS") is resolved to its CAN response address; an
-    unknown label falls back to its leading token verbatim.
-    """
-    from ...captures import build_query_session, save_session
-    from ...ecus import build_name_tx_index, rx_from_name
-
-    name_index = build_name_tx_index()
-    results: list[tuple[str, str, str, str]] = []
-    for (ecu_label, pid), entries in sorted(merged.items()):
-        m = re.match(r"(\w+)", ecu_label)
-        assert m is not None  # ecu_label is an ECU name/label, always starts with a word char
-        ecu_short = m.group(1)
-        ecu_ref = rx_from_name(ecu_short, name_index) or ecu_short
-        for hex_val, ts in entries:
-            results.append((ecu_ref, pid, hex_val, ts))
-
-    session = build_query_session(
-        results,
-        label,
-        vehicle_states,
-        notes,
-        keep_mode=keep_mode,
-        transport=transport,
-        quality=quality,
-    )
-    return save_session(session, captures_dir)
-
-
-def _open_journal(controller, label: str | None, vehicle_states, notes: str | None):
-    """Open a write-ahead capture journal for a monitor --save run/segment.
-
-    Shared by ``mode_monitor`` (run start) and ``MonitorRecorder.new_segment``
-    (segment rotate) so their open args can't drift. The recording keep-mode
-    (``changes``) is carried through from the controller; ``all``/``last`` keep
-    every row.
-    The transport label (for saved-capture provenance) comes from the controller.
-    """
-    from canair.captures.journal import CaptureJournal
-
-    journal_label = label or controller.query_label() or "Monitor session"
-    keep = persisted_keep_mode(controller.keep_mode)
-    return CaptureJournal.open(
-        controller.captures_dir,
-        label=journal_label,
-        vehicle_states=list(vehicle_states or []),
-        notes=notes,
-        source="monitor",
-        keep_mode=keep,
-        transport=getattr(controller, "transport_type", None),
-    )
 
 
 class MonitorRecorder:
@@ -126,7 +36,7 @@ class MonitorRecorder:
 
     Constructed with a back-reference to the :class:`MonitorController`
     (``self.c``), which it reads for poll/display state (``prev_hex``,
-    ``keep_mode``/``keep_n``, ``captures_dir``, ``query_label``,
+    ``keep_mode``/``keep_n``, ``captures_dir``, ``view.query_label``,
     ``suggested_state``, ``_ecu_ref``) and updates in place while recording.
     """
 
@@ -284,7 +194,7 @@ class MonitorRecorder:
     def _observe_state(self) -> None:
         """Fold this cycle's auto-suggested state(s) into ``observed_states``."""
         with contextlib.suppress(Exception):
-            for suggested in self.c.suggested_states():
+            for suggested in self.c.state.suggested_states():
                 self.observed_states.setdefault(suggested, None)
                 self._unsaved_states.setdefault(suggested, None)
 
@@ -302,7 +212,7 @@ class MonitorRecorder:
         if next_segment:
             offered: list[str] = []
             with contextlib.suppress(Exception):
-                offered = list(self.c.suggested_states())
+                offered = list(self.c.state.suggested_states())
             self._offered_next = offered
             return offered
         observed = self.observed_states if self.journal is not None else self._unsaved_states
@@ -311,7 +221,7 @@ class MonitorRecorder:
             offered = list(self.session_states)  # keep showing the user's own choice
         if not offered:
             with contextlib.suppress(Exception):
-                offered = list(self.c.suggested_states())
+                offered = list(self.c.state.suggested_states())
         self._offered_states = offered
         return offered
 
@@ -333,14 +243,14 @@ class MonitorRecorder:
         if self.observed_states:
             return list(self.observed_states)
         with contextlib.suppress(Exception):
-            suggested = self.c.suggested_states()
+            suggested = self.c.state.suggested_states()
             if suggested:
                 return suggested
         return None
 
     def open_journal(self, label: str | None, vehicle_states, notes: str | None):
         """Open (and store) the write-ahead journal for the current run/segment."""
-        self.journal = _open_journal(self.c, label, vehicle_states, notes)
+        self.journal = open_journal(self.c, label, vehicle_states, notes)
         return self.journal
 
     def has_captures(self) -> bool:
@@ -407,7 +317,7 @@ class MonitorRecorder:
                 "(auto-saved on quit / new session)."
             )
 
-        merged = _merge_history(self.save_history or {}, self.c.prev_hex)
+        merged = merge_history(self.save_history or {}, self.c.prev_hex)
         if not merged:
             return "No payloads captured yet — nothing to save."
 
@@ -434,7 +344,7 @@ class MonitorRecorder:
         n_payloads = sum(len(v) for v in new_merged.values())
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
-            path = _write_merged(
+            path = write_merged(
                 new_merged,
                 label,
                 states,
@@ -497,7 +407,7 @@ class MonitorRecorder:
         # before the metadata is reset for the fresh segment.
         self._record_closed_segment(closing_states, written)
 
-        self.journal = _open_journal(self.c, label, states, notes)
+        self.journal = open_journal(self.c, label, states, notes)
         # A disconnect still open belongs to both segments: restate it in the new one.
         tracker = getattr(self.c, "link_events", None)
         if tracker is not None:
@@ -528,7 +438,7 @@ class MonitorRecorder:
         """Append a summary of the segment being closed to :attr:`segments`."""
         self.segments.append(
             {
-                "label": self.session_label or self.c.query_label() or "Monitor",
+                "label": self.session_label or self.c.view.query_label() or "Monitor",
                 "states": list(states),
                 "notes": self.session_notes,
                 "started_at": self.segment_started_at,

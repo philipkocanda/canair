@@ -23,93 +23,33 @@ layer differs.
 
 import asyncio
 import contextlib
-import logging
 import re
 import time
-from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from rich.text import Text
-
-from canair.captures.keepmode import KEEP_LAST, KeepMode
-from canair.core.eventlog import log_event
-from canair.expression.notation import ByteNotation
 from canair.expression.results import EcuFrame, ResultEntry
-from canair.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, _render_hex_line
 from canair.transport.session_manager import SessionManager
 
-from ... import config
 from ...captures.link_events import is_rx
-from .backoff import PollBackoff, PollCost, describe_slowdown, slowdown_log_message
+from .backoff import PollBackoff
+from .health import MonitorHealth, answered, is_nrc, label_ecu
 from .link_events import LinkEventTracker
-from .raw_poller import MonitorRawPoller, Submission, _raw_pid_result
-from .record import MonitorRecorder, _merge_history, _open_journal, _write_merged
-from .render import _RENDER_DEFAULT_ROWS, _RENDER_MAX_ROWS, VIEW_MODES, RenderCache, _render_results
-from .schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, Key, PollScheduler, Schedule
-from .selectors import MonitorSelectors, PickerSeed
+from .options import MonitorOptions
+from .poll_elm import MonitorElmPoller
+from .raw_poller import MonitorRawPoller
+from .record import MonitorRecorder
+from .render import MonitorRenderer
+from .schedule import MONITOR_PERIOD_SPEEDUP, PollScheduler
+from .selectors import MonitorSelectors
 from .sessions import MonitorSessions
-from .state import STATE_INPUT_STALE_CYCLES, MonitorStateSuggester
+from .state import MonitorStateSuggester
 from .stats import ParamStats
+from .view import MonitorView
 
 if TYPE_CHECKING:
     from ...captures.link_events import DisconnectCause
-    from ...ecus.pids import EcuIndexEntry
     from .reconnect import Reconnector
-
-# _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canair.render.formatting;
-# _render_results/_RENDER_MAX_ROWS/RenderCache to render; _raw_pid_result to
-# raw_poller; _merge_history/_write_merged/_open_journal + the recording/journaling
-# logic to record; STATE_INPUT_STALE_CYCLES + the state-suggestion logic to
-# state; mode_monitor + the poll loops to run. The names in __all__ below
-# are re-exported here for the tests and the modules that import them from this one.
-__all__ = [
-    "STATE_INPUT_STALE_CYCLES",
-    "_HIGHLIGHT_STYLE",
-    "_RENDER_MAX_ROWS",
-    "MonitorController",
-    "MonitorRecorder",
-    "RenderCache",
-    "_bytes_to_ascii",
-    "_merge_history",
-    "_open_journal",
-    "_raw_pid_result",
-    "_render_hex_line",
-    "_render_results",
-    "_write_merged",
-    "query_ecu_error",
-]
-
-
-def _is_nrc(entry: ResultEntry) -> bool:
-    """A negative response: the result's builder sets its ``nrc``."""
-    return entry.get("nrc") is not None
-
-
-def _answered(entry: ResultEntry) -> bool:
-    """A coherent reply: a payload, or a negative response (a prompt refusal)."""
-    return bool(entry.get("raw_hex")) or _is_nrc(entry)
-
-
-def _pid_costs(ecu: str, entries: Sequence[ResultEntry]) -> dict[Key, PollCost]:
-    """Each PID's cost behind one ECU step's ``entries``, keyed ``(ecu, pid)``.
-
-    Every entry is one request for its PID, timed by the ``request_s`` the executor
-    stamps on it (keepalives already left out). A multi-DID batch's members all carry
-    their one request's time: each was held up that long, so the batch counts as one
-    request per PID rather than being divided among them, which would hide it.
-    """
-    return {
-        (ecu, e["pid"]): PollCost(
-            reads=1, seconds=e.get("request_s", 0.0), answered=int(_answered(e))
-        )
-        for e in entries
-    }
-
-
-def _label_ecu(label: str) -> str:
-    """The ECU name a monitor row label carries (``"BMS (0x7E4)"`` -> ``"BMS"``)."""
-    return label.rsplit(" (", 1)[0].upper()
 
 
 def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
@@ -146,54 +86,40 @@ class MonitorController:
     Holds all monitor state and the CAN-facing logic (session setup, polling,
     history bookkeeping, capture saving). The presentation layer — the Textual
     TUI or the non-interactive fallback — drives it via :meth:`poll_once`,
-    :meth:`seconds_until_due` and :meth:`render`, so the two share identical
+    :meth:`seconds_until_due` and ``renderer.render()``, so the two share identical
     behaviour. Which PIDs a tick reads is the :class:`PollScheduler`'s call.
     """
 
-    def __init__(
-        self,
-        terminal,
-        query_steps: list[dict],
-        pids_data: dict,
-        verbose: bool,
-        interval: float = 5.0,
-        keep_mode: KeepMode | None = None,
-        keep_n: int | None = None,
-        save: bool = False,
-        show_rulers: bool = False,
-        notation: ByteNotation = ByteNotation.WICAN,
-        raw_client=None,
-        include_static: bool = False,
-        schedule: Schedule = DEFAULT_SCHEDULE,
-        backoff: bool = True,
-    ):
+    def __init__(self, terminal, options: MonitorOptions, pids_data: dict, raw_client=None):
         self.terminal = terminal
         self.raw_client = raw_client  # transport.RawUdsClient when using the raw backend
         self.raw = raw_client is not None
-        self.query_steps = query_steps
+        self.options = options
+        self.query_steps = options.query_steps
         self.pids_data = pids_data
-        self.verbose = verbose
-        self.schedule = PollScheduler(schedule, interval, period_speedup=MONITOR_PERIOD_SPEEDUP)
+        self.verbose = options.verbose
+        self.schedule = PollScheduler(
+            options.schedule, options.interval, period_speedup=MONITOR_PERIOD_SPEEDUP
+        )
         # Slow-PID backoff: a PID that times out or is answered very slowly holds up
         # every other PID's next poll, so it is polled less often until it recovers.
-        # Fed each PID's cost of a tick, which the poll backends leave in poll_costs.
-        self.backoff = PollBackoff(enabled=backoff)
-        self.poll_costs: dict[Key, PollCost] = {}
-        self.keep_mode = keep_mode
-        self.keep_n = keep_n
-        self.save = save
-        self.show_rulers = show_rulers
+        # Fed each PID's cost of a tick, which the poll backends leave in health.poll_costs.
+        self.backoff = PollBackoff(enabled=options.backoff)
+        self.keep_mode = options.keep_mode
+        self.keep_n = options.keep_n
+        self.save = options.save
+        self.show_rulers = options.show_rulers
         # Byte-index notation for the rulers + per-signal byte-reference column
         # (the user's display.byte_notation, or --notation).
-        self.notation = notation
-        self.include_static = include_static
+        self.notation = options.notation
+        self.include_static = options.include_static
         # Live display view mode (cycled with 'V' in the TUI). See VIEW_MODES:
         # "full" (signals + hex payloads, the default), "signals" (decoded params
         # only), "ranges" (each signal's captured value span), "ecus" (just the
         # responding ECUs). Named views only change presentation, not recording.
         self.view_mode = "full"
 
-        self.sm = SessionManager(terminal, verbose=verbose) if not self.raw else None
+        self.sm = SessionManager(terminal, verbose=self.verbose) if not self.raw else None
         self._ecu_index: dict | None = None
         # Diagnostic session-type concern (active modes, the safety check, the
         # picker's known-good suggestions, live switching) lives in the
@@ -203,13 +129,14 @@ class MonitorController:
         # Live PID-selector management (the TUI 'p' picker: enumerate ECUs/PIDs,
         # report/toggle selectors) lives in the MonitorSelectors collaborator.
         self.selectors = MonitorSelectors(self)
-        self._batch_state = None  # multi.BatchState, created in setup()
         # Raw-backend poll cycle + multi-DID batching state lives in the poller.
         self.raw_poller = MonitorRawPoller(self)
+        # ELM327 session setup + poll cycle (the non-raw backends).
+        self.elm_poller = MonitorElmPoller(self)
         # Incremental rendering: a hook the TUI sets to refresh the body mid-cycle
         # so a slow/timing-out PID doesn't freeze the whole view. Left None for
         # the non-interactive path (results are only rendered once, on exit).
-        self._on_partial = None
+        self.on_partial = None
         # Last *good* entry seen per (ecu_label, pid). A PID that times out reuses
         # this (marked stale → dimmed) so its values stay on screen instead of
         # collapsing to an error line and jolting the layout.
@@ -264,23 +191,6 @@ class MonitorController:
         # Set by mode_monitor; resolved lazily if left None.
         self.captures_dir: Path | None = None
         self.disconnected = False
-        # Poll cycles in which not one PID answered coherently (no payload and no
-        # negative response — every row carried forward as stale). A
-        # desynced-but-open pipe raises nothing, so this count is the only thing
-        # that can tell a live-but-useless link from a healthy one; at
-        # `config.stale_cycles_before_reconnect()` it sets `disconnected` and lets
-        # the reconnector rebuild the client. An NRC counts as answered: a negative
-        # response proves the request reached the ECU and its reply came back in the
-        # right slot, which is a healthy pipe refusing, not a broken one.
-        #
-        # Counted per ECU (`_unanswered`: polls of that ECU since anything last
-        # answered) and reported as the minimum over the polled ECUs, so a fast PID
-        # on a sleeping ECU cannot escalate on its own while a slower ECU is still
-        # answering between its ticks. On the fixed schedule every ECU is polled
-        # every cycle, so this is simply consecutive dead cycles.
-        self.dead_cycles = 0
-        self._unanswered: dict[str, int] = {}
-        self._cycle_answered = False
         # Mid-session reconnect / auto-failover (set by mode_monitor). When a
         # reconnector is present the poll loop re-homes a dropped session instead
         # of exiting; session_steps are replayed on each reconnect to re-open
@@ -294,19 +204,26 @@ class MonitorController:
         # Capture recording / journaling / on-demand-save / segment-rotate logic
         # lives in the MonitorRecorder collaborator (frame counters, display &
         # --save history, the write-ahead journal, segment label/state/notes).
-        # The controller exposes its tested surface via the delegating
-        # properties/methods below. Constructed after keep_mode/save are set,
-        # since it initialises its history maps from them.
+        # Constructed after keep_mode/save are set, since it initialises its
+        # history maps from them.
         self.recorder = MonitorRecorder(self)
         # When the recording could not see the car (disconnects, resyncs), journaled
         # into the --save session's link_events. Looks the journal up per write, since
         # a segment rotation replaces it.
         self.link_events = LinkEventTracker(lambda: self.recorder.journal, rx_of=self._event_rx)
         self._name_index: dict | None = None
+        # What each tick's reads cost, which PIDs to slow down, and whether the link
+        # is alive at all (see health.py).
+        self.health = MonitorHealth(
+            self.schedule,
+            self.backoff,
+            self.link_events,
+            mark_disconnected=self.mark_disconnected,
+            transport=lambda: self.transport_type,
+        )
         # Vehicle-state auto-suggestion (decoded-value accumulation, per-signal
         # clocks + expiry, vehicle_states.yaml evaluation) lives in the
-        # MonitorStateSuggester collaborator; the controller exposes its tested
-        # surface via the delegating properties/methods below.
+        # MonitorStateSuggester collaborator.
         self.state = MonitorStateSuggester(self)
         # In-place editing / filtering of PID definitions from the TUI. The
         # editor owns the selection cursor + display filter and writes edits
@@ -315,155 +232,14 @@ class MonitorController:
 
         self.pids_dir = None  # None -> active profile's ecus/ (tests override)
         self.editor = MonitorEditor(self)
-        # Per-PID rendered-block cache: the body repaints every poll cycle and
-        # every mid-cycle partial, but most PIDs are unchanged between paints, so
-        # reuse their rendered Text instead of rebuilding it each time.
-        self._render_cache = RenderCache()
-
-    # --- Recording / journaling: delegated to the MonitorRecorder collaborator.
-    # These facades keep the tested public surface (and the TUI/renderer reads)
-    # stable while the durability logic lives in record.py.
-    @property
-    def total_frames(self) -> int:
-        return self.recorder.total_frames
-
-    @total_frames.setter
-    def total_frames(self, v: int) -> None:
-        self.recorder.total_frames = v
-
-    @property
-    def unique_frames(self) -> int:
-        return self.recorder.unique_frames
-
-    @unique_frames.setter
-    def unique_frames(self, v: int) -> None:
-        self.recorder.unique_frames = v
-
-    @property
-    def hex_history(self):
-        return self.recorder.hex_history
-
-    @hex_history.setter
-    def hex_history(self, v) -> None:
-        self.recorder.hex_history = v
-
-    @property
-    def save_history(self):
-        return self.recorder.save_history
-
-    @save_history.setter
-    def save_history(self, v) -> None:
-        self.recorder.save_history = v
-
-    @property
-    def journal(self):
-        return self.recorder.journal
-
-    @journal.setter
-    def journal(self, v) -> None:
-        self.recorder.journal = v
-
-    @property
-    def session_label(self) -> str:
-        return self.recorder.session_label
-
-    @session_label.setter
-    def session_label(self, v: str) -> None:
-        self.recorder.session_label = v
-
-    @property
-    def session_states(self) -> list[str]:
-        return self.recorder.session_states
-
-    @session_states.setter
-    def session_states(self, v: list[str]) -> None:
-        self.recorder.session_states = v
-
-    @property
-    def session_notes(self) -> str:
-        return self.recorder.session_notes
-
-    @session_notes.setter
-    def session_notes(self, v: str) -> None:
-        self.recorder.session_notes = v
-
-    @property
-    def _state_explicit(self) -> bool:
-        return self.recorder.state_explicit
-
-    @_state_explicit.setter
-    def _state_explicit(self, v: bool) -> None:
-        self.recorder.state_explicit = v
-
-    def has_captures(self) -> bool:
-        """True when there's at least one payload available to save."""
-        return self.recorder.has_captures()
-
-    # --- State auto-suggestion: delegated to the MonitorStateSuggester
-    # (state.py). These facades keep the tested public surface
-    # (decoded_values/responded/suggested_state) and the TUI reads stable.
-
-    @property
-    def decoded_values(self) -> dict[str, float]:
-        return self.state.decoded_values
-
-    @property
-    def responded(self) -> set[str]:
-        return self.state.responded
-
-    def suggested_state(self) -> str | None:
-        """Auto-suggest the single, most *specific* vehicle state.
-
-        See :meth:`MonitorStateSuggester.suggested_state`.
-        """
-        return self.state.suggested_state()
-
-    def suggested_states(self) -> list[str]:
-        """Auto-suggest the vehicle state(s) from the latest decoded values.
-
-        See :meth:`MonitorStateSuggester.suggested_states`.
-        """
-        return self.state.suggested_states()
-
-    def state_options(self) -> list[tuple[str, str]]:
-        """The profile's ordered ``(state, description)`` vocabulary for the save dialog."""
-        return self.state.state_options()
-
-    def offer_states(self, *, next_segment: bool = False) -> list[str]:
-        """The save dialog's state pre-fill. See :meth:`MonitorRecorder.offer_states`."""
-        return self.recorder.offer_states(next_segment=next_segment)
-
-    # --- Poll scheduling: delegated to the PollScheduler (schedule.py).
-
-    @property
-    def interval(self) -> float:
-        """The fixed schedule's period, and the per-PID schedule's fallback (s)."""
-        return self.schedule.interval
-
-    @interval.setter
-    def interval(self, v: float) -> None:
-        self.schedule.interval = v
+        # The display: what it shows (view) and how it is drawn (renderer, which keeps the
+        # per-PID render cache across paints).
+        self.view = MonitorView(self)
+        self.renderer = MonitorRenderer(self)
 
     def seconds_until_due(self) -> float:
         """How long the poll loop may sleep before the next tick (0 = poll now)."""
         return self.schedule.seconds_until_due(time.monotonic())
-
-    def _set_segment_meta(
-        self, label: str | None, states: list[str] | None, notes: str | None
-    ) -> None:
-        """Mirror the journal's last-wins metadata onto the display fields."""
-        self.recorder.set_segment_meta(label, states, notes)
-
-    def save_now(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
-        """On-demand save (TUI 's'). See :meth:`MonitorRecorder.save_now`."""
-        return self.recorder.save_now(label, vehicle_states, notes)
-
-    def new_segment(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
-        """Close the current --save segment and start a fresh one (TUI 'n').
-
-        See :meth:`MonitorRecorder.new_segment`.
-        """
-        return self.recorder.new_segment(label, vehicle_states, notes)
 
     def diag(self):
         """The active transport's :class:`~canair.transport.stats.TransportStats`.
@@ -499,140 +275,15 @@ class MonitorController:
         self._ecu_index = build_ecu_index(self.pids_data)
         self.sessions.invalidate_index()  # rebuilt lazily on next access
 
-    # --- Live PID selection: delegated to the MonitorSelectors collaborator
-    # (selectors.py). Mutating self.query_steps mid-poll is safe —
-    # _poll_elm/_poll_raw iterate a fresh `for step in self.query_steps` each
-    # cycle, so a new selection takes effect on the very next cycle. These
-    # facades keep the TUI 'p' picker's surface stable.
-
-    def available_ecus(self) -> list[str]:
-        """Every ECU known in the active profile, for the session-type picker."""
-        return self.selectors.available_ecus()
-
-    def picker_seed(self) -> PickerSeed:
-        """The ECU → PID picker's choices, opened on what is polled now.
-
-        See :meth:`MonitorSelectors.picker_seed`.
-        """
-        return self.selectors.picker_seed()
-
-    def apply_selection(self, selected: Mapping[str, Sequence[str]]) -> list[str]:
-        """Poll exactly ``selected`` from the next cycle on; returns the selectors.
-
-        See :meth:`MonitorSelectors.apply`.
-        """
-        return self.selectors.apply(selected)
-
-    # --- Diagnostic session type: delegated to the MonitorSessions collaborator
-    # (sessions.py). Session *opening* on setup() forwards a
-    # mini-language `--mode` (see setup()); these facades keep the TUI 't' picker's
-    # surface (active modes, the safety check, known types, a live switch) stable.
-
-    def active_session_modes(self) -> dict[str, str]:
-        """ECU_NAME -> currently-open "10 xx" sub-function (2-hex-digit str).
-
-        See :meth:`MonitorSessions.active_modes`.
-        """
-        return self.sessions.active_modes()
-
-    def _session_check(self, ecu_name: str, mode: str) -> str | None:
-        """The command blocklist's verdict on ``10 <mode>`` for one ECU (None = safe).
-
-        See :meth:`MonitorSessions.check`.
-        """
-        return self.sessions.check(ecu_name, mode)
-
-    def known_session_types(self, ecu_name: str) -> list[tuple[str, str, bool | None]]:
-        """(mode_hex, label, supported) options for the session-type picker.
-
-        See :meth:`MonitorSessions.known_types`.
-        """
-        return self.sessions.known_types(ecu_name)
-
-    async def switch_session(self, ecu_name: str, mode: str) -> str:
-        """Force-switch one ECU to a new diagnostic session type, live.
-
-        See :meth:`MonitorSessions.switch`.
-        """
-        return await self.sessions.switch(ecu_name, mode)
-
     async def setup(self, session_steps: list[dict] | None) -> None:
-        """Build the ECU index, run one-shot session setup, start keepalives."""
-        from ...ecus.pids import build_ecu_index
+        """Build the ECU index, open the sessions, prime each ECU and start keepalives."""
+        from canair.ecus.pids import build_ecu_index
 
         self._ecu_index = build_ecu_index(self.pids_data)
-
         if self.raw:
-            # Raw backend: no ELM sessions/keepalive.
-            assert self.raw_client is not None  # self.raw is True ⟺ raw_client was provided
-            self.sessions.open_raw(session_steps)
-            # Warm each ECU up: the first diagnostic request after idle is slow
-            # (the ECU/gateway has to wake). Prime with one throwaway read per ECU
-            # on a longer timeout so the first *monitored* cycle is already warm.
-            for ecu, _info, request in self._warmup_reads():
-                with contextlib.suppress(Exception):
-                    self.raw_client.read(ecu, bytes.fromhex(request), timeout=3.0)
-            return
-
-        from ...uds.echo import request_echo
-        from ..read.batch import BatchState
-        from ..read.exec import timed_exchange
-        from ..read.multi import _exec_session, _exec_skm_wake
-
-        assert self.sm is not None  # not self.raw ⟺ sm was constructed
-        from ...transport.isotp_params import resolve_rx_padding
-
-        self._batch_state = BatchState(resolve_rx_padding(self.pids_data))
-        for step in session_steps or []:
-            stype = step["type"]
-            if stype == "skm-wake":
-                print(f"  SKM wakeup ({step['level']})...")
-                await _exec_skm_wake(self.sm, step["level"], self.verbose)
-            elif stype == "session":
-                print(f"  Opening session on {step['target']}...")
-                await _exec_session(
-                    self.sm,
-                    step["target"],
-                    step.get("wake", False),
-                    self._ecu_index,
-                    mode=step.get("mode", "03"),
-                )
-        self.sm.start_background_keepalive(interval=2.0)
-        # Prime each ECU once (parity with the raw path): the first request after
-        # idle is slow, so warm the path before the first *displayed* cycle. The
-        # retry (retries=1) also rides out a cold NO-DATA on this throwaway read.
-        for _ecu, info, request in self._warmup_reads():
-            echo = request_echo(request)
-            with contextlib.suppress(Exception):
-                # One transaction, echo-validated: the background keepalive is already
-                # running, and could otherwise re-point the header between the two.
-                await timed_exchange(
-                    self.sm,
-                    info["tx_id"],
-                    request,
-                    retries=1,
-                    expected_sid=echo[0] if echo else None,
-                    expected_echo=echo[1] if echo else None,
-                )
-
-    def _warmup_reads(self) -> "list[tuple[str, EcuIndexEntry, str]]":
-        """``(ECU key, its index entry, first planned request)`` per polled ECU step."""
-        from ...ecus.pids import ecu_index_key
-        from ..read.multi import build_query_plan
-
-        assert self._ecu_index is not None  # built by setup() before this runs
-        reads: list[tuple[str, EcuIndexEntry, str]] = []
-        for step in self.query_steps:
-            ecu = ecu_index_key(step["ecu"], self._ecu_index)
-            if ecu is None:
-                continue
-            info = self._ecu_index[ecu]
-            plan = build_query_plan(
-                info, step.get("pids", []), quiet=True, include_static=self.include_static
-            )
-            if plan:
-                reads.append((ecu, info, plan[0][0]))
-        return reads
+            await self.raw_poller.setup(session_steps)
+        else:
+            await self.elm_poller.setup(session_steps)
 
     def _record(self, new_queries: list[EcuFrame]) -> None:
         """Record freshly-polled payloads into prev_hex / display / save history."""
@@ -670,16 +321,15 @@ class MonitorController:
         self.cycle += 1
         diag = self.diag_recorder()
         base = diag.snapshot() if diag is not None else None
-        self._cycle_answered = False
+        self.health.begin_tick()
         self.fresh_queries = []
-        self.poll_costs = {}
         t0 = time.monotonic()
         self.schedule.begin_tick(t0)
         try:
             if self.raw:
-                await self._poll_raw()
+                await self.raw_poller.poll()
             else:
-                await self._poll_elm()
+                await self.elm_poller.poll()
         finally:
             self.schedule.end_tick()
         self.elapsed = time.monotonic() - t0
@@ -690,106 +340,12 @@ class MonitorController:
             self.last_stale = delta.stale
             self.link_events.resynced(delta.resyncs)
         self._record(self.fresh_queries)
-        self._observe_ecu_answers()
-        self._apply_backoff()
-        self._check_liveness(
-            {_label_ecu(label) for label, rows in self.fresh_queries if rows},
-            {_label_ecu(label) for label, _rows in self.last_queries},
+        self.health.observe_ecu_answers()
+        self.health.apply_backoff()
+        self.health.check_liveness(
+            {label_ecu(label) for label, rows in self.fresh_queries if rows},
+            {label_ecu(label) for label, _rows in self.last_queries},
         )
-
-    def _observe_ecu_answers(self) -> None:
-        """Tell the link-event recorder which polled ECUs answered this tick.
-
-        ``link_ok`` is whether anything answered at all: an ECU that misses while the
-        others answer is going quiet on its own, one that misses with them is part of a
-        disconnect, which the liveness check records instead.
-        """
-        answered: dict[str, bool] = {}
-        for (ecu, _pid), cost in self.poll_costs.items():
-            if cost.reads:
-                answered[ecu] = answered.get(ecu, False) or cost.answered > 0
-        for ecu, ok in answered.items():
-            self.link_events.ecu_polled(ecu, answered=ok, link_ok=self._cycle_answered)
-
-    def _apply_backoff(self) -> None:
-        """Slow down (or restore) each PID this tick's costs say is holding up the poll."""
-        for key, cost in self.poll_costs.items():
-            factor = self.backoff.observe(key, cost)
-            if factor is None:
-                continue
-            ecu, pid = key
-            self.schedule.set_slowdown(key, factor)
-            self.link_events.backoff(ecu, factor, pid=pid)
-            detail = slowdown_log_message(f"{ecu} {pid}", factor, self.backoff.reason(key))
-            log_event("config", detail, level=logging.INFO, transport=self.transport_type)
-
-    def reset_backoff(self) -> None:
-        """Restore every slowed-down PID to its normal poll rate.
-
-        Clears both halves of the slowdown: the backoff's history and the scheduler's
-        factor. Resetting only the backoff would leave the scheduler stretching a PID
-        the backoff no longer tracks, so nothing would ever restore it.
-        """
-        slowed = set(self.backoff.slowed()) | set(self.schedule.slowed())
-        for key in sorted(slowed):
-            ecu, pid = key
-            self.schedule.set_slowdown(key, 1)
-            self.link_events.backoff(ecu, 1, pid=pid)
-        self.backoff.reset()
-        if slowed:
-            names = ", ".join(f"{ecu} {pid}" for ecu, pid in sorted(slowed))
-            log_event(
-                "config",
-                f"poll rates restored after reconnecting: {names}",
-                level=logging.INFO,
-                transport=self.transport_type,
-            )
-
-    def pid_notes(self) -> dict[tuple[str, str], str]:
-        """Row note per slowed-down PID, keyed by its ``(ECU label, PID)`` display key."""
-        notes: dict[tuple[str, str], str] = {}
-        for label, rows in self.last_queries:
-            ecu = _label_ecu(label)
-            for row in rows:
-                key = (ecu, row["pid"])
-                factor = self.schedule.slowdown(key)
-                if factor > 1:
-                    notes[(label, row["pid"])] = describe_slowdown(factor, self.backoff.reason(key))
-        return notes
-
-    def _check_liveness(self, polled: set[str], live: set[str]) -> None:
-        """Escalate an all-stale run to a reconnect.
-
-        A transport error raises and is caught by the poll loop, but a pipe that
-        is *open and useless* — every reply landing one slot behind its request —
-        raises nothing, so ``disconnected`` would never be set and the session
-        would sit there showing carried-forward values forever. That is the bug
-        this guards: count polls where nothing answered, and hand the session to
-        the reconnector once it is clearly not recovering on its own.
-
-        ``polled`` are the ECUs read this tick, ``live`` every ECU on screen. It
-        escalates once *every* live ECU has gone unanswered for the threshold, so
-        a tick that only reached a sleeping ECU is not held against a slower one
-        that is still answering between its own ticks.
-        """
-        if self._cycle_answered or not polled:
-            self._unanswered.clear()
-            self.dead_cycles = 0
-            return
-        for ecu in polled:
-            self._unanswered[ecu] = self._unanswered.get(ecu, 0) + 1
-        self.dead_cycles = min(self._unanswered.get(ecu, 0) for ecu in live | polled)
-        limit = config.stale_cycles_before_reconnect()
-        if limit <= 0 or self.dead_cycles < limit:
-            return
-        log_event(
-            "stale",
-            f"no coherent response for {self.dead_cycles} poll cycles - reconnecting",
-            transport=self.transport_type,
-        )
-        self._unanswered.clear()
-        self.dead_cycles = 0
-        self.mark_disconnected("stale")
 
     def mark_disconnected(self, cause: "DisconnectCause") -> None:
         """Hand the session to the reconnector, recording the gap this opens.
@@ -812,110 +368,6 @@ class MonitorController:
         client = self.raw_client if self.raw else self.terminal
         return getattr(client, "diag", None)
 
-    async def _poll_elm(self) -> None:
-        import time as _t
-
-        from ..read.multi import _exec_query
-
-        # The ELM poll path only runs on the non-raw backend, where setup() has
-        # constructed sm and built the ECU index.
-        assert self.sm is not None
-        assert self._ecu_index is not None
-        cmds0 = self.terminal.cmd_count
-        elm0 = self.terminal.cmd_time
-        # Seed the frame from last cycle so ECUs not yet re-polled keep showing
-        # their values (no flicker); overwrite each as it completes this cycle.
-        frame = dict(self.last_queries)
-        order = [label for label, _ in self.last_queries]
-        polled: list[str] = []
-        last_render = 0.0
-        for step in self.query_steps:
-            full_codes: list[str] = []
-            due_on: list[str] = []
-
-            def _take_due(
-                ecu: str, plan: list, codes: list[str] = full_codes, due_on: list[str] = due_on
-            ) -> list:
-                codes.extend(entry[0] for entry in plan)
-                due = self.schedule.take_due(ecu, plan)
-                if due:
-                    due_on.append(ecu)
-                return due
-
-            try:
-                result = await _exec_query(
-                    self.sm,
-                    step["ecu"],
-                    step.get("pids", []),
-                    self._ecu_index,
-                    self.pids_data,
-                    self.verbose,
-                    return_results=True,
-                    quiet=True,
-                    batch_state=self._batch_state,
-                    include_static=self.include_static,
-                    plan_filter=_take_due,
-                )
-            except ConnectionError:
-                self.mark_disconnected("error")
-                return
-            if result is not None and due_on:
-                self.poll_costs.update(_pid_costs(due_on[0], result[1]))
-            if result is not None:
-                label, pids = result
-                # Keep a timed-out PID's last-good values (stale/dimmed) instead
-                # of collapsing to an error line and jolting the layout.
-                pids = [self._displayify((label, e["pid"]), e) for e in pids]
-                if pids:
-                    self.fresh_queries.append((label, pids))
-                if label not in frame:
-                    order.append(label)
-                if label not in polled:
-                    polled.append(label)
-                # Every PID of the plan, in plan order: the ones read this tick
-                # with their new result, the rest as they were last shown.
-                frame[label] = [
-                    self._last_shown[(label, code)]
-                    for code in full_codes
-                    if (label, code) in self._last_shown
-                ]
-                self.last_queries = [(lb, frame[lb]) for lb in order if lb in frame]
-                now = _t.monotonic()
-                if self._on_partial is not None and (now - last_render) >= 0.12:
-                    last_render = now
-                    with contextlib.suppress(Exception):
-                        self._on_partial()
-        self.last_queries = [(lb, frame[lb]) for lb in polled]
-        self.last_cmds = self.terminal.cmd_count - cmds0
-        self.last_elm_time = self.terminal.cmd_time - elm0
-
-    # --- Raw-CAN backend: delegated to the MonitorRawPoller collaborator. The
-    # per-session batch state (_raw_lengths / _raw_nobatch) lives on the poller;
-    # these facades keep the tested public surface stable. See monitor_raw.py.
-
-    @property
-    def _raw_lengths(self) -> dict[tuple[str, str], int]:
-        return self.raw_poller.lengths
-
-    @property
-    def _raw_nobatch(self) -> set[str]:
-        return self.raw_poller.nobatch
-
-    def _build_raw_submissions(self):
-        return self.raw_poller.build_submissions()
-
-    async def _poll_raw(self) -> None:
-        await self.raw_poller.poll()
-
-    def _apply_raw_submission(
-        self,
-        s: Submission,
-        val: bytes | Exception | None,
-        acquired: float,
-        by_pid: dict[tuple[str, str], ResultEntry],
-    ) -> None:
-        self.raw_poller.apply_submission(s, val, acquired, by_pid)
-
     def _displayify(self, key: tuple[str, str], entry: ResultEntry) -> ResultEntry:
         """Map a freshly-resolved entry to what should be shown for that PID.
 
@@ -931,68 +383,23 @@ class MonitorController:
         """
         shown = self._decide_display(key, entry)
         self._last_shown[key] = shown
-        if _answered(entry):
-            self.link_events.answered(entry.get("acquired_at"), ecu=_label_ecu(key[0]))
+        if answered(entry):
+            self.link_events.answered(entry.get("acquired_at"), ecu=label_ecu(key[0]))
         return shown
 
     def _decide_display(self, key: tuple[str, str], entry: ResultEntry) -> ResultEntry:
         """The display decision itself — see :meth:`_displayify`."""
         if entry.get("raw_hex"):
             self._last_good[key] = entry
-            self._cycle_answered = True
+            self.health.cycle_answered = True
             return entry
-        if _is_nrc(entry):
-            self._cycle_answered = True
+        if is_nrc(entry):
+            self.health.cycle_answered = True
             return entry
         last = self._last_good.get(key)
         if last is not None:
             return {**last, "stale": True}
         return entry
-
-    def _raw_build_queries(
-        self, plan_by_ecu, by_pid: dict[tuple[str, str], ResultEntry]
-    ) -> list[EcuFrame]:
-        return self.raw_poller.build_queries(plan_by_ecu, by_pid)
-
-    def render(self) -> Text:
-        """The current view as a Rich Text (rendered by the TUI / printed on exit)."""
-        self.editor.ensure_valid(self.last_queries)
-        return _render_results(
-            self.editor.visible_queries(self.last_queries),
-            self.verbose,
-            self.cycle,
-            self.elapsed,
-            self.schedule.describe(),
-            self.prev_snapshot,
-            hex_history=self.hex_history,
-            show_rulers=self.show_rulers,
-            footer=False,
-            selected=self.editor.selected,
-            max_history_rows=self._history_render_limit(),
-            cache=self._render_cache,
-            prev_params=self.prev_params_snapshot,
-            view_mode=self.view_mode,
-            param_stats=self.param_stats,
-            notation=self.notation,
-            pid_notes=self.pid_notes(),
-        )
-
-    def cycle_view(self) -> str:
-        """Advance to the next display view mode (TUI 'V'); returns the new mode."""
-        idx = VIEW_MODES.index(self.view_mode) if self.view_mode in VIEW_MODES else 0
-        self.view_mode = VIEW_MODES[(idx + 1) % len(VIEW_MODES)]
-        return self.view_mode
-
-    def _history_render_limit(self) -> int:
-        """How many history rows (runs of identical payloads) to render per PID.
-
-        --keep N shows the requested N; every other keep-mode stays compact at a
-        handful of newest runs so a noisy/long session doesn't flood (or choke)
-        the live view — every poll is still in the --save journal.
-        """
-        if self.keep_mode == KEEP_LAST and self.keep_n:
-            return self.keep_n
-        return _RENDER_DEFAULT_ROWS
 
     def _event_rx(self, ecu: str) -> str | None:
         """``ecu``'s response address for a link event, or None when it has none."""
@@ -1016,65 +423,6 @@ class MonitorController:
         assert m is not None  # ecu_label is an ECU name/label, always starts with a word char
         ecu_short = m.group(1)
         return rx_from_name(ecu_short, self._name_index) or ecu_short
-
-    def query_label(self) -> str:
-        """Short summary of the polled selectors, e.g. ``BCM VCU:2101``.
-
-        Reconstructs the query mini-language from the active steps (ECU name,
-        with its PID list attached by a colon when filtered). Used to pre-fill
-        the on-demand save dialog's label.
-        """
-        parts: list[str] = []
-        from ...ecus.pids import ecu_index_key
-
-        for step in self.query_steps:
-            ecu = ecu_index_key(step["ecu"], self._ecu_index or {}) or step["ecu"].upper()
-            pids = step.get("pids") or []
-            parts.append(f"{ecu}:{','.join(pids)}" if pids else ecu)
-        return " ".join(parts)
-
-    def segment_title(self) -> str:
-        """Display title for the current session/segment.
-
-        The user-set label when present, else the polled-selectors summary, so
-        the TUI header is meaningful even before (or without) a --save label.
-        """
-        return self.session_label or self.query_label() or "Monitor"
-
-    def session_summary(self) -> dict:
-        """A snapshot of the current run/segment for the session-info modal.
-
-        Aggregates the run-level counters (frames, cycles, transport) and the
-        active segment's metadata (label/states/notes, start time, frame count).
-        Pure read — safe to call any time.
-        """
-        r = self.recorder
-        return {
-            "recording": self.journal is not None,
-            "label": self.segment_title(),
-            "states": list(self.session_states),
-            "notes": self.session_notes,
-            "query": self.query_label(),
-            "keep_mode": self.keep_mode,
-            "keep_n": self.keep_n,
-            "view_mode": self.view_mode,
-            "interval": self.interval,
-            "schedule": self.schedule.describe(),
-            "cycle": self.cycle,
-            "total_frames": self.total_frames,
-            "unique_frames": self.unique_frames,
-            "transport": self.transport_type,
-            "captures_dir": str(self.captures_dir) if self.captures_dir else None,
-            "journal_path": str(self.journal.path) if self.journal is not None else None,
-            "run_started_at": r.run_started_at,
-            "segment_started_at": r.segment_started_at,
-            "segment_frames": self.total_frames - r.segment_frames_base,
-            "completed_segments": len(r.segments),
-        }
-
-    def segment_history(self) -> list[dict]:
-        """Summaries of the --save segments already closed this run (oldest first)."""
-        return list(self.recorder.segments)
 
     def interrupt(self) -> None:
         """Abort an in-flight raw poll ASAP so Ctrl-C / SIGTERM exit is prompt.
@@ -1148,5 +496,5 @@ class MonitorController:
         current = self.diag_recorder()
         if previous is not None and current is not None and current is not previous:
             current.absorb(previous)
-        self.reset_backoff()
+        self.health.reset_backoff()
         self.disconnected = False

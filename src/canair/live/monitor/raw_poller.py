@@ -9,8 +9,8 @@ the per-session batch-learning state (``lengths``/``nobatch``).
 Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirrors
 :class:`canair.live.monitor.edit.MonitorEditor`) so the raw backend — only
 active when the transport is ``slcan-tcp`` — is a self-contained, independently
-testable unit rather than another arm of the controller god object. The
-controller keeps thin delegating methods for the tested public surface.
+testable unit rather than another arm of the controller god object. Callers read it
+as ``controller.raw_poller``.
 """
 
 from __future__ import annotations
@@ -118,6 +118,20 @@ class MonitorRawPoller:
         from ...transport.isotp_params import resolve_rx_padding
 
         self.pad = resolve_rx_padding(getattr(controller, "pids_data", None))
+
+    async def setup(self, session_steps: list[dict] | None) -> None:
+        """Open the requested sessions, then prime each ECU before the first cycle.
+
+        The first diagnostic request after idle is slow (the ECU/gateway has to wake), so
+        each ECU gets one throwaway read on a longer timeout; the first *monitored* cycle
+        is then already warm. There is no keepalive on the raw backend.
+        """
+        c = self.c
+        assert c.raw_client is not None  # the raw poller exists only with a raw client
+        c.sessions.open_raw(session_steps)
+        for ecu, _info, request in c.sessions.warmup_reads():
+            with contextlib.suppress(Exception):
+                c.raw_client.read(ecu, bytes.fromhex(request), timeout=3.0)
 
     def build_submissions(
         self,
@@ -252,10 +266,10 @@ class MonitorRawPoller:
                 c.last_queries = self.build_queries(plan_by_ecu, by_pid)
                 # Throttle mid-cycle repaints so a burst of fast PIDs doesn't thrash.
                 now = _t.monotonic()
-                if c._on_partial is not None and (now - last_render) >= 0.12:
+                if c.on_partial is not None and (now - last_render) >= 0.12:
                     last_render = now
                     with contextlib.suppress(Exception):
-                        c._on_partial()
+                        c.on_partial()
         except asyncio.CancelledError:
             # Ctrl-C / quit cancels the poll worker. Tell the blocking pipelined
             # poll to abort so its executor thread returns at once — otherwise
@@ -281,7 +295,7 @@ class MonitorRawPoller:
         c.fresh_queries = self.fresh_queries(plan_by_ecu, by_pid)
         c.last_cmds = len(requests)
         c.last_elm_time = 0.0
-        c.poll_costs = self.poll_costs(submissions, result_dict)
+        c.health.poll_costs = self.poll_costs(submissions, result_dict)
 
     def poll_costs(
         self, submissions: list[Submission], results: PollResults

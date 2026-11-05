@@ -55,14 +55,7 @@ def monitor_operation(options: MonitorOptions) -> LiveOperation:
     """The ``monitor`` operation for ``options``: polled over a terminal, or the raw client."""
 
     async def handle_monitor(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-        await mode_monitor(
-            terminal,
-            options.query_steps,
-            pids_data,
-            options.verbose,
-            reconnect=reconnect,
-            **options.mode_kwargs(),
-        )
+        await mode_monitor(terminal, options, pids_data, reconnect=reconnect)
 
     return LiveOperation(handle_monitor, monitor=options, records=True)
 
