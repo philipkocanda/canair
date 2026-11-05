@@ -65,6 +65,20 @@ def _isolate_user_config(tmp_path_factory):
 
 
 @pytest.fixture(autouse=True)
+def _isolate_connection_lock(tmp_path, monkeypatch):
+    """Point the device connection lock at a throwaway file for every test.
+
+    Every command now probes the lock before it runs (it warns when another session holds
+    it), so a developer's own running `canair monitor` would otherwise print into the stderr
+    of tests that have nothing to do with the device.
+    """
+    import canair.device.lock as lock_mod
+
+    monkeypatch.setattr(lock_mod, "LOCK_FILE", tmp_path / "wican-connection.lock")
+    monkeypatch.setattr(lock_mod, "STEAL_FILE", tmp_path / "wican-connection.steal")
+
+
+@pytest.fixture(autouse=True)
 def _reset_active_profile():
     """Clear the memoized active profile — and its derived caches — around each test.
 

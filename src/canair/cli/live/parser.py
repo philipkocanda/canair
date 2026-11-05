@@ -100,6 +100,8 @@ def add_connection_args(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Ask a session already holding the connection to release it, then wait for it",
     )
+    # This command takes the device connection lock itself, and reports a contended one itself.
+    parser.set_defaults(takes_device_lock=True)
 
 
 def live_command(operation: LiveOperation) -> Callable[[argparse.Namespace], int]:

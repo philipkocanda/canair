@@ -184,6 +184,11 @@ canair lock kill     # signal a holder that won't release (confirms first)
 
 `canair status` also shows whether the lock is free or held.
 
+Any other command that does not talk to the device itself (`decode`, `captures`, `pids`, …) prints
+a yellow `warning:` on stderr while another session holds the connection, naming the holder and
+how to free it. Your output on stdout is unchanged, so pipes and `--json` stay clean. `canair
+lock` and `canair status` report the lock themselves, so they do not repeat it.
+
 Sessions shut down gracefully on **Ctrl-C**, on **`SIGTERM`** (`kill`, `pkill`),
 and on **`SIGHUP`** (your terminal went away) — each reconciling any `--save`
 data and releasing the connection on the way out. If a session was killed

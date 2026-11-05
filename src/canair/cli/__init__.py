@@ -21,6 +21,7 @@ import sys
 from typing import NoReturn
 
 from canair.cli.commands import iter_command_modules
+from canair.cli.lock_notice import warn_if_connection_held
 from canair.core.prompt import PromptUnavailable
 
 # Global options (before the subcommand) that consume a following value. Used by
@@ -364,6 +365,8 @@ def main(argv: list[str] | None = None) -> int:
     if func is None:
         parser.print_help()
         return 1
+
+    warn_if_connection_held(args)
 
     # Fire a non-blocking, cached update check (interactive only; opt-out via
     # config/env). Never blocks or affects the command's outcome.

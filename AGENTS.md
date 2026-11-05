@@ -326,6 +326,11 @@ and **`g`/`G` address the view's primary axis**. The rest of the TUI and CLI out
   Stop signals are unified in `src/canair/core/stop_signals.py`: `SIGTERM`, `SIGHUP` and Ctrl-C all reconcile
   the `--save` journal and release the connection. A `kill -9`'d session's data is still recoverable
   with `captures uds --recover`.
+  **A command that does not take the lock itself warns while another session holds it:**
+  `decode`, `captures`, `pids` and the rest (anything without `takes_device_lock`, which
+  `add_connection_args` and `sniff` set) print a yellow `warning:` and a `hint:` to stderr, from
+  `main` via `src/canair/cli/lock_notice.py`. `lock`, `status` and `completion` are skipped, and
+  a live command gets `WiCANLock.acquire`'s refusal instead.
 - **`canair logs`** — The central diagnostics event log (`~/.config/canair/logs/canair.log`,
   size-rotated so it never grows unbounded): dropped/stale ISO-TP frames, timeouts, bus errors,
   decode failures (classified by `src/canair/uds/response.py::classify_response` into

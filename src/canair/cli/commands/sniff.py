@@ -64,7 +64,7 @@ examples:
         action="store_true",
         help="Ask a session already holding the connection to release it, then wait for it",
     )
-    parser.set_defaults(func=run)
+    parser.set_defaults(func=run, takes_device_lock=True)
     return parser
 
 
