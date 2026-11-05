@@ -4,7 +4,9 @@ import argparse
 
 import pytest
 
-from canair.cli.commands import pids as cli
+from canair.cli.commands.pids import ecu_facts, entries, pid_settings
+from canair.cli.commands.pids import parser as pids_parser
+from canair.cli.commands.pids import research as research_cmd
 from canair.core.edit_errors import EditError
 from canair.yaml_edit.pids import PidsEditError
 
@@ -26,7 +28,7 @@ def _status_args(pids_dir, **kw):
 def test_the_gate_commits_when_the_schema_check_passes(pids_dir, monkeypatch):
     fp = pids_dir / "e.yaml"
     monkeypatch.setattr("canair.validation.pids.validate_pids_file", lambda p, *a: (True, ""))
-    assert cli.cmd_set_pid_status(_status_args(pids_dir)) == 0
+    assert pid_settings.cmd_set_pid_status(_status_args(pids_dir)) == 0
     assert "status: draft" in fp.read_text()
 
 
@@ -37,7 +39,7 @@ def test_the_gate_rolls_back_when_the_schema_check_fails(pids_dir, monkeypatch):
         "canair.validation.pids.validate_pids_file", lambda p, *a: (False, "  ERROR: bad")
     )
     with pytest.raises(PidsEditError, match="reverted"):
-        cli.cmd_set_pid_status(_status_args(pids_dir))
+        pid_settings.cmd_set_pid_status(_status_args(pids_dir))
     assert fp.read_text() == original  # reverted
 
 
@@ -48,7 +50,7 @@ def test_the_gate_is_skipped_when_disabled(pids_dir, monkeypatch):
     monkeypatch.setattr("canair.validation.pids.validate_pids_file", _boom)
     args = _status_args(pids_dir)
     args.no_validate = True
-    assert cli.cmd_set_pid_status(args) == 0
+    assert pid_settings.cmd_set_pid_status(args) == 0
     assert "status: draft" in (pids_dir / "e.yaml").read_text()
 
 
@@ -65,7 +67,7 @@ class _Args:
 def test_set_addressing_writes_block(pids_dir):
     import canair.core.yaml_io as yaml_io
 
-    rc = cli.cmd_set_addressing(
+    rc = ecu_facts.cmd_set_addressing(
         _Args(dir=pids_dir, mode="normal_extended_11bit", target_address="0x12", rx_id="0x708")
     )
     assert rc == 0
@@ -77,12 +79,12 @@ def test_set_addressing_writes_block(pids_dir):
 
 def test_set_addressing_requires_a_field(pids_dir):
     with pytest.raises(EditError, match="nothing to set"):
-        cli.cmd_set_addressing(_Args(dir=pids_dir))
+        ecu_facts.cmd_set_addressing(_Args(dir=pids_dir))
 
 
 def test_set_addressing_bad_hex(pids_dir):
     with pytest.raises(EditError, match="fc-id"):
-        cli.cmd_set_addressing(_Args(dir=pids_dir, fc_id="nothex"))
+        ecu_facts.cmd_set_addressing(_Args(dir=pids_dir, fc_id="nothex"))
 
 
 @pytest.fixture
@@ -106,7 +108,7 @@ def _io_args(io_dir, **kw):
 def test_set_iocontrol_writes_only_the_given_fields(io_dir):
     import canair.core.yaml_io as yaml_io
 
-    rc = cli.cmd_set_iocontrol(_io_args(io_dir, session_mode="0xc0", hold=False))
+    rc = ecu_facts.cmd_set_iocontrol(_io_args(io_dir, session_mode="0xc0", hold=False))
     assert rc == 0
     entry = yaml_io.safe_load((io_dir / "e.yaml").read_text())["TESTECU"]["iocontrol"][6900]
     assert entry["session_mode"] == "C0"
@@ -117,7 +119,7 @@ def test_set_iocontrol_writes_only_the_given_fields(io_dir):
 def test_set_iocontrol_writes_a_quoted_release(io_dir):
     import canair.core.yaml_io as yaml_io
 
-    assert cli.cmd_set_iocontrol(_io_args(io_dir, release="30690000")) == 0
+    assert ecu_facts.cmd_set_iocontrol(_io_args(io_dir, release="30690000")) == 0
     text = (io_dir / "e.yaml").read_text()
     assert 'release: "30690000"' in text
     entry = yaml_io.safe_load(text)["TESTECU"]["iocontrol"][6900]
@@ -126,24 +128,24 @@ def test_set_iocontrol_writes_a_quoted_release(io_dir):
 
 def test_set_iocontrol_rejects_a_non_hex_release(io_dir):
     with pytest.raises(EditError, match="--release"):
-        cli.cmd_set_iocontrol(_io_args(io_dir, release="off"))
+        ecu_facts.cmd_set_iocontrol(_io_args(io_dir, release="off"))
 
 
 def test_set_iocontrol_rejects_a_non_hex_command(io_dir):
     with pytest.raises(EditError, match="--on"):
-        cli.cmd_set_iocontrol(_io_args(io_dir, on="lock"))
+        ecu_facts.cmd_set_iocontrol(_io_args(io_dir, on="lock"))
 
 
 def test_set_iocontrol_rolls_back_a_programming_session(io_dir):
     original = (io_dir / "e.yaml").read_text()
     with pytest.raises(EditError, match="reverted"):
-        cli.cmd_set_iocontrol(_io_args(io_dir, session_mode="02"))
+        ecu_facts.cmd_set_iocontrol(_io_args(io_dir, session_mode="02"))
     assert (io_dir / "e.yaml").read_text() == original
 
 
 def test_set_iocontrol_requires_a_field(io_dir):
     with pytest.raises(EditError, match="nothing to set"):
-        cli.cmd_set_iocontrol(_io_args(io_dir))
+        ecu_facts.cmd_set_iocontrol(_io_args(io_dir))
 
 
 class _RangeArgs:
@@ -158,7 +160,7 @@ class _RangeArgs:
 def test_set_iocontrol_ranges_writes_field(pids_dir):
     import canair.core.yaml_io as yaml_io
 
-    rc = cli.cmd_set_iocontrol_ranges(_RangeArgs(["b000-bfff", "C000-C0FF"], dir=pids_dir))
+    rc = ecu_facts.cmd_set_iocontrol_ranges(_RangeArgs(["b000-bfff", "C000-C0FF"], dir=pids_dir))
     assert rc == 0
     doc = yaml_io.safe_load((pids_dir / "e.yaml").read_text())
     # Normalized to canonical upper hex.
@@ -168,7 +170,7 @@ def test_set_iocontrol_ranges_writes_field(pids_dir):
 def test_set_iocontrol_ranges_rejects_bad_range(pids_dir):
 
     with pytest.raises(EditError):
-        cli.cmd_set_iocontrol_ranges(_RangeArgs(["not-a-range"], dir=pids_dir))
+        ecu_facts.cmd_set_iocontrol_ranges(_RangeArgs(["not-a-range"], dir=pids_dir))
 
 
 class _NotesArgs:
@@ -188,12 +190,12 @@ def test_set_pid_notes_writes_and_clears(pids_dir, capsys):
         doc = yaml_io.safe_load((pids_dir / "e.yaml").read_text())
         return doc["TESTECU"]["pids"][2101].get("notes")
 
-    assert cli.cmd_set_pid_notes(_NotesArgs("Corrected by RE.", dir=pids_dir)) == 0
+    assert pid_settings.cmd_set_pid_notes(_NotesArgs("Corrected by RE.", dir=pids_dir)) == 0
     assert notes() == "Corrected by RE."
     assert "notes set" in capsys.readouterr().out
 
     # Omitting the value (argparse nargs="?" -> None) clears the field.
-    assert cli.cmd_set_pid_notes(_NotesArgs(None, dir=pids_dir)) == 0
+    assert pid_settings.cmd_set_pid_notes(_NotesArgs(None, dir=pids_dir)) == 0
     assert notes() is None
     assert "notes cleared" in capsys.readouterr().out
 
@@ -201,7 +203,7 @@ def test_set_pid_notes_writes_and_clears(pids_dir, capsys):
 def test_set_pid_notes_parses_optional_value():
     import argparse
 
-    p = cli.add_parser(argparse.ArgumentParser().add_subparsers())
+    p = pids_parser.add_parser(argparse.ArgumentParser().add_subparsers())
     # VALUE is optional so the same verb both sets and clears.
     assert p.parse_args(["set-pid-notes", "BCM", "22C011"]).value is None
     assert p.parse_args(["set-pid-notes", "BCM", "22C011", "hi"]).value == "hi"
@@ -242,7 +244,7 @@ def test_set_status_index_disambiguates(research_pids_dir):
     import canair.core.yaml_io as yaml_io
 
     args = _ResearchArgs(status="done", type="decode", index=1, dir=research_pids_dir)
-    assert cli.cmd_set_status(args) == 0
+    assert research_cmd.cmd_set_status(args) == 0
     doc = yaml_io.safe_load((research_pids_dir / "e.yaml").read_text())
     research = doc["TESTECU"]["research"]
     assert research[0]["status"] == "captured"
@@ -253,14 +255,14 @@ def test_set_status_ambiguous_without_index_exits(research_pids_dir):
 
     args = _ResearchArgs(status="done", type="decode", dir=research_pids_dir)
     with pytest.raises(EditError):
-        cli.cmd_set_status(args)
+        research_cmd.cmd_set_status(args)
 
 
 def test_rm_research_removes_selected_item(research_pids_dir):
     import canair.core.yaml_io as yaml_io
 
     args = _ResearchArgs(type="decode", index=0, dir=research_pids_dir)
-    assert cli.cmd_rm_research(args) == 0
+    assert research_cmd.cmd_rm_research(args) == 0
     doc = yaml_io.safe_load((research_pids_dir / "e.yaml").read_text())
     assert len(doc["TESTECU"]["research"]) == 1
 
@@ -276,20 +278,20 @@ def test_set_research_text_sets_and_clears(research_pids_dir, field):
     args = _ResearchArgs(
         value="Corrected.", research_field=field, type="decode", index=0, dir=research_pids_dir
     )
-    assert cli.cmd_set_research_text(args) == 0
+    assert research_cmd.cmd_set_research_text(args) == 0
     assert value(0) == "Corrected."
 
     args = _ResearchArgs(
         value=None, research_field=field, type="decode", index=0, dir=research_pids_dir
     )
-    assert cli.cmd_set_research_text(args) == 0
+    assert research_cmd.cmd_set_research_text(args) == 0
     assert value(0) is None
 
 
 def test_research_verbs_parse_index_and_optional_value():
     import argparse
 
-    p = cli.add_parser(argparse.ArgumentParser().add_subparsers())
+    p = pids_parser.add_parser(argparse.ArgumentParser().add_subparsers())
     a = p.parse_args(["set-status", "BCM", "2101", "done", "--type", "decode", "--index", "1"])
     assert a.index == 1
     b = p.parse_args(["rm-research", "BCM", "2101", "--index", "0"])
@@ -313,7 +315,7 @@ def test_research_verbs_parse_index_and_optional_value():
 def _upsert_args(pids_dir, *flags):
     # Through the real parser, so the --send-to wiring is covered too.
     parser = argparse.ArgumentParser()
-    cli.add_parser(parser.add_subparsers())
+    pids_parser.add_parser(parser.add_subparsers())
     argv = ["pids", "upsert-param", "TESTECU", "2101", "POWER", "B10", "--dir", str(pids_dir)]
     return parser.parse_args([*argv, *flags])
 
@@ -321,7 +323,7 @@ def _upsert_args(pids_dir, *flags):
 def test_upsert_send_to_round_trips(pids_dir):
     import canair.core.yaml_io as yaml_io
 
-    assert cli.cmd_upsert_param(_upsert_args(pids_dir, "--send-to", "car/stream/power")) == 0
+    assert entries.cmd_upsert_param(_upsert_args(pids_dir, "--send-to", "car/stream/power")) == 0
     doc = yaml_io.safe_load((pids_dir / "e.yaml").read_text())
     assert doc["TESTECU"]["pids"][2101]["parameters"]["POWER"]["send_to"] == "car/stream/power"
 
@@ -330,5 +332,5 @@ def test_upsert_reverts_an_invalid_send_to(pids_dir):
     fp = pids_dir / "e.yaml"
     original = fp.read_text()
     with pytest.raises(EditError, match="reverted"):
-        cli.cmd_upsert_param(_upsert_args(pids_dir, "--send-to", "car/#"))
+        entries.cmd_upsert_param(_upsert_args(pids_dir, "--send-to", "car/#"))
     assert fp.read_text() == original

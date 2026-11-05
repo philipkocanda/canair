@@ -7,7 +7,7 @@ import argparse
 import pytest
 import yaml
 
-from canair.cli.commands import pids as cli
+from canair.cli.commands.pids import pid_settings
 from canair.ecus.pids import effective_param, load_pids
 from canair.validation.pids import load_schema, validate_ecu_file, validate_pids_file
 from canair.yaml_edit.pids import PidsEditError, hoist_defaults, set_pid_defaults
@@ -334,17 +334,17 @@ class TestValidation:
 
 def test_cli_hoist_and_dry_run(pids_dir, capsys):
     args = argparse.Namespace(ecu="TEST", pid=None, dir=pids_dir, dry_run=True, no_validate=False)
-    assert cli.cmd_hoist_defaults(args) == 0
+    assert pid_settings.cmd_hoist_defaults(args) == 0
     assert "Would hoist 6 field(s) across 2 PID(s)" in capsys.readouterr().out
     args.dry_run = False
-    assert cli.cmd_hoist_defaults(args) == 0
+    assert pid_settings.cmd_hoist_defaults(args) == 0
     assert "Hoisted 6 field(s)" in capsys.readouterr().out
     assert _load(pids_dir)[2101]["source"] == "shared source"
 
 
 def test_cli_hoist_without_ecu_sweeps_every_file(pids_dir):
     args = argparse.Namespace(ecu=None, pid=None, dir=pids_dir, dry_run=False, no_validate=False)
-    assert cli.cmd_hoist_defaults(args) == 0
+    assert pid_settings.cmd_hoist_defaults(args) == 0
     assert _load(pids_dir)[2104]["unit"] == "V"
 
 
@@ -362,7 +362,7 @@ def test_cli_set_pid_defaults(pids_dir):
         source_link=None,
         clear=None,
     )
-    assert cli.cmd_set_pid_defaults(args) == 0
+    assert pid_settings.cmd_set_pid_defaults(args) == 0
     pid = _load(pids_dir)[2102]
     assert (pid["unit"], pid["min"], pid["max"], pid["verified"]) == (
         "V",

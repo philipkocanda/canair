@@ -8,7 +8,7 @@ import argparse
 import pytest
 import yaml
 
-from canair.cli.commands import pids as cli
+from canair.cli.commands.pids import migrate
 from canair.ecus.signal_category import (
     BINARY_CATEGORIES,
     CATEGORIES,
@@ -214,7 +214,7 @@ class TestMigration:
 
     def test_cli_over_every_ecu(self, pids_dir, capsys):
         args = argparse.Namespace(ecu=None, dir=pids_dir, dry_run=False, no_validate=False)
-        assert cli.cmd_migrate_categories(args) == 0
+        assert migrate.cmd_migrate_categories(args) == 0
         assert "Migrated 7 ha_class field(s): 4 to category, 3 removed." in capsys.readouterr().out
 
 

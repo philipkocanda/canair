@@ -15,7 +15,6 @@
     "canair.cli.commands.captures.uds": 521,
     "canair.cli.commands.config": 603,
     "canair.cli.commands.hunt": 740,
-    "canair.cli.commands.pids": 1557,
     "canair.cli.commands.profile": 691,
     "canair.cli.commands.scan": 618,
     "canair.cli.commands.states": 617,

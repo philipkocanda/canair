@@ -6,7 +6,7 @@ import argparse
 import pytest
 import yaml
 
-from canair.cli.commands import pids as cli
+from canair.cli.commands.pids import pid_settings
 from canair.core.edit_errors import EditError
 from canair.ecus.pids import build_ecu_index, pid_ships, pid_swept
 from canair.validation.ecu_file import validate_ecu_file
@@ -100,13 +100,13 @@ class _Args(argparse.Namespace):
 
 class TestCommand:
     def test_marks(self, pids_dir, capsys):
-        assert cli.cmd_set_snapshot_only(_Args(pids_dir, length=9)) == 0
+        assert pid_settings.cmd_set_snapshot_only(_Args(pids_dir, length=9)) == 0
         assert _pid(pids_dir)["snapshot_length"] == 9
         assert "snapshot_only -> true, snapshot_length 9" in capsys.readouterr().out
 
     def test_clear(self, pids_dir):
-        cli.cmd_set_snapshot_only(_Args(pids_dir))
-        cli.cmd_set_snapshot_only(_Args(pids_dir, clear=True))
+        pid_settings.cmd_set_snapshot_only(_Args(pids_dir))
+        pid_settings.cmd_set_snapshot_only(_Args(pids_dir, clear=True))
         assert "snapshot_only" not in _pid(pids_dir)
 
     def test_the_schema_gate_can_veto_and_revert(self, pids_dir, monkeypatch):
@@ -115,7 +115,7 @@ class TestCommand:
             "canair.validation.pids.validate_pids_file", lambda p, *a: (False, "  ERROR: nope")
         )
         with pytest.raises(EditError):
-            cli.cmd_set_snapshot_only(_Args(pids_dir, no_validate=False))
+            pid_settings.cmd_set_snapshot_only(_Args(pids_dir, no_validate=False))
         assert (pids_dir / "test.yaml").read_text() == before
 
 

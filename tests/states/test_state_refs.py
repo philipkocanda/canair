@@ -289,28 +289,28 @@ class TestPidsEditWarnsAboutPredicates:
         return argparse.Namespace(**base)
 
     def test_rename_warns(self, tmp_path, capsys):
-        from canair.cli.commands import pids as pids_cmd
+        from canair.cli.commands.pids import entries
 
         root = _mk_profile(tmp_path, GOOD_STATES)
-        pids_cmd.cmd_rename_param(
+        entries.cmd_rename_param(
             self._args(root, ecu="VCU", pid="2101", old="GEAR_P", new="GEAR_PARK")
         )
         out = capsys.readouterr().err
         assert "PARKED" in out and "VCU.GEAR_P" in out
 
     def test_remove_warns(self, tmp_path, capsys):
-        from canair.cli.commands import pids as pids_cmd
+        from canair.cli.commands.pids import entries
 
         root = _mk_profile(tmp_path, GOOD_STATES)
-        pids_cmd.cmd_rm_param(self._args(root, ecu="VCU", pid="2101", name="GEAR_P"))
+        entries.cmd_rm_param(self._args(root, ecu="VCU", pid="2101", name="GEAR_P"))
         out = capsys.readouterr().err
         assert "PARKED" in out
 
     def test_unreferenced_signal_is_quiet(self, tmp_path, capsys):
-        from canair.cli.commands import pids as pids_cmd
+        from canair.cli.commands.pids import entries
 
         root = _mk_profile(tmp_path, "states:\n  - name: SLEEP\n    when: __no_response__\n")
-        pids_cmd.cmd_rm_param(self._args(root, ecu="VCU", pid="2101", name="GEAR_P"))
+        entries.cmd_rm_param(self._args(root, ecu="VCU", pid="2101", name="GEAR_P"))
         assert "warning" not in capsys.readouterr().err
 
 

@@ -5,7 +5,7 @@ import argparse
 import pytest
 import yaml
 
-from canair.cli.commands import pids as cli
+from canair.cli.commands.pids import pid_settings
 from canair.core.edit_errors import EditError
 from canair.uds.support_map import MapDecl
 from canair.validation.ecu_file import validate_ecu_file
@@ -113,28 +113,32 @@ class _Args(argparse.Namespace):
 
 class TestCommand:
     def test_declares(self, pids_dir, capsys):
-        assert cli.cmd_set_support_map(_Args(pids_dir)) == 0
+        assert pid_settings.cmd_set_support_map(_Args(pids_dir)) == 0
         assert "support_map" in _pid(pids_dir)
         assert "support_map" in capsys.readouterr().out
 
     def test_clear(self, pids_dir):
-        cli.cmd_set_support_map(_Args(pids_dir))
-        cli.cmd_set_support_map(_Args(pids_dir, clear=True, at=None, length=None, unit=None))
+        pid_settings.cmd_set_support_map(_Args(pids_dir))
+        pid_settings.cmd_set_support_map(
+            _Args(pids_dir, clear=True, at=None, length=None, unit=None)
+        )
         assert "support_map" not in _pid(pids_dir)
 
     @pytest.mark.parametrize("missing", ["at", "length", "unit"])
     def test_needs_the_whole_layout(self, pids_dir, missing):
         with pytest.raises(EditError, match="--at, --length and --unit"):
-            cli.cmd_set_support_map(_Args(pids_dir, **{missing: None}))
+            pid_settings.cmd_set_support_map(_Args(pids_dir, **{missing: None}))
 
     def test_a_bad_layout_is_refused_before_touching_the_file(self, pids_dir):
         before = (pids_dir / "test.yaml").read_text()
         with pytest.raises(EditError, match="length"):
-            cli.cmd_set_support_map(_Args(pids_dir, length=9))
+            pid_settings.cmd_set_support_map(_Args(pids_dir, length=9))
         assert (pids_dir / "test.yaml").read_text() == before
 
     def test_a_field_map_with_further_bitmaps(self, pids_dir):
-        cli.cmd_set_support_map(_Args(pids_dir, unit="field", order="lsb", also_at="48, 110"))
+        pid_settings.cmd_set_support_map(
+            _Args(pids_dir, unit="field", order="lsb", also_at="48, 110")
+        )
         assert _pid(pids_dir)["support_map"] == {
             "at": 0,
             "length": 4,
@@ -145,11 +149,11 @@ class TestCommand:
 
     def test_lsb_is_refused_on_a_per_bit_map(self, pids_dir):
         with pytest.raises(EditError, match="lsb needs unit field"):
-            cli.cmd_set_support_map(_Args(pids_dir, order="lsb"))
+            pid_settings.cmd_set_support_map(_Args(pids_dir, order="lsb"))
 
     def test_also_at_must_be_integers(self, pids_dir):
         with pytest.raises(EditError, match="comma-separated integers"):
-            cli.cmd_set_support_map(_Args(pids_dir, unit="field", also_at="48,x"))
+            pid_settings.cmd_set_support_map(_Args(pids_dir, unit="field", also_at="48,x"))
 
     def test_the_schema_gate_can_veto_and_revert(self, pids_dir, monkeypatch):
         before = (pids_dir / "test.yaml").read_text()
@@ -157,7 +161,7 @@ class TestCommand:
             "canair.validation.pids.validate_pids_file", lambda p, *a: (False, "  ERROR: nope")
         )
         with pytest.raises(EditError):
-            cli.cmd_set_support_map(_Args(pids_dir, no_validate=False))
+            pid_settings.cmd_set_support_map(_Args(pids_dir, no_validate=False))
         assert (pids_dir / "test.yaml").read_text() == before
 
 

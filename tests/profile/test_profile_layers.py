@@ -327,7 +327,7 @@ class TestDefinitionsAreReadOnly:
         "module, func, extra",
         [
             (
-                "canair.cli.commands.pids",
+                "canair.cli.commands.pids.entries",
                 "cmd_upsert_param",
                 {"values": None, "bits": None, "ptype": None, "ecu": "BMS", "no_validate": False},
             ),
