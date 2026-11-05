@@ -140,7 +140,7 @@ def test_same_action_key_across_apps():
     """
     from canair.cli.commands.captures.step_tui import CapturesStepApp
     from canair.cli.commands.decode.plot_tui import PlotApp
-    from canair.live._monitor_tui import MonitorApp
+    from canair.tui.apps.monitor import MonitorApp
 
     def keys_of(cls: type, needle: str) -> set[str]:
         return {b.key for b in _bindings(cls) if needle in b.action}

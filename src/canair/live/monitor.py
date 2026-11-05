@@ -1,6 +1,6 @@
 """Live monitor mode — repeatedly polls a set of ECU PIDs and refreshes the display.
 
-On a TTY this runs a Textual app (:mod:`canair.live._monitor_tui`): the latest
+On a TTY this runs a Textual app (:mod:`canair.tui.apps.monitor`): the latest
 values render into a widget that updates *in place* inside a scrollable
 container, so the scroll position stays put while values refresh — mouse wheel,
 scrollbar and keys all scroll natively and nothing ever freezes. When stdout is

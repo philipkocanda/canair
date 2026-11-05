@@ -11,8 +11,7 @@ from textual.containers import VerticalScroll
 from textual.widgets import Input, OptionList
 
 from canair.cli.commands.captures.step_tui import CapturesStepApp
-from canair.live._monitor_select_tui import LiveMonitorSelectScreen
-from canair.live._monitor_tui import (
+from canair.tui.apps.monitor import (
     EditParamDialog,
     EventLogModal,
     MonitorApp,
@@ -20,6 +19,7 @@ from canair.live._monitor_tui import (
     SessionInfoModal,
     SessionPickerScreen,
 )
+from canair.tui.apps.monitor_select import LiveMonitorSelectScreen
 from canair.tui.help import HelpModal
 from tests.support.monitor_picker import monitor_app as _monitor
 from tests.support.monitor_tui import FakeController, FakeEditor

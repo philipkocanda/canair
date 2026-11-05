@@ -67,17 +67,17 @@ from canair.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, S
 from canair.tui.widgets import CheckBox
 
 if TYPE_CHECKING:
-    from .monitor import MonitorController
+    from canair.live.monitor import MonitorController
 
 import asyncio
 import functools
 import time
 from datetime import datetime
 
-from ..core.eventlog import log_event, log_exception
-from ..transport.errors import transport_error_types
-from ._monitor_render import MONITOR_LEGEND
-from .poll_backoff import summarize_slowed
+from canair.core.eventlog import log_event, log_exception
+from canair.live._monitor_render import MONITOR_LEGEND
+from canair.live.poll_backoff import summarize_slowed
+from canair.transport.errors import transport_error_types
 
 #: The hint for the ECU/PID picker key, shown in the header and the status bar.
 PICK_HINT = f"{keys_for('pick')[0]} select ECUs/PIDs"
@@ -177,7 +177,7 @@ class SaveDialog(ModalScreen[tuple[str, str, str] | None]):
         self._caption = caption
         self._save_button = save_button
         if state_options is None:
-            from ..states import state_options as load_state_options
+            from canair.states import state_options as load_state_options
 
             try:
                 state_options = load_state_options()
@@ -1273,7 +1273,7 @@ class MonitorApp(HelpMixin, App):
         """Open the ECU → PID picker (the bare ``canair monitor`` one) on the live poll."""
         if self._modal_active():
             return
-        from ._monitor_select_tui import LiveMonitorSelectScreen
+        from canair.tui.apps.monitor_select import LiveMonitorSelectScreen
 
         seed = self.controller.picker_seed()
         if not seed.choices:
@@ -1473,7 +1473,7 @@ class MonitorApp(HelpMixin, App):
             state_fn = getattr(self.controller, "suggested_states", None)
         if callable(state_fn):
             try:
-                from ..states import join_states
+                from canair.states import join_states
 
                 suggested_state = join_states(state_fn())
             except Exception:

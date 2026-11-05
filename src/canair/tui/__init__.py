@@ -4,9 +4,11 @@ This module holds the picker (:func:`select_from_list`, a Rich screen over singl
 The terminal's size, which the IOControl and routines screens of ``live/`` read, is
 :mod:`canair.core.terminal`.
 
-Belongs: the shared Textual kit: key roles, help, modals, scrolling, status and widgets.
-Not here: a whole app (they live next to their command or in ``live/``) and any non-Textual code.
-Imports: ``core`` and Textual. Only this kit and the apps built on it import ``textual``.
+Belongs: the shared Textual kit (key roles, help, modals, scrolling, status and widgets) and,
+in ``apps/``, the Textual apps the commands open.
+Not here: the state an app shows (``live/`` and the package that owns the data), the commands
+(``cli/``) and terminal helpers with no Textual in them (``core/terminal.py``).
+Imports: every package below the CLI, and Textual. Only this package imports ``textual``.
 """
 
 from __future__ import annotations

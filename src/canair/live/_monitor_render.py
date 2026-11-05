@@ -2,7 +2,7 @@
 
 The pure presentation helper that turns a cycle's decoded query results into a
 Rich :class:`~rich.text.Text` block. Shared by the Textual TUI
-(:mod:`canair.live._monitor_tui`) and the non-interactive fallback, so both
+(:mod:`canair.tui.apps.monitor`) and the non-interactive fallback, so both
 paths render identically. Kept out of :mod:`canair.live.monitor` (which owns
 the polling/recording controller) so the ~150-line renderer is its own concern.
 """

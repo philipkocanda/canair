@@ -191,7 +191,6 @@ source_modules = [
     "canair.safety",
     "canair.states",
     "canair.transport",
-    "canair.tui",
     "canair.uds",
     "canair.validation",
     "canair.variants",
@@ -249,8 +248,6 @@ ignore_imports = [
     "canair.cli.commands._sniff_tui -> textual",
     "canair.cli.commands.captures.step_tui -> textual",
     "canair.cli.commands.decode.plot_tui -> textual",
-    "canair.live._monitor_select_tui -> textual",
-    "canair.live._monitor_tui -> textual",
 ]
 
 [[tool.importlinter.contracts]]
@@ -402,6 +399,7 @@ name = "The layers hold"
 type = "layers"
 layers = [
     "canair.cli",
+    "canair.tui",
     "canair.contribute",
     "canair.live",
     "canair.yaml_edit",
@@ -411,7 +409,7 @@ layers = [
     "canair.states | canair.query | canair.render | canair.install",
     "canair.privacy",
     "canair.ecus : canair.profile : canair.variants",
-    "canair.tui | canair.device",
+    "canair.device",
     "canair.safety",
     "canair.expression : canair.uds",
     "canair.config",

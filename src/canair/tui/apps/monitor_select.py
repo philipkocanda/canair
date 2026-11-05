@@ -26,12 +26,17 @@ from textual.screen import Screen
 from textual.widgets import Input, Label, SelectionList
 from textual.widgets.selection_list import Selection
 
+from canair.live.monitor_select import (
+    EcuChoice,
+    GroupChoice,
+    build_choices,
+    build_group_choices,
+    selectors_from_selection,
+)
 from canair.tui.help import SCROLL_HELP_ROWS, HelpModal, bindings_help_rows
 from canair.tui.keys import DISMISS_DESCRIPTION, bind
 from canair.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusBar, StatusItem
 from canair.tui.widgets import CheckSelectionList
-
-from .monitor_select import EcuChoice, GroupChoice
 
 Picks = dict[str, list[str]]
 
@@ -398,3 +403,23 @@ class MonitorSelectApp(App["Picks | None"]):
         if "ansi-dark" in self.available_themes:
             self.theme = "ansi-dark"
         self.push_screen(self.picker, self.exit)
+
+
+def pick_selectors(pids_data: dict, *, include_static: bool = False) -> list[str] | None:
+    """Run the interactive picker; return selectors, or ``None`` if cancelled.
+
+    Raises ``ValueError`` when the active profile defines nothing to monitor.
+    The caller is responsible for only calling this on an interactive terminal.
+    """
+    from canair.ecus.ecu_groups import load_groups
+    from canair.ecus.pids import build_ecu_index
+
+    choices = build_choices(build_ecu_index(pids_data))
+    if not choices:
+        raise ValueError("the active profile defines no pollable PIDs, so there is nothing to pick")
+
+    groups = build_group_choices(load_groups(), choices, include_static=include_static)
+    picked = MonitorSelectApp(choices, groups, include_static=include_static).run()
+    if not picked:
+        return None
+    return selectors_from_selection(choices, picked, include_static=include_static)

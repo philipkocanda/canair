@@ -6,18 +6,18 @@ import pytest
 from textual.widgets import Input, SelectionList
 
 from canair.ecus.ecu_groups import Group
-from canair.live._monitor_select_tui import (
-    LiveMonitorSelectScreen,
-    MonitorSelectApp,
-    MonitorSelectScreen,
-)
 from canair.live.monitor_select import (
     build_choices,
     build_group_choices,
     current_selection,
-    pick_selectors,
     selection_steps,
     selectors_from_selection,
+)
+from canair.tui.apps.monitor_select import (
+    LiveMonitorSelectScreen,
+    MonitorSelectApp,
+    MonitorSelectScreen,
+    pick_selectors,
 )
 
 

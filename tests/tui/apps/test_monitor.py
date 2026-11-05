@@ -1,4 +1,4 @@
-"""Integration tests for the Textual monitor app (canair.live._monitor_tui).
+"""Integration tests for the Textual monitor app (canair.tui.apps.monitor).
 
 Uses Textual's headless ``run_test`` pilot with a lightweight fake controller —
 no CAN connection or TTY required.
@@ -9,7 +9,7 @@ import asyncio
 import pytest
 from textual.containers import VerticalScroll
 
-from canair.live._monitor_tui import MonitorApp
+from canair.tui.apps.monitor import MonitorApp
 from tests.support.monitor_tui import FakeController, FakeEditor
 
 
@@ -134,7 +134,7 @@ class TestMonitorApp:
     async def test_save_opens_dialog_and_saves(self):
         from textual.widgets import Input
 
-        from canair.live._monitor_tui import SaveDialog
+        from canair.tui.apps.monitor import SaveDialog
 
         ctrl = FakeController()
         app = MonitorApp(ctrl)
@@ -162,7 +162,7 @@ class TestMonitorApp:
         # it blank knows the span-aware back-fill is the safety net.
         from textual.widgets import Label
 
-        from canair.live._monitor_tui import SaveDialog
+        from canair.tui.apps.monitor import SaveDialog
 
         ctrl = FakeController()  # no suggested_states -> state field opens empty
         app = MonitorApp(ctrl)
@@ -180,7 +180,7 @@ class TestMonitorApp:
     async def test_prefilled_state_shows_autodetected_caption(self):
         from textual.widgets import Input, Label
 
-        from canair.live._monitor_tui import SaveDialog
+        from canair.tui.apps.monitor import SaveDialog
 
         ctrl = FakeController()
         # auto-suggest pre-fills the field (plural API)
@@ -200,7 +200,7 @@ class TestMonitorApp:
 
     @pytest.mark.asyncio
     async def test_save_cancelled_with_escape(self):
-        from canair.live._monitor_tui import SaveDialog
+        from canair.tui.apps.monitor import SaveDialog
 
         ctrl = FakeController()
         app = MonitorApp(ctrl)
@@ -217,7 +217,7 @@ class TestMonitorApp:
 
     @pytest.mark.asyncio
     async def test_save_no_captures_flashes_no_dialog(self):
-        from canair.live._monitor_tui import SaveDialog
+        from canair.tui.apps.monitor import SaveDialog
 
         ctrl = FakeController(has_captures=False)
         app = MonitorApp(ctrl)
@@ -233,7 +233,7 @@ class TestMonitorApp:
     async def test_new_segment_opens_dialog_and_rotates(self):
         from textual.widgets import Input
 
-        from canair.live._monitor_tui import SaveDialog
+        from canair.tui.apps.monitor import SaveDialog
 
         ctrl = FakeController(journal=object())  # journal present ⇒ recording
         app = MonitorApp(ctrl)
@@ -252,7 +252,7 @@ class TestMonitorApp:
 
     @pytest.mark.asyncio
     async def test_new_segment_without_save_flashes_no_dialog(self):
-        from canair.live._monitor_tui import SaveDialog
+        from canair.tui.apps.monitor import SaveDialog
 
         ctrl = FakeController(journal=None)  # not recording
         app = MonitorApp(ctrl)
@@ -269,7 +269,7 @@ class TestMonitorApp:
         """With --save active, 's' opens a 'Label recording' dialog (metadata only)."""
         from textual.widgets import Button, Label
 
-        from canair.live._monitor_tui import SaveDialog
+        from canair.tui.apps.monitor import SaveDialog
 
         ctrl = FakeController(journal=object())  # recording
         app = MonitorApp(ctrl)
@@ -290,7 +290,7 @@ class TestMonitorApp:
         """Without --save, 's' opens a 'Save captures now' dialog (writes a file)."""
         from textual.widgets import Button, Label
 
-        from canair.live._monitor_tui import SaveDialog
+        from canair.tui.apps.monitor import SaveDialog
 
         ctrl = FakeController(journal=None)  # not recording
         app = MonitorApp(ctrl)
@@ -438,7 +438,7 @@ class TestMonitorApp:
 
     @pytest.mark.asyncio
     async def test_session_info_modal_opens_and_closes(self):
-        from canair.live._monitor_tui import SessionInfoModal
+        from canair.tui.apps.monitor import SessionInfoModal
 
         ctrl = FakeController(journal=object())
         ctrl.session_label = "test drive"
@@ -466,7 +466,7 @@ class TestMonitorApp:
 
 class TestSaveDialogStateHelpers:
     def test_split_state_tokens(self):
-        from canair.live._monitor_tui import _split_state_tokens
+        from canair.tui.apps.monitor import _split_state_tokens
 
         assert _split_state_tokens("") == ([], "")
         assert _split_state_tokens("ready") == ([], "ready")
@@ -474,14 +474,14 @@ class TestSaveDialogStateHelpers:
         assert _split_state_tokens("ready, parked, ") == (["ready", "parked"], "")
 
     def test_complete_state_token(self):
-        from canair.live._monitor_tui import _complete_state_token
+        from canair.tui.apps.monitor import _complete_state_token
 
         assert _complete_state_token("", "ready") == "ready, "
         assert _complete_state_token("re", "ready") == "ready, "
         assert _complete_state_token("ready, pa", "parked") == "ready, parked, "
 
     def test_unknown_state_tokens(self):
-        from canair.live._monitor_tui import _unknown_state_tokens
+        from canair.tui.apps.monitor import _unknown_state_tokens
 
         vocab = {"ready", "parked", "charging"}
         # A completed token outside the vocabulary is flagged.
@@ -499,7 +499,7 @@ class TestSaveDialogStateUI:
     async def test_dropdown_filters_and_completes(self):
         from textual.widgets import Input, OptionList
 
-        from canair.live._monitor_tui import SaveDialog
+        from canair.tui.apps.monitor import SaveDialog
 
         ctrl = FakeController()
         app = MonitorApp(ctrl)
@@ -552,7 +552,7 @@ class TestSaveDialogStateUI:
     async def test_state_trailing_comma_stripped_on_save(self):
         from textual.widgets import Input
 
-        from canair.live._monitor_tui import SaveDialog
+        from canair.tui.apps.monitor import SaveDialog
 
         ctrl = FakeController()
         app = MonitorApp(ctrl)
@@ -631,7 +631,7 @@ class TestMonitorEditing:
 
     @pytest.mark.asyncio
     async def test_edit_dialog_pauses_and_applies(self):
-        from canair.live._monitor_tui import EditParamDialog
+        from canair.tui.apps.monitor import EditParamDialog
 
         ed = FakeEditor()
         app = MonitorApp(FakeController(editor=ed))
@@ -665,7 +665,7 @@ class TestMonitorEditing:
 
     @pytest.mark.asyncio
     async def test_edit_without_selection_flashes(self):
-        from canair.live._monitor_tui import EditParamDialog
+        from canair.tui.apps.monitor import EditParamDialog
 
         ed = FakeEditor()
         app = MonitorApp(FakeController(editor=ed))
@@ -679,7 +679,7 @@ class TestMonitorEditing:
 
     @pytest.mark.asyncio
     async def test_edit_cancel_restores_pause_state(self):
-        from canair.live._monitor_tui import EditParamDialog
+        from canair.tui.apps.monitor import EditParamDialog
 
         ed = FakeEditor()
         app = MonitorApp(FakeController(editor=ed))
@@ -714,7 +714,7 @@ class TestMonitorEditing:
 
     @pytest.mark.asyncio
     async def test_event_log_modal_opens_and_closes(self):
-        from canair.live._monitor_tui import EventLogModal
+        from canair.tui.apps.monitor import EventLogModal
 
         app = MonitorApp(FakeController(editor=FakeEditor()))
         async with app.run_test(size=(100, 30)) as pilot:

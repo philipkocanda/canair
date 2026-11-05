@@ -4,7 +4,7 @@ Pure, Textual-free logic: turn the profile's ECU index (and saved ``@groups``) i
 pickable choices, turn the user's picks back into the ordinary selector strings
 (``BMS``, ``VCU:2101,2102``) the multi mini-language already understands, and turn
 a running monitor's query steps into picks so the picker can open on them. The
-interactive screen lives in :mod:`canair.live._monitor_select_tui`; keeping the
+interactive screen lives in :mod:`canair.tui.apps.monitor_select`; keeping the
 mapping here means it is unit-testable without a terminal and cannot drift from the
 sweep rules in :func:`canair.live.multi_exec.build_query_plan`.
 """
@@ -179,28 +179,6 @@ def selectors_from_selection(
         f"{ecu}:{','.join(pids)}" if pids else ecu
         for ecu, pids in selection_steps(choices, selected, include_static=include_static)
     ]
-
-
-def pick_selectors(pids_data: dict, *, include_static: bool = False) -> list[str] | None:
-    """Run the interactive picker; return selectors, or ``None`` if cancelled.
-
-    Raises ``ValueError`` when the active profile defines nothing to monitor.
-    The caller is responsible for only calling this on an interactive terminal.
-    """
-    from canair.ecus.ecu_groups import load_groups
-    from canair.ecus.pids import build_ecu_index
-
-    choices = build_choices(build_ecu_index(pids_data))
-    if not choices:
-        raise ValueError("the active profile defines no pollable PIDs, so there is nothing to pick")
-
-    from ._monitor_select_tui import MonitorSelectApp
-
-    groups = build_group_choices(load_groups(), choices, include_static=include_static)
-    picked = MonitorSelectApp(choices, groups, include_static=include_static).run()
-    if not picked:
-        return None
-    return selectors_from_selection(choices, picked, include_static=include_static)
 
 
 def current_selection(

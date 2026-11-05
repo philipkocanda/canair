@@ -191,7 +191,7 @@ and **`g`/`G` address the view's primary axis**.
   it opens the scrollable Textual monitor (press `?` for keys); piped it polls silently until
   Ctrl+C; **a bare `canair monitor` on a TTY opens a group/ECU → PID checklist first**
   (`src/canair/live/monitor_select.py` = pure choice/selector logic,
-  `_monitor_select_tui.py` = the screen; it needs only the profile, never the device, and prints
+  `src/canair/tui/apps/monitor_select.py` = the screen; it needs only the profile, never the device, and prints
   the equivalent command; saved `@groups` are listed above the ECUs and expand to their ECUs and
   PIDs). **The running monitor's `p` key opens that same screen** on what is polled now
   (`LiveMonitorSelectScreen`, backed by `_monitor_selectors.py`), so there is one picker, not
