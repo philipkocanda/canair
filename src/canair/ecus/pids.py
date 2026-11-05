@@ -15,6 +15,7 @@ from typing import Any, Literal, TypedDict, get_args
 
 from canair.core import yaml_io
 from canair.ecus.dtc_definitions import effective_entries as _effective_dtc_entries
+from canair.ecus.sensitivity import param_sensitive
 from canair.ecus.signal_category import category_of
 from canair.safety.actuation import default_release, normalize_request
 from canair.uds.addressing import AddressingMode, EcuAddress, resolve_ecu_address
@@ -479,8 +480,6 @@ def build_param_index(pids_data: dict) -> dict:
 
     ``sensitive`` is the signal's effective flag: its own, or its PID's.
     """
-    from canair.privacy.sensitive import param_sensitive
-
     index = {}
     for ecu_name, ecu_def in pids_data.get("ecus", {}).items():
         tx_id = ecu_def["tx_id"]

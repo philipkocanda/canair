@@ -29,8 +29,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from canair.ecus.sensitivity import param_sensitive, pid_sensitive
+
 MASK = "*****"
-FIELD = "sensitive"
 
 # Values a person already redacted by hand before the PID was flagged. A stored reply
 # that holds only one of these discloses nothing, so it is kept, with the note that
@@ -42,23 +43,6 @@ REDACTED_VALUES = frozenset({"KMHCXXXXXXXXXXXXX"})
 def is_redacted(cap: Mapping[str, Any]) -> bool:
     """Is this stored capture row a hand-redacted value rather than a real reply?"""
     return not cap.get("payload") and str(cap.get("response") or "") in REDACTED_VALUES
-
-
-def _flag(defn: Any) -> bool:
-    return isinstance(defn, Mapping) and defn.get(FIELD) is True
-
-
-def pid_sensitive(pid_def: Any) -> bool:
-    """Is a PID's reply sensitive: the PID says so, or any of its signals does."""
-    if _flag(pid_def):
-        return True
-    params = pid_def.get("parameters") if isinstance(pid_def, Mapping) else None
-    return isinstance(params, Mapping) and any(_flag(p) for p in params.values())
-
-
-def param_sensitive(pid_def: Any, param: Any) -> bool:
-    """Is one signal's value sensitive: it says so, or its PID does."""
-    return _flag(pid_def) or _flag(param)
 
 
 def norm_pid(pid: Any) -> str:

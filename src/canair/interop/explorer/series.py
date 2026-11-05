@@ -26,8 +26,8 @@ from canair.captures import io as capture_io
 from canair.captures.link_events import SESSION_GAP_KINDS, session_link_events
 from canair.captures.merge import session_anchor
 from canair.ecus.pids import load_pids, pid_status
+from canair.ecus.sensitivity import pid_sensitive
 from canair.expression.decoding import decode_param_rows
-from canair.privacy.sensitive import pid_sensitive
 from canair.states.spans import parse_time_key
 
 # Sessions with fewer numeric samples than this are not worth a plot and are left out.

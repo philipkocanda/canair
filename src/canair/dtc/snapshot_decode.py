@@ -25,6 +25,7 @@ from canair.dtc.snapshot import (
     parse_snapshot_reply,
     read_pid,
 )
+from canair.ecus.sensitivity import pid_sensitive
 from canair.expression.decoding import decode_param_rows
 
 # The live reply header a snapshot DID's data is wrapped in: 62 <DID>.
@@ -116,7 +117,7 @@ def snapshot_entries(
     which keeps it out of the DTC log and the captures, and unless revealed its raw bytes
     are masked on screen: the reply gives the value away.
     """
-    from canair.privacy.sensitive import MASK, masked, pid_sensitive
+    from canair.privacy.sensitive import MASK, masked
 
     dids = []
     hidden = False

@@ -20,9 +20,9 @@ from dataclasses import dataclass, field
 
 from canair.ecus.pids import pid_ships
 from canair.ecus.response_frames import stored_count
+from canair.ecus.sensitivity import param_sensitive
 from canair.interop.autopid.classes import autopid_class
 from canair.interop.autopid.send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
-from canair.privacy.sensitive import param_sensitive
 from canair.transport.elm327.addressing import (
     AUTO,
     elm_id,

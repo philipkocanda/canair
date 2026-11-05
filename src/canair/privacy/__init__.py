@@ -2,8 +2,8 @@
 
 Belongs: the ``sensitive: true`` rule (``sensitive``: mask on screen, never journal, save or
 export).
-Not here: the contribute-time scan for personal data in a profile (``contribute/pii.py``), and
-where a profile lives (``profile``).
-Imports: ``core``, ``uds`` and, for the loaded definitions, ``pids``, ``ecus`` and ``profile``,
-which it reads through function-level imports because they import it back to apply the rule.
+Not here: the contribute-time scan for personal data in a profile (``contribute/pii.py``),
+reading the flag off a definition (``ecus/sensitivity.py``) and where a profile lives
+(``profile``).
+Imports: the loaded definitions (``ecus``, ``profile``), ``uds`` and ``core``.
 """

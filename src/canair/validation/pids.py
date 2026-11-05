@@ -16,10 +16,10 @@ from canair.ecus.dtc_definitions import SECTION_FIELDS as DTC_SECTION_FIELDS
 from canair.ecus.dtc_definitions import is_dtc_code
 from canair.ecus.dtc_definitions import split_section as split_dtc_section
 from canair.ecus.pids import PID_STATUSES, effective_param, pid_ships, pid_status
+from canair.ecus.sensitivity import param_sensitive
 from canair.ecus.signal_category import RETIRED_FIELD, category_findings
 from canair.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canair.expression.lint import firmware_grammar_problems, signed_low_bytes
-from canair.privacy.sensitive import param_sensitive
 from canair.uds.byteindex import wican_to_isotp
 from canair.uds.support_map import SupportMapError
 from canair.uds.support_map import declaration as support_map_declaration

@@ -65,18 +65,7 @@ def _cap(pid: str, payload: str, rx: str = "0x73B") -> dict:
     return {"rx": rx, "pid": pid, "payload": payload, "time": "10:00:00.000"}
 
 
-class TestFlags:
-    def test_a_pid_is_sensitive_by_its_own_flag_or_any_signal(self):
-        assert sensitive.pid_sensitive({"sensitive": True})
-        assert sensitive.pid_sensitive({"parameters": {"A": {"sensitive": True}, "B": {}}})
-        assert not sensitive.pid_sensitive({"parameters": {"A": {}}})
-        assert not sensitive.pid_sensitive({"sensitive": "yes"})  # only a real boolean
-
-    def test_a_signal_is_sensitive_by_its_own_flag_or_its_pids(self):
-        assert sensitive.param_sensitive({"sensitive": True}, {})
-        assert sensitive.param_sensitive({}, {"sensitive": True})
-        assert not sensitive.param_sensitive({}, {})
-
+class TestSets:
     def test_the_set_is_keyed_by_name_request_and_response(self, prof):
         sset = sensitive.profile_set()
         assert sset.has("ccm", "22f102") and sset.has("CCM", "22F103")

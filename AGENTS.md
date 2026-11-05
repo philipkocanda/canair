@@ -915,9 +915,10 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   `src/canair/dtc/snapshot.py`; plan `plans/2026-11-02-dtc-snapshots.md`. A PID or signal may be
   **`sensitive: true`** (`pids set-sensitive`): masked on screen, never journaled or saved, left
   out of `load_all_captures`, contribute, blind strip, explorer and AutoPID. The rule lives once
-  in `src/canair/privacy/sensitive.py`; a new display or save path must go through it (`mask_result`,
-  `withhold`), never re-check the flag itself. Edit via `canair pids`/`ecu`;
-  validate with `canair validate pids`.
+  in `src/canair/privacy/sensitive.py`; a new display or save path must go through it
+  (`mask_result`, `withhold`), never re-check the flag itself (reading the flag off a definition
+  is `src/canair/ecus/sensitivity.py`). Edit via `canair pids`/`ecu`; validate with `canair
+  validate pids`.
 - **`profiles/<car>/captures/`** — Recorded UDS payloads, one **JSON** file per date
   (`captures/YYYY-MM-DD.json`; JSON parses ~60× faster than YAML, the dominant cost of every
   history-consuming command). The read/write seam is `src/canair/captures/io.py`; there is **no YAML

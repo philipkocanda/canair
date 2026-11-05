@@ -6,7 +6,7 @@ per ECU; captures hold it as hex, and the helpers here map it to the name.
 
 Belongs: ECU, PID, ``dtcs:`` and ``wake:`` definitions, CAN buses, DID families, categories.
 Not here: the bundle (``profile``), checks (``validation``), edits (``yaml_edit``), scans (``dtc``).
-Imports: ``profile``, ``variants``, ``privacy``, ``safety``, ``uds``, ``core``.
+Imports: ``profile``, ``variants``, ``safety``, ``uds``, ``core``.
 """
 
 from collections.abc import Mapping
