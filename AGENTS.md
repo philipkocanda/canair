@@ -91,9 +91,10 @@ you spotted, describe the fix, let the user decide. Don't silently balloon a sma
 
 ## Code structure — where code goes
 
-`src/canair/` is a stack of layers (`cli` → `contribute` → `live` → `yaml_edit` → `validation` →
-one group of data packages that still import each other → `tui`/`device` → `safety` →
-`expression`/`uds` → `config` → `core`; the generated architecture page has the current order).
+`src/canair/` is a stack of layers (`cli` → `tui` → `contribute` → `live` → `yaml_edit` →
+`validation` → the packages that compute over data → the store and the transport → the
+definitions (`ecus`/`profile`/`variants` still import each other) → `device` → `safety` →
+`expression`/`uds` → `config` → `core`; the generated architecture page has the exact order).
 A layer imports only from the layers below it. **Read `docs/development/architecture.md`
 before adding or moving code**: it has the placement table (which package a new piece of code
 belongs in) and, generated from the import contract and the package charters, what each package
@@ -191,9 +192,9 @@ and **`g`/`G` address the view's primary axis**.
   it opens the scrollable Textual monitor (press `?` for keys); piped it polls silently until
   Ctrl+C; **a bare `canair monitor` on a TTY opens a group/ECU → PID checklist first**
   (`src/canair/live/monitor_select.py` = pure choice/selector logic,
-  `src/canair/tui/apps/monitor_select.py` = the screen; it needs only the profile, never the device, and prints
-  the equivalent command; saved `@groups` are listed above the ECUs and expand to their ECUs and
-  PIDs). **The running monitor's `p` key opens that same screen** on what is polled now
+  `src/canair/tui/apps/monitor_select.py` = the screen; it needs only the profile, never the device,
+  and prints the equivalent command; saved `@groups` are listed above the ECUs and expand to their
+  ECUs and PIDs). **The running monitor's `p` key opens that same screen** on what is polled now
   (`LiveMonitorSelectScreen`, backed by `_monitor_selectors.py`), so there is one picker, not
   two. Non-TTY with no STEP is still an error. **`read` never had a
   `--monitor` flag.** `--wait` blocks until the device is online and makes a mid-session drop
@@ -736,8 +737,9 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   Pipeline: `validate all` → **installed-snapshot guard** (the active profile came from a frozen
   `site-packages`/`uv tool`/`pipx` copy) → **PII pre-flight** (`src/canair/contribute/pii.py`) →
   **workspace self-collision guard** (hard-refuses, not `--yes`-overridable, when the active
-  profile *is* the workspace's own copy) → **rollback guard** (the contribution would remove committed upstream
-  definition lines, signalling a stale source) → branch → copy → commit → push → `gh pr create`.
+  profile *is* the workspace's own copy) → **rollback guard** (the contribution would remove
+  committed upstream definition lines, signalling a stale source) → branch → copy → commit →
+  push → `gh pr create`.
   **The managed workspace is made hermetic before the copy** (`contribute.reset_workspace`: `reset
   --hard` to the upstream base + `clean -fd -- profiles/`) — `checkout -B` alone keeps an
   uncommitted file an earlier `--diff` left behind, and `commit_profile` stages the whole profile
@@ -900,10 +902,10 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   `can_bus:` (flow list of `can_buses.yaml` codes), optional `wake:` (a per-ECU **wake ritual** for
   a fast-sleeping ECU — resolver `src/canair/ecus/wake.py`), `scan_log:`, `dtcs:`, `pids:`,
   `iocontrol:`, optional `iocontrol_scan_ranges:`, `routines:`, `research:`. Identity-only modules
-  (AMP/SRS) have no `pids:`. A `dtcs:` section may state `source`/`source_links`/`verified` once, next to its
-  codes (`src/canair/ecus/dtc_definitions.py`); the loader resolves them into each code like PID
-  defaults, so code that parses the YAML itself must split them off with `split_section`. A PID
-  may also carry **`response_frames:`** — how many CAN frames its response occupies, written
+  (AMP/SRS) have no `pids:`. A `dtcs:` section may state `source`/`source_links`/`verified` once,
+  next to its codes (`src/canair/ecus/dtc_definitions.py`); the loader resolves them into each code
+  like PID defaults, so code that parses the YAML itself must split them off with `split_section`. A
+  PID may also carry **`response_frames:`** — how many CAN frames its response occupies, written
   back automatically once a session proves it (never hand-set; mutually exclusive with
   `variable_length:`, which is how a PID whose length legitimately changes says it has no
   count). A PID may also carry **`support_map:`** — where its constant leading support map sits
@@ -1224,11 +1226,12 @@ makes a cold first read fast instead of paying one plain read per PID to re-lear
   **single reader** of the field (its `bool` exclusion is load-bearing: `bool` is an `int`
   subclass, so a stray `response_frames: true` would read as a 1-frame count), `seed_counts()`
   builds the `{(tx_id, request): frames}` seed and `resolve_edits()` diffs a ledger against the
-  profile; `src/canair/yaml_edit/response_frames.py::persist()` applies the edits. Two deliberate boundaries: `seed_counts` **does not** apply
-  `MAX_REQUESTABLE_FRAMES` (the ceiling belongs to the layer that must emit the nibble, so a profile
-  fact is never silently rewritten by whoever reads it), and `resolve_edits` **refuses a TX header
-  shared by several ECUs** (under `normal_extended_11bit` they are told apart by a target-address
-  byte a `CountKey` does not carry) — reported, not guessed.
+  profile; `src/canair/yaml_edit/response_frames.py::persist()` applies the edits. Two
+  deliberate boundaries: `seed_counts` **does not** apply `MAX_REQUESTABLE_FRAMES` (the ceiling
+  belongs to the layer that must emit the nibble, so a profile fact is never silently rewritten
+  by whoever reads it), and `resolve_edits` **refuses a TX header shared by several ECUs**
+  (under `normal_extended_11bit` they are told apart by a target-address byte a `CountKey` does
+  not carry) — reported, not guessed.
 - **`variable_length: true` excludes a PID both ways** — `stored_count`/`seed_counts` yield
   nothing and `resolve_edits` never writes or clears a count on it — and
   `variable_length_keys()` hands its keys to `FrameCountCache.seed_variable_length`, which opts

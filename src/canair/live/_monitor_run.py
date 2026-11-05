@@ -130,8 +130,8 @@ async def mode_monitor(
 
     On a TTY this runs ``interactive`` (the CLI passes the Textual monitor app:
     scrollable, in-place value updates, mouse + keyboard). Otherwise, or without
-    one, it polls silently until Ctrl+C and prints the final values. Sessions are opened once (from session_steps) and
-    kept alive with background keepalives.
+    one, it polls silently until Ctrl+C and prints the final values. Sessions are
+    opened once (from session_steps) and kept alive with background keepalives.
 
     Args:
         terminal:       Connected terminal (WiCANTerminal or RawTerminal).
