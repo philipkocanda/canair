@@ -14,6 +14,8 @@ Each check compares the tree with ``baseline.json``:
   ``uv run python -m tests.contracts.test_structure --write``.
 
 One check has no baseline: a protocol byte written as a literal outside ``canair.uds``.
+The CLI/TUI output rules (``scripts/check/ui_standards.py``, tested in test_ui_standards.py) keep
+a per-file ceiling for each check under ``ui_standards``; ``--write`` lowers those too.
 
 Raising a baseline is a decision for the user, and it shows in the diff.
 """
@@ -53,6 +55,7 @@ def _load_check(name: str):
 
 graph = _load_check("import_graph")
 protocol_literals = _load_check("protocol_literals")
+ui_standards = _load_check("ui_standards")
 
 
 def _baseline() -> dict:
@@ -324,6 +327,7 @@ def _fresh_baseline(old: dict) -> dict:
     new["flat_tests"] = [t for t in old["flat_tests"] if t in set(_flat_tests())]
     current_tests = set(_test_to_test_imports())
     new["test_to_test_imports"] = [t for t in old["test_to_test_imports"] if t in current_tests]
+    new["ui_standards"] = ui_standards.lowered(old.get("ui_standards", {}), ui_standards.counts())
     return new
 
 
@@ -339,6 +343,7 @@ def _initial_baseline() -> dict:
         "packages_without_charter": sorted(p for p, i in packages.items() if not _has_charter(i)),
         "test_to_test_imports": _test_to_test_imports(),
         "flat_tests": _flat_tests(),
+        "ui_standards": ui_standards.counts(),
     }
 
 
