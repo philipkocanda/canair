@@ -81,11 +81,13 @@ lfs-check:
 	uv run python scripts/check/check_lfs_objects.py
 
 # The package-layout gates alone, in a few seconds: the import contracts, then the structure
-# tests (root modules, module size, charters, deferred imports, test imports). Rules:
+# tests (root modules, module size, charters, deferred imports, test imports), then the check
+# that AGENTS.md, the skills and docs/development name code that exists. Rules:
 # plans/2026-11-04-package-layout-and-layering.md section 9.
 structure:
 	uv run lint-imports
 	uv run pytest -n0 -q tests/contracts
+	uv run python scripts/check/doc_paths.py
 
 check:
 	uv run ruff check .

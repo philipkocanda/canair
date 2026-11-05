@@ -366,7 +366,7 @@ reads as if each page were written by hand, once:
    reply length from a recorded response, never a guess. Multi-byte values that straddle a frame
    boundary need shift-and-or expressions; OBDb's `blsb` means little-endian.
 2. **Check every expression against recorded replies before writing anything.** OBDb's
-   `tests/test_cases/` hold real multi-frame replies with expected values: frame them in the
+   `test_cases/` directories hold real multi-frame replies with expected values: frame them in the
    WiCAN layout, run `canair.expression.evaluate_expression`, and compare. A signal that
    disagrees on more than a stray corrupt frame or a clamped value is wrong — fix or drop it.
 3. **Write each PID's shared fields and note first.** `pids add-pid --status active`, then

@@ -79,6 +79,13 @@ repos:
         pass_filenames: false
         stages: [pre-push]
 
+      - id: doc-paths-current
+        name: agent documents name code that exists
+        entry: uv run python scripts/check/doc_paths.py
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
       - id: screenshots-current
         name: doc screenshots are current
         entry: uv run python scripts/gen/gen_screenshots.py --check

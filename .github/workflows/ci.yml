@@ -50,6 +50,9 @@ jobs:
       - name: Skill frontmatter is Claude Code / OpenCode compatible
         run: uv run python scripts/check/validate_skills.py
 
+      - name: Agent documents name code that exists
+        run: uv run python scripts/check/doc_paths.py
+
       - name: Validate bundled profile data
         # The repo bundles more than one profile, so `validate all` can't
         # auto-resolve a single one — validate each bundled profile explicitly.

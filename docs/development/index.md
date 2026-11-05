@@ -58,6 +58,7 @@ uv run ty check                                     # type check (src/canair/)
 uv run lint-imports                                 # layer and boundary contracts
 uv run canair validate all                          # if you touched profile data
 uv run python scripts/check/validate_skills.py             # if you touched a skill's frontmatter
+uv run python scripts/check/doc_paths.py                   # if you moved or renamed code a document names
 uv run python scripts/gen/gen_cli_reference.py --check   # if you changed a command's flags
 uv run python scripts/gen/gen_screenshots.py --check     # if you changed screenshotted command output
 ```
@@ -76,7 +77,7 @@ The suite runs in parallel by default (`-n auto --dist loadscope`, set in
 output stays ordered instead of interleaved:
 
 ```bash
-uv run pytest -n0 tests/test_foo.py -k some_case
+uv run pytest -n0 tests/safety/test_safety.py -k some_case
 ```
 
 No car and no dongle? You can still exercise the full transport stack — see
