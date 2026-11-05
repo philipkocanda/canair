@@ -9,8 +9,8 @@ the per-session batch-learning state (``lengths``/``nobatch``).
 Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirrors
 :class:`canair.live.monitor.edit.MonitorEditor`) so the raw backend — only
 active when the transport is ``slcan-tcp`` — is a self-contained, independently
-testable unit rather than another arm of the controller god object. The
-controller keeps thin delegating methods for the tested public surface.
+testable unit rather than another arm of the controller god object. Callers read it
+as ``controller.raw_poller``.
 """
 
 from __future__ import annotations

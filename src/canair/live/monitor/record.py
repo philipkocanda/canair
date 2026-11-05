@@ -9,9 +9,8 @@ Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirro
 :class:`canair.live.monitor.raw_poller.MonitorRawPoller` and
 :class:`canair.live.monitor.edit.MonitorEditor`) so the recording/journaling
 logic is a self-contained, independently testable unit rather than another arm of
-the controller god object. The controller keeps thin delegating
-properties/methods for the tested public surface and holds the poll/display state
-(``prev_hex``/``decoded_values``) the recorder reads via its ``self.c`` back-ref.
+the controller god object. Callers read it as ``controller.recorder``; the controller
+holds the poll/display state (``prev_hex``) the recorder reads via its ``self.c`` back-ref.
 """
 
 from __future__ import annotations
@@ -284,7 +283,7 @@ class MonitorRecorder:
     def _observe_state(self) -> None:
         """Fold this cycle's auto-suggested state(s) into ``observed_states``."""
         with contextlib.suppress(Exception):
-            for suggested in self.c.suggested_states():
+            for suggested in self.c.state.suggested_states():
                 self.observed_states.setdefault(suggested, None)
                 self._unsaved_states.setdefault(suggested, None)
 
@@ -302,7 +301,7 @@ class MonitorRecorder:
         if next_segment:
             offered: list[str] = []
             with contextlib.suppress(Exception):
-                offered = list(self.c.suggested_states())
+                offered = list(self.c.state.suggested_states())
             self._offered_next = offered
             return offered
         observed = self.observed_states if self.journal is not None else self._unsaved_states
@@ -311,7 +310,7 @@ class MonitorRecorder:
             offered = list(self.session_states)  # keep showing the user's own choice
         if not offered:
             with contextlib.suppress(Exception):
-                offered = list(self.c.suggested_states())
+                offered = list(self.c.state.suggested_states())
         self._offered_states = offered
         return offered
 
@@ -333,7 +332,7 @@ class MonitorRecorder:
         if self.observed_states:
             return list(self.observed_states)
         with contextlib.suppress(Exception):
-            suggested = self.c.suggested_states()
+            suggested = self.c.state.suggested_states()
             if suggested:
                 return suggested
         return None

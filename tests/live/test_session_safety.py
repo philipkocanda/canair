@@ -64,7 +64,7 @@ class TestRawMonitorSetup:
         ctrl, client = _raw_monitor(PIDS)
         asyncio.run(ctrl.setup([{"type": "session", "target": "BMS", "mode": "82"}]))
         assert client.reads == [("BMS", bytes.fromhex("1082"))]
-        assert ctrl.active_session_modes() == {"BMS": "82"}
+        assert ctrl.sessions.active_modes() == {"BMS": "82"}
 
     def test_the_nissan_session_needs_the_quirk(self):
         steps = [{"type": "session", "target": "BCM", "mode": "C0"}]
@@ -84,30 +84,30 @@ class TestSwitchSession:
 
     def test_c0_is_refused_without_the_quirk(self):
         ctrl, client = self._ready(PIDS)
-        msg = asyncio.run(ctrl.switch_session("BCM", "C0"))
+        msg = asyncio.run(ctrl.sessions.switch("BCM", "C0"))
         assert msg.startswith("BLOCKED")
         assert client.reads == []
 
     def test_c0_switches_with_the_quirk(self):
         ctrl, client = self._ready(_with_quirks("nissan_c0_session"))
-        msg = asyncio.run(ctrl.switch_session("BCM", "C0"))
+        msg = asyncio.run(ctrl.sessions.switch("BCM", "C0"))
         assert "switched to session 0x10C0" in msg
         assert client.reads == [("BCM", bytes.fromhex("10C0"))]
 
     def test_the_quirk_does_not_reach_a_uds_ecu(self):
         ctrl, client = self._ready(_with_quirks("nissan_c0_session"))
-        assert asyncio.run(ctrl.switch_session("IGPM", "C0")).startswith("BLOCKED")
+        assert asyncio.run(ctrl.sessions.switch("IGPM", "C0")).startswith("BLOCKED")
         assert client.reads == []
 
     def test_82_is_refused_on_uds_and_allowed_on_kwp(self):
         ctrl, client = self._ready(PIDS)
-        assert "programmingSession" in asyncio.run(ctrl.switch_session("IGPM", "82"))
-        assert "switched" in asyncio.run(ctrl.switch_session("BMS", "82"))
+        assert "programmingSession" in asyncio.run(ctrl.sessions.switch("IGPM", "82"))
+        assert "switched" in asyncio.run(ctrl.sessions.switch("BMS", "82"))
         assert client.reads == [("BMS", bytes.fromhex("1082"))]
 
     def test_a_non_hex_mode_is_rejected(self):
         ctrl, client = self._ready(PIDS)
-        assert asyncio.run(ctrl.switch_session("IGPM", "zz")).startswith("Invalid")
+        assert asyncio.run(ctrl.sessions.switch("IGPM", "zz")).startswith("Invalid")
         assert client.reads == []
 
 
@@ -117,7 +117,7 @@ class TestSessionPicker:
     def _modes(self, pids_data, ecu):
         ctrl, _ = _raw_monitor(pids_data)
         asyncio.run(ctrl.setup([]))
-        return [m for m, _label, _sup in ctrl.known_session_types(ecu)]
+        return [m for m, _label, _sup in ctrl.sessions.known_types(ecu)]
 
     def test_uds_ecu_is_never_offered_82(self):
         assert self._modes(PIDS, "IGPM") == ["01", "03", "81", "83"]

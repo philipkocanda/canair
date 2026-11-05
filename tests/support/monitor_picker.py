@@ -3,11 +3,14 @@
 from canair.live.monitor.select import build_choices
 from canair.live.monitor.selectors import PickerSeed
 from canair.tui.apps.monitor.app import MonitorApp
-from tests.support.monitor_tui import FakeController, FakeEditor
+from tests.support.monitor_tui import FakeController, FakeEditor, FakeSessions
 
 
-class PickerController(FakeController):
-    """FakeController plus the registry surface the two pickers query."""
+class PickerSelectors:
+    """The selectors collaborator the picker reads."""
+
+    def __init__(self):
+        self.applied = None
 
     def available_ecus(self):
         return ["BMS", "HVAC", "IGPM"]
@@ -22,15 +25,25 @@ class PickerController(FakeController):
         }
         return PickerSeed(build_choices(index), [], {"BMS": ["2101"]}, False)
 
-    def active_session_modes(self):
-        return {}
-
-    def known_session_types(self, ecu):
-        return [("uds", "UDS", True), ("kwp", "KWP2000", False)]
-
-    def apply_selection(self, selected):
+    def apply(self, selected):
         self.applied = selected
         return [f"{ecu}:{','.join(pids)}" for ecu, pids in selected.items()]
+
+
+class PickerSessions(FakeSessions):
+    """The sessions collaborator the session-type picker reads."""
+
+    def known_types(self, ecu):
+        return [("uds", "UDS", True), ("kwp", "KWP2000", False)]
+
+
+class PickerController(FakeController):
+    """FakeController plus the registry surface the two pickers query."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.selectors = PickerSelectors()
+        self.sessions = PickerSessions()
 
 
 def monitor_app(**kw):

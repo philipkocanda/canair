@@ -90,6 +90,13 @@ class _FakeJournal:
 
 
 class _FakeRecorder:
+    def __init__(self):
+        self.journal = None
+        self.state_explicit = False
+        self.session_label = ""
+        self.session_states: list[str] = []
+        self.session_notes = ""
+
     def drain_deferred_saves(self):
         return ["Saved 1 capture(s) to /tmp/somewhere.json"]
 
@@ -103,15 +110,10 @@ class _FakeRecorder:
 class _TeardownController:
     def __init__(self, *args, **kwargs):
         self.recorder = _FakeRecorder()
-        self.journal = None
         self.disconnected = False
         self.raw = False
         self.closed = False
-        self._state_explicit = False
         self.captures_dir = None
-        self.session_label = ""
-        self.session_states: list[str] = []
-        self.session_notes = ""
         self.transport_type = None
         self.reconnect = None
         self.session_steps = None

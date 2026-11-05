@@ -10,8 +10,8 @@ same pure logic (:mod:`canair.live.monitor.select`).
 Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirrors
 :class:`canair.live.monitor.sessions.MonitorSessions` and
 :class:`canair.live.monitor.state.MonitorStateSuggester`) so the picker logic is
-a self-contained unit rather than another arm of the controller god object. The
-controller keeps thin delegating methods for the TUI surface and holds the
+a self-contained unit rather than another arm of the controller god object. Callers
+read it as ``controller.selectors``; the controller holds the
 ``query_steps``/schedule/caches the selectors mutate via their ``self.c`` back-ref.
 
 Mutating ``query_steps`` mid-poll is safe — ``_poll_elm``/``_poll_raw`` both

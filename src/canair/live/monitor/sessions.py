@@ -10,9 +10,8 @@ Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirro
 :class:`canair.live.monitor.state.MonitorStateSuggester` and
 :class:`canair.live.monitor.record.MonitorRecorder`) so the session-type logic
 is a self-contained unit rather than another arm of the controller god object.
-The controller keeps thin delegating methods for the TUI/tested surface and holds
-the transport state (``sm``/``raw_client``/``_ecu_index``) the sessions read via
-their ``self.c`` back-ref.
+Callers read it as ``controller.sessions``; the controller holds the transport state
+(``sm``/``raw_client``/``_ecu_index``) the sessions read via their ``self.c`` back-ref.
 
 The raw backend has no :class:`~canair.transport.session_manager.SessionManager` (sessions
 and keepalives are not tracked there at all), so its opened-session mode is held

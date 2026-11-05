@@ -83,7 +83,6 @@ if TYPE_CHECKING:
     from canair.live.monitor.controller import MonitorController
 
 import asyncio
-import functools
 import time
 from datetime import datetime
 
@@ -329,7 +328,7 @@ class MonitorApp(HelpMixin, App):
         # on / 1s off, derived from wall-clock time so the rate is independent of
         # the status tick (0.25s); the label stays put so it doesn't jump layout.
         # Bold, not red: red means an error.
-        if getattr(c, "journal", None) is not None:
+        if c.recorder.journal is not None:
             dot_style = styles.RECORDING if int(time.monotonic()) % 2 == 0 else styles.MUTED
             items.append(StatusItem(f"[{dot_style}]●[/] [{styles.RECORDING}]REC[/]", P_ESSENTIAL))
         if self.paused:
@@ -355,22 +354,20 @@ class MonitorApp(HelpMixin, App):
             )
         # Captured (all fresh payloads) vs unique (distinct values kept) — the two
         # differ from the on-screen row count (one row per polled PID).
-        captured = getattr(c, "total_frames", 0)
-        uniq = getattr(c, "unique_frames", 0)
+        captured = c.recorder.total_frames
+        uniq = c.recorder.unique_frames
         items.append(StatusItem(f"[dim]captured[/] {captured}[dim]/uniq[/] {uniq}", P_NORMAL))
         items.extend(self._health_items())
         items.extend(self._session_items())
         # Live auto-suggested vehicle state (from decoded values), if any. One slot,
         # so this is the MOST SPECIFIC matching state (DRIVING, not the READY it
-        # implies) — see MonitorController.suggested_state.
-        state_fn = getattr(c, "suggested_state", None)
-        if callable(state_fn):
-            try:
-                state = state_fn()
-            except Exception:
-                state = None
-            if state:
-                items.append(StatusItem(f"[dim]state[/] [b]{state}[/]", P_HIGH))
+        # implies) — see MonitorStateSuggester.suggested_state.
+        try:
+            state = c.state.suggested_state()
+        except Exception:
+            state = None
+        if state:
+            items.append(StatusItem(f"[dim]state[/] [b]{state}[/]", P_HIGH))
         flash = self.flash.item()
         if flash is not None:
             items.append(flash)
@@ -427,8 +424,7 @@ class MonitorApp(HelpMixin, App):
         query. Omitted entirely when nothing is tracked — e.g. before any
         ``session`` step has run at all. Press ``t`` to view/switch.
         """
-        modes_fn = getattr(self.controller, "active_session_modes", None)
-        modes = modes_fn() if callable(modes_fn) else {}
+        modes = self.controller.sessions.active_modes()
         if not modes:
             return []
         parts = ", ".join(f"{ecu}:{mode}" for ecu, mode in sorted(modes.items()))
@@ -450,10 +446,9 @@ class MonitorApp(HelpMixin, App):
         except NoMatches:
             return
         c = self.controller
-        title_fn = getattr(c, "segment_title", None)
-        title = title_fn() if callable(title_fn) else getattr(c, "session_label", "")
-        states = getattr(c, "session_states", None) or []
-        notes = (getattr(c, "session_notes", "") or "").replace("\n", " ").strip()
+        title = c.segment_title()
+        states = c.recorder.session_states
+        notes = c.recorder.session_notes.replace("\n", " ").strip()
 
         line1 = f"[b]{escape(title or 'Monitor')}[/]"
         if states:
@@ -477,7 +472,7 @@ class MonitorApp(HelpMixin, App):
         c = self.controller
         # While recording (--save), `s` labels the session and `n` finishes it and
         # starts a new one; without --save, `s` is a one-off save and `n` is N/A.
-        recording = getattr(c, "journal", None) is not None
+        recording = c.recorder.journal is not None
         items: list[StatusItem] = []
 
         ed = self._editor()
@@ -568,8 +563,7 @@ class MonitorApp(HelpMixin, App):
         c = self.controller
         summary_fn = getattr(c, "session_summary", None)
         summary = summary_fn() if callable(summary_fn) else {}
-        history_fn = getattr(c, "segment_history", None)
-        segments = history_fn() if callable(history_fn) else []
+        segments = list(c.recorder.segments)
         self.push_screen(SessionInfoModal(summary, segments))
 
     def action_cycle_view(self) -> None:
@@ -587,14 +581,14 @@ class MonitorApp(HelpMixin, App):
         """Open the ECU → PID picker (the bare ``canair monitor`` one) on the live poll."""
         if self._modal_active():
             return
-        seed = self.controller.picker_seed()
+        seed = self.controller.selectors.picker_seed()
         if not seed.choices:
             self._flash("The profile defines no pollable PIDs", "warning")
             return
 
         def _done(picked: dict[str, list[str]] | None) -> None:
             if picked:
-                selectors = self.controller.apply_selection(picked)
+                selectors = self.controller.selectors.apply(picked)
                 self._flash(f"Polling: {' '.join(selectors)}", secs=3.0)
             self._refresh_body()
             self._update_header()
@@ -622,7 +616,7 @@ class MonitorApp(HelpMixin, App):
         self.push_screen(SessionPickerScreen(self.controller), _done)
 
     async def _apply_session_switch(self, ecu: str, mode: str) -> None:
-        msg = await self.controller.switch_session(ecu, mode)
+        msg = await self.controller.sessions.switch(ecu, mode)
         self._flash(msg, severity_of(msg))
         self._update_status()
 
@@ -781,24 +775,18 @@ class MonitorApp(HelpMixin, App):
             suggested = f"Monitor {datetime.now():%H:%M}"
 
         suggested_state = ""
-        offer_fn = getattr(self.controller, "offer_states", None)
-        if callable(offer_fn):
-            state_fn = functools.partial(offer_fn, next_segment=next_segment)
-        else:
-            state_fn = getattr(self.controller, "suggested_states", None)
-        if callable(state_fn):
-            try:
-                suggested_state = join_states(state_fn())
-            except Exception:
-                suggested_state = ""
+        try:
+            suggested_state = join_states(
+                self.controller.recorder.offer_states(next_segment=next_segment)
+            )
+        except Exception:
+            suggested_state = ""
 
         state_options = None
-        options_fn = getattr(self.controller, "state_options", None)
-        if callable(options_fn):
-            try:
-                state_options = options_fn()
-            except Exception:
-                state_options = None
+        try:
+            state_options = self.controller.state.state_options()
+        except Exception:
+            state_options = None
         return suggested, suggested_state, state_options
 
     def action_save(self) -> None:
@@ -811,11 +799,11 @@ class MonitorApp(HelpMixin, App):
         """
         if self._modal_active():
             return
-        if not self.controller.has_captures():
+        if not self.controller.recorder.has_captures():
             self._flash("No payloads captured yet — nothing to save", "warning")
             return
         suggested, suggested_state, state_options = self._suggested_metadata()
-        recording = getattr(self.controller, "journal", None) is not None
+        recording = self.controller.recorder.journal is not None
         if recording:
             title = "Label recording"
             caption = (
@@ -839,7 +827,7 @@ class MonitorApp(HelpMixin, App):
                 return
             label, state, notes = result
             try:
-                msg = self.controller.save_now(label, state, notes)
+                msg = self.controller.recorder.save_now(label, state, notes)
             except Exception as exc:  # keep the TUI alive on any save error
                 msg = f"Save failed: {exc}"
             self._flash_result(msg)
@@ -861,7 +849,7 @@ class MonitorApp(HelpMixin, App):
         """Finish the current --save session (write it now) and start a fresh one."""
         if self._modal_active():
             return
-        if getattr(self.controller, "journal", None) is None:
+        if self.controller.recorder.journal is None:
             self._flash("Start a new session needs --save (nothing is being recorded)", "warning")
             return
         suggested, suggested_state, state_options = self._suggested_metadata(next_segment=True)
@@ -872,7 +860,7 @@ class MonitorApp(HelpMixin, App):
                 return
             label, state, notes = result
             try:
-                msg = self.controller.new_segment(label, state, notes)
+                msg = self.controller.recorder.new_segment(label, state, notes)
             except Exception as exc:  # keep the TUI alive on any error
                 msg = f"Could not start new session: {exc}"
             self._flash_result(msg)

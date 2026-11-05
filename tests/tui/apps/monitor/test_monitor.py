@@ -148,8 +148,8 @@ class TestMonitorApp:
             # 'q' must not quit while the modal owns the keyboard.
             await pilot.press("enter")
             await pilot.pause(0.1)
-            assert ctrl.saved is not None
-            assert ctrl.saved[0] == "BMS:2101"
+            assert ctrl.recorder.saved is not None
+            assert ctrl.recorder.saved[0] == "BMS:2101"
             status = app.query_one("#status").render()
             plain = status.plain if hasattr(status, "plain") else str(status)
             assert "Saved" in plain
@@ -164,7 +164,7 @@ class TestMonitorApp:
 
         from canair.tui.apps.monitor.app import SaveDialog
 
-        ctrl = FakeController()  # no suggested_states -> state field opens empty
+        ctrl = FakeController()  # no offered states -> state field opens empty
         app = MonitorApp(ctrl)
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.1)
@@ -184,7 +184,7 @@ class TestMonitorApp:
 
         ctrl = FakeController()
         # auto-suggest pre-fills the field (plural API)
-        ctrl.suggested_states = lambda: ["charging"]
+        ctrl.recorder.offer_states = lambda next_segment=False: ["charging"]
         app = MonitorApp(ctrl)
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.1)
@@ -212,7 +212,7 @@ class TestMonitorApp:
             await pilot.press("escape")
             await pilot.pause(0.1)
             assert not isinstance(app.screen, SaveDialog)
-            assert ctrl.saved is None
+            assert ctrl.recorder.saved is None
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -226,7 +226,7 @@ class TestMonitorApp:
             await pilot.press("s")
             await pilot.pause(0.1)
             assert not isinstance(app.screen, SaveDialog)
-            assert ctrl.saved is None
+            assert ctrl.recorder.saved is None
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -245,9 +245,9 @@ class TestMonitorApp:
             app.screen.query_one("#save-label", Input).value = "seg2"
             await pilot.press("enter")
             await pilot.pause(0.1)
-            assert ctrl.new_seg is not None
-            assert ctrl.new_seg[0] == "seg2"
-            assert ctrl.saved is None  # 'n' is distinct from 's'
+            assert ctrl.recorder.new_seg is not None
+            assert ctrl.recorder.new_seg[0] == "seg2"
+            assert ctrl.recorder.saved is None  # 'n' is distinct from 's'
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -261,7 +261,7 @@ class TestMonitorApp:
             await pilot.press("n")
             await pilot.pause(0.1)
             assert not isinstance(app.screen, SaveDialog)
-            assert ctrl.new_seg is None
+            assert ctrl.recorder.new_seg is None
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -368,9 +368,9 @@ class TestMonitorApp:
     @pytest.mark.asyncio
     async def test_header_shows_title_states_and_note(self):
         ctrl = FakeController()
-        ctrl.session_label = "test drive"
-        ctrl.session_states = ["ready", "parked"]
-        ctrl.session_notes = "heater on high"
+        ctrl.recorder.session_label = "test drive"
+        ctrl.recorder.session_states = ["ready", "parked"]
+        ctrl.recorder.session_notes = "heater on high"
         app = MonitorApp(ctrl)
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.2)
@@ -394,29 +394,29 @@ class TestMonitorApp:
     @pytest.mark.asyncio
     async def test_polling_rate_adjustable_live(self):
         ctrl = FakeController()
-        ctrl.interval = 4.0
+        ctrl.schedule.interval = 4.0
         app = MonitorApp(ctrl)
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause(0.1)
             await pilot.press("minus")  # slower
             await pilot.pause(0.05)
-            assert ctrl.interval == pytest.approx(6.0)
+            assert ctrl.schedule.interval == pytest.approx(6.0)
             await pilot.press("equals_sign")  # faster
             await pilot.pause(0.05)
-            assert ctrl.interval == pytest.approx(4.0)
+            assert ctrl.schedule.interval == pytest.approx(4.0)
             await pilot.press("q")
 
     @pytest.mark.asyncio
     async def test_polling_rate_clamped(self):
         ctrl = FakeController()
-        ctrl.interval = 0.1
+        ctrl.schedule.interval = 0.1
         app = MonitorApp(ctrl)
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause(0.1)
             for _ in range(5):
                 await pilot.press("equals_sign")  # faster, but clamped
                 await pilot.pause(0.02)
-            assert ctrl.interval >= 0.1
+            assert ctrl.schedule.interval >= 0.1
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -441,7 +441,7 @@ class TestMonitorApp:
         from canair.tui.apps.monitor.app import SessionInfoModal
 
         ctrl = FakeController(journal=object())
-        ctrl.session_label = "test drive"
+        ctrl.recorder.session_label = "test drive"
         app = MonitorApp(ctrl)
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause(0.15)
@@ -566,8 +566,8 @@ class TestSaveDialogStateUI:
             app.screen.query_one("#save-label", Input).focus()
             await pilot.press("enter")
             await pilot.pause(0.1)
-            assert ctrl.saved is not None
-            assert ctrl.saved[1] == "ready, parked"
+            assert ctrl.recorder.saved is not None
+            assert ctrl.recorder.saved[1] == "ready, parked"
             await pilot.press("q")
 
 

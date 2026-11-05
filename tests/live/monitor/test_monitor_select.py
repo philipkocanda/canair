@@ -410,7 +410,7 @@ class TestLivePicker:
             assert picker._effective_ecus() == {"BMS", "HVAC"}
             await _press(pilot, "enter", "enter")
             assert not isinstance(app.screen, LiveMonitorSelectScreen)
-            assert app.controller.applied == {"BMS": ["2101"], "HVAC": ["2101", "2102"]}
+            assert app.controller.selectors.applied == {"BMS": ["2101"], "HVAC": ["2101", "2102"]}
             await pilot.press("q")
 
     @pytest.mark.asyncio

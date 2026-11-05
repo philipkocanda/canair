@@ -80,9 +80,9 @@ def _mk_ctrl(steps, ecu_index, lengths=None, nobatch=None, table=None):
     )
     c._ecu_index = ecu_index
     if lengths:
-        c._raw_lengths.update(lengths)
+        c.raw_poller.lengths.update(lengths)
     if nobatch:
-        c._raw_nobatch.update(nobatch)
+        c.raw_poller.nobatch.update(nobatch)
     return c
 
 
@@ -111,7 +111,7 @@ class TestBuildRawSubmissions:
             _IGPM_BMS_INDEX,
             lengths={("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8, ("IGPM", "BC07"): 8},
         )
-        subs, _plan = c._build_raw_submissions()
+        subs, _plan = c.raw_poller.build_submissions()
         igpm = [s for s in subs if s["ecu"] == "IGPM"]
         assert len(igpm) == 1
         assert igpm[0]["req"] == bytes.fromhex("22BC03BC06BC07")
@@ -122,7 +122,7 @@ class TestBuildRawSubmissions:
     def test_no_batch_without_lengths(self):
         steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06", "BC07"]}]
         c = _mk_ctrl(steps, _IGPM_BMS_INDEX)  # no learned lengths
-        subs, _plan = c._build_raw_submissions()
+        subs, _plan = c.raw_poller.build_submissions()
         assert len(subs) == 3
         assert all(s["lengths"] is None for s in subs)
 
@@ -134,7 +134,7 @@ class TestBuildRawSubmissions:
             lengths={("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8, ("IGPM", "BC07"): 8},
             nobatch={"IGPM"},
         )
-        subs, _plan = c._build_raw_submissions()
+        subs, _plan = c.raw_poller.build_submissions()
         assert len(subs) == 3 and all(s["lengths"] is None for s in subs)
 
     def test_batch_capped_at_three(self):
@@ -148,7 +148,7 @@ class TestBuildRawSubmissions:
         steps = [{"ecu": "IGPM", "pids": [f"BC0{i}" for i in range(1, 6)]}]
         lengths = {("IGPM", f"BC0{i}"): 4 for i in range(1, 6)}
         c = _mk_ctrl(steps, idx, lengths=lengths)
-        subs, _plan = c._build_raw_submissions()
+        subs, _plan = c.raw_poller.build_submissions()
         # 5 DIDs -> batch of 3 + batch of 2.
         assert [len(s["members"]) for s in subs] == [3, 2]
 
@@ -161,7 +161,7 @@ class TestBuildRawSubmissions:
             lambda name, *a, **k: "IGPM" if name.upper() == "SJB" else name.upper(),
         )
         c = _mk_ctrl([{"ecu": "sjb", "pids": ["BC03"]}], _IGPM_BMS_INDEX)
-        subs, plan_by_ecu = c._build_raw_submissions()
+        subs, plan_by_ecu = c.raw_poller.build_submissions()
         assert [s["ecu"] for s in subs] == ["IGPM"]
         assert [ecu for ecu, _tx, _plan in plan_by_ecu] == ["IGPM"]
 
@@ -180,14 +180,14 @@ class TestPollRaw:
         c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
 
         # Cycle 1: no lengths -> two single reads that learn lengths.
-        asyncio.run(c._poll_raw())
-        assert c._raw_lengths[("IGPM", "BC03")] == 8
-        assert c._raw_lengths[("IGPM", "BC06")] == 8
-        subs, _ = c._build_raw_submissions()
+        asyncio.run(c.raw_poller.poll())
+        assert c.raw_poller.lengths[("IGPM", "BC03")] == 8
+        assert c.raw_poller.lengths[("IGPM", "BC06")] == 8
+        subs, _ = c.raw_poller.build_submissions()
         assert len(subs) == 1 and subs[0]["req"] == bytes.fromhex("22BC03BC06")
 
         # Cycle 2: one batched request, split back into two decoded PIDs.
-        asyncio.run(c._poll_raw())
+        asyncio.run(c.raw_poller.poll())
         (_label, results) = c.last_queries[0]
         got = {r["pid"]: r.get("raw_hex") for r in results}
         assert got["22BC03"] == "62BC03FDEE3C730A000000"
@@ -197,8 +197,8 @@ class TestPollRaw:
         # The raw stack trims a reply to its PCI length, so trailing AAs are data.
         table = {("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("62BC031122AAAA")}
         c = _mk_ctrl([{"ecu": "IGPM", "pids": ["BC03"]}], _IGPM_BMS_INDEX, table=table)
-        asyncio.run(c._poll_raw())
-        assert c._raw_lengths[("IGPM", "BC03")] == 4
+        asyncio.run(c.raw_poller.poll())
+        assert c.raw_poller.lengths[("IGPM", "BC03")] == 4
 
     def test_batch_nrc_falls_back_to_nobatch(self):
         table = {
@@ -214,10 +214,10 @@ class TestPollRaw:
             table=table,
         )
         # First cycle attempts the batch, gets NRC 0x13 -> disables batching.
-        asyncio.run(c._poll_raw())
-        assert "IGPM" in c._raw_nobatch
+        asyncio.run(c.raw_poller.poll())
+        assert "IGPM" in c.raw_poller.nobatch
         # Next cycle uses single reads.
-        subs, _ = c._build_raw_submissions()
+        subs, _ = c.raw_poller.build_submissions()
         assert len(subs) == 2 and all(s["lengths"] is None for s in subs)
 
     def test_partial_render_fires_and_pending_pid_keeps_last_value(self):
@@ -233,7 +233,7 @@ class TestPollRaw:
         renders = []
         c._on_partial = lambda: renders.append(1)
 
-        asyncio.run(c._poll_raw())
+        asyncio.run(c.raw_poller.poll())
         assert len(renders) >= 1  # repainted mid-cycle, not just at the end
         got = {r["pid"]: r.get("raw_hex") for _lbl, res in c.last_queries for r in res}
         assert got["22BC03"] == "62BC03AA"
@@ -242,8 +242,8 @@ class TestPollRaw:
         # The cycle remembered both entries, so a frame built with nothing yet
         # resolved this cycle (all PIDs still pending) shows their last values —
         # this is what keeps other PIDs visible while a slow one is in flight.
-        _subs, plan_by_ecu = c._build_raw_submissions()
-        frame = c._raw_build_queries(plan_by_ecu, {})
+        _subs, plan_by_ecu = c.raw_poller.build_submissions()
+        frame = c.raw_poller.build_queries(plan_by_ecu, {})
         pending = {r["pid"]: r.get("raw_hex") for _lbl, res in frame for r in res}
         assert pending["22BC03"] == "62BC03AA"
         assert pending["22BC06"] == "62BC06BB"
@@ -255,12 +255,12 @@ class TestPollRaw:
         steps = [{"ecu": "IGPM", "pids": ["BC03"]}]
         c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
 
-        asyncio.run(c._poll_raw())  # cycle 1: good
+        asyncio.run(c.raw_poller.poll())  # cycle 1: good
         good = c.last_queries[0][1][0]
         assert good.get("raw_hex") == "62BC03AA" and not good.get("stale")
 
         c.raw_client.table.clear()  # cycle 2: BC03 times out
-        asyncio.run(c._poll_raw())
+        asyncio.run(c.raw_poller.poll())
         entry = c.last_queries[0][1][0]
         assert entry.get("stale") is True
         assert entry.get("raw_hex") == "62BC03AA"  # last-good values retained
@@ -270,7 +270,7 @@ class TestPollRaw:
         # A re-shown (stale) value must not be re-recorded as a fresh capture.
         c = MonitorController(None, [], {}, verbose=False, save=True)
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA", "stale": True}])])
-        assert c.save_history == {}
+        assert c.recorder.save_history == {}
 
 
 class TestControllerInterrupt:
@@ -305,12 +305,12 @@ class TestLayoutStability:
         steps = [{"ecu": "IGPM", "pids": ["BC03"]}]
         c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
 
-        asyncio.run(c._poll_raw())
+        asyncio.run(c.raw_poller.poll())
         entry = c.last_queries[0][1][0]
         assert "NRC 0x31" in entry["error"]
 
-        _subs, plan_by_ecu = c._build_raw_submissions()
-        pending = c._raw_build_queries(plan_by_ecu, {})  # nothing resolved yet
+        _subs, plan_by_ecu = c.raw_poller.build_submissions()
+        pending = c.raw_poller.build_queries(plan_by_ecu, {})  # nothing resolved yet
         assert [r["pid"] for _lbl, res in pending for r in res] == ["22BC03"]
         assert "NRC 0x31" in pending[0][1][0]["error"]
 
@@ -319,8 +319,8 @@ class TestLayoutStability:
         # row simply doesn't exist yet (it appears once the first answer lands).
         steps = [{"ecu": "IGPM", "pids": ["BC03"]}]
         c = _mk_ctrl(steps, _IGPM_BMS_INDEX)
-        _subs, plan_by_ecu = c._build_raw_submissions()
-        assert c._raw_build_queries(plan_by_ecu, {}) == [("IGPM (0x770)", [])]
+        _subs, plan_by_ecu = c.raw_poller.build_submissions()
+        assert c.raw_poller.build_queries(plan_by_ecu, {}) == [("IGPM (0x770)", [])]
 
     def test_selection_keys_are_unique(self):
         # (ecu_label, pid, param_name) is the monitor's selection cursor. A repeated
@@ -343,7 +343,7 @@ class TestLayoutStability:
             ("BMS", bytes.fromhex("2101")): bytes.fromhex("6101AA"),
         }
         c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
-        asyncio.run(c._poll_raw())
+        asyncio.run(c.raw_poller.poll())
 
         keys = [(lbl, r["pid"]) for lbl, res in c.last_queries for r in res]
         assert len(keys) == len(set(keys))
@@ -363,14 +363,14 @@ class TestRawBatchRepliesNeverLandUnderOneDid:
         return _mk_ctrl(steps, _IGPM_BMS_INDEX, lengths=lengths, table=table)
 
     def _results(self, c):
-        asyncio.run(c._poll_raw())
+        asyncio.run(c.raw_poller.poll())
         return {r["pid"]: r for _lbl, res in c.last_queries for r in res}
 
     def test_an_unsplittable_batch_is_an_error_for_every_member(self):
         # Positive, but BC06's data is one byte short of its learned length.
         c = self._ctrl({("IGPM", bytes.fromhex("22BC03BC06")): bytes.fromhex(self.BATCH[:-2])})
         got = self._results(c)
-        assert "IGPM" in c._raw_nobatch
+        assert "IGPM" in c.raw_poller.nobatch
         assert all("raw_hex" not in got[p] and "error" in got[p] for p in ("22BC03", "22BC06"))
 
     def test_a_single_read_answered_by_a_batch_is_discarded(self):
@@ -380,11 +380,11 @@ class TestRawBatchRepliesNeverLandUnderOneDid:
                 ("IGPM", bytes.fromhex("22BC06")): bytes.fromhex(self.BC06),
             }
         )
-        c._raw_nobatch.add("IGPM")  # single reads only
+        c.raw_poller.nobatch.add("IGPM")  # single reads only
         got = self._results(c)
         assert "raw_hex" not in got["22BC03"]
         assert got["22BC06"]["raw_hex"] == self.BC06
-        assert c._raw_lengths[("IGPM", "BC03")] == 8  # not re-learned as the batch's length
+        assert c.raw_poller.lengths[("IGPM", "BC03")] == 8  # not re-learned as the batch's length
 
     def test_a_leak_stops_batching_the_ecu_and_is_logged(self, monkeypatch):
         events: list[tuple] = []
@@ -410,7 +410,7 @@ class TestRawBatchRepliesNeverLandUnderOneDid:
             0.0,
             {},
         )
-        assert "IGPM" in c._raw_nobatch
+        assert "IGPM" in c.raw_poller.nobatch
         assert [(cat, kw.get("ecu"), kw.get("pid")) for cat, _d, kw in events] == [
             ("stale", "0x770", "22BC03"),
             ("config", "0x770", None),
@@ -432,11 +432,11 @@ class TestRawBatchRepliesNeverLandUnderOneDid:
             ("IGPM", bytes.fromhex("22BC03BC06")): bytes.fromhex(self.BATCH),
         }
         c = _mk_ctrl([{"ecu": "IGPM", "pids": ["BC03", "BC06"]}], index, table=table)
-        asyncio.run(c._poll_raw())
-        assert c._raw_lengths == {("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8}
-        subs, _ = c._build_raw_submissions()
+        asyncio.run(c.raw_poller.poll())
+        assert c.raw_poller.lengths == {("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8}
+        subs, _ = c.raw_poller.build_submissions()
         assert [s["req"] for s in subs] == [bytes.fromhex("22BC03BC06")]
-        asyncio.run(c._poll_raw())
+        asyncio.run(c.raw_poller.poll())
         got = {r["pid"]: r.get("raw_hex") for _lbl, res in c.last_queries for r in res}
         assert got == {"22bc03": self.BC03, "22bc06": self.BC06}
 
@@ -449,7 +449,7 @@ class TestRawBatchRepliesNeverLandUnderOneDid:
         }
         c.raw_poller.apply_submission(sub, bytes.fromhex(self.BATCH), 0.0, by_pid)
         assert "raw_hex" not in by_pid[("IGPM", "22bc03")]
-        assert c._raw_lengths[("IGPM", "BC03")] == 8
+        assert c.raw_poller.lengths[("IGPM", "BC03")] == 8
 
 
 class TestSlowPidBackoff:
@@ -472,7 +472,7 @@ class TestSlowPidBackoff:
 
     def test_raw_costs_are_each_requests_latency(self):
         c = self._ctrl()
-        asyncio.run(c._poll_raw())
+        asyncio.run(c.raw_poller.poll())
         igpm = c.poll_costs[("IGPM", "22BC03")]
         assert (igpm.reads, igpm.answered, igpm.seconds) == (1, 0, 1.0)
         assert c.poll_costs[("BMS", "2101")].answered == 1
@@ -481,7 +481,7 @@ class TestSlowPidBackoff:
         steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06"]}]
         c = _mk_ctrl(steps, _IGPM_BMS_INDEX, lengths={("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8})
         c.raw_client = _TimedRawClient({})
-        asyncio.run(c._poll_raw())
+        asyncio.run(c.raw_poller.poll())
         assert c.poll_costs == {
             ("IGPM", "22BC03"): PollCost(reads=1, seconds=1.0, answered=0),
             ("IGPM", "22BC06"): PollCost(reads=1, seconds=1.0, answered=0),

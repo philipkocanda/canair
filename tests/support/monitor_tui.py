@@ -5,6 +5,59 @@ from typing import ClassVar
 from rich.text import Text
 
 
+class FakeRecorder:
+    """Stand-in for MonitorRecorder: the values the TUI reads and the saves it triggers."""
+
+    def __init__(self, *, journal=None, has_captures=True):
+        self.journal = journal
+        self._has_captures = has_captures
+        self.total_frames = 0
+        self.unique_frames = 0
+        self.segments: list[dict] = []
+        self.saved = None
+        self.new_seg = None
+        # Segment metadata surfaced by the header bar.
+        self.session_label = ""
+        self.session_states = []
+        self.session_notes = ""
+
+    def has_captures(self) -> bool:
+        return self._has_captures
+
+    def offer_states(self, *, next_segment: bool = False) -> list[str]:
+        return []
+
+    def save_now(self, label, vehicle_states=None, notes=None) -> str:
+        self.saved = (label, vehicle_states, notes)
+        return "Saved 1 payload → foo.yaml"
+
+    def new_segment(self, label, vehicle_states=None, notes=None) -> str:
+        self.new_seg = (label, vehicle_states, notes)
+        return "Session saved → foo.yaml. Now recording."
+
+
+class FakeState:
+    """Stand-in for MonitorStateSuggester."""
+
+    def suggested_state(self):
+        return None
+
+    def state_options(self):
+        return [
+            ("charging", "HV battery actively charging."),
+            ("ready", "HV active, driveable."),
+            ("parked", "Stationary, gear in Park."),
+            ("sleep", ""),
+        ]
+
+
+class FakeSessions:
+    """Stand-in for MonitorSessions: no ECU has an open session type."""
+
+    def active_modes(self) -> dict[str, str]:
+        return {}
+
+
 class FakeController:
     """Stand-in for MonitorController: canned render + counting poll."""
 
@@ -26,17 +79,14 @@ class FakeController:
         self.schedule = PollScheduler("fixed", 0.05)
         self.last_cmds = 0
         self.last_elm_time = 0.0
-        self.total_frames = 0
-        self.unique_frames = 0
+        self.recorder = FakeRecorder(journal=journal, has_captures=has_captures)
+        self.state = FakeState()
+        self.sessions = FakeSessions()
         self.keep_mode = keep_mode
         self.disconnected = False
         self._n_lines = n_lines
         self._disconnect_after = disconnect_after
-        self._has_captures = has_captures
         self._query_label = query_label
-        self.saved = None
-        self.new_seg = None
-        self.journal = journal
         self.show_rulers = False
         self.editor = editor
         self.last_queries = []
@@ -44,18 +94,6 @@ class FakeController:
         self.view_mode = "full"
         self.keep_n = None
         self.transport_type = "slcan-tcp"
-        # Segment metadata surfaced by the header bar.
-        self.session_label = ""
-        self.session_states = []
-        self.session_notes = ""
-
-    @property
-    def interval(self) -> float:
-        return self.schedule.interval
-
-    @interval.setter
-    def interval(self, v: float) -> None:
-        self.schedule.interval = v
 
     def seconds_until_due(self) -> float:
         import time
@@ -63,7 +101,7 @@ class FakeController:
         return self.schedule.seconds_until_due(time.monotonic())
 
     def segment_title(self) -> str:
-        return self.session_label or self._query_label or "Monitor"
+        return self.recorder.session_label or self._query_label or "Monitor"
 
     def cycle_view(self) -> str:
         from canair.live.monitor.render import VIEW_MODES
@@ -76,40 +114,37 @@ class FakeController:
         from datetime import datetime
 
         return {
-            "recording": self.journal is not None,
+            "recording": self.recorder.journal is not None,
             "label": self.segment_title(),
-            "states": list(self.session_states),
-            "notes": self.session_notes,
+            "states": list(self.recorder.session_states),
+            "notes": self.recorder.session_notes,
             "query": self._query_label,
             "keep_mode": self.keep_mode,
             "keep_n": self.keep_n,
             "view_mode": self.view_mode,
-            "interval": self.interval,
+            "interval": self.schedule.interval,
             "schedule": self.schedule.describe(),
             "cycle": self.cycle,
-            "total_frames": self.total_frames,
-            "unique_frames": self.unique_frames,
+            "total_frames": self.recorder.total_frames,
+            "unique_frames": self.recorder.unique_frames,
             "transport": self.transport_type,
             "captures_dir": "/tmp/captures",
             "journal_path": "/tmp/captures/.journal/20260806T101010-42.jsonl"
-            if self.journal is not None
+            if self.recorder.journal is not None
             else None,
             "run_started_at": datetime.now(),
             "segment_started_at": datetime.now(),
-            "segment_frames": self.total_frames,
+            "segment_frames": self.recorder.total_frames,
             "completed_segments": 0,
         }
-
-    def segment_history(self) -> list[dict]:
-        return []
 
     async def poll_once(self):
         self.cycle += 1
         self.elapsed = 0.01
         self.last_cmds = 3
         self.last_elm_time = 0.02
-        self.total_frames += 2
-        self.unique_frames += 1
+        self.recorder.total_frames += 2
+        self.recorder.unique_frames += 1
         if self._disconnect_after and self.cycle >= self._disconnect_after:
             self.disconnected = True
 
@@ -120,27 +155,8 @@ class FakeController:
             t.append(f"  BMS 21{i:02X}: value={self.cycle * i}\n")
         return t
 
-    def has_captures(self) -> bool:
-        return self._has_captures
-
     def query_label(self) -> str:
         return self._query_label
-
-    def state_options(self):
-        return [
-            ("charging", "HV battery actively charging."),
-            ("ready", "HV active, driveable."),
-            ("parked", "Stationary, gear in Park."),
-            ("sleep", ""),
-        ]
-
-    def save_now(self, label, vehicle_states=None, notes=None) -> str:
-        self.saved = (label, vehicle_states, notes)
-        return "Saved 1 payload → foo.yaml"
-
-    def new_segment(self, label, vehicle_states=None, notes=None) -> str:
-        self.new_seg = (label, vehicle_states, notes)
-        return "Session saved → foo.yaml. Now recording."
 
 
 class FakeEditor:

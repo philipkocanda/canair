@@ -26,7 +26,7 @@ import contextlib
 import logging
 import re
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -43,11 +43,11 @@ from ... import config
 from ...captures.link_events import is_rx
 from .backoff import PollBackoff, PollCost, describe_slowdown, slowdown_log_message
 from .link_events import LinkEventTracker
-from .raw_poller import MonitorRawPoller, Submission, _raw_pid_result
+from .raw_poller import MonitorRawPoller, _raw_pid_result
 from .record import MonitorRecorder, _merge_history, _open_journal, _write_merged
 from .render import _RENDER_DEFAULT_ROWS, _RENDER_MAX_ROWS, VIEW_MODES, RenderCache, _render_results
 from .schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, Key, PollScheduler, Schedule
-from .selectors import MonitorSelectors, PickerSeed
+from .selectors import MonitorSelectors
 from .sessions import MonitorSessions
 from .state import STATE_INPUT_STALE_CYCLES, MonitorStateSuggester
 from .stats import ParamStats
@@ -294,9 +294,8 @@ class MonitorController:
         # Capture recording / journaling / on-demand-save / segment-rotate logic
         # lives in the MonitorRecorder collaborator (frame counters, display &
         # --save history, the write-ahead journal, segment label/state/notes).
-        # The controller exposes its tested surface via the delegating
-        # properties/methods below. Constructed after keep_mode/save are set,
-        # since it initialises its history maps from them.
+        # Constructed after keep_mode/save are set, since it initialises its
+        # history maps from them.
         self.recorder = MonitorRecorder(self)
         # When the recording could not see the car (disconnects, resyncs), journaled
         # into the --save session's link_events. Looks the journal up per write, since
@@ -305,8 +304,7 @@ class MonitorController:
         self._name_index: dict | None = None
         # Vehicle-state auto-suggestion (decoded-value accumulation, per-signal
         # clocks + expiry, vehicle_states.yaml evaluation) lives in the
-        # MonitorStateSuggester collaborator; the controller exposes its tested
-        # surface via the delegating properties/methods below.
+        # MonitorStateSuggester collaborator.
         self.state = MonitorStateSuggester(self)
         # In-place editing / filtering of PID definitions from the TUI. The
         # editor owns the selection cursor + display filter and writes edits
@@ -320,150 +318,9 @@ class MonitorController:
         # reuse their rendered Text instead of rebuilding it each time.
         self._render_cache = RenderCache()
 
-    # --- Recording / journaling: delegated to the MonitorRecorder collaborator.
-    # These facades keep the tested public surface (and the TUI/renderer reads)
-    # stable while the durability logic lives in record.py.
-    @property
-    def total_frames(self) -> int:
-        return self.recorder.total_frames
-
-    @total_frames.setter
-    def total_frames(self, v: int) -> None:
-        self.recorder.total_frames = v
-
-    @property
-    def unique_frames(self) -> int:
-        return self.recorder.unique_frames
-
-    @unique_frames.setter
-    def unique_frames(self, v: int) -> None:
-        self.recorder.unique_frames = v
-
-    @property
-    def hex_history(self):
-        return self.recorder.hex_history
-
-    @hex_history.setter
-    def hex_history(self, v) -> None:
-        self.recorder.hex_history = v
-
-    @property
-    def save_history(self):
-        return self.recorder.save_history
-
-    @save_history.setter
-    def save_history(self, v) -> None:
-        self.recorder.save_history = v
-
-    @property
-    def journal(self):
-        return self.recorder.journal
-
-    @journal.setter
-    def journal(self, v) -> None:
-        self.recorder.journal = v
-
-    @property
-    def session_label(self) -> str:
-        return self.recorder.session_label
-
-    @session_label.setter
-    def session_label(self, v: str) -> None:
-        self.recorder.session_label = v
-
-    @property
-    def session_states(self) -> list[str]:
-        return self.recorder.session_states
-
-    @session_states.setter
-    def session_states(self, v: list[str]) -> None:
-        self.recorder.session_states = v
-
-    @property
-    def session_notes(self) -> str:
-        return self.recorder.session_notes
-
-    @session_notes.setter
-    def session_notes(self, v: str) -> None:
-        self.recorder.session_notes = v
-
-    @property
-    def _state_explicit(self) -> bool:
-        return self.recorder.state_explicit
-
-    @_state_explicit.setter
-    def _state_explicit(self, v: bool) -> None:
-        self.recorder.state_explicit = v
-
-    def has_captures(self) -> bool:
-        """True when there's at least one payload available to save."""
-        return self.recorder.has_captures()
-
-    # --- State auto-suggestion: delegated to the MonitorStateSuggester
-    # (state.py). These facades keep the tested public surface
-    # (decoded_values/responded/suggested_state) and the TUI reads stable.
-
-    @property
-    def decoded_values(self) -> dict[str, float]:
-        return self.state.decoded_values
-
-    @property
-    def responded(self) -> set[str]:
-        return self.state.responded
-
-    def suggested_state(self) -> str | None:
-        """Auto-suggest the single, most *specific* vehicle state.
-
-        See :meth:`MonitorStateSuggester.suggested_state`.
-        """
-        return self.state.suggested_state()
-
-    def suggested_states(self) -> list[str]:
-        """Auto-suggest the vehicle state(s) from the latest decoded values.
-
-        See :meth:`MonitorStateSuggester.suggested_states`.
-        """
-        return self.state.suggested_states()
-
-    def state_options(self) -> list[tuple[str, str]]:
-        """The profile's ordered ``(state, description)`` vocabulary for the save dialog."""
-        return self.state.state_options()
-
-    def offer_states(self, *, next_segment: bool = False) -> list[str]:
-        """The save dialog's state pre-fill. See :meth:`MonitorRecorder.offer_states`."""
-        return self.recorder.offer_states(next_segment=next_segment)
-
-    # --- Poll scheduling: delegated to the PollScheduler (schedule.py).
-
-    @property
-    def interval(self) -> float:
-        """The fixed schedule's period, and the per-PID schedule's fallback (s)."""
-        return self.schedule.interval
-
-    @interval.setter
-    def interval(self, v: float) -> None:
-        self.schedule.interval = v
-
     def seconds_until_due(self) -> float:
         """How long the poll loop may sleep before the next tick (0 = poll now)."""
         return self.schedule.seconds_until_due(time.monotonic())
-
-    def _set_segment_meta(
-        self, label: str | None, states: list[str] | None, notes: str | None
-    ) -> None:
-        """Mirror the journal's last-wins metadata onto the display fields."""
-        self.recorder.set_segment_meta(label, states, notes)
-
-    def save_now(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
-        """On-demand save (TUI 's'). See :meth:`MonitorRecorder.save_now`."""
-        return self.recorder.save_now(label, vehicle_states, notes)
-
-    def new_segment(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
-        """Close the current --save segment and start a fresh one (TUI 'n').
-
-        See :meth:`MonitorRecorder.new_segment`.
-        """
-        return self.recorder.new_segment(label, vehicle_states, notes)
 
     def diag(self):
         """The active transport's :class:`~canair.transport.stats.TransportStats`.
@@ -498,63 +355,6 @@ class MonitorController:
         self.pids_data = load_pids(self.pids_dir)
         self._ecu_index = build_ecu_index(self.pids_data)
         self.sessions.invalidate_index()  # rebuilt lazily on next access
-
-    # --- Live PID selection: delegated to the MonitorSelectors collaborator
-    # (selectors.py). Mutating self.query_steps mid-poll is safe —
-    # _poll_elm/_poll_raw iterate a fresh `for step in self.query_steps` each
-    # cycle, so a new selection takes effect on the very next cycle. These
-    # facades keep the TUI 'p' picker's surface stable.
-
-    def available_ecus(self) -> list[str]:
-        """Every ECU known in the active profile, for the session-type picker."""
-        return self.selectors.available_ecus()
-
-    def picker_seed(self) -> PickerSeed:
-        """The ECU → PID picker's choices, opened on what is polled now.
-
-        See :meth:`MonitorSelectors.picker_seed`.
-        """
-        return self.selectors.picker_seed()
-
-    def apply_selection(self, selected: Mapping[str, Sequence[str]]) -> list[str]:
-        """Poll exactly ``selected`` from the next cycle on; returns the selectors.
-
-        See :meth:`MonitorSelectors.apply`.
-        """
-        return self.selectors.apply(selected)
-
-    # --- Diagnostic session type: delegated to the MonitorSessions collaborator
-    # (sessions.py). Session *opening* on setup() forwards a
-    # mini-language `--mode` (see setup()); these facades keep the TUI 't' picker's
-    # surface (active modes, the safety check, known types, a live switch) stable.
-
-    def active_session_modes(self) -> dict[str, str]:
-        """ECU_NAME -> currently-open "10 xx" sub-function (2-hex-digit str).
-
-        See :meth:`MonitorSessions.active_modes`.
-        """
-        return self.sessions.active_modes()
-
-    def _session_check(self, ecu_name: str, mode: str) -> str | None:
-        """The command blocklist's verdict on ``10 <mode>`` for one ECU (None = safe).
-
-        See :meth:`MonitorSessions.check`.
-        """
-        return self.sessions.check(ecu_name, mode)
-
-    def known_session_types(self, ecu_name: str) -> list[tuple[str, str, bool | None]]:
-        """(mode_hex, label, supported) options for the session-type picker.
-
-        See :meth:`MonitorSessions.known_types`.
-        """
-        return self.sessions.known_types(ecu_name)
-
-    async def switch_session(self, ecu_name: str, mode: str) -> str:
-        """Force-switch one ECU to a new diagnostic session type, live.
-
-        See :meth:`MonitorSessions.switch`.
-        """
-        return await self.sessions.switch(ecu_name, mode)
 
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, run one-shot session setup, start keepalives."""
@@ -677,7 +477,7 @@ class MonitorController:
         self.schedule.begin_tick(t0)
         try:
             if self.raw:
-                await self._poll_raw()
+                await self.raw_poller.poll()
             else:
                 await self._poll_elm()
         finally:
@@ -889,33 +689,6 @@ class MonitorController:
         self.last_cmds = self.terminal.cmd_count - cmds0
         self.last_elm_time = self.terminal.cmd_time - elm0
 
-    # --- Raw-CAN backend: delegated to the MonitorRawPoller collaborator. The
-    # per-session batch state (_raw_lengths / _raw_nobatch) lives on the poller;
-    # these facades keep the tested public surface stable. See monitor_raw.py.
-
-    @property
-    def _raw_lengths(self) -> dict[tuple[str, str], int]:
-        return self.raw_poller.lengths
-
-    @property
-    def _raw_nobatch(self) -> set[str]:
-        return self.raw_poller.nobatch
-
-    def _build_raw_submissions(self):
-        return self.raw_poller.build_submissions()
-
-    async def _poll_raw(self) -> None:
-        await self.raw_poller.poll()
-
-    def _apply_raw_submission(
-        self,
-        s: Submission,
-        val: bytes | Exception | None,
-        acquired: float,
-        by_pid: dict[tuple[str, str], ResultEntry],
-    ) -> None:
-        self.raw_poller.apply_submission(s, val, acquired, by_pid)
-
     def _displayify(self, key: tuple[str, str], entry: ResultEntry) -> ResultEntry:
         """Map a freshly-resolved entry to what should be shown for that PID.
 
@@ -949,11 +722,6 @@ class MonitorController:
             return {**last, "stale": True}
         return entry
 
-    def _raw_build_queries(
-        self, plan_by_ecu, by_pid: dict[tuple[str, str], ResultEntry]
-    ) -> list[EcuFrame]:
-        return self.raw_poller.build_queries(plan_by_ecu, by_pid)
-
     def render(self) -> Text:
         """The current view as a Rich Text (rendered by the TUI / printed on exit)."""
         self.editor.ensure_valid(self.last_queries)
@@ -964,7 +732,7 @@ class MonitorController:
             self.elapsed,
             self.schedule.describe(),
             self.prev_snapshot,
-            hex_history=self.hex_history,
+            hex_history=self.recorder.hex_history,
             show_rulers=self.show_rulers,
             footer=False,
             selected=self.editor.selected,
@@ -1039,7 +807,7 @@ class MonitorController:
         The user-set label when present, else the polled-selectors summary, so
         the TUI header is meaningful even before (or without) a --save label.
         """
-        return self.session_label or self.query_label() or "Monitor"
+        return self.recorder.session_label or self.query_label() or "Monitor"
 
     def session_summary(self) -> dict:
         """A snapshot of the current run/segment for the session-info modal.
@@ -1050,31 +818,27 @@ class MonitorController:
         """
         r = self.recorder
         return {
-            "recording": self.journal is not None,
+            "recording": r.journal is not None,
             "label": self.segment_title(),
-            "states": list(self.session_states),
-            "notes": self.session_notes,
+            "states": list(r.session_states),
+            "notes": r.session_notes,
             "query": self.query_label(),
             "keep_mode": self.keep_mode,
             "keep_n": self.keep_n,
             "view_mode": self.view_mode,
-            "interval": self.interval,
+            "interval": self.schedule.interval,
             "schedule": self.schedule.describe(),
             "cycle": self.cycle,
-            "total_frames": self.total_frames,
-            "unique_frames": self.unique_frames,
+            "total_frames": r.total_frames,
+            "unique_frames": r.unique_frames,
             "transport": self.transport_type,
             "captures_dir": str(self.captures_dir) if self.captures_dir else None,
-            "journal_path": str(self.journal.path) if self.journal is not None else None,
+            "journal_path": str(r.journal.path) if r.journal is not None else None,
             "run_started_at": r.run_started_at,
             "segment_started_at": r.segment_started_at,
-            "segment_frames": self.total_frames - r.segment_frames_base,
+            "segment_frames": r.total_frames - r.segment_frames_base,
             "completed_segments": len(r.segments),
         }
-
-    def segment_history(self) -> list[dict]:
-        """Summaries of the --save segments already closed this run (oldest first)."""
-        return list(self.recorder.segments)
 
     def interrupt(self) -> None:
         """Abort an in-flight raw poll ASAP so Ctrl-C / SIGTERM exit is prompt.

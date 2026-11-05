@@ -189,9 +189,9 @@ async def mode_monitor(
     )
     controller.captures_dir = captures_dir
     # Seed the header's segment metadata from the initial --label/--state/--notes.
-    controller.session_label = label or ""
-    controller.session_states = list(states or [])
-    controller.session_notes = notes or ""
+    controller.recorder.session_label = label or ""
+    controller.recorder.session_states = list(states or [])
+    controller.recorder.session_notes = notes or ""
     # Resolve the transport label for saved-capture provenance: prefer the caller's
     # explicit value, else fall back to the active client's own diag label.
     diag = controller.diag_recorder()
@@ -205,10 +205,10 @@ async def mode_monitor(
     # durably recorded as it arrives. On a clean stop we reconcile it into a
     # capture file; a disconnect/crash leaves it on disk for `--recover`.
     if save:
-        controller.journal = _open_journal(controller, label, states, notes)
+        controller.recorder.journal = _open_journal(controller, label, states, notes)
         journal_label = label or controller.query_label() or "Monitor session"
         print(
-            f"  --save: journaling to {controller.journal.path.name} "
+            f"  --save: journaling to {controller.recorder.journal.path.name} "
             f"(label: {journal_label!r}); auto-saves on stop. "
             "Press 's' to edit label/states/notes, 'n' to start a new segment.",
             file=sys.stderr,
@@ -248,23 +248,23 @@ async def mode_monitor(
                 print(line, file=sys.stderr)
         # Reconcile the journal even on disconnect/exception (this is the fix for
         # the old bug where a dropped connection lost the whole --save session).
-        if controller.journal is not None:
+        if controller.recorder.journal is not None:
             with contextlib.suppress(Exception):
                 # If no state was set explicitly (flag or the TUI dialog), fall
                 # back to the union of states auto-suggested across the run's span
                 # — not just the state active at exit, so a run that charged then
                 # went idle still reconciles as `charging`.
-                if not states and not controller._state_explicit:
+                if not states and not controller.recorder.state_explicit:
                     backfill = controller.recorder._backfill_states()
                     if backfill:
-                        controller.journal.update_meta(vehicle_states=backfill)
+                        controller.recorder.journal.update_meta(vehicle_states=backfill)
                 # Stamp the session with its transport data-quality footprint
                 # (drops/errors/exchanges) so the capture's provenance is recorded.
                 quality = controller.recorder.segment_quality()
                 if quality is not None:
-                    controller.journal.update_meta(quality=quality)
+                    controller.recorder.journal.update_meta(quality=quality)
                 # reconcile() prints its own "Saved N capture(s) to <full path>"
                 # banner per written day-file — stdout is real again here, so no
                 # extra (and potentially last-file-only) line is needed.
-                controller.journal.reconcile()
+                controller.recorder.journal.reconcile()
         await controller.close()

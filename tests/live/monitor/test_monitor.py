@@ -749,29 +749,29 @@ class TestControllerSnapshot:
 
     def test_has_captures(self):
         c = self._controller()
-        assert c.has_captures() is False
+        assert c.recorder.has_captures() is False
         c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
-        assert c.has_captures() is True
+        assert c.recorder.has_captures() is True
 
     def test_frame_counters_captured_vs_unique(self):
         c = self._controller()
-        assert c.total_frames == 0 and c.unique_frames == 0
+        assert c.recorder.total_frames == 0 and c.recorder.unique_frames == 0
         # Same payload twice: two captured, one unique.
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
-        assert c.total_frames == 2
-        assert c.unique_frames == 1
+        assert c.recorder.total_frames == 2
+        assert c.recorder.unique_frames == 1
         # A new value bumps both.
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
-        assert c.total_frames == 3
-        assert c.unique_frames == 2
+        assert c.recorder.total_frames == 3
+        assert c.recorder.unique_frames == 2
 
     def test_frame_counters_ignore_stale_and_empty(self):
         c = self._controller()
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA", "stale": True}])])
         c._record([("BMS (0x7E4)", [{"pid": "2102", "raw_hex": ""}])])
-        assert c.total_frames == 0
-        assert c.unique_frames == 0
+        assert c.recorder.total_frames == 0
+        assert c.recorder.unique_frames == 0
 
     def test_history_render_limit_by_keep_mode(self):
         from canair.live.monitor.controller import _RENDER_DEFAULT_ROWS, MonitorController
@@ -801,22 +801,22 @@ class TestControllerSnapshot:
         # No label -> falls back to the polled-selectors summary.
         assert c.segment_title() == "BCM VCU:2101"
         # Metadata sync is last-wins on non-None; a label overrides the title.
-        c._set_segment_meta("drive A", ["driving"], "hard accel")
+        c.recorder.set_segment_meta("drive A", ["driving"], "hard accel")
         assert c.segment_title() == "drive A"
-        assert c.session_states == ["driving"]
-        assert c.session_notes == "hard accel"
+        assert c.recorder.session_states == ["driving"]
+        assert c.recorder.session_notes == "hard accel"
         # None fields leave prior values intact...
-        c._set_segment_meta(None, None, None)
-        assert c.session_label == "drive A" and c.session_notes == "hard accel"
+        c.recorder.set_segment_meta(None, None, None)
+        assert c.recorder.session_label == "drive A" and c.recorder.session_notes == "hard accel"
         # ...but an explicit empty note clears it (mirrors journal update_meta).
-        c._set_segment_meta(None, None, "")
-        assert c.session_notes == ""
+        c.recorder.set_segment_meta(None, None, "")
+        assert c.recorder.session_notes == ""
 
     def test_save_now(self, tmp_path):
         c = self._controller()
         c.captures_dir = tmp_path
         c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
-        msg = c.save_now("Live ref", "ready", "note")
+        msg = c.recorder.save_now("Live ref", "ready", "note")
         assert "Saved" in msg
         files = list(tmp_path.glob("*.json"))
         assert len(files) == 1
@@ -829,7 +829,7 @@ class TestControllerSnapshot:
         c = self._controller()
         c.captures_dir = tmp_path
         c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
-        c.save_now("Live ref", "ready", "note")
+        c.recorder.save_now("Live ref", "ready", "note")
         assert capsys.readouterr().out == ""  # the TUI owns the screen
         written = next(tmp_path.glob("*.json"))
         banners = c.recorder.drain_deferred_saves()
@@ -840,7 +840,7 @@ class TestControllerSnapshot:
     def test_save_now_nothing_to_save(self, tmp_path):
         c = self._controller()
         c.captures_dir = tmp_path
-        assert "nothing to save" in c.save_now("x").lower()
+        assert "nothing to save" in c.recorder.save_now("x").lower()
         assert list(tmp_path.glob("*.json")) == []
 
     def test_repeated_save_dedupes(self, tmp_path):
@@ -848,10 +848,10 @@ class TestControllerSnapshot:
         c = self._controller()
         c.captures_dir = tmp_path
         c.prev_hex[("BMS (0x7E4)", "2101")] = "6101AA"
-        first = c.save_now("ref")
+        first = c.recorder.save_now("ref")
         assert "Saved 1 payload" in first
         # Nothing changed since — a second press writes nothing new.
-        second = c.save_now("ref")
+        second = c.recorder.save_now("ref")
         assert "Nothing new since last save" in second
         payloads = [
             cap["payload"]
@@ -868,9 +868,9 @@ class TestControllerSnapshot:
         )
         c.captures_dir = tmp_path
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
-        c.save_now("ref")
+        c.recorder.save_now("ref")
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
-        msg = c.save_now("ref")
+        msg = c.recorder.save_now("ref")
         assert "Saved 1 payload" in msg  # only the new BB row
         payloads = sorted(
             cap["payload"]
@@ -893,10 +893,10 @@ class TestControllerJournal:
 
         c = self._controller()
         c.captures_dir = tmp_path
-        c.journal = CaptureJournal.open(tmp_path, label="L", source="monitor")
+        c.recorder.journal = CaptureJournal.open(tmp_path, label="L", source="monitor")
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
         # Reconcile as the mode_monitor finally-block would (even on disconnect).
-        written = c.journal.reconcile()
+        written = c.recorder.journal.reconcile()
         assert written is not None
         s = json.loads(written.read_text())["sessions"][0]
         assert s["label"] == "L"
@@ -909,28 +909,28 @@ class TestControllerJournal:
 
         c = self._controller()
         c.captures_dir = tmp_path
-        c.journal = CaptureJournal.open(tmp_path, label="L", source="monitor")
+        c.recorder.journal = CaptureJournal.open(tmp_path, label="L", source="monitor")
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
         # Journal is the source of truth on exit → don't grow the redundant dict.
-        assert c.save_history == {}
+        assert c.recorder.save_history == {}
 
     def test_no_journal_populates_save_history(self):
         c = self._controller()  # save=True but journal stays None (fallback path)
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
-        assert ("BMS (0x7E4)", "2101") in c.save_history
+        assert ("BMS (0x7E4)", "2101") in c.recorder.save_history
 
     def test_save_now_updates_journal_meta_not_a_second_session(self, tmp_path):
         from canair.captures.journal import CaptureJournal
 
         c = self._controller()
         c.captures_dir = tmp_path
-        c.journal = CaptureJournal.open(tmp_path, label="orig", source="monitor")
+        c.recorder.journal = CaptureJournal.open(tmp_path, label="orig", source="monitor")
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
-        msg = c.save_now("edited", "ready", "note")
+        msg = c.recorder.save_now("edited", "ready", "note")
         assert "Label set" in msg
         # No immediate write — journal reconciles once on exit.
         assert list(tmp_path.glob("*.json")) == []
-        written = c.journal.reconcile()
+        written = c.recorder.journal.reconcile()
         data = json.loads(written.read_text())
         assert len(data["sessions"]) == 1
         assert data["sessions"][0]["label"] == "edited"
@@ -942,14 +942,14 @@ class TestControllerJournal:
 
         c = self._controller()
         c.captures_dir = tmp_path
-        c.journal = CaptureJournal.open(tmp_path, label="seg1", source="monitor")
-        first_path = c.journal.path
+        c.recorder.journal = CaptureJournal.open(tmp_path, label="seg1", source="monitor")
+        first_path = c.recorder.journal.path
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
 
-        msg = c.new_segment("seg2", "ready", "note")
+        msg = c.recorder.new_segment("seg2", "ready", "note")
         assert "Session saved" in msg
         # A fresh journal is now active for the new segment.
-        assert c.journal is not None
+        assert c.recorder.journal is not None
         assert not first_path.exists()  # the closed segment's journal was reconciled away
         # Segment 1 already landed on disk with its own label.
         seg1 = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"]
@@ -957,7 +957,7 @@ class TestControllerJournal:
 
         # Record into segment 2, then reconcile as exit would.
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
-        c.journal.reconcile()
+        c.recorder.journal.reconcile()
         labels = {
             s["label"]
             for f in tmp_path.glob("*.json")
@@ -971,9 +971,9 @@ class TestControllerJournal:
 
         c = self._controller()
         c.captures_dir = tmp_path
-        c.journal = CaptureJournal.open(tmp_path, label="seg1", source="monitor")
+        c.recorder.journal = CaptureJournal.open(tmp_path, label="seg1", source="monitor")
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
-        c.new_segment("seg2", "ready", "note")
+        c.recorder.new_segment("seg2", "ready", "note")
         assert capsys.readouterr().out == ""  # nothing leaks onto the TUI screen
         written = next(tmp_path.glob("*.json"))
         banners = c.recorder.drain_deferred_saves()
@@ -984,8 +984,8 @@ class TestControllerJournal:
         c = MonitorController(
             terminal=None, query_steps=[], pids_data={}, verbose=False, save=False
         )
-        assert c.journal is None
-        msg = c.new_segment("x")
+        assert c.recorder.journal is None
+        msg = c.recorder.new_segment("x")
         assert "needs --save" in msg
 
 
@@ -1020,18 +1020,18 @@ class TestControllerSuggestedState:
                 )
             ]
         )
-        assert c.suggested_state() == "charging"
+        assert c.state.suggested_state() == "charging"
 
     def test_no_response_when_nothing_polled(self, monkeypatch):
         from canair.states import StateRule, compile_predicate
 
         rules = [StateRule("deep sleep", predicate=compile_predicate("__no_response__"))]
         c = self._controller(monkeypatch, rules)
-        assert c.suggested_state() == "deep sleep"
+        assert c.state.suggested_state() == "deep sleep"
 
     def test_none_without_states_file(self, monkeypatch):
         c = self._controller(monkeypatch, [])
-        assert c.suggested_state() is None
+        assert c.state.suggested_state() is None
 
     def _frame(self, ecu, pid, params):
         return [(ecu, [{"pid": pid, "raw_hex": "6101", "params": params}])]
@@ -1060,16 +1060,16 @@ class TestControllerSuggestedState:
     def test_driving_beats_the_ready_it_implies(self, monkeypatch):
         c = self._controller(monkeypatch, self._driving_rules())
         self._poll(c, 42.0)
-        assert c.suggested_state() == "DRIVING"
+        assert c.state.suggested_state() == "DRIVING"
         # The recorded session still keeps both — a segment is composite.
-        assert c.suggested_states() == ["READY", "DRIVING"]
+        assert c.state.suggested_states() == ["READY", "DRIVING"]
 
     def test_stale_speed_expires_so_driving_stops_matching(self, monkeypatch):
         from canair.live.monitor.controller import STATE_INPUT_STALE_CYCLES
 
         c = self._controller(monkeypatch, self._driving_rules())
         self._poll(c, 42.0)
-        assert c.suggested_state() == "DRIVING"
+        assert c.state.suggested_state() == "DRIVING"
         # Car parks: ESC stops answering entirely (its rows vanish from the
         # cycle). An unbounded value map would keep matching DRIVING forever.
         for _ in range(STATE_INPUT_STALE_CYCLES + 1):
@@ -1077,8 +1077,8 @@ class TestControllerSuggestedState:
             c._record(
                 self._frame("VCU (0x7E2)", "2101", [("EV_READY", 1.0, "", "", None, True, "")])
             )
-        assert "ESC.SPEED" not in c.decoded_values
-        assert c.suggested_state() == "READY"
+        assert "ESC.SPEED" not in c.state.decoded_values
+        assert c.state.suggested_state() == "READY"
 
     def test_refreshed_values_never_expire(self, monkeypatch):
         from canair.live.monitor.controller import STATE_INPUT_STALE_CYCLES
@@ -1086,7 +1086,7 @@ class TestControllerSuggestedState:
         c = self._controller(monkeypatch, self._driving_rules())
         for _ in range(STATE_INPUT_STALE_CYCLES * 3):
             self._poll(c, 42.0)
-        assert c.suggested_state() == "DRIVING"
+        assert c.state.suggested_state() == "DRIVING"
 
     def test_a_single_dropped_cycle_is_tolerated(self, monkeypatch):
         # Expiry must ride out a transient drop, or the status bar flaps.
@@ -1094,7 +1094,7 @@ class TestControllerSuggestedState:
         self._poll(c, 42.0)
         c.cycle += 1
         c._record([])
-        assert c.suggested_state() == "DRIVING"
+        assert c.state.suggested_state() == "DRIVING"
 
     def test_responded_expires_too(self, monkeypatch):
         from canair.live.monitor.controller import STATE_INPUT_STALE_CYCLES
@@ -1103,12 +1103,12 @@ class TestControllerSuggestedState:
         rules = [StateRule("SLEEP", predicate=compile_predicate("__no_response__"))]
         c = self._controller(monkeypatch, rules)
         self._poll(c, 0.0)
-        assert c.suggested_state() is None  # something answered → not asleep
+        assert c.state.suggested_state() is None  # something answered → not asleep
         for _ in range(STATE_INPUT_STALE_CYCLES + 1):
             c.cycle += 1
             c._record([])
-        assert c.responded == set()
-        assert c.suggested_state() == "SLEEP"
+        assert c.state.responded == set()
+        assert c.state.suggested_state() == "SLEEP"
 
 
 class TestDynamicSchedulePerPidClock:
@@ -1170,13 +1170,13 @@ class TestDynamicSchedulePerPidClock:
     def test_slow_speed_survives_fast_ready_ticks(self, monkeypatch):
         c = self._controller(monkeypatch)
         self._tick(c, 0.0, speed=42.0)  # both read; DRIVING
-        assert c.suggested_state() == "DRIVING"
+        assert c.state.suggested_state() == "DRIVING"
         # ESC (10 s) is not due again for ten 1 s VCU ticks. A tick-counted clock
         # would expire SPEED after three; its own poll count must not advance.
         for i in range(1, 10):
             self._tick(c, float(i))
-        assert c.decoded_values.get("ESC.SPEED") == 42.0
-        assert c.suggested_state() == "DRIVING"
+        assert c.state.decoded_values.get("ESC.SPEED") == 42.0
+        assert c.state.suggested_state() == "DRIVING"
 
     def test_speed_expires_after_its_own_polls_stop_refreshing(self, monkeypatch):
         c = self._controller(monkeypatch)
@@ -1185,8 +1185,8 @@ class TestDynamicSchedulePerPidClock:
         # STATE_INPUT_STALE_CYCLES of its own polls, SPEED expires.
         for t in (10.0, 20.0, 30.0, 40.0):
             self._tick(c, t, speed=None)
-        assert "ESC.SPEED" not in c.decoded_values
-        assert c.suggested_state() == "READY"
+        assert "ESC.SPEED" not in c.state.decoded_values
+        assert c.state.suggested_state() == "READY"
 
 
 class TestQueryLabel:
@@ -1269,9 +1269,9 @@ class TestRecorderKeepModes:
         )
         c.captures_dir = tmp_path
         self._poll(c, "6101AA", "6101AA", "6101BB", "6101AA")
-        runs = c.hex_history[("BMS (0x7E4)", "2101")]
+        runs = c.recorder.hex_history[("BMS (0x7E4)", "2101")]
         assert [(r.payload, r.polls) for r in runs] == [("6101AA", 2), ("6101BB", 1), ("6101AA", 1)]
-        assert "Saved 4 payload" in c.save_now("ref")
+        assert "Saved 4 payload" in c.recorder.save_now("ref")
         (session,) = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"]
         assert "keep_mode" not in session
 
@@ -1283,7 +1283,7 @@ class TestRecorderKeepModes:
         )
         c.captures_dir = tmp_path
         self._poll(c, "6101AA", "6101AA", "6101BB", "6101AA")
-        assert "Saved 3 payload" in c.save_now("ref")
+        assert "Saved 3 payload" in c.recorder.save_now("ref")
         (session,) = capture_io.load_capture_file(next(tmp_path.glob("*.json")))["sessions"]
         assert [cap["payload"] for cap in session["captures"]] == ["6101AA", "6101BB", "6101AA"]
         assert session["keep_mode"] == "changes"

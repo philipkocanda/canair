@@ -10,10 +10,8 @@ Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirro
 :class:`canair.live.monitor.raw_poller.MonitorRawPoller` and
 :class:`canair.live.monitor.record.MonitorRecorder`) so the suggestion logic is
 a self-contained, independently testable unit rather than another arm of the
-controller god object. The controller keeps thin delegating
-properties/methods for the tested public surface (``decoded_values``,
-``responded``, ``suggested_state``) and the recorder/poll state the suggester
-reads via its ``self.c`` back-ref.
+controller god object. Callers read it as ``controller.state``; it reads the
+recorder/poll state it needs via its ``self.c`` back-ref.
 
 The live suggestion answers "what state is the car in NOW", so its inputs must
 expire — an unbounded map keeps matching DRIVING off a speed read long after the
