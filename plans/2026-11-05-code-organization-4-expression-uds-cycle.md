@@ -1,6 +1,6 @@
 # Code organization, part 4: the `expression`/`uds` cycle
 
-Status: **PROPOSED** (2026-11-05). Part of
+Status: **DONE** (2026-11-05). Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 1.
 Continues left-over item 2 of `plans/2026-11-04-package-layout-and-layering.md` (the
 `expression : uds` half), and follows the recipe written there.
@@ -61,3 +61,25 @@ One commit for each step.
   ceiling (`cli/commands/hunt.py`, `live/_monitor_render.py`). A changed import that lands in a
   new isort group adds a line. Keep the new import beside the existing `canair.expression`
   imports.
+
+## As built
+
+All five steps landed as four commits (steps 4 and 5 share one).
+
+- Step 1 moved `subfunction_bytes_for_pid` to `uds/layout.py`: 19 files changed, its test moved
+  to `tests/uds/test_uds_layout.py`. Two importers deferred the import inside a function, so a
+  second deferred line would have been added. Both now import `ByteDisplay` and the function at
+  the top, beside their existing `notation` import (the deferred count fell from 1131 to 1129).
+  `hunt.py` and `_monitor_render.py` sat at their ceiling: the unused shebang of `hunt.py` and a
+  stale docstring line ("the ~150-line renderer") of `_monitor_render.py` paid for the new line.
+- Step 2 moved `uds/notation.py` to `expression/notation.py`: 35 importer files, not 42 (the
+  count included `subfunction_bytes_for_pid` importers that step 1 had already rewritten).
+  `baseline.json` held no entry for it.
+- Step 3 moved `uds/inspect_bytes.py` to `expression/inspect_bytes.py`: 13 files. Its test
+  already lived in `tests/expression/`.
+- Step 4: the contract has `canair.expression` above `canair.uds`; the architecture page lists
+  them as layers 14 and 15. `scripts/check/import_graph.py` reports one cycle left
+  (`ecus, profile, variants`).
+- Step 5: only `AGENTS.md` named the old path. No skill or doc did.
+- Gates: `ruff`, `ty`, `make structure`, the full suite (11055 passed), and both `--check`
+  generators are green. `--help` is unchanged.
