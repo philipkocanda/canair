@@ -23,11 +23,10 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from canair.analysis.misfiled import PayloadSample
 from canair.captures import io as capture_io
 from canair.captures import merge as captures_merge
 from canair.captures.keepmode import KEEP_CHANGES, KEEP_UNIQUE
-from canair.captures.payload_corpus import Locator, load_payload_corpus
+from canair.captures.payload_corpus import Locator, PayloadSample, load_payload_corpus
 from canair.captures.types import CaptureRecord, CaptureSession
 from canair.uds.multi_did import POSITIVE_READ_SID, is_fill, is_padding, split_chain
 

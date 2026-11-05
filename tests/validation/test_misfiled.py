@@ -12,7 +12,8 @@ import json
 import pytest
 
 from canair import profile
-from canair.analysis.misfiled import PayloadSample, find_misfiled
+from canair.analysis.misfiled import find_misfiled
+from canair.captures.payload_corpus import PayloadSample
 from canair.ecus.pids import clear_cache
 from canair.validation.captures import _run_captures
 from canair.validation.misfiled import misfile_warnings

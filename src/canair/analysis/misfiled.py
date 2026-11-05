@@ -17,7 +17,8 @@ capture is suspect when:
 Negative responses (``7F …``) are left out: two ECUs refusing a request look alike by design,
 and the identical-bytes rule only weighs the data after the response header, which every ECU
 answering the same request echoes alike.
-Pure and device-free, so ``validate captures`` and any future capture tool can share it.
+Pure and device-free, so ``validate captures`` and any future capture tool can share it. The
+samples come from :mod:`canair.captures.payload_corpus`.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
+from canair.captures.payload_corpus import PayloadSample
 from canair.uds.layout import layout_of
 from canair.uds.services import NEGATIVE_RESPONSE_SID
 
@@ -38,16 +40,6 @@ MIN_SIGNATURE_SHARE = 0.9
 # identical across ECUs, so the identical-bytes rule needs some substance to compare.
 MIN_IDENTICAL_BYTES = 8
 MIN_IDENTICAL_DISTINCT = 4
-
-
-@dataclass(frozen=True)
-class PayloadSample:
-    """One stored reply. ``handle`` indexes the caller's own locator list, returned untouched."""
-
-    handle: int
-    rx: int
-    pid: str
-    payload: bytes
 
 
 @dataclass(frozen=True)

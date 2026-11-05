@@ -12,8 +12,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from canair.analysis.misfiled import PayloadSample
 from canair.captures import io as capture_io
+
+
+@dataclass(frozen=True)
+class PayloadSample:
+    """One stored reply. ``handle`` indexes the caller's own locator list, returned untouched."""
+
+    handle: int
+    rx: int
+    pid: str
+    payload: bytes
 
 
 @dataclass(frozen=True)

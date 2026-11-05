@@ -11,9 +11,9 @@ import json
 import pytest
 
 from canair import profile
-from canair.analysis.misfiled import PayloadSample
 from canair.analysis.unsplit_batches import find_unsplit_batches, split_unsplit_batches
 from canair.captures import io as capture_io
+from canair.captures.payload_corpus import PayloadSample
 from canair.cli.commands.captures.maint import cmd_split_batched
 from canair.ecus.pids import clear_cache
 from canair.validation.captures import _run_captures

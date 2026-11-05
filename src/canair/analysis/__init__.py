@@ -5,5 +5,7 @@ flags and no output: time alignment and fill, correlation, mirrors, counters, su
 triage, the blind-rediscovery strip (``blind``), and physical-plausibility bands (``physical``).
 Not here: reading the store (``captures/``), rendering (the command's ``render.py``) and
 anything that talks to the car (``live/``).
-Imports: ``captures``, ``ecus``, ``states``, ``expression``, ``uds`` and ``core``.
+Imports: the store (``captures``), the definitions it computes over (``ecus``, ``states``,
+``variants``, ``profile``, ``query``, ``privacy``), ``expression``, ``uds`` and ``core``.
+Nothing in those imports it back.
 """
