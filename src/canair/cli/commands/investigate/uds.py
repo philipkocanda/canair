@@ -28,6 +28,7 @@ from canair.cli.args.scope import resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
 from canair.render import messages
 from canair.uds.byteindex import mapped_bits, mapped_offsets
+from canair.variants import effective_meta
 
 from .counters import run_counters
 from .render import print_dwell, print_events, print_report
@@ -172,7 +173,7 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
     from canair.cli.grid_prompt import resolve_grid_region
     from canair.profile import active
 
-    bands = resolve_physical_bands(active().meta, grid_region=resolve_grid_region())
+    bands = resolve_physical_bands(effective_meta(active()), grid_region=resolve_grid_region())
     physical_by_off = {
         h.offset: f"{h.scaling}·{h.expr} ≈ {h.band}" for h in physical_scan(lp, bands=bands)
     }

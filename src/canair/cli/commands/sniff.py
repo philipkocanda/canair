@@ -20,6 +20,7 @@ from canair.analysis.sniff_stats import SniffStats
 from canair.render import messages
 from canair.render.console import console
 from canair.render.sniff import render_sniff_table
+from canair.variants import effective_meta
 
 NAME = "sniff"
 
@@ -82,7 +83,7 @@ def _profile_can_bitrate() -> int | None:
     try:
         from canair.profile import active
 
-        value = active().meta.get("can_bitrate")
+        value = effective_meta(active()).get("can_bitrate")
         return int(value) if value is not None else None
     except Exception:
         # No resolvable profile / bad value: fall back to config/device/default.

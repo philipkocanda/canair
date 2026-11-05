@@ -308,6 +308,28 @@ def load_variants(profile: Profile | None = None) -> dict[str, Variant]:
     }
 
 
+def effective_meta(profile: Profile) -> dict:
+    """``profile.yaml`` (car_model, init, ...) for the profile's selected car, or {}.
+
+    The selected variant's ``profile_overrides:`` replace the settings they name; the
+    file as written is :func:`canair.profile.read_meta`.
+    """
+    from canair.profile import read_meta
+    from canair.variants.tags import selected_variant
+
+    meta = read_meta(profile.meta_file)
+    vid = selected_variant(profile)
+    if vid is None:
+        return meta
+    try:
+        variant = load_variants(profile).get(vid)
+    except VariantsError:
+        return meta  # reported by `canair validate variants`
+    if variant is None or not variant.profile_overrides:
+        return meta
+    return {**meta, **variant.profile_overrides}
+
+
 def describe(variant: Variant) -> str:
     """A one-line summary: name, production window and battery, as far as known."""
     parts = [variant.name]

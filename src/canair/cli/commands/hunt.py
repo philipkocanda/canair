@@ -42,8 +42,10 @@ from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
 from canair.expression.inspect_bytes import NO_EXPR
 from canair.expression.notation import ByteNotation, ByteRef
+from canair.profile import active
 from canair.render import ansi, messages
 from canair.uds.layout import subfunction_bytes_for_pid
+from canair.variants import effective_meta
 
 NAME = "hunt"
 
@@ -376,7 +378,6 @@ def _run_can_log(args) -> int:
 def run(args) -> int:
     from canair.analysis.physical.unit_guess import resolve_unit_candidates
     from canair.ecus import canonical_ecu_name_safe
-    from canair.profile import active
 
     if not args.ecu or not args.pid:
         messages.error("ECU and PID are required (e.g. `hunt AAF 2181 --against …`)")
@@ -513,7 +514,7 @@ def run(args) -> int:
         all_interps=args.all_interps,
         control=control_series,
         ref_unit=None if args.against_file else ref_unit_for(args.against),
-        candidates=resolve_unit_candidates(active().meta),
+        candidates=resolve_unit_candidates(effective_meta(active())),
         per_session=args.per_session,
         session_gap_s=args.session_gap,
         fill=fill,
@@ -601,7 +602,6 @@ def _run_physical(args, ecu: str, pid: str, since, until) -> int:
     from canair.analysis.cross_signal import physical_scan
     from canair.analysis.physical.bands import resolve_physical_bands
     from canair.cli.grid_prompt import resolve_grid_region
-    from canair.profile import active
 
     loaded = load_signal_captures(
         [(ecu, pid)],
@@ -619,7 +619,7 @@ def _run_physical(args, ecu: str, pid: str, since, until) -> int:
         )
         return 1
 
-    bands = resolve_physical_bands(active().meta, grid_region=resolve_grid_region())
+    bands = resolve_physical_bands(effective_meta(active()), grid_region=resolve_grid_region())
     hits = physical_scan(lp, min_n=args.min_n, top=args.top, bands=bands)
 
     if args.json:

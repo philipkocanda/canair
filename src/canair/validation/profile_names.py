@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from canair.core.paths import BUNDLED_PROFILES_DIR
 from canair.profile.names import convention_problem, duplicate_names
+from canair.variants import effective_meta
 
 
 def _is_bundled(prof) -> bool:
@@ -32,12 +33,13 @@ def profile_name_findings(prof) -> tuple[list[str], list[str]]:
             errors.append(f"profile name: {problem}")
 
     # profile_schema.json checks the shapes; a malformed value is left to it.
-    names = prof.meta.get("also_known_as")
+    meta = effective_meta(prof)
+    names = meta.get("also_known_as")
     if isinstance(names, list) and all(isinstance(n, str) for n in names):
         if dupes := duplicate_names(names):
             errors.append(f"profile.yaml: 'also_known_as' lists {', '.join(dupes)} twice")
 
-    aliases = prof.meta.get("aliases")
+    aliases = meta.get("aliases")
     if not isinstance(aliases, dict):
         return errors, warnings
 

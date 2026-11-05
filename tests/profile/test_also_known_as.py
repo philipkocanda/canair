@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import yaml
 
 from canair.profile.names import AlsoKnownAs, VariantNames, also_known_as, duplicate_names
 from canair.validation.profile_names import profile_name_findings
@@ -67,7 +68,10 @@ class TestReader:
 
 class TestValidation:
     def _findings(self, tmp_path, names):
-        prof = SimpleNamespace(name="car-model-x-ev", root=tmp_path, meta={"also_known_as": names})
+        (tmp_path / "profile.yaml").write_text(yaml.safe_dump({"also_known_as": names}))
+        prof = SimpleNamespace(
+            name="car-model-x-ev", root=tmp_path, meta_file=tmp_path / "profile.yaml"
+        )
         return profile_name_findings(prof)[0]
 
     def test_a_list_of_names_is_clean(self, tmp_path):

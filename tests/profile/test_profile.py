@@ -1,4 +1,4 @@
-"""Profile bundle layout — the path properties and how ``meta`` reads them."""
+"""Profile bundle layout — the path properties and how the meta file is read."""
 
 import pytest
 
@@ -8,6 +8,7 @@ from canair.profile import (
     member_names,
     members_by_role,
     profile_for_path,
+    read_meta,
 )
 
 
@@ -42,15 +43,15 @@ class TestMeta:
         # meta must resolve through meta_file, not a second hand-built path.
         prof = _profile(tmp_path)
         prof.meta_file.write_text("car_model: Test EV\ninit: ATSP6;\n")
-        assert prof.meta["car_model"] == "Test EV"
+        assert read_meta(prof.meta_file)["car_model"] == "Test EV"
 
     def test_absent_meta_file_is_empty(self, tmp_path):
-        assert _profile(tmp_path).meta == {}
+        assert read_meta(_profile(tmp_path).meta_file) == {}
 
     def test_empty_meta_file_is_empty(self, tmp_path):
         prof = _profile(tmp_path)
         prof.meta_file.write_text("")
-        assert prof.meta == {}
+        assert read_meta(prof.meta_file) == {}
 
 
 class TestBundleRegistry:

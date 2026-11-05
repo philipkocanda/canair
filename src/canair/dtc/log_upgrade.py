@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from canair.core import yaml_io
+from canair.variants import effective_meta
 
 if TYPE_CHECKING:
     from canair.profile import Profile
@@ -114,7 +115,7 @@ def _addresses(profile: Profile) -> _Addresses | None:
 
     try:
         registry = load_ecus(profile.ecus_dir) if profile.ecus_dir.is_dir() else {}
-        meta = profile.meta
+        meta = effective_meta(profile)
     except Exception:
         return None
     offset, mode = resolve_rx_offset(meta), resolve_mode(meta)

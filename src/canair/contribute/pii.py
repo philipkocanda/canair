@@ -53,6 +53,7 @@ from dataclasses import dataclass
 
 from canair.core.textscan import has_data_vin, has_vin_token, looks_redacted
 from canair.profile import Profile
+from canair.variants import effective_meta
 
 # ---------------------------------------------------------------------------
 # Sensitive identity identifiers
@@ -266,7 +267,9 @@ def scan_profile(profile: Profile, *, include_captures: bool = True) -> list[Fin
     what the PR adds.
     """
     findings: list[Finding] = []
-    findings += _scan_free_text(str(profile.meta.get("car_model") or ""), "profile.yaml car_model")
+    findings += _scan_free_text(
+        str(effective_meta(profile).get("car_model") or ""), "profile.yaml car_model"
+    )
     findings += _scan_ecus(profile)
     if include_captures:
         findings += _scan_captures(profile)
@@ -316,7 +319,9 @@ def scan_contribution(
     from canair.captures import io as capture_io
 
     findings: list[Finding] = []
-    findings += _scan_free_text(str(profile.meta.get("car_model") or ""), "profile.yaml car_model")
+    findings += _scan_free_text(
+        str(effective_meta(profile).get("car_model") or ""), "profile.yaml car_model"
+    )
     findings += _scan_ecus(profile)
     if not include_captures or not captures_dir.is_dir():
         return findings

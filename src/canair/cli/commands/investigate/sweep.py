@@ -26,6 +26,7 @@ from canair.expression.notation import ByteNotation
 from canair.render import ansi, messages
 from canair.uds.byteindex import mapped_offsets
 from canair.uds.layout import subfunction_bytes_for_pid
+from canair.variants import effective_meta
 
 from .counters import (
     _display_label,
@@ -190,7 +191,7 @@ def _pid_summary(lp: LoadedPid, params_def: dict, args, fill) -> dict | None:
         elif f == float("inf"):
             best_f = float("inf")
 
-    bands = resolve_physical_bands(active().meta, grid_region=resolve_grid_region())
+    bands = resolve_physical_bands(effective_meta(active()), grid_region=resolve_grid_region())
     n_physical = len(physical_scan(lp, bands=bands))
     return {
         "varying": n_varying,

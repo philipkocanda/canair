@@ -19,6 +19,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+from canair.ecus.revisions import determined_revisions
 from canair.variants.tags import SCOPE_ALL, in_scope, revisions_in_scope
 
 ALL_SCOPE = "all"
@@ -62,7 +63,7 @@ def current_car() -> Car:
     try:
         prof = active()
         several = len(load_variants(prof)) > 1
-        revisions = prof.revisions
+        revisions = determined_revisions(prof)
     except (ProfileError, VariantsError):
         return ANY_CAR
     if prof.variant == SCOPE_ALL:

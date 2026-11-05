@@ -38,7 +38,6 @@ import dataclasses
 import os
 import sys
 from dataclasses import dataclass
-from functools import cached_property
 from pathlib import Path
 from typing import Literal
 
@@ -286,43 +285,6 @@ class Profile:
         if self.revision_detections:
             key += "|detected=" + ",".join(f"{e}={r}" for e, r in sorted(self.revision_detections))
         return key
-
-    @cached_property
-    def meta(self) -> dict:
-        """<profile>/profile.yaml (car_model, init, ...) for the selected car, or {}.
-
-        The selected variant's ``profile_overrides:`` replace the settings they name; the
-        file as written is :func:`read_meta`.
-        """
-        meta = read_meta(self.meta_file)
-        from canair.variants import VariantsError, load_variants
-        from canair.variants.tags import selected_variant
-
-        vid = selected_variant(self)
-        if vid is None:
-            return meta
-        try:
-            variant = load_variants(self).get(vid)
-        except VariantsError:
-            return meta  # reported by `canair validate variants`
-        if variant is None or not variant.profile_overrides:
-            return meta
-        return {**meta, **variant.profile_overrides}
-
-    @cached_property
-    def revisions(self) -> dict[str, str]:
-        """ECU name -> its revision for the selected car, for every ECU that is determined.
-
-        An ECU with several possible revisions and no pin is absent (undetermined); see
-        :func:`canair.ecus.pids.revision_resolutions` for the full picture.
-        """
-        from canair.ecus.pids import revision_resolutions
-
-        return {
-            name: res.revision
-            for name, res in revision_resolutions(self).items()
-            if res.revision is not None
-        }
 
     def member_path(self, member: BundleMember) -> Path:
         """Resolve a bundle member to this profile's path for it.

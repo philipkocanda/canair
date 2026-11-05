@@ -8,6 +8,7 @@ from pathlib import Path
 
 from canair.config import load_config, user_config_file
 from canair.profile import (
+    BUNDLE_MEMBERS,
     ProfileError,
     active,
     alias_index,
@@ -19,6 +20,7 @@ from canair.profile import (
 from canair.profile.names import convention_problem
 from canair.profile.scaffold import DEFAULT_INIT, adopt_profile, create_profile, overlay_profile
 from canair.render import messages
+from canair.variants import effective_meta
 from canair.yaml_edit.echo import echo_edit
 
 NAME = "profile"
@@ -397,10 +399,8 @@ _VARIANT_SOURCE = {
 
 
 def _cmd_show(args) -> int:
-    from canair.profile import BUNDLE_MEMBERS
-
     prof = _resolve(args.name)
-    meta = prof.meta
+    meta = effective_meta(prof)
     print(f"name:       {prof.name}")
     print(f"root:       {prof.root}")
     for overlay in prof.overlays:

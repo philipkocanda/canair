@@ -21,6 +21,7 @@ from canair.safety.actuation import default_release, normalize_request
 from canair.uds.addressing import AddressingMode, EcuAddress, resolve_ecu_address
 from canair.uds.multi_did import resolve_multi_did_max
 from canair.uds.protocol import DiagProtocol, classify_protocol
+from canair.variants import effective_meta, load_variants
 
 # ── PID visibility lifecycle ──────────────────────────────────────────────
 # A PID's `status:` is a single, mutually-exclusive lifecycle value that
@@ -397,7 +398,7 @@ def _resolved(prof) -> dict:
     raw = load_raw_pids(prof)
     ecus = raw.get("ecus") or {}
     if not has_gates(ecus) and not prof.revision_pins:
-        result = dict(prof.meta)
+        result = dict(effective_meta(prof))
         result["ecus"] = ecus
         return result
     resolved, skipped = apply(ecus, selected_variant(prof), revision_resolutions(prof))
@@ -405,11 +406,9 @@ def _resolved(prof) -> dict:
         _noted_skips.add(prof.cache_key)
         unchosen: list[str] = []
         if selected_variant(prof) is None:
-            from canair.variants import load_variants
-
             unchosen = list(load_variants(prof))
         print(skipped_note(prof.name, skipped, unchosen), file=sys.stderr)
-    result = dict(prof.meta)
+    result = dict(effective_meta(prof))
     result["ecus"] = resolved
     return result
 

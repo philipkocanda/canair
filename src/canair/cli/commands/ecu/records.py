@@ -88,6 +88,7 @@ def _identity_note(name: str) -> str | None:
     leave the identity looking merely unrecorded.
     """
     from canair.ecus.pids import load_raw_pids
+    from canair.ecus.revisions import determined_revisions
     from canair.variants.revisions import canonical_ecu, identity_reference
 
     raw = load_raw_pids().get("ecus") or {}
@@ -95,7 +96,7 @@ def _identity_note(name: str) -> str | None:
     reference = identity_reference(raw[key]) if key else None
     if reference is None:
         return None
-    revision = active().revisions.get(key)
+    revision = determined_revisions(active()).get(key)
     if revision is None:
         return f"Recorded from the {reference} revision; this car's revision is undetermined."
     if revision != reference:

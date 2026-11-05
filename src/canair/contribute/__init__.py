@@ -39,6 +39,7 @@ from canair.captures.merge import SessionReplacement
 from canair.core.paths import GITHUB_REPO as UPSTREAM_REPO
 from canair.privacy.sensitive import SensitiveSet
 from canair.profile import member_names, members_by_role
+from canair.variants import effective_meta
 
 UPSTREAM_URL = f"https://github.com/{UPSTREAM_REPO}.git"
 UPSTREAM_OWNER = UPSTREAM_REPO.split("/")[0]
@@ -878,7 +879,7 @@ def pr_head(pre: Preflight, branch: str, mode: str) -> str:
 
 def default_message(profile, *, include_captures: bool) -> str:
     """Commit-message subject/body for a profile contribution."""
-    model = str(profile.meta.get("car_model") or profile.name)
+    model = str(effective_meta(profile).get("car_model") or profile.name)
     scope = "profile + captures" if include_captures else "profile"
     return f"profiles: contribute {profile.name} ({model})\n\nAdd/update {scope} for {model}."
 
@@ -891,21 +892,19 @@ def default_pr_body(
     logs: str = "",
 ) -> str:
     """The generated PR body. ``summary``/``logs`` are pre-rendered Markdown sections."""
-    model = str(profile.meta.get("car_model") or profile.name)
+    model = str(effective_meta(profile).get("car_model") or profile.name)
     if summary:
         detail = f"{summary}\n"
     elif include_captures:
         detail = "- Includes `captures/` (raw evidence).\n"
     else:
         detail = "- Definitions only (no captures).\n"
-    variant = getattr(profile, "variant", None)
-    variant = (
-        f"**Variant:** `{variant}`\n" if variant and variant not in ("all", "untagged") else ""
-    )
+    variant = profile.variant
+    tag = f"**Variant:** `{variant}`\n" if variant not in (None, "all", "untagged") else ""
     body = (
         f"Contributed via `canair contribute`.\n\n"
         f"**Vehicle:** {model}\n"
-        f"{variant}"
+        f"{tag}"
         f"**Profile:** `profiles/{profile.name}/`\n\n"
         f"{detail}\n"
         "- [ ] `canair validate all` passes\n"

@@ -21,7 +21,7 @@ from canair import profile as profile_mod
 from canair.cli import main
 from canair.ecus.pids import clear_cache, load_pids, load_raw_pids, revision_resolutions
 from canair.profile import ProfileError, set_active
-from canair.variants import check_variants_doc, load_variants
+from canair.variants import check_variants_doc, effective_meta, load_variants
 from canair.variants import revisions as rv
 from canair.variants.tags import capture_tag, narrow_to_captured, revisions_in_scope
 
@@ -177,8 +177,13 @@ class TestResolution:
             _activate(pins=["VCU"])
 
     def test_profile_overrides_reach_meta(self):
-        assert _activate(variant="60kwh").meta["car_model"].startswith("Variants fixture, 60")
-        assert _activate(variant="40kwh").meta["car_model"] == "Variants fixture (synthetic)"
+        assert effective_meta(_activate(variant="60kwh"))["car_model"].startswith(
+            "Variants fixture, 60"
+        )
+        assert (
+            effective_meta(_activate(variant="40kwh"))["car_model"]
+            == "Variants fixture (synthetic)"
+        )
         assert load_raw_pids()["car_model"] == "Variants fixture (synthetic)"
 
     def test_the_raw_loader_sees_every_revision(self):

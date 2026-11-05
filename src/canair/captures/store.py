@@ -3,9 +3,7 @@
 The data layer under every capture-consuming surface. It lives in the library, not
 beside the ``captures`` command, because non-command modules need it too:
 :mod:`canair.analysis.align` and :mod:`canair.captures.dates` load entries, and
-:mod:`canair.captures.state_inference` resolves PID definitions. Those previously imported *up*
-into ``commands/captures/`` — a layering inversion the lazy in-function imports
-were working around.
+:mod:`canair.captures.state_inference` resolves PID definitions.
 
 Three concerns, in dependency order:
 
@@ -31,6 +29,7 @@ from canair.captures import io as capture_io
 from canair.captures import merge as captures_merge
 from canair.captures.link_events import session_link_events
 from canair.captures.types import CaptureEntry
+from canair.ecus.revisions import determined_revisions
 from canair.render import messages
 from canair.states.spans import span_keys, states_at
 from canair.variants import tags as variant_tags
@@ -397,7 +396,7 @@ def _revision_scope() -> dict[str, str]:
     from canair.profile import ProfileError, active
 
     try:
-        return active().revisions
+        return determined_revisions(active())
     except ProfileError:
         return {}
 

@@ -7,6 +7,7 @@ import yaml
 
 from canair.core import yaml_io
 from canair.core.id_ranges import parse_id_range
+from canair.variants import effective_meta
 from canair.variants.revisions import check_ecu as check_revisions
 
 from ._common import duplicate_key_errors, is_int, validate_state_list
@@ -160,7 +161,7 @@ def validate_ecu_file(
         profile = _profile_for_ecu_file(path)
     allowed_states_set = allowed_states(profile)
     allowed_can_buses_set = _allowed_can_buses(profile)
-    profile_meta = getattr(profile, "meta", None) or {}
+    profile_meta = effective_meta(profile)
     fields = SchemaFields.from_schema(schema)
     variant_ids = _declared_variant_ids(profile)
     stats = new_ecu_stats()
