@@ -194,8 +194,8 @@ def _warn_about_snapshot_data(c, clone: Path | None) -> None:
     ``--yes`` still skips the prompt) because refusing outright would strand a
     user who has no intention of keeping them.
     """
+    from canair.dtc.log_upgrade import migrate_all
     from canair.install.context import snapshot_profile_risks
-    from canair.migrations.dtc_log import migrate_all
 
     # The DTC log is user state now; move any legacy copy out before it is deleted.
     try:

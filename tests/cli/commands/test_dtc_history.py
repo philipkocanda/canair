@@ -311,7 +311,7 @@ class TestFormatUpgrade:
     ]
 
     def test_labels_become_addresses_and_derived_entries_go(self):
-        from canair.migrations.dtc_log import upgrade
+        from canair.dtc.log_upgrade import upgrade
 
         out = upgrade(
             {"scans": self.V1_SCANS, "clears": self.V1_CLEARS}, lambda tx: f"0x{tx + 8:03X}"
@@ -340,7 +340,7 @@ class TestFormatUpgrade:
         ]
 
     def test_a_current_format_doc_is_untouched(self):
-        from canair.migrations.dtc_log import upgrade
+        from canair.dtc.log_upgrade import upgrade
 
         doc = {"format": 2, "scans": [_scan("BMS (0x7E4)")]}  # not a label in format 2
         assert upgrade(doc, lambda tx: "never")["scans"] == doc["scans"]
@@ -426,7 +426,7 @@ class TestCommands:
         from canair.cli.commands.config import _dtc_log_stats
 
         monkeypatch.setattr(dtc_log, "log_dir", lambda: tmp_path)
-        monkeypatch.setattr("canair.migrations.dtc_log.migrate_all", lambda: None)
+        monkeypatch.setattr("canair.dtc.log_upgrade.migrate_all", lambda: None)
         _write(tmp_path / "other.yaml", _scan("all", {"0x708": _codes("B1")}))
         stats = _dtc_log_stats(None)
         assert stats["dir"] == str(tmp_path)
@@ -452,7 +452,7 @@ class TestBackfill:
         }
 
     def test_tags_only_what_the_profile_settles(self):
-        from canair.migrations.dtc_log import implied_tags
+        from canair.dtc.log_upgrade import implied_tags
 
         variants = self._variants(**{"40kwh": ("kwp",), "60kwh": ("kwp", "uds")})
         assert implied_tags(
@@ -467,7 +467,7 @@ class TestBackfill:
         assert implied_tags(tagged, variants, _BACKFILL_ECUS, NAMES) == {}
 
     def test_a_single_ecu_scan_is_tagged_only_for_its_ecu(self):
-        from canair.migrations.dtc_log import implied_tags
+        from canair.dtc.log_upgrade import implied_tags
 
         variants = self._variants(**{"40kwh": ("kwp",)})
         assert implied_tags({"scope": BMS}, variants, _BACKFILL_ECUS, NAMES) == {"variant": "40kwh"}
@@ -492,7 +492,7 @@ class TestBackfill:
 
 class TestMigrateAll:
     def test_moves_every_profiles_legacy_log(self, tmp_path, monkeypatch):
-        from canair.migrations.dtc_log import migrate_all
+        from canair.dtc.log_upgrade import migrate_all
 
         roots = tmp_path / "profiles"
         for name in ("car-a", "car-b"):
@@ -516,7 +516,7 @@ class TestMigrateAll:
         from canair.cli.commands import update
 
         calls = []
-        monkeypatch.setattr("canair.migrations.dtc_log.migrate_all", lambda: calls.append(1))
+        monkeypatch.setattr("canair.dtc.log_upgrade.migrate_all", lambda: calls.append(1))
         monkeypatch.setattr("canair.install.context.snapshot_profile_risks", lambda clone: [])
         update._warn_about_snapshot_data(None, None)
         assert calls == [1]

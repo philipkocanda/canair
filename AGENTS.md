@@ -275,7 +275,7 @@ and **`g`/`G` address the view's primary axis**.
   state, not a bundle member** — `<config dir>/dtc_log/<profile>.yaml`
   (`src/canair/dtc/log.py::log_file`), because a reinstall or re-clone deletes a profile directory;
   a legacy `<profile>/dtc_log.yaml` is folded in on first use, and for every profile by
-  `canair config` and before `canair update` reinstalls (`src/canair/migrations/dtc_log.py`, which
+  `canair config` and before `canair update` reinstalls (`src/canair/dtc/log_upgrade.py`, which
   also tags older entries with what the profile alone settles, never a guess).
   An entry names an ECU only by its response address, like a capture (`src/canair/dtc/refs.py`
   resolves the name and label from the profile), and records only scans and `--clear`s: what

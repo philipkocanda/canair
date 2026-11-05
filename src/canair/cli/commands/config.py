@@ -473,8 +473,8 @@ def _dtc_log_stats(active_name: str | None) -> dict:
     """Every profile's DTC log in user state; open codes only for the active car."""
     from canair.dtc.history import log_stats
     from canair.dtc.log import log_dir
+    from canair.dtc.log_upgrade import migrate_all
     from canair.dtc.scope import ANY_CAR
-    from canair.migrations.dtc_log import migrate_all
 
     try:
         migrate_all()  # a legacy in-profile log is counted only once it is moved

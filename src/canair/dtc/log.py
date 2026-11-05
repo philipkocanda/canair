@@ -45,7 +45,7 @@ This is a fact about *your* car, not shared data, and the only record of its fau
 history, so it lives in user state (``<config dir>/dtc_log/<profile>.yaml``) rather
 than in the profile, which a reinstall or re-clone deletes. A legacy
 ``<profile>/dtc_log.yaml``, and a log in an earlier format, is converted on first
-use (:mod:`canair.migrations.dtc_log`).
+use (:mod:`canair.dtc.log_upgrade`).
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ def log_file(profile: Profile) -> Path:
     key = (dest, profile.root, profile.overlays)
     if key not in _migrated:
         _migrated.add(key)
-        from canair.migrations.dtc_log import migrate
+        from canair.dtc.log_upgrade import migrate
 
         try:
             migrate(profile, dest)
