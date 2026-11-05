@@ -2,7 +2,7 @@
 
 Belongs: turning a profile's verified signals into the JSON a WiCAN loads (``profile``,
 ``v6``), the MQTT topic rule (``send_to``) and the signal-category to AutoPID class map
-(``classes``).
+(``classes``), and the signal-level diff of two profiles (``diff``).
 Not here: uploading to the device (``device/wican``, ``cli/commands/wican/``).
 Imports: ``ecus``, ``privacy``, ``transport`` (the request framing it must match) and ``uds``.
 """
