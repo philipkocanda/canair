@@ -1,0 +1,109 @@
+# Code organization: the work after the package layout
+
+Status: **PROPOSED** (2026-11-05). No code changed. Not user-facing: no command, flag, output or
+profile changes, unless a sub-plan says otherwise.
+
+This plan comes from a review of the code organization at commit `0ce4f742`. The layering of
+`plans/2026-11-04-package-layout-and-layering.md` holds: 11 import contracts pass with no
+`ignore_imports` entries, every package has a charter, and only `cli/` and `tui/` import
+`argparse` and `textual`. The open problems are inside the packages: oversized modules, logic in
+`__init__.py` files, a process-global "active profile", about 1,100 deferred imports, and
+documentation that names code that has moved.
+
+The work is in ten sub-plans. Each one can land on its own, in its own branch.
+
+## Sub-plans
+
+| # | Plan | Size | Depends on |
+|---|---|---|---|
+| 1 | [Gates and drift](2026-11-05-code-organization-1-gates-and-drift.md) | small | none |
+| 2 | [Deferred imports](2026-11-05-code-organization-2-deferred-imports.md) | medium | 1 |
+| 3 | [Pass the profile explicitly](2026-11-05-code-organization-3-explicit-profile.md) | large | 1 |
+| 4 | [The `expression`/`uds` cycle](2026-11-05-code-organization-4-expression-uds-cycle.md) | small | 1 |
+| 5 | [Sub-packages in `live/` and `tui/apps/`](2026-11-05-code-organization-5-live-and-tui-subpackages.md) | medium | 2 |
+| 6 | [Split the monitor](2026-11-05-code-organization-6-monitor-split.md) | large | 5 |
+| 7 | [Package `__init__.py` bodies](2026-11-05-code-organization-7-package-init-bodies.md) | medium | 3 (for `profile/` only) |
+| 8 | [Public names across packages](2026-11-05-code-organization-8-public-names.md) | small | 7 |
+| 9 | [Thin command modules](2026-11-05-code-organization-9-thin-commands.md) | medium | 8 (for the query helper only) |
+| 10 | [Cut the agent guide](2026-11-05-code-organization-10-agent-guide-cut.md) | medium | 5, 6, 7, 9 |
+
+Recommended order: 1, then 2 and 4, then 3, then 5 and 6, then 7, 8 and 9, and 10 last. Plan 10
+is last because plans 5 to 9 move the code that `AGENTS.md` points at.
+
+## Findings (measured at `0ce4f742`)
+
+The numbers come from `scripts/check/import_graph.py` and small AST scans. Each sub-plan repeats
+the numbers it acts on.
+
+| Measure | Now | Sub-plan |
+|---|---:|---|
+| `make structure` on `main` | **fails** (2 ceilings exceeded) | 1 |
+| Deferred internal imports | 1,143 in 249 files | 2 |
+| Deferred internal imports with a comment that gives a reason | about 42 | 2 |
+| Canair modules that building the CLI parser loads | 343 of 484 | 2 |
+| Calls to `profile.active()` or a loader with no profile, outside `cli/` | about 70 | 3 |
+| Import cycles between packages | 2 (`ecus`/`profile`/`variants`, `expression`/`uds`) | 3, 4 |
+| Files in `live/` with no sub-package | 62 | 5 |
+| `MonitorController` | 75 methods, 1,009 lines | 6 |
+| `MonitorApp` | 45 methods, 756 lines | 6 |
+| `__init__.py` files over 500 lines | 6 (largest: `states/`, 987) | 7 |
+| Imports of an underscore name from another package (`src/` only) | 17 names at 29 sites | 8 |
+| Share of all lines in `cli/` | 29% (31,900 lines) | 9 |
+| Modules over 500 lines | 44 | 6, 7, 9 |
+| `AGENTS.md` | about 1,370 lines, 187 `src/canair` paths | 10 |
+
+## Relation to other plans
+
+- **`plans/2026-11-04-package-layout-and-layering.md`.** This plan continues its "Left over"
+  list. Left-over item 2 (the two cycles) is sub-plans 3 and 4. Item 4 (the `live/`
+  sub-packages) is sub-plan 5. Item 5 (the `AGENTS.md` path cut) is sub-plan 10. The rules of
+  its section 9 apply to every sub-plan here.
+- **`plans/2026-11-05-one-session-owner.md`** (proposed) changes `MonitorSessions` and the raw
+  monitor. Sub-plan 6 must land after it, or the two must agree on who edits those files first.
+- **`plans/2026-11-03-yaml-edit-router.md`** decided to keep both YAML edit engines (text
+  surgery and ruamel) and not to make the `pids` parser table-driven. This plan keeps both
+  decisions. Sub-plan 9 splits the `pids` parser into modules but keeps its declarations as
+  they are.
+- **`plans/2026-08-06-signal-naming-convention.md`** (the `param` to `signal` rename) must not
+  be mixed with any move here. Do it before or after a sub-plan, never in the same commit.
+- **`plans/2026-11-05-cli-tui-standards.md`** adds `ui_standards` baselines to
+  `tests/contracts/baseline.json`. Sub-plans 5, 6 and 9 move files that those baselines name.
+  Rename the keys by hand in the same commit, as the layout plan says for `oversized_modules`.
+
+## Rules for every sub-plan
+
+These are the rules of the layout plan (section 9 and the handoff), repeated because each
+sub-plan depends on them:
+
+1. Work in a separate worktree, on a branch from `main`. Other sessions share the main checkout.
+2. A move is mechanical and alone: `git mv` or a cut-and-paste of whole functions, plus a
+   codemod for imports and `monkeypatch` strings. No logic change in the same commit. No
+   compatibility alias for the old path.
+3. Never add an `ignore_imports` entry and never raise a number in `baseline.json`. A new
+   ratchet starts at the current count. A new key is not a raise.
+4. Every commit is green: full suite (parallel and `-n0`), `ruff`, `ruff format`, `ty`,
+   `make structure`, and `scripts/gen/gen_cli_reference.py --check` with no change to `--help`.
+5. After a move, grep the moved files for `^\s*from \.` at every indent. A deferred relative
+   import inside a `try` block can break with no error.
+6. Update the status line of the sub-plan as each step lands, with the measured numbers.
+
+## Open decisions
+
+Each sub-plan lists its own decisions with a recommendation. The ones that change the shape of
+the code:
+
+| # | Question | Recommendation | Sub-plan |
+|---|---|---|---|
+| A | Add a lazy command registry, so that a command's module loads only when it runs? | Not now. Measure again after the hoist. | 2 |
+| B | Library functions take a `Profile`, or a new `Definitions` value? | `Profile` now. `Definitions` can follow. | 3 |
+| C | Create `tui/kit/`, as the placement table says? | No. Correct the table instead. | 5 |
+| D | When an `__init__.py` body moves out, re-export its names, or rewrite every caller? | Rewrite every caller. | 7 |
+| E | Remove the pass-through properties of `MonitorController`? | Yes. | 6 |
+
+## Not in this plan
+
+- **Typed definitions.** `load_pids()` returns nested `dict`s, and each consumer builds its own
+  index from them (`build_ecu_index`, `build_param_index`, `build_iocontrol_index`, and more).
+  A typed model would be a large change to every package. It needs its own plan.
+- **One YAML edit engine.** See the yaml-edit-router plan.
+- **The duplicated keepalive code** of the raw and ELM327 paths. See the one-session-owner plan.

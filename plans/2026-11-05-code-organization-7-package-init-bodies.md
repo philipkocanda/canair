@@ -1,0 +1,110 @@
+# Code organization, part 7: package `__init__.py` bodies
+
+Status: **PROPOSED** (2026-11-05). Part of
+[`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 3 for
+`profile/` only. The other packages can start after sub-plan 1.
+
+## Goal
+
+Move the code out of the six `__init__.py` files that are over 500 lines, into modules named
+for what they do. Each `__init__.py` then holds its charter, and a reader who opens a package
+sees its parts in the file list.
+
+## Findings (at `0ce4f742`)
+
+| `__init__.py` | Lines | Top-level names | References to the package root (imports and `monkeypatch` strings, `src/` and `tests/`) |
+|---|---:|---:|---:|
+| `states/` | 987 | 38 | 87 |
+| `contribute/` | 935 | 45 | 11 |
+| `captures/` | 845 | 30 | 160 |
+| `profile/` | 705 | 26 | 198 |
+| `config/` | 554 | 26 | 74 |
+| `ecus/` | 502 | 24 | 94 |
+
+These files became package `__init__.py` files in phase 4 of the layout plan, when a loose
+module (`profile.py`, `config.py`, `contribute.py`) became a package. That kept every import
+and `monkeypatch` string working at the time. The `captures/` charter says that saving is "here",
+in the `__init__.py`.
+
+Two more `__init__.py` files hold code that is not package-wide:
+
+- `tui/__init__.py` (131 lines) holds the arrow-key list picker of `canair profile`.
+- `actions/`, `variants/` and `query/` hold 258 to 349 lines. They are under the limit, and
+  their code is the package's main job. This plan leaves them.
+
+## Target modules
+
+The split follows the groups that the names already form. Check each group against the code
+before the move, and adjust it where a function belongs with another group.
+
+| Package | New modules |
+|---|---|
+| `states/` | `vocabulary.py` (load, names, allowed states, parse, join, order, the YAML boolean words), `predicates.py` (`StateRule`, the predicate parser and the Kleene evaluator), `implies.py` (the `implies:` map, closure, cycle check, exclusive pairs, `most_specific_states`), `suggest.py` (`satisfied_states`, `suggest_state`, `suggest_states`), `selectors.py` (`state_matcher`, `format_state_selector`, `state_bucket_key`, `unknown_state_tokens`, `ecu_states`, `ecus_in_state`) |
+| `contribute/` | `git.py` (the `git` runner, upstream ref, branch, commit, `has_changes`), `workspace.py` (ensure, reset, leftovers, backup, discard), `copy.py` (copy the profile, the capture overlay, `CaptureReplacement`), `preflight.py` (`Step`, `Preflight`, `ContributionPlan`, the rollback and collision checks), `github.py` (viewer permission, direct push, the PR lookup) |
+| `captures/` | `build.py` (the `build_*_session` functions, `non_answer_text`, the `suggest_*_label` functions), `save.py` (`save_session`, `save_session_journaled`, the file write, `saved_banner`, the capture tag), `session_edit.py` (the `set_session_*` functions, `set_capture_note`, `delete_capture`, `annotate_session_spans`) |
+| `profile/` | `bundle.py` (`BundleMember` and the member registry), `model.py` (`Profile`, `ProfileError`, `read_meta`, `looks_like_profile`), `discovery.py` (roots, discovery, layers, aliases, `resolve_profile`, `profile_for_path`), `writable.py` (`require_writable_definitions`) |
+| `config/` | `file.py` (the config path and directory, get, set, unset, load), `devices.py` (`DeviceEntry`, `wican_devices`, `fallback_settings`, the WiCAN model), `transport.py` (`reconnect_max_wait`, `ws_ping_interval`, `stale_cycles_before_reconnect`, `expected_responses`, `firmware_check`) |
+| `ecus/` | `registry.py` (`EcuRegistryEntry`, `load_ecus`, identity confidence), `names.py` (canonical names, aliases, the name indices, `EcuNameCollision`, `ecu_display`), `rx.py` (`rx_for_tx`, the RX indices, `resolve_tx`), `protocol.py` (`ecu_protocol`, `split_ecus_by_protocol`) |
+| `tui/` | `picker.py` (`select_from_list` and the key reader) |
+
+`profile/` waits for sub-plan 3, which moves `set_active`, `replace_active` and `active` to
+`cli/` and removes `Profile.meta` and `Profile.revisions`.
+
+The layout plan's section 4 already proposed `config/devices.py`, for the device registry that
+both `transport/` and `device/` read.
+
+## Decision D: re-export, or rewrite the callers
+
+Option 1: the `__init__.py` re-exports every public name (`from .save import save_session`).
+The 624 references to the package roots keep working, and nothing else changes.
+
+Option 2: the `__init__.py` holds only the charter, and every caller imports from the module
+that defines the name. A codemod rewrites the imports and the `monkeypatch` strings.
+
+**Recommendation: option 2.**
+
+- A re-exporting `__init__.py` imports every module of the package whenever any one of them is
+  imported. Sub-plan 5 forbids that for `live/` and `tui/apps/`, for start-up time and to keep
+  Textual out of the view models. One rule for every package is simpler.
+- A module inside the package cannot import a sibling through the package root without a
+  cycle. With re-exports, that mistake is easy to make and hard to see.
+- The layout plan's principle 7 rejects compatibility aliases for moved code. A re-export of a
+  moved function is such an alias.
+- A patch of `canair.captures.save_session` does not affect code that imported the name from
+  `canair.captures.save`. With option 2, every `monkeypatch` string names the module that
+  defines the name, so a patch cannot miss.
+
+Option 2 costs one codemod per package. The layout plan used the same codemod for phase 4.
+
+## Steps
+
+One package per commit, in this order: `config/`, `ecus/`, `states/`, `captures/`,
+`contribute/`, `tui/` (the picker), then `profile/` after sub-plan 3.
+
+In each commit:
+
+1. Cut whole top-level definitions from `__init__.py` into the new modules. Do not edit a
+   function body.
+2. **Check that the move is mechanical.** A script compares the source of every top-level
+   definition before and after (an AST scan, by name). Every definition must exist once, with
+   the same source. Only import lines may change.
+3. Rewrite the imports and the `monkeypatch` strings in `src/` and `tests/` with a codemod.
+4. Keep the charter in `__init__.py`. Update its "Belongs" line to name the new modules.
+5. Rename the `oversized_modules` key in `baseline.json` (for example `canair.captures` to
+   `canair.captures.save`) before `test_structure --write`, or remove it when every new module
+   is under 500 lines.
+6. Regenerate the architecture page.
+
+## Acceptance
+
+- No `__init__.py` under `src/canair/` is over 100 lines, apart from `actions/`, `variants/`
+  and `query/`.
+- The mechanical-move check of step 2 passes for every commit.
+- `--help` and every golden output are unchanged.
+
+## Risks
+
+- **`AGENTS.md` paths.** `AGENTS.md` names many `src/canair/<package>/__init__.py::name`
+  references (for example `profile/__init__.py::profile_layers`). The path check of sub-plan 1
+  fails on each one after the move. Correct them in the same commit. Sub-plan 10 then cuts
+  most of them.
