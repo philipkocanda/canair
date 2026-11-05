@@ -25,12 +25,13 @@ Top to bottom. A package imports only from the layers below its own.
 | 5 | `validation/` | the layers below |
 | 6 | `interop/`, `actions/`, `broadcast/`, `migrations/`, `analysis/`, `dtc/` | the layers below, not each other |
 | 7 | `transport/`, `captures/` | the layers below, not each other |
-| 8 | `ecus/`, `install/`, `privacy/`, `profile/`, `query/`, `render/`, `states/`, `variants/` | each other (one cycle still to split) and the layers below |
-| 9 | `tui/`, `device/` | the layers below, not each other |
-| 10 | `safety/` | the layers below |
-| 11 | `expression/`, `uds/` | each other (one cycle still to split) and the layers below |
-| 12 | `config/` | the layers below |
-| 13 | `core/` | the layers below |
+| 8 | `states/`, `query/`, `render/`, `install/` | the layers below, not each other |
+| 9 | `ecus/`, `privacy/`, `profile/`, `variants/` | each other (one cycle still to split) and the layers below |
+| 10 | `tui/`, `device/` | the layers below, not each other |
+| 11 | `safety/` | the layers below |
+| 12 | `expression/`, `uds/` | each other (one cycle still to split) and the layers below |
+| 13 | `config/` | the layers below |
+| 14 | `core/` | the layers below |
 
 <!-- END GENERATED: layers -->
 
