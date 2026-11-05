@@ -7,9 +7,9 @@ rules behind it, and the migration that gets the tree there, are in
 
 !!! note "Migration state"
     The code lives in `src/canair/`. The 52 loose modules that used to sit at its root are in
-    packages now. What is left is listed in the plan: the cycle between `ecus/`, `profile/` and
-    `variants/` (and a small one between `expression/` and `uds/`), and the Textual apps that
-    still sit in `live/` and `cli/`.
+    packages now, and the Textual apps are in `tui/apps/`. What is left is listed in the plan:
+    the cycle between `ecus/`, `profile/` and `variants/`, and a small one between
+    `expression/` and `uds/`.
 
 ## Layers
 

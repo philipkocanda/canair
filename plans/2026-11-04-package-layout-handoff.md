@@ -1,4 +1,4 @@
-# Handoff: package layout and layering, after phase 5
+# Handoff: package layout and layering, after phase 7
 
 Read `plans/2026-11-04-package-layout-and-layering.md` (the plan, the deviations and "Left over")
 and `docs/development/architecture.md` (the layers and the placement table, generated from the
@@ -13,17 +13,16 @@ and `__main__.py`, the tests mirror the packages, and eleven import contracts ru
 
 ## State on 2026-11-05
 
-Phase 6 (branch `refactor/split-layer-cycle`) split the 18-package cycle down to the three
-definition packages `ecus : profile : variants`, the `:` layer section 6 of the plan keeps
-anyway. The plan's phase 6 paragraph lists each cut and where it deviates from section 4.
+Phases 6 and 7 (branch `refactor/split-layer-cycle`) split the 18-package cycle down to the three
+definition packages `ecus : profile : variants` (the `:` layer section 6 of the plan keeps
+anyway), and moved the five Textual apps into `tui/apps/`, so `ignore_imports` is empty. The
+plan's phase 6 and 7 paragraphs list each cut and where it deviates from section 4.
 
 The next steps, in the order that pays most:
 
-1. **Move the five Textual apps** into `tui/apps/` after splitting each model from its app
-   (`captures/step_model.py` from `step_tui.py`, the monitor controller from `_monitor_tui.py`).
-2. **The two cycles left** (`ecus : profile : variants` and `expression : uds`). The plan's
+1. **The two cycles left** (`ecus : profile : variants` and `expression : uds`). The plan's
    "Left over" item 2 lists the exact imports to cut for each.
-3. The smaller items in the plan's "Left over" list.
+2. The smaller items in the plan's "Left over" list.
 
 How a cycle step went, so the next one is quick: list the module edges between the packages
 still in the group (grimp: `grimp.build_graph("canair")`, then
@@ -60,8 +59,15 @@ script that matches the whole layers line: a plain `sed` on `"canair.x",` also r
   (AGENTS.md).
 - The tree is public. No PII, no VINs, no security keys (AGENTS.md).
 
-## Lessons from phases 0 to 5
+## Lessons from phases 0 to 7
 
+- **A moved file's deferred relative imports break silently** when they sit in a `try` block
+  that swallows the error: `from ..states import join_states` in the monitor app became
+  `canair.tui.states`, the `except Exception` turned it into an empty field, and only one test
+  noticed. After a move, grep the moved files for `^\s*from \.` at every indent, not only at
+  the top.
+- **In zsh, `set -- $pair` does not split** an unquoted variable, so a loop that unpacks
+  "old new" pairs runs the codemod with wrong arguments. Write the commands out.
 - **Order-dependent test failures appear as the layout changes**, because xdist `loadscope`
   groups tests by module and moving a file changes which tests share a worker. One appeared in
   phase 2: `monkeypatch.setattr(ansi, "BOLD", ...)` on a name served by a module `__getattr__`

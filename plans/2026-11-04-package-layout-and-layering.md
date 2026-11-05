@@ -1,7 +1,7 @@
 # Package layout and layering: give `canlib/` seams, and tests the same shape
 
-Status: **DONE for phases 0 to 6 except the items under "Left over" below** (phases 0 to 5 on
-2026-11-04, branch `refactor/package-layout`; phase 6 on 2026-11-05, branch
+Status: **DONE for phases 0 to 7 except the items under "Left over" below** (phases 0 to 5 on
+2026-11-04, branch `refactor/package-layout`; phases 6 and 7 on 2026-11-05, branch
 `refactor/split-layer-cycle`). The package is `src/canair/` now; this plan keeps the `canlib/`
 names it was written with. Not user-facing: no command, flag, output or profile changes.
 Section 9 is the part that outlives the migration: the rules, documents and gates that keep
@@ -783,7 +783,8 @@ Measured after phase 5 (`scripts/check/import_graph.py`, 2026-11-04):
 gave it a layer of its own. The contract now reads, top to bottom: `cli`, `contribute`, `live`,
 `yaml_edit`, `validation`, `interop | actions | broadcast | migrations | analysis | dtc`,
 `transport | captures`, `states | query | render | install`, `privacy`,
-`ecus : profile : variants`, `tui | device`, `safety`, `expression : uds`, `config`, `core`.
+`ecus : profile : variants`, `tui | device`, `safety`, `expression : uds`, `config`, `core`
+(phase 7 then moved `tui` up to the layer right below `cli`).
 Some packages sit higher than section 6 puts them (`actions`, `broadcast`, `install`), because
 they import a package of the knot; they move down when it splits. The cuts, and where they
 deviate from section 4:
@@ -806,19 +807,35 @@ deviate from section 4:
 - Reading the `sensitive:` flag off a definition is `ecus/sensitivity.py`; masking and
   withholding stay in `privacy/sensitive.py`.
 
-Measured after phase 6 (`scripts/check/import_graph.py`, 2026-11-05):
+**Phase 7: the Textual apps. DONE** (2026-11-05, same branch). The five apps are in
+`tui/apps/` and `tui/` is the layer right below `cli/`, so only `tui/` imports Textual and the
+`textual` ignores are gone. The steps:
 
-| Measure | After phase 5 | After phase 6 |
+- The terminal size and the skip-key listener, which `live/` read from `tui/`, are
+  `core/terminal.py` and `core/skip_key.py`.
+- `mode_monitor` runs the screen `MonitorOptions.interactive` names; the monitor command passes
+  the Textual app. `pick_selectors` (which runs the picker) moved with the picker.
+- The models: `SniffStats` is `analysis/sniff_stats.py` and the sniff table
+  `render/sniff.py`. The decode plot's `PlotModel` and the capture stepper's `StepModel` are
+  view models that their commands also render off a TTY, so they sit beside their apps in
+  `tui/apps/` (`decode_plot_model.py`, `captures_step_model.py`, plus the modules they draw
+  with), in modules without Textual. Section 4 had `captures/step_model.py`, but the stepper's
+  gap labels need `analysis/`, which sits above `captures/`.
+- The data the stepper shares with the captures commands moved down: the entry keying and
+  session grouping are `captures/entries.py`, the write-layer rule `captures/layers.py`.
+
+Measured after phases 6 and 7 (`scripts/check/import_graph.py`, 2026-11-05):
+
+| Measure | After phase 5 | After phase 7 |
 |---|---:|---:|
 | Units in the largest import cycle | 18 | 3 (`ecus`, `profile`, `variants`) |
-| Deferred internal imports | 1,159 | 1,158 |
+| `ignore_imports` entries | 5 | 0 |
+| Modules outside `tui/` that import Textual | 5 | 0 |
+| Deferred internal imports | 1,159 | 1,154 |
 
 Left over:
 
-1. The five Textual apps (`cli/commands/_sniff_tui`, `captures/step_tui`, `decode/plot_tui`,
-   `live/_monitor_tui`, `_monitor_select_tui`) are not in `tui/apps/`. Each imports the model or
-   controller of its own command or operation, which `tui/` cannot import: split each model from
-   its app first. Then the `textual` ignores go.
+1. (Done in phase 7: the Textual apps are in `tui/apps/`.)
 2. Two cycles are left. **`ecus : profile : variants`** is the knot section 6 already keeps as one
    layer: a `Profile` knows its car (`Profile.meta` applies the variant's overrides,
    `Profile.revisions` asks `ecus.pids`, `set_active`/`active` apply the variant and clear the
