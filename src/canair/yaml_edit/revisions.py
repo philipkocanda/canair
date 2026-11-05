@@ -26,9 +26,11 @@ from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 from canair.captures import io as capture_io
 from canair.variants.revisions import (
     FINGERPRINT_KINDS,
+    canonical_revision,
     declared,
-    normalize_revision_id,
     revision_id_problem,
+    revision_key,
+    same_revision,
 )
 
 from .commit import restore, write_atomic
@@ -59,7 +61,7 @@ def _ecu_file(ecu: str, profile: Profile) -> tuple[Path, str]:
 
 
 def _checked_id(raw: str) -> str:
-    rid = normalize_revision_id(raw)
+    rid = str(raw).strip()
     if problem := revision_id_problem(rid):
         raise EcusEditError(problem)
     return rid
@@ -87,7 +89,7 @@ def _block(ecu_def: CommentedMap) -> CommentedMap:
 
 
 def _find(block: Mapping, rid: str) -> Any:
-    return find_key(block, rid, normalize_revision_id)
+    return find_key(block, revision_key(rid), revision_key)
 
 
 def add_revision(
@@ -288,7 +290,7 @@ def _override_nodes(ecu_def: Mapping, rid: str) -> list[Any]:
         n
         for n in _nodes(ecu_def)
         if isinstance(n.get("per_revision"), Mapping)
-        and any(normalize_revision_id(k) == rid for k in n["per_revision"])
+        and any(same_revision(k, rid) for k in n["per_revision"])
     ]
 
 
@@ -303,13 +305,12 @@ def find_revision_references(ecu: str, revision: str, profile: Profile) -> Revis
     from canair.ecus.pids import load_raw_pids
     from canair.variants import load_variants
 
-    rid = normalize_revision_id(revision)
-    refs = RevisionReferences()
     ecus = load_raw_pids(profile).get("ecus") or {}
     name = next((k for k in ecus if str(k).upper() == ecu.upper()), ecu)
-    ecu_def = ecus.get(name) or {}
+    ecu_def, refs = ecus.get(name) or {}, RevisionReferences()
+    rid = canonical_revision(revision, declared(ecu_def))
     refs.gates = sum(
-        1 for n in _gate_nodes(ecu_def) if rid in [normalize_revision_id(r) for r in n["revisions"]]
+        1 for n in _gate_nodes(ecu_def) if revision_key(rid) in map(revision_key, n["revisions"])
     ) + len(_override_nodes(ecu_def, rid))
     refs.variants = [
         vid for vid, v in load_variants(profile).items() if rid in (v.revisions.get(name) or ())
@@ -408,23 +409,23 @@ def rename_revision(
         key = _find(block, old_id)
         if key is None:
             raise EcusEditError(f"{name} declares no revision {old_id!r}")
-        if old_id != new_id and _find(block, new_id) is not None:
+        if not same_revision(old_id, new_id) and _find(block, new_id) is not None:
             raise EcusEditError(f"{name} already declares revision {new_id!r}")
         rename_key(block, key, new_id)
         for node in _gate_nodes(ecu_def):
             node["revisions"] = flow_seq(
-                [new_id if normalize_revision_id(r) == old_id else r for r in node["revisions"]]
+                [new_id if same_revision(r, old_id) else r for r in node["revisions"]]
             )
         for node in _override_nodes(ecu_def, old_id):
             over = node["per_revision"]
-            rename_key(over, find_key(over, old_id, normalize_revision_id), new_id)
+            rename_key(over, find_key(over, revision_key(old_id), revision_key), new_id)
 
     def retag(session: dict) -> bool:
         tags = session.get("revisions")
         if not isinstance(tags, dict):
             return False
         key = next((k for k in tags if str(k).upper() == name.upper()), None)
-        if key is None or tags[key] != old_id:
+        if key is None or not same_revision(tags[key], old_id):
             return False
         tags[key] = new_id
         return True
@@ -439,10 +440,9 @@ def rename_revision(
 
         for vid, variant in load_variants(prof).items():
             revs = variant.revisions.get(name)
-            if revs and old_id in revs:
-                set_variant_revisions(
-                    vid, name, [new_id if r == old_id else r for r in revs], profile=prof
-                )
+            if revs and revision_key(old_id) in map(revision_key, revs):
+                swapped = [new_id if same_revision(r, old_id) else r for r in revs]
+                set_variant_revisions(vid, name, swapped, profile=prof)
                 if prof.variants_file not in written:
                     written.append(prof.variants_file)
         written += _write_all(planned)

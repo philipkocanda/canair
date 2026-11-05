@@ -33,7 +33,7 @@
 #         cooling: str            #   e.g. air, liquid
 #       trims: [str, ...]         # optional — informational only, never a variant
 #       revisions:                # optional — ECU name -> the revisions of that ECU (its
-#         BMS: [kwp]              #   ecus/ file's revisions: keys) this car can carry; an
+#         BMS: [KWP]              #   ecus/ file's revisions: keys) this car can carry; an
 #                                 #   unlisted ECU may be any of its revisions
 #       profile_overrides:        # optional — profile.yaml settings that differ for this
 #         <setting>: value        #   car, replaced whole: car_model, physical_bands,

@@ -64,7 +64,7 @@ def _format_research_item(fields: dict, indent: int = 4) -> list[str]:
             joined = ", ".join(_format_label(t, flow=True) for t in _norm_states(val))
             lines.append(f"{prefix}{key}: [{joined}]")
         elif key == "revisions":
-            lines.append(f"{prefix}{key}: [{', '.join(str(r).strip().lower() for r in val)}]")
+            lines.append(f"{prefix}{key}: [{', '.join(str(r).strip() for r in val)}]")
         elif key in ("notes", "result", "capture_protocol"):
             block = _format_block_scalar(fld, key, str(val))
             block[0] = prefix + block[0][len(fld) :]

@@ -622,7 +622,7 @@
       ],
       "variant": "28kwh",
       "revisions": {
-        "BMS": "kwp"
+        "BMS": "KWP"
       },
       "attribution": {
         "variant": "selected",

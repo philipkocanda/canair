@@ -315,9 +315,9 @@ def set_variant_revisions(
     the shape is checked here like every other field.
     """
     vid = _checked_id(variant_id)
-    revs = [str(r).strip().lower() for r in (revisions or []) if str(r).strip()]
+    revs = [str(r).strip() for r in (revisions or []) if str(r).strip()]
     for rid in revs:
-        if problem := id_problem(rid, "revision", "uds"):
+        if problem := id_problem(rid, "revision", "UDS"):
             raise VariantsEditError(problem)
     with edit_doc(VARIANTS, profile, create=True) as doc:
         entry = _entry(doc, vid)

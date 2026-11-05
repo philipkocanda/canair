@@ -74,7 +74,7 @@ def configured_pins(profile: Profile) -> dict[str, str]:
     pins = entry.get("revisions") if isinstance(entry, dict) else None
     if not isinstance(pins, dict):
         return {}
-    return {str(ecu): str(rid).strip().lower() for ecu, rid in pins.items() if rid}
+    return {str(ecu): str(rid).strip() for ecu, rid in pins.items() if rid}
 
 
 def _revision_pins(profile: Profile, flags) -> tuple[tuple[str, str, PinSource], ...]:

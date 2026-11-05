@@ -8,12 +8,12 @@ validated and reverted on failure, and a rename rewrites every reference.
 
 Examples:
   canair ecu revisions VCU                         # list VCU's revisions
-  canair ecu revisions VCU add kwp --protocol KWP2000
-  canair ecu revisions VCU add uds --protocol UDS
-  canair ecu revisions VCU set-fingerprint kwp --responds 1A90
-  canair ecu revisions VCU set-fingerprint uds --identity part_number='36601-0E1*'
-  canair ecu revisions VCU rename uds uds-2018     # rewrites gates, variants, capture tags
-  canair ecu revisions VCU rm uds-2018             # refused while anything refers to it
+  canair ecu revisions VCU add KWP --protocol KWP2000
+  canair ecu revisions VCU add UDS --protocol UDS
+  canair ecu revisions VCU set-fingerprint KWP --responds 1A90
+  canair ecu revisions VCU set-fingerprint UDS --identity part_number='36601-0E1*'
+  canair ecu revisions VCU rename UDS UDS-2018     # rewrites gates, variants, capture tags
+  canair ecu revisions VCU rm UDS-2018             # refused while anything refers to it
   canair ecu set-variants HEATER 60kwh             # fitted only to the 60 kWh car
   canair ecu set-variants HEATER --clear           # fitted to every variant
 """
@@ -35,7 +35,12 @@ _EXAMPLES = __doc__.split("Examples:")[1]
 def cmd_list(args) -> int:
     from canair.ecus.pids import load_raw_pids, revision_resolutions
     from canair.variants import load_variants
-    from canair.variants.revisions import canonical_ecu, declared, describe_resolution
+    from canair.variants.revisions import (
+        canonical_ecu,
+        canonical_revision,
+        declared,
+        describe_resolution,
+    )
 
     ecus = load_raw_pids().get("ecus") or {}
     name = canonical_ecu(args.ecu, ecus)
@@ -50,7 +55,8 @@ def cmd_list(args) -> int:
     for pid_def in (ecu_def.get("pids") or {}).values():
         for node in [pid_def, *((pid_def or {}).get("parameters") or {}).values()]:
             for r in (node or {}).get("revisions") or []:
-                gated[str(r).lower()] = gated.get(str(r).lower(), 0) + 1
+                rid = canonical_revision(r, revs)
+                gated[rid] = gated.get(rid, 0) + 1
     allowed_by = {
         r: [vid for vid, v in load_variants().items() if r in (v.revisions.get(name) or revs)]
         for r in revs
@@ -188,7 +194,7 @@ def add_parsers(kinds) -> None:
     lst.set_defaults(func=cmd_list)
 
     add = sub.add_parser("add", help="Declare a revision (the first declared is the reference)")
-    add.add_argument("revision", metavar="ID", help="Revision ID naming what differs (kwp, uds)")
+    add.add_argument("revision", metavar="ID", help="Revision ID naming what differs (KWP, UDS)")
     add.add_argument("--protocol", help="The revision's identity protocol (UDS | KWP2000)")
     add.set_defaults(func=cmd_add)
 

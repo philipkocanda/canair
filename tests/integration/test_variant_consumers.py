@@ -156,7 +156,7 @@ class TestExplorer:
 
         data = export_profile(REPO / "profiles" / "hyundai-ioniq-ae-ev")
         bms = next(e for e in data["ecus"] if e["name"] == "BMS")
-        uds = [p for p in bms["pids"] if p.get("revisions") == ["uds"]]
+        uds = [p for p in bms["pids"] if p.get("revisions") == ["UDS"]]
         assert {p["id"] for p in uds} == {"220101", "220105"}
         assert not any(s["verified"] for p in uds for s in p["signals"])
 

@@ -34,7 +34,7 @@ options:
   canair variants set-meta 38kwh "also_known_as=Ioniq vFL,Ioniq facelift"
   canair variants unset-meta 28kwh trims
   canair variants set-meta 38kwh profile_overrides.car_model="Ioniq Electric 38 kWh"
-  canair variants set-revisions 38kwh BMS uds        # the 38 kWh car's BMS is the UDS one
+  canair variants set-revisions 38kwh BMS UDS        # the 38 kWh car's BMS is the UDS one
   canair variants rename 28kwh 28kwh-eu
   canair variants rm 38kwh
 ```

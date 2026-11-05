@@ -6,7 +6,7 @@ keyed by profile and variant::
 
     hyundai-ioniq-ae-ev:
       38kwh:
-        BMS: uds
+        BMS: UDS
 
 It is a fact about *your* car, so it lives beside the user config, never in the profile
 (it is not contributed). A pin always outranks it; a later identity read that

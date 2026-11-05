@@ -11,11 +11,11 @@ variants:
     markets: [EU, US, KR]
     battery: {usable_kwh: 28, series_cells: 96, chemistry: Li-polymer, cooling: air}
     revisions:
-      BMS: [kwp]
+      BMS: [KWP]
     status: verified
     sources: ["this profile's own captures (a 2017 car, NL market)"]
     notes: >-
-      The car's own ECUs report the model code (BMS 1A90: AEEV__ BMS). Its BMS is the kwp revision;
+      The car's own ECUs report the model code (BMS 1A90: AEEV__ BMS). Its BMS is the KWP revision;
       the BMS ROM IDs 4604, 4804 and 4824 by production month are that revision's fingerprints
       (ecus/bms.yaml).
   38kwh:
@@ -27,7 +27,7 @@ variants:
     production: ["2019-06", "2022"]
     battery: {usable_kwh: 38.3, gross_kwh: 40.4, series_cells: 88, chemistry: Li-polymer NMC622, cooling: liquid}
     revisions:
-      BMS: [uds]
+      BMS: [UDS]
     status: seed
     sources:
     - >-
@@ -49,7 +49,7 @@ variants:
       parallel cells, 176 cells), 40.4 kWh gross and 38.3 kWh usable, 319.4 V nominal (Hyundai's
       figure; EVDB lists 325 V), 400 V architecture. OVMS supports it with its Kona/e-Niro module,
       whose docs say the Ioniq FL differs from those only by its 38 kWh capacity, so its BMS is the
-      uds revision: the Kona's 220101/220105 reads, ported unverified. It becomes a separate profile
+      UDS revision: the Kona's 220101/220105 reads, ported unverified. It becomes a separate profile
       if one discovery and identity session on a facelift car shows other ECU addresses or a gateway
       in front of the OBD port, body ECUs (IGPM, BCM, CLU, HVAC) that don't answer the 28 kWh PIDs
       with the same layouts, or power states that need other vehicle states.

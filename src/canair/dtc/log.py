@@ -23,7 +23,7 @@ response address only (:mod:`canair.dtc.refs`); its name comes from the profile:
             C182C-00: [{record: 1, hex: 5904582C0008010147…}]
       unread: ['0x7AD']          # full sweep only: ECUs that gave no DTC list
       variant: 28kwh             # the car (a variants.yaml ID), when one is selected
-      revisions: {VCU: kwp}      # determined revisions of multi-revision ECUs
+      revisions: {VCU: KWP}      # determined revisions of multi-revision ECUs
     clears:
     - timestamp: '2026-07-22T16:02:11'
       rx: '0x7EC'                # the ECU `canair dtc --clear` cleared
@@ -366,7 +366,7 @@ def format_diff(diff: dict, previous: Mapping, refs: EcuRefs | None = None) -> l
 
 
 def describe_car(entry: Mapping) -> str | None:
-    """``variant 28kwh · VCU kwp`` for a tagged entry, None for an untagged one."""
+    """``variant 28kwh · VCU KWP`` for a tagged entry, None for an untagged one."""
     parts = [f"variant {entry['variant']}"] if entry.get("variant") else []
     revisions = entry.get("revisions")
     if isinstance(revisions, Mapping):

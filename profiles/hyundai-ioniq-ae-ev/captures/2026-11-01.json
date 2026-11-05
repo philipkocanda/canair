@@ -72,7 +72,7 @@
       "transport": "wican-ws",
       "variant": "28kwh",
       "revisions": {
-        "BMS": "kwp"
+        "BMS": "KWP"
       },
       "attribution": {
         "variant": "selected",
@@ -94,7 +94,7 @@
       "transport": "wican-ws",
       "variant": "28kwh",
       "revisions": {
-        "BMS": "kwp"
+        "BMS": "KWP"
       },
       "attribution": {
         "variant": "selected",
@@ -116,7 +116,7 @@
       "transport": "wican-ws",
       "variant": "28kwh",
       "revisions": {
-        "BMS": "kwp"
+        "BMS": "KWP"
       },
       "attribution": {
         "variant": "selected",
@@ -138,7 +138,7 @@
       "transport": "wican-ws",
       "variant": "28kwh",
       "revisions": {
-        "BMS": "kwp"
+        "BMS": "KWP"
       },
       "attribution": {
         "variant": "selected",
@@ -160,7 +160,7 @@
       "transport": "wican-ws",
       "variant": "28kwh",
       "revisions": {
-        "BMS": "kwp"
+        "BMS": "KWP"
       },
       "attribution": {
         "variant": "selected",
@@ -182,7 +182,7 @@
       "transport": "wican-ws",
       "variant": "28kwh",
       "revisions": {
-        "BMS": "kwp"
+        "BMS": "KWP"
       },
       "attribution": {
         "variant": "selected",
@@ -205,7 +205,7 @@
       "transport": "import",
       "variant": "28kwh",
       "revisions": {
-        "BMS": "kwp"
+        "BMS": "KWP"
       },
       "attribution": {
         "variant": "selected",
@@ -228,7 +228,7 @@
       "transport": "import",
       "variant": "28kwh",
       "revisions": {
-        "BMS": "kwp"
+        "BMS": "KWP"
       },
       "attribution": {
         "variant": "selected",
@@ -251,7 +251,7 @@
       "transport": "import",
       "variant": "28kwh",
       "revisions": {
-        "BMS": "kwp"
+        "BMS": "KWP"
       },
       "attribution": {
         "variant": "selected",
@@ -397,7 +397,7 @@
       },
       "variant": "28kwh",
       "revisions": {
-        "BMS": "kwp"
+        "BMS": "KWP"
       },
       "attribution": {
         "variant": "selected",
@@ -437,7 +437,7 @@
       },
       "variant": "28kwh",
       "revisions": {
-        "BMS": "kwp"
+        "BMS": "KWP"
       },
       "attribution": {
         "variant": "selected",

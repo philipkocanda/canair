@@ -29,14 +29,14 @@ BMS:
       Answers 3E00 with NRC 0x11 (TesterPresent unsupported), physically and functionally (READY,
       2026-11-03), so canair sends it no keepalive: only reads keep a BMS session open.
   revisions:
-    kwp:
+    KWP:
       identity: {id_protocol: KWP2000}
       fingerprints:
         - {responds: "1A90"}
         - {identity: {calibration: "4604"}}
         - {identity: {calibration: "4804"}}
         - {identity: {calibration: "4824"}}
-    uds:
+    UDS:
       identity: {id_protocol: UDS}
       fingerprints:
         - {responds: "22F187"}
@@ -47,7 +47,7 @@ BMS:
       response_frames: 9
       status: active
       period: 1000
-      revisions: [kwp]
+      revisions: [KWP]
       vehicle_states: [IG3]
       verified: true
       parameters:
@@ -381,7 +381,7 @@ BMS:
       response_frames: 7
       status: active
       period: 10000
-      revisions: [kwp]
+      revisions: [KWP]
       vehicle_states: [IG3]
       verified: true
       parameters:
@@ -535,7 +535,7 @@ BMS:
       response_frames: 6
       status: active
       period: 60000
-      revisions: [kwp]
+      revisions: [KWP]
       vehicle_states: [IG3]
       unit: V
       min: "0"
@@ -616,7 +616,7 @@ BMS:
       response_frames: 6
       status: active
       period: 60000
-      revisions: [kwp]
+      revisions: [KWP]
       vehicle_states: [IG3]
       unit: V
       min: "0"
@@ -694,7 +694,7 @@ BMS:
       response_frames: 6
       status: active
       period: 60000
-      revisions: [kwp]
+      revisions: [KWP]
       vehicle_states: [IG3]
       unit: V
       min: "0"
@@ -770,7 +770,7 @@ BMS:
     21F2:
       status: slow
       period: 300000
-      revisions: [kwp]
+      revisions: [KWP]
       response_frames: 18
       vehicle_states: [READY]
       notes: >-
@@ -1002,9 +1002,9 @@ BMS:
           notes: Minutes of the previous cycle spent at 0-10 % SOC.
     220101:
       status: active
-      revisions: [uds]
+      revisions: [UDS]
       notes: >-
-        38 kWh facelift (uds revision): Kona-family BMS, same DID layout as the Kona's. Every offset
+        38 kWh facelift (UDS revision): Kona-family BMS, same DID layout as the Kona's. Every offset
         is the 2101 one shifted by the DID echo's extra byte. Unverified: no facelift capture yet.
       source: Kona BMS (hyundai-kona-os-ev, OBDb offsets); the Ioniq FL BMS is Kona-family (OVMS)
       source_links:
@@ -1111,9 +1111,9 @@ BMS:
     220105:
       status: active
       period: 10000
-      revisions: [uds]
+      revisions: [UDS]
       notes: >-
-        38 kWh facelift (uds revision): Kona-family BMS, same DID layout as the Kona's. Every offset
+        38 kWh facelift (UDS revision): Kona-family BMS, same DID layout as the Kona's. Every offset
         is the 2101 one shifted by the DID echo's extra byte. Unverified: no facelift capture yet.
       source: Kona BMS (hyundai-kona-os-ev, OBDb offsets); the Ioniq FL BMS is Kona-family (OVMS)
       source_links:

@@ -7,15 +7,15 @@ older car. An ECU file declares its revisions, the first being the reference::
     VCU:
       tx_id: 0x7E2
       revisions:
-        kwp:
+        KWP:
           identity: {id_protocol: KWP2000}
           fingerprints: [{responds: "1A90"}]
-        uds:
+        UDS:
           identity: {id_protocol: UDS}
       variants: [28kwh]            # ECU presence: only these cars have it (absent: all)
       pids:
         "2101":
-          revisions: [kwp]         # applicability: only this revision answers it
+          revisions: [KWP]         # applicability: only this revision answers it
           parameters: {...}
 
 A revision carries ECU-level overrides from a whitelist (:data:`OVERRIDE_FIELDS`) plus
@@ -42,7 +42,13 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
-from canair.variants import id_problem as _id_problem
+from canair.variants.revision_ids import (
+    canonical_revision,
+    normalize_revision_id,
+    revision_id_problem,
+    revision_key,
+    same_revision,
+)
 
 if TYPE_CHECKING:
     from canair.variants import Variant
@@ -80,14 +86,6 @@ class RevisionError(ValueError):
     """A pin or a reference names a revision that cannot be."""
 
 
-def normalize_revision_id(value: object) -> str:
-    return str(value).strip().lower()
-
-
-def revision_id_problem(rid: str) -> str | None:
-    return _id_problem(rid, "revision", "uds")
-
-
 def declared(ecu_def: Any) -> list[str]:
     """The ECU's revision IDs in file order (the first is the reference), or []."""
     block = ecu_def.get("revisions") if isinstance(ecu_def, Mapping) else None
@@ -99,7 +97,7 @@ def declared(ecu_def: Any) -> list[str]:
 def revision_entry(ecu_def: Mapping, rid: str) -> Mapping:
     block = ecu_def.get("revisions") or {}
     for key, value in block.items():
-        if normalize_revision_id(key) == rid:
+        if revision_key(key) == revision_key(rid):
             return value if isinstance(value, Mapping) else {}
     return {}
 
@@ -147,7 +145,7 @@ def parse_pin(text: str) -> tuple[str, str]:
     """``ECU=ID`` → ``(ECU, id)``; raises :class:`RevisionError` on another shape."""
     ecu, sep, rid = str(text).partition("=")
     if not sep or not ecu.strip() or not rid.strip():
-        raise RevisionError(f"expected ECU=REVISION (e.g. BMS=uds), got {text!r}")
+        raise RevisionError(f"expected ECU=REVISION (e.g. BMS=UDS), got {text!r}")
     return ecu.strip(), normalize_revision_id(rid)
 
 
@@ -185,6 +183,7 @@ def resolve(
         revs = declared(ecus[name])
         if not revs:
             raise RevisionError(f"{origin} pins {name}={rid}, but {name} declares no revisions")
+        rid = canonical_revision(rid, revs)
         if rid not in revs:
             raise RevisionError(
                 f"{origin} pins {name}={rid}, which {name} does not declare "
@@ -212,8 +211,9 @@ def resolve(
             out[name] = Resolution(name, rid, source, possible)
         elif len(possible) == 1:
             out[name] = Resolution(name, possible[0], "only", possible)
-        elif detected.get(name.upper()) in possible:
-            out[name] = Resolution(name, detected[name.upper()], "detected", possible)
+        elif canonical_revision(detected.get(name.upper(), ""), possible) in possible:
+            found = canonical_revision(detected[name.upper()], possible)
+            out[name] = Resolution(name, found, "detected", possible)
         else:
             out[name] = Resolution(name, None, None, possible)
     return out
@@ -255,7 +255,7 @@ def _overridden(ecu_def: Mapping, rid: str) -> dict:
     return out
 
 
-# Fields a PID may set per revision (``per_revision: {uds: {...}}``), and a signal.
+# Fields a PID may set per revision (``per_revision: {UDS: {...}}``), and a signal.
 PID_OVERRIDE_FIELDS: tuple[str, ...] = (
     "period",
     "response_frames",
@@ -297,7 +297,7 @@ def _override(node: Mapping, rid: str | None) -> Mapping:
     block = node.get("per_revision") if isinstance(node, Mapping) else None
     if not isinstance(block, Mapping) or rid is None:
         return {}
-    entry = next((v for k, v in block.items() if normalize_revision_id(k) == rid), None)
+    entry = next((v for k, v in block.items() if same_revision(k, rid)), None)
     return entry if isinstance(entry, Mapping) else {}
 
 
@@ -567,7 +567,7 @@ def check_ecu(
                 where = f"{label}/revisions/{raw_id}"
                 if problem := revision_id_problem(rid):
                     errors.append(f"{where}: {problem}")
-                if rid in revs:
+                if revision_key(rid) in map(revision_key, revs):
                     errors.append(f"{where}: duplicate revision ID")
                 revs.append(rid)
                 errors += _entry_errors(where, entry, identity_fields or set(), valid_protocols)

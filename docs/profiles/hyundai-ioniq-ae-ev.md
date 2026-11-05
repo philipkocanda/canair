@@ -26,8 +26,8 @@ canair profile use hyundai-ioniq-ae-ev --variant 28kwh   # or 38kwh — see belo
 | `38kwh` | 2019-06 – 2022 | **Seed**: nothing verified on a real car yet |
 
 The facelift's battery management follows the Kona/e-Niro family, so its BMS is a different
-[revision](../concepts/variants.md#ecu-revisions) of the ECU: `uds`, which answers the UDS
-`220101`/`220105` pages, where the 28 kWh car's `kwp` BMS answers `2101`–`2105`. Those `uds`
+[revision](../concepts/variants.md#ecu-revisions) of the ECU: `UDS`, which answers the UDS
+`220101`/`220105` pages, where the 28 kWh car's `KWP` BMS answers `2101`–`2105`. Those `UDS`
 pages are ported from the [Kona profile](https://github.com/philipkocanda/canair/tree/main/profiles/hyundai-kona-os-ev) and all **unverified**, so the
 default (verified-only) AutoPID build ships none of them. Every other ECU — the body,
 chassis and climate modules — is shared and assumed to behave the same, also unverified on a

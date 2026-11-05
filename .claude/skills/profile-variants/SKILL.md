@@ -78,14 +78,14 @@ variant before new profile.
   is another *fingerprint* of an existing revision (`identity:` globs, or `responds:` — a safe
   identity read only that revision answers). An identity that matches no fingerprint is a
   question to investigate, not a new revision.
-- **Name it by what differs** (`kwp`/`uds`, `150s`), local to the ECU, never a year. The first
+- **Name it by what differs** (`KWP`/`UDS`, `150s`), local to the ECU, never a year. The first
   declared revision is the reference.
-- **Gate what differs, nothing more.** `pids set-revisions ECU:PID uds` (or `ECU:PID:SIGNAL`) on
+- **Gate what differs, nothing more.** `pids set-revisions ECU:PID UDS` (or `ECU:PID:SIGNAL`) on
   the PIDs and signals only one revision has; leave shared ones ungated. Keep a signal's *name*
   across revisions (two PIDs may ship one name when their revisions are disjoint), so predicates,
   groups and Home Assistant keep working — `validate states` checks every predicate on every car
   and revision.
-- **Let the variant narrow it**: `variants set-revisions 38kwh BMS uds` when a car can only have
+- **Let the variant narrow it**: `variants set-revisions 38kwh BMS UDS` when a car can only have
   one; an ECU only some cars have gets `ecu set-variants`.
 - **Fingerprints**: prefer `responds:` — a safe identity read only that revision answers
   (`1A90` for a KWP2000 ECU, `22F187` for a UDS one); it survives part-number churn and is what

@@ -20,7 +20,7 @@ Examples:
   canair variants set-meta 38kwh "also_known_as=Ioniq vFL,Ioniq facelift"
   canair variants unset-meta 28kwh trims
   canair variants set-meta 38kwh profile_overrides.car_model="Ioniq Electric 38 kWh"
-  canair variants set-revisions 38kwh BMS uds        # the 38 kWh car's BMS is the UDS one
+  canair variants set-revisions 38kwh BMS UDS        # the 38 kWh car's BMS is the UDS one
   canair variants rename 28kwh 28kwh-eu
   canair variants rm 38kwh
 """
@@ -157,10 +157,10 @@ def cmd_unset_meta(args) -> int:
 
 def cmd_set_revisions(args) -> int:
     from canair.ecus.pids import load_raw_pids
-    from canair.variants.revisions import canonical_ecu, declared
+    from canair.variants.revisions import canonical_ecu, canonical_revision, declared
     from canair.yaml_edit.variants import set_variant_revisions
 
-    revs = [r.strip().lower() for part in args.revisions for r in part.split(",") if r.strip()]
+    revs = [r.strip() for part in args.revisions for r in part.split(",") if r.strip()]
     if args.clear == bool(revs):
         raise EditError("give the revisions, or --clear")
     ecus = load_raw_pids().get("ecus") or {}
@@ -168,6 +168,7 @@ def cmd_set_revisions(args) -> int:
     if ecu is None:
         raise EditError(f"no ECU {args.ecu!r} in ecus/")
     have = declared(ecus[ecu])
+    revs = [canonical_revision(r, have) for r in revs]
     unknown = [r for r in revs if r not in have]
     if unknown:
         raise EditError(

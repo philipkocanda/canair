@@ -223,12 +223,12 @@ options:
 
 examples:
   canair ecu revisions VCU                         # list VCU's revisions
-  canair ecu revisions VCU add kwp --protocol KWP2000
-  canair ecu revisions VCU add uds --protocol UDS
-  canair ecu revisions VCU set-fingerprint kwp --responds 1A90
-  canair ecu revisions VCU set-fingerprint uds --identity part_number='36601-0E1*'
-  canair ecu revisions VCU rename uds uds-2018     # rewrites gates, variants, capture tags
-  canair ecu revisions VCU rm uds-2018             # refused while anything refers to it
+  canair ecu revisions VCU add KWP --protocol KWP2000
+  canair ecu revisions VCU add UDS --protocol UDS
+  canair ecu revisions VCU set-fingerprint KWP --responds 1A90
+  canair ecu revisions VCU set-fingerprint UDS --identity part_number='36601-0E1*'
+  canair ecu revisions VCU rename UDS UDS-2018     # rewrites gates, variants, capture tags
+  canair ecu revisions VCU rm UDS-2018             # refused while anything refers to it
   canair ecu set-variants HEATER 60kwh             # fitted only to the 60 kWh car
   canair ecu set-variants HEATER --clear           # fitted to every variant
 ```

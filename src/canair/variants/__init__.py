@@ -13,7 +13,7 @@ diagnostics. ``variants.yaml`` gives each variant a stable ID and typed metadata
         status: verified
 
 The file is optional. Beside its metadata a variant may say which ECU revisions the car
-can carry (``revisions: {BMS: [kwp]}``, see :mod:`canair.variants.revisions`) and which
+can carry (``revisions: {BMS: [KWP]}``, see :mod:`canair.variants.revisions`) and which
 ``profile.yaml`` settings differ for it (``profile_overrides:``, a whitelist). The field
 lists and the structural check live here once, shared by the loader, ``canair validate
 variants`` and the editor (:mod:`canair.yaml_edit.variants`), so a field one accepts is never
@@ -41,6 +41,7 @@ if TYPE_CHECKING:
 # Local to its profile, so it names only what differs (``28kwh``, not ``ioniq-ev-28``).
 # At least one letter: a bare number would read back as an integer YAML key.
 _ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_REVISION_ID_RE = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$")
 _YEAR_MONTH_RE = re.compile(r"^\d{4}(-(0[1-9]|1[0-2]))?$")
 # A battery-named ID (``28kwh``, ``38kwh-us``) states its usable capacity.
 _BATTERY_ID_RE = re.compile(r"^(\d+)kwh(?:-|$)")
@@ -158,8 +159,15 @@ def id_problem(variant_id: str, noun: str = "variant", example: str = "28kwh") -
     """Why ``variant_id`` is not a valid ID, or ``None`` when it is.
 
     Revision IDs follow the same rule (``noun="revision"``): local to their ECU, naming
-    only what differs.
+    only what differs. They may also use capitals (``UDS``), which keep their case.
     """
+    if noun == "revision":
+        if not _REVISION_ID_RE.match(variant_id) or not re.search(r"[A-Za-z]", variant_id):
+            return (
+                f"invalid revision ID {variant_id!r}: letters and digits in '-'-separated "
+                f"words, with at least one letter (e.g. {example})"
+            )
+        return None
     if not _ID_RE.match(variant_id) or not re.search(r"[a-z]", variant_id):
         return (
             f"invalid {noun} ID {variant_id!r}: lower-case letters and digits in '-'-separated "
@@ -233,11 +241,11 @@ def _revisions_problem(value: Any) -> str | None:
             return f"has a non-text ECU name {ecu!r}"
         if not isinstance(revs, list) or not revs:
             return f"'{ecu}' must list at least one revision ID"
-        ids = [str(r).strip().lower() for r in revs]
+        ids = [str(r).strip() for r in revs]
         for rid in ids:
-            if problem := id_problem(rid, "revision", "uds"):
+            if problem := id_problem(rid, "revision", "UDS"):
                 return f"'{ecu}': {problem}"
-        if len(set(ids)) != len(ids):
+        if len({i.casefold() for i in ids}) != len(ids):
             return f"'{ecu}' lists a revision twice"
     return None
 
@@ -347,7 +355,7 @@ def _variant_from(vid: str, entry: Mapping[str, Any]) -> Variant:
         sources=tuple(entry.get("sources") or ()),
         notes=entry.get("notes"),
         revisions={
-            str(ecu): tuple(str(r).strip().lower() for r in revs)
+            str(ecu): tuple(str(r).strip() for r in revs)
             for ecu, revs in (entry.get("revisions") or {}).items()
         },
         profile_overrides=dict(entry.get("profile_overrides") or {}),
