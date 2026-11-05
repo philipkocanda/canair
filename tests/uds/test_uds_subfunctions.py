@@ -22,6 +22,7 @@ SERVICE_OF: dict[type[IntEnum], int] = {
     KwpSessionType: 0x10,
     DtcReportType: 0x19,
     IoControlParameter: 0x2F,
+    KwpIoControlParameter: 0x30,
     RoutineControlType: 0x31,
 }
 
@@ -40,15 +41,12 @@ def test_every_constant_names_its_table_entry(member):
     assert name is not None and _words(name) == _words(member.name)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="0x30 is named with the UDS 0x2F values; SSF 14230-3 differs from 0x01 up "
-    "(plans/2026-11-05-named-protocol-constants.md, phase 3)",
-)
-def test_kwp_io_control_parameters_match_their_names():
-    for member in KwpIoControlParameter:
-        name = subfunction_name(0x30, member)
-        assert name is not None and _words(name) == _words(member.name)
+def test_kwp_io_control_is_not_named_with_the_uds_values():
+    # SSF 14230-3 0x01 is reportCurrentState; the UDS 0x2F 0x01 is resetToDefault.
+    assert subfunction_name(0x30, KwpIoControlParameter.REPORT_CURRENT_STATE) == (
+        "reportCurrentState"
+    )
+    assert subfunction_name(0x2F, IoControlParameter.RESET_TO_DEFAULT) == "resetToDefault"
 
 
 def test_a_member_is_its_byte():

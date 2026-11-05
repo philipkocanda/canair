@@ -60,8 +60,9 @@ class KwpIoControlParameter(IntEnum):
 
     ISO 14230-3 leaves the byte to the manufacturer, and no make is known to follow SSF
     14230-3 here (see :mod:`canair.live.kwp_iocontrol_scan`). The values are named so a
-    refusal can say what it refused. 0x0A-0xF9 are vehicleManufacturerSpecific and 0xFA-0xFE
-    systemSupplierSpecific.
+    refusal can say what it refused. 0x09 (an I/O calibration report) is left unnamed until
+    its name is checked against the standard; 0x0A-0xF9 are vehicleManufacturerSpecific and
+    0xFA-0xFE systemSupplierSpecific.
     """
 
     RETURN_CONTROL_TO_ECU = 0x00
@@ -70,10 +71,9 @@ class KwpIoControlParameter(IntEnum):
     REPORT_IO_SCALING = 0x03
     RESET_TO_DEFAULT = 0x04  # actuates
     FREEZE_CURRENT_STATE = 0x05  # actuates
-    EXECUTE_CONTROL_STATE = 0x06  # actuates
+    EXECUTE_CONTROL_OPTION = 0x06  # actuates
     SHORT_TERM_ADJUSTMENT = 0x07  # actuates
     LONG_TERM_ADJUSTMENT = 0x08  # actuates and writes non-volatile memory
-    REPORT_CALIBRATION = 0x09
 
 
 class RoutineControlType(IntEnum):
@@ -162,10 +162,20 @@ SUBFUNCTION_NAMES: dict[int, dict[int, str]] = {
     # ControlDTCSetting — DTCSettingType.
     0x85: {0x01: "on", 0x02: "off"},
 }
-# KWP2000 InputOutputControlByLocalIdentifier is named with the UDS 0x2F values. From 0x01 up
-# that disagrees with KwpIoControlParameter (SSF 14230-3): see phase 3 of
-# plans/2026-11-05-named-protocol-constants.md.
-SUBFUNCTION_NAMES[0x30] = SUBFUNCTION_NAMES[0x2F]
+# KWP2000 InputOutputControlByLocalIdentifier's control parameter, per SSF 14230-3. It shares
+# returnControlToECU with UDS 0x2F, and no other value: SSF's 0x01 reportCurrentState is UDS
+# 0x2F's resetToDefault.
+SUBFUNCTION_NAMES[0x30] = {
+    0x00: "returnControlToECU",
+    0x01: "reportCurrentState",
+    0x02: "reportIOConditions",
+    0x03: "reportIOScaling",
+    0x04: "resetToDefault",
+    0x05: "freezeCurrentState",
+    0x06: "executeControlOption",
+    0x07: "shortTermAdjustment",
+    0x08: "longTermAdjustment",
+}
 
 
 def subfunction_name(request_sid: int, value: int) -> str | None:
