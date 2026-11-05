@@ -1,6 +1,6 @@
 # Code organization, part 1: gates and drift
 
-Status: **PROPOSED** (2026-11-05). Part of
+Status: **DONE** (2026-11-05, branch `refactor/co-1-gates`; see "As built"). Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on nothing. Every
 other sub-plan depends on this one, because it makes `main` green again.
 
@@ -101,3 +101,27 @@ One commit for each step.
 
 - The bare dotted names in `AGENTS.md` that are not paths (for example `MonitorController.rebind`).
   The path check cannot resolve them reliably. Sub-plan 10 removes most of them.
+
+## As built
+
+- **Step 1** was already done on the integration branch before this work started:
+  `tui/apps/monitor_dialogs.py` and `monitor_overlays.py` exist, `monitor.py` is 919 lines and
+  `cli/commands/scan.py` is 618. `make structure` passed at the start, so no commit was needed.
+- **Step 2.** The `structure-tests` hook runs `uv run pytest -n0 -q
+  tests/contracts/test_structure.py` (2.6 s). A throwaway commit that added 12 lines to
+  `analysis/counters.py` failed in this hook, as the acceptance list asks.
+- **Step 3.** As planned. `live/monitor.py` lost its `__getattr__` (15 lines).
+- **Step 4.** The paths in `AGENTS.md` now start with `src/canair/`, so the path check covers
+  them.
+- **Step 5.** The row for `cli/commands/` says "`<cmd>.py`, or `<cmd>/` when it has several
+  modules", because most commands are one file.
+- **Step 6.** One commit. The oversize-baseline key and the test file moved with the module. The
+  test file is now `tests/analysis/test_cross_signal.py` (it was in `tests/cli/commands/`, where it
+  did not mirror the code). Codemod: `codemods/p1/rename_xanalysis.sh` (in the shared temporary
+  directory).
+- **Step 7** did not apply: the directory does not exist in the worktree.
+- **Step 8.** `scripts/check/doc_paths.py` runs in CI, at pre-push, in `make structure` and as
+  a test (`tests/scripts/test_doc_paths.py`, which also scans the repository). It started with
+  235 `src/canair` references and found 5 stale ones in two skills and `docs/development/index.md`
+  (the other stale paths were fixed by steps 4 and 6). It checks only paths that start with
+  `src/canair/` or `tests/`, so a relative form such as `captures/io.py::x` is not checked.
