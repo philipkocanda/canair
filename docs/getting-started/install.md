@@ -106,21 +106,34 @@ includes the full `install` block (`running_origin`, `running_build`, `tool_vers
 
 ### The version tells you which build you're running
 
-An installed release *is* its version — `uv tool install` snapshots the clone at a
-release tag, so `1.15.0` identifies that code exactly. A run from a clone is not
-any release; it's whatever is checked out. So when canair is running from a git
-working tree it says so, naming the branch and short commit:
+The bare package version can't tell builds apart: a release, a clone with local
+edits and a wheel built from a feature branch would all say `1.15.0`. So
+`canair --version` (or `-V`) names the branch and short commit unless the code is
+exactly a release (a clean tree at the `v1.15.0` tag), and then says where the
+copy came from:
 
 ```console
 $ canair --version
-canair 1.15.0+main.343b244          # a clone, on `main`, at commit 343b244
-canair 1.15.0+main.343b244.dirty    # … with uncommitted edits to tracked files
-canair 1.15.0                       # an installed release
+# uv run in a clone, on `main` at commit 343b244 (".dirty" with uncommitted edits)
+canair 1.15.0+main.343b244 (from source)
+# uv tool install . from the same clone
+canair 1.15.0+main.343b244 (local build 343b244, 2026-11-05 10:12 UTC)
+# after canair update: a clean build of the release tag
+canair 1.15.0 (local build 9f2c1d0, 2026-11-05 10:12 UTC)
+# a wheel built by GitHub Actions
+canair 1.15.0 (CI build 9f2c1d0, 2026-11-05 10:12 UTC)
 ```
 
-The same string shows up in `canair status`, `canair update`, and — most usefully
-— in every capture you record, so a suspect reading can be traced back to the
-exact code that produced it. Release comparisons ignore the suffix, so a dev
+A run from source reads its git checkout live. An installed copy reads the build
+stamp that the build hook (`hatch_build.py`) writes into every wheel: commit,
+branch, release tag, dirty flag, build time and builder. A copy installed some
+other way, without a stamp, says `installed, no build info`. `canair update --json`
+has the structured form under `install.build`, with the CI run's URL for a CI
+build.
+
+The version string shows up in `canair status`, `canair update`, and — most
+usefully — in every capture you record, so a suspect reading can be traced back to
+the exact code that produced it. Release comparisons ignore the suffix, so a dev
 checkout still gets an accurate "up to date" verdict.
 
 

@@ -242,6 +242,8 @@ def _print_install_context(c, install: dict) -> None:
     origin = install["running_origin"]
     c.print(f"  running:  {_origin_label(origin)}")
     c.print(f"  [dim]  from {install['running_package_dir']}[/dim]")
+    if origin != "repo":
+        c.print(f"  built:    {build_info.build_summary()}")
 
     tool_version = install["tool_version"]
     clone_version = install["clone_version"]

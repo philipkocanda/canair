@@ -9,7 +9,12 @@ there's no checkout to describe.
 
 from __future__ import annotations
 
+import ast
+import json
 import subprocess
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -223,3 +228,230 @@ class TestRunningClone:
         monkeypatch.setattr(ic, "running_origin", lambda: "repo")
         monkeypatch.setattr(ic, "running_package_dir", lambda: tmp_path / "canair")
         assert bi.running_clone() == tmp_path
+
+
+class TestReleaseTag:
+    def test_a_clean_tree_at_the_release_tag_is_the_release(self):
+        build = bi.GitBuild(branch=None, commit="343b244", dirty=False, tag="v1.2.3")
+        assert build.is_release_of("1.2.3") is True
+
+    def test_a_dirty_tree_at_the_tag_is_not(self):
+        build = bi.GitBuild(branch=None, commit="343b244", dirty=True, tag="v1.2.3")
+        assert build.is_release_of("1.2.3") is False
+
+    def test_another_versions_tag_is_not(self):
+        build = bi.GitBuild(branch=None, commit="343b244", dirty=False, tag="v1.2.2")
+        assert build.is_release_of("1.2.3") is False
+
+    def test_full_version_drops_the_suffix_for_a_release(self, monkeypatch):
+        import canair
+
+        monkeypatch.setattr(
+            bi,
+            "running_build",
+            lambda: bi.GitBuild(branch=None, commit="343b244", dirty=False, tag="v1.2.3"),
+        )
+        monkeypatch.setattr(canair, "__version__", "1.2.3")
+        assert bi.full_version() == "1.2.3"
+
+    def test_running_build_looks_up_the_tag_of_a_clean_checkout(self, tmp_path, monkeypatch):
+        git = _init_repo(tmp_path)
+        git("tag", "v1.2.3")
+        monkeypatch.setattr(bi, "running_clone", lambda: tmp_path)
+        build = bi.running_build()
+        assert build is not None
+        assert build.tag == "v1.2.3"
+
+    def test_running_build_skips_the_tag_lookup_for_a_dirty_checkout(self, tmp_path, monkeypatch):
+        git = _init_repo(tmp_path)
+        (tmp_path / "f.txt").write_text("one\n")
+        git("add", "f.txt")
+        git("commit", "-q", "-m", "add f")
+        git("tag", "v1.2.3")
+        (tmp_path / "f.txt").write_text("two\n")
+        monkeypatch.setattr(bi, "running_clone", lambda: tmp_path)
+        build = bi.running_build()
+        assert build is not None
+        assert build.dirty is True
+        assert build.tag is None
+
+
+_NOW = datetime(2026, 11, 5, 10, 12, 34, tzinfo=UTC)
+
+
+class TestCollectStamp:
+    """What the build hook (hatch_build.py) writes into a wheel."""
+
+    def test_local_build_of_a_checkout(self, tmp_path):
+        git = _init_repo(tmp_path)
+        head = git("rev-parse", "HEAD").stdout.strip()
+        stamp = bi.collect_stamp(tmp_path, {}, now=_NOW)
+        assert stamp == {
+            "schema": bi.STAMP_SCHEMA,
+            "builder": "local",
+            "built_at": "2026-11-05T10:12:34Z",
+            "commit": head,
+            "branch": "main",
+            "tag": None,
+            "dirty": False,
+            "ci_run_url": None,
+        }
+
+    def test_records_the_exact_tag(self, tmp_path):
+        git = _init_repo(tmp_path)
+        git("tag", "v1.2.3")
+        assert bi.collect_stamp(tmp_path, {}, now=_NOW)["tag"] == "v1.2.3"
+
+    def test_github_actions_build_names_its_run(self, tmp_path):
+        _init_repo(tmp_path)
+        env = {
+            "GITHUB_ACTIONS": "true",
+            "GITHUB_SERVER_URL": "https://github.com",
+            "GITHUB_REPOSITORY": "owner/canair",
+            "GITHUB_RUN_ID": "42",
+        }
+        stamp = bi.collect_stamp(tmp_path, env, now=_NOW)
+        assert stamp["builder"] == "ci"
+        assert stamp["ci_run_url"] == "https://github.com/owner/canair/actions/runs/42"
+
+    def test_another_ci_is_a_ci_build_without_a_run_link(self, tmp_path):
+        _init_repo(tmp_path)
+        stamp = bi.collect_stamp(tmp_path, {"CI": "true"}, now=_NOW)
+        assert stamp["builder"] == "ci"
+        assert stamp["ci_run_url"] is None
+
+    def test_source_date_epoch_sets_the_build_time(self, tmp_path):
+        _init_repo(tmp_path)
+        stamp = bi.collect_stamp(tmp_path, {"SOURCE_DATE_EPOCH": "0"}, now=_NOW)
+        assert stamp["built_at"] == "1970-01-01T00:00:00Z"
+
+    def test_no_checkout_leaves_the_git_fields_empty(self, tmp_path):
+        # A wheel built from an sdist has no .git to read.
+        stamp = bi.collect_stamp(tmp_path, {}, now=_NOW)
+        assert stamp["builder"] == "local"
+        assert stamp["commit"] is None
+        assert stamp["dirty"] is None
+
+    def test_round_trips_through_parse_stamp(self, tmp_path):
+        _init_repo(tmp_path)
+        stamp = bi.collect_stamp(tmp_path, {}, now=_NOW)
+        parsed = bi.parse_stamp(json.dumps(stamp))
+        assert parsed is not None
+        assert parsed.commit == stamp["commit"]
+        assert parsed.built_at == stamp["built_at"]
+        assert parsed.git() == bi.GitBuild(
+            branch="main", commit=stamp["commit"][: bi.SHORT_SHA_LEN], dirty=False
+        )
+
+
+class TestParseStamp:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "not json",
+            "[]",
+            json.dumps({"schema": 999, "builder": "ci"}),
+            json.dumps({"schema": bi.STAMP_SCHEMA, "builder": "somebody"}),
+        ],
+    )
+    def test_unusable_stamps_are_ignored(self, text):
+        assert bi.parse_stamp(text) is None
+
+    def test_a_stamp_without_git_facts_has_no_git_build(self):
+        stamp = bi.parse_stamp(json.dumps({"schema": bi.STAMP_SCHEMA, "builder": "local"}))
+        assert stamp is not None
+        assert stamp.git() is None
+
+
+def _stamp_package(monkeypatch, tmp_path, **fields):
+    """Make the running copy an installed package whose wheel carries ``fields``."""
+    from canair.install import context as ic
+
+    pkg = tmp_path / "canair"
+    pkg.mkdir()
+    (pkg / bi.STAMP_FILE).write_text(json.dumps({"schema": bi.STAMP_SCHEMA, **fields}))
+    monkeypatch.setattr(ic, "running_origin", lambda: "uv-tool")
+    monkeypatch.setattr(ic, "running_package_dir", lambda: pkg)
+
+
+class TestInstalledBuild:
+    COMMIT = "343b244" + "a" * 33
+
+    def test_version_of_a_local_build_off_a_branch(self, monkeypatch, tmp_path):
+        import canair
+
+        _stamp_package(
+            monkeypatch, tmp_path, builder="local", commit=self.COMMIT, branch="main", dirty=False
+        )
+        monkeypatch.setattr(canair, "__version__", "1.2.3")
+        assert bi.full_version() == "1.2.3+main.343b244"
+        assert bi.build_origin() == "local"
+
+    def test_version_of_a_release_build(self, monkeypatch, tmp_path):
+        import canair
+
+        _stamp_package(
+            monkeypatch,
+            tmp_path,
+            builder="ci",
+            commit=self.COMMIT,
+            tag="v1.2.3",
+            dirty=False,
+            built_at="2026-11-05T10:12:34Z",
+        )
+        monkeypatch.setattr(canair, "__version__", "1.2.3")
+        assert bi.full_version() == "1.2.3"
+        assert bi.build_summary() == "CI build 343b244, 2026-11-05 10:12 UTC"
+
+    def test_summary_of_a_local_build(self, monkeypatch, tmp_path):
+        _stamp_package(
+            monkeypatch,
+            tmp_path,
+            builder="local",
+            commit=self.COMMIT,
+            built_at="2026-11-05T10:12:34Z",
+        )
+        assert bi.build_summary() == "local build 343b244, 2026-11-05 10:12 UTC"
+
+    def test_details_carry_the_run_link(self, monkeypatch, tmp_path):
+        url = "https://github.com/owner/canair/actions/runs/42"
+        _stamp_package(monkeypatch, tmp_path, builder="ci", commit=self.COMMIT, ci_run_url=url)
+        details = bi.build_details()
+        assert details["origin"] == "ci"
+        assert details["commit"] == self.COMMIT
+        assert details["ci_run_url"] == url
+
+    def test_an_unstamped_install_says_so(self, monkeypatch, tmp_path):
+        import canair
+        from canair.install import context as ic
+
+        (tmp_path / "canair").mkdir()
+        monkeypatch.setattr(ic, "running_origin", lambda: "other")
+        monkeypatch.setattr(ic, "running_package_dir", lambda: tmp_path / "canair")
+        monkeypatch.setattr(canair, "__version__", "1.2.3")
+        assert bi.full_version() == "1.2.3"
+        assert bi.build_origin() == "unknown"
+        assert bi.build_summary() == "installed, no build info"
+
+    def test_a_run_from_source_ignores_a_stray_stamp(self, monkeypatch, tmp_path):
+        from canair.install import context as ic
+
+        _stamp_package(monkeypatch, tmp_path, builder="ci", commit=self.COMMIT)
+        monkeypatch.setattr(ic, "running_origin", lambda: "repo")
+        assert bi.running_stamp() is None
+        assert bi.build_summary() == "from source"
+
+
+def test_module_imports_only_the_standard_library():
+    """hatch_build.py loads this module by path at build time, with canair not installed."""
+    tree = ast.parse(Path(bi.__file__).read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Import):
+            names = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            names = [node.module or ""]
+        else:
+            continue
+        for name in names:
+            top = name.split(".")[0]
+            assert top == "__future__" or top in sys.stdlib_module_names, name

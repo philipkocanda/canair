@@ -23,10 +23,12 @@ and `uv.lock` together in the release PR.
 
 `canair --version` (and `canair status`/`update`, and every recorded capture)
 reports the *provenance* version from `src/canair/install/build_info.py`: the same package
-version, plus the branch and short commit when canair is running from a git
-checkout rather than an installed release (`1.15.0+main.343b244`). Release
-comparisons always use the pure `canair.__version__`, so the suffix never affects
-version ordering — and a released install shows no suffix at all.
+version, plus the branch and short commit unless the code is exactly the release — a
+clean tree at the `vX.Y.Z` tag (`1.15.0+main.343b244`). An installed copy reads these
+facts from the build stamp that `hatch_build.py` writes into every wheel, and
+`--version` also says whether the copy runs from source, is a CI build or a local
+build. Release comparisons always use the pure `canair.__version__`, so the suffix
+never affects version ordering — and a release shows no suffix at all.
 
 ## Cutting a release
 
@@ -61,7 +63,7 @@ version ordering — and a released install shows no suffix at all.
    ```bash
    gh release view vX.Y.Z
    git fetch --tags && git checkout vX.Y.Z
-   uv sync && uv run canair --version   # reports X.Y.Z, no +branch.sha suffix
+   uv sync && uv run canair --version   # "canair X.Y.Z (from source)": no +branch.sha
    ```
 
 ## Three traps

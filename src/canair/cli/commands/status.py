@@ -113,7 +113,7 @@ def _gather(args) -> dict:
     """Collect everything status reports into a plain dict (also used for --json)."""
     from canair.cli.args.transport import transport_overrides
     from canair.config import fallback_settings
-    from canair.install.build_info import full_version
+    from canair.install.build_info import build_summary, full_version
     from canair.transport import (
         TransportError,
         resolve_transport_candidates,
@@ -121,6 +121,7 @@ def _gather(args) -> dict:
     )
 
     info: dict = {"exit": _OK, "warnings": [], "errors": [], "canair_version": full_version()}
+    info["canair_build"] = build_summary()
 
     try:
         candidates = resolve_transport_candidates(transport_overrides(args))
@@ -380,7 +381,8 @@ def _render(info: dict) -> None:
     c = Console()
     ver = info.get("canair_version")
     if ver:
-        c.print(f"\n  [bold]canair[/bold]     {ver}")
+        build = f"  [dim]({info['canair_build']})[/dim]" if info.get("canair_build") else ""
+        c.print(f"\n  [bold]canair[/bold]     {ver}{build}")
     t = info.get("transport")
     if t:
         loc = t.get("host") or "?"

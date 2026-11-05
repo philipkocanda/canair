@@ -8,7 +8,7 @@ import pytest
 
 import canair
 from canair.cli import main
-from canair.install.build_info import full_version
+from canair.install.build_info import build_summary, full_version
 
 
 def test_package_exposes_version():
@@ -31,8 +31,15 @@ def test_version_flag_prints_version_and_exits(capsys):
     assert exc.value.code == 0
     out = capsys.readouterr().out
     # The reported version is the provenance-bearing one: the package version,
-    # plus the checkout's branch/commit when running from a git working tree.
-    assert out.strip() == f"canair {full_version()}"
+    # plus the branch/commit unless the code is a release, then where it came from.
+    assert out.strip() == f"canair {full_version()} ({build_summary()})"
+
+
+def test_short_version_flag_is_an_alias(capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["-V"])
+    assert exc.value.code == 0
+    assert capsys.readouterr().out.strip() == f"canair {full_version()} ({build_summary()})"
 
 
 def test_version_output_is_semver_shaped(capsys):
@@ -53,9 +60,26 @@ def test_version_flag_reports_the_checkout_provenance(capsys, monkeypatch):
         lambda: build_info.GitBuild(branch="main", commit="343b244", dirty=False),
     )
     monkeypatch.setattr(canair, "__version__", "1.2.3")
+    monkeypatch.setattr(build_info, "build_summary", lambda: "from source")
     with pytest.raises(SystemExit):
         main(["--version"])
-    assert capsys.readouterr().out.strip() == "canair 1.2.3+main.343b244"
+    assert capsys.readouterr().out.strip() == "canair 1.2.3+main.343b244 (from source)"
+
+
+def test_version_flag_names_an_installed_build(capsys, monkeypatch):
+    """An installed copy says which build it is, so a CI build reads apart from a local one."""
+    from canair.install import build_info
+
+    stamp = build_info.BuildStamp(
+        builder="ci", built_at="2026-11-05T10:12:34Z", commit="343b244" + "0" * 33
+    )
+    monkeypatch.setattr(build_info, "running_clone", lambda: None)
+    monkeypatch.setattr(build_info, "running_stamp", lambda: stamp)
+    monkeypatch.setattr(canair, "__version__", "1.2.3")
+    with pytest.raises(SystemExit):
+        main(["--version"])
+    out = capsys.readouterr().out.strip()
+    assert out == "canair 1.2.3+343b244 (CI build 343b244, 2026-11-05 10:12 UTC)"
 
 
 def test_version_is_not_resolved_while_building_the_parser(monkeypatch):

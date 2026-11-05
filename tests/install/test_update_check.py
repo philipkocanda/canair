@@ -242,6 +242,7 @@ class TestUpdateCommand:
             "branch": "main",
             "commit": "343b244",
             "dirty": False,
+            "tag": None,
         }
 
     def test_json_reports_clone_head(self, monkeypatch, capsys, tmp_path):

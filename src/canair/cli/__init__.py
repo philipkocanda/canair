@@ -220,11 +220,13 @@ def _inject_default_subcommand(argv: list[str]) -> list[str]:
 class _VersionAction(argparse.Action):
     """``--version``, resolved only when actually asked for.
 
-    The reported version is provenance-bearing — from a git checkout it names the
-    branch and commit, which costs a ``git`` call (see :mod:`canair.install.build_info`).
-    argparse's stock ``version`` action captures its string at ``add_argument``
-    time, i.e. while *building* the parser, which would tax every single canair
-    invocation; this one defers the lookup to the flag's use.
+    The reported version is provenance-bearing — it names the branch and commit
+    unless the code is exactly a release, and says where the copy came from (from
+    source, a CI build, a local build). From a checkout that costs a ``git`` call
+    (see :mod:`canair.install.build_info`). argparse's stock ``version`` action
+    captures its string at ``add_argument`` time, i.e. while *building* the
+    parser, which would tax every single canair invocation; this one defers the
+    lookup to the flag's use.
     """
 
     def __init__(
@@ -239,9 +241,9 @@ class _VersionAction(argparse.Action):
         )
 
     def __call__(self, parser, namespace, values, option_string=None):
-        from canair.install.build_info import full_version
+        from canair.install.build_info import build_summary, full_version
 
-        print(f"{parser.prog} {full_version()}")
+        print(f"{parser.prog} {full_version()} ({build_summary()})")
         parser.exit()
 
 
@@ -255,9 +257,10 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=CategorizedHelpFormatter,
     )
     parser.add_argument(
+        "-V",
         "--version",
         action=_VersionAction,
-        help="Show the canair version and exit.",
+        help="Show the canair version and where this copy came from, and exit.",
     )
     parser.add_argument(
         "--profile",

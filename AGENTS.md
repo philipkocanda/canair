@@ -1065,6 +1065,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   (`$car_model`), so literal braces in YAML/comments need no escaping. **Shipped in the wheel** via
   `pyproject.toml`'s `force-include`, so installed copies can still scaffold. Change the scaffold
   output by editing these files, not Python strings.
+- **`hatch_build.py`** (repo root) — The wheel build hook: it writes a build stamp
+  (`canair/_build_info.json`: commit, branch, tag, dirty, build time, CI run or local) into
+  every non-editable wheel, which `--version`/`status`/`update` and recorded captures read on an
+  installed copy. The stamp format lives in `src/canair/install/build_info.py`, which the hook
+  loads **by path** with canair not installed, so that module's top-level imports stay
+  standard-library only (a test pins it).
 - **`src/canair/uds/`** — the I/O-free diagnostic protocol layer; `uds` names the request/response
   *domain* (UDS, KWP2000 and the OBD-II modes), as in the CLI's `uds` kinds. Its package
   docstring maps one module per protocol fact. The rule a change must keep: **an ECU's protocol

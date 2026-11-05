@@ -136,11 +136,12 @@ jobs:
       - name: Build the wheel
         run: uv build --wheel --out-dir dist
 
-      - name: The wheel holds the package and its bundled data, and nothing at the top level
+      - name: The wheel holds the package, bundled data and CI build stamp, and nothing at the top level
         run: |
           python3 - <<'PY'
-          import glob, zipfile
-          names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
+          import glob, json, os, zipfile
+          wheel = zipfile.ZipFile(glob.glob("dist/*.whl")[0])
+          names = wheel.namelist()
           top = {n.split("/")[0] for n in names if not n.split("/")[0].endswith(".dist-info")}
           assert top == {"canair"}, f"unexpected top-level entries: {sorted(top)}"
           for needed in (
@@ -150,6 +151,9 @@ jobs:
               "canair/schema/pids_schema.yaml",
           ):
               assert needed in names, f"{needed} is missing from the wheel"
+          stamp = json.loads(wheel.read("canair/_build_info.json"))
+          assert stamp["builder"] == "ci", stamp
+          assert stamp["commit"] == os.environ["GITHUB_SHA"], stamp
           PY
 
       - name: Install it in a clean environment and run it
@@ -159,6 +163,7 @@ jobs:
           cd "$RUNNER_TEMP"
           export XDG_CONFIG_HOME="$RUNNER_TEMP/config" CANAIR_NO_UPDATE_CHECK=1
           canair="$RUNNER_TEMP/wheel-venv/bin/canair"
+          "$canair" --version | grep -F "(CI build "
           "$canair" --help
           "$canair" profile list
           "$canair" --profile hyundai-ioniq-ae-ev validate pids

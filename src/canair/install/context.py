@@ -414,11 +414,14 @@ def describe(clone: Path | None) -> dict:
     version differs from the source clone's ``pyproject.toml`` version — i.e. a
     bare ``canair`` would run different code than ``uv run canair`` in the repo.
 
-    ``running_build`` describes the git checkout the running code came from
-    (branch/commit/dirty), or is ``None`` for an installed copy — the structured
-    form of the provenance suffix in ``running_version``.
+    ``running_build`` holds the git facts of the running code (branch, short
+    commit, dirty, release tag) — read from its checkout, or from an installed
+    wheel's build stamp — or is ``None`` when there are none: the structured form
+    of the provenance suffix in ``running_version``. ``build`` adds where the copy
+    came from (``source``/``ci``/``local``/``unknown``), the build time and the CI
+    run.
     """
-    from canair.install.build_info import running_build
+    from canair.install.build_info import build_details, running_build
 
     origin = running_origin()
     tool_version = installed_tool_version()
@@ -435,10 +438,11 @@ def describe(clone: Path | None) -> dict:
         "running_version": running_version(),
         "running_package_dir": str(running_package_dir()),
         "running_build": (
-            {"branch": build.branch, "commit": build.commit, "dirty": build.dirty}
+            {"branch": build.branch, "commit": build.commit, "dirty": build.dirty, "tag": build.tag}
             if build is not None
             else None
         ),
+        "build": build_details(),
         "clone_dir": str(clone) if clone else None,
         "clone_version": src_version,
         "tool_install_dir": str(tool_sp.parent.parent.parent) if tool_sp else None,

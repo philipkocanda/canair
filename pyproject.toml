@@ -38,6 +38,9 @@ exclude = ["profiles/*/logs", "**/__pycache__"]
 "templates" = "canair/_bundled/templates"
 "config.example.yaml" = "canair/_bundled/config.example.yaml"
 
+# Stamps each wheel with its commit, build time and builder (hatch_build.py).
+[tool.hatch.build.targets.wheel.hooks.custom]
+
 [dependency-groups]
 dev = [
     "import-linter>=2.15",
