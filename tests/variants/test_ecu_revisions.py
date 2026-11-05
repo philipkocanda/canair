@@ -18,12 +18,13 @@ import yaml
 
 from canair import config
 from canair import profile as profile_mod
+from canair.captures.tags import capture_tag
 from canair.cli import main
 from canair.ecus.pids import clear_cache, load_pids, load_raw_pids, revision_resolutions
 from canair.profile import ProfileError, set_active
 from canair.variants import check_variants_doc, effective_meta, load_variants
 from canair.variants import revisions as rv
-from canair.variants.tags import capture_tag, narrow_to_captured, revisions_in_scope
+from canair.variants.tags import narrow_to_captured, revisions_in_scope
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "profiles" / "variants"
 

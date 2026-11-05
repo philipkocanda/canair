@@ -14,6 +14,7 @@ from typing import cast
 from canair.captures import io as capture_io
 from canair.captures.keepmode import KeepMode, PersistedKeepMode, persisted_keep_mode
 from canair.captures.link_events import LinkEvent
+from canair.captures.tags import capture_tag
 from canair.captures.types import (
     CaptureFile,
     CaptureRecord,
@@ -374,7 +375,6 @@ def current_capture_tag(captures_dir: Path | None = None) -> dict | None:
     active profile selected.
     """
     from canair.profile import ProfileError, active
-    from canair.variants.tags import capture_tag
 
     try:
         prof = active()

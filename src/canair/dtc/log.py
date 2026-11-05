@@ -215,8 +215,9 @@ def _with_tag(entry: dict) -> dict:
     the car and ECU revision that reported it."""
     if "variant" in entry or "revisions" in entry:
         return entry
+    from canair.captures.tags import capture_tag
     from canair.profile import ProfileError, active
-    from canair.variants.tags import capture_tag, narrow_to_captured
+    from canair.variants.tags import narrow_to_captured
 
     try:
         tag = capture_tag(active())

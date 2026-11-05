@@ -114,7 +114,7 @@ class TestResolution:
         assert cache.remembered("variants", "60kwh") == {}
 
     def test_a_recording_is_attributed_detected(self):
-        from canair.variants.tags import capture_tag
+        from canair.captures.tags import capture_tag
 
         cache.remember("variants", "60kwh", "VCU", "kwp")
         tag = capture_tag(set_active(str(FIXTURE), variant="60kwh"))

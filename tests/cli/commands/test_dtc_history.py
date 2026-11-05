@@ -86,7 +86,7 @@ class TestCar:
 class TestTagging:
     def test_entries_carry_the_car_and_the_scoped_ecus_revision(self, logp, refs, monkeypatch):
         tag = {"variant": "28kwh", "revisions": {"VCU": "kwp", "BMS": "uds"}, "attribution": {}}
-        monkeypatch.setattr("canair.variants.tags.capture_tag", lambda _p: dict(tag))
+        monkeypatch.setattr("canair.captures.tags.capture_tag", lambda _p: dict(tag))
         dtc_log.append_scan(_scan("all"))
         dtc_log.append_scan(_scan(VCU))
         dtc_log.append_clear(dtc_log.build_clear(BMS, timestamp="t"))

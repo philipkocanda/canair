@@ -12,9 +12,9 @@ import pytest
 
 from canair import config
 from canair import profile as profile_mod
+from canair.captures.tags import capture_tag
 from canair.profile import Profile, ProfileError
 from canair.variants.selection import apply_variant, require_variant
-from canair.variants.tags import capture_tag
 
 VARIANTS = (
     "variants:\n"

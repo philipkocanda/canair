@@ -6,8 +6,6 @@ declares several revisions it says which with ``revisions: {ECU: id}``; and it r
 how each was decided in ``attribution``. This module holds the rules every writer and
 reader of those tags shares:
 
-* :func:`capture_tag` — the tag a new recording gets: the profile's explicitly
-  selected variant and its determined revisions, or nothing (canair never guesses);
 * :func:`in_scope` — whether a session belongs to a ``--variant`` scope
   (an ID, ``all`` or ``untagged``), and :func:`revisions_in_scope` — whether it
   agrees with the revisions the selected car's definitions were resolved for;
@@ -16,7 +14,8 @@ reader of those tags shares:
   untagged copy strip the tag.
 
 It knows nothing about capture files or profiles' storage; callers hand it sessions
-and a :class:`~canair.profile.Profile`.
+and a :class:`~canair.profile.Profile`. The tag a new recording gets is
+:func:`canair.captures.tags.capture_tag`, since it reads the profile's definitions.
 """
 
 from __future__ import annotations
@@ -40,60 +39,6 @@ def selected_variant(profile: Profile) -> str | None:
     """The car the profile's ``--variant`` names, or None for none / a scope keyword."""
     variant = getattr(profile, "variant", None)
     return None if not variant or variant in SCOPES else variant
-
-
-# How each way of selecting a variant is recorded on the session it tags.
-_ATTRIBUTION = {"flag": "selected", "env": "selected", "config": "selected", "alias": "alias"}
-# How each way of resolving a revision is recorded.
-_REVISION_ATTRIBUTION = {
-    "flag": "pinned",
-    "config": "pinned",
-    "only": "only",
-    "detected": "detected",
-}
-
-
-def _revision_tags(profile: Profile) -> tuple[dict[str, str], dict[str, str]]:
-    """``({ECU: revision}, {ECU: attribution})`` for every determined multi-revision ECU."""
-    from canair.ecus.pids import load_raw_pids, revision_resolutions
-    from canair.variants.revisions import declared
-
-    try:
-        resolutions = revision_resolutions(profile)
-        ecus = load_raw_pids(profile).get("ecus") or {}
-    except Exception:
-        return {}, {}
-    revisions: dict[str, str] = {}
-    sources: dict[str, str] = {}
-    for name, res in resolutions.items():
-        if res.revision is None or len(declared(ecus.get(name))) < 2:
-            continue
-        revisions[name] = res.revision
-        sources[name] = _REVISION_ATTRIBUTION.get(res.source or "only", "only")
-    return revisions, sources
-
-
-def capture_tag(profile: Profile) -> dict[str, Any] | None:
-    """The tag a new recording against ``profile`` gets, or None (left untagged).
-
-    The revisions cover every determined ECU with several revisions;
-    :func:`narrow_to_captured` keeps only those a session actually captured.
-    """
-    variant = selected_variant(profile)
-    revisions, rev_sources = _revision_tags(profile)
-    if variant is None and not revisions:
-        return None
-    tag: dict[str, Any] = {}
-    attribution: dict[str, Any] = {}
-    if variant is not None:
-        tag["variant"] = variant
-        source = getattr(profile, "variant_source", None)
-        attribution["variant"] = _ATTRIBUTION.get(source, "only")
-    if revisions:
-        tag["revisions"] = revisions
-        attribution["revisions"] = rev_sources
-    tag["attribution"] = attribution
-    return tag
 
 
 def narrow_to_captured(tag: Mapping[str, Any], captured_ecus: set[str]) -> dict[str, Any]:
