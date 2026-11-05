@@ -1,12 +1,12 @@
 """The ECU registry and the per-ECU PID definitions.
 
-The registry derives from the profile's ``ecus/`` files (keyed by short name, with a ``tx_id`` and
-an ``identity:`` block). The CAN *response* address is resolved per ECU by
-:mod:`canair.uds.addressing`; captures hold it as hex, and the helpers here map it to the name.
+The registry derives from the profile's ``ecus/`` files (keyed by short name, with a ``tx_id``
+and an ``identity:`` block). :mod:`canair.uds.addressing` resolves the CAN *response* address
+per ECU; captures hold it as hex, and the helpers here map it to the name.
 
-Belongs: ECU and PID definitions (``pids``), CAN buses, DID families, signal categories.
-Not here: where the bundle lives (``profile``), checks (``validation``), edits (``yaml_edit``).
-Imports: ``profile``, ``safety``, ``uds``, ``dtc.definitions``, ``core``.
+Belongs: ECU, PID and ``dtcs:`` definitions, CAN buses, DID families, signal categories.
+Not here: the bundle (``profile``), checks (``validation``), edits (``yaml_edit``), scans (``dtc``).
+Imports: ``profile``, ``variants``, ``privacy``, ``transport``, ``safety``, ``uds``, ``core``.
 """
 
 from collections.abc import Mapping

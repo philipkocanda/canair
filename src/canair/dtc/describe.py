@@ -194,7 +194,7 @@ def _profile_dtc_index() -> _DtcIndex | None:
 
     # The profile-wide section comes straight from profile.yaml, so its fields stated
     # once (source, verified, ...) are resolved here; the loader did the ECUs' already.
-    from canair.dtc.definitions import effective_entries
+    from canair.ecus.dtc_definitions import effective_entries
 
     raw_shared = data.get("dtcs")
     shared = _codes(effective_entries(raw_shared)) if isinstance(raw_shared, dict) else {}

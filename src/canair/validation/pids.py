@@ -11,10 +11,10 @@ import yaml
 
 from canair.core import yaml_io
 from canair.core.id_ranges import parse_id_range
-from canair.dtc.definitions import SECTION_FIELDS as DTC_SECTION_FIELDS
-from canair.dtc.definitions import is_dtc_code
-from canair.dtc.definitions import split_section as split_dtc_section
 from canair.dtc.snapshot import did_of_read
+from canair.ecus.dtc_definitions import SECTION_FIELDS as DTC_SECTION_FIELDS
+from canair.ecus.dtc_definitions import is_dtc_code
+from canair.ecus.dtc_definitions import split_section as split_dtc_section
 from canair.ecus.pids import PID_STATUSES, effective_param, pid_ships, pid_status
 from canair.ecus.signal_category import RETIRED_FIELD, category_findings
 from canair.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES

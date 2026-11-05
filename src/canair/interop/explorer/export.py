@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from canair.core.yaml_rt import round_trip_yaml
-from canair.dtc.definitions import split_section as split_dtc_section
+from canair.ecus.dtc_definitions import split_section as split_dtc_section
 from canair.ecus.files import iter_ecu_files
 from canair.ecus.pids import effective_param, pid_status
 from canair.interop.explorer.layout import layout_buses

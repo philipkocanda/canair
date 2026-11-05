@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Literal, TypedDict, get_args
 
 from canair.core import yaml_io
-from canair.dtc.definitions import effective_entries as _effective_dtc_entries
+from canair.ecus.dtc_definitions import effective_entries as _effective_dtc_entries
 from canair.ecus.signal_category import category_of
 from canair.safety.actuation import default_release, normalize_request
 from canair.uds.addressing import AddressingMode, EcuAddress, resolve_ecu_address
@@ -427,7 +427,7 @@ def merge_ecu_documents(docs: Iterable[tuple[Path, dict]]) -> dict[str, Any]:
     through here, so raising would turn one malformed file into an opaque crash in
     whatever command happened to touch it. Fields a PID states once for its parameters
     (:data:`INHERITED_PARAM_FIELDS`), and those a ``dtcs:`` section states once for its codes
-    (:data:`canair.dtc.definitions.SECTION_FIELDS`), are resolved into each parameter and each
+    (:data:`canair.ecus.dtc_definitions.SECTION_FIELDS`), are resolved into each parameter and each
     code here, so no reader has to know about the inheritance. ``canair validate pids`` is the
     gate that reports it as an error.
     """
