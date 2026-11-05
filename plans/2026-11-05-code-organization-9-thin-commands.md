@@ -1,6 +1,6 @@
 # Code organization, part 9: thin command modules
 
-Status: **PROPOSED** (2026-11-05). Part of
+Status: **IN PROGRESS** (2026-11-05): `contribute` and `ecu` are done, see "As built". Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 8 for
 the shared query helper only. Follows the command-package rule of
 `plans/2026-08-06-command-packages-and-live-split.md` and the non-goals of
@@ -113,3 +113,20 @@ In each commit:
   string that names a module that is gone fails loudly. A string that names the package
   `__init__.py`, where the name no longer is used, can fail or patch the wrong module. Patch
   the module that looks the name up, and run each moved test file alone once.
+
+## As built
+
+Re-measured at `964f3ffb`: 11 command modules were over 500 lines (`decode/one.py` fell to 496;
+`captures/uds.py` is 521).
+
+- **`contribute`** is `cli/commands/contribute/`: `parser.py`, `pipeline.py`, `state.py`,
+  `stage.py`, `submit.py`, `tidy.py`, `gates.py`, `report.py`. The tests that patched
+  `contribute.active` and `contribute.confirm` patch `pipeline` and `tidy`.
+- **`ecu`** is `cli/commands/ecu/`. Its `--help` examples and legend are the literal
+  `epilog.py` (the docstring was not the description, only the epilog). The compute with no
+  flags and no output (`pid_stats`, `list_records` with its sort, `pid_details`,
+  `pids_latest_records`) moved in its own commit to `analysis/ecu_summary.py`. The detail
+  record stays in `ecu/records.py`: it reads the DTC log (`dtc/`, a peer of `analysis/`) and
+  the revision note.
+- `tests/yaml_edit/test_edit_echo.py` read `pids.py` and `ecu.py` by file name. It reads a
+  package as well now.
