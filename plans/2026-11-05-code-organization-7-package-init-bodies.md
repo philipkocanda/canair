@@ -123,3 +123,14 @@ pkg` aliases, `import canair.pkg` and the dotted strings).
   statements, which raises the `deferred_internal_imports` count, so
   `cli/commands/config/edit.py` imports `config.file` at the top (a layer below everything, loaded
   on every start-up anyway): the count falls 1104 to 1103.
+- **`ecus/`** (done): `registry.py`, `names.py`, `protocol.py`. 502 lines to 10. The check passes
+  for 27 definitions. The plan's `rx.py` is merged into `registry.py`: callers import
+  `load_ecus` with `rx_for_tx` or `build_rx_index`, and a deferred import that names two modules
+  is two statements, which raises the deferred-import count. Two files import `ecus.registry` at
+  the top instead (1103 to 1101).
+- **A patch has to name the module that looks the name up.** A function that moved to another
+  module keeps its own binding of every name it calls. The tool
+  `codemods/p7/patch_guard.py` (a pytest plugin, outside the repo) wraps each such binding and
+  logs a call made while the definition's module is patched. It found the `load_ecus` patches
+  of `tests/dtc/test_dtc.py` and the `load_config` patches of
+  `tests/transport/test_transport_config.py`; both now patch every module.
