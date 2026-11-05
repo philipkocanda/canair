@@ -4,7 +4,7 @@
 *PID-selection* concern (the TUI ``p`` picker): offering the profile's ECUs, PIDs
 and saved groups opened on what is polled now, and swapping in a new selection
 mid-run. The picker itself is the same screen a bare ``canair monitor`` shows
-(:mod:`canair.tui.apps.monitor_select`), and the pick ↔ selector mapping is the
+(:mod:`canair.tui.apps.monitor_select.app`), and the pick ↔ selector mapping is the
 same pure logic (:mod:`canair.live.monitor.select`).
 
 Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirrors

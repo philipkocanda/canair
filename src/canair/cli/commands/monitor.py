@@ -178,7 +178,7 @@ def _pick_steps(args) -> list[str] | None:
     Raises ``ValueError`` if there is nothing in the active profile to pick from.
     """
     from canair.cli.live import load_pids
-    from canair.tui.apps.monitor_select import pick_selectors
+    from canair.tui.apps.monitor_select.app import pick_selectors
 
     return pick_selectors(load_pids(), include_static=args.include_static)
 

@@ -19,7 +19,7 @@ from canair.tui.apps.monitor import (
     SessionInfoModal,
     SessionPickerScreen,
 )
-from canair.tui.apps.monitor_select import LiveMonitorSelectScreen
+from canair.tui.apps.monitor_select.app import LiveMonitorSelectScreen
 from canair.tui.help import HelpModal
 from tests.support.monitor_picker import monitor_app as _monitor
 from tests.support.monitor_tui import FakeController, FakeEditor

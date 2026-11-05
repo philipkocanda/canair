@@ -1,11 +1,11 @@
-"""Integration tests for the sniff Textual app (canair.tui.apps.sniff)."""
+"""Integration tests for the sniff Textual app (canair.tui.apps.sniff.app)."""
 
 from __future__ import annotations
 
 import pytest
 
 from canair.analysis.sniff_stats import SniffStats
-from canair.tui.apps.sniff import SniffApp
+from canair.tui.apps.sniff.app import SniffApp
 
 
 def _plain(renderable) -> str:

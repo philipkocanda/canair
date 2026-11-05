@@ -198,8 +198,8 @@ its deviations are ratcheted by `tests/contracts/test_ui_standards.py` (scanner
   it opens the scrollable Textual monitor (press `?` for keys); piped it polls silently until
   Ctrl+C; **a bare `canair monitor` on a TTY opens a group/ECU → PID checklist first**
   (`src/canair/live/monitor/select.py` = pure choice/selector logic,
-  `src/canair/tui/apps/monitor_select.py` = the screen; it needs only the profile, never the device,
-  and prints the equivalent command; saved `@groups` are listed above the ECUs and expand to their
+  `src/canair/tui/apps/monitor_select/app.py` = the screen; it needs only the profile, never the
+  device, and prints the equivalent command; saved `@groups` are listed above the ECUs and expand to their
   ECUs and PIDs). **The running monitor's `p` key opens that same screen** on what is polled now
   (`LiveMonitorSelectScreen`, backed by `monitor/selectors.py`), so there is one picker, not
   two. Non-TTY with no STEP is still an error. **`read` never had a

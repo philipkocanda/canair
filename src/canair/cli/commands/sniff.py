@@ -178,7 +178,7 @@ def _run_sniff(host: str, args, filters, port: int, bitrate: int) -> None:
         import sys
 
         if sys.stdout.isatty():
-            from canair.tui.apps.sniff import run_sniff_app
+            from canair.tui.apps.sniff.app import run_sniff_app
 
             run_sniff_app(stats, host, duration=args.duration)
         else:

@@ -13,7 +13,7 @@ from canair.live.monitor.select import (
     selection_steps,
     selectors_from_selection,
 )
-from canair.tui.apps.monitor_select import (
+from canair.tui.apps.monitor_select.app import (
     LiveMonitorSelectScreen,
     MonitorSelectApp,
     MonitorSelectScreen,

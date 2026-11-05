@@ -4,7 +4,7 @@ Pure, Textual-free logic: turn the profile's ECU index (and saved ``@groups``) i
 pickable choices, turn the user's picks back into the ordinary selector strings
 (``BMS``, ``VCU:2101,2102``) the multi mini-language already understands, and turn
 a running monitor's query steps into picks so the picker can open on them. The
-interactive screen lives in :mod:`canair.tui.apps.monitor_select`; keeping the
+interactive screen lives in :mod:`canair.tui.apps.monitor_select.app`; keeping the
 mapping here means it is unit-testable without a terminal and cannot drift from the
 sweep rules in :func:`canair.live.read.exec.build_query_plan`.
 """

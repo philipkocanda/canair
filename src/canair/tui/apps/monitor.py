@@ -64,7 +64,7 @@ from textual.widgets import Static
 
 from canair.tui.apps.monitor_dialogs import EditParamDialog, SaveDialog
 from canair.tui.apps.monitor_overlays import EventLogModal, SessionInfoModal, SessionPickerScreen
-from canair.tui.apps.monitor_select import LiveMonitorSelectScreen
+from canair.tui.apps.monitor_select.app import LiveMonitorSelectScreen
 from canair.tui.flash import Flash, Severity, severity_of
 from canair.tui.help import HelpMixin
 from canair.tui.keys import ARROWS, PAGE_HINT, arrows_hint, bind, key_hint

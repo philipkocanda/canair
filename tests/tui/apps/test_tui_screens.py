@@ -18,8 +18,8 @@ from canair.tui.apps.decode_plot import PlotApp
 from canair.tui.apps.monitor import MonitorApp
 from canair.tui.apps.monitor_dialogs import EditParamDialog, SaveDialog
 from canair.tui.apps.monitor_overlays import EventLogModal, SessionInfoModal
-from canair.tui.apps.monitor_select import LiveMonitorSelectScreen
-from canair.tui.apps.sniff import SniffApp
+from canair.tui.apps.monitor_select.app import LiveMonitorSelectScreen
+from canair.tui.apps.sniff.app import SniffApp
 from canair.tui.help import HelpModal
 from tests.support.monitor_picker import monitor_app as _monitor
 from tests.support.monitor_tui import FakeController, FakeEditor

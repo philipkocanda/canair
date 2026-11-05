@@ -97,7 +97,7 @@ def _canair_tui_apps():
     from canair.tui.apps.captures_step import CapturesStepApp
     from canair.tui.apps.decode_plot import PlotApp
     from canair.tui.apps.monitor import MonitorApp
-    from canair.tui.apps.sniff import SniffApp
+    from canair.tui.apps.sniff.app import SniffApp
 
     return [CapturesStepApp, PlotApp, MonitorApp, SniffApp]
 
