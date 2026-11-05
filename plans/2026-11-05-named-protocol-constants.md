@@ -1,6 +1,7 @@
 # Named protocol constants: read every protocol byte from `canair.uds`
 
-Status: **IN PROGRESS** (2026-11-05). Phases 0 and 1 are done; phase 2 is in progress. Not user-facing: no command, flag, output or
+Status: **IN PROGRESS** (2026-11-05). Phases 0 to 2 are done; 33 literals in 8 modules are
+left for phase 3. Not user-facing: no command, flag, output or
 profile changes, except where phase 3 names a behaviour change and asks first.
 
 ## Why
@@ -72,24 +73,25 @@ The scanner count does not change in this phase.
 resetToDefault, and `0x04`-`0x09` other meanings again. A strict `xfail` in
 `test_uds_subfunctions.py` records it; phase 3 item 4 fixes it.
 
-## Phase 2 — mechanical replacement (one package per commit)
+## Phase 2 — mechanical replacement (done, 2026-11-05)
 
-Replace each literal with the name. No behaviour change: the existing tests pass unchanged, and
-each commit lowers the baseline (`--write`). Order, with the current counts:
+Each literal became its name, one package per commit, with no behaviour change: the existing
+tests passed unchanged except where they imported a constant that moved to `canair.uds`. Each
+commit lowered the baseline. 126 literals in 36 modules became 33 in 8.
 
-| Commit | Modules | Literals | What replaces them |
-|---|---|---:|---|
-| `transport/` | `functional`, `keepalive`, `stats`, `session_manager`, `raw/terminal`, `elm327/session`, `elm327/terminal` | 9 | `NEGATIVE_RESPONSE_SID`, `RESPONSE_SID_OFFSET`, `TESTER_PRESENT`, `TESTER_PRESENT_REQUEST`, `DIAGNOSTIC_SESSION_CONTROL` |
-| `live/` scans | `sessions_scan`, `routines_scan`, `kwp_routines_scan`, `iocontrol_scan`, `kwp_iocontrol_scan`, `routines` | 43 | NRC constants and `WRONG_SESSION_NRCS`; sub-function namespaces. The four `NRC_WRONG_SESSION` and the `NRC_EXISTS_HINTS`/`NRC_ABSENT` copies go. A per-scan set that differs on purpose stays, built from names, with a comment that says why it differs. |
-| `live/` others | `monitor_raw`, `multi_batch`, `multi_exec`, `interactive`, `discover_functional`, `identity_decode`, `dtc/reading`, `dtc/snapshots` | 17 | as above |
-| `safety/` | `actuation`, `blocklist` (the comparisons and the `"3E00"` row) | 8 | SID constants, `RoutineControl` sub-functions |
-| `dtc/`, `ecus/`, `interop/`, `captures/`, `cli/` | `dtc/snapshot`, `ecus/did_families`, `interop/frame_log`, `captures`, `cli/commands/research/gaps` | 15 | SID constants, `positive_response_sid()` |
-| `uds/` | `multi_did`, `echo` (the `== 0x22`) | 2 | SID constants |
+| Commit | What changed |
+|---|---|
+| `refactor(transport)` | the functional collector's private offset and negative SID, `keepalive.TESTER_PRESENT_SID`, and every `"3E00"` keepalive |
+| `refactor(scan)` | the four `NRC_WRONG_SESSION` copies, the scanners' `SF_`/`IOCP_` constants and the routines TUI's labels. `NRC_EXISTS_HINTS`/`NRC_ABSENT` stay per scan, built from names; each IOControl scanner names its one probe value `SAFE_CONTROL_PARAMETER` |
+| `refactor(live)` | the raw monitor, the batched reads, the REPL, identity probing, the DTC and snapshot reads, the functional sweep and the tester loop |
+| `refactor(safety)` | the actuation classifier's service sets and RoutineControl checks; `IOCONTROL_UDS`/`IOCONTROL_KWP`/`UDS_RETURN_CONTROL` go; the blocklist's session and routine checks |
+| `refactor(uds)` | `multi_did.BATCH_REFUSAL_NRCS`, shared by the raw monitor and the ELM327 batched read |
+| `refactor:` | `dtc/snapshot`, `ecus/did_families`, `cli/commands/research/gaps`, `interop/frame_log`, `uds/echo` (`== 0x22`) |
 
-`live/scan.py`, `live/scan_presets.py`, `captures/__init__.py` (the `in (0x22, 0x2F, 0x31)` sets),
-`uds/echo.py`'s `_ONE_BYTE_ID_SERVICES`, `uds/describe.py`, `live/skm_wakeup.py`, `live/tester.py`
-and `cli/commands/coverage/payloads.py` wait for phase 3, because a faithful rewrite of each
-changes or risks changing behaviour.
+Left for phase 3, because a faithful rewrite of each changes or risks changing behaviour:
+`captures/__init__.py`, `live/scan.py` and `live/scan_presets.py` (the `in (0x22, 0x2F, 0x31)`
+sets), `uds/echo.py`'s `_ONE_BYTE_ID_SERVICES`, `uds/describe.py`, `live/skm_wakeup.py`,
+`live/tester.py` (`"7F3E"`) and `cli/commands/coverage/payloads.py`.
 
 ## Phase 3 — derived facts and text matching (one commit each, each with tests)
 
