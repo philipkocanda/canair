@@ -18,8 +18,15 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from canair.uds.frame_counts import frames_for_payload
+from canair.uds.nrc import NRC_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT, NRC_REQUEST_OUT_OF_RANGE
+from canair.uds.services import READ_DATA_BY_IDENTIFIER, positive_response_sid
 
-POSITIVE_READ_SID = 0x62
+POSITIVE_READ_SID = positive_response_sid(READ_DATA_BY_IDENTIFIER)
+
+# An ECU that answers a multi-DID request with one of these cannot be sent batches.
+BATCH_REFUSAL_NRCS = frozenset(
+    {NRC_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT, NRC_REQUEST_OUT_OF_RANGE}
+)
 
 # Max service-22 DIDs to combine into one multi-DID request when an ECU opts into
 # batching. Bounded because a batch is only as fast as its slowest member (one

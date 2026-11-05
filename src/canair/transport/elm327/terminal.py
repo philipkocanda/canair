@@ -488,8 +488,7 @@ class Elm327Terminal:
                 detail=f"discarded a late reply to an earlier command: {compact(block)[:40]!r}",
             )
 
-        raw = read.block
-        raw = raw.replace("\r\n", "\n").replace("\r", "\n")
+        raw = read.block.replace("\r\n", "\n").replace("\r", "\n")
         raw = re.sub(r"[\x00-\x09\x0b-\x1f]", "", raw)
 
         result = raw.strip()
@@ -509,11 +508,7 @@ class Elm327Terminal:
         if read.clean and cu.startswith(_LINK_PROBE_CMDS):
             self.link.observe(elapsed)
         # Record RTT for real UDS requests only (skip AT setup + 3E00 keepalives).
-        if (
-            not cu.startswith("AT")
-            and cu != TESTER_PRESENT_REQUEST
-            and self._cur_header is not None
-        ):
+        if self._cur_header is not None and cu != TESTER_PRESENT_REQUEST and cu[:2] != "AT":
             self.timings.record(f"0x{self._cur_header:03X}", cu, elapsed)
         return result
 

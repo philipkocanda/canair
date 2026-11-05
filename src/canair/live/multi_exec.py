@@ -26,7 +26,7 @@ from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import SessionManager
 from canair.uds.describe import decode_uds_response
 from canair.uds.echo import request_echo
-from canair.uds.nrc import NRC_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT, NRC_REQUEST_OUT_OF_RANGE
+from canair.uds.multi_did import BATCH_REFUSAL_NRCS
 from canair.uds.response import UdsResponse
 
 from ._iocontrol_actuate import send_iocontrol
@@ -175,12 +175,11 @@ BatchOutcome = Literal["ok", "failed", "unanswered"]
 async def _read_batch(sm, tx_id, group, out, batch_state) -> BatchOutcome:
     """Attempt one multi-DID request for ``group``; append results on success.
 
-    Returns ``"ok"`` if the batch succeeded and split cleanly. On NRC 0x13/0x31
-    (format/range not supported) or an unsplittable response, permanently
-    disables batching for the ECU and returns ``"failed"`` so the caller falls
-    back to per-DID reads. A non-answer (e.g. NO DATA) returns ``"unanswered"``
-    without disabling; the caller decides, from the fallback, whether it counts
-    against the ECU.
+    Returns ``"ok"`` if the batch succeeded and split cleanly. On a refusal in
+    ``BATCH_REFUSAL_NRCS`` or an unsplittable response, it disables batching for the ECU for
+    good and returns ``"failed"``, so the caller falls back to per-DID reads. A non-answer
+    (e.g. NO DATA) returns ``"unanswered"`` without disabling; the caller decides, from the
+    fallback, whether it counts against the ECU.
     """
     dids = [_did4(e[0]) for e in group]
     await sm.keepalive_stale()
@@ -200,10 +199,7 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> BatchOutcome:
     if resp.get("ok") or resp.get("nrc") is not None:
         sm.mark_active(tx_id)  # a real answer resets S3 — no redundant 3E00 needed
     if not resp.get("ok"):
-        if resp.get("nrc") in (
-            NRC_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT,
-            NRC_REQUEST_OUT_OF_RANGE,
-        ):
+        if resp.get("nrc") in BATCH_REFUSAL_NRCS:
             batch_state.disable(tx_id, f"rejected a {len(dids)}-DID request with NRC 0x13/0x31")
         return "failed" if resp.get("nrc") is not None else "unanswered"
     split = split_multi_did(

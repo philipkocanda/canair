@@ -23,11 +23,8 @@ from typing import TYPE_CHECKING, TypedDict
 
 from canair.live.poll_backoff import PollCost
 from canair.live.poll_schedule import Key
-from canair.uds.nrc import (
-    NRC_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT,
-    NRC_REQUEST_OUT_OF_RANGE,
-    nrc_description,
-)
+from canair.uds.multi_did import BATCH_REFUSAL_NRCS
+from canair.uds.nrc import nrc_description
 from canair.uds.services import NEGATIVE_RESPONSE_SID
 
 from ..uds.protocol import DiagProtocol, classify_protocol
@@ -41,11 +38,6 @@ if TYPE_CHECKING:
 PlanEntry = tuple[str, dict | None, bool]
 # What the pipelined client resolved each ``(ecu, request)`` to.
 PollResults = Mapping[tuple[str, bytes], bytes | Exception]
-
-# A multi-DID request an ECU refuses with one of these cannot be batched to it.
-_BATCH_REFUSALS = frozenset(
-    {NRC_INCORRECT_MESSAGE_LENGTH_OR_INVALID_FORMAT, NRC_REQUEST_OUT_OF_RANGE}
-)
 
 
 class Submission(TypedDict):
@@ -342,7 +334,7 @@ class MonitorRawPoller:
             elif (
                 resp
                 and resp[0] == NEGATIVE_RESPONSE_SID
-                and (resp[2] if len(resp) >= 3 else 0) in _BATCH_REFUSALS
+                and (resp[2] if len(resp) >= 3 else 0) in BATCH_REFUSAL_NRCS
             ):
                 self.nobatch.add(ecu)  # ECU can't batch — fall back next cycle
             if split is None:

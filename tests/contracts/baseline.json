@@ -64,7 +64,6 @@
     "canair.live.skm_wakeup": 4,
     "canair.live.tester": 1,
     "canair.uds.describe": 20,
-    "canair.uds.echo": 2,
-    "canair.uds.multi_did": 1
+    "canair.uds.echo": 2
   }
 }
