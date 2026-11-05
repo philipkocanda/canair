@@ -24,6 +24,7 @@ import sys
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
+from canair.core.prompt import PromptUnavailable
 from canair.transport.protocol import Terminal
 
 __all__ = ["Operation", "SessionOptions", "run_session_guarded"]
@@ -66,7 +67,8 @@ async def run_session_guarded(
     (never a traceback), with a ``--recover`` hint when a ``--save`` session was
     in flight (its data is safe in the write-ahead journal). Returns a process
     exit code: 0 on success, 1 on a transport failure, 2 when the command
-    blocklist (:mod:`canair.safety.blocklist`) refused a request.
+    blocklist (:mod:`canair.safety.blocklist`) refused a request or a confirmation had no
+    terminal and no flag to answer it.
 
     The caller owns the terminal lifecycle (construct/close) and any
     transport-specific ``finally`` (session-end logging, reboot). ``KeyboardInterrupt``
@@ -93,6 +95,10 @@ async def run_session_guarded(
     except SafetyBlocked as e:
         # The command blocklist refused something this mode was about to send
         # (e.g. a programming session): a policy outcome, not a crash.
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    except PromptUnavailable as e:
+        # A confirmation no one can answer (no terminal, no --yes): a refusal, not a crash.
         print(f"error: {e}", file=sys.stderr)
         return 2
     except transport_error_types() as e:

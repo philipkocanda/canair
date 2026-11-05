@@ -21,6 +21,7 @@ import sys
 from typing import NoReturn
 
 from canair.cli.commands import iter_command_modules
+from canair.core.prompt import PromptUnavailable
 
 # Global options (before the subcommand) that consume a following value. Used by
 # _inject_default_subcommand to find the command token.
@@ -374,7 +375,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         result = func(args)
-    except (ProfileError, LegacyCaptureError, SafetyBlocked) as e:
+    except (ProfileError, LegacyCaptureError, SafetyBlocked, PromptUnavailable) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
     except EditError as e:
