@@ -838,16 +838,604 @@ HVAC:
         ReadScalingDataByIdentifier on 0100 returns NRC 0x11 in the default and extended sessions.
       sources:
         - on-car 2026-11-01 support probe (canair read raw steps --save, wican-ws, AC charging)
+  # Meanings, causes, thresholds and fail-safes are from the Ioniq Electric 2017 service manual,
+  # Air Conditioning System chapter. The manual checks every code only with the ignition on.
+  # "Listed as" gives the manual's code with its failure-type byte (B1285-77). The key is the
+  # first two bytes.
   dtcs:
+    source: Ioniq Electric 2017 service manual, Air Conditioning System diagnosis (EV)
+    source_links:
+      - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Heating%2C%20Ventilation%20%26%20A%2FC%20%28HVAC%29/HVAC%20Control%20Systems/Air%20Conditioning%20System%20Diagnosis%20%28EV%29/
+      - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Quick%20Lookups/DTC%20Index/DTC%20Index%20%28EV%29/Air%20Conditioning%20System%20DTCS/
+    verified: false
+    B1206:
+      description: Direction potentiometer open (low) - passenger
+      causes: >-
+        poor connection in harness, short to ground in signal (feedback signal) circuit, short to
+        ground in power circuit, faulty passenger mode actuator, faulty A/C control module
+      notes: >-
+        Listed as B1206-13. Threshold: feedback signal of passenger mode actuator has been detected
+        below 0.1 V for 0.3 seconds. Fail-safe: if the mode actuator is placed at vent mode right
+        before fail detection, actuator is operated and fixed to vent mode position; the others mode
+        are selected, actuator is moved to DEF mode position.
+    B1207:
+      description: Direction potentiometer short (high)
+      causes: >-
+        short to battery in signal (feedback) circuit, open in ground circuit, faulty passenger mode
+        actuator, faulty A/C control module
+      notes: >-
+        Listed as B1207-11. Threshold: feedback signal of passenger mode actuator has been detected
+        over 4.9 V for 0.3 seconds. Fail-safe: if the mode actuator is placed at vent mode right
+        before fail detection, actuator is operated and fixed to vent mode position; the others mode
+        are selected, actuator is moved to DEF mode position.
+    B1208:
+      description: Intake potentiometer open (low)
+      causes: >-
+        poor connection in wiring harness, open in signal (feedback signal) circuit, open in power
+        circuit, short to ground in signal (feedback signal) circuit, short to ground in power
+        circuit, faulty intake actuator, faulty A/C control module
+      notes: >-
+        Listed as B1208-13. Threshold: feedback signal has been detected below 0.1 V for 0.3
+        seconds. Fail-safe: intake actuator is moved and fixed at FRE position if FRE is selected or
+        REC position if REC is selected.
+    B1209:
+      description: Intake potentiometer short (high)
+      causes: >-
+        short to battery in signal (feedback) circuit, open in ground circuit, faulty intake
+        actuator, faulty A/C control module
+      notes: >-
+        Listed as B1209-11. Threshold: feedback signal has been detected over 4.9 V for 0.3 seconds.
+        Fail-safe: intake actuator is moved and fixed at FRE position if FRE is selected or REC
+        position if REC is selected.
+    B1233:
+      description: In-car temp sensor short (low) - front
+      causes: >-
+        short to ground in signal circuit, faulty in-car temperature sensor, faulty A/C control
+        module
+      notes: >-
+        Listed as B1233-11. Threshold: in-car temperature sensor signal is at or below 0.1 V for 0.3
+        seconds. Fail-safe: control with the value of 25°C (77°F).
+    B1234:
+      description: In-car temp sensor open (high) - front
+      causes: >-
+        poor connection in wiring harness, open in signal circuit, short to battery in signal
+        circuit, open in ground circuit, faulty in-car temperature sensor, faulty A/C control module
+      notes: >-
+        Listed as B1234-13. Threshold: in-car temperature sensor signal is at or over 4.9 V for 0.3
+        seconds. Fail-safe: control with the value of 25°C (77°F).
+    B1237:
+      description: Ambient temperature sensor short (low)
+      causes: >-
+        short to ground in signal circuit, faulty ambient temperature sensor, faulty A/C control
+        module
+      notes: >-
+        Listed as B1237-11. Threshold: ambient temperature sensor signal is at or below 0.1 V for
+        0.3 seconds. Fail-safe: displayed '-' and A/C control module regards and controls it as 20°C
+        (68°F).
+    B1238:
+      description: Ambient temperature sensor open (high)
+      causes: >-
+        poor connection in wiring harness, open in signal circuit, short to battery in signal
+        circuit, open in ground circuit, faulty ambient temperature sensor, faulty A/C control
+        module
+      notes: >-
+        Listed as B1238-13. Threshold: ambient temperature sensor signal is at or over 4.9 V for 0.3
+        seconds. Fail-safe: displayed '-' and A/C control module regards and controls it as 20°C
+        (68°F).
+    B1241:
+      description: Evaporator sensor short (low)
+      causes: short to ground in signal circuit, faulty evaporator sensor, faulty A/C control module
+      notes: >-
+        Listed as B1241-11. Threshold: evaporator sensor signal is at or below 0.1 V for 0.3
+        seconds. Fail-safe: control with the value of -2°C (28.4°F).
+    B1242:
+      description: Evaporator sensor open (high)
+      causes: >-
+        poor connection in wiring harness, open in signal circuit, short to battery in signal
+        circuit, open in ground circuit, faulty evaporator sensor, faulty A/C control module
+      notes: >-
+        Listed as B1242-13. Threshold: evaporator sensor signal is at or over 4.9 V for 0.3 seconds.
+        Fail-safe: control with the value of -2°C (28.4°F).
+    B1245:
+      description: Air mix potentiometer open (low) - driver
+      causes: >-
+        poor connection in wiring harness, open in signal (feedback signal) circuit, open in power
+        circuit, short to ground in signal (feedback signal) circuit, short to ground in power
+        circuit, faulty driver temperature actuator (air mix potentiometer), faulty A/C control
+        module
+      notes: >-
+        Listed as B1245-13. Threshold: feedback signal of driver temperature actuator has been
+        detected below 0.1 V for 0.3 seconds. Fail-safe: setting temperature: 17°C (62.6°F)~24.5°C
+        (76.1°F) fix at max. cooling position; setting temperature: 25°C (77°F)~32°C (89.6°F) fix at
+        max. heating position.
+    B1246:
+      description: Air mix potentiometer short (high) - driver
+      causes: >-
+        short to battery in signal (feedback) circuit, open in ground circuit, faulty driver
+        temperature actuator (air mix actuator), faulty A/C control module
+      notes: >-
+        Listed as B1246-11. Threshold: feedback signal has been detected over 4.9 V for 0.3 seconds.
+        Fail-safe: setting temperature: 17°C (62.6°F)~24.5°C (76.1°F) fix at max. cooling position;
+        setting temperature: 25°C (77°F)~32°C (89.6°F) fix at max. heating position.
+    B1249:
+      description: Direction potentiometer open (low) - driver
+      causes: >-
+        poor connection in wiring harness, open in signal (feedback signal) circuit, open in power
+        circuit, short to ground in signal (feedback signal) circuit, short to ground in power
+        circuit, faulty mode actuator, faulty A/C control module
+      notes: >-
+        Listed as B1249-13. Threshold: feedback signal of mode actuator has been detected below 0.1
+        V for 0.3 seconds. Fail-safe: if the mode actuator is placed at vent mode right before fail
+        detection, actuator is operated and fixed to vent mode position; the others mode are
+        selected, actuator is moved to DEF mode position.
+    B1250:
+      description: Direction potentiometer short (high) - driver
+      causes: >-
+        short to battery in signal (feedback) circuit, open in ground circuit, faulty mode actuator,
+        faulty A/C control module
+      notes: >-
+        Listed as B1250-11. Threshold: feedback signal of mode actuator has been detected over 4.9 V
+        for 0.3 seconds. Fail-safe: if the mode actuator is placed at vent mode right before fail
+        detection, actuator is operated and fixed to vent mode position; in case of the others,
+        actuator is moved to DEF mode position.
+    B1281:
+      description: Humidity sensor short (low) - AUTO defog
+      causes: >-
+        poor connection in harness, open or short in signal circuit, open or short in power circuit,
+        faulty auto defogger sensor actuator, faulty air conditioner control module
+      notes: >-
+        Listed as B1281-11. Threshold: feedback signal of auto defogger sensor has been detected
+        below 0.1 V for 0.3 seconds. Fail-safe: air conditioner control module controls humidity as
+        0%.
+    B1282:
+      description: Humidity sensor open (high) - AUTO defog
+      causes: >-
+        poor connection in harness, open in signal circuit, faulty auto defog sensor, faulty air
+        conditioner control module
+      notes: >-
+        Listed as B1282-13. Threshold: open for 2 seconds. Fail-safe: air conditioner control module
+        controls humidity as 0%.
+    B1283:
+      description: Direction potentiometer open (low) - AUTO defog
+      causes: >-
+        poor connection in harness, open in signal (feedback signal) circuit, open in power circuit,
+        short to ground in signal (feedback signal) circuit, short to ground in power circuit,
+        faulty auto defogger actuator, faulty A/C control module
+      notes: >-
+        Listed as B1283-13. Threshold: feedback signal has been detected below 0.1 V for 0.3
+        seconds. Fail-safe: if selected mode was VENT, it is moved and fixed at close position; if
+        the others mode, it is moved and fixed at open position.
+    B1284:
+      description: Direction potentiometer short (high) - auto defog
+      causes: >-
+        short to battery in signal (feedback signal) circuit, faulty auto defogger actuator, faulty
+        air conditioner control module
+      notes: >-
+        Listed as B1284-11. Threshold: feedback signal has been detected over 4.9 V for 0.1 seconds.
+        Fail-safe: if selected mode was VENT, it is moved and fixed at close position; if the others
+        mode, it is moved and fixed at open position.
     B1285:
-      description: >
-        Direction Control Motor — AUTO Defog: the defog mode actuator did not
-        reach the position commanded by the A/C control module within 40 s.
-      causes: >
-        poor harness contact; open/short in the motor power circuit; faulty defog
-        mode actuator; faulty A/C control module.
-      source: "https://www.dtcdecode.com/Hyundai/B1285"
-      verified: false
+      description: Direction control motor - AUTO defog
+      causes: >-
+        poor connection in wiring harness, open in control circuit, short to ground in control
+        circuit, faulty auto defogger actuator, faulty A/C control module
+      source: Ioniq Electric 2017 service manual, Air Conditioning System diagnosis (EV); https://www.dtcdecode.com/Hyundai/B1285
+      notes: >-
+        Listed as B1285-77. Threshold: no movement to controlled mode position for 10 seconds.
+        Fail-safe: fixed as current position.
+    B1286:
+      description: Duct sensor short (low) - driver vent
+      causes: >-
+        poor connection in wiring harness, short to ground in signal circuit, faulty driver front
+        ventilation duct sensor, faulty A/C control module
+      notes: >-
+        Listed as B1286-11. Threshold: duct sensor signal is at or below 0.1 V for 0.3 seconds.
+        Fail-safe: alternative control with TEMP DOOR mapping.
+    B1287:
+      description: Duct sensor open (high) - driver vent
+      causes: >-
+        poor connection in wiring harness, open in control circuit, short to battery in signal
+        circuit, open in ground circuit, faulty driver front ventilation duct sensor, faulty A/C
+        control module
+      notes: >-
+        Listed as B1287-13. Threshold: duct sensor signal is at or over 4.9 V for 0.3 seconds.
+        Fail-safe: alternative control with TEMP DOOR mapping.
+    B1288:
+      description: Duct sensor short (low) - driver floor
+      causes: >-
+        poor connection in wiring harness, short to ground in signal circuit, faulty driver front
+        floor duct sensor, faulty A/C control module
+      notes: >-
+        Listed as B1288-11. Threshold: duct sensor signal is at or below 0.1 V for 0.3 seconds.
+        Fail-safe: alternative control with TEMP DOOR mapping.
+    B1289:
+      description: Duct sensor open (high) - driver floor
+      causes: >-
+        poor connection in wiring harness, open in signal circuit, short to battery in signal
+        circuit, open in ground circuit, faulty driver front floor duct sensor, faulty A/C control
+        module
+      notes: >-
+        Listed as B1289-13. Threshold: duct sensor signal is at or over 4.9 V for 0.3 seconds.
+        Fail-safe: alternative control with TEMP DOOR mapping.
+    B160C:
+      description: Lost communication with PTC
+      causes: >-
+        poor connection, open or short in PTC module CAN communication line, PTC module malfunction,
+        A/C control module malfunction
+      notes: >-
+        Listed as B160C-88. Threshold: no CAN signal for 0.1 seconds or error value received.
+        Fail-safe: PTC module off.
+    B1686:
+      description: Vehicle speed sensor fault - CAN signal
+      causes: >-
+        open in A/C control module P-CAN communication line, short to ground in P-CAN communication
+        line, short to battery in P-CAN communication line, faulty wheel speed sensor, faulty EMS,
+        faulty IBAU, faulty VCU
+      notes: >-
+        Listed as B1686-88. Threshold: no receiving CAN signal for 1.5 seconds or receiving error
+        value. Fail-safe: substitute vehicle speed value as '0km/h (0mph)'.
+    B1695:
+      description: CAN time-out comp
+      causes: >-
+        DC fuse (inside the HPCU), open or short in E-comp CAN communication line, open or short in
+        E-comp interlock in or out communication line, faulty E-compressor
+      notes: >-
+        Listed as B1695-88. Threshold: no CAN signal for 1.5 seconds or error value received.
+        Fail-safe: shut off the E-comp.
+    B1696:
+      description: COMP operating state error
+      causes: >-
+        DC fuse (inside the HPCU), open or short in E-comp CAN communication line, open or short in
+        E-comp interlock in or out communication line, faulty E-compressor
+      notes: >-
+        Listed as B1696-88. Threshold: if abnormal operation status information is received from
+        E-comp. Fail-safe: shut off the E-comp.
+    B1804:
+      description: HVAC blower motor
+      causes: >-
+        blower motor power (fuse), faulty blower motor, when blower PWM signal line is open, foreign
+        materials in the blower motor
+      notes: >-
+        Listed as B1804-31 and B1804-49. B1804-31: Threshold: when blower PWM signal line is open.
+        Fail-safe: shut off E-comp & PTC. B1804-49: Threshold: blower motor is stuck. Fail-safe:
+        shut off E-comp & PTC.
+    B1815:
+      description: PTC heater - CAN signal fault (time out)
+      causes: poor connection, PTC module malfunction, A/C control module malfunction
+      notes: 'Listed as B1815-88. Threshold: CAN error message received. Fail-safe: PTC module off.'
+    B1818:
+      description: PTC heater interlock fault
+      causes: poor connection, PTC module malfunction, A/C control module malfunction
+      notes: >-
+        Listed as B1818-13. Threshold: PTC interlock voltage is 12 V. Fail-safe: electrical
+        compressor and PTC module off.
+    B1819:
+      description: APT sensor open (low)
+      causes: >-
+        poor connection, A/C pressure transducer (APT) sensor signal open, A/C pressure transducer
+        (APT) sensor malfunction, A/C control module malfunction
+      notes: >-
+        Listed as B1819-13. Threshold: A/C pressure transducer (APT) sensor voltage is below 0.1 V
+        for 0.3 seconds. Fail-safe: proceed the fail-safe logic.
+    B1820:
+      description: APT sensor short (high)
+      causes: >-
+        poor connection, A/C pressure transducer (APT) sensor signal open, A/C pressure transducer
+        (APT) sensor malfunction, A/C control module malfunction
+      notes: >-
+        Listed as B1820-11. Threshold: A/C pressure transducer (APT) sensor voltage is higher than
+        4.5 V for 0.3 seconds. Fail-safe: proceed the fail-safe logic.
+    B1821:
+      description: E-comp wait low voltage
+      causes: connector open, main battery voltage drop, E-comp error
+      notes: >-
+        Listed as B1821-88. Threshold: HV input voltage below 150 V. Fail-safe: shut off the E-comp.
+    B1822:
+      description: E-comp wait high voltage
+      causes: EV battery, E-comp error
+      notes: >-
+        Listed as B1822-88. Threshold: HV input voltage higher than 423 V. Fail-safe: shut off the
+        E-comp.
+    B1823:
+      description: E-comp wait over heat protection
+      causes: over heat element in the EV engine room, E-comp error
+      notes: >-
+        Listed as B1823-88. Threshold: E-comp over heat protection temperature higher than 115°C.
+        Fail-safe: shut off the E-comp.
+    B1824:
+      description: E-comp wait over current protection
+      causes: over heat element in the EV engine room, E-comp error
+      notes: >-
+        Listed as B1824-88. Threshold: E-comp motor phase current higher than 35 A. Fail-safe: shut
+        off the E-comp.
+    B1825:
+      description: E-comp wait low temp protection
+      causes: overheat element in the EV engine room, E-comp error
+      notes: >-
+        Listed as B1825-88. Threshold: if E-comp is in low temperature mode (less than -40°
+        C/-40°F). Fail-safe: shut off the E-comp.
+    B1826:
+      description: E-comp sleep missed restart
+      causes: cooling fan & system, E-comp error
+      notes: 'Listed as B1826-88. Threshold: E-comp missed. Fail-safe: shut off the E-comp.'
+    B1827:
+      description: E-comp sleep current sensor error
+      causes: E-comp error
+      notes: >-
+        Listed as B1827-88. Threshold: if E-comp has a current sensor error. Fail-safe: shut off the
+        E-comp.
+    B182D:
+      description: E-comp limit operating of over load
+      causes: cooling fan & system, E-comp error
+      notes: 'Listed as B182D-88. Threshold: E-comp load increasing. Fail-safe: shut off the E-comp.'
+    B182E:
+      description: PTC HTR LV low fault
+      causes: >-
+        poor connection, open or short in PTC module CAN communication line, PTC module malfunction,
+        A/C control module malfunction
+      notes: >-
+        Listed as B182E-88. Threshold: no CAN signal for 0.1 seconds or error value received.
+        Fail-safe: PTC module off.
+    B182F:
+      description: PTC HTR LV high fault
+      causes: >-
+        poor connection, open or short in PTC module CAN communication line, PTC module malfunction,
+        A/C control module malfunction
+      notes: >-
+        Listed as B182F-88. Threshold: no CAN signal for 0.1 seconds or error value received.
+        Fail-safe: PTC module off.
+    B1830:
+      description: PTC HTR HV low fault
+      causes: >-
+        poor connection, PTC high voltage input line, PTC module malfunction, A/C control module
+        malfunction
+      notes: >-
+        Listed as B1830-88. Threshold: PTC high voltage input line is below 230 V. Fail-safe: PTC
+        module off.
+    B1831:
+      description: PTC HTR HV high fault
+      causes: >-
+        poor connection, PTC high voltage input line, PTC module malfunction, A/C control module
+        malfunction
+      notes: >-
+        Listed as B1831-88. Threshold: PTC high voltage input line is higher than 450 V. Fail-safe:
+        PTC module off.
+    B1832:
+      description: PTC HTR over current fault
+      causes: poor connection, PTC module malfunction, A/C control module malfunction
+      notes: >-
+        Listed as B1832-88. Threshold: PTC current is higher than 29.5 A. Fail-safe: PTC module off.
+    B1833:
+      description: PTC HTR thermal shutdown fault
+      causes: poor connection, PTC module malfunction, A/C control module malfunction
+      notes: >-
+        Listed as B1833-88. Threshold: PTC temperature is higher than 145°C. Fail-safe: PTC module
+        off.
+    B1834:
+      description: PTC HTR PCB thermal shutdown fault
+      causes: >-
+        poor connection, PTC module PCB malfunction, PTC module malfunction, A/C control module
+        malfunction
+      notes: >-
+        Listed as B1834-88. Threshold: PTC temperature is higher than 145°C. Fail-safe: PTC module
+        off.
+    B1835:
+      description: PTC HTR failure of high voltage sensor
+      causes: >-
+        poor connection, PTC high voltage sensor malfunction, PTC module malfunction, A/C control
+        module malfunction
+      notes: >-
+        Listed as B1835-88. Threshold: PTC high voltage sensor is below 140 V or higher than 500 V.
+        Fail-safe: PTC module off.
+    B1836:
+      description: PTC HTR failure of low voltage sensor
+      causes: >-
+        poor connection, PTC high voltage sensor malfunction, PTC module malfunction, A/C control
+        module malfunction
+      notes: >-
+        Listed as B1836-88. Threshold: PTC low voltage sensor is below 0.1 V or higher than 4.9 V.
+        Fail-safe: PTC module off.
+    B1837:
+      description: PTC HTR failure of current sensor
+      causes: >-
+        poor connection, PTC current sensor malfunction, PTC module malfunction, A/C control module
+        malfunction
+      notes: >-
+        Listed as B1837-88. Threshold: PTC current sensor voltage is below 0.1 V or higher than 4.9
+        V. Fail-safe: PTC module off.
+    B1838:
+      description: PTC HTR open/short of PCB temperature sensor
+      causes: >-
+        poor connection, PTC current sensor malfunction, PTC module malfunction, A/C control module
+        malfunction
+      notes: >-
+        Listed as B1838-88. Threshold: PTC PCB temperature sensor voltage is below 0.1 V or higher
+        than 4.9 V. Fail-safe: PTC module off.
+    B1839:
+      description: PTC HTR open/short of core temperature sensor
+      causes: >-
+        poor connection, PTC current sensor malfunction, PTC module malfunction, A/C control module
+        malfunction
+      notes: >-
+        Listed as B1839-88. Threshold: PTC core temperature sensor voltage is below 0.1 V or higher
+        than 4.9 V. Fail-safe: PTC module off.
+    B184A:
+      description: 'Refrigerant temp sensor #1 open'
+      causes: >-
+        poor connection, #1 refrigerant temperature sensor signal open, #1 refrigerant temperature
+        sensor malfunction, A/C control module malfunction
+      notes: >-
+        Listed as B184A-13. Threshold: refrigerant temperature sensor voltage is higher than 4.9 V
+        for 0.3 seconds. Fail-safe: set refrigerant temperature as 80°C.
+    B184B:
+      description: 'Refrigerant temp sensor #1 short'
+      causes: >-
+        poor connection, #1 refrigerant temperature sensor signal open, #1 refrigerant temperature
+        sensor malfunction, A/C control module malfunction
+      notes: >-
+        Listed as B184B-11. Threshold: refrigerant temperature sensor voltage is below 0.1 V for 0.3
+        seconds. Fail-safe: set refrigerant temperature as 80°C.
+    B184C:
+      description: 'Refrigerant temp sensor #2 open'
+      causes: >-
+        poor connection, #2 refrigerant temperature sensor signal open, #2 refrigerant temperature
+        sensor malfunction, A/C control module malfunction
+      notes: >-
+        Listed as B184C-13. Threshold: refrigerant temperature sensor voltage is higher than 4.9 V
+        for 0.3 seconds. Fail-safe: set refrigerant temperature as 10°C.
+    B184D:
+      description: 'Refrigerant temp sensor #2 short'
+      causes: >-
+        poor connection, #2 refrigerant temperature sensor signal open, #2 refrigerant temperature
+        sensor malfunction, A/C control module malfunction
+      notes: >-
+        Listed as B184D-11. Threshold: refrigerant temperature sensor voltage is higher than 4.9 V
+        for 0.3 seconds. Fail-safe: set refrigerant temperature as 10°C.
+    B1850:
+      description: '3-way valve #1 open'
+      causes: >-
+        poor connection, #1 3-way valve circuit open, #1 3-way valve malfunction, A/C control module
+        malfunction
+      notes: >-
+        Listed as B1850-13. Threshold: 3 way valve output is over 4 V after 2 seconds at valve "OFF"
+        signal; 3 way valve output is below 0.3 V after 2 seconds at valve "ON" signal. Fail-safe:
+        shut off the all valve of air conditioning system.
+    B1852:
+      description: '3-way valve #2 open'
+      causes: >-
+        poor connection, #2 3-way valve circuit open, #2 3-way valve malfunction, A/C control module
+        malfunction
+      notes: >-
+        Listed as B1852-13. Threshold: 3 way valve output is over 4 V after 2 seconds at valve "OFF"
+        signal; 3 way valve output is below 0.3 V after 2 seconds at valve "ON" signal. Fail-safe:
+        shut off the all valve of air conditioning system.
+    B1853:
+      description: '3-way valve #2 short'
+      causes: >-
+        poor connection, #2 3-way valve circuit short, #2 3-way valve malfunction, A/C control
+        module malfunction
+      notes: >-
+        Listed as B1853-11. Threshold: 3 way valve output is over 4 V after 2 seconds at valve "OFF"
+        signal; 3 way valve output is below 0.3 V after 2 seconds at valve "ON" signal. Fail-safe:
+        shut off the all valve of air conditioning system.
+    B1856:
+      description: 'Refrigerant 2-way valve #1 open'
+      causes: >-
+        poor connection, #1 3-way valve circuit open, #1 3-way valve malfunction, A/C control module
+        malfunction
+      notes: >-
+        Listed as B1856-13. Threshold: 2 way valve output is over 4 V after 2 seconds at valve "OFF"
+        signal; 2 way valve output is below 0.3 V after 2 seconds at valve "ON" signal. Fail-safe:
+        shut off the all valve of air conditioning system.
+    B1857:
+      description: 'Refrigerant 2-way valve #1 short'
+      causes: >-
+        poor connection, #1 3-way valve circuit short, #1 3-way valve malfunction, A/C control
+        module malfunction
+      notes: >-
+        Listed as B1857-11. Threshold: 2 way valve output is not detected at valve "OFF" signal; 2
+        way output is over 2.14 V after 2 seconds at valve "ON" signal. Fail-safe: shut off the all
+        valve of air conditioning system.
+    B1858:
+      description: 'Refrigerant 2-way valve #2 open'
+      causes: >-
+        poor connection, #2 3-way valve circuit open, #2 3-way valve malfunction, A/C control module
+        malfunction
+      notes: >-
+        Listed as B1858-13. Threshold: 2 way valve output is over 4 V after 2 seconds at valve "OFF"
+        signal; 2 way valve output is below 0.3 V after 2 seconds at valve "ON" signal. Fail-safe:
+        shut off the all valve of air conditioning system.
+    B1859:
+      description: 'Refrigerant 2-way valve #2 short'
+      causes: >-
+        poor connection, #2 3-way valve circuit short, #2 3-way valve malfunction, A/C control
+        module malfunction
+      notes: >-
+        Listed as B1859-11. Threshold: 2 way valve output is not detected at valve "OFF" signal; 2
+        way output is over 2.14 V after 2 seconds at valve "ON" signal. Fail-safe: shut off the all
+        valve of air conditioning system.
+    B185A:
+      description: Coolant 3 way valve - open
+      causes: >-
+        poor connection, #1 3-way valve circuit open, #1 3-way valve malfunction, A/C control module
+        malfunction
+      notes: >-
+        Listed as B185A-13. Threshold: coolant 3 way valve output is over 4 V after 2 seconds at
+        valve "OFF" signal; coolant 3 way valve output is below 0.2 V after 2 seconds at valve "ON"
+        signal. Fail-safe: shut off the all valve of air conditioning system.
+    B185B:
+      description: Coolant 3 way valve - short/lock
+      causes: >-
+        poor connection, coolant 3 way valve circuit short, coolant 3 way valve malfunction, A/C
+        control module malfunction
+      notes: >-
+        Listed as B185B-11. Threshold: 3 way valve output is not detected at valve "OFF" signal; 3
+        way output is over 1.16 V after 2 seconds at valve "ON" signal. Fail-safe: shut off the all
+        valve of air conditioning system.
+    B2209:
+      description: CAN time-out VCU
+      causes: >-
+        poor connection, open or short in VCU CAN communication line, VCU malfunction, A/C control
+        module malfunction
+      notes: >-
+        Listed as B2209-87. Threshold: no CAN signal for 2 seconds or error value received.
+        Fail-safe: fail safe value matrix reflected.
+    B2210:
+      description: CAN time-out MCU
+      causes: >-
+        poor connection, open or short in MCU CAN communication line, MCU malfunction, A/C control
+        module malfunction
+      notes: >-
+        Listed as B2210-87. Threshold: no CAN signal for 2 seconds or error value received.
+        Fail-safe: fail safe value matrix reflected.
+    B2211:
+      description: CAN time-out BMS
+      causes: >-
+        poor connection, open or short in BMS CAN communication line, BMS malfunction, A/C control
+        module malfunction
+      notes: >-
+        Listed as B2211-87. Threshold: no CAN signal for 2 seconds or error value received.
+        Fail-safe: fail safe value matrix reflected.
+    B2406:
+      description: Air mix motor-driver
+      causes: >-
+        poor connection in wiring harness, open in control circuit, short to ground in control
+        circuit, faulty driver temperature actuator (air mix actuator), faulty A/C control module
+      notes: >-
+        Listed as B2406-77. Threshold: no movement to controlled mode position for 10 seconds.
+        Fail-safe: fixed as current position.
+    B2408:
+      description: Intake motor
+      causes: >-
+        poor connection in wiring harness, open in control circuit, short to ground in control
+        circuit, faulty intake actuator, faulty A/C control module
+      notes: >-
+        Listed as B2408-77. Threshold: no movement to controlled mode position for 10 seconds.
+        Fail-safe: fixed as current position.
+    B2409:
+      description: Direction control motor-driver
+      causes: >-
+        poor connection in wiring harness, open in control circuit, short to ground in control
+        circuit, faulty mode actuator, faulty A/C control module
+      notes: >-
+        Listed as B2409-77. Threshold: no movement to controlled mode position for 10 seconds.
+        Fail-safe: fixed as current position.
+    B2416:
+      description: Direction control motor-passenger
+      causes: >-
+        poor connection in wiring harness, open in control circuit, short to ground in control
+        circuit, faulty mode actuator, faulty A/C control module
+      notes: >-
+        Listed as B2416-77. Threshold: no movement to controlled mode position for 10 seconds.
+        Fail-safe: fixed as current position.
+    B2470:
+      description: E-comp interlock fault
+      causes: >-
+        poor connection in wiring harness, poor connection in high voltage cable, E-comp error,
+        faulty A/C control module
+      notes: >-
+        Listed as B2470-13. Threshold: when interlock voltage is 12 V. Fail-safe: shut off the
+        E-comp.
 
   sessions:
     "01":
