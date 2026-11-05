@@ -14,9 +14,7 @@ from typing import Any
 
 from canair.core.eventlog import log_event
 from canair.uds.nrc import NRC_SERVICE_NOT_SUPPORTED
-from canair.uds.services import NEGATIVE_RESPONSE_SID
-
-TESTER_PRESENT_SID = 0x3E
+from canair.uds.services import NEGATIVE_RESPONSE_SID, TESTER_PRESENT
 
 
 def unsupported(resp: Mapping[str, Any]) -> bool:
@@ -30,7 +28,7 @@ def unsupported_bytes(reply: bytes | None) -> bool:
         reply is not None
         and len(reply) >= 3
         and reply[0] == NEGATIVE_RESPONSE_SID
-        and reply[1] == TESTER_PRESENT_SID
+        and reply[1] == TESTER_PRESENT
         and reply[2] == NRC_SERVICE_NOT_SUPPORTED
     )
 

@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Final
 from canair.uds.isotp_passive import Reassembler, ReassemblyStats, is_first_frame
 from canair.uds.nrc import is_response_pending
 from canair.uds.response import CAT_DROP
+from canair.uds.services import NEGATIVE_RESPONSE_SID, positive_response_sid
 
 if TYPE_CHECKING:
     from .stats import TransportStats
@@ -52,10 +53,6 @@ ABSOLUTE_CAP_S: Final = PENDING_TOTAL_S + CONSECUTIVE_FRAME_TIMEOUT_S
 # ISO-TP frame types (the PCI byte's high nibble).
 _CONSECUTIVE_FRAME: Final = 2
 _FLOW_CONTROL: Final = 3
-
-# The answer to a request opens with its SID + 0x40, or 0x7F.
-_POSITIVE_OFFSET: Final = 0x40
-_NEGATIVE_RESPONSE: Final = 0x7F
 
 CAN_FD_REFUSAL: Final = (
     "a functional request is sent and reassembled as classic CAN only, and the "
@@ -198,8 +195,8 @@ class FunctionalCollector:
 
     def _answers(self, first_byte: bytes) -> bool:
         return first_byte in (
-            bytes([(self._result.request[0] + _POSITIVE_OFFSET) & 0xFF]),
-            bytes([_NEGATIVE_RESPONSE]),
+            bytes([positive_response_sid(self._result.request[0]) & 0xFF]),
+            bytes([NEGATIVE_RESPONSE_SID]),
         )
 
     def _expire(self, now: float) -> None:

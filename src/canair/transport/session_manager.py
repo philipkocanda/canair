@@ -31,6 +31,11 @@ import time
 from canair.ecus.wake import WakePlan
 from canair.transport import keepalive
 from canair.transport.protocol import Terminal
+from canair.uds.services import (
+    DIAGNOSTIC_SESSION_CONTROL,
+    TESTER_PRESENT,
+    TESTER_PRESENT_REQUEST,
+)
 
 
 class SessionManager:
@@ -173,14 +178,18 @@ class SessionManager:
             else:
                 if self.verbose:
                     print(f"  [session] Sending wake-up (1001) to 0x{tx_id:03X}...")
-                await self.terminal.send_uds("1001", timeout=15.0, expected_sid=0x10)
+                await self.terminal.send_uds(
+                    "1001", timeout=15.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
+                )
                 await asyncio.sleep(0.5)
 
         if self.verbose:
             print(f"  [session] Entering session (10{mode}) on 0x{tx_id:03X}...")
         # Checked by service, so a stale reply to an earlier read is not taken for
         # an open session (see elm327_session for why the sub-function is not).
-        resp = await self.terminal.send_uds(req, timeout=5.0, expected_sid=0x10)
+        resp = await self.terminal.send_uds(
+            req, timeout=5.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
+        )
 
         if resp.get("ok"):
             if self.verbose:
@@ -200,7 +209,7 @@ class SessionManager:
     async def send_keepalive(self, tx_id: int):
         """Send TesterPresent (3E00) to a specific ECU.
 
-        Validated (``expected_sid=0x3E``) and transactional on purpose. An
+        Validated (``expected_sid=TESTER_PRESENT``) and transactional on purpose. An
         unchecked keepalive is how a transient link stall turns into a permanent
         response offset: it consumes the late reply still owed to the *previous*
         request, sees that reply's ELM prompt, and leaves its own ``7E00``
@@ -215,7 +224,9 @@ class SessionManager:
                 t0 = time.monotonic()
                 try:
                     await self.terminal.set_header(tx_id)
-                    resp = await self.terminal.send_uds("3E00", timeout=1.5, expected_sid=0x3E)
+                    resp = await self.terminal.send_uds(
+                        TESTER_PRESENT_REQUEST, timeout=1.5, expected_sid=TESTER_PRESENT
+                    )
                 finally:
                     self.keepalive_seconds += time.monotonic() - t0
         except ConnectionError:

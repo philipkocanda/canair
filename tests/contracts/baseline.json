@@ -47,7 +47,7 @@
     "canair.yaml_edit.revisions": 560,
     "canair.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 1150,
+  "deferred_internal_imports": 1148,
   "import_linter_ignores": 0,
   "packages_without_charter": [],
   "test_to_test_imports": [],
@@ -79,13 +79,6 @@
     "canair.live.tester": 2,
     "canair.safety.actuation": 5,
     "canair.safety.blocklist": 3,
-    "canair.transport.elm327.session": 2,
-    "canair.transport.elm327.terminal": 1,
-    "canair.transport.functional": 2,
-    "canair.transport.keepalive": 1,
-    "canair.transport.raw.terminal": 1,
-    "canair.transport.session_manager": 1,
-    "canair.transport.stats": 1,
     "canair.uds.describe": 20,
     "canair.uds.echo": 2,
     "canair.uds.multi_did": 1

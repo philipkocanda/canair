@@ -55,6 +55,7 @@ from canair.uds.frame_counts import FrameCountLedger, frames_for_payload
 from canair.uds.nrc import is_response_pending
 from canair.uds.parse import parse_uds_response
 from canair.uds.response import UdsResponse
+from canair.uds.services import TESTER_PRESENT_REQUEST
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
 
@@ -282,7 +283,9 @@ class RawTerminal:
                 while True:
                     await asyncio.sleep(2.0)
                     with _suppress():
-                        reply = await self._exchange_tx(tx, bytes.fromhex("3E00"), 1.5)
+                        reply = await self._exchange_tx(
+                            tx, bytes.fromhex(TESTER_PRESENT_REQUEST), 1.5
+                        )
                         if keepalive.unsupported_bytes(reply):
                             keepalive.report_unsupported(tx, transport=self.diag.transport)
                             return

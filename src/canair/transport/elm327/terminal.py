@@ -64,6 +64,7 @@ from canair.transport.timing import TimingRecorder
 from canair.uds.addressing import AddressBook
 from canair.uds.parse import compact, parse_uds_response
 from canair.uds.response import CAT_DECODE, CAT_STALE, UdsResponse
+from canair.uds.services import TESTER_PRESENT_REQUEST
 
 # Response classes that prove the pipe is carrying something other than this
 # request's answer, and so warrant realigning it. See the call site in `send_uds`
@@ -508,7 +509,11 @@ class Elm327Terminal:
         if read.clean and cu.startswith(_LINK_PROBE_CMDS):
             self.link.observe(elapsed)
         # Record RTT for real UDS requests only (skip AT setup + 3E00 keepalives).
-        if not cu.startswith("AT") and cu != "3E00" and self._cur_header is not None:
+        if (
+            not cu.startswith("AT")
+            and cu != TESTER_PRESENT_REQUEST
+            and self._cur_header is not None
+        ):
             self.timings.record(f"0x{self._cur_header:03X}", cu, elapsed)
         return result
 

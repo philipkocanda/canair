@@ -30,6 +30,7 @@ from canair.uds.response import (
     UdsResponse,
     classify_response,
 )
+from canair.uds.services import NEGATIVE_RESPONSE_SID
 
 
 def classify_raw_value(value) -> str:
@@ -48,7 +49,7 @@ def classify_raw_value(value) -> str:
     data = bytes(value)
     if not data:
         return "no_data"
-    if data[0] == 0x7F:
+    if data[0] == NEGATIVE_RESPONSE_SID:
         return "nrc"
     return "ok"
 
