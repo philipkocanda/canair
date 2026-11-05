@@ -1,6 +1,6 @@
 # Code organization, part 7: package `__init__.py` bodies
 
-Status: **PROPOSED** (2026-11-05). Part of
+Status: **IN PROGRESS** (2026-11-06; see "As built"). Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 3 for
 `profile/` only. The other packages can start after sub-plan 1.
 
@@ -108,3 +108,18 @@ In each commit:
   references (for example `profile/__init__.py::profile_layers`). The path check of sub-plan 1
   fails on each one after the move. Correct them in the same commit. Sub-plan 10 then cuts
   most of them.
+
+## As built
+
+Decision D is taken: option 2. Each `__init__.py` keeps its charter and imports nothing.
+
+The move tooling (outside the repo, kept for a rebase) is `split.py` (cut the top-level
+definitions into modules per a spec), `verify.py` (the step 2 check, by name, against the old
+`__init__.py` at the base commit) and `rewrite.py` (the callers, including `from canair import
+pkg` aliases, `import canair.pkg` and the dotted strings).
+
+- **`config/`** (done): `file.py`, `devices.py`, `transport.py`. 554 lines to 23. The check
+  passes for 39 definitions. A deferred import that needs two of the new modules is two
+  statements, which raises the `deferred_internal_imports` count, so
+  `cli/commands/config/edit.py` imports `config.file` at the top (a layer below everything, loaded
+  on every start-up anyway): the count falls 1104 to 1103.
