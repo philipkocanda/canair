@@ -7,7 +7,8 @@ description: Guidelines for agents making code or architecture changes to the ca
 
 Guidelines for *engineering* canair itself (the `src/canair/` package: CLI, transports, modes, library,
 tests). Related skills: **`contributing-profiles`** if your change is profile *data* rather than
-Python; **`reverse-engineer-signal`** / **`ioniq-reverse-engineering`** for the RE workflow itself.
+Python; **`reverse-engineer-signal`** / **`ioniq-reverse-engineering`** for the RE workflow itself,
+and **`cli-tui-standards`** for how output, prompts and TUIs must look and behave.
 
 Run and test the tree with `uv run …` from the repo root, never a globally-installed `canair`
 (`AGENTS.md` explains why). Flags and subcommand lists are authoritative in `canair <cmd> --help`

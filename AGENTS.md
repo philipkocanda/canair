@@ -150,7 +150,9 @@ Verify internal links still resolve — a broken cross-link is a defect. Policy:
 
 ## Tools
 
-> Workflows: reverse-engineering a signal end-to-end is the **reverse-engineer-signal** skill;
+> Workflows: how a command prints, prompts and exits, and how a TUI binds keys and builds modals,
+> is the **cli-tui-standards** skill (load it before touching output, a prompt or a TUI);
+> reverse-engineering a signal end-to-end is the **reverse-engineer-signal** skill;
 > partially-decoded bitflag bytes are **decode-bitfields**; bundled-car/device context is
 > **ioniq-reverse-engineering**; changing canair's code is **contributing-code**; whether a car
 > needs its own profile and how to name one is **profile-variants**. Deep
@@ -167,7 +169,8 @@ every view; press `?` in any TUI for its live cheat-sheet. Never hardcode a `Bin
 add or reuse a role, or `tests/contracts/test_tui_keymap.py` fails (it pins that every declared key resolves
 to a role, that its description matches the role's accepted wording, and that `escape` never quits).
 Two standing conventions: **`escape` backs out one level and never exits** (`q` is the only exit),
-and **`g`/`G` address the view's primary axis**.
+and **`g`/`G` address the view's primary axis**. The rest of the TUI and CLI output rules
+(colour and glyph meanings, messages, prompts, modals) are the **cli-tui-standards** skill.
 
 ### Live device
 
