@@ -5,8 +5,8 @@
 that turn the read-only monitor into an editor:
 
 - a **selection cursor** over the currently displayed parameter rows, and
-- a **display filter** (``all`` / ``verified`` / ``unverified`` / ``enabled`` /
-  ``disabled``) that narrows which parameters are shown *and* navigable.
+- a **display filter** (``all`` / ``verified`` / ``unverified`` / ``ship`` /
+  ``no-ship``) that narrows which parameters are shown *and* navigable.
 
 Edits are applied through :func:`canair.yaml_edit.pids.upsert_parameter` (surgical,
 comment-preserving, schema-validated) and then the controller reloads its PID
@@ -20,13 +20,15 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from canair.ecus.shipping import param_ships
+
 if TYPE_CHECKING:
     from canair.expression.decoding import ParamRow
     from canair.expression.results import EcuFrame, ResultEntry
     from canair.live.monitor import MonitorController
 
 # Ordered display filters cycled by the TUI's filter key.
-FILTERS = ("all", "verified", "unverified", "enabled", "disabled")
+FILTERS = ("all", "verified", "unverified", "ship", "no-ship")
 
 # A selection cursor identifies one parameter row uniquely across the display.
 SelectionKey = tuple[str, str, str]  # (ecu_label, pid, param_name)
@@ -47,10 +49,10 @@ class MonitorEditor:
         self.filter_mode: str = "all"
 
     # ── filtering ─────────────────────────────────────────────────────────
-    def _param_enabled(self, ecu_label: str, pid: str, name: str) -> bool:
-        """Param-level ``enabled`` flag (defaults True when undefined)."""
+    def _param_ships(self, ecu_label: str, pid: str, name: str) -> bool:
+        """Param-level ``ship`` flag (defaults True when undefined)."""
         pdef = self._lookup_pdef(_ecu_name(ecu_label), pid, name)
-        return True if pdef is None else bool(pdef.get("enabled", True))
+        return True if pdef is None else param_ships(pdef)
 
     def _row_matches(self, ecu_label: str, pid: str, row: ParamRow) -> bool:
         name = row[0]
@@ -62,10 +64,10 @@ class MonitorEditor:
             return verified
         if mode == "unverified":
             return not verified
-        if mode == "enabled":
-            return self._param_enabled(ecu_label, pid, name)
-        if mode == "disabled":
-            return not self._param_enabled(ecu_label, pid, name)
+        if mode == "ship":
+            return self._param_ships(ecu_label, pid, name)
+        if mode == "no-ship":
+            return not self._param_ships(ecu_label, pid, name)
         return True
 
     def visible_queries(self, last_queries: list[EcuFrame]) -> list[EcuFrame]:
@@ -155,7 +157,7 @@ class MonitorEditor:
         """Field values for the selected parameter, for the edit dialog prefill.
 
         Returns None when nothing is selected. Keys: ``ecu``, ``pid``, ``name``,
-        ``expression``, ``unit``, ``min``, ``max``, ``verified``, ``enabled``,
+        ``expression``, ``unit``, ``min``, ``max``, ``verified``, ``ship``,
         ``notes``.
         """
         if self.selected is None:
@@ -172,7 +174,7 @@ class MonitorEditor:
             "min": str(pdef.get("min", "") or ""),
             "max": str(pdef.get("max", "") or ""),
             "verified": bool(pdef.get("verified", False)),
-            "enabled": bool(pdef.get("enabled", True)),
+            "ship": param_ships(pdef),
             "notes": pdef.get("notes", "") or "",
         }
 
@@ -188,7 +190,7 @@ class MonitorEditor:
         """Write the edited fields to the profile and reload PID definitions.
 
         ``fields`` mirrors :meth:`edit_target` (``expression``/``unit``/``min``/
-        ``max``/``verified``/``enabled``/``notes``). Empty ``unit``/``min``/
+        ``max``/``verified``/``ship``/``notes``). Empty ``unit``/``min``/
         ``max``/``notes`` are left unchanged rather than blanked. Returns a
         one-line status message (never raises).
         """
@@ -202,6 +204,12 @@ class MonitorEditor:
             val = fields.get(key)
             return val if val not in (None, "") else None
 
+        # `ship: true` is the default, so only a changed flag is written.
+        current = self._lookup_pdef(ecu, pid, name)
+        ship = fields.get("ship")
+        if ship == (True if current is None else param_ships(current)):
+            ship = None
+
         try:
             upsert_parameter(
                 ecu,
@@ -212,7 +220,7 @@ class MonitorEditor:
                 min=_opt("min"),
                 max=_opt("max"),
                 verified=fields.get("verified"),
-                enabled=fields.get("enabled"),
+                ship=ship,
                 notes=_opt("notes"),
                 pids_dir=self.c.pids_dir,
             )
@@ -224,7 +232,7 @@ class MonitorEditor:
         return f"Saved {ecu} {pid} {name}"
 
     def _toggle(self, field: str) -> str:
-        """Flip a boolean field (``verified``/``enabled``) on the selected param."""
+        """Flip a boolean field (``verified``/``ship``) on the selected param."""
         if self.selected is None:
             return "No parameter selected."
         ecu_label, pid, name = self.selected
@@ -234,7 +242,7 @@ class MonitorEditor:
             return f"{name}: no definition to edit."
         if not (pdef.get("expression") or "").strip():
             return f"{name}: no expression — edit it first."
-        default = True if field == "enabled" else False
+        default = field == "ship"
         new_val = not bool(pdef.get(field, default))
         from canair.yaml_edit.pids import PidsEditError, set_param_field
 
@@ -251,5 +259,5 @@ class MonitorEditor:
     def toggle_verified(self) -> str:
         return self._toggle("verified")
 
-    def toggle_enabled(self) -> str:
-        return self._toggle("enabled")
+    def toggle_ship(self) -> str:
+        return self._toggle("ship")

@@ -139,9 +139,9 @@ options:
                         timestamp,value CSV (mutually exclusive with
                         --control)
   --promote NAME        With --against: write the top raw-byte hit to ecus/ as
-                        an enabled, unverified candidate param NAME (via pids
-                        upsert-param), with the correlation evidence auto-
-                        filled into notes
+                        an unverified candidate param NAME (via pids upsert-
+                        param), with the correlation evidence auto-filled into
+                        notes
   --overlap             Instead of correlating, report which ECU:PID pairs
                         share time-aligned samples (and how many) in scope —
                         pick a viable --against reference without trial and

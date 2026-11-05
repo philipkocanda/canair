@@ -43,7 +43,7 @@ MCU:
             Range 6-136. Not a temperature: on 2026-08-08 it fell 37 in 22 s and rose 45 in 50 s,
             and read 22-31 during a DC charge with the coolant at 39-43 °C (r=+0.012 vs AAF coolant
             and heatsink temperatures). Steps down when propulsion stops and up when it resumes.
-          enabled: false
+          ship: false
         MCU_HV_VOLTAGE:
           expression: B13*2.56
           unit: V
@@ -61,7 +61,7 @@ MCU:
           notes: >-
             Range 38-105, slow-moving. r=-0.720 vs AAF:2181:MOTOR_COOLANT_TEMP and HEATSINK_TEMP
             (n=1488).
-          enabled: false
+          ship: false
         MCU_PHASE_CURRENT_1:
           expression: (S30 << 8) | B29
           notes: >-
@@ -139,7 +139,7 @@ MCU:
           unit: Nm
           min: "-300"
           max: "300"
-          enabled: false
+          ship: false
           source: canair decode --find-mirrors 2026-10-21
           notes: B13:B14 equals B11:B12 (MCU_MOTOR_TORQUE) byte-for-byte in all 8231 captures.
         MCU_MOTOR_CURRENT:
@@ -147,7 +147,6 @@ MCU:
           unit: A
           min: "0"
           max: "600"
-          enabled: true
           source: canair align + within-PID fit 2026-10-21
           notes: >-
             Motor phase-current magnitude, 16-bit little-endian split across the PCI byte B16; never
@@ -164,14 +163,12 @@ MCU:
             Powertrain coolant temperature, 2 °C per count. Mirrors VCU:2102:VCU_COOLANT_TEMP:
             r=+0.991 over 8332 rows, 1 °C below it (median). Slow: 36 to 42 °C over the 2026-08-08
             15:33-16:31 drive.
-          enabled: true
 
         MCU_HEATSINK_TEMP:
           expression: B19*2
           unit: °C
           min: "-40"
           max: "150"
-          enabled: true
           notes: >-
             Inverter heatsink temperature, 2 °C per count. Mirrors AAF:2181:HEATSINK_TEMP: r=+0.990
             over 1973 co-polled rows, reading 1 °C below it (median).
@@ -184,7 +181,6 @@ MCU:
             A fourth temperature, 2 °C per count; which component is unknown. Heats most under load:
             16 to 54 °C over the 2026-08-08 10:02-11:41 drive (cycle mean 43 °C, against 36 °C for
             MCU_HEATSINK_TEMP), and cools while parked or DC charging.
-          enabled: true
         MCU_MOTOR_COOLANT_TEMP:
           expression: B21*2
           unit: °C
@@ -194,7 +190,6 @@ MCU:
             2 °C per count. Mirrors AAF:2181:MOTOR_COOLANT_TEMP: r=+0.991 over 1973 rows, 1 °C below
             it (median). Rises faster under load than MCU_COOLANT_TEMP: 36 to 58 °C over the
             2026-08-08 15:33-16:31 drive.
-          enabled: true
         MCU_MOTOR_POWER:
           expression: ((S12<<8)|B11)/10*((S10<<8)|B09)*0.00010472
           unit: kW
@@ -251,7 +246,7 @@ MCU:
           notes: >-
             Constant ASCII 'EHEL-MS2', the middle of the 1A8D software ID EAEEHEL-MS2-D000. The byte
             before it varies, so it is not part of the string.
-          enabled: false
+          ship: false
         MCU_21F2_HEATSINK_TEMP_AVG:
           expression: B47
           unit: °C
@@ -346,7 +341,7 @@ MCU:
           notes: >-
             Live copy of MCU:2102 MCU_CURRENT_SENSOR_OFFSET_1: matched the latest MCU 2102 value at
             every change checked (30-32 changes).
-          enabled: false
+          ship: false
         MCU_21F2_CURRENT_SENSOR_OFFSET_2:
           expression: (S12<<8)|B11
           min: "-100"
@@ -354,7 +349,7 @@ MCU:
           notes: >-
             Live copy of MCU:2102 MCU_CURRENT_SENSOR_OFFSET_2: matched the latest MCU 2102 value at
             every change checked (30-32 changes).
-          enabled: false
+          ship: false
   # From a KWP2000 18 00 FF 00 read of an EPCU running alone on a bench (uhi22
   # CAN/EPCU_torquePro_reading_error_memory_18DTCs_found.csv), status 0xE0 except P0CF1 (0x20).
   # OBD-II service 0A also lists P0A8B, P0AEF, P0C17 and U019B as permanent. Descriptions are the

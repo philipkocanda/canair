@@ -89,7 +89,7 @@ class TestRealPidsHaveNoPciBytes:
 class TestDuplicateParamNames:
     """_duplicate_param_errors flags a shipped signal name used by >1 PID."""
 
-    def _write(self, tmp_path, second_status="active", second_enabled=True):
+    def _write(self, tmp_path, second_status="active", second_ships=True):
         import textwrap
 
         (tmp_path / "a.yaml").write_text(
@@ -119,7 +119,7 @@ class TestDuplicateParamNames:
                         SHARED:
                           expression: "B3"
                           verified: true
-                          enabled: {"true" if second_enabled else "false"}
+                          ship: {"true" if second_ships else "false"}
                 """
             )
         )
@@ -133,8 +133,8 @@ class TestDuplicateParamNames:
         errs = duplicate_param_errors(self._write(tmp_path, second_status="draft"))
         assert not errs
 
-    def test_ignores_when_second_param_disabled(self, tmp_path):
-        errs = duplicate_param_errors(self._write(tmp_path, second_enabled=False))
+    def test_ignores_when_second_param_not_shipped(self, tmp_path):
+        errs = duplicate_param_errors(self._write(tmp_path, second_ships=False))
         assert not errs
 
 

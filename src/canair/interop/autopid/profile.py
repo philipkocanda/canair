@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from canair.ecus.pids import pid_ships
 from canair.ecus.response_frames import stored_count
 from canair.ecus.sensitivity import param_sensitive
+from canair.ecus.shipping import param_ships
 from canair.interop.autopid.classes import autopid_class
 from canair.interop.autopid.send_to import DEFAULT_TYPE, MQTT_TOPIC_TYPE, topic_problem
 from canair.transport.elm327.addressing import (
@@ -224,8 +225,8 @@ def ship_profile(
     """Everything that ships to the device, before any firmware's file format.
 
     The single shipping gate: a PID ships when its status says so (``active`` or
-    ``slow``) and at least one of its signals is enabled, not sensitive (and
-    verified, with ``verified_only``). Refuses a signal name shipped twice and a
+    ``slow``) and at least one of its signals ships (not ``ship: false``), is not
+    sensitive (and verified, with ``verified_only``). Refuses a signal name shipped twice and a
     malformed or shared ``send_to`` topic, reporting every offender at once.
     """
     # Where each shipped parameter name was first seen, so a collision can name
@@ -254,7 +255,7 @@ def ship_profile(
             params: dict[str, dict] = {}
             send_to: dict[str, str] = {}
             for param_name, param in pid_data["parameters"].items():
-                if not param.get("enabled", True):
+                if not param_ships(param):
                     continue
                 # The device publishes what it decodes (MQTT, Home Assistant).
                 if param_sensitive(pid_data, param):

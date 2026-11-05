@@ -39,9 +39,9 @@ def _pids_data(params):
 class TestFilter:
     def _editor(self):
         params = {
-            "SOC": {"expression": "B0", "verified": True, "enabled": True},
-            "TEMP": {"expression": "B1", "verified": False, "enabled": True},
-            "GUESS": {"expression": "B2", "verified": False, "enabled": False},
+            "SOC": {"expression": "B0", "verified": True, "ship": True},
+            "TEMP": {"expression": "B1", "verified": False, "ship": True},
+            "GUESS": {"expression": "B2", "verified": False, "ship": False},
         }
         last_queries = [
             (
@@ -89,9 +89,9 @@ class TestFilter:
         ]
         assert names == ["TEMP", "GUESS"]
 
-    def test_disabled_filter(self):
+    def test_no_ship_filter(self):
         ed = self._editor()
-        ed.filter_mode = "disabled"
+        ed.filter_mode = "no-ship"
         names = [
             r[0]
             for _, entries in ed.visible_queries(ed.c.last_queries)
@@ -100,9 +100,9 @@ class TestFilter:
         ]
         assert names == ["GUESS"]
 
-    def test_enabled_filter(self):
+    def test_ship_filter(self):
         ed = self._editor()
-        ed.filter_mode = "enabled"
+        ed.filter_mode = "ship"
         names = [
             r[0]
             for _, entries in ed.visible_queries(ed.c.last_queries)
@@ -182,13 +182,13 @@ def ecus_dir(tmp_path):
               tx_id: 0x7E4
               pids:
                 2101:
-                  enabled: true
+                  status: active
                   parameters:
                     SOC:
                       expression: "B4/2"
                       unit: "%"
                       verified: false
-                      enabled: true
+                      ship: true
             """
         )
     )
@@ -218,7 +218,7 @@ class TestEditTarget:
         assert t["expression"] == "B4/2"
         assert t["unit"] == "%"
         assert t["verified"] is False
-        assert t["enabled"] is True
+        assert t["ship"] is True
 
     def test_edit_target_none_when_unselected(self, ecus_dir):
         ed = _editor_on_disk(ecus_dir)
@@ -237,7 +237,7 @@ class TestApplyEdit:
                 "max": "100",
                 "notes": "recalibrated",
                 "verified": True,
-                "enabled": True,
+                "ship": True,
             }
         )
         assert "Saved" in msg
@@ -258,7 +258,7 @@ class TestApplyEdit:
                 "max": "",
                 "notes": "",
                 "verified": False,
-                "enabled": True,
+                "ship": True,
             }
         )
         soc = _saved_soc(ecus_dir)
@@ -285,10 +285,10 @@ class TestToggles:
         assert "verified=false" in ed.toggle_verified()
         assert _saved_soc(ecus_dir)["verified"] is False
 
-    def test_toggle_enabled(self, ecus_dir):
+    def test_toggle_ship(self, ecus_dir):
         ed = _editor_on_disk(ecus_dir)
-        assert "enabled=false" in ed.toggle_enabled()
-        assert _saved_soc(ecus_dir)["enabled"] is False
+        assert "ship=false" in ed.toggle_ship()
+        assert _saved_soc(ecus_dir)["ship"] is False
 
     def test_toggle_no_selection(self, ecus_dir):
         ed = _editor_on_disk(ecus_dir)
@@ -296,7 +296,7 @@ class TestToggles:
         assert "No parameter selected" in ed.toggle_verified()
 
     def test_toggle_preserves_expression_quoting(self, ecus_dir):
-        """A verified/enabled toggle must rewrite only the boolean line.
+        """A verified/ship toggle must rewrite only the boolean line.
 
         Regression: toggling a param used to re-send its expression through
         upsert_parameter, which re-rendered (and re-normalized the quoting of)

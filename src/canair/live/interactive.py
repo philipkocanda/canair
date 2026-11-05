@@ -112,9 +112,9 @@ async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: b
             print(f"\n  {ecu_name} -- TX 0x{info['tx_id']:03X}")
             for pid_code, pid_info in sorted(info["pids"].items()):
                 n_params = len(pid_info["parameters"])
-                enabled = "enabled" if pid_info["shipped"] else "disabled"
+                shipped = "shipped" if pid_info["shipped"] else "not shipped"
                 period = pid_info["period"] or 5000  # the AutoPID default when unset
-                print(f"    PID {pid_code} ({enabled}, {period}ms, {n_params} params)")
+                print(f"    PID {pid_code} ({shipped}, {period}ms, {n_params} params)")
                 for pname in sorted(pid_info["parameters"].keys()):
                     pdef = pid_info["parameters"][pname]
                     v = "+" if pdef.get("verified") else "?"

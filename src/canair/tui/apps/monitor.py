@@ -8,9 +8,9 @@ output when you do want the tail.
 
 The monitor doubles as a lightweight PID editor: ``↑``/``↓`` move a selection
 cursor over the decoded signal rows, ``e`` opens an in-place edit dialog
-(expression / unit / min / max / notes / verified / enabled), ``v`` and ``d``
-quick-toggle the selected signal's verified/enabled flags, and ``F`` cycles
-a display filter (all / verified / unverified / enabled / disabled). Edits are
+(expression / unit / min / max / notes / verified / ship), ``v`` and ``x``
+quick-toggle the selected signal's verified/ship flags, and ``F`` cycles
+a display filter (all / verified / unverified / ship / no-ship). Edits are
 written through :mod:`canair.yaml_edit.pids` and picked up on the next poll.
 
 With ``--save`` a blinking ``● REC`` marks the active recording. Because every
@@ -302,7 +302,7 @@ class EditParamDialog(ModalScreen[dict | None]):
     """Modal editor for a single PID parameter's definition.
 
     Prefilled from the selected parameter's current fields; dismisses with a
-    ``{expression, unit, min, max, notes, verified, enabled}`` dict on save, or
+    ``{expression, unit, min, max, notes, verified, ship}`` dict on save, or
     ``None`` on cancel. Writing is done by the caller (via the monitor editor).
     """
 
@@ -376,7 +376,7 @@ class EditParamDialog(ModalScreen[dict | None]):
                         "verified", value=bool(t.get("verified")), id="e-verified", compact=True
                     )
                     yield CheckBox(
-                        "enabled", value=bool(t.get("enabled", True)), id="e-enabled", compact=True
+                        "ship", value=bool(t.get("ship", True)), id="e-ship", compact=True
                     )
             with Vertical(id="edit-footer"):
                 with Horizontal(id="edit-buttons"):
@@ -402,7 +402,7 @@ class EditParamDialog(ModalScreen[dict | None]):
             {
                 **fields,
                 "verified": self.query_one("#e-verified", CheckBox).value,
-                "enabled": self.query_one("#e-enabled", CheckBox).value,
+                "ship": self.query_one("#e-ship", CheckBox).value,
             }
         )
 
@@ -882,7 +882,7 @@ class MonitorApp(HelpMixin, App):
         *bind("back", "clear_selection", desc="back", show=False),
         *bind("edit", "edit"),
         *bind("verify", "verify"),
-        *bind("exclude", "disable", desc="en/disable"),
+        *bind("exclude", "toggle_ship", desc="toggle ship"),
         *bind("filter_cycle", "cycle_filter"),
         *bind("reconnect", "force_reconnect"),
         *bind("pick", "pid_picker", desc="select ECUs/PIDs"),
@@ -1212,7 +1212,7 @@ class MonitorApp(HelpMixin, App):
             items.append(StatusItem("[dim]↑↓ select[/]", P_NORMAL))
             items.append(StatusItem("[dim]e edit[/]", P_NORMAL))
             items.append(StatusItem("[dim]v verify[/]", P_LOW))
-            items.append(StatusItem("[dim]x en/disable[/]", P_LOW))
+            items.append(StatusItem("[dim]x ship/no-ship[/]", P_LOW))
             items.append(StatusItem("[dim]F filter[/]", P_LOW))
         else:
             items.append(StatusItem("[dim]↑↓/jk PgUp/PgDn g/G[/]", P_LOW))
@@ -1418,14 +1418,14 @@ class MonitorApp(HelpMixin, App):
         self._flash(ed.toggle_verified())
         self._refresh_body()
 
-    def action_disable(self) -> None:
+    def action_toggle_ship(self) -> None:
         ed = self._editor()
         if ed is None or self._modal_active():
             return
         if getattr(ed, "selected", None) is None:
             self._flash("Select a signal first (↑↓).")
             return
-        self._flash(ed.toggle_enabled())
+        self._flash(ed.toggle_ship())
         self._refresh_body()
 
     def action_edit(self) -> None:

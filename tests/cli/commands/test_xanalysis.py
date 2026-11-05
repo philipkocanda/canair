@@ -676,7 +676,7 @@ class TestHuntPromote:
         assert rc == 0
         assert captured["name"] == "AAF_SPEED"
         assert captured["expr"] == "B12"
-        assert captured["enabled"] is True
+        assert "ship" not in captured
         assert captured["verified"] is False
         assert "r=+0.997" in captured["notes"]
         assert "mph" in captured["notes"].lower()
@@ -693,7 +693,7 @@ class TestHuntPromote:
 
         assert hunt._promote("X", "AAF", "2181", [], "REF") == 1
 
-    def test_promote_end_to_end_writes_enabled_unverified(self, tmp_path, monkeypatch):
+    def test_promote_end_to_end_writes_unverified(self, tmp_path, monkeypatch):
         """Real guarded write into a temp ecus/ dir: schema-validated + committed."""
         from canair.cli.commands import hunt
 
@@ -707,7 +707,7 @@ class TestHuntPromote:
         pid_block = pids_map.get(2181) or pids_map.get("2181")
         p = pid_block["parameters"]["AAF_SPEED"]
         assert p["expression"] == "B12"
-        assert p["enabled"] is True
+        assert "ship" not in p
         assert p["verified"] is False
         assert "r=+0.997" in p["notes"]
 
@@ -734,7 +734,7 @@ class TestCorrelatePromote:
         pid_block = doc["AAF"]["pids"].get(2181) or doc["AAF"]["pids"].get("2181")
         p = pid_block["parameters"]["AAF_CAND"]
         assert p["expression"] == "B12"  # the raw byte, not the param
-        assert p["enabled"] is True and p["verified"] is False
+        assert "ship" not in p and p["verified"] is False
         assert "r=+0.950" in p["notes"]
 
     def test_promote_refuses_when_no_byte_hit(self, capsys):

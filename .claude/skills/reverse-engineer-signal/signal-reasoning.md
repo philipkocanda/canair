@@ -136,7 +136,7 @@ The levers that count as *evidence*:
   signal on two ECUs seconds apart and they disagree by ±1 on a minority of rows
   (demanding every row alone hides most real mirrors). Beware a small `--min-n`: noisy
   low bits can match by chance. It cuts both ways — a "new" byte that merely mirrors a
-  mapped one is recorded and left disabled, not shipped twice.
+  mapped one is recorded with `ship: false`, not shipped twice.
 - **State discrimination** (`decode --discriminate state`, `--bytes`/`--bits`) — ranks by
   between-state vs within-state variance (F), surfacing thermal/mode/relay signals that
   shift by *power state* rather than by a driving anchor (how the MCU inverter-temp byte
@@ -176,13 +176,13 @@ Existing definitions can be wrong — **even ones marked `verified: true`** (the
 records that *someone* checked once, possibly against one short drive or a cross-vehicle
 sheet). Watch for **offset-by-one / cross-vehicle drift** (Kia Soul/Niro sheets are 1
 byte off from the Ioniq), a **misclassified signal** (a "temperature" that is really a
-load/current metric — real examples here, later demoted to `enabled: false`), the **right
+load/current metric — real examples here, later demoted to `ship: false`), the **right
 byte with wrong scale/sign/endianness**, and a definition **stale after re-analysis** (a
 fuller corpus overturns a single-drive conclusion).
 
 Use existing PIDs as priors and correlation references, but **re-validate** when they
 contradict your data or physical reasoning. Finding a mistake in a `verified` param *is*
-the finding: demote it (`--unverified` / `enabled: false`), record the corrected
+the finding: demote it (`--unverified` / `ship: false`), record the corrected
 reasoning in `notes:`, and open or adjust a `research:` lead rather than silently trusting
 it.
 

@@ -13,6 +13,7 @@ import yaml
 
 from canair.core import yaml_io
 from canair.ecus.pids import is_shipped, is_snapshot_only, pid_status
+from canair.ecus.shipping import param_ships
 from canair.interop.autopid.send_to import topic_problem
 
 
@@ -32,8 +33,8 @@ def _never_ships(pid_def: dict, param: dict) -> str | None:
         return f"its PID is '{status}'"
     if is_snapshot_only(pid_def):
         return "its PID is snapshot-only"
-    if not param.get("enabled", True):
-        return "the signal is disabled"
+    if not param_ships(param):
+        return "the signal is set to ship: false"
     return None
 
 

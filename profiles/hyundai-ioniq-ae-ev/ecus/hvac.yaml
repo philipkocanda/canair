@@ -166,21 +166,18 @@ HVAC:
           notes: >-
             0-78 across 1758 captures. r=-0.17 vs HVAC_AAT, -0.40 vs HVAC_INTERIOR_TEMP, +0.19 vs
             blower (n=1420).
-          enabled: true
         HVAC_UNKNOWN_B14:
           expression: B14
           min: "0"
           max: "59"
           source: coverage analysis 2026-07-23
           notes: 0-59 across 1758 captures. r=-0.70 vs 2201A0 B5 (n=1420).
-          enabled: true
         HVAC_UNKNOWN_B35:
           expression: B35
           min: "0"
           max: "255"
           source: coverage analysis 2026-07-23
           notes: 70-246 across 1758 captures. r=-0.54 vs blower fan feedback (n=1420).
-          enabled: true
         HVAC_VEHICLE_SPEED:
           expression: B38
           unit: km/h
@@ -190,19 +187,18 @@ HVAC:
           notes: >-
             Whole km/h; non-zero only while driving (0-107). r=0.97 vs VCU:2101:VCU_VEHICLE_SPEED
             (1135 of 1213 rows equal), r=0.985 vs ESC wheel speeds.
-          enabled: true
         HVAC_UNKNOWN_B20:
           expression: B20
           source: support-bitmap sweep 2026-10-29
           notes: >-
             Marked by the 220100 support map. 24 values, 16-241 (129, 16, 240 and 73 most common);
             r=+0.49 vs blower.
-          enabled: false
+          ship: false
         HVAC_UNKNOWN_B42:
           expression: B42
           source: support-bitmap sweep 2026-10-29
           notes: Marked by the 220100 support map. 0 or 1; 1 in 522 of 3051 captures.
-          enabled: false
+          ship: false
     220102:
       support_map: {at: 0, length: 4, unit: field, order: msb}
       response_frames: 3
@@ -262,7 +258,6 @@ HVAC:
           notes: >-
             0/1, equal to B13 and B15 in every capture. Agrees with HVAC_HEAT_PUMP_ON in 945 of 950
             captures; 1 in 122, against 127.
-          enabled: true
           max: "1"
     2201A0:
       response_frames: 9
@@ -342,7 +337,6 @@ HVAC:
           notes: >-
             Air-door position, 2-209 across 2256 captures. Moves with B9 and B11 (r >= 0.995,
             n=1420) at an offset that differs between sessions. r=+0.51 vs B7.
-          enabled: true
         HVAC_ACTUATOR_TARGET_2:
           expression: B7
           max: "255"
@@ -351,19 +345,16 @@ HVAC:
             Mode door position, by direction at 21 °C (2026-07-26): face about 122, face and legs
             137-157, floor about 230, floor and windshield about 237; repeats vary by about 20.
             Copied at B52; 2201A1 B22 and 2201A2 B20 follow it (r=+0.998 and +0.999).
-          enabled: true
         HVAC_ACTUATOR_TARGET_3:
           expression: B9
           max: "255"
           source: coverage analysis 2026-07-23
           notes: 1-218 across 2256 captures. B10 equals B9 in every capture.
-          enabled: true
         HVAC_ACTUATOR_TARGET_4:
           expression: B11
           max: "255"
           source: coverage analysis 2026-07-23
           notes: 6-221 across 2256 captures.
-          enabled: true
         HVAC_AAT_MIRROR_B17:
           expression: (B17/2)-40
           unit: "°C"
@@ -371,7 +362,6 @@ HVAC:
           max: "87.5"
           source: HVAC audit 2026-10-22 (time-joined against 220100)
           notes: Equals 220100 HVAC_AAT in 1418 of 1420 time-joined rows.
-          enabled: true
         HVAC_INTERIOR_TEMP_B13:
           expression: (B13/2)-40
           unit: "°C"
@@ -381,7 +371,6 @@ HVAC:
           notes: >-
             Within 1.5 °C of 220100 HVAC_INTERIOR_TEMP in 1329 of 1420 time-joined rows; r=+0.98.
             B14 equals HVAC_INTERIOR_TEMP in 1405.
-          enabled: true
         HVAC_AAT_B15:
           expression: (B15/2)-40
           unit: "°C"
@@ -391,7 +380,6 @@ HVAC:
           notes: >-
             0-4 °C above 220100 HVAC_AAT in 1190 of 1420 time-joined rows (range -0.5 to +9 °C);
             r=+0.89 vs HVAC_AAT.
-          enabled: true
         HVAC_A0_UNKNOWN_B47:
           expression: B47
           max: "255"
@@ -399,7 +387,6 @@ HVAC:
           notes: >-
             227 distinct values (0-255) across 2256 captures; consecutive samples mostly differ by 0
             or a few counts. No correlation found.
-          enabled: true
         HVAC_A0_UNKNOWN_B50:
           expression: B50
           max: "255"
@@ -407,7 +394,6 @@ HVAC:
           notes: >-
             250 distinct values (0-255) across 2256 captures; consecutive samples mostly differ by 0
             or a few counts. No correlation found.
-          enabled: true
         HVAC_BLOWER_FAN_SPEED:
           expression: B18
           max: "121"

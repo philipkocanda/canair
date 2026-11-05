@@ -348,9 +348,9 @@ auto-filled into `notes`. After a write, `upsert-param` echoes the new expressio
 decoded **range across existing captures** — a `constant` where you expected variation
 usually means the offset landed on a PCI byte.
 
-New params start **`--unverified` and enabled** (the default): enabled+unverified means
-the candidate is generated into the WiCAN profile and streams live, so it is easy to
-test against reality — the whole point of a candidate. Only use `--disabled` when a
+New params start **`--unverified` and shipping** (the default): a shipping, unverified
+candidate goes into the WiCAN profile with `--include-unverified` and streams live, so it
+is easy to test against reality — the whole point of a candidate. Only use `--no-ship` when a
 byte is *proven* bogus or redundant and you're keeping it for the research trail
 (padding, a counter, an exact mirror of a mapped param). **Keep `--notes` terse and
 factual**: byte offset, observed range/per-state values, the one key piece of evidence.
@@ -419,7 +419,7 @@ Every outcome counts, not just success:
 - **Decoded / verified → `done`** (a real `parameters:` entry exists, promoted to
   `verified` where possible).
 - **Candidate still needs a live check → keep it `captured`** (a `verify`-type item)
-  with the enabled+unverified param in place, noting exactly what to test.
+  with the shipping, unverified param in place, noting exactly what to test.
 - **"Nothing to decode here" is also a result → `done`.** If analysis proves the
   unmapped bytes are constants/padding, counters, checksums or exact mirrors of a mapped
   param, record that finding *with its evidence* in the lead's notes and close it — the

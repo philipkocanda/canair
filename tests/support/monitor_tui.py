@@ -147,14 +147,14 @@ class FakeEditor:
     """Records calls from the TUI without touching disk or the CAN bus."""
 
     _ITEMS: ClassVar = [("BMS (0x7E4)", "2101", "SOC"), ("BMS (0x7E4)", "2101", "TEMP")]
-    _FILTERS = ("all", "verified", "unverified", "enabled", "disabled")
+    _FILTERS = ("all", "verified", "unverified", "ship", "no-ship")
 
     def __init__(self):
         self.selected = None
         self.filter_mode = "all"
         self.applied = None
         self.verified_toggles = 0
-        self.enabled_toggles = 0
+        self.ship_toggles = 0
 
     def move(self, _last_queries, delta):
         if self.selected is None:
@@ -197,7 +197,7 @@ class FakeEditor:
             "max": "",
             "notes": "",
             "verified": False,
-            "enabled": True,
+            "ship": True,
         }
 
     def apply_edit(self, fields):
@@ -208,6 +208,6 @@ class FakeEditor:
         self.verified_toggles += 1
         return "SOC verified=true"
 
-    def toggle_enabled(self):
-        self.enabled_toggles += 1
-        return "SOC enabled=false"
+    def toggle_ship(self):
+        self.ship_toggles += 1
+        return "SOC ship=false"

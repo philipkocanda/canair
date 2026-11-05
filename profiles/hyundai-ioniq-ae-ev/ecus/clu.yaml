@@ -42,7 +42,6 @@ CLU:
             0.08 V/count it reads 0.92 V below ESC_SUPPLY_VOLTAGE (sd 0.06 V); the least-squares fit
             is 0.081 V/count + 0.76 V. Scale unconfirmed. GDS lists Battery Voltage on CLU in the
             cluster's Current Data.
-          enabled: true
           min: "0"
           max: "20"
     22B001:

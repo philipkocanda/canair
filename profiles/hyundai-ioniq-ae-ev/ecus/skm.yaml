@@ -144,21 +144,18 @@ SKM:
           notes: >-
             Outside the support map. 1 in ACC, ON and READY, 0 in OFF: the ACC line, as
             SKM_ACC_INPUT. Disabled as a duplicate.
-          enabled: false
         SKM_IGN_B005_B12:
           expression: B12:7
           source: ""
           notes: >-
             Outside the support map. 1 in ON and READY, 0 in OFF and ACC: the ignition, as
             SKM_IGN1_INPUT. Disabled as a duplicate.
-          enabled: false
         SKM_IGN_B005_B13:
           expression: B13:0
           source: ""
           notes: >-
             Outside the support map. Equals SKM_IGN_B005_B12 in every capture. Disabled as a
             duplicate.
-          enabled: false
     22B006:
       response_frames: 4
       status: draft
@@ -270,7 +267,6 @@ SKM:
           notes: >-
             1 in ACC, ON and READY, 0 in OFF: the ACC line. Disabled as a duplicate of
             SKM_ACC_INPUT.
-          enabled: false
         SKM_IGN_B007:
           expression: B11:6
           min: "0"
@@ -278,7 +274,6 @@ SKM:
           notes: >-
             1 in ON and READY, 0 in OFF and ACC; B11:7 is identical in every capture. Disabled as a
             duplicate of SKM_IGN1_INPUT.
-          enabled: false
         SKM_UNLOCKED:
           expression: B11:2
           type: enum
@@ -306,7 +301,6 @@ SKM:
           notes: >-
             1 in OFF and ACC, 0 in ON and READY (957 rows); B12:3 is identical. Disabled as a
             duplicate of SKM_IGN1_INPUT, inverted.
-          enabled: false
     22B008:
       response_frames: 3
       status: draft
@@ -380,7 +374,6 @@ SKM:
           verified: false
           notes: >-
             Equals SKM_POWER_MODE (22B008 B13) in every co-polled read. Disabled as a duplicate.
-          enabled: false
   iocontrol:
     B108:
       vehicle_states: []

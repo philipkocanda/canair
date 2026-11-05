@@ -135,7 +135,7 @@ ESC:
           notes: >-
             r=+1.000 vs BRAKE_PRESSURE (B44) over 1693 DRIVING captures, 0-59, at times one count
             apart. Disabled as a near-duplicate.
-          enabled: false
+          ship: false
     22C102:
       status: draft
       period: 2500

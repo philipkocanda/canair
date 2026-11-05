@@ -143,7 +143,7 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
             "This automates the 'which byte tracks vehicle speed / motor RPM?' scratch\n"
             "work. Use --transform delta to hunt the byte tracking the reference's\n"
             "*rate* (e.g. torque vs acceleration), and --promote to write the top hit\n"
-            "straight into ecus/ as an enabled, unverified candidate parameter.\n\n"
+            "straight into ecus/ as an unverified candidate parameter.\n\n"
             "Read-only: analyses captures/ only, never talks to the device."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -223,7 +223,7 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
     parser.add_argument(
         "--promote",
         metavar="NAME",
-        help="Write the top hit's expression to ecus/ as an enabled, unverified "
+        help="Write the top hit's expression to ecus/ as an unverified "
         "candidate param NAME (via pids upsert-param), with the correlation "
         "evidence auto-filled into notes",
     )
@@ -712,7 +712,7 @@ def _warn_thin_reference_join(args, lp, ref_series, ref_label: str) -> None:
 
 
 def _promote(name: str, ecu: str, pid: str, hits, ref_label: str) -> int:
-    """Write the top hit as an enabled, unverified candidate param.
+    """Write the top hit as an unverified candidate param.
 
     Routes through the shared guarded write (``_promote.write_candidate``) — the
     same snapshot → edit → schema-validate → auto-revert gate as ``canair pids

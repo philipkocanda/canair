@@ -83,7 +83,6 @@ IGPM:
             at every recorded plug-in with the ignition off, just before the port locks, and once
             for a minute with the port unlocked (2026-10-22); clears within 1-3 min. Also pulses
             about every 6 min during the 2026-08-08 evening charge, unexplained.
-          enabled: true
         TRUNK_OPEN_BC07:
           expression: B10:4
           min: "0"
@@ -92,7 +91,7 @@ IGPM:
           notes: >-
             Equals 22BC03 TRUNK_OPEN (all 349 aligned rows) and 22BC05 LUGGAGE_LAMP_OUTPUT. Disabled
             as a duplicate.
-          enabled: false
+          ship: false
 
     22BC03:
       response_frames: 2
@@ -264,7 +263,6 @@ IGPM:
             GDS 'IGN2 Switch'. Equals IGN1_SWITCH except during START: at each of the 3
             brake-pressed starts on 2026-11-03 it read 0 with IGN1_SWITCH 1 (4 rows, each start
             under 1.7 s), as the wiring expects (IGN2 drops out in START, IGN1 stays).
-          enabled: true
         HOOD_OPEN:
           expression: B11:0
           min: "0"
@@ -353,7 +351,7 @@ IGPM:
             GDS 'Power Window Enable Relay'. Equals 22BC03 IGN1_SWITCH in 431 of 432 aligned rows,
             rising in the same poll; at 2 of 5 recorded power-offs it fell up to ~40 s after
             IGN1_SWITCH with the doors shut. Disabled as a near-duplicate of IGN1_SWITCH.
-          enabled: false
+          ship: false
         INTERIOR_LAMP_AUTOCUT_RELAY:
           expression: B13:6
           min: "0"
@@ -376,7 +374,6 @@ IGPM:
             beam off and the car not in Park: set in all 8 captures in D with the lamps off
             (2026-07-21), 0 in the 43 aligned rows in P with the lamps off and in all 65 with low
             beam on.
-          enabled: true
         SEATBELT_RR:
           expression: B12:1
           min: "0"
@@ -385,7 +382,7 @@ IGPM:
           notes: >-
             OBDb labels this bit (bix 54) the rear-right belt latched; the support map marks it as a
             signal. 0 in all 1753 captures (rear belts never exercised).
-          enabled: false
+          ship: false
         SEATBELT_RL:
           expression: B12:2
           min: "0"
@@ -394,7 +391,7 @@ IGPM:
           notes: >-
             OBDb labels this bit (bix 53) the rear-left belt latched; the support map marks it as a
             signal. 0 in all 1753 captures (rear belts never exercised).
-          enabled: false
+          ship: false
         SEATBELT_RM:
           expression: B12:3
           min: "0"
@@ -403,7 +400,7 @@ IGPM:
           notes: >-
             OBDb labels this bit (bix 52) the rear-middle belt latched; the support map marks it as
             a signal. 0 in all 1753 captures (rear belts never exercised).
-          enabled: false
+          ship: false
 
     22BC06:
       support_map: {at: 0, length: 4, unit: bit, order: msb}
@@ -428,12 +425,10 @@ IGPM:
           expression: B11:0
           source: User-confirmed 2026-08-09 (1 = left, 2 = right)
           notes: "B11 is one 2-bit field: 0 off, 1 left, 2 right, never 3."
-          enabled: true
         RIGHT_TURN_SIGNAL:
           expression: B11:1
           source: User-confirmed 2026-08-09 (1 = left, 2 = right)
           notes: "B11 is one 2-bit field: 0 off, 1 left, 2 right, never 3."
-          enabled: true
         STOP_LAMP_LEFT:
           expression: B10:2
           min: "0"
@@ -444,7 +439,6 @@ IGPM:
             GDS 'Stop Lamp Left' output (actuator BC2B). The right lamp is bit 3 and the
             high-mounted lamp bit 5 (BC2C, BC2D); neither changes without this bit. The pedal switch
             is bit 0 (BRAKE_PEDAL_SWITCH).
-          enabled: true
         BRAKE_PEDAL_SWITCH:
           expression: B10:0
           min: "0"
@@ -455,7 +449,6 @@ IGPM:
             GDS 'Stop Switch'. B10 reads 0x01 once (switch closed, lamps not yet lit) and 0x2D when
             pressed. 3 captures on 2026-08-09 read 0x2C (all stop lamps lit, switch bit clear) while
             driving at 43-77 km/h.
-          enabled: true
 
     22BC01:
       response_frames: 2
@@ -506,7 +499,6 @@ IGPM:
             GDS 'LR turn signal output', a separate output with its own fault detection. Equals
             TURN_LAMP_LF in every capture (B10 is only ever 0x00, 0x50, 0xA0 or 0xF0). Disabled as
             redundant.
-          enabled: false
         TURN_LAMP_RR:
           expression: B10:7
           source: canair decode --dump-bytes 2026-10-21
@@ -514,7 +506,6 @@ IGPM:
             GDS 'RR turn signal output', a separate output with its own fault detection. Equals
             TURN_LAMP_RF in every capture (B10 is only ever 0x00, 0x50, 0xA0 or 0xF0). Disabled as
             redundant.
-          enabled: false
         PASSENGER_SEAT_OCCUPIED:
           expression: B11:7
           source: canair correlate --find-mirrors --bits + investigate --events 2026-10-21
@@ -554,7 +545,6 @@ IGPM:
           source: canair scan 22 BC20-BCFF 2026-10-22
           verified: false
           notes: ASCII '1090' in every read; identity sw_version is 109.
-          enabled: false
       status: draft
       vehicle_states: [READY]
       notes: 4 ASCII data bytes. Highest answering DID in the BC family.

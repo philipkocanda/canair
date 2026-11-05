@@ -109,7 +109,7 @@ ROLES: dict[str, KeyRole] = {
         _r("edit", "e", "edit", "edit note", "annotate"),
         _r("rename", "N", "rename"),
         _r("verify", "v", "verify"),
-        _r("exclude", "x", "exclude", "en/disable", "drop this PID"),
+        _r("exclude", "x", "exclude", "toggle ship", "drop this PID"),
         _r("delete", "d", "delete", "delete capture"),
         # -- the session / the device --------------------------------------
         _r("session", "s", "session", "save / label", "sessions & notes"),

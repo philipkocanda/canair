@@ -65,7 +65,7 @@ PARAM_FIELD_ORDER = (
     "source_links",
     "verified",
     "notes",
-    "enabled",
+    "ship",
     "display",
 )
 
@@ -129,7 +129,7 @@ def upsert_parameter(
     source_links: list | None = None,
     verified: bool | None = None,
     notes: str | None = None,
-    enabled: bool | None = None,
+    ship: bool | None = None,
     display: str | None = None,
     type: str | None = None,
     values: dict | None = None,
@@ -168,7 +168,7 @@ def upsert_parameter(
         "source_links": source_links,
         "verified": verified,
         "notes": notes,
-        "enabled": enabled,
+        "ship": ship,
         "display": display,
     }
     fields = {k: v for k, v in provided.items() if v is not None}
@@ -297,7 +297,7 @@ def upsert_parameter(
 
 
 # Boolean param fields a surgical single-field set is allowed to touch.
-_PARAM_BOOL_FIELDS = ("verified", "enabled")
+_PARAM_BOOL_FIELDS = ("verified", "ship")
 
 
 def set_param_field(
@@ -309,7 +309,7 @@ def set_param_field(
     *,
     pids_dir: Path | None = None,
 ) -> Path:
-    """Set a single boolean field (``verified``/``enabled``) on an existing param.
+    """Set a single boolean field (``verified``/``ship``) on an existing param.
 
     Unlike :func:`upsert_parameter`, this rewrites *only* the ``field:`` line and
     leaves every other field — including ``expression`` — byte-for-byte untouched.

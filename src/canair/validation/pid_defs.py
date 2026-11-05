@@ -3,6 +3,7 @@
 from canair.dtc.snapshot import did_of_read
 from canair.ecus.pids import effective_param, pid_ships, pid_status
 from canair.ecus.sensitivity import param_sensitive
+from canair.ecus.shipping import param_ships
 from canair.ecus.signal_category import RETIRED_FIELD, category_findings
 from canair.uds.support_map import SupportMapError
 from canair.uds.support_map import declaration as support_map_declaration
@@ -17,8 +18,12 @@ _RETIRED_HINT = (
 )
 
 
+_RENAMED_PARAM_FIELDS = {
+    "enabled": "renamed to ship (enabled: false is now ship: false); this field is ignored",
+}
+
 _LEGACY_PID_FIELDS = {
-    "enabled": "use status: draft (PID-level) — enabled is param-level only now",
+    "enabled": "use status: draft (PID-level); a signal states ship: false instead",
     "ignored": "use status: ignored",
     "static": "use status: static",
     "availability": "renamed to vehicle_states",
@@ -196,6 +201,8 @@ def _validate_parameters(
         for field in param:
             if field == RETIRED_FIELD:
                 warnings.append(f"{label}: {_RETIRED_HINT}")
+            elif field in _RENAMED_PARAM_FIELDS:
+                warnings.append(f"{label}: '{field}' {_RENAMED_PARAM_FIELDS[field]}")
             elif field not in fields.all_param:
                 warnings.append(f"{label}: unknown field '{field}'")
 
@@ -214,7 +221,7 @@ def _validate_parameters(
         warnings.extend(category_warnings)
 
         expr = param.get("expression", "")
-        ships = pid_shipped and param.get("enabled", True)
+        ships = pid_shipped and param_ships(param)
         if expr:
             errors.extend(validate_expression(expr, param_name, pid_str, ecu_name))
             if ships:

@@ -53,7 +53,6 @@ VCU:
             above 30 km/h MCU_MOTOR_RPM is 61.8 rpm per km/h of this signal (n=1372) against 64.07
             from the 7.412 reduction ratio and 1928 mm tyre circumference.
           source: VCU 2101 speed lead (MPH formula) + cross-ECU verification vs ESC, 2026-07-23
-          enabled: true
         ACCEL_PEDAL_DEPTH:
           expression: "B18/2"
           unit: "%"
@@ -139,7 +138,7 @@ VCU:
             Ioniq logs it reads 1 with B11:3 at 0 at power-off (B11 = 0xD0 after a drive, 0xD2 after
             an AC charge), so it is a separate signal. Disabled so it does not ship a duplicate.
           source: canair bitfield analysis 2026-08-06; decode --find-mirrors --bits, n=6365 unanimous
-          enabled: false
+          ship: false
         VEHICLE_STATE_LDC_ENABLED:
           expression: "1-B11:7"
           verified: false
@@ -181,7 +180,7 @@ VCU:
             Set in Reverse, Neutral and Drive; the exact complement of GEAR_P in every car capture.
             Reads 0 in the uhi22 EPCU bench log (no shifter connected) while GEAR_P reads 1.
             Disabled so it does not ship a duplicate.
-          enabled: false
+          ship: false
         GEAR_P_MIRROR_B26_5:
           expression: B26:5
           source: canair bitfield analysis 2026-08-06; decode --find-mirrors --bits, n=6365 unanimous
@@ -191,7 +190,7 @@ VCU:
             Equals GEAR_P (B10:0) in every car capture, but reads 0 in all 250 replies of the uhi22
             EPCU bench log (no shifter connected) while GEAR_P reads 1, so B26 is not a copy of B10.
             Disabled so it does not ship a duplicate.
-          enabled: false
+          ship: false
 
         VCU_INVERTER_ENABLED:
           expression: B23:2
@@ -243,7 +242,7 @@ VCU:
           notes: >-
             Equals VCU_INVERTER_ARMED (B23:4) in every capture. Disabled so it does not ship a
             duplicate; defined so bit 5 is accounted for.
-          enabled: false
+          ship: false
         GEAR_SIGNAL_VALID:
           expression: B10:5
           source: canair bitfield analysis 2026-08-06; n=6365, 4 transitions in the 2026-07-30 power-cycle session
@@ -258,7 +257,7 @@ VCU:
           notes: >-
             Bit 1 of VCU_POWER_STATE: set exactly when it reads 6 or 7. Not a DC-charging flag.
             Disabled so it does not ship a duplicate; defined so the bit is accounted for.
-          enabled: false
+          ship: false
         VCU_APS2_VOLTAGE:
           expression: ((B15<<8)|B14)/2048
           unit: V
@@ -308,7 +307,6 @@ VCU:
           expression: B14*0.0974
           unit: V
           max: "16"
-          enabled: true
           source: RE 2026-08-02 absolute-value anchoring + live ON, vs OBC/BMS/BCM consensus
           verified: true
           notes: >-
@@ -320,7 +318,7 @@ VCU:
           expression: "B25*2.56"
           unit: V
           max: "450"
-          enabled: false
+          ship: false
           source: "canair historical analysis 2026-07-23"
           notes: >-
             About 2.56 V per LSB; r=+0.950 vs VCU_INVERTER_INPUT_VOLTAGE (n=1672), median residual
@@ -369,7 +367,6 @@ VCU:
           unit: °C
           min: "-40"
           max: "150"
-          enabled: true
         VCU_HV_MAIN_RELAY_ON:
           expression: B10
           max: "1"
@@ -421,7 +418,7 @@ VCU:
           source: canair search 2026-10-21
           notes: >-
             Constant ASCII '6000' in all 158 captures. Not part of the 1A8C/1A8D identity strings.
-          enabled: false
+          ship: false
         VCU_21F2_SOC:
           expression: ((B13<<8)|B12)/256
           unit: "%"

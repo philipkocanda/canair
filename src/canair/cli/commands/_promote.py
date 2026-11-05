@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Shared discovery→candidate promotion for the analysis verbs.
 
-``hunt`` and ``correlate`` both turn a strong analysis hit into an enabled,
+``hunt`` and ``correlate`` both turn a strong analysis hit into an
 unverified candidate parameter. The write goes through the same
 snapshot → edit → schema-validate → auto-revert gate as ``canair pids
 upsert-param`` (via :func:`canair.cli.commands._edit.edit_scope`), so a promoted expression that fails
@@ -43,7 +43,7 @@ def _reject_pci_reads(ecu: str, pid: str, name: str, expr: str) -> None:
 
 
 def write_candidate(ecu: str, pid: str, name: str, expr: str, *, source: str, notes: str) -> Path:
-    """Guarded upsert of one enabled, unverified candidate param.
+    """Guarded upsert of one unverified candidate param (it ships once verified).
 
     Returns the written file path. Raises ``PidsEditError`` (from the PCI pre-check,
     or when the edit fails schema validation and is reverted) if the expression is
@@ -63,7 +63,6 @@ def write_candidate(ecu: str, pid: str, name: str, expr: str, *, source: str, no
             source=source,
             notes=notes,
             verified=False,
-            enabled=True,
         )
 
 

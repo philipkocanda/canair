@@ -276,6 +276,25 @@ TEST:
         errors, _w, _s = collect_pids_validation([path])
         assert any(f"legacy field '{field}'" in e for e in errors), errors
 
+    def test_param_enabled_is_a_warning_naming_ship(self, tmp_path):
+        path = _write(
+            tmp_path,
+            """\
+TEST:
+  tx_id: 0x7E0
+  pids:
+    2101:
+      status: active
+      parameters:
+        A:
+          expression: B0
+          enabled: false
+""",
+        )
+        errors, warnings, _s = collect_pids_validation([path])
+        assert not errors, errors
+        assert any("'enabled' renamed to ship" in w for w in warnings), warnings
+
     def test_legacy_availability_is_error(self, tmp_path):
         path = _write(
             tmp_path,

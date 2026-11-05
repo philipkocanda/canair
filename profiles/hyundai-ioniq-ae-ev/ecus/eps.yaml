@@ -43,14 +43,12 @@ EPS:
             Name is unconfirmed. Signed 16-bit little-endian (low B12, high B13). Range -9258 to
             +9752, about 0 at standstill. r=-0.64 vs EPS_STEERING_ANGLE, -0.43 vs its rate of
             change.
-          enabled: true
         EPS_MDPS_ASSIST:
           expression: B17
           max: "255"
           notes: >-
             Name is unconfirmed. 0 in all 16 standstill samples; 0-253 while moving, r=+0.53 vs
             EPS_VEHICLE_SPEED.
-          enabled: true
         EPS_STEERING_TORQUE_ALT:
           expression: S7
           min: "-40"
@@ -58,7 +56,6 @@ EPS:
           notes: >-
             Name is unconfirmed. Signed, -36 to +37, -10 to -1 at rest. r=+0.34 vs
             EPS_STEERING_ANGLE.
-          enabled: true
 
         EPS_SPEED_BAND:
           expression: B15

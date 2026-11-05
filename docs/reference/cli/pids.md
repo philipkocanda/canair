@@ -87,7 +87,7 @@ usage: canair pids upsert-param [-h] [--unit UNIT] [--category CATEGORY]
                                 [--type {numeric,enum,bitmask,ascii,date,bcd}]
                                 [--value RAW=LABEL] [--bit INDEX=LABEL]
                                 [--verified | --unverified]
-                                [--enabled | --disabled] [--revision ID]
+                                [--ship | --no-ship] [--revision ID]
                                 [--dir DIR] [--no-validate]
                                 ecu pid name expression
 
@@ -131,8 +131,8 @@ options:
                         5=driver --bit 7=trunk
   --verified
   --unverified
-  --enabled
-  --disabled
+  --ship
+  --no-ship             Keep off the device
   --revision ID         The ECU revision this was seen on: an existing signal
                         gets the given fields under per_revision.ID (the rest
                         stay shared); a new one is created gated to revisions:

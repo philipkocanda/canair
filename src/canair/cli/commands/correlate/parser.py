@@ -271,7 +271,7 @@ examples:
     parser.add_argument(
         "--promote",
         metavar="NAME",
-        help="With --against: write the top raw-byte hit to ecus/ as an enabled, "
+        help="With --against: write the top raw-byte hit to ecus/ as an "
         "unverified candidate param NAME (via pids upsert-param), with the "
         "correlation evidence auto-filled into notes",
     )

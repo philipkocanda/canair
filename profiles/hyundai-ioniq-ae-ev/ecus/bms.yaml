@@ -275,7 +275,7 @@ BMS:
           verified: false
           notes: "Mirror of 2105 AVAIL_CHARGE_POWER: 5448 of 5467 aligned rows equal, r=1.000."
           unit: kW
-          enabled: false
+          ship: false
         BMS_INVERTER_CAPACITOR_VOLTAGE:
           expression: "[B62:B63]"
           min: "0"
@@ -288,14 +288,13 @@ BMS:
             relay closed (10:16:18.4), 356 V in the first reply with it open (10:16:20.6), 0 V 2.7 s
             later, while BATTERY_VOLTAGE stayed at 361.8 V.
           unit: V
-          enabled: true
         BMS_CONTROLLABLE_STATE:
           expression: B14:1
           source: GDS list order (shop manual 0657); 2026-08-08 DCFC analysis
           notes: >-
             GDS name BMS Controllable State. Equals BMS_MAIN_RELAY (B14:0) in every capture,
             including DC fast charges. Disabled as a duplicate.
-          enabled: false
+          ship: false
         AVAIL_DISCHARGE_POWER_MIRROR:
           expression: "[B12:B13]/100"
           unit: kW
@@ -306,7 +305,7 @@ BMS:
           notes: >-
             Mirror of 2105 AVAIL_DISCHARGE_POWER: 5467 of 5467 aligned rows equal. Mostly 98 kW
             (range 91.66-98 kW).
-          enabled: false
+          ship: false
         DRIVE_MOTOR_SPEED_MIRROR:
           expression: "[S67:S68]"
           unit: RPM
@@ -315,7 +314,7 @@ BMS:
           source: OBDb Hyundai-IONIQ-Electric (7E4 21 01 bix 440, DRIVE_MOTOR_SPD_2) + canair align 2026-10-27
           verified: false
           notes: Identical to DRIVE_MOTOR_SPEED [S65:S66] in all 12069 rows.
-          enabled: false
+          ship: false
         MCU_CONTROLLABLE:
           expression: B61:2
           source: GDS list order (shop manual 0647); B61 cross-tab 2026-10-27
@@ -326,7 +325,6 @@ BMS:
             READY; 0 in charges begun with the car off (AC and DC) and in a 12 V top-up. Falls when
             the HV contactors open at the end of a charge while IGPM:22BC03:IGN1_SWITCH stays 1.
             OBDb calls it BMS ignition (bix 405).
-          enabled: true
           min: "0"
           max: "1"
         VCU_IG3_ON_MIRROR:
@@ -339,7 +337,7 @@ BMS:
             is powered, not drive-ready: it reads 1 while charging. Equals VCU:2101:VCU_IG3_ON in
             10845 of 10846 aligned rows. 0 (B61 = 0x01) only after a charge or a 12 V top-up ends or
             the car is switched off. Disabled as a duplicate of VCU_IG3_ON.
-          enabled: false
+          ship: false
         MCU_READY:
           expression: B61:0
           min: "0"
@@ -489,7 +487,6 @@ BMS:
           notes: >-
             8-bit wrapping counter, ~0.52 per second, while CHARGING_DC is set. Otherwise holds at
             41 (occasionally 49), including during AC charging.
-          enabled: true
         BMS_2105_B41:
           expression: B41
           source: 2026-08-08 DCFC session byte-diff
@@ -497,7 +494,6 @@ BMS:
           notes: >-
             0 except during DC fast charging: 13 at onset, 14 after ~30 s, 15 after ~9 min
             (2026-08-08).
-          enabled: true
         MAX_INTERNAL_RESISTANCE:
           expression: "[B9:B10]/100"
           unit: mOhm
@@ -822,7 +818,7 @@ BMS:
           notes: >-
             Constant ASCII '4064' in all 29 captures. Not the 1A8D calibration ('4604') or any other
             identity field.
-          enabled: false
+          ship: false
         LAST_CYCLE_DURATION:
           expression: B14
           unit: min

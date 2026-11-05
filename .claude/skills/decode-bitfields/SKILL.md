@@ -275,8 +275,8 @@ read does **not** suppress the bitfield-gap report, because
   Step 4.5 has ruled out an enum, separate them by finding a session where they
   *diverge* (a lighting mode that raises only some of them). Until then say so,
   or don't name them separately. Bits that never diverge across a large corpus
-  are a **mirrored pair** — define one and record the other as a disabled
-  mirror rather than inventing two meanings.
+  are a **mirrored pair** — define one and record the other with `ship: false`
+  as a mirror rather than inventing two meanings.
 
 - **Mirror agreement must beat coincidence.** Two mostly-zero flags "agree" 99%
   of the time by construction; the matcher guards this with Cohen's κ
@@ -337,7 +337,7 @@ uv run canair --profile hyundai-ioniq-ae-ev pids upsert-param IGPM 22BC03 HOOD_O
   is still worth defining as a placeholder — it stops the next person
   re-deriving it and makes the gap visible.
 - Use `--unverified` until you have the repeated evidence from Step 5;
-  `--disabled` for a bit you want tracked but not shipped to the device.
+  `--no-ship` for a bit you want tracked but not shipped to the device.
 - Speculation about untested states goes in `canair pids add-research`, not the
   note.
 

@@ -227,7 +227,7 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
             source_links=args.source_link or None,
             verified=args.verified,
             notes=args.notes,
-            enabled=args.enabled,
+            ship=args.ship,
             display=args.display,
             type=ptype,
             values=values,
@@ -308,7 +308,7 @@ def _upsert_revision_override(args: argparse.Namespace, ptype, values, bits) -> 
             ("--mqtt-topic", args.mqtt_topic),
             ("--send-to", args.send_to),
             ("--display", args.display),
-            ("--enabled/--disabled", args.enabled),
+            ("--ship/--no-ship", args.ship),
         )
         if value is not None
     ]
@@ -932,9 +932,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     ver = up.add_mutually_exclusive_group()
     ver.add_argument("--verified", dest="verified", action="store_true", default=None)
     ver.add_argument("--unverified", dest="verified", action="store_false")
-    en = up.add_mutually_exclusive_group()
-    en.add_argument("--enabled", dest="enabled", action="store_true", default=None)
-    en.add_argument("--disabled", dest="enabled", action="store_false")
+    ship = up.add_mutually_exclusive_group()
+    ship.add_argument("--ship", dest="ship", action="store_true", default=None)
+    ship.add_argument("--no-ship", dest="ship", action="store_false", help="Keep off the device")
     up.add_argument(
         "--revision",
         metavar="ID",

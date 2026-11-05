@@ -484,7 +484,13 @@ optional_param_fields:
   - source_links
   - verified
   - notes
-  - enabled
+  - ship            # bool, default true: `ship: false` keeps this signal out of the WiCAN device
+                    #   profile (a verified duplicate of another signal, say). The signal is still
+                    #   polled, decoded, shown, captured and analysed. It is one of four gates; a
+                    #   signal ships only when ALL hold: its PID status is active or slow (and
+                    #   not snapshot_only), it is not `ship: false`, it is not `sensitive`, and
+                    #   it is `verified` (unless `wican autopid write --include-unverified`).
+                    #   Edit with `canair pids upsert-param --no-ship`. Replaced `enabled`.
   - display
   - sensitive       # bool: this signal's value is masked, never saved or shared (see the
                     #   PID-level `sensitive`; a PID's flag covers all its signals).

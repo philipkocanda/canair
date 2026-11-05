@@ -602,7 +602,7 @@ class TestMonitorEditing:
             await pilot.press("q")
 
     @pytest.mark.asyncio
-    async def test_verify_and_disable_toggles(self):
+    async def test_verify_and_ship_toggles(self):
         ed = FakeEditor()
         app = MonitorApp(FakeController(editor=ed))
         async with app.run_test(size=(100, 30)) as pilot:
@@ -613,7 +613,7 @@ class TestMonitorEditing:
             assert ed.verified_toggles == 1
             await pilot.press("x")
             await pilot.pause(0.05)
-            assert ed.enabled_toggles == 1
+            assert ed.ship_toggles == 1
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -647,9 +647,9 @@ class TestMonitorEditing:
             from canair.tui.widgets import CheckBox
 
             verified = app.screen.query_one("#e-verified", CheckBox).render().plain
-            enabled = app.screen.query_one("#e-enabled", CheckBox).render().plain
+            ship = app.screen.query_one("#e-ship", CheckBox).render().plain
             assert widgets._UNCHECKED in verified
-            assert widgets._CHECKED in enabled
+            assert widgets._CHECKED in ship
             # Change the expression and save.
             expr = app.screen.query_one("#e-expr")
             expr.value = "B4/4"

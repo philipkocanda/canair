@@ -7,6 +7,7 @@ import yaml
 from canair.core import yaml_io
 from canair.ecus.pids import pid_ships
 from canair.ecus.sensitivity import param_sensitive
+from canair.ecus.shipping import param_ships
 
 
 def _disjoint(ecu_a: str, revs_a: frozenset[str], ecu_b: str, revs_b: frozenset[str]) -> bool:
@@ -80,9 +81,9 @@ def duplicate_name_errors(file_paths: list[Path]) -> list[str]:
 def duplicate_param_errors(file_paths: list[Path]) -> list[str]:
     """Flag a parameter NAME shipped by more than one PID (a device collision).
 
-    Mirrors the wican profile-generation gate (``active`` PID + ``enabled``
-    param): those params become distinct signals on the device and their names
-    must be globally unique. Catching it here means CI/`validate` fails before
+    Mirrors the wican profile-generation gate (shipped PID + a signal that is
+    not ``ship: false``): those params become distinct signals on the device and
+    their names must be globally unique. Catching it here means CI/`validate` fails before
     `wican autopid write` does. See ``canair.interop.autopid.profile.generate_profile``.
     """
     from canair.variants.revisions import owner_revisions
@@ -107,7 +108,7 @@ def duplicate_param_errors(file_paths: list[Path]) -> list[str]:
                 if not isinstance(pid_def, dict) or not pid_ships(pid_def):
                     continue
                 for pname, param in (pid_def.get("parameters") or {}).items():
-                    if not isinstance(param, dict) or not param.get("enabled", True):
+                    if not isinstance(param, dict) or not param_ships(param):
                         continue
                     if param_sensitive(pid_def, param):
                         continue  # never shipped (canair.privacy.sensitive)

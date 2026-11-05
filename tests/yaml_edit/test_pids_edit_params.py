@@ -290,12 +290,12 @@ class TestSetParamField:
         set_param_field("TESTECU", "2101", "EXISTING", "verified", False, pids_dir=pids_dir)
         assert _params(pids_dir, "2101")["EXISTING"]["verified"] is False
 
-    def test_appends_enabled_when_absent(self, pids_dir):
+    def test_appends_ship_when_absent(self, pids_dir):
         from canair.yaml_edit.pids import set_param_field
 
-        # EXISTING has no `enabled:` — the setter should add it.
-        set_param_field("TESTECU", "2101", "EXISTING", "enabled", False, pids_dir=pids_dir)
-        assert _params(pids_dir, "2101")["EXISTING"]["enabled"] is False
+        # EXISTING has no `ship:` — the setter should add it.
+        set_param_field("TESTECU", "2101", "EXISTING", "ship", False, pids_dir=pids_dir)
+        assert _params(pids_dir, "2101")["EXISTING"]["ship"] is False
 
     def test_preserves_expression_quoting(self, pids_dir):
         from canair.yaml_edit.pids import set_param_field

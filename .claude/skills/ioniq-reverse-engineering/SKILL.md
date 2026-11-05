@@ -242,11 +242,14 @@ SOC_BMS:
   max: "100"
   source: "Original WiCAN config"
   verified: true           # tested on this car? (per-param confidence axis)
-  enabled: true            # ship this param to the device (param-level; default true)
+  ship: false              # keep this param out of the device profile (default true; omit it)
 ```
 
 Every PID carries a **required, explicit** lifecycle **`status:`** — the single
-field that replaced the old `ignored`/`static`/`enabled` booleans:
+field that replaced the old `ignored`/`static`/`enabled` booleans (a signal's own
+`ship: false` keeps one signal off the device; a signal ships only when its PID is
+`active`/`slow`, it is not `ship: false` or `sensitive`, and it is `verified` unless
+`wican autopid write --include-unverified`):
 `active` (indexed, swept, queryable, shipped) · `draft` (tracked/queryable but
 not shipped — RE placeholders/speculative) · `static` (unchanging cal/identity;
 skipped in bare-ECU sweeps and not shipped) · `slow` (live but too slow-changing

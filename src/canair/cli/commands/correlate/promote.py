@@ -1,6 +1,6 @@
 """Writing a correlation result back out, and warning when it rests on too little.
 
-``--promote`` persists the top raw-byte hit into ``ecus/`` as an enabled but
+``--promote`` persists the top raw-byte hit into ``ecus/`` as an
 unverified candidate with its evidence in ``notes``; the thin-join warning is the
 counterpart that says "this r is real, but it joined almost nothing".
 """

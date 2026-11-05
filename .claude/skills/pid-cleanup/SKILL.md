@@ -153,4 +153,4 @@ guess from the note (rule 2).
 - No name implies knowledge the evidence doesn't support; unknowns say `_UNKN`.
 - No dangling references to renamed/removed params.
 - `canair validate pids` passes; docs/bundled-profile index regenerated if the
-  cleanup changed shipped (verified/enabled) signals.
+  cleanup changed shipped (verified, not `ship: false`) signals.

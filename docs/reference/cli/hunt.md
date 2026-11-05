@@ -49,7 +49,7 @@ scale and offset.
 This automates the 'which byte tracks vehicle speed / motor RPM?' scratch
 work. Use --transform delta to hunt the byte tracking the reference's
 *rate* (e.g. torque vs acceleration), and --promote to write the top hit
-straight into ecus/ as an enabled, unverified candidate parameter.
+straight into ecus/ as an unverified candidate parameter.
 
 Read-only: analyses captures/ only, never talks to the device.
 
@@ -93,7 +93,7 @@ options:
   --control-file FILE   Like --control, but the nuisance signal is an external
                         timestamp,value CSV (mutually exclusive with
                         --control)
-  --promote NAME        Write the top hit's expression to ecus/ as an enabled,
+  --promote NAME        Write the top hit's expression to ecus/ as an
                         unverified candidate param NAME (via pids upsert-
                         param), with the correlation evidence auto-filled into
                         notes
