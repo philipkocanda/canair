@@ -1,11 +1,11 @@
-"""Tests for canair.live.kwp_iocontrol_scan — KWP2000 IOControl (0x30) scanner."""
+"""Tests for canair.live.scan.kwp_iocontrol — KWP2000 IOControl (0x30) scanner."""
 
 from __future__ import annotations
 
 import pytest
 import yaml
 
-from canair.live.kwp_iocontrol_scan import (
+from canair.live.scan.kwp_iocontrol import (
     KWP_IOCONTROL_PROBE,
     NISSAN_IOCONTROL_PROBE,
     KwpIOControlHit,

@@ -69,7 +69,7 @@ class KwpIoControlParameter(IntEnum):
     """InputOutputControlByLocalIdentifier (``0x30``) parameter, SSF 14230-3 Table 9.1.3.2.
 
     ISO 14230-3 leaves the byte to the manufacturer, and no make is known to follow SSF
-    14230-3 here (see :mod:`canair.live.kwp_iocontrol_scan`). The values are named so a
+    14230-3 here (see :mod:`canair.live.scan.kwp_iocontrol`). The values are named so a
     refusal can say what it refused. 0x09 (an I/O calibration report) is left unnamed until
     its name is checked against the standard; 0x0A-0xF9 are vehicleManufacturerSpecific and
     0xFA-0xFE systemSupplierSpecific.

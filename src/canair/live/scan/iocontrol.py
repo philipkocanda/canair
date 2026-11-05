@@ -25,7 +25,7 @@ Classification
   NRC 0x7F (serviceNotSupportedInActiveSession) — retry in extended session
   NRC 0x11 (serviceNotSupported) — ECU doesn't implement 0x2F at all → abort
 
-The generic scan loop lives in :mod:`canair.live.discovery_scan`; this module
+The generic scan loop lives in :mod:`canair.live.scan.discovery`; this module
 supplies the 0x2F-specific probe, classification and writeback as a
 :class:`DiscoveryProbe`.
 
@@ -41,7 +41,7 @@ from __future__ import annotations
 from typing import NamedTuple
 
 from canair.core.id_ranges import parse_id_range
-from canair.live.discovery_scan import DiscoveryProbe, mode_discovery_scan
+from canair.live.scan.discovery import DiscoveryProbe, mode_discovery_scan
 from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import (
@@ -100,7 +100,7 @@ async def probe_iocontrol(
     caught and reported as errors rather than misattributed to the wrong
     DID. Observed failure mode: a late-arriving ``6F {prev_did} 00`` from
     the previous probe leaks into the next read, silently shifting every
-    subsequent hit by -1 DID. See `tests/modes/test_iocontrol_scan.py`.
+    subsequent hit by -1 DID. See `tests/live/scan/test_iocontrol_scan.py`.
     """
     if sub_function != SAFE_CONTROL_PARAMETER:
         raise ValueError(
@@ -168,7 +168,7 @@ def resolve_iocontrol_ranges(ecu_def: dict) -> list[tuple[int, int]] | None:
       1. the ECU's ``iocontrol_scan_ranges:`` profile field (list of
          ``"START-END"`` hex strings), if present and parseable;
       2. ranges inferred from the ECU's known ``2F``/``22`` DID keys
-         (:func:`canair.live.scan_presets.infer_iocontrol_ranges`);
+         (:func:`canair.live.scan.presets.infer_iocontrol_ranges`);
       3. ``None`` — the caller falls back to the generic full-DID space
          (:data:`FULL_DID_RANGE`), never an HK body-DID zone.
     """
@@ -177,7 +177,7 @@ def resolve_iocontrol_ranges(ecu_def: dict) -> list[tuple[int, int]] | None:
         parsed = [r for spec in explicit if (r := _profile_range(spec)) is not None]
         if parsed:
             return parsed
-    from canair.live.scan_presets import infer_iocontrol_ranges
+    from canair.live.scan.presets import infer_iocontrol_ranges
 
     return infer_iocontrol_ranges(ecu_def)
 

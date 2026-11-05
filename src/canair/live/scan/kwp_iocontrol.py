@@ -31,7 +31,7 @@ non-actuating probe. Never scan with another IOCP — even the SSF "report" valu
 (01-03), since these ECUs are not guaranteed to be SSF-conformant.
 
 Positive response is ``0x70``. Classification mirrors the UDS 0x2F scanner.
-The generic scan loop lives in :mod:`canair.live.discovery_scan`.
+The generic scan loop lives in :mod:`canair.live.scan.discovery`.
 
 Nissan
 ------
@@ -49,7 +49,7 @@ from __future__ import annotations
 import dataclasses
 from typing import NamedTuple
 
-from canair.live.discovery_scan import DiscoveryProbe, mode_discovery_scan
+from canair.live.scan.discovery import DiscoveryProbe, mode_discovery_scan
 from canair.render import messages
 from canair.safety.quirks import NISSAN_C0_SESSION, has_quirk
 from canair.transport.protocol import Terminal

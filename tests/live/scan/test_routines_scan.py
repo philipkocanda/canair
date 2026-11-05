@@ -1,4 +1,4 @@
-"""Tests for canair.live.routines_scan and the routines: YAML writer."""
+"""Tests for canair.live.scan.routines and the routines: YAML writer."""
 
 from __future__ import annotations
 
@@ -7,12 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canair.live.routines_scan import (
-    NRC_ABSENT,
-    NRC_EXISTS_HINTS,
-    RoutineHit,
-    classify,
-)
+from canair.live.scan.routines import NRC_ABSENT, NRC_EXISTS_HINTS, RoutineHit, classify
 from canair.uds.nrc import NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION
 from canair.yaml_edit.pids import PidsEditError, append_routines_block, update_routines_field
 

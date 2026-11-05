@@ -1,4 +1,4 @@
-"""Tests for canair.live.sessions_scan, the sessions: YAML writer, and schema."""
+"""Tests for canair.live.scan.sessions, the sessions: YAML writer, and schema."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canair.live.sessions_scan import (
+from canair.live.scan.sessions import (
     KWP_SESSION_MODES,
     UDS_SESSION_MODES,
     SessionHit,

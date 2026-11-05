@@ -1,4 +1,4 @@
-"""Tests for canair.live.iocontrol_scan and the iocontrol_discoveries: YAML writer."""
+"""Tests for canair.live.scan.iocontrol and the iocontrol_discoveries: YAML writer."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canair.live.iocontrol_scan import (
+from canair.live.scan.iocontrol import (
     NRC_ABSENT,
     NRC_EXISTS_HINTS,
     SAFE_CONTROL_PARAMETER,
@@ -311,7 +311,7 @@ def test_append_iocontrol_discoveries_yaml_round_trip(pids_dir):
 
 def test_routines_and_discoveries_coexist(pids_dir):
     """Both scanner sections can live side-by-side in the same ECU block."""
-    from canair.live.routines_scan import RoutineHit
+    from canair.live.scan.routines import RoutineHit
     from canair.yaml_edit.pids import append_routines_block
 
     r_hits = [
@@ -348,26 +348,26 @@ def test_routines_and_discoveries_coexist(pids_dir):
 
 def test_no_hardcoded_default_ecu_ranges():
     """The old HK body-controller DID map is gone from the module."""
-    import canair.live.iocontrol_scan as mod
+    import canair.live.scan.iocontrol as mod
 
     assert not hasattr(mod, "DEFAULT_ECU_RANGES")
 
 
 def test_full_did_range_is_make_neutral():
-    from canair.live.iocontrol_scan import FULL_DID_RANGE
+    from canair.live.scan.iocontrol import FULL_DID_RANGE
 
     assert FULL_DID_RANGE == (0x0000, 0xFFFF)
 
 
 def test_resolve_ranges_prefers_explicit_profile_field():
-    from canair.live.iocontrol_scan import resolve_iocontrol_ranges
+    from canair.live.scan.iocontrol import resolve_iocontrol_ranges
 
     ecu = {"iocontrol_scan_ranges": ["B000-BFFF", "C000-C0FF"], "pids": {"22F190": {}}}
     assert resolve_iocontrol_ranges(ecu) == [(0xB000, 0xBFFF), (0xC000, 0xC0FF)]
 
 
 def test_resolve_ranges_falls_back_to_pid_derived():
-    from canair.live.iocontrol_scan import resolve_iocontrol_ranges
+    from canair.live.scan.iocontrol import resolve_iocontrol_ranges
 
     # No explicit field → derive from the ECU's 2F/22 DID high bytes.
     ecu = {"pids": {"22BC01": {}, "22BC07": {}, "2FB010": {}}}
@@ -375,7 +375,7 @@ def test_resolve_ranges_falls_back_to_pid_derived():
 
 
 def test_resolve_ranges_none_when_no_prior():
-    from canair.live.iocontrol_scan import resolve_iocontrol_ranges
+    from canair.live.scan.iocontrol import resolve_iocontrol_ranges
 
     # Only a narrow-service (21) key and no 2F/22 keys → nothing to derive.
     assert resolve_iocontrol_ranges({"pids": {"2101": {}}}) is None
@@ -383,14 +383,14 @@ def test_resolve_ranges_none_when_no_prior():
 
 
 def test_resolve_ranges_drops_malformed_explicit_entries():
-    from canair.live.iocontrol_scan import resolve_iocontrol_ranges
+    from canair.live.scan.iocontrol import resolve_iocontrol_ranges
 
     ecu = {"iocontrol_scan_ranges": ["B000-BFFF", "garbage", "FFFF-0000"]}
     assert resolve_iocontrol_ranges(ecu) == [(0xB000, 0xBFFF)]
 
 
 def test_infer_iocontrol_ranges_helper():
-    from canair.live.scan_presets import infer_iocontrol_ranges
+    from canair.live.scan.presets import infer_iocontrol_ranges
 
     assert infer_iocontrol_ranges({"pids": {"2FB015": {}}}) == [(0xB000, 0xB0FF)]
     # Ignores non-2F/22 services (e.g. KWP 21xx) and identity F1xx is still 22.

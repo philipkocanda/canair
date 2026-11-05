@@ -6,8 +6,8 @@ import re
 
 import pytest
 
-from canair.live.discovery_scan import DiscoveryProbe, scan_ecu
-from canair.live.sessions_scan import scan_ecu_sessions
+from canair.live.scan.discovery import DiscoveryProbe, scan_ecu
+from canair.live.scan.sessions import scan_ecu_sessions
 from canair.render import discover as discover_render
 from tests.support.fakes import FakeTerminal, nrc, ok
 

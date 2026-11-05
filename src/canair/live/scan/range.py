@@ -12,7 +12,7 @@ from canair.render.console import escape
 from canair.render.glyphs import ELLIPSIS
 from canair.uds.services import identifier_width
 
-from ..transport.protocol import Terminal
+from ...transport.protocol import Terminal
 
 
 async def mode_scan(
@@ -55,9 +55,9 @@ async def mode_scan(
     )
     from rich.table import Table
 
-    from canair.live.scan_presets import service_label
+    from canair.live.scan.presets import service_label
 
-    from ..ecus import ecu_display, ecu_name
+    from ...ecus import ecu_display, ecu_name
 
     # The human report is the result, so it goes to stdout; with --json it goes to stderr.
     console = make_console(stderr=as_json)
@@ -204,12 +204,8 @@ async def mode_scan(
     if save:
         from canair.transport.stats import client_transport
 
-        from ..captures import (
-            build_scan_session,
-            save_session_journaled,
-            suggest_scan_label,
-        )
-        from ..ecus import rx_addr_str
+        from ...captures import build_scan_session, save_session_journaled, suggest_scan_label
+        from ...ecus import rx_addr_str
 
         suggested = suggest_scan_label(ecu, service, ranges, append_bytes)
         n_pos = len(positive)

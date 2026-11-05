@@ -133,7 +133,7 @@ async def async_main(args, operation: LiveOperation):
     # only in the scan subcommand that produces that scan type, so unrelated
     # commands (query, io, identity, ...) stay quiet.
     if operation.scan_types:
-        from canair.live.scan_state import find_aborted_scans
+        from canair.live.scan.progress import find_aborted_scans
 
         _aborted = [s for s in find_aborted_scans() if s.get("type") in operation.scan_types]
         if _aborted:

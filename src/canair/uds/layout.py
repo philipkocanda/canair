@@ -10,14 +10,14 @@ module is the one table that says so, so a byte can be *named* (``DID`` / ``LID`
 
 It builds on :mod:`canair.uds.services` (the SID registry); response-code names are
 :mod:`canair.uds.nrc`'s, per protocol. The roles use the same ``DID``/``LID``/``RID``
-vocabulary as :class:`canair.live.discovery_scan.DiscoveryProbe`.
+vocabulary as :class:`canair.live.scan.discovery.DiscoveryProbe`.
 Data-only plus small resolvers: no I/O, no formatting decisions (a caller renders
 the labels and picks which definitions to show).
 
 The layouts are grounded in this repo's existing per-service knowledge — chiefly
 :func:`canair.uds.describe.decode_uds_response`, :func:`canair.uds.echo.request_echo`,
-and the scanner docstrings in :mod:`canair.live.kwp_routines_scan` /
-:mod:`canair.live.kwp_iocontrol_scan` — and a service is deliberately **omitted**
+and the scanner docstrings in :mod:`canair.live.scan.kwp_routines` /
+:mod:`canair.live.scan.kwp_iocontrol` — and a service is deliberately **omitted**
 rather than guessed when its layout isn't established, so callers fall back to
 their previous behaviour instead of asserting a wrong one.
 """

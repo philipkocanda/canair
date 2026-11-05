@@ -25,7 +25,7 @@ Safety:
     * Defaults target IGPM/BCM/HVAC. SKM is explicitly excluded.
     * RID range defaults to F000-F0FF (256 IDs per ECU).
 
-The generic scan loop lives in :mod:`canair.live.discovery_scan`; this module
+The generic scan loop lives in :mod:`canair.live.scan.discovery`; this module
 supplies the 0x31-specific probe, classification and writeback.
 """
 
@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-from canair.live.discovery_scan import DiscoveryProbe, mode_discovery_scan
+from canair.live.scan.discovery import DiscoveryProbe, mode_discovery_scan
 from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import (

@@ -700,7 +700,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   the `59 04` snapshot record; `layout_of(payload)` picks the right one). Sub-function values live
   once in **`src/canair/uds/subfunctions.py`**: the `IntEnum` constants code sends, and
   **`SUBFUNCTION_NAMES`**, which `src/canair/uds/describe.py::decode_uds_response` and
-  `live/sessions_scan.py` read. A test cross-checks the two layout models.
+  `live/scan/sessions.py` read. A test cross-checks the two layout models.
 - **`canair config`** — View/manage user config (`~/.config/canair/config.yaml`): `show`, `example`
   (prints `config.example.yaml`, the authoritative fully-commented reference for every key), `path`,
   `get`, `set` (dotted keys create nested mappings; enum keys validated up front; unknown keys

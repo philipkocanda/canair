@@ -1,11 +1,11 @@
-"""Tests for scan service presets and smart per-ECU defaults (canair.live.scan_presets)."""
+"""Tests for scan service presets and smart per-ECU defaults (canair.live.scan.presets)."""
 
 from types import SimpleNamespace
 
 import pytest
 
-from canair.live import scan_presets as sp
-from canair.live.scan_presets import (
+from canair.live.scan import presets as sp
+from canair.live.scan.presets import (
     ServiceError,
     is_wide_service,
     plan_scan,

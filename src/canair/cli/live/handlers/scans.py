@@ -12,9 +12,9 @@ from canair.cli.live.operation import LiveOperation
 from canair.core.prompt import confirm
 from canair.ecus import split_ecus_by_protocol
 from canair.live.discover.physical import mode_discover
-from canair.live.iocontrol_scan import mode_iocontrol_scan
-from canair.live.routines_scan import mode_routines_scan
-from canair.live.scan import mode_scan
+from canair.live.scan.iocontrol import mode_iocontrol_scan
+from canair.live.scan.range import mode_scan
+from canair.live.scan.routines import mode_routines_scan
 from canair.render import messages
 from canair.transport.protocol import Terminal
 
@@ -57,7 +57,7 @@ async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=No
 async def handle_routines_scan(
     args, terminal: Terminal, pids_data, host, *, reconnect=None
 ) -> None:
-    from canair.live.kwp_routines_scan import (
+    from canair.live.scan.kwp_routines import (
         UNPROVEN_WARNING,
         mode_kwp_routines_scan,
         needs_confirmation,
@@ -119,7 +119,7 @@ async def handle_routines_scan(
 async def handle_iocontrol_scan(
     args, terminal: Terminal, pids_data, host, *, reconnect=None
 ) -> None:
-    from canair.live.kwp_iocontrol_scan import (
+    from canair.live.scan.kwp_iocontrol import (
         UNPROVEN_WARNING,
         mode_kwp_iocontrol_scan,
         needs_confirmation,
@@ -178,7 +178,7 @@ async def handle_iocontrol_scan(
 async def handle_sessions_scan(
     args, terminal: Terminal, pids_data, host, *, reconnect=None
 ) -> None:
-    from canair.live.sessions_scan import mode_sessions_scan
+    from canair.live.scan.sessions import mode_sessions_scan
 
     modes = None
     if getattr(args, "modes", None):

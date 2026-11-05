@@ -22,7 +22,7 @@ Today there are four quirks:
   profile's KWP2000 ECUs only (on a UDS ECU the same byte is an OEM session with
   the suppress-response bit). It also
   switches the KWP2000 IOControl scan to Nissan's ``0x30`` layout
-  (:mod:`canair.live.kwp_iocontrol_scan`), where the ISO probe would begin a
+  (:mod:`canair.live.scan.kwp_iocontrol`), where the ISO probe would begin a
   one-shot command.
 - :data:`HK_90_SESSION` — Hyundai/Kia KWP2000 ECUs take the OEM session
   ``10 90`` before an actuator test (``0x30``): the OVMS Kia Soul EV firmware

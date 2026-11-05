@@ -26,7 +26,7 @@ from canair.cli.live import add_connection_args, ecu_completer, live_command, ru
 from canair.cli.live.handlers import scans
 from canair.core.id_ranges import format_id_ranges, parse_id_ranges
 from canair.core.prompt import confirm
-from canair.live.scan_presets import (
+from canair.live.scan.presets import (
     FAMILY_SIZE,
     SERVICE_PRESETS,
     ScanPlan,

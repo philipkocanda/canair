@@ -113,7 +113,7 @@ class TestDiscoverSave:
 class TestScanAndRawSave:
     @pytest.mark.asyncio
     async def test_scan_records_the_client_transport(self, prof):
-        from canair.live.scan import mode_scan
+        from canair.live.scan.range import mode_scan
 
         term = FakeTerminal({"220100": ok("620100AA")})
         await mode_scan(term, 0x74E, 0x22, (0x0100, 0x0100), False, False, save=True, label="scan")
@@ -143,7 +143,7 @@ class TestJournaledSaveNeverGuesses:
 
     @pytest.mark.asyncio
     async def test_scan_of_a_range_list_sends_each_id_once_and_records_the_list(self, prof):
-        from canair.live.scan import mode_scan
+        from canair.live.scan.range import mode_scan
 
         term = FakeTerminal({"22B401": ok("62B401AA")})
         ranges = ((0xB400, 0xB401), (0xB100, 0xB100), (0xB401, 0xB401))

@@ -291,7 +291,7 @@ class TestCrossCheckedAgainstUdsLayout:
     def test_subfunction_names_are_shared_not_copied(self):
         # The session table lives in one place now; a private copy is what let
         # formatting.py's drift out of step (missing the KWP2000 0x8x range).
-        from canair.live.sessions_scan import SESSION_NAMES
+        from canair.live.scan.sessions import SESSION_NAMES
 
         assert SESSION_NAMES is SUBFUNCTION_NAMES[0x10]
 
@@ -305,7 +305,7 @@ class TestSubfunctionCoverage:
         assert f"0x{session:02X}" not in decoded, f"session 0x{session:02X} rendered as hex"
 
     def test_scanned_session_modes_are_all_named(self):
-        from canair.live.sessions_scan import KWP_SESSION_MODES, UDS_SESSION_MODES
+        from canair.live.scan.sessions import KWP_SESSION_MODES, UDS_SESSION_MODES
 
         for mode in (*UDS_SESSION_MODES, *KWP_SESSION_MODES):
             assert subfunction_name(0x10, mode) is not None
@@ -317,7 +317,8 @@ class TestSubfunctionCoverage:
         assert f"0x{reset:02X}" not in decoded
 
     def test_the_scanners_probe_with_return_control_to_ecu(self):
-        from canair.live import iocontrol_scan, kwp_iocontrol_scan
+        from canair.live.scan import iocontrol as iocontrol_scan
+        from canair.live.scan import kwp_iocontrol as kwp_iocontrol_scan
 
         assert subfunction_name(0x2F, iocontrol_scan.SAFE_CONTROL_PARAMETER) == (
             "returnControlToECU"

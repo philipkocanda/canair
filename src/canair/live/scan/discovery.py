@@ -8,7 +8,7 @@ hits back to ``ecus/<ecu>.yaml``. Only the request layout, id width, NRC
 classification and writeback section differ.
 
 Those deltas live in a :class:`DiscoveryProbe` config; this module owns the one
-loop. Each concrete scanner (``modes/iocontrol_scan.py`` etc.) builds a
+loop. Each concrete scanner (``scan/iocontrol.py`` etc.) builds a
 ``DiscoveryProbe`` and delegates its ``mode_*`` entrypoint to
 :func:`mode_discovery_scan`.
 """
@@ -21,14 +21,14 @@ import sys
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from canair.live.scan_state import ScanStateWriter
+from canair.live.scan.progress import ScanStateWriter
 from canair.render import messages
 from canair.render.paint import Painter
 from canair.uds.response import UdsResponse
 
-from ..render.discover import ABSENT, POSITIVE, PROBE_FAILED, REFUSED
-from ..render.progress import ProgressLine
-from ..transport.protocol import Terminal
+from ...render.discover import ABSENT, POSITIVE, PROBE_FAILED, REFUSED
+from ...render.progress import ProgressLine
+from ...transport.protocol import Terminal
 
 
 @dataclass(frozen=True)

@@ -14,7 +14,7 @@ from canair import profile
 from canair.ecus.pids import clear_cache
 from canair.live.discover import physical as disc
 from canair.live.raw import mode_raw
-from canair.live.scan import mode_scan
+from canair.live.scan.range import mode_scan
 from tests.support.fakes import FakeTerminal, ok
 
 PROFILE_YAML = 'car_model: "T"\ninit: "ATSP6;"\n'

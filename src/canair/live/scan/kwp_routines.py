@@ -15,7 +15,7 @@ KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) we probe **0x33** instead, which only ask
     request:  33 {LID}          (8-bit routine local identifier)
     positive: 73 {LID} {status/result …}
 
-The generic scan loop lives in :mod:`canair.live.discovery_scan`; this module
+The generic scan loop lives in :mod:`canair.live.scan.discovery`; this module
 supplies the 0x33-specific probe, classification and writeback.
 """
 
@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-from canair.live.discovery_scan import DiscoveryProbe, mode_discovery_scan
+from canair.live.scan.discovery import DiscoveryProbe, mode_discovery_scan
 from canair.render import messages
 from canair.safety.quirks import NISSAN_C0_SESSION, has_quirk
 from canair.transport.protocol import Terminal

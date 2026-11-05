@@ -556,8 +556,8 @@ async def _exec_scan(
 ):
     """Execute scan sub-command."""
     from ..ecus import resolve_tx
-    from .scan import mode_scan
-    from .scan_presets import ServiceError, resolve_service
+    from .scan.presets import ServiceError, resolve_service
+    from .scan.range import mode_scan
 
     tx_id = resolve_tx(tx_str)
     if tx_id is None:
