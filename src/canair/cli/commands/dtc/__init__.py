@@ -19,8 +19,8 @@ import argparse
 import sys
 
 from canair.cli.commands._group import group_help
-from canair.cli.commands._live import LiveOperation, add_connection_args, ecu_completer, run_live
-from canair.cli.commands._live.handlers import diagnostics
+from canair.cli.live import LiveOperation, add_connection_args, ecu_completer, run_live
+from canair.cli.live.handlers import diagnostics
 
 NAME = "dtc"
 _OPERATION = LiveOperation(diagnostics.handle_dtc, records=True)

@@ -476,7 +476,7 @@ class TestRebootRegression:
 
 def _elm_session(monkeypatch, ttype: str, *, calls: list):
     """Drive ``async_main`` for one ELM candidate with every device seam stubbed."""
-    from canair.cli.commands._live import connect, runtime
+    from canair.cli.live import connect, runtime
     from canair.transport.config import TransportConfig
 
     cand = TransportConfig(type=ttype, host="192.0.2.1")
@@ -516,7 +516,7 @@ def _live_args(**kw):
 
 
 def _operation():
-    from canair.cli.commands._live import LiveOperation
+    from canair.cli.live import LiveOperation
 
     async def _handler(*a, **k):
         return None
@@ -534,7 +534,7 @@ def _recording_detect(monkeypatch, info: FirmwareInfo, calls: list):
 
 class TestLiveSurfaces:
     def test_wican_ws_connect_refused_on_v6_after_the_reachability_check(self, monkeypatch, capsys):
-        from canair.cli.commands._live import runtime
+        from canair.cli.live import runtime
 
         calls: list = []
         _elm_session(monkeypatch, "wican-ws", calls=calls)
@@ -547,7 +547,7 @@ class TestLiveSurfaces:
         assert "no /ws ELM327 terminal" in err and "elm327-tcp" in err
 
     def test_an_unreachable_host_fails_fast_without_the_probe(self, monkeypatch, capsys):
-        from canair.cli.commands._live import runtime
+        from canair.cli.live import runtime
         from canair.device.wican.mode import ModeError
 
         calls: list = []
@@ -563,7 +563,7 @@ class TestLiveSurfaces:
         assert calls == []
 
     def test_v4_out_of_range_warns_and_connects(self, monkeypatch, capsys):
-        from canair.cli.commands._live import runtime
+        from canair.cli.live import runtime
 
         calls: list = []
         _elm_session(monkeypatch, "wican-ws", calls=calls)
@@ -574,7 +574,7 @@ class TestLiveSurfaces:
 
     def test_elm327_tcp_is_not_probed_by_default(self, monkeypatch, capsys):
         import canair.config as cfg
-        from canair.cli.commands._live import runtime
+        from canair.cli.live import runtime
 
         calls: list = []
         _elm_session(monkeypatch, "elm327-tcp", calls=calls)
@@ -587,7 +587,7 @@ class TestLiveSurfaces:
 
     def test_elm327_tcp_note_when_opted_in(self, monkeypatch, capsys):
         import canair.config as cfg
-        from canair.cli.commands._live import runtime
+        from canair.cli.live import runtime
 
         calls: list = []
         _elm_session(monkeypatch, "elm327-tcp", calls=calls)
@@ -604,7 +604,7 @@ class TestLiveSurfaces:
         ids=["v6-skips", "unknown-reboots"],
     )
     def test_reboot_after_an_elm_session(self, monkeypatch, capsys, info, posted, text):
-        from canair.cli.commands._live import runtime
+        from canair.cli.live import runtime
         from canair.device.wican import api as wican_api
 
         calls: list = []
@@ -623,7 +623,7 @@ class TestLiveSurfaces:
         assert text in captured.out + captured.err
 
     def test_reboot_on_elm327_tcp_is_reported_not_dropped(self, monkeypatch, capsys):
-        from canair.cli.commands._live import runtime
+        from canair.cli.live import runtime
         from canair.device.wican import api as wican_api
 
         calls: list = []

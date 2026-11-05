@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 
-from canair.cli.commands._live import LiveOperation, add_connection_args, live_command
-from canair.cli.commands._live.handlers import reads
+from canair.cli.live import LiveOperation, add_connection_args, live_command
+from canair.cli.live.handlers import reads
 
 NAME = "raw"
 _OPERATION = LiveOperation(reads.handle_raw, records=True)

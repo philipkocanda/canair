@@ -6,8 +6,8 @@ import argparse
 import sys
 from collections.abc import Mapping
 
-from canair.cli.commands._live import add_connection_args, run_live
-from canair.cli.commands._live.handlers import scans
+from canair.cli.live import add_connection_args, run_live
+from canair.cli.live.handlers import scans
 
 NAME = "discover"
 ALIASES = ["disc"]

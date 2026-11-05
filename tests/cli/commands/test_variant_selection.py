@@ -161,21 +161,21 @@ class TestLiveGate:
 
     @pytest.mark.parametrize("command", ["read", "monitor", "scan", "raw", "io", "dtc"])
     def test_live_commands_refuse(self, unnamed, command):
-        from canair.cli.commands._live.runtime import _require_car
+        from canair.cli.live.runtime import _require_car
 
         with pytest.raises(ProfileError):
             _require_car(argparse.Namespace(command=command, save=False))
 
     @pytest.mark.parametrize("command", ["discover", "disc", "identity", "id"])
     def test_identifying_commands_run_until_they_save(self, unnamed, command):
-        from canair.cli.commands._live.runtime import _require_car
+        from canair.cli.live.runtime import _require_car
 
         _require_car(argparse.Namespace(command=command, save=False))
         with pytest.raises(ProfileError, match="record captures"):
             _require_car(argparse.Namespace(command=command, save=True))
 
     def test_run_live_refuses_before_touching_the_device(self, unnamed, monkeypatch):
-        from canair.cli.commands._live import LiveOperation, runtime
+        from canair.cli.live import LiveOperation, runtime
 
         def _boom(*a, **k):
             raise AssertionError("the device lock must not be taken")

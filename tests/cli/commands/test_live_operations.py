@@ -2,7 +2,7 @@
 
 ``dispatch_mode`` used to choose a handler by testing which of sixteen mode-selector attributes
 was truthy, in an order that mattered (``multi`` + ``monitor`` before bare ``multi``). A command
-now hands :func:`~canair.cli.commands._live.runtime.run_live` its :class:`LiveOperation`. Two things
+now hands :func:`~canair.cli.live.runtime.run_live` its :class:`LiveOperation`. Two things
 can go wrong that the type checker cannot see, and both are pinned here:
 
 * **which operation** — a command wired to the wrong handler, or to none, falls through to the
@@ -21,8 +21,8 @@ from pathlib import Path
 import pytest
 
 from canair.cli import build_parser
-from canair.cli.commands._live import runtime
-from canair.cli.commands._live.handlers import actuators, diagnostics, elm_only, multi, reads, scans
+from canair.cli.live import runtime
+from canair.cli.live.handlers import actuators, diagnostics, elm_only, multi, reads, scans
 
 # (argv, handler name, records, scan types): the operation each live subcommand reaches.
 CASES = [
@@ -61,10 +61,10 @@ def reached(monkeypatch):
         return 0
 
     monkeypatch.setattr(runtime, "run_live", fake_run_live)
-    monkeypatch.setattr("canair.cli.commands._live.parser.run_live", fake_run_live)
+    monkeypatch.setattr("canair.cli.live.parser.run_live", fake_run_live)
     # The pre-flight reads of read/monitor/scan need a profile, not a device.
     monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
-    monkeypatch.setattr("canair.cli.commands._live.load_pids", lambda: {})
+    monkeypatch.setattr("canair.cli.live.load_pids", lambda: {})
     monkeypatch.setattr(monitor, "run_live", fake_run_live)
     monkeypatch.setattr(read, "run_live", fake_run_live)
     for name in ("scan", "discover", "dtc", "io", "routines"):

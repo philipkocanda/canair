@@ -16,7 +16,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from canair.cli.commands._live import (
+from canair.cli.live import (
     LiveOperation,
     add_connection_args,
     expand_step_groups,
@@ -26,7 +26,7 @@ from canair.cli.commands._live import (
     step_completer,
     to_step,
 )
-from canair.cli.commands._live.handlers import elm_only, multi, reads
+from canair.cli.live.handlers import elm_only, multi, reads
 
 NAME = "read"
 ALIASES = ["query"]
@@ -125,7 +125,7 @@ def run(args) -> int:
         # only the valid ECU(s).
         query_steps = [c for c in commands if c["type"] == "query"]
         if query_steps:
-            from canair.cli.commands._live import load_pids
+            from canair.cli.live import load_pids
             from canair.live.monitor import query_ecu_error
 
             ecu_err = query_ecu_error(query_steps, load_pids())

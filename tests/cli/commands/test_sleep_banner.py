@@ -35,7 +35,7 @@ class TestSleepBannerRegression:
     )
     def test_http_failure_never_ends_the_session(self, monkeypatch, capsys, error):
         """The banner used to sys.exit(1) from inside a connected session."""
-        from canair.cli.commands._live.connect import _print_sleep_banner
+        from canair.cli.live.connect import _print_sleep_banner
         from canair.device.wican import api as wican_api
 
         def boom(*a, **k):
@@ -46,7 +46,7 @@ class TestSleepBannerRegression:
         assert capsys.readouterr().out == ""
 
     def test_prints_when_the_api_answers(self, monkeypatch, capsys):
-        from canair.cli.commands._live.connect import _print_sleep_banner
+        from canair.cli.live.connect import _print_sleep_banner
         from canair.device.wican import api as wican_api
 
         bodies = {
@@ -73,7 +73,7 @@ class TestSleepBannerRegression:
     )
     def test_non_object_json_skips_the_banner(self, monkeypatch, capsys, bodies):
         """A JSON reply that isn't an object (some other HTTP server) must not crash `.get`."""
-        from canair.cli.commands._live.connect import _print_sleep_banner
+        from canair.cli.live.connect import _print_sleep_banner
         from canair.device.wican import api as wican_api
 
         def get(url, timeout):

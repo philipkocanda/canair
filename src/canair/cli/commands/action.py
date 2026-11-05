@@ -23,8 +23,8 @@ import json
 import sys
 
 from canair.cli.commands._edit import run_edit, subcommand_dispatch
-from canair.cli.commands._live import LiveOperation, add_connection_args, live_command
-from canair.cli.commands._live.handlers import actuators
+from canair.cli.live import LiveOperation, add_connection_args, live_command
+from canair.cli.live.handlers import actuators
 from canair.render import ansi
 
 NAME = "action"

@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from canair.cli.commands._live import ecu_completer
+from canair.cli.live import ecu_completer
 from canair.render import ansi
 
 

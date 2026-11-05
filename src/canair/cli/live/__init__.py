@@ -6,11 +6,10 @@ plain TCP socket — see :mod:`canair.transport.config`). They share one connect
 lifecycle. Each subcommand is a thin argparse surface that picks its
 :class:`~.runtime.LiveOperation` and calls :func:`run_live` with it.
 
-Private to the command layer, hence the underscore: it is CLI plumbing, not
-library API. The parts that were neither — the session (:mod:`canair.live.session`),
-``wants_save``, ``split_ecus_by_protocol`` — live in :mod:`canair.live`,
-:mod:`canair.captures.keepmode` and :mod:`canair.ecus`, so nothing under ``src/canair/`` imports
-this.
+It is CLI plumbing, not library API (the live operations themselves are :mod:`canair.live`).
+The parts that were neither — the session (:mod:`canair.live.session`), ``wants_save``,
+``split_ecus_by_protocol`` — live in :mod:`canair.live`, :mod:`canair.captures.keepmode` and
+:mod:`canair.ecus`, so nothing outside ``cli/`` imports this.
 
 Submodules, in the order a run passes through them:
 
@@ -25,8 +24,10 @@ Submodules, in the order a run passes through them:
 This module re-exports the surface the subcommands import; the import-time
 side effects below have to happen once, on any live command, so they live here.
 
-Belongs: the live-command runtime: the shared connection flags, `live_command`, the session lifecycle and the handlers.
-Not here: what an operation does on the car (`live/`) and the session error policy (`live/session.py`).
+Belongs: the live-command runtime: the shared connection flags, `live_command`, the session
+lifecycle and the handlers.
+Not here: what an operation does on the car (`live/`) and the session error policy
+(`live/session.py`).
 Imports: `live`, `transport`, `device` and below.
 """
 

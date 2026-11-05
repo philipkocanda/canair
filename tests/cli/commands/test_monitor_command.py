@@ -72,7 +72,7 @@ class TestMonitorRunWiring:
         # Skip the ECU-name preflight (needs a profile) and the device connect.
         monkeypatch.setattr(monitor, "run_live", fake_run_live)
         monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
-        monkeypatch.setattr("canair.cli.commands._live.load_pids", lambda: {})
+        monkeypatch.setattr("canair.cli.live.load_pids", lambda: {})
 
         args = _parse(["monitor", "BMS:2101", "--interval", "3"])
         assert monitor.run(args) == 0
@@ -100,7 +100,7 @@ class TestMonitorRunWiring:
         monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
         monkeypatch.setattr("sys.stdout.isatty", lambda: True, raising=False)
         monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
-        monkeypatch.setattr("canair.cli.commands._live.load_pids", lambda: {})
+        monkeypatch.setattr("canair.cli.live.load_pids", lambda: {})
 
         assert monitor.run(_parse(["monitor"])) == 0
         assert captured["multi"] == ["query BMS", "query VCU:2101"]
@@ -135,7 +135,7 @@ class TestMonitorGroupExpansion:
 
         monkeypatch.setattr(monitor, "run_live", fake_run_live)
         monkeypatch.setattr("canair.live.monitor.query_ecu_error", lambda steps, pids: None)
-        monkeypatch.setattr("canair.cli.commands._live.load_pids", lambda: {})
+        monkeypatch.setattr("canair.cli.live.load_pids", lambda: {})
         monkeypatch.setattr(
             "canair.ecus.ecu_groups.load_groups",
             lambda profile=None: {

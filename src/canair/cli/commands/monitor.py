@@ -21,7 +21,8 @@ import math
 import shlex
 import sys
 
-from canair.cli.commands._live import (
+from canair.cli.commands._notation import add_notation_arg
+from canair.cli.live import (
     add_connection_args,
     expand_step_groups,
     report_merged_selectors,
@@ -29,8 +30,7 @@ from canair.cli.commands._live import (
     step_completer,
     to_step,
 )
-from canair.cli.commands._live.handlers.multi import monitor_operation, monitor_options
-from canair.cli.commands._notation import add_notation_arg
+from canair.cli.live.handlers.multi import monitor_operation, monitor_options
 from canair.live.poll_schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
 
 NAME = "monitor"
@@ -176,7 +176,7 @@ def _pick_steps(args) -> list[str] | None:
     Returns the chosen selectors, or ``None`` when the picker was cancelled.
     Raises ``ValueError`` if there is nothing in the active profile to pick from.
     """
-    from canair.cli.commands._live import load_pids
+    from canair.cli.live import load_pids
     from canair.tui.apps.monitor_select import pick_selectors
 
     return pick_selectors(load_pids(), include_static=args.include_static)
@@ -231,7 +231,7 @@ def run(args) -> int:
     report_merged_selectors(query_steps)
 
     # Reject typo'd/unknown ECU names before connecting (mirrors `canair read`).
-    from canair.cli.commands._live import load_pids
+    from canair.cli.live import load_pids
     from canair.live.monitor import query_ecu_error
 
     ecu_err = query_ecu_error(query_steps, load_pids())

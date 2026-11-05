@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 
-from canair.cli.commands._live import LiveOperation, add_connection_args, ecu_completer, run_live
-from canair.cli.commands._live.handlers import actuators
+from canair.cli.live import LiveOperation, add_connection_args, ecu_completer, run_live
+from canair.cli.live.handlers import actuators
 
 NAME = "io"
 _OPERATION = LiveOperation(actuators.handle_iocontrol)

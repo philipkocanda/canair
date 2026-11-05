@@ -541,7 +541,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   selectors, distinct PIDs union, aliases resolve to the canonical name, and first-mention position
   is kept. A non-`query` step ends the run, so a deliberate pipeline re-read survives. Overlaps are
   reported (never silently collapsed) by `merged_selector_notes` via
-  `src/canair/cli/commands/_live/steps.py::report_merged_selectors`. This is load-bearing for `monitor`: a
+  `src/canair/cli/live/steps.py::report_merged_selectors`. This is load-bearing for `monitor`: a
   duplicated ECU was polled twice per cycle *and* its rows collided on the
   `(ecu_label, pid, param_name)` selection key, snapping the TUI cursor and viewport back to the
   first copy.
@@ -594,7 +594,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   `Profile.alias`) > the only variant. **No default.** It is applied by `set_active`/`active`,
   never by a bare `resolve_profile`, and carried as `Profile.variant`/`variant_source`.
   **`require_variant` refuses** — listing the variants and how to pick — every command that
-  talks to the car (`_live/runtime.py::run_live`, except `discover`/`identity` without `--save`),
+  talks to the car (`cli/live/runtime.py::run_live`, except `discover`/`identity` without `--save`),
   `sniff` and AutoPID generation (`wican._generate`), on a profile with several variants and none
   named. The suite pins its car in conftest's isolated config. It **tags captures**: every save
   funnels through `captures.save_session` and the journal's meta, both via `current_capture_tag`
@@ -1133,7 +1133,7 @@ set `disconnected` itself). Gaps bound forward fill (`analysis/fill.py::next_gap
 holes no event explains are inferred for display only (`captures/inferred_gaps.py`). Bounded by
 `transport.reconnect_max_wait` (default 60.0s); `--wait` retries forever. Infra
 `src/canair/live/monitor_reconnect.py` plus the per-transport connect closures in
-`cli/commands/_live/connect.py` and `live/raw_monitor.py`. Plan:
+`cli/live/connect.py` and `live/raw_monitor.py`. Plan:
 `plans/2026-08-03-monitor-reconnect-and-wait.md`.
 
 **Reconnect is correctness-triggered, not only liveness-triggered.** A session can stop being usable
@@ -1326,9 +1326,9 @@ the transport-agnostic surface, not a raw socket. All three backends satisfy the
 
 **`is_wican_http`** is spec-driven (`TransportSpec.wican_http` + a host), **not** `host is not
 None`: true only for the WiCAN transports (queryable `/load_config`, `/check_status`), false for
-`elm327-tcp`. It gates the WiCAN-only paths in `async_main` (`_live/runtime.py`: sleep banner,
+`elm327-tcp`. It gates the WiCAN-only paths in `async_main` (`cli/live/runtime.py`: sleep banner,
 `reboot_wican`, `require_ws_reachable`) and `canair status`. The ELM connect factory is
-`connect_elm_terminal` (`_live/connect.py`); the direct-ELM pre-check is
+`connect_elm_terminal` (`cli/live/connect.py`); the direct-ELM pre-check is
 `require_elm327_tcp_reachable`. Fallback liveness probes port 80 for WiCAN-HTTP, else the data port.
 
 **Device sleep** is a **`wican-cli`** concern — a *separate* package, not canair

@@ -390,7 +390,7 @@ class TestScanAll:
     async def test_scan_all_dispatch_logs_by_default(self, monkeypatch, tmp_path, capsys):
         # No --log flag in the args: dispatch must log by default (dtc_log unset
         # -> getattr default True).
-        from canair.cli.commands._live.handlers.diagnostics import handle_dtc
+        from canair.cli.live.handlers.diagnostics import handle_dtc
         from canair.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
@@ -453,7 +453,7 @@ class TestDispatchTransportAgnostic:
 
     @pytest.mark.asyncio
     async def test_dispatch_read(self, capsys):
-        from canair.cli.commands._live.handlers.diagnostics import handle_dtc
+        from canair.cli.live.handlers.diagnostics import handle_dtc
 
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
         args = self._args(dtc="7E4", mask="FF", protocol="uds", clear=False)
@@ -463,7 +463,7 @@ class TestDispatchTransportAgnostic:
 
     @pytest.mark.asyncio
     async def test_dispatch_clear_with_yes(self, capsys):
-        from canair.cli.commands._live.handlers.diagnostics import handle_dtc
+        from canair.cli.live.handlers.diagnostics import handle_dtc
 
         t = FakeTerminal({"14FFFFFF": _ok("54")})
         args = self._args(dtc="7E4", clear=True, group="FFFFFF", protocol="uds", yes=True)

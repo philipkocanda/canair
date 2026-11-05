@@ -56,7 +56,7 @@ canair reaches the bus through one **explicitly selected** transport, registered
 
 All backends satisfy the `Terminal` protocol (`src/canair/transport/protocol.py`) and live commands
 run through the **single shared** `src/canair/live/session.py::run_session_guarded`, called by both the
-ELM path (`cli/commands/_live/runtime.py::async_main`) and the raw path (`live/raw_ops.py::run_raw`).
+ELM path (`cli/live/runtime.py::async_main`) and the raw path (`live/raw_ops.py::run_raw`).
 
 **The design contract:**
 
@@ -157,8 +157,8 @@ Commands live in `src/canair/cli/commands/<name>.py`, exposing `NAME`, `add_pars
 `cli/commands/__init__.py::COMMAND_NAMES` (order = help order).
 
 **Live (device-talking) commands** additionally call `add_connection_args` +
-`live_command` from `src/canair/cli/commands/_live/` (or call `run_live(args, operation)` from their own
-`run`). The command names its `LiveOperation`: a handler in `src/canair/cli/commands/_live/handlers/` that
+`live_command` from `src/canair/cli/live/` (or call `run_live(args, operation)` from their own
+`run`). The command names its `LiveOperation`: a handler in `src/canair/cli/live/handlers/` that
 reads the parsed flags and calls a `mode_*` coroutine in `src/canair/live/<name>.py` with typed
 arguments. Nothing picks a handler by inspecting flags, so add the command's row to `CASES` in
 `tests/cli/commands/test_live_operations.py`: it pins the operation the command reaches and that the

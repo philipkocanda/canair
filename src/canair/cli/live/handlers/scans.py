@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sys
 
-from canair.cli.commands._live.operation import LiveOperation
+from canair.cli.live.operation import LiveOperation
 from canair.ecus import split_ecus_by_protocol
 from canair.live.discover import mode_discover
 from canair.live.iocontrol_scan import mode_iocontrol_scan

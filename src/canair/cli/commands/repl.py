@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 
-from canair.cli.commands._live import LiveOperation, add_connection_args, live_command
-from canair.cli.commands._live.handlers import elm_only
+from canair.cli.live import LiveOperation, add_connection_args, live_command
+from canair.cli.live.handlers import elm_only
 
 NAME = "repl"
 _OPERATION = LiveOperation(elm_only.handle_interactive)

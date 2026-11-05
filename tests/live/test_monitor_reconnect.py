@@ -563,7 +563,7 @@ class TestStaleEscalation:
 class TestWaitInitialConnect:
     def test_async_main_waits_then_proceeds(self, monkeypatch):
         """--wait blocks on wait_for_reachable until a device appears, then runs."""
-        from canair.cli.commands import _live
+        from canair.cli import live as _live
 
         cand = _raw("dev")
         monkeypatch.setattr("canair.transport.resolve_transport_candidates", lambda args: [cand])

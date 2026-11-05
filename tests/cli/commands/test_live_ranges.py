@@ -9,7 +9,7 @@ import argparse
 
 import pytest
 
-from canair.cli.commands._live.handlers.ranges import parse_range, parse_ranges
+from canair.cli.live.handlers.ranges import parse_range, parse_ranges
 from canair.live.iocontrol_scan import resolve_iocontrol_ranges
 from canair.validation.pids import _validate_iocontrol_scan_ranges
 

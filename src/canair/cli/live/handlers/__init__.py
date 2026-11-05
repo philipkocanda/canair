@@ -1,7 +1,7 @@
 """The live handlers: what each live subcommand does once it is connected.
 
 A handler reads the parsed flags and calls one ``mode_*`` coroutine with typed arguments. The
-command picks its handler (see :class:`canair.cli.commands._live.runtime.LiveOperation`); nothing
+command picks its handler (see :class:`canair.cli.live.runtime.LiveOperation`); nothing
 selects one by inspecting which flags are set. Grouped by family:
 
 * :mod:`.reads`       — identity, named signals, raw hex.
@@ -15,7 +15,7 @@ selects one by inspecting which flags are set. Grouped by family:
 Every handler has the signature ``(args, terminal, pids_data, host, *, reconnect=None)``.
 
 Belongs: the code that reads a live command's parsed flags and calls one ``mode_*`` coroutine
-with typed arguments, plus the :class:`~canair.cli.commands._live.operation.LiveOperation` each
+with typed arguments, plus the :class:`~canair.cli.live.operation.LiveOperation` each
 subcommand runs.
 Not here: the operations themselves (``live/``), the session and its error policy
 (``modes/session.py``), and flag declarations (the command modules).

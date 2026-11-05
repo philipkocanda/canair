@@ -142,7 +142,7 @@ class TestDispatchForwardsTheParsedValues:
     def _run(self, monkeypatch, **kw) -> dict:
         import asyncio
 
-        from canair.cli.commands._live.handlers.scans import handle_discover
+        from canair.cli.live.handlers.scans import handle_discover
 
         seen: dict = {}
 
@@ -502,7 +502,7 @@ def _mode_args(**kw) -> argparse.Namespace:
 class TestMode:
     @pytest.mark.asyncio
     async def test_dispatch_reports_buses_unknowns_and_silent(self, gateway_profile, capsys):
-        from canair.cli.commands._live.handlers.scans import handle_discover
+        from canair.cli.live.handlers.scans import handle_discover
         from canair.ecus.pids import load_pids
 
         term = FakeTerminal()
@@ -525,7 +525,7 @@ class TestMode:
 
     @pytest.mark.asyncio
     async def test_repeat_sends_each_round(self, gateway_profile, monkeypatch, capsys):
-        from canair.cli.commands._live.handlers.scans import handle_discover
+        from canair.cli.live.handlers.scans import handle_discover
         from canair.ecus.pids import load_pids
         from canair.live import discover_functional
 

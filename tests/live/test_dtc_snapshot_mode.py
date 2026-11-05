@@ -212,7 +212,7 @@ class TestSkipListener:
 class TestDispatch:
     @pytest.mark.asyncio
     async def test_runs_through_the_dtc_handler_with_the_profile(self, capsys):
-        from canair.cli.commands._live.handlers.diagnostics import handle_dtc
+        from canair.cli.live.handlers.diagnostics import handle_dtc
 
         args = live_args(
             dtc_log=False, dtc="733", mask="FF", protocol="uds", clear=False, json=True
@@ -225,7 +225,7 @@ class TestDispatch:
 
     @pytest.mark.asyncio
     async def test_no_snapshots_flag(self):
-        from canair.cli.commands._live.handlers.diagnostics import handle_dtc
+        from canair.cli.live.handlers.diagnostics import handle_dtc
 
         args = live_args(
             dtc_log=False,

@@ -9,7 +9,7 @@ history so the ``--save`` session simply continues (the gap shows in the
 timestamps).
 
 The transport-specific "connect to this candidate" step is supplied by the
-caller (``build_elm_reconnector`` in :mod:`canair.cli.commands._live.connect`,
+caller (``build_elm_reconnector`` in :mod:`canair.cli.live.connect`,
 ``build_raw_reconnector`` in :mod:`canair.live.raw_monitor`), which reuses the
 same build path as the initial connect. The bounded-vs-forever retry policy is
 derived from the user's ``--wait`` flag and config

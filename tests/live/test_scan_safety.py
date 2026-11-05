@@ -110,7 +110,7 @@ def test_kwp_wrong_session_nrc_escalates_lazily_on_a_non_nissan_profile():
 
 class TestIOControlScanDispatch:
     def _run(self, monkeypatch, *, yes, stdin, quirks=("skm_wakeup",)):
-        from canair.cli.commands._live.handlers import scans
+        from canair.cli.live.handlers import scans
 
         calls: list[dict] = []
 
@@ -183,7 +183,7 @@ def test_other_profiles_need_no_confirmation():
 
 class TestRoutinesScanDispatch:
     def _run(self, monkeypatch, *, yes, stdin):
-        from canair.cli.commands._live.handlers import scans
+        from canair.cli.live.handlers import scans
 
         calls: list[dict] = []
 
@@ -218,7 +218,7 @@ class TestRoutinesScanDispatch:
 
 
 def test_iocontrol_scan_defaults_uds_ecus_to_03_in_a_mixed_scan(monkeypatch):
-    from canair.cli.commands._live.handlers import scans
+    from canair.cli.live.handlers import scans
 
     seen: dict[str, object] = {}
 

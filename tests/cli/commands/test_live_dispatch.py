@@ -11,14 +11,14 @@ import argparse
 
 import pytest
 
-from canair.cli.commands._live import LiveOperation
+from canair.cli.live import LiveOperation
 from tests.support.live_args import live_args
 
 
 class TestInteractiveTransportGuard:
     @pytest.mark.asyncio
     async def test_interactive_refused_on_non_elm_terminal(self, capsys):
-        from canair.cli.commands._live.handlers.elm_only import handle_interactive
+        from canair.cli.live.handlers.elm_only import handle_interactive
 
         class NotWiCAN:  # not a WiCANTerminal -> raw path
             pass
@@ -52,7 +52,7 @@ class TestRunLiveStopSignals:
         device connection released."""
         import signal
 
-        from canair.cli.commands._live import runtime as _live
+        from canair.cli.live import runtime as _live
         from canair.core.stop_signals import STOP_SIGNALS
 
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: _FakeLock())
@@ -75,7 +75,7 @@ class TestRunLiveStopSignals:
             assert signal.getsignal(sig) == before[sig]
 
     def test_keyboardinterrupt_exits_cleanly(self, monkeypatch, capsys):
-        from canair.cli.commands._live import runtime as _live
+        from canair.cli.live import runtime as _live
 
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: _FakeLock())
 
@@ -91,7 +91,7 @@ class TestRunLiveStopSignals:
         """After a SIGHUP the tty is gone, so the closing print can fail (EIO)."""
         import builtins
 
-        from canair.cli.commands._live import runtime as _live
+        from canair.cli.live import runtime as _live
 
         lock = _FakeLock()
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: lock)
@@ -109,7 +109,7 @@ class TestRunLiveStopSignals:
 
     def test_runs_a_lock_watchdog_for_the_session(self, monkeypatch):
         """An orphaned session must notice when another run asks for the device."""
-        from canair.cli.commands._live import runtime as _live
+        from canair.cli.live import runtime as _live
 
         lock = _FakeLock()
         monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: lock)

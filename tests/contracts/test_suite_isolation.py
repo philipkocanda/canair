@@ -116,7 +116,7 @@ class TestNoEagerConfigReadAtImportTime:
         for mod in (
             "canair.device.wican.api",
             "canair.cli.commands.wican",
-            "canair.cli.commands._live",
+            "canair.cli.live",
         ):
             importlib.reload(importlib.import_module(mod))
 
