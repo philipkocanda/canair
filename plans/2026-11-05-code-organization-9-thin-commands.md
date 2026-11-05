@@ -1,10 +1,10 @@
 # Code organization, part 9: thin command modules
 
-Status: **IN PROGRESS** (2026-11-05): `contribute`, `ecu`, `pids`, `wican` and `hunt` are done, see "As built". Part of
+Status: **DONE** (2026-11-05). See "As built". Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 8 for
-the shared query helper only. Follows the command-package rule of
-`plans/2026-08-06-command-packages-and-live-split.md` and the non-goals of
-`plans/2026-11-03-yaml-edit-router.md`.
+the shared query helper only (not needed: `_parse_query` stays where it is). Follows the
+command-package rule of `plans/2026-08-06-command-packages-and-live-split.md` and the
+non-goals of `plans/2026-11-03-yaml-edit-router.md`.
 
 ## Goal
 
@@ -144,3 +144,40 @@ Re-measured at `964f3ffb`: 11 command modules were over 500 lines (`decode/one.p
 - **`hunt`** is `cli/commands/hunt/`: `parser.py`, `uds.py`, `physical.py`, `can.py`,
   `promote.py`, `render.py`. No compute moved: the search was already in `analysis/`, and what
   was left in `run` is flag handling, loading and printing.
+- **`bix`** is `cli/commands/bix/`: `parser.py`, `entry.py`, `convert.py`, `table.py`,
+  `annotate.py`, `payload.py`, `subfunction.py`. Sub-plan 4 had landed, so the compute moved:
+  the width and layout choice (it printed its warnings on the way) now returns a
+  `WidthConflict` for the caller to report, and `annotate_rows` returns one `ByteRow` per
+  byte. That is `expression/byte_rows.py` (a separate module, since `notation.py` would
+  pass 500 lines). Old and new `annotate_payload` give the same stdout, stderr and result on
+  11,328 combinations of payload, width, `--pid`, `--raw`, overlay and columns.
+- **Second wave:** `profile`, `scan`, `states`, `config` and `status` are packages. The
+  `states`, `config` and `status` docstrings were the `--help` text, so each is a literal
+  (`epilog.py`, `description.py`) and the package docstring is the charter. `captures/uds.py`
+  (521 lines, 94 of them its `--help` docstring) lost that text to `uds_epilog.py` and is 434.
+  `decode/one.py` (496) is under the limit already. `status` was added because its
+  `_status_render.py` was the last flat sibling.
+- Moved `ui_standards` ceilings by hand: `profile.py` to `profile/scaffold.py`, `scan.py` to
+  `scan/wizard.py` (each holds the one `input()` call). No ceiling rose.
+
+### Measured
+
+| | Before (`964f3ffb`) | After |
+|---|---:|---:|
+| `cli/` modules over 500 lines | 11 | 0 (largest: `decode/one.py`, 496) |
+| flat `_<cmd>_*.py` siblings | 3 (`contribute`, `ecu`, `status`) | 0 |
+| lines in `cli/` | 31,900 | 32,211 (more files, more headers) |
+
+The compute that moved out of `cli/`: `analysis/ecu_summary.py`, `analysis/signal_range.py`,
+`interop/autopid/diff.py`, `expression/byte_rows.py`. The `cli/` share does not fall in
+absolute terms, as the plan said it need not: that figure counts the headers of 60 new
+modules, and the moved code is about 600 lines.
+
+### Left over
+
+- `status/gather.py` and `config/show.py` (`_gather`) still collect their data inside `cli/`
+  from `args`. They read flags, so they were not moved.
+- `ecu/records.py::detail_record` stays in the command because it reads the DTC log.
+- The per-command tests are in `tests/cli/commands/<cmd>/` for `contribute`, `ecu`, `pids`,
+  `hunt` and `bix`. The others test several subjects or sit in the directory of the package
+  they exercise, and stay there.
