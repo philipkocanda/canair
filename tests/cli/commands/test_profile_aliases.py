@@ -249,7 +249,7 @@ class TestValidation:
 
 class TestContribute:
     def test_an_old_named_copy_is_contributed_under_the_current_name(self, env):
-        from canair.cli.commands import contribute as cmd
+        from canair.cli.commands.contribute import pipeline as cmd
 
         _renamed(env)
         adopted = _bundle(env.user / OLD)
@@ -270,7 +270,7 @@ class TestContribute:
         assert rep.notes == {"renamed_from": OLD}
 
     def test_a_current_name_is_left_alone(self, env):
-        from canair.cli.commands import contribute as cmd
+        from canair.cli.commands.contribute import pipeline as cmd
 
         root = _renamed(env)
         prof = resolve_profile(NEW)

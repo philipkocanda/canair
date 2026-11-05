@@ -16,9 +16,8 @@ from pathlib import Path
 
 from canair import contribute as C
 from canair.captures import io as capture_io
-from canair.cli.commands import _contribute_gates as gates
-from canair.cli.commands import _contribute_report as report
 from canair.cli.commands import contribute as cmd
+from canair.cli.commands.contribute import gates, pipeline, report, tidy
 from canair.contribute import source as S
 from canair.profile import Profile
 
@@ -200,7 +199,7 @@ def _contributing(tmp_path, monkeypatch, *, pii: bool = False):
         (prof / "profile.yaml").write_text("car_model: owner me@example.com\ninit: ATSP6;\n")
 
     ok = C.Step(cmd=["stub"], returncode=0, stdout="https://github.com/x/canair/pull/9\n")
-    monkeypatch.setattr(cmd, "active", lambda: Profile("testcar", prof))
+    monkeypatch.setattr(pipeline, "active", lambda: Profile("testcar", prof))
     monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
     monkeypatch.setattr(C, "preflight", _ready)
     monkeypatch.setattr(C, "workspace_dir", lambda: ws)
@@ -237,7 +236,7 @@ class TestAfterTheContribution:
         prof, _ = _contributing(tmp_path, monkeypatch)
         asked: list[str] = []
         ask = lambda prompt, *a, **k: asked.append(prompt) or True  # noqa: E731
-        monkeypatch.setattr(cmd, "confirm", ask)
+        monkeypatch.setattr(tidy, "confirm", ask)
         monkeypatch.setattr(report, "confirm", ask)
         monkeypatch.setattr("sys.stdin", _Tty())
 

@@ -20,7 +20,7 @@ tests drive the flow with a fake runner and no network.
 
 Belongs: the git/gh orchestration, the source-checkout clean-up (``source``), the log scrub
 (``logs``), the personal-data scan the PII gate runs (``pii``) and the PR summary (``summary``).
-Not here: user interaction and the pre-flight gates (``cli/commands/contribute.py``, helpers).
+Not here: user interaction and the pre-flight gates (``cli/commands/contribute/``, helpers).
 Imports: ``profile``, ``privacy``, ``captures``, ``ecus``, ``config``, ``install`` and ``core``.
 """
 

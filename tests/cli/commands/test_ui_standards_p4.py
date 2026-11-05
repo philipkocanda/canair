@@ -16,7 +16,6 @@ import pytest
 
 from canair.captures import build_query_session, save_session
 from canair.captures.store import load_all_captures
-from canair.cli.commands import _contribute_report as report
 from canair.cli.commands import status as status_cmd
 from canair.cli.commands import update as update_cmd
 from canair.cli.commands.captures.backfill import cmd_backfill_states
@@ -24,6 +23,7 @@ from canair.cli.commands.captures.backfill_render import print_report
 from canair.cli.commands.captures.backfill_spans_render import print_span_report
 from canair.cli.commands.captures.delete import cmd_delete
 from canair.cli.commands.captures.set_state import cmd_set_state
+from canair.cli.commands.contribute import report
 from canair.core.prompt import PromptUnavailable
 
 ESC = re.compile(r"\x1b\[")

@@ -785,12 +785,12 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   source behind upstream never proposes deleting upstream sessions, and a capture log it adds
   nothing to stays byte-identical. A source session sharing an upstream one's **anchor** (see
   Layered profiles) but not its content *replaces* it in place — every replacement is listed by
-  `--diff` and gated (`_contribute_gates.py::captures`, which also warns on unsplit multi-DID
+  `--diff` and gated (`cli/commands/contribute/gates.py::captures`, which also warns on unsplit multi-DID
   replies the contribution adds), since a stale source looks identical. `--diff` previews,
   `--dry-run` stops before pushing, `--yes` skips prompts, `--no-captures` ships definitions only.
-  Layering: `src/canair/contribute/__init__.py` = git/gh orchestration; `cli/commands/contribute.py` = CLI +
-  pipeline; `_contribute_gates.py` = the pre-flight policy; `_contribute_report.py` = the
-  human/`--json` reporting duality. Read the **contributing-profiles** skill before using it.
+  Layering: `src/canair/contribute/__init__.py` = git/gh orchestration;
+  `cli/commands/contribute/` = CLI (`parser.py`, `pipeline.py`, the stage/submit/tidy actions);
+  `gates.py` = the pre-flight policy; `report.py` = the human/`--json` reporting duality. Read the **contributing-profiles** skill before using it.
 - **`canair update`** — Updates the CLI from its git-clone install: reports current vs latest
   **released** version, then **checks out that release tag** and reinstalls
   (`uv tool install --reinstall`). Checking out the tag — not fast-forwarding a branch — guarantees

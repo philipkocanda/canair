@@ -20,9 +20,8 @@ import pytest
 
 from canair import contribute as C
 from canair.captures import merge as captures_merge
-from canair.cli.commands import _contribute_gates as gates
-from canair.cli.commands import _contribute_report as report
 from canair.cli.commands import contribute as cmd
+from canair.cli.commands.contribute import gates, pipeline, report
 from canair.profile import Profile, resolve_profile
 
 
@@ -291,7 +290,7 @@ class TestContributeAnEditedSession:
         ws = tmp_path / "ws"
         upstream_file = _upstream_with(ws, _session())
         prof = _source(tmp_path / "src", _session(notes="corrected"))
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         assert cmd.run(_args(repo_dir=str(ws), diff=True)) == report.OK
         payload = json.loads(capsys.readouterr().out)
         [r] = payload["replaced_sessions"]
@@ -302,7 +301,7 @@ class TestContributeAnEditedSession:
         ws = tmp_path / "ws"
         _upstream_with(ws, _session())
         prof = _source(tmp_path / "src", _session(notes="corrected"))
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         assert cmd.run(_args(repo_dir=str(ws), yes=False)) == report.CANNOT
         payload = json.loads(capsys.readouterr().out)
         assert "replaces 1 upstream capture session" in payload["error"]
@@ -312,7 +311,7 @@ class TestContributeAnEditedSession:
         ws = tmp_path / "ws"
         upstream_file = _upstream_with(ws, _session())
         prof = _source(tmp_path / "src", _session(notes="corrected"))
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         assert cmd.run(_args(repo_dir=str(ws), dry_run=True)) == report.OK
         assert json.loads(upstream_file.read_text())["sessions"] == [_session(notes="corrected")]
 
@@ -347,7 +346,7 @@ class TestContributeUnsplitBatches:
         _upstream_with(ws, self._corpus())
         bad = _did_session("leaky", "09:00:00", [("22BC01", BATCH)])
         prof = _source(tmp_path / "src", self._corpus(), bad)
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         assert cmd.run(_args(repo_dir=str(ws), yes=False)) == report.CANNOT
         payload = json.loads(capsys.readouterr().out)
         assert "split-batched" in payload["error"]

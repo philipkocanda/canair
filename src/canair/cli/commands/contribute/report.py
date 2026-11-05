@@ -16,7 +16,7 @@ it instead:
   context.
 * Gates signal "stop here" by raising :class:`Stop` rather than returning a code
   the caller must notice and forward, which is what keeps the pipeline in
-  :mod:`canair.cli.commands.contribute` readable as a sequence of steps.
+  :mod:`canair.cli.commands.contribute.pipeline` readable as a sequence of steps.
 
 The outcome kinds map to the exit codes: :data:`OK` (done), :data:`FAILED` (an operation
 went wrong — git/gh/network), :data:`DECLINED` (the user answered no) and :data:`CANNOT` (the

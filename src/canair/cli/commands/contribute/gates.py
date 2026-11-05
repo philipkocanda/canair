@@ -9,7 +9,7 @@ pipeline asks them.
 
 Every gate shares one contract: it either lets the run continue (returning
 whatever it resolved) or reports the condition and raises
-:class:`~canair.cli.commands._contribute_report.Stop`. Consent-based gates go through
+:class:`~canair.cli.commands.contribute.report.Stop`. Consent-based gates go through
 :meth:`Reporter.gate`, so ``--json`` refuses without ``--yes`` instead of hanging
 on a prompt no machine can answer.
 """
@@ -28,7 +28,7 @@ from canair.install.context import installed_snapshot_kind
 from canair.render import glyphs
 from canair.render.console import escape
 
-from ._contribute_report import (
+from .report import (
     Reporter,
     findings_json,
     replaced_json,
@@ -442,7 +442,7 @@ def _rx_names(profile) -> dict[int, str]:
 
 def _validate(profile) -> tuple[bool, str]:
     """Run ``validate all`` against ``profile``; return (ok, captured_output)."""
-    from .validate import run as validate_run
+    from ..validate import run as validate_run
 
     ns = argparse.Namespace(target="all", files=None, stats=False, strict=False)
     buf = io.StringIO()

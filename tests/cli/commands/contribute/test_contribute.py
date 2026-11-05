@@ -4,7 +4,7 @@ The git/gh calls go through the module-level ``contribute._run``; unit tests
 drive the orchestration with a fake runner (no network, no real GitHub). The
 command-level dry-run test uses a real throwaway git repo as ``--repo-dir`` so
 the branch/copy/commit path is exercised end-to-end without pushing. The gates
-report through :mod:`canair.cli.commands._contribute_report`, whose human/``--json``
+report through :mod:`canair.cli.commands.contribute.report`, whose human/``--json``
 duality is covered directly by :class:`TestReporter`.
 """
 
@@ -19,9 +19,8 @@ from pathlib import Path
 import pytest
 
 from canair import contribute as C
-from canair.cli.commands import _contribute_gates as gates
-from canair.cli.commands import _contribute_report as report
 from canair.cli.commands import contribute as cmd
+from canair.cli.commands.contribute import gates, pipeline, report, state, submit
 from canair.core.prompt import PromptUnavailable
 from canair.profile import Profile
 
@@ -706,7 +705,7 @@ def _seed_repo(ws):
 class TestContributeCommand:
     def test_gh_missing_reports_cannot(self, tmp_path, monkeypatch):
         prof = _make_profile(tmp_path / "prof")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(
             C, "preflight", lambda: C.Preflight(gh=None, git="git", authenticated=True)
@@ -720,7 +719,7 @@ class TestContributeCommand:
         _seed_repo(ws)
 
         prof = _make_profile(tmp_path / "prof")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
 
@@ -740,7 +739,7 @@ class TestContributeCommand:
         root = tmp_path / "prof"
         prof = _make_profile(root)
         (root / "profile.yaml").write_text("car_model: owner me@example.com\ninit: ATSP6;\n")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
@@ -752,7 +751,7 @@ class TestContributeCommand:
         ws = tmp_path / "ws"
         _seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
 
@@ -774,7 +773,7 @@ class TestContributeCommand:
         ws = tmp_path / "ws"
         _seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
@@ -786,7 +785,7 @@ class TestContributeCommand:
         # --yes) before any workspace work.
         root = tmp_path / "site-packages" / "profiles" / "testcar"
         prof = _make_profile(root)
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(yes=False, json=True))
@@ -811,7 +810,7 @@ class TestContributeCommand:
         (root / "profile.yaml").write_text("car_model: X\ninit: ATSP6;\n")
         prof = Profile("testcar", root)
 
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), captures=False, yes=False, json=True))
@@ -828,7 +827,7 @@ class TestContributeCommand:
         # push through it.
         ws = tmp_path / "ws"
         prof = _make_profile(ws / "profiles" / "testcar")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
 
@@ -845,7 +844,7 @@ class TestContributeCommand:
         # `start_branch` resets that checkout — warn and require confirmation.
         ws = tmp_path / "ws"
         prof = _make_profile(ws / "myprofiles" / "testcar")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
 
@@ -866,7 +865,7 @@ class TestContributeCommand:
         ws = tmp_path / "ws"
         _seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         monkeypatch.setattr(C, "dir_size", lambda p: gates.CAPTURES_WARN_BYTES + 1)
@@ -883,7 +882,7 @@ class TestContributeCommand:
         import json as _json
 
         prof = _make_profile(tmp_path / "prof")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(
             C, "preflight", lambda: C.Preflight(gh=None, git="git", authenticated=True)
@@ -908,7 +907,7 @@ class TestWorkspaceHygiene:
         stale.write_text("left behind by an earlier --diff run\n")
 
         prof = _make_profile(tmp_path / "prof")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         monkeypatch.setattr(C, "workspace_dir", lambda: ws)
@@ -945,7 +944,7 @@ class TestWorkspaceHygiene:
 
         ws, _, stale = self._staged_on_an_old_branch(tmp_path)
         prof = _make_profile(tmp_path / "prof")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         monkeypatch.setattr(C, "workspace_dir", lambda: ws)
@@ -974,7 +973,7 @@ class TestWorkspaceHygiene:
 
         ws, tracked, _ = self._staged_on_an_old_branch(tmp_path)
         prof = _make_profile(tmp_path / "prof")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         monkeypatch.setattr(C, "workspace_dir", lambda: ws)
@@ -993,7 +992,7 @@ class TestWorkspaceHygiene:
         ws = tmp_path / "contribute" / "canair"
         _seed_profile_repo(ws)
         prof = _make_profile(tmp_path / "prof")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         monkeypatch.setattr(C, "workspace_dir", lambda: ws)
@@ -1013,7 +1012,7 @@ class TestWorkspaceHygiene:
         tracked.write_text("my own uncommitted work\n")
 
         prof = _make_profile(tmp_path / "prof")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
 
@@ -1033,7 +1032,7 @@ class TestExistingPullRequest:
         ws = tmp_path / "ws"
         _seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
-        monkeypatch.setattr(cmd, "active", lambda: prof)
+        monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(C, "preflight", lambda: _ready())
         monkeypatch.setattr(
@@ -1077,7 +1076,7 @@ class TestLogsDefault:
     def test_a_pr_without_sessions_gets_no_log_section(self, tmp_path):
         from canair.contribute import summary as S
 
-        run_ = cmd._Contribution(
+        run_ = state.Contribution(
             args=_cmd_args(include_logs=True),
             rep=_reporter(),
             profile=_make_profile(tmp_path / "prof"),
@@ -1087,4 +1086,4 @@ class TestLogsDefault:
             workspace=tmp_path / "ws",
             summary=S.ContributionSummary(),
         )
-        assert "Diagnostics log" not in cmd._pr_body(run_)
+        assert "Diagnostics log" not in submit.pr_body(run_)
