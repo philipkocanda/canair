@@ -46,6 +46,16 @@ repos:
         pass_filenames: false
         require_serial: true
 
+      # The structure gates (module-size ceilings, layout and keymap contracts), so a size
+      # breach fails the commit instead of CI. About 3 s.
+      - id: structure-tests
+        name: structure tests (tests/contracts/test_structure.py)
+        entry: uv run pytest -n0 -q tests/contracts/test_structure.py
+        language: system
+        types_or: [python, pyi, toml, json]
+        pass_filenames: false
+        require_serial: true
+
       - id: validate-skills
         name: skill frontmatter is Claude Code / OpenCode compatible
         entry: uv run python scripts/check/validate_skills.py
