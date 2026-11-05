@@ -306,6 +306,11 @@ class EditParamDialog(ModalScreen[dict | None]):
     ``None`` on cancel. Writing is done by the caller (via the monitor editor).
     """
 
+    # One line per field (compact widgets, label beside its input) so the whole
+    # form fits a 24-row terminal. The footer is docked, so Save/Cancel and the
+    # key hint stay visible when a small terminal makes the form scroll. The
+    # monitor runs the ansi-dark theme, where $surface/$panel/$boost are all
+    # transparent, so focus is shown on the label rather than a field background.
     CSS = """
     EditParamDialog { align: center middle; background: $background 60%; }
     #edit-dialog {
@@ -313,12 +318,16 @@ class EditParamDialog(ModalScreen[dict | None]):
         border: round $accent; background: $surface;
     }
     #edit-title { text-style: bold; margin-bottom: 1; }
-    #edit-scroll { height: auto; max-height: 1fr; }
-    #edit-scroll .edit-label { color: $text-muted; margin-top: 1; }
-    #edit-dialog Input { margin-bottom: 0; }
-    #edit-dialog Checkbox { height: 1; margin-top: 1; }
-    #edit-buttons { height: auto; align-horizontal: right; margin-top: 1; }
-    #edit-buttons Button { margin-left: 2; }
+    #edit-scroll { height: auto; }
+    .edit-row { height: 1; margin-bottom: 1; }
+    .edit-label { width: 12; color: $text-muted; }
+    .edit-row:focus-within .edit-label { color: $accent; text-style: bold; }
+    .edit-row Input { width: 1fr; }
+    #edit-flags { height: 1; }
+    #edit-flags CheckBox { margin-right: 4; }
+    #edit-footer { dock: bottom; height: auto; margin-top: 1; }
+    #edit-buttons { height: 1; align-horizontal: right; }
+    #edit-buttons Button { margin-left: 2; min-width: 10; }
     #edit-keys { color: $text-muted; margin-top: 1; }
     """
 
@@ -334,6 +343,14 @@ class EditParamDialog(ModalScreen[dict | None]):
         super().__init__()
         self._target = target
 
+    _FIELDS = (
+        ("expression", "e-expr"),
+        ("unit", "e-unit"),
+        ("min", "e-min"),
+        ("max", "e-max"),
+        ("notes", "e-notes"),
+    )
+
     def compose(self) -> ComposeResult:
         from textual.containers import Vertical
 
@@ -342,22 +359,30 @@ class EditParamDialog(ModalScreen[dict | None]):
         with Vertical(id="edit-dialog"):
             yield Label(title.strip(), id="edit-title")
             with VerticalScroll(id="edit-scroll"):
-                yield Label("expression", classes="edit-label")
-                yield Input(value=t.get("expression", ""), placeholder="expression", id="e-expr")
-                yield Label("unit", classes="edit-label")
-                yield Input(value=t.get("unit", ""), placeholder="unit", id="e-unit")
-                yield Label("min", classes="edit-label")
-                yield Input(value=t.get("min", ""), placeholder="min", id="e-min")
-                yield Label("max", classes="edit-label")
-                yield Input(value=t.get("max", ""), placeholder="max", id="e-max")
-                yield Label("notes", classes="edit-label")
-                yield Input(value=t.get("notes", ""), placeholder="notes", id="e-notes")
-                yield CheckBox("verified", value=bool(t.get("verified")), id="e-verified")
-                yield CheckBox("enabled", value=bool(t.get("enabled", True)), id="e-enabled")
-            with Horizontal(id="edit-buttons"):
-                yield Button("Save", variant="primary", id="edit-save")
-                yield Button("Cancel", id="edit-cancel")
-            yield Label("tab moves · space toggles · ctrl+s save · esc cancel", id="edit-keys")
+                for key, field_id in self._FIELDS:
+                    with Horizontal(classes="edit-row"):
+                        yield Label(key, classes="edit-label")
+                        # The cursor starts at the end of the current value: a
+                        # select-all on focus made the first keystroke replace it.
+                        yield Input(
+                            value=t.get(key, ""),
+                            placeholder="(required)" if key == "expression" else "(not set)",
+                            id=field_id,
+                            compact=True,
+                            select_on_focus=False,
+                        )
+                with Horizontal(id="edit-flags"):
+                    yield CheckBox(
+                        "verified", value=bool(t.get("verified")), id="e-verified", compact=True
+                    )
+                    yield CheckBox(
+                        "enabled", value=bool(t.get("enabled", True)), id="e-enabled", compact=True
+                    )
+            with Vertical(id="edit-footer"):
+                with Horizontal(id="edit-buttons"):
+                    yield Button("Save", variant="primary", id="edit-save", compact=True)
+                    yield Button("Cancel", id="edit-cancel", compact=True)
+                yield Label("tab moves · space toggles · ctrl+s save · esc cancel", id="edit-keys")
 
     def on_mount(self) -> None:
         self.query_one("#e-expr", Input).focus()
@@ -372,13 +397,10 @@ class EditParamDialog(ModalScreen[dict | None]):
         self._submit()
 
     def _submit(self) -> None:
+        fields = {key: self.query_one(f"#{fid}", Input).value.strip() for key, fid in self._FIELDS}
         self.dismiss(
             {
-                "expression": self.query_one("#e-expr", Input).value.strip(),
-                "unit": self.query_one("#e-unit", Input).value.strip(),
-                "min": self.query_one("#e-min", Input).value.strip(),
-                "max": self.query_one("#e-max", Input).value.strip(),
-                "notes": self.query_one("#e-notes", Input).value.strip(),
+                **fields,
                 "verified": self.query_one("#e-verified", CheckBox).value,
                 "enabled": self.query_one("#e-enabled", CheckBox).value,
             }

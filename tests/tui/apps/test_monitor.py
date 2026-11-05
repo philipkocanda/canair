@@ -664,6 +664,34 @@ class TestMonitorEditing:
             await pilot.press("q")
 
     @pytest.mark.asyncio
+    async def test_edit_dialog_fits_a_small_terminal(self):
+        """Every field, both checkboxes and Save/Cancel are on screen at 80x24, each
+        widget is tall enough to show its text, and the value is not pre-selected."""
+        from textual.widgets import Button, Input
+
+        from canair.tui.apps.monitor import EditParamDialog
+        from canair.tui.widgets import CheckBox
+
+        app = MonitorApp(FakeController(editor=FakeEditor()))
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("down")
+            await pilot.press("e")
+            await pilot.pause(0.1)
+            dialog = app.screen
+            assert isinstance(dialog, EditParamDialog)
+            box = dialog.query_one("#edit-dialog").region
+            for widget in [*dialog.query(Input), *dialog.query(CheckBox), *dialog.query(Button)]:
+                region = widget.region
+                assert widget.content_region.height >= 1, widget
+                assert box.contains_region(region), widget
+            expr = dialog.query_one("#e-expr", Input)
+            assert expr.has_focus
+            assert expr.selected_text == ""
+            await pilot.press("escape")
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
     async def test_edit_without_selection_flashes(self):
         from canair.tui.apps.monitor import EditParamDialog
 
