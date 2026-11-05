@@ -19,8 +19,8 @@ older car. An ECU file declares its revisions, the first being the reference::
           parameters: {...}
 
 A revision carries ECU-level overrides from a whitelist (:data:`OVERRIDE_FIELDS`) plus
-``fingerprints:`` (stored and checked here, matched by a later stage). A PID or signal
-lists the revisions it applies to; absent means every revision.
+``fingerprints:`` (checked here, matched by :mod:`canair.variants.fingerprints`). A PID or
+signal lists the revisions it applies to; absent means every revision.
 
 Which revision an ECU is, most authoritative first (:func:`resolve`):
 
@@ -37,11 +37,11 @@ same objects — a profile without revisions is untouched.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
+from canair.variants.fingerprint_kinds import fingerprint_problem
 from canair.variants.revision_ids import (
     canonical_revision,
     normalize_revision_id,
@@ -71,15 +71,10 @@ IDENTITY_OVERRIDE_FIELDS: tuple[str, ...] = ("id_protocol",)
 # reference revision only.
 GENERAL_IDENTITY_FIELDS: tuple[str, ...] = ("description", "alias", "id_protocol")
 REVISION_FIELDS: tuple[str, ...] = (*OVERRIDE_FIELDS, "fingerprints")
-# How a revision is recognised: identity fields matching globs, or a safe read only this
-# revision answers.
-FINGERPRINT_KINDS: tuple[str, ...] = ("identity", "responds")
 
 # Where a pin came from: the global --revision flag or the user config.
 PinSource = Literal["flag", "config"]
 ResolutionSource = Literal["flag", "config", "only", "detected"]
-
-_HEX_RE = re.compile(r"^(?:[0-9A-Fa-f]{2})+$")
 
 
 class RevisionError(ValueError):
@@ -521,26 +516,6 @@ def definitions_for(
 # ── checks ──────────────────────────────────────────────────────────────────
 
 
-def _fingerprint_problem(fp: Any, identity_fields: set[str]) -> str | None:
-    if not isinstance(fp, Mapping) or len(fp) != 1:
-        return f"each fingerprint is one of {', '.join(FINGERPRINT_KINDS)}"
-    kind, value = next(iter(fp.items()))
-    if kind == "responds":
-        if not isinstance(value, str) or not _HEX_RE.match(value.strip()):
-            return 'responds: must be a quoted hex request (whole bytes, e.g. "1A90")'
-        return None
-    if kind == "identity":
-        if not isinstance(value, Mapping) or not value:
-            return "identity: must map identity fields to glob patterns"
-        for field_name, pattern in value.items():
-            if identity_fields and field_name not in identity_fields:
-                return f"identity: unknown identity field '{field_name}'"
-            if not isinstance(pattern, str) or not pattern.strip():
-                return f"identity: '{field_name}' must be a text pattern"
-        return None
-    return f"unknown fingerprint kind '{kind}' (known: {', '.join(FINGERPRINT_KINDS)})"
-
-
 def check_ecu(
     ecu_name: str,
     ecu_def: Mapping,
@@ -656,7 +631,7 @@ def _entry_errors(
             errors.append(f"{where}: fingerprints: must be a list")
         else:
             for i, fp in enumerate(fps):
-                if problem := _fingerprint_problem(fp, identity_fields):
+                if problem := fingerprint_problem(fp, identity_fields):
                     errors.append(f"{where}/fingerprints[{i}]: {problem}")
     return errors
 

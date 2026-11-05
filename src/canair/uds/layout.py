@@ -141,9 +141,9 @@ def _f(role: str, width: int = 1) -> HeaderField:
 # Only layouts established elsewhere in this repo (or unambiguous in ISO
 # 14229-1 / SAE J1979) are listed. An absent service resolves to None so the caller
 # keeps its previous behaviour rather than asserting a guessed layout. Services
-# whose header is genuinely variable-length or absent are deliberately NOT listed:
-# 0x63 ReadMemoryByAddress (all data), 0x74/0x75 (a lengthFormatIdentifier plus an
-# n-byte maxNumberOfBlockLength), 0x76 (a block-sequence counter), 0x77 (all data).
+# whose header is genuinely variable-length are deliberately NOT listed: 0x74/0x75
+# (a lengthFormatIdentifier plus an n-byte maxNumberOfBlockLength), 0x76 (a
+# block-sequence counter), 0x77 (all data).
 _RESPONSE_FIELDS: dict[int, tuple[HeaderField, ...]] = {
     0x41: (_f(ROLE_PID),),  # 0x01 OBD-II show current data
     0x42: (_f(ROLE_PID), _f(ROLE_FRAME)),  # 0x02 freeze-frame data
@@ -154,6 +154,9 @@ _RESPONSE_FIELDS: dict[int, tuple[HeaderField, ...]] = {
     0x5A: (_f(ROLE_REC),),  # 0x1A ReadEcuIdentification — record number
     0x61: (_f(ROLE_LID),),  # 0x21 ReadDataByLocalIdentifier
     0x62: (_f(ROLE_DID, 2),),  # 0x22 ReadDataByIdentifier
+    # 0x23 ReadMemoryByAddress: no header — every byte after the SID is memory, on UDS
+    # and KWP2000 alike (src/canair/uds/memory.py).
+    0x63: (),
     0x67: (_f(ROLE_SF),),  # 0x27 SecurityAccess — level
     0x68: (_f(ROLE_SF),),  # 0x28 CommunicationControl — controlType
     0x6C: (_f(ROLE_SF), _f(ROLE_DID, 2)),  # 0x2C DynamicallyDefineDataIdentifier

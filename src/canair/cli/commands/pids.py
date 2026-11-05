@@ -58,7 +58,8 @@ from pathlib import Path
 from canair.cli.args.hexarg import parse_hex_arg
 from canair.cli.commands._edit import add_edit_args, clear_sentinel, edit_scope, run_edit
 from canair.core.edit_errors import EditError, translate
-from canair.ecus.pids import INHERITED_PARAM_FIELDS, PID_STATUSES
+from canair.ecus.pid_status import PID_STATUSES
+from canair.ecus.pids import INHERITED_PARAM_FIELDS
 from canair.ecus.signal_category import CATEGORIES, QUANTITY_CATEGORIES
 from canair.render import ansi, messages
 from canair.uds.support_map import MapDecl, SupportMapError
@@ -709,10 +710,7 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
 
     # Resolve the vocabulary from the profile owning the target ecus/ dir
     # (or the active profile). Enforced only when the profile declares one.
-    if args.dir:
-        allowed = allowed_can_buses(profile_for_path(args.dir))
-    else:
-        allowed = allowed_can_buses(active())
+    allowed = allowed_can_buses(profile_for_path(args.dir) if args.dir else active())
     if allowed:
         bad = [c for c in args.codes if c not in allowed]
         if bad:

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from canair.core import yaml_io
-from canair.ecus.pids import PID_STATUSES
+from canair.ecus.pid_status import PID_STATUSES
 
 from ._common import SCHEMA_FILE
 

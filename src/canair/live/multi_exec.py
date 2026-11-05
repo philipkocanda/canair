@@ -256,7 +256,7 @@ def build_query_plan(
             if hits:
                 continue
             try:
-                request = inferred_request(token)
+                request = inferred_request(token, ecu_info.get("memory_format"))
             except QueryError as e:
                 if not quiet:
                     messages.warning(f"{e}; skipping")

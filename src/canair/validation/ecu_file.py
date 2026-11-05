@@ -20,6 +20,7 @@ from .ecu_sections import (
     validate_sessions,
 )
 from .iocontrol import validate_iocontrol
+from .memory import validate_memory
 from .pid_defs import validate_pids_block
 from .schema_fields import SchemaFields, new_ecu_stats
 
@@ -314,3 +315,5 @@ def _validate_ecu_entry(
     # {session, response, nrc, nrc_desc, label, verified, notes}.
     validate_hit_section(ecu_def, "routines", path, ecu_name, errors, warnings, stats)
     validate_hit_section(ecu_def, "iocontrol_discoveries", path, ecu_name, errors, warnings, stats)
+    # memory: (ReadMemoryByAddress format and scan map) and the memory PIDs.
+    validate_memory(ecu_def, path, ecu_name, errors, warnings)

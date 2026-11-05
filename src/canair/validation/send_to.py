@@ -12,9 +12,10 @@ from pathlib import Path
 import yaml
 
 from canair.core import yaml_io
-from canair.ecus.pids import is_shipped, is_snapshot_only, pid_status
+from canair.ecus.pid_status import is_shipped, is_snapshot_only, pid_status
 from canair.ecus.shipping import param_ships
 from canair.interop.autopid.send_to import topic_problem
+from canair.uds.memory import is_memory_request
 
 
 def _load(fpath: Path) -> dict:
@@ -64,6 +65,14 @@ def send_to_findings(file_paths: list[Path]) -> tuple[list[str], list[str]]:
                     problem = topic_problem(topic)
                     if problem:
                         errors.append(f"{label}: send_to {problem}")
+                        continue
+                    if is_memory_request(pid_code):
+                        # Not merely ineffective: a memory read never ships, so asking for
+                        # a stream of one is a definition error (canair.ecus.pids.pid_ships).
+                        errors.append(
+                            f"{label}: send_to on a memory read — memory PIDs never ship "
+                            "to the device"
+                        )
                         continue
                     excluded = _never_ships(pid_def, param)
                     if excluded:

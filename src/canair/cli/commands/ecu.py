@@ -56,7 +56,8 @@ from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.core.edit_errors import EditError
 from canair.core.terminal import terminal_columns
 from canair.ecus import load_ecus, resolve_tx, rx_addr_str
-from canair.ecus.pids import load_pids, pid_status
+from canair.ecus.pid_status import pid_status
+from canair.ecus.pids import load_pids
 from canair.profile import ProfileError, active
 from canair.render import ansi, messages
 from canair.states import ecu_states
@@ -64,7 +65,6 @@ from canair.yaml_edit.echo import echo_edit
 
 NAME = "ecu"
 
-# ANSI colors (match the sibling audit tools: research, coverage)
 # Identity fields to surface in the detail view, in display order.
 # (name/alias/description/id_protocol are handled separately in the header.)
 _IDENTITY_FIELDS = [

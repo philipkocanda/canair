@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import re
 
-from canair.uds.echo import echo_mismatch, request_echo
+from canair.uds.echo import echo_mismatch, reply_check, request_echo
 from canair.uds.nrc import is_response_pending, nrc_description
 from canair.uds.protocol import DiagProtocol
 from canair.uds.response import (
@@ -32,7 +32,14 @@ from canair.uds.response import (
     ResponseCategory,
     UdsResponse,
 )
-from canair.uds.services import NEGATIVE_RESPONSE_SID, REQUEST_SID_RANGE, RESPONSE_SID_OFFSET
+from canair.uds.services import (
+    NEGATIVE_RESPONSE_SID,
+    READ_MEMORY_BY_ADDRESS,
+    REQUEST_SID_RANGE,
+    RESPONSE_SID_OFFSET,
+)
+
+_MEMORY_SID_HEX = f"{READ_MEMORY_BY_ADDRESS:02X}"
 
 # Adapter status lines that end a reply: line -> (category, message). Each message
 # must classify to the same category under `canair.uds.response.classify_error`.
@@ -448,5 +455,29 @@ def parse_uds_response(
                 f"(for request SID 0x{expected_sid:02X})",
             )
 
+    expected_len = _fixed_reply_length(request, protocol)
+    if expected_len is not None and len(response_bytes) != expected_len:
+        # A memory reply repeats nothing of its request, so its length is the only proof
+        # that it answers this read: another read's reply, or one cut short, fails here.
+        return _fail(
+            CAT_STALE,
+            f"Length mismatch: a memory read answered with {len(response_bytes)} bytes, "
+            f"expected {expected_len} (another request's reply, or one cut short)",
+        )
+
     result["ok"] = True
     return result
+
+
+def _fixed_reply_length(request: str | None, protocol: DiagProtocol | None) -> int | None:
+    """The exact positive-reply length ``request`` fixes (a memory read), or None.
+
+    The ELM327 expected-frame count digit a command may end in is not part of the request.
+    """
+    text = _compact(request or "")
+    if len(text) % 2:
+        text = text[:-1]
+    if not text.upper().startswith(_MEMORY_SID_HEX):
+        return None
+    check = reply_check(text, protocol)
+    return check.length if check is not None else None

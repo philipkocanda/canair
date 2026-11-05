@@ -9,6 +9,7 @@ from jsonschema.protocols import Validator
 
 from canair.captures import io as capture_io
 from canair.states import StateRule, contradictory_states
+from canair.uds.memory import MEMORY_SIGNAL_MAX_BYTES, exceeds_signal_cap
 
 from ._common import CAPTURES_SCHEMA_FILE, DEPRECATED_FIELDS
 from .capture_schema import CaptureSchemaChecker
@@ -159,6 +160,7 @@ def _check_captures(
     for path in files:
         errors = validate_captures_file(path, validator, rx_addrs)
         errors += sensitive_findings(path, sset)
+        errors += _oversized_memory_errors(path)
         warnings: list[CaptureWarning] = (
             _capture_state_warnings(path, vocab, state_rules) if vocab else []
         )
@@ -323,6 +325,27 @@ def _capture_echo_warnings(path: Path) -> list[CaptureWarning]:
                     )
                 )
     return warnings
+
+
+def _oversized_memory_errors(path: Path) -> list[str]:
+    """One error per stored memory reply over the signal cap: a dump, which stays local.
+
+    Nothing writes one (:mod:`canair.privacy.sensitive` withholds it at save), so a hit is a
+    file from an older canair or a hand edit. ``contribute`` runs this check, so a dump
+    can never be shared through ``captures/``.
+    """
+    found: list[str] = []
+    data = capture_io.load_capture_file(path)
+    for si, session in enumerate((data or {}).get("sessions") or []):
+        caps = session.get("captures") if isinstance(session, dict) else None
+        for ci, cap in enumerate(caps or []):
+            if isinstance(cap, dict) and cap.get("payload") and exceeds_signal_cap(cap.get("pid")):
+                found.append(
+                    f"sessions[{si}].captures[{ci}]: memory read {cap.get('pid')} holds more than "
+                    f"{MEMORY_SIGNAL_MAX_BYTES} bytes — a dump; remove it with "
+                    "`canair captures uds --delete`"
+                )
+    return found
 
 
 def _capture_nonhex_warnings(path: Path) -> list[CaptureWarning]:

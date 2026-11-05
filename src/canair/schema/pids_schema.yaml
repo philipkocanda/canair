@@ -155,6 +155,14 @@ optional_ecu_fields:
                     #   keyed by a local ID naming what differs (KWP/UDS, 150s), the first
                     #   being the reference — see revision_fields below
   - variants        # The variants (variants.yaml IDs) this ECU is fitted to; absent = all
+  - memory          # ReadMemoryByAddress (service 0x23): how a memory read is formed and
+                    #   what `canair scan memory` found. A mapping of
+                    #     format: "24"   # UDS ALFID (size nibble, address nibble), or kwp
+                    #     max_block: 128 # the largest read that worked
+                    #     session: "03"  # the session the reads need, when not the default
+                    #     regions: [{start, end, result, nrc?, software?, scanned?}]
+                    #   Field lists and checks: src/canair/ecus/memory.py. Edit with
+                    #   `canair pids set-memory` and `canair scan memory`, never by hand.
 
 # Identity section (under ECU_NAME.identity) — who this module is. The canonical
 # short name is the top-level ECU key, not a field here. All fields optional.
@@ -339,13 +347,15 @@ valid_wake_methods:
 #       identity: {id_protocol: UDS}
 #       fingerprints:
 #         - {identity: {part_number: "36601-0E1*"}}   # identity fields, glob patterns
+#         - {software: "F195:1.04*"}                  # the software version (RECORD:TEXT)
 # A revision's other keys override the ECU's own, replaced whole (identity: only
-# id_protocol). Fingerprints are recorded and checked, not yet matched against a car.
+# id_protocol). Fingerprints are matched at connect (src/canair/live/revision_probe.py) and
+# by `canair identity`.
 revision_fields:
   overrides:
     [identity, sessions, wake, multi_did, multi_did_max, response_timeout_ms, addressing, rx_id]
   optional: [fingerprints]
-valid_fingerprint_kinds: [identity, responds]
+valid_fingerprint_kinds: [identity, responds, software]
 
 required_pid_fields:
   - status           # PID lifecycle: active | draft | static | ignored.

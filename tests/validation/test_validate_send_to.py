@@ -99,3 +99,24 @@ def test_the_edit_guard_sees_a_bad_topic(tmp_path):
     # collect_pids_validation backs the single-file `canair pids` revert guard.
     errors, _, _ = collect_pids_validation([_bms(tmp_path, topic="car/+/power")])
     assert any("send_to must not contain an MQTT wildcard" in e for e in errors)
+
+
+def test_send_to_on_a_memory_read_is_an_error(tmp_path):
+    path = _ecu_file(
+        tmp_path,
+        "bcm.yaml",
+        """\
+        BCM:
+          tx_id: 0x7A0
+          pids:
+            "2324FEDE00000004":
+              status: active
+              parameters:
+                RAM:
+                  expression: "B04"
+                  verified: true
+                  send_to: "car/stream/ram"
+        """,
+    )
+    errors, warnings = send_to_findings([path])
+    assert any("memory read" in e for e in errors) and warnings == []

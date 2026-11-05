@@ -1,7 +1,8 @@
 """Validation of an ECU's ``pids:`` block: each PID, its fields and its ``parameters:``."""
 
 from canair.dtc.snapshot import did_of_read
-from canair.ecus.pids import effective_param, pid_ships, pid_status
+from canair.ecus.pid_status import pid_ships, pid_status
+from canair.ecus.pids import effective_param
 from canair.ecus.sensitivity import param_sensitive
 from canair.ecus.shipping import param_ships
 from canair.ecus.signal_category import RETIRED_FIELD, category_findings
@@ -185,7 +186,7 @@ def _validate_parameters(
         warnings.append(f"{path.name}/{ecu_name}/{pid_str}: no parameters defined")
 
     # Only what ships reaches the device, so only that can sink its table.
-    pid_shipped = pid_ships(pid_def)
+    pid_shipped = pid_ships(pid_def, pid_str)
 
     for param_name, param in params.items():
         stats["params"] += 1

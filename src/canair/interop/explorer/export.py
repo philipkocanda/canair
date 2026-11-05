@@ -25,7 +25,8 @@ from typing import Any
 from canair.core.yaml_rt import round_trip_yaml
 from canair.ecus.dtc_definitions import split_section as split_dtc_section
 from canair.ecus.files import iter_ecu_files
-from canair.ecus.pids import effective_param, pid_status
+from canair.ecus.pid_status import pid_status
+from canair.ecus.pids import effective_param
 from canair.interop.explorer.layout import layout_buses
 from canair.uds.addressing import resolve_mode, resolve_rx, resolve_rx_offset
 

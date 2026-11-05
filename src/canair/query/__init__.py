@@ -7,7 +7,7 @@ anywhere an ECU/PID selection is needed (e.g. ``canair read``).
 Belongs: the selector grammar and matching (this module) and the ``read``/``monitor`` step
 grammar built on it (``steps``).
 Not here: running a step against the car (``live/multi*``) or ``@group`` definitions (``ecus/``).
-Imports: ``ecus`` (to resolve names) and ``core``.
+Imports: ``ecus`` (to resolve names), ``uds`` (the memory token) and ``core``.
 
 Grammar
 -------
@@ -16,7 +16,7 @@ Grammar
     QUERY    := SELECTOR (WHITESPACE SELECTOR)*
     SELECTOR := ECU [ ':' PIDLIST ]
     PIDLIST  := PID (',' PID)*
-    PID      := HEX | SERVICE '/' ID
+    PID      := HEX | SERVICE '/' ID | '23/' ADDRESS '+' SIZE
 
 - Whitespace separates independent selectors (logical OR across selectors).
 - A selector is an ECU name, optionally followed by ``:`` and a comma-separated
@@ -32,6 +32,9 @@ Grammar
   request code: ``01/0D`` is OBD-II mode 01 PID 0D (request ``010D``), which a
   bare ``010D`` cannot say, since four hex digits read as a service-22 DID.
   :data:`EXPLICIT_SERVICES` lists the services it accepts.
+- A memory token ``23/ADDRESS+SIZE`` (both hex) names a ReadMemoryByAddress read. It
+  matches a defined memory PID of that address and size; sent undefined, the ECU's
+  ``memory.format`` builds its request (``VCU:23/0001A2B0+04``).
 
 Examples
 --------
@@ -66,11 +69,22 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import TypeVar
 
+from canair.uds.memory import (
+    TOKEN_SERVICE,
+    MemoryFormat,
+    MemoryRequestError,
+    memory_request,
+    parse_memory_token,
+)
+from canair.uds.memory import token_names as memory_token_names
+
 __all__ = [
     "EXPLICIT_SERVICES",
+    "MEMORY_SERVICE",
     "Query",
     "QueryError",
     "Selector",
+    "check_pid_token",
     "explicit_request",
     "inferred_request",
     "looks_like_pid",
@@ -89,6 +103,9 @@ _HEX_DIGITS = frozenset("0123456789ABCDEF")
 #: single-identifier reads: a multi-PID mode 01 request is not a capture key.
 EXPLICIT_SERVICES: dict[str, int] = {"01": 1, "09": 1, "21": 1, "22": 2}
 
+#: The service of a memory token, ``23/ADDRESS+SIZE`` (see :mod:`canair.uds.memory`).
+MEMORY_SERVICE = TOKEN_SERVICE.rstrip("/")
+
 _SERVICE_SEP = "/"
 
 
@@ -96,19 +113,34 @@ def _is_hex(text: str) -> bool:
     return bool(text) and all(c in _HEX_DIGITS for c in text)
 
 
-def explicit_request(token: str) -> str | None:
+def explicit_request(token: str, memory_format: MemoryFormat | None = None) -> str | None:
     """The request code a ``SERVICE/ID`` token names (``01/0D`` -> ``010D``).
 
     ``None`` when ``token`` has no ``/``, so it is a bare token the caller resolves
     by its usual rules. Raises :class:`QueryError` when it has one but names an
     unsupported service or an identifier of the wrong width.
+
+    A memory token (``23/ADDRESS+SIZE``) needs the ECU's ``memory_format`` to become a
+    request; without one it raises, naming the editor that sets it.
     """
     if _SERVICE_SEP not in token:
         return None
+    memory = _memory_token(token)
+    if memory is not None:
+        address, size = memory
+        if memory_format is None:
+            raise QueryError(
+                f"PID {token!r} is a memory read, and its ECU declares no memory format "
+                "(set one with `canair pids set-memory ECU --format 24`)"
+            )
+        try:
+            return memory_request(memory_format, address, size)
+        except MemoryRequestError as e:
+            raise QueryError(f"PID {token!r}: {e}") from None
     service, _, ident = token.upper().partition(_SERVICE_SEP)
     width = EXPLICIT_SERVICES.get(service)
     if width is None:
-        allowed = ", ".join(f"{s}/" for s in EXPLICIT_SERVICES)
+        allowed = ", ".join(f"{s}/" for s in (*EXPLICIT_SERVICES, MEMORY_SERVICE))
         raise QueryError(f"PID {token!r}: service {service!r} is not one of {allowed}")
     if len(ident) != 2 * width or not _is_hex(ident):
         raise QueryError(
@@ -118,10 +150,26 @@ def explicit_request(token: str) -> str | None:
     return service + ident
 
 
-def inferred_request(token: str) -> str:
+def _memory_token(token: str) -> tuple[int, int] | None:
+    """``(address, size)`` of a ``23/ADDRESS+SIZE`` token; raises QueryError if malformed."""
+    try:
+        return parse_memory_token(token)
+    except MemoryRequestError as e:
+        raise QueryError(str(e)) from None
+
+
+def check_pid_token(token: str) -> None:
+    """Raise :class:`QueryError` for a malformed ``SERVICE/ID`` or memory token."""
+    if _SERVICE_SEP not in token or _memory_token(token) is not None:
+        return
+    explicit_request(token)
+
+
+def inferred_request(token: str, memory_format: MemoryFormat | None = None) -> str:
     """The request a PID token sends when no definition matches it.
 
-    A ``SERVICE/ID`` token sends exactly what it names. A bare token is either a
+    A ``SERVICE/ID`` token sends exactly what it names, a memory token
+    (``23/ADDRESS+SIZE``) the read ``memory_format`` builds. A bare token is either a
     complete read already or an identifier whose service its length implies:
 
     - two hex digits are a KWP2000 local identifier (``01`` -> ``2101``);
@@ -137,7 +185,7 @@ def inferred_request(token: str) -> str:
     response-frame count), or a shape no single read has (``BC0301`` is neither a
     2-byte DID nor a ``22`` request), rather than sending a guess.
     """
-    explicit = explicit_request(token)
+    explicit = explicit_request(token, memory_format)
     if explicit is not None:
         return explicit
     u = token.upper()
@@ -164,10 +212,13 @@ def _token_names(token: str, pid: str) -> bool:
     """Whether one upper-cased PID ``token`` names the upper-cased ``pid``.
 
     The one matching rule both the live planner and the capture tools apply. A
-    ``SERVICE/ID`` token names only its exact request code; a bare token names a
+    ``SERVICE/ID`` token names only its exact request code, and a memory token the
+    memory read of its address and size (whatever the format). A bare token names a
     PID that starts or ends with it (``22`` names every ``22xxxx`` DID, ``BC03``
     names ``22BC03``), never one it only appears in the middle of.
     """
+    if _SERVICE_SEP in token and _memory_token(token) is not None:
+        return memory_token_names(token, pid)
     explicit = explicit_request(token)
     if explicit is not None:
         return pid == explicit
@@ -186,7 +237,7 @@ def pids_named_by(token: str, keys: Iterable[str]) -> list[str]:
     """
     tok = token.upper()
     upper = [(k, str(k).upper()) for k in keys]
-    if explicit_request(tok) is None:
+    if _SERVICE_SEP not in tok:
         exact = [k for k, u in upper if u == tok]
         if exact:
             return exact
@@ -206,9 +257,10 @@ def looks_like_pid(token: str) -> bool:
     t = token.upper()
     if _SERVICE_SEP in t:
         try:
-            return explicit_request(t) is not None
+            check_pid_token(t)
         except QueryError:
             return False
+        return True
     return len(t) >= 2 and all(c in _HEX_DIGITS for c in t) and any(c.isdigit() for c in t)
 
 
@@ -325,7 +377,7 @@ def parse_selector(token: str) -> Selector:
 
     pids = tuple(p.strip().upper() for p in pid_part.split(",") if p.strip())
     for pid in pids:
-        explicit_request(pid)  # a malformed SERVICE/ID token fails here, not at use
+        check_pid_token(pid)  # a malformed SERVICE/ID token fails here, not at use
     return Selector(ecu, pids)
 
 

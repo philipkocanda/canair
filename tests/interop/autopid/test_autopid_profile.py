@@ -464,3 +464,17 @@ class TestDiffSeesSendTo:
         profile = self._profile("car/soc")
         assert show_diff(to_device_format(profile), profile) is False
         assert "No differences" in capsys.readouterr().out
+
+
+def test_a_memory_pid_never_ships_whatever_its_state():
+    """Active, verified and revision-gated: a memory read still stays off the device."""
+    data = _data()
+    data["ecus"]["BMS"]["pids"]["2300010004"] = {
+        "status": "active",
+        "revisions": ["KWP"],
+        "parameters": {"RAM": {"expression": "B04", "verified": True}},
+    }
+    for verified_only in (True, False):
+        pids = [p["pid"] for p in generate_profile(data, verified_only=verified_only)["pids"]]
+        assert not any(p.startswith("23") for p in pids)
+        assert any(p.startswith("2101") for p in pids)

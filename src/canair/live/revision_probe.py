@@ -5,8 +5,11 @@ detection, is *ambiguous*: its revision-specific PIDs would be skipped. Before t
 session's mode runs, :func:`detect_revisions` sends each ambiguous ECU the command is
 about to read its cheapest ``responds:`` fingerprint — one safe identity read per ECU,
 never per PID, through the terminal's usual safety policy and echo validation — and
-settles the revision when exactly one matches. The result is remembered
-(:mod:`canair.variants.detected`), so later sessions and offline analysis need no probe.
+settles the revision when exactly one matches. When none of those answers and a
+revision has a ``software:`` fingerprint, it reads the ECU's software version
+(:mod:`canair.live.software_version`), which is how a memory PID's revision is told. The
+result is remembered (:mod:`canair.variants.detected`), so later sessions and offline
+analysis need no probe.
 
 A sleeping ECU answers nothing and is left undetermined: no guess, as without detection.
 """
@@ -17,7 +20,11 @@ import re
 import sys
 from collections.abc import Iterable, Sequence
 
+from canair.ecus.memory import protocol_of
+from canair.safety.blocklist import SafetyBlocked
 from canair.transport.protocol import Terminal
+
+from .software_version import read_software_version
 
 
 def _tokens(steps: Iterable[str]) -> set[str]:
@@ -75,7 +82,7 @@ async def detect_revisions(terminal: Terminal, targets: set[str] | None) -> bool
     from canair.ecus.pids import load_raw_pids, revision_resolutions
     from canair.profile import active, replace_active
     from canair.variants.detected import remember
-    from canair.variants.fingerprints import detected, match, probes
+    from canair.variants.fingerprints import detected, match, probes, wants_software
     from canair.variants.selection import with_detections
     from canair.variants.tags import selected_variant
 
@@ -95,7 +102,8 @@ async def detect_revisions(terminal: Terminal, targets: set[str] | None) -> bool
         ecu_def = ecus.get(res.ecu) or {}
         tx_id = ecu_def.get("tx_id")
         requests = probes(ecu_def, res.possible)
-        if tx_id is None or not requests:
+        by_software = wants_software(ecu_def, res.possible)
+        if tx_id is None or not (requests or by_software):
             continue
         responded: dict[str, bool] = {}
         for request in requests:
@@ -104,21 +112,35 @@ async def detect_revisions(terminal: Terminal, targets: set[str] | None) -> bool
                 responded[request] = answer
             if answer:
                 break  # one positive answer is the evidence; don't spend another read
-        rid = detected(match(ecu_def, possible=res.possible, responded=responded))
+        software = None
+        if by_software and not any(responded.values()):
+            software = await _software(terminal, int(tx_id), ecu_def)
+        rid = detected(
+            match(ecu_def, possible=res.possible, responded=responded, software=software)
+        )
         if rid is None:
+            asked = [*requests, *(["the software version"] if by_software else [])]
             print(
                 f"note: {res.ecu}: no fingerprint of {', '.join(res.possible)} answered "
-                f"({', '.join(requests)}), so its revision stays undetermined.",
+                f"({', '.join(asked)}), so its revision stays undetermined.",
                 file=sys.stderr,
             )
             continue
         remember(prof.name, selected_variant(prof), res.ecu, rid)
-        which = next(r for r, ok in responded.items() if ok)
+        which = next((r for r, ok in responded.items() if ok), f"software {software}")
         print(f"note: {res.ecu} is revision {rid} (it answered {which}).", file=sys.stderr)
         settled = True
     if settled:
         replace_active(with_detections(prof))
     return settled
+
+
+async def _software(terminal: Terminal, tx_id: int, ecu_def: dict) -> str | None:
+    """The ECU's software version for a ``software:`` fingerprint (None: no answer)."""
+    try:
+        return await read_software_version(terminal, tx_id, protocol_of(ecu_def))
+    except (SafetyBlocked, ValueError):
+        return None
 
 
 def identity_report(tx_id: int, responded: dict[str, bool]) -> dict | None:

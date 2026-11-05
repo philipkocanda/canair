@@ -176,6 +176,7 @@ class RawTerminal:
                 expected_sid=expected_sid,
                 expected_echo=expected_echo,
                 protocol=self.session_policy.protocol(self._cur),
+                request=service_pid,
             )
             if resp_bytes is not None and self._classic_can:
                 # parse_uds_response counts response *lines*, and this path hands it

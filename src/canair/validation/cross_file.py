@@ -5,7 +5,7 @@ from pathlib import Path
 import yaml
 
 from canair.core import yaml_io
-from canair.ecus.pids import pid_ships
+from canair.ecus.pid_status import pid_ships
 from canair.ecus.sensitivity import param_sensitive
 from canair.ecus.shipping import param_ships
 
@@ -105,7 +105,7 @@ def duplicate_param_errors(file_paths: list[Path]) -> list[str]:
             if not isinstance(ecu_def, dict):
                 continue
             for pid_code, pid_def in (ecu_def.get("pids") or {}).items():
-                if not isinstance(pid_def, dict) or not pid_ships(pid_def):
+                if not isinstance(pid_def, dict) or not pid_ships(pid_def, pid_code):
                     continue
                 for pname, param in (pid_def.get("parameters") or {}).items():
                     if not isinstance(param, dict) or not param_ships(param):
