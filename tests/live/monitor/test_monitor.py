@@ -1331,9 +1331,9 @@ class TestNrcClassification:
         assert "nrc" not in _error_result("2101", False, {"ok": False, "error": "NO DATA"}, 1.0)
 
     def test_is_nrc_reads_the_code(self):
-        from canair.live.monitor.controller import _answered, _is_nrc
+        from canair.live.monitor.health import answered, is_nrc
 
-        assert _is_nrc({"pid": "2101", "error": "NRC 0x31 (ROOR)", "nrc": 0x31})
+        assert is_nrc({"pid": "2101", "error": "NRC 0x31 (ROOR)", "nrc": 0x31})
         # An error whose text merely starts with the letters is not an answer.
-        assert not _is_nrc({"pid": "2101", "error": "NRC-like adapter text"})
-        assert not _answered({"pid": "2101", "error": "timeout"})
+        assert not is_nrc({"pid": "2101", "error": "NRC-like adapter text"})
+        assert not answered({"pid": "2101", "error": "timeout"})

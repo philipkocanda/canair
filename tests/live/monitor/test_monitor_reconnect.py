@@ -402,15 +402,15 @@ class TestControllerRebind:
         BMS = ("BMS", "2101")
         silent = PollCost(reads=1, seconds=1.0, answered=0)
         for _ in range(ESCALATE_AFTER + 1):
-            c.poll_costs = {BMS: silent}
-            c._apply_backoff()
+            c.health.poll_costs = {BMS: silent}
+            c.health.apply_backoff()
         assert c.schedule.slowdown(BMS) == 4
         c.rebind(object())
         assert c.schedule.slowdown(BMS) == 1
         assert c.backoff.slowed() == {}
         # And the next slow spell starts from scratch (one slow poll is not a pattern).
-        c.poll_costs = {BMS: silent}
-        c._apply_backoff()
+        c.health.poll_costs = {BMS: silent}
+        c.health.apply_backoff()
         assert c.schedule.slowdown(BMS) == 1
 
     @pytest.mark.parametrize("raw", [False, True])
@@ -444,7 +444,7 @@ class TestControllerRebind:
         c = self._controller(raw=False)
         c.schedule.set_slowdown(("BMS", "2101"), 8)
         assert c.backoff.slowed() == {}
-        c.reset_backoff()
+        c.health.reset_backoff()
         assert c.schedule.slowed() == {}
 
     def test_close_client_raw_is_best_effort(self):
@@ -487,9 +487,9 @@ class TestStaleEscalation:
     @staticmethod
     def _cycle(c, entry):
         """One poll cycle whose only PID resolved to ``entry``."""
-        c._cycle_answered = False
+        c.health.cycle_answered = False
         c._displayify(("BMS", "2101"), entry)
-        c._check_liveness({"BMS"}, {"BMS"})
+        c.health.check_liveness({"BMS"}, {"BMS"})
 
     def test_all_stale_cycles_escalate_at_the_threshold(self, monkeypatch):
         from canair import config
@@ -499,11 +499,11 @@ class TestStaleEscalation:
         c._last_good[("BMS", "2101")] = {"raw_hex": "6101AA"}  # so rows carry forward
         for expected in (1, 2):
             self._cycle(c, {"error": "Echo mismatch"})
-            assert c.dead_cycles == expected
+            assert c.health.dead_cycles == expected
             assert c.disconnected is False
         self._cycle(c, {"error": "Echo mismatch"})
         assert c.disconnected is True
-        assert c.dead_cycles == 0  # armed afresh for the post-reconnect run
+        assert c.health.dead_cycles == 0  # armed afresh for the post-reconnect run
 
     def test_one_good_response_resets_the_count(self, monkeypatch):
         from canair import config
@@ -512,9 +512,9 @@ class TestStaleEscalation:
         c = self._controller()
         self._cycle(c, {"error": "timeout"})
         self._cycle(c, {"error": "timeout"})
-        assert c.dead_cycles == 2
+        assert c.health.dead_cycles == 2
         self._cycle(c, {"raw_hex": "6101AA"})
-        assert c.dead_cycles == 0
+        assert c.health.dead_cycles == 0
         assert c.disconnected is False
 
     def test_an_nrc_counts_as_alive(self, monkeypatch):
@@ -528,7 +528,7 @@ class TestStaleEscalation:
         self._cycle(c, {"error": "NRC 0x31 requestOutOfRange", "nrc": 0x31})
         self._cycle(c, {"error": "NRC 0x31 requestOutOfRange", "nrc": 0x31})
         self._cycle(c, {"error": "NRC 0x31 requestOutOfRange", "nrc": 0x31})
-        assert c.dead_cycles == 0
+        assert c.health.dead_cycles == 0
         assert c.disconnected is False
 
     def test_zero_disables_escalation(self, monkeypatch):
@@ -539,7 +539,7 @@ class TestStaleEscalation:
         for _ in range(20):
             self._cycle(c, {"error": "timeout"})
         assert c.disconnected is False
-        assert c.dead_cycles == 20  # still observed, just not acted on
+        assert c.health.dead_cycles == 20  # still observed, just not acted on
 
     def test_an_idle_cycle_is_not_a_dead_cycle(self, monkeypatch):
         # Every PID filtered out (or a paused/empty plan) means nothing was asked,
@@ -549,9 +549,9 @@ class TestStaleEscalation:
         monkeypatch.setattr(config, "stale_cycles_before_reconnect", lambda: 1)
         c = self._controller()
         c.last_queries = []
-        c._cycle_answered = False
-        c._check_liveness(set(), set())
-        assert c.dead_cycles == 0
+        c.health.cycle_answered = False
+        c.health.check_liveness(set(), set())
+        assert c.health.dead_cycles == 0
         assert c.disconnected is False
 
 

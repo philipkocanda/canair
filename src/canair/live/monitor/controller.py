@@ -23,30 +23,27 @@ layer differs.
 
 import asyncio
 import contextlib
-import logging
 import re
 import time
-from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from rich.text import Text
 
 from canair.captures.keepmode import KEEP_LAST, KeepMode
-from canair.core.eventlog import log_event
 from canair.expression.notation import ByteNotation
 from canair.expression.results import EcuFrame, ResultEntry
 from canair.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, _render_hex_line
 from canair.transport.session_manager import SessionManager
 
-from ... import config
 from ...captures.link_events import is_rx
-from .backoff import PollBackoff, PollCost, describe_slowdown, slowdown_log_message
+from .backoff import PollBackoff
+from .health import MonitorHealth, answered, is_nrc, label_ecu, pid_costs
 from .link_events import LinkEventTracker
 from .raw_poller import MonitorRawPoller, _raw_pid_result
 from .record import MonitorRecorder, _merge_history, _open_journal, _write_merged
 from .render import _RENDER_DEFAULT_ROWS, _RENDER_MAX_ROWS, VIEW_MODES, RenderCache, _render_results
-from .schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, Key, PollScheduler, Schedule
+from .schedule import DEFAULT_SCHEDULE, MONITOR_PERIOD_SPEEDUP, PollScheduler, Schedule
 from .selectors import MonitorSelectors
 from .sessions import MonitorSessions
 from .state import STATE_INPUT_STALE_CYCLES, MonitorStateSuggester
@@ -79,37 +76,6 @@ __all__ = [
     "_write_merged",
     "query_ecu_error",
 ]
-
-
-def _is_nrc(entry: ResultEntry) -> bool:
-    """A negative response: the result's builder sets its ``nrc``."""
-    return entry.get("nrc") is not None
-
-
-def _answered(entry: ResultEntry) -> bool:
-    """A coherent reply: a payload, or a negative response (a prompt refusal)."""
-    return bool(entry.get("raw_hex")) or _is_nrc(entry)
-
-
-def _pid_costs(ecu: str, entries: Sequence[ResultEntry]) -> dict[Key, PollCost]:
-    """Each PID's cost behind one ECU step's ``entries``, keyed ``(ecu, pid)``.
-
-    Every entry is one request for its PID, timed by the ``request_s`` the executor
-    stamps on it (keepalives already left out). A multi-DID batch's members all carry
-    their one request's time: each was held up that long, so the batch counts as one
-    request per PID rather than being divided among them, which would hide it.
-    """
-    return {
-        (ecu, e["pid"]): PollCost(
-            reads=1, seconds=e.get("request_s", 0.0), answered=int(_answered(e))
-        )
-        for e in entries
-    }
-
-
-def _label_ecu(label: str) -> str:
-    """The ECU name a monitor row label carries (``"BMS (0x7E4)"`` -> ``"BMS"``)."""
-    return label.rsplit(" (", 1)[0].upper()
 
 
 def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
@@ -178,7 +144,6 @@ class MonitorController:
         # every other PID's next poll, so it is polled less often until it recovers.
         # Fed each PID's cost of a tick, which the poll backends leave in poll_costs.
         self.backoff = PollBackoff(enabled=backoff)
-        self.poll_costs: dict[Key, PollCost] = {}
         self.keep_mode = keep_mode
         self.keep_n = keep_n
         self.save = save
@@ -264,23 +229,6 @@ class MonitorController:
         # Set by mode_monitor; resolved lazily if left None.
         self.captures_dir: Path | None = None
         self.disconnected = False
-        # Poll cycles in which not one PID answered coherently (no payload and no
-        # negative response — every row carried forward as stale). A
-        # desynced-but-open pipe raises nothing, so this count is the only thing
-        # that can tell a live-but-useless link from a healthy one; at
-        # `config.stale_cycles_before_reconnect()` it sets `disconnected` and lets
-        # the reconnector rebuild the client. An NRC counts as answered: a negative
-        # response proves the request reached the ECU and its reply came back in the
-        # right slot, which is a healthy pipe refusing, not a broken one.
-        #
-        # Counted per ECU (`_unanswered`: polls of that ECU since anything last
-        # answered) and reported as the minimum over the polled ECUs, so a fast PID
-        # on a sleeping ECU cannot escalate on its own while a slower ECU is still
-        # answering between its ticks. On the fixed schedule every ECU is polled
-        # every cycle, so this is simply consecutive dead cycles.
-        self.dead_cycles = 0
-        self._unanswered: dict[str, int] = {}
-        self._cycle_answered = False
         # Mid-session reconnect / auto-failover (set by mode_monitor). When a
         # reconnector is present the poll loop re-homes a dropped session instead
         # of exiting; session_steps are replayed on each reconnect to re-open
@@ -302,6 +250,15 @@ class MonitorController:
         # a segment rotation replaces it.
         self.link_events = LinkEventTracker(lambda: self.recorder.journal, rx_of=self._event_rx)
         self._name_index: dict | None = None
+        # What each tick's reads cost, which PIDs to slow down, and whether the link
+        # is alive at all (see health.py).
+        self.health = MonitorHealth(
+            self.schedule,
+            self.backoff,
+            self.link_events,
+            mark_disconnected=self.mark_disconnected,
+            transport=lambda: self.transport_type,
+        )
         # Vehicle-state auto-suggestion (decoded-value accumulation, per-signal
         # clocks + expiry, vehicle_states.yaml evaluation) lives in the
         # MonitorStateSuggester collaborator.
@@ -470,9 +427,8 @@ class MonitorController:
         self.cycle += 1
         diag = self.diag_recorder()
         base = diag.snapshot() if diag is not None else None
-        self._cycle_answered = False
+        self.health.begin_tick()
         self.fresh_queries = []
-        self.poll_costs = {}
         t0 = time.monotonic()
         self.schedule.begin_tick(t0)
         try:
@@ -490,106 +446,12 @@ class MonitorController:
             self.last_stale = delta.stale
             self.link_events.resynced(delta.resyncs)
         self._record(self.fresh_queries)
-        self._observe_ecu_answers()
-        self._apply_backoff()
-        self._check_liveness(
-            {_label_ecu(label) for label, rows in self.fresh_queries if rows},
-            {_label_ecu(label) for label, _rows in self.last_queries},
+        self.health.observe_ecu_answers()
+        self.health.apply_backoff()
+        self.health.check_liveness(
+            {label_ecu(label) for label, rows in self.fresh_queries if rows},
+            {label_ecu(label) for label, _rows in self.last_queries},
         )
-
-    def _observe_ecu_answers(self) -> None:
-        """Tell the link-event recorder which polled ECUs answered this tick.
-
-        ``link_ok`` is whether anything answered at all: an ECU that misses while the
-        others answer is going quiet on its own, one that misses with them is part of a
-        disconnect, which the liveness check records instead.
-        """
-        answered: dict[str, bool] = {}
-        for (ecu, _pid), cost in self.poll_costs.items():
-            if cost.reads:
-                answered[ecu] = answered.get(ecu, False) or cost.answered > 0
-        for ecu, ok in answered.items():
-            self.link_events.ecu_polled(ecu, answered=ok, link_ok=self._cycle_answered)
-
-    def _apply_backoff(self) -> None:
-        """Slow down (or restore) each PID this tick's costs say is holding up the poll."""
-        for key, cost in self.poll_costs.items():
-            factor = self.backoff.observe(key, cost)
-            if factor is None:
-                continue
-            ecu, pid = key
-            self.schedule.set_slowdown(key, factor)
-            self.link_events.backoff(ecu, factor, pid=pid)
-            detail = slowdown_log_message(f"{ecu} {pid}", factor, self.backoff.reason(key))
-            log_event("config", detail, level=logging.INFO, transport=self.transport_type)
-
-    def reset_backoff(self) -> None:
-        """Restore every slowed-down PID to its normal poll rate.
-
-        Clears both halves of the slowdown: the backoff's history and the scheduler's
-        factor. Resetting only the backoff would leave the scheduler stretching a PID
-        the backoff no longer tracks, so nothing would ever restore it.
-        """
-        slowed = set(self.backoff.slowed()) | set(self.schedule.slowed())
-        for key in sorted(slowed):
-            ecu, pid = key
-            self.schedule.set_slowdown(key, 1)
-            self.link_events.backoff(ecu, 1, pid=pid)
-        self.backoff.reset()
-        if slowed:
-            names = ", ".join(f"{ecu} {pid}" for ecu, pid in sorted(slowed))
-            log_event(
-                "config",
-                f"poll rates restored after reconnecting: {names}",
-                level=logging.INFO,
-                transport=self.transport_type,
-            )
-
-    def pid_notes(self) -> dict[tuple[str, str], str]:
-        """Row note per slowed-down PID, keyed by its ``(ECU label, PID)`` display key."""
-        notes: dict[tuple[str, str], str] = {}
-        for label, rows in self.last_queries:
-            ecu = _label_ecu(label)
-            for row in rows:
-                key = (ecu, row["pid"])
-                factor = self.schedule.slowdown(key)
-                if factor > 1:
-                    notes[(label, row["pid"])] = describe_slowdown(factor, self.backoff.reason(key))
-        return notes
-
-    def _check_liveness(self, polled: set[str], live: set[str]) -> None:
-        """Escalate an all-stale run to a reconnect.
-
-        A transport error raises and is caught by the poll loop, but a pipe that
-        is *open and useless* — every reply landing one slot behind its request —
-        raises nothing, so ``disconnected`` would never be set and the session
-        would sit there showing carried-forward values forever. That is the bug
-        this guards: count polls where nothing answered, and hand the session to
-        the reconnector once it is clearly not recovering on its own.
-
-        ``polled`` are the ECUs read this tick, ``live`` every ECU on screen. It
-        escalates once *every* live ECU has gone unanswered for the threshold, so
-        a tick that only reached a sleeping ECU is not held against a slower one
-        that is still answering between its own ticks.
-        """
-        if self._cycle_answered or not polled:
-            self._unanswered.clear()
-            self.dead_cycles = 0
-            return
-        for ecu in polled:
-            self._unanswered[ecu] = self._unanswered.get(ecu, 0) + 1
-        self.dead_cycles = min(self._unanswered.get(ecu, 0) for ecu in live | polled)
-        limit = config.stale_cycles_before_reconnect()
-        if limit <= 0 or self.dead_cycles < limit:
-            return
-        log_event(
-            "stale",
-            f"no coherent response for {self.dead_cycles} poll cycles - reconnecting",
-            transport=self.transport_type,
-        )
-        self._unanswered.clear()
-        self.dead_cycles = 0
-        self.mark_disconnected("stale")
 
     def mark_disconnected(self, cause: "DisconnectCause") -> None:
         """Hand the session to the reconnector, recording the gap this opens.
@@ -660,7 +522,7 @@ class MonitorController:
                 self.mark_disconnected("error")
                 return
             if result is not None and due_on:
-                self.poll_costs.update(_pid_costs(due_on[0], result[1]))
+                self.health.poll_costs.update(pid_costs(due_on[0], result[1]))
             if result is not None:
                 label, pids = result
                 # Keep a timed-out PID's last-good values (stale/dimmed) instead
@@ -704,18 +566,18 @@ class MonitorController:
         """
         shown = self._decide_display(key, entry)
         self._last_shown[key] = shown
-        if _answered(entry):
-            self.link_events.answered(entry.get("acquired_at"), ecu=_label_ecu(key[0]))
+        if answered(entry):
+            self.link_events.answered(entry.get("acquired_at"), ecu=label_ecu(key[0]))
         return shown
 
     def _decide_display(self, key: tuple[str, str], entry: ResultEntry) -> ResultEntry:
         """The display decision itself — see :meth:`_displayify`."""
         if entry.get("raw_hex"):
             self._last_good[key] = entry
-            self._cycle_answered = True
+            self.health.cycle_answered = True
             return entry
-        if _is_nrc(entry):
-            self._cycle_answered = True
+        if is_nrc(entry):
+            self.health.cycle_answered = True
             return entry
         last = self._last_good.get(key)
         if last is not None:
@@ -742,7 +604,7 @@ class MonitorController:
             view_mode=self.view_mode,
             param_stats=self.param_stats,
             notation=self.notation,
-            pid_notes=self.pid_notes(),
+            pid_notes=self.health.pid_notes(self.last_queries),
         )
 
     def cycle_view(self) -> str:
@@ -912,5 +774,5 @@ class MonitorController:
         current = self.diag_recorder()
         if previous is not None and current is not None and current is not previous:
             current.absorb(previous)
-        self.reset_backoff()
+        self.health.reset_backoff()
         self.disconnected = False

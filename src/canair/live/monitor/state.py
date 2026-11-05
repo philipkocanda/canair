@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from .health import label_ecu
+
 if TYPE_CHECKING:
     from canair.expression.results import EcuFrame
 
@@ -79,10 +81,9 @@ class MonitorStateSuggester:
     def observe(self, new_queries: list[EcuFrame]) -> None:
         """Fold a cycle's freshly-polled payloads into the state-input snapshot."""
         from ...states import collect_values
-        from .controller import _label_ecu
 
         for ecu_label, pid_results in new_queries:
-            ecu = _label_ecu(ecu_label)
+            ecu = label_ecu(ecu_label)
             for entry in pid_results:
                 values, _ = collect_values([(ecu_label, [entry])])
                 self.decoded_values.update(values)

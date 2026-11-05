@@ -179,7 +179,7 @@ class TestElmPollCost:
         c._ecu_index = {}
         c.schedule.begin_tick(0.0)
         asyncio.run(c._poll_elm())
-        assert c.poll_costs == {
+        assert c.health.poll_costs == {
             ("SKM", "22B002"): PollCost(reads=1, seconds=1.2, answered=0),
             ("SKM", "22B003"): PollCost(reads=1, seconds=1.2, answered=0),
             ("BMS", "2101"): PollCost(reads=1, seconds=0.02, answered=1),
@@ -235,7 +235,7 @@ class TestElmCostAttribution:
             c._batch_state.lengths[(0x770, d)] = 8
         _poll(c)
         assert c.terminal.sent == ["22BC03BC04BC06"]
-        costs = [c.poll_costs[("IGPM", code)] for code in ("22BC03", "22BC04", "22BC06")]
+        costs = [c.health.poll_costs[("IGPM", code)] for code in ("22BC03", "22BC04", "22BC06")]
         assert {(cost.reads, cost.answered) for cost in costs} == {(1, 1)}
         assert len({cost.seconds for cost in costs}) == 1
 
@@ -246,7 +246,7 @@ class TestElmCostAttribution:
         }  # 22BC04 times out (the fake's NO DATA default)
         c = _igpm_controller(_ElmTerminal(responses))
         _poll(c)
-        answered = {pid: cost.answered for (_ecu, pid), cost in c.poll_costs.items()}
+        answered = {pid: cost.answered for (_ecu, pid), cost in c.health.poll_costs.items()}
         assert answered == {"22BC03": 1, "22BC04": 0, "22BC06": 1}
 
     def test_keepalives_for_other_ecus_are_not_its_cost(self):
@@ -262,7 +262,7 @@ class TestElmCostAttribution:
         _poll(c)
         assert "3E00" not in term.sent  # answered by the subclass, never recorded
         assert c.sm.keepalive_seconds >= 0.2
-        assert all(cost.seconds < 0.1 for cost in c.poll_costs.values())
+        assert all(cost.seconds < 0.1 for cost in c.health.poll_costs.values())
 
     def test_a_background_keepalive_queued_ahead_is_not_its_cost(self):
         # The monitor's background keepalive takes the same transaction, so a read can
@@ -315,7 +315,7 @@ class TestOnlyTheDeadPidIsSlowed:
         assert c.backoff.slowed() == {("IGPM", "22BC04"): 2}
         # Its neighbours are read on the next tick; it sits that one out.
         asyncio.run(c.poll_once())
-        assert set(c.poll_costs) == {("IGPM", "22BC03"), ("IGPM", "22BC06")}
+        assert set(c.health.poll_costs) == {("IGPM", "22BC03"), ("IGPM", "22BC06")}
 
     def test_raw(self):
         from canair.live.monitor.controller import MonitorController
@@ -338,9 +338,9 @@ class TestOnlyTheDeadPidIsSlowed:
         for _ in range(ESCALATE_AFTER):
             asyncio.run(c.poll_once())
         assert c.schedule.slowed() == {("IGPM", "22BC04"): 2}
-        assert c.poll_costs[("IGPM", "22BC03")].seconds == 0.02
+        assert c.health.poll_costs[("IGPM", "22BC03")].seconds == 0.02
         asyncio.run(c.poll_once())
-        assert set(c.poll_costs) == {("IGPM", "22BC03"), ("IGPM", "22BC06")}
+        assert set(c.health.poll_costs) == {("IGPM", "22BC03"), ("IGPM", "22BC06")}
         rows = c.render().plain.splitlines()
         dead = next(line for line in rows if "22BC04" in line)
         assert "slow (not answering) · polled 2× less often" in dead

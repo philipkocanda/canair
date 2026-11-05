@@ -281,7 +281,7 @@ class MonitorRawPoller:
         c.fresh_queries = self.fresh_queries(plan_by_ecu, by_pid)
         c.last_cmds = len(requests)
         c.last_elm_time = 0.0
-        c.poll_costs = self.poll_costs(submissions, result_dict)
+        c.health.poll_costs = self.poll_costs(submissions, result_dict)
 
     def poll_costs(
         self, submissions: list[Submission], results: PollResults

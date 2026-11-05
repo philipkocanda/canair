@@ -306,9 +306,9 @@ class TestControllerHooks:
         c, journal = self._controller()
         c._displayify(("BMS", "2101"), {"raw_hex": "6101AA", "acquired_at": _at(1).timestamp()})
         for _ in range(2):
-            c._cycle_answered = False
+            c.health.cycle_answered = False
             c._displayify(("BMS", "2101"), {"error": "timeout"})
-            c._check_liveness({"BMS"}, {"BMS"})
+            c.health.check_liveness({"BMS"}, {"BMS"})
         assert c.disconnected
         assert journal.rows == [("event", "disconnect", _at(1), 1, "stale", None)]
         # The first coherent answer after the reconnect closes it; an NRC counts.
@@ -634,6 +634,7 @@ class TestControllerScopedHooks:
         c = MonitorController(object(), [], {"ecus": {}}, verbose=False)
         journal = _ListJournal()
         c.link_events = LinkEventTracker(lambda: journal, rx_of={"BMS": "0x7EC"}.get)
+        c.health.link_events = c.link_events
         return c, journal
 
     def test_a_silent_ecu_among_answering_ones(self):
@@ -641,13 +642,13 @@ class TestControllerScopedHooks:
 
         c, journal = self._controller()
         for _ in range(3):
-            c._cycle_answered = True  # VCU answered this tick
-            c.poll_costs = {
+            c.health.cycle_answered = True  # VCU answered this tick
+            c.health.poll_costs = {
                 ("BMS", "2101"): PollCost(reads=1, answered=0),
                 ("BMS", "2102"): PollCost(reads=1, answered=0),
                 ("VCU", "2101"): PollCost(reads=1, answered=1),
             }
-            c._observe_ecu_answers()
+            c.health.observe_ecu_answers()
         assert journal.scopes == [{"kind": "ecu_silent", "id": 1, "rx": "0x7EC"}]
 
     def test_backoff_changes_are_recorded(self, monkeypatch):
@@ -655,8 +656,8 @@ class TestControllerScopedHooks:
 
         c, journal = self._controller()
         monkeypatch.setattr(c.backoff, "observe", lambda _key, _cost: 4)
-        c.poll_costs = {("BMS", "2101"): PollCost(reads=1, answered=0)}
-        c._apply_backoff()
+        c.health.poll_costs = {("BMS", "2101"): PollCost(reads=1, answered=0)}
+        c.health.apply_backoff()
         assert journal.scopes == [
             {"kind": "backoff", "id": 1, "rx": "0x7EC", "pid": "2101", "factor": 4}
         ]
@@ -666,12 +667,12 @@ class TestControllerScopedHooks:
 
         c, journal = self._controller()
         for _ in range(3):
-            c._cycle_answered = True
-            c.poll_costs = {
+            c.health.cycle_answered = True
+            c.health.poll_costs = {
                 ("BMS", "2101"): PollCost(reads=1, answered=0),
                 ("BMS", "2102"): PollCost(reads=1, answered=1),
             }
-            c._observe_ecu_answers()
+            c.health.observe_ecu_answers()
         assert journal.scopes == []
 
 

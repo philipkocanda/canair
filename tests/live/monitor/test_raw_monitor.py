@@ -473,16 +473,16 @@ class TestSlowPidBackoff:
     def test_raw_costs_are_each_requests_latency(self):
         c = self._ctrl()
         asyncio.run(c.raw_poller.poll())
-        igpm = c.poll_costs[("IGPM", "22BC03")]
+        igpm = c.health.poll_costs[("IGPM", "22BC03")]
         assert (igpm.reads, igpm.answered, igpm.seconds) == (1, 0, 1.0)
-        assert c.poll_costs[("BMS", "2101")].answered == 1
+        assert c.health.poll_costs[("BMS", "2101")].answered == 1
 
     def test_a_batch_charges_each_member_its_latency(self):
         steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06"]}]
         c = _mk_ctrl(steps, _IGPM_BMS_INDEX, lengths={("IGPM", "BC03"): 8, ("IGPM", "BC06"): 8})
         c.raw_client = _TimedRawClient({})
         asyncio.run(c.raw_poller.poll())
-        assert c.poll_costs == {
+        assert c.health.poll_costs == {
             ("IGPM", "22BC03"): PollCost(reads=1, seconds=1.0, answered=0),
             ("IGPM", "22BC06"): PollCost(reads=1, seconds=1.0, answered=0),
         }
@@ -497,7 +497,7 @@ class TestSlowPidBackoff:
         assert c.schedule.slowdown(("BMS", "2101")) == 1
         # It now sits out the next round while BMS keeps being read.
         asyncio.run(c.poll_once())
-        assert set(c.poll_costs) == {("BMS", "2101")}
+        assert set(c.health.poll_costs) == {("BMS", "2101")}
         assert "slow (not answering) · polled 2× less often" in c.render().plain
 
     def test_no_backoff_keeps_polling(self):
