@@ -21,19 +21,10 @@ from canair.uds.echo import request_echo
 from canair.uds.protocol import KWP, UDS
 from canair.uds.response import UdsResponse
 
-from ..ecus import ecu_display
-from ..transport.protocol import Terminal
-from .identity_decode import (
-    decode_identity_payload,
-    resolve_protocol_hint,
-    service_supported,
-)
-from .identity_records import (
-    IDENTITY_DIDS,
-    KWP_IDENTITY_RECORDS,
-    PROTOCOLS,
-    UDS_IDENTITY_DIDS,
-)
+from ...ecus import ecu_display
+from ...transport.protocol import Terminal
+from .decode import decode_identity_payload, resolve_protocol_hint, service_supported
+from .records import IDENTITY_DIDS, KWP_IDENTITY_RECORDS, PROTOCOLS, UDS_IDENTITY_DIDS
 
 __all__ = [
     "IDENTITY_DIDS",
@@ -162,7 +153,7 @@ async def mode_identity(
             else:
                 n_nodata += 1
 
-        from .revision_probe import describe_identity_report, identity_report
+        from ..revision_probe import describe_identity_report, identity_report
 
         try:
             revision = identity_report(tx_id, responded) if n_ok else None

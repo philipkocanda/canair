@@ -195,7 +195,7 @@ class TestIdentityRegression:
     """De-siloing date/ASCII into decode_value must not change identity output."""
 
     def test_identity_date_and_ascii(self):
-        from canair.live.identity_decode import decode_identity_payload
+        from canair.live.identity.decode import decode_identity_payload
 
         assert decode_identity_payload(bytes([0x20, 0x17, 0x06, 0x06]), "date") == "2017-06-06"
         assert decode_identity_payload(b"HELLO", "ascii") == "HELLO"

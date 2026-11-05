@@ -311,7 +311,7 @@ async def _offer_identify(
         return
 
     # Local import avoids a module-load cycle (identity imports from ecus/decode).
-    from .identity import mode_identity
+    from .identity.read import mode_identity
 
     for tx_id, _status, _detail in alive:
         await mode_identity(terminal, tx_id, session=False, wake=False, as_json=False)

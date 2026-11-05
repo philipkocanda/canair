@@ -15,7 +15,7 @@ Leaf module: depends only on ``canair.expression`` (itself a leaf subsystem —
 from ``canair``). Kept dependency-free of the rest of ``canair`` so any caller
 (decode, captures, investigate, monitor, identity) can import it without a cycle.
 The date/BCD/ASCII primitives here are the single home for that logic —
-``identity_decode`` delegates to them so identity DIDs and the analysis suite
+``live.identity.decode`` delegates to them so identity DIDs and the analysis suite
 decode the same way.
 """
 

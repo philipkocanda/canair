@@ -6,7 +6,7 @@ error for an unresolvable one, and hands off to its mode.
 
 from __future__ import annotations
 
-from canair.live.identity import mode_identity
+from canair.live.identity.read import mode_identity
 from canair.live.param import mode_param
 from canair.live.raw import mode_raw
 from canair.render import messages

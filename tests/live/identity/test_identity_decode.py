@@ -1,8 +1,8 @@
-"""Tests for canair.live.identity_decode — pure decode + protocol selection."""
+"""Tests for canair.live.identity.decode — pure decode + protocol selection."""
 
 import pytest
 
-from canair.live import identity_decode as idec
+from canair.live.identity import decode as idec
 
 # --- decode_identity_payload ---
 

@@ -296,8 +296,8 @@ class TestBundledIoniqIdentity:
 
     @pytest.mark.asyncio
     async def test_identity_does_not_print_the_vin(self, ioniq, monkeypatch, capsys):
-        from canair.live import identity as ident
-        from canair.live import identity_decode as idec
+        from canair.live.identity import decode as idec
+        from canair.live.identity import read as ident
         from tests.support.fakes import FakeTerminal
         from tests.support.fakes import ok as _ok
 

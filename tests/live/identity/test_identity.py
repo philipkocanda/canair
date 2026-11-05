@@ -1,11 +1,11 @@
-"""Tests for canair.live.identity — UDS/KWP2000 probe + mode orchestration."""
+"""Tests for canair.live.identity.read — UDS/KWP2000 probe + mode orchestration."""
 
 import json
 
 import pytest
 
-from canair.live import identity as ident
-from canair.live import identity_decode as idec
+from canair.live.identity import decode as idec
+from canair.live.identity import read as ident
 from canair.uds.parse import parse_uds_response
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok
@@ -42,7 +42,7 @@ class TestModeIdentity:
     @pytest.mark.asyncio
     async def test_kwp_ecu_json(self, monkeypatch, capsys):
         # UDS not supported; KWP records respond. resolve_protocol_hint reads
-        # the registry via identity_decode.ecu_protocol.
+        # the registry via identity.decode.ecu_protocol.
         monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "kwp")
         t = FakeTerminal(
             {

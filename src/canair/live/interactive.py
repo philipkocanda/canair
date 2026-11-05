@@ -35,7 +35,7 @@ async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: b
     # Lazy imports to avoid circular dependencies for modes that reference each other
     import asyncio
 
-    from .identity import mode_identity
+    from .identity.read import mode_identity
     from .skm_wakeup import mode_skm_wakeup
     from .tester import mode_tester_present
 

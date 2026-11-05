@@ -50,8 +50,8 @@ def test_an_unregistered_ecu_is_unknown():
 
 
 def test_dtc_and_identity_resolve_through_the_registry(monkeypatch):
-    from canair.live import identity_decode
     from canair.live.dtc import codes
+    from canair.live.identity import decode as identity_decode
 
     monkeypatch.setattr("canair.ecus.ecu_protocol", lambda tx: UNKNOWN)
     monkeypatch.setattr(identity_decode, "ecu_protocol", lambda tx: UNKNOWN)
