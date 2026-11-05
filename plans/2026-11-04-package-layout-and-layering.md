@@ -1,9 +1,11 @@
 # Package layout and layering: give `canlib/` seams, and tests the same shape
 
-Status: **DONE for phases 0 to 5 except the items under "Left over" below** (2026-11-04, branch
-`refactor/package-layout`). The package is `src/canair/` now; this plan keeps the `canlib/` names it
-was written with. Not user-facing: no command, flag, output or profile changes. Section 9 is the part that outlives the migration:
-the rules, documents and gates that keep agents (and people) on this structure afterwards.
+Status: **DONE for phases 0 to 6 except the items under "Left over" below** (phases 0 to 5 on
+2026-11-04, branch `refactor/package-layout`; phase 6 on 2026-11-05, branch
+`refactor/split-layer-cycle`). The package is `src/canair/` now; this plan keeps the `canlib/`
+names it was written with. Not user-facing: no command, flag, output or profile changes.
+Section 9 is the part that outlives the migration: the rules, documents and gates that keep
+agents (and people) on this structure afterwards.
 
 Related plans this one absorbs or depends on:
 
@@ -776,19 +778,64 @@ Measured after phase 5 (`scripts/check/import_graph.py`, 2026-11-04):
 | Packages without a charter | all | all but 2 | 3 (command help text is built from them) |
 | Deferred internal imports | 1,177 | 1,171 | 1,159 |
 
+**Phase 6: split the cycle. DONE down to the three definition packages** (2026-11-05, branch
+`refactor/split-layer-cycle`). Each step cut the imports of one package from inside the group and
+gave it a layer of its own. The contract now reads, top to bottom: `cli`, `contribute`, `live`,
+`yaml_edit`, `validation`, `interop | actions | broadcast | migrations | analysis | dtc`,
+`transport | captures`, `states | query | render | install`, `privacy`,
+`ecus : profile : variants`, `tui | device`, `safety`, `expression : uds`, `config`, `core`.
+Some packages sit higher than section 6 puts them (`actions`, `broadcast`, `install`), because
+they import a package of the knot; they move down when it splits. The cuts, and where they
+deviate from section 4:
+
+- `EditError` is `core/edit_errors.py` (actions and states subclass it for their loader errors).
+- The response-frame write-back (`persist`) is `yaml_edit/response_frames.py`; the reading and
+  the diff stay in `ecus/response_frames.py`.
+- `RETIRED_FIELD` (the retired `ha_class` name) is in `ecus/signal_category.py`.
+- `broadcast` no longer re-exports `signal_byte_span` from `validation/signals.py`.
+- The DTC log upgrade is `dtc/log_upgrade.py`, not a migration: the log upgrades itself on first
+  use in a normal run.
+- `PayloadSample` is in `captures/payload_corpus.py`, where the corpus builds the samples.
+- The `dtcs:` section shape is `ecus/dtc_definitions.py` and the `wake:` block resolver is
+  `ecus/wake.py`: both are parsed while `ecus/pids.py` loads the definitions. The session
+  manager still carries a wake plan out.
+- State inference is `captures/state_inference.py`, not `analysis/`: every save annotates the
+  new session with its state timeline, so the store needs it.
+- The PII scan is `contribute/pii.py`, not `privacy/`: only the contribute gate runs it, and it
+  reads the store.
+- Reading the `sensitive:` flag off a definition is `ecus/sensitivity.py`; masking and
+  withholding stay in `privacy/sensitive.py`.
+
+Measured after phase 6 (`scripts/check/import_graph.py`, 2026-11-05):
+
+| Measure | After phase 5 | After phase 6 |
+|---|---:|---:|
+| Units in the largest import cycle | 18 | 3 (`ecus`, `profile`, `variants`) |
+| Deferred internal imports | 1,159 | 1,158 |
+
 Left over:
 
 1. The five Textual apps (`cli/commands/_sniff_tui`, `captures/step_tui`, `decode/plot_tui`,
    `live/_monitor_tui`, `_monitor_select_tui`) are not in `tui/apps/`. Each imports the model or
    controller of its own command or operation, which `tui/` cannot import: split each model from
    its app first. Then the `textual` ignores go.
-2. The 18-package cycle: definitions, the store, analysis, transport, validation and the editors
-   reach into each other through function-level imports. Splitting it into the layers of
-   section 6 is the next layering step; the 1,159 deferred imports are mostly this.
-3. The three open items from phase 2: the `cli.main` re-entries of `groups`/`pids`/`states`; the
-   `validation/` debt (`_run_*` print, `validation/pids.py` is 1,854 lines, and it imports
-   `yaml_edit` for one constant); the two `scripts/migrate_states_*.py` as `canair` commands
-   (user-facing, needs a decision).
+2. Two cycles are left. **`ecus : profile : variants`** is the knot section 6 already keeps as one
+   layer: a `Profile` knows its car (`Profile.meta` applies the variant's overrides,
+   `Profile.revisions` asks `ecus.pids`, `set_active`/`active` apply the variant and clear the
+   definition cache), and the load seam in `ecus/pids.py` applies variants and revisions. To get
+   `ecus` out above the other two, cut: `Profile.revisions` (three callers) to a function in
+   `ecus`; the `clear_cache` calls in `set_active`/`replace_active` to a callback that `ecus.pids`
+   registers; `variants/tags.py` (capture tags, it reads the loaded definitions) to `captures/`,
+   with `selected_variant` and the scope keywords staying in `variants/`; and the `canair
+   identity` hint in `variants/selection.py::_identity_hint`. Splitting `profile` from
+   `variants` after that means the `Profile` object stops knowing its variant, a larger design
+   change. **`expression : uds`**: `uds/notation.py` and `uds/inspect_bytes.py` build WiCAN
+   expressions with `expression.signed_range_is_exact`; move both to `expression/` and
+   `notation.subfunction_bytes_for_pid` to `uds/layout.py` (`uds/support_map.py` needs it).
+   About 40 importers change, so mind the size ceilings.
+3. The open items from phase 2: the `cli.main` re-entries of `groups`/`pids`/`states`; the
+   `validation/` debt (`_run_*` print, and `validation/pids.py` is 1,848 lines); the two
+   `scripts/migrate_states_*.py` as `canair` commands (user-facing, needs a decision).
 4. `commands/_*.py` flag helpers to `cli/args/`, `commands/_live` to `cli/live/`, and the `live/`
    sub-packages.
 5. AGENTS.md still names about 180 `src/canair/...` paths. Cut it to what an agent needs always and

@@ -7,8 +7,9 @@ rules behind it, and the migration that gets the tree there, are in
 
 !!! note "Migration state"
     The code lives in `src/canair/`. The 52 loose modules that used to sit at its root are in
-    packages now. What is left is listed in the plan: the cycle between the definition, store,
-    analysis and transport packages, and the Textual apps that still sit in `live/` and `cli/`.
+    packages now. What is left is listed in the plan: the cycle between `ecus/`, `profile/` and
+    `variants/` (and a small one between `expression/` and `uds/`), and the Textual apps that
+    still sit in `live/` and `cli/`.
 
 ## Layers
 
@@ -38,10 +39,14 @@ Top to bottom. A package imports only from the layers below its own.
 
 The first three layers are the interface and the live operations. The profile editors
 (`yaml_edit/`) and the validators they run after each write (`validation/`) sit below them and
-above everything they read. The large layer marked
-"one cycle still to split" is the part of the tree that still imports itself (definitions, the
-store, analysis and transport); splitting it is the remaining work of the layout plan.
-Everything outside it is already ordered, and `lint-imports` fails on a wrong-way import.
+above everything they read. Then come the packages that compute over the store and the
+definitions, the store and the transport, and the definitions themselves. A layer marked "one
+cycle still to split" still imports itself: `ecus/`, `profile/` and `variants/` (a profile knows
+which car it describes, and loading the definitions applies that car), and `expression/` with
+`uds/`. Everything else is ordered, and `lint-imports` fails on a wrong-way import.
+
+Some packages sit higher than their job needs (`actions/`, `broadcast/`, `install/`), because they
+import a package of the `ecus/`, `profile/`, `variants/` cycle. They move down when it splits.
 
 `render/` sits below `live/` rather than beside the CLI, because live operations print through it.
 

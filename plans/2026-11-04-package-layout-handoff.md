@@ -11,17 +11,28 @@ plan still open. The package is `src/canair/` (it was `canlib/`), the root holds
 and `__main__.py`, the tests mirror the packages, and eleven import contracts run in
 `uv run lint-imports`, pre-commit and CI. The one cycle left is 18 packages.
 
+## State on 2026-11-05
+
+Phase 6 (branch `refactor/split-layer-cycle`) split the 18-package cycle down to the three
+definition packages `ecus : profile : variants`, the `:` layer section 6 of the plan keeps
+anyway. The plan's phase 6 paragraph lists each cut and where it deviates from section 4.
+
 The next steps, in the order that pays most:
 
-1. **Split the 18-package cycle** into the layers of section 6 of the plan. Start with what the
-   cycle imports most: `yaml_edit` (used by `live`, `ecus`, `states`, `actions` for errors and
-   writes) and `validation` (used by `yaml_edit`). Move the shared exception types and constants
-   down (`yaml_edit/errors.py`, `RETIRED_FIELD`), make `live` write discoveries through a
-   function passed in, and re-run the `layers` contract with a package pulled out of the group each
-   time. Never add an `ignore_imports` entry.
-2. **Move the five Textual apps** into `tui/apps/` after splitting each model from its app
+1. **Move the five Textual apps** into `tui/apps/` after splitting each model from its app
    (`captures/step_model.py` from `step_tui.py`, the monitor controller from `_monitor_tui.py`).
+2. **The two cycles left** (`ecus : profile : variants` and `expression : uds`). The plan's
+   "Left over" item 2 lists the exact imports to cut for each.
 3. The smaller items in the plan's "Left over" list.
+
+How a cycle step went, so the next one is quick: list the module edges between the packages
+still in the group (grimp: `grimp.build_graph("canair")`, then
+`find_modules_directly_imported_by` per module, grouped by package), find a package that only
+one or two modules inside the group import, move the imported function or constant to the
+package that already owns its data (often a definition package or `core`), then pull the package
+out of the `:` group in `pyproject.toml` and run `uv run lint-imports`. Edit the contract with a
+script that matches the whole layers line: a plain `sed` on `"canair.x",` also rewrites the
+`source_modules` lists of the forbidden contracts.
 
 ## Rules of engagement (read before touching git)
 
