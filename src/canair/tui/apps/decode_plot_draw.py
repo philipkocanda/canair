@@ -2,7 +2,7 @@
 
 The pure, stateless half of the plot: turn a list of floats into a Unicode braille
 line chart with axes, work out which signal already maps a byte offset, and format
-the info/legend lines. Knows nothing about :class:`~canair.cli.commands.decode.plot.PlotModel`
+the info/legend lines. Knows nothing about :class:`~canair.tui.apps.decode_plot_model.PlotModel`
 or the Textual app — they call *down* into this, never the reverse, which is what
 keeps the chart testable without a terminal.
 

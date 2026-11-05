@@ -1,6 +1,6 @@
 """A PlotModel builder for the decode plot tests."""
 
-from canair.cli.commands.decode.plot import PlotModel
+from canair.tui.apps.decode_plot_model import PlotModel
 
 
 def _plot_results(values, pid="2101", ecu="BMS"):

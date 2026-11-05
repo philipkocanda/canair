@@ -246,7 +246,6 @@ allow_indirect_imports = true
 # pinned by tests/contracts/baseline.json and may only fall.
 ignore_imports = [
     "canair.cli.commands.captures.step_tui -> textual",
-    "canair.cli.commands.decode.plot_tui -> textual",
 ]
 
 [[tool.importlinter.contracts]]

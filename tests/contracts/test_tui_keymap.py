@@ -139,7 +139,7 @@ def test_same_action_key_across_apps():
     keymap that had been renamed out from under the user.
     """
     from canair.cli.commands.captures.step_tui import CapturesStepApp
-    from canair.cli.commands.decode.plot_tui import PlotApp
+    from canair.tui.apps.decode_plot import PlotApp
     from canair.tui.apps.monitor import MonitorApp
 
     def keys_of(cls: type, needle: str) -> set[str]:

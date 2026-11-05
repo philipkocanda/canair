@@ -1,11 +1,11 @@
-"""Tests for decode.py --plot helpers: byte interpretation, transforms, rendering."""
+"""Tests for the decode --plot explorer: byte interpretation, transforms, rendering, the app."""
 
 import math
 
 from canair.analysis.stats import fmt_num
-from canair.cli.commands.decode import plot as dp
-from canair.cli.commands.decode import plot_draw
-from canair.uds.inspect_bytes import InspectType
+from canair.tui.apps import decode_plot_draw
+from canair.uds import inspect_bytes
+from canair.uds.inspect_bytes import INSPECT_TYPES, InspectType
 
 U16 = InspectType("u16", 2, "int", False)
 
@@ -41,71 +41,73 @@ class TestInterpretBytes:
         # Spot-check that the plot module still exposes the shared primitive
         # (imported from canair.uds.inspect_bytes); exhaustive coverage lives in
         # tests/expression/test_inspect_bytes.py.
-        assert dp.interpret_bytes(FRAME, 3, U16) == 0xABCD
+        assert inspect_bytes.interpret_bytes(FRAME, 3, U16) == 0xABCD
 
 
 class TestRendering:
     def test_pci_positions(self):
         # 6101ABCD -> frame 04 61 01 AB CD; only B0 is PCI.
-        assert dp._pci_positions("6101ABCD") == {0}
+        assert decode_plot_draw._pci_positions("6101ABCD") == {0}
 
     def test_render_plot_shape(self):
-        lines = dp.render_plot([1, 2, 3, 2, 1], width=20, height=6)
+        lines = decode_plot_draw.render_plot([1, 2, 3, 2, 1], width=20, height=6)
         assert len(lines) == 8  # height + axis + caption
         assert any("\u2802" <= ch <= "\u28ff" for ch in "".join(lines))  # has braille
 
     def test_render_plot_empty(self):
-        assert dp.render_plot([]) == ["  (no data to plot)"]
+        assert decode_plot_draw.render_plot([]) == ["  (no data to plot)"]
 
     def test_overlay_normalizes(self):
         # With a ref, both series are normalized; caption notes it.
-        lines = dp.render_plot([10, 20, 30], ref=[1, 2, 3], width=20, height=6)
+        lines = decode_plot_draw.render_plot([10, 20, 30], ref=[1, 2, 3], width=20, height=6)
         assert any("normalized" in ln for ln in lines)
 
     def test_caption_override(self):
-        lines = dp.render_plot([1, 2, 3], width=20, height=6, caption="captures 0-2 of 3")
+        lines = decode_plot_draw.render_plot(
+            [1, 2, 3], width=20, height=6, caption="captures 0-2 of 3"
+        )
         assert any("captures 0-2 of 3" in ln for ln in lines)
 
 
 class TestWindow:
     def test_full_range(self):
-        assert dp._window(list(range(100)), 0.0, 1.0)[1:] == (0, 100)
+        assert decode_plot_draw._window(list(range(100)), 0.0, 1.0)[1:] == (0, 100)
 
     def test_zoomed_subrange(self):
-        view, i0, i1 = dp._window(list(range(100)), 0.25, 0.5)
+        view, i0, i1 = decode_plot_draw._window(list(range(100)), 0.25, 0.5)
         assert (i0, i1) == (25, 50) and view == list(range(25, 50))
 
     def test_empty(self):
-        assert dp._window([], 0.0, 1.0) == ([], 0, 0)
+        assert decode_plot_draw._window([], 0.0, 1.0) == ([], 0, 0)
 
     def test_always_at_least_one_point(self):
         # A degenerate window still yields a non-empty slice.
-        view, i0, i1 = dp._window([1, 2, 3, 4], 0.99, 0.99)
+        view, i0, i1 = decode_plot_draw._window([1, 2, 3, 4], 0.99, 0.99)
         assert len(view) >= 1 and i1 > i0
 
 
 class TestMappingForOffset:
     def test_exact_match(self):
-        exact, overlap = dp._mapping_for_offset(_MAP_DEFS, 10, 2, "[S10:S11]")
+        exact, overlap = decode_plot_draw._mapping_for_offset(_MAP_DEFS, 10, 2, "[S10:S11]")
         assert exact == [("MCU_MOTOR_RPM", "[S10:S11]", True)]
         assert overlap == []
 
     def test_overlap_not_exact(self):
         # B11 is read by [S10:S11] but the expression differs -> overlap, not exact.
-        exact, overlap = dp._mapping_for_offset(_MAP_DEFS, 11, 1, "B11")
+        exact, overlap = decode_plot_draw._mapping_for_offset(_MAP_DEFS, 11, 1, "B11")
         assert exact == []
         assert overlap == [("MCU_MOTOR_RPM", "[S10:S11]", True)]
 
     def test_unmapped(self):
-        assert dp._mapping_for_offset(_MAP_DEFS, 50, 1, "B50") == ([], [])
+        assert decode_plot_draw._mapping_for_offset(_MAP_DEFS, 50, 1, "B50") == ([], [])
 
     def test_none_current_expr_still_finds_overlap(self):
         # A float interpretation (no WiCAN expr) can still report byte overlap.
-        exact, overlap = dp._mapping_for_offset(_MAP_DEFS, 20, 4, None)
+        exact, overlap = decode_plot_draw._mapping_for_offset(_MAP_DEFS, 20, 4, None)
         assert exact == [] and overlap and overlap[0][0] == "OTHER"
 
     def test_empty_defs(self):
-        assert dp._mapping_for_offset({}, 10, 2, "[S10:S11]") == ([], [])
+        assert decode_plot_draw._mapping_for_offset({}, 10, 2, "[S10:S11]") == ([], [])
 
 
 class TestNonFinite:
@@ -118,30 +120,36 @@ class TestNonFinite:
 
     def test_float_interpretation_can_be_nan(self):
         nan_bytes = bytes([0x7F, 0xC0, 0x00, 0x00])  # IEEE-754 quiet NaN, big-endian
-        v = dp.interpret_bytes(nan_bytes, 0, InspectType("f32", 4, "float", True))
+        v = inspect_bytes.interpret_bytes(nan_bytes, 0, InspectType("f32", 4, "float", True))
         assert v is not None and math.isnan(v)
         inf_bytes = bytes([0x7F, 0x80, 0x00, 0x00])  # +Inf
-        assert dp.interpret_bytes(inf_bytes, 0, InspectType("f32", 4, "float", True)) == math.inf
+        assert (
+            inspect_bytes.interpret_bytes(inf_bytes, 0, InspectType("f32", 4, "float", True))
+            == math.inf
+        )
 
     def test_stats_str_survives_stray_nan(self):
         # Backstop: a NaN reaching the stats line renders instead of raising.
-        assert "nan" in dp._series_stats_str([1.0, float("nan"), 3.0])
+        assert "nan" in decode_plot_draw._series_stats_str([1.0, float("nan"), 3.0])
 
 
 class TestCaptureView:
     def test_cap_ts_combines_date_and_time(self):
-        assert plot_draw._cap_ts(_VIEW_CAPS[0]) == "2026-07-19 22:12:07"
-        assert plot_draw._cap_ts({"date": "2026-07-19", "time": ""}) == "2026-07-19"
-        assert plot_draw._cap_ts({"date": "", "time": ""}) == ""
+        assert decode_plot_draw._cap_ts(_VIEW_CAPS[0]) == "2026-07-19 22:12:07"
+        assert decode_plot_draw._cap_ts({"date": "2026-07-19", "time": ""}) == "2026-07-19"
+        assert decode_plot_draw._cap_ts({"date": "", "time": ""}) == ""
 
     def test_view_time_range(self):
-        assert dp._view_time_range(_VIEW_CAPS) == ("2026-07-19 22:12:07", "2026-07-20 14:03:11")
+        assert decode_plot_draw._view_time_range(_VIEW_CAPS) == (
+            "2026-07-19 22:12:07",
+            "2026-07-20 14:03:11",
+        )
 
     def test_view_time_range_no_timestamps(self):
-        assert dp._view_time_range([{"date": "", "time": ""}]) == ("", "")
+        assert decode_plot_draw._view_time_range([{"date": "", "time": ""}]) == ("", "")
 
     def test_info_lines_contents(self):
-        lines = dp._info_lines(
+        lines = decode_plot_draw._info_lines(
             "MCU",
             "2102",
             _VIEW_CAPS,
@@ -159,29 +167,29 @@ class TestCaptureView:
 
     def test_info_lines_truncates(self):
         many = [dict(_VIEW_CAPS[0], label=f"c{i}") for i in range(50)]
-        lines = dp._info_lines("MCU", "2102", many, 0, 50, "r", max_rows=10)
+        lines = decode_plot_draw._info_lines("MCU", "2102", many, 0, 50, "r", max_rows=10)
         assert any("and 40 more" in ln for ln in lines)
 
 
 class TestOverlayCycle:
     def test_cycles_through_all_and_wraps(self):
         cyc = [None, "A", "B"]
-        assert dp._cycle_overlay(None, cyc) == "A"  # off -> first param
-        assert dp._cycle_overlay("A", cyc) == "B"
-        assert dp._cycle_overlay("B", cyc) is None  # wraps back to off
+        assert decode_plot_draw._cycle_overlay(None, cyc) == "A"  # off -> first param
+        assert decode_plot_draw._cycle_overlay("A", cyc) == "B"
+        assert decode_plot_draw._cycle_overlay("B", cyc) is None  # wraps back to off
 
     def test_works_without_corr_when_params_exist(self):
         # The reported bug: `o` did nothing without --corr. Any numeric param is
         # a valid overlay reference, so cycling engages an overlay.
         cyc = [None, "MCU_MOTOR_RPM"]
-        assert dp._cycle_overlay(None, cyc) == "MCU_MOTOR_RPM"
+        assert decode_plot_draw._cycle_overlay(None, cyc) == "MCU_MOTOR_RPM"
 
     def test_noop_when_no_candidates(self):
-        assert dp._cycle_overlay(None, [None]) is None
+        assert decode_plot_draw._cycle_overlay(None, [None]) is None
 
     def test_unknown_ref_restarts(self):
         # A stale ref not in the cycle restarts from the first entry.
-        assert dp._cycle_overlay("GONE", [None, "A"]) == "A"
+        assert decode_plot_draw._cycle_overlay("GONE", [None, "A"]) == "A"
 
 
 # ---------------------------------------------------------------------------
@@ -190,7 +198,7 @@ class TestOverlayCycle:
 
 import pytest  # noqa: E402
 
-from canair.cli.commands.decode.plot import INSPECT_TYPES, PlotModel  # noqa: E402
+from canair.tui.apps.decode_plot_model import PlotModel  # noqa: E402
 from tests.support.plot_model import plot_model as _plot_model  # noqa: E402
 
 
@@ -251,7 +259,7 @@ class TestPlotModel:
 class TestPlotApp:
     @pytest.mark.asyncio
     async def test_renders_and_navigates(self):
-        from canair.cli.commands.decode.plot_tui import PlotApp
+        from canair.tui.apps.decode_plot import PlotApp
 
         app = PlotApp(_plot_model())
         async with app.run_test(size=(110, 30)) as pilot:
@@ -266,7 +274,7 @@ class TestPlotApp:
 
     @pytest.mark.asyncio
     async def test_help_modal(self):
-        from canair.cli.commands.decode.plot_tui import PlotApp
+        from canair.tui.apps.decode_plot import PlotApp
         from canair.tui.help import HelpModal
 
         app = PlotApp(_plot_model())
@@ -280,7 +288,7 @@ class TestPlotApp:
 
     @pytest.mark.asyncio
     async def test_pid_switch_reloads_model(self):
-        from canair.cli.commands.decode.plot_tui import PlotApp
+        from canair.tui.apps.decode_plot import PlotApp
 
         other = _plot_model((9, 8, 7))
         other.ecu_key, other.pid_key = "VCU", "2102"
@@ -302,7 +310,7 @@ class TestPlotApp:
 
     @pytest.mark.asyncio
     async def test_annotate_param_calls_upsert(self, monkeypatch):
-        from canair.cli.commands.decode.plot_tui import PlotApp
+        from canair.tui.apps.decode_plot import PlotApp
 
         calls = []
 
