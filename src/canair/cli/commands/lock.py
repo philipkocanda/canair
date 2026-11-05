@@ -18,6 +18,9 @@ without starting a session:
 from __future__ import annotations
 
 import argparse
+import sys
+
+from canair.core.prompt import PromptUnavailable, confirm
 
 NAME = "lock"
 
@@ -37,7 +40,8 @@ examples:
   canair lock kill             # signal a holder that won't release (confirms)
   canair lock kill --hard -y   # SIGKILL it, no prompt (data is in the journal)
 
-exit codes: 0 = lock is free (or was freed), 1 = still held.
+exit codes: 0 = lock is free (or was freed), 1 = still held or the prompt was declined,
+2 = a confirmation was needed but stdin is not a terminal (pass --yes).
 """,
     )
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
@@ -130,19 +134,24 @@ def _show(args) -> int:
     return 1 if state.held else 0
 
 
-def _confirm(prompt: str, assume_yes: bool) -> bool:
-    if assume_yes:
-        return True
+def _refusal(args, question: str) -> int | None:
+    """Ask before acting. ``None`` means go ahead; otherwise the exit code to return.
+
+    ``--json`` changes the output, never the answer: only ``--yes`` skips the question. With no
+    terminal to ask on, the command refuses (2) instead of acting unconfirmed.
+    """
     try:
-        return input(f"  {prompt} [y/N] ").strip().lower() in ("y", "yes")
-    except (EOFError, KeyboardInterrupt):
-        print()
-        return False
+        if confirm(question, yes=args.yes):
+            return None
+    except PromptUnavailable as e:
+        _emit({"ok": False, "outcome": "needs_confirmation", "error": str(e)}, args.json, [])
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    _emit({"ok": False, "outcome": "declined"}, args.json, [])
+    return 1
 
 
 def _steal(args) -> int:
-    import sys
-
     from canair.device.lock import WiCANLock, describe_acquire_failure, lock_state
 
     state = lock_state()
@@ -155,9 +164,9 @@ def _steal(args) -> int:
         return 0
 
     who = state.describe() or "the current session"
-    if not args.json and not _confirm(f"Ask {who} to release the device connection?", args.yes):
-        print("  Aborted.")
-        return 1
+    question = f"Ask {who} to release the device connection?"
+    if (code := _refusal(args, question)) is not None:
+        return code
 
     lock = WiCANLock()
     report = None if args.json else (lambda msg: print(f"  {msg}", file=sys.stderr))
@@ -232,9 +241,8 @@ def _kill(args) -> int:
 
     sig = signal.SIGKILL if args.hard else signal.SIGTERM
     name = "SIGKILL" if args.hard else "SIGTERM"
-    if not args.json and not _confirm(f"Send {name} to {holder.describe()}?", args.yes):
-        print("  Aborted.")
-        return 1
+    if (code := _refusal(args, f"Send {name} to {holder.describe()}?")) is not None:
+        return code
 
     try:
         os.kill(holder.pid, sig)

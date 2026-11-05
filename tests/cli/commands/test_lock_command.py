@@ -83,6 +83,25 @@ def holder(tmp_path, monkeypatch):
         proc.wait(timeout=5)
 
 
+@pytest.fixture
+def tty_stdin(monkeypatch):
+    """Replace stdin with a canned answer, a terminal or not."""
+    import io
+
+    class _Stdin(io.StringIO):
+        tty = True
+
+        def isatty(self) -> bool:
+            return self.tty
+
+    def _set(text: str, *, tty: bool = True) -> None:
+        stdin = _Stdin(text)
+        stdin.tty = tty
+        monkeypatch.setattr("sys.stdin", stdin)
+
+    return _set
+
+
 def _args(**kwargs) -> argparse.Namespace:
     base = {"lock_action": None, "json": False, "wait": 5.0, "yes": True, "hard": False}
     base.update(kwargs)
@@ -136,14 +155,38 @@ class TestSteal:
         assert lock_cmd.run(_args(lock_action="steal")) == 0
         assert "already free" in capsys.readouterr().out
 
-    def test_declining_the_prompt_leaves_the_holder_alone(self, holder, monkeypatch, capsys):
+    def test_declining_the_prompt_leaves_the_holder_alone(self, holder, tty_stdin, capsys):
         proc = holder()
-        monkeypatch.setattr("builtins.input", lambda _p: "n")
+        tty_stdin("n\n")
 
         assert lock_cmd.run(_args(lock_action="steal", yes=False)) == 1
 
         assert proc.poll() is None
-        assert "Aborted" in capsys.readouterr().out
+        assert "Aborted" in capsys.readouterr().err
+
+    def test_json_without_yes_still_asks(self, holder, tty_stdin, capsys):
+        import json
+
+        proc = holder()
+        tty_stdin("n\n")
+
+        assert lock_cmd.run(_args(lock_action="steal", yes=False, json=True)) == 1
+
+        assert proc.poll() is None
+        assert json.loads(capsys.readouterr().out)["outcome"] == "declined"
+
+    def test_no_terminal_and_no_yes_refuses(self, holder, tty_stdin, capsys):
+        import json
+
+        proc = holder()
+        tty_stdin("y\n", tty=False)
+
+        assert lock_cmd.run(_args(lock_action="steal", yes=False, json=True)) == 2
+
+        captured = capsys.readouterr()
+        assert proc.poll() is None
+        assert json.loads(captured.out)["outcome"] == "needs_confirmation"
+        assert "--yes" in captured.err
 
 
 class TestKill:
@@ -193,6 +236,34 @@ class TestKill:
             assert "refusing to signal myself" in capsys.readouterr().out.lower()
         finally:
             held.release()
+
+    def test_json_without_yes_does_not_signal(self, holder, tty_stdin, capsys):
+        """`--json` used to skip the confirmation, so `kill --json` signalled unasked."""
+        proc = holder()
+        tty_stdin("", tty=False)
+
+        assert lock_cmd.run(_args(lock_action="kill", yes=False, json=True)) == 2
+
+        assert proc.poll() is None
+        assert "--yes" in capsys.readouterr().err
+
+    def test_json_declined_does_not_signal(self, holder, tty_stdin):
+        proc = holder()
+        tty_stdin("n\n")
+
+        assert lock_cmd.run(_args(lock_action="kill", yes=False, json=True)) == 1
+
+        assert proc.poll() is None
+
+    def test_json_with_yes_signals(self, holder, capsys):
+        import json
+
+        proc = holder()
+
+        assert lock_cmd.run(_args(lock_action="kill", yes=True, json=True)) == 0
+
+        assert proc.wait(timeout=5) == 0
+        assert json.loads(capsys.readouterr().out)["outcome"] == "killed"
 
     def test_free_lock_is_a_no_op(self, tmp_path, monkeypatch, capsys):
         import canair.device.lock as lock_mod
