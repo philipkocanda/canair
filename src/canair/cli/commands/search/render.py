@@ -8,8 +8,8 @@ import sys
 from collections.abc import Sequence
 from dataclasses import asdict
 
+from canair.expression.notation import ByteDisplay, ByteNotation
 from canair.render import ansi
-from canair.uds.notation import ByteDisplay, ByteNotation
 
 from .findings import FIELD_PAYLOAD, Finding
 

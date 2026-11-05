@@ -22,10 +22,10 @@ from typing import TYPE_CHECKING
 
 from canair.captures.keepmode import KeepMode
 from canair.core.stop_signals import graceful_stop
+from canair.expression.notation import ByteNotation
 from canair.live.poll_schedule import DEFAULT_SCHEDULE, Schedule
 from canair.render.console import console, escape
 from canair.render.glyphs import FAIL
-from canair.uds.notation import ByteNotation
 
 from ._monitor_record import _open_journal
 from .monitor import MonitorController

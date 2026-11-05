@@ -14,10 +14,10 @@ from typing import TYPE_CHECKING
 
 from canair.analysis.support_fields import FieldFit, known_fields, solve_fields
 from canair.analysis.support_map import MIN_ROWS, MODAL_FRAC
+from canair.expression.notation import ByteNotation, relabel_signal
 from canair.render import ansi
 from canair.uds.byteindex import extract_byte_indices
 from canair.uds.layout import subfunction_bytes_for_pid
-from canair.uds.notation import ByteNotation, relabel_signal
 from canair.uds.support_marks import MAX_MAP_LEN
 
 if TYPE_CHECKING:

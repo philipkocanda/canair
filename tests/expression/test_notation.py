@@ -1,9 +1,9 @@
-"""Tests for canair.uds.notation — the typed ByteRef model + display notation."""
+"""Tests for canair.expression.notation — the typed ByteRef model + display notation."""
 
 import pytest
 
+from canair.expression.notation import ByteNotation, ByteRef, ByteSpace, relabel_signal
 from canair.uds.byteindex import wican_to_isotp
-from canair.uds.notation import ByteNotation, ByteRef, ByteSpace, relabel_signal
 
 
 class TestByteRefConstruction:
@@ -290,7 +290,7 @@ class TestLengthAwareLabels:
             assert render(wican) == render(wican, payload_len=15), f"B{wican} shifted"
 
     def test_relabel_signal_threads_the_payload_length(self):
-        from canair.uds.notation import relabel_signal
+        from canair.expression.notation import relabel_signal
 
         assert (
             relabel_signal("IGPM:22BC02:B4", ByteNotation.TORQUE, payload_len=7) == "IGPM:22BC02:A"
@@ -300,7 +300,7 @@ class TestLengthAwareLabels:
 
     def test_wican_notation_never_depends_on_the_length(self):
         """WiCAN is the identity view, so it must be immune to the layout."""
-        from canair.uds.notation import relabel_signal
+        from canair.expression.notation import relabel_signal
 
         for length in (None, 7, 15, 64):
             kw = {} if length is None else {"payload_len": length}

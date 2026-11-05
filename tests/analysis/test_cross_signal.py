@@ -543,7 +543,7 @@ class TestCommandParsers:
 
         from canair.analysis.cross_signal import HuntHit
         from canair.cli.commands import hunt
-        from canair.uds.notation import ByteNotation
+        from canair.expression.notation import ByteNotation
 
         p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
         # Flag parses; default is None (resolved to wican downstream).

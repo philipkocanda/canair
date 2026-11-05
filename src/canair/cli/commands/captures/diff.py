@@ -11,10 +11,10 @@ from collections.abc import Sequence
 from canair.captures.entries import _dedupe_payloads, _group_by_key
 from canair.captures.store import NO_DEFS, PidDefs, decoded_preview
 from canair.captures.types import CaptureEntry
+from canair.expression.notation import ByteDisplay, ByteNotation
 from canair.render.console import console as make_console
 from canair.render.console import escape
 from canair.uds.layout import subfunction_bytes_for_pid
-from canair.uds.notation import ByteDisplay, ByteNotation
 
 from .query import _dump_json, _gather_query
 

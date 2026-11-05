@@ -5,7 +5,7 @@ import json
 from contextlib import redirect_stdout
 
 from canair.cli.commands.decode import dump
-from canair.uds.notation import ByteNotation
+from canair.expression.notation import ByteNotation
 
 
 def _result(payload: str, date: str = "2026-07-22", time: str = "09:00:00.000") -> dict:

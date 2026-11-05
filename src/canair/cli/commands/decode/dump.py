@@ -13,8 +13,8 @@ import csv
 import json
 import sys
 
+from canair.expression.notation import ByteNotation
 from canair.uds.byteindex import wican_to_isotp
-from canair.uds.notation import ByteNotation
 
 
 def _entry_dt(cap: dict):
@@ -28,7 +28,7 @@ def _dump_column_label(
     off: int, include_pci: bool, notation: ByteNotation, sub_bytes: int, *, signed: bool = False
 ) -> str:
     """Column label for WiCAN offset ``off`` in the byte-matrix export."""
-    from canair.uds.notation import ByteRef
+    from canair.expression.notation import ByteRef
 
     if wican_to_isotp(off) is None:
         return f"B{off}"  # PCI framing byte — no ISO-TP position, WiCAN label only

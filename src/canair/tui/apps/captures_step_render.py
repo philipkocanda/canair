@@ -22,11 +22,11 @@ from rich.text import Text
 from canair.captures.entries import _capture_key
 from canair.captures.store import NO_DEFS, PidDefs
 from canair.captures.types import CaptureEntry
+from canair.expression.notation import ByteDisplay, ByteNotation
 from canair.render.glyphs import CURSOR, WARN
 from canair.states import join_states as _join_states
 from canair.tui import styles
 from canair.uds.layout import subfunction_bytes_for_pid
-from canair.uds.notation import ByteDisplay, ByteNotation
 
 # Width of the rule drawn between stacked capture blocks.
 _SEPARATOR_WIDTH = 44

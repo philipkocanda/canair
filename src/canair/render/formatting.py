@@ -15,8 +15,8 @@ from canair.uds.byteindex import extract_byte_indices, wican_to_elm_idx
 from canair.uds.response import UdsResponse
 
 if TYPE_CHECKING:
+    from canair.expression.notation import ByteDisplay
     from canair.expression.results import ResultEntry
-    from canair.uds.notation import ByteDisplay
 
 # Which byte space a raw buffer is in. Both are plain ``bytes`` and they differ by
 # the ISO-TP PCI framing bytes, so the distinction has to be carried explicitly —
@@ -310,7 +310,7 @@ def render_param_table(
     Layout: ``{indent}{name}  {value}  ✓|?`` with columns aligned; ``verbose``
     appends the dimmed expression. Error rows show ``✗ <msg>`` in red.
 
-    When ``display`` (a :class:`~canair.uds.notation.ByteDisplay`) is given, a dimmed
+    When ``display`` (a :class:`~canair.expression.notation.ByteDisplay`) is given, a dimmed
     byte-reference column is appended after the mark, naming which payload
     byte(s) each signal reads in the *same* notation as the ruler drawn above the
     hex (e.g. ``B18-B19``). Returns an empty ``Text`` when there are no signals.
@@ -451,7 +451,7 @@ def render_byte_rulers(
     ``display.byte_notation``, WiCAN by default) and labelled with it — showing
     two rows in two different spaces made the columns ambiguous rather than
     clearer, and the signal byte-reference column beside each value is rendered
-    from the same :class:`~canair.uds.notation.ByteDisplay`, so the two always agree.
+    from the same :class:`~canair.expression.notation.ByteDisplay`, so the two always agree.
 
     Numbers are coverage-coloured (green=verified, yellow=unverified,
     grey=uncovered, :data:`MAP_BYTE_STYLE` for ``map_bytes``) to match the hex

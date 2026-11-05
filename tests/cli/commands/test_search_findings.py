@@ -18,9 +18,9 @@ from canair.cli.commands.search.findings import (
 )
 from canair.core.textscan import compile_regex, find_hex, find_literal, find_regex
 from canair.expression.decode_value import decode_typed
+from canair.expression.notation import ByteNotation
 from canair.render import ansi
 from canair.uds.byteindex import payload_to_wican_bytes
-from canair.uds.notation import ByteNotation
 
 # 62 F1 00: a ReadDataByIdentifier response for a DID whose bytes are not printable,
 # so only the body under test can form a printable run.

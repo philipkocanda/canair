@@ -47,8 +47,8 @@ from canair.captures.store import (
     resolve_pid_defs,
 )
 from canair.captures.types import CaptureEntry
+from canair.expression.notation import ByteNotation
 from canair.states import join_states as _join_states
-from canair.uds.notation import ByteNotation
 
 from .captures_step_gaps import describe_gap, gaps_before
 from .captures_step_join import JoinFrame, build_join_frames

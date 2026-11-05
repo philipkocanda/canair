@@ -10,10 +10,10 @@ from collections import Counter
 
 from canair.analysis.support_map import ABSENCE_TEXT, MapFit, Slot
 from canair.cli.args.notation import resolve_notation
+from canair.expression.notation import ByteNotation, relabel_signal
 from canair.render import ansi
 from canair.uds.byteindex import declared_bits, extract_byte_indices, references_full_byte
 from canair.uds.layout import subfunction_bytes_for_pid
-from canair.uds.notation import ByteNotation, relabel_signal
 
 from .support_fields import field_declare, field_json, print_field_headline, print_field_note
 from .support_map import PidScan

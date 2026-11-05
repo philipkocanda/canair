@@ -8,7 +8,7 @@ diagnostic captures, with no re-implementation of the analyzer.
 
 Frames have **no ISO-TP framing and no PCI**, so a byte is referenced directly by
 its offset in the frame data — rendered ``0xID:rN`` (raw-CAN space, see
-:class:`canair.uds.notation.ByteRef`), distinct from the WiCAN ``Bn`` used for
+:class:`canair.expression.notation.ByteRef`), distinct from the WiCAN ``Bn`` used for
 diagnostic PIDs. WiCAN expressions and the diagnostic path are untouched.
 """
 

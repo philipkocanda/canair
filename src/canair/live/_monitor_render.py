@@ -10,6 +10,7 @@ import time
 
 from rich.text import Text
 
+from canair.expression.notation import ByteDisplay, ByteNotation
 from canair.expression.results import EcuFrame, ResultEntry
 from canair.privacy.sensitive import MASK
 from canair.render.formatting import (
@@ -21,7 +22,6 @@ from canair.render.formatting import (
     render_param_table,
 )
 from canair.uds.layout import subfunction_bytes_for_pid
-from canair.uds.notation import ByteDisplay, ByteNotation
 
 from ._monitor_history import HistoryRun, PayloadHistory
 
@@ -411,7 +411,7 @@ def _render_results(
     expression re-parsing for static PIDs. ``None`` renders everything fresh.
 
     ``notation`` selects the byte-index notation used by the rulers and the
-    per-signal byte-reference column (see :class:`~canair.uds.notation.ByteDisplay`).
+    per-signal byte-reference column (see :class:`~canair.expression.notation.ByteDisplay`).
 
     ``pid_notes`` adds a note to a PID's row, keyed by ``(ECU label, PID)`` (the slow-PID
     backoff's). ``now`` is the wall clock a stale value's age is measured against.

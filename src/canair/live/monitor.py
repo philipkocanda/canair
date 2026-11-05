@@ -34,10 +34,10 @@ from rich.text import Text
 
 from canair.captures.keepmode import KEEP_LAST, KeepMode
 from canair.core.eventlog import log_event
+from canair.expression.notation import ByteNotation
 from canair.expression.results import EcuFrame, ResultEntry
 from canair.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, _render_hex_line
 from canair.transport.session_manager import SessionManager
-from canair.uds.notation import ByteNotation
 
 from .. import config
 from ..captures.link_events import is_rx

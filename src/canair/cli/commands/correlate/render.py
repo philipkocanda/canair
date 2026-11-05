@@ -24,8 +24,8 @@ from canair.analysis.align import (
 )
 from canair.analysis.cross_signal import build_bit_series, build_byte_series, build_param_series
 from canair.captures.dates import entry_datetime
+from canair.expression.notation import ByteNotation, relabel_signal
 from canair.render import ansi, messages
-from canair.uds.notation import ByteNotation, relabel_signal
 
 
 def _color_r(r: float) -> str:

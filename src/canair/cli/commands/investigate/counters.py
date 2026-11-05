@@ -9,7 +9,7 @@ Why ISO-TP space: a multi-byte counter's bytes must be genuinely *contiguous*, a
 in WiCAN space they are not — ISO-TP PCI framing bytes interleave every 7 data
 bytes (a 4-byte counter can straddle one). ISO-TP payload indices are contiguous
 by construction, so windows are formed there and rendered to WiCAN via
-:class:`~canair.uds.notation.ByteRef`, which emits the correct shift-composition for a
+:class:`~canair.expression.notation.ByteRef`, which emits the correct shift-composition for a
 PCI-straddling read.
 """
 
@@ -31,10 +31,10 @@ from canair.analysis.triage import bit_flip_rates
 from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.notation import resolve_notation
 from canair.cli.args.scope import active_scope_flags
+from canair.expression.notation import ByteNotation, ByteRef
 from canair.render import ansi, messages
 from canair.uds.byteindex import mapped_offsets, wican_to_isotp
 from canair.uds.layout import subfunction_bytes_for_pid
-from canair.uds.notation import ByteNotation, ByteRef
 
 from ._matrix import payload_matrix as _payload_matrix
 from .render import print_keep_banner

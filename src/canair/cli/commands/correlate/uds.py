@@ -34,8 +34,8 @@ from canair.cli.args.join import fill_policy_from_args, fill_summary_line
 from canair.cli.args.notation import resolve_notation
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
+from canair.expression.notation import relabel_signal
 from canair.render import ansi, messages
-from canair.uds.notation import relabel_signal
 
 from .calc import _apply_gate
 from .promote import _promote_top_byte, _warn_thin_reference_join

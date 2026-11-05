@@ -144,8 +144,8 @@ def _word_expr(word: WordCandidate) -> str | None:
     as a misleading ``[Bhi:Blo]`` range. Adjacent pairs (including PCI-straddling
     ones) render via :class:`ByteRef`, which emits the correct shift-composition.
     """
+    from canair.expression.notation import ByteRef
     from canair.uds.byteindex import wican_to_isotp
-    from canair.uds.notation import ByteRef
 
     hi_key, lo_key = word.hi_key, word.lo_key
     if not (isinstance(hi_key, int) and isinstance(lo_key, int)):

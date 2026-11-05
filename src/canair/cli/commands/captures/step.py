@@ -17,10 +17,10 @@ from pathlib import Path
 
 from canair.captures.entries import _capture_key
 from canair.captures.types import CaptureEntry
+from canair.expression.notation import ByteNotation
 from canair.render import ansi, messages
 from canair.render.console import console as make_console
 from canair.tui.apps.captures_step_model import DEFAULT_STEP_JOIN_TOL_S, VIEW_AUTO, StepModel
-from canair.uds.notation import ByteNotation
 
 from .query import _dump_json, _gather_query
 

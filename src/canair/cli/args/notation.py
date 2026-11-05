@@ -1,12 +1,12 @@
 """The shared ``--notation`` flag and the effective notation for a command.
 
-The notations themselves (:class:`~canair.uds.notation.ByteNotation`) are protocol code; reading
+The notations themselves (:class:`~canair.expression.notation.ByteNotation`) are protocol code; reading
 the ``display.byte_notation`` config key and registering the flag are the CLI's part.
 """
 
 from __future__ import annotations
 
-from canair.uds.notation import ByteNotation
+from canair.expression.notation import ByteNotation
 
 
 def add_notation_arg(parser) -> None:

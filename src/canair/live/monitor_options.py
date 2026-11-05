@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from canair.captures.keepmode import KeepMode
+from canair.expression.notation import ByteNotation
 from canair.live.poll_schedule import DEFAULT_SCHEDULE, Schedule
-from canair.uds.notation import ByteNotation
 
 
 @dataclass(frozen=True)

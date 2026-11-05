@@ -16,10 +16,10 @@ from canair.analysis.cross_signal import byte_state_buckets as _byte_state_bucke
 from canair.analysis.cross_signal import discriminability as _discriminability
 from canair.analysis.mirrors import DEFAULT_MIRROR_MATCH
 from canair.analysis.stats import correlation as _correlation
+from canair.expression.notation import ByteNotation, relabel_signal
 from canair.render import ansi
 from canair.states import load_states, state_bucket_key
 from canair.uds.inspect_bytes import apply_transform
-from canair.uds.notation import ByteNotation, relabel_signal
 
 from .calc import _local_series, _paired, _paired_timed, _transform_series, find_mirrors
 from .format import _mark_for

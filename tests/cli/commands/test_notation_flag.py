@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from canair.cli.args.notation import resolve_notation
-from canair.uds.notation import ByteNotation
+from canair.expression.notation import ByteNotation
 
 
 class TestResolveNotation:

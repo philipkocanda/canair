@@ -4,6 +4,7 @@ from typing import ClassVar
 
 import pytest
 
+from canair.expression.notation import ByteDisplay, ByteNotation
 from canair.render.formatting import (
     _HIGHLIGHT_STYLE,
     changed_param_highlights,
@@ -14,7 +15,6 @@ from canair.render.formatting import (
     render_byte_rulers,
     render_param_table,
 )
-from canair.uds.notation import ByteDisplay, ByteNotation
 
 
 def _display(payload_len: int, notation: ByteNotation = ByteNotation.WICAN, sub_bytes: int = 1):
