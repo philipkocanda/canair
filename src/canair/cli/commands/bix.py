@@ -29,8 +29,8 @@ from canair.uds.layout import (
     ResponseLayout,
     response_layout,
     role_definitions,
+    subfunction_bytes_for_pid,
 )
-from canair.uds.notation import subfunction_bytes_for_pid
 from canair.uds.nrc import nrc_description
 from canair.uds.protocol import DiagProtocol
 from canair.uds.services import NEGATIVE_RESPONSE_SID, RESPONSE_SID_OFFSET, service_response_name
@@ -495,7 +495,7 @@ def _warn_payload_kind_mismatch(first_byte: int, raw_frame: bool):
 def _pid_sub_bytes(pid: str) -> int | None:
     """The subfunction width ``pid`` *conclusively* implies, or ``None``.
 
-    :func:`canair.uds.notation.subfunction_bytes_for_pid` answers "2 for ``22xxxx``,
+    :func:`canair.uds.layout.subfunction_bytes_for_pid` answers "2 for ``22xxxx``,
     else 1" — a **default**, not a determination. Its "else" branch swallows forms
     that say nothing about the service: the short DID form profiles also accept
     (``B004`` for ``22B004``) and standard OBD-II PIDs (``010C``) both read as
@@ -519,7 +519,7 @@ def _resolve_sub_bytes(args) -> tuple[int, bool]:
     implies (:func:`_pid_sub_bytes`) > 1 (the ``21xx`` default). A ``--pid`` names
     the request whose echo is in the payload, so its service fixes the width — the
     derivation every other command does via
-    :func:`canair.uds.notation.subfunction_bytes_for_pid`. Without it, ``--pid 22BC03``
+    :func:`canair.uds.layout.subfunction_bytes_for_pid`. Without it, ``--pid 22BC03``
     silently kept the 1-byte default and mislabelled the second DID echo byte as
     an unmapped data byte.
     """

@@ -31,6 +31,7 @@ from canair.uds.byteindex import (
     wican_to_elm_idx,
     wican_to_isotp,
 )
+from canair.uds.layout import subfunction_bytes_for_pid
 
 
 class ByteSpace(StrEnum):
@@ -59,15 +60,6 @@ class ByteNotation(StrEnum):
     ISOTP = "isotp"
     TORQUE = "torque"
     BIX = "bix"
-
-
-def subfunction_bytes_for_pid(pid: str) -> int:
-    """Torque/bix subfunction width for a PID: 2 for ``22xxxx`` DIDs, else 1.
-
-    Torque/OBDb count from the first UDS *data* byte, after the SID + subfunction,
-    so the mapping shifts by one for service ``0x22`` (2-byte DID) vs ``0x21``.
-    """
-    return 2 if pid.upper().startswith("22") else 1
 
 
 @dataclass(frozen=True)

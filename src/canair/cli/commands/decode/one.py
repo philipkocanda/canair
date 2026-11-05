@@ -32,7 +32,7 @@ from canair.cli.args.notation import resolve_notation
 from canair.expression.decoding import decode_payload, ordered_signal_names
 from canair.render import ansi, messages
 from canair.uds.byteindex import payload_to_wican_bytes
-from canair.uds.notation import subfunction_bytes_for_pid
+from canair.uds.layout import subfunction_bytes_for_pid
 
 from .analysis import print_correlations, print_discriminate, print_mirrors
 from .calc import _local_series, _paired, _series, axis_group_keys, load_cross_ref_series

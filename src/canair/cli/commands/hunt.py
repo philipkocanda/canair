@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """``canair hunt`` — which byte on ECU:PID *is* this known signal?
 
 Sweeps every byte offset × interpretation (u8/i16/f32/… × endianness) on a
@@ -43,7 +42,8 @@ from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
 from canair.render import ansi, messages
 from canair.uds.inspect_bytes import NO_EXPR
-from canair.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
+from canair.uds.layout import subfunction_bytes_for_pid
+from canair.uds.notation import ByteNotation, ByteRef
 
 NAME = "hunt"
 

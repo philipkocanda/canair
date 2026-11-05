@@ -19,7 +19,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from canair.uds.notation import subfunction_bytes_for_pid
+from canair.uds.layout import subfunction_bytes_for_pid
 from canair.uds.support_marks import (
     MAX_MAP_LEN,
     continuation_bits,

@@ -410,7 +410,7 @@ def test_unconclusive_pid_keeps_the_plain_default(capsys):
 def test_derived_width_never_disagrees_with_shared_helper():
     # The value comes from the shared derivation, so a conclusive PID can't be
     # labelled one way here and another by decode/hunt/coverage.
-    from canair.uds.notation import subfunction_bytes_for_pid
+    from canair.uds.layout import subfunction_bytes_for_pid
 
     for pid in ("2101", "2102", "22BC03", "22C101", "22B002"):
         assert bix._pid_sub_bytes(pid) == subfunction_bytes_for_pid(pid)

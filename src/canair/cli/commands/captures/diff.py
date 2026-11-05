@@ -13,7 +13,8 @@ from canair.captures.store import NO_DEFS, PidDefs, decoded_preview
 from canair.captures.types import CaptureEntry
 from canair.render.console import console as make_console
 from canair.render.console import escape
-from canair.uds.notation import ByteNotation
+from canair.uds.layout import subfunction_bytes_for_pid
+from canair.uds.notation import ByteDisplay, ByteNotation
 
 from .query import _dump_json, _gather_query
 
@@ -30,7 +31,6 @@ def _render_diff_group(
     parameters, tx_id, map_bytes = pdefs
     from canair.expression.decoding import decode_param_rows
     from canair.render.formatting import _render_hex_line, render_byte_rulers, render_param_table
-    from canair.uds.notation import ByteDisplay, subfunction_bytes_for_pid
 
     # Decode the most recent payload into param rows (drives the table + colours).
     rows = decode_param_rows(payloads[-1]["payload"], parameters)

@@ -25,7 +25,8 @@ from canair.captures.types import CaptureEntry
 from canair.render.glyphs import CURSOR, WARN
 from canair.states import join_states as _join_states
 from canair.tui import styles
-from canair.uds.notation import ByteNotation
+from canair.uds.layout import subfunction_bytes_for_pid
+from canair.uds.notation import ByteDisplay, ByteNotation
 
 # Width of the rule drawn between stacked capture blocks.
 _SEPARATOR_WIDTH = 44
@@ -84,7 +85,6 @@ def capture_block_text(
         render_byte_rulers,
         render_param_table,
     )
-    from canair.uds.notation import ByteDisplay, subfunction_bytes_for_pid
 
     e = captures[i]
     key = _capture_key(e)

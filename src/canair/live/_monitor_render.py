@@ -3,8 +3,7 @@
 The pure presentation helper that turns a cycle's decoded query results into a
 Rich :class:`~rich.text.Text` block. Shared by the Textual TUI
 (:mod:`canair.tui.apps.monitor`) and the non-interactive fallback, so both
-paths render identically. Kept out of :mod:`canair.live.monitor` (which owns
-the polling/recording controller) so the ~150-line renderer is its own concern.
+paths render identically. The polling/recording controller is :mod:`canair.live.monitor`.
 """
 
 import time
@@ -21,7 +20,8 @@ from canair.render.formatting import (
     render_param_ranges,
     render_param_table,
 )
-from canair.uds.notation import ByteDisplay, ByteNotation, subfunction_bytes_for_pid
+from canair.uds.layout import subfunction_bytes_for_pid
+from canair.uds.notation import ByteDisplay, ByteNotation
 
 from ._monitor_history import HistoryRun, PayloadHistory
 

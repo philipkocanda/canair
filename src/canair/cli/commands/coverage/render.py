@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING
 
 from canair.cli.args.notation import resolve_notation
 from canair.render import ansi
-from canair.uds.notation import relabel_signal, subfunction_bytes_for_pid
+from canair.uds.layout import subfunction_bytes_for_pid
+from canair.uds.notation import relabel_signal
 
 if TYPE_CHECKING:
     from . import CoverageEntry

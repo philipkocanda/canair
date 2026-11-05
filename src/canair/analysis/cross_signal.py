@@ -868,7 +868,7 @@ def physical_scan(
     the built-in :data:`PHYSICAL_BANDS` defaults.
     """
     from canair.uds.byteindex import mappable_data_indices
-    from canair.uds.notation import subfunction_bytes_for_pid
+    from canair.uds.layout import subfunction_bytes_for_pid
 
     if bands is None:
         bands = PHYSICAL_BANDS

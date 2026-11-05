@@ -20,7 +20,8 @@ from canair.analysis.align import longest_payload_len
 from canair.captures.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.notation import resolve_notation
 from canair.render import ansi, messages
-from canair.uds.notation import relabel_signal, subfunction_bytes_for_pid
+from canair.uds.layout import subfunction_bytes_for_pid
+from canair.uds.notation import relabel_signal
 
 
 # ANSI colors — kept local (not imported from investigate) so this module has no

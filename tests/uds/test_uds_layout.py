@@ -20,6 +20,7 @@ from canair.uds.layout import (
     layout_of,
     response_layout,
     role_definitions,
+    subfunction_bytes_for_pid,
 )
 from canair.uds.services import SERVICES, service_info
 
@@ -194,3 +195,12 @@ def test_obd2_modes_are_registered_with_a_pid_identifier():
         info = service_info(mode)
         assert info is not None
         assert info.id_width == 1
+
+
+class TestSubfunctionBytesForPid:
+    def test_service_21_is_one(self):
+        assert subfunction_bytes_for_pid("2101") == 1
+
+    def test_service_22_is_two(self):
+        assert subfunction_bytes_for_pid("22BC03") == 2
+        assert subfunction_bytes_for_pid("22c101") == 2

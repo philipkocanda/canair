@@ -234,3 +234,12 @@ def role_definitions(roles: Iterable[str]) -> list[tuple[str, str]]:
     """
     wanted = set(roles)
     return [(role, help_) for role, help_ in ROLE_HELP.items() if role in wanted]
+
+
+def subfunction_bytes_for_pid(pid: str) -> int:
+    """Torque/bix subfunction width for a PID: 2 for ``22xxxx`` DIDs, else 1.
+
+    Torque/OBDb count from the first UDS *data* byte, after the SID + subfunction,
+    so the mapping shifts by one for service ``0x22`` (2-byte DID) vs ``0x21``.
+    """
+    return 2 if pid.upper().startswith("22") else 1

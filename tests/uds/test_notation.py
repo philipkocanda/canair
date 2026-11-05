@@ -3,13 +3,7 @@
 import pytest
 
 from canair.uds.byteindex import wican_to_isotp
-from canair.uds.notation import (
-    ByteNotation,
-    ByteRef,
-    ByteSpace,
-    relabel_signal,
-    subfunction_bytes_for_pid,
-)
+from canair.uds.notation import ByteNotation, ByteRef, ByteSpace, relabel_signal
 
 
 class TestByteRefConstruction:
@@ -197,15 +191,6 @@ class TestRelabelSignal:
         # ISO-TP 6: sub=1 (21xx) -> "E"; sub=2 (22xxxx) -> "D".
         assert relabel_signal("BMS:2101:B9", ByteNotation.TORQUE) == "BMS:2101:E"
         assert relabel_signal("ESC:22C101:B9", ByteNotation.TORQUE) == "ESC:22C101:D"
-
-
-class TestSubfunctionBytesForPid:
-    def test_service_21_is_one(self):
-        assert subfunction_bytes_for_pid("2101") == 1
-
-    def test_service_22_is_two(self):
-        assert subfunction_bytes_for_pid("22BC03") == 2
-        assert subfunction_bytes_for_pid("22c101") == 2
 
 
 class TestCommandsAcceptNotationFlag:

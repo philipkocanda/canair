@@ -392,7 +392,7 @@ def mappable_data_indices(payload_hex: str, sfb: int) -> list[int]:
 
     Excludes ISO-TP framing (PCI) bytes and the UDS header (payload index 0 =
     SID, ``1..sfb`` = subfunction / DID echo). ``sfb`` is
-    :func:`canair.uds.notation.subfunction_bytes_for_pid` for the PID in question.
+    :func:`canair.uds.layout.subfunction_bytes_for_pid` for the PID in question.
 
     **Use this rather than filtering with** :func:`wican_to_isotp` /
     :func:`isotp_to_wican`: those two hardcode the multi-frame layout (two

@@ -44,7 +44,7 @@
     "canair.yaml_edit.revisions": 560,
     "canair.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 1131,
+  "deferred_internal_imports": 1129,
   "import_linter_ignores": 0,
   "packages_without_charter": [],
   "test_to_test_imports": [],

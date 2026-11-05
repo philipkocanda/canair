@@ -31,7 +31,7 @@ from canair.analysis.support_map import (
 )
 from canair.render import ansi, messages
 from canair.uds.byteindex import payload_index_to_wican
-from canair.uds.notation import subfunction_bytes_for_pid
+from canair.uds.layout import subfunction_bytes_for_pid
 from canair.uds.support_marks import MAX_MAP_LEN
 
 from ._matrix import payload_matrix

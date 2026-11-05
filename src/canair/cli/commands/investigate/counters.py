@@ -33,7 +33,8 @@ from canair.cli.args.notation import resolve_notation
 from canair.cli.args.scope import active_scope_flags
 from canair.render import ansi, messages
 from canair.uds.byteindex import mapped_offsets, wican_to_isotp
-from canair.uds.notation import ByteNotation, ByteRef, subfunction_bytes_for_pid
+from canair.uds.layout import subfunction_bytes_for_pid
+from canair.uds.notation import ByteNotation, ByteRef
 
 from ._matrix import payload_matrix as _payload_matrix
 from .render import print_keep_banner
