@@ -27,19 +27,27 @@ from typing import NamedTuple
 from canair.live.discovery_scan import DiscoveryProbe, mode_discovery_scan
 from canair.safety.quirks import NISSAN_C0_SESSION, has_quirk
 from canair.transport.protocol import Terminal
+from canair.uds.nrc import (
+    KWP_NRC_CONDITIONS_NOT_CORRECT_OR_REQUEST_SEQUENCE_ERROR,
+    KWP_NRC_TRANSFER_ABORTED,
+    NRC_REQUEST_OUT_OF_RANGE,
+    NRC_REQUEST_SEQUENCE_ERROR,
+    NRC_RESPONSE_PENDING,
+    NRC_SECURITY_ACCESS_DENIED,
+    NRC_SERVICE_NOT_SUPPORTED,
+    NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
+)
 from canair.uds.response import UdsResponse
+from canair.uds.services import KWP_REQUEST_ROUTINE_RESULTS_BY_LOCAL_IDENTIFIER
 
 # NRCs that still indicate "routine local identifier exists"
 NRC_EXISTS_HINTS = {
-    0x22,  # conditionsNotCorrect — present, preconditions unmet
-    0x24,  # requestSequenceError — present, never started (no results yet)
-    0x33,  # securityAccessDenied — present, locked
-    0x72,  # generalProgrammingFailure — present, error state
-    0x78,  # requestCorrectlyReceivedResponsePending
+    KWP_NRC_CONDITIONS_NOT_CORRECT_OR_REQUEST_SEQUENCE_ERROR,  # present, preconditions unmet
+    NRC_REQUEST_SEQUENCE_ERROR,  # present, never started (no results yet)
+    NRC_SECURITY_ACCESS_DENIED,  # present, locked
+    KWP_NRC_TRANSFER_ABORTED,  # present, error state
+    NRC_RESPONSE_PENDING,
 }
-NRC_ABSENT = 0x31  # requestOutOfRange — routine LID not present
-NRC_SERVICE_ABSENT = 0x11  # serviceNotSupported — ECU doesn't do 0x33 → abort
-NRC_WRONG_SESSION = 0x7F
 
 
 class KwpRoutineHit(NamedTuple):
@@ -65,7 +73,9 @@ async def probe_kwp_routine_results(terminal: Terminal, lid: int) -> UdsResponse
     if not 0 <= lid <= 0xFF:
         raise ValueError(f"KWP2000 routine local identifier must be a single byte, got 0x{lid:X}")
     req = f"33{lid:02X}"
-    resp = await terminal.send_uds(req, timeout=2.0, expected_sid=0x33)
+    resp = await terminal.send_uds(
+        req, timeout=2.0, expected_sid=KWP_REQUEST_ROUTINE_RESULTS_BY_LOCAL_IDENTIFIER
+    )
     if resp.get("ok"):
         b = resp.get("bytes")
         if b and len(b) >= 2 and b[1] != lid:
@@ -87,11 +97,11 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
     nrc = response.get("nrc")
     if nrc is None:
         return "error", None
-    if nrc == NRC_WRONG_SESSION:
+    if nrc == NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION:
         return "wrong-session", nrc
-    if nrc == NRC_SERVICE_ABSENT:
+    if nrc == NRC_SERVICE_NOT_SUPPORTED:  # the ECU has no 0x33: abort
         return "service-absent", nrc
-    if nrc == NRC_ABSENT:
+    if nrc == NRC_REQUEST_OUT_OF_RANGE:  # the routine LID is not there
         return "absent", nrc
     if nrc in NRC_EXISTS_HINTS:
         return "exists", nrc
@@ -118,7 +128,7 @@ KWP_ROUTINES_PROBE = DiscoveryProbe(
     scan_type="routines-kwp",
     id_label="LID",
     id_width=1,
-    service=0x33,
+    service=KWP_REQUEST_ROUTINE_RESULTS_BY_LOCAL_IDENTIFIER,
     probe=lambda terminal, lid: probe_kwp_routine_results(terminal, lid),
     classify=classify,
     make_hit=_make_hit,

@@ -6,12 +6,6 @@ import pytest
 import yaml
 
 from canair.live.kwp_iocontrol_scan import (
-    IOCP_FREEZE_CURRENT_STATE,
-    IOCP_LONG_TERM_ADJ,
-    IOCP_REPORT_CURRENT_STATE,
-    IOCP_RESET_TO_DEFAULT,
-    IOCP_RETURN_CONTROL,
-    IOCP_SHORT_TERM_ADJ,
     KWP_IOCONTROL_PROBE,
     NISSAN_IOCONTROL_PROBE,
     KwpIOControlHit,
@@ -20,6 +14,7 @@ from canair.live.kwp_iocontrol_scan import (
     probe_kwp_iocontrol,
     probe_nissan_iocontrol,
 )
+from canair.uds.subfunctions import KwpIoControlParameter as Iocp
 from canair.yaml_edit.pids import append_iocontrol_discoveries_block
 from tests.support.fakes import FakeTerminal, nrc
 from tests.support.fakes import ok as _ok
@@ -30,25 +25,25 @@ from tests.support.fakes import ok as _ok
 def test_iocp_constants_follow_the_kwp2000_table_not_uds():
     # SSF 14230-3 Issue 2, Table 9.1.3.2 — not the UDS 0x2F values (01 reset /
     # 02 freeze / 03 shortTermAdjustment), which the module once used.
-    assert IOCP_RETURN_CONTROL == 0x00
-    assert IOCP_REPORT_CURRENT_STATE == 0x01
-    assert IOCP_RESET_TO_DEFAULT == 0x04
-    assert IOCP_FREEZE_CURRENT_STATE == 0x05
-    assert IOCP_SHORT_TERM_ADJ == 0x07
-    assert IOCP_LONG_TERM_ADJ == 0x08
+    assert Iocp.RETURN_CONTROL_TO_ECU == 0x00
+    assert Iocp.REPORT_CURRENT_STATE == 0x01
+    assert Iocp.RESET_TO_DEFAULT == 0x04
+    assert Iocp.FREEZE_CURRENT_STATE == 0x05
+    assert Iocp.SHORT_TERM_ADJUSTMENT == 0x07
+    assert Iocp.LONG_TERM_ADJUSTMENT == 0x08
 
 
 @pytest.mark.asyncio
 async def test_probe_refuses_every_iocp_but_return_control():
     # Even the SSF "report" values: these ECUs are not guaranteed SSF-conformant.
     for refused in (
-        IOCP_REPORT_CURRENT_STATE,
+        Iocp.REPORT_CURRENT_STATE,
         0x02,
         0x03,
-        IOCP_RESET_TO_DEFAULT,
-        IOCP_FREEZE_CURRENT_STATE,
-        IOCP_SHORT_TERM_ADJ,
-        IOCP_LONG_TERM_ADJ,
+        Iocp.RESET_TO_DEFAULT,
+        Iocp.FREEZE_CURRENT_STATE,
+        Iocp.SHORT_TERM_ADJUSTMENT,
+        Iocp.LONG_TERM_ADJUSTMENT,
         0xFF,
     ):
         with pytest.raises(ValueError, match="only sends 0x00"):

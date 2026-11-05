@@ -14,6 +14,7 @@ import sys
 from canair.live.iocontrol import mode_iocontrol_execute
 from canair.live.routines import mode_routines_execute
 from canair.transport.protocol import Terminal
+from canair.uds.subfunctions import RoutineControlType
 
 
 async def handle_iocontrol(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
@@ -41,9 +42,11 @@ async def handle_iocontrol(args, terminal: Terminal, pids_data, host, *, reconne
 
 async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
     if args.rid:
-        from canair.live.routines import SF_RESULTS, SF_START, SF_STOP
-
-        sf_map = {"results": SF_RESULTS, "start": SF_START, "stop": SF_STOP}
+        sf_map = {
+            "results": RoutineControlType.REQUEST_ROUTINE_RESULTS,
+            "start": RoutineControlType.START_ROUTINE,
+            "stop": RoutineControlType.STOP_ROUTINE,
+        }
         sf_name = (args.sf or "results").lower()
         if sf_name not in sf_map:
             print(
@@ -52,7 +55,7 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
             )
             sys.exit(1)
         sub_function = sf_map[sf_name]
-        if sub_function == SF_START:
+        if sub_function == RoutineControlType.START_ROUTINE:
             print(
                 f"!! WARNING: --sf start will send startRoutine (SF 0x01) to {args.routines} RID {args.rid}.",
                 file=sys.stderr,

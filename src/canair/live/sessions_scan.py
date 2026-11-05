@@ -31,28 +31,23 @@ from typing import NamedTuple
 from canair.safety.blocklist import SessionPolicy
 from canair.safety.quirks import allowed_session_modes
 from canair.transport.protocol import Terminal
+from canair.uds.nrc import NRC_SERVICE_NOT_SUPPORTED, NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION
 from canair.uds.protocol import KWP, classify_protocol
 from canair.uds.response import UdsResponse
+from canair.uds.services import DIAGNOSTIC_SESSION_CONTROL
 from canair.uds.subfunctions import SUBFUNCTION_NAMES
 
 # Human labels for the session sub-functions, from the shared table in
 # canair.uds.layout — the single home for these enums. Keeping a private copy here
 # is what let it drift out of step with formatting.py's (which was missing the
 # whole KWP2000 0x8x range).
-SESSION_NAMES = SUBFUNCTION_NAMES[0x10]
+SESSION_NAMES = SUBFUNCTION_NAMES[DIAGNOSTIC_SESSION_CONTROL]
 
 # Safe session sub-functions to probe, per protocol. Programming sessions
 # (UDS 0x02, KWP2000 0x85) are deliberately excluded — they are blocked by
 # canair.safety.blocklist and must never be sent to this car.
 UDS_SESSION_MODES = (0x01, 0x03)
 KWP_SESSION_MODES = (0x81, 0x82, 0x83)
-
-# NRC that means "this ECU doesn't implement DiagnosticSessionControl" → abort.
-NRC_SERVICE_ABSENT = 0x11
-# NRC that means the session type simply isn't implemented (still informative).
-NRC_NOT_SUPPORTED = 0x12
-# NRC that suggests the request was rejected in the current session.
-NRC_WRONG_SESSION = 0x7F
 
 
 class SessionHit(NamedTuple):
@@ -80,9 +75,9 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
     nrc = response.get("nrc")
     if nrc is None:
         return "error", None
-    if nrc == NRC_SERVICE_ABSENT:
+    if nrc == NRC_SERVICE_NOT_SUPPORTED:
         return "service-absent", nrc
-    if nrc == NRC_WRONG_SESSION:
+    if nrc == NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION:
         return "wrong-session", nrc
     # Everything else (0x12 subFunctionNotSupported, 0x22, 0x31, …) means the
     # ECU understood the service but not this session type.
@@ -92,7 +87,7 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
 async def probe_session(terminal: Terminal, mode: int) -> UdsResponse:
     """Send ``10 {mode}`` and return the parsed response (SID echo validated)."""
     req = f"10{mode:02X}"
-    return await terminal.send_uds(req, timeout=3.0, expected_sid=0x10)
+    return await terminal.send_uds(req, timeout=3.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL)
 
 
 def _write_hit(ecu_name: str, hits: list[SessionHit]) -> None:

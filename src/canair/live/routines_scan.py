@@ -36,31 +36,36 @@ from typing import NamedTuple
 
 from canair.live.discovery_scan import DiscoveryProbe, mode_discovery_scan
 from canair.transport.protocol import Terminal
+from canair.uds.nrc import (
+    NRC_CONDITIONS_NOT_CORRECT,
+    NRC_GENERAL_PROGRAMMING_FAILURE,
+    NRC_REQUEST_OUT_OF_RANGE,
+    NRC_REQUEST_SEQUENCE_ERROR,
+    NRC_RESPONSE_PENDING,
+    NRC_SECURITY_ACCESS_DENIED,
+    NRC_SERVICE_NOT_SUPPORTED,
+    NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
+    NRC_SUB_FUNCTION_NOT_SUPPORTED,
+)
 from canair.uds.response import UdsResponse
-
-# Routine sub-functions
-SF_START = 0x01  # startRoutine — DO NOT USE
-SF_STOP = 0x02  # stopRoutine
-SF_RESULTS = 0x03  # requestRoutineResults — safe
+from canair.uds.services import ROUTINE_CONTROL
+from canair.uds.subfunctions import RoutineControlType
 
 # NRCs that still indicate "routine exists"
 NRC_EXISTS_HINTS = {
-    0x22,  # conditionsNotCorrect — routine present, preconditions unmet
-    0x24,  # requestSequenceError — present, never started
-    0x33,  # securityAccessDenied — present, locked
-    0x72,  # generalProgrammingFailure — present, error state
-    0x78,  # requestCorrectlyReceivedResponsePending — present
+    NRC_CONDITIONS_NOT_CORRECT,  # routine present, preconditions unmet
+    NRC_REQUEST_SEQUENCE_ERROR,  # present, never started
+    NRC_SECURITY_ACCESS_DENIED,  # present, locked
+    NRC_GENERAL_PROGRAMMING_FAILURE,  # present, error state
+    NRC_RESPONSE_PENDING,  # present
 }
 
 # NRCs that indicate "absent" (do not record as a hit)
 NRC_ABSENT = {
-    0x11,  # serviceNotSupported
-    0x12,  # subFunctionNotSupported
-    0x31,  # requestOutOfRange
+    NRC_SERVICE_NOT_SUPPORTED,
+    NRC_SUB_FUNCTION_NOT_SUPPORTED,
+    NRC_REQUEST_OUT_OF_RANGE,
 }
-
-# NRC that suggests retrying in extended session
-NRC_WRONG_SESSION = 0x7F
 
 
 class RoutineHit(NamedTuple):
@@ -76,7 +81,7 @@ class RoutineHit(NamedTuple):
 async def probe_routine(
     terminal: Terminal,
     rid: int,
-    sub_function: int = SF_RESULTS,
+    sub_function: int = RoutineControlType.REQUEST_ROUTINE_RESULTS,
 ) -> UdsResponse:
     """Send ``31 {SF} {RID_HI} {RID_LO}`` and return the parsed response."""
     req = f"31{sub_function:02X}{rid:04X}"
@@ -98,7 +103,7 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
     nrc = response.get("nrc")
     if nrc is None:
         return "error", None
-    if nrc == NRC_WRONG_SESSION:
+    if nrc == NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION:
         return "wrong-session", nrc
     if nrc in NRC_ABSENT:
         return "absent", nrc
@@ -126,7 +131,7 @@ ROUTINES_PROBE = DiscoveryProbe(
     scan_type="routines",
     id_label="RID",
     id_width=2,
-    service=0x31,
+    service=ROUTINE_CONTROL,
     probe=probe_routine,
     classify=classify,
     make_hit=_make_hit,

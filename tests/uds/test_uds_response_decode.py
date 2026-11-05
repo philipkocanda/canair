@@ -320,31 +320,15 @@ class TestSubfunctionCoverage:
         assert decoded is not None
         assert f"0x{reset:02X}" not in decoded
 
-    def test_iocontrol_params_match_the_scanner_constants(self):
-        # formatting.py and the two IOControl scanners must agree on these values.
-        from canair.live.iocontrol_scan import (
-            SF_FREEZE,
-            SF_RESET_TO_DEFAULT,
-            SF_RETURN_CONTROL,
-            SF_SHORT_TERM_ADJ,
+    def test_the_scanners_probe_with_return_control_to_ecu(self):
+        from canair.live import iocontrol_scan, kwp_iocontrol_scan
+
+        assert subfunction_name(0x2F, iocontrol_scan.SAFE_CONTROL_PARAMETER) == (
+            "returnControlToECU"
         )
-
-        assert subfunction_name(0x2F, SF_RETURN_CONTROL) == "returnControlToECU"
-        assert subfunction_name(0x2F, SF_RESET_TO_DEFAULT) == "resetToDefault"
-        assert subfunction_name(0x2F, SF_FREEZE) == "freezeCurrentState"
-        assert subfunction_name(0x2F, SF_SHORT_TERM_ADJ) == "shortTermAdjustment"
-
-    def test_kwp_iocontrol_shares_the_uds_control_values(self):
-        from canair.live.kwp_iocontrol_scan import IOCP_RETURN_CONTROL
-
-        assert subfunction_name(0x30, IOCP_RETURN_CONTROL) == "returnControlToECU"
-
-    def test_routine_subfunctions_match_the_routines_module(self):
-        from canair.live.routines import SF_RESULTS, SF_START, SF_STOP
-
-        assert subfunction_name(0x31, SF_START) == "startRoutine"
-        assert subfunction_name(0x31, SF_STOP) == "stopRoutine"
-        assert subfunction_name(0x31, SF_RESULTS) == "requestRoutineResults"
+        assert subfunction_name(0x30, kwp_iocontrol_scan.SAFE_CONTROL_PARAMETER) == (
+            "returnControlToECU"
+        )
 
     def test_unnamed_value_returns_none_rather_than_inventing_a_label(self):
         assert subfunction_name(0x10, 0xEE) is None

@@ -32,17 +32,14 @@ from canair.core.terminal import terminal_lines as _terminal_lines
 from canair.ecus.pids import RoutineIndexEntry, build_routines_index, load_pids
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import nrc_abbrev
+from canair.uds.services import ROUTINE_CONTROL
+from canair.uds.subfunctions import RoutineControlType, subfunction_name
 from canair.yaml_edit.pids import PidsEditError, update_routines_field
 
 # TUI debug log — cleared each session
 _LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
 _LOG_FILE = _LOGS_DIR / "routines-tui.log"
 _tui_logger = logging.getLogger("routines-tui")
-
-# UDS RoutineControl sub-functions
-SF_START = 0x01  # startRoutine — use with care
-SF_STOP = 0x02  # stopRoutine
-SF_RESULTS = 0x03  # requestRoutineResults — safe, read-only
 
 
 def _truncate_text(text: str, width: int) -> str:
@@ -56,11 +53,7 @@ def _truncate_text(text: str, width: int) -> str:
 
 
 def _sf_label(sf: int) -> str:
-    return {
-        SF_START: "startRoutine",
-        SF_STOP: "stopRoutine",
-        SF_RESULTS: "requestRoutineResults",
-    }.get(sf, f"0x{sf:02X}")
+    return subfunction_name(ROUTINE_CONTROL, sf) or f"0x{sf:02X}"
 
 
 # ── Offline list ──────────────────────────────────────────────────────────────
@@ -150,14 +143,14 @@ async def mode_routines_execute(
     pids_data: dict,
     ecu_name: str,
     rid: str,
-    sub_function: int = SF_RESULTS,
+    sub_function: int = RoutineControlType.REQUEST_ROUTINE_RESULTS,
     verbose: bool = False,
     as_json: bool = False,
 ):
     """Execute a RoutineControl sub-function on a specific RID.
 
-    Defaults to SF_RESULTS (0x03 requestRoutineResults — safe read-only).
-    Pass sub_function=SF_START to send startRoutine; the caller is responsible
+    Defaults to REQUEST_ROUTINE_RESULTS (0x03 — safe read-only).
+    Pass sub_function=RoutineControlType.START_ROUTINE to send startRoutine; the caller is responsible
     for confirming this is intentional.
     """
     rindex = build_routines_index(pids_data)
@@ -364,9 +357,9 @@ class _RoutinesTUI:
 
             # Sub-function column
             sf_text = _sf_label(sf) if sf is not None else ""
-            if sf == SF_START:
+            if sf == RoutineControlType.START_ROUTINE:
                 sf_part = f"\033[1;31m{sf_text:<{last_sf_w}}\033[0m"
-            elif sf == SF_RESULTS:
+            elif sf == RoutineControlType.REQUEST_ROUTINE_RESULTS:
                 sf_part = f"\033[2m{sf_text:<{last_sf_w}}\033[0m"
             else:
                 sf_part = f"{sf_text:<{last_sf_w}}"
@@ -570,7 +563,7 @@ class _RoutinesTUI:
                             self._confirm_start = None
                             self._confirm_buf = ""
                             if not self._busy:
-                                await self._send_sf(rid, SF_START)
+                                await self._send_sf(rid, RoutineControlType.START_ROUTINE)
                         else:
                             self._confirm_start = None
                             self._confirm_buf = ""
@@ -616,11 +609,11 @@ class _RoutinesTUI:
                 elif key in ("\r", "\n", " "):  # requestRoutineResults (safe)
                     if not self._busy:
                         rid = self.rids[self.cursor]
-                        await self._send_sf(rid, SF_RESULTS)
+                        await self._send_sf(rid, RoutineControlType.REQUEST_ROUTINE_RESULTS)
                 elif key in ("s", "S"):  # stopRoutine
                     if not self._busy:
                         rid = self.rids[self.cursor]
-                        await self._send_sf(rid, SF_STOP)
+                        await self._send_sf(rid, RoutineControlType.STOP_ROUTINE)
                 elif key == "!":  # startRoutine — requires confirmation
                     if not self._busy:
                         rid = self.rids[self.cursor]

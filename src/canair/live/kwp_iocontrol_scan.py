@@ -53,22 +53,24 @@ from typing import NamedTuple
 from canair.live.discovery_scan import DiscoveryProbe, mode_discovery_scan
 from canair.safety.quirks import NISSAN_C0_SESSION, has_quirk
 from canair.transport.protocol import Terminal
+from canair.uds.nrc import (
+    KWP_NRC_CONDITIONS_NOT_CORRECT_OR_REQUEST_SEQUENCE_ERROR,
+    KWP_NRC_SUB_FUNCTION_NOT_SUPPORTED_OR_INVALID_FORMAT,
+    KWP_NRC_TRANSFER_ABORTED,
+    NOT_IN_ACTIVE_SESSION_NRCS,
+    NRC_REQUEST_OUT_OF_RANGE,
+    NRC_RESPONSE_PENDING,
+    NRC_SECURITY_ACCESS_DENIED,
+    NRC_SERVICE_NOT_SUPPORTED,
+)
 from canair.uds.response import UdsResponse
+from canair.uds.services import KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER
+from canair.uds.subfunctions import KwpIoControlParameter
 
-# InputOutputControlParameter (IOCP) — the byte after the LID, per SSF 14230-3
-# Issue 2 Table 9.1.3.2 (ISO 14230-3 leaves it manufacturer-defined). Only 0x00 is
-# ever sent; the rest are named so the refusal below can say what it refused.
-IOCP_RETURN_CONTROL = 0x00  # returnControlToECU — the only value the scan sends
-IOCP_REPORT_CURRENT_STATE = 0x01
-IOCP_REPORT_IO_CONDITIONS = 0x02
-IOCP_REPORT_IO_SCALING = 0x03
-IOCP_RESET_TO_DEFAULT = 0x04  # actuates
-IOCP_FREEZE_CURRENT_STATE = 0x05  # actuates
-IOCP_EXECUTE_CONTROL_STATE = 0x06  # actuates
-IOCP_SHORT_TERM_ADJ = 0x07  # actuates
-IOCP_LONG_TERM_ADJ = 0x08  # actuates and writes non-volatile memory
-IOCP_REPORT_CALIBRATION = 0x09
-# 0x0A-0xF9 vehicleManufacturerSpecific, 0xFA-0xFE systemSupplierSpecific.
+# The InputOutputControlParameter (IOCP) after the LID is KwpIoControlParameter (SSF 14230-3
+# Issue 2 Table 9.1.3.2; ISO 14230-3 leaves it manufacturer-defined). Only returnControlToECU
+# is ever sent.
+SAFE_CONTROL_PARAMETER = KwpIoControlParameter.RETURN_CONTROL_TO_ECU
 
 # Nissan layout (30 {LID} {function} {value}): 0x01 asks whether {value} is
 # supported. 0x00 (one-shot command) and 0x20 (timed change) both actuate.
@@ -76,22 +78,17 @@ NISSAN_FN_QUERY_SUPPORTED = 0x01
 NISSAN_SESSION_MODE = "C0"
 DEFAULT_SESSION_MODE = "03"
 
-# Reuse the exact NRC semantics of the UDS 0x2F scanner — they are protocol-shared.
+# Reuse the exact NRC semantics of the UDS 0x2F scanner, under their KWP2000 names.
 NRC_EXISTS_HINTS = {
-    0x22,  # conditionsNotCorrect — present, preconditions unmet
-    0x33,  # securityAccessDenied — present, locked
-    0x72,  # generalProgrammingFailure — present, error state
-    0x78,  # requestCorrectlyReceivedResponsePending
+    KWP_NRC_CONDITIONS_NOT_CORRECT_OR_REQUEST_SEQUENCE_ERROR,  # present, preconditions unmet
+    NRC_SECURITY_ACCESS_DENIED,  # present, locked
+    KWP_NRC_TRANSFER_ABORTED,  # present, error state
+    NRC_RESPONSE_PENDING,
 }
 NRC_ABSENT = {
-    0x11,  # serviceNotSupported (whole ECU — abort)
-    0x31,  # requestOutOfRange — LID not an IOControl target
+    NRC_SERVICE_NOT_SUPPORTED,  # whole ECU — abort
+    NRC_REQUEST_OUT_OF_RANGE,  # LID not an IOControl target
 }
-NRC_SF_UNSUPPORTED = 0x12
-NRC_WRONG_SESSION = 0x7F
-# KWP2000's serviceNotSupportedInActiveDiagnosticMode — what a Nissan ECU answers
-# outside 10 C0. Read as "exists", it would record every LID as a hit.
-NRC_KWP_WRONG_SESSION = 0x80
 
 
 class KwpIOControlHit(NamedTuple):
@@ -111,7 +108,7 @@ class KwpIOControlHit(NamedTuple):
 async def probe_kwp_iocontrol(
     terminal: Terminal,
     lid: int,
-    iocp: int = IOCP_RETURN_CONTROL,
+    iocp: int = SAFE_CONTROL_PARAMETER,
 ) -> UdsResponse:
     """Send ``30 {LID} 00`` (returnControlToECU) and return the parsed response.
 
@@ -119,7 +116,7 @@ async def probe_kwp_iocontrol(
     ``0x00``, the SSF 14230-3 release; that it drives nothing is not proven on any
     make (see the module docstring).
     """
-    if iocp != IOCP_RETURN_CONTROL:
+    if iocp != SAFE_CONTROL_PARAMETER:
         raise ValueError(
             f"Refusing to probe with IOCP 0x{iocp:02X}; the scanner only sends 0x00 "
             "(returnControlToECU under SSF 14230-3)."
@@ -139,7 +136,11 @@ async def probe_nissan_iocontrol(terminal: Terminal, lid: int) -> UdsResponse:
 async def _send_probe(terminal: Terminal, lid: int, tail: str) -> UdsResponse:
     if not 0 <= lid <= 0xFF:
         raise ValueError(f"KWP2000 local identifier must be a single byte, got 0x{lid:X}")
-    resp = await terminal.send_uds(f"30{lid:02X}{tail}", timeout=2.0, expected_sid=0x30)
+    resp = await terminal.send_uds(
+        f"30{lid:02X}{tail}",
+        timeout=2.0,
+        expected_sid=KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
+    )
     # The LID echoes in response byte 1 (70 {LID} ...). Guard against the
     # stale-frame -1 shift seen on the 0x2F scanner: reject an echo mismatch.
     if resp.get("ok"):
@@ -163,13 +164,15 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
     nrc = response.get("nrc")
     if nrc is None:
         return "error", None
-    if nrc in (NRC_WRONG_SESSION, NRC_KWP_WRONG_SESSION):
+    # 0x80 is what a Nissan ECU answers outside 10 C0. Read as "exists", it would
+    # record every LID as a hit.
+    if nrc in NOT_IN_ACTIVE_SESSION_NRCS:
         return "wrong-session", nrc
-    if nrc == 0x11:
+    if nrc == NRC_SERVICE_NOT_SUPPORTED:
         return "service-absent", nrc
-    if nrc == 0x31:
+    if nrc == NRC_REQUEST_OUT_OF_RANGE:
         return "absent", nrc
-    if nrc == NRC_SF_UNSUPPORTED:
+    if nrc == KWP_NRC_SUB_FUNCTION_NOT_SUPPORTED_OR_INVALID_FORMAT:
         return "exists", nrc
     if nrc in NRC_EXISTS_HINTS:
         return "exists", nrc
@@ -195,7 +198,7 @@ KWP_IOCONTROL_PROBE = DiscoveryProbe(
     scan_type="iocontrol-kwp",
     id_label="LID",
     id_width=1,
-    service=0x30,
+    service=KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
     probe=probe_kwp_iocontrol,
     classify=classify,
     make_hit=_make_hit,

@@ -44,33 +44,37 @@ from typing import NamedTuple
 from canair.core.id_ranges import parse_id_range
 from canair.live.discovery_scan import DiscoveryProbe, mode_discovery_scan
 from canair.transport.protocol import Terminal
+from canair.uds.nrc import (
+    NRC_CONDITIONS_NOT_CORRECT,
+    NRC_GENERAL_PROGRAMMING_FAILURE,
+    NRC_REQUEST_OUT_OF_RANGE,
+    NRC_RESPONSE_PENDING,
+    NRC_SECURITY_ACCESS_DENIED,
+    NRC_SERVICE_NOT_SUPPORTED,
+    NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
+    NRC_SUB_FUNCTION_NOT_SUPPORTED,
+)
 from canair.uds.response import UdsResponse
+from canair.uds.services import INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
+from canair.uds.subfunctions import IoControlParameter
 
-# IOControl sub-functions — 0x00 is the ONLY safe one for scanning
-SF_RETURN_CONTROL = 0x00  # returnControlToECU — safe
-SF_RESET_TO_DEFAULT = 0x01  # DO NOT USE
-SF_FREEZE = 0x02  # DO NOT USE
-SF_SHORT_TERM_ADJ = 0x03  # DO NOT USE (actuates!)
+# The only control parameter the scan sends: returnControlToECU. The others
+# (resetToDefault, freezeCurrentState, shortTermAdjustment) drive the output.
+SAFE_CONTROL_PARAMETER = IoControlParameter.RETURN_CONTROL_TO_ECU
 
 # NRCs that still indicate "DID exists and supports IOControl"
 NRC_EXISTS_HINTS = {
-    0x22,  # conditionsNotCorrect — present, preconditions unmet
-    0x33,  # securityAccessDenied — present, locked
-    0x72,  # generalProgrammingFailure — present, error state
-    0x78,  # requestCorrectlyReceivedResponsePending
+    NRC_CONDITIONS_NOT_CORRECT,  # present, preconditions unmet
+    NRC_SECURITY_ACCESS_DENIED,  # present, locked
+    NRC_GENERAL_PROGRAMMING_FAILURE,  # present, error state
+    NRC_RESPONSE_PENDING,
 }
 
 # NRCs that indicate "absent or unsupported"
 NRC_ABSENT = {
-    0x11,  # serviceNotSupported (whole ECU — caller should abort)
-    0x31,  # requestOutOfRange — DID not an IOControl target
+    NRC_SERVICE_NOT_SUPPORTED,  # whole ECU — caller should abort
+    NRC_REQUEST_OUT_OF_RANGE,  # DID not an IOControl target
 }
-
-# NRC that might mean "DID exists but wants a different sub-function" — treat as hit
-NRC_SF_UNSUPPORTED = 0x12
-
-# NRC that suggests retrying in extended session
-NRC_WRONG_SESSION = 0x7F
 
 
 class IOControlHit(NamedTuple):
@@ -86,7 +90,7 @@ class IOControlHit(NamedTuple):
 async def probe_iocontrol(
     terminal: Terminal,
     did: int,
-    sub_function: int = SF_RETURN_CONTROL,
+    sub_function: int = SAFE_CONTROL_PARAMETER,
 ) -> UdsResponse:
     """Send ``2F {DID_HI} {DID_LO} {SF}`` and return the parsed response.
 
@@ -97,7 +101,7 @@ async def probe_iocontrol(
     the previous probe leaks into the next read, silently shifting every
     subsequent hit by -1 DID. See `tests/modes/test_iocontrol_scan.py`.
     """
-    if sub_function != SF_RETURN_CONTROL:
+    if sub_function != SAFE_CONTROL_PARAMETER:
         raise ValueError(
             f"Refusing to probe with sub-function 0x{sub_function:02X}; "
             f"only 0x00 returnControlToECU is safe for scanning."
@@ -106,7 +110,7 @@ async def probe_iocontrol(
     return await terminal.send_uds(
         req,
         timeout=2.0,
-        expected_sid=0x2F,
+        expected_sid=INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
         expected_echo=did.to_bytes(2, "big"),
     )
 
@@ -127,13 +131,14 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
     nrc = response.get("nrc")
     if nrc is None:
         return "error", None
-    if nrc == NRC_WRONG_SESSION:
+    if nrc == NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION:
         return "wrong-session", nrc
-    if nrc == 0x11:
+    if nrc == NRC_SERVICE_NOT_SUPPORTED:
         return "service-absent", nrc
-    if nrc == 0x31:
+    if nrc == NRC_REQUEST_OUT_OF_RANGE:
         return "absent", nrc
-    if nrc == NRC_SF_UNSUPPORTED:
+    # The DID may exist but want another control parameter: treat it as a hit.
+    if nrc == NRC_SUB_FUNCTION_NOT_SUPPORTED:
         return "exists", nrc
     if nrc in NRC_EXISTS_HINTS:
         return "exists", nrc
@@ -194,7 +199,7 @@ IOCONTROL_PROBE = DiscoveryProbe(
     scan_type="iocontrol",
     id_label="DID",
     id_width=2,
-    service=0x2F,
+    service=INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
     probe=probe_iocontrol,
     classify=classify,
     make_hit=_make_hit,

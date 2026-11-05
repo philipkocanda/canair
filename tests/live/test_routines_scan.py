@@ -10,10 +10,10 @@ import yaml
 from canair.live.routines_scan import (
     NRC_ABSENT,
     NRC_EXISTS_HINTS,
-    NRC_WRONG_SESSION,
     RoutineHit,
     classify,
 )
+from canair.uds.nrc import NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION
 from canair.yaml_edit.pids import PidsEditError, append_routines_block, update_routines_field
 
 # ── classify() ───────────────────────────────────────────────────────────────
@@ -85,8 +85,8 @@ def test_classify_error_no_nrc():
 def test_nrc_sets_dont_overlap():
     """A given NRC must belong to exactly one category."""
     assert not (NRC_ABSENT & NRC_EXISTS_HINTS)
-    assert NRC_WRONG_SESSION not in NRC_ABSENT
-    assert NRC_WRONG_SESSION not in NRC_EXISTS_HINTS
+    assert NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION not in NRC_ABSENT
+    assert NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION not in NRC_EXISTS_HINTS
 
 
 # ── append_routines_block() ──────────────────────────────────────────────────

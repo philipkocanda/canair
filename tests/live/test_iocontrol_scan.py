@@ -10,16 +10,16 @@ import yaml
 from canair.live.iocontrol_scan import (
     NRC_ABSENT,
     NRC_EXISTS_HINTS,
-    NRC_SF_UNSUPPORTED,
-    NRC_WRONG_SESSION,
-    SF_FREEZE,
-    SF_RESET_TO_DEFAULT,
-    SF_RETURN_CONTROL,
-    SF_SHORT_TERM_ADJ,
+    SAFE_CONTROL_PARAMETER,
     IOControlHit,
     classify,
     probe_iocontrol,
 )
+from canair.uds.nrc import (
+    NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
+    NRC_SUB_FUNCTION_NOT_SUPPORTED,
+)
+from canair.uds.subfunctions import IoControlParameter
 from canair.yaml_edit.pids import PidsEditError, append_iocontrol_discoveries_block
 
 # ── classify() ───────────────────────────────────────────────────────────────
@@ -87,17 +87,17 @@ def test_classify_error_no_nrc():
 
 def test_nrc_sets_dont_overlap():
     assert not (NRC_ABSENT & NRC_EXISTS_HINTS)
-    assert NRC_WRONG_SESSION not in NRC_ABSENT
-    assert NRC_WRONG_SESSION not in NRC_EXISTS_HINTS
-    assert NRC_SF_UNSUPPORTED not in NRC_ABSENT
+    assert NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION not in NRC_ABSENT
+    assert NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION not in NRC_EXISTS_HINTS
+    assert NRC_SUB_FUNCTION_NOT_SUPPORTED not in NRC_ABSENT
 
 
 def test_sub_function_constants():
     """Guard against accidental reordering of SF constants — critical for safety."""
-    assert SF_RETURN_CONTROL == 0x00
-    assert SF_RESET_TO_DEFAULT == 0x01
-    assert SF_FREEZE == 0x02
-    assert SF_SHORT_TERM_ADJ == 0x03
+    assert SAFE_CONTROL_PARAMETER == 0x00
+    assert IoControlParameter.RESET_TO_DEFAULT == 0x01
+    assert IoControlParameter.FREEZE_CURRENT_STATE == 0x02
+    assert IoControlParameter.SHORT_TERM_ADJUSTMENT == 0x03
 
 
 # ── probe_iocontrol() safety guard ───────────────────────────────────────────
@@ -106,7 +106,8 @@ def test_sub_function_constants():
 @pytest.mark.asyncio
 async def test_probe_refuses_unsafe_sub_functions():
     """probe_iocontrol must refuse any SF other than 0x00."""
-    for unsafe_sf in (SF_RESET_TO_DEFAULT, SF_FREEZE, SF_SHORT_TERM_ADJ, 0x04, 0xFF):
+    unsafe = (*list(IoControlParameter)[1:], 0x04, 0xFF)
+    for unsafe_sf in unsafe:
         with pytest.raises(ValueError, match="safe"):
             await probe_iocontrol(terminal=None, did=0xB001, sub_function=unsafe_sf)
 
