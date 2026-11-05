@@ -1,7 +1,7 @@
 # Code organization, part 5: sub-packages in `live/` and `tui/apps/`
 
-Status: **IN PROGRESS** (2026-11-05): `live/identity`, `elm`, `discover`, `actuate`, `scan` done;
-`read`, `monitor` and the `tui/apps` sub-packages follow. Part of
+Status: **IN PROGRESS** (2026-11-05): all `live/` sub-packages and the `tui/apps` `sniff`, `monitor_select` and `monitor` sub-packages
+done; `decode_plot`, `captures_step` and step 10 follow. Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 2
 (hoisted imports make a move safer). This is left-over item 4 of
 `plans/2026-11-04-package-layout-and-layering.md`, with the layout of its section 4.
