@@ -7,7 +7,9 @@ what keeps the two from drifting apart on a default.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 from canair.captures.keepmode import KeepMode
 from canair.live.poll_schedule import DEFAULT_SCHEDULE, Schedule
@@ -33,6 +35,9 @@ class MonitorOptions:
     schedule: Schedule = DEFAULT_SCHEDULE
     backoff: bool = True
     verbose: bool = False
+    # The screen a TTY gets, given the monitor's controller; None polls without one. The CLI
+    # passes the Textual app, which sits above this layer.
+    interactive: Callable[[Any], Awaitable[None]] | None = None
 
     def mode_kwargs(self) -> dict:
         """The keyword arguments ``mode_monitor`` takes from the options."""
@@ -50,4 +55,5 @@ class MonitorOptions:
             "include_static": self.include_static,
             "schedule": self.schedule,
             "backoff": self.backoff,
+            "interactive": self.interactive,
         }

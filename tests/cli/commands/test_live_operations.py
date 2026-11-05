@@ -101,6 +101,13 @@ def test_monitor_hands_its_options_to_the_raw_transport(reached):
     assert operation.monitor.keep_mode == "all"
 
 
+def test_monitor_brings_its_own_screen(reached):
+    """The live layer runs whatever screen it is given; the command gives it the Textual app."""
+    _, operation = reached(["monitor", "BMS:2101"])
+    assert operation.monitor is not None
+    assert operation.monitor.interactive is not None
+
+
 def test_read_with_steps_wins_over_param(reached):
     """The old table tested ``multi`` before ``param``; a command with both still reads steps."""
     _, operation = reached(["read", "BMS:2101", "--param", "SOC"])

@@ -181,6 +181,53 @@ class TestTeardown:
         assert controller_box["c"].closed, "the device connection must still be released"
 
 
+class TestInteractiveScreen:
+    """``mode_monitor`` runs the screen the caller passes, and only on a TTY."""
+
+    def _run(self, monkeypatch, tmp_path, *, tty: bool, interactive) -> list[str]:
+        import canair.profile
+        import canair.states
+
+        ran: list[str] = []
+        monkeypatch.setattr(run_mod, "MonitorController", lambda *a, **k: _TeardownController())
+        monkeypatch.setattr(
+            canair.profile, "active", lambda: type("P", (), {"captures_dir": tmp_path})()
+        )
+        monkeypatch.setattr(canair.states, "parse_states", lambda v: [])
+
+        async def _poll(controller):
+            ran.append("poll")
+
+        monkeypatch.setattr(run_mod, "_monitor_noninteractive", _poll)
+        monkeypatch.setattr(run_mod.sys.stdout, "isatty", lambda: tty)
+        asyncio.run(
+            run_mod.mode_monitor(
+                object(),
+                [{"type": "query", "ecu": "BMS", "pids": ["2101"]}],
+                {"ecus": {}},
+                False,
+                interactive=interactive,
+            )
+        )
+        return ran
+
+    def test_a_tty_gets_the_screen(self, monkeypatch, tmp_path):
+        shown: list[object] = []
+
+        async def _screen(controller):
+            shown.append(controller)
+
+        assert self._run(monkeypatch, tmp_path, tty=True, interactive=_screen) == []
+        assert len(shown) == 1
+
+    def test_without_a_tty_or_a_screen_it_polls(self, monkeypatch, tmp_path):
+        async def _screen(controller):
+            raise AssertionError("no screen off a TTY")
+
+        assert self._run(monkeypatch, tmp_path, tty=False, interactive=_screen) == ["poll"]
+        assert self._run(monkeypatch, tmp_path, tty=True, interactive=None) == ["poll"]
+
+
 class TestTuiStop:
     """The TUI must exit through its own quit path, not a KeyboardInterrupt
     unwinding through Textual's internals (which leaves the terminal wrecked)."""

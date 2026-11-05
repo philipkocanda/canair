@@ -18,6 +18,7 @@ import asyncio
 import contextlib
 import signal
 import sys
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from rich.console import Console
@@ -123,12 +124,13 @@ async def mode_monitor(
     reconnect: Reconnector | None = None,
     schedule: Schedule = DEFAULT_SCHEDULE,
     backoff: bool = True,
+    interactive: Callable[[MonitorController], Awaitable[None]] | None = None,
 ):
     """Live-refresh ECU parameter monitor.
 
-    On a TTY this launches the Textual monitor app (scrollable, in-place value
-    updates, mouse + keyboard). Otherwise it polls silently until Ctrl+C and
-    prints the final values. Sessions are opened once (from session_steps) and
+    On a TTY this runs ``interactive`` (the CLI passes the Textual monitor app:
+    scrollable, in-place value updates, mouse + keyboard). Otherwise, or without
+    one, it polls silently until Ctrl+C and prints the final values. Sessions are opened once (from session_steps) and
     kept alive with background keepalives.
 
     Args:
@@ -158,6 +160,8 @@ async def mode_monitor(
         show_rulers:    Show a byte-index ruler once per PID.
         notation:       Byte-index notation for the ruler + the per-signal
                         byte-reference column (default WiCAN ``Bnn``).
+        interactive:    The screen to run on a TTY, given the controller
+                        (:func:`canair.tui.apps.monitor.run_monitor_app`).
 
     TUI keys come from the shared role registry (:mod:`canair.tui.keys`); press
     ``?`` in the app for the live cheat-sheet rather than trusting a copy here. A
@@ -215,10 +219,8 @@ async def mode_monitor(
     try:
         await controller.setup(session_steps)
 
-        if sys.stdout.isatty():
-            from ._monitor_tui import run_monitor_app
-
-            await run_monitor_app(controller)
+        if interactive is not None and sys.stdout.isatty():
+            await interactive(controller)
         else:
             await _monitor_noninteractive(controller)
 

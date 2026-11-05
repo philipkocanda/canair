@@ -39,7 +39,16 @@ def monitor_options(args) -> MonitorOptions:
         schedule=getattr(args, "schedule", DEFAULT_SCHEDULE),
         backoff=not getattr(args, "no_backoff", False),
         verbose=args.verbose,
+        interactive=_run_monitor_app,
     )
+
+
+async def _run_monitor_app(controller) -> None:
+    """Run the Textual monitor on ``controller`` (a TTY only)."""
+    # Deferred: Textual takes tens of milliseconds to import, and only a TTY monitor needs it.
+    from canair.live._monitor_tui import run_monitor_app
+
+    await run_monitor_app(controller)
 
 
 def monitor_operation(options: MonitorOptions) -> LiveOperation:
