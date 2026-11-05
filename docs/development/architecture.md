@@ -23,12 +23,13 @@ Top to bottom. A package imports only from the layers below its own.
 | 3 | `live/` | the layers below |
 | 4 | `yaml_edit/` | the layers below |
 | 5 | `validation/` | the layers below |
-| 6 | `actions/`, `analysis/`, `broadcast/`, `captures/`, `dtc/`, `ecus/`, `install/`, `interop/`, `migrations/`, `privacy/`, `profile/`, `query/`, `render/`, `states/`, `transport/`, `variants/` | each other (one cycle still to split) and the layers below |
-| 7 | `tui/`, `device/` | the layers below, not each other |
-| 8 | `safety/` | the layers below |
-| 9 | `expression/`, `uds/` | each other (one cycle still to split) and the layers below |
-| 10 | `config/` | the layers below |
-| 11 | `core/` | the layers below |
+| 6 | `interop/`, `actions/`, `broadcast/` | the layers below, not each other |
+| 7 | `analysis/`, `captures/`, `dtc/`, `ecus/`, `install/`, `migrations/`, `privacy/`, `profile/`, `query/`, `render/`, `states/`, `transport/`, `variants/` | each other (one cycle still to split) and the layers below |
+| 8 | `tui/`, `device/` | the layers below, not each other |
+| 9 | `safety/` | the layers below |
+| 10 | `expression/`, `uds/` | each other (one cycle still to split) and the layers below |
+| 11 | `config/` | the layers below |
+| 12 | `core/` | the layers below |
 
 <!-- END GENERATED: layers -->
 
