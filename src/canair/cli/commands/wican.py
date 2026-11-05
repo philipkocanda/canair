@@ -619,10 +619,10 @@ def _verified_only(args) -> bool:
 
 def _ship(args) -> tuple[dict, ShippedProfile]:
     """Load the active bundle and decide what ships to the device, for any firmware."""
+    from canair.cli.car import require_car
     from canair.profile import active
-    from canair.variants.selection import require_variant
 
-    require_variant(active(), "generate the AutoPID profile")
+    require_car("generate the AutoPID profile")
     _require_resolved_revisions()
     print(f"Loading {active().ecus_dir}")
     data = load_yaml()

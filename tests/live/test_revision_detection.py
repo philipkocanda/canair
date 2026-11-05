@@ -201,10 +201,11 @@ class TestIdentity:
 
 
 def test_the_refusal_points_at_identity():
-    from canair.variants.selection import require_variant
+    from canair.cli.car import require_car
 
+    set_active(str(FIXTURE))
     with pytest.raises(ProfileError, match="canair identity VCU"):
-        require_variant(set_active(str(FIXTURE)), "talk to the car")
+        require_car("talk to the car")
 
 
 def test_validate_captures_flags_replies_outside_the_tagged_revision(tmp_path, capsys):

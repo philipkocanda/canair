@@ -94,16 +94,15 @@ def run(args) -> int:
     import sys
 
     from canair.cli.args.transport import transport_overrides
+    from canair.cli.car import require_car
     from canair.core.stop_signals import graceful_stop
     from canair.device.lock import WiCANLock
     from canair.device.lock_watchdog import LockWatchdog
     from canair.device.wican.mode import ModeError
     from canair.live.raw_ops import slcan_preflight
-    from canair.profile import active
     from canair.transport import resolve_transport
-    from canair.variants.selection import require_variant
 
-    require_variant(active(), "sniff the car")
+    require_car("sniff the car")
     t = resolve_transport(transport_overrides(args))
     try:
         filters = _parse_filters(args.filter)

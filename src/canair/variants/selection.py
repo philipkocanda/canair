@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import dataclasses
 import os
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Literal
 
 from canair.variants import Variant, VariantsError, describe, load_variants, normalize_variant_id
@@ -168,12 +169,14 @@ def _apply_variant(profile: Profile, flag: str | None) -> Profile:
     return dataclasses.replace(profile, variant=chosen, variant_source=source)
 
 
-def require_variant(profile: Profile, what: str) -> None:
+def require_variant(
+    profile: Profile, what: str, hint: Callable[[Profile], str] | None = None
+) -> None:
     """Refuse ``what`` unless the profile's car is named (when there is a choice to make).
 
     Everything that talks to the car, records a capture or generates device config
     needs to know which car it is; canair never guesses. The error lists the profile's
-    variants and how to pick one.
+    variants and how to pick one, then ends with ``hint(profile)`` when one is given.
     """
     from canair.profile import ProfileError
 
@@ -192,24 +195,9 @@ def require_variant(profile: Profile, what: str) -> None:
         f"{profile.name} describes {len(declared)} variants and none is selected, so canair "
         f"won't {what}.\n\n{rows}\n\n"
         f"  Pick yours once:     canair profile use {profile.name} --variant {example}\n"
-        f"  Or for one command:  canair --variant {example} <command> …" + _identity_hint(profile)
+        f"  Or for one command:  canair --variant {example} <command> …"
+        + (hint(profile) if hint else "")
     )
-
-
-def _identity_hint(profile: Profile) -> str:
-    """The "not sure?" line, naming an ECU whose revision tells the variants apart."""
-    from canair.ecus.pids import load_raw_pids
-    from canair.variants.revisions import declared, revision_entry
-
-    try:
-        ecus = load_raw_pids(profile).get("ecus") or {}
-    except Exception:
-        return ""
-    for name, ecu_def in ecus.items():
-        revs = declared(ecu_def)
-        if len(revs) > 1 and any(revision_entry(ecu_def, r).get("fingerprints") for r in revs):
-            return f"\n  Not sure which you have?  canair identity {name}   (names the match)"
-    return ""
 
 
 def require_named_car(profile: Profile, what: str) -> str | None:

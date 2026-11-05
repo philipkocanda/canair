@@ -261,14 +261,13 @@ _IDENTIFYING_COMMANDS = frozenset({"discover", "disc", "identity", "id"})
 
 
 def _require_car(args) -> None:
-    """Refuse a live command until the profile's car is named (see require_variant)."""
-    from canair.profile import active
-    from canair.variants.selection import require_variant
+    """Refuse a live command until the profile's car is named (see require_car)."""
+    from canair.cli.car import require_car
 
     saving = bool(getattr(args, "save", False))
     if getattr(args, "command", None) in _IDENTIFYING_COMMANDS and not saving:
         return
-    require_variant(active(), "record captures" if saving else "talk to the car")
+    require_car("record captures" if saving else "talk to the car")
 
 
 def run_live(args, operation: LiveOperation) -> int:
