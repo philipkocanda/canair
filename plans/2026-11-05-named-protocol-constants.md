@@ -1,8 +1,8 @@
 # Named protocol constants: read every protocol byte from `canair.uds`
 
-Status: **IN PROGRESS** (2026-11-05). Phases 0 to 2 are done; 33 literals in 8 modules are
-left for phase 3. Not user-facing: no command, flag, output or
-profile changes, except where phase 3 names a behaviour change and asks first.
+Status: **IN PROGRESS** (2026-11-05). Phases 0 to 3 are done: no protocol byte is written as
+a literal outside `canair.uds`, and the baseline is empty. Phase 4 is open. Not user-facing:
+no command, flag or profile changes; phase 3's commits name the small output changes.
 
 ## Why
 
@@ -68,10 +68,9 @@ Baseline at the start: **126 literals in 36 modules.**
 
 The scanner count does not change in this phase.
 
-**Found while pinning:** `SUBFUNCTION_NAMES[0x30]` reuses the UDS `0x2F` names, but SSF
+**Found while pinning:** `SUBFUNCTION_NAMES[0x30]` reused the UDS `0x2F` names, but SSF
 14230-3 (the table `live/kwp_iocontrol_scan.py` cites) gives `0x01` reportCurrentState, not
-resetToDefault, and `0x04`-`0x09` other meanings again. A strict `xfail` in
-`test_uds_subfunctions.py` records it; phase 3 item 4 fixes it.
+resetToDefault, and `0x04`-`0x09` other meanings again. Phase 3 item 4 fixed it.
 
 ## Phase 2 — mechanical replacement (done, 2026-11-05)
 
@@ -93,44 +92,36 @@ Left for phase 3, because a faithful rewrite of each changes or risks changing b
 sets), `uds/echo.py`'s `_ONE_BYTE_ID_SERVICES`, `uds/describe.py`, `live/skm_wakeup.py`,
 `live/tester.py` (`"7F3E"`) and `cli/commands/coverage/payloads.py`.
 
-## Phase 3 — derived facts and text matching (one commit each, each with tests)
+## Phase 3 — derived facts and text matching (done, 2026-11-05)
 
-These sites restate a fact that the registry already holds, or match protocol bytes inside
-text. A rewrite can change behaviour, so each commit adds a regression test first and names any
-behaviour change in its body. Ask the user before a change that alters output.
+These sites restated a fact that the registry already holds, or matched protocol bytes inside
+text. Each got its own commit with a regression test; each commit body names what changed.
 
-1. **Identifier width.** `service in (0x22, 0x2F, 0x31)` appears five times
-   (`captures/__init__.py` twice, `live/scan.py` twice, `live/scan_presets.py::is_wide_service`).
-   It means "this service takes a 2-byte id", which is `ServiceInfo.id_width == 2`. The registry
-   also gives `0x2E` a width of 2. Check each caller for what `0x2E` would do (the blocklist
-   refuses it, so a scan should never reach it), then read the width from the registry through
-   one helper. Do the same for `uds/echo.py::_ONE_BYTE_ID_SERVICES` against the `id_width=1`
-   rows. Here the sets disagree today, so decide per service whether the echo rule or the
-   registry is right, and fix the wrong one.
-2. **`uds/describe.py`** (20 literals). A chain of `if sid == 0x50 … if sid == 0x7E` names each
-   positive response. Make it a table keyed by `positive_response_sid(<service>)`, so the module
-   is a lookup and not a list of magic numbers. Pin the current output for every branch first.
-3. **Hex-text matching.** `live/skm_wakeup.py` searches ELM327 text for `"7F2F78"` and
-   `"7F2F7F"`, `live/tester.py` counts `"7F3E"`, and `cli/commands/coverage/payloads.py` tests
-   `payload[:2] == "7F"`. A substring search over a whole block can match bytes that span a
-   boundary or sit inside a positive reply. 6b07390f fixed exactly this in the ELM327 pipe.
-   Parse the reply into bytes and use `is_response_pending()` and a matching
-   `is_negative_response(reply, sid, nrc)` in `uds/nrc.py`. Add a test with a positive reply
-   that contains the old substring.
-
-4. **KWP2000 `0x30` names.** Name `0x30` values with `KwpIoControlParameter` instead of the UDS
-   table, and remove the `xfail`. This changes what `bix`/`decode_uds_response` print for a
-   KWP2000 IOControl reply, so ask first.
-5. **UDS-only codes on KWP2000 paths.** `live/kwp_routines_scan.py` and
-   `live/kwp_iocontrol_scan.py` test `0x7F` as "wrong session" and `0x24` as "exists", but
-   SSF 14230-3 leaves both reserved on KWP2000 (its "not in this session" is `0x80`). Phase 2
-   keeps the behaviour and names them with the UDS constants; decide here whether a KWP2000
-   scan should test the KWP2000 codes instead.
+1. **Identifier width** (`fix(uds)`). Five `service in (0x22, 0x2F, 0x31)` tests and the echo
+   rule's own list of 1-byte-id services now read `uds.services.identifier_width()`, and the
+   unread `ServicePreset.wide` field is gone. Two results follow the registry now: `0x2E`
+   formats as a 4-digit DID (the blocklist refuses it, so a scan only prints it), and a
+   two-byte KWP2000 `0x33`/`0x32` request is echo-validated, as SSF 14230-3 has `73`/`72`
+   repeat the local identifier.
+2. **`uds/describe.py`** (`refactor(uds)`). The chain of twenty `if sid == 0x50` branches is a
+   table of small describers keyed by service. The output is identical for every first byte
+   with eight tails, compared against the old code.
+3. **Hex-text matching** (`fix(live)`). The SKM relay wake and the tester loop read adapter
+   text line by line through the new `uds.parse.reply_lines()` and
+   `uds.nrc.is_negative_response()`, so a `6F` or `7F 2F 78` inside another reply's data no
+   longer counts. The coverage audit names the negative-response byte.
+4. **KWP2000 `0x30` names** (`fix(uds)`). `0x30` has its own SSF 14230-3 table (`0x00`-`0x08`),
+   pinned by the `KwpIoControlParameter` test. `0x09` stays unnamed until its name is checked
+   against the standard. No current output names a `0x30` value.
+5. **UDS-only codes on KWP2000 paths** (`fix(scan)`). The routine-results scan now reads
+   KWP2000's `0x80` as "wrong session" as the `0x30` scan already did, instead of recording
+   every LID as a hit; `0x7F` stays for ECUs that mix the codes. `0x24` left the named hints:
+   any NRC `classify()` does not name counts as a hit, so it still is one.
 
 ## Phase 4 — close the ratchet
 
-When the baseline is empty, remove the `protocol_literals` key and make the test absolute: no
-module outside the homes may contain a match. Then widen the scanner with what it misses today,
+The baseline is empty, so the ceiling already works as an absolute rule: a module with any
+match fails. Remove the `protocol_literals` key and state the test as absolute. Then widen the scanner with what it misses today,
 each found by hand while writing this plan:
 
 - range tests on a plain name: `cli/commands/bix.py` (`0x40 <= b <= 0x7F`, `b < 0x40`) and
