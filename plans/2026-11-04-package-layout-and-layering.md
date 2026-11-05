@@ -824,14 +824,15 @@ deviate from section 4:
 - The data the stepper shares with the captures commands moved down: the entry keying and
   session grouping are `captures/entries.py`, the write-layer rule `captures/layers.py`.
 
-Measured after phases 6 and 7 (`scripts/check/import_graph.py`, 2026-11-05):
+Measured at the end of 2026-11-05 (`scripts/check/import_graph.py`):
 
 | Measure | After phase 5 | After phase 7 |
 |---|---:|---:|
 | Units in the largest import cycle | 18 | 3 (`ecus`, `profile`, `variants`) |
 | `ignore_imports` entries | 5 | 0 |
 | Modules outside `tui/` that import Textual | 5 | 0 |
-| Deferred internal imports | 1,159 | 1,154 |
+| Packages without a charter | 3 | 0 |
+| Deferred internal imports | 1,159 | 1,151 |
 
 Left over:
 
@@ -847,19 +848,24 @@ Left over:
    identity` hint in `variants/selection.py::_identity_hint`. Splitting `profile` from
    `variants` after that means the `Profile` object stops knowing its variant, a larger design
    change. **`expression : uds`**: `uds/notation.py` and `uds/inspect_bytes.py` build WiCAN
-   expressions with `expression.signed_range_is_exact`; move both to `expression/` and
-   `notation.subfunction_bytes_for_pid` to `uds/layout.py` (`uds/support_map.py` needs it).
-   About 40 importers change, so mind the size ceilings.
-3. The open items from phase 2: the `cli.main` re-entries of `groups`/`pids`/`states`; the
-   `validation/` debt (`_run_*` print, and `validation/pids.py` is 1,848 lines); the two
-   `scripts/migrate_states_*.py` as `canair` commands (user-facing, needs a decision).
-4. `commands/_*.py` flag helpers to `cli/args/`, `commands/_live` to `cli/live/`, and the `live/`
-   sub-packages.
+   expressions with `expression.signed_range_is_exact`. Move both to `expression/`, not the
+   guard down: `expression/nodes.py` keeps the guard beside the sign-extension ladder on
+   purpose. `notation.subfunction_bytes_for_pid` goes to `uds/layout.py` first
+   (`uds/support_map.py` needs it). About 40 importers change, and several are at their size
+   ceiling (`cli/commands/hunt.py`, `live/_monitor_render.py`), where a split import line adds
+   one.
+3. The open items from phase 2: the `validation/` debt (the `_run_*` runners check and print in
+   one function, so moving them to `cli/commands/validate/` means separating the check from the
+   report first; `validation/pids.py` is 1,848 lines), and the two `scripts/migrate_states_*.py`
+   as `canair` commands (user-facing, needs a decision). The `cli.main` re-entries are gone
+   (they were unused `python -m` blocks).
+4. The `live/` sub-packages of section 4 (`read/`, `monitor/`, `scan/` ...). The flag helpers
+   are `cli/args/` and the live-command runtime is `cli/live/` (2026-11-05).
 5. AGENTS.md still names about 180 `src/canair/...` paths. Cut it to what an agent needs always and
    point the rest at the generated page.
 6. The `param` to `signal` identifier rename of `plans/2026-08-06-signal-naming-convention.md`.
-7. The three command packages whose `--help` text is their module docstring (`coverage`,
-   `research`, `import uds`) have no charter, since the charter would show in the help.
+7. (Done 2026-11-05: `coverage`, `research` and `import uds` have charters, placed before the
+   `Examples:` their help epilog is cut from.)
 
 ---
 

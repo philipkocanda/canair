@@ -22,7 +22,15 @@ The next steps, in the order that pays most:
 
 1. **The two cycles left** (`ecus : profile : variants` and `expression : uds`). The plan's
    "Left over" item 2 lists the exact imports to cut for each.
-2. The smaller items in the plan's "Left over" list.
+2. **The `validation/` runners**: separate each `_run_*` check from its printing, then move the
+   printing to `cli/commands/validate/`; split `validation/pids.py` by section.
+3. The rest of the plan's "Left over" list: the `live/` sub-packages, the AGENTS.md path cut,
+   the `param` to `signal` rename, and the states migrations as commands (ask the user first;
+   it is user-facing).
+
+Also done on 2026-11-05: the flag helpers are `cli/args/`, the live-command runtime is
+`cli/live/`, the unused `python -m` blocks of three commands are gone, and every package has a
+charter.
 
 How a cycle step went, so the next one is quick: list the module edges between the packages
 still in the group (grimp: `grimp.build_graph("canair")`, then
