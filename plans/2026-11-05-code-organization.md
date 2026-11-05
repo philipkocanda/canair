@@ -107,3 +107,34 @@ the code:
   A typed model would be a large change to every package. It needs its own plan.
 - **One YAML edit engine.** See the yaml-edit-router plan.
 - **The duplicated keepalive code** of the raw and ELM327 paths. See the one-session-owner plan.
+
+## Synced with main
+
+2026-11-06: `main` at `1f2c1823` is merged into the integration branch (a merge commit, not a
+rebase). `main` had ten commits the refactor lacked: the discover functional-id fix, the
+ReadMemoryByAddress work (`memory` command, `scan memory`, `live/memory/`, `memory/`,
+`uds/memory.py`, `yaml_edit/memory.py`, `privacy` and `validation` changes), `pids set-isotp`,
+and profile data.
+
+Resolved by hand:
+
+- **`scan`.** `main` split it by kind and the refactor into `parser/plan/wizard/run`. The
+  package has both: main's `probes.py` and `memory_kind.py`, a new `range_parser.py`, and the
+  refactor's `plan.py`, `wizard.py` and `run.py`. The three probe parsers in the refactor's
+  `parser.py` were identical to main's `probes.py`, so main's file is the one kept.
+- **`pids`, `ecu`.** Main's edits to the old single modules (the `pid_status` import,
+  `set-isotp`, the `23/ADDRESS+SIZE` token in `run`, `--software` on `set-fingerprint`, a
+  shorter docstring) are applied to the packages. `int_or_clear` moved to `pids/common.py`.
+- **`memory` command.** Its parser moved to `parser.py`, so `__init__.py` is a charter.
+- **`live/software_version.py`** moved to `live/identity/software.py`; `live/` keeps its
+  sub-package layout and names `memory` as a family. New live tests sit in
+  `tests/live/{memory,discover,read}/`.
+- **Renamed modules.** Main's new code imported modules the refactor had moved
+  (`live.progress_line` → `render.progress`, `live.discover` → `live.discover.physical`,
+  `Profile.revisions` → `ecus.revisions.determined_revisions`); it now uses the new paths.
+- **Contract, baseline, generated pages.** `canair.memory` joins the analysis layer in the
+  layer contract. `baseline.json` took the refactor's keys, and `--write` lowered four ceilings.
+  The architecture page is regenerated. The CLI reference for the old commands is main's.
+
+Later sub-plans that move `live/` or `cli/` modules should merge `main` first: `main` now
+has three more files in `cli/commands/` (`memory/`) and one more `live/` family.
