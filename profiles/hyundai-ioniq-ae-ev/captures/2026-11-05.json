@@ -768,6 +768,353 @@
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009218051064003000000009565000620","time":"13:58:57.869"},
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009218054063E03000000009165000620","time":"13:58:58.946"}
       ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "phase0 0x23 support probe (malformed, reads nothing)",
+      "version": "4.3.0+main.964f3ff.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "ReadMemoryByAddress support probe: request without address/size; NRC 13 = supported, 11 = not supported",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 1
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"2324","response":"NRC 0x11 (serviceNotSupported)"}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "phase0 0x23 support probe (malformed, reads nothing)",
+      "version": "4.3.0+main.964f3ff.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "ReadMemoryByAddress support probe, default session: request without address/size (UDS 2324, KWP 23); NRC 13/12 = supported, 11 = not supported",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 29,
+        "no_data": 17
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7A8","pid":"2324","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7AD","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7CE","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x73B","pid":"2324","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x7BB","pid":"2324","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7BE","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7D9","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7DC","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7DD","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7CC","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7D8","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x788","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x73E","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x72D","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7A9","pid":"2324","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x7AA","pid":"2324","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x7AB","pid":"2324","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x7BF","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x75D","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x79E","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7DA","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x78B","pid":"2324","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x7C8","pid":"2324","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7EA","pid":"23","response":"NRC 0x79 (incorrectByteCountDuringBlockTransfer)"},
+        {"rx":"0x7EB","pid":"23","response":"NRC 0x79 (incorrectByteCountDuringBlockTransfer)"},
+        {"rx":"0x7EC","pid":"23","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x7ED","pid":"23","response":"NRC 0x79 (incorrectByteCountDuringBlockTransfer)"},
+        {"rx":"0x7EE","pid":"23","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x74E","pid":"23","response":"NRC 0x11 (serviceNotSupported)"}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "phase0 0x23 support probe (malformed, reads nothing)",
+      "version": "4.3.0+main.964f3ff.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "ReadMemoryByAddress support probe in extended session (10 03) for ECUs that answered NRC 11 in the default session",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 7
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"2324","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x73B","pid":"2324","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x7A9","pid":"2324","response":"NRC 0x11 (serviceNotSupported)"}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "phase0 0x23 1-byte read at address 0",
+      "version": "4.3.0+main.964f3ff.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "ReadMemoryByAddress format probe, default session: 1 byte at address 0 with ALFID 14, 24, 44",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 6
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7A8","pid":"23140001","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7A8","pid":"2324000000000001","response":"NRC 0x31 (requestOutOfRange)"},
+        {"rx":"0x7A8","pid":"2344000000000001","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7BB","pid":"23140001","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7BB","pid":"2324000000000001","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7BB","pid":"2344000000000001","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "phase0 0x23 1-byte read at address 0",
+      "version": "4.3.0+main.0822216.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "ReadMemoryByAddress format probe, default session: 1 byte at address 0, correct length for each ALFID (HVAC), KWP2000 3-byte address form (MCU)",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 10
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7BB","pid":"231300000001","payload":"6300","time":"21:47:47.143"},
+        {"rx":"0x7EB","pid":"2300000001","payload":"6300","time":"21:47:48.558"},
+        {"rx":"0x7BB","pid":"23110001","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7BB","pid":"2312000001","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7BB","pid":"23140000000001","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7BB","pid":"2321000001","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7BB","pid":"222200000001","response":"NRC 0x31 (requestOutOfRange)"},
+        {"rx":"0x7BB","pid":"23220000000001","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7BB","pid":"2323000000000001","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x7BB","pid":"23440000000000000001","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "phase0 0x23 reply format and more ECUs",
+      "version": "4.3.0+main.0822216.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "ReadMemoryByAddress: 4 bytes at address 0 and 0x100 (HVAC ALFID 13, MCU KWP2000 form) to check for an address echo; 1 byte at 0 on VCU/OBC; BCM other ALFIDs and a few RAM addresses",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 11
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7BB","pid":"231300000004","payload":"6300000000","time":"21:48:13.268"},
+        {"rx":"0x7BB","pid":"231300010004","payload":"6300000000","time":"21:48:13.371"},
+        {"rx":"0x7EB","pid":"2300000004","payload":"63005A0000","time":"21:48:13.512"},
+        {"rx":"0x7EB","pid":"2300010004","payload":"637C0004AC","time":"21:48:13.597"},
+        {"rx":"0x7EA","pid":"2300000001","payload":"6300","time":"21:48:13.710"},
+        {"rx":"0x7ED","pid":"2300000001","payload":"6300","time":"21:48:13.866"},
+        {"rx":"0x7A8","pid":"2324FEDE00000001","payload":"6300","time":"21:48:14.424"},
+        {"rx":"0x7A8","pid":"231300000001","response":"NRC 0x31 (requestOutOfRange)"},
+        {"rx":"0x7A8","pid":"23140000000001","response":"NRC 0x31 (requestOutOfRange)"},
+        {"rx":"0x7A8","pid":"2324000001000001","response":"NRC 0x31 (requestOutOfRange)"},
+        {"rx":"0x7A8","pid":"2324200000000001","response":"NRC 0x31 (requestOutOfRange)"}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "phase0 0x23 block size",
+      "version": "4.3.0+main.0822216.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "ReadMemoryByAddress: largest block per ECU (MCU/VCU/OBC KWP2000 form 64/255 bytes at 0, HVAC ALFID 13 255 bytes at 0, BCM ALFID 24 256/1024 bytes at 0xFEDE0000)",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 7,
+        "no_data": 1,
+        "decode": 1,
+        "resyncs": 1
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7EB","pid":"2300000040","payload":"63005A000000000024FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF380000003D604000616B80003D800000618C07007D8903A6BC0B0000396B0080","time":"21:48:35.241"},
+        {"rx":"0x7EB","pid":"23000000FF","response":"NRC 0x53 (cantUploadNumberOfBytesRequested)"},
+        {"rx":"0x7BB","pid":"2313000000FF","response":"No response from ECU (NO DATA)"},
+        {"rx":"0x7A8","pid":"2324FEDE00000100","response":"Non-hex response: FCRXTIMEOUT"},
+        {"rx":"0x7EA","pid":"23000000FF","response":"NRC 0x53 (cantUploadNumberOfBytesRequested)"},
+        {"rx":"0x7ED","pid":"23000000FF","response":"NRC 0x53 (cantUploadNumberOfBytesRequested)"}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "phase0 0x23 block size",
+      "version": "4.3.0+main.0822216.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "ReadMemoryByAddress: block-size steps on BCM (0xFEDE0000), HVAC (0) and MCU (0)",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 11,
+        "no_data": 2,
+        "drop": 2
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7A8","pid":"2324FEDE00000001","payload":"6300","time":"21:49:17.928"},
+        {"rx":"0x7A8","pid":"2324FEDE00000010","payload":"6300000000000000000000000000000000","time":"21:49:18.610"},
+        {"rx":"0x7A8","pid":"2324FEDE00000020","payload":"630000000000000000000000000000000000000000000000000000000000000000","time":"21:49:18.789"},
+        {"rx":"0x7A8","pid":"2324FEDE00000040","payload":"6300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","time":"21:49:18.986"},
+        {"rx":"0x7BB","pid":"231300000040","payload":"6300000000000000000101000000000158006500F30014003F0007007300060004000A000007FFD8000003B600000D000000000000000000000000302020202020","time":"21:49:19.509"},
+        {"rx":"0x7BB","pid":"2313000000040","response":"Empty response (only the request echo)"},
+        {"rx":"0x7EB","pid":"2300000080","response":"truncated ISO-TP: got 111 bytes, declared 129"},
+        {"rx":"0x7EB","pid":"23000000C0","response":"truncated ISO-TP: got 111 bytes, declared 193"},
+        {"rx":"0x7EB","pid":"23000000FE","response":"No response from ECU (NO DATA)"}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "phase0 0x23 BCM RAM change check",
+      "version": "4.3.0+main.0822216.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "ReadMemoryByAddress: BCM 16 bytes at three addresses in the 0xFEDE0000 RAM window, read twice 3 s apart",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 6
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7A8","pid":"2324FEDF00000010","payload":"6300000000000000000000000000000000","time":"21:50:20.922","repeat_ms":[3387]},
+        {"rx":"0x7A8","pid":"2324FEDFF0000010","payload":"6300000000000000000000000000000000","time":"21:50:21.085","repeat_ms":[3291]},
+        {"rx":"0x7A8","pid":"2324FEDE80000010","payload":"6300000000000000000000000000000000","time":"21:50:21.235","repeat_ms":[3224]}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "address sweep while AC charging (EWP hunt)",
+      "version": "4.3.0+main.0521f10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "0x700-0x7EF, 10 01 per id, wican-ws, AC charging ~1 kW; looking for the electric water pump",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover 700-7EF","scan_results":{"responding":[{"tx":"0x733","rx":"0x73B","response":"CCM (positive)","notes":"Raw: 5001003201F4"},{"tx":"0x746","rx":"0x74E","response":"Unknown-746 (NRC 0x12)","notes":"Raw: subFunctionNotSupportedOrInvalidFormat"},{"tx":"0x770","rx":"0x778","response":"IGPM (positive)","notes":"Raw: 5001"},{"tx":"0x783","rx":"0x78B","response":"AMP (positive)","notes":"Raw: 5001003201F4"},{"tx":"0x7A0","rx":"0x7A8","response":"BCM (positive)","notes":"Raw: 5001"},{"tx":"0x7A1","rx":"0x7A9","response":"DDM (positive)","notes":"Raw: 5001"},{"tx":"0x7A2","rx":"0x7AA","response":"ADM (positive)","notes":"Raw: 5001"},{"tx":"0x7A3","rx":"0x7AB","response":"PSM (positive)","notes":"Raw: 5001"},{"tx":"0x7B3","rx":"0x7BB","response":"HVAC (positive)","notes":"Raw: 5001"},{"tx":"0x7E2","rx":"0x7EA","response":"VCU (NRC 0x12)","notes":"Raw: subFunctionNotSupportedOrInvalidFormat"},{"tx":"0x7E3","rx":"0x7EB","response":"MCU (NRC 0x12)","notes":"Raw: subFunctionNotSupportedOrInvalidFormat"},{"tx":"0x7E4","rx":"0x7EC","response":"BMS (NRC 0x12)","notes":"Raw: subFunctionNotSupportedOrInvalidFormat"},{"tx":"0x7E5","rx":"0x7ED","response":"OBC (NRC 0x12)","notes":"Raw: subFunctionNotSupportedOrInvalidFormat"},{"tx":"0x7E6","rx":"0x7EE","response":"AAF (NRC 0x22)","notes":"Raw: conditionsNotCorrectOrRequestSequenceError"}],"rejected":"226 addresses silent"}}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "Unknown-746 KWP identity scan while AC charging",
+      "version": "4.3.0+main.0521f10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x74E","pid":"scan 1A 80-9F","scan_results":{"responding":[{"did":"8B","response":"6 bytes","notes":"Raw: 5A8BFFFFFFFF"},{"did":"8C","response":"6 bytes","notes":"Raw: 5A8C312E3130"},{"did":"8D","response":"6 bytes","notes":"Raw: 5A8D5A333131"},{"did":"8E","response":"6 bytes","notes":"Raw: 5A8E5A333131"},{"did":"92","response":"6 bytes","notes":"Raw: 5A92332E3500"},{"did":"99","response":"6 bytes","notes":"Raw: 5A99FFFFFFFF"}],"rejected":"26 DIDs returned 22 NRC + 4 errors"}}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "EWP KWP identity scan, slcan-tcp, FC blocksize 8",
+      "version": "4.3.0+main.0521f10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "The EWP sends no consecutive frames after a FlowControl with BlockSize 0; blocksize 8 set for this read",
+      "transport": "slcan-tcp",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x74E","pid":"scan 1A 80-9F","scan_results":{"responding":[{"did":"80","response":"75 bytes","notes":"Raw: 5A80FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF..."},{"did":"8A","response":"12 bytes","notes":"Raw: 5A8AFFFFFFFFFFFFFFFFFFFF"},{"did":"8B","response":"6 bytes","notes":"Raw: 5A8BFFFFFFFF"},{"did":"8C","response":"6 bytes","notes":"Raw: 5A8C312E3130"},{"did":"8D","response":"6 bytes","notes":"Raw: 5A8D5A333131"},{"did":"8E","response":"6 bytes","notes":"Raw: 5A8E5A333131"},{"did":"91","response":"14 bytes","notes":"Raw: 5A91FFFFFFFFFFFFFFFFFFFFFFFF"},{"did":"92","response":"6 bytes","notes":"Raw: 5A92332E3500"},{"did":"98","response":"12 bytes","notes":"Raw: 5A98FFFFFFFFFFFFFFFFFFFF"},{"did":"99","response":"6 bytes","notes":"Raw: 5A99FFFFFFFF"}],"rejected":"22 DIDs returned 22 NRC"}}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "EWP 21F2 over slcan-tcp while AC charging",
+      "version": "4.3.0+main.0521f10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "notes": "First full read: FC BlockSize 8 (BlockSize 0 gets no consecutive frames)",
+      "transport": "slcan-tcp",
+      "quality": {
+        "exchanges": 1
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x74E","pid":"21F2","payload":"61F200000007000000000000","time":"22:21:52.745","elapsed_ms":93}
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "label": "EWP service 21 sweep, slcan-tcp, FC blocksize 8, AC charging",
+      "version": "4.3.0+main.0521f10.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "slcan-tcp",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x74E","pid":"scan 21 00-FF","scan_results":{"responding":[{"did":"F2","response":"12 bytes","notes":"Raw: 61F200000007000000000000"}],"rejected":"255 DIDs returned 255 NRC"}}
+      ]
     }
   ]
 }
