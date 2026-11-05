@@ -44,6 +44,10 @@ def _scan(tmp_path: Path, source: str, module: str = "mod") -> list[str]:
         ("KWP_SESSION_MODES = (0x81, 0x82, 0x83)\n", "constant"),
         ("_UDS_OEM_BAND = range(0x40, 0x7F)\n", "constant"),
         ("x = send('3E00')\n", "hex string"),
+        ("x = send('1003')\n", "hex string"),
+        ("x = send('1081')\n", "hex string"),
+        ("x = send(req, expected_sid=0x22)\n", "keyword"),
+        ("x = Probe(service=0x2F)\n", "keyword"),
         ("hit = '7F2F78' in clean\n", "hex string"),
     ],
 )
@@ -66,6 +70,9 @@ def test_flags_a_protocol_byte_written_as_a_literal(tmp_path, source, kind):
         "x = '7F2'\n",  # not whole bytes
         "x = from_name(SERVICE) + RESPONSE_SID_OFFSET\n",  # read by name
         "PIDS = range(0, 10)\n",  # not hex-written
+        "x = send('10D1')\n",  # a make-specific session, left to its quirk
+        "x = send(req, timeout=0x10)\n",  # a keyword that names no protocol byte
+        "x = send(req, expected_sid=SID)\n",  # read by name
         "ok = b >= 0x20\n",  # a bound that is not the response offset
     ],
 )

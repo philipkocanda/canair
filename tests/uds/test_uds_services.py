@@ -8,6 +8,9 @@ from canair.uds import services
 from canair.uds.services import (
     BOTH,
     CONTROL_DTC_SETTING,
+    DEFAULT_SESSION_REQUEST,
+    DIAGNOSTIC_SESSION_CONTROL,
+    EXTENDED_SESSION_REQUEST,
     KWP2000,
     OBD2,
     READ_DATA_BY_IDENTIFIER,
@@ -22,6 +25,7 @@ from canair.uds.services import (
     service_name,
     service_response_name,
 )
+from canair.uds.subfunctions import SessionType
 
 
 class TestServiceName:
@@ -203,3 +207,12 @@ def test_identifier_width_comes_from_the_registry():
     assert identifier_width(0x21) == 1
     assert identifier_width(0x10) == 0
     assert identifier_width(0x99) == 0
+
+
+def test_the_session_requests_are_diagnostic_session_control():
+    assert bytes.fromhex(DEFAULT_SESSION_REQUEST) == bytes(
+        [DIAGNOSTIC_SESSION_CONTROL, SessionType.DEFAULT_SESSION]
+    )
+    assert bytes.fromhex(EXTENDED_SESSION_REQUEST) == bytes(
+        [DIAGNOSTIC_SESSION_CONTROL, SessionType.EXTENDED_DIAGNOSTIC_SESSION]
+    )

@@ -132,6 +132,11 @@ text. Each got its own commit with a regression test; each commit body names wha
 - `uds/parse.py`'s `0x10 <= … <= 0x3E` request-SID test, which no pattern sees, reads the new
   `services.REQUEST_SID_RANGE`. `interop/frame_log.py`'s rejected-SID test was already named in
   phase 2.
+- A later pass added two patterns: a hex literal passed to a keyword named for a protocol byte
+  (`expected_sid=0x22`, `service=0x2F`), and requests into a standard session (`"1001"`,
+  `"1003"`, `"1081"`-`"1085"`). Their sites read the registry names and the new
+  `DEFAULT_SESSION_REQUEST`/`EXTENDED_SESSION_REQUEST`. Requests built in an f-string
+  (`f"10{mode}"`, `f"2F{did:04X}00"`) are still not seen.
 - `_HKMC_PROGRAMMING_MODE` (`0x05`) stays in the blocklist: it is a Hyundai/Kia session, and
   make-specific values live with the code that handles the make.
 

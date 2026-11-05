@@ -55,7 +55,7 @@ from canair.uds.frame_counts import FrameCountLedger, frames_for_payload
 from canair.uds.nrc import is_response_pending
 from canair.uds.parse import parse_uds_response
 from canair.uds.response import UdsResponse
-from canair.uds.services import TESTER_PRESENT_REQUEST
+from canair.uds.services import DEFAULT_SESSION_REQUEST, TESTER_PRESENT_REQUEST
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
 
@@ -270,7 +270,7 @@ class RawTerminal:
         # would raise otherwise), so the keepalive target is always known.
         assert tx is not None
         if wake:
-            await self.send_uds("1001", timeout=3.0)
+            await self.send_uds(DEFAULT_SESSION_REQUEST, timeout=3.0)
             await asyncio.sleep(0.3)
         resp = await self.send_uds(f"10{mode}", timeout=3.0)
         if resp.get("ok"):

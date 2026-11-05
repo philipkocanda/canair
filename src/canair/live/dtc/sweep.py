@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from canair.render import ansi
+from canair.uds.services import DEFAULT_SESSION_REQUEST
 
 from ...dtc.snapshot_report import snapshot_lines, undefined_hints
 from ...ecus import ecu_display
@@ -55,7 +56,7 @@ async def _wake_read(terminal, tx_id, mask, protocol, verbose, timeout):
     """Wake the ECU (1001) then re-read DTCs with a longer timeout."""
     await terminal.set_header(tx_id)
     try:
-        await terminal.send_uds("1001", timeout=timeout)
+        await terminal.send_uds(DEFAULT_SESSION_REQUEST, timeout=timeout)
     except Exception:
         pass
     return await _read_one(terminal, tx_id, mask, protocol, verbose, timeout=timeout)

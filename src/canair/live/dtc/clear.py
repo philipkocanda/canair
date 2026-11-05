@@ -7,6 +7,7 @@ import json
 
 from canair.render import ansi
 from canair.uds.protocol import KWP
+from canair.uds.services import CLEAR_DIAGNOSTIC_INFORMATION
 
 from ...ecus import ecu_display
 from ...transport.protocol import Terminal
@@ -73,7 +74,9 @@ async def mode_dtc_clear(
             print(f"\n  DTC clear: {ecu_display(tx_id)}")
             print(f"  Command: {cmd} (ClearDiagnosticInformation, {proto})\n")
 
-        response = await terminal.send_uds(cmd, timeout=5.0, expected_sid=0x14)
+        response = await terminal.send_uds(
+            cmd, timeout=5.0, expected_sid=CLEAR_DIAGNOSTIC_INFORMATION
+        )
 
         base = {
             "ecu": ecu_display(tx_id),

@@ -32,6 +32,7 @@ from canair.ecus.wake import WakePlan
 from canair.transport import keepalive
 from canair.transport.protocol import Terminal
 from canair.uds.services import (
+    DEFAULT_SESSION_REQUEST,
     DIAGNOSTIC_SESSION_CONTROL,
     TESTER_PRESENT,
     TESTER_PRESENT_REQUEST,
@@ -179,7 +180,7 @@ class SessionManager:
                 if self.verbose:
                     print(f"  [session] Sending wake-up (1001) to 0x{tx_id:03X}...")
                 await self.terminal.send_uds(
-                    "1001", timeout=15.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
+                    DEFAULT_SESSION_REQUEST, timeout=15.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
                 )
                 await asyncio.sleep(0.5)
 
@@ -311,7 +312,7 @@ class SessionManager:
         if tx_id in self._sessions:
             await self.terminal.set_header(tx_id)
             try:
-                await self.terminal.send_command("1001", timeout=2.0)
+                await self.terminal.send_command(DEFAULT_SESSION_REQUEST, timeout=2.0)
             except Exception:
                 pass
             del self._sessions[tx_id]

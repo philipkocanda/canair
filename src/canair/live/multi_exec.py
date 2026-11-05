@@ -28,6 +28,7 @@ from canair.uds.describe import decode_uds_response
 from canair.uds.echo import request_echo
 from canair.uds.multi_did import BATCH_REFUSAL_NRCS
 from canair.uds.response import UdsResponse
+from canair.uds.services import READ_DATA_BY_IDENTIFIER
 
 from ._iocontrol_actuate import send_iocontrol
 from .multi_batch import (
@@ -183,16 +184,15 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> BatchOutcome:
     """
     dids = [_did4(e[0]) for e in group]
     await sm.keepalive_stale()
-    # Validated like the single-PID path: a 62 response repeats the first
-    # requested DID, so expected_sid/expected_echo classify a leaked reply as
-    # `stale` (triggering a pipe resync) instead of letting split_multi_did fail
-    # silently — which the caller reads as "unsplittable" and reacts to by
-    # permanently disabling batching for the whole ECU.
+    # Validated like the single-PID path: a 62 response repeats the first requested DID, so
+    # expected_sid/expected_echo classify a leaked reply as `stale` (triggering a pipe resync)
+    # instead of letting split_multi_did fail silently — which the caller reads as
+    # "unsplittable" and reacts to by permanently disabling batching for the whole ECU.
     resp, _wall, request_s = await timed_exchange(
         sm,
         tx_id,
         "22" + "".join(dids),
-        expected_sid=0x22,
+        expected_sid=READ_DATA_BY_IDENTIFIER,
         expected_echo=bytes.fromhex(dids[0]) if dids else None,
     )
     acquired_at = time.time()

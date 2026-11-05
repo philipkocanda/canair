@@ -30,6 +30,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Final
 
+from canair.uds.services import DEFAULT_SESSION_REQUEST
+
 # Wake methods (mirror valid_wake_methods in pids_schema.yaml).
 RAPID_READ: Final = "rapid_read"
 SESSION: Final = "session"
@@ -41,7 +43,7 @@ KNOWN_METHODS: Final = frozenset({RAPID_READ, SESSION, RELAY})
 # window, and 10 01 is a universally safe prime when no cheap PID is named.
 DEFAULT_ATTEMPTS: Final = 6
 DEFAULT_INTERVAL_MS: Final = 60
-DEFAULT_PRIME: Final = "1001"
+DEFAULT_PRIME: Final = DEFAULT_SESSION_REQUEST
 DEFAULT_SESSION_MODE: Final = "03"
 
 

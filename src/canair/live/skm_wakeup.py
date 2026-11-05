@@ -25,7 +25,12 @@ from canair.uds.nrc import (
     is_response_pending,
 )
 from canair.uds.parse import reply_lines
-from canair.uds.services import INPUT_OUTPUT_CONTROL_BY_IDENTIFIER, positive_response_sid
+from canair.uds.services import (
+    DEFAULT_SESSION_REQUEST,
+    EXTENDED_SESSION_REQUEST,
+    INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
+    positive_response_sid,
+)
 
 # SKM relay control DIDs
 SKM_RELAYS = {
@@ -146,10 +151,10 @@ async def wake_and_read(terminal: Elm327Terminal, tx_id: str, pid: str) -> dict:
         await terminal.set_header(int(tx_id, 16))
 
         # Wake from deep sleep
-        await terminal.send_command("1001", timeout=3.0)
+        await terminal.send_command(DEFAULT_SESSION_REQUEST, timeout=3.0)
 
         # Extended session
-        resp = await terminal.send_command("1003", timeout=3.0)
+        resp = await terminal.send_command(EXTENDED_SESSION_REQUEST, timeout=3.0)
         if "5003" not in resp.replace(" ", "") and "50 03" not in resp:
             return {"ok": False, "error": "Could not enter extended session."}
 
@@ -197,7 +202,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
 
     skm_awake = False
     for attempt in range(10):
-        resp = await terminal.send_command("1001", timeout=3.0)
+        resp = await terminal.send_command(DEFAULT_SESSION_REQUEST, timeout=3.0)
         if "50 01" in resp or "5001" in resp:
             skm_awake = True
             if verbose:
@@ -220,7 +225,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
 
     session_ok = False
     for attempt in range(5):
-        resp = await terminal.send_command("1003", timeout=3.0)
+        resp = await terminal.send_command(EXTENDED_SESSION_REQUEST, timeout=3.0)
         if "50 03" in resp or "5003" in resp:
             session_ok = True
             break

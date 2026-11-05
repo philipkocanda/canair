@@ -8,7 +8,7 @@ tests/contracts/test_structure.py fails on any of them. The plan that moved the 
 is plans/2026-11-05-named-protocol-constants.md.
 
 Only hex-written integers count (``0x7F``, not ``127``), so timeouts and counts never match.
-Four patterns:
+Five patterns:
 
 * **compare** — a hex literal compared with something that holds a protocol byte: a
   subscript by a constant (``resp[0] == 0x7F``), an ``"nrc"``/``"sid"`` lookup, or a name
@@ -19,8 +19,11 @@ Four patterns:
 * **constant** — a module- or class-level name with a protocol word in it (``NRC_…``,
   ``…_SID``, ``_READ_SERVICE``, ``SF_…``, ``UDS_…``, ``…_SESSION…``) bound to a hex literal,
   a collection of them or a ``range`` between two.
-* **hex string** — a string that is a negative response or TesterPresent request
-  (``"7F"``, ``"7F2F78"``, ``"3E00"``). Docstrings are skipped.
+* **keyword** — a hex literal passed to a keyword argument named for a protocol byte
+  (``expected_sid=0x22``, ``service=0x2F``).
+* **hex string** — a string that is a negative response, a TesterPresent request or a request
+  into a standard diagnostic session (``"7F"``, ``"7F2F78"``, ``"3E00"``, ``"1003"``).
+  Docstrings are skipped.
 
 The scan is a net, not a proof: a literal it cannot see is still a literal. Masks
 (``sub & 0x7F``), byte ranges and data tables are not matched, because they are not
@@ -71,7 +74,10 @@ NAME_WORDS = frozenset(
 )
 OPERAND_WORDS = frozenset({"nrc", "sid", "service"})
 LOOKUP_KEYS = frozenset({"nrc", "sid"})
-HEX_MESSAGE = re.compile(r"^(?:7F(?:[0-9A-F]{2})*|3E[08]0)$", re.IGNORECASE)
+# A negative response, TesterPresent, or a DiagnosticSessionControl request into a standard
+# session (UDS 01-04, KWP2000 81-85). Make-specific sessions (Hyundai/Kia D1, Nissan C0) are
+# left to the quirks that permit them.
+HEX_MESSAGE = re.compile(r"^(?:7F(?:[0-9A-F]{2})*|3E[08]0|10(?:0[1-4]|8[1-35]))$", re.IGNORECASE)
 HEX_LITERAL = re.compile(r"^0[xX][0-9A-Fa-f]+$")
 
 
@@ -223,6 +229,12 @@ class _Scanner(ast.NodeVisitor):
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         self._constant(node, [node.target])
+        self.generic_visit(node)
+
+    def visit_keyword(self, node: ast.keyword) -> None:
+        name = node.arg or ""
+        if self._words(name.lower()) & OPERAND_WORDS and self._hex_values(node.value):
+            self._add(node, "keyword")
         self.generic_visit(node)
 
     def visit_Constant(self, node: ast.Constant) -> None:

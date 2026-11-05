@@ -6,6 +6,7 @@ import sys
 
 from canair.render import ansi
 from canair.uds.addressing import DEFAULT_MODE, AddressingMode, is_extended
+from canair.uds.services import DEFAULT_SESSION_REQUEST
 
 from ..transport.protocol import Terminal
 from .discover_render import (
@@ -124,7 +125,7 @@ async def mode_discover(
     for i, tx_id in enumerate(tx_ids):
         try:
             await terminal.set_header(tx_id)
-            response = await terminal.send_uds("1001", timeout=2.0)
+            response = await terminal.send_uds(DEFAULT_SESSION_REQUEST, timeout=2.0)
         except Exception as e:
             errors.append((tx_id, str(e)))
             if verbose:

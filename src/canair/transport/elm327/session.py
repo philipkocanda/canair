@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 from canair.transport import keepalive
 from canair.uds.response import UdsResponse
 from canair.uds.services import (
+    DEFAULT_SESSION_REQUEST,
     DIAGNOSTIC_SESSION_CONTROL,
     TESTER_PRESENT,
     TESTER_PRESENT_REQUEST,
@@ -96,12 +97,12 @@ async def _wake(terminal: Elm327Terminal) -> None:
     """Nudge a deep-sleeping ECU with a default session request before the real one."""
     await terminal.send_command(_WAKE_TIMEOUT_CMD)
     wake_resp = await terminal.send_uds(
-        "1001", timeout=3.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
+        DEFAULT_SESSION_REQUEST, timeout=3.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
     )
     if not wake_resp.get("ok"):
         # First frame may just trigger the transceiver — retry.
         wake_resp = await terminal.send_uds(
-            "1001", timeout=3.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
+            DEFAULT_SESSION_REQUEST, timeout=3.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
         )
     if wake_resp.get("ok"):
         print("  Wake-up: ECU responded.")

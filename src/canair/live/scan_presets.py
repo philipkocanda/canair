@@ -16,7 +16,14 @@ from dataclasses import dataclass
 from canair.core.id_ranges import IdRange
 from canair.ecus.did_families import FAMILY_SIZE, did_families, family_ranges
 from canair.uds.protocol import KWP, classify_protocol
-from canair.uds.services import identifier_width
+from canair.uds.services import (
+    INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
+    KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
+    KWP_READ_DATA_BY_LOCAL_IDENTIFIER,
+    READ_DATA_BY_IDENTIFIER,
+    ROUTINE_CONTROL,
+    identifier_width,
+)
 
 
 @dataclass(frozen=True)
@@ -37,19 +44,19 @@ class ServicePreset:
 SERVICE_PRESETS: tuple[ServicePreset, ...] = (
     ServicePreset(
         name="live-data",
-        service=0x21,
+        service=KWP_READ_DATA_BY_LOCAL_IDENTIFIER,
         default_range="01-FF",
         summary="KWP2000 paged live data (powertrain ECUs: BMS, VCU, MCU, LDC)",
     ),
     ServicePreset(
         name="read-did",
-        service=0x22,
+        service=READ_DATA_BY_IDENTIFIER,
         default_range="F100-F1FF",
         summary="UDS ReadDataByIdentifier (body/comfort ECUs)",
     ),
     ServicePreset(
         name="iocontrol",
-        service=0x2F,
+        service=INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
         # Make-neutral fallback: the full DID space. Real scans PID-derive a
         # tighter per-ECU range (see `infer_iocontrol_ranges`) or read the
         # ECU's `iocontrol_scan_ranges:` profile field.
@@ -61,7 +68,7 @@ SERVICE_PRESETS: tuple[ServicePreset, ...] = (
     ),
     ServicePreset(
         name="iocontrol-kwp",
-        service=0x30,
+        service=KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
         default_range="00-FF",
         summary="KWP2000 InputOutputControlByLocalIdentifier (powertrain actuators)",
         needs_session=True,
@@ -70,7 +77,7 @@ SERVICE_PRESETS: tuple[ServicePreset, ...] = (
     ),
     ServicePreset(
         name="routine",
-        service=0x31,
+        service=ROUTINE_CONTROL,
         default_range="F000-F0FF",
         summary="UDS RoutineControl (diagnostic routines)",
         needs_session=True,
@@ -306,7 +313,7 @@ def plan_scan(
         return ScanPlan(
             ecu=canonical_name,
             tx_id=tx_id,
-            service=0x22,
+            service=READ_DATA_BY_IDENTIFIER,
             service_name="read-did",
             ranges=family_ranges(families, slots),
             session=False,
@@ -319,7 +326,7 @@ def plan_scan(
         return ScanPlan(
             ecu=canonical_name,
             tx_id=tx_id,
-            service=0x21,
+            service=KWP_READ_DATA_BY_LOCAL_IDENTIFIER,
             service_name="live-data",
             ranges=((0x01, 0xFF),),
             session=False,
@@ -330,7 +337,7 @@ def plan_scan(
     return ScanPlan(
         ecu=canonical_name,
         tx_id=tx_id,
-        service=0x22,
+        service=READ_DATA_BY_IDENTIFIER,
         service_name="read-did",
         ranges=((0xF100, 0xF1FF),),
         session=False,
