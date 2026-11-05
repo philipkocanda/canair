@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import sys
 
-from canair.live.iocontrol import mode_iocontrol_execute
+from canair.live.iocontrol_execute import mode_iocontrol_execute
 from canair.live.routines import mode_routines_execute
 from canair.transport.protocol import Terminal
 from canair.uds.subfunctions import RoutineControlType

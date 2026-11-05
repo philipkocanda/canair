@@ -277,7 +277,7 @@ class TestSingleCommand:
     """`canair io ECU --did X` opens the session mode the entry declares."""
 
     def test_execute_opens_the_declared_session_mode(self, capsys):
-        from canair.live.iocontrol import mode_iocontrol_execute
+        from canair.live.iocontrol_execute import mode_iocontrol_execute
 
         pids_data = {
             "ecus": {
@@ -312,7 +312,7 @@ class TestSingleCommand:
         monkeypatch.setattr("sys.stdin", _Stdin(text))
 
     def test_nothing_is_sent_when_the_user_declines(self, monkeypatch, capsys):
-        from canair.live.iocontrol import mode_iocontrol_execute
+        from canair.live.iocontrol_execute import mode_iocontrol_execute
 
         self._stdin(monkeypatch, "n\n")
         term = FakeTerminal()
@@ -323,7 +323,7 @@ class TestSingleCommand:
         assert "Aborted" in capsys.readouterr().err
 
     def test_a_yes_answer_sends(self, monkeypatch):
-        from canair.live.iocontrol import mode_iocontrol_execute
+        from canair.live.iocontrol_execute import mode_iocontrol_execute
 
         self._stdin(monkeypatch, "y\n")
         term = FakeTerminal()
@@ -332,7 +332,7 @@ class TestSingleCommand:
 
     def test_no_terminal_and_no_yes_refuses_before_anything_is_sent(self, monkeypatch):
         from canair.core.prompt import PromptUnavailable
-        from canair.live.iocontrol import mode_iocontrol_execute
+        from canair.live.iocontrol_execute import mode_iocontrol_execute
 
         self._stdin(monkeypatch, "y\n", tty=False)
         term = FakeTerminal()
@@ -347,7 +347,7 @@ class TestSingleCommand:
         assert args.yes is True
 
     def test_a_kwp_on_without_a_release_is_refused_before_anything_is_sent(self, capsys):
-        from canair.live.iocontrol import mode_iocontrol_execute
+        from canair.live.iocontrol_execute import mode_iocontrol_execute
 
         term = FakeTerminal()
         with pytest.raises(SystemExit) as exc:
@@ -357,14 +357,14 @@ class TestSingleCommand:
         assert "no release declared" in capsys.readouterr().err
 
     def test_off_is_still_sent_without_a_release(self):
-        from canair.live.iocontrol import mode_iocontrol_execute
+        from canair.live.iocontrol_execute import mode_iocontrol_execute
 
         term = FakeTerminal()
         asyncio.run(mode_iocontrol_execute(term, OBC_DATA, "OBC", "01", off=True, yes=True))  # type: ignore[arg-type]
         assert term.sent == ["300111"]
 
     def test_a_held_kwp_on_is_released_with_its_declared_release(self):
-        from canair.live.iocontrol import mode_iocontrol_execute
+        from canair.live.iocontrol_execute import mode_iocontrol_execute
 
         data = _with_release(OBC_DATA, "3001AA")
 
