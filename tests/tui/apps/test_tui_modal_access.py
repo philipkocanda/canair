@@ -11,7 +11,7 @@ from textual.containers import VerticalScroll
 from textual.widgets import Input, OptionList
 
 from canair.tui.apps.captures_step import CapturesStepApp
-from canair.tui.apps.monitor import (
+from canair.tui.apps.monitor.app import (
     EditParamDialog,
     EventLogModal,
     MonitorApp,

@@ -46,7 +46,7 @@ def monitor_options(args) -> MonitorOptions:
 async def _run_monitor_app(controller) -> None:
     """Run the Textual monitor on ``controller`` (a TTY only)."""
     # Deferred: Textual takes tens of milliseconds to import, and only a TTY monitor needs it.
-    from canair.tui.apps.monitor import run_monitor_app
+    from canair.tui.apps.monitor.app import run_monitor_app
 
     await run_monitor_app(controller)
 

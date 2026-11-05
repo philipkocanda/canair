@@ -8,7 +8,7 @@ import signal
 import pytest
 
 from canair.core.stop_signals import STOP_SIGNALS
-from canair.tui.apps import monitor as monitor_app
+from canair.tui.apps.monitor import app as monitor_app
 
 
 class TestTuiStop:

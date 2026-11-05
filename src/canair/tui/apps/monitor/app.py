@@ -43,8 +43,8 @@ assumed. Each signal row also shows a small circle before its code: green when
 the value was refreshed this cycle, dim when it's stale (cached from an earlier
 successful read).
 
-The dialogs (label a recording, edit a signal) are :mod:`canair.tui.apps.monitor_dialogs`;
-the overlays and the session-type picker are :mod:`canair.tui.apps.monitor_overlays`.
+The dialogs (label a recording, edit a signal) are :mod:`canair.tui.apps.monitor.dialogs`;
+the overlays and the session-type picker are :mod:`canair.tui.apps.monitor.overlays`.
 
 The bottom bar is built from :mod:`canair.tui.status`, so it fits itself to the
 terminal width instead of clipping its tail on a narrow screen; ``?`` remains
@@ -62,8 +62,8 @@ from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
 from textual.widgets import Static
 
-from canair.tui.apps.monitor_dialogs import EditParamDialog, SaveDialog
-from canair.tui.apps.monitor_overlays import EventLogModal, SessionInfoModal, SessionPickerScreen
+from canair.tui.apps.monitor.dialogs import EditParamDialog, SaveDialog
+from canair.tui.apps.monitor.overlays import EventLogModal, SessionInfoModal, SessionPickerScreen
 from canair.tui.apps.monitor_select.app import LiveMonitorSelectScreen
 from canair.tui.flash import Flash, Severity, severity_of
 from canair.tui.help import HelpMixin

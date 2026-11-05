@@ -15,9 +15,9 @@ from textual.widgets import Input, Label
 from canair.analysis.sniff_stats import SniffStats
 from canair.tui.apps.captures_step import CapturesStepApp
 from canair.tui.apps.decode_plot import PlotApp
-from canair.tui.apps.monitor import MonitorApp
-from canair.tui.apps.monitor_dialogs import EditParamDialog, SaveDialog
-from canair.tui.apps.monitor_overlays import EventLogModal, SessionInfoModal
+from canair.tui.apps.monitor.app import MonitorApp
+from canair.tui.apps.monitor.dialogs import EditParamDialog, SaveDialog
+from canair.tui.apps.monitor.overlays import EventLogModal, SessionInfoModal
 from canair.tui.apps.monitor_select.app import LiveMonitorSelectScreen
 from canair.tui.apps.sniff.app import SniffApp
 from canair.tui.help import HelpModal

@@ -158,7 +158,7 @@ async def mode_monitor(
         notation:       Byte-index notation for the ruler + the per-signal
                         byte-reference column (default WiCAN ``Bnn``).
         interactive:    The screen to run on a TTY, given the controller
-                        (:func:`canair.tui.apps.monitor.run_monitor_app`).
+                        (:func:`canair.tui.apps.monitor.app.run_monitor_app`).
 
     TUI keys come from the shared role registry (:mod:`canair.tui.keys`); press
     ``?`` in the app for the live cheat-sheet rather than trusting a copy here. A

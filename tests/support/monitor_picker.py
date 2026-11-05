@@ -2,7 +2,7 @@
 
 from canair.live.monitor.select import build_choices
 from canair.live.monitor.selectors import PickerSeed
-from canair.tui.apps.monitor import MonitorApp
+from canair.tui.apps.monitor.app import MonitorApp
 from tests.support.monitor_tui import FakeController, FakeEditor
 
 

@@ -2,7 +2,7 @@
 
 Both are modals that dismiss with their fields on a valid submit, or ``None`` on cancel.
 Their read-only overlays and the session-type picker are in
-:mod:`canair.tui.apps.monitor_overlays`.
+:mod:`canair.tui.apps.monitor.overlays`.
 """
 
 from __future__ import annotations
