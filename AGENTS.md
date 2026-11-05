@@ -169,8 +169,11 @@ every view; press `?` in any TUI for its live cheat-sheet. Never hardcode a `Bin
 add or reuse a role, or `tests/contracts/test_tui_keymap.py` fails (it pins that every declared key resolves
 to a role, that its description matches the role's accepted wording, and that `escape` never quits).
 Two standing conventions: **`escape` backs out one level and never exits** (`q` is the only exit),
-and **`g`/`G` address the view's primary axis**. The rest of the TUI and CLI output rules
-(colour and glyph meanings, messages, prompts, modals) are the **cli-tui-standards** skill.
+and **`g`/`G` address the view's primary axis**. Key hints are built from the roles
+(`keys.hint`/`key_hint`), never typed. The rest of the TUI and CLI output rules (colour and
+glyph meanings, messages, prompts, modals, `--json` hygiene) are the **cli-tui-standards** skill;
+its deviations are ratcheted by `tests/contracts/test_ui_standards.py` (scanner
+`scripts/check/ui_standards.py`, ceilings under `ui_standards` in `baseline.json`).
 
 ### Live device
 
@@ -464,7 +467,7 @@ An editor declares a `Target` (file, section, checks), registers it in `yaml_edi
 writes through `edit_doc` (ruamel round-trip) or `edit_ecu_text` (text surgery on an ECU file);
 both end in `commit.commit_text`, which writes atomically, re-checks and **reverts on any
 failure**. A rejected edit raises `EditError`; no command catches it — `cli/__init__.py` prints
-`  Error: …` and exits 1. On the command side `cli/commands/_edit.py::run_edit` is the whole sequence
+`error: …` and exits 1. On the command side `cli/commands/_edit.py::run_edit` is the whole sequence
 (read-only-profile refusal, `--no-validate`, the editor call, the `✓` confirmation). Use
 `yaml_edit.ruamel_ops` to remove or rename an entry (it keeps the comments around it; a bare
 `del`/rebuild does not). A new editor never opens the file itself.

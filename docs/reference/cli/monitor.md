@@ -12,8 +12,8 @@ usage: canair monitor [-h] [--interval SECONDS] [--schedule {dynamic,fixed}]
                       [--notation NAME] [--include-static] [--wican WICAN]
                       [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                       [--no-fallback] [--wait] [--elm-timeout MS]
-                      [--timeout SECONDS] [--no-learn-frames] [--json]
-                      [--verbose] [--timings] [--reboot] [--unsafe] [--force]
+                      [--timeout SECONDS] [--no-learn-frames] [--verbose]
+                      [--timings] [--reboot] [--unsafe] [--force]
                       [STEP ...]
 
 [UDS] Monitor ECUs/signals live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair read`). With no STEP on a terminal, an interactive picker offers saved groups and ECUs, then PIDs.
@@ -85,7 +85,6 @@ options:
                         adapter answer without waiting out its full ECU
                         timeout). Use when reading a car the active profile
                         doesn't describe.
-  --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
   --timings             Print per-ECU/PID round-trip timing stats on exit (to
                         stderr)

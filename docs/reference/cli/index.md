@@ -9,7 +9,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 ### Live device
 
 - [`canair status`](status.md) — ``canair status`` — show the configured transport, device state, and profile.
-- [`canair read`](read.md) — Read ECUs/parameters live. Positional STEPs use the multi mini-language.
+- [`canair read`](read.md) — Read ECUs/signals live. Positional STEPs use the multi mini-language.
 - [`canair monitor`](monitor.md) — Monitor ECUs/signals live in a scrollable, refreshing view. Positional STEPs use the multi mini-language (same as `canair read`). With no STEP on a terminal, an interactive picker offers saved groups and ECUs, then PIDs.
 - [`canair scan`](scan.md) — Scan an ECU. Choose a kind:
 - [`canair discover`](discover.md) — Sweep a range of TX addresses (sends 10 01 to each) to find ECUs. With --functional, send one read on the functional (broadcast) id instead and list every ECU that answers, grouped by bus: which buses a gateway car routes diagnostics to.

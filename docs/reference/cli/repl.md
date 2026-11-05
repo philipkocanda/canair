@@ -8,8 +8,8 @@
 usage: canair repl [-h] [--wican WICAN]
                    [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                    [--no-fallback] [--wait] [--elm-timeout MS]
-                   [--timeout SECONDS] [--no-learn-frames] [--json]
-                   [--verbose] [--timings] [--reboot] [--unsafe] [--force]
+                   [--timeout SECONDS] [--no-learn-frames] [--verbose]
+                   [--timings] [--reboot] [--unsafe] [--force]
 
 [UDS] Drop into an interactive live terminal (REPL) over an ELM327
 transport (wican-ws / elm327-tcp) — type raw ELM327 (AT...) and UDS requests
@@ -59,7 +59,6 @@ options:
                         adapter answer without waiting out its full ECU
                         timeout). Use when reading a car the active profile
                         doesn't describe.
-  --json                Output results as JSON
   --verbose, -v         Show raw transport traffic and expressions
   --timings             Print per-ECU/PID round-trip timing stats on exit (to
                         stderr)

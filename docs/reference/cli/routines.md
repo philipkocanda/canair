@@ -3,7 +3,7 @@
 # `canair routines`
 
 ```
-usage: canair routines [-h] [--rid RID] [--sf SF] [--wican WICAN]
+usage: canair routines [-h] [--rid RID] [--sf SF] [--yes] [--wican WICAN]
                        [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                        [--no-fallback] [--wait] [--elm-timeout MS]
                        [--timeout SECONDS] [--no-learn-frames] [--json]
@@ -20,6 +20,8 @@ options:
   --rid RID             Routine ID to execute (e.g. 12A1)
   --sf SF               Sub-function: results (0x03, safe default), start
                         (0x01, actuates), stop (0x02)
+  --yes, -y             With --sf start: send without asking first (required
+                        when stdin is not a terminal)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}
@@ -64,4 +66,5 @@ examples:
   canair routines BCM --json              List all BCM routines (offline JSON)
   canair routines BCM --rid 12A1          Request results (SF 0x03, safe)
   canair routines BCM --rid 12A1 --sf stop
+  canair routines BCM --rid 12A1 --sf start -y   Skip the question (scripts)
 ```

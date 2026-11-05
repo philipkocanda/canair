@@ -64,8 +64,9 @@ commercial scan tool opens it on every Kona EV powertrain ECU. No quirk can perm
 a programming or safety-system session. `canair validate` checks
 every actuator's `session_mode` against the same rule. A refused request stops
 the command with `error: …` (exit code 2); `--unsafe` turns the refusal into a
-prompt you must answer `YES`. The same prompt covers every refusal above, but not
-the broadcast rule below.
+prompt you must answer `YES`: anything else ends the run (exit code 1), and with no
+terminal on stdin it is refused (exit code 2). The same prompt covers every refusal above,
+but not the broadcast rule below.
 
 Anything that is neither hex bytes nor an AT command is refused too, because the
 blocklist cannot tell what it sends: an STN adapter's `STPX`, for one, puts any

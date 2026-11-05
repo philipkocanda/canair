@@ -1,7 +1,7 @@
 # CLI and TUI standards: one rule set for colour, text, prompts, keys and modals
 
-Status: **IN PROGRESS** (2026-11-05). Decisions taken. Phase 1 (the skill) and phase 2 (the
-safety fixes) are done. Phases 3–6 come later, one at a time.
+Status: **DONE** (2026-11-05), apart from the leftovers listed at the end. Phases 1–6 are
+implemented; `tests/contracts/test_ui_standards.py` keeps the tree from drifting back.
 
 ## Why
 
@@ -218,7 +218,7 @@ Each item is one commit with a regression test that fails without the fix.
    a pre-flight check would refuse commands that work today. Saving under a generated label
    loses no data and needs no such list.
 
-## Phase 3 — ratcheted contract tests (later)
+## Phase 3 — ratcheted contract tests (done, 2026-11-05)
 
 `tests/contracts/test_ui_standards.py`, with scanners in `scripts/check/`, in the style of
 `protocol_literals.py`. Each scanner gets a list baseline in `tests/contracts/baseline.json`,
@@ -237,7 +237,7 @@ can only leave the list. **Adding these baseline keys needs the user's approval*
 | TUI hints | a string literal in `tui/` that names a key (`esc `, `ctrl+`, `enter `, `↑`) outside `keys.py` and `help.py` |
 | TUI keys | `test_tui_keymap.py` also covers the inherited `ctrl+q`, and that `?` resolves on every `ModalScreen` |
 
-## Phase 4 — CLI output (later)
+## Phase 4 — CLI output (done, 2026-11-05)
 
 1. The Rich console factory in `render/`. Move every `Console(` to it.
 2. Move `Painter` and `column_widths` from `live/discover_render.py` to `render/`. Replace the
@@ -253,7 +253,7 @@ can only leave the list. **Adding these baseline keys needs the user's approval*
 7. `--json`: `read`, `monitor` and `repl` honour it or stop accepting it. Banners, the sleep
    notice, `saved_banner` and `orphan_notice` go to stderr.
 
-## Phase 5 — colour and glyph meanings (later)
+## Phase 5 — colour and glyph meanings (done, 2026-11-05)
 
 1. PID and DID ids to cyan (decision 10). Units, counts, fill lines and expressions to dim or
    plain (decision 9).
@@ -262,7 +262,7 @@ can only leave the list. **Adding these baseline keys needs the user's approval*
    yellow, `?` in discover replaced by a word.
 4. Re-render the screenshots (`make screenshots`).
 
-## Phase 6 — TUI (later)
+## Phase 6 — TUI (done, 2026-11-05)
 
 1. The flash helper with severity. Failures stop flashing green.
 2. Key hints built from roles, starting with the two that are wrong today (deviation list).
@@ -381,3 +381,47 @@ when their phase starts.
   help text that `--label` is needed when stdin is not a terminal.
 - Phase 4: `AGENTS.md` → Authoring, where it says a rejected edit prints `  Error: …` and exits 1.
 - Phase 5: the screenshots.
+
+## Result and leftovers (2026-11-05)
+
+Phase 3 landed as `scripts/check/ui_standards.py` and `tests/contracts/test_ui_standards.py`.
+The `ui_standards` baseline went from 337 findings to 14. The remaining ones are deliberate:
+five value or menu prompts (`profile create`, the scan wizard's value prompt, the first-run
+menu, the region picker, the REPL) and nine result tokens that are data, not messages
+(`decode/format.py`, `expression/decode_value.py`, `uds/describe.py`).
+
+Phases 4–6 added `render/console.py`, `render/paint.py`, `render/messages.py`,
+`render/glyphs.py`, `ansi.screen`, `tui/flash.py`, `tui/styles.py`, `KitModal` and
+`ListPickerModal`, and split `tui/apps/monitor.py` (1624 → 912 lines). Behaviour changes a script
+could notice:
+
+- **Messages.** One form everywhere (`error:`, `warning:`, `note:`, `hint:`, lower case, stderr).
+  `EditError` prints `error: …` (exit 1). `validate` prints each finding on stderr.
+- **Exit codes.** A declined prompt exits 1 (it was 0 in `dtc --clear`, `routines --sf start`,
+  the KWP sweeps and the monitor picker). No terminal and no `--yes` exits 2. `io` and
+  `routines` lookup failures exit 1. Usage errors exit 2.
+- **Streams.** Banners, "saved to" lines, notes and progress go to stderr. `discover`,
+  `scan range`, `raw` and the one-shot `io`/`routines` keep their human report on stderr under
+  `--json`. `read --json` prints `{"results": […]}`. `monitor` and `repl` no longer accept
+  `--json`. A failing `io`/`routines` listing under `--json` prints no document, only `error:`.
+- **Prompts.** Every yes/no is `core.prompt`. `routines --sf start` has `-y/--yes`. The scan
+  wizard and first-run offer default to no.
+- **Colour and glyphs.** PID and DID ids are cyan. Units, counts, fill lines and expressions are
+  dim or plain. Update available is yellow. `✖`, `▸` and `...` are gone. The sweep markers are
+  `+ ~ - !`, and `?` is only "unverified".
+- **TUI.** Hints come from the roles. `?` works in every modal. `q` closes a read-only overlay.
+  The ECU/PID picker is a modal. Failures flash red, never green.
+- **Files.** The `io`/`routines` debug logs moved to `~/.config/canair/logs/`.
+
+Left for later:
+
+- A one-shot `io`/`routines` NRC or error response still exits 0; the exit-code rules say 1.
+- Read-only base-profile refusals in the captures editors exit 1, not 2.
+- `--json` is still missing on `validate`, `profile list/show`, `wican autopid stats/diff` and
+  `bix --annotate`.
+- `analysis/fill.py::FORCED_HOLD_WARNING` and `analysis/align.py::thin_join_warning` still start
+  with `warning:`; `cli/commands/_analysis_warning.py` strips it.
+- Short fixed column widths (`[:36]`, `[:30]`, `[:40]`) in the captures report tables.
+- `maint` migrate kinds print `Converted N file(s)` without `echo_write`.
+- Other deviation-report items that need a decision, not a mechanical fix (the JSON envelope in
+  `plans/2026-08-06-json-output-convention.md`) stay with their own plans.

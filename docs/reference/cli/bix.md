@@ -42,9 +42,9 @@ options:
                         the Role terms (PCI/SID/DID/LID/RID/NRC/…) that appear
                         in the payload.
   --max MAX             Max WiCAN index for table (default: 71)
-  --ecu ECU             With --annotate: overlay which defined parameter maps
+  --ecu ECU             With --annotate: overlay which defined signal maps
                         each byte (and flag unmapped bytes). Requires --pid.
-  --pid PID             With --annotate --ecu: the PID whose parameters to
+  --pid PID             With --annotate --ecu: the PID whose signals to
                         overlay (e.g. 22BC03). Also sets the subfunction width
                         when it names its service (22xxxx DID → 2 bytes, 21xx
                         → 1) unless -1/-2 is passed explicitly.

@@ -15,7 +15,7 @@ usage: canair read [-h] [--param NAME [NAME ...]] [--session] [--wake]
                    [--verbose] [--timings] [--reboot] [--unsafe] [--force]
                    [STEP ...]
 
-[UDS] Read ECUs/parameters live. Positional STEPs use the multi mini-language.
+[UDS] Read ECUs/signals live. Positional STEPs use the multi mini-language.
 
 positional arguments:
   STEP                  Read selector(s), @group(s), or multi mini-language
@@ -24,7 +24,7 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --param NAME [NAME ...]
-                        Read named parameters instead of selectors
+                        Read named signals instead of selectors
   --session             Enter extended session (10 03)
   --wake                Wake ECUs from deep sleep (10 01)
   --repl                Drop into REPL after the pipeline
@@ -90,7 +90,7 @@ examples:
   canair read @charging                     Read a saved group (see `canair groups`)
   canair read @driving CLU:220B             A group plus an extra selector
   canair read "skm-wake acc" "query IGPM:BC03,BC06"
-  canair read --param SOC_BMS SOC_DISP      Read named parameters
+  canair read --param SOC_BMS SOC_DISP      Read named signals
 
 `canair query` is a kept alias. For a live, continuously-refreshing view use
 `canair monitor` instead.

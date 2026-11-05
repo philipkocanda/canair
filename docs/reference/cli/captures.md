@@ -65,7 +65,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --diff, -d            Monitor-style view (decoded params + colored byte-
+  --diff, -d            Monitor-style view (decoded signals + colored byte-
                         diff), one block per ECU+PID
   --step, -S            Interactively step through matching captures (arrow
                         keys; a several-PID QUERY stacks them time-joined for
@@ -145,8 +145,8 @@ options:
                         display.byte_notation config key.
   --view {auto,stacked,signals,changed,interleaved}
                         For --step: how a frame is rendered — stacked (one
-                        block per PID), signals (params only), changed (only
-                        params that moved), interleaved (one capture per
+                        block per PID), signals (signals only), changed (only
+                        signals that moved), interleaved (one capture per
                         frame). Default auto: stacked for up to 6 PIDs, else
                         interleaved. Cycle it live with V.
   --join-tol SECONDS    For --step: max timestamp difference when joining
@@ -190,10 +190,10 @@ add --diff or --step to change how they are rendered. --summary and --sessions
 are aggregate modes that take no QUERY.
 
   QUERY                 List matching captures (default view; latest --limit)
-  QUERY --diff          Monitor-style view (decoded params + colored byte-diff),
+  QUERY --diff          Monitor-style view (decoded signals + colored byte-diff),
                         one block per ECU+PID (unique payloads only; --all = all)
   QUERY --step          Interactive: step through captures with arrow keys,
-                        decoded params + byte-diff vs the previous capture of the
+                        decoded signals + byte-diff vs the previous capture of the
                         same PID; e adds/edits a note, d deletes a capture.
                         A QUERY selecting SEVERAL PIDs stacks them underneath
                         each other in one time-joined frame (--join-tol), so
@@ -214,9 +214,9 @@ are aggregate modes that take no QUERY.
                         output. Honors the scope filters.
 
 Step views (--view; default auto — stacked for up to 6 PIDs, else interleaved):
-  stacked               One block per PID per frame: params + byte-diff hex
+  stacked               One block per PID per frame: signals + byte-diff hex
   signals               Params only (no hex) — fits more PIDs on one screen
-  changed               Only params whose decoded value moved, per block
+  changed               Only signals whose decoded value moved, per block
   interleaved           One capture per frame, chronologically across the PIDs
 
 Output size (default list view):
