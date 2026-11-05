@@ -186,7 +186,7 @@ evidence for what it actually does.
   8. The powertrain block is fixed: `0x7E2` VCU/HCU, `0x7E3` MCU, `0x7E4` BMS, `0x7E5` OBC "from
   AE/DE EV/PHEV", `0x7E6` shift-by-wire unit, `0x7E7` integrated brake on newer cars. Every other
   ECU's ID lives in internal databases the spec only refers to, so it cannot identify
-  `Unknown-746` or `Unknown-7C0`.
+  `Unknown-7C0` (or `0x746`, since identified as the EWP from Kona logs).
 - Functional addressing is for single frames only; the reply comes from the ECU's own response ID
   and may be multi-frame.
 - DLC is always 8. A frame with a shorter DLC is ignored by the network layer, exactly what the
@@ -327,7 +327,7 @@ of 2026-04-17, 24 answered.
 | NRC `0x7F` serviceNotSupportedInActiveSession (4) | WPC `0x72D`, BCM `0x7A8`, MFC `0x7CC`, EPB `0x7DD` |
 | NRC `0x80` (KWP2000 spelling of the same) (3) | VCU `0x7EA`, MCU `0x7EB`, OBC `0x7ED` |
 | NRC `0x11` serviceNotSupported (1) | BMS `0x7EC`: no TesterPresent in any session |
-| NRC `0x22` conditionsNotCorrect (1) | Unknown-746 `0x74E` |
+| NRC `0x22` conditionsNotCorrect (1) | EWP (then Unknown-746) `0x74E` |
 | Silent (6) | CLU, AVN, RCAM, SRS, AAF, Unknown-7C0 |
 
 - **Every bus answered**: B-CAN, C-CAN, P-CAN, MM-CAN and the climate bus, so the gateway forwards

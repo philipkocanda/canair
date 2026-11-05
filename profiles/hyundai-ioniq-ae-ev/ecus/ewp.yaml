@@ -1,0 +1,80 @@
+# ─── EWP (Electric Water Pump) ───────────────────────────────────────
+# Was Unknown-746 until 2026-11-05; why it is probably the pump is in identity.notes.
+# Service probe (2026-04-19): 1A, 20 and 21 (only 21F2) answer; 27, 28, 31 and 3E return
+# conditionsNotCorrect; 10 returns NRC 0x12. 18 (DTCs) returns NRC 0x11 (2026-11-05).
+# KWP2000 identity: 10 of 32 IDs in 1A80-1A9F respond. Those not under identity: (1A80, 1A8A,
+# 1A8B, 1A91, 1A98, 1A99) read all FF. 1A80, 1A8A, 1A91 and 1A98 are multi-frame (75, 12, 14 and
+# 12 bytes) and read only over slcan-tcp with a FlowControl BlockSize above 0 (see 21F2).
+EWP:
+  tx_id: 0x746
+  can_bus: [P-CAN]
+  identity:
+    description: Electric water pump (EWP) of the EPCU/motor coolant loop
+    ecu_id: "1.10"  # KWP2000 1A8C
+    sw_id: "Z311"  # KWP2000 1A8D/1A8E
+    calibration: "Z311"
+    hw_sw: "3.5"  # KWP2000 1A92
+    id_protocol: KWP2000  # 1Axx (10/32 responding)
+    notes: >-
+      Probably the electric water pump that cools the EPCU, motor and OBC; renamed from Unknown-746
+      on 2026-11-05. On a bench Kona (projectgus hyundai-kona-ev-can-logs,
+      bench_kona/241121-7-ewp-er-on-can1.csv) the motor-stack pump alone on a split bus sent P-CAN
+      0x570 and diagnostic replies on 0x74E, and projectgus's Diagnostics.md lists 0x746/0x74E as
+      'EWP (Inverter)'. uhi22's Ioniq P-CAN traces carry 0x570 every 100 ms in the Kona pump's
+      layout. It refuses KWP2000 18 with NRC 0x11, as the Kona's 0x74E refuses 18, 19 and 13; the
+      MCU reports the pump's faults instead (P0C73, U1116). The Kona's second, battery-loop pump
+      (0x715) is absent here, as expected for the air-cooled 28 kWh pack. Its identity records are
+      short supplier strings, not Hyundai's AE/EAE codes. Not confirmed on this car: no fuse pull or
+      pump-speed correlation yet.
+    identity_confidence: probable
+  vehicle_states: [READY, CHARGING]
+  pids:
+    21F2:
+      status: active
+      period: 10000
+      vehicle_states: [CHARGING]
+      notes: >-
+        12 bytes: 61 F2 00 00 00 07 00 00 00 00 00 00 during AC charging (2026-11-05). The reply is
+        multi-frame, and the EWP sends no consecutive frame after a FlowControl with BlockSize 0,
+        which canair's ISO-TP stack and the ELM327 adapter both send. Over wican-ws only the first
+        frame (61F200000007) ever arrives; the 2026-04-18 6-byte reading was that first frame. It
+        read in full over slcan-tcp with BlockSize 8 (also 1 and 2). The only service-21 PID that
+        answers (sweeps 2026-04-18, 2026-07-22, 2026-11-05).
+      parameters: {}
+  research:
+    - type: scan
+      target: 21F2
+      status: pending
+      priority: P3
+      vehicle_states: [SLEEP]
+      created: "2026-10-20"
+      updated: "2026-10-20"
+      notes: >-
+        Pin down when 21F2 answers and what its bytes mean. It answered during AC charging
+        (2026-04-18, 2026-11-05) and drew NRCs at READY. Read it in full over slcan-tcp (needs
+        FlowControl BlockSize > 0, see the PID notes) at the start and end of a charge, at READY and
+        with the car fully off.
+    - type: verify
+      target: identify the responder at 0x746 against factory modules with no ECU file
+      status: done
+      priority: P3
+      vehicle_states: [CHARGING]
+      created: "2026-10-23"
+      updated: "2026-11-05"
+      result: >-
+        Probably the electric water pump (EWP) of the EPCU/motor loop; renamed 2026-11-05. Evidence
+        in identity.notes. Confirm on the car by pulling the EWP fuse while charging (0x746 should
+        go silent) or by reading 21F2 while the pump audibly changes speed.
+      notes: >-
+        The 0x700-0x7EF sweep (2026-04-17, ignition on) found 30 responders, all with an ecus/ file,
+        so modules the car has but the profile lacks (electric water pump, occupant detection
+        sensor, shift control unit, dynamic bending light where fitted) do not answer at a 0x7xx
+        address or were asleep. 0x746 speaks KWP2000 and answered during AC charging but not at
+        READY (2026-07-22). By behaviour it could be the electric water pump or the shift control
+        unit; unproven.
+      what_to_test:
+        - Sweep 0x700-0x7EF again with canair discover while AC charging and again with the car off and locked, and compare the responder lists with the READY sweep.
+        - Read 0x746 21F2 at the start and end of a charge and when the coolant pump is audibly running.
+      capture_protocol: >-
+        canair discover --save --label 'address sweep while charging' --state CHARGING; repeat with
+        --state SLEEP.
