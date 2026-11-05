@@ -19,9 +19,9 @@ The heavy lifting (``git``/``gh`` invocations) goes through the module-level :fu
 tests drive the flow with a fake runner and no network.
 
 Belongs: the git/gh orchestration, the source-checkout clean-up (``source``), the log scrub
-(``logs``) and the PR summary (``summary``).
-Not here: user interaction and the pre-flight gates (``cli/commands/contribute.py`` and its helpers).
-Imports: ``profile``, ``privacy``, ``captures``, ``config``, ``install`` and ``core``.
+(``logs``), the personal-data scan the PII gate runs (``pii``) and the PR summary (``summary``).
+Not here: user interaction and the pre-flight gates (``cli/commands/contribute.py``, helpers).
+Imports: ``profile``, ``privacy``, ``captures``, ``ecus``, ``config``, ``install`` and ``core``.
 """
 
 from __future__ import annotations

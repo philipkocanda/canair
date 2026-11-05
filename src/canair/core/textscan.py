@@ -2,7 +2,7 @@
 
 Two consumers want the same questions answered about a byte string: ``canair
 search`` ("where does this text, VIN or byte pattern occur?") and the ``canair
-contribute`` PII pre-flight (:mod:`canair.privacy.pii`, "does this look like a VIN?"). They
+contribute`` PII pre-flight (:mod:`canair.contribute.pii`, "does this look like a VIN?"). They
 share this module so there is exactly one definition of "looks like a VIN" — the
 copy that matters is the one gating a public contribution.
 

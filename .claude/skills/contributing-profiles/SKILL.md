@@ -28,7 +28,7 @@ globally-installed bare `canair`). See `AGENTS.md` for why.
 
 **Avoid baking concrete code, flag lists, or byte offsets into this skill.**
 Command flags, schema fields, and PII-detector internals go stale silently.
-Point at where to look now (`canair contribute --help`, `src/canair/privacy/pii.py`, the
+Point at where to look now (`canair contribute --help`, `src/canair/contribute/pii.py`, the
 schemas in `src/canair/schema/`) and verify against the tree — a path is cheap to
 re-check, a copied specific rots invisibly. If this skill has drifted, fix it
 (Boy Scout rule). This applies to the skill itself: keep it intent-level.
@@ -111,7 +111,7 @@ fork/clone/branch/push, and it works regardless of where the profile is stored
 `canair contribute --help` for the current flags; the shape of the flow:
 
 1. Runs `canair validate all` and **refuses a broken profile**.
-2. Runs the **PII pre-flight** (`src/canair/privacy/pii.py`) — VIN identity DIDs, VIN-shaped
+2. Runs the **PII pre-flight** (`src/canair/contribute/pii.py`) — VIN identity DIDs, VIN-shaped
    payloads, the curated `ecus/` `identity.vin`, and email/VIN text in
    labels/notes/`car_model` — and requires you to confirm before continuing.
    Per-unit ECU serials are deliberately *not* flagged, in captures or in

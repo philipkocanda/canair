@@ -1,4 +1,4 @@
-"""Tests for the PII pre-flight scanner (:mod:`canair.privacy.pii`)."""
+"""Tests for the PII pre-flight scanner (:mod:`canair.contribute.pii`)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from canair.privacy import pii
+from canair.contribute import pii
 from canair.profile import Profile
 
 

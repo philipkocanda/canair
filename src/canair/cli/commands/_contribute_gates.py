@@ -23,8 +23,8 @@ from pathlib import Path
 from typing import Any
 
 from canair import contribute as C
+from canair.contribute import pii
 from canair.install.context import installed_snapshot_kind
-from canair.privacy import pii
 
 from ._contribute_report import (
     CANNOT,

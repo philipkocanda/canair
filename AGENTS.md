@@ -734,9 +734,9 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   profile is *copied* into a managed fork checkout (`~/.config/canair/contribute/canair/`), so it
   works whether the source is repo-bundled, in `~/.config/canair/profiles/`, or a `--path` bundle.
   Pipeline: `validate all` → **installed-snapshot guard** (the active profile came from a frozen
-  `site-packages`/`uv tool`/`pipx` copy) → **PII pre-flight** (`src/canair/privacy/pii.py`) → **workspace
-  self-collision guard** (hard-refuses, not `--yes`-overridable, when the active profile *is* the
-  workspace's own copy) → **rollback guard** (the contribution would remove committed upstream
+  `site-packages`/`uv tool`/`pipx` copy) → **PII pre-flight** (`src/canair/contribute/pii.py`) →
+  **workspace self-collision guard** (hard-refuses, not `--yes`-overridable, when the active
+  profile *is* the workspace's own copy) → **rollback guard** (the contribution would remove committed upstream
   definition lines, signalling a stale source) → branch → copy → commit → push → `gh pr create`.
   **The managed workspace is made hermetic before the copy** (`contribute.reset_workspace`: `reset
   --hard` to the upstream base + `clean -fd -- profiles/`) — `checkout -B` alone keeps an
@@ -853,7 +853,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   (an edited copy — never counted twice), and sorts chronologically **only when layered**, so
   single-layer results stay byte-identical. A reader that bypasses `load_all_captures` needs
   deciding per call site: `validation/captures.py` and `cli/commands/coverage/` walk **both**
-  layers (a schema break or a payload in the base still matters); `src/canair/privacy/pii.py` and
+  layers (a schema break or a payload in the base still matters); `src/canair/contribute/pii.py` and
   `capture_migrate.py` intentionally stay on `captures_dir` (= the overlay, which is exactly what
   `contribute` ships and the only layer a migration may rewrite).
 - **Base captures are read-only**, enforced by `src/canair/cli/commands/captures/layers.py::refusal` in
