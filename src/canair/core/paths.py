@@ -55,12 +55,36 @@ GITHUB_REPO = "philipkocanda/canair"
 DOCS_URL = "https://philipkocanda.github.io/canair"
 CONFIG_DOCS_URL = f"{DOCS_URL}/reference/config/"
 
-# Editor-facing JSON Schema for profile.yaml, published on the docs site
-# (scripts/mkdocs_hooks/schemas.py). Every profile.yaml carries the modeline so
-# yaml-language-server editors use it instead of guessing one from the filename.
+
+def schema_url(name: str) -> str:
+    """Where the docs site publishes the editor schema ``name`` (also that schema's ``$id``)."""
+    return f"{DOCS_URL}/schema/{name}.json"
+
+
+def schema_modeline(name: str) -> str:
+    """Line 1 of a profile file: tells yaml-language-server editors which schema it follows."""
+    return f"# yaml-language-server: $schema={schema_url(name)}"
+
+
+# The JSON Schemas that check a profile's YAML files, by published name. canair validates with
+# them, and the docs site publishes each as JSON (scripts/mkdocs_hooks/schemas.py) for the
+# modeline every such file carries, so editors check the same rules.
 PROFILE_SCHEMA_FILE = SCHEMA_DIR / "profile_schema.json"
-PROFILE_SCHEMA_URL = f"{DOCS_URL}/schema/profile.json"
-PROFILE_SCHEMA_MODELINE = f"# yaml-language-server: $schema={PROFILE_SCHEMA_URL}"
+STATES_SCHEMA_FILE = SCHEMA_DIR / "states_schema.yaml"
+CAN_BUSES_SCHEMA_FILE = SCHEMA_DIR / "can_buses_schema.yaml"
+GROUPS_SCHEMA_FILE = SCHEMA_DIR / "groups_schema.yaml"
+VARIANTS_SCHEMA_FILE = SCHEMA_DIR / "variants_schema.yaml"
+SIGNALS_SCHEMA_FILE = SCHEMA_DIR / "signals_schema.yaml"
+EDITOR_SCHEMAS: dict[str, Path] = {
+    "profile": PROFILE_SCHEMA_FILE,
+    "vehicle_states": STATES_SCHEMA_FILE,
+    "can_buses": CAN_BUSES_SCHEMA_FILE,
+    "groups": GROUPS_SCHEMA_FILE,
+    "variants": VARIANTS_SCHEMA_FILE,
+    "signals": SIGNALS_SCHEMA_FILE,
+}
+PROFILE_SCHEMA_URL = schema_url("profile")
+PROFILE_SCHEMA_MODELINE = schema_modeline("profile")
 
 # Commented, fully-documented example config — the authoritative reference for
 # every key (see `canair config example`). Force-included into the wheel

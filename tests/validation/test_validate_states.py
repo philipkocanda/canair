@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from canair.core.json_schema import schema_errors
+from canair.core.paths import STATES_SCHEMA_FILE
 from canair.validation.other import _state_relation_errors
 
 DECLARED = {"ACC", "ACC2", "READY", "DRIVING", "CHARGING", "PLUGGED", "PARKED", "ALL"}
@@ -19,10 +21,12 @@ class TestImpliesShape:
     def test_list_and_string_forms_accepted(self):
         assert _errors([("DRIVING", ["READY"]), ("CHARGING", "PLUGGED")]) == []
 
-    def test_non_list_rejected(self):
-        errs = _errors([("DRIVING", 3)])
-        assert len(errs) == 1
-        assert "must be a list of state names" in errs[0]
+    def test_non_list_is_the_schemas_to_report(self):
+        assert _errors([("DRIVING", 3)]) == []
+        doc = {"states": [{"name": "DRIVING", "implies": 3}]}
+        assert schema_errors(STATES_SCHEMA_FILE, doc) == [
+            "states[0].implies: must be text or a list (got 3)"
+        ]
 
 
 class TestImpliesTargets:
@@ -76,10 +80,12 @@ class TestExcludes:
     def test_list_and_string_forms_accepted(self):
         assert _excl_errors([("DRIVING", ["PARKED"]), ("CHARGING", "DRIVING")]) == []
 
-    def test_non_list_rejected(self):
-        errs = _excl_errors([("DRIVING", 3)])
-        assert len(errs) == 1
-        assert "excludes must be a list" in errs[0]
+    def test_non_list_is_the_schemas_to_report(self):
+        assert _excl_errors([("DRIVING", 3)]) == []
+        doc = {"states": [{"name": "DRIVING", "excludes": {"a": 1}}]}
+        assert schema_errors(STATES_SCHEMA_FILE, doc) == [
+            "states[0].excludes: must be text or a list (got a mapping)"
+        ]
 
     def test_self_exclusion_rejected(self):
         errs = _excl_errors([("DRIVING", ["DRIVING"])])

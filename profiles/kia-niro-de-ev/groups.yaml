@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/groups.json
 # Kia Niro EV / e-Niro (DE) — capture/monitor selector groups
 #
 # A group is a named, reusable query: a list of ECU or ECU:PID selectors in the shared
@@ -15,6 +16,6 @@
 #   canair groups add charging BMS OBC --description "SoC / charge power while plugged in"
 #   canair groups add driving BMS VMCU MCU --description "Powertrain while driving"
 #
-# See canlib/schema/groups_schema.yaml and `canair validate groups`.
+# See src/canair/schema/groups_schema.yaml and `canair validate groups`.
 
 groups: {}

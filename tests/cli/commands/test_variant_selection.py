@@ -228,9 +228,11 @@ def test_validate_checks_an_alias_variant(env):
 
     text = (env / "profile.yaml").read_text().replace("{variant: 28kwh}", "{variant: 64kwh, x: 1}")
     (env / "profile.yaml").write_text(text)
+    from canair.validation.meta import validate_meta
+
     errors, _ = profile_name_findings(profile_mod.resolve_profile(str(env)))
     assert any("implies variant '64kwh'" in e for e in errors)
-    assert any("unknown field 'x'" in e for e in errors)
+    assert any("unknown field 'x'" in e for e in validate_meta(env / "profile.yaml"))
 
 
 def test_the_suite_pins_its_car():

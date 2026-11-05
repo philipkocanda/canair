@@ -6,6 +6,8 @@ import json
 from jsonschema import Draft202012Validator
 
 from canair.core import yaml_io
+from canair.core.json_schema import schema_errors
+from canair.core.paths import CAN_BUSES_SCHEMA_FILE, GROUPS_SCHEMA_FILE, STATES_SCHEMA_FILE
 
 from ._common import CAN_INDEX_SCHEMA_FILE, duplicate_key_errors
 from .report import FileReport, SignalsReport
@@ -72,8 +74,7 @@ def _state_relation_errors(
         for name, raw in entries:
             upper = str(name).upper()
             if not isinstance(raw, (list, tuple, str)):
-                errors.append(f"state '{name}': {field} must be a list of state names")
-                continue
+                continue  # the schema reports it
             parse = parse_implies if field == "implies" else parse_excludes
             targets = parse(raw)
             for target in targets:
@@ -112,9 +113,9 @@ def _state_relation_errors(
 
 
 def check_states() -> FileReport:
-    """Check the profile's optional vehicle_states.yaml (structure + predicates)."""
+    """Check the profile's optional vehicle_states.yaml (schema, predicates and relations)."""
     from canair.profile import active
-    from canair.states import StatePredicateError, compile_predicate, unquoted_boolean_error
+    from canair.states import StatePredicateError, compile_predicate
 
     path = active().states_file
     name = path.name
@@ -123,46 +124,33 @@ def check_states() -> FileReport:
 
     text = path.read_text()
     data = yaml_io.safe_load(text) or {}
-    errors: list[str] = duplicate_key_errors(text)
-    if not isinstance(data, dict) or "states" not in data:
-        return FileReport(name, broken=f"{name}: missing top-level 'states:' list")
+    errors: list[str] = duplicate_key_errors(text) + schema_errors(STATES_SCHEMA_FILE, data)
+    states = data.get("states") if isinstance(data, dict) else None
 
     seen: set[str] = set()
-    states = data.get("states") or []
-    if not isinstance(states, list):
-        return FileReport(name, broken=f"{name}: 'states' must be a list")
-
     predicates: list[tuple[str, str]] = []
     implies_entries: list[tuple[str, object]] = []
     excludes_entries: list[tuple[str, object]] = []
-    for i, entry in enumerate(states):
-        if not isinstance(entry, dict):
-            errors.append(f"states[{i}]: must be a mapping")
-            continue
-        for extra in set(entry) - {"name", "description", "when", "implies", "excludes"}:
-            errors.append(f"states[{i}]: unknown field '{extra}'")
-        for key in ("name", "implies", "excludes"):
-            if msg := unquoted_boolean_error(f"states[{i}] {key}", entry.get(key)):
-                errors.append(msg)
-        state = entry.get("name")
-        if not state:
-            errors.append(f"states[{i}]: missing 'name'")
-        elif state in seen:
+    for i, entry in enumerate(states if isinstance(states, list) else []):
+        state = entry.get("name") if isinstance(entry, dict) else None
+        if not isinstance(state, str) or not state.strip():
+            continue  # the schema reports it
+        if state in seen:
             errors.append(f"states[{i}]: duplicate state name '{state}'")
-        else:
-            seen.add(state)
+            continue
+        seen.add(state)
         expr = entry.get("when")
-        if expr:
+        if isinstance(expr, str) and expr:
             try:
                 compile_predicate(expr)
             except StatePredicateError as ex:
                 errors.append(f"states[{i}] ('{state}'): invalid when: {ex}")
             else:
-                predicates.append((str(state), str(expr)))
-        if entry.get("implies") is not None and state:
-            implies_entries.append((str(state), entry["implies"]))
-        if entry.get("excludes") is not None and state:
-            excludes_entries.append((str(state), entry["excludes"]))
+                predicates.append((state, expr))
+        if entry.get("implies") is not None:
+            implies_entries.append((state, entry["implies"]))
+        if entry.get("excludes") is not None:
+            excludes_entries.append((state, entry["excludes"]))
 
     errors += _state_relation_errors(implies_entries, excludes_entries, {n.upper() for n in seen})
 
@@ -189,7 +177,7 @@ def check_states() -> FileReport:
 
 
 def check_groups() -> FileReport:
-    """Check the profile's optional groups.yaml (selector-group vocabulary)."""
+    """Check the profile's optional groups.yaml (schema, names, selectors and member ECUs)."""
     from canair.ecus import build_canonical_name_index, canonical_ecu_name_safe
     from canair.ecus.pids import build_ecu_index, load_pids
     from canair.profile import active
@@ -201,13 +189,8 @@ def check_groups() -> FileReport:
 
     text = path.read_text()
     data = yaml_io.safe_load(text) or {}
-    if not isinstance(data, dict) or "groups" not in data:
-        return FileReport("groups.yaml", broken="groups.yaml: missing top-level 'groups:' mapping")
-    groups = data.get("groups")
-    if not isinstance(groups, dict):
-        return FileReport(
-            "groups.yaml", broken="groups.yaml: 'groups' must be a mapping keyed by group name"
-        )
+    errors: list[str] = duplicate_key_errors(text) + schema_errors(GROUPS_SCHEMA_FILE, data)
+    groups = data.get("groups") if isinstance(data, dict) else None
 
     # Registry for the member ECU-existence check (best-effort — an absent/partial
     # registry just skips that check, mirroring the query resolver's tolerance).
@@ -217,36 +200,22 @@ def check_groups() -> FileReport:
     except Exception:
         ecu_index, name_index = {}, None
 
-    errors: list[str] = duplicate_key_errors(text)
     seen: set[str] = set()
     n_members = 0
-    for name, meta in groups.items():
+    for name, meta in groups.items() if isinstance(groups, dict) else ():
         key = str(name).strip().lower()
         if not key:
-            errors.append("empty group name")
-            continue
+            continue  # the schema reports it
         if key in seen:
             errors.append(f"duplicate group name '{key}'")
             continue
         seen.add(key)
-        if isinstance(meta, dict):
-            for extra in set(meta) - {"description", "members"}:
-                errors.append(f"group '{key}': unknown field '{extra}'")
-            members = meta.get("members")
-        elif isinstance(meta, list):  # bare-list shorthand
-            members = meta
-        else:
-            errors.append(f"group '{key}': must be a mapping (description/members) or a list")
-            continue
-        if not isinstance(members, list) or not members:
-            errors.append(f"group '{key}': 'members' must be a non-empty list")
-            continue
-        for raw in members:
-            tok = str(raw).strip()
+        members = meta.get("members") if isinstance(meta, dict) else meta
+        for raw in members if isinstance(members, list) else ():
             n_members += 1
-            if tok.startswith("@"):
-                errors.append(f"group '{key}': member '{tok}' — groups cannot contain groups")
-                continue
+            if not isinstance(raw, str) or not raw.strip() or raw.strip().startswith("@"):
+                continue  # the schema reports it
+            tok = raw.strip()
             try:
                 sel = parse_selector(tok)
             except QueryError as ex:
@@ -309,7 +278,7 @@ def check_actions() -> FileReport:
 
 
 def check_can_buses() -> FileReport:
-    """Check the profile's optional can_buses.yaml (CAN bus vocabulary)."""
+    """Check the profile's optional can_buses.yaml (CAN bus vocabulary) against its schema."""
     from canair.profile import active
 
     path = active().can_buses_file
@@ -318,63 +287,18 @@ def check_can_buses() -> FileReport:
 
     text = path.read_text()
     data = yaml_io.safe_load(text) or {}
-    if not isinstance(data, dict) or "can_buses" not in data:
-        return FileReport(
-            "can_buses.yaml", broken="can_buses.yaml: missing top-level 'can_buses:' mapping"
-        )
-    buses = data.get("can_buses")
-
-    errors: list[str] = duplicate_key_errors(text)
-    seen: set[str] = set()
-
-    def _check_code(i, code) -> None:
-        code = str(code).strip()
-        if not code:
-            errors.append(f"can_buses[{i}]: empty code")
-        elif code in seen:
-            errors.append(f"can_buses: duplicate code '{code}'")
-        else:
-            seen.add(code)
-
-    if isinstance(buses, dict):
-        for i, (code, meta) in enumerate(buses.items()):
-            _check_code(i, code)
-            if meta is not None and not isinstance(meta, (dict, str)):
-                errors.append(
-                    f"can_buses['{code}']: must be a mapping (name/description) or omitted"
-                )
-            elif isinstance(meta, dict):
-                for extra in set(meta) - {"name", "description", "bitrate", "private"}:
-                    errors.append(f"can_buses['{code}']: unknown field '{extra}'")
-                rate = meta.get("bitrate")
-                if not isinstance(meta.get("private", False), bool):
-                    errors.append(f"can_buses['{code}']: private must be true or false")
-                if rate is not None and (
-                    not isinstance(rate, int) or isinstance(rate, bool) or rate <= 0
-                ):
-                    errors.append(
-                        f"can_buses['{code}']: bitrate must be a positive integer (bit/s)"
-                    )
-    elif isinstance(buses, list):  # legacy list form
-        for i, code in enumerate(buses):
-            _check_code(i, code)
-    else:
-        return FileReport(
-            "can_buses.yaml",
-            broken="can_buses.yaml: 'can_buses' must be a mapping (or legacy list)",
-        )
-
+    errors = duplicate_key_errors(text) + schema_errors(CAN_BUSES_SCHEMA_FILE, data)
     if errors:
         return FileReport("can_buses.yaml", errors=tuple(errors))
-    return FileReport("can_buses.yaml", summary=f"({len(seen)} bus codes)")
+    return FileReport("can_buses.yaml", summary=f"({len(data['can_buses'])} bus codes)")
 
 
 def check_signals() -> SignalsReport:
     """Check the profile's optional signals/ broadcast signal-definition files.
 
     Domain-B (broadcast frame) signal maps: one signals/<bus>.yaml per CAN bus,
-    keyed by arbitration ID, each signal a DBC-compatible linear model. Structural
-    checks mirror the signals_schema.yaml companion.
+    keyed by arbitration ID, each signal a DBC-compatible linear model, checked against
+    signals_schema.yaml plus the frame-layout rules (:func:`check_signals_doc`).
     """
     from canair.broadcast import load_signals, signals_dir
     from canair.validation.signals import check_signals_doc

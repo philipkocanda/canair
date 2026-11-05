@@ -75,8 +75,12 @@ class TestValidation:
 
     @pytest.mark.parametrize("bad", ["Classic Ioniq", [1], [""], {"a": 1}])
     def test_must_be_a_list_of_text(self, tmp_path, bad):
-        errors = self._findings(tmp_path, bad)
-        assert any("'also_known_as' must be a list of non-empty text" in e for e in errors)
+        from canair.core.json_schema import schema_errors
+        from canair.core.paths import PROFILE_SCHEMA_FILE
+
+        doc = {"car_model": "X", "init": "", "also_known_as": bad}
+        assert any(e.startswith("also_known_as") for e in schema_errors(PROFILE_SCHEMA_FILE, doc))
+        assert self._findings(tmp_path, bad) == []  # the schema's to report
 
     def test_a_repeated_name_is_an_error(self, tmp_path):
         errors = self._findings(tmp_path, ["Ioniq 28", "ioniq 28"])
@@ -84,7 +88,7 @@ class TestValidation:
 
     def test_variant_names_are_checked_as_a_list_of_text(self):
         doc = {"variants": {"a": {"name": "A", "also_known_as": "Ioniq 28"}}}
-        assert any("'also_known_as' must be a list of text" in e for e in check_variants_doc(doc))
+        assert any("also_known_as: must be a list" in e for e in check_variants_doc(doc))
         doc["variants"]["a"]["also_known_as"] = ["Ioniq 28"]
         assert check_variants_doc(doc) == []
 

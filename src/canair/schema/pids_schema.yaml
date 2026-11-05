@@ -524,10 +524,6 @@ valid_param_types:
   - bcd
   - struct
 
-required_meta_fields:
-  - car_model
-  - init
-
 # IOControl section — per-ECU actuator commands: UDS InputOutputControlByIdentifier
 # (0x2F), or KWP2000 InputOutputControlByLocalIdentifier (0x30) on ECUs that speak
 # it. Lives under ECU_NAME.iocontrol alongside ECU_NAME.pids.

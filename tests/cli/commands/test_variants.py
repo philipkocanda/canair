@@ -7,17 +7,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
-from pathlib import Path
 
 import pytest
 import yaml
 
 from canair import variants as v
+from canair.core.json_schema import load_schema_file
+from canair.core.paths import VARIANTS_SCHEMA_FILE, schema_modeline
 from canair.yaml_edit import variants as edit
 from canair.yaml_edit.variants import VariantsEditError
-
-SCHEMA = Path(v.__file__).resolve().parent.parent / "schema" / "variants_schema.yaml"
 
 
 @pytest.fixture
@@ -89,11 +87,19 @@ class TestCheck:
         ok = _doc(a={"name": "x", "profile_overrides": {"car_model": "Y", "multi_did_max": 2}})
         assert v.check_variants_doc(ok) == []
         errors = v.check_variants_doc(_doc(a={"name": "x", "profile_overrides": {"isotp": {}}}))
-        assert any("cannot override 'isotp'" in e for e in errors)
+        assert any("profile_overrides.isotp: cannot be overridden" in e for e in errors)
+
+    def test_profile_overrides_follow_the_profile_yaml_rules(self):
+        doc = _doc(a={"name": "x", "profile_overrides": {"quirks": ["bogus"], "init": 6}})
+        assert v.check_variants_doc(doc) == [
+            "variants.a.profile_overrides.init: must be text (got 6)",
+            "variants.a.profile_overrides.quirks[0]: unknown quirk (allowed: hk_90_session, "
+            "hk_forced_sleep, nissan_c0_session, skm_wakeup)",
+        ]
         errors = v.check_variants_doc(
             _doc(a={"name": "x", "profile_overrides": {"multi_did_max": 0}})
         )
-        assert any("positive whole number" in e for e in errors)
+        assert any("profile_overrides.multi_did_max: must be at least 1" in e for e in errors)
 
     def test_unknown_field(self):
         assert any(
@@ -178,7 +184,9 @@ class TestEdit:
             profile=prof,
         )
         text = prof.variants_file.read_text()
-        assert text.startswith("# The variants of this car")
+        modeline, header = text.splitlines()[:2]
+        assert modeline == schema_modeline("variants")
+        assert header.startswith("# The variants of this car")
         data = yaml.safe_load(text)["variants"]["77kwh"]
         assert data["production"] == ["2022", "2024-02"]
         assert data["model_years"] == [2022, 2024]
@@ -301,27 +309,25 @@ def test_every_bundled_profile_declares_valid_variants(name):
     assert len(v.load_variants(resolve_profile(name))) >= 2
 
 
-class TestSchemaCompanion:
-    """Pin the human-readable schema to the checker's authoritative field lists."""
+class TestSchema:
+    """Pin variants_schema.yaml to the tables the editor writes and types values from."""
 
-    def _schema(self) -> dict:
-        return yaml.safe_load(SCHEMA.read_text())
+    def _variant(self) -> dict:
+        return load_schema_file(VARIANTS_SCHEMA_FILE)["definitions"]["variant"]
 
     def test_fields_match(self):
-        s = self._schema()
-        assert (*s["required_variant_fields"], *s["optional_variant_fields"]) == tuple(
-            v.VARIANT_FIELDS
-        )
-        assert tuple(s["battery_fields"]) == tuple(v.BATTERY_FIELDS)
-        assert tuple(s["valid_statuses"]) == v.STATUSES
-        assert tuple(s["profile_override_fields"]) == tuple(v.PROFILE_OVERRIDE_FIELDS)
+        variant = self._variant()
+        assert tuple(variant["properties"]) == tuple(v.VARIANT_FIELDS)
+        assert tuple(variant["required"]) == v.REQUIRED_FIELDS
+        assert tuple(variant["properties"]["status"]["enum"]) == v.STATUSES
 
-    def test_comment_block_documents_every_field_in_order(self):
-        def documented(indent: int) -> list[str]:
-            pattern = re.compile(rf"^#{' ' * indent}([a-z_]+):")
-            return [
-                m.group(1) for line in SCHEMA.read_text().splitlines() if (m := pattern.match(line))
-            ]
+    def test_battery_fields_match(self):
+        battery = load_schema_file(VARIANTS_SCHEMA_FILE)["definitions"]["battery"]
+        assert tuple(battery["properties"]) == tuple(v.BATTERY_FIELDS)
 
-        assert tuple(documented(7)) == tuple(v.VARIANT_FIELDS)
-        assert tuple(documented(9)) == tuple(v.BATTERY_FIELDS)
+    def test_override_fields_match(self):
+        overrides = self._variant()["properties"]["profile_overrides"]
+        assert tuple(overrides["properties"]) == tuple(v.PROFILE_OVERRIDE_FIELDS)
+        assert tuple(overrides["propertyNames"]["enum"]) == tuple(v.PROFILE_OVERRIDE_FIELDS)
+        for key, rule in overrides["properties"].items():
+            assert rule == {"$ref": f"profile.json#/properties/{key}"}

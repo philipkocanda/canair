@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/groups.json
 # Hyundai Kona Electric 2019 (64 kWh) — capture/monitor selector groups
 #
 # A group is a named, reusable query: a list of ECU / ECU:PID selectors in the
@@ -10,7 +11,7 @@
 #
 # Members are plain selectors (ECU or ECU:PID) — not full mini-language steps.
 # List or edit with `canair groups`.
-# See canlib/schema/groups_schema.yaml and `canair validate groups`.
+# See src/canair/schema/groups_schema.yaml and `canair validate groups`.
 
 groups: {}
   # charging:

@@ -211,7 +211,7 @@ def _doc(**sig):
 class TestCheckSignalsDoc:
     def test_signed_must_be_bool(self):
         errors, _ = check_signals_doc(_doc(signed="yes"))
-        assert errors == ["0x1/X: signed must be true|false (got 'yes')"]
+        assert errors == ["messages.0x1.signals.X.signed: must be true or false (got 'yes')"]
 
     def test_signed_bool_accepted(self):
         assert check_signals_doc(_doc(signed=True)) == ([], 1)
@@ -221,11 +221,15 @@ class TestCheckSignalsDoc:
 
     def test_unknown_type_rejected(self):
         errors, _ = check_signals_doc(_doc(type="float"))
-        assert len(errors) == 1 and "type must be one of" in errors[0]
+        assert len(errors) == 1 and "type: must be one of" in errors[0]
 
     def test_unknown_field_rejected(self):
         errors, _ = check_signals_doc(_doc(is_signed=True))
-        assert errors == ["0x1/X: unknown field 'is_signed'"]
+        assert errors == [
+            "messages.0x1.signals.X: unknown field 'is_signed' (allowed: start_bit, length, "
+            "byte_order, signed, float, scale, offset, min, max, unit, type, values, bits, "
+            "verified, source, notes)"
+        ]
 
     @pytest.mark.parametrize("length", [1, 8, 12, 64])
     def test_message_length_accepted(self, length):
@@ -238,7 +242,7 @@ class TestCheckSignalsDoc:
         doc = _doc()
         doc["messages"]["0x1"]["length"] = length
         errors, _ = check_signals_doc(doc)
-        assert len(errors) == 1 and "length must be 0-8 bytes, or a CAN FD size" in errors[0]
+        assert len(errors) == 1 and "length: must be 0-8 bytes, or a CAN FD size" in errors[0]
 
 
 class TestSignalByteSpan:

@@ -1,9 +1,10 @@
+$schema_modeline
 # $car_model — vehicle operating states
 #
 # The vocabulary of states a capture session can be recorded in (its `vehicle_states`). Names
 # are UPPERCASE. Order is display order only. Edit with `canair states` (add, rm, rename,
-# set-description, set-predicate, set-implies, set-excludes); see canair/schema/states_schema.yaml
-# and `canair validate states`.
+# set-description, set-predicate, set-implies, set-excludes) and check it with `canair validate
+# states`. The schema named on line 1 (src/canair/schema/states_schema.yaml) documents the fields.
 #
 # A `when:` predicate over decoded signals auto-suggests the state when a capture is saved, and
 # every matching predicate contributes, so a session can be several states at once ("READY,

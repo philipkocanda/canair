@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 from ruamel.yaml.comments import CommentedMap
 
 from canair.core.edit_errors import EditError
+from canair.core.paths import schema_modeline
 from canair.ecus.ecu_groups import normalize_group_name
 from canair.query import QueryError, parse_selector
 
@@ -108,6 +109,7 @@ GROUPS = Target(
     error=GroupsEditError,
     section="groups",
     check=_check,
+    header=schema_modeline("groups") + "\n",
 )
 
 

@@ -187,7 +187,7 @@ class TestImportSkipsInvalid:
     def test_zero_scale_is_skipped(self, temp_profile, tmp_path, capsys):
         dbc = _write(tmp_path, _msg(0x10, _sig("Z", scale=0)), _msg(0x11, _sig("OK")))
         assert _import(["dbc", str(dbc), "--bus", "pt"]) == 0
-        assert "scale must not be 0" in capsys.readouterr().err
+        assert "scale: must not be 0" in capsys.readouterr().err
 
     def test_bad_ids_filter_reports(self, temp_profile, tmp_path, capsys):
         dbc = _write(tmp_path, _msg(0x10, _sig("A")))
@@ -264,7 +264,7 @@ class TestExport:
         )
         assert _export(["dbc", "--bus", "pt", "-o", str(tmp_path / "o.dbc")]) == 1
         err = capsys.readouterr().err
-        assert "pt.yaml is invalid" in err and "29-bit maximum" in err
+        assert "pt.yaml is invalid" in err and "at most 29 bits" in err
 
     def test_scale_and_offset_written_as_stored(self, temp_profile, tmp_path):
         merge_bus(

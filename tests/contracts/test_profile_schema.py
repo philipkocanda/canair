@@ -1,8 +1,8 @@
-"""The editor-facing profile.yaml JSON Schema stays true to canair's own validation.
+"""The profile.yaml JSON Schema stays true to the code that reads profile.yaml.
 
-``canair validate`` (``validate_meta``) is the authoritative check; the schema only
-serves editors. These tests pin the two together so an editor never flags a profile
-canair accepts, or offers a quirk/mode/field canair rejects.
+``canair validate`` (``validate_meta``) checks profile.yaml against this schema, and editors use
+it through the modeline. These tests pin its vocabularies to the runtime's, so neither offers a
+quirk, mode or field the code does not know.
 """
 
 from __future__ import annotations
@@ -16,10 +16,9 @@ import yaml
 
 from canair.core.paths import BUNDLED_PROFILES_DIR, PROFILE_SCHEMA_FILE, PROFILE_SCHEMA_MODELINE
 from canair.profile.scaffold import create_profile
-from canair.safety.quirks import KNOWN_QUIRKS
+from canair.safety.quirks import KNOWN_QUIRKS, RETIRED_QUIRKS
 from canair.transport.isotp_params import ISOTP_FIELDS
 from canair.uds.addressing import AddressingMode
-from canair.validation.addressing import ADDRESSING_FIELDS
 
 FIXTURE_PROFILES_DIR = Path(__file__).parents[1] / "fixtures" / "profiles"
 PROFILE_FILES = sorted(
@@ -55,12 +54,18 @@ def test_scaffold_conforms(tmp_path):
 
 
 def test_quirks_match_known_quirks():
-    assert set(PROPS["quirks"]["items"]["enum"]) == set(KNOWN_QUIRKS)
+    known, retired = PROPS["quirks"]["items"]["anyOf"]
+    assert set(known["enum"]) == set(KNOWN_QUIRKS)
+    assert set(retired["enum"]) == set(RETIRED_QUIRKS)
+    assert all(q in PROPS["quirks"]["items"]["errorMessage"] for q in KNOWN_QUIRKS)
 
 
-def test_addressing_matches_validator():
+def test_a_retired_quirk_is_accepted():
+    assert _errors({"car_model": "X", "init": "", "quirks": list(RETIRED_QUIRKS)}) == []
+
+
+def test_addressing_modes_match_the_runtime():
     addressing = PROPS["addressing"]
-    assert set(addressing["properties"]) == ADDRESSING_FIELDS
     assert set(addressing["properties"]["mode"]["enum"]) == {m.value for m in AddressingMode}
 
 

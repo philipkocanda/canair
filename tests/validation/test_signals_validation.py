@@ -30,21 +30,21 @@ class TestSignalFieldTypes:
     @pytest.mark.parametrize(
         ("field", "value", "fragment"),
         [
-            ("start_bit", "a", "start_bit must be an integer"),
-            ("start_bit", True, "start_bit must be an integer"),
-            ("start_bit", 1.5, "start_bit must be an integer"),
-            ("length", "8", "length must be an integer"),
-            ("length", False, "length must be an integer"),
-            ("scale", "0.5", "scale must be a number"),
-            ("scale", True, "scale must be a number"),
-            ("offset", "1", "offset must be a number"),
-            ("min", "0", "min must be a number"),
-            ("max", None, "max must be a number"),
-            ("verified", "yes", "verified must be true|false"),
-            ("float", 1, "float must be true|false"),
-            ("unit", 3, "unit must be a string"),
-            ("notes", ["a"], "notes must be a string"),
-            ("byte_order", None, "byte_order must be little|big"),
+            ("start_bit", "a", "start_bit: must be an integer"),
+            ("start_bit", True, "start_bit: must be an integer"),
+            ("start_bit", 1.5, "start_bit: must be an integer"),
+            ("length", "8", "length: must be an integer"),
+            ("length", False, "length: must be an integer"),
+            ("scale", "0.5", "scale: must be a number"),
+            ("scale", True, "scale: must be a number"),
+            ("offset", "1", "offset: must be a number"),
+            ("min", "0", "min: must be a number"),
+            ("max", None, "max: must be a number"),
+            ("verified", "yes", "verified: must be true or false"),
+            ("float", 1, "float: must be true or false"),
+            ("unit", 3, "unit: must be text"),
+            ("notes", ["a"], "notes: must be text"),
+            ("byte_order", None, "byte_order: must be one of 'little', 'big'"),
         ],
     )
     def test_wrong_type_rejected(self, field, value, fragment):
@@ -63,35 +63,67 @@ class TestSignalFieldTypes:
         assert _errors(_doc(**sig)) == []
 
     def test_scale_zero_rejected(self):
-        assert any("scale must not be 0" in e for e in _errors(_doc(scale=0)))
-        assert any("scale must not be 0" in e for e in _errors(_doc(scale=0.0)))
+        assert any("scale: must not be 0" in e for e in _errors(_doc(scale=0)))
+        assert any("scale: must not be 0" in e for e in _errors(_doc(scale=0.0)))
 
 
 class TestTypedMaps:
     def test_values_must_be_int_keyed_mapping(self):
         assert any(
-            "'values' must be a mapping" in e for e in _errors(_doc(type="enum", values=[1, 2]))
+            "values: must be a mapping" in e for e in _errors(_doc(type="enum", values=[1, 2]))
         )
         errors = _errors(_doc(type="enum", values={"P": "park"}))
-        assert any("'values' key 'P' must be an integer" in e for e in errors)
+        assert any("values.P: must be an integer" in e for e in errors)
 
     def test_labels_must_be_strings(self):
         # A bare `on` in YAML is a boolean: refuse it rather than label a state "True".
         errors = _errors(_doc(type="enum", values={0: "off", 1: True}))
-        assert any("label for 1 must be a string" in e for e in errors)
+        assert any(
+            "values.1: must be text (got true: YAML reads an unquoted ON" in e for e in errors
+        )
 
     def test_quoted_int_keys_accepted(self):
         # The typed decoder reads int and str keys alike (src/canair/decode_value.py).
         assert _errors(_doc(type="enum", values={"1": "P", 2: "R"})) == []
 
     def test_bits_must_be_mapping_in_range(self):
-        assert any("'bits' must be a mapping" in e for e in _errors(_doc(type="bitmask", bits="x")))
-        assert any("out of range" in e for e in _errors(_doc(type="bitmask", bits={64: "a"})))
+        assert any("bits: must be a mapping" in e for e in _errors(_doc(type="bitmask", bits="x")))
+        assert any(
+            "bits.64: must be a bit index from 0 to 63" in e
+            for e in _errors(_doc(type="bitmask", bits={64: "a"}))
+        )
 
     def test_map_needs_its_type(self):
         assert any("only valid with type 'enum'" in e for e in _errors(_doc(values={1: "a"})))
         assert any("requires a 'values:' map" in e for e in _errors(_doc(type="enum")))
         assert any("requires a 'bits:' map" in e for e in _errors(_doc(type="bitmask")))
+
+    def test_a_map_of_the_other_type_names_both_problems(self):
+        errors = _errors(_doc(type="bitmask", values={1: "a"}))
+        assert any("requires a 'bits:' map" in e for e in errors)
+        assert any("only valid with type 'enum'" in e for e in errors)
+
+
+class TestDocument:
+    def test_unknown_fields_and_types(self):
+        errors, n = check_signals_doc({"messages": {"0x1": 5}, "foo": 1, "bitrate": "x"})
+        assert n == 0
+        assert errors == [
+            "unknown field 'foo' (allowed: bus, bitrate, messages)",
+            "bitrate: must be an integer (got 'x')",
+            "messages.0x1: must be a mapping (got 5)",
+        ]
+
+    def test_an_unquoted_id_reads_as_a_number(self):
+        # YAML reads a bare 0x220 key as the integer 544.
+        assert any(
+            "messages.544: must be a hex arbitration ID" in e for e in _errors(_doc(mid=544))
+        )
+
+    def test_a_length_no_frame_carries(self):
+        assert _errors(_doc(msg={"length": 9})) == [
+            "messages.0x1.length: must be 0-8 bytes, or a CAN FD size (12, 16, 20, 24, 32, 48 or 64)"
+        ]
 
 
 class TestFloat:
@@ -127,13 +159,15 @@ class TestMessageLayout:
         assert _errors(_doc(mid=mid)) == []
 
     def test_id_above_29_bits_rejected(self):
-        assert any("29-bit maximum" in e for e in _errors(_doc(mid="0x20000000")))
+        assert any("at most 29 bits" in e for e in _errors(_doc(mid="0x20000000")))
 
     def test_extended_flag(self):
         assert _errors(_doc(mid="0x123", msg={"extended": True})) == []
         errors = _errors(_doc(mid="0x800", msg={"extended": False}))
         assert any("standard (11-bit) frame id must be <= 0x7FF" in e for e in errors)
-        assert any("extended must be true|false" in e for e in _errors(_doc(msg={"extended": 1})))
+        assert any(
+            "extended: must be true or false" in e for e in _errors(_doc(msg={"extended": 1}))
+        )
 
     def test_fd_flag(self):
         assert _errors(_doc(msg={"fd": True, "length": 8})) == []
@@ -141,7 +175,7 @@ class TestMessageLayout:
         assert any("classic (non-FD) frame carries at most 8 bytes" in e for e in errors)
 
     def test_name_must_be_string(self):
-        assert any("name must be a string" in e for e in _errors(_doc(msg={"name": 123})))
+        assert any("name: must be text" in e for e in _errors(_doc(msg={"name": 123})))
 
 
 class TestLengthHelpers:

@@ -52,8 +52,8 @@ def _parse_range(rng: Any) -> tuple[float, float] | None:
     """Parse a ``[low, high]`` override into a validated float pair, or None.
 
     Lenient by design: malformed overrides are dropped here and reported
-    separately by ``canair validate`` (``_validate_physical_bands``) — the
-    resolver never raises on bad profile data.
+    separately by ``canair validate`` (``profile_schema.json`` and
+    ``validation/meta.py``) — the resolver never raises on bad profile data.
     """
     if not isinstance(rng, (list, tuple)) or len(rng) != 2:
         return None

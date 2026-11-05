@@ -149,7 +149,7 @@ requires-dist = [
     { name = "argcomplete", specifier = ">=3.0" },
     { name = "can-isotp", specifier = ">=2.0.7" },
     { name = "cantools", specifier = ">=39.0" },
-    { name = "jsonschema", specifier = ">=4.0" },
+    { name = "jsonschema", specifier = ">=4.18" },
     { name = "python-can", specifier = ">=4.6.1" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "requests", specifier = ">=2.0" },

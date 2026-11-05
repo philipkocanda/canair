@@ -1,10 +1,14 @@
-# CAN Bus Vocabulary Schema (human-readable companion)
-# Validates the optional profiles/<name>/can_buses.yaml.
+# yaml-language-server: $schema=http://json-schema.org/draft-07/schema#
+# CAN bus vocabulary: the optional profiles/<name>/can_buses.yaml
+#
+# `canair validate can-buses` checks the file against this schema
+# (src/canair/core/json_schema.py).
 #
 # can_buses.yaml declares a profile's physical CAN bus segment vocabulary — the
 # codes accepted by each ECU's top-level `can_bus:` field (in ecus/). Bus naming
 # is VENDOR-SPECIFIC, so it lives per profile rather than in a global enum:
-#   Hyundai/Kia   B-CAN / P-CAN / C-CAN / M-CAN / H-CAN  (Body, Powertrain, Chassis, Multimedia, Hybrid)
+#   Hyundai/Kia   B-CAN / P-CAN / C-CAN / M-CAN / H-CAN
+#                 (Body, Powertrain, Chassis, Multimedia, Hybrid)
 #   Ford          HS / MS            (High-/Medium-speed CAN)
 #   BMW           PT-CAN / K-CAN / F-CAN
 #   VW/Audi       Antriebs / Komfort / Infotainment (German domain names)
@@ -29,8 +33,47 @@
 # `canair pids set-can-bus ECU CODE [CODE ...]` accepts only codes declared here,
 # and `canair validate pids` errors on an ECU can_bus value outside this list.
 
-optional_bus_fields:
-  - name
-  - description
-  - bitrate  # segment bus speed in bit/s (positive integer)
-  - private  # true when the gateway (ALL) and the OBD-II port do not reach the segment
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "https://philipkocanda.github.io/canair/schema/can_buses.json"
+title: canair can_buses.yaml
+description: The profile's CAN bus segment codes, accepted by each ECU's can_bus field.
+type: object
+required: [can_buses]
+additionalProperties: false
+properties:
+  can_buses:
+    type: [object, array]
+    description: Bus codes, each mapping to a name, a description and a bitrate (or a legacy list).
+    propertyNames:
+      $ref: "#/definitions/code"
+    additionalProperties:
+      $ref: "#/definitions/bus"
+    items:
+      $ref: "#/definitions/code"
+    uniqueItems: true
+
+definitions:
+  code:
+    type: string
+    pattern: "^\\S(.*\\S)?$"
+    patternErrorMessage: must be a code with no surrounding space (e.g. B-CAN)
+
+  bus:
+    type: [object, string, "null"]
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        description: Human label shown by `canair ecu`.
+      description:
+        type: string
+        description: What sits on or characterises the segment.
+      bitrate:
+        type: integer
+        exclusiveMinimum: 0
+        description: Segment bus speed in bit/s.
+      private:
+        type: boolean
+        description: >-
+          A link the gateway does not bridge: the ALL code and the OBD-II port do not reach it
+          (default false).

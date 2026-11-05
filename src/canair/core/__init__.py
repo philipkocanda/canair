@@ -2,7 +2,8 @@
 
 Belongs: code with no knowledge of vehicles, profiles, captures or transports that several
 packages share: the path roots and config directory (``paths``), how YAML is read and
-round-tripped (``yaml_io``, ``yaml_rt``), the error a rejected edit raises (``edit_errors``,
+round-tripped (``yaml_io``, ``yaml_rt``), how a document is checked against one of canair's
+JSON Schemas (``json_schema``), the error a rejected edit raises (``edit_errors``,
 shared by the editors and by the loaders whose errors they report), hex id ranges, text
 scanning, stop signals, the terminal's size (``terminal``), the key that skips a long step
 (``skip_key``), and the central diagnostics event log (``eventlog``).

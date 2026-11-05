@@ -94,9 +94,7 @@ def check_pids(files: list[Path] | None) -> PidsReport:
         schema = load_schema()
         profile_yaml = prof.meta_file
         if profile_yaml.exists():
-            all_errors.extend(
-                validate_meta(profile_yaml, set(schema.get("required_meta_fields", [])))
-            )
+            all_errors.extend(validate_meta(profile_yaml))
             dtcs_fields = set((schema.get("dtcs_fields", {}) or {}).get("optional", []))
             dtc_errors, dtc_warnings = profile_dtc_findings(profile_yaml, dtcs_fields)
             all_errors.extend(dtc_errors)

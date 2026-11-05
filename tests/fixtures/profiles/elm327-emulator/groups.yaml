@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/groups.json
 # ELM327-Emulator (offline test target) — capture/monitor selector groups
 #
 # A group is a named, reusable query: a list of ECU / ECU:PID selectors in the

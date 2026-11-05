@@ -17,6 +17,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
 from canair.core.edit_errors import EditError
+from canair.core.paths import schema_modeline
 from canair.core.yaml_rt import NOTE_WRAP_WIDTH, folded
 from canair.variants import (
     BATTERY_FIELDS,
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from canair.profile import Profile
 
 _HEADER = (
+    f"{schema_modeline('variants')}\n"
     "# The variants of this car (battery, facelift, market) and their metadata.\n"
     "# List or edit with `canair variants`. See docs/concepts/variants.md.\n"
 )

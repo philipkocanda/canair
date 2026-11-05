@@ -1,10 +1,11 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/can_buses.json
 # Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+) — physical CAN bus segment vocabulary
 #
 # Codes accepted by each ECU's `can_bus:` field (in ecus/). Each bare code maps
 # to a human name + description (and an optional `bitrate` in bit/s). Naming is
 # vendor-specific: Nissan names segments by function (EV-CAN, CAR-CAN, ITS-CAN, ...);
 # Hyundai/Kia use B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN; Ford uses HS/MS; BMW PT-CAN/K-CAN.
-# See canlib/schema/can_buses_schema.yaml and `canair validate can-buses`. Set an
+# See src/canair/schema/can_buses_schema.yaml and `canair validate can-buses`. Set an
 # ECU's segment(s) with `canair pids set-can-bus ECU CODE [CODE ...]`.
 #
 # Source: block wiring diagrams in the service manual, as compiled in

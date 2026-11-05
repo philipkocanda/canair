@@ -1,5 +1,10 @@
-# Groups Definition Schema (human-readable companion)
-# Validates the optional profiles/<name>/groups.yaml.
+# yaml-language-server: $schema=http://json-schema.org/draft-07/schema#
+# Selector groups: the optional profiles/<name>/groups.yaml
+#
+# `canair validate groups` checks the file against this schema
+# (src/canair/core/json_schema.py), then checks what a schema cannot: group names that repeat
+# once lower-cased, the selector syntax and that each member's ECU exists
+# (src/canair/validation/other.py::check_groups).
 #
 # groups.yaml declares a profile's named capture/monitor selector groups — the
 # saved-query analogue of vehicle_states.yaml / can_buses.yaml. A group is a
@@ -21,8 +26,47 @@
 # (groups cannot nest) and never full mini-language steps. `canair validate
 # groups` additionally checks that each member's ECU exists in the registry.
 
-required_group_fields:
-  - members
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "https://philipkocanda.github.io/canair/schema/groups.json"
+title: canair groups.yaml
+description: The profile's named selector groups, recalled on the command line as @name.
+type: object
+required: [groups]
+additionalProperties: false
+properties:
+  groups:
+    type: object
+    description: Groups keyed by name.
+    propertyNames:
+      pattern: "\\S"
+      patternErrorMessage: a group name must not be blank
+    additionalProperties:
+      $ref: "#/definitions/group"
 
-optional_group_fields:
-  - description
+definitions:
+  members:
+    type: array
+    minItems: 1
+    description: ECU or ECU:PID selectors.
+    items:
+      type: string
+      pattern: "\\S"
+      patternErrorMessage: must not be blank
+      allOf:
+        - not: {pattern: "^\\s*@"}
+          errorMessage: a group cannot contain another group (@name)
+
+  group:
+    description: A mapping with description and members, or the bare list of members.
+    type: [object, array]
+    required: [members]
+    additionalProperties: false
+    properties:
+      description:
+        type: string
+        description: Human-readable explanation.
+      members:
+        $ref: "#/definitions/members"
+    minItems: 1
+    items:
+      $ref: "#/definitions/members/items"

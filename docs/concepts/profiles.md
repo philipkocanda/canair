@@ -73,9 +73,23 @@ Every `profile.yaml` starts with a modeline naming its JSON Schema, which canair
 Editors built on `yaml-language-server` (VS Code's YAML extension, Zed, Neovim, Helix) then
 validate the file and autocomplete its fields. Without the modeline they pick a schema by filename
 from SchemaStore, which matches `profiles/*/profile.yaml` to an unrelated tool and reports
-`car_model` as not allowed. `canair profile create` and `canair profile overlay` write the
-modeline; add it by hand to a profile created before that. `canair validate` remains the
-authoritative check.
+`car_model` as not allowed.
+
+The other profile files have a schema too, published next to it:
+
+| File | Schema |
+|---|---|
+| `vehicle_states.yaml` | `schema/vehicle_states.json` |
+| `can_buses.yaml` | `schema/can_buses.json` |
+| `groups.yaml` | `schema/groups.json` |
+| `variants.yaml` | `schema/variants.json` |
+| `signals/<bus>.yaml` | `schema/signals.json` |
+
+`canair validate` checks each file against the same schema, so the editor and canair report the
+same problems with the same message. `canair validate` also makes the checks a schema cannot,
+such as references to other files and predicate syntax. `canair profile create`, `canair profile
+overlay` and the editors that create one of these files write the modeline. Add it by hand to a
+file created before that.
 
 ### Addressing
 

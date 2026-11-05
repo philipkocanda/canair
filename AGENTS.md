@@ -500,8 +500,9 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   (`src/canair/yaml_edit/signals.py`).
   **Never hand-edit `signals/`.** Distinct from `pids` (freeform WiCAN expressions over `Bnn`); this
   is the DBC-compatible linear model, so `--start-bit` is DBC numbering (the MSB for big-endian).
-  The field list and structural check live once in `src/canair/validation/signals.py`
-  (`SIGNAL_FIELDS`, `check_signals_doc`), shared by the editor and the validator. The schema also
+  The structure is checked by `src/canair/schema/signals_schema.yaml`, and the frame-layout rules
+  a schema cannot state by `src/canair/validation/signals.py::check_signals_doc`, shared by the
+  editor and the validator; `SIGNAL_FIELDS` there is the order the editor writes. The schema also
   accepts the typed-decode fields, but CLI flags to author them are a follow-up (typed broadcast
   signals are hand-written in YAML for now).
 - **`canair ecu`** — Inspect the ECU registry and per-ECU stats (PIDs/signals/verified counts,
@@ -550,10 +551,12 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   can name (battery, facelift, market) with typed metadata, which ECU revisions each car can carry
   (`revisions:`, `set-revisions`) and which `profile.yaml` settings differ for it
   (`profile_overrides:`, a whitelist applied by `Profile.meta`). The rest of the design is
-  `plans/2026-10-30-profile-variants-and-rename.md`, phase by phase. The field table and the
-  structural check live once in `src/canair/variants/__init__.py` (`VARIANT_FIELDS`,
-  `PROFILE_OVERRIDE_FIELDS`, `check_variants_doc`), shared by the loader, `validate variants` and
-  the editor (`src/canair/yaml_edit/variants.py`, which types each command-line value from that table).
+  `plans/2026-10-30-profile-variants-and-rename.md`, phase by phase. The check lives once,
+  `src/canair/variants/__init__.py::check_variants_doc` (the structure from
+  `src/canair/schema/variants_schema.yaml`, whose `profile_overrides` values `$ref` the
+  `profile.yaml` rules, plus the IDs and pair order), shared by the loader, `validate variants`
+  and the editor (`src/canair/yaml_edit/variants.py`, which types each command-line value from
+  the `VARIANT_FIELDS`/`PROFILE_OVERRIDE_FIELDS` tables there).
   `rename` rewrites every tag and ECU `variants:` list that uses the ID and `rm` refuses while one
   does (`src/canair/yaml_edit/variant_refs.py`).
   **ECU revisions** (`src/canair/variants/revisions.py`) are versions of one ECU that differ in
@@ -613,7 +616,12 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   counts; flags **undeclared** codes and counts **unbussed** ECUs. Companion to `pids set-can-bus`.
 - **`canair validate`** (alias `val`) — `validate
   pids|captures|ecus|states|can-buses|signals|groups|can|all` (default `all`); `--stats` for
-  counts. Schemas are tool-owned in `src/canair/schema/`; the optional targets skip gracefully when
+  counts. Schemas are tool-owned in `src/canair/schema/`: `profile.yaml`, `vehicle_states.yaml`,
+  `can_buses.yaml`, `groups.yaml`, `variants.yaml` and `signals/` are checked against draft-07
+  JSON Schemas through `src/canair/core/json_schema.py::schema_errors` (the shape: types, enums,
+  unknown fields), and Python checks only what a schema cannot (references, parsing, graph and
+  order rules); `ecus/` still uses the `pids_schema.yaml` field lists
+  (`plans/2026-11-05-json-schema-validation.md`). The optional targets skip gracefully when
   absent. What matters beyond the schema check: **`validate states` resolves every `when:`
   predicate's `ECU.PARAM` against the registry and ERRORS on one that can't** — the *only* place a
   renamed/typo'd predicate signal is caught, because Kleene evaluation makes it silent (a missing
@@ -1006,11 +1014,12 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
 - **`profiles/<car>/references/`** — External reference material (other-vehicle logs, spreadsheets,
   SavvyCAN exports, charge curves). Distinct from the per-ECU `research:` backlog.
 - **`profiles/<car>/profile.yaml`** — Profile-wide settings. Only `car_model` + `init` are required;
-  `canair validate` type-checks the rest. Its first line is a `yaml-language-server` modeline
-  (`src/canair/core/paths.py::PROFILE_SCHEMA_MODELINE`) naming the editor schema
-  `src/canair/schema/profile_schema.json`, published on the docs site by
-  `scripts/mkdocs_hooks/schemas.py`. **A new profile.yaml field goes in that schema too**;
-  `tests/contracts/test_profile_schema.py` pins its enums to the validator's. The fields:
+  `canair validate` checks the file against `src/canair/schema/profile_schema.json`, and its first
+  line is a `yaml-language-server` modeline naming the same schema. Every file with a schema in
+  `src/canair/core/paths.py::EDITOR_SCHEMAS` carries one (`schema_modeline`), written by the
+  templates and by each editor's `Target.header`; `scripts/mkdocs_hooks/schemas.py` publishes them
+  on the docs site. **A new profile.yaml field goes in that schema** (it is the check);
+  `tests/contracts/test_profile_schema.py` pins its enums to the runtime's. The fields:
   `response_timeout_ms`, `multi_did_batching`,
   `multi_did_max` (per-ECU overridable), `can_bitrate`, shared DTC meanings (`dtcs:`), plus these
   blocks:

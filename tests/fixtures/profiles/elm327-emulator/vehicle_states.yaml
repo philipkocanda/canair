@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/vehicle_states.json
 # ELM327-Emulator (offline test target) — vehicle operating states
 #
 # Canonical, ordered operating states for capture sessions (`vehicle_states`

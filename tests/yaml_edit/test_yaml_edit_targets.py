@@ -36,6 +36,21 @@ def test_each_target_is_well_formed(key):
     assert t.after_write is not None
 
 
+@pytest.mark.parametrize(
+    ("key", "schema"),
+    [
+        ("states", "vehicle_states"),
+        ("groups", "groups"),
+        ("signals", "signals"),
+        ("variants", "variants"),
+    ],
+)
+def test_a_created_file_names_its_schema(key, schema):
+    from canair.core.paths import schema_modeline
+
+    assert target(key).header.splitlines()[0] == schema_modeline(schema)
+
+
 def test_an_unknown_target_names_the_known_ones():
     with pytest.raises(KeyError, match="groups"):
         target("nope")

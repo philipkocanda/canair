@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from canair.core.edit_errors import EditError
+from canair.core.paths import schema_modeline
 from canair.states import (
     ALL_STATE,
     StateRule,
@@ -200,6 +201,7 @@ STATES = Target(
     section="states",
     kind=CommentedSeq,
     check=_check,
+    header=schema_modeline("vehicle_states") + "\n",
 )
 
 

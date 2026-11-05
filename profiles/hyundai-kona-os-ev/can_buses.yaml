@@ -1,10 +1,11 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/can_buses.json
 # Hyundai Kona Electric 2019 (64 kWh) — physical CAN bus segment vocabulary
 #
 # Codes accepted by each ECU's `can_bus:` field (in ecus/). Hyundai/Kia split
 # the vehicle bus into functional segments bridged by the gateway. The same
 # vocabulary as the Ioniq AE; which segment each Kona ECU actually sits on is
 # unconfirmed here (device-free seed), so ECUs are left without a can_bus: until
-# a bus map for this car is established. See canlib/schema/can_buses_schema.yaml
+# a bus map for this car is established. See src/canair/schema/can_buses_schema.yaml
 # and `canair validate can-buses`. Set an ECU's segment(s) with
 # `canair pids set-can-bus ECU CODE [CODE ...]`.
 

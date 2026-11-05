@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from ruamel.yaml.comments import CommentedMap
 
 from canair.core.edit_errors import EditError
+from canair.core.paths import schema_modeline
 from canair.validation.signals import (
     BYTE_ORDERS,
     CLASSIC_MAX_LENGTH,
@@ -60,6 +61,7 @@ SIGNALS = Target(
     error=SignalsEditError,
     section="messages",
     check=_check,
+    header=schema_modeline("signals") + "\n",
     sequence=(2, 0),
 )
 

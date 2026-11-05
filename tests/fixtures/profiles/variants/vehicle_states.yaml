@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/vehicle_states.json
 # Variants fixture (synthetic) — vehicle operating states. DRIVING reads a signal that
 # both VCU revisions define, so it must resolve on every car and revision.
 states:

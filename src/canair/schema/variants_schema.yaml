@@ -1,5 +1,5 @@
-# Variants Schema (human-readable companion)
-# Validates the optional profiles/<name>/variants.yaml.
+# yaml-language-server: $schema=http://json-schema.org/draft-07/schema#
+# Variants: the optional profiles/<name>/variants.yaml
 #
 # A profile describes one model generation with one drivetrain. A variant is a version
 # of that car the owner can name — a battery size, a facelift, a market with different
@@ -7,91 +7,165 @@
 # ECU revisions that car can carry, and which profile.yaml settings differ for it.
 # List or edit with `canair variants`.
 #
-# Top-level structure:
-#   variants:                     # mapping keyed by variant ID
-#     <id>:                       # lower-case words joined by '-', at least one letter;
-#                                 # local to the profile, naming only what differs
-#                                 # (e.g. 28kwh, 38kwh-us), never a year
-#       name: str                 # required — human-readable name
-#       also_known_as: [str, ...] # optional — other names owners call it (Ioniq 28, Ioniq vFL)
-#       model_code: str           # optional — the maker's model code (e.g. AEEV, F30)
-#       designation: str          # optional — the maker's name for it (e.g. IONIQ EV PE)
-#       generation: str           # optional — generation code (e.g. AE, OS, ZE1)
-#       production: [str, str]    # optional — build window, "YYYY" or "YYYY-MM", quoted
-#       model_years: [int, int]   # optional — informational; markets disagree on it
-#       markets: [str, ...]       # optional — where it was sold (e.g. EU, US, KR)
-#       battery:                  # optional — mapping:
-#         usable_kwh: number      #   usable capacity
-#         gross_kwh: number       #   gross capacity
-#         nominal_voltage: number #   pack nominal voltage, in volts
-#         series_cells: int       #   cells (or parallel cell groups) in series
-#         parallel_cells: int     #   cells in parallel per series group (2 for 192s2p)
-#         modules: int            #   modules in the pack
-#         chemistry: str          #   e.g. Li-polymer, NMC, LFP
-#         cell_format: str        #   e.g. pouch, prismatic, cylindrical
-#         cell_supplier: str      #   who makes the cells, e.g. SK On
-#         cooling: str            #   e.g. air, liquid
-#       trims: [str, ...]         # optional — informational only, never a variant
-#       revisions:                # optional — ECU name -> the revisions of that ECU (its
-#         BMS: [KWP]              #   ecus/ file's revisions: keys) this car can carry; an
-#                                 #   unlisted ECU may be any of its revisions
-#       profile_overrides:        # optional — profile.yaml settings that differ for this
-#         <setting>: value        #   car, replaced whole: car_model, physical_bands,
-#                                 #   response_timeout_ms, init, multi_did_max, quirks
-#       status: str               # optional — verified | community | seed
-#       sources: [str, ...]       # optional — where each fact came from
-#       notes: str                # optional
+# A variant ID is lower-case words joined by '-', with at least one letter, local to the
+# profile and naming only what differs (28kwh, 38kwh-us), never a year.
 #
 # A battery-named ID (28kwh) must agree with the battery it states: usable_kwh when
 # given, else gross_kwh, compared by whole kWh. Every ECU and revision a variant's
 # `revisions:` names must exist in ecus/ (`canair validate variants`).
-# Validated by `canair validate variants` (src/canair/variants/__init__.py::check_variants_doc,
-# whose VARIANT_FIELDS, BATTERY_FIELDS and PROFILE_OVERRIDE_FIELDS are the authoritative
-# field lists;
-# tests/commands/test_variants.py pins this file to them).
+#
+# `canair validate variants`, the loader and the `canair variants` editor check the file against
+# this schema (src/canair/variants/__init__.py::check_variants_doc), then check what a schema
+# cannot: the variant and revision IDs (compared lower-cased), a [from, to] pair that ends before
+# it starts, and the battery-named ID. A profile_overrides value follows the profile.yaml rule
+# for that setting. VARIANT_FIELDS, BATTERY_FIELDS and PROFILE_OVERRIDE_FIELDS in that module
+# set the order the editor writes and how it types a value; tests/cli/commands/test_variants.py
+# pins this file to them.
 
-variant_id_pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "https://philipkocanda.github.io/canair/schema/variants.json"
+title: canair variants.yaml
+description: The versions of this car an owner can name, with their metadata.
+type: object
+additionalProperties: false
+properties:
+  variants:
+    type: [object, "null"]
+    description: Variants keyed by ID (e.g. 28kwh).
+    additionalProperties:
+      $ref: "#/definitions/variant"
 
-required_variant_fields:
-  - name
+definitions:
+  text:
+    type: string
+    pattern: "\\S"
+    patternErrorMessage: must not be blank
+  texts:
+    type: array
+    items:
+      $ref: "#/definitions/text"
+  positive_number:
+    type: number
+    exclusiveMinimum: 0
+  positive_count:
+    type: integer
+    exclusiveMinimum: 0
 
-optional_variant_fields:
-  - also_known_as
-  - model_code
-  - designation
-  - generation
-  - production
-  - model_years
-  - markets
-  - battery
-  - trims
-  - revisions
-  - profile_overrides
-  - status
-  - sources
-  - notes
+  variant:
+    type: object
+    required: [name]
+    additionalProperties: false
+    properties:
+      name:
+        $ref: "#/definitions/text"
+        description: Human-readable name.
+      also_known_as:
+        $ref: "#/definitions/texts"
+        description: Other names owners call it (Ioniq 28, Ioniq vFL).
+      model_code:
+        $ref: "#/definitions/text"
+        description: The maker's model code (e.g. AEEV, F30).
+      designation:
+        $ref: "#/definitions/text"
+        description: The maker's name for it (e.g. IONIQ EV PE).
+      generation:
+        $ref: "#/definitions/text"
+        description: Generation code (e.g. AE, OS, ZE1).
+      production:
+        description: Build window, "YYYY" or "YYYY-MM", quoted so YAML keeps it text.
+        type: array
+        minItems: 2
+        maxItems: 2
+        items:
+          type: string
+          pattern: "^[0-9]{4}(-(0[1-9]|1[0-2]))?$"
+          patternErrorMessage: must be "YYYY" or "YYYY-MM", quoted so YAML keeps it text
+      model_years:
+        description: "[from, to] model years; informational, since markets disagree on it."
+        type: array
+        minItems: 2
+        maxItems: 2
+        items:
+          type: integer
+      markets:
+        $ref: "#/definitions/texts"
+        description: Where it was sold (e.g. EU, US, KR).
+      battery:
+        $ref: "#/definitions/battery"
+      trims:
+        $ref: "#/definitions/texts"
+        description: Informational only, never a variant.
+      revisions:
+        description: >-
+          ECU name -> the revisions of that ECU (its ecus/ file's revisions: keys) this car can
+          carry; an unlisted ECU may be any of its revisions.
+        type: object
+        additionalProperties:
+          type: array
+          minItems: 1
+          items:
+            type: [string, integer]
+      profile_overrides:
+        description: profile.yaml settings that differ for this car, each replaced whole.
+        type: object
+        propertyNames:
+          enum: [car_model, physical_bands, response_timeout_ms, init, multi_did_max, quirks]
+          errorMessage: >-
+            cannot be overridden (only car_model, physical_bands, response_timeout_ms, init,
+            multi_did_max and quirks can); a setting that differs more widely is a sign of a
+            separate profile
+        properties:
+          car_model:
+            $ref: "profile.json#/properties/car_model"
+          physical_bands:
+            $ref: "profile.json#/properties/physical_bands"
+          response_timeout_ms:
+            $ref: "profile.json#/properties/response_timeout_ms"
+          init:
+            $ref: "profile.json#/properties/init"
+          multi_did_max:
+            $ref: "profile.json#/properties/multi_did_max"
+          quirks:
+            $ref: "profile.json#/properties/quirks"
+      status:
+        enum: [verified, community, seed]
+      sources:
+        $ref: "#/definitions/texts"
+        description: Where each fact came from.
+      notes:
+        $ref: "#/definitions/text"
 
-battery_fields:
-  - usable_kwh
-  - gross_kwh
-  - nominal_voltage
-  - series_cells
-  - parallel_cells
-  - modules
-  - chemistry
-  - cell_format
-  - cell_supplier
-  - cooling
-
-valid_statuses:
-  - verified
-  - community
-  - seed
-
-profile_override_fields:
-  - car_model
-  - physical_bands
-  - response_timeout_ms
-  - init
-  - multi_did_max
-  - quirks
+  battery:
+    type: object
+    additionalProperties: false
+    properties:
+      usable_kwh:
+        $ref: "#/definitions/positive_number"
+        description: Usable capacity.
+      gross_kwh:
+        $ref: "#/definitions/positive_number"
+        description: Gross capacity.
+      nominal_voltage:
+        $ref: "#/definitions/positive_number"
+        description: Pack nominal voltage, in volts.
+      series_cells:
+        $ref: "#/definitions/positive_count"
+        description: Cells (or parallel cell groups) in series.
+      parallel_cells:
+        $ref: "#/definitions/positive_count"
+        description: Cells in parallel per series group (2 for 192s2p).
+      modules:
+        $ref: "#/definitions/positive_count"
+        description: Modules in the pack.
+      chemistry:
+        $ref: "#/definitions/text"
+        description: e.g. Li-polymer, NMC, LFP.
+      cell_format:
+        $ref: "#/definitions/text"
+        description: e.g. pouch, prismatic, cylindrical.
+      cell_supplier:
+        $ref: "#/definitions/text"
+        description: Who makes the cells, e.g. SK On.
+      cooling:
+        $ref: "#/definitions/text"
+        description: e.g. air, liquid.

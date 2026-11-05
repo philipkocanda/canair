@@ -22,7 +22,7 @@ import shutil
 from pathlib import Path
 
 from canair.config import set_config_value, user_profiles_dir
-from canair.core.paths import PROFILE_SCHEMA_MODELINE
+from canair.core.paths import PROFILE_SCHEMA_MODELINE, schema_modeline
 from canair.profile import BUNDLE_MEMBERS, looks_like_profile, profiles_roots
 
 # Default ELM327 init string for a new profile: ISO 15765-4 CAN 11-bit/500 kbit
@@ -87,22 +87,23 @@ def create_profile(
     (root / "captures").mkdir(parents=True, exist_ok=True)
     (root / "out").mkdir(parents=True, exist_ok=True)
 
-    (root / "profile.yaml").write_text(
-        render_template(
-            "profile.yaml.tmpl",
-            schema_modeline=PROFILE_SCHEMA_MODELINE,
-            car_model=car_model,
-            init=init,
+    # File name -> the editor schema its first line names (core.paths.EDITOR_SCHEMAS).
+    files = {
+        "profile.yaml": "profile",
+        "vehicle_states.yaml": "vehicle_states",
+        "can_buses.yaml": "can_buses",
+        "groups.yaml": "groups",
+        "variants.yaml": "variants",
+    }
+    for file, schema in files.items():
+        (root / file).write_text(
+            render_template(
+                f"{file}.tmpl",
+                schema_modeline=schema_modeline(schema),
+                car_model=car_model,
+                init=init,
+            )
         )
-    )
-    (root / "vehicle_states.yaml").write_text(
-        render_template("vehicle_states.yaml.tmpl", car_model=car_model)
-    )
-    (root / "can_buses.yaml").write_text(
-        render_template("can_buses.yaml.tmpl", car_model=car_model)
-    )
-    (root / "groups.yaml").write_text(render_template("groups.yaml.tmpl", car_model=car_model))
-    (root / "variants.yaml").write_text(render_template("variants.yaml.tmpl", car_model=car_model))
 
     if set_default:
         set_config_value("default_profile", name)

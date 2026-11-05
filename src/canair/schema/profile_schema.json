@@ -2,13 +2,12 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://philipkocanda.github.io/canair/schema/profile.json",
   "title": "canair profile.yaml",
-  "description": "Profile-wide settings of a canair vehicle profile. Editor-facing: `canair validate` is the authoritative check, and like it this schema tolerates unknown top-level keys.",
+  "description": "Profile-wide settings of a canair vehicle profile. `canair validate` checks profile.yaml against this schema. Like it, the schema tolerates unknown top-level keys.",
   "type": "object",
   "additionalProperties": true,
-  "anyOf": [
-    { "required": ["car_model", "init"] },
-    { "required": ["extends"] }
-  ],
+  "if": { "required": ["extends"] },
+  "then": {},
+  "else": { "required": ["car_model", "init"] },
   "properties": {
     "car_model": {
       "type": "string",
@@ -24,15 +23,16 @@
     },
     "also_known_as": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
-      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "\\S", "patternErrorMessage": "must not be blank" },
       "description": "Other names owners call this car (\"Classic Ioniq\"), shown on the docs site so people can find the profile. Labels only: they do not resolve on the command line. A variant lists its own in variants.yaml."
     },
     "aliases": {
       "type": "object",
       "description": "Former profile names that still resolve to this profile.",
       "additionalProperties": {
-        "type": ["object", "null"],
+        "type": "object",
+        "description": "What the old name implies ({} when it implies nothing).",
+        "additionalProperties": false,
         "properties": {
           "variant": {
             "type": "string",
@@ -61,8 +61,7 @@
       "description": "Max DIDs per multi-DID request (default 3; an ECU may override)."
     },
     "dtcs": {
-      "type": "object",
-      "description": "DTC meanings shared by every ECU: {CODE: {description, ...}}. An ECU's own dtcs: wins."
+      "description": "DTC meanings shared by every ECU: {CODE: {description, ...}}. An ECU's own dtcs: wins. `canair validate` checks it with the rules of an ECU's dtcs: section."
     },
     "addressing": {
       "type": "object",
@@ -152,17 +151,19 @@
       "type": "array",
       "description": "Make-specific behaviour this profile opts into.",
       "items": {
-        "enum": [
-          "hk_90_session",
-          "hk_forced_sleep",
-          "nissan_c0_session",
-          "skm_wakeup"
-        ]
+        "anyOf": [
+          { "enum": ["hk_90_session", "hk_forced_sleep", "nissan_c0_session", "skm_wakeup"] },
+          {
+            "enum": ["hk_f1xx_minus_one"],
+            "deprecationMessage": "Retired: this quirk does nothing. Remove it."
+          }
+        ],
+        "errorMessage": "unknown quirk (allowed: hk_90_session, hk_forced_sleep, nissan_c0_session, skm_wakeup)"
       }
     },
     "physical_bands": {
       "type": "object",
-      "description": "Vehicle-axis band overrides for `hunt --physical` / `investigate`: {name: [low, high]}.",
+      "description": "Vehicle-axis band overrides for `hunt --physical` / `investigate`: {name: [low, high]}, low below high.",
       "additionalProperties": {
         "type": "array",
         "items": { "type": "number" },
@@ -179,7 +180,7 @@
         "properties": {
           "factor": { "type": "number" },
           "offset": { "type": "number" },
-          "label": { "type": "string", "minLength": 1 },
+          "label": { "type": "string", "pattern": "\\S", "patternErrorMessage": "must not be blank" },
           "hint": { "type": "string" },
           "dimension": { "type": "string" }
         }

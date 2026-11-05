@@ -1,11 +1,16 @@
-# States Definition Schema (human-readable companion)
-# Validates the optional profiles/<name>/vehicle_states.yaml.
+# yaml-language-server: $schema=http://json-schema.org/draft-07/schema#
+# Vehicle states: the optional profiles/<name>/vehicle_states.yaml
+#
+# `canair validate states` checks the file against this schema
+# (src/canair/core/json_schema.py), then checks what a schema cannot: duplicate names, predicate
+# syntax, the `implies:`/`excludes:` rules below and the ECU.PARAM references
+# (src/canair/validation/other.py::check_states).
 #
 # vehicle_states.yaml declares a profile's canonical, ordered vehicle operating states.
 # The `vehicle_states` field on a capture session should draw from these names
 # (soft — free text is still accepted, but `canair validate captures` warns on
 # values outside this vocabulary). Each state may carry a `when:` predicate used
-# to auto-suggest the state from decoded PID values (see src/canair/states.py).
+# to auto-suggest the state from decoded PID values (see src/canair/states/__init__.py).
 #
 # Top-level structure:
 #   states:                 # ordered list; order is display order, not priority —
@@ -22,7 +27,7 @@
 # Specificity hierarchy (`implies:`) — several predicates are true at once BY
 # DESIGN: driving a running EV is genuinely both READY and DRIVING. `implies:`
 # names the broader states a state specializes (`DRIVING implies [READY]`), so a
-# view that must name ONE state names the specific one (src/canair/states.py
+# view that must name ONE state names the specific one (src/canair/states/__init__.py
 # ::most_specific_states, used by `suggest_state` and the monitor status bar). It
 # is NOT a priority number: it encodes entailment, so it needs no renumbering when
 # a state is added and it is machine-checkable. Rules, all enforced by
@@ -70,7 +75,7 @@
 #   __responded__           true when at least one ECU responded (UNKNOWN offline)
 #
 # ECU.PARAM references are RESOLVED against the profile's ecus/ registry by
-# `canair validate states` (src/canair/state_refs.py) — a predicate naming a signal
+# `canair validate states` (src/canair/states/refs.py) — a predicate naming a signal
 # that doesn't exist can never match, and Kleene logic makes that silent (a
 # missing signal is UNKNOWN exactly like a not-polled one). A reference must
 # match how the decoded value map is keyed: UPPERCASE canonical ECU short name
@@ -80,16 +85,51 @@
 #
 # Base vocabulary (the make-neutral ignition ladder baked into the tool;
 # profiles add EV/vendor/composite states in vehicle_states.yaml):
-#   SLEEP, ACC, RUN, CRANK   (POWER_STATES in src/canair/states.py)
+#   SLEEP, ACC, RUN, CRANK   (POWER_STATES in src/canair/states/__init__.py)
 # Plus the meta-token ALL — "applicable/readable in every state" (documentary,
 # the state analogue of the ALL CAN-bus code). The bundled Ioniq profile, for
 # example, adds PLUGGED/ON/READY/CHARGING/IG3/TOPUP/PARKED/DRIVING.
 
-required_state_fields:
-  - name
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "https://philipkocanda.github.io/canair/schema/vehicle_states.json"
+title: canair vehicle_states.yaml
+description: The profile's vehicle-state vocabulary, in display order.
+type: object
+required: [states]
+additionalProperties: false
+properties:
+  states:
+    type: array
+    description: Ordered list of states; order is display order, not priority.
+    items:
+      $ref: "#/definitions/state"
 
-optional_state_fields:
-  - description
-  - implies
-  - excludes
-  - when
+definitions:
+  state_names:
+    type: [string, array]
+    description: State names, as a list or one comma-separated string.
+    items:
+      type: string
+
+  state:
+    type: object
+    required: [name]
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        pattern: "\\S"
+        patternErrorMessage: must not be blank
+        description: The state name, UPPERCASE (e.g. READY, CHARGING).
+      description:
+        type: string
+        description: Human-readable explanation.
+      implies:
+        $ref: "#/definitions/state_names"
+        description: Broader states this one specializes.
+      excludes:
+        $ref: "#/definitions/state_names"
+        description: States that cannot hold at the same instant.
+      when:
+        type: string
+        description: Boolean predicate over ECU.PARAM values that auto-suggests the state.

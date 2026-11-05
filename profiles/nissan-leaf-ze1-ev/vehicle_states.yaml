@@ -1,10 +1,11 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/vehicle_states.json
 # Nissan Leaf ZE1 (2018-2024, 40 kWh and 62 kWh e+) — vehicle operating states
 #
 # Canonical, ordered operating states for capture sessions (`vehicle_states`
 # field). State names are UPPERCASE (a controlled vocabulary, like the CAN-bus
 # codes). Add a `when:` predicate over decoded PID values to auto-suggest the
 # state at save time — EVERY matching predicate contributes, so a session is
-# naturally composite ("READY, DRIVING"). See canlib/schema/states_schema.yaml
+# naturally composite ("READY, DRIVING"). See src/canair/schema/states_schema.yaml
 # and `canair validate states` / `canair states`. Predicate grammar: ECU.PARAM
 # names, and/or/not, == != < <= > >=, numeric/'string' literals, and the
 # sentinels __no_response__ / __responded__.

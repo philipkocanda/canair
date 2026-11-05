@@ -1,9 +1,10 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/vehicle_states.json
 # Hyundai Ioniq 5 2022 — vehicle operating states
 #
 # Canonical, ordered operating states for capture sessions (`vehicle_states`
 # field). State names are UPPERCASE (a controlled vocabulary, like the CAN-bus
 # codes). Add a `when:` predicate over decoded PID values to auto-suggest the
-# state at save time (first match wins). See canlib/schema/states_schema.yaml
+# state at save time (first match wins). See src/canair/schema/states_schema.yaml
 # and `canair validate states` / `canair states`. Predicate grammar: ECU.PARAM
 # names, and/or/not, == != < <= > >=, numeric/'string' literals, and the
 # sentinels __no_response__ / __responded__.

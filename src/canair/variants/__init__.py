@@ -15,10 +15,9 @@ diagnostics. ``variants.yaml`` gives each variant a stable ID and typed metadata
 The file is optional. Beside its metadata a variant may say which ECU revisions the car
 can carry (``revisions: {BMS: [KWP]}``, see :mod:`canair.variants.revisions`) and which
 ``profile.yaml`` settings differ for it (``profile_overrides:``, a whitelist). The field
-lists and the structural check live here once, shared by the loader, ``canair validate
-variants`` and the editor (:mod:`canair.yaml_edit.variants`), so a field one accepts is never
-rejected by another; ``src/canair/schema/variants_schema.yaml`` documents the same fields for
-humans.
+lists and the check live here once, shared by the loader, ``canair validate variants`` and the
+editor (:mod:`canair.yaml_edit.variants`), so a field one accepts is never rejected by another.
+The check runs ``src/canair/schema/variants_schema.yaml`` for the structure.
 
 Belongs: loading ``variants.yaml``, ECU revisions, fingerprints and the variant selection.
 Not here: editing them (``yaml_edit/``) and probing the car (``live/revision_probe.py``).
@@ -34,6 +33,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from canair.core import yaml_io
+from canair.core.json_schema import schema_errors
+from canair.core.paths import VARIANTS_SCHEMA_FILE
 
 if TYPE_CHECKING:
     from canair.profile import Profile
@@ -42,7 +43,6 @@ if TYPE_CHECKING:
 # At least one letter: a bare number would read back as an integer YAML key.
 _ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _REVISION_ID_RE = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$")
-_YEAR_MONTH_RE = re.compile(r"^\d{4}(-(0[1-9]|1[0-2]))?$")
 # A battery-named ID (``28kwh``, ``38kwh-us``) states its usable capacity.
 _BATTERY_ID_RE = re.compile(r"^(\d+)kwh(?:-|$)")
 
@@ -176,120 +176,17 @@ def id_problem(variant_id: str, noun: str = "variant", example: str = "28kwh") -
     return None
 
 
-def _is_number(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
-
-
-def _value_problem(kind: FieldKind, value: Any) -> str | None:
-    """Why ``value`` is not a valid value of ``kind``, or ``None``."""
-    if kind == "text":
-        return None if isinstance(value, str) and value.strip() else "must be non-empty text"
-    if kind in ("texts", "sentences"):
-        ok = isinstance(value, list) and all(isinstance(v, str) and v.strip() for v in value)
-        return None if ok else "must be a list of text"
-    if kind == "status":
-        return None if value in STATUSES else f"must be one of {', '.join(STATUSES)}"
-    if kind == "years":
-        ok = (
-            isinstance(value, list)
-            and len(value) == 2
-            and all(isinstance(v, int) and not isinstance(v, bool) for v in value)
-        )
-        if not ok:
-            return "must be a [from, to] pair of years"
-        return None if value[0] <= value[1] else "must not end before it starts"
-    if kind == "year_months":
-        ok = (
-            isinstance(value, list)
-            and len(value) == 2
-            and all(isinstance(v, str) and _YEAR_MONTH_RE.match(v) for v in value)
-        )
-        if not ok:
-            return 'must be a ["YYYY[-MM]", "YYYY[-MM]"] pair (quoted, so YAML keeps it text)'
-        return None if value[0] <= value[1] else "must not end before it starts"
-    if kind == "battery":
-        if not isinstance(value, dict):
-            return "must be a mapping"
-        for key, sub in value.items():
-            sub_kind = BATTERY_FIELDS.get(str(key))
-            if sub_kind is None:
-                return f"has unknown field '{key}' (known: {', '.join(BATTERY_FIELDS)})"
-            if sub_kind == "number" and not (_is_number(sub) and sub > 0):
-                return f"'{key}' must be a positive number"
-            if sub_kind == "count" and not (isinstance(sub, int) and sub > 0 and sub is not True):
-                return f"'{key}' must be a positive whole number"
-            if sub_kind == "text" and not (isinstance(sub, str) and sub.strip()):
-                return f"'{key}' must be non-empty text"
-        return None
-    if kind == "revisions":
-        return _revisions_problem(value)
-    if kind == "overrides":
-        return _overrides_problem(value)
-    return None  # pragma: no cover - every kind is handled above
-
-
-def _revisions_problem(value: Any) -> str | None:
-    """Why a variant's ``revisions:`` map is malformed (ECU name -> list of revision IDs).
-
-    Only the shape is checked here; that each ECU and revision exists is checked against
-    the ECU files (:func:`canair.variants.revisions.variant_reference_errors`).
-    """
-    if not isinstance(value, dict):
-        return "must be a mapping of ECU name -> list of revision IDs"
-    for ecu, revs in value.items():
-        if not isinstance(ecu, str) or not ecu.strip():
-            return f"has a non-text ECU name {ecu!r}"
-        if not isinstance(revs, list) or not revs:
-            return f"'{ecu}' must list at least one revision ID"
-        ids = [str(r).strip() for r in revs]
-        for rid in ids:
-            if problem := id_problem(rid, "revision", "UDS"):
-                return f"'{ecu}': {problem}"
-        if len({i.casefold() for i in ids}) != len(ids):
-            return f"'{ecu}' lists a revision twice"
-    return None
-
-
-def _overrides_problem(value: Any) -> str | None:
-    """Why a variant's ``profile_overrides:`` is malformed."""
-    if not isinstance(value, dict):
-        return "must be a mapping of profile.yaml settings"
-    for key, sub in value.items():
-        kind = PROFILE_OVERRIDE_FIELDS.get(str(key))
-        if kind is None:
-            return (
-                f"cannot override '{key}' (only: {', '.join(PROFILE_OVERRIDE_FIELDS)}); a "
-                "setting that differs more widely is a sign of a separate profile"
-            )
-        ok = {
-            "text": isinstance(sub, str) and bool(sub.strip()),
-            "positive_int": isinstance(sub, int) and not isinstance(sub, bool) and sub > 0,
-            "mapping": isinstance(sub, dict),
-            "texts": isinstance(sub, list) and all(isinstance(q, str) for q in sub),
-        }[kind]
-        if not ok:
-            want = {
-                "text": "non-empty text",
-                "positive_int": "a positive whole number",
-                "mapping": "a mapping",
-                "texts": "a list of text",
-            }[kind]
-            return f"'{key}' must be {want}"
-    return None
-
-
 def check_variants_doc(data: Any) -> list[str]:
-    """Every structural problem in a parsed ``variants.yaml`` (empty when valid)."""
-    if data is None:
-        return []
-    if not isinstance(data, dict):
-        return ["top-level must be a mapping with a 'variants:' key"]
-    errors = [f"unknown top-level key '{k}'" for k in data if k != "variants"]
-    variants = data.get("variants")
-    if variants is None:
-        return errors
+    """Every problem in a parsed ``variants.yaml`` (empty when valid).
+
+    ``variants_schema.yaml`` checks the structure. The checks here are the ones it cannot make:
+    the variant and revision IDs (compared lower-cased and stripped, as the loader reads them), a
+    ``[from, to]`` pair that ends before it starts, and a battery-named ID against its battery.
+    """
+    errors = schema_errors(VARIANTS_SCHEMA_FILE, data) if data is not None else []
+    variants = data.get("variants") if isinstance(data, dict) else None
     if not isinstance(variants, dict):
-        return [*errors, "'variants:' must be a mapping keyed by variant ID"]
+        return errors
 
     seen: set[str] = set()
     for raw_id, entry in variants.items():
@@ -301,18 +198,43 @@ def check_variants_doc(data: Any) -> list[str]:
         if problem := id_problem(vid):
             errors.append(problem)
         if not isinstance(entry, dict):
-            errors.append(f"{label}: must be a mapping of metadata fields")
             continue
-        errors += [
-            f"{label}: missing required field '{f}'" for f in REQUIRED_FIELDS if f not in entry
-        ]
-        for key, value in entry.items():
-            kind = VARIANT_FIELDS.get(str(key))
-            if kind is None:
-                errors.append(f"{label}: unknown field '{key}'")
-            elif problem := _value_problem(kind, value):
-                errors.append(f"{label}: '{key}' {problem}")
+        for key in ("production", "model_years"):
+            pair = entry.get(key)
+            if _is_comparable_pair(pair) and pair[0] > pair[1]:
+                errors.append(f"{label}: '{key}' must not end before it starts")
+        errors += _revision_id_errors(label, entry.get("revisions"))
         errors += _battery_id_errors(label, vid, entry.get("battery"))
+    return errors
+
+
+def _is_comparable_pair(value: Any) -> bool:
+    """Two texts or two integers (the schema checks which a field must hold)."""
+    if not (isinstance(value, list) and len(value) == 2):
+        return False
+    return all(isinstance(v, str) for v in value) or all(
+        isinstance(v, int) and not isinstance(v, bool) for v in value
+    )
+
+
+def _revision_id_errors(label: str, revisions: Any) -> list[str]:
+    """Each revision ID a variant names must be valid and listed once per ECU.
+
+    That each ECU and revision exists is checked against the ECU files
+    (:func:`canair.variants.revisions.variant_reference_errors`).
+    """
+    if not isinstance(revisions, dict):
+        return []
+    errors: list[str] = []
+    for ecu, revs in revisions.items():
+        if not isinstance(revs, list):
+            continue
+        ids = [str(r).strip() for r in revs]
+        for rid in ids:
+            if problem := id_problem(rid, "revision", "UDS"):
+                errors.append(f"{label}: revisions '{ecu}': {problem}")
+        if len({i.casefold() for i in ids}) != len(ids):
+            errors.append(f"{label}: revisions '{ecu}' lists a revision twice")
     return errors
 
 

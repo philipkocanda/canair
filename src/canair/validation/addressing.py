@@ -1,7 +1,7 @@
 """Addressing checks: the ``addressing:`` blocks, and warnings for the ELM327 transports.
 
-The block validators (:func:`validate_addressing` for ``profile.yaml``,
-:func:`validate_ecu_addressing` for an ECU file) are at the end. The rest is the warnings for
+The ECU file's block validator (:func:`validate_ecu_addressing`) is at the end;
+``profile_schema.json`` checks the ``profile.yaml`` block. The rest is the warnings for
 the ELM327 transports and AutoPID.
 
 canair sets each ECU's header, flow control and receive filter itself, from the
@@ -146,13 +146,9 @@ def addressing_warnings(pids_data: Mapping[str, Any]) -> list[str]:
     return warnings
 
 
-# Accepted keys in the profile.yaml `addressing:` block: the TX→RX offset
-# (11-bit), the addressing mode, and the profile-default ISO-TP extension bytes.
-ADDRESSING_FIELDS: set[str] = {"rx_offset", "mode", "target_address", "source_address"}
-
-# Accepted keys in a per-ECU `addressing:` override block. Adds fc_id (a flow
-# -control arbitration override) on top of the profile-level fields, minus
-# rx_offset (a per-ECU rx_id is the per-ECU response override).
+# Accepted keys in a per-ECU `addressing:` override block: the profile-level fields
+# (profile_schema.json) plus fc_id, a flow-control arbitration override, minus rx_offset
+# (a per-ECU rx_id is the per-ECU response override).
 _ECU_ADDRESSING_FIELDS: set[str] = {"mode", "target_address", "source_address", "fc_id"}
 
 
@@ -165,32 +161,6 @@ def _validate_addressing_byte(block: dict, key: str, label: str, errors: list[st
     """A shared 0–255 byte check for an addressing extension field (target/source)."""
     if key in block and not (is_int(block[key]) and 0 <= block[key] <= 0xFF):
         errors.append(f"{label}: 'addressing.{key}' must be a byte (0–255)")
-
-
-def validate_addressing(addressing: Any) -> list[str]:
-    """Validate the profile.yaml ``addressing:`` block (CAN response-offset + mode)."""
-    if not isinstance(addressing, dict):
-        return ["profile.yaml: 'addressing' must be a mapping"]
-    errors: list[str] = []
-    for key in addressing:
-        if key not in ADDRESSING_FIELDS:
-            errors.append(
-                f"profile.yaml: unknown addressing field '{key}' "
-                f"(allowed: {', '.join(sorted(ADDRESSING_FIELDS))})"
-            )
-    # rx_offset may be negative (PSA/Stellantis -0x20), so only an int is required.
-    if "rx_offset" in addressing and not is_int(addressing["rx_offset"]):
-        errors.append("profile.yaml: 'addressing.rx_offset' must be an integer")
-    if "mode" in addressing:
-        modes = _valid_addressing_modes()
-        if addressing["mode"] not in modes:
-            errors.append(
-                f"profile.yaml: 'addressing.mode' must be one of "
-                f"{', '.join(sorted(modes))}, got {addressing['mode']!r}"
-            )
-    _validate_addressing_byte(addressing, "target_address", "profile.yaml", errors)
-    _validate_addressing_byte(addressing, "source_address", "profile.yaml", errors)
-    return errors
 
 
 def validate_ecu_addressing(addressing: Any, label: str, errors: list[str]) -> None:

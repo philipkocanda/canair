@@ -241,8 +241,10 @@ class TestValidation:
     def test_aliases_must_be_a_mapping(self, env):
         root = _renamed(env)
         (root / "profile.yaml").write_text(f'car_model: "x"\ninit: "ATSP6;"\naliases: [{OLD}]\n')
-        errors, _ = profile_name_findings(self._profile(root))
-        assert any("must be a mapping" in e for e in errors)
+        from canair.validation.meta import validate_meta
+
+        assert profile_name_findings(self._profile(root))[0] == []  # the schema's to report
+        assert any("aliases: must be a mapping" in e for e in validate_meta(root / "profile.yaml"))
 
 
 class TestContribute:

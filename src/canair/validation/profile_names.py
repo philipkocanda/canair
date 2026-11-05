@@ -1,6 +1,7 @@
 """Profile-name checks: the naming convention, ``also_known_as:`` and the ``aliases:`` block.
 
-Run with ``validate pids`` alongside ``profile.yaml``'s own checks. The convention is
+Run with ``validate pids`` alongside ``profile.yaml``'s own checks, after the schema has
+checked the shapes of ``also_known_as:`` and ``aliases:``. The convention is
 enforced only for bundled profiles (CI runs this on each); a user's own profile may be
 named anything, and ``profile create`` merely warns.
 """
@@ -30,18 +31,14 @@ def profile_name_findings(prof) -> tuple[list[str], list[str]]:
         if problem:
             errors.append(f"profile name: {problem}")
 
+    # profile_schema.json checks the shapes; a malformed value is left to it.
     names = prof.meta.get("also_known_as")
-    if names is not None:
-        if not (isinstance(names, list) and all(isinstance(n, str) and n.strip() for n in names)):
-            errors.append("profile.yaml: 'also_known_as' must be a list of non-empty text")
-        elif dupes := duplicate_names(names):
+    if isinstance(names, list) and all(isinstance(n, str) for n in names):
+        if dupes := duplicate_names(names):
             errors.append(f"profile.yaml: 'also_known_as' lists {', '.join(dupes)} twice")
 
     aliases = prof.meta.get("aliases")
-    if aliases is None:
-        return errors, warnings
     if not isinstance(aliases, dict):
-        errors.append("profile.yaml: 'aliases' must be a mapping of old profile name → {}")
         return errors, warnings
 
     from canair.variants import VariantsError, load_variants
@@ -54,11 +51,7 @@ def profile_name_findings(prof) -> tuple[list[str], list[str]]:
     profiles = selectable_profiles(index=index)
     for alias, entry in aliases.items():
         label = f"profile.yaml: alias '{alias}'"
-        if not isinstance(entry, dict):
-            errors.append(f"{label} must map to a mapping ({{}} when it carries nothing)")
-        else:
-            for key in set(entry) - {"variant"}:
-                errors.append(f"{label}: unknown field '{key}' (only 'variant')")
+        if isinstance(entry, dict):
             variant = entry.get("variant")
             if variant is not None and str(variant) not in declared:
                 known = ", ".join(sorted(declared)) or "none"
