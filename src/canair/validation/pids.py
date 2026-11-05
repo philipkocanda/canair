@@ -516,7 +516,7 @@ def _validate_ecu_entry(
     # 0x2F scanner sweeps on this ECU (replaces the old hardcoded HK zones).
     _validate_iocontrol_scan_ranges(ecu_def.get("iocontrol_scan_ranges"), label, errors)
 
-    # wake: how to rouse a fast-sleeping ECU before reads (canair.transport.wake).
+    # wake: how to rouse a fast-sleeping ECU before reads (canair.ecus.wake).
     _validate_wake(ecu_def.get("wake"), label, fields, errors)
 
     # Resolve this ECU's addressing mode (per-ECU addressing.mode → profile → 11-bit)
@@ -1477,7 +1477,7 @@ def _validate_addressing(addressing: Any, is_int: Callable[[Any], bool]) -> list
 
 
 def _validate_wake(wake: Any, label: str, fields: "_SchemaFields", errors: list[str]) -> None:
-    """Validate an ECU's optional ``wake:`` block (canair.transport.wake wake ritual).
+    """Validate an ECU's optional ``wake:`` block (canair.ecus.wake wake ritual).
 
     Enforces a mapping shape, known fields, a required + known ``method``, and
     sane types on the numeric knobs. Value semantics (interval < sleep timer) are

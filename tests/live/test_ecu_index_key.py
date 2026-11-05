@@ -13,10 +13,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 import canair.ecus
+from canair.ecus.wake import WakePlan
 from canair.live.monitor import MonitorController
 from canair.live.multi_exec import _exec_iocontrol, _exec_query, _exec_session
 from canair.query.steps import resolve_tx_id
-from canair.transport.wake import WakePlan
 from tests.support.fakes import FakeTerminal, ok
 
 INDEX = {

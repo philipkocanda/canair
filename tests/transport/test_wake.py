@@ -1,15 +1,15 @@
-"""Tests for canair.transport.wake (per-ECU wake ritual resolver) + SessionManager wiring."""
+"""Tests for canair.ecus.wake (per-ECU wake ritual resolver) + SessionManager wiring."""
 
 import pytest
 
-from canair.transport.session_manager import SessionManager
-from canair.transport.wake import (
+from canair.ecus.wake import (
     DEFAULT_ATTEMPTS,
     DEFAULT_INTERVAL_MS,
     DEFAULT_PRIME,
     WakePlan,
     resolve_wake,
 )
+from canair.transport.session_manager import SessionManager
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok
 

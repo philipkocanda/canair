@@ -1451,7 +1451,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     sw = sub.add_parser(
         "set-wake",
         help="Set how to rouse a fast-sleeping ECU before reads (wake ritual)",
-        description="Declare a per-ECU wake ritual (canair.transport.wake). Some modules "
+        description="Declare a per-ECU wake ritual (canair.ecus.wake). Some modules "
         "(e.g. a Smart Key Module) power their CAN transceiver only briefly and "
         "sleep again within a second or two, so a single 10 01 wake races the "
         "sleep timer. `rapid_read` fires a cheap prime PID back-to-back to hold "

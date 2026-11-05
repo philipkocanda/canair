@@ -189,7 +189,7 @@ class EcuIndexEntry(TypedDict):
     pids: dict[str, PidIndexEntry]
     multi_did: bool
     multi_did_max: int
-    wake: Any  # WakePlan | None — profile-declared wake ritual (canair.transport.wake)
+    wake: Any  # WakePlan | None — profile-declared wake ritual (canair.ecus.wake)
 
 
 class IoControlCommand(TypedDict):
@@ -698,7 +698,7 @@ def build_sessions_index(pids_data: dict) -> dict[str, SessionIndexEntry]:
 
 def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
     """Build lookup: ECU_NAME -> {tx_id, rx_id, pids: {PID: {parameters: ...}}}."""
-    from canair.transport.wake import resolve_wake
+    from canair.ecus.wake import resolve_wake
 
     index: dict[str, EcuIndexEntry] = {}
     default_batch = bool(pids_data.get("multi_did_batching", False))

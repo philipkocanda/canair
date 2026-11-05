@@ -9,8 +9,9 @@ dongle does ISO-TP. Transports are described once in
 another backend.
 
 Belongs: moving bytes to and from the car, ISO-TP framing, the ELM327 and raw SLCAN engines, the
-per-exchange policies (keepalive, link latency, wake, timeouts, frame counts), the transport
-choice and fallback, the session manager and the per-ECU response log.
+per-exchange policies (keepalive, link latency, timeouts, frame counts), running a wake ritual
+(defined in ``ecus/wake.py``), the transport choice and fallback, the session manager and the
+per-ECU response log.
 Not here: what a live operation does with a terminal (``live/``), what may be sent
 (``safety/``) and the adapter's HTTP API (``device/``).
 Imports: ``safety``, ``uds``, ``ecus``, ``device``, ``config`` and ``core``. Operations see only

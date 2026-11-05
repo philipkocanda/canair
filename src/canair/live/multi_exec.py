@@ -68,7 +68,7 @@ async def _exec_session(
     if tx_id is None:
         print(f"  ERROR: Unknown ECU '{target}'. Use a name (IGPM) or hex ID (770).")
         return False
-    # A profile-declared wake ritual (canair.transport.wake) for a fast-sleeping ECU is
+    # A profile-declared wake ritual (canair.ecus.wake) for a fast-sleeping ECU is
     # honoured when --wake is set — the rapid-fire prime loop instead of a single
     # 10 01. Resolved into the ECU index by build_ecu_index; None = default wake.
     wake_plan = None

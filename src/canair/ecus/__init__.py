@@ -4,9 +4,9 @@ The registry derives from the profile's ``ecus/`` files (keyed by short name, wi
 and an ``identity:`` block). :mod:`canair.uds.addressing` resolves the CAN *response* address
 per ECU; captures hold it as hex, and the helpers here map it to the name.
 
-Belongs: ECU, PID and ``dtcs:`` definitions, CAN buses, DID families, signal categories.
+Belongs: ECU, PID, ``dtcs:`` and ``wake:`` definitions, CAN buses, DID families, categories.
 Not here: the bundle (``profile``), checks (``validation``), edits (``yaml_edit``), scans (``dtc``).
-Imports: ``profile``, ``variants``, ``privacy``, ``transport``, ``safety``, ``uds``, ``core``.
+Imports: ``profile``, ``variants``, ``privacy``, ``safety``, ``uds``, ``core``.
 """
 
 from collections.abc import Mapping

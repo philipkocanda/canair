@@ -897,9 +897,9 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   `addressing.rx_offset`, itself `+0x08`, or the byte-swapped id for `normal_fixed_29bit`), optional
   per-ECU `addressing:` (`mode` + the make-specific `target_address`/`source_address`/`fc_id`),
   `can_bus:` (flow list of `can_buses.yaml` codes), optional `wake:` (a per-ECU **wake ritual** for
-  a fast-sleeping ECU — resolver `src/canair/transport/wake.py`), `scan_log:`, `dtcs:`, `pids:`, `iocontrol:`,
-  optional `iocontrol_scan_ranges:`, `routines:`, `research:`. Identity-only modules (AMP/SRS) have
-  no `pids:`. A `dtcs:` section may state `source`/`source_links`/`verified` once, next to its
+  a fast-sleeping ECU — resolver `src/canair/ecus/wake.py`), `scan_log:`, `dtcs:`, `pids:`,
+  `iocontrol:`, optional `iocontrol_scan_ranges:`, `routines:`, `research:`. Identity-only modules
+  (AMP/SRS) have no `pids:`. A `dtcs:` section may state `source`/`source_links`/`verified` once, next to its
   codes (`src/canair/ecus/dtc_definitions.py`); the loader resolves them into each code like PID
   defaults, so code that parses the YAML itself must split them off with `split_section`. A PID
   may also carry **`response_frames:`** — how many CAN frames its response occupies, written

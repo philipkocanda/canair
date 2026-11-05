@@ -161,7 +161,7 @@ class TestRxIdValidation:
 
 
 class TestWakeValidation:
-    """The per-ECU wake: block (canair.transport.wake) is schema-validated."""
+    """The per-ECU wake: block (canair.ecus.wake) is schema-validated."""
 
     def _validate(self, tmp_path, body: str):
         import textwrap

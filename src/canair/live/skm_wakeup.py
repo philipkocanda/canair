@@ -8,7 +8,7 @@ is gated behind the profile ``skm_wakeup`` capability (see
 
 This module is the *relay-actuation* extension (idea 3): rouse the SKM, then
 close a power relay (ACC/IGN). Merely *reading* a fast-sleeping ECU is the
-make-neutral, profile-declared per-ECU ``wake:`` block in :mod:`canair.transport.wake`
+make-neutral, profile-declared per-ECU ``wake:`` block in :mod:`canair.ecus.wake`
 (idea 1), which uses the same rapid-fire prime primitive
 (:meth:`canair.transport.session_manager.SessionManager.rapid_read_wake`) but needs no
 quirk. Extracting these relay DIDs/addresses into the profile is future work.
