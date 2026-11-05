@@ -392,10 +392,11 @@ modules = [
     "canair.transport.raw",
 ]
 
-# The middle group is the part of the tree that still imports itself in a cycle (definitions,
-# the store, analysis, transport, validation and the editors reach into each other through
-# function-level imports). Splitting it into the layers of plans/2026-11-04-package-layout-and-
-# layering.md section 6 is the remaining work; everything outside it is already ordered.
+# The `:` group is the part of the tree that still imports itself in a cycle (definitions, the
+# store, analysis and transport reach into each other through function-level imports).
+# Splitting it into the layers of plans/2026-11-04-package-layout-and-layering.md section 6 is
+# the remaining work: each step pulls one package out of the group into a layer of its own.
+# Everything outside the group is already ordered.
 [[tool.importlinter.contracts]]
 name = "The layers hold"
 type = "layers"
@@ -403,7 +404,8 @@ layers = [
     "canair.cli",
     "canair.contribute",
     "canair.live",
-    "canair.actions : canair.analysis : canair.broadcast : canair.captures : canair.dtc : canair.ecus : canair.install : canair.interop : canair.migrations : canair.privacy : canair.profile : canair.query : canair.render : canair.states : canair.transport : canair.validation : canair.variants : canair.yaml_edit",
+    "canair.yaml_edit",
+    "canair.actions : canair.analysis : canair.broadcast : canair.captures : canair.dtc : canair.ecus : canair.install : canair.interop : canair.migrations : canair.privacy : canair.profile : canair.query : canair.render : canair.states : canair.transport : canair.validation : canair.variants",
     "canair.tui | canair.device",
     "canair.safety",
     "canair.expression : canair.uds",

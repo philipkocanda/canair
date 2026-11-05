@@ -16,7 +16,7 @@ from canair.dtc.definitions import is_dtc_code
 from canair.dtc.definitions import split_section as split_dtc_section
 from canair.dtc.snapshot import did_of_read
 from canair.ecus.pids import PID_STATUSES, effective_param, pid_ships, pid_status
-from canair.ecus.signal_category import category_findings
+from canair.ecus.signal_category import RETIRED_FIELD, category_findings
 from canair.expression.decode_value import BYTE_RUN_TYPES as _BYTE_RUN_TYPES
 from canair.expression.lint import firmware_grammar_problems, signed_low_bytes
 from canair.privacy.sensitive import param_sensitive
@@ -24,7 +24,6 @@ from canair.uds.byteindex import wican_to_isotp
 from canair.uds.support_map import SupportMapError
 from canair.uds.support_map import declaration as support_map_declaration
 from canair.variants.revisions import check_ecu as check_revisions
-from canair.yaml_edit.pids.categories import RETIRED_FIELD
 
 from ._common import EXPR_TOKEN_RE, SCHEMA_FILE, duplicate_key_errors
 from .profile_names import profile_name_findings

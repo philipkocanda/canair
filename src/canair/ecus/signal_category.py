@@ -42,6 +42,9 @@ BINARY_CATEGORIES: tuple[str, ...] = ("door", "opening", "lock", "lamp", "plug",
 
 CATEGORIES: tuple[str, ...] = QUANTITY_CATEGORIES + SCALAR_CATEGORIES + BINARY_CATEGORIES
 
+# The field ``category`` replaced (``canair pids migrate-categories``).
+RETIRED_FIELD = "ha_class"
+
 
 def unit_category(unit: object) -> str | None:
     """The category ``unit`` implies, or ``None``."""

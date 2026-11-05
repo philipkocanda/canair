@@ -20,7 +20,7 @@ from pathlib import Path
 import yaml
 
 from canair.ecus.pids import effective_param
-from canair.ecus.signal_category import CATEGORIES, unit_category
+from canair.ecus.signal_category import CATEGORIES, RETIRED_FIELD, unit_category
 from canair.yaml_edit.pids.defaults import _ecu_def, _params
 from canair.yaml_edit.text import (
     PidsEditError,
@@ -32,8 +32,6 @@ from canair.yaml_edit.text import (
     find_ecu_file,
     pid_span,
 )
-
-RETIRED_FIELD = "ha_class"
 
 # Home Assistant device classes whose canair category has another name.
 _RENAMED = {"battery": "state_of_charge", "battery_charging": "charging", "light": "lamp"}

@@ -91,9 +91,9 @@ you spotted, describe the fix, let the user decide. Don't silently balloon a sma
 
 ## Code structure — where code goes
 
-`src/canair/` is a stack of layers (`cli` → `contribute` → `live` → one group of data packages
-that still import each other → `tui`/`device` → `safety` → `expression`/`uds` → `config` →
-`core`). A layer imports only from the layers below it. **Read `docs/development/architecture.md`
+`src/canair/` is a stack of layers (`cli` → `contribute` → `live` → `yaml_edit` → one group of
+data packages that still import each other → `tui`/`device` → `safety` → `expression`/`uds` →
+`config` → `core`; the generated architecture page has the current order). A layer imports only from the layers below it. **Read `docs/development/architecture.md`
 before adding or moving code**: it has the placement table (which package a new piece of code
 belongs in) and, generated from the import contract and the package charters, what each package
 is for and may import. Paths below that read `src/canair/<package>/…` use the package names of

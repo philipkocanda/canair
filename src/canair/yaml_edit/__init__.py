@@ -34,5 +34,6 @@ through ``edit_doc`` (or ``edit_ecu_text``). It never opens the file itself.
 Belongs: every write to a profile's definition YAML: the editors and their commit path.
 Not here: reading definitions (``ecus/``, ``states/`` ...) and the ``canair pids``/``signals``
 commands.
-Imports: ``validation``, the definition packages and ``core``.
+Imports: the layers below it: ``validation``, the definition packages, ``captures`` (a rename
+rewrites recorded history), ``render``, ``install`` and ``core``. Never ``live`` or ``cli``.
 """
