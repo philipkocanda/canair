@@ -8,8 +8,7 @@ and drives either the Textual TUI (on a TTY) or the non-interactive poll loop
 
 Factored out of :mod:`canair.live.monitor` so the controller class and the
 process-level driver (signal handling, the poll loop, the TTY/non-TTY branch,
-journal reconcile) are separate concerns. ``mode_monitor`` is re-exported from
-:mod:`canair.live.monitor` for backward-compatible imports.
+journal reconcile) are separate concerns. Callers import ``mode_monitor`` from here.
 """
 
 from __future__ import annotations

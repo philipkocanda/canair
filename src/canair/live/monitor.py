@@ -67,8 +67,8 @@ if TYPE_CHECKING:
 # _render_results/_RENDER_MAX_ROWS/RenderCache to _monitor_render; _raw_pid_result to
 # monitor_raw; _merge_history/_write_merged/_open_journal + the recording/journaling
 # logic to _monitor_record; STATE_INPUT_STALE_CYCLES + the state-suggestion logic to
-# _monitor_state; mode_monitor + the poll loops to _monitor_run. All re-exported here
-# for backward-compatible imports (e.g. tests/modes/test_monitor.py).
+# _monitor_state; mode_monitor + the poll loops to _monitor_run. The names in __all__ below
+# are re-exported here for the tests and the modules that import them from this one.
 __all__ = [
     "STATE_INPUT_STALE_CYCLES",
     "_HIGHLIGHT_STYLE",
@@ -1156,15 +1156,3 @@ class MonitorController:
             current.absorb(previous)
         self.reset_backoff()
         self.disconnected = False
-
-
-# The run driver (mode_monitor + the poll loops) lives in _monitor_run.py, which
-# imports MonitorController from here. To keep `canair.live.monitor.mode_monitor`
-# working for back-compat imports without an eager circular import, resolve it
-# lazily on attribute access.
-def __getattr__(name: str):
-    if name == "mode_monitor":
-        from ._monitor_run import mode_monitor
-
-        return mode_monitor
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

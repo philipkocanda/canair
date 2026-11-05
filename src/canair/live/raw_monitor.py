@@ -108,7 +108,7 @@ async def run_raw_monitor(
     """Run the live monitor over raw CAN. Assumes the device is in slcan mode."""
     from canair.ecus.pids import build_ecu_index
 
-    from .monitor import mode_monitor
+    from ._monitor_run import mode_monitor
 
     ecu_index = build_ecu_index(pids_data)
     ecus = query_ecu_addresses(monitor.query_steps, ecu_index)

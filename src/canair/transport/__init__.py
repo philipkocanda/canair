@@ -1,4 +1,4 @@
-"""Alternate CAN transports for canair (raw-CAN backends).
+"""The transports that reach the car: raw SLCAN over TCP and the ELM327 engine.
 
 The default live path is the raw SLCAN-over-TCP backend
 (:class:`canair.transport.raw.slcan_tcp.SlcanTcpBus`, transport ``slcan-tcp``),
