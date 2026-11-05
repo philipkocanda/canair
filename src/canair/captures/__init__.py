@@ -1,6 +1,6 @@
 """The capture store: saving (here), the file format, reading back, journal and merge driver.
 
-Belongs: capture files and entries: format, store, journal, merge, grouping, state timelines.
+Belongs: capture files and entries: format, store, layers, journal, merge, grouping, timelines.
 Not here: other computing over captures (``analysis/``), the DTC log (``dtc/``), flag parsing.
 Imports: the definitions (``states``, ``ecus``, ``variants``, ``profile``, ``privacy``) and below.
 """

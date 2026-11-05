@@ -856,7 +856,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   layers (a schema break or a payload in the base still matters); `src/canair/contribute/pii.py` and
   `capture_migrate.py` intentionally stay on `captures_dir` (= the overlay, which is exactly what
   `contribute` ships and the only layer a migration may rewrite).
-- **Base captures are read-only**, enforced by `src/canair/cli/commands/captures/layers.py::refusal` in
+- **Base captures are read-only**, enforced by `src/canair/captures/layers.py::refusal` in
   `--delete`/the `--set-*` editors/`--backfill-states` and in the `captures uds --step` TUI.
   `--dry-run` still previews. Tombstones and copy-on-write were rejected: a session has no id —
   **its identity is its content**, plus an **anchor** (`captures_merge.session_anchor`: date,

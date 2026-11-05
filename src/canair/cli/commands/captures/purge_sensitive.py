@@ -14,10 +14,9 @@ from canair.render import ansi
 def cmd_purge_sensitive(
     captures_dir: Path | None, *, dry_run: bool = False, yes: bool = False, as_json: bool = False
 ) -> int:
+    from canair.captures import layers
     from canair.captures.sensitive_purge import purge_dir
     from canair.privacy.sensitive import set_for_captures
-
-    from . import layers
 
     cdir = capture_io.resolve_captures_dir(captures_dir)
     if not cdir.is_dir():

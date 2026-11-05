@@ -31,7 +31,7 @@ def refuse_write(
     refusal (``"set state"``). ``out`` receives the prompt and the cancellation
     note — stderr under ``--json``, so stdout carries nothing but the JSON.
     """
-    from . import layers
+    from canair.captures import layers
 
     out = out or sys.stdout
     if blocked := layers.refusal(paths, verb):

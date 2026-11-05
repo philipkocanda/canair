@@ -28,9 +28,8 @@ def _fail(msg: str, as_json: bool, code: int) -> int:
 
 
 def cmd_compact(captures_dir: Path | None, *, dry_run: bool = False, as_json: bool = False) -> int:
+    from canair.captures import layers
     from canair.migrations.compact import CompactError, compact_paths
-
-    from . import layers
 
     cdir = capture_io.resolve_captures_dir(captures_dir)
     if not cdir.is_dir():

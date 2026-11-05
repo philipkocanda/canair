@@ -170,9 +170,8 @@ def cmd_migrate_discover(
     import json as _json
     from dataclasses import asdict
 
+    from canair.captures import layers
     from canair.migrations import discover as discover_migrate
-
-    from . import layers
 
     cdir = resolve_captures_dir(captures_dir)
     prof = layers.owning_profile(captures_dir)

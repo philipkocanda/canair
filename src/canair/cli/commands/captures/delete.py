@@ -37,8 +37,7 @@ def cmd_delete(
     """
     import json as _json
 
-    from canair.captures import delete_capture
-    from canair.cli.commands.captures import layers
+    from canair.captures import delete_capture, layers
     from canair.query import QueryError
 
     q = _parse_query(query)

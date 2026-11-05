@@ -20,8 +20,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from canair.captures import layers as capture_layers
 from canair.captures.store import load_all_captures
-from canair.cli.commands.captures import layers as capture_layers
 from canair.cli.commands.profile import _cmd_list, _cmd_overlay, _cmd_show
 from canair.profile import (
     Profile,

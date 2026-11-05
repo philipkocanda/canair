@@ -650,9 +650,8 @@ class CapturesStepApp(HelpMixin, App):
         Goes through the row's own locator: joining ``file`` onto the captures dir
         picks the wrong directory as soon as reads span two layers.
         """
+        from canair.captures import layers
         from canair.captures.store import entry_path
-
-        from . import layers
 
         target = entry_path(cap, self.model.captures_dir)
         if layers.read_only_files([target], self.model.captures_dir):

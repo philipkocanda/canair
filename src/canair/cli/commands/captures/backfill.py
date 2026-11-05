@@ -83,12 +83,11 @@ def cmd_backfill_states(
     """Infer and back-fill session vehicle_states over the scope-filtered entries."""
     import json as _json
 
-    from canair.captures import set_session_states
+    from canair.captures import layers, set_session_states
     from canair.captures.entries import group_sessions
     from canair.ecus.pids import build_ecu_index, load_pids
     from canair.states import StatePredicateError, join_states, load_states
 
-    from . import layers
     from .backfill_render import print_report
 
     try:
