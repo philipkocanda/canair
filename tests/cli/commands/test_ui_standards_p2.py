@@ -54,7 +54,7 @@ class TestTopLevelErrors:
         def refuse(args):
             raise PromptUnavailable("Do it?")
 
-        monkeypatch.setattr("canair.cli.commands.states.cmd_list", refuse)
+        monkeypatch.setattr("canair.cli.commands.states.parser.cmd_list", refuse)
         assert _run(profile, "states") == 2
         assert capsys.readouterr().err.startswith("error: Do it needs confirmation")
 
@@ -139,7 +139,7 @@ class TestConfirmations:
         monkeypatch.setattr("canair.yaml_edit.state_rename.plan_state_rename", lambda *a, **k: plan)
 
     def test_states_rename_declined_exits_1(self, profile, monkeypatch):
-        from canair.cli.commands import states
+        from canair.cli.commands.states import edit as states
 
         self._plan(profile, monkeypatch)
         monkeypatch.setattr(states, "confirm", lambda *a, **k: False)

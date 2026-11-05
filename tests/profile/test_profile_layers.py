@@ -334,7 +334,7 @@ class TestDefinitionsAreReadOnly:
                 "cmd_upsert_param",
                 {"values": None, "bits": None, "ptype": None, "ecu": "BMS", "no_validate": False},
             ),
-            ("canair.cli.commands.states", "cmd_add", {"name": "TOWING"}),
+            ("canair.cli.commands.states.edit", "cmd_add", {"name": "TOWING"}),
             ("canair.cli.commands.groups", "cmd_add", {"name": "mine"}),
             ("canair.cli.commands.signals", "cmd_upsert", {}),
         ],

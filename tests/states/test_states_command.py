@@ -8,7 +8,9 @@ from pathlib import Path
 
 import pytest
 
-import canair.cli.commands.states as states_cmd
+import canair.cli.commands.states.edit as edit_cmd
+import canair.cli.commands.states.listing as listing_cmd
+import canair.cli.commands.states.parser as states_cmd
 from canair.states import StateRule
 
 
@@ -28,7 +30,7 @@ def _patched(monkeypatch):
     usage = {"CHARGING": 12, "READY": 30, "SLEEP": 0, "ALL": 0, "FOB PRESENT": 1}
     monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canair.states.load_states", lambda profile=None: rules)
-    monkeypatch.setattr(states_cmd, "_load_usage", lambda: usage)
+    monkeypatch.setattr(listing_cmd, "_load_usage", lambda: usage)
     monkeypatch.setattr("canair.profile.active", lambda: _FakeProfile())
 
 
@@ -78,7 +80,7 @@ def test_no_color_when_piped(_patched, capsys):
 def test_empty_vocabulary(monkeypatch, capsys):
     monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canair.states.load_states", lambda profile=None: [])
-    monkeypatch.setattr(states_cmd, "_load_usage", lambda: {})
+    monkeypatch.setattr(listing_cmd, "_load_usage", lambda: {})
     monkeypatch.setattr("canair.profile.active", lambda: _FakeProfile())
     rc = _run()
     out = capsys.readouterr().out
@@ -110,7 +112,7 @@ class TestEditDispatch:
             when=None,
             implies="READY",
             excludes="PARKED",
-            _states_func=states_cmd.cmd_add,
+            _states_func=edit_cmd.cmd_add,
         )
         rc = states_cmd.run(args)
         assert rc == 0
@@ -136,7 +138,7 @@ class TestEditDispatch:
             when=None,
             implies=None,
             excludes=None,
-            _states_func=states_cmd.cmd_add,
+            _states_func=edit_cmd.cmd_add,
         )
         with pytest.raises(StatesEditError, match="already exists"):
             states_cmd.run(args)
