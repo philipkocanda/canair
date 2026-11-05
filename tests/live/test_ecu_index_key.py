@@ -83,7 +83,7 @@ class TestMonitor:
         return c
 
     def test_warmup_reads(self):
-        assert self._controller()._warmup_reads() == [("IGPM", INDEX["IGPM"], "22BC03")]
+        assert self._controller().sessions.warmup_reads() == [("IGPM", INDEX["IGPM"], "22BC03")]
 
     def test_query_label(self):
         assert self._controller().query_label() == "IGPM"

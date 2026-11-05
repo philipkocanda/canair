@@ -221,7 +221,7 @@ class TestPollRaw:
         assert len(subs) == 2 and all(s["lengths"] is None for s in subs)
 
     def test_partial_render_fires_and_pending_pid_keeps_last_value(self):
-        # Incremental rendering: fast PIDs render mid-cycle via _on_partial, and a
+        # Incremental rendering: fast PIDs render mid-cycle via on_partial, and a
         # PID still pending (not yet resolved) keeps its previous value (no
         # flicker) rather than vanishing from the frame.
         table = {
@@ -231,7 +231,7 @@ class TestPollRaw:
         steps = [{"ecu": "IGPM", "pids": ["BC03", "BC06"]}]
         c = _mk_ctrl(steps, _IGPM_BMS_INDEX, table=table)
         renders = []
-        c._on_partial = lambda: renders.append(1)
+        c.on_partial = lambda: renders.append(1)
 
         asyncio.run(c.raw_poller.poll())
         assert len(renders) >= 1  # repainted mid-cycle, not just at the end

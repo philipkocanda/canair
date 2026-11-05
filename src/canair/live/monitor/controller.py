@@ -38,8 +38,9 @@ from canair.transport.session_manager import SessionManager
 
 from ...captures.link_events import is_rx
 from .backoff import PollBackoff
-from .health import MonitorHealth, answered, is_nrc, label_ecu, pid_costs
+from .health import MonitorHealth, answered, is_nrc, label_ecu
 from .link_events import LinkEventTracker
+from .poll_elm import MonitorElmPoller
 from .raw_poller import MonitorRawPoller, _raw_pid_result
 from .record import MonitorRecorder, _merge_history, _open_journal, _write_merged
 from .render import _RENDER_DEFAULT_ROWS, _RENDER_MAX_ROWS, VIEW_MODES, RenderCache, _render_results
@@ -51,7 +52,6 @@ from .stats import ParamStats
 
 if TYPE_CHECKING:
     from ...captures.link_events import DisconnectCause
-    from ...ecus.pids import EcuIndexEntry
     from .reconnect import Reconnector
 
 # _HIGHLIGHT_STYLE, _bytes_to_ascii and _render_hex_line moved to canair.render.formatting;
@@ -168,13 +168,14 @@ class MonitorController:
         # Live PID-selector management (the TUI 'p' picker: enumerate ECUs/PIDs,
         # report/toggle selectors) lives in the MonitorSelectors collaborator.
         self.selectors = MonitorSelectors(self)
-        self._batch_state = None  # multi.BatchState, created in setup()
         # Raw-backend poll cycle + multi-DID batching state lives in the poller.
         self.raw_poller = MonitorRawPoller(self)
+        # ELM327 session setup + poll cycle (the non-raw backends).
+        self.elm_poller = MonitorElmPoller(self)
         # Incremental rendering: a hook the TUI sets to refresh the body mid-cycle
         # so a slow/timing-out PID doesn't freeze the whole view. Left None for
         # the non-interactive path (results are only rendered once, on exit).
-        self._on_partial = None
+        self.on_partial = None
         # Last *good* entry seen per (ecu_label, pid). A PID that times out reuses
         # this (marked stale → dimmed) so its values stay on screen instead of
         # collapsing to an error line and jolting the layout.
@@ -314,82 +315,14 @@ class MonitorController:
         self.sessions.invalidate_index()  # rebuilt lazily on next access
 
     async def setup(self, session_steps: list[dict] | None) -> None:
-        """Build the ECU index, run one-shot session setup, start keepalives."""
-        from ...ecus.pids import build_ecu_index
+        """Build the ECU index, open the sessions, prime each ECU and start keepalives."""
+        from canair.ecus.pids import build_ecu_index
 
         self._ecu_index = build_ecu_index(self.pids_data)
-
         if self.raw:
-            # Raw backend: no ELM sessions/keepalive.
-            assert self.raw_client is not None  # self.raw is True ⟺ raw_client was provided
-            self.sessions.open_raw(session_steps)
-            # Warm each ECU up: the first diagnostic request after idle is slow
-            # (the ECU/gateway has to wake). Prime with one throwaway read per ECU
-            # on a longer timeout so the first *monitored* cycle is already warm.
-            for ecu, _info, request in self._warmup_reads():
-                with contextlib.suppress(Exception):
-                    self.raw_client.read(ecu, bytes.fromhex(request), timeout=3.0)
-            return
-
-        from ...uds.echo import request_echo
-        from ..read.batch import BatchState
-        from ..read.exec import timed_exchange
-        from ..read.multi import _exec_session, _exec_skm_wake
-
-        assert self.sm is not None  # not self.raw ⟺ sm was constructed
-        from ...transport.isotp_params import resolve_rx_padding
-
-        self._batch_state = BatchState(resolve_rx_padding(self.pids_data))
-        for step in session_steps or []:
-            stype = step["type"]
-            if stype == "skm-wake":
-                print(f"  SKM wakeup ({step['level']})...")
-                await _exec_skm_wake(self.sm, step["level"], self.verbose)
-            elif stype == "session":
-                print(f"  Opening session on {step['target']}...")
-                await _exec_session(
-                    self.sm,
-                    step["target"],
-                    step.get("wake", False),
-                    self._ecu_index,
-                    mode=step.get("mode", "03"),
-                )
-        self.sm.start_background_keepalive(interval=2.0)
-        # Prime each ECU once (parity with the raw path): the first request after
-        # idle is slow, so warm the path before the first *displayed* cycle. The
-        # retry (retries=1) also rides out a cold NO-DATA on this throwaway read.
-        for _ecu, info, request in self._warmup_reads():
-            echo = request_echo(request)
-            with contextlib.suppress(Exception):
-                # One transaction, echo-validated: the background keepalive is already
-                # running, and could otherwise re-point the header between the two.
-                await timed_exchange(
-                    self.sm,
-                    info["tx_id"],
-                    request,
-                    retries=1,
-                    expected_sid=echo[0] if echo else None,
-                    expected_echo=echo[1] if echo else None,
-                )
-
-    def _warmup_reads(self) -> "list[tuple[str, EcuIndexEntry, str]]":
-        """``(ECU key, its index entry, first planned request)`` per polled ECU step."""
-        from ...ecus.pids import ecu_index_key
-        from ..read.multi import build_query_plan
-
-        assert self._ecu_index is not None  # built by setup() before this runs
-        reads: list[tuple[str, EcuIndexEntry, str]] = []
-        for step in self.query_steps:
-            ecu = ecu_index_key(step["ecu"], self._ecu_index)
-            if ecu is None:
-                continue
-            info = self._ecu_index[ecu]
-            plan = build_query_plan(
-                info, step.get("pids", []), quiet=True, include_static=self.include_static
-            )
-            if plan:
-                reads.append((ecu, info, plan[0][0]))
-        return reads
+            await self.raw_poller.setup(session_steps)
+        else:
+            await self.elm_poller.setup(session_steps)
 
     def _record(self, new_queries: list[EcuFrame]) -> None:
         """Record freshly-polled payloads into prev_hex / display / save history."""
@@ -435,7 +368,7 @@ class MonitorController:
             if self.raw:
                 await self.raw_poller.poll()
             else:
-                await self._poll_elm()
+                await self.elm_poller.poll()
         finally:
             self.schedule.end_tick()
         self.elapsed = time.monotonic() - t0
@@ -473,83 +406,6 @@ class MonitorController:
         """
         client = self.raw_client if self.raw else self.terminal
         return getattr(client, "diag", None)
-
-    async def _poll_elm(self) -> None:
-        import time as _t
-
-        from ..read.multi import _exec_query
-
-        # The ELM poll path only runs on the non-raw backend, where setup() has
-        # constructed sm and built the ECU index.
-        assert self.sm is not None
-        assert self._ecu_index is not None
-        cmds0 = self.terminal.cmd_count
-        elm0 = self.terminal.cmd_time
-        # Seed the frame from last cycle so ECUs not yet re-polled keep showing
-        # their values (no flicker); overwrite each as it completes this cycle.
-        frame = dict(self.last_queries)
-        order = [label for label, _ in self.last_queries]
-        polled: list[str] = []
-        last_render = 0.0
-        for step in self.query_steps:
-            full_codes: list[str] = []
-            due_on: list[str] = []
-
-            def _take_due(
-                ecu: str, plan: list, codes: list[str] = full_codes, due_on: list[str] = due_on
-            ) -> list:
-                codes.extend(entry[0] for entry in plan)
-                due = self.schedule.take_due(ecu, plan)
-                if due:
-                    due_on.append(ecu)
-                return due
-
-            try:
-                result = await _exec_query(
-                    self.sm,
-                    step["ecu"],
-                    step.get("pids", []),
-                    self._ecu_index,
-                    self.pids_data,
-                    self.verbose,
-                    return_results=True,
-                    quiet=True,
-                    batch_state=self._batch_state,
-                    include_static=self.include_static,
-                    plan_filter=_take_due,
-                )
-            except ConnectionError:
-                self.mark_disconnected("error")
-                return
-            if result is not None and due_on:
-                self.health.poll_costs.update(pid_costs(due_on[0], result[1]))
-            if result is not None:
-                label, pids = result
-                # Keep a timed-out PID's last-good values (stale/dimmed) instead
-                # of collapsing to an error line and jolting the layout.
-                pids = [self._displayify((label, e["pid"]), e) for e in pids]
-                if pids:
-                    self.fresh_queries.append((label, pids))
-                if label not in frame:
-                    order.append(label)
-                if label not in polled:
-                    polled.append(label)
-                # Every PID of the plan, in plan order: the ones read this tick
-                # with their new result, the rest as they were last shown.
-                frame[label] = [
-                    self._last_shown[(label, code)]
-                    for code in full_codes
-                    if (label, code) in self._last_shown
-                ]
-                self.last_queries = [(lb, frame[lb]) for lb in order if lb in frame]
-                now = _t.monotonic()
-                if self._on_partial is not None and (now - last_render) >= 0.12:
-                    last_render = now
-                    with contextlib.suppress(Exception):
-                        self._on_partial()
-        self.last_queries = [(lb, frame[lb]) for lb in polled]
-        self.last_cmds = self.terminal.cmd_count - cmds0
-        self.last_elm_time = self.terminal.cmd_time - elm0
 
     def _displayify(self, key: tuple[str, str], entry: ResultEntry) -> ResultEntry:
         """Map a freshly-resolved entry to what should be shown for that PID.

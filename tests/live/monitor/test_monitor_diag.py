@@ -26,7 +26,7 @@ class TestControllerDiagDelta:
             term.diag.record("drop")
             term.diag.record("no_data")
 
-        c._poll_elm = drop_poll  # type: ignore[method-assign]
+        c.elm_poller.poll = drop_poll  # type: ignore[method-assign]
         asyncio.run(c.poll_once())
         assert c.last_drops == 1
         assert c.last_errors == 2  # drop + no_data
@@ -34,7 +34,7 @@ class TestControllerDiagDelta:
         async def clean_poll():
             term.diag.record("ok")
 
-        c._poll_elm = clean_poll  # type: ignore[method-assign]
+        c.elm_poller.poll = clean_poll  # type: ignore[method-assign]
         asyncio.run(c.poll_once())
         assert c.last_drops == 0  # deltas reset when a cycle is clean
         assert c.last_errors == 0
@@ -46,7 +46,7 @@ class TestControllerDiagDelta:
         async def noop():
             return None
 
-        c._poll_elm = noop  # type: ignore[method-assign]
+        c.elm_poller.poll = noop  # type: ignore[method-assign]
         asyncio.run(c.poll_once())
         assert c.last_drops == 0
         assert c.last_errors == 0
@@ -64,7 +64,7 @@ class TestControllerDiagDelta:
         async def stale_poll():
             term.diag.record("stale")
 
-        c._poll_elm = stale_poll  # type: ignore[method-assign]
+        c.elm_poller.poll = stale_poll  # type: ignore[method-assign]
         asyncio.run(c.poll_once())
         assert c.last_stale == 1
         assert c.last_drops == 1  # drops still conflates, hence last_stale

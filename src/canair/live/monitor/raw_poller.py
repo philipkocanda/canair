@@ -119,6 +119,20 @@ class MonitorRawPoller:
 
         self.pad = resolve_rx_padding(getattr(controller, "pids_data", None))
 
+    async def setup(self, session_steps: list[dict] | None) -> None:
+        """Open the requested sessions, then prime each ECU before the first cycle.
+
+        The first diagnostic request after idle is slow (the ECU/gateway has to wake), so
+        each ECU gets one throwaway read on a longer timeout; the first *monitored* cycle
+        is then already warm. There is no keepalive on the raw backend.
+        """
+        c = self.c
+        assert c.raw_client is not None  # the raw poller exists only with a raw client
+        c.sessions.open_raw(session_steps)
+        for ecu, _info, request in c.sessions.warmup_reads():
+            with contextlib.suppress(Exception):
+                c.raw_client.read(ecu, bytes.fromhex(request), timeout=3.0)
+
     def build_submissions(
         self,
     ) -> tuple[list[Submission], list[tuple[str, int, list[PlanEntry]]]]:
@@ -252,10 +266,10 @@ class MonitorRawPoller:
                 c.last_queries = self.build_queries(plan_by_ecu, by_pid)
                 # Throttle mid-cycle repaints so a burst of fast PIDs doesn't thrash.
                 now = _t.monotonic()
-                if c._on_partial is not None and (now - last_render) >= 0.12:
+                if c.on_partial is not None and (now - last_render) >= 0.12:
                     last_render = now
                     with contextlib.suppress(Exception):
-                        c._on_partial()
+                        c.on_partial()
         except asyncio.CancelledError:
             # Ctrl-C / quit cancels the poll worker. Tell the blocking pipelined
             # poll to abort so its executor thread returns at once — otherwise

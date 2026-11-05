@@ -178,7 +178,7 @@ class TestElmPollCost:
         c = MonitorController(FakeTerminal(), steps, {}, verbose=False, schedule="fixed")
         c._ecu_index = {}
         c.schedule.begin_tick(0.0)
-        asyncio.run(c._poll_elm())
+        asyncio.run(c.elm_poller.poll())
         assert c.health.poll_costs == {
             ("SKM", "22B002"): PollCost(reads=1, seconds=1.2, answered=0),
             ("SKM", "22B003"): PollCost(reads=1, seconds=1.2, answered=0),
@@ -215,13 +215,13 @@ def _igpm_controller(terminal: _ElmTerminal, **index_extra):
             **index_extra,
         }
     }
-    c._batch_state = BatchState()
+    c.elm_poller.batch_state = BatchState()
     return c
 
 
 def _poll(c) -> None:
     c.schedule.begin_tick(0.0)
-    asyncio.run(c._poll_elm())
+    asyncio.run(c.elm_poller.poll())
 
 
 class TestElmCostAttribution:
@@ -230,9 +230,9 @@ class TestElmCostAttribution:
         # member was held up for the whole of it.
         multi = "62BC03FDEE3C730A000000BC04B53FF4EA01000042BC06B480000000000000AAAA"
         c = _igpm_controller(_ElmTerminal({"22BC03BC04BC06": ok(multi)}), multi_did=True)
-        assert c._batch_state is not None
+        assert c.elm_poller.batch_state is not None
         for d in ("BC03", "BC04", "BC06"):
-            c._batch_state.lengths[(0x770, d)] = 8
+            c.elm_poller.batch_state.lengths[(0x770, d)] = 8
         _poll(c)
         assert c.terminal.sent == ["22BC03BC04BC06"]
         costs = [c.health.poll_costs[("IGPM", code)] for code in ("22BC03", "22BC04", "22BC06")]
