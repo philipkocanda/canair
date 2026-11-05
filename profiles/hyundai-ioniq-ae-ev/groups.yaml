@@ -16,7 +16,7 @@
 groups:
   # BMS:2101 = charge power + SOC_BMS, BMS:2105 = SOC_DISP (dash SoC); OBC:2101 is the AC side
   # (idle on DC), AAF:2181 carries AAF_2181_B27 (7 while charging). CCM is not included: its
-  # live charging values are broadcast frames (signals/powertrain.yaml), not DIDs.
+  # live charging values are broadcast frames (signals/powertrain.yaml). See @ccs for CCM:22CC01.
   charging:
     description: SoC, charge power, OBC and charge-state flags while plugged in (AC or DC)
     members: [IGPM:22BC07, BMS:2101, BMS:2105, OBC:2101, VCU:2101, MCU:2101, AAF:2181]
@@ -56,6 +56,12 @@ groups:
   skm:
     description: Smart Key Module (sleeps fast and drops reads, so it is polled apart from @body)
     members: [SKM]
+
+  # CCM:22CC01 mirrors the CCS session status the CCM also broadcasts (0x5E6/0x5E8/0x5E9). Poll it
+  # next to @charging: `canair monitor @charging @ccs`.
+  ccs:
+    description: CCS (DC fast charge) live session status from the CCM
+    members: [CCM:22CC01]
 
   # --- More useful sets (uncomment to enable) --------------------------------
   # charging-dc:
