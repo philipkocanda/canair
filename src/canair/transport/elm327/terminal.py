@@ -76,7 +76,7 @@ _RESYNC_ON = frozenset({CAT_STALE, CAT_DECODE})
 # the bytes you give it into a single CAN frame and prepends the ISO-TP PCI byte
 # itself, leaving 7 for the request; it does not segment, and rejects anything
 # longer with a bare `?` rather than an NRC. So a `22` + 2-bytes-per-DID batch fits
-# only 3 DIDs — see `multi_batch.transport_did_cap`.
+# only 3 DIDs — see `read/batch.py::transport_did_cap`.
 _ELM_MAX_REQUEST_BYTES = 7
 
 # Default ELM327 ECU-wait budget in seconds, used when `elm_timeout_cmd` can't be

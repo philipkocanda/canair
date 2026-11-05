@@ -77,7 +77,7 @@ class TestSets:
 
 class TestLiveMasking:
     def _entry(self, pid: str, payload: str, tx: int | str = 0x733):
-        from canair.live.multi_batch import _decode_pid_result
+        from canair.live.read.batch import _decode_pid_result
 
         info = build_ecu_index(load_pids())["CCM"]["pids"][pid]
         return _decode_pid_result(

@@ -123,7 +123,7 @@ class TestScanAndRawSave:
 
     @pytest.mark.asyncio
     async def test_raw_records_the_client_transport(self, prof):
-        from canair.live.raw import mode_raw
+        from canair.live.read.raw import mode_raw
 
         term = FakeTerminal({"2101": ok("6101AA")})
         await mode_raw(term, "74E:2101", False, False, save=True, label="raw")

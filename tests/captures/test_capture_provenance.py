@@ -185,7 +185,7 @@ class TestDecodePidResultElapsed:
     """_decode_pid_result carries elapsed only for single reads."""
 
     def test_single_read_carries_elapsed(self):
-        from canair.live.multi_batch import _decode_pid_result
+        from canair.live.read.batch import _decode_pid_result
 
         entry = _decode_pid_result(
             "2101", None, True, "6101AA", bytes.fromhex("6101AA"), 1.0, elapsed_ms=55
@@ -193,7 +193,7 @@ class TestDecodePidResultElapsed:
         assert entry["elapsed_ms"] == 55
 
     def test_batched_read_omits_elapsed(self):
-        from canair.live.multi_batch import _decode_pid_result
+        from canair.live.read.batch import _decode_pid_result
 
         # Batched callers don't pass elapsed_ms (defaults to None → omitted).
         entry = _decode_pid_result("22B001", None, True, "62B00100", bytes.fromhex("62B00100"), 1.0)

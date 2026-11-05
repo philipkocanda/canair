@@ -122,7 +122,7 @@ class MonitorSelectors:
 
     def _polled_pairs(self, steps: Sequence[Mapping]) -> set[tuple[str, str]]:
         """``(ECU, PID)`` for every request ``steps`` polls, raw ones included."""
-        from .multi_exec import build_query_plan
+        from .read.exec import build_query_plan
 
         out: set[tuple[str, str]] = set()
         for step in steps:

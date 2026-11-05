@@ -11,14 +11,14 @@ from canair.cli.args.notation import resolve_notation
 from canair.cli.live.operation import LiveOperation
 from canair.live._monitor_run import mode_monitor
 from canair.live.monitor_options import MonitorOptions
-from canair.live.multi import mode_multi
 from canair.live.poll_schedule import DEFAULT_SCHEDULE
+from canair.live.read.multi import mode_multi
 from canair.transport.protocol import Terminal
 
 
 def monitor_options(args) -> MonitorOptions:
     """The monitor's options from the parsed flags (``args.multi`` already holds a query step)."""
-    from canair.live.multi import parse_sub_commands
+    from canair.live.read.multi import parse_sub_commands
 
     commands = parse_sub_commands(args.multi)
     return MonitorOptions(

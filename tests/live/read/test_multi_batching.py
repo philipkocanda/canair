@@ -1,4 +1,4 @@
-"""Tests for UDS service-22 multi-DID batching (canair.live.multi).
+"""Tests for UDS service-22 multi-DID batching (canair.live.read.multi).
 
 Uses the real IGPM (0x770) responses captured on-device:
     22BC03      -> 62BC03 FDEE3C730A000000 (padded AAAA)
@@ -11,8 +11,7 @@ import asyncio
 import logging
 from unittest.mock import AsyncMock, MagicMock
 
-from canair.live.multi import _exec_query, _read_single
-from canair.live.multi_batch import (
+from canair.live.read.batch import (
     BATCH_UNANSWERED_BEFORE_DISABLE,
     LEAKED_BATCH_ERROR,
     BatchState,
@@ -21,6 +20,7 @@ from canair.live.multi_batch import (
     split_multi_did,
     transport_did_cap,
 )
+from canair.live.read.multi import _exec_query, _read_single
 from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 from canair.uds.multi_did import resolve_multi_did_max
 from tests.support.fakes import FakeTerminal
@@ -135,7 +135,7 @@ class TestLoudDemotion:
     def test_disable_logs_once_with_the_reason(self, monkeypatch):
         events: list[tuple] = []
         monkeypatch.setattr(
-            "canair.live.multi_batch.log_event",
+            "canair.live.read.batch.log_event",
             lambda cat, detail="", **kw: events.append((cat, detail, kw)),
         )
         bs = BatchState()
@@ -495,7 +495,7 @@ class TestLeakedBatchReply:
         """Two cycles: the leak costs one reading once, not D1 and D2 every cycle."""
         events: list[tuple] = []
         monkeypatch.setattr(
-            "canair.live.multi_exec.log_event",
+            "canair.live.read.exec.log_event",
             lambda cat, detail="", **kw: events.append((cat, detail, kw)),
         )
         replies = {"22BC03": [_ok(MULTI), _ok(BC03_SINGLE)], "22BC06": [_ok(BC06_SINGLE)] * 2}
@@ -529,7 +529,7 @@ class TestLeakedBatchReply:
     def test_the_leak_is_logged_as_a_stale_event(self, monkeypatch):
         events: list[tuple] = []
         monkeypatch.setattr(
-            "canair.live.multi_exec.log_event",
+            "canair.live.read.exec.log_event",
             lambda cat, detail="", **kw: events.append((cat, detail, kw)),
         )
         sm = _mk_sm(FakeTerminal({"22BC03": _ok(MULTI)}).send_uds)

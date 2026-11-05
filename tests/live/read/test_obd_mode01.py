@@ -12,7 +12,7 @@ from typing import ClassVar
 
 import pytest
 
-from canair.live.multi_exec import build_query_plan
+from canair.live.read.exec import build_query_plan
 from canair.query import (
     QueryError,
     explicit_request,

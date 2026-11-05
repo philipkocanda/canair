@@ -99,7 +99,7 @@ def run(args) -> int:
     from canair.device.lock import WiCANLock
     from canair.device.lock_watchdog import LockWatchdog
     from canair.device.wican.mode import ModeError
-    from canair.live.raw_ops import slcan_preflight
+    from canair.live.read.raw_ops import slcan_preflight
     from canair.transport import resolve_transport
 
     require_car("sniff the car")

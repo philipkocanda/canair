@@ -21,9 +21,9 @@ from typing import TYPE_CHECKING
 
 from canair.render import messages
 
-from ..transport.config import ConnectionOptions, TransportConfig
-from .monitor_options import MonitorOptions
-from .session import Operation, SessionOptions
+from ...transport.config import ConnectionOptions, TransportConfig
+from ..monitor_options import MonitorOptions
+from ..session import Operation, SessionOptions
 
 if TYPE_CHECKING:
     from canair.device.wican.firmware import FirmwareInfo
@@ -66,7 +66,7 @@ def slcan_preflight(
         require_slcan_reachable,
     )
 
-    from ..config import fallback_settings
+    from ...config import fallback_settings
 
     host = transport.host
     if not host:
@@ -145,7 +145,7 @@ async def _run_session(
 
     # Monitor: optimized pipelined + batched backend.
     if monitor is not None:
-        from .raw_monitor import run_raw_monitor
+        from ..raw_monitor import run_raw_monitor
 
         return await run_raw_monitor(
             monitor,
@@ -163,8 +163,8 @@ async def _run_session(
     from canair.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
     from canair.uds.addressing import AddressBook
 
-    from ..transport import RawTerminal
-    from .session import run_session_guarded
+    from ...transport import RawTerminal
+    from ..session import run_session_guarded
 
     print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps", file=sys.stderr)
     cli = cli_timeout(conn.timeout)

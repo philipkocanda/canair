@@ -57,7 +57,7 @@ canair reaches the bus through one **explicitly selected** transport, registered
 
 All backends satisfy the `Terminal` protocol (`src/canair/transport/protocol.py`) and live commands
 run through the **single shared** `src/canair/live/session.py::run_session_guarded`, called by both the
-ELM path (`cli/live/runtime.py::async_main`) and the raw path (`live/raw_ops.py::run_raw`).
+ELM path (`cli/live/runtime.py::async_main`) and the raw path (`live/read/raw_ops.py::run_raw`).
 
 **The design contract:**
 

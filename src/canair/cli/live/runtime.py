@@ -110,7 +110,7 @@ async def async_main(args, operation: LiveOperation):
     # Raw transport (slcan-tcp): route to the client-side ISO-TP/UDS path instead
     # of the ELM327 WebSocket. The device must already be in slcan mode.
     if transport.is_raw:
-        from canair.live.raw_ops import run_raw
+        from canair.live.read.raw_ops import run_raw
 
         async def operate(terminal: Terminal, pids_data: dict) -> None:
             await operation.handler(args, terminal, pids_data, host)

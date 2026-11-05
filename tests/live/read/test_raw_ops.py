@@ -1,4 +1,4 @@
-"""Tests for raw-CAN live commands (canair.live.raw_ops.run_raw)."""
+"""Tests for raw-CAN live commands (canair.live.read.raw_ops.run_raw)."""
 
 import asyncio
 from typing import ClassVar
@@ -7,8 +7,9 @@ import pytest
 
 from canair.device.wican import mode as wican_mode
 from canair.device.wican.mode import ModeError
-from canair.live import raw_monitor, raw_ops
+from canair.live import raw_monitor
 from canair.live.monitor_options import MonitorOptions
+from canair.live.read import raw_ops
 from canair.live.session import SessionOptions
 from canair.transport.config import ConnectionOptions
 

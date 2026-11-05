@@ -581,9 +581,9 @@ class MonitorController:
             return
 
         from ..uds.echo import request_echo
-        from .multi import _exec_session, _exec_skm_wake
-        from .multi_batch import BatchState
-        from .multi_exec import timed_exchange
+        from .read.batch import BatchState
+        from .read.exec import timed_exchange
+        from .read.multi import _exec_session, _exec_skm_wake
 
         assert self.sm is not None  # not self.raw ⟺ sm was constructed
         from ..transport.isotp_params import resolve_rx_padding
@@ -624,7 +624,7 @@ class MonitorController:
     def _warmup_reads(self) -> "list[tuple[str, EcuIndexEntry, str]]":
         """``(ECU key, its index entry, first planned request)`` per polled ECU step."""
         from ..ecus.pids import ecu_index_key
-        from .multi import build_query_plan
+        from .read.multi import build_query_plan
 
         assert self._ecu_index is not None  # built by setup() before this runs
         reads: list[tuple[str, EcuIndexEntry, str]] = []
@@ -821,7 +821,7 @@ class MonitorController:
     async def _poll_elm(self) -> None:
         import time as _t
 
-        from .multi import _exec_query
+        from .read.multi import _exec_query
 
         # The ELM poll path only runs on the non-raw backend, where setup() has
         # constructed sm and built the ECU index.

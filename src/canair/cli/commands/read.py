@@ -125,7 +125,7 @@ def run(args) -> int:
         args.multi = [to_step(s) for s in args.steps]
         # Validate the mini-language up front so ambiguous/malformed steps fail
         # loudly *before* we acquire the device lock and open a connection.
-        from canair.live.multi import parse_sub_commands
+        from canair.live.read.multi import parse_sub_commands
 
         try:
             commands = parse_sub_commands(args.multi)

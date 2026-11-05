@@ -40,7 +40,7 @@ MONITOR_PERIOD_SPEEDUP = 2.0
 # A (canonical ECU name, PID code) pair, as the query plans name them.
 Key = tuple[str, str]
 # One query-plan entry, ``(pid_code, pid_info_or_None, unmapped)``, as built by
-# :func:`~canair.live.multi_exec.build_query_plan`.
+# :func:`~canair.live.read.exec.build_query_plan`.
 PlanEntry = tuple[str, dict[str, Any] | None, bool]
 
 # Due times computed along different grids (2 s x 5 vs 10 s x 1) differ by float

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from canair.live.multi import mode_multi
+from canair.live.read.multi import mode_multi
 from tests.support.fakes import FakeTerminal, nrc, ok
 
 

@@ -165,7 +165,7 @@ class TestElmPollCost:
                 {"pid": "2102", "error": "NRC 0x31 (ROOR)", "nrc": 0x31, "request_s": 0.03},
             ]
 
-        monkeypatch.setattr("canair.live.multi._exec_query", fake_exec_query)
+        monkeypatch.setattr("canair.live.read.multi._exec_query", fake_exec_query)
 
         class FakeTerminal:
             cmd_count = 0
@@ -204,7 +204,7 @@ class _ElmTerminal(FakeTerminal):
 def _igpm_controller(terminal: _ElmTerminal, **index_extra):
     """A real controller polling IGPM's three DIDs through the real executor."""
     from canair.live.monitor import MonitorController
-    from canair.live.multi_batch import BatchState
+    from canair.live.read.batch import BatchState
 
     steps = [{"type": "query", "ecu": "IGPM", "pids": []}]
     c = MonitorController(terminal, steps, {}, verbose=False, schedule="fixed")
@@ -269,7 +269,7 @@ class TestElmCostAttribution:
         # wait behind it on the serial pipe; that wait is session upkeep, not the read.
         from contextlib import asynccontextmanager
 
-        from canair.live.multi_exec import _read_single
+        from canair.live.read.exec import _read_single
         from canair.transport.session_manager import SessionManager
 
         class SerialTerminal(_ElmTerminal):

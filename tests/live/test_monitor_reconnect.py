@@ -589,7 +589,7 @@ class TestWaitInitialConnect:
             captured["host"] = transport.host
             return 0
 
-        monkeypatch.setattr("canair.live.raw_ops.run_raw", fake_run_raw)
+        monkeypatch.setattr("canair.live.read.raw_ops.run_raw", fake_run_raw)
         monkeypatch.setattr(_live, "load_pids", lambda: {"ecus": {}})
 
         class Args:

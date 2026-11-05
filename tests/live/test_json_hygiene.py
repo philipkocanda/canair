@@ -13,7 +13,7 @@ import pytest
 from canair import profile
 from canair.ecus.pids import clear_cache
 from canair.live.discover import physical as disc
-from canair.live.raw import mode_raw
+from canair.live.read.raw import mode_raw
 from canair.live.scan.range import mode_scan
 from tests.support.fakes import FakeTerminal, ok
 

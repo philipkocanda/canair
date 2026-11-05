@@ -2,8 +2,8 @@
 
 The session-aware interactive prompt entered after (or during) a multi pipeline.
 Composes the parsing (:mod:`canair.query.steps`) and execution
-(:mod:`canair.live.multi_exec`) layers; orchestration lives in
-:mod:`canair.live.multi`.
+(:mod:`canair.live.read.exec`) layers; orchestration lives in
+:mod:`canair.live.read.multi`.
 """
 
 import asyncio
@@ -16,7 +16,7 @@ from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import SessionManager
 from canair.uds.parse import parse_uds_response
 
-from .multi_exec import _exec_query, _exec_raw
+from .exec import _exec_query, _exec_raw
 
 
 async def _multi_repl(
@@ -30,7 +30,7 @@ async def _multi_repl(
 
     Extends the standard REPL with session keepalives and multi-ECU commands.
     """
-    from .elm.skm_wakeup import mode_skm_wakeup
+    from ..elm.skm_wakeup import mode_skm_wakeup
 
     terminal = sm.terminal
     _param_index = build_param_index(pids_data)

@@ -15,7 +15,7 @@ import pytest
 import canair.ecus
 from canair.ecus.wake import WakePlan
 from canair.live.monitor import MonitorController
-from canair.live.multi_exec import _exec_iocontrol, _exec_query, _exec_session
+from canair.live.read.exec import _exec_iocontrol, _exec_query, _exec_session
 from canair.query.steps import resolve_tx_id
 from tests.support.fakes import FakeTerminal, ok
 
@@ -67,7 +67,7 @@ def test_exec_session_finds_the_wake_plan():
 
 def test_exec_iocontrol(monkeypatch, capsys):
     monkeypatch.setattr(
-        "canair.live.multi_exec.build_iocontrol_index",
+        "canair.live.read.exec.build_iocontrol_index",
         lambda _data: {"IGPM": {"tx_id": 0x770, "protocol": "UDS", "cmds": {}}},
     )
     asyncio.run(_exec_iocontrol(_sm(), "sjb", "BC01", False, {}, INDEX, False))

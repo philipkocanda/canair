@@ -426,7 +426,7 @@ class TestPipeResync:
         # longer than 7 data bytes. That is a complete, prompt-terminated reply in
         # the correct slot: the pipe is aligned and nothing is queued, so a drain
         # and probe would buy nothing. The fix for a `?` is to send less (see
-        # `multi_batch.transport_did_cap`), not to realign.
+        # `read/batch.py::transport_did_cap`), not to realign.
         t = _term_prog(["?\r>"])
         t.timeout = 0.2
         await t.send_uds("22BC03BC04BC05BC06", expected_sid=0x22)

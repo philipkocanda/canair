@@ -8,7 +8,7 @@ from textual.binding import Binding
 
 from canair.expression.notation import ByteDisplay, ByteNotation
 from canair.live._monitor_render import MONITOR_LEGEND, _render_results
-from canair.live.multi_batch import _decode_pid_result
+from canair.live.read.batch import _decode_pid_result
 from canair.render.formatting import (
     _HIGHLIGHT_STYLE,
     BYTE_COLOUR_LEGEND,

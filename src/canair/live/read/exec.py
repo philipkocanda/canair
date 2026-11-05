@@ -4,7 +4,7 @@ The device-talking building blocks a multi pipeline (and the live monitor and
 REPL) compose: opening sessions, reading a single PID or a batched multi-DID
 group, resolving a query plan, and the ``query``/``raw``/``iocontrol``/``scan``
 step executors. Orchestration (looping over steps, journaling) lives in
-:mod:`canair.live.multi`; parsing in :mod:`canair.query.steps`.
+:mod:`canair.live.read.multi`; parsing in :mod:`canair.query.steps`.
 """
 
 import asyncio
@@ -31,8 +31,8 @@ from canair.uds.multi_did import BATCH_REFUSAL_NRCS
 from canair.uds.response import UdsResponse
 from canair.uds.services import READ_DATA_BY_IDENTIFIER
 
-from .actuate.iocontrol_actuate import send_iocontrol
-from .multi_batch import (
+from ..actuate.iocontrol_actuate import send_iocontrol
+from .batch import (
     LEAKED_BATCH_ERROR,
     LEAKED_BATCH_REASON,
     BatchState,
@@ -48,7 +48,7 @@ from .multi_batch import (
 
 async def _exec_skm_wake(sm: SessionManager, level: str, verbose: bool):
     """Execute skm-wake sub-command using the existing mode_skm_wakeup logic."""
-    from .elm.skm_wakeup import mode_skm_wakeup
+    from ..elm.skm_wakeup import mode_skm_wakeup
 
     terminal = sm.terminal
 
@@ -314,10 +314,10 @@ async def _run_query_plan(sm, tx_id, query_plan, out, batch_state, max_dids=None
     defaulting to the batch state's cap); everything else is read singly. A batch
     that fails falls back to per-DID reads for that group, and a batch that keeps
     going unanswered while those fallbacks succeed stops batching for the ECU
-    (:meth:`~canair.live.multi_batch.BatchState.batch_unanswered`).
+    (:meth:`~canair.live.read.batch.BatchState.batch_unanswered`).
 
     The requested cap is clamped to what the *transport* can put on the wire
-    (:func:`~canair.live.multi_batch.transport_did_cap`). A profile may legally
+    (:func:`~canair.live.read.batch.transport_did_cap`). A profile may legally
     ask for more than an ELM327 can send, and discovering that from the adapter's
     bare ``?`` costs the ECU its batching for the whole session.
     """
@@ -555,9 +555,9 @@ async def _exec_scan(
     verbose: bool,
 ):
     """Execute scan sub-command."""
-    from ..ecus import resolve_tx
-    from .scan.presets import ServiceError, resolve_service
-    from .scan.range import mode_scan
+    from ...ecus import resolve_tx
+    from ..scan.presets import ServiceError, resolve_service
+    from ..scan.range import mode_scan
 
     tx_id = resolve_tx(tx_str)
     if tx_id is None:
@@ -594,7 +594,7 @@ async def _exec_scan(
 
 def _rx_addr_for_tx(tx_id: int) -> str:
     """Return the ECU CAN response address string for a TX id (e.g. "0x7EC")."""
-    from ..ecus import rx_addr_str
+    from ...ecus import rx_addr_str
 
     return rx_addr_str(tx_id)
 
@@ -604,7 +604,7 @@ def _rx_addr_for_ecu_label(ecu_label: str, ecu_index: dict) -> str:
 
     Falls back to the leading token verbatim if the ECU is not in the index.
     """
-    from ..ecus import rx_addr_str
+    from ...ecus import rx_addr_str
 
     # An ECU label always starts with a word char (e.g. "BMS" / "BMS (0x7E4)").
     m = re.match(r"(\w+)", ecu_label)

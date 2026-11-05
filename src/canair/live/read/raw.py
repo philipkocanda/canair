@@ -13,7 +13,7 @@ from canair.transport.stats import client_transport
 from canair.uds.describe import decode_uds_response
 from canair.uds.response import UdsResponse
 
-from ..transport.protocol import Terminal
+from ...transport.protocol import Terminal
 
 
 async def mode_raw(
@@ -137,12 +137,8 @@ def _save_raw(
     transport: str | None = None,
 ) -> None:
     """Prompt (or use provided metadata) and save a raw request result to captures."""
-    from ..captures import (
-        build_raw_session,
-        save_session_journaled,
-        suggest_raw_label,
-    )
-    from ..ecus import ecu_name, rx_addr_str
+    from ...captures import build_raw_session, save_session_journaled, suggest_raw_label
+    from ...ecus import ecu_name, rx_addr_str
 
     ecu = ecu_name(tx_id)
     suggested = suggest_raw_label(ecu, request)

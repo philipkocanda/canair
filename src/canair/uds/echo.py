@@ -43,7 +43,7 @@ def request_echo(request_hex: str) -> tuple[int, bytes] | None:
       multi-DID batch (``22 xxxx yyyy …``) is validated against its *first* DID,
       which the response must still repeat immediately after the SID. A batch's
       later DIDs sit at data-dependent offsets, so they are left to
-      :func:`canair.live.multi_batch.split_multi_did`, which walks the response.
+      :func:`canair.live.read.batch.split_multi_did`, which walks the response.
     - ``01 xx`` / ``09 xx`` (OBD-II current data / vehicle information): 1-byte PID
       or InfoType echo — ``41 xx …`` / ``49 xx …``. Only the single-PID form: a
       multi-PID ``01 0C 0D …`` reply interleaves each PID with its data, so it is

@@ -6,7 +6,7 @@ pickable choices, turn the user's picks back into the ordinary selector strings
 a running monitor's query steps into picks so the picker can open on them. The
 interactive screen lives in :mod:`canair.tui.apps.monitor_select`; keeping the
 mapping here means it is unit-testable without a terminal and cannot drift from the
-sweep rules in :func:`canair.live.multi_exec.build_query_plan`.
+sweep rules in :func:`canair.live.read.exec.build_query_plan`.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class EcuChoice:
 
         No filters means the default sweep. A filter picks PIDs by
         :func:`canair.query.pids_named_by` (``BC03`` picks ``22BC03``), the same
-        rule :func:`canair.live.multi_exec.build_query_plan` polls by.
+        rule :func:`canair.live.read.exec.build_query_plan` polls by.
         """
         from ..query import pids_named_by
 

@@ -662,8 +662,8 @@ class TestLiveSurfaces:
         return TransportConfig(type="slcan-tcp", host="192.0.2.1", **kw)
 
     def _run_raw(self, transport, *, reboot=False):
-        from canair.live import raw_ops
         from canair.live.monitor_options import MonitorOptions
+        from canair.live.read import raw_ops
         from canair.live.session import SessionOptions
         from canair.transport.config import ConnectionOptions
 

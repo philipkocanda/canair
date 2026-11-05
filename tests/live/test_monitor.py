@@ -1324,7 +1324,7 @@ class TestNrcClassification:
     """A negative response is told apart by its code, not by its error text."""
 
     def test_the_elm327_error_result_carries_the_code(self):
-        from canair.live.multi_batch import _error_result
+        from canair.live.read.batch import _error_result
 
         r = _error_result("2101", False, {"ok": False, "nrc": 0x31, "nrc_desc": "ROOR"}, 1.0)
         assert r["nrc"] == 0x31 and r["error"] == "NRC 0x31 (ROOR)"

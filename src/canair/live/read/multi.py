@@ -26,13 +26,13 @@ an interactive REPL, or include an explicit 'repl' step in the pipeline.
 
 This module is the orchestrator; the pipeline is split into focused layers:
 
-    * ``multi_parse`` — sub-command / ECU-PID token parsing (device-free)
-    * ``multi_exec``  — per-step execution primitives (session/query/raw/…)
-    * ``multi_repl``  — the interactive REPL
-    * ``multi_batch`` — the multi-DID batching/result kernel
+    * ``canair.query`` — sub-command / ECU-PID token parsing (device-free)
+    * ``exec``  — per-step execution primitives (session/query/raw/…)
+    * ``repl``  — the interactive REPL
+    * ``batch`` — the multi-DID batching/result kernel
 
 The names that layers below use are re-exported here so existing callers
-(``from canair.live.multi import build_query_plan`` etc.) keep working.
+(``from canair.live.read.multi import build_query_plan`` etc.) keep working.
 """
 
 import asyncio
@@ -57,9 +57,9 @@ from canair.render.formatting import print_ecu_results
 from canair.transport.session_manager import SessionManager
 from canair.transport.stats import client_transport
 
-from ..transport.protocol import Terminal
-from .multi_batch import BatchState, _capture_stamp
-from .multi_exec import (
+from ...transport.protocol import Terminal
+from .batch import BatchState, _capture_stamp
+from .exec import (
     _exec_iocontrol,
     _exec_query,
     _exec_raw,
@@ -74,7 +74,7 @@ from .multi_exec import (
     build_query_plan,
 )
 from .multi_json import query_documents, raw_document
-from .multi_repl import _multi_repl
+from .repl import _multi_repl
 
 __all__ = [
     "BatchState",
@@ -245,7 +245,7 @@ async def _run_pipeline(
     if save:
         from canair.captures.journal import CaptureJournal
 
-        from ..profile import active
+        from ...profile import active
 
         journal = CaptureJournal.open(
             active().captures_dir,
@@ -278,14 +278,14 @@ async def _run_pipeline(
                     )
         # Accumulate decoded values for end-of-pipeline state auto-suggestion.
         if save:
-            from ..states import collect_values
+            from ...states import collect_values
 
             vals, resp = collect_values([(ecu_label, pid_results)])
             pipe_values.update(vals)
             pipe_responded.update(resp)
 
     def _suggest_pipeline_state() -> str | None:
-        from ..states import StatePredicateError, join_states, load_states, suggest_states
+        from ...states import StatePredicateError, join_states, load_states, suggest_states
 
         try:
             rules = load_states()
@@ -300,7 +300,7 @@ async def _run_pipeline(
         # Shared batch state so multi_did-capable ECUs batch service-22 DIDs in
         # the one-shot pipeline too (previously only the monitor did). Learns
         # per-DID lengths across steps and auto-falls back per-DID on rejection.
-        from ..transport.isotp_params import resolve_rx_padding
+        from ...transport.isotp_params import resolve_rx_padding
 
         batch_state = BatchState(resolve_rx_padding(pids_data))
         for i, cmd in enumerate(commands):
@@ -380,7 +380,7 @@ async def _run_pipeline(
                     else:
                         # An explicit raw request is a probe, so its refusal is the
                         # result: keep it, as a standalone `canair raw --save` does.
-                        from ..captures import non_answer_text
+                        from ...captures import non_answer_text
 
                         non_answers += 1
                         if journal is not None:

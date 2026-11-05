@@ -65,7 +65,7 @@ def _raw_pid_result(
     ``protocol`` (its :data:`~canair.uds.protocol.DiagProtocol`) names an NRC the
     way the ELM path's parser does.
     """
-    from .multi_batch import _decode_pid_result
+    from .read.batch import _decode_pid_result
 
     if value is None or isinstance(value, Exception):
         err = "timeout" if value is None or isinstance(value, TimeoutError) else str(value)
@@ -134,8 +134,8 @@ class MonitorRawPoller:
         """
         from canair.ecus.pids import ecu_index_key
 
-        from .multi_batch import _did4, _is_did22
-        from .multi_exec import build_query_plan
+        from .read.batch import _did4, _is_did22
+        from .read.exec import build_query_plan
 
         c = self.c
         # Only reached during polling, after setup() built the ECU index.
@@ -314,7 +314,7 @@ class MonitorRawPoller:
         learn 22-DID lengths, track ECUs that can't batch)."""
         from canair.core.eventlog import log_event
 
-        from .multi_batch import (
+        from .read.batch import (
             LEAKED_BATCH_ERROR,
             LEAKED_BATCH_REASON,
             _did4,

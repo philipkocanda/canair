@@ -1,4 +1,4 @@
-"""``canair read`` of named signals (:mod:`canair.live.param`)."""
+"""``canair read`` of named signals (:mod:`canair.live.read.param`)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from canair.live.param import mode_param
+from canair.live.read.param import mode_param
 from tests.support.fakes import FakeTerminal, ok
 
 

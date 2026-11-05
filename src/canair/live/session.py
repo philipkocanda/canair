@@ -11,7 +11,7 @@ both transports (ELM327 over WebSocket/TCP, and raw SLCAN with client-side ISO-T
 operation reaching for a transport-specific attribute is a ``ty`` error: the compiler-checked
 form of the "keep the WiCAN replaceable" rule.
 
-It lives in :mod:`canair.live` because :mod:`canair.live.raw_ops` runs the raw transport
+It lives in :mod:`canair.live` because :mod:`canair.live.read.raw_ops` runs the raw transport
 through :func:`run_session_guarded` as well, and a mode importing upward into the command layer
 would be a layering inversion. The CLI keeps only what is genuinely CLI: turning a parsed command
 line into an operation and a :class:`SessionOptions`, and constructing the terminal.
