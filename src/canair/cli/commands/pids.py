@@ -6,34 +6,7 @@ engineering workflow. Every edit is:
   1. applied surgically (comments/formatting preserved, YAML re-parsed), then
   2. schema-checked in-process (canair validate pids) — reverted if it fails.
 
-Subcommands:
-  upsert-param ECU PID NAME EXPR   Add/update a parameter (expression required)
-  rename-param ECU PID OLD NEW     Rename a parameter key (fields preserved)
-  rm-param     ECU PID NAME        Remove a parameter
-  rename-pid   ECU OLD NEW         Rename a PID key (e.g. B002 -> 22B002)
-  rm-pid       ECU PID             Remove a whole PID (header, status, parameters)
-  add-research ECU ...             Append a research: entry
-  set-status  ECU TARGET STATUS    Update a research item's status (--type/--index disambiguate)
-  rm-research  ECU TARGET          Remove a research item (--type/--index disambiguate)
-  set-research-notes ECU TARGET [TEXT] Set (or clear) a research item's notes
-                                    (--type/--index disambiguate)
-  set-research-result ECU TARGET [TEXT] Set (or clear) a research item's result summary
-                                    (--type/--index disambiguate)
-  set-research-capture-protocol ECU TARGET [TEXT] Set (or clear) how to capture for an item
-                                    (--type/--index disambiguate)
-  set-pid-status ECU PID STATUS    Set a PID's lifecycle (active|draft|static|slow|ignored)
-  set-pid-period ECU PID MS|clear  Set the WiCAN AutoPID polling interval (ms)
-  set-pid-notes ECU PID [TEXT]     Set (or clear) a PID's free-text notes
-  set-pid-defaults ECU PID ...     Set unit/min/max/verified/source… every parameter inherits
-  hoist-defaults [ECU [PID]]       Move fields repeated across a PID's parameters up to the PID
-  migrate-categories [ECU]         Replace the retired ha_class field with category
-  set-identity ECU FIELD VALUE     Set a curated identity field (e.g. notes)
-  rm-identity  ECU FIELD           Remove an identity field (e.g. a redundant duplicate)
-  set-can-bus  ECU CODE [CODE ...] Set the physical CAN bus segment(s) (see can_buses.yaml)
-  set-iocontrol-ranges ECU RANGE ... Set the 0x2F scan DID ranges (e.g. B000-BFFF)
-  set-iocontrol ECU DID ...        Set fields of a curated IOControl actuator entry
-  set-wake     ECU --method ...     Set how to rouse a fast-sleeping ECU before reads
-  set-addressing ECU ...           Set CAN addressing (mode / extension bytes / fc_id / rx_id)
+The subcommands and their flags are in ``canair pids --help``.
 
 Examples:
   # Record a decoded parameter
@@ -62,6 +35,7 @@ from canair.ecus.pid_status import PID_STATUSES
 from canair.ecus.pids import INHERITED_PARAM_FIELDS
 from canair.ecus.signal_category import CATEGORIES, QUANTITY_CATEGORIES
 from canair.render import ansi, messages
+from canair.transport.isotp_params import ECU_ISOTP_FIELDS
 from canair.uds.support_map import MapDecl, SupportMapError
 from canair.yaml_edit.echo import echo_edit
 from canair.yaml_edit.pids import (
@@ -78,6 +52,7 @@ from canair.yaml_edit.pids import (
     rename_parameter,
     rename_pid,
     set_can_bus,
+    set_ecu_isotp,
     set_identity_field,
     set_iocontrol_scan_ranges,
     set_pid_defaults,
@@ -816,6 +791,13 @@ def cmd_set_wake(args: argparse.Namespace) -> int:
     )
 
 
+def cmd_set_isotp(args: argparse.Namespace) -> int:
+    values = {f: _int_or_clear(v) for f in ECU_ISOTP_FIELDS if (v := getattr(args, f)) is not None}
+    detail = ", ".join(f"{k}={'cleared' if v is None else v}" for k, v in values.items())
+    run = lambda: set_ecu_isotp(args.ecu, values, pids_dir=args.dir)  # noqa: E731
+    return run_edit(run, f"{args.ecu} isotp -> {{{detail}}}", args=args)
+
+
 def cmd_set_addressing(args: argparse.Namespace) -> int:
     from canair.core import yaml_io
     from canair.yaml_edit.ecu import set_addressing, tx_key
@@ -1546,6 +1528,19 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     add_edit_args(sad)
     sad.set_defaults(_pids_func=cmd_set_addressing)
+
+    sis = sub.add_parser(
+        "set-isotp",
+        help="Set an ECU's own ISO-TP flow control (slcan-tcp), over the profile's",
+        description="Set or clear an ECU's own isotp: fields, laid over the profile's on "
+        "slcan-tcp: for an ECU that sends no consecutive frame after BlockSize 0.",
+        epilog="example: canair pids set-isotp EWP --blocksize 8 (or --blocksize clear)",
+    )
+    sis.add_argument("ecu")
+    for field in ECU_ISOTP_FIELDS:
+        sis.add_argument(f"--{field.replace('_', '-')}", dest=field, metavar="N|clear")
+    add_edit_args(sis)
+    sis.set_defaults(_pids_func=cmd_set_isotp)
 
     parser.set_defaults(func=run)
     return parser

@@ -20,6 +20,7 @@ from .ecu_sections import (
     validate_sessions,
 )
 from .iocontrol import validate_iocontrol
+from .isotp import validate_ecu_isotp
 from .memory import validate_memory
 from .pid_defs import validate_pids_block
 from .schema_fields import SchemaFields, new_ecu_stats
@@ -266,6 +267,7 @@ def _validate_ecu_entry(
     from canair.uds.addressing import is_extended, resolve_mode
 
     validate_ecu_addressing(ecu_def.get("addressing"), label, errors)
+    validate_ecu_isotp(ecu_def.get("isotp"), label, errors)
     mode = resolve_mode(profile_meta, ecu_def)
     max_id = 0x1FFFFFFF if is_extended(mode) else 0x7FF
     width = "0x00000000-0x1FFFFFFF (29-bit)" if is_extended(mode) else "0x000-0x7FF"

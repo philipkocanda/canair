@@ -131,6 +131,11 @@ optional_ecu_fields:
                     #   (tester address, default 0xF1), and `fc_id` (flow-control
                     #   arbitration override for functional-TX / physical-RX ECUs,
                     #   e.g. Renault/Mitsubishi).
+  - isotp           # This ECU's own ISO-TP flow control on slcan-tcp, laid over the
+                    #   profile's isotp: block: blocksize, rx_flowcontrol_timeout,
+                    #   rx_consecutive_frame_timeout (ECU_ISOTP_FIELDS in
+                    #   src/canair/transport/isotp_params.py). For an ECU that sends no
+                    #   consecutive frame after a FlowControl with BlockSize 0.
   - can_bus         # Physical CAN bus segment(s) the ECU sits on — see valid_can_bus_codes
   - vehicle_states  # ECU-level: power states in which the ECU responds (10 01)
   - wake            # How to rouse a fast-sleeping ECU before reads — see wake_fields

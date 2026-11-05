@@ -23,7 +23,8 @@ import contextlib
 import logging
 import sys
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
 
 import can
 import isotp
@@ -76,6 +77,7 @@ class RawTerminal:
         unsafe: bool = False,
         timeout: float = 2.0,
         isotp_config: dict | None = None,
+        ecu_isotp: Mapping[int, Mapping[str, Any]] | None = None,
         addr_map: dict[int, EcuAddress] | None = None,
         rx_offset: int = DEFAULT_RX_OFFSET,
         mode: AddressingMode = DEFAULT_MODE,
@@ -119,6 +121,12 @@ class RawTerminal:
         self.link = self.bus.link
         self.notifier = can.Notifier(self.bus, [], timeout=0.1)
         self._params = build_isotp_params(isotp_config, self.link.budget)
+        # An ECU with its own `isotp:` block gets its stack built from both
+        # (canair.transport.isotp_params.ECU_ISOTP_FIELDS); every other one from _params.
+        self._ecu_params = {
+            tx: build_isotp_params(isotp_config, self.link.budget, block)
+            for tx, block in (ecu_isotp or {}).items()
+        }
         # A classic-CAN frame carries at most 7 payload bytes, which fixes the frame
         # count a given response length occupies. On CAN-FD (up to 64) it does not,
         # so the count is simply not derived rather than guessed wrong.
@@ -322,7 +330,7 @@ class RawTerminal:
                 self.bus,
                 self.notifier,
                 build_isotp_address(addr),
-                self._params,
+                self._ecu_params.get(tx_id, self._params),
                 fc_id=addr.fc_id,
             )
             st.start()

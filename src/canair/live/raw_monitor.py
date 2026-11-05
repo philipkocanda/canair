@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from canair.render import messages
 
 from ..transport.config import ConnectionOptions, TransportConfig
+from ..transport.isotp_params import ecu_isotp_blocks
 from .monitor_options import MonitorOptions
 from .session import SessionOptions
 
@@ -62,6 +63,7 @@ def build_raw_client(
         timeout=(cli if cli is not None else 3.0),
         ecu_timeouts=(None if cli is not None else ecu_timeouts_by_name(pids_data)),
         isotp_config=pids_data.get("isotp"),
+        ecu_isotp=ecu_isotp_blocks(pids_data),
         session_policy=SessionPolicy.from_profile(pids_data),
     )
 

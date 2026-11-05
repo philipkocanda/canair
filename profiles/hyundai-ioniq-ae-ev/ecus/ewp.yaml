@@ -4,9 +4,11 @@
 # conditionsNotCorrect; 10 returns NRC 0x12. 18 (DTCs) returns NRC 0x11 (2026-11-05).
 # KWP2000 identity: 10 of 32 IDs in 1A80-1A9F respond. Those not under identity: (1A80, 1A8A,
 # 1A8B, 1A91, 1A98, 1A99) read all FF. 1A80, 1A8A, 1A91 and 1A98 are multi-frame (75, 12, 14 and
-# 12 bytes) and read only over slcan-tcp with a FlowControl BlockSize above 0 (see 21F2).
+# 12 bytes) and read only over slcan-tcp, where isotp: grants a FlowControl BlockSize above 0.
 EWP:
   tx_id: 0x746
+  isotp:
+    blocksize: 8
   can_bus: [P-CAN]
   identity:
     description: Electric water pump (EWP) of the EPCU/motor coolant loop
@@ -35,11 +37,11 @@ EWP:
       vehicle_states: [CHARGING]
       notes: >-
         12 bytes: 61 F2 00 00 00 07 00 00 00 00 00 00 during AC charging (2026-11-05). The reply is
-        multi-frame, and the EWP sends no consecutive frame after a FlowControl with BlockSize 0,
-        which canair's ISO-TP stack and the ELM327 adapter both send. Over wican-ws only the first
-        frame (61F200000007) ever arrives; the 2026-04-18 6-byte reading was that first frame. It
-        read in full over slcan-tcp with BlockSize 8 (also 1 and 2). The only service-21 PID that
-        answers (sweeps 2026-04-18, 2026-07-22, 2026-11-05).
+        multi-frame, and the EWP sends no consecutive frame after a FlowControl with BlockSize 0, so
+        the ECU's isotp: block sets blocksize 8 for slcan-tcp (1 and 2 work too). Over wican-ws the
+        ELM327 adapter always sends BlockSize 0 and only the first frame (61F200000007) arrives; the
+        2026-04-18 6-byte reading was that first frame. The only service-21 PID that answers (sweeps
+        2026-04-18, 2026-07-22, 2026-11-05).
       parameters: {}
   research:
     - type: scan

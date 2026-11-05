@@ -1046,7 +1046,10 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   - **`isotp:`** — client-side ISO-TP tuning for `slcan-tcp` (padding, blocksize, stmin, timeouts,
     CAN-FD); defaults in `src/canair/transport/isotp_params.py`. `tx_padding` is what canair sends
     (raw path only; an ELM327 pads its own requests); `rx_padding` (defaulting to `tx_padding`)
-    is what replies carry, and drives multi-DID split/strip (`resolve_rx_padding`).
+    is what replies carry, and drives multi-DID split/strip (`resolve_rx_padding`). An ECU's own
+    `isotp:` block (`canair pids set-isotp`) is laid over it for that ECU's stack, for
+    `ECU_ISOTP_FIELDS` only (flow control the raw path applies per ECU; read through
+    `ecu_isotp_blocks`). The ELM327 path ignores it: the adapter's `ATFCSD` is session-wide.
   - **`quirks:`** — make-specific behaviour the profile opts into. Known: `skm_wakeup` (enables
     the Ioniq SKM relay-wake), `nissan_c0_session` (permits the Nissan OEM session `10 C0` on
     KWP2000 ECUs, which the `src/canair/safety/blocklist.py` blocklist otherwise refuses, and switches the

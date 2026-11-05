@@ -584,3 +584,26 @@ class TestRawTerminalFrameCounts:
             await t.send_uds("22BC03")
         assert t.frame_counts.confirmed() == {(0x770, "22BC03"): 1}
         await t.close()
+
+
+class TestEcuIsotp:
+    """An ECU with its own isotp: block gets a stack built from it; the others do not."""
+
+    def test_only_that_ecus_stack_gets_its_flow_control(self, monkeypatch):
+        seen: dict[int, dict] = {}
+
+        def _build(bus, notifier, address, params, *, fc_id=None):
+            seen[address._txid] = params
+            return FakeStack(address._txid, {})
+
+        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(raw_terminal, "build_isotp_stack", _build)
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
+        t = raw_terminal.RawTerminal(
+            "h", 3333, 500000, isotp_config={"stmin": 5}, ecu_isotp={0x746: {"blocksize": 8}}
+        )
+        t._stack(0x746)
+        t._stack(0x7E4)
+        assert (seen[0x746]["blocksize"], seen[0x746]["stmin"]) == (8, 5)
+        assert (seen[0x7E4]["blocksize"], seen[0x7E4]["stmin"]) == (0, 5)
