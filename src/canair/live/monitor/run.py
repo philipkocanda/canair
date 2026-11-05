@@ -25,7 +25,7 @@ from canair.render.glyphs import FAIL
 
 from .controller import MonitorController
 from .options import MonitorOptions
-from .record import _open_journal
+from .record_write import open_journal
 
 if TYPE_CHECKING:
     from .reconnect import Reconnector
@@ -157,7 +157,7 @@ async def mode_monitor(
     # durably recorded as it arrives. On a clean stop we reconcile it into a
     # capture file; a disconnect/crash leaves it on disk for `--recover`.
     if monitor.save:
-        controller.recorder.journal = _open_journal(controller, label, states, notes)
+        controller.recorder.journal = open_journal(controller, label, states, notes)
         journal_label = label or controller.view.query_label() or "Monitor session"
         print(
             f"  --save: journaling to {controller.recorder.journal.path.name} "

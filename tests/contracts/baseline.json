@@ -16,7 +16,6 @@
     "canair.device.lock": 563,
     "canair.ecus": 502,
     "canair.ecus.pids": 761,
-    "canair.live.monitor.record": 538,
     "canair.tui.apps.monitor.app": 900,
     "canair.live.actuate.iocontrol": 518,
     "canair.live.read.exec": 616,

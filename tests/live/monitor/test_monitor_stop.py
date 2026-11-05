@@ -154,7 +154,7 @@ class TestTeardown:
             return controller_box["c"]
 
         monkeypatch.setattr(run_mod, "MonitorController", _make_controller)
-        monkeypatch.setattr(run_mod, "_open_journal", lambda *a, **k: journal)
+        monkeypatch.setattr(run_mod, "open_journal", lambda *a, **k: journal)
         monkeypatch.setattr(
             canair.profile, "active", lambda: type("P", (), {"captures_dir": tmp_path})()
         )

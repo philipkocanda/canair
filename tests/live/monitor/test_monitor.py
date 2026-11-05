@@ -4,7 +4,7 @@ import json
 
 from canair.live.monitor.controller import query_ecu_error
 from canair.live.monitor.history import HistoryRun, extend_runs
-from canair.live.monitor.record import _merge_history
+from canair.live.monitor.record_write import merge_history
 from canair.live.monitor.render import _render_results
 from canair.live.monitor.render_cache import RenderCache
 from canair.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, _render_hex_line
@@ -705,17 +705,17 @@ class TestKeepHistory:
 
 class TestMergeHistory:
     def test_current_snapshot_appended_when_absent(self):
-        merged = _merge_history({}, {("BMS (0x7E4)", "2101"): "6101AA"})
+        merged = merge_history({}, {("BMS (0x7E4)", "2101"): "6101AA"})
         (entries,) = merged.values()
         assert entries[0][0] == "6101AA"
 
     def test_current_not_duplicated(self):
         history = {("BMS (0x7E4)", "2101"): [("6101AA", "10:00:00")]}
-        merged = _merge_history(history, {("BMS (0x7E4)", "2101"): "6101AA"})
+        merged = merge_history(history, {("BMS (0x7E4)", "2101"): "6101AA"})
         assert len(merged[("BMS (0x7E4)", "2101")]) == 1  # no dup of the last entry
 
     def test_empty(self):
-        assert _merge_history({}, {}) == {}
+        assert merge_history({}, {}) == {}
 
 
 class TestControllerSnapshot:
