@@ -195,7 +195,8 @@ class TestBooleanWordStates:
         assert sessions[1]["vehicle_states"] == ["ON", "PARKED"]
 
     def test_load_states_refuses_a_bare_boolean(self, prof):
-        from canair.states import StatePredicateError, load_states
+        from canair.states.predicates import StatePredicateError
+        from canair.states.vocabulary import load_states
 
         prof.states_file.write_text(_STATES.replace("name: ACC2", "name: ON"))
         with pytest.raises(StatePredicateError, match="unquoted YAML boolean"):

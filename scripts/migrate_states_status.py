@@ -38,7 +38,7 @@ from pathlib import Path
 
 from canair.core.yaml_rt import detect_sequence_indent, round_trip_yaml
 from canair.core.yaml_rt import dump as _dump
-from canair.states import POWER_STATES
+from canair.states.tokens import POWER_STATES
 
 SYNONYMS = {"asleep": "sleep"}
 # Vocabulary accepted verbatim into a vehicle_states list (composites included).

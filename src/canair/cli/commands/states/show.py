@@ -6,6 +6,10 @@ import json
 import sys
 
 from canair.render import ansi, messages
+from canair.states.implies import exclusive_pairs
+from canair.states.predicates import StatePredicateError
+from canair.states.selectors import ecus_in_state
+from canair.states.vocabulary import allowed_states, load_states
 
 
 def cmd_show_state(args) -> int:
@@ -19,13 +23,6 @@ def cmd_show_state(args) -> int:
     from canair.ecus.pids import load_pids
     from canair.ecus.registry import load_ecus
     from canair.profile import active
-    from canair.states import (
-        StatePredicateError,
-        allowed_states,
-        ecus_in_state,
-        exclusive_pairs,
-        load_states,
-    )
 
     prof = active()
     target = str(args.state).strip().upper()

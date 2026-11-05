@@ -20,7 +20,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
 from canair.render import messages
-from canair.states import allowed_states, join_states, parse_states
+from canair.states.tokens import join_states, parse_states
+from canair.states.vocabulary import allowed_states
 
 from .echo import echo_write
 from .session_gate import refuse_write

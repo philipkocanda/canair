@@ -547,7 +547,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   `$EDITOR` and is **TTY-only — agents cannot drive it**; use `pids …`/`ecu add` instead.
 - **`canair states`** — List/edit the profile's vehicle-state vocabulary (`vehicle_states.yaml`);
   `canair states <STATE>` is the reverse lookup (which ECUs are readable in that state, via
-  `src/canair/states/__init__.py::ecus_in_state`). A state with a `when:` predicate is marked ● — or **`✗` with
+  `src/canair/states/selectors.py::ecus_in_state`). A state with a `when:` predicate is marked ● — or **`✗` with
   the reason** when the predicate references a signal the registry doesn't define, so a dead
   predicate can't hide behind a healthy ●. `set-implies NAME [STATES]` (and `add --implies`)
   declares the **specificity hierarchy** — see `vehicle_states.yaml` under Key Files; the list view
@@ -998,7 +998,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   priority. **A view with one state slot instead takes the most SPECIFIC match**, resolved from each
   entry's optional `implies:` list — an entailment DAG (`DRIVING implies [READY]` means driving *is*
   a narrower reading of READY), not a priority number, so adding a state never renumbers anything.
-  `src/canair/states/__init__.py::most_specific_states` drops every matched state that another match implies
+  `src/canair/states/implies.py::most_specific_states` drops every matched state that another match implies
   (transitively); it **preserves the caller's order** and never re-sorts, and file order only
   tie-breaks states unrelated in the DAG. It backs `suggest_state` (and so the monitor status bar);
   `suggest_states` deliberately does **not** apply it, because a recorded session keeps every state
@@ -1008,7 +1008,7 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   (`RUN`/`SLEEP` because `ON`/`OFF` are YAML booleans) plus the `ALL` meta-token. A profile *may*
   declare such a word (the Ioniq's `ON`, the manual's name): it must then be quoted (`["ON"]`) in
   YAML, which every writer does and every reader/validator enforces (a bare one reads as `true`;
-  `src/canair/states/__init__.py::YAML_BOOLEAN_WORDS`). EV states
+  `src/canair/states/tokens.py::YAML_BOOLEAN_WORDS`). EV states
   (`PLUGGED`/`READY`/`CHARGING`) and finer vendor rungs are **declared per profile**, and
   `allowed_states()` returns base ∪ `ALL` ∪ the profile's own, so `--state`/`--prereq` validate
   without a static choice list. Input is normalized to uppercase. Edit via `canair states` (never

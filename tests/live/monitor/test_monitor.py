@@ -982,14 +982,14 @@ class TestControllerJournal:
 
 class TestControllerSuggestedState:
     def _controller(self, monkeypatch, rules):
-        from canair import states
+        from canair.states import vocabulary as states_vocabulary
 
         c = make_controller(terminal=None, query_steps=[], pids_data={}, verbose=False)
-        monkeypatch.setattr(states, "load_states", lambda profile=None: rules)
+        monkeypatch.setattr(states_vocabulary, "load_states", lambda profile=None: rules)
         return c
 
     def test_suggests_from_decoded_values(self, monkeypatch):
-        from canair.states import StateRule, compile_predicate
+        from canair.states.predicates import StateRule, compile_predicate
 
         rules = [
             StateRule("charging", predicate=compile_predicate("BMS.BATTERY_CURRENT < -1")),
@@ -1014,7 +1014,7 @@ class TestControllerSuggestedState:
         assert c.state.suggested_state() == "charging"
 
     def test_no_response_when_nothing_polled(self, monkeypatch):
-        from canair.states import StateRule, compile_predicate
+        from canair.states.predicates import StateRule, compile_predicate
 
         rules = [StateRule("deep sleep", predicate=compile_predicate("__no_response__"))]
         c = self._controller(monkeypatch, rules)
@@ -1028,7 +1028,7 @@ class TestControllerSuggestedState:
         return [(ecu, [{"pid": pid, "raw_hex": "6101", "params": params}])]
 
     def _driving_rules(self):
-        from canair.states import StateRule, compile_predicate
+        from canair.states.predicates import StateRule, compile_predicate
 
         # READY is declared first, so file order alone would report READY while
         # driving even though DRIVING is the specific reading. This is the bug.
@@ -1089,7 +1089,7 @@ class TestControllerSuggestedState:
 
     def test_responded_expires_too(self, monkeypatch):
         from canair.live.monitor.state import STATE_INPUT_STALE_CYCLES
-        from canair.states import StateRule, compile_predicate
+        from canair.states.predicates import StateRule, compile_predicate
 
         rules = [StateRule("SLEEP", predicate=compile_predicate("__no_response__"))]
         c = self._controller(monkeypatch, rules)
@@ -1108,8 +1108,8 @@ class TestDynamicSchedulePerPidClock:
     the tick count. Drives the real scheduler + _record together."""
 
     def _controller(self, monkeypatch):
-        from canair import states
-        from canair.states import StateRule, compile_predicate
+        from canair.states import vocabulary as states_vocabulary
+        from canair.states.predicates import StateRule, compile_predicate
 
         rules = [
             StateRule("READY", predicate=compile_predicate("VCU.EV_READY == 1")),
@@ -1117,7 +1117,7 @@ class TestDynamicSchedulePerPidClock:
                 "DRIVING", predicate=compile_predicate("ESC.SPEED > 0.5"), implies=("READY",)
             ),
         ]
-        monkeypatch.setattr(states, "load_states", lambda profile=None: rules)
+        monkeypatch.setattr(states_vocabulary, "load_states", lambda profile=None: rules)
         steps = [
             {"type": "query", "ecu": "VCU", "pids": ["2101"]},
             {"type": "query", "ecu": "ESC", "pids": ["22C101"]},

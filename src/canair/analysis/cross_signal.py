@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from canair.analysis.align import (
     DEFAULT_JOIN_TOL_S,
@@ -406,7 +406,8 @@ def byte_state_buckets(
     the vehicle state); when it returns ``None`` for a capture, that capture is
     skipped. Defaults to the session vehicle-state key.
     """
-    from canair.states import load_states, state_bucket_key
+    from canair.states.selectors import state_bucket_key
+    from canair.states.vocabulary import load_states
     from canair.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
 
     rules = load_states() if group_of is None else []
@@ -499,8 +500,6 @@ def lag_scan(
     (needs a same-ECU pair or a synced capture). None if no lag yields a defined
     correlation.
     """
-    from datetime import timedelta
-
     if not ref or not cand:
         return None
     ref_sorted = sorted(ref, key=lambda tp: tp.dt)

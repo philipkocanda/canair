@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from canair.core import yaml_io
-from canair.states import StatePredicateError
+from canair.states.predicates import StatePredicateError
 from canair.yaml_edit import states as states_edit
 from canair.yaml_edit.states import (
     StatesEditError,

@@ -11,7 +11,7 @@ import pytest
 import canair.cli.commands.states.edit as edit_cmd
 import canair.cli.commands.states.listing as listing_cmd
 import canair.cli.commands.states.parser as states_cmd
-from canair.states import StateRule
+from canair.states.predicates import StateRule
 
 
 class _FakeProfile:
@@ -29,7 +29,9 @@ def _patched(monkeypatch):
     ]
     usage = {"CHARGING": 12, "READY": 30, "SLEEP": 0, "ALL": 0, "FOB PRESENT": 1}
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canair.states.load_states", lambda profile=None: rules)
+    monkeypatch.setattr(
+        "canair.cli.commands.states.listing.load_states", lambda profile=None: rules
+    )
     monkeypatch.setattr(listing_cmd, "_load_usage", lambda: usage)
     monkeypatch.setattr("canair.profile.active", lambda: _FakeProfile())
 
@@ -79,7 +81,7 @@ def test_no_color_when_piped(_patched, capsys):
 
 def test_empty_vocabulary(monkeypatch, capsys):
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canair.states.load_states", lambda profile=None: [])
+    monkeypatch.setattr("canair.cli.commands.states.listing.load_states", lambda profile=None: [])
     monkeypatch.setattr(listing_cmd, "_load_usage", lambda: {})
     monkeypatch.setattr("canair.profile.active", lambda: _FakeProfile())
     rc = _run()
@@ -164,7 +166,12 @@ class TestReverseLookup:
         ecus = {0x7E4: {"can_bus": ["P-CAN"]}, 0x7C6: {"can_bus": ["C-CAN"]}, 0x770: {}}
         monkeypatch.setenv("NO_COLOR", "1")
         monkeypatch.setattr("canair.profile.active", lambda: _FakeProfile())
-        monkeypatch.setattr("canair.states.load_states", lambda profile=None: rules)
+        for module in (
+            "canair.cli.commands.states.show",
+            "canair.states.selectors",
+            "canair.states.vocabulary",
+        ):
+            monkeypatch.setattr(f"{module}.load_states", lambda profile=None: rules)
         monkeypatch.setattr("canair.ecus.pids.load_pids", lambda: pids_data)
         monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda: ecus)
 

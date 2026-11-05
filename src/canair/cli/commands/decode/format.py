@@ -44,7 +44,7 @@ def scope_banner(since, until, state, label, first, last) -> str:
         hi = until.isoformat() if until else "latest"
         parts.append(f"{lo} .. {hi}")
     if state:
-        from canair.states import format_state_selector
+        from canair.states.selectors import format_state_selector
 
         parts.append(f"state={format_state_selector(state)}")
     if label:

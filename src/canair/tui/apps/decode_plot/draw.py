@@ -17,7 +17,7 @@ from canair.analysis.stats import mean as _mean
 from canair.expression.inspect_bytes import norm01
 from canair.render import ansi
 from canair.render.glyphs import ELLIPSIS, EMPTY, SEP
-from canair.states import join_states as _join_states
+from canair.states.tokens import join_states as _join_states
 from canair.uds.byteindex import extract_byte_indices, payload_to_wican_frame
 
 _V_AXIS = "\u2502"  # box vertical

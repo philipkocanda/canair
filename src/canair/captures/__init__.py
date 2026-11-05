@@ -27,8 +27,8 @@ from canair.captures.types import (
     StateSpanSource,
 )
 from canair.core.id_ranges import IdRange, as_id_ranges, format_id_ranges
-from canair.states import parse_states as _parse_states
 from canair.states.spans import StateSpan
+from canair.states.tokens import parse_states as _parse_states
 from canair.uds.response import UdsResponse
 from canair.uds.services import identifier_width
 
@@ -704,7 +704,7 @@ def annotate_session_spans(
         from canair.captures.state_inference import DEFAULT_CYCLE_TOL_S, session_state_spans
         from canair.captures.store import flatten_session
         from canair.ecus.pids import build_ecu_index, load_pids
-        from canair.states import load_states
+        from canair.states.vocabulary import load_states
 
         data = capture_io.load_capture_file(fpath)
         sessions = data.get("sessions") or []

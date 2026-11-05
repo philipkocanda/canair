@@ -14,7 +14,7 @@ from canair.captures.store import decoded_preview
 from canair.captures.types import CaptureEntry
 from canair.core.terminal import terminal_columns, truncate_text
 from canair.render import ansi, glyphs, messages
-from canair.states import join_states as _join_states
+from canair.states.tokens import join_states as _join_states
 
 from .query import _dump_json, _parse_query
 

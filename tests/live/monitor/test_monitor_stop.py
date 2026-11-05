@@ -144,7 +144,7 @@ class TestTeardown:
         import builtins
 
         import canair.profile
-        import canair.states
+        import canair.states.tokens
 
         journal = _FakeJournal(tmp_path / "journal.jsonl")
         controller_box: dict[str, _TeardownController] = {}
@@ -158,7 +158,7 @@ class TestTeardown:
         monkeypatch.setattr(
             canair.profile, "active", lambda: type("P", (), {"captures_dir": tmp_path})()
         )
-        monkeypatch.setattr(canair.states, "parse_states", lambda v: [])
+        monkeypatch.setattr(canair.states.tokens, "parse_states", lambda v: [])
 
         async def _noop(controller):
             # The terminal goes away mid-session: every write fails from here on.
@@ -190,14 +190,14 @@ class TestInteractiveScreen:
 
     def _run(self, monkeypatch, tmp_path, *, tty: bool, interactive) -> list[str]:
         import canair.profile
-        import canair.states
+        import canair.states.tokens
 
         ran: list[str] = []
         monkeypatch.setattr(run_mod, "MonitorController", lambda *a, **k: _TeardownController())
         monkeypatch.setattr(
             canair.profile, "active", lambda: type("P", (), {"captures_dir": tmp_path})()
         )
-        monkeypatch.setattr(canair.states, "parse_states", lambda v: [])
+        monkeypatch.setattr(canair.states.tokens, "parse_states", lambda v: [])
 
         async def _poll(controller):
             ran.append("poll")

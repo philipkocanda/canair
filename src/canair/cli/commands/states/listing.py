@@ -7,6 +7,9 @@ import sys
 from typing import TypedDict
 
 from canair.render import ansi, messages
+from canair.states.predicates import StatePredicateError
+from canair.states.refs import check_references_on_every_car
+from canair.states.vocabulary import load_states
 
 from .show import cmd_show_state
 
@@ -65,7 +68,6 @@ def _load_broken_refs(rules) -> dict[str, list[dict[str, str]]]:
     healthy ``●``. Best-effort: an unloadable registry simply reports nothing.
     """
     from canair.ecus.pids import load_raw_pids
-    from canair.states.refs import check_references_on_every_car
 
     try:
         if not load_raw_pids().get("ecus"):
@@ -83,7 +85,6 @@ def _load_broken_refs(rules) -> dict[str, list[dict[str, str]]]:
 
 def cmd_list(args) -> int:
     from canair.profile import active
-    from canair.states import StatePredicateError, load_states
 
     if getattr(args, "state", None):
         return cmd_show_state(args)

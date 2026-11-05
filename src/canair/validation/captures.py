@@ -8,7 +8,9 @@ from jsonschema import Draft202012Validator
 from jsonschema.protocols import Validator
 
 from canair.captures import io as capture_io
-from canair.states import StateRule, contradictory_states
+from canair.states.implies import contradictory_states
+from canair.states.predicates import StatePredicateError, StateRule
+from canair.states.vocabulary import load_states, state_names
 from canair.uds.memory import MEMORY_SIGNAL_MAX_BYTES, exceeds_signal_cap
 
 from ._common import CAPTURES_SCHEMA_FILE, DEPRECATED_FIELDS
@@ -128,13 +130,11 @@ def _check_captures(
     report.n_files = len(files)
 
     # State vocabulary for soft warnings (empty when no vehicle_states.yaml → no warnings).
-    from canair.states import state_names
 
     vocab = {n.lower() for n in state_names()}
 
     # excludes: declarations, for the sequenced-session warning. Empty (or a
     # profile whose states fail to load) simply disables that check.
-    from canair.states import StatePredicateError, load_states
 
     try:
         state_rules = [r for r in load_states() if r.excludes]

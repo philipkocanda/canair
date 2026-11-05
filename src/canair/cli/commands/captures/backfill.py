@@ -25,7 +25,9 @@ from canair.captures.state_inference import (
 from canair.captures.store import entry_path
 from canair.core.prompt import confirm
 from canair.render import messages
-from canair.states import parse_states
+from canair.states.predicates import StatePredicateError
+from canair.states.tokens import join_states, parse_states
+from canair.states.vocabulary import _order_states, load_states
 
 from .echo import echo_write
 
@@ -69,8 +71,6 @@ def _classify(recorded: list[str], inf: SessionInference) -> tuple[str, list[str
 
 
 def _order(tokens: set[str]) -> list[str]:
-    from canair.states import _order_states
-
     return _order_states(list(tokens))
 
 
@@ -90,7 +90,6 @@ def cmd_backfill_states(
     from canair.captures import layers, set_session_states
     from canair.captures.entries import group_sessions
     from canair.ecus.pids import build_ecu_index, load_pids
-    from canair.states import StatePredicateError, join_states, load_states
 
     from .backfill_render import print_report
 

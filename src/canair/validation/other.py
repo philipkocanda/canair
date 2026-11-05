@@ -55,14 +55,14 @@ def _state_relation_errors(
     meaningless, and a pair declared both implied and exclusive makes every
     session carrying it look self-contradictory.
     """
-    from canair.states import (
-        ALL_STATE,
-        StateRule,
+    from canair.states.implies import (
         exclusion_conflicts,
         implication_cycle,
         parse_excludes,
         parse_implies,
     )
+    from canair.states.predicates import StateRule
+    from canair.states.tokens import ALL_STATE
 
     errors: list[str] = []
     targets_by_state: dict[str, dict[str, tuple[str, ...]]] = {}
@@ -115,7 +115,7 @@ def _state_relation_errors(
 def check_states() -> FileReport:
     """Check the profile's optional vehicle_states.yaml (schema, predicates and relations)."""
     from canair.profile import active
-    from canair.states import StatePredicateError, compile_predicate
+    from canair.states.predicates import StatePredicateError, compile_predicate
 
     path = active().states_file
     name = path.name

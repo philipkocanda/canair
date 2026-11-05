@@ -95,7 +95,7 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
         f"(each PID's newest value + the vehicle state it was read in){ansi.RESET}\n"
     )
 
-    from canair.states import join_states
+    from canair.states.tokens import join_states
 
     width = min(terminal_columns(), 120)
     for r in records:

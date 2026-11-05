@@ -7,7 +7,7 @@ from typing import TextIO
 
 from canair.render import ansi, glyphs
 from canair.render.paint import Painter
-from canair.states import join_states
+from canair.states.tokens import join_states
 
 _VERDICT_LABEL = {
     "fill": "fill",

@@ -770,10 +770,10 @@ def _today() -> str:
 def _norm_states(value: object) -> list[str]:
     """Normalize a ``vehicle_states`` value to the canonical UPPERCASE token list.
 
-    Delegates to :func:`canair.states.parse_states` so the normalization rule
+    Delegates to :func:`canair.states.tokens.parse_states` so the normalization rule
     (strip + upper-case, drop empties, accept a list or comma-string) is shared
     with the runtime readers rather than reimplemented in the text editors.
     """
-    from canair.states import parse_states
+    from canair.states.tokens import parse_states
 
     return parse_states(value)

@@ -15,7 +15,7 @@ from canair.cli.args.notation import add_notation_arg, resolve_notation
 from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.render import messages
-from canair.states import format_state_selector
+from canair.states.selectors import format_state_selector
 from canair.tui.apps.captures_step.model import (
     AUTO_STACK_MAX_KEYS,
     DEFAULT_STEP_JOIN_TOL_S,

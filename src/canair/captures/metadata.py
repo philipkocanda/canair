@@ -11,8 +11,8 @@ from __future__ import annotations
 import sys
 from datetime import datetime
 
-from canair.states import join_states as _join_states
-from canair.states import parse_states as _parse_states
+from canair.states.tokens import join_states as _join_states
+from canair.states.tokens import parse_states as _parse_states
 
 Metadata = tuple[str, list, str]
 

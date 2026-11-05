@@ -19,7 +19,7 @@ class ResultEntry(TypedDict):
     (:mod:`canair.live.monitor.render`), the compact printer
     (:func:`canair.render.formatting.print_ecu_results`), the capture collectors
     (:mod:`canair.live.read.multi`), and state auto-suggestion
-    (:func:`canair.states.collect_values`). ``pid`` is always present; the rest
+    (:func:`canair.states.suggest.collect_values`). ``pid`` is always present; the rest
     depend on the outcome — a successful decode carries ``params``/``raw_hex``,
     an unmapped PID adds ``decode``/``unmapped``, a failed query carries
     ``error``, and the monitor tags a timed-out-but-retained row ``stale``.

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from textual.app import App
 
 from canair.live.monitor.controller import MonitorController
-from canair.states import join_states
+from canair.states.tokens import join_states
 from canair.tui.apps.monitor.dialogs import SaveDialog
 from canair.tui.flash import Severity
 

@@ -80,7 +80,7 @@ class MonitorStateSuggester:
 
     def observe(self, new_queries: list[EcuFrame]) -> None:
         """Fold a cycle's freshly-polled payloads into the state-input snapshot."""
-        from ...states import collect_values
+        from ...states.suggest import collect_values
 
         for ecu_label, pid_results in new_queries:
             ecu = label_ecu(ecu_label)
@@ -123,10 +123,10 @@ class MonitorStateSuggester:
         Several states are true at once by design — driving is genuinely both
         READY and DRIVING — so a one-slot display must not just take the first
         match: it applies the profile's ``implies:`` hierarchy and drops every
-        state another match specializes (:func:`canair.states.most_specific_states`).
+        state another match specializes (:func:`canair.states.implies.most_specific_states`).
         Among states unrelated in that hierarchy, file order still decides.
         """
-        from ...states import most_specific_states
+        from ...states.implies import most_specific_states
 
         matched = self.suggested_states()
         if not matched:
@@ -143,7 +143,9 @@ class MonitorStateSuggester:
         ``[READY, PARKED]``), or ``[]`` when no rule matches / the profile
         declares no states.
         """
-        from ...states import StatePredicateError, load_states, suggest_states
+        from ...states.predicates import StatePredicateError
+        from ...states.suggest import suggest_states
+        from ...states.vocabulary import load_states
 
         if self._state_rules is None:
             try:
@@ -157,7 +159,7 @@ class MonitorStateSuggester:
 
     def state_options(self) -> list[tuple[str, str]]:
         """The profile's ordered ``(state, description)`` vocabulary for the save dialog."""
-        from ...states import state_options
+        from ...states.vocabulary import state_options
 
         try:
             return state_options()

@@ -228,7 +228,7 @@ def filter_by_text[Row: Mapping[str, Any]](
 
     ``state`` is matched by *token* against the capture's resolved
     ``vehicle_states``, expanded through the profile's ``implies:`` hierarchy —
-    see :func:`states.state_matcher` for the alternative/conjunctive grammar. It
+    see :func:`canair.states.selectors.state_matcher` for the alternative/conjunctive grammar. It
     reads the per-capture value that ``capture_store`` resolved from the
     session's ``state_spans``, so a session that charged and then drove no longer
     returns its driving captures under ``--state CHARGING``.
@@ -238,7 +238,7 @@ def filter_by_text[Row: Mapping[str, Any]](
     ``decode``) and any per-capture ``label``. Both filters are ANDed; ``None``
     means "don't filter on this field".
     """
-    from canair.states import state_matcher
+    from canair.states.selectors import state_matcher
 
     if not state and not label:
         return entries
@@ -343,7 +343,8 @@ def resolve_scope_bounds(
         return since, until, err
     state = scope.state
     if state:
-        from canair.states import allowed_states, unknown_state_tokens
+        from canair.states.selectors import unknown_state_tokens
+        from canair.states.vocabulary import allowed_states
 
         unknown = unknown_state_tokens(state)
         if unknown:

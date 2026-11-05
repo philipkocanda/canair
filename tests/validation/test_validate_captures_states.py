@@ -12,7 +12,7 @@ import textwrap
 
 import yaml
 
-from canair.states import StateRule
+from canair.states.predicates import StateRule
 from canair.validation.captures import _capture_state_warnings
 
 VOCAB = {"charging", "driving", "parked", "plugged", "ready"}

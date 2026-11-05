@@ -19,7 +19,8 @@ from canair.analysis.stats import correlation as _correlation
 from canair.expression.inspect_bytes import apply_transform
 from canair.expression.notation import ByteNotation, relabel_signal
 from canair.render import ansi
-from canair.states import load_states, state_bucket_key
+from canair.states.selectors import state_bucket_key
+from canair.states.vocabulary import load_states
 
 from .calc import _local_series, _paired, _paired_timed, _transform_series, find_mirrors
 from .format import _mark_for

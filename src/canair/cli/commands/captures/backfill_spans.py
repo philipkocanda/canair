@@ -28,7 +28,9 @@ from canair.captures.state_inference import DEFAULT_CYCLE_TOL_S, session_state_s
 from canair.captures.store import entry_path
 from canair.core.prompt import confirm
 from canair.render import messages
-from canair.states import parse_states
+from canair.states.predicates import StatePredicateError
+from canair.states.tokens import join_states, parse_states
+from canair.states.vocabulary import load_states
 
 from .echo import echo_write
 
@@ -89,7 +91,6 @@ def cmd_backfill_state_spans(
     from canair.captures.entries import group_sessions
     from canair.ecus.pids import build_ecu_index, load_pids
     from canair.install.build_info import full_version
-    from canair.states import StatePredicateError, join_states, load_states
 
     from .backfill_spans_render import print_span_report
 

@@ -2,20 +2,15 @@
 
 import pytest
 
-from canair.states import (
-    StatePredicateError,
-    StateRule,
-    compile_predicate,
+from canair.states.implies import (
     implication_cycle,
     implied_closure,
-    load_states,
     most_specific_states,
     parse_implies,
-    state_names,
-    state_options,
-    suggest_state,
-    suggest_states,
 )
+from canair.states.predicates import StatePredicateError, StateRule, compile_predicate
+from canair.states.suggest import suggest_state, suggest_states
+from canair.states.vocabulary import load_states, state_names, state_options
 
 
 class TestCompilePredicate:
@@ -351,7 +346,7 @@ class TestEcuStates:
     """`ecu_states` resolves an ECU's readable states (ECU-level, else PID union)."""
 
     def test_ecu_level_wins(self):
-        from canair.states import ecu_states
+        from canair.states.selectors import ecu_states
 
         ecu = {
             "vehicle_states": ["ready", "acc"],
@@ -362,7 +357,7 @@ class TestEcuStates:
         assert "CHARGING" not in ecu_states(ecu)
 
     def test_pid_union_fallback(self):
-        from canair.states import ecu_states
+        from canair.states.selectors import ecu_states
 
         ecu = {
             "pids": {
@@ -373,14 +368,14 @@ class TestEcuStates:
         assert set(ecu_states(ecu)) == {"READY", "CHARGING"}
 
     def test_empty_when_no_states(self):
-        from canair.states import ecu_states
+        from canair.states.selectors import ecu_states
 
         assert ecu_states({"pids": {"2101": {}}}) == []
         assert ecu_states({}) == []
         assert ecu_states(None) == []
 
     def test_all_token_preserved(self):
-        from canair.states import ecu_states
+        from canair.states.selectors import ecu_states
 
         assert ecu_states({"vehicle_states": ["ALL"]}) == ["ALL"]
 
@@ -399,7 +394,7 @@ class TestEcusInState:
         }
 
     def test_ecu_level_match(self):
-        from canair.states import ecus_in_state
+        from canair.states.selectors import ecus_in_state
 
         names = {m["name"]: m["source"] for m in ecus_in_state("CHARGING", self._data())}
         # BMS declares it at the ECU level; IGPM matches via ALL.
@@ -409,7 +404,7 @@ class TestEcusInState:
         assert "AMP" not in names
 
     def test_pid_union_match_and_source(self):
-        from canair.states import ecus_in_state
+        from canair.states.selectors import ecus_in_state
 
         matches = {m["name"]: m["source"] for m in ecus_in_state("READY", self._data())}
         assert matches["CLU"] == "pids"
@@ -417,12 +412,12 @@ class TestEcusInState:
         assert matches["IGPM"] == "all"
 
     def test_case_insensitive(self):
-        from canair.states import ecus_in_state
+        from canair.states.selectors import ecus_in_state
 
         assert [m["name"] for m in ecus_in_state("charging", self._data())] == ["BMS", "IGPM"]
 
     def test_querying_all_does_not_double_fan_out(self):
-        from canair.states import ecus_in_state
+        from canair.states.selectors import ecus_in_state
 
         # Querying ALL itself should return only ECUs that declare ALL, not every ECU.
         assert [m["name"] for m in ecus_in_state("ALL", self._data())] == ["IGPM"]
@@ -430,7 +425,8 @@ class TestEcusInState:
     def test_matches_through_implied_broader_state(self):
         # An ECU readable whenever IG3 holds is readable in READY and in DRIVING
         # (transitively), because both imply IG3; not in an unrelated state.
-        from canair.states import StateRule, ecus_in_state
+        from canair.states.predicates import StateRule
+        from canair.states.selectors import ecus_in_state
 
         rules = [
             StateRule("IG3"),
@@ -448,7 +444,8 @@ class TestEcusInState:
 
     def test_broader_tag_does_not_match_a_narrower_query_upward(self):
         # Readable in READY says nothing about IG3 alone (charging, top-up).
-        from canair.states import StateRule, ecus_in_state
+        from canair.states.predicates import StateRule
+        from canair.states.selectors import ecus_in_state
 
         rules = [StateRule("IG3"), StateRule("READY", implies=("IG3",))]
         data = {"ecus": {"CLU": {"tx_id": 0x7C6, "vehicle_states": ["READY"]}}}
@@ -459,7 +456,7 @@ class TestKleeneLogic:
     """Three-valued (Kleene) evaluation: an unavailable param yields UNKNOWN."""
 
     def test_missing_param_is_unknown(self):
-        from canair.states import UNKNOWN
+        from canair.states.predicates import UNKNOWN
 
         p = compile_predicate("A.X > 0")
         assert p({}, set()) is UNKNOWN
@@ -473,7 +470,7 @@ class TestKleeneLogic:
         assert p({"A.X": -5}, set()) is True
 
     def test_or_all_false_or_unknown(self):
-        from canair.states import UNKNOWN
+        from canair.states.predicates import UNKNOWN
 
         p = compile_predicate("A.X < -1 or B.Y > 0.5")
         # A.X false, B.Y unknown -> UNKNOWN (can't rule it out)
@@ -482,7 +479,7 @@ class TestKleeneLogic:
         assert p({"A.X": 3, "B.Y": 0.0}, set()) is False
 
     def test_and_false_dominates_unknown(self):
-        from canair.states import UNKNOWN
+        from canair.states.predicates import UNKNOWN
 
         p = compile_predicate("A.X == 1 and B.Y == 1")
         assert p({"A.X": 0}, set()) is False  # A.X false, B.Y unknown -> False
@@ -490,13 +487,13 @@ class TestKleeneLogic:
         assert p({"A.X": 1, "B.Y": 1}, set()) is True
 
     def test_not_of_unknown_is_unknown(self):
-        from canair.states import UNKNOWN
+        from canair.states.predicates import UNKNOWN
 
         p = compile_predicate("not A.X == 1")
         assert p({}, set()) is UNKNOWN
 
     def test_chained_comparison_unknown(self):
-        from canair.states import UNKNOWN
+        from canair.states.predicates import UNKNOWN
 
         p = compile_predicate("0 < A.X < 10")
         assert p({}, set()) is UNKNOWN
@@ -504,7 +501,7 @@ class TestKleeneLogic:
         assert p({"A.X": 15}, set()) is False
 
     def test_offline_responded_none_abstains(self):
-        from canair.states import UNKNOWN
+        from canair.states.predicates import UNKNOWN
 
         # responded=None (offline) -> the sentinels can't be evaluated.
         assert compile_predicate("__no_response__")({}, None) is UNKNOWN

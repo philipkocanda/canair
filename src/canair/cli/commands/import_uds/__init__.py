@@ -115,7 +115,7 @@ def run(args) -> int:
 
     from canair.captures import build_manual_session, save_session
     from canair.ecus.names import build_name_tx_index
-    from canair.states import parse_states
+    from canair.states.tokens import parse_states
 
     name_index = build_name_tx_index()
 

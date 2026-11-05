@@ -75,7 +75,7 @@ def _flow_states(vehicle_states) -> CommentedSeq | None:
     per-ECU files, matching how the ``pids``/``research`` editors write the field.
     Returns ``None`` for an empty/absent value so the caller omits the key.
     """
-    from canair.states import parse_states
+    from canair.states.tokens import parse_states
 
     toks = parse_states(vehicle_states)
     return flow_seq([state_token(t) for t in toks]) if toks else None

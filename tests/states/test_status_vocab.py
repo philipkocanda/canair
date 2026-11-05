@@ -10,7 +10,8 @@ from pathlib import Path
 import pytest
 
 from canair.interop.autopid.profile import DuplicateParameterError, generate_profile
-from canair.states import POWER_STATES, allowed_states, join_states, parse_states
+from canair.states.tokens import POWER_STATES, join_states, parse_states
+from canair.states.vocabulary import allowed_states
 from canair.validation.pids import collect_pids_validation
 from canair.yaml_edit.pids import PidsEditError, set_pid_status
 

@@ -15,7 +15,7 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, Input, Label, OptionList, Static
 from textual.widgets.option_list import Option
 
-from canair.states import state_options as load_state_options
+from canair.states.vocabulary import state_options as load_state_options
 from canair.tui.keys import CANCEL_HINT, Token, arrows_hint, bind, hint
 from canair.tui.modals import KitModal
 from canair.tui.styles import dialog_css

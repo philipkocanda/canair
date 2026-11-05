@@ -57,7 +57,8 @@ from pathlib import Path
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.ecus.pids import load_pids
 from canair.render import ansi, messages
-from canair.states import allowed_states, state_matcher, unknown_state_tokens
+from canair.states.selectors import state_matcher, unknown_state_tokens
+from canair.states.vocabulary import allowed_states
 
 NAME = "research"
 

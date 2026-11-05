@@ -53,7 +53,7 @@ def validate_state_list(value, label: str, field: str, errors: list, allowed: se
     if not isinstance(value, list):
         errors.append(f"{label}: {field} must be a list")
         return
-    from canair.states import unquoted_boolean_error
+    from canair.states.tokens import unquoted_boolean_error
 
     if msg := unquoted_boolean_error(f"{label}: {field}", value):
         errors.append(msg)

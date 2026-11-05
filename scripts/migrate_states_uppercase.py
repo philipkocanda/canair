@@ -35,7 +35,7 @@ import re
 import sys
 from pathlib import Path
 
-from canair.states import parse_states
+from canair.states.tokens import parse_states
 
 # A `vehicle_states:` line, capturing (indent, remainder-after-colon).
 _FIELD_RE = re.compile(r"^(?P<indent>\s*)vehicle_states:(?P<rest>.*)$")

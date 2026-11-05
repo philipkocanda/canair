@@ -24,6 +24,7 @@ from canair.captures.keepmode import KEEP_CHANGES, KEEP_LAST
 from canair.captures.types import Quality
 from canair.expression.results import EcuFrame
 
+from ...states.tokens import parse_states
 from .history import PayloadHistory, extend_runs
 from .record_write import merge_history, open_journal, write_merged
 
@@ -228,8 +229,6 @@ class MonitorRecorder:
     @staticmethod
     def _is_offer(states: list[str], offered: list[str] | None) -> bool:
         """Whether ``states`` is a dialog's pre-fill, accepted unchanged."""
-        from ...states import parse_states
-
         return offered is not None and set(states) == set(parse_states(offered))
 
     def _backfill_states(self) -> list[str] | None:
@@ -296,8 +295,6 @@ class MonitorRecorder:
         Never writes to stdout (the TUI owns the screen); the destination banner
         is deferred to :attr:`deferred_saves` and printed after the app exits.
         """
-        from ...states import parse_states
-
         states = parse_states(vehicle_states)
 
         # Journal active (--save): payloads are already durably journaled and
@@ -372,8 +369,6 @@ class MonitorRecorder:
         summary; never writes to stdout (the TUI owns the screen) — the destination
         banner is deferred to :attr:`deferred_saves` and printed after the app exits.
         """
-        from ...states import parse_states
-
         if self.journal is None:
             return "Start a new session needs --save (nothing is being recorded)."
 

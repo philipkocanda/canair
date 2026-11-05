@@ -154,7 +154,11 @@ def _reads(raw: Any, where: str) -> tuple[str, ...]:
 
 def _require(raw: Any, reads: Sequence[str], where: str) -> str:
     from canair.query import parse_selector
-    from canair.states import StatePredicateError, compile_predicate, predicate_references
+    from canair.states.predicates import (
+        StatePredicateError,
+        compile_predicate,
+        predicate_references,
+    )
 
     expr = " ".join(str(raw or "").split())
     if not expr:

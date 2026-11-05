@@ -22,15 +22,9 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from canair.core.edit_errors import EditError
 from canair.core.paths import schema_modeline
-from canair.states import (
-    ALL_STATE,
-    StateRule,
-    compile_predicate,
-    exclusion_conflicts,
-    implication_cycle,
-    parse_implies,
-    unquoted_boolean_error,
-)
+from canair.states.implies import exclusion_conflicts, implication_cycle, parse_implies
+from canair.states.predicates import StateRule, compile_predicate
+from canair.states.tokens import ALL_STATE, unquoted_boolean_error
 
 from .doc import Target, edit_doc
 from .ruamel_ops import insert_item_before_last, place_in_order, remove_item

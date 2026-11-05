@@ -157,7 +157,7 @@ def validate_ecu_file(
     Returns (errors, warnings, stats). The per-section validation is delegated to
     the ``_validate_*`` helpers below; this is the file-level orchestrator.
     """
-    from canair.states import allowed_states
+    from canair.states.vocabulary import allowed_states
 
     if profile is None:
         profile = _profile_for_ecu_file(path)

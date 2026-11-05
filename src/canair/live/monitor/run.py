@@ -133,7 +133,7 @@ async def mode_monitor(
     signal row shows a small circle (green when fresh, grey when stale).
     """
     from ...profile import active
-    from ...states import parse_states
+    from ...states.tokens import parse_states
 
     captures_dir = active().captures_dir
     states = parse_states(monitor.vehicle_states)

@@ -55,7 +55,8 @@ async def read_verdict(sm, action: Action, pids_data: dict, verbose: bool) -> Ve
     from canair.ecus.pids import build_ecu_index
     from canair.live.read.exec import _exec_query
     from canair.query import parse_selector
-    from canair.states import UNKNOWN, collect_values, compile_predicate, predicate_references
+    from canair.states.predicates import UNKNOWN, compile_predicate, predicate_references
+    from canair.states.suggest import collect_values
 
     index = build_ecu_index(pids_data)
     frames = []

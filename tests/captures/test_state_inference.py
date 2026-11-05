@@ -1,7 +1,7 @@
 """Tests for canair.captures.state_inference — offline session-state inference."""
 
 from canair.captures.state_inference import _bucket_cycles, infer_session_states, infer_state_spans
-from canair.states import StateRule, compile_predicate
+from canair.states.predicates import StateRule, compile_predicate
 
 
 def _cap(ecu, pid, payload, *, date="2026-04-14", time=None):

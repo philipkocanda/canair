@@ -23,7 +23,7 @@ from canair.cli.commands import validate as validate_cmd
 from canair.core.paths import BUNDLED_PROFILES_DIR
 from canair.ecus.pids import clear_cache
 from canair.expression.decoding import decodes_to_number
-from canair.states import StatePredicateError, predicate_references
+from canair.states.predicates import StatePredicateError, predicate_references
 from canair.states.refs import (
     IGNORED_PID,
     MALFORMED,
@@ -74,7 +74,7 @@ PIDS_DATA = {
 
 
 class TestPredicateReferences:
-    """canair.states.predicate_references — what a `when:` expression reads."""
+    """canair.states.predicates.predicate_references — what a `when:` expression reads."""
 
     def test_dotted_names_only_once_each(self):
         expr = "VCU.GEAR_P == 1 or ESC.REAL_SPEED_KMH > 0.5 or VCU.GEAR_P == 2"

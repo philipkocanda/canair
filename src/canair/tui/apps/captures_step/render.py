@@ -24,7 +24,7 @@ from canair.captures.store import NO_DEFS, PidDefs
 from canair.captures.types import CaptureEntry
 from canair.expression.notation import ByteDisplay, ByteNotation
 from canair.render.glyphs import CURSOR, WARN
-from canair.states import join_states as _join_states
+from canair.states.tokens import join_states as _join_states
 from canair.tui import styles
 from canair.uds.layout import subfunction_bytes_for_pid
 

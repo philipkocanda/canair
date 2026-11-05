@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from canair.core.edit_errors import EditError
-from canair.states import ALL_STATE, needs_yaml_quotes
+from canair.states.tokens import ALL_STATE, needs_yaml_quotes
 
 from .commit import write_atomic
 from .ecufile import clear_cache

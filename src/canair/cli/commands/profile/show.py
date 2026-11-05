@@ -7,6 +7,8 @@ from canair.profile import (
     active,
     resolve_profile,
 )
+from canair.states.predicates import StatePredicateError
+from canair.states.vocabulary import load_states
 from canair.variants import effective_meta
 
 
@@ -23,8 +25,6 @@ def _detail_can_buses(prof) -> str:
 
 
 def _detail_states(prof) -> str:
-    from canair.states import StatePredicateError, load_states
-
     try:
         rules = load_states(prof)
     except StatePredicateError as ex:

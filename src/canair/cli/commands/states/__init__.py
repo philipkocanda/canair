@@ -9,13 +9,13 @@ and states with a ``when:`` predicate are auto-suggested from decoded PID values
 Several predicates are true at once by design — driving a running EV matches both
 ``READY`` and ``DRIVING``. An ``implies:`` list declares which of them is the more
 *specific* reading (``DRIVING implies [READY]``), so a live view that must name one
-state names the specific one. See :func:`canair.states.most_specific_states`.
+state names the specific one. See :func:`canair.states.implies.most_specific_states`.
 
 Its complement is ``excludes:``, which declares that two states cannot hold at the
 same *instant* (``DRIVING excludes [PARKED]``). Together the two relations separate
 a genuine simultaneous reading from a session that merely *sequenced* through both
 — the latter needs a ``state_spans`` timeline for per-capture filtering to be
-exact. See :func:`canair.states.contradictory_states`.
+exact. See :func:`canair.states.implies.contradictory_states`.
 
 A bare ``canair states`` lists the vocabulary (like ``canair bus``); the edit
 subcommands surgically modify ``vehicle_states.yaml`` (comment-preserving,

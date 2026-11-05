@@ -11,7 +11,7 @@ Nothing here talks to the device; it is pure analysis over ``captures/`` (like
 session with its state timeline (:func:`canair.captures.annotate_session_spans`). A capture
 existing *is* a response, so ``responded`` is ``None`` (unobservable) — a predicate using
 ``__no_response__`` / ``__responded__`` cleanly abstains (evaluates to
-:data:`canair.states.UNKNOWN`) rather than firing on absent evidence.
+:data:`canair.states.predicates.UNKNOWN`) rather than firing on absent evidence.
 
 Cross-ECU predicates (e.g. ``BMS.X < -1 or OBC.Y > 0.5``) need both signals at
 roughly one instant, so timed captures are grouped into **pseudo-cycles** — all
@@ -30,14 +30,10 @@ from typing import TYPE_CHECKING, Any
 from canair.captures.dates import entry_datetime
 from canair.captures.store import resolve_pid_defs
 from canair.expression.decoding import decode_param_rows
-from canair.states import (
-    StatePredicateError,
-    StateRule,
-    _order_states,
-    predicate_references,
-    suggest_states,
-)
+from canair.states.predicates import StatePredicateError, StateRule, predicate_references
 from canair.states.spans import build_spans, span_state_union
+from canair.states.suggest import suggest_states
+from canair.states.vocabulary import _order_states
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -144,7 +140,7 @@ def infer_session_states(
     """Infer the vehicle state(s) of one session from its decoded captures.
 
     ``captures`` are the (payload-bearing) capture entries of a single session,
-    ``rules`` the compiled state rules (``states.load_states()``), ``ecu_index``
+    ``rules`` the compiled state rules (``canair.states.vocabulary.load_states()``), ``ecu_index``
     the PID definition index (``build_ecu_index(load_pids())``).
     """
     cycles, timed = _bucket_cycles(captures, cycle_tol)

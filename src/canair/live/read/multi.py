@@ -278,14 +278,17 @@ async def _run_pipeline(
                     )
         # Accumulate decoded values for end-of-pipeline state auto-suggestion.
         if save:
-            from ...states import collect_values
+            from ...states.suggest import collect_values
 
             vals, resp = collect_values([(ecu_label, pid_results)])
             pipe_values.update(vals)
             pipe_responded.update(resp)
 
     def _suggest_pipeline_state() -> str | None:
-        from ...states import StatePredicateError, join_states, load_states, suggest_states
+        from ...states.predicates import StatePredicateError
+        from ...states.suggest import suggest_states
+        from ...states.tokens import join_states
+        from ...states.vocabulary import load_states
 
         try:
             rules = load_states()

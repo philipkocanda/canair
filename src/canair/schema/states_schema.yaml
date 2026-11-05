@@ -10,7 +10,7 @@
 # The `vehicle_states` field on a capture session should draw from these names
 # (soft — free text is still accepted, but `canair validate captures` warns on
 # values outside this vocabulary). Each state may carry a `when:` predicate used
-# to auto-suggest the state from decoded PID values (see src/canair/states/__init__.py).
+# to auto-suggest the state from decoded PID values (see src/canair/states/predicates.py).
 #
 # Top-level structure:
 #   states:                 # ordered list; order is display order, not priority —
@@ -27,7 +27,7 @@
 # Specificity hierarchy (`implies:`) — several predicates are true at once BY
 # DESIGN: driving a running EV is genuinely both READY and DRIVING. `implies:`
 # names the broader states a state specializes (`DRIVING implies [READY]`), so a
-# view that must name ONE state names the specific one (src/canair/states/__init__.py
+# view that must name ONE state names the specific one (src/canair/states/implies.py
 # ::most_specific_states, used by `suggest_state` and the monitor status bar). It
 # is NOT a priority number: it encodes entailment, so it needs no renumbering when
 # a state is added and it is machine-checkable. Rules, all enforced by
@@ -85,7 +85,7 @@
 #
 # Base vocabulary (the make-neutral ignition ladder baked into the tool;
 # profiles add EV/vendor/composite states in vehicle_states.yaml):
-#   SLEEP, ACC, RUN, CRANK   (POWER_STATES in src/canair/states/__init__.py)
+#   SLEEP, ACC, RUN, CRANK   (POWER_STATES in src/canair/states/tokens.py)
 # Plus the meta-token ALL — "applicable/readable in every state" (documentary,
 # the state analogue of the ALL CAN-bus code). The bundled Ioniq profile, for
 # example, adds PLUGGED/ON/READY/CHARGING/IG3/TOPUP/PARKED/DRIVING.

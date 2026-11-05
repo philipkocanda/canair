@@ -2,7 +2,7 @@
 
 A predicate reads decoded signals by ``ECU.PARAM`` (see :mod:`canair.states`), but
 the evaluator cannot tell a *typo* from a *not-polled-this-cycle* signal: both are
-:data:`~canair.states.UNKNOWN`, so a predicate that can never match looks exactly
+:data:`~canair.states.predicates.UNKNOWN`, so a predicate that can never match looks exactly
 like one that simply had no evidence this cycle. That is by design — it is what
 keeps a partially-polled cycle from mislabelling a session — and it is also how
 renaming a signal once silently disabled a state, with every validator green.
@@ -18,7 +18,7 @@ It answers two questions:
   rename-param`` / ``rm-param``).
 
 Resolution mirrors how the decoded value map is actually keyed at evaluation time
-(``canair.captures.state_inference._decode_cycle`` and ``canair.states.collect_values``):
+(``canair.captures.state_inference._decode_cycle`` and ``canair.states.suggest.collect_values``):
 ``ECU`` is the **canonical** ECU short name, upper-cased; ``PARAM`` is the
 ``parameters:`` key **verbatim**; and only *numeric* values are ever stored. A
 reference that deviates on any of those axes silently never resolves, so each is
@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from canair.expression.decoding import decodes_to_number
-from canair.states import PREDICATE_SENTINELS, StatePredicateError, predicate_references
+from canair.states.predicates import PREDICATE_SENTINELS, StatePredicateError, predicate_references
 
 # Why a reference cannot resolve. All are hard failures (the predicate can never
 # fire); the kind exists so callers can group/filter, not to grade severity.
@@ -233,10 +233,10 @@ def profile_predicates(profile=None) -> list[tuple[str, str]]:
     """``(state_name, when_expr)`` for every state declaring a predicate.
 
     Tolerant of a broken vocabulary (returns ``[]``), matching
-    :func:`canair.states.state_names` — a caller warning about references should
+    :func:`canair.states.vocabulary.state_names` — a caller warning about references should
     never be the thing that fails on a syntax error elsewhere in the file.
     """
-    from canair.states import load_states
+    from canair.states.vocabulary import load_states
 
     try:
         rules = load_states(profile)

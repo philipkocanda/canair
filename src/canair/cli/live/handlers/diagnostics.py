@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from canair.core.prompt import confirm
 from canair.render import messages
-from canair.states import parse_states
+from canair.states.tokens import parse_states
 from canair.transport.protocol import Terminal
 from canair.uds.protocol import KWP
 
