@@ -8,6 +8,7 @@ from jsonschema import Draft202012Validator
 from canair.core import yaml_io
 
 from ._common import CAN_INDEX_SCHEMA_FILE, duplicate_key_errors
+from .report import FileReport, SignalsReport
 
 # First line of the pointer file a checkout without the LFS object holds in place of the content.
 LFS_POINTER_PREFIX = "version https://git-lfs.github.com/spec/v1"
@@ -22,7 +23,7 @@ def _state_reference_errors(predicates: list[tuple[str, str]]) -> tuple[list[str
     renamed/typo'd signal name in a predicate can be caught.
 
     The check is skipped (with a reason, never silently) when the ECU registry
-    can't be loaded — mirroring ``_run_groups``' tolerance, since a profile with a
+    can't be loaded — mirroring :func:`check_groups`' tolerance, since a profile with a
     broken ``ecus/`` already fails ``validate pids`` loudly.
     """
     from canair.ecus.pids import load_raw_pids
@@ -110,28 +111,26 @@ def _state_relation_errors(
     return errors
 
 
-def _run_states() -> int:
-    """Validate the profile's optional vehicle_states.yaml (structure + predicates)."""
+def check_states() -> FileReport:
+    """Check the profile's optional vehicle_states.yaml (structure + predicates)."""
     from canair.profile import active
     from canair.states import StatePredicateError, compile_predicate, unquoted_boolean_error
 
     path = active().states_file
+    name = path.name
     if not path.exists():
-        print("No vehicle_states.yaml (optional) — skipping.")
-        return 0
+        return FileReport(name, skipped="No vehicle_states.yaml (optional) — skipping.")
 
     text = path.read_text()
     data = yaml_io.safe_load(text) or {}
     errors: list[str] = duplicate_key_errors(text)
     if not isinstance(data, dict) or "states" not in data:
-        print(f"{path.name}: missing top-level 'states:' list")
-        return 1
+        return FileReport(name, broken=f"{name}: missing top-level 'states:' list")
 
     seen: set[str] = set()
     states = data.get("states") or []
     if not isinstance(states, list):
-        print(f"{path.name}: 'states' must be a list")
-        return 1
+        return FileReport(name, broken=f"{name}: 'states' must be a list")
 
     predicates: list[tuple[str, str]] = []
     implies_entries: list[tuple[str, object]] = []
@@ -145,25 +144,25 @@ def _run_states() -> int:
         for key in ("name", "implies", "excludes"):
             if msg := unquoted_boolean_error(f"states[{i}] {key}", entry.get(key)):
                 errors.append(msg)
-        name = entry.get("name")
-        if not name:
+        state = entry.get("name")
+        if not state:
             errors.append(f"states[{i}]: missing 'name'")
-        elif name in seen:
-            errors.append(f"states[{i}]: duplicate state name '{name}'")
+        elif state in seen:
+            errors.append(f"states[{i}]: duplicate state name '{state}'")
         else:
-            seen.add(name)
+            seen.add(state)
         expr = entry.get("when")
         if expr:
             try:
                 compile_predicate(expr)
             except StatePredicateError as ex:
-                errors.append(f"states[{i}] ('{name}'): invalid when: {ex}")
+                errors.append(f"states[{i}] ('{state}'): invalid when: {ex}")
             else:
-                predicates.append((str(name), str(expr)))
-        if entry.get("implies") is not None and name:
-            implies_entries.append((str(name), entry["implies"]))
-        if entry.get("excludes") is not None and name:
-            excludes_entries.append((str(name), entry["excludes"]))
+                predicates.append((str(state), str(expr)))
+        if entry.get("implies") is not None and state:
+            implies_entries.append((str(state), entry["implies"]))
+        if entry.get("excludes") is not None and state:
+            excludes_entries.append((str(state), entry["excludes"]))
 
     errors += _state_relation_errors(implies_entries, excludes_entries, {n.upper() for n in seen})
 
@@ -171,27 +170,26 @@ def _run_states() -> int:
     errors += ref_errors
 
     if errors:
-        print(f"{path.name}: {len(errors)} errors")
-        for e in errors:
-            print(f"  - {e}")
-        if ref_errors:
-            print(
-                "  (a predicate referencing a signal that does not exist can never "
-                "match — fix it with `canair states set-predicate NAME EXPR`)"
-            )
-        return 1
+        hint = (
+            "  (a predicate referencing a signal that does not exist can never "
+            "match — fix it with `canair states set-predicate NAME EXPR`)"
+            if ref_errors
+            else ""
+        )
+        return FileReport(name, errors=tuple(errors), error_hint=hint)
     # Only mention a relation when the profile declares one — a profile with no
     # `implies:` should not carry a permanent ", 0 with implies:" in its OK line.
     hierarchy = f", {len(implies_entries)} with implies:" if implies_entries else ""
     hierarchy += f", {len(excludes_entries)} with excludes:" if excludes_entries else ""
-    print(f"{path.name}: OK ({len(seen)} states, {len(predicates)} predicate(s){hierarchy})")
-    if skipped:
-        print(f"  note: predicate signal references not checked — {skipped}")
-    return 0
+    return FileReport(
+        name,
+        summary=f"({len(seen)} states, {len(predicates)} predicate(s){hierarchy})",
+        notes=(f"  note: predicate signal references not checked — {skipped}",) if skipped else (),
+    )
 
 
-def _run_groups() -> int:
-    """Validate the profile's optional groups.yaml (selector-group vocabulary)."""
+def check_groups() -> FileReport:
+    """Check the profile's optional groups.yaml (selector-group vocabulary)."""
     from canair.ecus import build_canonical_name_index, canonical_ecu_name_safe
     from canair.ecus.pids import build_ecu_index, load_pids
     from canair.profile import active
@@ -199,18 +197,17 @@ def _run_groups() -> int:
 
     path = active().groups_file
     if not path.exists():
-        print("No groups.yaml (optional) — skipping.")
-        return 0
+        return FileReport("groups.yaml", skipped="No groups.yaml (optional) — skipping.")
 
     text = path.read_text()
     data = yaml_io.safe_load(text) or {}
     if not isinstance(data, dict) or "groups" not in data:
-        print("groups.yaml: missing top-level 'groups:' mapping")
-        return 1
+        return FileReport("groups.yaml", broken="groups.yaml: missing top-level 'groups:' mapping")
     groups = data.get("groups")
     if not isinstance(groups, dict):
-        print("groups.yaml: 'groups' must be a mapping keyed by group name")
-        return 1
+        return FileReport(
+            "groups.yaml", broken="groups.yaml: 'groups' must be a mapping keyed by group name"
+        )
 
     # Registry for the member ECU-existence check (best-effort — an absent/partial
     # registry just skips that check, mirroring the query resolver's tolerance).
@@ -261,16 +258,12 @@ def _run_groups() -> int:
                     errors.append(f"group '{key}': member '{tok}' names unknown ECU '{sel.ecu}'")
 
     if errors:
-        print(f"groups.yaml: {len(errors)} errors")
-        for e in errors:
-            print(f"  - {e}")
-        return 1
-    print(f"groups.yaml: OK ({len(seen)} groups, {n_members} members)")
-    return 0
+        return FileReport("groups.yaml", errors=tuple(errors))
+    return FileReport("groups.yaml", summary=f"({len(seen)} groups, {n_members} members)")
 
 
-def _run_actions() -> int:
-    """Validate the profile's optional actions.yaml (guarded profile actions).
+def check_actions() -> FileReport:
+    """Check the profile's optional actions.yaml (guarded profile actions).
 
     Structure and the guard rules come from the loader itself
     (:func:`canair.actions.parse_actions_doc`), so a file that loads is a file
@@ -286,23 +279,19 @@ def _run_actions() -> int:
 
     path = active().actions_file
     if not path.exists():
-        print("No actions.yaml (optional) — skipping.")
-        return 0
+        return FileReport("actions.yaml", skipped="No actions.yaml (optional) — skipping.")
     text = path.read_text()
     errors: list[str] = duplicate_key_errors(text)
     try:
         actions = parse_actions_doc(yaml_io.safe_load(text))
     except ActionError as e:
-        errors.append(str(e))
-        print(f"actions.yaml: {len(errors)} errors")
-        for err in errors:
-            print(f"  - {err}")
-        return 1
+        return FileReport("actions.yaml", errors=(*errors, str(e)))
+    notes: tuple[str, ...] = ()
     try:
         pids_data = load_pids()
     except Exception as ex:
         pids_data = None
-        print(f"actions.yaml: registry checks skipped — could not load ecus/ ({ex})")
+        notes = (f"actions.yaml: registry checks skipped — could not load ecus/ ({ex})",)
     if pids_data:
         policy = SessionPolicy.from_profile(pids_data)
         for action in actions.values():
@@ -315,28 +304,24 @@ def _run_actions() -> int:
             except (ActionError, SafetyBlocked) as e:
                 errors.append(str(e))
     if errors:
-        print(f"actions.yaml: {len(errors)} errors")
-        for e in errors:
-            print(f"  - {e}")
-        return 1
-    print(f"actions.yaml: OK ({len(actions)} actions)")
-    return 0
+        return FileReport("actions.yaml", errors=tuple(errors), notes=notes)
+    return FileReport("actions.yaml", summary=f"({len(actions)} actions)", notes=notes)
 
 
-def _run_can_buses() -> int:
-    """Validate the profile's optional can_buses.yaml (CAN bus vocabulary)."""
+def check_can_buses() -> FileReport:
+    """Check the profile's optional can_buses.yaml (CAN bus vocabulary)."""
     from canair.profile import active
 
     path = active().can_buses_file
     if not path.exists():
-        print("No can_buses.yaml (optional) — skipping.")
-        return 0
+        return FileReport("can_buses.yaml", skipped="No can_buses.yaml (optional) — skipping.")
 
     text = path.read_text()
     data = yaml_io.safe_load(text) or {}
     if not isinstance(data, dict) or "can_buses" not in data:
-        print("can_buses.yaml: missing top-level 'can_buses:' mapping")
-        return 1
+        return FileReport(
+            "can_buses.yaml", broken="can_buses.yaml: missing top-level 'can_buses:' mapping"
+        )
     buses = data.get("can_buses")
 
     errors: list[str] = duplicate_key_errors(text)
@@ -374,20 +359,18 @@ def _run_can_buses() -> int:
         for i, code in enumerate(buses):
             _check_code(i, code)
     else:
-        print("can_buses.yaml: 'can_buses' must be a mapping (or legacy list)")
-        return 1
+        return FileReport(
+            "can_buses.yaml",
+            broken="can_buses.yaml: 'can_buses' must be a mapping (or legacy list)",
+        )
 
     if errors:
-        print(f"can_buses.yaml: {len(errors)} errors")
-        for e in errors:
-            print(f"  - {e}")
-        return 1
-    print(f"can_buses.yaml: OK ({len(seen)} bus codes)")
-    return 0
+        return FileReport("can_buses.yaml", errors=tuple(errors))
+    return FileReport("can_buses.yaml", summary=f"({len(seen)} bus codes)")
 
 
-def _run_signals() -> int:
-    """Validate the profile's optional signals/ broadcast signal-definition files.
+def check_signals() -> SignalsReport:
+    """Check the profile's optional signals/ broadcast signal-definition files.
 
     Domain-B (broadcast frame) signal maps: one signals/<bus>.yaml per CAN bus,
     keyed by arbitration ID, each signal a DBC-compatible linear model. Structural
@@ -397,64 +380,51 @@ def _run_signals() -> int:
     from canair.validation.signals import check_signals_doc
 
     if not signals_dir().is_dir():
-        print("No signals/ (optional) — skipping.")
-        return 0
+        return SignalsReport(skipped="No signals/ (optional) — skipping.")
     docs = load_signals()
     if not docs:
-        print("signals/: no files — skipping.")
-        return 0
+        return SignalsReport(skipped="signals/: no files — skipping.")
 
-    total_errors = 0
+    files: list[FileReport] = []
     total_signals = 0
-    for path, data in ((d.path, d.data) for d in docs):
-        errors, n_signals = check_signals_doc(data)
-        errors = duplicate_key_errors(path.read_text()) + errors
+    for doc in docs:
+        errors, n_signals = check_signals_doc(doc.data)
+        errors = duplicate_key_errors(doc.path.read_text()) + errors
         total_signals += n_signals
-        if errors:
-            print(f"\n{path.name}: {len(errors)} errors")
-            for e in errors:
-                print(f"  - {e}")
-            total_errors += len(errors)
-        else:
-            print(f"{path.name}: OK ({n_signals} signals)")
-
-    if total_errors:
-        print(f"\n{total_errors} total errors across {len(docs)} signals file(s)")
-        return 1
-    print(f"\nAll {len(docs)} signals file(s) valid ({total_signals} signals).")
-    return 0
+        files.append(
+            FileReport(doc.path.name, errors=tuple(errors))
+            if errors
+            else FileReport(doc.path.name, summary=f"({n_signals} signals)")
+        )
+    return SignalsReport(files=tuple(files), total_signals=total_signals)
 
 
-def _run_can() -> int:
-    """Validate the profile's optional captures/can/index.yaml (raw-CAN log index)."""
+def check_can() -> FileReport:
+    """Check the profile's optional captures/can/index.yaml (raw-CAN log index)."""
     from canair.profile import active
 
+    name = "captures/can/index.yaml"
     path = active().can_index_file
     if not path.exists():
-        print("No captures/can/index.yaml (optional) — skipping.")
-        return 0
+        return FileReport(name, skipped="No captures/can/index.yaml (optional) — skipping.")
     with open(CAN_INDEX_SCHEMA_FILE) as f:
         schema = json.load(f)
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
     text = path.read_text()
     if text.startswith(LFS_POINTER_PREFIX):
-        print(
-            "captures/can/index.yaml: 1 errors\n"
-            "  - is a Git LFS pointer, not the index — run `git lfs pull`, and keep the index "
-            "out of LFS (.gitattributes)"
+        return FileReport(
+            name,
+            errors=(
+                "is a Git LFS pointer, not the index — run `git lfs pull`, and keep the index "
+                "out of LFS (.gitattributes)",
+            ),
         )
-        return 1
     data = yaml_io.safe_load(text) or {}
     schema_errors = sorted(validator.iter_errors(data), key=lambda e: list(e.path))
     errors = duplicate_key_errors(text) + [
         f"{'/'.join(str(p) for p in e.path) or '(root)'}: {e.message}" for e in schema_errors
     ]
     if errors:
-        print(f"captures/can/index.yaml: {len(errors)} errors")
-        for e in errors:
-            print(f"  - {e}")
-        return 1
-    n = len(data.get("logs") or [])
-    print(f"captures/can/index.yaml: OK ({n} log(s))")
-    return 0
+        return FileReport(name, errors=tuple(errors))
+    return FileReport(name, summary=f"({len(data.get('logs') or [])} log(s))")

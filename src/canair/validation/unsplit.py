@@ -11,7 +11,7 @@ from pathlib import Path
 from canair.analysis.unsplit_batches import UnsplitBatch, find_unsplit_batches
 from canair.captures.payload_corpus import PayloadCorpus, load_payload_corpus
 
-from .captures import CaptureWarning
+from .report import CaptureWarning
 
 
 def _message(u: UnsplitBatch) -> str:

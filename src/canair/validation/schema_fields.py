@@ -1,6 +1,5 @@
 """The ECU schema (``pids_schema.yaml``) and the field vocabularies the ECU validators read."""
 
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,8 +14,7 @@ def load_schema(path: Path = SCHEMA_FILE) -> dict:
     with open(path) as f:
         schema = yaml_io.safe_load(f)
     if not schema or not isinstance(schema, dict):
-        print(f"ERROR: {path} is empty or invalid", file=sys.stderr)
-        sys.exit(1)
+        raise RuntimeError(f"{path} is empty or invalid")
     return schema
 
 

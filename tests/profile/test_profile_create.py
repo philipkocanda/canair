@@ -99,16 +99,18 @@ class TestProfileCreate:
         assert yaml.safe_load((root / "variants.yaml").read_text()) == {"variants": {}}
 
     def test_every_scaffolded_file_validates(self, tmp_path, capsys):
+        from canair.cli.commands.validate.files import (
+            run_can_buses,
+            run_groups,
+            run_states,
+            run_variants,
+        )
         from canair.profile import set_active
-        from canair.validation.other import _run_can_buses, _run_groups, _run_states
-        from canair.validation.variants import _run_variants
 
         root = tmp_path / "prof"
         _cmd_create(_args(path=root))
         set_active(str(root))
-        results = {
-            f.__name__: f() for f in (_run_states, _run_can_buses, _run_groups, _run_variants)
-        }
+        results = {f.__name__: f() for f in (run_states, run_can_buses, run_groups, run_variants)}
         assert results == dict.fromkeys(results, 0)
 
     def test_scaffolded_files_fit_the_line_length(self, tmp_path):

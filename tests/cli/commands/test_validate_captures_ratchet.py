@@ -14,8 +14,8 @@ import json
 import pytest
 
 from canair import profile
+from canair.cli.commands.validate.captures import run_captures
 from canair.ecus.pids import clear_cache
-from canair.validation.captures import _run_captures
 
 # The hyundai-ioniq-ae-ev baseline gated in .github/workflows/ci.yml. The count can only
 # fall (writes enforce a timestamp), so the profile must sit AT or under it — a
@@ -52,25 +52,25 @@ def _mk_profile(tmp_path, *, n_untimed: int) -> None:
 
 def test_over_baseline_fails(tmp_path, capsys):
     _mk_profile(tmp_path, n_untimed=5)
-    assert _run_captures(max_untimed=4) == 1
+    assert run_captures(max_untimed=4) == 1
     assert "exceeds the --max-untimed 4 baseline" in capsys.readouterr().out
 
 
 def test_at_baseline_passes(tmp_path, capsys):
     _mk_profile(tmp_path, n_untimed=5)
-    assert _run_captures(max_untimed=5) == 0
+    assert run_captures(max_untimed=5) == 0
     assert "within the --max-untimed 5 baseline" in capsys.readouterr().out
 
 
 def test_under_baseline_passes(tmp_path):
     _mk_profile(tmp_path, n_untimed=3)
-    assert _run_captures(max_untimed=5) == 0
+    assert run_captures(max_untimed=5) == 0
 
 
 def test_no_ratchet_is_warnings_only(tmp_path, capsys):
     """Default (no --max-untimed): untimed rows warn but never fail — the pre-ratchet behavior."""
     _mk_profile(tmp_path, n_untimed=5)
-    assert _run_captures() == 0
+    assert run_captures() == 0
     assert "untimed payload capture(s)" in capsys.readouterr().out
 
 
@@ -79,7 +79,7 @@ def test_bundled_ioniq_2017_sits_at_its_ci_baseline(capsys):
 
     Relies on the suite-wide ``CANAIR_PROFILE=hyundai-ioniq-ae-ev`` pin (conftest).
     """
-    assert _run_captures(max_untimed=IONIQ_2017_UNTIMED_BASELINE) == 0
+    assert run_captures(max_untimed=IONIQ_2017_UNTIMED_BASELINE) == 0
 
 
 def _mk_profile_with_quality_warning(tmp_path, *, n_untimed: int) -> None:
@@ -116,7 +116,7 @@ def _mk_profile_with_quality_warning(tmp_path, *, n_untimed: int) -> None:
 def test_untimed_collapsed_to_a_count_by_default(tmp_path, capsys):
     """The untimed class is a footer COUNT, not a per-file stream that drowns the rest."""
     _mk_profile_with_quality_warning(tmp_path, n_untimed=5)
-    assert _run_captures() == 0
+    assert run_captures() == 0
     out = capsys.readouterr().out
     # The real (quality) warning surfaces; the 5 untimed rows do NOT each print.
     assert "dropped/stale" in out
@@ -126,7 +126,7 @@ def test_untimed_collapsed_to_a_count_by_default(tmp_path, capsys):
 
 def test_show_untimed_restores_the_per_file_detail(tmp_path, capsys):
     _mk_profile_with_quality_warning(tmp_path, n_untimed=5)
-    assert _run_captures(show_untimed=True) == 0
+    assert run_captures(show_untimed=True) == 0
     out = capsys.readouterr().out
     assert "6 warning(s)" in out  # 5 untimed + 1 quality
     assert "no usable time" in out

@@ -697,10 +697,9 @@ edits a module.
 
 1. DONE. `ResultEntry`/`EcuFrame` live in `expression/results.py`, the batch-size policy in
    `uds/multi_did.py`.
-2. DONE, with debt. The validators are in `validation/` and `commands/validate/` is only the
-   parser. Still open: the `_run_*` runners print and return exit codes from `validation/`;
-   `validation/pids.py` imports `yaml_edit` for one
-   constant while `yaml_edit` imports `validation/`. Action planning moved to `actions/plan.py`.
+2. DONE. The validators are in `validation/`, return data and never print; `commands/validate/`
+   prints it and picks the exit code. `validation/pids.py` is split by section. Action planning
+   moved to `actions/plan.py`.
 3. OPEN. The three `commands` → `cli.main` re-entries (inside the interface layer, so no
    contract depends on it).
 4. DONE. `uds/` reads no data store, config or transport. `unsplit_batches` moved to

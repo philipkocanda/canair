@@ -19,6 +19,8 @@ from pathlib import Path
 
 from canair.captures import io as capture_io
 
+from .report import VariantTagReport
+
 
 def variant_tag_findings(files: list[Path], declared: set[str]) -> tuple[int, Counter[str]]:
     """``(untagged sessions, undeclared tag -> sessions)`` across ``files``."""
@@ -86,53 +88,48 @@ def revision_tag_findings(files: list[Path], profile) -> Counter[str]:
     return found
 
 
-def report_variant_tags(
+def variant_tag_report(
     files: list[Path], profile, max_untagged: int | None = None
-) -> tuple[int, bool]:
-    """Print the variant-tag findings for ``files``.
+) -> VariantTagReport:
+    """The variant-tag findings for ``files``.
 
-    Returns ``(warnings, ratchet_failed)``. ``max_untagged`` is the CI ratchet: on a
-    profile with several variants the untagged count may not grow past it, since every
-    recording names its car now and the count only falls as history is tagged.
+    ``max_untagged`` is the CI ratchet: on a profile with several variants the untagged
+    count may not grow past it, since every recording names its car now and the count only
+    falls as history is tagged.
     """
     from canair.variants import VariantsError, load_variants
 
     try:
         declared = set(load_variants(profile))
     except VariantsError:
-        return 0, False  # `validate variants` reports a broken variants.yaml
+        return VariantTagReport()  # `validate variants` reports a broken variants.yaml
     untagged, undeclared = variant_tag_findings(files, declared)
     try:
         bad_revisions = revision_tag_findings(files, profile)
     except Exception:
         bad_revisions = Counter()  # a broken ecus/ is `validate pids`'s to report
+    problems: list[str] = []
     for problem, n in sorted(bad_revisions.items()):
         hint = (
             ""
             if problem.startswith("a reply")
             else " — was the revision renamed or removed outside `canair ecu revisions`?"
         )
-        print(f"  ⚠ {n} session(s) {'holding' if not hint else 'tagged with'} {problem}{hint}")
+        problems.append(
+            f"{n} session(s) {'holding' if not hint else 'tagged with'} {problem}{hint}"
+        )
     for variant, n in sorted(undeclared.items()):
         known = ", ".join(sorted(declared)) or "none"
-        print(
-            f"  ⚠ {n} session(s) tagged with variant {variant!r}, which the profile does not "
+        problems.append(
+            f"{n} session(s) tagged with variant {variant!r}, which the profile does not "
             f"declare (declared: {known}) — retag with `captures uds --set-variant`"
         )
     several = len(declared) > 1
-    failed = several and max_untagged is not None and untagged > max_untagged
-    if several and untagged:
-        ceiling = ""
-        if max_untagged is not None:
-            verb = "exceeds" if failed else "within"
-            ceiling = f", {verb} the --max-untagged {max_untagged} baseline"
-        print(
-            f"  ({untagged} untagged session(s){ceiling}: no car named — tag them with "
-            "`captures migrate-variants` or `captures uds --set-variant`)"
-        )
-    if failed:
-        print(
-            f"\n{untagged} untagged session(s) exceeds the --max-untagged {max_untagged} "
-            "baseline — new recordings must name their car (--variant / profile use)."
-        )
-    return sum(undeclared.values()) + sum(bad_revisions.values()), failed
+    return VariantTagReport(
+        problems=tuple(problems),
+        warnings=sum(undeclared.values()) + sum(bad_revisions.values()),
+        untagged=untagged,
+        several_variants=several,
+        max_untagged=max_untagged,
+        failed=several and max_untagged is not None and untagged > max_untagged,
+    )

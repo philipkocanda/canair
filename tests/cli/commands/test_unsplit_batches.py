@@ -15,8 +15,8 @@ from canair.analysis.unsplit_batches import find_unsplit_batches, split_unsplit_
 from canair.captures import io as capture_io
 from canair.captures.payload_corpus import PayloadSample
 from canair.cli.commands.captures.maint import cmd_split_batched
+from canair.cli.commands.validate.captures import run_captures
 from canair.ecus.pids import clear_cache
-from canair.validation.captures import _run_captures
 from canair.validation.unsplit import unsplit_batch_warnings
 
 IGPM, BCM = 0x778, 0x7A8
@@ -402,7 +402,7 @@ def _temp_profile(tmp_path):
 
 def test_validate_then_repair_end_to_end(_temp_profile, capsys):
     """A soft warning in `validate captures`; `captures split-batched` clears it."""
-    assert _run_captures() == 0
+    assert run_captures() == 0
     assert "stored whole as 22BC01" in capsys.readouterr().out
 
     assert cmd_split_batched(None, dry_run=True) == 0
@@ -410,7 +410,7 @@ def test_validate_then_repair_end_to_end(_temp_profile, capsys):
     assert cmd_split_batched(None) == 0
     assert "Split 1 capture(s)." in capsys.readouterr().out
 
-    assert _run_captures() == 0
+    assert run_captures() == 0
     assert "stored whole" not in capsys.readouterr().out
 
 
@@ -487,7 +487,7 @@ def test_validate_loads_the_corpus_once_for_both_cross_file_checks(
     monkeypatch.setattr(payload_corpus, "load_payload_corpus", counting)
     monkeypatch.setattr(misfiled, "load_payload_corpus", unexpected)
     monkeypatch.setattr(unsplit, "load_payload_corpus", unexpected)
-    assert _run_captures() == 0
+    assert run_captures() == 0
     out = capsys.readouterr().out
     assert len(loads) == 1
     at = "sessions[0].captures[3] (IGPM 22BC01 @ 10:07:16.000)"

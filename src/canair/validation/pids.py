@@ -4,6 +4,7 @@ The checks themselves are in the sibling modules: :mod:`.ecu_file` (one ECU file
 :mod:`.meta` (``profile.yaml``) and :mod:`.cross_file` (across files).
 """
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from .cross_file import (
@@ -60,13 +61,28 @@ def validate_pids_file(fpath: Path, profile=None) -> tuple[bool, str]:
     return (not errors, "\n".join(lines))
 
 
-def _run_pids(files: list[str] | None, stats: bool) -> int:
+@dataclass(frozen=True)
+class PidsReport:
+    """What ``canair validate pids`` found: the findings and the counts behind its summary."""
+
+    errors: list[str]
+    warnings: list[str]
+    stats: dict
+    n_files: int
+
+
+def check_pids(files: list[Path] | None) -> PidsReport:
+    """Check the given ECU files, or (with none) every ecus/ file plus the profile-wide settings.
+
+    The profile-wide checks are ``profile.yaml``, the names of ECUs and signals across files, and
+    the variants and ELM327 settings. They run only when no file subset is given.
+    """
     from canair.ecus.files import iter_ecu_files
     from canair.profile import active
 
     prof = active()
     if files:
-        file_paths = [Path(f) for f in files]
+        file_paths = list(files)
     else:
         # include_disabled: a parked `_name.yaml` is still reported on, so
         # re-enabling it doesn't surface errors that were never flagged.
@@ -74,13 +90,14 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
 
     all_errors, all_warnings, total_stats = collect_pids_validation(file_paths)
 
-    # Validate profile.yaml (profile-wide settings) unless a file subset was given.
     if not files:
-        required_meta_fields = set(load_schema().get("required_meta_fields", []))
+        schema = load_schema()
         profile_yaml = prof.meta_file
         if profile_yaml.exists():
-            all_errors.extend(validate_meta(profile_yaml, required_meta_fields))
-            dtcs_fields = set((load_schema().get("dtcs_fields", {}) or {}).get("optional", []))
+            all_errors.extend(
+                validate_meta(profile_yaml, set(schema.get("required_meta_fields", [])))
+            )
+            dtcs_fields = set((schema.get("dtcs_fields", {}) or {}).get("optional", []))
             dtc_errors, dtc_warnings = profile_dtc_findings(profile_yaml, dtcs_fields)
             all_errors.extend(dtc_errors)
             all_warnings.extend(dtc_warnings)
@@ -98,59 +115,5 @@ def _run_pids(files: list[str] | None, stats: bool) -> int:
         all_errors.extend(variants_yaml_errors(prof))
         all_warnings.extend(elm327_warnings(prof.ecus_dir))
 
-    # Print results
-    if all_warnings:
-        for w in all_warnings:
-            print(f"  WARN: {w}")
-        print()
-
-    if all_errors:
-        for e in all_errors:
-            print(f"  ERROR: {e}")
-        print(f"\n{len(all_errors)} error(s), {len(all_warnings)} warning(s)")
-        return 1
-
     n_files = len([f for f in file_paths if not f.name.startswith("_")])
-    ignored = total_stats["ignored"]
-    ignored_str = f", {ignored} ignored" if ignored else ""
-    ioctl = total_stats["iocontrol"]
-    ioctl_str = f", {ioctl} IOControl DIDs" if ioctl else ""
-    research = total_stats["research"]
-    research_str = f", {research} research items" if research else ""
-    routines = total_stats["routines"]
-    routines_str = f", {routines} routines" if routines else ""
-    ioctl_disc = total_stats["iocontrol_discoveries"]
-    ioctl_disc_str = f", {ioctl_disc} IO discoveries" if ioctl_disc else ""
-    dtcs = total_stats["dtcs"]
-    dtcs_str = f", {dtcs} DTCs" if dtcs else ""
-    print(
-        f"OK — {n_files} ECU files, {total_stats['pids']} PIDs{ignored_str}{ioctl_str}{research_str}{routines_str}{ioctl_disc_str}{dtcs_str}, "
-        f"{total_stats['params']} parameters "
-        f"({total_stats['verified']} verified, {total_stats['unverified']} unverified)"
-    )
-
-    if all_warnings:
-        print(f"  {len(all_warnings)} warning(s)")
-
-    if stats:
-        print(f"\n  ECUs:       {total_stats['ecus']}")
-        print(f"  PIDs:       {total_stats['pids']}")
-        print(f"  Ignored:    {total_stats['ignored']}")
-        print(f"  Parameters: {total_stats['params']}")
-        print(f"  Verified:   {total_stats['verified']}")
-        print(f"  Unverified: {total_stats['unverified']}")
-        print(f"  IOControl:  {total_stats['iocontrol']}")
-        print(f"  Research:   {total_stats['research']}")
-        print(f"  Routines:   {total_stats['routines']}")
-        print(f"  IO Discoveries: {total_stats['iocontrol_discoveries']}")
-        print(f"  Scan-log:   {total_stats['scan_log']}")
-        print(f"  DTCs:       {total_stats['dtcs']}")
-        print(f"  Sessions:   {total_stats['sessions']}")
-
-    return 0
-
-
-def _run_ecus() -> int:
-    """`canair validate ecus` — the ECU files ARE the registry now, so this
-    runs the same per-ECU validation as `validate pids`."""
-    return _run_pids(None, stats=False)
+    return PidsReport(all_errors, all_warnings, total_stats, n_files)

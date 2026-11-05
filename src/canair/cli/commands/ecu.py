@@ -769,10 +769,10 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
         return rc
 
     # Re-validate the edited file (not auto-reverted — the user owns the edit).
-    from canair.validation.pids import _run_pids
+    from canair.cli.commands.validate.pids import run_pids
 
     print(f"\n{ansi.DIM}Validating {path.name} …{ansi.RESET}")
-    vrc = _run_pids([str(path)], stats=False)
+    vrc = run_pids([str(path)], stats=False)
     if vrc:
         print(
             f"{ansi.YELLOW}Validation failed — re-run `canair ecu {name} edit` to fix, "

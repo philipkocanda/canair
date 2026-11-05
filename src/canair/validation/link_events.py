@@ -19,7 +19,7 @@ from canair.captures.link_events import (
 )
 from canair.states.spans import parse_time_key
 
-from .captures import CaptureWarning
+from .report import CaptureWarning
 
 
 def link_event_warnings(path: Path) -> list[CaptureWarning]:

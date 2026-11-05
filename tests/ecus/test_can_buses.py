@@ -118,9 +118,9 @@ def test_expand_ignores_blanks():
 
 
 def test_validate_rejects_non_boolean_private(tmp_path, monkeypatch, capsys):
-    from canair.validation.other import _run_can_buses
+    from canair.cli.commands.validate.files import run_can_buses
 
     prof = _profile(tmp_path, "can_buses:\n  B-CAN:\n    private: maybe\n")
     monkeypatch.setattr("canair.profile.active", lambda: prof)
-    assert _run_can_buses() == 1
+    assert run_can_buses() == 1
     assert "private must be true or false" in capsys.readouterr().out

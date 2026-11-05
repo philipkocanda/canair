@@ -14,8 +14,8 @@ import pytest
 from canair import profile
 from canair.analysis.misfiled import find_misfiled
 from canair.captures.payload_corpus import PayloadSample
+from canair.cli.commands.validate.captures import run_captures
 from canair.ecus.pids import clear_cache
-from canair.validation.captures import _run_captures
 from canair.validation.misfiled import misfile_warnings
 
 MCU, VCU, BMS = 0x7EB, 0x7EA, 0x7EC
@@ -155,7 +155,7 @@ def test_validate_captures_reports_it_as_a_warning(tmp_path, capsys, _restore_ac
     path.rename(root / "captures" / path.name)
     profile.set_active(str(root))
     clear_cache()
-    assert _run_captures() == 0
+    assert run_captures() == 0
     out = capsys.readouterr().out
     assert "probably VCU's reply misfiled under MCU" in out
 

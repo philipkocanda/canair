@@ -13,8 +13,8 @@ import pytest
 
 import canair.profile as profile
 from canair.captures import can_logs
+from canair.cli.commands.validate.files import run_can
 from canair.profile import Profile
-from canair.validation import other as validate
 
 FIXTURE = Path(__file__).parents[2] / "fixtures" / "can" / "ioniq28_drive_slice.log"
 EXPECT_IDS = ["0x200", "0x220", "0x2B0", "0x386"]
@@ -79,7 +79,7 @@ class TestImportLog:
 
     def test_index_written_and_valid(self, temp_profile):
         can_logs.import_log(FIXTURE, temp_profile, label="drive slice")
-        assert validate._run_can() == 0  # written index passes the schema
+        assert run_can() == 0  # written index passes the schema
         logs = can_logs.list_logs(temp_profile)
         assert len(logs) == 1 and logs[0]["file"] == FIXTURE.name
 
@@ -98,7 +98,7 @@ class TestImportLog:
             if m.arbitration_id == 0x354
         }
         assert gears == {1, 2, 3, 4}
-        assert validate._run_can() == 0
+        assert run_can() == 0
 
     def test_states_split_and_source(self, temp_profile):
         res = can_logs.import_log(

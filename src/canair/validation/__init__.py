@@ -8,6 +8,6 @@ Imports: the layers below it: the definition packages, ``captures`` and ``analys
 checks), ``interop`` and ``transport`` (rules they own), ``uds``, ``expression`` and ``safety``.
 Never ``yaml_edit``, which imports this package, nor ``live`` or ``cli``.
 
-Known debt (plans/2026-11-04-package-layout-and-layering.md): the ``_run_*`` functions still
-print and return an exit code from here.
+Each check returns data (``report.py``, ``pids.PidsReport``, ``captures.check_captures``) and never
+prints or picks an exit code: ``cli/commands/validate/`` does.
 """

@@ -1,8 +1,6 @@
 """captures/ validation — payload files vs captures_schema.json + soft warnings."""
 
 import json
-from collections import OrderedDict
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -14,47 +12,8 @@ from canair.states import StateRule, contradictory_states
 
 from ._common import CAPTURES_SCHEMA_FILE, DEPRECATED_FIELDS
 from .capture_schema import CaptureSchemaChecker
-
-# How many locations to list inline before collapsing a grouped warning to "(+N more)".
-_MAX_GROUP_LOCATIONS = 6
-
-
-@dataclass
-class CaptureWarning:
-    """A soft warning split into its groupable ``message`` and its ``location``.
-
-    Separating the fixed message text from the per-capture location lets the
-    printer collapse many identical warnings (e.g. the same lint hit on dozens
-    of sessions) into one line with a count instead of one line each.
-    """
-
-    location: str
-    message: str
-
-    def __str__(self) -> str:
-        return f"{self.location}: {self.message}"
-
-
-def _print_grouped(warnings: list[CaptureWarning], marker: str) -> None:
-    """Print warnings, collapsing repeats of the same message into one line.
-
-    A message seen once prints inline (``marker location: message``); a message
-    seen multiple times prints once as ``marker message — N locations:`` followed
-    by an indented, capped list of them. "Locations", not "captures": the same
-    lint can be session-scoped (a state or quality warning) or capture-scoped.
-    """
-    groups: OrderedDict[str, list[str]] = OrderedDict()
-    for w in warnings:
-        groups.setdefault(w.message, []).append(w.location)
-    for message, locations in groups.items():
-        if len(locations) == 1:
-            print(f"  {marker} {locations[0]}: {message}")
-            continue
-        shown = locations[:_MAX_GROUP_LOCATIONS]
-        extra = len(locations) - len(shown)
-        tail = f", … (+{extra} more)" if extra else ""
-        print(f"  {marker} {message} — {len(locations)} locations:")
-        print(f"      {', '.join(shown)}{tail}")
+from .report import CapturesReport, CaptureWarning, FileFindings
+from .variant_tags import variant_tag_report
 
 
 def load_valid_rx_addrs() -> set[int]:
@@ -128,12 +87,13 @@ def validate_captures_file(
     return errors
 
 
-def _run_captures(
+def check_captures(
     strict: bool = False,
     max_untimed: int | None = None,
     show_untimed: bool = False,
     max_untagged: int | None = None,
-) -> int:
+) -> CapturesReport:
+    """Check every capture file of the active profile: errors first, then the soft warnings."""
     # Every check below reads the same files; parse each one once.
     with capture_io.reading_once():
         return _check_captures(strict, max_untimed, show_untimed, max_untagged)
@@ -141,7 +101,7 @@ def _run_captures(
 
 def _check_captures(
     strict: bool, max_untimed: int | None, show_untimed: bool, max_untagged: int | None
-) -> int:
+) -> CapturesReport:
     with open(CAPTURES_SCHEMA_FILE) as f:
         schema = json.load(f)
     Draft202012Validator.check_schema(schema)
@@ -161,9 +121,10 @@ def _check_captures(
         capture_io.ensure_migrated(layer)
         files.extend(capture_io.iter_capture_files(layer))
 
+    report = CapturesReport(strict=strict, max_untimed=max_untimed, show_untimed=show_untimed)
     if not files:
-        print("No capture files found.")
-        return 0
+        return report
+    report.n_files = len(files)
 
     # State vocabulary for soft warnings (empty when no vehicle_states.yaml → no warnings).
     from canair.states import state_names
@@ -191,9 +152,6 @@ def _check_captures(
     misfiled = misfile_warnings(files, corpus=corpus)
     unsplit = unsplit_batch_warnings(files, corpus=corpus)
 
-    total_errors = 0
-    total_warnings = 0
-    total_time_gaps = 0
     from canair.captures.sensitive_purge import sensitive_findings
     from canair.privacy.sensitive import profile_set
 
@@ -216,63 +174,22 @@ def _check_captures(
         # identical untimed lines otherwise drown the handful of echo/quality
         # warnings that need attention. --show-untimed opts back into per-file detail.
         time_gaps = _capture_missing_time_warnings(path)
-        total_time_gaps += len(time_gaps)
+        report.total_time_gaps += len(time_gaps)
         strict_gaps = time_gaps if strict else []
         if not strict and show_untimed:
             warnings += time_gaps
-        error_count = len(errors) + len(strict_gaps)
-        # Only print files that have something to report — a clean profile can
+        found = FileFindings(path.name, errors, strict_gaps, warnings)
+        # Only files with something to report are kept — a clean profile can
         # hold hundreds of capture files, so the "OK" lines would bury the signal.
-        if not error_count and not warnings:
+        if not found.error_count and not warnings:
             continue
-        if error_count:
-            print(f"\n{path.name}: {error_count} errors")
-            for e in errors:
-                print(f"  - {e}")
-            _print_grouped(strict_gaps, marker="-")
-            total_errors += error_count
-        else:
-            print(f"\n{path.name}:")
-        _print_grouped(warnings, marker="⚠")
-        total_warnings += len(warnings)
+        report.files.append(found)
+        report.total_errors += found.error_count
+        report.total_warnings += len(warnings)
 
-    from .variant_tags import report_variant_tags
-
-    tag_warnings, untagged_failed = report_variant_tags(files, prof, max_untagged)
-    total_warnings += tag_warnings
-    if total_warnings:
-        print(
-            f"\n{total_warnings} warning(s) — see `canair validate states` / echo mismatches above"
-        )
-    # Untimed-payload ratchet: writes are enforced to carry a timestamp, so the
-    # untimed count only ever falls. A --max-untimed baseline turns "must be zero"
-    # (which the grandfathered legacy rows can never satisfy) into "must not GROW",
-    # a real CI gate that needs no history rewrite and ratchets down opportunistically.
-    ratchet_failed = max_untimed is not None and total_time_gaps > max_untimed
-    if not strict and total_time_gaps:
-        ceiling = ""
-        if max_untimed is not None:
-            ceiling = (
-                f" (exceeds the --max-untimed {max_untimed} baseline)"
-                if ratchet_failed
-                else f" (within the --max-untimed {max_untimed} baseline)"
-            )
-        detail = "" if show_untimed else " (--show-untimed lists them, --strict fails on them)"
-        print(f"  ({total_time_gaps} untimed payload capture(s){ceiling}){detail}")
-    if ratchet_failed:
-        print(
-            f"\n{total_time_gaps} untimed payload capture(s) exceeds the "
-            f"--max-untimed {max_untimed} baseline — new untimed captures are not "
-            "allowed (the write path enforces a timestamp). If this is legacy data, "
-            "raise the baseline deliberately; otherwise fix the capture(s)."
-        )
-    if total_errors:
-        print(f"\n{total_errors} total errors across {len(files)} files")
-        return 1
-    if ratchet_failed or untagged_failed:
-        return 1
-    print(f"\nAll {len(files)} files valid.")
-    return 0
+    report.tags = variant_tag_report(files, prof, max_untagged)
+    report.total_warnings += report.tags.warnings
+    return report
 
 
 def _capture_state_warnings(

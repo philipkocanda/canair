@@ -22,8 +22,9 @@ The next steps, in the order that pays most:
 
 1. **The two cycles left** (`ecus : profile : variants` and `expression : uds`). The plan's
    "Left over" item 2 lists the exact imports to cut for each.
-2. **The `validation/` runners**: separate each `_run_*` check from its printing, then move the
-   printing to `cli/commands/validate/`. (`validation/pids.py` is split by section: DONE.)
+2. **The `validation/` runners**: DONE. Each check returns data (`validation/report.py`,
+   `PidsReport`, `CapturesReport`) and `cli/commands/validate/` prints it and picks the exit code.
+   `validation/pids.py` is split by section.
 3. The rest of the plan's "Left over" list: the `live/` sub-packages, the AGENTS.md path cut,
    the `param` to `signal` rename, and the states migrations as commands (ask the user first;
    it is user-facing).

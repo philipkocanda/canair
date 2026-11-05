@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 import yaml
 
+from canair.cli.commands.validate.pids import run_pids
 from canair.validation.addressing import _init_commands, _init_protocol, addressing_warnings
 from canair.validation.cross_file import elm327_warnings
-from canair.validation.pids import _run_pids
 
 
 def _data(init: str = "ATSP6;ATS0;", **ecus) -> dict:
@@ -130,5 +130,5 @@ class TestThroughValidatePids:
 
         ecus_dir = self._profile(tmp_path, "ATSP6;", {"OBD": {"tx_id": 0x7DF}})
         monkeypatch.setattr("canair.profile.active", lambda: profile_for_path(ecus_dir))
-        _run_pids(None, stats=False)
+        run_pids(None, stats=False)
         assert "WARN: OBD: tx_id 0x7DF is a functional broadcast id" in capsys.readouterr().out

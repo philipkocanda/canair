@@ -17,8 +17,8 @@ import pytest
 import canair.profile as profile
 from canair.cli.commands import import_ as import_cmd
 from canair.cli.commands import validate
+from canair.cli.commands.validate.files import run_can, run_signals
 from canair.profile import Profile
-from canair.validation import other as validate_other
 
 
 @pytest.fixture
@@ -33,11 +33,11 @@ def temp_profile(tmp_path):
 
 class TestValidateSignals:
     def test_absent_skips_ok(self, temp_profile):
-        assert validate_other._run_signals() == 0
+        assert run_signals() == 0
 
     def test_empty_dir_skips_ok(self, temp_profile):
         (temp_profile / "signals").mkdir()
-        assert validate_other._run_signals() == 0
+        assert run_signals() == 0
 
     def test_valid_file_ok(self, temp_profile):
         sig = temp_profile / "signals"
@@ -59,7 +59,7 @@ class TestValidateSignals:
             "        unit: ''\n"
             "        verified: false\n"
         )
-        assert validate_other._run_signals() == 0
+        assert run_signals() == 0
 
     def test_bad_arb_id_errors(self, temp_profile):
         sig = temp_profile / "signals"
@@ -72,7 +72,7 @@ class TestValidateSignals:
             "        start_bit: 0\n"
             "        length: 8\n"
         )
-        assert validate_other._run_signals() == 1
+        assert run_signals() == 1
 
     def test_missing_required_signal_field_errors(self, temp_profile):
         sig = temp_profile / "signals"
@@ -84,7 +84,7 @@ class TestValidateSignals:
             "      X:\n"
             "        length: 8\n"  # missing start_bit
         )
-        assert validate_other._run_signals() == 1
+        assert run_signals() == 1
 
     def test_bad_byte_order_errors(self, temp_profile):
         sig = temp_profile / "signals"
@@ -98,13 +98,13 @@ class TestValidateSignals:
             "        length: 8\n"
             "        byte_order: sideways\n"
         )
-        assert validate_other._run_signals() == 1
+        assert run_signals() == 1
 
     def test_unknown_field_errors(self, temp_profile):
         sig = temp_profile / "signals"
         sig.mkdir()
         (sig / "bad.yaml").write_text("bogus: 1\nmessages: {}\n")
-        assert validate_other._run_signals() == 1
+        assert run_signals() == 1
 
 
 # ── validate can (raw-CAN log index) ──────────────────────────────────────
@@ -112,7 +112,7 @@ class TestValidateSignals:
 
 class TestValidateCan:
     def test_absent_skips_ok(self, temp_profile):
-        assert validate_other._run_can() == 0
+        assert run_can() == 0
 
     def test_valid_index_ok(self, temp_profile):
         can = temp_profile / "captures" / "can"
@@ -128,19 +128,19 @@ class TestValidateCan:
             "    id_set: ['0x220', '0x18DAF110']\n"
             "    bitrate: 500000\n"
         )
-        assert validate_other._run_can() == 0
+        assert run_can() == 0
 
     def test_missing_required_field_errors(self, temp_profile):
         can = temp_profile / "captures" / "can"
         can.mkdir(parents=True)
         (can / "index.yaml").write_text("logs:\n  - file: x.blf\n")  # no format
-        assert validate_other._run_can() == 1
+        assert run_can() == 1
 
     def test_bad_format_enum_errors(self, temp_profile):
         can = temp_profile / "captures" / "can"
         can.mkdir(parents=True)
         (can / "index.yaml").write_text("logs:\n  - file: x.foo\n    format: foo\n")
-        assert validate_other._run_can() == 1
+        assert run_can() == 1
 
     def test_bad_id_pattern_errors(self, temp_profile):
         can = temp_profile / "captures" / "can"
@@ -148,7 +148,7 @@ class TestValidateCan:
         (can / "index.yaml").write_text(
             "logs:\n  - file: x.blf\n    format: blf\n    id_set: ['220']\n"  # not 0x-prefixed
         )
-        assert validate_other._run_can() == 1
+        assert run_can() == 1
 
     def test_lfs_pointer_is_named(self, temp_profile, capsys):
         can = temp_profile / "captures" / "can"
@@ -156,7 +156,7 @@ class TestValidateCan:
         (can / "index.yaml").write_text(
             "version https://git-lfs.github.com/spec/v1\noid sha256:f951bb\nsize 10633\n"
         )
-        assert validate_other._run_can() == 1
+        assert run_can() == 1
         assert "Git LFS pointer" in capsys.readouterr().out
 
 

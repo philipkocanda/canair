@@ -13,8 +13,8 @@ import pytest
 import yaml
 
 import canair.profile as profile
+from canair.cli.commands.validate.files import run_signals
 from canair.profile import Profile
-from canair.validation import other as validate
 from canair.yaml_edit.signals import SignalsEditError, merge_bus, upsert_signal
 
 
@@ -58,7 +58,7 @@ class TestUpsertMerges:
         _seed_rich(temp_profile)
         upsert_signal("b", "0x1DA", "RPM", unit="1/min", profile=temp_profile)
         assert _sig(temp_profile, "0x1DA", "RPM") == {**RICH, "unit": "1/min"}
-        assert validate._run_signals() == 0
+        assert run_signals() == 0
 
     def test_byte_order_default_does_not_reset_big_endian(self, temp_profile):
         _seed_rich(temp_profile)

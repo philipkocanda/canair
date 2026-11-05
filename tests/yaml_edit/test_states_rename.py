@@ -211,11 +211,11 @@ class TestBooleanWordStates:
         assert "unquoted YAML boolean" in msg
 
     def test_validate_states_errors_on_a_bare_boolean(self, prof, monkeypatch, capsys):
-        from canair.validation.other import _run_states
+        from canair.cli.commands.validate.files import run_states
 
         prof.states_file.write_text(_STATES.replace("implies: [ACC2]", "implies: [ON]"))
         monkeypatch.setattr("canair.profile.active", lambda: prof)
-        assert _run_states() == 1
+        assert run_states() == 1
         assert "unquoted YAML boolean" in capsys.readouterr().out
 
     def test_states_editor_quotes_a_new_boolean_word(self, prof):

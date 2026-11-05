@@ -14,28 +14,29 @@ Validators merged into one subcommand:
   * ``validate can`` — captures/can/index.yaml (raw-CAN log index)
   * ``validate all`` (default) — run all of them
 
-This package is only the CLI shell: the parser and ``run``. The validators themselves are
-library code in :mod:`canair.validation`, which the profile editors call as their post-write
-guard.
+The checks are library code in :mod:`canair.validation`, which the profile editors also call as
+their post-write guard. They return data and never print. This package prints it and picks the
+exit code: the parser and ``run`` here, and one runner for each target (``files``, ``pids``,
+``captures``).
 
-Belongs: `canair validate`: the parser and the runner for each target.
+Belongs: `canair validate`: the parser, and the printing and exit code of each target.
 Not here: the checks themselves (`validation/`).
 Imports: `validation` and below.
 """
 
 import argparse
 
-from canair.validation.captures import _run_captures
-from canair.validation.other import (
-    _run_actions,
-    _run_can,
-    _run_can_buses,
-    _run_groups,
-    _run_signals,
-    _run_states,
+from .captures import run_captures
+from .files import (
+    run_actions,
+    run_can,
+    run_can_buses,
+    run_groups,
+    run_signals,
+    run_states,
+    run_variants,
 )
-from canair.validation.pids import _run_pids
-from canair.validation.variants import _run_variants
+from .pids import run_pids
 
 NAME = "validate"
 ALIASES = ["val"]
@@ -155,49 +156,49 @@ def run(args) -> int:
     max_untimed = getattr(args, "max_untimed", None)
     show_untimed = getattr(args, "show_untimed", False)
     if args.target in ("pids", "ecus"):
-        return _run_pids(args.files or None, args.stats)
+        return run_pids(args.files or None, args.stats)
     if args.target == "captures":
-        return _run_captures(
+        return run_captures(
             strict=strict,
             max_untimed=max_untimed,
             show_untimed=show_untimed,
             max_untagged=getattr(args, "max_untagged", None),
         )
     if args.target == "states":
-        return _run_states()
+        return run_states()
     if args.target == "can-buses":
-        return _run_can_buses()
+        return run_can_buses()
     if args.target == "signals":
-        return _run_signals()
+        return run_signals()
     if args.target == "groups":
-        return _run_groups()
+        return run_groups()
     if args.target == "actions":
-        return _run_actions()
+        return run_actions()
     if args.target == "variants":
-        return _run_variants()
+        return run_variants()
     if args.target == "can":
-        return _run_can()
-    # all: the ecus/ files are validated once via _run_pids (they are the registry).
-    rc_p = _run_pids(None, args.stats)
+        return run_can()
+    # all: the ecus/ files are validated once via run_pids (they are the registry).
+    rc_p = run_pids(None, args.stats)
     print()
-    rc_c = _run_captures(
+    rc_c = run_captures(
         strict=strict,
         max_untimed=max_untimed,
         show_untimed=show_untimed,
         max_untagged=getattr(args, "max_untagged", None),
     )
     print()
-    rc_s = _run_states()
+    rc_s = run_states()
     print()
-    rc_cb = _run_can_buses()
+    rc_cb = run_can_buses()
     print()
-    rc_sig = _run_signals()
+    rc_sig = run_signals()
     print()
-    rc_grp = _run_groups()
+    rc_grp = run_groups()
     print()
-    rc_act = _run_actions()
+    rc_act = run_actions()
     print()
-    rc_var = _run_variants()
+    rc_var = run_variants()
     print()
-    rc_can = _run_can()
+    rc_can = run_can()
     return rc_p or rc_c or rc_s or rc_cb or rc_sig or rc_grp or rc_act or rc_var or rc_can

@@ -275,13 +275,13 @@ class TestCommands:
         assert cmd.cmd_show(argparse.Namespace(id="nope", json=False)) == 1
 
     def test_validate_target(self, prof, capsys):
-        from canair.validation.variants import _run_variants
+        from canair.cli.commands.validate.files import run_variants
 
-        assert _run_variants() == 0
+        assert run_variants() == 0
         edit.add_variant("a1", "A", profile=prof)
-        assert _run_variants() == 0
+        assert run_variants() == 0
         prof.variants_file.write_text("variants:\n  a1: {colour: red}\n")
-        assert _run_variants() == 1
+        assert run_variants() == 1
 
 
 @pytest.mark.parametrize(

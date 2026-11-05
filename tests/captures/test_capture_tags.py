@@ -339,8 +339,8 @@ class TestRenameAndRemove:
 
 
 class TestValidation:
-    def test_untagged_and_undeclared_tags_are_reported(self, prof, capsys):
-        from canair.validation.variant_tags import report_variant_tags
+    def test_untagged_and_undeclared_tags_are_reported(self, prof):
+        from canair.validation.variant_tags import variant_tag_report
 
         path = _write(
             prof.captures_dir / "2026-01-01.json",
@@ -348,25 +348,27 @@ class TestValidation:
             _session("b", variant="64kwh"),
             _session("c", variant="28kwh"),
         )
-        assert report_variant_tags([path], prof) == (1, False)
-        out = capsys.readouterr().out
-        assert "'64kwh', which the profile does not declare" in out
-        assert "1 untagged session(s)" in out
+        report = variant_tag_report([path], prof)
+        assert (report.warnings, report.failed) == (1, False)
+        assert any("'64kwh', which the profile does not declare" in p for p in report.problems)
+        assert (report.untagged, report.several_variants) == (1, True)
 
-    def test_untagged_sessions_are_not_flagged_on_a_single_variant_profile(self, prof, capsys):
-        from canair.validation.variant_tags import report_variant_tags
+    def test_untagged_sessions_are_not_flagged_on_a_single_variant_profile(self, prof):
+        from canair.validation.variant_tags import variant_tag_report
 
         variants_edit.remove_variant("38kwh", profile=prof)
         path = _write(prof.captures_dir / "2026-01-01.json", _session("a"))
-        assert report_variant_tags([path], prof) == (0, False)
-        assert "untagged" not in capsys.readouterr().out
+        report = variant_tag_report([path], prof)
+        assert (report.warnings, report.failed, report.several_variants) == (0, False, False)
 
     def test_the_untagged_ratchet(self, prof, capsys):
-        from canair.validation.variant_tags import report_variant_tags
+        from canair.cli.commands.validate.captures import run_captures
+        from canair.validation.variant_tags import variant_tag_report
 
         path = _write(prof.captures_dir / "2026-01-01.json", _session("a"), _session("b"))
-        assert report_variant_tags([path], prof, max_untagged=2) == (0, False)
-        assert report_variant_tags([path], prof, max_untagged=1) == (0, True)
+        assert not variant_tag_report([path], prof, max_untagged=2).failed
+        assert variant_tag_report([path], prof, max_untagged=1).failed
+        assert run_captures(max_untagged=1) == 1
         assert "exceeds the --max-untagged 1 baseline" in capsys.readouterr().out
 
 

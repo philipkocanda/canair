@@ -1,10 +1,11 @@
-"""``validate variants`` — the profile's optional ``variants.yaml``."""
+"""The check behind ``validate variants``: the profile's optional ``variants.yaml``."""
 
 from __future__ import annotations
 
 from canair.core import yaml_io
 
 from ._common import duplicate_key_errors
+from .report import FileReport
 
 
 def _reference_errors() -> list[str]:
@@ -20,30 +21,23 @@ def _reference_errors() -> list[str]:
     return variant_reference_errors(load_variants(), ecus)
 
 
-def _run_variants() -> int:
-    """Validate ``variants.yaml``: structure, IDs, every metadata field, and that every ECU
+def check_variants() -> FileReport:
+    """Check ``variants.yaml``: structure, IDs, every metadata field, and that every ECU
     revision it names exists."""
     from canair.profile import active
     from canair.variants import check_variants_doc
 
     path = active().variants_file
     if not path.exists():
-        print("No variants.yaml (optional) — skipping.")
-        return 0
+        return FileReport(path.name, skipped="No variants.yaml (optional) — skipping.")
     try:
         text = path.read_text()
         data = yaml_io.safe_load(text)
     except Exception as e:
-        print(f"{path.name}: YAML parse error: {e}")
-        return 1
+        return FileReport(path.name, broken=f"{path.name}: YAML parse error: {e}")
     errors = duplicate_key_errors(text) + check_variants_doc(data)
     if not errors:
         errors = _reference_errors()
     if errors:
-        for e in errors:
-            print(f"  ERROR: {path.name}: {e}")
-        print(f"\n{len(errors)} error(s)")
-        return 1
-    count = len((data or {}).get("variants") or {})
-    print(f"{path.name}: OK ({count} variant(s))")
-    return 0
+        return FileReport(path.name, errors=tuple(errors))
+    return FileReport(path.name, summary=f"({len((data or {}).get('variants') or {})} variant(s))")

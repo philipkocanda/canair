@@ -12,7 +12,7 @@ from pathlib import Path
 from canair.analysis.misfiled import Misfile, find_misfiled
 from canair.captures.payload_corpus import PayloadCorpus, load_payload_corpus
 
-from .captures import CaptureWarning
+from .report import CaptureWarning
 
 
 def _message(m: Misfile, names: dict[int, str]) -> str:

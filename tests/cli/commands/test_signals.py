@@ -12,8 +12,8 @@ import argparse
 import pytest
 
 import canair.profile as profile
+from canair.cli.commands.validate.files import run_signals
 from canair.profile import Profile
-from canair.validation import other as validate
 from canair.validation.signals import check_signals_doc, signal_byte_span
 from canair.yaml_edit import signals as signals_edit
 
@@ -51,7 +51,7 @@ class TestSignalsEdit:
         assert sig["start_bit"] == 0 and sig["length"] == 14
         assert sig["scale"] == 0.03125 and sig["unit"] == "km/h"
         assert data["messages"]["0x386"]["name"] == "WHL_SPD11"
-        assert validate._run_signals() == 0
+        assert run_signals() == 0
 
     def test_source_provenance_field(self, temp_profile):
         signals_edit.upsert_signal(
@@ -70,7 +70,7 @@ class TestSignalsEdit:
             "0x354"
         ]["signals"]["GEAR"]
         assert sig["source"].startswith("uhi22")
-        assert validate._run_signals() == 0  # source is an accepted field
+        assert run_signals() == 0  # source is an accepted field
 
     def test_signed_persists_after_byte_order(self, temp_profile):
         p = signals_edit.upsert_signal(
@@ -89,7 +89,7 @@ class TestSignalsEdit:
         sig = yaml.safe_load(p.read_text())["messages"]["0x1DA"]["signals"]["RPM"]
         assert sig["signed"] is True
         assert list(sig) == ["start_bit", "length", "byte_order", "signed", "scale"]
-        assert validate._run_signals() == 0
+        assert run_signals() == 0
 
     def test_signed_omitted_by_default(self, temp_profile):
         p = signals_edit.upsert_signal("b", "0x1", "X", start_bit=0, length=8, profile=temp_profile)
@@ -117,7 +117,7 @@ class TestSignalsEdit:
 
         sig = yaml.safe_load(path.read_text())["messages"]["0x354"]["signals"]["GEAR"]
         assert sig["type"] == "enum" and sig["values"] == {1: "P", 2: "R"}
-        assert validate._run_signals() == 0
+        assert run_signals() == 0
 
     def test_msg_length_lands_before_existing_signals(self, temp_profile):
         signals_edit.upsert_signal("b", "0x284", "A", start_bit=0, length=8, profile=temp_profile)
@@ -135,7 +135,7 @@ class TestSignalsEdit:
 
         msg = yaml.safe_load(p.read_text())["messages"]["0x284"]
         assert list(msg) == ["name", "length", "signals"] and msg["length"] == 8
-        assert validate._run_signals() == 0
+        assert run_signals() == 0
 
     def test_msg_length_out_of_range(self, temp_profile):
         with pytest.raises(signals_edit.SignalsEditError, match="CAN FD size"):
@@ -198,7 +198,7 @@ class TestSignalsEdit:
         }
         path, n = signals_edit.merge_bus("pt", imported, profile=temp_profile)
         assert n == 2 and path.exists()
-        assert validate._run_signals() == 0
+        assert run_signals() == 0
 
 
 # ── check_signals_doc ─────────────────────────────────────────────────────
@@ -376,7 +376,7 @@ class TestDbcInterop:
         assert "signed" not in sig
         rpm = data["messages"]["0x1DA"]["signals"]["MOTOR_RPM"]
         assert rpm["signed"] is True and rpm["byte_order"] == "big" and rpm["start_bit"] == 39
-        assert validate._run_signals() == 0
+        assert run_signals() == 0
 
     def test_import_dbc_dry_run_writes_nothing(self, temp_profile, tmp_path, capsys):
         dbc = _write_dbc(tmp_path)
