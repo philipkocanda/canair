@@ -1,6 +1,6 @@
 # Code organization, part 9: thin command modules
 
-Status: **IN PROGRESS** (2026-11-05): `contribute` and `ecu` are done, see "As built". Part of
+Status: **IN PROGRESS** (2026-11-05): `contribute`, `ecu` and `pids` are done, see "As built". Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 8 for
 the shared query helper only. Follows the command-package rule of
 `plans/2026-08-06-command-packages-and-live-split.md` and the non-goals of
@@ -130,3 +130,9 @@ Re-measured at `964f3ffb`: 11 command modules were over 500 lines (`decode/one.p
   the revision note.
 - `tests/yaml_edit/test_edit_echo.py` read `pids.py` and `ecu.py` by file name. It reads a
   package as well now.
+- **`pids`** is `cli/commands/pids/`: one module per group of kinds (`entries`, `research`,
+  `pid_settings`, `migrate`, `ecu_facts`) with `parser.py`, `common.py` and the literal
+  `epilog.py`. The groups follow the original registration order, so the `pids --help` kind
+  list is unchanged: the plan's `params` and `pid` groups interleave in that order, so
+  `entries` holds both. The capture-range check of `upsert-param` was split from its printing
+  and moved to `analysis/signal_range.py`, in two commits.
