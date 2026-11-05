@@ -7,7 +7,7 @@ Both are soft judgements used by ``canair validate captures``, ``canair import u
 
 from __future__ import annotations
 
-from canair.uds.echo import echo_mismatch, hex_bytes, request_echo
+from canair.uds.echo import echo_mismatch, hex_bytes, reply_check, request_echo
 from canair.uds.services import NEGATIVE_RESPONSE_SID
 
 
@@ -29,6 +29,12 @@ def payload_echo_mismatch(request_pid: str, payload_hex: str) -> str | None:
     expected_sid, expected_id = echo
     problem = echo_mismatch(expected_sid, expected_id, resp)
     if problem is None:
+        check = reply_check(request_pid)
+        if check is not None and check.length is not None and len(resp) != check.length:
+            return (
+                f"payload is {len(resp)} bytes but memory read {request_pid} "
+                f"answers with {check.length} (stale/misfiled or cut-short reply?)"
+            )
         return None
     if problem.field == "sid":
         return (

@@ -15,7 +15,8 @@ behind data usage. It is about the *network*; for what the **car** is allowed to
   flow control stays on the car's side of the network.
 - **`--wait` is what you want for a long recording.** It makes both the initial connect and any
   mid-session reconnect retry indefinitely instead of giving up.
-- **Leave `isotp.blocksize` at `0`.** Any other value costs a round trip per block.
+- **Leave `isotp.blocksize` at `0`.** Any other value costs a round trip per block. An ECU that
+  needs a block size gets one in its own `isotp:` block, so only its reads pay for it.
 - **canair measures the link and adapts its own timeouts.** You should not need to tune them.
 - **`slcan-tcp` streams the whole CAN bus to you.** Budget for it, or use `wican-ws`.
 

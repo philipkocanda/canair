@@ -11,12 +11,16 @@ flow-control block/STmin gap, 8-byte classic CAN frames padded with ``0xAA``), s
 an existing profile that carries no ``isotp:`` block behaves exactly as before. A
 profile that pads its requests with a different byte, whose ECUs pad their replies
 with one (``rx_padding``, read by canair only), that runs CAN-FD, or that needs a
-different flow-control cadence sets those under ``isotp:`` in ``profile.yaml``.
+different flow-control cadence sets those under ``isotp:`` in ``profile.yaml``. One
+ECU that needs its own flow control (a pump that sends no consecutive frame after
+BlockSize 0) sets the :data:`ECU_ISOTP_FIELDS` under ``isotp:`` in its ``ecus/`` file.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
+from typing import Any
 
 from canair.core.eventlog import log_event
 
@@ -49,6 +53,16 @@ _CANAIR_ONLY_FIELDS: tuple[str, ...] = ("rx_padding",)
 # Names of the accepted fields (for schema/validation reuse).
 ISOTP_FIELDS: tuple[str, ...] = (*_DEFAULTS, *_CANAIR_ONLY_FIELDS)
 
+# Fields one ECU's own ``isotp:`` block may override. Only those the raw path applies per ISO-TP
+# stack: an ELM327 adapter keeps one flow-control setting for the session (`ATFCSD`) and pads
+# its requests itself, the reply padding strips every multi-DID batch the same way, and CAN-FD
+# is a property of the bus. A profile-wide value an ECU does not override still applies to it.
+ECU_ISOTP_FIELDS: tuple[str, ...] = (
+    "blocksize",
+    "rx_flowcontrol_timeout",
+    "rx_consecutive_frame_timeout",
+)
+
 # The two budgets above wait for a frame that has to cross the network, so on a
 # remote link the round trip is spent *inside* them. They are widened by the
 # measured link budget rather than replaced by it: the configured value is the
@@ -61,13 +75,17 @@ _BLOCKSIZE_WARN_BUDGET_S = 0.1
 
 
 def build_isotp_params(
-    config: dict | None = None, link_budget: float | None = None
+    config: dict | None = None,
+    link_budget: float | None = None,
+    ecu_config: Mapping[str, Any] | None = None,
 ) -> dict[str, int | bool]:
     """Build a ``can-isotp`` params dict, overlaying a profile ``isotp:`` block.
 
     ``config`` is the profile's ``isotp:`` mapping (or ``None``). Each recognised,
     non-``None`` key overrides its default; missing/unknown keys keep the default
-    (validation flags unknown keys — this stays lenient at runtime).
+    (validation flags unknown keys — this stays lenient at runtime). ``ecu_config``
+    is one ECU's own ``isotp:`` block, laid over the profile's for the
+    :data:`ECU_ISOTP_FIELDS` only.
 
     ``link_budget`` is the measured network round-trip allowance in *seconds*
     (see :class:`~canair.transport.link_latency.LinkLatency`). When given, it is added to
@@ -77,11 +95,12 @@ def build_isotp_params(
     fail — which is how the same symptom kept being read as a flaky ECU.
     """
     params = dict(_DEFAULTS)
-    if config:
-        for key in _DEFAULTS:
-            value = config.get(key)
-            if value is not None:
-                params[key] = value
+    for block, fields in ((config, _DEFAULTS), (ecu_config, ECU_ISOTP_FIELDS)):
+        if block:
+            for key in fields:
+                value = block.get(key)
+                if value is not None:
+                    params[key] = value
     if link_budget and link_budget > 0.0:
         extra = int(link_budget * 1000.0)
         for key in _LINK_SCALED_FIELDS:
@@ -109,6 +128,24 @@ def _warn_blocksize_cost(blocksize: int, link_budget: float) -> None:
         "response after a single flow-control frame",
         level=logging.INFO,
     )
+
+
+def ecu_isotp_blocks(pids_data: Mapping[str, Any] | None) -> dict[int, Mapping[str, Any]]:
+    """``{tx_id: isotp block}`` for every registered ECU that carries its own ``isotp:``.
+
+    What the raw transports take to build each ECU's stack from the profile's block plus its
+    own (:func:`build_isotp_params`). An ECU without one, or an unregistered id, gets the
+    profile's alone.
+    """
+    out: dict[int, Mapping[str, Any]] = {}
+    ecus = pids_data.get("ecus") if isinstance(pids_data, Mapping) else None
+    for ecu_def in (ecus or {}).values():
+        if not isinstance(ecu_def, Mapping):
+            continue
+        block, tx_id = ecu_def.get("isotp"), ecu_def.get("tx_id")
+        if isinstance(block, Mapping) and block and isinstance(tx_id, int):
+            out[tx_id] = block
+    return out
 
 
 def _padding_byte(pids_data: dict | None, key: str) -> int | None:

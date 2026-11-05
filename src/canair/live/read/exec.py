@@ -19,7 +19,7 @@ from canair.ecus.pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index
 from canair.expression.results import ResultEntry
 from canair.privacy.sensitive import MASK, request_hidden
 from canair.query import QueryError, inferred_request, pids_named_by
-from canair.query.steps import resolve_tx_id
+from canair.query.steps import parse_raw_spec, resolve_tx_id
 from canair.render import messages
 from canair.render.formatting import print_ecu_results, print_hexdump
 from canair.safety.actuation import on_refusal
@@ -256,7 +256,7 @@ def build_query_plan(
             if hits:
                 continue
             try:
-                request = inferred_request(token)
+                request = inferred_request(token, ecu_info.get("memory_format"))
             except QueryError as e:
                 if not quiet:
                     messages.warning(f"{e}; skipping")
@@ -434,13 +434,11 @@ async def _exec_query(
 
 async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
     """Execute raw sub-command."""
-    match = re.match(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$", spec)
-    if not match:
-        messages.error(f"invalid raw format: {spec}. Expected: TX:PID (e.g., 770:22BC03)")
+    try:
+        tx_id, service_pid = parse_raw_spec(spec)
+    except ValueError as e:
+        messages.error(str(e))
         return
-
-    tx_id = int(match.group(1), 16)
-    service_pid = match.group(2).upper()
 
     await sm.keepalive_stale()
     await sm.terminal.set_header(tx_id)

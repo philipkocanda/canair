@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from dataclasses import dataclass, field
 
-from canair.ecus.pids import pid_ships
+from canair.ecus.pid_status import pid_ships
 from canair.ecus.response_frames import stored_count
 from canair.ecus.sensitivity import param_sensitive
 from canair.ecus.shipping import param_ships
@@ -248,8 +248,9 @@ def ship_profile(
         for pid_code, pid_data in (ecu.get("pids") or {}).items():
             # Only `active` and `slow` PIDs ship to the device. draft (unshipped
             # placeholder), static (unchanging identity/cal) and ignored (dead) are all
-            # excluded, and so is a snapshot-only DID (a live read only draws an NRC).
-            if not pid_ships(pid_data):
+            # excluded, and so is a snapshot-only DID (a live read only draws an NRC) and
+            # every memory read (canair.ecus.pids.pid_ships).
+            if not pid_ships(pid_data, pid_code):
                 continue
 
             params: dict[str, dict] = {}

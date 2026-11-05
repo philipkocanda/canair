@@ -60,6 +60,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 ### Other
 
 - [`canair action`](action.md) — Profile-defined actions: named requests for make-specific things such as putting the car to sleep. Each action declares live reads and a condition that must be TRUE before it is sent; its requests still pass the command blocklist, which only a code-owned profile quirk can relax for that exact request.
+- [`canair memory`](memory.md) — Read ECU memory with ReadMemoryByAddress (0x23) into dumps kept on this machine, and list, compare and export them. Choose a kind:
 - [`canair variants`](variants.md) — List the variants of the active profile's car — the versions an owner can name, such as a battery size or a facelift — or edit them (add/set-meta/unset-meta/set-revisions/rename/rm). A variant can limit which ECU revisions its car carries and override some profile.yaml settings.
 - [`canair contribute`](contribute.md) — Open a pull request contributing the active profile upstream.
 - [`canair bix`](bix.md) — Convert byte indices between WiCAN, ISO-TP, Torque, and OBDb notations.

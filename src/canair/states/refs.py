@@ -72,7 +72,7 @@ def _signal_map(pids_data: Mapping[str, Any]) -> dict[str, dict[str, _Signal]]:
     ``ignored``, flagged as such: a predicate pointing at one resolves to nothing
     at runtime, and saying so beats reporting the signal as undefined.
     """
-    from canair.ecus.pids import pid_status
+    from canair.ecus.pid_status import pid_status
 
     out: dict[str, dict[str, _Signal]] = {}
     for ecu_name, ecu_def in (pids_data.get("ecus") or {}).items():

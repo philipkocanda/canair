@@ -36,6 +36,7 @@ COMMAND_NAMES: list[str] = [
     "action",
     "identity",
     "dtc",
+    "memory",
     "repl",
     "lock",
     # offline analysis

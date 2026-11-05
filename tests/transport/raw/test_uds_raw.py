@@ -335,3 +335,26 @@ class TestPollCallback:
         seen = []
         c.poll([("BMS", bytes.fromhex("2199"))], on_result=lambda key, val: seen.append(val))
         assert len(seen) == 1 and isinstance(seen[0], Exception)
+
+
+class TestRawUdsClientEcuIsotp:
+    """The monitor's client builds each stack from the profile block plus the ECU's own."""
+
+    def test_only_that_ecus_stack_gets_its_flow_control(self, monkeypatch):
+        seen: dict[int, dict] = {}
+
+        def _build(bus, notifier, address, params, *, fc_id=None):
+            seen[address._txid] = params
+            return FakeStack(address._txid, {})
+
+        monkeypatch.setattr(uds_raw.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(uds_raw, "build_isotp_stack", _build)
+        monkeypatch.setattr(uds_raw.time, "sleep", lambda *_a: None)
+        RawUdsClient(
+            bus=object(),
+            addresses=_addrs({"EWP": (0x746, 0x74E), "BMS": (0x7E4, 0x7EC)}),
+            timeout=0.3,
+            ecu_isotp={0x746: {"blocksize": 8}},
+        )
+        assert seen[0x746]["blocksize"] == 8
+        assert seen[0x7E4]["blocksize"] == 0

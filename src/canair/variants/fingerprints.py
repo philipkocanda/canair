@@ -8,6 +8,10 @@ A revision's ``fingerprints:`` are evidence, not rules (see
   and refuses a UDS ``22F187``, and the other way round.
 * ``{identity: {part_number: "36601-0E1*"}}`` — identity fields matching glob patterns
   (case-sensitive, surrounding blanks ignored); every field listed must match.
+* ``{software: "1.04*"}`` — the ECU's software version, as canair reads it
+  (:mod:`canair.live.identity.software`), matching a glob. A reflash changes it, so it is
+  what tells a memory PID's address is still valid (``canair scan memory`` records the
+  same reading against each region it maps).
 
 A revision matches when any one of its fingerprints does. :func:`match` returns every
 matching revision: exactly one is a detection, none or several settle nothing — the ECU
@@ -49,6 +53,11 @@ def probes(ecu_def: Mapping, possible: Iterable[str]) -> list[str]:
     return out
 
 
+def wants_software(ecu_def: Mapping, possible: Iterable[str]) -> bool:
+    """Whether any of ``possible`` revisions carries a ``software:`` fingerprint."""
+    return any("software" in fp for rid in possible for fp in _fingerprints(ecu_def, rid))
+
+
 def _identity_matches(pattern: Mapping, readings: Mapping[str, Any]) -> bool:
     for field, glob in pattern.items():
         value = readings.get(field)
@@ -63,12 +72,14 @@ def match(
     possible: Iterable[str] | None = None,
     identity: Mapping[str, Any] | None = None,
     responded: Mapping[str, bool] | None = None,
+    software: str | None = None,
 ) -> list[str]:
     """The revisions (of ``possible``, default all declared) whose fingerprints match.
 
     ``identity`` is the ECU's identity readings by field name; ``responded`` maps a
-    request (hex) to whether the ECU answered it positively. A request that was not
-    sent is no evidence either way.
+    request (hex) to whether the ECU answered it positively; ``software`` is the ECU's
+    software version. A request that was not sent, or a reading not taken, is no
+    evidence either way.
     """
     candidates = list(possible) if possible is not None else declared(ecu_def)
     answered = {_normalize_request(k): v for k, v in (responded or {}).items()}
@@ -80,6 +91,10 @@ def match(
                 break
             if "identity" in fp and identity and isinstance(fp["identity"], Mapping):
                 if _identity_matches(fp["identity"], identity):
+                    out.append(rid)
+                    break
+            if "software" in fp and software is not None:
+                if fnmatchcase(software.strip(), str(fp["software"]).strip()):
                     out.append(rid)
                     break
     return out

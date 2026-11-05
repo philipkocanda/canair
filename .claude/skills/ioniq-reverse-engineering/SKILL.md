@@ -473,9 +473,10 @@ module with no row below either does not answer at a 0x7xx address or was not aw
 | Driver IMS (memory seat) module | PSM | probable | the car's only power-seat module; B-CAN; address next to the door modules |
 | Shift button module or SCU (parking actuator control) | GSA | unresolved | both are on P-CAN; GSA is a Kostal shift assembly; which one answers is unknown |
 | Cluster, BCM | CLU, BCM | certain | name, buses |
-| EWP, ODS, DBL, charge lamp, compressor, PTC heater, the other of SBW switch / SCU | none | no responder found | not in the sweep |
+| EWP (EPCU/motor coolant pump) | EWP (0x746) | probable | Kona bench log: the pump alone answers on 0x74E and sends P-CAN 0x570; was Unknown-746 |
+| ODS, DBL, charge lamp, compressor, PTC heater, the other of SBW switch / SCU | none | no responder found | not in the sweep |
 
-`Unknown-746` (KWP2000) and `Unknown-7C0` match no factory module yet. The HVAC unit also has a
+`Unknown-7C0` matches no factory module yet. The HVAC unit also has a
 private link to the compressor and PTC heater (`CLIMATE-CAN` in `can_buses.yaml`, marked
 `private: true`): neither the IGPM nor the OBD-II port is on it.
 

@@ -9,6 +9,7 @@ Split by concern into a package:
   * :mod:`.research` — the ``research:`` backlog editors
   * :mod:`.support_map` — the per-PID ``support_map:`` declaration editor
   * :mod:`.snapshot` — the per-PID ``snapshot_only:``/``snapshot_length:`` editor
+  * :mod:`.isotp` — an ECU's own ``isotp:`` flow-control block
   * :mod:`.defaults` — PID-level defaults for parameter fields and hoisting them out of parameters
   * :mod:`.categories` — the one-time ``ha_class`` → ``category`` migration
 
@@ -32,6 +33,7 @@ from canair.yaml_edit.pids.hits import (
     update_iocontrol_field,
     update_routines_field,
 )
+from canair.yaml_edit.pids.isotp import set_ecu_isotp
 from canair.yaml_edit.pids.params import (
     add_pid,
     delete_parameter,
@@ -89,6 +91,7 @@ __all__ = [
     "rename_parameter",
     "rename_pid",
     "set_can_bus",
+    "set_ecu_isotp",
     "set_identity_field",
     "set_iocontrol_scan_ranges",
     "set_param_field",

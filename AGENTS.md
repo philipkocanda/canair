@@ -233,6 +233,11 @@ its deviations are ratcheted by `tests/contracts/test_ui_standards.py` (scanner
   (`src/canair/core/id_ranges.py`); without `--range` it sweeps the ECU's **DID families**
   (`src/canair/ecus/did_families.py` — high bytes from its `22`/`2F` PIDs and IOControl hits), not the
   span between them.
+  **`scan memory ECU --range …`** maps which addresses answer ReadMemoryByAddress (`0x23`) and
+  writes the map, format and largest block to the ECU's `memory:` section; it asks first, has
+  no default range, and its block search stays at `--block-limit` (default 128), since the
+  Ioniq's climate unit hangs after a larger read. Code: `src/canair/live/memory/`, protocol
+  `src/canair/uds/memory.py`, editor `src/canair/yaml_edit/memory.py`.
 - **`canair discover`** (alias `disc`) — Which ECUs answer right now; `--register` writes a new ECU
   into `ecus/`. **`--functional`** sends one read on the functional id instead and groups every
   responder by `can_bus:` (the gateway routing map). Its request is an **allow-list**
@@ -271,6 +276,19 @@ its deviations are ratcheted by `tests/contracts/test_ui_standards.py` (scanner
   steps still refuse it and `--unsafe` plays no part; and **every action is guarded** — mandatory
   `reads`/`require`, only TRUE passes, no `or`/`not`, only read ECUs. The Ioniq's `sleep` sends
   the functional `10 D1` (quirk `hk_forced_sleep`); untested on the car.
+- **`canair memory`** — Memory reads (`0x23`, never `0x3D`/`0x34`-`0x37`/`0x27`): `memory dump`
+  reads ranges into a dump, `ls`/`show`/`diff`/`export` work on dumps offline, `set` edits the
+  ECU's `memory:` format/block/session. **Dumps are user state**
+  (`<config dir>/memory/<profile>/`, `src/canair/memory/`), never profile data: they can hold OEM
+  software and secrets. A memory read over 64 bytes (`MEMORY_SIGNAL_MAX_BYTES`) is withheld from
+  every save (`privacy/sensitive.py::withhold`) and errors in `validate captures`. A **memory
+  PID** is keyed by its full request (`2324FEDE12340002`) and named in queries and `pids`
+  commands by the token `23/ADDRESS+SIZE`; it **never ships to AutoPID**
+  (`ecus/pid_status.py::pid_ships`) and should be gated to a revision with a `software:`
+  fingerprint, since a reflash moves what an address holds. A memory reply repeats nothing of
+  its request, so its exact length is its check (`uds/echo.py::reply_check`, applied in
+  `parse_uds_response`); `dump` alternates its block size so a reply to the previous read
+  always has the wrong length. Concepts: `docs/concepts/memory-reads.md`.
 - **`canair dtc`** — A group: `dtc read` (the default kind, so `canair dtc BMS`/`--all` still
   work) reads DTCs for one ECU or `--all` (UDS `0x19` / KWP `0x18` by `id_protocol`), logs each
   scan and reports what **changed** since the last one; `dtc log` shows the last logged scan
@@ -1046,7 +1064,10 @@ config set profiles_dir <clone>/profiles` (preferred — stays git-tracked and c
   - **`isotp:`** — client-side ISO-TP tuning for `slcan-tcp` (padding, blocksize, stmin, timeouts,
     CAN-FD); defaults in `src/canair/transport/isotp_params.py`. `tx_padding` is what canair sends
     (raw path only; an ELM327 pads its own requests); `rx_padding` (defaulting to `tx_padding`)
-    is what replies carry, and drives multi-DID split/strip (`resolve_rx_padding`).
+    is what replies carry, and drives multi-DID split/strip (`resolve_rx_padding`). An ECU's own
+    `isotp:` block (`canair pids set-isotp`) is laid over it for that ECU's stack, for
+    `ECU_ISOTP_FIELDS` only (flow control the raw path applies per ECU; read through
+    `ecu_isotp_blocks`). The ELM327 path ignores it: the adapter's `ATFCSD` is session-wide.
   - **`quirks:`** — make-specific behaviour the profile opts into. Known: `skm_wakeup` (enables
     the Ioniq SKM relay-wake), `nissan_c0_session` (permits the Nissan OEM session `10 C0` on
     KWP2000 ECUs, which the `src/canair/safety/blocklist.py` blocklist otherwise refuses, and switches the

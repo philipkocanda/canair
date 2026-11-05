@@ -108,7 +108,7 @@ class TestProfileDefinitions:
         d = describe_dtc("C182C-00", ecu="CCM")  # defs=None -> loads active profile
         assert d["description"] and "charg" in d["description"].lower()
         b = describe_dtc("B1285-77", ecu="HVAC")
-        assert "Defog" in (b["description"] or "")
+        assert "defog" in (b["description"] or "").lower()
         assert b["failure_type_desc"] == "commanded position not reachable"
 
 

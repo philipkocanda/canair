@@ -197,7 +197,7 @@ def variable_length_pids(pids_data: dict) -> frozenset[PidKey]:
 
 def snapshot_only_pids(pids_data: dict) -> frozenset[PidKey]:
     """``(ECU, PID)`` keys flagged ``snapshot_only:``, whose replies come from DTC snapshots."""
-    from canair.ecus.pids import is_snapshot_only
+    from canair.ecus.pid_status import is_snapshot_only
 
     return frozenset(
         (str(ecu).upper(), str(pid).upper())

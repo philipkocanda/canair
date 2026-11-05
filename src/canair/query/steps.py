@@ -9,9 +9,32 @@ without importing the transport stack. The ECU registry is consulted for
 name/alias canonicalisation only, and its absence is tolerated.
 """
 
+import re
 import shlex
 
 from canair.query import looks_like_pid
+
+_RAW_SPEC = re.compile(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$")
+
+
+def parse_raw_spec(spec: str) -> tuple[int, str]:
+    """The TX id and upper-cased request of a raw ``TX:REQUEST`` spec (``770:22BC03``).
+
+    Raises :class:`ValueError` for any other shape, and for a request with an odd
+    number of hex digits: a request is whole bytes, and an ELM327 reads a trailing
+    nibble as a response-frame count, so the odd digit would change what the
+    adapter waits for instead of what the ECU is sent.
+    """
+    match = _RAW_SPEC.match(spec)
+    if not match:
+        raise ValueError(f"invalid raw request {spec!r} (expected TX:REQUEST, e.g. 770:22BC03)")
+    request = match.group(2).upper()
+    if len(request) % 2:
+        raise ValueError(
+            f"raw request {request} has an odd number of hex digits (a request is whole "
+            "bytes; an ELM327 reads a trailing nibble as a response-frame count)"
+        )
+    return int(match.group(1), 16), request
 
 
 def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
@@ -268,6 +291,7 @@ def parse_sub_commands(args: list[str]) -> list[dict]:
         elif verb == "raw":
             if len(parts) < 2:
                 raise ValueError("'raw' requires TX:PID: raw 770:22BC03")
+            parse_raw_spec(parts[1])
             commands.append({"type": "raw", "spec": parts[1], "hold": "--hold" in parts})
 
         elif verb == "scan":

@@ -14,7 +14,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from canair.uds.services import READ_DATA_BY_IDENTIFIER, RESPONSE_SID_OFFSET, identifier_width
+from canair.uds.memory import parse_memory_request
+from canair.uds.protocol import DiagProtocol
+from canair.uds.services import (
+    READ_DATA_BY_IDENTIFIER,
+    READ_MEMORY_BY_ADDRESS,
+    RESPONSE_SID_OFFSET,
+    identifier_width,
+)
 
 
 def hex_bytes(text: str) -> bytes | None:
@@ -48,20 +55,49 @@ def request_echo(request_hex: str) -> tuple[int, bytes] | None:
       or InfoType echo — ``41 xx …`` / ``49 xx …``. Only the single-PID form: a
       multi-PID ``01 0C 0D …`` reply interleaves each PID with its data, so it is
       left unvalidated.
+    - ``23 …`` (ReadMemoryByAddress): no echo at all, only the SID — ``63 data``. Its
+      length is the check instead (:func:`reply_check`).
 
     Returns ``(sid, echo_bytes)`` for those services, or ``None`` when the request
     isn't a plain identifier read we can validate (unknown length, sub-function
     services, etc.) — callers should then skip echo validation.
     """
+    check = reply_check(request_hex)
+    return None if check is None else (check.sid, check.echo)
+
+
+@dataclass(frozen=True)
+class ReplyCheck:
+    """What a positive reply to a request must carry.
+
+    ``sid`` is the request's service, ``echo`` the identifier bytes the reply repeats
+    after its SID, and ``length`` the reply's exact length when the request fixes it
+    (a memory read), else ``None``.
+    """
+
+    sid: int
+    echo: bytes
+    length: int | None = None
+
+
+def reply_check(request_hex: str, protocol: DiagProtocol | None = None) -> ReplyCheck | None:
+    """The :class:`ReplyCheck` for a request, or ``None`` when its reply cannot be judged.
+
+    ``protocol`` matters only for a memory read, whose request form depends on it
+    (:func:`canair.uds.memory.parse_memory_request`).
+    """
     req = hex_bytes(request_hex)
     if req is None:
         return None
     sid = req[0]
+    if sid == READ_MEMORY_BY_ADDRESS:
+        read = parse_memory_request(req.hex(), protocol)
+        return ReplyCheck(sid, b"", read.reply_length if read is not None else None)
     if identifier_width(sid) == 1:
-        return (sid, req[1:2]) if len(req) == 2 else None
+        return ReplyCheck(sid, req[1:2]) if len(req) == 2 else None
     if sid == READ_DATA_BY_IDENTIFIER:
         odd_length = len(req) % 2 == 1  # SID + whole 2-byte DIDs
-        return (sid, req[1:3]) if len(req) >= 3 and odd_length else None
+        return ReplyCheck(sid, req[1:3]) if len(req) >= 3 and odd_length else None
     return None
 
 

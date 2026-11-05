@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 from canair.render import messages
 
 from ...transport.config import ConnectionOptions, TransportConfig
+from ...transport.isotp_params import ecu_isotp_blocks
 from ..monitor.options import MonitorOptions
 from ..session import Operation, SessionOptions
 
@@ -181,6 +182,7 @@ async def _run_session(
             unsafe=conn.unsafe,
             timeout=(cli if cli is not None else 2.0),
             isotp_config=pids_data.get("isotp"),
+            ecu_isotp=ecu_isotp_blocks(pids_data),
             addr_map=dict(addresses.by_tx),
             rx_offset=addresses.rx_offset,
             mode=addresses.mode,

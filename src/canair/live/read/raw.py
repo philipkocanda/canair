@@ -2,11 +2,11 @@
 
 import asyncio
 import functools
-import re
 import sys
 
 from canair.captures.metadata import resolve_metadata
 from canair.privacy.sensitive import MASK, masked_response, request_hidden
+from canair.query.steps import parse_raw_spec
 from canair.render import messages
 from canair.render.formatting import format_raw_with_bnn, print_hexdump, print_json_result
 from canair.transport.stats import client_transport
@@ -40,15 +40,11 @@ async def mode_raw(
         save: If True, prompt for metadata and save result to captures/.
         pids_data: Loaded PID definitions for decoding (used with --save).
     """
-    match = re.match(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$", raw_spec)
-    if not match:
-        messages.error(
-            f"invalid format: {raw_spec} (expected <TX_ID>:<SERVICE_PID>, e.g. 7E4:2101)"
-        )
-        raise SystemExit(2)
-
-    tx_id = int(match.group(1), 16)
-    service_pid = match.group(2).upper()
+    try:
+        tx_id, service_pid = parse_raw_spec(raw_spec)
+    except ValueError as e:
+        messages.error(str(e))
+        raise SystemExit(2) from None
 
     if hold or wake:
         session = True

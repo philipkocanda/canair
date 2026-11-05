@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import argparse
 
-from canair.cli.commands._edit import add_edit_args, clear_sentinel, run_edit
+from canair.cli.commands._edit import add_edit_args, run_edit
 from canair.core.edit_errors import EditError, translate
-from canair.ecus.pids import INHERITED_PARAM_FIELDS, PID_STATUSES
+from canair.ecus.pid_status import PID_STATUSES
+from canair.ecus.pids import INHERITED_PARAM_FIELDS
 from canair.render import ansi
 from canair.uds.support_map import MapDecl, SupportMapError
 from canair.yaml_edit.echo import echo_edit
@@ -24,7 +25,7 @@ from canair.yaml_edit.pids import (
     set_support_map,
 )
 
-from .common import apply_in_scope, ecu_names, words_verb
+from .common import apply_in_scope, ecu_names, int_or_clear, words_verb
 
 
 def add_parsers(sub) -> None:
@@ -235,11 +236,6 @@ def add_parsers(sub) -> None:
     hp.set_defaults(_pids_func=cmd_hoist_defaults)
 
 
-def _int_or_clear(text: str) -> int | None:
-    """``period``/``response_frames`` value: an integer, or the word ``clear`` for none."""
-    return None if clear_sentinel(text) is None else int(text)
-
-
 def cmd_set_pid_status(args: argparse.Namespace) -> int:
     return run_edit(
         lambda: set_pid_status(args.ecu, args.pid, args.status, pids_dir=args.dir),
@@ -326,7 +322,7 @@ def cmd_set_support_map(args: argparse.Namespace) -> int:
 
 
 def cmd_set_pid_period(args: argparse.Namespace) -> int:
-    value = _int_or_clear(args.value)
+    value = int_or_clear(args.value)
 
     state = "cleared (device default 5000)" if value is None else f"{value} ms"
     return run_edit(
@@ -337,7 +333,7 @@ def cmd_set_pid_period(args: argparse.Namespace) -> int:
 
 
 def cmd_set_response_frames(args: argparse.Namespace) -> int:
-    value = _int_or_clear(args.value)
+    value = int_or_clear(args.value)
 
     state = "cleared" if value is None else str(value)
     return run_edit(

@@ -8,18 +8,20 @@ from canair.cli.args.hexarg import parse_hex_arg
 from canair.cli.commands._edit import add_edit_args, edit_scope, run_edit
 from canair.core.edit_errors import EditError
 from canair.render import ansi
+from canair.transport.isotp_params import ECU_ISOTP_FIELDS
 from canair.yaml_edit.echo import echo_edit
 from canair.yaml_edit.pids import (
     find_ecu_file,
     remove_identity_field,
     set_can_bus,
+    set_ecu_isotp,
     set_identity_field,
     set_iocontrol_scan_ranges,
     set_wake,
     update_iocontrol_field,
 )
 
-from .common import apply_in_scope
+from .common import apply_in_scope, int_or_clear
 
 
 def add_parsers(sub) -> None:
@@ -249,6 +251,19 @@ def add_parsers(sub) -> None:
     add_edit_args(sad)
     sad.set_defaults(_pids_func=cmd_set_addressing)
 
+    sis = sub.add_parser(
+        "set-isotp",
+        help="Set an ECU's own ISO-TP flow control (slcan-tcp), over the profile's",
+        description="Set or clear an ECU's own isotp: fields, laid over the profile's on "
+        "slcan-tcp: for an ECU that sends no consecutive frame after BlockSize 0.",
+        epilog="example: canair pids set-isotp EWP --blocksize 8 (or --blocksize clear)",
+    )
+    sis.add_argument("ecu")
+    for field in ECU_ISOTP_FIELDS:
+        sis.add_argument(f"--{field.replace('_', '-')}", dest=field, metavar="N|clear")
+    add_edit_args(sis)
+    sis.set_defaults(_pids_func=cmd_set_isotp)
+
 
 def cmd_set_identity(args: argparse.Namespace) -> int:
     return run_edit(
@@ -272,10 +287,7 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
 
     # Resolve the vocabulary from the profile owning the target ecus/ dir
     # (or the active profile). Enforced only when the profile declares one.
-    if args.dir:
-        allowed = allowed_can_buses(profile_for_path(args.dir))
-    else:
-        allowed = allowed_can_buses(active())
+    allowed = allowed_can_buses(profile_for_path(args.dir) if args.dir else active())
     if allowed:
         bad = [c for c in args.codes if c not in allowed]
         if bad:
@@ -379,6 +391,13 @@ def cmd_set_wake(args: argparse.Namespace) -> int:
         f"{args.ecu} wake -> {{{detail}}}",
         args=args,
     )
+
+
+def cmd_set_isotp(args: argparse.Namespace) -> int:
+    values = {f: int_or_clear(v) for f in ECU_ISOTP_FIELDS if (v := getattr(args, f)) is not None}
+    detail = ", ".join(f"{k}={'cleared' if v is None else v}" for k, v in values.items())
+    run = lambda: set_ecu_isotp(args.ecu, values, pids_dir=args.dir)  # noqa: E731
+    return run_edit(run, f"{args.ecu} isotp -> {{{detail}}}", args=args)
 
 
 def cmd_set_addressing(args: argparse.Namespace) -> int:

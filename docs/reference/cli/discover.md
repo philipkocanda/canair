@@ -20,7 +20,8 @@ usage: canair discover [-h] [--range START-END] [--delay DELAY] [--functional]
 options:
   -h, --help            show this help message and exit
   --range START-END     Address range (default: 700-7EF for 11-bit, 00-FF for
-                        29-bit target bytes)
+                        29-bit target bytes). The functional id 0x7DF is
+                        skipped; --functional sends on it
   --delay DELAY         Delay between probes in seconds (default 0.2)
   --register            Register newly-discovered ECUs as files in the
                         profile's ecus/ directory

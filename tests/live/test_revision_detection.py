@@ -220,3 +220,46 @@ def test_validate_captures_flags_replies_outside_the_tagged_revision(tmp_path, c
     path.write_text(capture_io.capture_text(data))
     main(["--profile", str(copy), "validate", "captures"])
     assert "a reply to VCU 2101" in capsys.readouterr().err
+
+
+class SoftwareTerminal(FakeTerminal):
+    """Answers a KWP2000 software-version read (1A 95) with ``version``, else silence."""
+
+    def __init__(self, version: str):
+        super().__init__()
+        self.version = version
+
+    async def send_uds(self, request, **_kw):
+        self.sent.append((self._tx, request))
+        if request == "1A95":
+            payload = bytes.fromhex("5A95") + self.version.encode()
+            return {"ok": True, "bytes": payload, "hex": payload.hex().upper()}
+        return {"ok": False, "nrc": None}
+
+
+class TestSoftwareFingerprint:
+    """A memory PID's revision is told by the software version: one read, then remembered."""
+
+    @pytest.fixture
+    def by_software(self, tmp_path):
+        root = tmp_path / "variants"
+        shutil.copytree(FIXTURE, root)
+        vcu = root / "ecus" / "vcu.yaml"
+        text = vcu.read_text()
+        text = text.replace('- {responds: "1A90"}', '- {software: "95:SW1*"}')
+        text = text.replace('- {responds: "22F187"}', '- {software: "95:SW2*"}')
+        vcu.write_text(text)
+        return root
+
+    def test_the_software_version_settles_the_revision(self, by_software, capsys):
+        set_active(str(by_software), variant="60kwh")
+        term = SoftwareTerminal("SW2.04")
+        assert _detect(term, "VCU") is True
+        assert term.sent == [(0x7E2, "1A95")]
+        assert revision_resolutions()["VCU"].revision == "uds"
+        assert "software 95:SW2.04" in capsys.readouterr().err
+
+    def test_an_unknown_build_stays_undetermined(self, by_software):
+        set_active(str(by_software), variant="60kwh")
+        assert _detect(SoftwareTerminal("SW9"), "VCU") is False
+        assert revision_resolutions()["VCU"].revision is None

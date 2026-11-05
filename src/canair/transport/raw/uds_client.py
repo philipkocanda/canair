@@ -17,6 +17,8 @@ import logging
 import threading
 import time
 from collections import defaultdict, deque
+from collections.abc import Mapping
+from typing import Any
 
 import can
 import isotp
@@ -96,6 +98,7 @@ class RawUdsClient:
         *,
         timeout: float = 1.0,
         isotp_config: dict | None = None,
+        ecu_isotp: Mapping[int, Mapping[str, Any]] | None = None,
         ecu_timeouts: dict[str, float] | None = None,
         session_policy: SessionPolicy | None = None,
     ):
@@ -104,8 +107,10 @@ class RawUdsClient:
         ``ecu_timeouts``: optional ``{ECU_NAME(upper): seconds}`` per-ECU budget
         overriding ``timeout`` for that ECU (see :mod:`canair.transport.timeouts`).
         ``isotp_config``: optional profile ``isotp:`` block (flow-control/padding/
-        CAN-FD). Each ECU's :class:`EcuAddress` shapes its ISO-TP stack (11-bit vs
-        29-bit normal/fixed/extended, plus any flow-control-address override).
+        CAN-FD); ``ecu_isotp``: ``{tx_id: block}`` for the ECUs with their own
+        (:func:`~canair.transport.isotp_params.ecu_isotp_blocks`), laid over it. Each
+        ECU's :class:`EcuAddress` shapes its ISO-TP stack (11-bit vs 29-bit
+        normal/fixed/extended, plus any flow-control-address override).
         ``session_policy``: the profile's per-ECU session context for the command
         blocklist (:mod:`canair.safety.blocklist`). Every request is checked against it, so
         this client can never send what the terminals would refuse; there is no
@@ -141,11 +146,12 @@ class RawUdsClient:
         params = build_isotp_params(isotp_config, self.link.budget)
         self._hint_transport_choice()
         for name, address in addresses.items():
+            own = (ecu_isotp or {}).get(address.tx_id)
             stack = build_isotp_stack(
                 bus,
                 self.notifier,
                 build_isotp_address(address),
-                params,
+                build_isotp_params(isotp_config, self.link.budget, own) if own else params,
                 fc_id=address.fc_id,
             )
             stack.start()

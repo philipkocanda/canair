@@ -350,47 +350,338 @@ MCU:
             Live copy of MCU:2102 MCU_CURRENT_SENSOR_OFFSET_2: matched the latest MCU 2102 value at
             every change checked (30-32 changes).
           ship: false
-  # From a KWP2000 18 00 FF 00 read of an EPCU running alone on a bench (uhi22
-  # CAN/EPCU_torquePro_reading_error_memory_18DTCs_found.csv), status 0xE0 except P0CF1 (0x20).
-  # OBD-II service 0A also lists P0A8B, P0AEF, P0C17 and U019B as permanent. Descriptions are the
-  # SAE J2012 generic meanings; the bench had no motor, resolver, HV supply or BMS connected.
+  # Meanings, causes, thresholds and fail-safes are from the Ioniq Electric 2017 service manual,
+  # EV Motor Control System chapter. Unless an entry says "Enabled when", the manual checks the
+  # code only with the ignition on and the auxiliary battery at 9-16 V. "Also needs" adds to that.
+  # An entry with a bench source also appeared in a KWP2000 18 00 FF 00 read of an EPCU running
+  # alone on a bench (uhi22 CAN/EPCU_torquePro_reading_error_memory_18DTCs_found.csv), status 0xE0
+  # except P0CF1 (0x20). OBD-II service 0A also lists P0A8B, P0AEF, P0C17 and U019B as permanent.
+  # The bench had no motor, resolver, HV supply or BMS connected.
   dtcs:
-    source: SAE J2012; uhi22 EPCU bench DTC read
+    source: Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV)
+    source_links:
+      - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Hybrid%2FElectric%20Powertrain/Testing%20and%20Diagnosis/EV%20Motor%20Control%20System%20Diagnosis%20%28EV%29/
+      - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Quick%20Lookups/DTC%20Index/DTC%20Index%20%28EV%29/EV%20Motor%20Control%20System%20DTCS/
     verified: false
     P0A0D:
-      description: "High voltage system interlock circuit high"
+      description: High voltage system interlock circuit high
+      causes: >-
+        MCU high voltage input power cable connector poor connection, MCU high voltage input power
+        cable open/poor connection, EPCU side cover disconnecting, faulty EPCU's internal high
+        voltage input interlock circuit
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read
+      notes: >-
+        Threshold: EPCU interlock output voltage is above 4.75 V; MCU high voltage input power cable
+        interlock output voltage is above 4.75 V. Detection time: 100 ms. Service lamp on.
+    P0A1B:
+      description: Drive motor 'A' control module
+      causes: faulty MCU (EPCU)
+      notes: >-
+        Threshold: communication failure between main-CPU and sub-CPU has been detected. Detection
+        time: 15 times. Service lamp on.
+    P0A2C:
+      description: Drive motor 'A' temperature sensor circuit low
+      causes: >-
+        drive motor temperature sensor circuit short-to-ground, faulty MCU (EPCU) internal sensing
+        circuit
+      notes: >-
+        Threshold: temperature sensor signal voltage is below 400 mV. Detection time: 10 sec. Also
+        needs: no DTC P0A2D. Service lamp on.
     P0A2D:
-      description: "Drive motor A temperature sensor circuit low"
+      description: Drive motor 'A' temperature sensor circuit high
+      causes: >-
+        drive motor temperature sensor signal circuit open, drive motor temperature sensor signal
+        circuit short-to-battery, faulty drive motor temperature sensor, faulty MCU (EPCU) internal
+        sensing circuit
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read
+      notes: >-
+        Threshold: drive motor temperature sensor signal voltage is above 4.93 V. Detection time: 10
+        sec. Also needs: no DTC P0A2C; MCU temperature is below 0°C; average input torque is above
+        90 Nm for 150 sec. Service lamp on.
+    P0A2F:
+      description: Drive motor 'A' over temperature
+      causes: >-
+        faulty cooling system, EWP cooling water leaked or lacked, faulty EWP, faulty drive motor
+        temperature sensor
+      notes: >-
+        Threshold: drive motor temperature is above 180°C. Detection time: 10 sec. Also needs: no
+        DTC P0A2D, P0A2C. Service lamp on.
+    P0A3C:
+      description: Drive motor 'A' inverter over temperature
+      causes: faulty cooling system, EWP cooling water leaked or lacked, faulty EWP
+      notes: >-
+        Threshold: MCU temperature is above 125°C (module temperature); MCU temperature is above
+        120°C (heat sink 25°C). Detection time: 1 sec. Also needs: no DTC P0A0F, P0AEF. Service lamp
+        on.
+    P0A3F:
+      description: Drive motor 'A' position sensor circuit
+      causes: >-
+        "SNSR 3" circuit short-to-ground, "SNSR 4" circuit short-to-ground, "SNSR 3" circuit and
+        "SNSR 4" circuit short-to-each other, drive motor position sensor
+      notes: >-
+        Threshold: drive motor position sensor signal voltage is above 1944 mV. Detection time: 400
+        ms. Service lamp off.
     P0A41:
-      description: "Drive motor A position sensor circuit low"
-      source: "SAE J2012; uhi22 EPCU bench DTC read (resolver not connected)"
+      description: Drive motor 'A' position sensor circuit low
+      causes: >-
+        drive motor position sensor circuit short-to-ground, drive motor position sensor circuit
+        open, faulty drive motor position sensor
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read (resolver not connected)
+      notes: >-
+        Threshold: drive motor position sensor signal voltage is below 100 mV. Detection time: 400
+        ms. Service lamp on.
+    P0A42:
+      description: Drive motor 'A' position sensor circuit high
+      causes: >-
+        "SNSR 1"~"4" circuit and "(+)" circuit short-to-each other, "SNSR 1"~"4" circuit and "(-)"
+        circuit short-to-each other, faulty drive motor position sensor
+      notes: >-
+        Threshold: drive motor position sensor signal voltage is above 650 mV. Detection time: 400
+        ms. Also needs: no DTC P0A2C; MCU temperature is over 0°C. DTC set immediately. Service lamp
+        on.
+    P0A62:
+      description: Drive motor 'A' phase V current high
+      causes: >-
+        drive motor 3 phase power cable short, drive motor poor insulation, faulty MCU (EPCU) power
+        module (IGBT), faulty MCU (EPCU)
+      notes: >-
+        Threshold: drive motor V phase current is above 2000 A (25°C). Detection time: 11 times for
+        10 sec. Also needs: no DTC P0C01. Service lamp on.
+    P0A78:
+      description: Drive motor 'A' inverter performance
+      causes: >-
+        drive motor 3 phase power cable open, drive motor 3 phase power cable poor connection, drive
+        motor poor insulation, faulty MCU (EPCU) power module (IGBT), faulty MCU (EPCU)
+      notes: >-
+        Threshold: deviation between command current and measured current is above 80 A. Detection
+        time: 1 sec. Also needs: no DTC P0BE6, P0BE7, P0BE8, P0BEA, P0BEB, P0BEC, P0C05; drive motor
+        speed is below 800 rpm; drive motor command current is 15 A. Service lamp on.
     P0A8B:
-      description: "14 volt power module system voltage"
+      description: 14 volt power module system voltage
+      causes: MCU (EPCU) supply power (12 V) low/instability, faulty MCU (EPCU) power module (IGBT)
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read
+      notes: 'Threshold: MCU gate board voltage is below 13 V. Detection time: 2 s. Service lamp on.'
+    P0A93:
+      description: Inverter 'A' cooling system performance
+      causes: >-
+        faulty cooling system, EWP cooling water leaked or lacked, faulty EWP, faulty radiator fan
+      notes: >-
+        Threshold: MCU temperature is above 110°C (heat sink 25°C). Detection time: immediately.
+        Also needs: no DTC P0AF0, P0AEF. Service lamp off.
     P0AEF:
-      description: "Drive motor inverter temperature sensor A circuit low"
+      description: Drive motor inverter temperature sensor 'A' circuit low
+      causes: >-
+        MCU (EPCU) temperature sensor short-to-ground, MCU (EPCU) temperature sensor open, faulty
+        MCU (EPCU) temperature sensor, faulty MCU (EPCU) sensing circuit
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read
+      notes: >-
+        Threshold: MCU temperature sensor signal voltage is below 2.2 V. Detection time: 1 sec. Also
+        needs: no DTC P0AF0. Service lamp on.
+    P0AF0:
+      description: Drive motor inverter temperature sensor 'A' circuit high
+      causes: >-
+        MCU temperature sensor short-to-battery, faulty MCU temperature sensor, faulty MCU (EPCU)
+        sensing circuit
+      notes: >-
+        Threshold: MCU temperature sensor signal voltage is above 4.9 V. Detection time: 1 sec. Also
+        needs: no DTC P0AEF. Service lamp on.
     P0BE6:
-      description: "Drive motor A phase U current sensor circuit range/performance"
+      description: Drive motor 'A' phase U current sensor circuit range/performance
+      causes: faulty MCU (EPCU) inside U phase current sensor
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read
+      notes: >-
+        Threshold: drive motor U phase current is above 20 A before starting; drive motor U phase
+        current is below -20 A before starting. Detection time: 1 times at ignition on. Also needs:
+        START key "OFF"; no DTC P0BE7, P0BE8. Service lamp on.
     P0BE7:
-      description: "Drive motor A phase U current sensor circuit low"
+      description: Drive motor 'A' phase U current sensor circuit low
+      causes: faulty MCU (EPCU) inside U phase current sensor
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read
+      notes: >-
+        Threshold: drive motor U phase signal voltage is below 350 mV. Detection time: 5 ms. Service
+        lamp on.
+    P0BE8:
+      description: Drive motor 'A' phase U current sensor circuit high
+      causes: faulty MCU (EPCU) inside U phase current sensor
+      notes: >-
+        Threshold: drive motor U phase signal voltage is above 4.65 V. Detection time: 5 ms. Service
+        lamp on.
     P0BEA:
-      description: "Drive motor A phase V current sensor circuit range/performance"
+      description: Drive motor 'A' phase V current sensor circuit range/performance
+      causes: faulty MCU (EPCU) inside V phase current sensor
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read
+      notes: >-
+        Threshold: drive motor V phase current is above 20 A before starting; drive motor V phase
+        current is below -20 A before starting. Detection time: 1 times after ignition on. Also
+        needs: START key "OFF"; no DTC P0BEB, P0BEC. Service lamp on.
     P0BEB:
-      description: "Drive motor A phase V current sensor circuit low"
-    P0CF1:
-      description: "Meaning unknown"
-      source: "uhi22 EPCU bench DTC read (status 0x20)"
+      description: Drive motor 'A' phase V current sensor circuit low
+      causes: faulty MCU (EPCU) inside V phase current sensor
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read
+      notes: >-
+        Threshold: drive motor V phase signal voltage is below 350 mV. Detection time: 5 ms. Service
+        lamp on.
+    P0BEC:
+      description: Drive motor 'A' phase V current sensor circuit high
+      causes: faulty MCU (HPCU) inside V phase current sensor
+      notes: >-
+        Threshold: drive motor V phase signal voltage is above 4.65 V. Detection time: 5 ms. Service
+        lamp on.
+    P0BFF:
+      description: Drive motor 'A' current
+      causes: faulty MCU (EPCU) power module (IGBT), faulty MCU (EPCU) inside circuit
+      notes: >-
+        Threshold: drive motor current is below 5.5 A. Also needs: no DTC P0C05; apply DQ high
+        frequency current (30 A, 50 Hz) for 40 ms. DTC set immediately. Service lamp on.
+    P0C01:
+      description: Drive motor 'A' current high
+      causes: >-
+        drive motor 3 phase power cable short, drive motor poor insulation, faulty drive motor
+        position sensor, faulty MCU (EPCU) power module (IGBT)
+      notes: >-
+        Threshold: 1 phase's current of drive motor 3 phase power cable is above 750 A. Detection
+        time: 11 times for 10 sec. Also needs: no DTC P0BE7, P0BE8, P0BEB, P0BEC. Service lamp on.
+    P0C05:
+      description: Drive motor 'A' phase U-V-W circuit/open
+      causes: >-
+        drive motor 3 phase power cable connector poor connection, drive motor 3 phase power cable
+        open, drive motor's inside wire open
+      notes: >-
+        At start: drive motor (+) phase current not detected above 5.5 A, or (-) phase current not
+        detected below -5.5 A, with a command current of 30 A (250 Hz), within 40 ms. At torquing:
+        one phase of the drive motor 3-phase power cable carries below 10 A while speed is 200-2720
+        rpm and the command current is above 50 A, within 30 ms. Both need no DTC P0BE6, P0BE7,
+        P0BE8, P0BEA, P0BEB, P0BEC or P0BFF. Service lamp on.
     P0C17:
-      description: "Meaning unknown (reported as permanent by OBD-II service 0A)"
-      source: "uhi22 EPCU bench OBD-II 0A read"
+      description: Drive motor 'A' position sensor not learned
+      causes: not completed resolver calibration, abnormal calibration value, calibration failure
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        OBD-II 0A read
+      notes: >-
+        Threshold: calibration is not completed. Information code 601: calibration result value
+        excessive during the calibration. Information code 611: resolver calibration not completed
+        at the initial production process, or after replacing a known-good HPCU. Detection time:
+        immediately. Service lamp on.
+    P0C31:
+      description: Inverter 'B' cooling system performance
+      causes: >-
+        faulty cooling system, EWP cooling water leaked or lacked, faulty EWP, faulty radiator fan
+      notes: >-
+        Threshold: drive motor temperature is above 180°C. Detection time: immediately. Also needs:
+        no DTC P0A2C, P0A2D. Service lamp off.
+    P0C4E:
+      description: Drive motor 'A' position exceeded learning limit
+      causes: >-
+        not calibrated after replace A/T, not calibrated after replace drive motor, not calibrated
+        after update MCU (EPCU) ROM
+      notes: >-
+        Threshold: command voltage is above 2.7 V; command voltage is below -2.7 V. Detection time:
+        immediately. Also needs: drive motor speed 1000 rpm~4000 rpm; target torque 0 Nm; 800 ms
+        cumulative. Service lamp on.
+    P0C73:
+      description: Motor electronics coolant pump 'A' control performance
+      causes: faulty EWP
+      notes: >-
+        Threshold: faulty EWP (decision of EWP itself); EWP revolution speed 800 rpm more than
+        requested value. Detection time: 10 sec. Service lamp on.
+    P0CF0:
+      description: Hybrid EV electronics coolant temperature sensor circuit low
+      causes: >-
+        inverter heat sink temperature sensor short-to-battery, faulty inverter heat sink
+        temperature sensor, faulty MCU (EPCU) internal sensing circuit
+      notes: >-
+        Threshold: inverter heat sink temperature sensor signal voltage is below 500 mV. Detection
+        time: 1 sec. Also needs: no DTC P0CF1. Service lamp on.
+    P0CF1:
+      description: Hybrid EV electronics coolant temperature sensor circuit high
+      causes: >-
+        inverter heat sink temperature sensor short-to-ground, faulty inverter heat sink temperature
+        sensor, faulty MCU (EPCU) internal sensing circuit
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read (status 0x20)
+      notes: >-
+        Threshold: inverter heat sink temperature sensor signal voltage is over 4.73 V. Detection
+        time: 1 sec. Also needs: no DTC P0CF0, and either MCU temperature above 0 °C or MCU
+        temperature below 0 °C with a drive motor average input torque of 90 Nm for 150 sec. Service
+        lamp on.
+    U0001:
+      description: High speed CAN communication bus off (P-CAN)
+      causes: >-
+        P-CAN high line short-to-battery/ground, P-CAN high line open/poor connection, P-CAN low
+        line short-to-battery/ground, P-CAN low line open/poor connection, P-CAN high and low line
+        short-to-each other
+      notes: >-
+        Threshold: P-CAN "high" line error; P-CAN "low" line error. Detection time: 500 ms. Enabled
+        when: ignition on. Service lamp on.
     U0111:
-      description: "Lost communication with battery energy control module A (BMS)"
-      source: "SAE J2012; uhi22 EPCU bench DTC read (no BMS connected)"
+      description: Lost communication with battery energy control module 'A' (P-CAN)
+      causes: >-
+        faulty MCU power supply, MCU P-CAN high line open/poor connection, MCU P-CAN low line
+        open/poor connection
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read (no BMS connected)
+      notes: >-
+        Threshold: MCU P-CAN message is not received. Detection time: 2 sec. Enabled when: ignition
+        on. Service lamp on.
+    U0129:
+      description: Lost communication with brake system control module (P-CAN)
+      causes: >-
+        faulty IBAU power supply, IBAU P-CAN high line open/poor connection, IBAU P-CAN low line
+        open/poor connection
+      notes: >-
+        Threshold: IBAU P-CAN message is not received. Detection time: 500 ms. Enabled when:
+        ignition on. Service lamp on.
     U019B:
-      description: "Network fault; meaning unknown"
-      source: "uhi22 EPCU bench DTC read"
+      description: Lost communication with battery charger control module (P-CAN)
+      causes: >-
+        faulty OBC power supply, OBC P-CAN high line open/poor connection, OBC P-CAN low line
+        open/poor connection
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read
+      notes: >-
+        Threshold: OBC P-CAN message is not received. Detection time: 2 sec. Enabled when: ignition
+        on. Service lamp on.
+    U0293:
+      description: Lost communication with vehicle control module (P-CAN)
+      causes: >-
+        faulty VCU (EPCU) power supply, VCU (EPCU) P-CAN high line open/poor connection, VCU (EPCU)
+        P-CAN low line open/poor connection
+      notes: >-
+        Threshold: VCU P-CAN message is not received. Detection time: 500 ms. Enabled when: ignition
+        on. Service lamp on.
     U1116:
-      description: "Manufacturer-specific network fault; meaning unknown"
-      source: "uhi22 EPCU bench DTC read"
+      description: Lost communication with motor electronics coolant pump (P-CAN)
+      causes: >-
+        faulty EWP power supply, EWP P-CAN high line open/poor connection, EWP P-CAN low line
+        open/poor connection
+      source: >-
+        Ioniq Electric 2017 service manual, EV Motor Control System diagnosis (EV); uhi22 EPCU bench
+        DTC read
+      notes: >-
+        Threshold: EWP P-CAN message is not received. Detection time: 2 sec. Enabled when: ignition
+        on. Service lamp on.
   research:
     - type: decode
       target: "2101"

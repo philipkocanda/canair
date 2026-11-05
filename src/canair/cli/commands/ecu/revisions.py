@@ -132,6 +132,7 @@ def cmd_set_fingerprint(args) -> int:
             args.revision,
             responds=args.responds,
             identity=identity or None,
+            software=args.software,
             clear=args.clear,
         ),
         f"{args.ecu} {args.revision}: fingerprints updated",
@@ -202,8 +203,9 @@ def add_parsers(kinds) -> None:
         "set-fingerprint",
         help="Add a fingerprint: evidence that recognises the revision",
         description="Add one fingerprint to a revision: a safe identity read only this "
-        "revision answers (--responds), or identity fields matching glob patterns "
-        "(--identity). Recorded and checked; not yet matched against a car.",
+        "revision answers (--responds), identity fields matching glob patterns "
+        "(--identity), or the ECU's software version matching a glob (--software, read as "
+        "RECORD:TEXT, e.g. F195:1.04*). A live session matches them to detect the revision.",
     )
     fp.add_argument("revision", metavar="ID")
     fp.add_argument("--responds", metavar="HEX", help="A safe read only it answers (e.g. 1A90)")
@@ -212,6 +214,11 @@ def add_parsers(kinds) -> None:
         action="append",
         metavar="FIELD=GLOB",
         help="An identity field and the pattern it matches (repeatable, one fingerprint)",
+    )
+    fp.add_argument(
+        "--software",
+        metavar="GLOB",
+        help="The software version it reports, as RECORD:TEXT (e.g. 'F195:1.04*')",
     )
     fp.add_argument("--clear", action="store_true", help="Drop the existing fingerprints first")
     fp.set_defaults(func=cmd_set_fingerprint)

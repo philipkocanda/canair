@@ -233,6 +233,332 @@ OBC:
         in ON; NRC with the car fully off.
       parameters: {}
 
+  # Meanings, causes, thresholds and fail-safes are from the Ioniq Electric 2017 service manual,
+  # On Board Charger chapter. Unless an entry says "Enabled when", the manual checks the code only
+  # while the charger connector is attached, the OBC charging mode is started (EVSE ready) and the
+  # auxiliary battery is at 9-16 V. "Also needs" adds to that. The manual lists the DC/DC
+  # converter (LDC) codes in its DC/DC Converter chapter (see the VCU entries), not here.
+  dtcs:
+    source: Ioniq Electric 2017 service manual, On Board Charger diagnosis (EV)
+    source_links:
+      - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Hybrid%2FElectric%20Powertrain/Testing%20and%20Diagnosis/On%20Board%20Charger%20Diagnosis%20%28EV%29/
+      - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Quick%20Lookups/DTC%20Index/DTC%20Index%20%28EV%29/On%20Board%20Charger%20DTCS/
+    verified: false
+    P0D09:
+      description: Battery charging system positive connector stuck open
+      causes: faulty OBC fuse, faulty high voltage cable, BMS, OBC
+      notes: >-
+        Threshold: the voltage difference between the two is 30 V or more. Detection time: 5 sec.
+        Also needs: turn the OBC relay 'ON'; voltage of the high voltage battery is over 220 V.
+        Service lamp on.
+    P0D21:
+      description: Battery charger output voltage too low
+      causes: faulty high voltage cable, high voltage battery, OBC
+      notes: >-
+        Threshold: output voltage is below 220 V. Detection time: either for 10 times or 60 sec.
+        Also needs: turn the main relay 'ON'; turn the OBC relay 'ON'. Service lamp on.
+    P0D24:
+      description: Battery charger temperature too high
+      causes: failure in the cooling system, lack of coolant, faulty EWP (electronic water pump)
+      notes: >-
+        Threshold: OBC temperature is higher than 110°C. Detection time: 2 sec. Service lamp on.
+    P0D27:
+      description: Battery charger input voltage too low
+      causes: >-
+        external EV supply equipment (EVSE), AC input high voltage cable between inlet and OBC, OBC
+      notes: 'Threshold: AC input voltage (RMS) is less than a predetermined value.'
+    P0D28:
+      description: Battery charger input voltage too high
+      causes: external AC power supply, OBC
+      notes: >-
+        Threshold: AC input voltage (RMS) is greater than a predetermined value. A second check
+        applies the same test with the input relay off.
+    P0D2A:
+      description: Battery charger input current too high
+      causes: failure of the external AC power, OBC
+      notes: >-
+        Threshold: input current is over 46 A. Detection time: either for 10 times or 30 sec. Also
+        needs: turn the S2 switch 'ON'. Service lamp on.
+    P0D39:
+      description: Battery charger input current sensor circuit range/performance
+      causes: OBC
+      notes: >-
+        Threshold: current sensor offset value is greater than 1.5 A; current sensor offset value is
+        below -1.5 A. Detection time: at instant. Also needs: calibrate the current sensor offset.
+        Service lamp on.
+    P0D3A:
+      description: Battery charger input current sensor circuit low
+      causes: OBC
+      notes: >-
+        Threshold: output voltage of the input current sensor is below 0.3 V. Detection time: 10 ms.
+        Service lamp on.
+    P0D3B:
+      description: Battery charger input current sensor circuit high
+      causes: OBC
+      notes: >-
+        Threshold: output voltage of the input current sensor is over 4.8 V. Detection time: 10 ms.
+        Service lamp on.
+    P0D3E:
+      description: Battery charger input voltage sensor circuit range/performance
+      causes: OBC
+      notes: >-
+        Threshold: input voltage is over 30 V (output voltage of the input voltage sensor over 0.3
+        V). Detection time: 2 sec. Also needs: turn the S2 switch 'ON'. Service lamp on.
+    P0D3F:
+      description: Battery charger input voltage sensor circuit low
+      causes: OBC
+      notes: >-
+        Threshold: output voltage of the input voltage sensor is below 0.3 V. Detection time: 1 sec.
+        Also needs: turn the input relay OFF; output voltage of PFC below 30 V (with the S2 switch
+        OFF); output voltage of PFC over 80 V (with the S2 switch ON). Service lamp on.
+    P0D40:
+      description: Battery charger input voltage sensor circuit high
+      causes: OBC
+      notes: >-
+        Threshold: output voltage of the input voltage sensor is over 4.8 V. Detection time: 1 sec.
+        Service lamp on.
+    P0D4D:
+      description: Battery charger hybrid EV battery output voltage sensor circuit range/performance
+      causes: OBC
+      notes: >-
+        Threshold: output voltage is over 30 V (output voltage of the output voltage sensor over 0.3
+        V). Detection time: 10 sec. Also needs: turn the S2 switch 'OFF'. Service lamp on.
+    P0D4E:
+      description: Battery charger hybrid EV battery output voltage sensor circuit low
+      causes: OBC
+      notes: >-
+        Threshold: output voltage of the output voltage sensor is below 0.3 V. Detection time: 1
+        sec. Also needs: actuate the pre-charging sequence at the output terminal. Service lamp on.
+    P0D4F:
+      description: Battery charger hybrid EV battery output voltage sensor circuit high
+      causes: OBC
+      notes: >-
+        Threshold: output voltage of the output voltage sensor is over 4.8 V. Detection time: 1 sec.
+        Service lamp on.
+    P0D52:
+      description: Battery charger hybrid/EV battery output current sensor circuit range/performance
+      causes: OBC
+      notes: >-
+        Threshold: current sensor offset value is greater than 1.5 A; current sensor offset value is
+        below -1.5 A. Detection time: at instant. Also needs: calibrate the current sensor offset.
+        Service lamp on.
+    P0D53:
+      description: Battery charger hybrid EV battery output current sensor circuit low
+      causes: OBC
+      notes: >-
+        Threshold: output voltage of the output current sensor is below 0.3 V. Detection time: 10
+        ms. Service lamp on.
+    P0D54:
+      description: Battery charger hybrid EV battery output current sensor circuit high
+      causes: OBC
+      notes: >-
+        Threshold: output voltage of the output current sensor is over 4.8 V. Detection time: 10 ms.
+        Service lamp on.
+    P0D58:
+      description: Proximity detection circuit low
+      causes: faulty connectors or poor contact between charger terminal and OBC, OBC
+      notes: >-
+        Threshold: voltage of the circuit is below 1 V (Type 1 connector, 5 sockets) or below 0.5 V
+        (Type 2 connector, 7 sockets). Detection time: 2 sec. Enabled when: auxiliary battery 9-16
+        V. Service lamp on.
+    P0D59:
+      description: Proximity detection circuit high
+      causes: faulty connectors or poor contact between charger terminal and OBC, OBC
+      notes: >-
+        Threshold: voltage of the circuit is over 4.9 V. Detection time: 2 sec. Enabled when:
+        auxiliary battery 9-16 V. Service lamp on.
+    P0D5C:
+      description: Battery charger hybrid EV battery output power performance
+      causes: OBC
+      notes: >-
+        Threshold: OBC output power is less than 50% of the output power command. Detection time: 10
+        sec. Enabled when: charger connector attached; high voltage battery being charged; auxiliary
+        battery 9-16 V; OBC output power commands 600 W or more. Service lamp on.
+    P0D67:
+      description: Battery charger control module performance
+      causes: OBC
+      notes: >-
+        Threshold: malfunction of the control module installed in OBC (checksum). Detection time: at
+        instant. Enabled when: charger connector attached; auxiliary battery 9-16 V. Service lamp
+        on.
+    P0D90:
+      description: Battery charger input frequency incorrect
+      causes: external AC power, OBC
+      notes: >-
+        Threshold: AC frequency is less than a predetermined value. Also needs: turn the input relay
+        'ON'.
+    P1CF6:
+      description: EVSE check
+      causes: external EVSE (electric vehicle supply equipment), OBC
+      notes: >-
+        Four checks of the control pilot (CP) signal. CP voltage below 4 V or above 12 V for 60 sec
+        (needs the S2 switch on and CP voltage above 1 V). CP frequency below 850 Hz or above 1150
+        Hz for 60 sec (needs CP frequency above 0 Hz). CP duty below 0.08 or above 0.98 for 60 sec
+        (needs CP duty above 0 and below 1). AC approved while the CP signal is in state B (9 V) for
+        15 sec (needs the S2 switch off).
+    P1E01:
+      description: PFC voltage sensor reliability & initial offset value check
+      causes: OBC
+      notes: >-
+        Type 1: PFC voltage is below 80% of the AC input voltage after the AC input voltage is
+        entered, for 1 sec (needs the input relay off and input voltage above 65 V). Type 2: PFC
+        voltage is above 30 V (sensor output above 0.3 V), for 500 ms (needs the vehicle to have
+        soaked for over 8 hours with no charging). Service lamp on.
+    P1E02:
+      description: PFC voltage sensor circuit low
+      causes: OBC
+      notes: >-
+        Threshold: output voltage of the PFC voltage sensor is below 0.3 V. Detection time: 1 sec.
+        Also needs: input voltage is greater than 65 V. Service lamp on.
+    P1E03:
+      description: PFC voltage sensor circuit high
+      causes: OBC
+      notes: >-
+        Threshold: output voltage of the PFC voltage sensor is greater than 4.8 V. Detection time: 1
+        sec. Service lamp on.
+    P1E04:
+      description: Battery charger temperature sensor 'A' circuit range/performance
+      causes: OBC
+      notes: >-
+        Threshold: voltage change rate of the OBC temperature sensor is greater than 424 mV per 10
+        ms. Detection time: 100 times. Service lamp on.
+    P1E05:
+      description: Battery charger temperature sensor 'A' circuit low
+      causes: OBC
+      notes: >-
+        Threshold: voltage of the OBC temperature sensor is below 0.3 V. Detection time: 1 sec.
+        Service lamp on.
+    P1E06:
+      description: Battery charger temperature sensor 'A' circuit high
+      causes: OBC
+      notes: >-
+        Threshold: voltage of the OBC temperature sensor is greater than 4.8 V. Detection time: 1
+        sec. Also needs: OBC output power remains above 3 kW for 180 sec; EWP is 0 rpm. Service lamp
+        on.
+    P1E0A:
+      description: Battery charger output voltage too high
+      causes: faulty high voltage cable, OBC relay, main relay, OBC fuse, high voltage battery, OBC
+      notes: >-
+        Threshold: output voltage is greater than 470 V. Detection time: for 10 times or 60 sec.
+        Also needs: turn the S2 switch 'ON'. Service lamp on.
+    P1E0B:
+      description: Battery charging output current too high
+      causes: faulty high voltage cable, OBC
+      notes: >-
+        Threshold: output current is greater than 31 A. Detection time: for 10 times within 30 sec.
+        Also needs: turn the S2 switch 'ON'. Service lamp on.
+    P1E0C:
+      description: Input relay stuck closed check
+      causes: OBC
+      notes: >-
+        Threshold: input current is greater than 46 A. Detection time: at instant. Also needs: turn
+        the input relay 'OFF'. Service lamp on.
+    P1E13:
+      description: Battery charger power module system voltage
+      causes: OBC
+      notes: >-
+        Threshold: fault signal from the power module's power circuit. Detection time: 1 sec.
+        Service lamp on.
+    P1E14:
+      description: PFC output voltage too high
+      causes: OBC
+      notes: >-
+        Threshold: PFC voltage is greater than 455 V. Detection time: for 10 times or 60 sec. Also
+        needs: turn the S2 switch 'ON'. Service lamp on.
+    P1E16:
+      description: Battery charger output relay voltage sensor circuit high
+      causes: OBC
+      notes: >-
+        Threshold: output voltage of the output relay voltage sensor is greater than 4.8 V.
+        Detection time: 1 sec. Service lamp on.
+    P1E17:
+      description: Output relay stuck closed check
+      causes: OBC
+      notes: >-
+        Threshold: the voltage difference between the two is 30 V or more. Detection time: 50 ms.
+        Also needs: turn the output relay OFF'; turn the main relay 'ON'; voltage of the high
+        voltage battery is over 220 V. Service lamp on.
+    P1E18:
+      description: Output relay stuck open check
+      causes: OBC
+      notes: >-
+        Threshold: the voltage difference between the two is 30 V or more. Detection time: 5 ms.
+        Also needs: turn the output relay 'ON'; turn the main relay 'ON'; voltage of the high
+        voltage battery is over 220 V. Service lamp on.
+    P1E19:
+      description: Battery charger output relay voltage sensor circuit low
+      causes: OBC
+      notes: >-
+        Threshold: output voltage of the output relay voltage sensor. is below 0.3 V. Detection
+        time: 1 sec. Also needs: charging high voltage battery. Service lamp on.
+    P1E1F:
+      description: Battery charger ignition3 relay stuck open check
+      causes: >-
+        poor contact in connectors or IGC relay control signal circuit that runs between IG3 relay
+        and OBC, IG3 relay, OBC
+      notes: >-
+        Threshold: check the voltage of IG3 relay when it is OFF. Detection time: 100 ms. Enabled
+        when: charger connector attached; auxiliary battery 9-16 V; wait for 100 ms after turning on
+        the IG3 relay control. Service lamp on.
+    P1E20:
+      description: Battery charger ignition3 relay control circuit
+      causes: >-
+        poor contact in connectors or IG3 relay control signal circuit that runs between IG3 relay
+        and OBC, IG3 relay, OBC
+      notes: >-
+        Threshold: driver fault signal of IG3 relay. Detection time: 300 ms. Enabled when: charger
+        connector attached; auxiliary battery 9-16 V; IG3 relay control signal is 'OFF'. Service
+        lamp on.
+    P1E21:
+      description: Inlet lock mode switch LED control circuit
+      causes: >-
+        poor contact in connectors or control signal circuit of inlet lock mode switch LED, inlet
+        lock mode switch LED, OBC
+      notes: >-
+        Threshold: driver fault signal of the inlet lock mode switch LED. Detection time: 300 ms.
+        Enabled when: auxiliary battery 9-16 V.
+    U0001:
+      description: High speed CAN communication bus
+      causes: >-
+        short on battery power to P-CAN communication lines, ground short to P-CAN communication
+        circuit, open to P-CAN communication circuit, short to P-CAN high and low lines, poor
+        contact in ECU connectors
+      notes: >-
+        Threshold: P-CAN is not able to send or receive messages. Detection time: 1 sec. Enabled
+        when: IG3 ON; auxiliary battery 9-16 V. Service lamp on after 2 driving cycles.
+    U0110:
+      description: Lost communication with drive motor control module
+      causes: >-
+        EPCU connectors are detached, error in power supply to EPCU, open or poor contact in EPCU
+        P-CAN high line, open or poor contact in EPCU P-CAN low line, faulty EPCU
+      notes: >-
+        Threshold: messages do not come from MCU. Detection time: 2 sec. Enabled when: IG3 ON;
+        auxiliary battery 9-16 V. Service lamp on after 2 driving cycles.
+    U0111:
+      description: Lost communication with battery energy control module 'A'
+      causes: >-
+        BMS connectors are detached, error in power supply to BMS, open or poor contact in BMS P-CAN
+        high line, open or poor contact in BMS P-CAN low line, faulty BMS
+      notes: >-
+        Threshold: messages do not come from BMS. Detection time: 2 sec. Enabled when: IG3 ON;
+        auxiliary battery 9-16 V. Service lamp on after 2 driving cycles.
+    U0146:
+      description: Lost communication with gateway 'A'
+      causes: >-
+        CGW connectors are detached, error in power supply to CGW, open or poor contact in CGW P-CAN
+        high line, open or poor contact in CGW P-CAN low line, faulty CGW
+      notes: >-
+        Threshold: messages do not come from CGW. Detection time: 2 sec. Enabled when: IG3 ON;
+        auxiliary battery 9-16 V. Service lamp on after 2 driving cycles.
+    U0293:
+      description: Lost communication with hybrid powertrain control module
+      causes: >-
+        EPCU connectors are detached, error in power supply to EPCU, open or poor contact in EPCU
+        P-CAN high line, open or poor contact in EPCU P-CAN low line, faulty EPCU
+      notes: >-
+        Threshold: messages do not come from VCU. Detection time: 2 sec. Enabled when: IG3 ON;
+        auxiliary battery 9-16 V. Service lamp on after 2 driving cycles.
+
   research:
     - type: decode
       target: "2101"
@@ -269,8 +595,9 @@ OBC:
         Derived current VCU_AUX_POWER / LDC_OUTPUT_V gives 9-48 A in that window; it inherits
         VCU_AUX_POWER's unverified status.
       notes: >-
-        Also absent from VCU 2101/2102, MCU 2102 (motor phase currents) and Unknown-746 21F2. No
-        hidden service-21 page on OBC or VCU. VCU 21F2 has no charging capture yet. The Soul's standalone LDC (0x7C5) DC_Current_Out has no counterpart here.
+        Also absent from VCU 2101/2102, MCU 2102 (motor phase currents) and EWP 21F2. No hidden
+        service-21 page on OBC or VCU. VCU 21F2 has no charging capture yet. The Soul's standalone
+        LDC (0x7C5) DC_Current_Out has no counterpart here.
       what_to_test:
         - "12 V-only load step at READY (rear defroster, high beams, blower; A/C off) co-polling OBC:2101, VCU:2102, VCU:21F2 and BMS:2101 with --keep-all: pack BATTERY_CURRENT is then the LDC input alone, a cross-check on VCU_AUX_POWER / LDC_OUTPUT_V. The 2026-07-30 step also ran the A/C compressor."
         - "Capture VCU 21F2 with --keep-all while charging, to contrast its analog bytes against READY."

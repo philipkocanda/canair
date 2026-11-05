@@ -619,3 +619,34 @@ class TestDuplicateKeys:
     def test_without_the_repeat_there_is_no_error(self, tmp_path):
         doc = self.DOC.replace("        GEAR:\n          expression: B9\n", "")
         assert not [e for e in self._errors(tmp_path, doc) if "duplicate key" in e]
+
+
+class TestEcuIsotpValidation:
+    """The per-ECU isotp: block takes only the fields the raw path applies per ECU."""
+
+    def _validate(self, tmp_path, block: str):
+        p = tmp_path / "e.yaml"
+        p.write_text(f"EWP:\n  tx_id: 0x746\n  isotp:\n{block}")
+        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
+        return errors
+
+    def test_flow_control_fields_are_accepted(self, tmp_path):
+        assert self._validate(tmp_path, "    blocksize: 8\n    rx_flowcontrol_timeout: 500\n") == []
+
+    def test_a_profile_wide_field_is_refused(self, tmp_path):
+        errs = self._validate(tmp_path, "    tx_padding: 0x55\n")
+        assert any("isotp.tx_padding" in e and "profile.yaml" in e for e in errs)
+
+    def test_blocksize_fits_one_byte(self, tmp_path):
+        errs = self._validate(tmp_path, "    blocksize: 256\n")
+        assert any("at most 255" in e for e in errs)
+
+    def test_values_are_non_negative_integers(self, tmp_path):
+        errs = self._validate(tmp_path, "    blocksize: -1\n    rx_flowcontrol_timeout: fast\n")
+        assert len([e for e in errs if "non-negative integer" in e]) == 2
+
+    def test_an_empty_block_is_refused(self, tmp_path):
+        p = tmp_path / "e.yaml"
+        p.write_text("EWP:\n  tx_id: 0x746\n  isotp: {}\n")
+        errors, _w, _s = validate_ecu_file(p, load_schema())
+        assert any("non-empty mapping" in e for e in errors)

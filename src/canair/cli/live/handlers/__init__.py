@@ -9,6 +9,7 @@ selects one by inspecting which flags are set. Grouped by family:
 * :mod:`.scans`       — PID/DID sweeps, routine and IOControl probes, discovery.
 * :mod:`.actuators`   — IOControl, routines and profile actions (can move hardware).
 * :mod:`.diagnostics` — DTC read, clear and scan-all.
+* :mod:`.memory`      — memory reads: the scan map and the dump (ReadMemoryByAddress).
 * :mod:`.elm_only`    — the interactive REPL.
 * :mod:`.ranges`      — the hex-range flag parsers.
 

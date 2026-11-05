@@ -6,9 +6,18 @@ import argparse
 
 from canair.cli.live import LiveOperation, add_connection_args, live_command
 from canair.cli.live.handlers import reads
+from canair.query.steps import parse_raw_spec
 
 NAME = "raw"
 _OPERATION = LiveOperation(reads.handle_raw, records=True)
+
+
+def _raw_spec(value: str) -> str:
+    try:
+        parse_raw_spec(value)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e)) from None
+    return value
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -24,7 +33,9 @@ examples:
   canair raw 770:2FBC0103 --hold --wake     IOControl: hold low beams (Ctrl+C to release)
 """,
     )
-    parser.add_argument("raw", metavar="TX:PID", help="Raw UDS request (e.g. 7E4:2101)")
+    parser.add_argument(
+        "raw", metavar="TX:PID", type=_raw_spec, help="Raw UDS request (e.g. 7E4:2101)"
+    )
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
     parser.add_argument("--hold", action="store_true", help="Keep session alive until Ctrl+C")
     parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")

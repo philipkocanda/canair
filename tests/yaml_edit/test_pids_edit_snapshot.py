@@ -8,7 +8,8 @@ import yaml
 
 from canair.cli.commands.pids import pid_settings
 from canair.core.edit_errors import EditError
-from canair.ecus.pids import build_ecu_index, pid_ships, pid_swept
+from canair.ecus.pid_status import pid_ships, pid_swept
+from canair.ecus.pids import build_ecu_index
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.schema_fields import load_schema
 from canair.yaml_edit.pids import PidsEditError, set_snapshot_only
@@ -168,11 +169,11 @@ class TestVisibility:
     def test_neither_swept_nor_shipped_whatever_its_status(self):
         pid = {"status": "active", "snapshot_only": True, "parameters": {}}
         assert not pid_swept(pid)
-        assert not pid_ships(pid)
+        assert not pid_ships(pid, "224710")
 
     def test_without_the_flag_the_status_decides(self):
-        assert pid_swept({"status": "active"}) and pid_ships({"status": "active"})
-        assert pid_swept({"status": "draft"}) and not pid_ships({"status": "draft"})
+        assert pid_swept({"status": "active"}) and pid_ships({"status": "active"}, "224710")
+        assert pid_swept({"status": "draft"}) and not pid_ships({"status": "draft"}, "224710")
 
     def test_the_ecu_index_carries_it(self):
         ecus = yaml.safe_load(YAML)

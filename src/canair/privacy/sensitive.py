@@ -10,7 +10,9 @@ rule is one decision, applied at every seam rather than per command:
   ``canair read --reveal`` lifts the mask, for that one process
   (:func:`set_reveal`), and it cannot be combined with ``--save``.
 * **On disk** a reply to a sensitive PID is never written — not to the journal, not
-  to ``captures/`` — whatever the reveal setting (:func:`withhold`). A save that
+  to ``captures/`` — whatever the reveal setting (:func:`withhold`). Neither is a memory
+  read over :data:`~canair.uds.memory.MEMORY_SIGNAL_MAX_BYTES`: that is a dump, which may
+  hold OEM software or secrets, and stays in ``canair memory``'s local store. A save that
   dropped something says so once (:func:`take_withheld_note`).
 * **Shared** copies (``contribute``, the blind-test strip, the docs-site explorer,
   the WiCAN AutoPID export) leave sensitive data out, and ``validate captures``
@@ -30,6 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from canair.ecus.sensitivity import param_sensitive, pid_sensitive
+from canair.uds.memory import MEMORY_SIGNAL_MAX_BYTES, exceeds_signal_cap
 
 MASK = "*****"
 
@@ -211,23 +214,35 @@ def set_for_captures(captures_dir: Path | None) -> SensitiveSet:
 # ---------------------------------------------------------------------------
 
 _withheld: Counter[str] = Counter()
+_oversized: Counter[str] = Counter()
+
+
+def _oversized_memory(row: Mapping[str, Any]) -> bool:
+    """A memory reply bigger than a signal: a dump, which never enters ``captures/``.
+
+    Only a row holding a reply counts; a refusal of a large read discloses nothing.
+    """
+    return bool(row.get("payload")) and exceeds_signal_cap(row.get("pid", ""))
 
 
 def withhold(rows: Iterable[Mapping[str, Any]], sset: SensitiveSet) -> list[Any]:
-    """``rows`` minus every reply to a sensitive PID, each one counted for the note."""
+    """``rows`` minus every reply to a sensitive PID or an oversized memory read, counted."""
     kept: list[Any] = []
     for row in rows:
         if (sset and sset.has_capture(row)) or row.get("payload") == MASK:
             _withheld[sset.label(row)] += 1
+            continue
+        if _oversized_memory(row):
+            _oversized[sset.label(row)] += 1
             continue
         kept.append(row)
     return kept
 
 
 def withhold_session(session: dict, sset: SensitiveSet) -> dict:
-    """A copy of ``session`` without its sensitive captures (the same object if none)."""
+    """A copy of ``session`` without its withheld captures (the same object if none)."""
     caps = session.get("captures")
-    if not sset or not isinstance(caps, list):
+    if not isinstance(caps, list):
         return session
     kept = withhold(caps, sset)
     if len(kept) == len(caps):
@@ -236,12 +251,20 @@ def withhold_session(session: dict, sset: SensitiveSet) -> dict:
 
 
 def take_withheld_note() -> str:
-    """The one-line "not saved" note for what the gate dropped since the last call."""
-    if not _withheld:
-        return ""
-    what = ", ".join(f"{k} ×{n}" if n > 1 else k for k, n in sorted(_withheld.items()))
-    _withheld.clear()
-    return f"  ⚠ Not saved: {what} — sensitive, never written to captures."
+    """The "not saved" note for what the gate dropped since the last call (one line each)."""
+    lines: list[str] = []
+    if _withheld:
+        what = ", ".join(f"{k} ×{n}" if n > 1 else k for k, n in sorted(_withheld.items()))
+        lines.append(f"  ⚠ Not saved: {what} — sensitive, never written to captures.")
+        _withheld.clear()
+    if _oversized:
+        what = ", ".join(f"{k} ×{n}" if n > 1 else k for k, n in sorted(_oversized.items()))
+        lines.append(
+            f"  ⚠ Not saved: {what} — a memory read over {MEMORY_SIGNAL_MAX_BYTES} bytes is a "
+            "dump; `canair memory dump` keeps one off the profile."
+        )
+        _oversized.clear()
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------

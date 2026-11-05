@@ -38,7 +38,7 @@ _GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir", "--variant", "--revisi
 _GROUP_DEFAULTS = {
     # Only `uds` exists today; a `can` kind joins when raw-frame search is designed.
     "search": ({"uds"}, "uds"),
-    "scan": ({"range", "iocontrol", "routines", "sessions"}, "range"),
+    "scan": ({"range", "iocontrol", "routines", "sessions", "memory"}, "range"),
     "ecu": ({"show", "add", "rename", "revisions", "set-variants"}, "show"),
     "dtc": ({"read", "log"}, "read"),
     # A bare token after `states` (e.g. `canair states READY`) is a state name to

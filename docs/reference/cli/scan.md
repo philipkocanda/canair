@@ -10,6 +10,7 @@ usage: canair scan [-h] <kind> ...
   iocontrol  IOControl discovery (UDS 0x2F; KWP2000 0x30 asks first)
   routines   SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33, auto)
   sessions   SAFE diagnostic session-type discovery (0x10, auto UDS/KWP2000)
+  memory     map which address ranges answer ReadMemoryByAddress (0x23; asks first)
 
 A bare `canair scan BMS` (or `canair scan` alone) is shorthand for `canair scan range …`.
 
@@ -20,6 +21,7 @@ positional arguments:
     routines   SAFE RoutineControl discovery (UDS 0x31 SF03 / KWP2000 0x33,
                auto)
     sessions   SAFE diagnostic session-type discovery (0x10, auto UDS/KWP2000)
+    memory     Map which address ranges answer ReadMemoryByAddress (0x23)
 
 options:
   -h, --help   show this help message and exit
@@ -31,6 +33,7 @@ examples:
   canair scan iocontrol IGPM              # SAFE actuator (IOControl) discovery
   canair scan routines BCM                # SAFE routine discovery
   canair scan sessions BMS                # SAFE diagnostic session-type discovery
+  canair scan memory BCM --range FEDE0000-FEDFFFFF  # map readable memory (asks first)
 
 Run `canair scan <kind> --help` for the flags of each kind.
 ```
@@ -372,4 +375,87 @@ examples:
   canair scan sessions BMS              # KWP2000: probe 10 81 / 82 / 83 (auto)
   canair scan sessions BMS VCU MCU      # several ECUs in one run
   canair scan sessions IGPM --modes 01,03,10   # override the probed modes
+```
+
+## `canair scan memory`
+
+```
+usage: canair scan memory [-h] --range START-END[,…] [--step HEX] [--no-block]
+                          [--block-limit N] [--dry-run] [--format ALFID|kwp]
+                          [--session] [--mode HEX] [--throttle-ms THROTTLE_MS]
+                          [--yes] [--wican WICAN]
+                          [--transport {slcan-tcp,wican-ws,elm327-tcp}]
+                          [--no-fallback] [--wait] [--elm-timeout MS]
+                          [--timeout SECONDS] [--no-learn-frames] [--json]
+                          [--verbose] [--timings] [--reboot] [--unsafe]
+                          [--force]
+                          ECU
+
+Map which address ranges of one ECU answer memory reads. The scan reads one byte every --step bytes, bisects each change to its exact address, then finds the largest block that comes back whole inside a readable region, doubling from 16 bytes up to --block-limit and stopping at the first that fails. It stops on serviceNotSupported, on securityAccessDenied (canair never unlocks), on conditionsNotCorrect to every read, and when the ECU stops answering. The map, the format and the block are written to the ECU's memory: section (--dry-run: not). There is no default range: name ranges from the microcontroller's memory map. Asks before the first read (--yes to skip).
+
+positional arguments:
+  ECU                   ECU name or TX id
+
+options:
+  -h, --help            show this help message and exit
+  --range START-END[,…]
+                        Hex address ranges to map (required)
+  --step HEX            Probe every HEX bytes before bisecting (default 1000)
+  --no-block            Skip the search for the largest block
+  --block-limit N       Largest block the search tries (default 128). Some
+                        ECUs hang on a read larger than they support until
+                        their supply is cycled; raise it with care
+  --dry-run             Print the map but do not write it to ecus/
+  --format ALFID|kwp    Memory format when the ECU declares none: a UDS ALFID
+                        (24 = 2-byte size, 4-byte address) or kwp. Saved by
+                        `canair memory set` or `canair scan memory`.
+  --session             Open a diagnostic session first (--mode, else the
+                        ECU's memory.session, else 03)
+  --mode HEX            Session mode for --session
+  --throttle-ms THROTTLE_MS
+                        Delay in ms between reads (default 20)
+  --yes, -y             Skip the confirmation before the first read
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
+  --transport {slcan-tcp,wican-ws,elm327-tcp}
+                        CAN transport: slcan-tcp (raw CAN), wican-ws (WiCAN
+                        ELM327 WebSocket), or elm327-tcp (direct ELM327
+                        adapter over TCP). Overrides the config
+                        `transport.type` (default: slcan-tcp).
+  --no-fallback         Don't auto-fall-back to other configured devices when
+                        the selected one is unreachable (see config
+                        transport.fallback).
+  --wait                Keep retrying to reach the device indefinitely, then
+                        start as soon as it comes online (Ctrl-C to stop). For
+                        'monitor', also reconnects forever if the connection
+                        drops mid-session (auto-failover to another same-
+                        transport device is bounded by default; --wait makes
+                        it unbounded).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
+                        after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
+                        ELM / 2.0 raw). Overrides any per-ECU
+                        response_timeout_ms for the whole run.
+  --no-learn-frames     Don't write response_frames back into the profile's
+                        ecus/ when this session confirms how many CAN frames a
+                        PID's response occupies (the count that lets the
+                        adapter answer without waiting out its full ECU
+                        timeout). Use when reading a car the active profile
+                        doesn't describe.
+  --json                Output results as JSON
+  --verbose, -v         Show raw transport traffic and expressions
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to
+                        stderr)
+  --reboot              Reboot WiCAN after session to restore AutoPID mode
+                        (skipped on firmware v6, which resumes AutoPID by
+                        itself)
+  --unsafe              Bypass dangerous command blocklist (requires explicit
+                        per-command consent)
+  --force               Ask a session already holding the connection to
+                        release it, then wait for it
+
+examples:
+  canair scan memory BCM --range FEDE0000-FEDFFFFF
+  canair scan memory HVAC --range 000000-00FFFF --format 13 --step 100
+  canair scan memory MCU --range 000000-0FFFFF --step 10000 --no-block
 ```

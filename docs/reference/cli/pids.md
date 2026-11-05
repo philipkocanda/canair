@@ -4,13 +4,13 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing,set-isotp}
                    ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing,set-isotp}
     upsert-param        Add or update a signal
     rename-param        Rename a signal (key only; fields preserved)
     rm-param            Remove a signal
@@ -58,6 +58,8 @@ positional arguments:
                         (wake ritual)
     set-addressing      Set an ECU's CAN addressing override (mode / extension
                         bytes / FC id / rx_id)
+    set-isotp           Set an ECU's own ISO-TP flow control (slcan-tcp), over
+                        the profile's
 
 options:
   -h, --help            show this help message and exit
@@ -910,4 +912,30 @@ examples:
   canair pids set-addressing DME --mode normal_extended_11bit --target-address 0x12
   canair pids set-addressing EVC --mode normal_29bit --fc-id 0x18DADBF1
   canair pids set-addressing BMS --rx-id 0x784
+```
+
+## `canair pids set-isotp`
+
+```
+usage: canair pids set-isotp [-h] [--blocksize N|clear]
+                             [--rx-flowcontrol-timeout N|clear]
+                             [--rx-consecutive-frame-timeout N|clear]
+                             [--dir DIR] [--no-validate]
+                             ecu
+
+Set or clear an ECU's own isotp: fields, laid over the profile's on slcan-tcp:
+for an ECU that sends no consecutive frame after BlockSize 0.
+
+positional arguments:
+  ecu
+
+options:
+  -h, --help            show this help message and exit
+  --blocksize N|clear
+  --rx-flowcontrol-timeout N|clear
+  --rx-consecutive-frame-timeout N|clear
+  --dir DIR             ecus/ directory (default: active profile)
+  --no-validate         Skip the post-edit schema validation gate
+
+example: canair pids set-isotp EWP --blocksize 8 (or --blocksize clear)
 ```

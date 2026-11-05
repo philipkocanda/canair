@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from canair.cli.commands._edit import edit_scope
+from canair.cli.commands._edit import clear_sentinel, edit_scope
 from canair.yaml_edit.pids import (
     find_ecu_file,
 )
@@ -36,3 +36,8 @@ def ecu_names(ecus_dir: Path | None) -> list[str]:
         if isinstance(doc, dict):
             names.extend(str(k) for k in doc)
     return names
+
+
+def int_or_clear(text: str) -> int | None:
+    """``period``/``response_frames`` value: an integer, or the word ``clear`` for none."""
+    return None if clear_sentinel(text) is None else int(text)

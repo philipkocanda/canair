@@ -1533,3 +1533,12 @@ BCM:
       description: TPMS auto location failure
       causes: RF jamming, vehicle speed signal, wheel pulse signal, sensor
       notes: New sensor ID found while learning and fewer than 3 positions located. No TPMS lamp.
+  memory:
+    format: "24"
+    max_block: 254
+    regions:
+      - start: 0xFEDC0000
+        end: 0xFEE0FFFF
+        result: readable
+        software: "F195:220"
+        scanned: "2026-11-05"

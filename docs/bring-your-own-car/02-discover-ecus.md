@@ -12,7 +12,9 @@ canair discover --register
 ```
 
 This probes the default address range (`700–7EF`, where most OBD-II ECUs live),
-then adds a file under `ecus/` for each newly-found ECU. Preview without writing:
+then adds a file under `ecus/` for each newly-found ECU. The sweep skips `7DF`, the functional
+(broadcast) id inside that range: a request there reaches every ECU at once, so it has its own
+[functional sweep](#map-which-buses-the-gateway-reaches). Preview without writing:
 
 ```bash
 canair discover --register --dry-run

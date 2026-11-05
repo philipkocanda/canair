@@ -2,15 +2,8 @@
 
 import pytest
 
-from canair.ecus.pids import (
-    DEFAULT_PID_STATUS,
-    PID_STATUSES,
-    build_ecu_index,
-    build_param_index,
-    build_sessions_index,
-    load_pids,
-    pid_status,
-)
+from canair.ecus.pid_status import DEFAULT_PID_STATUS, PID_STATUSES, pid_status
+from canair.ecus.pids import build_ecu_index, build_param_index, build_sessions_index, load_pids
 
 
 @pytest.fixture(scope="module")
@@ -135,7 +128,7 @@ class TestPidStatusVocabulary:
     def test_statuses_derive_from_the_literal(self):
         from typing import get_args
 
-        from canair.ecus.pids import PidStatus
+        from canair.ecus.pid_status import PidStatus
 
         assert PID_STATUSES == get_args(PidStatus)
 

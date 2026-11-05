@@ -140,6 +140,26 @@ The two padding keys are different bytes:
 Hyundai/Kia's diagnostic spec has them differ (requests `0x55`, replies `0xAA`), which is what the
 bundled Ioniq profile sets.
 
+#### One ECU with its own flow control
+
+Some ECUs need different flow control from the rest of the car. The Ioniq's electric water pump
+sends the first frame of a multi-frame reply and then stops, unless the FlowControl frame grants a
+BlockSize above `0`. A profile-wide `blocksize` would cost every other ECU a round trip per block,
+so an ECU's own file can carry an `isotp:` block that is laid over the profile's for that ECU only:
+
+```yaml
+EWP:
+  tx_id: 0x746
+  isotp:
+    blocksize: 8
+```
+
+It accepts `blocksize`, `rx_flowcontrol_timeout` and `rx_consecutive_frame_timeout`, the fields
+the `slcan-tcp` transport applies per ECU; `canair validate` rejects the others, which stay
+profile-wide. Set or clear them with `canair pids set-isotp EWP --blocksize 8` (or
+`--blocksize clear`). The ELM327 transports are not affected: the adapter keeps one flow-control
+setting for the whole session, with a block size of `0`.
+
 ### Physical bands
 
 The `physical_bands:` block tunes the **vehicle axis** of the reference-free

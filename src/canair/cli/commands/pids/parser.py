@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 
+from canair.yaml_edit.memory import memory_pid_key
+
 from . import ecu_facts, entries, migrate, pid_settings, research
 from .epilog import EPILOG
 
@@ -32,4 +34,6 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 
 def run(args) -> int:
+    if isinstance(getattr(args, "pid", None), str):  # a 23/ADDRESS+SIZE token names its request
+        args.pid = memory_pid_key(args.ecu, args.pid, getattr(args, "dir", None))
     return args._pids_func(args)

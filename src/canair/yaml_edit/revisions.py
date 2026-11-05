@@ -24,8 +24,8 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
 from canair.captures import io as capture_io
+from canair.variants.fingerprint_kinds import new_fingerprint
 from canair.variants.revisions import (
-    FINGERPRINT_KINDS,
     canonical_revision,
     declared,
     revision_id_problem,
@@ -119,19 +119,21 @@ def set_fingerprint(
     *,
     responds: str | None = None,
     identity: Mapping[str, str] | None = None,
+    software: str | None = None,
     clear: bool = False,
     profile: Profile | None = None,
 ) -> Path:
     """Add a fingerprint to a revision (``--clear``: drop all of them first).
 
-    ``responds`` is a safe read only this revision answers; ``identity`` maps identity
-    fields to glob patterns. Recorded and checked; matching a car is a later stage.
+    ``responds`` is a safe read only this revision answers, ``identity`` maps identity
+    fields to globs, ``software`` globs the ECU's software version (``RECORD:TEXT``).
     """
     rid = _checked_id(revision)
-    if not clear and responds is None and not identity:
-        raise EcusEditError(f"give a fingerprint ({' or '.join(FINGERPRINT_KINDS)}), or --clear")
-    if responds is not None and identity:
-        raise EcusEditError("one fingerprint at a time: --responds or --identity")
+    try:
+        none_given = not (responds or identity or software)
+        spec = None if clear and none_given else new_fingerprint(responds, identity, software)
+    except ValueError as e:
+        raise EcusEditError(str(e)) from None
 
     def change(name: str, ecu_def: CommentedMap) -> None:
         block = _block(ecu_def)
@@ -140,22 +142,20 @@ def set_fingerprint(
             raise EcusEditError(f"{name} declares no revision {rid!r}")
         entry = block[key]
         if not isinstance(entry, dict):
-            entry = CommentedMap()
-            block[key] = entry
+            entry = block[key] = CommentedMap()
         if clear:
             entry.pop("fingerprints", None)
-        if responds is None and not identity:
+        if spec is None:
             return
         fps = entry.get("fingerprints")
         if not isinstance(fps, list):
-            fps = CommentedSeq()
-            entry["fingerprints"] = fps
-        if responds is not None:
-            fp = flow_map({"responds": DoubleQuotedScalarString(responds.strip().upper())})
+            fps = entry["fingerprints"] = CommentedSeq()
+        ((kind, value),) = spec.items()
+        if isinstance(value, dict):
+            value = flow_map({k: DoubleQuotedScalarString(v) for k, v in value.items()})
         else:
-            fields = {k: DoubleQuotedScalarString(v) for k, v in (identity or {}).items()}
-            fp = flow_map({"identity": flow_map(fields)})
-        fps.append(fp)
+            value = DoubleQuotedScalarString(value)
+        fps.append(flow_map({kind: value}))
 
     return _edit_ecu(ecu, profile, change)
 

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from canair.transport.isotp_params import (
     DEFAULT_TX_PADDING,
+    ECU_ISOTP_FIELDS,
     ISOTP_FIELDS,
     build_isotp_params,
+    ecu_isotp_blocks,
     resolve_rx_padding,
 )
 
@@ -51,6 +53,37 @@ class TestBuildIsotpParams:
         # so it is accepted in the profile but never handed to the library.
         assert set(ISOTP_FIELDS) == set(build_isotp_params(None)) | {"rx_padding"}
         assert "rx_padding" not in build_isotp_params({"rx_padding": 0x55})
+
+
+class TestEcuOverride:
+    """One ECU's own isotp: block, laid over the profile's for the per-ECU fields only."""
+
+    def test_the_ecu_block_wins_over_the_profile(self):
+        params = build_isotp_params({"blocksize": 0, "stmin": 5}, ecu_config={"blocksize": 8})
+        assert params["blocksize"] == 8
+        assert params["stmin"] == 5  # the profile's value still applies
+
+    def test_fields_an_ecu_cannot_set_are_ignored(self):
+        params = build_isotp_params(None, ecu_config={"tx_padding": 0x00, "can_fd": True})
+        assert params == build_isotp_params(None)
+
+    def test_the_link_budget_widens_an_ecu_timeout_too(self):
+        params = build_isotp_params(None, 0.5, {"rx_consecutive_frame_timeout": 200})
+        assert params["rx_consecutive_frame_timeout"] == 700
+
+    def test_per_ecu_fields_are_isotp_fields(self):
+        assert set(ECU_ISOTP_FIELDS) <= set(ISOTP_FIELDS)
+
+    def test_blocks_are_keyed_by_request_id(self):
+        pids_data = {
+            "ecus": {
+                "EWP": {"tx_id": 0x746, "isotp": {"blocksize": 8}},
+                "BMS": {"tx_id": 0x7E4},
+                "BAD": {"tx_id": 0x7E5, "isotp": {}},
+            }
+        }
+        assert ecu_isotp_blocks(pids_data) == {0x746: {"blocksize": 8}}
+        assert ecu_isotp_blocks(None) == {}
 
 
 class TestPaddingResolvers:

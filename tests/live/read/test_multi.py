@@ -196,6 +196,16 @@ class TestParseSubCommands:
         with pytest.raises(ValueError, match="requires"):
             parse_sub_commands(["raw"])
 
+    def test_raw_odd_length_request_refused(self):
+        # An ELM327 reads a trailing nibble as a response-frame count, so an odd
+        # request would go out as a different request rather than fail.
+        with pytest.raises(ValueError, match="odd number of hex digits"):
+            parse_sub_commands(["raw 7B3:2313000000040"])
+
+    def test_raw_malformed_spec_refused(self):
+        with pytest.raises(ValueError, match="expected TX:REQUEST"):
+            parse_sub_commands(["raw 7B3"])
+
     def test_scan(self):
         result = parse_sub_commands(["scan 770 22 BC00-BCFF"])
         assert result[0] == {
