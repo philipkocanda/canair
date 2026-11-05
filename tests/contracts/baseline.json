@@ -14,7 +14,6 @@
     "canair.tui.apps.captures_step": 671,
     "canair.cli.commands.captures.uds": 521,
     "canair.cli.commands.config": 603,
-    "canair.cli.commands.ecu": 1034,
     "canair.cli.commands.hunt": 740,
     "canair.cli.commands.pids": 1557,
     "canair.cli.commands.profile": 691,

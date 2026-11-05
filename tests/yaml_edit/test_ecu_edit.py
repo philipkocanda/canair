@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from canair import profile
-from canair.cli.commands.ecu import cmd_edit
+from canair.cli.commands.ecu.edit import cmd_edit
 from canair.ecus.pids import clear_cache
 from canair.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu
 

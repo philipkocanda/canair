@@ -66,8 +66,10 @@ class TestAuthoringCommandsUseIt:
 
     def test_no_authoring_command_prints_a_bare_file_name(self):
         root = Path(__file__).resolve().parents[2] / "src" / "canair" / "cli" / "commands"
-        for name in ("pids.py", "signals.py", "states.py", "groups.py", "ecu.py"):
-            text = (root / name).read_text()
+        for name in ("pids", "signals", "states", "groups", "ecu"):
+            module = root / f"{name}.py"
+            files = [module] if module.exists() else sorted((root / name).rglob("*.py"))
+            text = "\n".join(f.read_text() for f in files)
             assert "echo_edit" in text or "run_edit" in text, (
                 f"{name} does not use the shared edit echo"
             )
