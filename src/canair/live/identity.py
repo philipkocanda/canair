@@ -16,13 +16,13 @@ import sys
 
 from canair.privacy.sensitive import MASK, request_hidden
 from canair.render import ansi
+from canair.render.paint import Painter
 from canair.uds.echo import request_echo
 from canair.uds.protocol import KWP, UDS
 from canair.uds.response import UdsResponse
 
 from ..ecus import ecu_display
 from ..transport.protocol import Terminal
-from .discover_render import Painter
 from .identity_decode import (
     decode_identity_payload,
     resolve_protocol_hint,

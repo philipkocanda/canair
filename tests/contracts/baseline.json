@@ -36,7 +36,7 @@
     "canair.live.multi_exec": 616,
     "canair.live.routines": 669,
     "canair.profile": 705,
-    "canair.render.formatting": 621,
+    "canair.render.formatting": 620,
     "canair.states": 987,
     "canair.transport.elm327.terminal": 835,
     "canair.uds.byteindex": 541,
@@ -71,11 +71,8 @@
       "src/canair/cli/commands/status.py": 1,
       "src/canair/cli/commands/update.py": 1,
       "src/canair/cli/live/connect.py": 1,
-      "src/canair/install/update_check.py": 1,
       "src/canair/live/_monitor_run.py": 1,
       "src/canair/live/scan.py": 1,
-      "src/canair/render/formatting.py": 1,
-      "src/canair/transport/timing.py": 1,
       "src/canair/tui/__init__.py": 1
     },
     "prompts": {

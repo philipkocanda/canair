@@ -5,15 +5,9 @@ from __future__ import annotations
 import io
 import re
 
-from canair.live.discover_render import (
-    POSITIVE,
-    REFUSED,
-    Painter,
-    column_widths,
-    render_row,
-    status_cell,
-)
+from canair.live.discover_render import POSITIVE, REFUSED, status_cell
 from canair.render import ansi
+from canair.render.paint import Painter, column_widths, render_row
 
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
 

@@ -4,11 +4,12 @@ import json
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Literal
 
-from rich.console import Console
+from rich.markup import escape
 from rich.text import Text
 
 from canair.expression.decoding import ParamRow
 from canair.privacy.sensitive import MASK
+from canair.render.console import console
 from canair.uds.byteindex import extract_byte_indices, wican_to_elm_idx
 from canair.uds.response import UdsResponse
 
@@ -20,8 +21,6 @@ if TYPE_CHECKING:
 # the ISO-TP PCI framing bytes, so the distinction has to be carried explicitly —
 # mixing them silently shifts every WiCAN ``Bnn`` label (see print_hexdump).
 ByteLayout = Literal["isotp", "wican"]
-
-_console = Console(highlight=False)
 
 # Map a base byte colour → its highlighted (changed-byte) variant.
 _HIGHLIGHT_STYLE = {
@@ -530,7 +529,7 @@ def print_ecu_results(
     if not pid_results:
         return
 
-    c = _console
+    c = console()
 
     # ECU header
     c.print(f"\n  [bold cyan]{ecu_label}[/bold cyan]")
@@ -546,7 +545,7 @@ def print_ecu_results(
         # PID sub-header
         tag = " [dim](unmapped)[/dim]" if unmapped else ""
         if error:
-            c.print(f"    [yellow]{pid}[/yellow]{tag}  [red]{error}[/red]")
+            c.print(f"    [yellow]{pid}[/yellow]{tag}  [red]{escape(str(error))}[/red]")
             continue
 
         c.print(f"    [yellow]{pid}[/yellow]{tag}")

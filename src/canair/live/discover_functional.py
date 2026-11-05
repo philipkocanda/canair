@@ -21,22 +21,12 @@ from typing import Any, TextIO
 
 from canair.captures.metadata import resolve_metadata
 from canair.render import ansi
+from canair.render.paint import GAP, INDENT, Cell, Painter, column_widths, render_row
 from canair.transport.functional import DEFAULT_WINDOW_S
 from canair.transport.protocol import Terminal
 from canair.uds.services import TESTER_PRESENT_REQUEST
 
-from .discover_render import (
-    GAP,
-    INDENT,
-    NO_ANSWER,
-    POSITIVE,
-    REFUSED,
-    Cell,
-    Painter,
-    column_widths,
-    render_row,
-    status_cell,
-)
+from .discover_render import NO_ANSWER, POSITIVE, REFUSED, status_cell
 from .functional_sweep import (
     NOT_IN_PROFILE,
     UNKNOWN_BUS,

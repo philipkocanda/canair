@@ -46,7 +46,6 @@ def test_every_check_has_a_named_home_or_none():
         for check, homes in ui_standards.ALLOWED.items()
         for home in sorted(homes)
         if not (ui_standards.SRC / home).exists()
-        and not (check == "rich_console" and home == "render/console.py")
     ]
     assert not missing, "allowed home is gone: " + ", ".join(missing)
 

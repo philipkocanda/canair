@@ -6,20 +6,12 @@ import sys
 
 from canair.captures.metadata import resolve_metadata
 from canair.render import ansi
+from canair.render.paint import INDENT, Cell, Painter, column_widths, render_row
 from canair.uds.addressing import DEFAULT_MODE, AddressingMode, is_extended
 from canair.uds.services import DEFAULT_SESSION_REQUEST
 
 from ..transport.protocol import Terminal
-from .discover_render import (
-    INDENT,
-    POSITIVE,
-    REFUSED,
-    Cell,
-    Painter,
-    column_widths,
-    render_row,
-    status_cell,
-)
+from .discover_render import POSITIVE, REFUSED, status_cell
 
 # Standard tester/source address used to form 29-bit physical request ids
 # (0x18DA{target}{tester}); F1 is the ISO 15765-4 external-tester address.

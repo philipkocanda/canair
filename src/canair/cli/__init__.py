@@ -392,5 +392,6 @@ def main(argv: list[str] | None = None) -> int:
         if note := take_withheld_note():
             print(note, file=sys.stderr)
     if check_updates:
-        update_check.print_notice_if_any()
+        if notice := update_check.pending_notice():
+            print(ansi.cerr(f"\u2191 {notice}", ansi.raw.DIM + ansi.raw.YELLOW), file=sys.stderr)
     return result if isinstance(result, int) else 0

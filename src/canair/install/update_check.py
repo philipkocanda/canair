@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import threading
 import time
 from pathlib import Path
@@ -229,16 +228,3 @@ def pending_notice() -> str | None:
         )
     except Exception:
         return None
-
-
-def print_notice_if_any(stream=sys.stderr) -> None:
-    """Print the pending update notice (if any) to ``stream``. Best-effort."""
-    try:
-        notice = pending_notice()
-        if not notice:
-            return
-        from rich.console import Console
-
-        Console(file=stream).print(f"[dim yellow]\u2191 {notice}[/dim yellow]")
-    except Exception:
-        pass
