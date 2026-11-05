@@ -1,7 +1,8 @@
 """Text for the terminal: the colour palette and the shared result formatters.
 
 Belongs: the ANSI palette and its colour gating (``ansi``), the painter that colours and aligns
-text for one stream (``paint``), the one Rich console factory (``console``) and the formatters
+text for one stream (``paint``), the one Rich console factory (``console``), the four message
+levels (``messages``), the glyphs (``glyphs``) and the formatters
 several packages print through: hex lines, byte rulers, parameter tables, UDS response blocks
 (``formatting``), and the sniffer's per-ID table (``sniff``), which the CLI and the Textual view
 both print.
