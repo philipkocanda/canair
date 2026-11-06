@@ -1,6 +1,6 @@
 # Code organization, part 3: pass the profile explicitly
 
-Status: **PART A DONE** (2026-11-05); part B proposed. Part of
+Status: **PART A DONE** (2026-11-05); part B **IN PROGRESS** (see "As built, part B"). Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 1.
 Continues left-over item 2 of `plans/2026-11-04-package-layout-and-layering.md` (the
 `ecus : profile : variants` half).
@@ -227,3 +227,25 @@ What differs from the plan:
 Size ceilings were tight, so a few lines were cut elsewhere to keep every module at or under its
 ceiling (the stale history paragraph of `captures/store.py`, the long comment of
 `profile/__init__.py`). The deferred-import count went from 1131 to 1120.
+
+## As built, part B (in progress)
+
+Re-measured at the start: 65 ambient calls outside `cli/` (the plan said about 70), in 30
+modules. `scripts/check/ambient_profile.py` counts them and `ambient_profile_calls` in
+`baseline.json` is the ceiling (`test_library_code_does_not_read_the_active_profile`).
+
+What differs from the plan:
+
+- **The order is not "lowest layer first".** A package that gains a required `profile` breaks
+  every caller above it, and those callers hold no profile yet, so a lowest-first commit would
+  have to convert the whole tree at once. Each commit instead converts one *reader* (a family of
+  functions that fall back to the active profile) and threads `profile` upward through the
+  functions that call it, up to the commands, which pass `active()`. `ty` lists the call sites
+  (`missing-argument`), and a codemod applies the edit (outside the repo, in the codemod
+  directory of the part B agent). Done so far: `load_pids`/`load_pids_dir` (B2), `load_variants`,
+  and the readers of states, groups, CAN buses, actions and signals.
+- **B2.** `load_pids(profile)` still falls back to the active profile until its callers pass
+  one; `load_pids_dir(path)` is the as-written directory reader and all path callers use it.
+- **Tests.** `tests/support/profiles.py::bundled_profile()` builds the suite's car without the
+  global. A test that patched `canair.profile.active` sets `canair.profile._active` instead,
+  because the commands bind `active()` at import.
