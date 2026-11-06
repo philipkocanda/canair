@@ -44,10 +44,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from canair import __version__
 from canair.core.prompt import confirm
 from canair.install import build_info
 from canair.install.context import describe as describe_install
-from canair.install.context import source_clone
+from canair.install.context import snapshot_profile_risks, source_clone
 from canair.install.update_check import CHANGELOG_URL, fetch_latest_release, is_newer, write_cache
 from canair.render import glyphs
 from canair.render.console import console as make_console
@@ -180,7 +181,6 @@ def _warn_about_snapshot_data(c, clone: Path | None) -> None:
     user who has no intention of keeping them.
     """
     from canair.dtc.log_upgrade import migrate_all
-    from canair.install.context import snapshot_profile_risks
 
     # The DTC log is user state now; move any legacy copy out before it is deleted.
     try:
@@ -263,8 +263,6 @@ def _print_install_context(c, install: dict) -> None:
 
 
 def run(args) -> int:
-    from canair import __version__
-
     clone = source_clone()
     install = describe_install(clone)
     release = fetch_latest_release()

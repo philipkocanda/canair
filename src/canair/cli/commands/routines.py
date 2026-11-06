@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import sys
 
+from canair.cli.commands._hints import ecu_hint
 from canair.cli.live import LiveOperation, add_connection_args, ecu_completer, run_live
 from canair.cli.live.handlers import actuators
 from canair.cli.profile_context import active
+from canair.ecus.pids import load_pids
 from canair.render import messages
 
 NAME = "routines"
@@ -53,14 +55,11 @@ examples:
 
 def run(args) -> int:
     if not args.routines:
-        from canair.cli.commands._hints import ecu_hint
-
         messages.error("specify an ECU, e.g. `canair routines BCM`")
         print(ecu_hint(), file=sys.stderr)
         return 2
     if args.json and not args.rid:
         # Listing reads only the profile, so it must not need (or lock) the device.
-        from canair.ecus.pids import load_pids
         from canair.live.actuate.routines_list import mode_routines_list
 
         return (

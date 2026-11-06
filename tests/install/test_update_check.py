@@ -450,7 +450,7 @@ class TestUpdateCommand:
             missing=[Path("captures/2026-08-05.json")],
             differing=[],
         )
-        monkeypatch.setattr(ic, "snapshot_profile_risks", lambda clone: [risk])
+        monkeypatch.setattr(update_cmd, "snapshot_profile_risks", lambda clone: [risk])
 
         rc = update_cmd.run(self._args(yes=True))
 

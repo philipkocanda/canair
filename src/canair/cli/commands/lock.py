@@ -21,6 +21,13 @@ import argparse
 import sys
 
 from canair.core.prompt import PromptUnavailable, confirm
+from canair.device.lock import (
+    FORCE_WAIT_S,
+    WiCANLock,
+    describe_acquire_failure,
+    holder_info,
+    lock_state,
+)
 from canair.render import messages
 
 NAME = "lock"
@@ -56,7 +63,6 @@ exit codes: 0 = lock is free (or was freed), 1 = still held or the prompt was de
             "let go, and leaves the lock free. Never signals or kills anything."
         ),
     )
-    from canair.device.lock import FORCE_WAIT_S
 
     steal.add_argument(
         "--wait",
@@ -107,8 +113,6 @@ def run(args) -> int:
 
 
 def _show(args) -> int:
-    from canair.device.lock import lock_state
-
     state = lock_state()
     payload = state.as_dict()
     lines: list[str] = []
@@ -153,8 +157,6 @@ def _refusal(args, question: str) -> int | None:
 
 
 def _steal(args) -> int:
-    from canair.device.lock import WiCANLock, describe_acquire_failure, lock_state
-
     state = lock_state()
     if not state.held:
         _emit(
@@ -202,8 +204,6 @@ def _kill(args) -> int:
     import os
     import signal
     import time
-
-    from canair.device.lock import holder_info, lock_state
 
     state = lock_state()
     if not state.held or state.pid is None:

@@ -16,6 +16,12 @@ import sys
 from canair.cli.profile_context import active
 from canair.render.messages import error as print_error
 from canair.render.messages import hint
+from canair.validation.signals import (
+    check_signals_doc,
+    message_is_extended,
+    message_is_fd,
+    message_length,
+)
 from canair.yaml_edit.echo import echo_edit
 
 NAME = "export"
@@ -60,7 +66,6 @@ def _run_dbc(args) -> int:
         return 1
 
     from canair.broadcast import load_signals, signals_dir
-    from canair.validation.signals import check_signals_doc
 
     if not signals_dir(profile=active()).is_dir():
         print_error("no signals/ to export")
@@ -103,8 +108,6 @@ def _run_dbc(args) -> int:
 def _dbc_message(mid: object, msg: dict, *, verified_only: bool):
     """One validated ``signals/`` message as a cantools ``Message`` (None if no signals)."""
     from cantools.database import Message
-
-    from canair.validation.signals import message_is_extended, message_is_fd, message_length
 
     sigs = {
         name: sig or {}

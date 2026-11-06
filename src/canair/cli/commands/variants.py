@@ -35,14 +35,15 @@ import sys
 from canair.cli.commands._edit import run_edit, subcommand_dispatch
 from canair.cli.profile_context import active
 from canair.core.edit_errors import EditError
+from canair.ecus.pids import load_raw_pids
 from canair.render import ansi, messages
+from canair.variants import VariantsError, describe, load_variants, normalize_variant_id
+from canair.variants.revisions import canonical_ecu, canonical_revision, declared
 
 NAME = "variants"
 
 
 def _load(prof):
-    from canair.variants import VariantsError, load_variants
-
     try:
         return load_variants(prof)
     except VariantsError as e:
@@ -54,8 +55,6 @@ def _record(variant) -> dict:
 
 
 def cmd_list(args) -> int:
-    from canair.variants import describe
-
     prof = active()
     variants = _load(prof)
     if args.json:
@@ -88,8 +87,6 @@ def cmd_list(args) -> int:
 
 
 def cmd_show(args) -> int:
-    from canair.variants import normalize_variant_id
-
     prof = active()
     variants = _load(prof)
     vid = normalize_variant_id(args.id)
@@ -160,8 +157,6 @@ def cmd_unset_meta(args) -> int:
 
 
 def cmd_set_revisions(args) -> int:
-    from canair.ecus.pids import load_raw_pids
-    from canair.variants.revisions import canonical_ecu, canonical_revision, declared
     from canair.yaml_edit.variants import set_variant_revisions
 
     revs = [r.strip() for part in args.revisions for r in part.split(",") if r.strip()]

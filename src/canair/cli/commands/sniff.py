@@ -17,10 +17,16 @@ import contextlib
 import time
 
 from canair.analysis.sniff_stats import SniffStats
+from canair.cli.args.transport import transport_overrides
 from canair.cli.profile_context import active
+from canair.config.devices import default_wican, wican_addresses
+from canair.core.stop_signals import graceful_stop
+from canair.device.lock import WiCANLock
+from canair.device.lock_watchdog import LockWatchdog
 from canair.render import messages
 from canair.render.console import console
 from canair.render.sniff import render_sniff_table
+from canair.transport import SlcanTcpBus, resolve_transport
 from canair.variants import effective_meta
 
 NAME = "sniff"
@@ -39,7 +45,6 @@ examples:
   canair sniff --filter 770,7E4 --listen-only
 """,
     )
-    from canair.config.devices import default_wican, wican_addresses
 
     parser.add_argument(
         "--wican",
@@ -92,14 +97,9 @@ def _profile_can_bitrate() -> int | None:
 def run(args) -> int:
     import sys
 
-    from canair.cli.args.transport import transport_overrides
     from canair.cli.car import require_car
-    from canair.core.stop_signals import graceful_stop
-    from canair.device.lock import WiCANLock
-    from canair.device.lock_watchdog import LockWatchdog
     from canair.device.wican.mode import ModeError
     from canair.live.read.raw_ops import slcan_preflight
-    from canair.transport import resolve_transport
 
     require_car("sniff the car")
     t = resolve_transport(transport_overrides(args))
@@ -148,8 +148,6 @@ def run(args) -> int:
 
 def _run_sniff(host: str, args, filters, port: int, bitrate: int) -> None:
     import can
-
-    from canair.transport import SlcanTcpBus
 
     stats = SniffStats()
     bus = SlcanTcpBus(

@@ -23,7 +23,13 @@ import json
 from canair.cli.commands._edit import run_edit
 from canair.cli.profile_context import active
 from canair.render import ansi
-from canair.yaml_edit.signals import CLEARABLE_SIGNAL_FIELDS
+from canair.validation.signals import (
+    default_extended,
+    message_is_extended,
+    message_is_fd,
+    message_length,
+)
+from canair.yaml_edit.signals import CLEARABLE_SIGNAL_FIELDS, remove_signal, upsert_signal
 
 NAME = "signals"
 
@@ -212,13 +218,6 @@ def cmd_list(args) -> int:
 
 def _frame_facts(mid: object, msg: dict) -> list[str]:
     """The declared length and any non-default frame format, for a message's list line."""
-    from canair.validation.signals import (
-        default_extended,
-        message_is_extended,
-        message_is_fd,
-        message_length,
-    )
-
     facts = [f"{msg['length']} B"] if msg.get("length") is not None else []
     try:
         frame_id = int(str(mid), 16)
@@ -233,8 +232,6 @@ def _frame_facts(mid: object, msg: dict) -> list[str]:
 
 
 def cmd_upsert(args) -> int:
-    from canair.yaml_edit.signals import upsert_signal
-
     return run_edit(
         lambda: upsert_signal(
             args.bus,
@@ -268,8 +265,6 @@ def cmd_upsert(args) -> int:
 
 
 def cmd_rm(args) -> int:
-    from canair.yaml_edit.signals import remove_signal
-
     return run_edit(
         lambda: remove_signal(args.bus, args.arb_id, args.name, profile=active()),
         lambda _p: f"[{ansi.CYAN}{active().name}{ansi.RESET}] removed {args.arb_id} {args.name}",

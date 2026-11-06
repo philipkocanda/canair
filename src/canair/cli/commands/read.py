@@ -20,6 +20,7 @@ from canair.cli.live import (
     LiveOperation,
     add_connection_args,
     expand_step_groups,
+    load_pids,
     param_completer,
     report_merged_selectors,
     run_live,
@@ -28,6 +29,9 @@ from canair.cli.live import (
 )
 from canair.cli.live.handlers import elm_only, multi, reads
 from canair.cli.profile_context import active
+from canair.live.monitor.controller import query_ecu_error
+from canair.live.read.multi import parse_sub_commands
+from canair.privacy.sensitive import set_reveal
 from canair.render import messages
 
 NAME = "read"
@@ -103,7 +107,6 @@ def run(args) -> int:
         if args.save:
             messages.error("--reveal cannot be combined with --save")
             return 2
-        from canair.privacy.sensitive import set_reveal
 
         set_reveal(True)
     if args.json and not (args.steps or args.param):
@@ -126,8 +129,6 @@ def run(args) -> int:
         args.multi = [to_step(s) for s in args.steps]
         # Validate the mini-language up front so ambiguous/malformed steps fail
         # loudly *before* we acquire the device lock and open a connection.
-        from canair.live.read.multi import parse_sub_commands
-
         try:
             commands = parse_sub_commands(args.multi, profile=active())
         except ValueError as e:
@@ -139,9 +140,6 @@ def run(args) -> int:
         # only the valid ECU(s).
         query_steps = [c for c in commands if c["type"] == "query"]
         if query_steps:
-            from canair.cli.live import load_pids
-            from canair.live.monitor.controller import query_ecu_error
-
             ecu_err = query_ecu_error(query_steps, load_pids(profile=active()), profile=active())
             if ecu_err:
                 messages.error(ecu_err)

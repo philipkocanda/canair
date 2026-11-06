@@ -28,7 +28,8 @@ PROFILE = {
 
 @pytest.fixture(autouse=True)
 def _offline(monkeypatch):
-    monkeypatch.setattr("canair.ecus.pids.load_pids", lambda *a, **k: PROFILE)
+    monkeypatch.setattr(io_cmd, "load_pids", lambda *a, **k: PROFILE)
+    monkeypatch.setattr(routines_cmd, "load_pids", lambda *a, **k: PROFILE)
 
     def _no_device(_args, _operation=None):
         raise AssertionError("a --json listing must not start a live session")

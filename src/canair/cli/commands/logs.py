@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 
+from canair.core.eventlog import clear_event_log, event_log_path, parse_event_line, read_event_log
 from canair.core.prompt import confirm
 
 NAME = "logs"
@@ -48,13 +49,6 @@ examples:
 
 def run(args) -> int:
     import json
-
-    from canair.core.eventlog import (
-        clear_event_log,
-        event_log_path,
-        parse_event_line,
-        read_event_log,
-    )
 
     path = event_log_path()
 

@@ -25,6 +25,7 @@ from canair.cli.args.notation import add_notation_arg
 from canair.cli.live import (
     add_connection_args,
     expand_step_groups,
+    load_pids,
     report_merged_selectors,
     run_live,
     step_completer,
@@ -32,7 +33,9 @@ from canair.cli.live import (
 )
 from canair.cli.live.handlers.multi import monitor_operation, monitor_options
 from canair.cli.profile_context import active
+from canair.live.monitor.controller import query_ecu_error
 from canair.live.monitor.schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
+from canair.live.read.multi import parse_sub_commands
 from canair.render import messages
 
 NAME = "monitor"
@@ -178,7 +181,6 @@ def _pick_steps(args) -> list[str] | None:
     Returns the chosen selectors, or ``None`` when the picker was cancelled.
     Raises ``ValueError`` if there is nothing in the active profile to pick from.
     """
-    from canair.cli.live import load_pids
     from canair.tui.apps.monitor_select.app import pick_selectors
 
     return pick_selectors(
@@ -217,8 +219,6 @@ def run(args) -> int:
 
     args.multi = [to_step(s) for s in args.steps]
 
-    from canair.live.read.multi import parse_sub_commands
-
     # Validate the mini-language up front so ambiguous/malformed steps fail
     # loudly *before* we acquire the device lock and open a connection.
     try:
@@ -234,9 +234,6 @@ def run(args) -> int:
     report_merged_selectors(query_steps)
 
     # Reject typo'd/unknown ECU names before connecting (mirrors `canair read`).
-    from canair.cli.live import load_pids
-    from canair.live.monitor.controller import query_ecu_error
-
     ecu_err = query_ecu_error(query_steps, load_pids(profile=active()), profile=active())
     if ecu_err:
         messages.error(ecu_err)

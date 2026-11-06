@@ -25,7 +25,9 @@ from canair.cli.commands.import_uds import add_uds_parser
 from canair.cli.commands.import_uds import run as _run_uds
 from canair.cli.profile_context import active, named_car
 from canair.render import messages
+from canair.validation.signals import check_signals_doc, default_extended
 from canair.yaml_edit.echo import echo_edit
+from canair.yaml_edit.signals import SignalsEditError, merge_bus
 
 NAME = "import"
 
@@ -231,8 +233,6 @@ def _dbc_to_signals(
     with the same number: ``signals/`` keys messages by number alone, so both cannot
     live on one bus.
     """
-    from canair.validation.signals import check_signals_doc, default_extended
-
     result = DbcImport()
     chosen = [
         m for m in db.messages if m.signals and (id_filter is None or m.frame_id in id_filter)
@@ -342,8 +342,6 @@ def _run_dbc(args) -> int:
             print(f"  … +{len(imported) - 20} more messages")
         print("Re-run without --dry-run to write.")
         return 0
-
-    from canair.yaml_edit.signals import SignalsEditError, merge_bus
 
     try:
         out, written = merge_bus(bus, imported, profile=active())
