@@ -60,8 +60,6 @@ class _Screen:
     ALT_SCREEN_OFF = "\033[?1049l"
     HIDE_CURSOR = "\033[?25l"
     SHOW_CURSOR = "\033[?25h"
-    HOME = "\033[H"
-    CLEAR = "\033[2J"
 
 
 raw = _RawPalette()

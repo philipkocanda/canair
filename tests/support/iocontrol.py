@@ -1,12 +1,13 @@
-"""A fake terminal and a real controller for the IOControl view tests."""
+"""A fake terminal and real controllers for the IOControl and routines view tests."""
 
 from __future__ import annotations
 
 import contextlib
 
 from canair.cli.profile_context import active
-from canair.ecus.pids import build_iocontrol_index
+from canair.ecus.pids import build_iocontrol_index, build_routines_index
 from canair.live.actuate.iocontrol import IOControlController
+from canair.live.actuate.routines import RoutinesController
 from canair.safety.blocklist import SessionPolicy
 from canair.transport.stats import TransportStats
 
@@ -26,6 +27,10 @@ IGPM_DATA = {
                 "BC03": {"label": "Dimmer", "on": "", "off": "2FBC0300"},
             },
             "iocontrol_discoveries": {"BC40": {"response": "6FBC4000"}},
+            "routines": {
+                "12A1": {"label": "Self test", "verified": True},
+                "12A2": {"label": "Calibrate"},
+            },
         }
     }
 }
@@ -65,3 +70,9 @@ def io_controller(data: dict | None = None) -> IOControlController:
     data = data or IGPM_DATA
     info = build_iocontrol_index(data, include_discoveries=True)["IGPM"]
     return IOControlController(FakeIoTerminal(), "IGPM", info, data, profile=active())  # type: ignore[arg-type]
+
+
+def routines_controller(data: dict | None = None) -> RoutinesController:
+    data = data or IGPM_DATA
+    info = build_routines_index(data)["IGPM"]
+    return RoutinesController(FakeIoTerminal(), "IGPM", info, data, profile=active())  # type: ignore[arg-type]

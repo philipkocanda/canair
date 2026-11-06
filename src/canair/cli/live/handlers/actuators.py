@@ -99,7 +99,16 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
             args.routines,
             verbose=args.verbose,
             profile=active(),
+            interactive=_run_routines_app,
         )
+
+
+async def _run_routines_app(controller) -> None:
+    """Run the Textual routines view on ``controller`` (a TTY only)."""
+    # deferred: textual adds ~40 ms to start-up, and only the interactive view needs it
+    from canair.tui.apps.routines.app import run_routines_app
+
+    await run_routines_app(controller)
 
 
 async def handle_action(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:

@@ -1,14 +1,9 @@
-"""The terminal's size and kind, for code that lays out its own screen without Textual."""
+"""The terminal's width and kind, for plain output that lays out its own columns."""
 
 from __future__ import annotations
 
 import shutil
 import sys
-
-
-def terminal_lines(default: int = 24) -> int:
-    """Best-effort terminal height for viewport sizing."""
-    return shutil.get_terminal_size(fallback=(120, default)).lines
 
 
 def terminal_columns(default: int = 120) -> int:

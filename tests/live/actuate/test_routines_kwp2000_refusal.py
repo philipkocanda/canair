@@ -54,10 +54,16 @@ def test_execute_sends_nothing_to_a_kwp2000_ecu(sub_function):
     assert term.headers == []
 
 
+async def _never(_controller) -> None:
+    raise AssertionError("the view must not open")
+
+
 def test_the_tui_does_not_open_on_a_kwp2000_ecu(tmp_path):
     term = FakeTerminal()
     with pytest.raises(SafetyBlocked, match="BMS speaks KWP2000"):
-        asyncio.run(mode_routines_tui(term, DATA, "BMS", profile=None))  # type: ignore[arg-type]
+        asyncio.run(
+            mode_routines_tui(term, DATA, "BMS", profile=None, interactive=_never)  # type: ignore[arg-type]
+        )
     assert term.sent == []
 
 

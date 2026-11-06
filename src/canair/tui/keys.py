@@ -1,12 +1,12 @@
 """The canonical keymap shared by every canair TUI.
 
-canair has six full-screen Textual apps (``monitor``, the monitor's ECU/PID picker,
-``captures --step``, ``decode --plot``, ``sniff``, ``io``) plus a dozen modal dialogs. They grew
-independently, so the same key came to mean different things in each — ``a``
-added PIDs in the stepper while the monitor used ``p``, ``escape`` quit one app
-and cleared a selection in another, ``l`` was both vim-right and "open the event
-log". A key that means two things is worse than no key at all: muscle memory
-built in one view misfires in the next.
+canair has seven full-screen Textual apps (``monitor``, the monitor's ECU/PID picker,
+``captures --step``, ``decode --plot``, ``sniff``, ``io``, ``routines``) plus a dozen modal
+dialogs. They grew independently, so the same key came to mean different things in each —
+``a`` added PIDs in the stepper while the monitor used ``p``, ``escape`` quit one app and
+cleared a selection in another, ``l`` was both vim-right and "open the event log". A key that
+means two things is worse than no key at all: muscle memory built in one view misfires in the
+next.
 
 This module is the single home for **what a key means**, so an app can no longer
 invent its own meaning. Each :class:`KeyRole` names one semantic role, the key(s)
@@ -121,6 +121,8 @@ ROLES: dict[str, KeyRole] = {
         # -- actuators ---------------------------------------------------------
         _r("actuate_off", "O", "send OFF"),
         _r("set_value", "w", "set value"),
+        _r("start_routine", "exclamation_mark", "start routine"),
+        _r("stop_routine", "S", "stop routine"),
         # -- the session / the device --------------------------------------
         _r("session", "s", "session", "save / label", "save", "label", "sessions & notes"),
         _r("new", "n", "new", "new session"),
@@ -138,6 +140,7 @@ ROLES: dict[str, KeyRole] = {
             "start",
             "apply",
             "toggle",
+            "request results",
         ),
         _r("apply", "ctrl+s", "apply", "next / start", "next / apply"),
         _r("confirm_yes", "y", "yes"),
@@ -205,6 +208,7 @@ _KEY_LABELS = {
     "pageup": "pgup",
     "pagedown": "pgdn",
     "colon": ":",
+    "exclamation_mark": "!",
     "slash": "/",
     "comma": ",",
     "full_stop": ".",

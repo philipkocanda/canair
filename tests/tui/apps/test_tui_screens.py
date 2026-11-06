@@ -21,9 +21,10 @@ from canair.tui.apps.monitor.app import MonitorApp
 from canair.tui.apps.monitor.dialogs import EditParamDialog, SaveDialog
 from canair.tui.apps.monitor.overlays import EventLogModal, SessionInfoModal
 from canair.tui.apps.monitor_select.app import LiveMonitorSelectScreen
+from canair.tui.apps.routines.app import RoutinesApp
 from canair.tui.apps.sniff.app import SniffApp
 from canair.tui.help import HelpModal
-from tests.support.iocontrol import io_controller
+from tests.support.iocontrol import io_controller, routines_controller
 from tests.support.monitor_picker import monitor_app as _monitor
 from tests.support.monitor_tui import FakeController, FakeEditor
 from tests.support.plot_model import plot_model as _plot_model
@@ -41,11 +42,12 @@ def _top_level_apps():
         "plot": lambda: PlotApp(_plot_model(), profile=active()),
         "sniff": lambda: SniffApp(SniffStats(), host="10.0.0.1"),
         "io": lambda: IOControlApp(io_controller()),
+        "routines": lambda: RoutinesApp(routines_controller()),
     }
 
 
 class TestEscapeAtTheTopLevel:
-    @pytest.mark.parametrize("name", ["monitor", "stepper", "plot", "sniff", "io"])
+    @pytest.mark.parametrize("name", ["monitor", "stepper", "plot", "sniff", "io", "routines"])
     @pytest.mark.asyncio
     async def test_escape_never_quits(self, name):
         app = _top_level_apps()[name]()
@@ -56,7 +58,7 @@ class TestEscapeAtTheTopLevel:
             assert app.is_running
             await pilot.press("q")
 
-    @pytest.mark.parametrize("name", ["monitor", "stepper", "plot", "sniff", "io"])
+    @pytest.mark.parametrize("name", ["monitor", "stepper", "plot", "sniff", "io", "routines"])
     @pytest.mark.asyncio
     async def test_q_quits(self, name):
         app = _top_level_apps()[name]()
@@ -66,7 +68,7 @@ class TestEscapeAtTheTopLevel:
             await pilot.pause(0.1)
             assert not app.is_running
 
-    @pytest.mark.parametrize("name", ["monitor", "stepper", "plot", "sniff", "io"])
+    @pytest.mark.parametrize("name", ["monitor", "stepper", "plot", "sniff", "io", "routines"])
     @pytest.mark.asyncio
     async def test_ctrl_q_is_the_declared_force_quit(self, name):
         app = _top_level_apps()[name]()

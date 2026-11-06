@@ -11,7 +11,7 @@ import asyncio
 from types import SimpleNamespace
 
 from canair.cli.profile_context import active
-from canair.live.actuate.routines import _RoutinesTUI
+from canair.live.actuate.routines import RoutinesController
 from canair.live.monitor.raw_poller import MonitorRawPoller, _raw_pid_result
 from canair.safety.blocklist import SessionPolicy
 from canair.uds.protocol import KWP, UDS
@@ -48,16 +48,16 @@ class TestRawMonitor:
 
 
 class TestRoutinesTui:
-    def _tui(self, protocol: str) -> tuple[_RoutinesTUI, FakeTerminal]:
+    def _tui(self, protocol: str) -> tuple[RoutinesController, FakeTerminal]:
         term = FakeTerminal(responses={"31030201": nrc(0x72)})
         term.session_policy = SessionPolicy(protocols={0x7E2: protocol})
         info = {"tx_id": 0x7E2, "routines": {"0201": {"label": "x"}}}
-        return _RoutinesTUI(term, "VCU", info, {}, profile=active()), term  # type: ignore[arg-type]
+        return RoutinesController(term, "VCU", info, {}, profile=active()), term  # type: ignore[arg-type]
 
     def test_the_last_response_uses_the_ecus_protocol(self):
         for protocol, abbrev in ((KWP, "TA"), (UDS, "GPF")):
             tui, _term = self._tui(protocol)
-            asyncio.run(tui._send_sf("0201", 0x03))
+            asyncio.run(tui.send("0201", 0x03))
             assert tui.last_response["0201"] == f"NRC 0x72 {abbrev}"
 
 

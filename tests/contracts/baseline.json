@@ -12,7 +12,6 @@
     "canair.tui.apps.captures_step.app": 665,
     "canair.device.lock": 563,
     "canair.ecus.pids": 650,
-    "canair.live.actuate.routines": 520,
     "canair.render.formatting": 617,
     "canair.safety.blocklist": 618,
     "canair.transport.elm327.terminal": 833,
@@ -24,7 +23,7 @@
     "canair.yaml_edit.text": 777
   },
   "long_modules": {},
-  "deferred_internal_imports": 85,
+  "deferred_internal_imports": 86,
   "deferred_imports_without_reason": 0,
   "parser_build_modules": 639,
   "ambient_profile_calls": 0,

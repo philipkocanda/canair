@@ -1,40 +1,44 @@
-"""Routines mode — list, execute, and interactive TUI for RoutineControl commands.
+"""Routines mode — the interactive RoutineControl view of ``canair routines ECU``.
 
 Each entry in the ``routines:`` YAML section is a Routine Identifier (RID)
-discovered by ``canair scan routines``. This mode exposes three sub-modes:
+discovered by ``canair scan routines``. Three sub-modes serve it:
 
 * ``routines_list.mode_routines_list``   — offline listing of all RIDs for an ECU.
 * ``routines_execute.mode_routines_execute`` — send a single sub-function to a specific RID.
-* ``mode_routines_tui``   — interactive TUI for querying / starting routines (this module).
+* :func:`mode_routines_tui` — the interactive view (this module).
 
 Sub-functions (UDS 0x31):
-    0x01  startRoutine       — DANGEROUS: starts a routine; requires explicit
-                               --start flag (never sent by default)
+    0x01  startRoutine       — DANGEROUS: starts a routine; the view confirms first
     0x02  stopRoutine        — stops a running routine
     0x03  requestRoutineResults — safe read-only: "what happened last time?"
 
-The TUI defaults to 0x03 (requestRoutineResults). The user must press '!' to send 0x01
-startRoutine after an explicit prompt, keeping read-only and write operations separate.
-A KWP2000 ECU is refused (:mod:`.routines_execute`): there, 0x31 starts a routine.
+:class:`RoutinesController` holds what the view shows and does: the result of the last request
+per RID, the diagnostic session, and the edits to ``ecus/<ecu>.yaml``; :func:`routine_cells`
+says what each row shows, in the colours of the cli-tui-standards skill. The screen is a Textual
+app (``tui/apps/routines/``) that the CLI passes in as ``interactive``, because nothing below
+``tui/`` imports Textual. The view sends 0x03 by default; startRoutine needs its own key and a
+confirmation, keeping read-only and write operations apart. A KWP2000 ECU is refused
+(:mod:`.routines_execute`): there, 0x31 starts a routine.
 """
 
-import asyncio
+from __future__ import annotations
+
 import logging
-import os
-import sys
-import termios
-import tty
+from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import Literal
+
+from rich.table import Table
+from rich.text import Text
 
 from canair.core.paths import config_dir
-from canair.core.terminal import is_interactive, truncate_text
-from canair.core.terminal import terminal_columns as _terminal_columns
-from canair.core.terminal import terminal_lines as _terminal_lines
+from canair.core.terminal import is_interactive
 from canair.ecus.pids import RoutineIndexEntry, build_routines_index, load_pids
 from canair.live.actuate.not_found import report_not_found
 from canair.live.actuate.routines_execute import check_routines_protocol, send_routine, sf_label
 from canair.profile.model import Profile
-from canair.render import ansi, glyphs, messages
+from canair.render import glyphs, messages
+from canair.render.console import console
 from canair.transport.protocol import Terminal
 from canair.transport.session_manager import SessionManager
 from canair.uds.nrc import nrc_abbrev
@@ -44,7 +48,11 @@ from canair.yaml_edit.pids import PidsEditError, update_routines_field
 
 _tui_logger = logging.getLogger("routines-tui")
 
-CARET = "▏"  # the text-input cursor
+#: How a status message reads: the view colours it and gives it a glyph.
+StatusLevel = Literal["error", "warning", "success", "info"]
+
+#: The outcome of the last request to a RID: a positive reply, an NRC, or a failure.
+RoutineState = Literal["ok", "nrc", "error"]
 
 
 def _log_file() -> Path:
@@ -52,21 +60,8 @@ def _log_file() -> Path:
     return config_dir() / "logs" / "routines-tui.log"
 
 
-class _RoutinesTUI:
-    """Interactive Routines TUI — navigate RIDs and send sub-functions.
-
-    Keys:
-        ↑/↓ or j/k   Navigate
-        PgUp/Dn       Scroll page
-        g/G           Jump to top/bottom
-        Enter/Space   Send requestRoutineResults (SF 0x03 — safe, read-only)
-        !             Send startRoutine (SF 0x01 — requires explicit confirmation)
-        s             Send stopRoutine (SF 0x02)
-        e             Edit label
-        n             Edit notes
-        m             Toggle verified
-        q / Ctrl+C    Quit
-    """
+class RoutinesController:
+    """The state and the operations of the routines view, with no terminal I/O."""
 
     def __init__(
         self,
@@ -81,201 +76,52 @@ class _RoutinesTUI:
         self.terminal = terminal
         self.ecu_key = ecu_key
         self.tx_id = ecu_info["tx_id"]
-        self.routines = ecu_info[
-            "routines"
-        ]  # {RID: {label, nrc, nrc_desc, response, verified, notes}}
-        self.rids = list(self.routines.keys())
+        # {RID: {label, nrc, nrc_desc, response, verified, notes}}
+        self.routines: dict[str, dict] = ecu_info["routines"]
+        self.rids = list(self.routines)
         self.pids_data = pids_data
         self.verbose = verbose
 
-        self.cursor = 0
-
-        # Per-RID state: None=idle, "ok"=positive, "nrc"=NRC, "error"=failed
-        self.state: dict[str, str | None] = dict.fromkeys(self.rids)
+        self.state: dict[str, RoutineState | None] = dict.fromkeys(self.rids)
         self.last_response: dict[str, str] = {}
         self.last_sf: dict[str, int] = {}  # which sub-function was last sent
 
-        self._session_active = False
+        self.session_active = False
         self.sm = SessionManager(terminal, verbose=verbose)
-        self._quit = False
-        self._busy = False
-        self._status = ""
-        self._confirm_start: str | None = None  # RID awaiting start confirmation, or None
-        self._confirm_buf = ""  # what is typed at the startRoutine confirmation
-        self._edit_input: tuple[str, str] | None = None
+        self.busy = False
+        self.stopping = False  # set once the user quits
+        # The latest message for the user; the view shows it and clears it.
+        self.status = ""
+        self.status_level: StatusLevel = "info"
 
-        self._scroll_top = 0
+    # -- messages ----------------------------------------------------------
+    def report(self, text: str, level: StatusLevel = "info") -> None:
+        self.status = text
+        self.status_level = level
 
-    def _render(self) -> str:
-        lines = []
-        lines.append(
-            ansi.c(
-                f"  Routines TUI {glyphs.EMPTY} {self.ecu_key} (0x{self.tx_id:03X})",
-                ansi.BOLD + ansi.CYAN,
-            )
-        )
-        if self._session_active:
-            sess = ansi.c("active", ansi.GREEN)
-        else:
-            sess = ansi.c("not started", ansi.DIM)
-        rid_count = ansi.c(f"{len(self.rids)} RIDs", ansi.DIM)
-        lines.append(f"{ansi.c('  Session: ', ansi.DIM)}{sess}   {rid_count}")
-        lines.append("")
+    def take_status(self) -> tuple[str, StatusLevel] | None:
+        """The pending message, once: the view shows it and it is gone."""
+        if not self.status:
+            return None
+        out = (self.status, self.status_level)
+        self.report("")
+        return out
 
-        term_w = _terminal_columns()
-        rid_w = max((len(r) for r in self.rids), default=4)
-        raw_label_w = max((len(self.routines[r]["label"]) for r in self.rids), default=5)
-        last_sf_w = max(
-            (len(sf_label(self.last_sf[r])) for r in self.rids if r in self.last_sf),
-            default=len("Sub-fn"),
-        )
-        last_sf_w = max(last_sf_w, len("Sub-fn"))
-
-        non_flex = 5 + rid_w + 2 + 3 + 2 + last_sf_w + 2 + 2 + 13
-        avail = max(0, term_w - non_flex - 5)
-        label_w = min(raw_label_w, max(8, avail))
-
-        total_w = 5 + rid_w + 2 + label_w + 2 + 3 + 2 + last_sf_w + 2 + 13
-        ruler = "─" * max(1, total_w - 2)
-
-        hdr = (
-            f"     "
-            f"{'RID':<{rid_w}}  "
-            f"{'Label':<{label_w}}  "
-            f"{'Res':<3}  "
-            f"{'Sub-fn':<{last_sf_w}}  "
-            f"Last response"
-        )
-        lines.append(ansi.c(hdr, ansi.DIM))
-        lines.append(ansi.c(f"  {ruler}", ansi.DIM))
-
-        term_h = _terminal_lines()
-        chrome = 5 + 3
-        viewport_rows = max(5, term_h - chrome)
-        n_rids = len(self.rids)
-
-        if self.cursor < self._scroll_top:
-            self._scroll_top = self.cursor
-        elif self.cursor >= self._scroll_top + viewport_rows:
-            self._scroll_top = self.cursor - viewport_rows + 1
-        self._scroll_top = max(0, min(self._scroll_top, max(0, n_rids - viewport_rows)))
-        visible_start = self._scroll_top
-        visible_end = min(n_rids, self._scroll_top + viewport_rows)
-
-        for i in range(visible_start, visible_end):
-            rid = self.rids[i]
-            rdef = self.routines[rid]
-            is_cursor = i == self.cursor
-            state = self.state[rid]
-            resp = self.last_response.get(rid, "")
-            sf = self.last_sf.get(rid)
-
-            prefix = f" {ansi.c(glyphs.CURSOR, ansi.BOLD)} " if is_cursor else "   "
-
-            if rdef["verified"]:
-                v_mark = ansi.c(glyphs.OK, ansi.GREEN) + " "
-            else:
-                v_mark = ansi.c("?", ansi.YELLOW) + " "
-
-            label_text = truncate_text(rdef["label"] or rid, label_w)
-            rid_code = ansi.BOLD + ansi.CYAN if is_cursor else ansi.CYAN
-            label_cell = f"{label_text:<{label_w}}"
-            if is_cursor:
-                label_cell = ansi.c(label_cell, ansi.BOLD)
-            rid_label = f"{ansi.c(f'{rid:<{rid_w}}', rid_code)}  {label_cell}"
-
-            # Result column (3 chars)
-            if state == "ok":
-                res_part = ansi.c("OK ", ansi.BOLD + ansi.GREEN)
-            elif state == "nrc":
-                res_part = ansi.c("NRC", ansi.YELLOW)
-            elif state == "error":
-                res_part = ansi.c("ERR", ansi.BOLD + ansi.RED)
-            else:
-                res_part = ansi.c(f" {glyphs.SEP} ", ansi.DIM)
-
-            # Sub-function column
-            sf_text = sf_label(sf) if sf is not None else ""
-            if sf == RoutineControlType.START_ROUTINE:
-                sf_part = ansi.c(f"{sf_text:<{last_sf_w}}", ansi.BOLD + ansi.YELLOW)
-            elif sf == RoutineControlType.REQUEST_ROUTINE_RESULTS:
-                sf_part = ansi.c(f"{sf_text:<{last_sf_w}}", ansi.DIM)
-            else:
-                sf_part = f"{sf_text:<{last_sf_w}}"
-
-            resp_part = "  " + ansi.c(resp, ansi.DIM) if resp else ""
-
-            lines.append(f"{prefix}{v_mark}{rid_label}  {res_part}  {sf_part}{resp_part}")
-
-        # Scroll indicator
-        if n_rids > viewport_rows:
-            above = visible_start
-            below = n_rids - visible_end
-            up = "↑" if above else glyphs.SEP
-            dn = "↓" if below else glyphs.SEP
-            lines.append(
-                ansi.c(
-                    f"  {up}{dn} {self.cursor + 1}/{n_rids} "
-                    f"(viewing {visible_start + 1}–{visible_end}, {above}↑ {below}↓)",
-                    ansi.DIM,
-                )
-            )
-        else:
-            lines.append("")
-
-        # Confirmation prompt for startRoutine
-        if self._confirm_start is not None:
-            rid = self._confirm_start
-            question = (
-                f"{glyphs.DANGER} startRoutine for {rid} {glyphs.EMPTY} "
-                "type 'yes' + Enter to confirm, Esc to cancel:"
-            )
-            lines.append(
-                f"  {ansi.c(question, ansi.BOLD + ansi.YELLOW)} {self._confirm_buf}{CARET}"
-            )
-            lines.append(
-                ansi.c(
-                    "  startRoutine (0x01) may actuate hardware. "
-                    "Only proceed if you know the effect.",
-                    ansi.DIM,
-                )
-            )
-        elif self._edit_input is not None:
-            rid = self.rids[self.cursor]
-            field, buf = self._edit_input
-            prompt = ansi.c(f"{field.capitalize()} for {rid}: ", ansi.BOLD)
-            lines.append(f"  {prompt}{buf}{CARET}")
-            lines.append(
-                ansi.c("  Type new value, Enter to save to ecus/*.yaml, Esc to cancel", ansi.DIM)
-            )
-        elif self._status:
-            lines.append(f"  {self._status}")
-            lines.append("")
-        else:
-            lines.append("")
-            lines.append("")
-
-        keys = (
-            "  ↑↓/jk Nav  PgUp/Dn  g/G Top/Bot  Enter Results(SF03)  s Stop(SF02)  "
-            "! Start(SF01)  e Label  n Notes  m Verified  q Quit"
-        )
-        lines.append(ansi.c(keys, ansi.DIM))
-        return "\n".join(lines)
-
-    async def _ensure_session(self):
-        if self._session_active:
+    # -- requests ----------------------------------------------------------
+    async def _ensure_session(self) -> None:
+        if self.session_active:
             return
         _tui_logger.info("Opening extended session (10 03) on 0x%03X", self.tx_id)
         outcome = await self.sm.open_session(self.tx_id, force=True, report=False)
         self.sm.start_background_keepalive()
-        self._session_active = outcome.ok
+        self.session_active = outcome.ok
         _tui_logger.info("Session established: %s (%s)", outcome.ok, outcome.problem() or "ok")
 
-    async def _send_sf(self, rid: str, sub_function: int):
-        """Send ``31 {SF} {RID_HI} {RID_LO}`` and update state."""
+    async def send(self, rid: str, sub_function: int) -> None:
+        """Send ``31 {SF} {RID_HI} {RID_LO}`` and record the outcome."""
         hex_cmd = routine_control_request(sub_function, int(rid, 16))
-        self._busy = True
-        self._status = f"Sending {sf_label(sub_function)}: {rid}{glyphs.ELLIPSIS}"
+        self.busy = True
+        self.report(f"Sending {sf_label(sub_function)}: {rid}{glyphs.ELLIPSIS}")
         _tui_logger.info("SF %s %s cmd=%s", sf_label(sub_function), rid, hex_cmd)
         try:
             await self._ensure_session()
@@ -295,207 +141,165 @@ class _RoutinesTUI:
             else:
                 self.state[rid] = "error"
                 self.last_response[rid] = resp.get("error", "unknown error")
-            self._status = ""
+            self.report("")
         except Exception as e:
             _tui_logger.error("SF %s %s exception: %s", rid, sub_function, e, exc_info=True)
             self.state[rid] = "error"
             self.last_response[rid] = str(e)
-            self._status = ""
+            self.report("")
         finally:
-            self._busy = False
+            self.busy = False
 
-    def _apply_edit(self, rid: str, field: str, value) -> None:
+    async def cleanup(self) -> None:
+        await self.sm.stop_background_keepalive()
+
+    # -- edits to ecus/ ----------------------------------------------------
+    def apply_edit(self, rid: str, field: str, value: str | bool) -> None:
+        """Write one field of ``rid`` to ecus/<ecu>.yaml and reload; report the result."""
         try:
             fpath = update_routines_field(self.ecu_key, rid, field, value, profile=self.profile)
         except PidsEditError as exc:
-            self._status = ansi.c(f"{glyphs.FAIL} Edit failed: {exc}", ansi.RED)
+            self.report(f"Edit failed: {exc}", "error")
             _tui_logger.error("edit %s %s=%r: %s", rid, field, value, exc)
             return
-
         try:
             fresh = load_pids(profile=self.profile)
             self.pids_data.clear()
             self.pids_data.update(fresh)
             idx = build_routines_index(self.pids_data)
             self.routines = idx[self.ecu_key]["routines"]
-            self.rids = list(self.routines.keys())
+            self.rids = list(self.routines)
             for r in self.rids:
                 self.state.setdefault(r, None)
         except Exception as exc:
             _tui_logger.warning("reload after edit failed: %s", exc)
-
-        saved = f"{glyphs.OK} Saved {field} on {rid} {glyphs.ARROW} {fpath.name}"
-        self._status = ansi.c(saved, ansi.GREEN)
+        self.report(f"Saved {field} on {rid} {glyphs.ARROW} {fpath.name}", "success")
         _tui_logger.info("edit %s %s=%r -> %s", rid, field, value, fpath)
 
-    def _draw(self):
-        sys.stdout.write(ansi.screen.CLEAR + ansi.screen.HOME)
-        sys.stdout.write(self._render())
-        sys.stdout.write("\n")
-        sys.stdout.flush()
 
-    async def _cleanup(self):
-        await self.sm.stop_background_keepalive()
+# -- what the view shows ---------------------------------------------------
+# The Textual app puts routine_cells() into its table, and routines_table() prints the same rows
+# on the main screen when the view closes.
 
-    async def run(self):
-        if not self.rids:
-            messages.fail(f"no routines available for {self.ecu_key}")
-        if not is_interactive():
-            messages.fail(
-                "the routines view needs a terminal; use `canair routines ECU --json` to list "
-                "RIDs or `canair routines ECU --rid RID` to send one",
-                code=2,
-            )
+#: The table's column keys and headings, in order.
+COLUMNS: tuple[tuple[str, str], ...] = (
+    ("mark", ""),
+    ("rid", "RID"),
+    ("label", "Label"),
+    ("result", "Res"),
+    ("subfn", "Sub-fn"),
+    ("response", "Last response"),
+)
 
-        log_file = _log_file()
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-        handler = logging.FileHandler(log_file, mode="w")
-        handler.setFormatter(logging.Formatter("%(asctime)s  %(message)s", datefmt="%H:%M:%S"))
-        _tui_logger.addHandler(handler)
-        _tui_logger.setLevel(logging.DEBUG)
-        _tui_logger.info(
-            "TUI session start — %s (0x%03X), %d RIDs", self.ecu_key, self.tx_id, len(self.rids)
+ROUTINES_LEGEND: tuple[tuple[str, str, str], ...] = (
+    (glyphs.OK, "green", "verified"),
+    ("?", "yellow", "unverified"),
+    ("OK", "bold green", "the ECU answered positively"),
+    ("NRC", "yellow", "the ECU sent a negative response"),
+    ("ERR", "bold red", "the request failed"),
+    ("startRoutine", "bold yellow", "the last request started the routine"),
+)
+
+
+def routines_header(c: RoutinesController) -> Text:
+    """The header: the ECU, the diagnostic session and the number of RIDs."""
+    sep = f"  {glyphs.SEP}  "
+    out = Text()
+    out.append("Routines ", style="bold")
+    out.append(c.ecu_key, style="bold cyan")
+    out.append(f" (0x{c.tx_id:03X})", style="dim")
+    out.append(sep, style="dim")
+    out.append("session ", style="dim")
+    if c.session_active:
+        out.append("active", style="green")
+    else:
+        out.append("not started", style="dim")
+    out.append(sep, style="dim")
+    out.append(f"{len(c.rids)} RIDs", style="dim")
+    return out
+
+
+def _result(state: str | None) -> Text:
+    if state == "ok":
+        return Text("OK", style="bold green")
+    if state == "nrc":
+        return Text("NRC", style="yellow")
+    if state == "error":
+        return Text("ERR", style="bold red")
+    return Text(glyphs.SEP, style="dim")
+
+
+def _subfn(sf: int | None) -> Text:
+    if sf is None:
+        return Text("")
+    if sf == RoutineControlType.START_ROUTINE:
+        return Text(sf_label(sf), style="bold yellow")
+    if sf == RoutineControlType.REQUEST_ROUTINE_RESULTS:
+        return Text(sf_label(sf), style="dim")
+    return Text(sf_label(sf))
+
+
+def routine_cells(c: RoutinesController, rid: str) -> tuple[Text, ...]:
+    """The cells of one RID's row, in :data:`COLUMNS` order."""
+    rdef = c.routines[rid]
+    mark = Text(glyphs.OK, style="green") if rdef.get("verified") else Text("?", style="yellow")
+    return (
+        mark,
+        Text(rid, style="cyan"),
+        Text(rdef.get("label") or rid),
+        _result(c.state.get(rid)),
+        _subfn(c.last_sf.get(rid)),
+        Text(c.last_response.get(rid, ""), style="dim"),
+    )
+
+
+def routines_table(c: RoutinesController) -> Table:
+    """Every RID's row as a Rich table, for the main screen."""
+    table = Table(box=None, pad_edge=False, header_style="dim")
+    for _key, heading in COLUMNS:
+        table.add_column(heading, no_wrap=True)
+    for rid in c.rids:
+        table.add_row(*routine_cells(c, rid))
+    return table
+
+
+#: Runs the interactive view on a controller and returns when the user quits.
+InteractiveView = Callable[[RoutinesController], Awaitable[None]]
+
+
+def _start_log() -> Path:
+    """Attach the per-session debug log (cleared each session)."""
+    log_file = _log_file()
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    handler = logging.FileHandler(log_file, mode="w")
+    handler.setFormatter(logging.Formatter("%(asctime)s  %(message)s", datefmt="%H:%M:%S"))
+    _tui_logger.addHandler(handler)
+    _tui_logger.setLevel(logging.DEBUG)
+    return log_file
+
+
+async def run_routines_view(controller: RoutinesController, interactive: InteractiveView) -> None:
+    """Run the view, then close the session and print the final table."""
+    c = controller
+    if not c.rids:
+        messages.fail(f"no routines available for {c.ecu_key}")
+    if not is_interactive():
+        messages.fail(
+            "the routines view needs a terminal; use `canair routines ECU --json` to list "
+            "RIDs or `canair routines ECU --rid RID` to send one",
+            code=2,
         )
-
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-
-        key_queue: asyncio.Queue[str] = asyncio.Queue()
-
-        def _on_stdin_ready():
-            try:
-                ch = os.read(fd, 16).decode("utf-8", errors="ignore")
-                key_queue.put_nowait(ch)
-            except Exception:
-                pass
-
-        loop = asyncio.get_event_loop()
-
-        sys.stdout.write(ansi.screen.ALT_SCREEN_ON + ansi.screen.HIDE_CURSOR)
-        sys.stdout.flush()
-
-        # Track the start-confirm buffer separately (not via _edit_input)
-        self._confirm_buf = ""
-
-        try:
-            tty.setcbreak(fd)
-            loop.add_reader(fd, _on_stdin_ready)
-
-            self._draw()
-
-            while not self._quit:
-                try:
-                    key = await asyncio.wait_for(key_queue.get(), timeout=0.5)
-                except TimeoutError:
-                    self._draw()
-                    continue
-
-                if key == "\x03":  # Ctrl+C
-                    if self._confirm_start is not None:
-                        self._confirm_start = None
-                        self._confirm_buf = ""
-                    elif self._edit_input is not None:
-                        self._edit_input = None
-                    else:
-                        self._quit = True
-                elif key in ("q", "Q") and self._confirm_start is None and self._edit_input is None:
-                    self._quit = True
-
-                # ── Start confirmation mode ──────────────────────────────────
-                elif self._confirm_start is not None:
-                    if key == "\x1b":
-                        self._confirm_start = None
-                        self._confirm_buf = ""
-                        self._status = "startRoutine cancelled."
-                    elif key in ("\r", "\n"):
-                        if self._confirm_buf.strip().lower() == "yes":
-                            rid = self._confirm_start
-                            self._confirm_start = None
-                            self._confirm_buf = ""
-                            if not self._busy:
-                                await self._send_sf(rid, RoutineControlType.START_ROUTINE)
-                        else:
-                            self._confirm_start = None
-                            self._confirm_buf = ""
-                            self._status = ansi.c(
-                                f"startRoutine not confirmed {glyphs.EMPTY} type 'yes' to execute",
-                                ansi.YELLOW,
-                            )
-                    elif key in ("\x7f", "\x08"):
-                        self._confirm_buf = self._confirm_buf[:-1]
-                    elif len(key) == 1 and key.isprintable():
-                        self._confirm_buf += key
-
-                # ── Metadata edit mode ───────────────────────────────────────
-                elif self._edit_input is not None:
-                    field, buf = self._edit_input
-                    if key == "\x1b":
-                        self._edit_input = None
-                    elif key in ("\r", "\n"):
-                        self._edit_input = None
-                        rid = self.rids[self.cursor]
-                        self._apply_edit(rid, field, buf)
-                    elif key in ("\x7f", "\x08"):
-                        self._edit_input = (field, buf[:-1])
-                    elif len(key) == 1 and (key.isprintable() or key == "\t"):
-                        self._edit_input = (field, buf + key)
-
-                # ── Navigation ───────────────────────────────────────────────
-                elif key in ("\x1b[A", "k"):
-                    self.cursor = max(0, self.cursor - 1)
-                elif key in ("\x1b[B", "j"):
-                    self.cursor = min(len(self.rids) - 1, self.cursor + 1)
-                elif key in ("\x1b[5~", "\x02"):
-                    page = max(1, _terminal_lines() - 10)
-                    self.cursor = max(0, self.cursor - page)
-                elif key in ("\x1b[6~", "\x06"):
-                    page = max(1, _terminal_lines() - 10)
-                    self.cursor = min(len(self.rids) - 1, self.cursor + page)
-                elif key in ("\x1b[H", "g"):
-                    self.cursor = 0
-                elif key in ("\x1b[F", "G"):
-                    self.cursor = len(self.rids) - 1
-
-                # ── Actions ──────────────────────────────────────────────────
-                elif key in ("\r", "\n", " "):  # requestRoutineResults (safe)
-                    if not self._busy:
-                        rid = self.rids[self.cursor]
-                        await self._send_sf(rid, RoutineControlType.REQUEST_ROUTINE_RESULTS)
-                elif key in ("s", "S"):  # stopRoutine
-                    if not self._busy:
-                        rid = self.rids[self.cursor]
-                        await self._send_sf(rid, RoutineControlType.STOP_ROUTINE)
-                elif key == "!":  # startRoutine — requires confirmation
-                    if not self._busy:
-                        rid = self.rids[self.cursor]
-                        self._confirm_start = rid
-                        self._confirm_buf = ""
-
-                # ── Metadata edits ───────────────────────────────────────────
-                elif key == "e" and not self._busy:
-                    rid = self.rids[self.cursor]
-                    self._edit_input = ("label", self.routines[rid].get("label", ""))
-                elif key == "n" and not self._busy:
-                    rid = self.rids[self.cursor]
-                    current = (self.routines[rid].get("notes") or "").strip()
-                    self._edit_input = ("notes", current)
-                elif key == "m" and not self._busy:
-                    rid = self.rids[self.cursor]
-                    new_val = not bool(self.routines[rid].get("verified", False))
-                    self._apply_edit(rid, "verified", new_val)
-
-                self._draw()
-
-        finally:
-            loop.remove_reader(fd)
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-            final_render = self._render()
-            sys.stdout.write(ansi.screen.SHOW_CURSOR + ansi.screen.ALT_SCREEN_OFF)
-            sys.stdout.flush()
-            print(final_render)
-            await self._cleanup()
-            _tui_logger.info("TUI session end")
-            messages.note(f"debug log: {log_file}")
+    log_file = _start_log()
+    _tui_logger.info("TUI session start — %s (0x%03X), %d RIDs", c.ecu_key, c.tx_id, len(c.rids))
+    try:
+        await interactive(c)
+    finally:
+        await c.cleanup()
+        out = console()
+        out.print(routines_header(c))
+        out.print(routines_table(c))
+        _tui_logger.info("TUI session end")
+        messages.note(f"debug log: {log_file}")
 
 
 async def mode_routines_tui(
@@ -504,8 +308,10 @@ async def mode_routines_tui(
     ecu_name: str,
     profile: Profile,
     verbose: bool = False,
-):
-    """Interactive Routines TUI for an ECU."""
+    *,
+    interactive: InteractiveView,
+) -> None:
+    """Interactive routines view for an ECU."""
     rindex = build_routines_index(pids_data)
     ecu_key = ecu_name.upper()
 
@@ -516,5 +322,5 @@ async def mode_routines_tui(
         raise SystemExit(1)
     check_routines_protocol(pids_data, ecu_key)
 
-    tui = _RoutinesTUI(terminal, ecu_key, rindex[ecu_key], pids_data, profile, verbose)
-    await tui.run()
+    controller = RoutinesController(terminal, ecu_key, rindex[ecu_key], pids_data, profile, verbose)
+    await run_routines_view(controller, interactive)
