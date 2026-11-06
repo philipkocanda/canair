@@ -15,6 +15,57 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [5.1.0](https://github.com/philipkocanda/canair/compare/v5.0.0...v5.1.0) (2026-11-06)
+
+
+### Added
+
+* **dtc:** surface --clear in the help, hint at the log and at clearing, colour the log view ([b9001c9](https://github.com/philipkocanda/canair/commit/b9001c951357ebcd005863826291ab819b8483c1))
+* **identity:** offer to record the protocol a reading proves, and ask before routine control on an unknown one ([cee1ea9](https://github.com/philipkocanda/canair/commit/cee1ea9a95aef8d27fb17834b5b534bf40844173))
+* **live:** open and keep every session the same way, and honour wake: on every --wake ([8651c48](https://github.com/philipkocanda/canair/commit/8651c4846f56477dbfea1ccc3790cb8bae4318d6))
+* **monitor:** keep sessions alive on slcan-tcp, and honour --wake there ([efb01d1](https://github.com/philipkocanda/canair/commit/efb01d19187b3013c460789c0dc7f560f01f0e95))
+* **nissan-leaf-ze1-ev:** add the service-manual DTC titles for 16 ECUs ([04dd52b](https://github.com/philipkocanda/canair/commit/04dd52bd2a8c63f11682ebc4c6ab2a2d4c6aa4e8))
+* **safety:** require safety.allow_unsafe in the user config before --unsafe works ([461047b](https://github.com/philipkocanda/canair/commit/461047b28c4d9c8a3c96b90da12b97d805c68be6))
+* **structure:** allow long modules that list many items of one kind ([272efa6](https://github.com/philipkocanda/canair/commit/272efa678e0d983b717dff02c46db5b02087fcbe))
+* **update:** reinstall on the newest Python that canair's dependencies have wheels for ([c87d70f](https://github.com/philipkocanda/canair/commit/c87d70f9908133b5f22357763fa33ee56cf389c0))
+
+
+### Fixed
+
+* **discover:** print repeated functional rounds as one map ([925955a](https://github.com/philipkocanda/canair/commit/925955a7c75cd410f8cc660a040d9759d62890bf))
+* **dtc:** clear KWP2000 with group FF00, refuse --all --clear, exit 1 on a failed clear ([3e652f4](https://github.com/philipkocanda/canair/commit/3e652f46d67e10c4d44db16ae9de0fe1819fd806))
+* **dtc:** match ECU revision IDs in any case when reading the DTC log ([a639ad5](https://github.com/philipkocanda/canair/commit/a639ad5493d7be3b4e3cd32b5998b778b058bdc4))
+* **identity:** name both probe replies when neither decides, and drop the asleep string match ([83a5872](https://github.com/philipkocanda/canair/commit/83a587227e1866a9d5a5151acfa3ac61e617261c))
+* **identity:** name the records by ISO 14229-1 and SSF 14230-3, and read the missing ones ([89c5144](https://github.com/philipkocanda/canair/commit/89c514461ccb20ce7dad637fd95675df27a23a59))
+* **identity:** read session refusals as a service that exists, stop on a silent ECU, hint at the fix ([7e55d50](https://github.com/philipkocanda/canair/commit/7e55d5011722e831d65cbcf2cc8f5a1434a54b13))
+* **profile:** name the Ioniq 5 battery ECU BMU and put it on G-CAN and M-CAN ([7140a05](https://github.com/philipkocanda/canair/commit/7140a05d4a797f7656f10c23f06eb4f97959f873))
+* **read:** keep the REPL's keepalive running, and restore its Ctrl+C handler ([e21df1e](https://github.com/philipkocanda/canair/commit/e21df1eab34d57d26920ae816d74e033ed7f3a3d))
+* **routines:** refuse a KWP2000 ECU, which reads the results request as a routine start ([c56f250](https://github.com/philipkocanda/canair/commit/c56f2507cfd9d7b8576be0c292a5a1b2400ea6cb))
+* **safety:** refuse safety-system routines, DTC setting off and requests the blocklist cannot read ([4edd0a0](https://github.com/philipkocanda/canair/commit/4edd0a0c609f90d6735aa498de9141e2869ef33b))
+* **scan:** ask before a range scan sends an actuating service, and refuse 0x31 on KWP2000 ([b0b8d28](https://github.com/philipkocanda/canair/commit/b0b8d28a54182161097ac194d385d3e140f19918))
+* **transport:** check routine, session and keepalive replies, and cap ResponsePending on ELM327 ([619704d](https://github.com/philipkocanda/canair/commit/619704da3f5ed2b963669e5480948cf50c02faab))
+* **transport:** keep a raw request on the ECU its set_header named ([0a6cb81](https://github.com/philipkocanda/canair/commit/0a6cb8199e3439cd7012aabbac596629593488fe))
+* **transport:** open, wake and close a session in one transaction ([ff2c783](https://github.com/philipkocanda/canair/commit/ff2c783ee49f8686e84b85397340c971c64d5be1))
+
+
+### Changed
+
+* **transport:** keep session state in a SessionTable, and the mode as a byte ([b6ee911](https://github.com/philipkocanda/canair/commit/b6ee9113403005b0dc5067de31614d76f672f785))
+
+
+### Performance
+
+* **cli:** load canair's modules lazily on Python 3.15 and later ([e169bd2](https://github.com/philipkocanda/canair/commit/e169bd2240946ac25e2c5c178876d5e6e209d826))
+* **cli:** read the package version on first use, not when canair loads ([366a863](https://github.com/philipkocanda/canair/commit/366a86310d4e59d7f4cd07b944b53e9d01d66619))
+* **uds:** judge each stored reply with one cached reply check ([5515d3c](https://github.com/philipkocanda/canair/commit/5515d3c5e439af26f7559f1a5f1e6fb7ecdce6dd))
+
+
+### Documentation
+
+* **cli:** describe every flag and argument in --help, and reference every nested kind ([01a28b3](https://github.com/philipkocanda/canair/commit/01a28b3134afd7711f20fe6e3a1b0eafbee0a718))
+* **contributing:** require help text on every flag and regenerate the CLI reference ([6f85c91](https://github.com/philipkocanda/canair/commit/6f85c916508be3090fbcd55d26a18e3a27564dfe))
+* **profile:** source the Ioniq 5 BMU name and buses from the service manual ([e6eca11](https://github.com/philipkocanda/canair/commit/e6eca11113fa82c5e3b70f3e0d5f1255813bcebb))
+
 ## [5.0.0](https://github.com/philipkocanda/canair/compare/v4.3.0...v5.0.0) (2026-11-06)
 
 
