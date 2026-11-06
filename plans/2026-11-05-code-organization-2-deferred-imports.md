@@ -1,11 +1,12 @@
 # Code organization, part 2: deferred imports
 
-Status: **IN PROGRESS** (2026-11-06). Part of
+Status: **DONE** (2026-11-06). Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 1.
-Steps 1 and 2, the hoisting tool and the pilot (`core`, `config`, `uds`, `expression`, `safety`,
-`device`) are done. Function-level imports of canair modules: 942 -> 924, of which `loaded`
-671 -> 657, `heavy` 4, `cycle` 17, `other` 250 -> 246, and none has a `# deferred:` reason yet
-(see "As built"). The other packages are open.
+Deferred internal imports: 1,143 -> 84 in 70 files. `deferred_imports_without_reason` is 0.
+What stays is a Textual import (about 40 ms each, measured), the stdlib-only imports of
+`install/build_info.py`, and one `dtc/log_upgrade.py` import, each with a `# deferred:` reason.
+Decision A stands: no lazy command registry (`canair --help` is about 0.26 s; it was 0.24 s).
+Per-group counts are in "As built".
 
 ## Goal
 

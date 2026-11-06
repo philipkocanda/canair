@@ -1,7 +1,8 @@
 # Code organization: the work after the package layout
 
-Status: **PROPOSED** (2026-11-05). No code changed. Not user-facing: no command, flag, output or
-profile changes, unless a sub-plan says otherwise.
+Status: **DONE** (2026-11-06) on the branch `refactor/code-organization`, not yet merged into
+`main`. See "Result" at the end for the measured numbers, the order used and what is left. Not
+user-facing: no command, flag, output or profile changes.
 
 This plan comes from a review of the code organization at commit `0ce4f742`. The layering of
 `plans/2026-11-04-package-layout-and-layering.md` holds: 11 import contracts pass with no
@@ -138,3 +139,63 @@ Resolved by hand:
 
 Later sub-plans that move `live/` or `cli/` modules should merge `main` first: `main` now
 has three more files in `cli/commands/` (`memory/`) and one more `live/` family.
+
+## Result
+
+All ten sub-plans are done on `refactor/code-organization` (merged with `main` at `1f2c1823`).
+Gates on the final tip: ruff, `ty`, `lint-imports`, `make structure`, the CLI reference,
+architecture and screenshot checks, `mkdocs build --strict` and the full suite (11,343 passed,
+22 skipped).
+
+| Measure | Before (`0ce4f742`) | After |
+|---|---:|---:|
+| Deferred internal imports | 1,143 in 249 files | 84 in 70 files, each with a reason |
+| Import cycles between packages | 2 | 0 |
+| Calls to the global active profile outside `cli/` | about 65 | 0 |
+| Cross-package imports of an underscore name | 17 names at 29 sites | 0 (gated) |
+| Modules over 500 lines | 44 | 20 |
+| Command modules over 500 lines | 12 | 0 |
+| `__init__.py` files over 500 lines | 6 | 0 |
+| `AGENTS.md` | about 1,370 lines, 187 `src/canair` paths | 436 lines, 7 paths (gated) |
+| `canair --help` | about 0.24 s | about 0.26 s |
+
+### Order used
+
+The plan's order was changed to avoid conflicts between agents. The moves (sub-plans 1, 3A, 4,
+5, 9) ran first, `main` was merged in, then 6, 7, 8 and 3B, and the deferred-import hoist
+(sub-plan 2) ran after them in parallel on disjoint packages, so that it did not conflict
+with any move. Sub-plan 10 ran last.
+
+Decisions taken: A (no lazy command registry), B (pass `Profile`), C (no `tui/kit/`), D (callers
+rewritten, no re-exports), E (forwarding properties removed).
+
+### New gates
+
+`doc_paths.py` (agent documents name code that exists), the structure tests in the pre-commit
+hook, `deferred_imports_without_reason`, `cross_package_private_imports`, `ambient_profile_calls`,
+`agents_md_lines` and `agents_md_code_paths`, and the contract tests for cheap imports.
+
+### Left over
+
+1. **Step B6 of sub-plan 3 is partial.** Most library tests still get their car from the suite's
+   pinned profile through `cli.profile_context.active()`. Move them to fixtures under
+   `tests/fixtures/profiles/` with `tests/support/profiles.py`.
+2. **Monitor collaborators keep a back-reference to the controller** (`self.c`). Principle 3
+   of sub-plan 6 is not done. Sub-plan 6 should be revisited together with
+   `plans/2026-11-05-one-session-owner.md`, which changes the same classes.
+3. **20 modules are still over 500 lines**, led by `yaml_edit/pids/params.py` (1,042),
+   `analysis/cross_signal.py` (971), `analysis/align.py` (931) and
+   `transport/elm327/terminal.py` (835). The ratchet holds them; none has a plan.
+4. **Tests that patch a stale name can write into a bundled profile.** It happened three times
+   during the hoist (`bms.yaml` twice, `vehicle_states.yaml`). Each was reverted. A test
+   fixture that makes the bundled profiles read-only would turn this into a failure.
+5. **`scripts/dev/hoist_deferred.py`** should skip modules that `hatch_build.py` loads by path.
+6. **`__init__.py` bodies over 100 lines remain** in `cli/__init__.py` (401), several
+   `cli/commands/*/__init__.py` (up to 455) and `yaml_edit/pids/__init__.py` (116). They were
+   outside sub-plan 7's list.
+7. **Flaky tests seen under load:** `tests/integration/test_elm327_emulator.py` (only when the
+   emulator is installed) and
+   `tests/live/test_revision_detection.py::test_the_refusal_points_at_identity`.
+8. The branch has not been merged into `main` or pushed. `main` had not moved since the merge of
+   `1f2c1823`. A later merge needs `main` merged into the branch first, because `cli/` and `live/`
+   have been reorganized.
