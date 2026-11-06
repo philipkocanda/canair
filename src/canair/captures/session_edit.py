@@ -36,7 +36,7 @@ def set_capture_note(fpath: Path, session_idx: int, capture_idx: int, note: str)
     _write_captures_file(fpath, data)
 
 
-def _set_session_field(session: CaptureSession, key: str, value: object) -> None:
+def set_session_field(session: CaptureSession, key: str, value: object) -> None:
     """Set ``key`` on a session (a falsy ``value`` removes it), keeping ``captures`` last.
 
     A key added to a session that lacked it would otherwise land *after* the
@@ -64,7 +64,7 @@ def set_session_transport(fpath: Path, session_idx: int, transport: str) -> None
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
-    _set_session_field(session, "transport", transport.strip())
+    set_session_field(session, "transport", transport.strip())
     _write_captures_file(fpath, data)
 
 
@@ -78,13 +78,13 @@ def set_session_variant(fpath: Path, session_idx: int, variant: str) -> None:
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
     variant = variant.strip()
-    _set_session_field(session, "variant", variant)
+    set_session_field(session, "variant", variant)
     attribution = dict(session.get("attribution") or {})
     if variant:
         attribution["variant"] = "asserted"
     else:
         attribution.pop("variant", None)
-    _set_session_field(session, "attribution", attribution)
+    set_session_field(session, "attribution", attribution)
     _write_captures_file(fpath, data)
 
 
@@ -97,7 +97,7 @@ def set_session_note(fpath: Path, session_idx: int, note: str) -> None:
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
-    _set_session_field(session, "notes", note.strip())
+    set_session_field(session, "notes", note.strip())
     _write_captures_file(fpath, data)
 
 
@@ -113,7 +113,7 @@ def set_session_keep_mode(
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
-    _set_session_field(session, "keep_mode", persisted_keep_mode(keep_mode))
+    set_session_field(session, "keep_mode", persisted_keep_mode(keep_mode))
     _write_captures_file(fpath, data)
 
 
@@ -129,7 +129,7 @@ def set_session_states(fpath: Path, session_idx: int, vehicle_states) -> None:
     """
     data = capture_io.load_capture_file(fpath)
     session = data["sessions"][session_idx]
-    _set_session_field(session, "vehicle_states", _parse_states(vehicle_states))
+    set_session_field(session, "vehicle_states", _parse_states(vehicle_states))
     _write_captures_file(fpath, data)
 
 
@@ -156,7 +156,7 @@ def set_session_state_spans(
         block = {"source": cast("StateSpanSource", source), "spans": list(spans)}
         if version:
             block["version"] = version
-    _set_session_field(session, "state_spans", block)
+    set_session_field(session, "state_spans", block)
     _write_captures_file(fpath, data)
 
 

@@ -58,7 +58,7 @@ from canair.captures.link_events import (
     format_time,
 )
 from canair.captures.save import apply_capture_tag, current_capture_tag, save_session
-from canair.captures.session_edit import _set_session_field
+from canair.captures.session_edit import set_session_field
 from canair.captures.types import CaptureSession, Quality
 from canair.privacy.sensitive import SensitiveSet
 
@@ -445,17 +445,17 @@ def build_session_from_records(
         # Only the first session dict carries the base; append others' captures.
         # Narrowed at the *entry* boundary (the journal is untyped JSONL) so every
         # field write below is checked, rather than casting the finished dict.
-        # Fields go through _set_session_field so one added here (the
+        # Fields go through set_session_field so one added here (the
         # ``[recovered]`` note, say) lands above ``captures``, not after it.
         base = cast(CaptureSession, dict(session_records[0]))
         base["label"] = label
-        _set_session_field(base, "vehicle_states", vehicle_states)
-        _set_session_field(base, "notes", notes)
+        set_session_field(base, "vehicle_states", vehicle_states)
+        set_session_field(base, "notes", notes)
         # Provenance from meta wins (set at open); keep any already on the session.
         if transport and not base.get("transport"):
-            _set_session_field(base, "transport", transport)
+            set_session_field(base, "transport", transport)
         if quality and not base.get("quality"):
-            _set_session_field(base, "quality", quality)
+            set_session_field(base, "quality", quality)
         for extra in session_records[1:]:
             base.setdefault("captures", []).extend(extra.get("captures", []))
         return [apply_capture_tag(base, tag)]

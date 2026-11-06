@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import cast
 
 from canair.captures import io as capture_io
-from canair.captures.session_edit import _set_session_field, annotate_session_spans
+from canair.captures.session_edit import annotate_session_spans, set_session_field
 from canair.captures.tags import capture_tag
 from canair.captures.types import (
     CaptureSession,
@@ -100,7 +100,7 @@ def apply_capture_tag(session: CaptureSession, tag: dict | None) -> CaptureSessi
     tagged = cast(CaptureSession, dict(session))
     for key in TAG_FIELDS:
         if key in tag:
-            _set_session_field(tagged, key, tag[key])
+            set_session_field(tagged, key, tag[key])
     return tagged
 
 

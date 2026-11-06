@@ -53,7 +53,7 @@ def stamp_untagged(
     dry_run: bool = False,
 ) -> list[StampResult]:
     """Tag every untagged session in scope with ``variant``; one result per changed file."""
-    from canair.captures.session_edit import _set_session_field
+    from canair.captures.session_edit import set_session_field
 
     results: list[StampResult] = []
     for path in files:
@@ -63,10 +63,10 @@ def stamp_untagged(
         for idx, session in enumerate(sessions):
             if session.get("variant") or not _in_scope(dict(session), since, until, label):
                 continue
-            _set_session_field(session, "variant", variant)
+            set_session_field(session, "variant", variant)
             attribution = dict(session.get("attribution") or {})
             attribution["variant"] = "migrated"
-            _set_session_field(session, "attribution", attribution)
+            set_session_field(session, "attribution", attribution)
             result.sessions.append(
                 (idx, str(session.get("date") or ""), str(session.get("label") or ""))
             )
