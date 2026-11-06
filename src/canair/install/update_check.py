@@ -75,7 +75,7 @@ def _parse_version(text: str | None) -> tuple[int, ...] | None:
     return tuple(parts) or None
 
 
-def _is_newer(latest: str | None, current: str | None) -> bool:
+def is_newer(latest: str | None, current: str | None) -> bool:
     """True when ``latest`` is a strictly greater version than ``current``."""
     # The "not installed" sentinel has no meaningful version to compare against;
     # never nag in that case (dev / source-tree runs).
@@ -219,7 +219,7 @@ def pending_notice() -> str | None:
         latest = cache.get("latest_tag")
         from canair import __version__
 
-        if not _is_newer(latest, __version__):
+        if not is_newer(latest, __version__):
             return None
         url = cache.get("html_url") or CHANGELOG_URL
         return (

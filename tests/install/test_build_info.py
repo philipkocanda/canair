@@ -99,11 +99,11 @@ class TestFullVersion:
 
     def test_update_check_still_orders_a_provenance_version(self):
         """A local segment must not confuse the release comparison."""
-        from canair.install.update_check import _is_newer, _parse_version
+        from canair.install.update_check import _parse_version, is_newer
 
         assert _parse_version("1.2.3+main.343b244.dirty") == (1, 2, 3)
-        assert _is_newer("v1.3.0", "1.2.3+main.343b244.dirty") is True
-        assert _is_newer("v1.2.3", "1.2.3+main.343b244.dirty") is False
+        assert is_newer("v1.3.0", "1.2.3+main.343b244.dirty") is True
+        assert is_newer("v1.2.3", "1.2.3+main.343b244.dirty") is False
 
 
 class TestGitBuild:

@@ -58,12 +58,12 @@ class TestVersionCompare:
         assert update_check._parse_version("garbage") is None
 
     def test_is_newer(self):
-        assert update_check._is_newer("v1.2.0", "1.1.0") is True
-        assert update_check._is_newer("v1.1.0", "1.1.0") is False
-        assert update_check._is_newer("v1.0.0", "1.1.0") is False
+        assert update_check.is_newer("v1.2.0", "1.1.0") is True
+        assert update_check.is_newer("v1.1.0", "1.1.0") is False
+        assert update_check.is_newer("v1.0.0", "1.1.0") is False
         # Malformed / unknown never claims an update is available.
-        assert update_check._is_newer(None, "1.1.0") is False
-        assert update_check._is_newer("v1.2.0", "0+unknown") is False
+        assert update_check.is_newer(None, "1.1.0") is False
+        assert update_check.is_newer("v1.2.0", "0+unknown") is False
 
 
 class TestFetchOfflineSafe:

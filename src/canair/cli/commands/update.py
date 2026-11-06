@@ -48,7 +48,7 @@ from canair.core.prompt import confirm
 from canair.install import build_info
 from canair.install.context import describe as describe_install
 from canair.install.context import source_clone
-from canair.install.update_check import CHANGELOG_URL, _is_newer, fetch_latest_release, write_cache
+from canair.install.update_check import CHANGELOG_URL, fetch_latest_release, is_newer, write_cache
 from canair.render import glyphs
 from canair.render.console import console as make_console
 from canair.render.console import escape
@@ -274,7 +274,7 @@ def run(args) -> int:
     clone_head = build_info.head_label(clone) if clone else None
     # Compare on the *pure* package version: a build-provenance local segment
     # (`+main.343b244`) says nothing about release ordering.
-    update_available = _is_newer(latest, __version__)
+    update_available = is_newer(latest, __version__)
     current = build_info.full_version()
 
     if args.json:
