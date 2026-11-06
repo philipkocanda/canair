@@ -116,3 +116,77 @@ BCM:
         - dalathegreat
       what_to_test:
         - Read 0x745 2109 and confirm which module answers and the wiper and indicator values.
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: body control system, door and lock, power
+      control system and security control system (BCM section). The manual's editions before and
+      after VIN 1N4BZ1CP8KC303774 are merged. Titles only: no detection logic.
+    verified: false
+    B2192:
+      description: ID discord, IMMU-ECM
+    B2193:
+      description: Chain of ECM-IMMU
+    B2195:
+      description: Anti-scanning
+    B2196:
+      description: Dongle unit
+    B2198:
+      description: NATS antenna amp.
+    B2555:
+      description: Stop lamp
+    B2556:
+      description: Power switch
+    B2557:
+      description: Vehicle speed
+    B2562:
+      description: Low voltage
+    B2601:
+      description: Shift position
+    B2602:
+      description: Shift position
+    B2603:
+      description: Shift position
+    B2604:
+      description: Shift position
+    B2614:
+      description: Acc relay circuit
+    B2616:
+      description: Ignition relay circuit
+    B2617:
+      description: Ready signal circuit
+    B2618:
+      description: BCM
+    B261A:
+      description: Power switch
+    B261E:
+      description: Vehicle type
+    B2621:
+      description: Inside antenna
+    B2622:
+      description: Inside antenna
+    B2623:
+      description: Inside antenna
+    B2626:
+      description: Outside antenna
+    B2627:
+      description: Outside antenna
+    B2628:
+      description: Outside antenna
+    B26F1:
+      description: Ignition relay
+    B26F2:
+      description: Ignition relay
+    B26F6:
+      description: BCM
+    B26F7:
+      description: BCM
+    B26FC:
+      description: Key registration
+    U0293:
+      description: HV C/U CAN comm
+    U0415:
+      description: Vehicle speed
+    U1000:
+      description: CAN comm circuit
+    U1010:
+      description: Control unit (CAN)

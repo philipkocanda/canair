@@ -8,3 +8,15 @@ IPDM:
       ZE1-specific). No DIDs known. Answered 10 01 with NRC 0x12 at 0x76D in the 2026-10-21 READY
       discovery sweep.
     identity_confidence: tentative
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: power control system (IPDM E/R section). The
+      manual's editions before and after VIN 1N4BZ1CP8KC303774 are merged. Titles only: no
+      detection logic.
+    verified: false
+    B2098:
+      description: Ignition relay on stuck
+    B2099:
+      description: Ignition relay off stuck
+    U1000:
+      description: CAN comm circuit

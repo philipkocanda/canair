@@ -43,3 +43,96 @@ INVERTER:
       period: 10000
       vehicle_states: [READY, CHARGING]
       notes: Drive motor temperature.
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: traction motor system. The manual's editions
+      before and after VIN 1N4BZ1CP8KC303774 are merged. Titles only: no detection logic.
+    verified: false
+    P0A02:
+      description: Motor coolant temp sensor
+    P0A03:
+      description: Motor coolant temp sensor
+    P0A1B:
+      description: Drive motor A control module
+    P0A2C:
+      description: Drive motor A temp sensor
+    P0A2D:
+      description: Drive motor A temp sensor
+    P0A2F:
+      description: Drive motor A over temperature
+    P0A3C:
+      description: Drive motor A inverter over temperature
+    P0A3F:
+      description: Drive motor A position sensor
+    P0A44:
+      description: Drive motor A over speed
+    P0A78:
+      description: Drive motor A inverter
+    P0A8D:
+      description: 14 volt power voltage
+    P0AEF:
+      description: Drive motor inverter temperature sensor A
+    P0AF0:
+      description: Drive motor inverter temperature sensor A
+    P0BE5:
+      description: D-motor A phase U current sen
+    P0BE6:
+      description: D-motor A phase U current sen
+    P0BE9:
+      description: D-motor A phase V current sen
+    P0BEA:
+      description: D-motor A phase V current sen
+    P0C17:
+      description: Drive motor A position sensor
+    P0C19:
+      description: D-motor A torque delivered
+    P0C79:
+      description: Drive motor A inverter voltage
+    P318E:
+      description: CAN error
+    P3197:
+      description: CAN error
+    P3199:
+      description: CAN error
+    P31A2:
+      description: CAN error
+    P31A4:
+      description: CAN error
+    P31AD:
+      description: CAN error
+    P3241:
+      description: Drive motor A inverter crnt cont
+    P3242:
+      description: D-motor A phase U current sen
+    P3243:
+      description: D-motor A phase V current sen
+    P3244:
+      description: Drive motor A inverter
+    P3247:
+      description: Drive motor A inverter
+    P3249:
+      description: Drive motor A inverter
+    P324A:
+      description: Drive motor A inverter voltage
+    P324B:
+      description: Drive motor A inverter voltage
+    P324D:
+      description: Drive motor A inverter IGBT
+    P325C:
+      description: Drive motor A position
+    P325D:
+      description: Drive motor A position
+    P3262:
+      description: D-motor A phase U current sen
+    P3263:
+      description: D-motor A phase U current sen 2
+    P3264:
+      description: D-motor A phase V current sen
+    P3265:
+      description: D-motor A phase V current sen 2
+    P3269:
+      description: Drive motor A position sensor
+    P326C:
+      description: EEPROM
+    U1000:
+      description: CAN comm circuit

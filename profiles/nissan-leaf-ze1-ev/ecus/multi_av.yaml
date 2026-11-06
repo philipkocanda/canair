@@ -8,3 +8,39 @@ MULTI_AV:
       ZE1-specific). No DIDs known. Answered 10 01 with NRC 0x12 at 0x767 in the 2026-10-21 READY
       discovery sweep.
     identity_confidence: tentative
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: audio, visual and navigation system (AV control
+      unit section). The manual's editions before and after VIN 1N4BZ1CP8KC303774 are merged.
+      Titles only: no detection logic.
+    verified: false
+    U1000:
+      description: CAN comm circuit
+    U1010:
+      description: Control unit (CAN)
+    U121F:
+      description: AV control unit
+    U1231:
+      description: BOSE amp.
+    U1232:
+      description: Steering angle sensor
+    U1244:
+      description: GPS antenna conn
+    U1258:
+      description: Satellite radio antenna
+    U1263:
+      description: USB
+    U1266:
+      description: TCU
+    U1267:
+      description: Meter conn
+    U12AA:
+      description: Configuration error
+    U12B7:
+      description: USB conn
+    U12BE:
+      description: Radio antenna conn
+    U1300:
+      description: AV comm circuit
+    U1310:
+      description: Display control unit

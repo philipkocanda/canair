@@ -573,3 +573,311 @@ VCM:
         - 2026-10-21 captures
       what_to_test:
         - Record VCM:221151, VCM:221261 and HVAC:2110 with the climate off, fan only, A/C on and heating; check which follows compressor operation.
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: EV control system and security control system
+      (VCM section). The manual's editions before and after VIN 1N4BZ1CP8KC303774 are merged.
+      Titles only: no detection logic.
+    verified: false
+    B1921:
+      description: Communication error
+    B2801:
+      description: Quick charge activation signal error
+    B2802:
+      description: Quick charge isolation signal error
+    B2803:
+      description: Quick charge permit signal error
+    B280A:
+      description: Quick charge relay +
+      notes: Manual lists failure types 11, 15.
+    B280B:
+      description: Quick charge relay -
+      notes: Manual lists failure types 11, 15.
+    B2814:
+      description: Quick charge relay
+    B2830:
+      description: Quick charge voltage sensor
+      notes: Manual lists failure types 16, 17, 73.
+    B2880:
+      description: F/S chg relay
+      notes: Manual lists failure types 72, 73.
+    B2980:
+      description: Quick charge port temp
+      notes: Manual lists failure types 1C, 98.
+    P0603:
+      description: VCM
+    P0616:
+      description: Starter relay
+    P0643:
+      description: VCM
+    P0A0B:
+      description: High voltage system interlock error
+    P0A8C:
+      description: 14 volt power supply
+    P0A8D:
+      description: 14 volt power supply
+    P0A8E:
+      description: 14 volt power supply
+    P0A8F:
+      description: 14 volt power supply
+    P0A94:
+      description: DC/DC converter
+    P0AA0:
+      description: HV battery positive contactor
+    P0AA1:
+      description: HV battery positive contactor
+    P0AA2:
+      description: HV battery positive contactor
+    P0AA4:
+      description: HV battery negative contactor
+    P0AA5:
+      description: HV battery negative contactor
+    P0AA6:
+      description: HV battery voltage system isolation
+    P1550:
+      description: Battery current sensor
+    P1551:
+      description: Battery current sensor
+    P1552:
+      description: Battery current sensor
+    P1554:
+      description: Battery current sensor
+    P1556:
+      description: Battery temperature sensor
+    P1557:
+      description: Battery temperature sensor
+    P1564:
+      description: ASCD SW
+    P1568:
+      description: ICC command value
+    P1572:
+      description: Brake pedal position switch
+    P1574:
+      description: ASCD vehicle speed sensor
+    P1610:
+      description: Lock mode
+    P1611:
+      description: ID discord, IMMU-VCM
+    P1612:
+      description: Chain of VCM-IMMU
+    P1805:
+      description: Stop lamp switch
+    P2122:
+      description: Accelerator pedal position sensor D
+    P2123:
+      description: Accelerator pedal position sensor D
+    P2127:
+      description: Accelerator pedal position sensor E
+    P2128:
+      description: Accelerator pedal position sensor E
+    P2138:
+      description: APP sensor
+      notes: Manual lists failure types 02, 64.
+    P3100:
+      description: Communication error
+    P3101:
+      description: VCM
+      notes: Manual lists failure types 01, 44, 45, 49, 62, 72, 73, 81, 86, 97.
+    P3102:
+      description: Invalid battery
+    P3117:
+      description: A/C system
+    P311C:
+      description: High voltage circuit
+      notes: Manual lists failure types 11, 13, 16.
+    P312A:
+      description: Communication error
+    P312B:
+      description: Restart error
+    P312C:
+      description: Inverter discharge error
+    P312D:
+      description: Quick charge relay
+    P312E:
+      description: Ready off error
+    P312F:
+      description: Charge off error
+    P3130:
+      description: Inverter discharge error
+    P3131:
+      description: System shutoff timeout
+    P3135:
+      description: Slight collision detection
+    P3137:
+      description: Car crash detection
+    P315C:
+      description: Charge relay
+    P315E:
+      description: VDC system
+    P316A:
+      description: Motor speed
+    P316F:
+      description: PD module system
+    P3170:
+      description: PD module system
+    P3171:
+      description: PD module system
+    P3172:
+      description: PD module system
+    P3175:
+      description: VCM
+    P3176:
+      description: Inverter condenser
+    P3177:
+      description: ECU activation error
+    P3178:
+      description: ECU activation error
+    P3179:
+      description: Motor system
+    P317A:
+      description: Motor system
+    P317B:
+      description: Motor system
+    P317E:
+      description: High voltage battery system
+    P3180:
+      description: High voltage battery system
+    P3182:
+      description: High voltage battery system
+    P3187:
+      description: Electric shift system
+    P3188:
+      description: Electric shift system
+    P318A:
+      description: Electric shift system
+    P318C:
+      description: Electric shift system
+    P318D:
+      description: Communication error
+    P3191:
+      description: Communication error
+    P3193:
+      description: Communication error
+    P3194:
+      description: Communication error
+    P3195:
+      description: Communication error
+    P3196:
+      description: Communication error
+    P3197:
+      description: Communication error
+    P319C:
+      description: Communication error
+    P319E:
+      description: Communication error
+    P319F:
+      description: Communication error
+    P31A0:
+      description: Communication error
+    P31A1:
+      description: Communication error
+    P31A2:
+      description: Communication error
+    P31A3:
+      description: Communication error
+    P31A7:
+      description: Communication error
+    P31A9:
+      description: Communication error
+    P31AA:
+      description: Communication error
+    P31AB:
+      description: Communication error
+    P31AD:
+      description: Communication error
+    P31AE:
+      description: Communication error
+    P31AF:
+      description: Communication error
+    P31B0:
+      description: Communication error
+    P31B2:
+      description: Communication error
+    P31B3:
+      description: Communication error
+    P31B4:
+      description: Communication error
+    P31B5:
+      description: Communication error
+    P31B6:
+      description: Communication error
+    P31B7:
+      description: Communication error
+      notes: Manual lists failure types 82, 87.
+    P31B8:
+      description: Communication error
+    P31BA:
+      description: Communication error
+    P31BB:
+      description: Communication error
+    P31BF:
+      description: Communication error
+    P31C3:
+      description: Communication error
+    P31C5:
+      description: VCM
+    P31C6:
+      description: VCM
+    P31C7:
+      description: VCM
+    P31CA:
+      description: PD module system
+    P31CB:
+      description: PD module system
+    P31D3:
+      description: M/C relay
+    P31D4:
+      description: Pre-charge relay
+    P31D5:
+      description: Pre-charge relay
+    P31D6:
+      description: F/S relay
+    P31D7:
+      description: F/S relay
+    P31D8:
+      description: Charging connector lock rly
+    P31DB:
+      description: High voltage battery main relay +
+    P31DC:
+      description: High voltage battery main relay -
+    P31DD:
+      description: Pre-charge relay
+    P31DE:
+      description: High voltage battery main relay
+      notes: Manual lists failure types 97, 9A.
+    P31E0:
+      description: High voltage system interlock error
+    P31E1:
+      description: High voltage system interlock error
+    P31E5:
+      description: VCM power supply
+    P31E7:
+      description: Restart inhibition
+    P31E8:
+      description: Water pump 1
+    P31E9:
+      description: Water pump 1
+    P31EC:
+      description: Water pump 1
+    P31EE:
+      description: Refrigerant pressure sensor
+    P31F2:
+      description: AV set information
+    U1000:
+      description: CAN comm circuit
+    U1001:
+      description: Communication error
+    U1009:
+      description: Quick charger comm
+      notes: Manual lists failure types 1C, 62, 87, 96.
+    U100B:
+      description: Quick charger comm
+    U1010:
+      description: Control unit (CAN)
+    U1073:
+      description: Communication error
+      notes: Manual lists failure types 83, 87.
+    U1074:
+      description: Communication error
+    U2155:
+      description: Communication error

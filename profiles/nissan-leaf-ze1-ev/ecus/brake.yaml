@@ -9,3 +9,104 @@ BRAKE:
       ZE1-specific). No DIDs known. Answered 10 01 with NRC 0x12 at 0x70F in the 2026-10-21 READY
       discovery sweep.
     identity_confidence: tentative
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: brake system. The manual's editions before and
+      after VIN 1N4BZ1CP8KC303774 are merged. Titles only: no detection logic.
+    verified: false
+    C1A60:
+      description: Motor
+    C1A61:
+      description: Motor
+    C1A62:
+      description: Control module
+    C1A63:
+      description: Brake power supply backup unit
+    C1A65:
+      description: Incomplete stroke sensor
+    C1A67:
+      description: Stop lamp switch
+    C1A69:
+      description: Motor
+    C1A6B:
+      description: Brake power supply backup unit
+    C1A6C:
+      description: Brake power supply backup unit
+    C1A6D:
+      description: Brake power supply backup unit
+    C1A6E:
+      description: EV system
+    C1A6F:
+      description: VCM system
+    C1A70:
+      description: Brake control system
+    C1A71:
+      description: Integrated control system
+    C1A74:
+      description: Steering angle sensor
+    C1A80:
+      description: Control module
+    C1A81:
+      description: Control module
+    C1A82:
+      description: Control module
+    C1A83:
+      description: Control module
+    C1A84:
+      description: Control module
+    C1A85:
+      description: Control module
+    C1A86:
+      description: Control module
+    C1A87:
+      description: Control module
+    C1A88:
+      description: Control module
+    C1A89:
+      description: Control module
+    C1A8A:
+      description: Control module
+    C1A8B:
+      description: Control module
+    C1A90:
+      description: Control module
+    C1A91:
+      description: Control module
+    C1A98:
+      description: Brake power supply backup unit
+    C1A99:
+      description: Brake power supply backup unit
+    C1A9A:
+      description: Brake power supply backup unit
+    C1AA0:
+      description: Stroke sensor
+    C1AA1:
+      description: Stroke sensor
+    C1AA2:
+      description: Stroke sensor
+    C1AA3:
+      description: Stroke sensor
+    C1AA9:
+      description: Pressure sensor
+    C1AB8:
+      description: Motor
+    C1AB9:
+      description: Motor
+    C1ABA:
+      description: Motor
+    C1AC0:
+      description: Control module
+    C1AC1:
+      description: Control module
+    C1AC8:
+      description: Brake power supply backup unit
+    C1AD0:
+      description: Brake power supply backup unit
+    U1000:
+      description: CAN comm circuit
+    U1010:
+      description: Control unit (CAN)
+    U1510:
+      description: ABS actuator and electric unit (control unit) communication
+    U1511:
+      description: Brake power supply backup unit communication

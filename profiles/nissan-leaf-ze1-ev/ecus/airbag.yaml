@@ -8,3 +8,69 @@ AIRBAG:
       ZE1-specific). No DIDs known. Answered the UDS 10 01 probe positively at 0x772 in the
       2026-10-21 READY discovery sweep.
     identity_confidence: tentative
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: airbag control system. The manual's editions
+      before and after VIN 1N4BZ1CP8KC303774 are merged. Titles only: no detection logic.
+    verified: false
+    B0001:
+      description: Driver air bag module
+    B0002:
+      description: Driver air bag module
+    B0010:
+      description: Passenger air bag module
+    B0011:
+      description: Passenger air bag module
+    B0020:
+      description: Side airbag module LH
+    B0021:
+      description: Side curtain air bag module LH
+    B0028:
+      description: Side airbag module RH
+    B0029:
+      description: Side curtain air bag module RH
+    B0091:
+      description: Front side air bag satellite sensor LH
+    B0093:
+      description: Front door satellite sensor LH
+    B0094:
+      description: Crash zone sensor
+    B0096:
+      description: Front side air bag satellite sensor RH
+    B0098:
+      description: Front door satellite sensor RH
+    B00A0:
+      description: Occupant classification system control unit
+      notes: Manual lists failure types 04, 93.
+    B00D2:
+      description: Front passenger air bag on indicator
+    B00D5:
+      description: Front passenger air bag off indicator
+    B1421:
+      description: Collision detection
+    B1422:
+      description: Collision detection
+    B1423:
+      description: Collision detection
+    B1428:
+      description: Seat belt buckle switch LH
+    B1429:
+      description: Seat belt buckle switch RH
+    B142A:
+      description: Ign voltage
+    B1430:
+      description: Seat belt pre-tensioner LH
+    B1431:
+      description: Seat belt pre-tensioner RH
+    B1432:
+      description: Seat belt pre-tensioner LH
+    B1433:
+      description: Seat belt pre-tensioner RH
+    B1438:
+      description: Front seat belt force limiter
+    B1500:
+      description: Door satellite sensor
+    U1000:
+      description: CAN comm circuit
+    U1010:
+      description: Control unit (CAN)

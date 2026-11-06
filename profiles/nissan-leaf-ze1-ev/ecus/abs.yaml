@@ -61,3 +61,111 @@ ABS:
       period: 2000
       vehicle_states: [READY]
       notes: Brake master-cylinder pressure.
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: brake control system (ABS actuator and electric
+      unit section). The manual's editions before and after VIN 1N4BZ1CP8KC303774 are merged.
+      Titles only: no detection logic.
+    verified: false
+    C1101:
+      description: Rear right wheel sensor 1
+    C1102:
+      description: Rear left wheel sensor 1
+    C1103:
+      description: Front right wheel sensor 1
+    C1104:
+      description: Front left wheel sensor 1
+    C1105:
+      description: Rear right wheel sensor 2
+    C1106:
+      description: Rear left wheel sensor 2
+      notes: >-
+        Some lists show the -01 and -61 forms as front left. Rear left fits the numbering.
+    C1107:
+      description: Front right wheel sensor 2
+    C1108:
+      description: Front left wheel sensor 2
+    C1109:
+      description: Power and ground system
+    C1110:
+      description: ABS actuator and electric unit (control unit)
+    C1111:
+      description: ABS motor, motor relay system
+    C1113:
+      description: Yaw rate/side/decel G sensor
+    C1115:
+      description: Wheel sensor
+      notes: The manual title names no wheel.
+    C1116:
+      description: Stop lamp switch
+    C111D:
+      description: ABS motor, motor relay system
+    C111E:
+      description: Yaw rate sensor
+    C111F:
+      description: G sensor
+    C1120:
+      description: Front left ABS in valve system
+    C1121:
+      description: Front left ABS out valve system
+    C1122:
+      description: Front right ABS in valve system
+    C1123:
+      description: Front right ABS out valve system
+    C1124:
+      description: Rear left ABS in valve system
+    C1125:
+      description: Rear left ABS out valve system
+    C1126:
+      description: Rear right ABS in valve system
+    C1127:
+      description: Rear right ABS out valve system
+    C1128:
+      description: G sensor
+    C1129:
+      description: G sensor/yaw rate sensor
+    C112C:
+      description: Steering angle sensor
+    C112D:
+      description: ABS motor, motor relay system
+    C112E:
+      description: Valve coil system
+    C112F:
+      description: Wheel sensor
+      notes: The manual title names no wheel.
+    C1140:
+      description: Actuator relay system
+    C1142:
+      description: Press sensor
+    C1143:
+      description: Steering angle sensor
+    C1144:
+      description: Incomplete steering angle sensor adjustment
+    C1145:
+      description: Yaw rate/side/decel G sensor
+    C1146:
+      description: Yaw rate/side/decel G sensor
+    C1155:
+      description: Brake fluid level switch
+    C1164:
+      description: CV system
+    C1165:
+      description: CV system
+    C1166:
+      description: SV system
+    C1167:
+      description: SV system
+    C1170:
+      description: Variant coding
+    C1176:
+      description: Stop lamp SW2
+    C118A:
+      description: Electrically-driven intelligent brake system
+    C118C:
+      description: HEV system
+    U1000:
+      description: CAN comm circuit
+    U1010:
+      description: Control unit (CAN)
+    U110D:
+      description: Electrically-driven intelligent brake communication

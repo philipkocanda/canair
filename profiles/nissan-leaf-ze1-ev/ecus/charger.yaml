@@ -13,3 +13,46 @@ CHARGER:
       (https://blog.jingo.uk/notes-on-integrating-a-nissan-leaf-ze1-and-home-assistant/). No DIDs
       known. Answered 10 01 with NRC 0x12 at 0x793 in the 2026-10-21 READY discovery sweep.
     identity_confidence: tentative
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: vehicle charging system. The manual's editions
+      before and after VIN 1N4BZ1CP8KC303774 are merged. Titles only: no detection logic.
+    verified: false
+    B2840:
+      description: PDM (power delivery module)
+      notes: Manual lists failure types 01, 07, 08, 16, 17, 19, 1D, 1F, 96.
+    B2841:
+      description: PDM (power delivery module)
+      notes: Manual lists failure types 04, 07, 17, 25, 29, 2F, 8F, 98.
+    B2842:
+      description: PDM (power delivery module)
+      notes: Manual lists failure types 01, 07, 08, 16, 17, 18, 19, 1D.
+    B2890:
+      description: DC/DC converter
+      notes: Manual lists failure types 01, 04, 08, 09, 1F, 96, 98.
+    B2891:
+      description: DC/DC converter
+      notes: Manual lists failure types 16, 17, 19.
+    B2900:
+      description: PDM (power delivery module)
+      notes: Manual lists failure types 44, 45.
+    B2902:
+      description: PDM (power delivery module)
+    B29A0:
+      description: N/CHG port engagement error
+      notes: Manual lists failure types 16, 17, 23, 24, 29, 2A, 2B.
+    U1000:
+      description: CAN comm circuit
+    U100A:
+      description: CAN comm error
+    U100B:
+      description: Quick charger comm
+    U1010:
+      description: Control unit (CAN)
+    U1027:
+      description: EVSE
+      notes: Manual lists failure types 12, 16, 23, 24, 29, 31, 32, 38, 93, 94, 9A.
+    U1030:
+      description: CAN communication error
+    U1031:
+      description: CAN communication circuit

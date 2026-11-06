@@ -7,3 +7,68 @@ SHIFT:
       ZE1-specific). The same README says only the ZE0 has a Shift module, but 0x79D answered 10 01
       with NRC 0x12 at 0x7BD in the 2026-10-21 READY discovery sweep. No DIDs known.
     identity_confidence: tentative
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: transmission. The manual's editions before and
+      after VIN 1N4BZ1CP8KC303774 are merged. Titles only: no detection logic.
+    verified: false
+    P0571:
+      description: Brake switch A
+    P0705:
+      description: Transmission range sensor A
+    P0706:
+      description: Transmission range sensor A
+    P0780:
+      description: Shift error
+    P1722:
+      description: Vehicle speed signal
+    P1802:
+      description: Control module
+    P1803:
+      description: Control module
+    P1804:
+      description: Control module
+    P1811:
+      description: Electric shift power supply relay
+    P1895:
+      description: Motor speed
+    P1896:
+      description: Shift power supply
+    P1897:
+      description: Encoder error
+    P1899:
+      description: Motor A
+    P189A:
+      description: Motor A
+    P189D:
+      description: Back up voltage
+    P18A3:
+      description: Control module
+    P18A4:
+      description: Control module
+    P18A7:
+      description: Shift signal off
+    P18A8:
+      description: P position switch
+    P18A9:
+      description: Parking actuator function
+    P18AB:
+      description: Ignition switch
+    P18AC:
+      description: Parking actuator relay A
+    P18AE:
+      description: Stuck in shift
+    P18AF:
+      description: Control module
+    P18B0:
+      description: Control module
+    P18B1:
+      description: Control module
+    P18B2:
+      description: Control module
+    U1000:
+      description: CAN comm circuit
+    U1010:
+      description: Control unit (CAN)
+    U1086:
+      description: CAN error

@@ -145,3 +145,38 @@ METER:
       period: 30000
       vehicle_states: [SLEEP, READY, CHARGING]
       notes: Dashboard state of charge (22-byte reply, 4 frames).
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: meter, warning lamp and indicator. The manual's
+      editions before and after VIN 1N4BZ1CP8KC303774 are merged. Titles only: no detection logic.
+    verified: false
+    B2205:
+      description: Vehicle speed
+      notes: Manual lists failure types 29, 87.
+    B220B:
+      description: Trip/reset switch
+    B220C:
+      description: Illumination control switch
+    B220D:
+      description: Illumination control switch
+    B2210:
+      description: Ambient air temperature sensor
+    B221A:
+      description: Steering switch
+    B221B:
+      description: Steering switch
+    B230A:
+      description: Combination meter
+    B2323:
+      description: Combination meter
+      notes: Manual lists failure types 16, 1C, 44, 45, 47, 87, 98.
+    B2331:
+      description: Battery voltage
+      notes: Manual lists failure types 16, 17.
+    U1000:
+      description: CAN comm circuit
+    U1010:
+      description: Control unit (CAN)
+    U1027:
+      description: AV communication
+      notes: Manual lists failure types 81, 86, 87.

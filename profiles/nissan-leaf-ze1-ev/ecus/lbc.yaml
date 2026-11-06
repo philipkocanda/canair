@@ -746,3 +746,368 @@ LBC:
         - 2026-10-21 captures
       what_to_test:
         - Record LBC:2101 with VCM:221236 and VCM:221248 through a steady AC charge and a steady drive; compare both currents with OBC_OUT_PWR / HV_PACK_V and look for an offset or a filtered copy.
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: EV battery system. The manual's editions before
+      and after VIN 1N4BZ1CP8KC303774 are merged. Titles only: no detection logic.
+    verified: false
+    P0A0D:
+      description: HV system interlock error
+    P0A1F:
+      description: Battery energy cont module
+    P307B:
+      description: ASIC1 open
+    P307C:
+      description: ASIC2 open
+    P307D:
+      description: ASIC3 open
+    P307E:
+      description: ASIC4 open
+    P307F:
+      description: ASIC5 open
+    P3080:
+      description: ASIC6 open
+    P3081:
+      description: ASIC7 open
+    P3082:
+      description: ASIC8 open
+    P30E0:
+      description: DLC diagnosis VCM
+    P30E2:
+      description: DLC diagnosis HVAC
+    P30E3:
+      description: DLC diagnosis MC
+    P30E4:
+      description: DLC diagnosis PDM
+    P30EC:
+      description: Sub-CPU
+    P30ED:
+      description: Sub-CPU
+    P318D:
+      description: CAN comm error
+    P318E:
+      description: CAN comm error VCM
+    P3191:
+      description: CAN comm error MC
+    P3196:
+      description: CAN comm error PDM
+    P3198:
+      description: CAN comm error HVAC
+    P3199:
+      description: CAN comm error VCM
+    P319C:
+      description: CAN comm error MC
+    P31A4:
+      description: CAN comm error VCM
+    P31A7:
+      description: CAN comm error MC
+    P32B6:
+      description: ASIC1 common cir diag func
+    P32B7:
+      description: ASIC2 common cir diag func
+    P32B8:
+      description: ASIC3 common cir diag func
+    P32B9:
+      description: ASIC4 common cir diag func
+    P32BA:
+      description: ASIC5 common cir diag func
+    P32BB:
+      description: ASIC6 common cir diag func
+    P32BC:
+      description: ASIC7 common cir diag func
+    P32BD:
+      description: ASIC8 common cir diag func
+    P32BE:
+      description: ASIC1 capacitor
+      notes: >-
+        Manual titles by failure type: 00 ASIC1 capacitor; 25 CC diagnosis - cell
+        voltage circuit diagnosis (ASIC1).
+    P32BF:
+      description: ASIC2 capacitor
+      notes: >-
+        Manual titles by failure type: 00 ASIC2 capacitor; 25 CC diagnosis - cell
+        voltage circuit diagnosis (ASIC2).
+    P32C0:
+      description: ASIC3 capacitor
+      notes: >-
+        Manual titles by failure type: 00 ASIC3 capacitor; 25 CC diagnosis - cell
+        voltage circuit diagnosis (ASIC3).
+    P32C1:
+      description: ASIC4 capacitor
+      notes: >-
+        Manual titles by failure type: 00 ASIC4 capacitor; 25 CC diagnosis - cell
+        voltage circuit diagnosis (ASIC4).
+    P32C2:
+      description: ASIC5 capacitor
+      notes: >-
+        Manual titles by failure type: 00 ASIC5 capacitor; 25 CC diagnosis - cell
+        voltage circuit diagnosis (ASIC5).
+    P32C3:
+      description: ASIC6 capacitor
+      notes: >-
+        Manual titles by failure type: 00 ASIC6 capacitor; 25 CC diagnosis - cell
+        voltage circuit diagnosis (ASIC6).
+    P32C4:
+      description: ASIC7 capacitor
+      notes: >-
+        Manual titles by failure type: 00 ASIC7 capacitor; 25 CC diagnosis - cell
+        voltage circuit diagnosis (ASIC7).
+    P32C5:
+      description: ASIC8 capacitor
+      notes: >-
+        Manual titles by failure type: 00 ASIC8 capacitor; 25 CC diagnosis - cell
+        voltage circuit diagnosis (ASIC8).
+    P32C6:
+      description: ASIC1 bypass SW
+    P32C7:
+      description: ASIC2 bypass SW
+    P32C8:
+      description: ASIC3 bypass SW
+    P32C9:
+      description: ASIC4 bypass SW
+    P32CA:
+      description: ASIC5 bypass SW
+    P32CB:
+      description: ASIC6 bypass SW
+    P32CC:
+      description: ASIC7 bypass SW
+    P32CD:
+      description: ASIC8 bypass SW
+    P32CE:
+      description: ASIC1 short
+    P32CF:
+      description: ASIC2 short
+    P32D0:
+      description: ASIC3 short
+    P32D1:
+      description: ASIC4 short
+    P32D2:
+      description: ASIC5 short
+    P32D3:
+      description: ASIC6 short
+    P32D4:
+      description: ASIC7 short
+    P32D5:
+      description: ASIC8 short
+    P32D6:
+      description: HV system interlock diag func
+    P32DA:
+      description: DLC diagnosis VCM
+    P3302:
+      description: Cell over voltage module 1
+    P3303:
+      description: Cell over voltage module 2
+    P3304:
+      description: Cell over voltage module 3
+    P3305:
+      description: Cell over voltage module 4
+    P3306:
+      description: Cell over voltage module 5
+    P3307:
+      description: Cell over voltage module 6
+    P3308:
+      description: Cell over voltage module 7
+    P3309:
+      description: Cell over voltage module 8
+    P330A:
+      description: Cell over voltage module 9
+    P330B:
+      description: Cell over voltage module 10
+    P330C:
+      description: Cell over voltage module 11
+    P330D:
+      description: Cell over voltage module 12
+    P330E:
+      description: Cell over voltage module 13
+    P330F:
+      description: Cell over voltage module 14
+    P3310:
+      description: Cell over voltage module 15
+    P3311:
+      description: Cell over voltage module 16
+    P3312:
+      description: Cell over voltage module 17
+    P3313:
+      description: Cell over voltage module 18
+    P3314:
+      description: Cell over voltage module 19
+    P3315:
+      description: Cell over voltage module 20
+    P3316:
+      description: Cell over voltage module 21
+    P3317:
+      description: Cell over voltage module 22
+    P3318:
+      description: Cell over voltage module 23
+    P3319:
+      description: Cell over voltage module 24
+    P3375:
+      description: Cell over discharge module 1
+    P3376:
+      description: Cell over discharge module 2
+    P3377:
+      description: Cell over discharge module 3
+    P3378:
+      description: Cell over discharge module 4
+    P3379:
+      description: Cell over discharge module 5
+    P337A:
+      description: Cell over discharge module 6
+    P337B:
+      description: Cell over discharge module 7
+    P337C:
+      description: Cell over discharge module 8
+    P337D:
+      description: Cell over discharge module 9
+    P337E:
+      description: Cell over discharge module 10
+    P337F:
+      description: Cell over discharge module 11
+    P3380:
+      description: Cell over discharge module 12
+    P3381:
+      description: Cell over discharge module 13
+    P3382:
+      description: Cell over discharge module 14
+    P3383:
+      description: Cell over discharge module 15
+    P3384:
+      description: Cell over discharge module 16
+    P3385:
+      description: Cell over discharge module 17
+    P3386:
+      description: Cell over discharge module 18
+    P3387:
+      description: Cell over discharge module 19
+    P3388:
+      description: Cell over discharge module 20
+    P3389:
+      description: Cell over discharge module 21
+    P338A:
+      description: Cell over discharge module 22
+    P338B:
+      description: Cell over discharge module 23
+    P338C:
+      description: Cell over discharge module 24
+    P33A5:
+      description: ASIC communication
+    P33A6:
+      description: ASIC1 UART diag func
+    P33A7:
+      description: ASIC2 UART diag func
+    P33A8:
+      description: ASIC3 UART diag func
+    P33A9:
+      description: ASIC4 UART diag func
+    P33AA:
+      description: ASIC5 UART diag func
+    P33AB:
+      description: ASIC6 UART diag func
+    P33AC:
+      description: ASIC7 UART diag func
+    P33AD:
+      description: ASIC8 UART diag func
+    P33AE:
+      description: ASIC comm IC diag func
+    P33AF:
+      description: ASIC comm IC-R diag func
+    P33B0:
+      description: ASIC1 register
+    P33B1:
+      description: ASIC2 register
+    P33B2:
+      description: ASIC3 register
+    P33B3:
+      description: ASIC4 register
+    P33B4:
+      description: ASIC5 register
+    P33B5:
+      description: ASIC6 register
+    P33B6:
+      description: ASIC7 register
+    P33B7:
+      description: ASIC8 register
+    P33C0:
+      description: ASIC1 shutdown
+    P33C1:
+      description: ASIC2 shutdown
+    P33C2:
+      description: ASIC3 shutdown
+    P33C3:
+      description: ASIC4 shutdown
+    P33C4:
+      description: ASIC5 shutdown
+    P33C5:
+      description: ASIC6 shutdown
+    P33C6:
+      description: ASIC7 shutdown
+    P33C7:
+      description: ASIC8 shutdown
+    P33C8:
+      description: ASIC1 common cir
+    P33C9:
+      description: ASIC2 common cir
+    P33CA:
+      description: ASIC3 common cir
+    P33CB:
+      description: ASIC4 common cir
+    P33CC:
+      description: ASIC5 common cir
+    P33CD:
+      description: ASIC6 common cir
+    P33CE:
+      description: ASIC7 common cir
+    P33CF:
+      description: ASIC8 common cir
+    P33D4:
+      description: Batt gradual capa loss diag
+    P33D5:
+      description: Current sensor 1
+    P33D6:
+      description: Current sensor power supply
+    P33D7:
+      description: Temperature sensor 1
+    P33D9:
+      description: Temperature sensor 2
+    P33DD:
+      description: Temperature sensor 4
+    P33DF:
+      description: Batt voltage isolation sen
+    P33E0:
+      description: Batt voltage isolation sen
+    P33E1:
+      description: Batt voltage isolation sen
+    P33E2:
+      description: Batt pack over temp
+    P33E6:
+      description: Cell voltage deviation diag
+    P33EA:
+      description: Battery heater relay
+    P33EB:
+      description: Sensor temp difference
+    P33ED:
+      description: Battery parallel diagnosis
+    P33EE:
+      description: Batt heater control system
+    P33F9:
+      description: CPU UART
+      notes: >-
+        Manual titles by failure type: 83 CPU UART; 87 UART diagnosis timeout.
+    P33FA:
+      description: Current sensor 2
+    P33FB:
+      description: Current sensor 1, 2 short
+    U1000:
+      description: CAN comm circuit
+    U1032:
+      description: DLC diagnosis VCM
+    U1033:
+      description: DLC diagnosis meter
+    U1034:
+      description: DLC diagnosis IPDM E/R
+    U214E:
+      description: CAN comm error meter
+    U215B:
+      description: CAN comm error IPDM E/R
+    U216D:
+      description: CAN comm error TCU

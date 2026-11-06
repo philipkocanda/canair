@@ -107,3 +107,163 @@ HVAC:
         - OBDb, dalathegreat
       what_to_test:
         - Read HVAC:2110 on a ZE1; confirm the three temperatures against the dashboard and the A/C and blower bits against the climate panel.
+  dtcs:
+    source: >-
+      Nissan 2019 Leaf service manual, DTC index: heater and air conditioning control system. The
+      manual's editions before and after VIN 1N4BZ1CP8KC303774 are merged. Titles only: no
+      detection logic.
+    verified: false
+    B2578:
+      description: In-vehicle sensor
+    B2579:
+      description: In-vehicle sensor
+    B257B:
+      description: Ambient sensor
+    B257C:
+      description: Ambient sensor
+    B2581:
+      description: Intake sensor
+    B2582:
+      description: Intake sensor
+    B2630:
+      description: Sunload sensor
+    B2631:
+      description: Sunload sensor
+    B2770:
+      description: PTC heater
+    B2771:
+      description: PTC heater
+    B2772:
+      description: PTC heater
+    B2773:
+      description: PTC heater
+    B2774:
+      description: PTC heater
+    B2777:
+      description: PTC heater
+    B2779:
+      description: PTC heater
+    B277B:
+      description: PTC heater
+    B2780:
+      description: Electric compressor
+    B2781:
+      description: Electric compressor
+    B2782:
+      description: Electric compressor
+    B2783:
+      description: Electric compressor
+    B2784:
+      description: Electric compressor
+    B2785:
+      description: Electric compressor
+    B2786:
+      description: Electric compressor
+    B2787:
+      description: Electric compressor
+    B2788:
+      description: Electric compressor
+    B2789:
+      description: Electric compressor
+    B278A:
+      description: Electric compressor
+    B278B:
+      description: Electric compressor
+    B278C:
+      description: Electric compressor
+    B278D:
+      description: Electric compressor
+    B2791:
+      description: Electric compressor
+    B27A0:
+      description: Intake door motor
+    B27A1:
+      description: Intake door motor
+    B27A2:
+      description: Air mix door motor
+    B27A3:
+      description: Air mix door motor
+    B27A4:
+      description: Air mix door motor
+    B27A5:
+      description: Air mix door motor
+    B27A6:
+      description: Mode door motor
+    B27A7:
+      description: Mode door motor
+    B27A8:
+      description: Mode door motor
+    B27A9:
+      description: Mode door motor
+    B27B1:
+      description: Electric compressor
+    B27B2:
+      description: Electric compressor
+    B27B3:
+      description: Electric compressor
+    B27B4:
+      description: Electric compressor
+    B27B5:
+      description: Electric compressor
+    B27B6:
+      description: Electric compressor
+    B27B7:
+      description: Electric compressor
+    B27B8:
+      description: Electric compressor
+    B27B9:
+      description: Electric compressor
+    B27BA:
+      description: Electric compressor
+    B27BB:
+      description: Electric compressor
+    B27BC:
+      description: Electric compressor
+    B27BE:
+      description: Electric compressor
+    B27BF:
+      description: Electric compressor
+    B27C0:
+      description: Electric compressor
+    B27C1:
+      description: Heat pump control unit
+    B27C2:
+      description: PTC heater outlet air temperature sensor
+    B27C3:
+      description: PTC heater outlet air temperature sensor
+    B27C4:
+      description: A/C unit case temperature sensor
+    B27C5:
+      description: A/C unit case temperature sensor
+    B27C6:
+      description: Compressor discharge refrigerant temperature sensor
+    B27C7:
+      description: Compressor discharge refrigerant temperature sensor
+    B27C8:
+      description: Compressor suction refrigerant temperature sensor
+    B27C9:
+      description: Compressor suction refrigerant temperature sensor
+    B27CC:
+      description: Electric compressor
+    B27CD:
+      description: Electric compressor
+    B27CE:
+      description: Electric compressor
+    B27F0:
+      description: Refrigerant channel switching 2 way type valve
+    B27F1:
+      description: Refrigerant channel switching 2 way type valve
+    B27F2:
+      description: Refrigerant channel switching 2 way type valve
+    B27F3:
+      description: Refrigerant channel switching 3 way type valve
+    B27F4:
+      description: Refrigerant channel switching 3 way type valve
+    B27F5:
+      description: Refrigerant channel switching 3 way type valve
+    B27FF:
+      description: A/C auto amp.
+    U1000:
+      description: CAN comm circuit
+    U1010:
+      description: Control unit (CAN)
