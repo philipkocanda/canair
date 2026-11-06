@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 
+from canair.broadcast import load_signals
 from canair.cli.commands._edit import run_edit
 from canair.cli.profile_context import active
 from canair.render import ansi
@@ -169,8 +170,6 @@ def run(args) -> int:
 
 
 def cmd_list(args) -> int:
-    from canair.broadcast import load_signals
-
     docs = load_signals(getattr(args, "bus", None), profile=active())
     if getattr(args, "json", False):
         print(json.dumps({d.bus: d.data for d in docs}, indent=2))

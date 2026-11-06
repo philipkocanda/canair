@@ -9,6 +9,7 @@ from canair.cli.profile_context import active
 from canair.config.file import set_config_key, set_config_value
 from canair.profile.discovery import selectable_profiles
 from canair.profile.model import ProfileError
+from canair.tui.picker import select_from_list
 from canair.yaml_edit.echo import echo_edit
 
 from .listing import cmd_list
@@ -30,8 +31,6 @@ def cmd_default(args) -> int:
 
 def cmd_pick(args) -> int:
     """Interactive arrow-key profile picker → set default_profile."""
-    from canair.tui.picker import select_from_list
-
     profiles = selectable_profiles(getattr(args, "profiles_dir", None))
     if not profiles:
         return cmd_list(args)  # prints the "no profiles" guidance

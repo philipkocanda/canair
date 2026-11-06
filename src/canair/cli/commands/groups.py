@@ -26,7 +26,15 @@ from typing import TypedDict
 
 from canair.cli.commands._edit import run_edit, set_or_clear, subcommand_dispatch
 from canair.cli.profile_context import active
+from canair.ecus.ecu_groups import GROUP_SIGIL, GroupError, load_groups
 from canair.render import ansi, messages
+from canair.yaml_edit.groups import (
+    add_group,
+    remove_group,
+    rename_group,
+    set_group_description,
+    set_group_members,
+)
 
 NAME = "groups"
 
@@ -40,8 +48,6 @@ class GroupRecord(TypedDict):
 
 
 def cmd_list(args) -> int:
-    from canair.ecus.ecu_groups import GROUP_SIGIL, GroupError, load_groups
-
     prof = active()
     try:
         groups = load_groups(prof)
@@ -92,8 +98,6 @@ def _name(raw: str) -> str:
 
 
 def cmd_add(args) -> int:
-    from canair.yaml_edit.groups import add_group
-
     return run_edit(
         lambda: add_group(args.name, args.members, description=args.description, profile=active()),
         f"added group {_name(args.name)}",
@@ -101,16 +105,12 @@ def cmd_add(args) -> int:
 
 
 def cmd_rm(args) -> int:
-    from canair.yaml_edit.groups import remove_group
-
     return run_edit(
         lambda: remove_group(args.name, profile=active()), f"removed group {_name(args.name)}"
     )
 
 
 def cmd_rename(args) -> int:
-    from canair.yaml_edit.groups import rename_group
-
     return run_edit(
         lambda: rename_group(args.old, args.new, profile=active()),
         f"renamed {_name(args.old)} → {_name(args.new)}",
@@ -118,8 +118,6 @@ def cmd_rename(args) -> int:
 
 
 def cmd_set_description(args) -> int:
-    from canair.yaml_edit.groups import set_group_description
-
     return run_edit(
         lambda: set_group_description(args.name, args.value or None, profile=active()),
         f"{set_or_clear(args.value)} description on {_name(args.name)}",
@@ -127,8 +125,6 @@ def cmd_set_description(args) -> int:
 
 
 def cmd_set_members(args) -> int:
-    from canair.yaml_edit.groups import set_group_members
-
     return run_edit(
         lambda: set_group_members(args.name, args.members, profile=active()),
         f"set members on {_name(args.name)}",

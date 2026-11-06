@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from canair.analysis.ecu_summary import list_records, pids_def_for_tx
 from canair.cli.profile_context import active
+from canair.ecus.can_buses import bus_names
 from canair.ecus.names import resolve_tx
 from canair.ecus.pids import load_pids
 from canair.ecus.registry import load_ecus
@@ -23,8 +24,6 @@ def unknown_ecu(value: str, records: list[dict]) -> int:
 
 
 def run(args) -> int:
-    from canair.ecus.can_buses import bus_names
-
     ecus = load_ecus(profile=active())
     pids_data = load_pids(profile=active())
     labels = bus_names(profile=active())

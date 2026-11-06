@@ -6,6 +6,7 @@ import json
 import sys
 
 from canair.cli.profile_context import active
+from canair.dtc.describe import describe_dtc
 from canair.render import ansi
 
 from .records import IDENTITY_FIELDS
@@ -13,8 +14,6 @@ from .records import IDENTITY_FIELDS
 
 def _print_dtcs(rec: dict) -> None:
     """Open DTCs in red, from the DTC log (offline: as of the latest logged scan)."""
-    from canair.dtc.describe import describe_dtc
-
     status = rec.get("dtcs")
     if status is None:
         print(

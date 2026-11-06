@@ -7,6 +7,7 @@ field-map lines come from :mod:`.support_fields`.
 from __future__ import annotations
 
 from collections import Counter
+from typing import TYPE_CHECKING
 
 from canair.analysis.support_map import ABSENCE_TEXT, MapFit, Slot
 from canair.cli.args.notation import resolve_notation
@@ -17,7 +18,9 @@ from canair.uds.layout import subfunction_bytes_for_pid
 from canair.uds.support_marks import continuation_bits, marked_bits
 
 from .support_fields import field_declare, field_json, print_field_headline, print_field_note
-from .support_map import PidScan
+
+if TYPE_CHECKING:
+    from .support_map import PidScan
 
 # (name, verified) of whatever defines a position
 Definer = tuple[str, bool]

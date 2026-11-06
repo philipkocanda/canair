@@ -79,16 +79,19 @@ class TestWicanCommands:
         import canair.device.wican.firmware as wf
         from canair.cli.commands.wican import mode as mode_cmd
         from canair.config import devices as cfg_devices
-        from canair.device.wican import mode as wican_mode
 
         monkeypatch.setattr(cfg_devices, "wican_model", lambda: "pro")
         monkeypatch.setattr(wf, "detect", lambda *a, **k: wf.FirmwareInfo("v4", version="4.52"))
+        monkeypatch.setattr(
+            "canair.cli.commands.wican.common.detect",
+            lambda *a, **k: wf.FirmwareInfo("v4", version="4.52"),
+        )
         seen: list[str] = []
         monkeypatch.setattr(
-            wican_mode, "current_protocol", lambda base, **k: seen.append(base) or "slcan"
+            mode_cmd, "current_protocol", lambda base, **k: seen.append(base) or "slcan"
         )
         monkeypatch.setattr(
-            wican_mode, "set_protocol", lambda *a, **k: pytest.fail("already in the mode")
+            mode_cmd, "set_protocol", lambda *a, **k: pytest.fail("already in the mode")
         )
         args = argparse.Namespace(wican=value, protocol="slcan", yes=True, no_transport=True)
         assert mode_cmd.cmd_mode_set(args) == 0

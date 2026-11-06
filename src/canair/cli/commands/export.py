@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from canair.broadcast import load_signals, signals_dir
 from canair.cli.profile_context import active
 from canair.render.messages import error as print_error
 from canair.render.messages import hint
@@ -64,8 +65,6 @@ def _run_dbc(args) -> int:
     except ImportError:
         print_error("cantools is required (pip install cantools)")
         return 1
-
-    from canair.broadcast import load_signals, signals_dir
 
     if not signals_dir(profile=active()).is_dir():
         print_error("no signals/ to export")

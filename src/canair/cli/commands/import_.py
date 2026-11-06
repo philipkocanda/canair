@@ -21,9 +21,11 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from canair.captures import can_logs
 from canair.cli.commands.import_uds import add_uds_parser
 from canair.cli.commands.import_uds import run as _run_uds
 from canair.cli.profile_context import active, named_car
+from canair.interop.dbc.repair import DbcLoadError, load_dbc, summarize
 from canair.render import messages
 from canair.validation.signals import check_signals_doc, default_extended
 from canair.yaml_edit.echo import echo_edit
@@ -117,8 +119,6 @@ def run(args) -> int:
 
 def _run_can(args) -> int:
     import json
-
-    from canair.captures import can_logs
 
     states = [s.strip() for s in (args.state or "").split(",") if s.strip()] or None
     variant = named_car("import can")
@@ -278,8 +278,6 @@ def _run_dbc(args) -> int:
     except ImportError:
         messages.error("cantools is required (pip install cantools)")
         return 1
-
-    from canair.interop.dbc.repair import DbcLoadError, load_dbc, summarize
 
     path = Path(args.file)
     if not path.is_file():

@@ -26,6 +26,7 @@ from canair.analysis.physical.bands import resolve_physical_bands
 from canair.cli.args.notation import resolve_notation
 from canair.cli.args.scope import active_scope_flags
 from canair.cli.commands.investigate.report import _state_f
+from canair.cli.grid_prompt import resolve_grid_region
 from canair.cli.profile_context import active
 from canair.ecus.pids import build_ecu_index, load_pids
 from canair.expression.notation import ByteNotation
@@ -167,8 +168,6 @@ def _sweep_counters(specs, loaded, args, params_of) -> int:
 
 def _pid_summary(lp: LoadedPid, params_def: dict, args, fill) -> dict | None:
     """Cheap, LOCAL per-PID facts for the sweep summary (no cross-PID joins)."""
-    from canair.cli.grid_prompt import resolve_grid_region
-
     target = build_byte_series(lp, min_distinct=2, fill=fill)
     if not target:
         return None

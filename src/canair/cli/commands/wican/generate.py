@@ -6,6 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
+from canair.cli.car import require_car
 from canair.cli.profile_context import active
 from canair.ecus.pids import load_pids, revision_resolutions
 from canair.interop.autopid.profile import (
@@ -89,8 +90,6 @@ def want_verified_only(args) -> bool:
 
 def ship(args) -> tuple[dict, ShippedProfile]:
     """Load the active bundle and decide what ships to the device, for any firmware."""
-    from canair.cli.car import require_car
-
     require_car("generate the AutoPID profile")
     require_resolved_revisions()
     print(f"Loading {active().ecus_dir}")

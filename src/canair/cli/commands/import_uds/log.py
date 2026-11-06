@@ -16,6 +16,7 @@ from collections import Counter
 from datetime import date, datetime, time
 from pathlib import Path
 
+from canair.captures import can_logs
 from canair.captures import io as capture_io
 from canair.captures.build import build_manual_session
 from canair.captures.save import save_session
@@ -60,8 +61,6 @@ def run_from_log(args: argparse.Namespace) -> int:
 
 
 def _import_log(args: argparse.Namespace) -> int:
-    from canair.captures import can_logs
-
     mode = str(resolve_mode(load_pids(profile=active())))
     if mode not in _NORMAL_ADDRESSING:
         raise LogImportError(

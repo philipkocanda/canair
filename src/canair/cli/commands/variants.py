@@ -39,6 +39,13 @@ from canair.ecus.pids import load_raw_pids
 from canair.render import ansi, messages
 from canair.variants import VariantsError, describe, load_variants, normalize_variant_id
 from canair.variants.revisions import canonical_ecu, canonical_revision, declared
+from canair.yaml_edit.variant_refs import remove_unreferenced, rename_everywhere
+from canair.yaml_edit.variants import (
+    add_variant,
+    set_variant_meta,
+    set_variant_revisions,
+    unset_variant_meta,
+)
 
 NAME = "variants"
 
@@ -127,8 +134,6 @@ def _assignments(pairs: list[str]) -> list[tuple[str, str]]:
 
 
 def cmd_add(args) -> int:
-    from canair.yaml_edit.variants import add_variant
-
     meta = _assignments(args.meta)
     return run_edit(
         lambda: add_variant(args.id, args.name, meta, profile=active()), f"added variant {args.id}"
@@ -136,8 +141,6 @@ def cmd_add(args) -> int:
 
 
 def cmd_set_meta(args) -> int:
-    from canair.yaml_edit.variants import set_variant_meta
-
     meta = _assignments(args.meta)
     keys = ", ".join(dict.fromkeys(k for k, _ in meta))
     return run_edit(
@@ -147,8 +150,6 @@ def cmd_set_meta(args) -> int:
 
 
 def cmd_unset_meta(args) -> int:
-    from canair.yaml_edit.variants import unset_variant_meta
-
     keys = ", ".join(args.keys)
     return run_edit(
         lambda: unset_variant_meta(args.id, args.keys, profile=active()),
@@ -157,8 +158,6 @@ def cmd_unset_meta(args) -> int:
 
 
 def cmd_set_revisions(args) -> int:
-    from canair.yaml_edit.variants import set_variant_revisions
-
     revs = [r.strip() for part in args.revisions for r in part.split(",") if r.strip()]
     if args.clear == bool(revs):
         raise EditError("give the revisions, or --clear")
@@ -182,8 +181,6 @@ def cmd_set_revisions(args) -> int:
 
 
 def cmd_rename(args) -> int:
-    from canair.yaml_edit.variant_refs import rename_everywhere
-
     written: list = []
 
     def action():
@@ -198,8 +195,6 @@ def cmd_rename(args) -> int:
 
 
 def cmd_rm(args) -> int:
-    from canair.yaml_edit.variant_refs import remove_unreferenced
-
     return run_edit(lambda: remove_unreferenced(args.id, active()), f"removed variant {args.id}")
 
 

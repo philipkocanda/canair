@@ -30,6 +30,7 @@ from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.join import fill_policy_from_args, fill_summaries, fill_summary_line
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
+from canair.cli.grid_prompt import resolve_grid_region
 from canair.cli.profile_context import active
 from canair.ecus.names import canonical_ecu_name_safe
 from canair.ecus.pids import build_ecu_index, load_pids
@@ -48,6 +49,8 @@ from .report import (
     _state_f,
     _word_expr,
 )
+from .support_map import run_support_map
+from .sweep import run_sweep
 
 NAME = "investigate"
 
@@ -74,8 +77,6 @@ def run(args) -> int:
     fill = fill_policy_from_args(args)
     specs, single = _resolve_targets(args, since, until)
     if args.support_map:
-        from .support_map import run_support_map
-
         return run_support_map(specs, args, since, until)
     if single is not None:
         return _run_single(single[0], single[1], args, since, until, fill)
@@ -83,8 +84,6 @@ def run(args) -> int:
     # Corpus/ECU sweep — no single PID resolved. The per-byte deep-dive is far too
     # verbose to repeat N times, so the sweep renders a ranked SUMMARY per PID
     # (and, for --counters, one ranked list of every counter found).
-    from .sweep import run_sweep
-
     return run_sweep(specs, args, since, until, fill)
 
 
@@ -173,8 +172,6 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
 
     # Physical-band hits per starting offset (plausibility, needs no reference).
     # Computed after the --events short-circuit so it isn't wasted there.
-    from canair.cli.grid_prompt import resolve_grid_region
-
     bands = resolve_physical_bands(effective_meta(active()), grid_region=resolve_grid_region())
     physical_by_off = {
         h.offset: f"{h.scaling}·{h.expr} ≈ {h.band}" for h in physical_scan(lp, bands=bands)

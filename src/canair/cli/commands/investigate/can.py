@@ -10,9 +10,11 @@ from __future__ import annotations
 import json as _json
 import sys
 
+from canair.analysis import frame_series as frame_series
 from canair.analysis.align import (
     prepare_series,
 )
+from canair.captures.can_logs import CanLogError
 from canair.render import ansi, messages
 
 from .report import _best_anchor
@@ -28,9 +30,6 @@ def _run_can(args) -> int:
     byte by its strongest cross-ID correlation (r + linear fit + unit guess).
     """
     from pathlib import Path
-
-    from canair.analysis import frame_series as frame_series
-    from canair.captures.can_logs import CanLogError
 
     path = Path(args.file)
     if not path.is_file():

@@ -7,6 +7,8 @@ from typing import Any
 
 from canair.analysis import ecu_summary
 from canair.cli.profile_context import active
+from canair.dtc.history import ecu_status
+from canair.dtc.refs import ecu_ref
 from canair.ecus.pids import load_raw_pids
 from canair.ecus.registry import rx_addr_str
 from canair.ecus.revisions import determined_revisions
@@ -74,9 +76,6 @@ def detail_record(
 
 def _dtc_status(tx_id: int) -> dict | None:
     """The ECU's codes after its latest logged reading or clear on this car (None: none)."""
-    from canair.dtc.history import ecu_status
-    from canair.dtc.refs import ecu_ref
-
     try:
         status = ecu_status(ecu_ref(tx_id, profile=active()), profile=active())
     except (ProfileError, OSError):

@@ -18,11 +18,14 @@ import time
 
 from canair.analysis.sniff_stats import SniffStats
 from canair.cli.args.transport import transport_overrides
+from canair.cli.car import require_car
 from canair.cli.profile_context import active
 from canair.config.devices import default_wican, wican_addresses
 from canair.core.stop_signals import graceful_stop
 from canair.device.lock import WiCANLock
 from canair.device.lock_watchdog import LockWatchdog
+from canair.device.wican.mode import ModeError
+from canair.live.read.raw_ops import slcan_preflight
 from canair.render import messages
 from canair.render.console import console
 from canair.render.sniff import render_sniff_table
@@ -96,10 +99,6 @@ def _profile_can_bitrate() -> int | None:
 
 def run(args) -> int:
     import sys
-
-    from canair.cli.car import require_car
-    from canair.device.wican.mode import ModeError
-    from canair.live.read.raw_ops import slcan_preflight
 
     require_car("sniff the car")
     t = resolve_transport(transport_overrides(args))

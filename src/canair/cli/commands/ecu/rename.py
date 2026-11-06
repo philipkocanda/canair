@@ -14,6 +14,7 @@ from canair.ecus.pids import load_pids
 from canair.ecus.registry import load_ecus
 from canair.yaml_edit.echo import echo_edit
 from canair.yaml_edit.ecu import rename_ecu, tx_key
+from canair.yaml_edit.revisions import retag_ecu_rename
 
 from .show import unknown_ecu
 
@@ -60,8 +61,6 @@ def cmd_rename(args) -> int:
     echo_edit(f"renamed {args.ecu} → {args.new_name} ({tx_key(tx_id)})", new_path)
     if args.dir is None and old_name and old_name != args.new_name:
         # Variants' revisions: lists and capture revision tags are keyed by ECU name.
-        from canair.yaml_edit.revisions import retag_ecu_rename
-
         for path in retag_ecu_rename(old_name, args.new_name.strip(), active()):
             echo_edit("retagged revisions", path)
     return 0

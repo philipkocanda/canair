@@ -37,6 +37,13 @@ from canair.variants.revisions import (
     declared,
     describe_resolution,
 )
+from canair.yaml_edit.revisions import (
+    add_revision,
+    remove_revision,
+    rename_revision,
+    set_ecu_variants,
+    set_fingerprint,
+)
 
 _EXAMPLES = __doc__.split("Examples:")[1]
 
@@ -110,8 +117,6 @@ def cmd_list(args) -> int:
 
 
 def cmd_add(args) -> int:
-    from canair.yaml_edit.revisions import add_revision
-
     return run_edit(
         lambda: add_revision(args.ecu, args.revision, protocol=args.protocol, profile=active()),
         f"{args.ecu}: added revision {args.revision}",
@@ -119,8 +124,6 @@ def cmd_add(args) -> int:
 
 
 def cmd_set_fingerprint(args) -> int:
-    from canair.yaml_edit.revisions import set_fingerprint
-
     identity = {}
     for pair in args.identity or []:
         key, sep, value = pair.partition("=")
@@ -142,8 +145,6 @@ def cmd_set_fingerprint(args) -> int:
 
 
 def cmd_rename(args) -> int:
-    from canair.yaml_edit.revisions import rename_revision
-
     written: list = []
 
     def action():
@@ -158,8 +159,6 @@ def cmd_rename(args) -> int:
 
 
 def cmd_rm(args) -> int:
-    from canair.yaml_edit.revisions import remove_revision
-
     return run_edit(
         lambda: remove_revision(args.ecu, args.revision, profile=active()),
         f"{args.ecu}: removed revision {args.revision}",
@@ -167,8 +166,6 @@ def cmd_rm(args) -> int:
 
 
 def cmd_set_variants(args) -> int:
-    from canair.yaml_edit.revisions import set_ecu_variants
-
     if args.clear == bool(args.variants):
         raise EditError("give the variants, or --clear")
     ids = [v for part in args.variants for v in part.split(",") if v.strip()]

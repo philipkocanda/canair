@@ -10,6 +10,7 @@ from canair.cli.live import LiveOperation, add_connection_args, ecu_completer, r
 from canair.cli.live.handlers import actuators
 from canair.cli.profile_context import active
 from canair.ecus.pids import load_pids
+from canair.live.actuate.iocontrol_list import mode_iocontrol_list
 from canair.render import messages
 
 NAME = "io"
@@ -72,8 +73,6 @@ def run(args) -> int:
         return 2
     if args.json and not args.did:
         # Listing reads only the profile, so it must not need (or lock) the device.
-        from canair.live.actuate.iocontrol_list import mode_iocontrol_list
-
         return (
             0
             if mode_iocontrol_list(load_pids(profile=active()), args.iocontrol, as_json=True)

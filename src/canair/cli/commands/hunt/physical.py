@@ -12,6 +12,7 @@ from canair.analysis.align import (
 from canair.analysis.cross_signal import physical_scan
 from canair.analysis.physical.bands import resolve_physical_bands
 from canair.cli.args.notation import resolve_notation
+from canair.cli.grid_prompt import resolve_grid_region
 from canair.cli.profile_context import active
 from canair.expression.notation import ByteNotation, ByteRef
 from canair.render import ansi, messages
@@ -21,8 +22,6 @@ from canair.variants import effective_meta
 
 def run_physical(args, ecu: str, pid: str, since, until) -> int:
     """Reference-free physical-value band scan on one PID."""
-    from canair.cli.grid_prompt import resolve_grid_region
-
     loaded = load_signal_captures(
         [(ecu, pid)],
         since=since,

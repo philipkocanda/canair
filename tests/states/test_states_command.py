@@ -104,7 +104,7 @@ class TestEditDispatch:
             )
             return tmp_path / "vehicle_states.yaml"
 
-        monkeypatch.setattr("canair.yaml_edit.states.add_state", _add)
+        monkeypatch.setattr("canair.cli.commands.states.edit.add_state", _add)
         monkeypatch.setenv("NO_COLOR", "1")
         args = argparse.Namespace(
             name="precondition",
@@ -131,7 +131,7 @@ class TestEditDispatch:
         def _add(*a, **k):
             raise StatesEditError("already exists")
 
-        monkeypatch.setattr("canair.yaml_edit.states.add_state", _add)
+        monkeypatch.setattr("canair.cli.commands.states.edit.add_state", _add)
         args = argparse.Namespace(
             name="READY",
             description=None,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 
+from canair.captures.sensitive_purge import purge_dir
 from canair.cli.commands._edit import add_edit_args, run_edit
 from canair.cli.profile_context import active, target_profile
 from canair.core.edit_errors import EditError, translate
@@ -300,8 +301,6 @@ def cmd_set_sensitive(args: argparse.Namespace) -> int:
     state = "true" if value else "false (cleared)"
     echo_edit(f"{what} sensitive -> {state}", fpath)
     if value:
-        from canair.captures.sensitive_purge import purge_dir
-
         found = sum(
             r.removed
             for r in purge_dir(active().captures_dir, profile_set(profile=active()), dry_run=True)

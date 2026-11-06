@@ -50,6 +50,7 @@ from pathlib import Path
 from canair.captures.build import build_manual_session
 from canair.captures.save import save_session
 from canair.captures.types import CaptureRecord
+from canair.cli.commands.import_uds.log import run_from_log
 from canair.cli.profile_context import active, dir_profile, named_car
 from canair.ecus.names import build_name_tx_index, resolve_tx
 from canair.ecus.registry import rx_addr_str
@@ -97,8 +98,6 @@ def _build_capture(spec: str, name_index: dict[str, int]) -> tuple[CaptureRecord
 
 def run(args) -> int:
     if args.from_log:
-        from canair.cli.commands.import_uds.log import run_from_log
-
         return run_from_log(args)
     problem = (
         "give ECU:PID=PAYLOAD captures or --from-log FILE"

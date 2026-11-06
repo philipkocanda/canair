@@ -10,6 +10,7 @@ from canair.cli.live import LiveOperation, add_connection_args, ecu_completer, r
 from canair.cli.live.handlers import actuators
 from canair.cli.profile_context import active
 from canair.ecus.pids import load_pids
+from canair.live.actuate.routines_list import mode_routines_list
 from canair.render import messages
 
 NAME = "routines"
@@ -60,8 +61,6 @@ def run(args) -> int:
         return 2
     if args.json and not args.rid:
         # Listing reads only the profile, so it must not need (or lock) the device.
-        from canair.live.actuate.routines_list import mode_routines_list
-
         return (
             0 if mode_routines_list(load_pids(profile=active()), args.routines, as_json=True) else 1
         )

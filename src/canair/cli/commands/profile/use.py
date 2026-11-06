@@ -9,6 +9,7 @@ from canair.ecus.pids import load_raw_pids
 from canair.profile.discovery import resolve_profile, selectable_profiles
 from canair.profile.model import ProfileError
 from canair.render import messages
+from canair.tui.picker import select_from_list
 from canair.variants import VariantsError, describe, load_variants, normalize_variant_id
 from canair.variants.revisions import RevisionError, canonical_ecu, parse_pin, resolve
 from canair.variants.selection import configured_variant
@@ -99,7 +100,6 @@ def choose_variant(name: str, profiles_dir, requested: str | None) -> str | None
             f"`canair profile use {name} --variant ID` ({', '.join(variants)})"
         )
         return None
-    from canair.tui.picker import select_from_list
 
     items = list(variants.items())
 

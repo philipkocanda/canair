@@ -371,7 +371,7 @@ class TestProfileDefaultDispatch:
             chosen["items"] = list(items)
             return list(items)[1]
 
-        monkeypatch.setattr("canair.tui.picker.select_from_list", _fake_select)
+        monkeypatch.setattr("canair.cli.commands.profile.pick.select_from_list", _fake_select)
 
         assert _cmd_default(argparse.Namespace(profiles_dir=None)) == 0
         cfg = yaml.safe_load((tmp_path / "cfg" / "canair" / "config.yaml").read_text())
@@ -387,7 +387,9 @@ class TestProfileDefaultDispatch:
         _scaffold(tmp_path, "ev6")
         monkeypatch.setattr("sys.stdin.isatty", lambda: True)
         monkeypatch.setattr("sys.stdout.isatty", lambda: True)
-        monkeypatch.setattr("canair.tui.picker.select_from_list", lambda items, **kw: None)
+        monkeypatch.setattr(
+            "canair.cli.commands.profile.pick.select_from_list", lambda items, **kw: None
+        )
 
         assert _cmd_default(argparse.Namespace(profiles_dir=None)) == 0
         out = capsys.readouterr().err
@@ -425,7 +427,8 @@ class TestProfileDefaultDispatch:
             assert kw["initial"] == 0  # the remembered 40kwh car is preselected
             return next(i for i in items if i[0] == "60kwh")
 
-        monkeypatch.setattr("canair.tui.picker.select_from_list", _fake_select)
+        monkeypatch.setattr("canair.cli.commands.profile.pick.select_from_list", _fake_select)
+        monkeypatch.setattr("canair.cli.commands.profile.use.select_from_list", _fake_select)
 
         assert _cmd_default(argparse.Namespace(profiles_dir=None)) == 0
         assert "car?" in asked[1]

@@ -38,6 +38,7 @@ from canair.uds.support_marks import MAX_MAP_LEN
 
 from ._matrix import payload_matrix
 from .support_fields import fit_fields, thin
+from .support_map_report import absence_tally, as_json, print_scan
 
 # Best first: the order a report lists PIDs in.
 VERDICT_ORDER = (
@@ -153,9 +154,6 @@ def _prefer_fields(scan: PidScan) -> None:
 
 def run_support_map(specs: list[tuple[str, str]], args, since, until) -> int:
     """Detect and report support maps for ``specs`` (siblings on the same ECU corroborate)."""
-    # The report module imports PidScan from here, so it is imported where it is used.
-    from .support_map_report import absence_tally, as_json, print_scan
-
     if not specs:
         messages.error("no timed captures in scope to investigate")
         return 1

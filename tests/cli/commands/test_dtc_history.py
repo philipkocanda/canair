@@ -538,7 +538,7 @@ class TestMigrateAll:
         from canair.cli.commands import update
 
         calls = []
-        monkeypatch.setattr("canair.dtc.log_upgrade.migrate_all", lambda: calls.append(1))
-        monkeypatch.setattr("canair.install.context.snapshot_profile_risks", lambda clone: [])
+        monkeypatch.setattr(update, "migrate_all", lambda: calls.append(1))
+        monkeypatch.setattr(update, "snapshot_profile_risks", lambda clone: [])
         update._warn_about_snapshot_data(None, None)
         assert calls == [1]

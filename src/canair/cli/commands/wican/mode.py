@@ -8,6 +8,7 @@ from canair.cli.args.group import group_help
 from canair.config.file import get_config_key, set_config_key
 from canair.core.prompt import confirm
 from canair.device.wican.api import resolve_wican_url
+from canair.device.wican.mode import ModeError, current_protocol, set_protocol
 from canair.render import messages
 from canair.transport.config import DEFAULT_TRANSPORT, TransportType
 
@@ -79,8 +80,6 @@ def add_parsers(groups) -> argparse.ArgumentParser:
 
 
 def cmd_mode_show(args) -> int:
-    from canair.device.wican.mode import current_protocol
-
     base_url = resolve_wican_url(args.wican)
     guard = require_v4_api(base_url, "wican-mode")
     if guard is not None:
@@ -124,8 +123,6 @@ def sync_transport_to_mode(mode: str, *, no_transport: bool) -> None:
 
 def cmd_mode_set(args) -> int:
     """Explicitly set the WiCAN device protocol/mode (reboots). Opt-in only."""
-    from canair.device.wican.mode import ModeError, current_protocol, set_protocol
-
     guard = require_pro("mode set")
     if guard is not None:
         return guard

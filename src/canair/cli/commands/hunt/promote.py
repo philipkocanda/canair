@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from canair.cli.commands._promote import print_promoted, write_candidate
 from canair.expression.inspect_bytes import NO_EXPR
 from canair.render import messages
 from canair.yaml_edit.pids import PidsEditError
@@ -14,8 +15,6 @@ def promote(name: str, ecu: str, pid: str, hits, ref_label: str) -> int:
     same snapshot → edit → schema-validate → auto-revert gate as ``canair pids
     upsert-param`` — so a PCI-crossing expression is rejected and rolled back.
     """
-    from canair.cli.commands._promote import print_promoted, write_candidate
-
     if not hits:
         messages.error("nothing to promote: no correlating byte found")
         return 1

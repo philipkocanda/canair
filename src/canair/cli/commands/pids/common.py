@@ -7,6 +7,7 @@ from pathlib import Path
 
 from canair.cli.commands._edit import clear_sentinel, edit_scope
 from canair.cli.profile_context import active, target_profile
+from canair.ecus.files import iter_ecu_files
 from canair.yaml_edit.pids import (
     find_ecu_file,
 )
@@ -28,8 +29,6 @@ def words_verb(text: str | None) -> str:
 def ecu_names(ecus_dir: Path | None) -> list[str]:
     """Every ECU key defined under ``ecus_dir`` (default: the active profile)."""
     import yaml
-
-    from canair.ecus.files import iter_ecu_files
 
     names: list[str] = []
     for path in iter_ecu_files(ecus_dir, profile=None if ecus_dir else active()):

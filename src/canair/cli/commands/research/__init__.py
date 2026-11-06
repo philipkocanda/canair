@@ -62,6 +62,8 @@ from canair.render import ansi, messages
 from canair.states.selectors import state_matcher, unknown_state_tokens
 from canair.states.vocabulary import allowed_states
 
+from .gaps import capture_read_ranges, find_gaps
+
 NAME = "research"
 
 # ANSI colors (match the sibling audit tools)
@@ -404,8 +406,6 @@ def run(args) -> int:
 
 def run_gaps(args) -> int:
     """``--gaps``: print the derived unread-family list."""
-    from .gaps import capture_read_ranges, find_gaps
-
     clashing = [
         flag
         for flag, value in (

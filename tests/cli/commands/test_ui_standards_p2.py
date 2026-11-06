@@ -138,7 +138,9 @@ class TestConfirmations:
             capture_refs={},
             log_refs={},
         )
-        monkeypatch.setattr("canair.yaml_edit.state_rename.plan_state_rename", lambda *a, **k: plan)
+        monkeypatch.setattr(
+            "canair.cli.commands.states.edit.plan_state_rename", lambda *a, **k: plan
+        )
 
     def test_states_rename_declined_exits_1(self, profile, monkeypatch):
         from canair.cli.commands.states import edit as states
@@ -147,7 +149,7 @@ class TestConfirmations:
         monkeypatch.setattr(states, "confirm", lambda *a, **k: False)
         applied = []
         monkeypatch.setattr(
-            "canair.yaml_edit.state_rename.apply_state_rename", lambda *a, **k: applied.append(1)
+            "canair.cli.commands.states.edit.apply_state_rename", lambda *a, **k: applied.append(1)
         )
         assert _run(profile, "states", "rename", "READY", "GO") == 1
         assert not applied
@@ -161,9 +163,9 @@ class TestConfirmations:
     def test_logs_clear_declined_exits_1_and_keeps_the_log(self, tmp_path, monkeypatch, capsys):
         from canair.cli.commands import logs
 
-        monkeypatch.setattr("canair.core.eventlog.event_log_path", lambda: tmp_path / "x.log")
+        monkeypatch.setattr(logs, "event_log_path", lambda: tmp_path / "x.log")
         cleared = []
-        monkeypatch.setattr("canair.core.eventlog.clear_event_log", lambda: cleared.append(1) or 1)
+        monkeypatch.setattr(logs, "clear_event_log", lambda: cleared.append(1) or 1)
         monkeypatch.setattr(logs, "confirm", lambda *a, **k: False)
         args = argparse.Namespace(path=False, clear=True, yes=False, json=False, lines=50)
         assert logs.run(args) == 1
@@ -172,7 +174,7 @@ class TestConfirmations:
     def test_logs_clear_without_terminal_is_prompt_unavailable(self, tmp_path, monkeypatch):
         from canair.cli.commands import logs
 
-        monkeypatch.setattr("canair.core.eventlog.event_log_path", lambda: tmp_path / "x.log")
+        monkeypatch.setattr(logs, "event_log_path", lambda: tmp_path / "x.log")
         monkeypatch.setattr("sys.stdin", io.StringIO(""))
         args = argparse.Namespace(path=False, clear=True, yes=False, json=False, lines=50)
         with pytest.raises(PromptUnavailable):
@@ -184,12 +186,10 @@ class TestConfirmations:
         monkeypatch.setattr(mode, "require_pro", lambda op: None)
         monkeypatch.setattr(mode, "require_v4_api", lambda *a, **k: None)
         monkeypatch.setattr(mode, "resolve_wican_url", lambda w: "http://x")
-        monkeypatch.setattr("canair.device.wican.mode.current_protocol", lambda url: "elm327")
+        monkeypatch.setattr(mode, "current_protocol", lambda url: "elm327")
         monkeypatch.setattr(mode, "confirm", lambda *a, **k: False)
         sent = []
-        monkeypatch.setattr(
-            "canair.device.wican.mode.set_protocol", lambda *a, **__: sent.append(a)
-        )
+        monkeypatch.setattr(mode, "set_protocol", lambda *a, **__: sent.append(a))
         args = argparse.Namespace(wican=None, protocol="slcan", yes=False, no_transport=True)
         assert mode.cmd_mode_set(args) == 1
         assert not sent

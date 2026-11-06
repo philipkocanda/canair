@@ -9,6 +9,7 @@ from canair.cli.commands._edit import add_edit_args, edit_scope, run_edit
 from canair.cli.profile_context import active, target_profile
 from canair.core import yaml_io
 from canair.core.edit_errors import EditError
+from canair.ecus.can_buses import allowed_can_buses
 from canair.ecus.pids import normalize_session_mode
 from canair.profile.model import profile_for_path
 from canair.render import ansi
@@ -25,6 +26,7 @@ from canair.yaml_edit.pids import (
     set_wake,
     update_iocontrol_field,
 )
+from canair.yaml_edit.revisions import set_gate
 
 from .common import apply_in_scope, int_or_clear
 
@@ -291,8 +293,6 @@ def cmd_rm_identity(args: argparse.Namespace) -> int:
 
 
 def cmd_set_can_bus(args: argparse.Namespace) -> int:
-    from canair.ecus.can_buses import allowed_can_buses
-
     # Resolve the vocabulary from the profile owning the target ecus/ dir
     # (or the active profile). Enforced only when the profile declares one.
     allowed = allowed_can_buses(profile_for_path(args.dir) if args.dir else active())
@@ -311,8 +311,6 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
 
 
 def cmd_set_revisions(args: argparse.Namespace) -> int:
-    from canair.yaml_edit.revisions import set_gate
-
     parts = args.target.split(":")
     if len(parts) not in (2, 3) or not all(p.strip() for p in parts):
         raise EditError(f"expected ECU:PID or ECU:PID:SIGNAL, got {args.target!r}")

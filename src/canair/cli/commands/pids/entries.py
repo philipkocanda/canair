@@ -21,6 +21,7 @@ from canair.yaml_edit.pids import (
     rename_pid,
     upsert_parameter,
 )
+from canair.yaml_edit.revisions import set_gate, set_override
 
 from .common import apply_in_scope
 
@@ -288,15 +289,11 @@ def _signal_exists(ecu: str, pid: str, name: str, pids_dir) -> bool:
 
 
 def _gate_new_signal(args: argparse.Namespace, revision: str) -> None:
-    from canair.yaml_edit.revisions import set_gate
-
     set_gate(args.ecu, args.pid, args.name, [revision], profile=active())
 
 
 def _upsert_revision_override(args: argparse.Namespace, ptype, values, bits) -> int:
     """``upsert-param --revision R`` on an existing signal: write ``per_revision.R``."""
-    from canair.yaml_edit.revisions import set_override
-
     if args.dir is not None:
         raise EditError("--revision does not take --dir")
     fields: dict = {"expression": args.expression}

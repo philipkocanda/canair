@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from canair.actions import ActionError, load_actions
+from canair.broadcast import load_signals
 from canair.cli.profile_context import active
+from canair.dtc.log import load_log, log_file
+from canair.ecus.can_buses import load_can_buses
+from canair.ecus.ecu_groups import GroupError, load_groups
 from canair.ecus.pids import revision_resolutions
 from canair.profile.bundle import BUNDLE_MEMBERS
 from canair.profile.discovery import resolve_profile
@@ -18,8 +23,6 @@ def _resolve(name: str | None):
 
 
 def _detail_can_buses(prof) -> str:
-    from canair.ecus.can_buses import load_can_buses
-
     buses = load_can_buses(prof)
     codes = ", ".join(b.code for b in buses) if buses else "empty"
     return f"{len(buses)} buses: {codes}"
@@ -36,8 +39,6 @@ def _detail_states(prof) -> str:
 
 
 def _detail_groups(prof) -> str:
-    from canair.ecus.ecu_groups import GroupError, load_groups
-
     try:
         groups = load_groups(prof)
     except GroupError as ex:
@@ -47,8 +48,6 @@ def _detail_groups(prof) -> str:
 
 
 def _detail_actions(prof) -> str:
-    from canair.actions import ActionError, load_actions
-
     try:
         actions = load_actions(prof)
     except ActionError as ex:
@@ -57,8 +56,6 @@ def _detail_actions(prof) -> str:
 
 
 def _detail_signals(prof) -> str:
-    from canair.broadcast import load_signals
-
     names = sorted(d.path.name for d in load_signals(profile=prof))
     return f"{len(names)} files: {', '.join(names) if names else 'empty'}"
 
@@ -145,8 +142,6 @@ def cmd_show(args) -> int:
             else:
                 idx = "none — optional"
             print(f"{'can logs:':<12}{prof.can_dir}  ({idx})")
-
-    from canair.dtc.log import load_log, log_file
 
     dtc_log = log_file(prof)
     scans = len(load_log(dtc_log, profile=active())["scans"]) if dtc_log.exists() else 0
