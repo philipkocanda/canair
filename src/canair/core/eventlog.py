@@ -58,7 +58,10 @@ def _get_event_logger() -> logging.Logger | None:
         logger = logging.getLogger("canair.events")
         logger.setLevel(logging.INFO)
         logger.propagate = False
-        if not logger.handlers:
+        # Look for our own file handler, not for any handler: another party may have attached
+        # one to this non-propagating logger first (pytest's log capture does), and the log
+        # file must open regardless.
+        if not any(isinstance(h, logging.handlers.RotatingFileHandler) for h in logger.handlers):
             handler = logging.handlers.RotatingFileHandler(
                 path,
                 maxBytes=_EVENT_LOG_MAX_BYTES,
