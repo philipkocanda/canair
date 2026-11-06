@@ -63,17 +63,16 @@ def _reload(pids_dir: Path) -> dict:
 def redirect_writes(pids_dir: Path, monkeypatch):
     """Point ``persist``'s editor at the temp profile instead of the active one.
 
-    ``persist`` imports its collaborators lazily, so the patch has to land on the
-    modules it resolves them from rather than on ``canair.ecus.response_frames``.
+    ``persist`` looks its collaborators up in ``canair.yaml_edit.response_frames``, so the
+    patch has to land there rather than on ``canair.ecus.response_frames``.
     """
-    import canair.yaml_edit.pids as pids_edit
-    from canair.profile import writable as profile_writable
+    import canair.yaml_edit.response_frames as persist_module
 
     def _set(ecu, pid, frames, **_):
         return set_response_frames(ecu, pid, frames, pids_dir=pids_dir, profile=active())
 
-    monkeypatch.setattr(pids_edit, "set_response_frames", _set)
-    monkeypatch.setattr(profile_writable, "require_writable_definitions", lambda *_, **__: None)
+    monkeypatch.setattr(persist_module, "set_response_frames", _set)
+    monkeypatch.setattr(persist_module, "require_writable_definitions", lambda *_, **__: None)
     return pids_dir
 
 
@@ -175,12 +174,11 @@ class TestSessionWriteBack:
     def test_a_write_failure_never_fails_the_session(self, pids_data, monkeypatch):
         # Persisting is bookkeeping on the way out; it must not turn a good read
         # into a non-zero exit.
-        import canair.yaml_edit.pids as pids_edit
-        from canair.profile import writable as profile_writable
+        import canair.yaml_edit.response_frames as persist_module
 
-        monkeypatch.setattr(profile_writable, "require_writable_definitions", lambda *_, **__: None)
+        monkeypatch.setattr(persist_module, "require_writable_definitions", lambda *_, **__: None)
         monkeypatch.setattr(
-            pids_edit,
+            persist_module,
             "set_response_frames",
             lambda *a, **kw: (_ for _ in ()).throw(OSError("nope")),
         )

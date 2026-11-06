@@ -30,7 +30,17 @@ from pathlib import Path
 from typing import NamedTuple
 
 from canair.core.edit_errors import EditError
+from canair.core.yaml_rt import (
+    NOTE_WRAP_WIDTH,
+    double_quoted,
+    double_quoted_lines,
+    note_foldable,
+    note_should_inline,
+    round_trip_yaml,
+    wrap_note_lines,
+)
 from canair.profile.model import Profile
+from canair.states.tokens import parse_states
 
 from .commit import commit_text, resolve_validate
 from .ecufile import clear_cache, schema_validator
@@ -126,8 +136,6 @@ def _plain_reads_back(token: str, *, as_key: bool) -> bool:
     import yaml
     from ruamel.yaml.error import YAMLError as RuamelYAMLError
 
-    from canair.core.yaml_rt import round_trip_yaml
-
     doc = f"{token}: x\n" if as_key else f"k: {token}\n"
     try:
         loaded = [yaml.safe_load(doc)]
@@ -171,7 +179,6 @@ def _format_label(value: str, *, flow: bool = False) -> str:
     ``flow`` is for an item inside a flow list (``[a, b]``), where ``,``/brackets
     end a bare item.
     """
-    from canair.core.yaml_rt import double_quoted
 
     if not value:
         return '""'
@@ -390,7 +397,6 @@ def _cut_block(text: str, start: int, end: int) -> str:
 
 def _format_scalar_field(indent: str, key: str, value) -> str:
     """Render one ``key: value`` scalar line with schema-appropriate quoting."""
-    from canair.core.yaml_rt import double_quoted
 
     if isinstance(value, bool):
         return f"{indent}{key}: {'true' if value else 'false'}"
@@ -410,13 +416,6 @@ def _format_block_scalar(indent: str, key: str, value: str) -> list[str]:
     first line that starts indented) is written as a wrapped double-quoted scalar
     instead. Either way the field reads back as exactly ``value``.
     """
-    from canair.core.yaml_rt import (
-        NOTE_WRAP_WIDTH,
-        double_quoted_lines,
-        note_foldable,
-        note_should_inline,
-        wrap_note_lines,
-    )
 
     value = str(value)
     prefix = f"{indent}{key}: "
@@ -774,6 +773,5 @@ def _norm_states(value: object) -> list[str]:
     (strip + upper-case, drop empties, accept a list or comma-string) is shared
     with the runtime readers rather than reimplemented in the text editors.
     """
-    from canair.states.tokens import parse_states
 
     return parse_states(value)

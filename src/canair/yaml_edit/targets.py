@@ -27,6 +27,9 @@ from __future__ import annotations
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any
 
+from . import actions, ecu, groups, signals, states, variants
+from .doc import edit_doc
+
 if TYPE_CHECKING:
     from canair.profile.model import Profile
 
@@ -34,9 +37,7 @@ if TYPE_CHECKING:
 
 
 def targets() -> dict[str, Target]:
-    """Every registered target by key (imported on first use: the editors are heavy)."""
-    from . import actions, ecu, groups, signals, states, variants
-
+    """Every registered target by key."""
     found = (
         groups.GROUPS,
         actions.ACTIONS,
@@ -58,6 +59,4 @@ def target(key: str) -> Target:
 
 def open_target(key: str, profile: Profile, **kwargs: Any) -> AbstractContextManager[Doc]:
     """:func:`~canair.yaml_edit.doc.edit_doc` for the target registered as ``key``."""
-    from .doc import edit_doc
-
     return edit_doc(target(key), profile, **kwargs)

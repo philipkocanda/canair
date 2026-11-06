@@ -30,8 +30,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from canair.captures import io as capture_io
+from canair.core import yaml_io
 from canair.core.edit_errors import EditError
+from canair.core.yaml_rt import detect_sequence_indent, dump, round_trip_yaml
+from canair.dtc.log import log_file as dtc_log_file
 from canair.states.tokens import ALL_STATE, needs_yaml_quotes
+from canair.validation.pids import validate_pids_file
+from canair.yaml_edit.doc import load_doc
+from canair.yaml_edit.states import STATES, find_state, normalize_name, rename_state
 
 from .commit import write_atomic
 from .ecufile import clear_cache
@@ -152,8 +159,6 @@ def _leftover(node: Any, old: str) -> bool:
 
 
 def _plan_ecus(plan: StateRenamePlan, ecus_dir: Path) -> None:
-    from canair.core import yaml_io
-
     for path in sorted(ecus_dir.glob("*.yaml")):
         text = path.read_text()
         new_text, n = rewrite_flow_lists(text, plan.old, plan.new)
@@ -168,8 +173,6 @@ def _plan_ecus(plan: StateRenamePlan, ecus_dir: Path) -> None:
 
 
 def _plan_captures(plan: StateRenamePlan, captures_dir: Path) -> None:
-    from canair.captures import io as capture_io
-
     if not captures_dir.is_dir():
         return
     for path in capture_io.iter_capture_files(captures_dir):
@@ -193,8 +196,6 @@ def _plan_captures(plan: StateRenamePlan, captures_dir: Path) -> None:
 def _plan_round_trip(plan: StateRenamePlan, path: Path) -> None:
     import io
 
-    from canair.core.yaml_rt import detect_sequence_indent, dump, round_trip_yaml
-
     if not path.is_file():
         return
     text = path.read_text()
@@ -216,9 +217,6 @@ def plan_state_rename(old: str, new: str, *, profile: Profile) -> StateRenamePla
     rename cannot be made: ``old`` is not declared, ``new`` already is, either is
     ``ALL``, or a reference is in a form this cannot rewrite.
     """
-    from canair.dtc.log import log_file as dtc_log_file
-    from canair.yaml_edit.doc import load_doc
-    from canair.yaml_edit.states import STATES, find_state, normalize_name
 
     old, new = normalize_name(old), normalize_name(new)
     if ALL_STATE in (old, new):
@@ -246,8 +244,6 @@ def apply_state_rename(plan: StateRenamePlan, *, profile: Profile) -> None:
     already written (the vocabulary included) is restored before the error is
     re-raised.
     """
-    from canair.validation.pids import validate_pids_file
-    from canair.yaml_edit.states import rename_state
 
     originals: dict[Path, str] = {plan.states_file: plan.states_file.read_text()}
     try:

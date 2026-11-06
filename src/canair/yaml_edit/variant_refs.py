@@ -18,7 +18,14 @@ from typing import TYPE_CHECKING
 
 from canair.captures import io as capture_io
 from canair.core import yaml_io
+from canair.core.yaml_rt import dump, round_trip_yaml
+from canair.dtc.log import log_file as dtc_log_file
+from canair.ecus.files import find_by_name
+from canair.ecus.pids import load_raw_pids
 from canair.variants import normalize_variant_id
+from canair.variants.revisions import presence
+from canair.yaml_edit.revisions import set_ecu_variants
+from canair.yaml_edit.variants import VariantsEditError, remove_variant, rename_variant
 
 from .commit import restore, write_atomic
 from .ecufile import clear_cache
@@ -66,7 +73,6 @@ def _entries(path: Path, section: str) -> list:
 
 def find_references(profile: Profile, variant_id: str) -> References:
     """Every use of ``variant_id`` in ``profile``'s own recorded history."""
-    from canair.dtc.log import log_file as dtc_log_file
 
     vid = normalize_variant_id(variant_id)
     captures: dict[Path, int] = {}
@@ -90,8 +96,6 @@ def find_references(profile: Profile, variant_id: str) -> References:
 
 def _fitted_ecus(profile: Profile, vid: str) -> tuple[str, ...]:
     """ECUs whose ``variants:`` names ``vid``."""
-    from canair.ecus.pids import load_raw_pids
-    from canair.variants.revisions import presence
 
     ecus = load_raw_pids(profile).get("ecus") or {}
     return tuple(name for name, d in ecus.items() if vid in (presence(d) or ()))
@@ -100,8 +104,6 @@ def _fitted_ecus(profile: Profile, vid: str) -> tuple[str, ...]:
 def _retag_yaml(path: Path, sections: tuple[str, ...], old: str, new: str) -> str | None:
     """``path``'s text with every ``variant: old`` entry retagged, or None if unchanged."""
     from io import StringIO
-
-    from canair.core.yaml_rt import dump, round_trip_yaml
 
     if not path.exists():
         return None
@@ -125,7 +127,6 @@ def retag_history(profile: Profile, old: str, new: str) -> list[Path]:
     All or nothing: every new file body is computed first, then written, and the
     originals are restored if any write fails. Returns the files written.
     """
-    from canair.dtc.log import log_file as dtc_log_file
 
     old, new = normalize_variant_id(old), normalize_variant_id(new)
     planned: dict[Path, str] = {}
@@ -166,10 +167,6 @@ def rename_everywhere(old: str, new: str, profile: Profile) -> tuple[Path, list[
     Returns ``variants.yaml`` and the history files rewritten. If rewriting the
     history fails, ``variants.yaml`` is restored, so the two never disagree.
     """
-    from canair.ecus.pids import load_raw_pids
-    from canair.variants.revisions import presence
-    from canair.yaml_edit.revisions import set_ecu_variants
-    from canair.yaml_edit.variants import rename_variant
 
     old_id, new_id = normalize_variant_id(old), normalize_variant_id(new)
     fitted = {
@@ -182,8 +179,6 @@ def rename_everywhere(old: str, new: str, profile: Profile) -> tuple[Path, list[
     ecu_files: dict[Path, str] = {}
     try:
         for name, ids in fitted.items():
-            from canair.ecus.files import find_by_name
-
             fpath = find_by_name(name, profile.ecus_dir, profile=profile)
             if fpath is not None:
                 ecu_files.setdefault(fpath, fpath.read_text())
@@ -201,7 +196,6 @@ def rename_everywhere(old: str, new: str, profile: Profile) -> tuple[Path, list[
 
 def remove_unreferenced(variant_id: str, profile: Profile) -> Path:
     """Remove a variant from ``variants.yaml``, refusing while anything refers to it."""
-    from canair.yaml_edit.variants import VariantsEditError, remove_variant
 
     refs = find_references(profile, variant_id)
     if refs.total:

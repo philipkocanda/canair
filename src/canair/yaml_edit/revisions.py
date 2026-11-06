@@ -24,6 +24,11 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 
 from canair.captures import io as capture_io
+from canair.core import yaml_io
+from canair.core.yaml_rt import dump, round_trip_yaml
+from canair.dtc.log import load_log, log_file
+from canair.ecus.pids import load_raw_pids
+from canair.variants import load_variants, normalize_variant_id
 from canair.variants.fingerprint_kinds import new_fingerprint
 from canair.variants.revisions import (
     canonical_revision,
@@ -32,6 +37,7 @@ from canair.variants.revisions import (
     revision_key,
     same_revision,
 )
+from canair.yaml_edit.variants import rename_variant_revisions_ecu, set_variant_revisions
 
 from .commit import restore, write_atomic
 from .ecu import EcusEditError, edit_ecu
@@ -44,7 +50,6 @@ if TYPE_CHECKING:
 
 def _ecu_file(ecu: str, profile: Profile) -> tuple[Path, str]:
     """The ECU's file and its canonical (top-level key) name."""
-    from canair.core import yaml_io
 
     fpath = find_ecu_file(ecu, profile.ecus_dir, error=EcusEditError, profile=profile)
     keys = list(yaml_io.safe_load(fpath.read_text()) or {})
@@ -153,7 +158,6 @@ def set_fingerprint(
 
 def set_ecu_variants(ecu: str, variants: Sequence[str] | None, *, profile: Profile) -> Path:
     """Say which variants ``ecu`` is fitted to (None: every variant — the key is removed)."""
-    from canair.variants import load_variants, normalize_variant_id
 
     prof = profile
     ids = [normalize_variant_id(v) for v in (variants or []) if str(v).strip()]
@@ -291,9 +295,6 @@ def _session_revision(session: Mapping, ecu: str) -> str | None:
 
 
 def find_revision_references(ecu: str, revision: str, profile: Profile) -> RevisionReferences:
-    from canair.ecus.pids import load_raw_pids
-    from canair.variants import load_variants
-
     ecus = load_raw_pids(profile).get("ecus") or {}
     name = next((k for k in ecus if str(k).upper() == ecu.upper()), ecu)
     ecu_def, refs = ecus.get(name) or {}, RevisionReferences()
@@ -317,8 +318,6 @@ def find_revision_references(ecu: str, revision: str, profile: Profile) -> Revis
 
 
 def _dtc_log_entries(profile: Profile) -> list:
-    from canair.dtc.log import load_log, log_file
-
     data = load_log(log_file(profile), profile=profile)
     return [
         e for section in ("scans", "clears") for e in data.get(section) or [] if isinstance(e, dict)
@@ -330,9 +329,6 @@ def _retag_dtc_log(profile: Profile, rewrite_entry) -> dict[Path, str]:
 
     Its entries carry the same ``revisions:`` tag a capture session does."""
     from io import StringIO
-
-    from canair.core.yaml_rt import dump, round_trip_yaml
-    from canair.dtc.log import log_file
 
     path = log_file(profile)
     if not path.exists():
@@ -385,7 +381,6 @@ def rename_revision(ecu: str, old: str, new: str, *, profile: Profile) -> tuple[
     profile's own capture sessions and of its DTC log. Returns the ECU file and the
     other files rewritten.
     """
-    from canair.yaml_edit.variants import set_variant_revisions
 
     prof = profile
     old_id, new_id = _checked_id(old), _checked_id(new)
@@ -423,8 +418,6 @@ def rename_revision(ecu: str, old: str, new: str, *, profile: Profile) -> tuple[
     _edit_ecu(name, prof, change)
     written: list[Path] = []
     try:
-        from canair.variants import load_variants
-
         for vid, variant in load_variants(prof).items():
             revs = variant.revisions.get(name)
             if revs and revision_key(old_id) in map(revision_key, revs):
@@ -471,7 +464,6 @@ def remove_revision(ecu: str, revision: str, *, profile: Profile) -> Path:
 def retag_ecu_rename(old: str, new: str, profile: Profile) -> list[Path]:
     """After an ECU rename: rewrite variants' ``revisions:`` keys, and the revision tags
     of captures and of the DTC log."""
-    from canair.yaml_edit.variants import rename_variant_revisions_ecu
 
     def retag(session: dict) -> bool:
         changed = False

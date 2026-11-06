@@ -85,7 +85,7 @@ def test_the_schema_check_can_veto_an_edit_and_no_validate_skips_it(
         calls.append(p)
         return False, "error: nope"
 
-    monkeypatch.setattr("canair.validation.pids.validate_pids_file", veto)
+    monkeypatch.setattr("canair.yaml_edit.ecufile.validate_pids_file", veto)
 
     assert _run(profile, *argv) == 1
     assert "nope" in capsys.readouterr().err

@@ -17,6 +17,7 @@ from pathlib import Path
 
 import yaml
 
+from canair.ecus.pid_status import PID_STATUSES
 from canair.profile.model import Profile
 from canair.yaml_edit.text import (
     PidsEditError,
@@ -444,7 +445,6 @@ def add_pid(
 
     The write is verified by a YAML re-parse; on failure the file is restored.
     """
-    from canair.ecus.pid_status import PID_STATUSES
 
     status = str(status).strip().lower()
     if status not in PID_STATUSES:
@@ -507,7 +507,6 @@ def set_pid_status(
     written (as the first field under the PID header), including ``active``. The
     write is verified by a YAML re-parse; on failure the original file is restored.
     """
-    from canair.ecus.pid_status import PID_STATUSES
 
     status = str(status).strip().lower()
     if status not in PID_STATUSES:

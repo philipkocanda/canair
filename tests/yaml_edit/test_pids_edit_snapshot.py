@@ -116,7 +116,7 @@ class TestCommand:
     def test_the_schema_gate_can_veto_and_revert(self, pids_dir, monkeypatch):
         before = (pids_dir / "test.yaml").read_text()
         monkeypatch.setattr(
-            "canair.validation.pids.validate_pids_file",
+            "canair.yaml_edit.ecufile.validate_pids_file",
             lambda p, *a, **__: (False, "  ERROR: nope"),
         )
         with pytest.raises(EditError):

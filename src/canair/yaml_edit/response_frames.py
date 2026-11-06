@@ -9,8 +9,13 @@ from __future__ import annotations
 import sys
 
 from canair.ecus.response_frames import FIELD, resolve_edits, revision_target
-from canair.profile.model import Profile
+from canair.profile.model import Profile, ProfileError
+from canair.profile.writable import require_writable_definitions
 from canair.uds.frame_counts import FrameCountLedger
+from canair.yaml_edit.echo import echo_edit
+from canair.yaml_edit.ecu import EcusEditError
+from canair.yaml_edit.pids import PidsEditError, set_response_frames
+from canair.yaml_edit.revisions import set_override
 
 
 def persist(
@@ -33,10 +38,6 @@ def persist(
     user actually ran, so a read-only profile or a locked file must not turn a
     successful session into a failed command.
     """
-    from canair.profile.model import ProfileError
-    from canair.profile.writable import require_writable_definitions
-    from canair.yaml_edit.echo import echo_edit
-    from canair.yaml_edit.pids import PidsEditError, set_response_frames
 
     edits, notes = resolve_edits(pids_data, ledger)
     if verbose:
@@ -88,10 +89,6 @@ def persist(
 def _set_revision_frames(
     ecu: str, pid: str, revision: str, frames: int | None, *, profile: Profile
 ):
-    from canair.yaml_edit.ecu import EcusEditError
-    from canair.yaml_edit.pids import PidsEditError
-    from canair.yaml_edit.revisions import set_override
-
     try:
         if frames is None:
             return set_override(ecu, pid, None, revision, {}, clear=[FIELD], profile=profile)

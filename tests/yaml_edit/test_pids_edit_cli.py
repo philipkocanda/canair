@@ -27,7 +27,9 @@ def _status_args(pids_dir, **kw):
 
 def test_the_gate_commits_when_the_schema_check_passes(pids_dir, monkeypatch):
     fp = pids_dir / "e.yaml"
-    monkeypatch.setattr("canair.validation.pids.validate_pids_file", lambda p, *a, **__: (True, ""))
+    monkeypatch.setattr(
+        "canair.yaml_edit.ecufile.validate_pids_file", lambda p, *a, **__: (True, "")
+    )
     assert pid_settings.cmd_set_pid_status(_status_args(pids_dir)) == 0
     assert "status: draft" in fp.read_text()
 
@@ -36,7 +38,7 @@ def test_the_gate_rolls_back_when_the_schema_check_fails(pids_dir, monkeypatch):
     fp = pids_dir / "e.yaml"
     original = fp.read_text()
     monkeypatch.setattr(
-        "canair.validation.pids.validate_pids_file", lambda p, *a, **__: (False, "  ERROR: bad")
+        "canair.yaml_edit.ecufile.validate_pids_file", lambda p, *a, **__: (False, "  ERROR: bad")
     )
     with pytest.raises(PidsEditError, match="reverted"):
         pid_settings.cmd_set_pid_status(_status_args(pids_dir))
@@ -47,7 +49,7 @@ def test_the_gate_is_skipped_when_disabled(pids_dir, monkeypatch):
     def _boom(*_a):
         raise AssertionError("validator should not run with --no-validate")
 
-    monkeypatch.setattr("canair.validation.pids.validate_pids_file", _boom)
+    monkeypatch.setattr("canair.yaml_edit.ecufile.validate_pids_file", _boom)
     args = _status_args(pids_dir)
     args.no_validate = True
     assert pid_settings.cmd_set_pid_status(args) == 0

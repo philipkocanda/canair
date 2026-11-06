@@ -25,6 +25,8 @@ from ruamel.yaml.error import CommentMark
 from ruamel.yaml.scalarstring import DoubleQuotedScalarString
 from ruamel.yaml.tokens import CommentToken
 
+from canair.states.tokens import needs_yaml_quotes
+
 # ── builders and lookups ─────────────────────────────────────────────────────────────────────
 
 
@@ -288,6 +290,5 @@ def state_token(token: str):
     double-quoted; ruamel would otherwise pick single quotes, and the hand-written
     files and the rename's line rewriter use double. Any other token stays plain.
     """
-    from canair.states.tokens import needs_yaml_quotes
 
     return DoubleQuotedScalarString(token) if needs_yaml_quotes(token) else token

@@ -75,7 +75,9 @@ def test_a_profile_wide_field_is_refused(ecus):
 
 
 def test_the_command_sets_and_clears(ecus, monkeypatch):
-    monkeypatch.setattr("canair.validation.pids.validate_pids_file", lambda p, *a, **__: (True, ""))
+    monkeypatch.setattr(
+        "canair.yaml_edit.ecufile.validate_pids_file", lambda p, *a, **__: (True, "")
+    )
     args = argparse.Namespace(
         ecu="EWP",
         dir=ecus,

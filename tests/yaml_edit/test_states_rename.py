@@ -168,7 +168,7 @@ class TestApply:
         def _reject(path, profile=None):
             return False, "  ERROR: injected"
 
-        monkeypatch.setattr("canair.validation.pids.validate_pids_file", _reject)
+        monkeypatch.setattr("canair.yaml_edit.state_rename.validate_pids_file", _reject)
         with pytest.raises(StateRenameError, match="invalid after the rename"):
             apply_state_rename(plan, profile=prof)
         assert {p: p.read_text() for p in prof.root.rglob("*") if p.is_file()} == before

@@ -28,7 +28,11 @@ from ruamel.yaml.scalarint import HexCapsInt
 
 from canair.core.edit_errors import EditError
 from canair.core.yaml_rt import folded as _folded
+from canair.ecus.files import find_by_tx
 from canair.profile.model import Profile
+from canair.states.tokens import parse_states
+from canair.uds.addressing import AddressingMode
+from canair.validation.schema_fields import load_schema
 
 from .doc import Doc, Target, edit_doc
 from .ecufile import clear_cache, schema_validator
@@ -75,7 +79,6 @@ def _flow_states(vehicle_states) -> CommentedSeq | None:
     per-ECU files, matching how the ``pids``/``research`` editors write the field.
     Returns ``None`` for an empty/absent value so the caller omits the key.
     """
-    from canair.states.tokens import parse_states
 
     toks = parse_states(vehicle_states)
     return flow_seq([state_token(t) for t in toks]) if toks else None
@@ -105,8 +108,6 @@ def _slug(name: str) -> str:
 
 
 def _allowed_identity_fields() -> set[str]:
-    from canair.validation.schema_fields import load_schema
-
     schema = load_schema()
     ident = schema.get("identity_fields", {}) or {}
     return set(ident.get("required", [])) | set(ident.get("optional", []))
@@ -123,7 +124,6 @@ def _check_fields(fields: dict) -> None:
 
 def _find_file_by_tx(tx_id: int, ecus_dir: Path) -> tuple[Path | None, str | None]:
     """Locate the ``ecus/<name>.yaml`` file whose ECU has ``tx_id``."""
-    from canair.ecus.files import find_by_tx
 
     return find_by_tx(tx_id, ecus_dir)
 
@@ -381,7 +381,6 @@ def _normalize_addressing_args(
 
     Raises :class:`EcusEditError` on an unknown mode or out-of-range byte/id.
     """
-    from canair.uds.addressing import AddressingMode
 
     if mode is not None:
         try:

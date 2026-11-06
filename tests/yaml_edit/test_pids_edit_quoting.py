@@ -165,7 +165,7 @@ class TestBothReadersCheck:
             def load(self, doc):
                 raise RuamelYAMLError("boom")
 
-        monkeypatch.setattr("canair.core.yaml_rt.round_trip_yaml", lambda: _Broken())
+        monkeypatch.setattr("canair.yaml_edit.text.round_trip_yaml", lambda: _Broken())
         assert _text._needs_key_quoting("2101")
         assert _text._yaml_reinterprets("plain")
 

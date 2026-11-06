@@ -13,12 +13,14 @@ from collections.abc import Callable
 from pathlib import Path
 
 from canair.core.edit_errors import EditError
+from canair.ecus.files import find_by_name
+from canair.ecus.pids import clear_cache as clear
 from canair.profile.model import Profile
+from canair.validation.pids import validate_pids_file
 
 
 def clear_cache() -> None:
     """Drop the memoized ECU-definition load (stale after any write to ``ecus/``)."""
-    from canair.ecus.pids import clear_cache as clear
 
     clear()
 
@@ -31,8 +33,6 @@ def schema_validator(error: type[EditError]) -> Callable[[Path], None]:
     """
 
     def validate(path: Path) -> None:
-        from canair.validation.pids import validate_pids_file
-
         ok, msg = validate_pids_file(path)
         if not ok:
             raise error(f"ECU file invalid after edit (reverted):\n{msg}")
@@ -48,7 +48,6 @@ def find_ecu_file(
     The write-target resolver for every name-keyed editor. An edit must never invent a
     definition file: that is ``canair ecu add``'s job.
     """
-    from canair.ecus.files import find_by_name
 
     fpath = find_by_name(ecu_name, ecus_dir, profile=profile)
     if fpath is None:
