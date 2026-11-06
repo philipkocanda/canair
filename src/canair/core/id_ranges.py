@@ -52,7 +52,7 @@ def as_id_ranges(value: IdRange | Sequence[IdRange]) -> tuple[IdRange, ...]:
     if isinstance(value[0], int):
         pair = cast(IdRange, value)
         return ((pair[0], pair[1]),)
-    return tuple((start, end) for start, end in cast(Sequence[IdRange], value))
+    return tuple((start, end) for start, end in value)
 
 
 def iter_ids(ranges: Sequence[IdRange]) -> Iterator[int]:

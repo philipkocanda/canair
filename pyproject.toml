@@ -49,7 +49,7 @@ dev = [
     "pytest-asyncio>=1.4",
     "pytest-xdist>=3.6",
     "ruff>=0.17",
-    "ty>=0.0.1a1",
+    "ty>=0.0.99",
 ]
 docs = [
     # Capped below 10 deliberately. The MkDocs ecosystem is splitting: MkDocs 2.0
