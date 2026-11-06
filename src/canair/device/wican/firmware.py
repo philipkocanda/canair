@@ -28,6 +28,9 @@ from typing import Literal, TextIO
 
 import requests
 
+from canair.config.devices import fallback_settings
+from canair.config.transport import firmware_check_mode
+
 Generation = Literal["v4", "v6", "unknown"]
 Gate = Literal["auth", "untrusted"]
 Level = Literal["ok", "note", "warn", "refuse", "skip"]
@@ -342,7 +345,6 @@ def probes(surface: Surface) -> bool:
     probed only when the check is ``always``; every other surface reaches a
     WiCAN's HTTP API and is probed unless the check is off.
     """
-    from canair.config.transport import firmware_check_mode
 
     mode = firmware_check_mode()
     if mode == "off":
@@ -358,8 +360,6 @@ def detect(host: str, surface: Surface, *, timeout: float | None = None) -> Firm
     if not probes(surface):
         return UNKNOWN
     if timeout is None:
-        from canair.config.devices import fallback_settings
-
         _, timeout, _ = fallback_settings()
     return probe(host, timeout=timeout)
 

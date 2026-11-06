@@ -25,6 +25,8 @@ from dataclasses import dataclass, field
 from datetime import date as _date
 
 from canair.expression import evaluate_expression
+from canair.uds.byteindex import NotAFrameError, declared_payload_len, framed_to_wican_frame
+from canair.uds.layout import layout_of
 
 # Param `type:` values (mirror src/canair/schema/pids_schema.yaml valid_param_types).
 NUMERIC = "numeric"
@@ -199,7 +201,6 @@ def _data_run(wican_bytes: bytes, lo: int, hi: int) -> bytes:
     frame) buffers are both exact — no length guessing. Trailing CAN-frame padding
     is dropped by comparing against the PCI's declared payload length.
     """
-    from canair.uds.byteindex import NotAFrameError, declared_payload_len, framed_to_wican_frame
 
     try:
         frame = framed_to_wican_frame(list(wican_bytes))
@@ -242,8 +243,6 @@ def _payload_slice_for_type(wican_bytes: bytes, param: dict) -> bytes:
         lo, hi = int(m.group(1)), int(m.group(2))
         if 0 <= lo <= hi < len(wican_bytes):
             return _data_run(wican_bytes, lo, hi)
-
-    from canair.uds.layout import layout_of
 
     data = _data_run(wican_bytes, 0, len(wican_bytes) - 1)
     if not data:

@@ -1,8 +1,11 @@
 # Code organization, part 2: deferred imports
 
-Status: **IN PROGRESS** (2026-11-06): steps 1 and 2 and the tooling are done, the pilot is next to
-the "As built" section below. Originally **PROPOSED** (2026-11-05). Part of
+Status: **IN PROGRESS** (2026-11-06). Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 1.
+Steps 1 and 2, the hoisting tool and the pilot (`core`, `config`, `uds`, `expression`, `safety`,
+`device`) are done. Function-level imports of canair modules: 950 -> 932, of which `loaded`
+697 -> 683, `heavy` 4, `cycle` 3, `other` 246 -> 242, and none has a `# deferred:` reason yet
+(see "As built"). The other packages are open.
 
 ## Goal
 
@@ -159,3 +162,68 @@ after step 4. If `canair --help` is over 0.4 s, write a separate plan for the re
   and the per-package import check find most cases.
 - **Order-dependent test failures.** The layout handoff describes them. If a full run fails and
   the failing test passes alone, bisect the worker's file order.
+
+## As built
+
+Measured on `48cdafab` (before) and after the pilot commit. The numbers differ from the findings
+above because the scan now counts only imports inside a function (950; the old ceiling also counts
+75 imports under `TYPE_CHECKING`, in module-level `try`/`if` blocks and in class bodies), and
+because the tree moved since `0ce4f742`. Building the parser loads 536 of 654 modules.
+
+| package | loaded | heavy | cycle | other | total | after the pilot (total) |
+|---|---:|---:|---:|---:|---:|---:|
+| cli | 298 | 4 | 1 | 144 | 447 | 447 |
+| live | 111 | 0 | 0 | 35 | 146 | 146 |
+| validation | 46 | 0 | 0 | 13 | 59 | 59 |
+| yaml_edit | 34 | 0 | 0 | 18 | 52 | 52 |
+| dtc | 25 | 0 | 0 | 12 | 37 | 37 |
+| captures | 27 | 0 | 1 | 8 | 36 | 36 |
+| analysis | 19 | 0 | 1 | 4 | 24 | 24 |
+| transport | 20 | 0 | 0 | 2 | 22 | 22 |
+| ecus | 18 | 0 | 0 | 2 | 20 | 20 |
+| contribute | 15 | 0 | 0 | 2 | 17 | 17 |
+| variants | 14 | 0 | 0 | 1 | 15 | 15 |
+| install | 11 | 0 | 0 | 2 | 13 | 13 |
+| tui | 12 | 0 | 0 | 1 | 13 | 13 |
+| actions | 9 | 0 | 0 | 1 | 10 | 10 |
+| device | 8 | 0 | 0 | 0 | 8 | **0** |
+| expression | 5 | 0 | 0 | 0 | 5 | **0** |
+| privacy | 5 | 0 | 0 | 0 | 5 | 5 |
+| states | 5 | 0 | 0 | 0 | 5 | 5 |
+| query | 4 | 0 | 0 | 0 | 4 | 4 |
+| config | 2 | 0 | 0 | 0 | 2 | **0** |
+| migrations | 2 | 0 | 0 | 0 | 2 | 2 |
+| profile | 2 | 0 | 0 | 0 | 2 | 2 |
+| render | 2 | 0 | 0 | 0 | 2 | 2 |
+| safety | 1 | 0 | 0 | 1 | 2 | **0** |
+| broadcast | 1 | 0 | 0 | 0 | 1 | 1 |
+| uds | 1 | 0 | 0 | 0 | 1 | **0** |
+| **total** | **697** | **4** | **3** | **246** | **950** | **932** |
+
+- `core/` had none. The pilot moved 17 `loaded` imports in 8 files, plus one `other` by hand:
+  `safety/blocklist.py` imported `safety.quirks`, which the parser build does not load but which
+  costs 0.7 ms (it imports only `uds`). No deferred import is left in those six packages, so none
+  needed a `# deferred:` comment.
+- The gate counts: `deferred_internal_imports` 1,025 -> 1,007, `deferred_imports_without_reason`
+  950 -> 932 (the new ceiling started at 950).
+- Start-up, 40 alternating runs of `python -m canair --help` on a loaded machine: median 243.9 ms
+  before, 243.7 ms after. The set of modules the parser build loads is identical except for
+  `canair.safety.quirks`. `import canair.cli` takes about 27.5 ms in both.
+- The three `cycle` imports fail for real in a fresh interpreter
+  (`analysis/physical/bands.py`, `captures/save.py`, `cli/commands/investigate/support_map.py`). 22
+  more `loaded` imports (`~` in `--files`) would make a module-level cycle that still imports:
+  `cli/__init__.py`, the `cli/commands/{captures,dtc,import_uds,investigate,research}` packages
+  importing their own submodules, `profile/__init__.py`, `live/monitor/controller.py` and four
+  `transport` modules. Hoist them last, one package at a time, with the fresh-import check.
+- `heavy` is only the four `cli` imports of a `tui/apps/*` Textual app. The 242 `other` imports
+  are mostly modules that the parser build does not load (`dtc/log`, the `live/` runners, the
+  `yaml_edit` editors). For each, measure the cost (`python -X importtime`) before commenting it
+  or hoisting it. 55 of the `other` sit in a `try` block; the tool never moves those.
+- Applying the tool to the whole tree in a scratch run proposes 676 hoists in 224 files. The
+  suite failed in 8 tests after the pilot alone, all of one kind: a test patched the old
+  location of a hoisted name (`config.devices.fallback_settings`, `config.file.load_config`,
+  `config.transport.firmware_check_mode`). The tool's `patch targets` list names those lines.
+  Whoever hoists a package fixes the tests in the same commit.
+- Not done: steps 3 to 7 for the 26 packages above, the `# deferred:` comments, the `cycle`
+  listings in sub-plans 3, 4 and 6 and lowering the ceilings to the end state. Decision A (a lazy
+  command registry) stays open: `canair --help` takes about 0.24 s.

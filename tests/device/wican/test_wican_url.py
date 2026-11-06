@@ -12,6 +12,7 @@ import argparse
 
 import pytest
 
+from canair.device.wican import api as wican_api
 from canair.device.wican.api import resolve_wican_url
 
 _CONFIG = {
@@ -27,6 +28,7 @@ def config(monkeypatch):
 
     def install(data: dict):
         monkeypatch.setattr(cfg_file, "load_config", lambda: data)
+        monkeypatch.setattr(wican_api, "load_config", lambda: data)
         monkeypatch.setattr(cfg_devices, "load_config", lambda: data)
 
     install(_CONFIG)

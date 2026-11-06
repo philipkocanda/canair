@@ -36,6 +36,8 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Final
 
 from canair.core.prompt import typed_confirm
+from canair.safety.quirks import allowed_session_modes
+from canair.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 from canair.uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol, classify_protocol
 from canair.uds.services import DIAGNOSTIC_SESSION_CONTROL, ROUTINE_CONTROL, TESTER_PRESENT_REQUEST
 from canair.uds.subfunctions import (
@@ -259,8 +261,6 @@ class SessionPolicy:
     @classmethod
     def from_profile(cls, pids_data: Mapping[str, Any] | None) -> SessionPolicy:
         """Build the policy from loaded profile data (``ecus`` + ``quirks``)."""
-        from canair.safety.quirks import allowed_session_modes
-
         protocols: dict[int, DiagProtocol] = {}
         ecus = (pids_data or {}).get("ecus") or {}
         for ecu_def in ecus.values() if isinstance(ecus, Mapping) else ():
@@ -331,7 +331,6 @@ def functional_block(
     reaches the bus, so it is judged without it. ``--unsafe`` cannot lift this
     refusal; an exact grant (:meth:`SessionPolicy.granting`) can.
     """
-    from canair.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 
     if tx_id not in (FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID):
         return None

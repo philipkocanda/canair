@@ -15,6 +15,10 @@ from typing import Literal
 
 import requests
 
+from canair.config.devices import wican_devices
+from canair.config.file import load_config
+from canair.device.wican.firmware import check, print_verdict
+
 
 def resolve_wican_url(wican: str | None = None) -> str:
     """Base HTTP URL for a ``--wican`` value, resolved the way live commands do.
@@ -25,8 +29,6 @@ def resolve_wican_url(wican: str | None = None) -> str:
     given does the selection fall back to ``transport.host``, then the
     ``default_wican`` device.
     """
-    from canair.config.devices import wican_devices
-    from canair.config.file import load_config
 
     if wican and wican.startswith(("http://", "https://")):
         return wican.rstrip("/")
@@ -95,7 +97,6 @@ def reboot_device(host: str, *, timeout: float = 5) -> RebootOutcome:
     policy note is printed), ``failed`` when the request errored or the device
     refused it, ``rebooted`` only when the device accepted it.
     """
-    from canair.device.wican.firmware import check, print_verdict
 
     base = host.rstrip("/") if host.startswith(("http://", "https://")) else f"http://{host}"
     verdict = check(base, "reboot")

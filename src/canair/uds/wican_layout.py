@@ -15,6 +15,8 @@ the final consecutive frame — matching the on-wire firmware buffer, where ever
 CAN frame carries a full 8 data bytes.
 """
 
+from canair.uds.byteindex import payload_to_wican_bytes
+
 
 def uds_hex_to_wican_bytes(hex_str: str) -> bytes:
     """Convert a reassembled UDS payload to the WiCAN AutoPID byte layout.
@@ -33,7 +35,6 @@ def uds_hex_to_wican_bytes(hex_str: str) -> bytes:
     PCI-stripped payload does not. Single-frame responses (≤7 UDS bytes) are not
     padded.
     """
-    from canair.uds.byteindex import payload_to_wican_bytes
 
     wican = bytearray(payload_to_wican_bytes(hex_str))
     payload_len = len(hex_str.replace(" ", "")) // 2

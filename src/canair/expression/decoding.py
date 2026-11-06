@@ -15,6 +15,17 @@ from functools import lru_cache
 from typing import Any
 
 from canair.expression import evaluate_expression
+from canair.expression.decode_value import (
+    ASCII,
+    BCD,
+    BITMASK,
+    DATE,
+    ENUM,
+    NUMERIC,
+    STRUCT,
+    decode_typed,
+    render,
+)
 from canair.uds.byteindex import extract_bit_indices, extract_byte_indices
 from canair.uds.wican_layout import uds_hex_to_wican_bytes
 
@@ -40,7 +51,6 @@ def decodes_to_number(param_def: Mapping[str, Any] | None) -> bool:
     Lives here beside :data:`ParamRow` because this is the invariant the decoders
     below implement; callers that check it themselves drift from it silently.
     """
-    from canair.expression.decode_value import ASCII, DATE, NUMERIC, STRUCT
 
     pdef = param_def or {}
     if str(pdef.get("type") or NUMERIC).lower() in (ASCII, DATE, STRUCT):
@@ -120,15 +130,6 @@ def _decode_typed_rows(payload_hex: str, ordered: list[tuple[str, Any]]) -> list
     slot — rendering as ``{raw} ({label})``, consistent with the ``display:``
     based flags already shown in these views. Numeric params behave as before.
     """
-    from canair.expression.decode_value import (
-        BCD,
-        BITMASK,
-        DATE,
-        ENUM,
-        NUMERIC,
-        decode_typed,
-        render,
-    )
 
     try:
         wican_bytes = uds_hex_to_wican_bytes(payload_hex)
@@ -230,7 +231,6 @@ def decode_payload(wican_bytes: bytes, parameters: dict) -> dict[str, dict]:
     nominal key for categorical stats). ``value`` stays the raw float so every
     numeric consumer (min/max/corr/stats) is unaffected.
     """
-    from canair.expression.decode_value import decode_typed, render
 
     results: dict[str, dict] = {}
     for name, param in parameters.items():

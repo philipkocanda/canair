@@ -8,6 +8,7 @@ from pathlib import Path
 
 from canair.core import yaml_io
 from canair.core.paths import CONFIG_FILE, config_dir
+from canair.core.yaml_rt import dump, round_trip_yaml
 
 
 def user_config_file() -> Path:
@@ -120,8 +121,6 @@ def set_config_key(key: str, value) -> Path:
     """
     from ruamel.yaml.comments import CommentedMap
 
-    from canair.core.yaml_rt import dump, round_trip_yaml
-
     ensure_config_dir()
     path = user_config_file()
     text = path.read_text() if path.exists() else ""
@@ -165,7 +164,6 @@ def unset_config_key(key: str) -> tuple[Path, bool]:
     Returns ``(path, removed)`` where ``removed`` is False if the key was
     absent. Comments and formatting are preserved.
     """
-    from canair.core.yaml_rt import dump, round_trip_yaml
 
     path = user_config_file()
     if not path.exists():

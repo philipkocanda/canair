@@ -147,7 +147,10 @@ needs a plan that names its layer.
    `tests/support/`. A test module never imports another test module.
 7. **A new module stays under 500 lines.** Split a growing one by concern in the same change.
 8. **A deferred (function-level) import needs a reason**: a measured start-up cost or an optional
-   dependency, said in a comment. A deferral that only hides a cycle is a layering bug.
+   dependency, said in a `# deferred: <reason>` comment on the line or just above it. A deferral
+   that only hides a cycle is a layering bug (`# deferred: cycle with <package>, see
+   plans/<plan>.md` while that plan is open). `import_graph.py --deferred` classifies them and
+   `scripts/dev/hoist_deferred.py` hoists the ones that cost no start-up time.
 9. **A move is mechanical and alone**: `git mv` plus a codemod, one package per commit, no
    compatibility aliases, no logic change.
 
@@ -173,7 +176,7 @@ charter or move.
 | Gate | Catches | Runs |
 |---|---|---|
 | `uv run lint-imports` (`[tool.importlinter]` in `pyproject.toml`) | a wrong-way import, `argparse` or `textual` outside the interface, the protocol layer reaching a data store | pre-commit, CI |
-| `tests/contracts/test_structure.py` | a new root module, a module over the size limit, more deferred imports, more `ignore_imports` entries, a package without a charter, a test importing a test, a protocol byte written as a literal | `pytest`, CI |
+| `tests/contracts/test_structure.py` | a new root module, a module over the size limit, more deferred imports, more deferred imports without a `# deferred:` reason, more `ignore_imports` entries, a package without a charter, a test importing a test, a protocol byte written as a literal | `pytest`, CI |
 | `scripts/check/import_graph.py` | trend numbers: import cycles between packages, deferred imports, root modules, oversized modules | on request |
 | `scripts/check/protocol_literals.py` | each protocol byte (service ID, NRC, response marker, sub-function, canned request) written as a literal outside `uds/services.py`, `uds/nrc.py` and `uds/subfunctions.py` | on request, and through `test_structure.py` |
 

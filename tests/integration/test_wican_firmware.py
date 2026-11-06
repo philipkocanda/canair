@@ -210,17 +210,14 @@ class TestProbe:
 
 class TestDetect:
     def test_disabled_check_sends_nothing(self, device, monkeypatch):
-        from canair.config import transport as cfg_transport
 
         seen = device({"/api/info": FakeResponse(200, dict(_V6_INFO))})
-        monkeypatch.setattr(cfg_transport, "firmware_check_mode", lambda: "off")
+        monkeypatch.setattr(wf, "firmware_check_mode", lambda: "off")
         for surface in ("wican-ws", "slcan-tcp", "elm327-tcp", "autopid-sync"):
             assert wf.detect("192.0.2.1", surface).generation == "unknown"
         assert seen == []
 
     def test_uses_the_connect_timeout(self, monkeypatch):
-        from canair.config import devices as cfg_devices
-        from canair.config import transport as cfg_transport
 
         got = {}
 
@@ -229,28 +226,26 @@ class TestDetect:
             raise requests.ConnectionError
 
         monkeypatch.setattr(wf, "_fetch", fetch)
-        monkeypatch.setattr(cfg_transport, "firmware_check_mode", lambda: "on")
-        monkeypatch.setattr(cfg_devices, "fallback_settings", lambda: (True, 7.5, None))
+        monkeypatch.setattr(wf, "firmware_check_mode", lambda: "on")
+        monkeypatch.setattr(wf, "fallback_settings", lambda: (True, 7.5, None))
         wf.detect("192.0.2.1", "slcan-tcp")
         assert got["timeout"] == 7.5
 
     @pytest.mark.parametrize(("mode", "probed"), [("on", False), ("always", True), ("off", False)])
     def test_elm327_tcp_is_probed_only_when_asked(self, device, monkeypatch, mode, probed):
         """It is usually a clone with no HTTP server: a default probe cost a timeout."""
-        from canair.config import transport as cfg_transport
 
         seen = device({"/api/info": FakeResponse(200, dict(_V6_INFO))})
-        monkeypatch.setattr(cfg_transport, "firmware_check_mode", lambda: mode)
+        monkeypatch.setattr(wf, "firmware_check_mode", lambda: mode)
         info = wf.detect("192.0.2.1", "elm327-tcp")
         assert (info.generation == "v6") is probed
         assert bool(seen) is probed
 
     @pytest.mark.parametrize("surface", ["wican-ws", "slcan-tcp", "wican-mode", "reboot"])
     def test_wican_surfaces_are_probed_by_default(self, device, monkeypatch, surface):
-        from canair.config import transport as cfg_transport
 
         device({"/api/info": FakeResponse(200, dict(_V6_INFO))})
-        monkeypatch.setattr(cfg_transport, "firmware_check_mode", lambda: "on")
+        monkeypatch.setattr(wf, "firmware_check_mode", lambda: "on")
         assert wf.detect("192.0.2.1", surface).generation == "v6"
 
 
@@ -577,25 +572,23 @@ class TestLiveSurfaces:
 
     def test_elm327_tcp_is_not_probed_by_default(self, monkeypatch, capsys):
         from canair.cli.live import runtime
-        from canair.config import transport as cfg_transport
 
         calls: list = []
         _elm_session(monkeypatch, "elm327-tcp", calls=calls)
         seen = []
         monkeypatch.setattr(wf, "probe", lambda host, *, timeout: seen.append(host) or V6)
-        monkeypatch.setattr(cfg_transport, "firmware_check_mode", lambda: "on")
+        monkeypatch.setattr(wf, "firmware_check_mode", lambda: "on")
         assert asyncio.run(runtime.async_main(_live_args(), _operation())) == 0
         assert seen == []
         assert "AutoPID" not in capsys.readouterr().err
 
     def test_elm327_tcp_note_when_opted_in(self, monkeypatch, capsys):
         from canair.cli.live import runtime
-        from canair.config import transport as cfg_transport
 
         calls: list = []
         _elm_session(monkeypatch, "elm327-tcp", calls=calls)
         monkeypatch.setattr(wf, "probe", lambda host, *, timeout: V6)
-        monkeypatch.setattr(cfg_transport, "firmware_check_mode", lambda: "always")
+        monkeypatch.setattr(wf, "firmware_check_mode", lambda: "always")
         assert asyncio.run(runtime.async_main(_live_args(), _operation())) == 0
         err = capsys.readouterr().err
         assert err.startswith("note: ") and "AutoPID" in err
@@ -810,10 +803,9 @@ class TestLiveSurfaces:
     ):
         """Unknown used to pass silently, though it may well be a v6 WiCAN."""
         from canair.cli.commands import sniff
-        from canair.config import transport as cfg_transport
 
         ran = self._sniff(monkeypatch)
-        monkeypatch.setattr(cfg_transport, "firmware_check_mode", lambda: mode)
+        monkeypatch.setattr(wf, "firmware_check_mode", lambda: mode)
         assert sniff.run(self._sniff_args(listen_only=True)) == 0
         assert ran  # a warning, not a refusal
         err = capsys.readouterr().err
@@ -911,10 +903,9 @@ class TestWicanCommandSurfaces:
         """Unknown used to pass silently; it warns, but still uploads (no lock-out)."""
         from canair.cli.commands.wican import autopid
         from canair.config import devices as cfg_devices
-        from canair.config import transport as cfg_transport
 
         monkeypatch.setattr(cfg_devices, "wican_model", lambda: "pro")
-        monkeypatch.setattr(cfg_transport, "firmware_check_mode", lambda: mode)
+        monkeypatch.setattr(wf, "firmware_check_mode", lambda: mode)
         monkeypatch.setattr(wf, "probe", lambda host, *, timeout: info)
         uploaded: list = []
         monkeypatch.setattr(autopid, "upload_profile", lambda *a, **k: uploaded.append(a))
@@ -953,6 +944,7 @@ class TestStatusSurface:
                 "canair.transport.resolve_transport_candidates", lambda args: [cand]
             )
             monkeypatch.setattr("canair.transport.select_reachable_transport", lambda c, **k: c[0])
+            monkeypatch.setattr(wf, "firmware_check_mode", lambda: mode)
             monkeypatch.setattr(cfg_transport, "firmware_check_mode", lambda: mode)
 
             def _probe(host, *, timeout):
