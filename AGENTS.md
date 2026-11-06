@@ -155,9 +155,9 @@ assume.
   profile highlights, license, warning. **Detail does not belong here**; sections link into `docs/`.
   It was deliberately trimmed (311→143 lines) — keep it lean.
 - **`docs/` carries the detail** — task-first, for new-car users and profile contributors:
-  `getting-started/`, `bring-your-own-car/`, `concepts/`, `reference/`, `contributing/` (contribute
-  a profile) and `development/` (change canair's code). `docs/reference/cli/` is **generated** from
-  `--help` (`python3 scripts/gen/gen_cli_reference.py`; CI checks it) — never hand-edit it.
+  `getting-started/`, `bring-your-own-car/`, `concepts/`, `reference/`, `contributing/` (share a
+  profile), `development/` (change the code). `docs/reference/cli/` is **generated** from `--help`,
+  never hand-edited: give each new flag and argument help text, run `scripts/gen/gen_cli_reference.py`.
 - **This file** carries the agent-facing rules and the maps. Where a fact is authoritative
   elsewhere (`--help`, `config.example.yaml`, `src/canair/schema/`, a plan doc, a docstring),
   **point at it instead of copying it**.

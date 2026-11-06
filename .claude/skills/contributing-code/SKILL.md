@@ -171,6 +171,12 @@ parser defines every `args.x` its handler reads directly (use `getattr` for an o
 
 Follow an existing command as a template: `cli/commands/dtc/` + `live/dtc/`.
 
+**Every flag, positional argument and subcommand needs help text** (`help=`), so `--help` and the
+generated reference say what it takes. A hidden flag is the one exception, and says so with
+`help=argparse.SUPPRESS`. When you add, rename or remove a flag or subcommand, also fix the
+description and epilog text that names it (example lines, `Subcommands:` lists, cross-references),
+then regenerate `docs/reference/cli/` with `uv run python scripts/gen/gen_cli_reference.py`.
+
 ## Selecting ECUs/PIDs — prefer the query mini-language
 
 When a command needs the user to name what to act on, **take a positional QUERY in the shared
@@ -446,6 +452,7 @@ uv run ruff check . && uv run ruff format --check .
 uv run ty check                  # src/canair/ — must be clean
 make structure                   # import contracts + structure gates (seconds)
 uv run canair <yourcmd> --help   # parser sane
+uv run python scripts/gen/gen_cli_reference.py   # if you touched a parser; --check is what CI runs
 uv run canair validate all       # if you touched ecus/captures/schema
 ```
 
