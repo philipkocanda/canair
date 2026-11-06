@@ -89,6 +89,89 @@
       "captures": [
         {"rx":"0x7A8","pid":"22F189","response":"NRC 0x31 (requestOutOfRange)"}
       ]
+    },
+    {
+      "date": "2026-11-06",
+      "label": "IGPM BC44 IG3 test",
+      "version": "5.1.0+main.5ba9a32",
+      "vehicle_states": [
+        "PLUGGED"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 14
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x778","pid":"22BC07","payload":"62BC070841FBCC00001900","time":"23:21:19.699","elapsed_ms":53},
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009219047063B03000000003562000620","time":"23:21:19.944","elapsed_ms":123},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFAC1A3326482000000F2C070607070706070006CA3DCA0A0000790005925D00058F6D000205070001F44A0162648E0900020000000003E8","time":"23:21:20.194","elapsed_ms":145},
+        {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF800000A38017102CB000073038000BC04AD4100000000000003E8720000000001F4022E01FE0000","time":"23:21:20.452","elapsed_ms":141},
+        {"rx":"0x7EB","pid":"2102","payload":"610207FFFFFF0000000000001C0001050707F8FFF5FF7DD6CDABC2CD7F00700031005A09F726F606C1CD0900203200000000000000000000","time":"23:21:20.711","elapsed_ms":142},
+        {"rx":"0x7EE","pid":"2180","payload":"6180C366C00021130000000000145900332B00007213007C7C","time":"23:21:20.966","elapsed_ms":145},
+        {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF5E595A00EF7EFFFF7EFF10FFFFFFFFFFFFFFFFFF00EF5C5C00FFFF00FFFF","time":"23:21:21.246","elapsed_ms":143}
+      ]
+    },
+    {
+      "date": "2026-11-06",
+      "label": "IGPM BC44 IG3 test",
+      "version": "5.1.0+main.5ba9a32",
+      "vehicle_states": [
+        "PLUGGED"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 12
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x778","pid":"22BC07","payload":"62BC070841FBCC00001100","time":"23:22:38.430","elapsed_ms":61},
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009219042063903000000000B62000620","time":"23:22:38.632","elapsed_ms":92},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFAC1A3326482000000F2C070606070706070006CA3DCA010000790005925D00058F6D000205070001F44A016264DD0900020000000003E8","time":"23:22:38.881","elapsed_ms":142},
+        {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF800000A6B017802D1000073038000BC04AB4100000000000003E8720000000001F4022E01FF0000","time":"23:22:39.099","elapsed_ms":113},
+        {"rx":"0x7EB","pid":"2102","payload":"610207FFFFFF0000000000001C0001050707F8FFF5FF7DD6CDABC2CD7F00700031005A09F726F606C1CD09004A3200000000000000000000","time":"23:22:39.385","elapsed_ms":152},
+        {"rx":"0x7EE","pid":"2180","payload":"6180C366C00021130000000000145900332B00007213007C7C","time":"23:22:39.650","elapsed_ms":151},
+        {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF5E595A00EF7EFFFF7EFF10FFFFFFFFFFFFFFFFFF00EF5C5C00FFFF00FFFF","time":"23:22:39.898","elapsed_ms":134}
+      ]
+    },
+    {
+      "date": "2026-11-06",
+      "label": "IGPM BC44 IG3 test",
+      "version": "5.1.0+main.5ba9a32",
+      "vehicle_states": [
+        "PLUGGED"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 25,
+        "no_data": 15
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"22BC07","payload":"62BC070841FBCC00001100","time":"23:24:06.263","elapsed_ms":50},
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009218047063B03000000005863000620","time":"23:24:06.503","elapsed_ms":103}
+      ]
     }
   ]
 }
