@@ -11,6 +11,7 @@ from canair.profile.model import Profile
 from canair.render import ansi
 from canair.render.glyphs import ELLIPSIS
 from canair.render.paint import INDENT, Cell, Painter, column_widths, render_row
+from canair.transport.stats import client_transport
 from canair.uds.addressing import (
     DEFAULT_MODE,
     AddressingMode,
@@ -18,6 +19,7 @@ from canair.uds.addressing import (
     is_extended,
 )
 from canair.uds.services import DEFAULT_SESSION_REQUEST
+from canair.yaml_edit.ecu import EcusEditError, register_ecu
 
 from ...captures.build import build_discover_session, suggest_discover_label
 from ...captures.save import save_session_journaled
@@ -25,6 +27,7 @@ from ...ecus.registry import load_ecus, rx_for_tx
 from ...render.discover import ABSENT, POSITIVE, PROBE_FAILED, REFUSED, status_cell
 from ...render.progress import ProgressLine
 from ...transport.protocol import Terminal
+from ..identity.read import mode_identity
 
 # Standard tester/source address used to form 29-bit physical request ids
 # (0x18DA{target}{tester}); F1 is the ISO 15765-4 external-tester address.
@@ -243,8 +246,6 @@ async def mode_discover(
 
     # Auto-save to captures
     if save and alive:
-        from canair.transport.stats import client_transport
-
         enriched = []
         for tx_id_val, status, detail in alive:
             name = names.get(tx_id_val)
@@ -325,9 +326,6 @@ async def _offer_identify(
     ):
         return
 
-    # Local import avoids a module-load cycle (identity imports from ecus/decode).
-    from ..identity.read import mode_identity
-
     for tx_id, _status, _detail in alive:
         await mode_identity(
             terminal, tx_id, session=False, wake=False, as_json=False, profile=profile
@@ -375,8 +373,6 @@ def _register_discovered(
             say(f"{INDENT}{fmt_id(tx)} -> Unknown-{tx:03X}  {paint(f'({status})', ansi.raw.DIM)}")
         say(paint("  (dry-run — nothing written)", ansi.raw.DIM))
         return
-
-    from canair.yaml_edit.ecu import EcusEditError, register_ecu
 
     today = date.today().isoformat()
     added = 0

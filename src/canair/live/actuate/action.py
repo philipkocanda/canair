@@ -29,9 +29,15 @@ from typing import Any
 from canair.actions import Action, ActionError
 from canair.actions.plan import PlannedRequest, action_policy, plan_requests
 from canair.core.prompt import typed_confirm
+from canair.ecus.pids import build_ecu_index
+from canair.live.read.exec import _exec_query
 from canair.profile.model import Profile
+from canair.query import parse_selector
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
+from canair.states.predicates import UNKNOWN, compile_predicate, predicate_references
+from canair.states.suggest import collect_values
 from canair.transport.protocol import Terminal
+from canair.transport.session_manager import SessionManager
 
 # How long a request that expects no reply waits before it counts as sent.
 _NO_RESPONSE_WAIT_S = 1.0
@@ -55,11 +61,6 @@ async def read_verdict(
     sm, action: Action, pids_data: dict, verbose: bool, *, profile: Profile
 ) -> Verdict:
     """Read the action's ``reads`` live and evaluate ``require`` on them."""
-    from canair.ecus.pids import build_ecu_index
-    from canair.live.read.exec import _exec_query
-    from canair.query import parse_selector
-    from canair.states.predicates import UNKNOWN, compile_predicate, predicate_references
-    from canair.states.suggest import collect_values
 
     index = build_ecu_index(pids_data)
     frames = []
@@ -158,7 +159,6 @@ async def mode_action(
 ) -> None:
     """Check, confirm and send one profile action (see the module docstring)."""
     from canair.actions import load_actions
-    from canair.transport.session_manager import SessionManager
 
     out = sys.stderr if as_json else sys.stdout
     actions = load_actions(profile=profile)

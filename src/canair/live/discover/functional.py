@@ -22,14 +22,18 @@ from typing import Any, TextIO
 from canair.captures.build import build_manual_session
 from canair.captures.metadata import resolve_metadata
 from canair.captures.save import save_session_journaled
+from canair.ecus.registry import load_ecus
 from canair.profile.model import Profile
 from canair.render import ansi, messages
 from canair.render.paint import GAP, INDENT, Cell, Painter, column_widths, render_row
 from canair.transport.functional import DEFAULT_WINDOW_S
 from canair.transport.protocol import Terminal
+from canair.transport.stats import client_transport
+from canair.uds.addressing import functional_request_id, resolve_mode, resolve_rx_offset
 from canair.uds.services import TESTER_PRESENT_REQUEST
 
 from ...render.discover import NO_ANSWER, POSITIVE, REFUSED, status_cell
+from .physical import _offer_identify, _register_discovered
 from .sweep import (
     NOT_IN_PROFILE,
     UNKNOWN_BUS,
@@ -150,8 +154,6 @@ async def mode_discover_functional(
     profile: Profile,
 ) -> list[SweepRound]:
     """Broadcast ``request`` ``repeat`` times and report every responder."""
-    from canair.ecus.registry import load_ecus
-    from canair.uds.addressing import functional_request_id, resolve_mode, resolve_rx_offset
 
     if interval < MIN_INTERVAL_S:
         raise ValueError(f"--interval must be at least {MIN_INTERVAL_S:g} s")
@@ -211,7 +213,6 @@ async def mode_discover_functional(
     for sweep in rounds:
         for r in sweep.responders:
             alive.setdefault(r.tx_id, (r.tx_id, r.status, r.payload_hex))
-    from .physical import _offer_identify, _register_discovered
 
     if register:
         _register_discovered(
@@ -237,8 +238,6 @@ def _save(
     *,
     profile: Profile,
 ) -> None:
-    from canair.transport.stats import client_transport
-
     suggested = f"Functional discovery {request}"
     meta = resolve_metadata(label, vehicle_states, notes, suggested_label=suggested)
     if not meta:
