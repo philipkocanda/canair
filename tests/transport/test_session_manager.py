@@ -222,7 +222,7 @@ class TestMarkActive:
         sm._sessions[0x7E2] = time.monotonic() - 10  # stale before the poll
         sm.mark_active(0x7E2)  # simulate a successful read
         await sm.keepalive_stale(threshold=1.5)
-        assert ("send_command", "3E00") not in t.calls
+        assert ("send_uds", "3E00") not in t.calls
 
 
 # --- background keepalive ---

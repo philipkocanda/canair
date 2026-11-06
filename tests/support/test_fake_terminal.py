@@ -4,6 +4,8 @@ Guards the fake's documented surface so it doesn't silently drift from the real
 terminals it stands in for (WiCANTerminal / RawTerminal).
 """
 
+import asyncio
+
 import pytest
 
 from tests.support.fakes import NO_DATA, FakeTerminal, nrc, ok
@@ -81,3 +83,35 @@ class TestSurface:
         t = FakeTerminal(send_command_reply="7E 00")
         assert await t.send_command("3E00") == "7E 00"
         assert ("send_command", "3E00") in t.calls
+
+
+class TestSerialize:
+    """``serialize`` lets a test show which header a request really went to."""
+
+    @staticmethod
+    def _keepalive(t: FakeTerminal):
+        async def run():
+            async with t.transaction():
+                await t.set_header(0x7A5)
+                await t.send_uds("3E00")
+
+        return run
+
+    @pytest.mark.asyncio
+    async def test_an_intruder_re_points_an_unguarded_request(self):
+        t = FakeTerminal(serialize=True)
+        t.intrude(self._keepalive(t))
+        await t.set_header(0x770)
+        await t.send_uds("22BC03")
+        await asyncio.gather(*t.intruder_tasks)
+        assert (0x7A5, "22BC03") in t.addressed
+
+    @pytest.mark.asyncio
+    async def test_a_transaction_keeps_the_intruder_out(self):
+        t = FakeTerminal(serialize=True)
+        t.intrude(self._keepalive(t))
+        async with t.transaction():
+            await t.set_header(0x770)
+            await t.send_uds("22BC03")
+        await asyncio.gather(*t.intruder_tasks)
+        assert t.addressed == [(0x770, "22BC03"), (0x7A5, "3E00")]

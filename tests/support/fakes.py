@@ -28,6 +28,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from canair.safety.blocklist import SessionPolicy
 from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
@@ -72,10 +74,18 @@ class FakeTerminal:
         session_result: what ``enter_extended_session`` returns (default
             ``(True, None)``).
         key_by_header: look responses up by ``(current_header, request)``.
+        serialize: model the ELM327 engine's locking. Each command holds a lock,
+            ``transaction()`` holds it across several (re-entrant per task), and every
+            command yields to the event loop, so a concurrent task can interleave
+            wherever the real terminal would let it. Off by default.
 
-    Recorders (assert against these): ``sent`` (request strings), ``headers``
-    (tx_ids), ``sessions`` (``(wake, mode)`` tuples), ``calls`` (``(method, arg)``
-    tuples), ``uds_kwargs`` (per-call ``send_uds`` keyword dicts).
+    Recorders (assert against these): ``sent`` (request strings), ``addressed``
+    (``(header, request)`` as each request went out), ``headers`` (tx_ids),
+    ``sessions`` (``(wake, mode)`` tuples), ``calls`` (``(method, arg)`` tuples),
+    ``uds_kwargs`` (per-call ``send_uds`` keyword dicts).
+
+    :meth:`intrude` runs a coroutine as a separate task right after the next
+    ``set_header``, which is where a background keepalive can re-point the header.
     """
 
     def __init__(
@@ -87,6 +97,7 @@ class FakeTerminal:
         send_command_reply: str = "OK",
         session_result: tuple = (True, None),
         key_by_header: bool = False,
+        serialize: bool = False,
     ) -> None:
         self.responses = responses or {}
         self.default = NO_DATA if default is None else default
@@ -94,10 +105,16 @@ class FakeTerminal:
         self.send_command_reply = send_command_reply
         self.session_result = session_result
         self.key_by_header = key_by_header
+        self.serialize = serialize
+        self._lock = asyncio.Lock()
+        self._owner: asyncio.Task | None = None
+        self._intruders: list[Callable[[], Coroutine[Any, Any, object]]] = []
+        self.intruder_tasks: list[asyncio.Task] = []
         # request hex -> [(rx_id, reply hex), ...] for send_functional.
         self.functional_replies: dict[str, list[tuple[int, str]]] = {}
         self.header: int | None = None
         self.sent: list[str] = []
+        self.addressed: list[tuple[int | None, str]] = []
         self.headers: list[int] = []
         self.sessions: list[tuple] = []
         self.calls: list[tuple] = []
@@ -114,14 +131,58 @@ class FakeTerminal:
         # Recorded only; the fake does not enforce the blocklist.
         self.session_policy = SessionPolicy()
 
+    def intrude(self, coro_factory: Callable[[], Coroutine[Any, Any, object]]) -> None:
+        """Run ``coro_factory()`` as its own task right after the next ``set_header``.
+
+        With ``serialize`` it then competes for the lock like a background keepalive:
+        it runs before the caller's next command unless the caller holds a transaction.
+        """
+        self._intruders.append(coro_factory)
+
+    @contextlib.asynccontextmanager
+    async def _command(self):
+        """One command's hold on the lock (a no-op without ``serialize``)."""
+        if not self.serialize or self._owner is asyncio.current_task():
+            if self.serialize:
+                await asyncio.sleep(0)
+            yield
+            return
+        async with self._lock:
+            self._owner = asyncio.current_task()
+            try:
+                await asyncio.sleep(0)
+                yield
+            finally:
+                self._owner = None
+
     async def set_header(self, tx_id: int) -> None:
-        self.header = tx_id
-        self.headers.append(tx_id)
-        self.calls.append(("set_header", tx_id))
+        async with self._command():
+            self.header = tx_id
+            self.headers.append(tx_id)
+            self.calls.append(("set_header", tx_id))
+        if self._intruders:
+            factory = self._intruders.pop(0)
+            self.intruder_tasks.append(asyncio.create_task(factory()))
+            for _ in range(5):
+                await asyncio.sleep(0)
 
     @contextlib.asynccontextmanager
     async def transaction(self):
-        """Record transaction boundaries so tests can assert atomic grouping."""
+        """Record transaction boundaries so tests can assert atomic grouping.
+
+        With ``serialize`` it also holds the lock, re-entrant per task, as the ELM327
+        engine does.
+        """
+        if self.serialize and self._owner is not asyncio.current_task():
+            async with self._lock:
+                self._owner = asyncio.current_task()
+                self.calls.append(("transaction_enter", None))
+                try:
+                    yield
+                finally:
+                    self.calls.append(("transaction_exit", None))
+                    self._owner = None
+            return
         self.calls.append(("transaction_enter", None))
         try:
             yield
@@ -137,7 +198,12 @@ class FakeTerminal:
         retries: int = 0,
         **kw,
     ) -> UdsResponse:
+        async with self._command():
+            return self._answer_uds(req, timeout, expected_sid, expected_echo, retries, kw)
+
+    def _answer_uds(self, req, timeout, expected_sid, expected_echo, retries, kw) -> UdsResponse:
         self.sent.append(req)
+        self.addressed.append((self.header, req))
         self.calls.append(("send_uds", req))
         self.uds_kwargs.append(
             {
@@ -157,8 +223,10 @@ class FakeTerminal:
         return dict(self.responses.get(key, self.default))
 
     async def send_command(self, cmd: str, timeout: float | None = None) -> str:
-        self.calls.append(("send_command", cmd))
-        return self.send_command_reply
+        async with self._command():
+            self.addressed.append((self.header, cmd))
+            self.calls.append(("send_command", cmd))
+            return self.send_command_reply
 
     async def send_functional(self, tx_id: int, request: str, window: float = 0.3):
         """Answer from ``functional_replies[request]`` (a list of ``(rx_id, hex)``).
