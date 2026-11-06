@@ -39,7 +39,7 @@ def _dump(data: dict | list) -> str:
 def on_files(files: Files, config) -> Files:
     from canair.interop.explorer.export import export_profile
     from canair.interop.explorer.series import export_sessions, rx_by_address
-    from canair.profile.model import looks_like_profile
+    from canair.profile.model import looks_like_profile, profile_for_path
 
     roots = [p for p in sorted(PROFILES_DIR.iterdir()) if looks_like_profile(p)]
     index = []
@@ -47,8 +47,9 @@ def on_files(files: Files, config) -> Files:
         uri = f"{DATA_DIR}/{root.name}.json"
         if files.get_file_from_path(uri) is not None:
             raise PluginError(f"docs/{uri} is generated at build time by explorer.py; delete it.")
-        data = export_profile(root, blob_base=_blob_base())
-        sessions, documents = export_sessions(root, rx_by_address(data))
+        profile = profile_for_path(root)
+        data = export_profile(root, blob_base=_blob_base(), profile=profile)
+        sessions, documents = export_sessions(root, rx_by_address(data), profile=profile)
         data["profile"]["sessions"] = len(sessions)
         files.append(File.generated(config, uri, content=_dump(data)))
         if sessions:
