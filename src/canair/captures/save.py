@@ -11,7 +11,13 @@ from canair.captures.tags import capture_tag
 from canair.captures.types import (
     CaptureSession,
 )
+from canair.ecus.registry import build_rx_index, ecu_name_from_ref
+from canair.install.build_info import full_version
+from canair.install.context import snapshot_write_note
+from canair.privacy import sensitive
+from canair.privacy.sensitive import take_withheld_note
 from canair.profile.model import Profile
+from canair.variants.tags import TAG_FIELDS, narrow_to_captured
 
 
 def _stamp_version(session: CaptureSession) -> CaptureSession:
@@ -29,7 +35,6 @@ def _stamp_version(session: CaptureSession) -> CaptureSession:
     """
     if session.get("version"):
         return session
-    from canair.install.build_info import full_version
 
     version = full_version()
 
@@ -66,7 +71,6 @@ def current_capture_tag(captures_dir: Path | None = None, *, profile: Profile) -
 
 def _captured_ecus(session: CaptureSession, *, profile: Profile) -> set[str]:
     """Upper-cased names of the ECUs whose replies ``session`` holds."""
-    from canair.ecus.registry import build_rx_index, ecu_name_from_ref
 
     try:
         index = build_rx_index(profile=profile)
@@ -89,7 +93,6 @@ def apply_capture_tag(
     """
     if not tag or session.get("variant") or session.get("revisions"):
         return session
-    from canair.variants.tags import TAG_FIELDS, narrow_to_captured
 
     if tag.get("revisions"):
         tag = narrow_to_captured(tag, _captured_ecus(session, profile=profile))
@@ -113,8 +116,6 @@ def saved_banner(capture_file: Path, n_captures: int) -> str:
     reinstall — the loudest place to say so is next to the path itself.
     """
     banner = f"  \u2192 Saved {n_captures} capture(s) to {capture_file}"
-    from canair.install.context import snapshot_write_note
-    from canair.privacy.sensitive import take_withheld_note
 
     notes = [n for n in (take_withheld_note(), snapshot_write_note(capture_file)) if n]
     return "\n".join([banner, *notes])
@@ -153,8 +154,6 @@ def save_session(
         captures_dir = profile.captures_dir
     # The last gate before disk: a reply to a sensitive PID is never written,
     # whichever producer built the session (the journal applies the same rule).
-    from canair.privacy import sensitive
-
     session = cast(
         CaptureSession,
         sensitive.withhold_session(

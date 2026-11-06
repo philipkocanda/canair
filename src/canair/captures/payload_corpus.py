@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from canair.captures import io as capture_io
+from canair.ecus.registry import parse_ecu_ref
 
 
 @dataclass(frozen=True)
@@ -49,7 +50,6 @@ class PayloadCorpus:
 
 def load_payload_corpus(files: list[Path]) -> PayloadCorpus:
     """Every hex payload capture in ``files``, in file/session/capture order."""
-    from canair.ecus.registry import parse_ecu_ref
 
     samples: list[PayloadSample] = []
     where: list[Locator] = []

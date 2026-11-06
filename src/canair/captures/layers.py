@@ -25,6 +25,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from canair.captures import io as capture_io
+from canair.profile.discovery import resolve_profile
+from canair.profile.model import ProfileError, profile_for_path
 
 if TYPE_CHECKING:
     from canair.profile.model import Profile
@@ -52,8 +54,6 @@ def owning_profile(captures_dir: Path | None, *, profile: Profile) -> Profile:
     it, else to the plain bundle around it (:func:`canair.profile.model.profile_for_path`) — never
     silently to ``profile``.
     """
-    from canair.profile.discovery import resolve_profile
-    from canair.profile.model import ProfileError, profile_for_path
 
     if captures_dir is None:
         return profile

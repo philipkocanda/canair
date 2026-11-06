@@ -5,15 +5,20 @@ from typing import cast
 
 from canair.captures import io as capture_io
 from canair.captures.keepmode import KeepMode, PersistedKeepMode, persisted_keep_mode
+from canair.captures.state_inference import DEFAULT_CYCLE_TOL_S, session_state_spans
+from canair.captures.store import flatten_session
 from canair.captures.types import (
     CaptureFile,
     CaptureSession,
     StateSpans,
     StateSpanSource,
 )
+from canair.ecus.pids import build_ecu_index, load_pids
+from canair.install.build_info import full_version
 from canair.profile.model import Profile
 from canair.states.spans import StateSpan
 from canair.states.tokens import parse_states as _parse_states
+from canair.states.vocabulary import load_states
 
 
 def _write_captures_file(fpath: Path, data: CaptureFile) -> None:
@@ -179,11 +184,6 @@ def annotate_session_spans(
     just saved, so the session simply keeps its state union.
     """
     try:
-        from canair.captures.state_inference import DEFAULT_CYCLE_TOL_S, session_state_spans
-        from canair.captures.store import flatten_session
-        from canair.ecus.pids import build_ecu_index, load_pids
-        from canair.states.vocabulary import load_states
-
         data = capture_io.load_capture_file(fpath)
         sessions = data.get("sessions") or []
         if not sessions:
@@ -208,8 +208,6 @@ def annotate_session_spans(
         )
         if not result.is_timeline:
             return None
-        from canair.install.build_info import full_version
-
         set_session_state_spans(fpath, idx, result.spans, source="record", version=full_version())
         return list(result.spans)
     except Exception:

@@ -56,8 +56,10 @@ from canair.captures.link_events import (
 from canair.captures.save import apply_capture_tag, current_capture_tag, save_session
 from canair.captures.session_edit import set_session_field
 from canair.captures.types import CaptureSession, Quality
+from canair.privacy import sensitive
 from canair.privacy.sensitive import SensitiveSet
 from canair.profile.model import Profile
+from canair.variants.tags import TAG_FIELDS
 
 JOURNAL_VERSION = 1
 JOURNAL_DIRNAME = ".journal"
@@ -150,7 +152,6 @@ class CaptureJournal:
         The gate sits here, not only in :func:`~canair.captures.save.save_session`, because
         the journal is on disk from the first append and outlives a crash.
         """
-        from canair.privacy import sensitive
 
         if self._sensitive is None:
             self._sensitive = sensitive.set_for_captures(self.captures_dir, profile=self.profile)
@@ -393,8 +394,6 @@ def build_session_from_records(
         rtype = rec.get("type")
         if rtype == "meta":
             if rec.get("variant") or rec.get("revisions"):
-                from canair.variants.tags import TAG_FIELDS
-
                 tag = {k: rec[k] for k in TAG_FIELDS if rec.get(k)}
             for k in ("label", "vehicle_states", "notes", "keep_mode", "date"):
                 if k in rec:

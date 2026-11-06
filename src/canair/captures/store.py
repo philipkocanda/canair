@@ -27,12 +27,18 @@ from typing import Any, NamedTuple
 
 from canair.captures import io as capture_io
 from canair.captures import merge as captures_merge
+from canair.captures.decode import _decode_payload
 from canair.captures.link_events import session_link_events
 from canair.captures.types import CaptureEntry
+from canair.ecus.pids import build_ecu_index, load_pids, register_derived_cache
+from canair.ecus.registry import build_rx_index, ecu_name_from_ref
 from canair.ecus.revisions import determined_revisions
-from canair.profile.model import Profile
+from canair.privacy import sensitive
+from canair.profile.model import Profile, ProfileError
 from canair.render import messages
 from canair.states.spans import span_keys, states_at
+from canair.uds.support_map import map_byte_indices
+from canair.variants import VariantsError, load_variants
 from canair.variants import tags as variant_tags
 from canair.variants.tags import SCOPE_ALL, SCOPE_UNTAGGED
 
@@ -51,9 +57,6 @@ def _clear_decode_index() -> None:
 def _decoder(profile: Profile) -> tuple[Any, Any] | None:
     """``(decode function, ECU index)`` for ``profile``, or None when unavailable."""
     try:
-        from canair.captures.decode import _decode_payload
-        from canair.ecus.pids import build_ecu_index, load_pids, register_derived_cache
-
         key = profile.cache_key
         if key not in _decoders:
             _decoders[key] = (_decode_payload, build_ecu_index(load_pids(profile)))
@@ -180,7 +183,6 @@ def flatten_session(
     Takes the source file's ``path`` rather than its name so each row can carry
     both the display ``file`` and the ``_path`` a mutation reopens.
     """
-    from canair.ecus.registry import ecu_name_from_ref
 
     if rx_index is None:
         rx_index = _rx_index(profile=profile)
@@ -237,7 +239,6 @@ def flatten_session(
 
 def _rx_index(profile: Profile) -> dict[int, str]:
     """The rx-address → ECU-name index, tolerating an unreadable registry."""
-    from canair.ecus.registry import build_rx_index
 
     try:
         return build_rx_index(profile=profile)
@@ -358,7 +359,6 @@ def _hide_sensitive(
     sensitive after it was recorded still has history on disk. Leaving it out here
     keeps it off every analysis and display; ``captures purge-sensitive`` removes it.
     """
-    from canair.privacy import sensitive
 
     sset = sensitive.set_for_captures(captures_dir, profile=profile)
     if not sset:
@@ -380,8 +380,6 @@ def _hide_sensitive(
 
 def _variant_scope(profile: Profile) -> tuple[str | None, bool]:
     """``profile``'s variant scope, and whether it declares several variants."""
-    from canair.profile.model import ProfileError
-    from canair.variants import VariantsError, load_variants
 
     try:
         return profile.variant, len(load_variants(profile)) > 1
@@ -391,7 +389,6 @@ def _variant_scope(profile: Profile) -> tuple[str | None, bool]:
 
 def _revision_scope(profile: Profile) -> dict[str, str]:
     """``profile``'s determined ECU revisions (ECU -> revision)."""
-    from canair.profile.model import ProfileError
 
     try:
         return determined_revisions(profile)
@@ -519,8 +516,6 @@ NO_DEFS = PidDefs({}, None)
 def load_ecu_index(profile: Profile) -> dict:
     """Load + build the ECU/PID definition index once (empty dict on failure)."""
     try:
-        from canair.ecus.pids import build_ecu_index, load_pids
-
         return build_ecu_index(load_pids(profile))
     except Exception:
         return {}
@@ -532,7 +527,6 @@ def resolve_pid_defs(ecu_index: dict, ecu: str, pid: str) -> PidDefs:
     Parameters come from an *exact* PID key match (boundary-matched captures
     with no exact definition render as raw hex, i.e. empty parameters).
     """
-    from canair.uds.support_map import map_byte_indices
 
     info = ecu_index.get(str(ecu).upper())
     if not info:

@@ -22,6 +22,10 @@ from datetime import date as _date
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from canair.core import yaml_io
+from canair.core.yaml_rt import dump as _dump
+from canair.core.yaml_rt import round_trip_yaml as _yaml
+
 if TYPE_CHECKING:
     from canair.profile.model import Profile
 
@@ -281,9 +285,6 @@ def _append_index_entry(index_path: Path, entry: dict, *, replace_file: str | No
     """
     from ruamel.yaml.comments import CommentedMap
 
-    from canair.core.yaml_rt import dump as _dump
-    from canair.core.yaml_rt import round_trip_yaml as _yaml
-
     data = None
     if index_path.exists():
         with open(index_path) as f:
@@ -310,7 +311,6 @@ def _append_index_entry(index_path: Path, entry: dict, *, replace_file: str | No
 
 def load_index(profile: Profile) -> dict:
     """The parsed ``captures/can/index.yaml`` (``{}`` when absent)."""
-    from canair.core import yaml_io
 
     path = profile.can_index_file
     if not path.exists():
