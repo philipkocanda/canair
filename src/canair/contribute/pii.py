@@ -230,12 +230,12 @@ def _scan_ecus(profile: Profile) -> list[Finding]:
     ``--no-captures`` contribution — which is exactly the case the capture-only
     scan could never see.
     """
-    from canair.ecus.pids import load_pids
+    from canair.ecus.pids import load_pids_dir
 
     if not profile.ecus_dir.is_dir():
         return []
     try:
-        data = load_pids(profile.ecus_dir)
+        data = load_pids_dir(profile.ecus_dir)
     except (OSError, ValueError, KeyError, TypeError):
         return []  # a malformed profile is `canair validate`'s job to report
     findings: list[Finding] = []

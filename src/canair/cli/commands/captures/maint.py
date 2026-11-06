@@ -147,7 +147,7 @@ def _discover_addressing(prof):
     names against (a ``--dir`` outside any profile), which the CLI reports as an
     error rather than a traceback.
     """
-    from canair.ecus.pids import load_pids
+    from canair.ecus.pids import load_pids_dir
     from canair.ecus.registry import load_ecus
     from canair.migrations.discover import Addressing
     from canair.profile import ProfileError
@@ -160,7 +160,7 @@ def _discover_addressing(prof):
             "profile's captures/ directory (or drop it to use the active profile)."
         )
     # A layered profile's captures sit in the overlay; its definitions in the root.
-    data = load_pids(prof.ecus_dir)
+    data = load_pids_dir(prof.ecus_dir)
     return Addressing(
         ecus=load_ecus(prof.ecus_dir),
         rx_offset=resolve_rx_offset(data),

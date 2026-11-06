@@ -26,7 +26,7 @@ from canair.captures import io as capture_io
 from canair.captures.link_events import SESSION_GAP_KINDS, session_link_events
 from canair.captures.merge import session_anchor
 from canair.ecus.pid_status import pid_status
-from canair.ecus.pids import load_pids
+from canair.ecus.pids import load_pids_dir
 from canair.ecus.sensitivity import pid_sensitive
 from canair.expression.decoding import decode_param_rows
 from canair.states.spans import parse_time_key
@@ -227,7 +227,7 @@ def export_sessions(
     captures_dir = root / "captures"
     if not captures_dir.is_dir() or not (root / "ecus").is_dir():
         return [], {}
-    ecus = {str(k): v for k, v in (load_pids(root / "ecus").get("ecus") or {}).items()}
+    ecus = {str(k): v for k, v in (load_pids_dir(root / "ecus").get("ecus") or {}).items()}
 
     index: list[dict[str, Any]] = []
     documents: dict[str, dict[str, Any]] = {}

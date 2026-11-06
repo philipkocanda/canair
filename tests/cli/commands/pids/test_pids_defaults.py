@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from canair.cli.commands.pids import pid_settings
-from canair.ecus.pids import effective_param, load_pids
+from canair.ecus.pids import effective_param, load_pids_dir
 from canair.validation.pids import load_schema, validate_ecu_file, validate_pids_file
 from canair.yaml_edit.pids import PidsEditError, hoist_defaults, set_pid_defaults
 from canair.yaml_edit.pids.defaults import plan_hoist
@@ -139,7 +139,7 @@ class TestLoader:
             "          expression: B10\n        B:\n          expression: B11\n"
             "          unit: A\n          verified: false\n"
         )
-        params = load_pids(pids_dir)["ecus"]["TEST"]["pids"][2101]["parameters"]
+        params = load_pids_dir(pids_dir)["ecus"]["TEST"]["pids"][2101]["parameters"]
         a, b = params["A"], params["B"]
         assert (a["unit"], a["min"], a["verified"]) == ("V", "0", True)
         assert (b["unit"], b["min"], b["verified"]) == ("A", "0", False)

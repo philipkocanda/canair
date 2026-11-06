@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from canair.ecus.dtc_definitions import effective_entries, is_dtc_code, split_section
-from canair.ecus.pids import load_pids
+from canair.ecus.pids import load_pids_dir
 from canair.interop.explorer.export import _dtc_records
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.schema_fields import load_schema
@@ -94,7 +94,7 @@ class TestEffectiveEntries:
 
 
 def test_loaded_definitions_carry_resolved_entries_only(ecus_dir):
-    dtcs = load_pids(ecus_dir)["ecus"]["ESC"]["dtcs"]
+    dtcs = load_pids_dir(ecus_dir)["ecus"]["ESC"]["dtcs"]
     assert set(dtcs) == {"C1101", "C1102", "C1604"}
     assert dtcs["C1101"]["source"] == "Service manual, ESC diagnosis"
     assert dtcs["C1101"]["verified"] is False

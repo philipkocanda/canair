@@ -8,7 +8,7 @@ import pytest
 
 from canair import profile
 from canair.captures import io as capture_io
-from canair.ecus.pids import build_ecu_index, clear_cache, load_pids
+from canair.ecus.pids import build_ecu_index, clear_cache, load_pids, load_pids_dir
 from canair.privacy import sensitive
 
 META = 'car_model: "T"\ninit: "ATSP6;"\n'
@@ -249,7 +249,7 @@ class TestEditor:
 
         set_sensitive("CCM", "22F101", True, pids_dir=prof / "ecus")
         set_sensitive("CCM", "22F101", True, param="APP_SW", pids_dir=prof / "ecus")
-        pid = load_pids(prof / "ecus")["ecus"]["CCM"]["pids"]["22F101"]
+        pid = load_pids_dir(prof / "ecus")["ecus"]["CCM"]["pids"]["22F101"]
         assert pid["sensitive"] is True and pid["parameters"]["APP_SW"]["sensitive"] is True
         set_sensitive("CCM", "22F101", False, pids_dir=prof / "ecus")
         set_sensitive("CCM", "22F101", False, param="APP_SW", pids_dir=prof / "ecus")

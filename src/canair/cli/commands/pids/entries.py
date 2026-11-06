@@ -269,9 +269,9 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
 
 
 def _signal_exists(ecu: str, pid: str, name: str, pids_dir) -> bool:
-    from canair.ecus.pids import load_pids, load_raw_pids
+    from canair.ecus.pids import load_pids_dir, load_raw_pids
 
-    data = load_pids(pids_dir) if pids_dir else load_raw_pids()
+    data = load_pids_dir(pids_dir) if pids_dir else load_raw_pids()
     ecu_def = next(
         (d for k, d in (data.get("ecus") or {}).items() if str(k).upper() == ecu.upper()), None
     )

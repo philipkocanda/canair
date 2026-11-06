@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
+from canair.profile import Profile
 from canair.uds.addressing import (
     DEFAULT_MODE,
     DEFAULT_RX_OFFSET,
@@ -70,17 +71,19 @@ class EcuRegistryEntry(_EcuIdentity):
     address: EcuAddress
 
 
-def load_ecus(path: Path | None = None) -> dict[int, EcuRegistryEntry]:
+def load_ecus(
+    path: Path | None = None, *, profile: Profile | None = None
+) -> dict[int, EcuRegistryEntry]:
     """Load the ECU registry, keyed by TX id (int) -> {name, identity fields...}.
 
     Derived from the profile's per-ECU ``ecus/`` files: each ECU's short name
     (the file's top-level key) plus its flattened ``identity:`` block. When
-    ``path`` is None, the active vehicle profile's ``ecus/`` directory is used;
-    otherwise ``path`` is a directory of per-ECU YAML files.
+    ``path`` is None, ``profile``'s definitions are used; otherwise ``path`` is a
+    directory of per-ECU YAML files.
     """
-    from canair.ecus.pids import load_pids
+    from canair.ecus.pids import load_pids, load_pids_dir
 
-    data = load_pids(path)
+    data = load_pids_dir(path) if path is not None else load_pids(profile)
     result: dict[int, EcuRegistryEntry] = {}
     for name, ecu_def in (data.get("ecus") or {}).items():
         if not isinstance(ecu_def, dict):

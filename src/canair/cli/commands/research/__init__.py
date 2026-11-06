@@ -55,7 +55,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
-from canair.ecus.pids import load_pids
+from canair.ecus.pids import load_pids, load_pids_dir
 from canair.render import ansi, messages
 from canair.states.selectors import state_matcher, unknown_state_tokens
 from canair.states.vocabulary import allowed_states
@@ -97,7 +97,7 @@ def load_research(pids_dir: Path | None = None) -> list[dict]:
     Each record is the raw research entry plus an ``ecu`` key (and ``tx_id``
     when the ECU defines one). Order follows file/definition order.
     """
-    data = load_pids(pids_dir)
+    data = load_pids_dir(pids_dir) if pids_dir else load_pids()
     records: list[dict] = []
     for ecu_name, ecu_def in data.get("ecus", {}).items():
         if not isinstance(ecu_def, dict):
@@ -420,7 +420,7 @@ def run_gaps(args) -> int:
         messages.error(f"--gaps lists derived work, which {', '.join(clashing)} cannot filter")
         return 2
 
-    ecus = load_pids(args.dir).get("ecus", {}) or {}
+    ecus = (load_pids_dir(args.dir) if args.dir else load_pids()).get("ecus", {}) or {}
     captured = {}
     if args.dir is None:
         from canair.captures.store import load_all_captures

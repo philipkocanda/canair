@@ -230,7 +230,7 @@ class MonitorController:
         # through canair.pids_edit; this controller reloads on its request.
         from .edit import MonitorEditor
 
-        self.pids_dir = None  # None -> active profile's ecus/ (tests override)
+        self.pids_dir = self.profile = None  # None -> the active profile's ecus/
         self.editor = MonitorEditor(self)
         # The display: what it shows (view) and how it is drawn (renderer, which keeps the
         # per-PID render cache across paints).
@@ -269,9 +269,9 @@ class MonitorController:
         picks up the just-edited expression/flags; the rebuilt ECU index makes
         the next poll decode with the new definition.
         """
-        from ...ecus.pids import build_ecu_index, load_pids
+        from ...ecus.pids import build_ecu_index, load_pids, load_pids_dir
 
-        self.pids_data = load_pids(self.pids_dir)
+        self.pids_data = load_pids_dir(self.pids_dir) if self.pids_dir else load_pids(self.profile)
         self._ecu_index = build_ecu_index(self.pids_data)
         self.sessions.invalidate_index()  # rebuilt lazily on next access
 

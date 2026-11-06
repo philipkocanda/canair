@@ -19,6 +19,7 @@ from canair.ecus.memory import memory_format_of
 from canair.ecus.pid_status import PidStatus, is_snapshot_only, pid_ships, pid_status, pid_swept
 from canair.ecus.sensitivity import param_sensitive
 from canair.ecus.signal_category import category_of
+from canair.profile import Profile
 from canair.safety.actuation import default_release, normalize_request
 from canair.uds.addressing import AddressingMode, EcuAddress, resolve_ecu_address
 from canair.uds.memory import MemoryFormat
@@ -221,46 +222,38 @@ _resolution_cache: dict[str, dict] = {}
 _noted_skips: set[str] = set()
 
 
-def load_pids(path: Path | None = None) -> dict:
-    """Load ECU/PID definitions from a profile's ``ecus/`` directory.
+def load_pids(profile: Profile | None = None) -> dict:
+    """``profile``'s ECU/PID definitions, resolved for the car it names.
 
-    Accepts either a directory (``ecus/``) containing per-ECU YAML files, or a
-    single legacy YAML file. When ``path`` is None, the active vehicle profile's
-    definitions are returned **resolved for the selected car** — only the ECUs it is
-    fitted with, each at its resolved revision (see :mod:`canair.variants.revisions`),
-    with ``profile.yaml`` as the variant overrides it — and memoized per process. A
-    ``path`` reads the files as written; :func:`load_raw_pids` does the same for the
-    active profile.
+    Only the ECUs the car is fitted with, each at its resolved revision (see
+    :mod:`canair.variants.revisions`), with ``profile.yaml`` as the variant overrides it.
+    Memoized per process by ``profile.cache_key``.
     """
-    if path is None:
+    if profile is None:
         from canair.profile import active
 
-        prof = active()
-        key = prof.cache_key
-        cached = _cache.get(key)
-        if cached is not None:
-            return cached
-        result = _resolved(prof)
-        _cache[key] = result
-        return result
+        profile = active()
+    cached = _cache.get(profile.cache_key)
+    if cached is None:
+        cached = _cache[profile.cache_key] = _resolved(profile)
+    return cached
 
+
+def load_pids_dir(path: Path) -> dict:
+    """Load a directory of per-ECU YAML files (or one legacy file) as written, not memoized.
+
+    The reader for an explicit ``--dir`` and for tools that work on a copy.
+    """
     path = Path(path)
-    if path.is_dir():
-        from canair.profile import profile_for_path
+    if not path.is_dir():
+        with open(path) as f:  # legacy: a single file
+            return _yaml_load(f)
+    from canair.profile import profile_for_path, read_meta
 
-        meta_file = profile_for_path(path).meta_file
-        meta = {}
-        if meta_file.exists():
-            with open(meta_file) as f:
-                meta = _yaml_load(f) or {}
-        return _load_dir(path, meta=meta)
-
-    # Legacy: single file
-    with open(path) as f:
-        return _yaml_load(f)
+    return _load_dir(path, meta=read_meta(profile_for_path(path).meta_file))
 
 
-def load_raw_pids(profile=None) -> dict:
+def load_raw_pids(profile: Profile | None = None) -> dict:
     """The active (or given) profile's definitions as written: no variant, no revision.
 
     For the variant-aware readers — ``validate``, the editors, and anything that must
@@ -291,7 +284,7 @@ def _selected_variant_def(prof):
         raise ProfileError(str(e)) from None
 
 
-def revision_resolutions(profile=None) -> dict:
+def revision_resolutions(profile: Profile | None = None) -> dict:
     """ECU name -> :class:`~canair.variants.revisions.Resolution`, for the selected car.
 
     Only ECUs that declare revisions appear. Raises :class:`~canair.profile.ProfileError`
@@ -316,7 +309,7 @@ def revision_resolutions(profile=None) -> dict:
     return result
 
 
-def _resolved(prof) -> dict:
+def _resolved(prof: Profile) -> dict:
     """``prof``'s definitions for the selected car (see :func:`load_pids`)."""
     from canair.variants.revisions import apply, has_gates, skipped_note
     from canair.variants.tags import selected_variant

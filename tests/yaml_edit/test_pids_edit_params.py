@@ -191,9 +191,9 @@ class TestUpsertCreatesPidsSection:
             """,
         )
         upsert_parameter("NEWECU", "B002", "ODO", "B6", unit="km", pids_dir=d)
-        from canair.ecus.pids import build_ecu_index, load_pids
+        from canair.ecus.pids import build_ecu_index, load_pids_dir
 
-        idx = build_ecu_index(load_pids(d))
+        idx = build_ecu_index(load_pids_dir(d))
         assert "NEWECU" in idx
 
 
@@ -263,9 +263,9 @@ class TestAddPid:
     def test_result_round_trips_and_is_swept(self, pids_dir):
         # A draft PID must be indexed by the loader (draft = swept/queryable).
         add_pid("TESTECU", "21F2", status="draft", pids_dir=pids_dir)
-        from canair.ecus.pids import build_ecu_index, load_pids
+        from canair.ecus.pids import build_ecu_index, load_pids_dir
 
-        idx = build_ecu_index(load_pids(pids_dir))
+        idx = build_ecu_index(load_pids_dir(pids_dir))
         assert "21F2" in idx["TESTECU"]["pids"]
 
 
@@ -336,9 +336,9 @@ class TestUpsertValidation:
     def test_result_still_valid_yaml_and_loads(self, pids_dir):
         upsert_parameter("TESTECU", "2101", "NEWP", "B6", unit="A", pids_dir=pids_dir)
         # Whole file must still round-trip through the real loader.
-        from canair.ecus.pids import build_ecu_index, load_pids
+        from canair.ecus.pids import build_ecu_index, load_pids_dir
 
-        idx = build_ecu_index(load_pids(pids_dir))
+        idx = build_ecu_index(load_pids_dir(pids_dir))
         assert "NEWP" in idx["TESTECU"]["pids"]["2101"]["parameters"]
 
 

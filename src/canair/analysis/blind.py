@@ -599,7 +599,7 @@ def select_targets(
     voltages).
     """
     source_root = Path(source_root)
-    pids_data = pids_mod.load_pids(profile_for_path(source_root).ecus_dir)
+    pids_data = pids_mod.load_pids_dir(profile_for_path(source_root).ecus_dir)
     index = pids_mod.build_ecu_index(pids_data)
     # One pass over captures/ for the whole selection: every verified parameter
     # needs its PID's payloads, and the params of one PID all share a key.

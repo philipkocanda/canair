@@ -47,15 +47,15 @@ def pids_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def pids_data(pids_dir: Path) -> dict:
-    from canair.ecus.pids import load_pids
+    from canair.ecus.pids import load_pids_dir
 
-    return load_pids(pids_dir)
+    return load_pids_dir(pids_dir)
 
 
 def _reload(pids_dir: Path) -> dict:
-    from canair.ecus.pids import load_pids
+    from canair.ecus.pids import load_pids_dir
 
-    return load_pids(pids_dir)["ecus"]["BMS"]["pids"]
+    return load_pids_dir(pids_dir)["ecus"]["BMS"]["pids"]
 
 
 @pytest.fixture
@@ -137,9 +137,9 @@ class TestSessionWriteBack:
 
     def test_a_retired_count_is_cleared_from_the_yaml(self, pids_dir, redirect_writes):
         set_response_frames("BMS", "2101", 4, pids_dir=pids_dir)
-        from canair.ecus.pids import load_pids
+        from canair.ecus.pids import load_pids_dir
 
-        data = load_pids(pids_dir)
+        data = load_pids_dir(pids_dir)
 
         term = FakeTerminal()
         term.frame_counts.observe((0x7E4, "2101"), 4)
@@ -191,9 +191,9 @@ class TestSessionWriteBack:
 
     def test_a_steady_state_session_rewrites_nothing(self, pids_dir, redirect_writes):
         set_response_frames("BMS", "2101", 4, pids_dir=pids_dir)
-        from canair.ecus.pids import load_pids
+        from canair.ecus.pids import load_pids_dir
 
-        data = load_pids(pids_dir)
+        data = load_pids_dir(pids_dir)
         before = (pids_dir / "bms.yaml").read_text()
 
         term = FakeTerminal()

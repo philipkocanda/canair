@@ -34,13 +34,13 @@ def elm327_warnings(ecus_dir: Path) -> list[str]:
 
     Addressing (:mod:`.addressing`) and EEPROM wear (:mod:`.init_eeprom`).
     """
-    from canair.ecus.pids import load_pids
+    from canair.ecus.pids import load_pids_dir
 
     from .addressing import addressing_warnings
     from .init_eeprom import init_eeprom_warnings
 
     try:
-        pids_data = load_pids(ecus_dir)
+        pids_data = load_pids_dir(ecus_dir)
     except (OSError, yaml.YAMLError):
         # A broken file is already reported as an error by the per-file checks.
         return []

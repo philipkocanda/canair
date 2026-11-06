@@ -18,11 +18,11 @@ class FakeController:
         self.reloaded = 0
 
     def reload_pids(self):
-        from canair.ecus.pids import load_pids
+        from canair.ecus.pids import load_pids_dir
 
         self.reloaded += 1
         if self.pids_dir is not None:
-            self.pids_data = load_pids(self.pids_dir)
+            self.pids_data = load_pids_dir(self.pids_dir)
 
 
 def _row(name, value=1.0, unit="", expr="B0", verified=False):
@@ -196,9 +196,9 @@ def ecus_dir(tmp_path):
 
 
 def _editor_on_disk(ecus_dir):
-    from canair.ecus.pids import load_pids
+    from canair.ecus.pids import load_pids_dir
 
-    pids_data = load_pids(ecus_dir)
+    pids_data = load_pids_dir(ecus_dir)
     lq = [("BMS (0x7E4)", [{"pid": "2101", "params": [_row("SOC", expr="B4/2")]}])]
     ed = MonitorEditor(FakeController(pids_data, lq, pids_dir=ecus_dir))
     ed.move(lq, 1)  # select SOC

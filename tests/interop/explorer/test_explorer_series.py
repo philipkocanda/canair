@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from canair.captures import io as capture_io
-from canair.ecus.pids import load_pids
+from canair.ecus.pids import load_pids_dir
 from canair.expression.decoding import decode_param_rows
 from canair.interop.explorer.export import export_profile
 from canair.interop.explorer.series import (
@@ -101,7 +101,7 @@ def test_values_match_the_shared_decoder(exported):
     if not index:
         pytest.skip("profile has no plottable sessions")
     rx_names = rx_by_address(data)
-    ecus = load_pids(root / "ecus")["ecus"]
+    ecus = load_pids_dir(root / "ecus")["ecus"]
     # The first timed capture that feeds the first stream of the first session.
     entry = index[0]
     stream = docs[entry["id"]]["streams"][0]
