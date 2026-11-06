@@ -145,11 +145,12 @@ class MonitorRawPoller:
 
         The first diagnostic request after idle is slow (the ECU/gateway has to wake), so
         each ECU gets one throwaway read on a longer timeout; the first *monitored* cycle
-        is then already warm. There is no keepalive on the raw backend.
+        is then already warm. The sessions are kept alive between polls
+        (:meth:`~canair.live.monitor.sessions.MonitorSessions.keep_alive`).
         """
         c = self.c
         assert c.raw_client is not None  # the raw poller exists only with a raw client
-        c.sessions.open_raw(session_steps)
+        await c.sessions.open_raw(session_steps)
         for ecu, _info, request in c.sessions.warmup_reads():
             with contextlib.suppress(Exception):
                 c.raw_client.read(ecu, bytes.fromhex(request), timeout=3.0)
@@ -279,6 +280,8 @@ class MonitorRawPoller:
                 if s is None:
                     continue
                 self.apply_submission(s, val, _t.time(), by_pid)
+                if isinstance(val, (bytes, bytearray)):
+                    c.sessions.note_answer(s["ecu"])
                 applied.add(key)
                 c.last_queries = self.build_queries(plan_by_ecu, by_pid)
                 # Throttle mid-cycle repaints so a burst of fast PIDs doesn't thrash.

@@ -16,6 +16,8 @@ from canair.cli.profile_context import active
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 from canair.transport.config import ConnectionOptions
 from canair.transport.raw import uds_client as uds_raw
+from canair.transport.stats import TransportStats
+from canair.transport.timing import TimingRecorder
 from canair.uds.addressing import EcuAddress
 from canair.uds.protocol import KWP
 from tests.support.monitor_controller import make_controller
@@ -38,6 +40,9 @@ class RecordingRawClient:
 
     def __init__(self):
         self.reads: list[tuple[str, bytes]] = []
+        self.diag = TransportStats(transport="slcan-tcp")
+        self.timings = TimingRecorder()
+        self.session_policy = SessionPolicy()
 
     def read(self, ecu, req, timeout=None):
         self.reads.append((ecu, bytes(req)))

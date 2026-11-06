@@ -65,6 +65,7 @@ async def _monitor_noninteractive(controller: MonitorController) -> None:
                 remaining = controller.seconds_until_due()
                 while remaining > 0 and not stop_flag["v"] and not controller.disconnected:
                     await asyncio.sleep(min(remaining, 0.1))
+                    await controller.sessions.keep_alive()
                     remaining = controller.seconds_until_due()
         finally:
             signal.signal(signal.SIGINT, old_int)
@@ -114,7 +115,7 @@ async def mode_monitor(
     On a TTY this runs ``monitor.interactive`` (the CLI passes the Textual monitor app:
     scrollable, in-place value updates, mouse + keyboard). Otherwise, or without
     one, it polls silently until Ctrl+C and prints the final values. Sessions are
-    opened once (from ``monitor.session_steps``) and kept alive with background keepalives.
+    opened once (from ``monitor.session_steps``) and kept alive with TesterPresent while idle.
 
     Args:
         terminal:       Connected terminal (WiCANTerminal), or None with ``raw_client``.

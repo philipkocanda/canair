@@ -41,8 +41,10 @@ class TestMonitorApp:
             await pilot.press("space")  # pause
             assert app.paused is True
             frozen = ctrl.cycle
+            kept = getattr(ctrl.sessions, "kept_alive", 0)
             await pilot.pause(0.2)
             assert ctrl.cycle == frozen  # no polling while paused
+            assert ctrl.sessions.kept_alive > kept  # but the sessions are kept alive
             await pilot.press("space")  # resume
             await pilot.pause(0.2)
             assert ctrl.cycle > frozen

@@ -55,6 +55,8 @@ class PollingMixin:
             # once rather than after a sleep chosen before it.
             if self.paused or self.controller.seconds_until_due() > 0:
                 await asyncio.sleep(0.05)
+                # A pause stops polling, not the sessions it opened.
+                await self.controller.sessions.keep_alive()
                 continue
             try:
                 await self.controller.poll_once()

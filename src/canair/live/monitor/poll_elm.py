@@ -42,7 +42,6 @@ class MonitorElmPoller:
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Open the requested sessions, start keepalives and prime each ECU once."""
         c = self.c
-        assert c.sm is not None  # not c.raw ⟺ sm was constructed
         assert c._ecu_index is not None  # built by MonitorController.setup
         self.batch_state = BatchState(resolve_rx_padding(c.pids_data))
         for step in session_steps or []:
@@ -81,9 +80,7 @@ class MonitorElmPoller:
     async def poll(self) -> None:
         """Read every due PID of every ECU step, updating the controller's live state."""
         c = self.c
-        # The ELM poll path only runs on the non-raw backend, where setup() has
-        # constructed sm and built the ECU index.
-        assert c.sm is not None
+        # The ELM poll path only runs after setup() has built the ECU index.
         assert c._ecu_index is not None
         cmds0 = c.terminal.cmd_count
         elm0 = c.terminal.cmd_time

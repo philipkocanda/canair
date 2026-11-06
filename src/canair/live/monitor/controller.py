@@ -130,11 +130,11 @@ class MonitorController:
         # presentation only, never recording.
         self.view_mode = "full"
 
-        self.sm = SessionManager(terminal, verbose=self.verbose) if not self.raw else None
         self._ecu_index: dict | None = None
-        # Diagnostic session types (active modes, the safety check, known-good suggestions,
-        # live switching) live in MonitorSessions, which also holds the raw backend's modes.
+        # Diagnostic sessions (opening, keeping alive, the safety check, known-good
+        # suggestions, live switching) live in MonitorSessions, on either backend.
         self.sessions = MonitorSessions(self)
+        self.sm: SessionManager = self.sessions.new_manager()
         # Live PID-selector management (the TUI 'p' picker) lives in MonitorSelectors.
         self.selectors = MonitorSelectors(self)
         # Raw-backend poll cycle + multi-DID batching state lives in the poller.
@@ -440,7 +440,6 @@ class MonitorController:
             with contextlib.suppress(Exception):
                 self.raw_client.close()
             return
-        assert self.sm is not None  # not self.raw ⟺ sm was constructed
         await self.sm.stop_background_keepalive()
         print("  Closing sessions...")
         try:
@@ -460,11 +459,10 @@ class MonitorController:
                 with contextlib.suppress(Exception):
                     self.raw_client.close()
             return
-        if self.sm is not None:
-            with contextlib.suppress(Exception):
-                await self.sm.stop_background_keepalive()
-            with contextlib.suppress(Exception):
-                await asyncio.wait_for(self.terminal.close(), timeout=2.0)
+        with contextlib.suppress(Exception):
+            await self.sm.stop_background_keepalive()
+        with contextlib.suppress(Exception):
+            await asyncio.wait_for(self.terminal.close(), timeout=2.0)
 
     def rebind(self, new_client) -> None:
         """Swap in a freshly-reconnected transport client, preserving session state.
@@ -489,7 +487,7 @@ class MonitorController:
             self.raw_poller = MonitorRawPoller(self)
         else:
             self.terminal = new_client
-            self.sm = SessionManager(new_client, verbose=self.verbose)
+        self.sm = self.sessions.new_manager()
         current = self.diag_recorder()
         if previous is not None and current is not None and current is not previous:
             current.absorb(previous)

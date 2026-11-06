@@ -57,6 +57,9 @@ class FakeSessions:
     def active_modes(self) -> dict[str, str]:
         return {}
 
+    async def keep_alive(self) -> None:
+        self.kept_alive = getattr(self, "kept_alive", 0) + 1
+
 
 class FakeView:
     """Stand-in for MonitorView."""

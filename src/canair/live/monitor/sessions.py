@@ -13,23 +13,32 @@ is a self-contained unit rather than another arm of the controller god object.
 Callers read it as ``controller.sessions``; the controller holds the transport state
 (``sm``/``raw_client``/``_ecu_index``) the sessions read via their ``self.c`` back-ref.
 
-The raw backend has no :class:`~canair.transport.session_manager.SessionManager` (sessions
-and keepalives are not tracked there at all), so its opened-session mode is held
-here as ``raw_modes``: ECU name (upper) -> last-opened ``10 xx`` sub-function.
+Both backends open and track sessions with a
+:class:`~canair.transport.session_manager.SessionManager` (:meth:`MonitorSessions.new_manager`).
+The ELM327 one keeps them alive from its background task. The raw backend's polls run on an
+executor thread that owns the ISO-TP stacks, so its manager works over a
+:class:`~canair.transport.raw.client_terminal.RawClientTerminal` and only between polls: the
+poll loops call :meth:`MonitorSessions.keep_alive`, and every answered poll counts as a
+keepalive.
 """
 
 from __future__ import annotations
 
-import contextlib
 from typing import TYPE_CHECKING
 
 from canair.ecus.names import ecu_index_key
 from canair.ecus.pids import build_sessions_index
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
-from canair.transport.session_manager import DEFAULT_SESSION_MODE
-from canair.uds.requests import session_request
+from canair.transport.errors import transport_error_types
+from canair.transport.raw.client_terminal import RawClientTerminal
+from canair.transport.session_manager import (
+    DEFAULT_SESSION_MODE,
+    KEEPALIVE_INTERVAL_S,
+    SessionManager,
+)
 from canair.uds.subfunctions import SUBFUNCTION_NAMES, format_session_type, parse_session_type
 
+from ..read.exec import exec_session
 from ..read.multi import build_query_plan
 
 if TYPE_CHECKING:
@@ -48,24 +57,36 @@ class MonitorSessions:
 
     def __init__(self, controller: MonitorController):
         self.c = controller
-        # Raw-backend opened session modes: ECU name (upper) -> "10 xx"
-        # sub-function (2-hex-digit str). The ELM backend tracks this in its
-        # SessionManager instead.
-        self.raw_modes: dict[str, str] = {}
         # ECU_NAME -> {tx_id, sessions: {mode_hex: {name, supported, ...}}},
         # lazily built from the profile's recorded `sessions:` scan history (see
         # ..pids.build_sessions_index). Backs the picker's "known-good"
         # suggestions; rebuilt lazily after a PID reload.
         self._index: dict | None = None
 
-    def open_raw(self, session_steps: list[dict] | None) -> None:
-        """Open the sessions (``10 03``) the steps ask for on the raw backend, before polling.
+    def new_manager(self) -> SessionManager:
+        """A session manager over the controller's current client, for either backend."""
+        c = self.c
+        if c.raw:
+            assert c.raw_client is not None  # c.raw ⟺ raw_client was provided
+            terminal = RawClientTerminal(c.raw_client, self._ecu_named)
+            return SessionManager(terminal, verbose=c.verbose)
+        return SessionManager(c.terminal, verbose=c.verbose)
 
-        Best-effort: a transport error is swallowed. A mode the safety policy refuses raises
-        :class:`SafetyBlocked` and aborts setup instead, as the ELM path does.
+    def _ecu_named(self, tx_id: int) -> str | None:
+        """The raw client's name for the ECU at request id ``tx_id``."""
+        for name, info in (self.c._ecu_index or {}).items():
+            if info.get("tx_id") == tx_id:
+                return name
+        return None
+
+    async def open_raw(self, session_steps: list[dict] | None) -> None:
+        """Open the sessions the steps ask for on the raw backend, before polling.
+
+        A mode the safety policy refuses raises :class:`SafetyBlocked` before anything is
+        sent, as the ELM path does. ``--wake`` uses the ECU's ``wake:`` ritual.
         """
         c = self.c
-        assert c.raw_client is not None and c._ecu_index is not None  # set by setup()
+        assert c._ecu_index is not None  # set by setup()
         for step in session_steps or []:
             if step["type"] != "session":
                 continue
@@ -80,9 +101,25 @@ class MonitorSessions:
             blocked = self.check(tgt, mode)
             if blocked:
                 raise SafetyBlocked(f"session {tgt} --mode {mode}: {blocked}")
-            with contextlib.suppress(Exception):
-                c.raw_client.read(tgt, bytes.fromhex(session_request(mode)), timeout=1.0)
-            self.record_opened(tgt, mode)
+            await exec_session(
+                c.sm, tgt, step.get("wake", False), c._ecu_index, mode, profile=c.profile
+            )
+
+    async def keep_alive(self) -> None:
+        """Refresh the raw backend's idle sessions (between polls; ELM327 has its own task)."""
+        c = self.c
+        if not c.raw or c.disconnected or not c.sm.active_sessions:
+            return
+        try:
+            await c.sm.keepalive_stale(threshold=KEEPALIVE_INTERVAL_S)
+        except transport_error_types():
+            c.mark_disconnected("error")
+
+    def note_answer(self, ecu: str) -> None:
+        """An ECU answered a poll: that reset its session timer as a keepalive would."""
+        info = (self.c._ecu_index or {}).get(ecu)
+        if info is not None:
+            self.c.sm.mark_active(info["tx_id"])
 
     def warmup_reads(self) -> list[tuple[str, EcuIndexEntry, str]]:
         """``(ECU key, its index entry, first planned request)`` per polled ECU step.
@@ -110,30 +147,18 @@ class MonitorSessions:
         """Drop the cached sessions index (rebuilt lazily on next access)."""
         self._index = None
 
-    def record_opened(self, ecu_name: str, mode: str) -> None:
-        """Remember that the raw backend opened ``10 <mode>`` on ``ecu_name``."""
-        self.raw_modes[ecu_name.upper()] = mode
-
     def active_modes(self) -> dict[str, str]:
         """ECU_NAME -> currently-open "10 xx" sub-function (2-hex-digit str).
 
-        Sourced from SessionManager on the ELM backend or ``raw_modes`` on the
-        raw backend (which has no SessionManager at all). Omits any ECU with no
-        tracked session — e.g. one polled without a preceding `session` step
-        never sent `10 xx` and has nothing to show.
+        Omits any ECU with no session it accepted — e.g. one polled without a preceding
+        `session` step never sent `10 xx` and has nothing to show.
         """
         c = self.c
-        if not c._ecu_index:
-            return {}
         out: dict[str, str] = {}
-        for ecu_name, info in c._ecu_index.items():
-            if c.raw:
-                mode = self.raw_modes.get(ecu_name)
-            else:
-                sub = c.sm.session_mode(info["tx_id"]) if c.sm else None
-                mode = format_session_type(sub) if sub is not None else None
-            if mode:
-                out[ecu_name] = mode
+        for ecu_name, info in (c._ecu_index or {}).items():
+            sub = c.sm.session_mode(info["tx_id"])
+            if sub is not None:
+                out[ecu_name] = format_session_type(sub)
         return out
 
     def check(self, ecu_name: str, mode: str) -> str | None:
@@ -205,17 +230,10 @@ class MonitorSessions:
             return blocked
         label = SUBFUNCTION_NAMES.get(0x10, {}).get(int(mode, 16), "")
         suffix = f" ({label})" if label else ""
-        tx_id = info["tx_id"]
-        if c.raw:
-            assert c.raw_client is not None  # c.raw ⟺ raw_client was provided
-            try:
-                c.raw_client.read(ecu, bytes.fromhex(session_request(mode)), timeout=2.0)
-            except Exception as exc:
-                return f"{ecu}: session switch failed ({exc})"
-            self.raw_modes[ecu] = mode
-            return f"{ecu}: switched to session 0x10{mode}{suffix}."
-        assert c.sm is not None  # not c.raw ⟺ sm was constructed
-        outcome = await c.sm.open_session(tx_id, mode=mode, force=True, report=False)
+        try:
+            outcome = await c.sm.open_session(info["tx_id"], mode=mode, force=True, report=False)
+        except transport_error_types() as exc:
+            return f"{ecu}: session switch failed ({exc})"
         if outcome.ok:
             return f"{ecu}: switched to session 0x10{mode}{suffix}."
         return f"{ecu}: session 0x10{mode}{suffix} not opened — {outcome.problem()}."
