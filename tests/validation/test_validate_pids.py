@@ -364,6 +364,27 @@ class TestIoControlValidation:
         assert errs == []
         assert any("not returnControlToECU" in w for w in warns)
 
+    UDS = "  identity:\n    id_protocol: UDS\n"
+
+    def test_a_masked_entry_is_clean(self, tmp_path):
+        entry = '      on: "2FBC010307FF"\n      enable_mask: "FF"\n'
+        assert self._validate(tmp_path, entry, head=self.UDS) == ([], [])
+
+    def test_a_request_too_short_for_the_mask_warns(self, tmp_path):
+        entry = '      on: "2FBC0103"\n      release: "2FBC0100"\n      enable_mask: "FF"\n'
+        errs, warns = self._validate(tmp_path, entry, head=self.UDS)
+        assert errs == []
+        assert sum("too short to carry" in w for w in warns) == 2
+
+    def test_a_mask_on_a_kwp_entry_is_an_error(self, tmp_path):
+        entry = '      on: "300100"\n      release: "300111"\n      enable_mask: "80"\n'
+        errs, _ = self._validate(tmp_path, entry, key='"01"', head=self.KWP)
+        assert any("enable_mask is a UDS 0x2F field" in e for e in errs)
+
+    def test_an_unquoted_mask_is_an_error(self, tmp_path):
+        errs, _ = self._validate(tmp_path, '      on: "2FBC010380"\n      enable_mask: 80\n')
+        assert any("enable_mask must be quoted hex" in e for e in errs)
+
 
 class TestAddressingModeValidation:
     """29-bit addressing widens the accepted tx_id/rx_id range; per-ECU mode is validated."""

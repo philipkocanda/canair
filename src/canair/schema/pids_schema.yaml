@@ -559,6 +559,12 @@ valid_param_types:
 #                                      #   sent on exit, on Ctrl+C and by --poll. UDS
 #                                      #   implies 2F<DID>00; KWP2000 0x30 has no standard
 #                                      #   one, so `canair io` refuses a 0x30 ON without it
+#       enable_mask: str               # UDS only: the controlEnableMaskRecord (quoted hex)
+#                                      #   a packeted DID's requests end with, when its
+#                                      #   maker uses the mask concept (ISO 14229-1
+#                                      #   12.2.2). The value keys append it, and the
+#                                      #   implied release becomes 2F<DID>00 + FF per mask
+#                                      #   byte, which hands every parameter back
 #       notes: str                     # Additional context (use > for multiline)
 #       session: bool                  # Open a diagnostic session first (default: true)
 #       session_mode: str              # Its sub-function, quoted hex (default: "03"; Nissan
@@ -583,6 +589,7 @@ iocontrol_fields:
   - "on"
   - "off"
   - release        # optional: request that hands the output back (see above)
+  - enable_mask    # optional: a packeted DID's controlEnableMaskRecord (see above)
   - notes
   - session
   - session_mode

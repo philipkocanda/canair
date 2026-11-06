@@ -114,7 +114,8 @@ def add_parsers(sub) -> None:
         "  canair pids set-iocontrol IGPM BC01 --verified --label 'Low beam'\n"
         "  canair pids set-iocontrol BCM 6900 --session-mode C0 --no-hold\n"
         "  canair pids set-iocontrol HVAC F010 --on 2FF01003FF --off 2FF01000\n"
-        "  canair pids set-iocontrol BCM 6900 --release 30690000\n",
+        "  canair pids set-iocontrol BCM 6900 --release 30690000\n"
+        "  canair pids set-iocontrol ECM 0155 --enable-mask FF\n",
     )
     sio.add_argument("ecu", help=ECU_HELP)
     sio.add_argument("did", metavar="DID", help="The iocontrol: entry key (e.g. BC01)")
@@ -136,6 +137,14 @@ def add_parsers(sub) -> None:
         "and by --poll: IOControl on the same identifier, or 20 (StopDiagnosticSession) "
         "for a KWP2000 0x30 entry. UDS implies 2F{DID}00; a KWP2000 0x30 entry has no "
         "standard one, and `canair io` refuses its ON until this is set",
+    )
+    sio.add_argument(
+        "--enable-mask",
+        default=None,
+        metavar="HEX",
+        help="UDS only: the controlEnableMaskRecord a packeted DID's requests end with, when "
+        "its maker uses the mask concept (ISO 14229-1). The value keys append it, and the "
+        "implied release becomes 2F{DID}00 plus FF per mask byte",
     )
     sio.add_argument(
         "--session",
@@ -360,6 +369,7 @@ def cmd_set_iocontrol(args: argparse.Namespace) -> int:
             ("on", args.on),
             ("off", args.off),
             ("release", args.release),
+            ("enable_mask", args.enable_mask),
             ("session", args.session),
             ("session_mode", args.session_mode),
             ("hold", args.hold),
@@ -374,10 +384,11 @@ def cmd_set_iocontrol(args: argparse.Namespace) -> int:
             fields["session_mode"] = normalize_session_mode(args.session_mode)
         except ValueError as exc:
             raise EditError(f"--session-mode: {exc}") from None
-    for name in ("on", "off", "release"):
+    for name in ("on", "off", "release", "enable_mask"):
         value = fields.get(name)
         if isinstance(value, str) and value and not re.fullmatch(r"(?:[0-9A-Fa-f]{2})+", value):
-            raise EditError(f"--{name} expects a full hex request (e.g. 2FBC0103), got {value!r}")
+            flag = name.replace("_", "-")
+            raise EditError(f"--{flag} expects hex bytes (e.g. 2FBC0103), got {value!r}")
 
     def do():
         for name, value in fields.items():

@@ -186,3 +186,45 @@ class TestIndexRelease:
             data = _data("KWP2000", {"01": {"on": "300100", "release": bad}})
             with pytest.raises(ProfileError, match="OBC/iocontrol/01"):
                 build_iocontrol_index(data)
+
+
+class TestControlEnableMask:
+    """ISO 14229-1:2013 12.2 and Table E.1: a packeted DID's controlEnableMaskRecord."""
+
+    @pytest.mark.parametrize("protocol", (UDS, UNKNOWN))
+    def test_return_control_with_a_mask_is_still_a_release(self, protocol):
+        # returnControlToECU carries no control state, so the trailing bytes are the mask.
+        assert classify("2F015500FF", protocol) == RELEASE
+        assert classify("2F01550307000000003280", protocol) == ACTUATE
+
+    def test_parse_splits_the_mask_off_the_state(self):
+        io = parse_io_request("2F01550307AABBCCDD80", mask_length=1)
+        assert io is not None
+        assert io.state == bytes.fromhex("07AABBCCDD")
+        assert io.mask == bytes.fromhex("80")
+        assert parse_io_request("2F01550307AABBCCDD80").mask == b""
+
+    def test_a_kwp_request_has_no_mask(self):
+        assert parse_io_request("30070001", mask_length=1).mask == b""
+
+    def test_the_implied_release_returns_every_parameter(self):
+        assert default_release("2F01550307", UDS, mask_length=1) == "2F015500FF"
+        assert default_release("2F01550307", UDS, mask_length=2) == "2F015500FFFF"
+
+    def test_the_index_carries_the_mask_and_derives_the_release(self):
+        data = _data("UDS", {"0155": {"on": "2F01550307AABBCCDD80", "enable_mask": "80"}})
+        cmd = build_iocontrol_index(data)["OBC"]["cmds"]["0155"]
+        assert cmd["enable_mask"] == "80"
+        assert cmd["release"] == "2F015500FF"
+        assert on_refusal(cmd["on"], cmd["release"], UDS) is None
+
+    def test_a_declared_release_wins(self):
+        data = _data(
+            "UDS", {"0155": {"on": "2F0155030780", "enable_mask": "80", "release": "2F01550080"}}
+        )
+        assert build_iocontrol_index(data)["OBC"]["cmds"]["0155"]["release"] == "2F01550080"
+
+    def test_a_non_hex_mask_is_a_profile_error(self):
+        data = _data("UDS", {"0155": {"on": "2F0155030780", "enable_mask": "zz"}})
+        with pytest.raises(ProfileError, match="OBC/iocontrol/0155"):
+            build_iocontrol_index(data)

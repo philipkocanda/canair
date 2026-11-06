@@ -13,6 +13,13 @@ request is a release only when
 the profile declares it as one (an IOControl entry's ``release:``), and every other
 ``0x30`` request is ``actuate``.
 
+UDS ``0x2F`` returnControlToECU carries no control state (ISO 14229-1:2013 Table E.1), so
+whatever follows its parameter byte is the controlEnableMaskRecord of a packeted DID: the
+request is a release with or without it. A packeted DID whose maker uses the mask concept
+needs the mask on every request, release included (12.2.1), so such an entry declares its
+``enable_mask`` and its implied release carries a mask of all ones, which every server must
+accept to hand every parameter back.
+
 Pure and transport-free. Nothing calls it from the transports yet: the interlock's
 funnel is still a plan. ``canair io`` uses it to refuse an ON request that has no
 known release (:func:`on_refusal`), and ``canair scan range`` to ask before it sweeps
@@ -116,13 +123,15 @@ class IoRequest:
     UDS ``0x2F``: ``2F {DID_HI DID_LO} {option} [state…]``. KWP2000 ``0x30``:
     ``30 {LID} {option} [state…]`` with an 8-bit local identifier (LID), whose
     ``option`` byte means whatever its manufacturer decided. ``option`` is None
-    when the request stops after the identifier.
+    when the request stops after the identifier. ``mask`` is the UDS
+    controlEnableMaskRecord, split off the end when its length is known.
     """
 
     service: int
     identifier: bytes
     option: int | None
     state: bytes
+    mask: bytes = b""
 
 
 def request_bytes(request: str | bytes) -> bytes:
@@ -141,10 +150,12 @@ def normalize_request(request: str | bytes) -> str:
     return request_bytes(request).hex().upper()
 
 
-def parse_io_request(request: str | bytes) -> IoRequest | None:
+def parse_io_request(request: str | bytes, mask_length: int = 0) -> IoRequest | None:
     """Split an IOControl request (``0x2F`` or ``0x30``), or None for anything else.
 
-    Returns None when the request is too short to carry its whole identifier.
+    ``mask_length`` splits that many trailing bytes of a ``0x2F`` request off as its
+    controlEnableMaskRecord, when the request is long enough to hold them. Returns None
+    when the request is too short to carry its whole identifier.
     """
     data = request_bytes(request)
     if not data or data[0] not in (
@@ -156,11 +167,15 @@ def parse_io_request(request: str | bytes) -> IoRequest | None:
     if len(data) < 1 + width:
         return None
     rest = data[1 + width :]
+    state, mask = rest[1:], b""
+    if data[0] == INPUT_OUTPUT_CONTROL_BY_IDENTIFIER and 0 < mask_length <= len(state):
+        state, mask = state[:-mask_length], state[-mask_length:]
     return IoRequest(
         service=data[0],
         identifier=data[1 : 1 + width],
         option=rest[0] if rest else None,
-        state=rest[1:],
+        state=state,
+        mask=mask,
     )
 
 
@@ -189,7 +204,8 @@ def classify(
     if sid in _READ_SERVICES:
         return READ
     if sid == INPUT_OUTPUT_CONTROL_BY_IDENTIFIER:
-        if protocol != KWP and len(data) == 4 and data[3] == _UDS_RETURN_CONTROL:
+        # Any bytes after returnControlToECU are its controlEnableMaskRecord (Table E.1).
+        if protocol != KWP and len(data) >= 4 and data[3] == _UDS_RETURN_CONTROL:
             return RELEASE
         return ACTUATE
     if sid == ROUTINE_CONTROL:
@@ -207,12 +223,14 @@ def classify(
     return ACTUATE
 
 
-def default_release(request: str | bytes, protocol: DiagProtocol) -> str:
+def default_release(request: str | bytes, protocol: DiagProtocol, mask_length: int = 0) -> str:
     """The release implied by an IOControl request, or ``""`` when none is.
 
     A UDS ``0x2F`` request is released by returnControlToECU on the same DID
-    (``2F {DID} 00``). A KWP2000 ``0x30`` request has no implied release, and
-    neither has text that is not a hex request.
+    (``2F {DID} 00``), followed by a controlEnableMaskRecord of ``mask_length`` bytes of
+    ``FF`` when the DID carries one: all ones hands every parameter back (ISO 14229-1
+    12.2.1). A KWP2000 ``0x30`` request has no implied release, and neither has text
+    that is not a hex request.
     """
     try:
         io = parse_io_request(request)
@@ -220,7 +238,38 @@ def default_release(request: str | bytes, protocol: DiagProtocol) -> str:
         return ""
     if io is None or io.service != INPUT_OUTPUT_CONTROL_BY_IDENTIFIER or protocol == KWP:
         return ""
-    return io_control_request(int.from_bytes(io.identifier, "big"), _UDS_RETURN_CONTROL)
+    did = int.from_bytes(io.identifier, "big")
+    return io_control_request(did, _UDS_RETURN_CONTROL, mask=b"\xff" * mask_length)
+
+
+def resolve_release(
+    declared: object,
+    on: str,
+    off: str,
+    protocol: DiagProtocol,
+    key: str = "",
+    enable_mask: str = "",
+) -> str:
+    """An IOControl entry's release: the declared ``release:``, else the one it implies.
+
+    ``on``/``off`` imply one when they are UDS ``0x2F`` requests. An entry with neither
+    (driven only by the value keys, which build ``2F {key} 03 …``) implies the release of
+    its own 4-digit DID key. ``enable_mask`` is the entry's controlEnableMaskRecord (hex),
+    whose length the implied release's mask takes.
+    """
+    if declared not in (None, ""):
+        if not isinstance(declared, str):
+            raise ValueError(f"release must be a quoted hex request, got {declared!r}")
+        return normalize_request(declared)
+    mask_length = len(request_bytes(enable_mask)) if enable_mask else 0
+    if not on and not off and len(key) == 4 and all(c in "0123456789ABCDEF" for c in key):
+        on = f"2F{key}00"
+    for request in (on, off):
+        if request:
+            implied = default_release(request, protocol, mask_length)
+            if implied:
+                return implied
+    return ""
 
 
 def release_mismatch(on: str, release: str) -> str | None:

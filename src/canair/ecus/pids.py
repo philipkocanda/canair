@@ -22,7 +22,7 @@ from canair.ecus.sensitivity import param_sensitive
 from canair.ecus.signal_category import category_of
 from canair.ecus.wake import resolve_wake
 from canair.profile.model import Profile, ProfileError, profile_for_path, read_meta
-from canair.safety.actuation import default_release, normalize_request
+from canair.safety.actuation import normalize_request, resolve_release
 from canair.uds.addressing import AddressingMode, EcuAddress, resolve_ecu_address
 from canair.uds.memory import MemoryFormat
 from canair.uds.multi_did import resolve_multi_did_max
@@ -144,6 +144,10 @@ class IoControlCommand(TypedDict):
     command implies none (:mod:`canair.safety.actuation`), so it has a release only when
     the profile declares one, and ``canair io`` refuses its ``on`` until then.
 
+    ``enable_mask`` is the controlEnableMaskRecord (hex, ``""`` for none) a packeted
+    DID's requests carry; the value keys append it, and an implied release carries a mask
+    of all ones of the same length.
+
     ``discovery`` marks an entry merged in from ``iocontrol_discoveries:``
     (probed, not curated) rather than the hand-verified ``iocontrol:`` section.
     """
@@ -152,6 +156,7 @@ class IoControlCommand(TypedDict):
     on: str
     off: str
     release: str
+    enable_mask: str
     session: bool
     session_mode: str
     hold: bool
@@ -467,7 +472,10 @@ def build_iocontrol_index(
                 # YAML parses bare on/off as True/False booleans
                 on_cmd = str(cdef.get("on") or cdef.get(True, ""))
                 off_cmd = str(cdef.get("off") or cdef.get(False, ""))
-                release = _resolve_release(cdef.get("release"), on_cmd, off_cmd, protocol, did_str)
+                mask = normalize_request(str(cdef.get("enable_mask") or ""))
+                release = resolve_release(
+                    cdef.get("release"), on_cmd, off_cmd, protocol, did_str, mask
+                )
             except ValueError as exc:
                 raise ProfileError(f"{ecu_name}/iocontrol/{did_str}: {exc}") from None
             cmds[did_str] = {
@@ -475,6 +483,7 @@ def build_iocontrol_index(
                 "on": on_cmd,
                 "off": off_cmd,
                 "release": release,
+                "enable_mask": mask,
                 "session": cdef.get("session", True),
                 "session_mode": session_mode,
                 "hold": cdef.get("hold", True),
@@ -495,7 +504,8 @@ def build_iocontrol_index(
                 "off": "",
                 # A 4-digit key is a UDS DID, whose release is implied; a 2-digit
                 # KWP2000 LID has none.
-                "release": _resolve_release(None, "", "", protocol, did_str),
+                "release": resolve_release(None, "", "", protocol, did_str),
+                "enable_mask": "",
                 "session": (ddef.get("session", "extended") == "extended"),
                 "session_mode": DEFAULT_IOCONTROL_SESSION_MODE,
                 "hold": True,
@@ -510,29 +520,6 @@ def build_iocontrol_index(
             "cmds": cmds,
         }
     return index
-
-
-def _resolve_release(
-    declared: object, on: str, off: str, protocol: DiagProtocol, key: str = ""
-) -> str:
-    """An entry's release: the declared ``release:``, else the one it implies.
-
-    ``on``/``off`` imply one when they are UDS ``0x2F`` requests. An entry with
-    neither (driven only by the value keys, which build ``2F {key} 03 …``) implies
-    the release of its own 4-digit DID key.
-    """
-    if declared not in (None, ""):
-        if not isinstance(declared, str):
-            raise ValueError(f"release must be a quoted hex request, got {declared!r}")
-        return normalize_request(declared)
-    if not on and not off and len(key) == 4 and all(c in "0123456789ABCDEF" for c in key):
-        on = f"2F{key}00"
-    for request in (on, off):
-        if request:
-            implied = default_release(request, protocol)
-            if implied:
-                return implied
-    return ""
 
 
 def build_routines_index(pids_data: dict) -> dict[str, RoutineIndexEntry]:

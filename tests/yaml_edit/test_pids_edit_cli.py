@@ -100,7 +100,18 @@ def io_dir(tmp_path):
 
 def _io_args(io_dir, **kw):
     fields = dict.fromkeys(
-        ("label", "notes", "verified", "on", "off", "release", "session", "session_mode", "hold")
+        (
+            "label",
+            "notes",
+            "verified",
+            "on",
+            "off",
+            "release",
+            "enable_mask",
+            "session",
+            "session_mode",
+            "hold",
+        )
     )
     fields["status_param"] = None
     fields.update(kw)
@@ -131,6 +142,13 @@ def test_set_iocontrol_writes_a_quoted_release(io_dir):
 def test_set_iocontrol_rejects_a_non_hex_release(io_dir):
     with pytest.raises(EditError, match="--release"):
         ecu_facts.cmd_set_iocontrol(_io_args(io_dir, release="off"))
+
+
+def test_set_iocontrol_writes_a_quoted_enable_mask(io_dir):
+    assert ecu_facts.cmd_set_iocontrol(_io_args(io_dir, enable_mask="80")) == 0
+    assert 'enable_mask: "80"' in (io_dir / "e.yaml").read_text()
+    with pytest.raises(EditError, match="--enable-mask"):
+        ecu_facts.cmd_set_iocontrol(_io_args(io_dir, enable_mask="x"))
 
 
 def test_set_iocontrol_rejects_a_non_hex_command(io_dir):

@@ -306,15 +306,16 @@ class IOControlActuator:
             t.report(refusal, "error")
             _tui_logger.warning("ADJ %s refused: %s", did, refusal)
             return
+        cmd = t.all_cmds.get(did)
+        mask = bytes.fromhex(cmd.get("enable_mask") or "") if cmd else b""
         hex_cmd = io_control_request(
-            int(did, 16), IoControlParameter.SHORT_TERM_ADJUSTMENT, value_bytes
+            int(did, 16), IoControlParameter.SHORT_TERM_ADJUSTMENT, value_bytes, mask
         )
 
         t.busy = True
         t.report(f"Adjust {did}: {hex_cmd}")
         _tui_logger.info("ADJ %s cmd=%s", did, hex_cmd)
         try:
-            cmd = t.all_cmds.get(did)
             if cmd is None or cmd["session"]:
                 await self.ensure_session(cmd["session_mode"] if cmd else None)
             resp = await self._send(hex_cmd)

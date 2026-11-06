@@ -44,13 +44,18 @@ def session_request(mode: int | str) -> str:
     return _request(DIAGNOSTIC_SESSION_CONTROL, _field(sub, 1, "session type"))
 
 
-def io_control_request(did: int, parameter: int, state: bytes = b"") -> str:
-    """``2F {DID} {parameter} {state}``: InputOutputControlByIdentifier (UDS)."""
+def io_control_request(did: int, parameter: int, state: bytes = b"", mask: bytes = b"") -> str:
+    """``2F {DID} {parameter} {state} {mask}``: InputOutputControlByIdentifier (UDS).
+
+    ``mask`` is the controlEnableMaskRecord a packeted DID's requests carry when its maker
+    uses the mask concept (ISO 14229-1 12.2.2); it follows the state bytes.
+    """
     return _request(
         INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
         _field(did, 2, "DID"),
         _field(parameter, 1, "control parameter"),
         state,
+        mask,
     )
 
 

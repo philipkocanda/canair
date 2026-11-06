@@ -1,7 +1,7 @@
 # UDS specification alignment: canair checked against udsoncan
 
-Status: **PHASES 0, 1, 2, 4, 5, 8 DONE** (2026-11-06), and phase 6 item 2. Phases 3 and 6 need
-the car; phase 7 needs the ISO 14229-1 text. Checked against `3e652f46`. Paths are relative to
+Status: **PHASES 0, 1, 2, 4, 5, 7, 8 DONE** (2026-11-06), and phase 6 item 2. Phases 3 and 6
+need the car. Checked against `3e652f46`. Paths are relative to
 `src/canair/` unless they start with `plans/`, `docs/` or `tests/`.
 
 ## Summary
@@ -439,17 +439,51 @@ As built:
    commit.
 5. On the car: `dtc read` on an ECU with a stored code, with and without `--extended`.
 
-### Phase 7 — IOControl mask (not started: needs the ISO 14229-1 text)
-
-Whether the release (`2F <DID> 00`) of a packeted DID must carry the mask decides how the
-`canair io` release interlock changes. Without the text, a guess there could leave an output
-driven, so this phase waits for the standard.
+### Phase 7 — IOControl mask (done, 2026-11-06)
 
 1. Check the ISO 14229-1 text for when the mask is present, including on returnControlToECU.
 2. An optional `enable_mask` (bytes) on an IOControl entry in the ECU schema, edited through
    `canair pids`. `safety/actuation.py::parse_io_request` splits state and mask by it, and the
    release request carries the mask when the standard requires it.
 3. Docs: `docs/concepts/profiles.md`.
+
+What ISO 14229-1:2013 says (12.2 and Annex E.1, read in
+`references/ISO Standards/`, which is gitignored):
+
+- The controlEnableMaskRecord follows the controlState bytes. It exists only for a packeted or
+  bitmapped DID, and only when the vehicle maker uses the mask concept. Then it is mandatory
+  on every request of the service, returnControlToECU included (12.2.1, Table 352 note C2).
+- returnControlToECU, resetToDefault and freezeCurrentState carry no controlState bytes in the
+  request (Table E.1). So after `2F <DID> 00` the only bytes that can follow are the mask.
+- On returnControlToECU, a server "shall always provide the client the capability of setting
+  the controlMask (if supported) bits all to '1'" to hand the whole DID back (12.2.1). The
+  standard's own example is `2F 01 55 00 FF` (Table 375).
+- A bit of `1` means "this parameter is affected"; the most significant bit of the first mask
+  byte is the DID's first parameter.
+
+As built:
+
+- `safety/actuation.py::classify` reads UDS `2F <DID> 00` followed by any bytes as a release,
+  where it required exactly four bytes. The mask cannot change what returnControlToECU does.
+- An IOControl entry may declare `enable_mask` (quoted hex). `canair pids set-iocontrol
+  --enable-mask HEX` writes it, `schema/pids_schema.yaml` lists it, and `canair validate`
+  checks it: hex, quoted, UDS only, and every `on`/`off`/`release` long enough to carry it.
+- The implied release becomes `2F <DID> 00` plus `FF` per mask byte
+  (`safety/actuation.py::default_release`, `resolve_release`). A declared `release:` still
+  wins. `resolve_release` moved from `ecus/pids.py` to `safety/actuation.py`, next to
+  `default_release`, which also keeps `ecus/pids.py` under its line ceiling.
+- The `canair io` TUI's value keys append the entry's mask to a shortTermAdjustment
+  (`live/actuate/iocontrol_actuate.py::send_adjust`). `parse_io_request(…, mask_length=)`
+  splits a request's mask from its state, and `uds/requests.py::io_control_request` takes a
+  `mask`.
+- Docs: `docs/concepts/safety.md`, which describes the release (`docs/concepts/profiles.md`
+  does not describe IOControl entries), and the generated `docs/reference/cli/pids.md`.
+- Not done: a mask per value key. The value keys send the entry's one mask, so an entry that
+  needs different masks for different parameters must use full `on`/`off` requests.
+- Tests: `tests/safety/test_actuation.py::TestControlEnableMask`, the `enable_mask` cases in
+  `tests/validation/test_validate_pids.py` and `tests/yaml_edit/test_pids_edit_cli.py`, and
+  `tests/live/actuate/test_iocontrol_actuate.py::TestEnableMask`. No bundled profile declares
+  a mask yet: no bundled ECU is known to use the concept.
 
 ### Phase 8 — ISO-TP (done, 2026-11-06)
 

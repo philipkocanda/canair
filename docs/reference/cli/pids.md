@@ -821,6 +821,7 @@ options:
 usage: canair pids set-iocontrol [-h] [--label LABEL] [--notes NOTES]
                                  [--verified | --no-verified] [--on HEX]
                                  [--off HEX] [--release HEX]
+                                 [--enable-mask HEX]
                                  [--session | --no-session]
                                  [--session-mode XX] [--hold | --no-hold]
                                  [--status-param NAME] [--dir DIR]
@@ -847,6 +848,11 @@ options:
                         a KWP2000 0x30 entry. UDS implies 2F{DID}00; a KWP2000
                         0x30 entry has no standard one, and `canair io`
                         refuses its ON until this is set
+  --enable-mask HEX     UDS only: the controlEnableMaskRecord a packeted DID's
+                        requests end with, when its maker uses the mask
+                        concept (ISO 14229-1). The value keys append it, and
+                        the implied release becomes 2F{DID}00 plus FF per mask
+                        byte
   --session, --no-session
                         Open a diagnostic session before actuating
   --session-mode XX     DiagnosticSessionControl sub-function to open (default
@@ -864,6 +870,7 @@ examples:
   canair pids set-iocontrol BCM 6900 --session-mode C0 --no-hold
   canair pids set-iocontrol HVAC F010 --on 2FF01003FF --off 2FF01000
   canair pids set-iocontrol BCM 6900 --release 30690000
+  canair pids set-iocontrol ECM 0155 --enable-mask FF
 ```
 
 ## `canair pids set-wake`

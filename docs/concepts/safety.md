@@ -18,6 +18,13 @@ do.
   release is `returnControlToECU` (`2F {DID} 00`). KWP2000's `0x30` has no standard
   release, so canair only switches a `0x30` actuator on when its profile entry
   declares one (see below).
+- **Packeted DIDs carry their mask.** One UDS DID can hold several outputs. Some makers
+  then require a controlEnableMaskRecord on every request, the release included, and
+  refuse a release without it, which would leave the output driven. Declare the mask
+  with `canair pids set-iocontrol ECU DID --enable-mask HEX`. The value keys of the
+  `canair io` TUI then append it, and the release becomes `2F {DID} 00` with `FF` for
+  each mask byte, which ISO 14229-1 requires every ECU to accept as "hand every output
+  back".
 
 ## Hard limits — what canair refuses
 

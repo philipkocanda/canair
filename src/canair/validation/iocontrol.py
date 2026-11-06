@@ -1,4 +1,5 @@
-"""Validation of an ECU's ``iocontrol:`` block: entries, ``session_mode`` and ``release``."""
+"""Validation of an ECU's ``iocontrol:`` block: entries, ``session_mode``, ``release`` and
+``enable_mask``."""
 
 import re
 
@@ -8,10 +9,11 @@ from canair.safety.actuation import (
     on_refusal,
     parse_io_request,
     release_mismatch,
+    request_bytes,
 )
 from canair.safety.blocklist import session_mode_block
 from canair.safety.quirks import allowed_session_modes
-from canair.uds.protocol import classify_protocol
+from canair.uds.protocol import KWP, classify_protocol
 from canair.uds.services import INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
 from canair.uds.subfunctions import IoControlParameter
 
@@ -79,6 +81,7 @@ def validate_iocontrol(
         "on",
         "off",
         "release",
+        "enable_mask",
         "notes",
         "session",
         "session_mode",
@@ -112,6 +115,7 @@ def validate_iocontrol(
             did_def.get("session_mode"), did_label, errors, warnings, protocol, profile_meta
         )
         _validate_iocontrol_release(did_def, did_label, protocol, errors, warnings)
+        _validate_enable_mask(did_def, did_label, protocol, errors, warnings)
         validate_state_list(
             did_def.get("vehicle_states"), did_label, "vehicle_states", errors, allowed_states_set
         )
@@ -153,6 +157,47 @@ def _validate_iocontrol_release(did_def, did_label, protocol, errors, warnings) 
             )
         return
     if on:
-        reason = on_refusal(on, default_release(on, protocol), protocol)
+        mask = did_def.get("enable_mask")
+        mask_length = len(mask) // 2 if isinstance(mask, str) else 0
+        reason = on_refusal(on, default_release(on, protocol, mask_length), protocol)
         if reason:
             warnings.append(f"{did_label}: `canair io` refuses its ON — {reason}")
+
+
+def _validate_enable_mask(did_def, did_label, protocol, errors, warnings) -> None:
+    """Check an IOControl entry's ``enable_mask:`` against its requests.
+
+    The mask is part of every request on a packeted DID whose maker uses the mask concept
+    (ISO 14229-1 12.2.2), the release included: a release without it may be refused, and
+    the output then stays driven.
+    """
+    declared = did_def.get("enable_mask")
+    if declared in (None, ""):
+        return
+    if not isinstance(declared, str):
+        errors.append(f"{did_label}: enable_mask must be quoted hex, got {declared!r}")
+        return
+    try:
+        mask = request_bytes(declared)
+    except ValueError as exc:
+        errors.append(f"{did_label}: enable_mask: {exc}")
+        return
+    if not mask:
+        return
+    if protocol == KWP:
+        errors.append(f"{did_label}: enable_mask is a UDS 0x2F field; KWP2000 0x30 has none")
+        return
+    # YAML reads an unquoted on/off key as the booleans True/False.
+    for field, yaml_key in (("on", True), ("off", False), ("release", None)):
+        request = did_def.get(field) or (did_def.get(yaml_key) if yaml_key is not None else None)
+        if not isinstance(request, str) or not request:
+            continue
+        try:
+            data = request_bytes(request)
+        except ValueError:
+            continue
+        if len(data) < 4 + len(mask):
+            warnings.append(
+                f"{did_label}: {field} {normalize_request(request)} is too short to carry the "
+                f"{len(mask)}-byte enable_mask, which every request on this DID needs"
+            )

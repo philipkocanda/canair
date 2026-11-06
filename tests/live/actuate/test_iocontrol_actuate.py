@@ -456,6 +456,21 @@ class TestSessionHeader:
         assert "not started" in self._header(False, None)
 
 
+class TestEnableMask:
+    """A packeted DID's controlEnableMaskRecord rides on every request (ISO 14229-1 12.2.2)."""
+
+    def test_adjust_appends_the_entrys_mask(self):
+        act, tui = _actuator()
+        tui.cmds["BC01"]["enable_mask"] = "80"
+        asyncio.run(act.send_adjust("BC01", b"\x07\x00"))
+        assert tui.terminal.sent == ["2FBC0103070080"]
+
+    def test_adjust_without_a_mask_sends_the_state_only(self):
+        act, tui = _actuator()
+        asyncio.run(act.send_adjust("BC01", b"\x07"))
+        assert tui.terminal.sent == ["2FBC010307"]
+
+
 class TestKwpActuators:
     """KWP2000 0x30 has no standard release: ON needs a declared one, value keys never."""
 
