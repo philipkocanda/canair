@@ -48,7 +48,9 @@ if it has drifted (Boy Scout). This applies to this skill too — keep it intent
 
 canair reaches the bus through one **explicitly selected** transport, registered as a
 `TransportSpec` in `src/canair/transport/config.py::TRANSPORTS` (precedence and the current list:
-`AGENTS.md` → Transports). Two families sit behind one surface:
+`AGENTS.md` → WiCAN access and transports). The designs that span the transports are pages in
+`docs/development/`: `frame-counts.md` and `link-health.md` (fallback, reconnect, desync
+recovery). Two families sit behind one surface:
 
 | Family | Transports | How bytes move |
 |---|---|---|

@@ -629,7 +629,7 @@ link.
 - [ ] Clear on which chip the change affects — MIC3624 (`wican-ws`, `elm327-tcp`) or ESP32 TWAI
       (`slcan-tcp`) — and whether it must work on both.
 - [ ] New `send_uds` calls pass `expected_sid` **and** `expected_echo` (a desync is otherwise
-      undetectable — see AGENTS.md).
+      undetectable — see `docs/development/link-health.md`).
 - [ ] `set_header` + `send_uds` held inside one `terminal.transaction()`.
 - [ ] Any adapter setting written outside the init string is reset, or added to the init string.
 - [ ] Feature gated on a **chip** capability probe, not a WiCAN firmware version — the ESP32

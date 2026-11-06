@@ -48,5 +48,7 @@
     },
     "stderr_gating": {},
     "tui_key_hints": {}
-  }
+  },
+  "agents_md_lines": 436,
+  "agents_md_code_paths": 7
 }

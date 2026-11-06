@@ -61,6 +61,7 @@ protocol_literals = _load_check("protocol_literals")
 ambient_profile = _load_check("ambient_profile")
 ui_standards = _load_check("ui_standards")
 deferred = _load_check("deferred_scan")
+agent_guide = _load_check("agent_guide")
 
 
 def _baseline() -> dict:
@@ -387,6 +388,9 @@ def _fresh_baseline(old: dict) -> dict:
         n for n in old["cross_package_private_imports"] if n in now
     ]
     new["ui_standards"] = ui_standards.lowered(old.get("ui_standards", {}), ui_standards.counts())
+    guide = agent_guide.counts()
+    new["agents_md_lines"] = min(old["agents_md_lines"], guide["lines"])
+    new["agents_md_code_paths"] = min(old["agents_md_code_paths"], guide["code_paths"])
     return new
 
 
@@ -406,6 +410,8 @@ def _initial_baseline() -> dict:
         "flat_tests": _flat_tests(),
         "cross_package_private_imports": graph.cross_package_private_imports(),
         "ui_standards": ui_standards.counts(),
+        "agents_md_lines": agent_guide.counts()["lines"],
+        "agents_md_code_paths": agent_guide.counts()["code_paths"],
     }
 
 
