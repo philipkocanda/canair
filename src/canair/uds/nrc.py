@@ -84,9 +84,25 @@ NRC_CODES = {
     0x26: "failurePreventsExecutionOfRequestedAction",
     0x31: "requestOutOfRange",
     0x33: "securityAccessDenied",
+    0x34: "authenticationRequired",
     0x35: "invalidKey",
     0x36: "exceededNumberOfAttempts",
     0x37: "requiredTimeDelayNotExpired",
+    # ISO 14229-1:2020, the Authentication (0x29) service's refusals.
+    0x50: "certificateVerificationFailedInvalidTimePeriod",
+    0x51: "certificateVerificationFailedInvalidSignature",
+    0x52: "certificateVerificationFailedInvalidChainOfTrust",
+    0x53: "certificateVerificationFailedInvalidType",
+    0x54: "certificateVerificationFailedInvalidFormat",
+    0x55: "certificateVerificationFailedInvalidContent",
+    0x56: "certificateVerificationFailedInvalidScope",
+    0x57: "certificateVerificationFailedInvalidCertificate",
+    0x58: "ownershipVerificationFailed",
+    0x59: "challengeCalculationFailed",
+    0x5A: "settingAccessRightsFailed",
+    0x5B: "sessionKeyCreationDerivationFailed",
+    0x5C: "configurationDataUsageFailed",
+    0x5D: "deAuthenticationFailed",
     0x70: "uploadDownloadNotAccepted",
     0x71: "transferDataSuspended",
     0x72: "generalProgrammingFailure",
@@ -113,6 +129,7 @@ NRC_CODES = {
     0x91: "torqueConverterClutchLocked",
     0x92: "voltageTooHigh",
     0x93: "voltageTooLow",
+    0x94: "resourceTemporarilyNotAvailable",
 }
 
 # Short mnemonics for compact UI display (TUI "Last response" column, etc), one per
@@ -130,9 +147,24 @@ NRC_ABBREV = {
     0x26: "FPE",  # failurePreventsExecution
     0x31: "ROOR",  # requestOutOfRange
     0x33: "SAD",  # securityAccessDenied
+    0x34: "AR",  # authenticationRequired
     0x35: "IK",  # invalidKey
     0x36: "ENOA",  # exceededNumberOfAttempts
     0x37: "RTDNE",  # requiredTimeDelayNotExpired
+    0x50: "CVFITP",  # certificateVerificationFailedInvalidTimePeriod
+    0x51: "CVFISIG",  # ...InvalidSignature
+    0x52: "CVFICOT",  # ...InvalidChainOfTrust
+    0x53: "CVFIT",  # ...InvalidType
+    0x54: "CVFIF",  # ...InvalidFormat
+    0x55: "CVFIC",  # ...InvalidContent
+    0x56: "CVFISCP",  # ...InvalidScope
+    0x57: "CVFICERT",  # ...InvalidCertificate
+    0x58: "OVF",  # ownershipVerificationFailed
+    0x59: "CCF",  # challengeCalculationFailed
+    0x5A: "SARF",  # settingAccessRightsFailed
+    0x5B: "SKCDF",  # sessionKeyCreationDerivationFailed
+    0x5C: "CDUF",  # configurationDataUsageFailed
+    0x5D: "DAF",  # deAuthenticationFailed
     0x70: "UDNA",  # uploadDownloadNotAccepted
     0x71: "TDS",  # transferDataSuspended
     0x72: "GPF",  # generalProgrammingFailure
@@ -159,13 +191,16 @@ NRC_ABBREV = {
     0x91: "TCCL",
     0x92: "VTH",
     0x93: "VTL",
+    0x94: "RTNA",  # resourceTemporarilyNotAvailable
 }
 
 # ISO 14229-1 ranges without per-code names: (codes, name, mnemonic). 0xF0-0xFE differ
 # per make (Hyundai/Kia use them for gateway authentication and downgrade refusals), so
 # they get the range name only.
 _NRC_RANGES = (
-    (range(0x94, 0xF0), "reservedForSpecificConditionsNotCorrect", "RFSCNC"),
+    # ISO 14229-1 leaves these to ISO 15764, the extended data-link security document.
+    (range(0x38, 0x50), "reservedByExtendedDataLinkSecurityDocument", "RBEDLSD"),
+    (range(0x95, 0xF0), "reservedForSpecificConditionsNotCorrect", "RFSCNC"),
     (range(0xF0, 0xFF), "vehicleManufacturerSpecificConditionsNotCorrect", "VMSCNC"),
 )
 

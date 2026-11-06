@@ -29,6 +29,17 @@ class TestNrcNames:
         assert nrc_abbrev(0xF3) == "VMSCNC"
         assert nrc_abbrev(0xFF) == "?"
 
+    def test_iso_14229_2020_codes_are_named(self):
+        assert nrc_description(0x34) == "authenticationRequired"
+        assert nrc_description(0x5D, "uds") == "deAuthenticationFailed"
+        assert nrc_description(0x94) == "resourceTemporarilyNotAvailable"
+        assert nrc_description(0x95) == "reservedForSpecificConditionsNotCorrect"
+        assert nrc_description(0x40) == "reservedByExtendedDataLinkSecurityDocument"
+        # On KWP2000, 0x50-0x53 keep their SSF 14230-3 upload meanings.
+        assert nrc_description(0x52, "kwp") == "cantUploadFromSpecifiedAddress"
+        assert nrc_abbrev(0x52, KWP) == "CNUFSA"
+        assert nrc_abbrev(0x52) == "CVFICOT"
+
     def test_kwp_codes_without_a_uds_meaning_are_named_and_tagged(self):
         # Protocol unknown: ISO 14229-1 has no 0x23, so the KWP2000 name is offered, tagged.
         assert nrc_description(0x23) == "routineNotCompleteOrServiceInProgress (KWP2000)"
@@ -59,8 +70,8 @@ class TestNrcNames:
         assert nrc_description(nrc, "uds") == NRC_CODES[nrc]
 
     def test_kwp_names_every_unlisted_low_code_reserved(self):
-        assert nrc_description(0x5A, "kwp") == "reservedByDocument"
-        assert nrc_description(0x5A) == "unknown (0x5A)"
+        assert nrc_description(0x5E, "kwp") == "reservedByDocument"
+        assert nrc_description(0x5E) == "unknown (0x5E)"
 
     def test_kwp_high_range_is_not_read_as_iso_14229_refinements(self):
         # 0x88 is vehicleSpeedTooHigh in ISO 14229-1 but reserved in SSF 14230-3, and

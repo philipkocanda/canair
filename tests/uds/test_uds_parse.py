@@ -67,9 +67,9 @@ class TestParseUdsResponse:
         assert "buffer" in r["error"].lower()
 
     def test_nrc_unknown_code(self):
-        r = parse_uds_response("7F 22 5A")
+        r = parse_uds_response("7F 22 5E")  # 0x5A is named since ISO 14229-1:2020
         assert r["ok"] is False
-        assert r["nrc"] == 0x5A
+        assert r["nrc"] == 0x5E
         assert "unknown" in r["nrc_desc"]
 
     def test_raw_preserved(self):
