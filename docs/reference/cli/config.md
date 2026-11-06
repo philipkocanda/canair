@@ -125,6 +125,7 @@ known keys:
   transport.stale_cycles_before_reconnect
   transport.expected_responses
   transport.firmware_check
+  safety.allow_unsafe                         valid: true, false
 
 Every key is documented in `canair config example` (config.example.yaml) and https://philipkocanda.github.io/canair/reference/config/
 

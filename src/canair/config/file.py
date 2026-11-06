@@ -217,6 +217,25 @@ def _read_yaml(path: Path) -> dict:
     return {}
 
 
+# The key that lets live commands take --unsafe. A flag is easy to pass with good intentions (an
+# agent that wants a command to go through), so the flag works only once the user enables this in
+# their own config file, and `canair config set` asks for typed consent before it does.
+ALLOW_UNSAFE_KEY = "safety.allow_unsafe"
+
+
+def unsafe_allowed() -> bool:
+    """Whether the user config enables ``--unsafe`` (``safety.allow_unsafe: true``).
+
+    Only the user config file counts, not the legacy repo-local ``config.yaml``: a file inside
+    a checkout is one an agent working there can write. Only a YAML boolean ``true`` enables
+    it, so a quoted ``"true"`` or a typo leaves ``--unsafe`` refused. The file is read on each
+    call (not the cached merged config), so a change takes effect on the next command.
+    """
+    data = _read_yaml(user_config_file())
+    block = data.get("safety") if isinstance(data, dict) else None
+    return isinstance(block, dict) and block.get("allow_unsafe") is True
+
+
 @lru_cache(maxsize=1)
 def load_config() -> dict:
     """Load merged configuration (legacy repo config < user config)."""

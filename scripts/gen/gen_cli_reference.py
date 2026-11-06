@@ -53,6 +53,11 @@ def _isolate_environment() -> None:
     config_file.load_config.cache_clear()
     config_file.load_config = lambda: {}  # type: ignore[assignment]
 
+    # --help lists --unsafe only on a terminal; the reference documents every flag.
+    from canair.cli.live import parser as live_parser
+
+    live_parser.unsafe_flag_visible = lambda: True  # type: ignore[assignment]
+
 
 def _format_help(parser: argparse.ArgumentParser) -> str:
     """Capture a parser's --help text (argparse writes to stdout via print_help)."""

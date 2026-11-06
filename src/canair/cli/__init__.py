@@ -27,7 +27,7 @@ from canair.cli.commands import iter_command_modules
 from canair.cli.first_run import run_first_run_setup, should_offer
 from canair.cli.lock_notice import warn_if_connection_held
 from canair.cli.profile_context import set_active
-from canair.config.file import ensure_config_dir
+from canair.config.file import ALLOW_UNSAFE_KEY, ensure_config_dir, unsafe_allowed
 from canair.core.edit_errors import EditError
 from canair.core.prompt import PromptUnavailable
 from canair.install import update_check
@@ -35,7 +35,7 @@ from canair.install.build_info import build_summary, full_version
 from canair.migrations.devices import maybe_auto_migrate
 from canair.privacy.sensitive import take_withheld_note
 from canair.profile.model import ProfileError
-from canair.render import ansi, messages
+from canair.render import ansi, glyphs, messages
 from canair.safety.blocklist import SafetyBlocked
 
 # Global options (before the subcommand) that consume a following value. Used by
@@ -315,6 +315,21 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _print_unsafe_banner() -> None:
+    """Warn on every command while ``safety.allow_unsafe`` is on, so it is not left on."""
+    if not unsafe_allowed():
+        return
+    rule = "═" * 72
+    lines = [
+        f"{glyphs.WARN} {rule}",
+        f"{glyphs.WARN}  UNSAFE MODE IS ENABLED ({ALLOW_UNSAFE_KEY}: true)",
+        f"{glyphs.WARN}  Live commands accept --unsafe, which can send requests that damage an ECU.",
+        f"{glyphs.WARN}  Turn it off when you are done: canair config unset {ALLOW_UNSAFE_KEY}",
+        f"{glyphs.WARN} {rule}",
+    ]
+    print(ansi.cerr("\n".join(lines), ansi.raw.BOLD + ansi.raw.YELLOW), file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
 
@@ -329,6 +344,9 @@ def main(argv: list[str] | None = None) -> int:
         argcomplete.autocomplete(parser)
     except ImportError:
         pass
+
+    # After tab completion (which exits above), before anything else prints, --help included.
+    _print_unsafe_banner()
 
     args = parser.parse_args(argv)
 

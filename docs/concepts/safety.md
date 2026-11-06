@@ -84,7 +84,8 @@ KWP2000 ECUs the same way: the Kia Soul EV opens it for actuator tests, and a
 commercial scan tool opens it on every Kona EV powertrain ECU. No quirk can permit
 a programming or safety-system session. `canair validate` checks
 every actuator's `session_mode` against the same rule. A refused request stops
-the command with `error: …` (exit code 2); `--unsafe` turns the refusal into a
+the command with `error: …` (exit code 2); `--unsafe` ([once you enable
+it](#enabling-unsafe)) turns the refusal into a
 prompt you must answer `YES`: anything else ends the run (exit code 1), and with no
 terminal on stdin it is refused (exit code 2). The same prompt covers every refusal above
 except the safety-system routines, and it does not cover the broadcast rule below.
@@ -109,6 +110,31 @@ addresses that ECU under the ordinary rules.
 These exist to make it very hard to brick a real car by accident. The block is
 enforced centrally, not per-command, so it can't be quietly bypassed by a
 different code path.
+
+## Enabling `--unsafe`
+
+`--unsafe` is off until you turn it on in your own config file. Until then, a live
+command that gets `--unsafe` stops with `error: …` (exit code 2) before it connects.
+`--help` lists the flag only on a terminal, so piped help (what a script or an agent
+reads) leaves it out. The flag still works there once the key is on. To turn it on:
+
+```bash
+canair config set safety.allow_unsafe true
+```
+
+This command asks you to type `YES`. No flag skips the prompt, and with no terminal
+on stdin it is refused (exit code 2). canair reads the key only from the user config
+file (`canair config path`), not from a legacy `config.yaml` in the repo root. Turn
+it off again with `canair config unset safety.allow_unsafe`. With the key on, every
+refused request still asks for its own `YES`, and every canair command starts with a
+yellow banner on stderr that says unsafe mode is on, so you do not forget to turn it off.
+
+!!! note "What this guard is for"
+    These steps do not stop a malicious user, or a malicious agent. Anyone who wants to
+    send a refused request can edit the config file, or change canair's code. The guard is
+    against *accidental* use: most of all, an AI agent that means well, wants to finish its
+    task, and sees `--unsafe` as the way to get a refused request through. The key, the
+    typed consent and the hidden flag make sure that a person decides to turn it on.
 
 ## Discovery vs. actuation
 

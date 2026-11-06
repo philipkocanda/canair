@@ -106,6 +106,16 @@ default_wican: home
 # works on both models. Leave unset (or "pro") if you have a WiCAN Pro.
 # wican_model: pro
 
+# Safety. `--unsafe` turns a refusal by the dangerous-command blocklist into a
+# prompt to type YES for each refused request. Live commands refuse the flag until
+# allow_unsafe is true here. Enable it with `canair config set safety.allow_unsafe
+# true`, which asks you to type YES at a terminal (no flag skips it). Only this user
+# config file counts, not a legacy repo-local config.yaml. While it is on, every
+# command starts with a warning banner. This guards against accidental use (an AI
+# agent that means well), not against a malicious user. See docs/concepts/safety.md.
+# safety:
+#   allow_unsafe: false        # default false; only a YAML boolean true enables it
+
 # CAN transport selection (advanced). Chosen explicitly; never auto-detected.
 # The type/host are overridden per-command by --transport/--wican; port and
 # bitrate are config-only (no CLI flags). When the type is omitted, canair

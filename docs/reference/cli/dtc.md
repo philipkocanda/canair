@@ -129,8 +129,11 @@ options:
   --reboot              Reboot WiCAN after session to restore AutoPID mode
                         (skipped on firmware v6, which resumes AutoPID by
                         itself)
-  --unsafe              Bypass dangerous command blocklist (requires explicit
-                        per-command consent)
+  --unsafe              Bypass the dangerous-command blocklist: each refused
+                        command asks for typed consent before it is sent.
+                        Works only after the user sets safety.allow_unsafe to
+                        true at a terminal (canair config set
+                        safety.allow_unsafe true)
   --force               Ask a session already holding the connection to
                         release it, then wait for it
 

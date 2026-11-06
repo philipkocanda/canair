@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+import sys
+
 from canair.config.file import (
+    ALLOW_UNSAFE_KEY,
     coerce_scalar,
     ensure_config_dir,
     get_config_key,
     load_config,
     set_config_key,
+    unsafe_allowed,
     unset_config_key,
     user_config_file,
 )
 from canair.core.paths import CONFIG_DOCS_URL, CONFIG_EXAMPLE_FILE
+from canair.core.prompt import typed_confirm
 from canair.render import messages
 from canair.yaml_edit.echo import echo_edit
 
@@ -89,15 +94,43 @@ def cmd_set(args) -> int:
                 "ignored at runtime — this value will have no effect"
             )
 
+    # The merged config also reads the legacy repo-local file, which unsafe_allowed() ignores.
+    enabling_unsafe = args.key == ALLOW_UNSAFE_KEY and value is True and not unsafe_allowed()
     old = get_config_key(args.key)
-    if old == value:
+    if old == value and not enabling_unsafe:
         print(f"{args.key} is already {value!r} (unchanged)")
         return 0
+
+    if enabling_unsafe:
+        refused = _consent_to_allow_unsafe()
+        if refused is not None:
+            return refused
 
     path = set_config_key(args.key, value)
     change = f"{args.key} = {value!r}" if old is None else f"{args.key}: {old!r} → {value!r}"
     echo_edit(change, path)
     return 0
+
+
+def _consent_to_allow_unsafe() -> int | None:
+    """Ask the user to type YES before ``--unsafe`` is enabled; the exit code if not.
+
+    No flag answers this prompt, on purpose: the key exists so that a flag passed with good
+    intentions (by an agent, or a script) cannot reach the ``--unsafe`` prompts. A run with no
+    terminal is refused (exit 2) and a decline exits 1.
+    """
+    if not sys.stdin.isatty():
+        messages.error(
+            f"{ALLOW_UNSAFE_KEY} can only be enabled at an interactive terminal, "
+            "and no flag skips this"
+        )
+        return 2
+    question = (
+        f"{ALLOW_UNSAFE_KEY} lets live commands take --unsafe. Then a request the blocklist "
+        "refuses is sent after you type YES,\n!! and such a request can damage an ECU beyond "
+        "repair. Enable --unsafe?"
+    )
+    return None if typed_confirm(question, "YES") else 1
 
 
 def cmd_unset(args) -> int:

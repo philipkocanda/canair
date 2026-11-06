@@ -13,10 +13,27 @@ from collections.abc import Callable
 from functools import partial
 
 from canair.config.devices import default_wican, wican_addresses
+from canair.core.terminal import is_interactive
 from canair.transport.config import DEFAULT_TRANSPORT, VALID_TRANSPORTS
 
 from .operation import LiveOperation
 from .runtime import run_live
+
+_UNSAFE_HELP = (
+    "Bypass the dangerous-command blocklist: each refused command asks for typed consent "
+    "before it is sent. Works only after the user sets safety.allow_unsafe to true at a "
+    "terminal (canair config set safety.allow_unsafe true)"
+)
+
+
+def unsafe_flag_visible() -> bool:
+    """Whether ``--help`` lists ``--unsafe``: only on a terminal.
+
+    The flag still parses everywhere. Leaving it out of piped help keeps a script or an agent
+    from finding it there and passing it with good intentions: the user asks for it.
+    ``scripts/gen/gen_cli_reference.py`` turns it on, so the CLI reference documents it.
+    """
+    return is_interactive()
 
 
 def add_connection_args(parser: argparse.ArgumentParser, *, json: bool = True) -> None:
@@ -98,7 +115,7 @@ def add_connection_args(parser: argparse.ArgumentParser, *, json: bool = True) -
     parser.add_argument(
         "--unsafe",
         action="store_true",
-        help="Bypass dangerous command blocklist (requires explicit per-command consent)",
+        help=_UNSAFE_HELP if unsafe_flag_visible() else argparse.SUPPRESS,
     )
     parser.add_argument(
         "--force",

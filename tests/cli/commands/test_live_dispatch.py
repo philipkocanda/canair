@@ -1,4 +1,4 @@
-"""Transport guards and the stop-signal wiring of the shared live runtime.
+"""Transport guards, the ``--unsafe`` gate and the stop-signal wiring of the shared live runtime.
 
 The handlers are typed against the :class:`~canair.transport.protocol.Terminal` contract, so
 WiCAN-only ones must narrow explicitly. The interactive REPL sets the ECU header via raw ``ATSH``
@@ -141,3 +141,60 @@ class TestRunLiveStopSignals:
         # (so a normal teardown never looks like a takeover).
         assert events == ["built", "start", "session", "stop"]
         assert lock.released
+
+
+class TestUnsafeNeedsTheConfigKey:
+    """``--unsafe`` is refused before the device is touched until the user config enables it."""
+
+    def _run(self, monkeypatch, tmp_path, *, unsafe: bool, config: str | None):
+        from canair.cli.live import runtime as _live
+
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        if config is not None:
+            path = tmp_path / "canair" / "config.yaml"
+            path.parent.mkdir(parents=True)
+            path.write_text(config)
+        monkeypatch.setattr(_live, "_require_car", lambda args: None)
+        lock = _FakeLock()
+        locked: list[bool] = []
+        lock.acquire = lambda force=False, fail=None: locked.append(True)
+        monkeypatch.setattr(_live, "WiCANLock", lambda *a, **k: lock)
+
+        async def fake_main(args, operation):
+            return 0
+
+        monkeypatch.setattr(_live, "async_main", fake_main)
+        args = argparse.Namespace(force=False, unsafe=unsafe)
+        return _live.run_live(args, _OPERATION), locked
+
+    def test_refused_without_the_key(self, monkeypatch, tmp_path, capsys):
+        with pytest.raises(SystemExit) as exc:
+            self._run(monkeypatch, tmp_path, unsafe=True, config=None)
+        assert exc.value.code == 2
+        err = capsys.readouterr().err
+        assert "--unsafe is disabled" in err
+        assert "canair config set safety.allow_unsafe true" in err
+
+    def test_refused_before_the_device_lock(self, monkeypatch, tmp_path):
+        from canair.cli.live import runtime as _live
+
+        monkeypatch.setattr(
+            _live, "WiCANLock", lambda *a, **k: pytest.fail("must not take the device lock")
+        )
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        with pytest.raises(SystemExit):
+            _live.run_live(argparse.Namespace(force=False, unsafe=True), _OPERATION)
+
+    def test_refused_when_the_key_is_false(self, monkeypatch, tmp_path):
+        with pytest.raises(SystemExit):
+            self._run(monkeypatch, tmp_path, unsafe=True, config="safety:\n  allow_unsafe: false\n")
+
+    def test_runs_with_the_key(self, monkeypatch, tmp_path):
+        rc, locked = self._run(
+            monkeypatch, tmp_path, unsafe=True, config="safety:\n  allow_unsafe: true\n"
+        )
+        assert rc == 0 and locked
+
+    def test_without_unsafe_the_key_does_not_matter(self, monkeypatch, tmp_path):
+        rc, locked = self._run(monkeypatch, tmp_path, unsafe=False, config=None)
+        assert rc == 0 and locked

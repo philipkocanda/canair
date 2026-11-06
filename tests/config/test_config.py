@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 
+import pytest
 import yaml
 
 from canair.cli.commands.config import edit as edit_cmd
@@ -602,3 +603,88 @@ class TestDefaultsAreSizedForAMobileLink:
         # The ping has to detect a half-open link without severing a slow-but-live
         # one, so its timeout must comfortably exceed a cellular+VPN round trip.
         assert config_transport._DEFAULT_WS_PING_INTERVAL >= 10.0
+
+
+class _Stdin:
+    """A stand-in for ``sys.stdin`` that reports a terminal and answers one line."""
+
+    def __init__(self, answer: str, tty: bool = True):
+        self._answer = answer
+        self._tty = tty
+
+    def isatty(self) -> bool:
+        return self._tty
+
+    def readline(self) -> str:
+        return self._answer
+
+
+def _set_allow_unsafe(value: str = "true", **kw) -> int:
+    return edit_cmd.cmd_set(
+        argparse.Namespace(key="safety.allow_unsafe", value=value, string=False, **kw)
+    )
+
+
+class TestSetAllowUnsafe:
+    """Enabling ``--unsafe`` takes typed consent at a terminal, and no flag skips it."""
+
+    def _setup(self, tmp_path, monkeypatch, stdin):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        monkeypatch.setattr("sys.stdin", stdin)
+        _reset()
+
+    def test_typing_yes_enables_it(self, tmp_path, monkeypatch, capsys):
+        from canair.config.file import unsafe_allowed
+
+        self._setup(tmp_path, monkeypatch, _Stdin("YES\n"))
+        assert _set_allow_unsafe() == 0
+        assert unsafe_allowed() is True
+        assert "Type YES" in capsys.readouterr().err
+
+    @pytest.mark.parametrize("answer", ["yes\n", "y\n", "\n", ""])
+    def test_anything_else_declines(self, tmp_path, monkeypatch, answer):
+        from canair.config.file import unsafe_allowed
+
+        self._setup(tmp_path, monkeypatch, _Stdin(answer))
+        assert _set_allow_unsafe() == 1
+        assert unsafe_allowed() is False
+
+    def test_no_terminal_is_refused_and_names_no_flag(self, tmp_path, monkeypatch, capsys):
+        from canair.config.file import unsafe_allowed
+
+        self._setup(tmp_path, monkeypatch, _Stdin("YES\n", tty=False))
+        assert _set_allow_unsafe() == 2
+        assert unsafe_allowed() is False
+        err = capsys.readouterr().err
+        assert "interactive terminal" in err
+        assert "--yes" not in err
+
+    def test_a_yes_attribute_does_not_skip_the_prompt(self, tmp_path, monkeypatch):
+        from canair.config.file import unsafe_allowed
+
+        self._setup(tmp_path, monkeypatch, _Stdin("", tty=False))
+        assert _set_allow_unsafe(yes=True) == 2
+        assert unsafe_allowed() is False
+
+    def test_turning_it_off_needs_no_prompt(self, tmp_path, monkeypatch):
+        self._setup(tmp_path, monkeypatch, _Stdin("", tty=False))
+        assert _set_allow_unsafe("false") == 0
+        _reset()
+        assert edit_cmd.get_config_key("safety.allow_unsafe") is False
+
+    def test_a_non_boolean_is_rejected(self, tmp_path, monkeypatch, capsys):
+        self._setup(tmp_path, monkeypatch, _Stdin("YES\n"))
+        assert _set_allow_unsafe("yes") == 2
+        assert "valid: true, false" in capsys.readouterr().err
+
+    def test_a_legacy_repo_value_does_not_make_it_unchanged(self, tmp_path, monkeypatch):
+        """The legacy file shows the key as true, but only the user file enables it."""
+        from canair.config import file as config_file
+        from canair.config.file import unsafe_allowed
+
+        legacy = tmp_path / "repo-config.yaml"
+        legacy.write_text("safety:\n  allow_unsafe: true\n")
+        monkeypatch.setattr(config_file, "CONFIG_FILE", legacy)
+        self._setup(tmp_path, monkeypatch, _Stdin("YES\n"))
+        assert _set_allow_unsafe() == 0
+        assert unsafe_allowed() is True

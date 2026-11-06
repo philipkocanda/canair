@@ -22,6 +22,7 @@ from canair.cli.car import require_car
 from canair.cli.commands.captures import orphan_notice
 from canair.cli.profile_context import active, replace_active
 from canair.config.devices import fallback_settings
+from canair.config.file import ALLOW_UNSAFE_KEY, unsafe_allowed, user_config_file
 from canair.core.stop_signals import graceful_stop
 from canair.device.lock import WiCANLock
 from canair.device.lock_watchdog import LockWatchdog
@@ -265,8 +266,20 @@ def _require_car(args) -> None:
     require_car("record captures" if saving else "talk to the car")
 
 
+def _require_unsafe_allowed(args) -> None:
+    """Refuse ``--unsafe`` until the user enables it in their config (exit 2)."""
+    if getattr(args, "unsafe", False) and not unsafe_allowed():
+        messages.fail(
+            f"--unsafe is disabled: {ALLOW_UNSAFE_KEY} is not true in {user_config_file()}\n"
+            "The car's owner must enable it at a terminal, then re-run:\n"
+            f"  canair config set {ALLOW_UNSAFE_KEY} true",
+            code=2,
+        )
+
+
 def run_live(args, operation: LiveOperation) -> int:
     """Acquire the device lock and run ``async_main`` for a live subcommand."""
+    _require_unsafe_allowed(args)
     _require_car(args)
     lock = WiCANLock()
     lock.acquire(force=args.force, fail=messages.fail)

@@ -33,6 +33,7 @@ canair config edit           # open in $EDITOR
 | `check_for_updates` | `true` (default) or `false`. Disables the automatic once-a-day update check (also disabled by `CANAIR_NO_UPDATE_CHECK`). |
 | `grid_region` | Charging-grid region for the physical-value scan: `EU`, `UK`, `US`, `JP`, `CN`, or `AU` (case-insensitive). Sets the mains-voltage / line-frequency bands (see below). |
 | `display.byte_notation` | Default byte-index notation for analysis output labels, and for the byte ruler / signal byte-reference column in `monitor` and `captures --diff/--step`: `wican` (default), `isotp`, `torque`, or `bix`. Overridden per-command by `--notation`. |
+| `safety.allow_unsafe` | `false` (default) or `true`. Live commands refuse `--unsafe` until this is `true` in the user config file, and while it is, every command starts with a warning banner (see [Safety](../concepts/safety.md#enabling-unsafe)). |
 | `transport` | Advanced: explicit CAN transport selection (see below). |
 
 ## `grid_region` — physical-scan grid bands

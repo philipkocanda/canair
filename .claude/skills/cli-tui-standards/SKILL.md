@@ -140,6 +140,9 @@ Use `canair.core.prompt`. Never call `input()` or `sys.stdin.readline()` for a y
 - The question goes to stderr.
 - Every prompt has a flag that answers it: `--yes`/`-y` for a confirmation, a value flag
   (`--label`) for an input.
+- One prompt has no flag, on purpose: `canair config set safety.allow_unsafe true`. That key
+  exists so that no flag, passed by a script or an agent, reaches `--unsafe`
+  (`cli/commands/config/edit.py`). Do not add one.
 - **`--json` never means yes.** Pass `yes=args.yes`, never `yes=args.yes or args.json`.
 - With no terminal on stdin the helper raises `PromptUnavailable`, which names the flag. The
   top-level handler and `run_session_guarded` turn it into `error: …` and exit 2. Do not catch it
