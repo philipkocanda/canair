@@ -35,6 +35,7 @@ from canair.tui.keys import CLOSE_HINT, DISMISS_DESCRIPTION, bind, key_hint, sid
 from canair.tui.modals import ListPickerModal, TextPromptModal
 from canair.tui.scroll import APP_BASE_CSS
 from canair.tui.status import P_ESSENTIAL, P_LOW, P_NORMAL, StatusBar, hint_item
+from canair.yaml_edit.pids import rename_pid, upsert_parameter
 
 if TYPE_CHECKING:
     from canair.tui.apps.decode_plot.model import PlotModel
@@ -363,8 +364,6 @@ class PlotApp(HelpMixin, App):
     def _write_param(
         self, name: str, expr: str, *, notes: str = "", verified: bool | None = None
     ) -> None:
-        from canair.yaml_edit.pids import upsert_parameter
-
         try:
             upsert_parameter(
                 self.model.ecu_key,
@@ -388,7 +387,6 @@ class PlotApp(HelpMixin, App):
         def _done(new: str | None) -> None:
             if not new or new == old:
                 return
-            from canair.yaml_edit.pids import rename_pid
 
             try:
                 rename_pid(self.model.ecu_key, old, new, profile=self.profile)

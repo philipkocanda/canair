@@ -22,7 +22,14 @@ from rich.text import Text
 from canair.captures.entries import capture_key
 from canair.captures.store import NO_DEFS, PidDefs
 from canair.captures.types import CaptureEntry
+from canair.expression.decoding import decode_param_rows
 from canair.expression.notation import ByteDisplay, ByteNotation
+from canair.render.formatting import (
+    changed_param_highlights,
+    render_byte_rulers,
+    render_hex_line,
+    render_param_table,
+)
 from canair.render.glyphs import CURSOR, WARN
 from canair.states.tokens import join_states as _join_states
 from canair.tui import styles
@@ -78,13 +85,6 @@ def capture_block_text(
     ``notation`` is the byte-index notation the ruler and each signal's
     byte-reference column are drawn in.
     """
-    from canair.expression.decoding import decode_param_rows
-    from canair.render.formatting import (
-        changed_param_highlights,
-        render_byte_rulers,
-        render_hex_line,
-        render_param_table,
-    )
 
     e = captures[i]
     key = capture_key(e)

@@ -64,6 +64,7 @@ from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
 from textual.widgets import Static
 
+from canair.core.stop_signals import graceful_stop_async
 from canair.tui.apps.monitor.dialogs import EditParamDialog, SaveDialog
 from canair.tui.apps.monitor.overlays import EventLogModal, SessionInfoModal, SessionPickerScreen
 from canair.tui.apps.monitor.polling import PollingMixin
@@ -464,7 +465,6 @@ async def run_monitor_app(controller: MonitorController) -> None:
     reconciled) instead of a ``KeyboardInterrupt`` unwinding through Textual's
     internals.
     """
-    from canair.core.stop_signals import graceful_stop_async
 
     app = MonitorApp(controller)
 

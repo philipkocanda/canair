@@ -321,7 +321,7 @@ class TestPlotApp:
             calls.append((ecu, pid, name, expr, kw))
             return None
 
-        monkeypatch.setattr("canair.yaml_edit.pids.upsert_parameter", fake_upsert)
+        monkeypatch.setattr("canair.tui.apps.decode_plot.app.upsert_parameter", fake_upsert)
 
         app = PlotApp(_plot_model(), profile=active())
         async with app.run_test(size=(110, 30)) as pilot:

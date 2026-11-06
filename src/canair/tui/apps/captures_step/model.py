@@ -33,6 +33,7 @@ from canair.captures.dates import entry_datetime
 from canair.captures.entries import (
     capture_key,
     dedupe_payloads,
+    entry_to_dict,
     group_sessions,
     is_hex_payload,
     key_index,
@@ -767,7 +768,6 @@ class StepModel:
         ``limit`` keeps only the most recent N frames (0 = all), mirroring the
         ``--limit`` cap of the list view.
         """
-        from canair.captures.entries import entry_to_dict
 
         total = self.frame_count()
         start = max(total - limit, 0) if limit > 0 else 0

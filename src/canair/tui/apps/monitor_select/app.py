@@ -25,6 +25,8 @@ from textual.binding import Binding
 from textual.widgets import Input, Label, SelectionList
 from textual.widgets.selection_list import Selection
 
+from canair.ecus.ecu_groups import load_groups
+from canair.ecus.pids import build_ecu_index
 from canair.live.monitor.select import (
     EcuChoice,
     GroupChoice,
@@ -428,9 +430,6 @@ def pick_selectors(
     Raises ``ValueError`` when the active profile defines nothing to monitor.
     The caller is responsible for only calling this on an interactive terminal.
     """
-    from canair.ecus.ecu_groups import load_groups
-    from canair.ecus.pids import build_ecu_index
-
     choices = build_choices(build_ecu_index(pids_data))
     if not choices:
         raise ValueError("the active profile defines no pollable PIDs, so there is nothing to pick")

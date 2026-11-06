@@ -29,6 +29,9 @@ from textual.css.query import NoMatches
 from textual.widgets import Button, Input, Label, SelectionList, Static
 from textual.widgets.option_list import Option
 
+from canair.captures import layers
+from canair.captures.session_edit import delete_capture, set_capture_note
+from canair.captures.store import entry_path
 from canair.captures.types import CaptureEntry
 from canair.render.formatting import BYTE_COLOUR_LEGEND
 from canair.render.glyphs import CURSOR, EMPTY, SEP, WARN
@@ -50,6 +53,7 @@ from canair.tui.status import (
 from canair.tui.styles import dialog_css
 from canair.tui.widgets import CheckSelectionList
 
+from .model import PAGE_JUMP
 from .render import key_label
 
 if TYPE_CHECKING:
@@ -451,8 +455,6 @@ class CapturesStepApp(HelpMixin, App):
         self._refresh()
 
     def action_page(self, direction: int) -> None:
-        from .model import PAGE_JUMP
-
         self.action_advance(PAGE_JUMP * direction)
 
     def action_first(self) -> None:
@@ -500,7 +502,6 @@ class CapturesStepApp(HelpMixin, App):
     # -- the comparison ----------------------------------------------------
 
     def action_pick_pids(self) -> None:
-
         def _done(keys: list[Key] | None) -> None:
             if keys is None:
                 return
@@ -537,7 +538,6 @@ class CapturesStepApp(HelpMixin, App):
             self._flash("Cannot drop the last PID", "warning")
 
     def action_set_tol(self) -> None:
-
         def _done(value: str | None) -> None:
             if not value:
                 return
@@ -598,8 +598,6 @@ class CapturesStepApp(HelpMixin, App):
         )
 
     def _write_note(self, cap: CaptureEntry, note: str) -> None:
-        from canair.captures.session_edit import set_capture_note
-
         target = self._writable_target(cap)
         if target is None:
             return
@@ -640,8 +638,6 @@ class CapturesStepApp(HelpMixin, App):
         Goes through the row's own locator: joining ``file`` onto the captures dir
         picks the wrong directory as soon as reads span two layers.
         """
-        from canair.captures import layers
-        from canair.captures.store import entry_path
 
         target = entry_path(cap, self.model.captures_dir, profile=self.model.profile)
         if layers.read_only_files([target], self.model.captures_dir, profile=self.model.profile):
@@ -650,8 +646,6 @@ class CapturesStepApp(HelpMixin, App):
         return target
 
     def _delete(self, cap: CaptureEntry) -> None:
-        from canair.captures.session_edit import delete_capture
-
         target = self._writable_target(cap)
         if target is None:
             return
