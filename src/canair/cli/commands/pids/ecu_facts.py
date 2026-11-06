@@ -7,6 +7,7 @@ import argparse
 from canair.cli.args.hexarg import parse_hex_arg
 from canair.cli.commands._edit import add_edit_args, edit_scope, run_edit
 from canair.core.edit_errors import EditError
+from canair.profile import active
 from canair.render import ansi
 from canair.transport.isotp_params import ECU_ISOTP_FIELDS
 from canair.yaml_edit.echo import echo_edit
@@ -283,7 +284,7 @@ def cmd_rm_identity(args: argparse.Namespace) -> int:
 
 def cmd_set_can_bus(args: argparse.Namespace) -> int:
     from canair.ecus.can_buses import allowed_can_buses
-    from canair.profile import active, profile_for_path
+    from canair.profile import profile_for_path
 
     # Resolve the vocabulary from the profile owning the target ecus/ dir
     # (or the active profile). Enforced only when the profile declares one.

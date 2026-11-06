@@ -213,7 +213,7 @@ class TestLocalOps:
             variants_file = tmp_path / "variants.yaml"  # absent: one implicit car
             variant = None
 
-        monkeypatch.setattr("canair.profile.active", lambda: _Prof())
+        monkeypatch.setattr("canair.profile._active", _Prof())
         # No ECU here declares revisions, so there is nothing to resolve.
         monkeypatch.setattr(generate, "require_resolved_revisions", lambda: None)
         rc = wican.run(_parse("wican", "autopid", "write"))
@@ -230,7 +230,7 @@ class TestLocalOps:
             variants_file = tmp_path / "variants.yaml"  # absent: one implicit car
             variant = None
 
-        monkeypatch.setattr("canair.profile.active", lambda: _Prof())
+        monkeypatch.setattr("canair.profile._active", _Prof())
         # No ECU here declares revisions, so there is nothing to resolve.
         monkeypatch.setattr(generate, "require_resolved_revisions", lambda: None)
         out = tmp_path / "custom.json"

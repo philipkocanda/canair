@@ -56,6 +56,7 @@ from pathlib import Path
 
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.ecus.pids import load_pids, load_pids_dir
+from canair.profile import active
 from canair.render import ansi, messages
 from canair.states.selectors import state_matcher, unknown_state_tokens
 from canair.states.vocabulary import allowed_states
@@ -133,7 +134,7 @@ def filter_records(
     explicitly filters ``status='done'``.
     """
     out = []
-    matches_state = state_matcher(state) if state else None
+    matches_state = state_matcher(state, profile=active()) if state else None
     for r in records:
         if not include_done and status != "done" and r.get("status") == "done":
             continue
@@ -366,11 +367,11 @@ def run(args) -> int:
     # Friendly (non-fatal) note when filtering on a state outside the profile's
     # vocabulary — the filter still runs (yields nothing) but the user learns why.
     if args.state:
-        unknown = unknown_state_tokens(args.state)
+        unknown = unknown_state_tokens(args.state, profile=active())
         if unknown:
             messages.note(
                 f"{', '.join(unknown)} not in this profile's state vocabulary "
-                f"({', '.join(sorted(allowed_states()))})"
+                f"({', '.join(sorted(allowed_states(profile=active())))})"
             )
 
     filtered = filter_records(

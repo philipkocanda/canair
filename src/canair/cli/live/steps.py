@@ -7,6 +7,7 @@ mini-language parser ever sees them, so a group composes with ad-hoc selectors.
 
 from __future__ import annotations
 
+from canair.profile import active
 from canair.render import messages
 
 # Leading verbs recognised by the multi mini-language. A positional STEP whose
@@ -34,7 +35,7 @@ def expand_step_groups(steps: list[str]) -> list[str]:
     """
     from canair.ecus.ecu_groups import expand_group_refs, load_groups
 
-    return expand_group_refs(steps, load_groups())
+    return expand_group_refs(steps, load_groups(profile=active()))
 
 
 def report_merged_selectors(commands: list[dict]) -> None:

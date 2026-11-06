@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator
 from canair.core import yaml_io
 from canair.core.json_schema import schema_errors
 from canair.core.paths import CAN_BUSES_SCHEMA_FILE, GROUPS_SCHEMA_FILE, STATES_SCHEMA_FILE
-from canair.profile import active
+from canair.profile import Profile, active
 
 from ._common import CAN_INDEX_SCHEMA_FILE, duplicate_key_errors
 from .report import FileReport, SignalsReport
@@ -291,7 +291,7 @@ def check_can_buses() -> FileReport:
     return FileReport("can_buses.yaml", summary=f"({len(data['can_buses'])} bus codes)")
 
 
-def check_signals() -> SignalsReport:
+def check_signals(profile: Profile) -> SignalsReport:
     """Check the profile's optional signals/ broadcast signal-definition files.
 
     Domain-B (broadcast frame) signal maps: one signals/<bus>.yaml per CAN bus,
@@ -301,9 +301,9 @@ def check_signals() -> SignalsReport:
     from canair.broadcast import load_signals, signals_dir
     from canair.validation.signals import check_signals_doc
 
-    if not signals_dir().is_dir():
+    if not signals_dir(profile=profile).is_dir():
         return SignalsReport(skipped="No signals/ (optional) — skipping.")
-    docs = load_signals()
+    docs = load_signals(profile=profile)
     if not docs:
         return SignalsReport(skipped="signals/: no files — skipping.")
 

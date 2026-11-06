@@ -25,6 +25,7 @@ import sys
 from canair.cli.commands._edit import run_edit, subcommand_dispatch
 from canair.cli.live import LiveOperation, add_connection_args, live_command
 from canair.cli.live.handlers import actuators
+from canair.profile import active
 from canair.render import ansi, messages
 
 NAME = "action"
@@ -48,7 +49,6 @@ def _records(actions) -> list[dict]:
 
 def cmd_list(args) -> int:
     from canair.actions import ActionError, load_actions
-    from canair.profile import active
 
     prof = active()
     try:

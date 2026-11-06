@@ -13,6 +13,7 @@ from canair.cli.args.scope import (
     resolve_scope_bounds,
 )
 from canair.cli.commands.decode import query, views
+from canair.profile import active
 
 # ---------------------------------------------------------------------------
 # capture_dates helpers
@@ -286,50 +287,50 @@ class TestFilterByText:
 
     def test_no_filter_returns_all(self):
         e = self._entries()
-        assert filter_by_text(e) is e
+        assert filter_by_text(e, profile=active()) is e
 
     def test_state_matches_whole_token_case_insensitively(self):
-        out = filter_by_text(self._entries(), state="PARKED")
+        out = filter_by_text(self._entries(), state="PARKED", profile=active())
         assert len(out) == 1 and out[0]["vehicle_states"] == ["ready", "parked"]
 
     def test_state_no_longer_matches_a_bare_prefix(self):
         """``--state PARK`` used to select PARKED by substring; it is a token now."""
-        assert filter_by_text(self._entries(), state="PARK") == []
+        assert filter_by_text(self._entries(), state="PARK", profile=active()) == []
 
     def test_state_matches_multiple(self):
-        out = filter_by_text(self._entries(), state="driving")
+        out = filter_by_text(self._entries(), state="driving", profile=active())
         assert len(out) == 2
 
     def test_state_widens_through_implies(self):
         """DRIVING implies READY in the bundled vocabulary, so READY selects both."""
-        out = filter_by_text(self._entries(), state="ready")
+        out = filter_by_text(self._entries(), state="ready", profile=active())
         assert len(out) == 3
 
     def test_state_comma_separated_tokens_are_alternatives(self):
-        out = filter_by_text(self._entries(), state="parked,driving")
+        out = filter_by_text(self._entries(), state="parked,driving", profile=active())
         assert len(out) == 3
 
     def test_repeated_state_is_conjunctive(self):
-        out = filter_by_text(self._entries(), state=["ready", "parked"])
+        out = filter_by_text(self._entries(), state=["ready", "parked"], profile=active())
         assert len(out) == 1 and out[0]["vehicle_states"] == ["ready", "parked"]
 
     def test_conjunction_with_no_common_capture_is_empty(self):
-        assert filter_by_text(self._entries(), state=["driving", "parked"]) == []
+        assert filter_by_text(self._entries(), state=["driving", "parked"], profile=active()) == []
 
     def test_all_matches_everything(self):
-        out = filter_by_text(self._entries(), state="ALL")
+        out = filter_by_text(self._entries(), state="ALL", profile=active())
         assert len(out) == 3
 
     def test_label_matches_session_label(self):
-        out = filter_by_text(self._entries(), label="city")
+        out = filter_by_text(self._entries(), label="city", profile=active())
         assert len(out) == 1 and out[0]["session_label"] == "ESC city"
 
     def test_label_matches_capture_label(self):
-        out = filter_by_text(self._entries(), label="cap-x")
+        out = filter_by_text(self._entries(), label="cap-x", profile=active())
         assert len(out) == 1 and out[0]["vehicle_states"] == ["ready", "parked"]
 
     def test_state_and_label_anded(self):
-        out = filter_by_text(self._entries(), state="driving", label="city")
+        out = filter_by_text(self._entries(), state="driving", label="city", profile=active())
         assert len(out) == 1
 
 

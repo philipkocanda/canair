@@ -16,6 +16,7 @@ import pytest
 from canair.captures.build import build_query_session
 from canair.captures.save import save_session
 from canair.core.prompt import PromptUnavailable
+from canair.profile import active
 
 
 def _seed(cdir, *sessions: tuple[str, str], transport: str | None = None) -> None:
@@ -23,7 +24,7 @@ def _seed(cdir, *sessions: tuple[str, str], transport: str | None = None) -> Non
         session = build_query_session(
             [("0x7EB", "2101", "6101EEFF", "")], label, [], notes, transport=transport
         )
-        save_session(session, cdir)
+        save_session(session, cdir, profile=active())
 
 
 def _sessions(cdir) -> list[dict]:

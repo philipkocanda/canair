@@ -6,6 +6,7 @@ import sys
 
 from canair.captures.metadata import resolve_metadata
 from canair.privacy.sensitive import MASK, masked_response, request_hidden
+from canair.profile import Profile
 from canair.query.steps import parse_raw_spec
 from canair.render import messages
 from canair.render.formatting import format_raw_with_bnn, print_hexdump, print_json_result
@@ -31,6 +32,8 @@ async def mode_raw(
     label: str | None = None,
     vehicle_states=None,
     notes: str | None = None,
+    *,
+    profile: Profile,
 ):
     """Send a raw UDS request specified as TX_ID:SERVICE_PID.
 
@@ -62,6 +65,7 @@ async def mode_raw(
         vehicle_states=vehicle_states,
         notes=notes,
         transport=client_transport(terminal),
+        profile=profile,
     )
 
     await terminal.set_header(tx_id)
@@ -133,6 +137,8 @@ def _save_raw(
     vehicle_states=None,
     notes: str | None = None,
     transport: str | None = None,
+    *,
+    profile: Profile,
 ) -> None:
     """Prompt (or use provided metadata) and save a raw request result to captures."""
     from ...ecus.names import ecu_name
@@ -154,4 +160,4 @@ def _save_raw(
             pids_data=pids_data,
             transport=transport,
         )
-        save_session_journaled(session_dict)
+        save_session_journaled(session_dict, profile=profile)

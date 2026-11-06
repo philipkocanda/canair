@@ -1,6 +1,7 @@
 """Tests for canair.captures.state_inference — offline session-state inference."""
 
 from canair.captures.state_inference import _bucket_cycles, infer_session_states, infer_state_spans
+from canair.profile import active
 from canair.states.predicates import StateRule, compile_predicate
 
 
@@ -76,14 +77,14 @@ class TestInferSessionStates:
     def test_ready_from_vcu(self):
         # VCU.READY B3 == 1  (payload 61 01 01: PCI-stripped SID 61, PID 01, data 01)
         caps = [_cap("VCU", "2101", "610101")]
-        inf = infer_session_states(caps, _rules(), _ecu_index())
+        inf = infer_session_states(caps, _rules(), _ecu_index(), profile=active())
         assert inf.inferred == ["READY"]
         assert inf.timed is False
 
     def test_charging_from_bms_negative_current(self):
         # BMS.CURRENT S3 signed: 0xFB = -5
         caps = [_cap("BMS", "2101", "6101FB")]
-        inf = infer_session_states(caps, _rules(), _ecu_index())
+        inf = infer_session_states(caps, _rules(), _ecu_index(), profile=active())
         assert inf.inferred == ["CHARGING"]
 
     def test_composite_union_across_cycles(self):
@@ -92,20 +93,20 @@ class TestInferSessionStates:
             _cap("BMS", "2101", "6101FB", time="10:00:00"),
             _cap("VCU", "2101", "610101", time="10:05:00"),
         ]
-        inf = infer_session_states(caps, _rules(), _ecu_index())
+        inf = infer_session_states(caps, _rules(), _ecu_index(), profile=active())
         assert set(inf.inferred) == {"CHARGING", "READY"}
         assert inf.n_cycles == 2
 
     def test_definitely_false(self):
         # VCU.READY == 0 -> READY provably false; nothing matched.
         caps = [_cap("VCU", "2101", "610100")]
-        inf = infer_session_states(caps, _rules(), _ecu_index())
+        inf = infer_session_states(caps, _rules(), _ecu_index(), profile=active())
         assert inf.inferred == []
         assert "READY" in inf.definitely_false
 
     def test_no_decodable_params_undetermined(self):
         caps = [_cap("UNKNOWN", "9999", "7F2212")]
-        inf = infer_session_states(caps, _rules(), _ecu_index())
+        inf = infer_session_states(caps, _rules(), _ecu_index(), profile=active())
         assert inf.inferred == []
         assert inf.n_decoded_params == 0
 
@@ -115,7 +116,7 @@ class TestInferSessionStates:
             _cap("VCU", "2101", "610101", time="10:00:00"),
             _cap("VCU", "2101", "610100", time="10:05:00"),
         ]
-        inf = infer_session_states(caps, _rules(), _ecu_index())
+        inf = infer_session_states(caps, _rules(), _ecu_index(), profile=active())
         assert inf.inferred == ["READY"]
         assert "READY" not in inf.definitely_false
 
@@ -161,7 +162,7 @@ class TestInferStateSpans:
             _cap("VCU", "2101", "62010100", time="10:05:00"),  # READY=0
             _cap("BMS", "2101", "620101F0", time="10:05:01"),  # CURRENT=-16
         ]
-        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index())
+        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index(), profile=active())
         assert [s["states"] for s in inf.spans] == [["READY"], ["CHARGING"]]
         assert [s["at"] for s in inf.spans] == ["10:00:00", "10:05:00"]
         assert inf.union == ["CHARGING", "READY"]
@@ -173,7 +174,7 @@ class TestInferStateSpans:
             _cap("BMS", "2101", "62010101", time="10:01:00"),  # CURRENT=+1, READY unseen
             _cap("VCU", "2101", "62010101", time="10:02:00"),
         ]
-        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index())
+        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index(), profile=active())
         assert [s["states"] for s in inf.spans] == [["READY"]]
 
     def test_fresh_evidence_retracts_even_without_a_definite_false(self):
@@ -182,7 +183,7 @@ class TestInferStateSpans:
             _cap("VCU", "2101", "62010101", time="10:00:00"),
             _cap("VCU", "2101", "62010100", time="10:10:00"),
         ]
-        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index())
+        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index(), profile=active())
         assert [(s["at"], s["states"]) for s in inf.spans] == [
             ("10:00:00", ["READY"]),
             ("10:10:00", []),
@@ -190,17 +191,17 @@ class TestInferStateSpans:
 
     def test_a_cycle_with_no_relevant_signal_is_not_an_observation(self):
         caps = [_cap("AAF", "2101", "620101FF", time="10:00:00")]
-        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index())
+        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index(), profile=active())
         assert inf.spans == []
         assert inf.n_informative == 0
 
     def test_untimed_captures_are_counted_not_placed(self):
         caps = [_cap("VCU", "2101", "62010101")]
-        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index())
+        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index(), profile=active())
         assert inf.spans == []
         assert inf.n_untimed == 1
 
     def test_a_predicateless_state_never_appears(self):
         caps = [_cap("VCU", "2101", "62010101", time="10:00:00")]
-        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index())
+        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index(), profile=active())
         assert "SLEEP" not in inf.union

@@ -15,6 +15,7 @@ import requests
 
 import canair.device.wican.firmware as wf
 from canair.device.wican.firmware import FirmwareInfo, compatibility, probe
+from canair.profile import active
 
 # A v4 /check_status body is full of secrets; these must never survive the probe.
 _V4_SECRETS = {
@@ -680,6 +681,7 @@ class TestLiveSurfaces:
                 session=SessionOptions(),
                 operation=_operation,
                 monitor=MonitorOptions(query_steps=[{"type": "query", "ecu": "BMS", "pids": []}]),
+                profile=active(),
             )
         )
 

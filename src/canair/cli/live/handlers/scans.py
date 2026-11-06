@@ -15,6 +15,7 @@ from canair.live.discover.physical import mode_discover
 from canair.live.scan.iocontrol import mode_iocontrol_scan
 from canair.live.scan.range import mode_scan
 from canair.live.scan.routines import mode_routines_scan
+from canair.profile import active
 from canair.render import messages
 from canair.transport.protocol import Terminal
 
@@ -51,6 +52,7 @@ async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=No
         label=args.label,
         vehicle_states=args.state,
         notes=args.notes,
+        profile=active(),
     )
 
 
@@ -220,6 +222,7 @@ async def handle_discover(args, terminal: Terminal, pids_data, host, *, reconnec
             register=getattr(args, "register", False),
             dry_run=getattr(args, "dry_run", False),
             identify=getattr(args, "identify", False),
+            profile=active(),
         )
         return
 
@@ -247,6 +250,7 @@ async def handle_discover(args, terminal: Terminal, pids_data, host, *, reconnec
         identify=getattr(args, "identify", False),
         mode=_addr_mode,
         tester=DEFAULT_TESTER_ADDRESS,
+        profile=active(),
     )
 
 

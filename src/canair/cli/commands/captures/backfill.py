@@ -24,6 +24,7 @@ from canair.captures.state_inference import (
 )
 from canair.captures.store import entry_path
 from canair.core.prompt import confirm
+from canair.profile import active
 from canair.render import messages
 from canair.states.predicates import StatePredicateError
 from canair.states.tokens import join_states, parse_states
@@ -71,7 +72,7 @@ def _classify(recorded: list[str], inf: SessionInference) -> tuple[str, list[str
 
 
 def _order(tokens: set[str]) -> list[str]:
-    return order_states(list(tokens))
+    return order_states(list(tokens), profile=active())
 
 
 def cmd_backfill_states(
@@ -95,7 +96,7 @@ def cmd_backfill_states(
     from .backfill_render import print_report
 
     try:
-        rules = load_states()
+        rules = load_states(profile=active())
     except StatePredicateError as ex:
         messages.error(f"invalid vehicle_states.yaml predicate: {ex}")
         return 2
@@ -123,7 +124,7 @@ def cmd_backfill_states(
         key = (g["path"], g["session_idx"])
         caps = payloads_by_session.get(key, [])
         recorded = parse_states(g.get("vehicle_states") or [])
-        inf = infer_session_states(caps, rules, ecu_index, cycle_tol=cycle_tol)
+        inf = infer_session_states(caps, rules, ecu_index, cycle_tol=cycle_tol, profile=active())
         verdict, new_states = _classify(recorded, inf)
 
         writeable = verdict == _FILL or (overwrite and verdict in (_CONFLICT, _EXTRA))

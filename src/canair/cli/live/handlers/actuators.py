@@ -14,6 +14,7 @@ from canair.live.actuate.iocontrol import mode_iocontrol_tui
 from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 from canair.live.actuate.routines import mode_routines_tui
 from canair.live.actuate.routines_execute import mode_routines_execute
+from canair.profile import active
 from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.uds.subfunctions import RoutineControlType
@@ -92,6 +93,7 @@ async def handle_action(args, terminal: Terminal, pids_data, host, *, reconnect=
             dry_run=getattr(args, "dry_run", False),
             as_json=args.json,
             verbose=args.verbose,
+            profile=active(),
         )
     except ActionError as e:
         messages.fail(str(e), code=2)

@@ -15,7 +15,7 @@ import pytest
 from canair import profile as profile_mod
 from canair.captures import io as capture_io
 from canair.dtc.log import log_file
-from canair.profile import Profile, ProfileError
+from canair.profile import Profile, ProfileError, active
 from canair.variants.selection import apply_variant, require_named_car
 from canair.yaml_edit import variants as variants_edit
 
@@ -92,7 +92,7 @@ class TestStamping:
         session = build_manual_session(
             [{"rx": "0x7EC", "pid": "2101", "payload": "6101", "time": "09:00:00"}], label="L"
         )
-        path = save_session(session)
+        path = save_session(session, profile=active())
         (saved,) = capture_io.load_capture_file(path)["sessions"]
         assert saved["variant"] == "38kwh"
         assert saved["attribution"] == {"variant": "selected"}
@@ -104,7 +104,9 @@ class TestStamping:
         from canair.captures.save import save_session
 
         _select(prof, variant)
-        path = save_session(build_manual_session([{"rx": "0x7EC", "pid": "2101"}], label="L"))
+        path = save_session(
+            build_manual_session([{"rx": "0x7EC", "pid": "2101"}], label="L"), profile=active()
+        )
         (saved,) = capture_io.load_capture_file(path)["sessions"]
         assert "variant" not in saved
 
@@ -116,7 +118,9 @@ class TestStamping:
         other = tmp_path / "elsewhere"
         other.mkdir()
         path = save_session(
-            build_manual_session([{"rx": "0x7EC", "pid": "2101"}], label="L"), other
+            build_manual_session([{"rx": "0x7EC", "pid": "2101"}], label="L"),
+            other,
+            profile=active(),
         )
         assert "variant" not in capture_io.load_capture_file(path)["sessions"][0]
 
@@ -124,12 +128,12 @@ class TestStamping:
         from canair.captures.journal import CaptureJournal, recover
 
         _select(prof, "38kwh")
-        journal = CaptureJournal.open(prof.captures_dir, label="drive")
+        journal = CaptureJournal.open(prof.captures_dir, label="drive", profile=active())
         journal.append("0x7EC", "2101", "6101AA", time="09:00:00", date="2026-01-01")
         journal.flush()
         journal._close_fh()  # killed before reconcile
         _select(prof, "28kwh")  # a later run selects another car
-        written = recover(journal.path)
+        written = recover(journal.path, profile=active())
         assert written is not None
         (saved,) = capture_io.load_capture_file(written)["sessions"]
         assert saved["variant"] == "38kwh"

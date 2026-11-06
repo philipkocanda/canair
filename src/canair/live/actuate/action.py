@@ -29,6 +29,7 @@ from typing import Any
 from canair.actions import Action, ActionError
 from canair.actions.plan import PlannedRequest, action_policy, plan_requests
 from canair.core.prompt import typed_confirm
+from canair.profile import Profile
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 from canair.transport.protocol import Terminal
 
@@ -141,13 +142,14 @@ async def mode_action(
     dry_run: bool = False,
     as_json: bool = False,
     verbose: bool = False,
+    profile: Profile,
 ) -> None:
     """Check, confirm and send one profile action (see the module docstring)."""
     from canair.actions import load_actions
     from canair.transport.session_manager import SessionManager
 
     out = sys.stderr if as_json else sys.stdout
-    actions = load_actions()
+    actions = load_actions(profile=profile)
     action = actions.get(name.strip().lower())
     if action is None:
         known = ", ".join(actions) or "none"

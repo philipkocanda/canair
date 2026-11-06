@@ -20,7 +20,7 @@ import yaml
 
 from canair.config import file as config_file
 from canair.ecus.pids import load_pids, revision_resolutions
-from canair.profile import ProfileError, set_active
+from canair.profile import ProfileError, active, set_active
 from canair.variants import detected as cache
 from canair.variants import fingerprints as fp
 
@@ -60,7 +60,7 @@ class FakeTerminal:
 def _detect(terminal, *steps):
     from canair.live.revision_probe import detect_revisions, targeted_ecus
 
-    return asyncio.run(detect_revisions(terminal, targeted_ecus(steps)))
+    return asyncio.run(detect_revisions(terminal, targeted_ecus(steps, profile=active())))
 
 
 class TestMatching:

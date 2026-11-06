@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import re
 
+from canair.profile import active
+
 _GATE_OPS = {
     ">=": lambda a, b: a >= b,
     "<=": lambda a, b: a <= b,
@@ -56,7 +58,9 @@ def _apply_gate(ref_series, gate_expr, tol, *, since, until, state, label):
     signal, op_fn, value, _lbl = _parse_gate(gate_expr)
     if signal is None:
         return [tp for tp in ref_series if op_fn(tp.value, value)]
-    gate_series, _ = load_ref(signal, since=since, until=until, state=state, label=label)
+    gate_series, _ = load_ref(
+        signal, since=since, until=until, state=state, label=label, profile=active()
+    )
     _, cols = align_many(ref_series, {"g": gate_series}, tol_s=tol)
     ref_sorted = sorted(ref_series, key=lambda tp: tp.dt)
     return [

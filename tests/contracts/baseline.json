@@ -2,7 +2,7 @@
   "root_modules": [],
   "root_init_internal_imports": 0,
   "oversized_modules": {
-    "canair.analysis.align": 934,
+    "canair.analysis.align": 933,
     "canair.analysis.blind": 684,
     "canair.analysis.counters": 591,
     "canair.analysis.cross_signal": 980,
@@ -26,8 +26,8 @@
     "canair.yaml_edit.revisions": 560,
     "canair.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 1088,
-  "ambient_profile_calls": 63,
+  "deferred_internal_imports": 1050,
+  "ambient_profile_calls": 53,
   "import_linter_ignores": 0,
   "packages_without_charter": [],
   "test_to_test_imports": [],

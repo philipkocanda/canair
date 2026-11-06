@@ -17,6 +17,7 @@ from canair.live.read.multi import (
     resolve_tx_id,
     selector_text,
 )
+from canair.profile import active
 from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 
 # --- resolve_tx_id ---
@@ -324,7 +325,7 @@ class TestFinalizeJournal:
     """_finalize_journal resolves metadata and reconciles the write-ahead journal."""
 
     def _journal(self, tmp_path, **kw):
-        j = CaptureJournal.open(tmp_path, label="prov", source="query", **kw)
+        j = CaptureJournal.open(tmp_path, label="prov", source="query", profile=active(), **kw)
         j.append("0x7EC", "2101", "6101AA")
         return j
 
@@ -339,7 +340,7 @@ class TestFinalizeJournal:
         assert not j.path.exists()
 
     def test_no_payloads_discards(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="prov", source="query")
+        j = CaptureJournal.open(tmp_path, label="prov", source="query", profile=active())
         _finalize_journal(j, 0, "L", None, None)
         assert not j.path.exists()
         assert list(tmp_path.glob("*.json")) == []
@@ -373,7 +374,7 @@ class TestFinalizeJournal:
         assert sess["label"] == "prov"
 
     def test_non_answers_alone_are_saved(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="prov", source="query")
+        j = CaptureJournal.open(tmp_path, label="prov", source="query", profile=active())
         j.append_response("0x7A8", "24B004", "NRC 0x11 (serviceNotSupported)")
         _finalize_journal(j, 0, "probe", None, None, non_answers=1)
         sess = json.loads(next(tmp_path.glob("*.json")).read_text())["sessions"][0]
@@ -413,6 +414,7 @@ class TestMultiSaveRawNonAnswers:
                 no_repl=True,
                 save=True,
                 label="probe",
+                profile=active(),
             )
         )
         files = list(tmp_path.glob("*.json"))

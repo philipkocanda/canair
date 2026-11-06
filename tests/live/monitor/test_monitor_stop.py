@@ -17,6 +17,7 @@ import pytest
 from canair.core.stop_signals import STOP_SIGNALS
 from canair.live.monitor import run as run_mod
 from canair.live.monitor.options import MonitorOptions
+from canair.profile import active
 
 
 class _FakeController:
@@ -178,6 +179,7 @@ class TestTeardown:
                     query_steps=[{"type": "query", "ecu": "BMS", "pids": ["2101"]}], save=True
                 ),
                 {"ecus": {}},
+                profile=active(),
             )
         )
 
@@ -212,6 +214,7 @@ class TestInteractiveScreen:
                     interactive=interactive,
                 ),
                 {"ecus": {}},
+                profile=active(),
             )
         )
         return ran

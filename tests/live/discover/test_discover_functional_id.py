@@ -15,6 +15,7 @@ from canair import profile
 from canair.cli.commands import discover as discover_cmd
 from canair.ecus.pids import clear_cache
 from canair.live.discover import physical as disc
+from canair.profile import active
 from canair.uds.addressing import FUNCTIONAL_11BIT_ID, AddressingMode
 from tests.support.fakes import FakeTerminal
 
@@ -55,7 +56,9 @@ class TestSweep:
     @pytest.mark.asyncio
     async def test_never_addresses_the_functional_id(self, blank_profile, capsys):
         term = FakeTerminal(default=NO_DATA)
-        await disc.mode_discover(term, (0x7DD, 0x7E1), verbose=False, as_json=False, delay=0.0)
+        await disc.mode_discover(
+            term, (0x7DD, 0x7E1), verbose=False, as_json=False, delay=0.0, profile=active()
+        )
         out = capsys.readouterr().out
         assert term.headers == [0x7DD, 0x7DE, 0x7E0, 0x7E1]
         assert "0x7DF, the functional id" in out
@@ -64,14 +67,21 @@ class TestSweep:
     @pytest.mark.asyncio
     async def test_no_skip_line_when_the_range_misses_it(self, blank_profile, capsys):
         term = FakeTerminal(default=NO_DATA)
-        await disc.mode_discover(term, (0x7E0, 0x7E1), verbose=False, as_json=False, delay=0.0)
+        await disc.mode_discover(
+            term, (0x7E0, 0x7E1), verbose=False, as_json=False, delay=0.0, profile=active()
+        )
         assert "functional id" not in capsys.readouterr().out
 
     @pytest.mark.asyncio
     async def test_an_empty_sweep_is_refused(self, blank_profile):
         with pytest.raises(ValueError, match="only the functional id 0x7DF"):
             await disc.mode_discover(
-                FakeTerminal(default=NO_DATA), (0x7DF, 0x7DF), False, False, delay=0.0
+                FakeTerminal(default=NO_DATA),
+                (0x7DF, 0x7DF),
+                False,
+                False,
+                delay=0.0,
+                profile=active(),
             )
 
 

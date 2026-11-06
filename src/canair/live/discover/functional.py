@@ -22,6 +22,7 @@ from typing import Any, TextIO
 from canair.captures.build import build_manual_session
 from canair.captures.metadata import resolve_metadata
 from canair.captures.save import save_session_journaled
+from canair.profile import Profile
 from canair.render import ansi, messages
 from canair.render.paint import GAP, INDENT, Cell, Painter, column_widths, render_row
 from canair.transport.functional import DEFAULT_WINDOW_S
@@ -146,6 +147,7 @@ async def mode_discover_functional(
     register: bool = False,
     dry_run: bool = False,
     identify: bool = False,
+    profile: Profile,
 ) -> list[SweepRound]:
     """Broadcast ``request`` ``repeat`` times and report every responder."""
     from canair.ecus.registry import load_ecus
@@ -201,7 +203,7 @@ async def mode_discover_functional(
         print(json.dumps(doc, indent=2))
 
     if save and any(r.responders for r in rounds):
-        _save(terminal, rounds, tx_id, request, label, vehicle_states, notes)
+        _save(terminal, rounds, tx_id, request, label, vehicle_states, notes, profile=profile)
 
     # Everyone who answered at least once, in the shape the physical sweep's
     # register/identify steps take.
@@ -228,6 +230,8 @@ def _save(
     label: str | None,
     vehicle_states: list[str] | str | None,
     notes: str | None,
+    *,
+    profile: Profile,
 ) -> None:
     from canair.transport.stats import client_transport
 
@@ -243,4 +247,4 @@ def _save(
         notes=notes,
         transport=client_transport(terminal),
     )
-    save_session_journaled(session)
+    save_session_journaled(session, profile=profile)

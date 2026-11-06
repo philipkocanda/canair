@@ -13,6 +13,7 @@ from canair.interop.autopid.profile import (
     ship_profile,
 )
 from canair.interop.autopid.v6 import to_v6
+from canair.profile import active
 from canair.render import messages
 from canair.yaml_edit.echo import echo_edit
 
@@ -29,7 +30,6 @@ def profile_out(firmware: str, include_unverified: bool = False) -> Path:
     unverified signals is ``autopid-v<N>-unverified.json`` beside it, so it never replaces
     the verified-only file.
     """
-    from canair.profile import active
     from canair.variants import load_variants
     from canair.variants.tags import selected_variant
 
@@ -50,7 +50,7 @@ def require_resolved_revisions() -> None:
     revisions' PIDs would double the poll list and publish one signal name from two PIDs.
     """
     from canair.ecus.pids import revision_resolutions
-    from canair.profile import ProfileError, active
+    from canair.profile import ProfileError
 
     open_ = [r for r in revision_resolutions().values() if r.revision is None]
     if not open_:
@@ -94,7 +94,6 @@ def want_verified_only(args) -> bool:
 def ship(args) -> tuple[dict, ShippedProfile]:
     """Load the active bundle and decide what ships to the device, for any firmware."""
     from canair.cli.car import require_car
-    from canair.profile import active
 
     require_car("generate the AutoPID profile")
     require_resolved_revisions()

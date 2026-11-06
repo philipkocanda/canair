@@ -26,6 +26,7 @@ from canair.cli.commands.captures.set_state import cmd_set_state
 from canair.cli.commands.contribute import report
 from canair.cli.commands.status import render as status_cmd
 from canair.core.prompt import PromptUnavailable
+from canair.profile import active
 
 ESC = re.compile(r"\x1b\[")
 
@@ -106,7 +107,7 @@ def _span_rows() -> list[dict]:
 def _seed(cdir, payload="6101EEFF", n=2, rx="0x7EB", pid="2101"):
     for i in range(n):
         s = build_query_session([(rx, pid, payload, "")], f"s{i}", [], "", transport="slcan-tcp")
-        save_session(s, cdir)
+        save_session(s, cdir, profile=active())
 
 
 class TestBackfillRenderersFollowTheGate:

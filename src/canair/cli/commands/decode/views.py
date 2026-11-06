@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from canair.analysis.stats import compute_stats
 from canair.analysis.stats import fmt_num as _fmt_num
+from canair.profile import active
 from canair.render import ansi, glyphs
 from canair.states.selectors import state_bucket_key
 from canair.states.tokens import join_states as _join_states
@@ -275,12 +276,12 @@ def print_stats_grouped(
     in one shot instead of pooling every capture together. Groups are printed in
     first-appearance order so they follow the chronological session order.
     """
-    rules = load_states() if field in ("state", "vehicle_states") else []
+    rules = load_states(profile=active()) if field in ("state", "vehicle_states") else []
     groups: dict[str, list[dict]] = {}
     for r in all_results:
         cap = r["capture"]
         if field in ("state", "vehicle_states"):
-            key = state_bucket_key(cap.get("vehicle_states"), rules)
+            key = state_bucket_key(cap.get("vehicle_states"), rules, profile=active())
         else:
             key = str(cap.get(field, "")) or "(none)"
         groups.setdefault(key, []).append(r)

@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 
 from canair.captures.journal import CaptureJournal, list_orphans, recover
+from canair.profile import active
 
 
 def _discover_session(**extra) -> dict:
@@ -32,14 +33,16 @@ def _discover_session(**extra) -> dict:
 
 
 def _orphan(tmp_path, session: dict, **meta) -> None:
-    journal = CaptureJournal.open(tmp_path, label="sweep", source="oneshot", **meta)
+    journal = CaptureJournal.open(
+        tmp_path, label="sweep", source="oneshot", profile=active(), **meta
+    )
     journal.append_session(session)
     journal.flush()  # a killed session: on disk, never reconciled
 
 
 def _recovered(tmp_path) -> dict:
     [path] = list_orphans(tmp_path)
-    written = recover(path)
+    written = recover(path, profile=active())
     assert written is not None
     return json.loads(written.read_text())["sessions"][0]
 

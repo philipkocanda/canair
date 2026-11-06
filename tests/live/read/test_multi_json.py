@@ -6,6 +6,7 @@ import asyncio
 import json
 
 from canair.live.read.multi import mode_multi
+from canair.profile import active
 from tests.support.fakes import FakeTerminal, nrc, ok
 
 
@@ -30,7 +31,9 @@ def _pids_data() -> dict:
 
 def _run(steps, replies, **kw) -> None:
     terminal = FakeTerminal(replies)
-    asyncio.run(mode_multi(terminal, steps, _pids_data(), False, no_repl=True, **kw))
+    asyncio.run(
+        mode_multi(terminal, steps, _pids_data(), False, no_repl=True, profile=active(), **kw)
+    )
 
 
 def test_stdout_is_one_json_document(capsys):

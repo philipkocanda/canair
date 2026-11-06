@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from canair.live.monitor.selectors import MonitorSelectors
+from tests.support.profiles import bundled_profile
 
 
 class _Schedule:
@@ -48,6 +49,7 @@ def _controller(steps: list[dict]) -> SimpleNamespace:
         _ecu_index=index,
         query_steps=steps,
         include_static=False,
+        profile=bundled_profile(),
         schedule=_Schedule(),
         state=_State(),
         link_events=_LinkEvents(),
@@ -62,7 +64,7 @@ def _q(ecu: str, *pids: str) -> dict:
 
 class TestPickerSeed:
     def test_opens_on_the_polled_selection(self, monkeypatch):
-        monkeypatch.setattr("canair.ecus.ecu_groups.load_groups", lambda: {})
+        monkeypatch.setattr("canair.ecus.ecu_groups.load_groups", lambda profile: {})
         seed = MonitorSelectors(_controller([_q("BMS"), _q("VCU", "2102")])).picker_seed()
         assert [c.name for c in seed.choices] == ["BMS", "VCU"]
         assert seed.current == {"BMS": ["2101", "2105"], "VCU": ["2102"]}

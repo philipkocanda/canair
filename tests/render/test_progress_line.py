@@ -6,6 +6,7 @@ import io
 
 import pytest
 
+from canair.profile import active
 from canair.render.progress import ProgressLine
 
 
@@ -66,7 +67,9 @@ async def test_discover_progress_never_reaches_stdout(capsys, monkeypatch, tmp_p
     try:
         monkeypatch.setattr("sys.stdin.isatty", lambda: False)
         term = FakeTerminal(default={"ok": False, "error": "NO DATA", "raw": "NO DATA"})
-        await disc.mode_discover(term, (0x7E0, 0x7EF), verbose=False, as_json=False, delay=0.0)
+        await disc.mode_discover(
+            term, (0x7E0, 0x7EF), verbose=False, as_json=False, delay=0.0, profile=active()
+        )
     finally:
         profile._active = saved
         clear_cache()

@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from canair.profile import active
 from canair.render.messages import error as print_error
 from canair.render.messages import hint
 from canair.yaml_edit.echo import echo_edit
@@ -61,10 +62,10 @@ def _run_dbc(args) -> int:
     from canair.broadcast import load_signals, signals_dir
     from canair.validation.signals import check_signals_doc
 
-    if not signals_dir().is_dir():
+    if not signals_dir(profile=active()).is_dir():
         print_error("no signals/ to export")
         return 1
-    docs = load_signals(args.bus)
+    docs = load_signals(args.bus, profile=active())
     if not docs:
         print_error("no matching signals files")
         return 1

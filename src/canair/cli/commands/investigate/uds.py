@@ -26,6 +26,7 @@ from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.join import fill_policy_from_args, fill_summaries, fill_summary_line
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
+from canair.profile import active
 from canair.render import messages
 from canair.uds.byteindex import mapped_bits, mapped_offsets
 from canair.variants import effective_meta
@@ -106,7 +107,7 @@ def _resolve_targets(args, since, until) -> tuple[list[tuple[str, str]], tuple[s
     if query and not any(ch in query for ch in ":, "):
         query = canonical_ecu_name_safe(query)
     specs = discover_signal_specs(
-        query, since=since, until=until, state=args.state, label=args.label
+        query, since=since, until=until, state=args.state, label=args.label, profile=active()
     )
     if len(specs) == 1:
         return specs, specs[0]
@@ -124,6 +125,7 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
         state=args.state,
         label=args.label,
         one_revision="investigate",
+        profile=active(),
     )
     lp = loaded[(ecu.upper(), pid)]
     if not lp.captures:
@@ -149,7 +151,9 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
     # State buckets per byte/bit (F score) — reuse decode's bucketer over a lite
     # all_results (only needs r["capture"]).
     all_results = [{"capture": c} for c in lp.captures]
-    state_buckets = _byte_state_buckets(all_results, "state", include_bits=args.bits)
+    state_buckets = _byte_state_buckets(
+        all_results, "state", include_bits=args.bits, profile=active()
+    )
 
     # --events short-circuits to the edge/timeline view (no anchor correlation);
     # --dwell adds (or stands in for) the per-signal on-duration summary.
@@ -171,7 +175,6 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
     from canair.analysis.cross_signal import physical_scan
     from canair.analysis.physical.bands import resolve_physical_bands
     from canair.cli.grid_prompt import resolve_grid_region
-    from canair.profile import active
 
     bands = resolve_physical_bands(effective_meta(active()), grid_region=resolve_grid_region())
     physical_by_off = {
@@ -200,6 +203,7 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
                     state=args.state,
                     label=args.label,
                     fill=fill,
+                    profile=active(),
                 )
         except ValueError as e:
             flag = "--independent-of-file" if args.independent_of_file else "--independent-of"
@@ -212,13 +216,18 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
     other_specs = [
         s
         for s in discover_signal_specs(
-            None, since=since, until=until, state=args.state, label=args.label
+            None, since=since, until=until, state=args.state, label=args.label, profile=active()
         )
         if s != (ecu.upper(), pid)
     ]
     if other_specs:
         aloaded = load_signal_captures(
-            other_specs, since=since, until=until, state=args.state, label=args.label
+            other_specs,
+            since=since,
+            until=until,
+            state=args.state,
+            label=args.label,
+            profile=active(),
         )
         for (aecu, apid), alp in aloaded.items():
             if not alp.captures:

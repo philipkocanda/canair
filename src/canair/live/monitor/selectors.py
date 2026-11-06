@@ -71,7 +71,9 @@ class MonitorSelectors:
         include_static = self.c.include_static
         return PickerSeed(
             choices=choices,
-            groups=build_group_choices(load_groups(), choices, include_static=include_static),
+            groups=build_group_choices(
+                load_groups(self.c.profile), choices, include_static=include_static
+            ),
             current=current_selection(choices, self.c.query_steps, include_static),
             include_static=include_static,
         )

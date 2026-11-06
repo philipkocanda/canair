@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
+from canair.profile import active
 from canair.render import ansi, messages
 from canair.states.implies import exclusive_pairs
 from canair.states.predicates import StatePredicateError
@@ -22,7 +23,6 @@ def cmd_show_state(args) -> int:
     """
     from canair.ecus.pids import load_pids
     from canair.ecus.registry import load_ecus
-    from canair.profile import active
 
     prof = active()
     target = str(args.state).strip().upper()

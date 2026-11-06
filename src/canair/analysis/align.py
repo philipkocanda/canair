@@ -29,6 +29,7 @@ from canair.captures.dates import entry_datetime, filter_by_date_range, filter_b
 from canair.captures.store import load_all_captures
 from canair.captures.types import CaptureEntry
 from canair.expression import evaluate_expression
+from canair.profile import Profile
 from canair.uds.byteindex import payload_to_wican_bytes as _payload_to_wican_bytes
 
 __all__ = [
@@ -55,14 +56,10 @@ __all__ = [
     "timestamps_disjoint",
 ]
 
-# Default nearest-neighbour join window (shared by align/correlate/hunt/cross_signal).
-# The sequential single-connection poller visits ECUs round-robin, so two ECUs'
-# samples are skewed by the time to poll everything in between. On a large
-# multi-ECU monitor session (e.g. 8 ECUs) adjacent-in-cycle ECUs land ~3.4 s
-# apart, which a 2.5 s window silently dropped — a "far" ECU joined zero rows.
-# 5 s covers the observed skew while still being "nearest" (a closer sample, when
-# one exists, always wins); widen further with --join-tol for sparse/keep:unique
-# scopes.
+# Default nearest-neighbour join window (shared by align/correlate/hunt/cross_signal). The
+# sequential poller visits ECUs round-robin, so adjacent-in-cycle ECUs of an 8-ECU monitor
+# session land ~3.4 s apart, which a 2.5 s window dropped. 5 s covers the skew while a closer
+# sample still wins; widen with --join-tol for sparse/keep:unique scopes.
 DEFAULT_JOIN_TOL_S = 5.0
 
 # A time gap larger than this between consecutive samples of one signal marks a
@@ -304,6 +301,7 @@ def discover_signal_specs(
     state: str | Sequence[str] | None = None,
     label: str | None = None,
     captures_dir: Path | None = None,
+    profile: Profile,
 ) -> list[tuple[str, str]]:
     """Which ``(ECU, PID)`` pairs have *time-joinable* captures in scope.
 
@@ -319,7 +317,7 @@ def discover_signal_specs(
     """
     entries = load_all_captures(captures_dir)
     entries = filter_by_date_range(entries, since, until)
-    entries = filter_by_text(entries, state=state, label=label)
+    entries = filter_by_text(entries, state=state, label=label, profile=profile)
 
     q = None
     if query:
@@ -348,6 +346,7 @@ def load_signal_captures(
     label: str | None = None,
     captures_dir: Path | None = None,
     one_revision: str | None = None,
+    profile: Profile,
 ) -> dict[tuple[str, str], LoadedPid]:
     """Load ``payload`` captures grouped by ``(ecu, pid)`` for a set of specs.
 
@@ -373,7 +372,7 @@ def load_signal_captures(
 
     entries = load_all_captures(captures_dir)
     entries = filter_by_date_range(entries, since, until)
-    entries = filter_by_text(entries, state=state, label=label)
+    entries = filter_by_text(entries, state=state, label=label, profile=profile)
     if one_revision:
         from canair.variants.tags import require_one_revision
 

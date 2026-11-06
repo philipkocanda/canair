@@ -32,6 +32,7 @@ from canair.live.monitor.select import (
     build_group_choices,
     selectors_from_selection,
 )
+from canair.profile import Profile
 from canair.tui import styles
 from canair.tui.help import SCROLL_HELP_ROWS, LegendRow
 from canair.tui.keys import DISMISS_DESCRIPTION, bind, key_hint
@@ -419,7 +420,9 @@ class MonitorSelectApp(App["Picks | None"]):
         self.push_screen(self.picker, self.exit)
 
 
-def pick_selectors(pids_data: dict, *, include_static: bool = False) -> list[str] | None:
+def pick_selectors(
+    pids_data: dict, *, include_static: bool = False, profile: Profile
+) -> list[str] | None:
     """Run the interactive picker; return selectors, or ``None`` if cancelled.
 
     Raises ``ValueError`` when the active profile defines nothing to monitor.
@@ -432,7 +435,9 @@ def pick_selectors(pids_data: dict, *, include_static: bool = False) -> list[str
     if not choices:
         raise ValueError("the active profile defines no pollable PIDs, so there is nothing to pick")
 
-    groups = build_group_choices(load_groups(), choices, include_static=include_static)
+    groups = build_group_choices(
+        load_groups(profile=profile), choices, include_static=include_static
+    )
     picked = MonitorSelectApp(choices, groups, include_static=include_static).run()
     if not picked:
         return None

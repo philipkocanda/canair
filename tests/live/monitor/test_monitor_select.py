@@ -13,6 +13,7 @@ from canair.live.monitor.select import (
     selection_steps,
     selectors_from_selection,
 )
+from canair.profile import active
 from canair.tui.apps.monitor_select.app import (
     LiveMonitorSelectScreen,
     MonitorSelectApp,
@@ -96,7 +97,7 @@ class TestGroups:
 class TestPickSelectors:
     def test_empty_profile_is_an_error(self):
         with pytest.raises(ValueError, match="nothing to pick"):
-            pick_selectors({"ecus": {}})
+            pick_selectors({"ecus": {}}, profile=active())
 
 
 async def _press(pilot, *keys: str) -> None:

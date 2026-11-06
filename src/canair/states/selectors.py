@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from canair.profile import Profile
 from canair.states.implies import implied_closure, most_specific_states
 from canair.states.predicates import StatePredicateError, StateRule
 from canair.states.suggest import satisfied_states
@@ -12,7 +13,7 @@ from canair.states.tokens import ALL_STATE, NO_STATE_KEY, join_states, parse_sta
 from canair.states.vocabulary import allowed_states, load_states, order_states
 
 
-def ecu_states(ecu_def, profile=None) -> list[str]:
+def ecu_states(ecu_def, profile: Profile) -> list[str]:
     """Resolve which vehicle states an ECU is readable/awake in.
 
     Uses the ECU-level ``vehicle_states`` when present; otherwise falls back to
@@ -32,7 +33,7 @@ def ecu_states(ecu_def, profile=None) -> list[str]:
     return order_states(tokens, profile)
 
 
-def ecus_in_state(state, pids_data, profile=None, rules=None) -> list[dict]:
+def ecus_in_state(state, pids_data, profile: Profile, rules=None) -> list[dict]:
     """ECUs readable in ``state`` (the reverse of :func:`ecu_states`).
 
     ``pids_data`` is a ``load_pids()`` mapping. An ECU matches when ``state`` is
@@ -71,7 +72,7 @@ def ecus_in_state(state, pids_data, profile=None, rules=None) -> list[dict]:
     return out
 
 
-def state_bucket_key(states, rules: list[StateRule] | None = None, *, profile=None) -> str:
+def state_bucket_key(states, rules: list[StateRule] | None = None, *, profile: Profile) -> str:
     """Canonical grouping key for a capture's states, for state-axis analysis.
 
     Discriminability buckets captures by this key, so it must name the *logical*
@@ -111,7 +112,7 @@ def format_state_selector(selector) -> str:
 
 
 def state_matcher(
-    selector, rules: list[StateRule] | None = None, *, profile=None
+    selector, rules: list[StateRule] | None = None, *, profile: Profile
 ) -> Callable[[Any], bool]:
     """Build a predicate testing a capture's states against a ``--state`` selector.
 
@@ -151,7 +152,7 @@ def state_matcher(
     return matches
 
 
-def unknown_state_tokens(selector, profile=None) -> list[str]:
+def unknown_state_tokens(selector, profile: Profile) -> list[str]:
     """Selector tokens that are not in the profile's state vocabulary, in order.
 
     For a command that wants to warn that ``--state DRIVNG`` can only ever match

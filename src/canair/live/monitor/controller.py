@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from canair.expression.results import EcuFrame, ResultEntry
+from canair.profile import Profile
 from canair.transport.session_manager import SessionManager
 
 from ...captures.link_events import is_rx
@@ -90,56 +91,56 @@ class MonitorController:
     behaviour. Which PIDs a tick reads is the :class:`PollScheduler`'s call.
     """
 
-    def __init__(self, terminal, options: MonitorOptions, pids_data: dict, raw_client=None):
+    def __init__(
+        self,
+        terminal,
+        options: MonitorOptions,
+        pids_data: dict,
+        raw_client=None,
+        *,
+        profile: Profile,
+    ):
         self.terminal = terminal
         self.raw_client = raw_client  # transport.RawUdsClient when using the raw backend
         self.raw = raw_client is not None
         self.options = options
         self.query_steps = options.query_steps
         self.pids_data = pids_data
+        self.profile = profile
         self.verbose = options.verbose
         self.schedule = PollScheduler(
             options.schedule, options.interval, period_speedup=MONITOR_PERIOD_SPEEDUP
         )
-        # Slow-PID backoff: a PID that times out or is answered very slowly holds up
-        # every other PID's next poll, so it is polled less often until it recovers.
-        # Fed each PID's cost of a tick, which the poll backends leave in health.poll_costs.
+        # Slow-PID backoff: a slow or silent PID holds up every other PID's next poll, so it
+        # is polled less often until it recovers. Fed from health.poll_costs.
         self.backoff = PollBackoff(enabled=options.backoff)
         self.keep_mode = options.keep_mode
         self.keep_n = options.keep_n
         self.save = options.save
         self.show_rulers = options.show_rulers
-        # Byte-index notation for the rulers + per-signal byte-reference column
-        # (the user's display.byte_notation, or --notation).
+        # Byte-index notation for the rulers and byte-reference column (display.byte_notation).
         self.notation = options.notation
         self.include_static = options.include_static
-        # Live display view mode (cycled with 'V' in the TUI). See VIEW_MODES:
-        # "full" (signals + hex payloads, the default), "signals" (decoded params
-        # only), "ranges" (each signal's captured value span), "ecus" (just the
-        # responding ECUs). Named views only change presentation, not recording.
+        # Live display view mode (cycled with 'V' in the TUI; see VIEW_MODES). Views change
+        # presentation only, never recording.
         self.view_mode = "full"
 
         self.sm = SessionManager(terminal, verbose=self.verbose) if not self.raw else None
         self._ecu_index: dict | None = None
-        # Diagnostic session-type concern (active modes, the safety check, the
-        # picker's known-good suggestions, live switching) lives in the
-        # MonitorSessions collaborator; it also holds the raw backend's
-        # opened-session modes (which has no SessionManager to track them).
+        # Diagnostic session types (active modes, the safety check, known-good suggestions,
+        # live switching) live in MonitorSessions, which also holds the raw backend's modes.
         self.sessions = MonitorSessions(self)
-        # Live PID-selector management (the TUI 'p' picker: enumerate ECUs/PIDs,
-        # report/toggle selectors) lives in the MonitorSelectors collaborator.
+        # Live PID-selector management (the TUI 'p' picker) lives in MonitorSelectors.
         self.selectors = MonitorSelectors(self)
         # Raw-backend poll cycle + multi-DID batching state lives in the poller.
         self.raw_poller = MonitorRawPoller(self)
         # ELM327 session setup + poll cycle (the non-raw backends).
         self.elm_poller = MonitorElmPoller(self)
-        # Incremental rendering: a hook the TUI sets to refresh the body mid-cycle
-        # so a slow/timing-out PID doesn't freeze the whole view. Left None for
-        # the non-interactive path (results are only rendered once, on exit).
+        # Hook the TUI sets to refresh the body mid-cycle, so a slow PID doesn't freeze the
+        # view. None for the non-interactive path (rendered once, on exit).
         self.on_partial = None
-        # Last *good* entry seen per (ecu_label, pid). A PID that times out reuses
-        # this (marked stale → dimmed) so its values stay on screen instead of
-        # collapsing to an error line and jolting the layout.
+        # Last *good* entry per (ecu_label, pid): a PID that times out reuses it (marked
+        # stale, dimmed) so the layout doesn't jolt.
         self._last_good: dict[tuple[str, str], ResultEntry] = {}
         # Last entry *shown* per (ecu_label, pid) — whatever _displayify last
         # returned, including an honest `NRC …` line. A pending PID (raw,
@@ -159,9 +160,8 @@ class MonitorController:
         # issues: dropped/stale ISO-TP frames + all non-answer errors this cycle.
         self.last_drops = 0
         self.last_errors = 0
-        # Echo/SID validation failures this cycle, tracked apart from last_drops
-        # (which sums drop + stale for capture back-compat): a desync and a lost
-        # frame call for opposite responses, so the status line names them apart.
+        # Echo/SID validation failures this cycle, apart from last_drops (drop + stale): a
+        # desync and a lost frame call for opposite responses, so the status line splits them.
         self.last_stale = 0
         # Resolved transport label (e.g. "slcan-tcp"/"wican-ws"), recorded into
         # saved-capture provenance. Set by mode_monitor.
@@ -230,7 +230,7 @@ class MonitorController:
         # through canair.pids_edit; this controller reloads on its request.
         from .edit import MonitorEditor
 
-        self.pids_dir = self.profile = None  # None -> the active profile's ecus/
+        self.pids_dir = None  # None -> the profile's ecus/ (tests override)
         self.editor = MonitorEditor(self)
         # The display: what it shows (view) and how it is drawn (renderer, which keeps the
         # per-PID render cache across paints).

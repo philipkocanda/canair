@@ -23,7 +23,7 @@ from canair.cli.commands import contribute as cmd
 from canair.cli.commands.contribute import gates, pipeline, report
 from canair.contribute import copy as C_copy
 from canair.contribute import git as C_git
-from canair.profile import Profile, resolve_profile
+from canair.profile import Profile, active, resolve_profile
 
 
 def _session(label="drive", time="10:00:00", *, notes=None, date="2026-07-28", pid="2101"):
@@ -200,7 +200,7 @@ class TestLayeredScopeKeysByPath:
 
         _write(layered.base / "captures" / "2026-07-28.json", _session("base", "08:00:00"))
         _write(layered.overlay / "captures" / "2026-07-28.json", _session("mine", "18:00:00"))
-        starts = _session_starts(None, None, None, None)
+        starts = _session_starts(None, None, None, None, profile=active())
         assert [s.strftime("%H:%M") for s in starts] == ["08:00", "18:00"]
 
     def test_unresolved_state_summary_counts_both_layers_sessions(self, layered):

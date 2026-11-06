@@ -47,7 +47,7 @@ def cmd_rename(args) -> int:
 
     tx_id = resolve_tx(args.ecu)
     if tx_id is None:
-        return unknown_ecu(args.ecu, list_records(load_ecus(), load_pids()))
+        return unknown_ecu(args.ecu, list_records(load_ecus(), load_pids(), profile=active()))
 
     old_name = (load_ecus().get(tx_id) or {}).get("name")
     with edit_scope(args):

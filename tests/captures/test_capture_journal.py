@@ -10,6 +10,7 @@ from canair.captures.journal import (
     reconcile_file,
     recover,
 )
+from canair.profile import active
 
 
 def _read_capture_file(captures_dir):
@@ -21,7 +22,12 @@ def _read_capture_file(captures_dir):
 class TestJournalBasics:
     def test_open_writes_meta_and_creates_dir(self, tmp_path):
         j = CaptureJournal.open(
-            tmp_path, label="L", vehicle_states=["ready"], notes="n", source="monitor"
+            tmp_path,
+            label="L",
+            vehicle_states=["ready"],
+            notes="n",
+            source="monitor",
+            profile=active(),
         )
         assert j.path.exists()
         assert j.path.parent == tmp_path / ".journal"
@@ -40,7 +46,9 @@ class TestJournalBasics:
         calls = {"n": 0}
         monkeypatch.setattr(cj.os, "fsync", lambda _fd: calls.__setitem__("n", calls["n"] + 1))
 
-        j = CaptureJournal.open(tmp_path, label="L")  # meta write is durable -> 1 fsync
+        j = CaptureJournal.open(
+            tmp_path, label="L", profile=active()
+        )  # meta write is durable -> 1 fsync
         base = calls["n"]
         j.append("0x7EC", "2101", "6101aabb", "12:00:01")
         j.append("0x7EC", "2102", "6102ccdd", "12:00:02")
@@ -62,7 +70,11 @@ class TestJournalBasics:
 class TestReconcile:
     def test_reconcile_builds_session_and_deletes_journal(self, tmp_path):
         j = CaptureJournal.open(
-            tmp_path, label="Live ref", vehicle_states=["ready", "parked"], notes="18C"
+            tmp_path,
+            label="Live ref",
+            vehicle_states=["ready", "parked"],
+            notes="18C",
+            profile=active(),
         )
         j.append("0x7EB", "2102", "6102AABB")
         j.append("0x7EA", "2101", "6101CCDD", "12:00:01")
@@ -77,7 +89,7 @@ class TestReconcile:
         assert sess["captures"][1]["time"] == "12:00:01"
 
     def test_meta_last_wins(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="orig", vehicle_states=["acc"])
+        j = CaptureJournal.open(tmp_path, label="orig", vehicle_states=["acc"], profile=active())
         j.append("0x7EC", "2101", "6101")
         j.update_meta(label="edited", vehicle_states=["ready"], notes="final")
         written = j.reconcile()
@@ -89,7 +101,7 @@ class TestReconcile:
     def test_a_legacy_unique_journal_reconciles_without_dedup(self, tmp_path):
         # A journal an older canair left with the retired global dedup: every row
         # is kept and no dedup policy is claimed, since nothing applied one.
-        j = CaptureJournal.open(tmp_path, label="L", keep_mode="unique")
+        j = CaptureJournal.open(tmp_path, label="L", keep_mode="unique", profile=active())
         for payload in ("6101AA", "6101AA", "6101BB", "6101AA"):
             j.append("0x7EC", "2101", payload)
         written = j.reconcile()
@@ -100,7 +112,7 @@ class TestReconcile:
     def test_keep_mode_changes_is_run_length(self, tmp_path):
         # Run-length: only immediate repeats collapse, so genuine oscillation
         # A→B→A→B is preserved in full (unlike global "unique" dedup).
-        j = CaptureJournal.open(tmp_path, label="L", keep_mode="changes")
+        j = CaptureJournal.open(tmp_path, label="L", keep_mode="changes", profile=active())
         for payload in ("6101AA", "6101AA", "6101BB", "6101AA", "6101BB", "6101BB"):
             j.append("0x7EC", "2101", payload)
         written = j.reconcile()
@@ -116,7 +128,7 @@ class TestReconcile:
     def test_keep_mode_changes_is_per_pid(self, tmp_path):
         # The "immediately preceding" comparison is per (ecu, pid): an interleaved
         # poll of two PIDs must not mask each other's repeats.
-        j = CaptureJournal.open(tmp_path, label="L", keep_mode="changes")
+        j = CaptureJournal.open(tmp_path, label="L", keep_mode="changes", profile=active())
         j.append("0x7EC", "2101", "6101AA")
         j.append("0x7EC", "2102", "6102CC")
         j.append("0x7EC", "2101", "6101AA")  # repeat for 2101 → dropped
@@ -129,7 +141,7 @@ class TestReconcile:
         assert by_pid == {"2101": ["6101AA"], "2102": ["6102CC"]}
 
     def test_keep_all_keeps_duplicates(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="L", keep_mode="all")
+        j = CaptureJournal.open(tmp_path, label="L", keep_mode="all", profile=active())
         j.append("0x7EC", "2101", "6101AA")
         j.append("0x7EC", "2101", "6101AA")
         written = j.reconcile()
@@ -139,12 +151,12 @@ class TestReconcile:
         assert "keep_mode" not in sess
 
     def test_empty_journal_reconcile_returns_none_and_removes(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="L")
+        j = CaptureJournal.open(tmp_path, label="L", profile=active())
         assert j.reconcile() is None
         assert not j.path.exists()
 
     def test_append_session_roundtrips(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="Scan", vehicle_states=["ready"])
+        j = CaptureJournal.open(tmp_path, label="Scan", vehicle_states=["ready"], profile=active())
         session = {
             "date": "2026-07-22",
             "label": "placeholder",
@@ -165,7 +177,7 @@ class TestMidnightSplit:
         # A monitor/query session spanning midnight must land in the correct
         # per-day capture files (date derived from each payload, not from
         # reconcile time) so time-aligned analysis keeps the right calendar day.
-        j = CaptureJournal.open(tmp_path, label="overnight drive")
+        j = CaptureJournal.open(tmp_path, label="overnight drive", profile=active())
         j.append("0x7EC", "2101", "6101AA", "23:59:58.100", "2026-07-22")
         j.append("0x7EC", "2101", "6101BB", "00:00:03.200", "2026-07-23")
         written = j.reconcile()
@@ -187,10 +199,10 @@ class TestMidnightSplit:
     def test_recovery_uses_capture_date_not_today(self, tmp_path):
         # A journal recovered days later must be dated to when the payloads were
         # captured, not the recovery day.
-        j = CaptureJournal.open(tmp_path, label="L", notes="orig")
+        j = CaptureJournal.open(tmp_path, label="L", notes="orig", profile=active())
         j.append("0x7EC", "2101", "6101", "12:00:00", "2020-01-01")
         j._close_fh()
-        written = recover(j.path)
+        written = recover(j.path, profile=active())
         assert written is not None
         assert written.name == "2020-01-01.json"
         sess = capture_io.load_capture_file(written)["sessions"][0]
@@ -200,7 +212,7 @@ class TestMidnightSplit:
 
 class TestContextManager:
     def test_clean_exit_reconciles(self, tmp_path):
-        with CaptureJournal.open(tmp_path, label="ctx") as j:
+        with CaptureJournal.open(tmp_path, label="ctx", profile=active()) as j:
             j.append("0x7EC", "2101", "6101")
             path = j.path
         assert not path.exists()
@@ -208,7 +220,7 @@ class TestContextManager:
 
     def test_exception_leaves_journal(self, tmp_path):
         try:
-            with CaptureJournal.open(tmp_path, label="ctx") as j:
+            with CaptureJournal.open(tmp_path, label="ctx", profile=active()) as j:
                 j.append("0x7EC", "2101", "6101")
                 path = j.path
                 raise RuntimeError("boom")
@@ -220,13 +232,13 @@ class TestContextManager:
 
 class TestTruncatedLine:
     def test_truncated_final_line_tolerated(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="L")
+        j = CaptureJournal.open(tmp_path, label="L", profile=active())
         j.append("0x7EC", "2101", "6101AA")
         j._close_fh()
         # Simulate a kill mid-write: append a partial JSON line.
         with open(j.path, "a") as f:
             f.write('{"type": "capture", "rx": "0x7E')
-        written = reconcile_file(j.path)
+        written = reconcile_file(j.path, profile=active())
         caps = capture_io.load_capture_file(written)["sessions"][0]["captures"]
         assert [c["payload"] for c in caps] == ["6101AA"]
 
@@ -234,17 +246,17 @@ class TestTruncatedLine:
 class TestOrphanRecovery:
     def test_list_orphans(self, tmp_path):
         assert list_orphans(tmp_path) == []
-        j = CaptureJournal.open(tmp_path, label="L")
+        j = CaptureJournal.open(tmp_path, label="L", profile=active())
         j.append("0x7EC", "2101", "6101")
         j._close_fh()
         orphans = list_orphans(tmp_path)
         assert orphans == [j.path]
 
     def test_recover_tags_notes_and_saves(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="L", notes="orig")
+        j = CaptureJournal.open(tmp_path, label="L", notes="orig", profile=active())
         j.append("0x7EC", "2101", "6101")
         j._close_fh()
-        written = recover(j.path)
+        written = recover(j.path, profile=active())
         assert written is not None
         assert not j.path.exists()
         sess = capture_io.load_capture_file(written)["sessions"][0]
@@ -252,10 +264,10 @@ class TestOrphanRecovery:
         assert "orig" in sess["notes"]
 
     def test_discard_deletes_without_saving(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="L")
+        j = CaptureJournal.open(tmp_path, label="L", profile=active())
         j.append("0x7EC", "2101", "6101")
         j._close_fh()
-        assert recover(j.path, discard=True) is None
+        assert recover(j.path, discard=True, profile=active()) is None
         assert not j.path.exists()
         assert not list(tmp_path.glob("*.json"))
 
@@ -347,7 +359,7 @@ class TestBuildSessionFromRecords:
         assert [c["pid"] for c in by_date["2026-07-23"]["captures"]] == ["0101"]
 
     def test_append_response_round_trips_through_reconcile(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="probe")
+        j = CaptureJournal.open(tmp_path, label="probe", profile=active())
         j.append_response("0x7A8", "24B004", "NRC 0x11 (serviceNotSupported)")
         j.reconcile()
         sess = _read_capture_file(tmp_path)["sessions"][0]
@@ -415,7 +427,7 @@ class TestRecoverCommand:
     def test_cmd_recover_reconciles(self, tmp_path, capsys):
         from canair.cli.commands.captures.maint import cmd_recover
 
-        j = CaptureJournal.open(tmp_path, label="L")
+        j = CaptureJournal.open(tmp_path, label="L", profile=active())
         j.append("0x7EC", "2101", "6101")
         j._close_fh()
         rc = cmd_recover(tmp_path)
@@ -428,7 +440,7 @@ class TestRecoverCommand:
     def test_cmd_recover_discard(self, tmp_path, capsys):
         from canair.cli.commands.captures.maint import cmd_recover
 
-        j = CaptureJournal.open(tmp_path, label="L")
+        j = CaptureJournal.open(tmp_path, label="L", profile=active())
         j.append("0x7EC", "2101", "6101")
         j._close_fh()
         rc = cmd_recover(tmp_path, discard=True)
@@ -443,7 +455,7 @@ class TestRecoverCommand:
         orphan_notice(tmp_path)
         captured = capsys.readouterr()
         assert captured.out == "" and captured.err == ""
-        j = CaptureJournal.open(tmp_path, label="L")
+        j = CaptureJournal.open(tmp_path, label="L", profile=active())
         j.append("0x7EC", "2101", "6101")
         j._close_fh()
         orphan_notice(tmp_path)

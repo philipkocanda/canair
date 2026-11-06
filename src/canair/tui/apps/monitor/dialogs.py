@@ -15,7 +15,6 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, Input, Label, OptionList, Static
 from textual.widgets.option_list import Option
 
-from canair.states.vocabulary import state_options as load_state_options
 from canair.tui.keys import CANCEL_HINT, Token, arrows_hint, bind, hint
 from canair.tui.modals import KitModal
 from canair.tui.styles import dialog_css
@@ -113,13 +112,8 @@ class SaveDialog(KitModal["tuple[str, str, str] | None"]):
         self._title = title
         self._caption = caption
         self._save_button = save_button
-        if state_options is None:
-            try:
-                state_options = load_state_options()
-            except Exception:
-                state_options = []
-        self._state_options = state_options
-        self._vocabulary = {name for name, _desc in state_options}
+        self._state_options = state_options or []
+        self._vocabulary = {name for name, _desc in self._state_options}
 
     def compose(self) -> ComposeResult:
         label_hint = f'Label (empty uses "{self._suggested}")' if self._suggested else "Label"

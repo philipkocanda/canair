@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from canair.interop.autopid.profile import DuplicateParameterError, generate_profile
+from canair.profile import active
 from canair.states.tokens import POWER_STATES, join_states, parse_states
 from canair.states.vocabulary import allowed_states
 from canair.validation.pids import collect_pids_validation
@@ -37,10 +38,10 @@ class TestVocabularySource:
             assert loaded == [tok, tok.lower()], f"{tok} is a YAML keyword"
 
     def test_allowed_states_superset_of_base(self):
-        assert set(POWER_STATES) <= allowed_states()
+        assert set(POWER_STATES) <= allowed_states(profile=active())
 
     def test_all_meta_token_allowed(self):
-        assert "ALL" in allowed_states()
+        assert "ALL" in allowed_states(profile=active())
 
     def test_parse_states_from_comma_string(self):
         assert parse_states("Ready, Parked") == ["READY", "PARKED"]

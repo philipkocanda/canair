@@ -18,6 +18,7 @@ from pathlib import Path
 from canair.captures.entries import capture_key
 from canair.captures.types import CaptureEntry
 from canair.expression.notation import ByteNotation
+from canair.profile import active
 from canair.render import ansi, messages
 from canair.render.console import console as make_console
 from canair.tui.apps.captures_step.model import DEFAULT_STEP_JOIN_TOL_S, VIEW_AUTO, StepModel
@@ -53,8 +54,6 @@ def build_model(
     can be added from inside the TUI without reloading from disk.
     """
     if captures_dir is None:
-        from canair.profile import active
-
         captures_dir = active().captures_dir
 
     captures, defs = _gather_query(entries, query, warn=warn)

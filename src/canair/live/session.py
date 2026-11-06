@@ -24,6 +24,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
 from canair.core.prompt import PromptUnavailable
+from canair.profile import Profile
 from canair.render import messages
 from canair.transport.protocol import Terminal
 
@@ -58,6 +59,7 @@ async def run_session_guarded(
     *,
     options: SessionOptions,
     transport_label: str,
+    profile: Profile,
 ) -> int:
     """Run ``operation`` (+ optional timings) under unified error handling.
 
@@ -81,7 +83,7 @@ async def run_session_guarded(
     try:
         from canair.live.revision_probe import detect_revisions, targeted_ecus
 
-        if await detect_revisions(terminal, targeted_ecus(options.steps)):
+        if await detect_revisions(terminal, targeted_ecus(options.steps, profile=profile)):
             from canair.ecus.pids import load_pids
 
             # A settled revision changes which PIDs exist; read them before the mode does.

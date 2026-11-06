@@ -19,6 +19,7 @@ from canair.cli.commands.captures.listing import (
 from canair.cli.commands.captures.query import _gather_query
 from canair.cli.commands.captures.sessions import _clean, _quality_tag, cmd_sessions, cmd_summary
 from canair.core.prompt import PromptUnavailable
+from canair.profile import active
 from canair.tui.apps.captures_step.join import _nearest_within, build_join_frames
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
@@ -104,7 +105,7 @@ class TestBuildQuerySession:
     def test_roundtrips_and_appends_via_save_session(self, tmp_path):
         results = [("0x7EB", "2102", "6102AABB", "")]  # MCU
         s = build_query_session(results, "Live ref", ["ready", "parked"], "18C")
-        save_session(s, tmp_path)
+        save_session(s, tmp_path, profile=active())
         files = list(tmp_path.glob("*.json"))
         assert len(files) == 1
         data = json.loads(files[0].read_text())
@@ -117,7 +118,7 @@ class TestSavedBanner:
 
     def test_save_session_prints_full_path(self, tmp_path, capsys):
         s = build_query_session([("0x7EB", "2102", "6102AABB", "")], "l", [], "")
-        written = save_session(s, tmp_path)
+        written = save_session(s, tmp_path, profile=active())
         captured = capsys.readouterr()
         assert captured.out == ""  # a status line: stdout stays the command's result
         assert str(written) in captured.err
@@ -709,7 +710,7 @@ class TestTimeEnforcement:
     def test_journal_append_stamps_time(self, tmp_path):
         from canair.captures.journal import CaptureJournal
 
-        j = CaptureJournal.open(tmp_path, label="L")
+        j = CaptureJournal.open(tmp_path, label="L", profile=active())
         j.append("0x7EC", "2101", "6101AA")  # no explicit time
         j.flush()
         # read back the journal line
@@ -869,7 +870,7 @@ class TestSetSessionNote:
         s = build_query_session(
             [("0x7EC", "2101", "6101AA", "12:00:00")], "L", ["ready"], "old note"
         )
-        return save_session(s, tmp_path)
+        return save_session(s, tmp_path, profile=active())
 
     def test_set_note(self, tmp_path):
         from canair.captures.session_edit import set_session_note
@@ -910,7 +911,7 @@ class TestSetSessionKeepMode:
         from canair.captures.save import save_session
 
         s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "L", ["sleep"], "n")
-        return save_session(s, tmp_path)
+        return save_session(s, tmp_path, profile=active())
 
     def test_set_unique(self, tmp_path):
         from canair.captures.session_edit import set_session_keep_mode
@@ -944,7 +945,7 @@ class TestSetSessionStates:
         from canair.captures.save import save_session
 
         s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "L", states or [], "n")
-        return save_session(s, tmp_path)
+        return save_session(s, tmp_path, profile=active())
 
     def test_backfill_from_empty(self, tmp_path):
         from canair.captures.session_edit import set_session_states
@@ -1001,7 +1002,7 @@ class TestCmdDelete:
             ["ready"],
             "",
         )
-        save_session(s, cdir)
+        save_session(s, cdir, profile=active())
 
     def test_dry_run_deletes_nothing(self, tmp_path, capsys):
         from canair.captures.store import load_all_captures
@@ -1093,7 +1094,7 @@ class TestCmdBackfillStates:
 
     def _seed(self, cdir, payload, states, *, rx="0x7EA", pid="2101"):
         s = build_query_session([(rx, pid, payload, "")], "test", states, "")
-        save_session(s, cdir)
+        save_session(s, cdir, profile=active())
 
     def _states(self, cdir):
         files = list(cdir.glob("*.json"))
@@ -1118,7 +1119,7 @@ class TestCmdBackfillStates:
             ("0x7A8", "22B004", self._BCM_B004_OFF, ""),
             ("0x7AD", "22B008", self._SKM_B008_OFF, ""),
         ]
-        save_session(build_query_session(rows, "test", ["ready"], ""), tmp_path)
+        save_session(build_query_session(rows, "test", ["ready"], ""), tmp_path, profile=active())
         capsys.readouterr()  # discard the save banner
         rc = self._run(tmp_path, assume_yes=True)
         out = capsys.readouterr().out
@@ -1135,7 +1136,7 @@ class TestCmdBackfillStates:
             ("0x7A8", "22B004", self._BCM_B004_OFF, ""),
             ("0x7AD", "22B008", self._SKM_B008_OFF, ""),
         ]
-        save_session(build_query_session(rows, "test", ["ready"], ""), tmp_path)
+        save_session(build_query_session(rows, "test", ["ready"], ""), tmp_path, profile=active())
         rc = self._run(tmp_path, overwrite=True, assume_yes=True)
         assert rc == 0
         result = self._states(tmp_path)
@@ -1180,7 +1181,7 @@ class TestCmdSetState:
 
     def _seed(self, cdir, states):
         s = build_query_session([("0x7EB", "2101", "6101EEFF", "")], "body read", states, "")
-        save_session(s, cdir)
+        save_session(s, cdir, profile=active())
 
     def _states(self, cdir):
         files = list(cdir.glob("*.json"))
@@ -1514,7 +1515,7 @@ class TestSetCaptureNote:
             ["ready"],
             "n",
         )
-        return save_session(s, tmp_path)
+        return save_session(s, tmp_path, profile=active())
 
     def test_set_note(self, tmp_path):
         from canair.captures.session_edit import set_capture_note
@@ -1558,7 +1559,7 @@ class TestDeleteCapture:
             ["ready"],
             "n",
         )
-        return save_session(s, tmp_path)
+        return save_session(s, tmp_path, profile=active())
 
     def test_delete_leaves_session_when_more_remain(self, tmp_path):
         from canair.captures.session_edit import delete_capture
@@ -1725,7 +1726,9 @@ class TestCmdBackfillStateSpans:
             ("0x7EA", "2101", self._READY_PARK, "10:00:00"),
             ("0x7EA", "2101", self._PARK_ONLY, "10:30:00"),
         ]
-        save_session(build_query_session(rows, "drive then park", states, ""), cdir)
+        save_session(
+            build_query_session(rows, "drive then park", states, ""), cdir, profile=active()
+        )
 
     def _session(self, cdir):
         files = list(cdir.glob("*.json"))
@@ -1759,10 +1762,10 @@ class TestCmdBackfillStateSpans:
 
         entries = load_all_captures(tmp_path)
         assert len(entries) == 2
-        ready = filter_by_text(entries, state="READY")
+        ready = filter_by_text(entries, state="READY", profile=active())
         assert [e["time"] for e in ready] == ["10:00:00"]
         # PARKED spans the whole session, so both captures still match it.
-        assert len(filter_by_text(entries, state="PARKED")) == 2
+        assert len(filter_by_text(entries, state="PARKED", profile=active())) == 2
 
     def test_single_state_session_is_skipped(self, tmp_path):
         self._seed(tmp_path, ["PARKED"])
@@ -1778,7 +1781,9 @@ class TestCmdBackfillStateSpans:
         assert self._run(tmp_path, assume_yes=True) == 0
         block = self._session(tmp_path)["state_spans"]
         assert all("SLEEP" in s["states"] for s in block["spans"])
-        assert len(filter_by_text(load_all_captures(tmp_path), state="SLEEP")) == 2
+        assert (
+            len(filter_by_text(load_all_captures(tmp_path), state="SLEEP", profile=active())) == 2
+        )
 
     def test_live_spans_are_not_clobbered(self, tmp_path, capsys):
         from canair.captures.session_edit import set_session_state_spans
@@ -1836,7 +1841,7 @@ class TestSaveSessionAnnotatesSpans:
     _PARK_ONLY = TestCmdBackfillStates._VCU_PARK_NOT_READY
 
     def _save(self, cdir, states, rows):
-        save_session(build_query_session(rows, "seed", states, ""), cdir)
+        save_session(build_query_session(rows, "seed", states, ""), cdir, profile=active())
         return json.loads(next(cdir.glob("*.json")).read_text())["sessions"][0]
 
     def test_sequential_session_gets_a_timeline(self, tmp_path):
@@ -1870,8 +1875,10 @@ class TestSaveSessionAnnotatesSpans:
         from canair.captures.store import load_all_captures
 
         entries = load_all_captures(tmp_path)
-        assert [e["time"] for e in filter_by_text(entries, state="READY")] == ["10:00:00"]
-        assert len(filter_by_text(entries, state="PARKED")) == 2
+        assert [e["time"] for e in filter_by_text(entries, state="READY", profile=active())] == [
+            "10:00:00"
+        ]
+        assert len(filter_by_text(entries, state="PARKED", profile=active())) == 2
 
     def test_single_state_session_is_not_annotated(self, tmp_path):
         session = self._save(tmp_path, ["PARKED"], [("0x7EA", "2101", self._PARK_ONLY, "10:00:00")])

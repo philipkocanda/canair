@@ -18,6 +18,7 @@ from canair.core.eventlog import log_event
 from canair.ecus.pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index, ecu_index_key
 from canair.expression.results import ResultEntry
 from canair.privacy.sensitive import MASK, request_hidden
+from canair.profile import Profile
 from canair.query import QueryError, inferred_request, pids_named_by
 from canair.query.steps import parse_raw_spec, resolve_tx_id
 from canair.render import messages
@@ -119,10 +120,8 @@ async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
     resp, wall, request_s = await timed_exchange(
         sm, tx_id, pid_code, retries=1, expected_sid=expected_sid, expected_echo=expected_echo
     )
-    # Wall-clock round-trip (transport + ECU) for this single read — persisted on
-    # the capture as a relative timing signal. Batched multi-DID reads don't get
-    # this (one round-trip answers several PIDs), so it lives here, not in
-    # _read_batch.
+    # Wall-clock round-trip (transport + ECU) of this single read, persisted on the capture as
+    # a relative timing signal. A batched read gets none (one round-trip answers several PIDs).
     entry = _single_result(
         sm, tx_id, pid_code, pid_info, unmapped, batch_state, resp, round(wall * 1000)
     )
@@ -150,10 +149,10 @@ def _single_result(
     ):
         # Checked before learn(): taking it would store the batch as this DID's payload and
         # set this DID's length to the whole batch's, so every later batch fails to split.
-        # The batch it answers had already been given up on, so batching this ECU would only
-        # do that again every cycle. This read's own reply may still be on its way: the next
-        # read's echo check then catches it as stale (the ELM327 engine realigns its pipe
-        # before retrying; the raw path flushes its receive queue before every request).
+        # The batch it answers was already given up on, so batching this ECU would repeat that
+        # every cycle. This read's own reply may still be on its way: the next read's echo check
+        # then catches it as stale (the ELM327 engine realigns its pipe before retrying; the raw
+        # path flushes its receive queue before every request).
         log_event(
             "stale", LEAKED_BATCH_ERROR, level=logging.INFO, ecu=f"0x{tx_id:03X}", pid=pid_code
         )
@@ -185,10 +184,9 @@ async def _read_batch(sm, tx_id, group, out, batch_state) -> BatchOutcome:
     """
     dids = [_did4(e[0]) for e in group]
     await sm.keepalive_stale()
-    # Validated like the single-PID path: a 62 response repeats the first requested DID, so
-    # expected_sid/expected_echo classify a leaked reply as `stale` (triggering a pipe resync)
-    # instead of letting split_multi_did fail silently — which the caller reads as
-    # "unsplittable" and reacts to by permanently disabling batching for the whole ECU.
+    # Validated like the single-PID path: a 62 response repeats the first requested DID, so a
+    # leaked reply classifies as `stale` (pipe resync) instead of failing split_multi_did
+    # silently, which the caller reads as "unsplittable" and disables batching for the ECU.
     resp, _wall, request_s = await timed_exchange(
         sm,
         tx_id,
@@ -269,10 +267,9 @@ def build_query_plan(
         if not pids_to_query and not raw_pids:
             return None
     elif not include_static:
-        # Bare ECU selector = all PIDs. Skip static (identity/calibration) and slow
-        # (per-cycle records like 21F2) PIDs — they change too rarely for polling
-        # them every sweep to be worth the bus time.
-        # `swept` is derived from the PID's status in build_ecu_index.
+        # Bare ECU selector = all PIDs, minus static (identity/calibration) and slow (per-cycle
+        # records like 21F2) ones: they change too rarely to be worth the bus time. `swept` is
+        # derived from the PID's status in build_ecu_index.
         pids_to_query = {k: v for k, v in pids_to_query.items() if v.get("swept", True)}
 
     query_plan: list[tuple[str, PidIndexEntry | None, bool]] = [
@@ -551,6 +548,8 @@ async def _exec_scan(
     range_str: str,
     append: str,
     verbose: bool,
+    *,
+    profile: Profile,
 ):
     """Execute scan sub-command."""
     from ...ecus.names import resolve_tx
@@ -587,6 +586,7 @@ async def _exec_scan(
         append_bytes=append.upper(),
         session=False,
         wake=False,
+        profile=profile,
     )
 
 

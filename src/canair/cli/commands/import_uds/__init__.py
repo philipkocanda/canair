@@ -48,6 +48,7 @@ from datetime import datetime
 from pathlib import Path
 
 from canair.captures.types import CaptureRecord
+from canair.profile import active
 from canair.render import ansi, glyphs, messages
 
 
@@ -108,7 +109,6 @@ def run(args) -> int:
         messages.error(problem)
         return 2
 
-    from canair.profile import active
     from canair.variants.selection import require_named_car
 
     require_named_car(active(), "import uds")
@@ -151,7 +151,7 @@ def run(args) -> int:
     for w in warnings:
         messages.warning(w)
 
-    fpath = save_session(session, args.dir)
+    fpath = save_session(session, args.dir, profile=active())
 
     if args.json:
         print(json.dumps({"file": str(fpath), "session": session, "warnings": warnings}))

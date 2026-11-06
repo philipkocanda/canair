@@ -11,6 +11,7 @@ from canair.analysis.ecu_summary import list_records as _list_records
 from canair.cli.commands.ecu.list_view import cmd_list
 from canair.cli.commands.ecu.records import detail_record as _detail_record
 from canair.ecus.pids import clear_cache
+from canair.profile import active
 
 
 @pytest.fixture(autouse=True)
@@ -36,32 +37,32 @@ def _ecus():
 
 
 def test_records_carry_can_bus():
-    recs = _list_records(_ecus(), {"ecus": {}})
+    recs = _list_records(_ecus(), {"ecus": {}}, profile=active())
     by_name = {r["name"]: r for r in recs}
     assert by_name["MCU"]["can_bus"] == ["H-CAN", "P-CAN"]
     assert by_name["SRS"]["can_bus"] is None
 
 
 def test_sort_by_bus_groups_and_puts_unbussed_last():
-    recs = _list_records(_ecus(), {"ecus": {}}, sort="bus")
+    recs = _list_records(_ecus(), {"ecus": {}}, sort="bus", profile=active())
     order = [r["name"] for r in recs]
     # ALL < B-CAN < H-CAN/P-CAN, unbussed (SRS) last.
     assert order == ["GW", "BCM", "MCU", "SRS"]
 
 
 def test_sort_by_name_default():
-    recs = _list_records(_ecus(), {"ecus": {}}, sort="name")
+    recs = _list_records(_ecus(), {"ecus": {}}, sort="name", profile=active())
     assert [r["name"] for r in recs] == ["BCM", "GW", "MCU", "SRS"]
 
 
 def test_sort_by_bus_is_default():
     # No explicit sort → bus grouping (unbussed last).
-    recs = _list_records(_ecus(), {"ecus": {}})
+    recs = _list_records(_ecus(), {"ecus": {}}, profile=active())
     assert [r["name"] for r in recs] == ["GW", "BCM", "MCU", "SRS"]
 
 
 def test_sort_by_tx_ascending():
-    recs = _list_records(_ecus(), {"ecus": {}}, sort="tx")
+    recs = _list_records(_ecus(), {"ecus": {}}, sort="tx", profile=active())
     # Numeric/hex ascending: 0x770 < 0x7A0 < 0x7D2 < 0x7E3.
     assert [r["tx"] for r in recs] == ["0x770", "0x7A0", "0x7D2", "0x7E3"]
 
@@ -72,7 +73,7 @@ def test_sort_by_proto_ascending_missing_last():
         0x2: {"name": "B", "id_protocol": "KWP2000"},
         0x3: {"name": "C"},  # no protocol → last
     }
-    recs = _list_records(ecus, {"ecus": {}}, sort="proto")
+    recs = _list_records(ecus, {"ecus": {}}, sort="proto", profile=active())
     assert [r["name"] for r in recs] == ["B", "A", "C"]
 
 
@@ -94,14 +95,14 @@ def _pids_data_counts():
 
 def test_sort_by_pids_descending():
     ecus = {0x1: {"name": "A"}, 0x2: {"name": "B"}, 0x3: {"name": "C"}}
-    recs = _list_records(ecus, _pids_data_counts(), sort="pids")
+    recs = _list_records(ecus, _pids_data_counts(), sort="pids", profile=active())
     # B (3 pids) > A (1 pid) > C (registry-only, no pids) last.
     assert [r["name"] for r in recs] == ["B", "A", "C"]
 
 
 def test_sort_by_verif_descending():
     ecus = {0x1: {"name": "A"}, 0x2: {"name": "B"}, 0x3: {"name": "C"}}
-    recs = _list_records(ecus, _pids_data_counts(), sort="verif")
+    recs = _list_records(ecus, _pids_data_counts(), sort="verif", profile=active())
     # B has 1 verified, A has 0, C has none (registry-only) → last.
     assert [r["name"] for r in recs] == ["B", "A", "C"]
 
@@ -113,7 +114,7 @@ def test_sort_by_caps_descending_none_last(monkeypatch):
 
     monkeypatch.setattr(records, "all_captures_by_ecu", lambda: Counter({"A": 5, "B": 9}))
     ecus = {0x1: {"name": "A"}, 0x2: {"name": "B"}, 0x3: {"name": "C"}}
-    recs = _list_records(ecus, _pids_data_counts(), sort="caps")
+    recs = _list_records(ecus, _pids_data_counts(), sort="caps", profile=active())
     # B (9) > A (5) > C (registry-only, no captures key) last.
     assert [r["name"] for r in recs] == ["B", "A", "C"]
 
@@ -128,12 +129,12 @@ def test_header_counts_only_ecus_with_pids(monkeypatch, capsys):
     # C has an ecus/ definition but an empty pids: (identity-only / fresh seed).
     pids_data["ecus"]["C"] = {"tx_id": 0x3, "pids": {}}
     ecus = {0x1: {"name": "A"}, 0x2: {"name": "B"}, 0x3: {"name": "C"}}
-    cmd_list(_list_records(ecus, pids_data), as_json=False)
+    cmd_list(_list_records(ecus, pids_data, profile=active()), as_json=False)
     assert re.search(r"3 in \S+, 2 with PIDs", capsys.readouterr().out)
 
 
 def test_no_identity_confidence_in_records():
-    recs = _list_records(_ecus(), {"ecus": {}})
+    recs = _list_records(_ecus(), {"ecus": {}}, profile=active())
     assert all("identity_confidence" not in r for r in recs)
 
 
@@ -146,7 +147,7 @@ def test_detail_record_resolves_bus_labels():
 
 
 def test_list_output_has_no_ident_column(capsys):
-    recs = _list_records(_ecus(), {"ecus": {}})
+    recs = _list_records(_ecus(), {"ecus": {}}, profile=active())
     cmd_list(recs, as_json=False)
     out = capsys.readouterr().out
     assert "IDENT" not in out
@@ -155,7 +156,7 @@ def test_list_output_has_no_ident_column(capsys):
 
 def test_list_output_omits_alias_suffix(capsys):
     ecus = {0x7A5: {"name": "SKM", "alias": "SMK", "can_bus": ["B-CAN"]}}
-    recs = _list_records(ecus, {"ecus": {}})
+    recs = _list_records(ecus, {"ecus": {}}, profile=active())
     cmd_list(recs, as_json=False)
     out = capsys.readouterr().out
     assert "SKM" in out
@@ -184,7 +185,7 @@ def test_list_captures_counted_by_default(monkeypatch):
     from canair.analysis import ecu_summary as records
 
     monkeypatch.setattr(records, "all_captures_by_ecu", lambda: Counter({"BMS": 42}))
-    recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms())
+    recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms(), profile=active())
     assert recs[0]["captures"] == 42
 
 
@@ -194,7 +195,7 @@ def test_list_caps_column_shows_zero_when_no_captures(monkeypatch, capsys):
     from canair.analysis import ecu_summary as records
 
     monkeypatch.setattr(records, "all_captures_by_ecu", lambda: Counter())
-    recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms())
+    recs = _list_records({0x7E4: {"name": "BMS"}}, _pids_data_bms(), profile=active())
     cmd_list(recs, as_json=False)
     out = capsys.readouterr().out
     assert "0" in out  # CAPS rendered as "0" (not hidden behind a dash)
@@ -347,7 +348,7 @@ def _ecus_with_states_defs():
 
 def test_records_carry_resolved_states():
     ecus, pids_data = _ecus_with_states_defs()
-    by_name = {r["name"]: r for r in _list_records(ecus, pids_data)}
+    by_name = {r["name"]: r for r in _list_records(ecus, pids_data, profile=active())}
     assert set(by_name["BMS"]["states"]) == {"CHARGING", "READY"}
     assert by_name["CLU"]["states"] == ["READY"]  # via PID union
     assert by_name["AMP"]["states"] == []  # registry-only / no def
@@ -355,14 +356,14 @@ def test_records_carry_resolved_states():
 
 def test_sort_by_states_puts_stateless_last():
     ecus, pids_data = _ecus_with_states_defs()
-    recs = _list_records(ecus, pids_data, sort="states")
+    recs = _list_records(ecus, pids_data, sort="states", profile=active())
     # AMP has no states → sorts last.
     assert recs[-1]["name"] == "AMP"
 
 
 def test_states_column_shown_only_when_requested(capsys):
     ecus, pids_data = _ecus_with_states_defs()
-    recs = _list_records(ecus, pids_data)
+    recs = _list_records(ecus, pids_data, profile=active())
 
     cmd_list(recs, as_json=False, show_states=False)
     assert "STATES" not in capsys.readouterr().out

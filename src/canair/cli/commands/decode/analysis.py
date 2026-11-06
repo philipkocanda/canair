@@ -18,6 +18,7 @@ from canair.analysis.mirrors import DEFAULT_MIRROR_MATCH
 from canair.analysis.stats import correlation as _correlation
 from canair.expression.inspect_bytes import apply_transform
 from canair.expression.notation import ByteNotation, relabel_signal
+from canair.profile import active
 from canair.render import ansi
 from canair.states.selectors import state_bucket_key
 from canair.states.vocabulary import load_states
@@ -59,7 +60,7 @@ def print_discriminate(
     ``None`` (e.g. no axis sample within tolerance) is dropped from every bucket.
     """
 
-    rules = load_states() if group_of is None else []
+    rules = load_states(profile=active()) if group_of is None else []
     key_cache: dict[tuple[str, ...], str] = {}
 
     def _grp(r: dict) -> str | None:
@@ -68,7 +69,7 @@ def print_discriminate(
         raw = tuple(str(s).upper() for s in r["capture"].get("vehicle_states") or [])
         hit = key_cache.get(raw)
         if hit is None:
-            hit = state_bucket_key(raw, rules)
+            hit = state_bucket_key(raw, rules, profile=active())
             key_cache[raw] = hit
         return hit
 
@@ -95,7 +96,7 @@ def print_discriminate(
     byte_names: set[str] = set()
     if include_bytes or include_bits:
         byte_buckets = _byte_state_buckets(
-            all_results, field, include_bits=include_bits, group_of=group_of
+            all_results, field, include_bits=include_bits, group_of=group_of, profile=active()
         )
         byte_names = set(byte_buckets)
         buckets.update(byte_buckets)

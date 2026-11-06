@@ -10,6 +10,7 @@ import pytest
 
 from canair.live import dtc
 from canair.live.dtc import snapshots as snap_mode
+from canair.profile import active
 from tests.support.fakes import FakeTerminal, nrc
 from tests.support.fakes import ok as _ok
 from tests.support.live_args import live_args
@@ -53,7 +54,9 @@ class TestRead:
     @pytest.mark.asyncio
     async def test_snapshots_are_read_and_decoded_by_default(self, capsys):
         t = FakeTerminal(CCM_REPLIES)
-        await dtc.mode_dtc_read(t, CCM, protocol="uds", as_json=True, pids_data=PIDS_DATA)
+        await dtc.mode_dtc_read(
+            t, CCM, protocol="uds", as_json=True, pids_data=PIDS_DATA, profile=active()
+        )
         assert t.sent == ["1902FF", "1903", "1904582C0001", "1904582C0002"]
         code = json.loads(capsys.readouterr().out)["dtcs"][0]
         assert [s["record"] for s in code["snapshots"]] == [1, 2]
@@ -66,7 +69,7 @@ class TestRead:
     @pytest.mark.asyncio
     async def test_requests_are_echo_validated(self):
         t = FakeTerminal(CCM_REPLIES)
-        await dtc.mode_dtc_read(t, CCM, protocol="uds", pids_data=PIDS_DATA)
+        await dtc.mode_dtc_read(t, CCM, protocol="uds", pids_data=PIDS_DATA, profile=active())
         by_request = dict(zip(t.sent, t.uds_kwargs, strict=True))
         assert by_request["1903"]["expected_echo"] == bytes([0x03])
         assert by_request["1904582C0001"]["expected_echo"] == bytes.fromhex("04582C00")
@@ -74,25 +77,29 @@ class TestRead:
     @pytest.mark.asyncio
     async def test_no_snapshots_reads_only_the_codes(self):
         t = FakeTerminal(CCM_REPLIES)
-        await dtc.mode_dtc_read(t, CCM, protocol="uds", snapshots=False, pids_data=PIDS_DATA)
+        await dtc.mode_dtc_read(
+            t, CCM, protocol="uds", snapshots=False, pids_data=PIDS_DATA, profile=active()
+        )
         assert t.sent == ["1902FF"]
 
     @pytest.mark.asyncio
     async def test_a_clean_ecu_is_not_asked(self):
         t = FakeTerminal({"1902FF": _ok("590209")})
-        await dtc.mode_dtc_read(t, CCM, protocol="uds", pids_data=PIDS_DATA)
+        await dtc.mode_dtc_read(t, CCM, protocol="uds", pids_data=PIDS_DATA, profile=active())
         assert t.sent == ["1902FF"]
 
     @pytest.mark.asyncio
     async def test_a_kwp_ecu_is_not_asked(self):
         t = FakeTerminal({"1800FF00": _ok("5801" + "0123" + "10")})
-        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp")
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", profile=active())
         assert t.sent == ["1800FF00"]
 
     @pytest.mark.asyncio
     async def test_a_refused_listing_is_reported_not_raised(self, capsys):
         t = FakeTerminal({"1902FF": CODES, "1903": nrc(0x12, "subFunctionNotSupported")})
-        await dtc.mode_dtc_read(t, CCM, protocol="uds", as_json=True, pids_data=PIDS_DATA)
+        await dtc.mode_dtc_read(
+            t, CCM, protocol="uds", as_json=True, pids_data=PIDS_DATA, profile=active()
+        )
         data = json.loads(capsys.readouterr().out)
         assert data["snapshot_status"] == {
             "status": "unsupported",
@@ -103,7 +110,7 @@ class TestRead:
     @pytest.mark.asyncio
     async def test_text_output_lists_records_under_the_code(self, capsys):
         t = FakeTerminal(CCM_REPLIES)
-        await dtc.mode_dtc_read(t, CCM, protocol="uds", pids_data=PIDS_DATA)
+        await dtc.mode_dtc_read(t, CCM, protocol="uds", pids_data=PIDS_DATA, profile=active())
         out = capsys.readouterr().out
         assert "snapshot 01  DID 4710" in out and "snapshot 02  DID 4710" in out
         assert "SNAP_PROGRESS_BYTE  54 raw" in out
@@ -111,7 +118,7 @@ class TestRead:
     @pytest.mark.asyncio
     async def test_an_undefined_did_shows_raw_data_and_how_to_define_it(self, capsys):
         t = FakeTerminal(CCM_REPLIES)
-        await dtc.mode_dtc_read(t, CCM, protocol="uds", pids_data={"ecus": {}})
+        await dtc.mode_dtc_read(t, CCM, protocol="uds", pids_data={"ecus": {}}, profile=active())
         out = capsys.readouterr().out
         assert "not defined (224710):" in out and "021AA7207C0AFFFFFF" in out
         assert "canair pids set-snapshot-only CCM 224710 --length 9" in out
@@ -121,7 +128,9 @@ class TestRead:
     async def test_a_failed_record_read_keeps_the_others(self, capsys):
         replies = {**CCM_REPLIES, "1904582C0001": nrc(0x31, "requestOutOfRange")}
         t = FakeTerminal(replies)
-        await dtc.mode_dtc_read(t, CCM, protocol="uds", as_json=True, pids_data=PIDS_DATA)
+        await dtc.mode_dtc_read(
+            t, CCM, protocol="uds", as_json=True, pids_data=PIDS_DATA, profile=active()
+        )
         snaps = json.loads(capsys.readouterr().out)["dtcs"][0]["snapshots"]
         assert snaps[0] == {"record": 1, "error": "NRC 0x31 (requestOutOfRange)"}
         assert snaps[1]["dids"][0]["did"] == "4710"
@@ -131,7 +140,9 @@ class TestRead:
         # The echo covers the DTC only: record 02's reply must not decode, log or save as 01.
         replies = {**CCM_REPLIES, "1904582C0001": REC_02}
         t = FakeTerminal(replies)
-        await dtc.mode_dtc_read(t, CCM, protocol="uds", as_json=True, pids_data=PIDS_DATA)
+        await dtc.mode_dtc_read(
+            t, CCM, protocol="uds", as_json=True, pids_data=PIDS_DATA, profile=active()
+        )
         first = json.loads(capsys.readouterr().out)["dtcs"][0]["snapshots"][0]
         assert first == {"record": 1, "error": "reply is for record 02, not 01"}
 
@@ -150,7 +161,9 @@ class TestSweep:
     async def test_snapshots_are_a_final_step(self, monkeypatch, capsys):
         self._registry(monkeypatch, [0x7A0, CCM])
         t = FakeTerminal(CCM_REPLIES)
-        await dtc.mode_dtc_scan_all(t, as_json=True, retry=False, pids_data=PIDS_DATA)
+        await dtc.mode_dtc_scan_all(
+            t, as_json=True, retry=False, pids_data=PIDS_DATA, profile=active()
+        )
         # Every ECU's codes are read before any snapshot request.
         assert t.sent[:2] == ["1902FF", "1902FF"]
         assert "1903" not in t.sent[:2]
@@ -163,7 +176,9 @@ class TestSweep:
         self._registry(monkeypatch, [CCM])
         codes = _ok("590209" + "582C0008" + "582B0008")
         t = FakeTerminal({"1902FF": codes, "1903": nrc(0x12)})
-        await dtc.mode_dtc_scan_all(t, as_json=True, retry=False, pids_data=PIDS_DATA)
+        await dtc.mode_dtc_scan_all(
+            t, as_json=True, retry=False, pids_data=PIDS_DATA, profile=active()
+        )
         assert t.sent.count("1903") == 1
         assert json.loads(capsys.readouterr().out)["snapshots"]["unsupported"] == {
             "0x733": "NRC 0x12"
@@ -179,7 +194,7 @@ class TestSweep:
 
         monkeypatch.setattr("canair.core.skip_key.skip_listener", pressed)
         t = FakeTerminal(CCM_REPLIES)
-        await dtc.mode_dtc_scan_all(t, retry=False, pids_data=PIDS_DATA)
+        await dtc.mode_dtc_scan_all(t, retry=False, pids_data=PIDS_DATA, profile=active())
         assert "1904582C0001" not in t.sent
         out = capsys.readouterr().out
         assert "Snapshot step skipped" in out
@@ -190,7 +205,7 @@ class TestSweep:
     async def test_no_snapshots_skips_the_step(self, monkeypatch):
         self._registry(monkeypatch, [CCM])
         t = FakeTerminal(CCM_REPLIES)
-        await dtc.mode_dtc_scan_all(t, as_json=True, retry=False, snapshots=False)
+        await dtc.mode_dtc_scan_all(t, as_json=True, retry=False, snapshots=False, profile=active())
         assert t.sent == ["1902FF"]
 
 
@@ -271,7 +286,9 @@ class TestLog:
         from canair.dtc import log as dtc_log
 
         t = FakeTerminal(CCM_REPLIES)
-        await dtc.mode_dtc_read(t, CCM, protocol="uds", log=True, pids_data=PIDS_DATA)
+        await dtc.mode_dtc_read(
+            t, CCM, protocol="uds", log=True, pids_data=PIDS_DATA, profile=active()
+        )
         (scan,) = dtc_log.load_log(logp)["scans"]
         (info,) = scan["ecus"].values()
         assert info["snapshots"] == {
@@ -288,7 +305,12 @@ class TestLog:
         _ccm_pids(monkeypatch)
         for _ in range(2):
             await dtc.mode_dtc_read(
-                FakeTerminal(CCM_REPLIES), CCM, protocol="uds", log=True, pids_data=PIDS_DATA
+                FakeTerminal(CCM_REPLIES),
+                CCM,
+                protocol="uds",
+                log=True,
+                pids_data=PIDS_DATA,
+                profile=active(),
             )
         capsys.readouterr()
         first, second = dtc_log.load_log(logp)["scans"]
@@ -350,10 +372,20 @@ class TestSave:
         from canair.live.dtc.snapshot_capture import SESSION_NOTE
 
         saved = []
-        monkeypatch.setattr("canair.live.dtc.snapshot_capture.save_session_journaled", saved.append)
+        monkeypatch.setattr(
+            "canair.live.dtc.snapshot_capture.save_session_journaled",
+            lambda s, **kw: saved.append(s),
+        )
         t = FakeTerminal(CCM_REPLIES)
         await dtc.mode_dtc_read(
-            t, CCM, protocol="uds", pids_data=PIDS_DATA, save=True, label="fault", notes="n"
+            t,
+            CCM,
+            protocol="uds",
+            pids_data=PIDS_DATA,
+            save=True,
+            label="fault",
+            notes="n",
+            profile=active(),
         )
         (session,) = saved
         assert session["label"] == "fault"
@@ -366,9 +398,12 @@ class TestSave:
     @pytest.mark.asyncio
     async def test_nothing_to_save_says_so(self, monkeypatch, capsys):
         saved = []
-        monkeypatch.setattr("canair.live.dtc.snapshot_capture.save_session_journaled", saved.append)
+        monkeypatch.setattr(
+            "canair.live.dtc.snapshot_capture.save_session_journaled",
+            lambda s, **kw: saved.append(s),
+        )
         t = FakeTerminal({"1902FF": _ok("590209")})
-        await dtc.mode_dtc_read(t, CCM, protocol="uds", save=True, label="x")
+        await dtc.mode_dtc_read(t, CCM, protocol="uds", save=True, label="x", profile=active())
         assert saved == []
         assert "no snapshot replies to save" in capsys.readouterr().err
 
@@ -419,7 +454,10 @@ class TestSensitive:
         from canair.privacy.sensitive import MASK
 
         saved = []
-        monkeypatch.setattr("canair.live.dtc.snapshot_capture.save_session_journaled", saved.append)
+        monkeypatch.setattr(
+            "canair.live.dtc.snapshot_capture.save_session_journaled",
+            lambda s, **kw: saved.append(s),
+        )
         t = FakeTerminal(CCM_REPLIES)
         await dtc.mode_dtc_read(
             t,
@@ -430,6 +468,7 @@ class TestSensitive:
             save=True,
             label="x",
             pids_data=self._pids(),
+            profile=active(),
         )
         snap = json.loads(capsys.readouterr().out)["dtcs"][0]["snapshots"][0]
         assert snap["hex"] == MASK and snap["dids"][0]["data"] == MASK

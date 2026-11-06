@@ -6,6 +6,7 @@ from canair.captures import io as capture_io
 from canair.captures.build import build_manual_session, build_query_session
 from canair.captures.journal import CaptureJournal, build_session_from_records
 from canair.captures.save import save_session
+from canair.profile import active
 
 
 class TestSessionBuilders:
@@ -37,7 +38,7 @@ class TestSessionBuilders:
 
 class TestJournalProvenance:
     def test_open_records_transport_in_meta(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="run", transport="wican-ws")
+        j = CaptureJournal.open(tmp_path, label="run", transport="wican-ws", profile=active())
         j.append("0x7EC", "2101", "6101AA")
         j.update_meta(quality={"exchanges": 5, "drop": 1})
         written = j.reconcile()
@@ -85,7 +86,7 @@ class TestVersionStamping:
 
         s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "lbl", [], "")
         assert "version" not in s  # builders don't stamp it; save_session does
-        written = save_session(s, tmp_path)
+        written = save_session(s, tmp_path, profile=active())
         data = capture_io.load_capture_file(written)
         assert data["sessions"][0]["version"] == full_version()
 
@@ -105,13 +106,13 @@ class TestVersionStamping:
         )
         monkeypatch.setattr(canair, "__version__", "1.2.3")
         s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "lbl", [], "")
-        written = save_session(s, tmp_path)
+        written = save_session(s, tmp_path, profile=active())
         data = capture_io.load_capture_file(written)
         assert data["sessions"][0]["version"] == "1.2.3+main.343b244.dirty"
 
     def test_version_stamped_after_label(self, tmp_path):
         s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "lbl", [], "")
-        written = save_session(s, tmp_path)
+        written = save_session(s, tmp_path, profile=active())
         data = capture_io.load_capture_file(written)
         keys = list(data["sessions"][0].keys())
         assert keys.index("version") == keys.index("label") + 1
@@ -119,14 +120,14 @@ class TestVersionStamping:
     def test_existing_version_preserved(self, tmp_path):
         s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "lbl", [], "")
         s["version"] = "0.0.1-pinned"
-        written = save_session(s, tmp_path)
+        written = save_session(s, tmp_path, profile=active())
         data = capture_io.load_capture_file(written)
         assert data["sessions"][0]["version"] == "0.0.1-pinned"
 
     def test_journaled_session_carries_version(self, tmp_path):
         from canair.install.build_info import full_version
 
-        j = CaptureJournal.open(tmp_path, label="run", transport="wican-ws")
+        j = CaptureJournal.open(tmp_path, label="run", transport="wican-ws", profile=active())
         j.append("0x7EC", "2101", "6101AA")
         written = j.reconcile()
         assert written is not None
@@ -151,7 +152,7 @@ class TestElapsedMs:
         assert "elapsed_ms" not in s["captures"][0]
 
     def test_journal_append_persists_elapsed_ms(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="run", transport="slcan-tcp")
+        j = CaptureJournal.open(tmp_path, label="run", transport="slcan-tcp", profile=active())
         j.append("0x7EC", "2101", "6101AA", elapsed_ms=42)
         written = j.reconcile()
         assert written is not None
@@ -159,7 +160,7 @@ class TestElapsedMs:
         assert data["sessions"][0]["captures"][0]["elapsed_ms"] == 42
 
     def test_journal_append_omits_elapsed_when_absent(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="run", transport="slcan-tcp")
+        j = CaptureJournal.open(tmp_path, label="run", transport="slcan-tcp", profile=active())
         j.append("0x7EC", "2101", "6101AA")
         written = j.reconcile()
         assert written is not None

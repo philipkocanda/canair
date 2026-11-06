@@ -21,6 +21,7 @@ from canair.captures.link_events import (
     summarize,
 )
 from canair.live.monitor.link_events import LinkEventTracker
+from canair.profile import active
 from canair.validation._common import CAPTURES_SCHEMA_FILE
 from tests.support.monitor_controller import make_controller
 
@@ -139,7 +140,7 @@ class TestReaders:
 
 class TestJournalRoundTrip:
     def test_reconciled_session_carries_link_events_and_validates(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="drive", transport="slcan-tcp")
+        j = CaptureJournal.open(tmp_path, label="drive", transport="slcan-tcp", profile=active())
         j.append("0x7EC", "2101", "6101AA", "14:00:00.000", DAY)
         j.append_event("disconnect", _at(0), event_id=1, cause="stale")
         j.append_event_end(1, _at(42.5))
@@ -161,11 +162,11 @@ class TestJournalRoundTrip:
         assert '{"at": "14:01:00.000", "kind": "resync", "count": 2}' in text
 
     def test_a_crash_mid_disconnect_recovers_open_ended(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="drive")
+        j = CaptureJournal.open(tmp_path, label="drive", profile=active())
         j.append("0x7EC", "2101", "6101AA", "14:00:00.000", DAY)
         j.append_event("disconnect", _at(0), event_id=1, cause="error")
         j._close_fh()
-        session = capture_io.load_capture_file(recover(j.path))["sessions"][0]
+        session = capture_io.load_capture_file(recover(j.path, profile=active()))["sessions"][0]
         assert session["link_events"] == [
             {"at": "14:00:00.000", "kind": "disconnect", "cause": "error"}
         ]
@@ -498,7 +499,7 @@ class TestScopedEvents:
         assert summary["backoff"].seconds == 180.0
 
     def test_a_scoped_journal_round_trip_validates(self, tmp_path):
-        j = CaptureJournal.open(tmp_path, label="drive")
+        j = CaptureJournal.open(tmp_path, label="drive", profile=active())
         j.append("0x7EC", "2101", "6101AA", "14:00:00.000", DAY)
         j.append_event("unpolled", _at(1), event_id=1, rx="0x7EC", pid="2105")
         j.append_event("backoff", _at(2), event_id=2, rx="0x7EA", factor=4)

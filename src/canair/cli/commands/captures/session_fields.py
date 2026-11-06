@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
+from canair.profile import active
 from canair.render import messages
 
 from .echo import echo_write
@@ -72,7 +73,6 @@ def _transport_field() -> SessionField:
 
 def declared_variants() -> list[str]:
     """The active profile's variant IDs (empty when it declares none)."""
-    from canair.profile import active
     from canair.variants import load_variants
 
     return list(load_variants(active()))

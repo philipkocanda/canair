@@ -21,6 +21,7 @@ import argparse
 import json
 
 from canair.cli.commands._edit import run_edit
+from canair.profile import active
 from canair.render import ansi
 from canair.yaml_edit.signals import CLEARABLE_SIGNAL_FIELDS
 
@@ -164,7 +165,7 @@ def run(args) -> int:
 def cmd_list(args) -> int:
     from canair.broadcast import load_signals
 
-    docs = load_signals(getattr(args, "bus", None))
+    docs = load_signals(getattr(args, "bus", None), profile=active())
     if getattr(args, "json", False):
         print(json.dumps({d.bus: d.data for d in docs}, indent=2))
         return 0
@@ -232,7 +233,6 @@ def _frame_facts(mid: object, msg: dict) -> list[str]:
 
 
 def cmd_upsert(args) -> int:
-    from canair.profile import active
     from canair.yaml_edit.signals import upsert_signal
 
     return run_edit(
@@ -267,7 +267,6 @@ def cmd_upsert(args) -> int:
 
 
 def cmd_rm(args) -> int:
-    from canair.profile import active
     from canair.yaml_edit.signals import remove_signal
 
     return run_edit(

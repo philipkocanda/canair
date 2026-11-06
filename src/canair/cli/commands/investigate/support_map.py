@@ -29,6 +29,7 @@ from canair.analysis.support_map import (
     detect_support_maps,
     family_chance_log10,
 )
+from canair.profile import active
 from canair.render import ansi, messages
 from canair.uds.byteindex import payload_index_to_wican
 from canair.uds.layout import subfunction_bytes_for_pid
@@ -163,11 +164,11 @@ def run_support_map(specs: list[tuple[str, str]], args, since, until) -> int:
     scans: list[PidScan] = []
     for ecu in dict.fromkeys(e for e, _p in specs):
         siblings = discover_signal_specs(ecu, since=since, until=until, state=args.state,
-                                         label=args.label)  # fmt: skip
+                                         label=args.label, profile=active())  # fmt: skip
         wanted = {p for e, p in specs if e == ecu}
         pairs = sorted({(ecu, p) for p in wanted} | set(siblings))
         loaded = load_signal_captures(pairs, since=since, until=until, state=args.state,
-                                      label=args.label, one_revision="investigate")  # fmt: skip
+                                      label=args.label, one_revision="investigate", profile=active())  # fmt: skip
         per_pid: dict[str, PidScan] = {}
         for _e, pid in pairs:
             lp = loaded.get((ecu.upper(), pid))

@@ -21,6 +21,7 @@ import sys
 from collections.abc import Iterable, Sequence
 
 from canair.ecus.memory import protocol_of
+from canair.profile import Profile
 from canair.safety.blocklist import SafetyBlocked
 from canair.transport.protocol import Terminal
 
@@ -36,7 +37,7 @@ def _tokens(steps: Iterable[str]) -> set[str]:
     return out
 
 
-def targeted_ecus(steps: Sequence[str] | None) -> set[str] | None:
+def targeted_ecus(steps: Sequence[str] | None, *, profile: Profile) -> set[str] | None:
     """Upper-cased names the command's query steps mention, or None when it has none.
 
     Only the multi mini-language (``read``/``monitor`` steps) decodes revision-gated
@@ -49,7 +50,7 @@ def targeted_ecus(steps: Sequence[str] | None) -> set[str] | None:
         from canair.ecus.ecu_groups import expand_group_refs, load_groups
 
         try:
-            steps = expand_group_refs(steps, load_groups())
+            steps = expand_group_refs(steps, load_groups(profile=profile))
         except Exception:
             pass
     return _tokens(steps)

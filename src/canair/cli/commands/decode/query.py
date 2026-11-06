@@ -10,6 +10,7 @@ testable on its own.
 from __future__ import annotations
 
 from canair.captures.dates import filter_by_date_range, filter_by_text
+from canair.profile import active
 
 # Analysis modes that are inherently single-PID (they bind to one PID's byte
 # layout / build one signal). A multi-PID query is rejected for these.
@@ -35,7 +36,7 @@ def scope_captures(
     in capture (chronological) order from :func:`capture_store.load_pid_captures`.
     """
     entries = filter_by_date_range(entries, since, until)
-    entries = filter_by_text(entries, state=state, label=label)
+    entries = filter_by_text(entries, state=state, label=label, profile=active())
     if first is not None and first >= 0:
         entries = entries[:first]
     if last is not None and last >= 0:

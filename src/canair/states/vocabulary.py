@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from canair.core import yaml_io
+from canair.profile import Profile
 from canair.states.implies import (
     exclusion_conflicts,
     implication_cycle,
@@ -15,20 +14,13 @@ from canair.states.predicates import StatePredicateError, StateRule, compile_pre
 from canair.states.tokens import ALL_STATE, POWER_STATES, unquoted_boolean_error
 
 
-def _states_path(profile=None) -> Path:
-    from canair.profile import active
-
-    prof = profile or active()
-    return prof.states_file
-
-
-def load_states(profile=None) -> list[StateRule]:
+def load_states(profile: Profile) -> list[StateRule]:
     """Load and compile the profile's vehicle_states.yaml. Returns [] when absent.
 
     Raises :class:`StatePredicateError` when a ``when:`` expression is invalid or
     the ``implies:`` hierarchy contains a cycle.
     """
-    path = _states_path(profile)
+    path = profile.states_file
     if not path.exists():
         return []
     data = yaml_io.safe_load(path.read_text()) or {}
@@ -65,7 +57,7 @@ def load_states(profile=None) -> list[StateRule]:
     return rules
 
 
-def state_names(profile=None) -> list[str]:
+def state_names(profile: Profile) -> list[str]:
     """Declared state names for the active profile (empty when no vehicle_states.yaml)."""
     try:
         return [r.name for r in load_states(profile)]
@@ -73,7 +65,7 @@ def state_names(profile=None) -> list[str]:
         return []
 
 
-def allowed_states(profile=None) -> set[str]:
+def allowed_states(profile: Profile) -> set[str]:
     """The set of accepted state tokens: base ``POWER_STATES`` + ``ALL`` + vehicle_states.yaml names.
 
     This is the single vocabulary that every validator/CLI should check against
@@ -85,7 +77,7 @@ def allowed_states(profile=None) -> set[str]:
     return {ALL_STATE} | set(POWER_STATES) | {n.upper() for n in state_names(profile)}
 
 
-def state_options(profile=None) -> list[tuple[str, str]]:
+def state_options(profile: Profile) -> list[tuple[str, str]]:
     """Ordered ``(name, description)`` pairs for the profile's state vocabulary.
 
     The list is what a picker (e.g. the monitor save dialog) offers: every
@@ -117,7 +109,7 @@ def state_options(profile=None) -> list[tuple[str, str]]:
     return options
 
 
-def order_states(tokens, profile=None) -> list[str]:
+def order_states(tokens, profile: Profile) -> list[str]:
     """De-duplicate ``tokens`` and order them by the declared vocabulary.
 
     Declared states come first in ``vehicle_states.yaml`` order, then any tokens

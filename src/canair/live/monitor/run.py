@@ -20,6 +20,7 @@ import sys
 from typing import TYPE_CHECKING
 
 from canair.core.stop_signals import graceful_stop
+from canair.profile import Profile
 from canair.render.console import console, escape
 from canair.render.glyphs import FAIL
 
@@ -105,6 +106,7 @@ async def mode_monitor(
     raw_client=None,
     transport_type: str | None = None,
     reconnect: Reconnector | None = None,
+    profile: Profile,
 ):
     """Live-refresh ECU signal monitor.
 
@@ -132,13 +134,14 @@ async def mode_monitor(
     status item shows each ECU's currently-open diagnostic session type; each
     signal row shows a small circle (green when fresh, grey when stale).
     """
-    from ...profile import active
     from ...states.tokens import parse_states
 
-    captures_dir = active().captures_dir
+    captures_dir = profile.captures_dir
     states = parse_states(monitor.vehicle_states)
     label, notes = monitor.label, monitor.notes
-    controller = MonitorController(terminal, monitor, pids_data, raw_client=raw_client)
+    controller = MonitorController(
+        terminal, monitor, pids_data, raw_client=raw_client, profile=profile
+    )
     controller.captures_dir = captures_dir
     # Seed the header's segment metadata from the initial --label/--state/--notes.
     controller.recorder.session_label = label or ""

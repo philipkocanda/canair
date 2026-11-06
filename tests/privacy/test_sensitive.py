@@ -10,6 +10,7 @@ from canair import profile
 from canair.captures import io as capture_io
 from canair.ecus.pids import build_ecu_index, clear_cache, load_pids, load_pids_dir
 from canair.privacy import sensitive
+from canair.profile import active
 
 META = 'car_model: "T"\ninit: "ATSP6;"\n'
 
@@ -120,7 +121,7 @@ class TestNeverSaved:
     def test_the_journal_never_holds_a_sensitive_reply(self, prof, capsys):
         from canair.captures.journal import CaptureJournal
 
-        journal = CaptureJournal.open(prof / "captures", label="t")
+        journal = CaptureJournal.open(prof / "captures", label="t", profile=active())
         sensitive.set_reveal(True)  # reveal is display-only: still never written
         journal.append("0x73B", "22F102", "62F102AABBCCDDEEFF", "10:00:00.000")
         journal.append("0x73B", "22F101", "62F10131313034", "10:00:00.100")
@@ -142,7 +143,7 @@ class TestNeverSaved:
             "label": "t",
             "captures": [_cap("22F102", "62F102AABBCCDDEEFF"), _cap("22F101", "62F10131313034")],
         }
-        path = save_session(session, prof / "captures")
+        path = save_session(session, prof / "captures", profile=active())
         assert "AABBCC" not in path.read_text()
         assert "Not saved: CCM:22F102" in capsys.readouterr().err  # a status line, not the result
 

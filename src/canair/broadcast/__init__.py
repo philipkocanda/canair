@@ -34,14 +34,12 @@ class SignalDoc:
     data: dict
 
 
-def signals_dir(profile: Profile | None = None) -> Path:
+def signals_dir(profile: Profile) -> Path:
     """The profile's signal-map directory (may not exist — signals/ is optional)."""
-    from canair.profile import active
-
-    return (profile or active()).signals_dir
+    return profile.signals_dir
 
 
-def load_signals(bus: str | None = None, *, profile: Profile | None = None) -> list[SignalDoc]:
+def load_signals(bus: str | None = None, *, profile: Profile) -> list[SignalDoc]:
     """Every signal map in the profile, bus-sorted; one bus when ``bus`` is given.
 
     Returns ``[]`` when ``signals/`` is absent or empty — callers that need to

@@ -23,7 +23,6 @@ mirroring how :mod:`canair.query` stays source-agnostic).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from canair.core import yaml_io
@@ -68,19 +67,13 @@ def normalize_group_name(name: str) -> str:
     return str(name).strip().lower()
 
 
-def _groups_path(profile: Profile | None = None) -> Path:
-    from canair.profile import active
-
-    return (profile or active()).groups_file
-
-
-def load_groups(profile: Profile | None = None) -> dict[str, Group]:
+def load_groups(profile: Profile) -> dict[str, Group]:
     """Load the profile's groups. Returns an empty mapping when absent.
 
     Keyed by the normalized (lower-cased) group name, insertion order preserved.
     Raises :class:`GroupError` on a structurally invalid file.
     """
-    path = _groups_path(profile)
+    path = profile.groups_file
     if not path.exists():
         return {}
     data = yaml_io.safe_load(path.read_text()) or {}
@@ -111,12 +104,12 @@ def load_groups(profile: Profile | None = None) -> dict[str, Group]:
     return out
 
 
-def allowed_groups(profile: Profile | None = None) -> set[str]:
+def allowed_groups(profile: Profile) -> set[str]:
     """The set of declared group names for a profile (empty when undeclared)."""
     return set(load_groups(profile))
 
 
-def group_members(name: str, profile: Profile | None = None) -> tuple[str, ...]:
+def group_members(name: str, profile: Profile) -> tuple[str, ...]:
     """The member selectors of a group. Raises :class:`GroupError` if unknown."""
     groups = load_groups(profile)
     key = normalize_group_name(name)

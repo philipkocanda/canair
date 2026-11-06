@@ -253,11 +253,9 @@ def registry_issues(action: Action, pids_data: Mapping[str, Any]) -> list[str]:
     return issues
 
 
-def load_actions(profile: Profile | None = None) -> dict[str, Action]:
-    """The active (or given) profile's actions; empty when it has no actions.yaml."""
-    from canair.profile import active
-
-    path = (profile or active()).actions_file
+def load_actions(profile: Profile) -> dict[str, Action]:
+    """The profile's actions; empty when it has no actions.yaml."""
+    path = profile.actions_file
     if not path.exists():
         return {}
     return parse_actions_doc(yaml_io.safe_load(path.read_text()))

@@ -23,6 +23,7 @@ from canair.device.lock import WiCANLock
 from canair.device.lock_watchdog import LockWatchdog
 from canair.ecus.pids import load_pids
 from canair.live.session import SessionOptions, run_session_guarded
+from canair.profile import active
 from canair.render import messages
 from canair.transport.config import ConnectionOptions
 from canair.transport.ecu_log import init_logging
@@ -123,6 +124,7 @@ async def async_main(args, operation: LiveOperation):
             operation=operate,
             monitor=operation.monitor,
             candidates=candidates,
+            profile=active(),
         )
 
     # Past the raw early-return we're on the WebSocket (WiCANTerminal) path,
@@ -246,6 +248,7 @@ async def async_main(args, operation: LiveOperation):
             operate,
             options=session_options(args),
             transport_label=transport_label,
+            profile=active(),
         )
     finally:
         if terminal is not None:

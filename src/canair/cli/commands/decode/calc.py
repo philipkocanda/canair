@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 from canair.analysis.mirrors import DEFAULT_MIRROR_MATCH
 from canair.expression.inspect_bytes import apply_transform
+from canair.profile import active
 
 if TYPE_CHECKING:
     from canair.analysis.align import TimePoint
@@ -108,6 +109,7 @@ def load_cross_ref_series(ref: str, *, scope: dict, tol_s: float, fill: FillPoli
         until=scope.get("until"),
         state=scope.get("state"),
         label=scope.get("label"),
+        profile=active(),
     )
     lp = loaded[(sref.ecu.upper(), sref.pid.upper())]
     if not lp.captures:

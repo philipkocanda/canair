@@ -24,6 +24,7 @@ import pytest
 from canair import profile
 from canair.ecus.pids import clear_cache
 from canair.live.discover import physical as disc
+from canair.profile import active
 from tests.support.fakes import FakeTerminal, nrc, ok
 
 PROFILE_YAML = 'car_model: "T"\ninit: "ATSP6;"\naddressing:\n  rx_offset: 0x20\n'
@@ -94,6 +95,7 @@ class TestDiscoverSave:
             save=True,
             label="sweep",
             vehicle_states=["READY"],
+            profile=active(),
         )
         out = capsys.readouterr().out
         session = _saved_session(prof)
@@ -116,7 +118,17 @@ class TestScanAndRawSave:
         from canair.live.scan.range import mode_scan
 
         term = FakeTerminal({"220100": ok("620100AA")})
-        await mode_scan(term, 0x74E, 0x22, (0x0100, 0x0100), False, False, save=True, label="scan")
+        await mode_scan(
+            term,
+            0x74E,
+            0x22,
+            (0x0100, 0x0100),
+            False,
+            False,
+            save=True,
+            label="scan",
+            profile=active(),
+        )
         session = _saved_session(prof)
         assert session["transport"] == "fake"
         assert session["captures"][0]["rx"] == "0x76E"
@@ -126,7 +138,7 @@ class TestScanAndRawSave:
         from canair.live.read.raw import mode_raw
 
         term = FakeTerminal({"2101": ok("6101AA")})
-        await mode_raw(term, "74E:2101", False, False, save=True, label="raw")
+        await mode_raw(term, "74E:2101", False, False, save=True, label="raw", profile=active())
         session = _saved_session(prof)
         assert session["transport"] == "fake"
         assert session["captures"][0]["rx"] == "0x76E"
@@ -139,7 +151,7 @@ class TestJournaledSaveNeverGuesses:
         from canair.captures.save import save_session_journaled
 
         session = build_raw_session("0x76E", 0x74E, "2101", ok("6101AA"), "L", [], "")
-        save_session_journaled(session, prof / "captures")
+        save_session_journaled(session, prof / "captures", profile=active())
         assert "transport" not in _saved_session(prof)
 
     @pytest.mark.asyncio
@@ -148,7 +160,9 @@ class TestJournaledSaveNeverGuesses:
 
         term = FakeTerminal({"22B401": ok("62B401AA")})
         ranges = ((0xB400, 0xB401), (0xB100, 0xB100), (0xB401, 0xB401))
-        await mode_scan(term, 0x74E, 0x22, ranges, False, False, save=True, label="families")
+        await mode_scan(
+            term, 0x74E, 0x22, ranges, False, False, save=True, label="families", profile=active()
+        )
         assert [c.upper() for c in term.sent if c.startswith("22")] == [
             "22B400",
             "22B401",

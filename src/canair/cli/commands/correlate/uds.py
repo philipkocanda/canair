@@ -35,6 +35,7 @@ from canair.cli.args.notation import resolve_notation
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
 from canair.expression.notation import relabel_signal
+from canair.profile import active
 from canair.render import ansi, messages
 
 from .calc import _apply_gate
@@ -62,7 +63,7 @@ def run(args) -> int:
 
     notation = resolve_notation(args.notation)
     specs = discover_signal_specs(
-        args.query, since=since, until=until, state=args.state, label=args.label
+        args.query, since=since, until=until, state=args.state, label=args.label, profile=active()
     )
 
     if args.overlap:
@@ -143,6 +144,7 @@ def run(args) -> int:
                     state=args.state,
                     label=args.label,
                     fill=fill,
+                    profile=active(),
                 )
         except ValueError as e:
             flag = "--against-file" if args.against_file else "--against"
@@ -217,6 +219,7 @@ def run(args) -> int:
                         state=args.state,
                         label=args.label,
                         fill=fill,
+                        profile=active(),
                     )
             except ValueError as e:
                 flag = "--control-file" if args.control_file else "--control"

@@ -1,15 +1,14 @@
 """Capture journaling — a write-ahead log for streaming/one-shot captures.
 
 Problem: ``canair read --save`` (especially ``canair monitor --save``) buffers all payloads
-in memory and only writes the capture file on a clean exit. A crash, ``kill``, or
-dropped connection loses the whole session.
+in memory and writes the capture file only on a clean exit, so a crash, ``kill`` or dropped
+connection loses the whole session.
 
-Solution: as payloads stream in, append them to an append-only JSONL *journal*
-sidecar under ``captures/.journal/``, flushed (and fsync'd) per write. On a clean
-exit the journal is *reconciled* — its records are folded into a single session
-appended to ``captures/YYYY-MM-DD.yaml`` (via the same builders used elsewhere),
-and the journal file is deleted. If the process dies uncleanly the journal
-survives and can be recovered later with ``canair captures uds --recover``.
+Solution: as payloads stream in, append them to an append-only JSONL *journal* sidecar under
+``captures/.journal/``, flushed (and fsync'd) per write. On a clean exit the journal is
+*reconciled* into one session appended to ``captures/YYYY-MM-DD.json`` (via the same builders
+used elsewhere) and deleted. If the process dies uncleanly the journal survives and
+``canair captures uds --recover`` reconciles it later.
 
 Journal format (one JSON object per line):
 
@@ -24,11 +23,9 @@ Journal format (one JSON object per line):
     {"type": "event_end", "id": 1, "date": "2026-07-22", "at": "12:04:02.800"}
     ...
 
-Each ``capture`` row carries its own ``date`` (the acquisition date), so a
-session that spans midnight reconciles into the correct per-day capture files
-rather than being lumped under a single date fixed at reconcile time. The
-``meta`` ``date`` (session start) is the fallback for rows written before
-per-record dates existed. A ``response`` row is a request that drew an NRC or no
+Each ``capture`` row carries its own ``date`` (the acquisition date), so a session that spans
+midnight reconciles into the correct per-day capture files. The ``meta`` ``date`` (session
+start) is the fallback for rows written before per-record dates existed. A ``response`` row is a request that drew an NRC or no
 reply; it reconciles into an untimed capture with a ``response`` field. ``event`` /
 ``event_end`` rows are the session's link events (:mod:`canair.captures.link_events`):
 an interval's start and end share an ``id``, and a start whose end never arrived (the
@@ -61,6 +58,7 @@ from canair.captures.save import apply_capture_tag, current_capture_tag, save_se
 from canair.captures.session_edit import set_session_field
 from canair.captures.types import CaptureSession, Quality
 from canair.privacy.sensitive import SensitiveSet
+from canair.profile import Profile
 
 JOURNAL_VERSION = 1
 JOURNAL_DIRNAME = ".journal"
@@ -80,9 +78,10 @@ class CaptureJournal:
     the journal in place if the block raised (so it can be recovered).
     """
 
-    def __init__(self, path: Path, captures_dir: Path):
+    def __init__(self, path: Path, captures_dir: Path, profile: Profile):
         self.path = path
         self.captures_dir = captures_dir
+        self.profile = profile
         self._fh = None
         self._closed = False
         self._sensitive: SensitiveSet | None = None
@@ -94,6 +93,7 @@ class CaptureJournal:
         cls,
         captures_dir: Path,
         *,
+        profile: Profile,
         label: str | None = None,
         vehicle_states: list | None = None,
         notes: str | None = None,
@@ -115,7 +115,7 @@ class CaptureJournal:
         while path.exists():
             path = jdir / f"{stem}-{n}{JOURNAL_SUFFIX}"
             n += 1
-        journal = cls(path, captures_dir)
+        journal = cls(path, captures_dir, profile)
         journal._fh = open(path, "a", encoding="utf-8")
         meta: dict = {
             "v": JOURNAL_VERSION,
@@ -131,7 +131,7 @@ class CaptureJournal:
             meta["transport"] = transport
         # The car being recorded, fixed now: a crash is recovered by a later run,
         # whose own selection says nothing about this recording.
-        tag = current_capture_tag(captures_dir)
+        tag = current_capture_tag(captures_dir, profile=profile)
         if tag:
             meta.update(tag)
         journal._write(meta, durable=True)
@@ -296,7 +296,7 @@ class CaptureJournal:
         Returns the capture file path, or None if there was nothing to save.
         """
         self._close_fh()
-        result = reconcile_file(self.path, keep_mode=keep_mode)
+        result = reconcile_file(self.path, keep_mode=keep_mode, profile=self.profile)
         return result
 
     def discard(self) -> None:
@@ -495,7 +495,7 @@ def build_session_from_records(
 
 
 def reconcile_file(
-    path: Path, keep_mode: KeepMode | None = None, recovered: bool = False
+    path: Path, keep_mode: KeepMode | None = None, recovered: bool = False, *, profile: Profile
 ) -> Path | None:
     """Reconcile a single journal file into its captures dir, then delete it.
 
@@ -516,7 +516,7 @@ def reconcile_file(
         return None
     written: Path | None = None
     for session in sessions:
-        written = save_session(session, captures_dir, stamp_variant=False)
+        written = save_session(session, captures_dir, stamp_variant=False, profile=profile)
     path.unlink(missing_ok=True)
     return written
 
@@ -534,7 +534,7 @@ def list_orphans(captures_dir: Path) -> list[Path]:
     return sorted(jdir.glob(f"*{JOURNAL_SUFFIX}"))
 
 
-def recover(path: Path, discard: bool = False) -> Path | None:
+def recover(path: Path, discard: bool = False, *, profile: Profile) -> Path | None:
     """Reconcile (or ``discard``) a single orphaned journal.
 
     On recover, the session notes are tagged ``[recovered]``. On discard, the
@@ -544,4 +544,4 @@ def recover(path: Path, discard: bool = False) -> Path | None:
     if discard:
         Path(path).unlink(missing_ok=True)
         return None
-    return reconcile_file(Path(path), recovered=True)
+    return reconcile_file(Path(path), recovered=True, profile=profile)

@@ -230,7 +230,7 @@ def check_references_on_every_car(
     ]
 
 
-def profile_predicates(profile=None) -> list[tuple[str, str]]:
+def profile_predicates(profile: Profile) -> list[tuple[str, str]]:
     """``(state_name, when_expr)`` for every state declaring a predicate.
 
     Tolerant of a broken vocabulary (returns ``[]``), matching
@@ -246,7 +246,7 @@ def profile_predicates(profile=None) -> list[tuple[str, str]]:
     return [(r.name, r.expr) for r in rules if r.expr]
 
 
-def states_referencing(ecu: str, param: str, *, profile=None) -> list[str]:
+def states_referencing(ecu: str, param: str, *, profile: Profile) -> list[str]:
     """States whose ``when:`` predicate reads ``ECU.PARAM``.
 
     The reverse lookup behind the rename/remove warnings: renaming a signal a

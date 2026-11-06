@@ -9,6 +9,7 @@ import yaml
 
 from canair.analysis import cross_signal as cross_signal
 from canair.analysis.align import TimePoint
+from canair.profile import active
 
 
 def _tp(sec, val):
@@ -422,7 +423,9 @@ class TestHuntByte:
         from canair.analysis.align import extract_series, load_signal_captures
 
         _write_hunt_fixture(tmp_path)
-        loaded = load_signal_captures([("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path)
+        loaded = load_signal_captures(
+            [("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path, profile=active()
+        )
         ref = extract_series(loaded[("ESC", "22C101")], "B5")
         hits = cross_signal.hunt_byte(loaded[("AAF", "2181")], ref, tol_s=1.0, min_n=10)
         assert hits
@@ -598,7 +601,9 @@ class TestOutputHygiene:
             ]
         }
         (tmp_path / "2026-07-22.json").write_text(json.dumps(doc))
-        loaded = load_signal_captures([("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path)
+        loaded = load_signal_captures(
+            [("AAF", "2181"), ("ESC", "22C101")], captures_dir=tmp_path, profile=active()
+        )
         from canair.analysis.align import extract_series
 
         ref = extract_series(loaded[("ESC", "22C101")], "B5")
@@ -889,7 +894,7 @@ class TestByteStateBucketsGroupOf:
             for v, g in [(0x10, "off"), (0x10, "off"), (0x40, "on"), (0x40, "on")]
         ]
         buckets = cross_signal.byte_state_buckets(
-            results, "axis", group_of=lambda r: r["capture"]["_g"]
+            results, "axis", group_of=lambda r: r["capture"]["_g"], profile=active()
         )
         # The varying data byte is bucketed by the custom key, not the state.
         grouped = [b for b in buckets.values() if set(b) == {"off", "on"}]
@@ -904,7 +909,7 @@ class TestByteStateBucketsGroupOf:
             {"capture": {"payload": "610120", "_g": "a"}, "decoded": {}},
         ]
         buckets = cross_signal.byte_state_buckets(
-            results, "axis", group_of=lambda r: r["capture"]["_g"]
+            results, "axis", group_of=lambda r: r["capture"]["_g"], profile=active()
         )
         # The None-group capture (0x40) is dropped; no bucket ever holds 64.0.
         for b in buckets.values():

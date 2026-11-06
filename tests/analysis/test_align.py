@@ -25,6 +25,7 @@ from canair.analysis.align import (
     timestamps_disjoint,
 )
 from canair.analysis.fill import FillPolicy
+from canair.profile import active
 
 
 # ---------------------------------------------------------------------------
@@ -355,7 +356,7 @@ class TestDiscoverSignalSpecs:
 
     def test_finds_only_time_joinable_pairs(self, tmp_path):
         _write_captures(tmp_path)
-        assert discover_signal_specs(captures_dir=tmp_path) == [
+        assert discover_signal_specs(captures_dir=tmp_path, profile=active()) == [
             ("AAF", "2181"),
             ("ESC", "22C101"),
         ]
@@ -363,27 +364,35 @@ class TestDiscoverSignalSpecs:
     def test_agrees_with_load_signal_captures(self, tmp_path):
         """Every discovered spec must actually yield timed captures."""
         _write_captures(tmp_path)
-        specs = discover_signal_specs(captures_dir=tmp_path)
-        loaded = load_signal_captures(specs, captures_dir=tmp_path)
+        specs = discover_signal_specs(captures_dir=tmp_path, profile=active())
+        loaded = load_signal_captures(specs, captures_dir=tmp_path, profile=active())
         assert all(loaded[s].captures for s in specs)
 
     def test_query_narrows_to_one_ecu(self, tmp_path):
         _write_captures(tmp_path)
-        assert discover_signal_specs("AAF", captures_dir=tmp_path) == [("AAF", "2181")]
+        assert discover_signal_specs("AAF", captures_dir=tmp_path, profile=active()) == [
+            ("AAF", "2181")
+        ]
 
     def test_query_narrows_to_one_ecu_pid(self, tmp_path):
         _write_captures(tmp_path)
-        assert discover_signal_specs("ESC:22C101", captures_dir=tmp_path) == [("ESC", "22C101")]
+        assert discover_signal_specs("ESC:22C101", captures_dir=tmp_path, profile=active()) == [
+            ("ESC", "22C101")
+        ]
 
     def test_scope_filters_apply(self, tmp_path):
         _write_captures(tmp_path)
-        assert discover_signal_specs(state="charging", captures_dir=tmp_path) == []
+        assert (
+            discover_signal_specs(state="charging", captures_dir=tmp_path, profile=active()) == []
+        )
 
 
 class TestLoadSignalCaptures:
     def test_groups_and_counts_no_time(self, tmp_path):
         _write_captures(tmp_path)
-        loaded = load_signal_captures([("ESC", "22C101"), ("AAF", "2181")], captures_dir=tmp_path)
+        loaded = load_signal_captures(
+            [("ESC", "22C101"), ("AAF", "2181")], captures_dir=tmp_path, profile=active()
+        )
         esc = loaded[("ESC", "22C101")]
         aaf = loaded[("AAF", "2181")]
         assert len(esc.captures) == 2
@@ -392,21 +401,23 @@ class TestLoadSignalCaptures:
 
     def test_scope_state_filter(self, tmp_path):
         _write_captures(tmp_path)
-        loaded = load_signal_captures([("ESC", "22C101")], state="charging", captures_dir=tmp_path)
+        loaded = load_signal_captures(
+            [("ESC", "22C101")], state="charging", captures_dir=tmp_path, profile=active()
+        )
         assert len(loaded[("ESC", "22C101")].captures) == 0
 
 
 class TestExtractSeries:
     def test_raw_expression(self, tmp_path):
         _write_captures(tmp_path)
-        loaded = load_signal_captures([("AAF", "2181")], captures_dir=tmp_path)
+        loaded = load_signal_captures([("AAF", "2181")], captures_dir=tmp_path, profile=active())
         # AAF payload 6181 00 0A -> WiCAN B3=0x00, B4=0x0A ; raw B4
         series = extract_series(loaded[("AAF", "2181")], "B4")
         assert [tp.value for tp in series] == [10.0, 20.0]
 
     def test_named_param_resolves_expression(self, tmp_path):
         _write_captures(tmp_path)
-        loaded = load_signal_captures([("ESC", "22C101")], captures_dir=tmp_path)
+        loaded = load_signal_captures([("ESC", "22C101")], captures_dir=tmp_path, profile=active())
         params = {"REAL_SPEED_KMH": {"expression": "B5"}}
         # ESC payload 62 C1 01 00 0A -> B5 = 0x0A
         series = extract_series(loaded[("ESC", "22C101")], "REAL_SPEED_KMH", parameters=params)
@@ -414,7 +425,9 @@ class TestExtractSeries:
 
     def test_cross_ecu_join_end_to_end(self, tmp_path):
         _write_captures(tmp_path)
-        loaded = load_signal_captures([("ESC", "22C101"), ("AAF", "2181")], captures_dir=tmp_path)
+        loaded = load_signal_captures(
+            [("ESC", "22C101"), ("AAF", "2181")], captures_dir=tmp_path, profile=active()
+        )
         esc = extract_series(loaded[("ESC", "22C101")], "B5")
         aaf = extract_series(loaded[("AAF", "2181")], "B4")
         xs, ys, n = join_nearest(esc, aaf, tol_s=1.0)
@@ -443,7 +456,9 @@ class TestExtractSeriesFill:
             ]
         }
         (tmp_path / "2026-07-22.json").write_text(json.dumps(doc))
-        return load_signal_captures([("AAF", "2181")], captures_dir=tmp_path)[("AAF", "2181")]
+        return load_signal_captures([("AAF", "2181")], captures_dir=tmp_path, profile=active())[
+            ("AAF", "2181")
+        ]
 
     def test_no_policy_means_point_samples(self, tmp_path):
         series = extract_series(self._run_length(tmp_path), "B4")

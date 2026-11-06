@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 from canair.captures.state_inference import DEFAULT_CYCLE_TOL_S, session_state_spans
 from canair.captures.store import entry_path
 from canair.core.prompt import confirm
+from canair.profile import active
 from canair.render import messages
 from canair.states.predicates import StatePredicateError
 from canair.states.tokens import join_states, parse_states
@@ -96,7 +97,7 @@ def cmd_backfill_state_spans(
     from .backfill_spans_render import print_span_report
 
     try:
-        rules = load_states()
+        rules = load_states(profile=active())
     except StatePredicateError as ex:
         messages.error(f"invalid vehicle_states.yaml predicate: {ex}")
         return 2
@@ -125,7 +126,9 @@ def cmd_backfill_state_spans(
         recorded = parse_states(g.get("vehicle_states") or [])
         caps = payloads_by_session.get(key, [])
 
-        result = session_state_spans(recorded, caps, rules, ecu_index, cycle_tol=cycle_tol)
+        result = session_state_spans(
+            recorded, caps, rules, ecu_index, cycle_tol=cycle_tol, profile=active()
+        )
         inf = result.inference
         spans = result.spans
 

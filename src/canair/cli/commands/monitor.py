@@ -32,6 +32,7 @@ from canair.cli.live import (
 )
 from canair.cli.live.handlers.multi import monitor_operation, monitor_options
 from canair.live.monitor.schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
+from canair.profile import active
 from canair.render import messages
 
 NAME = "monitor"
@@ -180,7 +181,7 @@ def _pick_steps(args) -> list[str] | None:
     from canair.cli.live import load_pids
     from canair.tui.apps.monitor_select.app import pick_selectors
 
-    return pick_selectors(load_pids(), include_static=args.include_static)
+    return pick_selectors(load_pids(), include_static=args.include_static, profile=active())
 
 
 def run(args) -> int:

@@ -7,6 +7,7 @@ from canair.live.monitor.history import HistoryRun, extend_runs
 from canair.live.monitor.record_write import merge_history
 from canair.live.monitor.render import _render_results
 from canair.live.monitor.render_cache import RenderCache
+from canair.profile import active
 from canair.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, render_hex_line
 from tests.support.monitor_controller import make_controller
 
@@ -886,7 +887,9 @@ class TestControllerJournal:
 
         c = self._controller()
         c.captures_dir = tmp_path
-        c.recorder.journal = CaptureJournal.open(tmp_path, label="L", source="monitor")
+        c.recorder.journal = CaptureJournal.open(
+            tmp_path, label="L", source="monitor", profile=active()
+        )
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
         # Reconcile as the mode_monitor finally-block would (even on disconnect).
         written = c.recorder.journal.reconcile()
@@ -902,7 +905,9 @@ class TestControllerJournal:
 
         c = self._controller()
         c.captures_dir = tmp_path
-        c.recorder.journal = CaptureJournal.open(tmp_path, label="L", source="monitor")
+        c.recorder.journal = CaptureJournal.open(
+            tmp_path, label="L", source="monitor", profile=active()
+        )
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
         # Journal is the source of truth on exit → don't grow the redundant dict.
         assert c.recorder.save_history == {}
@@ -917,7 +922,9 @@ class TestControllerJournal:
 
         c = self._controller()
         c.captures_dir = tmp_path
-        c.recorder.journal = CaptureJournal.open(tmp_path, label="orig", source="monitor")
+        c.recorder.journal = CaptureJournal.open(
+            tmp_path, label="orig", source="monitor", profile=active()
+        )
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
         msg = c.recorder.save_now("edited", "ready", "note")
         assert "Label set" in msg
@@ -935,7 +942,9 @@ class TestControllerJournal:
 
         c = self._controller()
         c.captures_dir = tmp_path
-        c.recorder.journal = CaptureJournal.open(tmp_path, label="seg1", source="monitor")
+        c.recorder.journal = CaptureJournal.open(
+            tmp_path, label="seg1", source="monitor", profile=active()
+        )
         first_path = c.recorder.journal.path
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
 
@@ -964,7 +973,9 @@ class TestControllerJournal:
 
         c = self._controller()
         c.captures_dir = tmp_path
-        c.recorder.journal = CaptureJournal.open(tmp_path, label="seg1", source="monitor")
+        c.recorder.journal = CaptureJournal.open(
+            tmp_path, label="seg1", source="monitor", profile=active()
+        )
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
         c.recorder.new_segment("seg2", "ready", "note")
         assert capsys.readouterr().out == ""  # nothing leaks onto the TUI screen

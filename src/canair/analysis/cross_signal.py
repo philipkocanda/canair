@@ -46,6 +46,7 @@ from canair.expression.inspect_bytes import (
     wican_expr,
     wican_expr_indices,
 )
+from canair.profile import Profile
 
 __all__ = [
     "PHYSICAL_BANDS",
@@ -148,10 +149,8 @@ def reference_is_absolute_level(
 # ---------------------------------------------------------------------------
 # Stats: unit sniffing (pearson/spearman/linear_fit live in canair.analysis.stats)
 # ---------------------------------------------------------------------------
-# Common physical scalings for the unit sniffer. The candidate table + resolver
-# live in canair.analysis.physical.unit_guess (make-neutral built-ins + profile extension); this
-# module just consumes the resolved list (imported above as _UNIT_CANDIDATES for
-# the callers/tests that referenced it from cross_signal historically).
+# The unit sniffer's candidate scalings live in canair.analysis.physical.unit_guess; this module
+# consumes the resolved list (imported above as _UNIT_CANDIDATES, as callers/tests expect).
 
 
 def unit_dimension(unit: str | None) -> str | None:
@@ -390,6 +389,7 @@ def byte_state_buckets(
     min_distinct: int = 2,
     include_bits: bool = False,
     group_of: Callable[[dict], str | None] | None = None,
+    profile: Profile,
 ) -> dict[str, dict[str, list[float]]]:
     """Bucket each varying, non-PCI raw byte value by session ``field``.
 
@@ -410,14 +410,14 @@ def byte_state_buckets(
     from canair.states.vocabulary import load_states
     from canair.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
 
-    rules = load_states() if group_of is None else []
+    rules = load_states(profile=profile) if group_of is None else []
     key_cache: dict[tuple[str, ...], str] = {}
 
     def _state_key(cap: dict) -> str:
         raw = tuple(str(s).upper() for s in cap.get("vehicle_states") or [])
         hit = key_cache.get(raw)
         if hit is None:
-            hit = state_bucket_key(raw, rules)
+            hit = state_bucket_key(raw, rules, profile=profile)
             key_cache[raw] = hit
         return hit
 
@@ -735,6 +735,7 @@ def load_ref(
     state: str | Sequence[str] | None = None,
     label: str | None = None,
     fill: FillPolicy | None = None,
+    profile: Profile,
 ) -> tuple[list[TimePoint], str]:
     """Load an ``ECU:PID:PARAM|EXPR`` reference series (shared by hunt/correlate).
 
@@ -751,6 +752,7 @@ def load_ref(
         until=until,
         state=state,
         label=label,
+        profile=profile,
     )
     lp = loaded[(sref.ecu.upper(), sref.pid.upper())]
     if not lp.captures:
@@ -789,14 +791,12 @@ def ref_unit_for(ref_spec: str) -> str | None:
 # ---------------------------------------------------------------------------
 # Physical-value band scan — find bytes whose value lands in a known band
 # ---------------------------------------------------------------------------
-# Named physical bands: (label, low, high) in the band's natural unit. A byte's
-# raw value is multiplied by a candidate scaling before the band test, so e.g. a
-# 16-bit centivolt word (raw ~22200) is caught by the mains-RMS band at x0.01.
-# Bands are car-class + grid-region assumptions (mains/HV/12V are EV/region
-# -typical). The built-in defaults live in canair.analysis.physical.bands; a profile
-# (vehicle axis) and the user's grid_region (grid axis) override them via
-# resolve_physical_bands(). This constant is the default when no bands are
-# threaded in (preserves the historical no-config behaviour).
+# Named physical bands: (label, low, high) in the band's natural unit. A byte's raw value is
+# multiplied by a candidate scaling before the band test, so e.g. a 16-bit centivolt word (raw
+# ~22200) is caught by the mains-RMS band at x0.01. Bands are car-class + grid-region
+# assumptions. The built-in defaults live in canair.analysis.physical.bands; a profile (vehicle
+# axis) and the user's grid_region (grid axis) override them via resolve_physical_bands(). This
+# constant is the default when no bands are threaded in.
 PHYSICAL_BANDS: list[tuple[str, float, float]] = list(DEFAULT_PHYSICAL_BANDS.values())
 
 # Candidate scalings (factor, offset, label, kind): physical = raw * factor + offset.

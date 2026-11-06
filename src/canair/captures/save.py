@@ -11,6 +11,7 @@ from canair.captures.tags import capture_tag
 from canair.captures.types import (
     CaptureSession,
 )
+from canair.profile import Profile
 
 
 def _stamp_version(session: CaptureSession) -> CaptureSession:
@@ -47,27 +48,20 @@ def _stamp_version(session: CaptureSession) -> CaptureSession:
     return cast(CaptureSession, rebuilt)
 
 
-def current_capture_tag(captures_dir: Path | None = None) -> dict | None:
+def current_capture_tag(captures_dir: Path | None = None, *, profile: Profile) -> dict | None:
     """The variant tag a recording into ``captures_dir`` gets right now, or None.
 
-    The active profile's explicitly selected variant (``--variant`` /
-    ``CANAIR_VARIANT``), and only when ``captures_dir`` is that profile's own store
-    (or None): a write aimed at another directory is no evidence about the car the
-    active profile selected.
+    ``profile``'s explicitly selected variant (``--variant`` / ``CANAIR_VARIANT``), and only
+    when ``captures_dir`` is that profile's own store (or None): a write aimed at another
+    directory is no evidence about the car the profile selected.
     """
-    from canair.profile import ProfileError, active
-
-    try:
-        prof = active()
-    except ProfileError:
-        return None
     if captures_dir is not None:
         try:
-            if Path(captures_dir).resolve() != prof.captures_dir.resolve():
+            if Path(captures_dir).resolve() != profile.captures_dir.resolve():
                 return None
         except OSError:  # pragma: no cover - unreadable path
             return None
-    return capture_tag(prof)
+    return capture_tag(profile)
 
 
 def _captured_ecus(session: CaptureSession) -> set[str]:
@@ -125,7 +119,11 @@ def saved_banner(capture_file: Path, n_captures: int) -> str:
 
 
 def save_session(
-    session: CaptureSession, captures_dir: Path | None = None, *, stamp_variant: bool = True
+    session: CaptureSession,
+    captures_dir: Path | None = None,
+    *,
+    stamp_variant: bool = True,
+    profile: Profile,
 ) -> Path:
     """Append a session dict to captures/YYYY-MM-DD.json. Returns the file path.
 
@@ -146,11 +144,9 @@ def save_session(
     """
     session = _stamp_version(session)
     if stamp_variant:
-        session = apply_capture_tag(session, current_capture_tag(captures_dir))
+        session = apply_capture_tag(session, current_capture_tag(captures_dir, profile=profile))
     if captures_dir is None:
-        from canair.profile import active
-
-        captures_dir = active().captures_dir
+        captures_dir = profile.captures_dir
     # The last gate before disk: a reply to a sensitive PID is never written,
     # whichever producer built the session (the journal applies the same rule).
     from canair.privacy import sensitive
@@ -175,14 +171,14 @@ def save_session(
         data = {"sessions": [session]}
 
     capture_io.dump_capture_file(capture_file, data)
-    annotate_session_spans(capture_file)
+    annotate_session_spans(capture_file, profile=profile)
 
     print(saved_banner(capture_file, len(session.get("captures", []))), file=sys.stderr)
     return capture_file
 
 
 def save_session_journaled(
-    session: CaptureSession, captures_dir: Path | None = None
+    session: CaptureSession, captures_dir: Path | None = None, *, profile: Profile
 ) -> Path | None:
     """Save a pre-built session via a write-ahead journal (crash-safe path).
 
@@ -200,12 +196,11 @@ def save_session_journaled(
     from canair.captures.journal import CaptureJournal
 
     if captures_dir is None:
-        from canair.profile import active
-
-        captures_dir = active().captures_dir
+        captures_dir = profile.captures_dir
 
     journal = CaptureJournal.open(
         captures_dir,
+        profile=profile,
         label=session.get("label", ""),
         vehicle_states=session.get("vehicle_states"),
         notes=session.get("notes"),

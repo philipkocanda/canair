@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from canair.profile import Profile
 from canair.render import ansi
 from canair.uds.services import DEFAULT_SESSION_REQUEST
 
@@ -77,6 +78,8 @@ async def mode_dtc_scan_all(
     pids_data: dict | None = None,
     save: bool = False,
     notes: str | None = None,
+    *,
+    profile: Profile,
 ):
     """Sweep every ECU in the profile registry and read its stored DTCs.
 
@@ -138,7 +141,7 @@ async def mode_dtc_scan_all(
     if snapshots and any(wants_snapshots(r) for r in results):
         snapshot_run = await _snapshot_step(terminal, results, pids_data, as_json)
     if save:
-        report_saved(terminal, results, label, vehicle_states, notes, as_json)
+        report_saved(terminal, results, label, vehicle_states, notes, as_json, profile=profile)
 
     faulty = [r for r in results if _classify(r) == "faulty"]
     clean = [r for r in results if _classify(r) == "clean"]

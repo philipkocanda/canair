@@ -12,6 +12,7 @@ import asyncio
 
 import pytest
 
+from canair.profile import active
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 from canair.transport.config import ConnectionOptions
 from canair.transport.raw import uds_client as uds_raw
@@ -214,6 +215,7 @@ class TestRefusalIsReportedNotRaised:
                 _blocked,
                 options=session.SessionOptions(),
                 transport_label="x",
+                profile=active(),
             )
         )
         assert rc == 2

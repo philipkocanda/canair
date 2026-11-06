@@ -115,6 +115,7 @@ def run(args) -> int:
         filter_by_date_range(load_all_captures(), since, until),
         state=args.state,
         label=args.label,
+        profile=active(),
     )
     entries, ecus_filter, err = _apply_query(args, entries)
     if err:

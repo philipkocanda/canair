@@ -21,6 +21,7 @@ import json
 import sys
 from typing import TypedDict
 
+from canair.profile import active
 from canair.render import ansi
 
 NAME = "bus"
@@ -74,7 +75,6 @@ def run(args) -> int:
 
     from canair.ecus.can_buses import ALL_CODE, expand_bus_membership, load_can_buses
     from canair.ecus.registry import load_ecus
-    from canair.profile import active
 
     prof = active()
     buses = load_can_buses(prof)

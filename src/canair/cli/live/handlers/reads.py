@@ -9,6 +9,7 @@ from __future__ import annotations
 from canair.live.identity.read import mode_identity
 from canair.live.read.param import mode_param
 from canair.live.read.raw import mode_raw
+from canair.profile import active
 from canair.render import messages
 from canair.transport.protocol import Terminal
 
@@ -57,4 +58,5 @@ async def handle_raw(args, terminal: Terminal, pids_data, host, *, reconnect=Non
         label=args.label,
         vehicle_states=args.state,
         notes=args.notes,
+        profile=active(),
     )

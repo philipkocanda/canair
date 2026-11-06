@@ -89,6 +89,7 @@ def run(args) -> int:
                 state=args.state,
                 label=args.label,
                 fill=fill,
+                profile=active(),
             )
     except ValueError as e:
         flag = "--against-file" if args.against_file else "--against"
@@ -133,6 +134,7 @@ def run(args) -> int:
                     state=args.state,
                     label=args.label,
                     fill=fill,
+                    profile=active(),
                 )
         except ValueError as e:
             flag = "--control-file" if args.control_file else "--control"
@@ -147,6 +149,7 @@ def run(args) -> int:
         state=args.state,
         label=args.label,
         one_revision="hunt",
+        profile=active(),
     )
     lp = loaded[(ecu.upper(), pid)]
     if not lp.captures:

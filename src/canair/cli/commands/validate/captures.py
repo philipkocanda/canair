@@ -2,6 +2,7 @@
 
 from collections import OrderedDict
 
+from canair.profile import active
 from canair.render import messages
 from canair.validation.captures import check_captures
 from canair.validation.report import CapturesReport, CaptureWarning
@@ -85,7 +86,7 @@ def run_captures(
     show_untimed: bool = False,
     max_untagged: int | None = None,
 ) -> int:
-    report = check_captures(strict, max_untimed, show_untimed, max_untagged)
+    report = check_captures(strict, max_untimed, show_untimed, max_untagged, profile=active())
     if not report.n_files:
         print("No capture files found.")
         return 0

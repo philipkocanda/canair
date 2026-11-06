@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from canair.captures.metadata import resolve_metadata
 from canair.core.id_ranges import IdRange, as_id_ranges, count_ids, format_id_ranges, iter_ids
 from canair.privacy.sensitive import MASK, profile_set
+from canair.profile import Profile
 from canair.render.console import console as make_console
 from canair.render.console import escape
 from canair.render.glyphs import ELLIPSIS
@@ -31,6 +32,8 @@ async def mode_scan(
     label: str | None = None,
     vehicle_states=None,
     notes: str | None = None,
+    *,
+    profile: Profile,
 ):
     """Scan PID/DID ranges and show which ids respond positively.
 
@@ -230,7 +233,7 @@ async def mode_scan(
                 session_flag=session,
                 transport=client_transport(terminal),
             )
-            save_session_journaled(session_dict)
+            save_session_journaled(session_dict, profile=profile)
 
     _print_next_steps(
         make_console(stderr=True), ecu, service, positive, negative, errors, saved=save

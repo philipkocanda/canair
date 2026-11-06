@@ -11,6 +11,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING
 
+from canair.profile import Profile
 from canair.render import messages
 
 from ...transport.config import ConnectionOptions, TransportConfig
@@ -106,6 +107,7 @@ async def run_raw_monitor(
     conn: ConnectionOptions,
     session: SessionOptions,
     candidates: Sequence[TransportConfig] = (),
+    profile: Profile,
 ) -> int:
     """Run the live monitor over raw CAN. Assumes the device is in slcan mode."""
     from canair.ecus.pids import build_ecu_index
@@ -146,6 +148,7 @@ async def run_raw_monitor(
             pids_data,
             raw_client=client,
             reconnect=build_raw_reconnector(candidates, ecus, conn, pids_data),
+            profile=profile,
         )
     except transport_error_types() as e:
         messages.error(

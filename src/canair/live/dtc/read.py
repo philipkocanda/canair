@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
+from canair.profile import Profile
 from canair.render import messages
 from canair.uds.protocol import KWP, UDS
 
@@ -78,6 +79,8 @@ async def mode_dtc_read(
     pids_data: dict | None = None,
     save: bool = False,
     notes: str | None = None,
+    *,
+    profile: Profile,
 ):
     """Read stored DTCs, auto-selecting UDS 0x19 or KWP2000 0x18 by protocol.
 
@@ -117,7 +120,7 @@ async def mode_dtc_read(
             await fetch_snapshots(terminal, tx_id, result, pids, ecu, SnapshotRun())
         _report_read(as_json, result, verbose)
         if save:
-            report_saved(terminal, [result], label, vehicle_states, notes, as_json)
+            report_saved(terminal, [result], label, vehicle_states, notes, as_json, profile=profile)
         if log and "dtcs" in result:
             path, previous, diff = _log_scan(ecu_ref(tx_id), [result], label, vehicle_states)
             if not as_json:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from canair.core.paths import CONFIG_DOCS_URL
+from canair.profile import active
 from canair.render.console import console, escape
 
 
@@ -66,8 +67,6 @@ def _gather(args) -> dict:
         info["transport_error"] = str(e)
 
     try:
-        from canair.profile import active
-
         prof = active()
         info["profile"] = {"name": prof.name, "root": str(prof.root)}
     except Exception as e:

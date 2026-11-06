@@ -7,6 +7,7 @@ Ingest is ``canair import can`` (:mod:`canair.cli.commands.import_`).
 
 import argparse
 
+from canair.profile import active
 from canair.render import ansi
 
 
@@ -15,7 +16,6 @@ def cmd_can_logs(as_json: bool = False) -> int:
     import json as _json
 
     from canair.captures import can_logs
-    from canair.profile import active
 
     logs = can_logs.list_logs(active())
     if as_json:

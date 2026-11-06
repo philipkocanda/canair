@@ -7,6 +7,7 @@ from typing import TextIO
 
 from canair.captures.metadata import resolve_metadata
 from canair.core.prompt import confirm
+from canair.profile import Profile
 from canair.render import ansi
 from canair.render.glyphs import ELLIPSIS
 from canair.render.paint import INDENT, Cell, Painter, column_widths, render_row
@@ -89,6 +90,8 @@ async def mode_discover(
     identify: bool = False,
     mode: AddressingMode = DEFAULT_MODE,
     tester: int = DEFAULT_TESTER_ADDRESS,
+    *,
+    profile: Profile,
 ):
     """Sweep a range of CAN arbitration IDs to find responding ECUs.
 
@@ -263,7 +266,7 @@ async def mode_discover(
                 notes=notes,
                 transport=client_transport(terminal),
             )
-            save_session_journaled(session_dict)
+            save_session_journaled(session_dict, profile=profile)
 
     # Auto-register newly-discovered ECUs into ecus/
     if register:

@@ -26,6 +26,7 @@ from canair.captures.link_events import (
 )
 from canair.captures.types import CaptureEntry, Quality
 from canair.core.terminal import terminal_columns, truncate_text
+from canair.profile import active
 from canair.render import ansi, glyphs
 from canair.states.spans import parse_time_key
 from canair.states.tokens import join_states as _join_states
@@ -195,7 +196,7 @@ def _inferred_tag(gaps: Sequence[tuple[float, float]]) -> str:
 
 def _declared_variants() -> dict:
     """The active profile's variants (empty when it declares none or can't be read)."""
-    from canair.profile import ProfileError, active
+    from canair.profile import ProfileError
     from canair.variants import VariantsError, load_variants
 
     try:

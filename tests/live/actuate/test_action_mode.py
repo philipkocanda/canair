@@ -14,6 +14,7 @@ import pytest
 from canair.actions import ActionError, parse_action
 from canair.core.prompt import PromptUnavailable
 from canair.live.actuate import action as mode
+from canair.profile import active
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
 from tests.support.fakes import FakeTerminal
 
@@ -63,7 +64,7 @@ def run(monkeypatch):
 
     def _run(terminal, rounds, **kw):
         monkeypatch.setattr("canair.live.read.exec._exec_query", _values(*rounds))
-        return asyncio.run(mode.mode_action(terminal, PIDS, "sleep", **kw))
+        return asyncio.run(mode.mode_action(terminal, PIDS, "sleep", profile=active(), **kw))
 
     return _run
 
@@ -148,7 +149,9 @@ def test_without_the_quirk_the_action_is_refused_before_any_read(monkeypatch):
     monkeypatch.setattr("canair.actions.load_actions", lambda profile=None: {"sleep": SLEEP})
     t = PolicedTerminal()
     with pytest.raises(SafetyBlocked, match="none of the profile's quirks grants it"):
-        asyncio.run(mode.mode_action(t, {"ecus": PIDS["ecus"]}, "sleep", yes=True))
+        asyncio.run(
+            mode.mode_action(t, {"ecus": PIDS["ecus"]}, "sleep", yes=True, profile=active())
+        )
     assert reads == [] and t.sent == []
 
 
@@ -164,7 +167,7 @@ def test_unsafe_does_not_help(monkeypatch):
 def test_an_unknown_action(monkeypatch):
     monkeypatch.setattr("canair.actions.load_actions", lambda profile=None: {})
     with pytest.raises(ActionError, match="no action"):
-        asyncio.run(mode.mode_action(PolicedTerminal(), PIDS, "sleep"))
+        asyncio.run(mode.mode_action(PolicedTerminal(), PIDS, "sleep", profile=active()))
 
 
 def test_a_request_to_an_ecu_resolves_its_tx_id():

@@ -14,6 +14,7 @@ import pytest
 
 from canair import profile
 from canair.ecus.pids import clear_cache
+from canair.profile import active
 from canair.uds.addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET, AddressingMode
 from tests.support.fakes import FakeTerminal, ok
 
@@ -119,7 +120,14 @@ class TestDiscoverRxConsistency:
             {(0x740, "1001"): ok("5001"), (0x74E, "1001"): ok("5001")}, key_by_header=True
         )
         await disc.mode_discover(
-            term, (0x740, 0x74E), verbose=False, as_json=True, delay=0.0, save=True, label="s"
+            term,
+            (0x740, 0x74E),
+            verbose=False,
+            as_json=True,
+            delay=0.0,
+            save=True,
+            label="s",
+            profile=active(),
         )
         out = capsys.readouterr().out
         doc = json.loads(out[out.index("{") : out.rindex("}") + 1])
@@ -146,6 +154,7 @@ class TestDiscoverRxConsistency:
             save=True,
             label="s",
             mode=AddressingMode.NORMAL_FIXED_29BIT,
+            profile=active(),
         )
         session = _saved(root)
         [entry] = session["captures"][0]["scan_results"]["responding"]

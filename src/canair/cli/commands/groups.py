@@ -25,6 +25,7 @@ import sys
 from typing import TypedDict
 
 from canair.cli.commands._edit import run_edit, set_or_clear, subcommand_dispatch
+from canair.profile import active
 from canair.render import ansi, messages
 
 NAME = "groups"
@@ -40,7 +41,6 @@ class GroupRecord(TypedDict):
 
 def cmd_list(args) -> int:
     from canair.ecus.ecu_groups import GROUP_SIGIL, GroupError, load_groups
-    from canair.profile import active
 
     prof = active()
     try:

@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from typing import TypedDict
 
 from canair.captures.build import IMPORT_TRANSPORT
+from canair.profile import active
 from canair.uds.echo import request_echo
 from canair.uds.nrc import nrc_description
 from canair.uds.payload import payload_echo_mismatch
@@ -249,7 +250,10 @@ def load_coverage_captures(
     from canair.variants.tags import require_one_revision
 
     entries = filter_by_text(
-        filter_by_date_range(load_all_captures(), since, until), state=state, label=label
+        filter_by_date_range(load_all_captures(), since, until),
+        state=state,
+        label=label,
+        profile=active(),
     )
     require_one_revision(entries, None, "coverage")
     return select_captures(

@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
+from canair.profile import active
 from canair.render import messages
 from canair.states.tokens import join_states, parse_states
 from canair.states.vocabulary import allowed_states
@@ -56,7 +57,7 @@ def cmd_set_state(
         return 2
 
     # Soft vocabulary check (free text is still accepted, like validate captures).
-    vocab = allowed_states()
+    vocab = allowed_states(profile=active())
     unknown = [s for s in states if s not in vocab]
     if unknown and not as_json:
         messages.warning(

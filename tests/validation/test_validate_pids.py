@@ -2,6 +2,7 @@
 
 import pytest
 
+from canair.profile import active
 from canair.validation.cross_file import duplicate_param_errors
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.expressions import check_pci_bytes
@@ -68,8 +69,6 @@ class TestRealPidsHaveNoPciBytes:
         import yaml
 
         offenders = []
-        from canair.profile import active
-
         for path in glob.glob(str(active().ecus_dir / "*.yaml")):
             data = yaml.safe_load(open(path))
             if not isinstance(data, dict):

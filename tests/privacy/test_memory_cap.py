@@ -8,6 +8,7 @@ from canair import profile
 from canair.captures import io as capture_io
 from canair.ecus.pids import clear_cache
 from canair.privacy import sensitive
+from canair.profile import active
 from canair.uds.memory import MEMORY_SIGNAL_MAX_BYTES
 
 META = 'car_model: "T"\ninit: "ATSP6;"\n'
@@ -57,7 +58,7 @@ def test_save_session_drops_a_dump(prof, capsys):
         "label": "t",
         "captures": [_cap(SMALL, 4), _cap(BIG, MEMORY_SIGNAL_MAX_BYTES + 1)],
     }
-    path = save_session(session, prof / "captures")
+    path = save_session(session, prof / "captures", profile=active())
     pids = [c["pid"] for s in capture_io.load_capture_file(path)["sessions"] for c in s["captures"]]
     assert pids == [SMALL]
     assert f"over {MEMORY_SIGNAL_MAX_BYTES} bytes" in capsys.readouterr().err
@@ -66,7 +67,7 @@ def test_save_session_drops_a_dump(prof, capsys):
 def test_the_journal_never_holds_a_dump(prof):
     from canair.captures.journal import CaptureJournal
 
-    journal = CaptureJournal.open(prof / "captures", label="t")
+    journal = CaptureJournal.open(prof / "captures", label="t", profile=active())
     journal.append("0x7A8", BIG, "63" + "AB" * (MEMORY_SIGNAL_MAX_BYTES + 1), "10:00:00.000")
     journal.append("0x7A8", SMALL, "63ABABABAB", "10:00:00.100")
     journal.append_response("0x7A8", BIG, "NRC 0x31")  # a refusal discloses nothing

@@ -30,6 +30,7 @@ def run_physical(args, ecu: str, pid: str, since, until) -> int:
         state=args.state,
         label=args.label,
         one_revision="hunt",
+        profile=active(),
     )
     lp = loaded[(ecu.upper(), pid)]
     if not lp.captures:

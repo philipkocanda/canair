@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from canair.core import tcp
+from canair.profile import Profile
 from canair.render import messages
 
 from ...transport.config import ConnectionOptions, TransportConfig
@@ -109,6 +110,7 @@ async def run_raw(
     operation: Operation,
     monitor: MonitorOptions | None = None,
     candidates: Sequence[TransportConfig] = (),
+    profile: Profile,
 ) -> int:
     """Entry point for a live command over a raw (slcan-tcp) transport.
 
@@ -124,7 +126,9 @@ async def run_raw(
         messages.error(str(e))
         return 2
     try:
-        return await _run_session(target, pids_data, conn, session, operation, monitor, candidates)
+        return await _run_session(
+            target, pids_data, conn, session, operation, monitor, candidates, profile=profile
+        )
     finally:
         if conn.reboot:
             from canair.transport.reboot import reboot_after_session
@@ -140,6 +144,8 @@ async def _run_session(
     operation: Operation,
     monitor: MonitorOptions | None,
     candidates: Sequence[TransportConfig],
+    *,
+    profile: Profile,
 ) -> int:
     host, port, bitrate = target.host, target.port, target.bitrate
 
@@ -156,6 +162,7 @@ async def _run_session(
             conn=conn,
             session=session,
             candidates=candidates,
+            profile=profile,
         )
 
     # All other commands: reuse the shared session over a RawTerminal adapter.
@@ -202,7 +209,13 @@ async def _run_session(
     terminal.session_policy = SessionPolicy.from_profile(pids_data)
     try:
         return await run_session_guarded(
-            terminal, pids_data, host, operation, options=session, transport_label="SLCAN"
+            terminal,
+            pids_data,
+            host,
+            operation,
+            options=session,
+            transport_label="SLCAN",
+            profile=profile,
         )
     finally:
         await terminal.close()

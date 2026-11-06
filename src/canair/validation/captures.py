@@ -8,6 +8,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.protocols import Validator
 
 from canair.captures import io as capture_io
+from canair.profile import Profile
 from canair.states.implies import contradictory_states
 from canair.states.predicates import StatePredicateError, StateRule
 from canair.states.vocabulary import load_states, state_names
@@ -95,15 +96,22 @@ def check_captures(
     max_untimed: int | None = None,
     show_untimed: bool = False,
     max_untagged: int | None = None,
+    *,
+    profile: Profile,
 ) -> CapturesReport:
     """Check every capture file of the active profile: errors first, then the soft warnings."""
     # Every check below reads the same files; parse each one once.
     with capture_io.reading_once():
-        return _check_captures(strict, max_untimed, show_untimed, max_untagged)
+        return _check_captures(strict, max_untimed, show_untimed, max_untagged, profile=profile)
 
 
 def _check_captures(
-    strict: bool, max_untimed: int | None, show_untimed: bool, max_untagged: int | None
+    strict: bool,
+    max_untimed: int | None,
+    show_untimed: bool,
+    max_untagged: int | None,
+    *,
+    profile: Profile,
 ) -> CapturesReport:
     with open(CAPTURES_SCHEMA_FILE) as f:
         schema = json.load(f)
@@ -131,13 +139,13 @@ def _check_captures(
 
     # State vocabulary for soft warnings (empty when no vehicle_states.yaml → no warnings).
 
-    vocab = {n.lower() for n in state_names()}
+    vocab = {n.lower() for n in state_names(profile=profile)}
 
     # excludes: declarations, for the sequenced-session warning. Empty (or a
     # profile whose states fail to load) simply disables that check.
 
     try:
-        state_rules = [r for r in load_states() if r.excludes]
+        state_rules = [r for r in load_states(profile=profile) if r.excludes]
     except StatePredicateError:
         state_rules = []
 

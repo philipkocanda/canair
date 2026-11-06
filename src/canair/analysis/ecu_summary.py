@@ -7,6 +7,7 @@ from collections import Counter
 from canair.captures.types import CaptureEntry
 from canair.ecus.pid_status import pid_status
 from canair.ecus.registry import rx_addr_str
+from canair.profile import Profile
 from canair.states.selectors import ecu_states
 
 
@@ -127,7 +128,7 @@ def sort_records(records: list[dict], sort: str) -> None:
     records.sort(key=key, reverse=reverse)
 
 
-def list_records(ecus: dict, pids_data: dict, sort: str = "bus") -> list[dict]:
+def list_records(ecus: dict, pids_data: dict, sort: str = "bus", *, profile: Profile) -> list[dict]:
     """Build one record per registry ECU, joined to ecus/ by tx_id.
 
     Sorted by ``bus`` (default; group by CAN segment, unbussed ECUs last) or any
@@ -152,7 +153,7 @@ def list_records(ecus: dict, pids_data: dict, sort: str = "bus") -> list[dict]:
             "can_bus": info.get("can_bus"),
             "has_pids": ecu_def is not None,
             # States the ECU is readable/awake in (ECU-level, else PID union).
-            "states": ecu_states(ecu_def) if ecu_def is not None else [],
+            "states": ecu_states(ecu_def, profile=profile) if ecu_def is not None else [],
         }
         if ecu_def is not None:
             rec.update(pid_stats(ecu_def))

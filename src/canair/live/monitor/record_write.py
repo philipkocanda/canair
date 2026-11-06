@@ -13,6 +13,7 @@ from pathlib import Path
 from canair.captures.journal import CaptureJournal
 from canair.captures.keepmode import KeepMode, persisted_keep_mode
 from canair.captures.types import Quality
+from canair.profile import Profile
 
 from ...captures.build import build_query_session
 from ...captures.save import save_session
@@ -51,6 +52,8 @@ def write_merged(
     keep_mode: KeepMode | None = None,
     transport: str | None = None,
     quality: Quality | None = None,
+    *,
+    profile: Profile,
 ) -> Path:
     """Build a query-capture session from merged payloads and save it to disk.
 
@@ -78,7 +81,7 @@ def write_merged(
         transport=transport,
         quality=quality,
     )
-    return save_session(session, captures_dir)
+    return save_session(session, captures_dir, profile=profile)
 
 
 def open_journal(controller, label: str | None, vehicle_states, notes: str | None):
@@ -101,4 +104,5 @@ def open_journal(controller, label: str | None, vehicle_states, notes: str | Non
         source="monitor",
         keep_mode=keep,
         transport=getattr(controller, "transport_type", None),
+        profile=controller.profile,
     )

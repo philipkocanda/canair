@@ -7,6 +7,7 @@ import pytest
 
 from canair.live import dtc
 from canair.live.dtc import sweep as dtc_sweep
+from canair.profile import active
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok
 from tests.support.live_args import live_args
@@ -64,7 +65,7 @@ class TestModeRead:
     async def test_read_json(self, capsys):
         # 59 02 <availMask=FF> <DTC P0123-00 status 2F>
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
-        await dtc.mode_dtc_read(t, 0x7E4, mask=0xFF, protocol="uds", as_json=True)
+        await dtc.mode_dtc_read(t, 0x7E4, mask=0xFF, protocol="uds", as_json=True, profile=active())
         data = json.loads(capsys.readouterr().out)
         assert data["protocol"] == "uds"
         assert data["count"] == 1
@@ -79,19 +80,21 @@ class TestModeRead:
     @pytest.mark.asyncio
     async def test_read_no_dtcs(self, capsys):
         t = FakeTerminal({"1902FF": _ok("5902FF")})
-        await dtc.mode_dtc_read(t, 0x7E4, mask=0xFF, protocol="uds", as_json=False)
+        await dtc.mode_dtc_read(
+            t, 0x7E4, mask=0xFF, protocol="uds", as_json=False, profile=active()
+        )
         assert "No DTCs stored" in capsys.readouterr().out
 
     @pytest.mark.asyncio
     async def test_read_custom_mask(self, capsys):
         t = FakeTerminal({"190208": _ok("590208")})
-        await dtc.mode_dtc_read(t, 0x7E4, mask=0x08, protocol="uds", as_json=True)
+        await dtc.mode_dtc_read(t, 0x7E4, mask=0x08, protocol="uds", as_json=True, profile=active())
         assert t.sent == ["190208"]
 
     @pytest.mark.asyncio
     async def test_read_nrc(self, capsys):
         t = FakeTerminal({"1902FF": {"ok": False, "nrc": 0x11, "nrc_desc": "serviceNotSupported"}})
-        await dtc.mode_dtc_read(t, 0x7E4, protocol="uds", as_json=True)
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="uds", as_json=True, profile=active())
         data = json.loads(capsys.readouterr().out)
         assert data["nrc"] == "0x11"
 
@@ -104,7 +107,7 @@ class TestModeRead:
                 "190208": _ok("590209"),
             }
         )
-        await dtc.mode_dtc_read(t, 0x770, mask=0xFF, protocol="uds", as_json=True)
+        await dtc.mode_dtc_read(t, 0x770, mask=0xFF, protocol="uds", as_json=True, profile=active())
         data = json.loads(capsys.readouterr().out)
         assert t.sent == ["1902FF", "190208"]
         assert data["command"] == "190208"
@@ -113,7 +116,7 @@ class TestModeRead:
     @pytest.mark.asyncio
     async def test_no_fallback_when_mask_already_08(self, capsys):
         t = FakeTerminal({"190208": {"ok": False, "nrc": 0x31, "nrc_desc": "requestOutOfRange"}})
-        await dtc.mode_dtc_read(t, 0x770, mask=0x08, protocol="uds", as_json=True)
+        await dtc.mode_dtc_read(t, 0x770, mask=0x08, protocol="uds", as_json=True, profile=active())
         # No infinite/duplicate retry — one request only.
         assert t.sent == ["190208"]
 
@@ -123,7 +126,7 @@ class TestModeReadKwp:
     async def test_kwp_read_decodes_2byte_dtcs(self, capsys):
         # 58 <count=1> <DTC P1234 status 20>
         t = FakeTerminal({"1800FF00": _ok("5801" + "1234" + "20")})
-        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True)
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True, profile=active())
         data = json.loads(capsys.readouterr().out)
         assert data["protocol"] == "kwp"
         assert data["command"] == "1800FF00"
@@ -140,7 +143,7 @@ class TestModeReadKwp:
                 "1802FF00": _ok("5800"),
             }
         )
-        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True)
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True, profile=active())
         data = json.loads(capsys.readouterr().out)
         assert t.sent == ["1800FF00", "1802FF00"]
         assert data["count"] == 0
@@ -148,14 +151,14 @@ class TestModeReadKwp:
     @pytest.mark.asyncio
     async def test_primary_form_carries_no_note(self, capsys):
         t = FakeTerminal({"1800FF00": _ok("5801" + "1234" + "20")})
-        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True)
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True, profile=active())
         assert "note" not in json.loads(capsys.readouterr().out)
 
     @pytest.mark.asyncio
     async def test_alternate_form_is_flagged_in_json(self, capsys):
         nrc = {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"}
         t = FakeTerminal({"1800FF00": nrc, "1802FF00": _ok("5801" + "0123" + "20")})
-        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True)
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True, profile=active())
         data = json.loads(capsys.readouterr().out)
         assert data["command"] == "1802FF00"
         assert "18 02 FF 00" in data["note"] and "may not be real" in data["note"]
@@ -166,7 +169,7 @@ class TestModeReadKwp:
         t = FakeTerminal(
             {"1800FF00": nrc, "1802FF00": nrc, "1800FFFF": _ok("5801" + "0123" + "20")}
         )
-        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp")
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", profile=active())
         captured = capsys.readouterr()
         assert "note: " in captured.err and "18 00 FF FF" in captured.err
         assert "Note:" not in captured.out
@@ -188,14 +191,18 @@ class TestSupportedList:
     @pytest.mark.asyncio
     async def test_sends_only_the_supported_request_and_never_falls_back(self, capsys):
         t = FakeTerminal({"1803FF00": {"ok": False, "nrc": 0x12, "nrc_desc": "x"}})
-        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True, as_json=True)
+        await dtc.mode_dtc_read(
+            t, 0x7E4, protocol="kwp", supported=True, as_json=True, profile=active()
+        )
         assert t.sent == ["1803FF00"]
         assert json.loads(capsys.readouterr().out)["nrc"] == "0x12"
 
     @pytest.mark.asyncio
     async def test_codes_are_raw_hex_and_flagged_as_a_catalogue(self, capsys):
         t = FakeTerminal({"1803FF00": _ok("5802" + "0123" + "10" + "C107" + "10")})
-        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True, as_json=True)
+        await dtc.mode_dtc_read(
+            t, 0x7E4, protocol="kwp", supported=True, as_json=True, profile=active()
+        )
         data = json.loads(capsys.readouterr().out)
         assert data["supported"] is True and data["count"] == 2
         assert [d["dtc"] for d in data["dtcs"]] == ["0x0123", "0xC107"]
@@ -204,7 +211,7 @@ class TestSupportedList:
     @pytest.mark.asyncio
     async def test_text_output_says_supported_not_stored(self, capsys):
         t = FakeTerminal({"1803FF00": _ok("5801" + "0123" + "10")})
-        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True)
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True, profile=active())
         captured = capsys.readouterr()
         assert "1 supported DTC(s)" in captured.out and "note: " in captured.err
 
@@ -213,21 +220,23 @@ class TestSupportedList:
         logged = []
         monkeypatch.setattr("canair.live.dtc.read._log_scan", lambda *a, **k: logged.append(a))
         t = FakeTerminal({"1803FF00": _ok("5801" + "0123" + "10")})
-        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", supported=True, log=True)
+        await dtc.mode_dtc_read(
+            t, 0x7E4, protocol="kwp", supported=True, log=True, profile=active()
+        )
         assert logged == []
 
     @pytest.mark.asyncio
     async def test_refused_for_uds(self):
         t = FakeTerminal({})
         with pytest.raises(ValueError, match="KWP2000"):
-            await dtc.mode_dtc_read(t, 0x770, protocol="uds", supported=True)
+            await dtc.mode_dtc_read(t, 0x770, protocol="uds", supported=True, profile=active())
         assert t.sent == []
 
     @pytest.mark.asyncio
     async def test_normal_read_never_sends_it(self, capsys):
         nrc = {"ok": False, "nrc": 0x12, "nrc_desc": "x"}
         t = FakeTerminal({"1800FF00": nrc, "1802FF00": nrc, "1800FFFF": nrc})
-        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True)
+        await dtc.mode_dtc_read(t, 0x7E4, protocol="kwp", as_json=True, profile=active())
         assert "1803FF00" not in t.sent
 
 
@@ -247,14 +256,14 @@ class TestScanLog:
 
         # First scan: BMS has one DTC -> recorded as baseline.
         t1 = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
-        await dtc.mode_dtc_read(t1, 0x7E4, protocol="uds", log=True)
+        await dtc.mode_dtc_read(t1, 0x7E4, protocol="uds", log=True, profile=active())
         out1 = capsys.readouterr().out
         assert "baseline" in out1
         assert logp.exists()
 
         # Second scan: BMS now clean -> the code shows as cleared vs baseline.
         t2 = FakeTerminal({"1902FF": _ok("5902FF")})
-        await dtc.mode_dtc_read(t2, 0x7E4, protocol="uds", log=True)
+        await dtc.mode_dtc_read(t2, 0x7E4, protocol="uds", log=True, profile=active())
         out2 = capsys.readouterr().out
         assert "cleared" in out2
         assert "P0123-00" in out2
@@ -297,7 +306,7 @@ class TestScanLog:
             )
         )
         t2 = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
-        await dtc.mode_dtc_read(t2, 0x7E4, protocol="uds", log=True)
+        await dtc.mode_dtc_read(t2, 0x7E4, protocol="uds", log=True, profile=active())
         out = capsys.readouterr().out
         assert "--clear since then (1)" in out and "+ new (1)" in out
         assert "✓ cleared" not in out
@@ -331,7 +340,7 @@ class TestScanAll:
                 "1800FF00": _ok("5800"),  # BMS: clean
             }
         )
-        await dtc.mode_dtc_scan_all(t, as_json=True)
+        await dtc.mode_dtc_scan_all(t, as_json=True, profile=active())
         data = json.loads(capsys.readouterr().out)
         assert data["scanned"] == 2
         assert data["with_dtcs"] == 1
@@ -347,7 +356,7 @@ class TestScanAll:
             lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
         )
         t = FakeTerminal({"1902FF": _ok("5902FF")})  # both clean
-        await dtc.mode_dtc_scan_all(t, as_json=False)
+        await dtc.mode_dtc_scan_all(t, as_json=False, profile=active())
         out = capsys.readouterr().out
         assert "No DTCs on any" in out
 
@@ -366,7 +375,7 @@ class TestScanAll:
         )
         # BCM clean; IGPM never answers (not in table).
         t = FakeTerminal({"1902FF": _ok("5902FF")})
-        await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False)
+        await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False, profile=active())
         data = json.loads(capsys.readouterr().out)
         # IGPM answers 1902FF too (shared request) -> to isolate, assert counts:
         assert data["clean"] + len(data["no_response"]) == 2
@@ -377,7 +386,7 @@ class TestScanAll:
         _patch_load_ecus(monkeypatch, lambda: {0x7A0: {"name": "BCM"}})
         # NO DATA on first read, a DTC once retried (after the wake).
         t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
-        await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=True)
+        await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=True, profile=active())
         data = json.loads(capsys.readouterr().out)
         assert data["no_response"] == []  # recovered on retry
         assert data["with_dtcs"] == 1
@@ -388,7 +397,7 @@ class TestScanAll:
         monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
         _patch_load_ecus(monkeypatch, lambda: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
-        await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False)
+        await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False, profile=active())
         data = json.loads(capsys.readouterr().out)
         assert data["no_response"] == ["BCM (0x7A0)"]
         assert "1001" not in t.sent  # no retry -> no wake

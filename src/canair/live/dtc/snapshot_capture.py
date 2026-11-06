@@ -14,6 +14,7 @@ from typing import Any
 
 from canair.captures.build import build_query_session
 from canair.captures.save import save_session_journaled
+from canair.profile import Profile
 
 SESSION_NOTE = (
     "DTC snapshot replies (19 04), stored under their request. Each time is when the reply "
@@ -43,6 +44,7 @@ def save_snapshot_captures(
     vehicle_states: list | None,
     notes: str | None,
     transport: str | None,
+    profile: Profile,
 ) -> Path | None:
     """Save the snapshot replies as one capture session; None when there were none."""
     rows = snapshot_rows(results)
@@ -56,10 +58,12 @@ def save_snapshot_captures(
         session_notes,
         transport=transport,
     )
-    return save_session_journaled(session)
+    return save_session_journaled(session, profile=profile)
 
 
-def report_saved(terminal, results, label, vehicle_states, notes, as_json: bool) -> None:
+def report_saved(
+    terminal, results, label, vehicle_states, notes, as_json: bool, *, profile: Profile
+) -> None:
     """Save the snapshot replies in ``results`` and say where they landed (on stderr)."""
     import sys
 
@@ -71,6 +75,7 @@ def report_saved(terminal, results, label, vehicle_states, notes, as_json: bool)
         vehicle_states=vehicle_states,
         notes=notes,
         transport=client_transport(terminal),
+        profile=profile,
     )
     if path is None:
         print("  --save: no snapshot replies to save.", file=sys.stderr)

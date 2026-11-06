@@ -44,6 +44,7 @@ from canair.captures.metadata import resolve_metadata
 from canair.captures.types import Quality
 from canair.ecus.pids import build_ecu_index
 from canair.expression.results import ResultEntry
+from canair.profile import Profile
 from canair.query.steps import (
     merged_selector_notes,
     normalize_query_steps,
@@ -164,6 +165,8 @@ async def mode_multi(
     notes: str | None = None,
     include_static: bool = False,
     as_json: bool = False,
+    *,
+    profile: Profile,
 ):
     """Execute a multi-ECU pipeline and optionally drop into REPL.
 
@@ -193,6 +196,7 @@ async def mode_multi(
             vehicle_states=vehicle_states,
             notes=notes,
             include_static=include_static,
+            profile=profile,
         )
     results: list[dict] = []
     with contextlib.redirect_stdout(sys.stderr):
@@ -208,6 +212,7 @@ async def mode_multi(
             notes=notes,
             include_static=include_static,
             json_results=results,
+            profile=profile,
         )
     print(json.dumps({"results": results}, indent=2))
 
@@ -224,6 +229,8 @@ async def _run_pipeline(
     notes: str | None = None,
     include_static: bool = False,
     json_results: list[dict] | None = None,
+    *,
+    profile: Profile,
 ):
     """Run the steps of :func:`mode_multi`; ``json_results`` collects the JSON entries."""
     commands = parse_sub_commands(sub_commands)
@@ -252,6 +259,7 @@ async def _run_pipeline(
             notes=notes,
             source="query",
             transport=client_transport(terminal),
+            profile=profile,
         )
 
     def _collect_query(ecu_label: str, pid_results: list[ResultEntry]) -> None:
@@ -289,7 +297,7 @@ async def _run_pipeline(
         from ...states.vocabulary import load_states
 
         try:
-            rules = load_states()
+            rules = load_states(profile=profile)
         except StatePredicateError:
             return None
         if not rules:
@@ -392,7 +400,13 @@ async def _run_pipeline(
             elif cmd_type == "scan":
                 print(f"\n{step} Scan {cmd['tx']} service {cmd['service']} range {cmd['range']}…")
                 await _exec_scan(
-                    sm, cmd["tx"], cmd["service"], cmd["range"], cmd["append"], verbose
+                    sm,
+                    cmd["tx"],
+                    cmd["service"],
+                    cmd["range"],
+                    cmd["append"],
+                    verbose,
+                    profile=profile,
                 )
 
             elif cmd_type == "sleep":

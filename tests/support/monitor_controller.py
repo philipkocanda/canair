@@ -2,6 +2,7 @@
 
 from canair.live.monitor.controller import MonitorController
 from canair.live.monitor.options import MonitorOptions
+from canair.profile import active
 
 
 def make_controller(
@@ -15,4 +16,4 @@ def make_controller(
     options.setdefault("interval", 5.0)
     options.setdefault("keep_mode", None)
     monitor = MonitorOptions(query_steps=query_steps, verbose=verbose, **options)
-    return MonitorController(terminal, monitor, pids_data, raw_client=raw_client)
+    return MonitorController(terminal, monitor, pids_data, raw_client=raw_client, profile=active())

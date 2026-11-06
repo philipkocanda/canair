@@ -1,5 +1,7 @@
 """A stand-in monitor controller for recorder tests."""
 
+from tests.support.profiles import bundled_profile
+
 
 class FakeController:
     """Minimal stand-in exposing only the surface the recorder reads.
@@ -12,6 +14,7 @@ class FakeController:
 
     def __init__(self, captures_dir, *, keep_mode=None, save=True):
         self.captures_dir = captures_dir
+        self.profile = bundled_profile()
         self.keep_mode = keep_mode
         self.save = save
         self.prev_hex: dict = {}

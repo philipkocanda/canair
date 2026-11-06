@@ -34,6 +34,7 @@ import sys
 
 from canair.cli.commands._edit import run_edit, subcommand_dispatch
 from canair.core.edit_errors import EditError
+from canair.profile import active
 from canair.render import ansi, messages
 
 NAME = "variants"
@@ -53,7 +54,6 @@ def _record(variant) -> dict:
 
 
 def cmd_list(args) -> int:
-    from canair.profile import active
     from canair.variants import describe
 
     prof = active()
@@ -88,7 +88,6 @@ def cmd_list(args) -> int:
 
 
 def cmd_show(args) -> int:
-    from canair.profile import active
     from canair.variants import normalize_variant_id
 
     prof = active()
@@ -183,7 +182,6 @@ def cmd_set_revisions(args) -> int:
 
 
 def cmd_rename(args) -> int:
-    from canair.profile import active
     from canair.yaml_edit.variant_refs import rename_everywhere
 
     written: list = []
@@ -200,7 +198,6 @@ def cmd_rename(args) -> int:
 
 
 def cmd_rm(args) -> int:
-    from canair.profile import active
     from canair.yaml_edit.variant_refs import remove_unreferenced
 
     return run_edit(lambda: remove_unreferenced(args.id, active()), f"removed variant {args.id}")

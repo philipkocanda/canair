@@ -36,6 +36,7 @@ from canair.captures.keepmode import CHANGES_BANNER, scope_is_keep_changes
 from canair.cli.args.join import add_join_args, fill_policy_from_args
 from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
+from canair.profile import active
 from canair.render import ansi, glyphs, messages
 
 NAME = "align"
@@ -90,7 +91,7 @@ def _load_one(spec: str, *, since, until, state, label, fill=None):
 
     sref = SignalRef.parse(spec)
     loaded = load_signal_captures(
-        [(sref.ecu, sref.pid)], since=since, until=until, state=state, label=label
+        [(sref.ecu, sref.pid)], since=since, until=until, state=state, label=label, profile=active()
     )
     lp = loaded[(sref.ecu.upper(), sref.pid.upper())]
     if not lp.captures:

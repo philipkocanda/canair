@@ -14,6 +14,7 @@ import pytest
 
 from canair.captures.save import save_session
 from canair.migrations.discover import Addressing, infer_tx, migrate_dir, repair_doc
+from canair.profile import active
 from canair.uds.addressing import DEFAULT_MODE
 
 # A +0x20 profile, as on the Nissan Leaf ZE1, with two registered ECUs.
@@ -139,7 +140,7 @@ class TestRepairDoc:
 
 class TestMigrateDir:
     def test_dry_run_writes_nothing_and_a_rerun_is_a_no_op(self, tmp_path):
-        save_session(_doc(LEGACY)["sessions"][0], tmp_path)
+        save_session(_doc(LEGACY)["sessions"][0], tmp_path, profile=active())
         (path,) = tmp_path.glob("*.json")
         original = path.read_text()
 
@@ -164,7 +165,7 @@ class TestMigrateDir:
             'car_model: "T"\ninit: "ATSP6;"\naddressing:\n  rx_offset: 0x20\n'
         )
         (root / "ecus" / "abs.yaml").write_text("ABS:\n  tx_id: 0x740\n")
-        save_session(_doc(LEGACY[1:4])["sessions"][0], root / "captures")
+        save_session(_doc(LEGACY[1:4])["sessions"][0], root / "captures", profile=active())
 
         parser = cap.add_parser(argparse.ArgumentParser().add_subparsers())
         args = parser.parse_args(["migrate-discover", "--dir", str(root / "captures")])

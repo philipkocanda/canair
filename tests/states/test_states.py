@@ -2,6 +2,7 @@
 
 import pytest
 
+from canair.profile import active
 from canair.states.implies import (
     implication_cycle,
     implied_closure,
@@ -353,8 +354,10 @@ class TestEcuStates:
             "pids": {"2101": {"vehicle_states": ["CHARGING"]}},
         }
         # ECU-level field takes precedence; PID states are ignored when it's set.
-        assert ecu_states(ecu) == ["READY", "ACC"] or set(ecu_states(ecu)) == {"READY", "ACC"}
-        assert "CHARGING" not in ecu_states(ecu)
+        assert ecu_states(ecu, profile=active()) == ["READY", "ACC"] or set(
+            ecu_states(ecu, profile=active())
+        ) == {"READY", "ACC"}
+        assert "CHARGING" not in ecu_states(ecu, profile=active())
 
     def test_pid_union_fallback(self):
         from canair.states.selectors import ecu_states
@@ -365,19 +368,19 @@ class TestEcuStates:
                 "2102": {"vehicle_states": ["READY", "CHARGING"]},
             }
         }
-        assert set(ecu_states(ecu)) == {"READY", "CHARGING"}
+        assert set(ecu_states(ecu, profile=active())) == {"READY", "CHARGING"}
 
     def test_empty_when_no_states(self):
         from canair.states.selectors import ecu_states
 
-        assert ecu_states({"pids": {"2101": {}}}) == []
-        assert ecu_states({}) == []
-        assert ecu_states(None) == []
+        assert ecu_states({"pids": {"2101": {}}}, profile=active()) == []
+        assert ecu_states({}, profile=active()) == []
+        assert ecu_states(None, profile=active()) == []
 
     def test_all_token_preserved(self):
         from canair.states.selectors import ecu_states
 
-        assert ecu_states({"vehicle_states": ["ALL"]}) == ["ALL"]
+        assert ecu_states({"vehicle_states": ["ALL"]}, profile=active()) == ["ALL"]
 
 
 class TestEcusInState:
@@ -396,7 +399,10 @@ class TestEcusInState:
     def test_ecu_level_match(self):
         from canair.states.selectors import ecus_in_state
 
-        names = {m["name"]: m["source"] for m in ecus_in_state("CHARGING", self._data())}
+        names = {
+            m["name"]: m["source"]
+            for m in ecus_in_state("CHARGING", self._data(), profile=active())
+        }
         # BMS declares it at the ECU level; IGPM matches via ALL.
         assert names["BMS"] == "ecu"
         assert names["IGPM"] == "all"
@@ -406,7 +412,9 @@ class TestEcusInState:
     def test_pid_union_match_and_source(self):
         from canair.states.selectors import ecus_in_state
 
-        matches = {m["name"]: m["source"] for m in ecus_in_state("READY", self._data())}
+        matches = {
+            m["name"]: m["source"] for m in ecus_in_state("READY", self._data(), profile=active())
+        }
         assert matches["CLU"] == "pids"
         assert matches["BMS"] == "ecu"
         assert matches["IGPM"] == "all"
@@ -414,13 +422,16 @@ class TestEcusInState:
     def test_case_insensitive(self):
         from canair.states.selectors import ecus_in_state
 
-        assert [m["name"] for m in ecus_in_state("charging", self._data())] == ["BMS", "IGPM"]
+        assert [m["name"] for m in ecus_in_state("charging", self._data(), profile=active())] == [
+            "BMS",
+            "IGPM",
+        ]
 
     def test_querying_all_does_not_double_fan_out(self):
         from canair.states.selectors import ecus_in_state
 
         # Querying ALL itself should return only ECUs that declare ALL, not every ECU.
-        assert [m["name"] for m in ecus_in_state("ALL", self._data())] == ["IGPM"]
+        assert [m["name"] for m in ecus_in_state("ALL", self._data(), profile=active())] == ["IGPM"]
 
     def test_matches_through_implied_broader_state(self):
         # An ECU readable whenever IG3 holds is readable in READY and in DRIVING
@@ -436,11 +447,11 @@ class TestEcusInState:
         ]
         data = {"ecus": {"BMS": {"tx_id": 0x7E4, "vehicle_states": ["IG3"]}}}
         for state in ("READY", "DRIVING"):
-            [m] = ecus_in_state(state, data, rules=rules)
+            [m] = ecus_in_state(state, data, rules=rules, profile=active())
             assert (m["name"], m["source"], m["via"]) == ("BMS", "ecu", "IG3")
-        [direct] = ecus_in_state("IG3", data, rules=rules)
+        [direct] = ecus_in_state("IG3", data, rules=rules, profile=active())
         assert direct["via"] is None
-        assert ecus_in_state("PARKED", data, rules=rules) == []
+        assert ecus_in_state("PARKED", data, rules=rules, profile=active()) == []
 
     def test_broader_tag_does_not_match_a_narrower_query_upward(self):
         # Readable in READY says nothing about IG3 alone (charging, top-up).
@@ -449,7 +460,7 @@ class TestEcusInState:
 
         rules = [StateRule("IG3"), StateRule("READY", implies=("IG3",))]
         data = {"ecus": {"CLU": {"tx_id": 0x7C6, "vehicle_states": ["READY"]}}}
-        assert ecus_in_state("IG3", data, rules=rules) == []
+        assert ecus_in_state("IG3", data, rules=rules, profile=active()) == []
 
 
 class TestKleeneLogic:

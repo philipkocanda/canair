@@ -20,6 +20,7 @@ from canair.analysis.cross_signal import (
 from canair.analysis.fill import FillPolicy
 from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.join import fill_summaries
+from canair.profile import active
 
 NAME = "correlate"
 
@@ -40,7 +41,9 @@ def _fill_json(policy: FillPolicy, fills) -> dict:
 
 def _scope_keep_flags(specs, since, until, state, label) -> tuple[bool, bool]:
     """(has keep:unique, has keep:changes) across the captures in scope."""
-    loaded = load_signal_captures(specs, since=since, until=until, state=state, label=label)
+    loaded = load_signal_captures(
+        specs, since=since, until=until, state=state, label=label, profile=active()
+    )
     has_unique = any(scope_is_keep_unique(lp.captures) for lp in loaded.values())
     has_changes = any(scope_is_keep_changes(lp.captures) for lp in loaded.values())
     return has_unique, has_changes
@@ -66,6 +69,7 @@ def _gather_series(
         state=state,
         label=label,
         one_revision="correlate" if want_bytes or want_bits else None,
+        profile=active(),
     )
     ecu_index = build_ecu_index(load_pids())
     series: dict = {}

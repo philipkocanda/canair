@@ -15,6 +15,7 @@ from rich.console import Console
 from textual.containers import VerticalScroll
 
 from canair.cli.commands.captures.step import cmd_step
+from canair.profile import active
 from canair.tui.apps.captures_step.model import (
     AUTO_STACK_MAX_KEYS,
     BLOCK_NO_FRAME,
@@ -442,6 +443,7 @@ def _write_captures(tmp_path) -> list[dict]:
             "",
         ),
         tmp_path,
+        profile=active(),
     )
     return load_all_captures(tmp_path)
 

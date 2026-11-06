@@ -18,6 +18,7 @@ from pathlib import Path
 
 from canair.captures.types import CaptureSession, Quality
 from canair.interop.frame_log import Extraction, extract_replies, stamp
+from canair.profile import active
 from canair.render import ansi, glyphs, messages
 from canair.render.paint import Painter
 
@@ -42,7 +43,6 @@ def check_args(args: argparse.Namespace) -> None:
 
 
 def run_from_log(args: argparse.Namespace) -> int:
-    from canair.profile import active
     from canair.variants.selection import require_named_car
 
     require_named_car(active(), "import uds")
@@ -125,7 +125,7 @@ def _import_log(args: argparse.Namespace) -> int:
             )
         # The saved-to banner is for people; --json promises machine-readable stdout.
         with contextlib.redirect_stdout(sys.stderr) if args.json else contextlib.nullcontext():
-            fpath = save_session(session, args.dir)
+            fpath = save_session(session, args.dir, profile=active())
     else:
         fpath = None
 
@@ -165,8 +165,6 @@ def _start_datetime(args: argparse.Namespace, first_ts: float) -> datetime:
 
 
 def _active_captures_dir() -> Path:
-    from canair.profile import active
-
     return active().captures_dir
 
 

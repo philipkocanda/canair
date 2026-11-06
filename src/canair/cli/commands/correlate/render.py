@@ -25,6 +25,7 @@ from canair.analysis.align import (
 from canair.analysis.cross_signal import build_bit_series, build_byte_series, build_param_series
 from canair.captures.dates import entry_datetime
 from canair.expression.notation import ByteNotation, relabel_signal
+from canair.profile import active
 from canair.render import ansi, messages
 
 
@@ -61,7 +62,9 @@ def _print_overlap(specs, since, until, state, label, tol, min_n, as_json) -> in
     "no timed captures for reference in scope" surprise before choosing an
     ``--against`` anchor. Overlap ``n`` is the nearest-join count within ``tol``.
     """
-    loaded = load_signal_captures(specs, since=since, until=until, state=state, label=label)
+    loaded = load_signal_captures(
+        specs, since=since, until=until, state=state, label=label, profile=active()
+    )
     stamps: dict[str, list] = {}
     for (ecu, pid), lp in loaded.items():
         ts = [TimePoint(dt, 0.0) for c in lp.captures if (dt := entry_datetime(c)) is not None]
@@ -158,6 +161,7 @@ def _print_cross_mirrors(specs, since, until, args, notation=ByteNotation.WICAN)
         state=args.state,
         label=args.label,
         one_revision="correlate",
+        profile=active(),
     )
     # Per-PID payload lengths: one mirror list mixes labels from several PIDs, so
     # each needs its own frame layout to render a correct non-WiCAN label.

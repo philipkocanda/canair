@@ -11,6 +11,7 @@ from canair.live.monitor import raw_run as raw_monitor
 from canair.live.monitor.options import MonitorOptions
 from canair.live.read import raw_ops
 from canair.live.session import SessionOptions
+from canair.profile import active
 from canair.transport.config import ConnectionOptions
 
 
@@ -43,6 +44,7 @@ def run_raw(transport, *, operation=None, monitor=None, session=None):
             session=session or SessionOptions(),
             operation=operation or _nothing,
             monitor=monitor,
+            profile=active(),
         )
     )
 

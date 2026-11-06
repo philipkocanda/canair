@@ -1,5 +1,6 @@
 """Run and print the checks of the profile's optional YAML files (everything but ecus/, captures/)."""
 
+from canair.profile import active
 from canair.render import messages
 from canair.validation.other import (
     check_actions,
@@ -76,7 +77,7 @@ def run_can_buses() -> int:
 
 
 def run_signals() -> int:
-    return print_signals_report(check_signals())
+    return print_signals_report(check_signals(profile=active()))
 
 
 def run_can() -> int:

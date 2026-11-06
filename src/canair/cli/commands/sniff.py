@@ -17,6 +17,7 @@ import contextlib
 import time
 
 from canair.analysis.sniff_stats import SniffStats
+from canair.profile import active
 from canair.render import messages
 from canair.render.console import console
 from canair.render.sniff import render_sniff_table
@@ -81,8 +82,6 @@ def _parse_filters(spec: str | None) -> list[dict] | None:
 def _profile_can_bitrate() -> int | None:
     """The active profile's ``can_bitrate`` (its bus speed), or None if unset."""
     try:
-        from canair.profile import active
-
         value = effective_meta(active()).get("can_bitrate")
         return int(value) if value is not None else None
     except Exception:

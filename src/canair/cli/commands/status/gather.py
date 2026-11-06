@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from canair.core.tcp import tcp_open
+from canair.profile import active
 
 from .probe import device_status, load_device_config
 
@@ -68,7 +69,6 @@ def gather(args) -> dict:
     # Active vehicle profile.
     try:
         from canair.ecus.pids import revision_resolutions
-        from canair.profile import active
         from canair.variants import load_variants
 
         prof = active()

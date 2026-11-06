@@ -23,6 +23,7 @@ from canair.cli.commands import validate as validate_cmd
 from canair.core.paths import BUNDLED_PROFILES_DIR
 from canair.ecus.pids import clear_cache
 from canair.expression.decoding import decodes_to_number
+from canair.profile import active
 from canair.states.predicates import StatePredicateError, predicate_references
 from canair.states.refs import (
     IGNORED_PID,
@@ -262,22 +263,22 @@ class TestStatesReferencing:
 
     def test_finds_the_state_reading_a_signal(self, tmp_path):
         _mk_profile(tmp_path, GOOD_STATES)
-        assert states_referencing("VCU", "GEAR_P") == ["PARKED"]
+        assert states_referencing("VCU", "GEAR_P", profile=active()) == ["PARKED"]
 
     def test_case_insensitive(self, tmp_path):
         _mk_profile(tmp_path, GOOD_STATES)
-        assert states_referencing("vcu", "gear_p") == ["PARKED"]
+        assert states_referencing("vcu", "gear_p", profile=active()) == ["PARKED"]
 
     def test_unreferenced_signal(self, tmp_path):
         _mk_profile(tmp_path, GOOD_STATES)
-        assert states_referencing("VCU", "SOMETHING_ELSE") == []
+        assert states_referencing("VCU", "SOMETHING_ELSE", profile=active()) == []
 
     def test_no_vocabulary_is_not_an_error(self, tmp_path):
         root = tmp_path / "bare"
         (root / "ecus").mkdir(parents=True)
         (root / "profile.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
         profile.set_active(str(root))
-        assert states_referencing("VCU", "GEAR_P") == []
+        assert states_referencing("VCU", "GEAR_P", profile=active()) == []
 
 
 class TestPidsEditWarnsAboutPredicates:

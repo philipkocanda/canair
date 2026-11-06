@@ -8,6 +8,7 @@ read-only.
 from __future__ import annotations
 
 from canair.core.prompt import confirm
+from canair.profile import active
 from canair.render import messages
 from canair.states.tokens import parse_states
 from canair.transport.protocol import Terminal
@@ -37,6 +38,7 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
             pids_data=pids_data,
             save=getattr(args, "save", False),
             notes=getattr(args, "notes", None),
+            profile=active(),
         )
         return
 
@@ -100,4 +102,5 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
             pids_data=pids_data,
             save=getattr(args, "save", False),
             notes=getattr(args, "notes", None),
+            profile=active(),
         )

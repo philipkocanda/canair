@@ -333,9 +333,7 @@ class MonitorRecorder:
 
         captures_dir = self.c.captures_dir
         if captures_dir is None:
-            from ...profile import active
-
-            captures_dir = active().captures_dir
+            captures_dir = self.c.profile.captures_dir
 
         n_pids = len(new_merged)
         n_payloads = sum(len(v) for v in new_merged.values())
@@ -351,6 +349,7 @@ class MonitorRecorder:
                 keep_mode=self.c.keep_mode,
                 transport=getattr(self.c, "transport_type", None),
                 quality=self.segment_quality(),
+                profile=self.c.profile,
             )
         self._defer_save_output(buf)
         for key, entries in merged.items():

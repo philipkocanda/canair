@@ -215,7 +215,7 @@ class TestBooleanWordStates:
         from canair.cli.commands.validate.files import run_states
 
         prof.states_file.write_text(_STATES.replace("implies: [ACC2]", "implies: [ON]"))
-        monkeypatch.setattr("canair.profile.active", lambda: prof)
+        monkeypatch.setattr("canair.profile._active", prof)
         assert run_states() == 1
         assert "YAML reads an unquoted ON" in capsys.readouterr().err
 

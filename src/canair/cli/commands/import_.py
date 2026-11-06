@@ -23,6 +23,7 @@ from pathlib import Path
 
 from canair.cli.commands.import_uds import add_uds_parser
 from canair.cli.commands.import_uds import run as _run_uds
+from canair.profile import active
 from canair.render import messages
 from canair.yaml_edit.echo import echo_edit
 
@@ -116,7 +117,6 @@ def _run_can(args) -> int:
     import json
 
     from canair.captures import can_logs
-    from canair.profile import active
     from canair.variants.selection import require_named_car
 
     states = [s.strip() for s in (args.state or "").split(",") if s.strip()] or None
@@ -344,7 +344,6 @@ def _run_dbc(args) -> int:
         print("Re-run without --dry-run to write.")
         return 0
 
-    from canair.profile import active
     from canair.yaml_edit.signals import SignalsEditError, merge_bus
 
     try:

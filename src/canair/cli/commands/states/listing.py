@@ -6,6 +6,7 @@ import json
 import sys
 from typing import TypedDict
 
+from canair.profile import active
 from canair.render import ansi, messages
 from canair.states.predicates import StatePredicateError
 from canair.states.refs import check_references_on_every_car
@@ -84,8 +85,6 @@ def _load_broken_refs(rules, profile) -> dict[str, list[dict[str, str]]]:
 
 
 def cmd_list(args) -> int:
-    from canair.profile import active
-
     if getattr(args, "state", None):
         return cmd_show_state(args)
 

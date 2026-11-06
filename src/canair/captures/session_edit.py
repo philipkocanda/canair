@@ -11,6 +11,7 @@ from canair.captures.types import (
     StateSpans,
     StateSpanSource,
 )
+from canair.profile import Profile
 from canair.states.spans import StateSpan
 from canair.states.tokens import parse_states as _parse_states
 
@@ -161,10 +162,7 @@ def set_session_state_spans(
 
 
 def annotate_session_spans(
-    fpath: Path,
-    session_idx: int = -1,
-    *,
-    cycle_tol: float | None = None,
+    fpath: Path, session_idx: int = -1, *, cycle_tol: float | None = None, profile: Profile
 ) -> list[StateSpan] | None:
     """Derive and store the ``state_spans`` timeline for a just-saved session.
 
@@ -196,7 +194,7 @@ def annotate_session_spans(
         if len(recorded) <= 1:
             return None  # nothing temporal to disambiguate
 
-        rules = load_states()
+        rules = load_states(profile=profile)
         if not any(r.predicate is not None for r in rules):
             return None
         entries = flatten_session(fpath, idx, session)
@@ -206,6 +204,7 @@ def annotate_session_spans(
             rules,
             build_ecu_index(load_pids()),
             cycle_tol=cycle_tol if cycle_tol is not None else DEFAULT_CYCLE_TOL_S,
+            profile=profile,
         )
         if not result.is_timeline:
             return None

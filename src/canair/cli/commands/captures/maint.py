@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 from canair.captures.io import resolve_captures_dir
+from canair.profile import active
 from canair.render import ansi, glyphs, messages
 
 
@@ -37,7 +38,7 @@ def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:
     recovered = 0
     for path in orphans:
         try:
-            written = _recover(path, discard=discard)
+            written = _recover(path, discard=discard, profile=active())
         except Exception as ex:  # keep going; report the failure
             messages.error(f"{path.name}: {ex}")
             continue

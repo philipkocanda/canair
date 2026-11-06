@@ -8,6 +8,7 @@ from canair.cli.commands._edit import add_edit_args, run_edit
 from canair.core.edit_errors import EditError, translate
 from canair.ecus.pid_status import PID_STATUSES
 from canair.ecus.pids import INHERITED_PARAM_FIELDS
+from canair.profile import active
 from canair.render import ansi
 from canair.uds.support_map import MapDecl, SupportMapError
 from canair.yaml_edit.echo import echo_edit
@@ -282,7 +283,6 @@ def cmd_set_sensitive(args: argparse.Namespace) -> int:
     if value:
         from canair.captures.sensitive_purge import purge_dir
         from canair.privacy.sensitive import profile_set
-        from canair.profile import active
 
         found = sum(
             r.removed for r in purge_dir(active().captures_dir, profile_set(), dry_run=True)

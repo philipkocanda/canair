@@ -15,6 +15,7 @@ from canair.ecus.pids import clear_cache
 from canair.live.discover import physical as disc
 from canair.live.read.raw import mode_raw
 from canair.live.scan.range import mode_scan
+from canair.profile import active
 from tests.support.fakes import FakeTerminal, ok
 
 PROFILE_YAML = 'car_model: "T"\ninit: "ATSP6;"\n'
@@ -48,7 +49,13 @@ class _OneAnswer(FakeTerminal):
 @pytest.mark.asyncio
 async def test_discover_json_stdout_is_only_the_document(prof, capsys):
     await disc.mode_discover(
-        _OneAnswer(), (0x7E4, 0x7E5), verbose=False, as_json=True, delay=0.0, identify=False
+        _OneAnswer(),
+        (0x7E4, 0x7E5),
+        verbose=False,
+        as_json=True,
+        delay=0.0,
+        identify=False,
+        profile=active(),
     )
     captured = capsys.readouterr()
     doc = json.loads(captured.out)
@@ -60,7 +67,13 @@ async def test_discover_json_stdout_is_only_the_document(prof, capsys):
 @pytest.mark.asyncio
 async def test_discover_json_register_report_is_not_on_stdout(prof, capsys):
     await disc.mode_discover(
-        _OneAnswer(), (0x7E4, 0x7E5), verbose=False, as_json=True, delay=0.0, register=True
+        _OneAnswer(),
+        (0x7E4, 0x7E5),
+        verbose=False,
+        as_json=True,
+        delay=0.0,
+        register=True,
+        profile=active(),
     )
     captured = capsys.readouterr()
     json.loads(captured.out)
@@ -70,7 +83,9 @@ async def test_discover_json_register_report_is_not_on_stdout(prof, capsys):
 @pytest.mark.asyncio
 async def test_discover_without_json_reports_on_stdout(prof, capsys, monkeypatch):
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)
-    await disc.mode_discover(_OneAnswer(), (0x7E4, 0x7E5), verbose=False, as_json=False, delay=0.0)
+    await disc.mode_discover(
+        _OneAnswer(), (0x7E4, 0x7E5), verbose=False, as_json=False, delay=0.0, profile=active()
+    )
     captured = capsys.readouterr()
     assert "Cross-reference" in captured.out
 
@@ -78,7 +93,9 @@ async def test_discover_without_json_reports_on_stdout(prof, capsys, monkeypatch
 @pytest.mark.asyncio
 async def test_scan_range_json_stdout_is_only_the_document(prof, capsys):
     term = FakeTerminal({"220100": ok("620100AA")})
-    await mode_scan(term, 0x7E4, 0x22, (0x0100, 0x0100), False, True, save=True, label="scan")
+    await mode_scan(
+        term, 0x7E4, 0x22, (0x0100, 0x0100), False, True, save=True, label="scan", profile=active()
+    )
     captured = capsys.readouterr()
     doc = json.loads(captured.out)
     assert doc["positive"][0]["did"] == "0x0100"
@@ -89,7 +106,7 @@ async def test_scan_range_json_stdout_is_only_the_document(prof, capsys):
 @pytest.mark.asyncio
 async def test_raw_json_keeps_the_request_banner_off_stdout(prof, capsys):
     term = FakeTerminal({"2101": ok("6101AA")})
-    await mode_raw(term, "7E4:2101", False, True)
+    await mode_raw(term, "7E4:2101", False, True, profile=active())
     captured = capsys.readouterr()
     assert json.loads(captured.out)["hex"] == "6101AA"
     assert "Request: 2101" in captured.err
@@ -98,7 +115,7 @@ async def test_raw_json_keeps_the_request_banner_off_stdout(prof, capsys):
 @pytest.mark.asyncio
 async def test_raw_save_banner_is_on_stderr(prof, capsys):
     term = FakeTerminal({"2101": ok("6101AA")})
-    await mode_raw(term, "7E4:2101", False, True, save=True, label="raw")
+    await mode_raw(term, "7E4:2101", False, True, save=True, label="raw", profile=active())
     captured = capsys.readouterr()
     json.loads(captured.out)
     assert "Saved 1 capture(s)" in captured.err

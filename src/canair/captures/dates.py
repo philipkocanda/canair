@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from canair.captures.store import load_all_captures
+from canair.profile import Profile
 from canair.render import messages
 
 # NOTE on the scope filters below: they are deliberately shape-agnostic. Each
@@ -223,6 +224,8 @@ def filter_by_text[Row: Mapping[str, Any]](
     entries: list[Row],
     state: str | Sequence[str] | None = None,
     label: str | None = None,
+    *,
+    profile: Profile,
 ) -> list[Row]:
     """Keep entries whose ``vehicle_states``/``label`` match the selector.
 
@@ -242,7 +245,7 @@ def filter_by_text[Row: Mapping[str, Any]](
 
     if not state and not label:
         return entries
-    matches_state = state_matcher(state) if state else None
+    matches_state = state_matcher(state, profile=profile) if state else None
     l_needle = label.lower() if label else None
     out = []
     for e in entries:
@@ -291,6 +294,8 @@ def _session_starts(
     state: str | Sequence[str] | None,
     label: str | None,
     captures_dir: Path | None = None,
+    *,
+    profile: Profile,
 ) -> list[datetime]:
     """Start instant of each recorded session in scope, chronological.
 
@@ -301,7 +306,7 @@ def _session_starts(
     """
     entries = load_all_captures(captures_dir)
     entries = filter_by_date_range(entries, since, until)
-    entries = filter_by_text(entries, state=state, label=label)
+    entries = filter_by_text(entries, state=state, label=label, profile=profile)
 
     # Keyed by full path: a layered profile's base and overlay share date file
     # names, and a bare name would fold their sessions together.
@@ -320,7 +325,7 @@ def _session_starts(
 
 
 def resolve_scope_bounds(
-    scope: Scope, captures_dir: Path | None = None
+    scope: Scope, captures_dir: Path | None = None, *, profile: Profile
 ) -> tuple[date | datetime | None, date | datetime | None, str | None]:
     """Resolve the full scope surface into ``(since, until, error)``.
 
@@ -346,16 +351,16 @@ def resolve_scope_bounds(
         from canair.states.selectors import unknown_state_tokens
         from canair.states.vocabulary import allowed_states
 
-        unknown = unknown_state_tokens(state)
+        unknown = unknown_state_tokens(state, profile=profile)
         if unknown:
             messages.note(
                 f"--state {', '.join(unknown)} not in this profile's state "
-                f"vocabulary ({', '.join(sorted(allowed_states()))}) — nothing can match."
+                f"vocabulary ({', '.join(sorted(allowed_states(profile=profile)))}) — nothing can match."
             )
     n = scope.last_sessions
     if n:
         label = scope.label
-        starts = _session_starts(since, until, state, label, captures_dir)
+        starts = _session_starts(since, until, state, label, captures_dir, profile=profile)
         if starts:
             since = starts[-n] if n <= len(starts) else starts[0]
     return since, until, None

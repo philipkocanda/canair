@@ -23,6 +23,7 @@ import sys
 from canair.analysis.align import LoadedPid, load_signal_captures
 from canair.cli.args.notation import resolve_notation
 from canair.expression.notation import ByteNotation
+from canair.profile import active
 from canair.render import ansi, messages
 from canair.uds.byteindex import mapped_offsets
 from canair.uds.layout import subfunction_bytes_for_pid
@@ -59,6 +60,7 @@ def run_sweep(specs: list[tuple[str, str]], args, since, until, fill) -> int:
         state=args.state,
         label=args.label,
         one_revision="investigate",
+        profile=active(),
     )
 
     def params_of(ecu: str, pid: str) -> dict:
@@ -168,14 +170,13 @@ def _pid_summary(lp: LoadedPid, params_def: dict, args, fill) -> dict | None:
     from canair.analysis.physical.bands import resolve_physical_bands
     from canair.cli.commands.investigate.report import _state_f
     from canair.cli.grid_prompt import resolve_grid_region
-    from canair.profile import active
 
     target = build_byte_series(lp, min_distinct=2, fill=fill)
     if not target:
         return None
     mapped = mapped_offsets(params_def)
     all_results = [{"capture": c} for c in lp.captures]
-    buckets = byte_state_buckets(all_results, "state")
+    buckets = byte_state_buckets(all_results, "state", profile=active())
 
     n_varying = len(target)
     n_unmapped = 0

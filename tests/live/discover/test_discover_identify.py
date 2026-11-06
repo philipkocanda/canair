@@ -13,6 +13,7 @@ import pytest
 from canair import profile
 from canair.ecus.pids import clear_cache
 from canair.live.discover import physical as disc
+from canair.profile import active
 from tests.support.fakes import FakeTerminal as _SharedFakeTerminal
 
 
@@ -144,7 +145,9 @@ class TestDiscoverCrossReference:
         term = SweepTerminal()
         # Non-tty stdin so the offer is skipped in this integration check.
         monkeypatch.setattr(disc.sys, "stdin", _FakeStdin(tty=False))
-        await disc.mode_discover(term, (0x7E4, 0x7E5), verbose=False, as_json=False, delay=0.0)
+        await disc.mode_discover(
+            term, (0x7E4, 0x7E5), verbose=False, as_json=False, delay=0.0, profile=active()
+        )
         out = capsys.readouterr().out
         assert "Cross-reference:" in out
         assert re.search(r"0x7E4\s+RX 0x7EC\s+BMS\s+positive", out)

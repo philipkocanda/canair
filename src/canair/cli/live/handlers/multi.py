@@ -13,6 +13,7 @@ from canair.live.monitor.options import MonitorOptions
 from canair.live.monitor.run import mode_monitor
 from canair.live.monitor.schedule import DEFAULT_SCHEDULE
 from canair.live.read.multi import mode_multi
+from canair.profile import active
 from canair.transport.protocol import Terminal
 
 
@@ -55,7 +56,7 @@ def monitor_operation(options: MonitorOptions) -> LiveOperation:
     """The ``monitor`` operation for ``options``: polled over a terminal, or the raw client."""
 
     async def handle_monitor(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-        await mode_monitor(terminal, options, pids_data, reconnect=reconnect)
+        await mode_monitor(terminal, options, pids_data, reconnect=reconnect, profile=active())
 
     return LiveOperation(handle_monitor, monitor=options, records=True)
 
@@ -73,4 +74,5 @@ async def handle_multi(args, terminal: Terminal, pids_data, host, *, reconnect=N
         notes=args.notes,
         include_static=getattr(args, "include_static", False),
         as_json=getattr(args, "json", False),
+        profile=active(),
     )

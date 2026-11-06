@@ -149,7 +149,7 @@ class MonitorStateSuggester:
 
         if self._state_rules is None:
             try:
-                self._state_rules = load_states()
+                self._state_rules = load_states(self.c.profile)
             except StatePredicateError:
                 self._state_rules = []
         if not self._state_rules:
@@ -162,6 +162,6 @@ class MonitorStateSuggester:
         from ...states.vocabulary import state_options
 
         try:
-            return state_options()
+            return state_options(self.c.profile)
         except Exception:
             return []
