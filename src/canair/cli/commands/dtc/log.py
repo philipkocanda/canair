@@ -23,7 +23,7 @@ from canair.dtc.log import (
     render_scan,
     scope_label,
 )
-from canair.dtc.refs import ecu_ref
+from canair.dtc.refs import EcuRefs, ecu_ref
 from canair.ecus.names import resolve_tx
 from canair.profile.model import ProfileError
 from canair.render import ansi, messages
@@ -117,6 +117,7 @@ def run(args) -> int:
     for line in render_scan(entry, previous, since, profile=active()):
         print(line)
     _print_footer(stats)
+    messages.hint(_clear_hint(args.dtc, stats))
     return 0
 
 
@@ -127,7 +128,14 @@ def _print_footer(stats) -> None:
     print(f"  {ansi.DIM}{stats.scans} scan(s) logged in {stats.path}{others}{ansi.RESET}\n")
 
 
-def log_hint() -> str | None:
+def _clear_hint(ecu: str | None, stats) -> str:
+    """How to clear DTCs, naming ``ecu`` or else the first ECU with open codes."""
+    if not ecu and stats.open:
+        ecu = EcuRefs.current(profile=active()).name(stats.open[0].rx)
+    return f"clear DTCs with `canair dtc {ecu or 'ECU'} --clear` (asks to confirm)"
+
+
+def log_summary() -> str | None:
     """One line saying what the DTC log holds, for a bare ``canair dtc``; None when empty."""
 
     try:
@@ -137,18 +145,17 @@ def log_hint() -> str | None:
     if not stats.scans and not stats.other_cars:
         return None
     if stats.unnamed:
-        return (
-            f"DTC log: {stats.other_cars} scan(s) logged, but no car is selected "
-            "(--variant ID) — `canair dtc log`."
-        )
-    return f"DTC log: {describe_stats(stats)} — `canair dtc log` (offline)."
+        return f"DTC log: {stats.other_cars} scan(s) logged, but no car is selected (--variant ID)."
+    return f"DTC log: {describe_stats(stats)}"
 
 
 def describe_stats(stats) -> str:
     """``9 DTC(s) seen in 3 scan(s), 9 open on 3 ECU(s), last scan …`` (open in red)."""
     text = f"{stats.seen} DTC(s) seen in {stats.scans} scan(s)"
     if stats.open_codes:
-        text += ", " + ansi.c(f"{stats.open_codes} open on {len(stats.open)} ECU(s)", ansi.RED)
+        text += ", " + ansi.cerr(
+            f"{stats.open_codes} open on {len(stats.open)} ECU(s)", ansi.raw.RED
+        )
     elif stats.scans:
         text += ", none open"
     if stats.last_scan:

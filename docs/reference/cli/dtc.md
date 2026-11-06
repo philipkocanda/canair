@@ -6,7 +6,7 @@
 usage: canair dtc [-h] <kind> ...
 
 [UDS] Read, clear or review Diagnostic Trouble Codes. Choose a kind:
-  read  read stored DTCs (UDS 0x19 / KWP2000 0x18) or clear them (0x14)
+  read  read stored DTCs (UDS 0x19 / KWP2000 0x18), or clear them with --clear (0x14)
   log   show the last logged scan, offline (no device)
 
 A bare `canair dtc BMS` (or `canair dtc --all`, or `canair dtc` alone) is shorthand for `canair dtc read …`.
@@ -22,6 +22,7 @@ options:
 examples:
   canair dtc BMS                       Read all stored DTCs (bare = read)
   canair dtc --all                     Scan every ECU (logs + shows changes since last scan)
+  canair dtc BMS --clear               Clear all DTCs on one ECU (asks to confirm)
   canair dtc log                       Show the last logged full-sweep scan (offline)
   canair dtc log BMS                   Show the last logged scan for one ECU (offline)
 

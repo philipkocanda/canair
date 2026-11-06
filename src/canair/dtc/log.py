@@ -318,6 +318,15 @@ def diff_scans(
     }
 
 
+def _styled_label(refs: EcuRefs, rx: str, *, heading: bool = False) -> str:
+    """``AMP (0x783)`` with the name in cyan (bold for a heading) and the address dim."""
+    label, name = refs.label(rx), refs.name(rx)
+    if not name or not label.startswith(name):
+        return label
+    style = f"{ansi.BOLD}{ansi.CYAN}" if heading else ansi.CYAN
+    return f"{style}{name}{ansi.RESET}{ansi.DIM}{label[len(name) :]}{ansi.RESET}"
+
+
 def format_diff(
     diff: dict, previous: Mapping, refs: EcuRefs | None = None, *, profile: Profile
 ) -> list[str]:
@@ -325,7 +334,7 @@ def format_diff(
     resolved = refs or EcuRefs.current(profile=profile)
 
     def pairs(items) -> str:
-        return ", ".join(f"{resolved.label(rx)} {code}" for rx, code in items)
+        return ", ".join(f"{_styled_label(resolved, rx)} {code}" for rx, code in items)
 
     lines = [f"  Compared to last scan ({previous.get('timestamp', '?')}):"]
     cleared, new = diff["cleared"], diff["new"]
@@ -369,7 +378,8 @@ def _erased_snapshot_lines(
             continue
         rx = str(clear.get("rx", "?"))
         lines.append(
-            f"  Snapshots erased by the clear of {refs.label(rx)} at {clear.get('timestamp', '?')}:"
+            f"  Snapshots erased by the clear of {_styled_label(refs, rx)} "
+            f"at {clear.get('timestamp', '?')}:"
         )
         for code, records in erased.items():
             lines.append(f"    {code}")
@@ -392,36 +402,39 @@ def render_scan(
     change since it (``clears`` are the ``--clear`` runs in between). This is what
     ``canair dtc log`` prints."""
     refs = EcuRefs.current(profile=profile)
-    lines = [f"\n  DTC log: {scope_label(str(entry.get('scope', '?')), refs, profile=profile)}"]
-    lines.append(f"  Scanned:     {entry.get('timestamp', '?')}")
+    scope = str(entry.get("scope", "?"))
+    shown = scope if scope == ALL_SCOPE else _styled_label(refs, scope, heading=True)
+    lines = [f"\n  {ansi.BOLD}DTC log:{ansi.RESET} {shown}"]
+    fields = [("Scanned:", str(entry.get("timestamp", "?")))]
     car = describe_car(entry)
     if car:
-        lines.append(f"  Car:         {car}")
+        fields.append(("Car:", car))
     if entry.get("label"):
-        lines.append(f"  Label:       {entry['label']}")
+        fields.append(("Label:", str(entry["label"])))
     if entry.get("vehicle_states"):
-        lines.append(f"  State:       {', '.join(entry['vehicle_states'])}")
+        fields.append(("State:", ", ".join(entry["vehicle_states"])))
     if entry.get("notes"):
-        lines.append(f"  Notes:       {entry['notes']}")
+        fields.append(("Notes:", str(entry["notes"])))
+    lines.extend(f"  {ansi.DIM}{key:<12}{ansi.RESET} {value}" for key, value in fields)
     lines.append("")
 
     ecus = entry.get("ecus") or {}
     total = sum(len((info or {}).get("dtcs") or []) for info in ecus.values())
     if not total:
-        lines.append(f"  {ansi.GREEN}No DTCs stored in this scan.{ansi.RESET}")
+        lines.append(f"  {ansi.GREEN}✓ No DTCs stored in this scan.{ansi.RESET}")
     else:
         for rx in sorted(ecus, key=refs.label):
             codes = (ecus[rx] or {}).get("dtcs") or []
             if not codes:
                 continue
-            lines.append(f"  {refs.label(rx)} — {len(codes)} DTC(s):")
+            lines.append(f"  {_styled_label(refs, rx, heading=True)} — {len(codes)} DTC(s):")
             code_w = max(len(c) for c in codes)
             name = refs.name(rx)
             snapshots = (ecus[rx] or {}).get("snapshots") or {}
             before = ((previous or {}).get("ecus") or {}).get(rx) or {}
             for code in codes:
                 meaning = describe_dtc(code, ecu=name, profile=profile).get("meaning") or ""
-                lines.append(f"    {code:<{code_w}}  {meaning}".rstrip())
+                lines.append(f"    {ansi.RED}{code:<{code_w}}{ansi.RESET}  {meaning}".rstrip())
                 lines.extend(
                     logged_lines(
                         name,

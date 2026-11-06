@@ -22,7 +22,7 @@ from canair.cli.args.group import group_help
 from canair.cli.args.session import add_wake_arg
 from canair.cli.commands._hints import ecu_hint
 from canair.cli.commands.dtc.log import add_parser as _add_log_parser
-from canair.cli.commands.dtc.log import log_hint
+from canair.cli.commands.dtc.log import log_summary
 from canair.cli.commands.dtc.log import run as run_log
 from canair.cli.live import LiveOperation, add_connection_args, ecu_completer, run_live
 from canair.cli.live.handlers import diagnostics
@@ -41,7 +41,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="Read or clear DTCs (ReadDTCInformation 0x19 / ClearDiagnosticInformation 0x14), "
         "or review the DTC log: read | log",
         description="Read, clear or review Diagnostic Trouble Codes. Choose a kind:\n"
-        "  read  read stored DTCs (UDS 0x19 / KWP2000 0x18) or clear them (0x14)\n"
+        "  read  read stored DTCs (UDS 0x19 / KWP2000 0x18), or clear them with --clear (0x14)\n"
         "  log   show the last logged scan, offline (no device)\n\n"
         "A bare `canair dtc BMS` (or `canair dtc --all`, or `canair dtc` alone) is "
         "shorthand for `canair dtc read …`.",
@@ -50,6 +50,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 examples:
   canair dtc BMS                       Read all stored DTCs (bare = read)
   canair dtc --all                     Scan every ECU (logs + shows changes since last scan)
+  canair dtc BMS --clear               Clear all DTCs on one ECU (asks to confirm)
   canair dtc log                       Show the last logged full-sweep scan (offline)
   canair dtc log BMS                   Show the last logged scan for one ECU (offline)
 
@@ -208,8 +209,9 @@ def run(args) -> int:
     if not args.dtc and not getattr(args, "dtc_all", False):
         messages.error("specify an ECU (e.g. `canair dtc BMS`) or `canair dtc --all`")
         print(ecu_hint(), file=sys.stderr)
-        hint = log_hint()
-        if hint:
-            print(f"\n{hint}", file=sys.stderr)
+        summary = log_summary()
+        if summary:
+            print(f"\n{summary}", file=sys.stderr)
+            messages.hint("view the historic DTC log with `canair dtc log` (offline)")
         return 2
     return run_live(args, _OPERATION)

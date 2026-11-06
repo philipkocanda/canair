@@ -389,7 +389,8 @@ class TestCommands:
         assert captured.out == ""
         assert captured.err.startswith("error: specify an ECU")
         assert "DTC log: 2 DTC(s) seen in 1 scan(s)" in captured.err
-        assert "2 open on 1 ECU(s)" in captured.err and "`canair dtc log`" in captured.err
+        assert "2 open on 1 ECU(s)" in captured.err
+        assert "hint: view the historic DTC log with `canair dtc log` (offline)" in captured.err
 
     def test_bare_dtc_without_a_log_says_nothing_about_it(self, logp, capsys):
         from canair.cli.commands import dtc as dtc_cmd
@@ -406,6 +407,14 @@ class TestCommands:
         captured = capsys.readouterr()
         assert "DTC log: all" in captured.out
         assert "canair dtc log" in captured.err
+
+    def test_log_view_hints_at_clearing(self, logp, refs, capsys):
+        from canair.cli.commands.dtc import log as log_cmd
+
+        _write(logp, _scan("all", {BMS: _codes("B1")}))
+        assert log_cmd.run(argparse.Namespace(dtc=None, json=False)) == 0
+        err = capsys.readouterr().err
+        assert "hint: clear DTCs with `canair dtc BMS --clear` (asks to confirm)" in err
 
     def test_log_json(self, logp, refs, capsys):
         from canair.cli.commands.dtc import log as log_cmd
