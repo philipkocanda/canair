@@ -12,8 +12,10 @@ name/alias canonicalisation only, and its absence is tolerated.
 import re
 import shlex
 
+from canair.ecus.names import build_canonical_name_index, canonical_ecu_name_safe
+from canair.ecus.pids import ecu_index_key
 from canair.profile.model import Profile
-from canair.query import looks_like_pid
+from canair.query import looks_like_pid, parse_query
 
 _RAW_SPEC = re.compile(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$")
 
@@ -44,7 +46,6 @@ def resolve_tx_id(name_or_hex: str, ecu_index: dict, *, profile: Profile) -> int
     Accepts: 'IGPM', 'igpm', '770', '0x770', '7A0', and ECU-registry aliases
     ('LDC' -> OBC, 'ABS' -> ESC).
     """
-    from canair.ecus.pids import ecu_index_key
 
     key = ecu_index_key(name_or_hex, ecu_index, profile=profile)
     if key is not None:
@@ -78,7 +79,6 @@ def query_selectors(tokens: list[str]) -> list[tuple[str, list[str]]]:
     (``query 0x770``) is exempt — it's an unambiguous, deliberate hex TX-id
     selector, not a PID stranded from its ECU.
     """
-    from canair.query import parse_query
 
     query = parse_query(tokens)
     prev_ecu: str | None = None
@@ -128,7 +128,6 @@ def selector_text(step: dict) -> str:
 
 def _canonical_name_index(profile: Profile) -> dict[str, str] | None:
     """The ECU name/alias index, or ``None`` when no registry is available."""
-    from canair.ecus.names import build_canonical_name_index
 
     try:
         return build_canonical_name_index(profile=profile)
@@ -153,7 +152,6 @@ def _merge_query_run(
     (``BMS:2101`` + ``BMS:2105``) is normal and stays silent, and an unmerged step
     is returned byte-identical (no extra key).
     """
-    from canair.ecus.names import canonical_ecu_name_safe
 
     merged: dict[str, dict] = {}
     sources: dict[str, list[str]] = {}
