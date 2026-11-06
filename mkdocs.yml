@@ -167,6 +167,11 @@ nav:
   - Development:
       - Overview: development/index.md
       - Architecture: development/architecture.md
+      - Response frame counts: development/frame-counts.md
+      - "Link health: fallback, reconnect, desync": development/link-health.md
+      - Variants and ECU revisions: development/variants-and-revisions.md
+      - Layered profiles and write targets: development/layered-profiles.md
+      - The contribute pipeline: development/contribute-pipeline.md
       - Commit messages: development/commit-messages.md
       - Documentation screenshots: development/screenshots.md
       - Offline testing (emulator): development/offline-testing.md

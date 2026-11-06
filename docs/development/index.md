@@ -103,6 +103,12 @@ screenshots are **generated**, not hand-made — see
 
 - [Architecture](architecture.md) — the layers, where new code goes, and the checks that keep
   the structure.
+- Designs that span several packages, each with the rules a change must keep:
+  [response frame counts](frame-counts.md),
+  [link health](link-health.md) (fallback, reconnect, desync recovery),
+  [variants and ECU revisions](variants-and-revisions.md),
+  [layered profiles and write targets](layered-profiles.md) and
+  [the contribute pipeline](contribute-pipeline.md).
 - [Commit messages](commit-messages.md) — the Conventional Commits format that
   drives the version bump and the changelog.
 - [Documentation screenshots](screenshots.md) — how the docs' SVG/GIF assets are
