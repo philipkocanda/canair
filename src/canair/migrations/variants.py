@@ -15,6 +15,7 @@ from datetime import date
 from pathlib import Path
 
 from canair.captures import io as capture_io
+from canair.captures.session_edit import set_session_field
 
 
 @dataclass
@@ -53,7 +54,6 @@ def stamp_untagged(
     dry_run: bool = False,
 ) -> list[StampResult]:
     """Tag every untagged session in scope with ``variant``; one result per changed file."""
-    from canair.captures.session_edit import set_session_field
 
     results: list[StampResult] = []
     for path in files:

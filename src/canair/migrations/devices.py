@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from canair.config.file import load_config, user_config_file
+from canair.core.yaml_rt import dump, round_trip_yaml
 
 
 @dataclass(frozen=True)
@@ -49,8 +50,6 @@ def migrate_config(*, dry_run: bool = False) -> MigrationResult:
     ``dry_run`` is set, nothing is written.
     """
     from ruamel.yaml.comments import CommentedMap
-
-    from canair.core.yaml_rt import dump, round_trip_yaml
 
     path = user_config_file()
     if not path.exists():
