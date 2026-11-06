@@ -15,6 +15,41 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [5.2.0](https://github.com/philipkocanda/canair/compare/v5.1.0...v5.2.0) (2026-11-06)
+
+
+### Added
+
+* **discovery:** Name the request's service in the functional discovery header ([247efda](https://github.com/philipkocanda/canair/commit/247efda839ecfd9873448b067423a7a163035b5b))
+* **dtc:** read the DTC format byte and stop showing non-J2012 codes as SAE J2012 ([e598f6f](https://github.com/philipkocanda/canair/commit/e598f6f9f53b486b45d1563f9fe1ea48cec92313))
+* **io:** carry a packeted DID's control enable mask, and release it with an all-ones mask ([cf9a227](https://github.com/philipkocanda/canair/commit/cf9a22712805e33c20397975d04ce3ae710db7e8))
+* ioniq igpm verify IG3 iocontrol ([5e6e8e2](https://github.com/philipkocanda/canair/commit/5e6e8e20da7b4edc26d44c7c8837725571699466))
+* **ioniq-ae-ev:** IG3 relay on/off captures ([c70a8fd](https://github.com/philipkocanda/canair/commit/c70a8fd94c925f40cc74a665ff47ea6d75b5e5b5))
+* **io:** port the IOControl view to Textual so it stops flickering ([c9e9a64](https://github.com/philipkocanda/canair/commit/c9e9a64afce0d2d49fb68eff806070c3369648a2))
+* **routines:** port the routines view to Textual so it stops flickering ([ce06d3a](https://github.com/philipkocanda/canair/commit/ce06d3acff0150a842e1345dfb0f288b58825541))
+* **uds:** name the ISO 14229-1:2020 negative response codes ([2672165](https://github.com/philipkocanda/canair/commit/26721653c9eef91f696104d3479d045c6c877020))
+
+
+### Fixed
+
+* **analysis:** drop empty byte sets from known_fields after converting them ([6bc90fc](https://github.com/philipkocanda/canair/commit/6bc90fc14e11dd7494a8a9e565dc162acadd0d50))
+* **deps:** raise the dependency floors to versions canair runs on ([9bc0324](https://github.com/philipkocanda/canair/commit/9bc03241fbe9c0929851fa922478b955f042cf36))
+* **deps:** re-lock to clear the known security advisories ([15e61db](https://github.com/philipkocanda/canair/commit/15e61db53c220b83ca1eb6d92f70143163eef86e))
+* **eventlog:** open the central log file even when the logger has another handler ([4878661](https://github.com/philipkocanda/canair/commit/4878661d84599a3770e5d135c82f2115c194823b))
+* **export:** build the DBC VFrameFormat definition from cantools' public names ([b4bd7a5](https://github.com/philipkocanda/canair/commit/b4bd7a5a5f106eb0e3048295071a0f880f03c482))
+* **io:** type the IOControl app's BINDINGS as BindingType for the upgraded ty ([c0b3c3e](https://github.com/philipkocanda/canair/commit/c0b3c3e99d7e18083e592816ddce10d0abf3cbfe))
+* **transport:** accept ISO-TP flow-control WAIT frames on slcan-tcp ([5f8b5a7](https://github.com/philipkocanda/canair/commit/5f8b5a74f3ded9ee20e79c74a4a5734229081501))
+* **transport:** repeat busy reads, read suppressed replies, and fix "not in this session" scans ([5ba9a32](https://github.com/philipkocanda/canair/commit/5ba9a326ff24dc992f4bc72be66ef990cf9b81cc))
+* **tui:** make the cursor row of the io and routines views readable ([845be1e](https://github.com/philipkocanda/canair/commit/845be1ed9a582fc696b5fa83e8fd0e6a216ff7bb))
+
+
+### Changed
+
+* annotate context managers as generators ([9e8ac99](https://github.com/philipkocanda/canair/commit/9e8ac990d476c099bb87a383df88cf133f85986f))
+* drop conditions that cannot be false ([b9d0dcd](https://github.com/philipkocanda/canair/commit/b9d0dcdfd35f9049a11728ff2ded1e2fb58edc41))
+* **tui:** declare BINDINGS with Textual's BindingType ([407924e](https://github.com/philipkocanda/canair/commit/407924ecba0f385351b09a552ba583b80dd4a219))
+* **types:** type the capture sessions, coverage entries and bus nodes as they are ([2540c10](https://github.com/philipkocanda/canair/commit/2540c104355b2a73be0e4ad829bf6c051b9a097d))
+
 ## [5.1.0](https://github.com/philipkocanda/canair/compare/v5.0.0...v5.1.0) (2026-11-06)
 
 
