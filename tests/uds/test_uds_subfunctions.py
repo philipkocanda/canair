@@ -14,6 +14,8 @@ from canair.uds.subfunctions import (
     KwpSessionType,
     RoutineControlType,
     SessionType,
+    format_session_type,
+    parse_session_type,
     subfunction_name,
 )
 
@@ -53,3 +55,20 @@ def test_a_member_is_its_byte():
     assert RoutineControlType.REQUEST_ROUTINE_RESULTS == 0x03
     assert f"{IoControlParameter.RETURN_CONTROL_TO_ECU:02X}" == "00"
     assert bytes([KwpSessionType.EXTENDED_DIAGNOSTIC_SESSION]) == b"\x83"
+
+
+class TestSessionTypeText:
+    @pytest.mark.parametrize(
+        ("text", "value"), [("03", 3), ("0x3", 3), (" 81 ", 0x81), (0xC0, 0xC0)]
+    )
+    def test_parse(self, text, value):
+        assert parse_session_type(text) == value
+
+    @pytest.mark.parametrize("text", ["", "zz", "0x", "100", -1])
+    def test_parse_refuses_what_is_not_one_byte(self, text):
+        with pytest.raises(ValueError):
+            parse_session_type(text)
+
+    def test_format_is_two_hex_digits(self):
+        assert format_session_type(SessionType.EXTENDED_DIAGNOSTIC_SESSION) == "03"
+        assert format_session_type(0xC0) == "C0"

@@ -30,7 +30,7 @@ class TestOpenSession:
         t = MockTerminal()
         sm = SessionManager(t)
         result = await sm.open_session(0x770)
-        assert result is True
+        assert result.ok is True
         assert sm.has_session(0x770)
         assert 0x770 in sm.active_sessions
         # Should have set header then sent 1003
@@ -66,7 +66,8 @@ class TestOpenSession:
         )
         sm = SessionManager(t)
         result = await sm.open_session(0x770)
-        assert result is False
+        assert result.ok is False
+        assert result.nrc == 0x12
         assert sm.has_session(0x770)  # Still tracked
 
     @pytest.mark.asyncio
@@ -74,7 +75,8 @@ class TestOpenSession:
         t = MockTerminal(uds_responses={(0x770, "1003"): {"ok": False, "error": "NO DATA"}})
         sm = SessionManager(t)
         result = await sm.open_session(0x770)
-        assert result is False
+        assert result.ok is False
+        assert result.error == "NO DATA"
         assert sm.has_session(0x770)
 
 
@@ -88,7 +90,7 @@ class TestSessionMode:
         sm = SessionManager(t)
         assert sm.session_mode(0x770) is None
         await sm.open_session(0x770, mode="81")
-        assert sm.session_mode(0x770) == "81"
+        assert sm.session_mode(0x770) == 0x81
         assert ("send_uds", "1081") in t.calls
 
     @pytest.mark.asyncio
@@ -101,7 +103,7 @@ class TestSessionMode:
         sm = SessionManager(t)
         await sm.open_session(0x770, mode="03")
         await sm.open_session(0x770, mode="81")  # no wake, no force -> refresh-only
-        assert sm.session_mode(0x770) == "03"
+        assert sm.session_mode(0x770) == 0x03
         assert [c for c in t.calls if c[0] == "send_uds"] == [("send_uds", "1003")]
 
     @pytest.mark.asyncio
@@ -110,8 +112,8 @@ class TestSessionMode:
         sm = SessionManager(t)
         await sm.open_session(0x770, mode="03")
         result = await sm.open_session(0x770, mode="81", force=True)
-        assert result is True
-        assert sm.session_mode(0x770) == "81"
+        assert result.ok is True
+        assert sm.session_mode(0x770) == 0x81
         assert [c for c in t.calls if c[0] == "send_uds"] == [
             ("send_uds", "1003"),
             ("send_uds", "1081"),
@@ -122,7 +124,7 @@ class TestSessionMode:
         t = MockTerminal()
         sm = SessionManager(t)
         await sm.open_session(0x770, mode="81")
-        assert sm.session_mode(0x770) == "81"
+        assert sm.session_mode(0x770) == 0x81
         await sm.close_session(0x770)
         assert sm.session_mode(0x770) is None
 
@@ -135,7 +137,7 @@ class TestKeepalive:
     async def test_send_keepalive(self):
         t = MockTerminal()
         sm = SessionManager(t)
-        sm._sessions[0x770] = time.monotonic() - 10  # stale
+        sm.table.track(0x770, at=time.monotonic() - 10)  # stale
         await sm.send_keepalive(0x770)
         assert ("set_header", 0x770) in t.calls
         # Sent as a *validated* UDS request, not a fire-and-forget send_command:
@@ -146,7 +148,7 @@ class TestKeepalive:
         # re-point the header between them.
         assert t.calls.index(("transaction_enter", None)) < t.calls.index(("set_header", 0x770))
         # Timestamp should be updated
-        assert time.monotonic() - sm._sessions[0x770] < 1
+        assert time.monotonic() - sm.table.refreshed_at(0x770) < 1
 
     @pytest.mark.asyncio
     async def test_keepalive_refreshes_timestamp_even_when_the_reply_is_stale(self):
@@ -159,9 +161,9 @@ class TestKeepalive:
         t = MockTerminal()
         t.default = {"ok": False, "error": "Echo mismatch", "error_kind": "stale"}
         sm = SessionManager(t)
-        sm._sessions[0x770] = time.monotonic() - 10
+        sm.table.track(0x770, at=time.monotonic() - 10)
         await sm.send_keepalive(0x770)
-        assert time.monotonic() - sm._sessions[0x770] < 1
+        assert time.monotonic() - sm.table.refreshed_at(0x770) < 1
 
     @pytest.mark.asyncio
     async def test_keepalive_propagates_a_failed_resync(self):
@@ -179,8 +181,8 @@ class TestKeepalive:
     async def test_keepalive_stale_only_refreshes_old(self):
         t = MockTerminal()
         sm = SessionManager(t)
-        sm._sessions[0x770] = time.monotonic()  # fresh
-        sm._sessions[0x7A5] = time.monotonic() - 10  # stale
+        sm.table.track(0x770, at=time.monotonic())  # fresh
+        sm.table.track(0x7A5, at=time.monotonic() - 10)  # stale
         await sm.keepalive_stale(threshold=1.5)
         # Only 7A5 should have been refreshed
         header_calls = [c[1] for c in t.calls if c[0] == "set_header"]
@@ -191,8 +193,8 @@ class TestKeepalive:
     async def test_keepalive_all_refreshes_everything(self):
         t = MockTerminal()
         sm = SessionManager(t)
-        sm._sessions[0x770] = time.monotonic()
-        sm._sessions[0x7A5] = time.monotonic()
+        sm.table.track(0x770, at=time.monotonic())
+        sm.table.track(0x7A5, at=time.monotonic())
         await sm.keepalive_all()
         header_calls = [c[1] for c in t.calls if c[0] == "set_header"]
         assert 0x770 in header_calls
@@ -203,15 +205,15 @@ class TestMarkActive:
     def test_mark_active_refreshes_open_session(self):
         t = MockTerminal()
         sm = SessionManager(t)
-        sm._sessions[0x7E2] = time.monotonic() - 10  # would be stale
+        sm.table.track(0x7E2, at=time.monotonic() - 10)  # would be stale
         sm.mark_active(0x7E2)
-        assert time.monotonic() - sm._sessions[0x7E2] < 1
+        assert time.monotonic() - sm.table.refreshed_at(0x7E2) < 1
 
     def test_mark_active_noop_without_session(self):
         t = MockTerminal()
         sm = SessionManager(t)
         sm.mark_active(0x7E2)  # no tracked session
-        assert 0x7E2 not in sm._sessions
+        assert not sm.has_session(0x7E2)
 
     @pytest.mark.asyncio
     async def test_active_poll_suppresses_redundant_keepalive(self):
@@ -219,7 +221,7 @@ class TestMarkActive:
         # keepalive sweep (the read already reset its S3 timer).
         t = MockTerminal()
         sm = SessionManager(t)
-        sm._sessions[0x7E2] = time.monotonic() - 10  # stale before the poll
+        sm.table.track(0x7E2, at=time.monotonic() - 10)  # stale before the poll
         sm.mark_active(0x7E2)  # simulate a successful read
         await sm.keepalive_stale(threshold=1.5)
         assert ("send_uds", "3E00") not in t.calls
@@ -233,7 +235,7 @@ class TestBackgroundKeepalive:
     async def test_start_and_stop(self):
         t = MockTerminal()
         sm = SessionManager(t)
-        sm._sessions[0x770] = time.monotonic() - 10
+        sm.table.track(0x770, at=time.monotonic() - 10)
         task = sm.start_background_keepalive(interval=0.05)
         assert not task.done()
         await asyncio.sleep(0.15)  # Let it tick a few times
@@ -261,7 +263,7 @@ class TestCloseSession:
     async def test_close_session(self):
         t = MockTerminal()
         sm = SessionManager(t)
-        sm._sessions[0x770] = time.monotonic()
+        sm.table.track(0x770, at=time.monotonic())
         await sm.close_session(0x770)
         assert not sm.has_session(0x770)
         # Validated like every other request, and in one transaction with its header.
@@ -280,8 +282,8 @@ class TestCloseSession:
     async def test_close_all(self):
         t = MockTerminal()
         sm = SessionManager(t)
-        sm._sessions[0x770] = time.monotonic()
-        sm._sessions[0x7A5] = time.monotonic()
+        sm.table.track(0x770, at=time.monotonic())
+        sm.table.track(0x7A5, at=time.monotonic())
         sm.start_background_keepalive(interval=1.0)
         await sm.close_all()
         assert len(sm.active_sessions) == 0
@@ -292,8 +294,8 @@ class TestCloseSession:
         t = MockTerminal()
         sm = SessionManager(t)
         assert sm.active_sessions == []
-        sm._sessions[0x770] = time.monotonic()
-        sm._sessions[0x7A0] = time.monotonic()
+        sm.table.track(0x770, at=time.monotonic())
+        sm.table.track(0x7A0, at=time.monotonic())
         assert set(sm.active_sessions) == {0x770, 0x7A0}
 
 
@@ -347,7 +349,7 @@ class TestModeTracking:
     async def test_a_refused_session_records_no_mode(self):
         t = MockTerminal({(0x770, "1081"): {"ok": False, "nrc": 0x12, "nrc_desc": "SFNS"}})
         sm = SessionManager(t)
-        assert await sm.open_session(0x770, mode="81") is False
+        assert (await sm.open_session(0x770, mode="81")).ok is False
         assert sm.has_session(0x770)
         assert sm.session_mode(0x770) is None
 
@@ -357,12 +359,12 @@ class TestModeTracking:
         sm = SessionManager(t)
         await sm.open_session(0x770, mode="03")
         await sm.open_session(0x770, mode="81", force=True)
-        assert sm.session_mode(0x770) == "03"
+        assert sm.session_mode(0x770) == 0x03
 
     def test_track_registers_a_session_opened_elsewhere(self):
         sm = SessionManager(MockTerminal())
         sm.track(0x7A5, "03")
-        assert sm.has_session(0x7A5) and sm.session_mode(0x7A5) == "03"
+        assert sm.has_session(0x7A5) and sm.session_mode(0x7A5) == 0x03
 
 
 class TestLinkError:
@@ -373,7 +375,7 @@ class TestLinkError:
                 raise ConnectionError("pipe resync failed")
 
         sm = SessionManager(Dead())
-        sm._sessions[0x770] = 0.0
+        sm.table.track(0x770, at=0.0)
         task = sm.start_background_keepalive(interval=0.01)
         await asyncio.wait_for(asyncio.wait({task}), 1.0)
         assert task.exception() is None
@@ -389,3 +391,20 @@ class TestLinkError:
         await sm.stop_background_keepalive()
         assert task.done()
         await sm.stop_background_keepalive()  # a second stop is harmless
+
+
+class TestReporting:
+    @pytest.mark.asyncio
+    async def test_a_refusal_is_one_warning(self, capsys):
+        t = MockTerminal({(0x770, "1081"): {"ok": False, "nrc": 0x12, "nrc_desc": "SFNS"}})
+        outcome = await SessionManager(t).open_session(0x770, mode="81")
+        err = capsys.readouterr().err
+        assert "warning: 0x770 refused session 10 81: NRC 0x12 (SFNS)" in err
+        assert outcome.problem() == "0x770 refused session 10 81: NRC 0x12 (SFNS)"
+
+    @pytest.mark.asyncio
+    async def test_report_false_leaves_it_to_the_caller(self, capsys):
+        t = MockTerminal({(0x770, "1003"): {"ok": False, "error": "NO DATA"}})
+        outcome = await SessionManager(t).open_session(0x770, report=False)
+        assert capsys.readouterr().err == ""
+        assert outcome.problem() == "no answer from 0x770 to session 10 03 (NO DATA)"

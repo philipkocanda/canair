@@ -195,3 +195,27 @@ def subfunction_name(request_sid: int, value: int) -> str | None:
     than invent a label.
     """
     return SUBFUNCTION_NAMES.get(request_sid, {}).get(value)
+
+
+def parse_session_type(value: int | str) -> int:
+    """A DiagnosticSessionControl sub-function, from its byte or its hex text.
+
+    Profiles, steps and the CLI carry it as text (``"03"``, ``"0x3"``, ``"81"``); code that
+    sends or compares it uses the byte. Raises ``ValueError`` for anything that is not one
+    byte.
+    """
+    if isinstance(value, int):
+        sub = value
+    else:
+        text = value.strip().upper().removeprefix("0X")
+        if not text:
+            raise ValueError("empty session type")
+        sub = int(text, 16)
+    if not 0 <= sub <= 0xFF:
+        raise ValueError(f"session type 0x{sub:X} is not one byte")
+    return sub
+
+
+def format_session_type(value: int) -> str:
+    """The two hex digits a session type is shown and stored as (``0x03`` → ``"03"``)."""
+    return f"{value:02X}"

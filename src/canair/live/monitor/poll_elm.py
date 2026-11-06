@@ -49,10 +49,10 @@ class MonitorElmPoller:
             stype = step["type"]
             if stype == "skm-wake":
                 print(f"  SKM wakeup ({step['level']})...")
-                await multi._exec_skm_wake(c.sm, step["level"], c.verbose)
+                await multi.exec_skm_wake(c.sm, step["level"], c.verbose)
             elif stype == "session":
                 print(f"  Opening session on {step['target']}...")
-                await multi._exec_session(
+                await multi.exec_session(
                     c.sm,
                     step["target"],
                     step.get("wake", False),
@@ -107,7 +107,7 @@ class MonitorElmPoller:
                 return due
 
             try:
-                result = await multi._exec_query(
+                result = await multi.exec_query(
                     c.sm,
                     step["ecu"],
                     step.get("pids", []),

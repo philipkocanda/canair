@@ -30,6 +30,7 @@ from canair.uds.services import (
     TESTER_PRESENT,
     TESTER_PRESENT_REQUEST,
 )
+from canair.uds.subfunctions import format_session_type, parse_session_type
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from canair.transport.elm327.terminal import Elm327Terminal
@@ -61,7 +62,7 @@ async def enter_extended_session(
         ``(success, tester_task)`` — success indicates if the session was
         established; the caller owns cancelling the keepalive task.
     """
-    mode = mode.upper().removeprefix("0X").zfill(2)
+    mode = format_session_type(parse_session_type(mode))
     req = session_request(mode)
     if wake:
         await _wake(terminal)

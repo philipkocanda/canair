@@ -18,7 +18,7 @@ from canair.transport.session_manager import SessionManager
 from canair.uds.parse import parse_uds_response
 
 from ..elm.skm_wakeup import SKM_SESSION_MODE, SKM_TX_ID, mode_skm_wakeup
-from .exec import _exec_query, _exec_raw
+from .exec import _exec_raw, exec_query
 
 
 async def _multi_repl(
@@ -163,7 +163,7 @@ async def _multi_repl(
                     continue
                 await sm.stop_background_keepalive()
                 for ecu, pids in selectors:
-                    await _exec_query(
+                    await exec_query(
                         sm,
                         ecu,
                         pids,

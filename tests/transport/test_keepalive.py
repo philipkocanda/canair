@@ -38,7 +38,7 @@ class TestSessionManager:
         term = FakeTerminal({"3E00": reply})
         sm = SessionManager(term)
         for tx_id in ecus:
-            sm._sessions[tx_id] = 0.0
+            sm.table.track(tx_id, at=0.0)
         for _ in range(n):
             await sm.keepalive_stale(threshold=-1.0)  # everything is always stale
         return term, sm
@@ -69,7 +69,8 @@ class TestSessionManager:
             (0x770, "3E00"): ok("7E00"),
         }
         sm = SessionManager(term)
-        sm._sessions.update({BMS: 0.0, 0x770: 0.0})
+        sm.table.track(BMS, at=0.0)
+        sm.table.track(0x770, at=0.0)
         for _ in range(3):
             await sm.keepalive_stale(threshold=-1.0)
         assert term.sent.count("3E00") == 1 + 3

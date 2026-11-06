@@ -1,6 +1,6 @@
 """Payload decoding — evaluate PID signal expressions against a response.
 
-Shared by the live monitor (``modes.multi._exec_query``), the historical capture
+Shared by the live monitor (``live/read/exec.py::exec_query``), the historical capture
 viewer (``query-captures.py``), and anything else that needs decoded signal
 rows. Decoded values are never persisted; they are regenerated on demand from the
 payload + PID definitions.

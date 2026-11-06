@@ -26,8 +26,9 @@ from typing import TYPE_CHECKING
 from canair.ecus.names import ecu_index_key
 from canair.ecus.pids import build_sessions_index
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
+from canair.transport.session_manager import DEFAULT_SESSION_MODE
 from canair.uds.requests import session_request
-from canair.uds.subfunctions import SUBFUNCTION_NAMES
+from canair.uds.subfunctions import SUBFUNCTION_NAMES, format_session_type, parse_session_type
 
 from ..read.multi import build_query_plan
 
@@ -35,6 +36,11 @@ if TYPE_CHECKING:
     from canair.ecus.pids import EcuIndexEntry
 
     from .controller import MonitorController
+
+
+def _normalized(mode: int | str) -> str:
+    """The two-digit form of a session type given as a byte or as hex text."""
+    return format_session_type(parse_session_type(mode))
 
 
 class MonitorSessions:
@@ -66,7 +72,11 @@ class MonitorSessions:
             tgt = ecu_index_key(step["target"], c._ecu_index, profile=self.c.profile)
             if tgt is None:
                 continue
-            mode = str(step.get("mode", "03")).upper().removeprefix("0X").zfill(2)
+            raw_mode = step.get("mode", DEFAULT_SESSION_MODE)
+            try:
+                mode = _normalized(raw_mode)
+            except ValueError:
+                mode = str(raw_mode)  # check() below refuses it by name
             blocked = self.check(tgt, mode)
             if blocked:
                 raise SafetyBlocked(f"session {tgt} --mode {mode}: {blocked}")
@@ -120,7 +130,8 @@ class MonitorSessions:
             if c.raw:
                 mode = self.raw_modes.get(ecu_name)
             else:
-                mode = c.sm.session_mode(info["tx_id"]) if c.sm else None
+                sub = c.sm.session_mode(info["tx_id"]) if c.sm else None
+                mode = format_session_type(sub) if sub is not None else None
             if mode:
                 out[ecu_name] = mode
         return out
@@ -185,7 +196,10 @@ class MonitorSessions:
         info = (c._ecu_index or {}).get(ecu)
         if not info:
             return f"Unknown ECU {ecu_name}."
-        mode = str(mode).upper().removeprefix("0X").zfill(2)
+        try:
+            mode = _normalized(mode)
+        except ValueError:
+            return f"Invalid session mode {mode!r} (expected one hex byte, e.g. 03)."
         blocked = self.check(ecu, mode)
         if blocked:
             return blocked
@@ -201,6 +215,7 @@ class MonitorSessions:
             self.raw_modes[ecu] = mode
             return f"{ecu}: switched to session 0x10{mode}{suffix}."
         assert c.sm is not None  # not c.raw ⟺ sm was constructed
-        ok = await c.sm.open_session(tx_id, mode=mode, force=True)
-        verb = "switched to" if ok else "attempted"
-        return f"{ecu}: {verb} session 0x10{mode}{suffix}."
+        outcome = await c.sm.open_session(tx_id, mode=mode, force=True, report=False)
+        if outcome.ok:
+            return f"{ecu}: switched to session 0x10{mode}{suffix}."
+        return f"{ecu}: session 0x10{mode}{suffix} not opened — {outcome.problem()}."

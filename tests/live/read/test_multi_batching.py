@@ -21,7 +21,7 @@ from canair.live.read.batch import (
     split_multi_did,
     transport_did_cap,
 )
-from canair.live.read.multi import _exec_query, _read_single
+from canair.live.read.multi import _read_single, exec_query
 from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 from canair.uds.multi_did import resolve_multi_did_max
 from tests.support.fakes import FakeTerminal
@@ -209,7 +209,7 @@ class TestBatchingExecutor:
 
         # Cycle 1: no known lengths yet → single reads that learn lengths.
         _l, r1 = asyncio.run(
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -229,7 +229,7 @@ class TestBatchingExecutor:
         # Cycle 2: lengths known → one batched request replaces two singles.
         term.sent.clear()
         _l, r2 = asyncio.run(
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -256,7 +256,7 @@ class TestBatchingExecutor:
         idx = _igpm_index3()
 
         _l, r = asyncio.run(
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -287,7 +287,7 @@ class TestBatchingExecutor:
         idx = _igpm_index3(max_dids=2)
 
         _l, r = asyncio.run(
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -318,7 +318,7 @@ class TestBatchingExecutor:
         idx = _igpm_index3(max_dids=6)
 
         asyncio.run(
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -341,7 +341,7 @@ class TestBatchingExecutor:
             bs.lengths[(0x770, d)] = 8
 
         asyncio.run(
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -371,7 +371,7 @@ class TestBatchingExecutor:
             bs.lengths[(0x770, d)] = 8
 
         asyncio.run(
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -399,7 +399,7 @@ class TestBatchingExecutor:
             bs.lengths[(0x770, d)] = 8
 
         asyncio.run(
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -426,7 +426,7 @@ class TestBatchingExecutor:
         idx = _igpm_index(multi_did=True)
 
         _l, r = asyncio.run(
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -446,7 +446,7 @@ class TestBatchingExecutor:
         # Next cycle: batching stays disabled → straight to per-DID.
         term.sent.clear()
         asyncio.run(
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -470,7 +470,7 @@ class TestBatchingExecutor:
         idx = _igpm_index(multi_did=False)  # ECU not opted in
 
         asyncio.run(
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -488,11 +488,11 @@ class TestBatchingExecutor:
         term = FakeTerminal(dict(_SINGLES))
         sm = _mk_sm(term.send_uds)
         idx = _igpm_index(multi_did=True)
-        # No batch_state passed → single reads (the _exec_query API contract; the
+        # No batch_state passed → single reads (the exec_query API contract; the
         # one-shot pipeline now supplies a shared BatchState, tested via the
         # learn→batch case above).
         asyncio.run(
-            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, profile=active())
+            exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, profile=active())
         )
         assert term.sent == ["22BC03", "22BC06"]
 
@@ -566,7 +566,7 @@ class TestLeakedBatchReply:
         term = FakeTerminal({"22BC03": _ok(MULTI), "22BC06": _ok(BC06_SINGLE)})  # batch: NO DATA
         sm = _mk_sm(term.send_uds)
         _l, results = asyncio.run(
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -612,7 +612,7 @@ class TestLeakedBatchReply:
         bs = self._state()
         idx = _igpm_index(multi_did=True)
         run = lambda: asyncio.run(  # noqa: E731
-            _exec_query(
+            exec_query(
                 sm,
                 "IGPM",
                 [],
@@ -670,7 +670,7 @@ class TestLeakedBatchReply:
         bs = BatchState()
         for _ in range(2):
             asyncio.run(
-                _exec_query(
+                exec_query(
                     sm,
                     "IGPM",
                     [],
@@ -708,7 +708,7 @@ class TestUnansweredBatches:
         idx = _igpm_index(multi_did=True)
         for _ in range(cycles):
             asyncio.run(
-                _exec_query(
+                exec_query(
                     sm,
                     "IGPM",
                     [],

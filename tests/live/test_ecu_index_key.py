@@ -15,7 +15,7 @@ import pytest
 import canair.ecus.names
 from canair.cli.profile_context import active
 from canair.ecus.wake import WakePlan
-from canair.live.read.exec import _exec_iocontrol, _exec_query, _exec_session
+from canair.live.read.exec import _exec_iocontrol, exec_query, exec_session
 from canair.query.steps import resolve_tx_id
 from tests.support.fakes import FakeTerminal, ok
 from tests.support.monitor_controller import make_controller
@@ -54,7 +54,7 @@ def test_resolve_tx_id():
 
 def test_exec_query():
     label, results = asyncio.run(
-        _exec_query(
+        exec_query(
             _sm(), "sjb", [], INDEX, {}, False, return_results=True, quiet=True, profile=active()
         )
     )
@@ -64,7 +64,7 @@ def test_exec_query():
 
 def test_exec_session_finds_the_wake_plan():
     sm = _sm()
-    asyncio.run(_exec_session(sm, "sjb", True, INDEX, profile=active()))
+    asyncio.run(exec_session(sm, "sjb", True, INDEX, profile=active()))
     assert sm.open_session.await_args.kwargs["wake_plan"] == INDEX["IGPM"]["wake"]
 
 

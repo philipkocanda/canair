@@ -62,6 +62,7 @@ from canair.uds.parse import parse_uds_response
 from canair.uds.requests import session_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import DEFAULT_SESSION_REQUEST, TESTER_PRESENT_REQUEST
+from canair.uds.subfunctions import format_session_type, parse_session_type
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
 
@@ -297,7 +298,7 @@ class RawTerminal:
                 ``"03"`` (UDS extendedDiagnosticSession); use ``"81"`` for the
                 KWP2000 standardDiagnosticSession on ECUs that reject 10 03.
         """
-        mode = mode.upper().removeprefix("0X").zfill(2)
+        mode = format_session_type(parse_session_type(mode))
         tx = self._cur
         # set_header must have run before a session is entered (send_uds below
         # would raise otherwise), so the keepalive target is always known.

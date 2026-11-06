@@ -30,7 +30,7 @@ from canair.actions import Action, ActionError, load_actions
 from canair.actions.plan import PlannedRequest, action_policy, plan_requests
 from canair.core.prompt import typed_confirm
 from canair.ecus.pids import build_ecu_index
-from canair.live.read.exec import _exec_query
+from canair.live.read.exec import exec_query
 from canair.profile.model import Profile
 from canair.query import parse_selector
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
@@ -66,7 +66,7 @@ async def read_verdict(
     frames = []
     for tok in action.reads:
         sel = parse_selector(tok)
-        got = await _exec_query(
+        got = await exec_query(
             sm,
             sel.ecu,
             list(sel.pids),

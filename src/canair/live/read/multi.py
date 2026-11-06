@@ -69,17 +69,17 @@ from ...transport.protocol import Terminal
 from .batch import BatchState, _capture_stamp
 from .exec import (
     _exec_iocontrol,
-    _exec_query,
     _exec_raw,
     _exec_scan,
-    _exec_session,
-    _exec_skm_wake,
     _read_batch,
     _read_single,
     _run_query_plan,
     _rx_addr_for_ecu_label,
     _rx_addr_for_tx,
     build_query_plan,
+    exec_query,
+    exec_session,
+    exec_skm_wake,
 )
 from .multi_json import query_documents, raw_document
 from .repl import _multi_repl
@@ -87,11 +87,8 @@ from .repl import _multi_repl
 __all__ = [
     "BatchState",
     "_exec_iocontrol",
-    "_exec_query",
     "_exec_raw",
     "_exec_scan",
-    "_exec_session",
-    "_exec_skm_wake",
     "_finalize_journal",
     "_multi_repl",
     "_read_batch",
@@ -100,6 +97,9 @@ __all__ = [
     "_rx_addr_for_ecu_label",
     "_rx_addr_for_tx",
     "build_query_plan",
+    "exec_query",
+    "exec_session",
+    "exec_skm_wake",
     "merged_selector_notes",
     "mode_multi",
     "normalize_query_steps",
@@ -318,11 +318,11 @@ async def _run_pipeline(
                     )
                     continue
                 print(f"\n{step} SKM wakeup ({cmd['level']})…")
-                await _exec_skm_wake(sm, cmd["level"], verbose)
+                await exec_skm_wake(sm, cmd["level"], verbose)
 
             elif cmd_type == "session":
                 print(f"\n{step} Session on {cmd['target']}…")
-                await _exec_session(
+                await exec_session(
                     sm,
                     cmd["target"],
                     cmd["wake"],
@@ -335,7 +335,7 @@ async def _run_pipeline(
                 pids_str = " ".join(cmd["pids"]) if cmd["pids"] else "all"
                 print(f"\n{step} Query {cmd['ecu']} ({pids_str})…")
                 if save or json_results is not None:
-                    result = await _exec_query(
+                    result = await exec_query(
                         sm,
                         cmd["ecu"],
                         cmd["pids"],
@@ -358,7 +358,7 @@ async def _run_pipeline(
                         if save:
                             _collect_query(ecu_label, pid_results)
                 else:
-                    await _exec_query(
+                    await exec_query(
                         sm,
                         cmd["ecu"],
                         cmd["pids"],

@@ -10,8 +10,8 @@ from canair.captures.journal import CaptureJournal
 from canair.cli.profile_context import active
 from canair.live.read.multi import (
     _exec_iocontrol,
-    _exec_query,
     _finalize_journal,
+    exec_query,
     merged_selector_notes,
     normalize_query_steps,
     parse_sub_commands,
@@ -264,7 +264,7 @@ class TestParseSubCommands:
         assert result[0] == {"type": "skm-wake", "level": "ign2"}
 
 
-# --- _exec_query acquisition timestamps ---
+# --- exec_query acquisition timestamps ---
 
 
 class TestExecQueryTimestamp:
@@ -297,7 +297,7 @@ class TestExecQueryTimestamp:
         }
         sm = self._make_sm(latency=0.02)
         _label, results = asyncio.run(
-            _exec_query(
+            exec_query(
                 sm, "MCU", [], ecu_index, {}, verbose=False, return_results=True, profile=active()
             )
         )
@@ -317,7 +317,7 @@ class TestExecQueryTimestamp:
 
         sm.terminal.send_uds = fail_send_uds
         _label, results = asyncio.run(
-            _exec_query(
+            exec_query(
                 sm, "MCU", [], ecu_index, {}, verbose=False, return_results=True, profile=active()
             )
         )
@@ -516,15 +516,15 @@ class TestExecIocontrolSession:
         monkeypatch.setattr(multi_exec, "build_iocontrol_index", lambda _pids: idx)
 
         sm = MagicMock()
-        sm.active_sessions = []  # no active session yet
-        sm.open_session = AsyncMock(return_value=True)
+        sm.has_session = MagicMock(return_value=False)  # no active session yet
+        sm.open_session = AsyncMock()
         sm.keepalive_stale = AsyncMock()
         sm.terminal = MagicMock()
         sm.terminal.set_header = AsyncMock()
         sm.terminal.send_uds = AsyncMock(return_value={"ok": True, "hex": "6FBC0103"})
 
         asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", False, {}, {}, False, profile=active()))
-        sm.open_session.assert_awaited_once_with(0x770, mode="03")
+        sm.open_session.assert_awaited_once_with(0x770, mode=0x03)
         sm.terminal.send_uds.assert_awaited_once()
 
 
@@ -544,9 +544,9 @@ class TestExecIocontrolPolarity:
 
     def _sm(self):
         sm = MagicMock()
-        sm.active_sessions = [0x770]  # already open: isolate the actuation step
-        sm.session_mode = MagicMock(return_value="03")
-        sm.open_session = AsyncMock(return_value=True)
+        sm.has_session = MagicMock(return_value=True)  # already open: isolate the actuation
+        sm.session_mode = MagicMock(return_value=0x03)
+        sm.open_session = AsyncMock()
         sm.keepalive_stale = AsyncMock()
         sm.terminal = MagicMock()
         sm.terminal.set_header = AsyncMock()
@@ -601,7 +601,7 @@ class TestExecIocontrolPolarity:
     def test_an_open_session_of_another_mode_is_switched(self, monkeypatch):
         # A Nissan actuator needs 10 C0; reusing the tracked 10 03 would NRC.
         sm = self._run(monkeypatch, off=False, cmd_overrides={"session_mode": "C0"})
-        sm.open_session.assert_awaited_once_with(0x770, mode="C0", force=True)
+        sm.open_session.assert_awaited_once_with(0x770, mode=0xC0, force=True)
 
     def test_an_open_session_of_the_same_mode_is_reused(self, monkeypatch):
         sm = self._run(monkeypatch, off=False)

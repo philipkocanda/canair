@@ -24,8 +24,13 @@ from canair.render import messages
 from canair.render.formatting import print_ecu_results, print_hexdump
 from canair.safety.actuation import on_refusal
 from canair.transport.elm327.terminal import Elm327Terminal
-from canair.transport.session_manager import SessionManager
+from canair.transport.session_manager import (
+    DEFAULT_SESSION_MODE,
+    SessionManager,
+    SessionOutcome,
+)
 from canair.uds.describe import decode_uds_response
+from canair.uds.subfunctions import format_session_type, parse_session_type
 
 from ...ecus.names import resolve_tx
 from ...ecus.registry import rx_addr_str
@@ -42,7 +47,7 @@ from .batch import (
 from .exec_read import _read_batch, _read_single
 
 
-async def _exec_skm_wake(sm: SessionManager, level: str, verbose: bool):
+async def exec_skm_wake(sm: SessionManager, level: str, verbose: bool) -> bool:
     """Execute skm-wake sub-command using the existing mode_skm_wakeup logic."""
     terminal = sm.terminal
 
@@ -57,20 +62,20 @@ async def _exec_skm_wake(sm: SessionManager, level: str, verbose: bool):
     return success
 
 
-async def _exec_session(
+async def exec_session(
     sm: SessionManager,
     target: str,
     wake: bool,
-    ecu_index: dict,
-    mode: str = "03",
+    ecu_index: dict[str, EcuIndexEntry],
+    mode: int | str = DEFAULT_SESSION_MODE,
     *,
     profile: Profile,
-):
-    """Execute session sub-command."""
+) -> SessionOutcome | None:
+    """Execute session sub-command; None when ``target`` names no ECU."""
     tx_id = resolve_tx_id(target, ecu_index, profile=profile)
     if tx_id is None:
         messages.error(f"unknown ECU '{target}'. Use a name (IGPM) or hex ID (770).")
-        return False
+        return None
     # A profile-declared wake ritual (canair.ecus.wake) for a fast-sleeping ECU is
     # honoured when --wake is set — the rapid-fire prime loop instead of a single
     # 10 01. Resolved into the ECU index by build_ecu_index; None = default wake.
@@ -82,7 +87,8 @@ async def _exec_session(
             wake_plan = entry.get("wake")
     if wake_plan is not None:
         print(f"  Waking 0x{tx_id:03X} ({target}) — {wake_plan.method} ritual…")
-    print(f"  Opening session (10{mode.upper().zfill(2)}) on 0x{tx_id:03X} ({target})…")
+    shown = format_session_type(parse_session_type(mode))
+    print(f"  Opening session (10{shown}) on 0x{tx_id:03X} ({target})…")
     return await sm.open_session(tx_id, wake=wake, mode=mode, wake_plan=wake_plan)
 
 
@@ -145,7 +151,7 @@ def build_query_plan(
     return query_plan
 
 
-def _clamp_cap(sm, tx_id: int, cap: int, batch_state) -> int:
+def _clamp_cap(sm: SessionManager, tx_id: int, cap: int, batch_state) -> int:
     """Clamp a requested batch size to the transport's single-request ceiling.
 
     Warned about once per (ECU, cap) so a mismatched profile is visible without
@@ -168,7 +174,7 @@ def _clamp_cap(sm, tx_id: int, cap: int, batch_state) -> int:
 
 
 async def _run_query_plan(
-    sm, tx_id, query_plan, out, batch_state, max_dids=None, *, profile: Profile
+    sm: SessionManager, tx_id: int, query_plan, out, batch_state, max_dids=None, *, profile: Profile
 ):
     """Execute a query plan, batching consecutive service-22 DIDs when possible.
 
@@ -230,11 +236,11 @@ async def _run_query_plan(
         i += 1
 
 
-async def _exec_query(
+async def exec_query(
     sm: SessionManager,
     ecu_name_str: str,
     pid_filter: list[str],
-    ecu_index: dict,
+    ecu_index: dict[str, EcuIndexEntry],
     pids_data: dict,
     verbose: bool,
     return_results: bool = False,
@@ -398,8 +404,8 @@ async def _exec_iocontrol(
 
     # Ensure a session of the actuator's mode is open on this ECU if needed
     if cmd_def["session"]:
-        mode = cmd_def["session_mode"]
-        if tx_id not in sm.active_sessions:
+        mode = parse_session_type(cmd_def["session_mode"])
+        if not sm.has_session(tx_id):
             await sm.open_session(tx_id, mode=mode)
         elif sm.session_mode(tx_id) != mode:
             await sm.open_session(tx_id, mode=mode, force=True)

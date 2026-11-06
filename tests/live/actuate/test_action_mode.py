@@ -65,7 +65,7 @@ def run(monkeypatch):
     )
 
     def _run(terminal, rounds, **kw):
-        monkeypatch.setattr("canair.live.actuate.action._exec_query", _values(*rounds))
+        monkeypatch.setattr("canair.live.actuate.action.exec_query", _values(*rounds))
         return asyncio.run(mode.mode_action(terminal, PIDS, "sleep", profile=active(), **kw))
 
     return _run
@@ -147,7 +147,7 @@ def test_without_the_quirk_the_action_is_refused_before_any_read(monkeypatch):
         reads.append("read")
         return None
 
-    monkeypatch.setattr("canair.live.actuate.action._exec_query", fake_exec_query)
+    monkeypatch.setattr("canair.live.actuate.action.exec_query", fake_exec_query)
     monkeypatch.setattr(
         "canair.live.actuate.action.load_actions", lambda *_, **__: {"sleep": SLEEP}
     )

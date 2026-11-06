@@ -12,6 +12,7 @@ from typing import Literal
 from canair.core.eventlog import log_event
 from canair.expression.results import ResultEntry
 from canair.profile.model import Profile
+from canair.transport.session_manager import SessionManager
 from canair.uds.echo import request_echo
 from canair.uds.multi_did import BATCH_REFUSAL_NRCS
 from canair.uds.response import UdsResponse
@@ -30,7 +31,7 @@ from .batch import (
 
 
 async def timed_exchange(
-    sm, tx_id: int, request: str, **kwargs
+    sm: SessionManager, tx_id: int, request: str, **kwargs
 ) -> tuple[UdsResponse, float, float]:
     """Send ``request`` to ``tx_id``: its reply, wall seconds, and seconds it held the pipe.
 
@@ -49,7 +50,9 @@ async def timed_exchange(
     return resp, wall, max(0.0, wall - (sm.keepalive_seconds - keepalive0))
 
 
-async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state, *, profile: Profile):
+async def _read_single(
+    sm: SessionManager, tx_id: int, pid_code, pid_info, unmapped, batch_state, *, profile: Profile
+):
     """Send one PID, return its result dict; learn its 22-DID length for batching.
 
     keepalive_stale runs *outside* the request's transaction (it is unrelated traffic
@@ -80,7 +83,7 @@ async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state, *, 
 
 
 def _single_result(
-    sm,
+    sm: SessionManager,
     tx_id,
     pid_code,
     pid_info,
@@ -140,7 +143,9 @@ def _single_result(
 BatchOutcome = Literal["ok", "failed", "unanswered"]
 
 
-async def _read_batch(sm, tx_id, group, out, batch_state, *, profile: Profile) -> BatchOutcome:
+async def _read_batch(
+    sm: SessionManager, tx_id: int, group, out, batch_state, *, profile: Profile
+) -> BatchOutcome:
     """Attempt one multi-DID request for ``group``; append results on success.
 
     Returns ``"ok"`` if the batch succeeded and split cleanly. On a refusal in

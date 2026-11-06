@@ -166,7 +166,7 @@ class TestElmPollCost:
                 {"pid": "2102", "error": "NRC 0x31 (ROOR)", "nrc": 0x31, "request_s": 0.03},
             ]
 
-        monkeypatch.setattr("canair.live.read.multi._exec_query", fake_exec_query)
+        monkeypatch.setattr("canair.live.read.multi.exec_query", fake_exec_query)
 
         class FakeTerminal:
             cmd_count = 0
@@ -258,7 +258,7 @@ class TestElmCostAttribution:
         term.keepalive_delay = 0.2
         c = _igpm_controller(term)
         assert c.sm is not None
-        c.sm._sessions[0x7A5] = time.monotonic() - 10.0  # SKM's session is stale
+        c.sm.table.track(0x7A5, at=time.monotonic() - 10.0)  # SKM's session is stale
         _poll(c)
         assert "3E00" not in term.sent  # answered by the subclass, never recorded
         assert c.sm.keepalive_seconds >= 0.2

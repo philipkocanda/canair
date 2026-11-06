@@ -1359,3 +1359,44 @@ class TestNrcClassification:
         # An error whose text merely starts with the letters is not an answer.
         assert not is_nrc({"pid": "2101", "error": "NRC-like adapter text"})
         assert not answered({"pid": "2101", "error": "timeout"})
+
+
+class TestElmSessionSwitch:
+    """The ``t`` switch on ELM327 reports what the ECU said, and records only an accepted mode."""
+
+    @staticmethod
+    def _controller(monkeypatch, reply):
+        import asyncio
+
+        from tests.support.fakes import FakeTerminal
+
+        terminal = FakeTerminal({"1081": reply})
+        c = make_controller(terminal, [{"ecu": "BMS", "pids": []}], {}, verbose=False)
+        monkeypatch.setattr(
+            "canair.live.monitor.controller.build_ecu_index",
+            lambda _data: {"BMS": {"tx_id": 0x7E4, "pids": {}, "protocol": "kwp2000"}},
+        )
+        monkeypatch.setattr(c.sessions, "check", lambda _ecu, _mode: None)
+
+        async def run():
+            await c.setup([])
+            msg = await c.sessions.switch("BMS", "0x81")
+            await c.sm.stop_background_keepalive()
+            return msg
+
+        return c, asyncio.run(run())
+
+    def test_an_accepted_switch(self, monkeypatch):
+        from tests.support.fakes import ok
+
+        c, msg = self._controller(monkeypatch, ok("5081"))
+        assert msg.startswith("BMS: switched to session 0x1081")
+        assert c.sessions.active_modes() == {"BMS": "81"}
+
+    def test_a_refused_switch_says_why(self, monkeypatch, capsys):
+        from tests.support.fakes import nrc
+
+        c, msg = self._controller(monkeypatch, nrc(0x12, "subFunctionNotSupported"))
+        assert "not opened" in msg and "NRC 0x12" in msg
+        assert c.sessions.active_modes() == {}
+        assert "warning" not in capsys.readouterr().err  # the TUI shows it, not stderr
