@@ -26,7 +26,7 @@ def env(monkeypatch):
     monkeypatch.setattr(tc, "_fallback_settings", lambda: (False, 2.0, None))
 
     def set_block(block):
-        for module in (cfg_mod_file, cfg_mod_devices, cfg_mod_transport):
+        for module in (cfg_mod_file, cfg_mod_devices, cfg_mod_transport, tc):
             monkeypatch.setattr(
                 module, "load_config", lambda: {"transport": block} if block else {}
             )
@@ -94,7 +94,7 @@ class TestResolveCandidates:
         monkeypatch.setattr(tc, "_wican_devices", lambda: (dict(devices), "home"))
         monkeypatch.setattr(tc, "_wican_addresses", lambda: {a: d.host for a, d in devices.items()})
         monkeypatch.setattr(tc, "_is_pro", lambda: True)
-        for module in (cfg_mod_file, cfg_mod_devices, cfg_mod_transport):
+        for module in (cfg_mod_file, cfg_mod_devices, cfg_mod_transport, tc):
             monkeypatch.setattr(module, "load_config", lambda: {})
 
         def set_fallback(enabled=True, timeout=2.0, order=None):
@@ -174,7 +174,7 @@ class TestSelectReachable:
     def test_primary_reachable(self, monkeypatch):
         from canair.transport.fallback import select_reachable_transport
 
-        monkeypatch.setattr("canair.core.tcp.tcp_open", lambda h, p, t: True)
+        monkeypatch.setattr("canair.transport.fallback.tcp_open", lambda h, p, t: True)
         chosen = select_reachable_transport(
             self._cands(), connect_timeout=2.0, notice=lambda m: None
         )
@@ -183,7 +183,7 @@ class TestSelectReachable:
     def test_falls_back_to_second(self, monkeypatch):
         from canair.transport.fallback import select_reachable_transport
 
-        monkeypatch.setattr("canair.core.tcp.tcp_open", lambda h, p, t: h == "1.2.3.4")
+        monkeypatch.setattr("canair.transport.fallback.tcp_open", lambda h, p, t: h == "1.2.3.4")
         msgs: list[str] = []
         chosen = select_reachable_transport(self._cands(), connect_timeout=2.0, notice=msgs.append)
         assert chosen.host == "1.2.3.4"
@@ -192,7 +192,7 @@ class TestSelectReachable:
     def test_all_down_returns_primary(self, monkeypatch):
         from canair.transport.fallback import select_reachable_transport
 
-        monkeypatch.setattr("canair.core.tcp.tcp_open", lambda h, p, t: False)
+        monkeypatch.setattr("canair.transport.fallback.tcp_open", lambda h, p, t: False)
         chosen = select_reachable_transport(
             self._cands(), connect_timeout=2.0, notice=lambda m: None
         )
@@ -207,7 +207,7 @@ class TestSelectReachable:
             seen.append((h, p))
             return True
 
-        monkeypatch.setattr("canair.core.tcp.tcp_open", probe)
+        monkeypatch.setattr("canair.transport.fallback.tcp_open", probe)
         select_reachable_transport(self._cands(), connect_timeout=2.0, notice=lambda m: None)
         assert seen[0] == ("10.0.0.9", 80)
 
@@ -440,7 +440,9 @@ class TestStatusFallback:
         monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 2.0, None))
 
         def setup(*, reachable: set[str]):
-            monkeypatch.setattr("canair.core.tcp.tcp_open", lambda h, p, t: h in reachable)
+            monkeypatch.setattr(
+                "canair.transport.fallback.tcp_open", lambda h, p, t: h in reachable
+            )
             monkeypatch.setattr(gather_mod, "tcp_open", lambda h, p, t: h in reachable)
             monkeypatch.setattr(
                 gather_mod,
@@ -494,7 +496,7 @@ class TestStatusFallback:
         monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 30.0, None))
         monkeypatch.setattr("canair.config.devices.fallback_settings", lambda: (True, 30.0, None))
         monkeypatch.setattr(gather_mod, "fallback_settings", lambda: (True, 30.0, None))
-        monkeypatch.setattr("canair.core.tcp.tcp_open", lambda h, p, t: True)
+        monkeypatch.setattr("canair.transport.fallback.tcp_open", lambda h, p, t: True)
         seen: list[float] = []
 
         def probe(h, p, t):

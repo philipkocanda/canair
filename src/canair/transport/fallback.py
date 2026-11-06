@@ -18,7 +18,9 @@ import sys
 import time
 from collections.abc import Callable
 
-from .config import TransportConfig
+from canair.core.tcp import tcp_open
+
+from .config import DEFAULT_ELM327_TCP_PORT, TransportConfig
 
 
 def _probe_port(cand: TransportConfig) -> int:
@@ -34,8 +36,6 @@ def _probe_port(cand: TransportConfig) -> int:
     if cand.is_wican_http:
         return 80
     if cand.type == "elm327-tcp":
-        from .config import DEFAULT_ELM327_TCP_PORT
-
         return cand.port or DEFAULT_ELM327_TCP_PORT
     return cand.port or 3333
 
@@ -44,7 +44,6 @@ def _first_reachable(
     candidates: list[TransportConfig], connect_timeout: float
 ) -> TransportConfig | None:
     """First candidate (in order) that answers a liveness probe, else ``None``."""
-    from canair.core.tcp import tcp_open
 
     for cand in candidates:
         if cand.host and tcp_open(cand.host, _probe_port(cand), connect_timeout):
@@ -76,8 +75,6 @@ def select_reachable_transport(
 
     if len(candidates) <= 1:
         return candidates[0]
-
-    from canair.core.tcp import tcp_open
 
     for i, cand in enumerate(candidates):
         if not cand.host:

@@ -21,6 +21,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, get_args
 
+from canair.config.devices import (
+    DeviceEntry,
+    fallback_settings,
+    is_wican_pro,
+    wican_addresses,
+    wican_devices,
+)
+from canair.config.file import load_config
+from canair.device.wican.api import resolve_wican_url
+
 # The closed set of backends canair knows how to speak. A `Literal` (not a bare
 # `str`) so the ~6 `.type == "…"` gates below — including the WiCAN-Pro-only
 # `wican-ws` guard — are checked statically: a typo like "wican_ws" would
@@ -191,7 +201,6 @@ class TransportConfig:
         """Best-effort read of a WiCAN's live ``/load_config`` (empty on failure)."""
         import sys
 
-        from canair.device.wican.api import resolve_wican_url
         from canair.device.wican.mode import load_config
 
         assert self.host is not None  # only called when is_wican_http (host set)
@@ -228,20 +237,14 @@ def _resolve_host(name: str | None) -> str | None:
 
 
 def _wican_addresses():  # small indirection so tests can monkeypatch cheaply
-    from canair.config.devices import wican_addresses
-
     return wican_addresses()
 
 
 def _wican_devices():  # small indirection so tests can monkeypatch cheaply
-    from canair.config.devices import wican_devices
-
     return wican_devices()
 
 
 def _fallback_settings():  # small indirection so tests can monkeypatch cheaply
-    from canair.config.devices import fallback_settings
-
     return fallback_settings()
 
 
@@ -337,8 +340,6 @@ def resolve_transport_candidates(
     ``--wican X`` always stays first; the ``fallback_order`` only sequences the
     rest.
     """
-    from canair.config.devices import DeviceEntry
-    from canair.config.file import load_config
 
     overrides = overrides or TransportOverrides()
     raw_block = load_config().get("transport")
@@ -391,8 +392,6 @@ def resolve_transport_candidates(
 
 
 def _is_pro() -> bool:
-    from canair.config.devices import is_wican_pro
-
     return is_wican_pro()
 
 

@@ -24,6 +24,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final
 
+from canair.safety.blocklist import SafetyBlocked, check_functional_request
+from canair.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 from canair.uds.isotp_passive import Reassembler, ReassemblyStats, is_first_frame
 from canair.uds.nrc import is_response_pending
 from canair.uds.response import CAT_DROP
@@ -89,8 +91,6 @@ def functional_request_bytes(tx_id: int, request: str) -> bytes:
             (:func:`canair.safety.blocklist.check_functional_request`).
         ValueError: ``tx_id`` is not a functional id.
     """
-    from canair.safety.blocklist import SafetyBlocked, check_functional_request
-    from canair.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 
     if tx_id not in (FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID):
         raise ValueError(f"0x{tx_id:X} is not a functional request id")

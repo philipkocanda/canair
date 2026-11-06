@@ -10,6 +10,7 @@ channel and the HTTP :func:`reboot_wican` are WiCAN-specific here.
 from collections.abc import Iterable
 from typing import cast
 
+from canair.device.wican.api import reboot_device
 from canair.transport.elm327.channel import WebSocketChannel
 from canair.transport.elm327.frame_count import CountKey
 from canair.transport.elm327.terminal import Elm327Terminal
@@ -61,6 +62,5 @@ def reboot_wican(host: str) -> bool:
     on firmware v6, which has no ``/system_reboot`` and resumes AutoPID itself;
     :func:`canair.device.wican.api.reboot_device` tells skipped and failed apart.
     """
-    from canair.device.wican.api import reboot_device
 
     return reboot_device(host) == "rebooted"

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 
+from canair.core.eventlog import log_event
 from canair.uds.response import (
     ERROR_CATEGORIES,
     RESPONSE_CATEGORIES,
@@ -97,8 +98,6 @@ class TransportStats:
             category = "other"
         self.counts[category] += 1
         if category in ERROR_CATEGORIES:
-            from canair.core.eventlog import log_event
-
             log_event(
                 category,
                 detail or category,
@@ -130,7 +129,6 @@ class TransportStats:
         it again would double-report one incident.
         """
         self.resyncs += 1
-        from canair.core.eventlog import log_event
 
         log_event(
             "resync",
