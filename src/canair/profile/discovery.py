@@ -11,7 +11,7 @@ from canair.config.file import load_config
 from canair.core import yaml_io
 from canair.core.paths import BUNDLED_PROFILES_DIR, config_dir
 from canair.profile.model import Profile, ProfileError, looks_like_profile
-from canair.profile.names import AliasIndex, build_alias_index
+from canair.profile.names import AliasIndex, build_alias_index, declared_aliases
 
 
 def profiles_roots(profiles_dir: str | os.PathLike | None = None) -> list[Path]:
@@ -184,7 +184,6 @@ _noted_renames: set[str] = set()
 
 def _note_renamed(alias: str, prof: Profile) -> None:
     """Say once per process that an old profile name was used, and what to use instead."""
-    from canair.profile.names import declared_aliases
 
     if alias in _noted_renames:
         return

@@ -22,7 +22,7 @@ import shutil
 from pathlib import Path
 
 from canair.config.file import set_config_value, user_profiles_dir
-from canair.core.paths import PROFILE_SCHEMA_MODELINE, schema_modeline
+from canair.core.paths import PROFILE_SCHEMA_MODELINE, TEMPLATES_DIR, schema_modeline
 from canair.profile.bundle import BUNDLE_MEMBERS
 from canair.profile.discovery import profiles_roots
 from canair.profile.model import looks_like_profile
@@ -54,8 +54,6 @@ def render_template(filename: str, **subs: str) -> str:
     ``safe_substitute`` tolerates each template using only the vars it needs.
     """
     from string import Template
-
-    from canair.core.paths import TEMPLATES_DIR
 
     text = (TEMPLATES_DIR / filename).read_text()
     return Template(text).safe_substitute(subs)
