@@ -48,7 +48,7 @@ dev = [
     "pytest>=9.2",
     "pytest-asyncio>=1.4",
     "pytest-xdist>=3.6",
-    "ruff>=0.9",
+    "ruff>=0.17",
     "ty>=0.0.1a1",
 ]
 docs = [
@@ -110,6 +110,9 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+# Ruff 0.16 formats the Python code blocks in Markdown. Plans and docs show code as
+# illustration, with comment alignment that is deliberate, so leave Markdown alone.
+exclude = ["*.md"]
 
 [tool.ty.src]
 # Type-check the library package only. Tests lean heavily on fakes/fixtures
