@@ -149,7 +149,10 @@ class TestNoEagerConfigReadAtImportTime:
             "constants.__getattr__ is back — use an explicit typed accessor "
             "(config.wican_addresses / profile_context.active()) instead"
         )
-        assert not hasattr(canair, "__getattr__")
+        # The package root may define `__getattr__` for `__version__` alone (reading the
+        # installed metadata costs start-up time); it must serve nothing else.
+        assert canair.__version__
+        assert not hasattr(canair, "__not_a_version__")
         for name in ("WICAN_ADDRESSES", "DEFAULT_WICAN", "ECUS_DIR", "CAPTURES_DIR"):
             assert not hasattr(constants, name), f"constants.{name} should be gone"
             assert not hasattr(canair, name), f"canair.{name} should be gone"
