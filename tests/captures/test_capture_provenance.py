@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from canair.captures import build_manual_session, build_query_session, save_session
 from canair.captures import io as capture_io
+from canair.captures.build import build_manual_session, build_query_session
 from canair.captures.journal import CaptureJournal, build_session_from_records
+from canair.captures.save import save_session
 
 
 class TestSessionBuilders:

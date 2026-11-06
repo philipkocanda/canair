@@ -19,7 +19,9 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, TextIO
 
+from canair.captures.build import build_manual_session
 from canair.captures.metadata import resolve_metadata
+from canair.captures.save import save_session_journaled
 from canair.render import ansi, messages
 from canair.render.paint import GAP, INDENT, Cell, Painter, column_widths, render_row
 from canair.transport.functional import DEFAULT_WINDOW_S
@@ -227,7 +229,6 @@ def _save(
     vehicle_states: list[str] | str | None,
     notes: str | None,
 ) -> None:
-    from canair.captures import build_manual_session, save_session_journaled
     from canair.transport.stats import client_transport
 
     suggested = f"Functional discovery {request}"

@@ -55,7 +55,9 @@ def run_from_log(args: argparse.Namespace) -> int:
 
 
 def _import_log(args: argparse.Namespace) -> int:
-    from canair.captures import build_manual_session, can_logs, save_session
+    from canair.captures import can_logs
+    from canair.captures.build import build_manual_session
+    from canair.captures.save import save_session
     from canair.ecus.pids import load_pids
     from canair.ecus.registry import load_ecus
     from canair.states.tokens import parse_states

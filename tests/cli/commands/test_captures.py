@@ -6,12 +6,9 @@ from typing import ClassVar
 
 import pytest
 
-from canair.captures import (
-    build_query_session,
-    build_raw_session,
-    save_session,
-)
+from canair.captures.build import build_query_session, build_raw_session
 from canair.captures.entries import _is_hex_payload, group_sessions
+from canair.captures.save import save_session
 from canair.cli.commands.captures.diff import cmd_diff
 from canair.cli.commands.captures.listing import (
     _print_decoded_preview,
@@ -128,14 +125,14 @@ class TestSavedBanner:
         assert "1 capture(s)" in captured.err
 
     def test_banner_formats_count_and_path(self, tmp_path):
-        from canair.captures import saved_banner
+        from canair.captures.save import saved_banner
 
         line = saved_banner(tmp_path / "2026-08-04.json", 3)
         assert line.strip() == f"→ Saved 3 capture(s) to {tmp_path / '2026-08-04.json'}"
 
     def test_banner_warns_when_the_save_landed_in_an_install_snapshot(self, tmp_path):
         """A write into site-packages "succeeds" and the next reinstall erases it."""
-        from canair.captures import saved_banner
+        from canair.captures.save import saved_banner
 
         snap = (
             tmp_path
@@ -867,7 +864,7 @@ class TestSetSessionNote:
     """set_session_note: canonical way to edit a session's notes (not hand-edit)."""
 
     def _write(self, tmp_path):
-        from canair.captures import save_session
+        from canair.captures.save import save_session
 
         s = build_query_session(
             [("0x7EC", "2101", "6101AA", "12:00:00")], "L", ["ready"], "old note"
@@ -875,7 +872,7 @@ class TestSetSessionNote:
         return save_session(s, tmp_path)
 
     def test_set_note(self, tmp_path):
-        from canair.captures import set_session_note
+        from canair.captures.session_edit import set_session_note
 
         f = self._write(tmp_path)
         set_session_note(f, 0, "new note text")
@@ -883,7 +880,7 @@ class TestSetSessionNote:
         assert doc["sessions"][0]["notes"] == "new note text"
 
     def test_clear_note(self, tmp_path):
-        from canair.captures import set_session_note
+        from canair.captures.session_edit import set_session_note
 
         f = self._write(tmp_path)
         set_session_note(f, 0, "   ")
@@ -891,14 +888,14 @@ class TestSetSessionNote:
         assert "notes" not in doc["sessions"][0]
 
     def test_bad_index_raises(self, tmp_path):
-        from canair.captures import set_session_note
+        from canair.captures.session_edit import set_session_note
 
         f = self._write(tmp_path)
         with pytest.raises(IndexError):
             set_session_note(f, 5, "x")
 
     def test_preserves_captures(self, tmp_path):
-        from canair.captures import set_session_note
+        from canair.captures.session_edit import set_session_note
 
         f = self._write(tmp_path)
         set_session_note(f, 0, "edited")
@@ -910,13 +907,13 @@ class TestSetSessionKeepMode:
     """set_session_keep_mode: backfill keep_mode on pre-existing sessions."""
 
     def _write(self, tmp_path):
-        from canair.captures import save_session
+        from canair.captures.save import save_session
 
         s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "L", ["sleep"], "n")
         return save_session(s, tmp_path)
 
     def test_set_unique(self, tmp_path):
-        from canair.captures import set_session_keep_mode
+        from canair.captures.session_edit import set_session_keep_mode
 
         f = self._write(tmp_path)
         set_session_keep_mode(f, 0, "unique")
@@ -924,7 +921,7 @@ class TestSetSessionKeepMode:
         assert doc["sessions"][0]["keep_mode"] == "unique"
 
     def test_non_unique_clears(self, tmp_path):
-        from canair.captures import set_session_keep_mode
+        from canair.captures.session_edit import set_session_keep_mode
 
         f = self._write(tmp_path)
         set_session_keep_mode(f, 0, "unique")
@@ -933,7 +930,7 @@ class TestSetSessionKeepMode:
         assert "keep_mode" not in doc["sessions"][0]
 
     def test_bad_index_raises(self, tmp_path):
-        from canair.captures import set_session_keep_mode
+        from canair.captures.session_edit import set_session_keep_mode
 
         f = self._write(tmp_path)
         with pytest.raises(IndexError):
@@ -944,13 +941,13 @@ class TestSetSessionStates:
     """set_session_states: canonical way to back-fill a session's vehicle_states."""
 
     def _write(self, tmp_path, states=None):
-        from canair.captures import save_session
+        from canair.captures.save import save_session
 
         s = build_query_session([("0x7EC", "2101", "6101AA", "12:00:00")], "L", states or [], "n")
         return save_session(s, tmp_path)
 
     def test_backfill_from_empty(self, tmp_path):
-        from canair.captures import set_session_states
+        from canair.captures.session_edit import set_session_states
 
         f = self._write(tmp_path, states=[])
         set_session_states(f, 0, "charging")
@@ -958,7 +955,7 @@ class TestSetSessionStates:
         assert doc["sessions"][0]["vehicle_states"] == ["CHARGING"]
 
     def test_accepts_comma_string_and_list(self, tmp_path):
-        from canair.captures import set_session_states
+        from canair.captures.session_edit import set_session_states
 
         f = self._write(tmp_path, states=[])
         set_session_states(f, 0, "charging, ready")
@@ -966,7 +963,7 @@ class TestSetSessionStates:
         assert doc["sessions"][0]["vehicle_states"] == ["CHARGING", "READY"]
 
     def test_empty_clears(self, tmp_path):
-        from canair.captures import set_session_states
+        from canair.captures.session_edit import set_session_states
 
         f = self._write(tmp_path, states=["charging"])
         set_session_states(f, 0, "")
@@ -974,14 +971,14 @@ class TestSetSessionStates:
         assert "vehicle_states" not in doc["sessions"][0]
 
     def test_bad_index_raises(self, tmp_path):
-        from canair.captures import set_session_states
+        from canair.captures.session_edit import set_session_states
 
         f = self._write(tmp_path)
         with pytest.raises(IndexError):
             set_session_states(f, 5, "charging")
 
     def test_preserves_captures(self, tmp_path):
-        from canair.captures import set_session_states
+        from canair.captures.session_edit import set_session_states
 
         f = self._write(tmp_path, states=[])
         set_session_states(f, 0, "charging")
@@ -1279,7 +1276,7 @@ class TestBuildRawSession:
     """build_raw_session: one capture from a single raw UDS response."""
 
     def test_ok_stores_payload(self):
-        from canair.captures import build_raw_session
+        from canair.captures.build import build_raw_session
 
         resp = _uds_response(ok=True, hex="62b00412", bytes=b"\x62\xb0\x04\x12")
         s = build_raw_session("0x7EC", 0x7E4, "22B004", resp, "L", ["ready"], "note")
@@ -1295,7 +1292,7 @@ class TestBuildRawSession:
         assert s["notes"] == "note"
 
     def test_nrc_recorded_as_response(self):
-        from canair.captures import build_raw_session
+        from canair.captures.build import build_raw_session
 
         resp = _uds_response(nrc=0x31, nrc_desc="requestOutOfRange")
         s = build_raw_session("0x7EC", 0x7E4, "22B004", resp, "L", [], "")
@@ -1307,7 +1304,7 @@ class TestBuildRawSession:
         assert "notes" not in s
 
     def test_error_recorded_as_response(self):
-        from canair.captures import build_raw_session
+        from canair.captures.build import build_raw_session
 
         resp = _uds_response(error="NO DATA")
         s = build_raw_session("0x7EC", 0x7E4, "22B004", resp, "L", [], "")
@@ -1318,7 +1315,7 @@ class TestBuildScanSession:
     """build_scan_session: one scan_results capture summarising a range probe."""
 
     def test_responding_and_rejected(self):
-        from canair.captures import build_scan_session
+        from canair.captures.build import build_scan_session
 
         pos = [(0xB004, _uds_response(ok=True, hex="62B004" + "12" * 60, bytes=b"\x00" * 62))]
         neg = [(0xB005, 0x31, "requestOutOfRange")]
@@ -1336,13 +1333,13 @@ class TestBuildScanSession:
         assert sr["rejected"] == "2 DIDs returned 1 NRC + 1 errors"
 
     def test_service_21_uses_two_digit_did(self):
-        from canair.captures import build_scan_session
+        from canair.captures.build import build_scan_session
 
         s = build_scan_session("0x7EC", 0x7E4, 0x21, (0x01, 0x02), [], [], [], "L", [], "")
         assert s["captures"][0]["pid"] == "scan 21 01-02"
 
     def test_append_bytes_suffix(self):
-        from canair.captures import build_scan_session
+        from canair.captures.build import build_scan_session
 
         s = build_scan_session(
             "0x7EC", 0x7E4, 0x22, (0xB000, 0xB010), [], [], [], "L", [], "", append_bytes="AA"
@@ -1350,7 +1347,7 @@ class TestBuildScanSession:
         assert s["captures"][0]["pid"] == "scan 22 B000-B010 + suffix AA"
 
     def test_no_rejected_when_all_positive(self):
-        from canair.captures import build_scan_session
+        from canair.captures.build import build_scan_session
 
         pos = [(0xB004, _uds_response(ok=True, hex="62B004", bytes=b"\x62\xb0\x04"))]
         s = build_scan_session("0x7EC", 0x7E4, 0x22, (0xB000, 0xB010), pos, [], [], "L", [], "")
@@ -1361,7 +1358,7 @@ class TestBuildDiscoverSession:
     """build_discover_session: broadcast-rx capture from a discovery sweep."""
 
     def test_alive_and_silent(self):
-        from canair.captures import build_discover_session
+        from canair.captures.build import build_discover_session
 
         alive = [(0x7E0, 0x7E8, "ECU-A", "50 03"), (0x7E2, 0x7EA, "ECU-B", "")]
         s = build_discover_session(alive, 5, 2, (0x700, 0x7FF), "L", ["ready"], "n")
@@ -1380,7 +1377,7 @@ class TestBuildDiscoverSession:
     def test_records_the_rx_it_is_given_not_tx_plus_8(self):
         """The caller resolves RX under the profile's addressing; the builder must
         not recompute it as TX + 8 (a +0x20 profile was saved with +8 addresses)."""
-        from canair.captures import build_discover_session
+        from canair.captures.build import build_discover_session
 
         alive = [(0x74E, 0x76E, "positive", "")]
         s = build_discover_session(alive, 0, 0, (0x700, 0x7EF), "L", [], "")
@@ -1388,7 +1385,7 @@ class TestBuildDiscoverSession:
         assert (entry["tx"], entry["rx"]) == ("0x74E", "0x76E")
 
     def test_transport_is_recorded_when_given(self):
-        from canair.captures import build_discover_session
+        from canair.captures.build import build_discover_session
 
         s = build_discover_session([], 1, 0, (0x700, 0x710), "L", [], "", transport="wican-ws")
         assert s["transport"] == "wican-ws"
@@ -1397,7 +1394,7 @@ class TestBuildDiscoverSession:
     def test_schema_accepts_the_tx_field(self):
         from jsonschema import Draft202012Validator
 
-        from canair.captures import build_discover_session
+        from canair.captures.build import build_discover_session
         from canair.validation._common import CAPTURES_SCHEMA_FILE
 
         alive = [(0x74E, 0x76E, "positive", "")]
@@ -1406,7 +1403,7 @@ class TestBuildDiscoverSession:
         Draft202012Validator(schema).validate({"sessions": [s]})
 
     def test_no_responders(self):
-        from canair.captures import build_discover_session
+        from canair.captures.build import build_discover_session
 
         s = build_discover_session([], 3, 0, (0x700, 0x710), "L", [], "")
         sr = s["captures"][0]["scan_results"]
@@ -1458,7 +1455,7 @@ class TestSessionFieldOrder:
         assert self._order(s) == ["date", "label"]
 
     def test_every_builder_puts_captures_last(self):
-        from canair.captures import (
+        from canair.captures.build import (
             build_discover_session,
             build_manual_session,
             build_raw_session,
@@ -1506,7 +1503,7 @@ class TestSetCaptureNote:
     """set_capture_note: per-capture note editing (not hand-edit)."""
 
     def _write(self, tmp_path):
-        from canair.captures import save_session
+        from canair.captures.save import save_session
 
         s = build_query_session(
             [
@@ -1520,7 +1517,7 @@ class TestSetCaptureNote:
         return save_session(s, tmp_path)
 
     def test_set_note(self, tmp_path):
-        from canair.captures import set_capture_note
+        from canair.captures.session_edit import set_capture_note
 
         f = self._write(tmp_path)
         set_capture_note(f, 0, 1, "second cap note")
@@ -1530,7 +1527,7 @@ class TestSetCaptureNote:
         assert "notes" not in doc["sessions"][0]["captures"][0]
 
     def test_clear_note(self, tmp_path):
-        from canair.captures import set_capture_note
+        from canair.captures.session_edit import set_capture_note
 
         f = self._write(tmp_path)
         set_capture_note(f, 0, 0, "x")
@@ -1539,7 +1536,7 @@ class TestSetCaptureNote:
         assert "notes" not in doc["sessions"][0]["captures"][0]
 
     def test_bad_index_raises(self, tmp_path):
-        from canair.captures import set_capture_note
+        from canair.captures.session_edit import set_capture_note
 
         f = self._write(tmp_path)
         with pytest.raises(IndexError):
@@ -1550,7 +1547,7 @@ class TestDeleteCapture:
     """delete_capture: index-addressed removal, dropping an emptied session."""
 
     def _write(self, tmp_path):
-        from canair.captures import save_session
+        from canair.captures.save import save_session
 
         s = build_query_session(
             [
@@ -1564,7 +1561,7 @@ class TestDeleteCapture:
         return save_session(s, tmp_path)
 
     def test_delete_leaves_session_when_more_remain(self, tmp_path):
-        from canair.captures import delete_capture
+        from canair.captures.session_edit import delete_capture
 
         f = self._write(tmp_path)
         removed_session = delete_capture(f, 0, 0)
@@ -1575,7 +1572,7 @@ class TestDeleteCapture:
         assert doc["sessions"][0]["captures"][0]["pid"] == "2102"
 
     def test_delete_last_capture_removes_session(self, tmp_path):
-        from canair.captures import delete_capture
+        from canair.captures.session_edit import delete_capture
 
         f = self._write(tmp_path)
         delete_capture(f, 0, 0)
@@ -1585,7 +1582,7 @@ class TestDeleteCapture:
         assert doc["sessions"] == []
 
     def test_bad_index_raises(self, tmp_path):
-        from canair.captures import delete_capture
+        from canair.captures.session_edit import delete_capture
 
         f = self._write(tmp_path)
         with pytest.raises(IndexError):
@@ -1596,22 +1593,22 @@ class TestLabelSuggesters:
     """suggest_*_label: human-readable session labels."""
 
     def test_scan_label_wide_did(self):
-        from canair.captures import suggest_scan_label
+        from canair.captures.build import suggest_scan_label
 
         assert suggest_scan_label("BMS", 0x22, (0xB000, 0xB010)) == "Scan BMS 22 B000-B010"
 
     def test_scan_label_two_digit_did_and_suffix(self):
-        from canair.captures import suggest_scan_label
+        from canair.captures.build import suggest_scan_label
 
         assert suggest_scan_label("BMS", 0x21, (0x01, 0x02), "AA") == "Scan BMS 21 01-02 +AA"
 
     def test_raw_label(self):
-        from canair.captures import suggest_raw_label
+        from canair.captures.build import suggest_raw_label
 
         assert suggest_raw_label("BMS", "2101") == "Raw BMS 2101"
 
     def test_discover_label(self):
-        from canair.captures import suggest_discover_label
+        from canair.captures.build import suggest_discover_label
 
         assert suggest_discover_label((0x700, 0x7FF)) == "Discovery scan 700-7FF"
 
@@ -1640,14 +1637,14 @@ class TestDecodePayload:
     }
 
     def test_decodes_params_and_display(self):
-        from canair.captures import _decode_payload
+        from canair.captures.decode import _decode_payload
 
         # WiCAN layout of 6101C8: B00=PCI, B01=SID, B02=PID, B03=0xC8 (200)
         decoded = _decode_payload("BMS", "2101", "6101C8", self._PIDS)
         assert decoded == {"SOC": "100.0 %", "FLAG": "200.0  (HI)"}
 
     def test_bad_display_falls_back_to_plain_value(self):
-        from canair.captures import _decode_payload
+        from canair.captures.decode import _decode_payload
 
         pids = {
             "ecus": {
@@ -1662,17 +1659,17 @@ class TestDecodePayload:
         assert _decode_payload("BMS", "2101", "6101C8", pids) == {"X": "100.0"}
 
     def test_unknown_ecu_returns_none(self):
-        from canair.captures import _decode_payload
+        from canair.captures.decode import _decode_payload
 
         assert _decode_payload("NOPE", "2101", "6101C8", self._PIDS) is None
 
     def test_unknown_pid_returns_none(self):
-        from canair.captures import _decode_payload
+        from canair.captures.decode import _decode_payload
 
         assert _decode_payload("BMS", "9999", "6101C8", self._PIDS) is None
 
     def test_pid_without_parameters_returns_none(self):
-        from canair.captures import _decode_payload
+        from canair.captures.decode import _decode_payload
 
         pids = {"ecus": {"BMS": {"tx_id": 0x7E4, "pids": {"2101": {}}}}}
         assert _decode_payload("BMS", "2101", "6101C8", pids) is None
@@ -1784,7 +1781,7 @@ class TestCmdBackfillStateSpans:
         assert len(filter_by_text(load_all_captures(tmp_path), state="SLEEP")) == 2
 
     def test_live_spans_are_not_clobbered(self, tmp_path, capsys):
-        from canair.captures import set_session_state_spans
+        from canair.captures.session_edit import set_session_state_spans
 
         self._seed(tmp_path, ["READY", "PARKED"])
         fpath = next(tmp_path.glob("*.json"))

@@ -48,6 +48,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
+from canair.captures.build import build_query_session
 from canair.captures.keepmode import KEEP_CHANGES, KeepMode, PersistedKeepMode, parse_keep_mode
 from canair.captures.link_events import (
     JOURNAL_EVENT,
@@ -56,6 +57,8 @@ from canair.captures.link_events import (
     events_by_date,
     format_time,
 )
+from canair.captures.save import apply_capture_tag, current_capture_tag, save_session
+from canair.captures.session_edit import _set_session_field
 from canair.captures.types import CaptureSession, Quality
 from canair.privacy.sensitive import SensitiveSet
 
@@ -128,8 +131,6 @@ class CaptureJournal:
             meta["transport"] = transport
         # The car being recorded, fixed now: a crash is recovered by a later run,
         # whose own selection says nothing about this recording.
-        from canair.captures import current_capture_tag
-
         tag = current_capture_tag(captures_dir)
         if tag:
             meta.update(tag)
@@ -147,7 +148,7 @@ class CaptureJournal:
     def _admit(self, record: dict) -> bool:
         """Keep a reply to a sensitive PID out of the journal (it is never saved).
 
-        The gate sits here, not only in :func:`~canair.captures.save_session`, because
+        The gate sits here, not only in :func:`~canair.captures.save.save_session`, because
         the journal is on disk from the first append and outlives a crash.
         """
         from canair.privacy import sensitive
@@ -211,7 +212,7 @@ class CaptureJournal:
         """Append a request that drew no payload (an NRC or no reply).
 
         ``response`` is the text the capture stores
-        (:func:`~canair.captures.non_answer_text`). It is untimed on reconcile, so
+        (:func:`~canair.captures.build.non_answer_text`). It is untimed on reconcile, so
         only the ``date`` (which day's file it lands in) is recorded.
         """
         rec: dict = {"type": "response", "rx": ecu_ref, "pid": pid, "response": response}
@@ -377,8 +378,6 @@ def build_session_from_records(
     (non-answers) are grouped the same way and never deduplicated. Returns an
     empty list when the journal has no capture/session payloads.
     """
-    from canair.captures import apply_capture_tag, build_query_session
-
     meta = {"label": "", "vehicle_states": [], "notes": "", "keep_mode": None, "date": ""}
     session_records: list[dict] = []
     rows: list[tuple[str, str, str, str, str, int | None]] = []
@@ -443,8 +442,6 @@ def build_session_from_records(
     # One-shot producer stored a complete session; merge its captures in. These
     # carry their own session date, so they are not day-split here.
     if session_records:
-        from canair.captures import _set_session_field
-
         # Only the first session dict carries the base; append others' captures.
         # Narrowed at the *entry* boundary (the journal is untyped JSONL) so every
         # field write below is checked, rather than casting the finished dict.
@@ -507,8 +504,6 @@ def reconcile_file(
     each saved to its own ``YYYY-MM-DD.yaml``. Returns the last capture file
     path written (they land in per-day files), or None if empty.
     """
-    from canair.captures import save_session
-
     if not path.exists():
         return None
     captures_dir = path.parent.parent

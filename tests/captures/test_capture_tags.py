@@ -85,7 +85,8 @@ class TestSelection:
 
 class TestStamping:
     def test_save_session_tags_the_selected_variant(self, prof):
-        from canair.captures import build_manual_session, save_session
+        from canair.captures.build import build_manual_session
+        from canair.captures.save import save_session
 
         _select(prof, "38kwh")
         session = build_manual_session(
@@ -99,7 +100,8 @@ class TestStamping:
 
     @pytest.mark.parametrize("variant", [None, "all", "untagged"])
     def test_no_car_named_means_no_tag(self, prof, variant):
-        from canair.captures import build_manual_session, save_session
+        from canair.captures.build import build_manual_session
+        from canair.captures.save import save_session
 
         _select(prof, variant)
         path = save_session(build_manual_session([{"rx": "0x7EC", "pid": "2101"}], label="L"))
@@ -107,7 +109,8 @@ class TestStamping:
         assert "variant" not in saved
 
     def test_a_write_to_another_directory_is_not_tagged(self, prof, tmp_path):
-        from canair.captures import build_manual_session, save_session
+        from canair.captures.build import build_manual_session
+        from canair.captures.save import save_session
 
         _select(prof, "28kwh")
         other = tmp_path / "elsewhere"
@@ -274,7 +277,7 @@ class TestMigrateVariants:
 
 class TestSetVariant:
     def test_asserts_and_clears(self, prof):
-        from canair.captures import set_session_variant
+        from canair.captures.session_edit import set_session_variant
 
         path = _write(prof.captures_dir / "2026-01-01.json", _session("a", variant="28kwh"))
         set_session_variant(path, 0, "38kwh")

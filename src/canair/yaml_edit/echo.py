@@ -6,7 +6,7 @@ per-command f-string kept getting wrong:
 
 * **The full path, never a bare filename.** ``(bms.yaml)`` does not identify a
   profile, and canair ships several — plus a user copy that shadows a bundled one
-  by name. :func:`canair.captures.saved_banner` has always held this rule for
+  by name. :func:`canair.captures.save.saved_banner` has always held this rule for
   capture writes; this is its authoring twin.
 * **A write into an install snapshot has to say so.** Editing definitions under
   ``site-packages`` appears to work and is erased by the next reinstall, so the

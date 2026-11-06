@@ -383,7 +383,7 @@ async def _run_pipeline(
                     else:
                         # An explicit raw request is a probe, so its refusal is the
                         # result: keep it, as a standalone `canair raw --save` does.
-                        from ...captures import non_answer_text
+                        from ...captures.build import non_answer_text
 
                         non_answers += 1
                         if journal is not None:

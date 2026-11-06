@@ -267,7 +267,7 @@ bit) maps each byte and flags `unmapped` ones — the fastest way to catch a wro
     For a bulk edit/delete keyed on a predicate the QUERY can't express, go through
     `canair.commands.captures.query.load_all_captures()`: flat entries with `ecu`
     already **resolved to the short name** (`OBC`), the raw `ecu_addr` (`0x7ED`), and
-    `_session_idx`/`_capture_idx` locators for `canair.captures.delete_capture` (delete
+    `_session_idx`/`_capture_idx` locators for `canair.captures.session_edit.delete_capture` (delete
     in reverse `(file, session, capture)` order). **Do not re-derive the list with a raw
     `ecu == "OBC"` filter** — the stored `rx` field is the CAN **response address**, not
     the short name, so that scan silently matches nothing. Prefer

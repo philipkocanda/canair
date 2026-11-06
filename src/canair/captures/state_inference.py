@@ -8,7 +8,7 @@ that existed or with a missing/incorrect state.
 
 Nothing here talks to the device; it is pure analysis over ``captures/`` (like
 :mod:`canair.analysis.align`), and it sits in the store because every save annotates the new
-session with its state timeline (:func:`canair.captures.annotate_session_spans`). A capture
+session with its state timeline (:func:`canair.captures.session_edit.annotate_session_spans`). A capture
 existing *is* a response, so ``responded`` is ``None`` (unobservable) — a predicate using
 ``__no_response__`` / ``__responded__`` cleanly abstains (evaluates to
 :data:`canair.states.predicates.UNKNOWN`) rather than firing on absent evidence.
@@ -327,7 +327,7 @@ def session_state_spans(
     into data loss.
 
     Shared by ``captures uds --backfill-state-spans`` and the save-time hook
-    (:func:`canair.captures.annotate_session_spans`) so both derive a timeline the
+    (:func:`canair.captures.session_edit.annotate_session_spans`) so both derive a timeline the
     same way.
     """
     inf = infer_state_spans(captures, rules, ecu_index, cycle_tol=cycle_tol, profile=profile)

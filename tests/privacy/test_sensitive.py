@@ -135,7 +135,7 @@ class TestNeverSaved:
         assert "Not saved: CCM:22F102" in capsys.readouterr().err  # a status line, not the result
 
     def test_save_session_drops_sensitive_rows_whoever_built_them(self, prof, capsys):
-        from canair.captures import save_session
+        from canair.captures.save import save_session
 
         session = {
             "date": "2026-11-02",

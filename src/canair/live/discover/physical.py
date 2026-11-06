@@ -18,6 +18,8 @@ from canair.uds.addressing import (
 )
 from canair.uds.services import DEFAULT_SESSION_REQUEST
 
+from ...captures.build import build_discover_session, suggest_discover_label
+from ...captures.save import save_session_journaled
 from ...ecus.registry import load_ecus, rx_for_tx
 from ...render.discover import ABSENT, POSITIVE, PROBE_FAILED, REFUSED, status_cell
 from ...render.progress import ProgressLine
@@ -239,12 +241,6 @@ async def mode_discover(
     # Auto-save to captures
     if save and alive:
         from canair.transport.stats import client_transport
-
-        from ...captures import (
-            build_discover_session,
-            save_session_journaled,
-            suggest_discover_label,
-        )
 
         enriched = []
         for tx_id_val, status, detail in alive:

@@ -249,7 +249,7 @@ def snapshot_write_note(path: Path) -> str | None:
     """Warn that ``path`` is inside an install snapshot, and name the one fix.
 
     Every command that writes into a profile calls this on the file it just wrote
-    (``canair.captures.saved_banner``, the definition editors' confirmations), so
+    (``canair.captures.save.saved_banner``, the definition editors' confirmations), so
     the warning appears where the data actually landed rather than only at
     contribution time. ``None`` when the path is in a writable location, so a
     caller can simply skip a falsy note.

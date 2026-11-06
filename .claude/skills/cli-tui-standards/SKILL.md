@@ -29,7 +29,7 @@ Use these. Do not re-implement them.
 | Rich console for plain output | `src/canair/render/console.py` (`console`, `escape`) |
 | Shared formatters, byte styles and their legend | `src/canair/render/formatting.py` |
 | Yes/no and typed confirmation | `src/canair/core/prompt.py` |
-| Write confirmations | `yaml_edit/echo.py::echo_edit`, `captures/echo.py`, `captures/__init__.py::saved_banner` |
+| Write confirmations | `yaml_edit/echo.py::echo_edit`, `captures/echo.py`, `captures/save.py::saved_banner` |
 | Top-level error handler | `src/canair/cli/__init__.py` (`main`) |
 | Terminal size | `src/canair/core/terminal.py` |
 | TUI key roles, hints | `src/canair/tui/keys.py` (`ROLES`, `bind`, `keys_for`, `hint`, `key_hint`) |

@@ -12,7 +12,7 @@ import json
 
 import pytest
 
-from canair.captures import save_session
+from canair.captures.save import save_session
 from canair.migrations.discover import Addressing, infer_tx, migrate_dir, repair_doc
 from canair.uds.addressing import DEFAULT_MODE
 
@@ -106,7 +106,7 @@ class TestRepairDoc:
 
     def test_matches_what_the_fixed_writer_records(self):
         """A repaired legacy capture is indistinguishable from a fresh one."""
-        from canair.captures import build_discover_session
+        from canair.captures.build import build_discover_session
 
         doc = _doc(LEGACY)
         repair_doc(doc, ADDRESSING)

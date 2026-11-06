@@ -350,7 +350,7 @@ class TestSave:
         from canair.live.dtc.snapshot_capture import SESSION_NOTE
 
         saved = []
-        monkeypatch.setattr("canair.captures.save_session_journaled", saved.append)
+        monkeypatch.setattr("canair.live.dtc.snapshot_capture.save_session_journaled", saved.append)
         t = FakeTerminal(CCM_REPLIES)
         await dtc.mode_dtc_read(
             t, CCM, protocol="uds", pids_data=PIDS_DATA, save=True, label="fault", notes="n"
@@ -366,7 +366,7 @@ class TestSave:
     @pytest.mark.asyncio
     async def test_nothing_to_save_says_so(self, monkeypatch, capsys):
         saved = []
-        monkeypatch.setattr("canair.captures.save_session_journaled", saved.append)
+        monkeypatch.setattr("canair.live.dtc.snapshot_capture.save_session_journaled", saved.append)
         t = FakeTerminal({"1902FF": _ok("590209")})
         await dtc.mode_dtc_read(t, CCM, protocol="uds", save=True, label="x")
         assert saved == []
@@ -419,7 +419,7 @@ class TestSensitive:
         from canair.privacy.sensitive import MASK
 
         saved = []
-        monkeypatch.setattr("canair.captures.save_session_journaled", saved.append)
+        monkeypatch.setattr("canair.live.dtc.snapshot_capture.save_session_journaled", saved.append)
         t = FakeTerminal(CCM_REPLIES)
         await dtc.mode_dtc_read(
             t,

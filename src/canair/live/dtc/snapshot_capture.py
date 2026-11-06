@@ -12,6 +12,9 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
+from canair.captures.build import build_query_session
+from canair.captures.save import save_session_journaled
+
 SESSION_NOTE = (
     "DTC snapshot replies (19 04), stored under their request. Each time is when the reply "
     "was read, not when the fault was set."
@@ -42,8 +45,6 @@ def save_snapshot_captures(
     transport: str | None,
 ) -> Path | None:
     """Save the snapshot replies as one capture session; None when there were none."""
-    from canair.captures import build_query_session, save_session_journaled
-
     rows = snapshot_rows(results)
     if not rows:
         return None

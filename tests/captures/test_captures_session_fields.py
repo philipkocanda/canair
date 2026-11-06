@@ -13,7 +13,8 @@ import json
 
 import pytest
 
-from canair.captures import build_query_session, save_session
+from canair.captures.build import build_query_session
+from canair.captures.save import save_session
 from canair.core.prompt import PromptUnavailable
 
 

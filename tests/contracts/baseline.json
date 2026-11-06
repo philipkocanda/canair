@@ -6,8 +6,7 @@
     "canair.analysis.blind": 684,
     "canair.analysis.counters": 591,
     "canair.analysis.cross_signal": 980,
-    "canair.captures": 845,
-    "canair.captures.journal": 552,
+    "canair.captures.journal": 547,
     "canair.captures.store": 544,
     "canair.tui.apps.captures_step.model": 809,
     "canair.tui.apps.captures_step.app": 671,
@@ -28,7 +27,7 @@
     "canair.yaml_edit.revisions": 560,
     "canair.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 1099,
+  "deferred_internal_imports": 1094,
   "import_linter_ignores": 0,
   "packages_without_charter": [],
   "test_to_test_imports": [],

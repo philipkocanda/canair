@@ -44,8 +44,8 @@ def cmd_set_state(
     """Set ``vehicle_states`` on every scope-selected session to ``states_arg``."""
     import json as _json
 
-    from canair.captures import set_session_states
     from canair.captures.entries import group_sessions
+    from canair.captures.session_edit import set_session_states
 
     states = parse_states(states_arg)
     if not states:

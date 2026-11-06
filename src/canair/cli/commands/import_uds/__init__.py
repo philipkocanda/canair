@@ -113,7 +113,8 @@ def run(args) -> int:
 
     require_named_car(active(), "import uds")
 
-    from canair.captures import build_manual_session, save_session
+    from canair.captures.build import build_manual_session
+    from canair.captures.save import save_session
     from canair.ecus.names import build_name_tx_index
     from canair.states.tokens import parse_states
 

@@ -12,6 +12,8 @@ from canair.render.console import escape
 from canair.render.glyphs import ELLIPSIS
 from canair.uds.services import identifier_width
 
+from ...captures.build import build_scan_session, suggest_scan_label
+from ...captures.save import save_session_journaled
 from ...transport.protocol import Terminal
 
 
@@ -204,7 +206,6 @@ async def mode_scan(
     if save:
         from canair.transport.stats import client_transport
 
-        from ...captures import build_scan_session, save_session_journaled, suggest_scan_label
         from ...ecus.registry import rx_addr_str
 
         suggested = suggest_scan_label(ecu, service, ranges, append_bytes)

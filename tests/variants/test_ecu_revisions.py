@@ -380,7 +380,7 @@ class TestCaptures:
         assert "revisions" not in capture_tag(_activate(variant="60kwh"))
 
     def test_save_session_narrows_to_captured_ecus(self, copy):
-        from canair.captures import apply_capture_tag
+        from canair.captures.save import apply_capture_tag
 
         prof = _activate(copy, variant="60kwh", pins=["VCU=uds"])
         bms_only = {

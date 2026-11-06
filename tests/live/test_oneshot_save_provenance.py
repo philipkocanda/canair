@@ -135,7 +135,8 @@ class TestScanAndRawSave:
 class TestJournaledSaveNeverGuesses:
     def test_a_session_without_transport_is_saved_without_one(self, prof):
         """Re-resolving config would ignore --transport/--wican and fallback."""
-        from canair.captures import build_raw_session, save_session_journaled
+        from canair.captures.build import build_raw_session
+        from canair.captures.save import save_session_journaled
 
         session = build_raw_session("0x76E", 0x74E, "2101", ok("6101AA"), "L", [], "")
         save_session_journaled(session, prof / "captures")

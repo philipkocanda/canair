@@ -50,7 +50,7 @@ def _cap(pid: str, size: int) -> dict:
 
 
 def test_save_session_drops_a_dump(prof, capsys):
-    from canair.captures import save_session
+    from canair.captures.save import save_session
 
     session = {
         "date": "2026-11-05",

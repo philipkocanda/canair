@@ -2,7 +2,7 @@
 
 A dated capture file (``captures/YYYY-MM-DD.json``) is an **append-only** log:
 ``{"sessions": [ … ]}`` where each session is a self-contained block. New
-sessions are only ever appended (via :func:`canair.captures.save_session`); the
+sessions are only ever appended (via :func:`canair.captures.save.save_session`); the
 metadata editors and repairs rewrite a session in place but never its anchor
 (see Session identity). Two machines that each record on the same
 day therefore append *different* sessions to the tail of the same file — a

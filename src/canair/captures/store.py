@@ -56,7 +56,7 @@ def _clear_decode_index() -> None:
 def _decoder() -> tuple[Any, Any] | None:
     """``(decode function, ECU index)`` for the active profile, or None when unavailable."""
     try:
-        from canair.captures import _decode_payload
+        from canair.captures.decode import _decode_payload
         from canair.ecus.pids import build_ecu_index, load_pids, register_derived_cache
         from canair.profile import active
 

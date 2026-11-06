@@ -10,8 +10,12 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from canair.captures.journal import CaptureJournal
 from canair.captures.keepmode import KeepMode, persisted_keep_mode
 from canair.captures.types import Quality
+
+from ...captures.build import build_query_session
+from ...captures.save import save_session
 
 
 def merge_history(
@@ -53,7 +57,6 @@ def write_merged(
     The ECU label (e.g. "BMS") is resolved to its CAN response address; an
     unknown label falls back to its leading token verbatim.
     """
-    from ...captures import build_query_session, save_session
     from ...ecus.names import build_name_tx_index, rx_from_name
 
     name_index = build_name_tx_index()
@@ -87,8 +90,6 @@ def open_journal(controller, label: str | None, vehicle_states, notes: str | Non
     every row.
     The transport label (for saved-capture provenance) comes from the controller.
     """
-    from canair.captures.journal import CaptureJournal
-
     assert controller.captures_dir is not None  # set by mode_monitor before any recording
     journal_label = label or controller.view.query_label() or "Monitor session"
     keep = persisted_keep_mode(controller.keep_mode)

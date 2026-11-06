@@ -14,7 +14,8 @@ import sys
 
 import pytest
 
-from canair.captures import build_query_session, save_session
+from canair.captures.build import build_query_session
+from canair.captures.save import save_session
 from canair.captures.store import load_all_captures
 from canair.cli.commands import update as update_cmd
 from canair.cli.commands.captures.backfill import cmd_backfill_states

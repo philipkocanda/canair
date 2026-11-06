@@ -433,8 +433,8 @@ class TestReport:
     def test_capture_round_trips_through_validate_captures(self, tmp_path):
         from jsonschema import Draft202012Validator
 
-        from canair.captures import build_manual_session
         from canair.captures import io as capture_io
+        from canair.captures.build import build_manual_session
         from canair.validation._common import CAPTURES_SCHEMA_FILE
         from canair.validation.captures import validate_captures_file
 

@@ -427,7 +427,8 @@ class TestStepModelJson:
 
 def _write_captures(tmp_path) -> list[dict]:
     """Save two real capture files and return the loaded entries."""
-    from canair.captures import build_query_session, save_session
+    from canair.captures.build import build_query_session
+    from canair.captures.save import save_session
     from canair.captures.store import load_all_captures
 
     save_session(

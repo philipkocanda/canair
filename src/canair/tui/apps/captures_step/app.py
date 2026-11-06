@@ -598,7 +598,7 @@ class CapturesStepApp(HelpMixin, App):
         )
 
     def _write_note(self, cap: CaptureEntry, note: str) -> None:
-        from canair.captures import set_capture_note
+        from canair.captures.session_edit import set_capture_note
 
         target = self._writable_target(cap)
         if target is None:
@@ -650,7 +650,7 @@ class CapturesStepApp(HelpMixin, App):
         return target
 
     def _delete(self, cap: CaptureEntry) -> None:
-        from canair.captures import delete_capture
+        from canair.captures.session_edit import delete_capture
 
         target = self._writable_target(cap)
         if target is None:

@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from canair.captures import build_manual_session
+from canair.captures.build import build_manual_session
 from canair.cli.commands.import_uds import _build_capture, _parse_spec, run
 
 _NAME_INDEX = {"CLU": 0x7C6}

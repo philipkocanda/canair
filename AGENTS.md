@@ -49,7 +49,7 @@ sockets, ad-hoc scripts, or hand-edited YAML.
   every payload lands in `captures/`. Works with `read`/`monitor`/`scan`/`raw`/`discover`. Saves are
   **journaled** (write-ahead log in `captures/.journal/`) and reconciled on exit, so a
   killed/crashed session is never lost — recover leftovers with `canair captures uds --recover`.
-- **Every write prints the capture file it landed in** (`src/canair/captures/__init__.py::saved_banner`) — read
+- **Every write prints the capture file it landed in** (`src/canair/captures/save.py::saved_banner`) — read
   it back to confirm which profile got the data. A save made *inside* the monitor TUI has its banner
   deferred to exit, since Textual owns stdout while the app is up.
 - **`monitor` records every poll (`--keep-all`) by default**, so a stored-row count measures the
@@ -630,7 +630,7 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   talks to the car (`cli/live/runtime.py::run_live`, except `discover`/`identity` without `--save`),
   `sniff` and AutoPID generation (`wican._generate`), on a profile with several variants and none
   named. The suite pins its car in conftest's isolated config. It **tags captures**: every save
-  funnels through `captures.save_session` and the journal's meta, both via `current_capture_tag`
+  funnels through `captures.save.save_session` and the journal's meta, both via `current_capture_tag`
   (only for the active profile's own store; the journal fixes the tag at open so a later `--recover`
   cannot retag; attribution from the source — `selected`, `alias`, `only`). It **scopes analysis**
   inside `load_all_captures` (only when no explicit `--dir`): the car's sessions plus untagged ones
@@ -917,7 +917,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
 `canair` from `uv tool install`/`pipx`/`pip`) accepts writes that the next reinstall deletes — this
 really happened, costing two sessions' captures. The detection and the user-facing remedy are
 `src/canair/install/context.py::installed_snapshot_kind` and `::snapshot_write_note`, and **every write
-path emits that note**: `src/canair/captures/__init__.py::saved_banner` for captures and
+path emits that note**: `src/canair/captures/save.py::saved_banner` for captures and
 `src/canair/yaml_edit/echo.py::echo_edit` for every definition edit (`pids`/`signals`/`states`/
 `groups`/`ecu add` all route their `✓ …` confirmation through it, which is also what guarantees the
 confirmation names a **full path** rather than a bare `bms.yaml`). `canair update` refuses to be the

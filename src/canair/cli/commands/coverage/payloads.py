@@ -29,7 +29,7 @@ from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import TypedDict
 
-from canair.captures import IMPORT_TRANSPORT
+from canair.captures.build import IMPORT_TRANSPORT
 from canair.uds.echo import request_echo
 from canair.uds.nrc import nrc_description
 from canair.uds.payload import payload_echo_mismatch

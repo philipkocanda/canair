@@ -51,21 +51,21 @@ class SessionField:
 
 
 def _notes_field() -> SessionField:
-    from canair.captures import set_session_note
+    from canair.captures.session_edit import set_session_note
 
     return SessionField("notes", "--set-notes", set_session_note)
 
 
 def known_transports() -> list[str]:
     """Every label a session's ``transport`` can legitimately carry."""
-    from canair.captures import IMPORT_TRANSPORT
+    from canair.captures.build import IMPORT_TRANSPORT
     from canair.transport.config import TRANSPORTS
 
     return [*TRANSPORTS, IMPORT_TRANSPORT]
 
 
 def _transport_field() -> SessionField:
-    from canair.captures import set_session_transport
+    from canair.captures.session_edit import set_session_transport
 
     return SessionField("transport", "--set-transport", set_session_transport, known_transports)
 
@@ -79,7 +79,7 @@ def declared_variants() -> list[str]:
 
 
 def _variant_field() -> SessionField:
-    from canair.captures import set_session_variant
+    from canair.captures.session_edit import set_session_variant
 
     return SessionField("variant", "--set-variant", set_session_variant, declared_variants)
 
