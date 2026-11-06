@@ -22,7 +22,7 @@ from typing import ClassVar
 
 from rich.text import Text
 from textual.app import App, ComposeResult
-from textual.binding import Binding
+from textual.binding import Binding, BindingType
 from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Label, Static
@@ -116,7 +116,7 @@ class HelpModal(OverlayScroll, ModalScreen[None]):
     """
     )
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("back", "close", desc=DISMISS_DESCRIPTION),
         *bind("help", "close", desc=DISMISS_DESCRIPTION),
         *bind("quit", "close", desc=DISMISS_DESCRIPTION),

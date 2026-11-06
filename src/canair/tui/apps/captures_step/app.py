@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from rich.text import Text
 from textual.app import App, ComposeResult
-from textual.binding import Binding
+from textual.binding import Binding, BindingType
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.css.query import NoMatches
 from textual.widgets import Button, Input, Label, SelectionList, Static
@@ -76,7 +76,7 @@ class PidSelectModal(KitModal["list[Key] | None"]):
         + "#pid-list { height: auto; max-height: 20; }\n#pid-filter { margin-bottom: 1; }"
     )
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("back", "cancel", desc="cancel"),
         *bind("apply", "apply", priority=True),
         *bind("filter", "focus_filter", show=False),
@@ -169,7 +169,7 @@ class JumpModal(ListPickerModal["JumpTarget"]):
 
     CSS = ListPickerModal.picker_css("JumpModal", 96, rows=22)
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         # ctrl+n, not `n`: the stepper beneath uses `n` for "next" and a modal
         # that redefines a host key to something unrelated is exactly the
         # inconsistency this keymap exists to prevent.
@@ -285,7 +285,7 @@ class CapturesStepApp(HelpMixin, App):
     """
     )
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("quit", "quit"),
         *bind("quit_force", "quit", show=False, priority=True),
         *bind("help", "help"),

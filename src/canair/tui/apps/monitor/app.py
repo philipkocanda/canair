@@ -59,7 +59,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from textual.app import App, ComposeResult
-from textual.binding import Binding
+from textual.binding import BindingType
 from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
 from textual.widgets import Static
@@ -117,7 +117,7 @@ class MonitorApp(PollingMixin, RecordingMixin, HelpMixin, App):
     """
     )
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("quit", "quit"),
         *bind("quit_force", "quit", show=False, priority=True),
         *bind("help", "help"),

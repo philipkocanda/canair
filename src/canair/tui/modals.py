@@ -22,7 +22,7 @@ from collections.abc import Callable
 from typing import ClassVar
 
 from textual.app import ComposeResult
-from textual.binding import Binding
+from textual.binding import BindingType
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, OptionList
@@ -43,7 +43,7 @@ class KitModal[T](ModalScreen[T]):
     #: ``(sample, style, meaning)`` rows when the dialog uses colour to mean something.
     HELP_LEGEND: ClassVar[tuple[LegendRow, ...]] = ()
 
-    BINDINGS: ClassVar[list[Binding]] = [*bind("help", "help", show=False)]
+    BINDINGS: ClassVar[list[BindingType]] = [*bind("help", "help", show=False)]
 
     def action_help(self) -> None:
         if isinstance(self.app.screen, HelpModal):
@@ -68,7 +68,7 @@ class TextPromptModal(KitModal["str | None"]):
     """
     )
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("back", "cancel", desc="cancel"),
         # ctrl+s confirms from anywhere, including once focus has tabbed onto a
         # Button, where enter presses that button instead of submitting the form.
@@ -146,7 +146,7 @@ class ConfirmModal(KitModal["bool"]):
 
     #: Only the confirm side is styled as an error; ``escape``/``n`` are the safe
     #: exits and focus starts on Cancel, so a stray ``enter`` cannot destroy data.
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("back", "cancel", desc="cancel"),
         *bind("confirm_no", "cancel"),
         *bind("confirm_yes", "confirm"),
@@ -193,7 +193,7 @@ class ListPickerModal[T](KitModal[T | None]):
     PLACEHOLDER: ClassVar[str] = "type to filter…"
     BOX_WIDTH: ClassVar[int] = 60
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("back", "cancel", desc="cancel"),
         *bind("filter", "focus_filter", show=False),
     ]

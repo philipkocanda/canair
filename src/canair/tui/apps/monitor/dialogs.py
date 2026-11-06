@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from textual.app import ComposeResult
-from textual.binding import Binding
+from textual.binding import BindingType
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, Input, Label, OptionList, Static
 from textual.widgets.option_list import Option
@@ -90,7 +90,7 @@ class SaveDialog(KitModal["tuple[str, str, str] | None"]):
     """
     )
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("back", "cancel", desc="cancel"),
         # The form has three Inputs, a dropdown and two Buttons, so what `enter`
         # does depends on what is focused. ctrl+s applies from anywhere.
@@ -265,7 +265,7 @@ class EditParamDialog(KitModal["dict | None"]):
     """
     )
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("back", "cancel", desc="cancel"),
         # Enter submits only from an Input; the two Checkboxes and the Buttons
         # consume it themselves, so without this the dialog had no confirm key
