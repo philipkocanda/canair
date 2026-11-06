@@ -5,7 +5,7 @@ description: Standards for canair's command-line output and Textual TUIs — col
 
 # CLI and TUI standards
 
-How every canair command prints and every TUI behaves. canair has 40-odd commands and five
+How every canair command prints and every TUI behaves. canair has 40-odd commands and six
 Textual apps, and they should feel like one tool. Read this before you write a line that a user
 sees, and again when you review one.
 

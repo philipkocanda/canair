@@ -46,7 +46,16 @@ async def handle_iocontrol(args, terminal: Terminal, pids_data, host, *, reconne
             verbose=args.verbose,
             poll=getattr(args, "poll", False),
             profile=active(),
+            interactive=_run_iocontrol_app,
         )
+
+
+async def _run_iocontrol_app(controller) -> None:
+    """Run the Textual IOControl view on ``controller`` (a TTY only)."""
+    # deferred: textual adds ~40 ms to start-up, and only the interactive view needs it
+    from canair.tui.apps.iocontrol.app import run_iocontrol_app
+
+    await run_iocontrol_app(controller)
 
 
 async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:

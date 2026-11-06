@@ -1,7 +1,7 @@
 """The canonical keymap shared by every canair TUI.
 
-canair has five full-screen Textual apps (``monitor``, the monitor's ECU/PID picker,
-``captures --step``, ``decode --plot``, ``sniff``) plus a dozen modal dialogs. They grew
+canair has six full-screen Textual apps (``monitor``, the monitor's ECU/PID picker,
+``captures --step``, ``decode --plot``, ``sniff``, ``io``) plus a dozen modal dialogs. They grew
 independently, so the same key came to mean different things in each — ``a``
 added PIDs in the stepper while the monitor used ``p``, ``escape`` quit one app
 and cleared a selection in another, ``l`` was both vim-right and "open the event
@@ -113,10 +113,14 @@ ROLES: dict[str, KeyRole] = {
         _r("pause", "space", "pause", "toggle"),
         # -- acting on the focused thing -----------------------------------
         _r("edit", "e", "edit", "edit note", "annotate"),
-        _r("rename", "N", "rename"),
+        _r("rename", "N", "rename", "edit label"),
         _r("verify", "v", "verify"),
         _r("exclude", "x", "exclude", "toggle ship", "drop this PID"),
         _r("delete", "d", "delete", "delete capture"),
+        _r("promote", "P", "promote"),
+        # -- actuators ---------------------------------------------------------
+        _r("actuate_off", "O", "send OFF"),
+        _r("set_value", "w", "set value"),
         # -- the session / the device --------------------------------------
         _r("session", "s", "session", "save / label", "save", "label", "sessions & notes"),
         _r("new", "n", "new", "new session"),
@@ -124,7 +128,17 @@ ROLES: dict[str, KeyRole] = {
         _r("reconnect", "R", "reconnect"),
         _r("clear", "c", "clear"),
         # -- dialogs -------------------------------------------------------
-        _r("accept", "enter", "accept", "next / start", "next / apply", "next", "start", "apply"),
+        _r(
+            "accept",
+            "enter",
+            "accept",
+            "next / start",
+            "next / apply",
+            "next",
+            "start",
+            "apply",
+            "toggle",
+        ),
         _r("apply", "ctrl+s", "apply", "next / start", "next / apply"),
         _r("confirm_yes", "y", "yes"),
         _r("confirm_no", "n", "no"),

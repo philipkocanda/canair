@@ -1,7 +1,8 @@
 """The operations that change the car's state: IOControl, RoutineControl and profile actions.
 
-* :mod:`.iocontrol` — ``canair io``, the actuator TUI (:mod:`.iocontrol_actuate` and
-  :mod:`.iocontrol_render` hold its actuation and its tables)
+* :mod:`.iocontrol` — ``canair io``, the state of the actuator view (:mod:`.iocontrol_actuate`
+  and :mod:`.iocontrol_render` hold its actuation and its rows; the Textual screen is
+  ``tui/apps/iocontrol/``)
 * :mod:`.iocontrol_execute` and :mod:`.iocontrol_list` — one actuation, and the profile listing
 * :mod:`.routines` — ``canair routines``, the routine TUI
 * :mod:`.routines_execute` and :mod:`.routines_list` — one routine run (and the refusal of a

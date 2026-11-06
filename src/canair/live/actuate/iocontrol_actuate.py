@@ -1,17 +1,14 @@
-"""IOControl TUI — the CAN-facing actuator backend.
+"""IOControl view — the CAN-facing actuator backend.
 
-:class:`IOControlActuator` owns the diagnostic-session + actuation behaviour of
-the interactive IOControl TUI: opening the extended session, sending ON/OFF/
+:class:`IOControlActuator` owns the diagnostic-session and actuation behaviour of
+the interactive IOControl view: opening the extended session, sending ON/OFF/
 ShortTermAdjustment, background status polling (each entry's release, ``2F {DID}
-00`` on UDS), and release/cleanup on exit. Extracting it from
-:class:`canair.live.actuate.iocontrol._IOControlTUI`
-(mirroring :class:`canair.live.monitor.raw_poller.MonitorRawPoller`) keeps the
-CAN-facing side-effecting logic in a focused, self-contained unit while the TUI
-class keeps view state, keyboard input, rendering, and the ``ecus/`` edits.
+00`` on UDS), and release/cleanup on exit. The controller
+(:class:`canair.live.actuate.iocontrol.IOControlController`) keeps the view state and
+the ``ecus/`` edits.
 
-All display/session state lives on the TUI; the actuator reads and updates it
-through its typed back-reference ``self.t`` (so the renderer, which reads those
-same attributes off the TUI, is unchanged).
+All display and session state lives on the controller; the actuator reads and updates it
+through its typed back-reference ``self.t``, and reports a message with ``self.t.report``.
 """
 
 from __future__ import annotations
@@ -21,7 +18,7 @@ import logging
 from typing import TYPE_CHECKING, Literal, get_args
 
 from canair.ecus.pids import DEFAULT_IOCONTROL_SESSION_MODE
-from canair.render import ansi, glyphs
+from canair.render import glyphs
 from canair.safety.actuation import on_refusal, parse_io_request
 from canair.uds.nrc import nrc_abbrev
 from canair.uds.protocol import KWP
@@ -36,14 +33,14 @@ from canair.uds.subfunctions import IoControlParameter
 
 if TYPE_CHECKING:
     from ...transport.protocol import Terminal
-    from .iocontrol import _IOControlTUI
+    from .iocontrol import IOControlController
 
 # Per-DID actuator state — the single source of truth for these sentinels.
 #
 # `release_all` (the exit-time safety net that switches every actuator back off)
 # selects its work with `state[did] == ACTUATOR_ON`. If a writer ever drifted to a
 # different spelling ("ON", True, an enum), that comparison would quietly match
-# nothing and the TUI would exit leaving vehicle outputs energised — a silent,
+# nothing and the view would exit leaving vehicle outputs energised — a silent,
 # physical failure. Typing the dict makes every write and comparison checked.
 #
 # `None` means idle/unknown (never actuated this session) and is deliberately NOT
@@ -54,7 +51,7 @@ ACTUATOR_OFF: ActuatorState = "off"
 ACTUATOR_ERROR: ActuatorState = "error"
 ACTUATOR_STATES: tuple[ActuatorState, ...] = get_args(ActuatorState)
 
-# Same named logger the TUI attaches its per-session file handler to.
+# Same named logger the view attaches its per-session file handler to.
 _tui_logger = logging.getLogger("iocontrol-tui")
 
 
@@ -78,9 +75,9 @@ async def send_iocontrol(terminal: Terminal, hex_cmd: str) -> UdsResponse:
 
 
 class IOControlActuator:
-    """Diagnostic-session + actuation backend for :class:`_IOControlTUI`."""
+    """Diagnostic-session + actuation backend for :class:`.iocontrol.IOControlController`."""
 
-    def __init__(self, tui: _IOControlTUI) -> None:
+    def __init__(self, tui: IOControlController) -> None:
         self.t = tui
 
     async def ensure_session(self, mode: str | None = None) -> None:
@@ -91,7 +88,7 @@ class IOControlActuator:
         than the open one re-enters, since the ECU only honours one at a time.
         """
         t = self.t
-        if t._session_active and (mode is None or mode == t._session_mode):
+        if t.session_active and (mode is None or mode == t.session_mode):
             return
         wanted = mode or DEFAULT_IOCONTROL_SESSION_MODE
         # Stop the previous keepalive first, so a retry or a mode switch never
@@ -99,13 +96,13 @@ class IOControlActuator:
         # session with it, so a failed re-entry below can't leave the header
         # claiming a session that no longer has a keepalive.
         await self._stop_keepalive()
-        t._session_active = False
-        t._session_mode = None
+        t.session_active = False
+        t.session_mode = None
         _tui_logger.info("Opening diagnostic session (10 %s) on 0x%03X", wanted, t.tx_id)
         outcome = await t.sm.open_session(t.tx_id, mode=wanted, force=True, report=False)
         t.sm.start_background_keepalive()
-        t._session_active = outcome.ok
-        t._session_mode = wanted
+        t.session_active = outcome.ok
+        t.session_mode = wanted
         _tui_logger.info("Session established: %s (%s)", outcome.ok, outcome.problem() or "ok")
 
     async def _stop_keepalive(self) -> None:
@@ -117,7 +114,7 @@ class IOControlActuator:
         A positive response echoes the service and identifier: ``6F {DID_HI}
         {DID_LO} [tail…]`` for UDS ``0x2F``, ``70 {LID} [tail…]`` for KWP2000
         ``0x30``. We store the tail bytes (anything after that echo) as an
-        uppercase hex string in ``tui.status_bytes[did]``.
+        uppercase hex string in ``status_bytes[did]``.
 
         - Positive with tail: ``"AA BB"`` (space-separated bytes)
         - Positive with no tail: ``""``
@@ -142,14 +139,14 @@ class IOControlActuator:
         An actuating ON goes out only when its release is known, so that exit,
         Ctrl-C and a dropped session can hand the output back (``canair.safety.actuation``).
         """
-        cmd = self.t.cmds[did]
+        cmd = self.t.all_cmds[did]
         reason = on_refusal(cmd["on"], cmd.get("release", ""), self.t.protocol)
         return f"{did}: ON refused — {reason}" if reason else None
 
     async def send_on(self, did: str) -> None:
         """Send ON command for a DID."""
         t = self.t
-        cmd = t.cmds[did]
+        cmd = t.all_cmds[did]
         hex_cmd = cmd["on"]
         if not hex_cmd:
             t.state[did] = ACTUATOR_ERROR
@@ -157,13 +154,13 @@ class IOControlActuator:
             return
         refusal = self.on_refusal(did)
         if refusal:
-            t._status = ansi.c(f"{glyphs.FAIL} {refusal}", ansi.RED)
+            t.report(refusal, "error")
             t.last_response[did] = "no release known"
             _tui_logger.warning("ON  %s refused: %s", did, refusal)
             return
 
-        t._busy = True
-        t._status = f"Sending ON: {did} ({cmd['label']}){glyphs.ELLIPSIS}"
+        t.busy = True
+        t.report(f"Sending ON: {did} ({cmd['label']}){glyphs.ELLIPSIS}")
         _tui_logger.info("ON  %s %s cmd=%s", did, cmd["label"], hex_cmd)
         try:
             if cmd["session"]:
@@ -182,18 +179,18 @@ class IOControlActuator:
             else:
                 t.state[did] = ACTUATOR_ERROR
                 t.last_response[did] = resp.get("error", "unknown error")
-            t._status = ""
+            t.report("")
         except Exception as e:
             _tui_logger.error("ON  %s exception: %s", did, e, exc_info=True)
             t.state[did] = ACTUATOR_ERROR
             t.last_response[did] = str(e)
-            t._status = ""
+            t.report("")
         finally:
-            t._busy = False
+            t.busy = False
 
     async def send_off(self, did: str) -> None:
         """Send OFF command for a DID."""
-        await self._send_back(did, self.t.cmds[did]["off"], "OFF")
+        await self._send_back(did, self.t.all_cmds[did]["off"], "OFF")
 
     async def send_release(self, did: str) -> None:
         """Hand ``did`` back to the ECU: its release, else its OFF command.
@@ -202,18 +199,18 @@ class IOControlActuator:
         returnControlToECU, which every curated OFF also is; on KWP2000 it is the
         request the entry declares, since ``0x30`` has no standard one.
         """
-        cmd = self.t.cmds[did]
+        cmd = self.t.all_cmds[did]
         await self._send_back(did, cmd.get("release") or cmd["off"], "REL")
 
     async def _send_back(self, did: str, hex_cmd: str, kind: str) -> None:
         t = self.t
-        cmd = t.cmds[did]
+        cmd = t.all_cmds[did]
         if not hex_cmd:
             t.last_response[did] = f"no {'OFF' if kind == 'OFF' else 'release'} cmd defined"
             return
 
-        t._busy = True
-        t._status = f"Sending {kind}: {did} ({cmd['label']}){glyphs.ELLIPSIS}"
+        t.busy = True
+        t.report(f"Sending {kind}: {did} ({cmd['label']}){glyphs.ELLIPSIS}")
         _tui_logger.info("%-3s %s %s cmd=%s", kind, did, cmd["label"], hex_cmd)
         try:
             # The OFF belongs to the actuator's own session: after a switch to
@@ -235,44 +232,39 @@ class IOControlActuator:
             else:
                 t.state[did] = ACTUATOR_ERROR
                 t.last_response[did] = resp.get("error", "unknown error")
-            t._status = ""
+            t.report("")
         except Exception as e:
             _tui_logger.error("%-3s %s exception: %s", kind, did, e, exc_info=True)
             t.state[did] = ACTUATOR_ERROR
             t.last_response[did] = str(e)
-            t._status = ""
+            t.report("")
         finally:
-            t._busy = False
+            t.busy = False
 
     async def _send(self, hex_cmd: str) -> UdsResponse:
         return await send_iocontrol(self.t.terminal, hex_cmd)
 
-    async def toggle(self, did: str) -> None:
+    async def toggle(self, did: str) -> str | None:
         """Toggle: if ON → OFF, otherwise → ON.
 
-        If the DID has no simple ON command (``on: ""`` in the YAML), open
-        the hex value prompt instead of erroring. This is the common case
-        for HVAC F0xx actuators and other DIDs that require
-        ShortTermAdjustment value bytes. The prompt is seeded with the last
-        value sent to this DID in the current session (``last_value``) or
-        ``00`` if none has been sent yet.
+        A DID with no simple ON command (``on: ""`` in the YAML) needs
+        ShortTermAdjustment value bytes instead, which is the common case for
+        HVAC F0xx actuators. Then nothing is sent and the value the view should
+        prompt for is returned: the last value sent to this DID in the session
+        (``last_value``), else ``00``.
         """
         t = self.t
         if t.state[did] == ACTUATOR_ON:
             await self.send_off(did)
-            return
-        if not t.cmds[did]["on"]:
-            # No simple ON — open the hex value prompt. Seed with the last
-            # value sent this session (if any) so +/- stepping still works
-            # naturally afterwards.
+            return None
+        if not t.all_cmds[did]["on"]:
             refusal = self.adjust_unsupported(did)
             if refusal:
-                t._status = ansi.c(f"{glyphs.FAIL} {refusal}", ansi.RED)
-                return
-            seed = t.last_value[did].hex().upper() if did in t.last_value else "00"
-            t._hex_input = seed
-            return
+                t.report(refusal, "error")
+                return None
+            return t.last_value[did].hex().upper() if did in t.last_value else "00"
         await self.send_on(did)
+        return None
 
     def adjust_unsupported(self, did: str) -> str | None:
         """Why the value keys (``v``/``+``/``-``) can't drive ``did``, or None.
@@ -294,7 +286,7 @@ class IOControlActuator:
             return True
         if did is None:
             return False
-        cmd = self.t.cmds.get(did)
+        cmd = self.t.all_cmds.get(did)
         if cmd is None:
             return False
         for request in (cmd.get("on"), cmd.get("off"), cmd.get("release")):
@@ -311,18 +303,18 @@ class IOControlActuator:
         t = self.t
         refusal = self.adjust_unsupported(did)
         if refusal:
-            t._status = ansi.c(f"{glyphs.FAIL} {refusal}", ansi.RED)
+            t.report(refusal, "error")
             _tui_logger.warning("ADJ %s refused: %s", did, refusal)
             return
         hex_cmd = io_control_request(
             int(did, 16), IoControlParameter.SHORT_TERM_ADJUSTMENT, value_bytes
         )
 
-        t._busy = True
-        t._status = f"Adjust {did}: {hex_cmd}"
+        t.busy = True
+        t.report(f"Adjust {did}: {hex_cmd}")
         _tui_logger.info("ADJ %s cmd=%s", did, hex_cmd)
         try:
-            cmd = t.cmds.get(did)
+            cmd = t.all_cmds.get(did)
             if cmd is None or cmd["session"]:
                 await self.ensure_session(cmd["session_mode"] if cmd else None)
             resp = await self._send(hex_cmd)
@@ -341,14 +333,14 @@ class IOControlActuator:
             else:
                 t.state[did] = ACTUATOR_ERROR
                 t.last_response[did] = resp.get("error", "unknown error")
-            t._status = ""
+            t.report("")
         except Exception as e:
             _tui_logger.error("ADJ %s exception: %s", did, e, exc_info=True)
             t.state[did] = ACTUATOR_ERROR
             t.last_response[did] = str(e)
-            t._status = ""
+            t.report("")
         finally:
-            t._busy = False
+            t.busy = False
 
     async def poll_status_once(self) -> None:
         """Poll every DID once by sending its release (UDS: ``2F {DID} 00``).
@@ -362,9 +354,9 @@ class IOControlActuator:
         produces an audible click. Because of this the whole poll loop is
         opt-in (``--poll``); ECUs that support the DID return a positive response
         including the current ``controlStatusRecord`` tail bytes, which are stored
-        in ``tui.status_bytes[did]`` and rendered in the "Status" column.
+        in ``status_bytes[did]`` and rendered in the "Status" column.
 
-        Bails early if the TUI is busy (mid-ON/OFF/ADJUST) or quitting; the
+        Bails early if the view is busy (mid-ON/OFF/ADJUST) or quitting; the
         scheduling loop in ``status_poll_loop`` retries on the next tick.
 
         Each DID is polled inside the session its entry declares (the same
@@ -376,15 +368,15 @@ class IOControlActuator:
         """
         t = self.t
         for did in t.dids:
-            if t._quit or t._busy:
+            if t.stopping or t.busy:
                 return
-            cmd = t.cmds[did]
+            cmd = t.all_cmds[did]
             req = cmd.get("release", "")
             if not req:
                 continue
             if cmd["session"]:
                 await self.ensure_session(cmd["session_mode"])
-                if not t._session_active:
+                if not t.session_active:
                     _tui_logger.warning("poll: could not establish a session for %s", did)
                     return
             # Make sure we're talking to the right ECU header.
@@ -401,24 +393,28 @@ class IOControlActuator:
     async def status_poll_loop(self, interval: float = 3.0) -> None:
         """Background loop: poll every DID's status bytes every ``interval`` seconds."""
         t = self.t
-        t._status_polling = True
+        t.polling = True
         _tui_logger.info("Status poll loop started (interval=%.1fs)", interval)
         try:
-            while not t._quit:
-                if not t._busy:
+            while not t.stopping:
+                if not t.busy:
                     try:
                         await self.poll_status_once()
                     except Exception as exc:
                         _tui_logger.warning("Status poll error: %s", exc)
                 await asyncio.sleep(interval)
         finally:
-            t._status_polling = False
+            t.polling = False
             _tui_logger.info("Status poll loop ended")
 
     async def release_all(self) -> None:
-        """Release every active actuator (:meth:`send_release`)."""
+        """Release every active actuator (:meth:`send_release`).
+
+        Every DID the session switched on, not only those of the current view mode: an
+        actuator stays energised when the view moves away from it.
+        """
         t = self.t
-        active = [d for d in t.dids if t.state[d] == ACTUATOR_ON]
+        active = [d for d, s in t.state.items() if s == ACTUATOR_ON]
         for did in active:
             try:
                 await self.send_release(did)

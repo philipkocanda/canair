@@ -1,7 +1,7 @@
 """The Textual kit, and the arrow-key list picker of the ``canair profile`` command.
 
 The picker (:func:`canair.tui.picker.select_from_list`) is a Rich screen over single-key reads.
-The terminal's size, which the IOControl and routines screens of ``live/`` read, is
+The terminal's size, which the routines screen of ``live/`` reads, is
 :mod:`canair.core.terminal`.
 
 Belongs: the shared Textual kit (key roles, help, modals, scrolling, status and widgets), the

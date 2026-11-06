@@ -27,7 +27,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "on exit and on Ctrl+C with its release request: returnControlToECU (2F{DID}00) on "
         "UDS, the entry's declared release: on KWP2000, where the 0x30 option byte has no "
         "standard release. A 0x30 ON without a declared release is refused (set one with "
-        "`canair pids set-iocontrol ECU KEY --release HEX`). The TUI's value keys (v/+/-) "
+        "`canair pids set-iocontrol ECU KEY --release HEX`). The TUI's value keys (w/+/-) "
         "build UDS 0x2F requests, so they are refused for a KWP2000 ECU.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\

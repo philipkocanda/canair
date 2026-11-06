@@ -31,7 +31,6 @@ from canair.core.terminal import is_interactive, truncate_text
 from canair.core.terminal import terminal_columns as _terminal_columns
 from canair.core.terminal import terminal_lines as _terminal_lines
 from canair.ecus.pids import RoutineIndexEntry, build_routines_index, load_pids
-from canair.live.actuate.iocontrol_render import CARET
 from canair.live.actuate.not_found import report_not_found
 from canair.live.actuate.routines_execute import check_routines_protocol, send_routine, sf_label
 from canair.profile.model import Profile
@@ -44,6 +43,8 @@ from canair.uds.subfunctions import RoutineControlType
 from canair.yaml_edit.pids import PidsEditError, update_routines_field
 
 _tui_logger = logging.getLogger("routines-tui")
+
+CARET = "▏"  # the text-input cursor
 
 
 def _log_file() -> Path:

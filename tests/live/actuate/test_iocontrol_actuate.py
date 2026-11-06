@@ -91,18 +91,23 @@ class FakeTui:
             }
             for d in dids
         }
+        self.all_cmds = self.cmds
         self.state = dict.fromkeys(dids, "off")
         self.last_response: dict[str, str] = {}
         self.status_bytes: dict[str, str] = {}
         self.last_value: dict[str, str] = {}
-        self._session_active = True
-        self._session_mode: str | None = "03"
+        self.session_active = True
+        self.session_mode: str | None = "03"
         self.sm = SessionManager(self.terminal)
-        self._busy = False
-        self._status = ""
-        self._quit = False
-        self._status_polling = False
+        self.busy = False
+        self.status = ""
+        self.status_level = "info"
+        self.stopping = False
+        self.polling = False
         self.protocol = "uds"
+
+    def report(self, text: str, level: str = "info") -> None:
+        self.status, self.status_level = text, level
 
 
 def _actuator(dids=("BC01", "BC02", "BC03"), **kw):
@@ -131,11 +136,11 @@ class TestSendOnOff:
         assert tui.state["BC01"] == "error"
 
     def test_busy_flag_is_cleared_even_when_the_send_raises(self):
-        # A stuck `_busy` would freeze the status-poll loop for the rest of the
+        # A stuck `busy` would freeze the status-poll loop for the rest of the
         # session (it only polls when not busy).
         act, tui = _actuator(terminal=FakeTerminal(fail_on={ON_CMD}))
         asyncio.run(act.send_on("BC01"))
-        assert tui._busy is False
+        assert tui.busy is False
         assert tui.state["BC01"] == "error"
 
 
@@ -225,24 +230,24 @@ class TestCleanup:
 class TestEnsureSession:
     def test_opens_a_session_on_the_target_ecu(self):
         act, tui = _actuator()
-        tui._session_active = False
+        tui.session_active = False
         asyncio.run(act.ensure_session())
         assert tui.terminal.headers == [0x770]
-        assert tui._session_active is True
+        assert tui.session_active is True
 
     def test_is_a_noop_when_a_session_is_already_active(self):
         act, tui = _actuator()
-        tui._session_active = True
+        tui.session_active = True
         asyncio.run(act.ensure_session())
         assert tui.terminal.headers == []
 
     def test_opens_the_session_mode_the_actuator_declares(self):
         act, tui = _actuator()
-        tui._session_active, tui._session_mode = False, None
+        tui.session_active, tui.session_mode = False, None
         tui.cmds["BC01"].update(session=True, session_mode="C0")
         asyncio.run(act.send_on("BC01"))
         assert tui.terminal.sessions == ["C0"]
-        assert tui._session_mode == "C0"
+        assert tui.session_mode == "C0"
         assert tui.terminal.sent == [ON_CMD]
 
     def test_reuses_an_open_session_of_the_same_mode(self):
@@ -263,7 +268,7 @@ class TestEnsureSession:
         old = asyncio.run(run())
         assert old.done()
         assert tui.terminal.sessions == ["C0"]
-        assert tui._session_mode == "C0"
+        assert tui.session_mode == "C0"
 
 
 class TestExtractStatusBytes:
@@ -414,17 +419,17 @@ class TestEnsureSessionFailure:
                 await act.ensure_session("C0")
 
         asyncio.run(run())
-        assert tui._session_active is False
-        assert tui._session_mode is None
+        assert tui.session_active is False
+        assert tui.session_mode is None
         assert not tui.sm.keepalive_running
 
     def test_a_refused_session_is_unconfirmed_not_active(self):
         act, tui = _actuator(terminal=FakeTerminal())
         tui.terminal.session_reply = _refusing  # type: ignore[method-assign]
-        tui._session_active = False
+        tui.session_active = False
         asyncio.run(act.ensure_session("C0"))
-        assert tui._session_active is False
-        assert tui._session_mode == "C0"
+        assert tui.session_active is False
+        assert tui.session_mode == "C0"
 
 
 async def _refusing(mode: str = "03") -> dict:
@@ -433,17 +438,13 @@ async def _refusing(mode: str = "03") -> dict:
 
 class TestSessionHeader:
     def _header(self, active, mode):
-        from canair.live.actuate.iocontrol_render import render_iocontrol
+        from canair.live.actuate.iocontrol_render import session_text
 
         _, tui = _actuator()
-        tui._session_active, tui._session_mode = active, mode
-        tui.ecu_key, tui.cursor, tui._scroll_top = "IGPM", 0, 0
-        tui.all_cmds, tui.view_mode = tui.cmds, "curated"
-        tui._hex_input = tui._edit_input = None
-        tui.status_bytes = dict.fromkeys(tui.dids)
-        for c in tui.cmds.values():
-            c["verified"] = False
-        return render_iocontrol(tui).splitlines()[1]  # type: ignore[arg-type]
+        tui.session_active, tui.session_mode = active, mode
+        tui.ecu_key, tui.view_mode = "IGPM", "curated"
+        tui.counts = lambda: (len(tui.dids), 0)  # type: ignore[attr-defined]
+        return session_text(tui).plain  # type: ignore[arg-type]
 
     def test_active(self):
         assert "active (10 C0)" in self._header(True, "C0")
@@ -469,7 +470,7 @@ class TestKwpActuators:
         tui.protocol = "kwp"
         asyncio.run(act.send_adjust("BC01", b"\x01"))
         assert tui.terminal.sent == []
-        assert "UDS-only" in tui._status
+        assert "UDS-only" in tui.status
 
     def test_adjust_is_refused_for_a_0x30_entry(self):
         act, tui = _actuator()
@@ -477,25 +478,33 @@ class TestKwpActuators:
         asyncio.run(act.send_adjust("BC01", b"\x01"))
         assert tui.terminal.sent == []
 
-    def test_toggle_without_on_does_not_open_the_value_prompt_on_kwp(self):
+    def test_toggle_without_on_asks_for_a_value(self):
         act, tui = _actuator()
-        tui.protocol = "kwp"
-        tui._hex_input = None
         tui.cmds["BC01"]["on"] = ""
         tui.state["BC01"] = None
-        asyncio.run(act.toggle("BC01"))
-        assert tui._hex_input is None
-        assert "UDS-only" in tui._status
+        assert asyncio.run(act.toggle("BC01")) == "00"
+        tui.last_value["BC01"] = b"\x0a"
+        assert asyncio.run(act.toggle("BC01")) == "0A"
+        assert tui.terminal.sent == []
+
+    def test_toggle_without_on_does_not_ask_for_a_value_on_kwp(self):
+        act, tui = _actuator()
+        tui.protocol = "kwp"
+        tui.cmds["BC01"]["on"] = ""
+        tui.state["BC01"] = None
+        assert asyncio.run(act.toggle("BC01")) is None
+        assert "UDS-only" in tui.status
+        assert tui.status_level == "error"
 
     def test_on_without_a_release_is_refused_and_sends_nothing(self):
         # 30 {LID} 00 turns a Kia Soul EV charger LED ON: with no known release,
         # nothing could switch it back off on exit.
         act, tui = self._kwp()
-        tui._session_active = False
+        tui.session_active = False
         asyncio.run(act.send_on("01"))
         assert tui.terminal.sent == [] and tui.terminal.sessions == []
         assert tui.state["01"] != "on"
-        assert "no release declared" in tui._status
+        assert "no release declared" in tui.status
 
     def test_on_with_a_declared_release_is_sent_and_released_on_exit(self):
         act, tui = self._kwp(release="3001AA")
@@ -514,7 +523,7 @@ class TestKwpActuators:
         act, tui = self._kwp(release="300211")
         asyncio.run(act.send_on("01"))
         assert tui.terminal.sent == []
-        assert "addresses 30 02" in tui._status
+        assert "addresses 30 02" in tui.status
 
     def test_a_release_equal_to_on_is_refused(self):
         act, tui = self._kwp(release="300100")
@@ -523,7 +532,7 @@ class TestKwpActuators:
 
     def test_poll_skips_kwp_entries_without_a_release(self):
         act, tui = self._kwp()
-        tui._session_active = False
+        tui.session_active = False
         asyncio.run(act.poll_status_once())
         assert tui.terminal.sent == []
         assert tui.terminal.sessions == []
@@ -537,7 +546,7 @@ class TestKwpActuators:
 
     def test_poll_uses_each_actuators_session_mode(self):
         act, tui = _actuator(dids=("BC01",))
-        tui._session_active, tui._session_mode = False, None
+        tui.session_active, tui.session_mode = False, None
         tui.cmds["BC01"].update(session=True, session_mode="83")
         asyncio.run(act.poll_status_once())
         assert tui.terminal.sessions == ["83"]
@@ -546,7 +555,7 @@ class TestKwpActuators:
     def test_poll_stops_when_no_session_can_be_opened(self):
         act, tui = _actuator(dids=("BC01", "BC02"))
         tui.terminal.session_reply = _refusing  # type: ignore[method-assign]
-        tui._session_active, tui._session_mode = False, None
+        tui.session_active, tui.session_mode = False, None
         for c in tui.cmds.values():
             c["session"] = True
         asyncio.run(act.poll_status_once())
@@ -558,7 +567,7 @@ class TestKwpActuators:
         act, tui = _actuator(dids=("BC01",))
         tui.cmds["BC01"].update(session=True, session_mode="C0")
         tui.state["BC01"] = "on"
-        tui._session_active, tui._session_mode = True, "03"
+        tui.session_active, tui.session_mode = True, "03"
         asyncio.run(act.release_all())
         assert tui.terminal.sessions == ["C0"]
         assert tui.terminal.sent == [OFF_CMD]
@@ -617,7 +626,12 @@ class TestTuiProtocol:
         with pytest.raises(SystemExit) as exc:
             asyncio.run(
                 mode_iocontrol_tui(
-                    FakeTerminal(), self.KWP_DATA, "BCM", poll=True, profile=active()
+                    FakeTerminal(),
+                    self.KWP_DATA,
+                    "BCM",
+                    poll=True,
+                    profile=active(),
+                    interactive=_never,
                 )
             )  # type: ignore[arg-type]
         assert exc.value.code == 2
@@ -625,12 +639,16 @@ class TestTuiProtocol:
 
     def test_the_tui_knows_its_ecu_is_kwp(self):
         from canair.ecus.pids import build_iocontrol_index
-        from canair.live.actuate.iocontrol import _IOControlTUI
+        from canair.live.actuate.iocontrol import IOControlController
 
         entry = build_iocontrol_index(self.KWP_DATA, include_discoveries=True)["BCM"]
-        tui = _IOControlTUI(FakeTerminal(), "BCM", entry, self.KWP_DATA, profile=active())  # type: ignore[arg-type]
+        tui = IOControlController(FakeTerminal(), "BCM", entry, self.KWP_DATA, profile=active())  # type: ignore[arg-type]
         assert tui.protocol == "kwp"
         assert tui.actuator.is_kwp()
+
+
+async def _never(_controller) -> None:
+    raise AssertionError("the view must not open")
 
 
 class TestListJson:

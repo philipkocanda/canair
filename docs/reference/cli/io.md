@@ -12,7 +12,7 @@ usage: canair io [-h] [--did DID] [--off] [--poll] [--yes] [--wican WICAN]
                  [--reboot] [--unsafe] [--force]
                  [ECU]
 
-[UDS] IOControl (UDS 0x2F, or an entry's own KWP2000 0x30 commands): interactive TUI, or single actuator command with --did. Every actuator switched on is released on exit and on Ctrl+C with its release request: returnControlToECU (2F{DID}00) on UDS, the entry's declared release: on KWP2000, where the 0x30 option byte has no standard release. A 0x30 ON without a declared release is refused (set one with `canair pids set-iocontrol ECU KEY --release HEX`). The TUI's value keys (v/+/-) build UDS 0x2F requests, so they are refused for a KWP2000 ECU.
+[UDS] IOControl (UDS 0x2F, or an entry's own KWP2000 0x30 commands): interactive TUI, or single actuator command with --did. Every actuator switched on is released on exit and on Ctrl+C with its release request: returnControlToECU (2F{DID}00) on UDS, the entry's declared release: on KWP2000, where the 0x30 option byte has no standard release. A 0x30 ON without a declared release is refused (set one with `canair pids set-iocontrol ECU KEY --release HEX`). The TUI's value keys (w/+/-) build UDS 0x2F requests, so they are refused for a KWP2000 ECU.
 
 positional arguments:
   ECU                   ECU name (e.g. IGPM)

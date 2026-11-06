@@ -1,4 +1,4 @@
-"""The IOControl and routines full-screen views: colour gating, the cursor, the terminal check."""
+"""The IOControl rows and the routines full-screen view: colours, the cursor, the terminal check."""
 
 from __future__ import annotations
 
@@ -8,7 +8,8 @@ import pytest
 
 from canair.cli.profile_context import active
 from canair.ecus.pids import build_iocontrol_index, build_routines_index
-from canair.live.actuate.iocontrol import _IOControlTUI, _log_file
+from canair.live.actuate.iocontrol import IOControlController, _log_file, run_iocontrol_view
+from canair.live.actuate.iocontrol_render import iocontrol_table, row_cells, session_text
 from canair.live.actuate.routines import _log_file as _routines_log_file
 from canair.live.actuate.routines import _RoutinesTUI
 
@@ -34,9 +35,9 @@ DATA = {
 }
 
 
-def _io_tui() -> _IOControlTUI:
+def _io_tui() -> IOControlController:
     info = build_iocontrol_index(DATA, include_discoveries=True)["IGPM"]
-    return _IOControlTUI(object(), "IGPM", info, pids_data=DATA, profile=active())  # type: ignore[arg-type]
+    return IOControlController(object(), "IGPM", info, pids_data=DATA, profile=active())  # type: ignore[arg-type]
 
 
 def _routines_tui() -> _RoutinesTUI:
@@ -44,9 +45,38 @@ def _routines_tui() -> _RoutinesTUI:
     return _RoutinesTUI(object(), "IGPM", info, pids_data=DATA, profile=active())  # type: ignore[arg-type]
 
 
-@pytest.fixture(params=["io", "routines"])
-def tui(request):
-    return _io_tui() if request.param == "io" else _routines_tui()
+@pytest.fixture
+def tui():
+    return _routines_tui()
+
+
+class TestIoRows:
+    def test_a_verified_entry_is_a_green_check_and_its_did_is_cyan(self):
+        mark, did, label, cmd, status, response = row_cells(_io_tui(), "BC01")
+        assert (mark.plain, str(mark.style)) == ("✓", "green")
+        assert (did.plain, str(did.style)) == ("BC01", "cyan")
+        assert label.plain == "Low beam"
+        assert (cmd.plain, status.plain, response.plain) == ("·", "—", "")
+
+    def test_an_unverified_entry_is_a_yellow_question_mark(self):
+        mark = row_cells(_io_tui(), "BC02")[0]
+        assert (mark.plain, str(mark.style)) == ("?", "yellow")
+
+    def test_on_is_green_and_an_nrc_is_yellow(self):
+        c = _io_tui()
+        c.state["BC01"], c.status_bytes["BC01"] = "on", "00"
+        c.state["BC02"], c.status_bytes["BC02"] = "error", "NRC 31 ROOR"
+        assert str(row_cells(c, "BC01")[3].style) == "bold green"
+        cmd, status = row_cells(c, "BC02")[3:5]
+        assert (cmd.plain, str(cmd.style)) == ("ERR", "bold red")
+        assert str(status.style) == "yellow"
+
+    def test_the_header_names_the_ecu_session_and_view(self):
+        text = session_text(_io_tui()).plain
+        assert "IGPM (0x770)" in text and "not started" in text and "curated (2)" in text
+
+    def test_the_closing_table_has_a_row_per_did(self):
+        assert iocontrol_table(_io_tui()).row_count == 2
 
 
 class TestColourGating:
@@ -81,8 +111,11 @@ class TestColourGating:
 
 class TestTerminalCheck:
     def test_the_io_view_refuses_without_a_terminal(self, capsys):
+        async def never(_controller) -> None:
+            raise AssertionError("the view must not open")
+
         with pytest.raises(SystemExit) as exc:
-            asyncio.run(_io_tui().run())
+            asyncio.run(run_iocontrol_view(_io_tui(), never))
         assert exc.value.code == 2
         err = capsys.readouterr().err
         assert err.startswith("error: the IOControl view needs a terminal")
