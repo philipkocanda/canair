@@ -1,6 +1,6 @@
 # Code organization, part 8: public names across packages
 
-Status: **PROPOSED** (2026-11-05). Part of
+Status: **DONE** (2026-11-06). Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 7,
 because that plan moves some of the modules named here.
 
@@ -89,3 +89,26 @@ names and ends empty.
 - Private names in tests.
 - Underscore *modules* (`live/_monitor_record.py`). Sub-plan 5 renames them inside the new
   sub-packages.
+
+## As built
+
+The scan found 15 names, not 17: `_HIGHLIGHT_STYLE` (`render/sniff.py`, same package) and
+`_bytes_to_ascii` (`live/monitor/`, now inside one package) no longer cross a package.
+The scan is `scripts/check/import_graph.py::cross_package_private_imports`; the baseline
+`cross_package_private_imports` started with those 15 names and is empty.
+
+- Renamed in place: `capture_key`, `dedupe_payloads`, `entry_to_dict`, `group_by_key`,
+  `is_hex_payload`, `key_ordinals`, `prev_same_index` (`captures/entries.py`),
+  `set_session_field` (`captures/session_edit.py`), `order_states` (`states/vocabulary.py`),
+  `render_hex_line` (`render/formatting.py`), `query_selectors` (`query/steps.py`) and `is_newer`
+  (`install/update_check.py`). The `_looks_like_pid` alias of `query/steps.py` fed only a
+  re-export that nothing read, so it is gone.
+- Moved: `_tcp_open` and `_tcp_probe` of `device/wican/mode.py`, with the copy in
+  `cli/commands/status/probe.py`, to `core/tcp.py` (`tcp_open`, `tcp_probe`). Tests patch
+  `canair.core.tcp.tcp_open`.
+- Moved: `_parse_query` to `cli/args/query.py` as `parse_canonical_query`, because
+  `canair.query.parse_query` is a different function (no alias resolution).
+- The attribute-access cases need no change here: `_on_partial` was renamed by sub-plan 6, and
+  the scan skips attribute access, so `profile._active` stays with sub-plan 3.
+- Deferred imports stay at 1094. The throwaway check (an import of a made-up `_ghost` name from
+  `states/selectors.py`) failed `test_no_package_imports_a_private_name_of_another`.

@@ -107,6 +107,9 @@ that page. The remaining work of the layout is in `plans/2026-11-04-package-layo
   the CLI. No I/O → protocol or leaf code.
 - **Only the CLI imports `argparse`; only the TUI imports `textual`.** Code below them takes typed
   options and returns data.
+- **A name another package imports has no leading underscore.** `_name` is private to its own
+  package (each `cli/commands/<cmd>/` counts as one); `test_structure.py` fails on a cross-package
+  import of one. Rename it, or move it to the package whose job it is.
 - **Never add an `ignore_imports` entry to make `lint-imports` pass.** Fix the import (move the
   function down, pass the value in, split the module) or ask the user.
 - **A new top-level package needs a plan** naming its layer and why no existing package fits.
