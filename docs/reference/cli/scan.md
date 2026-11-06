@@ -42,9 +42,9 @@ Run `canair scan <kind> --help` for the flags of each kind.
 
 ```
 usage: canair scan range [-h] [-i] [--service SVC] [--range START-END[,...]]
-                         [--slots N] [--append HEX] [--session] [--wake]
-                         [--save] [--label TEXT] [--state TEXT] [--notes TEXT]
-                         [--wican WICAN]
+                         [--slots N] [--append HEX] [--session] [--yes]
+                         [--wake] [--save] [--label TEXT] [--state TEXT]
+                         [--notes TEXT] [--wican WICAN]
                          [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                          [--no-fallback] [--wait] [--elm-timeout MS]
                          [--timeout SECONDS] [--no-learn-frames] [--json]
@@ -72,6 +72,9 @@ options:
                         family). Can't be combined with --range.
   --append HEX          Hex bytes to append after each DID
   --session             Enter extended session (10 03)
+  --yes, -y             Send a service that can change the car's state
+                        (IOControl, RoutineControl, a DTC clear) without
+                        asking first (required when stdin is not a terminal)
   --wake                Wake ECUs from deep sleep first (the ECU's wake:
                         ritual, else 10 01)
   --save                Save results to captures/
@@ -146,6 +149,8 @@ tips:
   * Start with a small --range to gauge ECU response time, then widen.
   * Add --save --label "..." to record results to captures/.
   * For SAFE actuator/routine discovery use `canair scan iocontrol`/`routines`.
+  * A service that can change the car's state asks first (--yes to skip). RoutineControl
+    (0x31) is refused on a KWP2000 ECU, where it starts a routine.
 ```
 
 ## `canair scan iocontrol`

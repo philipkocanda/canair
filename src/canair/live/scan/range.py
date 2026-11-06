@@ -1,18 +1,34 @@
-"""Scan one or more ranges of PIDs/DIDs."""
+"""Scan one or more ranges of PIDs/DIDs.
+
+A range scan sends whatever service it is given, so it can sweep a service that changes the
+car's state: UDS IOControl or RoutineControl, KWP2000 IOControl, an OBD-II DTC clear. Before it
+sends one, :func:`confirm_actuating_scan` asks, judged request by request by the
+read/release/actuate classifier (:func:`canair.safety.actuation.classify`). A request the
+blocklist refuses anyway is not asked about.
+
+RoutineControl (``0x31``) is refused outright on a KWP2000 ECU (:func:`check_range_scan`): there
+it is StartRoutineByLocalIdentifier, so ``31 F0 00`` to ``31 F0 FF`` would start routine
+``0xF0`` 256 times. ``canair scan routines`` reads a KWP2000 routine's results with ``0x33``.
+"""
 
 import json
 from collections.abc import Sequence
 
 from canair.captures.metadata import resolve_metadata
 from canair.core.id_ranges import IdRange, as_id_ranges, count_ids, format_id_ranges, iter_ids
-from canair.live.scan.presets import service_label
+from canair.core.prompt import confirm
+from canair.live.scan.presets import preset_by_service, service_label
 from canair.privacy.sensitive import MASK, profile_set
 from canair.profile.model import Profile
+from canair.render import messages
 from canair.render.console import console as make_console
 from canair.render.console import escape
 from canair.render.glyphs import ELLIPSIS
+from canair.safety.actuation import ACTUATE, classify
+from canair.safety.blocklist import SafetyBlocked, check_command_safety
 from canair.transport.stats import client_transport
-from canair.uds.services import identifier_width, service_name
+from canair.uds.protocol import KWP, DiagProtocol
+from canair.uds.services import ROUTINE_CONTROL, identifier_width, service_name
 
 from ...captures.build import build_scan_session, suggest_scan_label
 from ...captures.oneshot import save_session_journaled
@@ -20,6 +36,72 @@ from ...ecus.names import ecu_display, ecu_name
 from ...ecus.registry import rx_addr_str
 from ...transport.protocol import Terminal
 from ..hold import held_session
+
+
+def scan_request(service: int, pid_val: int, append_bytes: str = "") -> str:
+    """The request a range scan sends for one id: ``{service}{id}{append}``, as hex text."""
+    width = 4 if identifier_width(service) == 2 else 2
+    return f"{service:02X}{pid_val:0{width}X}{append_bytes}"
+
+
+def check_range_scan(service: int, protocol: DiagProtocol, ecu: str) -> None:
+    """Raise :class:`SafetyBlocked` for RoutineControl to a KWP2000 ECU, where it starts one."""
+    if service == ROUTINE_CONTROL and protocol == KWP:
+        raise SafetyBlocked(
+            f"{ecu} speaks KWP2000, where 0x31 is StartRoutineByLocalIdentifier: every request "
+            "of this scan would start a routine\n"
+            f"Read a KWP2000 routine's results with `canair scan routines {ecu}` (service 0x33)"
+        )
+
+
+def actuating_requests(
+    terminal: Terminal, tx_id: int, service: int, ranges: Sequence[IdRange], append_bytes: str
+) -> list[str]:
+    """The requests of a scan that would change the car's state and that the blocklist allows."""
+    policy = terminal.session_policy
+    protocol = policy.protocol(tx_id)
+    out = []
+    for pid_val in iter_ids(ranges):
+        req = scan_request(service, pid_val, append_bytes)
+        if classify(req, protocol) == ACTUATE and check_command_safety(req, policy, tx_id) is None:
+            out.append(req)
+    return out
+
+
+def confirm_actuating_scan(
+    terminal: Terminal,
+    tx_id: int,
+    service: int,
+    pid_ranges: IdRange | Sequence[IdRange],
+    append_bytes: str = "",
+    *,
+    yes: bool = False,
+    flag: str = "--yes",
+    profile: Profile,
+) -> bool:
+    """Refuse or ask before a scan that can change the car's state; True when it may run.
+
+    Raises :class:`SafetyBlocked` (:func:`check_range_scan`), and
+    :class:`~canair.core.prompt.PromptUnavailable` when a question has no terminal and no
+    ``yes``; ``flag`` is what its message tells the user to pass. A scan that only reads asks
+    nothing.
+    """
+    ecu = ecu_name(tx_id, profile=profile)
+    check_range_scan(service, terminal.session_policy.protocol(tx_id), ecu)
+    ranges = as_id_ranges(pid_ranges)
+    risky = actuating_requests(terminal, tx_id, service, ranges, append_bytes)
+    if not risky:
+        return True
+    lines = [
+        f"{len(risky)} of the {count_ids(ranges)} requests of this {service_label(service)} scan "
+        f"can change the state of {ecu} (the first is {risky[0]})",
+        "`canair scan iocontrol` and `canair scan routines` send only read-only probes",
+    ]
+    preset = preset_by_service(service)
+    if preset is not None and preset.caution:
+        lines.append(preset.caution)
+    messages.warning("\n".join(lines))
+    return confirm("Send them?", yes=yes, flag=flag, danger=True)
 
 
 async def mode_scan(
@@ -67,6 +149,8 @@ async def mode_scan(
     # The human report is the result, so it goes to stdout; with --json it goes to stderr.
     console = make_console(stderr=as_json)
 
+    ecu_label = ecu_name(tx_id, profile=profile)
+    check_range_scan(service, terminal.session_policy.protocol(tx_id), ecu_label)
     ranges = as_id_ranges(pid_ranges)
     total = count_ids(ranges)
 
@@ -109,7 +193,7 @@ async def mode_scan(
         with progress:
             task = progress.add_task(f"Scanning {ecu}", total=total, hits=0)
             for pid_val in iter_ids(ranges):
-                req = f"{service:02X}{pid_val:{did_fmt}}{append_bytes}"
+                req = scan_request(service, pid_val, append_bytes)
 
                 response = await terminal.send_uds(req, timeout=2.0)
 

@@ -39,6 +39,10 @@ request is or is not allowed.
     UDS `31 03 {RID}` "results" request as StartRoutineByLocalIdentifier. Keep that refusal
     when this plan wires the routines paths (`plans/2026-11-05-kwp2000-protocol-aware-lookups.md`).
   - The `io` step of the `read`/`monitor` query language → `canlib/modes/multi_exec.py`.
+  - `canair scan range --service S` and the pipeline's `scan` step sweep any service, actuating
+    ones included. Since 2026-11-06 both ask first when a request is `actuate` by the
+    classifier, and refuse `0x31` on a KWP2000 ECU
+    (`live/scan/range.py::confirm_actuating_scan`).
   - `skm-wake` → `canlib/modes/skm_wakeup.py` (`2F{DID}03{magic}` over `send_command`). It prints
     "Only proceed if the car is in Park" and asks for `YES`, but checks nothing.
   - `canair raw` and `canair repl` accept any hex.

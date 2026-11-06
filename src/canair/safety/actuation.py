@@ -15,7 +15,9 @@ the profile declares it as one (an IOControl entry's ``release:``), and every ot
 
 Pure and transport-free. Nothing calls it from the transports yet: the interlock's
 funnel is still a plan. ``canair io`` uses it to refuse an ON request that has no
-known release (:func:`on_refusal`).
+known release (:func:`on_refusal`), and ``canair scan range`` to ask before it sweeps
+a service that can change the car's state
+(:func:`canair.live.scan.range.confirm_actuating_scan`).
 """
 
 from __future__ import annotations

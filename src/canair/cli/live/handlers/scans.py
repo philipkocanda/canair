@@ -17,7 +17,7 @@ from canair.live.discover.functional import DEFAULT_REQUEST, mode_discover_funct
 from canair.live.discover.physical import DEFAULT_TESTER_ADDRESS, mode_discover
 from canair.live.scan import kwp_iocontrol, kwp_routines
 from canair.live.scan.iocontrol import mode_iocontrol_scan
-from canair.live.scan.range import mode_scan
+from canair.live.scan.range import confirm_actuating_scan, mode_scan
 from canair.live.scan.routines import mode_routines_scan
 from canair.live.scan.sessions import mode_sessions_scan
 from canair.render import messages
@@ -42,6 +42,16 @@ async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=No
         if not all(c in "0123456789ABCDEF" for c in cleaned) or len(cleaned) % 2 != 0:
             messages.fail("--append must be valid hex bytes (e.g., 03 or 030A0A05)", code=2)
         append_bytes = cleaned
+    if not confirm_actuating_scan(
+        terminal,
+        tx_id,
+        service,
+        pid_ranges,
+        append_bytes,
+        yes=getattr(args, "yes", False),
+        profile=active(),
+    ):
+        raise SystemExit(1)
     await mode_scan(
         terminal,
         tx_id,

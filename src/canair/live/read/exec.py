@@ -37,7 +37,7 @@ from ...ecus.registry import rx_addr_str
 from ..actuate.iocontrol_actuate import send_iocontrol
 from ..elm.skm_wakeup import SKM_SESSION_MODE, SKM_TX_ID, mode_skm_wakeup
 from ..scan.presets import ServiceError, resolve_service
-from ..scan.range import mode_scan
+from ..scan.range import confirm_actuating_scan, mode_scan
 from .batch import (
     BatchState,
     _did4,
@@ -451,6 +451,13 @@ async def _exec_scan(
         pid_ranges = parse_id_ranges(range_str)
     except ValueError as e:
         messages.error(f"invalid range: {range_str} ({e})")
+        return
+
+    # A pipeline has no --yes, so the error names the command that takes it.
+    flag = "--yes to `canair scan range` instead"
+    if not confirm_actuating_scan(
+        sm.terminal, tx_id, service, pid_ranges, append.upper(), flag=flag, profile=profile
+    ):
         return
 
     await sm.keepalive_stale()

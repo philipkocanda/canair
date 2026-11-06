@@ -220,9 +220,9 @@ exit), and **`g`/`G` address the view's primary axis**. The rest of the TUI and 
   `canair monitor` on a TTY opens a group/ECU → PID picker first. Polling is per-PID
   (`--schedule dynamic`) with per-PID backoff. Design: `live/monitor/` (package docstring).
 - **`canair scan`** — Kinds `range` (bare `scan <ECU>`), `sessions`, `routines`, `iocontrol`,
-  `memory`. All are **safe probes** except a KWP `0x30` sweep, which confirms first. Hits are
-  written to the ECU's `routines:`/`iocontrol_discoveries:`/`memory:`. Without `--range`, `range`
-  sweeps the ECU's DID families (`ecus/did_families.py`).
+  `memory`. All are **safe probes** except a KWP `0x30` sweep and a `range` of an actuating
+  service, which ask first. Hits go to the ECU's `routines:`/`iocontrol_discoveries:`/`memory:`.
+  Without `--range`, `range` sweeps the ECU's DID families (`ecus/did_families.py`).
 - **`canair discover`** (alias `disc`) — Which ECUs answer; `--register` writes a new ECU into
   `ecus/`; `--functional` sends one allow-listed read on the functional id and groups responders by
   `can_bus:`. That allow-list is never widened by `--unsafe`

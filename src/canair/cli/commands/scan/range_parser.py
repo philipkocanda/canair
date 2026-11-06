@@ -43,6 +43,8 @@ tips:
   * Start with a small --range to gauge ECU response time, then widen.
   * Add --save --label "..." to record results to captures/.
   * For SAFE actuator/routine discovery use `canair scan iocontrol`/`routines`.
+  * A service that can change the car's state asks first (--yes to skip). RoutineControl
+    (0x31) is refused on a KWP2000 ECU, where it starts a routine.
 """,
     )
     ecu_arg = parser.add_argument(
@@ -85,6 +87,13 @@ tips:
     )
     parser.add_argument("--append", metavar="HEX", help="Hex bytes to append after each DID")
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Send a service that can change the car's state (IOControl, RoutineControl, a DTC "
+        "clear) without asking first (required when stdin is not a terminal)",
+    )
     add_wake_arg(parser)
     parser.add_argument("--save", action="store_true", help="Save results to captures/")
     parser.add_argument(

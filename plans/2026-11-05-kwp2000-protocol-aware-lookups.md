@@ -1,22 +1,27 @@
 # UDS and KWP2000: protocol-aware lookups, and protocol facts out of `live/`
 
-Status: **PROPOSED** (2026-11-06). Phase 0 is done. No other code changed. Checked against
-`b0ecf7be`.
+Status: **PROPOSED** (2026-11-06). Phases 0 (`c56f2507`) and 0b are done. No other code
+changed. Checked against `c56f2507`, after the session-owner work
+(`plans/2026-11-05-one-session-owner.md`).
 
 ## Summary
 
 UDS (ISO 14229) and KWP2000 (ISO 14230 / SSF 14230-3) facts share the `canair.uds` package. That
-is correct, and this plan keeps it. Three things are wrong:
+is correct, and this plan keeps it. These things are wrong:
 
-1. `canair routines` builds a UDS RoutineControl request for every ECU. On a KWP2000 ECU the same
-   bytes start a routine, and nothing refuses them (phase 0).
-2. Three lookups key on the service ID (SID) alone, although a few SIDs mean different things on
+1. `canair routines` built a UDS RoutineControl request for every ECU. On a KWP2000 ECU the same
+   bytes start a routine, and nothing refused them (phase 0, done).
+2. `canair scan range --service routine` swept `31 F0 00`–`31 F0 FF` with no question. On a
+   KWP2000 ECU each request starts routine `0xF0` (phase 0b, done).
+3. Three lookups key on the service ID (SID) alone, although a few SIDs mean different things on
    each protocol. The registry then holds one protocol's meaning, and callers must remember the
    other. `uds/nrc.py::nrc_description(nrc, protocol)` already solves this for negative response
    codes (NRCs). This plan gives the other lookups the same optional `protocol` argument
    (phases 2 and 3).
-3. Some pure protocol facts live in `live/`, where layers below `live` cannot reuse them
+4. Some pure protocol facts live in `live/`, where layers below `live` cannot reuse them
    (phase 4).
+5. A session request with no `--mode` is UDS extendedDiagnosticSession (`10 03`) on every ECU,
+   which the Ioniq BMS and the Kona VCU refuse (phase 5).
 
 ## Why one package, not a `kwp/` package
 
@@ -46,31 +51,81 @@ So the protocol stays a column of each fact table, as in `uds/nrc.py`.
 - `tests/contracts/test_structure.py` fails on any protocol byte written as a literal outside
   `uds/services.py`, `uds/nrc.py` and `uds/subfunctions.py`.
 
+The session-owner work (`plans/2026-11-05-one-session-owner.md`, DONE) made two more things
+protocol-aware that this plan would otherwise have to do:
+
+- Every terminal passes the target ECU's protocol to `uds/parse.py::parse_uds_response`
+  (`protocol=self.session_policy.protocol(header)`), on `wican-ws`, `elm327-tcp` and both raw
+  paths (`transport/raw/terminal.py`, `transport/raw/client_terminal.py`).
+- `uds/echo.py::reply_check(request, protocol)` takes the protocol, for memory reads
+  (`uds/memory.py::parse_memory_request`).
+
 ## Today
 
-### `canair routines` on a KWP2000 ECU
+### `canair routines` on a KWP2000 ECU (fixed in phase 0)
 
 On UDS, `31 03 <RID>` is RoutineControl requestRoutineResults, which only reads. On KWP2000,
 `0x31` is StartRoutineByLocalIdentifier: `31 03 00 05` starts routine local identifier (LID)
-`0x03` with entry options `00 05`.
+`0x03` with entry options `00 05`. Before `c56f2507`:
 
 - `canair scan routines <KWP2000 ECU>` probes with `0x33` and writes each hit to the ECU's
   `routines:` with a 2-digit key (`live/scan/kwp_routines.py::_write_hit`, `key_width=2`).
 - `canair routines <ECU> --rid <RID>` defaults to sub-function `0x03` and sends it with no
   prompt. Its help calls this "Request results (SF 0x03, safe)". The request is always
   `uds/requests.py::routine_control_request(sub_function, int(rid, 16))`, a UDS request. Neither
-  `live/actuate/routines_execute.py` nor the routines TUI (`live/actuate/routines.py`) checks the
+  `live/actuate/routines_execute.py` nor the routines TUI (`live/actuate/routines.py`) checked the
   ECU's protocol.
 - `safety/blocklist.py::check_command_safety` skips its RoutineControl check when the target speaks
   KWP2000 ("On KWP2000, 0x31 is StartRoutineByLocalIdentifier: byte 2 is a local id"). Nothing
-  else refuses the request.
+  else refused the request.
 - `safety/actuation.py::classify` does classify a KWP2000 `0x31` as `actuate`, but only `canair
   io` calls it (`on_refusal`). `plans/2026-10-22-actuation-safety-interlock.md` (PROPOSED) would
   route the routines paths through it, but it is not implemented.
 
-So after a KWP2000 routines scan, `canair routines <ECU> --rid <LID>` starts routine `0x03` with
-no confirmation. No bundled profile has a `routines:` section on a KWP2000 ECU today, so no
-shipped data triggers this. One scan creates such a section.
+So after a KWP2000 routines scan, `canair routines <ECU> --rid <LID>` started routine `0x03` with
+no confirmation. No bundled profile has a `routines:` section on a KWP2000 ECU, so no shipped
+data triggered this. One scan created such a section.
+
+### `canair scan range` with an actuating service (fixed in phase 0b)
+
+Before phase 0b, `canair scan range ECU --service S` sent `S {id} [--append bytes]` for every id
+in the range (`live/scan/range.py::mode_scan`,
+`req = f"{service:02X}{pid_val:{did_fmt}}{append_bytes}"`).
+Nothing between the flag and the bus asked first or checked the protocol:
+
+- `cli/live/handlers/scans.py::handle_scan` parses the flags and calls `mode_scan`. It has no
+  confirmation, unlike the routines and IOControl scans in the same module.
+- The `routine` preset (`live/scan/presets.py`, `service=ROUTINE_CONTROL`, default range
+  `F000-F0FF`) carries only a `caution` string. `presets_help` and the scan wizard print it; a
+  run does not.
+- The blocklist's RoutineControl check needs 8 hex digits and skips a KWP2000 target, so it does
+  not see `31F000`.
+
+On a KWP2000 ECU, `canair scan range BMS --service routine` sends `31 F0 00` to `31 F0 FF`: 256
+starts of routine LID `0xF0`, each with a different entry option. On a UDS ECU the same requests
+carry no valid routineControlType and should draw an NRC. The same command reaches the other
+actuating services too, on either protocol: `--service iocontrol --append 03` (a help example)
+sends shortTermAdjustment with no state bytes, and `--service 30 --append …` sends KWP2000
+IOControl. `ServiceInfo.actuates` already marks every such service, but `scan range` does not
+read it.
+
+### The default session ignores the protocol
+
+A session that names no mode opens UDS extendedDiagnosticSession, `10 03`. The value is written
+out four times:
+
+- `transport/session_manager.py::DEFAULT_SESSION_MODE` (`SessionType.EXTENDED_DIAGNOSTIC_SESSION`),
+  which `live/hold.py`, `live/read/exec.py` and `live/monitor/sessions.py` use;
+- `ecus/wake.py::DEFAULT_SESSION_MODE = "03"`, a wake ritual's session;
+- `live/scan/kwp_iocontrol.py::DEFAULT_SESSION_MODE = "03"`, the KWP2000 IOControl scan's;
+- `query/steps.py`, a pipeline `session` step's `mode = "03"`.
+
+KWP2000 ECUs refuse it: `live/scan/discovery.py` notes that the BMS "rejects the lazy 10 03
+escalation", and the Kona EV logs in `profiles/hyundai-kona-os-ev/captures/can/index.yaml` record
+`10 03` drawing NRC `0x12` on the VCU. The bundled BMS, MCU and OBC `sessions:` record `81` as
+supported. So every `--session` on a KWP2000 ECU needs `--mode 81`: the `scan iocontrol` and
+`scan routines` help shows `--session --mode 81` for the BMS, and a pipeline step must read
+`session BMS --mode 81`.
 
 ### Lookups that ignore the protocol
 
@@ -112,7 +167,7 @@ Apart from the routines defect above, these lookups only label output:
 | `cli/commands/search/findings.py` | `layout_of` | yes (each finding's ECU) |
 | `live/scan/range.py`, `live/scan/presets.py`, `captures/build.py` | `identifier_width` | the scan's ECU |
 | `expression/decode_value.py` | `layout_of` | no (the evaluator has no profile) |
-| `uds/echo.py` | `identifier_width` | no |
+| `uds/echo.py::reply_check` | `identifier_width` | it takes `protocol` already, for memory reads |
 | `safety/actuation.py`, `live/actuate/iocontrol_actuate.py` | `identifier_width`, for `0x2F`/`0x30` only | not needed: both SIDs mean one thing |
 
 ### Protocol facts in `live/`
@@ -147,7 +202,7 @@ These stay where they are, because they are policy, not protocol facts:
 - `uds/subfunctions.py` lines 158–159 say the `0x2F` names are "Mirrored by the KWP2000 0x30
   entry below (protocol-shared values)". Since phase 3 of the named-constants plan, `0x30` has its
   own table that shares only `0x00`. The comment is false.
-- `live/monitor/sessions.py` lines 155 and 192 write `SUBFUNCTION_NAMES.get(0x10, …)`. The
+- `live/monitor/sessions.py` lines 191 and 231 write `SUBFUNCTION_NAMES.get(0x10, …)`. The
   protocol-literal scanner does not match a literal passed to `.get()`.
 - `uds/services.py` has `UDS = "UDS"` and `KWP2000 = "KWP2000"` family tags. `uds/protocol.py`
   has `UDS = "uds"` and `KWP = "kwp"`. Two different `canair.uds` constants named `UDS` hold
@@ -167,8 +222,10 @@ These stay where they are, because they are policy, not protocol facts:
 | 4 | The two `UDS` constants | Rename the family tags to `FAMILY_UDS`, `FAMILY_KWP2000`, `FAMILY_BOTH`, `FAMILY_OBD2`. |
 | 5 | Where DTC record decoding goes | `dtc/records.py`, next to `dtc/snapshot.py`. The alternative is `uds/dtc_records.py`. |
 | 6 | Does `contribute/pii.py` read the VIN identifiers from the identity table? | Yes: a `vin` flag on the two rows, so the PII check and `canair identity` cannot disagree. |
+| 7 | What does `scan range` do with a service that can change the car's state? | Decided (2026-11-06): ask first (`core.prompt.confirm`, `--yes` answers), and refuse `0x31` outright on a KWP2000 ECU, where every request starts a routine. `canair scan iocontrol`/`routines` stay the safe paths, and the question names them. |
+| 8 | Where does the default session come from? | One function, `uds/subfunctions.py::default_session_type(protocol)`: `SessionType.EXTENDED_DIAGNOSTIC_SESSION` for UDS and an unknown protocol, `KwpSessionType.STANDARD_DIAGNOSTIC_SESSION` for KWP2000. A profile `session_mode` or `--mode` still wins. |
 
-## Phase 0 — refuse UDS RoutineControl on a KWP2000 ECU (done, 2026-11-06)
+## Phase 0 — refuse UDS RoutineControl on a KWP2000 ECU (done, 2026-11-06, `c56f2507`)
 
 `live/actuate/routines_execute.py::check_routines_protocol` raises `SafetyBlocked` (exit 2) for
 an ECU whose `id_protocol` is KWP2000, judged by `SessionPolicy`, or whose `routines:` holds a
@@ -186,6 +243,36 @@ a module of its own: a new module would raise the parser build's module count
 `tests/live/actuate/test_routines_kwp2000_refusal.py` and
 `tests/cli/commands/test_actuator_handlers.py`. `canair routines --help` and
 `docs/reference/cli/routines.md` say a KWP2000 ECU is refused.
+
+Both modes check before `SessionManager` opens a session: `mode_routines_execute` before its
+`held(tx_id)` block, and `mode_routines_tui` before it builds the TUI, whose session opens in
+`_RoutinesTUI` (`self.sm.open_session`).
+
+## Phase 0b — ask before `scan range` sends an actuating service (done, 2026-11-06)
+
+`live/scan/range.py` holds the rule (decision 7):
+
+- `check_range_scan` raises `SafetyBlocked` (exit 2) for RoutineControl (`0x31`) when the ECU's
+  protocol, as `terminal.session_policy` resolves it, is KWP2000. `mode_scan` calls it before it
+  sends anything, so every caller is covered.
+- `confirm_actuating_scan` runs that check, then builds each request of the scan
+  (`scan_request`, which `mode_scan` now sends too) and asks once when any of them is `actuate`
+  by `safety/actuation.py::classify` and passes the blocklist. A request the blocklist refuses
+  is not asked about, because the blocklist refuses it at send time. A read or a release
+  (`2F {DID} 00` on UDS) asks nothing. The question is `confirm(..., danger=True)`; the
+  warning before it counts the requests, names the first, points at `canair scan iocontrol`
+  and `canair scan routines`, and prints the preset's `caution`.
+
+Two callers ask:
+
+- `cli/live/handlers/scans.py::handle_scan`, with `--yes`/`-y` (new on `scan range`) as the
+  answer. A decline exits 1.
+- The `scan` step of the `read`/`monitor` pipeline (`live/read/exec.py::_exec_scan`). A pipeline
+  has no `--yes`, so it asks on a terminal, and without one the error says to pass `--yes` to
+  `canair scan range` instead. A decline skips the step, as its other errors do.
+
+Tests: `tests/live/scan/test_range_scan_safety.py`. With the rule switched off, 8 of its 13
+tests fail. `docs/reference/cli/scan.md` shows the new flag and tip.
 
 ## Phase 1 — small fixes
 
@@ -215,17 +302,20 @@ No behaviour change. One commit.
    above. Remove the `0x31` NOTE comment, because the KWP2000 row now states it.
 4. Decision 4: rename the family tags.
 5. Pass the protocol from `live/scan/range.py`, `live/scan/presets.py` and `captures/build.py`.
-   First check that a range scan cannot send `0x31` to a KWP2000 ECU today; if it can, that is a
-   second phase-0 defect.
-6. Tests in `tests/uds/test_uds_services.py`:
+   Phase 0b already refuses a range scan of `0x31` on a KWP2000 ECU.
+6. `uds/echo.py::reply_check` passes the `protocol` it already takes on to `identifier_width`,
+   and `uds/parse.py::_sent_request` (which reads the echo of the command as sent) calls
+   `reply_check(text, protocol)` instead of `request_echo(text)`. Every terminal already passes
+   the protocol to `parse_uds_response`, so a KWP2000 `0x31` reply is then checked against its
+   1-byte LID echo, on every transport. The callers that derive an `expected_echo` themselves
+   through `request_echo` (eight call sites, for example `live/identity/read.py` and
+   `live/monitor/poll_elm.py`) pass no protocol and keep today's check. None of them is a routine
+   path.
+7. Tests in `tests/uds/test_uds_services.py`:
    - every `_PROTOCOL_ROWS` SID also has a `SERVICES` row;
    - each protocol row's family matches its protocol;
    - `service_info(0x31, KWP).safe_discovery_sf is None`;
    - every lookup with no protocol returns what it returns today.
-
-`uds/echo.py` keeps calling `identifier_width` with no protocol. A KWP2000 `0x31` request would
-get a 1-byte echo check with the protocol, but after phase 0 only `raw` and `read` can send one.
-Passing the protocol there needs the ECU at every `send_uds` call site, which is out of scope.
 
 ## Phase 3 — protocol-aware layout, description and names
 
@@ -278,10 +368,29 @@ Output changes, to name in the commit body:
    - `tests/` imports; tests move to the directory that mirrors the new module.
 4. `make structure` must pass, and no baseline may rise. `scripts/check/doc_paths.py` must pass.
 
+## Phase 5 — the default session follows the protocol
+
+This changes what canair sends, so it needs a check on the car (decision 8).
+
+1. Add `default_session_type(protocol)` to `uds/subfunctions.py`.
+2. Replace the four copies of `"03"` (see Today): `SessionManager` resolves a mode that is not
+   given from the target's protocol (`terminal.session_policy.protocol(tx_id)`), and
+   `ecus/wake.py`, `live/scan/kwp_iocontrol.py` and `query/steps.py` stop declaring one. An
+   explicit `--mode`, a step's `--mode` and a profile's `session_mode` keep priority.
+3. The Nissan quirk's `C0` stays as it is (`live/scan/kwp_iocontrol.py::NISSAN_SESSION_MODE`).
+4. Update the help that tells a user to add `--mode 81` (`cli/commands/scan/probes.py`), say in
+   `docs/concepts/query-mini-language.md` which session a `session` step opens by default, and
+   regenerate `docs/reference/cli/`. `ecus/wake.py` then leaves `WakePlan.session_mode` empty
+   when the profile names none, so `SessionManager.open_session` picks the mode.
+5. Tests: a KWP2000 ECU with no mode gets `10 81`, a UDS or unregistered one `10 03`, and an
+   explicit mode wins, through `SessionManager` and through a pipeline `session` step.
+6. On the car: `--session` without `--mode` on the BMS and on a UDS ECU (IGPM), each with
+   `--save`.
+
 ## Out of scope
 
 - A KWP2000 routine-start command (see decision 1).
-- Echo validation by protocol (see phase 2).
+- Echo checks by protocol in the callers that build their own `expected_echo` (see phase 2).
 - New describers for KWP2000 replies that have none today (`0x58`, `0x5A`, `0x70`, `0x73`). They
   are missing, not mislabelled.
 - A `0x58` (KWP2000 DTC read) response layout.
@@ -291,6 +400,9 @@ Output changes, to name in the commit body:
 ## User-facing docs
 
 Phase 0 changes `canair routines`: its help and the generated `docs/reference/cli/routines.md`
-change in the same commit, and the commit body names the refusal for the release notes. Phases 1,
-2 and 4 change no user-facing behaviour. Phase 3 changes labels in `bix` and the monitor's session
-picker; no flag, default or file format changes, so `docs/` and `README.md` need no update there.
+change in the same commit, and the commit body names the refusal for the release notes. Phase 0b
+adds a question and `--yes` to `canair scan range`, and phase 5 changes the default session;
+each updates its help and the generated reference, and names the change in its commit body.
+Phases 1, 2 and 4 change no user-facing behaviour. Phase 3 changes labels in `bix` and the
+monitor's session picker; no flag, default or file format changes, so `docs/` and `README.md`
+need no update there.
