@@ -34,16 +34,22 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from canair.core import yaml_io
+from canair.core.yaml_rt import round_trip_yaml
+from canair.dtc.log_format import FORMAT, SECTIONS, write_log
+from canair.dtc.scope import ALL_SCOPE
+from canair.ecus.pids import load_raw_pids
+from canair.ecus.registry import load_ecus_dir, rx_for_tx
 from canair.profile.discovery import resolve_profile, selectable_profiles
 from canair.profile.model import ProfileError
 from canair.profile.names import declared_aliases
-from canair.variants import effective_meta
+from canair.uds.addressing import resolve_mode, resolve_rx_offset
+from canair.variants import effective_meta, load_variants
+from canair.variants.revisions import declared, possible_revisions
 
 if TYPE_CHECKING:
     from canair.profile.model import Profile
 
 LEGACY_NAME = "dtc_log.yaml"
-SECTIONS = ("scans", "clears")
 
 
 def legacy_sources(profile: Profile, dest: Path) -> list[Path]:
@@ -111,9 +117,6 @@ class _Addresses:
 
 
 def _addresses(profile: Profile) -> _Addresses | None:
-    from canair.ecus.registry import load_ecus_dir, rx_for_tx
-    from canair.uds.addressing import resolve_mode, resolve_rx_offset
-
     try:
         registry = load_ecus_dir(profile.ecus_dir) if profile.ecus_dir.is_dir() else {}
         meta = effective_meta(profile)
@@ -128,8 +131,6 @@ def _addresses(profile: Profile) -> _Addresses | None:
 
 
 def _move(profile: Profile, dest: Path, addresses: _Addresses) -> list[Path]:
-    from canair.dtc.log import FORMAT, write_log
-
     sources = legacy_sources(profile, dest)
     current = _load(dest) if dest.exists() else {}
     outdated = bool(current) and current.get("format") != FORMAT
@@ -181,8 +182,6 @@ def upgrade(doc: Mapping[str, Any], to_rx: Callable[[int], str]) -> dict[str, li
     ``detected`` clear for codes gone since the previous scan. The labels become response
     addresses (one the profile can't place is kept as written), and both kinds of derived
     entry are dropped — :mod:`canair.dtc.log` works them out when read."""
-    from canair.dtc.log import FORMAT
-
     if doc.get("format") == FORMAT:
         return {s: list(doc.get(s) or []) for s in SECTIONS}
 
@@ -244,9 +243,6 @@ def implied_tags(
     the entry's car (or, with no variant, any car) can carry only one of them; only for the
     ECUs the entry covers (every ECU for a full sweep). ``names`` maps rx to ECU name.
     """
-    from canair.dtc.scope import ALL_SCOPE
-    from canair.variants.revisions import declared, possible_revisions
-
     out: dict[str, Any] = {}
     variant = entry.get("variant")
     if not variant and len(variants) == 1:
@@ -280,15 +276,12 @@ def backfill_tags(profile: Profile, dest: Path, addresses: _Addresses | None = N
     addresses = addresses or _addresses(profile)
     if not dest.exists() or addresses is None:
         return 0
-    from canair.ecus.pids import load_raw_pids
-    from canair.variants import load_variants
 
     try:
         variants = load_variants(profile)
         ecus = load_raw_pids(profile).get("ecus") or {}
     except Exception:
         return 0  # an unloadable profile settles nothing; try again next time
-    from canair.core.yaml_rt import round_trip_yaml
 
     data = round_trip_yaml().load(dest.read_text())
     n = 0
@@ -301,8 +294,6 @@ def backfill_tags(profile: Profile, dest: Path, addresses: _Addresses | None = N
                 entry.update(fields)
                 n += 1
     if n:
-        from canair.dtc.log import write_log
-
         write_log(data, dest)
     return n
 
@@ -313,6 +304,7 @@ def migrate_all() -> None:
     A log is otherwise moved only when its profile is next used, so a profile left
     untouched would still keep its log where a reinstall (``canair update``) deletes it.
     """
+    # deferred: cycle with canair.dtc.log, whose log_file() runs migrate() from this module
     from canair.dtc.log import log_file
 
     for name in selectable_profiles():

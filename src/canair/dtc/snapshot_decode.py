@@ -18,6 +18,7 @@ from collections.abc import Callable, Mapping
 from functools import lru_cache
 from typing import Any
 
+from canair.captures.store import load_pid_captures
 from canair.dtc.snapshot import (
     SnapshotDid,
     SnapshotError,
@@ -25,9 +26,11 @@ from canair.dtc.snapshot import (
     parse_snapshot_reply,
     read_pid,
 )
+from canair.ecus.pids import build_ecu_index, load_pids
 from canair.ecus.sensitivity import pid_sensitive
 from canair.expression.decoding import decode_param_rows
-from canair.profile.model import Profile
+from canair.privacy.sensitive import MASK, mask_rows, masked
+from canair.profile.model import Profile, ProfileError
 
 # The live reply header a snapshot DID's data is wrapped in: 62 <DID>.
 _READ_REPLY_HEADER = 3
@@ -72,7 +75,6 @@ def live_reply_length(ecu: str, pid: str, *, profile: Profile) -> int | None:
 
     Only replies that echo the DID count, so a misfiled payload never sets a length.
     """
-    from canair.captures.store import load_pid_captures
 
     echo = f"62{pid[2:]}".upper()
     lengths: Counter[int] = Counter()
@@ -91,7 +93,6 @@ def decode_did(snap: SnapshotDid, pids: Mapping[str, Mapping[str, Any]]) -> list
     A sensitive signal's value is masked (:func:`canair.privacy.sensitive.mask_rows`), like a live
     read's.
     """
-    from canair.privacy.sensitive import mask_rows
 
     pid_info = pids.get(read_pid(snap.did)) or {}
     parameters = pid_info.get("parameters") or {}
@@ -124,7 +125,6 @@ def snapshot_entries(
     which keeps it out of the DTC log and the captures, and unless revealed its raw bytes
     are masked on screen: the reply gives the value away.
     """
-    from canair.privacy.sensitive import MASK, masked
 
     dids = []
     hidden = False
@@ -159,8 +159,6 @@ def ecu_pids_index(ecu: str | None, *, profile: Profile) -> Mapping[str, Mapping
     """The active profile's ``pids`` index for ``ecu`` (empty when it has none or no profile)."""
     if not ecu:
         return {}
-    from canair.ecus.pids import build_ecu_index, load_pids
-    from canair.profile.model import ProfileError
 
     try:
         entry = build_ecu_index(load_pids(profile=profile)).get(ecu.upper()) or {}

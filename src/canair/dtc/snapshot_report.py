@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from canair.dtc.snapshot_decode import decode_logged
+from canair.ecus.names import ecu_name
 from canair.profile.model import Profile
 from canair.render import ansi
 from canair.render.formatting import format_value
@@ -51,7 +53,6 @@ def _did_lines(did: Mapping[str, Any], indent: str) -> list[str]:
 
 def undefined_hints(results: Iterable[Mapping[str, Any]], *, profile: Profile) -> list[str]:
     """One "define it" hint per snapshot DID the profile has no signals for."""
-    from canair.ecus.names import ecu_name
 
     seen: dict[tuple[str, str], int] = {}
     for result in results:
@@ -89,8 +90,6 @@ def logged_lines(
     """A logged code's snapshots, decoded now, noting when the previous scan read the same."""
     if not records:
         return []
-    from canair.dtc.snapshot_decode import decode_logged
-
     lines = []
     if previous is not None and _replies(previous_records) == _replies(records):
         stamp = previous.get("timestamp", "?")

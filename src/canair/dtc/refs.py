@@ -13,12 +13,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from canair.ecus.registry import build_rx_index, build_rx_tx_index, load_ecus, rx_addr_str
 from canair.profile.model import Profile
 
 
 def ecu_ref(tx_id: int, *, profile: Profile) -> str:
     """The reference the log records for the ECU asked on ``tx_id`` (its rx, as hex)."""
-    from canair.ecus.registry import rx_addr_str
 
     return rx_addr_str(tx_id, profile=profile)
 
@@ -40,7 +40,6 @@ class EcuRefs:
     @classmethod
     def current(cls, profile: Profile) -> EcuRefs:
         """From ``profile``'s registry, or empty when it cannot be read."""
-        from canair.ecus.registry import build_rx_index, build_rx_tx_index, load_ecus
 
         try:
             ecus = load_ecus(profile)

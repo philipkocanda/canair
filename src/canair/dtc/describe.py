@@ -16,6 +16,8 @@ annotate each decoded record, naming the ECU that reported it.
 
 from __future__ import annotations
 
+from canair.ecus.dtc_definitions import effective_entries
+from canair.ecus.pids import load_pids
 from canair.profile.model import Profile
 
 from .failure_types import FAILURE_TYPE
@@ -180,8 +182,6 @@ def _profile_dtc_index(profile: Profile) -> _DtcIndex | None:
     """``(profile-wide {code: entry}, {ECU: {code: entry}})`` for the active profile."""
     global _index_cache
     try:
-        from canair.ecus.pids import load_pids
-
         data = load_pids(profile=profile)
     except Exception:
         return None
@@ -198,7 +198,6 @@ def _profile_dtc_index(profile: Profile) -> _DtcIndex | None:
 
     # The profile-wide section comes straight from profile.yaml, so its fields stated
     # once (source, verified, ...) are resolved here; the loader did the ECUs' already.
-    from canair.ecus.dtc_definitions import effective_entries
 
     raw_shared = data.get("dtcs")
     shared = _codes(effective_entries(raw_shared)) if isinstance(raw_shared, dict) else {}

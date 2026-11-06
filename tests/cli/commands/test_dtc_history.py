@@ -12,6 +12,7 @@ import yaml
 from canair.cli.profile_context import active
 from canair.dtc import history
 from canair.dtc import log as dtc_log
+from canair.dtc.log_format import FORMAT
 from canair.dtc.refs import EcuRefs
 from canair.dtc.scope import ANY_CAR, Car
 from canair.profile.model import Profile
@@ -35,6 +36,7 @@ def logp(tmp_path, monkeypatch):
     """The active profile's DTC log, redirected to a scratch file."""
     p = tmp_path / "log.yaml"
     monkeypatch.setattr(dtc_log, "log_path", lambda path=None, **_: p if path is None else path)
+    monkeypatch.setattr(history, "log_path", dtc_log.log_path)
     return p
 
 
@@ -87,7 +89,7 @@ class TestCar:
 class TestTagging:
     def test_entries_carry_the_car_and_the_scoped_ecus_revision(self, logp, refs, monkeypatch):
         tag = {"variant": "28kwh", "revisions": {"VCU": "kwp", "BMS": "uds"}, "attribution": {}}
-        monkeypatch.setattr("canair.captures.tags.capture_tag", lambda _p, **__: dict(tag))
+        monkeypatch.setattr("canair.dtc.log.capture_tag", lambda _p, **__: dict(tag))
         dtc_log.append_scan(_scan("all"), profile=active())
         dtc_log.append_scan(_scan(VCU), profile=active())
         dtc_log.append_clear(dtc_log.build_clear(BMS, timestamp="t"), profile=active())
@@ -103,7 +105,7 @@ class TestTagging:
         p = tmp_path / "sub" / "log.yaml"
         dtc_log.append_scan(_scan("all"), path=p, profile=active())
         assert p.read_text().startswith("# DTC scan history")
-        assert yaml.safe_load(p.read_text())["format"] == dtc_log.FORMAT
+        assert yaml.safe_load(p.read_text())["format"] == FORMAT
 
     def test_an_ecu_is_recorded_by_address_alone(self):
         clear = dtc_log.build_clear(BMS, protocol="kwp", group="0xFFFF", timestamp="t")

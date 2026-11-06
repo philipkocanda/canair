@@ -56,28 +56,28 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from canair.captures.tags import capture_tag
+from canair.core import yaml_io
+from canair.core.paths import config_dir
+from canair.core.yaml_rt import round_trip_yaml as _yaml
+from canair.dtc.describe import describe_dtc
+from canair.dtc.log_format import write_log
+from canair.dtc.log_upgrade import migrate
 from canair.dtc.refs import EcuRefs
 from canair.dtc.scope import ALL_SCOPE, Car, current_car, entry_revision
+from canair.dtc.snapshot_report import logged_lines
 from canair.profile.model import Profile
 from canair.render import ansi
+from canair.variants.tags import narrow_to_captured
 
 if TYPE_CHECKING:
     from canair.profile.model import Profile
-
-FORMAT = 2
-SECTIONS = ("scans", "clears")
-
-_HEADER = (
-    "DTC scan history recorded by `canair dtc` for one profile's car. This is the only\n"
-    "record of it: do not delete. View it with `canair dtc log`."
-)
 
 _migrated: set[tuple[Path, Path, tuple[Path, ...]]] = set()
 
 
 def log_dir() -> Path:
     """The directory holding every profile's DTC log (user state, not a profile)."""
-    from canair.core.paths import config_dir
 
     return config_dir() / "dtc_log"
 
@@ -88,8 +88,6 @@ def log_file(profile: Profile) -> Path:
     key = (dest, profile.root, profile.overlays)
     if key not in _migrated:
         _migrated.add(key)
-        from canair.dtc.log_upgrade import migrate
-
         try:
             migrate(profile, dest)
         except OSError as e:
@@ -104,7 +102,6 @@ def log_path(path: Path | None = None, *, profile: Profile) -> Path:
 
 def load_log(path: Path | None = None, *, profile: Profile) -> dict:
     """Load the DTC log, or an empty ``{"scans": []}`` when absent."""
-    from canair.core import yaml_io
 
     p = log_path(path, profile=profile)
     if not p.exists():
@@ -114,23 +111,6 @@ def load_log(path: Path | None = None, *, profile: Profile) -> dict:
     if not isinstance(data.get("scans"), list):
         data["scans"] = []
     return data
-
-
-def write_log(data: Mapping, path: Path) -> Path:
-    """Write a whole log document to ``path`` (creating its directory), with the header."""
-    from ruamel.yaml.comments import CommentedMap
-
-    from canair.core.yaml_rt import dump
-
-    doc = data if isinstance(data, CommentedMap) else CommentedMap(data)
-    if doc.get("format") != FORMAT:
-        doc.insert(0, "format", FORMAT)
-    if not doc.ca.comment:
-        doc.yaml_set_start_comment(_HEADER)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
-        dump(doc, f)
-    return path
 
 
 def build_scan(
@@ -212,8 +192,6 @@ def _with_tag(entry: dict, *, profile: Profile) -> dict:
     the car and ECU revision that reported it."""
     if "variant" in entry or "revisions" in entry:
         return entry
-    from canair.captures.tags import capture_tag
-    from canair.variants.tags import narrow_to_captured
 
     tag = capture_tag(profile)
     if not tag:
@@ -232,8 +210,6 @@ def _append(section: str, entry: dict, path: Path | None = None, *, profile: Pro
     """Append ``entry`` to the named top-level list, preserving comments."""
     entry = _with_tag(entry, profile=profile)
     from ruamel.yaml.comments import CommentedMap
-
-    from canair.core.yaml_rt import round_trip_yaml as _yaml
 
     p = log_path(path, profile=profile)
     data = None
@@ -386,8 +362,6 @@ def _erased_snapshot_lines(
     clears: Iterable[Mapping], refs: EcuRefs, *, profile: Profile
 ) -> list[str]:
     """The snapshots each ``--clear`` erased, read just before it, decoded now."""
-    from canair.dtc.snapshot_report import logged_lines
-
     lines: list[str] = []
     for clear in clears:
         erased = clear.get("snapshots") or {}
@@ -417,9 +391,6 @@ def render_scan(
     decoded meaning, and — when a ``previous`` same-scope scan is given — the
     change since it (``clears`` are the ``--clear`` runs in between). This is what
     ``canair dtc log`` prints."""
-    from canair.dtc.describe import describe_dtc
-    from canair.dtc.snapshot_report import logged_lines
-
     refs = EcuRefs.current(profile=profile)
     lines = [f"\n  DTC log: {scope_label(str(entry.get('scope', '?')), refs, profile=profile)}"]
     lines.append(f"  Scanned:     {entry.get('timestamp', '?')}")

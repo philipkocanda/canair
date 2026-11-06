@@ -132,11 +132,11 @@ class TestPerEcuMeaning:
 
     @pytest.fixture(autouse=True)
     def _profile(self, monkeypatch):
-        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda *_, **__: {"ecus": self.ECUS})
+        monkeypatch.setattr("canair.dtc.describe.load_pids", lambda *_, **__: {"ecus": self.ECUS})
 
     def _with_shared(self, monkeypatch):
         data = {"dtcs": self.SHARED, "ecus": self.ECUS}
-        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda *_, **__: data)
+        monkeypatch.setattr("canair.dtc.describe.load_pids", lambda *_, **__: data)
 
     def test_a_profile_wide_code_applies_to_every_ecu(self, monkeypatch):
         from canair.dtc.describe import profile_dtc_defs

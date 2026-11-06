@@ -20,7 +20,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from canair.ecus.revisions import determined_revisions
-from canair.profile.model import Profile
+from canair.profile.model import Profile, ProfileError
+from canair.variants import VariantsError, load_variants
 from canair.variants.tags import SCOPE_ALL, in_scope, revisions_in_scope
 
 ALL_SCOPE = "all"
@@ -58,8 +59,6 @@ ANY_CAR = Car(everything=True)
 
 def current_car(profile: Profile) -> Car:
     """``profile``'s car, or :data:`ANY_CAR` when its variants or revisions cannot be read."""
-    from canair.profile.model import ProfileError
-    from canair.variants import VariantsError, load_variants
 
     try:
         several = len(load_variants(profile)) > 1

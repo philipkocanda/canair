@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from canair.dtc.log import load_log
+from canair.dtc.log import load_log, log_path
 from canair.dtc.refs import EcuRefs
 from canair.dtc.scope import ALL_SCOPE, Car, current_car
 from canair.profile.model import Profile
@@ -155,8 +155,6 @@ class LogStats:
 
 def log_stats(path: Path | None = None, *, car: Car | None = None, profile: Profile) -> LogStats:
     """Totals of the DTC log at ``path`` (default: the active profile's) for ``car``."""
-    from canair.dtc.log import log_path
-
     car = car or current_car(profile=profile)
     p = log_path(path, profile=profile)
     data = load_log(p, profile=profile)

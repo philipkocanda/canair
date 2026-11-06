@@ -181,7 +181,9 @@ class TestLengthResolver:
             {"payload": "62B004112233"},
             {"payload": "62C00B1122334455"},  # misfiled: another DID's reply
         ]
-        monkeypatch.setattr("canair.captures.store.load_pid_captures", lambda ecu, pid, **__: rows)
+        monkeypatch.setattr(
+            "canair.dtc.snapshot_decode.load_pid_captures", lambda ecu, pid, **__: rows
+        )
         snapshot_decode.live_reply_length.cache_clear()
         try:
             assert (
@@ -200,7 +202,7 @@ class TestLengthResolver:
             "long": [{"payload": "62B0041122334455"}],
         }
         monkeypatch.setattr(
-            "canair.captures.store.load_pid_captures",
+            "canair.dtc.snapshot_decode.load_pid_captures",
             lambda ecu, pid, *, profile: rows[profile.name],
         )
         short, long = Profile("short", tmp_path / "a"), Profile("long", tmp_path / "b")
@@ -215,7 +217,9 @@ class TestLengthResolver:
     def test_no_live_reply_means_unknown(self, monkeypatch):
         from canair.dtc import snapshot_decode
 
-        monkeypatch.setattr("canair.captures.store.load_pid_captures", lambda ecu, pid, **__: [])
+        monkeypatch.setattr(
+            "canair.dtc.snapshot_decode.load_pid_captures", lambda ecu, pid, **__: []
+        )
         snapshot_decode.live_reply_length.cache_clear()
         try:
             assert (
