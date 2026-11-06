@@ -39,6 +39,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from canair.core import paths
+from canair.core.paths import BUNDLED_PROFILES_DIR, REPO_ROOT
+from canair.install.build_info import build_details, full_version, running_build
+from canair.profile.bundle import BUNDLE_MEMBERS
+from canair.profile.model import looks_like_profile
+from canair.profile.names import build_alias_index
+
 if TYPE_CHECKING:
     from canair.profile.bundle import BundleMember
 
@@ -62,7 +69,6 @@ def _resolve(path: Path | None) -> Path | None:
 
 def running_package_dir() -> Path:
     """Directory the currently-imported ``canair`` package lives in."""
-    from canair.core import paths
 
     return Path(paths.PACKAGE_DIR)
 
@@ -110,7 +116,6 @@ def source_clone() -> Path | None:
     receipt = uv_receipt_directory()
     if receipt is not None:
         candidates.append(receipt)
-    from canair.core.paths import REPO_ROOT
 
     if REPO_ROOT is not None:
         candidates.append(REPO_ROOT)
@@ -154,8 +159,6 @@ def running_version() -> str:
     release check in ``canair update``) deliberately use the pure versions
     instead — a local segment says nothing about ordering.
     """
-    from canair.install.build_info import full_version
-
     return full_version()
 
 
@@ -317,10 +320,6 @@ def snapshot_profile_risks(clone: Path | None) -> list[SnapshotRisk]:
     Without a readable ``RECORD`` every file differing from the clone is reported,
     since nothing then distinguishes an edit from upstream drift.
     """
-    from canair.core.paths import BUNDLED_PROFILES_DIR
-    from canair.profile.bundle import BUNDLE_MEMBERS
-    from canair.profile.model import looks_like_profile
-    from canair.profile.names import build_alias_index
 
     if clone is None or not installed_snapshot_kind(BUNDLED_PROFILES_DIR):
         return []
@@ -423,8 +422,6 @@ def describe(clone: Path | None) -> dict:
     came from (``source``/``ci``/``local``/``unknown``), the build time and the CI
     run.
     """
-    from canair.install.build_info import build_details, running_build
-
     origin = running_origin()
     tool_version = installed_tool_version()
     src_version = clone_version(clone)

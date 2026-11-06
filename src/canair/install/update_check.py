@@ -29,9 +29,13 @@ import threading
 import time
 from pathlib import Path
 
+import canair
+from canair.config.file import ensure_config_dir, get_config_key
+
 # GitHub repository the releases are published under (shared with `canair
 # contribute`, which targets the same repo for pull requests).
 from canair.core.paths import GITHUB_REPO as REPO
+from canair.core.paths import config_dir
 
 RELEASES_LATEST_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 # Human-facing links used in notices and by ``canair update``.
@@ -51,8 +55,6 @@ _READ_TIMEOUT = 3.0
 
 
 def _cache_file() -> Path:
-    from canair.core.paths import config_dir
-
     return config_dir() / "update_check.json"
 
 
@@ -93,8 +95,6 @@ def is_disabled() -> bool:
     if os.environ.get(DISABLE_ENV):
         return True
     try:
-        from canair.config.file import get_config_key
-
         value = get_config_key(DISABLE_CONFIG_KEY)
     except Exception:
         return False
@@ -113,7 +113,6 @@ def read_cache() -> dict | None:
 
 def write_cache(latest_tag: str | None, html_url: str | None) -> None:
     """Persist the latest-known release (best-effort; errors are swallowed)."""
-    from canair.config.file import ensure_config_dir
 
     payload = {
         "checked_at": time.time(),
@@ -217,13 +216,12 @@ def pending_notice() -> str | None:
         if not cache:
             return None
         latest = cache.get("latest_tag")
-        from canair import __version__
-
-        if not is_newer(latest, __version__):
+        version = canair.__version__
+        if not is_newer(latest, version):
             return None
         url = cache.get("html_url") or CHANGELOG_URL
         return (
-            f"update available: canair {__version__} \u2192 {latest}  "
+            f"update available: canair {version} \u2192 {latest}  "
             f"(run: canair update  \u00b7  changelog: {url})"
         )
     except Exception:

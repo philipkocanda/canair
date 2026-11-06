@@ -250,7 +250,7 @@ class TestSnapshotProfileRisks:
 
     def test_no_clone_makes_no_claim(self, tmp_path, monkeypatch):
         bundled, _root = self._snapshot(tmp_path)
-        monkeypatch.setattr("canair.core.paths.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.install.context.BUNDLED_PROFILES_DIR", bundled)
         assert ic.snapshot_profile_risks(None) == []
 
     def test_a_dev_checkout_is_never_at_risk(self, tmp_path, monkeypatch):
@@ -259,20 +259,20 @@ class TestSnapshotProfileRisks:
         root = bundled / "hyundai-ioniq-ae-ev"
         (root / "ecus").mkdir(parents=True)
         (root / "profile.yaml").write_text('car_model: "T"\ninit: "x"\n')
-        monkeypatch.setattr("canair.core.paths.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.install.context.BUNDLED_PROFILES_DIR", bundled)
         assert ic.snapshot_profile_risks(tmp_path / "clone") == []
 
     def test_an_identical_copy_is_not_a_risk(self, tmp_path, monkeypatch):
         bundled, root = self._snapshot(tmp_path)
         clone = self._clone_copy(tmp_path, root)
-        monkeypatch.setattr("canair.core.paths.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.install.context.BUNDLED_PROFILES_DIR", bundled)
         assert ic.snapshot_profile_risks(clone) == []
 
     def test_reports_a_capture_written_only_into_the_snapshot(self, tmp_path, monkeypatch):
         bundled, root = self._snapshot(tmp_path)
         clone = self._clone_copy(tmp_path, root)
         (root / "captures" / "2026-08-05.json").write_text('{"sessions": []}')
-        monkeypatch.setattr("canair.core.paths.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.install.context.BUNDLED_PROFILES_DIR", bundled)
 
         (risk,) = ic.snapshot_profile_risks(clone)
 
@@ -284,7 +284,7 @@ class TestSnapshotProfileRisks:
         bundled, root = self._snapshot(tmp_path)
         clone = self._clone_copy(tmp_path, root)
         (root / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E4\n  # edited\n")
-        monkeypatch.setattr("canair.core.paths.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.install.context.BUNDLED_PROFILES_DIR", bundled)
 
         (risk,) = ic.snapshot_profile_risks(clone)
 
@@ -306,7 +306,7 @@ class TestSnapshotProfileRisks:
         )
         (old / "profile.yaml").write_text((renamed / "profile.yaml").read_text())
         (old / "captures" / "2026-08-05.json").write_text('{"sessions": []}')
-        monkeypatch.setattr("canair.core.paths.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.install.context.BUNDLED_PROFILES_DIR", bundled)
 
         (risk,) = ic.snapshot_profile_risks(clone)
 
@@ -319,7 +319,7 @@ class TestSnapshotProfileRisks:
         clone = self._clone_copy(tmp_path, root)
         (root / "out").mkdir()
         (root / "out" / "autopid.json").write_text("[]")
-        monkeypatch.setattr("canair.core.paths.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.install.context.BUNDLED_PROFILES_DIR", bundled)
         assert ic.snapshot_profile_risks(clone) == []
 
     @staticmethod
@@ -346,7 +346,7 @@ class TestSnapshotProfileRisks:
         self._write_record(bundled)
         (clone / "profiles" / root.name / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E5\n")
         (clone / "profiles" / root.name / "profile.yaml").unlink()  # renamed upstream
-        monkeypatch.setattr("canair.core.paths.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.install.context.BUNDLED_PROFILES_DIR", bundled)
 
         assert ic.snapshot_profile_risks(clone) == []
 
@@ -356,7 +356,7 @@ class TestSnapshotProfileRisks:
         self._write_record(bundled)
         (root / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E4\n  # edited\n")
         (root / "captures" / "2026-08-05.json").write_text('{"sessions": []}')
-        monkeypatch.setattr("canair.core.paths.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.install.context.BUNDLED_PROFILES_DIR", bundled)
 
         (risk,) = ic.snapshot_profile_risks(clone)
 
@@ -371,7 +371,7 @@ class TestSnapshotProfileRisks:
         (user / "ecus").mkdir(parents=True)
         (user / "profile.yaml").write_text('car_model: "U"\ninit: "x"\n')
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(user.parent))
-        monkeypatch.setattr("canair.core.paths.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.install.context.BUNDLED_PROFILES_DIR", bundled)
 
         assert ic.snapshot_profile_risks(clone) == []
 

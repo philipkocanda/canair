@@ -333,6 +333,8 @@ def running_clone() -> Path | None:
     ``None`` for an installed copy (a ``uv tool install`` snapshot or a
     site-packages install), which carries no checkout to describe.
     """
+    # deferred: hatch_build.py loads this module by path without canair installed, so its top
+    # level imports only the standard library (and context imports this module)
     from canair.install.context import running_origin, running_package_dir
 
     if running_origin() != "repo":
@@ -346,6 +348,8 @@ def running_stamp() -> BuildStamp | None:
     A run from source never reads a stamp, so a stray file in the tree cannot
     describe code it did not build.
     """
+    # deferred: hatch_build.py loads this module by path without canair installed, so its top
+    # level imports only the standard library (and context imports this module)
     from canair.install.context import running_package_dir
 
     if running_clone() is not None:
@@ -374,6 +378,8 @@ def full_version() -> str:
     ``0+unknown`` sentinel of an uninstalled source tree) the provenance is
     appended with a ``.`` — a version may hold only one ``+``.
     """
+    # deferred: hatch_build.py loads this module by path without canair installed, so its top
+    # level imports only the standard library
     from canair import __version__
 
     build = running_build()

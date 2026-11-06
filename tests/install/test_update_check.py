@@ -43,6 +43,7 @@ def _no_running_build(monkeypatch):
     subprocess assertions below.
     """
     monkeypatch.setattr(build_info, "running_build", lambda: None)
+    monkeypatch.setattr(ic, "running_build", lambda: None)
 
 
 class TestVersionCompare:
@@ -227,11 +228,9 @@ class TestUpdateCommand:
 
         monkeypatch.setattr(canair, "__version__", "1.0.0")
         monkeypatch.setattr(update_cmd, "source_clone", lambda: None)
-        monkeypatch.setattr(
-            build_info,
-            "running_build",
-            lambda: build_info.GitBuild(branch="main", commit="343b244", dirty=False),
-        )
+        fixed = build_info.GitBuild(branch="main", commit="343b244", dirty=False)
+        monkeypatch.setattr(build_info, "running_build", lambda: fixed)
+        monkeypatch.setattr(ic, "running_build", lambda: fixed)
 
         rc = update_cmd.run(self._args(json=True))
         assert rc == 0

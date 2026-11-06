@@ -86,9 +86,11 @@ def test_version_is_not_resolved_while_building_the_parser(monkeypatch):
     """Building the parser must not shell out to git — it happens every run."""
     from canair.cli import build_parser
     from canair.install import build_info
+    from canair.install import context as install_context
 
     def boom():
         raise AssertionError("version resolved eagerly at parser-build time")
 
     monkeypatch.setattr(build_info, "full_version", boom)
+    monkeypatch.setattr(install_context, "full_version", boom)
     build_parser()
