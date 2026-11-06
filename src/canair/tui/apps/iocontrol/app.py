@@ -17,7 +17,7 @@ from typing import ClassVar
 
 from rich.text import Text
 from textual.app import App, ComposeResult
-from textual.binding import Binding
+from textual.binding import BindingType
 from textual.css.query import NoMatches
 from textual.widgets import DataTable, Static
 
@@ -78,7 +78,7 @@ class IOControlApp(HelpMixin, App):
     }
     """
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("quit", "quit"),
         *bind("quit_force", "quit", show=False, priority=True),
         *bind("help", "help"),
