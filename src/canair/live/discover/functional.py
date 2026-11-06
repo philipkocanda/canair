@@ -21,7 +21,7 @@ from typing import Any, TextIO
 
 from canair.captures.build import build_manual_session
 from canair.captures.metadata import resolve_metadata
-from canair.captures.save import save_session_journaled
+from canair.captures.oneshot import save_session_journaled
 from canair.ecus.registry import load_ecus
 from canair.profile.model import Profile
 from canair.render import ansi, messages

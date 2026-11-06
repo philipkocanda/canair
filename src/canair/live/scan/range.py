@@ -16,7 +16,7 @@ from canair.transport.stats import client_transport
 from canair.uds.services import identifier_width, service_name
 
 from ...captures.build import build_scan_session, suggest_scan_label
-from ...captures.save import save_session_journaled
+from ...captures.oneshot import save_session_journaled
 from ...ecus.names import ecu_display, ecu_name
 from ...ecus.registry import rx_addr_str
 from ...transport.protocol import Terminal

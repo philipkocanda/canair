@@ -15,7 +15,7 @@ from canair.uds.describe import decode_uds_response
 from canair.uds.response import UdsResponse
 
 from ...captures.build import build_raw_session, suggest_raw_label
-from ...captures.save import save_session_journaled
+from ...captures.oneshot import save_session_journaled
 from ...ecus.names import ecu_name
 from ...ecus.registry import rx_addr_str
 from ...transport.protocol import Terminal

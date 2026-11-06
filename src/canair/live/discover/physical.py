@@ -22,7 +22,7 @@ from canair.uds.services import DEFAULT_SESSION_REQUEST
 from canair.yaml_edit.ecu import EcusEditError, register_ecu
 
 from ...captures.build import build_discover_session, suggest_discover_label
-from ...captures.save import save_session_journaled
+from ...captures.oneshot import save_session_journaled
 from ...ecus.registry import load_ecus, rx_for_tx
 from ...render.discover import ABSENT, POSITIVE, PROBE_FAILED, REFUSED, status_cell
 from ...render.progress import ProgressLine
