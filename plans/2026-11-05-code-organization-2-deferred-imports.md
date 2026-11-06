@@ -5,8 +5,10 @@ Status: **DONE** (2026-11-06). Part of
 Deferred internal imports: 1,143 -> 84 in 70 files. `deferred_imports_without_reason` is 0.
 What stays is a Textual import (about 40 ms each, measured), the stdlib-only imports of
 `install/build_info.py`, and one `dtc/log_upgrade.py` import, each with a `# deferred:` reason.
-Decision A stands: no lazy command registry (`canair --help` is about 0.26 s; it was 0.24 s).
-Per-group counts are in "As built".
+Decision A stands: no lazy command registry. Start-up did grow, though: building the parser loads
+637 canair modules (334 on 2026-11-03), and `canair --help` takes about 0.31 s (0.26 s before),
+which misses the 0.30 s in Acceptance. The `parser_build_modules` ceiling in `baseline.json` now
+holds the count. Per-group counts are in "As built".
 
 ## Goal
 

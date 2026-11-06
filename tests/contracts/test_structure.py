@@ -11,8 +11,8 @@ Each check compares the tree with ``baseline.json``:
   across packages) fails on a new entry *and* on an entry that no longer applies, so a fix has
   to leave the baseline;
 * a **ceiling** baseline (module sizes, deferred imports and those without a ``# deferred:``
-  reason, import-linter debt) fails when the number grows. Lower it when it falls:
-  ``uv run python -m tests.contracts.test_structure --write``.
+  reason, the modules that building the parser loads, import-linter debt) fails when the number
+  grows. Lower it when it falls: ``uv run python -m tests.contracts.test_structure --write``.
 
 One check has no baseline: a protocol byte written as a literal outside ``canair.uds``.
 The calls that read the process-global active profile outside ``canair.cli`` have a ceiling
@@ -257,6 +257,23 @@ def test_deferred_imports_state_a_reason():
     )
 
 
+def test_parser_build_does_not_load_more_modules():
+    """Every command builds the whole parser before it runs, so start-up pays for each module.
+
+    A count, not a time: it gives the same result on every machine, and it catches the small
+    steps that a timing threshold misses. From 2026-11-04 to 2026-11-06 the count went from 334
+    to 637 modules and start-up rose by about 70 ms, in steps of 3 to 15 ms each.
+    """
+    count = len(deferred.loaded_modules())
+    ceiling = _baseline()["parser_build_modules"]
+    assert count <= ceiling, (
+        f"Building the parser loads {count} canair modules (ceiling {ceiling}), and every command "
+        "pays for each one at start-up. Import what only a command's `run` needs inside it, with "
+        "a `# deferred: <measured start-up cost>` comment. To see what loads: python -X importtime "
+        '-c "from canair.cli import build_parser; build_parser()"'
+    )
+
+
 def test_import_linter_debt_does_not_grow():
     count = _ignore_import_count()
     ceiling = _baseline()["import_linter_ignores"]
@@ -372,6 +389,7 @@ def _fresh_baseline(old: dict) -> dict:
         old["deferred_imports_without_reason"], len(_deferred_without_reason())
     )
     new["root_init_internal_imports"] = min(old["root_init_internal_imports"], _root_reexports())
+    new["parser_build_modules"] = min(old["parser_build_modules"], len(deferred.loaded_modules()))
     new["ambient_profile_calls"] = min(old["ambient_profile_calls"], len(ambient_profile.scan()))
     new["import_linter_ignores"] = min(old["import_linter_ignores"], _ignore_import_count())
     packages = _packages()
@@ -403,6 +421,7 @@ def _initial_baseline() -> dict:
         "oversized_modules": graph.oversized(result, MODULE_LINE_LIMIT),
         "deferred_internal_imports": sum(result.deferred.values()),
         "deferred_imports_without_reason": len(_deferred_without_reason()),
+        "parser_build_modules": len(deferred.loaded_modules()),
         "ambient_profile_calls": len(ambient_profile.scan()),
         "import_linter_ignores": _ignore_import_count(),
         "packages_without_charter": sorted(p for p, i in packages.items() if not _has_charter(i)),
