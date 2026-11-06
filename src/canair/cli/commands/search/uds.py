@@ -12,8 +12,10 @@ from __future__ import annotations
 from canair.captures.dates import filter_by_date_range, filter_by_text
 from canair.captures.store import load_all_captures
 from canair.cli.args.notation import resolve_notation
+from canair.cli.args.query import parse_canonical_query
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.cli.profile_context import active
+from canair.ecus.pids import load_pids
 from canair.query import QueryError
 from canair.render import ansi, messages
 
@@ -46,8 +48,6 @@ def _error(message: str) -> int:
 
 def _definition_findings(needle: Needle, ecus_filter: set[str] | None) -> list[Finding]:
     import yaml
-
-    from canair.ecus.pids import load_pids
 
     if needle.text is None:
         return []
@@ -88,7 +88,6 @@ def _apply_query(args, entries: list) -> tuple[list, set[str] | None, str | None
     """Narrow ``entries`` to the ``--query`` selection: ``(entries, ecus, error)``."""
     if not args.query:
         return entries, None, None
-    from canair.cli.args.query import parse_canonical_query
 
     try:
         query = parse_canonical_query(args.query)

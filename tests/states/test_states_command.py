@@ -170,8 +170,8 @@ class TestReverseLookup:
             "canair.states.vocabulary",
         ):
             monkeypatch.setattr(f"{module}.load_states", lambda *_, **__: rules)
-        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda *_, **__: pids_data)
-        monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda *_, **__: ecus)
+        monkeypatch.setattr("canair.cli.commands.states.show.load_pids", lambda *_, **__: pids_data)
+        monkeypatch.setattr("canair.cli.commands.states.show.load_ecus", lambda *_, **__: ecus)
 
     def test_human_output(self, _patched_lookup, capsys):
         rc = _run(state="READY")

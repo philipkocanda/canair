@@ -2,8 +2,19 @@
 
 from __future__ import annotations
 
+from canair.cli.args.transport import transport_overrides
 from canair.cli.profile_context import active
+from canair.config.devices import fallback_settings
+from canair.config.transport import firmware_check_mode
 from canair.core.tcp import tcp_open
+from canair.device.wican.firmware import UNKNOWN, compatibility, probe, probes
+from canair.install.build_info import build_summary, full_version
+from canair.transport import (
+    TransportError,
+    resolve_transport_candidates,
+    select_reachable_transport,
+)
+from canair.transport.config import DEFAULT_ELM327_TCP_PORT
 
 from .probe import device_status, load_device_config
 
@@ -26,15 +37,6 @@ _PROBE_TIMEOUT = 4.0
 
 def gather(args) -> dict:
     """Collect everything status reports into a plain dict (also used for --json)."""
-    from canair.cli.args.transport import transport_overrides
-    from canair.config.devices import fallback_settings
-    from canair.install.build_info import build_summary, full_version
-    from canair.transport import (
-        TransportError,
-        resolve_transport_candidates,
-        select_reachable_transport,
-    )
-
     info: dict = {"exit": _OK, "warnings": [], "errors": [], "canair_version": full_version()}
     info["canair_build"] = build_summary()
 
@@ -102,9 +104,6 @@ def gather(args) -> dict:
     # that firmware really allows: a v6 device has no /ws however the check is
     # set. elm327-tcp is probed under the same rule as a live connect (only with
     # `firmware_check: always`), since it is usually a clone with no HTTP server.
-    from canair.config.transport import firmware_check_mode
-    from canair.device.wican.firmware import UNKNOWN, compatibility, probe, probes
-
     check_mode = firmware_check_mode()
     probed = t.is_wican_http or (t.type == "elm327-tcp" and probes("elm327-tcp"))
     fw = probe(host, timeout=probe_timeout) if probed else UNKNOWN
@@ -183,8 +182,6 @@ def gather(args) -> dict:
     elif t.is_elm:
         # Direct ELM327 adapter (elm327-tcp): no HTTP API — usability is just
         # whether the ELM socket accepts a TCP connection.
-        from canair.transport.config import DEFAULT_ELM327_TCP_PORT
-
         elm_port = t.port or DEFAULT_ELM327_TCP_PORT
         info["transport"]["port"] = elm_port
         elm_ok = tcp_open(host, elm_port, probe_timeout)

@@ -44,7 +44,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from canair import __version__
+import canair
 from canair.core.prompt import confirm
 from canair.install import build_info
 from canair.install.context import describe as describe_install
@@ -272,7 +272,7 @@ def run(args) -> int:
     clone_head = build_info.head_label(clone) if clone else None
     # Compare on the *pure* package version: a build-provenance local segment
     # (`+main.343b244`) says nothing about release ordering.
-    update_available = is_newer(latest, __version__)
+    update_available = is_newer(latest, canair.__version__)
     current = build_info.full_version()
 
     if args.json:

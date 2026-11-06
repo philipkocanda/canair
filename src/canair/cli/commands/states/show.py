@@ -6,6 +6,8 @@ import json
 import sys
 
 from canair.cli.profile_context import active
+from canair.ecus.pids import load_pids
+from canair.ecus.registry import load_ecus
 from canair.render import ansi, messages
 from canair.states.implies import exclusive_pairs
 from canair.states.predicates import StatePredicateError
@@ -21,9 +23,6 @@ def cmd_show_state(args) -> int:
     ``ALL`` matches every state. The source of each match is shown so it's clear
     whether the state is declared at the ECU level or only inferred from PIDs.
     """
-    from canair.ecus.pids import load_pids
-    from canair.ecus.registry import load_ecus
-
     prof = active()
     target = str(args.state).strip().upper()
 

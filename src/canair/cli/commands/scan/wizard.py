@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from canair.cli.profile_context import active
 from canair.core.prompt import confirm
+from canair.ecus.pids import load_pids
+from canair.ecus.registry import load_ecus
 from canair.live.scan.presets import (
     SERVICE_PRESETS,
     ScanPlan,
@@ -39,9 +41,6 @@ def _ask(question: str, plan: ScanPlan | None, field: str) -> bool:
 
 def _ecu_choices() -> list[tuple[str, int, str]]:
     """Return [(name, tx_id, description)] for ECUs known to the profile."""
-    from canair.ecus.pids import load_pids
-    from canair.ecus.registry import load_ecus
-
     try:
         ecus = load_ecus(profile=active())
     except Exception:

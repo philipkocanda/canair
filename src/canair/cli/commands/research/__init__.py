@@ -54,6 +54,7 @@ from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 
+from canair.captures.store import load_all_captures
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.cli.profile_context import active
 from canair.ecus.pids import load_pids, load_pids_dir
@@ -426,8 +427,6 @@ def run_gaps(args) -> int:
     ) or {}
     captured = {}
     if args.dir is None:
-        from canair.captures.store import load_all_captures
-
         captured = capture_read_ranges(load_all_captures(profile=active()))
     gaps = find_gaps(ecus, captured, ecu=args.ecu)
 

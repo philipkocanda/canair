@@ -4,7 +4,15 @@ from __future__ import annotations
 
 import argparse
 
-from canair.device.wican.firmware import Surface
+from canair.config.devices import default_wican, is_wican_pro, wican_addresses
+from canair.device.wican.firmware import (
+    Surface,
+    compatibility,
+    detect,
+    print_verdict,
+    probes,
+    unconfirmed,
+)
 from canair.render import messages
 
 WICAN_TIMEOUT = 10  # seconds
@@ -19,8 +27,6 @@ def require_pro(operation: str) -> int | None:
     instead of letting them fail obscurely against the device. Returns ``None``
     when the model is Pro (proceed) or an int exit code to abort.
     """
-    from canair.config.devices import is_wican_pro
-
     if is_wican_pro():
         return None
     messages.error(
@@ -46,14 +52,6 @@ def require_v4_api(base_url: str, surface: Surface, *, writes: bool = False) -> 
     unusual or offline-configured device is not locked out; v6 answers the 4.x
     write routes with an error, so going ahead fails loudly, not silently.
     """
-    from canair.device.wican.firmware import (
-        compatibility,
-        detect,
-        print_verdict,
-        probes,
-        unconfirmed,
-    )
-
     firmware = detect(base_url, surface)
     verdict = compatibility(firmware, surface)
     print_verdict(verdict)
@@ -65,8 +63,6 @@ def require_v4_api(base_url: str, surface: Surface, *, writes: bool = False) -> 
 
 
 def add_wican_arg(parser: argparse.ArgumentParser) -> None:
-    from canair.config.devices import default_wican, wican_addresses
-
     # Resolved exactly like the live commands' --wican (wican_api.resolve_wican_url):
     # a device alias, else the value itself as the host — never another device.
     parser.add_argument(

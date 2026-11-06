@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 
+from canair.transport.config import VALID_TRANSPORTS
+
 from .description import DESCRIPTION
 from .gather import gather
 from .render import render_status
@@ -15,8 +17,6 @@ ALIASES = ["st"]
 
 
 def _valid_transports():
-    from canair.transport.config import VALID_TRANSPORTS
-
     return VALID_TRANSPORTS
 
 

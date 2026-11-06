@@ -493,6 +493,7 @@ class TestStatusFallback:
 
         monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 30.0, None))
         monkeypatch.setattr("canair.config.devices.fallback_settings", lambda: (True, 30.0, None))
+        monkeypatch.setattr(gather_mod, "fallback_settings", lambda: (True, 30.0, None))
         monkeypatch.setattr("canair.core.tcp.tcp_open", lambda h, p, t: True)
         seen: list[float] = []
 

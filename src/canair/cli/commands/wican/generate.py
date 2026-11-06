@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from canair.cli.profile_context import active
+from canair.ecus.pids import load_pids, revision_resolutions
 from canair.interop.autopid.profile import (
     ProfileGenerationError,
     ShippedProfile,
@@ -14,7 +15,10 @@ from canair.interop.autopid.profile import (
     ship_profile,
 )
 from canair.interop.autopid.v6 import to_v6
+from canair.profile.model import ProfileError
 from canair.render import messages
+from canair.variants import load_variants
+from canair.variants.tags import selected_variant
 from canair.yaml_edit.echo import echo_edit
 
 # The generated file for each WiCAN firmware generation: the 4.x vehicle profile and
@@ -30,9 +34,6 @@ def profile_out(firmware: str, include_unverified: bool = False) -> Path:
     unverified signals is ``autopid-v<N>-unverified.json`` beside it, so it never replaces
     the verified-only file.
     """
-    from canair.variants import load_variants
-    from canair.variants.tags import selected_variant
-
     prof = active()
     variant = selected_variant(prof)
     name = FIRMWARE_FILES[firmware]
@@ -49,9 +50,6 @@ def require_resolved_revisions() -> None:
     The device polls a fixed list and cannot detect a revision, and shipping both
     revisions' PIDs would double the poll list and publish one signal name from two PIDs.
     """
-    from canair.ecus.pids import revision_resolutions
-    from canair.profile.model import ProfileError
-
     open_ = [r for r in revision_resolutions(profile=active()).values() if r.revision is None]
     if not open_:
         return
@@ -68,8 +66,6 @@ def require_resolved_revisions() -> None:
 
 def load_yaml() -> dict:
     """Load and return the YAML PID definitions."""
-    from canair.ecus.pids import load_pids
-
     return load_pids(profile=active())
 
 

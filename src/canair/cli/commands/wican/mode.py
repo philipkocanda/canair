@@ -5,10 +5,11 @@ from __future__ import annotations
 import argparse
 
 from canair.cli.args.group import group_help
+from canair.config.file import get_config_key, set_config_key
 from canair.core.prompt import confirm
 from canair.device.wican.api import resolve_wican_url
 from canair.render import messages
-from canair.transport.config import TransportType
+from canair.transport.config import DEFAULT_TRANSPORT, TransportType
 
 from .common import add_wican_arg, require_pro, require_v4_api
 
@@ -112,9 +113,6 @@ def sync_transport_to_mode(mode: str, *, no_transport: bool) -> None:
             "(canair drives the bus in 'slcan' or 'elm327' mode)."
         )
         return
-
-    from canair.config.file import get_config_key, set_config_key
-    from canair.transport.config import DEFAULT_TRANSPORT
 
     current = get_config_key("transport.type") or DEFAULT_TRANSPORT
     if current == desired:

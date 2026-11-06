@@ -7,6 +7,7 @@ import time
 
 import requests
 
+from canair.device.wican.api import reboot_device
 from canair.render import messages
 
 from .common import WICAN_TIMEOUT
@@ -49,7 +50,5 @@ def upload_profile(base_url: str, device_payload: dict, reboot: bool = False) ->
         sys.exit(1)
 
     if reboot:
-        from canair.device.wican.api import reboot_device
-
         time.sleep(0.3)
         reboot_device(base_url, timeout=WICAN_TIMEOUT)

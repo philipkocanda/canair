@@ -14,6 +14,7 @@ import pytest
 import requests
 
 import canair.device.wican.firmware as wf
+from canair.cli.commands.wican import common as wican_common
 from canair.cli.profile_context import active
 from canair.device.wican.firmware import FirmwareInfo, compatibility, probe
 from canair.live.read import raw_ops
@@ -404,6 +405,7 @@ def _v6(monkeypatch, info: FirmwareInfo = V6):
 
     monkeypatch.setattr(raw_ops, "detect", detect)
     monkeypatch.setattr(wf, "detect", detect)
+    monkeypatch.setattr(wican_common, "detect", detect)
 
 
 class TestRebootRegression:
@@ -534,6 +536,7 @@ def _recording_detect(monkeypatch, info: FirmwareInfo, calls: list):
 
     monkeypatch.setattr(raw_ops, "detect", detect)
     monkeypatch.setattr(wf, "detect", detect)
+    monkeypatch.setattr(wican_common, "detect", detect)
 
 
 class TestLiveSurfaces:
@@ -760,6 +763,7 @@ class TestLiveSurfaces:
 
         ran: list = []
         monkeypatch.setattr("canair.transport.resolve_transport", lambda args: self._cand())
+        monkeypatch.setattr(sniff, "resolve_transport", lambda args: self._cand())
         monkeypatch.setattr("canair.core.tcp.tcp_open", lambda host, port, timeout: http_up)
         monkeypatch.setattr(raw_ops, "require_protocol", lambda *a, **k: None)
         monkeypatch.setattr(raw_ops, "require_slcan_reachable", lambda *a, **k: None)
@@ -942,12 +946,11 @@ class TestStatusSurface:
             probed: list | None = None,
         ):
             cand = TransportConfig(type=ttype, host="192.0.2.1")
-            monkeypatch.setattr(
-                "canair.transport.resolve_transport_candidates", lambda args: [cand]
-            )
-            monkeypatch.setattr("canair.transport.select_reachable_transport", lambda c, **k: c[0])
+            monkeypatch.setattr(gather_mod, "resolve_transport_candidates", lambda args: [cand])
+            monkeypatch.setattr(gather_mod, "select_reachable_transport", lambda c, **k: c[0])
             monkeypatch.setattr(wf, "firmware_check_mode", lambda: mode)
             monkeypatch.setattr(cfg_transport, "firmware_check_mode", lambda: mode)
+            monkeypatch.setattr(gather_mod, "firmware_check_mode", lambda: mode)
 
             def _probe(host, *, timeout):
                 if probed is not None:
@@ -955,6 +958,7 @@ class TestStatusSurface:
                 return info
 
             monkeypatch.setattr(wf, "probe", _probe)
+            monkeypatch.setattr(gather_mod, "probe", _probe)
             monkeypatch.setattr(
                 gather_mod,
                 "load_device_config",

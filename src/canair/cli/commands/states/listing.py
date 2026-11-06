@@ -7,6 +7,7 @@ import sys
 from typing import TypedDict
 
 from canair.cli.profile_context import active
+from canair.ecus.pids import load_pids, load_raw_pids
 from canair.render import ansi, messages
 from canair.states.predicates import StatePredicateError
 from canair.states.refs import check_references_on_every_car
@@ -50,8 +51,6 @@ def _collect_state_usage(obj, counts: dict[str, int]) -> None:
 
 def _load_usage() -> dict[str, int]:
     """Count state-token references across the active profile's ecus/."""
-    from canair.ecus.pids import load_pids
-
     counts: dict[str, int] = {}
     try:
         _collect_state_usage(load_pids(profile=active()).get("ecus", {}), counts)
@@ -68,8 +67,6 @@ def _load_broken_refs(rules, profile) -> dict[str, list[dict[str, str]]]:
     surfaces it here — otherwise a permanently-dead predicate still shows a
     healthy ``●``. Best-effort: an unloadable registry simply reports nothing.
     """
-    from canair.ecus.pids import load_raw_pids
-
     try:
         if not load_raw_pids(profile).get("ecus"):
             return {}

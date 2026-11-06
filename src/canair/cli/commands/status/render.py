@@ -9,6 +9,7 @@ from __future__ import annotations
 from canair.render import glyphs
 from canair.render.console import console as make_console
 from canair.render.console import escape
+from canair.variants.revisions import Resolution, describe_resolution
 
 
 def _firmware_line(fw: dict) -> str:
@@ -71,7 +72,6 @@ def render_status(info: dict) -> None:
                 f"  [bold]Variant[/bold]    {escape(str(p['variant']))}  "
                 f"[dim](from {escape(str(p['variant_source']))})[/dim]"
             )
-        from canair.variants.revisions import Resolution, describe_resolution
 
         for name, r in (p.get("revisions") or {}).items():
             res = Resolution(name, r["revision"], r["source"], tuple(r["possible"]))
