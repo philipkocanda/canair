@@ -17,6 +17,7 @@ from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import SessionManager
 from canair.uds.parse import parse_uds_response
 
+from ..elm.skm_wakeup import mode_skm_wakeup
 from .exec import _exec_query, _exec_raw
 
 
@@ -33,8 +34,6 @@ async def _multi_repl(
 
     Extends the standard REPL with session keepalives and multi-ECU commands.
     """
-    from ..elm.skm_wakeup import mode_skm_wakeup
-
     terminal = sm.terminal
     _param_index = build_param_index(pids_data)
     last_tx_id = None

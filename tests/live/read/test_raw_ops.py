@@ -6,9 +6,7 @@ from typing import ClassVar
 import pytest
 
 from canair.cli.profile_context import active
-from canair.device.wican import mode as wican_mode
 from canair.device.wican.mode import ModeError
-from canair.live.monitor import raw_run as raw_monitor
 from canair.live.monitor.options import MonitorOptions
 from canair.live.read import raw_ops
 from canair.live.session import SessionOptions
@@ -63,14 +61,14 @@ class FakeRawTerminal:
 @pytest.fixture
 def routed(monkeypatch):
     calls = []
-    monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
-    monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda host, port, **kw: None)
+    monkeypatch.setattr(raw_ops, "require_protocol", lambda host, expected, **kw: None)
+    monkeypatch.setattr(raw_ops, "require_slcan_reachable", lambda host, port, **kw: None)
 
     async def _mon(monitor, host, port, bitrate, pids, **kw):
         calls.append("monitor")
         return 0
 
-    monkeypatch.setattr(raw_monitor, "run_raw_monitor", _mon)
+    monkeypatch.setattr(raw_ops, "run_raw_monitor", _mon)
 
     FakeRawTerminal.instances = []
     monkeypatch.setattr(raw_ops, "RawTerminal", FakeRawTerminal)
@@ -105,7 +103,7 @@ def test_mode_mismatch_errors(monkeypatch, routed):
     def boom(host, expected, **kw):
         raise ModeError("wrong mode")
 
-    monkeypatch.setattr(wican_mode, "require_protocol", boom)
+    monkeypatch.setattr(raw_ops, "require_protocol", boom)
     calls, operation = routed
     assert run_raw(T(), operation=operation) == 2
     assert calls == []
@@ -117,7 +115,7 @@ def test_slcan_port_unreachable_errors(monkeypatch, routed):
     def boom(host, port, **kw):
         raise ModeError("port not reachable")
 
-    monkeypatch.setattr(wican_mode, "require_slcan_reachable", boom)
+    monkeypatch.setattr(raw_ops, "require_slcan_reachable", boom)
     calls, operation = routed
     assert run_raw(T(), operation=operation) == 2
     assert calls == []
@@ -143,8 +141,8 @@ def test_mid_session_drop_is_clean(monkeypatch, capsys):
     """A transport error DURING the session (e.g. peer close) is caught gracefully."""
     import can
 
-    monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
-    monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda host, port, **kw: None)
+    monkeypatch.setattr(raw_ops, "require_protocol", lambda host, expected, **kw: None)
+    monkeypatch.setattr(raw_ops, "require_slcan_reachable", lambda host, port, **kw: None)
 
     async def _drop(terminal, pids):
         raise can.CanError("SLCAN TCP connection closed by peer")
@@ -161,8 +159,8 @@ def test_mid_session_drop_is_clean(monkeypatch, capsys):
 
 def test_mid_session_drop_while_saving_points_at_recover(monkeypatch, capsys):
     """A --save session that drops tells the user their data is recoverable."""
-    monkeypatch.setattr(wican_mode, "require_protocol", lambda host, expected, **kw: None)
-    monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda host, port, **kw: None)
+    monkeypatch.setattr(raw_ops, "require_protocol", lambda host, expected, **kw: None)
+    monkeypatch.setattr(raw_ops, "require_slcan_reachable", lambda host, port, **kw: None)
 
     async def _drop(terminal, pids):
         raise ConnectionResetError("reset by peer")

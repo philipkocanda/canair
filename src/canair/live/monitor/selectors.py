@@ -25,6 +25,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from canair.ecus.ecu_groups import load_groups
+
 from ..read.exec import build_query_plan
 from .health import label_ecu
 from .select import (
@@ -66,8 +68,6 @@ class MonitorSelectors:
 
     def picker_seed(self) -> PickerSeed:
         """The picker's choices and groups, opened on what is polled now."""
-        from canair.ecus.ecu_groups import load_groups
-
         choices = self._choices()
         include_static = self.c.include_static
         return PickerSeed(

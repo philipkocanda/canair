@@ -55,13 +55,16 @@ from canair.query.steps import (
     selector_text,
 )
 from canair.render.formatting import print_ecu_results
+from canair.safety.quirks import SKM_WAKEUP, has_quirk
 from canair.transport.session_manager import SessionManager
 from canair.transport.stats import client_transport
 
+from ...captures.build import non_answer_text
 from ...states.predicates import StatePredicateError
 from ...states.suggest import collect_values, suggest_states
 from ...states.tokens import join_states
 from ...states.vocabulary import load_states
+from ...transport.isotp_params import resolve_rx_padding
 from ...transport.protocol import Terminal
 from .batch import BatchState, _capture_stamp
 from .exec import (
@@ -300,16 +303,12 @@ async def _run_pipeline(
     try:
         # Shared batch state so multi_did-capable ECUs batch service-22 DIDs here too: it learns
         # per-DID lengths across steps and falls back per-DID on rejection.
-        from ...transport.isotp_params import resolve_rx_padding
-
         batch_state = BatchState(resolve_rx_padding(pids_data))
         for i, cmd in enumerate(commands):
             cmd_type = cmd["type"]
             step = f"[{i + 1}/{len(commands)}]"
 
             if cmd_type == "skm-wake":
-                from canair.safety.quirks import SKM_WAKEUP, has_quirk
-
                 if not has_quirk(pids_data, SKM_WAKEUP):
                     print(
                         f"\n{step} skm-wake skipped — not supported by this profile "
@@ -387,8 +386,6 @@ async def _run_pipeline(
                     else:
                         # An explicit raw request is a probe, so its refusal is the
                         # result: keep it, as a standalone `canair raw --save` does.
-                        from ...captures.build import non_answer_text
-
                         non_answers += 1
                         if journal is not None:
                             journal.append_response(

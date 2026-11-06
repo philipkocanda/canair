@@ -20,6 +20,7 @@ import re
 import sys
 from collections.abc import Iterable, Sequence
 
+from canair.ecus.ecu_groups import expand_group_refs, load_groups
 from canair.ecus.memory import protocol_of
 from canair.ecus.pids import load_raw_pids, revision_resolutions
 from canair.profile.model import Profile
@@ -27,6 +28,8 @@ from canair.safety.blocklist import SafetyBlocked
 from canair.transport.protocol import Terminal
 from canair.uds.echo import request_echo
 from canair.variants import load_variants
+from canair.variants.detected import remember, remembered
+from canair.variants.fingerprints import detected, match, probes, wants_software
 from canair.variants.revisions import declared
 from canair.variants.selection import with_detections
 from canair.variants.tags import selected_variant
@@ -53,8 +56,6 @@ def targeted_ecus(steps: Sequence[str] | None, *, profile: Profile) -> set[str] 
         return None
     steps = list(steps)
     if any("@" in str(s) for s in steps):
-        from canair.ecus.ecu_groups import expand_group_refs, load_groups
-
         try:
             steps = expand_group_refs(steps, load_groups(profile=profile))
         except Exception:
@@ -86,9 +87,6 @@ async def detect_revisions(
     None when no revision was settled. The caller adopts the returned profile and reloads
     the definitions with it, since a settled revision changes which PIDs exist.
     """
-    from canair.variants.detected import remember
-    from canair.variants.fingerprints import detected, match, probes, wants_software
-
     if targets is None:
         return None
     prof = profile
@@ -151,9 +149,6 @@ def identity_report(tx_id: int, responded: dict[str, bool], *, profile: Profile)
     do I have?" with no variant chosen. A single match is remembered (replacing an older
     detection it contradicts). None when the ECU declares no revisions.
     """
-    from canair.variants.detected import remember, remembered
-    from canair.variants.fingerprints import detected, match
-
     prof = profile
     ecus = load_raw_pids(prof).get("ecus") or {}
     name, ecu_def = next(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 
+from canair.dtc.describe import describe_dtc
 from canair.profile.model import Profile
 from canair.uds.nrc import NRC_REQUEST_OUT_OF_RANGE
 from canair.uds.protocol import KWP, UDS
@@ -176,8 +177,6 @@ async def _read_kwp(
 def _jsonable(records: list[dict], tx_id: int, *, profile: Profile) -> list[dict]:
     """Render internal records (int status) into the JSON/print-friendly shape,
     annotated with each code's interpretation on the ECU ``tx_id`` that reported it."""
-    from canair.dtc.describe import describe_dtc
-
     ecu = ecu_name(tx_id, profile=profile)
     return [
         {

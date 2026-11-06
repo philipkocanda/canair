@@ -26,7 +26,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any
 
-from canair.actions import Action, ActionError
+from canair.actions import Action, ActionError, load_actions
 from canair.actions.plan import PlannedRequest, action_policy, plan_requests
 from canair.core.prompt import typed_confirm
 from canair.ecus.pids import build_ecu_index
@@ -158,8 +158,6 @@ async def mode_action(
     profile: Profile,
 ) -> None:
     """Check, confirm and send one profile action (see the module docstring)."""
-    from canair.actions import load_actions
-
     out = sys.stderr if as_json else sys.stdout
     actions = load_actions(profile=profile)
     action = actions.get(name.strip().lower())

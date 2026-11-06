@@ -637,16 +637,13 @@ class TestLiveSurfaces:
     # --- slcan-tcp ---------------------------------------------------------------
 
     def _raw(self, monkeypatch, *, http_up: bool = True):
-        from canair.device.wican import mode as wican_mode
-        from canair.live.monitor import raw_run as raw_monitor
-
         calls: list = []
         monkeypatch.setattr("canair.core.tcp.tcp_open", lambda host, port, timeout: http_up)
         monkeypatch.setattr(
-            wican_mode, "require_protocol", lambda *a, **k: calls.append("require_protocol")
+            raw_ops, "require_protocol", lambda *a, **k: calls.append("require_protocol")
         )
         monkeypatch.setattr(
-            wican_mode,
+            raw_ops,
             "require_slcan_reachable",
             lambda *a, **k: calls.append(("slcan_reachable", k.get("http_ok"))),
         )
@@ -655,7 +652,7 @@ class TestLiveSurfaces:
             calls.append("monitor")
             return 0
 
-        monkeypatch.setattr(raw_monitor, "run_raw_monitor", _mon)
+        monkeypatch.setattr(raw_ops, "run_raw_monitor", _mon)
         return calls
 
     def _cand(self, **kw):
@@ -752,7 +749,7 @@ class TestLiveSurfaces:
         def _wrong_mode(*a, **k):
             raise wican_mode.ModeError("wrong mode")
 
-        monkeypatch.setattr(wican_mode, "require_protocol", _wrong_mode)
+        monkeypatch.setattr(raw_ops, "require_protocol", _wrong_mode)
         monkeypatch.setattr(wican_api, "reboot_device", lambda *a, **k: pytest.fail("no session"))
         assert self._run_raw(self._cand(port=3333, bitrate=500000), reboot=True) == 2
 
@@ -760,13 +757,12 @@ class TestLiveSurfaces:
 
     def _sniff(self, monkeypatch, *, http_up: bool = True):
         from canair.cli.commands import sniff
-        from canair.device.wican import mode as wican_mode
 
         ran: list = []
         monkeypatch.setattr("canair.transport.resolve_transport", lambda args: self._cand())
         monkeypatch.setattr("canair.core.tcp.tcp_open", lambda host, port, timeout: http_up)
-        monkeypatch.setattr(wican_mode, "require_protocol", lambda *a, **k: None)
-        monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda *a, **k: None)
+        monkeypatch.setattr(raw_ops, "require_protocol", lambda *a, **k: None)
+        monkeypatch.setattr(raw_ops, "require_slcan_reachable", lambda *a, **k: None)
         monkeypatch.setattr(
             "canair.transport.config.TransportConfig._wican_device_config", lambda self: {}
         )
@@ -845,7 +841,7 @@ class TestLiveSurfaces:
         def _closed(host, port, **kw):
             raise ModeError(f"can't reach the WiCAN's SLCAN data port at {host}:{port}")
 
-        monkeypatch.setattr("canair.device.wican.mode.require_slcan_reachable", _closed)
+        monkeypatch.setattr("canair.live.read.raw_ops.require_slcan_reachable", _closed)
         monkeypatch.setattr(
             "canair.device.lock.WiCANLock.acquire",
             lambda *a, **k: pytest.fail("must fail before taking the device"),

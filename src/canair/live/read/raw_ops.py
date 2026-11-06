@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from canair.config.devices import fallback_settings
 from canair.core import tcp
+from canair.core.oserrors import connect_error_detail
 from canair.device.wican.firmware import (
     UNKNOWN,
     compatibility,
@@ -29,15 +30,23 @@ from canair.device.wican.firmware import (
     probes,
     unconfirmed,
 )
+from canair.device.wican.mode import (
+    ModeError,
+    require_protocol,
+    require_slcan_reachable,
+)
 from canair.profile.model import Profile
 from canair.render import messages
 from canair.safety.blocklist import SessionPolicy
+from canair.transport.reboot import reboot_after_session
+from canair.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
 from canair.uds.addressing import AddressBook
 
 from ...transport import RawTerminal
 from ...transport.config import ConnectionOptions, TransportConfig
 from ...transport.isotp_params import ecu_isotp_blocks
 from ..monitor.options import MonitorOptions
+from ..monitor.raw_run import run_raw_monitor
 from ..session import Operation, SessionOptions, run_session_guarded
 
 if TYPE_CHECKING:
@@ -66,12 +75,6 @@ def slcan_preflight(
     read — so an offline device costs one connect timeout before the fail-fast
     SLCAN message rather than one per request.
     """
-    from canair.device.wican.mode import (
-        ModeError,
-        require_protocol,
-        require_slcan_reachable,
-    )
-
     host = transport.host
     if not host:
         raise ModeError("transport has no host configured.")
@@ -121,8 +124,6 @@ async def run_raw(
     over a :class:`~canair.transport.raw.terminal.RawTerminal`. ``candidates`` are the devices
     a monitor may re-home to.
     """
-    from canair.device.wican.mode import ModeError
-
     try:
         target = slcan_preflight(transport, pids_data.get("can_bitrate"))
     except ModeError as e:
@@ -134,8 +135,6 @@ async def run_raw(
         )
     finally:
         if conn.reboot:
-            from canair.transport.reboot import reboot_after_session
-
             reboot_after_session(transport)
 
 
@@ -154,8 +153,6 @@ async def _run_session(
 
     # Monitor: optimized pipelined + batched backend.
     if monitor is not None:
-        from ..monitor.raw_run import run_raw_monitor
-
         return await run_raw_monitor(
             monitor,
             host,
@@ -169,8 +166,6 @@ async def _run_session(
         )
 
     # All other commands: reuse the shared session over a RawTerminal adapter.
-    from canair.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
-
     print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps", file=sys.stderr)
     cli = cli_timeout(conn.timeout)
     # Resolved tx->EcuAddress map (per-ECU mode/rx_id/extended/FC bytes) so
@@ -195,8 +190,6 @@ async def _run_session(
         # The pre-flight check above should catch an unreachable port, but guard
         # the connect itself too (a race, or the port closing between probe and
         # connect) so a socket failure is a clean message, not a traceback.
-        from canair.core.oserrors import connect_error_detail
-
         messages.error(
             f"can't connect to the SLCAN port at {host}:{port} — {connect_error_detail(e)}"
         )

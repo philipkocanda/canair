@@ -1,5 +1,6 @@
 """Interactive REPL mode."""
 
+import asyncio
 import re
 
 from canair.ecus.pids import build_ecu_index
@@ -21,6 +22,8 @@ from canair.uds.services import (
 from canair.uds.wican_layout import uds_hex_to_wican_bytes
 
 from ..identity.read import mode_identity
+from .skm_wakeup import mode_skm_wakeup
+from .tester import mode_tester_present
 
 # Positive replies whose identifier is one byte, so the PID is the request SID plus it.
 _ONE_BYTE_ID_REPLIES = frozenset(
@@ -37,12 +40,6 @@ async def mode_interactive(
     terminal: Elm327Terminal, pids_data: dict, verbose: bool, *, profile: Profile
 ):
     """Interactive REPL mode -- type ELM327/UDS commands directly."""
-    # Lazy imports to avoid circular dependencies for modes that reference each other
-    import asyncio
-
-    from .skm_wakeup import mode_skm_wakeup
-    from .tester import mode_tester_present
-
     print("ELM327 Terminal -- Interactive Mode")
     print(f"Connected to {terminal.host}")
     print()

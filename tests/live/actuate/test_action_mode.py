@@ -60,7 +60,9 @@ def _values(*rounds):
 @pytest.fixture
 def run(monkeypatch):
     monkeypatch.setattr(mode, "_REREAD_DELAY_S", 0)
-    monkeypatch.setattr("canair.actions.load_actions", lambda *_, **__: {"sleep": SLEEP})
+    monkeypatch.setattr(
+        "canair.live.actuate.action.load_actions", lambda *_, **__: {"sleep": SLEEP}
+    )
 
     def _run(terminal, rounds, **kw):
         monkeypatch.setattr("canair.live.actuate.action._exec_query", _values(*rounds))
@@ -146,7 +148,9 @@ def test_without_the_quirk_the_action_is_refused_before_any_read(monkeypatch):
         return None
 
     monkeypatch.setattr("canair.live.actuate.action._exec_query", fake_exec_query)
-    monkeypatch.setattr("canair.actions.load_actions", lambda *_, **__: {"sleep": SLEEP})
+    monkeypatch.setattr(
+        "canair.live.actuate.action.load_actions", lambda *_, **__: {"sleep": SLEEP}
+    )
     t = PolicedTerminal()
     with pytest.raises(SafetyBlocked, match="none of the profile's quirks grants it"):
         asyncio.run(
@@ -165,7 +169,7 @@ def test_unsafe_does_not_help(monkeypatch):
 
 
 def test_an_unknown_action(monkeypatch):
-    monkeypatch.setattr("canair.actions.load_actions", lambda *_, **__: {})
+    monkeypatch.setattr("canair.live.actuate.action.load_actions", lambda *_, **__: {})
     with pytest.raises(ActionError, match="no action"):
         asyncio.run(mode.mode_action(PolicedTerminal(), PIDS, "sleep", profile=active()))
 

@@ -13,7 +13,7 @@ from canair.render.console import console as make_console
 from canair.render.console import escape
 from canair.render.glyphs import ELLIPSIS
 from canair.transport.stats import client_transport
-from canair.uds.services import identifier_width
+from canair.uds.services import identifier_width, service_name
 
 from ...captures.build import build_scan_session, suggest_scan_label
 from ...captures.save import save_session_journaled
@@ -136,8 +136,6 @@ async def mode_scan(
                         svc_note = ""
                         nrc_svc = response.get("nrc_service")
                         if nrc_svc is not None and nrc_svc != service:
-                            from canair.uds.services import service_name
-
                             named = service_name(nrc_svc)
                             svc_note = (
                                 f" [dim](rejecting {escape(named or 'service')} "

@@ -11,10 +11,12 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING
 
+from canair.core.oserrors import connect_error_detail
 from canair.ecus.pids import build_ecu_index
 from canair.profile.model import Profile
 from canair.render import messages
 from canair.safety.blocklist import SessionPolicy
+from canair.transport.timeouts import cli_timeout, ecu_timeouts_by_name
 from canair.transport.timing import print_timings
 
 from ...transport import RawUdsClient, SlcanTcpBus
@@ -23,6 +25,7 @@ from ...transport.errors import describe_transport_error, transport_error_types
 from ...transport.isotp_params import ecu_isotp_blocks
 from ..session import SessionOptions
 from .options import MonitorOptions
+from .reconnect import MonitorReconnector, reconnect_policy
 from .run import mode_monitor
 
 if TYPE_CHECKING:
@@ -57,8 +60,6 @@ def build_raw_client(
     mid-session reconnect, so both apply the same timeouts / ISO-TP config.
     Raises ``OSError`` if the SLCAN socket can't be opened.
     """
-    from canair.transport.timeouts import cli_timeout, ecu_timeouts_by_name
-
     bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
     cli = cli_timeout(conn.timeout)
     return RawUdsClient(
@@ -85,8 +86,6 @@ def build_raw_reconnector(
     since opening the SLCAN socket blocks).
     """
     import asyncio
-
-    from .reconnect import MonitorReconnector, reconnect_policy
 
     raw_candidates = [c for c in candidates if c.is_raw]
 
@@ -128,8 +127,6 @@ async def run_raw_monitor(
     try:
         client = build_raw_client(host, port, bitrate, ecus, conn, pids_data)
     except OSError as e:
-        from canair.core.oserrors import connect_error_detail
-
         messages.error(
             f"can't connect to the SLCAN port at {host}:{port} — {connect_error_detail(e)}"
         )

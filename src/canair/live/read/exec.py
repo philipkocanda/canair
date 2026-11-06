@@ -29,6 +29,7 @@ from canair.uds.describe import decode_uds_response
 from ...ecus.names import resolve_tx
 from ...ecus.registry import rx_addr_str
 from ..actuate.iocontrol_actuate import send_iocontrol
+from ..elm.skm_wakeup import mode_skm_wakeup
 from ..scan.presets import ServiceError, resolve_service
 from ..scan.range import mode_scan
 from .batch import (
@@ -42,8 +43,6 @@ from .exec_read import _read_batch, _read_single
 
 async def _exec_skm_wake(sm: SessionManager, level: str, verbose: bool):
     """Execute skm-wake sub-command using the existing mode_skm_wakeup logic."""
-    from ..elm.skm_wakeup import mode_skm_wakeup
-
     terminal = sm.terminal
 
     if not isinstance(terminal, Elm327Terminal):

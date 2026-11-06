@@ -2,6 +2,16 @@
 
 from __future__ import annotations
 
+from canair.dtc.log import (
+    append_clear,
+    append_scan,
+    build_clear,
+    build_scan,
+    clears_between,
+    diff_scans,
+    format_diff,
+    latest_matching,
+)
 from canair.profile.model import Profile
 from canair.render import ansi
 
@@ -15,14 +25,6 @@ def _log_scan(
 
     ``scope`` is ``all`` or the scanned ECU's reference (:func:`canair.dtc.refs.ecu_ref`).
     The diff is against the previous same-scope scan, net of any ``--clear`` since."""
-    from canair.dtc.log import (
-        append_scan,
-        build_scan,
-        clears_between,
-        diff_scans,
-        latest_matching,
-    )
-
     ecus: dict = {}
     unread: list[str] = []
     for r in results:
@@ -77,8 +79,6 @@ def logged_snapshots(dtcs: list[dict]) -> dict[str, list[dict]]:
 
 
 def _print_log_result(path, previous, diff, *, profile: Profile) -> None:
-    from canair.dtc.log import format_diff
-
     if previous:
         for line in format_diff(diff, previous, profile=profile):
             print(line)
@@ -92,8 +92,6 @@ def _log_manual_clear(tx_id, proto, group, pre_codes, label, snapshots=None, *, 
 
     ``snapshots`` (``{code: [{record, hex}]}``) are the snapshots the clear erased, read
     just before it, since the clear leaves no other record of them."""
-    from canair.dtc.log import append_clear, build_clear
-
     append_clear(
         build_clear(
             ecu_ref(tx_id, profile=profile),

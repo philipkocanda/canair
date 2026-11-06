@@ -41,6 +41,7 @@ from canair.transport.session_manager import SessionManager
 
 from ...captures.link_events import is_rx
 from .backoff import PollBackoff
+from .edit import MonitorEditor
 from .health import MonitorHealth, answered, is_nrc, label_ecu
 from .link_events import LinkEventTracker
 from .options import MonitorOptions
@@ -232,8 +233,6 @@ class MonitorController:
         # In-place editing / filtering of PID definitions from the TUI. The
         # editor owns the selection cursor + display filter and writes edits
         # through canair.pids_edit; this controller reloads on its request.
-        from .edit import MonitorEditor
-
         self.pids_dir = None  # None -> the profile's ecus/ (tests override)
         self.editor = MonitorEditor(self)
         # The display: what it shows (view) and how it is drawn (renderer, which keeps the

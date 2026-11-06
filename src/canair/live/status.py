@@ -6,6 +6,7 @@ to show a live status column alongside each actuator.
 """
 
 from canair.ecus.pids import build_param_index
+from canair.expression.decode_value import decode_typed, render
 from canair.uds.wican_layout import uds_hex_to_wican_bytes
 
 from ..expression import evaluate_expression
@@ -61,8 +62,6 @@ async def query_param_status(
         if ptype != "numeric":
             # Typed status param (enum/bitmask/…): render its label alongside the
             # raw value so the IOControl status column shows e.g. "off" not "0".
-            from canair.expression.decode_value import decode_typed, render
-
             pdef = {
                 "expression": expression,
                 "type": pinfo.get("type", ""),

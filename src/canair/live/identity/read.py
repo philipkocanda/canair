@@ -24,6 +24,7 @@ from canair.uds.response import UdsResponse
 
 from ...ecus.names import ecu_display
 from ...transport.protocol import Terminal
+from ..revision_probe import describe_identity_report, identity_report
 from .decode import decode_identity_payload, resolve_protocol_hint, service_supported
 from .records import IDENTITY_DIDS, KWP_IDENTITY_RECORDS, PROTOCOLS, UDS_IDENTITY_DIDS
 
@@ -166,8 +167,6 @@ async def mode_identity(
                 n_nrc += 1
             else:
                 n_nodata += 1
-
-        from ..revision_probe import describe_identity_report, identity_report
 
         try:
             revision = identity_report(tx_id, responded, profile=profile) if n_ok else None

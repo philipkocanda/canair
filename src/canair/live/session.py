@@ -24,11 +24,15 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
 from canair.core.prompt import PromptUnavailable
+from canair.ecus.pids import load_pids
+from canair.live.revision_probe import detect_revisions, targeted_ecus
 from canair.profile.model import Profile
 from canair.render import messages
 from canair.safety.blocklist import CommandDeclined, SafetyBlocked
 from canair.transport.errors import describe_transport_error, transport_error_types
 from canair.transport.protocol import Terminal
+from canair.transport.timing import print_timings
+from canair.yaml_edit.response_frames import persist
 
 __all__ = ["Operation", "SessionOptions", "run_session_guarded"]
 
@@ -83,14 +87,10 @@ async def run_session_guarded(
     """
 
     try:
-        from canair.live.revision_probe import detect_revisions, targeted_ecus
-
         detected = await detect_revisions(
             terminal, targeted_ecus(options.steps, profile=profile), profile=profile
         )
         if detected is not None:
-            from canair.ecus.pids import load_pids
-
             profile = detected
             if options.adopt_profile is not None:
                 options.adopt_profile(profile)
@@ -98,8 +98,6 @@ async def run_session_guarded(
             pids_data = load_pids(profile)
         await operation(terminal, pids_data)
         if options.timings:
-            from canair.transport.timing import print_timings
-
             print_timings(terminal.timings, as_json=options.as_json, profile=profile)
         return 0
     except CommandDeclined as e:
@@ -140,8 +138,6 @@ def _persist_frame_counts(
     """
     if not options.learn_frames:
         return
-    from canair.yaml_edit.response_frames import persist
-
     try:
         persist(pids_data, terminal.frame_counts, verbose=options.verbose, profile=profile)
     except Exception:
