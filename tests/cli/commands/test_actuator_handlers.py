@@ -1,4 +1,5 @@
-"""``routines --sf start`` asks first (``--yes`` answers), and the lookups of ``io`` fail loudly."""
+"""``routines --sf start`` asks first (``--yes`` answers), a KWP2000 ECU is refused before that,
+and the lookups of ``io`` fail loudly."""
 
 from __future__ import annotations
 
@@ -12,6 +13,7 @@ from canair.cli import build_parser
 from canair.cli.commands import io as io_cmd
 from canair.cli.live.handlers import actuators
 from canair.core.prompt import PromptUnavailable
+from canair.safety.blocklist import SafetyBlocked
 
 DATA = {
     "ecus": {
@@ -92,6 +94,24 @@ def test_results_does_not_ask(monkeypatch, sent):
     monkeypatch.setattr("sys.stdin", _Stdin("", tty=False))
     _handle(_args("results"))
     assert len(sent) == 1
+
+
+def test_a_kwp2000_ecu_is_refused_before_the_start_question(monkeypatch, capsys, sent):
+    data = {
+        "ecus": {
+            "BMS": {
+                "tx_id": 0x7E4,
+                "identity": {"id_protocol": "KWP2000"},
+                "routines": {"05": {}},
+            }
+        }
+    }
+    monkeypatch.setattr("sys.stdin", _Stdin("y\n", tty=True))
+    args = _args("start", routines="BMS", rid="05")
+    with pytest.raises(SafetyBlocked, match="BMS speaks KWP2000"):
+        asyncio.run(actuators.handle_routines(args, None, data, None))  # type: ignore[arg-type]
+    assert sent == []
+    assert "startRoutine (SF 0x01)" not in capsys.readouterr().err
 
 
 def test_a_bad_sf_is_a_usage_error(capsys, sent):

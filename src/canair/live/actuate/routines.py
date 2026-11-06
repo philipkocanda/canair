@@ -15,6 +15,7 @@ Sub-functions (UDS 0x31):
 
 The TUI defaults to 0x03 (requestRoutineResults). The user must press '!' to send 0x01
 startRoutine after an explicit prompt, keeping read-only and write operations separate.
+A KWP2000 ECU is refused (:mod:`.routines_execute`): there, 0x31 starts a routine.
 """
 
 import asyncio
@@ -32,7 +33,7 @@ from canair.core.terminal import terminal_lines as _terminal_lines
 from canair.ecus.pids import RoutineIndexEntry, build_routines_index, load_pids
 from canair.live.actuate.iocontrol_render import CARET
 from canair.live.actuate.not_found import report_not_found
-from canair.live.actuate.routines_execute import sf_label
+from canair.live.actuate.routines_execute import check_routines_protocol, sf_label
 from canair.profile.model import Profile
 from canair.render import ansi, glyphs, messages
 from canair.transport.protocol import Terminal
@@ -512,6 +513,7 @@ async def mode_routines_tui(
             f"no routines defined for ECU: {ecu_name}", rindex.keys(), "ECUs with routines"
         )
         raise SystemExit(1)
+    check_routines_protocol(pids_data, ecu_key)
 
     tui = _RoutinesTUI(terminal, ecu_key, rindex[ecu_key], pids_data, profile, verbose)
     await tui.run()

@@ -21,7 +21,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
         help="RoutineControl (0x31): interactive TUI or single --rid command",
-        description="RoutineControl (0x31): interactive TUI, or single command with --rid.",
+        description="RoutineControl (0x31): interactive TUI, or single command with --rid. A "
+        "KWP2000 ECU is refused: it reads 0x31 as StartRoutineByLocalIdentifier and would run the "
+        "routine. Read a KWP2000 routine's results with `canair scan routines`.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:

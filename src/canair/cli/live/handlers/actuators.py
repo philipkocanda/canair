@@ -2,9 +2,11 @@
 
 IOControl and routines have a read-only listing/TUI path and an execute path.
 ``routines --sf start`` sends startRoutine, which may move something, so it
-confirms first. A profile action is always guarded by a live condition check and
-a confirmation (:mod:`canair.live.actuate.action`). The KWP2000 split lives in the scan
-families, not here.
+confirms first. ``routines`` builds UDS requests only, so it refuses a KWP2000
+ECU before anything else
+(:func:`canair.live.actuate.routines_execute.check_routines_protocol`). A profile
+action is always guarded by a live condition check and a confirmation
+(:mod:`canair.live.actuate.action`). The KWP2000 scans live in the scan families.
 """
 
 from __future__ import annotations
@@ -16,7 +18,7 @@ from canair.live.actuate.action import mode_action
 from canair.live.actuate.iocontrol import mode_iocontrol_tui
 from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 from canair.live.actuate.routines import mode_routines_tui
-from canair.live.actuate.routines_execute import mode_routines_execute
+from canair.live.actuate.routines_execute import check_routines_protocol, mode_routines_execute
 from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.uds.subfunctions import RoutineControlType
@@ -46,6 +48,8 @@ async def handle_iocontrol(args, terminal: Terminal, pids_data, host, *, reconne
 
 
 async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
+    # Before the startRoutine question: a refused ECU is never asked about.
+    check_routines_protocol(pids_data, args.routines)
     if args.rid:
         sf_map = {
             "results": RoutineControlType.REQUEST_ROUTINE_RESULTS,

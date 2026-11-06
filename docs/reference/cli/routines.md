@@ -10,7 +10,7 @@ usage: canair routines [-h] [--rid RID] [--sf SF] [--yes] [--wican WICAN]
                        [--verbose] [--timings] [--reboot] [--unsafe] [--force]
                        [ECU]
 
-[UDS] RoutineControl (0x31): interactive TUI, or single command with --rid.
+[UDS] RoutineControl (0x31): interactive TUI, or single command with --rid. A KWP2000 ECU is refused: it reads 0x31 as StartRoutineByLocalIdentifier and would run the routine. Read a KWP2000 routine's results with `canair scan routines`.
 
 positional arguments:
   ECU                   ECU name (e.g. BCM)

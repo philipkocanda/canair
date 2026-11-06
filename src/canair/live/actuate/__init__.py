@@ -4,7 +4,8 @@
   :mod:`.iocontrol_render` hold its actuation and its tables)
 * :mod:`.iocontrol_execute` and :mod:`.iocontrol_list` — one actuation, and the profile listing
 * :mod:`.routines` — ``canair routines``, the routine TUI
-* :mod:`.routines_execute` and :mod:`.routines_list` — one routine run, and the profile listing
+* :mod:`.routines_execute` and :mod:`.routines_list` — one routine run (and the refusal of a
+  KWP2000 ECU, which reads UDS RoutineControl as a routine start), and the profile listing
 * :mod:`.action` — ``canair action run``
 * :mod:`.not_found` — the error for an ECU, DID or RID the profile does not define
 
