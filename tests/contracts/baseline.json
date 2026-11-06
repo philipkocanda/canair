@@ -36,8 +36,7 @@
     "canair.device.wican.mode._tcp_open",
     "canair.install.update_check._is_newer",
     "canair.query.steps._looks_like_pid",
-    "canair.query.steps._query_selectors",
-    "canair.render.formatting._render_hex_line"
+    "canair.query.steps._query_selectors"
   ],
   "ui_standards": {
     "raw_escapes": {},

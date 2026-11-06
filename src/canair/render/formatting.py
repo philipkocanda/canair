@@ -239,7 +239,7 @@ def format_value(value: float | str | None, unit: str, display: str = "") -> str
     return base
 
 
-def _render_hex_line(
+def render_hex_line(
     raw_hex: str,
     params: list[ParamRow],
     unmapped: bool,
@@ -557,7 +557,7 @@ def print_ecu_results(
 
         # Raw hex line (shared renderer; no prev_raw → no change highlighting).
         if raw_hex:
-            line = _render_hex_line(raw_hex, params, unmapped, map_bytes=entry.get("map_bytes", ()))
+            line = render_hex_line(raw_hex, params, unmapped, map_bytes=entry.get("map_bytes", ()))
             c.print(line, end="")
 
 

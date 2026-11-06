@@ -80,9 +80,9 @@ def capture_block_text(
     """
     from canair.expression.decoding import decode_param_rows
     from canair.render.formatting import (
-        _render_hex_line,
         changed_param_highlights,
         render_byte_rulers,
+        render_hex_line,
         render_param_table,
     )
 
@@ -171,7 +171,7 @@ def capture_block_text(
     # the current capture with per-byte change highlighting against it.
     if prev is not None:
         out.append(
-            _render_hex_line(
+            render_hex_line(
                 prev_norm,
                 rows,
                 unmapped,
@@ -181,7 +181,7 @@ def capture_block_text(
             )
         )
     out.append(
-        _render_hex_line(
+        render_hex_line(
             norm,
             rows,
             unmapped,

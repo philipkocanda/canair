@@ -20,9 +20,9 @@ from canair.expression.results import EcuFrame, ResultEntry
 from canair.privacy.sensitive import MASK
 from canair.render.formatting import (
     BYTE_COLOUR_LEGEND,
-    _render_hex_line,
     changed_param_highlights,
     render_byte_rulers,
+    render_hex_line,
     render_param_ranges,
     render_param_table,
 )
@@ -212,7 +212,7 @@ def _render_entry(
                 ts_disp = run.time.split(".")[0] if run.time else ""
                 prefix = f"      {ts_disp}  " if ts_disp else "                "
                 entry_text.append_text(
-                    _render_hex_line(
+                    render_hex_line(
                         run.payload,
                         params,
                         unmapped,
@@ -226,7 +226,7 @@ def _render_entry(
                 prev_row = run.payload
         else:
             entry_text.append_text(
-                _render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw, map_bytes=map_bytes)
+                render_hex_line(raw_hex, params, unmapped, prev_raw=prev_raw, map_bytes=map_bytes)
             )
 
     if stale:

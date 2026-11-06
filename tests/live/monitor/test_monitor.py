@@ -7,7 +7,7 @@ from canair.live.monitor.history import HistoryRun, extend_runs
 from canair.live.monitor.record_write import merge_history
 from canair.live.monitor.render import _render_results
 from canair.live.monitor.render_cache import RenderCache
-from canair.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, _render_hex_line
+from canair.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, render_hex_line
 from tests.support.monitor_controller import make_controller
 
 
@@ -41,42 +41,42 @@ class TestBytesToAscii:
 
 
 class TestRenderHexLine:
-    """Test _render_hex_line Rich Text output."""
+    """Test render_hex_line Rich Text output."""
 
     def test_unmapped_shows_ascii(self):
-        t = _render_hex_line("62B00140", [], unmapped=True)
+        t = render_hex_line("62B00140", [], unmapped=True)
         text = t.plain
         assert "62 B0 01 40" in text
         assert "b..@" in text
         assert "(4 B)" in text
 
     def test_unmapped_no_params(self):
-        t = _render_hex_line("AABB", [], unmapped=False)
+        t = render_hex_line("AABB", [], unmapped=False)
         text = t.plain
         assert "AA BB" in text
         assert "(2 B)" in text
 
     def test_mapped_shows_byte_count(self):
         params = [("SOC", 50.0, "%", "B02/2", None, True)]
-        t = _render_hex_line("62010064", params, unmapped=False)
+        t = render_hex_line("62010064", params, unmapped=False)
         text = t.plain
         assert "(4 B)" in text
 
     def test_empty_hex(self):
-        t = _render_hex_line("", [], unmapped=True)
+        t = render_hex_line("", [], unmapped=True)
         text = t.plain
         assert "(0 B)" in text
 
     def test_changed_byte_highlighted_unmapped(self):
         """Changed bytes in unmapped PID get highlight style."""
-        t = _render_hex_line("62B00140", [], unmapped=True, prev_raw="62B00150")
+        t = render_hex_line("62B00140", [], unmapped=True, prev_raw="62B00150")
         styles = [str(s.style) for s in t._spans]
         assert any(_HIGHLIGHT_STYLE["bright_black"] in s for s in styles)
 
     def test_changed_byte_highlighted_mapped(self):
         """Changed bytes in mapped PID get highlight style based on base color."""
         params = [("SOC", 50.0, "%", "B02/2", None, True)]
-        t = _render_hex_line("620100FF", params, unmapped=False, prev_raw="62010064")
+        t = render_hex_line("620100FF", params, unmapped=False, prev_raw="62010064")
         # Byte 3 changed (FF vs 64)
         styles = [str(s.style) for s in t._spans]
         has_highlight = any(any(hs in s for hs in _HIGHLIGHT_STYLE.values()) for s in styles)
@@ -84,14 +84,14 @@ class TestRenderHexLine:
 
     def test_no_change_no_highlight(self):
         """Identical prev_raw produces no highlight styles."""
-        t = _render_hex_line("62B001", [], unmapped=True, prev_raw="62B001")
+        t = render_hex_line("62B001", [], unmapped=True, prev_raw="62B001")
         styles = [str(s.style) for s in t._spans]
         for hs in _HIGHLIGHT_STYLE.values():
             assert not any(hs in s for s in styles)
 
     def test_no_prev_raw_no_highlight(self):
         """No prev_raw (first cycle) produces no highlight styles."""
-        t = _render_hex_line("62B001", [], unmapped=True, prev_raw="")
+        t = render_hex_line("62B001", [], unmapped=True, prev_raw="")
         styles = [str(s.style) for s in t._spans]
         for hs in _HIGHLIGHT_STYLE.values():
             assert not any(hs in s for s in styles)

@@ -104,9 +104,9 @@ class TestLiveMasking:
         assert entry["raw_hex"] == "62F102AABBCCDDEEFF" and entry["sensitive"]
 
     def test_the_masked_hex_line_says_how_to_reveal(self):
-        from canair.render.formatting import _render_hex_line
+        from canair.render.formatting import render_hex_line
 
-        line = _render_hex_line(sensitive.MASK, [], True).plain
+        line = render_hex_line(sensitive.MASK, [], True).plain
         assert sensitive.MASK in line and "--reveal" in line
 
     def test_read_refuses_reveal_with_save(self, prof, capsys):

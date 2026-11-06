@@ -14,8 +14,8 @@ from canair.render.formatting import (
     BYTE_COLOUR_LEGEND,
     MAP_BYTE_STYLE,
     _build_byte_colors,
-    _render_hex_line,
     render_byte_rulers,
+    render_hex_line,
 )
 from canair.tui.help import HelpMixin, HelpModal, legend_text
 from canair.uds.support_map import map_byte_indices
@@ -71,20 +71,18 @@ class TestColours:
         assert _build_byte_colors([DOOR], 11) == _build_byte_colors([DOOR], 11, ())
 
     def test_the_hex_line_draws_map_bytes_muted(self):
-        styles = _byte_styles(_render_hex_line(PAYLOAD, [DOOR], False, map_bytes=MAP))
+        styles = _byte_styles(render_hex_line(PAYLOAD, [DOOR], False, map_bytes=MAP))
         for byte in ("FD", "EE", "3C", "73"):
             assert styles[byte] == [MAP_BYTE_STYLE]
         assert styles["0A"] == ["green"]
 
     def test_a_changed_map_byte_still_flashes(self):
         prev = "62BC03FDEE3C720A000000"
-        styles = _byte_styles(
-            _render_hex_line(PAYLOAD, [DOOR], False, prev_raw=prev, map_bytes=MAP)
-        )
+        styles = _byte_styles(render_hex_line(PAYLOAD, [DOOR], False, prev_raw=prev, map_bytes=MAP))
         assert styles["73"] == [_HIGHLIGHT_STYLE[MAP_BYTE_STYLE]]
 
     def test_a_paramless_payload_marks_its_map_too(self):
-        styles = _byte_styles(_render_hex_line(PAYLOAD, [], True, map_bytes=MAP))
+        styles = _byte_styles(render_hex_line(PAYLOAD, [], True, map_bytes=MAP))
         assert styles["FD"] == [MAP_BYTE_STYLE]
 
     def test_the_ruler_matches_the_hex_line(self):

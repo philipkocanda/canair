@@ -30,7 +30,7 @@ def _render_diff_group(
     """Render one ECU+PID block: header, decoded signals, optional ruler, byte-diff hex."""
     parameters, tx_id, map_bytes = pdefs
     from canair.expression.decoding import decode_param_rows
-    from canair.render.formatting import _render_hex_line, render_byte_rulers, render_param_table
+    from canair.render.formatting import render_byte_rulers, render_hex_line, render_param_table
 
     # Decode the most recent payload into param rows (drives the table + colours).
     rows = decode_param_rows(payloads[-1]["payload"], parameters)
@@ -80,7 +80,7 @@ def _render_diff_group(
         norm = e["payload"].upper().replace(" ", "")
         ts = e.get("time") or e.get("date") or ""
         prefix = f"      {ts:<{max_ts}}  "
-        line = _render_hex_line(
+        line = render_hex_line(
             norm,
             rows,
             unmapped,
