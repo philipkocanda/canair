@@ -6,15 +6,19 @@ from collections.abc import Sequence
 
 from canair.captures.metadata import resolve_metadata
 from canair.core.id_ranges import IdRange, as_id_ranges, count_ids, format_id_ranges, iter_ids
+from canair.live.scan.presets import service_label
 from canair.privacy.sensitive import MASK, profile_set
 from canair.profile.model import Profile
 from canair.render.console import console as make_console
 from canair.render.console import escape
 from canair.render.glyphs import ELLIPSIS
+from canair.transport.stats import client_transport
 from canair.uds.services import identifier_width
 
 from ...captures.build import build_scan_session, suggest_scan_label
 from ...captures.save import save_session_journaled
+from ...ecus.names import ecu_display, ecu_name
+from ...ecus.registry import rx_addr_str
 from ...transport.protocol import Terminal
 
 
@@ -59,10 +63,6 @@ async def mode_scan(
         TimeElapsedColumn,
     )
     from rich.table import Table
-
-    from canair.live.scan.presets import service_label
-
-    from ...ecus.names import ecu_display, ecu_name
 
     # The human report is the result, so it goes to stdout; with --json it goes to stderr.
     console = make_console(stderr=as_json)
@@ -207,10 +207,6 @@ async def mode_scan(
 
     # Auto-save to captures
     if save:
-        from canair.transport.stats import client_transport
-
-        from ...ecus.registry import rx_addr_str
-
         suggested = suggest_scan_label(ecu, service, ranges, append_bytes)
         n_pos = len(positive)
         n_neg = len(negative)

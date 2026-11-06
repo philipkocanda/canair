@@ -15,6 +15,10 @@ from dataclasses import dataclass
 
 from canair.core.id_ranges import IdRange
 from canair.ecus.did_families import FAMILY_SIZE, did_families, family_ranges
+from canair.ecus.names import build_name_tx_index, resolve_tx
+from canair.ecus.names import ecu_name as _ecu_name
+from canair.ecus.pids import load_pids
+from canair.ecus.registry import load_ecus
 from canair.profile.model import Profile
 from canair.uds.protocol import KWP, classify_protocol
 from canair.uds.services import (
@@ -24,6 +28,7 @@ from canair.uds.services import (
     READ_DATA_BY_IDENTIFIER,
     ROUTINE_CONTROL,
     identifier_width,
+    service_name,
 )
 
 
@@ -164,7 +169,6 @@ def service_label(service: int, preset_name: str | None = None) -> str:
         preset_name = p.name if p else None
     if preset_name:
         return f"{preset_name} (0x{service:02X})"
-    from canair.uds.services import service_name
 
     canonical = service_name(service)
     if canonical:
@@ -262,9 +266,6 @@ def plan_scan(
 
     Returns ``None`` if the ECU can't be resolved to a TX id.
     """
-    from canair.ecus.names import build_name_tx_index, resolve_tx
-    from canair.ecus.names import ecu_name as _ecu_name
-    from canair.ecus.registry import load_ecus
 
     if ecus_data is None:
         try:
@@ -272,8 +273,6 @@ def plan_scan(
         except Exception:
             ecus_data = {}
     if pids_data is None:
-        from canair.ecus.pids import load_pids
-
         try:
             pids_data = load_pids(profile=profile)
         except Exception:

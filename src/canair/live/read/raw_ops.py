@@ -19,14 +19,26 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from canair.config.devices import fallback_settings
 from canair.core import tcp
+from canair.device.wican.firmware import (
+    UNKNOWN,
+    compatibility,
+    detect,
+    print_verdict,
+    probes,
+    unconfirmed,
+)
 from canair.profile.model import Profile
 from canair.render import messages
+from canair.safety.blocklist import SessionPolicy
+from canair.uds.addressing import AddressBook
 
+from ...transport import RawTerminal
 from ...transport.config import ConnectionOptions, TransportConfig
 from ...transport.isotp_params import ecu_isotp_blocks
 from ..monitor.options import MonitorOptions
-from ..session import Operation, SessionOptions
+from ..session import Operation, SessionOptions, run_session_guarded
 
 if TYPE_CHECKING:
     from canair.device.wican.firmware import FirmwareInfo
@@ -54,15 +66,6 @@ def slcan_preflight(
     read — so an offline device costs one connect timeout before the fail-fast
     SLCAN message rather than one per request.
     """
-    from canair.config.devices import fallback_settings
-    from canair.device.wican.firmware import (
-        UNKNOWN,
-        compatibility,
-        detect,
-        print_verdict,
-        probes,
-        unconfirmed,
-    )
     from canair.device.wican.mode import (
         ModeError,
         require_protocol,
@@ -166,12 +169,7 @@ async def _run_session(
         )
 
     # All other commands: reuse the shared session over a RawTerminal adapter.
-    from canair.safety.blocklist import SessionPolicy
     from canair.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
-    from canair.uds.addressing import AddressBook
-
-    from ...transport import RawTerminal
-    from ..session import run_session_guarded
 
     print(f"  Raw CAN via SLCAN — {host}:{port} @ {bitrate} bps", file=sys.stderr)
     cli = cli_timeout(conn.timeout)

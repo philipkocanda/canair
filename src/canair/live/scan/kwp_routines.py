@@ -39,6 +39,7 @@ from canair.uds.nrc import (
 )
 from canair.uds.response import UdsResponse
 from canair.uds.services import KWP_REQUEST_ROUTINE_RESULTS_BY_LOCAL_IDENTIFIER
+from canair.yaml_edit.pids import append_routines_block
 
 # NRCs that still indicate "routine local identifier exists". Any NRC not named in classify()
 # counts as a hit too, so 0x24 (requestSequenceError on UDS, reserved by SSF 14230-3) still is.
@@ -116,8 +117,6 @@ def _make_hit(lid, session, response_hex, nrc, nrc_desc) -> KwpRoutineHit:
 
 
 def _write_hit(ecu_name: str, hit: KwpRoutineHit, profile: Profile) -> None:
-    from canair.yaml_edit.pids import append_routines_block
-
     try:
         # KWP routine local identifiers are a single byte → 2-hex-digit keys.
         append_routines_block(ecu_name, [hit], key_width=2, profile=profile)

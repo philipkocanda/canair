@@ -72,10 +72,8 @@ def routed(monkeypatch):
 
     monkeypatch.setattr(raw_monitor, "run_raw_monitor", _mon)
 
-    import canair.transport as transport
-
     FakeRawTerminal.instances = []
-    monkeypatch.setattr(transport, "RawTerminal", FakeRawTerminal)
+    monkeypatch.setattr(raw_ops, "RawTerminal", FakeRawTerminal)
 
     async def _operation(terminal, pids):
         calls.append(("operation", type(terminal).__name__))
@@ -132,9 +130,7 @@ def test_terminal_connect_oserror_is_clean(monkeypatch, routed, capsys):
     def boom(*a, **k):
         raise TimeoutError("timed out")
 
-    import canair.transport as transport
-
-    monkeypatch.setattr(transport, "RawTerminal", boom)
+    monkeypatch.setattr(raw_ops, "RawTerminal", boom)
     calls, operation = routed
     assert run_raw(T(), operation=operation) == 1
     assert calls == []
@@ -153,10 +149,8 @@ def test_mid_session_drop_is_clean(monkeypatch, capsys):
     async def _drop(terminal, pids):
         raise can.CanError("SLCAN TCP connection closed by peer")
 
-    import canair.transport as transport
-
     FakeRawTerminal.instances = []
-    monkeypatch.setattr(transport, "RawTerminal", FakeRawTerminal)
+    monkeypatch.setattr(raw_ops, "RawTerminal", FakeRawTerminal)
 
     rc = run_raw(T(), operation=_drop)
     assert rc == 1  # clean exit code, no traceback
@@ -173,10 +167,8 @@ def test_mid_session_drop_while_saving_points_at_recover(monkeypatch, capsys):
     async def _drop(terminal, pids):
         raise ConnectionResetError("reset by peer")
 
-    import canair.transport as transport
-
     FakeRawTerminal.instances = []
-    monkeypatch.setattr(transport, "RawTerminal", FakeRawTerminal)
+    monkeypatch.setattr(raw_ops, "RawTerminal", FakeRawTerminal)
 
     rc = run_raw(T(), operation=_drop, session=SessionOptions(saving=True))
     assert rc == 1

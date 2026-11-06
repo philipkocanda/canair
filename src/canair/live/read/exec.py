@@ -13,6 +13,7 @@ import re
 from collections.abc import Callable
 
 from canair.core.eventlog import log_event
+from canair.core.id_ranges import parse_id_ranges
 from canair.ecus.pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index, ecu_index_key
 from canair.privacy.sensitive import MASK, request_hidden
 from canair.profile.model import Profile
@@ -25,7 +26,11 @@ from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import SessionManager
 from canair.uds.describe import decode_uds_response
 
+from ...ecus.names import resolve_tx
+from ...ecus.registry import rx_addr_str
 from ..actuate.iocontrol_actuate import send_iocontrol
+from ..scan.presets import ServiceError, resolve_service
+from ..scan.range import mode_scan
 from .batch import (
     BatchState,
     _did4,
@@ -424,9 +429,6 @@ async def _exec_scan(
     profile: Profile,
 ):
     """Execute scan sub-command."""
-    from ...ecus.names import resolve_tx
-    from ..scan.presets import ServiceError, resolve_service
-    from ..scan.range import mode_scan
 
     tx_id = resolve_tx(tx_str, profile=profile)
     if tx_id is None:
@@ -437,7 +439,6 @@ async def _exec_scan(
     except ServiceError as e:
         messages.error(str(e))
         return
-    from canair.core.id_ranges import parse_id_ranges
 
     try:
         pid_ranges = parse_id_ranges(range_str)
@@ -464,7 +465,6 @@ async def _exec_scan(
 
 def _rx_addr_for_tx(tx_id: int, *, profile: Profile) -> str:
     """Return the ECU CAN response address string for a TX id (e.g. "0x7EC")."""
-    from ...ecus.registry import rx_addr_str
 
     return rx_addr_str(tx_id, profile=profile)
 
@@ -474,7 +474,6 @@ def _rx_addr_for_ecu_label(ecu_label: str, ecu_index: dict, *, profile: Profile)
 
     Falls back to the leading token verbatim if the ECU is not in the index.
     """
-    from ...ecus.registry import rx_addr_str
 
     # An ECU label always starts with a word char (e.g. "BMS" / "BMS (0x7E4)").
     m = re.match(r"(\w+)", ecu_label)

@@ -40,6 +40,7 @@ import contextlib
 import json
 import sys
 
+from canair.captures.journal import CaptureJournal
 from canair.captures.metadata import resolve_metadata
 from canair.captures.types import Quality
 from canair.ecus.pids import build_ecu_index
@@ -57,6 +58,10 @@ from canair.render.formatting import print_ecu_results
 from canair.transport.session_manager import SessionManager
 from canair.transport.stats import client_transport
 
+from ...states.predicates import StatePredicateError
+from ...states.suggest import collect_values, suggest_states
+from ...states.tokens import join_states
+from ...states.vocabulary import load_states
 from ...transport.protocol import Terminal
 from .batch import BatchState, _capture_stamp
 from .exec import (
@@ -248,8 +253,6 @@ async def _run_pipeline(
     # the end. An exception mid-pipeline leaves it on disk for `--recover`.
     journal = None
     if save:
-        from canair.captures.journal import CaptureJournal
-
         journal = CaptureJournal.open(
             profile.captures_dir,
             label=label or "Multi query session",
@@ -280,18 +283,11 @@ async def _run_pipeline(
                     )
         # Accumulate decoded values for end-of-pipeline state auto-suggestion.
         if save:
-            from ...states.suggest import collect_values
-
             vals, resp = collect_values([(ecu_label, pid_results)])
             pipe_values.update(vals)
             pipe_responded.update(resp)
 
     def _suggest_pipeline_state() -> str | None:
-        from ...states.predicates import StatePredicateError
-        from ...states.suggest import suggest_states
-        from ...states.tokens import join_states
-        from ...states.vocabulary import load_states
-
         try:
             rules = load_states(profile=profile)
         except StatePredicateError:

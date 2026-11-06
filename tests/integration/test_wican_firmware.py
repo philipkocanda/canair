@@ -16,6 +16,7 @@ import requests
 import canair.device.wican.firmware as wf
 from canair.cli.profile_context import active
 from canair.device.wican.firmware import FirmwareInfo, compatibility, probe
+from canair.live.read import raw_ops
 
 # A v4 /check_status body is full of secrets; these must never survive the probe.
 _V4_SECRETS = {
@@ -398,7 +399,11 @@ class TestFirmwareCheckConfig:
 
 
 def _v6(monkeypatch, info: FirmwareInfo = V6):
-    monkeypatch.setattr(wf, "detect", lambda host, surface, *, timeout=None: info)
+    def detect(host, surface, *, timeout=None):
+        return info
+
+    monkeypatch.setattr(raw_ops, "detect", detect)
+    monkeypatch.setattr(wf, "detect", detect)
 
 
 class TestRebootRegression:
@@ -527,6 +532,7 @@ def _recording_detect(monkeypatch, info: FirmwareInfo, calls: list):
         calls.append(f"probe:{surface}")
         return info
 
+    monkeypatch.setattr(raw_ops, "detect", detect)
     monkeypatch.setattr(wf, "detect", detect)
 
 

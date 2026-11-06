@@ -68,6 +68,7 @@ from canair.uds.requests import kwp_io_control_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER
 from canair.uds.subfunctions import KwpIoControlParameter
+from canair.yaml_edit.pids import append_iocontrol_discoveries_block
 
 # The InputOutputControlParameter (IOCP) after the LID is KwpIoControlParameter (SSF 14230-3
 # Issue 2 Table 9.1.3.2; ISO 14230-3 leaves it manufacturer-defined). Only returnControlToECU
@@ -186,8 +187,6 @@ def _make_hit(lid, session, response_hex, nrc, nrc_desc) -> KwpIOControlHit:
 
 
 def _write_hit(ecu_name: str, hit: KwpIOControlHit, profile: Profile) -> None:
-    from canair.yaml_edit.pids import append_iocontrol_discoveries_block
-
     try:
         # KWP local identifiers are a single byte → 2-hex-digit keys.
         append_iocontrol_discoveries_block(ecu_name, [hit], key_width=2, profile=profile)

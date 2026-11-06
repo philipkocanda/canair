@@ -42,6 +42,7 @@ from typing import NamedTuple
 
 from canair.core.id_ranges import parse_id_range
 from canair.live.scan.discovery import DiscoveryProbe, mode_discovery_scan
+from canair.live.scan.presets import infer_iocontrol_ranges
 from canair.profile.model import Profile
 from canair.render import messages
 from canair.transport.protocol import Terminal
@@ -59,6 +60,7 @@ from canair.uds.requests import io_control_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
 from canair.uds.subfunctions import IoControlParameter
+from canair.yaml_edit.pids import append_iocontrol_discoveries_block
 
 # The only control parameter the scan sends: returnControlToECU. The others
 # (resetToDefault, freezeCurrentState, shortTermAdjustment) drive the output.
@@ -178,7 +180,6 @@ def resolve_iocontrol_ranges(ecu_def: dict) -> list[tuple[int, int]] | None:
         parsed = [r for spec in explicit if (r := _profile_range(spec)) is not None]
         if parsed:
             return parsed
-    from canair.live.scan.presets import infer_iocontrol_ranges
 
     return infer_iocontrol_ranges(ecu_def)
 
@@ -188,8 +189,6 @@ def _make_hit(did, session, response_hex, nrc, nrc_desc) -> IOControlHit:
 
 
 def _write_hit(ecu_name: str, hit: IOControlHit, profile: Profile) -> None:
-    from canair.yaml_edit.pids import append_iocontrol_discoveries_block
-
     try:
         append_iocontrol_discoveries_block(ecu_name, [hit], profile=profile)
     except Exception as exc:

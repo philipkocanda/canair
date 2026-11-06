@@ -52,6 +52,7 @@ from canair.uds.requests import routine_control_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import ROUTINE_CONTROL
 from canair.uds.subfunctions import RoutineControlType
+from canair.yaml_edit.pids import append_routines_block
 
 # NRCs that still indicate "routine exists"
 NRC_EXISTS_HINTS = {
@@ -120,8 +121,6 @@ def _make_hit(rid, session, response_hex, nrc, nrc_desc) -> RoutineHit:
 
 
 def _write_hit(ecu_name: str, hit: RoutineHit, profile: Profile) -> None:
-    from canair.yaml_edit.pids import append_routines_block
-
     try:
         append_routines_block(ecu_name, [hit], profile=profile)
     except Exception as exc:

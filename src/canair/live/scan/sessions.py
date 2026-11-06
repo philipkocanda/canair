@@ -40,6 +40,7 @@ from canair.uds.requests import session_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import DIAGNOSTIC_SESSION_CONTROL
 from canair.uds.subfunctions import SUBFUNCTION_NAMES, KwpSessionType, SessionType
+from canair.yaml_edit.pids import append_sessions_block
 
 from ...render.discover import ABSENT, POSITIVE, PROBE_FAILED, REFUSED
 
@@ -101,8 +102,6 @@ async def probe_session(terminal: Terminal, mode: int) -> UdsResponse:
 
 
 def _write_hit(ecu_name: str, hits: list[SessionHit], *, profile: Profile) -> None:
-    from canair.yaml_edit.pids import append_sessions_block
-
     try:
         append_sessions_block(ecu_name, hits, profile=profile)
     except Exception as exc:  # pragma: no cover - defensive I/O guard
