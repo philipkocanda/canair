@@ -36,3 +36,16 @@ def classify_protocol(id_protocol: object) -> DiagProtocol:
     if text == "UDS":
         return UDS
     return UNKNOWN
+
+
+def id_protocol_value(protocol: DiagProtocol) -> str:
+    """The ``identity.id_protocol`` text a profile records for ``protocol`` (``UDS``, ``KWP2000``).
+
+    The inverse of :func:`classify_protocol` for the two known protocols; raises ``ValueError``
+    for :data:`UNKNOWN`, which a profile writes as nothing at all.
+    """
+    if protocol == UDS:
+        return "UDS"
+    if protocol == KWP:
+        return "KWP2000"
+    raise ValueError(f"no id_protocol value for protocol {protocol!r}")

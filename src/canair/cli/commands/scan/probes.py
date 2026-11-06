@@ -125,8 +125,9 @@ def add_routines_parser(kinds) -> argparse.ArgumentParser:
         "--yes",
         "-y",
         action="store_true",
-        help="Skip the confirmation a KWP2000 sweep asks for where 0x33 is not known to be "
-        "side-effect-free (a nissan_c0_session profile)",
+        help="Skip the confirmations: the one a KWP2000 sweep asks for where 0x33 is not known "
+        "to be side-effect-free (a nissan_c0_session profile), and the one for an ECU whose "
+        "protocol the profile does not record (run `canair identity ECU` to record it)",
     )
     add_connection_args(parser)
     parser.set_defaults(func=live_command(scans.ROUTINES))

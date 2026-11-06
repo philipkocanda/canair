@@ -320,3 +320,61 @@ def test_json_listing_of_an_unknown_ecu_is_an_error_on_stderr(command, monkeypat
     captured = capsys.readouterr()
     assert captured.out == ""  # no half document on stdout
     assert captured.err.startswith("error: ")
+
+
+class TestRoutinesScanOfAnUnknownProtocol:
+    """An ECU whose profile records no protocol lands in the UDS group, so it is asked about."""
+
+    def _run(self, monkeypatch, *, yes, stdin, tty=True):
+        from canair.cli.live.handlers import scans
+
+        calls: list[dict] = []
+
+        async def _uds(*a, **kw):
+            calls.append(kw)
+            return {}
+
+        monkeypatch.setattr(scans, "split_ecus_by_protocol", lambda names, **__: (["BCM"], []))
+        monkeypatch.setattr(scans, "mode_routines_scan", _uds)
+        monkeypatch.setattr("sys.stdin", (_Tty if tty else io.StringIO)(stdin))
+        args = SimpleNamespace(
+            routines_scan=["BCM"], rid_range="F000-F0FF", throttle_ms=0, verbose=False, yes=yes
+        )
+        data = {"ecus": {"BCM": {"tx_id": 0x745}}}
+        asyncio.run(scans.handle_routines_scan(args, FakeTerminal(), data, "h"))  # type: ignore[arg-type]
+        return calls
+
+    def test_declined_sends_nothing_and_exits_1(self, monkeypatch, capsys):
+        calls: list = []
+        with pytest.raises(SystemExit) as raised:
+            calls = self._run(monkeypatch, yes=False, stdin="n\n")
+        assert raised.value.code == 1
+        assert calls == []
+        err = capsys.readouterr().err
+        assert "31 03 F000-F0FF is UDS RoutineControl" in err
+        assert "canair identity BCM" in err
+
+    def test_non_interactive_without_yes_is_refused(self, monkeypatch):
+        with pytest.raises(PromptUnavailable, match="--yes"):
+            self._run(monkeypatch, yes=False, stdin="", tty=False)
+
+    def test_yes_sweeps(self, monkeypatch):
+        assert len(self._run(monkeypatch, yes=True, stdin="", tty=False)) == 1
+
+    def test_a_declared_uds_ecu_is_not_asked(self, monkeypatch):
+        from canair.cli.live.handlers import scans
+
+        calls: list = []
+
+        async def _uds(*a, **kw):
+            calls.append(kw)
+
+        monkeypatch.setattr(scans, "split_ecus_by_protocol", lambda names, **__: (["BCM"], []))
+        monkeypatch.setattr(scans, "mode_routines_scan", _uds)
+        monkeypatch.setattr("sys.stdin", io.StringIO(""))
+        args = SimpleNamespace(
+            routines_scan=["BCM"], rid_range="F000-F0FF", throttle_ms=0, verbose=False, yes=False
+        )
+        data = {"ecus": {"BCM": {"tx_id": 0x745, "identity": {"id_protocol": "UDS"}}}}
+        asyncio.run(scans.handle_routines_scan(args, FakeTerminal(), data, "h"))  # type: ignore[arg-type]
+        assert len(calls) == 1

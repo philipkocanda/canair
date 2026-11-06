@@ -19,6 +19,7 @@ DATA = {
     "ecus": {
         "BCM": {
             "tx_id": 0x745,
+            "identity": {"id_protocol": "UDS"},
             "iocontrol": {"6900": {"label": "Mirrors", "on": "2F690003", "off": "2F690000"}},
             "routines": {"12A1": {"label": "Self test"}},
         }
@@ -137,3 +138,35 @@ def test_io_without_an_ecu_is_a_usage_error_on_stderr(capsys):
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err.startswith("error: specify an ECU")
+
+
+UNKNOWN_DATA = {"ecus": {"BCM": {"tx_id": 0x745, "routines": {"12A1": {"label": "Self test"}}}}}
+
+
+def _handle_unknown(args):
+    asyncio.run(actuators.handle_routines(args, None, UNKNOWN_DATA, None))  # type: ignore[arg-type]
+
+
+def test_an_ecu_of_unknown_protocol_is_asked_about_even_for_results(monkeypatch, capsys, sent):
+    monkeypatch.setattr("sys.stdin", _Stdin("n\n", tty=True))
+    with pytest.raises(SystemExit) as exc:
+        _handle_unknown(_args("results"))
+    assert exc.value.code == 1
+    assert sent == []
+    err = capsys.readouterr().err
+    assert "the profile records no protocol for BCM" in err
+    assert "31 03 12A1 is UDS RoutineControl" in err
+    assert "hint: run `canair identity BCM` first" in err
+
+
+def test_an_ecu_of_unknown_protocol_without_a_terminal_needs_yes(monkeypatch, sent):
+    monkeypatch.setattr("sys.stdin", _Stdin("", tty=False))
+    with pytest.raises(PromptUnavailable, match="--yes"):
+        _handle_unknown(_args("results"))
+    assert sent == []
+
+
+def test_yes_answers_the_unknown_protocol_question(monkeypatch, sent):
+    monkeypatch.setattr("sys.stdin", _Stdin("", tty=False))
+    _handle_unknown(_args("results", yes=True))
+    assert len(sent) == 1

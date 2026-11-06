@@ -1,7 +1,7 @@
 # UDS and KWP2000: protocol-aware lookups, and protocol facts out of `live/`
 
-Status: **PROPOSED** (2026-11-06). Phases 0 (`c56f2507`) and 0b are done. No other code
-changed. Checked against `c56f2507`, after the session-owner work
+Status: **PROPOSED** (2026-11-06). Phases 0 (`c56f2507`), 0b (`b0b8d28a`) and 0c are done. No
+other code changed. Checked against `c56f2507`, after the session-owner work
 (`plans/2026-11-05-one-session-owner.md`).
 
 ## Summary
@@ -13,14 +13,16 @@ is correct, and this plan keeps it. These things are wrong:
    bytes start a routine, and nothing refused them (phase 0, done).
 2. `canair scan range --service routine` swept `31 F0 00`–`31 F0 FF` with no question. On a
    KWP2000 ECU each request starts routine `0xF0` (phase 0b, done).
-3. Three lookups key on the service ID (SID) alone, although a few SIDs mean different things on
+3. An ECU whose profile records no protocol was treated as UDS by `canair routines` and `canair
+   scan routines`, which sent it `31 03 …` without asking (phase 0c, done).
+4. Three lookups key on the service ID (SID) alone, although a few SIDs mean different things on
    each protocol. The registry then holds one protocol's meaning, and callers must remember the
    other. `uds/nrc.py::nrc_description(nrc, protocol)` already solves this for negative response
    codes (NRCs). This plan gives the other lookups the same optional `protocol` argument
    (phases 2 and 3).
-4. Some pure protocol facts live in `live/`, where layers below `live` cannot reuse them
+5. Some pure protocol facts live in `live/`, where layers below `live` cannot reuse them
    (phase 4).
-5. A session request with no `--mode` is UDS extendedDiagnosticSession (`10 03`) on every ECU,
+6. A session request with no `--mode` is UDS extendedDiagnosticSession (`10 03`) on every ECU,
    which the Ioniq BMS and the Kona VCU refuse (phase 5).
 
 ## Why one package, not a `kwp/` package
@@ -273,6 +275,37 @@ Two callers ask:
 
 Tests: `tests/live/scan/test_range_scan_safety.py`. With the rule switched off, 8 of its 13
 tests fail. `docs/reference/cli/scan.md` shows the new flag and tip.
+
+## Phase 0c — ask about an ECU whose protocol is unknown (done, 2026-11-06)
+
+An ECU whose `id_protocol` is missing, `none` or `unknown` fell into the UDS group of
+`ecus/protocol.py::split_ecus_by_protocol` ("the historical default"), so `canair scan routines`
+swept `31 03 F000`–`31 03 F0FF` without asking, and `canair routines --rid` sent `31 03 {RID}`.
+On a KWP2000 ECU each of those starts routine `0x03`. In the bundled profiles that is every ECU
+of the Ioniq 5 and 12 each of the Niro and the Leaf. `canair scan range` already asked, because
+the classifier reads an unknown `0x31` as `actuate`.
+
+- `cli/live/handlers/reads.py::confirm_unknown_protocol` warns, hints at `canair identity ECU`,
+  and asks (`--yes` answers). It judges the protocol from the definitions in hand, through the
+  same `SessionPolicy` as the phase 0 refusal. `handle_routines` asks it for every sub-function
+  and before the TUI, ahead of the startRoutine question; `handle_routines_scan` asks it for the
+  UDS group.
+- `canair identity` now sends both probes (`22 F190`, `1A 90`) when the profile names no
+  protocol. `live/identity/decode.py::decide_protocol` lets a positive reply outweigh an NRC, so
+  a KWP2000 ECU that answers `22 F190` with requestOutOfRange is no longer read as UDS. When the
+  reading returns fields on one protocol and the other's service is refused with
+  serviceNotSupported (`0x11`), `mode_identity` returns a `ProtocolFinding`, and
+  `cli/live/handlers/reads.py::offer_protocol_record` offers to write `identity.id_protocol`
+  (`--set-protocol` writes it without asking; with no terminal a hint names the flag). It does
+  not offer for an unregistered ECU, an ECU with `revisions:`, one without `identity:`, or a
+  layered profile. `--json` adds the two probe replies as `probe` and keeps stdout clean.
+- `uds/protocol.py::id_protocol_value` is the inverse of `classify_protocol`, and
+  `yaml_edit/echo.py::echo_edit` takes a `file` for a `--json` command.
+
+Tests: `tests/live/identity/test_identity_protocol.py`,
+`tests/cli/commands/test_identity_protocol_record.py`, and new cases in
+`tests/cli/commands/test_actuator_handlers.py` and `tests/live/scan/test_scan_safety.py`.
+`docs/concepts/ecu-protocols.md` has a section on an ECU of unknown protocol.
 
 ## Phase 1 — small fixes
 

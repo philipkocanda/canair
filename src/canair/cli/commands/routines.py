@@ -49,7 +49,8 @@ examples:
         "--yes",
         "-y",
         action="store_true",
-        help="With --sf start: send without asking first (required when stdin is not a terminal)",
+        help="Send without asking first, with --sf start or to an ECU whose protocol the "
+        "profile does not record (required when stdin is not a terminal)",
     )
     add_connection_args(parser)
     parser.set_defaults(func=run)

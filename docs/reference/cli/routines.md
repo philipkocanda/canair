@@ -20,8 +20,9 @@ options:
   --rid RID             Routine ID to execute (e.g. 12A1)
   --sf SF               Sub-function: results (0x03, safe default), start
                         (0x01, actuates), stop (0x02)
-  --yes, -y             With --sf start: send without asking first (required
-                        when stdin is not a terminal)
+  --yes, -y             Send without asking first, with --sf start or to an
+                        ECU whose protocol the profile does not record
+                        (required when stdin is not a terminal)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}

@@ -264,9 +264,11 @@ options:
                         ritual, else 10 01)
   --mode HEX            Session mode for --session (default 03 = UDS extended;
                         81 = KWP2000 standard, e.g. BMS)
-  --yes, -y             Skip the confirmation a KWP2000 sweep asks for where
-                        0x33 is not known to be side-effect-free (a
-                        nissan_c0_session profile)
+  --yes, -y             Skip the confirmations: the one a KWP2000 sweep asks
+                        for where 0x33 is not known to be side-effect-free (a
+                        nissan_c0_session profile), and the one for an ECU
+                        whose protocol the profile does not record (run
+                        `canair identity ECU` to record it)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}

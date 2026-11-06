@@ -8,6 +8,7 @@ can actuate, so the read-only 0x33/0x30 variants must be used there instead.
 
 from __future__ import annotations
 
+from canair.cli.live.handlers.reads import confirm_unknown_protocol
 from canair.cli.live.operation import LiveOperation
 from canair.cli.profile_context import active
 from canair.core.prompt import confirm
@@ -93,6 +94,12 @@ async def handle_routines_scan(
         if not confirm(f"Sweep {', '.join(kwp_ecus)} with 0x33 anyway?", danger=True):
             raise SystemExit(1)
         confirmed = True
+    # The UDS group also holds every ECU whose protocol the profile does not record.
+    what = f"31 03 {rid_range[0]:04X}-{rid_range[1]:04X}"
+    if uds_ecus and not confirm_unknown_protocol(
+        uds_ecus, what, pids_data, yes=bool(getattr(args, "yes", False)), profile=active()
+    ):
+        raise SystemExit(1)
 
     if uds_ecus:
         await mode_routines_scan(

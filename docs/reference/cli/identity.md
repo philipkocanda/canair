@@ -6,14 +6,14 @@
 
 ```
 usage: canair identity [-h] [--session] [--wake] [--protocol {auto,uds,kwp}]
-                       [--wican WICAN]
+                       [--set-protocol] [--wican WICAN]
                        [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                        [--no-fallback] [--wait] [--elm-timeout MS]
                        [--timeout SECONDS] [--no-learn-frames] [--json]
                        [--verbose] [--timings] [--reboot] [--unsafe] [--force]
                        ECU
 
-[UDS] Query ECU identity data and decode it. Supports UDS (22 F1xx) and KWP2000 (1A 8x/9x) ECUs; the protocol is auto-selected from the profile registry or an on-device probe (override with --protocol).
+[UDS] Query ECU identity data and decode it. Supports UDS (22 F1xx) and KWP2000 (1A 8x/9x) ECUs; the protocol is auto-selected from the profile registry or an on-device probe (override with --protocol). When the profile records no protocol, both services are probed, and a reading that proves one offers to record it in identity.id_protocol, which routines and scans read to tell UDS from KWP2000. Nothing else is written.
 
 positional arguments:
   ECU                   ECU name or TX ID (e.g. IGPM or 770)
@@ -27,6 +27,9 @@ options:
                         Identity protocol: uds (22 F1xx), kwp (1A 8x/9x
                         KWP2000), or auto (registry hint, else on-device
                         probe). Default: auto
+  --set-protocol        When the profile records no protocol for the ECU and
+                        the probe proves one, write it to identity.id_protocol
+                        without asking (asked on a terminal otherwise)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}
@@ -70,4 +73,5 @@ examples:
   canair identity IGPM --session --wake
   canair identity 770 --session
   canair identity BMS --protocol kwp   # KWP2000 powertrain ECU
+  canair identity IGPM --set-protocol  # record a proven protocol without asking
 ```

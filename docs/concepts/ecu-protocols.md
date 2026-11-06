@@ -57,6 +57,25 @@ ECU's protocol.
     ECU: each revision sets its own `id_protocol`, and the PIDs only one of them answers
     are gated to it. The protocol canair uses is the one of the revision your car has.
 
+## When the profile records no protocol
+
+An ECU whose `id_protocol` is missing, `none` or `unknown` could speak either protocol. A read
+is harmless either way, but routine control is not: `31 03 …` reads a routine's results on UDS
+and starts routine `0x03` on KWP2000. So:
+
+- `canair routines` and `canair scan routines` ask before they send routine control to such an
+  ECU. `--yes` answers.
+- `canair scan range` asks before any request that can change the car's state, whatever the
+  protocol, and refuses `0x31` on a KWP2000 ECU.
+- `canair identity ECU` finds the protocol out. It probes both identity services (`22 F190` and
+  `1A 90`), and when one returns fields while the other is refused, it offers to record the
+  protocol in `id_protocol`. `--set-protocol` records it without asking.
+
+```bash
+canair identity IGPM                 # probe, read, and offer to record the protocol
+canair identity IGPM --set-protocol  # record it without asking (scripts)
+```
+
 !!! tip "The prefix is optional but recommended"
     Because canair knows each ECU's protocol, a UDS ECU accepts a bare DID
     (`CLU:B002`) as well as the full `CLU:22B002`. **Prefer the full form**

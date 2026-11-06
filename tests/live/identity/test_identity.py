@@ -16,8 +16,9 @@ class TestProbeProtocol:
     @pytest.mark.asyncio
     async def test_uds_detected(self):
         t = FakeTerminal({"22F190": _ok("62F190" + "414243")})
-        proto, _ = await ident._probe_protocol(t)
-        assert proto == "uds"
+        probe = await ident._probe_protocol(t)
+        assert probe.protocol == "uds"
+        assert probe.uds == "positive"
 
     @pytest.mark.asyncio
     async def test_kwp_detected_when_uds_not_supported(self):
@@ -27,16 +28,16 @@ class TestProbeProtocol:
                 "1A90": _ok("5A90" + "4145455620424D53"),
             }
         )
-        proto, reason = await ident._probe_protocol(t)
-        assert proto == "kwp"
-        assert "1A" in reason
+        probe = await ident._probe_protocol(t)
+        assert probe.protocol == "kwp"
+        assert "1A" in probe.reason
 
     @pytest.mark.asyncio
     async def test_no_response_reports_asleep(self):
         t = FakeTerminal({})  # everything NO DATA
-        proto, reason = await ident._probe_protocol(t)
-        assert proto is None
-        assert "asleep" in reason
+        probe = await ident._probe_protocol(t)
+        assert probe.protocol is None
+        assert "asleep" in probe.reason
 
 
 class TestModeIdentity:
@@ -115,8 +116,8 @@ class TestRepeatedPreviousReply:
     @pytest.mark.asyncio
     async def test_the_probe_does_not_take_another_dids_reply_as_uds(self):
         repeat = parse_uds_response("62F18F41", expected_sid=0x22, expected_echo=b"\xf1\x90")
-        proto, _ = await ident._probe_protocol(FakeTerminal({"22F190": repeat}))
-        assert proto is None
+        probe = await ident._probe_protocol(FakeTerminal({"22F190": repeat}))
+        assert probe.protocol is None
 
 
 class TestReExports:
