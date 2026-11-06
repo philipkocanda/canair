@@ -16,11 +16,18 @@ from collections import Counter
 from datetime import date, datetime, time
 from pathlib import Path
 
+from canair.captures import io as capture_io
+from canair.captures.build import build_manual_session
+from canair.captures.save import save_session
 from canair.captures.types import CaptureSession, Quality
 from canair.cli.profile_context import active, dir_profile, named_car
+from canair.ecus.pids import load_pids
+from canair.ecus.registry import load_ecus
 from canair.interop.frame_log import Extraction, extract_replies, stamp
 from canair.render import ansi, glyphs, messages
 from canair.render.paint import Painter
+from canair.states.tokens import parse_states
+from canair.uds.addressing import resolve_mode
 
 # A log whose first frame is later than this is on the wall clock (2001-09-09), not
 # relative to the start of the recording; same cut-off as ``import can``.
@@ -54,12 +61,6 @@ def run_from_log(args: argparse.Namespace) -> int:
 
 def _import_log(args: argparse.Namespace) -> int:
     from canair.captures import can_logs
-    from canair.captures.build import build_manual_session
-    from canair.captures.save import save_session
-    from canair.ecus.pids import load_pids
-    from canair.ecus.registry import load_ecus
-    from canair.states.tokens import parse_states
-    from canair.uds.addressing import resolve_mode
 
     mode = str(resolve_mode(load_pids(profile=active())))
     if mode not in _NORMAL_ADDRESSING:
@@ -169,8 +170,6 @@ def _active_captures_dir() -> Path:
 
 def _identical_session(captures_dir: Path, session: CaptureSession) -> Path | None:
     """The day file already holding a session with this label and these captures, if any."""
-    from canair.captures import io as capture_io
-
     fpath = captures_dir / f"{session['date']}{capture_io.CAPTURE_SUFFIX}"
     if not fpath.exists():
         return None

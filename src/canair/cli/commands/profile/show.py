@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from canair.cli.profile_context import active
+from canair.ecus.pids import revision_resolutions
 from canair.profile.bundle import BUNDLE_MEMBERS
 from canair.profile.discovery import resolve_profile
+from canair.profile.names import also_known_as
 from canair.states.predicates import StatePredicateError
 from canair.states.vocabulary import load_states
-from canair.variants import effective_meta
+from canair.variants import VariantsError, describe, effective_meta, load_variants
+from canair.variants.revisions import describe_resolution
 
 
 def _resolve(name: str | None):
@@ -61,8 +64,6 @@ def _detail_signals(prof) -> str:
 
 
 def _detail_variants(prof) -> str:
-    from canair.variants import VariantsError, describe, load_variants
-
     try:
         variants = load_variants(prof)
     except VariantsError as ex:
@@ -111,7 +112,6 @@ def cmd_show(args) -> int:
     for overlay in prof.overlays:
         print(f"overlay:    {overlay}  (your layer — captures land here)")
     print(f"car_model:  {meta.get('car_model', '?')}")
-    from canair.profile.names import also_known_as
 
     if known_as := also_known_as(prof.root).all():
         print(f"known as:   {', '.join(known_as)}")
@@ -119,8 +119,6 @@ def cmd_show(args) -> int:
         print(
             f"variant:    {prof.variant}  (from {_VARIANT_SOURCE[prof.variant_source or 'only']})"
         )
-    from canair.ecus.pids import revision_resolutions
-    from canair.variants.revisions import describe_resolution
 
     for name, res in revision_resolutions(prof).items():
         print(f"revision:   {name} {describe_resolution(res)}")

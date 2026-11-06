@@ -9,6 +9,7 @@ from canair.cli.commands._edit import add_edit_args, edit_scope, run_edit
 from canair.cli.profile_context import active, target_profile
 from canair.core.edit_errors import EditError
 from canair.ecus.pid_status import PID_STATUSES
+from canair.ecus.pids import load_pids_dir, load_raw_pids
 from canair.ecus.signal_category import CATEGORIES, QUANTITY_CATEGORIES
 from canair.render import ansi, messages
 from canair.yaml_edit.echo import echo_edit
@@ -271,8 +272,6 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
 
 
 def _signal_exists(ecu: str, pid: str, name: str, pids_dir) -> bool:
-    from canair.ecus.pids import load_pids_dir, load_raw_pids
-
     data = load_pids_dir(pids_dir) if pids_dir else load_raw_pids(profile=active())
     ecu_def = next(
         (d for k, d in (data.get("ecus") or {}).items() if str(k).upper() == ecu.upper()), None

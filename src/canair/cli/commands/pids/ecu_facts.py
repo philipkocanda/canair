@@ -7,10 +7,14 @@ import argparse
 from canair.cli.args.hexarg import parse_hex_arg
 from canair.cli.commands._edit import add_edit_args, edit_scope, run_edit
 from canair.cli.profile_context import active, target_profile
+from canair.core import yaml_io
 from canair.core.edit_errors import EditError
+from canair.ecus.pids import normalize_session_mode
+from canair.profile.model import profile_for_path
 from canair.render import ansi
 from canair.transport.isotp_params import ECU_ISOTP_FIELDS
 from canair.yaml_edit.echo import echo_edit
+from canair.yaml_edit.ecu import set_addressing, tx_key
 from canair.yaml_edit.pids import (
     find_ecu_file,
     remove_identity_field,
@@ -288,7 +292,6 @@ def cmd_rm_identity(args: argparse.Namespace) -> int:
 
 def cmd_set_can_bus(args: argparse.Namespace) -> int:
     from canair.ecus.can_buses import allowed_can_buses
-    from canair.profile.model import profile_for_path
 
     # Resolve the vocabulary from the profile owning the target ecus/ dir
     # (or the active profile). Enforced only when the profile declares one.
@@ -356,8 +359,6 @@ def cmd_set_iocontrol(args: argparse.Namespace) -> int:
     if not fields:
         raise EditError("nothing to set — pass at least one field")
     if args.session_mode is not None:
-        from canair.ecus.pids import normalize_session_mode
-
         try:
             fields["session_mode"] = normalize_session_mode(args.session_mode)
         except ValueError as exc:
@@ -410,9 +411,6 @@ def cmd_set_isotp(args: argparse.Namespace) -> int:
 
 
 def cmd_set_addressing(args: argparse.Namespace) -> int:
-    from canair.core import yaml_io
-    from canair.yaml_edit.ecu import set_addressing, tx_key
-
     if not any(
         getattr(args, k) is not None
         for k in ("mode", "target_address", "source_address", "fc_id", "rx_id")

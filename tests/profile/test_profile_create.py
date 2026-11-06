@@ -286,13 +286,13 @@ class TestProfileListSnapshotWarning:
     def test_warns_when_running_uv_tool_snapshot(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
+        from canair.cli.commands.profile import listing
         from canair.config import file as config_file
-        from canair.install import context as install_context
 
         config_file.load_config.cache_clear()
         profile_context._active = None
         _scaffold(tmp_path, "ev6")
-        monkeypatch.setattr(install_context, "bundled_profiles_are_snapshot", lambda: True)
+        monkeypatch.setattr(listing, "bundled_profiles_are_snapshot", lambda: True)
         _cmd_list(argparse.Namespace(profiles_dir=None))
         out = capsys.readouterr().err
         assert "frozen snapshot" in out
@@ -301,13 +301,13 @@ class TestProfileListSnapshotWarning:
     def test_no_warning_when_running_from_repo(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path / "profiles"))
+        from canair.cli.commands.profile import listing
         from canair.config import file as config_file
-        from canair.install import context as install_context
 
         config_file.load_config.cache_clear()
         profile_context._active = None
         _scaffold(tmp_path, "ev6")
-        monkeypatch.setattr(install_context, "bundled_profiles_are_snapshot", lambda: False)
+        monkeypatch.setattr(listing, "bundled_profiles_are_snapshot", lambda: False)
         _cmd_list(argparse.Namespace(profiles_dir=None))
         captured = capsys.readouterr()
         assert "frozen snapshot" not in captured.out + captured.err

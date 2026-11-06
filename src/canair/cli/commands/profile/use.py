@@ -4,17 +4,20 @@ from __future__ import annotations
 
 import sys
 
+from canair.config.file import set_config_key, set_config_value
+from canair.ecus.pids import load_raw_pids
 from canair.profile.discovery import resolve_profile, selectable_profiles
 from canair.profile.model import ProfileError
 from canair.render import messages
+from canair.variants import VariantsError, describe, load_variants, normalize_variant_id
+from canair.variants.revisions import RevisionError, canonical_ecu, parse_pin, resolve
+from canair.variants.selection import configured_variant
 from canair.yaml_edit.echo import echo_edit
 
 from .common import current_name
 
 
 def cmd_use(args) -> int:
-    from canair.config.file import set_config_value
-
     profiles_dir = getattr(args, "profiles_dir", None)
     name = current_name(args.name.strip(), profiles_dir)
     profiles = selectable_profiles(profiles_dir)
@@ -29,7 +32,6 @@ def cmd_use(args) -> int:
     pins = _checked_pins(name, profiles_dir, variant, getattr(args, "pins", None) or [])
     if pins is None:
         return 2
-    from canair.config.file import set_config_key
 
     path = set_config_value("default_profile", name)
     changes = []
@@ -55,10 +57,6 @@ def _checked_pins(
     """
     if not texts:
         return []
-    from canair.ecus.pids import load_raw_pids
-    from canair.variants import VariantsError, load_variants
-    from canair.variants.revisions import RevisionError, canonical_ecu, parse_pin, resolve
-    from canair.variants.selection import configured_variant
 
     try:
         prof = resolve_profile(name, profiles_dir)
@@ -79,9 +77,6 @@ def choose_variant(name: str, profiles_dir, requested: str | None) -> str | None
     Returns None when there is nothing to choose (or the choice was skipped), and ""
     after reporting an invalid ``requested`` variant.
     """
-    from canair.variants import VariantsError, describe, load_variants, normalize_variant_id
-    from canair.variants.selection import configured_variant
-
     try:
         prof = resolve_profile(name, profiles_dir)
         variants = load_variants(prof)

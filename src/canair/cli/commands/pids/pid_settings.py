@@ -9,6 +9,7 @@ from canair.cli.profile_context import active, target_profile
 from canair.core.edit_errors import EditError, translate
 from canair.ecus.pid_status import PID_STATUSES
 from canair.ecus.pids import INHERITED_PARAM_FIELDS
+from canair.privacy.sensitive import profile_set
 from canair.render import ansi
 from canair.uds.support_map import MapDecl, SupportMapError
 from canair.yaml_edit.echo import echo_edit
@@ -300,7 +301,6 @@ def cmd_set_sensitive(args: argparse.Namespace) -> int:
     echo_edit(f"{what} sensitive -> {state}", fpath)
     if value:
         from canair.captures.sensitive_purge import purge_dir
-        from canair.privacy.sensitive import profile_set
 
         found = sum(
             r.removed

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from canair.cli.profile_context import active
 from canair.config.file import load_config
+from canair.install.context import bundled_profiles_are_snapshot
 from canair.profile.discovery import (
     alias_index,
     config_dir_hint,
@@ -17,8 +18,6 @@ from canair.render import messages
 def _warn_if_bundled_snapshot() -> None:
     """Warn contributors that a bare `canair` reads a frozen copy of the bundled
     profiles, so edits to the git checkout's `profiles/` aren't picked up."""
-    from canair.install.context import bundled_profiles_are_snapshot
-
     if bundled_profiles_are_snapshot():
         messages.note(
             "running the `uv tool install` copy — its bundled profiles are a frozen snapshot, "

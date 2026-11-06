@@ -47,9 +47,15 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from canair.captures.build import build_manual_session
+from canair.captures.save import save_session
 from canair.captures.types import CaptureRecord
 from canair.cli.profile_context import active, dir_profile, named_car
+from canair.ecus.names import build_name_tx_index, resolve_tx
+from canair.ecus.registry import rx_addr_str
 from canair.render import ansi, glyphs, messages
+from canair.states.tokens import parse_states
+from canair.uds.payload import payload_echo_mismatch, payload_not_hex
 
 
 def _parse_spec(spec: str) -> tuple[str, str, str]:
@@ -68,10 +74,6 @@ def _parse_spec(spec: str) -> tuple[str, str, str]:
 
 def _build_capture(spec: str, name_index: dict[str, int]) -> tuple[CaptureRecord, list[str]]:
     """Resolve/validate one spec into a capture dict. Returns (capture, warnings)."""
-    from canair.ecus.names import resolve_tx
-    from canair.ecus.registry import rx_addr_str
-    from canair.uds.payload import payload_echo_mismatch, payload_not_hex
-
     ecu, pid, payload = _parse_spec(spec)
 
     tx_id = resolve_tx(ecu, name_index, profile=active())
@@ -110,11 +112,6 @@ def run(args) -> int:
         return 2
 
     named_car("import uds")
-
-    from canair.captures.build import build_manual_session
-    from canair.captures.save import save_session
-    from canair.ecus.names import build_name_tx_index
-    from canair.states.tokens import parse_states
 
     name_index = build_name_tx_index(profile=active())
 
