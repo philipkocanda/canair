@@ -9,6 +9,7 @@ import yaml
 from canair.core import yaml_io
 from canair.core.json_schema import schema_errors
 from canair.core.paths import PROFILE_SCHEMA_FILE
+from canair.safety.quirks import RETIRED_QUIRKS
 
 from ._common import duplicate_key_errors
 
@@ -67,7 +68,6 @@ def _physical_band_order_errors(bands: Any) -> list[str]:
 
 def retired_quirk_warnings(path: Path) -> list[str]:
     """A warning per retired quirk the profile.yaml still lists (see ``RETIRED_QUIRKS``)."""
-    from canair.safety.quirks import RETIRED_QUIRKS
 
     try:
         data = yaml_io.safe_load(path.read_text())

@@ -2,6 +2,16 @@
 
 import re
 
+from canair.safety.actuation import (
+    default_release,
+    normalize_request,
+    on_refusal,
+    parse_io_request,
+    release_mismatch,
+)
+from canair.safety.blocklist import session_mode_block
+from canair.safety.quirks import allowed_session_modes
+from canair.uds.protocol import classify_protocol
 from canair.uds.services import INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
 from canair.uds.subfunctions import IoControlParameter
 
@@ -19,8 +29,6 @@ def _validate_session_mode(
     would refuse without a profile allowance is a warning, because the actuator
     could only ever be reached with ``--unsafe``.
     """
-    from canair.safety.blocklist import session_mode_block
-    from canair.safety.quirks import allowed_session_modes
 
     if value is None:
         return
@@ -53,7 +61,6 @@ def validate_iocontrol(
     ecu_def, path, ecu_name, allowed_states_set, errors, warnings, stats, profile_meta=None
 ) -> None:
     """Validate an ECU's ``iocontrol:`` block."""
-    from canair.uds.protocol import classify_protocol
 
     iocontrol = ecu_def.get("iocontrol")
     if iocontrol is None:
@@ -118,13 +125,6 @@ def _validate_iocontrol_release(did_def, did_label, protocol, errors, warnings) 
     addresses another output, or repeats the ON request, would leave it driven. A
     KWP2000 ``0x30`` ON without one is refused at run time; say so here too.
     """
-    from canair.safety.actuation import (
-        default_release,
-        normalize_request,
-        on_refusal,
-        parse_io_request,
-        release_mismatch,
-    )
 
     declared = did_def.get("release")
     on = str(did_def.get("on") or did_def.get(True) or "")

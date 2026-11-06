@@ -8,21 +8,29 @@ from jsonschema import Draft202012Validator
 from jsonschema.protocols import Validator
 
 from canair.captures import io as capture_io
+from canair.captures.dates import entry_datetime
+from canair.captures.payload_corpus import load_payload_corpus
+from canair.captures.sensitive_purge import sensitive_findings
+from canair.ecus.registry import SENTINELS, build_rx_index, parse_ecu_ref
+from canair.privacy.sensitive import profile_set
 from canair.profile.model import Profile
 from canair.states.implies import contradictory_states
 from canair.states.predicates import StatePredicateError, StateRule
 from canair.states.vocabulary import load_states, state_names
 from canair.uds.memory import MEMORY_SIGNAL_MAX_BYTES, exceeds_signal_cap
+from canair.uds.payload import payload_echo_mismatch, payload_not_hex
 
 from ._common import CAPTURES_SCHEMA_FILE, DEPRECATED_FIELDS
 from .capture_schema import CaptureSchemaChecker
+from .link_events import link_event_warnings
+from .misfiled import misfile_warnings
 from .report import CapturesReport, CaptureWarning, FileFindings
+from .unsplit import unsplit_batch_warnings
 from .variant_tags import variant_tag_report
 
 
 def load_valid_rx_addrs(profile: Profile) -> set[int]:
     """Set of valid ECU CAN response addresses (each ECU's resolved ``rx_id``)."""
-    from canair.ecus.registry import build_rx_index
 
     return set(build_rx_index(profile=profile))
 
@@ -41,8 +49,6 @@ def _path_str(abs_path) -> str:
 def validate_captures_file(
     path: Path, validator: Validator | CaptureSchemaChecker, rx_addrs: set[int]
 ) -> list[str]:
-    from canair.ecus.registry import SENTINELS, parse_ecu_ref
-
     if not isinstance(validator, CaptureSchemaChecker):
         validator = CaptureSchemaChecker(validator.schema)
     errors: list[str] = []
@@ -136,12 +142,10 @@ def _check_captures(
     report.n_files = len(files)
 
     # State vocabulary for soft warnings (empty when no vehicle_states.yaml → no warnings).
-
     vocab = {n.lower() for n in state_names(profile=profile)}
 
     # excludes: declarations, for the sequenced-session warning. Empty (or a
     # profile whose states fail to load) simply disables that check.
-
     try:
         state_rules = [r for r in load_states(profile=profile) if r.excludes]
     except StatePredicateError:
@@ -149,18 +153,9 @@ def _check_captures(
 
     # Cross-file: a reply saved under the wrong ECU, or a multi-DID reply saved whole under one
     # DID, only stands out against the whole corpus. Load it once for both checks.
-    from canair.captures.payload_corpus import load_payload_corpus
-
-    from .link_events import link_event_warnings
-    from .misfiled import misfile_warnings
-    from .unsplit import unsplit_batch_warnings
-
     corpus = load_payload_corpus(files)
     misfiled = misfile_warnings(files, corpus=corpus, profile=profile)
     unsplit = unsplit_batch_warnings(files, corpus=corpus, profile=profile)
-
-    from canair.captures.sensitive_purge import sensitive_findings
-    from canair.privacy.sensitive import profile_set
 
     sset = profile_set(prof)
     for path in files:
@@ -305,7 +300,6 @@ def _capture_echo_warnings(path: Path) -> list[CaptureWarning]:
     ``canair.uds.payload.payload_echo_mismatch``). Reported as a warning, never an error,
     since free-form/raw captures and multi-frame quirks shouldn't hard-fail.
     """
-    from canair.uds.payload import payload_echo_mismatch
 
     warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)
@@ -362,7 +356,6 @@ def _capture_nonhex_warnings(path: Path) -> list[CaptureWarning]:
     hex+ASCII transcription) signals a mis-recorded capture — see
     ``canair.uds.payload.payload_not_hex``. Reported as a warning, never an error.
     """
-    from canair.uds.payload import payload_not_hex
 
     warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)
@@ -399,7 +392,6 @@ def _capture_missing_time_warnings(path: Path) -> list[CaptureWarning]:
     meaningful there. Existing untimed payload rows are grandfathered (warning,
     not error, unless ``validate captures --strict``). See Tranche 2.6.
     """
-    from canair.captures.dates import entry_datetime
 
     warnings: list[CaptureWarning] = []
     data = capture_io.load_capture_file(path)

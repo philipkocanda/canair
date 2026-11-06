@@ -458,7 +458,7 @@ def test_validate_loads_the_corpus_once_for_both_cross_file_checks(
     _temp_profile, capsys, monkeypatch
 ):
     """One row can be both misfiled and an unsplit batch; both warn, from one corpus load."""
-    from canair.captures import payload_corpus as payload_corpus
+    from canair.validation import captures as validation_captures
     from canair.validation import misfiled, unsplit
 
     # BCM answers 22BC01 with 25 bytes, which is exactly the IGPM batch's length: the batch
@@ -476,7 +476,7 @@ def test_validate_loads_the_corpus_once_for_both_cross_file_checks(
     _write(_temp_profile / "captures", caps)
 
     loads: list[int] = []
-    real = payload_corpus.load_payload_corpus
+    real = validation_captures.load_payload_corpus
 
     def counting(files):
         loads.append(1)
@@ -485,7 +485,7 @@ def test_validate_loads_the_corpus_once_for_both_cross_file_checks(
     def unexpected(files):
         raise AssertionError("a cross-file check loaded its own corpus")
 
-    monkeypatch.setattr(payload_corpus, "load_payload_corpus", counting)
+    monkeypatch.setattr(validation_captures, "load_payload_corpus", counting)
     monkeypatch.setattr(misfiled, "load_payload_corpus", unexpected)
     monkeypatch.setattr(unsplit, "load_payload_corpus", unexpected)
     assert run_captures() == 0

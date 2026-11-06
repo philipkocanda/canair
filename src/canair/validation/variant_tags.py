@@ -18,6 +18,10 @@ from collections import Counter
 from pathlib import Path
 
 from canair.captures import io as capture_io
+from canair.ecus.pids import load_raw_pids
+from canair.ecus.registry import build_rx_index, ecu_name_from_ref
+from canair.variants import VariantsError, load_variants
+from canair.variants.revisions import canonical_ecu, gate, possible_revisions
 
 from .report import VariantTagReport
 
@@ -38,10 +42,6 @@ def variant_tag_findings(files: list[Path], declared: set[str]) -> tuple[int, Co
 
 def revision_tag_findings(files: list[Path], profile) -> Counter[str]:
     """``problem -> sessions`` for every revision tag that names what cannot be."""
-    from canair.ecus.pids import load_raw_pids
-    from canair.ecus.registry import build_rx_index, ecu_name_from_ref
-    from canair.variants import load_variants
-    from canair.variants.revisions import canonical_ecu, gate, possible_revisions
 
     ecus = load_raw_pids(profile).get("ecus") or {}
     variants = load_variants(profile)
@@ -97,7 +97,6 @@ def variant_tag_report(
     count may not grow past it, since every recording names its car now and the count only
     falls as history is tagged.
     """
-    from canair.variants import VariantsError, load_variants
 
     try:
         declared = set(load_variants(profile))

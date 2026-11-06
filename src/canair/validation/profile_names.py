@@ -9,8 +9,9 @@ named anything, and ``profile create`` merely warns.
 from __future__ import annotations
 
 from canair.core.paths import BUNDLED_PROFILES_DIR
+from canair.profile.discovery import alias_index, selectable_profiles
 from canair.profile.names import convention_problem, duplicate_names
-from canair.variants import effective_meta
+from canair.variants import VariantsError, effective_meta, load_variants
 
 
 def _is_bundled(prof) -> bool:
@@ -22,7 +23,6 @@ def _is_bundled(prof) -> bool:
 
 def profile_name_findings(prof) -> tuple[list[str], list[str]]:
     """``(errors, warnings)`` for ``prof``'s name and the aliases it declares."""
-    from canair.profile.discovery import alias_index, selectable_profiles
 
     errors: list[str] = []
     warnings: list[str] = []
@@ -42,8 +42,6 @@ def profile_name_findings(prof) -> tuple[list[str], list[str]]:
     aliases = meta.get("aliases")
     if not isinstance(aliases, dict):
         return errors, warnings
-
-    from canair.variants import VariantsError, load_variants
 
     try:
         declared = set(load_variants(prof))

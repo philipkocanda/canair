@@ -16,6 +16,7 @@ from canair.ecus.pid_status import is_shipped, is_snapshot_only, pid_status
 from canair.ecus.shipping import param_ships
 from canair.interop.autopid.send_to import topic_problem
 from canair.uds.memory import is_memory_request
+from canair.variants.revisions import owner_revisions
 
 
 def _load(fpath: Path) -> dict:
@@ -41,7 +42,6 @@ def _never_ships(pid_def: dict, param: dict) -> str | None:
 
 def send_to_findings(file_paths: list[Path]) -> tuple[list[str], list[str]]:
     """Return ``(errors, warnings)`` for every ``send_to`` in ``file_paths``."""
-    from canair.variants.revisions import owner_revisions
 
     errors: list[str] = []
     warnings: list[str] = []

@@ -5,10 +5,27 @@ import json
 
 from jsonschema import Draft202012Validator
 
+from canair.actions import ActionError, parse_actions_doc, registry_issues
+from canair.actions.plan import action_policy, plan_requests
+from canair.broadcast import load_signals, signals_dir
 from canair.core import yaml_io
 from canair.core.json_schema import schema_errors
 from canair.core.paths import CAN_BUSES_SCHEMA_FILE, GROUPS_SCHEMA_FILE, STATES_SCHEMA_FILE
+from canair.ecus.names import build_canonical_name_index, canonical_ecu_name_safe
+from canair.ecus.pids import build_ecu_index, load_pids, load_raw_pids
 from canair.profile.model import Profile
+from canair.query import QueryError, parse_selector
+from canair.safety.blocklist import SafetyBlocked, SessionPolicy
+from canair.states.implies import (
+    exclusion_conflicts,
+    implication_cycle,
+    parse_excludes,
+    parse_implies,
+)
+from canair.states.predicates import StatePredicateError, StateRule, compile_predicate
+from canair.states.refs import check_references_on_every_car
+from canair.states.tokens import ALL_STATE
+from canair.validation.signals import check_signals_doc
 
 from ._common import CAN_INDEX_SCHEMA_FILE, duplicate_key_errors
 from .report import FileReport, SignalsReport
@@ -31,8 +48,6 @@ def _state_reference_errors(
     can't be loaded — mirroring :func:`check_groups`' tolerance, since a profile with a
     broken ``ecus/`` already fails ``validate pids`` loudly.
     """
-    from canair.ecus.pids import load_raw_pids
-    from canair.states.refs import check_references_on_every_car
 
     if not predicates:
         return ([], None)
@@ -58,14 +73,6 @@ def _state_relation_errors(
     meaningless, and a pair declared both implied and exclusive makes every
     session carrying it look self-contradictory.
     """
-    from canair.states.implies import (
-        exclusion_conflicts,
-        implication_cycle,
-        parse_excludes,
-        parse_implies,
-    )
-    from canair.states.predicates import StateRule
-    from canair.states.tokens import ALL_STATE
 
     errors: list[str] = []
     targets_by_state: dict[str, dict[str, tuple[str, ...]]] = {}
@@ -117,7 +124,6 @@ def _state_relation_errors(
 
 def check_states(profile: Profile) -> FileReport:
     """Check the profile's optional vehicle_states.yaml (schema, predicates and relations)."""
-    from canair.states.predicates import StatePredicateError, compile_predicate
 
     path = profile.states_file
     name = path.name
@@ -180,9 +186,6 @@ def check_states(profile: Profile) -> FileReport:
 
 def check_groups(profile: Profile) -> FileReport:
     """Check the profile's optional groups.yaml (schema, names, selectors and member ECUs)."""
-    from canair.ecus.names import build_canonical_name_index, canonical_ecu_name_safe
-    from canair.ecus.pids import build_ecu_index, load_pids
-    from canair.query import QueryError, parse_selector
 
     path = profile.groups_file
     if not path.exists():
@@ -241,10 +244,6 @@ def check_actions(profile: Profile) -> FileReport:
     resolve against the ECU registry, and a request the command blocklist refuses
     must be granted by one of the profile's quirks, or the action could never run.
     """
-    from canair.actions import ActionError, parse_actions_doc, registry_issues
-    from canair.actions.plan import action_policy, plan_requests
-    from canair.ecus.pids import load_pids
-    from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 
     path = profile.actions_file
     if not path.exists():
@@ -301,8 +300,6 @@ def check_signals(profile: Profile) -> SignalsReport:
     keyed by arbitration ID, each signal a DBC-compatible linear model, checked against
     signals_schema.yaml plus the frame-layout rules (:func:`check_signals_doc`).
     """
-    from canair.broadcast import load_signals, signals_dir
-    from canair.validation.signals import check_signals_doc
 
     if not signals_dir(profile=profile).is_dir():
         return SignalsReport(skipped="No signals/ (optional) — skipping.")

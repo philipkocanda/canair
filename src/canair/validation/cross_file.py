@@ -6,8 +6,14 @@ import yaml
 
 from canair.core import yaml_io
 from canair.ecus.pid_status import pid_ships
+from canair.ecus.pids import load_pids_dir, load_raw_pids
 from canair.ecus.sensitivity import param_sensitive
 from canair.ecus.shipping import param_ships
+from canair.variants import VariantsError, load_variants
+from canair.variants.revisions import owner_revisions, variant_reference_errors
+
+from .addressing import addressing_warnings
+from .init_eeprom import init_eeprom_warnings
 
 
 def _disjoint(ecu_a: str, revs_a: frozenset[str], ecu_b: str, revs_b: frozenset[str]) -> bool:
@@ -17,9 +23,6 @@ def _disjoint(ecu_a: str, revs_a: frozenset[str], ecu_b: str, revs_b: frozenset[
 
 def variants_yaml_errors(prof) -> list[str]:
     """Every ECU or revision a variant's ``revisions:`` names that ecus/ lacks."""
-    from canair.ecus.pids import load_raw_pids
-    from canair.variants import VariantsError, load_variants
-    from canair.variants.revisions import variant_reference_errors
 
     try:
         variants = load_variants(prof)
@@ -34,10 +37,6 @@ def elm327_warnings(ecus_dir: Path) -> list[str]:
 
     Addressing (:mod:`.addressing`) and EEPROM wear (:mod:`.init_eeprom`).
     """
-    from canair.ecus.pids import load_pids_dir
-
-    from .addressing import addressing_warnings
-    from .init_eeprom import init_eeprom_warnings
 
     try:
         pids_data = load_pids_dir(ecus_dir)
@@ -86,7 +85,6 @@ def duplicate_param_errors(file_paths: list[Path]) -> list[str]:
     their names must be globally unique. Catching it here means CI/`validate` fails before
     `wican autopid write` does. See ``canair.interop.autopid.profile.generate_profile``.
     """
-    from canair.variants.revisions import owner_revisions
 
     errors: list[str] = []
     # name -> every (ECU, PID, revisions) that ships it

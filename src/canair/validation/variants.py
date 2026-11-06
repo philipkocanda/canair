@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from canair.core import yaml_io
+from canair.ecus.pids import load_raw_pids
 from canair.profile.model import Profile
+from canair.variants import check_variants_doc, load_variants
+from canair.variants.revisions import variant_reference_errors
 
 from ._common import duplicate_key_errors
 from .report import FileReport
@@ -11,9 +14,6 @@ from .report import FileReport
 
 def _reference_errors(profile: Profile) -> list[str]:
     """Every ECU or revision a variant's ``revisions:`` names that ecus/ lacks."""
-    from canair.ecus.pids import load_raw_pids
-    from canair.variants import load_variants
-    from canair.variants.revisions import variant_reference_errors
 
     try:
         ecus = load_raw_pids(profile).get("ecus") or {}
@@ -25,7 +25,6 @@ def _reference_errors(profile: Profile) -> list[str]:
 def check_variants(profile: Profile) -> FileReport:
     """Check ``variants.yaml``: structure, IDs, every metadata field, and that every ECU
     revision it names exists."""
-    from canair.variants import check_variants_doc
 
     path = profile.variants_file
     if not path.exists():

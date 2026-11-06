@@ -13,6 +13,7 @@ from canair.analysis.misfiled import Misfile, find_misfiled
 from canair.captures.payload_corpus import PayloadCorpus, load_payload_corpus
 from canair.ecus.registry import build_rx_index, load_ecus, rx_for_tx
 from canair.profile.model import Profile
+from canair.uds.addressing import DEFAULT_RX_OFFSET
 
 from .report import CaptureWarning
 
@@ -46,7 +47,6 @@ def legacy_rx_aliases(ecus, *, profile: Profile) -> dict[int, int]:
     the ECU with itself. An address that is some *other* ECU's real response address is
     never folded — that would hide exactly the misfile this check exists for.
     """
-    from canair.uds.addressing import DEFAULT_RX_OFFSET
 
     current = {rx_for_tx(tx, ecus, profile=profile) for tx in ecus}
     out: dict[int, int] = {}

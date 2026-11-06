@@ -5,6 +5,7 @@ from typing import Any
 
 from canair.core import yaml_io
 from canair.core.paths import SCHEMA_DIR
+from canair.states.tokens import unquoted_boolean_error
 
 SCHEMA_FILE = SCHEMA_DIR / "pids_schema.yaml"
 CAPTURES_SCHEMA_FILE = SCHEMA_DIR / "captures_schema.json"
@@ -53,7 +54,6 @@ def validate_state_list(value, label: str, field: str, errors: list, allowed: se
     if not isinstance(value, list):
         errors.append(f"{label}: {field} must be a list")
         return
-    from canair.states.tokens import unquoted_boolean_error
 
     if msg := unquoted_boolean_error(f"{label}: {field}", value):
         errors.append(msg)

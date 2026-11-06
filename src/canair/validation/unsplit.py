@@ -10,6 +10,7 @@ from pathlib import Path
 
 from canair.analysis.unsplit_batches import UnsplitBatch, find_unsplit_batches
 from canair.captures.payload_corpus import PayloadCorpus, load_payload_corpus
+from canair.ecus.registry import build_rx_index
 from canair.profile.model import Profile
 
 from .report import CaptureWarning
@@ -35,8 +36,6 @@ def unsplit_batch_warnings(
     ``names`` and ``corpus`` work as in :func:`.misfiled.misfile_warnings`.
     """
     if names is None:
-        from canair.ecus.registry import build_rx_index
-
         names = build_rx_index(profile=profile)
     if corpus is None:
         corpus = load_payload_corpus(files)

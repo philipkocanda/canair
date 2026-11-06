@@ -7,6 +7,7 @@ The checks themselves are in the sibling modules: :mod:`.ecu_file` (one ECU file
 from dataclasses import dataclass
 from pathlib import Path
 
+from canair.ecus.files import iter_ecu_files
 from canair.profile.model import Profile
 
 from .cross_file import (
@@ -79,7 +80,6 @@ def check_pids(files: list[Path] | None, profile: Profile) -> PidsReport:
     The profile-wide checks are ``profile.yaml``, the names of ECUs and signals across files, and
     the variants and ELM327 settings. They run only when no file subset is given.
     """
-    from canair.ecus.files import iter_ecu_files
 
     prof = profile
     if files:

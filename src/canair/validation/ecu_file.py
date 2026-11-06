@@ -7,7 +7,11 @@ import yaml
 
 from canair.core import yaml_io
 from canair.core.id_ranges import parse_id_range
-from canair.variants import effective_meta
+from canair.ecus.can_buses import allowed_can_buses
+from canair.profile.model import profile_for_path
+from canair.states.vocabulary import allowed_states
+from canair.uds.addressing import is_extended, resolve_mode
+from canair.variants import VariantsError, effective_meta, load_variants
 from canair.variants.revisions import check_ecu as check_revisions
 
 from ._common import duplicate_key_errors, is_int, validate_state_list
@@ -53,7 +57,6 @@ def _validate_can_bus_list(value, label: str, errors: list, allowed: set) -> Non
 
 def _allowed_can_buses(profile) -> set:
     """The profile's declared CAN bus vocabulary (empty when undeclared)."""
-    from canair.ecus.can_buses import allowed_can_buses
 
     return allowed_can_buses(profile)
 
@@ -90,14 +93,12 @@ def _profile_for_ecu_file(path: Path):
     independent of the globally-active profile. A bare test/tmp file (no
     ``vehicle_states.yaml`` at that root) simply yields the base ``POWER_STATES``.
     """
-    from canair.profile.model import profile_for_path
 
     return profile_for_path(path)
 
 
 def _declared_variant_ids(profile) -> list[str] | None:
     """The profile's variant IDs, or None when its variants.yaml can't be read."""
-    from canair.variants import VariantsError, load_variants
 
     try:
         return list(load_variants(profile))
@@ -157,7 +158,6 @@ def validate_ecu_file(
     Returns (errors, warnings, stats). The per-section validation is delegated to
     the ``_validate_*`` helpers below; this is the file-level orchestrator.
     """
-    from canair.states.vocabulary import allowed_states
 
     if profile is None:
         profile = _profile_for_ecu_file(path)
@@ -263,12 +263,10 @@ def _validate_ecu_entry(
     # wake: how to rouse a fast-sleeping ECU before reads (canair.ecus.wake).
     _validate_wake(ecu_def.get("wake"), label, fields, errors)
 
-    # Resolve this ECU's addressing mode (per-ECU addressing.mode → profile → 11-bit)
-    # to pick the valid arbitration-id width: 11-bit (0x7FF) vs 29-bit (0x1FFFFFFF).
-    from canair.uds.addressing import is_extended, resolve_mode
-
     validate_ecu_addressing(ecu_def.get("addressing"), label, errors)
     validate_ecu_isotp(ecu_def.get("isotp"), label, errors)
+    # Resolve this ECU's addressing mode (per-ECU addressing.mode → profile → 11-bit)
+    # to pick the valid arbitration-id width: 11-bit (0x7FF) vs 29-bit (0x1FFFFFFF).
     mode = resolve_mode(profile_meta, ecu_def)
     max_id = 0x1FFFFFFF if is_extended(mode) else 0x7FF
     width = "0x00000000-0x1FFFFFFF (29-bit)" if is_extended(mode) else "0x000-0x7FF"
