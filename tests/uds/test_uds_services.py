@@ -95,8 +95,6 @@ class TestKwpServices:
         from canair.safety.blocklist import BLOCKED_UDS_SERVICES
 
         for sid in BLOCKED_UDS_SERVICES:
-            if sid in (0x28, 0x87):  # UDS-only services the registry does not enumerate
-                continue
             assert service_info(sid) is not None, f"0x{sid:02X} blocked but unregistered"
 
 

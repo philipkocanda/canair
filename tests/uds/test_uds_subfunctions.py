@@ -9,11 +9,15 @@ import pytest
 from canair.uds.subfunctions import (
     SUBFUNCTION_NAMES,
     DtcReportType,
+    DtcSettingType,
     IoControlParameter,
     KwpIoControlParameter,
     KwpSessionType,
+    PeriodicTransmissionMode,
+    ResponseOnEventType,
     RoutineControlType,
     SessionType,
+    TimingParameterAccessType,
     format_session_type,
     parse_session_type,
     subfunction_name,
@@ -26,6 +30,10 @@ SERVICE_OF: dict[type[IntEnum], int] = {
     IoControlParameter: 0x2F,
     KwpIoControlParameter: 0x30,
     RoutineControlType: 0x31,
+    PeriodicTransmissionMode: 0x2A,
+    TimingParameterAccessType: 0x83,
+    DtcSettingType: 0x85,
+    ResponseOnEventType: 0x86,
 }
 
 

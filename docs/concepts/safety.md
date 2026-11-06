@@ -35,12 +35,33 @@ will not:
   (`38`, `39`; reading its results with `3A` stays allowed).
 - Reset an ECU (`11`), stop its normal CAN traffic (`28`) or change its bit rate
   (`87`). Each can take a system off the bus while the car is in use.
+- Send a request it cannot judge or that changes what the ECU lets through:
+  SecuredDataTransmission (`84`) carries another request inside it, Authentication
+  (`29`) changes the tester's access rights, and DynamicallyDefineDataIdentifier
+  (`2C`) defines data identifiers in the ECU (by memory address it would read memory
+  past the `23` rules).
+- Change how the ECU reports and times itself, in these services only for the
+  requests that change state:
+    - ControlDTCSetting off (`85 02`): the ECU stops recording DTCs until DTC
+      setting is on again or the session ends. `85 01` (on) stays allowed.
+    - AccessTimingParameter writes (`83 02`, `83 04`). The reads (`83 01`, `83 03`)
+      stay allowed.
+    - Starting periodic or event-driven replies (ReadDataByPeriodicIdentifier `2A 01`–`2A 03`,
+      ResponseOnEvent `86 01`–`86 07`). The ECU then sends replies on its own, which
+      can desync the link. Stopping them (`2A 04`, `86 00`) and listing the active
+      events (`86 04`) stay allowed.
 - Start or stop a **reprogramming routine** (`31 01`/`31 02`): ISO's eraseMemory
-  (`FF00`) and checkProgrammingDependencies (`FF01`), plus Hyundai/Kia's firmware
+  (`FF00`), checkProgrammingDependencies (`FF01`) and the 2006 edition's
+  eraseMirrorMemoryDTCs (`FF02`), plus Hyundai/Kia's firmware
   bank swap, delta patch, update-condition and features-on-demand routines
   (`0211`–`0213`, `0220`, `0301`, `0410`–`0440`). Reading a routine's results
   (`31 03`) stays allowed. The Hyundai/Kia ids are manufacturer-range values, so on
   another make they may be unrelated routines; the refusal is then only a prompt.
+- Start or stop a **safety-system routine** (`31 01`/`31 02` with `E200`–`E2FF`).
+  ISO 14229-1 reserves these ids for ISO 26021, which deploys or disables airbags
+  and seatbelt pretensioners when a car is scrapped. A wrong request can injure a
+  person, so `--unsafe` does not lift this refusal. A KWP2000 ECU is not judged by
+  this rule, because there `31` takes a one-byte local identifier.
 
 Session requests are judged by the protocol of the ECU they go to (its
 `identity.id_protocol`), because the same byte means different things: `10 82`
@@ -65,8 +86,8 @@ a programming or safety-system session. `canair validate` checks
 every actuator's `session_mode` against the same rule. A refused request stops
 the command with `error: …` (exit code 2); `--unsafe` turns the refusal into a
 prompt you must answer `YES`: anything else ends the run (exit code 1), and with no
-terminal on stdin it is refused (exit code 2). The same prompt covers every refusal above,
-but not the broadcast rule below.
+terminal on stdin it is refused (exit code 2). The same prompt covers every refusal above
+except the safety-system routines, and it does not cover the broadcast rule below.
 
 Anything that is neither hex bytes nor an AT command is refused too, because the
 blocklist cannot tell what it sends: an STN adapter's `STPX`, for one, puts any

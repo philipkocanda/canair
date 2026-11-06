@@ -15,6 +15,7 @@
     "canair.live.actuate.iocontrol": 518,
     "canair.live.actuate.routines": 521,
     "canair.render.formatting": 617,
+    "canair.safety.blocklist": 618,
     "canair.transport.elm327.terminal": 835,
     "canair.uds.byteindex": 541,
     "canair.variants.revisions": 745,

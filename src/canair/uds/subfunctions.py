@@ -107,6 +107,51 @@ class RoutineControlType(IntEnum):
     REQUEST_ROUTINE_RESULTS = 0x03
 
 
+class PeriodicTransmissionMode(IntEnum):
+    """ReadDataByPeriodicIdentifier (``0x2A``) transmissionMode, ISO 14229-1.
+
+    Not a sub-function: the byte has no suppress-positive-response bit.
+    """
+
+    SEND_AT_SLOW_RATE = 0x01
+    SEND_AT_MEDIUM_RATE = 0x02
+    SEND_AT_FAST_RATE = 0x03
+    STOP_SENDING = 0x04
+
+
+class TimingParameterAccessType(IntEnum):
+    """AccessTimingParameter (``0x83``) timingParameterAccessType, ISO 14229-1."""
+
+    READ_EXTENDED_TIMING_PARAMETER_SET = 0x01
+    SET_TIMING_PARAMETERS_TO_DEFAULT_VALUES = 0x02
+    READ_CURRENTLY_ACTIVE_TIMING_PARAMETERS = 0x03
+    SET_TIMING_PARAMETERS_TO_GIVEN_VALUES = 0x04
+
+
+class DtcSettingType(IntEnum):
+    """ControlDTCSetting (``0x85``) DTCSettingType, ISO 14229-1 (ISO 14230-3 uses the same)."""
+
+    ON = 0x01
+    OFF = 0x02
+
+
+class ResponseOnEventType(IntEnum):
+    """ResponseOnEvent (``0x86``) eventType, ISO 14229-1.
+
+    Bit 6 of the byte is storageState (store the event across a power cycle), so a value
+    with it set is a different request.
+    """
+
+    STOP_RESPONSE_ON_EVENT = 0x00
+    ON_DTC_STATUS_CHANGE = 0x01
+    ON_TIMER_INTERRUPT = 0x02
+    ON_CHANGE_OF_DATA_IDENTIFIER = 0x03
+    REPORT_ACTIVATED_EVENTS = 0x04
+    START_RESPONSE_ON_EVENT = 0x05
+    CLEAR_RESPONSE_ON_EVENT = 0x06
+    ON_COMPARISON_OF_VALUES = 0x07
+
+
 # Named values of each service's sub-function / control byte, keyed by **request**
 # SID. One home for these enums: they were previously re-declared per consumer
 # (a display table in ``formatting.py``, scan constants in ``live/*_scan.py``),
@@ -162,6 +207,13 @@ SUBFUNCTION_NAMES: dict[int, dict[int, str]] = {
         0x04: "enableRxAndDisableTxWithEnhancedAddressInformation",
         0x05: "enableRxAndTxWithEnhancedAddressInformation",
     },
+    # ReadDataByPeriodicIdentifier — transmissionMode.
+    0x2A: {
+        0x01: "sendAtSlowRate",
+        0x02: "sendAtMediumRate",
+        0x03: "sendAtFastRate",
+        0x04: "stopSending",
+    },
     # DynamicallyDefineDataIdentifier — definitionType.
     0x2C: {
         0x01: "defineByIdentifier",
@@ -182,8 +234,26 @@ SUBFUNCTION_NAMES: dict[int, dict[int, str]] = {
         0x02: "stopRoutine",
         0x03: "requestRoutineResults",
     },
+    # AccessTimingParameter — timingParameterAccessType.
+    0x83: {
+        0x01: "readExtendedTimingParameterSet",
+        0x02: "setTimingParametersToDefaultValues",
+        0x03: "readCurrentlyActiveTimingParameters",
+        0x04: "setTimingParametersToGivenValues",
+    },
     # ControlDTCSetting — DTCSettingType.
     0x85: {0x01: "on", 0x02: "off"},
+    # ResponseOnEvent — eventType, without the storageState bit (0x40).
+    0x86: {
+        0x00: "stopResponseOnEvent",
+        0x01: "onDTCStatusChange",
+        0x02: "onTimerInterrupt",
+        0x03: "onChangeOfDataIdentifier",
+        0x04: "reportActivatedEvents",
+        0x05: "startResponseOnEvent",
+        0x06: "clearResponseOnEvent",
+        0x07: "onComparisonOfValues",
+    },
 }
 # KWP2000 InputOutputControlByLocalIdentifier's control parameter, per SSF 14230-3. It shares
 # returnControlToECU with UDS 0x2F, and no other value: SSF's 0x01 reportCurrentState is UDS

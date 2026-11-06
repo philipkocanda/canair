@@ -73,3 +73,21 @@ class TestEnforceCommandSafety:
         monkeypatch.setattr("builtins.input", _never)
         with pytest.raises(SafetyBlocked, match="functionally"):
             await enforce_command_safety("14FFFFFF", unsafe=True, tx_id=0x7DF)
+
+    @pytest.mark.asyncio
+    async def test_unsafe_cannot_send_a_safety_system_routine(self, monkeypatch):
+        """Pyrotechnic deployment (RoutineControl E200-E2FF): --unsafe does not even prompt."""
+        _terminal(monkeypatch, "YES\n")
+        monkeypatch.setattr("canair.safety.blocklist.typed_confirm", _never_asked)
+        with pytest.raises(SafetyBlocked, match="safety-system routine") as raised:
+            await enforce_command_safety("3101E201", unsafe=True)
+        assert not isinstance(raised.value, CommandDeclined)
+
+    @pytest.mark.asyncio
+    async def test_unsafe_still_asks_for_control_dtc_setting_off(self, monkeypatch):
+        _terminal(monkeypatch, "YES\n")
+        await enforce_command_safety("8502", unsafe=True)
+
+
+def _never_asked(*_args):
+    raise AssertionError("prompted for a request --unsafe may not lift")

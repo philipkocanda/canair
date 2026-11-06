@@ -8,7 +8,9 @@ from canair.safety.blocklist import (
     SessionPolicy,
     check_command_safety,
     check_session_mode,
+    safety_system_block,
     session_mode_block,
+    unliftable_block,
 )
 from canair.uds.protocol import KWP, UDS, UNKNOWN, classify_protocol
 
@@ -236,7 +238,7 @@ class TestBroadcastRequests:
     def test_a_state_change_cannot_be_broadcast(self, tx, cmd):
         assert "may not be sent functionally" in check_command_safety(cmd, SessionPolicy(), tx)
 
-    @pytest.mark.parametrize("cmd", ["14FFFFFF", "04", "8502", "1003"])
+    @pytest.mark.parametrize("cmd", ["14FFFFFF", "04", "8501", "1003"])
     def test_the_same_request_sent_physically_is_not_refused(self, cmd):
         assert check_command_safety(cmd, SessionPolicy(), 0x7E0) is None
 
@@ -270,16 +272,99 @@ class TestBroadcastRequests:
         "38000100",  # KWP2000 StartRoutineByAddress (runs code at a memory address)
         "39000100",  # KWP2000 StopRoutineByAddress
         "870101",  # LinkControl
+        "2901",  # Authentication: verifyCertificateUnidirectional
+        "2C01F300F19001000002",  # DynamicallyDefineDataIdentifier: defineByIdentifier
+        "2C03F300",  # DynamicallyDefineDataIdentifier: clear
+        "84000000",  # SecuredDataTransmission: wraps a request the guard cannot read
     ],
 )
 def test_state_changing_services_blocked(cmd):
     assert check_command_safety(cmd) is not None
 
 
-@pytest.mark.parametrize("cmd", ["3101FF00", "3181FF00", "3102FF01", "31010212", "31010411"])
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "8502",  # ControlDTCSetting off
+        "8582",  # ... with the suppress-positive-response bit
+        "8503",  # an unknown DTCSettingType
+        "85",  # no sub-function: the guard cannot tell what it does
+        "8302",  # AccessTimingParameter: setTimingParametersToDefaultValues
+        "830400320032",  # AccessTimingParameter: setTimingParametersToGivenValues
+        "2A01F2",  # ReadDataByPeriodicIdentifier: sendAtSlowRate
+        "2A03F2",  # ... sendAtFastRate
+        "8601",  # ResponseOnEvent: onDTCStatusChange
+        "8605",  # ResponseOnEvent: startResponseOnEvent
+        "8644",  # reportActivatedEvents with the storageState bit is another request
+    ],
+)
+def test_guarded_services_refuse_what_changes_state(cmd):
+    blocked = check_command_safety(cmd, POLICY, UDS_ECU)
+    assert blocked is not None and "--unsafe" in blocked
+
+
+@pytest.mark.parametrize(
+    "cmd",
+    [
+        "8501",  # ControlDTCSetting on: restores the default
+        "8581",  # ... with the suppress-positive-response bit
+        "8301",  # AccessTimingParameter: readExtendedTimingParameterSet
+        "8383",  # readCurrentlyActiveTimingParameters, suppress bit
+        "2A04F2",  # ReadDataByPeriodicIdentifier: stopSending
+        "2A04",  # stopSending for every periodic identifier
+        "8600",  # ResponseOnEvent: stopResponseOnEvent
+        "8604",  # ResponseOnEvent: reportActivatedEvents
+        "85011",  # an ELM327 request with its frame-count digit
+    ],
+)
+def test_guarded_services_pass_what_reads_or_undoes(cmd):
+    assert check_command_safety(cmd, POLICY, UDS_ECU) is None
+
+
+def test_periodic_transmission_mode_has_no_suppress_bit():
+    # 0x84 is not stopSending with the suppress bit: transmissionMode is not a sub-function.
+    assert check_command_safety("2A84F2", POLICY, UDS_ECU) is not None
+
+
+def test_guarded_service_rule_holds_on_kwp2000():
+    # ISO 14230-3 ControlDTCSetting uses the same DTCSettingType values.
+    assert check_command_safety("8502", POLICY, KWP_ECU) is not None
+    assert check_command_safety("8501", POLICY, KWP_ECU) is None
+
+
+@pytest.mark.parametrize(
+    "cmd", ["3101FF00", "3181FF00", "3102FF01", "31010212", "31010411", "3101FF02"]
+)
 def test_reprogramming_routines_blocked(cmd):
     blocked = check_command_safety(cmd, POLICY, UDS_ECU)
     assert blocked is not None and "--unsafe" in blocked
+
+
+class TestSafetySystemRoutines:
+    """ISO 14229-1 E200-E2FF: pyrotechnic deployment, refused with or without --unsafe."""
+
+    @pytest.mark.parametrize("cmd", ["3101E200", "3101E201", "3181E201", "3102E2FF", "3101E2420A"])
+    @pytest.mark.parametrize("tx", [UDS_ECU, 0x7FF])  # UDS, and unknown (stricter)
+    def test_start_and_stop_are_refused(self, cmd, tx):
+        blocked = check_command_safety(cmd, POLICY, tx)
+        assert blocked is not None and "safety-system routine" in blocked
+        assert safety_system_block(cmd, POLICY, tx) == blocked
+        assert unliftable_block(cmd, POLICY, tx) == blocked
+
+    def test_the_elm327_frame_count_digit_does_not_hide_it(self):
+        assert safety_system_block("3101E2011", POLICY, UDS_ECU) is not None
+
+    @pytest.mark.parametrize("cmd", ["3103E201", "3101E1FF", "3101E300"])
+    def test_results_and_neighbouring_ids_are_not_safety_routines(self, cmd):
+        assert safety_system_block(cmd, POLICY, UDS_ECU) is None
+
+    def test_a_kwp2000_local_identifier_is_not_judged(self):
+        # KWP2000 31 01 E201 starts local routine 0x01 with option bytes E2 01.
+        assert safety_system_block("3101E201", POLICY, KWP_ECU) is None
+        assert check_command_safety("3101E201", POLICY, KWP_ECU) is None
+
+    def test_an_ordinary_blocked_routine_stays_liftable(self):
+        assert unliftable_block("3101FF00", POLICY, UDS_ECU) is None
 
 
 def test_kwp_routine_results_by_address_is_a_read():

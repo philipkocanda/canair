@@ -79,6 +79,7 @@ SERVICES: tuple[ServiceInfo, ...] = (
     # calls them ...ByCommonIdentifier (a 2-byte id); one entry carries the UDS name.
     ServiceInfo(0x22, "ReadDataByIdentifier", BOTH, id_width=2),
     ServiceInfo(0x23, "ReadMemoryByAddress", BOTH),
+    ServiceInfo(0x24, "ReadScalingDataByIdentifier", UDS, id_width=2),
     # ISO 14230-3 lets 21/22/23 take a transmissionMode that makes the ECU repeat its reply;
     # 0x26 sets the repeat rates and 0x25 stops the repetition. SSF 14230-3 drops all three for
     # a periodicTransmissions session (10 82), which the Ioniq BMS, VCU, MCU and OBC refuse.
@@ -86,6 +87,10 @@ SERVICES: tuple[ServiceInfo, ...] = (
     ServiceInfo(0x26, "SetDataRates (KWP2000)", KWP2000),
     ServiceInfo(0x27, "SecurityAccess", BOTH),
     ServiceInfo(0x28, "CommunicationControl", UDS),
+    # A certificate exchange (ISO 14229-1:2020) that changes the tester's access rights.
+    ServiceInfo(0x29, "Authentication", UDS, actuates=True),
+    # The ECU then sends 0x6A replies on its own, at the requested rate, until told to stop.
+    ServiceInfo(0x2A, "ReadDataByPeriodicIdentifier", UDS),
     # KWP2000 names this DynamicallyDefineLocalIdentifier, with a 1-byte target id rather than
     # UDS's sub-function + 2-byte DID, so the two share a SID but not a request layout.
     ServiceInfo(0x2C, "DynamicallyDefineDataIdentifier", BOTH),
@@ -141,7 +146,13 @@ SERVICES: tuple[ServiceInfo, ...] = (
     ServiceInfo(0x3D, "WriteMemoryByAddress", BOTH, actuates=True),
     ServiceInfo(0x3E, "TesterPresent", BOTH),
     ServiceInfo(0x80, "EscapeCode (KWP2000)", KWP2000),
-    ServiceInfo(0x85, "ControlDTCSetting", UDS),
+    ServiceInfo(0x83, "AccessTimingParameter", BOTH),
+    # Carries another request inside it, so it can do whatever that request does.
+    ServiceInfo(0x84, "SecuredDataTransmission", UDS, actuates=True),
+    ServiceInfo(0x85, "ControlDTCSetting", BOTH),
+    # The ECU then sends replies on its own whenever the configured event fires.
+    ServiceInfo(0x86, "ResponseOnEvent", BOTH),
+    ServiceInfo(0x87, "LinkControl", UDS, actuates=True),
 )
 
 _BY_SID: dict[int, ServiceInfo] = {s.sid: s for s in SERVICES}
@@ -175,10 +186,13 @@ KWP_STOP_DIAGNOSTIC_SESSION: Final = 0x20
 KWP_READ_DATA_BY_LOCAL_IDENTIFIER: Final = 0x21
 READ_DATA_BY_IDENTIFIER: Final = 0x22
 READ_MEMORY_BY_ADDRESS: Final = 0x23
+READ_SCALING_DATA_BY_IDENTIFIER: Final = 0x24
 KWP_STOP_REPEATED_DATA_TRANSMISSION: Final = 0x25
 KWP_SET_DATA_RATES: Final = 0x26
 SECURITY_ACCESS: Final = 0x27
 COMMUNICATION_CONTROL: Final = 0x28
+AUTHENTICATION: Final = 0x29
+READ_DATA_BY_PERIODIC_IDENTIFIER: Final = 0x2A
 DYNAMICALLY_DEFINE_DATA_IDENTIFIER: Final = 0x2C
 WRITE_DATA_BY_IDENTIFIER: Final = 0x2E
 INPUT_OUTPUT_CONTROL_BY_IDENTIFIER: Final = 0x2F
@@ -199,7 +213,11 @@ KWP_WRITE_DATA_BY_LOCAL_IDENTIFIER: Final = 0x3B
 WRITE_MEMORY_BY_ADDRESS: Final = 0x3D
 TESTER_PRESENT: Final = 0x3E
 KWP_ESCAPE_CODE: Final = 0x80
+ACCESS_TIMING_PARAMETER: Final = 0x83
+SECURED_DATA_TRANSMISSION: Final = 0x84
 CONTROL_DTC_SETTING: Final = 0x85
+RESPONSE_ON_EVENT: Final = 0x86
+LINK_CONTROL: Final = 0x87
 
 #: The request SIDs of the diagnostic services, 0x10-0x3E (ISO 14229-1; KWP2000 adds 0x80+).
 REQUEST_SID_RANGE: Final = range(0x10, 0x3F)
