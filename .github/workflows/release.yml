@@ -40,7 +40,7 @@ jobs:
       # created with GITHUB_TOKEN do not trigger workflows, so CI would never run
       # on a release PR — and the default branch requires the `test` check, which
       # would leave every release PR unmergeable except by admin bypass.
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
@@ -76,7 +76,7 @@ jobs:
 
       - name: Install uv
         if: steps.pr.outputs.branch != ''
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
 
