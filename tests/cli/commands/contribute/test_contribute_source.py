@@ -14,11 +14,12 @@ import json
 import subprocess
 from pathlib import Path
 
-from canair import contribute as C
 from canair.captures import io as capture_io
 from canair.cli.commands import contribute as cmd
-from canair.cli.commands.contribute import gates, pipeline, report, tidy
+from canair.cli.commands.contribute import gates, pipeline, report, submit, tidy
+from canair.contribute import git as C_git
 from canair.contribute import source as S
+from canair.contribute import workspace as C_workspace
 from canair.profile import Profile
 
 _ONE = {"sessions": [{"date": "2026-01-01", "captures": [{"time": "10:00", "pid": "2101"}]}]}
@@ -30,8 +31,8 @@ _TWO = {
 }
 
 
-def _ready() -> C.Preflight:
-    return C.Preflight(gh="gh", git="git", authenticated=True)
+def _ready() -> C_git.Preflight:
+    return C_git.Preflight(gh="gh", git="git", authenticated=True)
 
 
 def _git(repo, *args) -> str:
@@ -198,14 +199,15 @@ def _contributing(tmp_path, monkeypatch, *, pii: bool = False):
     if pii:
         (prof / "profile.yaml").write_text("car_model: owner me@example.com\ninit: ATSP6;\n")
 
-    ok = C.Step(cmd=["stub"], returncode=0, stdout="https://github.com/x/canair/pull/9\n")
+    ok = C_git.Step(cmd=["stub"], returncode=0, stdout="https://github.com/x/canair/pull/9\n")
     monkeypatch.setattr(pipeline, "active", lambda: Profile("testcar", prof))
     monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-    monkeypatch.setattr(C, "preflight", _ready)
-    monkeypatch.setattr(C, "workspace_dir", lambda: ws)
-    monkeypatch.setattr(C, "push_branch", lambda *a, **k: ok)
-    monkeypatch.setattr(C, "find_open_pr", lambda *a, **k: None)
-    monkeypatch.setattr(C, "create_pr", lambda *a, **k: ok)
+    monkeypatch.setattr(gates, "preflight", _ready)
+    for module in (gates, C_workspace):
+        monkeypatch.setattr(module, "workspace_dir", lambda: ws)
+    monkeypatch.setattr(submit, "push_branch", lambda *a, **k: ok)
+    monkeypatch.setattr(submit, "find_open_pr", lambda *a, **k: None)
+    monkeypatch.setattr(submit, "create_pr", lambda *a, **k: ok)
     return prof, ws
 
 
@@ -266,7 +268,7 @@ class TestAfterTheContribution:
 
         assert cmd.run(_args()) == report.OK
 
-        assert C.leftover_changes(_ready(), ws) == []
+        assert C_workspace.leftover_changes(_ready(), ws) == []
 
     def test_a_declined_gate_leaves_no_leftover(self, tmp_path, monkeypatch, capsys):
         # The PII gate refuses under --json without --yes after the copy was staged;
@@ -275,5 +277,5 @@ class TestAfterTheContribution:
 
         assert cmd.run(_args(yes=False)) == report.CANNOT
 
-        assert C.leftover_changes(_ready(), ws) == []
+        assert C_workspace.leftover_changes(_ready(), ws) == []
         assert "me@example.com" in (prof / "profile.yaml").read_text()

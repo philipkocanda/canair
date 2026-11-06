@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 from typing import Any
 
-from canair import contribute as C
+from canair.contribute.workspace import backup_dir
 from canair.core.prompt import confirm
 from canair.render import glyphs
 from canair.render.console import escape
@@ -36,7 +36,7 @@ def tidy_source(run_: Contribution) -> dict[str, Any] | None:
         "action": "kept",
         "backup": None,
     }
-    backup = C.backup_dir() / f"{datetime.now():%Y%m%d-%H%M%S}-source"
+    backup = backup_dir() / f"{datetime.now():%Y%m%d-%H%M%S}-source"
     choice = getattr(run_.args, "local_changes", None)
     if choice is None and not (rep.json_mode or rep.yes) and sys.stdin.isatty():
         rep.show_source_changes(changes, run_.profile.name, backup)

@@ -18,10 +18,11 @@ from pathlib import Path
 
 import pytest
 
-from canair import contribute as C
 from canair.captures import merge as captures_merge
 from canair.cli.commands import contribute as cmd
 from canair.cli.commands.contribute import gates, pipeline, report
+from canair.contribute import copy as C_copy
+from canair.contribute import git as C_git
 from canair.profile import Profile, resolve_profile
 
 
@@ -268,7 +269,9 @@ def _args(**kw):
 @pytest.fixture
 def no_gh(monkeypatch):
     monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-    monkeypatch.setattr(C, "preflight", lambda: C.Preflight(gh="gh", git="git", authenticated=True))
+    monkeypatch.setattr(
+        gates, "preflight", lambda: C_git.Preflight(gh="gh", git="git", authenticated=True)
+    )
 
 
 class TestContributeAnEditedSession:
@@ -278,7 +281,7 @@ class TestContributeAnEditedSession:
         _write(upstream / "2026-07-28.json", _session())
         src = _source(tmp_path / "src", _session(notes="corrected"))
         replaced: list = []
-        C.copy_profile(src, tmp_path / "ws", include_captures=True, replaced=replaced.append)
+        C_copy.copy_profile(src, tmp_path / "ws", include_captures=True, replaced=replaced.append)
         sessions = json.loads((upstream / "2026-07-28.json").read_text())["sessions"]
         assert sessions == [_session(notes="corrected")]
         [r] = replaced
@@ -322,7 +325,7 @@ class TestContributeAnEditedSession:
         (overlay / "captures").mkdir(parents=True)
         _write(overlay / "captures" / "2026-07-29.json", _session("mine", date="2026-07-29"))
         prof = Profile("testcar", base.root, (overlay,))
-        dest = C.copy_profile(prof, tmp_path / "ws", include_captures=True)
+        dest = C_copy.copy_profile(prof, tmp_path / "ws", include_captures=True)
         assert sorted(p.name for p in (dest / "captures").glob("*.json")) == ["2026-07-29.json"]
 
 
@@ -363,6 +366,6 @@ class TestContributeUnsplitBatches:
         root = tmp_path / "src"
         prof = _source(root, self._corpus(), bad)
         _write(root / "captures" / "2026-07-29.json", _session("new", date="2026-07-29"))
-        assert gates.unsplit_in_contribution(prof, C.preflight(), ws) == []
-        C.copy_profile(prof, ws, include_captures=True)
-        assert gates.unsplit_in_contribution(prof, C.preflight(), ws) == []
+        assert gates.unsplit_in_contribution(prof, C_git.preflight(), ws) == []
+        C_copy.copy_profile(prof, ws, include_captures=True)
+        assert gates.unsplit_in_contribution(prof, C_git.preflight(), ws) == []

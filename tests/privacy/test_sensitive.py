@@ -217,7 +217,7 @@ class TestStoredHistory:
 
 class TestNeverShared:
     def test_contribute_strips_the_staged_copy(self, prof, tmp_path):
-        from canair.contribute import copy_profile
+        from canair.contribute.copy import copy_profile
 
         _write_store(prof, [_cap("22F102", "62F102AABBCCDDEEFF"), _cap("22F101", "62F101")])
         warnings: list[str] = []

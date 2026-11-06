@@ -24,7 +24,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from canair import contribute as C
+from canair.contribute.git import Preflight, Step, _run, status_entries
+from canair.contribute.workspace import backup_leftovers
 from canair.profile import members_by_role
 
 _CAPTURE_MEMBER = members_by_role("evidence")[0].name
@@ -40,12 +41,12 @@ class SourceChanges:
     untracked: frozenset[str] = frozenset()  # the subset of ``held`` git does not track
 
 
-def checkout_of(pre: C.Preflight, profile_root: Path, profile_name: str) -> Path | None:
+def checkout_of(pre: Preflight, profile_root: Path, profile_name: str) -> Path | None:
     """The canair checkout ``profile_root`` sits in at ``profiles/<profile_name>``, or None."""
     assert pre.git
     if not profile_root.is_dir():
         return None
-    top = C._run([pre.git, "-C", str(profile_root), "rev-parse", "--show-toplevel"])
+    top = _run([pre.git, "-C", str(profile_root), "rev-parse", "--show-toplevel"])
     if not top.ok or not top.stdout.strip():
         return None
     checkout = Path(top.stdout.strip())
@@ -57,7 +58,7 @@ def checkout_of(pre: C.Preflight, profile_root: Path, profile_name: str) -> Path
 
 
 def find_changes(
-    pre: C.Preflight, profile_root: Path, profile_name: str, workspace: Path, ref: str = "HEAD"
+    pre: Preflight, profile_root: Path, profile_name: str, workspace: Path, ref: str = "HEAD"
 ) -> SourceChanges | None:
     """Sort the checkout's changes under the profile by whether ``workspace``'s ``ref`` holds them.
 
@@ -68,7 +69,7 @@ def find_changes(
     checkout = checkout_of(pre, profile_root, profile_name)
     if checkout is None or _same(checkout, workspace):
         return None
-    entries = C.status_entries(pre.git, checkout, f"profiles/{profile_name}")
+    entries = status_entries(pre.git, checkout, f"profiles/{profile_name}")
     if not entries:
         return None
     held: list[str] = []
@@ -85,7 +86,7 @@ def find_changes(
     return SourceChanges(checkout, held, not_held, frozenset(untracked))
 
 
-def discard(pre: C.Preflight, changes: SourceChanges, backup: Path) -> list[C.Step]:
+def discard(pre: Preflight, changes: SourceChanges, backup: Path) -> list[Step]:
     """Back up ``changes.held`` to ``backup``, then restore those paths to ``HEAD``.
 
     Returns the git steps that failed (empty on success). Untracked files are
@@ -94,16 +95,16 @@ def discard(pre: C.Preflight, changes: SourceChanges, backup: Path) -> list[C.St
     assert pre.git
     if not changes.held:
         return []
-    C.backup_leftovers(
+    backup_leftovers(
         changes.checkout,
         changes.held,
         backup,
         heading=f"Contributed changes discarded from {changes.checkout}",
     )
     tracked = [p for p in changes.held if p not in changes.untracked]
-    failed: list[C.Step] = []
+    failed: list[Step] = []
     if tracked:
-        step = C._run(
+        step = _run(
             [
                 pre.git,
                 "-C",
@@ -126,12 +127,12 @@ def discard(pre: C.Preflight, changes: SourceChanges, backup: Path) -> list[C.St
 def _held(git: str, checkout: Path, workspace: Path, ref: str, path: str) -> bool:
     """Whether ``workspace``'s ``ref`` holds the checkout's version of ``path``."""
     src = checkout / path
-    blob = C._run([git, "-C", str(workspace), "rev-parse", "--verify", "--quiet", f"{ref}:{path}"])
+    blob = _run([git, "-C", str(workspace), "rev-parse", "--verify", "--quiet", f"{ref}:{path}"])
     if not src.exists():
         return not blob.ok
     if not blob.ok or not src.is_file():
         return False
-    ours = C._run([git, "-C", str(workspace), "hash-object", f"--path={path}", str(src)])
+    ours = _run([git, "-C", str(workspace), "hash-object", f"--path={path}", str(src)])
     if ours.ok and ours.stdout.strip() == blob.stdout.strip():
         return True
     return _is_capture_log(path) and _capture_log_held(git, workspace, ref, path, src)
@@ -147,7 +148,7 @@ def _capture_log_held(git: str, workspace: Path, ref: str, path: str, src: Path)
     from canair.captures.io import load_capture_file, parse_capture_text
     from canair.captures.merge import overlay
 
-    theirs = C._run([git, "-C", str(workspace), "show", f"{ref}:{path}"])
+    theirs = _run([git, "-C", str(workspace), "show", f"{ref}:{path}"])
     if not theirs.ok:
         return False
     try:

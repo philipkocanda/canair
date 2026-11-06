@@ -1,9 +1,9 @@
 """Tests for `canair contribute` orchestration, reporting, and command flow.
 
-The git/gh calls go through the module-level ``contribute._run``; unit tests
-drive the orchestration with a fake runner (no network, no real GitHub). The
-command-level dry-run test uses a real throwaway git repo as ``--repo-dir`` so
-the branch/copy/commit path is exercised end-to-end without pushing. The gates
+The git/gh calls go through ``contribute.git._run``, which each module of the package binds for
+itself (``_patch_run`` fakes all of them). Unit tests drive the orchestration with a fake runner
+(no network, no real GitHub). The command-level dry-run test uses a real throwaway git repo as
+``--repo-dir`` so the branch/copy/commit path is exercised end-to-end without pushing. The gates
 report through :mod:`canair.cli.commands.contribute.report`, whose human/``--json``
 duality is covered directly by :class:`TestReporter`.
 """
@@ -18,15 +18,20 @@ from pathlib import Path
 
 import pytest
 
-from canair import contribute as C
 from canair.cli.commands import contribute as cmd
 from canair.cli.commands.contribute import gates, pipeline, report, state, submit
+from canair.contribute import checks as C_checks
+from canair.contribute import copy as C_copy
+from canair.contribute import git as C_git
+from canair.contribute import github as C_github
+from canair.contribute import workspace as C_workspace
+from canair.core.paths import GITHUB_REPO
 from canair.core.prompt import PromptUnavailable
 from canair.profile import Profile
 
 
 class FakeRunner:
-    """Records commands and returns programmed :class:`contribute.Step`s."""
+    """Records commands and returns programmed :class:`contribute.git.Step`s."""
 
     def __init__(self, responder):
         self.calls: list[list[str]] = []
@@ -35,11 +40,17 @@ class FakeRunner:
     def __call__(self, cmd_args, cwd=None, env=None):
         self.calls.append(cmd_args)
         rc, out, err = self._responder(cmd_args)
-        return C.Step(cmd=cmd_args, returncode=rc, stdout=out, stderr=err)
+        return C_git.Step(cmd=cmd_args, returncode=rc, stdout=out, stderr=err)
 
 
-def _ready() -> C.Preflight:
-    return C.Preflight(gh="gh", git="git", authenticated=True)
+def _patch_run(monkeypatch, runner) -> None:
+    """Fake the git and gh runner in every module that bound it for itself."""
+    for module in (C_git, C_checks, C_github, C_workspace):
+        monkeypatch.setattr(module, "_run", runner)
+
+
+def _ready() -> C_git.Preflight:
+    return C_git.Preflight(gh="gh", git="git", authenticated=True)
 
 
 class FakeConsole:
@@ -129,13 +140,13 @@ class TestReporter:
 
 class TestPreflight:
     def test_not_ready_without_gh(self):
-        assert not C.Preflight(gh=None, git="git", authenticated=True).ready
+        assert not C_git.Preflight(gh=None, git="git", authenticated=True).ready
 
     def test_ready(self):
         assert _ready().ready
 
     def test_gh_install_hint_mentions_gh_and_login(self):
-        hint = C.gh_install_hint()
+        hint = C_github.gh_install_hint()
         assert "gh auth login" in hint
         assert "cli/cli" in hint
 
@@ -150,9 +161,9 @@ class TestEnsureWorkspace:
             return 0, "", ""
 
         runner = FakeRunner(responder)
-        monkeypatch.setattr(C, "_run", runner)
-        steps, mode, ok = C.ensure_workspace(_ready(), ws)
-        assert ok and mode == C.MODE_DIRECT
+        _patch_run(monkeypatch, runner)
+        steps, mode, ok = C_workspace.ensure_workspace(_ready(), ws)
+        assert ok and mode == C_git.MODE_DIRECT
         assert steps
         # Must clone upstream directly, never fork.
         assert runner.calls[0][:3] == ["gh", "repo", "clone"] or any(
@@ -171,9 +182,9 @@ class TestEnsureWorkspace:
             return 0, "", ""
 
         runner = FakeRunner(responder)
-        monkeypatch.setattr(C, "_run", runner)
-        steps, mode, ok = C.ensure_workspace(_ready(), ws)
-        assert ok and mode == C.MODE_FORK
+        _patch_run(monkeypatch, runner)
+        steps, mode, ok = C_workspace.ensure_workspace(_ready(), ws)
+        assert ok and mode == C_git.MODE_FORK
         assert steps
         assert any(call[:3] == ["gh", "repo", "fork"] for call in runner.calls)
         assert not any(call[:3] == ["gh", "repo", "clone"] for call in runner.calls)
@@ -188,9 +199,9 @@ class TestEnsureWorkspace:
             return 0, "", ""
 
         runner = FakeRunner(responder)
-        monkeypatch.setattr(C, "_run", runner)
-        _, mode, ok = C.ensure_workspace(_ready(), ws)
-        assert ok and mode == C.MODE_FORK
+        _patch_run(monkeypatch, runner)
+        _, mode, ok = C_workspace.ensure_workspace(_ready(), ws)
+        assert ok and mode == C_git.MODE_FORK
         # No permission probe / no fork for an existing clone.
         assert not any("view" in call for call in runner.calls)
         assert not any(call[:3] == ["gh", "repo", "fork"] for call in runner.calls)
@@ -206,9 +217,9 @@ class TestEnsureWorkspace:
                 return 1, "", "offline"  # fetch fails
             return 0, "", ""
 
-        monkeypatch.setattr(C, "_run", FakeRunner(responder))
-        _, mode, ok = C.ensure_workspace(_ready(), ws)
-        assert ok and mode == C.MODE_DIRECT  # fetch failure not fatal
+        _patch_run(monkeypatch, FakeRunner(responder))
+        _, mode, ok = C_workspace.ensure_workspace(_ready(), ws)
+        assert ok and mode == C_git.MODE_DIRECT  # fetch failure not fatal
 
     def test_fetches_only_the_base_branch(self, tmp_path, monkeypatch):
         ws = tmp_path / "canair"
@@ -220,29 +231,31 @@ class TestEnsureWorkspace:
             return 0, "", ""
 
         runner = FakeRunner(responder)
-        monkeypatch.setattr(C, "_run", runner)
-        C.ensure_workspace(_ready(), ws)
+        _patch_run(monkeypatch, runner)
+        C_workspace.ensure_workspace(_ready(), ws)
         fetches = [call for call in runner.calls if "fetch" in call]
-        assert fetches == [["git", "-C", str(ws), "fetch", "upstream", C.BASE_BRANCH, "--quiet"]]
+        assert fetches == [
+            ["git", "-C", str(ws), "fetch", "upstream", C_git.BASE_BRANCH, "--quiet"]
+        ]
 
 
 class TestPrHead:
     def test_direct_is_bare_branch(self):
-        assert C.pr_head(_ready(), "br", C.MODE_DIRECT) == "br"
+        assert C_github.pr_head(_ready(), "br", C_git.MODE_DIRECT) == "br"
 
     def test_fork_is_owner_prefixed(self, monkeypatch):
-        monkeypatch.setattr(C, "_run", FakeRunner(lambda a: (0, "octocat", "")))
-        assert C.pr_head(_ready(), "br", C.MODE_FORK) == "octocat:br"
+        _patch_run(monkeypatch, FakeRunner(lambda a: (0, "octocat", "")))
+        assert C_github.pr_head(_ready(), "br", C_git.MODE_FORK) == "octocat:br"
 
 
 class TestCreatePr:
     def test_targets_upstream_and_head(self, monkeypatch, tmp_path):
         runner = FakeRunner(lambda a: (0, "https://github.com/x/y/pull/1", ""))
-        monkeypatch.setattr(C, "_run", runner)
-        step = C.create_pr(_ready(), tmp_path, title="t", body="b", head="me:branch")
+        _patch_run(monkeypatch, runner)
+        step = C_github.create_pr(_ready(), tmp_path, title="t", body="b", head="me:branch")
         assert step.ok
         call = runner.calls[0]
-        assert "--repo" in call and C.UPSTREAM_REPO in call
+        assert "--repo" in call and GITHUB_REPO in call
         assert "--head" in call and "me:branch" in call
 
 
@@ -262,7 +275,7 @@ class TestCopyProfile:
 
         ws = tmp_path / "ws"
         ws.mkdir()
-        dest = C.copy_profile(prof, ws, include_captures=True)
+        dest = C_copy.copy_profile(prof, ws, include_captures=True)
 
         assert (dest / "ecus" / "bms.yaml").exists()
         assert (dest / "captures" / "2026-01-01.json").exists()
@@ -282,7 +295,7 @@ class TestCopyProfile:
         (src / "captures" / "2026-01-01.json").write_text('{"sessions": []}')
         (src / "captures" / "half-written.json.tmp").write_text("{")
 
-        dest = C.copy_profile(Profile("mycar", src), tmp_path / "ws", include_captures=True)
+        dest = C_copy.copy_profile(Profile("mycar", src), tmp_path / "ws", include_captures=True)
 
         assert (dest / "captures" / "2026-01-01.json").exists()
         assert not (dest / "ecus" / "_scratch.yaml").exists()
@@ -297,7 +310,7 @@ class TestCopyProfile:
         (src / "profile.yaml").write_text("car_model: X\n")
         ws = tmp_path / "ws"
         ws.mkdir()
-        dest = C.copy_profile(Profile("mycar", src), ws, include_captures=False)
+        dest = C_copy.copy_profile(Profile("mycar", src), ws, include_captures=False)
         assert not (dest / "captures").exists()
 
     def test_preserves_unmanaged_upstream_members(self, tmp_path):
@@ -319,7 +332,7 @@ class TestCopyProfile:
         (existing / "ecus").mkdir()
         (existing / "ecus" / "bms.yaml").write_text("old\n")
 
-        dest = C.copy_profile(Profile("mycar", src), ws, include_captures=False)
+        dest = C_copy.copy_profile(Profile("mycar", src), ws, include_captures=False)
         # Managed member updated …
         assert (dest / "ecus" / "bms.yaml").read_text() == "new\n"
         # … unmanaged members preserved (not deleted by the contribution).
@@ -343,7 +356,7 @@ class TestCopyProfile:
 
         ws = tmp_path / "ws"
         ws.mkdir()
-        dest = C.copy_profile(Profile("mycar", src), ws, include_captures=False)
+        dest = C_copy.copy_profile(Profile("mycar", src), ws, include_captures=False)
 
         for member in ("profile.yaml", "vehicle_states.yaml", "can_buses.yaml", "groups.yaml"):
             assert (dest / member).exists(), f"{member} not contributed"
@@ -374,7 +387,7 @@ class TestCopyProfileCapturesUnion:
         }
         (dest / "captures" / "2026-01-01.json").write_text(json.dumps(upstream))
 
-        C.copy_profile(Profile("mycar", src), ws, include_captures=True)
+        C_copy.copy_profile(Profile("mycar", src), ws, include_captures=True)
         merged = json.loads((dest / "captures" / "2026-01-01.json").read_text())
         pids = {c["pid"] for s in merged["sessions"] for c in s["captures"]}
         assert pids == {"2101", "2102"}  # upstream session preserved, source added
@@ -392,7 +405,7 @@ class TestCopyProfileCapturesUnion:
         dest = ws / "profiles" / "mycar"
         (dest / "captures").mkdir(parents=True)  # exists but empty upstream
 
-        C.copy_profile(Profile("mycar", src), ws, include_captures=True)
+        C_copy.copy_profile(Profile("mycar", src), ws, include_captures=True)
         assert (dest / "captures" / "2026-02-02.json").exists()
 
     def test_upstream_only_capture_file_not_deleted(self, tmp_path):
@@ -408,7 +421,7 @@ class TestCopyProfileCapturesUnion:
         (dest / "captures").mkdir(parents=True)
         (dest / "captures" / "2026-01-01.json").write_text(json.dumps({"sessions": []}))
 
-        C.copy_profile(Profile("mycar", src), ws, include_captures=True)
+        C_copy.copy_profile(Profile("mycar", src), ws, include_captures=True)
         assert (dest / "captures" / "2026-01-01.json").exists()  # preserved
 
     def _capture_pair(self, tmp_path, *, upstream_doc, source_doc):
@@ -441,7 +454,7 @@ class TestCopyProfileCapturesUnion:
         src, ws, up_file = self._capture_pair(tmp_path, upstream_doc=upstream, source_doc=source)
         before = up_file.read_bytes()
 
-        C.copy_profile(Profile("mycar", src), ws, include_captures=True)
+        C_copy.copy_profile(Profile("mycar", src), ws, include_captures=True)
 
         assert up_file.read_bytes() == before
 
@@ -455,7 +468,7 @@ class TestCopyProfileCapturesUnion:
         source = {"sessions": [session("zzz"), session("aaa"), session("mmm")]}
         src, ws, up_file = self._capture_pair(tmp_path, upstream_doc=upstream, source_doc=source)
 
-        C.copy_profile(Profile("mycar", src), ws, include_captures=True)
+        C_copy.copy_profile(Profile("mycar", src), ws, include_captures=True)
 
         merged = json.loads(up_file.read_text())
         assert [s["label"] for s in merged["sessions"]] == ["zzz", "aaa", "mmm"]
@@ -471,7 +484,7 @@ class TestCopyProfileCapturesUnion:
         up_file.write_text("{not json")
         warnings: list[str] = []
 
-        C.copy_profile(Profile("mycar", src), ws, include_captures=True, warn=warnings.append)
+        C_copy.copy_profile(Profile("mycar", src), ws, include_captures=True, warn=warnings.append)
 
         assert up_file.read_text() == "{not json"
         assert warnings and "2026-01-01.json" in warnings[0]
@@ -482,20 +495,20 @@ class TestWorkspaceCollision:
         ws = tmp_path / "ws"
         root = ws / "profiles" / "mycar"
         root.mkdir(parents=True)
-        assert C.workspace_collision(root, ws, "mycar") == "self"
+        assert C_checks.workspace_collision(root, ws, "mycar") == "self"
 
     def test_profile_elsewhere_under_the_workspace(self, tmp_path):
         ws = tmp_path / "ws"
         root = ws / "myprofiles" / "mycar"
         root.mkdir(parents=True)
-        assert C.workspace_collision(root, ws, "mycar") == "inside"
+        assert C_checks.workspace_collision(root, ws, "mycar") == "inside"
 
     def test_normal_source_has_no_collision(self, tmp_path):
         ws = tmp_path / "ws"
         ws.mkdir()
         root = tmp_path / "elsewhere" / "mycar"
         root.mkdir(parents=True)
-        assert C.workspace_collision(root, ws, "mycar") is None
+        assert C_checks.workspace_collision(root, ws, "mycar") is None
 
 
 class TestCopyProfileSelfPath:
@@ -510,7 +523,7 @@ class TestCopyProfileSelfPath:
         (root / "captures").mkdir()
         (root / "captures" / "2026-01-01.json").write_text('{"sessions": []}')
 
-        C.copy_profile(Profile("mycar", root), ws, include_captures=True)
+        C_copy.copy_profile(Profile("mycar", root), ws, include_captures=True)
 
         assert (root / "ecus" / "bms.yaml").read_text() == "x"  # source intact
         assert (root / "profile.yaml").exists()
@@ -533,14 +546,14 @@ class TestDefinitionRollback:
         ws = self._repo_with_committed_ecu(tmp_path, "line1\nline2\nline3\n")
         # Source rolls the file back (drops line2/line3).
         (ws / "profiles" / "testcar" / "ecus" / "bms.yaml").write_text("line1\n")
-        rolled = C.definition_rollback(_ready(), ws, "testcar")
+        rolled = C_checks.definition_rollback(_ready(), ws, "testcar")
         assert rolled and rolled[0][0] == "profiles/testcar/ecus/bms.yaml"
         assert rolled[0][1] == 2  # two lines removed
 
     def test_pure_additions_are_not_flagged(self, tmp_path):
         ws = self._repo_with_committed_ecu(tmp_path, "line1\n")
         (ws / "profiles" / "testcar" / "ecus" / "bms.yaml").write_text("line1\nline2\n")
-        assert C.definition_rollback(_ready(), ws, "testcar") == []
+        assert C_checks.definition_rollback(_ready(), ws, "testcar") == []
 
 
 class TestDiffProfile:
@@ -551,8 +564,8 @@ class TestDiffProfile:
         _seed_repo(ws)
 
         prof = _make_profile(tmp_path / "prof")
-        C.copy_profile(prof, ws, include_captures=False)
-        diff = C.diff_profile(_ready(), ws, prof.name)
+        C_copy.copy_profile(prof, ws, include_captures=False)
+        diff = C_git.diff_profile(_ready(), ws, prof.name)
         assert "profiles/testcar/ecus/bms.yaml" in diff
         assert "car_model: Test EV 2022" in diff
 
@@ -562,14 +575,16 @@ class TestIsManagedWorkspace:
 
     def test_the_managed_clone_is_recognized(self, tmp_path, monkeypatch):
         managed = tmp_path / "contribute" / "canair"
-        monkeypatch.setattr(C, "workspace_dir", lambda: managed)
-        assert C.is_managed_workspace(managed)
+        monkeypatch.setattr(C_workspace, "workspace_dir", lambda: managed)
+        assert C_workspace.is_managed_workspace(managed)
         # Paths are compared resolved, so an equivalent spelling still matches.
-        assert C.is_managed_workspace(managed / ".." / "canair")
+        assert C_workspace.is_managed_workspace(managed / ".." / "canair")
 
     def test_a_user_repo_dir_is_not_managed(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(C, "workspace_dir", lambda: tmp_path / "contribute" / "canair")
-        assert not C.is_managed_workspace(tmp_path / "my" / "canair")
+        monkeypatch.setattr(
+            C_workspace, "workspace_dir", lambda: tmp_path / "contribute" / "canair"
+        )
+        assert not C_workspace.is_managed_workspace(tmp_path / "my" / "canair")
 
 
 def _seed_profile_repo(ws, *, body="one\n"):
@@ -592,7 +607,7 @@ class TestResetWorkspace:
         stale = tracked.parent / "2026-08-03.json"
         stale.write_text("left behind by an earlier --diff run\n")
 
-        steps = C.reset_workspace(_ready(), ws)
+        steps = C_workspace.reset_workspace(_ready(), ws)
 
         assert all(s.ok for s in steps)
         assert tracked.read_text() == "one\n"
@@ -616,13 +631,13 @@ class TestLocalChanges:
     def test_reports_only_changes_under_the_profile(self, tmp_path):
         ws = tmp_path / "ws"
         tracked = _seed_profile_repo(ws)
-        assert C.local_changes(_ready(), ws, "testcar") == []
+        assert C_workspace.local_changes(_ready(), ws, "testcar") == []
 
         (ws / "README.md").write_text("unrelated\n")
-        assert C.local_changes(_ready(), ws, "testcar") == []
+        assert C_workspace.local_changes(_ready(), ws, "testcar") == []
 
         tracked.write_text("edited\n")
-        entries = C.local_changes(_ready(), ws, "testcar")
+        entries = C_workspace.local_changes(_ready(), ws, "testcar")
         assert len(entries) == 1
         assert "profiles/testcar/captures/2026-08-05.json" in entries[0]
 
@@ -635,8 +650,8 @@ class TestFindOpenPr:
             seen.append(args)
             return 0, '[{"number": 7, "url": "https://github.com/x/canair/pull/7"}]', ""
 
-        monkeypatch.setattr(C, "_run", FakeRunner(responder))
-        found = C.find_open_pr(_ready(), "contribute/testcar-20260805")
+        _patch_run(monkeypatch, FakeRunner(responder))
+        found = C_github.find_open_pr(_ready(), "contribute/testcar-20260805")
 
         assert found == (7, "https://github.com/x/canair/pull/7")
         args = seen[0]
@@ -646,14 +661,14 @@ class TestFindOpenPr:
         assert args[args.index("--state") + 1] == "open"
 
     def test_no_open_pr_is_none(self, monkeypatch):
-        monkeypatch.setattr(C, "_run", FakeRunner(lambda args: (0, "[]", "")))
-        assert C.find_open_pr(_ready(), "contribute/testcar-20260805") is None
+        _patch_run(monkeypatch, FakeRunner(lambda args: (0, "[]", "")))
+        assert C_github.find_open_pr(_ready(), "contribute/testcar-20260805") is None
 
     def test_a_failed_or_unparsable_lookup_is_none(self, monkeypatch):
-        monkeypatch.setattr(C, "_run", FakeRunner(lambda args: (1, "", "gh: not logged in")))
-        assert C.find_open_pr(_ready(), "b") is None
-        monkeypatch.setattr(C, "_run", FakeRunner(lambda args: (0, "not json", "")))
-        assert C.find_open_pr(_ready(), "b") is None
+        _patch_run(monkeypatch, FakeRunner(lambda args: (1, "", "gh: not logged in")))
+        assert C_github.find_open_pr(_ready(), "b") is None
+        _patch_run(monkeypatch, FakeRunner(lambda args: (0, "not json", "")))
+        assert C_github.find_open_pr(_ready(), "b") is None
 
 
 # --- command-level -----------------------------------------------------------
@@ -708,7 +723,7 @@ class TestContributeCommand:
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(
-            C, "preflight", lambda: C.Preflight(gh=None, git="git", authenticated=True)
+            gates, "preflight", lambda: C_git.Preflight(gh=None, git="git", authenticated=True)
         )
         rc = cmd.run(_cmd_args())
         assert rc == report.CANNOT
@@ -721,7 +736,7 @@ class TestContributeCommand:
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), dry_run=True))
         assert rc == report.OK
@@ -741,7 +756,7 @@ class TestContributeCommand:
         (root / "profile.yaml").write_text("car_model: owner me@example.com\ninit: ATSP6;\n")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
         assert rc == report.CANNOT
 
@@ -753,7 +768,7 @@ class TestContributeCommand:
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), diff=True, json=True))
         assert rc == report.OK
@@ -775,7 +790,7 @@ class TestContributeCommand:
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
         assert rc == report.CANNOT
         # Nothing pushed: no push/PR gh|git calls happened because we bailed.
@@ -787,7 +802,7 @@ class TestContributeCommand:
         prof = _make_profile(root)
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(yes=False, json=True))
         assert rc == report.CANNOT
 
@@ -812,7 +827,7 @@ class TestContributeCommand:
 
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), captures=False, yes=False, json=True))
         assert rc == report.CANNOT
         import json as _json
@@ -829,7 +844,7 @@ class TestContributeCommand:
         prof = _make_profile(ws / "profiles" / "testcar")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=True, json=True))
 
@@ -846,7 +861,7 @@ class TestContributeCommand:
         prof = _make_profile(ws / "myprofiles" / "testcar")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
 
@@ -867,8 +882,8 @@ class TestContributeCommand:
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
-        monkeypatch.setattr(C, "dir_size", lambda p: gates.CAPTURES_WARN_BYTES + 1)
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
+        monkeypatch.setattr(gates, "dir_size", lambda p: gates.CAPTURES_WARN_BYTES + 1)
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), diff=True, json=True))
 
@@ -885,7 +900,7 @@ class TestContributeCommand:
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
         monkeypatch.setattr(
-            C, "preflight", lambda: C.Preflight(gh=None, git="git", authenticated=True)
+            gates, "preflight", lambda: C_git.Preflight(gh=None, git="git", authenticated=True)
         )
 
         assert cmd.run(_cmd_args()) == report.CANNOT
@@ -909,8 +924,9 @@ class TestWorkspaceHygiene:
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
-        monkeypatch.setattr(C, "workspace_dir", lambda: ws)
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
+        for module in (gates, C_workspace):
+            monkeypatch.setattr(module, "workspace_dir", lambda: ws)
 
         rc = cmd.run(_cmd_args(dry_run=True))
 
@@ -946,8 +962,9 @@ class TestWorkspaceHygiene:
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
-        monkeypatch.setattr(C, "workspace_dir", lambda: ws)
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
+        for module in (gates, C_workspace):
+            monkeypatch.setattr(module, "workspace_dir", lambda: ws)
 
         rc = cmd.run(_cmd_args(dry_run=True))
 
@@ -975,8 +992,9 @@ class TestWorkspaceHygiene:
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
-        monkeypatch.setattr(C, "workspace_dir", lambda: ws)
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
+        for module in (gates, C_workspace):
+            monkeypatch.setattr(module, "workspace_dir", lambda: ws)
 
         rc = cmd.run(_cmd_args(dry_run=True, yes=False))
 
@@ -994,15 +1012,16 @@ class TestWorkspaceHygiene:
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
-        monkeypatch.setattr(C, "workspace_dir", lambda: ws)
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
+        for module in (gates, C_workspace):
+            monkeypatch.setattr(module, "workspace_dir", lambda: ws)
 
         rc = cmd.run(_cmd_args(diff=True))
 
         assert rc == report.OK
         assert "profiles/testcar/ecus/bms.yaml" in _json.loads(capsys.readouterr().out)["diff"]
         # So the usual --diff-then-contribute flow never meets the leftovers prompt.
-        assert C.leftover_changes(_ready(), ws) == []
+        assert C_workspace.leftover_changes(_ready(), ws) == []
 
     def test_dirty_user_repo_dir_warns_and_is_left_alone(self, tmp_path, monkeypatch, capsys):
         import json as _json
@@ -1014,7 +1033,7 @@ class TestWorkspaceHygiene:
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
 
@@ -1034,20 +1053,20 @@ class TestExistingPullRequest:
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
         monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
-        monkeypatch.setattr(C, "preflight", lambda: _ready())
+        monkeypatch.setattr(gates, "preflight", lambda: _ready())
         monkeypatch.setattr(
-            C,
+            submit,
             "push_branch",
-            lambda *a, **k: C.Step(cmd=["push"], returncode=0, stdout="", stderr=""),
+            lambda *a, **k: C_git.Step(cmd=["push"], returncode=0, stdout="", stderr=""),
         )
         monkeypatch.setattr(
-            C, "find_open_pr", lambda pre, branch: (7, "https://github.com/x/canair/pull/7")
+            submit, "find_open_pr", lambda pre, branch: (7, "https://github.com/x/canair/pull/7")
         )
 
         def no_create(*a, **k):
             raise AssertionError("gh pr create must not run when a PR is already open")
 
-        monkeypatch.setattr(C, "create_pr", no_create)
+        monkeypatch.setattr(submit, "create_pr", no_create)
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=True, json=True))
 

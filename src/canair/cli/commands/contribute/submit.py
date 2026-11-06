@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from canair import contribute as C
+from canair.contribute.git import commit_profile, push_branch
+from canair.contribute.github import (
+    create_pr,
+    default_message,
+    default_pr_body,
+    find_open_pr,
+    pr_head,
+    update_pr_body,
+)
+from canair.core.paths import GITHUB_REPO
 from canair.render import glyphs
 from canair.render.console import escape
 
@@ -33,7 +42,7 @@ def pr_body(run_: Contribution) -> str:
             run_.rep.console.print(
                 f"  attaching {len(excerpt.lines)} scrubbed diagnostics log line(s) to the PR"
             )
-    return C.default_pr_body(
+    return default_pr_body(
         run_.profile, include_captures=run_.include_captures, summary=rendered, logs=logs
     )
 
@@ -68,11 +77,11 @@ def _commit(run_: Contribution) -> None:
     """Commit the copied-in profile onto the contribution branch."""
     rep, pre, workspace, args = run_.rep, run_.pre, run_.workspace, run_.args
 
-    commit = C.commit_profile(
+    commit = commit_profile(
         pre,
         workspace,
         run_.profile.name,
-        args.title or C.default_message(run_.profile, include_captures=run_.include_captures),
+        args.title or default_message(run_.profile, include_captures=run_.include_captures),
     )
     if not commit.ok:
         rep.fail(
@@ -91,7 +100,7 @@ def _push_and_open_pr(run_: Contribution) -> int:
     if not rep.json_mode:
         rep.console.print(
             f"\n  Ready to push [cyan]{escape(run_.branch)}[/cyan] to {escape(run_.target)} "
-            f"and open a pull request against [cyan]{C.UPSTREAM_REPO}[/cyan]."
+            f"and open a pull request against [cyan]{GITHUB_REPO}[/cyan]."
         )
         rep.console.print(
             "  [dim](tip: `canair contribute --diff` shows the full change first)[/dim]"
@@ -106,7 +115,7 @@ def _push_and_open_pr(run_: Contribution) -> int:
         rep.console.print(
             f"  pushing [cyan]{escape(run_.branch)}[/cyan] to {escape(run_.target)} …"
         )
-    push = C.push_branch(pre, workspace, run_.branch)
+    push = push_branch(pre, workspace, run_.branch)
     if not push.ok:
         rep.fail(
             "push failed",
@@ -121,9 +130,9 @@ def _push_and_open_pr(run_: Contribution) -> int:
     # Re-running on the same day pushes to a branch that already has a PR, and the
     # push has just updated it — so that is a success, not a `gh pr create` error.
     # The branch now holds everything this run staged, so the body is regenerated.
-    if existing := C.find_open_pr(pre, run_.branch):
+    if existing := find_open_pr(pre, run_.branch):
         number, url = existing
-        edit = C.update_pr_body(pre, number, body)
+        edit = update_pr_body(pre, number, body)
         if not edit.ok:
             rep.warn(f"could not update the PR description: {edit.output}")
 
@@ -143,13 +152,13 @@ def _push_and_open_pr(run_: Contribution) -> int:
             pr_updated=True,
         )
 
-    pr = C.create_pr(
+    pr = create_pr(
         pre,
         workspace,
         title=args.title
-        or C.default_message(run_.profile, include_captures=run_.include_captures).splitlines()[0],
+        or default_message(run_.profile, include_captures=run_.include_captures).splitlines()[0],
         body=body,
-        head=C.pr_head(pre, run_.branch, run_.mode),
+        head=pr_head(pre, run_.branch, run_.mode),
     )
     if not pr.ok:
 

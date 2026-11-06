@@ -22,8 +22,17 @@ import io
 from pathlib import Path
 from typing import Any
 
-from canair import contribute as C
 from canair.contribute import pii
+from canair.contribute.checks import workspace_collision
+from canair.contribute.copy import CaptureReplacement, dir_size
+from canair.contribute.git import Preflight, base_reader, preflight
+from canair.contribute.github import gh_install_hint, manual_instructions
+from canair.contribute.workspace import (
+    is_managed_workspace,
+    leftover_changes,
+    local_changes,
+    workspace_dir,
+)
 from canair.install.context import installed_snapshot_kind
 from canair.render import glyphs
 from canair.render.console import escape
@@ -81,16 +90,16 @@ def validate(rep: Reporter, profile) -> None:
     rep.refuse("validation failed", human=explain)
 
 
-def environment(rep: Reporter, profile, branch: str) -> C.Preflight:
+def environment(rep: Reporter, profile, branch: str) -> Preflight:
     """Require the GitHub CLI, git, and an authenticated ``gh``."""
-    pre = C.preflight()
+    pre = preflight()
 
     if not pre.gh:
 
         def install_gh() -> None:
             rep.console.print("\n[yellow]The GitHub CLI (`gh`) is not installed.[/yellow]\n")
-            rep.console.print(escape(C.gh_install_hint()))
-            rep.console.print("\n" + escape(C.manual_instructions(profile.name, branch)))
+            rep.console.print(escape(gh_install_hint()))
+            rep.console.print("\n" + escape(manual_instructions(profile.name, branch)))
 
         rep.refuse("gh not found", human=install_gh)
     if not pre.git:
@@ -114,7 +123,7 @@ def capture_size(rep: Reporter, profile, *, include_captures: bool) -> None:
     """Flag an oversized ``captures/`` before the clone — advisory, never fatal."""
     if not include_captures:
         return
-    size = C.dir_size(profile.captures_dir)
+    size = dir_size(profile.captures_dir)
     if size <= CAPTURES_WARN_BYTES:
         return
     mb = size / (1024 * 1024)
@@ -130,21 +139,21 @@ def capture_size(rep: Reporter, profile, *, include_captures: bool) -> None:
     rep.confirm("Include captures anyway?", error=f"captures/ is large (~{mb:.0f} MB)")
 
 
-def workspace(rep: Reporter, args, profile, pre: C.Preflight) -> Path:
+def workspace(rep: Reporter, args, profile, pre: Preflight) -> Path:
     """Resolve the staging checkout, refusing to stage a profile into itself.
 
     The managed workspace is a full canair checkout, so it bundles profiles of its
     own; running canair from inside it resolves the active profile to the very
     directory the copy writes to. Even short of that, preparing the branch
-    (:func:`canair.contribute.start_branch`, then
-    :func:`canair.contribute.reset_workspace` for a managed one) rewrites the
+    (:func:`canair.contribute.git.start_branch`, then
+    :func:`canair.contribute.workspace.reset_workspace` for a managed one) rewrites the
     workspace's tracked files before the copy, so a source living there changes
     mid-run.
     """
-    ws = Path(args.repo_dir).expanduser() if args.repo_dir else C.workspace_dir()
+    ws = Path(args.repo_dir).expanduser() if args.repo_dir else workspace_dir()
     rep.note(workspace=str(ws))
 
-    collision = C.workspace_collision(profile.root, ws, profile.name)
+    collision = workspace_collision(profile.root, ws, profile.name)
     if collision is None:
         return _own_checkout_is_clean(rep, ws, profile, pre)
 
@@ -188,18 +197,18 @@ def workspace(rep: Reporter, args, profile, pre: C.Preflight) -> Path:
     return ws
 
 
-def _own_checkout_is_clean(rep: Reporter, ws: Path, profile, pre: C.Preflight) -> Path:
+def _own_checkout_is_clean(rep: Reporter, ws: Path, profile, pre: Preflight) -> Path:
     """Warn when a user's own ``--repo-dir`` has uncommitted work in the profile dir.
 
     The managed workspace is rebuilt from the upstream base every run
-    (:func:`canair.contribute.reset_workspace`), so nothing there can leak into a
+    (:func:`canair.contribute.workspace.reset_workspace`), so nothing there can leak into a
     PR. A ``--repo-dir`` checkout is never reset — it may hold hours of unrelated
     work — but ``commit_profile`` stages the whole profile directory, so any
     uncommitted edit already sitting in it *would* join the contribution.
     """
-    if C.is_managed_workspace(ws):
+    if is_managed_workspace(ws):
         return ws
-    dirty = C.local_changes(pre, ws, profile.name)
+    dirty = local_changes(pre, ws, profile.name)
     if not dirty:
         return ws
 
@@ -232,7 +241,7 @@ def _own_checkout_is_clean(rep: Reporter, ws: Path, profile, pre: C.Preflight) -
     return ws
 
 
-def leftovers(rep: Reporter, pre: C.Preflight, ws: Path, backup: Path) -> list[str]:
+def leftovers(rep: Reporter, pre: Preflight, ws: Path, backup: Path) -> list[str]:
     """Ask before discarding what an earlier run left uncommitted in the managed workspace.
 
     A ``--diff``, a refused gate or a crash leaves the staged copy behind, and it
@@ -240,9 +249,9 @@ def leftovers(rep: Reporter, pre: C.Preflight, ws: Path, backup: Path) -> list[s
     ``--repo-dir`` is the user's own and is never discarded. Returns the paths
     the caller should back up to ``backup`` and discard (empty: nothing to do).
     """
-    if not C.is_managed_workspace(ws) or not (ws / ".git").is_dir():
+    if not is_managed_workspace(ws) or not (ws / ".git").is_dir():
         return []
-    paths = C.leftover_changes(pre, ws)
+    paths = leftover_changes(pre, ws)
     if not paths:
         return []
 
@@ -271,7 +280,7 @@ def leftovers(rep: Reporter, pre: C.Preflight, ws: Path, backup: Path) -> list[s
 def privacy(
     rep: Reporter,
     profile,
-    pre: C.Preflight,
+    pre: Preflight,
     ws: Path,
     *,
     include_captures: bool,
@@ -288,7 +297,7 @@ def privacy(
         profile,
         ws / "profiles" / profile.name / "captures",
         include_captures=include_captures,
-        base_reader=C.base_reader(pre, ws),
+        base_reader=base_reader(pre, ws),
     )
     if findings:
 
@@ -324,11 +333,11 @@ def privacy(
 def captures(
     rep: Reporter,
     profile,
-    pre: C.Preflight,
+    pre: Preflight,
     ws: Path,
     *,
     include_captures: bool,
-    replaced: list[C.CaptureReplacement],
+    replaced: list[CaptureReplacement],
 ) -> None:
     """The capture-integrity consent gates: replaced sessions, then unsplit replies.
 
@@ -377,9 +386,7 @@ def captures(
         )
 
 
-def unsplit_in_contribution(
-    profile, pre: C.Preflight, ws: Path
-) -> list[tuple[str, str, list[str]]]:
+def unsplit_in_contribution(profile, pre: Preflight, ws: Path) -> list[tuple[str, str, list[str]]]:
     """``(file, location, split_into)`` for each unsplit multi-DID reply the contribution adds.
 
     Detection runs over the prepared contribution's whole capture store (upstream
@@ -400,7 +407,7 @@ def unsplit_in_contribution(
     if not found:
         return []
 
-    read_base = C.base_reader(pre, ws)
+    read_base = base_reader(pre, ws)
     upstream: dict[Path, set[str]] = {}
     sessions: dict[Path, list] = {}
 

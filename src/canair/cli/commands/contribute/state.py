@@ -7,7 +7,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from canair import contribute as C
+from canair.contribute.copy import CaptureReplacement
+from canair.contribute.git import MODE_DIRECT, Preflight
+from canair.core.paths import GITHUB_REPO
 
 from .report import Reporter
 
@@ -25,16 +27,16 @@ class Contribution:
     profile: Any
     branch: str
     include_captures: bool
-    pre: C.Preflight
+    pre: Preflight
     workspace: Path
     mode: str = ""
     staged: bool = False  # the profile is (being) copied into the workspace
     rollback: list[tuple[str, int]] = field(default_factory=list)
-    replaced: list[C.CaptureReplacement] = field(default_factory=list)
+    replaced: list[CaptureReplacement] = field(default_factory=list)
     findings: list[Any] = field(default_factory=list)
     summary: Any = None  # canair.contribute.summary.ContributionSummary
 
     @property
     def target(self) -> str:
         """Where the branch is pushed, for prose."""
-        return C.UPSTREAM_REPO if self.mode == C.MODE_DIRECT else "your fork"
+        return GITHUB_REPO if self.mode == MODE_DIRECT else "your fork"

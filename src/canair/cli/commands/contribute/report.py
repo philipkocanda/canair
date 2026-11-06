@@ -58,7 +58,7 @@ def rollback_json(rollback: list[tuple[str, int]]) -> list[dict[str, Any]]:
 
 
 def replaced_json(replaced: list[Any]) -> list[dict[str, Any]]:
-    """The ``replaced_sessions`` payload shape (:class:`canair.contribute.CaptureReplacement`)."""
+    """The ``replaced_sessions`` payload shape (:class:`canair.contribute.copy.CaptureReplacement`)."""
     return [
         {
             "file": r.file,

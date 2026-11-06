@@ -777,13 +777,13 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   profile *is* the workspace's own copy) → **rollback guard** (the contribution would remove
   committed upstream definition lines, signalling a stale source) → branch → copy → commit →
   push → `gh pr create`.
-  **The managed workspace is made hermetic before the copy** (`contribute.reset_workspace`: `reset
+  **The managed workspace is made hermetic before the copy** (`contribute.workspace.reset_workspace`: `reset
   --hard` to the upstream base + `clean -fd -- profiles/`) — `checkout -B` alone keeps an
   uncommitted file an earlier `--diff` left behind, and `commit_profile` stages the whole profile
   directory, which is how eight stale capture files once rode along in a PR. **Leftovers are
   cleared before branching:** an earlier run's uncommitted copy makes `checkout -B` refuse
   whenever the old branch and the base disagree on a path, so `gates.leftovers` asks (`--yes`
-  passes), the files are copied to `contribute.backup_dir()` (outside the clone), and
+  passes), the files are copied to `contribute.workspace.backup_dir()` (outside the clone), and
   `discard_local_changes` resets to `HEAD` (keeping an earlier `--dry-run` commit). **Every run
   discards its own uncommitted copy on the way out** (`_discard_staged`, in a `finally`), so a
   `--diff`, a declined gate or `--json` without `--yes` never leaves one for the next run; the
@@ -806,7 +806,8 @@ failure**. A rejected edit raises `EditError`; no command catches it — `cli/__
   `--diff` and gated (`cli/commands/contribute/gates.py::captures`, which also warns on unsplit multi-DID
   replies the contribution adds), since a stale source looks identical. `--diff` previews,
   `--dry-run` stops before pushing, `--yes` skips prompts, `--no-captures` ships definitions only.
-  Layering: `src/canair/contribute/__init__.py` = git/gh orchestration;
+  Layering: `src/canair/contribute/` = git/gh orchestration (`git.py` runs git and gh,
+  `workspace.py`, `copy.py`, `checks.py`, `github.py`);
   `cli/commands/contribute/` = CLI (`parser.py`, `pipeline.py`, the stage/submit/tidy actions);
   `gates.py` = the pre-flight policy; `report.py` = the human/`--json` reporting duality. Read the **contributing-profiles** skill before using it.
 - **`canair update`** — Updates the CLI from its git-clone install: reports current vs latest

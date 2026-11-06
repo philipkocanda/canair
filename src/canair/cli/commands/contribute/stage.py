@@ -4,7 +4,24 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from canair import contribute as C
+from canair.contribute.checks import definition_rollback
+from canair.contribute.copy import copy_profile
+from canair.contribute.git import (
+    base_reader,
+    changed_definition_files,
+    diff_profile,
+    has_changes,
+    start_branch,
+)
+from canair.contribute.github import manual_instructions
+from canair.contribute.workspace import (
+    backup_dir,
+    backup_leftovers,
+    discard_local_changes,
+    ensure_workspace,
+    is_managed_workspace,
+    reset_workspace,
+)
 from canair.render import glyphs
 from canair.render.console import escape
 
@@ -27,7 +44,7 @@ def stage_contribution(run_: Contribution) -> int | None:
         rep.console.print(f"  staging in workspace: [dim]{escape(str(workspace))}[/dim]")
         rep.console.print("  syncing (first run clones — may take a moment) …")
 
-    steps, mode, ok = C.ensure_workspace(pre, workspace)
+    steps, mode, ok = ensure_workspace(pre, workspace)
     run_.mode = mode
     rep.note(mode=mode)
     if not ok:
@@ -37,7 +54,7 @@ def stage_contribution(run_: Contribution) -> int | None:
         def explain() -> None:
             rep.console.print("  [red]failed to prepare the workspace:[/red]")
             rep.console.print(f"  [dim]{escape(detail)}[/dim]")
-            rep.console.print("\n" + escape(C.manual_instructions(run_.profile.name, run_.branch)))
+            rep.console.print("\n" + escape(manual_instructions(run_.profile.name, run_.branch)))
 
         rep.fail("workspace prep failed", detail=detail, human=explain)
     if not rep.json_mode:
@@ -47,7 +64,7 @@ def stage_contribution(run_: Contribution) -> int | None:
 
     _clear_leftovers(run_)
 
-    br = C.start_branch(pre, workspace, run_.branch)
+    br = start_branch(pre, workspace, run_.branch)
     if not br.ok:
         rep.fail(
             "branch failed",
@@ -61,7 +78,7 @@ def stage_contribution(run_: Contribution) -> int | None:
 
     _make_hermetic(run_)
 
-    C.copy_profile(
+    copy_profile(
         run_.profile,
         workspace,
         include_captures=run_.include_captures,
@@ -69,7 +86,7 @@ def stage_contribution(run_: Contribution) -> int | None:
         replaced=run_.replaced.append,
     )
 
-    if not C.has_changes(pre, workspace, run_.profile.name):
+    if not has_changes(pre, workspace, run_.profile.name):
         msg = "No changes to contribute — the upstream profile already matches yours."
         if not rep.json_mode:
             rep.console.print(f"\n  [green]{glyphs.OK} {msg}[/green]")
@@ -79,7 +96,7 @@ def stage_contribution(run_: Contribution) -> int | None:
     # Curated definitions normally only grow, so a diff that *removes* committed
     # upstream lines suggests a stale source. Computed here because both --diff
     # and the privacy gate report it.
-    run_.rollback = C.definition_rollback(pre, workspace, run_.profile.name)
+    run_.rollback = definition_rollback(pre, workspace, run_.profile.name)
     run_.summary = summarize(run_)
     return None
 
@@ -98,8 +115,8 @@ def summarize(run_: Contribution):
     summary = S.summarize(
         run_.workspace / "profiles" / name / "captures",
         profile_name=name,
-        base_reader=C.base_reader(run_.pre, run_.workspace),
-        definition_files=C.changed_definition_files(run_.pre, run_.workspace, name),
+        base_reader=base_reader(run_.pre, run_.workspace),
+        definition_files=changed_definition_files(run_.pre, run_.workspace, name),
         rx_names=rx_names,
     )
     if not run_.include_captures:
@@ -111,13 +128,13 @@ def summarize(run_: Contribution):
 def _clear_leftovers(run_: Contribution) -> None:
     """Back up and discard an earlier run's staged copy, which would block branching."""
     rep = run_.rep
-    backup = C.backup_dir() / datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup = backup_dir() / datetime.now().strftime("%Y%m%d-%H%M%S")
     paths = gates.leftovers(rep, run_.pre, run_.workspace, backup)
     if not paths:
         return
-    C.backup_leftovers(run_.workspace, paths, backup)
+    backup_leftovers(run_.workspace, paths, backup)
     rep.note(leftovers_backup=str(backup))
-    failed = next((s for s in C.discard_local_changes(run_.pre, run_.workspace) if not s.ok), None)
+    failed = next((s for s in discard_local_changes(run_.pre, run_.workspace) if not s.ok), None)
     if failed is not None:
         detail = failed.output
         rep.fail(
@@ -146,9 +163,9 @@ def _make_hermetic(run_: Contribution) -> None:
     local work is theirs; that case is warned about by the workspace gate instead.
     """
     rep = run_.rep
-    if not C.is_managed_workspace(run_.workspace):
+    if not is_managed_workspace(run_.workspace):
         return
-    failed = next((s for s in C.reset_workspace(run_.pre, run_.workspace) if not s.ok), None)
+    failed = next((s for s in reset_workspace(run_.pre, run_.workspace) if not s.ok), None)
     if failed is None:
         return
     detail = failed.output
@@ -166,7 +183,7 @@ def _make_hermetic(run_: Contribution) -> None:
 def report_diff(run_: Contribution) -> int:
     """``--diff``: show exactly what would be contributed, then stop."""
     rep, pre, workspace = run_.rep, run_.pre, run_.workspace
-    diff = C.diff_profile(pre, workspace, run_.profile.name)
+    diff = diff_profile(pre, workspace, run_.profile.name)
 
     def show() -> None:
         from rich.syntax import Syntax
@@ -204,8 +221,8 @@ def discard_staged(run_: Contribution) -> None:
     to ``HEAD``. Managed workspace only: a ``--repo-dir`` may hold the user's own
     uncommitted work alongside the copy.
     """
-    if not run_.staged or not C.is_managed_workspace(run_.workspace):
+    if not run_.staged or not is_managed_workspace(run_.workspace):
         return
-    failed = next((s for s in C.discard_local_changes(run_.pre, run_.workspace) if not s.ok), None)
+    failed = next((s for s in discard_local_changes(run_.pre, run_.workspace) if not s.ok), None)
     if failed is not None:
         run_.rep.warn(f"could not clean up the staging workspace: {failed.output}")
