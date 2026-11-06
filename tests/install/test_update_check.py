@@ -188,8 +188,19 @@ class TestPendingNotice:
 
 
 class TestUpdateCommand:
+    @pytest.fixture(autouse=True)
+    def _no_python_choice(self, monkeypatch):
+        """Keep the tool's Python, so these tests see the plain reinstall command.
+
+        The choice itself is tested in tests/install/test_python_choice.py and
+        tests/cli/commands/test_update_python.py.
+        """
+        from canair.cli.commands import update as update_cmd
+
+        monkeypatch.setattr(update_cmd, "newest_python", lambda uv, clone: None)
+
     def _args(self, **kw):
-        base = {"check": False, "yes": False, "json": False}
+        base = {"check": False, "yes": False, "json": False, "python": None}
         base.update(kw)
         return argparse.Namespace(**base)
 

@@ -35,6 +35,11 @@ deletes anything written into that copy's bundled profiles (a bare
 ``canair … --save`` lands there). Before either reinstall path asks for
 confirmation, the profile data that exists only in the snapshot is listed, so it
 can be rescued instead of silently discarded.
+
+A reinstall runs on the newest CPython that uv itself installs and that every dependency has a
+prebuilt wheel for (:mod:`canair.install.python_choice`), so a tool moves to a new Python once
+its dependencies support it. If that reinstall fails, the update tries again on the tool's
+current Python. ``--python`` names the version (or interpreter path) instead.
 """
 
 from __future__ import annotations
@@ -50,6 +55,7 @@ from canair.dtc.log_upgrade import migrate_all
 from canair.install import build_info
 from canair.install.context import describe as describe_install
 from canair.install.context import snapshot_profile_risks, source_clone
+from canair.install.python_choice import newest_python, reinstall_command
 from canair.install.update_check import CHANGELOG_URL, fetch_latest_release, is_newer, write_cache
 from canair.render import glyphs
 from canair.render.console import console as make_console
@@ -75,6 +81,7 @@ examples:
   canair update --check    # report current/latest + changelog, change nothing
   canair update --yes      # update without the confirmation prompt (automation)
   canair update --json     # machine-readable version/clone summary
+  canair update --python 3.13   # reinstall on Python 3.13, not the newest
 """,
     )
     parser.add_argument(
@@ -89,6 +96,12 @@ examples:
         help="Skip the confirmation prompt (checkout release tag + reinstall)",
     )
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
+    parser.add_argument(
+        "--python",
+        metavar="VERSION",
+        help="Reinstall on this Python: a version such as 3.13, or an interpreter path "
+        "(default: the newest uv-managed CPython that every dependency has wheels for)",
+    )
     parser.set_defaults(func=run)
     return parser
 
@@ -111,17 +124,42 @@ def _reinstall_instructions(clone: Path | None) -> str:
     return f"  To reinstall manually:\n    uv tool install {loc} --reinstall\n"
 
 
-def _do_reinstall(c, uv: str, clone: Path) -> int:
-    """Run ``uv tool install <clone> --reinstall``; return an exit code."""
-    c.print("  Reinstalling the CLI …")
-    result = subprocess.run(
-        [uv, "tool", "install", str(clone), "--reinstall"],
-        capture_output=True,
-        text=True,
-    )
+def _python_note(args) -> str:
+    """Which Python the reinstall will use, for the preview before the prompt."""
+    if args.python:
+        return f"on Python {args.python} (--python)"
+    return "on the newest uv-managed Python that every dependency has wheels for"
+
+
+def _run_uv(cmd: list[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, capture_output=True, text=True)
+
+
+def _uv_output(result: subprocess.CompletedProcess) -> str:
+    return (result.stderr or result.stdout).strip()
+
+
+def _do_reinstall(c, args, uv: str, clone: Path) -> int:
+    """Reinstall the tool from the clone on the chosen Python; return an exit code.
+
+    The automatic choice falls back to the tool's current Python when the reinstall on it
+    fails. A Python named with ``--python`` has no fallback: the user asked for that one.
+    """
+    python = args.python or newest_python(uv, clone)
+    automatic = not args.python
+    on = f" on Python {escape(python)}" if python else ""
+    c.print(f"  Reinstalling the CLI{on} …")
+    result = _run_uv(reinstall_command(uv, clone, python, managed=automatic))
+    if result.returncode != 0 and python and automatic:
+        c.print(
+            f"  [yellow]{glyphs.WARN} the reinstall on Python {escape(python)} failed; "
+            "trying again on the tool's current Python:[/yellow]"
+        )
+        c.print(f"  [dim]{escape(_uv_output(result))}[/dim]")
+        result = _run_uv(reinstall_command(uv, clone, None, managed=False))
     if result.returncode != 0:
         c.print("  [red]reinstall failed:[/red]")
-        c.print(f"  [dim]{escape((result.stderr or result.stdout).strip())}[/dim]\n")
+        c.print(f"  [dim]{escape(_uv_output(result))}[/dim]\n")
         return _FAILED
     return _OK
 
@@ -153,14 +191,15 @@ def _sync_reinstall(c, args, clone: Path | None, install: dict) -> int:
         return _CANNOT
 
     c.print(f"  This will reinstall from [bold]{escape(str(clone))}[/bold] to sync them:")
-    c.print(escape(f"    uv tool install {clone} --reinstall") + "\n")
+    c.print(escape(f"    uv tool install {clone} --reinstall"))
+    c.print(f"  [dim]{escape(_python_note(args))}[/dim]\n")
 
     _warn_about_snapshot_data(c, clone)
 
     if not confirm("Proceed?", yes=args.yes):
         return _FAILED
 
-    rc = _do_reinstall(c, uv, clone)
+    rc = _do_reinstall(c, args, uv, clone)
     if rc != _OK:
         c.print(escape(_reinstall_instructions(clone)))
         return rc
@@ -365,8 +404,8 @@ def run(args) -> int:
             f"    git fetch --tags  &&  git checkout {latest}  &&  "
             f"uv tool install {clone} --reinstall"
         )
-        + "\n"
     )
+    c.print(f"  [dim]{escape(_python_note(args))}[/dim]\n")
 
     _warn_about_snapshot_data(c, clone)
 
@@ -395,7 +434,7 @@ def run(args) -> int:
     if checkout.stderr.strip():
         c.print(f"  [dim]{escape(checkout.stderr.strip())}[/dim]")
 
-    rc = _do_reinstall(c, uv, clone)
+    rc = _do_reinstall(c, args, uv, clone)
     if rc != _OK:
         c.print(escape(_manual_instructions(clone, latest)))
         return rc

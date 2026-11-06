@@ -73,6 +73,7 @@ clone and reinstalls the CLI from it (keeping the git-clone install intact):
 canair update            # check, confirm, then checkout <tag> + uv tool install . --reinstall
 canair update --check    # report current/latest + changelog only, change nothing
 canair update --yes      # skip the confirmation prompt (automation)
+canair update --python 3.13   # reinstall on Python 3.13 instead of the newest
 ```
 
 Because it checks out the advertised **release tag** (rather than fast-forwarding
@@ -80,6 +81,13 @@ Because it checks out the advertised **release tag** (rather than fast-forwardin
 commits sitting on the branch. If the latest release tag can't be determined
 (GitHub unreachable), `canair update` reports the offline state and makes no
 changes rather than guessing a version.
+
+The reinstall also moves canair to the newest Python that uv installs itself and that every
+dependency has a prebuilt wheel for. uv downloads that Python if you do not have it yet.
+Without the update, uv keeps a tool on the Python it was first installed with. canair starts
+faster on Python 3.15 and later. A dependency without a wheel for a new Python would build from
+source, which needs a compiler and can make canair slower, so the update waits for the wheels.
+If the reinstall on the new Python fails, the update tries again on the Python you had.
 
 If canair can't find your clone or `uv` (e.g. a different install method), it
 prints the exact manual commands instead. To silence the automatic check, set

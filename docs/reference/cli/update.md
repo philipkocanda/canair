@@ -3,7 +3,7 @@
 # `canair update`
 
 ```
-usage: canair update [-h] [--check] [-y] [--json]
+usage: canair update [-h] [--check] [-y] [--json] [--python VERSION]
 
 ``canair update`` — update the CLI from its git-clone install.
 
@@ -43,16 +43,26 @@ deletes anything written into that copy's bundled profiles (a bare
 confirmation, the profile data that exists only in the snapshot is listed, so it
 can be rescued instead of silently discarded.
 
+A reinstall runs on the newest CPython that uv itself installs and that every dependency has a
+prebuilt wheel for (:mod:`canair.install.python_choice`), so a tool moves to a new Python once
+its dependencies support it. If that reinstall fails, the update tries again on the tool's
+current Python. ``--python`` names the version (or interpreter path) instead.
+
 options:
-  -h, --help  show this help message and exit
-  --check     Only report the current/latest version and changelog; make no
-              changes
-  -y, --yes   Skip the confirmation prompt (checkout release tag + reinstall)
-  --json      Emit machine-readable JSON
+  -h, --help        show this help message and exit
+  --check           Only report the current/latest version and changelog; make
+                    no changes
+  -y, --yes         Skip the confirmation prompt (checkout release tag +
+                    reinstall)
+  --json            Emit machine-readable JSON
+  --python VERSION  Reinstall on this Python: a version such as 3.13, or an
+                    interpreter path (default: the newest uv-managed CPython
+                    that every dependency has wheels for)
 
 examples:
   canair update            # check, confirm, then checkout release tag + reinstall
   canair update --check    # report current/latest + changelog, change nothing
   canair update --yes      # update without the confirmation prompt (automation)
   canair update --json     # machine-readable version/clone summary
+  canair update --python 3.13   # reinstall on Python 3.13, not the newest
 ```
