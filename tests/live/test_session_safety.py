@@ -239,6 +239,8 @@ class TestRefusalIsReportedNotRaised:
         term.unsafe = False
         term.session_policy = SessionPolicy.from_profile(PIDS)
         term._cur = None
+        term._lock = asyncio.Lock()
+        term._lock_owner = None
 
         async def set_header(tx_id):
             term._cur = tx_id

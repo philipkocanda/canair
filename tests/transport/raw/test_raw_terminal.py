@@ -606,3 +606,79 @@ class TestEcuIsotp:
         t._stack(0x7E4)
         assert (seen[0x746]["blocksize"], seen[0x746]["stmin"]) == (8, 5)
         assert (seen[0x7E4]["blocksize"], seen[0x7E4]["stmin"]) == (0, 5)
+
+
+class TestRawTerminalHeader:
+    """A request goes to the ECU that was current when it was sent, whatever runs beside it.
+
+    ``_cur`` is shared state like an ELM327 header, so another task's ``set_header`` must
+    neither re-point a retry nor change where the bookkeeping files the reply.
+    """
+
+    @staticmethod
+    def _build(monkeypatch, first_reply_missing: set[bytes]):
+        import threading
+
+        sent: list[tuple[int, bytes]] = []
+        gate = threading.Event()
+
+        class SlowStack(FakeStack):
+            def send(self, data, *a, **k):
+                sent.append((self.txid, bytes(data)))
+                req = bytes(data)
+                if req in first_reply_missing:
+                    first_reply_missing.discard(req)
+                    self._resp = None
+                else:
+                    self._resp = bytes.fromhex("62BC03AA")
+
+            def recv(self, block=False, timeout=None):
+                if block:
+                    gate.wait(1.0)  # hold the exchange open until the test lets it go
+                return super().recv()
+
+        monkeypatch.setattr(raw_terminal, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(
+            raw_terminal.isotp,
+            "NotifierBasedCanStack",
+            lambda bus, notifier, address=None, params=None: SlowStack(address._txid, {}),
+        )
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a, **__: None)
+        return raw_terminal.RawTerminal("h", 3333, 500000, timeout=0.3), sent, gate
+
+    @pytest.mark.asyncio
+    async def test_a_retry_stays_on_its_ecu(self, monkeypatch):
+        t, sent, gate = self._build(monkeypatch, {bytes.fromhex("22BC03")})
+        await t.set_header(0x770)
+        read = asyncio.create_task(t.send_uds("22BC03", retries=1))
+        await asyncio.sleep(0.01)
+        repoint = asyncio.create_task(t.set_header(0x7A0))
+        await asyncio.sleep(0.01)
+        gate.set()
+        resp = await read
+        await repoint
+        assert resp["ok"]
+        assert sent == [(0x770, bytes.fromhex("22BC03"))] * 2
+        assert t.frame_counts._records.keys() == {(0x770, "22BC03")}
+        assert t._cur == 0x7A0
+        await t.close()
+
+    @pytest.mark.asyncio
+    async def test_the_unsafe_prompt_cannot_change_the_target(self, monkeypatch):
+        t, sent, gate = self._build(monkeypatch, set())
+        gate.set()
+        judged: list[int | None] = []
+
+        async def slow_check(cmd, unsafe, policy, tx_id):
+            judged.append(tx_id)
+            await asyncio.sleep(0.02)  # the confirmation prompt yields to the loop
+
+        monkeypatch.setattr(raw_terminal, "enforce_command_safety", slow_check)
+        await t.set_header(0x770)
+        read = asyncio.create_task(t.send_uds("22BC03"))
+        await asyncio.sleep(0.005)
+        await asyncio.gather(read, t.set_header(0x7A0))
+        assert judged == [0x770]
+        assert sent == [(0x770, bytes.fromhex("22BC03"))]
+        await t.close()

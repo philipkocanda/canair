@@ -70,11 +70,10 @@ class Terminal(Protocol):
     def transaction(self) -> AbstractAsyncContextManager[None]:
         """Group several commands into one non-interleavable exchange.
 
-        Needed because a UDS read is *stateful* on an ELM327 — the header is set
-        by a separate command — so a concurrent keepalive landing between the
-        header and the request retargets it. Backends with no such shared state
-        (the raw ISO-TP path addresses every frame explicitly) satisfy this with a
-        no-op.
+        Needed because a UDS read is *stateful*: ``set_header`` names the ECU and a
+        separate call sends the request, so a concurrent keepalive landing between the
+        two retargets it. That holds for the raw ISO-TP path as much as for an ELM327.
+        Re-entrant per task.
         """
         ...
 

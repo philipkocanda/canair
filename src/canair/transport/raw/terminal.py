@@ -139,6 +139,11 @@ class RawTerminal:
         self.frame_counts = FrameCountLedger()
         self._stacks: dict[int, isotp.NotifierBasedCanStack] = {}
         self._cur: int | None = None
+        # The ECU a request goes to is `_cur`, set by `set_header`: shared state, the
+        # same as an ELM327 header. One lock guards it and the exchange, so another task
+        # can neither re-point a request nor read from the same stack mid-exchange.
+        self._lock = asyncio.Lock()
+        self._lock_owner: asyncio.Task | None = None
 
     # -- WiCANTerminal-compatible surface -----------------------------------
     async def connect(self) -> None:  # bus already opened in __init__
@@ -148,17 +153,28 @@ class RawTerminal:
         return None
 
     async def set_header(self, tx_id: int) -> None:
-        self._cur = tx_id
+        async with self.transaction():
+            self._cur = tx_id
 
     @contextlib.asynccontextmanager
     async def transaction(self) -> AsyncIterator[None]:
-        """No-op: the raw path has no shared header state to protect.
+        """Hold the terminal across several calls as one exchange.
 
-        Every ISO-TP exchange carries its own addressing, so there is nothing a
-        concurrent keepalive could retarget (the ELM327 counterpart must serialise
-        ``ATSH`` + request — see ``Elm327Terminal.transaction``).
+        The raw path addresses every frame explicitly, but *which* ECU a request goes
+        to is ``_cur``, set by :meth:`set_header`. Without the lock a concurrent task (a
+        keepalive) could re-point it between a caller's ``set_header`` and its request,
+        or read the reply off the same ISO-TP stack. Re-entrant per task, like
+        ``Elm327Terminal.transaction``; each request holds it on its own as well.
         """
-        yield
+        if self._lock_owner is asyncio.current_task():
+            yield
+            return
+        async with self._lock:
+            self._lock_owner = asyncio.current_task()
+            try:
+                yield
+            finally:
+                self._lock_owner = None
 
     async def send_uds(
         self,
@@ -168,53 +184,59 @@ class RawTerminal:
         expected_echo: bytes | None = None,
         retries: int = 0,
     ) -> UdsResponse:
-        await enforce_command_safety(service_pid, self.unsafe, self.session_policy, self._cur)
-        try:
-            req = bytes.fromhex(service_pid.replace(" ", ""))
-        except ValueError:
-            return parse_uds_response("?")
-        attempt = 0
-        while True:
-            resp_bytes = await self._exchange(req, timeout)
-            raw = "NO DATA" if resp_bytes is None else resp_bytes.hex().upper()
-            log_response(service_pid, raw)
-            resp = parse_uds_response(
-                raw,
-                expected_sid=expected_sid,
-                expected_echo=expected_echo,
-                protocol=self.session_policy.protocol(self._cur),
-                request=service_pid,
-            )
-            if resp_bytes is not None and self._classic_can:
-                # parse_uds_response counts response *lines*, and this path hands it
-                # exactly one — the already-reassembled message — so its count is
-                # always 1. The true figure is what the ISO-TP layer put on the bus,
-                # which the payload length fixes.
-                resp["isotp_frame_count"] = frames_for_payload(len(resp_bytes))
-                if resp.get("ok"):
-                    self.frame_counts.observe((self._cur, service_pid), resp["isotp_frame_count"])
-            self.diag.record_response(
-                resp,
-                ecu=(f"0x{self._cur:03X}" if self._cur is not None else None),
-                pid=service_pid,
-            )
-            # Retry only a non-answer (NO DATA / timeout); an NRC is definitive.
-            if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
-                return resp
-            attempt += 1
+        async with self.transaction():
+            # Read once: the safety check, every attempt and the bookkeeping all name
+            # the ECU this request was meant for, even across the `--unsafe` prompt.
+            tx = self._cur
+            await enforce_command_safety(service_pid, self.unsafe, self.session_policy, tx)
+            try:
+                req = bytes.fromhex(service_pid.replace(" ", ""))
+            except ValueError:
+                return parse_uds_response("?")
+            attempt = 0
+            while True:
+                resp_bytes = await self._exchange(tx, req, timeout)
+                raw = "NO DATA" if resp_bytes is None else resp_bytes.hex().upper()
+                log_response(service_pid, raw)
+                resp = parse_uds_response(
+                    raw,
+                    expected_sid=expected_sid,
+                    expected_echo=expected_echo,
+                    protocol=self.session_policy.protocol(tx),
+                    request=service_pid,
+                )
+                if resp_bytes is not None and self._classic_can:
+                    # parse_uds_response counts response *lines*, and this path hands it
+                    # exactly one — the already-reassembled message — so its count is
+                    # always 1. The true figure is what the ISO-TP layer put on the bus,
+                    # which the payload length fixes.
+                    resp["isotp_frame_count"] = frames_for_payload(len(resp_bytes))
+                    if resp.get("ok"):
+                        self.frame_counts.observe((tx, service_pid), resp["isotp_frame_count"])
+                self.diag.record_response(
+                    resp,
+                    ecu=(f"0x{tx:03X}" if tx is not None else None),
+                    pid=service_pid,
+                )
+                # Retry only a non-answer (NO DATA / timeout); an NRC is definitive.
+                if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
+                    return resp
+                attempt += 1
 
     async def send_command(self, cmd: str, timeout: float | None = None) -> str:
         """AT commands are a no-op ('OK'); UDS hex is sent and returned as hex."""
-        await enforce_command_safety(cmd, self.unsafe, self.session_policy, self._cur)
-        c = cmd.strip()
-        if c.upper().startswith("AT"):
-            return "OK"
-        try:
-            req = bytes.fromhex(c.replace(" ", ""))
-        except ValueError:
-            return "?"
-        resp = await self._exchange(req, timeout)
-        return "NO DATA" if resp is None else resp.hex().upper()
+        async with self.transaction():
+            tx = self._cur
+            await enforce_command_safety(cmd, self.unsafe, self.session_policy, tx)
+            c = cmd.strip()
+            if c.upper().startswith("AT"):
+                return "OK"
+            try:
+                req = bytes.fromhex(c.replace(" ", ""))
+            except ValueError:
+                return "?"
+            resp = await self._exchange(tx, req, timeout)
+            return "NO DATA" if resp is None else resp.hex().upper()
 
     async def send_functional(
         self, tx_id: int, request: str, window: float = DEFAULT_WINDOW_S
@@ -294,9 +316,11 @@ class RawTerminal:
                 while True:
                     await asyncio.sleep(2.0)
                     with _suppress():
-                        reply = await self._exchange_tx(
-                            tx, bytes.fromhex(TESTER_PRESENT_REQUEST), 1.5
-                        )
+                        # Through the lock, so it never reads off a stack mid-exchange.
+                        async with self.transaction():
+                            reply = await self._exchange_tx(
+                                tx, bytes.fromhex(TESTER_PRESENT_REQUEST), 1.5
+                            )
                         if keepalive.unsupported_bytes(reply):
                             keepalive.report_unsupported(tx, transport=self.diag.transport)
                             return
@@ -337,10 +361,10 @@ class RawTerminal:
             time.sleep(0.05)  # brief settle for a freshly-started stack
         return st
 
-    async def _exchange(self, req: bytes, timeout: float | None):
-        if self._cur is None:
+    async def _exchange(self, tx_id: int | None, req: bytes, timeout: float | None):
+        if tx_id is None:
             raise RuntimeError("RawTerminal.send_uds called before set_header")
-        return await self._exchange_tx(self._cur, req, timeout)
+        return await self._exchange_tx(tx_id, req, timeout)
 
     async def _exchange_tx(self, tx_id: int, req: bytes, timeout: float | None):
         # An explicit timeout is an instruction; a budget is the ECU's think time

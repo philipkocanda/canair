@@ -65,8 +65,10 @@ must not bypass them.
    `transport/elm327/pipe.py::ResponsePipe`.
 3. **Hold `terminal.transaction()` across `set_header` and `send_uds`.** The command lock is per
    command. Without the transaction, a concurrent keepalive can retarget `ATSH` between a read's
-   header and its request. The transaction is re-entrant per task. `RawTerminal`'s is a no-op,
-   because the raw path addresses every frame explicitly.
+   header and its request. The transaction is re-entrant per task. `RawTerminal` holds a real
+   lock too: it addresses every frame explicitly, but the ECU a request goes to is the one its
+   `set_header` named, and another task could otherwise change that or read the reply off the
+   same ISO-TP stack.
 
 Two config keys back these mechanisms:
 
