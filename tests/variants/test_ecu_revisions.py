@@ -362,6 +362,10 @@ class TestCaptures:
         assert not revisions_in_scope({"revisions": {"VCU": "uds"}}, {"VCU": "kwp"})
         assert revisions_in_scope({"revisions": {"VCU": "uds"}}, {})
 
+    def test_revisions_in_scope_ignores_case(self):
+        assert revisions_in_scope({"revisions": {"VCU": "kwp"}}, {"VCU": "KWP"})
+        assert not revisions_in_scope({"revisions": {"VCU": "uds"}}, {"VCU": "KWP"})
+
     def test_a_recording_is_tagged_with_the_revisions_it_captured(self):
         prof = _activate(variant="60kwh", pins=["VCU=uds"])
         tag = capture_tag(prof)

@@ -85,6 +85,10 @@ class TestCar:
         assert car.admits(entry, ["BMS"])  # another ECU's revision is no reason to drop it
         assert car.admits({}, ["VCU"])  # an untagged entry reads as the resolved revision
 
+    def test_revision_ids_match_in_any_case(self):
+        car = Car(variant="v", revisions={"BMS": "KWP"})
+        assert car.admits({"revisions": {"BMS": "kwp"}}, ["BMS"])
+
 
 class TestTagging:
     def test_entries_carry_the_car_and_the_scoped_ecus_revision(self, logp, refs, monkeypatch):
@@ -151,6 +155,12 @@ class TestDiff:
         prev = _scan("all", {VCU: _codes("P1")}, revisions={"VCU": "kwp"})
         curr = _scan("all", {VCU: _codes("P2")}, revisions={"VCU": "uds"})
         assert dtc_log.diff_scans(prev, curr, refs=REFS, profile=active()) == self.EMPTY
+
+    def test_a_revision_written_in_another_case_is_the_same_revision(self):
+        prev = _scan("all", {VCU: _codes("P1")}, revisions={"VCU": "kwp"})
+        curr = _scan("all", {VCU: _codes("P1")}, revisions={"VCU": "KWP"})
+        diff = dtc_log.diff_scans(prev, curr, refs=REFS, profile=active())
+        assert diff["persisting"] == [(VCU, "P1")]
 
     def test_codes_a_clear_wiped_are_not_reported_as_cleared(self):
         prev = _scan("all", {BMS: _codes("P1", "P2"), VCU: _codes("U1")})

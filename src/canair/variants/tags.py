@@ -85,8 +85,12 @@ def revisions_in_scope(session: Mapping[Any, Any], resolved: Mapping[str, str]) 
     """
     if not resolved:
         return True
-    tags = {k.upper(): v for k, v in session_revisions(session).items()}
-    return all(tags.get(ecu.upper(), rid) == rid for ecu, rid in resolved.items())
+    # Compared as revision_ids.revision_key does; that module imports this package, so not here.
+    tags = {k.upper(): v.strip().casefold() for k, v in session_revisions(session).items()}
+    return all(
+        tags.get(ecu.upper(), rid.strip().casefold()) == rid.strip().casefold()
+        for ecu, rid in resolved.items()
+    )
 
 
 def in_scope(session: Mapping[Any, Any], scope: str | None, *, several: bool = False) -> bool:

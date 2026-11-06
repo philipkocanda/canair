@@ -68,6 +68,7 @@ from canair.dtc.scope import ALL_SCOPE, Car, current_car, entry_revision
 from canair.dtc.snapshot_report import logged_lines
 from canair.profile.model import Profile
 from canair.render import ansi
+from canair.variants.revision_ids import same_revision
 from canair.variants.tags import narrow_to_captured
 
 if TYPE_CHECKING:
@@ -287,7 +288,7 @@ def _comparable(rx: str, previous: Mapping, current: Mapping, refs: EcuRefs) -> 
     if name is None:
         return True
     before, now = entry_revision(previous, name), entry_revision(current, name)
-    return before is None or now is None or before == now
+    return before is None or now is None or same_revision(before, now)
 
 
 def diff_scans(
