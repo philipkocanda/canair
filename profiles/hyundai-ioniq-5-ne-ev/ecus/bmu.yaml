@@ -4,19 +4,23 @@ BMU:
   identity:
     description: Battery Management Unit
     notes: >-
-      Called BMU (Battery Management Unit) in owner reports; not yet checked against the service
-      manual. Hyundai TSB 22-01-094H lists the module as BMS, which stays as an alias. The G-CAN and
-      M-CAN placement is also an owner report. The service manual's EV Battery System DTC index
-      lists a P-CAN bus-off code (P-CAN is not set here) and invalid data received from VCMS on
-      G-CAN
-      (https://lemon-manuals.org.ua/Hyundai/2022/Ioniq%205%20SE%2C%20AWD/Repair%20and%20Diagnosis/Quick%20Lookups/DTC%20Index/EV%20Battery%20System%20DTCS/).
-      Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases (MY2022-2027,
-      https://github.com/OBDb/Hyundai-Ioniq-5): 220101-0105, 010A-010C, 0111, 0114 (SOC, SOH, cell
-      voltages, charge counters). Also polled at 7E4/7EC by OVMS vehicle_hyundai_ioniq5 and the
-      wican-fw Ioniq5/6 profile. Signals seeded from OBDb keep OBDb's names without the IONIQ5_
-      prefix, unless a PID's notes list a rename. Part numbers from Hyundai TSB 22-01-094H (2022MY
-      BMS update, event 892): 375A0-GI150, ROM IDs 4400/4500/4600/4700/4800/5000/5300 updated to
-      5400, and 375A0-GI100, ROM IDs 4402/4502/4602/4702/4802 and later
+      The service manual calls this module BMU (wiring name BATTERY SYSTEM ASSEMBLY_BMU) in its DTC
+      pages and BMS ECU in its component pages; BMS stays as an alias. The BMU is the master of the
+      battery management system: one Cell Monitoring Unit (CMU) per battery module measures module
+      voltage and temperature and reports to it (CMU1-CMU8 on the 72.6 and 77.4 kWh packs). The
+      manual's Computer Data Lines wiring diagram (5 of 8) puts the BMU's connector B01-D on G-CAN
+      (pins 20/19) and M-CAN (pins 10/9):
+      https://lemon-manuals.org.ua/Hyundai/2022/Ioniq%205%20SE%2C%20AWD/Repair%20and%20Diagnosis/Quick%20Lookups/Wiring%20Diagrams/System%20Wiring%20Diagrams/Computer%20Data%20Lines/.
+      Its peers VCU, MCU and VCMS reach it over G-CAN (DTCs U0293-00, U0110-00, U1415-82). DTC
+      U0001-00 is titled Bus Off (P-CAN), but its description says G-CAN, and the wiring diagram
+      shows no P-CAN pin. Address confirmed by recorded responses in OBDb Hyundai-Ioniq-5 test cases
+      (MY2022-2027, https://github.com/OBDb/Hyundai-Ioniq-5): 220101-0105, 010A-010C, 0111, 0114
+      (SOC, SOH, cell voltages, charge counters). Also polled at 7E4/7EC by OVMS
+      vehicle_hyundai_ioniq5 and the wican-fw Ioniq5/6 profile. Signals seeded from OBDb keep OBDb's
+      names without the IONIQ5_ prefix, unless a PID's notes list a rename. Part numbers from
+      Hyundai TSB 22-01-094H (2022MY BMS update, event 892): 375A0-GI150, ROM IDs
+      4400/4500/4600/4700/4800/5000/5300 updated to 5400, and 375A0-GI100, ROM IDs
+      4402/4502/4602/4702/4802 and later
       (https://static.nhtsa.gov/odi/tsbs/2022/MC-10228645-0001.pdf).
     alias: BMS
   pids:
