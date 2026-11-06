@@ -319,10 +319,11 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool, *,
         return
 
     await sm.keepalive_stale()
-    await sm.terminal.set_header(tx_id)
-
     print(f"\n  TX: 0x{tx_id:03X}  Request: {service_pid}")
-    response = await sm.terminal.send_uds(service_pid)
+    # One transaction, so a background keepalive (the REPL runs one) cannot re-point it.
+    async with sm.terminal.transaction():
+        await sm.terminal.set_header(tx_id)
+        response = await sm.terminal.send_uds(service_pid)
 
     if not response["ok"]:
         error = response.get("error") or response.get("nrc_desc", "unknown error")
@@ -411,10 +412,10 @@ async def _exec_iocontrol(
             await sm.open_session(tx_id, mode=mode, force=True)
 
     await sm.keepalive_stale()
-    await sm.terminal.set_header(tx_id)
-
     print(f"  {ecu_key} {did_key} ({label}) → {action}: {hex_cmd}")
-    response = await send_iocontrol(sm.terminal, hex_cmd)
+    async with sm.terminal.transaction():
+        await sm.terminal.set_header(tx_id)
+        response = await send_iocontrol(sm.terminal, hex_cmd)
 
     if response["ok"]:
         print(f"  ✓ Positive response: {response['hex']}")

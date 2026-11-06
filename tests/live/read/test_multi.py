@@ -1,6 +1,7 @@
 """Tests for canair.live.read.multi — parse_sub_commands, resolve_tx_id."""
 
 import asyncio
+import contextlib
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -397,6 +398,10 @@ class _RawStepTerminal:
 
     async def set_header(self, tx_id):
         pass
+
+    @contextlib.asynccontextmanager
+    async def transaction(self):
+        yield
 
     async def send_uds(self, request, *a, **k):
         return self.replies.get(request, {"ok": False, "error": "No response from ECU (NO DATA)"})
