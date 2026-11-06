@@ -290,9 +290,9 @@ class TestChecks:
         assert any(message in e for e in errors), errors
 
     def test_variant_references_must_exist(self):
-        _activate()
-        variants = load_variants()
-        ecus = load_raw_pids()["ecus"]
+        profile = _activate()
+        variants = load_variants(profile)
+        ecus = load_raw_pids(profile)["ecus"]
         assert rv.variant_reference_errors(variants, ecus) == []
         doc = yaml.safe_load((FIXTURE / "variants.yaml").read_text())
         doc["variants"]["40kwh"]["revisions"] = {"VCU": ["can"], "BMS": ["kwp"], "vcu": ["kwp"]}
@@ -317,9 +317,9 @@ class TestChecks:
     def test_a_predicate_must_resolve_on_every_car(self, copy):
         from canair.states.refs import check_references_on_every_car
 
-        _activate(copy)
-        assert check_references_on_every_car([("DRIVING", "VCU.VEHICLE_SPEED > 0")]) == []
-        issues = check_references_on_every_car([("DRIVING", "VCU.DRIVE_MODE > 0")])
+        profile = _activate(copy)
+        assert check_references_on_every_car([("DRIVING", "VCU.VEHICLE_SPEED > 0")], profile) == []
+        issues = check_references_on_every_car([("DRIVING", "VCU.DRIVE_MODE > 0")], profile)
         assert len(issues) == 1
         assert "variant 40kwh, VCU=kwp" in issues[0].message
         assert "variant 60kwh, VCU=kwp" in issues[0].message

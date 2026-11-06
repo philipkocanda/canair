@@ -29,7 +29,6 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from canair.core import yaml_io
@@ -284,18 +283,12 @@ def _variant_from(vid: str, entry: Mapping[str, Any]) -> Variant:
     )
 
 
-def _variants_path(profile: Profile | None) -> Path:
-    from canair.profile import active
-
-    return (profile or active()).variants_file
-
-
-def load_variants(profile: Profile | None = None) -> dict[str, Variant]:
+def load_variants(profile: Profile) -> dict[str, Variant]:
     """The profile's variants by ID, in file order. Empty when there is no file.
 
     Raises :class:`VariantsError` (listing every problem) on a structurally invalid file.
     """
-    path = _variants_path(profile)
+    path = profile.variants_file
     if not path.exists():
         return {}
     data = yaml_io.safe_load(path.read_text())

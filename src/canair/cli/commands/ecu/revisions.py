@@ -27,6 +27,7 @@ import sys
 from canair.cli.commands._edit import run_edit
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.core.edit_errors import EditError
+from canair.profile import active
 from canair.render import ansi, messages
 
 _EXAMPLES = __doc__.split("Examples:")[1]
@@ -42,7 +43,8 @@ def cmd_list(args) -> int:
         describe_resolution,
     )
 
-    ecus = load_raw_pids().get("ecus") or {}
+    prof = active()
+    ecus = load_raw_pids(prof).get("ecus") or {}
     name = canonical_ecu(args.ecu, ecus)
     if name is None:
         messages.error(f"unknown ECU {args.ecu!r}")
@@ -50,7 +52,7 @@ def cmd_list(args) -> int:
     ecu_def = ecus[name]
     revs = declared(ecu_def)
     block = ecu_def.get("revisions") or {}
-    resolution = revision_resolutions().get(name)
+    resolution = revision_resolutions(prof).get(name)
     gated = dict.fromkeys(revs, 0)
     for pid_def in (ecu_def.get("pids") or {}).values():
         for node in [pid_def, *((pid_def or {}).get("parameters") or {}).values()]:
@@ -58,7 +60,7 @@ def cmd_list(args) -> int:
                 rid = canonical_revision(r, revs)
                 gated[rid] = gated.get(rid, 0) + 1
     allowed_by = {
-        r: [vid for vid, v in load_variants().items() if r in (v.revisions.get(name) or revs)]
+        r: [vid for vid, v in load_variants(prof).items() if r in (v.revisions.get(name) or revs)]
         for r in revs
     }
     if args.json:

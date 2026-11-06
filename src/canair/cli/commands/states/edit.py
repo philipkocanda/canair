@@ -6,6 +6,7 @@ from pathlib import Path
 
 from canair.cli.commands._edit import run_edit, set_or_clear
 from canair.core.prompt import confirm
+from canair.profile import active
 from canair.render import ansi, messages
 from canair.yaml_edit.echo import echo_edit
 
@@ -24,7 +25,7 @@ def _warn_unresolved_refs(state: str, expr: str | None) -> None:
     try:
         from canair.states.refs import check_references_on_every_car
 
-        issues = check_references_on_every_car([(state, expr)])
+        issues = check_references_on_every_car([(state, expr)], active())
     except Exception:
         return  # never let an advisory check fail a successful write
     for issue in issues:

@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from canair.expression.decoding import decodes_to_number
+from canair.profile import Profile
 from canair.states.predicates import PREDICATE_SENTINELS, StatePredicateError, predicate_references
 
 # Why a reference cannot resolve. All are hard failures (the predicate can never
@@ -192,7 +193,7 @@ def check_references(
 
 
 def check_references_on_every_car(
-    predicates: Iterable[tuple[str, str]], profile=None
+    predicates: Iterable[tuple[str, str]], profile: Profile
 ) -> list[StateRefIssue]:
     """:func:`check_references` on every car the profile describes.
 

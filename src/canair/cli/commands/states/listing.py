@@ -59,7 +59,7 @@ def _load_usage() -> dict[str, int]:
     return counts
 
 
-def _load_broken_refs(rules) -> dict[str, list[dict[str, str]]]:
+def _load_broken_refs(rules, profile) -> dict[str, list[dict[str, str]]]:
     """``{STATE: [{ref, kind, message}, …]}`` for predicates that can never match.
 
     A ``when:`` reference to a signal the registry doesn't define is invisible at
@@ -70,9 +70,9 @@ def _load_broken_refs(rules) -> dict[str, list[dict[str, str]]]:
     from canair.ecus.pids import load_raw_pids
 
     try:
-        if not load_raw_pids().get("ecus"):
+        if not load_raw_pids(profile).get("ecus"):
             return {}
-        issues = check_references_on_every_car([(r.name, r.expr) for r in rules if r.expr])
+        issues = check_references_on_every_car([(r.name, r.expr) for r in rules if r.expr], profile)
     except Exception:
         return {}
     out: dict[str, list[dict[str, str]]] = {}
@@ -97,7 +97,7 @@ def cmd_list(args) -> int:
         return 1
 
     usage = _load_usage()
-    broken = _load_broken_refs(rules)
+    broken = _load_broken_refs(rules, prof)
     records: list[StateRecord] = [
         {
             "name": r.name,

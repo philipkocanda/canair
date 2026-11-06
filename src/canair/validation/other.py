@@ -8,6 +8,7 @@ from jsonschema import Draft202012Validator
 from canair.core import yaml_io
 from canair.core.json_schema import schema_errors
 from canair.core.paths import CAN_BUSES_SCHEMA_FILE, GROUPS_SCHEMA_FILE, STATES_SCHEMA_FILE
+from canair.profile import active
 
 from ._common import CAN_INDEX_SCHEMA_FILE, duplicate_key_errors
 from .report import FileReport, SignalsReport
@@ -33,10 +34,11 @@ def _state_reference_errors(predicates: list[tuple[str, str]]) -> tuple[list[str
 
     if not predicates:
         return ([], None)
+    profile = active()
     try:
-        if not load_raw_pids().get("ecus"):
+        if not load_raw_pids(profile).get("ecus"):
             return ([], "no ECUs defined in ecus/ yet")
-        issues = check_references_on_every_car(predicates)
+        issues = check_references_on_every_car(predicates, profile)
     except Exception as ex:
         return ([], f"could not load ecus/ ({ex}) — see `canair validate pids`")
     return ([str(issue) for issue in issues], None)
@@ -114,7 +116,6 @@ def _state_relation_errors(
 
 def check_states() -> FileReport:
     """Check the profile's optional vehicle_states.yaml (schema, predicates and relations)."""
-    from canair.profile import active
     from canair.states.predicates import StatePredicateError, compile_predicate
 
     path = active().states_file
@@ -180,7 +181,6 @@ def check_groups() -> FileReport:
     """Check the profile's optional groups.yaml (schema, names, selectors and member ECUs)."""
     from canair.ecus.names import build_canonical_name_index, canonical_ecu_name_safe
     from canair.ecus.pids import build_ecu_index, load_pids
-    from canair.profile import active
     from canair.query import QueryError, parse_selector
 
     path = active().groups_file
@@ -243,7 +243,6 @@ def check_actions() -> FileReport:
     from canair.actions import ActionError, parse_actions_doc, registry_issues
     from canair.actions.plan import action_policy, plan_requests
     from canair.ecus.pids import load_pids
-    from canair.profile import active
     from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 
     path = active().actions_file
@@ -279,7 +278,6 @@ def check_actions() -> FileReport:
 
 def check_can_buses() -> FileReport:
     """Check the profile's optional can_buses.yaml (CAN bus vocabulary) against its schema."""
-    from canair.profile import active
 
     path = active().can_buses_file
     if not path.exists():
@@ -325,7 +323,6 @@ def check_signals() -> SignalsReport:
 
 def check_can() -> FileReport:
     """Check the profile's optional captures/can/index.yaml (raw-CAN log index)."""
-    from canair.profile import active
 
     name = "captures/can/index.yaml"
     path = active().can_index_file
