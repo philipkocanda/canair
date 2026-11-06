@@ -117,7 +117,7 @@ def state_options(profile=None) -> list[tuple[str, str]]:
     return options
 
 
-def _order_states(tokens, profile=None) -> list[str]:
+def order_states(tokens, profile=None) -> list[str]:
     """De-duplicate ``tokens`` and order them by the declared vocabulary.
 
     Declared states come first in ``vehicle_states.yaml`` order, then any tokens

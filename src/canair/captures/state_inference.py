@@ -33,7 +33,7 @@ from canair.expression.decoding import decode_param_rows
 from canair.states.predicates import StatePredicateError, StateRule, predicate_references
 from canair.states.spans import build_spans, span_state_union
 from canair.states.suggest import suggest_states
-from canair.states.vocabulary import _order_states
+from canair.states.vocabulary import order_states
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -164,8 +164,8 @@ def infer_session_states(
     definitely_false = [s for s in false_any if s not in matched_union]
 
     return SessionInference(
-        inferred=_order_states(list(matched_union), profile=profile),
-        definitely_false=_order_states(definitely_false, profile=profile),
+        inferred=order_states(list(matched_union), profile=profile),
+        definitely_false=order_states(definitely_false, profile=profile),
         n_cycles=len(cycles),
         n_decoded_params=len(all_params),
         timed=timed,
@@ -274,7 +274,7 @@ def infer_state_spans(
             if name not in matched_now
             and (name in set(definitely_false) or refs_by_state.get(name, frozenset()) & seen)
         }
-        observations.append((when, _order_states(sorted(held), profile=profile)))
+        observations.append((when, order_states(sorted(held), profile=profile)))
 
     spans = build_spans(observations)
     return SpanInference(
@@ -282,7 +282,7 @@ def infer_state_spans(
         n_cycles=len(cycles),
         n_informative=n_informative,
         n_untimed=n_untimed,
-        union=_order_states(sorted(span_state_union(spans)), profile=profile),
+        union=order_states(sorted(span_state_union(spans)), profile=profile),
     )
 
 
@@ -333,7 +333,7 @@ def session_state_spans(
     inf = infer_state_spans(captures, rules, ecu_index, cycle_tol=cycle_tol, profile=profile)
     inferable = {r.name for r in rules if r.predicate is not None}
     placed = set(inf.union)
-    carried = _order_states(
+    carried = order_states(
         [s for s in recorded if s not in inferable or s not in placed], profile=profile
     )
     spans: list[StateSpan] = inf.spans
@@ -341,7 +341,7 @@ def session_state_spans(
         spans = [
             {
                 "at": s["at"],
-                "states": _order_states(list({*s["states"], *carried}), profile=profile),
+                "states": order_states(list({*s["states"], *carried}), profile=profile),
             }
             for s in inf.spans
         ]

@@ -9,7 +9,7 @@ from canair.states.implies import implied_closure, most_specific_states
 from canair.states.predicates import StatePredicateError, StateRule
 from canair.states.suggest import satisfied_states
 from canair.states.tokens import ALL_STATE, NO_STATE_KEY, join_states, parse_states
-from canair.states.vocabulary import _order_states, allowed_states, load_states
+from canair.states.vocabulary import allowed_states, load_states, order_states
 
 
 def ecu_states(ecu_def, profile=None) -> list[str]:
@@ -24,12 +24,12 @@ def ecu_states(ecu_def, profile=None) -> list[str]:
         return []
     top = ecu_def.get("vehicle_states")
     if top:
-        return _order_states(parse_states(top), profile)
+        return order_states(parse_states(top), profile)
     tokens: list[str] = []
     for pid_def in (ecu_def.get("pids") or {}).values():
         if isinstance(pid_def, dict):
             tokens.extend(parse_states(pid_def.get("vehicle_states")))
-    return _order_states(tokens, profile)
+    return order_states(tokens, profile)
 
 
 def ecus_in_state(state, pids_data, profile=None, rules=None) -> list[dict]:
@@ -92,7 +92,7 @@ def state_bucket_key(states, rules: list[StateRule] | None = None, *, profile=No
         return NO_STATE_KEY
     if rules is None:
         rules = load_states(profile)
-    ordered = _order_states(tokens, profile)
+    ordered = order_states(tokens, profile)
     return join_states(most_specific_states(rules, ordered)) or NO_STATE_KEY
 
 

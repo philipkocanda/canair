@@ -27,7 +27,7 @@ from canair.core.prompt import confirm
 from canair.render import messages
 from canair.states.predicates import StatePredicateError
 from canair.states.tokens import join_states, parse_states
-from canair.states.vocabulary import _order_states, load_states
+from canair.states.vocabulary import load_states, order_states
 
 from .echo import echo_write
 
@@ -71,7 +71,7 @@ def _classify(recorded: list[str], inf: SessionInference) -> tuple[str, list[str
 
 
 def _order(tokens: set[str]) -> list[str]:
-    return _order_states(list(tokens))
+    return order_states(list(tokens))
 
 
 def cmd_backfill_states(

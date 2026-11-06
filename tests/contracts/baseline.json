@@ -37,8 +37,7 @@
     "canair.install.update_check._is_newer",
     "canair.query.steps._looks_like_pid",
     "canair.query.steps._query_selectors",
-    "canair.render.formatting._render_hex_line",
-    "canair.states.vocabulary._order_states"
+    "canair.render.formatting._render_hex_line"
   ],
   "ui_standards": {
     "raw_escapes": {},
