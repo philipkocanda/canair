@@ -45,6 +45,10 @@ from typing import TYPE_CHECKING, Any, Final, Literal
 
 from canair.core import yaml_io
 from canair.core.edit_errors import EditError
+from canair.ecus.pids import build_ecu_index
+from canair.query import QueryError, parse_selector, pids_named_by
+from canair.states.predicates import StatePredicateError, compile_predicate, predicate_references
+from canair.states.refs import check_references
 
 if TYPE_CHECKING:
     from canair.profile.model import Profile
@@ -132,8 +136,6 @@ def _request(raw: Any, where: str) -> ActionRequest:
 
 
 def _reads(raw: Any, where: str) -> tuple[str, ...]:
-    from canair.query import QueryError, parse_selector
-
     if not isinstance(raw, list) or not raw:
         raise ActionError(f"{where}: 'reads' must be a non-empty list of ECU:PID selectors")
     out: list[str] = []
@@ -153,13 +155,6 @@ def _reads(raw: Any, where: str) -> tuple[str, ...]:
 
 
 def _require(raw: Any, reads: Sequence[str], where: str) -> str:
-    from canair.query import parse_selector
-    from canair.states.predicates import (
-        StatePredicateError,
-        compile_predicate,
-        predicate_references,
-    )
-
     expr = " ".join(str(raw or "").split())
     if not expr:
         raise ActionError(f"{where}: 'require' must be a condition over ECU.SIGNAL values")
@@ -228,9 +223,6 @@ def registry_issues(action: Action, pids_data: Mapping[str, Any]) -> list[str]:
     defined, and that every signal the condition tests resolves (the same check
     ``canair validate states`` runs on state predicates).
     """
-    from canair.ecus.pids import build_ecu_index
-    from canair.query import parse_selector, pids_named_by
-    from canair.states.refs import check_references
 
     index = build_ecu_index(dict(pids_data))
     issues: list[str] = []

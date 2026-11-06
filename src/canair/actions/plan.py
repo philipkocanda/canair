@@ -10,8 +10,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from canair.actions import FUNCTIONAL, Action, ActionError, ActionRequest
+from canair.ecus.names import canonical_ecu_name_safe
+from canair.ecus.pids import build_ecu_index
 from canair.profile.model import Profile
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
+from canair.safety.quirks import action_grants
+from canair.uds.addressing import functional_request_id, resolve_mode
 
 
 @dataclass(frozen=True)
@@ -22,15 +26,12 @@ class PlannedRequest:
 
 def functional_id(pids_data: dict) -> int:
     """The functional request id for the profile's addressing mode."""
-    from canair.uds.addressing import functional_request_id, resolve_mode
 
     return functional_request_id(resolve_mode(pids_data))
 
 
 def plan_requests(action: Action, pids_data: dict, *, profile: Profile) -> list[PlannedRequest]:
     """Resolve each request's target to a request id (raises :class:`ActionError`)."""
-    from canair.ecus.names import canonical_ecu_name_safe
-    from canair.ecus.pids import build_ecu_index
 
     index = build_ecu_index(pids_data)
     planned: list[PlannedRequest] = []
@@ -55,7 +56,6 @@ def action_policy(
     The base policy plus only those quirk grants this action needs, so the
     exemption is no wider than the requests themselves.
     """
-    from canair.safety.quirks import action_grants
 
     available = action_grants(pids_data)
     needed: set[tuple[int, str]] = set()
