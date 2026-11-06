@@ -45,11 +45,10 @@ from canair.captures.types import Quality
 from canair.ecus.pids import build_ecu_index
 from canair.expression.results import ResultEntry
 from canair.query.steps import (
-    _looks_like_pid,
-    _query_selectors,
     merged_selector_notes,
     normalize_query_steps,
     parse_sub_commands,
+    query_selectors,
     resolve_tx_id,
     selector_text,
 )
@@ -85,9 +84,7 @@ __all__ = [
     "_exec_session",
     "_exec_skm_wake",
     "_finalize_journal",
-    "_looks_like_pid",
     "_multi_repl",
-    "_query_selectors",
     "_read_batch",
     "_read_single",
     "_run_query_plan",
@@ -98,6 +95,7 @@ __all__ = [
     "mode_multi",
     "normalize_query_steps",
     "parse_sub_commands",
+    "query_selectors",
     "resolve_tx_id",
     "selector_text",
 ]

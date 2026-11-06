@@ -10,7 +10,7 @@ import asyncio
 import re
 
 from canair.ecus.pids import build_param_index
-from canair.query.steps import _query_selectors, resolve_tx_id
+from canair.query.steps import query_selectors, resolve_tx_id
 from canair.render import messages
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import SessionManager
@@ -155,7 +155,7 @@ async def _multi_repl(
                 parts = cmd.split()
                 # First token might be "query" or "!query"; rest is a mini-language query.
                 try:
-                    selectors = _query_selectors(parts[1:])
+                    selectors = query_selectors(parts[1:])
                 except ValueError as ex:
                     messages.error(f"invalid query: {ex}")
                     continue

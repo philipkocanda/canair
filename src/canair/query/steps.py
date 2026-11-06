@@ -57,12 +57,7 @@ def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
         return None
 
 
-# Backwards-compatible alias — the space-vs-colon guard now lives in
-# canair.query.looks_like_pid (shared with the capture query hint).
-_looks_like_pid = looks_like_pid
-
-
-def _query_selectors(tokens: list[str]) -> list[tuple[str, list[str]]]:
+def query_selectors(tokens: list[str]) -> list[tuple[str, list[str]]]:
     """Expand ``query`` sub-command tokens into ``(ecu, pids)`` pairs.
 
     Tokens are parsed with the ECU/PID mini-language (canair.query): each
@@ -199,7 +194,7 @@ def normalize_query_steps(
 
     Without this, ``canair mon IGPM OBC AAF @driving`` polls IGPM and AAF twice:
     ``@driving`` already contains them, but each positional STEP is parsed
-    independently (so :func:`_query_selectors`' within-step de-dup never sees the
+    independently (so :func:`query_selectors`' within-step de-dup never sees the
     other step) and a bare ``AAF`` is a different key from ``AAF:2180``. The
     duplicates render as duplicate ECU blocks, collide on every
     ``(ecu_label, pid)``-keyed structure in the monitor, and double the poll
@@ -285,7 +280,7 @@ def parse_sub_commands(args: list[str]) -> list[dict]:
                 raise ValueError(
                     "'query' requires a selection: query IGPM:BC03,BC06  or  query VCU:2101 BMS:2101"
                 )
-            for ecu, pids in _query_selectors(parts[1:]):
+            for ecu, pids in query_selectors(parts[1:]):
                 commands.append({"type": "query", "ecu": ecu, "pids": pids})
 
         elif verb == "raw":
