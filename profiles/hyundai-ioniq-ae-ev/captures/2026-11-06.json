@@ -168,6 +168,7 @@
       "attribution": {
         "variant": "selected"
       },
+      "notes": "Control, no BC44 ON, about 110 s after the last BC44 OFF. IG3_RELAY_OUTPUT 0, VCU_IG3_ON 0, and BMS, OBC, MCU, AAF and HVAC gave NO DATA (the failed exchanges in the quality warning). The VCU still answered, in its run-on after IG3 falls; it did not answer before the first BC44 ON.",
       "captures": [
         {"rx":"0x778","pid":"22BC07","payload":"62BC070841FBCC00001100","time":"23:24:06.263","elapsed_ms":50},
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009218047063B03000000005863000620","time":"23:24:06.503","elapsed_ms":103}

@@ -790,7 +790,7 @@ IGPM:
     BC43:
       vehicle_states: [ALL]
       label: Rear charge door lamp
-      verified: false
+      verified: true
       true: "2FBC4303"
       false: "2FBC4300"
       notes: >-
@@ -800,14 +800,23 @@ IGPM:
 
     BC44:
       vehicle_states: [ALL]
-      label: Ignition 3 relay (probable)
-      verified: false
+      label: Ignition 3 relay
+      verified: true
       true: "2FBC4403"
       false: "2FBC4400"
       notes: >-
-        The IGPM's IG3 relay by ScanDoc numbering ('Ignition 3 relay'). IG3 powers the EPCU, OBC and
-        BMS: do not toggle it casually. Accepted in READY with no effect (IG3 already on);
-        ConditionsNotCorrect in ACC.
+        The IGPM's IG3 relay by ScanDoc numbering ('Ignition 3 relay'). Verified 2026-11-06:
+        switching it on gives an audible relay click with no key or fob in the car. With the
+        charging cable plugged in, it also lights the red 'plug connected' lamp on the dash. It
+        closes the IG3 rail and wakes the ECUs on it: the VCU did not answer before the ON (it never
+        answers with the car asleep), and 3 s after the ON IG3_RELAY_OUTPUT and VCU_IG3_ON read 1
+        and the VCU, BMS, OBC, MCU, AAF and HVAC all answered. The rail holds after the OFF: 75 s
+        later the VCU still read IG3 on and the others still answered although IG3_RELAY_OUTPUT read
+        0, and about 110 s after the OFF the VCU read IG3 off and only the VCU answered, in the
+        run-on it has after IG3 falls (about 3 min at the end of the 2026-11-03 top-up). A second
+        OFF went out at the 75 s mark. IG3 powers the EPCU, OBC and BMS: do not toggle it casually.
+        Accepted in READY with no effect (IG3 already on); ConditionsNotCorrect in ACC. Captures:
+        label 'IGPM BC44 IG3 test', 2026-11-06.
       status_param: IG3_RELAY_OUTPUT
   research:
     - type: verify
@@ -1069,13 +1078,16 @@ IGPM:
       created: "2026-10-30"
       updated: "2026-11-03"
       result: >-
-        Start not settled; the end is ordered from the HV side. In the 2026-10-21 and 2026-11-03
-        top-ups the LDC stopped with the BMS still awake, and the HV main relay opened while the BMS
-        still read IG3 on (B61:3); VCU_IG3_ON and the IGPM bit (22BC07 B12:3) fell within the same 2
-        s, and no other IGPM or BCM bit moved. The VCU cannot start itself: on uhi22's bench the
-        EPCU's supply came up only from its wake-line pin (CN1000 3P), which VCU_IG3_ON follows.
-        Leading candidate for the start: the IGPM's IG3 relay output. Not excluded: the BCM, which
-        measures the 12 V battery during deep sleep, asking the IGPM to close the relay.
+        The IGPM's IG3 relay starts it; who decides is open. 2026-11-06: IOControl BC44 alone closed
+        IG3 and woke the VCU, which had not answered before (car plugged in, not charging, no key),
+        and its click is the same relay sound the owner hears when a top-up starts. Not a recorded
+        start: the match is by ear. The end is ordered from the HV side. In the 2026-10-21 and
+        2026-11-03 top-ups the LDC stopped with the BMS still awake, and the HV main relay opened
+        while the BMS still read IG3 on (B61:3); VCU_IG3_ON and the IGPM bit (22BC07 B12:3) fell
+        within the same 2 s, and no other IGPM or BCM bit moved. The VCU cannot start itself: on
+        uhi22's bench the EPCU's supply came up only from its wake-line pin (CN1000 3P), which
+        VCU_IG3_ON follows. Still open: whether the IGPM decides to start a top-up itself, or the
+        BCM, which measures the 12 V battery during deep sleep, asks it to close the relay.
       notes: >-
         Three top-ups are recorded (2026-10-21, 2026-10-30, 2026-11-03), all joined mid-run with the
         relay already closed and the LDC at 14.6 V: a sleeping WiCAN wakes only when the 12 V rises
@@ -1127,6 +1139,18 @@ IGPM:
       vehicle_states: [SLEEP, ACC]
       created: "2026-10-23"
       updated: "2026-10-30"
+      result: >-
+        BC44 verified 2026-11-06 with the car parked and AC-plugged (AC_CHARGER_CONNECTED 1, OBC
+        standby, not charging, VCU_POWER_STATE 6 whenever the VCU answered), no key or fob in the
+        car: it clicks and lights the red 'plug connected' dash lamp. The VCU did not answer before
+        the ON. One pipeline (session IGPM --wake, iocontrol BC44, sleep 3, then queries):
+        IG3_RELAY_OUTPUT 1, VCU_IG3_ON 1, and VCU, BMS, OBC, MCU, AAF and HVAC all answered, so the
+        relay alone wakes the IG3-fed ECUs and the VCU. The rail holds after release: 75 s after a
+        BC44 OFF a pipeline without the ON still read VCU_IG3_ON 1 with answers from all of them and
+        IG3_RELAY_OUTPUT 0. About 110 s after the OFF (monitor @charging, then the same pipeline
+        without the ON) VCU_IG3_ON read 0 and BMS, OBC, MCU, AAF and HVAC gave NO DATA, while the
+        VCU still answered in its run-on after IG3 falls. Not tested: unplugged, car asleep without
+        the plug, how soon each ECU answers (only 3 s tried), what holds the rail, and BC1B.
       notes: >-
         The IGPM's power-switch controller drives a Main relay in the engine-bay PCB block that
         feeds the IG3 rail (EPCU, OBC, BMS, A/C control module, PTC heater, blower relay), and a
