@@ -146,6 +146,8 @@ needs a plan that names its layer.
    `tests/integration/`, repo-wide invariants in `tests/contracts/`, shared helpers in
    `tests/support/`. A test module never imports another test module.
 7. **A new module stays under 500 lines.** Split a growing one by concern in the same change.
+   The one exception is a file that is long because it holds many items of one kind (see "Long
+   files that are fine" below).
 8. **A deferred (function-level) import needs a reason**: a measured start-up cost or an optional
    dependency, said in a `# deferred: <reason>` comment on the line or just above it. A deferral
    that only hides a cycle is a layering bug (`# deferred: cycle with <package>, see
@@ -156,6 +158,51 @@ needs a plan that names its layer.
    a name in the module that uses it, never in the module that defines it.
 9. **A move is mechanical and alone**: `git mv` plus a codemod, one package per commit, no
    compatibility aliases, no logic change.
+
+## Long files that are fine
+
+A module may pass 500 lines when it is long because it holds many items of one kind, not because
+it does many things. Splitting such a file separates no concern. It scatters one list across
+several files and makes the list harder to read and review. The test is: "can I name two
+concerns in this file that change for different reasons?" If yes, split it.
+
+These cases qualify:
+
+- **Lookup tables and registries.** Examples: NRC (negative response code) names, service IDs,
+  DID (data identifier) families, the `TRANSPORTS` specs.
+- **Definition lists.** Examples: constant sets, schemas, the role registry in `tui/keys.py`.
+- **Generated files.** Their source is the real artifact. Change the generator, not the output.
+- **Allow-lists and block-lists that a reviewer must read whole.** A split would let an entry
+  hide between files.
+
+These cases do not qualify:
+
+- **"It is one command."** Packaging a command does not discharge the limit.
+- **Many unrelated helpers in one file.** Split by concern.
+- **A file that is long because of comments or docstrings.** Move the prose to a page in
+  `docs/development/`.
+- **Logic that has grown.** A parser or protocol engine counts as logic, even if its steps share
+  state. Split it first. Ask the user for an exception only if a real attempt to split it failed.
+
+An exception goes in `long_modules` in `tests/contracts/baseline.json`. This entry is an
+illustration, not a real one:
+
+```json
+"long_modules": {
+  "canair.uds.nrc": {"ceiling": 640, "reason": "NRC name table, one row per code"}
+}
+```
+
+- **`ceiling`** is the line count when the entry is added. `test_modules_stay_small` fails when
+  the file grows past it. A table that grows with its data needs the user to approve a higher
+  ceiling in a reviewed diff.
+- **`reason`** is one line that says which kind of item the file lists. The test rejects an
+  empty reason.
+- **Only the user adds an entry or raises a ceiling.** Do not add one to get a build green.
+  State the case and ask.
+- **`oversized_modules` is a different list.** It is debt: a module there should be split, and
+  its ceiling only falls. `long_modules` is not debt, so it has no "split me" pressure. An
+  entry leaves it only when the file drops to 500 lines or fewer.
 
 ## Package charters
 

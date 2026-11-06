@@ -40,8 +40,10 @@ LINE_LIMIT = 500
 
 def size_ceiling(module: str) -> int:
     baseline = REPO / "tests" / "contracts" / "baseline.json"
-    oversized = json.loads(baseline.read_text(encoding="utf8"))["oversized_modules"]
-    return oversized.get(module, LINE_LIMIT)
+    data = json.loads(baseline.read_text(encoding="utf8"))
+    if module in data["long_modules"]:
+        return data["long_modules"][module]["ceiling"]
+    return data["oversized_modules"].get(module, LINE_LIMIT)
 
 
 def patch_targets(hoisted: list[scan.FunctionImport]) -> list[str]:

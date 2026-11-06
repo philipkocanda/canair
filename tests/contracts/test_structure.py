@@ -14,6 +14,10 @@ Each check compares the tree with ``baseline.json``:
   reason, the modules that building the parser loads, import-linter debt) fails when the number
   grows. Lower it when it falls: ``uv run python -m tests.contracts.test_structure --write``.
 
+``long_modules`` is not debt. It lists a module that is long because it holds many items of one
+kind (docs/development/architecture.md, rule 7). Each entry has a ``ceiling`` and a ``reason``.
+``--write`` lowers the ceiling and drops an entry that fell under the limit. Only the user adds one.
+
 One check has no baseline: a protocol byte written as a literal outside ``canair.uds``.
 The calls that read the process-global active profile outside ``canair.cli`` have a ceiling
 (``ambient_profile_calls``, scripts/check/ambient_profile.py).
@@ -185,16 +189,35 @@ def test_root_init_only_defines_the_version():
 
 def test_modules_stay_small(scan):
     limit = MODULE_LINE_LIMIT
-    ceilings = _baseline()["oversized_modules"]
+    baseline = _baseline()
+    ceilings = baseline["oversized_modules"]
+    long_ones = baseline["long_modules"]
     problems = []
     for module, lines in graph.oversized(scan, limit).items():
-        if module not in ceilings:
-            problems.append(f"{module} is {lines} lines (limit {limit}). Split it by concern.")
+        if module in long_ones:
+            if module in ceilings:
+                problems.append(f"{module} is in both oversized_modules and long_modules.")
+            if lines > long_ones[module]["ceiling"]:
+                problems.append(
+                    f"{module} grew to {lines} lines (long_modules ceiling "
+                    f"{long_ones[module]['ceiling']}). Raising it needs the user's approval."
+                )
+        elif module not in ceilings:
+            problems.append(
+                f"{module} is {lines} lines (limit {limit}). Split it by concern. If it is one "
+                "kind of item in bulk (a table, a definition list, an allow-list), see "
+                "docs/development/architecture.md rule 7 and ask the user."
+            )
         elif lines > ceilings[module]:
             problems.append(f"{module} grew to {lines} lines (ceiling {ceilings[module]}).")
     for module in ceilings:
         if scan.lines.get(module, 0) <= limit:
             problems.append(f"{module} is within {limit} lines now; remove it from the baseline.")
+    for module, entry in long_ones.items():
+        if scan.lines.get(module, 0) <= limit:
+            problems.append(f"{module} is within {limit} lines now; remove it from long_modules.")
+        if not str(entry.get("reason", "")).strip():
+            problems.append(f"{module} in long_modules needs a one-line reason.")
     assert not problems, "\n".join(problems)
 
 
@@ -383,6 +406,11 @@ def _fresh_baseline(old: dict) -> dict:
         for m, n in old["oversized_modules"].items()
         if result.lines.get(m, 0) > MODULE_LINE_LIMIT
     }
+    new["long_modules"] = {
+        m: {**entry, "ceiling": min(entry["ceiling"], result.lines[m])}
+        for m, entry in old["long_modules"].items()
+        if result.lines.get(m, 0) > MODULE_LINE_LIMIT
+    }
     new["deferred_internal_imports"] = min(
         old["deferred_internal_imports"], sum(result.deferred.values())
     )
@@ -420,6 +448,7 @@ def _initial_baseline() -> dict:
         "root_modules": graph.root_modules(result),
         "root_init_internal_imports": _root_reexports(),
         "oversized_modules": graph.oversized(result, MODULE_LINE_LIMIT),
+        "long_modules": {},
         "deferred_internal_imports": sum(result.deferred.values()),
         "deferred_imports_without_reason": len(_deferred_without_reason()),
         "parser_build_modules": len(deferred.loaded_modules()),

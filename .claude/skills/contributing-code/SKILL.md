@@ -130,7 +130,8 @@ than trusting a list copied here.
 5. **If a gate fails, change the structure, not the gate.** Never add an `ignore_imports` entry or
    raise a number in `tests/contracts/baseline.json` to get green — move the function down, pass
    the value in, or split the module. If that cannot be done, tell the user what the edge is and
-   why.
+   why. The same holds for `long_modules`: a file qualifies only when it lists many items of one
+   kind, and the user decides.
 
 **Moving code** (one package per commit, mechanical, nothing else in the commit)
 
@@ -300,6 +301,14 @@ up** when a structural change is warranted instead of bolting on more.
 - **File size is a smell.** Approaching ~500 lines — and *well* before 1000 — split by concern (pure
   helpers, async device orchestration, TUI, record/table data). `live/identity/read.py` splitting out
   `decode.py`/`records.py` is the pattern.
+- **One kind of item in bulk is the exception.** A lookup table, a definition list, a generated
+  file, or an allow-/block-list a reviewer must read whole may pass 500 lines, because a split
+  would scatter one list and separate no concern. Ask yourself: can I name two concerns in this
+  file that change for different reasons? If yes, split. Logic that has grown, a grab bag of
+  helpers, and "it is one command" never qualify. A real exception goes in `long_modules` in
+  `tests/contracts/baseline.json` with a ceiling and a one-line reason. **Only the user adds an
+  entry or raises its ceiling**: describe the file and ask. The full criteria are in
+  `docs/development/architecture.md` ("Long files that are fine").
 - **A command is one module until it needs two — then it becomes a package.** Create
   `cli/commands/<name>/`; do **not** add a flat `_<name>_*.py` sibling (retired for new work).
   `cli/commands/captures/` and `cli/commands/decode/` are the precedents, and the command registries are
