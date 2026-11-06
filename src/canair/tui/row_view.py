@@ -22,7 +22,8 @@ from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, ClassVar, Protocol, cast
 
 from rich.markup import escape
-from rich.text import Text
+from rich.style import Style
+from rich.text import Span, Text
 from textual.app import App
 from textual.binding import BindingType
 from textual.css.query import NoMatches
@@ -61,6 +62,13 @@ ROW_VIEW_CSS = """
 Screen { layout: vertical; background: transparent; }
 #header { height: 1; padding: 0 1; background: transparent; }
 #table { margin: 1 0 0 0; }
+#table > .datatable--header, #table > .datatable--header-hover {
+    background: transparent; color: $text-muted;
+}
+/* A dark cursor bar keeps the cells' own colours readable; LiveTable un-dims its row. */
+#table:focus > .datatable--cursor {
+    background: ansi_bright_black; color: ansi_bright_white; text-style: bold;
+}
 """
 
 
@@ -82,14 +90,27 @@ def label_problem(value: str) -> str | None:
     return None if value else "A label cannot be empty"
 
 
+def undimmed(text: Text) -> Text:
+    """``text`` with its dim spans at full brightness, for the row under the cursor."""
+
+    def bright(style: str | Style) -> Style:
+        return (Style.parse(style) if isinstance(style, str) else style) + Style(dim=False)
+
+    out = Text(text.plain, style=bright(text.style), end=text.end)
+    out.spans = [Span(span.start, span.end, bright(span.style)) for span in text.spans]
+    return out
+
+
+def _same(a: Text, b: Text) -> bool:
+    # Text's own == ignores the base style, which is how most cells are coloured.
+    return a == b and str(a.style) == str(b.style)
+
+
 class LiveTable(DataTable):
     """A row-cursor ``DataTable`` keyed by identifier, synced from a cells function."""
 
     DEFAULT_CSS = """
     LiveTable { height: 1fr; background: transparent; scrollbar-size-vertical: 1; }
-    LiveTable > .datatable--header, LiveTable > .datatable--header-hover {
-        background: transparent; color: $text-muted;
-    }
     """
 
     def __init__(self, columns: Sequence[tuple[str, str]], *, id: str | None = None) -> None:
@@ -98,6 +119,7 @@ class LiveTable(DataTable):
         self._columns = tuple(columns)
         self.keys: list[str] = []
         self._shown: dict[str, tuple[Text, ...]] = {}
+        self._cells_for: CellsFor | None = None
         for key, heading in self._columns:
             self.add_column(heading, key=key)
 
@@ -106,20 +128,31 @@ class LiveTable(DataTable):
         row = self.cursor_row
         return self.keys[row] if 0 <= row < len(self.keys) else None
 
+    def _display(self, key: str, cells: Sequence[Text]) -> tuple[Text, ...]:
+        """The cells as drawn: the row under the cursor has no dim text on its dark bar."""
+        if key == self.current():
+            return tuple(undimmed(c) for c in cells)
+        return tuple(cells)
+
     def sync(self, keys: Sequence[str], cells_for: CellsFor) -> None:
         """Show one row per key, updating only the cells that changed."""
+        self._cells_for = cells_for
         if list(keys) != self.keys:
             self._refill(keys, cells_for)
             return
         for key in self.keys:
-            cells = tuple(cells_for(key))
-            old = self._shown.get(key, ())
-            if cells == old:
-                continue
-            for (column, _heading), new, prev in zip(self._columns, cells, old, strict=False):
-                if new != prev:
-                    self.update_cell(key, column, new, update_width=True)
-            self._shown[key] = cells
+            self._update_row(key, cells_for(key))
+
+    def _update_row(self, key: str, cells: Sequence[Text]) -> None:
+        drawn = self._display(key, cells)
+        old = self._shown.get(key, ())
+        changed = False
+        for (column, _heading), new, prev in zip(self._columns, drawn, old, strict=False):
+            if not _same(new, prev):
+                self.update_cell(key, column, new, update_width=True)
+                changed = True
+        if changed:
+            self._shown[key] = drawn
 
     def _refill(self, keys: Sequence[str], cells_for: CellsFor) -> None:
         current = self.current()
@@ -132,6 +165,13 @@ class LiveTable(DataTable):
             self.add_row(*cells, key=key)
         if current in self.keys:
             self.move_cursor(row=self.keys.index(current))
+        self.redraw_cursor_rows()
+
+    def redraw_cursor_rows(self) -> None:
+        """Re-draw after the cursor moved: the rows it left and reached change brightness."""
+        if self._cells_for is not None:
+            for key in self.keys:
+                self._update_row(key, self._cells_for(key))
 
 
 class RowViewMixin[C: RowController]:
@@ -292,4 +332,8 @@ class RowViewMixin[C: RowController]:
         self.table().move_cursor(row=max(0, len(self.table().keys) - 1))
 
     def on_data_table_row_highlighted(self, _event: DataTable.RowHighlighted) -> None:
+        try:
+            self.table().redraw_cursor_rows()
+        except NoMatches:
+            return
         self.update_status()
