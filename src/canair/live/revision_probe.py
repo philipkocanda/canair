@@ -21,9 +21,15 @@ import sys
 from collections.abc import Iterable, Sequence
 
 from canair.ecus.memory import protocol_of
+from canair.ecus.pids import load_raw_pids, revision_resolutions
 from canair.profile.model import Profile
 from canair.safety.blocklist import SafetyBlocked
 from canair.transport.protocol import Terminal
+from canair.uds.echo import request_echo
+from canair.variants import load_variants
+from canair.variants.revisions import declared
+from canair.variants.selection import with_detections
+from canair.variants.tags import selected_variant
 
 from .identity.software import read_software_version
 
@@ -58,8 +64,6 @@ def targeted_ecus(steps: Sequence[str] | None, *, profile: Profile) -> set[str] 
 
 async def _ask(terminal: Terminal, tx_id: int, request: str) -> bool | None:
     """Whether the ECU answered ``request`` positively (None: it could not be asked)."""
-    from canair.safety.blocklist import SafetyBlocked
-    from canair.uds.echo import request_echo
 
     echo = request_echo(request)
     sid = echo[0] if echo else int(request[:2], 16)
@@ -82,11 +86,8 @@ async def detect_revisions(
     None when no revision was settled. The caller adopts the returned profile and reloads
     the definitions with it, since a settled revision changes which PIDs exist.
     """
-    from canair.ecus.pids import load_raw_pids, revision_resolutions
     from canair.variants.detected import remember
     from canair.variants.fingerprints import detected, match, probes, wants_software
-    from canair.variants.selection import with_detections
-    from canair.variants.tags import selected_variant
 
     if targets is None:
         return None
@@ -150,12 +151,8 @@ def identity_report(tx_id: int, responded: dict[str, bool], *, profile: Profile)
     do I have?" with no variant chosen. A single match is remembered (replacing an older
     detection it contradicts). None when the ECU declares no revisions.
     """
-    from canair.ecus.pids import load_raw_pids
-    from canair.variants import load_variants
     from canair.variants.detected import remember, remembered
     from canair.variants.fingerprints import detected, match
-    from canair.variants.revisions import declared
-    from canair.variants.tags import selected_variant
 
     prof = profile
     ecus = load_raw_pids(prof).get("ecus") or {}

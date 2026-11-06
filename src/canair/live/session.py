@@ -26,6 +26,8 @@ from dataclasses import dataclass
 from canair.core.prompt import PromptUnavailable
 from canair.profile.model import Profile
 from canair.render import messages
+from canair.safety.blocklist import CommandDeclined, SafetyBlocked
+from canair.transport.errors import describe_transport_error, transport_error_types
 from canair.transport.protocol import Terminal
 
 __all__ = ["Operation", "SessionOptions", "run_session_guarded"]
@@ -79,8 +81,6 @@ async def run_session_guarded(
     is intentionally *not* caught here — the operations reconcile their journals
     on interrupt, and ``run_live`` reports the interrupt.
     """
-    from canair.safety.blocklist import CommandDeclined, SafetyBlocked
-    from canair.transport.errors import describe_transport_error, transport_error_types
 
     try:
         from canair.live.revision_probe import detect_revisions, targeted_ecus
