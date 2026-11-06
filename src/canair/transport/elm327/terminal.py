@@ -36,7 +36,7 @@ import contextlib
 import re
 import sys
 import time
-from collections.abc import AsyncIterator, Iterable
+from collections.abc import AsyncGenerator, Iterable
 
 from canair.core.eventlog import log_event
 from canair.safety.blocklist import SessionPolicy, enforce_command_safety
@@ -342,7 +342,7 @@ class Elm327Terminal:
                 self._lock_owner = None
 
     @contextlib.asynccontextmanager
-    async def transaction(self) -> AsyncIterator[None]:
+    async def transaction(self) -> AsyncGenerator[None]:
         """Hold the command lock across several commands as one atomic exchange.
 
         ``_cmd_lock`` alone serialises individual *commands*, which is not enough:

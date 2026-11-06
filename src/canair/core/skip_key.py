@@ -13,7 +13,7 @@ import os
 import select
 import sys
 import threading
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 
 #: Keys that skip: ``s`` and escape (which backs out one level everywhere in canair).
@@ -38,7 +38,7 @@ class SkipListener:
 
 
 @contextmanager
-def skip_listener(enabled: bool = True) -> Iterator[SkipListener]:
+def skip_listener(enabled: bool = True) -> Generator[SkipListener]:
     """Listen for a skip key on stdin while the block runs, restoring the terminal after.
 
     With ``enabled`` False, or when stdin is not a TTY, the listener is inert. ``active``

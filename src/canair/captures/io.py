@@ -24,7 +24,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from collections.abc import Iterator, Mapping
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
@@ -143,7 +143,7 @@ _READ_ONCE: ContextVar[dict[Path, CaptureFile] | None] = ContextVar("_READ_ONCE"
 
 
 @contextmanager
-def reading_once() -> Iterator[None]:
+def reading_once() -> Generator[None]:
     """Parse each capture file at most once while the block runs.
 
     For read-only passes that run several checks over the same files (``validate

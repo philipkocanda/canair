@@ -22,7 +22,7 @@ import asyncio
 import contextlib
 import logging
 import time
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncGenerator, Mapping
 from typing import Any
 
 import can
@@ -177,7 +177,7 @@ class RawTerminal:
             self._cur = tx_id
 
     @contextlib.asynccontextmanager
-    async def transaction(self) -> AsyncIterator[None]:
+    async def transaction(self) -> AsyncGenerator[None]:
         """Hold the terminal across several calls as one exchange.
 
         The raw path addresses every frame explicitly, but *which* ECU a request goes
@@ -313,7 +313,7 @@ class RawTerminal:
         return physical_request_id(rx_id, self.addr_map, self.rx_offset, self.mode)
 
     @contextlib.asynccontextmanager
-    async def short_ecu_wait(self) -> AsyncIterator[None]:
+    async def short_ecu_wait(self) -> AsyncGenerator[None]:
         """No adapter wait to shorten: each request's timeout is canair's own here."""
         yield
 

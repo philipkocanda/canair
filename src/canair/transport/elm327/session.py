@@ -16,7 +16,7 @@ resets itself.
 from __future__ import annotations
 
 import contextlib
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -27,7 +27,7 @@ WAKE_TIMEOUT_CMD = "ATST10"
 
 
 @contextlib.asynccontextmanager
-async def short_ecu_wait(terminal: Elm327Terminal) -> AsyncIterator[None]:
+async def short_ecu_wait(terminal: Elm327Terminal) -> AsyncGenerator[None]:
     """Hold the terminal with the adapter's ECU wait at :data:`WAKE_TIMEOUT_CMD`.
 
     One transaction for the whole block, so no other request (a keepalive) runs with the

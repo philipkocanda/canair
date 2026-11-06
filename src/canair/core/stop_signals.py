@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import signal
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from types import FrameType
 from typing import Any
 
@@ -40,7 +40,7 @@ def _restore(previous: dict[signal.Signals, Handler]) -> None:
 
 
 @contextlib.contextmanager
-def graceful_stop(handler: Callable[[int, FrameType | None], Any]) -> Iterator[None]:
+def graceful_stop(handler: Callable[[int, FrameType | None], Any]) -> Generator[None]:
     """Route :data:`STOP_SIGNALS` to ``handler`` for the duration of the scope.
 
     Previous handlers are restored on exit (including on exception), so nesting
@@ -58,7 +58,7 @@ def graceful_stop(handler: Callable[[int, FrameType | None], Any]) -> Iterator[N
 
 
 @contextlib.contextmanager
-def graceful_stop_async(callback: Callable[[], object]) -> Iterator[None]:
+def graceful_stop_async(callback: Callable[[], object]) -> Generator[None]:
     """Route :data:`STOP_SIGNALS` to ``callback`` on the running event loop.
 
     Used where a plain signal handler would raise inside an event loop's

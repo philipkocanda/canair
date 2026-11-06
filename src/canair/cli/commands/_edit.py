@@ -13,7 +13,7 @@ alike, and the file is already back to what it was.
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -35,7 +35,7 @@ def add_edit_args(parser: argparse.ArgumentParser) -> None:
 
 
 @contextmanager
-def edit_scope(args: argparse.Namespace | None = None) -> Iterator[None]:
+def edit_scope(args: argparse.Namespace | None = None) -> Generator[None]:
     """Guard a write: refuse a read-only (layered) profile, and apply ``--no-validate``.
 
     An explicit ``--dir`` names another profile's files, so the active profile's read-only
