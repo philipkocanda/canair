@@ -49,10 +49,16 @@ def decode_status(status: int) -> list[str]:
 
 
 def decode_dtc_records(data: bytes) -> list[dict]:
-    """Decode UDS 4-byte DTC records (3-byte DTC + 1-byte status)."""
+    """Decode UDS 4-byte DTC records (3-byte DTC + 1-byte status).
+
+    A record whose DTC is ``000000`` is skipped: no fault has that number, and a reply padded
+    with zeros would otherwise list one.
+    """
     records = []
     for i in range(0, len(data) - 3, 4):
         b0, b1, b2, status = data[i], data[i + 1], data[i + 2], data[i + 3]
+        if not (b0 or b1 or b2):
+            continue
         records.append(
             {
                 "dtc": format_dtc(b0, b1, b2),

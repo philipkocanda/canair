@@ -117,7 +117,29 @@ The same code can mean different things, so canair names a negative response by 
 `serviceNotSupportedInActiveDiagnosticSession` and `0x22` covers both a wrong condition and a
 wrong request sequence. `0x81`–`0x8F` are reserved, so ISO 14229-1's `rpmTooHigh` and friends are
 not read into them, and `0x90`–`0xF9` print as `vehicleManufacturerSpecific`. When the protocol
-is unknown, a code only KWP2000 defines is shown with a `(KWP2000)` tag.
+is unknown, a code only KWP2000 defines is shown with a `(KWP2000)` tag. On a UDS ECU,
+`0x50`–`0x5D` are the ISO 14229-1:2020 Authentication refusals; on a KWP2000 ECU, `0x50`–`0x53`
+keep their upload meanings.
+
+## Waiting, repeating and suppressed replies
+
+These rules hold on every transport:
+
+- **ResponsePending (`7F xx 78`)** means the ECU needs more time. canair waits for the real answer:
+  up to 5 s after each pending frame, and 20 s for a whole run of them (or your `--timeout`, when
+  that is longer).
+- **busyRepeatRequest (`7F xx 21`)** means the ECU, often a gateway, cannot take the request now.
+  canair repeats a request that only reads up to three times (after 0.1, 0.2 and 0.4 s). It never
+  repeats a request that changes the ECU's state.
+- **The suppress-positive-response bit.** On a UDS ECU, bit 7 of a sub-function (`3E 80`,
+  `10 83`) asks for no positive reply. canair then waits only for a refusal, and reports silence
+  as "No reply, as asked", not as a timeout. A `--save` stores nothing for it. An ECU whose
+  protocol is unknown is not judged this way, because on KWP2000 `10 81` is a session that
+  answers.
+- **Reply checks.** A reply must answer the request's service. On a UDS ECU, a sub-function
+  service (`10`, `11`, `19`, `27`, `28`, `31`, `3E`, `85`) must also repeat its sub-function, and
+  RoutineControl its routine id. A reply that does not is treated as a late answer to an earlier
+  request.
 
 ## The `-1` / `-2` in byte tooling
 

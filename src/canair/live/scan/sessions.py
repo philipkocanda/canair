@@ -6,7 +6,8 @@ Probes which diagnostic *session types* an ECU supports by sending
     positive (50 xx …)               -- session type supported
     NRC 0x12 subFunctionNotSupported -- session type not implemented
     NRC 0x11 serviceNotSupported     -- ECU doesn't implement 0x10 at all → abort
-    NRC 0x7F …InActiveSession        -- rejected in the current session
+    NRC 0x7E/0x7F …InActiveSession  -- exists, but not from the current session
+    (KWP2000 0x80)
 
 This is a read-only probe: entering a diagnostic session has no side effects and
 the ECU auto-reverts to the default session once TesterPresent stops. Only the
@@ -34,7 +35,11 @@ from canair.render.paint import Painter
 from canair.safety.blocklist import SessionPolicy
 from canair.safety.quirks import allowed_session_modes
 from canair.transport.protocol import Terminal
-from canair.uds.nrc import NRC_SERVICE_NOT_SUPPORTED, NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION
+from canair.uds.nrc import (
+    NOT_IN_ACTIVE_SESSION_NRCS,
+    NRC_SERVICE_NOT_SUPPORTED,
+    NRC_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION,
+)
 from canair.uds.protocol import KWP, classify_protocol
 from canair.uds.requests import session_request
 from canair.uds.response import UdsResponse
@@ -61,6 +66,13 @@ KWP_SESSION_MODES = (
 )
 
 
+# A session type the ECU has but will not enter from the active session. Read as "not
+# supported", it would be recorded as absent although another session can reach it.
+_WRONG_SESSION_NRCS = NOT_IN_ACTIVE_SESSION_NRCS | {
+    NRC_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION
+}
+
+
 class SessionHit(NamedTuple):
     """A single session-type probe result."""
 
@@ -78,7 +90,8 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
         "supported"       — ECU answered 50 xx
         "not-supported"   — NRC indicates the session type is absent
         "service-absent"  — NRC 0x11, ECU doesn't implement 0x10 → abort
-        "wrong-session"   — NRC 0x7F, rejected in the active session
+        "wrong-session"   — rejected in the active session: UDS 0x7E (the session type
+                            exists but not from here), 0x7F, or KWP2000's 0x80
         "error"           — transport/timeout/other
     """
     if response.get("ok"):
@@ -88,7 +101,7 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
         return "error", None
     if nrc == NRC_SERVICE_NOT_SUPPORTED:
         return "service-absent", nrc
-    if nrc == NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION:
+    if nrc in _WRONG_SESSION_NRCS:
         return "wrong-session", nrc
     # Everything else (0x12 subFunctionNotSupported, 0x22, 0x31, …) means the
     # ECU understood the service but not this session type.

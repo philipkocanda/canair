@@ -59,6 +59,10 @@ class TestDecodeRecords:
     def test_empty(self):
         assert dtc.decode_dtc_records(b"") == []
 
+    def test_an_all_zero_record_is_not_a_fault(self):
+        recs = dtc.decode_dtc_records(bytes.fromhex("0123002F" + "00000000" + "00000008"))
+        assert [r["raw"] for r in recs] == ["012300"]
+
 
 class TestModeRead:
     @pytest.mark.asyncio

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from canair.uds.echo import reply_check, request_echo
+from canair.uds.echo import positive_response_suppressed, reply_check, request_echo
+from canair.uds.parse import parse_uds_response
 from canair.uds.protocol import KWP, UDS, UNKNOWN
 
 
@@ -44,3 +45,30 @@ class TestSubFunctionEchoOnUds:
     def test_a_service_without_a_sub_function_echo_is_not_judged(self):
         assert request_echo("2FBC1000", UDS) is None  # IOControl callers pass the DID
         assert request_echo("14FFFFFF", UDS) is None
+
+
+class TestSuppressedPositiveResponse:
+    @pytest.mark.parametrize("request_hex", ["3E80", "1083", "3181F000", "85 81", "3E801"])
+    def test_bit_7_asks_a_uds_ecu_for_no_reply(self, request_hex):
+        assert positive_response_suppressed(request_hex, UDS)
+
+    @pytest.mark.parametrize("request_hex", ["3E00", "1003", "1982FF", "22F190", "", None])
+    def test_other_requests_expect_a_reply(self, request_hex):
+        assert not positive_response_suppressed(request_hex, UDS)
+
+    @pytest.mark.parametrize("protocol", [KWP, UNKNOWN, None])
+    def test_only_a_uds_ecu_is_judged(self, protocol):
+        # On KWP2000, 10 81 is standardDiagnosticSession, which answers.
+        assert not positive_response_suppressed("1081", protocol)
+
+    def test_no_reply_is_the_positive_answer(self):
+        resp = parse_uds_response("NO DATA", expected_sid=0x3E, protocol=UDS, request="3E80")
+        assert resp["ok"] is True and resp["suppressed"] is True and resp["hex"] == ""
+
+    def test_an_nrc_is_still_reported(self):
+        resp = parse_uds_response("7F3E12", expected_sid=0x3E, protocol=UDS, request="3E80")
+        assert resp["ok"] is False and resp["nrc"] == 0x12
+
+    def test_without_the_bit_no_reply_stays_a_failure(self):
+        resp = parse_uds_response("NO DATA", protocol=UDS, request="3E00")
+        assert resp["ok"] is False and resp["error_kind"] == "no_data"

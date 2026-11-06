@@ -42,7 +42,11 @@ from canair.transport.raw.functional import raw_functional_exchange
 from canair.transport.raw.isotp_stack import build_isotp_stack
 from canair.transport.raw.slcan_tcp import SlcanTcpBus
 from canair.transport.stats import TransportStats
-from canair.transport.timeouts import PENDING_RECV_TIMEOUT, PENDING_TOTAL_TIMEOUT
+from canair.transport.timeouts import (
+    PENDING_RECV_TIMEOUT,
+    PENDING_TOTAL_TIMEOUT,
+    busy_retry_delay,
+)
 from canair.transport.timing import TimingRecorder
 from canair.uds.addressing import (
     DEFAULT_MODE,
@@ -53,6 +57,7 @@ from canair.uds.addressing import (
     physical_request_id,
     resolve_rx,
 )
+from canair.uds.echo import positive_response_suppressed
 from canair.uds.frame_counts import FrameCountLedger, frames_for_payload
 from canair.uds.nrc import is_negative_response, is_response_pending
 from canair.uds.parse import parse_uds_response
@@ -60,6 +65,10 @@ from canair.uds.response import UdsResponse
 from canair.uds.services import TESTER_PRESENT_REQUEST
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
+
+# How long a request with the suppress-positive-response bit waits for an NRC: P2server
+# (50 ms by ISO 14229-2) with room for the bus and the SLCAN gateway.
+SUPPRESSED_NRC_WAIT_S = 0.25
 
 
 def _recv_answer(stack, sid: int, deadline: float) -> bytes | None:
@@ -204,7 +213,11 @@ class RawTerminal:
                 req = bytes.fromhex(service_pid.replace(" ", ""))
             except ValueError:
                 return parse_uds_response("?")
-            attempt = 0
+            protocol = self.session_policy.protocol(tx)
+            if timeout is None and positive_response_suppressed(service_pid, protocol):
+                # Only an NRC can come back, within P2: no need to wait out a reply budget.
+                timeout = SUPPRESSED_NRC_WAIT_S + (self.link.budget or 0.0)
+            attempt = busy = 0
             while True:
                 resp_bytes = await self._exchange(tx, req, timeout)
                 raw = "NO DATA" if resp_bytes is None else resp_bytes.hex().upper()
@@ -213,7 +226,7 @@ class RawTerminal:
                     raw,
                     expected_sid=expected_sid,
                     expected_echo=expected_echo,
-                    protocol=self.session_policy.protocol(tx),
+                    protocol=protocol,
                     request=service_pid,
                 )
                 if resp_bytes is not None and self._classic_can:
@@ -230,7 +243,12 @@ class RawTerminal:
                     pid=service_pid,
                     tx_id=tx,
                 )
-                # Retry only a non-answer (NO DATA / timeout); an NRC is definitive.
+                delay = busy_retry_delay(resp, service_pid, protocol, busy)
+                if delay is not None:
+                    busy += 1
+                    await asyncio.sleep(delay)
+                    continue
+                # Retry only a non-answer (NO DATA / timeout); any other NRC is definitive.
                 if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
                     return resp
                 attempt += 1

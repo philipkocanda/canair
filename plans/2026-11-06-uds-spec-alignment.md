@@ -1,7 +1,8 @@
 # UDS specification alignment: canair checked against udsoncan
 
-Status: **PHASE 0 DONE** (2026-11-06); phases 1-8 proposed. Checked against `3e652f46`. Paths
-are relative to `src/canair/` unless they start with `plans/`, `docs/` or `tests/`.
+Status: **PHASES 0, 1, 2, 4, 5, 8 DONE** (2026-11-06), and phase 6 item 2. Phases 3 and 6 need
+the car; phase 7 needs the ISO 14229-1 text. Checked against `3e652f46`. Paths are relative to
+`src/canair/` unless they start with `plans/`, `docs/` or `tests/`.
 
 ## Summary
 
@@ -317,12 +318,18 @@ The original design:
 4. `docs/concepts/safety.md` lists the new blocks. The commit body names them for the release
    notes.
 
-### Phase 1 — NRC names
+### Phase 1 — NRC names (done, 2026-11-06)
 
 Add the codes of finding 4 to `uds/nrc.py`, with abbreviations in `NRC_ABBREV`, and the
 `0x38`–`0x4F` range label. Labels only, no behaviour change.
 
-### Phase 2 — reply checks (done, 2026-11-06; full suite not run at commit)
+As built: `0x34`, `0x50`–`0x5D` and `0x94` are named, and `0x38`–`0x4F` is
+reservedByExtendedDataLinkSecurityDocument. The mnemonics follow the file's initials rule. On
+a KWP2000 ECU `0x50`–`0x53` keep their SSF 14230-3 upload names. For an ECU of unknown
+protocol they now read as the UDS certificate codes, where before the KWP2000 name was
+borrowed with a `(KWP2000)` tag.
+
+### Phase 2 — reply checks (done, 2026-11-06)
 
 As built:
 
@@ -348,9 +355,10 @@ As built:
 - The multi-DID split already checks every DID header (`live/read/batch.py::split_multi_did`).
 - Tests: `tests/uds/test_uds_echo.py`, `tests/transport/test_timeouts.py`, the endless-pending
   case in `tests/transport/elm327/test_elm327_response_pending.py`, and the stale-NRC cases in
-  `tests/transport/raw/`. Not done at commit: the full suite. Fake terminals without a
-  `session_policy` attribute (which `transport/protocol.py::Terminal` declares) now fail in
-  `SessionManager`, and need the attribute.
+  `tests/transport/raw/`. The phase was committed (`619704da`) before the full suite ran; a
+  fake terminal without the `session_policy` attribute that `transport/protocol.py::Terminal`
+  declares then failed in `SessionManager`. That fake got the attribute in a later commit, and
+  the full suite passes.
 - Not changed: `live/actuate/action.py` sends a profile action's request with no
   `expected_sid`; a functional action has many responders, so it needs its own rule.
 
@@ -376,30 +384,66 @@ The original design:
 4. `canair status` or `canair identity` shows the values, so a user can see them.
 5. On the car: open a session on a UDS ECU (IGPM) with `--save` and record the `50 03` reply.
 
-### Phase 4 — NRC behaviour
+### Phase 4 — NRC behaviour (done, 2026-11-06)
 
 1. Retry `0x21` on reads (decision 4) in one place under both terminals.
 2. `live/scan/sessions.py::classify` reads `0x7E` and `NOT_IN_ACTIVE_SESSION_NRCS` as "exists,
    but not from this session".
 
-### Phase 5 — suppress bit
+As built:
+
+- `transport/timeouts.py::busy_retry_delay` is the rule (a new module would raise the
+  parser build's module count): repeat after 0.1, 0.2 and 0.4 s, only for
+  a request that `safety/actuation.py::classify` reads as `read`. `Elm327Terminal.send_uds` and
+  `RawTerminal.send_uds` ask it before they return a negative reply. The repeats are not
+  funded from `retries`. `RawUdsClient` (the raw monitor's poller) does not repeat: its replies
+  feed a poll cycle that asks again anyway.
+- The session scan reads `0x7E`, `0x7F` and KWP2000's `0x80` as "wrong-session".
+- Found along the way: the UDS routines scan read `0x7E` (requestRoutineResults not in this
+  session) as an unknown NRC, which it counts as "exists", so a default-session sweep recorded
+  every RID of the range. It is now "wrong-session", which enters the session and asks again.
+- Tests: `tests/transport/test_timeouts.py`, and the classify cases in `tests/live/scan/`.
+
+### Phase 5 — suppress bit (done, 2026-11-06)
 
 Decision 5, in the shared send path, for requests from `raw`, the REPL and query steps. Tests on
 both transports: `3E 80` with no reply returns the suppressed result, and `3E 80` answered by
 `7F 3E 12` returns the NRC.
 
+As built:
+
+- `uds/echo.py::positive_response_suppressed` decides it: a UDS sub-function service (not
+  `0x19`) with bit 7 set, on an ECU known to speak UDS. An unknown protocol is not judged,
+  because on KWP2000 `10 81` answers.
+- The shared parser does the rest: `uds/parse.py::parse_uds_response` turns a no-reply result
+  for such a request into `ok` with `suppressed` and an empty payload. Every terminal already
+  passes the request and the protocol, so no transport changed for it, except that
+  `RawTerminal` waits 0.25 s plus the link budget (`SUPPRESSED_NRC_WAIT_S`) instead of a whole
+  reply budget. On ELM327 the adapter's own wait governs.
+- `canair raw` and the pipeline's `raw` step print `uds/describe.py::SUPPRESSED_NOTE`, and a
+  `--save` stores nothing.
+- The owed-reply ledger needs no change: only `RawUdsClient` keeps one, and it sends monitor
+  reads, never a suppressed request.
+- Tests: `tests/uds/test_uds_echo.py`.
+
 ### Phase 6 — DTC format and extended data
 
 1. `19 01` once per ECU (decision 6). `live/dtc/codes.py` formats by the format byte: SAE J2012 for
    `00` and `04`, plain hex for `01` and `03`, SPN and FMI for `02`.
-2. Skip all-zero records, and warn on a trailing partial record.
+2. Skip all-zero records, and warn on a trailing partial record. (Done, 2026-11-06, for the
+   all-zero records: `live/dtc/codes.py::decode_dtc_records` skips a `000000` DTC. A trailing
+   partial record is still dropped without a warning.)
 3. `canair dtc read --extended` reads `19 06 <DTC> FF` for each code found, split by the sizes of
    decision 7. Without sizes it prints the raw records.
 4. Help, `docs/concepts/dtcs.md` and the generated `docs/reference/cli/dtc.md` change in the same
    commit.
 5. On the car: `dtc read` on an ECU with a stored code, with and without `--extended`.
 
-### Phase 7 — IOControl mask
+### Phase 7 — IOControl mask (not started: needs the ISO 14229-1 text)
+
+Whether the release (`2F <DID> 00`) of a packeted DID must carry the mask decides how the
+`canair io` release interlock changes. Without the text, a guess there could leave an output
+driven, so this phase waits for the standard.
 
 1. Check the ISO 14229-1 text for when the mask is present, including on returnControlToECU.
 2. An optional `enable_mask` (bytes) on an IOControl entry in the ECU schema, edited through
@@ -407,11 +451,18 @@ both transports: `3E 80` with no reply returns the suppressed result, and `3E 80
    release request carries the mask when the standard requires it.
 3. Docs: `docs/concepts/profiles.md`.
 
-### Phase 8 — ISO-TP
+### Phase 8 — ISO-TP (done, 2026-11-06)
 
 1. Set `wftmax` in `transport/isotp_params.py` (a profile `isotp:` field, default 5).
 2. Correct the "extended (mixed)" wording in `uds/addressing.py`.
 3. Answer the `0xF1` question in `transport/functional.py`.
+
+As built: `wftmax` is in `_DEFAULTS` (so `canair validate` accepts it) and in
+`schema/profile_schema.json`, and `docs/concepts/profiles.md` lists it. `uds/addressing.py`
+says "extended" and notes that ISO 15765-2 mixed addressing is not implemented. The `0xF1` was
+not a defect: the functional id `0x18DB33F1` carries the tester address, and replies go to it.
+`transport/functional.py::accepts_response_id` now reads the tester from the functional id's
+low byte instead of writing it out.
 
 ## Out of scope
 

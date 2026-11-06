@@ -29,7 +29,7 @@ from canair.transport.session_manager import (
     SessionManager,
     SessionOutcome,
 )
-from canair.uds.describe import decode_uds_response
+from canair.uds.describe import SUPPRESSED_NOTE, decode_uds_response
 from canair.uds.subfunctions import format_session_type, parse_session_type
 
 from ...ecus.names import resolve_tx
@@ -326,11 +326,12 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool, *,
         response = await sm.terminal.send_uds(service_pid)
 
     if not response["ok"]:
-        error = response.get("error") or response.get("nrc_desc", "unknown error")
         if response.get("nrc") is not None:
             print(f"  NRC: 0x{response['nrc']:02X} -- {response['nrc_desc']}")
         else:
-            messages.error(str(error))
+            messages.error(str(response.get("error") or "unknown error"))
+    elif response.get("suppressed"):
+        print(f"  {SUPPRESSED_NOTE}")
     elif request_hidden(tx_id, service_pid, profile=profile):
         print(f"  Response: {MASK}  (sensitive — read --reveal to show)")
     else:

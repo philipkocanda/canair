@@ -20,6 +20,12 @@ def test_classify_positive():
     assert classify(resp) == ("positive", None)
 
 
+def test_classify_sub_function_not_in_this_session_is_wrong_session():
+    # 0x7E must not be read as "exists": every RID of the range would become a hit.
+    resp = {"ok": False, "nrc": 0x7E, "nrc_desc": ""}
+    assert classify(resp) == ("wrong-session", 0x7E)
+
+
 def test_classify_absent_requestOutOfRange():
     resp = {"ok": False, "nrc": 0x31, "nrc_desc": "requestOutOfRange"}
     assert classify(resp) == ("absent", 0x31)

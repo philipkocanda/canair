@@ -18,19 +18,24 @@ from typing import Literal
 from canair.uds.memory import parse_memory_request
 from canair.uds.protocol import UDS, DiagProtocol
 from canair.uds.services import (
+    ACCESS_TIMING_PARAMETER,
     COMMUNICATION_CONTROL,
     CONTROL_DTC_SETTING,
     DIAGNOSTIC_SESSION_CONTROL,
+    DYNAMICALLY_DEFINE_DATA_IDENTIFIER,
     ECU_RESET,
+    LINK_CONTROL,
     READ_DATA_BY_IDENTIFIER,
     READ_DTC_INFORMATION,
     READ_MEMORY_BY_ADDRESS,
+    RESPONSE_ON_EVENT,
     RESPONSE_SID_OFFSET,
     ROUTINE_CONTROL,
     SECURITY_ACCESS,
     TESTER_PRESENT,
     identifier_width,
 )
+from canair.uds.subfunctions import SUPPRESS_POSITIVE_RESPONSE
 
 # UDS services whose positive reply repeats the request's sub-function right after its SID
 # (ISO 14229-1), without the suppress-positive-response bit. RoutineControl repeats its
@@ -48,6 +53,36 @@ _SUBFUNCTION_ECHO_SERVICES = frozenset(
         CONTROL_DTC_SETTING,
     }
 )
+
+
+# UDS services whose sub-function carries the suppressPosRspMsgIndicationBit (ISO 14229-1).
+# ReadDTCInformation is not one: its reply is the point of the request.
+_SUPPRESSIBLE_SERVICES = _SUBFUNCTION_ECHO_SERVICES - {READ_DTC_INFORMATION} | {
+    ROUTINE_CONTROL,
+    DYNAMICALLY_DEFINE_DATA_IDENTIFIER,
+    ACCESS_TIMING_PARAMETER,
+    RESPONSE_ON_EVENT,
+    LINK_CONTROL,
+}
+
+
+def positive_response_suppressed(request_hex: str | None, protocol: DiagProtocol | None) -> bool:
+    """Whether ``request_hex`` asks a UDS ECU to send no positive reply (sub-function bit 7).
+
+    Only on an ECU known to speak UDS: on KWP2000 ``10 81`` is a session that answers, and
+    for an unknown protocol the request may be either. An odd length is an ELM327 request
+    plus its expected-frame-count digit, which is ignored.
+    """
+    if protocol != UDS or not request_hex:
+        return False
+    text = "".join(request_hex.split())
+    req = hex_bytes(text[:-1] if len(text) % 2 else text)
+    return (
+        req is not None
+        and len(req) >= 2
+        and req[0] in _SUPPRESSIBLE_SERVICES
+        and bool(req[1] & SUPPRESS_POSITIVE_RESPONSE)
+    )
 
 
 def hex_bytes(text: str) -> bytes | None:

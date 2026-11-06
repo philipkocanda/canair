@@ -46,6 +46,13 @@ def test_classify_wrong_session():
     assert classify(resp) == ("wrong-session", 0x7F)
 
 
+@pytest.mark.parametrize("nrc", [0x7E, 0x80])
+def test_classify_other_not_in_this_session_codes_are_wrong_session(nrc):
+    # UDS 0x7E: the session type exists but not from the active session; KWP2000 uses 0x80.
+    resp = {"ok": False, "nrc": nrc, "nrc_desc": ""}
+    assert classify(resp) == ("wrong-session", nrc)
+
+
 def test_classify_unknown_nrc_is_not_supported():
     resp = {"ok": False, "nrc": 0x22, "nrc_desc": "conditionsNotCorrect"}
     assert classify(resp) == ("not-supported", 0x22)

@@ -20,7 +20,12 @@ from __future__ import annotations
 
 import re
 
-from canair.uds.echo import echo_mismatch, reply_check, request_echo
+from canair.uds.echo import (
+    echo_mismatch,
+    positive_response_suppressed,
+    reply_check,
+    request_echo,
+)
 from canair.uds.nrc import is_response_pending, nrc_description
 from canair.uds.protocol import DiagProtocol
 from canair.uds.response import (
@@ -343,10 +348,15 @@ def parse_uds_response(
         request: The command as sent (hex, with or without the ELM327 frame-count
             digit). An adapter echo is then recognised by equality rather than
             guessed at; see :func:`_is_request_echo`. Pass it whenever it is known.
+            With ``protocol`` UDS, a request that sets the suppress-positive-response
+            bit and draws no reply is the positive answer it asked for (``suppressed``).
     """
     result: UdsResponse = {"raw": raw, "ok": False}
 
     def _fail(kind: ResponseCategory, msg: str) -> UdsResponse:
+        if kind == CAT_NO_DATA and positive_response_suppressed(request, protocol):
+            # Silence is the positive answer the request asked for.
+            return {"raw": raw, "ok": True, "hex": "", "bytes": b"", "suppressed": True}
         result["error"] = msg
         result["error_kind"] = kind
         return result

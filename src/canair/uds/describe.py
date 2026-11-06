@@ -8,6 +8,7 @@ first byte, and the table names that byte by its service, not by its value.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Final
 
 from canair.uds.obd import is_support_bitmap_pid, supported_pids
 from canair.uds.services import (
@@ -194,6 +195,13 @@ _BY_SERVICE: dict[int, tuple[int, Callable[[bytes], str]]] = {
     TESTER_PRESENT: (1, _tester_present),
 }
 _DESCRIBERS = {positive_response_sid(sid): entry for sid, entry in _BY_SERVICE.items()}
+
+
+#: What a request that set the suppress-positive-response bit and drew no NRC printed as.
+SUPPRESSED_NOTE: Final = (
+    "No reply, as asked: the request set the suppress-positive-response bit, "
+    "and the ECU sent no NRC."
+)
 
 
 def decode_uds_response(data: bytes) -> str | None:

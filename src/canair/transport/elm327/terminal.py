@@ -60,7 +60,7 @@ from canair.transport.errors import AdapterRefusedError
 from canair.transport.functional import DEFAULT_WINDOW_S, FunctionalResult, functional_request_bytes
 from canair.transport.link_latency import LinkLatency
 from canair.transport.stats import TransportStats
-from canair.transport.timeouts import pending_deadline
+from canair.transport.timeouts import busy_retry_delay, pending_deadline
 from canair.transport.timing import TimingRecorder
 from canair.uds.addressing import AddressBook
 from canair.uds.parse import compact, parse_uds_response
@@ -727,13 +727,14 @@ class Elm327Terminal:
         if timeout is None:
             # Per-ECU budget for the current header, else the client default.
             timeout = self.ecu_timeouts.get(self._cur_header, self.timeout)
-        attempt = 0
+        attempt = busy = 0
         # The header cannot move under us here: `transaction()` locks out the
         # keepalive and `send_uds` never re-points it. A resync, an adapter reset or
         # an idle gap does forget what the adapter holds (it can no longer be
         # trusted), so every attempt first restates the addressed ECU; when nothing
         # was forgotten that sends nothing.
         header = self._cur_header
+        protocol = self.session_policy.protocol(header)
         counting = self._frame_counts.attempt((header, service_pid))
         # One transaction for the whole retry sequence: a keepalive slipping in
         # between attempts would re-point the header and invalidate the retry.
@@ -748,7 +749,7 @@ class Elm327Terminal:
                     raw,
                     expected_sid=expected_sid,
                     expected_echo=expected_echo,
-                    protocol=self.session_policy.protocol(header),
+                    protocol=protocol,
                     request=command,
                 )
                 self.diag.record_response(
@@ -797,6 +798,10 @@ class Elm327Terminal:
                     # on every miss would cost a probe round trip per unmapped PID.
                     await self._resync(f"{resp.get('error_kind')} response to {service_pid}")
 
+                if (delay := busy_retry_delay(resp, service_pid, protocol, busy)) is not None:
+                    busy += 1
+                    await asyncio.sleep(delay)
+                    continue
                 if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
                     return resp
                 attempt += 1

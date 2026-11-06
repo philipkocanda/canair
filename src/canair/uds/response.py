@@ -67,7 +67,9 @@ class UdsResponse(TypedDict):
     - a negative (``7F``) carries ``nrc``/``nrc_service``/``nrc_desc`` — unless
       the NRC echoes a *different* service, in which case those are dropped and
       ``error`` is set instead;
-    - a parse failure / ``NO DATA`` / echo mismatch carries ``error`` and ``error_kind``.
+    - a parse failure / ``NO DATA`` / echo mismatch carries ``error`` and ``error_kind``;
+    - a request with the suppress-positive-response bit that drew no NRC is ``ok`` with
+      ``suppressed`` and an empty ``hex``/``bytes``.
     """
 
     raw: str  # always: original response text
@@ -83,6 +85,9 @@ class UdsResponse(TypedDict):
     nrc_desc: NotRequired[str]  # negative: human description
     error: NotRequired[str]  # parse failure / NO DATA / echo mismatch
     error_kind: NotRequired[ResponseCategory]  # failure category, set with `error`
+    # The request set the suppress-positive-response bit and no NRC came: ``ok`` with an
+    # empty payload, since by the standard no reply is the positive answer.
+    suppressed: NotRequired[bool]
 
 
 def classify_response(resp: UdsResponse) -> ResponseCategory:

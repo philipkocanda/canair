@@ -48,6 +48,7 @@ from canair.uds.nrc import (
     NRC_SERVICE_NOT_SUPPORTED,
     NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
     NRC_SUB_FUNCTION_NOT_SUPPORTED,
+    NRC_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION,
 )
 from canair.uds.protocol import UDS
 from canair.uds.requests import routine_control_request
@@ -109,7 +110,7 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
         "positive"      — ECU answered 71 ...
         "exists"        — NRC indicates the RID is present (22/24/33/72/78)
         "absent"        — NRC indicates the RID is not there (11/12/31)
-        "wrong-session" — NRC 7F, retry in extended
+        "wrong-session" — NRC 7F or 7E, retry in extended
         "error"         — transport/timeout/other
     """
     if response.get("ok"):
@@ -117,7 +118,12 @@ def classify(response: UdsResponse) -> tuple[str, int | None]:
     nrc = response.get("nrc")
     if nrc is None:
         return "error", None
-    if nrc == NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION:
+    # 0x7E: requestRoutineResults is not available in this session. Read as "exists" (an
+    # unknown NRC), it would record every RID of the range as a hit.
+    if nrc in (
+        NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
+        NRC_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION,
+    ):
         return "wrong-session", nrc
     if nrc in NRC_ABSENT:
         return "absent", nrc

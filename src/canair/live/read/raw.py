@@ -11,7 +11,7 @@ from canair.query.steps import parse_raw_spec
 from canair.render import messages
 from canair.render.formatting import format_raw_with_bnn, print_hexdump, print_json_result
 from canair.transport.stats import client_transport
-from canair.uds.describe import decode_uds_response
+from canair.uds.describe import SUPPRESSED_NOTE, decode_uds_response
 from canair.uds.response import UdsResponse
 
 from ...captures.build import build_raw_session, suggest_raw_label
@@ -94,6 +94,12 @@ async def mode_raw(
                 if save:
                     save_result(response)
                 return
+        elif response.get("suppressed"):
+            print(f"  {SUPPRESSED_NOTE}")
+            if not hold:
+                if save:
+                    messages.note("nothing to save: the ECU sent no reply")
+                return
         elif hidden:
             print(f"  Response: {MASK}  (sensitive — read --reveal to show)")
         else:
@@ -116,7 +122,7 @@ async def mode_raw(
                 await asyncio.Event().wait()
             except (KeyboardInterrupt, asyncio.CancelledError):
                 print("\n  Releasing session…", file=human)
-        elif save:
+        elif save and not response.get("suppressed"):
             save_result(response)
 
 
