@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import sys
 
-from canair.captures.store import load_pid_captures
+from canair.captures.store import load_all_captures, load_pid_captures
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.cli.profile_context import active
 from canair.ecus.pids import build_ecu_index, load_pids
@@ -74,7 +74,6 @@ def cmd_plot(
 
 def plot_pid_options() -> list[tuple[str, str]]:
     """Distinct ``(ECU, PID)`` pairs that have payload captures, for the --plot switcher."""
-    from canair.captures.store import load_all_captures
 
     seen: dict[tuple[str, str], None] = {}
     try:

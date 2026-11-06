@@ -34,6 +34,7 @@ from canair.expression.decoding import decode_payload, ordered_signal_names
 from canair.render import ansi, messages
 from canair.uds.byteindex import payload_to_wican_bytes
 from canair.uds.layout import subfunction_bytes_for_pid
+from canair.variants.tags import require_one_revision
 
 from .analysis import print_correlations, print_discriminate, print_mirrors
 from .calc import _local_series, _paired, _series, axis_group_keys, load_cross_ref_series
@@ -376,8 +377,6 @@ def decode_one(
 
     captures = scope_captures(load_pid_captures(ecu_key, pid_key, profile=active()), **scope)
     if args.dump_bytes or raw_byte_mode or getattr(args, "try_expr", None):
-        from canair.variants.tags import require_one_revision
-
         require_one_revision(({"ecu": ecu_key, **c} for c in captures), [ecu_key], "decode")
     if not captures:
         if multi:

@@ -11,11 +11,14 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from canair.captures import layers
+from canair.captures.session_edit import delete_capture
 from canair.captures.store import entry_path
 from canair.captures.types import CaptureEntry
 from canair.cli.args.query import parse_canonical_query
 from canair.cli.profile_context import active, dir_profile
 from canair.core.prompt import confirm
+from canair.query import QueryError
 from canair.render import ansi, messages
 from canair.render.paint import Painter
 
@@ -40,10 +43,6 @@ def cmd_delete(
     confirmation unless ``assume_yes``; ``dry_run`` deletes nothing.
     """
     import json as _json
-
-    from canair.captures import layers
-    from canair.captures.session_edit import delete_capture
-    from canair.query import QueryError
 
     q = parse_canonical_query(query)
     try:

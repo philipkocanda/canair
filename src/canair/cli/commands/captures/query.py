@@ -21,6 +21,7 @@ from canair.captures.store import (
 )
 from canair.cli.args.query import parse_canonical_query
 from canair.cli.profile_context import active
+from canair.query import looks_like_pid
 from canair.render import ansi
 
 
@@ -87,8 +88,6 @@ def _gather_query[R: Mapping[str, Any]](
             defs[key] = resolve_pid_defs(ecu_index, *key)
 
     if warn and empty:
-        from canair.query import looks_like_pid
-
         known_ecus = {e["ecu"].upper() for e in payloads}
         for sel in empty:
             hint = ""

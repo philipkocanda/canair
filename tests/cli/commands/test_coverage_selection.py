@@ -12,6 +12,7 @@ from datetime import datetime
 import pytest
 
 from canair.cli.commands import coverage
+from canair.cli.commands.coverage import payloads as coverage_payloads
 
 ECU, PID = "HVAC", "220102"
 KEY = (ECU, PID)
@@ -204,7 +205,7 @@ def run_coverage(monkeypatch, capsys):
 
     def _run(argv, rows, parameters=None):
         params = parameters or {"SIG": {"expression": "B4", "verified": True}}
-        monkeypatch.setattr("canair.captures.store.load_all_captures", lambda *a, **k: rows)
+        monkeypatch.setattr(coverage_payloads, "load_all_captures", lambda *a, **k: rows)
         # `--last-session` resolves its cutoff from the same rows.
         monkeypatch.setattr("canair.captures.dates.load_all_captures", lambda *a, **k: rows)
         monkeypatch.setattr(coverage, "load_pids", lambda *_, **__: {})
@@ -213,7 +214,7 @@ def run_coverage(monkeypatch, capsys):
             "build_ecu_index",
             lambda *_, **__: {ECU: {"pids": {PID: {"parameters": params}}}},
         )
-        monkeypatch.setattr("canair.ecus.names.canonical_ecu_name_safe", lambda n, **__: n)
+        monkeypatch.setattr(coverage, "canonical_ecu_name_safe", lambda n, **__: n)
         p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
         rc = coverage.run(p.parse_args(argv))
         captured = capsys.readouterr()

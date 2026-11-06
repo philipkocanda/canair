@@ -13,6 +13,9 @@ from canair.cli.profile_context import active
 from canair.ecus.pids import load_pids
 from canair.live.discover.physical import discovery_targets, fmt_id
 from canair.profile.model import ProfileError
+from canair.safety.blocklist import check_functional_request
+from canair.transport.functional import CAN_FD_REFUSAL, classic_can
+from canair.transport.isotp_params import build_isotp_params
 from canair.uds.addressing import (
     DEFAULT_MODE,
     AddressingMode,
@@ -138,7 +141,6 @@ functional requests:
 def functional_args_error(args) -> str | None:
     """Why the functional-sweep flags are inconsistent, or None."""
     from canair.live.discover.functional import MIN_INTERVAL_S
-    from canair.safety.blocklist import check_functional_request
 
     if not getattr(args, "functional", False):
         given = [
@@ -172,8 +174,6 @@ def functional_args_error(args) -> str | None:
 
 def _profile_error() -> str | None:
     """Why the profile rules out a functional sweep (its addressing or CAN-FD), or None."""
-    from canair.transport.functional import CAN_FD_REFUSAL, classic_can
-    from canair.transport.isotp_params import build_isotp_params
 
     try:
         pids_data = load_pids(profile=active())

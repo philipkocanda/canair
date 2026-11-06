@@ -17,6 +17,9 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from canair.captures import layers
+from canair.captures.entries import group_sessions
+from canair.captures.session_edit import set_session_states
 from canair.captures.state_inference import (
     DEFAULT_CYCLE_TOL_S,
     SessionInference,
@@ -25,6 +28,7 @@ from canair.captures.state_inference import (
 from canair.captures.store import entry_path
 from canair.cli.profile_context import active, dir_profile
 from canair.core.prompt import confirm
+from canair.ecus.pids import build_ecu_index, load_pids
 from canair.render import messages
 from canair.states.predicates import StatePredicateError
 from canair.states.tokens import join_states, parse_states
@@ -87,11 +91,6 @@ def cmd_backfill_states(
 ) -> int:
     """Infer and back-fill session vehicle_states over the scope-filtered entries."""
     import json as _json
-
-    from canair.captures import layers
-    from canair.captures.entries import group_sessions
-    from canair.captures.session_edit import set_session_states
-    from canair.ecus.pids import build_ecu_index, load_pids
 
     from .backfill_render import print_report
 

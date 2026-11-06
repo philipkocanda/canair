@@ -12,9 +12,11 @@ from canair.captures.entries import dedupe_payloads, group_by_key
 from canair.captures.store import NO_DEFS, PidDefs, decoded_preview
 from canair.captures.types import CaptureEntry
 from canair.cli.profile_context import active
+from canair.expression.decoding import decode_param_rows
 from canair.expression.notation import ByteDisplay, ByteNotation
 from canair.render.console import console as make_console
 from canair.render.console import escape
+from canair.render.formatting import render_byte_rulers, render_hex_line, render_param_table
 from canair.uds.layout import subfunction_bytes_for_pid
 
 from .query import _dump_json, _gather_query
@@ -30,8 +32,6 @@ def _render_diff_group(
 ) -> None:
     """Render one ECU+PID block: header, decoded signals, optional ruler, byte-diff hex."""
     parameters, tx_id, map_bytes = pdefs
-    from canair.expression.decoding import decode_param_rows
-    from canair.render.formatting import render_byte_rulers, render_hex_line, render_param_table
 
     # Decode the most recent payload into param rows (drives the table + colours).
     rows = decode_param_rows(payloads[-1]["payload"], parameters)

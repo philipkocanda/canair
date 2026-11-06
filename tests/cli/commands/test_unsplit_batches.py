@@ -441,9 +441,12 @@ class TestSplitBatchedCommand:
         base_file = _write(base, _caps(dict(BLOB)))
         overlay.mkdir()
         monkeypatch.setattr(
-            "canair.captures.io.resolve_capture_layers", lambda *_, **__: [base, overlay]
+            "canair.cli.commands.captures.maint.resolve_capture_layers",
+            lambda *_, **__: [base, overlay],
         )
-        monkeypatch.setattr("canair.ecus.registry.build_rx_index", lambda *_, **__: {IGPM: "IGPM"})
+        monkeypatch.setattr(
+            "canair.cli.commands.captures.maint.build_rx_index", lambda *_, **__: {IGPM: "IGPM"}
+        )
         import io
         from contextlib import redirect_stdout
 

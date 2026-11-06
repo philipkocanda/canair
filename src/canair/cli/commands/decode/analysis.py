@@ -11,11 +11,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from canair.analysis.align import longest_payload_len
+from canair.analysis.align import DEFAULT_JOIN_TOL_S, join_nearest, longest_payload_len
 from canair.analysis.cross_signal import byte_state_buckets as _byte_state_buckets
 from canair.analysis.cross_signal import discriminability as _discriminability
 from canair.analysis.mirrors import DEFAULT_MIRROR_MATCH
 from canair.analysis.stats import correlation as _correlation
+from canair.analysis.stats import cramers_v
 from canair.cli.profile_context import active
 from canair.expression.inspect_bytes import apply_transform
 from canair.expression.notation import ByteNotation, relabel_signal
@@ -131,8 +132,6 @@ def print_discriminate(
         # Categorical params: report Cramér's V vs state (nominal association)
         # instead of the interval-scale F, which doesn't apply to a mode/flag set.
         if name in cat_pairs:
-            from canair.analysis.stats import cramers_v
-
             xs, ys = cat_pairs[name]
             v = cramers_v(xs, ys)
             if v is None:
@@ -218,7 +217,6 @@ def print_correlations(
     the reference series first (e.g. ``delta`` to test level vs rate); ``method``
     selects pearson (linear) or spearman (monotone/rank).
     """
-    from canair.analysis.align import DEFAULT_JOIN_TOL_S, join_nearest
 
     cross = cross_ref_series is not None
     ref_label = cross_ref_label if cross else ref

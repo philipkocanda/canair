@@ -22,6 +22,8 @@ import io
 from pathlib import Path
 from typing import Any
 
+from canair.captures import io as capture_io
+from canair.captures.merge import session_key
 from canair.contribute import pii
 from canair.contribute.checks import workspace_collision
 from canair.contribute.copy import CaptureReplacement, dir_size
@@ -33,10 +35,12 @@ from canair.contribute.workspace import (
     local_changes,
     workspace_dir,
 )
+from canair.ecus.registry import build_rx_index, load_ecus_dir
 from canair.install.context import installed_snapshot_kind
 from canair.render import glyphs
 from canair.render.console import escape
 
+from ..validate import run as validate_run
 from .report import (
     Reporter,
     findings_json,
@@ -395,8 +399,6 @@ def unsplit_in_contribution(profile, pre: Preflight, ws: Path) -> list[tuple[str
     and are left to the repair on upstream's side.
     """
     from canair.analysis.unsplit_batches import find_unsplit_batches
-    from canair.captures import io as capture_io
-    from canair.captures.merge import session_key
     from canair.captures.payload_corpus import load_payload_corpus
 
     cdir = ws / "profiles" / profile.name / "captures"
@@ -439,7 +441,6 @@ def unsplit_in_contribution(profile, pre: Preflight, ws: Path) -> list[tuple[str
 
 def _rx_names(profile) -> dict[int, str]:
     """RX → ECU name from the contributed profile's own registry (empty if unreadable)."""
-    from canair.ecus.registry import build_rx_index, load_ecus_dir
 
     try:
         return build_rx_index(load_ecus_dir(profile.ecus_dir), profile=profile)
@@ -449,7 +450,6 @@ def _rx_names(profile) -> dict[int, str]:
 
 def _validate(profile) -> tuple[bool, str]:
     """Run ``validate all`` against ``profile``; return (ok, captured_output)."""
-    from ..validate import run as validate_run
 
     ns = argparse.Namespace(target="all", files=None, stats=False, strict=False)
     buf = io.StringIO()

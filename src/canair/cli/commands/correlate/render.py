@@ -23,8 +23,11 @@ from canair.analysis.align import (
     series_time_ranges_disjoint,
 )
 from canair.analysis.cross_signal import build_bit_series, build_byte_series, build_param_series
+from canair.analysis.mirrors import find_series_mirrors
 from canair.captures.dates import entry_datetime
+from canair.cli.args.join import fill_policy_from_args
 from canair.cli.profile_context import active
+from canair.ecus.pids import build_ecu_index, load_pids
 from canair.expression.notation import ByteNotation, relabel_signal
 from canair.render import ansi, messages
 
@@ -149,9 +152,6 @@ def _print_cross_mirrors(specs, since, until, args, notation=ByteNotation.WICAN)
     ``--allow-offset`` the same physical quantity at a different offset/scale.
     Same-PID pairs are excluded (that's decode's job).
     """
-    from canair.analysis.mirrors import find_series_mirrors
-    from canair.cli.args.join import fill_policy_from_args
-    from canair.ecus.pids import build_ecu_index, load_pids
 
     fill = fill_policy_from_args(args)
     loaded = load_signal_captures(
@@ -234,7 +234,6 @@ def _print_can_mirrors(series: dict, path, args) -> int:
     series that agree wherever they align. Same-ID pairs are skipped (intra-frame
     equality is not a mirror across messages).
     """
-    from canair.analysis.mirrors import find_series_mirrors
 
     def same_id(a: str, b: str) -> bool:
         return a.split(":", 1)[0] == b.split(":", 1)[0]

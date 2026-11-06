@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from canair.captures import io as capture_io
+from canair.captures import layers
 from canair.cli.profile_context import dir_profile
 from canair.render import ansi, messages
 
@@ -28,7 +29,6 @@ def _fail(msg: str, as_json: bool, code: int) -> int:
 
 
 def cmd_compact(captures_dir: Path | None, *, dry_run: bool = False, as_json: bool = False) -> int:
-    from canair.captures import layers
     from canair.migrations.compact import CompactError, compact_paths
 
     cdir = capture_io.resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))

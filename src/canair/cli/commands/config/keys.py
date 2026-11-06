@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import sys
 
+from canair.analysis.physical.grid_regions import GRID_REGIONS
 from canair.core.paths import CONFIG_DOCS_URL
 from canair.render import messages
+from canair.transport.config import VALID_TRANSPORTS
 
 # Keys accepted by `config set`, offered for tab-completion / help. Dotted keys
 # with a wildcard leaf (wican_addresses.<alias>) are documented, not enumerated.
@@ -41,14 +43,10 @@ KNOWN_KEYS = (
 # Known keys whose value is an enum — validated up front so a typo gets a clear
 # "valid: …" error instead of silently writing a value nothing will accept.
 def _transport_types() -> tuple[str, ...]:
-    from canair.transport.config import VALID_TRANSPORTS
-
     return VALID_TRANSPORTS
 
 
 def _grid_regions() -> tuple[str, ...]:
-    from canair.analysis.physical.grid_regions import GRID_REGIONS
-
     return GRID_REGIONS
 
 

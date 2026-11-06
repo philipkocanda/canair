@@ -19,6 +19,10 @@ import argparse
 import sys
 
 from canair.cli.args.group import group_help
+from canair.cli.commands._hints import ecu_hint
+from canair.cli.commands.dtc.log import add_parser as _add_log_parser
+from canair.cli.commands.dtc.log import log_hint
+from canair.cli.commands.dtc.log import run as run_log
 from canair.cli.live import LiveOperation, add_connection_args, ecu_completer, run_live
 from canair.cli.live.handlers import diagnostics
 from canair.render import messages
@@ -52,7 +56,6 @@ Run `canair dtc <kind> --help` for the flags of each kind.""",
     )
     kinds = parser.add_subparsers(dest="dtc_kind", metavar="<kind>")
     _add_read_parser(kinds)
-    from canair.cli.commands.dtc.log import add_parser as _add_log_parser
 
     _add_log_parser(kinds)
     parser.set_defaults(func=group_help("_dtc_group_parser"), _dtc_group_parser=parser)
@@ -192,8 +195,6 @@ examples:
 
 def run(args) -> int:
     if getattr(args, "dtc_history", False):
-        from canair.cli.commands.dtc.log import run as run_log
-
         messages.note("`--history` is now `canair dtc log`.")
         return run_log(args)
     if getattr(args, "dtc_supported", False) and (
@@ -204,9 +205,6 @@ def run(args) -> int:
         )
         return 2
     if not args.dtc and not getattr(args, "dtc_all", False):
-        from canair.cli.commands._hints import ecu_hint
-        from canair.cli.commands.dtc.log import log_hint
-
         messages.error("specify an ECU (e.g. `canair dtc BMS`) or `canair dtc --all`")
         print(ecu_hint(), file=sys.stderr)
         hint = log_hint()

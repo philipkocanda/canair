@@ -32,7 +32,7 @@ def _patched(monkeypatch):
     }
     monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canair.ecus.can_buses.load_can_buses", lambda *_, **__: buses)
-    monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda *_, **__: ecus)
+    monkeypatch.setattr("canair.cli.commands.bus.load_ecus", lambda *_, **__: ecus)
     monkeypatch.setattr("canair.cli.profile_context._active", _FakeProfile())
 
 
@@ -90,7 +90,7 @@ def test_gateway_all_counted_on_every_segment(monkeypatch, capsys):
     }
     monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canair.ecus.can_buses.load_can_buses", lambda *_, **__: buses)
-    monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda *_, **__: ecus)
+    monkeypatch.setattr("canair.cli.commands.bus.load_ecus", lambda *_, **__: ecus)
     monkeypatch.setattr("canair.cli.profile_context._active", _FakeProfile())
 
     rc = _run(json=True)
@@ -114,7 +114,7 @@ def test_gateway_all_skips_private_segment(monkeypatch, capsys):
     }
     monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canair.ecus.can_buses.load_can_buses", lambda *_, **__: buses)
-    monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda *_, **__: ecus)
+    monkeypatch.setattr("canair.cli.commands.bus.load_ecus", lambda *_, **__: ecus)
     monkeypatch.setattr("canair.cli.profile_context._active", _FakeProfile())
 
     assert _run(json=True) == 0

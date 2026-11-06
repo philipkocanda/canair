@@ -52,6 +52,8 @@ from canair.cli.args.scope import active_scope_flags, add_scope_args, resolve_sc
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.cli.commands._hints import pid_completer as _pid_completer
 from canair.cli.profile_context import active
+from canair.ecus.names import canonical_ecu_name_safe
+from canair.ecus.pid_status import is_snapshot_only
 from canair.ecus.pids import build_ecu_index, load_pids
 from canair.render import messages
 from canair.uds.support_map import MapDecl, SupportMapError, declaration
@@ -198,7 +200,6 @@ def variable_length_pids(pids_data: dict) -> frozenset[PidKey]:
 
 def snapshot_only_pids(pids_data: dict) -> frozenset[PidKey]:
     """``(ECU, PID)`` keys flagged ``snapshot_only:``, whose replies come from DTC snapshots."""
-    from canair.ecus.pid_status import is_snapshot_only
 
     return frozenset(
         (str(ecu).upper(), str(pid).upper())
@@ -313,7 +314,6 @@ def run(args) -> int:
 
     # Accept an ECU-registry alias (e.g. LDC for OBC) or any case, matching
     # `canair captures`/`decode`. Canonicalises to the ecus/ key before filtering.
-    from canair.ecus.names import canonical_ecu_name_safe
 
     ecu_filter = canonical_ecu_name_safe(args.ecu, profile=active()).upper() if args.ecu else None
     pid_filter = args.pid.upper() if args.pid else None

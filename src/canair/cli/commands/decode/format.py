@@ -9,6 +9,7 @@ use, so the three of them cannot drift apart.
 from __future__ import annotations
 
 from canair.render import ansi
+from canair.states.selectors import format_state_selector
 
 
 def format_value(v: float | None, unit: str) -> str:
@@ -44,8 +45,6 @@ def scope_banner(since, until, state, label, first, last) -> str:
         hi = until.isoformat() if until else "latest"
         parts.append(f"{lo} .. {hi}")
     if state:
-        from canair.states.selectors import format_state_selector
-
         parts.append(f"state={format_state_selector(state)}")
     if label:
         parts.append(f"label~'{label}'")

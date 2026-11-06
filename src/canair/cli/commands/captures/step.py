@@ -18,6 +18,7 @@ from pathlib import Path
 from canair.captures.entries import capture_key
 from canair.captures.types import CaptureEntry
 from canair.cli.profile_context import active, dir_profile
+from canair.ecus.names import build_alias_index
 from canair.expression.notation import ByteNotation
 from canair.render import ansi, messages
 from canair.render.console import console as make_console
@@ -28,7 +29,6 @@ from .query import _dump_json, _gather_query
 
 def _safe_alias_index() -> dict[str, str]:
     """Canonical-name -> alias map for display, or {} if the registry is unavailable."""
-    from canair.ecus.names import build_alias_index
 
     try:
         return build_alias_index(profile=active())

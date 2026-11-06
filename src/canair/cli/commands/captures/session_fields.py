@@ -27,8 +27,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
+from canair.captures.build import IMPORT_TRANSPORT
+from canair.captures.entries import group_sessions
+from canair.captures.session_edit import (
+    set_session_note,
+    set_session_transport,
+    set_session_variant,
+)
 from canair.cli.profile_context import active
 from canair.render import messages
+from canair.transport.config import TRANSPORTS
+from canair.variants import load_variants
 
 from .echo import echo_write
 from .session_gate import refuse_write
@@ -52,35 +61,26 @@ class SessionField:
 
 
 def _notes_field() -> SessionField:
-    from canair.captures.session_edit import set_session_note
-
     return SessionField("notes", "--set-notes", set_session_note)
 
 
 def known_transports() -> list[str]:
     """Every label a session's ``transport`` can legitimately carry."""
-    from canair.captures.build import IMPORT_TRANSPORT
-    from canair.transport.config import TRANSPORTS
 
     return [*TRANSPORTS, IMPORT_TRANSPORT]
 
 
 def _transport_field() -> SessionField:
-    from canair.captures.session_edit import set_session_transport
-
     return SessionField("transport", "--set-transport", set_session_transport, known_transports)
 
 
 def declared_variants() -> list[str]:
     """The active profile's variant IDs (empty when it declares none)."""
-    from canair.variants import load_variants
 
     return list(load_variants(active()))
 
 
 def _variant_field() -> SessionField:
-    from canair.captures.session_edit import set_session_variant
-
     return SessionField("variant", "--set-variant", set_session_variant, declared_variants)
 
 
@@ -109,7 +109,6 @@ def cmd_set_field(
     as_json: bool = False,
 ) -> int:
     """Set ``field`` on every scope-selected session to ``value`` ('' clears it)."""
-    from canair.captures.entries import group_sessions
 
     value = value.strip()
     if value and field.allowed is not None and value not in (allowed := field.allowed()):

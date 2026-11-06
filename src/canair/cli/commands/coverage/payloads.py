@@ -30,11 +30,15 @@ from dataclasses import dataclass, field
 from typing import TypedDict
 
 from canair.captures.build import IMPORT_TRANSPORT
+from canair.captures.dates import filter_by_date_range, filter_by_text
+from canair.captures.store import load_all_captures
 from canair.cli.profile_context import active
+from canair.dtc.snapshot import did_replies
 from canair.uds.echo import request_echo
 from canair.uds.nrc import nrc_description
 from canair.uds.payload import payload_echo_mismatch
 from canair.uds.services import NEGATIVE_RESPONSE_SID
+from canair.variants.tags import require_one_revision
 
 PidKey = tuple[str, str]
 
@@ -159,7 +163,6 @@ def select_captures(
     ``variable_length`` names the ``(ECU, PID)`` keys flagged ``variable_length:``;
     ``snapshot_only`` names the keys whose replies come from saved DTC snapshots.
     """
-    from canair.dtc.snapshot import did_replies
 
     sessions: dict[tuple, _Session] = {}
     first_time: dict[tuple, str] = {}
@@ -245,9 +248,6 @@ def load_coverage_captures(
     snapshot_only: Collection[PidKey] = frozenset(),
 ) -> CoverageCaptures:
     """:func:`select_captures` over the active profile's captures, in scope."""
-    from canair.captures.dates import filter_by_date_range, filter_by_text
-    from canair.captures.store import load_all_captures
-    from canair.variants.tags import require_one_revision
 
     entries = filter_by_text(
         filter_by_date_range(load_all_captures(profile=active()), since, until),

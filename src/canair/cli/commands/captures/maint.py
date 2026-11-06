@@ -12,9 +12,16 @@ import argparse
 import sys
 from pathlib import Path
 
-from canair.captures.io import resolve_captures_dir
+from canair.captures import layers
+from canair.captures.io import resolve_capture_layers, resolve_captures_dir
+from canair.captures.journal import list_orphans
+from canair.captures.journal import recover as _recover
 from canair.cli.profile_context import active, dir_profile
+from canair.ecus.pids import load_pids_dir
+from canair.ecus.registry import build_rx_index, load_ecus_dir
+from canair.profile.model import ProfileError
 from canair.render import ansi, glyphs, messages
+from canair.uds.addressing import resolve_mode, resolve_rx_offset
 
 
 def _problem(text: str, indent: str = "  ") -> str:
@@ -24,8 +31,6 @@ def _problem(text: str, indent: str = "  ") -> str:
 
 def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:
     """Reconcile (or discard) orphaned capture journals left by a killed session."""
-    from canair.captures.journal import list_orphans
-    from canair.captures.journal import recover as _recover
 
     cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
     orphans = list_orphans(cdir)
@@ -148,11 +153,7 @@ def _discover_addressing(prof):
     names against (a ``--dir`` outside any profile), which the CLI reports as an
     error rather than a traceback.
     """
-    from canair.ecus.pids import load_pids_dir
-    from canair.ecus.registry import load_ecus_dir
     from canair.migrations.discover import Addressing
-    from canair.profile.model import ProfileError
-    from canair.uds.addressing import resolve_mode, resolve_rx_offset
 
     if not prof.ecus_dir.is_dir():
         raise ProfileError(
@@ -176,7 +177,6 @@ def cmd_migrate_discover(
     import json as _json
     from dataclasses import asdict
 
-    from canair.captures import layers
     from canair.migrations import discover as discover_migrate
 
     cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
@@ -248,8 +248,6 @@ def cmd_split_batched(
     import json as _json
 
     from canair.analysis.unsplit_batches import split_unsplit_batches
-    from canair.captures.io import resolve_capture_layers
-    from canair.ecus.registry import build_rx_index
 
     cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
     if captures_dir is not None and not cdir.is_dir():

@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 from canair.cli.profile_context import active
-from canair.core.paths import CONFIG_DOCS_URL
+from canair.config.devices import fallback_settings, wican_devices, wican_model, wican_settings
+from canair.config.file import load_config, user_config_file, user_profiles_dir
+from canair.core.paths import CONFIG_DOCS_URL, CONFIG_FILE, config_dir
 from canair.render.console import console, escape
 
 
 def _gather(args) -> dict:
     """Collect config locations + effective settings into a plain dict."""
-    from canair.config.devices import wican_model, wican_settings
-    from canair.config.file import load_config, user_config_file, user_profiles_dir
-    from canair.core.paths import CONFIG_FILE, config_dir
 
     cfg = load_config()
     user_file = user_config_file()
@@ -32,8 +31,6 @@ def _gather(args) -> dict:
         "default": default_alias,
         "model": wican_model(),
     }
-
-    from canair.config.devices import fallback_settings, wican_devices
 
     devices, _ = wican_devices()
     info["devices"] = {

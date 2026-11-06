@@ -12,6 +12,8 @@ import json
 import sys
 
 from canair.cli.args.scope import resolve_scope_bounds
+from canair.cli.commands._hints import ecu_hint
+from canair.cli.commands.captures import build_query
 from canair.cli.profile_context import active
 from canair.ecus.pids import build_ecu_index, load_pids
 from canair.render import messages
@@ -49,12 +51,8 @@ def check_modifier_flags(args) -> str | None:
 
 
 def run(args) -> int:
-    from canair.cli.commands.captures import build_query
-
     # Friendly guidance when the QUERY is missing.
     if not args.query:
-        from canair.cli.commands._hints import ecu_hint
-
         print("Specify an ECU and PID to decode, e.g. `canair decode BMS 2101`.\n")
         print(ecu_hint())
         return 2

@@ -23,6 +23,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from canair.cli.commands._hints import ecu_hint
 from canair.render import messages
 
 Mode = Literal[
@@ -107,8 +108,6 @@ class ModeError:
         """Print the rejection as ``error: …`` on stderr; return its exit code."""
         messages.error(self.message.removeprefix("error: ").strip())
         if self.with_ecu_hint:
-            from canair.cli.commands._hints import ecu_hint
-
             messages.hint(ecu_hint())
         return self.code
 

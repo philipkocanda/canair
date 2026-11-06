@@ -14,9 +14,24 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from canair.analysis.mirrors import DEFAULT_MIRROR_MATCH
+from canair.analysis.align import (
+    SignalRef,
+    extract_series,
+    join_indices,
+    load_signal_captures,
+    prepare_series,
+)
+from canair.analysis.mirrors import (
+    DEFAULT_MIRROR_MATCH,
+    byte_owns_bit,
+    find_column_mirrors,
+    frame_columns,
+)
+from canair.captures.dates import entry_datetime
 from canair.cli.profile_context import active
+from canair.ecus.pids import build_ecu_index, load_pids
 from canair.expression.inspect_bytes import apply_transform
+from canair.uds.byteindex import payload_to_wican_bytes
 
 if TYPE_CHECKING:
     from canair.analysis.align import TimePoint
@@ -56,8 +71,6 @@ def _paired_timed(all_results: list[dict], ref: str, name: str) -> tuple[list[fl
     """
     from datetime import datetime
 
-    from canair.captures.dates import entry_datetime
-
     triples: list[tuple[datetime, float, float]] = []
     for r in all_results:
         d = r["decoded"]
@@ -77,7 +90,6 @@ def _local_series(all_results: list[dict], name: str) -> list:
     different ECU/PID. Captures with no usable ``datetime`` are dropped.
     """
     from canair.analysis.align import TimePoint
-    from canair.captures.dates import entry_datetime
 
     out = []
     for r in all_results:
@@ -99,8 +111,6 @@ def load_cross_ref_series(ref: str, *, scope: dict, tol_s: float, fill: FillPoli
     reference is drawn from the same drive/window, and the same ``fill`` policy so a
     run-length reference can be carried onto the local captures' instants.
     """
-    from canair.analysis.align import SignalRef, extract_series, load_signal_captures
-    from canair.ecus.pids import build_ecu_index, load_pids
 
     sref = SignalRef.parse(ref)
     loaded = load_signal_captures(
@@ -149,8 +159,6 @@ def axis_group_keys(
     too high-cardinality to be a sensible grouping (``--discriminate`` wants an
     enum/flag/mode axis, not a continuous analog).
     """
-    from canair.analysis.align import join_indices, prepare_series
-    from canair.captures.dates import entry_datetime
 
     series, label = load_cross_ref_series(axis_spec, scope=scope, tol_s=tol_s, fill=fill)
     axis = prepare_series(series)
@@ -199,8 +207,6 @@ def find_mirrors(
     from the same captures), so no timestamp join is involved — the intra-PID
     counterpart of ``correlate --find-mirrors``.
     """
-    from canair.analysis.mirrors import byte_owns_bit, find_column_mirrors, frame_columns
-    from canair.uds.byteindex import payload_to_wican_bytes
 
     frames: list[bytes] = []
     for r in all_results:

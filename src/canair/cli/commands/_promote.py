@@ -18,9 +18,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from canair.cli.commands._edit import edit_scope
 from canair.cli.profile_context import active
 from canair.render import messages
+from canair.validation.expressions import check_pci_bytes
 from canair.yaml_edit.echo import echo_edit
+from canair.yaml_edit.pids import PidsEditError, upsert_parameter
 
 
 def _reject_pci_reads(ecu: str, pid: str, name: str, expr: str) -> None:
@@ -32,8 +35,6 @@ def _reject_pci_reads(ecu: str, pid: str, name: str, expr: str) -> None:
     skips the framing byte (``(B7 << 8) | B9``) rather than a range spanning it
     (``[B7:B9]``).
     """
-    from canair.validation.expressions import check_pci_bytes
-    from canair.yaml_edit.pids import PidsEditError
 
     problems = check_pci_bytes(expr, name, pid, ecu)
     if problems:
@@ -51,8 +52,6 @@ def write_candidate(ecu: str, pid: str, name: str, expr: str, *, source: str, no
     or when the edit fails schema validation and is reverted) if the expression is
     unfit.
     """
-    from canair.cli.commands._edit import edit_scope
-    from canair.yaml_edit.pids import upsert_parameter
 
     _reject_pci_reads(ecu, pid, name, expr)
 

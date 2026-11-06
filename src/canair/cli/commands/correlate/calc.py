@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import re
 
+from canair.analysis.align import align_many
+from canair.analysis.cross_signal import load_ref
 from canair.cli.profile_context import active
 
 _GATE_OPS = {
@@ -52,8 +54,6 @@ def _apply_gate(ref_series, gate_expr, tol, *, since, until, state, label):
     ``ECU:PID:PARAM`` signal is loaded and aligned onto the reference by nearest
     timestamp. Returns the filtered (time-sorted) reference series.
     """
-    from canair.analysis.align import align_many
-    from canair.analysis.cross_signal import load_ref
 
     signal, op_fn, value, _lbl = _parse_gate(gate_expr)
     if signal is None:

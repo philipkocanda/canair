@@ -13,6 +13,7 @@ import sys
 from canair.analysis.align import (
     detrend_by_session,
     discover_signal_specs,
+    join_nearest_triple,
     join_prepared,
     prepare_series,
 )
@@ -29,6 +30,7 @@ from canair.analysis.cross_signal import (
     transform_ref,
 )
 from canair.analysis.fill import FILL_HOLD, FORCED_HOLD_WARNING
+from canair.analysis.stats import categorical_method_nudge, partial_correlation
 from canair.captures.keepmode import CHANGES_BANNER
 from canair.cli.args.join import fill_policy_from_args, fill_summary_line
 from canair.cli.args.notation import resolve_notation
@@ -173,8 +175,6 @@ def run(args) -> int:
                 return 1
 
         if reference_is_bimodal([tp.value for tp in ref_series]):
-            from canair.analysis.stats import categorical_method_nudge
-
             messages.warning(
                 f"reference {ref_label!r} collapses into ~2 clusters "
                 "(bimodal) \u2014 |r| then ranks cluster separation, not a real relationship, "
@@ -259,9 +259,6 @@ def run(args) -> int:
                     continue
                 rows.append((name, hit.r, hit.n, hit.lag_seconds))
             elif control_series is not None:
-                from canair.analysis.align import join_nearest_triple
-                from canair.analysis.stats import partial_correlation
-
                 xs, ys, zs, n = join_nearest_triple(
                     ref_series, s, control_series, tol_s=args.join_tol
                 )

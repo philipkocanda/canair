@@ -9,16 +9,18 @@ from __future__ import annotations
 
 from canair.analysis.align import (
     join_nearest,
+    thin_join_warning,
 )
+from canair.analysis.cross_signal import linear_fit, sniff_unit
 from canair.cli.commands._analysis_warning import warn_analysis
 from canair.render import messages
+from canair.yaml_edit.pids import PidsEditError
 
 NAME = "correlate"
 
 
 def _warn_thin_reference_join(command: str, ref_label: str, best_n: int, n_ref: int, args) -> None:
     """Print the shared thin/zero-join warning for an ``--against`` sweep."""
-    from canair.analysis.align import thin_join_warning
 
     msg = thin_join_warning(
         command=command,
@@ -41,9 +43,7 @@ def _promote_top_byte(name, rows, series, ref_series, ref_label, tol, *, ref_uni
     """
     import re
 
-    from canair.analysis.cross_signal import linear_fit, sniff_unit
     from canair.cli.commands._promote import print_promoted, write_candidate
-    from canair.yaml_edit.pids import PidsEditError
 
     byte_hit = None
     for sig, r, n in rows:

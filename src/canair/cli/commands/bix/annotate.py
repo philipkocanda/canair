@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from canair.expression.byte_rows import annotate_rows, resolve_annotate_layout
 from canair.render import ansi, messages
-from canair.uds.byteindex import payload_to_wican_frame
+from canair.uds.byteindex import NotAFrameError, framed_to_wican_frame, payload_to_wican_frame
 from canair.uds.layout import (
     ROLE_PCI,
     ResponseLayout,
@@ -114,7 +114,6 @@ def annotate_payload(
     map's own bytes, marks covered bytes that carry no signal, and lists which bits of an
     unmapped byte the map marks.
     """
-    from canair.uds.byteindex import NotAFrameError, framed_to_wican_frame
 
     payload_bytes = parse_hex_payload(payload_hex)
     if payload_bytes:

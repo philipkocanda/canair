@@ -21,6 +21,7 @@ from canair.analysis.fill import FillPolicy
 from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.join import fill_summaries
 from canair.cli.profile_context import active
+from canair.ecus.pids import build_ecu_index, load_pids
 
 NAME = "correlate"
 
@@ -60,7 +61,6 @@ def _gather_series(
     notation.relabel_signal); ``fills`` names which PIDs contribute forward-filled
     run-length values, for the report header.
     """
-    from canair.ecus.pids import build_ecu_index, load_pids
 
     loaded = load_signal_captures(
         specs,

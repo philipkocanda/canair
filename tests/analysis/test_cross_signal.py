@@ -678,7 +678,7 @@ class TestHuntPromote:
 
             return Path("aaf.yaml")
 
-        monkeypatch.setattr("canair.yaml_edit.pids.upsert_parameter", fake_upsert)
+        monkeypatch.setattr("canair.cli.commands._promote.upsert_parameter", fake_upsert)
         rc = promote.promote("AAF_SPEED", "AAF", "2181", [self._hit()], "ESC:22C101:REAL_SPEED_KMH")
         assert rc == 0
         assert captured["name"] == "AAF_SPEED"
@@ -1005,7 +1005,7 @@ class TestPromotePciGuard:
         from canair.cli.commands._promote import write_candidate
 
         monkeypatch.setattr(
-            "canair.yaml_edit.pids.upsert_parameter", lambda *a, **k: Path("x.yaml")
+            "canair.cli.commands._promote.upsert_parameter", lambda *a, **k: Path("x.yaml")
         )
         write_candidate("BMS", "2101", "X", expr, source="s", notes="n")
 

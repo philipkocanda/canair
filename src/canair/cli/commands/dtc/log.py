@@ -11,8 +11,11 @@ import argparse
 import json
 import sys
 
+from canair.cli.commands._hints import ecu_hint
 from canair.cli.live import ecu_completer
 from canair.cli.profile_context import active
+from canair.ecus.names import resolve_tx
+from canair.profile.model import ProfileError
 from canair.render import ansi, messages
 
 
@@ -50,7 +53,6 @@ def _scope(ecu: str | None) -> str | None:
     if not ecu:
         return "all"
     from canair.dtc.refs import ecu_ref
-    from canair.ecus.names import resolve_tx
 
     tx_id = resolve_tx(ecu, profile=active())
     return None if tx_id is None else ecu_ref(tx_id, profile=active())
@@ -69,8 +71,6 @@ def run(args) -> int:
 
     scope = _scope(args.dtc)
     if scope is None:
-        from canair.cli.commands._hints import ecu_hint
-
         messages.error(f"unknown ECU '{args.dtc}'")
         print(ecu_hint(), file=sys.stderr)
         return 2
@@ -130,7 +130,6 @@ def _print_footer(stats) -> None:
 
 def log_hint() -> str | None:
     """One line saying what the DTC log holds, for a bare ``canair dtc``; None when empty."""
-    from canair.profile.model import ProfileError
 
     try:
         from canair.dtc.history import log_stats

@@ -16,6 +16,7 @@ from canair.cli.args.query import parse_canonical_query
 from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.cli.profile_context import active, dir_profile
+from canair.query import QueryError
 from canair.render import messages
 from canair.states.selectors import format_state_selector
 from canair.tui.apps.captures_step.model import (
@@ -407,8 +408,6 @@ def _dispatch(mode: Mode, args, query: str, entries: list[CaptureEntry]) -> int:
 
 
 def run(args) -> int:
-    from canair.query import QueryError
-
     query = build_query(args.query)
     mode = resolve_mode(args, query)
     if isinstance(mode, ModeError):

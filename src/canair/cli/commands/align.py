@@ -37,6 +37,7 @@ from canair.cli.args.join import add_join_args, fill_policy_from_args
 from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
 from canair.cli.profile_context import active
+from canair.ecus.pids import build_ecu_index, load_pids
 from canair.render import ansi, glyphs, messages
 
 NAME = "align"
@@ -87,7 +88,6 @@ def _load_one(spec: str, *, since, until, state, label, fill=None):
     captures so the caller can flag ``keep:changes`` scope. Raises ``ValueError``
     with a clean message when the signal can't be built.
     """
-    from canair.ecus.pids import build_ecu_index, load_pids
 
     sref = SignalRef.parse(spec)
     loaded = load_signal_captures(

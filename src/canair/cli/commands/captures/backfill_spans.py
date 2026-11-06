@@ -24,10 +24,16 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from canair.captures import io as capture_io
+from canair.captures import layers
+from canair.captures.entries import group_sessions
+from canair.captures.session_edit import set_session_state_spans
 from canair.captures.state_inference import DEFAULT_CYCLE_TOL_S, session_state_spans
 from canair.captures.store import entry_path
 from canair.cli.profile_context import active, dir_profile
 from canair.core.prompt import confirm
+from canair.ecus.pids import build_ecu_index, load_pids
+from canair.install.build_info import full_version
 from canair.render import messages
 from canair.states.predicates import StatePredicateError
 from canair.states.tokens import join_states, parse_states
@@ -60,7 +66,6 @@ def _existing_span_sources(paths: set[str]) -> dict[tuple[str, int], str]:
     carries its *resolved* states, not the provenance of the block they came from,
     and only this command needs that provenance.
     """
-    from canair.captures import io as capture_io
 
     sources: dict[tuple[str, int], str] = {}
     for path in sorted(paths):
@@ -87,12 +92,6 @@ def cmd_backfill_state_spans(
 ) -> int:
     """Reconstruct and write per-session state_spans over the scoped entries."""
     import json as _json
-
-    from canair.captures import layers
-    from canair.captures.entries import group_sessions
-    from canair.captures.session_edit import set_session_state_spans
-    from canair.ecus.pids import build_ecu_index, load_pids
-    from canair.install.build_info import full_version
 
     from .backfill_spans_render import print_span_report
 

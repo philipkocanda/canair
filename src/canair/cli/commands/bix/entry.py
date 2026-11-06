@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from canair.cli.profile_context import active
+from canair.ecus.names import canonical_ecu_name_safe
+from canair.ecus.pids import build_ecu_index, load_pids
+from canair.ecus.protocol import ecu_protocol
 from canair.render import messages
 from canair.uds.support_map import SupportMapError, declaration
 
@@ -34,9 +37,6 @@ def run(args) -> int:
             if not args.pid:
                 messages.error("--ecu requires --pid")
                 return 2
-            from canair.ecus.names import canonical_ecu_name_safe
-            from canair.ecus.pids import build_ecu_index, load_pids
-            from canair.ecus.protocol import ecu_protocol
 
             ecu = canonical_ecu_name_safe(args.ecu, profile=active()).upper()
             pid = args.pid.upper()
