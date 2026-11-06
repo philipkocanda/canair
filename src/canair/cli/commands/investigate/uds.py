@@ -12,6 +12,7 @@ import sys
 
 from canair.analysis.align import (
     discover_signal_specs,
+    load_reference_file,
     load_signal_captures,
     prepare_series,
 )
@@ -186,8 +187,6 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
     if args.independent_of or args.independent_of_file:
         try:
             if args.independent_of_file:
-                from canair.analysis.align import load_reference_file
-
                 driver_series, driver_label = load_reference_file(args.independent_of_file)
             else:
                 driver_series, driver_label = load_ref(

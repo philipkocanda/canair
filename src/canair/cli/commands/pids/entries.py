@@ -12,6 +12,7 @@ from canair.ecus.pid_status import PID_STATUSES
 from canair.ecus.pids import load_pids_dir, load_raw_pids
 from canair.ecus.signal_category import CATEGORIES, QUANTITY_CATEGORIES
 from canair.render import ansi, messages
+from canair.states.refs import states_referencing
 from canair.yaml_edit.echo import echo_edit
 from canair.yaml_edit.pids import (
     add_pid,
@@ -340,8 +341,6 @@ def _warn_state_predicates(ecu: str, param: str, consequence: str, hint: str) ->
     nudge at the moment the breakage is introduced.
     """
     try:
-        from canair.states.refs import states_referencing
-
         states = states_referencing(ecu, param, profile=active())
     except Exception:
         return  # never let an advisory check fail a successful write

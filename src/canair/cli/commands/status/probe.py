@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from canair.device.wican.mode import load_config
+
 
 def load_device_config(host: str, timeout: float) -> dict | None:
     """Best-effort GET /load_config; None if the WiCAN HTTP API isn't reachable."""
     try:
-        from canair.device.wican.mode import load_config
-
         return load_config(f"http://{host}", timeout=timeout)
     except Exception:
         return None

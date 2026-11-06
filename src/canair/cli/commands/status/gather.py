@@ -7,14 +7,20 @@ from canair.cli.profile_context import active
 from canair.config.devices import fallback_settings
 from canair.config.transport import firmware_check_mode
 from canair.core.tcp import tcp_open
+from canair.device.lock import lock_state
 from canair.device.wican.firmware import UNKNOWN, compatibility, probe, probes
+from canair.ecus.pids import revision_resolutions
 from canair.install.build_info import build_summary, full_version
+from canair.install.context import describe as describe_install
+from canair.install.context import source_clone
+from canair.install.update_check import pending_notice
 from canair.transport import (
     TransportError,
     resolve_transport_candidates,
     select_reachable_transport,
 )
 from canair.transport.config import DEFAULT_ELM327_TCP_PORT
+from canair.variants import load_variants
 
 from .probe import device_status, load_device_config
 
@@ -70,9 +76,6 @@ def gather(args) -> dict:
 
     # Active vehicle profile.
     try:
-        from canair.ecus.pids import revision_resolutions
-        from canair.variants import load_variants
-
         prof = active()
         info["profile"] = {
             "name": prof.name,
@@ -227,16 +230,12 @@ def gather(args) -> dict:
     # Connection mutex (local-only): who, if anyone, currently owns the device
     # connection. Read-only — it never takes or clears the lock.
     try:
-        from canair.device.lock import lock_state
-
         info["lock"] = lock_state().as_dict()
     except Exception:
         info["lock"] = None
 
     # Cached update notice (local-only; no network on the status hot path).
     try:
-        from canair.install.update_check import pending_notice
-
         info["update_notice"] = pending_notice()
     except Exception:
         info["update_notice"] = None
@@ -244,9 +243,6 @@ def gather(args) -> dict:
     # Install context (local-only): warn when a bare `canair` would run a
     # different version than `uv run canair` in the source clone.
     try:
-        from canair.install.context import describe as describe_install
-        from canair.install.context import source_clone
-
         install = describe_install(source_clone())
         info["install"] = install
         if install["out_of_sync"]:

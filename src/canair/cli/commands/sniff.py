@@ -174,6 +174,7 @@ def _run_sniff(host: str, args, filters, port: int, bitrate: int) -> None:
         import sys
 
         if sys.stdout.isatty():
+            # deferred: textual adds ~40 ms to start-up (measured after the parser build)
             from canair.tui.apps.sniff.app import run_sniff_app
 
             run_sniff_app(stats, host, duration=args.duration)

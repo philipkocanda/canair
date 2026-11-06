@@ -182,6 +182,7 @@ def _pick_steps(args) -> list[str] | None:
     Returns the chosen selectors, or ``None`` when the picker was cancelled.
     Raises ``ValueError`` if there is nothing in the active profile to pick from.
     """
+    # deferred: textual adds ~40 ms to start-up (measured after the parser build)
     from canair.tui.apps.monitor_select.app import pick_selectors
 
     return pick_selectors(

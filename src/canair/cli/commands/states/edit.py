@@ -9,6 +9,7 @@ from canair.cli.profile_context import active
 from canair.core.prompt import confirm
 from canair.profile.writable import require_writable_definitions
 from canair.render import ansi, messages
+from canair.states.refs import check_references_on_every_car
 from canair.yaml_edit.echo import echo_edit
 from canair.yaml_edit.state_rename import apply_state_rename, plan_state_rename
 from canair.yaml_edit.states import add_state, remove_state, set_state_field
@@ -26,8 +27,6 @@ def _warn_unresolved_refs(state: str, expr: str | None) -> None:
     if not expr:
         return
     try:
-        from canair.states.refs import check_references_on_every_car
-
         issues = check_references_on_every_car([(state, expr)], active())
     except Exception:
         return  # never let an advisory check fail a successful write
