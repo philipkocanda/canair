@@ -231,6 +231,18 @@ because the tree moved since `0ce4f742`. Building the parser loads 539 of 658 mo
   rewrote two bundled ECU files, and one `tests/live` run hung. So hoist one package at a time,
   fix its `patch targets` in the same commit, run its tests under `timeout`, and look at
   `git status` for stray files. The pilot alone failed 8 tests, which `patch targets` named.
+- Group h4 (`validation`, `yaml_edit`, `captures`, `dtc`, `analysis`): 208 function-level imports
+  (150 `loaded`, 2 `cycle`, 56 `other`) -> 1, which has a reason. All 56 `other` cost under
+  4 ms (the whole `yaml_edit` router 2.7 ms), so they moved too, as did 8 in `try` blocks that
+  only guarded a swallowed error. Three cycles broke with a small move each:
+  `save_session_journaled` went from `captures/save.py` to `captures/oneshot.py` (the journal
+  imports `save`; the plan 7 table that lists it under `save.py` needs that change), the format
+  version and writer went from
+  `dtc/log.py` to `dtc/log_format.py`, and the band table and label function went from
+  `analysis/physical/bands.py` to `analysis/physical/default_bands.py`. The one import left,
+  `migrate_all()` -> `log_file` in `dtc/log_upgrade.py`, says why. `canair --help`, 40 alternating
+  runs against `a56df317`: median 258.8 ms before, 261.8 ms after. Ceilings: `without_reason`
+  924 -> 716.
 - Not done: steps 3 to 7 for the 20 packages with imports left (above), the `# deferred:`
   comments, and lowering the ceilings to the end state. Decision A (a lazy command registry)
   stays open: `canair --help` takes about 0.24 s.
