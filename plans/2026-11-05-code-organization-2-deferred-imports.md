@@ -234,3 +234,11 @@ because the tree moved since `0ce4f742`. Building the parser loads 539 of 658 mo
 - Not done: steps 3 to 7 for the 20 packages with imports left (above), the `# deferred:`
   comments, and lowering the ceilings to the end state. Decision A (a lazy command registry)
   stays open: `canair --help` takes about 0.24 s.
+- `live/` (group h3): 146 deferred imports (111 `loaded`, 35 `other`) -> 0, in 6 commits. The 35
+  `other` cost about 1 ms each after the parser build (none reaches `textual`, `cantools` or
+  `argcomplete`, and 23 sat in a `try` block that guards only the call), so all were hoisted by
+  hand (`codemods/h3/hoist_other.py`, then ruff). No `# deferred:` comment was needed and no cycle
+  was found. 14 test files patched a moved name; the one trap was `tests/integration/
+  test_wican_firmware.py`, whose `wf.detect` patch must also reach `raw_ops.detect`, and which
+  must import `raw_ops` first, or a first import under the patch binds the fake. `canair --help`:
+  274.6 ms before, 273.2 ms after (40 alternating runs).
