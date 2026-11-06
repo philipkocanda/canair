@@ -51,7 +51,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --description DESCRIPTION, -d DESCRIPTION
+  --description, -d DESCRIPTION
                         Human-readable description
 ```
 

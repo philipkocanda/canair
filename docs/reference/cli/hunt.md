@@ -26,9 +26,8 @@ options:
 ## `canair hunt uds`
 
 ```
-usage: canair hunt uds [-h]
-                       (--against ECU:PID:PARAM | --against-file FILE | --physical)
-                       [--min-n N] [--top N] [--transform MODE]
+usage: canair hunt uds [-h] (--against ECU:PID:PARAM | --against-file FILE |
+                       --physical) [--min-n N] [--top N] [--transform MODE]
                        [--method {pearson,spearman}] [--join-tol SECONDS]
                        [--fill {auto,hold,none}] [--max-hold SECONDS] [--json]
                        [--all-interps] [--control ECU:PID:PARAM]
@@ -182,8 +181,8 @@ tip: --against takes a known signal ECU:PID:PARAM (or a raw ECU:PID:EXPR). Use
 ## `canair hunt can`
 
 ```
-usage: canair hunt can [-h] [--can-format {auto,asc,blf,csv,log,gvret}] --id
-                       ID --against 0xID:rN [--min-n N] [--top N]
+usage: canair hunt can [-h] [--can-format {auto,asc,blf,csv,log,gvret}]
+                       --id ID --against 0xID:rN [--min-n N] [--top N]
                        [--transform MODE] [--method {pearson,spearman}]
                        [--join-tol SECONDS] [--fill {auto,hold,none}]
                        [--max-hold SECONDS] [--json] [--all-interps]

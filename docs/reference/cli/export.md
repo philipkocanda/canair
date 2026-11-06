@@ -27,9 +27,8 @@ options:
 usage: canair export dbc [-h] [--bus BUS] [--verified-only] [-o FILE]
 
 options:
-  -h, --help            show this help message and exit
-  --bus BUS             Only this bus (signals/<bus>.yaml); default: all
-  --verified-only       Export only signals marked verified
-  -o FILE, --output FILE
-                        Write to FILE (default: stdout)
+  -h, --help         show this help message and exit
+  --bus BUS          Only this bus (signals/<bus>.yaml); default: all
+  --verified-only    Export only signals marked verified
+  -o, --output FILE  Write to FILE (default: stdout)
 ```

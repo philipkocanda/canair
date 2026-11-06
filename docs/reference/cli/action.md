@@ -114,7 +114,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --description DESCRIPTION, -d DESCRIPTION
+  --description, -d DESCRIPTION
                         Human-readable description ('' clears it)
   --read ECU:PID        A PID to read live before sending (repeatable;
                         replaces the list on `set`)
@@ -140,7 +140,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --description DESCRIPTION, -d DESCRIPTION
+  --description, -d DESCRIPTION
                         Human-readable description ('' clears it)
   --read ECU:PID        A PID to read live before sending (repeatable;
                         replaces the list on `set`)

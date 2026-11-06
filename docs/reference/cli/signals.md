@@ -47,15 +47,14 @@ options:
 
 ```
 usage: canair signals upsert [-h] [--start-bit START_BIT] [--length LENGTH]
-                             [--byte-order {little,big}]
-                             [--signed | --unsigned] [--float | --integer]
-                             [--scale SCALE] [--offset OFFSET] [--min MIN]
-                             [--max MAX] [--unit UNIT]
-                             [--verified | --unverified] [--source SOURCE]
-                             [--notes NOTES] [--clear FIELD]
+                             [--byte-order {little,big}] [--signed |
+                             --unsigned] [--float | --integer] [--scale SCALE]
+                             [--offset OFFSET] [--min MIN] [--max MAX]
+                             [--unit UNIT] [--verified | --unverified]
+                             [--source SOURCE] [--notes NOTES] [--clear FIELD]
                              [--msg-name MSG_NAME] [--tx-ecu TX_ECU]
-                             [--msg-length MSG_LENGTH]
-                             [--extended | --standard] [--fd | --classic]
+                             [--msg-length MSG_LENGTH] [--extended |
+                             --standard] [--fd | --classic]
                              bus arb_id name
 
 Add a broadcast signal, or change one. A new signal needs --start-bit and

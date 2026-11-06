@@ -19,7 +19,7 @@ options:
                         --pid)
   -2                    2-byte subfunction mode (22xxxx DIDs)
   --table, -t           Print the full conversion table (all frames)
-  --annotate HEX [HEX ...], -a HEX [HEX ...]
+  --annotate, -a HEX [HEX ...]
                         Annotate a hex payload with all index representations
                         (e.g. 62B0047402990C0040A000AAAA, or space-separated
                         bytes 62 B0 04 ... quoted or unquoted). Expects the

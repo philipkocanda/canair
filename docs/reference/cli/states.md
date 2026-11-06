@@ -4,8 +4,7 @@
 
 ```
 usage: canair states [-h] [--json]
-                     {list,add,rm,rename,set-description,set-predicate,set-implies,set-excludes}
-                     ...
+                     {list,add,rm,rename,set-description,set-predicate,set-implies,set-excludes} ...
 
 List the active profile's vehicle operating states, or edit the vocabulary (add/rm/rename/set-description/set-predicate/set-implies/set-excludes). Read-only companion of the state auto-suggestion used when recording captures.
 
@@ -67,14 +66,13 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --description DESCRIPTION, -d DESCRIPTION
+  --description, -d DESCRIPTION
                         Human-readable description
-  --when EXPR, -w EXPR  Auto-suggest predicate over ECU.PARAM
-  --implies STATES, -i STATES
-                        Comma-separated broader states this one specializes
+  --when, -w EXPR       Auto-suggest predicate over ECU.PARAM
+  --implies, -i STATES  Comma-separated broader states this one specializes
                         (e.g. READY) — when both match, the live view shows
                         this one
-  --excludes STATES, -x STATES
+  --excludes, -x STATES
                         Comma-separated states this one cannot hold at the
                         same instant (e.g. PARKED) — a session tagged with
                         both sequenced through them

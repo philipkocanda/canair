@@ -16,13 +16,12 @@ with a few backups), so it never grows unbounded and needs no manual cleanup.
 Read-only by default; ``--clear`` deletes the log and its rotated backups.
 
 options:
-  -h, --help            show this help message and exit
-  -n LINES, --lines LINES
-                        Number of recent lines to show (default: 50)
-  --path                Print the log file path and exit
-  --clear               Delete the event log and its rotated backups
-  --yes, -y             Skip the --clear confirmation
-  --json                Emit machine-readable JSON
+  -h, --help         show this help message and exit
+  -n, --lines LINES  Number of recent lines to show (default: 50)
+  --path             Print the log file path and exit
+  --clear            Delete the event log and its rotated backups
+  --yes, -y          Skip the --clear confirmation
+  --json             Emit machine-readable JSON
 
 examples:
   canair logs                 # last 50 event-log lines

@@ -6,9 +6,9 @@
 
 ```
 usage: canair monitor [-h] [--interval SECONDS] [--schedule {dynamic,fixed}]
-                      [--no-backoff] [--session] [--wake]
-                      [--keep-all | --keep-changes | --keep N] [--save]
-                      [--label TEXT] [--state TEXT] [--notes TEXT] [--rulers]
+                      [--no-backoff] [--session] [--wake] [--keep-all |
+                      --keep-changes | --keep N] [--save] [--label TEXT]
+                      [--state TEXT] [--notes TEXT] [--rulers]
                       [--notation NAME] [--include-static] [--wican WICAN]
                       [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                       [--no-fallback] [--wait] [--elm-timeout MS]

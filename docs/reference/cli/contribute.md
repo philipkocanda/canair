@@ -6,10 +6,9 @@
 
 ```
 usage: canair contribute [-h] [--captures | --no-captures] [--branch BRANCH]
-                         [--title TITLE] [--body BODY]
-                         [--include-logs | --no-logs] [--repo-dir REPO_DIR]
-                         [--dry-run] [--diff] [-y]
-                         [--discard-local | --keep-local] [--json]
+                         [--title TITLE] [--body BODY] [--include-logs |
+                         --no-logs] [--repo-dir REPO_DIR] [--dry-run] [--diff]
+                         [-y] [--discard-local | --keep-local] [--json]
 
 Open a pull request contributing the active profile upstream.
 

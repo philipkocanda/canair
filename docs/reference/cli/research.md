@@ -13,14 +13,14 @@ usage: canair research [-h] [--ecu ECU]
 
 options:
   -h, --help            show this help message and exit
-  --ecu ECU, -e ECU     Filter by ECU name
-  --type {scan,decode,verify,iocontrol_scan}, -t {scan,decode,verify,iocontrol_scan}
+  --ecu, -e ECU         Filter by ECU name
+  --type, -t {scan,decode,verify,iocontrol_scan}
                         Filter by research type
   --status {pending,captured,nrc,done}
                         Filter by status
-  --priority {P1,P2,P3}, -p {P1,P2,P3}
+  --priority, -p {P1,P2,P3}
                         Filter by priority
-  --states STATE, --vehicle-states STATE, --prerequisite STATE, --prereq STATE
+  --states, --vehicle-states, --prerequisite, --prereq STATE
                         Filter to items needing this car power state (from the
                         profile's vehicle-state vocabulary)
   --summary, -s         Show aggregate counts instead of the item list

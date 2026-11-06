@@ -180,8 +180,7 @@ options:
   -h, --help            show this help message and exit
   --format {ihex,srec,bin}
   --fill HEX            bin: the byte to write into holes
-  -o FILE, --output FILE
-                        Output file (default stdout)
+  -o, --output FILE     Output file (default stdout)
 ```
 
 ## `canair memory set`

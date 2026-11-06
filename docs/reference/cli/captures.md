@@ -44,8 +44,11 @@ options:
 ## `canair captures uds`
 
 ```
-usage: canair captures uds [-h] [--diff | --step]
-                           [--summary | --sessions | --latest | --recover | --delete | --backfill-states | --backfill-state-spans | --set-state STATES | --set-notes TEXT | --set-transport NAME | --set-variant ID]
+usage: canair captures uds [-h] [--diff | --step] [--summary | --sessions |
+                           --latest | --recover | --delete |
+                           --backfill-states | --backfill-state-spans |
+                           --set-state STATES | --set-notes TEXT |
+                           --set-transport NAME | --set-variant ID]
                            [--discard] [--overwrite] [--cycle-tol SECONDS]
                            [--dry-run] [--yes] [--all] [--limit N] [--rulers]
                            [--notation NAME]
@@ -133,7 +136,7 @@ options:
                         (scripting)
   --all, -a             For --diff/--step: use every payload instead of
                         unique-only
-  --limit N, -L N       Default list view: show only the most recent N
+  --limit, -L N         Default list view: show only the most recent N
                         captures (default 50; 0 = no cap). A loud footer
                         reports any hidden history. Also caps the frames
                         rendered by a piped/--json --step.

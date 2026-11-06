@@ -22,7 +22,12 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install 3.15
+
+      - name: Install libyaml
+        # PyYAML has no wheels for Python 3.15 yet, so uv builds it from source, and without
+        # libyaml's headers that build has no C loader: YAML then loads about 4x slower.
+        run: sudo apt-get update -q && sudo apt-get install -y --no-install-recommends libyaml-dev
 
       - name: Lockfile is current
         # `uv.lock` pins canair's own version, and release-please bumps it via a
@@ -34,6 +39,10 @@ jobs:
 
       - name: Sync dependencies
         run: uv sync --all-extras --dev --group docs
+
+      - name: PyYAML has its C loader
+        run: |
+          uv run python -c "import yaml; assert hasattr(yaml, 'CSafeLoader'), 'no libyaml'"
 
       - name: Lint (ruff check)
         run: uv run ruff check .
@@ -161,7 +170,7 @@ jobs:
 
       - name: Install it in a clean environment and run it
         run: |
-          uv venv --python 3.12 "$RUNNER_TEMP/wheel-venv"
+          uv venv --python 3.15 "$RUNNER_TEMP/wheel-venv"
           uv pip install --python "$RUNNER_TEMP/wheel-venv/bin/python" dist/*.whl
           cd "$RUNNER_TEMP"
           export XDG_CONFIG_HOME="$RUNNER_TEMP/config" CANAIR_NO_UPDATE_CHECK=1

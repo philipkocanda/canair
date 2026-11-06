@@ -4,8 +4,7 @@
 
 ```
 usage: canair variants [-h] [--json]
-                       {list,show,add,set-meta,unset-meta,set-revisions,rename,rm}
-                       ...
+                       {list,show,add,set-meta,unset-meta,set-revisions,rename,rm} ...
 
 List the variants of the active profile's car — the versions an owner can name, such as a battery size or a facelift — or edit them (add/set-meta/unset-meta/set-revisions/rename/rm). A variant can limit which ECU revisions its car carries and override some profile.yaml settings.
 

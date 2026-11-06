@@ -65,7 +65,7 @@ options:
                         timeout so it isn't skipped)
   --label LABEL         Optional label for the logged scan entry (e.g. 'before
                         clearing')
-  --state STATES, --vehicle-states STATES
+  --state, --vehicle-states STATES
                         Vehicle power state(s) during the scan, recorded on
                         the log entry (comma-separated, e.g. 'READY' or
                         'SLEEP, PLUGGED'; case-insensitive). Vocabulary from

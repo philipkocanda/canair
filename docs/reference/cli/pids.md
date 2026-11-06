@@ -4,8 +4,7 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing,set-isotp}
-                   ...
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing,set-isotp} ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
@@ -88,9 +87,9 @@ usage: canair pids upsert-param [-h] [--unit UNIT] [--category CATEGORY]
                                 [--notes NOTES]
                                 [--type {numeric,enum,bitmask,ascii,date,bcd}]
                                 [--value RAW=LABEL] [--bit INDEX=LABEL]
-                                [--verified | --unverified]
-                                [--ship | --no-ship] [--revision ID]
-                                [--dir DIR] [--no-validate]
+                                [--verified | --unverified] [--ship |
+                                --no-ship] [--revision ID] [--dir DIR]
+                                [--no-validate]
                                 ecu pid name expression
 
 positional arguments:
@@ -225,7 +224,7 @@ options:
   --status {active,draft,static,slow,ignored}
                         PID lifecycle (default: draft — swept/queryable but
                         not shipped)
-  --prereq PREREQ, --vehicle-states PREREQ
+  --prereq, --vehicle-states PREREQ
                         Power state(s) in which this PID responds
                         (repeatable). Validated against the profile's vehicle-
                         state vocabulary at write time.
@@ -238,9 +237,10 @@ options:
 ## `canair pids add-research`
 
 ```
-usage: canair pids add-research [-h] --type
-                                {scan,decode,verify,iocontrol_scan} --target
-                                TARGET --status {pending,captured,nrc,done}
+usage: canair pids add-research [-h]
+                                --type {scan,decode,verify,iocontrol_scan}
+                                --target TARGET
+                                --status {pending,captured,nrc,done}
                                 [--priority {P1,P2,P3}] [--prereq PREREQ]
                                 [--date DATE] [--created YYYY-MM-DD]
                                 [--updated YYYY-MM-DD] [--result RESULT]
@@ -259,7 +259,7 @@ options:
   --target TARGET
   --status {pending,captured,nrc,done}
   --priority {P1,P2,P3}
-  --prereq PREREQ, --vehicle-states PREREQ
+  --prereq, --vehicle-states PREREQ
                         Power state(s) prerequisite for this research
                         (repeatable). Validated against the profile's vehicle-
                         state vocabulary at write time.
