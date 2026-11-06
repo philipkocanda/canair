@@ -169,6 +169,13 @@ Use `canair.core.prompt`. Never call `input()` or `sys.stdin.readline()` for a y
 - Progress and `\r` status lines go to stderr, only on a terminal, and are cleared when done
   (`render/progress.py`).
 - Say "signal", not "parameter" or "param" (`AGENTS.md` → Vocabulary).
+- **Name bare bytes.** When a CLI or TUI shows a request, a service id, a sub-function, a DID, an
+  NRC or another protocol code as hex, show its meaning next to it, e.g. `3E00` →
+  `TesterPresent (zeroSubFunction)`. Look the name up in the existing registries
+  (`uds/services.py::service_name`, `uds/subfunctions.py::subfunction_name`,
+  `uds/nrc.py::nrc_description`, the profile's PID names). Do not hand-write a name in the view.
+  Add a missing name to its registry.
+  If no name is known, show the hex alone; never guess one. Leave it out only when the user asks.
 
 ## TUI
 
@@ -267,7 +274,8 @@ Run it on a diff that touches output, a prompt or a TUI. Each line is a question
 7. Is every TUI key bound through `bind()`, and every hint built from a role?
 8. Does `esc` back out without quitting? Does `?` work, and `q` do what the table says?
 9. Is an overlay a `ModalScreen`? Does a modal use the shared kit and fit 80×24?
-10. Does an error in a TUI look like an error (`flash`)?
+10. Does an error in a TUI look like an error (`flash`)? Does every protocol code shown as hex
+    carry its name from a registry?
 11. Does a test cover it? Colour: a subprocess run with piped output has no `\x1b[`
     (`tests/integration/test_ansi_gating.py`). Keys: the keymap contract. Prompts: a decline, a
     yes, and no terminal.
