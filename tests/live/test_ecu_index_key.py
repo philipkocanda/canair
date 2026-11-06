@@ -1,4 +1,4 @@
-"""Every executor path resolves a step's ECU name through ``pids.ecu_index_key``.
+"""Every executor path resolves a step's ECU name through ``names.ecu_index_key``.
 
 Steps are normally canonicalised by ``normalize_query_steps`` already, so these pin
 consistency: an alias in a hand-built step resolves the same everywhere (the raw

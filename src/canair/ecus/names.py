@@ -194,3 +194,17 @@ def ecu_display(
     """Human-friendly label for a TX id, e.g. 'BMS (0x7E4)' or '0x7E4'."""
     name = ecu_name(tx_id, ecus, profile=profile)
     return f"0x{tx_id:03X}" if name.startswith("0x") else f"{name} (0x{tx_id:03X})"
+
+
+def ecu_index_key(name: str, index: Mapping[str, object], *, profile: Profile) -> str | None:
+    """The :func:`canair.ecus.pids.build_ecu_index` key a query step's ECU name selects, or None.
+
+    The upper-cased name when the index has it, else the canonical name of an
+    alias. Every poll path resolves a step through this, so the keys its
+    scheduler, backoff and results use cannot differ between transports.
+    """
+    upper = name.upper()
+    if upper in index:
+        return upper
+    canonical = canonical_ecu_name_safe(name, profile=profile).upper()
+    return canonical if canonical in index else None

@@ -22,7 +22,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, TypedDict
 
 from canair.core.eventlog import log_event
-from canair.ecus.pids import ecu_index_key
+from canair.ecus.names import ecu_index_key
 from canair.live.monitor.backoff import PollCost
 from canair.live.monitor.schedule import Key
 from canair.profile.model import Profile

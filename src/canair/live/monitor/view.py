@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from canair.captures.keepmode import KEEP_LAST
-from canair.ecus.pids import ecu_index_key
+from canair.ecus.names import ecu_index_key
 
 if TYPE_CHECKING:
     from .controller import MonitorController

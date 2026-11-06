@@ -11,7 +11,7 @@
     "canair.tui.apps.captures_step.model": 809,
     "canair.tui.apps.captures_step.app": 665,
     "canair.device.lock": 563,
-    "canair.ecus.pids": 667,
+    "canair.ecus.pids": 650,
     "canair.live.actuate.iocontrol": 518,
     "canair.live.actuate.routines": 521,
     "canair.render.formatting": 617,
@@ -23,7 +23,7 @@
     "canair.yaml_edit.revisions": 547,
     "canair.yaml_edit.text": 779
   },
-  "deferred_internal_imports": 513,
+  "deferred_internal_imports": 509,
   "deferred_imports_without_reason": 428,
   "ambient_profile_calls": 0,
   "import_linter_ignores": 0,

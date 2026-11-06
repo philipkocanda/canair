@@ -12,8 +12,7 @@ name/alias canonicalisation only, and its absence is tolerated.
 import re
 import shlex
 
-from canair.ecus.names import build_canonical_name_index, canonical_ecu_name_safe
-from canair.ecus.pids import ecu_index_key
+from canair.ecus.names import build_canonical_name_index, canonical_ecu_name_safe, ecu_index_key
 from canair.profile.model import Profile
 from canair.query import looks_like_pid, parse_query
 

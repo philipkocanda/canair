@@ -23,7 +23,8 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING
 
-from canair.ecus.pids import build_sessions_index, ecu_index_key
+from canair.ecus.names import ecu_index_key
+from canair.ecus.pids import build_sessions_index
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 from canair.uds.requests import session_request
 from canair.uds.subfunctions import SUBFUNCTION_NAMES
