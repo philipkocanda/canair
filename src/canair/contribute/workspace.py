@@ -19,11 +19,11 @@ from canair.contribute.git import (
 )
 from canair.contribute.github import can_push_directly
 from canair.core.paths import GITHUB_REPO as UPSTREAM_REPO
+from canair.core.paths import config_dir
 
 
 def workspace_dir() -> Path:
     """Persistent clone location, reused across contributions."""
-    from canair.core.paths import config_dir
 
     return config_dir() / "contribute" / UPSTREAM_REPO.split("/")[-1]
 

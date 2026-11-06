@@ -8,8 +8,10 @@ from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
 
-from canair.captures.merge import SessionReplacement
-from canair.privacy.sensitive import SensitiveSet
+from canair.captures.io import dump_capture_file, load_capture_file
+from canair.captures.merge import SessionReplacement, overlay
+from canair.captures.sensitive_purge import purge_dir, strip_doc
+from canair.privacy.sensitive import SensitiveSet, profile_set
 from canair.profile.bundle import member_names, members_by_role
 
 # Bundle members copied into a contribution, from the single declaration in
@@ -81,9 +83,6 @@ def copy_profile(
             shutil.copy2(src, target)
 
     if include_captures:
-        from canair.captures.sensitive_purge import purge_dir
-        from canair.privacy.sensitive import profile_set
-
         sset = profile_set(profile)
         _overlay_captures(
             profile.captures_dir, dest / _CAPTURE_MEMBER, warn=warn, replaced=replaced, sset=sset
@@ -181,8 +180,6 @@ def _overlay_capture_file(
     the upstream side a wholesale overwrite would drop exactly the sessions this
     overlay exists to preserve.
     """
-    from canair.captures.io import dump_capture_file, load_capture_file
-    from canair.captures.merge import overlay
 
     try:
         up = load_capture_file(upstream)
@@ -190,8 +187,6 @@ def _overlay_capture_file(
     except (OSError, ValueError) as e:  # ValueError: bad JSON or a bad repeat encoding
         return f"{_CAPTURE_MEMBER}/{source.name}: not contributed (unreadable capture file: {e})"
     if sset:
-        from canair.captures.sensitive_purge import strip_doc
-
         ours = strip_doc(ours, sset)[0]
     result = overlay(up, ours)
     if result.doc is not None:

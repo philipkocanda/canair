@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 
+from canair.core.eventlog import read_event_log
 from canair.core.textscan import VIN_RE
 
 MAX_LINES = 300
@@ -114,8 +115,6 @@ def collect(
 ) -> LogExcerpt:
     """The newest scrubbed event-log lines written inside any of ``windows``."""
     if lines is None:
-        from canair.core.eventlog import read_event_log
-
         lines = read_event_log()
     lines = [ln for ln in lines if _within(_event_time(ln), windows)]
     total = len(lines)

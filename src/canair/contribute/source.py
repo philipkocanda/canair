@@ -24,6 +24,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from canair.captures.io import load_capture_file, parse_capture_text
+from canair.captures.merge import overlay
 from canair.contribute.git import Preflight, Step, _run, status_entries
 from canair.contribute.workspace import backup_leftovers
 from canair.profile.bundle import members_by_role
@@ -145,8 +147,6 @@ def _is_capture_log(path: str) -> bool:
 
 def _capture_log_held(git: str, workspace: Path, ref: str, path: str, src: Path) -> bool:
     """Whether the ref's capture log already has every session of ``src`` as written."""
-    from canair.captures.io import load_capture_file, parse_capture_text
-    from canair.captures.merge import overlay
 
     theirs = _run([git, "-C", str(workspace), "show", f"{ref}:{path}"])
     if not theirs.ok:

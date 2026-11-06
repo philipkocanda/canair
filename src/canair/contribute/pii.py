@@ -51,7 +51,9 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from canair.captures import io as capture_io
 from canair.core.textscan import has_data_vin, has_vin_token, looks_redacted
+from canair.ecus.pids import load_pids_dir
 from canair.profile.model import Profile
 from canair.variants import effective_meta
 
@@ -179,8 +181,6 @@ def _scan_session(session: object, loc: str) -> list[Finding]:
 
 
 def _scan_captures(profile: Profile) -> list[Finding]:
-    from canair.captures import io as capture_io
-
     findings: list[Finding] = []
     if not profile.captures_dir.is_dir():
         return findings
@@ -230,7 +230,6 @@ def _scan_ecus(profile: Profile) -> list[Finding]:
     ``--no-captures`` contribution — which is exactly the case the capture-only
     scan could never see.
     """
-    from canair.ecus.pids import load_pids_dir
 
     if not profile.ecus_dir.is_dir():
         return []
@@ -286,7 +285,6 @@ def _base_session_keys(base_text: str | None) -> set[str]:
     """
     if not base_text:
         return set()
-    from canair.captures import io as capture_io
 
     try:
         data = capture_io.parse_capture_text(base_text)
@@ -316,7 +314,6 @@ def scan_contribution(
     re-flags already-shared captures. ``car_model`` and the ``ecus/`` identity
     blocks are always scanned (cheap, and the VIN ships with the definitions).
     """
-    from canair.captures import io as capture_io
 
     findings: list[Finding] = []
     findings += _scan_free_text(

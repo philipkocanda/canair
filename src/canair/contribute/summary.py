@@ -17,6 +17,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from canair.captures import io as capture_io
+from canair.captures.io import capture_rx
+from canair.captures.merge import session_anchor
+from canair.ecus.registry import parse_ecu_ref
+
 _ERROR_KEYS = ("drop", "stale", "no_data", "bus", "decode", "other")
 _MAX_SESSION_ROWS = 30
 
@@ -104,8 +109,6 @@ def summarize(
     One sharing an upstream session's anchor is a replacement, counted as such.
     ``rx_names`` maps a response address to the ECU name shown.
     """
-    from canair.captures import io as capture_io
-    from canair.captures.merge import session_anchor
 
     out = ContributionSummary(definition_files=sorted(definition_files))
     if not captures_dir.is_dir():
@@ -139,9 +142,6 @@ def _key(session: dict) -> str:
 
 
 def _add(out: ContributionSummary, session: dict, rx_names: dict[int, str], *, replaced: bool):
-    from canair.captures.io import capture_rx
-    from canair.ecus.registry import parse_ecu_ref
-
     captures = [c for c in session.get("captures") or [] if isinstance(c, dict)]
     ecus: set[str] = set()
     for cap in captures:
