@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 from dataclasses import dataclass, field
 
+from canair.safety.blocklist import SessionPolicy
 from canair.transport.stats import TransportStats
 from canair.uds.memory import parse_memory_request
 from canair.uds.parse import parse_uds_response
@@ -47,6 +48,10 @@ class MemoryEcu:
     @property
     def diag(self):
         return TransportStats(transport="fake")
+
+    @property
+    def session_policy(self) -> SessionPolicy:
+        return SessionPolicy()
 
     def _reply(self, request: str) -> str:
         if self._hung:

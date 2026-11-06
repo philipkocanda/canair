@@ -23,6 +23,7 @@ import pytest
 
 from canair.cli.profile_context import active
 from canair.live.actuate.iocontrol_actuate import IOControlActuator
+from canair.safety.blocklist import SessionPolicy
 from canair.transport.session_manager import SessionManager
 from canair.transport.stats import TransportStats
 
@@ -44,6 +45,7 @@ class FakeTerminal:
         self.kwargs: list[dict] = []
         self.fail_on = fail_on or set()
         self.diag = TransportStats(transport="fake")
+        self.session_policy = SessionPolicy()
 
     async def set_header(self, tx_id: int) -> None:
         self.headers.append(tx_id)
