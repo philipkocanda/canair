@@ -169,7 +169,7 @@ def save_session(
 
     if capture_file.exists():
         data = capture_io.load_capture_file(capture_file)
-        if not data or "sessions" not in data:
+        if "sessions" not in data:
             data = {"sessions": []}
         data["sessions"].append(session)
     else:

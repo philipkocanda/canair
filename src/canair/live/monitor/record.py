@@ -50,12 +50,10 @@ class MonitorRecorder:
         self.unique_frames = 0
         self._seen_payloads: set[tuple[tuple[str, str], str]] = set()
         # The live view's per-PID runs of identical payloads (display only).
-        self.hex_history: PayloadHistory | None = {} if controller.keep_mode else None
+        self.hex_history: PayloadHistory = {}
         # The rows an on-demand save writes when no journal is recording them,
         # kept by the keep-mode (every poll, or only value-transitions).
-        self.save_history: dict[tuple[str, str], list[tuple[str, str]]] | None = (
-            {} if controller.save or controller.keep_mode else None
-        )
+        self.save_history: dict[tuple[str, str], list[tuple[str, str]]] = {}
         # High-water mark of payloads already written by a non-journal on-demand
         # save (the fallback --save-off path), per PID key. Repeated 's' presses
         # only write rows beyond this, so a payload is never saved twice in one run.
@@ -174,14 +172,13 @@ class MonitorRecorder:
                     # so skip the redundant in-memory save_history growth.
                     with contextlib.suppress(Exception):
                         self.journal.append(c._ecu_ref(ecu_label), entry["pid"], raw, ts, ts_date)
-                elif self.save_history is not None:
+                else:
                     rows = self.save_history.setdefault(key, [])
                     if c.keep_mode != KEEP_CHANGES or not rows or rows[-1][0] != raw:
                         rows.append((raw, ts))
                         if keep_n and len(rows) > keep_n:
                             del rows[:-keep_n]
-                if self.hex_history is not None:
-                    extend_runs(self.hex_history.setdefault(key, []), raw, ts, limit=keep_n)
+                extend_runs(self.hex_history.setdefault(key, []), raw, ts, limit=keep_n)
         # One durable flush per cycle instead of an fsync per payload — keeps the
         # poll loop (and TUI) off N serial fsync syscalls when saving many PIDs.
         if self.journal is not None:
@@ -314,7 +311,7 @@ class MonitorRecorder:
                 "(auto-saved on quit / new session)."
             )
 
-        merged = merge_history(self.save_history or {}, self.c.prev_hex)
+        merged = merge_history(self.save_history, self.c.prev_hex)
         if not merged:
             return "No payloads captured yet — nothing to save."
 
