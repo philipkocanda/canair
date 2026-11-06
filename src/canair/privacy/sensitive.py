@@ -31,8 +31,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from canair.ecus.pids import load_raw_pids, register_derived_cache
+from canair.ecus.registry import parse_ecu_ref
 from canair.ecus.sensitivity import param_sensitive, pid_sensitive
-from canair.profile.model import Profile
+from canair.profile.model import Profile, ProfileError, profile_for_path
+from canair.uds.addressing import resolve_ecu_address
 from canair.uds.memory import MEMORY_SIGNAL_MAX_BYTES, exceeds_signal_cap
 
 MASK = "*****"
@@ -127,14 +130,11 @@ class SensitiveSet:
 
 
 def _rx_int(value: Any) -> int | None:
-    from canair.ecus.registry import parse_ecu_ref
-
     return parse_ecu_ref(value)
 
 
 def build_set(pids_data: Mapping[str, Any]) -> SensitiveSet:
     """The sensitive set of one set of definitions (as written: every revision)."""
-    from canair.uds.addressing import resolve_ecu_address
 
     by_ecu: set[tuple[str, str]] = set()
     by_tx: set[tuple[int, str]] = set()
@@ -170,8 +170,6 @@ def profile_set(profile: Profile) -> SensitiveSet:
     on any revision of a PID protects it on every car. Memoized per profile root and
     cleared with the definitions (:func:`canair.ecus.pids.register_derived_cache`).
     """
-    from canair.ecus.pids import load_raw_pids, register_derived_cache
-    from canair.profile.model import ProfileError
 
     prof = profile
     key = str(prof.root)
@@ -194,7 +192,6 @@ def set_for_captures(captures_dir: Path | None, *, profile: Profile) -> Sensitiv
     definitions of its own), so an explicit ``--dir`` or a layered overlay is never judged
     against the wrong — or an empty — vocabulary.
     """
-    from canair.profile.model import profile_for_path
 
     out = profile_set(profile)
     if captures_dir is not None:
