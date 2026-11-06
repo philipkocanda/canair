@@ -231,17 +231,25 @@ def scan_tree(root: Path | None = None) -> Tree:
     return tree
 
 
-def reach(tree: Tree, start: str) -> set[str]:
-    """Every module that importing ``start`` loads (itself, its parents and what they import)."""
+def reach(
+    tree: Tree, start: str, edges: dict[str, set[str]] | None = None, importer: str | None = None
+) -> set[str]:
+    """Every module that importing ``start`` loads (itself, its parents and what they import).
+
+    ``edges`` replaces the module-level edges of the tree. The package ``importer`` is already
+    being imported, so the load of a module under it does not count as loading it again: only an
+    import statement that names ``importer`` reaches it.
+    """
+    edges = tree.edges if edges is None else edges
     seen: set[str] = set()
-    queue = deque([start, *_parents(start)])
+    queue = deque([start, *(p for p in _parents(start) if p != importer)])
     while queue:
         mod = queue.popleft()
         if mod in seen or mod not in tree.paths:
             continue
         seen.add(mod)
-        queue.extend(tree.edges.get(mod, ()))
-        queue.extend(_parents(mod))
+        queue.extend(edges.get(mod, ()))
+        queue.extend(p for p in _parents(mod) if p != importer)
     return seen
 
 

@@ -5,9 +5,10 @@ Run through ``scripts/check/import_graph.py --deferred``. Each import gets one k
 * ``loaded``: everything it imports is already loaded when ``canair --help`` builds the parser
   (a real run, read from ``sys.modules``). Hoisting it costs no start-up time.
 * ``heavy``: it loads textual, cantools or argcomplete, which the parser build does not.
-* ``cycle``: hoisting it makes ``import canair.<module>`` fail in a fresh interpreter. A module
-  can only fail that way if the imported module reaches it through module-level imports, so the
-  check runs only for those, with the hoisted source swapped in by an import hook.
+* ``cycle``: hoisting it joins a cycle of module-level imports. That includes every cycle that
+  hoisting all the ``loaded`` imports together would close. Hoisting only the other ``loaded``
+  imports closes none. The ``why`` text says whether ``import canair.<module>`` fails in a fresh
+  interpreter with the hoisted source swapped in by an import hook, or still works.
 * ``other``: anything else (an import inside ``try``, or a module the parser build does not load).
 """
 
@@ -29,8 +30,7 @@ import deferred_hoist as hoist
 import deferred_scan as scan
 
 KINDS = ("loaded", "heavy", "cycle", "other")
-WORKING_CYCLE = "its target imports this module, so hoisting it makes an import cycle"
-RISK_MARK = "~"
+JOINS_CYCLE = "hoisting it joins an import cycle (it still imports in isolation)"
 
 _CHILD = """
 import importlib, importlib.machinery, importlib.util, json, sys
@@ -61,8 +61,6 @@ importlib.import_module(spec["entry"])
 class Verdict:
     kind: str
     why: str = ""
-    # hoisting it makes a module-level import cycle that still imports today
-    risk: bool = False
 
 
 def _env(root: Path) -> dict[str, str]:
@@ -116,6 +114,11 @@ def hoist_fails(tree: scan.Tree, module: str, imps: list[scan.FunctionImport]) -
     return ""
 
 
+def _new_targets(imp: scan.FunctionImport) -> list[str]:
+    """The targets that hoisting adds an edge to: not the module itself or a package above it."""
+    return [t for t in imp.targets if t != imp.module and not imp.module.startswith(t + ".")]
+
+
 def classify(
     tree: scan.Tree,
     loaded: set[str],
@@ -123,26 +126,31 @@ def classify(
     only: set[str] | None = None,
     jobs: int = 8,
 ) -> dict[scan.FunctionImport, Verdict]:
-    """A verdict for every deferred import. ``only`` limits the cycle trial to those modules."""
+    """A verdict for every deferred import. ``only`` limits the import trial to those modules."""
     verdicts: dict[scan.FunctionImport, Verdict] = {}
-    suspects: dict[str, list[scan.FunctionImport]] = defaultdict(list)
     for imp in tree.imports:
         if imp.in_try:
             verdicts[imp] = Verdict("other", "it sits in a try block")
-            continue
-        if imp.targets and all(t in loaded for t in imp.targets):
-            kind, why = "loaded", ""
+        elif imp.targets and all(t in loaded for t in imp.targets):
+            verdicts[imp] = Verdict("loaded")
         elif any(scan.is_heavy(tree, t) for t in imp.targets):
             verdicts[imp] = Verdict("heavy", "it loads textual, cantools or argcomplete")
-            continue
         else:
-            kind, why = "other", "the parser build does not load it"
-        verdicts[imp] = Verdict(kind, why)
-        if any(imp.module in scan.reach(tree, t) for t in imp.targets):
+            verdicts[imp] = Verdict("other", "the parser build does not load it")
+
+    # Hoisting every `loaded` import adds module-level edges. One that joins a cycle in the
+    # resulting graph stays deferred, so that hoisting all the others can never close a cycle.
+    hoisted = {i: v for i, v in verdicts.items() if v.kind == "loaded"}
+    edges = {m: set(e) for m, e in tree.edges.items()}
+    for imp in hoisted:
+        for target in _new_targets(imp):
+            edges[imp.module] |= {target, *scan._parents(target)}
+    suspects: dict[str, list[scan.FunctionImport]] = defaultdict(list)
+    for imp in hoisted:
+        if any(imp.module in scan.reach(tree, t, edges, imp.module) for t in _new_targets(imp)):
+            verdicts[imp] = Verdict("cycle", JOINS_CYCLE)
             if only is None or imp.module in only:
                 suspects[imp.module].append(imp)
-            if not trial:
-                verdicts[imp] = Verdict("cycle", WORKING_CYCLE)
 
     def check(module: str) -> list[tuple[scan.FunctionImport, str]]:
         imps = suspects[module]
@@ -154,10 +162,8 @@ def classify(
         with ThreadPoolExecutor(max_workers=jobs) as pool:
             for checked in pool.map(check, list(suspects)):
                 for imp, error in checked:
-                    old = verdicts[imp]
-                    verdicts[imp] = (
-                        Verdict("cycle", error) if error else Verdict(old.kind, old.why, risk=True)
-                    )
+                    if error:
+                        verdicts[imp] = Verdict("cycle", f"{error}")
     return verdicts
 
 
@@ -219,9 +225,8 @@ def format_files(
         summary = " ".join(f"{k}={counts[k]}" for k in KINDS if counts[k])
         out.append(f"{path.relative_to(scan.graph.REPO_ROOT)}  ({summary})")
         for imp, verdict in sorted(items, key=lambda iv: iv[0].line):
-            kind = verdict.kind + (RISK_MARK if verdict.risk else "")
             why = f"  [{verdict.why}]" if verdict.kind in ("cycle", "other") else ""
-            out.append(f"  {imp.line:>5}  {kind:<7} {imp.label}{why}")
+            out.append(f"  {imp.line:>5}  {verdict.kind:<6} {imp.label}{why}")
     return "\n".join(out) if out else f"no deferred imports match {wanted!r}"
 
 
@@ -253,9 +258,9 @@ def run(args: argparse.Namespace) -> int:
     print(f"modules loaded by building the parser: {len(loaded)} of {len(tree.paths)}\n")
     print(format_table(rows))
     print("\nno reason = no `# deferred:` comment on the line or just above it.")
-    risky = sum(v.risk for v in verdicts.values())
+    fails = sum(v.kind == "cycle" and v.why != JOINS_CYCLE for v in verdicts.values())
     print(
-        f"{risky} imports ({RISK_MARK} in --files) would make a module-level import cycle that "
-        "still imports; hoist them only with care."
+        f"{fails} of the cycle imports fail to import when hoisted alone; the others only join a "
+        "cycle."
     )
     return 0

@@ -69,11 +69,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("targets", nargs="+", metavar="TARGET")
     parser.add_argument("--write", action="store_true", help="write the files (default: dry run)")
     parser.add_argument("--no-verify", action="store_true", help="skip the fresh-import check")
-    parser.add_argument(
-        "--skip-risky",
-        action="store_true",
-        help="leave imports that would make a module-level cycle which still imports",
-    )
     args = parser.parse_args(argv)
 
     tree = scan.scan_tree()
@@ -86,8 +81,7 @@ def main(argv: list[str] | None = None) -> int:
     selected: dict[str, set[int]] = defaultdict(set)
     for imp, verdict in verdicts.items():
         if imp.module in wanted and verdict.kind == "loaded":
-            if not (verdict.risk and args.skip_risky):
-                selected[imp.module].add(imp.line)
+            selected[imp.module].add(imp.line)
 
     hoisted: list[scan.FunctionImport] = []
     changed: dict[str, str] = {}
@@ -110,9 +104,7 @@ def main(argv: list[str] | None = None) -> int:
         count = len(result.hoisted) + len(result.dropped)
         print(f"hoist  {rel}: {count} imports, {before} -> {after} lines")
 
-    risky = sum(1 for i in hoisted if verdicts[i].risk)
-    print(f"\n{len(hoisted)} imports in {len(changed)} files ({risky} would make an import cycle")
-    print("that still imports)")
+    print(f"\n{len(hoisted)} imports in {len(changed)} files")
     if not args.write:
         print("dry run; pass --write to apply")
         return 0

@@ -269,7 +269,7 @@ def test_classify_tells_loaded_heavy_cycle_and_other(tmp_path):
     )
 
 
-def test_a_working_cycle_is_loaded_but_marked_risky(tmp_path):
+def test_a_cycle_that_still_imports_is_a_cycle(tmp_path):
     tree = _tree(
         tmp_path,
         {
@@ -294,7 +294,59 @@ def test_a_working_cycle_is_loaded_but_marked_risky(tmp_path):
     )
     verdicts = classify.classify(tree, {"canair", "canair.a", "canair.b"}, jobs=2)
     (verdict,) = verdicts.values()
-    assert (verdict.kind, verdict.risk) == ("loaded", True)
+    assert (verdict.kind, verdict.why) == ("cycle", classify.JOINS_CYCLE)
+
+
+def test_two_hoists_that_close_a_cycle_together_are_both_cycles(tmp_path):
+    tree = _tree(
+        tmp_path,
+        {
+            "__init__.py": "",
+            "a.py": """
+                def f():
+                    from canair.b import g
+
+                    return g
+            """,
+            "b.py": """
+                def g():
+                    from canair.a import f
+
+                    return f
+            """,
+            "c.py": """
+                def h():
+                    from canair.a import f
+
+                    return f
+            """,
+        },
+    )
+    loaded = {"canair", "canair.a", "canair.b", "canair.c"}
+    verdicts = classify.classify(tree, loaded, jobs=2)
+    assert {(i.module, v.kind) for i, v in verdicts.items()} == {
+        ("canair.a", "cycle"),
+        ("canair.b", "cycle"),
+        ("canair.c", "loaded"),
+    }
+
+
+def test_a_package_may_import_its_own_submodule(tmp_path):
+    tree = _tree(
+        tmp_path,
+        {
+            "__init__.py": "",
+            "pkg/__init__.py": """
+                def run():
+                    from canair.pkg import sub
+
+                    return sub
+            """,
+            "pkg/sub.py": "X = 1\n",
+        },
+    )
+    verdicts = classify.classify(tree, {"canair", "canair.pkg", "canair.pkg.sub"}, jobs=2)
+    assert [v.kind for v in verdicts.values()] == ["loaded"]
 
 
 def test_a_table_counts_each_kind_per_package():
