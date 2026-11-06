@@ -7,7 +7,7 @@ Both are soft judgements used by ``canair validate captures``, ``canair import u
 
 from __future__ import annotations
 
-from canair.uds.echo import echo_mismatch, hex_bytes, reply_check, request_echo
+from canair.uds.echo import echo_mismatch, hex_bytes, reply_check
 from canair.uds.services import NEGATIVE_RESPONSE_SID
 
 
@@ -20,17 +20,16 @@ def payload_echo_mismatch(request_pid: str, payload_hex: str) -> str | None:
     validate (non-identifier request, NRC, hex we can't parse). Only known echo
     mismatches are reported, so this is safe to surface as a soft lint warning.
     """
-    echo = request_echo(request_pid)
-    if echo is None:
+    check = reply_check(request_pid)
+    if check is None:
         return None  # not a plain identifier read — nothing to check
     resp = hex_bytes(payload_hex)
     if resp is None or resp[0] == NEGATIVE_RESPONSE_SID:
         return None  # unparseable, or a negative response — leave to other checks
-    expected_sid, expected_id = echo
+    expected_sid, expected_id = check.sid, check.echo
     problem = echo_mismatch(expected_sid, expected_id, resp)
     if problem is None:
-        check = reply_check(request_pid)
-        if check is not None and check.length is not None and len(resp) != check.length:
+        if check.length is not None and len(resp) != check.length:
             return (
                 f"payload is {len(resp)} bytes but memory read {request_pid} "
                 f"answers with {check.length} (stale/misfiled or cut-short reply?)"

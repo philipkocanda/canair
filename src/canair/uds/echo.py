@@ -12,6 +12,7 @@ Hyundai/Kia identity tolerance and the comparison itself live once.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Literal
 
 from canair.uds.memory import parse_memory_request
@@ -80,11 +81,15 @@ class ReplyCheck:
     length: int | None = None
 
 
+@lru_cache(maxsize=4096)
 def reply_check(request_hex: str, protocol: DiagProtocol | None = None) -> ReplyCheck | None:
     """The :class:`ReplyCheck` for a request, or ``None`` when its reply cannot be judged.
 
     ``protocol`` matters only for a memory read, whose request form depends on it
     (:func:`canair.uds.memory.parse_memory_request`).
+
+    Cached: a capture store repeats a few hundred requests across hundreds of thousands
+    of replies, and the result is a frozen value of its arguments alone.
     """
     req = hex_bytes(request_hex)
     if req is None:
