@@ -17,7 +17,7 @@ from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import SessionManager
 from canair.uds.parse import parse_uds_response
 
-from ..elm.skm_wakeup import mode_skm_wakeup
+from ..elm.skm_wakeup import SKM_SESSION_MODE, SKM_TX_ID, mode_skm_wakeup
 from .exec import _exec_query, _exec_raw
 
 
@@ -135,7 +135,7 @@ async def _multi_repl(
                 if tx_id is None:
                     messages.error(f"unknown ECU: {target}")
                 else:
-                    sm.stop_background_keepalive()
+                    await sm.stop_background_keepalive()
                     await sm.open_session(tx_id)
                     sm.start_background_keepalive(interval=2.0)
                     print(f"  Session opened on 0x{tx_id:03X}")
@@ -147,9 +147,9 @@ async def _multi_repl(
                 if not isinstance(terminal, Elm327Terminal):
                     messages.error("skm needs an ELM327 transport (wican-ws / elm327-tcp).")
                     continue
-                sm.stop_background_keepalive()
+                await sm.stop_background_keepalive()
                 await mode_skm_wakeup(terminal, level, verbose)
-                sm._sessions[0x7A5] = __import__("time").monotonic()
+                sm.track(SKM_TX_ID, SKM_SESSION_MODE)
                 sm.start_background_keepalive(interval=2.0)
                 continue
 
@@ -161,7 +161,7 @@ async def _multi_repl(
                 except ValueError as ex:
                     messages.error(f"invalid query: {ex}")
                     continue
-                sm.stop_background_keepalive()
+                await sm.stop_background_keepalive()
                 for ecu, pids in selectors:
                     await _exec_query(
                         sm,
@@ -181,7 +181,7 @@ async def _multi_repl(
                 # Strip leading ! if present
                 if spec.startswith("!"):
                     spec = spec.lstrip("!")
-                sm.stop_background_keepalive()
+                await sm.stop_background_keepalive()
                 await _exec_raw(sm, spec, hold=False, verbose=verbose, profile=profile)
                 sm.start_background_keepalive(interval=2.0)
                 continue
@@ -192,7 +192,7 @@ async def _multi_repl(
                 last_tx_id = int(atsh_match.group(1), 16)
 
             # Pause background keepalive during manual command
-            sm.stop_background_keepalive()
+            await sm.stop_background_keepalive()
             await sm.keepalive_stale()
 
             # Restore header if we know one
@@ -216,4 +216,4 @@ async def _multi_repl(
             sm.start_background_keepalive(interval=2.0)
 
     finally:
-        sm.stop_background_keepalive()
+        await sm.stop_background_keepalive()

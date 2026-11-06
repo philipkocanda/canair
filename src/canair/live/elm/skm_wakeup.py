@@ -47,6 +47,10 @@ SKM_RELAYS = {
 # Magic bytes required for SKM IOControl ON
 SKM_MAGIC = bytes.fromhex("0A0A05")
 
+# The Ioniq SKM's request id, and the session the wake leaves it in.
+SKM_TX_ID = 0x7A5
+SKM_SESSION_MODE = "03"
+
 _IO_CONTROL = INPUT_OUTPUT_CONTROL_BY_IDENTIFIER
 
 
@@ -197,7 +201,7 @@ async def mode_skm_wakeup(terminal: Elm327Terminal, level: str, verbose: bool):
     # SKM wakes on the 2nd frame but has a ~2s sleep timer — needs fast CAN
     # traffic (64ms timeout) to stay awake. Direct to 0x7A5, no broadcast needed.
     print("  [1/4] Waking SKM (rapid-fire 1001 at 64ms timeout)…")
-    await terminal.set_header(0x7A5)
+    await terminal.set_header(SKM_TX_ID)
 
     # Save current timeout and switch to fast mode
     await terminal.send_command("ATST10")  # 64ms timeout

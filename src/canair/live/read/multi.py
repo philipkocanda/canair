@@ -482,7 +482,7 @@ async def _run_pipeline(
             journal = None
 
     finally:
-        sm.stop_background_keepalive()
+        await sm.stop_background_keepalive()
         print("  Closing all sessions…")
         try:
             await asyncio.wait_for(sm.close_all(), timeout=3.0)

@@ -1305,7 +1305,7 @@ def test_the_elm327_warmup_read_is_one_validated_transaction(monkeypatch):
     async def run():
         await c.setup([])
         assert c.sm is not None
-        c.sm.stop_background_keepalive()
+        await c.sm.stop_background_keepalive()
 
     asyncio.run(run())
     assert terminal.calls == [
@@ -1316,6 +1316,30 @@ def test_the_elm327_warmup_read_is_one_validated_transaction(monkeypatch):
     ]
     assert terminal.uds_kwargs[0]["expected_sid"] == 0x22
     assert terminal.uds_kwargs[0]["expected_echo"] == bytes.fromhex("BC03")
+
+
+def test_a_link_the_background_keepalive_found_dead_hands_over_to_the_reconnector(monkeypatch):
+    import asyncio
+
+    from tests.support.fakes import FakeTerminal, ok
+
+    terminal = FakeTerminal({"22BC03": ok("62BC03AA")})
+    terminal.cmd_count = terminal.cmd_time = 0  # the poller reads the ELM327 counters
+    c = make_controller(terminal, [{"ecu": "IGPM", "pids": []}], {}, verbose=False)
+    monkeypatch.setattr(
+        "canair.live.monitor.controller.build_ecu_index",
+        lambda _data: {"IGPM": {"tx_id": 0x770, "pids": {"22BC03": {"parameters": {}}}}},
+    )
+
+    async def run():
+        await c.setup([])
+        assert c.sm is not None
+        await c.sm.stop_background_keepalive()
+        c.sm.link_error = ConnectionError("pipe resync failed")
+        await c.elm_poller.poll()
+
+    asyncio.run(run())
+    assert c.disconnected
 
 
 class TestNrcClassification:

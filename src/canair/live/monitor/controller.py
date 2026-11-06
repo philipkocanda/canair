@@ -441,7 +441,7 @@ class MonitorController:
                 self.raw_client.close()
             return
         assert self.sm is not None  # not self.raw ⟺ sm was constructed
-        self.sm.stop_background_keepalive()
+        await self.sm.stop_background_keepalive()
         print("  Closing sessions...")
         try:
             await asyncio.wait_for(self.sm.close_all(), timeout=3.0)
@@ -462,7 +462,7 @@ class MonitorController:
             return
         if self.sm is not None:
             with contextlib.suppress(Exception):
-                self.sm.stop_background_keepalive()
+                await self.sm.stop_background_keepalive()
             with contextlib.suppress(Exception):
                 await asyncio.wait_for(self.terminal.close(), timeout=2.0)
 

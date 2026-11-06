@@ -74,13 +74,14 @@ async def mode_param(
     # when it fires, so with two ECUs the first one's session lapsed while the
     # second was read.
     sm = SessionManager(terminal, verbose=verbose)
-    if session:
-        sm.start_background_keepalive(interval=2.0)
     try:
-        for (tx_id, pid), params in groups.items():
-            if session and not sm.has_session(tx_id):
+        if session:
+            # Every session is open before the background keepalive starts, so nothing
+            # competes with an open for the adapter.
+            for tx_id in dict.fromkeys(tx for tx, _pid in groups):
                 await sm.open_session(tx_id, wake=wake)
-
+            sm.start_background_keepalive(interval=2.0)
+        for (tx_id, pid), params in groups.items():
             await sm.keepalive_stale()
             echo = request_echo(pid)
             response, _wall, _held = await timed_exchange(
@@ -110,7 +111,7 @@ async def mode_param(
             rows = decode_param_rows(response["hex"], param_defs)
             all_results.extend(mask_rows(rows, {"parameters": param_defs}))
     finally:
-        sm.stop_background_keepalive()
+        await sm.stop_background_keepalive()
 
     if as_json:
         json_out = []

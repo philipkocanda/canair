@@ -17,9 +17,9 @@ Usage:
     await terminal.set_header(foreground_tx_id)
 
     # Background loop (for REPL idle or --hold):
-    task = sm.start_background_keepalive(interval=2.0)
+    sm.start_background_keepalive(interval=2.0)
     ...
-    task.cancel()
+    await sm.stop_background_keepalive()
 
     # Cleanup:
     await sm.close_all()
@@ -29,6 +29,7 @@ import asyncio
 import sys
 import time
 
+from canair.core.eventlog import log_event
 from canair.ecus.wake import WakePlan
 from canair.transport import keepalive
 from canair.transport.protocol import Terminal
@@ -61,6 +62,9 @@ class SessionManager:
         # monitor TUI status bar / session-type picker).
         self._session_modes: dict[int, str] = {}
         self._bg_task: asyncio.Task | None = None
+        # Why the background keepalive stopped on its own: the link failed under it.
+        # Nothing awaits that task, so the error is kept here for the caller to act on.
+        self.link_error: ConnectionError | None = None
         # ECUs that answered TesterPresent with serviceNotSupported: asking again is wasted
         # bus time (see canair.transport.keepalive). Their session stays tracked.
         self._no_keepalive: set[int] = set()
@@ -89,7 +93,6 @@ class SessionManager:
         False, the burst of frames may still have roused the transceiver, so the
         caller should proceed to open the session (with a normal timeout).
         """
-        await self.terminal.set_header(tx_id)
         # Short per-prime timeout so frames fire densely (floor to keep a single
         # frame's round-trip feasible on either transport).
         prime_timeout = max(0.1, plan.interval_s)
@@ -99,19 +102,23 @@ class SessionManager:
                 f"{plan.prime} @ ~{int(prime_timeout * 1000)}ms..."
             )
         awake = False
-        for attempt in range(plan.attempts):
-            try:
-                resp = await self.terminal.send_command(plan.prime, timeout=prime_timeout)
-            except Exception:
-                resp = ""
-            clean = resp.replace(" ", "").upper()
-            # Any non-empty, non-NO-DATA hex (a positive response OR an NRC 7Fxx)
-            # means the ECU is awake and answering.
-            if clean and "NODATA" not in clean and "?" not in clean:
-                awake = True
-                if self.verbose:
-                    _status(f"  [wake] 0x{tx_id:03X}: awake (attempt {attempt + 1})")
-                break
+        # One transaction for the whole burst: a keepalive slipped in between two primes
+        # would re-point the header and leave a gap in the burst.
+        async with self.terminal.transaction():
+            await self.terminal.set_header(tx_id)
+            for attempt in range(plan.attempts):
+                try:
+                    resp = await self.terminal.send_command(plan.prime, timeout=prime_timeout)
+                except Exception:
+                    resp = ""
+                clean = resp.replace(" ", "").upper()
+                # Any non-empty, non-NO-DATA hex (a positive response OR an NRC 7Fxx)
+                # means the ECU is awake and answering.
+                if clean and "NODATA" not in clean and "?" not in clean:
+                    awake = True
+                    if self.verbose:
+                        _status(f"  [wake] 0x{tx_id:03X}: awake (attempt {attempt + 1})")
+                    break
         if not awake and self.verbose:
             _status(
                 f"  [wake] 0x{tx_id:03X}: no prime response after {plan.attempts} — "
@@ -128,8 +135,18 @@ class SessionManager:
         return tx_id in self._sessions
 
     def session_mode(self, tx_id: int) -> str | None:
-        """The last "10 xx" sub-function opened on this ECU, or None if untracked."""
+        """The "10 xx" sub-function this ECU last accepted, or None if none is known."""
         return self._session_modes.get(tx_id)
+
+    def track(self, tx_id: int, mode: str | None = None) -> None:
+        """Keep alive a session that was opened without :meth:`open_session`.
+
+        The SKM relay wake opens its own session; tracking it here gives it the same
+        keepalive as every other session.
+        """
+        self._sessions[tx_id] = time.monotonic()
+        if mode is not None:
+            self._session_modes[tx_id] = mode
 
     async def open_session(
         self,
@@ -161,14 +178,17 @@ class SessionManager:
                 no-op a live mode switch (e.g. the monitor TUI's session-type
                 picker moving an ECU from extended to KWP standard session).
 
+        The whole exchange (header, wake, request) is one transaction, so a background
+        keepalive cannot re-point the header in between. The session is tracked (and kept
+        alive) whatever the reply, but its mode is recorded only when the ECU accepts it.
+
         Returns:
-            True if session was established (or at least attempted).
+            True if the ECU accepted the session request.
         """
         if wake_plan is not None and wake_plan.session_mode:
             mode = wake_plan.session_mode
         mode = mode.upper().removeprefix("0X").zfill(2)
         req = session_request(mode)
-        await self.terminal.set_header(tx_id)
 
         if not wake and not force and tx_id in self._sessions:
             # Already in an extended session on this ECU — refresh rather than
@@ -178,26 +198,29 @@ class SessionManager:
                 _status(f"  [session] 0x{tx_id:03X}: already active — refreshed.")
             return True
 
-        if wake:
-            if wake_plan is not None:
-                # Profile-declared ritual — rapid-fire prime loop (fast-sleepers).
-                await self.rapid_read_wake(tx_id, wake_plan)
-                await self.terminal.set_header(tx_id)
-            else:
-                if self.verbose:
-                    _status(f"  [session] Sending wake-up (1001) to 0x{tx_id:03X}...")
-                await self.terminal.send_uds(
-                    DEFAULT_SESSION_REQUEST, timeout=15.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
-                )
-                await asyncio.sleep(0.5)
+        async with self.terminal.transaction():
+            await self.terminal.set_header(tx_id)
+            if wake:
+                if wake_plan is not None:
+                    # Profile-declared ritual — rapid-fire prime loop (fast-sleepers).
+                    await self.rapid_read_wake(tx_id, wake_plan)
+                else:
+                    if self.verbose:
+                        _status(f"  [session] Sending wake-up (1001) to 0x{tx_id:03X}...")
+                    await self.terminal.send_uds(
+                        DEFAULT_SESSION_REQUEST,
+                        timeout=15.0,
+                        expected_sid=DIAGNOSTIC_SESSION_CONTROL,
+                    )
+                    await asyncio.sleep(0.5)
 
-        if self.verbose:
-            _status(f"  [session] Entering session (10{mode}) on 0x{tx_id:03X}...")
-        # Checked by service, so a stale reply to an earlier read is not taken for
-        # an open session (see elm327_session for why the sub-function is not).
-        resp = await self.terminal.send_uds(
-            req, timeout=5.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
-        )
+            if self.verbose:
+                _status(f"  [session] Entering session (10{mode}) on 0x{tx_id:03X}...")
+            # Checked by service, so a stale reply to an earlier read is not taken for
+            # an open session (see elm327_session for why the sub-function is not).
+            resp = await self.terminal.send_uds(
+                req, timeout=5.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
+            )
 
         if resp.get("ok"):
             if self.verbose:
@@ -211,7 +234,10 @@ class SessionManager:
             _status(f"  [session] 0x{tx_id:03X}: failed ({error}) -- continuing anyway")
 
         self._sessions[tx_id] = time.monotonic()
-        self._session_modes[tx_id] = mode
+        if resp.get("ok"):
+            # A refusal leaves the ECU in whatever session it was in, so only an accepted
+            # request changes the mode shown for it.
+            self._session_modes[tx_id] = mode
         return resp.get("ok", False)
 
     async def send_keepalive(self, tx_id: int):
@@ -253,7 +279,7 @@ class SessionManager:
         self._sessions[tx_id] = time.monotonic()
         if self.verbose:
             state = "ok" if resp.get("ok") else resp.get("error", "failed")
-            _status(f"  [session] 3E00 -> 0x{tx_id:03X}: {state}", end="")
+            _status(f"  [session] 3E00 -> 0x{tx_id:03X}: {state}")
 
     def mark_active(self, tx_id: int) -> None:
         """Note real traffic to an ECU as keepalive-equivalent.
@@ -273,7 +299,13 @@ class SessionManager:
 
         Args:
             threshold: Seconds since last keepalive before a session is considered stale.
+
+        Raises:
+            ConnectionError: the background keepalive found the link dead
+                (:attr:`link_error`); the caller's reconnect path takes it from here.
         """
+        if self.link_error is not None:
+            raise self.link_error
         now = time.monotonic()
         stale = [
             tx
@@ -292,7 +324,8 @@ class SessionManager:
     def start_background_keepalive(self, interval: float = 2.0) -> asyncio.Task:
         """Start a background task that sends keepalives to all tracked sessions.
 
-        Returns the task (caller must cancel it when done).
+        Returns the task; stop it with :meth:`stop_background_keepalive`. When the link
+        fails under it, the task ends and leaves the error in :attr:`link_error`.
         """
         if self._bg_task and not self._bg_task.done():
             self._bg_task.cancel()
@@ -304,22 +337,38 @@ class SessionManager:
                     await self.keepalive_stale(threshold=interval * 0.75)
             except asyncio.CancelledError:
                 pass
+            except ConnectionError as exc:
+                self.link_error = exc
+                log_event(
+                    "bus",
+                    f"background keepalive stopped: {exc}",
+                    transport=self.terminal.diag.transport,
+                )
 
         self._bg_task = asyncio.create_task(_loop())
         return self._bg_task
 
-    def stop_background_keepalive(self):
-        """Stop the background keepalive task if running."""
-        if self._bg_task and not self._bg_task.done():
-            self._bg_task.cancel()
-            self._bg_task = None
+    async def stop_background_keepalive(self) -> None:
+        """Stop the background keepalive task and wait until it has ended."""
+        task, self._bg_task = self._bg_task, None
+        if task is None:
+            return
+        task.cancel()
+        # asyncio.wait, not a bare await: it never raises the task's own outcome, and a
+        # cancellation of the caller still propagates.
+        await asyncio.wait({task})
 
     async def close_session(self, tx_id: int):
         """Return an ECU to default session (1001)."""
         if tx_id in self._sessions:
-            await self.terminal.set_header(tx_id)
             try:
-                await self.terminal.send_command(DEFAULT_SESSION_REQUEST, timeout=2.0)
+                async with self.terminal.transaction():
+                    await self.terminal.set_header(tx_id)
+                    await self.terminal.send_uds(
+                        DEFAULT_SESSION_REQUEST,
+                        timeout=2.0,
+                        expected_sid=DIAGNOSTIC_SESSION_CONTROL,
+                    )
             except Exception:
                 pass
             del self._sessions[tx_id]
@@ -329,6 +378,6 @@ class SessionManager:
 
     async def close_all(self):
         """Close all active sessions."""
-        self.stop_background_keepalive()
+        await self.stop_background_keepalive()
         for tx_id in list(self._sessions.keys()):
             await self.close_session(tx_id)

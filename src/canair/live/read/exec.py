@@ -30,7 +30,7 @@ from canair.uds.describe import decode_uds_response
 from ...ecus.names import resolve_tx
 from ...ecus.registry import rx_addr_str
 from ..actuate.iocontrol_actuate import send_iocontrol
-from ..elm.skm_wakeup import mode_skm_wakeup
+from ..elm.skm_wakeup import SKM_SESSION_MODE, SKM_TX_ID, mode_skm_wakeup
 from ..scan.presets import ServiceError, resolve_service
 from ..scan.range import mode_scan
 from .batch import (
@@ -53,7 +53,7 @@ async def _exec_skm_wake(sm: SessionManager, level: str, verbose: bool):
     success = await mode_skm_wakeup(terminal, level, verbose)
     if success:
         # Track the SKM session so keepalives are sent
-        sm._sessions[0x7A5] = __import__("time").monotonic()
+        sm.track(SKM_TX_ID, SKM_SESSION_MODE)
     return success
 
 
@@ -344,7 +344,7 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool, *,
         except (KeyboardInterrupt, asyncio.CancelledError):
             print("  Continuing…")
         finally:
-            sm.stop_background_keepalive()
+            await sm.stop_background_keepalive()
 
     return tx_id, service_pid, response
 

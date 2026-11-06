@@ -237,7 +237,7 @@ class TestBackgroundKeepalive:
         task = sm.start_background_keepalive(interval=0.05)
         assert not task.done()
         await asyncio.sleep(0.15)  # Let it tick a few times
-        sm.stop_background_keepalive()
+        await sm.stop_background_keepalive()
         assert sm._bg_task is None
         # Should have sent at least one keepalive
         assert any(c == ("send_uds", "3E00") for c in t.calls)
@@ -250,7 +250,7 @@ class TestBackgroundKeepalive:
         _task2 = sm.start_background_keepalive(interval=1.0)
         await asyncio.sleep(0)  # Let cancellation propagate
         assert task1.done() or task1.cancelled()
-        sm.stop_background_keepalive()
+        await sm.stop_background_keepalive()
 
 
 # --- close ---
@@ -264,7 +264,10 @@ class TestCloseSession:
         sm._sessions[0x770] = time.monotonic()
         await sm.close_session(0x770)
         assert not sm.has_session(0x770)
-        assert ("send_command", "1001") in t.calls
+        # Validated like every other request, and in one transaction with its header.
+        assert ("send_uds", "1001") in t.calls
+        assert t.uds_kwargs[-1]["expected_sid"] == 0x10
+        assert t.calls.index(("transaction_enter", None)) < t.calls.index(("set_header", 0x770))
 
     @pytest.mark.asyncio
     async def test_close_nonexistent_is_noop(self):
@@ -292,3 +295,97 @@ class TestCloseSession:
         sm._sessions[0x770] = time.monotonic()
         sm._sessions[0x7A0] = time.monotonic()
         assert set(sm.active_sessions) == {0x770, 0x7A0}
+
+
+# --- atomicity: a background keepalive never re-points an open, a wake or a close ---
+
+
+def _keepalive_intruder(t, sm, tx_id=0x7A5):
+    async def run():
+        await sm.send_keepalive(tx_id)
+
+    return run
+
+
+class TestAtomic:
+    @pytest.mark.asyncio
+    async def test_open_session_cannot_be_re_pointed(self):
+        t = FakeTerminal(default=_ok("5003"), serialize=True)
+        sm = SessionManager(t)
+        t.intrude(_keepalive_intruder(t, sm))
+        await sm.open_session(0x770)
+        await asyncio.gather(*t.intruder_tasks)
+        assert (0x770, "1003") in t.addressed
+        assert (0x7A5, "1003") not in t.addressed
+
+    @pytest.mark.asyncio
+    async def test_a_wake_burst_cannot_be_re_pointed(self):
+        from canair.ecus.wake import WakePlan
+
+        t = FakeTerminal(default=_ok("5003"), send_command_reply="NO DATA", serialize=True)
+        sm = SessionManager(t)
+        t.intrude(_keepalive_intruder(t, sm))
+        plan = WakePlan("rapid_read", "22B003", attempts=3, interval_ms=0, session_mode="03")
+        await sm.open_session(0x770, wake=True, wake_plan=plan)
+        await asyncio.gather(*t.intruder_tasks)
+        burst = [h for h, req in t.addressed if req in ("22B003", "1003")]
+        assert burst == [0x770] * 4
+
+    @pytest.mark.asyncio
+    async def test_close_session_cannot_be_re_pointed(self):
+        t = FakeTerminal(default=_ok("5001"), serialize=True)
+        sm = SessionManager(t)
+        sm.track(0x770)
+        t.intrude(_keepalive_intruder(t, sm))
+        await sm.close_session(0x770)
+        await asyncio.gather(*t.intruder_tasks)
+        assert (0x770, "1001") in t.addressed
+
+
+class TestModeTracking:
+    @pytest.mark.asyncio
+    async def test_a_refused_session_records_no_mode(self):
+        t = MockTerminal({(0x770, "1081"): {"ok": False, "nrc": 0x12, "nrc_desc": "SFNS"}})
+        sm = SessionManager(t)
+        assert await sm.open_session(0x770, mode="81") is False
+        assert sm.has_session(0x770)
+        assert sm.session_mode(0x770) is None
+
+    @pytest.mark.asyncio
+    async def test_a_refused_switch_keeps_the_mode_the_ecu_is_in(self):
+        t = MockTerminal({(0x770, "1081"): {"ok": False, "nrc": 0x12, "nrc_desc": "SFNS"}})
+        sm = SessionManager(t)
+        await sm.open_session(0x770, mode="03")
+        await sm.open_session(0x770, mode="81", force=True)
+        assert sm.session_mode(0x770) == "03"
+
+    def test_track_registers_a_session_opened_elsewhere(self):
+        sm = SessionManager(MockTerminal())
+        sm.track(0x7A5, "03")
+        assert sm.has_session(0x7A5) and sm.session_mode(0x7A5) == "03"
+
+
+class TestLinkError:
+    @pytest.mark.asyncio
+    async def test_a_dead_link_ends_the_background_keepalive_and_is_kept(self):
+        class Dead(FakeTerminal):
+            async def send_uds(self, *a, **kw):
+                raise ConnectionError("pipe resync failed")
+
+        sm = SessionManager(Dead())
+        sm._sessions[0x770] = 0.0
+        task = sm.start_background_keepalive(interval=0.01)
+        await asyncio.wait_for(asyncio.wait({task}), 1.0)
+        assert task.exception() is None
+        assert isinstance(sm.link_error, ConnectionError)
+        # The next foreground request surfaces it, which is where the monitor reconnects.
+        with pytest.raises(ConnectionError):
+            await sm.keepalive_stale()
+
+    @pytest.mark.asyncio
+    async def test_stop_waits_until_the_task_has_ended(self):
+        sm = SessionManager(MockTerminal())
+        task = sm.start_background_keepalive(interval=1.0)
+        await sm.stop_background_keepalive()
+        assert task.done()
+        await sm.stop_background_keepalive()  # a second stop is harmless
