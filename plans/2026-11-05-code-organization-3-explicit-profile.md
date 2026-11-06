@@ -243,9 +243,23 @@ What differs from the plan:
   functions that call it, up to the commands, which pass `active()`. `ty` lists the call sites
   (`missing-argument`), and a codemod applies the edit (outside the repo, in the codemod
   directory of the part B agent). Done so far: `load_pids`/`load_pids_dir` (B2), `load_variants`,
-  and the readers of states, groups, CAN buses, actions and signals.
+  the readers of states, groups, CAN buses, actions and signals, and the readers of the ECU
+  registry, `load_pids`/`load_raw_pids`/`revision_resolutions`, the capture store and the
+  sensitive sets. The ambient count fell from 65 to 22 (`validation/`, `yaml_edit/`, `dtc/log`,
+  `dtc/scope`, `ecus/files`, `live/revision_probe`, `live/read/multi` and `profile` are left).
 - **B2.** `load_pids(profile)` still falls back to the active profile until its callers pass
   one; `load_pids_dir(path)` is the as-written directory reader and all path callers use it.
 - **Tests.** `tests/support/profiles.py::bundled_profile()` builds the suite's car without the
   global. A test that patched `canair.profile.active` sets `canair.profile._active` instead,
   because the commands bind `active()` at import.
+- **Objects hold the profile.** A class that reads definitions or captures takes the profile in
+  its constructor instead of a method argument: `MonitorController` (its collaborators read
+  `self.c.profile`), `CaptureJournal`, `StepModel`, `_IOControlTUI` and `_RoutinesTUI`.
+- **ECU response log.** `transport/ecu_log.py` no longer reads the registry: `init_logging` is
+  given the TX id to name map, which `cli/live/runtime.py` builds.
+- **Behaviour fix.** `dtc/snapshot_decode.py::live_reply_length`, an `lru_cache` over the active
+  profile's captures, now takes the profile and is keyed by it; a regression test switches
+  between two profiles.
+- **Size ceilings.** `live/read/exec.py` outgrew its ceiling with the `profile` argument, so the
+  single and batched PID reads moved to `live/read/exec_read.py`. Some module docstrings and
+  comments were condensed to hold the other ceilings.
