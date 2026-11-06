@@ -542,4 +542,7 @@ class TestMode:
         assert [c for c in term.calls if c[0] == "send_functional"] == [
             ("send_functional", (0x7DF, "22F18C", DEFAULT_WINDOW_S))
         ] * 3
-        assert re.search(r"BMS\s+3/3", capsys.readouterr().out)
+        out = capsys.readouterr().out
+        assert re.search(r"round 3/3", out)
+        assert re.search(r"\+  \+  \+  0x7EC\s+BMS", out)
+        assert out.count("Responders") == 1

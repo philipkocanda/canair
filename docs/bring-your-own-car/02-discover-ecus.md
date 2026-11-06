@@ -82,8 +82,9 @@ the physical sweep.
 - **Not every ECU answers everything:** UDS ECUs stay silent for a request they do not support,
   while KWP2000-style ECUs often answer with an NRC. Try a second request such as `--request
   22F18C` (serial number) or `--request 190208` (DTCs) before concluding a bus is unreachable.
-- **Repeats:** `--repeat N --interval S` sends the request again, at least 1 s apart, and reports
-  how many rounds each ECU answered, which shows a bus that drops out under load.
+- **Repeats:** `--repeat N --interval S` sends the request again, at least 1 s apart. It prints one
+  line per round, then one map with a mark per round before each ECU (`+` positive, `~` negative
+  response, `-` no reply), which shows a bus that drops out under load.
 - **Side effect:** on Hyundai/Kia any functional request also tells ECUs that poll other ECUs
   themselves to stop, as the manufacturer's diagnostic spec requires. That changes what the car
   does, so it is not a purely passive read.
