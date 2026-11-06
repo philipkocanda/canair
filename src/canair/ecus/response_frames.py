@@ -21,8 +21,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from canair.ecus.pid_status import pid_status
+from canair.ecus.pids import load_raw_pids, revision_resolutions
 from canair.profile.model import Profile
 from canair.uds.frame_counts import CountKey, FrameCountLedger
+from canair.variants.revisions import declared, gate, reference_of
 
 FIELD = "response_frames"
 
@@ -234,8 +236,6 @@ def revision_target(ecu: str, pid: str, *, profile: Profile) -> tuple[bool, str 
     this routing is what keeps one revision's count from seeding — and undercounting — a
     read of the other, which would desynchronise an ELM327 pipe.
     """
-    from canair.ecus.pids import load_raw_pids, revision_resolutions
-    from canair.variants.revisions import declared, gate, reference_of
 
     ecus = load_raw_pids(profile=profile).get("ecus") or {}
     ecu_def = ecus.get(ecu) or {}

@@ -15,17 +15,21 @@ from typing import Any, TypedDict
 
 from canair.core import yaml_io
 from canair.ecus.dtc_definitions import effective_entries as _effective_dtc_entries
+from canair.ecus.files import iter_ecu_files
 from canair.ecus.memory import memory_format_of
 from canair.ecus.pid_status import PidStatus, is_snapshot_only, pid_ships, pid_status, pid_swept
 from canair.ecus.sensitivity import param_sensitive
 from canair.ecus.signal_category import category_of
+from canair.ecus.wake import resolve_wake
 from canair.profile.model import Profile, ProfileError, profile_for_path, read_meta
 from canair.safety.actuation import default_release, normalize_request
 from canair.uds.addressing import AddressingMode, EcuAddress, resolve_ecu_address
 from canair.uds.memory import MemoryFormat
 from canair.uds.multi_did import resolve_multi_did_max
 from canair.uds.protocol import DiagProtocol, classify_protocol
-from canair.variants import effective_meta, load_variants
+from canair.variants import VariantsError, effective_meta, load_variants
+from canair.variants.revisions import RevisionError, apply, has_gates, resolve, skipped_note
+from canair.variants.tags import selected_variant
 
 # Parameter fields a PID can state once for all its parameters. A parameter that sets the key
 # itself (even to ``""`` / ``[]`` / ``false``, an explicit "none") keeps its own value; one that
@@ -263,9 +267,6 @@ def load_raw_pids(profile: Profile) -> dict:
 
 
 def _selected_variant_def(prof):
-    from canair.variants import VariantsError, load_variants
-    from canair.variants.tags import selected_variant
-
     vid = selected_variant(prof)
     if vid is None:
         return None
@@ -281,7 +282,6 @@ def revision_resolutions(profile: Profile) -> dict:
     Only ECUs that declare revisions appear. Raises :class:`~canair.profile.model.ProfileError`
     when a pin names an ECU or revision that cannot be.
     """
-    from canair.variants.revisions import RevisionError, resolve
 
     prof = profile
     key = prof.cache_key
@@ -301,8 +301,6 @@ def revision_resolutions(profile: Profile) -> dict:
 
 def _resolved(prof: Profile) -> dict:
     """``prof``'s definitions for the selected car (see :func:`load_pids`)."""
-    from canair.variants.revisions import apply, has_gates, skipped_note
-    from canair.variants.tags import selected_variant
 
     raw = load_raw_pids(prof)
     ecus = raw.get("ecus") or {}
@@ -371,7 +369,6 @@ def merge_ecu_documents(docs: Iterable[tuple[Path, dict]]) -> dict[str, Any]:
 
 def _load_dir(path: Path, meta: dict) -> dict:
     """Merge profile-wide meta with every per-ECU file under ``path``."""
-    from canair.ecus.files import iter_ecu_files
 
     def _docs():
         for fpath in iter_ecu_files(path):
@@ -472,8 +469,6 @@ def build_iocontrol_index(
                 off_cmd = str(cdef.get("off") or cdef.get(False, ""))
                 release = _resolve_release(cdef.get("release"), on_cmd, off_cmd, protocol, did_str)
             except ValueError as exc:
-                from canair.profile.model import ProfileError
-
                 raise ProfileError(f"{ecu_name}/iocontrol/{did_str}: {exc}") from None
             cmds[did_str] = {
                 "label": cdef.get("label", ""),
@@ -605,7 +600,6 @@ def build_sessions_index(pids_data: dict) -> dict[str, SessionIndexEntry]:
 
 def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
     """Build lookup: ECU_NAME -> {tx_id, rx_id, pids: {PID: {parameters: ...}}}."""
-    from canair.ecus.wake import resolve_wake
 
     index: dict[str, EcuIndexEntry] = {}
     default_batch = bool(pids_data.get("multi_did_batching", False))
@@ -666,6 +660,7 @@ def ecu_index_key(name: str, index: Mapping[str, object], *, profile: Profile) -
     upper = name.upper()
     if upper in index:
         return upper
+    # deferred: cycle, names imports registry, which imports this module
     from canair.ecus.names import canonical_ecu_name_safe
 
     canonical = canonical_ecu_name_safe(name, profile=profile).upper()

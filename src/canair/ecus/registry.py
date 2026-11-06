@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
-from canair.profile.model import Profile
+from canair.profile.model import Profile, ProfileError
 from canair.uds.addressing import (
     DEFAULT_MODE,
     DEFAULT_RX_OFFSET,
@@ -77,6 +77,7 @@ def load_ecus(profile: Profile) -> dict[int, EcuRegistryEntry]:
     Derived from the profile's per-ECU ``ecus/`` files: each ECU's short name
     (the file's top-level key) plus its flattened ``identity:`` block.
     """
+    # deferred: cycle, pids imports names, which imports this module
     from canair.ecus.pids import load_pids
 
     return _registry_of(load_pids(profile))
@@ -84,6 +85,7 @@ def load_ecus(profile: Profile) -> dict[int, EcuRegistryEntry]:
 
 def load_ecus_dir(path: Path) -> dict[int, EcuRegistryEntry]:
     """:func:`load_ecus` for a directory of per-ECU YAML files, as written."""
+    # deferred: cycle, pids imports names, which imports this module
     from canair.ecus.pids import load_pids_dir
 
     return _registry_of(load_pids_dir(path))
@@ -224,8 +226,8 @@ def _profile_addressing(profile: Profile) -> tuple[int, AddressingMode]:
     Falls back to ``TX + 0x08`` / 11-bit when no profile resolves, so a caller
     that passed its own registry still gets an answer outside a profile.
     """
+    # deferred: cycle, pids imports names, which imports this module
     from canair.ecus.pids import load_pids
-    from canair.profile.model import ProfileError
 
     try:
         data = load_pids(profile)
