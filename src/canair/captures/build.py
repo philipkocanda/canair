@@ -109,7 +109,7 @@ def build_query_session(
     captures: list[CaptureRecord] = []
     for row in results:
         ecu_ref, pid, hex_val, ts = row[0], row[1], row[2], row[3]
-        elapsed_ms: int | None = row[4] if len(row) > 4 else None  # ty: ignore[index-out-of-bounds]
+        elapsed_ms: int | None = row[4] if len(row) > 4 else None
         capture: CaptureRecord = {
             "rx": ecu_ref,
             "pid": pid,

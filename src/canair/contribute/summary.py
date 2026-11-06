@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -137,11 +137,17 @@ def summarize(
     return out
 
 
-def _key(session: dict) -> str:
+def _key(session: Mapping[str, Any]) -> str:
     return json.dumps(session, sort_keys=True)
 
 
-def _add(out: ContributionSummary, session: dict, rx_names: dict[int, str], *, replaced: bool):
+def _add(
+    out: ContributionSummary,
+    session: Mapping[str, Any],
+    rx_names: dict[int, str],
+    *,
+    replaced: bool,
+):
     captures = [c for c in session.get("captures") or [] if isinstance(c, dict)]
     ecus: set[str] = set()
     for cap in captures:

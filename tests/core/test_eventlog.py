@@ -17,14 +17,27 @@ def isolated_log(tmp_path, monkeypatch):
     monkeypatch.setattr(clog, "_event_logger", None)
     # A prior test may have attached a handler pointing at the real log; drop it
     # so _get_event_logger re-opens against the isolated path.
-    logging.getLogger("canair.events").handlers.clear()
+    _drop_handlers()
     yield path
-    # Drop any handlers this test opened so pytest doesn't leak file handles.
-    logging.getLogger("canair.events").handlers.clear()
+    # Close any handlers this test opened so pytest doesn't leak file handles.
+    _drop_handlers()
     monkeypatch.setattr(clog, "_event_logger", None)
 
 
+def _drop_handlers() -> None:
+    logger = logging.getLogger("canair.events")
+    for handler in list(logger.handlers):
+        handler.close()
+        logger.removeHandler(handler)
+
+
 class TestEventLog:
+    def test_a_foreign_handler_on_the_logger_does_not_stop_the_file(self, isolated_log):
+        foreign = logging.NullHandler()
+        logging.getLogger("canair.events").addHandler(foreign)
+        clog.log_event("drop", "still written")
+        assert len(clog.read_event_log()) == 1
+
     def test_log_event_writes_line_with_fields(self, isolated_log):
         clog.log_event("drop", "truncated ISO-TP", transport="slcan-tcp", ecu="0x7E4", pid="2102")
         lines = clog.read_event_log()

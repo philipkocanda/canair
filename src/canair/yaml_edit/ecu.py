@@ -18,7 +18,7 @@ Merges never overwrite existing non-empty values unless ``overwrite=True``.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import date as _date
 from pathlib import Path
@@ -189,7 +189,7 @@ ECU = Target(
 @contextmanager
 def edit_ecu(
     fpath: Path, name: str | None, *, validate: bool = True, create: bool = False
-) -> Iterator[Doc]:
+) -> Generator[Doc]:
     """Open an ECU file; ``doc.section`` is the ECU's own mapping (``doc.data[name]``)."""
 
     def pick(data):

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, Callable
 from typing import Protocol
 
 from canair.safety.blocklist import SessionPolicy
@@ -79,7 +79,7 @@ class RawClientTerminal:
         self._cur = tx_id
 
     @contextlib.asynccontextmanager
-    async def transaction(self) -> AsyncIterator[None]:
+    async def transaction(self) -> AsyncGenerator[None]:
         if self._lock_owner is asyncio.current_task():
             yield
             return
@@ -91,7 +91,7 @@ class RawClientTerminal:
                 self._lock_owner = None
 
     @contextlib.asynccontextmanager
-    async def short_ecu_wait(self) -> AsyncIterator[None]:
+    async def short_ecu_wait(self) -> AsyncGenerator[None]:
         """No adapter wait to shorten: each request's timeout is canair's own here."""
         yield
 

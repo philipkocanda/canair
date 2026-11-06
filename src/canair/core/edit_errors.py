@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 
 
@@ -17,7 +17,7 @@ class EditError(Exception):
 
 
 @contextmanager
-def translate(source: type[Exception], target: type[EditError]) -> Iterator[None]:
+def translate(source: type[Exception], target: type[EditError]) -> Generator[None]:
     """Re-raise ``source`` (a loader's error) as ``target`` with the same message."""
     try:
         yield

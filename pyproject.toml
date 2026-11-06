@@ -8,15 +8,15 @@ license-files = ["LICENSE", "profiles/LICENSE"]
 dependencies = [
     "argcomplete>=3.0",
     "can-isotp>=2.0.7",
-    "cantools>=39.0",
+    "cantools>=44.0",
     "jsonschema>=4.18",  # the `referencing` registry (core/json_schema.py)
     "python-can>=4.6.1",
     "pyyaml>=6.0",
     "requests>=2.0",
-    "rich>=13.0",
+    "rich>=14.2",
     "ruamel.yaml>=0.18",
-    "textual>=1.0",
-    "websockets>=12.0",
+    "textual>=4.0",
+    "websockets>=13.0",
 ]
 
 [project.scripts]
@@ -45,11 +45,11 @@ exclude = ["profiles/*/logs", "**/__pycache__"]
 dev = [
     "import-linter>=2.15",
     "pre-commit>=4.0",
-    "pytest>=8.0",
-    "pytest-asyncio>=1.0",
+    "pytest>=9.2",
+    "pytest-asyncio>=1.4",
     "pytest-xdist>=3.6",
-    "ruff>=0.9",
-    "ty>=0.0.1a1",
+    "ruff>=0.17",
+    "ty>=0.0.99",
 ]
 docs = [
     # Capped below 10 deliberately. The MkDocs ecosystem is splitting: MkDocs 2.0
@@ -64,6 +64,8 @@ docs = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Without this, pytest-asyncio warns on every run that the default will change.
+asyncio_default_fixture_loop_scope = "function"
 # Run in parallel by default: the full suite is ~3700 device-free tests that
 # spent most of their wall time idle in one process (58% CPU) — 67s serial vs
 # ~14s here. `loadscope` groups tests by module/class so a module-scoped fixture
@@ -108,6 +110,9 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+# Ruff 0.16 formats the Python code blocks in Markdown. Plans and docs show code as
+# illustration, with comment alignment that is deliberate, so leave Markdown alone.
+exclude = ["*.md"]
 
 [tool.ty.src]
 # Type-check the library package only. Tests lean heavily on fakes/fixtures

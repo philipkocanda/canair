@@ -29,7 +29,7 @@ import asyncio
 import contextlib
 import sys
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 
 from canair.core.eventlog import log_event
@@ -320,7 +320,7 @@ class SessionManager:
         wake_plan: WakePlan | None = None,
         close: bool = False,
         report: bool = True,
-    ) -> AsyncIterator[SessionOutcome]:
+    ) -> AsyncGenerator[SessionOutcome]:
         """Hold a session on one ECU for the block, kept alive while the block runs.
 
         Opens it (always sending the request, so a second ``held`` can change the mode),

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
@@ -73,7 +73,7 @@ def data_of(response: UdsResponse) -> bytes:
 
 
 @asynccontextmanager
-async def maybe_session(terminal: Terminal, tx_id: int, mode: str | None) -> AsyncIterator[None]:
+async def maybe_session(terminal: Terminal, tx_id: int, mode: str | None) -> AsyncGenerator[None]:
     """Hold diagnostic session ``mode`` on ``tx_id`` (with keepalives) for the block.
 
     Nothing is sent when ``mode`` is None: the default session is where the ECU already is.

@@ -507,7 +507,7 @@ def reconcile_file(
     sessions = build_session_from_records(
         records, keep_mode=keep_mode, recovered=recovered, profile=profile
     )
-    sessions = [s for s in sessions if s and s.get("captures")]
+    sessions = [s for s in sessions if s.get("captures")]
     if not sessions:
         # Nothing worth keeping — drop the journal.
         path.unlink(missing_ok=True)

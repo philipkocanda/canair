@@ -171,9 +171,21 @@ def _dbc_specifics(messages: list):
         return None
     from collections import OrderedDict
 
-    from cantools.database.can.formats.dbc import ATTRIBUTE_DEFINITION_VFRAMEFORMAT
-    from cantools.database.can.formats.dbc_specifics import DbcSpecifics
+    from cantools.database.can.formats.dbc import DbcAttributeDefinition, DbcSpecifics
 
-    return DbcSpecifics(
-        attribute_definitions=OrderedDict(VFrameFormat=ATTRIBUTE_DEFINITION_VFRAMEFORMAT)
+    vframeformat = DbcAttributeDefinition(
+        name="VFrameFormat",
+        default_value="StandardCAN",
+        kind="BO_",
+        type_name="ENUM",
+        choices=[
+            "StandardCAN",
+            "ExtendedCAN",
+            "reserved",
+            "J1939PG",
+            *["reserved"] * 10,
+            "StandardCAN_FD",
+            "ExtendedCAN_FD",
+        ],
     )
+    return DbcSpecifics(attribute_definitions=OrderedDict(VFrameFormat=vframeformat))

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.binding import Binding
+from textual.binding import BindingType
 from textual.containers import Vertical, VerticalScroll
 from textual.widgets import Label, Static
 from textual.widgets.option_list import Option
@@ -72,7 +72,7 @@ class EventLogModal(OverlayScroll, KitModal[None]):
         + "#evlog-box { width: 90%; height: 80%; }\n#evlog-rows { height: 1fr; }"
     )
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("back", "close", desc=DISMISS_DESCRIPTION),
         *bind("quit", "close", desc=DISMISS_DESCRIPTION),
         *bind("event_log", "close", desc=DISMISS_DESCRIPTION),
@@ -158,7 +158,7 @@ class SessionInfoModal(OverlayScroll, KitModal[None]):
         + "#sess-box { width: 90%; height: 80%; }\n#sess-rows { height: 1fr; }"
     )
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("back", "close", desc=DISMISS_DESCRIPTION),
         *bind("quit", "close", desc=DISMISS_DESCRIPTION),
         *bind("info", "close", desc=DISMISS_DESCRIPTION),
@@ -274,7 +274,7 @@ class SessionPickerScreen(ListPickerModal["tuple[str, str]"]):
 
     CSS = ListPickerModal.picker_css("SessionPickerScreen", 74)
 
-    BINDINGS: ClassVar[list[Binding]] = [*bind("back", "back")]
+    BINDINGS: ClassVar[list[BindingType]] = [*bind("back", "back")]
 
     def __init__(self, controller: MonitorController):
         super().__init__()

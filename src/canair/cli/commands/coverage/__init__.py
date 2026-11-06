@@ -252,19 +252,20 @@ def audit(
                 if scope:
                     entry["scope"] = list(scope)
             else:
-                entry["capture"] = {
-                    "date": cap["date"],
-                    "file": cap["file"],
-                    "may_include_padding": cap.get("may_include_padding", False),
-                }
-                entry.update(
-                    analyze_pid(
+                entry = {
+                    **entry,
+                    "capture": {
+                        "date": cap["date"],
+                        "file": cap["file"],
+                        "may_include_padding": cap.get("may_include_padding", False),
+                    },
+                    **analyze_pid(
                         parameters,
                         cap["payload"],
                         subfunction_bytes(pid),
                         _declared_map(ecu_index[ecu]["pids"][pid]),
-                    )
-                )
+                    ),
+                }
             results.append(entry)
     return results
 

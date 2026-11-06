@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 import stat
 import tempfile
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
@@ -27,7 +27,7 @@ _schema_override: ContextVar[bool | None] = ContextVar("yaml_edit_schema", defau
 
 
 @contextmanager
-def schema_validation(enabled: bool) -> Iterator[None]:
+def schema_validation(enabled: bool) -> Generator[None]:
     """Force the heavy schema check on (or off) for every edit made inside the block.
 
     The commands wrap their edit in this so ``--no-validate`` reaches whichever engine writes

@@ -238,7 +238,7 @@ def folded(value: str, key_indent: int = 4, key: str = "notes"):
     fs = FoldedScalarString(value)
     # fold_pos pins the wrap points for this scalar only (a ruamel runtime
     # attribute, absent from its type stubs).
-    fs.fold_pos = _fold_positions(value, max(20, NOTE_WRAP_WIDTH - key_indent - 2))  # ty: ignore[unresolved-attribute]
+    fs.fold_pos = _fold_positions(value, max(20, NOTE_WRAP_WIDTH - key_indent - 2))
     return fs
 
 

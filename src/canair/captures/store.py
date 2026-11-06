@@ -312,7 +312,7 @@ def load_all_captures(captures_dir: Path | None = None, *, profile: Profile) -> 
         capture_io.ensure_migrated(layer)
         for fpath in capture_io.iter_capture_files(layer):
             data = capture_io.load_capture_file(fpath)
-            if not data or "sessions" not in data:
+            if "sessions" not in data:
                 continue
             for s_idx, session in enumerate(data["sessions"]):
                 if several and variant_tags.session_variant(session) is None:

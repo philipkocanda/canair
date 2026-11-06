@@ -13,7 +13,7 @@ the tree is ruamel's round-trip tree.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from io import StringIO
@@ -160,7 +160,7 @@ def edit_doc(
     section_of: Callable | None = None,
     missing: str | None = None,
     **route: Any,
-) -> Iterator[Doc]:
+) -> Generator[Doc]:
     """Open ``target`` for editing; leaving the block without an exception writes it back.
 
     ``path`` overrides the lookup in ``profile`` (an explicit ``--dir``); ``route`` is passed to

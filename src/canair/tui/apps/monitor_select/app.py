@@ -21,7 +21,7 @@ from typing import ClassVar, cast
 
 from rich.text import Text
 from textual.app import App, ComposeResult
-from textual.binding import Binding
+from textual.binding import BindingType
 from textual.widgets import Input, Label, SelectionList
 from textual.widgets.selection_list import Selection
 
@@ -103,7 +103,7 @@ class MonitorSelectScreen(KitModal["Picks | None"]):
         ("[status]", styles.WARNING, "a PID that is not swept by default"),
     )
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("quit", "cancel"),
         *bind("help", "help"),
         *bind("back", "back", show=False),
@@ -383,7 +383,7 @@ class LiveMonitorSelectScreen(MonitorSelectScreen):
     QUIT_DESC = DISMISS_DESCRIPTION
     BACK_CANCELS = True
 
-    BINDINGS: ClassVar[list[Binding]] = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         *bind("quit", "cancel", desc=DISMISS_DESCRIPTION),
         *bind("help", "help"),
         *bind("back", "back", show=False),
@@ -399,7 +399,7 @@ class LiveMonitorSelectScreen(MonitorSelectScreen):
 class MonitorSelectApp(App["Picks | None"]):
     """The standalone picker a bare ``canair monitor`` runs before connecting."""
 
-    BINDINGS: ClassVar[list[Binding]] = [*bind("quit_force", "quit", show=False, priority=True)]
+    BINDINGS: ClassVar[list[BindingType]] = [*bind("quit_force", "quit", show=False, priority=True)]
 
     # canair registers no command-palette commands and pins the theme, so the
     # built-in ctrl+p palette only adds an unstyled modal that overflows a narrow

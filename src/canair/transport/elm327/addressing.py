@@ -290,7 +290,7 @@ class AdapterState:
         self.fc_header: int | None = None
         self.rx_filter: int | str | _Unknown = AUTO
         self.fc_mode: int | _Unknown = FC_MODE_ADAPTER
-        self.fc_data: str | None | _Unknown = None
+        self.fc_data: str | _Unknown | None = None
         # Whether replies carry their CAN id (ATH1). canair parses replies with
         # headers off; only a functional sweep turns them on, and back off after.
         self.headers: bool | _Unknown = False

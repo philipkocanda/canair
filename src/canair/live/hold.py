@@ -9,7 +9,7 @@ own ``wake:`` ritual (``ecus/wake.py``).
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -31,7 +31,7 @@ async def held_session(
     wake: bool = False,
     pids_data: Mapping[str, Any] | None = None,
     verbose: bool = False,
-) -> AsyncIterator[SessionOutcome | None]:
+) -> AsyncGenerator[SessionOutcome | None]:
     """Hold session ``mode`` on ``tx_id`` for the block; yields None when not ``enabled``.
 
     ``wake`` rouses the ECU first with its ``wake:`` ritual, found in ``pids_data`` (the

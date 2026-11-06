@@ -17,11 +17,21 @@ page's JavaScript, so it is deterministic and unit-testable; the page only draws
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, TypedDict
 
 from canair.ecus.can_buses import ALL_CODE
 
 UNPLACED = "unplaced"
+
+
+class _Node(TypedDict):
+    name: str
+    kind: str
+    lanes: list[int]
+
+
+class _PlacedNode(_Node):
+    col: int
 
 
 def _lanes(buses: Sequence[Mapping], ecus: Sequence[Mapping]) -> list[dict[str, Any]]:
@@ -61,28 +71,37 @@ def layout_buses(buses: Sequence[Mapping], ecus: Sequence[Mapping]) -> dict[str,
     index = {lane["code"]: i for i, lane in enumerate(lanes)}
     reached = [i for i, lane in enumerate(lanes) if not lane["private"]]
 
-    gateway_nodes, bridges, singles, unplaced = [], [], [], []
+    gateway_nodes: list[_Node] = []
+    bridges: list[_Node] = []
+    singles: list[_Node] = []
+    unplaced: list[str] = []
     for ecu in ecus:
         is_gateway = any(c.upper() == ALL_CODE for c in ecu["buses"])
         members = reached if is_gateway else sorted({index[c] for c in ecu["buses"]})
         if not members:
             unplaced.append(ecu["name"])
             continue
-        node = {"name": ecu["name"], "kind": "gateway" if is_gateway else "ecu", "lanes": members}
+        node: _Node = {
+            "name": ecu["name"],
+            "kind": "gateway" if is_gateway else "ecu",
+            "lanes": members,
+        }
         (gateway_nodes if is_gateway else bridges if len(members) > 1 else singles).append(node)
 
     placed_all = any(
         c["code"].upper() == ALL_CODE and "OBD" in (c.get("description") or "").upper()
         for c in buses
     )
-    obd = [{"name": "OBD-II", "kind": "obd", "lanes": reached}] if placed_all and reached else []
+    obd: list[_Node] = (
+        [{"name": "OBD-II", "kind": "obd", "lanes": reached}] if placed_all and reached else []
+    )
 
     if unplaced:
         lanes.append({"code": UNPLACED, "name": "Unplaced", "bitrate": None, "private": False})
         singles += [{"name": name, "kind": "ecu", "lanes": [len(lanes) - 1]} for name in unplaced]
 
     taken: set[tuple[int, int]] = set()
-    nodes = []
+    nodes: list[_PlacedNode] = []
     for node in [*obd, *gateway_nodes, *bridges, *singles]:
         # A bridge's connector crosses every lane between its first and last, so it
         # reserves those cells too; another node there would be drawn on top of it.
