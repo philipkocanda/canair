@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from canair.captures.dates import entry_datetime
-from canair.captures.entries import _capture_key
+from canair.captures.entries import capture_key
 from canair.captures.types import CaptureEntry
 
 
@@ -83,7 +83,7 @@ def build_join_frames(
     dts: dict[int, datetime] = {}
     n_no_time = 0
     for idx, e in enumerate(captures):
-        bucket = per_key.get(_capture_key(e))
+        bucket = per_key.get(capture_key(e))
         if bucket is None:
             continue
         dt = entry_datetime(e)
@@ -101,7 +101,7 @@ def build_join_frames(
     # Union of every timestamp, ordered by time then key order for a stable
     # anchor sequence when two keys share an instant.
     key_order = {k: n for n, k in enumerate(keys)}
-    anchors = sorted(dts, key=lambda i: (dts[i], key_order.get(_capture_key(captures[i]), 0)))
+    anchors = sorted(dts, key=lambda i: (dts[i], key_order.get(capture_key(captures[i]), 0)))
 
     frames: list[JoinFrame] = []
     prev: tuple[int | None, ...] | None = None

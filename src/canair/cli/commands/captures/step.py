@@ -15,7 +15,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from canair.captures.entries import _capture_key
+from canair.captures.entries import capture_key
 from canair.captures.types import CaptureEntry
 from canair.expression.notation import ByteNotation
 from canair.render import ansi, messages
@@ -62,7 +62,7 @@ def build_model(
         return None
 
     # Keys in first-appearance order; the model sorts them for a stable block order.
-    keys = list(dict.fromkeys(_capture_key(e) for e in captures))
+    keys = list(dict.fromkeys(capture_key(e) for e in captures))
     return StepModel.from_entries(
         entries,
         keys,

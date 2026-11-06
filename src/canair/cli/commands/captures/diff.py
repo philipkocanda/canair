@@ -8,7 +8,7 @@ information one time-joined frame at a time.
 
 from collections.abc import Sequence
 
-from canair.captures.entries import _dedupe_payloads, _group_by_key
+from canair.captures.entries import dedupe_payloads, group_by_key
 from canair.captures.store import NO_DEFS, PidDefs, decoded_preview
 from canair.captures.types import CaptureEntry
 from canair.expression.notation import ByteDisplay, ByteNotation
@@ -43,7 +43,7 @@ def _render_diff_group(
         sub_bytes=subfunction_bytes_for_pid(str(payloads[0]["pid"])),
     ).aligned()
 
-    unique = _dedupe_payloads(payloads)
+    unique = dedupe_payloads(payloads)
     total = len(payloads)
     n_unique = len(unique)
     if total == n_unique or show_all:
@@ -119,13 +119,13 @@ def cmd_diff(
             _dump_json([])
         return
 
-    groups = _group_by_key(captures)
+    groups = group_by_key(captures)
 
     if as_json:
         out = []
         for key, group in sorted(groups.items()):
             tx_id = defs.get(key, NO_DEFS).tx_id
-            unique = _dedupe_payloads(group)
+            unique = dedupe_payloads(group)
             render_list = group if show_all else unique
             out.append(
                 {

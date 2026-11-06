@@ -16,7 +16,7 @@ from canair.captures.store import decoded_preview, entry_path
 from canair.captures.types import CaptureEntry, Quality
 
 
-def _entry_to_dict(e: Mapping[str, Any], *, decoded: bool = True) -> dict:
+def entry_to_dict(e: Mapping[str, Any], *, decoded: bool = True) -> dict:
     """Serialize a capture entry to a clean, JSON-ready dict.
 
     Includes the regenerated ``decoded`` preview (param -> formatted value) when
@@ -40,7 +40,7 @@ def _entry_to_dict(e: Mapping[str, Any], *, decoded: bool = True) -> dict:
     return d
 
 
-def _is_hex_payload(payload) -> bool:
+def is_hex_payload(payload) -> bool:
     """True if ``payload`` is a byte-diffable hex string.
 
     The byte-level views (``--diff``/``--step``) render payloads as hex. Some
@@ -61,12 +61,12 @@ def _is_hex_payload(payload) -> bool:
     return True
 
 
-def _capture_key(e: Mapping[str, Any]) -> tuple[str, str]:
+def capture_key(e: Mapping[str, Any]) -> tuple[str, str]:
     """The (ECU, PID) grouping/diff key for a capture (upper-cased)."""
     return e["ecu"].upper(), str(e["pid"]).upper()
 
 
-def _dedupe_payloads[R: Mapping[str, Any]](payloads: Sequence[R]) -> list[R]:
+def dedupe_payloads[R: Mapping[str, Any]](payloads: Sequence[R]) -> list[R]:
     """Drop duplicate payloads per (ECU, PID), keeping first-seen order.
 
     Deduping is scoped to each ECU+PID so identical hex under different PIDs is
@@ -75,7 +75,7 @@ def _dedupe_payloads[R: Mapping[str, Any]](payloads: Sequence[R]) -> list[R]:
     seen: set[tuple[str, str, str]] = set()
     unique: list[R] = []
     for e in payloads:
-        ecu, pid = _capture_key(e)
+        ecu, pid = capture_key(e)
         norm = e["payload"].upper().replace(" ", "")
         key = (ecu, pid, norm)
         if key not in seen:
@@ -84,7 +84,7 @@ def _dedupe_payloads[R: Mapping[str, Any]](payloads: Sequence[R]) -> list[R]:
     return unique
 
 
-def _prev_same_index(captures: Sequence[Mapping[str, Any]]) -> list[int | None]:
+def prev_same_index(captures: Sequence[Mapping[str, Any]]) -> list[int | None]:
     """Per position, the nearest earlier index sharing the same (ECU, PID).
 
     Used by the interleaved step view so byte-diffing compares a capture against
@@ -93,31 +93,31 @@ def _prev_same_index(captures: Sequence[Mapping[str, Any]]) -> list[int | None]:
     last: dict[tuple[str, str], int] = {}
     out: list[int | None] = []
     for idx, e in enumerate(captures):
-        key = _capture_key(e)
+        key = capture_key(e)
         out.append(last.get(key))
         last[key] = idx
     return out
 
 
-def _key_ordinals(captures: Sequence[Mapping[str, Any]]) -> list[tuple[int, int]]:
+def key_ordinals(captures: Sequence[Mapping[str, Any]]) -> list[tuple[int, int]]:
     """Per position, its 1-based ordinal within its (ECU, PID) and that group's total."""
     totals: dict[tuple[str, str], int] = {}
     for e in captures:
-        totals[_capture_key(e)] = totals.get(_capture_key(e), 0) + 1
+        totals[capture_key(e)] = totals.get(capture_key(e), 0) + 1
     seen: dict[tuple[str, str], int] = {}
     out: list[tuple[int, int]] = []
     for e in captures:
-        key = _capture_key(e)
+        key = capture_key(e)
         seen[key] = seen.get(key, 0) + 1
         out.append((seen[key], totals[key]))
     return out
 
 
-def _group_by_key(captures: list[dict]) -> dict[tuple[str, str], list[dict]]:
+def group_by_key(captures: list[dict]) -> dict[tuple[str, str], list[dict]]:
     """Group captures by (ECU, PID), preserving first-appearance order of keys."""
     groups: dict[tuple[str, str], list[dict]] = {}
     for e in captures:
-        groups.setdefault(_capture_key(e), []).append(e)
+        groups.setdefault(capture_key(e), []).append(e)
     return groups
 
 
@@ -131,9 +131,9 @@ def key_index[R: Mapping[str, Any]](entries: Sequence[R]) -> dict[tuple[str, str
     """
     index: dict[tuple[str, str], list[R]] = {}
     for e in entries:
-        if not _is_hex_payload(e.get("payload")):
+        if not is_hex_payload(e.get("payload")):
             continue
-        index.setdefault(_capture_key(e), []).append(e)
+        index.setdefault(capture_key(e), []).append(e)
     return index
 
 

@@ -9,7 +9,7 @@ these two views are their only callers.
 import sys
 from collections.abc import Sequence
 
-from canair.captures.entries import _entry_to_dict
+from canair.captures.entries import entry_to_dict
 from canair.captures.store import decoded_preview
 from canair.captures.types import CaptureEntry
 from canair.core.terminal import terminal_columns, truncate_text
@@ -54,7 +54,7 @@ def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limi
                 "truncated": truncated,
                 "limit": limit,
                 "unmatched": [str(sel) for sel in empty],
-                "captures": [_entry_to_dict(e) for e in shown],
+                "captures": [entry_to_dict(e) for e in shown],
             }
         )
         return
@@ -125,7 +125,7 @@ def cmd_latest(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
     ordered = sorted(latest.items(), key=lambda kv: (str(kv[0][0]), str(kv[0][1])))
 
     if as_json:
-        _dump_json([_entry_to_dict(e) for _key, e in ordered])
+        _dump_json([entry_to_dict(e) for _key, e in ordered])
         return
 
     print(f"\n  {ansi.BOLD}Latest payloads{ansi.RESET} — {len(latest)} PIDs\n")

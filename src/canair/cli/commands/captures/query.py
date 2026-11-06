@@ -13,7 +13,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from canair.captures.entries import _is_hex_payload
+from canair.captures.entries import is_hex_payload
 from canair.captures.store import (
     PidDefs,
     load_ecu_index,
@@ -90,7 +90,7 @@ def _gather_query[R: Mapping[str, Any]](
     (with an ``ECU:PID`` hint when a bare selector looks like a DID).
     """
     q = _parse_query(query)
-    payloads = [e for e in entries if _is_hex_payload(e.get("payload"))]
+    payloads = [e for e in entries if is_hex_payload(e.get("payload"))]
     matched, empty = q.filter(payloads, ecu_of=lambda e: e["ecu"], pid_of=lambda e: e["pid"])
 
     # Chronological order (date, then time within a session).

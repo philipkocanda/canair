@@ -19,7 +19,7 @@ from typing import Any
 
 from rich.text import Text
 
-from canair.captures.entries import _capture_key
+from canair.captures.entries import capture_key
 from canair.captures.store import NO_DEFS, PidDefs
 from canair.captures.types import CaptureEntry
 from canair.expression.notation import ByteDisplay, ByteNotation
@@ -87,7 +87,7 @@ def capture_block_text(
     )
 
     e = captures[i]
-    key = _capture_key(e)
+    key = capture_key(e)
     parameters, tx_id, map_bytes = PidDefs(*defs.get(key, NO_DEFS))
 
     pj = prev_idx[i]

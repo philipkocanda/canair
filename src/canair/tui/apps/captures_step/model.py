@@ -31,13 +31,13 @@ from rich.text import Text
 
 from canair.captures.dates import entry_datetime
 from canair.captures.entries import (
-    _capture_key,
-    _dedupe_payloads,
-    _is_hex_payload,
-    _key_ordinals,
-    _prev_same_index,
+    capture_key,
+    dedupe_payloads,
     group_sessions,
+    is_hex_payload,
     key_index,
+    key_ordinals,
+    prev_same_index,
 )
 from canair.captures.store import (
     PidDefs,
@@ -277,11 +277,11 @@ class StepModel:
             caps.extend(self.index.get(k, ()))
         caps.sort(key=lambda e: (str(e.get("date", "")), str(e.get("time", ""))))
         if not self.show_all:
-            caps = _dedupe_payloads(caps)
+            caps = dedupe_payloads(caps)
 
         self.captures = caps
-        self.prev_idx = _prev_same_index(caps)
-        self.ordinals = _key_ordinals(caps)
+        self.prev_idx = prev_same_index(caps)
+        self.ordinals = key_ordinals(caps)
         self.frames, self.n_no_time = build_join_frames(caps, self.keys, self.tol_s)
         self._reindex()
 
@@ -333,7 +333,7 @@ class StepModel:
         i = self.frame_idx if n is None else n
         if self.stacked:
             return self.frames[i].indices
-        cur = _capture_key(self.captures[i])
+        cur = capture_key(self.captures[i])
         return tuple(i if k == cur else None for k in self.keys)
 
     def frame_time(self, n: int | None = None) -> datetime | None:
@@ -424,7 +424,7 @@ class StepModel:
         return JumpList(rows=rows, hidden_sessions=hidden, hidden_notes=hidden_notes)
 
     def _note_target(self, sid: tuple[str, int], e: CaptureEntry) -> JumpTarget:
-        key = _capture_key(e)
+        key = capture_key(e)
         return JumpTarget(
             session=sid,
             is_note=True,
@@ -455,7 +455,7 @@ class StepModel:
         PID or a dedup-hidden payload is *not* blocking: the jump resolves those
         by adjusting the selection (see :meth:`seek_capture`).
         """
-        return "" if _is_hex_payload(e.get("payload")) else BLOCK_NON_PAYLOAD
+        return "" if is_hex_payload(e.get("payload")) else BLOCK_NON_PAYLOAD
 
     def _session_frame(self, sid: tuple[str, int]) -> int | None:
         """The earliest frame showing a capture from that session, if any."""
@@ -767,7 +767,7 @@ class StepModel:
         ``limit`` keeps only the most recent N frames (0 = all), mirroring the
         ``--limit`` cap of the list view.
         """
-        from canair.captures.entries import _entry_to_dict
+        from canair.captures.entries import entry_to_dict
 
         total = self.frame_count()
         start = max(total - limit, 0) if limit > 0 else 0
@@ -781,7 +781,7 @@ class StepModel:
                 if idx is None:
                     blocks.append(None)
                     continue
-                block = _entry_to_dict(self.captures[idx])
+                block = entry_to_dict(self.captures[idx])
                 dt = entry_datetime(self.captures[idx])
                 block["key"] = key_label(key)
                 block["dt_s"] = (

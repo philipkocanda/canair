@@ -7,7 +7,7 @@ from typing import ClassVar
 import pytest
 
 from canair.captures.build import build_query_session, build_raw_session
-from canair.captures.entries import _is_hex_payload, group_sessions
+from canair.captures.entries import group_sessions, is_hex_payload
 from canair.captures.save import save_session
 from canair.cli.commands.captures.diff import cmd_diff
 from canair.cli.commands.captures.listing import (
@@ -31,23 +31,23 @@ def _strip_ansi(text: str) -> str:
 
 class TestIsHexPayload:
     def test_valid_hex(self):
-        assert _is_hex_payload("5001")
-        assert _is_hex_payload("62BC0140000000000002")
+        assert is_hex_payload("5001")
+        assert is_hex_payload("62BC0140000000000002")
 
     def test_spaces_tolerated(self):
-        assert _is_hex_payload("50 01")
+        assert is_hex_payload("50 01")
 
     def test_non_hex_rejected(self):
         # Legacy captures that stashed an outcome under `payload`.
-        assert not _is_hex_payload("NO DATA")
-        assert not _is_hex_payload("NO DATA x3")
+        assert not is_hex_payload("NO DATA")
+        assert not is_hex_payload("NO DATA x3")
 
     def test_empty_and_none_rejected(self):
-        assert not _is_hex_payload("")
-        assert not _is_hex_payload(None)
+        assert not is_hex_payload("")
+        assert not is_hex_payload(None)
 
     def test_odd_length_rejected(self):
-        assert not _is_hex_payload("500")
+        assert not is_hex_payload("500")
 
 
 class TestGatherQueryFiltersNonHex:
