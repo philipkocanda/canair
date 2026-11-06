@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from canair.cli.profile_context import active
@@ -121,3 +123,60 @@ async def test_a_refusal_for_this_session_only_proves_nothing(monkeypatch):
 )
 def test_probe_states(code, state):
     assert idec.probe_state(nrc(code)) == state
+
+
+@pytest.mark.parametrize(
+    ("uds", "kwp", "uds_nrc", "kwp_nrc", "expected"),
+    [
+        ("session", "refused", 0x7F, 0x11, "uds"),
+        ("session", "silent", 0x7E, None, "uds"),
+        ("refused", "session", 0x11, 0x80, "kwp"),
+        ("silent", "session", None, 0x80, "kwp"),
+        # 0x80 on 22 is a KWP2000 ECU with common identifiers; 1A answers.
+        ("session", "positive", 0x80, None, "kwp"),
+        # One code per protocol, each from the other protocol's spelling: no decision.
+        ("session", "session", 0x7F, 0x80, None),
+        ("session", "refused", 0x80, 0x11, None),
+        ("refused", "session", 0x11, 0x7F, None),
+    ],
+)
+def test_a_session_refusal_names_the_protocol_that_has_the_service(
+    uds, kwp, uds_nrc, kwp_nrc, expected
+):
+    assert decide_protocol(uds, kwp, uds_nrc, kwp_nrc)[0] == expected
+
+
+@pytest.mark.asyncio
+async def test_22_refused_in_session_and_1a_refused_is_uds_without_a_finding(monkeypatch):
+    _unknown(monkeypatch)
+    term = FakeTerminal({"22F190": nrc(0x7F), "1A90": NOT_SUPPORTED}, default=nrc(0x7F))
+    probe = await ident._probe_protocol(term)
+    assert probe.protocol == "uds"
+    assert "refused in this session (0x7F)" in probe.reason
+    assert (probe.uds_nrc, probe.kwp_nrc) == (0x7F, 0x11)
+    assert await _identity(term) is None
+
+
+@pytest.mark.asyncio
+async def test_1a_refused_in_session_and_22_refused_is_kwp_without_a_finding(monkeypatch):
+    _unknown(monkeypatch)
+    term = FakeTerminal({"22F190": NOT_SUPPORTED, "1A90": nrc(0x80)}, default=nrc(0x80))
+    probe = await ident._probe_protocol(term)
+    assert probe.protocol == "kwp"
+    assert "refused in this session (0x80)" in probe.reason
+    assert await _identity(term) is None
+
+
+@pytest.mark.asyncio
+async def test_a_kwp2000_ecu_with_common_identifiers_is_still_kwp():
+    term = FakeTerminal({"22F190": nrc(0x80), "1A90": ok("5A904142")})
+    assert (await ident._probe_protocol(term)).protocol == "kwp"
+
+
+@pytest.mark.asyncio
+async def test_the_json_probe_carries_the_nrc_codes(monkeypatch, capsys):
+    _unknown(monkeypatch)
+    term = FakeTerminal({"22F190": nrc(0x7F), "1A90": NOT_SUPPORTED}, default=nrc(0x7F))
+    await _identity(term)
+    probe = json.loads(capsys.readouterr().out)["probe"]
+    assert probe == {"uds": "session", "uds_nrc": "0x7F", "kwp": "refused", "kwp_nrc": "0x11"}

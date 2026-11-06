@@ -69,7 +69,9 @@ and starts routine `0x03` on KWP2000. So:
   protocol, and refuses `0x31` on a KWP2000 ECU.
 - `canair identity ECU` finds the protocol out. It probes both identity services (`22 F190` and
   `1A 90`), and when one returns fields while the other is refused, it offers to record the
-  protocol in `id_protocol`. `--set-protocol` records it without asking.
+  protocol in `id_protocol`. `--set-protocol` records it without asking. A probe refused "in
+  this session" (`0x7F` for UDS, `0x80` for KWP2000) means the service exists in another
+  session: run it again with `--session`.
 
 ```bash
 canair identity IGPM                 # probe, read, and offer to record the protocol

@@ -17,25 +17,28 @@ UDS from KWP2000.
 
 import json
 import sys
+from collections import Counter
 from dataclasses import dataclass
 
 from canair.privacy.sensitive import MASK, request_hidden
 from canair.profile.model import Profile
-from canair.render import ansi
+from canair.render import ansi, messages
 from canair.render.paint import Painter
 from canair.uds.echo import request_echo
 from canair.uds.protocol import KWP, UDS, DiagProtocol
-from canair.uds.response import UdsResponse
+from canair.uds.response import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse
 
 from ...ecus.names import ecu_display
 from ...transport.protocol import Terminal
 from ..hold import held_session
 from ..revision_probe import describe_identity_report, identity_report
 from .decode import (
+    SESSION_NRCS,
     ProbeState,
     decide_protocol,
     decode_identity_payload,
     probe_state,
+    refusal_hint,
     resolve_protocol_hint,
 )
 from .records import IDENTITY_DIDS, KWP_IDENTITY_RECORDS, PROTOCOLS, UDS_IDENTITY_DIDS
@@ -48,6 +51,9 @@ __all__ = [
     "mode_identity",
 ]
 
+# Reads in a row that nothing answered, with no earlier answer at all, before the loop stops.
+SILENT_READS_BEFORE_STOP = 3
+
 
 @dataclass(frozen=True)
 class ProbeResult:
@@ -57,6 +63,8 @@ class ProbeResult:
     reason: str
     uds: ProbeState
     kwp: ProbeState
+    uds_nrc: int | None = None
+    kwp_nrc: int | None = None
 
 
 @dataclass(frozen=True)
@@ -86,10 +94,29 @@ async def _read(terminal: Terminal, request: str) -> UdsResponse:
 
 async def _probe_protocol(terminal: Terminal) -> ProbeResult:
     """Probe the ECU with both identity services and decide UDS vs KWP2000."""
-    uds = probe_state(await _read(terminal, "22F190"))
-    kwp = probe_state(await _read(terminal, "1A90"))
-    protocol, reason = decide_protocol(uds, kwp)
-    return ProbeResult(protocol, reason, uds, kwp)
+    uds_reply = await _read(terminal, "22F190")
+    kwp_reply = await _read(terminal, "1A90")
+    uds, kwp = probe_state(uds_reply), probe_state(kwp_reply)
+    uds_nrc, kwp_nrc = uds_reply.get("nrc"), kwp_reply.get("nrc")
+    protocol, reason = decide_protocol(uds, kwp, uds_nrc, kwp_nrc)
+    return ProbeResult(protocol, reason, uds, kwp, uds_nrc, kwp_nrc)
+
+
+def _probe_refused_in_session(probe: ProbeResult | None, protocol: str | None) -> bool:
+    """True when the probe of ``protocol`` itself drew a "not in this session" refusal."""
+    if probe is None:
+        return False
+    state = probe.uds if protocol == UDS else probe.kwp
+    return state == "session"
+
+
+def _is_silent(response: UdsResponse) -> bool:
+    """True when nothing answered: no NRC, and not a stale, dropped or undecodable reply."""
+    return (
+        not response["ok"]
+        and response.get("nrc") is None
+        and response.get("error_kind") not in (CAT_STALE, CAT_DECODE, CAT_DROP)
+    )
 
 
 def _finding(tx_id: int, probe: ProbeResult | None, n_ok: int) -> ProtocolFinding | None:
@@ -166,8 +193,10 @@ async def mode_identity(
                 )
             else:
                 print(f"  No identity data: {msg}.")
-                if "asleep" in msg:
-                    print("  Try --session/--wake, or power the ECU (ACC/ignition on).")
+            if "asleep" in msg:
+                messages.hint("try --session/--wake, or power the ECU (ACC/ignition on)")
+            if probe is not None and not session and {probe.uds_nrc, probe.kwp_nrc} & SESSION_NRCS:
+                messages.hint("a probe was refused in this session: try --session")
             return None
 
         spec = PROTOCOLS[resolved]
@@ -179,12 +208,21 @@ async def mode_identity(
 
         results = []
         n_ok = n_nrc = n_nodata = 0
+        nrc_codes: Counter[int] = Counter()
+        silent_run = 0
         responded: dict[str, bool] = {}
+        # The probe's own DID drew the session refusal, so the records draw it too.
+        skip_reads = not session and _probe_refused_in_session(probe, resolved)
 
         for did_hex, label, fmt in records:
+            if skip_reads or (
+                probe is None and not (n_ok or n_nrc) and silent_run >= SILENT_READS_BEFORE_STOP
+            ):
+                break
             request = f"{prefix}{did_hex}"
             response = await _read(terminal, request)
             responded[request] = bool(response["ok"])
+            silent_run = silent_run + 1 if _is_silent(response) else 0
             if response["ok"]:
                 n_ok += 1
                 payload = response["bytes"][offset:]
@@ -210,9 +248,11 @@ async def mode_identity(
                         print(f"  {paint(raw_line, ansi.raw.DIM)}")
             elif response.get("nrc") is not None:
                 n_nrc += 1
+                nrc_codes[response["nrc"]] += 1
             else:
                 n_nodata += 1
 
+        n_not_asked = len(records) - n_ok - n_nrc - n_nodata
         try:
             revision = identity_report(tx_id, responded, profile=profile) if n_ok else None
         except Exception:  # an advisory report never fails the reading itself
@@ -225,6 +265,8 @@ async def mode_identity(
                     "ok": n_ok,
                     "nrc": n_nrc,
                     "no_data": n_nodata,
+                    "not_asked": n_not_asked,
+                    "nrc_codes": {f"0x{code:02X}": n for code, n in sorted(nrc_codes.items())},
                 },
                 "results": results,
             }
@@ -235,22 +277,57 @@ async def mode_identity(
             print(json.dumps(out, indent=2))
         else:
             if n_ok == 0:
-                if n_nodata and not n_nrc:
+                if skip_reads:
+                    print(f"  Not read: {probe_reason}.")
+                elif n_nodata and not n_nrc:
                     print("  No response — ECU may be asleep or unpowered.")
-                    print("  Try --session/--wake, or power the ECU (ACC/ignition on).")
                 else:
                     print("  No identity fields returned (all DIDs rejected/unsupported).")
-            summary = (
-                f"{n_ok} field(s) returned, {n_nrc} rejected, "
-                f"{n_nodata} no-response (of {len(records)} probed)."
-            )
+            counts = f"{n_ok} field(s) returned, {n_nrc} rejected, {n_nodata} no-response"
+            if n_not_asked:
+                summary = f"{counts}, {n_not_asked} not asked (of {len(records)})."
+            else:
+                summary = f"{counts} (of {len(records)} probed)."
             print(f"\n  {paint(summary, ansi.raw.DIM)}")
             if revision is not None:
                 print("\n".join(describe_identity_report(revision)))
+        _hint_for_reading(
+            nrc_codes, probe, resolved, n_ok, n_nodata, session=session, skip_reads=skip_reads
+        )
     return _finding(tx_id, probe, n_ok)
 
 
+def _hint_for_reading(
+    nrc_codes: Counter[int],
+    probe: ProbeResult | None,
+    protocol: str | None,
+    n_ok: int,
+    n_nodata: int,
+    *,
+    session: bool,
+    skip_reads: bool,
+) -> None:
+    """Print the one hint (stderr) that fits what the reading drew."""
+    codes = nrc_codes
+    if skip_reads and probe is not None:
+        nrc = probe.uds_nrc if protocol == UDS else probe.kwp_nrc
+        codes = Counter({nrc: 1}) if nrc is not None else codes
+    if n_ok == 0 and n_nodata and not codes:
+        messages.hint("try --session/--wake, or power the ECU (ACC/ignition on)")
+        return
+    text = refusal_hint(codes, n_ok, session=session, protocol=protocol)
+    if text:
+        messages.hint(text)
+
+
 def _probe_json(probe: ProbeResult | None) -> dict | None:
-    """The probe replies for ``--json``: ``positive``, ``supported``, ``session``, ``refused``
-    or ``silent`` (:func:`.decode.probe_state`)."""
-    return None if probe is None else {"uds": probe.uds, "kwp": probe.kwp}
+    """The probe replies for ``--json``: each state is ``positive``, ``supported``, ``session``,
+    ``refused`` or ``silent`` (:func:`.decode.probe_state`), with the NRC code that drew it."""
+    if probe is None:
+        return None
+    return {
+        "uds": probe.uds,
+        "uds_nrc": None if probe.uds_nrc is None else f"0x{probe.uds_nrc:02X}",
+        "kwp": probe.kwp,
+        "kwp_nrc": None if probe.kwp_nrc is None else f"0x{probe.kwp_nrc:02X}",
+    }

@@ -8,7 +8,7 @@ from canair.cli.profile_context import active
 from canair.live.identity import decode as idec
 from canair.live.identity import read as ident
 from canair.uds.parse import parse_uds_response
-from tests.support.fakes import FakeTerminal
+from tests.support.fakes import FakeTerminal, nrc
 from tests.support.fakes import ok as _ok
 
 
@@ -48,6 +48,7 @@ class TestModeIdentity:
         monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: "kwp")
         t = FakeTerminal(
             {
+                "1A80": _ok("5A80" + "41"),
                 "1A90": _ok("5A90" + "4145455620424D53"),  # "AEEV BMS"
                 "1A91": _ok("5A91" + "5645522E322E33"),  # "VER.2.3"
             }
@@ -101,7 +102,9 @@ class TestRepeatedPreviousReply:
 
     def _terminal(self) -> FakeTerminal:
         repeat = parse_uds_response("62F100313730", expected_sid=0x22, expected_echo=b"\xf1\x01")
-        return FakeTerminal({"22F100": _ok("62F100313730"), "22F101": repeat})
+        return FakeTerminal(
+            {"22F190": _ok("62F190414243"), "22F100": _ok("62F100313730"), "22F101": repeat}
+        )
 
     @pytest.mark.asyncio
     async def test_it_is_not_printed_as_the_requested_field(self, monkeypatch, capsys):
@@ -110,7 +113,7 @@ class TestRepeatedPreviousReply:
             self._terminal(), 0x7A1, session=False, wake=False, as_json=True, profile=active()
         )
         data = json.loads(capsys.readouterr().out)
-        assert {r["did"]: r["decoded"] for r in data["results"]} == {"F100": "170"}
+        assert {r["did"]: r["decoded"] for r in data["results"]} == {"F190": "ABC", "F100": "170"}
         assert "offset_answers" not in data
 
     @pytest.mark.asyncio
@@ -143,3 +146,125 @@ class TestProbedDids:
     def test_no_hk_label_in_tables(self):
         for _did, label, _fmt in ident.UDS_IDENTITY_DIDS:
             assert "(HK)" not in label
+
+
+async def _identity(term, *, as_json=True, session=False, protocol="uds", monkeypatch=None):
+    monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: protocol)
+    await ident.mode_identity(
+        term, 0x7A1, session=session, wake=False, as_json=as_json, profile=active()
+    )
+
+
+class TestSilentEcu:
+    """A known protocol runs no probe, so a silent ECU is found out by the first reads."""
+
+    @pytest.mark.asyncio
+    async def test_it_stops_after_three_silent_reads(self, monkeypatch, capsys):
+        term = FakeTerminal({})
+        await _identity(term, monkeypatch=monkeypatch)
+        captured = capsys.readouterr()
+        assert len(term.sent) == ident.SILENT_READS_BEFORE_STOP == 3
+        summary = json.loads(captured.out)["summary"]
+        assert summary["no_data"] == 3
+        assert summary["not_asked"] == len(ident.UDS_IDENTITY_DIDS) - 3 == 19
+        assert "hint: try --session/--wake" in captured.err
+        assert "hint" not in captured.out
+
+    @pytest.mark.asyncio
+    async def test_the_text_summary_counts_the_records_not_asked(self, monkeypatch, capsys):
+        await _identity(FakeTerminal({}), as_json=False, monkeypatch=monkeypatch)
+        out = capsys.readouterr().out
+        assert "No response — ECU may be asleep or unpowered." in out
+        assert "3 no-response, 19 not asked (of 22)." in out
+
+    @pytest.mark.asyncio
+    async def test_it_never_stops_once_a_record_answered(self, monkeypatch):
+        term = FakeTerminal({"22F190": _ok("62F190414243")})
+        await _identity(term, monkeypatch=monkeypatch)
+        assert len(term.sent) == len(ident.UDS_IDENTITY_DIDS)
+
+    @pytest.mark.asyncio
+    async def test_it_never_stops_once_a_record_drew_an_nrc(self, monkeypatch):
+        term = FakeTerminal({"22F188": nrc(0x31)})
+        await _identity(term, monkeypatch=monkeypatch)
+        assert len(term.sent) == len(ident.UDS_IDENTITY_DIDS)
+
+    @pytest.mark.asyncio
+    async def test_a_stale_reply_does_not_count_as_silence(self, monkeypatch):
+        stale = {"ok": False, "error": "echo mismatch", "error_kind": "stale"}
+        term = FakeTerminal({}, default=stale)
+        await _identity(term, monkeypatch=monkeypatch)
+        assert len(term.sent) == len(ident.UDS_IDENTITY_DIDS)
+
+
+class TestRefusalHints:
+    @pytest.mark.asyncio
+    async def test_session_refusals_point_at_session(self, monkeypatch, capsys):
+        term = FakeTerminal({}, default=nrc(0x7F))
+        await _identity(term, monkeypatch=monkeypatch)
+        captured = capsys.readouterr()
+        assert "hint: these records need a diagnostic session: try --session" in captured.err
+        assert "hint" not in captured.out
+
+    @pytest.mark.asyncio
+    async def test_a_session_refusal_in_the_probe_skips_the_reads(self, monkeypatch, capsys):
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: "unknown")
+        term = FakeTerminal({"1A90": nrc(0x11)}, default=nrc(0x7F))
+        await ident.mode_identity(
+            term, 0x7A1, session=False, wake=False, as_json=True, profile=active()
+        )
+        captured = capsys.readouterr()
+        assert term.sent == ["22F190", "1A90"]
+        summary = json.loads(captured.out)["summary"]
+        assert summary["not_asked"] == len(ident.UDS_IDENTITY_DIDS)
+        assert "try --session" in captured.err
+
+    @pytest.mark.asyncio
+    async def test_with_session_the_reads_run_and_the_hint_names_the_session(
+        self, monkeypatch, capsys
+    ):
+        term = FakeTerminal({}, default=nrc(0x7F))
+        await _identity(term, session=True, monkeypatch=monkeypatch)
+        err = capsys.readouterr().err
+        assert "refused these records in the session canair opened (10 03)" in err
+        assert "try --session" not in err
+        assert sum(request.startswith("22") for request in term.sent) == 22
+
+    @pytest.mark.asyncio
+    async def test_kwp2000_notes_the_session_it_cannot_open(self, monkeypatch, capsys):
+        term = FakeTerminal({}, default=nrc(0x80))
+        await _identity(term, session=True, protocol="kwp", monkeypatch=monkeypatch)
+        assert "10 81" in capsys.readouterr().err
+
+    @pytest.mark.asyncio
+    async def test_security_access_says_nothing_about_keys(self, monkeypatch, capsys):
+        term = FakeTerminal({}, default=nrc(0x33))
+        await _identity(term, monkeypatch=monkeypatch)
+        err = capsys.readouterr().err
+        assert "need security access, which canair does not unlock" in err
+        assert "key" not in err
+
+    @pytest.mark.asyncio
+    async def test_out_of_range_says_the_ecu_has_none_of_the_records(self, monkeypatch, capsys):
+        term = FakeTerminal({}, default=nrc(0x31))
+        await _identity(term, monkeypatch=monkeypatch)
+        assert "answers none of the standard identity records" in capsys.readouterr().err
+
+    @pytest.mark.asyncio
+    async def test_some_fields_and_some_session_refusals_suggest_session(self, monkeypatch, capsys):
+        answers = {"22" + did: _ok("62" + did + "414243") for did in ("F190", "F188", "F187")}
+        term = FakeTerminal(answers, default=nrc(0x7F))
+        await _identity(term, monkeypatch=monkeypatch)
+        assert "hint: --session may return more fields" in capsys.readouterr().err
+
+    @pytest.mark.asyncio
+    async def test_the_json_counts_the_nrc_codes_and_stdout_stays_one_document(
+        self, monkeypatch, capsys
+    ):
+        refused = {"22" + did: nrc(0x31) for did, _, _ in ident.UDS_IDENTITY_DIDS[:2]}
+        term = FakeTerminal(refused, default=nrc(0x7F))
+        await _identity(term, monkeypatch=monkeypatch)
+        summary = json.loads(capsys.readouterr().out)["summary"]
+        assert summary["nrc_codes"] == {"0x31": 2, "0x7F": 20}
+        assert summary["nrc"] == 22
+        assert summary["not_asked"] == 0

@@ -1,6 +1,6 @@
 # UDS and KWP2000: protocol-aware lookups, and protocol facts out of `live/`
 
-Status: **PROPOSED** (2026-11-06). Phases 0 (`c56f2507`), 0b (`b0b8d28a`) and 0c are done. No
+Status: **PROPOSED** (2026-11-06). Phases 0 (`c56f2507`), 0b (`b0b8d28a`), 0c and 0d are done. No
 other code changed. Checked against `c56f2507`, after the session-owner work
 (`plans/2026-11-05-one-session-owner.md`).
 
@@ -306,6 +306,31 @@ Tests: `tests/live/identity/test_identity_protocol.py`,
 `tests/cli/commands/test_identity_protocol_record.py`, and new cases in
 `tests/cli/commands/test_actuator_handlers.py` and `tests/live/scan/test_scan_safety.py`.
 `docs/concepts/ecu-protocols.md` has a section on an ECU of unknown protocol.
+
+## Phase 0d — the identity probe and read loop (done, 2026-11-06)
+
+Three faults of the phase 0c reading, from `plans/2026-11-06-identity-probe-handoff.md`:
+
+- A refusal for this session names its protocol. `0x7E`/`0x7F` exist only in UDS and `0x80` only
+  in KWP2000, so `live/identity/decode.py::decide_protocol` takes the two probe NRCs
+  (`ProbeResult.uds_nrc`, `kwp_nrc`) and reads `22 F190` refused with `0x7F` as UDS, and
+  `1A 90` refused with `0x80` as KWP2000. When both probes say so, it decides nothing. The proof
+  rule is unchanged: a `ProtocolFinding` still needs `0x11` from the other service. With no
+  `--session`, a probe refused for the session skips the record loop, because the records draw
+  the same NRC. `--json` `probe` carries `uds_nrc` and `kwp_nrc`.
+- A silent ECU costs three reads, not the table. With a known protocol (no probe), the loop stops
+  after `SILENT_READS_BEFORE_STOP = 3` silent reads while nothing has answered. A stale, dropped
+  or undecodable reply is not silence. `--json` `summary` gains `not_asked`.
+- The NRCs drawn pick a hint on stderr (`decode.py::refusal_hint`): `--session` for session
+  refusals, "the session canair opened (10 03)" with `--session` (KWP2000: it may need
+  `10 81`, which `canair identity` cannot open yet), security access for `0x33`, and "none of the
+  standard records" for `0x31`/`0x12`/`0x11`. Some fields plus session refusals say "--session
+  may return more fields". `summary` gains `nrc_codes`. The all-silent hint moved from stdout to
+  stderr.
+
+Tests: `tests/live/identity/test_identity_protocol.py` and `test_identity.py`. Two older tests
+now script a leading record, because an ECU that ignores its first three records no longer gets
+read to the end of the table.
 
 ## Phase 1 — small fixes
 
