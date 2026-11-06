@@ -10,8 +10,8 @@ Each check compares the tree with ``baseline.json``:
 * a **list** baseline (root modules, flat tests, packages without a charter, private names used
   across packages) fails on a new entry *and* on an entry that no longer applies, so a fix has
   to leave the baseline;
-* a **ceiling** baseline (module sizes, deferred imports, import-linter debt) fails when the
-  number grows. Lower it when it falls:
+* a **ceiling** baseline (module sizes, deferred imports and those without a ``# deferred:``
+  reason, import-linter debt) fails when the number grows. Lower it when it falls:
   ``uv run python -m tests.contracts.test_structure --write``.
 
 One check has no baseline: a protocol byte written as a literal outside ``canair.uds``.
@@ -60,6 +60,7 @@ graph = _load_check("import_graph")
 protocol_literals = _load_check("protocol_literals")
 ambient_profile = _load_check("ambient_profile")
 ui_standards = _load_check("ui_standards")
+deferred = _load_check("deferred_scan")
 
 
 def _baseline() -> dict:
@@ -234,6 +235,27 @@ def test_deferred_imports_do_not_grow(scan):
     )
 
 
+def _deferred_without_reason() -> list:
+    return deferred.without_reason(deferred.scan_tree().imports)
+
+
+def test_deferred_imports_state_a_reason():
+    """A function-level import of a canair module has a ``# deferred:`` reason, or is at the top.
+
+    ``python scripts/check/import_graph.py --deferred --files PKG`` lists them by kind, and
+    ``scripts/dev/hoist_deferred.py PKG`` hoists the ones that cost no start-up time.
+    """
+    found = _deferred_without_reason()
+    ceiling = _baseline()["deferred_imports_without_reason"]
+    assert len(found) <= ceiling, (
+        f"{len(found)} function-level imports of canair modules have no `# deferred: <reason>` "
+        f"comment on the line or just above it (ceiling {ceiling}). Import at the top of the "
+        "module, or say why the import waits (a measured start-up cost, an optional dependency, "
+        "or `cycle with <package>, see plans/<plan>.md`). New ones:\n"
+        + "\n".join(f"    {i.path.relative_to(REPO)}:{i.line}: {i.label}" for i in found[-10:])
+    )
+
+
 def test_import_linter_debt_does_not_grow():
     count = _ignore_import_count()
     ceiling = _baseline()["import_linter_ignores"]
@@ -345,6 +367,9 @@ def _fresh_baseline(old: dict) -> dict:
     new["deferred_internal_imports"] = min(
         old["deferred_internal_imports"], sum(result.deferred.values())
     )
+    new["deferred_imports_without_reason"] = min(
+        old["deferred_imports_without_reason"], len(_deferred_without_reason())
+    )
     new["root_init_internal_imports"] = min(old["root_init_internal_imports"], _root_reexports())
     new["ambient_profile_calls"] = min(old["ambient_profile_calls"], len(ambient_profile.scan()))
     new["import_linter_ignores"] = min(old["import_linter_ignores"], _ignore_import_count())
@@ -373,6 +398,7 @@ def _initial_baseline() -> dict:
         "root_init_internal_imports": _root_reexports(),
         "oversized_modules": graph.oversized(result, MODULE_LINE_LIMIT),
         "deferred_internal_imports": sum(result.deferred.values()),
+        "deferred_imports_without_reason": len(_deferred_without_reason()),
         "ambient_profile_calls": len(ambient_profile.scan()),
         "import_linter_ignores": _ignore_import_count(),
         "packages_without_charter": sorted(p for p, i in packages.items() if not _has_charter(i)),

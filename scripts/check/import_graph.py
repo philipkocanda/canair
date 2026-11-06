@@ -8,6 +8,8 @@ Usage:
     uv run python scripts/check/import_graph.py             # human report
     uv run python scripts/check/import_graph.py --json      # the same numbers, machine-readable
     uv run python scripts/check/import_graph.py --edges A:B # module edges from unit A to unit B
+    uv run python scripts/check/import_graph.py --deferred  # classify every deferred import
+    uv run python scripts/check/import_graph.py --deferred --files cli.commands.scan
 
 A *unit* is a top-level subpackage or root module of the package (``canair.uds`` -> ``uds``).
 Edges from or to the package root itself are left out of the cycle count, because the root
@@ -224,11 +226,28 @@ def summary(result: Scan) -> dict:
     }
 
 
+def _deferred_imports():
+    """The ``--deferred`` report; loaded late because it imports this module."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import deferred_imports
+
+    return deferred_imports
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--json", action="store_true", help="print the summary as JSON")
     parser.add_argument("--edges", metavar="A:B", help="list module edges from unit A to unit B")
+    parser.add_argument(
+        "--deferred",
+        action="store_true",
+        help="classify every function-level import (loaded/heavy/cycle/other); see --files",
+    )
+    deferred_imports = _deferred_imports()
+    deferred_imports.add_arguments(parser)
     args = parser.parse_args(argv)
+    if args.deferred:
+        return deferred_imports.run(args)
     result = scan()
     if args.edges:
         a, b = args.edges.split(":")

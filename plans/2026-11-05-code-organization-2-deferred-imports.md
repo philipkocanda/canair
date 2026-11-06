@@ -1,6 +1,7 @@
 # Code organization, part 2: deferred imports
 
-Status: **PROPOSED** (2026-11-05). Part of
+Status: **IN PROGRESS** (2026-11-06): steps 1 and 2 and the tooling are done, the pilot is next to
+the "As built" section below. Originally **PROPOSED** (2026-11-05). Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 1.
 
 ## Goal
@@ -68,6 +69,54 @@ Add `deferred_imports_without_reason` to `baseline.json`, as a ceiling, at today
 test in `tests/contracts/test_structure.py` that counts deferred imports with no `# deferred:`
 comment, and fails when the count grows. Keep the existing total ceiling too, and lower both as
 the work lands.
+
+## Tooling
+
+Three scripts in `scripts/check/` and one in `scripts/dev/` carry steps 1 to 3. Tests are in
+`tests/scripts/test_deferred_imports.py`.
+
+- **Report.** `uv run python scripts/check/import_graph.py --deferred` prints the counts per kind
+  and per package (`--depth 2` splits `cli` into `cli.commands`, `cli.args`, ...). `--files PKG`
+  lists every import of a package or module with its kind (`cli.commands.scan`,
+  `canair.live`, or a path). `--kind loaded` filters that list. `--no-trial` skips the import
+  trial and calls every possible cycle a cycle. It runs in about 4 s.
+  - The `loaded` set comes from a real run: a subprocess builds the parser
+    (`canair.cli.build_parser()`) and prints `sys.modules`.
+  - `cycle` means that hoisting the import makes `import canair.<module>` (or an import of its
+    target) fail in a fresh interpreter. A module can only fail that way if the imported module
+    reaches it through module-level imports, so the trial runs only for those. It swaps the
+    hoisted source in with an import hook (no file is written), one batch per module, and then one
+    import at a time for a module whose batch fails. `lint-imports` is not a separate test: grimp
+    already counts function-level imports, so hoisting never changes its result.
+  - `loaded~` in a listing marks an import that makes a module-level cycle that still imports (a
+    package that imports its own submodule is the usual case). It stays `loaded`. Hoist it only
+    when `python -c "import canair.<target>"` also passes for every module in the cycle.
+  - `heavy` is decided statically: the target reaches `textual`, `cantools` or `argcomplete`
+    through module-level imports.
+- **Hoist.** `uv run python scripts/dev/hoist_deferred.py PKG [PKG...] [--write]` is a dry run
+  unless `--write` is given. It hoists exactly the `loaded` imports of those packages, lets ruff
+  sort the import block (an import from a module the file already imports merges into that line),
+  keeps a trailing comment, deletes a `# deferred:` comment above a hoisted import and prints a
+  `note` for any other comment above one (it may describe a cycle that no longer exists: reread
+  it). It skips and explains: an import in `try`, a name that is also bound at module level or
+  under `TYPE_CHECKING`, a name that two statements import from different places, a builtin name,
+  a block it would leave empty, and a module that would pass its size ceiling. A second run finds
+  nothing. After `--write` it imports every touched module and every module they now import in a
+  fresh interpreter, and lists test lines that patch a hoisted name (`patch targets`): a test that
+  patches `canair.a.name` no longer affects a module that imports `name` at the top, so patch the
+  importing module.
+- **The gate.** `deferred_imports_without_reason` in `baseline.json` counts function-level
+  imports of canair modules with no `# deferred:` comment on a line of the statement or in the
+  comment block that ends on the line above it. `test_deferred_imports_state_a_reason` fails when
+  it grows; `test_structure --write` lowers it. An import under `if TYPE_CHECKING:`, in a
+  module-level `try` or `if`, or in a class body is not counted (the older
+  `deferred_internal_imports` ceiling still counts those, 75 of its 1,025).
+
+Work through a package with: `--files PKG` (read), `hoist_deferred.py PKG --write`, then
+`uv run ruff check . && uv run ruff format .`, `uv run ty check`, the tests of the package, and
+`import_graph.py --deferred --files PKG` for what is left. Give each remaining import a
+`# deferred: <reason>` comment (a measured cost, or `cycle with <package>, see plans/<plan>.md`).
+Then run `uv run python -m tests.contracts.test_structure --write` to lower both ceilings.
 
 ## Steps
 
