@@ -1,7 +1,8 @@
 # UDS specification alignment: canair checked against udsoncan
 
-Status: **PHASES 0, 1, 2, 4, 5, 7, 8 DONE** (2026-11-06), and phase 6 item 2. Phases 3 and 6
-need the car. Checked against `3e652f46`. Paths are relative to
+Status: **PHASES 0, 1, 2, 4, 5, 7, 8 DONE** (2026-11-06); phase 6 items 1 and 2 done
+(2026-11-07). Open: phase 3 (needs the car) and phase 6 item 3 (needs an ECU that answers
+`19 06`). Checked against `3e652f46`. Paths are relative to
 `src/canair/` unless they start with `plans/`, `docs/` or `tests/`.
 
 ## Summary
@@ -426,7 +427,7 @@ As built:
   reads, never a suppressed request.
 - Tests: `tests/uds/test_uds_echo.py`.
 
-### Phase 6 — DTC format and extended data
+### Phase 6 — DTC format and extended data (format done 2026-11-07; extended data open)
 
 1. `19 01` once per ECU (decision 6). `live/dtc/codes.py` formats by the format byte: SAE J2012 for
    `00` and `04`, plain hex for `01` and `03`, SPN and FMI for `02`.
@@ -438,6 +439,44 @@ As built:
 4. Help, `docs/concepts/dtcs.md` and the generated `docs/reference/cli/dtc.md` change in the same
    commit.
 5. On the car: `dtc read` on an ECU with a stored code, with and without `--extended`.
+
+On the car (2026-11-07, Ioniq off, 12 V battery at the WiCAN's 12.2 V sleep threshold, so the
+probes were few; every reply is in `captures/2026-11-07.json`, labels `dtc-format-probe` and
+`dtc-extdata-probe`):
+
+| ECU | Request | Reply |
+|---|---|---|
+| BCM | `19 01 FF` | `59 01 09 00 0000`: availability mask `09`, format `00` (SAE J2012-DA format 00), no codes |
+| IGPM | `19 01 FF` | NRC `0x31` |
+| AMP | `19 01 FF` | NRC `0x12`: the service exists, the report type does not |
+| AMP | `19 02 FF` | the seven known `B29xx-00` codes |
+| AMP | `19 06 A91900 FF`, `19 06 A91900 01` | NRC `0x13` both times |
+| CCM, CLU, ESC | `19 01 FF` | no reply (asleep) |
+
+As built (items 1 and 2):
+
+- Decision 6 changed: canair does not store the format. It sends `19 01 <the read's mask>`
+  only when `19 02` returned codes, so a clean ECU costs nothing, and the format cannot go
+  stale after a module swap. Storing it in `identity:` would need an editor, a schema field
+  and a revision rule for one request on the rare read that finds codes.
+- `uds/subfunctions.py::DtcFormatIdentifier` holds Table D.14, and `J2012_DTC_FORMATS` the
+  two formats with the `Lxxxx-yy` text form. `live/dtc/codes.py::format_dtc` prints any other
+  format as six hex digits. The plan said "SPN and FMI for 02": ISO 14229-1 does not give the
+  J1939 byte layout, and SAE J1939-73 is not in `references/`, so a guessed SPN would mislead;
+  `02` prints as hex too.
+- `live/dtc/reading.py`: the result gains `dtc_format` (`"0x01"`, or `null` when the ECU did
+  not say), a non-J2012 code gets no SAE J2012 interpretation, and `dtc_format_note` makes
+  `canair dtc` say which format it saw.
+- Item 2: a `000000` record is skipped (2026-11-06). A trailing partial record is still
+  dropped without a warning.
+- Tests: `tests/dtc/test_dtc.py::TestDtcFormat`; the request lists in
+  `tests/dtc/test_dtc.py` and `tests/live/test_dtc_snapshot_mode.py` gained the `19 01`.
+- Docs: `docs/concepts/dtcs.md` ("When a code is not SAE J2012").
+
+Open (item 3, `--extended`): the only ECU with codes that answered refuses `19 06` with
+`0x13` in both standard forms, so no ECU on this car is known to support extended data.
+Building `--extended` without one reply to check it against would be guessing. Try it on a
+car whose ECU answers `19 06`, or on this one with the ignition on (the AMP may need it).
 
 ### Phase 7 — IOControl mask (done, 2026-11-06)
 

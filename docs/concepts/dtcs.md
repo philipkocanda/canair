@@ -62,6 +62,22 @@ seen. What it can't invent is the **manufacturer-specific text** — what Hyunda
 means by `B2915` isn't encoded in the code itself. That meaning is layered on
 from curated sources (below), never guessed.
 
+### When a code is not SAE J2012
+
+The `Lxxxx-yy` form is SAE J2012's. ISO 14229-1 lets an ECU use another format and
+report which one (the DTCFormatIdentifier, Table D.14). When a UDS ECU reports codes,
+`canair dtc` asks it with `19 01` (one more request, only for an ECU that has codes):
+
+- `00` and `04` are SAE J2012-DA formats: the codes print as above.
+- `01` (ISO 14229-1's own format, decoded as the maker decides), `02` (SAE J1939-73) and
+  `03` (ISO 11992-4) have no standard text form. canair prints those codes as six hex
+  digits (`A91900`), says which format the ECU reported, and does not look them up as
+  SAE J2012 codes. `--json` carries the format as `dtc_format`.
+- An ECU that does not answer `19 01` (the Ioniq's amplifier refuses it) is read as
+  SAE J2012, as before; `dtc_format` is then `null`.
+
+A record whose code is `000000` is not a fault, so canair skips it.
+
 ## The status byte
 
 Each code carries a one-byte **statusOfDTC**. For UDS, canair decodes the eight
