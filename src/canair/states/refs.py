@@ -31,9 +31,14 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from canair.ecus.pid_status import pid_status
+from canair.ecus.pids import load_raw_pids
 from canair.expression.decoding import decodes_to_number
 from canair.profile.model import Profile
 from canair.states.predicates import PREDICATE_SENTINELS, StatePredicateError, predicate_references
+from canair.states.vocabulary import load_states
+from canair.variants import load_variants
+from canair.variants.revisions import definitions_for, has_gates, reachable_combinations
 
 # Why a reference cannot resolve. All are hard failures (the predicate can never
 # fire); the kind exists so callers can group/filter, not to grade severity.
@@ -73,7 +78,6 @@ def _signal_map(pids_data: Mapping[str, Any]) -> dict[str, dict[str, _Signal]]:
     ``ignored``, flagged as such: a predicate pointing at one resolves to nothing
     at runtime, and saying so beats reporting the signal as undefined.
     """
-    from canair.ecus.pid_status import pid_status
 
     out: dict[str, dict[str, _Signal]] = {}
     for ecu_name, ecu_def in (pids_data.get("ecus") or {}).items():
@@ -203,9 +207,6 @@ def check_references_on_every_car(
     is green. An issue found on some combinations names them in its message. Without
     such ECUs this is exactly :func:`check_references` on the definitions as written.
     """
-    from canair.ecus.pids import load_raw_pids
-    from canair.variants import load_variants
-    from canair.variants.revisions import definitions_for, has_gates, reachable_combinations
 
     predicates = list(predicates)
     raw = load_raw_pids(profile)
@@ -237,7 +238,6 @@ def profile_predicates(profile: Profile) -> list[tuple[str, str]]:
     :func:`canair.states.vocabulary.state_names` — a caller warning about references should
     never be the thing that fails on a syntax error elsewhere in the file.
     """
-    from canair.states.vocabulary import load_states
 
     try:
         rules = load_states(profile)
