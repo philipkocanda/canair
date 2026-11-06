@@ -2,7 +2,7 @@
 
 import os
 
-from canair.tui import key_to_action, read_key_raw
+from canair.tui.picker import key_to_action, read_key_raw
 
 
 class TestReadKeyRaw:
@@ -59,7 +59,7 @@ class TestPickerKeys:
             assert key_to_action(key) == "end"
 
     def test_the_footer_is_built_from_the_key_roles(self):
-        from canair.tui import PICKER_FOOTER
+        from canair.tui.picker import PICKER_FOOTER
 
         assert PICKER_FOOTER == "↑/↓ select · enter accept · q quit · esc cancel"
 

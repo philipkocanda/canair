@@ -182,7 +182,7 @@ Use `canair.core.prompt`. Never call `input()` or `sys.stdin.readline()` for a y
 - `?` opens help on every screen. In a modal with a focused text input it is text; once focus is
   elsewhere it opens help (`KitModal`).
 - One exception to "esc never quits": a one-shot picker that returns a value and then exits
-  (`tui/__init__.py::select_from_list`, used by `canair profile`) counts as a dialog, so `esc`
+  (`tui/picker.py::select_from_list`, used by `canair profile`) counts as a dialog, so `esc`
   cancels it.
 - `g`/`G` address the view's primary axis. `enter` accepts. `ctrl+s` applies a form.
 

@@ -107,7 +107,7 @@ def choose_variant(name: str, profiles_dir, requested: str | None) -> str | None
             f"`canair profile use {name} --variant ID` ({', '.join(variants)})"
         )
         return None
-    from canair.tui import select_from_list
+    from canair.tui.picker import select_from_list
 
     items = list(variants.items())
 
