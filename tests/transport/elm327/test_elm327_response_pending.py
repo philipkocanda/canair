@@ -239,3 +239,27 @@ class TestPipeHygieneAroundPending:
         assert "5902BB" in resp.replace(" ", "")
         assert term._pipe.dirty is False
         assert term.diag.stale == 1
+
+
+class EndlessPendingChannel(ScriptedChannel):
+    """An ECU that answers ``7F 19 78`` for ever, one frame every few milliseconds."""
+
+    def __init__(self):
+        super().__init__([])
+
+    async def recv(self, timeout: float) -> str | None:
+        await asyncio.sleep(0.005)
+        return "7F 19 78\r>"
+
+
+class TestResponsePendingCap:
+    @pytest.mark.asyncio
+    async def test_an_endless_run_of_pending_frames_ends_at_the_cap(self, monkeypatch):
+        """Each pending frame restarts the deadline, but never past the run's cap."""
+        monkeypatch.setattr("canair.transport.timeouts.PENDING_TOTAL_TIMEOUT", 0.3)
+        term = Elm327Terminal(EndlessPendingChannel())
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        resp = await asyncio.wait_for(term.send_uds("1902", timeout=0.2), timeout=5.0)
+        assert loop.time() - started < 2.0
+        assert resp["ok"] is False

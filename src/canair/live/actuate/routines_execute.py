@@ -25,8 +25,10 @@ from canair.render.paint import Painter
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 from canair.transport.protocol import Terminal
 from canair.transport.session_manager import SessionManager
+from canair.uds.echo import request_echo
 from canair.uds.protocol import KWP
 from canair.uds.requests import routine_control_request
+from canair.uds.response import UdsResponse
 from canair.uds.services import ROUTINE_CONTROL, identifier_width
 from canair.uds.subfunctions import RoutineControlType, subfunction_name
 
@@ -123,7 +125,7 @@ async def mode_routines_execute(
     say(f"  Command: {hex_cmd}")
 
     async with SessionManager(terminal, verbose=verbose).held(tx_id):
-        response = await terminal.send_uds(hex_cmd, timeout=3.0)
+        response = await send_routine(terminal, tx_id, hex_cmd)
 
         fail_mark = paint(glyphs.FAIL, ansi.raw.RED)
         if response["ok"]:
@@ -149,3 +151,19 @@ async def mode_routines_execute(
             print(json.dumps(out, indent=2))
 
     say()
+
+
+async def send_routine(terminal: Terminal, tx_id: int, request: str) -> UdsResponse:
+    """Send a RoutineControl ``request`` to ``tx_id``, checked against the reply it must carry.
+
+    The reply must answer RoutineControl and, on an ECU known to speak UDS, repeat the
+    control type and the routine id. A late reply to an earlier request then reads as
+    stale instead of as this routine's result.
+    """
+    expected = request_echo(request, terminal.session_policy.protocol(tx_id))
+    return await terminal.send_uds(
+        request,
+        timeout=3.0,
+        expected_sid=ROUTINE_CONTROL,
+        expected_echo=expected[1] if expected is not None else None,
+    )

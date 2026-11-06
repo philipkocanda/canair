@@ -8,7 +8,7 @@ from canair.core.skip_key import skip_listener
 from canair.profile.model import Profile
 from canair.render import ansi
 from canair.uds.nrc import nrc_abbrev
-from canair.uds.services import DEFAULT_SESSION_REQUEST
+from canair.uds.services import DEFAULT_SESSION_REQUEST, DIAGNOSTIC_SESSION_CONTROL
 
 from ...dtc.snapshot_report import snapshot_lines, undefined_hints
 from ...ecus.names import ecu_display
@@ -58,7 +58,9 @@ async def _wake_read(terminal, tx_id, mask, protocol, verbose, timeout, *, profi
     """Wake the ECU (1001) then re-read DTCs with a longer timeout."""
     await terminal.set_header(tx_id)
     try:
-        await terminal.send_uds(DEFAULT_SESSION_REQUEST, timeout=timeout)
+        await terminal.send_uds(
+            DEFAULT_SESSION_REQUEST, timeout=timeout, expected_sid=DIAGNOSTIC_SESSION_CONTROL
+        )
     except Exception:
         pass
     return await _read_one(

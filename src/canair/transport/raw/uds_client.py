@@ -29,9 +29,10 @@ from canair.transport.isotp_params import build_isotp_params
 from canair.transport.link_latency import LinkLatency
 from canair.transport.raw.isotp_stack import build_isotp_stack
 from canair.transport.stats import TransportStats
+from canair.transport.timeouts import PENDING_RECV_TIMEOUT, pending_deadline
 from canair.transport.timing import TimingRecorder
 from canair.uds.addressing import DEFAULT_RX_OFFSET, EcuAddress, build_isotp_address
-from canair.uds.nrc import is_response_pending
+from canair.uds.nrc import is_negative_response, is_response_pending
 from canair.uds.payload import payload_echo_mismatch
 from canair.uds.response import CAT_STALE
 
@@ -50,13 +51,6 @@ RESPONSE_OFFSET = DEFAULT_RX_OFFSET
 def response_id(tx_id: int) -> int:
     return tx_id + RESPONSE_OFFSET
 
-
-# UDS ResponsePending (0x78, `canair.uds.nrc.is_response_pending`) bounds — the ECU
-# acknowledged the request but needs more time and will send the final response in a
-# follow-up frame. Both raw-CAN clients (RawUdsClient + RawTerminal) wait through it,
-# capped, so they behave like the ELM327 firmware, which handles 0x78 automatically.
-PENDING_RECV_TIMEOUT = 5.0  # per follow-up wait after a 0x78
-PENDING_TOTAL_TIMEOUT = 20.0  # overall cap while the ECU keeps saying "pending"
 
 # How many unpaid responses one ECU may owe before the ledger stops being evidence.
 #
@@ -175,10 +169,13 @@ class RawUdsClient:
         the ECU owes earlier answers, the next ones off its stack *are* those
         answers, whatever they contain — which is the only way to catch a repeated
         single-PID poll drifting one cycle behind. Echo validation then covers the
-        case the ledger cannot see, a reply for a PID we never abandoned.
+        case the ledger cannot see, a reply for a PID we never abandoned, and a
+        negative response must name this request's service.
         """
         if owed > 0:
             return f"{ecu} still owed {owed} earlier response(s)"
+        if is_negative_response(resp) and not is_negative_response(resp, req[0]):
+            return f"a negative response to service 0x{resp[1]:02X}, not 0x{req[0]:02X}"
         return payload_echo_mismatch(req.hex().upper(), resp.hex().upper())
 
     def _abandon(self, ecu: str) -> None:
@@ -275,11 +272,11 @@ class RawUdsClient:
             resp = bytes(resp_raw)
             # Wait through UDS ResponsePending (0x78) so slow services return their
             # final answer — parity with the ELM327 path + RawTerminal.
-            if is_response_pending(resp):
+            if is_response_pending(resp, request[0]):
                 last_pending = resp
-                if pending_cap is None:
-                    pending_cap = time.monotonic() + PENDING_TOTAL_TIMEOUT
-                deadline = min(time.monotonic() + PENDING_RECV_TIMEOUT, pending_cap)
+                deadline, pending_cap = pending_deadline(
+                    time.monotonic(), PENDING_RECV_TIMEOUT, pending_cap
+                )
                 continue
             reason = self._stale_reason(ecu, request, resp, owed)
             if reason is None:
@@ -393,12 +390,12 @@ class RawUdsClient:
                         continue
                     if resp is not None:
                         resp = bytes(resp)
-                        if is_response_pending(resp):
+                        if is_response_pending(resp, req[0]):
                             # ECU said "still working" — wait for the follow-up,
                             # bounded (parity with read()/RawTerminal/ELM).
-                            if info["cap"] is None:
-                                info["cap"] = now + PENDING_TOTAL_TIMEOUT
-                            info["deadline"] = min(now + PENDING_RECV_TIMEOUT, info["cap"])
+                            info["deadline"], info["cap"] = pending_deadline(
+                                now, PENDING_RECV_TIMEOUT, info["cap"]
+                            )
                             progressed = True
                             continue
                         reason = self._stale_reason(ecu, req, resp, info["owed"])

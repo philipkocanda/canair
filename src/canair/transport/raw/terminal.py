@@ -41,8 +41,8 @@ from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES, build_isotp_p
 from canair.transport.raw.functional import raw_functional_exchange
 from canair.transport.raw.isotp_stack import build_isotp_stack
 from canair.transport.raw.slcan_tcp import SlcanTcpBus
-from canair.transport.raw.uds_client import PENDING_RECV_TIMEOUT, PENDING_TOTAL_TIMEOUT
 from canair.transport.stats import TransportStats
+from canair.transport.timeouts import PENDING_RECV_TIMEOUT, PENDING_TOTAL_TIMEOUT
 from canair.transport.timing import TimingRecorder
 from canair.uds.addressing import (
     DEFAULT_MODE,
@@ -54,11 +54,27 @@ from canair.uds.addressing import (
     resolve_rx,
 )
 from canair.uds.frame_counts import FrameCountLedger, frames_for_payload
-from canair.uds.nrc import is_response_pending
+from canair.uds.nrc import is_negative_response, is_response_pending
 from canair.uds.parse import parse_uds_response
 from canair.uds.response import UdsResponse
+from canair.uds.services import TESTER_PRESENT_REQUEST
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
+
+
+def _recv_answer(stack, sid: int, deadline: float) -> bytes | None:
+    """The next message on ``stack`` that may answer a request on ``sid``, by ``deadline``.
+
+    A negative response that names another service answers an earlier request, so it
+    is skipped rather than returned (or waited through, if it is a ResponsePending).
+    """
+    while True:
+        msg = stack.recv(block=True, timeout=max(0.0, deadline - time.monotonic()))
+        if msg is None:
+            return None
+        reply = bytes(msg)
+        if not is_negative_response(reply) or is_negative_response(reply, sid):
+            return reply
 
 
 class RawTerminal:
@@ -335,19 +351,19 @@ class RawTerminal:
             while st.available():
                 st.recv()
             st.send(req)
-            r = st.recv(block=True, timeout=t)
+            deadline = time.monotonic() + t
+            r = _recv_answer(st, req[0], deadline)
             if r is None:
                 return None
-            r = bytes(r)
             # Wait through UDS ResponsePending (0x78) so slow services (DTC reads,
             # routines) return their final answer instead of the "still working"
             # placeholder — matching the ELM327 path.
-            pending_deadline = time.monotonic() + PENDING_TOTAL_TIMEOUT
-            while is_response_pending(r) and time.monotonic() < pending_deadline:
-                nxt = st.recv(block=True, timeout=PENDING_RECV_TIMEOUT)
+            pending_cap = time.monotonic() + PENDING_TOTAL_TIMEOUT
+            while is_response_pending(r, req[0]) and time.monotonic() < pending_cap:
+                nxt = _recv_answer(st, req[0], time.monotonic() + PENDING_RECV_TIMEOUT)
                 if nxt is None:
                     break
-                r = bytes(nxt)
+                r = nxt
             return r
 
         self.cmd_count += 1
@@ -358,7 +374,7 @@ class RawTerminal:
             elapsed = time.monotonic() - t0
             self.cmd_time += elapsed
             # Record RTT for real UDS requests only (skip 3E00 keepalives).
-            if req != b"\x3e\x00":
+            if req.hex().upper() != TESTER_PRESENT_REQUEST:
                 self.timings.record(f"0x{tx_id:03X}", req.hex().upper(), elapsed)
 
 

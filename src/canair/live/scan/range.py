@@ -27,8 +27,9 @@ from canair.render.glyphs import ELLIPSIS
 from canair.safety.actuation import ACTUATE, classify
 from canair.safety.blocklist import SafetyBlocked, check_command_safety
 from canair.transport.stats import client_transport
+from canair.uds.echo import request_echo
 from canair.uds.protocol import KWP, DiagProtocol
-from canair.uds.services import ROUTINE_CONTROL, identifier_width, service_name
+from canair.uds.services import ROUTINE_CONTROL, identifier_width
 
 from ...captures.build import build_scan_session, suggest_scan_label
 from ...captures.oneshot import save_session_journaled
@@ -150,7 +151,8 @@ async def mode_scan(
     console = make_console(stderr=as_json)
 
     ecu_label = ecu_name(tx_id, profile=profile)
-    check_range_scan(service, terminal.session_policy.protocol(tx_id), ecu_label)
+    protocol = terminal.session_policy.protocol(tx_id)
+    check_range_scan(service, protocol, ecu_label)
     ranges = as_id_ranges(pid_ranges)
     total = count_ids(ranges)
 
@@ -195,7 +197,15 @@ async def mode_scan(
             for pid_val in iter_ids(ranges):
                 req = scan_request(service, pid_val, append_bytes)
 
-                response = await terminal.send_uds(req, timeout=2.0)
+                # Checked by service and echo, so a late reply to the previous id is not
+                # counted as a hit (or a refusal) of this one.
+                expected = request_echo(req, protocol)
+                response = await terminal.send_uds(
+                    req,
+                    timeout=2.0,
+                    expected_sid=service,
+                    expected_echo=expected[1] if expected is not None else None,
+                )
 
                 if response["ok"]:
                     n_bytes = len(response["bytes"])
@@ -213,17 +223,8 @@ async def mode_scan(
                     desc = response["nrc_desc"]
                     negative.append((pid_val, nrc, desc))
                     if verbose:
-                        svc_note = ""
-                        nrc_svc = response.get("nrc_service")
-                        if nrc_svc is not None and nrc_svc != service:
-                            named = service_name(nrc_svc)
-                            svc_note = (
-                                f" [dim](rejecting {escape(named or 'service')} "
-                                f"0x{nrc_svc:02X})[/dim]"
-                            )
                         progress.console.print(
-                            f"  [dim]- 0x{pid_val:{did_fmt}}: "
-                            f"NRC 0x{nrc:02X} ({escape(desc)})[/dim]" + svc_note
+                            f"  [dim]- 0x{pid_val:{did_fmt}}: NRC 0x{nrc:02X} ({escape(desc)})[/dim]"
                         )
                 else:
                     error = response.get("error", "unknown")

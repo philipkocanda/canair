@@ -38,6 +38,7 @@ from canair.render import messages
 from canair.transport import keepalive
 from canair.transport.protocol import Terminal
 from canair.transport.session_table import SessionTable
+from canair.uds.echo import request_echo
 from canair.uds.requests import session_request
 from canair.uds.services import (
     DEFAULT_SESSION_REQUEST,
@@ -248,11 +249,11 @@ class SessionManager:
                 await self._wake(tx_id, wake_plan)
             if self.verbose:
                 _status(f"  [session] Entering session (10{sub:02X}) on 0x{tx_id:03X}...")
-            resp = await self._session_request(sub)
+            resp = await self._session_request(tx_id, sub)
             if not resp.get("ok") and resp.get("nrc") is None:
                 # No answer at all (the ECU was still waking, a frame was lost): ask once
                 # more. A refusal is an answer and is not retried.
-                resp = await self._session_request(sub)
+                resp = await self._session_request(tx_id, sub)
 
         outcome = SessionOutcome(
             tx_id,
@@ -291,14 +292,22 @@ class SessionManager:
                 if resp.get("ok"):
                     return
 
-    async def _session_request(self, sub: int):
+    async def _session_request(self, tx_id: int, sub: int):
         # Checked by service, so a stale reply to an earlier read is not taken for an open
-        # session; the sub-function echo is left alone, since some KWP2000 ECUs are not
-        # known to repeat it.
+        # session, and on a UDS ECU by the session type it repeats. The echo is left alone
+        # on any other ECU, since some KWP2000 ECUs are not known to repeat it.
+        return await self._send_checked(
+            tx_id, session_request(sub), DIAGNOSTIC_SESSION_CONTROL, SESSION_TIMEOUT_S
+        )
+
+    async def _send_checked(self, tx_id: int, request: str, sid: int, timeout: float):
+        """Send ``request`` to ``tx_id``, checked by ``sid`` and the echo its protocol fixes."""
+        expected = request_echo(request, self.terminal.session_policy.protocol(tx_id))
         return await self.terminal.send_uds(
-            session_request(sub),
-            timeout=SESSION_TIMEOUT_S,
-            expected_sid=DIAGNOSTIC_SESSION_CONTROL,
+            request,
+            timeout=timeout,
+            expected_sid=sid,
+            expected_echo=expected[1] if expected is not None else None,
         )
 
     @contextlib.asynccontextmanager
@@ -336,10 +345,10 @@ class SessionManager:
     async def send_keepalive(self, tx_id: int):
         """Send TesterPresent (3E00) to a specific ECU.
 
-        Validated (``expected_sid=TESTER_PRESENT``) and transactional on purpose. An
-        unchecked keepalive is how a transient link stall turns into a permanent
-        response offset: it consumes the late reply still owed to the *previous*
-        request, sees that reply's ELM prompt, and leaves its own ``7E00``
+        Validated (by service, and on a UDS ECU by its ``00`` echo) and transactional on
+        purpose. An unchecked keepalive is how a transient link stall turns into a
+        permanent response offset: it consumes the late reply still owed to the
+        *previous* request, sees that reply's ELM prompt, and leaves its own ``7E00``
         buffered for whoever reads next — with no error and no diagnostic trace.
         Validating it lets ``send_uds`` realign the pipe instead of hiding the
         desync.
@@ -351,10 +360,8 @@ class SessionManager:
                 t0 = time.monotonic()
                 try:
                     await self.terminal.set_header(tx_id)
-                    resp = await self.terminal.send_uds(
-                        TESTER_PRESENT_REQUEST,
-                        timeout=KEEPALIVE_TIMEOUT_S,
-                        expected_sid=TESTER_PRESENT,
+                    resp = await self._send_checked(
+                        tx_id, TESTER_PRESENT_REQUEST, TESTER_PRESENT, KEEPALIVE_TIMEOUT_S
                     )
                 finally:
                     self.keepalive_seconds += time.monotonic() - t0

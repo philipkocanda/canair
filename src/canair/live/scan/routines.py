@@ -37,6 +37,7 @@ from canair.live.scan.discovery import DiscoveryProbe, mode_discovery_scan
 from canair.profile.model import Profile
 from canair.render import messages
 from canair.transport.protocol import Terminal
+from canair.uds.echo import request_echo
 from canair.uds.nrc import (
     NRC_CONDITIONS_NOT_CORRECT,
     NRC_GENERAL_PROGRAMMING_FAILURE,
@@ -48,6 +49,7 @@ from canair.uds.nrc import (
     NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
     NRC_SUB_FUNCTION_NOT_SUPPORTED,
 )
+from canair.uds.protocol import UDS
 from canair.uds.requests import routine_control_request
 from canair.uds.response import UdsResponse
 from canair.uds.services import ROUTINE_CONTROL
@@ -86,9 +88,18 @@ async def probe_routine(
     rid: int,
     sub_function: int = RoutineControlType.REQUEST_ROUTINE_RESULTS,
 ) -> UdsResponse:
-    """Send ``31 {SF} {RID_HI} {RID_LO}`` and return the parsed response."""
+    """Send ``31 {SF} {RID_HI} {RID_LO}`` and return the parsed response.
+
+    The reply must repeat the control type and the routine id, as the IOControl scan's
+    must repeat its DID: a late reply to the previous probe would otherwise be filed
+    under this RID. The scan sends UDS RoutineControl (a KWP2000 ECU gets ``0x33``),
+    so the UDS echo applies.
+    """
     req = routine_control_request(sub_function, rid)
-    return await terminal.send_uds(req, timeout=2.0)
+    _, echo = request_echo(req, UDS) or (ROUTINE_CONTROL, None)
+    return await terminal.send_uds(
+        req, timeout=2.0, expected_sid=ROUTINE_CONTROL, expected_echo=echo
+    )
 
 
 def classify(response: UdsResponse) -> tuple[str, int | None]:

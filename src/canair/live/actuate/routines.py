@@ -33,7 +33,7 @@ from canair.core.terminal import terminal_lines as _terminal_lines
 from canair.ecus.pids import RoutineIndexEntry, build_routines_index, load_pids
 from canair.live.actuate.iocontrol_render import CARET
 from canair.live.actuate.not_found import report_not_found
-from canair.live.actuate.routines_execute import check_routines_protocol, sf_label
+from canair.live.actuate.routines_execute import check_routines_protocol, send_routine, sf_label
 from canair.profile.model import Profile
 from canair.render import ansi, glyphs, messages
 from canair.transport.protocol import Terminal
@@ -279,7 +279,7 @@ class _RoutinesTUI:
         try:
             await self._ensure_session()
             await self.terminal.set_header(self.tx_id)
-            resp = await self.terminal.send_uds(hex_cmd, timeout=3.0)
+            resp = await send_routine(self.terminal, self.tx_id, hex_cmd)
             _tui_logger.info("SF %s resp: %s", rid, resp)
             self.last_sf[rid] = sub_function
             if resp["ok"]:

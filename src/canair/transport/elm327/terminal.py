@@ -60,6 +60,7 @@ from canair.transport.errors import AdapterRefusedError
 from canair.transport.functional import DEFAULT_WINDOW_S, FunctionalResult, functional_request_bytes
 from canair.transport.link_latency import LinkLatency
 from canair.transport.stats import TransportStats
+from canair.transport.timeouts import pending_deadline
 from canair.transport.timing import TimingRecorder
 from canair.uds.addressing import AddressBook
 from canair.uds.parse import compact, parse_uds_response
@@ -466,10 +467,11 @@ class Elm327Terminal:
 
         deadline = time.monotonic() + timeout
         # The carry may already hold this command's whole reply, so harvest before
-        # waiting on the channel at all. A ResponsePending frame restarts the
-        # deadline: the ECU asked for more time, so the wait is not the request's.
+        # waiting on the channel at all. A ResponsePending frame restarts the deadline
+        # (the ECU asked for more time), up to the cap of the whole run of them.
+        pending_cap: float | None = None
         if self._pipe.begin():
-            deadline = time.monotonic() + timeout
+            deadline, pending_cap = pending_deadline(time.monotonic(), timeout, pending_cap)
 
         while not self._pipe.satisfied:
             remaining = deadline - time.monotonic()
@@ -479,7 +481,7 @@ class Elm327Terminal:
             if msg is None:
                 continue
             if self._pipe.feed(msg):
-                deadline = time.monotonic() + timeout
+                deadline, pending_cap = pending_deadline(time.monotonic(), timeout, pending_cap)
 
         read = self._pipe.finish()
         for block in read.stale:

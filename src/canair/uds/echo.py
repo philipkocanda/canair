@@ -16,12 +16,37 @@ from functools import lru_cache
 from typing import Literal
 
 from canair.uds.memory import parse_memory_request
-from canair.uds.protocol import DiagProtocol
+from canair.uds.protocol import UDS, DiagProtocol
 from canair.uds.services import (
+    COMMUNICATION_CONTROL,
+    CONTROL_DTC_SETTING,
+    DIAGNOSTIC_SESSION_CONTROL,
+    ECU_RESET,
     READ_DATA_BY_IDENTIFIER,
+    READ_DTC_INFORMATION,
     READ_MEMORY_BY_ADDRESS,
     RESPONSE_SID_OFFSET,
+    ROUTINE_CONTROL,
+    SECURITY_ACCESS,
+    TESTER_PRESENT,
     identifier_width,
+)
+
+# UDS services whose positive reply repeats the request's sub-function right after its SID
+# (ISO 14229-1), without the suppress-positive-response bit. RoutineControl repeats its
+# routine id too. Judged only on an ECU known to speak UDS: some KWP2000 ECUs do not repeat
+# a session type, KWP2000's TesterPresent reply may carry nothing after its SID, and
+# KWP2000's 0x31 is StartRoutineByLocalIdentifier, with a one-byte local identifier.
+_SUBFUNCTION_ECHO_SERVICES = frozenset(
+    {
+        DIAGNOSTIC_SESSION_CONTROL,
+        ECU_RESET,
+        READ_DTC_INFORMATION,
+        SECURITY_ACCESS,
+        COMMUNICATION_CONTROL,
+        TESTER_PRESENT,
+        CONTROL_DTC_SETTING,
+    }
 )
 
 
@@ -36,7 +61,9 @@ def hex_bytes(text: str) -> bytes | None:
         return None
 
 
-def request_echo(request_hex: str) -> tuple[int, bytes] | None:
+def request_echo(
+    request_hex: str, protocol: DiagProtocol | None = None
+) -> tuple[int, bytes] | None:
     """Derive the (expected_sid, echo_bytes) a positive response must repeat.
 
     Which request bytes count as the identifier is service-specific:
@@ -58,12 +85,15 @@ def request_echo(request_hex: str) -> tuple[int, bytes] | None:
       left unvalidated.
     - ``23 …`` (ReadMemoryByAddress): no echo at all, only the SID — ``63 data``. Its
       length is the check instead (:func:`reply_check`).
+    - With ``protocol`` ``UDS``, a sub-function service (``10``, ``11``, ``19``, ``27``,
+      ``28``, ``3E``, ``85``): the sub-function without its suppress-positive-response
+      bit — ``50 03 …`` — and for ``31`` the routine id too — ``71 01 F0 00 …``.
 
     Returns ``(sid, echo_bytes)`` for those services, or ``None`` when the request
     isn't a plain identifier read we can validate (unknown length, sub-function
     services, etc.) — callers should then skip echo validation.
     """
-    check = reply_check(request_hex)
+    check = reply_check(request_hex, protocol)
     return None if check is None else (check.sid, check.echo)
 
 
@@ -71,8 +101,8 @@ def request_echo(request_hex: str) -> tuple[int, bytes] | None:
 class ReplyCheck:
     """What a positive reply to a request must carry.
 
-    ``sid`` is the request's service, ``echo`` the identifier bytes the reply repeats
-    after its SID, and ``length`` the reply's exact length when the request fixes it
+    ``sid`` is the request's service, ``echo`` the identifier (or sub-function) bytes
+    the reply repeats after its SID, and ``length`` the reply's exact length when the request fixes it
     (a memory read), else ``None``.
     """
 
@@ -85,8 +115,10 @@ class ReplyCheck:
 def reply_check(request_hex: str, protocol: DiagProtocol | None = None) -> ReplyCheck | None:
     """The :class:`ReplyCheck` for a request, or ``None`` when its reply cannot be judged.
 
-    ``protocol`` matters only for a memory read, whose request form depends on it
-    (:func:`canair.uds.memory.parse_memory_request`).
+    ``protocol`` decides a memory read's request form
+    (:func:`canair.uds.memory.parse_memory_request`), and only on ``UDS`` is a
+    sub-function service judged: its reply must repeat the sub-function (and, for
+    RoutineControl, the routine id). Without it those services cannot be judged.
 
     Cached: a capture store repeats a few hundred requests across hundreds of thousands
     of replies, and the result is a frozen value of its arguments alone.
@@ -103,6 +135,12 @@ def reply_check(request_hex: str, protocol: DiagProtocol | None = None) -> Reply
     if sid == READ_DATA_BY_IDENTIFIER:
         odd_length = len(req) % 2 == 1  # SID + whole 2-byte DIDs
         return ReplyCheck(sid, req[1:3]) if len(req) >= 3 and odd_length else None
+    if protocol == UDS and len(req) >= 2:
+        sub = bytes([req[1] & 0x7F])  # without the suppress-positive-response bit
+        if sid == ROUTINE_CONTROL:
+            return ReplyCheck(sid, sub + req[2:4]) if len(req) >= 4 else None
+        if sid in _SUBFUNCTION_ECHO_SERVICES:
+            return ReplyCheck(sid, sub)
     return None
 
 

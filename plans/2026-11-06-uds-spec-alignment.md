@@ -322,7 +322,39 @@ The original design:
 Add the codes of finding 4 to `uds/nrc.py`, with abbreviations in `NRC_ABBREV`, and the
 `0x38`–`0x4F` range label. Labels only, no behaviour change.
 
-### Phase 2 — reply checks
+### Phase 2 — reply checks (done, 2026-11-06; full suite not run at commit)
+
+As built:
+
+- `uds/echo.py::reply_check` (and `request_echo`, which gains the same optional `protocol`)
+  judges a UDS sub-function service when the protocol is `UDS`: the reply repeats the
+  sub-function without bit 7, and RoutineControl repeats its routine id too. With no protocol,
+  or KWP2000, nothing changes, so the stored-payload lint and every existing caller behave as
+  before.
+- RoutineControl: `live/actuate/routines_execute.py::send_routine` (used by `canair routines`
+  and its TUI) checks the SID, and on a UDS ECU the type and routine id. The routines scan's
+  `probe_routine` checks the UDS echo, as the IOControl scan checks its DID.
+- `canair scan range` passes the scanned service as `expected_sid`, and the echo its protocol
+  fixes. The "(rejecting <service>)" note for an NRC that names another service is gone: such
+  a reply is now stale.
+- `SessionManager` checks the `10 xx` and `3E 00` echo on UDS ECUs (`_send_checked`). The DTC
+  read checks `59 02`, and the DTC sweep's wake checks the `0x10` SID.
+- The ResponsePending bounds have one home, `transport/timeouts.py` (`PENDING_RECV_TIMEOUT`,
+  `PENDING_TOTAL_TIMEOUT`, `pending_deadline`). The ELM327 engine now caps a run of pending
+  frames too, and a longer explicit `--timeout` is not cut short.
+- The raw paths pass the SID to `is_response_pending`, and treat a negative reply that names
+  another service as stale: `RawUdsClient._stale_reason`, and `RawTerminal`'s `_recv_answer`,
+  which skips it within the request's deadline.
+- The multi-DID split already checks every DID header (`live/read/batch.py::split_multi_did`).
+- Tests: `tests/uds/test_uds_echo.py`, `tests/transport/test_timeouts.py`, the endless-pending
+  case in `tests/transport/elm327/test_elm327_response_pending.py`, and the stale-NRC cases in
+  `tests/transport/raw/`. Not done at commit: the full suite. Fake terminals without a
+  `session_policy` attribute (which `transport/protocol.py::Terminal` declares) now fail in
+  `SessionManager`, and need the attribute.
+- Not changed: `live/actuate/action.py` sends a profile action's request with no
+  `expected_sid`; a functional action has many responders, so it needs its own rule.
+
+The original design:
 
 1. Pass `expected_sid` and the type and RID echo on the routines sends, and `expected_sid` on
    every `scan range` send.

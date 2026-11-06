@@ -6,6 +6,7 @@ import sys
 
 from canair.dtc.describe import describe_dtc
 from canair.profile.model import Profile
+from canair.uds.echo import request_echo
 from canair.uds.nrc import NRC_REQUEST_OUT_OF_RANGE
 from canair.uds.protocol import KWP, UDS
 from canair.uds.services import KWP_READ_DTC_BY_STATUS, READ_DTC_INFORMATION
@@ -74,6 +75,17 @@ async def _read_one(
     return await _read_uds(terminal, tx_id, mask, verbose, timeout=timeout, profile=profile)
 
 
+async def _send_report(terminal: Terminal, cmd: str, timeout: float):
+    """Send a ReadDTCInformation request; the reply must repeat its report type (``59 02``)."""
+    expected = request_echo(cmd, UDS)
+    return await terminal.send_uds(
+        cmd,
+        timeout=timeout,
+        expected_sid=READ_DTC_INFORMATION,
+        expected_echo=expected[1] if expected is not None else None,
+    )
+
+
 async def _read_uds(
     terminal: Terminal,
     tx_id: int,
@@ -85,7 +97,7 @@ async def _read_uds(
 ) -> dict:
     ecu = ecu_display(tx_id, profile=profile)
     cmd = f"1902{mask & 0xFF:02X}"
-    response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=READ_DTC_INFORMATION)
+    response = await _send_report(terminal, cmd, timeout)
 
     # Mask fallback: some ECUs reject 0xFF with requestOutOfRange (0x31) and only
     # accept a mask within their availability bits. Retry once with confirmedDTC.
@@ -101,7 +113,7 @@ async def _read_uds(
                 flush=True,
             )
         cmd = f"1902{_MASK_FALLBACK:02X}"
-        response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=READ_DTC_INFORMATION)
+        response = await _send_report(terminal, cmd, timeout)
 
     base = {"ecu": ecu, "tx": f"0x{tx_id:03X}", "protocol": UDS, "command": cmd}
     if response["ok"]:

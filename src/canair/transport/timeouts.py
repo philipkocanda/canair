@@ -19,6 +19,28 @@ timeouts. Per-ECU budgets are the knob for lengthening a specific ECU's wait.
 
 from __future__ import annotations
 
+from typing import Final
+
+# UDS ResponsePending (NRC 0x78): the ECU acknowledged the request but needs more time,
+# and sends the final reply in a later frame. Every transport waits through it: up to
+# P2*server_max (5000 ms, the ISO 14229-2 default) after each pending frame, and for a
+# whole run of them at most PENDING_TOTAL_TIMEOUT, so an ECU that keeps answering
+# "pending" cannot hold an exchange open for ever.
+PENDING_RECV_TIMEOUT: Final = 5.0
+PENDING_TOTAL_TIMEOUT: Final = 20.0
+
+
+def pending_deadline(now: float, wait: float, cap: float | None) -> tuple[float, float]:
+    """The deadline after a ResponsePending frame at ``now``, and the cap of its run.
+
+    ``wait`` is how long the next frame may take; ``cap`` is None at the run's first
+    pending frame. The run may last ``PENDING_TOTAL_TIMEOUT``, or ``wait`` when that is
+    longer (an explicit ``--timeout`` is never cut short by the cap).
+    """
+    if cap is None:
+        cap = now + max(PENDING_TOTAL_TIMEOUT, wait)
+    return min(now + wait, cap), cap
+
 
 def cli_timeout(timeout: float | None) -> float | None:
     """The user's explicit ``--timeout`` in seconds, or None when not given."""

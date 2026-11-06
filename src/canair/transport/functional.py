@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final
 
 from canair.safety.blocklist import SafetyBlocked, check_functional_request
+from canair.transport.timeouts import PENDING_RECV_TIMEOUT, PENDING_TOTAL_TIMEOUT
 from canair.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 from canair.uds.isotp_passive import Reassembler, ReassemblyStats, is_first_frame
 from canair.uds.nrc import is_response_pending
@@ -43,14 +44,10 @@ DEFAULT_WINDOW_S: Final = 1.0
 # Hyundai/Kia, the ISO 15765-2 default).
 CONSECUTIVE_FRAME_TIMEOUT_S: Final = 1.0
 
-# After a ResponsePending, the final reply is due within P2* (5000 ms); a run of
-# them is capped as on the physical raw path (`uds_raw.PENDING_TOTAL_TIMEOUT`).
-PENDING_EXTENSION_S: Final = 5.0
-PENDING_TOTAL_S: Final = 20.0
-
 # The longest a collector listens past its window, whatever arrives: every
-# ResponsePending extension, then one message's last gap.
-ABSOLUTE_CAP_S: Final = PENDING_TOTAL_S + CONSECUTIVE_FRAME_TIMEOUT_S
+# ResponsePending extension (bounded as on the physical paths, `canair.transport.timeouts`),
+# then one message's last gap.
+ABSOLUTE_CAP_S: Final = PENDING_TOTAL_TIMEOUT + CONSECUTIVE_FRAME_TIMEOUT_S
 
 # ISO-TP frame types (the PCI byte's high nibble).
 _CONSECUTIVE_FRAME: Final = 2
@@ -185,7 +182,7 @@ class FunctionalCollector:
         self._reassembler = Reassembler(self._stats)
         self._started = started
         self._deadline = started + window
-        self._pending_cap = started + PENDING_TOTAL_S
+        self._pending_cap = started + PENDING_TOTAL_TIMEOUT
         self._hard_stop = started + window + ABSOLUTE_CAP_S
         # Responders mid-answer -> when their last frame arrived.
         self._open: dict[int, float] = {}
@@ -231,7 +228,7 @@ class FunctionalCollector:
             )
             if is_response_pending(message.payload, self._result.request[0]):
                 self._deadline = max(
-                    self._deadline, min(now + PENDING_EXTENSION_S, self._pending_cap)
+                    self._deadline, min(now + PENDING_RECV_TIMEOUT, self._pending_cap)
                 )
             return False
         if pci == _CONSECUTIVE_FRAME:

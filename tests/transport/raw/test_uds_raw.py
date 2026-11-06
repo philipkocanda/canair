@@ -171,6 +171,43 @@ class TestRawUdsClient:
         c = RawUdsClient(bus=object(), addresses=_addrs({"BMS": (0x7E4, 0x7EC)}), timeout=0.3)
         assert c.read("BMS", bytes.fromhex("1902FF")) == bytes.fromhex("5902FF0123002F")
 
+    @pytest.mark.parametrize("stale", ["7F2231", "7F2278"])
+    def test_read_skips_a_negative_reply_to_another_service(self, monkeypatch, stale):
+        # A refusal or a ResponsePending naming 0x22 is a late answer to an earlier read:
+        # it is stale for this 0x19 request, not its answer.
+        class SeqStack:
+            def __init__(self, txid, seq):
+                self.txid = txid
+                self._seq = list(seq)
+                self._sent = False
+
+            def start(self):
+                pass
+
+            def stop(self):
+                pass
+
+            def available(self):
+                return False
+
+            def send(self, data, *a, **k):
+                self._sent = True
+
+            def recv(self, block=False, timeout=None):
+                if not self._sent:
+                    return None
+                return bytearray(self._seq.pop(0)) if self._seq else None
+
+        seq = [bytes.fromhex(stale), bytes.fromhex("5902FF0123002F")]
+        monkeypatch.setattr(uds_raw.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(
+            uds_raw.isotp,
+            "NotifierBasedCanStack",
+            lambda bus, notifier, address=None, params=None: SeqStack(address._txid, seq),
+        )
+        c = RawUdsClient(bus=object(), addresses=_addrs({"BMS": (0x7E4, 0x7EC)}), timeout=0.3)
+        assert c.read("BMS", bytes.fromhex("1902FF")) == bytes.fromhex("5902FF0123002F")
+
     def test_poll_waits_through_response_pending(self, monkeypatch):
         # poll() must also ride out 0x78: the 0x78 frame is consumed, the ECU is
         # kept pending, and the real answer is returned on a later harvest.

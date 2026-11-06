@@ -173,6 +173,47 @@ class TestRawTerminalSendUds:
         await t.close()
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("stale", ["7F2231", "7F2278"])
+    async def test_skips_a_negative_reply_to_another_service(self, monkeypatch, stale):
+        # A refusal (or a ResponsePending) naming 0x22 answers an earlier read, not this
+        # 0x19 request: it is skipped, and neither returned nor waited through.
+        class SeqStack:
+            def __init__(self, txid, seq):
+                self.txid = txid
+                self._seq = list(seq)
+
+            def start(self):
+                pass
+
+            def stop(self):
+                pass
+
+            def available(self):
+                return False
+
+            def send(self, data, *a, **k):
+                pass
+
+            def recv(self, block=False, timeout=None):
+                return bytearray(self._seq.pop(0)) if self._seq else None
+
+        seq = [bytes.fromhex(stale), bytes.fromhex("5902FF0123002F")]
+        monkeypatch.setattr(raw_terminal, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(
+            raw_terminal.isotp,
+            "NotifierBasedCanStack",
+            lambda bus, notifier, address=None, params=None: SeqStack(address._txid, seq),
+        )
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a, **__: None)
+        t = raw_terminal.RawTerminal("h", 3333, 500000, timeout=0.3)
+        await t.set_header(0x7A0)
+        r = await t.send_uds("1902FF", expected_sid=0x19)
+        assert r["ok"] is True
+        assert r["hex"] == "5902FF0123002F"
+        await t.close()
+
+    @pytest.mark.asyncio
     async def test_retries_on_no_data_then_succeeds(self, monkeypatch):
         # First exchange returns NO DATA (recv None); with retries=1 the second
         # exchange returns the real answer. An NRC would NOT be retried.
