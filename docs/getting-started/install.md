@@ -34,7 +34,10 @@ what you'll use if you're hacking on canair itself.
 
 Inside a clone, `make install` (alias `make setup`) does the whole bootstrap in one go: Git LFS,
 `uv sync`, the git hooks and `uv tool install --reinstall .`. Re-run it after a `git pull` to
-refresh the bare `canair` command.
+refresh the bare `canair` command. It first checks that uv is version 0.13 or later and that uv
+would not use a pre-release Python: the clone pins Python 3.15 (`.python-version`), and an older uv
+resolves that to an old alpha, which fails to build PyYAML. If the check stops, it names the fix
+(`uv self update`).
 
 ## Point your writes somewhere durable
 

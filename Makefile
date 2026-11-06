@@ -31,6 +31,9 @@ help:
 # message, generated-artifact currency on push). Skipping the hooks is how a
 # locally-avoidable failure reaches CI, so this bundles them into one command.
 #
+# The first step stops before anything is built when uv is too old to install Python 3.15 or
+# would use a pre-release Python (scripts/dev/check_toolchain.sh).
+#
 # `git lfs install` comes first on purpose: it installs git-lfs's own pre-push hook
 # (the upload of large files), and `pre-commit install` then keeps that hook and chains
 # it rather than overwriting it. The other order loses the upload, so a push publishes
@@ -43,6 +46,7 @@ help:
 # frozen snapshot, so after a `git pull` it runs old code against new profile data until it is
 # reinstalled; re-running this target is the one-command fix. `setup` is an alias.
 install:
+	sh scripts/dev/check_toolchain.sh
 	git lfs install --force
 	uv sync
 	uv run pre-commit install --install-hooks

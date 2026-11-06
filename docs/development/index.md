@@ -33,6 +33,11 @@ git lfs install --force                      # first: see the note below
 uv run pre-commit install --install-hooks
 ```
 
+`make install` first runs `scripts/dev/check_toolchain.sh`: it stops when uv is older than 0.13 or
+would use a pre-release Python. The clone pins Python 3.15, and an older uv resolves that to an
+old alpha. Without make, run `uv self update` and check that `uv python list 3.15` offers a
+release, not an alpha.
+
 A clean local run means a green CI; CI stays the hard gate.
 
 !!! warning "Run `git lfs install --force` before `pre-commit install`"
