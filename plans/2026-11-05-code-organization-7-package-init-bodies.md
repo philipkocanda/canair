@@ -1,7 +1,6 @@
 # Code organization, part 7: package `__init__.py` bodies
 
-Status: **IN PROGRESS** (2026-11-06; `config/`, `ecus/`, `states/`, `captures/`, `contribute/` and
-`tui/` are done, `profile/` waits for sub-plan 3 part B; see "As built"). Part of
+Status: **DONE** (2026-11-06; see "As built"). Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 3 for
 `profile/` only. The other packages can start after sub-plan 1.
 
@@ -157,9 +156,17 @@ pkg` aliases, `import canair.pkg` and the dotted strings).
 Measured: the deferred-import ceiling fell from 1104 to 1094; `canair --help` takes the same
 time as before (a median of about 236 ms under load, in alternating runs).
 
-Left: `profile/` (656 lines), after sub-plan 3 part B moves `active()` to `cli/`. The other
-`__init__.py` files over 100 lines are `actions/`, `variants/`, `query/` (left by this plan) and
-the command packages `cli/commands/*/__init__.py`, `cli/__init__.py` and `yaml_edit/pids/__init__.py`.
+- **`profile/`** (done, after sub-plan 3 part B): `bundle.py`, `model.py`, `discovery.py`,
+  `writable.py`. 610 lines to 34. The check passes for 27 definitions. `profile_for_path` is in
+  `model.py`, not `discovery.py`: callers import it with `read_meta` or `Profile`, and it only
+  builds a `Profile`. `BUNDLED_PROFILES_DIR`, which the old `__init__.py` re-exported, is read
+  from `core.paths` by `install/context.py`; the tests patch it in `profile.discovery` (or
+  `core.paths` for `install/context.py`). Three modules import `profile.*` at the top:
+  the deferred-import ceiling falls 1025 to 1017.
+
+Every package named in this plan is done. The other `__init__.py` files over 100 lines are
+`actions/`, `variants/`, `query/` (left by this plan), and the command packages
+`cli/commands/*/__init__.py`, `cli/__init__.py` and `yaml_edit/pids/__init__.py`.
 
 Method notes for the next package: a deferred `from canair.pkg import a, b` that needs two new
 modules becomes two statements, and the ceiling may not rise. Choose the groups by what callers
