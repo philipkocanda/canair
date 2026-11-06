@@ -25,7 +25,7 @@ import sys
 from canair.cli.commands._edit import run_edit, subcommand_dispatch
 from canair.cli.live import LiveOperation, add_connection_args, live_command
 from canair.cli.live.handlers import actuators
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import ansi, messages
 
 NAME = "action"

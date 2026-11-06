@@ -2,12 +2,12 @@
 
 import json
 
+from canair.cli.profile_context import active
 from canair.live.monitor.controller import query_ecu_error
 from canair.live.monitor.history import HistoryRun, extend_runs
 from canair.live.monitor.record_write import merge_history
 from canair.live.monitor.render import _render_results
 from canair.live.monitor.render_cache import RenderCache
-from canair.profile import active
 from canair.render.formatting import _HIGHLIGHT_STYLE, _bytes_to_ascii, render_hex_line
 from tests.support.monitor_controller import make_controller
 

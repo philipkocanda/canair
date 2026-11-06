@@ -6,9 +6,8 @@ import argparse
 
 from canair.cli.args.hexarg import parse_hex_arg
 from canair.cli.commands._edit import add_edit_args, edit_scope, run_edit
-from canair.cli.profile_context import target_profile
+from canair.cli.profile_context import active, target_profile
 from canair.core.edit_errors import EditError
-from canair.profile import active
 from canair.render import ansi
 from canair.transport.isotp_params import ECU_ISOTP_FIELDS
 from canair.yaml_edit.echo import echo_edit

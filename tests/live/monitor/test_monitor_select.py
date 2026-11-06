@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from textual.widgets import Input, SelectionList
 
+from canair.cli.profile_context import active
 from canair.ecus.ecu_groups import Group
 from canair.live.monitor.select import (
     build_choices,
@@ -13,7 +14,6 @@ from canair.live.monitor.select import (
     selection_steps,
     selectors_from_selection,
 )
-from canair.profile import active
 from canair.tui.apps.monitor_select.app import (
     LiveMonitorSelectScreen,
     MonitorSelectApp,

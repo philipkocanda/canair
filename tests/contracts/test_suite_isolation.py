@@ -147,7 +147,7 @@ class TestNoEagerConfigReadAtImportTime:
 
         assert not hasattr(constants, "__getattr__"), (
             "constants.__getattr__ is back — use an explicit typed accessor "
-            "(config.wican_addresses / profile.active()) instead"
+            "(config.wican_addresses / profile_context.active()) instead"
         )
         assert not hasattr(canair, "__getattr__")
         for name in ("WICAN_ADDRESSES", "DEFAULT_WICAN", "ECUS_DIR", "CAPTURES_DIR"):

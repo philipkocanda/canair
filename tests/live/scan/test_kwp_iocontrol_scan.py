@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 import yaml
 
+from canair.cli.profile_context import active
 from canair.live.scan.kwp_iocontrol import (
     KWP_IOCONTROL_PROBE,
     NISSAN_IOCONTROL_PROBE,
@@ -14,7 +15,6 @@ from canair.live.scan.kwp_iocontrol import (
     probe_kwp_iocontrol,
     probe_nissan_iocontrol,
 )
-from canair.profile import active
 from canair.uds.subfunctions import KwpIoControlParameter as Iocp
 from canair.yaml_edit.pids import append_iocontrol_discoveries_block
 from tests.support.fakes import FakeTerminal, nrc

@@ -13,8 +13,8 @@ import json
 import pytest
 
 from canair.captures.save import save_session
+from canair.cli.profile_context import active
 from canair.migrations.discover import Addressing, infer_tx, migrate_dir, repair_doc
-from canair.profile import active
 from canair.uds.addressing import DEFAULT_MODE
 
 # A +0x20 profile, as on the Nissan Leaf ZE1, with two registered ECUs.

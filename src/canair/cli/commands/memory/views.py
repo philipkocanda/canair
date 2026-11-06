@@ -7,13 +7,12 @@ import sys
 from pathlib import Path
 
 from canair.cli.commands._edit import add_edit_args, run_edit
-from canair.cli.profile_context import target_profile
+from canair.cli.profile_context import active, target_profile
 from canair.core.edit_errors import EditError
 from canair.ecus.names import resolve_tx
 from canair.memory.diff import diff_dumps
 from canair.memory.export import to_bin, to_ihex, to_srec
 from canair.memory.store import DumpError, iter_dumps, resolve_dump, store_root
-from canair.profile import active
 from canair.render import messages
 from canair.uds.memory import parse_format
 from canair.yaml_edit.memory import set_memory

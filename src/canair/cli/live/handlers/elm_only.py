@@ -8,8 +8,8 @@ An ELM327 command prompt depends on behaviour the raw SLCAN terminal does not pr
 
 from __future__ import annotations
 
+from canair.cli.profile_context import active
 from canair.live.elm.repl import mode_interactive
-from canair.profile import active
 from canair.render import messages
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.protocol import Terminal

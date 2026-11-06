@@ -7,10 +7,10 @@ import pytest
 import yaml
 
 from canair.cli.commands.pids import pid_settings
+from canair.cli.profile_context import active
 from canair.core.edit_errors import EditError
 from canair.ecus.pid_status import pid_ships, pid_swept
 from canair.ecus.pids import build_ecu_index
-from canair.profile import active
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.schema_fields import load_schema
 from canair.yaml_edit.pids import PidsEditError, set_snapshot_only

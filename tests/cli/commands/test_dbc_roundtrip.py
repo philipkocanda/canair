@@ -14,7 +14,7 @@ import yaml
 from cantools.database import Database, Message, Signal
 from cantools.database.conversion import BaseConversion
 
-import canair.profile as profile
+from canair.cli import profile_context
 from canair.cli.commands.import_ import DbcImportError, _dbc_to_signals
 from canair.profile import Profile
 from canair.yaml_edit.signals import merge_bus, upsert_signal
@@ -22,7 +22,7 @@ from canair.yaml_edit.signals import merge_bus, upsert_signal
 
 @pytest.fixture
 def temp_profile(tmp_path):
-    profile._active = Profile(name="test", root=tmp_path)
+    profile_context._active = Profile(name="test", root=tmp_path)
     return Profile(name="test", root=tmp_path)
 
 

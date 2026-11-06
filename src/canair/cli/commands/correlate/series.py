@@ -20,7 +20,7 @@ from canair.analysis.cross_signal import (
 from canair.analysis.fill import FillPolicy
 from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.join import fill_summaries
-from canair.profile import active
+from canair.cli.profile_context import active
 
 NAME = "correlate"
 

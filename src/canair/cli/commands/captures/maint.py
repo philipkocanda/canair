@@ -13,8 +13,7 @@ import sys
 from pathlib import Path
 
 from canair.captures.io import resolve_captures_dir
-from canair.cli.profile_context import dir_profile
-from canair.profile import active
+from canair.cli.profile_context import active, dir_profile
 from canair.render import ansi, glyphs, messages
 
 

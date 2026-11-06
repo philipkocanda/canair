@@ -112,7 +112,7 @@ class TestValidateFindings:
             errors=["bms.yaml: bad"], warnings=["bms.yaml: odd"], stats={}, n_files=1
         )
         monkeypatch.setattr(mod, "check_pids", lambda files, profile: report)
-        monkeypatch.setattr("canair.profile._active", profile_for_path(profile))
+        monkeypatch.setattr("canair.cli.profile_context._active", profile_for_path(profile))
         assert run_pids(None, False) == 1
         captured = capsys.readouterr()
         assert "warning: bms.yaml: odd" in captured.err

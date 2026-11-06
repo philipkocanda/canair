@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import messages
 from canair.yaml_edit.echo import echo_edit
 

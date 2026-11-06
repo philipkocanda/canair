@@ -6,7 +6,8 @@ import io
 
 import pytest
 
-from canair.profile import active
+from canair.cli import profile_context
+from canair.cli.profile_context import active
 from canair.render.progress import ProgressLine
 
 
@@ -52,17 +53,16 @@ def test_defaults_to_stderr(monkeypatch):
 @pytest.mark.asyncio
 async def test_discover_progress_never_reaches_stdout(capsys, monkeypatch, tmp_path):
     """A 16-address sweep that finds nothing draws a counter: stderr, and only on a tty."""
-    from canair import profile
     from canair.ecus.pids import clear_cache
     from canair.live.discover import physical as disc
     from tests.support.fakes import FakeTerminal
 
-    saved = profile._active
+    saved = profile_context._active
     root = tmp_path / "prof"
     (root / "ecus").mkdir(parents=True)
     (root / "captures").mkdir()
     (root / "profile.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
     try:
         monkeypatch.setattr("sys.stdin.isatty", lambda: False)
@@ -71,7 +71,7 @@ async def test_discover_progress_never_reaches_stdout(capsys, monkeypatch, tmp_p
             term, (0x7E0, 0x7EF), verbose=False, as_json=False, delay=0.0, profile=active()
         )
     finally:
-        profile._active = saved
+        profile_context._active = saved
         clear_cache()
     captured = capsys.readouterr()
     assert "\r" not in captured.out and "\r" not in captured.err  # captured streams: no tty

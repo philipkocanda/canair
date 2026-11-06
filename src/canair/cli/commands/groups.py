@@ -25,7 +25,7 @@ import sys
 from typing import TypedDict
 
 from canair.cli.commands._edit import run_edit, set_or_clear, subcommand_dispatch
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import ansi, messages
 
 NAME = "groups"

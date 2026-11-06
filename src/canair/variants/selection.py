@@ -200,7 +200,7 @@ def require_variant(
     )
 
 
-def require_named_car(profile: Profile, what: str) -> str | None:
+def require_named_car(profile: Profile, what: str) -> tuple[str | None, Profile]:
     """The variant an import into ``profile`` must be tagged with; refuse when unnamed.
 
     Imported data comes from someone else's car, so on a profile with more than one
@@ -210,24 +210,21 @@ def require_named_car(profile: Profile, what: str) -> str | None:
     car are dropped from the active profile: only ``--revision`` (or the only possible
     revision) tags an import.
     Returns the variant, or the selection (possibly None) when the profile has at most
-    one variant.
+    one variant, and the profile without those revisions (the caller adopts it).
     """
-    from canair import profile as profile_mod
     from canair.profile import ProfileError
 
     if profile.revision_detections or any(src == "config" for *_, src in profile.revision_pins):
         flagged = tuple(p for p in profile.revision_pins if p[2] == "flag")
         stripped = dataclasses.replace(profile, revision_pins=flagged, revision_detections=())
-        if profile_mod._active == profile:
-            profile_mod.replace_active(stripped)
         profile = stripped
 
     declared = _declared(profile)
     if len(declared) < 2:
-        return selected_variant(profile)
+        return selected_variant(profile), profile
     variant = selected_variant(profile)
     if variant and profile.variant_source == "flag":
-        return variant
+        return variant, profile
     raise ProfileError(
         f"{what}: '{profile.name}' describes {len(declared)} variants "
         f"({', '.join(declared)}). Imported data comes from someone else's car, so name "

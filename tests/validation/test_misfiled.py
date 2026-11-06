@@ -11,12 +11,12 @@ import json
 
 import pytest
 
-from canair import profile
 from canair.analysis.misfiled import find_misfiled
 from canair.captures.payload_corpus import PayloadSample
+from canair.cli import profile_context
 from canair.cli.commands.validate.captures import run_captures
+from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache
-from canair.profile import active
 from canair.validation.misfiled import misfile_warnings
 
 MCU, VCU, BMS = 0x7EB, 0x7EA, 0x7EC
@@ -137,10 +137,10 @@ def test_clean_corpus_has_no_warnings(tmp_path):
 
 @pytest.fixture
 def _restore_active_profile():
-    saved = profile._active
+    saved = profile_context._active
     clear_cache()
     yield
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 
@@ -156,7 +156,7 @@ def test_validate_captures_reports_it_as_a_warning(tmp_path, capsys, _restore_ac
         )
     path = _capture_file(tmp_path, misfiled=True)
     path.rename(root / "captures" / path.name)
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
     assert run_captures() == 0
     out = capsys.readouterr().err

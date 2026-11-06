@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 import yaml
 
+from canair.cli.profile_context import active
 from canair.ecus.memory import MemoryRegion
-from canair.profile import active
 from canair.uds.memory import RegionResult, parse_format
 from canair.yaml_edit.ecu import EcusEditError
 from canair.yaml_edit.memory import record_scan, set_memory

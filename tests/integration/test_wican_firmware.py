@@ -14,8 +14,8 @@ import pytest
 import requests
 
 import canair.device.wican.firmware as wf
+from canair.cli.profile_context import active
 from canair.device.wican.firmware import FirmwareInfo, compatibility, probe
-from canair.profile import active
 
 # A v4 /check_status body is full of secrets; these must never survive the probe.
 _V4_SECRETS = {

@@ -25,7 +25,7 @@ def _patched(monkeypatch):
     }
     monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canair.ecus.ecu_groups.load_groups", lambda *_, **__: groups)
-    monkeypatch.setattr("canair.profile._active", _FakeProfile())
+    monkeypatch.setattr("canair.cli.profile_context._active", _FakeProfile())
 
 
 def _run(**kw):
@@ -61,7 +61,7 @@ def test_no_color_when_piped(_patched, capsys):
 def test_empty_profile_message(monkeypatch, capsys):
     monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canair.ecus.ecu_groups.load_groups", lambda *_, **__: {})
-    monkeypatch.setattr("canair.profile._active", _FakeProfile())
+    monkeypatch.setattr("canair.cli.profile_context._active", _FakeProfile())
     rc = _run()
     out = capsys.readouterr().out
     assert rc == 0

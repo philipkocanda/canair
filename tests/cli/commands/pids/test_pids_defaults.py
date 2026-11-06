@@ -8,8 +8,8 @@ import pytest
 import yaml
 
 from canair.cli.commands.pids import pid_settings
+from canair.cli.profile_context import active
 from canair.ecus.pids import effective_param, load_pids_dir
-from canair.profile import active
 from canair.validation.pids import load_schema, validate_ecu_file, validate_pids_file
 from canair.yaml_edit.pids import PidsEditError, hoist_defaults, set_pid_defaults
 from canair.yaml_edit.pids.defaults import plan_hoist

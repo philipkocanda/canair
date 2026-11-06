@@ -12,9 +12,9 @@ import re
 
 import pytest
 
-from canair import profile
+from canair.cli import profile_context
+from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache
-from canair.profile import active
 from canair.uds.addressing import DEFAULT_MODE, DEFAULT_RX_OFFSET, AddressingMode
 from tests.support.fakes import FakeTerminal, ok
 
@@ -25,7 +25,7 @@ FIXED_29 = (
 
 @pytest.fixture
 def make_profile(tmp_path):
-    saved = profile._active
+    saved = profile_context._active
 
     def make(meta: str, *, ecus: dict[str, str] | None = None, with_ecus_dir: bool = True):
         root = tmp_path / "prof"
@@ -36,12 +36,12 @@ def make_profile(tmp_path):
             (root / "ecus").mkdir()
             for name, body in (ecus or {}).items():
                 (root / "ecus" / f"{name}.yaml").write_text(body)
-        profile.set_active(str(root))
+        profile_context.set_active(str(root))
         clear_cache()
         return root
 
     yield make
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 

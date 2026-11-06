@@ -33,8 +33,8 @@ import json
 import sys
 
 from canair.cli.commands._edit import run_edit, subcommand_dispatch
+from canair.cli.profile_context import active
 from canair.core.edit_errors import EditError
-from canair.profile import active
 from canair.render import ansi, messages
 
 NAME = "variants"

@@ -11,8 +11,8 @@ from collections.abc import Sequence
 from canair.captures.entries import dedupe_payloads, group_by_key
 from canair.captures.store import NO_DEFS, PidDefs, decoded_preview
 from canair.captures.types import CaptureEntry
+from canair.cli.profile_context import active
 from canair.expression.notation import ByteDisplay, ByteNotation
-from canair.profile import active
 from canair.render.console import console as make_console
 from canair.render.console import escape
 from canair.uds.layout import subfunction_bytes_for_pid

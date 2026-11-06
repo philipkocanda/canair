@@ -3,7 +3,7 @@
 A bare `investigate` (or an ECU/QUERY alone) sweeps every matching captured PID
 and prints a ranked summary; `--counters` sweeps for monotonic counters across
 the whole scope. The single-target `ECU PID` form is unchanged. Uses a real
-tmp-dir profile via `profile.set_active` so discovery + capture loading resolve
+tmp-dir profile via `profile_context.set_active` so discovery + capture loading resolve
 naturally (no loader monkeypatching).
 """
 
@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from canair import profile
+from canair.cli import profile_context
 from canair.cli.commands import investigate
 from canair.ecus.pids import clear_cache
 
@@ -75,14 +75,14 @@ def _mk_profile(root) -> None:
 
 
 def _run(root, argv):
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
     p = investigate.add_parser(argparse.ArgumentParser().add_subparsers())
     return investigate.run(p.parse_args(["uds", *argv]))
 
 
 def _reset():
-    profile._active = None
+    profile_context._active = None
     clear_cache()
 
 

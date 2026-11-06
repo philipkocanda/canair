@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 import yaml
 
+from canair.cli.profile_context import active
 from canair.ecus.protocol import split_ecus_by_protocol
 from canair.live.scan.kwp_routines import (
     KWP_ROUTINES_PROBE,
@@ -12,7 +13,6 @@ from canair.live.scan.kwp_routines import (
     classify,
     probe_kwp_routine_results,
 )
-from canair.profile import active
 from canair.yaml_edit.pids import append_routines_block
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok

@@ -11,9 +11,10 @@ from __future__ import annotations
 import pytest
 
 from canair import profile
+from canair.cli import profile_context
 from canair.cli.commands.ecu.edit import cmd_edit
+from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache
-from canair.profile import active
 from canair.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu
 
 
@@ -21,11 +22,11 @@ from canair.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu
 def _restore_active_profile():
     from canair.config import file as config_file
 
-    saved = profile._active
+    saved = profile_context._active
     clear_cache()
     config_file.load_config.cache_clear()
     yield
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
     config_file.load_config.cache_clear()
 
@@ -40,7 +41,7 @@ def _mk_profile(tmp_path, name="prof"):
 
 def _activate(root):
     prof = profile.Profile(name=root.name, root=root)
-    profile._active = prof
+    profile_context._active = prof
     clear_cache()
     return prof
 

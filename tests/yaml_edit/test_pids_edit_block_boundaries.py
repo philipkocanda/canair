@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.yaml_edit.pids import (
     PidsEditError,
     delete_parameter,

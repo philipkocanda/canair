@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-import canair.profile as profile
 from canair.captures import can_logs
+from canair.cli import profile_context
 from canair.cli.commands.validate.files import run_can
 from canair.profile import Profile
 
@@ -26,7 +26,7 @@ GVRET_FIXTURE = Path(__file__).parents[2] / "fixtures" / "can" / "ioniq28_gear_d
 
 @pytest.fixture
 def temp_profile(tmp_path):
-    profile._active = Profile(name="test", root=tmp_path)
+    profile_context._active = Profile(name="test", root=tmp_path)
     return Profile(name="test", root=tmp_path)
 
 

@@ -6,11 +6,11 @@ import asyncio
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.ecus.pids import build_iocontrol_index, build_routines_index
 from canair.live.actuate.iocontrol import _IOControlTUI, _log_file
 from canair.live.actuate.routines import _log_file as _routines_log_file
 from canair.live.actuate.routines import _RoutinesTUI
-from canair.profile import active
 
 DATA = {
     "ecus": {

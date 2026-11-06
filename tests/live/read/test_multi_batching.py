@@ -11,6 +11,7 @@ import asyncio
 import logging
 from unittest.mock import AsyncMock, MagicMock
 
+from canair.cli.profile_context import active
 from canair.live.read.batch import (
     BATCH_UNANSWERED_BEFORE_DISABLE,
     LEAKED_BATCH_ERROR,
@@ -21,7 +22,6 @@ from canair.live.read.batch import (
     transport_did_cap,
 )
 from canair.live.read.multi import _exec_query, _read_single
-from canair.profile import active
 from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 from canair.uds.multi_did import resolve_multi_did_max
 from tests.support.fakes import FakeTerminal

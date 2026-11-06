@@ -15,8 +15,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from canair.analysis.mirrors import DEFAULT_MIRROR_MATCH
+from canair.cli.profile_context import active
 from canair.expression.inspect_bytes import apply_transform
-from canair.profile import active
 
 if TYPE_CHECKING:
     from canair.analysis.align import TimePoint

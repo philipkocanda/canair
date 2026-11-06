@@ -8,7 +8,7 @@ import json
 import canair.captures.store as capture_store
 from canair.cli import _inject_default_subcommand
 from canair.cli.commands import search
-from canair.profile import active
+from canair.cli.profile_context import active
 
 
 def payload(did: str, body: bytes) -> str:

@@ -25,7 +25,7 @@ from canair.analysis.align import (
     timestamps_disjoint,
 )
 from canair.analysis.fill import FillPolicy
-from canair.profile import active
+from canair.cli.profile_context import active
 
 
 # ---------------------------------------------------------------------------

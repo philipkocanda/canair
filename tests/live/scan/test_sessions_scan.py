@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from canair.cli.profile_context import active
 from canair.live.scan.sessions import (
     KWP_SESSION_MODES,
     UDS_SESSION_MODES,
@@ -15,7 +16,6 @@ from canair.live.scan.sessions import (
     mode_sessions_scan,
     scan_ecu_sessions,
 )
-from canair.profile import active
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.pids import collect_pids_validation
 from canair.validation.schema_fields import load_schema

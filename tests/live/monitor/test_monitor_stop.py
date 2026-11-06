@@ -14,10 +14,10 @@ import signal
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.core.stop_signals import STOP_SIGNALS
 from canair.live.monitor import run as run_mod
 from canair.live.monitor.options import MonitorOptions
-from canair.profile import active
 
 
 class _FakeController:
@@ -144,8 +144,8 @@ class TestTeardown:
         """A SIGHUP leaves stdout broken; the recorded data must still be written."""
         import builtins
 
-        import canair.profile
         import canair.states.tokens
+        from canair.cli import profile_context
 
         journal = _FakeJournal(tmp_path / "journal.jsonl")
         controller_box: dict[str, _TeardownController] = {}
@@ -156,9 +156,7 @@ class TestTeardown:
 
         monkeypatch.setattr(run_mod, "MonitorController", _make_controller)
         monkeypatch.setattr(run_mod, "open_journal", lambda *a, **k: journal)
-        monkeypatch.setattr(
-            canair.profile, "active", lambda: type("P", (), {"captures_dir": tmp_path})()
-        )
+        monkeypatch.setattr(profile_context, "_active", type("P", (), {"captures_dir": tmp_path})())
         monkeypatch.setattr(canair.states.tokens, "parse_states", lambda v: [])
 
         async def _noop(controller):
@@ -191,14 +189,12 @@ class TestInteractiveScreen:
     """``mode_monitor`` runs the screen the caller passes, and only on a TTY."""
 
     def _run(self, monkeypatch, tmp_path, *, tty: bool, interactive) -> list[str]:
-        import canair.profile
         import canair.states.tokens
+        from canair.cli import profile_context
 
         ran: list[str] = []
         monkeypatch.setattr(run_mod, "MonitorController", lambda *a, **k: _TeardownController())
-        monkeypatch.setattr(
-            canair.profile, "active", lambda: type("P", (), {"captures_dir": tmp_path})()
-        )
+        monkeypatch.setattr(profile_context, "_active", type("P", (), {"captures_dir": tmp_path})())
         monkeypatch.setattr(canair.states.tokens, "parse_states", lambda v: [])
 
         async def _poll(controller):

@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.interop.autopid.profile import DuplicateParameterError, generate_profile
-from canair.profile import active
 from canair.states.tokens import POWER_STATES, join_states, parse_states
 from canair.states.vocabulary import allowed_states
 from canair.validation.pids import collect_pids_validation

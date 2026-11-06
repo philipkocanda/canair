@@ -9,11 +9,12 @@ from typing import ClassVar
 import pytest
 import yaml
 
+from canair.cli.profile_context import active
 from canair.dtc import history
 from canair.dtc import log as dtc_log
 from canair.dtc.refs import EcuRefs
 from canair.dtc.scope import ANY_CAR, Car
-from canair.profile import Profile, active
+from canair.profile import Profile
 
 # A two-ECU registry as the log sees it: rx -> name, rx -> request id.
 REFS = EcuRefs(tx_by_rx={0x7EC: 0x7E4, 0x7EA: 0x7E2}, names={0x7EC: "BMS", 0x7EA: "VCU"})

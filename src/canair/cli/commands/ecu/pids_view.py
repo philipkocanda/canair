@@ -8,8 +8,8 @@ from collections.abc import Mapping
 from typing import Any
 
 from canair.analysis.ecu_summary import pids_latest_records
+from canair.cli.profile_context import active
 from canair.core.terminal import terminal_columns
-from canair.profile import active
 from canair.render import ansi
 
 

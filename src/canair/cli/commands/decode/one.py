@@ -29,8 +29,8 @@ from canair.captures.keepmode import CHANGES_BANNER, scope_is_keep_changes, scop
 from canair.captures.store import load_pid_captures
 from canair.cli.args.join import fill_policy_from_args
 from canair.cli.args.notation import resolve_notation
+from canair.cli.profile_context import active
 from canair.expression.decoding import decode_payload, ordered_signal_names
-from canair.profile import active
 from canair.render import ansi, messages
 from canair.uds.byteindex import payload_to_wican_bytes
 from canair.uds.layout import subfunction_bytes_for_pid

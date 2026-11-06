@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from canair.cli.profile_context import active
 from canair.contribute.checks import definition_rollback
 from canair.contribute.copy import copy_profile
 from canair.contribute.git import (
@@ -22,7 +23,6 @@ from canair.contribute.workspace import (
     is_managed_workspace,
     reset_workspace,
 )
-from canair.profile import active
 from canair.render import glyphs
 from canair.render.console import escape
 

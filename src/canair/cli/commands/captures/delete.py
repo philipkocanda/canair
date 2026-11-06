@@ -14,9 +14,8 @@ from pathlib import Path
 from canair.captures.store import entry_path
 from canair.captures.types import CaptureEntry
 from canair.cli.args.query import parse_canonical_query
-from canair.cli.profile_context import dir_profile
+from canair.cli.profile_context import active, dir_profile
 from canair.core.prompt import confirm
-from canair.profile import active
 from canair.render import ansi, messages
 from canair.render.paint import Painter
 

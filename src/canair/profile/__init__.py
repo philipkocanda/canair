@@ -37,7 +37,6 @@ from __future__ import annotations
 import dataclasses
 import os
 import sys
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -583,50 +582,6 @@ def profile_for_path(path: Path | str) -> Profile:
             return Profile(candidate.name, candidate)
     root = path.parent if path.is_dir() else path.parent.parent
     return Profile(root.name, root)
-
-
-_active: Profile | None = None
-
-
-# How the active profile gets its variant and revision pins applied: (profile, --variant,
-# --revision pins) -> profile. Variants sit above this package, so the CLI installs it; without
-# one a profile resolves as `resolve_profile` returns it.
-_variant_applier: Callable[[Profile, str | None, Sequence[str] | None], Profile] | None = None
-
-
-def use_variant_applier(applier: Callable[[Profile, str | None, Sequence[str] | None], Profile]):
-    """Install what :func:`set_active` and :func:`active` apply to a resolved profile."""
-    global _variant_applier
-    _variant_applier = applier
-
-
-def _applied(profile: Profile, variant=None, revisions=None) -> Profile:
-    return _variant_applier(profile, variant, revisions) if _variant_applier else profile
-
-
-def set_active(
-    name: str | None = None,
-    profiles_dir: str | os.PathLike | None = None,
-    variant: str | None = None,
-    revisions: list[str] | tuple[str, ...] | None = None,
-) -> Profile:
-    """Resolve and memoize the active profile (called by the CLI).
-
-    ``variant`` is the ``--variant`` flag and ``revisions`` the ``--revision ECU=ID`` pins.
-    """
-    return replace_active(_applied(resolve_profile(name, profiles_dir), variant, revisions))
-
-
-def replace_active(profile: Profile) -> Profile:
-    """Make ``profile`` the active profile."""
-    global _active
-    _active = profile
-    return _active
-
-
-def active() -> Profile:
-    """Return the active profile, resolving it lazily on first use."""
-    return _active if _active is not None else replace_active(_applied(resolve_profile()))
 
 
 def config_dir_hint() -> Path:

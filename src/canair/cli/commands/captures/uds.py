@@ -15,8 +15,7 @@ from canair.cli.args.notation import add_notation_arg, resolve_notation
 from canair.cli.args.query import parse_canonical_query
 from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
-from canair.cli.profile_context import dir_profile
-from canair.profile import active
+from canair.cli.profile_context import active, dir_profile
 from canair.render import messages
 from canair.states.selectors import format_state_selector
 from canair.tui.apps.captures_step.model import (

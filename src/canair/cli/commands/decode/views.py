@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from canair.analysis.stats import compute_stats
 from canair.analysis.stats import fmt_num as _fmt_num
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import ansi, glyphs
 from canair.states.selectors import state_bucket_key
 from canair.states.tokens import join_states as _join_states

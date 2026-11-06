@@ -55,8 +55,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
+from canair.cli.profile_context import active
 from canair.ecus.pids import load_pids, load_pids_dir
-from canair.profile import active
 from canair.render import ansi, messages
 from canair.states.selectors import state_matcher, unknown_state_tokens
 from canair.states.vocabulary import allowed_states

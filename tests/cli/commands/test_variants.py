@@ -12,6 +12,7 @@ import pytest
 import yaml
 
 from canair import variants as v
+from canair.cli import profile_context
 from canair.core.json_schema import load_schema_file
 from canair.core.paths import VARIANTS_SCHEMA_FILE, schema_modeline
 from canair.yaml_edit import variants as edit
@@ -21,14 +22,13 @@ from canair.yaml_edit.variants import VariantsEditError
 @pytest.fixture
 def prof(tmp_path, monkeypatch):
     """A writable throwaway profile, active for the commands under test."""
-    from canair import profile as profile_mod
     from canair.profile import Profile
 
     root = tmp_path / "kia-ev6-cv-ev"
     (root / "ecus").mkdir(parents=True)
     (root / "profile.yaml").write_text('car_model: "Kia EV6 (CV)"\ninit: "ATSP6;"\n')
     p = Profile(root.name, root)
-    monkeypatch.setattr(profile_mod, "_active", p)
+    monkeypatch.setattr(profile_context, "_active", p)
     return p
 
 

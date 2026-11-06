@@ -17,7 +17,7 @@ import contextlib
 import time
 
 from canair.analysis.sniff_stats import SniffStats
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import messages
 from canair.render.console import console
 from canair.render.sniff import render_sniff_table

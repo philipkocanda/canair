@@ -18,13 +18,13 @@ import sys
 
 from canair.captures.keepmode import wants_save
 from canair.cli.args.transport import transport_overrides
+from canair.cli.profile_context import active, replace_active
 from canair.core.stop_signals import graceful_stop
 from canair.device.lock import WiCANLock
 from canair.device.lock_watchdog import LockWatchdog
 from canair.ecus.pids import load_pids
 from canair.ecus.registry import load_ecus
 from canair.live.session import SessionOptions, run_session_guarded
-from canair.profile import active, replace_active
 from canair.render import messages
 from canair.transport.config import ConnectionOptions
 from canair.transport.ecu_log import init_logging

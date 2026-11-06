@@ -21,7 +21,7 @@ import argparse
 import json
 
 from canair.cli.commands._edit import run_edit
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import ansi
 from canair.yaml_edit.signals import CLEARABLE_SIGNAL_FIELDS
 

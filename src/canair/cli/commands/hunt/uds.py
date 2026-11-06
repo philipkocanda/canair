@@ -26,8 +26,8 @@ from canair.cli.args.join import (
 from canair.cli.args.notation import resolve_notation
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
+from canair.cli.profile_context import active
 from canair.expression.inspect_bytes import NO_EXPR
-from canair.profile import active
 from canair.render import ansi, messages
 from canair.uds.layout import subfunction_bytes_for_pid
 from canair.variants import effective_meta

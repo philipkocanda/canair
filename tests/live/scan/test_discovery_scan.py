@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.live.scan.discovery import DiscoveryProbe, scan_ecu
-from canair.profile import active
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import nrc as _nrc
 

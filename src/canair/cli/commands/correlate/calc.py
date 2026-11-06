@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 
-from canair.profile import active
+from canair.cli.profile_context import active
 
 _GATE_OPS = {
     ">=": lambda a, b: a >= b,

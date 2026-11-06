@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.live.session import SessionOptions, run_session_guarded
-from canair.profile import active
 from canair.uds.frame_counts import FrameCountLedger, frames_for_payload
 from canair.yaml_edit.pids import set_response_frames
 from tests.support.fakes import FakeTerminal

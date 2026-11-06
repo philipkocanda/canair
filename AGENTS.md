@@ -107,6 +107,9 @@ that page. The remaining work of the layout is in `plans/2026-11-04-package-layo
   the CLI. No I/O → protocol or leaf code.
 - **Only the CLI imports `argparse`; only the TUI imports `textual`.** Code below them takes typed
   options and returns data.
+- **Only the CLI holds the active profile.** Code below `cli/` takes the `Profile` it works on as
+  an argument (`profile: Profile`) and never calls `active()` (`cli/profile_context.py`);
+  `tests/contracts/` counts the calls that do, and the ceiling is 0.
 - **A name another package imports has no leading underscore.** `_name` is private to its own
   package (each `cli/commands/<cmd>/` counts as one); `test_structure.py` fails on a cross-package
   import of one. Rename it, or move it to the package whose job it is.

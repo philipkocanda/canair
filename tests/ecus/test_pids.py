@@ -2,9 +2,9 @@
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.ecus.pid_status import DEFAULT_PID_STATUS, PID_STATUSES, pid_status
 from canair.ecus.pids import build_ecu_index, build_param_index, build_sessions_index, load_pids
-from canair.profile import active
 
 
 @pytest.fixture(scope="module")

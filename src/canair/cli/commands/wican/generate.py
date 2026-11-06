@@ -6,6 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
+from canair.cli.profile_context import active
 from canair.interop.autopid.profile import (
     ProfileGenerationError,
     ShippedProfile,
@@ -13,7 +14,6 @@ from canair.interop.autopid.profile import (
     ship_profile,
 )
 from canair.interop.autopid.v6 import to_v6
-from canair.profile import active
 from canair.render import messages
 from canair.yaml_edit.echo import echo_edit
 

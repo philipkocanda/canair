@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import messages
 from canair.states.tokens import join_states, parse_states
 from canair.states.vocabulary import allowed_states

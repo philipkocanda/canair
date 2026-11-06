@@ -29,7 +29,7 @@ from canair.analysis.support_map import (
     detect_support_maps,
     family_chance_log10,
 )
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import ansi, messages
 from canair.uds.byteindex import payload_index_to_wican
 from canair.uds.layout import subfunction_bytes_for_pid

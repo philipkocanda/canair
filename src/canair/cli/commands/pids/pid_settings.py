@@ -5,11 +5,10 @@ from __future__ import annotations
 import argparse
 
 from canair.cli.commands._edit import add_edit_args, run_edit
-from canair.cli.profile_context import target_profile
+from canair.cli.profile_context import active, target_profile
 from canair.core.edit_errors import EditError, translate
 from canair.ecus.pid_status import PID_STATUSES
 from canair.ecus.pids import INHERITED_PARAM_FIELDS
-from canair.profile import active
 from canair.render import ansi
 from canair.uds.support_map import MapDecl, SupportMapError
 from canair.yaml_edit.echo import echo_edit

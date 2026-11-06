@@ -10,12 +10,12 @@ import json
 
 import pytest
 
-from canair import profile
+from canair.cli import profile_context
+from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache
 from canair.live.discover import physical as disc
 from canair.live.read.raw import mode_raw
 from canair.live.scan.range import mode_scan
-from canair.profile import active
 from tests.support.fakes import FakeTerminal, ok
 
 PROFILE_YAML = 'car_model: "T"\ninit: "ATSP6;"\n'
@@ -24,16 +24,16 @@ BMS = "BMS:\n  tx_id: 0x7E4\n  identity:\n    id_protocol: UDS\n"
 
 @pytest.fixture
 def prof(tmp_path):
-    saved = profile._active
+    saved = profile_context._active
     root = tmp_path / "prof"
     (root / "ecus").mkdir(parents=True)
     (root / "captures").mkdir()
     (root / "profile.yaml").write_text(PROFILE_YAML)
     (root / "ecus" / "bms.yaml").write_text(BMS)
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
     yield root
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 

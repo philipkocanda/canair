@@ -22,13 +22,14 @@ import yaml
 
 from canair.captures import layers as capture_layers
 from canair.captures.store import load_all_captures
+from canair.cli import profile_context
 from canair.cli.commands.profile.listing import cmd_list as _cmd_list
 from canair.cli.commands.profile.scaffold import cmd_overlay as _cmd_overlay
 from canair.cli.commands.profile.show import cmd_show as _cmd_show
+from canair.cli.profile_context import active
 from canair.profile import (
     Profile,
     ProfileError,
-    active,
     extends_target,
     profile_layers,
     require_writable_definitions,
@@ -69,13 +70,12 @@ _MUTATING_CAPTURE_MODULES = set(_MUTATING_CAPTURE_PATHS)
 @pytest.fixture(autouse=True)
 def _isolate_profile_state():
     """Drop the memoized active profile so a tmp_path Profile cannot leak."""
-    from canair import profile
     from canair.config import file as config_file
 
-    profile._active = None
+    profile_context._active = None
     config_file.load_config.cache_clear()
     yield
-    profile._active = None
+    profile_context._active = None
     config_file.load_config.cache_clear()
 
 
@@ -348,9 +348,8 @@ class TestDefinitionsAreReadOnly:
         _bundled(env)
         _overlay(env)
         mod = importlib.import_module(module)
-        from canair import profile as profile_mod
 
-        profile_mod._active = resolve_profile("ev6")
+        profile_context._active = resolve_profile("ev6")
         # Beyond what the command reads before the guard, every attribute is absent
         # on purpose — an AttributeError here would mean the guard ran too late.
         ns = argparse.Namespace(dir=None, **extra)
@@ -402,9 +401,8 @@ class TestLayeredCaptureReads:
 
 def load_all_captures_for(name: str) -> list[dict]:
     """Load through the active profile so the layer list is exercised."""
-    from canair import profile as profile_mod
 
-    profile_mod._active = resolve_profile(name)
+    profile_context._active = resolve_profile(name)
     return load_all_captures(profile=active())
 
 
@@ -420,9 +418,8 @@ class TestBaseLayerWritePolicy:
     def test_base_files_are_read_only_when_layered(self, env):
         base = _bundled(env)
         dest = _overlay(env)
-        from canair import profile as profile_mod
 
-        profile_mod._active = resolve_profile("ev6")
+        profile_context._active = resolve_profile("ev6")
         mine = dest / "captures" / "2026-01-02.json"
         _seed(mine, "mine", date="2026-01-02")
         theirs = base / "captures" / "2026-01-01.json"
@@ -437,9 +434,8 @@ class TestBaseLayerWritePolicy:
     def test_own_files_are_writable(self, env):
         _bundled(env)
         dest = _overlay(env)
-        from canair import profile as profile_mod
 
-        profile_mod._active = resolve_profile("ev6")
+        profile_context._active = resolve_profile("ev6")
         mine = dest / "captures" / "2026-01-02.json"
         _seed(mine, "mine", date="2026-01-02")
         assert capture_layers.read_only_files([mine], profile=active()) == []
@@ -578,10 +574,9 @@ class TestLayerAwareReaders:
     def test_coverage_sees_base_layer_payloads(self, env):
         _bundled(env)
         _overlay(env)
-        from canair import profile as profile_mod
         from canair.cli.commands.coverage import load_representative_payloads
 
-        profile_mod._active = resolve_profile("ev6")
+        profile_context._active = resolve_profile("ev6")
         # Without the layer walk a layered profile reports false "NO CAPTURE".
         assert ("BMS", "2101") in load_representative_payloads()
 

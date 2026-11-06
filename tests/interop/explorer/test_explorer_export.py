@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 import yaml
 
+from canair.cli.profile_context import active
 from canair.interop.explorer.export import export_profile, profile_maturity
 from canair.interop.explorer.layout import layout_buses
-from canair.profile import active
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROFILES = sorted(

@@ -4,9 +4,9 @@ from typing import Any, cast
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.ecus.protocol import ecu_protocol
 from canair.ecus.registry import EcuRegistryEntry
-from canair.profile import active
 from canair.uds.protocol import KWP, UDS, UNKNOWN, classify_protocol
 
 

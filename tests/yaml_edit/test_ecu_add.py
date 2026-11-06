@@ -16,11 +16,12 @@ import pytest
 import yaml
 
 from canair import profile
+from canair.cli import profile_context
 from canair.cli.commands.ecu.add import cmd_add
 from canair.cli.commands.ecu.rename import cmd_rename
+from canair.cli.profile_context import active
 from canair.core.edit_errors import EditError
 from canair.ecus.pids import clear_cache
-from canair.profile import active
 from canair.yaml_edit.ecu import register_ecu
 
 
@@ -28,11 +29,11 @@ from canair.yaml_edit.ecu import register_ecu
 def _restore_active_profile():
     from canair.config import file as config_file
 
-    saved = profile._active
+    saved = profile_context._active
     clear_cache()
     config_file.load_config.cache_clear()
     yield
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
     config_file.load_config.cache_clear()
 
@@ -165,7 +166,7 @@ class TestEcuRename:
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path))
         monkeypatch.setenv("CANAIR_PROFILE", name)
         config_file.load_config.cache_clear()
-        profile._active = None
+        profile_context._active = None
         clear_cache()
         return root
 
@@ -222,7 +223,7 @@ class TestOfflineValidationProfileScoping:
         monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path))
         monkeypatch.delenv("CANAIR_PROFILE", raising=False)
         config_file.load_config.cache_clear()
-        profile._active = None
+        profile_context._active = None
 
         # active() is genuinely ambiguous here...
         with pytest.raises(profile.ProfileError):

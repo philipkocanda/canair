@@ -12,7 +12,7 @@ import json
 import sys
 
 from canair.cli.live import ecu_completer
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import ansi, messages
 
 

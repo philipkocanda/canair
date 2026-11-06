@@ -13,6 +13,7 @@ import os
 
 import pytest
 
+from canair.cli import profile_context
 from tests.support.network import NetworkBlocked
 
 
@@ -87,21 +88,17 @@ def _reset_active_profile():
     them dropped. The capture views' decode index is one: left stale, a view decodes against
     the wrong vehicle and renders no parameters.
     """
-    import canair.profile as profile
-    from canair.cli.profile_context import install
     from canair.config.file import load_config
     from canair.ecus.pids import clear_cache
-
-    install()
 
     # The config is memoized too, and the active profile's variant is read from it: a
     # test that points XDG_CONFIG_HOME elsewhere must not leave its config cached for
     # the next test (which then meets the suite's car unselected).
-    profile._active = None
+    profile_context._active = None
     clear_cache()
     load_config.cache_clear()
     yield
-    profile._active = None
+    profile_context._active = None
     clear_cache()
     load_config.cache_clear()
 

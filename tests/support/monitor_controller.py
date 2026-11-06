@@ -1,8 +1,8 @@
 """Build a MonitorController from loose arguments, with the settings the tests rely on."""
 
+from canair.cli.profile_context import active
 from canair.live.monitor.controller import MonitorController
 from canair.live.monitor.options import MonitorOptions
-from canair.profile import active
 
 
 def make_controller(

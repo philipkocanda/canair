@@ -18,9 +18,10 @@ from pathlib import Path
 import pytest
 import yaml
 
+from canair.cli.profile_context import active, replace_active, set_active
 from canair.config import file as config_file
 from canair.ecus.pids import load_pids, revision_resolutions
-from canair.profile import ProfileError, active, replace_active, set_active
+from canair.profile import ProfileError
 from canair.variants import detected as cache
 from canair.variants import fingerprints as fp
 

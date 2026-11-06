@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from canair import profile
 from canair.captures import io as capture_io
+from canair.cli import profile_context
+from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache
 from canair.privacy import sensitive
-from canair.profile import active
 from canair.uds.memory import MEMORY_SIGNAL_MAX_BYTES
 
 META = 'car_model: "T"\ninit: "ATSP6;"\n'
@@ -33,16 +33,16 @@ def _reset():
 
 @pytest.fixture
 def prof(tmp_path):
-    saved = profile._active
+    saved = profile_context._active
     root = tmp_path / "prof"
     (root / "captures").mkdir(parents=True)
     (root / "ecus").mkdir()
     (root / "profile.yaml").write_text(META)
     (root / "ecus" / "bcm.yaml").write_text(BCM)
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
     yield root
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 

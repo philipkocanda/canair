@@ -9,9 +9,10 @@ from collections.abc import Mapping
 from canair.cli.live import add_connection_args, run_live
 from canair.cli.live.handlers import scans
 from canair.cli.live.handlers.ranges import parse_range
+from canair.cli.profile_context import active
 from canair.ecus.pids import load_pids
 from canair.live.discover.physical import discovery_targets, fmt_id
-from canair.profile import ProfileError, active
+from canair.profile import ProfileError
 from canair.uds.addressing import (
     DEFAULT_MODE,
     AddressingMode,

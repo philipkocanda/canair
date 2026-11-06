@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from canair.cli.commands.pids import ecu_facts as cli
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.yaml_edit.pids import PidsEditError, set_ecu_isotp
 
 PLAIN = """# A comment that must survive.

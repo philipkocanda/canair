@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 
 from canair.captures.journal import CaptureJournal, list_orphans, recover
-from canair.profile import active
+from canair.cli.profile_context import active
 
 
 def _discover_session(**extra) -> dict:

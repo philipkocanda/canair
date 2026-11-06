@@ -18,12 +18,12 @@ import argparse
 
 import pytest
 
-from canair import profile
+from canair.cli import profile_context
 from canair.cli.commands import validate as validate_cmd
+from canair.cli.profile_context import active
 from canair.core.paths import BUNDLED_PROFILES_DIR
 from canair.ecus.pids import clear_cache
 from canair.expression.decoding import decodes_to_number
-from canair.profile import active
 from canair.states.predicates import StatePredicateError, predicate_references
 from canair.states.refs import (
     IGNORED_PID,
@@ -38,10 +38,10 @@ from canair.states.refs import (
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
-    saved = profile._active
+    saved = profile_context._active
     clear_cache()
     yield
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 
@@ -207,7 +207,7 @@ def _mk_profile(tmp_path, states_yaml: str, *, with_ecus: bool = True):
             "          expression: B10:0\n"
         )
     (root / "vehicle_states.yaml").write_text(states_yaml)
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
     return root
 
@@ -277,7 +277,7 @@ class TestStatesReferencing:
         root = tmp_path / "bare"
         (root / "ecus").mkdir(parents=True)
         (root / "profile.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
-        profile.set_active(str(root))
+        profile_context.set_active(str(root))
         assert states_referencing("VCU", "GEAR_P", profile=active()) == []
 
 
@@ -329,7 +329,7 @@ class TestBundledProfiles:
         from canair.ecus.pids import load_pids
         from canair.states.refs import profile_predicates
 
-        prof = profile.set_active(name)
+        prof = profile_context.set_active(name)
         issues = check_references(profile_predicates(prof), load_pids(profile=active()))
         assert issues == [], "\n".join(str(i) for i in issues)
 
@@ -337,7 +337,7 @@ class TestBundledProfiles:
         """Keeps the guard above from passing vacuously if predicate loading breaks."""
         from canair.states.refs import profile_predicates
 
-        prof = profile.set_active("hyundai-ioniq-ae-ev")
+        prof = profile_context.set_active("hyundai-ioniq-ae-ev")
         predicates = profile_predicates(prof)
         assert len(predicates) >= 5
         assert any("VCU." in expr for _name, expr in predicates)

@@ -12,7 +12,7 @@ import json
 import pytest
 import yaml
 
-import canair.profile as profile
+from canair.cli import profile_context
 from canair.interop.dbc.repair import DbcLoadError, load_dbc, repair_dbc_text, summarize
 from canair.profile import Profile
 
@@ -32,7 +32,7 @@ def _kinds(repairs) -> list[str]:
 
 @pytest.fixture
 def temp_profile(tmp_path):
-    profile._active = Profile(name="test", root=tmp_path)
+    profile_context._active = Profile(name="test", root=tmp_path)
     return Profile(name="test", root=tmp_path)
 
 

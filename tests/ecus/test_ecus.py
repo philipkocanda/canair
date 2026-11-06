@@ -2,6 +2,7 @@
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.ecus.names import (
     EcuNameCollision,
     build_alias_index,
@@ -23,7 +24,6 @@ from canair.ecus.registry import (
     parse_ecu_ref,
     rx_addr_str,
 )
-from canair.profile import active
 
 
 @pytest.fixture(scope="module")

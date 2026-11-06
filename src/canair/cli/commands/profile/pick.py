@@ -5,11 +5,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from canair.profile import (
-    ProfileError,
-    active,
-    selectable_profiles,
-)
+from canair.cli.profile_context import active
+from canair.profile import ProfileError, selectable_profiles
 from canair.yaml_edit.echo import echo_edit
 
 from .listing import cmd_list

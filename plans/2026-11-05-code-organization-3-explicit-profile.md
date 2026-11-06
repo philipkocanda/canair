@@ -1,6 +1,7 @@
 # Code organization, part 3: pass the profile explicitly
 
-Status: **PART A DONE** (2026-11-05); part B **IN PROGRESS** (see "As built, part B"). Part of
+Status: **PART A DONE** (2026-11-05); **PART B DONE** (2026-11-06), except the tests of step B6
+(see "As built, part B"). Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 1.
 Continues left-over item 2 of `plans/2026-11-04-package-layout-and-layering.md` (the
 `ecus : profile : variants` half).
@@ -228,7 +229,7 @@ Size ceilings were tight, so a few lines were cut elsewhere to keep every module
 ceiling (the stale history paragraph of `captures/store.py`, the long comment of
 `profile/__init__.py`). The deferred-import count went from 1131 to 1120.
 
-## As built, part B (in progress)
+## As built, part B
 
 Re-measured at the start: 65 ambient calls outside `cli/` (the plan said about 70), in 30
 modules. `scripts/check/ambient_profile.py` counts them and `ambient_profile_calls` in
@@ -245,8 +246,8 @@ What differs from the plan:
   directory of the part B agent). Done so far: `load_pids`/`load_pids_dir` (B2), `load_variants`,
   the readers of states, groups, CAN buses, actions and signals, and the readers of the ECU
   registry, `load_pids`/`load_raw_pids`/`revision_resolutions`, the capture store and the
-  sensitive sets. The ambient count fell from 65 to 22 (`validation/`, `yaml_edit/`, `dtc/log`,
-  `dtc/scope`, `ecus/files`, `live/revision_probe`, `live/read/multi` and `profile` are left).
+  sensitive sets. The ambient count fell from 65 to 22, then to 0 with the validation runners, the
+  `yaml_edit` editors, the DTC log paths and the revision probe.
 - **B2.** `load_pids(profile)` still falls back to the active profile until its callers pass
   one; `load_pids_dir(path)` is the as-written directory reader and all path callers use it.
 - **Tests.** `tests/support/profiles.py::bundled_profile()` builds the suite's car without the
@@ -263,3 +264,22 @@ What differs from the plan:
 - **Size ceilings.** `live/read/exec.py` outgrew its ceiling with the `profile` argument, so the
   single and batched PID reads moved to `live/read/exec_read.py`. Some module docstrings and
   comments were condensed to hold the other ceilings.
+- **B5 and the hook.** `set_active`, `replace_active`, `active` and `_active` are in
+  `cli/profile_context.py`, which calls `apply_variant` directly; the variant-applier hook of
+  `profile/` is gone, and so is `install()`. `require_named_car` returns the stripped profile
+  and the CLI adopts it (`profile_context.named_car`). `detect_revisions` returns the profile
+  that carries a settled revision; `SessionOptions.adopt_profile` hands it to the command.
+- **`--dir` keeps working without an active profile.** Where a function takes either a
+  directory or a profile (`ecus_dir`, `edit_doc`), a profile is required only when no
+  directory is given. The CLI passes the profile that owns `--dir` to the edit commands
+  (`target_profile`) and falls back to it for the captures commands when the active profile
+  is ambiguous (`dir_profile`), so an offline `--dir` run behaves as before.
+- **Not changed on purpose.** `validate_pids_file`, `collect_pids_validation` and
+  `validate_ecu_file` keep `profile=None`: None means "the profile that owns this file".
+- **B6, partly done.** The helper `tests/support/profiles.py::bundled_profile()` exists and the
+  new tests use it. Most library tests still reach the suite's pinned car through
+  `cli.profile_context.active()` (conftest resets it); moving them to fixtures under
+  `tests/fixtures/profiles/` is left.
+
+Measured at the end: `ambient_profile_calls` 0 (65 at the start); `canair --help` 0.27 s before
+and after; the full suite passes.

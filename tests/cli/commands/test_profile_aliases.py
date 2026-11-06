@@ -19,9 +19,11 @@ from pathlib import Path
 import pytest
 
 from canair.captures.store import load_all_captures
+from canair.cli import profile_context
 from canair.cli.commands.profile.listing import cmd_list as _cmd_list
 from canair.cli.commands.profile.use import cmd_use as _cmd_use
-from canair.profile import ProfileError, active, alias_index, resolve_profile, selectable_profiles
+from canair.cli.profile_context import active
+from canair.profile import ProfileError, alias_index, resolve_profile, selectable_profiles
 from canair.profile.names import build_alias_index, convention_problem
 from canair.validation.profile_names import profile_name_findings
 
@@ -33,11 +35,11 @@ def _isolate_profile_state():
     from canair import profile
     from canair.config import file as config_file
 
-    profile._active = None
+    profile_context._active = None
     profile._noted_renames.clear()
     config_file.load_config.cache_clear()
     yield
-    profile._active = None
+    profile_context._active = None
     profile._noted_renames.clear()
     config_file.load_config.cache_clear()
 
@@ -174,9 +176,8 @@ class TestOldNamedOverlay:
         overlay = _bundle(env.user / OLD, extends=OLD)
         _seed(root / "captures" / "2026-01-01.json", "upstream")
         _seed(overlay / "captures" / "2026-01-02.json", "mine")
-        from canair import profile as profile_mod
 
-        profile_mod._active = resolve_profile(NEW)
+        profile_context._active = resolve_profile(NEW)
         assert {c["session_label"] for c in load_all_captures(profile=active())} == {
             "upstream",
             "mine",

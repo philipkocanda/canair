@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render.messages import error as print_error
 from canair.render.messages import hint
 from canair.yaml_edit.echo import echo_edit

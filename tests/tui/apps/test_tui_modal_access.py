@@ -10,7 +10,7 @@ import pytest
 from textual.containers import VerticalScroll
 from textual.widgets import Input, OptionList
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.tui.apps.captures_step.app import CapturesStepApp
 from canair.tui.apps.monitor.app import (
     EditParamDialog,

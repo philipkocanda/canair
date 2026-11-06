@@ -13,7 +13,7 @@ import pytest
 from cantools.database import Database, Message, Signal
 from cantools.database.conversion import BaseConversion
 
-import canair.profile as profile
+from canair.cli import profile_context
 from canair.cli.commands.export import _dbc_specifics
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check" / "check_dbc_corpus.py"
@@ -22,7 +22,7 @@ SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check" / "check_dbc_
 @pytest.fixture
 def checker(monkeypatch):
     # The checker drives the real CLI, which sets the active profile.
-    monkeypatch.setattr(profile, "_active", None)
+    monkeypatch.setattr(profile_context, "_active", None)
     spec = importlib.util.spec_from_file_location("check_dbc_corpus", SCRIPT)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)

@@ -26,9 +26,8 @@ from typing import TYPE_CHECKING
 
 from canair.captures.state_inference import DEFAULT_CYCLE_TOL_S, session_state_spans
 from canair.captures.store import entry_path
-from canair.cli.profile_context import dir_profile
+from canair.cli.profile_context import active, dir_profile
 from canair.core.prompt import confirm
-from canair.profile import active
 from canair.render import messages
 from canair.states.predicates import StatePredicateError
 from canair.states.tokens import join_states, parse_states

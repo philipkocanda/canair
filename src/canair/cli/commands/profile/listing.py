@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from canair.cli.profile_context import active
 from canair.config.file import load_config
 from canair.profile import (
     ProfileError,
-    active,
     alias_index,
     config_dir_hint,
     profile_layers,

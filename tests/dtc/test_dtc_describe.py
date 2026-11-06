@@ -4,8 +4,8 @@ from typing import ClassVar
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.dtc.describe import describe_dtc, dtc_kind
-from canair.profile import active
 
 
 class TestDtcKind:

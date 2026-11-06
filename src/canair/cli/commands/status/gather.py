@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from canair.cli.profile_context import active
 from canair.core.tcp import tcp_open
-from canair.profile import active
 
 from .probe import device_status, load_device_config
 

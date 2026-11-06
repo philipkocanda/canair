@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from canair.cli.profile_context import active
 from canair.core.prompt import confirm
 from canair.live.scan.presets import (
     SERVICE_PRESETS,
@@ -12,7 +13,6 @@ from canair.live.scan.presets import (
     preset_by_service,
     resolve_service,
 )
-from canair.profile import active
 from canair.render import messages
 from canair.render.console import console, escape
 from canair.render.glyphs import WARN

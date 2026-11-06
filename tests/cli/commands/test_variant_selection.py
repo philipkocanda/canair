@@ -12,6 +12,7 @@ import pytest
 
 from canair import profile as profile_mod
 from canair.captures.tags import capture_tag
+from canair.cli import profile_context
 from canair.config import file as config_file
 from canair.profile import Profile, ProfileError
 from canair.variants.selection import apply_variant, require_variant
@@ -102,7 +103,7 @@ class TestPrecedence:
 
     def test_set_active_applies_it(self, env):
         _set("profile_settings.hyundai-ioniq-ae-ev.variant", "38kwh")
-        assert profile_mod.set_active("hyundai-ioniq-ae-ev").variant == "38kwh"
+        assert profile_context.set_active("hyundai-ioniq-ae-ev").variant == "38kwh"
 
 
 class TestAttribution:
@@ -156,7 +157,7 @@ class TestLiveGate:
     @pytest.fixture
     def unnamed(self, env, monkeypatch):
         monkeypatch.setattr(
-            profile_mod, "_active", profile_mod.resolve_profile("hyundai-ioniq-ae-ev")
+            profile_context, "_active", profile_mod.resolve_profile("hyundai-ioniq-ae-ev")
         )
 
     @pytest.mark.parametrize("command", ["read", "monitor", "scan", "raw", "io", "dtc"])
@@ -237,4 +238,4 @@ def test_validate_checks_an_alias_variant(env):
 
 def test_the_suite_pins_its_car():
     """conftest names the bundled reference car, as a user does once."""
-    assert profile_mod.active().variant == "28kwh"
+    assert profile_context.active().variant == "28kwh"

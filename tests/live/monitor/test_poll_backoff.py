@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
+from canair.cli.profile_context import active
 from canair.live.monitor.backoff import (
     ESCALATE_AFTER,
     MAX_SLOWDOWN,
@@ -15,7 +16,6 @@ from canair.live.monitor.backoff import (
     slowdown_log_message,
     summarize_slowed,
 )
-from canair.profile import active
 from tests.support.fakes import FakeTerminal, nrc, ok
 from tests.support.monitor_controller import make_controller
 

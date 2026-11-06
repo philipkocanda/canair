@@ -1,7 +1,7 @@
 """Tests for canair.dtc.log — DTC scan history (append + diff)."""
 
+from canair.cli.profile_context import active
 from canair.dtc import log as dtc_log
-from canair.profile import active
 
 
 def test_append_and_load(tmp_path):

@@ -1,6 +1,6 @@
 """Run and print the checks of the profile's optional YAML files (everything but ecus/, captures/)."""
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import messages
 from canair.validation.other import (
     check_actions,

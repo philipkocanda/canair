@@ -17,7 +17,9 @@ from pathlib import Path
 
 import pytest
 
-from canair.profile import ProfileError, active, resolve_profile
+from canair.cli import profile_context
+from canair.cli.profile_context import active
+from canair.profile import ProfileError, resolve_profile
 
 LEGACY = {
     "date": "2026-10-21",
@@ -36,7 +38,6 @@ LEGACY = {
 @pytest.fixture
 def layered(tmp_path, monkeypatch):
     """A bundled base ``ev6`` (a +0x20 profile) and the user's overlay, made active."""
-    from canair import profile as profile_mod
     from canair.config import file as config_file
     from canair.ecus.pids import clear_cache
 
@@ -54,11 +55,11 @@ def layered(tmp_path, monkeypatch):
     overlay = tmp_path / "cfg" / "canair" / "profiles" / "ev6"
     (overlay / "captures").mkdir(parents=True)
     (overlay / "profile.yaml").write_text("extends: ev6\n")
-    saved = profile_mod._active
-    profile_mod._active = resolve_profile("ev6")
+    saved = profile_context._active
+    profile_context._active = resolve_profile("ev6")
     clear_cache()
     yield argparse.Namespace(base=base, overlay=overlay)
-    profile_mod._active = saved
+    profile_context._active = saved
     config_file.load_config.cache_clear()
     clear_cache()
 

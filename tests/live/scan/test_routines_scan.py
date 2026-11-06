@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from canair.cli.profile_context import active
 from canair.live.scan.routines import NRC_ABSENT, NRC_EXISTS_HINTS, RoutineHit, classify
-from canair.profile import active
 from canair.uds.nrc import NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION
 from canair.yaml_edit.pids import PidsEditError, append_routines_block, update_routines_field
 

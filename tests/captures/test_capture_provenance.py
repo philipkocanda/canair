@@ -6,7 +6,7 @@ from canair.captures import io as capture_io
 from canair.captures.build import build_manual_session, build_query_session
 from canair.captures.journal import CaptureJournal, build_session_from_records
 from canair.captures.save import save_session
-from canair.profile import active
+from canair.cli.profile_context import active
 
 
 class TestSessionBuilders:

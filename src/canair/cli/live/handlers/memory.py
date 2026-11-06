@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from canair.cli.commands.memory.render import print_dump_summary, print_scan
 from canair.cli.live.operation import LiveOperation
+from canair.cli.profile_context import active
 from canair.core.skip_key import skip_listener
 from canair.ecus.revisions import determined_revisions
 from canair.install.build_info import full_version
@@ -14,7 +15,6 @@ from canair.live.memory.dump import mode_memory_dump
 from canair.live.memory.reads import MemoryTargetError, resolve_target
 from canair.live.memory.scan import mode_memory_scan
 from canair.memory.store import store_root
-from canair.profile import active
 from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.transport.stats import client_transport

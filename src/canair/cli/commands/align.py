@@ -36,7 +36,7 @@ from canair.captures.keepmode import CHANGES_BANNER, scope_is_keep_changes
 from canair.cli.args.join import add_join_args, fill_policy_from_args
 from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import ansi, glyphs, messages
 
 NAME = "align"

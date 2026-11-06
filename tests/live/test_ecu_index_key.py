@@ -13,9 +13,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 import canair.ecus.names
+from canair.cli.profile_context import active
 from canair.ecus.wake import WakePlan
 from canair.live.read.exec import _exec_iocontrol, _exec_query, _exec_session
-from canair.profile import active
 from canair.query.steps import resolve_tx_id
 from tests.support.fakes import FakeTerminal, ok
 from tests.support.monitor_controller import make_controller

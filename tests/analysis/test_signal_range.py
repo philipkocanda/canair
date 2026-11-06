@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from canair.analysis import signal_range
-from canair.profile import active
+from canair.cli.profile_context import active
 
 
 def _captures(monkeypatch, payloads):

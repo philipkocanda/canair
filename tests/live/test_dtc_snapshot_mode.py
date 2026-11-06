@@ -8,9 +8,9 @@ from contextlib import contextmanager
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.live import dtc
 from canair.live.dtc import snapshots as snap_mode
-from canair.profile import active
 from tests.support.fakes import FakeTerminal, nrc
 from tests.support.fakes import ok as _ok
 from tests.support.live_args import live_args

@@ -11,11 +11,11 @@ import argparse
 
 import pytest
 
-from canair import profile
+from canair.cli import profile_context
 from canair.cli.commands import discover as discover_cmd
+from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache
 from canair.live.discover import physical as disc
-from canair.profile import active
 from canair.uds.addressing import FUNCTIONAL_11BIT_ID, AddressingMode
 from tests.support.fakes import FakeTerminal
 
@@ -24,16 +24,16 @@ NO_DATA = {"ok": False, "error": "NO DATA", "raw": "NO DATA"}
 
 @pytest.fixture
 def blank_profile(tmp_path, monkeypatch):
-    saved = profile._active
+    saved = profile_context._active
     root = tmp_path / "prof"
     (root / "ecus").mkdir(parents=True)
     (root / "captures").mkdir()
     (root / "profile.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)
     yield root
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 

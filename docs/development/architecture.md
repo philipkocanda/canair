@@ -7,10 +7,9 @@ rules behind it, and the migration that gets the tree there, are in
 
 !!! note "Migration state"
     The code lives in `src/canair/`. The 52 loose modules that used to sit at its root are in
-    packages now, and the Textual apps are in `tui/apps/`. What is left is listed in the plan:
-    library code that still finds the car through the active profile (`profile.active()`)
-    instead of taking a profile argument
-    (`plans/2026-11-05-code-organization-3-explicit-profile.md`, part B).
+    packages now, and the Textual apps are in `tui/apps/`. Library code takes the profile as an
+    argument; only the CLI holds the active one (`cli/profile_context.py`). What is left is
+    listed in the plans.
 
 ## Layers
 
@@ -50,7 +49,7 @@ definitions, the store and the transport, and the definitions themselves.
 
 The definitions are three layers: `ecus/` (the loaded definitions) above `variants/` (which car
 the profile describes) above `profile/` (the bundle on disk). `profile/` does not know what a
-variant is, so the CLI installs how the active profile gets its variant
+variant is, so the CLI applies the variant and holds the active profile
 (`cli/profile_context.py`). Every layer is ordered, and `lint-imports` fails on a wrong-way
 import.
 

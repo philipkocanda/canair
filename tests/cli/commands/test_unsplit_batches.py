@@ -10,14 +10,14 @@ import json
 
 import pytest
 
-from canair import profile
 from canair.analysis.unsplit_batches import find_unsplit_batches, split_unsplit_batches
 from canair.captures import io as capture_io
 from canair.captures.payload_corpus import PayloadSample
+from canair.cli import profile_context
 from canair.cli.commands.captures.maint import cmd_split_batched
 from canair.cli.commands.validate.captures import run_captures
+from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache
-from canair.profile import active
 from canair.validation.unsplit import unsplit_batch_warnings
 
 IGPM, BCM = 0x778, 0x7A8
@@ -385,7 +385,7 @@ def test_validate_warning_names_the_dids_and_the_repair(tmp_path):
 
 @pytest.fixture
 def _temp_profile(tmp_path):
-    saved = profile._active
+    saved = profile_context._active
     clear_cache()
     root = tmp_path / "prof"
     (root / "ecus").mkdir(parents=True)
@@ -394,10 +394,10 @@ def _temp_profile(tmp_path):
         "IGPM:\n  tx_id: 0x770\n  identity:\n    id_protocol: UDS\n"
     )
     _write(root / "captures", _caps(dict(BLOB)))
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
     yield root
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 

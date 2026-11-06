@@ -15,8 +15,8 @@ import pytest
 
 from canair.captures.build import build_query_session
 from canair.captures.save import save_session
+from canair.cli.profile_context import active
 from canair.core.prompt import PromptUnavailable
-from canair.profile import active
 
 
 def _seed(cdir, *sessions: tuple[str, str], transport: str | None = None) -> None:

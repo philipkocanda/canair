@@ -21,10 +21,10 @@ import re
 
 import pytest
 
-from canair import profile
+from canair.cli import profile_context
+from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache
 from canair.live.discover import physical as disc
-from canair.profile import active
 from tests.support.fakes import FakeTerminal, nrc, ok
 
 PROFILE_YAML = 'car_model: "T"\ninit: "ATSP6;"\naddressing:\n  rx_offset: 0x20\n'
@@ -34,17 +34,17 @@ ABS = "ABS:\n  tx_id: 0x740\n  identity:\n    id_protocol: UDS\n"
 
 @pytest.fixture
 def prof(tmp_path):
-    saved = profile._active
+    saved = profile_context._active
     root = tmp_path / "prof"
     (root / "ecus").mkdir(parents=True)
     (root / "captures").mkdir()
     (root / "profile.yaml").write_text(PROFILE_YAML)
     (root / "ecus" / "brake.yaml").write_text(BRAKE)
     (root / "ecus" / "abs.yaml").write_text(ABS)
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
     yield root
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 

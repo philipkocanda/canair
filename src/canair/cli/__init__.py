@@ -324,10 +324,6 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    from canair.cli.profile_context import install
-
-    install()
-
     # Ensure ~/.config/canair (and profiles/) exists so no manual setup is needed.
     from canair.config.file import ensure_config_dir
 
@@ -347,8 +343,9 @@ def main(argv: list[str] | None = None) -> int:
         run_first_run_setup(args)
 
     from canair.captures.io import LegacyCaptureError
+    from canair.cli.profile_context import set_active
     from canair.core.edit_errors import EditError
-    from canair.profile import ProfileError, set_active
+    from canair.profile import ProfileError
     from canair.render import ansi, messages
     from canair.safety.blocklist import SafetyBlocked
 

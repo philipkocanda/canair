@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from canair.cli.profile_context import active
 from canair.core.paths import CONFIG_DOCS_URL
-from canair.profile import active
 from canair.render.console import console, escape
 
 

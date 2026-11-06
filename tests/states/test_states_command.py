@@ -31,7 +31,7 @@ def _patched(monkeypatch):
     monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canair.cli.commands.states.listing.load_states", lambda *_, **__: rules)
     monkeypatch.setattr(listing_cmd, "_load_usage", lambda: usage)
-    monkeypatch.setattr("canair.profile._active", _FakeProfile())
+    monkeypatch.setattr("canair.cli.profile_context._active", _FakeProfile())
 
 
 def _run(**kw):
@@ -81,7 +81,7 @@ def test_empty_vocabulary(monkeypatch, capsys):
     monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("canair.cli.commands.states.listing.load_states", lambda *_, **__: [])
     monkeypatch.setattr(listing_cmd, "_load_usage", lambda: {})
-    monkeypatch.setattr("canair.profile._active", _FakeProfile())
+    monkeypatch.setattr("canair.cli.profile_context._active", _FakeProfile())
     rc = _run()
     out = capsys.readouterr().out
     assert rc == 0
@@ -163,7 +163,7 @@ class TestReverseLookup:
         }
         ecus = {0x7E4: {"can_bus": ["P-CAN"]}, 0x7C6: {"can_bus": ["C-CAN"]}, 0x770: {}}
         monkeypatch.setenv("NO_COLOR", "1")
-        monkeypatch.setattr("canair.profile._active", _FakeProfile())
+        monkeypatch.setattr("canair.cli.profile_context._active", _FakeProfile())
         for module in (
             "canair.cli.commands.states.show",
             "canair.states.selectors",

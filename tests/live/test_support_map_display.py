@@ -6,10 +6,10 @@ import pytest
 from textual.app import App
 from textual.binding import Binding
 
+from canair.cli.profile_context import active
 from canair.expression.notation import ByteDisplay, ByteNotation
 from canair.live.monitor.render import MONITOR_LEGEND, _render_results
 from canair.live.read.batch import _decode_pid_result
-from canair.profile import active
 from canair.render.formatting import (
     _HIGHLIGHT_STYLE,
     BYTE_COLOUR_LEGEND,

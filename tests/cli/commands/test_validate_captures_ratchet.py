@@ -13,7 +13,7 @@ import json
 
 import pytest
 
-from canair import profile
+from canair.cli import profile_context
 from canair.cli.commands.validate.captures import run_captures
 from canair.ecus.pids import clear_cache
 
@@ -25,10 +25,10 @@ IONIQ_2017_UNTIMED_BASELINE = 275
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
-    saved = profile._active
+    saved = profile_context._active
     clear_cache()
     yield
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 
@@ -46,7 +46,7 @@ def _mk_profile(tmp_path, *, n_untimed: int) -> None:
     (root / "captures" / "2026-04-16.json").write_text(
         json.dumps({"sessions": [{"date": "2026-04-16", "label": "t", "captures": caps}]})
     )
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
 
 
@@ -109,7 +109,7 @@ def _mk_profile_with_quality_warning(tmp_path, *, n_untimed: int) -> None:
             }
         )
     )
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
 
 

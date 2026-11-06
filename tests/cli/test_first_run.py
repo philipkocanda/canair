@@ -6,17 +6,16 @@ import argparse
 
 import pytest
 
-from canair import profile
-from canair.cli import first_run
+from canair.cli import first_run, profile_context
 from canair.ecus.pids import clear_cache
 
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
-    saved = profile._active
+    saved = profile_context._active
     clear_cache()
     yield
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 

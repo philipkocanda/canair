@@ -24,7 +24,7 @@ from canair.captures.store import (
     resolve_pid_defs,
     unresolved_state_summary,
 )
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.states.spans import span_keys
 
 CANLIB = Path(__file__).resolve().parents[2] / "src" / "canair"

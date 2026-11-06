@@ -6,10 +6,10 @@ conventional +0x08 default — plus that the ECU-index/registry builders and the
 RX↔TX lookups all honor it (see plans/2026-07-28-multi-vehicle-support.md).
 """
 
+from canair.cli.profile_context import active
 from canair.ecus.names import resolve_tx
 from canair.ecus.pids import build_ecu_index
 from canair.ecus.registry import build_rx_index, build_rx_tx_index, rx_for_tx
-from canair.profile import active
 from canair.uds.addressing import (
     DEFAULT_RX_OFFSET,
     DEFAULT_TESTER_ADDRESS,

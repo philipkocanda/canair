@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 import canair.transport.timing as timing_mod
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.transport.timing import Stat, TimingRecorder, print_timings, render_timings
 
 

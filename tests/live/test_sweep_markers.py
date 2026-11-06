@@ -6,9 +6,9 @@ import re
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.live.scan.discovery import DiscoveryProbe, scan_ecu
 from canair.live.scan.sessions import scan_ecu_sessions
-from canair.profile import active
 from canair.render import discover as discover_render
 from tests.support.fakes import FakeTerminal, nrc, ok
 

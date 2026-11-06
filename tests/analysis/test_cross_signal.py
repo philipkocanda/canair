@@ -9,7 +9,8 @@ import yaml
 
 from canair.analysis import cross_signal as cross_signal
 from canair.analysis.align import TimePoint
-from canair.profile import active
+from canair.cli import profile_context
+from canair.cli.profile_context import active
 
 
 def _tp(sec, val):
@@ -45,7 +46,7 @@ def _temp_ecu_profile(tmp_path, filename: str, ecu: str = "AAF", pid: str = "218
                   parameters: {{}}
             """)
     )
-    profile._active = profile.Profile(name=root.name, root=root)
+    profile_context._active = profile.Profile(name=root.name, root=root)
     clear_cache()
     return path
 
@@ -53,12 +54,11 @@ def _temp_ecu_profile(tmp_path, filename: str, ecu: str = "AAF", pid: str = "218
 @pytest.fixture(autouse=True)
 def _never_write_the_bundled_profile():
     """Restore the active profile after every test in this module."""
-    from canair import profile
     from canair.ecus.pids import clear_cache
 
-    saved = profile._active
+    saved = profile_context._active
     yield
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 

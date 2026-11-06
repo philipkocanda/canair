@@ -9,6 +9,7 @@ import pytest
 import yaml
 
 from canair.cli.commands.pids import migrate
+from canair.cli.profile_context import active
 from canair.ecus.signal_category import (
     BINARY_CATEGORIES,
     CATEGORIES,
@@ -18,7 +19,6 @@ from canair.ecus.signal_category import (
     unit_category,
 )
 from canair.interop.autopid.classes import autopid_class
-from canair.profile import active
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.schema_fields import load_schema
 from canair.yaml_edit.pids import migrate_categories, upsert_parameter

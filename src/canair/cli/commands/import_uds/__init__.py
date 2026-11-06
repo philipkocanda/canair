@@ -48,8 +48,7 @@ from datetime import datetime
 from pathlib import Path
 
 from canair.captures.types import CaptureRecord
-from canair.cli.profile_context import dir_profile
-from canair.profile import active
+from canair.cli.profile_context import active, dir_profile, named_car
 from canair.render import ansi, glyphs, messages
 
 
@@ -110,9 +109,7 @@ def run(args) -> int:
         messages.error(problem)
         return 2
 
-    from canair.variants.selection import require_named_car
-
-    require_named_car(active(), "import uds")
+    named_car("import uds")
 
     from canair.captures.build import build_manual_session
     from canair.captures.save import save_session

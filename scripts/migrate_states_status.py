@@ -223,7 +223,8 @@ def main() -> int:
     ap.add_argument("--apply", action="store_true", help="Write changes (default: dry run)")
     args = ap.parse_args()
 
-    from canair.profile import active, resolve_profile
+    from canair.cli.profile_context import active
+    from canair.profile import resolve_profile
 
     prof = resolve_profile(args.profile) if args.profile else active()
     print(f"Profile: {prof.name}  ({'APPLY' if args.apply else 'DRY RUN'})\n")

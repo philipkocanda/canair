@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 
+from canair.cli.profile_context import active
 from canair.core.id_ranges import format_id_ranges, parse_id_ranges
 from canair.live.scan.presets import (
     FAMILY_SIZE,
@@ -15,7 +16,6 @@ from canair.live.scan.presets import (
     resolve_service,
     service_label,
 )
-from canair.profile import active
 from canair.render import messages
 from canair.render.console import console, escape
 

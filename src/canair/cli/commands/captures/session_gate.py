@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from canair.captures import layers
+from canair.cli.profile_context import active
 from canair.core.prompt import confirm
-from canair.profile import active
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

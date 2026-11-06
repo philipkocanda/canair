@@ -7,7 +7,7 @@ Ingest is ``canair import can`` (:mod:`canair.cli.commands.import_`).
 
 import argparse
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import ansi
 
 

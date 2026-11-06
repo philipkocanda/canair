@@ -2,6 +2,7 @@
 
 import pytest
 
+from canair.cli import profile_context
 from canair.profile import (
     BUNDLE_MEMBERS,
     Profile,
@@ -142,10 +143,9 @@ class TestProfileForPath:
         assert profile_for_path(log).root == root
 
     def test_ignores_the_active_profile(self, tmp_path, monkeypatch):
-        from canair import profile as profile_mod
 
         other = self._bundle(tmp_path, "other")
-        monkeypatch.setattr(profile_mod, "_active", Profile("other", other))
+        monkeypatch.setattr(profile_context, "_active", Profile("other", other))
         root = self._bundle(tmp_path, "mine")
         assert profile_for_path(root / "ecus").root == root
 

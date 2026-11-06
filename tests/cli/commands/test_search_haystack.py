@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from canair.cli import _inject_default_subcommand, build_parser
+from canair.cli import _inject_default_subcommand, build_parser, profile_context
 from canair.cli.commands.search.haystack import (
     FIELD_SCAN_NOTES,
     _Tally,
@@ -182,7 +182,7 @@ class TestLayeredProfile:
             caps = [{"rx": "0x7A8", "pid": "22F188", "payload": _payload("F188", part + b"\x00")}]
             doc = {"sessions": [{"date": "2026-07-24", "label": label, "captures": caps}]}
             (root / "captures" / "2026-07-24.json").write_text(json.dumps(doc))
-        monkeypatch.setattr(profile, "_active", profile.resolve_profile("ev6"))
+        monkeypatch.setattr(profile_context, "_active", profile.resolve_profile("ev6"))
         try:
             parser = build_parser()
             for needle, field in (("upstream", "session label"), ("mine", "session label")):
@@ -195,7 +195,7 @@ class TestLayeredProfile:
             (finding,) = json.loads(capsys.readouterr().out)["findings"]
             assert finding["ecu"] == "BCM" and finding["text"] == "95400G7470"
         finally:
-            profile._active = None
+            profile_context._active = None
             config_file.load_config.cache_clear()
 
 

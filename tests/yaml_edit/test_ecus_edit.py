@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.validation.pids import collect_pids_validation
 from canair.yaml_edit.ecu import (
     EcusEditError,

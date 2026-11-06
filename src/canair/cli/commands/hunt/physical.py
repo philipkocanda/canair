@@ -10,8 +10,8 @@ from canair.analysis.align import (
     longest_payload_len,
 )
 from canair.cli.args.notation import resolve_notation
+from canair.cli.profile_context import active
 from canair.expression.notation import ByteNotation, ByteRef
-from canair.profile import active
 from canair.render import ansi, messages
 from canair.uds.layout import subfunction_bytes_for_pid
 from canair.variants import effective_meta

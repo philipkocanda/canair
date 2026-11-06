@@ -10,19 +10,19 @@ import re
 
 import pytest
 
-from canair import profile
+from canair.cli import profile_context
+from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache
 from canair.live.discover import physical as disc
-from canair.profile import active
 from tests.support.fakes import FakeTerminal as _SharedFakeTerminal
 
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
-    saved = profile._active
+    saved = profile_context._active
     clear_cache()
     yield
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 
@@ -33,7 +33,7 @@ def _mk_profile(tmp_path, seed_ecus: str | None = None):
     (root / "profile.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
     if seed_ecus:
         (root / "ecus" / "bms.yaml").write_text(seed_ecus)
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
     return root
 

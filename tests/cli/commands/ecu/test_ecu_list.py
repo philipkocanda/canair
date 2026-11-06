@@ -6,23 +6,23 @@ import re
 
 import pytest
 
-from canair import profile
 from canair.analysis.ecu_summary import list_records as _list_records
+from canair.cli import profile_context
 from canair.cli.commands.ecu.list_view import cmd_list
 from canair.cli.commands.ecu.records import detail_record as _detail_record
+from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache
-from canair.profile import active
 
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
     from canair.config import file as config_file
 
-    saved = profile._active
+    saved = profile_context._active
     clear_cache()
     config_file.load_config.cache_clear()
     yield
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
     config_file.load_config.cache_clear()
 

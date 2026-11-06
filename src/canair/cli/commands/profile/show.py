@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from canair.profile import (
-    BUNDLE_MEMBERS,
-    active,
-    resolve_profile,
-)
+from canair.cli.profile_context import active
+from canair.profile import BUNDLE_MEMBERS, resolve_profile
 from canair.states.predicates import StatePredicateError
 from canair.states.vocabulary import load_states
 from canair.variants import effective_meta

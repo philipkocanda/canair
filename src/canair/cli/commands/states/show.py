@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import ansi, messages
 from canair.states.implies import exclusive_pairs
 from canair.states.predicates import StatePredicateError

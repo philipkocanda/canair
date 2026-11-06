@@ -5,9 +5,9 @@ import json
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.live import dtc
 from canair.live.dtc import sweep as dtc_sweep
-from canair.profile import active
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok
 from tests.support.live_args import live_args

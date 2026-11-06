@@ -2,10 +2,10 @@
 
 import asyncio
 
+from canair.cli.profile_context import active
 from canair.live.monitor.backoff import PollCost
 from canair.live.monitor.raw_poller import _raw_pid_result
 from canair.live.monitor.raw_run import query_ecu_addresses
-from canair.profile import active
 from canair.uds.addressing import EcuAddress
 from tests.support.monitor_controller import make_controller
 from tests.support.raw_monitor import FakeRawClient

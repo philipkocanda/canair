@@ -8,11 +8,10 @@ from pathlib import Path
 from canair.analysis.ecu_summary import list_records
 from canair.cli.commands._edit import edit_scope
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
-from canair.cli.profile_context import target_profile
+from canair.cli.profile_context import active, target_profile
 from canair.ecus.names import resolve_tx
 from canair.ecus.pids import load_pids
 from canair.ecus.registry import load_ecus
-from canair.profile import active
 from canair.yaml_edit.echo import echo_edit
 
 from .show import unknown_ecu

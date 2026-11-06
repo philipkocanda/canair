@@ -7,8 +7,8 @@ read-only.
 
 from __future__ import annotations
 
+from canair.cli.profile_context import active
 from canair.core.prompt import confirm
-from canair.profile import active
 from canair.render import messages
 from canair.states.tokens import parse_states
 from canair.transport.protocol import Terminal

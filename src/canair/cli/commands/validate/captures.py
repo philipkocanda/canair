@@ -2,7 +2,7 @@
 
 from collections import OrderedDict
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import messages
 from canair.validation.captures import check_captures
 from canair.validation.report import CapturesReport, CaptureWarning

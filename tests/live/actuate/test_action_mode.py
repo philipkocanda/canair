@@ -12,9 +12,9 @@ import asyncio
 import pytest
 
 from canair.actions import ActionError, parse_action
+from canair.cli.profile_context import active
 from canair.core.prompt import PromptUnavailable
 from canair.live.actuate import action as mode
-from canair.profile import active
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
 from tests.support.fakes import FakeTerminal
 

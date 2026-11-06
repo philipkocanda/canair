@@ -9,13 +9,13 @@ can actuate, so the read-only 0x33/0x30 variants must be used there instead.
 from __future__ import annotations
 
 from canair.cli.live.operation import LiveOperation
+from canair.cli.profile_context import active
 from canair.core.prompt import confirm
 from canair.ecus.protocol import split_ecus_by_protocol
 from canair.live.discover.physical import mode_discover
 from canair.live.scan.iocontrol import mode_iocontrol_scan
 from canair.live.scan.range import mode_scan
 from canair.live.scan.routines import mode_routines_scan
-from canair.profile import active
 from canair.render import messages
 from canair.transport.protocol import Terminal
 

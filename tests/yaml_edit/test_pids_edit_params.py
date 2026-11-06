@@ -5,7 +5,7 @@ import textwrap
 import pytest
 import yaml
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.yaml_edit.pids import (
     PidsEditError,
     add_pid,

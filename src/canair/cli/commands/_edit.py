@@ -18,7 +18,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.yaml_edit.commit import schema_validation
 from canair.yaml_edit.echo import echo_edit
 

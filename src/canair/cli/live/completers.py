@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from canair.cli.profile_context import active
 from canair.ecus.pids import load_pids
-from canair.profile import active
 
 
 def _load_pids_for_completion():

@@ -6,11 +6,11 @@ import json
 
 import pytest
 
-from canair import profile
 from canair.captures import io as capture_io
+from canair.cli import profile_context
+from canair.cli.profile_context import active
 from canair.ecus.pids import build_ecu_index, clear_cache, load_pids, load_pids_dir
 from canair.privacy import sensitive
-from canair.profile import active
 
 META = 'car_model: "T"\ninit: "ATSP6;"\n'
 
@@ -49,16 +49,16 @@ def _reset():
 
 @pytest.fixture
 def prof(tmp_path):
-    saved = profile._active
+    saved = profile_context._active
     root = tmp_path / "prof"
     (root / "captures").mkdir(parents=True)
     (root / "ecus").mkdir()
     (root / "profile.yaml").write_text(META)
     (root / "ecus" / "ccm.yaml").write_text(CCM)
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
     yield root
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 
@@ -223,7 +223,7 @@ class TestNeverShared:
         _write_store(prof, [_cap("22F102", "62F102AABBCCDDEEFF"), _cap("22F101", "62F101")])
         warnings: list[str] = []
         dest = copy_profile(
-            profile.active(), tmp_path / "ws", include_captures=True, warn=warnings.append
+            profile_context.active(), tmp_path / "ws", include_captures=True, warn=warnings.append
         )
         assert "AABBCC" not in (dest / "captures" / "2026-11-02.json").read_text()
         assert any("sensitive" in w for w in warnings)
@@ -284,11 +284,11 @@ class TestBundledIoniqIdentity:
 
     @pytest.fixture
     def ioniq(self):
-        saved = profile._active
-        profile.set_active("hyundai-ioniq-ae-ev")
+        saved = profile_context._active
+        profile_context.set_active("hyundai-ioniq-ae-ev")
         clear_cache()
         yield
-        profile._active = saved
+        profile_context._active = saved
         clear_cache()
 
     @pytest.mark.parametrize("request_hex", ["1A80", "1A90"])

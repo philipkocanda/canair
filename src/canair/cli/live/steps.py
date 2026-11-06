@@ -7,7 +7,7 @@ mini-language parser ever sees them, so a group composes with ad-hoc selectors.
 
 from __future__ import annotations
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import messages
 
 # Leading verbs recognised by the multi mini-language. A positional STEP whose

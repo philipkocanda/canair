@@ -3,9 +3,9 @@
 import math
 
 from canair.analysis.stats import fmt_num
+from canair.cli.profile_context import active
 from canair.expression import inspect_bytes
 from canair.expression.inspect_bytes import INSPECT_TYPES, InspectType
-from canair.profile import active
 from canair.tui.apps.decode_plot import draw as decode_plot_draw
 
 U16 = InspectType("u16", 2, "int", False)

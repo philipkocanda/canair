@@ -25,8 +25,8 @@ from canair.captures.link_events import (
     summarize,
 )
 from canair.captures.types import CaptureEntry, Quality
+from canair.cli.profile_context import active
 from canair.core.terminal import terminal_columns, truncate_text
-from canair.profile import active
 from canair.render import ansi, glyphs
 from canair.states.spans import parse_time_key
 from canair.states.tokens import join_states as _join_states

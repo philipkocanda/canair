@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from canair.captures.journal import CaptureJournal
+from canair.cli.profile_context import active
 from canair.live.read.multi import (
     _exec_iocontrol,
     _exec_query,
@@ -17,7 +18,6 @@ from canair.live.read.multi import (
     resolve_tx_id,
     selector_text,
 )
-from canair.profile import active
 from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 
 # --- resolve_tx_id ---

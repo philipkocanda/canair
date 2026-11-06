@@ -1,4 +1,4 @@
-from canair.profile import active
+from canair.cli.profile_context import active
 
 """The QUERY mini-language as the analysis commands take it: ECU aliases resolved."""
 

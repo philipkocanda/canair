@@ -8,8 +8,7 @@ from pathlib import Path
 
 from canair.captures import io as capture_io
 from canair.cli.args.scope import parse_iso_date
-from canair.cli.profile_context import dir_profile
-from canair.profile import active
+from canair.cli.profile_context import active, dir_profile
 from canair.render import messages
 
 

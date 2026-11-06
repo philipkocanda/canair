@@ -2,7 +2,7 @@
 
 import pytest
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.states.implies import (
     implication_cycle,
     implied_closure,

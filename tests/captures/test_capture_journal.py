@@ -10,7 +10,7 @@ from canair.captures.journal import (
     reconcile_file,
     recover,
 )
-from canair.profile import active
+from canair.cli.profile_context import active
 
 
 def _read_capture_file(captures_dir):

@@ -12,8 +12,8 @@ from typing import ClassVar
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.live.read.exec import build_query_plan
-from canair.profile import active
 from canair.query import (
     QueryError,
     explicit_request,

@@ -8,6 +8,7 @@ import json
 import pytest
 
 from canair.captures.build import build_manual_session
+from canair.cli import profile_context
 from canair.cli.commands.import_uds import _build_capture, _parse_spec, run
 
 _NAME_INDEX = {"CLU": 0x7C6}
@@ -83,10 +84,8 @@ def _named_car(monkeypatch):
     """Imports must name the car on a multi-variant profile: give the suite's one."""
     import dataclasses
 
-    from canair import profile as profile_mod
-
-    prof = dataclasses.replace(profile_mod.active(), variant="28kwh", variant_source="flag")
-    monkeypatch.setattr(profile_mod, "_active", prof)
+    prof = dataclasses.replace(profile_context.active(), variant="28kwh", variant_source="flag")
+    monkeypatch.setattr(profile_context, "_active", prof)
 
 
 def _args(**kw) -> argparse.Namespace:

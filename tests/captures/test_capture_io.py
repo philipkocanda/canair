@@ -7,7 +7,7 @@ import json
 import pytest
 
 from canair.captures import io as capture_io
-from canair.profile import active
+from canair.cli.profile_context import active
 
 
 class TestCaptureRx:

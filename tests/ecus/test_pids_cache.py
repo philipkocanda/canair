@@ -5,8 +5,9 @@ import textwrap
 import pytest
 
 from canair import profile
+from canair.cli import profile_context
+from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache, register_derived_cache
-from canair.profile import active
 
 
 def _mk_profile(tmp_path, name, ecu, param, sensitive=False):
@@ -31,14 +32,14 @@ def _mk_profile(tmp_path, name, ecu, param, sensitive=False):
 
 
 def _activate(root, name):
-    profile.replace_active(profile.Profile(name, root))
+    profile_context.replace_active(profile.Profile(name, root))
 
 
 @pytest.fixture(autouse=True)
 def _restore_active():
-    saved = profile._active
+    saved = profile_context._active
     yield
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 
@@ -205,7 +206,7 @@ class TestLoadPidsCacheKey:
         from canair import profile
         from canair.ecus.pids import clear_cache, load_pids
 
-        saved = profile._active
+        saved = profile_context._active
         try:
             for name, ecu in (("one", "BMS"), ("two", "MCU")):
                 root = tmp_path / name
@@ -213,14 +214,14 @@ class TestLoadPidsCacheKey:
                 (root / "profile.yaml").write_text('car_model: "T"\ninit: "x"\n')
                 (root / "ecus" / "e.yaml").write_text(f"{ecu}:\n  tx_id: 0x7E4\n")
 
-            profile._active = profile.Profile("one", tmp_path / "one")
+            profile_context._active = profile.Profile("one", tmp_path / "one")
             clear_cache()
             assert list(load_pids(profile=active())["ecus"]) == ["BMS"]
 
-            profile._active = profile.Profile("two", tmp_path / "two")
-            assert profile._active.cache_key == str(tmp_path / "two")
+            profile_context._active = profile.Profile("two", tmp_path / "two")
+            assert profile_context._active.cache_key == str(tmp_path / "two")
             clear_cache()
             assert list(load_pids(profile=active())["ecus"]) == ["MCU"]
         finally:
-            profile._active = saved
+            profile_context._active = saved
             clear_cache()

@@ -16,9 +16,9 @@ from canair.analysis.cross_signal import byte_state_buckets as _byte_state_bucke
 from canair.analysis.cross_signal import discriminability as _discriminability
 from canair.analysis.mirrors import DEFAULT_MIRROR_MATCH
 from canair.analysis.stats import correlation as _correlation
+from canair.cli.profile_context import active
 from canair.expression.inspect_bytes import apply_transform
 from canair.expression.notation import ByteNotation, relabel_signal
-from canair.profile import active
 from canair.render import ansi
 from canair.states.selectors import state_bucket_key
 from canair.states.vocabulary import load_states

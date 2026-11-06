@@ -4,9 +4,9 @@ import json
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.live.identity import decode as idec
 from canair.live.identity import read as ident
-from canair.profile import active
 from canair.uds.parse import parse_uds_response
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok

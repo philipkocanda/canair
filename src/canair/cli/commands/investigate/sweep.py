@@ -22,8 +22,8 @@ import sys
 
 from canair.analysis.align import LoadedPid, load_signal_captures
 from canair.cli.args.notation import resolve_notation
+from canair.cli.profile_context import active
 from canair.expression.notation import ByteNotation
-from canair.profile import active
 from canair.render import ansi, messages
 from canair.uds.byteindex import mapped_offsets
 from canair.uds.layout import subfunction_bytes_for_pid

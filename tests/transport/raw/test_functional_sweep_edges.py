@@ -12,6 +12,7 @@ import contextlib
 import can
 import pytest
 
+from canair.cli import profile_context
 from canair.live.discover.sweep import classify_round
 from canair.transport.elm327.addressing import AUTO
 from canair.transport.elm327.functional import elm_functional_exchange
@@ -358,20 +359,19 @@ class TestPendingOnly:
 
 @pytest.fixture
 def profile_with(tmp_path):
-    from canair import profile
     from canair.ecus.pids import clear_cache
 
-    saved = profile._active
+    saved = profile_context._active
 
     def make(extra: str):
         root = tmp_path / "prof"
         (root / "ecus").mkdir(parents=True)
         (root / "profile.yaml").write_text(f'car_model: "T"\ninit: "ATSP6;"\n{extra}')
-        profile.set_active(str(root))
+        profile_context.set_active(str(root))
         clear_cache()
 
     yield make
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 

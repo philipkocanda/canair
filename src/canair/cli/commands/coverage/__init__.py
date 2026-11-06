@@ -51,8 +51,8 @@ from canair.cli.args.notation import add_notation_arg
 from canair.cli.args.scope import active_scope_flags, add_scope_args, resolve_scope_bounds
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.cli.commands._hints import pid_completer as _pid_completer
+from canair.cli.profile_context import active
 from canair.ecus.pids import build_ecu_index, load_pids
-from canair.profile import active
 from canair.render import messages
 from canair.uds.support_map import MapDecl, SupportMapError, declaration
 

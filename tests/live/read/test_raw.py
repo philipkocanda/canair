@@ -2,8 +2,8 @@
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.live.read.raw import mode_raw
-from canair.profile import active
 from tests.support.fakes import FakeTerminal
 
 

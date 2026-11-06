@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import messages
 from canair.uds.support_map import SupportMapError, declaration
 

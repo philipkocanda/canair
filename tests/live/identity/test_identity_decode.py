@@ -2,8 +2,8 @@
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.live.identity import decode as idec
-from canair.profile import active
 
 # --- decode_identity_payload ---
 

@@ -20,7 +20,7 @@ from canair.captures.store import (
     resolve_pid_defs,
 )
 from canair.cli.args.query import parse_canonical_query
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import ansi
 
 

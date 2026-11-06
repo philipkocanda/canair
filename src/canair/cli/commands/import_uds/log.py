@@ -17,9 +17,8 @@ from datetime import date, datetime, time
 from pathlib import Path
 
 from canair.captures.types import CaptureSession, Quality
-from canair.cli.profile_context import dir_profile
+from canair.cli.profile_context import active, dir_profile, named_car
 from canair.interop.frame_log import Extraction, extract_replies, stamp
-from canair.profile import active
 from canair.render import ansi, glyphs, messages
 from canair.render.paint import Painter
 
@@ -44,9 +43,7 @@ def check_args(args: argparse.Namespace) -> None:
 
 
 def run_from_log(args: argparse.Namespace) -> int:
-    from canair.variants.selection import require_named_car
-
-    require_named_car(active(), "import uds")
+    named_car("import uds")
     try:
         check_args(args)
         return _import_log(args)

@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from canair.cli.commands._edit import run_edit, set_or_clear
+from canair.cli.profile_context import active
 from canair.core.prompt import confirm
-from canair.profile import active
 from canair.render import ansi, messages
 from canair.yaml_edit.echo import echo_edit
 

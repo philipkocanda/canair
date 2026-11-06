@@ -8,12 +8,12 @@ from types import SimpleNamespace
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.core.prompt import PromptUnavailable
 from canair.ecus.pids import normalize_session_mode
 from canair.live.scan import kwp_iocontrol as kwp_iocontrol_scan
 from canair.live.scan import kwp_routines as kwp_routines_scan
 from canair.live.scan.sessions import mode_sessions_scan
-from canair.profile import active
 from tests.support.fakes import FakeTerminal, nrc
 
 KWP_BCM = {"BCM": {"tx_id": 0x745, "identity": {"id_protocol": "KWP2000"}}}

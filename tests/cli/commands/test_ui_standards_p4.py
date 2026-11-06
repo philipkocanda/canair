@@ -25,8 +25,8 @@ from canair.cli.commands.captures.delete import cmd_delete
 from canair.cli.commands.captures.set_state import cmd_set_state
 from canair.cli.commands.contribute import report
 from canair.cli.commands.status import render as status_cmd
+from canair.cli.profile_context import active
 from canair.core.prompt import PromptUnavailable
-from canair.profile import active
 
 ESC = re.compile(r"\x1b\[")
 

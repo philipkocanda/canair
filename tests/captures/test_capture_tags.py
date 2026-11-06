@@ -12,10 +12,11 @@ from pathlib import Path
 
 import pytest
 
-from canair import profile as profile_mod
 from canair.captures import io as capture_io
+from canair.cli import profile_context
+from canair.cli.profile_context import active
 from canair.dtc.log import log_file
-from canair.profile import Profile, ProfileError, active
+from canair.profile import Profile, ProfileError
 from canair.variants.selection import apply_variant, require_named_car
 from canair.yaml_edit import variants as variants_edit
 
@@ -43,13 +44,13 @@ def prof(tmp_path, monkeypatch):
     (root / "ecus" / "bms.yaml").write_text("BMS:\n  tx_id: 0x7E4\n")
     (root / "variants.yaml").write_text(VARIANTS)
     p = Profile(root.name, root)
-    monkeypatch.setattr(profile_mod, "_active", p)
+    monkeypatch.setattr(profile_context, "_active", p)
     return p
 
 
 def _select(prof: Profile, variant: str | None, source: str = "flag") -> Profile:
     chosen = dataclasses.replace(prof, variant=variant, variant_source=source if variant else None)
-    profile_mod._active = chosen
+    profile_context._active = chosen
     return chosen
 
 
@@ -201,7 +202,7 @@ class TestTaggedCopyWins:
         (overlay / "captures").mkdir(parents=True)
         _write(prof.captures_dir / "2026-01-01.json", _session("a", variant="28kwh"))
         _write(overlay / "captures" / "2026-01-01.json", _session("a"))
-        profile_mod._active = dataclasses.replace(prof, overlays=(overlay,))
+        profile_context._active = dataclasses.replace(prof, overlays=(overlay,))
         (row,) = load_all_captures(profile=active())
         assert row["session_variant"] == "28kwh"
 
@@ -306,11 +307,11 @@ class TestImportsNameTheCar:
         monkeypatch.setenv("CANAIR_VARIANT", "28kwh")
         with pytest.raises(ProfileError):
             require_named_car(apply_variant(prof), "import uds")  # an env default is not enough
-        assert require_named_car(_select(prof, "38kwh"), "import uds") == "38kwh"
+        assert require_named_car(_select(prof, "38kwh"), "import uds")[0] == "38kwh"
 
     def test_a_single_variant_profile_needs_nothing(self, prof):
         prof.variants_file.write_text("variants:\n  28kwh:\n    name: A\n")
-        assert require_named_car(prof, "import uds") is None
+        assert require_named_car(prof, "import uds")[0] is None
 
 
 class TestRenameAndRemove:

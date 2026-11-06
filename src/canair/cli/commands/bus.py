@@ -21,7 +21,7 @@ import json
 import sys
 from typing import TypedDict
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import ansi
 
 NAME = "bus"

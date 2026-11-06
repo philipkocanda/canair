@@ -5,18 +5,18 @@ from __future__ import annotations
 import pytest
 import yaml
 
-from canair import profile
+from canair.cli import profile_context
+from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache
-from canair.profile import active
 
 
 @pytest.fixture(autouse=True)
 def _restore_active_profile():
     """Don't let set_active() in these tests leak into other test modules."""
-    saved = profile._active
+    saved = profile_context._active
     clear_cache()
     yield
-    profile._active = saved
+    profile_context._active = saved
     clear_cache()
 
 
@@ -27,7 +27,7 @@ def _mk_profile(tmp_path, seed_ecus: str | None = None):
     (root / "profile.yaml").write_text('car_model: "T"\ninit: "ATSP6;"\n')
     if seed_ecus:
         (root / "ecus" / "ecm.yaml").write_text(seed_ecus)
-    profile.set_active(str(root))
+    profile_context.set_active(str(root))
     clear_cache()
     return root
 

@@ -26,7 +26,7 @@ from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.join import fill_policy_from_args, fill_summaries, fill_summary_line
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import messages
 from canair.uds.byteindex import mapped_bits, mapped_offsets
 from canair.variants import effective_meta

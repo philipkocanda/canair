@@ -31,8 +31,8 @@ from canair.cli.live import (
     to_step,
 )
 from canair.cli.live.handlers.multi import monitor_operation, monitor_options
+from canair.cli.profile_context import active
 from canair.live.monitor.schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
-from canair.profile import active
 from canair.render import messages
 
 NAME = "monitor"

@@ -16,12 +16,12 @@ from pathlib import Path
 import pytest
 import yaml
 
-from canair import profile as profile_mod
 from canair.captures.tags import capture_tag
 from canair.cli import main
+from canair.cli.profile_context import active, set_active
 from canair.config import file as config_file
 from canair.ecus.pids import clear_cache, load_pids, load_raw_pids, revision_resolutions
-from canair.profile import ProfileError, active, set_active
+from canair.profile import ProfileError
 from canair.variants import check_variants_doc, effective_meta, load_variants
 from canair.variants import revisions as rv
 from canair.variants.tags import narrow_to_captured, revisions_in_scope
@@ -401,8 +401,7 @@ class TestCaptures:
         config_file.load_config.cache_clear()
         prof = _activate(copy, variant="60kwh")
         assert prof.revision_pins == (("VCU", "uds", "config"),)
-        require_named_car(prof, "import uds")
-        assert profile_mod.active().revision_pins == ()
+        assert require_named_car(prof, "import uds")[1].revision_pins == ()
 
     @pytest.mark.parametrize(
         "argv",

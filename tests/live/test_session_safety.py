@@ -12,7 +12,7 @@ import asyncio
 
 import pytest
 
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 from canair.transport.config import ConnectionOptions
 from canair.transport.raw import uds_client as uds_raw

@@ -5,13 +5,13 @@ from typing import ClassVar
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.device.wican import mode as wican_mode
 from canair.device.wican.mode import ModeError
 from canair.live.monitor import raw_run as raw_monitor
 from canair.live.monitor.options import MonitorOptions
 from canair.live.read import raw_ops
 from canair.live.session import SessionOptions
-from canair.profile import active
 from canair.transport.config import ConnectionOptions
 
 

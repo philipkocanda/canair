@@ -20,8 +20,8 @@ from canair.captures.link_events import (
     session_link_events,
     summarize,
 )
+from canair.cli.profile_context import active
 from canair.live.monitor.link_events import LinkEventTracker
-from canair.profile import active
 from canair.validation._common import CAPTURES_SCHEMA_FILE
 from tests.support.monitor_controller import make_controller
 

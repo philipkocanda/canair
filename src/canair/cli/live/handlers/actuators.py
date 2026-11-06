@@ -9,12 +9,12 @@ families, not here.
 
 from __future__ import annotations
 
+from canair.cli.profile_context import active
 from canair.core.prompt import confirm
 from canair.live.actuate.iocontrol import mode_iocontrol_tui
 from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 from canair.live.actuate.routines import mode_routines_tui
 from canair.live.actuate.routines_execute import mode_routines_execute
-from canair.profile import active
 from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.uds.subfunctions import RoutineControlType

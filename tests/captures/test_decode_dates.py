@@ -13,7 +13,7 @@ from canair.cli.args.scope import (
     resolve_scope_bounds,
 )
 from canair.cli.commands.decode import query, views
-from canair.profile import active
+from canair.cli.profile_context import active
 
 # ---------------------------------------------------------------------------
 # capture_dates helpers

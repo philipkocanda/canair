@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from typing import TypedDict
 
 from canair.captures.build import IMPORT_TRANSPORT
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.uds.echo import request_echo
 from canair.uds.nrc import nrc_description
 from canair.uds.payload import payload_echo_mismatch

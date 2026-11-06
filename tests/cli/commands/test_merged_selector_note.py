@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from canair.cli.live.steps import report_merged_selectors
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.query.steps import normalize_query_steps
 
 

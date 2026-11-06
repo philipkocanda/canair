@@ -6,10 +6,10 @@ error for an unresolvable one, and hands off to its mode.
 
 from __future__ import annotations
 
+from canair.cli.profile_context import active
 from canair.live.identity.read import mode_identity
 from canair.live.read.param import mode_param
 from canair.live.read.raw import mode_raw
-from canair.profile import active
 from canair.render import messages
 from canair.transport.protocol import Terminal
 

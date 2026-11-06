@@ -10,7 +10,7 @@ testable on its own.
 from __future__ import annotations
 
 from canair.captures.dates import filter_by_date_range, filter_by_text
-from canair.profile import active
+from canair.cli.profile_context import active
 
 # Analysis modes that are inherently single-PID (they bind to one PID's byte
 # layout / build one signal). A multi-PID query is rejected for these.

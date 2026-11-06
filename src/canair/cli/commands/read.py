@@ -27,7 +27,7 @@ from canair.cli.live import (
     to_step,
 )
 from canair.cli.live.handlers import elm_only, multi, reads
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.render import messages
 
 NAME = "read"

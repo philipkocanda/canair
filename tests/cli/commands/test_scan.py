@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.live.scan import presets as sp
 from canair.live.scan.presets import (
     ServiceError,
@@ -14,7 +15,6 @@ from canair.live.scan.presets import (
     resolve_service,
     service_label,
 )
-from canair.profile import active
 
 
 class TestResolveService:

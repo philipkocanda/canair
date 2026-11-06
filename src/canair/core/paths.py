@@ -17,7 +17,7 @@ before any fixture could isolate it). Use the explicit accessors instead:
 
 - devices/aliases → :func:`canair.config.devices.wican_addresses` /
   :func:`canair.config.devices.default_wican`
-- vehicle-data paths → ``canair.profile.active().ecus_dir`` / ``.captures_dir``
+- vehicle-data paths → the ``Profile`` a command is given (``profile.ecus_dir`` / ``.captures_dir``)
 """
 
 import os

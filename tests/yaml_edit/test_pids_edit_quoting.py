@@ -16,8 +16,8 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
+from canair.cli.profile_context import active
 from canair.core.yaml_rt import round_trip_yaml
-from canair.profile import active
 from canair.yaml_edit import text as _text
 from canair.yaml_edit.pids import (
     PidsEditError,

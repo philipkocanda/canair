@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from canair.cli.profile_context import active
 from canair.live.scan.iocontrol import (
     NRC_ABSENT,
     NRC_EXISTS_HINTS,
@@ -15,7 +16,6 @@ from canair.live.scan.iocontrol import (
     classify,
     probe_iocontrol,
 )
-from canair.profile import active
 from canair.uds.nrc import (
     NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
     NRC_SUB_FUNCTION_NOT_SUPPORTED,

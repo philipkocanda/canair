@@ -12,7 +12,7 @@ import argparse
 import pytest
 import yaml
 
-import canair.profile as profile
+from canair.cli import profile_context
 from canair.cli.commands.validate.files import run_signals
 from canair.profile import Profile
 from canair.yaml_edit.signals import SignalsEditError, merge_bus, upsert_signal
@@ -20,7 +20,7 @@ from canair.yaml_edit.signals import SignalsEditError, merge_bus, upsert_signal
 
 @pytest.fixture
 def temp_profile(tmp_path):
-    profile._active = Profile(name="test", root=tmp_path)
+    profile_context._active = Profile(name="test", root=tmp_path)
     return Profile(name="test", root=tmp_path)
 
 

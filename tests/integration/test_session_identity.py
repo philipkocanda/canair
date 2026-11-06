@@ -19,11 +19,13 @@ from pathlib import Path
 import pytest
 
 from canair.captures import merge as captures_merge
+from canair.cli import profile_context
 from canair.cli.commands import contribute as cmd
 from canair.cli.commands.contribute import gates, pipeline, report
+from canair.cli.profile_context import active
 from canair.contribute import copy as C_copy
 from canair.contribute import git as C_git
-from canair.profile import Profile, active, resolve_profile
+from canair.profile import Profile, resolve_profile
 
 
 def _session(label="drive", time="10:00:00", *, notes=None, date="2026-07-28", pid="2101"):
@@ -136,7 +138,6 @@ class TestMergeDriverIdenticalReplacements:
 @pytest.fixture
 def layered(tmp_path, monkeypatch):
     """A bundled base ``ev6`` and the user's overlay on top of it, made active."""
-    from canair import profile as profile_mod
     from canair.config import file as config_file
 
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
@@ -151,10 +152,10 @@ def layered(tmp_path, monkeypatch):
     overlay = tmp_path / "cfg" / "canair" / "profiles" / "ev6"
     (overlay / "captures").mkdir(parents=True)
     (overlay / "profile.yaml").write_text("extends: ev6\n")
-    saved = profile_mod._active
-    profile_mod._active = resolve_profile("ev6")
+    saved = profile_context._active
+    profile_context._active = resolve_profile("ev6")
     yield argparse.Namespace(base=base, overlay=overlay)
-    profile_mod._active = saved
+    profile_context._active = saved
     config_file.load_config.cache_clear()
 
 

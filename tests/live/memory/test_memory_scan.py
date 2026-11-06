@@ -6,10 +6,10 @@ import asyncio
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.ecus.memory import EcuMemory
 from canair.live.memory.reads import MemoryTarget
 from canair.live.memory.scan import mode_memory_scan
-from canair.profile import active
 from canair.uds.memory import KWP_FORMAT, parse_format
 from canair.uds.protocol import KWP, UDS
 from tests.support.memory_ecu import MemoryEcu

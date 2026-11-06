@@ -13,9 +13,9 @@ import pytest
 import yaml
 
 from canair.cli import main
+from canair.cli.profile_context import active, set_active
 from canair.config import file as config_file
 from canair.ecus.pids import load_pids
-from canair.profile import active, set_active
 
 FIXTURE = Path(__file__).parent.parent / "fixtures" / "profiles" / "variants"
 REPO = Path(__file__).parents[2]

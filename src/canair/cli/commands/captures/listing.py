@@ -13,8 +13,8 @@ from canair.captures.entries import entry_to_dict
 from canair.captures.store import decoded_preview
 from canair.captures.types import CaptureEntry
 from canair.cli.args.query import parse_canonical_query
+from canair.cli.profile_context import active
 from canair.core.terminal import terminal_columns, truncate_text
-from canair.profile import active
 from canair.render import ansi, glyphs, messages
 from canair.states.tokens import join_states as _join_states
 

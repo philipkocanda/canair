@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-import canair.profile as profile
+from canair.cli import profile_context
 from canair.cli.commands import import_ as import_cmd
 from canair.cli.commands import validate
 from canair.cli.commands.validate.files import run_can, run_signals
@@ -24,7 +24,7 @@ from canair.profile import Profile
 @pytest.fixture
 def temp_profile(tmp_path):
     """Point the active profile at an empty temp dir (reset by conftest autouse)."""
-    profile._active = Profile(name="test", root=tmp_path)
+    profile_context._active = Profile(name="test", root=tmp_path)
     return tmp_path
 
 

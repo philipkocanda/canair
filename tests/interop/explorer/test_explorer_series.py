@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from canair.captures import io as capture_io
+from canair.cli.profile_context import active
 from canair.ecus.pids import load_pids_dir
 from canair.expression.decoding import decode_param_rows
 from canair.interop.explorer.export import export_profile
@@ -21,7 +22,6 @@ from canair.interop.explorer.series import (
     export_sessions,
     rx_by_address,
 )
-from canair.profile import active
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROFILES = sorted(

@@ -6,8 +6,7 @@ import argparse
 from pathlib import Path
 
 from canair.cli.commands._edit import clear_sentinel, edit_scope
-from canair.cli.profile_context import target_profile
-from canair.profile import active
+from canair.cli.profile_context import active, target_profile
 from canair.yaml_edit.pids import (
     find_ecu_file,
 )

@@ -13,7 +13,7 @@ import pytest
 from textual.widgets import Input, Label
 
 from canair.analysis.sniff_stats import SniffStats
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.tui.apps.captures_step.app import CapturesStepApp
 from canair.tui.apps.decode_plot.app import PlotApp
 from canair.tui.apps.monitor.app import MonitorApp

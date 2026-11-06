@@ -6,8 +6,8 @@ import pytest
 import yaml
 
 from canair.cli.commands.pids import pid_settings
+from canair.cli.profile_context import active
 from canair.core.edit_errors import EditError
-from canair.profile import active
 from canair.uds.support_map import MapDecl
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.schema_fields import load_schema

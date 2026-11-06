@@ -20,8 +20,8 @@ import asyncio
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.live.actuate.iocontrol_actuate import IOControlActuator
-from canair.profile import active
 
 ON_CMD = "2FBC0103"
 OFF_CMD = "2FBC0100"

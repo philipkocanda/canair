@@ -6,9 +6,9 @@ from datetime import datetime
 
 import pytest
 
+from canair.cli.profile_context import active
 from canair.ecus.registry import load_ecus
 from canair.interop.frame_log import ExtractedReply, extract_replies, stamp
-from canair.profile import active
 from tests.support.isotp_frames import flow_control, message_frames
 
 BMS_TX, BMS_RX = 0x7E4, 0x7EC

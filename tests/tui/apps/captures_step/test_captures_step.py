@@ -15,7 +15,7 @@ from rich.console import Console
 from textual.containers import VerticalScroll
 
 from canair.cli.commands.captures.step import cmd_step
-from canair.profile import active
+from canair.cli.profile_context import active
 from canair.tui.apps.captures_step.model import (
     AUTO_STACK_MAX_KEYS,
     BLOCK_NO_FRAME,
