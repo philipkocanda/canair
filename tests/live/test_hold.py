@@ -42,3 +42,13 @@ async def test_disabled_sends_nothing():
     async with held_session(t, 0x7E4, profile=active(), enabled=False) as outcome:
         assert outcome is None
     assert t.calls == []
+
+
+@pytest.mark.asyncio
+async def test_a_wake_alone_wakes_and_holds_the_session():
+    t = FakeTerminal()
+    async with held_session(
+        t, 0x7E4, profile=active(), enabled=False, wake=True, pids_data=PIDS
+    ) as outcome:
+        assert outcome is not None
+    assert t.sent == ["1001", "1003"]

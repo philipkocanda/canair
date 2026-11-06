@@ -398,6 +398,12 @@ class TestCommands:
         assert dtc_cmd.run(argparse.Namespace(dtc=None, dtc_all=False)) == 2
         assert "DTC log" not in capsys.readouterr().err
 
+    def test_all_and_clear_is_a_usage_error(self, capsys):
+        from canair.cli.commands import dtc as dtc_cmd
+
+        assert dtc_cmd.run(argparse.Namespace(dtc=None, dtc_all=True, clear=True)) == 2
+        assert "can't be combined with --all" in capsys.readouterr().err
+
     def test_history_flag_still_works(self, logp, capsys):
         from canair.cli.commands import dtc as dtc_cmd
 

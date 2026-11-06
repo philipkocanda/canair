@@ -287,12 +287,23 @@ canair dtc BMS --clear --yes    # skip the prompt (scripting)
 ```
 
 Clearing sends `ClearDiagnosticInformation` (`0x14`) and **mutates the ECU's
-fault memory** — so it prompts for confirmation unless `--yes` is given. By
-default it clears all groups (`--group FFFFFF` for UDS, `FFFF` for KWP2000). When
-logging is on, canair reads the current codes first so the log records exactly
-what was cleared. The ECU counts as clean from then until it is next read, and the
-next scan lists the codes the clear wiped separately from those that went away on
-their own; one that is back shows as new.
+fault memory** — so it prompts for confirmation unless `--yes` is given. It clears
+one ECU at a time: `--all` cannot be combined with `--clear`. By default it clears
+every DTC: group `FFFFFF` on UDS, and `FF00` on KWP2000 (ISO 14230-3), then `FFFF`
+(SSF 14230-3) if the ECU rejects `FF00`. A `--group` you give is sent as given, and
+must fit the protocol's width (3 bytes on UDS, 2 on KWP2000). When logging is on,
+canair reads the current codes first so the log records exactly what was cleared,
+and an ECU that does not answer that read is not sent the clear. The ECU counts as
+clean from then until it is next read, and the next scan lists the codes the clear
+wiped separately from those that went away on their own; one that is back shows as
+new. A refused or unanswered clear exits 1.
+
+**The power state matters.** An ECU answers only in some power states. The profile
+lists them in each ECU's `vehicle_states:`, and canair names them before it asks to
+clear and again when the ECU does not answer. An ECU that is awake may still refuse
+with `conditionsNotCorrect` (NRC `0x22`): many clear only with the ignition on and
+the engine or drive system off. `--wake` rouses a sleeping ECU and holds a session
+on it, as `--session` does.
 
 !!! warning "Clearing hides symptoms, not causes"
     Erasing a DTC doesn't fix the underlying fault — if the condition persists

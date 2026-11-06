@@ -44,7 +44,7 @@ usage: canair dtc read [-h] [--all] [--no-log] [--no-snapshots] [--no-retry]
                        [--verbose] [--timings] [--reboot] [--unsafe] [--force]
                        [ECU]
 
-Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask) or KWP2000 0x18, or clear them with 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given. Every read is recorded to the DTC log (`canair dtc log`), which lives in user state, not in the profile.
+Read stored Diagnostic Trouble Codes with UDS 0x19 (reportDTCByStatusMask) or KWP2000 0x18, or clear them with 0x14. Clearing mutates ECU fault memory and prompts for confirmation unless --yes is given. An ECU answers only in some power states (its vehicle_states in the profile), and many clear only with the ignition on and the engine or drive system off. Every read is recorded to the DTC log (`canair dtc log`), which lives in user state, not in the profile.
 
 positional arguments:
   ECU                   ECU name or TX ID (e.g. BMS or 7E4)
@@ -88,8 +88,9 @@ options:
                         and never logged. Not combinable with --all or --clear
   --clear               Clear DTCs (ClearDiagnosticInformation 0x14) instead
                         of reading
-  --group HEX           groupOfDTC to clear (3-byte hex, default FFFFFF = all
-                        groups)
+  --group HEX           groupOfDTC to clear (hex: 3 bytes on UDS, 2 on
+                        KWP2000). Default: every DTC (FFFFFF on UDS; FF00 on
+                        KWP2000, then FFFF if the ECU rejects FF00)
   --yes, -y             Skip the clear confirmation prompt
   --session             Enter extended session (10 03)
   --wake                Wake ECUs from deep sleep first (the ECU's wake:

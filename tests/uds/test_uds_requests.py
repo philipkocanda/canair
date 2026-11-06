@@ -56,9 +56,14 @@ def test_routine_control_request():
 
 
 class TestClearDtcRequest:
-    def test_the_group_is_two_bytes_on_kwp2000_and_three_on_uds(self):
-        assert clear_dtc_request(0xFFFFFF, kwp=True) == "14FFFF"
-        assert clear_dtc_request(0xFFFFFF, kwp=False) == "14FFFFFF"
+    def test_all_groups_is_ff00_on_kwp2000_and_ffffff_on_uds(self):
+        assert clear_dtc_request(kwp=True) == "14FF00"
+        assert clear_dtc_request(kwp=False) == "14FFFFFF"
 
     def test_a_narrow_group_is_zero_padded(self):
         assert clear_dtc_request(0x1234, kwp=False) == "14001234"
+        assert clear_dtc_request(0x12, kwp=True) == "140012"
+
+    def test_a_group_wider_than_the_protocol_allows_is_refused(self):
+        with pytest.raises(ValueError, match="does not fit in 2 byte"):
+            clear_dtc_request(0xFFFFFF, kwp=True)

@@ -13,6 +13,7 @@ from ...dtc.snapshot_report import snapshot_lines, status_line, undefined_hints
 from ...ecus.names import ecu_display
 from ...transport.protocol import Terminal
 from ..hold import held_session
+from .advice import no_response_hints
 from .codes import resolve_protocol
 from .reading import _read_one
 from .scan_log import _log_scan, _print_log_result
@@ -20,8 +21,17 @@ from .snapshot_capture import report_saved
 from .snapshots import SnapshotRun, ecu_pids, fetch_snapshots, wants_snapshots
 
 
-def _report_read(as_json: bool, result: dict, verbose: bool = False, *, profile: Profile) -> None:
-    """Print a read result (positive, NRC, or error) as text or JSON, snapshots included."""
+def _report_read(
+    as_json: bool,
+    result: dict,
+    verbose: bool = False,
+    no_response: list[str] | None = None,
+    *,
+    profile: Profile,
+) -> None:
+    """Print a read result (positive, NRC, or error) as text or JSON, snapshots included.
+
+    ``no_response`` are the hints shown when the ECU did not answer."""
     if as_json:
         print(json.dumps(result, indent=2))
         return
@@ -31,8 +41,8 @@ def _report_read(as_json: bool, result: dict, verbose: bool = False, *, profile:
         return
     if "error" in result:
         messages.error(result["error"])
-        if "NO DATA" in result["error"] or "No response" in result["error"]:
-            messages.hint("the ECU may be asleep or unpowered — try --session/--wake")
+        for hint in no_response or []:
+            messages.hint(hint)
         return
 
     if result.get("status_availability_mask") is not None:
@@ -117,7 +127,13 @@ async def mode_dtc_read(
             await fetch_snapshots(
                 terminal, tx_id, result, pids, ecu, SnapshotRun(), profile=profile
             )
-        _report_read(as_json, result, verbose, profile=profile)
+        _report_read(
+            as_json,
+            result,
+            verbose,
+            no_response_hints(tx_id, result, profile=profile, pids_data=pids_data, wake=wake),
+            profile=profile,
+        )
         if save:
             report_saved(terminal, [result], label, vehicle_states, notes, as_json, profile=profile)
         if log and "dtcs" in result:

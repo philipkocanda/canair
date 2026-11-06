@@ -56,6 +56,19 @@ class DtcReportType(IntEnum):
     REPORT_DTC_SNAPSHOT_RECORD_BY_DTC_NUMBER = 0x04
 
 
+class DtcGroup(IntEnum):
+    """ClearDiagnosticInformation (``0x14``) groupOfDTC values that mean every DTC.
+
+    ISO 14229-1 has one, three bytes wide. KWP2000's group is two bytes: ISO 14230-3 (and the
+    DaimlerChrysler KWP2000 spec, which makes it mandatory for ``14`` and ``18``) uses FF00, the
+    group canair's ``18 00 FF 00`` read sends too; SSF 14230-3 uses FFFF.
+    """
+
+    ALL_GROUPS = 0xFFFFFF
+    KWP_ALL_GROUPS = 0xFF00
+    KWP_ALL_DTCS_SSF = 0xFFFF
+
+
 class IoControlParameter(IntEnum):
     """InputOutputControlByIdentifier (``0x2F``) inputOutputControlParameter, ISO 14229-1."""
 

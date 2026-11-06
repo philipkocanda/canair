@@ -456,25 +456,55 @@ class TestModeClear:
         assert t.sent == ["14FFFFFF"]
 
     @pytest.mark.asyncio
-    async def test_clear_kwp_uses_2byte_group(self, capsys):
-        t = FakeTerminal({"14FFFF": _ok("54")})
-        await dtc.mode_dtc_clear(
-            t, 0x7E4, group=0xFFFFFF, protocol="kwp", as_json=True, profile=active()
-        )
+    async def test_clear_kwp_sends_ff00_for_every_dtc(self, capsys):
+        t = FakeTerminal({"14FF00": _ok("54FF00")})
+        assert await dtc.mode_dtc_clear(t, 0x7E4, protocol="kwp", as_json=True, profile=active())
         data = json.loads(capsys.readouterr().out)
         assert data["cleared"] is True
-        assert data["group"] == "0xFFFF"
-        assert t.sent == ["14FFFF"]
+        assert data["group"] == "0xFF00"
+        assert t.sent == ["14FF00"]
+
+    @pytest.mark.asyncio
+    async def test_clear_kwp_falls_back_to_ffff_when_ff00_is_rejected(self, capsys):
+        t = FakeTerminal(
+            {
+                "14FF00": {"ok": False, "nrc": 0x31, "nrc_desc": "requestOutOfRange"},
+                "14FFFF": _ok("54FFFF"),
+            }
+        )
+        assert await dtc.mode_dtc_clear(t, 0x7E4, protocol="kwp", profile=active())
+        assert t.sent == ["14FF00", "14FFFF"]
+        assert "retrying with 14FFFF" in capsys.readouterr().err
+
+    @pytest.mark.asyncio
+    async def test_an_explicit_kwp_group_is_not_retried(self):
+        t = FakeTerminal({"140000": {"ok": False, "nrc": 0x31, "nrc_desc": "requestOutOfRange"}})
+        assert not await dtc.mode_dtc_clear(t, 0x7E4, group=0, protocol="kwp", profile=active())
+        assert t.sent == ["140000"]
 
     @pytest.mark.asyncio
     async def test_clear_nrc(self, capsys):
         t = FakeTerminal(
             {"14FFFFFF": {"ok": False, "nrc": 0x22, "nrc_desc": "conditionsNotCorrect"}}
         )
-        await dtc.mode_dtc_clear(t, 0x7E4, protocol="uds", as_json=True, profile=active())
-        data = json.loads(capsys.readouterr().out)
+        cleared = await dtc.mode_dtc_clear(t, 0x7E4, protocol="uds", as_json=True, profile=active())
+        assert cleared is False
+        captured = capsys.readouterr()
+        data = json.loads(captured.out)
         assert data["cleared"] is False
         assert data["nrc"] == "0x22"
+        assert "error: BMS (0x7E4) refused the clear: NRC 0x22" in captured.err
+        assert "hint: the ECU refuses to clear in the current conditions" in captured.err
+
+    @pytest.mark.asyncio
+    async def test_a_silent_ecu_is_not_sent_the_clear(self, capsys):
+        t = FakeTerminal()  # every request: NO DATA
+        assert not await dtc.mode_dtc_clear(t, 0x7E4, protocol="uds", log=True, profile=active())
+        assert not any(r.startswith("14") for r in t.sent)
+        err = capsys.readouterr().err
+        assert "did not answer the DTC read before the clear" in err
+        assert "nothing was cleared" in err
+        assert "hint: BMS answers only in" in err
 
 
 class TestDispatchTransportAgnostic:

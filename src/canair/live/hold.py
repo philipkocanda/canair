@@ -35,9 +35,11 @@ async def held_session(
     """Hold session ``mode`` on ``tx_id`` for the block; yields None when not ``enabled``.
 
     ``wake`` rouses the ECU first with its ``wake:`` ritual, found in ``pids_data`` (the
-    profile's definitions unless given), else with ``10 01``.
+    profile's definitions unless given), else with ``10 01``. A wake opens the session too,
+    as it always has on the ELM327 transports (``cli/live/runtime.py``), so ``--wake``
+    alone means the same on every transport.
     """
-    if not enabled:
+    if not (enabled or wake):
         yield None
         return
     plan = wake_plan(tx_id, profile=profile, wake=wake, pids_data=pids_data)

@@ -71,6 +71,8 @@ def _add_read_parser(kinds) -> argparse.ArgumentParser:
         description="Read stored Diagnostic Trouble Codes with UDS 0x19 "
         "(reportDTCByStatusMask) or KWP2000 0x18, or clear them with 0x14. Clearing "
         "mutates ECU fault memory and prompts for confirmation unless --yes is given. "
+        "An ECU answers only in some power states (its vehicle_states in the profile), and "
+        "many clear only with the ignition on and the engine or drive system off. "
         "Every read is recorded to the DTC log (`canair dtc log`), which lives in user "
         "state, not in the profile.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -182,8 +184,8 @@ examples:
     parser.add_argument(
         "--group",
         metavar="HEX",
-        default="FFFFFF",
-        help="groupOfDTC to clear (3-byte hex, default FFFFFF = all groups)",
+        help="groupOfDTC to clear (hex: 3 bytes on UDS, 2 on KWP2000). Default: every DTC "
+        "(FFFFFF on UDS; FF00 on KWP2000, then FFFF if the ECU rejects FF00)",
     )
     parser.add_argument(
         "--yes", "-y", action="store_true", help="Skip the clear confirmation prompt"
@@ -205,6 +207,10 @@ def run(args) -> int:
         messages.error(
             "--supported reads one KWP2000 ECU; it can't be combined with --all or --clear"
         )
+        return 2
+    if getattr(args, "dtc_all", False) and getattr(args, "clear", False):
+        messages.error("--clear clears one ECU; it can't be combined with --all")
+        messages.hint("clear each ECU in turn, e.g. `canair dtc BMS --clear`")
         return 2
     if not args.dtc and not getattr(args, "dtc_all", False):
         messages.error("specify an ECU (e.g. `canair dtc BMS`) or `canair dtc --all`")

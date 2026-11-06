@@ -22,7 +22,7 @@ def _args(**kw) -> argparse.Namespace:
         "dtc": "7E4",
         "dtc_all": False,
         "clear": True,
-        "group": "FFFFFF",
+        "group": None,
         "protocol": "auto",
         "session": False,
         "wake": False,
@@ -40,6 +40,7 @@ def cleared(monkeypatch):
 
     async def fake_clear(terminal, tx_id, **kw):
         calls.append({"tx_id": tx_id, **kw})
+        return kw.get("group") != 0xDEAD  # a group the fake ECU refuses
 
     monkeypatch.setattr("canair.cli.live.handlers.diagnostics.mode_dtc_clear", fake_clear)
     return calls
@@ -91,3 +92,24 @@ def test_a_bad_group_is_a_usage_error(cleared, capsys):
         _run(_args(group="ZZ", yes=True))
     assert raised.value.code == 2
     assert capsys.readouterr().err.startswith("error: --group must be hex")
+
+
+def test_the_prompt_names_what_is_cleared(cleared, monkeypatch, capsys):
+    monkeypatch.setattr("sys.stdin", _Tty("n\n"))
+    with pytest.raises(SystemExit):
+        _run(_args(protocol="kwp", group="FF00"))
+    assert "Clear DTC group 0xFF00 on BMS (0x7E4)?" in capsys.readouterr().err
+
+
+def test_a_group_too_wide_for_kwp2000_is_a_usage_error(cleared, capsys):
+    with pytest.raises(SystemExit) as raised:
+        _run(_args(protocol="kwp", group="FFFFFF", yes=True))
+    assert raised.value.code == 2
+    assert "does not fit the 2-byte group of a KWP2000 ECU" in capsys.readouterr().err
+    assert cleared == []
+
+
+def test_a_failed_clear_exits_1(cleared):
+    with pytest.raises(SystemExit) as raised:
+        _run(_args(protocol="uds", group="DEAD", yes=True))
+    assert raised.value.code == 1

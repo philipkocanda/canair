@@ -21,6 +21,7 @@ from canair.uds.services import (
     KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
     ROUTINE_CONTROL,
 )
+from canair.uds.subfunctions import DtcGroup
 
 
 def _field(value: int, width: int, name: str) -> bytes:
@@ -71,12 +72,18 @@ def routine_control_request(routine_control_type: int, rid: int) -> str:
     )
 
 
-def clear_dtc_request(group: int, *, kwp: bool) -> str:
-    """``14 {group}``: ClearDiagnosticInformation.
+def dtc_group_width(*, kwp: bool) -> int:
+    """The groupOfDTC's width in bytes: 2 on KWP2000, 3 on UDS."""
+    return 2 if kwp else 3
 
-    The group of DTCs is 2 bytes on KWP2000 and 3 bytes on UDS. ``group`` is cut to that
-    width, so ``0xFFFFFF`` (all groups) serves both.
+
+def clear_dtc_request(group: int | None = None, *, kwp: bool) -> str:
+    """``14 {group}``: ClearDiagnosticInformation, every DTC when ``group`` is None.
+
+    The group of DTCs is 2 bytes on KWP2000 and 3 bytes on UDS.
     """
-    width = 2 if kwp else 3
-    group &= (1 << (8 * width)) - 1
-    return _request(CLEAR_DIAGNOSTIC_INFORMATION, _field(group, width, "group of DTCs"))
+    if group is None:
+        group = DtcGroup.KWP_ALL_GROUPS if kwp else DtcGroup.ALL_GROUPS
+    return _request(
+        CLEAR_DIAGNOSTIC_INFORMATION, _field(group, dtc_group_width(kwp=kwp), "group of DTCs")
+    )
