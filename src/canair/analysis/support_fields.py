@@ -52,7 +52,7 @@ def known_fields(byte_sets: Iterable[Iterable[int]]) -> list[tuple[int, int]]:
     The rest are merged where they overlap: several flags of one byte, or a coarse and a fine
     reading of one value, are one parameter.
     """
-    sets = {frozenset(s) for s in byte_sets if s}
+    sets = {fs for s in byte_sets if (fs := frozenset(s))}
     runs = [s for s in sets if max(s) - min(s) + 1 == len(s)]
     kept = []
     for s in runs:
