@@ -15,7 +15,6 @@ import pytest
 from canair.transport import Terminal
 from canair.transport.elm327.wican import WiCANTerminal
 from canair.transport.link_latency import LinkLatency
-from canair.transport.raw import slcan_tcp as slcan_mod
 from canair.transport.raw import terminal as raw_terminal
 from tests.support.fakes import FakeTerminal
 
@@ -43,7 +42,7 @@ def test_wican_terminal_satisfies_protocol():
 
 def test_raw_terminal_satisfies_protocol(monkeypatch):
     # RawTerminal opens the bus/notifier in __init__; stub them out.
-    monkeypatch.setattr(slcan_mod, "SlcanTcpBus", _FakeBus)
+    monkeypatch.setattr(raw_terminal, "SlcanTcpBus", _FakeBus)
     monkeypatch.setattr(raw_terminal.can, "Notifier", _FakeNotifier)
     assert isinstance(raw_terminal.RawTerminal("h", 3333, 500000), Terminal)
 

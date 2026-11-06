@@ -40,8 +40,10 @@ from canair.transport.functional import (
     functional_request_bytes,
     record_functional_losses,
 )
+from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES, build_isotp_params
 from canair.transport.raw.functional import raw_functional_exchange
 from canair.transport.raw.isotp_stack import build_isotp_stack
+from canair.transport.raw.slcan_tcp import SlcanTcpBus
 from canair.transport.raw.uds_client import PENDING_RECV_TIMEOUT, PENDING_TOTAL_TIMEOUT
 from canair.transport.stats import TransportStats
 from canair.transport.timing import TimingRecorder
@@ -82,9 +84,6 @@ class RawTerminal:
         rx_offset: int = DEFAULT_RX_OFFSET,
         mode: AddressingMode = DEFAULT_MODE,
     ):
-        from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES, build_isotp_params
-        from canair.transport.raw.slcan_tcp import SlcanTcpBus
-
         self.host = host
         self.verbose = verbose
         self.unsafe = unsafe

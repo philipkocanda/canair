@@ -19,6 +19,7 @@ import re
 import sys
 from dataclasses import dataclass
 
+from canair.ecus.names import ecu_name
 from canair.profile.model import Profile
 from canair.render.console import console
 
@@ -88,8 +89,6 @@ def _resolve_ecu(label: str, *, profile: Profile) -> str:
     if not _HEX_LABEL.match(label):
         return label
     try:
-        from canair.ecus.names import ecu_name
-
         return ecu_name(int(label, 16), profile=profile)
     except Exception:
         return label

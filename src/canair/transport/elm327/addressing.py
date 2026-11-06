@@ -33,6 +33,7 @@ from dataclasses import dataclass, replace
 from typing import Any, Final
 
 from canair.transport.elm327.commands import RESET_COMMANDS, canonical
+from canair.transport.isotp_params import build_isotp_params
 from canair.uds.addressing import (
     DEFAULT_RX_OFFSET,
     FUNCTIONAL_11BIT_ID,
@@ -245,8 +246,6 @@ def flow_control_data(isotp_config: Mapping[str, Any] | None) -> str:
     size makes the ECU wait for. A block size tuned for ``slcan-tcp`` must not turn
     into a stalled multi-frame read on the ELM path.
     """
-    from canair.transport.isotp_params import build_isotp_params
-
     params = build_isotp_params(dict(isotp_config) if isotp_config else None)
     stmin = params["stmin"]
     n = stmin if isinstance(stmin, int) and not isinstance(stmin, bool) else 0

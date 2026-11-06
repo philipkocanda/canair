@@ -6,7 +6,6 @@ import io
 import pytest
 
 from canair.transport.link_latency import LinkLatency
-from canair.transport.raw import slcan_tcp as slcan_mod
 from canair.transport.raw import terminal as raw_terminal
 
 
@@ -68,7 +67,7 @@ class FakeStack:
 @pytest.fixture
 def make_terminal(monkeypatch):
     def build(table):
-        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal, "SlcanTcpBus", FakeBus)
         monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
         monkeypatch.setattr(
             raw_terminal.isotp,
@@ -158,7 +157,7 @@ class TestRawTerminalSendUds:
                 return bytearray(self._seq.pop(0)) if self._seq else None
 
         seq = [bytes.fromhex("7F1978"), bytes.fromhex("5902FF0123002F")]
-        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal, "SlcanTcpBus", FakeBus)
         monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
         monkeypatch.setattr(
             raw_terminal.isotp,
@@ -200,7 +199,7 @@ class TestRawTerminalSendUds:
                 return bytearray(r) if r is not None else None
 
         responses = [None, bytes.fromhex("62BC03FDEE")]
-        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal, "SlcanTcpBus", FakeBus)
         monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
         monkeypatch.setattr(
             raw_terminal.isotp,
@@ -390,7 +389,7 @@ class TestRawTerminalRxResolution:
 
             return _A()
 
-        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal, "SlcanTcpBus", FakeBus)
         monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
         monkeypatch.setattr(raw_terminal.isotp, "Address", _addr)
         monkeypatch.setattr(
@@ -437,7 +436,7 @@ class TestRawTerminalModeResolution:
 
             return _A()
 
-        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal, "SlcanTcpBus", FakeBus)
         monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
         monkeypatch.setattr(raw_terminal, "build_isotp_address", _build)
         monkeypatch.setattr(
@@ -494,7 +493,7 @@ class TestRawTerminalFcOverride:
 
             return _A()
 
-        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal, "SlcanTcpBus", FakeBus)
         monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
         monkeypatch.setattr(raw_terminal.isotp, "Address", _addr)
         monkeypatch.setattr(raw_terminal, "build_isotp_stack", _build)
@@ -596,7 +595,7 @@ class TestEcuIsotp:
             seen[address._txid] = params
             return FakeStack(address._txid, {})
 
-        monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal, "SlcanTcpBus", FakeBus)
         monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
         monkeypatch.setattr(raw_terminal, "build_isotp_stack", _build)
         monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a, **__: None)

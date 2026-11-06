@@ -330,7 +330,7 @@ class TestTransportConfigProps:
         def boom(base_url, timeout=10.0):
             raise requests.HTTPError(f"{status} Error", response=resp)
 
-        monkeypatch.setattr("canair.device.wican.mode.load_config", boom)
+        monkeypatch.setattr("canair.transport.config.load_wican_config", boom)
         t = TransportConfig("slcan-tcp", "1.2.3.4")
         assert t.resolve_device_defaults() == (3333, 500000)
         assert ("could not read device config" in capsys.readouterr().err) is noisy

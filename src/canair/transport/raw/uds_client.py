@@ -25,6 +25,7 @@ import isotp
 
 from canair.core.eventlog import log_event
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
+from canair.transport.isotp_params import build_isotp_params
 from canair.transport.link_latency import LinkLatency
 from canair.transport.raw.isotp_stack import build_isotp_stack
 from canair.transport.stats import TransportStats
@@ -116,8 +117,6 @@ class RawUdsClient:
         this client can never send what the terminals would refuse; there is no
         ``--unsafe`` prompt on this pipelined path, so a blocked request raises.
         """
-        from canair.transport.isotp_params import build_isotp_params
-
         self.bus = bus
         self.timeout = timeout
         self.ecu_timeouts = ecu_timeouts or {}

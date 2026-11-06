@@ -30,6 +30,7 @@ from canair.config.devices import (
 )
 from canair.config.file import load_config
 from canair.device.wican.api import resolve_wican_url
+from canair.device.wican.mode import load_config as load_wican_config
 
 # The closed set of backends canair knows how to speak. A `Literal` (not a bare
 # `str`) so the ~6 `.type == "…"` gates below — including the WiCAN-Pro-only
@@ -201,11 +202,9 @@ class TransportConfig:
         """Best-effort read of a WiCAN's live ``/load_config`` (empty on failure)."""
         import sys
 
-        from canair.device.wican.mode import load_config
-
         assert self.host is not None  # only called when is_wican_http (host set)
         try:
-            return load_config(resolve_wican_url(self.host)) or {}
+            return load_wican_config(resolve_wican_url(self.host)) or {}
         except Exception as e:  # best-effort — fall back to conventional defaults
             # No such route (WiCAN firmware v6, or not a WiCAN at all) is not worth
             # a message: there is simply no device config to read.
