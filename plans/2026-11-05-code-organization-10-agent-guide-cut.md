@@ -1,9 +1,9 @@
 # Code organization, part 10: cut the agent guide
 
-Status: **PROPOSED** (2026-11-05). Part of
-[`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plans 5,
-6, 7 and 9, which move most of the code that `AGENTS.md` names. This is left-over item 5 of
-`plans/2026-11-04-package-layout-and-layering.md`.
+Status: **IN PROGRESS** (2026-11-06): step 2 (the development pages) is done. Steps 3 to 6
+follow. Part of [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on
+sub-plans 5, 6, 7 and 9, which move most of the code that `AGENTS.md` names. This is left-over
+item 5 of `plans/2026-11-04-package-layout-and-layering.md`.
 
 ## Goal
 
