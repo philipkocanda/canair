@@ -8,6 +8,7 @@ mini-language parser ever sees them, so a group composes with ad-hoc selectors.
 from __future__ import annotations
 
 from canair.cli.profile_context import active
+from canair.query.steps import merged_selector_notes
 from canair.render import messages
 
 # Leading verbs recognised by the multi mini-language. A positional STEP whose
@@ -48,7 +49,6 @@ def report_merged_selectors(commands: list[dict]) -> None:
     group's contents instead of silently rewriting the command. No output when
     nothing overlapped.
     """
-    from canair.query.steps import merged_selector_notes
 
     notes = merged_selector_notes(commands)
     if not notes:

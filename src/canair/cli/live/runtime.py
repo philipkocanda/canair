@@ -18,16 +18,26 @@ import sys
 
 from canair.captures.keepmode import wants_save
 from canair.cli.args.transport import transport_overrides
+from canair.cli.commands.captures import orphan_notice
 from canair.cli.profile_context import active, replace_active
+from canair.config.devices import fallback_settings
 from canair.core.stop_signals import graceful_stop
 from canair.device.lock import WiCANLock
 from canair.device.lock_watchdog import LockWatchdog
+from canair.device.wican.firmware import check, print_verdict
 from canair.ecus.pids import load_pids
 from canair.ecus.registry import load_ecus
+from canair.live.scan.progress import find_aborted_scans
 from canair.live.session import SessionOptions, run_session_guarded
 from canair.render import messages
+from canair.transport import (
+    resolve_transport_candidates,
+    select_reachable_transport,
+    wait_for_reachable,
+)
 from canair.transport.config import ConnectionOptions
 from canair.transport.ecu_log import init_logging
+from canair.transport.errors import describe_transport_error, transport_error_types
 from canair.transport.protocol import Terminal
 from canair.transport.reboot import reboot_after_session
 
@@ -73,13 +83,6 @@ def session_options(args: argparse.Namespace) -> SessionOptions:
 
 async def async_main(args, operation: LiveOperation):
     """Main async entry point."""
-    from canair.config.devices import fallback_settings
-    from canair.transport import (
-        resolve_transport_candidates,
-        select_reachable_transport,
-        wait_for_reachable,
-    )
-
     conn = connection_options(args)
     candidates = resolve_transport_candidates(transport_overrides(args))
     _, _connect_timeout, _ = fallback_settings()
@@ -137,8 +140,6 @@ async def async_main(args, operation: LiveOperation):
     # only in the scan subcommand that produces that scan type, so unrelated
     # commands (query, io, identity, ...) stay quiet.
     if operation.scan_types:
-        from canair.live.scan.progress import find_aborted_scans
-
         _aborted = [s for s in find_aborted_scans() if s.get("type") in operation.scan_types]
         if _aborted:
             lines = ["Aborted scan(s) detected from a previous session:"]
@@ -175,8 +176,6 @@ async def async_main(args, operation: LiveOperation):
                 code=2,
             )
         # Surface any orphaned journals from a previously killed --save session.
-        from canair.cli.commands.captures import orphan_notice
-
         orphan_notice()
 
     # Pre-flight reachability check so a silent host fails fast with guidance
@@ -208,14 +207,10 @@ async def async_main(args, operation: LiveOperation):
     # alternative rather than letting the upgrade fail with a bare 404. An
     # elm327-tcp host is probed only with `firmware_check: always` (it is
     # usually a clone with no HTTP server), and then only ever adds a note.
-    from canair.device.wican.firmware import check, print_verdict
-
     verdict = check(host, transport.type)
     print_verdict(verdict)
     if verdict.refused:
         return 2
-
-    from canair.transport.errors import describe_transport_error, transport_error_types
 
     rc = 0
     terminal: Terminal | None = None

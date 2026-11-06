@@ -6,6 +6,7 @@ the ``display.byte_notation`` config key and registering the flag are the CLI's 
 
 from __future__ import annotations
 
+from canair.config.file import get_config_key
 from canair.expression.notation import ByteNotation
 
 
@@ -29,7 +30,6 @@ def resolve_notation(value: str | None) -> ByteNotation:
     """Effective notation: explicit ``--notation`` > ``display.byte_notation`` > wican."""
     if value:
         return ByteNotation(value)
-    from canair.config.file import get_config_key
 
     configured = get_config_key("display.byte_notation")
     if configured:

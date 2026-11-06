@@ -485,8 +485,8 @@ def _elm_session(monkeypatch, ttype: str, *, calls: list):
     from canair.transport.config import TransportConfig
 
     cand = TransportConfig(type=ttype, host="192.0.2.1")
-    monkeypatch.setattr("canair.transport.resolve_transport_candidates", lambda args: [cand])
-    monkeypatch.setattr("canair.transport.select_reachable_transport", lambda c, **k: c[0])
+    monkeypatch.setattr(runtime, "resolve_transport_candidates", lambda args: [cand])
+    monkeypatch.setattr(runtime, "select_reachable_transport", lambda c, **k: c[0])
     monkeypatch.setattr(runtime, "load_pids", lambda *_, **__: {"init": "ATZ;"})
     monkeypatch.setattr(
         "canair.device.wican.mode.require_ws_reachable", lambda *a, **k: calls.append("reach")

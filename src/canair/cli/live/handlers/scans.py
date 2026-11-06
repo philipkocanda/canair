@@ -11,20 +11,21 @@ from __future__ import annotations
 from canair.cli.live.operation import LiveOperation
 from canair.cli.profile_context import active
 from canair.core.prompt import confirm
+from canair.ecus.names import resolve_tx
 from canair.ecus.protocol import split_ecus_by_protocol
-from canair.live.discover.physical import mode_discover
+from canair.live.discover.physical import DEFAULT_TESTER_ADDRESS, mode_discover
 from canair.live.scan.iocontrol import mode_iocontrol_scan
 from canair.live.scan.range import mode_scan
 from canair.live.scan.routines import mode_routines_scan
 from canair.render import messages
+from canair.transport.functional import DEFAULT_WINDOW_S
 from canair.transport.protocol import Terminal
+from canair.uds.addressing import is_extended, resolve_mode
 
 from .ranges import parse_range, parse_ranges
 
 
 async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    from canair.ecus.names import resolve_tx
-
     tx_id = resolve_tx(args.tx, profile=active())
     if tx_id is None:
         messages.fail(
@@ -202,12 +203,8 @@ async def handle_sessions_scan(
 
 
 async def handle_discover(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    from canair.live.discover.physical import DEFAULT_TESTER_ADDRESS
-    from canair.uds.addressing import is_extended, resolve_mode
-
     if getattr(args, "functional", False):
         from canair.live.discover.functional import DEFAULT_REQUEST, mode_discover_functional
-        from canair.transport.functional import DEFAULT_WINDOW_S
 
         # Set only by the discover parser, whose --request/--window default to None
         # (meaning the defaults here) and whose functional_args_error has already

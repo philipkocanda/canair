@@ -1,4 +1,5 @@
 from canair.cli.profile_context import active
+from canair.query import parse_query
 
 """The QUERY mini-language as the analysis commands take it: ECU aliases resolved."""
 
@@ -10,7 +11,6 @@ def parse_canonical_query(query):
     parse if the ECU registry is unavailable; :class:`EcuNameCollision` from an
     ambiguous registry is allowed to propagate.
     """
-    from canair.query import parse_query
 
     q = parse_query(query)
     try:

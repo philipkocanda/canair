@@ -571,10 +571,11 @@ class TestWaitInitialConnect:
     def test_async_main_waits_then_proceeds(self, monkeypatch):
         """--wait blocks on wait_for_reachable until a device appears, then runs."""
         from canair.cli import live as _live
+        from canair.cli.live import runtime as _runtime
 
         cand = _raw("dev")
-        monkeypatch.setattr("canair.transport.resolve_transport_candidates", lambda args: [cand])
-        monkeypatch.setattr("canair.config.devices.fallback_settings", lambda: (True, 2.0, None))
+        monkeypatch.setattr(_runtime, "resolve_transport_candidates", lambda args: [cand])
+        monkeypatch.setattr(_runtime, "fallback_settings", lambda: (True, 2.0, None))
 
         waited = {"n": 0}
 
@@ -583,10 +584,11 @@ class TestWaitInitialConnect:
             assert kw["deadline"] is None  # forever
             return candidates[0]
 
-        monkeypatch.setattr("canair.transport.wait_for_reachable", fake_wait)
+        monkeypatch.setattr(_runtime, "wait_for_reachable", fake_wait)
         # select_reachable_transport must NOT be used on the --wait path.
         monkeypatch.setattr(
-            "canair.transport.select_reachable_transport",
+            _runtime,
+            "select_reachable_transport",
             lambda *a, **k: pytest.fail("should not select on --wait"),
         )
 

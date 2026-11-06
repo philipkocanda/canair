@@ -12,6 +12,7 @@ import argparse
 from collections.abc import Callable
 from functools import partial
 
+from canair.config.devices import default_wican, wican_addresses
 from canair.transport.config import DEFAULT_TRANSPORT, VALID_TRANSPORTS
 
 from .operation import LiveOperation
@@ -24,7 +25,6 @@ def add_connection_args(parser: argparse.ArgumentParser, *, json: bool = True) -
     ``json=False`` leaves out ``--json`` for a command that has no JSON result to print
     (a flag a command accepts must be one it honours).
     """
-    from canair.config.devices import default_wican, wican_addresses
 
     parser.add_argument(
         "--wican",

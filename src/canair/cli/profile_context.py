@@ -13,7 +13,7 @@ from collections.abc import Sequence
 
 from canair.profile.discovery import resolve_profile
 from canair.profile.model import Profile, ProfileError, profile_for_path
-from canair.variants.selection import apply_variant
+from canair.variants.selection import apply_variant, require_named_car
 
 _active: Profile | None = None
 
@@ -73,7 +73,6 @@ def named_car(what: str) -> str | None:
     The active profile then loses the revisions the user's config pinned or a detection
     remembered, since an import comes from someone else's car.
     """
-    from canair.variants.selection import require_named_car
 
     variant, profile = require_named_car(active(), what)
     replace_active(profile)

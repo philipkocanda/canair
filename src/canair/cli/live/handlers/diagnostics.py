@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from canair.cli.profile_context import active
 from canair.core.prompt import confirm
+from canair.ecus.names import ecu_display, resolve_tx
 from canair.render import messages
 from canair.states.tokens import parse_states
 from canair.transport.protocol import Terminal
@@ -16,7 +17,6 @@ from canair.uds.protocol import KWP
 
 
 async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    from canair.ecus.names import ecu_display, resolve_tx
     from canair.live.dtc import mode_dtc_clear, mode_dtc_read, mode_dtc_scan_all, resolve_protocol
 
     if getattr(args, "dtc_all", False):

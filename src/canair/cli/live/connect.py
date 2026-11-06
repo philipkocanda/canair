@@ -10,11 +10,17 @@ from __future__ import annotations
 import contextlib
 import sys
 
+from canair.config import transport as config_transport
+from canair.ecus.response_frames import seed_counts, variable_length_keys
 from canair.render.console import console, escape
 from canair.render.glyphs import ELLIPSIS, WARN
-from canair.transport.config import ConnectionOptions
+from canair.safety.blocklist import SessionPolicy
+from canair.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal, Elm327Terminal
+from canair.transport.config import ConnectionOptions, TransportConfig
+from canair.transport.elm327.addressing import flow_control_data
 from canair.transport.elm327.wican import WiCANTerminal
 from canair.transport.protocol import Terminal
+from canair.uds.addressing import AddressBook
 
 
 def _print_sleep_banner(host: str, timeout: int = 5) -> None:
@@ -76,13 +82,7 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
     reconnect. Raises a transport error on failure (closing the partially-opened
     terminal first); the caller classifies it.
     """
-    from canair.config import transport as config_transport
-    from canair.ecus.response_frames import seed_counts, variable_length_keys
-    from canair.safety.blocklist import SessionPolicy
-    from canair.transport import DEFAULT_ELM327_TCP_PORT, Elm327TcpTerminal, Elm327Terminal
-    from canair.transport.elm327.addressing import flow_control_data
     from canair.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
-    from canair.uds.addressing import AddressBook
 
     init_string = pids_data.get("init")
     assert init_string, "profile init string must be validated by the caller"
@@ -172,7 +172,6 @@ def build_elm_reconnector(candidates, pids_data: dict, conn: ConnectionOptions):
     connect did.
     """
     from canair.live.monitor.reconnect import MonitorReconnector, reconnect_policy
-    from canair.transport.config import TransportConfig
 
     elm_candidates = [c for c in candidates if c.is_elm]
 

@@ -7,6 +7,7 @@ error for an unresolvable one, and hands off to its mode.
 from __future__ import annotations
 
 from canair.cli.profile_context import active
+from canair.ecus.names import resolve_tx
 from canair.live.identity.read import mode_identity
 from canair.live.read.param import mode_param
 from canair.live.read.raw import mode_raw
@@ -15,8 +16,6 @@ from canair.transport.protocol import Terminal
 
 
 async def handle_identity(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
-    from canair.ecus.names import resolve_tx
-
     tx_id = resolve_tx(args.tx, profile=active())
     if tx_id is None:
         messages.fail(
