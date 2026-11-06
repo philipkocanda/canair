@@ -19,7 +19,7 @@ from canair.actions import (
     parse_request_spec,
     registry_issues,
 )
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.yaml_edit.actions import add_action, remove_action, update_action
 
 GOOD = {

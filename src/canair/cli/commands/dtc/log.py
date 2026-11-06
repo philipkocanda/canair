@@ -130,7 +130,7 @@ def _print_footer(stats) -> None:
 
 def log_hint() -> str | None:
     """One line saying what the DTC log holds, for a bare ``canair dtc``; None when empty."""
-    from canair.profile import ProfileError
+    from canair.profile.model import ProfileError
 
     try:
         from canair.dtc.history import log_stats

@@ -33,7 +33,7 @@ from canair.ecus.pids import RoutineIndexEntry, build_routines_index, load_pids
 from canair.live.actuate.iocontrol_render import CARET
 from canair.live.actuate.not_found import report_not_found
 from canair.live.actuate.routines_execute import sf_label
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import ansi, glyphs, messages
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import nrc_abbrev

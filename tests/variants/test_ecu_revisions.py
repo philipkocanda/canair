@@ -21,7 +21,7 @@ from canair.cli import main
 from canair.cli.profile_context import active, set_active
 from canair.config import file as config_file
 from canair.ecus.pids import clear_cache, load_pids, load_raw_pids, revision_resolutions
-from canair.profile import ProfileError
+from canair.profile.model import ProfileError
 from canair.variants import check_variants_doc, effective_meta, load_variants
 from canair.variants import revisions as rv
 from canair.variants.tags import narrow_to_captured, revisions_in_scope

@@ -4,10 +4,10 @@ import textwrap
 
 import pytest
 
-from canair import profile
 from canair.cli import profile_context
 from canair.cli.profile_context import active
 from canair.ecus.pids import clear_cache, register_derived_cache
+from canair.profile import model as profile_model
 
 
 def _mk_profile(tmp_path, name, ecu, param, sensitive=False):
@@ -32,7 +32,7 @@ def _mk_profile(tmp_path, name, ecu, param, sensitive=False):
 
 
 def _activate(root, name):
-    profile_context.replace_active(profile.Profile(name, root))
+    profile_context.replace_active(profile_model.Profile(name, root))
 
 
 @pytest.fixture(autouse=True)
@@ -101,7 +101,7 @@ class TestSwitchingProfiles:
         from canair.captures.store import decoded_preview
         from canair.ecus.pids import load_pids
         from canair.privacy.sensitive import profile_set
-        from canair.profile import Profile
+        from canair.profile.model import Profile
 
         one = Profile("one", _mk_profile(tmp_path, "one", "BMS", "ONE_VOLTS", sensitive=True))
         two = Profile("two", _mk_profile(tmp_path, "two", "MCU", "TWO_VOLTS"))
@@ -125,7 +125,7 @@ class TestSwitchingProfiles:
 
     def test_switching_does_not_clear_the_caches(self, tmp_path):
         from canair.ecus.pids import load_pids
-        from canair.profile import Profile
+        from canair.profile.model import Profile
 
         calls = []
         one = Profile("one", _mk_profile(tmp_path, "one", "BMS", "X"))
@@ -203,8 +203,8 @@ class TestMergeEcuDocuments:
 
 class TestLoadPidsCacheKey:
     def test_two_profiles_do_not_share_a_cache_entry(self, tmp_path):
-        from canair import profile
         from canair.ecus.pids import clear_cache, load_pids
+        from canair.profile import model as profile_model
 
         saved = profile_context._active
         try:
@@ -214,11 +214,11 @@ class TestLoadPidsCacheKey:
                 (root / "profile.yaml").write_text('car_model: "T"\ninit: "x"\n')
                 (root / "ecus" / "e.yaml").write_text(f"{ecu}:\n  tx_id: 0x7E4\n")
 
-            profile_context._active = profile.Profile("one", tmp_path / "one")
+            profile_context._active = profile_model.Profile("one", tmp_path / "one")
             clear_cache()
             assert list(load_pids(profile=active())["ecus"]) == ["BMS"]
 
-            profile_context._active = profile.Profile("two", tmp_path / "two")
+            profile_context._active = profile_model.Profile("two", tmp_path / "two")
             assert profile_context._active.cache_key == str(tmp_path / "two")
             clear_cache()
             assert list(load_pids(profile=active())["ecus"]) == ["MCU"]

@@ -10,11 +10,11 @@ import dataclasses
 
 import pytest
 
-from canair import profile as profile_mod
 from canair.captures.tags import capture_tag
 from canair.cli import profile_context
 from canair.config import file as config_file
-from canair.profile import Profile, ProfileError
+from canair.profile import discovery as profile_mod_discovery
+from canair.profile.model import Profile, ProfileError
 from canair.variants.selection import apply_variant, require_variant
 
 VARIANTS = (
@@ -31,7 +31,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
     monkeypatch.delenv("CANAIR_PROFILE", raising=False)
     monkeypatch.delenv("CANAIR_VARIANT", raising=False)
-    monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
+    monkeypatch.setattr("canair.profile.discovery.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
     root = tmp_path / "profiles" / "hyundai-ioniq-ae-ev"
     (root / "ecus").mkdir(parents=True)
     (root / "profile.yaml").write_text(
@@ -39,7 +39,7 @@ def env(tmp_path, monkeypatch):
     )
     (root / "variants.yaml").write_text(VARIANTS)
     config_file.load_config.cache_clear()
-    profile_mod._noted_renames.clear()
+    profile_mod_discovery._noted_renames.clear()
     yield root
     config_file.load_config.cache_clear()
 
@@ -51,7 +51,7 @@ def _set(key: str, value: str) -> None:
 
 class TestPrecedence:
     def _resolve(self, name="hyundai-ioniq-ae-ev", flag=None) -> Profile:
-        return apply_variant(profile_mod.resolve_profile(name), flag)
+        return apply_variant(profile_mod_discovery.resolve_profile(name), flag)
 
     def test_nothing_named(self, env):
         assert self._resolve().variant is None
@@ -124,7 +124,7 @@ class TestAttribution:
 
 class TestRefusal:
     def test_an_unnamed_car_is_refused_with_how_to_pick(self, env):
-        prof = profile_mod.resolve_profile("hyundai-ioniq-ae-ev")
+        prof = profile_mod_discovery.resolve_profile("hyundai-ioniq-ae-ev")
         with pytest.raises(ProfileError) as e:
             require_variant(prof, "talk to the car")
         message = str(e.value)
@@ -137,13 +137,13 @@ class TestRefusal:
 
     def test_a_named_car_passes(self, env):
         prof = dataclasses.replace(
-            profile_mod.resolve_profile("hyundai-ioniq-ae-ev"), variant="38kwh"
+            profile_mod_discovery.resolve_profile("hyundai-ioniq-ae-ev"), variant="38kwh"
         )
         require_variant(prof, "talk to the car")
 
     def test_a_scope_keyword_is_not_a_car(self, env):
         prof = dataclasses.replace(
-            profile_mod.resolve_profile("hyundai-ioniq-ae-ev"), variant="all"
+            profile_mod_discovery.resolve_profile("hyundai-ioniq-ae-ev"), variant="all"
         )
         with pytest.raises(ProfileError, match="scopes analysis"):
             require_variant(prof, "talk to the car")
@@ -157,7 +157,7 @@ class TestLiveGate:
     @pytest.fixture
     def unnamed(self, env, monkeypatch):
         monkeypatch.setattr(
-            profile_context, "_active", profile_mod.resolve_profile("hyundai-ioniq-ae-ev")
+            profile_context, "_active", profile_mod_discovery.resolve_profile("hyundai-ioniq-ae-ev")
         )
 
     @pytest.mark.parametrize("command", ["read", "monitor", "scan", "raw", "io", "dtc"])
@@ -231,7 +231,7 @@ def test_validate_checks_an_alias_variant(env):
     (env / "profile.yaml").write_text(text)
     from canair.validation.meta import validate_meta
 
-    errors, _ = profile_name_findings(profile_mod.resolve_profile(str(env)))
+    errors, _ = profile_name_findings(profile_mod_discovery.resolve_profile(str(env)))
     assert any("implies variant '64kwh'" in e for e in errors)
     assert any("unknown field 'x'" in e for e in validate_meta(env / "profile.yaml"))
 

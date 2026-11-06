@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from canair.core import yaml_io
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.states.implies import (
     exclusion_conflicts,
     implication_cycle,

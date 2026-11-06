@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from canair.captures.metadata import resolve_metadata
 from canair.core.id_ranges import IdRange, as_id_ranges, count_ids, format_id_ranges, iter_ids
 from canair.privacy.sensitive import MASK, profile_set
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render.console import console as make_console
 from canair.render.console import escape
 from canair.render.glyphs import ELLIPSIS

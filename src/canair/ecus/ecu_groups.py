@@ -30,7 +30,7 @@ from canair.core import yaml_io
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 # The sigil that marks a group reference on the command line (``@charging``).
 GROUP_SIGIL = "@"

@@ -193,7 +193,7 @@ class TestLengthResolver:
     def test_the_length_is_read_from_the_profile_it_is_asked_for(self, monkeypatch, tmp_path):
         """A profile switch in one process must not return the other car's cached length."""
         from canair.dtc import snapshot_decode
-        from canair.profile import Profile
+        from canair.profile.model import Profile
 
         rows = {
             "short": [{"payload": "62B00411223344"}],

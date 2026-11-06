@@ -39,7 +39,7 @@ from .ecufile import clear_cache, find_ecu_file
 from .ruamel_ops import find_key, flow_map, flow_seq, place_after, remove_key, rename_key
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 
 def _ecu_file(ecu: str, profile: Profile) -> tuple[Path, str]:

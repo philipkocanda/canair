@@ -28,7 +28,7 @@ from .doc import Target, edit_doc
 from .ruamel_ops import find_key, flow_map, flow_seq, remove_key
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 
 def _request_map(req: ActionRequest) -> CommentedMap:

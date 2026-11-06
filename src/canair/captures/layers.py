@@ -1,7 +1,7 @@
 """Which capture layer a mutation is allowed to touch.
 
 A layered profile reads captures from a read-only base bundle *and* from the
-user's overlay (``src/canair/profile/__init__.py`` → :func:`profile_layers`). Reads merge the
+user's overlay (``src/canair/profile/discovery.py`` → :func:`profile_layers`). Reads merge the
 two; writes must not. Editing a base session would either fail on a read-only
 directory or — when the base is an install snapshot — appear to work and be
 erased by the next reinstall.
@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 from canair.captures import io as capture_io
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 
 def _under(path: Path, directory: Path) -> bool:
@@ -49,10 +49,11 @@ def owning_profile(captures_dir: Path | None, *, profile: Profile) -> Profile:
 
     ``None`` is ``profile``. An explicit directory resolves to ``profile`` when it is one of
     its capture layers, else to the discovered profile of the same name whose layers include
-    it, else to the plain bundle around it (:func:`canair.profile.profile_for_path`) — never
+    it, else to the plain bundle around it (:func:`canair.profile.model.profile_for_path`) — never
     silently to ``profile``.
     """
-    from canair.profile import ProfileError, profile_for_path, resolve_profile
+    from canair.profile.discovery import resolve_profile
+    from canair.profile.model import ProfileError, profile_for_path
 
     if captures_dir is None:
         return profile

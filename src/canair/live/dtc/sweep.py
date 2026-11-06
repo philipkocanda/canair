@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import ansi
 from canair.uds.services import DEFAULT_SESSION_REQUEST
 

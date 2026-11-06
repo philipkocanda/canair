@@ -32,7 +32,7 @@ from canair.live.monitor.select import (
     build_group_choices,
     selectors_from_selection,
 )
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.tui import styles
 from canair.tui.help import SCROLL_HELP_ROWS, LegendRow
 from canair.tui.keys import DISMISS_DESCRIPTION, bind, key_hint

@@ -24,12 +24,14 @@ import os
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Literal
 
+from canair.profile.model import ProfileError
+from canair.profile.names import declared_aliases
 from canair.variants import Variant, VariantsError, describe, load_variants, normalize_variant_id
 from canair.variants.revisions import PinSource
 from canair.variants.tags import SCOPES, selected_variant
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 VariantSource = Literal["flag", "env", "config", "alias", "only"]
 
@@ -37,8 +39,6 @@ ENV_VAR = "CANAIR_VARIANT"
 
 
 def _declared(profile: Profile) -> dict[str, Variant]:
-    from canair.profile import ProfileError
-
     try:
         return load_variants(profile)
     except VariantsError as e:
@@ -57,8 +57,6 @@ def configured_variant(profile: Profile) -> str | None:
 
 def alias_variant(profile: Profile) -> str | None:
     """The variant the old name ``profile`` was resolved through implies, if any."""
-    from canair.profile.names import declared_aliases
-
     alias = getattr(profile, "alias", None)
     if not alias:
         return None
@@ -84,7 +82,6 @@ def _revision_pins(profile: Profile, flags) -> tuple[tuple[str, str, PinSource],
     Only the shape is checked here; whether each names a real ECU and revision is
     checked when the definitions are resolved (that needs the ECU files).
     """
-    from canair.profile import ProfileError
     from canair.variants.revisions import RevisionError, parse_pin
 
     pins: list[tuple[str, str, PinSource]] = []
@@ -107,7 +104,7 @@ def apply_variant(profile: Profile, flag: str | None = None, revisions=None) -> 
     """``profile`` with its selected variant and revision pins applied (see the docstring).
 
     ``revisions`` are the ``--revision ECU=ID`` flags. Raises
-    :class:`~canair.profile.ProfileError` when a selection names a variant the profile
+    :class:`~canair.profile.model.ProfileError` when a selection names a variant the profile
     does not declare, or a pin is malformed.
     """
     pins = _revision_pins(profile, revisions)
@@ -130,8 +127,6 @@ def with_detections(profile: Profile) -> Profile:
 
 
 def _apply_variant(profile: Profile, flag: str | None) -> Profile:
-    from canair.profile import ProfileError
-
     candidates: list[tuple[str | None, VariantSource]] = [
         (flag, "flag"),
         (os.environ.get(ENV_VAR), "env"),
@@ -178,8 +173,6 @@ def require_variant(
     needs to know which car it is; canair never guesses. The error lists the profile's
     variants and how to pick one, then ends with ``hint(profile)`` when one is given.
     """
-    from canair.profile import ProfileError
-
     declared = _declared(profile)
     if len(declared) < 2 or selected_variant(profile) is not None:
         return
@@ -212,8 +205,6 @@ def require_named_car(profile: Profile, what: str) -> tuple[str | None, Profile]
     Returns the variant, or the selection (possibly None) when the profile has at most
     one variant, and the profile without those revisions (the caller adopts it).
     """
-    from canair.profile import ProfileError
-
     if profile.revision_detections or any(src == "config" for *_, src in profile.revision_pins):
         flagged = tuple(p for p in profile.revision_pins if p[2] == "flag")
         stripped = dataclasses.replace(profile, revision_pins=flagged, revision_detections=())

@@ -162,13 +162,13 @@ class TestCommandPaths:
 
 class TestLayeredProfile:
     def test_search_reads_both_layers(self, tmp_path, monkeypatch, capsys):
-        from canair import profile
         from canair.config import file as config_file
+        from canair.profile import discovery as profile_discovery
 
         bundled, user = tmp_path / "profiles", tmp_path / "cfg" / "canair" / "profiles"
         monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
         monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
-        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", bundled)
+        monkeypatch.setattr("canair.profile.discovery.BUNDLED_PROFILES_DIR", bundled)
         config_file.load_config.cache_clear()
         base = bundled / "ev6"
         (base / "ecus").mkdir(parents=True)
@@ -182,7 +182,7 @@ class TestLayeredProfile:
             caps = [{"rx": "0x7A8", "pid": "22F188", "payload": _payload("F188", part + b"\x00")}]
             doc = {"sessions": [{"date": "2026-07-24", "label": label, "captures": caps}]}
             (root / "captures" / "2026-07-24.json").write_text(json.dumps(doc))
-        monkeypatch.setattr(profile_context, "_active", profile.resolve_profile("ev6"))
+        monkeypatch.setattr(profile_context, "_active", profile_discovery.resolve_profile("ev6"))
         try:
             parser = build_parser()
             for needle, field in (("upstream", "session label"), ("mine", "session label")):

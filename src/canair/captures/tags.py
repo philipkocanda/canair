@@ -14,7 +14,7 @@ from canair.variants.revisions import declared
 from canair.variants.tags import selected_variant
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 # How each way of selecting a variant is recorded on the session it tags.
 _ATTRIBUTION = {"flag": "selected", "env": "selected", "config": "selected", "alias": "alias"}

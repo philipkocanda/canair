@@ -7,7 +7,8 @@ from datetime import date
 from typing import Any
 
 from canair.cli.profile_context import active
-from canair.profile import ProfileError, alias_index
+from canair.profile.discovery import alias_index
+from canair.profile.model import ProfileError
 from canair.render.console import console as make_console
 from canair.render.console import escape
 

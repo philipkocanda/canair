@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from canair.profile import Profile, resolve_profile
+from canair.profile.discovery import resolve_profile
+from canair.profile.model import Profile
 from canair.variants.selection import apply_variant
 
 BUNDLED = "hyundai-ioniq-ae-ev"

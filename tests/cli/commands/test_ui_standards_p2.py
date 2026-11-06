@@ -11,7 +11,7 @@ import pytest
 
 from canair.cli import main
 from canair.core.prompt import PromptUnavailable
-from canair.profile import profile_for_path
+from canair.profile.model import profile_for_path
 
 ECU = """\
 TESTECU:

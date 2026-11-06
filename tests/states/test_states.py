@@ -235,7 +235,7 @@ class TestStatesFileFallback:
     """Profile.states_file: prefer vehicle_states.yaml, fall back to legacy."""
 
     def _profile(self, tmp_path):
-        from canair.profile import Profile
+        from canair.profile.model import Profile
 
         return Profile(tmp_path.name, tmp_path)
 

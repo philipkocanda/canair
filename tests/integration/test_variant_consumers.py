@@ -68,7 +68,7 @@ class TestAutoPid:
         assert out.read_bytes() == committed.read_bytes()
 
     def test_every_bundled_car_carries_both_firmware_files(self):
-        from canair.profile import resolve_profile
+        from canair.profile.discovery import resolve_profile
         from canair.variants import load_variants
 
         missing = []

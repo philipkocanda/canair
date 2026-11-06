@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, TypedDict
 
 from canair.live.monitor.backoff import PollCost
 from canair.live.monitor.schedule import Key
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.multi_did import BATCH_REFUSAL_NRCS
 from canair.uds.nrc import nrc_description
 from canair.uds.services import NEGATIVE_RESPONSE_SID

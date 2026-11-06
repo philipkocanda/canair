@@ -20,7 +20,7 @@ from canair.cli.commands.contribute import gates, pipeline, report, submit, tidy
 from canair.contribute import git as C_git
 from canair.contribute import source as S
 from canair.contribute import workspace as C_workspace
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 _ONE = {"sessions": [{"date": "2026-01-01", "captures": [{"time": "10:00", "pid": "2101"}]}]}
 _TWO = {

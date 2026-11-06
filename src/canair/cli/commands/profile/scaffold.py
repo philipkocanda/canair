@@ -5,9 +5,7 @@ from __future__ import annotations
 import sys
 
 from canair.config.file import user_config_file
-from canair.profile import (
-    selectable_profiles,
-)
+from canair.profile.discovery import selectable_profiles
 from canair.profile.names import convention_problem
 from canair.profile.scaffold import DEFAULT_INIT, adopt_profile, create_profile, overlay_profile
 from canair.render import messages

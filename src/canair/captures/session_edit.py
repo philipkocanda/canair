@@ -11,7 +11,7 @@ from canair.captures.types import (
     StateSpans,
     StateSpanSource,
 )
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.states.spans import StateSpan
 from canair.states.tokens import parse_states as _parse_states
 

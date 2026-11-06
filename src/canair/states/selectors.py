@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.states.implies import implied_closure, most_specific_states
 from canair.states.predicates import StatePredicateError, StateRule
 from canair.states.suggest import satisfied_states

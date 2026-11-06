@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.support_map import MapDecl, SupportMapError, declaration
 from canair.yaml_edit.text import PidsEditError, edit_pid, set_scalar
 

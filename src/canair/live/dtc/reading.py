@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.nrc import NRC_REQUEST_OUT_OF_RANGE
 from canair.uds.protocol import KWP, UDS
 from canair.uds.services import KWP_READ_DTC_BY_STATUS, READ_DTC_INFORMATION

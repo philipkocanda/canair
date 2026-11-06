@@ -21,7 +21,7 @@ from canair.ecus.memory import (
     memory_format_of,
     section_problems,
 )
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.memory import MemoryFormat, MemoryRequestError, memory_request, parse_memory_token
 
 from .ecu import EcusEditError, find_ecu_file_by_tx, tx_key

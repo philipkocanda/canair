@@ -30,7 +30,7 @@ from .doc import Target, edit_doc
 from .ruamel_ops import find_key, flow_seq, remove_key, rename_key
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 # A group name: a lower-cased word of letters/digits, optionally with internal
 # hyphens/underscores (e.g. ``charging``, ``charge-detail``, ``12v``). No spaces

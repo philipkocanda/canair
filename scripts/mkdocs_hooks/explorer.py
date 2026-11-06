@@ -39,7 +39,7 @@ def _dump(data: dict | list) -> str:
 def on_files(files: Files, config) -> Files:
     from canair.interop.explorer.export import export_profile
     from canair.interop.explorer.series import export_sessions, rx_by_address
-    from canair.profile import looks_like_profile
+    from canair.profile.model import looks_like_profile
 
     roots = [p for p in sorted(PROFILES_DIR.iterdir()) if looks_like_profile(p)]
     index = []

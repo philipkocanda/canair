@@ -12,7 +12,7 @@ from canair.cli.live.handlers.ranges import parse_range
 from canair.cli.profile_context import active
 from canair.ecus.pids import load_pids
 from canair.live.discover.physical import discovery_targets, fmt_id
-from canair.profile import ProfileError
+from canair.profile.model import ProfileError
 from canair.uds.addressing import (
     DEFAULT_MODE,
     AddressingMode,

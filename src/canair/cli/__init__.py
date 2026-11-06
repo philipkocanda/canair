@@ -345,7 +345,7 @@ def main(argv: list[str] | None = None) -> int:
     from canair.captures.io import LegacyCaptureError
     from canair.cli.profile_context import set_active
     from canair.core.edit_errors import EditError
-    from canair.profile import ProfileError
+    from canair.profile.model import ProfileError
     from canair.render import ansi, messages
     from canair.safety.blocklist import SafetyBlocked
 

@@ -29,7 +29,7 @@ from canair.core.edit_errors import EditError
 from .commit import commit_text, noop, resolve_validate
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 
 @dataclass(frozen=True)

@@ -24,7 +24,7 @@ from pathlib import Path
 from canair.config.file import set_config_value, user_profiles_dir
 from canair.core.prompt import confirm
 from canair.install.context import installed_snapshot_kind
-from canair.profile import selectable_profiles
+from canair.profile.discovery import selectable_profiles
 from canair.profile.scaffold import adopt_profile, create_profile
 from canair.render import messages
 from canair.yaml_edit.echo import echo_edit

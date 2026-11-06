@@ -22,7 +22,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from canair.live.scan.progress import ScanStateWriter
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import messages
 from canair.render.paint import Painter
 from canair.uds.response import UdsResponse

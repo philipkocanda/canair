@@ -872,7 +872,7 @@ the library module `src/canair/profile/scaffold.py`; `cli/commands/profile.py` i
 when a higher-precedence discovery root would keep winning** (an explicit `--profiles-dir` or
 `$CANAIR_PROFILES_DIR`), because the copy would then never be read — the message names the blocking
 root. It skips `role: generated` members (`out/` is regenerated, not inherited). The bundle
-component list is **not hand-written** — it is the `BUNDLE_MEMBERS` registry in `src/canair/profile/__init__.py`,
+component list is **not hand-written** — it is the `BUNDLE_MEMBERS` registry in `src/canair/profile/bundle.py`,
 which also decides what `contribute` ships and what the blind-test strip withholds, so a new bundle
 member is one edit there.
 
@@ -880,7 +880,7 @@ member is one edit there.
 (`src/canair/profile/scaffold.py::overlay_profile`) writes *only* `~/.config/canair/profiles/<name>/
 profile.yaml` with `extends: <name>` plus an empty `captures/`; the base then keeps tracking
 upstream while every recording lands in the layer. Adopt when you want to change definitions,
-overlay when you only want to record. Resolution is `src/canair/profile/__init__.py::profile_layers` (walks
+overlay when you only want to record. Resolution is `src/canair/profile/discovery.py::profile_layers` (walks
 `profiles_roots`, stops at the first bundle with no `extends:`) + `::_from_layers`, which errors on
 a **dangling** overlay (nothing underneath) and on `extends:` naming a *different* profile (deferred
 to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberately that plan's key).
@@ -888,7 +888,7 @@ to `plans/2026-07-30-profile-variant-inheritance.md` — `extends:` is deliberat
   `write_root` and `capture_layers`. Definitions (`ecus_dir`, `states_file`, `signals_dir`,
   `can_buses_file`, `groups_file`, `meta_file`) stay on `root`; `captures_dir`/
   `out_dir` derive from `write_root`. **Definitions do not overlay in this slice** — an edit is
-  refused by `src/canair/profile/__init__.py::require_writable_definitions()`, called from the one edit funnel
+  refused by `src/canair/profile/writable.py::require_writable_definitions()`, called from the one edit funnel
   every authoring command shares (`src/canair/cli/commands/_edit.py::edit_scope`). It raises
   `ProfileError`, which `src/canair/cli/__init__.py` already turns into `error: …` + exit 2, so no command
   handles it.

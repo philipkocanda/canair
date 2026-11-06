@@ -29,7 +29,7 @@ from typing import Any
 from canair.actions import Action, ActionError
 from canair.actions.plan import PlannedRequest, action_policy, plan_requests
 from canair.core.prompt import typed_confirm
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 from canair.transport.protocol import Terminal
 

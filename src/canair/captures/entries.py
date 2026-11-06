@@ -14,7 +14,7 @@ from canair.captures.keepmode import EntryKeepMode
 from canair.captures.link_events import LinkEvent
 from canair.captures.store import decoded_preview, entry_path
 from canair.captures.types import CaptureEntry, Quality
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 
 def entry_to_dict(e: Mapping[str, Any], *, decoded: bool = True, profile: Profile) -> dict:

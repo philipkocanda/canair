@@ -14,7 +14,7 @@ from typing import Any
 
 import yaml
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.transport.isotp_params import ECU_ISOTP_FIELDS
 from canair.yaml_edit.text import (
     PidsEditError,

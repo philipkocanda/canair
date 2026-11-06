@@ -33,7 +33,7 @@ def _pin_bundled_profile():
 def _isolate_user_config(tmp_path_factory):
     """Point ``$XDG_CONFIG_HOME`` at a throwaway directory for the whole suite.
 
-    Resolving the active profile (``canair.profile.resolve_profile`` →
+    Resolving the active profile (``canair.profile.discovery.resolve_profile`` →
     ``load_config().get("profiles_dir")``) legitimately reads the user config
     file to see whether the profile search path was overridden — so *any* test
     that loads a real profile (most of them) reads ``config_dir()`` at some

@@ -8,7 +8,7 @@ from canair.ecus.can_buses import (
     load_can_bus_codes,
     load_can_buses,
 )
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 
 def _profile(tmp_path, text=None):

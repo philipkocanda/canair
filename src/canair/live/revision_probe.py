@@ -21,7 +21,7 @@ import sys
 from collections.abc import Iterable, Sequence
 
 from canair.ecus.memory import protocol_of
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.safety.blocklist import SafetyBlocked
 from canair.transport.protocol import Terminal
 

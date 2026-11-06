@@ -39,11 +39,11 @@ from canair.analysis.cross_signal import linear_fit
 from canair.analysis.stats import cramers_v, pearson, spearman
 from canair.captures import io as capture_io
 from canair.core import yaml_rt
-from canair.ecus import pids as pids_mod
-from canair.ecus.pids import INHERITED_PARAM_FIELDS
+from canair.ecus.pids import INHERITED_PARAM_FIELDS, build_ecu_index, load_pids_dir
 from canair.expression import evaluate_expression
 from canair.expression.decode_value import decode_typed
-from canair.profile import BUNDLE_MEMBERS, Profile, profile_for_path
+from canair.profile.bundle import BUNDLE_MEMBERS
+from canair.profile.model import Profile, profile_for_path
 from canair.uds.byteindex import payload_to_wican_bytes
 
 # ── What the strip removes ────────────────────────────────────────────────────
@@ -599,8 +599,8 @@ def select_targets(
     voltages).
     """
     source_root = Path(source_root)
-    pids_data = pids_mod.load_pids_dir(profile_for_path(source_root).ecus_dir)
-    index = pids_mod.build_ecu_index(pids_data)
+    pids_data = load_pids_dir(profile_for_path(source_root).ecus_dir)
+    index = build_ecu_index(pids_data)
     # One pass over captures/ for the whole selection: every verified parameter
     # needs its PID's payloads, and the params of one PID all share a key.
     payload_index = load_payload_index(source_root)

@@ -15,7 +15,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 if TYPE_CHECKING:
     from canair.ecus.ecu_groups import Group

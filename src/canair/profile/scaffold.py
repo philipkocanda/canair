@@ -23,7 +23,9 @@ from pathlib import Path
 
 from canair.config.file import set_config_value, user_profiles_dir
 from canair.core.paths import PROFILE_SCHEMA_MODELINE, schema_modeline
-from canair.profile import BUNDLE_MEMBERS, looks_like_profile, profiles_roots
+from canair.profile.bundle import BUNDLE_MEMBERS
+from canair.profile.discovery import profiles_roots
+from canair.profile.model import looks_like_profile
 
 # Default ELM327 init string for a new profile: ISO 15765-4 CAN 11-bit/500 kbit
 # (the common modern-vehicle protocol), spaces off, allow long messages. The

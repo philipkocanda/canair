@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.addressing import (
     DEFAULT_MODE,
     DEFAULT_RX_OFFSET,
@@ -225,7 +225,7 @@ def _profile_addressing(profile: Profile) -> tuple[int, AddressingMode]:
     that passed its own registry still gets an answer outside a profile.
     """
     from canair.ecus.pids import load_pids
-    from canair.profile import ProfileError
+    from canair.profile.model import ProfileError
 
     try:
         data = load_pids(profile)

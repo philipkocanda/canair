@@ -11,7 +11,8 @@ from __future__ import annotations
 import os
 from collections.abc import Sequence
 
-from canair.profile import Profile, ProfileError, profile_for_path, resolve_profile
+from canair.profile.discovery import resolve_profile
+from canair.profile.model import Profile, ProfileError, profile_for_path
 from canair.variants.selection import apply_variant
 
 _active: Profile | None = None

@@ -31,7 +31,7 @@ from .ruamel_ops import insert_item_before_last, place_in_order, remove_item
 from .ruamel_ops import state_token as _token
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 # A state name: a single UPPERCASE alphanumeric word (e.g. ``READY``, ``ACC2``,
 # ``DEEPSLEEP``). No spaces/underscores/punctuation — a controlled-vocabulary

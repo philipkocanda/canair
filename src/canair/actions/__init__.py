@@ -47,7 +47,7 @@ from canair.core import yaml_io
 from canair.core.edit_errors import EditError
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 # The request target that means "the functional (broadcast) request id".
 FUNCTIONAL: Final = "functional"

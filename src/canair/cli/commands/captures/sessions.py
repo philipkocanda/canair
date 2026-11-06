@@ -196,7 +196,7 @@ def _inferred_tag(gaps: Sequence[tuple[float, float]]) -> str:
 
 def _declared_variants() -> dict:
     """The active profile's variants (empty when it declares none or can't be read)."""
-    from canair.profile import ProfileError
+    from canair.profile.model import ProfileError
     from canair.variants import VariantsError, load_variants
 
     try:

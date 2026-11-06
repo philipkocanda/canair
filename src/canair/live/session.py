@@ -24,7 +24,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
 from canair.core.prompt import PromptUnavailable
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import messages
 from canair.transport.protocol import Terminal
 

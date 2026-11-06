@@ -19,7 +19,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 # A file whose name starts with "_" is scratch/disabled, never an ECU definition.
 _SKIP_PREFIX = "_"

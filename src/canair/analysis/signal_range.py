@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from canair.captures.store import load_pid_captures
 from canair.expression.decoding import decode_payload
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.byteindex import payload_to_wican_bytes
 
 

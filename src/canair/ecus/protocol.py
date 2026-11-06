@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 from canair.ecus.names import resolve_tx
 from canair.ecus.registry import EcuRegistryEntry, load_ecus
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.protocol import KWP, DiagProtocol, classify_protocol
 
 

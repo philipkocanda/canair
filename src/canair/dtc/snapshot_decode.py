@@ -27,7 +27,7 @@ from canair.dtc.snapshot import (
 )
 from canair.ecus.sensitivity import pid_sensitive
 from canair.expression.decoding import decode_param_rows
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 # The live reply header a snapshot DID's data is wrapped in: 62 <DID>.
 _READ_REPLY_HEADER = 3
@@ -160,7 +160,7 @@ def ecu_pids_index(ecu: str | None, *, profile: Profile) -> Mapping[str, Mapping
     if not ecu:
         return {}
     from canair.ecus.pids import build_ecu_index, load_pids
-    from canair.profile import ProfileError
+    from canair.profile.model import ProfileError
 
     try:
         entry = build_ecu_index(load_pids(profile=profile)).get(ecu.upper()) or {}

@@ -22,9 +22,9 @@ import os
 from pathlib import Path
 from typing import ClassVar
 
-from canair import profile
 from canair.config import file as config_file
 from canair.core.paths import config_dir
+from canair.profile import discovery as profile_discovery
 
 
 class TestUserConfigIsolation:
@@ -86,7 +86,7 @@ class TestActiveProfilePinning:
         assert os.environ.get("CANAIR_PROFILE") == "hyundai-ioniq-ae-ev"
 
     def test_active_profile_resolves_to_the_bundled_reference(self):
-        assert profile.resolve_profile().name == "hyundai-ioniq-ae-ev"
+        assert profile_discovery.resolve_profile().name == "hyundai-ioniq-ae-ev"
 
 
 class TestNoEagerConfigReadAtImportTime:

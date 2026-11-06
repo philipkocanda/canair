@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator
 from canair.core import yaml_io
 from canair.core.json_schema import schema_errors
 from canair.core.paths import CAN_BUSES_SCHEMA_FILE, GROUPS_SCHEMA_FILE, STATES_SCHEMA_FILE
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 from ._common import CAN_INDEX_SCHEMA_FILE, duplicate_key_errors
 from .report import FileReport, SignalsReport

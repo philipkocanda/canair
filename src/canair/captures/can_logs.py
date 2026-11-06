@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 # On-disk log formats we can read into the store. GVRET (SavvyCAN CSV) has a
 # custom adapter here; `csv` is python-can's own CSV. Both use the .csv extension,

@@ -28,7 +28,7 @@ from ruamel.yaml.scalarint import HexCapsInt
 
 from canair.core.edit_errors import EditError
 from canair.core.yaml_rt import folded as _folded
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 from .doc import Doc, Target, edit_doc
 from .ecufile import clear_cache, schema_validator

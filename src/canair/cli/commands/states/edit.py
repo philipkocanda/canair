@@ -61,7 +61,7 @@ def cmd_rm(args) -> int:
 
 
 def cmd_rename(args) -> int:
-    from canair.profile import require_writable_definitions
+    from canair.profile.writable import require_writable_definitions
     from canair.yaml_edit.state_rename import apply_state_rename, plan_state_rename
 
     profile = require_writable_definitions(profile=active())

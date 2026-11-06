@@ -38,7 +38,7 @@ from .ecufile import clear_cache
 from .ruamel_ops import state_token
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 # An inline ``vehicle_states: [...]`` list, also as the first key of a list item.
 _FLOW_LINE = re.compile(

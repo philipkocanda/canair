@@ -19,7 +19,7 @@ from canair.ecus.memory import memory_format_of
 from canair.ecus.pid_status import PidStatus, is_snapshot_only, pid_ships, pid_status, pid_swept
 from canair.ecus.sensitivity import param_sensitive
 from canair.ecus.signal_category import category_of
-from canair.profile import Profile
+from canair.profile.model import Profile, ProfileError, profile_for_path, read_meta
 from canair.safety.actuation import default_release, normalize_request
 from canair.uds.addressing import AddressingMode, EcuAddress, resolve_ecu_address
 from canair.uds.memory import MemoryFormat
@@ -244,7 +244,6 @@ def load_pids_dir(path: Path) -> dict:
     if not path.is_dir():
         with open(path) as f:  # legacy: a single file
             return _yaml_load(f)
-    from canair.profile import profile_for_path, read_meta
 
     return _load_dir(path, meta=read_meta(profile_for_path(path).meta_file))
 
@@ -255,8 +254,6 @@ def load_raw_pids(profile: Profile) -> dict:
     For the variant-aware readers — ``validate``, the editors, and anything that must
     see every revision at once. Memoized like :func:`load_pids`.
     """
-    from canair.profile import read_meta
-
     key = f"{profile.root}|raw"
     cached = _cache.get(key)
     if cached is None:
@@ -266,7 +263,6 @@ def load_raw_pids(profile: Profile) -> dict:
 
 
 def _selected_variant_def(prof):
-    from canair.profile import ProfileError
     from canair.variants import VariantsError, load_variants
     from canair.variants.tags import selected_variant
 
@@ -282,10 +278,9 @@ def _selected_variant_def(prof):
 def revision_resolutions(profile: Profile) -> dict:
     """ECU name -> :class:`~canair.variants.revisions.Resolution`, for the selected car.
 
-    Only ECUs that declare revisions appear. Raises :class:`~canair.profile.ProfileError`
+    Only ECUs that declare revisions appear. Raises :class:`~canair.profile.model.ProfileError`
     when a pin names an ECU or revision that cannot be.
     """
-    from canair.profile import ProfileError
     from canair.variants.revisions import RevisionError, resolve
 
     prof = profile
@@ -477,7 +472,7 @@ def build_iocontrol_index(
                 off_cmd = str(cdef.get("off") or cdef.get(False, ""))
                 release = _resolve_release(cdef.get("release"), on_cmd, off_cmd, protocol, did_str)
             except ValueError as exc:
-                from canair.profile import ProfileError
+                from canair.profile.model import ProfileError
 
                 raise ProfileError(f"{ecu_name}/iocontrol/{did_str}: {exc}") from None
             cmds[did_str] = {

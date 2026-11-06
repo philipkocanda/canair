@@ -3,14 +3,8 @@
 import pytest
 
 from canair.cli import profile_context
-from canair.profile import (
-    BUNDLE_MEMBERS,
-    Profile,
-    member_names,
-    members_by_role,
-    profile_for_path,
-    read_meta,
-)
+from canair.profile.bundle import BUNDLE_MEMBERS, member_names, members_by_role
+from canair.profile.model import Profile, profile_for_path, read_meta
 
 
 def _profile(root) -> Profile:
@@ -100,7 +94,7 @@ class TestBundleRegistry:
         assert member.contributable is expected
 
     def test_required_members_identify_a_profile(self, tmp_path):
-        from canair.profile import looks_like_profile
+        from canair.profile.model import looks_like_profile
 
         assert not looks_like_profile(tmp_path)
         for member in (m for m in BUNDLE_MEMBERS if m.required):

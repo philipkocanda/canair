@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from canair.cli.profile_context import active
 from canair.ecus.pids import load_raw_pids
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.variants.revisions import declared, revision_entry
 from canair.variants.selection import require_variant
 

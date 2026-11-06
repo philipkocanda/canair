@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from canair.captures.store import load_all_captures
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import messages
 
 # NOTE on the scope filters below: they are deliberately shape-agnostic. Each

@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from canair.profile import (
-    alias_index,
-    selectable_profiles,
-)
+from canair.profile.discovery import alias_index, selectable_profiles
 from canair.render import messages
 
 

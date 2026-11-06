@@ -288,7 +288,7 @@ def cmd_rm_identity(args: argparse.Namespace) -> int:
 
 def cmd_set_can_bus(args: argparse.Namespace) -> int:
     from canair.ecus.can_buses import allowed_can_buses
-    from canair.profile import profile_for_path
+    from canair.profile.model import profile_for_path
 
     # Resolve the vocabulary from the profile owning the target ecus/ dir
     # (or the active profile). Enforced only when the profile declares one.

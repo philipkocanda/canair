@@ -144,14 +144,14 @@ def cmd_migrate_rx(
 def _discover_addressing(prof):
     """The registry and addressing rule of ``prof``, the profile that owns the captures.
 
-    Raises :class:`~canair.profile.ProfileError` when it has no ``ecus/`` to resolve
+    Raises :class:`~canair.profile.model.ProfileError` when it has no ``ecus/`` to resolve
     names against (a ``--dir`` outside any profile), which the CLI reports as an
     error rather than a traceback.
     """
     from canair.ecus.pids import load_pids_dir
     from canair.ecus.registry import load_ecus_dir
     from canair.migrations.discover import Addressing
-    from canair.profile import ProfileError
+    from canair.profile.model import ProfileError
     from canair.uds.addressing import resolve_mode, resolve_rx_offset
 
     if not prof.ecus_dir.is_dir():

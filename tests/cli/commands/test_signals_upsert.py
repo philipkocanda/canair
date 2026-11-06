@@ -14,7 +14,7 @@ import yaml
 
 from canair.cli import profile_context
 from canair.cli.commands.validate.files import run_signals
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.yaml_edit.signals import SignalsEditError, merge_bus, upsert_signal
 
 

@@ -4,7 +4,7 @@ import re
 
 from canair.ecus.pids import build_ecu_index
 from canair.expression.decoding import decode_param_rows
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import messages
 from canair.render.formatting import print_decoded_params, print_hexdump
 from canair.transport.elm327.terminal import Elm327Terminal

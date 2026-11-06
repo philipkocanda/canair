@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from canair.expression.decoding import decodes_to_number
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.states.predicates import PREDICATE_SENTINELS, StatePredicateError, predicate_references
 
 # Why a reference cannot resolve. All are hard failures (the predicate can never

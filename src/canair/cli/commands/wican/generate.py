@@ -50,7 +50,7 @@ def require_resolved_revisions() -> None:
     revisions' PIDs would double the poll list and publish one signal name from two PIDs.
     """
     from canair.ecus.pids import revision_resolutions
-    from canair.profile import ProfileError
+    from canair.profile.model import ProfileError
 
     open_ = [r for r in revision_resolutions(profile=active()).values() if r.revision is None]
     if not open_:

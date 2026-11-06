@@ -449,7 +449,7 @@ class TestProfileAdopt:
         monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
         # Pose tmp_path/profiles as the repo-bundled root — the lowest-precedence
         # search root, which is what adopting is meant to lift a profile out of.
-        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
+        monkeypatch.setattr("canair.profile.discovery.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
         from canair.config import file as config_file
 
         config_file.load_config.cache_clear()
@@ -477,7 +477,7 @@ class TestProfileAdopt:
     def test_adopted_copy_shadows_the_original(self, tmp_path):
         _scaffold(tmp_path, "ev6")
         assert _cmd_adopt(_adopt_args()) == 0
-        from canair.profile import resolve_profile
+        from canair.profile.discovery import resolve_profile
 
         assert resolve_profile("ev6").root == self.user_dir / "ev6"
 

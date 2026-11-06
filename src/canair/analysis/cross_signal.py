@@ -46,7 +46,7 @@ from canair.expression.inspect_bytes import (
     wican_expr,
     wican_expr_indices,
 )
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 __all__ = [
     "PHYSICAL_BANDS",

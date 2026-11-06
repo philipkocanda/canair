@@ -15,7 +15,7 @@ from collections.abc import Callable
 from canair.core.eventlog import log_event
 from canair.ecus.pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index, ecu_index_key
 from canair.privacy.sensitive import MASK, request_hidden
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.query import QueryError, inferred_request, pids_named_by
 from canair.query.steps import parse_raw_spec, resolve_tx_id
 from canair.render import messages

@@ -29,7 +29,7 @@ from canair.ecus.pid_status import pid_status
 from canair.ecus.pids import load_pids_dir
 from canair.ecus.sensitivity import pid_sensitive
 from canair.expression.decoding import decode_param_rows
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.states.spans import parse_time_key
 
 # Sessions with fewer numeric samples than this are not worth a plot and are left out.

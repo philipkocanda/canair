@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import ansi
 
 from ...dtc.refs import ecu_ref

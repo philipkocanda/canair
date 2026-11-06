@@ -14,7 +14,7 @@ import yaml
 
 from canair.cli import profile_context
 from canair.interop.dbc.repair import DbcLoadError, load_dbc, repair_dbc_text, summarize
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 HEADER = 'VERSION ""\n\nNS_ :\n\nBS_:\n\nBU_: XXX\n\n'
 MESSAGE = 'BO_ 100 A: 8 XXX\n SG_ S : 0|8@1+ (1,0) [0|255] "" XXX\n\n'

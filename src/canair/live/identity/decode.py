@@ -11,7 +11,7 @@ way); this module re-exports ``decode_date`` and layers the identity-specific
 """
 
 from canair.expression.decode_value import bytes_to_ascii, decode_date
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.nrc import NOT_IN_ACTIVE_SESSION_NRCS, NRC_SERVICE_NOT_SUPPORTED
 from canair.uds.protocol import KWP, UDS, UNKNOWN
 from canair.uds.response import UdsResponse

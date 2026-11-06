@@ -16,7 +16,7 @@ from cantools.database.conversion import BaseConversion
 
 from canair.cli import profile_context
 from canair.cli.commands.import_ import DbcImportError, _dbc_to_signals
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.yaml_edit.signals import merge_bus, upsert_signal
 
 

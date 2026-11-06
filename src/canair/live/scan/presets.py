@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from canair.core.id_ranges import IdRange
 from canair.ecus.did_families import FAMILY_SIZE, did_families, family_ranges
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.protocol import KWP, classify_protocol
 from canair.uds.services import (
     INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,

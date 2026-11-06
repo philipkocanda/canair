@@ -22,7 +22,7 @@ from canair.yaml_edit.variants import VariantsEditError
 @pytest.fixture
 def prof(tmp_path, monkeypatch):
     """A writable throwaway profile, active for the commands under test."""
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
     root = tmp_path / "kia-ev6-cv-ev"
     (root / "ecus").mkdir(parents=True)
@@ -304,7 +304,7 @@ class TestCommands:
     ],
 )
 def test_every_bundled_profile_declares_valid_variants(name):
-    from canair.profile import resolve_profile
+    from canair.profile.discovery import resolve_profile
 
     assert len(v.load_variants(resolve_profile(name))) >= 2
 

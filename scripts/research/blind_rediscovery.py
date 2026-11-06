@@ -34,7 +34,7 @@ from datetime import datetime
 from pathlib import Path
 
 from canair.analysis import blind
-from canair.profile import resolve_profile
+from canair.profile.discovery import resolve_profile
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

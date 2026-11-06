@@ -28,8 +28,8 @@ def _temp_ecu_profile(tmp_path, filename: str, ecu: str = "AAF", pid: str = "218
     """
     import textwrap
 
-    from canair import profile
     from canair.ecus.pids import clear_cache
+    from canair.profile import model as profile_model
 
     root = tmp_path / "prof"
     ecus = root / "ecus"
@@ -46,7 +46,7 @@ def _temp_ecu_profile(tmp_path, filename: str, ecu: str = "AAF", pid: str = "218
                   parameters: {{}}
             """)
     )
-    profile_context._active = profile.Profile(name=root.name, root=root)
+    profile_context._active = profile_model.Profile(name=root.name, root=root)
     clear_cache()
     return path
 

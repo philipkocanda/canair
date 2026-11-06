@@ -90,7 +90,7 @@ def _profile_for_ecu_file(path: Path):
     independent of the globally-active profile. A bare test/tmp file (no
     ``vehicle_states.yaml`` at that root) simply yields the base ``POWER_STATES``.
     """
-    from canair.profile import profile_for_path
+    from canair.profile.model import profile_for_path
 
     return profile_for_path(path)
 

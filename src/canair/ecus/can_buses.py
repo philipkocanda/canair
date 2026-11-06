@@ -40,7 +40,7 @@ from canair.core import yaml_io
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 
 @dataclass(frozen=True)

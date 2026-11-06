@@ -47,7 +47,7 @@ from typing import TYPE_CHECKING
 from canair.captures.types import CaptureRecord
 from canair.ecus.protocol import ecu_protocol
 from canair.ecus.registry import EcuRegistryEntry, rx_addr_str, rx_for_tx
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.isotp_passive import ReassemblyStats, reassemble
 from canair.uds.multi_did import split_chain
 from canair.uds.nrc import is_response_pending, nrc_description

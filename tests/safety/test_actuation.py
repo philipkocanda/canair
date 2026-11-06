@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from canair.ecus.pids import build_iocontrol_index
-from canair.profile import ProfileError
+from canair.profile.model import ProfileError
 from canair.safety.actuation import (
     ACTUATE,
     READ,

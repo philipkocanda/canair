@@ -8,7 +8,7 @@ from typing import Any
 from canair.analysis import ecu_summary
 from canair.cli.profile_context import active
 from canair.ecus.registry import rx_addr_str
-from canair.profile import ProfileError
+from canair.profile.model import ProfileError
 
 # Identity fields to surface in the detail view, in display order.
 # (name/alias/description/id_protocol are handled separately in the header.)

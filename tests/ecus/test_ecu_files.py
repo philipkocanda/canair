@@ -3,7 +3,7 @@
 import pytest
 
 from canair.ecus import files as ecu_files
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 AAF = """\
 AAF:

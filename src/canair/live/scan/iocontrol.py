@@ -42,7 +42,7 @@ from typing import NamedTuple
 
 from canair.core.id_ranges import parse_id_range
 from canair.live.scan.discovery import DiscoveryProbe, mode_discovery_scan
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import (

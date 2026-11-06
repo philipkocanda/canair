@@ -13,7 +13,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from canair.core.edit_errors import EditError
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 
 def clear_cache() -> None:

@@ -29,7 +29,7 @@ from canair.captures.dates import entry_datetime, filter_by_date_range, filter_b
 from canair.captures.store import load_all_captures
 from canair.captures.types import CaptureEntry
 from canair.expression import evaluate_expression
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.byteindex import payload_to_wican_bytes as _payload_to_wican_bytes
 
 __all__ = [

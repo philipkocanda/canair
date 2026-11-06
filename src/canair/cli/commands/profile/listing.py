@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from canair.cli.profile_context import active
 from canair.config.file import load_config
-from canair.profile import (
-    ProfileError,
+from canair.profile.discovery import (
     alias_index,
     config_dir_hint,
     profile_layers,
     selectable_profiles,
 )
+from canair.profile.model import ProfileError
 from canair.render import messages
 
 

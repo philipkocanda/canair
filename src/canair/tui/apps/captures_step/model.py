@@ -48,7 +48,7 @@ from canair.captures.store import (
 )
 from canair.captures.types import CaptureEntry
 from canair.expression.notation import ByteNotation
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.states.tokens import join_states as _join_states
 
 from .gaps import describe_gap, gaps_before

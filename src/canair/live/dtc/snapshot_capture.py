@@ -14,7 +14,7 @@ from typing import Any
 
 from canair.captures.build import build_query_session
 from canair.captures.save import save_session_journaled
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 SESSION_NOTE = (
     "DTC snapshot replies (19 04), stored under their request. Each time is when the reply "

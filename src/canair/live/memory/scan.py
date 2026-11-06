@@ -23,7 +23,7 @@ from pathlib import Path
 
 from canair.ecus.memory import MemoryRegion
 from canair.live.identity.software import read_software_version
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render.progress import ProgressLine
 from canair.transport.protocol import Terminal
 from canair.uds.memory import (

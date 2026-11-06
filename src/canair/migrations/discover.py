@@ -33,7 +33,7 @@ from typing import Any
 from canair.captures import io as capture_io
 from canair.ecus.names import EcuNameCollision, build_name_tx_index
 from canair.ecus.registry import EcuRegistryEntry, rx_for_tx
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.addressing import AddressingMode
 
 # The offset the old writer applied to an unregistered TX, whatever the profile.

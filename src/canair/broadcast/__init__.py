@@ -20,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 __all__ = ["SignalDoc", "load_signals", "signals_dir"]
 

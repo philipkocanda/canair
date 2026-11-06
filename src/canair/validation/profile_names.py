@@ -22,7 +22,7 @@ def _is_bundled(prof) -> bool:
 
 def profile_name_findings(prof) -> tuple[list[str], list[str]]:
     """``(errors, warnings)`` for ``prof``'s name and the aliases it declares."""
-    from canair.profile import alias_index, selectable_profiles
+    from canair.profile.discovery import alias_index, selectable_profiles
 
     errors: list[str] = []
     warnings: list[str] = []

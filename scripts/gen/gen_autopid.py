@@ -31,7 +31,7 @@ PROFILES_DIR = REPO_ROOT / "profiles"
 
 def _variants(profile_dir: Path) -> list[str]:
     """The profile's variant IDs, or ``[]`` when it declares at most one."""
-    from canair.profile import resolve_profile
+    from canair.profile.discovery import resolve_profile
     from canair.variants import load_variants
 
     variants = list(load_variants(resolve_profile(str(profile_dir))))

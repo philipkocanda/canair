@@ -20,7 +20,7 @@ import sys
 from typing import TYPE_CHECKING
 
 from canair.core.stop_signals import graceful_stop
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render.console import console, escape
 from canair.render.glyphs import FAIL
 

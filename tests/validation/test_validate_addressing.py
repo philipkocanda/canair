@@ -126,7 +126,7 @@ class TestThroughValidatePids:
         assert elm327_warnings(ecus_dir) == []
 
     def test_run_pids_prints_them(self, tmp_path, monkeypatch, capsys):
-        from canair.profile import profile_for_path
+        from canair.profile.model import profile_for_path
 
         ecus_dir = self._profile(tmp_path, "ATSP6;", {"OBD": {"tx_id": 0x7DF}})
         monkeypatch.setattr("canair.cli.profile_context._active", profile_for_path(ecus_dir))

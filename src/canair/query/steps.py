@@ -12,7 +12,7 @@ name/alias canonicalisation only, and its absence is tolerated.
 import re
 import shlex
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.query import looks_like_pid
 
 _RAW_SPEC = re.compile(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$")

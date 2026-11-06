@@ -7,7 +7,7 @@ from typing import TextIO
 
 from canair.captures.metadata import resolve_metadata
 from canair.core.prompt import confirm
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import ansi
 from canair.render.glyphs import ELLIPSIS
 from canair.render.paint import INDENT, Cell, Painter, column_widths, render_row

@@ -13,7 +13,7 @@ import pytest
 
 from canair.cli import profile_context
 from canair.cli.commands.validate.files import run_signals
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.validation.signals import check_signals_doc, signal_byte_span
 from canair.yaml_edit import signals as signals_edit
 

@@ -44,7 +44,7 @@ from canair.captures.metadata import resolve_metadata
 from canair.captures.types import Quality
 from canair.ecus.pids import build_ecu_index
 from canair.expression.results import ResultEntry
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.query.steps import (
     merged_selector_notes,
     normalize_query_steps,

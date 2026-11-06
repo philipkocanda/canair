@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from canair.actions import FUNCTIONAL, Action, ActionError, ActionRequest
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
 
 

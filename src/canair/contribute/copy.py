@@ -10,7 +10,7 @@ from pathlib import Path
 
 from canair.captures.merge import SessionReplacement
 from canair.privacy.sensitive import SensitiveSet
-from canair.profile import member_names, members_by_role
+from canair.profile.bundle import member_names, members_by_role
 
 # Bundle members copied into a contribution, from the single declaration in
 # canair.profile. Curated definitions always ship; the captures/ evidence is

@@ -52,7 +52,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from canair.core.textscan import has_data_vin, has_vin_token, looks_redacted
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.variants import effective_meta
 
 # ---------------------------------------------------------------------------

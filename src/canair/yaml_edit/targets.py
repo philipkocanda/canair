@@ -28,7 +28,7 @@ from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
     from .doc import Doc, Target
 

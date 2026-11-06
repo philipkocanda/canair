@@ -28,7 +28,7 @@ from canair.ecus.files import iter_ecu_files
 from canair.ecus.pid_status import pid_status
 from canair.ecus.pids import effective_param
 from canair.interop.explorer.layout import layout_buses
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.addressing import resolve_mode, resolve_rx, resolve_rx_offset
 
 DEFAULT_BLOB_BASE = "https://github.com/philipkocanda/canair/blob/main/"

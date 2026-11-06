@@ -58,11 +58,11 @@ from typing import TYPE_CHECKING, Any
 
 from canair.dtc.refs import EcuRefs
 from canair.dtc.scope import ALL_SCOPE, Car, current_car, entry_revision
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import ansi
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 FORMAT = 2
 SECTIONS = ("scans", "clears")

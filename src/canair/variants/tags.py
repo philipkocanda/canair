@@ -14,7 +14,7 @@ reader of those tags shares:
   untagged copy strip the tag.
 
 It knows nothing about capture files or profiles' storage; callers hand it sessions
-and a :class:`~canair.profile.Profile`. The tag a new recording gets is
+and a :class:`~canair.profile.model.Profile`. The tag a new recording gets is
 :func:`canair.captures.tags.capture_tag`, since it reads the profile's definitions.
 """
 
@@ -24,7 +24,7 @@ from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 # ``--variant`` values that scope analysis rather than naming a car.
 SCOPE_ALL = "all"
@@ -148,9 +148,9 @@ def require_one_revision(
 
     A byte offset means nothing across two layouts, so ``investigate``, ``hunt``,
     ``correlate``, ``coverage`` and ``decode --dump-bytes``/``--try`` call this before
-    reading bytes. Raises :class:`~canair.profile.ProfileError` naming the fix.
+    reading bytes. Raises :class:`~canair.profile.model.ProfileError` naming the fix.
     """
-    from canair.profile import ProfileError
+    from canair.profile.model import ProfileError
 
     spread = {e: r for e, r in revision_spread(entries, ecus).items() if len(r) > 1}
     if not spread:

@@ -28,7 +28,7 @@ import asyncio
 import sys
 from typing import NamedTuple
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import messages
 from canair.render.paint import Painter
 from canair.safety.blocklist import SessionPolicy

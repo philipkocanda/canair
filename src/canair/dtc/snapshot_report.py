@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import ansi
 from canair.render.formatting import format_value
 

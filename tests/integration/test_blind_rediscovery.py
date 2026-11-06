@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 
 from canair.analysis import blind
-from canair.profile import resolve_profile
+from canair.profile.discovery import resolve_profile
 
 
 @pytest.fixture(scope="module")

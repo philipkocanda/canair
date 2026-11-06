@@ -36,7 +36,7 @@ from .doc import Target, edit_doc
 from .ruamel_ops import place_in_order, remove_key
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 
 class SignalsEditError(EditError):

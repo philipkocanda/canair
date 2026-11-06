@@ -12,7 +12,7 @@ from pathlib import Path
 from canair.analysis.misfiled import Misfile, find_misfiled
 from canair.captures.payload_corpus import PayloadCorpus, load_payload_corpus
 from canair.ecus.registry import build_rx_index, load_ecus, rx_for_tx
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 from .report import CaptureWarning
 

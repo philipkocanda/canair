@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from canair.core import tcp
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import messages
 
 from ...transport.config import ConnectionOptions, TransportConfig

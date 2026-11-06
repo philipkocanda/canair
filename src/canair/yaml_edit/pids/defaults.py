@@ -20,7 +20,7 @@ from typing import Any
 import yaml
 
 from canair.ecus.pids import INHERITED_PARAM_FIELDS, effective_param
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.yaml_edit.text import (
     PidsEditError,
     _format_list_field,

@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from canair.profile import BundleMember
+    from canair.profile.bundle import BundleMember
 
 # --- Locations -------------------------------------------------------------
 
@@ -317,7 +317,9 @@ def snapshot_profile_risks(clone: Path | None) -> list[SnapshotRisk]:
     Without a readable ``RECORD`` every file differing from the clone is reported,
     since nothing then distinguishes an edit from upstream drift.
     """
-    from canair.profile import BUNDLE_MEMBERS, BUNDLED_PROFILES_DIR, looks_like_profile
+    from canair.core.paths import BUNDLED_PROFILES_DIR
+    from canair.profile.bundle import BUNDLE_MEMBERS
+    from canair.profile.model import looks_like_profile
     from canair.profile.names import build_alias_index
 
     if clone is None or not installed_snapshot_kind(BUNDLED_PROFILES_DIR):

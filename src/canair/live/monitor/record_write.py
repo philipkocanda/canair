@@ -13,7 +13,7 @@ from pathlib import Path
 from canair.captures.journal import CaptureJournal
 from canair.captures.keepmode import KeepMode, persisted_keep_mode
 from canair.captures.types import Quality
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 from ...captures.build import build_query_session
 from ...captures.save import save_session

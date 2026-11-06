@@ -494,7 +494,7 @@ class TestCanBusValidation:
     def _errors(self, tmp_path, can_bus_yaml, *, vocab="[B-CAN, P-CAN, C-CAN, M-CAN, H-CAN, All]"):
         import textwrap
 
-        from canair.profile import Profile
+        from canair.profile.model import Profile
 
         ecus = tmp_path / "ecus"
         ecus.mkdir(exist_ok=True)

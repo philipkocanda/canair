@@ -15,13 +15,14 @@ import argparse
 import pytest
 import yaml
 
-from canair import profile
 from canair.cli import profile_context
 from canair.cli.commands.ecu.add import cmd_add
 from canair.cli.commands.ecu.rename import cmd_rename
 from canair.cli.profile_context import active
 from canair.core.edit_errors import EditError
 from canair.ecus.pids import clear_cache
+from canair.profile import discovery as profile_discovery
+from canair.profile import model as profile_model
 from canair.yaml_edit.ecu import register_ecu
 
 
@@ -226,12 +227,15 @@ class TestOfflineValidationProfileScoping:
         profile_context._active = None
 
         # active() is genuinely ambiguous here...
-        with pytest.raises(profile.ProfileError):
-            profile.resolve_profile(profiles_dir=str(tmp_path))
+        with pytest.raises(profile_model.ProfileError):
+            profile_discovery.resolve_profile(profiles_dir=str(tmp_path))
 
         # ...but a scoped write still validates and persists.
         wrote = register_ecu(
-            0x7C6, name="CLU", ecus_dir=root_a / "ecus", profile=profile.profile_for_path(root_a)
+            0x7C6,
+            name="CLU",
+            ecus_dir=root_a / "ecus",
+            profile=profile_model.profile_for_path(root_a),
         )
         assert wrote is True
         assert (root_a / "ecus" / "clu.yaml").exists()

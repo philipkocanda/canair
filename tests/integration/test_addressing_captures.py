@@ -48,7 +48,7 @@ def make_profile(tmp_path):
 class TestProfileAddressing:
     def test_no_profile_falls_back_to_the_defaults(self, monkeypatch):
         from canair.ecus import registry as ecus_registry
-        from canair.profile import ProfileError
+        from canair.profile.model import ProfileError
 
         def boom():
             raise ProfileError("no profile")

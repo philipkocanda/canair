@@ -7,7 +7,7 @@ import json
 import pytest
 
 from canair.dtc.log import log_file
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.yaml_edit.state_rename import (
     StateRenameError,
     apply_state_rename,

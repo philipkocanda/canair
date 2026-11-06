@@ -20,7 +20,7 @@ from typing import Any
 from canair.dtc.log import load_log
 from canair.dtc.refs import EcuRefs
 from canair.dtc.scope import ALL_SCOPE, Car, current_car
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 
 @dataclass(frozen=True)

@@ -7,7 +7,7 @@ The checks themselves are in the sibling modules: :mod:`.ecu_file` (one ECU file
 from dataclasses import dataclass
 from pathlib import Path
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 from .cross_file import (
     duplicate_name_errors,

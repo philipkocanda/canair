@@ -32,7 +32,7 @@ from .doc import Target, edit_doc
 from .ruamel_ops import find_key, flow_seq, place_in_order, remove_key, rename_key
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 _HEADER = (
     f"{schema_modeline('variants')}\n"

@@ -19,7 +19,8 @@ import pytest
 
 from canair.cli import profile_context
 from canair.cli.profile_context import active
-from canair.profile import ProfileError, resolve_profile
+from canair.profile.discovery import resolve_profile
+from canair.profile.model import ProfileError
 
 LEGACY = {
     "date": "2026-10-21",
@@ -43,7 +44,7 @@ def layered(tmp_path, monkeypatch):
 
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
-    monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
+    monkeypatch.setattr("canair.profile.discovery.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
     config_file.load_config.cache_clear()
     base = tmp_path / "profiles" / "ev6"
     (base / "ecus").mkdir(parents=True)

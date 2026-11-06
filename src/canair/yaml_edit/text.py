@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from canair.core.edit_errors import EditError
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 from .commit import commit_text, resolve_validate
 from .ecufile import clear_cache, schema_validator

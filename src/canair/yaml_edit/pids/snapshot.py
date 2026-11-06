@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from canair.dtc.snapshot import did_of_read
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.yaml_edit.text import PidsEditError, edit_pid, set_scalar
 
 ONLY_FIELD = "snapshot_only"

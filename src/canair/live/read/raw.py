@@ -6,7 +6,7 @@ import sys
 
 from canair.captures.metadata import resolve_metadata
 from canair.privacy.sensitive import MASK, masked_response, request_hidden
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.query.steps import parse_raw_spec
 from canair.render import messages
 from canair.render.formatting import format_raw_with_bnn, print_hexdump, print_json_result

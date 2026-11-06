@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from canair.expression.results import EcuFrame, ResultEntry
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.transport.session_manager import SessionManager
 
 from ...captures.link_events import is_rx

@@ -27,7 +27,7 @@ from canair.contribute import github as C_github
 from canair.contribute import workspace as C_workspace
 from canair.core.paths import GITHUB_REPO
 from canair.core.prompt import PromptUnavailable
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 
 class FakeRunner:

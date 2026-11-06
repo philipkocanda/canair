@@ -10,7 +10,7 @@ import asyncio
 import re
 
 from canair.ecus.pids import build_param_index
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.query.steps import query_selectors, resolve_tx_id
 from canair.render import messages
 from canair.transport.elm327.terminal import Elm327Terminal

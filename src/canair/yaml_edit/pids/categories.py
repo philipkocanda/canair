@@ -21,7 +21,7 @@ import yaml
 
 from canair.ecus.pids import effective_param
 from canair.ecus.signal_category import CATEGORIES, RETIRED_FIELD, unit_category
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.yaml_edit.pids.defaults import _ecu_def, _params
 from canair.yaml_edit.text import (
     PidsEditError,

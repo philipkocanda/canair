@@ -14,7 +14,7 @@ import pytest
 from canair.captures import can_logs
 from canair.cli import profile_context
 from canair.cli.commands.validate.files import run_can
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 FIXTURE = Path(__file__).parents[2] / "fixtures" / "can" / "ioniq28_drive_slice.log"
 EXPECT_IDS = ["0x200", "0x220", "0x2B0", "0x386"]

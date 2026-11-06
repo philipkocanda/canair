@@ -32,7 +32,7 @@ from typing import Any
 
 from canair.captures.folding import CaptureFormatError, expand_file, fold_file
 from canair.captures.types import CaptureFile
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 # On-disk capture-file extension. Legacy profiles used ``.yaml`` (pre-migration);
 # see :func:`find_legacy_yaml` and ``canair captures migrate``.

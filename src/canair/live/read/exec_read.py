@@ -11,7 +11,7 @@ from typing import Literal
 
 from canair.core.eventlog import log_event
 from canair.expression.results import ResultEntry
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.echo import request_echo
 from canair.uds.multi_did import BATCH_REFUSAL_NRCS
 from canair.uds.response import UdsResponse

@@ -14,7 +14,7 @@ from canair.dtc import history
 from canair.dtc import log as dtc_log
 from canair.dtc.refs import EcuRefs
 from canair.dtc.scope import ANY_CAR, Car
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 # A two-ECU registry as the log sees it: rx -> name, rx -> request id.
 REFS = EcuRefs(tx_by_rx={0x7EC: 0x7E4, 0x7EA: 0x7E2}, names={0x7EC: "BMS", 0x7EA: "VCU"})
@@ -520,10 +520,11 @@ class TestMigrateAll:
             _write(roots / name / "dtc_log.yaml", _scan("all", ts=name))
         monkeypatch.setattr(dtc_log, "log_dir", lambda: tmp_path / "state")
         monkeypatch.setattr(
-            "canair.profile.selectable_profiles", lambda: {n: roots / n for n in ("car-a", "car-b")}
+            "canair.dtc.log_upgrade.selectable_profiles",
+            lambda: {n: roots / n for n in ("car-a", "car-b")},
         )
         monkeypatch.setattr(
-            "canair.profile.resolve_profile", lambda name: Profile(name, roots / name)
+            "canair.dtc.log_upgrade.resolve_profile", lambda name: Profile(name, roots / name)
         )
         migrate_all()
         for name in ("car-a", "car-b"):

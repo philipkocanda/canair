@@ -11,7 +11,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import messages
 
 from ...transport.config import ConnectionOptions, TransportConfig

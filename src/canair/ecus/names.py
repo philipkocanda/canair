@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 
 from canair.ecus.registry import EcuRegistryEntry, build_rx_tx_index, load_ecus, rx_addr_str
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 
 def ecu_name(

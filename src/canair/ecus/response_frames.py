@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from canair.ecus.pid_status import pid_status
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.frame_counts import CountKey, FrameCountLedger
 
 FIELD = "response_frames"

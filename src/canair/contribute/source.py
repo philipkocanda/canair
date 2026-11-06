@@ -26,7 +26,7 @@ from pathlib import Path
 
 from canair.contribute.git import Preflight, Step, _run, status_entries
 from canair.contribute.workspace import backup_leftovers
-from canair.profile import members_by_role
+from canair.profile.bundle import members_by_role
 
 _CAPTURE_MEMBER = members_by_role("evidence")[0].name
 

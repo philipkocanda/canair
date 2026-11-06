@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 
 def ecu_ref(tx_id: int, *, profile: Profile) -> str:

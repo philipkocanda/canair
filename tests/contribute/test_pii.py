@@ -7,7 +7,7 @@ import json
 import pytest
 
 from canair.contribute import pii
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 
 def _write_profile(root, *, car_model="Test Car 2020", captures=None, ecus=None):

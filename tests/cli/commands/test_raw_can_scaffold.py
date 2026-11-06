@@ -18,7 +18,7 @@ from canair.cli import profile_context
 from canair.cli.commands import import_ as import_cmd
 from canair.cli.commands import validate
 from canair.cli.commands.validate.files import run_can, run_signals
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 
 @pytest.fixture

@@ -9,7 +9,7 @@ from __future__ import annotations
 import sys
 
 from canair.ecus.response_frames import FIELD, resolve_edits, revision_target
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.frame_counts import FrameCountLedger
 
 
@@ -33,7 +33,8 @@ def persist(
     user actually ran, so a read-only profile or a locked file must not turn a
     successful session into a failed command.
     """
-    from canair.profile import ProfileError, require_writable_definitions
+    from canair.profile.model import ProfileError
+    from canair.profile.writable import require_writable_definitions
     from canair.yaml_edit.echo import echo_edit
     from canair.yaml_edit.pids import PidsEditError, set_response_frames
 

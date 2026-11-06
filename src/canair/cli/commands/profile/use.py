@@ -4,11 +4,8 @@ from __future__ import annotations
 
 import sys
 
-from canair.profile import (
-    ProfileError,
-    resolve_profile,
-    selectable_profiles,
-)
+from canair.profile.discovery import resolve_profile, selectable_profiles
+from canair.profile.model import ProfileError
 from canair.render import messages
 from canair.yaml_edit.echo import echo_edit
 

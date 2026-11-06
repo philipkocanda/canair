@@ -57,7 +57,7 @@ from canair.captures.save import apply_capture_tag, current_capture_tag, save_se
 from canair.captures.session_edit import set_session_field
 from canair.captures.types import CaptureSession, Quality
 from canair.privacy.sensitive import SensitiveSet
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 JOURNAL_VERSION = 1
 JOURNAL_DIRNAME = ".journal"

@@ -34,10 +34,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from canair.core import yaml_io
+from canair.profile.discovery import resolve_profile, selectable_profiles
+from canair.profile.model import ProfileError
+from canair.profile.names import declared_aliases
 from canair.variants import effective_meta
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 LEGACY_NAME = "dtc_log.yaml"
 SECTIONS = ("scans", "clears")
@@ -45,8 +48,6 @@ SECTIONS = ("scans", "clears")
 
 def legacy_sources(profile: Profile, dest: Path) -> list[Path]:
     """Every legacy DTC log ``profile`` still has, beside ``dest``."""
-    from canair.profile.names import declared_aliases
-
     candidates = [profile.root / LEGACY_NAME, *(o / LEGACY_NAME for o in profile.overlays)]
     candidates += [dest.with_name(f"{old}.yaml") for old in declared_aliases(profile.root)]
     seen: list[Path] = []
@@ -313,7 +314,6 @@ def migrate_all() -> None:
     untouched would still keep its log where a reinstall (``canair update``) deletes it.
     """
     from canair.dtc.log import log_file
-    from canair.profile import ProfileError, resolve_profile, selectable_profiles
 
     for name in selectable_profiles():
         try:

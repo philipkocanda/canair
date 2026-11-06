@@ -297,7 +297,7 @@ def test_normalize_session_mode_rejects_anything_else(value):
 
 def test_build_iocontrol_index_reports_a_bad_session_mode_as_a_profile_error():
     from canair.ecus.pids import build_iocontrol_index
-    from canair.profile import ProfileError
+    from canair.profile.model import ProfileError
 
     data = {"ecus": {"BCM": {"tx_id": 0x745, "iocontrol": {"6900": {"session_mode": 192}}}}}
     with pytest.raises(ProfileError, match="BCM/iocontrol/6900"):

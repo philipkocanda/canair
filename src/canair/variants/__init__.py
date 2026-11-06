@@ -36,7 +36,7 @@ from canair.core.json_schema import schema_errors
 from canair.core.paths import VARIANTS_SCHEMA_FILE
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 # Local to its profile, so it names only what differs (``28kwh``, not ``ioniq-ev-28``).
 # At least one letter: a bare number would read back as an integer YAML key.
@@ -305,9 +305,9 @@ def effective_meta(profile: Profile) -> dict:
     """``profile.yaml`` (car_model, init, ...) for the profile's selected car, or {}.
 
     The selected variant's ``profile_overrides:`` replace the settings they name; the
-    file as written is :func:`canair.profile.read_meta`.
+    file as written is :func:`canair.profile.model.read_meta`.
     """
-    from canair.profile import read_meta
+    from canair.profile.model import read_meta
     from canair.variants.tags import selected_variant
 
     meta = read_meta(profile.meta_file)

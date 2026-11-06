@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.protocol import UDS
 from canair.uds.response import UdsResponse
 from canair.uds.services import READ_DTC_INFORMATION

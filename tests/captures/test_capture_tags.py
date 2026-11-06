@@ -16,7 +16,7 @@ from canair.captures import io as capture_io
 from canair.cli import profile_context
 from canair.cli.profile_context import active
 from canair.dtc.log import log_file
-from canair.profile import Profile, ProfileError
+from canair.profile.model import Profile, ProfileError
 from canair.variants.selection import apply_variant, require_named_car
 from canair.yaml_edit import variants as variants_edit
 
@@ -395,7 +395,7 @@ def test_sessions_view_names_each_car(prof, capsys):
 
 def test_bundled_history_is_tagged_where_the_car_is_known():
     """Ioniq, Kona and XPeng captures came from one known car each; all are tagged."""
-    from canair.profile import resolve_profile
+    from canair.profile.discovery import resolve_profile
     from canair.validation.variant_tags import variant_tag_findings
     from canair.variants import load_variants
 

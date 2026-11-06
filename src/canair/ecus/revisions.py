@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from canair.ecus.pids import revision_resolutions
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 
 def determined_revisions(profile: Profile) -> dict[str, str]:

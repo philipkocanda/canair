@@ -14,7 +14,7 @@ from typing import Any
 from canair.expression.decoding import ParamRow
 from canair.expression.results import ResultEntry
 from canair.privacy.sensitive import MASK, request_hidden
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.response import UdsResponse
 
 

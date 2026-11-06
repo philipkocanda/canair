@@ -30,7 +30,7 @@ from canair.captures import merge as captures_merge
 from canair.captures.link_events import session_link_events
 from canair.captures.types import CaptureEntry
 from canair.ecus.revisions import determined_revisions
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import messages
 from canair.states.spans import span_keys, states_at
 from canair.variants import tags as variant_tags
@@ -380,7 +380,7 @@ def _hide_sensitive(
 
 def _variant_scope(profile: Profile) -> tuple[str | None, bool]:
     """``profile``'s variant scope, and whether it declares several variants."""
-    from canair.profile import ProfileError
+    from canair.profile.model import ProfileError
     from canair.variants import VariantsError, load_variants
 
     try:
@@ -391,7 +391,7 @@ def _variant_scope(profile: Profile) -> tuple[str | None, bool]:
 
 def _revision_scope(profile: Profile) -> dict[str, str]:
     """``profile``'s determined ECU revisions (ECU -> revision)."""
-    from canair.profile import ProfileError
+    from canair.profile.model import ProfileError
 
     try:
         return determined_revisions(profile)

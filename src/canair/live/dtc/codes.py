@@ -6,7 +6,7 @@ Pure (no I/O). UDS records are 4 bytes (3-byte DTC + status); KWP2000 records ar
 
 from __future__ import annotations
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.protocol import KWP, UDS
 
 # SAE J2012 DTC category letters, selected by the top two bits of the first byte.

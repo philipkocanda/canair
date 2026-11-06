@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.protocols import Validator
 
 from canair.captures import io as capture_io
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.states.implies import contradictory_states
 from canair.states.predicates import StatePredicateError, StateRule
 from canair.states.vocabulary import load_states, state_names

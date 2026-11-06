@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.yaml_edit.text import (
     PidsEditError,
     _cut_block,

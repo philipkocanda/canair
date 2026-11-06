@@ -143,7 +143,7 @@ class TestSnapshotProfileIsOffered:
         root = snapshot / "hyundai-ioniq-ae-ev"
         (root / "ecus").mkdir(parents=True)
         (root / "profile.yaml").write_text('car_model: "T"\ninit: "x"\n')
-        monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", snapshot)
+        monkeypatch.setattr("canair.profile.discovery.BUNDLED_PROFILES_DIR", snapshot)
         from canair.config import file as config_file
 
         config_file.load_config.cache_clear()

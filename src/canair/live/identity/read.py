@@ -15,7 +15,7 @@ import json
 import sys
 
 from canair.privacy.sensitive import MASK, request_hidden
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import ansi
 from canair.render.paint import Painter
 from canair.uds.echo import request_echo

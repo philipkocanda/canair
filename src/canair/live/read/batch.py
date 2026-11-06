@@ -16,7 +16,7 @@ from datetime import datetime
 from canair.core.eventlog import log_event
 from canair.expression.decoding import decode_param_rows
 from canair.expression.results import ResultEntry
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.describe import decode_uds_response
 from canair.uds.multi_did import MULTI_DID_MAX_DEFAULT, split_chain
 from canair.uds.response import UdsResponse

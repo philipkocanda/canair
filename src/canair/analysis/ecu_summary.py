@@ -7,7 +7,7 @@ from collections import Counter
 from canair.captures.types import CaptureEntry
 from canair.ecus.pid_status import pid_status
 from canair.ecus.registry import rx_addr_str
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.states.selectors import ecu_states
 
 

@@ -16,7 +16,7 @@ annotate each decoded record, naming the ECU that reported it.
 
 from __future__ import annotations
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 
 from .failure_types import FAILURE_TYPE
 

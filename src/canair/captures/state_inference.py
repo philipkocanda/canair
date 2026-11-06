@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any
 from canair.captures.dates import entry_datetime
 from canair.captures.store import resolve_pid_defs
 from canair.expression.decoding import decode_param_rows
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.states.predicates import StatePredicateError, StateRule, predicate_references
 from canair.states.spans import build_spans, span_state_union
 from canair.states.suggest import suggest_states

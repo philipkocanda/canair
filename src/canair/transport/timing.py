@@ -19,7 +19,7 @@ import re
 import sys
 from dataclasses import dataclass
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render.console import console
 
 _HEX_LABEL = re.compile(r"^0x[0-9A-Fa-f]+$")

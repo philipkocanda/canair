@@ -22,7 +22,7 @@ from typing import Any, TextIO
 from canair.captures.build import build_manual_session
 from canair.captures.metadata import resolve_metadata
 from canair.captures.save import save_session_journaled
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import ansi, messages
 from canair.render.paint import GAP, INDENT, Cell, Painter, column_widths, render_row
 from canair.transport.functional import DEFAULT_WINDOW_S

@@ -23,7 +23,8 @@ from canair.cli import profile_context
 from canair.cli.commands.profile.listing import cmd_list as _cmd_list
 from canair.cli.commands.profile.use import cmd_use as _cmd_use
 from canair.cli.profile_context import active
-from canair.profile import ProfileError, alias_index, resolve_profile, selectable_profiles
+from canair.profile.discovery import alias_index, resolve_profile, selectable_profiles
+from canair.profile.model import ProfileError
 from canair.profile.names import build_alias_index, convention_problem
 from canair.validation.profile_names import profile_name_findings
 
@@ -32,15 +33,15 @@ OLD, NEW = "ev6-2022", "kia-ev6-cv-ev"
 
 @pytest.fixture(autouse=True)
 def _isolate_profile_state():
-    from canair import profile
     from canair.config import file as config_file
+    from canair.profile import discovery as profile_discovery
 
     profile_context._active = None
-    profile._noted_renames.clear()
+    profile_discovery._noted_renames.clear()
     config_file.load_config.cache_clear()
     yield
     profile_context._active = None
-    profile._noted_renames.clear()
+    profile_discovery._noted_renames.clear()
     config_file.load_config.cache_clear()
 
 
@@ -49,7 +50,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
     monkeypatch.delenv("CANAIR_PROFILE", raising=False)
-    monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
+    monkeypatch.setattr("canair.profile.discovery.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
     monkeypatch.setattr(
         "canair.validation.profile_names.BUNDLED_PROFILES_DIR", tmp_path / "profiles"
     )

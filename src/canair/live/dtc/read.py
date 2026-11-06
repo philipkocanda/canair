@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render import messages
 from canair.uds.protocol import KWP, UDS
 

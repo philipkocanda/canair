@@ -40,7 +40,7 @@ def edit_scope(args: argparse.Namespace | None = None) -> Iterator[None]:
     An explicit ``--dir`` names another profile's files, so the active profile's read-only
     check does not apply to it.
     """
-    from canair.profile import require_writable_definitions
+    from canair.profile.writable import require_writable_definitions
 
     if getattr(args, "dir", None) is None:
         require_writable_definitions(profile=active())

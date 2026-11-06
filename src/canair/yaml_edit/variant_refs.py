@@ -24,7 +24,7 @@ from .commit import restore, write_atomic
 from .ecufile import clear_cache
 
 if TYPE_CHECKING:
-    from canair.profile import Profile
+    from canair.profile.model import Profile
 
 
 @dataclass(frozen=True)

@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from canair.ecus.sensitivity import param_sensitive, pid_sensitive
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.uds.memory import MEMORY_SIGNAL_MAX_BYTES, exceeds_signal_cap
 
 MASK = "*****"
@@ -171,7 +171,7 @@ def profile_set(profile: Profile) -> SensitiveSet:
     cleared with the definitions (:func:`canair.ecus.pids.register_derived_cache`).
     """
     from canair.ecus.pids import load_raw_pids, register_derived_cache
-    from canair.profile import ProfileError
+    from canair.profile.model import ProfileError
 
     prof = profile
     key = str(prof.root)
@@ -194,7 +194,7 @@ def set_for_captures(captures_dir: Path | None, *, profile: Profile) -> Sensitiv
     definitions of its own), so an explicit ``--dir`` or a layered overlay is never judged
     against the wrong — or an empty — vocabulary.
     """
-    from canair.profile import profile_for_path
+    from canair.profile.model import profile_for_path
 
     out = profile_set(profile)
     if captures_dir is not None:

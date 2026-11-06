@@ -27,15 +27,10 @@ from canair.cli.commands.profile.listing import cmd_list as _cmd_list
 from canair.cli.commands.profile.scaffold import cmd_overlay as _cmd_overlay
 from canair.cli.commands.profile.show import cmd_show as _cmd_show
 from canair.cli.profile_context import active
-from canair.profile import (
-    Profile,
-    ProfileError,
-    extends_target,
-    profile_layers,
-    require_writable_definitions,
-    resolve_profile,
-)
+from canair.profile.discovery import extends_target, profile_layers, resolve_profile
+from canair.profile.model import Profile, ProfileError
 from canair.profile.scaffold import overlay_profile
+from canair.profile.writable import require_writable_definitions
 
 CAPTURES_CMD = (
     Path(__file__).resolve().parents[2] / "src" / "canair" / "cli" / "commands" / "captures"
@@ -88,7 +83,7 @@ def env(tmp_path, monkeypatch):
     """
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
     monkeypatch.delenv("CANAIR_PROFILES_DIR", raising=False)
-    monkeypatch.setattr("canair.profile.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
+    monkeypatch.setattr("canair.profile.discovery.BUNDLED_PROFILES_DIR", tmp_path / "profiles")
     from canair.config import file as config_file
 
     config_file.load_config.cache_clear()

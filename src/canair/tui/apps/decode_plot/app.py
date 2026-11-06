@@ -26,7 +26,7 @@ from textual.css.query import NoMatches
 from textual.widgets import Static
 from textual.widgets.option_list import Option
 
-from canair.profile import Profile
+from canair.profile.model import Profile
 from canair.render.glyphs import ARROW
 from canair.tui import styles
 from canair.tui.flash import Flash, Severity, severity_of
