@@ -14,7 +14,7 @@ from canair.transport.isotp_params import (
 
 class TestBuildIsotpParams:
     def test_defaults_reproduce_historical_behaviour(self):
-        # None config -> the exact hard-coded values both raw clients used before.
+        # None config -> the hard-coded values both raw clients used before, plus wftmax.
         params = build_isotp_params(None)
         assert params == {
             "tx_padding": DEFAULT_TX_PADDING,
@@ -22,9 +22,19 @@ class TestBuildIsotpParams:
             "stmin": 0,
             "rx_flowcontrol_timeout": 1000,
             "rx_consecutive_frame_timeout": 1000,
+            "wftmax": 5,
             "can_fd": False,
             "tx_data_length": 8,
         }
+
+    def test_wait_frames_are_accepted_by_can_isotp(self):
+        # can-isotp's default (0) fails a transfer on the ECU's first FC.WAIT frame.
+        from isotp.protocol import TransportLayer
+
+        params = TransportLayer.Params()
+        params.set("wftmax", build_isotp_params(None)["wftmax"])
+        assert params.wftmax == 5
+        assert build_isotp_params({"wftmax": 0})["wftmax"] == 0
 
     def test_empty_config_is_defaults(self):
         assert build_isotp_params({}) == build_isotp_params(None)

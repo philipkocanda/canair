@@ -123,7 +123,7 @@ The `isotp:` block overrides the client-side ISO-TP flow-control / padding /
 CAN-FD parameters. The defaults suit most 11-bit / classic-CAN vehicles; override
 per this car's needs (e.g. a car whose ECUs pad their replies with `0x00` instead of `0xAA`,
 or a CAN-FD bus). The accepted keys — `tx_padding`, `rx_padding`, `blocksize`, `stmin`,
-`rx_flowcontrol_timeout`, `rx_consecutive_frame_timeout`, `can_fd`,
+`rx_flowcontrol_timeout`, `rx_consecutive_frame_timeout`, `wftmax`, `can_fd`,
 `tx_data_length` — and their defaults are defined in
 [`src/canair/transport/isotp_params.py`](https://github.com/philipkocanda/canair/blob/main/canair/transport/isotp_params.py).
 `canair validate` type-checks every field and rejects an unknown `isotp:` key.

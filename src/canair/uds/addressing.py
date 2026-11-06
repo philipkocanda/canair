@@ -13,7 +13,7 @@ canonical vocabulary; :func:`resolve_mode` reads it from a profile/ECU, and
 :func:`build_isotp_address` turns a resolved :class:`EcuAddress` into the
 ``isotp`` address object both raw clients drive their ISO-TP stacks with. Two
 further make-specific schemes are modelled per ECU on top of the mode: the
-ISO-TP *extended (mixed) 11-bit* target-address byte (BMW/PSA 0x6F1, gap G-I)
+ISO-TP *extended 11-bit* target-address byte (BMW/PSA 0x6F1, gap G-I)
 and a *flow-control address override* for functional-TX / physical-RX ECUs
 (Renault/Mitsubishi, gap G-J) — both carried on :class:`EcuAddress`.
 
@@ -73,7 +73,7 @@ class AddressingMode(StrEnum):
     NORMAL_11BIT = "normal_11bit"  # plain 11-bit ids (Hyundai/Kia default)
     NORMAL_29BIT = "normal_29bit"  # arbitrary 29-bit tx/rx ids (needs explicit rx_id)
     NORMAL_FIXED_29BIT = "normal_fixed_29bit"  # 0x18DA{ta}{sa} diagnostic convention
-    # ISO-TP extended (mixed) 11-bit: an 11-bit arbitration id (BMW 0x6F1 tester
+    # ISO-TP extended 11-bit: an 11-bit arbitration id (BMW 0x6F1 tester
     # scheme) PLUS a target-address extension byte carried as the first payload
     # byte. The extension byte varies per module (BMW 07/18/60, PSA/Stellantis),
     # so it is a per-ECU `addressing.target_address`; the tester answers to a
@@ -252,8 +252,10 @@ def resolve_target_address(
     """The ISO-TP target-address extension byte (``addressing.target_address``).
 
     Per-ECU value → profile default → None. Only meaningful for the extended
-    (mixed) modes (BMW/PSA extended 11-bit, extended 29-bit) where the target
-    address rides in the payload rather than the arbitration id.
+    modes (BMW/PSA extended 11-bit, extended 29-bit) where the target address
+    rides in the payload rather than the arbitration id. ISO 15765-2's *mixed*
+    addressing (an address extension byte with ``18CE`` ids) is a different mode,
+    and canair does not implement it.
     """
     return _addressing_int(meta, ecu_def, "target_address")
 
@@ -304,7 +306,7 @@ class EcuAddress:
     :func:`build_isotp_address` and the shared ISO-TP stack factory.
 
     ``target_address``/``source_address`` are the ISO-TP extension bytes for the
-    extended (mixed) modes; ``fc_id`` overrides where flow-control frames are
+    extended modes; ``fc_id`` overrides where flow-control frames are
     addressed (functional-TX ECUs). All three are None for the common 11-bit and
     normal-fixed-29-bit cases.
     """
@@ -431,7 +433,7 @@ def build_isotp_address(addr: EcuAddress) -> isotp.Address:
     address object, so neither raw client (``uds_raw`` / ``raw_terminal``)
     hardwires an addressing mode. For the fixed 29-bit mode the target/source
     bytes are taken from the request id (``0x18DA{target}{tester}``); the extended
-    (mixed) modes take them from the resolved ``target_address``/``source_address``.
+    modes take them from the resolved ``target_address``/``source_address``.
     """
     import isotp
 

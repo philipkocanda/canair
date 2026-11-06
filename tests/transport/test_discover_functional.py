@@ -546,3 +546,13 @@ class TestMode:
         assert re.search(r"round 3/3", out)
         assert re.search(r"\+  \+  \+  0x7EC\s+BMS", out)
         assert out.count("Responders") == 1
+
+
+class TestAcceptsResponseId:
+    def test_29bit_replies_must_go_to_the_tester_that_asked(self):
+        from canair.transport.functional import accepts_response_id
+
+        assert accepts_response_id(0x18DAF128, True, 0x18DB33F1)
+        assert not accepts_response_id(0x18DAF228, True, 0x18DB33F1)
+        assert accepts_response_id(0x18DAF228, True, 0x18DB33F2)
+        assert not accepts_response_id(0x7E8, False, 0x18DB33F1)

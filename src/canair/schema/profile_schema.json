@@ -136,6 +136,11 @@
           "minimum": 0,
           "description": "ms to wait for the next consecutive frame."
         },
+        "wftmax": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Flow-control WAIT frames accepted before a transfer fails (default 5)."
+        },
         "can_fd": {
           "type": "boolean",
           "description": "CAN-FD ECUs (default classic CAN)."

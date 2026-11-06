@@ -61,22 +61,25 @@ CAN_FD_REFUSAL: Final = (
 # Lowest 11-bit diagnostic id a response may arrive on (ES95486: 0x700-0x7FF).
 _DIAG_11BIT_LOW: Final = 0x700
 _DIAG_11BIT_HIGH: Final = 0x7FF
-# 29-bit physical responses to the tester address F1: 0x18DA F1 {ecu}.
-_DIAG_29BIT_RESPONSE: Final = 0x18DAF100
+# 29-bit physical responses: 0x18DA {tester} {ecu}, the tester being the functional id's
+# source address (0x18DB33F1 -> F1).
+_DIAG_29BIT_RESPONSE: Final = 0x18DA0000
 
 
 def accepts_response_id(can_id: int, extended: bool, functional_id: int) -> bool:
     """Whether a frame on ``can_id`` could answer a request on ``functional_id``.
 
     11-bit: the diagnostic block ``0x700``-``0x7FF``, minus the functional id
-    itself. 29-bit: physical responses addressed to tester ``0xF1``. A frame that
+    itself. 29-bit: physical responses addressed to the tester that sent the
+    functional request (the id's low byte, ``0xF1`` on ``0x18DB33F1``). A frame that
     passes still has to *answer* the request, which the caller checks on the
     reassembled message (an in-car tester's own requests also fall in the block).
     """
     if extended != (functional_id > 0x7FF):
         return False
     if extended:
-        return can_id & 0xFFFFFF00 == _DIAG_29BIT_RESPONSE
+        tester = functional_id & 0xFF
+        return can_id & 0xFFFFFF00 == _DIAG_29BIT_RESPONSE | (tester << 8)
     return _DIAG_11BIT_LOW <= can_id <= _DIAG_11BIT_HIGH and can_id != functional_id
 
 

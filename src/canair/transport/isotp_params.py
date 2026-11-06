@@ -41,6 +41,9 @@ _DEFAULTS: dict[str, int | bool] = {
     "stmin": 0,  # FC SeparationTime minimum (0 = as fast as possible)
     "rx_flowcontrol_timeout": 1000,  # ms to wait for a flow-control frame
     "rx_consecutive_frame_timeout": 1000,  # ms to wait for the next CF
+    # FC.WAIT frames accepted before a transfer fails. ISO 15765-2 lets an ECU that is not
+    # ready send a few; can-isotp's own default (0) fails on the first one.
+    "wftmax": 5,
     "can_fd": False,  # classic CAN by default; True for CAN-FD ECUs
     "tx_data_length": 8,  # frame data length (8 classic; up to 64 on CAN-FD)
 }
