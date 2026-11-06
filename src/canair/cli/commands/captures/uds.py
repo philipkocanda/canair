@@ -273,7 +273,7 @@ def _scope(args, since, until) -> list[CaptureEntry] | int:
     selected nothing (an empty scope is reported once here rather than by each
     mode). ``--json`` callers get ``[]`` instead of a human banner.
     """
-    entries = load_all_captures(args.dir)
+    entries = load_all_captures(args.dir, profile=active())
     if not entries:
         if args.json:
             print("[]")

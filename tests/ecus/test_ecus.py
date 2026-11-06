@@ -23,22 +23,23 @@ from canair.ecus.registry import (
     parse_ecu_ref,
     rx_addr_str,
 )
+from canair.profile import active
 
 
 @pytest.fixture(scope="module")
 def ecus():
-    return load_ecus()
+    return load_ecus(profile=active())
 
 
 class TestRxAddrStr:
     def test_bms(self):
-        assert rx_addr_str(0x7E4) == "0x7EC"
+        assert rx_addr_str(0x7E4, profile=active()) == "0x7EC"
 
     def test_igpm(self):
-        assert rx_addr_str(0x770) == "0x778"
+        assert rx_addr_str(0x770, profile=active()) == "0x778"
 
     def test_zero_padded_three_digits(self):
-        assert rx_addr_str(0x001) == "0x009"
+        assert rx_addr_str(0x001, profile=active()) == "0x009"
 
 
 class TestParseEcuRef:
@@ -64,37 +65,37 @@ class TestParseEcuRef:
 
 class TestBuildRxIndex:
     def test_bms_resolves(self, ecus):
-        idx = build_rx_index(ecus)
+        idx = build_rx_index(ecus, profile=active())
         assert idx[0x7EC] == "BMS"
 
     def test_igpm_resolves(self, ecus):
-        idx = build_rx_index(ecus)
+        idx = build_rx_index(ecus, profile=active())
         assert idx[0x778] == "IGPM"
 
     def test_covers_all_ecus(self, ecus):
-        idx = build_rx_index(ecus)
+        idx = build_rx_index(ecus, profile=active())
         assert len(idx) == len(ecus)
 
 
 class TestEcuNameFromRef:
     def test_address_resolves_to_name(self):
-        assert ecu_name_from_ref("0x7EC") == "BMS"
+        assert ecu_name_from_ref("0x7EC", profile=active()) == "BMS"
 
     def test_sentinel_passthrough(self):
-        assert ecu_name_from_ref("broadcast") == "broadcast"
+        assert ecu_name_from_ref("broadcast", profile=active()) == "broadcast"
 
     def test_unknown_address_passthrough(self):
         # 0x001 + not a real responder -> returned verbatim
-        assert ecu_name_from_ref("0x001") == "0x001"
+        assert ecu_name_from_ref("0x001", profile=active()) == "0x001"
 
 
 class TestBuildNameTxIndex:
     def test_canonical_name(self, ecus):
-        idx = build_name_tx_index(ecus)
+        idx = build_name_tx_index(ecus, profile=active())
         assert idx["BMS"] == 0x7E4
 
     def test_alias_resolves(self, ecus):
-        idx = build_name_tx_index(ecus)
+        idx = build_name_tx_index(ecus, profile=active())
         # SKM self-identifies as SMK (alias)
         assert idx["SMK"] == idx["SKM"]
 
@@ -102,7 +103,7 @@ class TestBuildNameTxIndex:
         # An alias that clashes with a *different* ECU's name is ambiguous.
         ecus = {0x700: {"name": "FOO", "alias": "BAR"}, 0x708: {"name": "BAR"}}
         with pytest.raises(EcuNameCollision):
-            build_name_tx_index(ecus)
+            build_name_tx_index(ecus, profile=active())
 
     def test_duplicate_alias_collision_raises(self):
         ecus = {
@@ -110,42 +111,42 @@ class TestBuildNameTxIndex:
             0x708: {"name": "BAZ", "alias": "X"},
         }
         with pytest.raises(EcuNameCollision):
-            build_name_tx_index(ecus)
+            build_name_tx_index(ecus, profile=active())
 
     def test_self_alias_is_allowed(self):
         # An alias equal to the ECU's own name is not a collision.
         ecus = {0x700: {"name": "FOO", "alias": "FOO"}}
-        assert build_name_tx_index(ecus)["FOO"] == 0x700
+        assert build_name_tx_index(ecus, profile=active())["FOO"] == 0x700
 
 
 class TestCanonicalEcuName:
     def test_alias_resolves_to_primary(self):
-        assert canonical_ecu_name("SMK") == "SKM"
-        assert canonical_ecu_name("MDPS") == "EPS"
-        assert canonical_ecu_name("AHB") == "ESC"
+        assert canonical_ecu_name("SMK", profile=active()) == "SKM"
+        assert canonical_ecu_name("MDPS", profile=active()) == "EPS"
+        assert canonical_ecu_name("AHB", profile=active()) == "ESC"
 
     def test_primary_name_passthrough(self):
-        assert canonical_ecu_name("BMS") == "BMS"
+        assert canonical_ecu_name("BMS", profile=active()) == "BMS"
 
     def test_case_insensitive(self):
-        assert canonical_ecu_name("smk") == "SKM"
+        assert canonical_ecu_name("smk", profile=active()) == "SKM"
 
     def test_unknown_returns_upper_unchanged(self):
-        assert canonical_ecu_name("NOPE") == "NOPE"
-        assert canonical_ecu_name("nope") == "NOPE"
+        assert canonical_ecu_name("NOPE", profile=active()) == "NOPE"
+        assert canonical_ecu_name("nope", profile=active()) == "NOPE"
 
     def test_none_and_empty(self):
-        assert canonical_ecu_name(None) == ""
-        assert canonical_ecu_name("") == ""
+        assert canonical_ecu_name(None, profile=active()) == ""
+        assert canonical_ecu_name("", profile=active()) == ""
 
     def test_build_index_maps_alias_and_name(self, ecus):
-        idx = build_canonical_name_index(ecus)
+        idx = build_canonical_name_index(ecus, profile=active())
         assert idx["SMK"] == "SKM"
         assert idx["SKM"] == "SKM"
         assert idx["BMS"] == "BMS"
 
     def test_build_alias_index(self, ecus):
-        aliases = build_alias_index(ecus)
+        aliases = build_alias_index(ecus, profile=active())
         # SKM self-identifies as SMK in the bundled profile.
         assert aliases.get("SKM") == "SMK"
         # An ECU without an alias is absent (not mapped to itself/empty).
@@ -154,16 +155,16 @@ class TestCanonicalEcuName:
 
 class TestCanonicalEcuNameSafe:
     def test_alias_resolves_to_primary(self):
-        assert canonical_ecu_name_safe("LDC") == "OBC"
-        assert canonical_ecu_name_safe("smk") == "SKM"
+        assert canonical_ecu_name_safe("LDC", profile=active()) == "OBC"
+        assert canonical_ecu_name_safe("smk", profile=active()) == "SKM"
 
     def test_primary_and_unknown_passthrough(self):
-        assert canonical_ecu_name_safe("BMS") == "BMS"
-        assert canonical_ecu_name_safe("nope") == "NOPE"
+        assert canonical_ecu_name_safe("BMS", profile=active()) == "BMS"
+        assert canonical_ecu_name_safe("nope", profile=active()) == "NOPE"
 
     def test_none_and_empty(self):
-        assert canonical_ecu_name_safe(None) == ""
-        assert canonical_ecu_name_safe("") == ""
+        assert canonical_ecu_name_safe(None, profile=active()) == ""
+        assert canonical_ecu_name_safe("", profile=active()) == ""
 
     def test_missing_registry_falls_back_to_upper(self, monkeypatch):
         # A profile may ship pids/ without ecus.yaml: degrade to the raw name
@@ -174,79 +175,79 @@ class TestCanonicalEcuNameSafe:
             raise FileNotFoundError("ecus.yaml")
 
         monkeypatch.setattr(ecus_mod_names, "canonical_ecu_name", _raise)
-        assert canonical_ecu_name_safe("ldc") == "LDC"
-        assert canonical_ecu_name_safe(None) == ""
+        assert canonical_ecu_name_safe("ldc", profile=active()) == "LDC"
+        assert canonical_ecu_name_safe(None, profile=active()) == ""
 
 
 class TestRxFromName:
     def test_name(self):
-        assert rx_from_name("BMS") == "0x7EC"
+        assert rx_from_name("BMS", profile=active()) == "0x7EC"
 
     def test_alias(self):
-        assert rx_from_name("SMK") == rx_from_name("SKM")
+        assert rx_from_name("SMK", profile=active()) == rx_from_name("SKM", profile=active())
 
     def test_case_insensitive(self):
-        assert rx_from_name("bms") == "0x7EC"
+        assert rx_from_name("bms", profile=active()) == "0x7EC"
 
     def test_unknown_is_none(self):
-        assert rx_from_name("NOPE") is None
+        assert rx_from_name("NOPE", profile=active()) is None
 
 
 class TestEcuName:
     def test_known(self, ecus):
-        assert ecu_name(0x7E4, ecus) == "BMS"
+        assert ecu_name(0x7E4, ecus, profile=active()) == "BMS"
 
     def test_unknown_falls_back_to_hex(self, ecus):
-        assert ecu_name(0x123, ecus) == "0x123"
+        assert ecu_name(0x123, ecus, profile=active()) == "0x123"
 
 
 class TestResolveTx:
     def test_name(self):
-        assert resolve_tx("BMS") == 0x7E4
+        assert resolve_tx("BMS", profile=active()) == 0x7E4
 
     def test_name_case_insensitive(self):
-        assert resolve_tx("bms") == 0x7E4
+        assert resolve_tx("bms", profile=active()) == 0x7E4
 
     def test_alias(self):
-        assert resolve_tx("SMK") == resolve_tx("SKM")
+        assert resolve_tx("SMK", profile=active()) == resolve_tx("SKM", profile=active())
 
     def test_hex_with_prefix(self):
-        assert resolve_tx("0x770") == 0x770
+        assert resolve_tx("0x770", profile=active()) == 0x770
 
     def test_hex_without_prefix(self):
-        assert resolve_tx("7E4") == 0x7E4
+        assert resolve_tx("7E4", profile=active()) == 0x7E4
 
     def test_int_passthrough(self):
-        assert resolve_tx(0x7E4) == 0x7E4
+        assert resolve_tx(0x7E4, profile=active()) == 0x7E4
 
     def test_rx_addr_resolves_to_tx(self):
         # VCU: TX 0x7E2, RX 0x7EA (= TX + 8) — the RX addr resolves to the TX id.
-        assert resolve_tx("0x7EA") == 0x7E2
-        assert resolve_tx("7EA") == 0x7E2
+        assert resolve_tx("0x7EA", profile=active()) == 0x7E2
+        assert resolve_tx("7EA", profile=active()) == 0x7E2
 
     def test_known_tx_wins_over_rx_interpretation(self):
         # BMS TX 0x7E4 is itself a registered TX; it must resolve to itself, not
         # be reinterpreted as some other ECU's RX.
-        assert resolve_tx("0x7E4") == 0x7E4
+        assert resolve_tx("0x7E4", profile=active()) == 0x7E4
 
     def test_unknown_name_is_none(self):
-        assert resolve_tx("NOPE") is None
+        assert resolve_tx("NOPE", profile=active()) is None
 
     def test_unknown_hex_passthrough(self):
         # An unregistered hex that is neither a TX nor an RX is returned as-is.
-        assert resolve_tx("0x123") == 0x123
+        assert resolve_tx("0x123", profile=active()) == 0x123
 
     def test_empty_is_none(self):
-        assert resolve_tx("") is None
-        assert resolve_tx(None) is None
+        assert resolve_tx("", profile=active()) is None
+        assert resolve_tx(None, profile=active()) is None
 
 
 class TestEcuDisplay:
     def test_known(self, ecus):
-        assert ecu_display(0x7E4, ecus) == "BMS (0x7E4)"
+        assert ecu_display(0x7E4, ecus, profile=active()) == "BMS (0x7E4)"
 
     def test_unknown_falls_back_to_hex(self, ecus):
-        assert ecu_display(0x123, ecus) == "0x123"
+        assert ecu_display(0x123, ecus, profile=active()) == "0x123"
 
 
 class TestIdentityConfidence:

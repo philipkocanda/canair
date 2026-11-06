@@ -14,6 +14,7 @@ from canair.captures.store import decoded_preview
 from canair.captures.types import CaptureEntry
 from canair.cli.args.query import parse_canonical_query
 from canair.core.terminal import terminal_columns, truncate_text
+from canair.profile import active
 from canair.render import ansi, glyphs, messages
 from canair.states.tokens import join_states as _join_states
 
@@ -55,7 +56,7 @@ def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limi
                 "truncated": truncated,
                 "limit": limit,
                 "unmatched": [str(sel) for sel in empty],
-                "captures": [entry_to_dict(e) for e in shown],
+                "captures": [entry_to_dict(e, profile=active()) for e in shown],
             }
         )
         return
@@ -126,7 +127,7 @@ def cmd_latest(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
     ordered = sorted(latest.items(), key=lambda kv: (str(kv[0][0]), str(kv[0][1])))
 
     if as_json:
-        _dump_json([entry_to_dict(e) for _key, e in ordered])
+        _dump_json([entry_to_dict(e, profile=active()) for _key, e in ordered])
         return
 
     print(f"\n  {ansi.BOLD}Latest payloads{ansi.RESET} — {len(latest)} PIDs\n")
@@ -139,7 +140,7 @@ def cmd_latest(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
         trunc = truncate_text(payload, _text_width("  "))
         print(f"  {ansi.CYAN}{ecu:<10}{ansi.RESET} {pid!s:<10} {ansi.DIM}{date}{state}{ansi.RESET}")
         print(f"    {trunc}")
-        decoded = decoded_preview(e)
+        decoded = decoded_preview(e, profile=active())
         if decoded:
             _print_decoded_preview(decoded, limit=5, ecu=str(ecu), pid=str(pid))
     print()
@@ -200,7 +201,7 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
             print(f", {rejected}", end="")
         print()
 
-    decoded = decoded_preview(e)
+    decoded = decoded_preview(e, profile=active())
     if decoded:
         _print_decoded_preview(
             decoded, limit=3, ecu=str(e.get("ecu", "")), pid=str(e.get("pid", ""))

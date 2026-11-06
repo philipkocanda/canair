@@ -29,7 +29,7 @@ def _run(tmp_path, monkeypatch, argv):
                 s, captures_dir=tmp_path, **{k: v for k, v in kw.items() if k != "captures_dir"}
             ),
         )
-    monkeypatch.setattr("canair.ecus.names.canonical_ecu_name_safe", lambda e: e.upper())
+    monkeypatch.setattr("canair.ecus.names.canonical_ecu_name_safe", lambda e, **__: e.upper())
     p = hunt.add_parser(argparse.ArgumentParser().add_subparsers())
     args = p.parse_args(["uds", *argv])
     return args.func(args)

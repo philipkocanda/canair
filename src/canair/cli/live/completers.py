@@ -8,7 +8,7 @@ from canair.profile import active
 
 def _load_pids_for_completion():
     try:
-        return load_pids()
+        return load_pids(profile=active())
     except Exception:
         return None
 

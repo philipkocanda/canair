@@ -87,12 +87,12 @@ async def run_session_guarded(
             from canair.ecus.pids import load_pids
 
             # A settled revision changes which PIDs exist; read them before the mode does.
-            pids_data = load_pids()
+            pids_data = load_pids(profile=profile)
         await operation(terminal, pids_data)
         if options.timings:
             from canair.transport.timing import print_timings
 
-            print_timings(terminal.timings, as_json=options.as_json)
+            print_timings(terminal.timings, as_json=options.as_json, profile=profile)
         return 0
     except CommandDeclined as e:
         # The user said no to an --unsafe consent prompt: the run ends, nothing was sent.
@@ -115,10 +115,12 @@ async def run_session_guarded(
         )
         return 1
     finally:
-        _persist_frame_counts(options, terminal, pids_data)
+        _persist_frame_counts(options, terminal, pids_data, profile=profile)
 
 
-def _persist_frame_counts(options: SessionOptions, terminal: Terminal, pids_data) -> None:
+def _persist_frame_counts(
+    options: SessionOptions, terminal: Terminal, pids_data, *, profile: Profile
+) -> None:
     """Record what this session proved about response lengths into the profile.
 
     Here rather than in either entry point because ``terminal.frame_counts`` is
@@ -133,7 +135,7 @@ def _persist_frame_counts(options: SessionOptions, terminal: Terminal, pids_data
     from canair.yaml_edit.response_frames import persist
 
     try:
-        persist(pids_data, terminal.frame_counts, verbose=options.verbose)
+        persist(pids_data, terminal.frame_counts, verbose=options.verbose, profile=profile)
     except Exception:
         # Never let a bookkeeping by-product change the outcome of the command the
         # user actually ran, nor mask the exception this `finally` is unwinding.

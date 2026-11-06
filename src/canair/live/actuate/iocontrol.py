@@ -19,6 +19,7 @@ from canair.ecus.pids import IoControlCommand, IoControlIndexEntry, build_iocont
 from canair.live.actuate.iocontrol_actuate import ActuatorState, IOControlActuator
 from canair.live.actuate.iocontrol_render import render_iocontrol
 from canair.live.actuate.not_found import report_not_found
+from canair.profile import Profile
 from canair.render import ansi, glyphs, messages
 from canair.transport.protocol import Terminal
 from canair.uds.protocol import DiagProtocol
@@ -63,7 +64,10 @@ class _IOControlTUI:
         pids_data: dict,
         verbose: bool = False,
         poll: bool = False,
+        *,
+        profile: Profile,
     ) -> None:
+        self.profile = profile
         self.terminal = terminal
         self.ecu_key = ecu_key
         self.tx_id = ecu_info["tx_id"]
@@ -71,14 +75,12 @@ class _IOControlTUI:
         self.all_cmds: dict[str, IoControlCommand] = ecu_info["cmds"]
         self.pids_data = pids_data
         self.verbose = verbose
-        # A KWP2000 ECU's actuators are service 0x30, whose control-option byte is
-        # manufacturer-defined: an ON needs a declared release, and the UDS-shaped
-        # value keys are refused (canair.safety.actuation).
+        # A KWP2000 ECU's actuators are service 0x30 (manufacturer-defined control option): an
+        # ON needs a declared release, and UDS-shaped value keys are refused (safety.actuation).
         self.protocol: DiagProtocol = ecu_info["protocol"]
-        # Background status polling is OPT-IN. When enabled, the poll loop sends
-        # each DID's release (2F{DID}00, returnControlToECU, on UDS) — which can
-        # actuate relay/solenoid-backed DIDs (audible click). Off by default so
-        # merely launching the TUI sends no CAN traffic until the user acts.
+        # Background status polling is OPT-IN: the poll loop sends each DID's release
+        # (2F{DID}00, returnControlToECU, on UDS), which can actuate relay/solenoid-backed DIDs
+        # (audible click). Off by default so launching the TUI sends no CAN traffic.
         self._poll_enabled: bool = poll
 
         # View mode cycles through:
@@ -201,7 +203,7 @@ class _IOControlTUI:
         # any references held elsewhere stay valid. Preserve discoveries so
         # the current view-mode filter keeps working.
         try:
-            fresh = load_pids()
+            fresh = load_pids(profile=self.profile)
             self.pids_data.clear()
             self.pids_data.update(fresh)
             idx = build_iocontrol_index(self.pids_data, include_discoveries=True)
@@ -238,7 +240,7 @@ class _IOControlTUI:
         # Reload from disk so the curated entry (with inferred on/off) is
         # picked up and the discovery disappears from the discoveries view.
         try:
-            fresh = load_pids()
+            fresh = load_pids(profile=self.profile)
             self.pids_data.clear()
             self.pids_data.update(fresh)
             idx = build_iocontrol_index(self.pids_data, include_discoveries=True)
@@ -316,13 +318,11 @@ class _IOControlTUI:
             tty.setcbreak(fd)  # cbreak instead of raw — allows signal handling
             loop.add_reader(fd, _on_stdin_ready)
 
-            # Start background status polling — ONLY when opted in via --poll.
-            # The poll sends each DID's release (2F {DID} 00 on UDS). That
-            # is NOT a guaranteed silent read: returnControlToECU hands the I/O
-            # back to the ECU's own logic and can physically actuate relay/
-            # solenoid-backed DIDs (e.g. IGPM door lock/unlock, trunk, charge
-            # cable lock, defogger) — producing an audible click on the first
-            # poll. So it is off by default; the user enables it explicitly.
+            # Start background status polling — ONLY when opted in via --poll. The poll sends
+            # each DID's release (2F {DID} 00 on UDS), which is NOT a guaranteed silent read:
+            # returnControlToECU hands the I/O back to the ECU's own logic and can physically
+            # actuate relay/solenoid-backed DIDs (e.g. IGPM door lock/unlock, trunk, charge
+            # cable lock, defogger), with an audible click on the first poll.
             poll_task = (
                 asyncio.ensure_future(self.actuator.status_poll_loop())
                 if self._poll_enabled
@@ -491,6 +491,8 @@ async def mode_iocontrol_tui(
     ecu_name: str,
     verbose: bool = False,
     poll: bool = False,
+    *,
+    profile: Profile,
 ):
     """Interactive IOControl TUI for an ECU."""
     ioctrl_index = build_iocontrol_index(pids_data, include_discoveries=True)
@@ -512,7 +514,5 @@ async def mode_iocontrol_tui(
             code=2,
         )
 
-    tui = _IOControlTUI(
-        terminal, ecu_key, ecu_info, pids_data=pids_data, verbose=verbose, poll=poll
-    )
+    tui = _IOControlTUI(terminal, ecu_key, ecu_info, pids_data, verbose, poll, profile=profile)
     await tui.run()

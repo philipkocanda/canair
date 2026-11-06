@@ -77,9 +77,9 @@ async def mode_scan(
 
     suffix_label = f" + suffix {append_bytes}" if append_bytes else ""
 
-    ecu = ecu_name(tx_id)
+    ecu = ecu_name(tx_id, profile=profile)
     console.print(
-        f"\n  [bold cyan]{escape(ecu_display(tx_id))}[/bold cyan] — "
+        f"\n  [bold cyan]{escape(ecu_display(tx_id, profile=profile))}[/bold cyan] — "
         f"scanning {escape(service_label(service))}, {did_label}s {escape(ranges_text)} "
         f"({total} {did_label}s){escape(suffix_label)}"
     )
@@ -93,7 +93,7 @@ async def mode_scan(
     positive = []
     negative = []
     errors = []
-    sensitive = profile_set()
+    sensitive = profile_set(profile=profile)
 
     is_tty = console.is_terminal
 
@@ -170,7 +170,7 @@ async def mode_scan(
     summary = Table(show_header=False, box=None, pad_edge=False)
     summary.add_column(style="dim")
     summary.add_column()
-    summary.add_row("ECU", escape(ecu_display(tx_id)))
+    summary.add_row("ECU", escape(ecu_display(tx_id, profile=profile)))
     summary.add_row("Positive", f"[green]{len(positive)}[/green]")
     summary.add_row("Negative", str(len(negative)))
     summary.add_row("Errors", f"[red]{len(errors)}[/red]" if errors else "0")
@@ -219,7 +219,7 @@ async def mode_scan(
         if meta:
             label, vehicle_states, notes = meta
             session_dict = build_scan_session(
-                ecu_ref=rx_addr_str(tx_id),
+                ecu_ref=rx_addr_str(tx_id, profile=profile),
                 tx_id=tx_id,
                 service=service,
                 pid_range=ranges,

@@ -761,7 +761,7 @@ def load_ref(
             + (f" ({lp.n_no_time} untimed skipped)" if lp.n_no_time else "")
         )
     params: dict = {}
-    ecu_pids = build_ecu_index(load_pids()).get(sref.ecu.upper(), {}).get("pids", {})
+    ecu_pids = build_ecu_index(load_pids(profile=profile)).get(sref.ecu.upper(), {}).get("pids", {})
     if sref.pid.upper() in ecu_pids:
         params = ecu_pids[sref.pid.upper()].get("parameters", {})
     series = extract_series(lp, sref.name_or_expr, parameters=params, fill=fill)
@@ -770,7 +770,7 @@ def load_ref(
     return series, sref.label
 
 
-def ref_unit_for(ref_spec: str) -> str | None:
+def ref_unit_for(ref_spec: str, *, profile: Profile) -> str | None:
     """The declared ``unit`` of an ``ECU:PID:PARAM`` reference, or None.
 
     Used to gate :func:`sniff_unit`'s domain hint to the reference's dimension.
@@ -781,7 +781,9 @@ def ref_unit_for(ref_spec: str) -> str | None:
 
     try:
         sref = SignalRef.parse(ref_spec)
-        ecu_pids = build_ecu_index(load_pids()).get(sref.ecu.upper(), {}).get("pids", {})
+        ecu_pids = (
+            build_ecu_index(load_pids(profile=profile)).get(sref.ecu.upper(), {}).get("pids", {})
+        )
         params = ecu_pids.get(sref.pid.upper(), {}).get("parameters", {})
         return params.get(sref.name_or_expr, {}).get("unit")
     except Exception:
@@ -799,15 +801,12 @@ def ref_unit_for(ref_spec: str) -> str | None:
 # constant is the default when no bands are threaded in.
 PHYSICAL_BANDS: list[tuple[str, float, float]] = list(DEFAULT_PHYSICAL_BANDS.values())
 
-# Candidate scalings (factor, offset, label, kind): physical = raw * factor + offset.
-# ``kind`` pairs a scaling with the bands it is meaningful for: "ratio" scalings
-# (offset 0) test the voltage/frequency bands; "temp" scalings (the -40/-50 sensor
-# offsets, HK-style) test ONLY the temperature band. Keeping them separate stops a
-# -40 offset from manufacturing spurious voltage-band hits (and a ratio scaling
-# from hitting the temp band), and bounds the inherently-broad temperature band's
-# false positives. NB temperature bands are far less selective than the narrow
-# mains/HV/12V bands (a single byte spans most of the range) -- treat a temp hit as
-# a triage hint, not proof.
+# Candidate scalings (factor, offset, label, kind): physical = raw * factor + offset. ``kind``
+# pairs a scaling with the bands it suits: "ratio" scalings (offset 0) test the voltage and
+# frequency bands; "temp" scalings (the -40/-50 sensor offsets, HK-style) test ONLY the
+# temperature band, so a -40 offset cannot manufacture voltage-band hits and a ratio scaling
+# cannot hit the temp band. Temperature bands are far less selective than the narrow
+# mains/HV/12V bands (one byte spans most of the range): treat a temp hit as a triage hint.
 _PHYSICAL_SCALINGS: list[tuple[float, float, str, str]] = [
     (1.0, 0.0, "×1", "ratio"),
     (0.1, 0.0, "/10", "ratio"),

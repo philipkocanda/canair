@@ -15,6 +15,7 @@ from canair.live.scan.presets import (
     resolve_service,
     service_label,
 )
+from canair.profile import active
 from canair.render import messages
 from canair.render.console import console, escape
 
@@ -47,7 +48,7 @@ def resolve_plan(args) -> None:
     plan: ScanPlan | None = None
     if args.service is None or args.range is None:
         try:
-            plan = plan_scan(args.tx, slots=slots or FAMILY_SIZE)
+            plan = plan_scan(args.tx, slots=slots or FAMILY_SIZE, profile=active())
         except Exception:
             plan = None
 

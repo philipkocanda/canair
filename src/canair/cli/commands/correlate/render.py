@@ -166,7 +166,7 @@ def _print_cross_mirrors(specs, since, until, args, notation=ByteNotation.WICAN)
     # Per-PID payload lengths: one mirror list mixes labels from several PIDs, so
     # each needs its own frame layout to render a correct non-WiCAN label.
     plens = payload_lengths(loaded)
-    ecu_index = build_ecu_index(load_pids())
+    ecu_index = build_ecu_index(load_pids(profile=active()))
     series: dict[str, list[TimePoint]] = {}
     for (ecu, pid), lp in loaded.items():
         if not lp.captures:

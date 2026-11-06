@@ -56,7 +56,7 @@ def cmd_summary(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
     # can't disagree. Counting distinct (file, label) pairs here used to collapse
     # every same-label session into one — a monitor run that writes many sessions
     # under one label reported a handful instead of hundreds.
-    n_sessions = len(group_sessions(entries))
+    n_sessions = len(group_sessions(entries, profile=active()))
 
     if as_json:
         _dump_json(
@@ -216,7 +216,7 @@ def cmd_sessions(
     filters (``--since``/``--until``/``--date``/``--state``/``--label``), so e.g.
     ``--sessions --state driving`` is a quick index of every drive.
     """
-    sessions = group_sessions(entries)
+    sessions = group_sessions(entries, profile=active())
     names = {str(e.get("ecu_addr") or "").upper(): e["ecu"] for e in entries if e.get("ecu")}
 
     if as_json:

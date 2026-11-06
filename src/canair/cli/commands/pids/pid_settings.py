@@ -285,7 +285,8 @@ def cmd_set_sensitive(args: argparse.Namespace) -> int:
         from canair.privacy.sensitive import profile_set
 
         found = sum(
-            r.removed for r in purge_dir(active().captures_dir, profile_set(), dry_run=True)
+            r.removed
+            for r in purge_dir(active().captures_dir, profile_set(profile=active()), dry_run=True)
         )
         if found:
             print(

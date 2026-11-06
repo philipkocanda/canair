@@ -8,6 +8,7 @@ import json
 import canair.captures.store as capture_store
 from canair.cli import _inject_default_subcommand
 from canair.cli.commands import search
+from canair.profile import active
 
 
 def payload(did: str, body: bytes) -> str:
@@ -36,7 +37,8 @@ def cap(ecu, pid, payload, **extra):
 def run(tmp_path, monkeypatch, argv):
     orig = capture_store.load_all_captures
     monkeypatch.setattr(
-        "canair.cli.commands.search.uds.load_all_captures", lambda *a, **k: orig(tmp_path)
+        "canair.cli.commands.search.uds.load_all_captures",
+        lambda *a, **k: orig(tmp_path, profile=active()),
     )
     parser = search.add_parser(argparse.ArgumentParser().add_subparsers())
     args = parser.parse_args(_inject_default_subcommand(["search", *argv])[1:])

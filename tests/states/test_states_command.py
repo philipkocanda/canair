@@ -29,9 +29,7 @@ def _patched(monkeypatch):
     ]
     usage = {"CHARGING": 12, "READY": 30, "SLEEP": 0, "ALL": 0, "FOB PRESENT": 1}
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr(
-        "canair.cli.commands.states.listing.load_states", lambda profile=None: rules
-    )
+    monkeypatch.setattr("canair.cli.commands.states.listing.load_states", lambda *_, **__: rules)
     monkeypatch.setattr(listing_cmd, "_load_usage", lambda: usage)
     monkeypatch.setattr("canair.profile._active", _FakeProfile())
 
@@ -81,7 +79,7 @@ def test_no_color_when_piped(_patched, capsys):
 
 def test_empty_vocabulary(monkeypatch, capsys):
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canair.cli.commands.states.listing.load_states", lambda profile=None: [])
+    monkeypatch.setattr("canair.cli.commands.states.listing.load_states", lambda *_, **__: [])
     monkeypatch.setattr(listing_cmd, "_load_usage", lambda: {})
     monkeypatch.setattr("canair.profile._active", _FakeProfile())
     rc = _run()
@@ -171,9 +169,9 @@ class TestReverseLookup:
             "canair.states.selectors",
             "canair.states.vocabulary",
         ):
-            monkeypatch.setattr(f"{module}.load_states", lambda profile=None: rules)
-        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda: pids_data)
-        monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda: ecus)
+            monkeypatch.setattr(f"{module}.load_states", lambda *_, **__: rules)
+        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda *_, **__: pids_data)
+        monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda *_, **__: ecus)
 
     def test_human_output(self, _patched_lookup, capsys):
         rc = _run(state="READY")

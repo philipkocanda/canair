@@ -6,6 +6,7 @@ import pytest
 
 from canair.live.identity import decode as idec
 from canair.live.identity import read as ident
+from canair.profile import active
 from canair.uds.parse import parse_uds_response
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok
@@ -43,14 +44,16 @@ class TestModeIdentity:
     async def test_kwp_ecu_json(self, monkeypatch, capsys):
         # UDS not supported; KWP records respond. resolve_protocol_hint reads
         # the registry via identity.decode.ecu_protocol.
-        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "kwp")
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: "kwp")
         t = FakeTerminal(
             {
                 "1A90": _ok("5A90" + "4145455620424D53"),  # "AEEV BMS"
                 "1A91": _ok("5A91" + "5645522E322E33"),  # "VER.2.3"
             }
         )
-        await ident.mode_identity(t, 0x7E4, session=False, wake=False, as_json=True)
+        await ident.mode_identity(
+            t, 0x7E4, session=False, wake=False, as_json=True, profile=active()
+        )
         out = capsys.readouterr().out
         data = json.loads(out)
         assert data["protocol"] == "kwp"
@@ -65,9 +68,11 @@ class TestModeIdentity:
     async def test_every_identity_read_is_echo_validated(self, monkeypatch, protocol):
         # Unvalidated, a late reply to the previous record would be printed under
         # this record's label.
-        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: protocol)
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: protocol)
         t = FakeTerminal({})
-        await ident.mode_identity(t, 0x7E4, session=False, wake=False, as_json=True)
+        await ident.mode_identity(
+            t, 0x7E4, session=False, wake=False, as_json=True, profile=active()
+        )
         assert t.sent
         for request, kwargs in zip(t.sent, t.uds_kwargs, strict=True):
             assert kwargs["expected_sid"] == int(request[:2], 16), request
@@ -75,9 +80,11 @@ class TestModeIdentity:
 
     @pytest.mark.asyncio
     async def test_no_data_reports_clearly(self, monkeypatch, capsys):
-        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "unknown")
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: "unknown")
         t = FakeTerminal({})
-        await ident.mode_identity(t, 0x7E2, session=False, wake=False, as_json=False)
+        await ident.mode_identity(
+            t, 0x7E2, session=False, wake=False, as_json=False, profile=active()
+        )
         out = capsys.readouterr().out
         assert "No identity data" in out
         assert "asleep" in out
@@ -97,8 +104,10 @@ class TestRepeatedPreviousReply:
 
     @pytest.mark.asyncio
     async def test_it_is_not_printed_as_the_requested_field(self, monkeypatch, capsys):
-        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "uds")
-        await ident.mode_identity(self._terminal(), 0x7A1, session=False, wake=False, as_json=True)
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: "uds")
+        await ident.mode_identity(
+            self._terminal(), 0x7A1, session=False, wake=False, as_json=True, profile=active()
+        )
         data = json.loads(capsys.readouterr().out)
         assert {r["did"]: r["decoded"] for r in data["results"]} == {"F100": "170"}
         assert "offset_answers" not in data
@@ -122,9 +131,11 @@ class TestProbedDids:
     @pytest.mark.asyncio
     async def test_f187_is_probed_on_every_profile(self, monkeypatch):
         # ISO 14229's vehicleManufacturerSparePartNumber, answered directly on the Ioniq.
-        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "uds")
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: "uds")
         t = FakeTerminal({"22F190": _ok("62F190" + "0102030405")})
-        await ident.mode_identity(t, 0x770, session=False, wake=False, as_json=True)
+        await ident.mode_identity(
+            t, 0x770, session=False, wake=False, as_json=True, profile=active()
+        )
         assert "22F187" in t.sent
         assert "22C0DE" not in t.sent
 

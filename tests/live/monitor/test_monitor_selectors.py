@@ -64,7 +64,7 @@ def _q(ecu: str, *pids: str) -> dict:
 
 class TestPickerSeed:
     def test_opens_on_the_polled_selection(self, monkeypatch):
-        monkeypatch.setattr("canair.ecus.ecu_groups.load_groups", lambda profile: {})
+        monkeypatch.setattr("canair.ecus.ecu_groups.load_groups", lambda profile, **__: {})
         seed = MonitorSelectors(_controller([_q("BMS"), _q("VCU", "2102")])).picker_seed()
         assert [c.name for c in seed.choices] == ["BMS", "VCU"]
         assert seed.current == {"BMS": ["2101", "2105"], "VCU": ["2102"]}

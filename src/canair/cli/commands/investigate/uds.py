@@ -99,13 +99,13 @@ def _resolve_targets(args, since, until) -> tuple[list[tuple[str, str]], tuple[s
     from canair.ecus.names import canonical_ecu_name_safe
 
     if args.ecu and args.pid:
-        ecu = canonical_ecu_name_safe(args.ecu).upper()
+        ecu = canonical_ecu_name_safe(args.ecu, profile=active()).upper()
         spec = (ecu, args.pid.upper())
         return [spec], spec
 
     query = args.ecu
     if query and not any(ch in query for ch in ":, "):
-        query = canonical_ecu_name_safe(query)
+        query = canonical_ecu_name_safe(query, profile=active())
     specs = discover_signal_specs(
         query, since=since, until=until, state=args.state, label=args.label, profile=active()
     )
@@ -143,7 +143,7 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
     target = build_byte_series(lp, min_distinct=2, fill=fill)
 
     # Which offsets/bits are already mapped by a defined param, and at what confidence.
-    ecu_index = build_ecu_index(load_pids())
+    ecu_index = build_ecu_index(load_pids(profile=active()))
     params_def = ecu_index.get(ecu.upper(), {}).get("pids", {}).get(pid, {}).get("parameters", {})
     mapped = mapped_offsets(params_def)
     mapped_bit = mapped_bits(params_def)

@@ -18,6 +18,7 @@ from canair import profile
 from canair.cli.commands import discover as discover_cmd
 from canair.ecus.pids import clear_cache
 from canair.live.discover.sweep import classify_round, group_by_bus, round_to_capture
+from canair.profile import active
 from canair.safety.blocklist import SafetyBlocked, check_functional_request
 from canair.transport.elm327.addressing import AdapterState
 from canair.transport.elm327.functional import elm_functional_exchange, parse_header_lines
@@ -507,7 +508,7 @@ class TestMode:
 
         term = FakeTerminal()
         term.functional_replies = {"3E00": [(0x7EC, "7E00"), (0x778, "7E00"), (0x7C8, "7E00")]}
-        await handle_discover(_mode_args(json=True), term, load_pids(), "1.2.3.4")
+        await handle_discover(_mode_args(json=True), term, load_pids(profile=active()), "1.2.3.4")
         assert term.calls[0] == ("send_functional", (0x7DF, "3E00", DEFAULT_WINDOW_S))
         out = capsys.readouterr()
         doc = json.loads(out.out)
@@ -535,7 +536,9 @@ class TestMode:
         monkeypatch.setattr(discover_functional.asyncio, "sleep", _no_sleep)
         term = FakeTerminal()
         term.functional_replies = {"22F18C": [(0x7EC, "62F18C31")]}
-        await handle_discover(_mode_args(request="22F18C", repeat=3), term, load_pids(), "1.2.3.4")
+        await handle_discover(
+            _mode_args(request="22F18C", repeat=3), term, load_pids(profile=active()), "1.2.3.4"
+        )
         assert [c for c in term.calls if c[0] == "send_functional"] == [
             ("send_functional", (0x7DF, "22F18C", DEFAULT_WINDOW_S))
         ] * 3

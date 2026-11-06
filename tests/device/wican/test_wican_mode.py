@@ -33,7 +33,7 @@ class FakeDevice:
         monkeypatch.setattr(
             wican_mode, "wait_until_ready", lambda host, port=80, timeout=45.0: True
         )
-        monkeypatch.setattr(wican_mode.time, "sleep", lambda *_a: None)
+        monkeypatch.setattr(wican_mode.time, "sleep", lambda *_a, **__: None)
         return self
 
 

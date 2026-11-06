@@ -15,6 +15,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from canair.profile import Profile
+
 if TYPE_CHECKING:
     from canair.ecus.ecu_groups import Group
 
@@ -104,12 +106,16 @@ class GroupChoice:
 
 
 def _resolve_members(
-    members: Sequence[str], by_name: Mapping[str, EcuChoice], include_static: bool
+    members: Sequence[str],
+    by_name: Mapping[str, EcuChoice],
+    include_static: bool,
+    *,
+    profile: Profile,
 ) -> tuple[dict[str, tuple[str, ...]], list[str]]:
     from canair.query.steps import parse_sub_commands
 
     try:
-        steps = parse_sub_commands([f"query {m}" for m in members])
+        steps = parse_sub_commands([f"query {m}" for m in members], profile=profile)
     except ValueError:
         return {}, list(members)
 
@@ -129,13 +135,17 @@ def _resolve_members(
 
 
 def build_group_choices(
-    groups: Mapping[str, Group], choices: Sequence[EcuChoice], *, include_static: bool = False
+    groups: Mapping[str, Group],
+    choices: Sequence[EcuChoice],
+    *,
+    include_static: bool = False,
+    profile: Profile,
 ) -> list[GroupChoice]:
     """The saved groups that resolve to at least one pickable PID, in file order."""
     by_name = {c.name: c for c in choices}
     out: list[GroupChoice] = []
     for group in groups.values():
-        picks, skipped = _resolve_members(group.members, by_name, include_static)
+        picks, skipped = _resolve_members(group.members, by_name, include_static, profile=profile)
         if picks:
             out.append(GroupChoice(group.name, group.description, picks, tuple(skipped)))
     return out

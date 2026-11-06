@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 import canair.transport.timing as timing_mod
+from canair.profile import active
 from canair.transport.timing import Stat, TimingRecorder, print_timings, render_timings
 
 
@@ -47,25 +48,25 @@ def test_resolve_ecu_hex_label(monkeypatch):
     from canair.ecus import names as ecus_mod_names
 
     monkeypatch.setattr(
-        ecus_mod_names, "ecu_name", lambda tx, e=None: "BMS" if tx == 0x7E4 else f"0x{tx:03X}"
+        ecus_mod_names, "ecu_name", lambda tx, **__: "BMS" if tx == 0x7E4 else f"0x{tx:03X}"
     )
-    assert timing_mod._resolve_ecu("0x7E4") == "BMS"
-    assert timing_mod._resolve_ecu("VCU") == "VCU"  # non-hex passes through
+    assert timing_mod._resolve_ecu("0x7E4", profile=active()) == "BMS"
+    assert timing_mod._resolve_ecu("VCU", profile=active()) == "VCU"  # non-hex passes through
 
 
 def test_render_timings_empty_is_none():
-    assert render_timings(TimingRecorder()) is None
+    assert render_timings(TimingRecorder(), profile=active()) is None
 
 
 def test_render_timings_table(monkeypatch):
     from canair.ecus import names as ecus_mod_names
 
     monkeypatch.setattr(
-        ecus_mod_names, "ecu_name", lambda tx, e=None: "BMS" if tx == 0x7E4 else f"0x{tx:03X}"
+        ecus_mod_names, "ecu_name", lambda tx, **__: "BMS" if tx == 0x7E4 else f"0x{tx:03X}"
     )
     rec = TimingRecorder()
     rec.record("0x7E4", "2101", 0.05)
-    table = render_timings(rec)
+    table = render_timings(rec, profile=active())
     assert table is not None
     assert table.row_count == 1
 
@@ -74,11 +75,11 @@ def test_print_timings_json_to_stderr(capsys, monkeypatch):
     from canair.ecus import names as ecus_mod_names
 
     monkeypatch.setattr(
-        ecus_mod_names, "ecu_name", lambda tx, e=None: "VCU" if tx == 0x7E2 else f"0x{tx:03X}"
+        ecus_mod_names, "ecu_name", lambda tx, **__: "VCU" if tx == 0x7E2 else f"0x{tx:03X}"
     )
     rec = TimingRecorder()
     rec.record("0x7E2", "2101", 0.4)
-    print_timings(rec, as_json=True)
+    print_timings(rec, as_json=True, profile=active())
     captured = capsys.readouterr()
     assert captured.out == ""  # stdout stays clean for real JSON results
     payload = json.loads(captured.err)
@@ -87,8 +88,8 @@ def test_print_timings_json_to_stderr(capsys, monkeypatch):
 
 
 def test_print_timings_none_and_empty_noop(capsys):
-    print_timings(None, as_json=False)
-    print_timings(TimingRecorder(), as_json=False)
+    print_timings(None, as_json=False, profile=active())
+    print_timings(TimingRecorder(), as_json=False, profile=active())
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == ""

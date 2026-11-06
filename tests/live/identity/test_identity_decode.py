@@ -3,6 +3,7 @@
 import pytest
 
 from canair.live.identity import decode as idec
+from canair.profile import active
 
 # --- decode_identity_payload ---
 
@@ -94,23 +95,23 @@ class TestServiceSupported:
 
 class TestResolveProtocolHint:
     def test_explicit_uds(self):
-        assert idec.resolve_protocol_hint(0x7E4, "uds") == "uds"
+        assert idec.resolve_protocol_hint(0x7E4, "uds", profile=active()) == "uds"
 
     def test_explicit_kwp(self):
-        assert idec.resolve_protocol_hint(0x770, "kwp") == "kwp"
+        assert idec.resolve_protocol_hint(0x770, "kwp", profile=active()) == "kwp"
 
     def test_registry_uds(self, monkeypatch):
-        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "uds")
-        assert idec.resolve_protocol_hint(0x7A0, "auto") == "uds"
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: "uds")
+        assert idec.resolve_protocol_hint(0x7A0, "auto", profile=active()) == "uds"
 
     def test_registry_kwp(self, monkeypatch):
-        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "kwp")
-        assert idec.resolve_protocol_hint(0x7E4, "auto") == "kwp"
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: "kwp")
+        assert idec.resolve_protocol_hint(0x7E4, "auto", profile=active()) == "kwp"
 
     def test_registry_none_triggers_probe(self, monkeypatch):
-        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "unknown")
-        assert idec.resolve_protocol_hint(0x783, "auto") is None
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: "unknown")
+        assert idec.resolve_protocol_hint(0x783, "auto", profile=active()) is None
 
     def test_registry_missing_triggers_probe(self, monkeypatch):
-        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "unknown")
-        assert idec.resolve_protocol_hint(0x999, "auto") is None
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: "unknown")
+        assert idec.resolve_protocol_hint(0x999, "auto", profile=active()) is None

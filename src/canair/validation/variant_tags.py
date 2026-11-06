@@ -45,7 +45,7 @@ def revision_tag_findings(files: list[Path], profile) -> Counter[str]:
 
     ecus = load_raw_pids(profile).get("ecus") or {}
     variants = load_variants(profile)
-    rx_index = build_rx_index()
+    rx_index = build_rx_index(profile=profile)
     pid_defs = {
         name: {
             str(k).upper(): d
@@ -60,7 +60,7 @@ def revision_tag_findings(files: list[Path], profile) -> Counter[str]:
             outside: set[str] = set()
             for cap in session.get("captures") or []:
                 rx = capture_io.capture_rx(cap)
-                ecu = str(ecu_name_from_ref(rx, rx_index)) if rx else ""
+                ecu = str(ecu_name_from_ref(rx, rx_index, profile=profile)) if rx else ""
                 rid = tags.get(ecu.upper())
                 pid_def = pid_defs.get(ecu, {}).get(str(cap.get("pid", "")).upper())
                 applies = gate(pid_def)

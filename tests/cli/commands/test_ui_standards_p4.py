@@ -150,24 +150,24 @@ class TestBackfillRenderersFollowTheGate:
 class TestPromptsDeclineWithExit1:
     def test_delete_declined(self, tmp_path, monkeypatch, capsys):
         _seed(tmp_path)
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         monkeypatch.setattr("sys.stdin", _Stdin("n\n"))
         capsys.readouterr()
         assert cmd_delete(entries, "MCU", captures_dir=tmp_path) == 1
         assert "Aborted — nothing changed." in capsys.readouterr().err
-        assert len(load_all_captures(tmp_path)) == 2
+        assert len(load_all_captures(tmp_path, profile=active())) == 2
 
     def test_delete_with_no_terminal_raises(self, tmp_path, monkeypatch):
         _seed(tmp_path)
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         monkeypatch.setattr("sys.stdin", _Stdin("y\n", tty=False))
         with pytest.raises(PromptUnavailable, match="--yes"):
             cmd_delete(entries, "MCU", captures_dir=tmp_path)
-        assert len(load_all_captures(tmp_path)) == 2
+        assert len(load_all_captures(tmp_path, profile=active())) == 2
 
     def test_set_state_declined(self, tmp_path, monkeypatch, capsys):
         _seed(tmp_path)
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         monkeypatch.setattr("sys.stdin", _Stdin("\n"))
         capsys.readouterr()
         assert cmd_set_state(entries, "ACC", captures_dir=tmp_path) == 1
@@ -175,7 +175,7 @@ class TestPromptsDeclineWithExit1:
 
     def test_backfill_declined(self, tmp_path, monkeypatch, capsys):
         _seed(tmp_path, _VCU_READY_PARK, n=1, rx="0x7EA")
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         monkeypatch.setattr("sys.stdin", _Stdin("n\n"))
         capsys.readouterr()
         assert cmd_backfill_states(entries, captures_dir=tmp_path) == 1
@@ -187,7 +187,7 @@ class TestPromptsDeclineWithExit1:
     def test_write_confirmation_is_a_tick_with_the_full_path(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("NO_COLOR", "1")
         _seed(tmp_path)
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         capsys.readouterr()
         assert cmd_set_state(entries, "ACC", captures_dir=tmp_path, assume_yes=True) == 0
         out = capsys.readouterr().out
@@ -197,7 +197,7 @@ class TestPromptsDeclineWithExit1:
 class TestJsonStdoutIsOneDocument:
     def test_delete_json_with_yes(self, tmp_path, capsys):
         _seed(tmp_path)
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         capsys.readouterr()
         rc = cmd_delete(entries, "MCU", captures_dir=tmp_path, assume_yes=True, as_json=True)
         captured = capsys.readouterr()
@@ -207,7 +207,7 @@ class TestJsonStdoutIsOneDocument:
 
     def test_set_state_json_with_yes(self, tmp_path, capsys):
         _seed(tmp_path)
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         capsys.readouterr()
         assert cmd_set_state(entries, "ACC", assume_yes=True, as_json=True) == 0
         captured = capsys.readouterr()
@@ -216,7 +216,7 @@ class TestJsonStdoutIsOneDocument:
 
     def test_backfill_json_with_yes(self, tmp_path, capsys):
         _seed(tmp_path, _VCU_READY_PARK, n=1, rx="0x7EA")
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         capsys.readouterr()
         rc = cmd_backfill_states(entries, captures_dir=tmp_path, assume_yes=True, as_json=True)
         captured = capsys.readouterr()

@@ -12,6 +12,7 @@ from canair.live.scan.kwp_routines import (
     classify,
     probe_kwp_routine_results,
 )
+from canair.profile import active
 from canair.yaml_edit.pids import append_routines_block
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import ok as _ok
@@ -89,13 +90,13 @@ def test_writeback_two_digit_lid_keys(tmp_path):
 
 def test_split_ecus_by_protocol():
     # Against the bundled hyundai-ioniq-ae-ev profile: BMS is KWP2000, IGPM is UDS.
-    uds, kwp = split_ecus_by_protocol(["BMS", "IGPM"])
+    uds, kwp = split_ecus_by_protocol(["BMS", "IGPM"], profile=active())
     assert "BMS" in kwp  # → 0x33 results path, never 0x31 StartRoutine
     assert "IGPM" in uds  # → UDS 0x31 SF03
 
 
 def test_split_unknown_ecu_defaults_to_uds():
-    uds, kwp = split_ecus_by_protocol(["NOPE_NOT_AN_ECU"])
+    uds, kwp = split_ecus_by_protocol(["NOPE_NOT_AN_ECU"], profile=active())
     assert uds == ["NOPE_NOT_AN_ECU"]
     assert kwp == []
 

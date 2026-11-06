@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 from canair.live.actuate.routines import _RoutinesTUI
 from canair.live.monitor.raw_poller import MonitorRawPoller, _raw_pid_result
+from canair.profile import active
 from canair.safety.blocklist import SessionPolicy
 from canair.uds.protocol import KWP, UDS
 from tests.support.fakes import FakeTerminal, nrc
@@ -20,8 +21,8 @@ from tests.support.fakes import FakeTerminal, nrc
 class TestRawMonitor:
     def test_an_nrc_is_named_for_the_ecus_protocol(self):
         reply = bytes.fromhex("7F2172")
-        kwp = _raw_pid_result("2101", None, False, reply, 1.0, "BMS", KWP)
-        uds = _raw_pid_result("2101", None, False, reply, 1.0, "BMS", UDS)
+        kwp = _raw_pid_result("2101", None, False, reply, 1.0, "BMS", KWP, profile=active())
+        uds = _raw_pid_result("2101", None, False, reply, 1.0, "BMS", UDS, profile=active())
         assert kwp["error"] == "NRC 0x72 (transferAborted)"
         assert uds["error"] == "NRC 0x72 (generalProgrammingFailure)"
 
@@ -40,7 +41,9 @@ class TestRawMonitor:
         assert poller._protocol("NOPE") == "unknown"
 
     def test_a_truncated_negative_response_is_not_an_nrc(self):
-        r = _raw_pid_result("2101", None, False, bytes.fromhex("7F21"), 1.0, "BMS", KWP)
+        r = _raw_pid_result(
+            "2101", None, False, bytes.fromhex("7F21"), 1.0, "BMS", KWP, profile=active()
+        )
         assert not r["error"].startswith("NRC")
 
 
@@ -49,7 +52,7 @@ class TestRoutinesTui:
         term = FakeTerminal(responses={"31030201": nrc(0x72)})
         term.session_policy = SessionPolicy(protocols={0x7E2: protocol})
         info = {"tx_id": 0x7E2, "routines": {"0201": {"label": "x"}}}
-        return _RoutinesTUI(term, "VCU", info, {}), term  # type: ignore[arg-type]
+        return _RoutinesTUI(term, "VCU", info, {}, profile=active()), term  # type: ignore[arg-type]
 
     def test_the_last_response_uses_the_ecus_protocol(self):
         for protocol, abbrev in ((KWP, "TA"), (UDS, "GPF")):

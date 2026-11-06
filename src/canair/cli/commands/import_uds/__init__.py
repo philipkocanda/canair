@@ -74,7 +74,7 @@ def _build_capture(spec: str, name_index: dict[str, int]) -> tuple[CaptureRecord
 
     ecu, pid, payload = _parse_spec(spec)
 
-    tx_id = resolve_tx(ecu, name_index)
+    tx_id = resolve_tx(ecu, name_index, profile=active())
     if tx_id is None:
         raise ValueError(
             f"{spec!r}: unknown ECU {ecu!r} — register it first "
@@ -90,7 +90,7 @@ def _build_capture(spec: str, name_index: dict[str, int]) -> tuple[CaptureRecord
     if mismatch:
         warnings.append(f"{ecu}:{pid}: {mismatch}")
 
-    return {"rx": rx_addr_str(tx_id), "pid": pid, "payload": payload}, warnings
+    return {"rx": rx_addr_str(tx_id, profile=active()), "pid": pid, "payload": payload}, warnings
 
 
 def run(args) -> int:
@@ -118,7 +118,7 @@ def run(args) -> int:
     from canair.ecus.names import build_name_tx_index
     from canair.states.tokens import parse_states
 
-    name_index = build_name_tx_index()
+    name_index = build_name_tx_index(profile=active())
 
     captures: list[CaptureRecord] = []
     warnings: list[str] = []

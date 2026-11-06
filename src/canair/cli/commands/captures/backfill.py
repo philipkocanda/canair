@@ -107,17 +107,17 @@ def cmd_backfill_states(
         )
         return 1
 
-    ecu_index = build_ecu_index(load_pids())
+    ecu_index = build_ecu_index(load_pids(profile=active()))
 
     # Payload captures grouped by session identity for decoding.
     payloads_by_session: dict[tuple[str, int], list[CaptureEntry]] = {}
     for e in entries:
         if not e.get("payload"):
             continue
-        key = (str(entry_path(e, captures_dir)), e.get("_session_idx", 0))
+        key = (str(entry_path(e, captures_dir, profile=active())), e.get("_session_idx", 0))
         payloads_by_session.setdefault(key, []).append(e)
 
-    sessions = group_sessions(entries)
+    sessions = group_sessions(entries, profile=active())
 
     rows: list[dict] = []
     for g in sessions:
@@ -168,7 +168,9 @@ def cmd_backfill_states(
         print("  (--dry-run: nothing written)", file=report)
         return 0
 
-    if blocked := layers.refusal((Path(r["path"]) for r in to_write), "back-filled"):
+    if blocked := layers.refusal(
+        (Path(r["path"]) for r in to_write), "back-filled", profile=active()
+    ):
         print(blocked, file=sys.stderr)
         return 1
 

@@ -10,13 +10,10 @@ step executors. Orchestration (looping over steps, journaling) lives in
 import asyncio
 import logging
 import re
-import time
 from collections.abc import Callable
-from typing import Literal
 
 from canair.core.eventlog import log_event
 from canair.ecus.pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index, ecu_index_key
-from canair.expression.results import ResultEntry
 from canair.privacy.sensitive import MASK, request_hidden
 from canair.profile import Profile
 from canair.query import QueryError, inferred_request, pids_named_by
@@ -27,24 +24,15 @@ from canair.safety.actuation import on_refusal
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import SessionManager
 from canair.uds.describe import decode_uds_response
-from canair.uds.echo import request_echo
-from canair.uds.multi_did import BATCH_REFUSAL_NRCS
-from canair.uds.response import UdsResponse
-from canair.uds.services import READ_DATA_BY_IDENTIFIER
 
 from ..actuate.iocontrol_actuate import send_iocontrol
 from .batch import (
-    LEAKED_BATCH_ERROR,
-    LEAKED_BATCH_REASON,
     BatchState,
-    _decode_pid_result,
     _did4,
-    _error_result,
     _is_did22,
-    is_leaked_batch_reply,
-    split_multi_did,
     transport_did_cap,
 )
+from .exec_read import _read_batch, _read_single
 
 
 async def _exec_skm_wake(sm: SessionManager, level: str, verbose: bool):
@@ -65,10 +53,16 @@ async def _exec_skm_wake(sm: SessionManager, level: str, verbose: bool):
 
 
 async def _exec_session(
-    sm: SessionManager, target: str, wake: bool, ecu_index: dict, mode: str = "03"
+    sm: SessionManager,
+    target: str,
+    wake: bool,
+    ecu_index: dict,
+    mode: str = "03",
+    *,
+    profile: Profile,
 ):
     """Execute session sub-command."""
-    tx_id = resolve_tx_id(target, ecu_index)
+    tx_id = resolve_tx_id(target, ecu_index, profile=profile)
     if tx_id is None:
         messages.error(f"unknown ECU '{target}'. Use a name (IGPM) or hex ID (770).")
         return False
@@ -77,7 +71,7 @@ async def _exec_session(
     # 10 01. Resolved into the ECU index by build_ecu_index; None = default wake.
     wake_plan = None
     if wake:
-        key = ecu_index_key(target, ecu_index)
+        key = ecu_index_key(target, ecu_index, profile=profile)
         entry = ecu_index.get(key) if key is not None else None
         if isinstance(entry, dict):
             wake_plan = entry.get("wake")
@@ -85,140 +79,6 @@ async def _exec_session(
         print(f"  Waking 0x{tx_id:03X} ({target}) — {wake_plan.method} ritual…")
     print(f"  Opening session (10{mode.upper().zfill(2)}) on 0x{tx_id:03X} ({target})…")
     return await sm.open_session(tx_id, wake=wake, mode=mode, wake_plan=wake_plan)
-
-
-async def timed_exchange(
-    sm, tx_id: int, request: str, **kwargs
-) -> tuple[UdsResponse, float, float]:
-    """Send ``request`` to ``tx_id``: its reply, wall seconds, and seconds it held the pipe.
-
-    set_header + send_uds run inside one transaction, so a background keepalive can't
-    re-point the ELM header between them and send this request to the wrong ECU. A
-    keepalive queued ahead of it on the serial pipe still delays it, so the time spent on
-    keepalives meanwhile is no part of what this request cost (the monitor's backoff
-    must not slow a PID for another ECU's session upkeep).
-    """
-    keepalive0 = sm.keepalive_seconds
-    t0 = time.monotonic()
-    async with sm.terminal.transaction():
-        await sm.terminal.set_header(tx_id)
-        resp = await sm.terminal.send_uds(request, **kwargs)
-    wall = time.monotonic() - t0
-    return resp, wall, max(0.0, wall - (sm.keepalive_seconds - keepalive0))
-
-
-async def _read_single(sm, tx_id, pid_code, pid_info, unmapped, batch_state):
-    """Send one PID, return its result dict; learn its 22-DID length for batching.
-
-    keepalive_stale runs *outside* the request's transaction (it is unrelated traffic
-    that shouldn't be serialised behind this exchange); see :func:`timed_exchange`.
-    """
-    await sm.keepalive_stale()
-    echo = request_echo(pid_code)
-    expected_sid = echo[0] if echo else None
-    expected_echo = echo[1] if echo else None
-    resp, wall, request_s = await timed_exchange(
-        sm, tx_id, pid_code, retries=1, expected_sid=expected_sid, expected_echo=expected_echo
-    )
-    # Wall-clock round-trip (transport + ECU) of this single read, persisted on the capture as
-    # a relative timing signal. A batched read gets none (one round-trip answers several PIDs).
-    entry = _single_result(
-        sm, tx_id, pid_code, pid_info, unmapped, batch_state, resp, round(wall * 1000)
-    )
-    entry["request_s"] = request_s
-    return entry
-
-
-def _single_result(
-    sm, tx_id, pid_code, pid_info, unmapped, batch_state, resp: UdsResponse, elapsed_ms: int
-) -> ResultEntry:
-    """Shape one single read's reply (see :func:`_read_single`)."""
-    # Timestamp the moment the response arrived so sequentially-polled PIDs keep
-    # their true sub-second acquisition skew.
-    acquired_at = time.time()
-    if resp.get("ok") or resp.get("nrc") is not None:
-        sm.mark_active(tx_id)  # a real answer resets S3 — no redundant 3E00 needed
-    if not resp.get("ok"):
-        return _error_result(pid_code, unmapped, resp, acquired_at)
-    if (
-        batch_state is not None
-        and _is_did22(pid_code)
-        and is_leaked_batch_reply(
-            resp.get("hex", ""), lambda d: batch_state.lengths.get((tx_id, d))
-        )
-    ):
-        # Checked before learn(): taking it would store the batch as this DID's payload and
-        # set this DID's length to the whole batch's, so every later batch fails to split.
-        # The batch it answers was already given up on, so batching this ECU would repeat that
-        # every cycle. This read's own reply may still be on its way: the next read's echo check
-        # then catches it as stale (the ELM327 engine realigns its pipe before retrying; the raw
-        # path flushes its receive queue before every request).
-        log_event(
-            "stale", LEAKED_BATCH_ERROR, level=logging.INFO, ecu=f"0x{tx_id:03X}", pid=pid_code
-        )
-        batch_state.disable(tx_id, LEAKED_BATCH_REASON)
-        return {
-            "pid": pid_code,
-            "error": LEAKED_BATCH_ERROR,
-            "unmapped": unmapped,
-            "acquired_at": acquired_at,
-        }
-    if batch_state is not None and _is_did22(pid_code) and resp.get("hex"):
-        batch_state.learn(tx_id, _did4(pid_code), resp["hex"])
-    return _decode_pid_result(
-        pid_code, pid_info, unmapped, resp["hex"], resp["bytes"], acquired_at, elapsed_ms, tx_id
-    )
-
-
-BatchOutcome = Literal["ok", "failed", "unanswered"]
-
-
-async def _read_batch(sm, tx_id, group, out, batch_state) -> BatchOutcome:
-    """Attempt one multi-DID request for ``group``; append results on success.
-
-    Returns ``"ok"`` if the batch succeeded and split cleanly. On a refusal in
-    ``BATCH_REFUSAL_NRCS`` or an unsplittable response, it disables batching for the ECU for
-    good and returns ``"failed"``, so the caller falls back to per-DID reads. A non-answer
-    (e.g. NO DATA) returns ``"unanswered"`` without disabling; the caller decides, from the
-    fallback, whether it counts against the ECU.
-    """
-    dids = [_did4(e[0]) for e in group]
-    await sm.keepalive_stale()
-    # Validated like the single-PID path: a 62 response repeats the first requested DID, so a
-    # leaked reply classifies as `stale` (pipe resync) instead of failing split_multi_did
-    # silently, which the caller reads as "unsplittable" and disables batching for the ECU.
-    resp, _wall, request_s = await timed_exchange(
-        sm,
-        tx_id,
-        "22" + "".join(dids),
-        expected_sid=READ_DATA_BY_IDENTIFIER,
-        expected_echo=bytes.fromhex(dids[0]) if dids else None,
-    )
-    acquired_at = time.time()
-    if resp.get("ok") or resp.get("nrc") is not None:
-        sm.mark_active(tx_id)  # a real answer resets S3 — no redundant 3E00 needed
-    if not resp.get("ok"):
-        if resp.get("nrc") in BATCH_REFUSAL_NRCS:
-            batch_state.disable(tx_id, f"rejected a {len(dids)}-DID request with NRC 0x13/0x31")
-        return "failed" if resp.get("nrc") is not None else "unanswered"
-    split = split_multi_did(
-        resp.get("hex", ""),
-        [(d, batch_state.lengths[(tx_id, d)]) for d in dids],
-        batch_state.pad,
-    )
-    if split is None:
-        batch_state.disable(tx_id, "multi-DID response did not split into the requested DIDs")
-        return "failed"
-    batch_state.batch_answered(tx_id)
-    for pid_code, pid_info, unmapped in group:
-        sub_hex = split[_did4(pid_code)]
-        entry = _decode_pid_result(
-            pid_code, pid_info, unmapped, sub_hex, bytes.fromhex(sub_hex), acquired_at, target=tx_id
-        )
-        # Each member was answered by the one request, so each was held up that long.
-        entry["request_s"] = request_s
-        out.append(entry)
-    return "ok"
 
 
 def build_query_plan(
@@ -302,7 +162,9 @@ def _clamp_cap(sm, tx_id: int, cap: int, batch_state) -> int:
     return limit
 
 
-async def _run_query_plan(sm, tx_id, query_plan, out, batch_state, max_dids=None):
+async def _run_query_plan(
+    sm, tx_id, query_plan, out, batch_state, max_dids=None, *, profile: Profile
+):
     """Execute a query plan, batching consecutive service-22 DIDs when possible.
 
     Appends result dicts to ``out`` in plan order. With ``batch_state`` (and an
@@ -340,7 +202,9 @@ async def _run_query_plan(sm, tx_id, query_plan, out, batch_state, max_dids=None
                 group.append(query_plan[i])
                 i += 1
             outcome = (
-                await _read_batch(sm, tx_id, group, out, batch_state) if len(group) > 1 else None
+                await _read_batch(sm, tx_id, group, out, batch_state, profile=profile)
+                if len(group) > 1
+                else None
             )
             if outcome == "ok":
                 continue
@@ -348,13 +212,16 @@ async def _run_query_plan(sm, tx_id, query_plan, out, batch_state, max_dids=None
             # to none of its members: it ends in batching being given up (at once, or
             # after BATCH_UNANSWERED_BEFORE_DISABLE misses), and charging it would slow
             # healthy PIDs for a batch's fault.
-            singles = [await _read_single(sm, tx_id, e[0], e[1], e[2], batch_state) for e in group]
+            singles = [
+                await _read_single(sm, tx_id, e[0], e[1], e[2], batch_state, profile=profile)
+                for e in group
+            ]
             out.extend(singles)
             if outcome == "unanswered" and any("raw_hex" in r for r in singles):
                 batch_state.batch_unanswered(tx_id)  # the ECU is awake; its batches are not
             continue
         e = query_plan[i]
-        out.append(await _read_single(sm, tx_id, e[0], e[1], e[2], batch_state))
+        out.append(await _read_single(sm, tx_id, e[0], e[1], e[2], batch_state, profile=profile))
         i += 1
 
 
@@ -370,6 +237,8 @@ async def _exec_query(
     batch_state: BatchState | None = None,
     include_static: bool = False,
     plan_filter: Callable[[str, list], list] | None = None,
+    *,
+    profile: Profile,
 ):
     """Execute query sub-command — query ECU parameters.
 
@@ -384,7 +253,7 @@ async def _exec_query(
             scheduler uses it to read only the PIDs due this tick. An empty
             selection reads nothing and touches no device state.
     """
-    ecu_key = ecu_index_key(ecu_name_str, ecu_index)
+    ecu_key = ecu_index_key(ecu_name_str, ecu_index, profile=profile)
     if ecu_key is None:
         messages.error(f"unknown ECU '{ecu_name_str}'. Available: {', '.join(ecu_index.keys())}")
         return
@@ -417,6 +286,7 @@ async def _exec_query(
         all_pid_results,
         batch_state if batching else None,
         max_dids=ecu_info.get("multi_did_max"),
+        profile=profile,
     )
 
     if return_results:
@@ -429,7 +299,7 @@ async def _exec_query(
     )
 
 
-async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
+async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool, *, profile: Profile):
     """Execute raw sub-command."""
     try:
         tx_id, service_pid = parse_raw_spec(spec)
@@ -449,7 +319,7 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool):
             print(f"  NRC: 0x{response['nrc']:02X} -- {response['nrc_desc']}")
         else:
             messages.error(str(error))
-    elif request_hidden(tx_id, service_pid):
+    elif request_hidden(tx_id, service_pid, profile=profile):
         print(f"  Response: {MASK}  (sensitive — read --reveal to show)")
     else:
         decode = decode_uds_response(response["bytes"])
@@ -482,10 +352,12 @@ async def _exec_iocontrol(
     pids_data: dict,
     ecu_index: dict,
     verbose: bool,
+    *,
+    profile: Profile,
 ):
     """Execute iocontrol sub-command within multi pipeline."""
     ioctrl_index = build_iocontrol_index(pids_data)
-    ecu_key = ecu_index_key(ecu_name, ioctrl_index)
+    ecu_key = ecu_index_key(ecu_name, ioctrl_index, profile=profile)
     did_key = did.upper()
 
     if ecu_key is None:
@@ -556,7 +428,7 @@ async def _exec_scan(
     from ..scan.presets import ServiceError, resolve_service
     from ..scan.range import mode_scan
 
-    tx_id = resolve_tx(tx_str)
+    tx_id = resolve_tx(tx_str, profile=profile)
     if tx_id is None:
         messages.error(f"could not resolve ECU {tx_str!r}")
         return
@@ -590,14 +462,14 @@ async def _exec_scan(
     )
 
 
-def _rx_addr_for_tx(tx_id: int) -> str:
+def _rx_addr_for_tx(tx_id: int, *, profile: Profile) -> str:
     """Return the ECU CAN response address string for a TX id (e.g. "0x7EC")."""
     from ...ecus.registry import rx_addr_str
 
-    return rx_addr_str(tx_id)
+    return rx_addr_str(tx_id, profile=profile)
 
 
-def _rx_addr_for_ecu_label(ecu_label: str, ecu_index: dict) -> str:
+def _rx_addr_for_ecu_label(ecu_label: str, ecu_index: dict, *, profile: Profile) -> str:
     """Resolve an ECU label (e.g. "BMS" or "BMS (0x7E4)") to its RX address.
 
     Falls back to the leading token verbatim if the ECU is not in the index.
@@ -610,5 +482,5 @@ def _rx_addr_for_ecu_label(ecu_label: str, ecu_index: dict) -> str:
     ecu_short = m.group(1)
     info = ecu_index.get(ecu_short.upper())
     if info and info.get("tx_id") is not None:
-        return rx_addr_str(info["tx_id"])
+        return rx_addr_str(info["tx_id"], profile=profile)
     return ecu_short

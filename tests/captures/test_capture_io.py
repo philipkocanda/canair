@@ -7,6 +7,7 @@ import json
 import pytest
 
 from canair.captures import io as capture_io
+from canair.profile import active
 
 
 class TestCaptureRx:
@@ -151,7 +152,7 @@ def test_load_all_captures_fails_fast_on_legacy_yaml(tmp_path):
 
     (tmp_path / "2026-01-01.yaml").write_text("sessions: []\n")
     with pytest.raises(capture_io.LegacyCaptureError):
-        load_all_captures(tmp_path)
+        load_all_captures(tmp_path, profile=active())
 
 
 def test_migrate_then_load_all_captures_roundtrip(tmp_path):
@@ -176,6 +177,6 @@ def test_migrate_then_load_all_captures_roundtrip(tmp_path):
     }
     (tmp_path / "2026-01-01.yaml").write_text(yaml.safe_dump(doc))
     migrate_dir(tmp_path)
-    entries = load_all_captures(tmp_path)
+    entries = load_all_captures(tmp_path, profile=active())
     assert [e["pid"] for e in entries] == ["2101", "2102"]
     assert [e["payload"] for e in entries] == ["6101AA", "6102BB"]

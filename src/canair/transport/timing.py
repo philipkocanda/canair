@@ -19,6 +19,7 @@ import re
 import sys
 from dataclasses import dataclass
 
+from canair.profile import Profile
 from canair.render.console import console
 
 _HEX_LABEL = re.compile(r"^0x[0-9A-Fa-f]+$")
@@ -82,19 +83,19 @@ class TimingRecorder:
         return rows
 
 
-def _resolve_ecu(label: str) -> str:
+def _resolve_ecu(label: str, *, profile: Profile) -> str:
     """Turn a ``"0x7E4"`` request-id label into an ECU name when known."""
     if not _HEX_LABEL.match(label):
         return label
     try:
         from canair.ecus.names import ecu_name
 
-        return ecu_name(int(label, 16))
+        return ecu_name(int(label, 16), profile=profile)
     except Exception:
         return label
 
 
-def render_timings(recorder: TimingRecorder):
+def render_timings(recorder: TimingRecorder, *, profile: Profile):
     """Build a Rich table of the slowest PIDs (or None if nothing recorded)."""
     rows = recorder.snapshot()
     if not rows:
@@ -110,7 +111,7 @@ def render_timings(recorder: TimingRecorder):
     table.add_column("last ms", justify="right")
     for r in rows:
         table.add_row(
-            _resolve_ecu(r["ecu"]),
+            _resolve_ecu(r["ecu"], profile=profile),
             r["pid"],
             str(r["n"]),
             f"{r['mean_ms']:.1f}",
@@ -120,7 +121,9 @@ def render_timings(recorder: TimingRecorder):
     return table
 
 
-def print_timings(recorder: TimingRecorder | None, as_json: bool = False, stream=None) -> None:
+def print_timings(
+    recorder: TimingRecorder | None, as_json: bool = False, stream=None, *, profile: Profile
+) -> None:
     """Print timing stats to ``stream`` (default stderr, so stdout/JSON stays clean).
 
     In ``--json`` mode the snapshot is emitted as a JSON object on stderr; the
@@ -133,10 +136,10 @@ def print_timings(recorder: TimingRecorder | None, as_json: bool = False, stream
         import json
 
         # Resolve labels so JSON consumers get ECU names too.
-        rows = [{**r, "ecu": _resolve_ecu(r["ecu"])} for r in recorder.snapshot()]
+        rows = [{**r, "ecu": _resolve_ecu(r["ecu"], profile=profile)} for r in recorder.snapshot()]
         print(json.dumps({"timings": rows}), file=stream)
         return
-    table = render_timings(recorder)
+    table = render_timings(recorder, profile=profile)
     if table is None:
         return
     console(file=stream).print(table)

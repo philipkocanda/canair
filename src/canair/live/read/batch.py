@@ -16,6 +16,7 @@ from datetime import datetime
 from canair.core.eventlog import log_event
 from canair.expression.decoding import decode_param_rows
 from canair.expression.results import ResultEntry
+from canair.profile import Profile
 from canair.uds.describe import decode_uds_response
 from canair.uds.multi_did import MULTI_DID_MAX_DEFAULT, split_chain
 from canair.uds.response import UdsResponse
@@ -238,6 +239,8 @@ def _decode_pid_result(
     acquired_at: float | None,
     elapsed_ms: int | None = None,
     target: int | str | None = None,
+    *,
+    profile: Profile,
 ) -> ResultEntry:
     """Build a result dict from a successful (single or split-out) response.
 
@@ -274,7 +277,7 @@ def _decode_pid_result(
     if target is not None:
         from canair.privacy.sensitive import mask_result
 
-        mask_result(entry, target, pid_info)
+        mask_result(entry, target, pid_info, profile=profile)
     return entry
 
 

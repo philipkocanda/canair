@@ -5,6 +5,7 @@ from typing import ClassVar
 import pytest
 
 from canair.dtc.describe import describe_dtc, dtc_kind
+from canair.profile import active
 
 
 class TestDtcKind:
@@ -28,7 +29,7 @@ class TestDescribeDtc:
     """Pure structural interpretation (defs={} = no profile definitions)."""
 
     def test_body_mfr_no_subtype(self):
-        d = describe_dtc("B2915-00", defs={})
+        d = describe_dtc("B2915-00", defs={}, profile=active())
         assert d["category"] == "Body"
         assert d["kind"] == "manufacturer-specific"
         assert d["failure_type"] == "0x00"
@@ -38,32 +39,32 @@ class TestDescribeDtc:
         assert d["meaning"] == "Body · manufacturer-specific"
 
     def test_chassis_mfr(self):
-        d = describe_dtc("C182C-00", defs={})
+        d = describe_dtc("C182C-00", defs={}, profile=active())
         assert d["category"] == "Chassis"
         assert d["kind"] == "manufacturer-specific"
 
     def test_failure_type_decoded(self):
-        d = describe_dtc("B1234-11", defs={})
+        d = describe_dtc("B1234-11", defs={}, profile=active())
         assert d["failure_type"] == "0x11"
         assert d["failure_type_desc"] == "circuit short to ground"
         assert "circuit short to ground" in d["meaning"]
 
     def test_generic_known_code(self):
-        d = describe_dtc("P0420", defs={})
+        d = describe_dtc("P0420", defs={}, profile=active())
         assert d["category"] == "Powertrain"
         assert d["kind"] == "generic (ISO/SAE)"
         assert d["description"] == "Catalyst system efficiency below threshold (Bank 1)"
 
     def test_network_category(self):
-        assert describe_dtc("U0100", defs={})["category"] == "Network"
+        assert describe_dtc("U0100", defs={}, profile=active())["category"] == "Network"
 
     def test_kwp_two_byte_no_ftb(self):
-        d = describe_dtc("B2915", defs={})
+        d = describe_dtc("B2915", defs={}, profile=active())
         assert d["failure_type"] is None
         assert d["category"] == "Body"
 
     def test_malformed_is_safe(self):
-        d = describe_dtc("", defs={})
+        d = describe_dtc("", defs={}, profile=active())
         assert d["category"] == "unknown"
 
 
@@ -78,12 +79,12 @@ class TestProfileDefinitions:
     }
 
     def test_profile_description_used(self):
-        d = describe_dtc("C182C-00", defs=self.DEFS)
+        d = describe_dtc("C182C-00", defs=self.DEFS, profile=active())
         assert d["description"] == "DC fast-charge (CCS) charging / PLC communication failure"
         assert d["meaning"].startswith("DC fast-charge")
 
     def test_a_manufacturer_ftb_is_shown_by_value(self):
-        d = describe_dtc("B1285-F3", defs=self.DEFS)
+        d = describe_dtc("B1285-F3", defs=self.DEFS, profile=active())
         assert d["description"] == "Direction Control Motor — AUTO Defog"
         assert d["failure_type"] == "0xF3"
         assert d["failure_type_desc"] is None
@@ -92,22 +93,24 @@ class TestProfileDefinitions:
 
     def test_standard_ftb_needs_no_profile_entry(self):
         # Hyundai/Kia use the SAE J2012 table unchanged (ES95486 Annex D).
-        d = describe_dtc("B1285-77", defs=self.DEFS)
+        d = describe_dtc("B1285-77", defs=self.DEFS, profile=active())
         assert d["failure_type_desc"] == "commanded position not reachable"
 
     def test_reserved_ftb_is_unnamed(self):
-        assert describe_dtc("B1285-2A", defs={})["failure_type_desc"] is None
+        assert describe_dtc("B1285-2A", defs={}, profile=active())["failure_type_desc"] is None
 
     def test_profile_missing_code_falls_back_to_structural(self):
-        d = describe_dtc("B2915-00", defs=self.DEFS)
+        d = describe_dtc("B2915-00", defs=self.DEFS, profile=active())
         assert d["description"] is None
         assert d["meaning"] == "Body · manufacturer-specific"
 
     def test_real_profile_dtc_yaml_loads(self):
         # The bundled hyundai-ioniq-ae-ev profile ships C182C + B1285 definitions.
-        d = describe_dtc("C182C-00", ecu="CCM")  # defs=None -> loads active profile
+        d = describe_dtc(
+            "C182C-00", ecu="CCM", profile=active()
+        )  # defs=None -> loads active profile
         assert d["description"] and "charg" in d["description"].lower()
-        b = describe_dtc("B1285-77", ecu="HVAC")
+        b = describe_dtc("B1285-77", ecu="HVAC", profile=active())
         assert "defog" in (b["description"] or "").lower()
         assert b["failure_type_desc"] == "commanded position not reachable"
 
@@ -129,59 +132,76 @@ class TestPerEcuMeaning:
 
     @pytest.fixture(autouse=True)
     def _profile(self, monkeypatch):
-        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda: {"ecus": self.ECUS})
+        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda *_, **__: {"ecus": self.ECUS})
 
     def _with_shared(self, monkeypatch):
         data = {"dtcs": self.SHARED, "ecus": self.ECUS}
-        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda: data)
+        monkeypatch.setattr("canair.ecus.pids.load_pids", lambda *_, **__: data)
 
     def test_a_profile_wide_code_applies_to_every_ecu(self, monkeypatch):
         from canair.dtc.describe import profile_dtc_defs
 
         self._with_shared(monkeypatch)
-        assert describe_dtc("U1100-87", ecu="BMS")["description"] == "Time-out ESP"
-        assert describe_dtc("U1100-87", ecu="EPS")["description"] == "Time-out ESP"
-        assert describe_dtc("U1100-87")["description"] == "Time-out ESP"
+        assert (
+            describe_dtc("U1100-87", ecu="BMS", profile=active())["description"] == "Time-out ESP"
+        )
+        assert (
+            describe_dtc("U1100-87", ecu="EPS", profile=active())["description"] == "Time-out ESP"
+        )
+        assert describe_dtc("U1100-87", profile=active())["description"] == "Time-out ESP"
         # Fields stated once on the profile-wide section reach its codes too.
-        assert profile_dtc_defs("BMS")["dtcs"]["U1100"]["source"] == "Shop manual"
-        assert "source" not in profile_dtc_defs("BMS")["dtcs"]
+        assert profile_dtc_defs("BMS", profile=active())["dtcs"]["U1100"]["source"] == "Shop manual"
+        assert "source" not in profile_dtc_defs("BMS", profile=active())["dtcs"]
 
     def test_an_ecus_own_entry_beats_the_profile_wide_one(self, monkeypatch):
         self._with_shared(monkeypatch)
-        assert describe_dtc("C1616-00", ecu="EPS")["description"] == "CAN bus off"
-        assert describe_dtc("C1616-00", ecu="BMS")["description"] == "Bus off (shared)"
-        assert describe_dtc("C1616-00")["description"] is None  # depends on the unit
+        assert describe_dtc("C1616-00", ecu="EPS", profile=active())["description"] == "CAN bus off"
+        assert (
+            describe_dtc("C1616-00", ecu="BMS", profile=active())["description"]
+            == "Bus off (shared)"
+        )
+        assert (
+            describe_dtc("C1616-00", profile=active())["description"] is None
+        )  # depends on the unit
 
     def test_the_reporting_ecus_meaning_wins(self):
-        assert describe_dtc("C1616-00", ecu="EPS")["description"] == "CAN bus off"
-        assert describe_dtc("C1616-00", ecu="eps")["description"] == "CAN bus off"
-        assert describe_dtc("C1616-00", ecu="BSD-L")["description"] == (
+        assert describe_dtc("C1616-00", ecu="EPS", profile=active())["description"] == "CAN bus off"
+        assert describe_dtc("C1616-00", ecu="eps", profile=active())["description"] == "CAN bus off"
+        assert describe_dtc("C1616-00", ecu="BSD-L", profile=active())["description"] == (
             "CAN communication line malfunction"
         )
 
     def test_another_ecus_meaning_is_never_borrowed(self):
-        d = describe_dtc("P1AAA", ecu="EPS")
+        d = describe_dtc("P1AAA", ecu="EPS", profile=active())
         assert d["description"] is None
         assert d["meaning"] == "Powertrain · manufacturer-specific"
 
     def test_without_an_ecu_only_an_agreed_meaning_is_given(self):
-        assert describe_dtc("C1101-00")["description"] == "Power high"
-        assert describe_dtc("C1616-00")["description"] is None  # depends on the unit
+        assert describe_dtc("C1101-00", profile=active())["description"] == "Power high"
+        assert (
+            describe_dtc("C1616-00", profile=active())["description"] is None
+        )  # depends on the unit
 
     def test_a_generic_code_needs_no_ecu_entry(self):
-        assert describe_dtc("U0100", ecu="EPS")["description"] == "Lost communication with ECM/PCM"
+        assert (
+            describe_dtc("U0100", ecu="EPS", profile=active())["description"]
+            == "Lost communication with ECM/PCM"
+        )
 
     def test_a_read_and_a_logged_scan_are_described_by_their_ecu(self, monkeypatch):
         from canair.dtc import log as dtc_log
         from canair.dtc.refs import EcuRefs
         from canair.live.dtc import reading as dtc
 
-        monkeypatch.setattr("canair.ecus.names.ecu_name", lambda tx: {0x7D4: "EPS"}[tx])
+        monkeypatch.setattr("canair.ecus.names.ecu_name", lambda tx, **__: {0x7D4: "EPS"}[tx])
         refs = EcuRefs(tx_by_rx={0x7DC: 0x7D4}, names={0x7DC: "EPS"})
-        monkeypatch.setattr(EcuRefs, "current", classmethod(lambda cls: refs))
+        monkeypatch.setattr(EcuRefs, "current", classmethod(lambda cls, *_, **__: refs))
         rec = {"dtc": "C1616-00", "raw": "561600", "status": 0x09, "status_bits": []}
-        assert dtc._jsonable([rec], 0x7D4)[0]["interpretation"]["description"] == "CAN bus off"
+        assert (
+            dtc._jsonable([rec], 0x7D4, profile=active())[0]["interpretation"]["description"]
+            == "CAN bus off"
+        )
         # The log names the ECU by address; its name (and meanings) come from the profile.
         scan = dtc_log.build_scan("all", {"0x7DC": {"dtcs": ["C1616-00"]}}, timestamp="t")
-        text = "\n".join(dtc_log.render_scan(scan))
+        text = "\n".join(dtc_log.render_scan(scan, profile=active()))
         assert "EPS (0x7D4)" in text and "CAN bus off" in text

@@ -158,5 +158,5 @@ async def run_raw_monitor(
     if session.timings:
         from canair.transport.timing import print_timings
 
-        print_timings(client.timings, as_json=session.as_json)
+        print_timings(client.timings, as_json=session.as_json, profile=profile)
     return 0

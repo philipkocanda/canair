@@ -109,19 +109,21 @@ def cmd_backfill_state_spans(
         )
         return 1
 
-    ecu_index = build_ecu_index(load_pids())
+    ecu_index = build_ecu_index(load_pids(profile=active()))
 
     payloads_by_session: dict[tuple[str, int], list[CaptureEntry]] = {}
     for e in entries:
         if not e.get("payload"):
             continue
-        key = (str(entry_path(e, captures_dir)), e.get("_session_idx", 0))
+        key = (str(entry_path(e, captures_dir, profile=active())), e.get("_session_idx", 0))
         payloads_by_session.setdefault(key, []).append(e)
 
-    span_source = _existing_span_sources({str(entry_path(e, captures_dir)) for e in entries})
+    span_source = _existing_span_sources(
+        {str(entry_path(e, captures_dir, profile=active())) for e in entries}
+    )
 
     rows: list[dict] = []
-    for g in group_sessions(entries):
+    for g in group_sessions(entries, profile=active()):
         key = (g["path"], g["session_idx"])
         recorded = parse_states(g.get("vehicle_states") or [])
         caps = payloads_by_session.get(key, [])
@@ -180,7 +182,9 @@ def cmd_backfill_state_spans(
         print("  (--dry-run: nothing written)", file=report)
         return 0
 
-    if blocked := layers.refusal((Path(r["path"]) for r in to_write), "back-filled"):
+    if blocked := layers.refusal(
+        (Path(r["path"]) for r in to_write), "back-filled", profile=active()
+    ):
         print(blocked, file=sys.stderr)
         return 1
 

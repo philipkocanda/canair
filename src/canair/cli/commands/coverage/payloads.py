@@ -250,7 +250,7 @@ def load_coverage_captures(
     from canair.variants.tags import require_one_revision
 
     entries = filter_by_text(
-        filter_by_date_range(load_all_captures(), since, until),
+        filter_by_date_range(load_all_captures(profile=active()), since, until),
         state=state,
         label=label,
         profile=active(),

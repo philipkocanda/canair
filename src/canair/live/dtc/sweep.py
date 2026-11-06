@@ -53,14 +53,16 @@ def _scan_line(res: dict, name_w: int) -> str:
     return f"{res['ecu']:<{name_w}}  {res['protocol']:<4}  {color}{_scan_status(res)}{ansi.RESET}"
 
 
-async def _wake_read(terminal, tx_id, mask, protocol, verbose, timeout):
+async def _wake_read(terminal, tx_id, mask, protocol, verbose, timeout, *, profile: Profile):
     """Wake the ECU (1001) then re-read DTCs with a longer timeout."""
     await terminal.set_header(tx_id)
     try:
         await terminal.send_uds(DEFAULT_SESSION_REQUEST, timeout=timeout)
     except Exception:
         pass
-    return await _read_one(terminal, tx_id, mask, protocol, verbose, timeout=timeout)
+    return await _read_one(
+        terminal, tx_id, mask, protocol, verbose, timeout=timeout, profile=profile
+    )
 
 
 async def mode_dtc_scan_all(
@@ -97,9 +99,13 @@ async def mode_dtc_scan_all(
     """
     from ...ecus.registry import load_ecus
 
-    registry = load_ecus()
+    registry = load_ecus(profile=profile)
     tx_ids = sorted(registry)
-    name_w = max((len(ecu_display(t)) for t in tx_ids), default=12) if not as_json else 0
+    name_w = (
+        max((len(ecu_display(t, profile=profile)) for t in tx_ids), default=12)
+        if not as_json
+        else 0
+    )
 
     if not as_json:
         print(
@@ -109,7 +115,9 @@ async def mode_dtc_scan_all(
 
     results = []
     for tx_id in tx_ids:
-        res = await _read_one(terminal, tx_id, mask, protocol, verbose, timeout=timeout)
+        res = await _read_one(
+            terminal, tx_id, mask, protocol, verbose, timeout=timeout, profile=profile
+        )
         results.append(res)
         if not as_json:
             print(f"  {_scan_line(res, name_w)}")
@@ -125,7 +133,9 @@ async def mode_dtc_scan_all(
                 f"with wake + {retry_timeout:.0f}s timeout…{ansi.RESET}\n"
             )
         for i in retry_idx:
-            res2 = await _wake_read(terminal, tx_ids[i], mask, protocol, verbose, retry_timeout)
+            res2 = await _wake_read(
+                terminal, tx_ids[i], mask, protocol, verbose, retry_timeout, profile=profile
+            )
             recovered = _classify(res2) != "no_response"
             if recovered:
                 results[i] = res2
@@ -139,7 +149,7 @@ async def mode_dtc_scan_all(
 
     snapshot_run = None
     if snapshots and any(wants_snapshots(r) for r in results):
-        snapshot_run = await _snapshot_step(terminal, results, pids_data, as_json)
+        snapshot_run = await _snapshot_step(terminal, results, pids_data, as_json, profile=profile)
     if save:
         report_saved(terminal, results, label, vehicle_states, notes, as_json, profile=profile)
 
@@ -152,7 +162,9 @@ async def mode_dtc_scan_all(
     # Record to the DTC history log and compute the diff vs the last full sweep.
     log_path = log_prev = log_diff = None
     if log:
-        log_path, log_prev, log_diff = _log_scan("all", results, label, vehicle_states)
+        log_path, log_prev, log_diff = _log_scan(
+            "all", results, label, vehicle_states, profile=profile
+        )
 
     if as_json:
         out = {
@@ -209,18 +221,23 @@ async def mode_dtc_scan_all(
                     print(f"        → {meaning}")
                 for line in snapshot_lines(d, "        "):
                     print(line)
-        for hint in undefined_hints(faulty):
+        for hint in undefined_hints(faulty, profile=profile):
             print(hint)
         print()
     else:
         print(f"  ✓ No DTCs on any of the {len(results) - len(no_resp)} responding ECUs.\n")
 
     if log:
-        _print_log_result(log_path, log_prev, log_diff)
+        _print_log_result(log_path, log_prev, log_diff, profile=profile)
 
 
 async def _snapshot_step(
-    terminal: Terminal, results: list[dict], pids_data: dict | None, as_json: bool
+    terminal: Terminal,
+    results: list[dict],
+    pids_data: dict | None,
+    as_json: bool,
+    *,
+    profile: Profile,
 ) -> SnapshotRun:
     """Read the snapshots of every code the sweep found, skippable with a keypress on a TTY."""
     from canair.core.skip_key import skip_listener
@@ -234,9 +251,9 @@ async def _snapshot_step(
             print(f"\n  Reading snapshots for {codes} code(s) on {len(pending)} ECU(s)…{hint}\n")
         for result in pending:
             tx_id = int(result["tx"], 16)
-            ecu, pids = ecu_pids(pids_data, tx_id)
+            ecu, pids = ecu_pids(pids_data, tx_id, profile=profile)
             before = run.records_read
-            await fetch_snapshots(terminal, tx_id, result, pids, ecu, run)
+            await fetch_snapshots(terminal, tx_id, result, pids, ecu, run, profile=profile)
             if as_json:
                 continue
             if run.skipped:

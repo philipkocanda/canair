@@ -165,7 +165,7 @@ class TestScope:
         from canair.captures.store import load_all_captures
 
         _select(store, scope)
-        rows = load_all_captures()
+        rows = load_all_captures(profile=active())
         assert {r["session_label"] for r in rows} == labels
         assert {r["session_variant"] for r in rows} <= {"28kwh", "38kwh", ""}
 
@@ -174,15 +174,15 @@ class TestScope:
 
         variants_edit.remove_variant("38kwh", profile=store)
         _select(store, None)
-        assert len(load_all_captures()) == 3
+        assert len(load_all_captures(profile=active())) == 3
 
     def test_the_untagged_sessions_are_noted_once(self, store, capsys):
         from canair.captures import store as capture_store
 
         capture_store._noted_untagged.clear()
         _select(store, None)
-        capture_store.load_all_captures()
-        capture_store.load_all_captures()
+        capture_store.load_all_captures(profile=active())
+        capture_store.load_all_captures(profile=active())
         err = capsys.readouterr().err
         assert err.count("1 untagged capture session(s) left out") == 1
 
@@ -190,7 +190,7 @@ class TestScope:
         from canair.captures.store import load_all_captures
 
         _select(store, "28kwh")
-        assert len(load_all_captures(store.captures_dir)) == 3
+        assert len(load_all_captures(store.captures_dir, profile=active())) == 3
 
 
 class TestTaggedCopyWins:
@@ -202,7 +202,7 @@ class TestTaggedCopyWins:
         _write(prof.captures_dir / "2026-01-01.json", _session("a", variant="28kwh"))
         _write(overlay / "captures" / "2026-01-01.json", _session("a"))
         profile_mod._active = dataclasses.replace(prof, overlays=(overlay,))
-        (row,) = load_all_captures()
+        (row,) = load_all_captures(profile=active())
         assert row["session_variant"] == "28kwh"
 
     def test_merge_driver_keeps_one_tagged_copy(self):
@@ -296,7 +296,7 @@ class TestSetVariant:
         from canair.cli.commands.captures.session_fields import cmd_set_variant
 
         _write(prof.captures_dir / "2026-01-01.json", _session("a"))
-        assert cmd_set_variant(load_all_captures(), "64kwh", assume_yes=True) == 2
+        assert cmd_set_variant(load_all_captures(profile=active()), "64kwh", assume_yes=True) == 2
 
 
 class TestImportsNameTheCar:
@@ -385,10 +385,10 @@ def test_sessions_view_names_each_car(prof, capsys):
 
     _write(prof.captures_dir / "2026-01-01.json", _session("a", variant="28kwh"), _session("b"))
     _select(prof, "all")
-    cmd_sessions(load_all_captures())
+    cmd_sessions(load_all_captures(profile=active()))
     out = capsys.readouterr().out
     assert "28kwh" in out and "untagged" in out
-    cmd_sessions(load_all_captures(), as_json=True)
+    cmd_sessions(load_all_captures(profile=active()), as_json=True)
     assert [s["variant"] for s in json.loads(capsys.readouterr().out)] == ["28kwh", None]
 
 

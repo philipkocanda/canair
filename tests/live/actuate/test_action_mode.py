@@ -60,7 +60,7 @@ def _values(*rounds):
 @pytest.fixture
 def run(monkeypatch):
     monkeypatch.setattr(mode, "_REREAD_DELAY_S", 0)
-    monkeypatch.setattr("canair.actions.load_actions", lambda profile=None: {"sleep": SLEEP})
+    monkeypatch.setattr("canair.actions.load_actions", lambda *_, **__: {"sleep": SLEEP})
 
     def _run(terminal, rounds, **kw):
         monkeypatch.setattr("canair.live.read.exec._exec_query", _values(*rounds))
@@ -146,7 +146,7 @@ def test_without_the_quirk_the_action_is_refused_before_any_read(monkeypatch):
         return None
 
     monkeypatch.setattr("canair.live.read.exec._exec_query", fake_exec_query)
-    monkeypatch.setattr("canair.actions.load_actions", lambda profile=None: {"sleep": SLEEP})
+    monkeypatch.setattr("canair.actions.load_actions", lambda *_, **__: {"sleep": SLEEP})
     t = PolicedTerminal()
     with pytest.raises(SafetyBlocked, match="none of the profile's quirks grants it"):
         asyncio.run(
@@ -159,13 +159,13 @@ def test_unsafe_does_not_help(monkeypatch):
     """An action's refusal is not the --unsafe prompt: the terminal's flag is never read."""
     t = PolicedTerminal()
     t.unsafe = True
-    planned = mode.plan_requests(SLEEP, {"ecus": PIDS["ecus"]})
+    planned = mode.plan_requests(SLEEP, {"ecus": PIDS["ecus"]}, profile=active())
     with pytest.raises(SafetyBlocked):
         mode.action_policy(SLEEP, planned, t.session_policy, {"ecus": PIDS["ecus"]})
 
 
 def test_an_unknown_action(monkeypatch):
-    monkeypatch.setattr("canair.actions.load_actions", lambda profile=None: {})
+    monkeypatch.setattr("canair.actions.load_actions", lambda *_, **__: {})
     with pytest.raises(ActionError, match="no action"):
         asyncio.run(mode.mode_action(PolicedTerminal(), PIDS, "sleep", profile=active()))
 
@@ -179,5 +179,5 @@ def test_a_request_to_an_ecu_resolves_its_tx_id():
             "requests": [{"to": "igpm", "send": "22BC03"}],
         },
     )
-    (planned,) = mode.plan_requests(action, PIDS)
+    (planned,) = mode.plan_requests(action, PIDS, profile=active())
     assert planned.tx_id == 0x770

@@ -185,7 +185,9 @@ class TestConfirmations:
         monkeypatch.setattr("canair.device.wican.mode.current_protocol", lambda url: "elm327")
         monkeypatch.setattr(mode, "confirm", lambda *a, **k: False)
         sent = []
-        monkeypatch.setattr("canair.device.wican.mode.set_protocol", lambda *a: sent.append(a))
+        monkeypatch.setattr(
+            "canair.device.wican.mode.set_protocol", lambda *a, **__: sent.append(a)
+        )
         args = argparse.Namespace(wican=None, protocol="slcan", yes=False, no_transport=True)
         assert mode.cmd_mode_set(args) == 1
         assert not sent

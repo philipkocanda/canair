@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from canair.actions import FUNCTIONAL, Action, ActionError, ActionRequest
+from canair.profile import Profile
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
 
 
@@ -26,7 +27,7 @@ def functional_id(pids_data: dict) -> int:
     return functional_request_id(resolve_mode(pids_data))
 
 
-def plan_requests(action: Action, pids_data: dict) -> list[PlannedRequest]:
+def plan_requests(action: Action, pids_data: dict, *, profile: Profile) -> list[PlannedRequest]:
     """Resolve each request's target to a request id (raises :class:`ActionError`)."""
     from canair.ecus.names import canonical_ecu_name_safe
     from canair.ecus.pids import build_ecu_index
@@ -37,7 +38,9 @@ def plan_requests(action: Action, pids_data: dict) -> list[PlannedRequest]:
         if req.target == FUNCTIONAL:
             planned.append(PlannedRequest(req, functional_id(pids_data)))
             continue
-        entry = index.get(req.target) or index.get(canonical_ecu_name_safe(req.target).upper())
+        entry = index.get(req.target) or index.get(
+            canonical_ecu_name_safe(req.target, profile=profile).upper()
+        )
         if entry is None:
             raise ActionError(f"action {action.name!r}: unknown request target {req.target!r}")
         planned.append(PlannedRequest(req, int(entry["tx_id"])))

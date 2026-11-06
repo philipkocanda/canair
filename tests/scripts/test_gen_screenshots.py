@@ -104,13 +104,13 @@ def test_no_username_baked_into_svgs(mod, manifest):
 
 
 def test_check_passes_when_assets_present_and_commands_ok(mod, manifest, monkeypatch):
-    monkeypatch.setattr(mod, "_run_command", lambda *a: 0)
+    monkeypatch.setattr(mod, "_run_command", lambda *a, **__: 0)
     assert mod.check(manifest) == 0
 
 
 def test_check_fails_on_command_drift(mod, manifest, monkeypatch):
     """A renamed command / dropped flag surfaces as a non-zero exit code."""
-    monkeypatch.setattr(mod, "_run_command", lambda *a: 2)
+    monkeypatch.setattr(mod, "_run_command", lambda *a, **__: 2)
     assert mod.check(manifest) == 1
 
 
@@ -129,7 +129,7 @@ def test_check_detects_missing_and_orphan_assets(mod, tmp_path, monkeypatch):
     )
     monkeypatch.setattr(mod, "SHOTS_DIR", shots)
     monkeypatch.setattr(mod, "MANIFEST", shots / "shots.yaml")
-    monkeypatch.setattr(mod, "_run_command", lambda *a: 0)
+    monkeypatch.setattr(mod, "_run_command", lambda *a, **__: 0)
 
     manifest = mod._load_manifest()
 

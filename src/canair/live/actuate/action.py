@@ -51,7 +51,9 @@ class Verdict:
         return self.result == "TRUE"
 
 
-async def read_verdict(sm, action: Action, pids_data: dict, verbose: bool) -> Verdict:
+async def read_verdict(
+    sm, action: Action, pids_data: dict, verbose: bool, *, profile: Profile
+) -> Verdict:
     """Read the action's ``reads`` live and evaluate ``require`` on them."""
     from canair.ecus.pids import build_ecu_index
     from canair.live.read.exec import _exec_query
@@ -64,7 +66,15 @@ async def read_verdict(sm, action: Action, pids_data: dict, verbose: bool) -> Ve
     for tok in action.reads:
         sel = parse_selector(tok)
         got = await _exec_query(
-            sm, sel.ecu, list(sel.pids), index, pids_data, verbose, return_results=True, quiet=True
+            sm,
+            sel.ecu,
+            list(sel.pids),
+            index,
+            pids_data,
+            verbose,
+            return_results=True,
+            quiet=True,
+            profile=profile,
         )
         if got:
             frames.append(got)
@@ -75,12 +85,14 @@ async def read_verdict(sm, action: Action, pids_data: dict, verbose: bool) -> Ve
     return Verdict(label, signals)
 
 
-async def checked_verdict(sm, action: Action, pids_data: dict, verbose: bool) -> Verdict:
+async def checked_verdict(
+    sm, action: Action, pids_data: dict, verbose: bool, *, profile: Profile
+) -> Verdict:
     """:func:`read_verdict`, re-read once if a signal did not read."""
-    verdict = await read_verdict(sm, action, pids_data, verbose)
+    verdict = await read_verdict(sm, action, pids_data, verbose, profile=profile)
     if verdict.result == "UNKNOWN":
         await asyncio.sleep(_REREAD_DELAY_S)
-        verdict = await read_verdict(sm, action, pids_data, verbose)
+        verdict = await read_verdict(sm, action, pids_data, verbose, profile=profile)
     return verdict
 
 
@@ -155,7 +167,7 @@ async def mode_action(
         known = ", ".join(actions) or "none"
         raise ActionError(f"no action {name!r} in this profile (defined: {known})")
 
-    planned = plan_requests(action, pids_data)
+    planned = plan_requests(action, pids_data, profile=profile)
     policy = action_policy(action, planned, terminal.session_policy, pids_data)
 
     print(f"\n  Action '{action.name}': {action.description or '(no description)'}", file=out)
@@ -164,7 +176,7 @@ async def mode_action(
     print(f"  Checking: {action.require}", file=out)
 
     sm = SessionManager(terminal, verbose=verbose)
-    verdict = await checked_verdict(sm, action, pids_data, verbose)
+    verdict = await checked_verdict(sm, action, pids_data, verbose, profile=profile)
     for line in _format_verdict(verdict):
         print(line, file=out)
     if not verdict.passed:
@@ -183,7 +195,7 @@ async def mode_action(
         print("  Dry run: condition met, nothing sent.", file=out)
     else:
         _confirm(action, yes)
-        verdict = await read_verdict(sm, action, pids_data, verbose)
+        verdict = await read_verdict(sm, action, pids_data, verbose, profile=profile)
         if not verdict.passed:
             for line in _format_verdict(verdict):
                 print(line, file=out)

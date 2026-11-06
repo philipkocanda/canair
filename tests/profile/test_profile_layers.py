@@ -28,6 +28,7 @@ from canair.cli.commands.profile.show import cmd_show as _cmd_show
 from canair.profile import (
     Profile,
     ProfileError,
+    active,
     extends_target,
     profile_layers,
     require_writable_definitions,
@@ -395,7 +396,7 @@ class TestLayeredCaptureReads:
         _seed(base / "captures" / "2026-01-02.json", "later", date="2026-01-02")
         prof = resolve_profile("ev6")
         assert not prof.layered
-        rows = load_all_captures(prof.captures_dir)
+        rows = load_all_captures(prof.captures_dir, profile=prof)
         assert [r["session_label"] for r in rows] == ["upstream drive", "later"]
 
 
@@ -404,7 +405,7 @@ def load_all_captures_for(name: str) -> list[dict]:
     from canair import profile as profile_mod
 
     profile_mod._active = resolve_profile(name)
-    return load_all_captures()
+    return load_all_captures(profile=active())
 
 
 class TestBaseLayerWritePolicy:
@@ -413,8 +414,8 @@ class TestBaseLayerWritePolicy:
         prof = resolve_profile("ev6")
         assert not prof.layered
         f = base / "captures" / "2026-01-01.json"
-        assert capture_layers.read_only_files([f], prof.captures_dir) == []
-        assert capture_layers.refusal([f], "deleted", prof.captures_dir) is None
+        assert capture_layers.read_only_files([f], prof.captures_dir, profile=prof) == []
+        assert capture_layers.refusal([f], "deleted", prof.captures_dir, profile=prof) is None
 
     def test_base_files_are_read_only_when_layered(self, env):
         base = _bundled(env)
@@ -425,8 +426,8 @@ class TestBaseLayerWritePolicy:
         mine = dest / "captures" / "2026-01-02.json"
         _seed(mine, "mine", date="2026-01-02")
         theirs = base / "captures" / "2026-01-01.json"
-        assert capture_layers.read_only_files([mine, theirs]) == [theirs]
-        msg = capture_layers.refusal([mine, theirs], "deleted")
+        assert capture_layers.read_only_files([mine, theirs], profile=active()) == [theirs]
+        msg = capture_layers.refusal([mine, theirs], "deleted", profile=active())
         assert msg is not None
         assert str(theirs) in msg
         assert str(mine) not in msg
@@ -441,8 +442,8 @@ class TestBaseLayerWritePolicy:
         profile_mod._active = resolve_profile("ev6")
         mine = dest / "captures" / "2026-01-02.json"
         _seed(mine, "mine", date="2026-01-02")
-        assert capture_layers.read_only_files([mine]) == []
-        assert capture_layers.refusal([mine], "deleted") is None
+        assert capture_layers.read_only_files([mine], profile=active()) == []
+        assert capture_layers.refusal([mine], "deleted", profile=active()) is None
 
 
 class TestBaseLayerMutationsAreRefused:

@@ -160,7 +160,7 @@ def run_support_map(specs: list[tuple[str, str]], args, since, until) -> int:
     if not specs:
         messages.error("no timed captures in scope to investigate")
         return 1
-    ecu_index = build_ecu_index(load_pids())
+    ecu_index = build_ecu_index(load_pids(profile=active()))
     scans: list[PidScan] = []
     for ecu in dict.fromkeys(e for e, _p in specs):
         siblings = discover_signal_specs(ecu, since=since, until=until, state=args.state,

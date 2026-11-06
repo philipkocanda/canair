@@ -178,7 +178,7 @@ def _echo_capture_range(ecu: str, pid: str, name: str, param: dict) -> None:
     captures is swallowed (the edit already succeeded and was validated).
     """
     try:
-        found = capture_range(ecu, pid, name, param)
+        found = capture_range(ecu, pid, name, param, profile=active())
         if not found.captures:
             print(
                 f"    {ansi.DIM}(no captures for {ecu} {pid} yet — expression unverified){ansi.RESET}"
@@ -272,7 +272,7 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
 def _signal_exists(ecu: str, pid: str, name: str, pids_dir) -> bool:
     from canair.ecus.pids import load_pids_dir, load_raw_pids
 
-    data = load_pids_dir(pids_dir) if pids_dir else load_raw_pids()
+    data = load_pids_dir(pids_dir) if pids_dir else load_raw_pids(profile=active())
     ecu_def = next(
         (d for k, d in (data.get("ecus") or {}).items() if str(k).upper() == ecu.upper()), None
     )

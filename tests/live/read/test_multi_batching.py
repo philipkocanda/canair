@@ -21,6 +21,7 @@ from canair.live.read.batch import (
     transport_did_cap,
 )
 from canair.live.read.multi import _exec_query, _read_single
+from canair.profile import active
 from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 from canair.uds.multi_did import resolve_multi_did_max
 from tests.support.fakes import FakeTerminal
@@ -208,7 +209,17 @@ class TestBatchingExecutor:
 
         # Cycle 1: no known lengths yet → single reads that learn lengths.
         _l, r1 = asyncio.run(
-            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+            _exec_query(
+                sm,
+                "IGPM",
+                [],
+                idx,
+                {},
+                False,
+                return_results=True,
+                batch_state=bs,
+                profile=active(),
+            )
         )
         assert term.sent == ["22BC03", "22BC06"]
         assert bs.lengths[(0x770, "BC03")] == 8
@@ -218,7 +229,17 @@ class TestBatchingExecutor:
         # Cycle 2: lengths known → one batched request replaces two singles.
         term.sent.clear()
         _l, r2 = asyncio.run(
-            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+            _exec_query(
+                sm,
+                "IGPM",
+                [],
+                idx,
+                {},
+                False,
+                return_results=True,
+                batch_state=bs,
+                profile=active(),
+            )
         )
         assert term.sent == ["22BC03BC06"]
         got = {x["pid"]: x["raw_hex"] for x in r2}
@@ -235,7 +256,17 @@ class TestBatchingExecutor:
         idx = _igpm_index3()
 
         _l, r = asyncio.run(
-            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+            _exec_query(
+                sm,
+                "IGPM",
+                [],
+                idx,
+                {},
+                False,
+                return_results=True,
+                batch_state=bs,
+                profile=active(),
+            )
         )
         assert term.sent == ["22BC03BC04BC06"]  # one request for all three
         assert {x["pid"] for x in r} == {"22BC03", "22BC04", "22BC06"}
@@ -256,7 +287,17 @@ class TestBatchingExecutor:
         idx = _igpm_index3(max_dids=2)
 
         _l, r = asyncio.run(
-            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+            _exec_query(
+                sm,
+                "IGPM",
+                [],
+                idx,
+                {},
+                False,
+                return_results=True,
+                batch_state=bs,
+                profile=active(),
+            )
         )
         assert term.sent == ["22BC03BC04", "22BC06"]
         assert {x["pid"] for x in r} == {"22BC03", "22BC04", "22BC06"}
@@ -277,7 +318,17 @@ class TestBatchingExecutor:
         idx = _igpm_index3(max_dids=6)
 
         asyncio.run(
-            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+            _exec_query(
+                sm,
+                "IGPM",
+                [],
+                idx,
+                {},
+                False,
+                return_results=True,
+                batch_state=bs,
+                profile=active(),
+            )
         )
         # 7 data bytes = `22` + three DIDs, so the 6 asked for became 3.
         assert term.sent == ["22BC03BC04BC06"]
@@ -291,7 +342,15 @@ class TestBatchingExecutor:
 
         asyncio.run(
             _exec_query(
-                sm, "IGPM", [], _igpm_index(True), {}, False, return_results=True, batch_state=bs
+                sm,
+                "IGPM",
+                [],
+                _igpm_index(True),
+                {},
+                False,
+                return_results=True,
+                batch_state=bs,
+                profile=active(),
             )
         )
         assert term.sent == ["22BC03BC06"]
@@ -321,6 +380,7 @@ class TestBatchingExecutor:
                 False,
                 return_results=True,
                 batch_state=bs,
+                profile=active(),
             )
         )
         assert term.sent == ["22BC03BC06"]
@@ -348,6 +408,7 @@ class TestBatchingExecutor:
                 False,
                 return_results=True,
                 batch_state=bs,
+                profile=active(),
             )
         )
         names = [c[0] for c in term.calls]
@@ -365,7 +426,17 @@ class TestBatchingExecutor:
         idx = _igpm_index(multi_did=True)
 
         _l, r = asyncio.run(
-            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+            _exec_query(
+                sm,
+                "IGPM",
+                [],
+                idx,
+                {},
+                False,
+                return_results=True,
+                batch_state=bs,
+                profile=active(),
+            )
         )
         assert term.sent[0] == "22BC03BC06"  # batch attempted first
         assert 0x770 in bs.disabled  # then disabled
@@ -375,7 +446,17 @@ class TestBatchingExecutor:
         # Next cycle: batching stays disabled → straight to per-DID.
         term.sent.clear()
         asyncio.run(
-            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+            _exec_query(
+                sm,
+                "IGPM",
+                [],
+                idx,
+                {},
+                False,
+                return_results=True,
+                batch_state=bs,
+                profile=active(),
+            )
         )
         assert "22BC03BC06" not in term.sent
         assert set(term.sent) == {"22BC03", "22BC06"}
@@ -389,7 +470,17 @@ class TestBatchingExecutor:
         idx = _igpm_index(multi_did=False)  # ECU not opted in
 
         asyncio.run(
-            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+            _exec_query(
+                sm,
+                "IGPM",
+                [],
+                idx,
+                {},
+                False,
+                return_results=True,
+                batch_state=bs,
+                profile=active(),
+            )
         )
         assert term.sent == ["22BC03", "22BC06"]  # singles only
 
@@ -400,7 +491,9 @@ class TestBatchingExecutor:
         # No batch_state passed → single reads (the _exec_query API contract; the
         # one-shot pipeline now supplies a shared BatchState, tested via the
         # learn→batch case above).
-        asyncio.run(_exec_query(sm, "IGPM", [], idx, {}, False, return_results=True))
+        asyncio.run(
+            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, profile=active())
+        )
         assert term.sent == ["22BC03", "22BC06"]
 
 
@@ -411,14 +504,16 @@ class TestReadSingleEchoValidation:
     def test_service_21_passes_pid_echo(self):
         term = FakeTerminal({"2102": _ok("6102F8F8")})
         sm = _mk_sm(term.send_uds)
-        asyncio.run(_read_single(sm, 0x7E2, "2102", {"parameters": {}}, [], None))
+        asyncio.run(_read_single(sm, 0x7E2, "2102", {"parameters": {}}, [], None, profile=active()))
         assert term.uds_kwargs[0]["expected_sid"] == 0x21
         assert term.uds_kwargs[0]["expected_echo"] == b"\x02"
 
     def test_service_22_passes_did_echo(self):
         term = FakeTerminal({"22BC03": _ok("62BC0300")})
         sm = _mk_sm(term.send_uds)
-        asyncio.run(_read_single(sm, 0x770, "22BC03", {"parameters": {}}, [], None))
+        asyncio.run(
+            _read_single(sm, 0x770, "22BC03", {"parameters": {}}, [], None, profile=active())
+        )
         assert term.uds_kwargs[0]["expected_sid"] == 0x22
         assert term.uds_kwargs[0]["expected_echo"] == b"\xbc\x03"
 
@@ -435,7 +530,9 @@ class TestReadSingleEchoValidation:
             )
 
         sm = _mk_sm(send_uds)
-        result = asyncio.run(_read_single(sm, 0x7E2, "2102", {"parameters": {}}, [], None))
+        result = asyncio.run(
+            _read_single(sm, 0x7E2, "2102", {"parameters": {}}, [], None, profile=active())
+        )
         assert "error" in result
         assert "raw_hex" not in result  # not recorded as a valid payload
 
@@ -458,7 +555,9 @@ class TestLeakedBatchReply:
         term = FakeTerminal({"22BC03": _ok(MULTI)})
         bs = self._state()
         sm = _mk_sm(term.send_uds)
-        result = asyncio.run(_read_single(sm, 0x770, "22BC03", {"parameters": {}}, False, bs))
+        result = asyncio.run(
+            _read_single(sm, 0x770, "22BC03", {"parameters": {}}, False, bs, profile=active())
+        )
         assert "raw_hex" not in result
         assert "multi-DID batch reply" in result["error"]
         assert bs.lengths[(0x770, "BC03")] == 8  # not re-learned as the batch's length
@@ -476,6 +575,7 @@ class TestLeakedBatchReply:
                 False,
                 return_results=True,
                 batch_state=self._state(),
+                profile=active(),
             )
         )
         assert term.sent == ["22BC03BC06", "22BC03", "22BC06"]
@@ -487,7 +587,9 @@ class TestLeakedBatchReply:
         term = FakeTerminal({"22BC03": _ok(BC03_SINGLE)})
         sm = _mk_sm(term.send_uds)
         result = asyncio.run(
-            _read_single(sm, 0x770, "22BC03", {"parameters": {}}, False, BatchState())
+            _read_single(
+                sm, 0x770, "22BC03", {"parameters": {}}, False, BatchState(), profile=active()
+            )
         )
         assert result["raw_hex"] == BC03_SINGLE
 
@@ -495,7 +597,7 @@ class TestLeakedBatchReply:
         """Two cycles: the leak costs one reading once, not D1 and D2 every cycle."""
         events: list[tuple] = []
         monkeypatch.setattr(
-            "canair.live.read.exec.log_event",
+            "canair.live.read.exec_read.log_event",
             lambda cat, detail="", **kw: events.append((cat, detail, kw)),
         )
         replies = {"22BC03": [_ok(MULTI), _ok(BC03_SINGLE)], "22BC06": [_ok(BC06_SINGLE)] * 2}
@@ -510,7 +612,17 @@ class TestLeakedBatchReply:
         bs = self._state()
         idx = _igpm_index(multi_did=True)
         run = lambda: asyncio.run(  # noqa: E731
-            _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+            _exec_query(
+                sm,
+                "IGPM",
+                [],
+                idx,
+                {},
+                False,
+                return_results=True,
+                batch_state=bs,
+                profile=active(),
+            )
         )
 
         run()
@@ -529,11 +641,15 @@ class TestLeakedBatchReply:
     def test_the_leak_is_logged_as_a_stale_event(self, monkeypatch):
         events: list[tuple] = []
         monkeypatch.setattr(
-            "canair.live.read.exec.log_event",
+            "canair.live.read.exec_read.log_event",
             lambda cat, detail="", **kw: events.append((cat, detail, kw)),
         )
         sm = _mk_sm(FakeTerminal({"22BC03": _ok(MULTI)}).send_uds)
-        asyncio.run(_read_single(sm, 0x770, "22BC03", {"parameters": {}}, False, self._state()))
+        asyncio.run(
+            _read_single(
+                sm, 0x770, "22BC03", {"parameters": {}}, False, self._state(), profile=active()
+            )
+        )
         assert events == [
             ("stale", LEAKED_BATCH_ERROR, {"level": logging.INFO, "ecu": "0x770", "pid": "22BC03"})
         ]
@@ -554,14 +670,32 @@ class TestLeakedBatchReply:
         bs = BatchState()
         for _ in range(2):
             asyncio.run(
-                _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+                _exec_query(
+                    sm,
+                    "IGPM",
+                    [],
+                    idx,
+                    {},
+                    False,
+                    return_results=True,
+                    batch_state=bs,
+                    profile=active(),
+                )
             )
         assert bs.lengths == {(0x770, "BC03"): 8, (0x770, "BC06"): 8}
         assert term.sent[2] == "22BC03BC06"  # learned under the upper-case DID, then batched
 
         term = FakeTerminal({"22bc03": _ok(MULTI)})
         result = asyncio.run(
-            _read_single(_mk_sm(term.send_uds), 0x770, "22bc03", {"parameters": {}}, False, bs)
+            _read_single(
+                _mk_sm(term.send_uds),
+                0x770,
+                "22bc03",
+                {"parameters": {}},
+                False,
+                bs,
+                profile=active(),
+            )
         )
         assert result["error"] == LEAKED_BATCH_ERROR
 
@@ -574,7 +708,17 @@ class TestUnansweredBatches:
         idx = _igpm_index(multi_did=True)
         for _ in range(cycles):
             asyncio.run(
-                _exec_query(sm, "IGPM", [], idx, {}, False, return_results=True, batch_state=bs)
+                _exec_query(
+                    sm,
+                    "IGPM",
+                    [],
+                    idx,
+                    {},
+                    False,
+                    return_results=True,
+                    batch_state=bs,
+                    profile=active(),
+                )
             )
 
     def _state(self) -> BatchState:

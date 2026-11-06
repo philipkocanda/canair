@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from canair.profile import ProfileError, resolve_profile
+from canair.profile import ProfileError, active, resolve_profile
 
 LEGACY = {
     "date": "2026-10-21",
@@ -133,7 +133,7 @@ def _session(label: str, time: str = "10:00:00") -> dict:
 def _entries():
     from canair.captures.store import load_all_captures
 
-    return load_all_captures()
+    return load_all_captures(profile=active())
 
 
 class TestSessionEditorsRefuseTheBase:
@@ -185,7 +185,9 @@ class TestSessionEditorsBehaviour:
             "_notes_field",
             lambda: session_fields.SessionField("notes", "--set-notes", flaky),
         )
-        rc = session_fields.cmd_set_notes(load_all_captures(cdir), "x", assume_yes=True)
+        rc = session_fields.cmd_set_notes(
+            load_all_captures(cdir, profile=active()), "x", assume_yes=True
+        )
         assert rc == 1 and calls == [0, 1]
         captured = capsys.readouterr()
         assert "error: " in captured.err and "disk full" in captured.err
@@ -201,7 +203,7 @@ class TestSessionEditorsBehaviour:
         tty.isatty = lambda: True  # type: ignore[method-assign]
         monkeypatch.setattr("sys.stdin", tty)
         monkeypatch.setattr(sys.stdout, "isatty", lambda: True, raising=False)
-        assert session_fields.cmd_set_notes(load_all_captures(cdir), "x") == rc
+        assert session_fields.cmd_set_notes(load_all_captures(cdir, profile=active()), "x") == rc
         doc = json.loads((cdir / "2026-10-21.json").read_text())
         notes = [s.get("notes") for s in doc["sessions"]]
         assert notes == (["x", "x"] if written else [None, None])
@@ -222,7 +224,7 @@ class TestSessionEditorsBehaviour:
         from canair.cli.commands.captures.set_state import cmd_set_state
 
         cdir = self._store(tmp_path)
-        entries = load_all_captures(cdir)
+        entries = load_all_captures(cdir, profile=active())
         if editor == "state":
             rc = cmd_set_state(entries, value, assume_yes=True, as_json=True)
         else:

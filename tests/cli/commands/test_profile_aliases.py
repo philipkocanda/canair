@@ -21,7 +21,7 @@ import pytest
 from canair.captures.store import load_all_captures
 from canair.cli.commands.profile.listing import cmd_list as _cmd_list
 from canair.cli.commands.profile.use import cmd_use as _cmd_use
-from canair.profile import ProfileError, alias_index, resolve_profile, selectable_profiles
+from canair.profile import ProfileError, active, alias_index, resolve_profile, selectable_profiles
 from canair.profile.names import build_alias_index, convention_problem
 from canair.validation.profile_names import profile_name_findings
 
@@ -177,7 +177,10 @@ class TestOldNamedOverlay:
         from canair import profile as profile_mod
 
         profile_mod._active = resolve_profile(NEW)
-        assert {c["session_label"] for c in load_all_captures()} == {"upstream", "mine"}
+        assert {c["session_label"] for c in load_all_captures(profile=active())} == {
+            "upstream",
+            "mine",
+        }
 
     def test_the_old_name_resolves_through_it(self, env):
         _renamed(env)

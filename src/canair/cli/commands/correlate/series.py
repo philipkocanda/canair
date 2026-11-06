@@ -71,7 +71,7 @@ def _gather_series(
         one_revision="correlate" if want_bytes or want_bits else None,
         profile=active(),
     )
-    ecu_index = build_ecu_index(load_pids())
+    ecu_index = build_ecu_index(load_pids(profile=active()))
     series: dict = {}
     for (ecu, pid), lp in loaded.items():
         if not lp.captures:

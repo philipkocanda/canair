@@ -20,6 +20,7 @@ from canair.captures.store import (
     resolve_pid_defs,
 )
 from canair.cli.args.query import parse_canonical_query
+from canair.profile import active
 from canair.render import ansi
 
 
@@ -78,7 +79,7 @@ def _gather_query[R: Mapping[str, Any]](
     # Chronological order (date, then time within a session).
     matched.sort(key=lambda e: (str(e.get("date", "")), str(e.get("time", ""))))
 
-    ecu_index = load_ecu_index()
+    ecu_index = load_ecu_index(profile=active())
     defs: dict[tuple[str, str], PidDefs] = {}
     for e in matched:
         key = (e["ecu"].upper(), str(e["pid"]).upper())

@@ -25,7 +25,7 @@ from .ranges import parse_range, parse_ranges
 async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
     from canair.ecus.names import resolve_tx
 
-    tx_id = resolve_tx(args.tx)
+    tx_id = resolve_tx(args.tx, profile=active())
     if tx_id is None:
         messages.fail(
             f"could not resolve ECU '{args.tx}' (use a name like BMS or a hex TX id like 7E4)"
@@ -71,7 +71,7 @@ async def handle_routines_scan(
     # requestRoutineResults). KWP2000 ECUs (BMS/VCU/MCU/LDC/AAF) MUST NOT
     # receive 0x31 — there it means StartRoutineByLocalIdentifier (actuates);
     # they use the read-only 0x33 RequestRoutineResultsByLocalIdentifier.
-    uds_ecus, kwp_ecus = split_ecus_by_protocol(args.routines_scan)
+    uds_ecus, kwp_ecus = split_ecus_by_protocol(args.routines_scan, profile=active())
 
     _session = getattr(args, "session", False)
     _wake = getattr(args, "wake", False)
@@ -132,7 +132,7 @@ async def handle_iocontrol_scan(
     # Auto-select the service by the ECU's identity protocol: KWP2000 ECUs
     # (BMS/VCU/MCU/LDC/AAF) use IOControlByLocalIdentifier (0x30); the rest
     # use UDS IOControlByIdentifier (0x2F).
-    uds_ecus, kwp_ecus = split_ecus_by_protocol(args.iocontrol_scan)
+    uds_ecus, kwp_ecus = split_ecus_by_protocol(args.iocontrol_scan, profile=active())
 
     _session = getattr(args, "session", False)
     _wake = getattr(args, "wake", False)

@@ -445,7 +445,7 @@ def _write_captures(tmp_path) -> list[dict]:
         tmp_path,
         profile=active(),
     )
-    return load_all_captures(tmp_path)
+    return load_all_captures(tmp_path, profile=active())
 
 
 class TestCmdStep:
@@ -953,7 +953,7 @@ def _jump_model(**kw) -> StepModel:
     keys = kw.pop("keys", [("HVAC", "220100")])
     defs = dict.fromkeys({(e["ecu"], str(e["pid"])) for e in entries} | set(keys), (PARAMS, 0x7B3))
     kw.setdefault("captures_dir", None)
-    return StepModel.from_entries(entries, keys, defs, **kw)
+    return StepModel.from_entries(entries, keys, defs, profile=active(), **kw)
 
 
 class TestJumpTargets:
@@ -1012,7 +1012,7 @@ class TestJumpTargets:
         defs = dict.fromkeys(
             {(e["ecu"], str(e["pid"])) for e in entries} | set(keys), (PARAMS, 0x7B3)
         )
-        m = StepModel.from_entries(entries, keys, defs)
+        m = StepModel.from_entries(entries, keys, defs, profile=active())
         row = next(t for t in m.jump_targets().rows if t.is_note and "first line" in t.label)
         assert row.label == "first line second line"
 
@@ -1082,7 +1082,9 @@ class TestJumpBlocking:
             )
         ]
         keys = [("HVAC", "220100")]
-        m = StepModel.from_entries(entries, keys, {keys[0]: (PARAMS, 0x7B3)}, captures_dir=None)
+        m = StepModel.from_entries(
+            entries, keys, {keys[0]: (PARAMS, 0x7B3)}, captures_dir=None, profile=active()
+        )
         sessions = [t.session for t in m.jump_targets().rows if not t.is_note]
         assert len(sessions) == 2 and len(set(sessions)) == 2
         m.seek_session(("/base/captures/2026-08-01.json", 0))
@@ -1130,7 +1132,7 @@ class TestSeek:
         defs = dict.fromkeys(
             {(e["ecu"], str(e["pid"])) for e in entries} | set(keys), (PARAMS, 0x7B3)
         )
-        m = StepModel.from_entries(entries, keys, defs)
+        m = StepModel.from_entries(entries, keys, defs, profile=active())
         ref = ("2026-08-01.json", 0, 2)
         assert ref not in m._at  # deduped away
         msg = m.seek_capture(ref, ("HVAC", "220100"))
@@ -1162,7 +1164,9 @@ class TestEmptyReason:
         and a nonsensical 'frame 1/0'."""
         entries = [e for e in _jump_entries() if e["file"] == "2026-07-01.json"]
         keys = [("HVAC", "220100")]
-        m = StepModel.from_entries(entries, keys, dict.fromkeys(keys, (PARAMS, 0x7B3)))
+        m = StepModel.from_entries(
+            entries, keys, dict.fromkeys(keys, (PARAMS, 0x7B3)), profile=active()
+        )
         assert m.is_empty()
         assert m.captures and m.n_no_time == 1
         assert "untimed" in m.empty_reason()

@@ -154,8 +154,12 @@ class _Pressed:
 
 class TestSweep:
     def _registry(self, monkeypatch, tx_ids):
-        monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda: {tx: {} for tx in tx_ids})
-        monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr(
+            "canair.ecus.registry.load_ecus", lambda *_, **__: {tx: {} for tx in tx_ids}
+        )
+        monkeypatch.setattr(
+            "canair.live.dtc.reading.resolve_protocol", lambda proto, tx, **__: "uds"
+        )
 
     @pytest.mark.asyncio
     async def test_snapshots_are_a_final_step(self, monkeypatch, capsys):
@@ -276,7 +280,7 @@ def _ccm_pids(monkeypatch):
 
     pids = build_ecu_index(PIDS_DATA)["CCM"]["pids"]
     monkeypatch.setattr(
-        "canair.dtc.snapshot_decode.ecu_pids_index", lambda ecu: pids if ecu == "CCM" else {}
+        "canair.dtc.snapshot_decode.ecu_pids_index", lambda ecu, **__: pids if ecu == "CCM" else {}
     )
 
 
@@ -314,7 +318,7 @@ class TestLog:
             )
         capsys.readouterr()
         first, second = dtc_log.load_log(logp)["scans"]
-        text = "\n".join(dtc_log.render_scan(second, first))
+        text = "\n".join(dtc_log.render_scan(second, first, profile=active()))
         assert "snapshot 02  DID 4710" in text
         assert "SNAP_PROGRESS_BYTE  54 raw" in text
         assert f"snapshots unchanged since the scan of {first['timestamp']}" in text
@@ -332,7 +336,9 @@ class TestClear:
         from canair.dtc import log as dtc_log
 
         t = FakeTerminal({**CCM_REPLIES, "14FFFFFF": _ok("54")})
-        await dtc.mode_dtc_clear(t, CCM, protocol="uds", log=True, pids_data=PIDS_DATA)
+        await dtc.mode_dtc_clear(
+            t, CCM, protocol="uds", log=True, pids_data=PIDS_DATA, profile=active()
+        )
         assert t.sent == ["1902FF", "1903", "1904582C0001", "1904582C0002", "14FFFFFF"]
         (clear,) = dtc_log.load_log(logp)["clears"]
         assert [r["record"] for r in clear["snapshots"]["C182C-00"]] == [1, 2]
@@ -344,17 +350,19 @@ class TestClear:
 
         _ccm_pids(monkeypatch)
         t = FakeTerminal({**CCM_REPLIES, "14FFFFFF": _ok("54")})
-        await dtc.mode_dtc_clear(t, CCM, protocol="uds", log=True, pids_data=PIDS_DATA)
+        await dtc.mode_dtc_clear(
+            t, CCM, protocol="uds", log=True, pids_data=PIDS_DATA, profile=active()
+        )
         clears = dtc_log.load_log(logp)["clears"]
         scan = dtc_log.build_scan("0x73B", {"0x73B": {"dtcs": []}}, timestamp="2999-01-01T00:00")
-        text = "\n".join(dtc_log.render_scan(scan, None, clears))
+        text = "\n".join(dtc_log.render_scan(scan, None, clears, profile=active()))
         assert "Snapshots erased by the clear" in text and "SNAP_EV_READY" in text
 
     @pytest.mark.asyncio
     async def test_json_reports_the_erased_snapshots(self, logp, capsys):
         t = FakeTerminal({**CCM_REPLIES, "14FFFFFF": _ok("54")})
         await dtc.mode_dtc_clear(
-            t, CCM, protocol="uds", log=True, as_json=True, pids_data=PIDS_DATA
+            t, CCM, protocol="uds", log=True, as_json=True, pids_data=PIDS_DATA, profile=active()
         )
         data = json.loads(capsys.readouterr().out)
         assert list(data["erased_snapshots"]) == ["C182C-00"]
@@ -362,7 +370,9 @@ class TestClear:
     @pytest.mark.asyncio
     async def test_without_snapshots_the_clear_reads_only_the_codes(self, logp):
         t = FakeTerminal({**CCM_REPLIES, "14FFFFFF": _ok("54")})
-        await dtc.mode_dtc_clear(t, CCM, protocol="uds", log=True, snapshots=False)
+        await dtc.mode_dtc_clear(
+            t, CCM, protocol="uds", log=True, snapshots=False, profile=active()
+        )
         assert t.sent == ["1902FF", "14FFFFFF"]
 
 

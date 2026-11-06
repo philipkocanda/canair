@@ -9,6 +9,7 @@ RX↔TX lookups all honor it (see plans/2026-07-28-multi-vehicle-support.md).
 from canair.ecus.names import resolve_tx
 from canair.ecus.pids import build_ecu_index
 from canair.ecus.registry import build_rx_index, build_rx_tx_index, rx_for_tx
+from canair.profile import active
 from canair.uds.addressing import (
     DEFAULT_RX_OFFSET,
     DEFAULT_TESTER_ADDRESS,
@@ -95,27 +96,27 @@ class TestRxLookupsHonorResolution:
 
     def test_rx_for_tx_known(self):
         ecus = self._ecus()
-        assert rx_for_tx(0x704, ecus) == 0x784
-        assert rx_for_tx(0x7E4, ecus) == 0x7EC
+        assert rx_for_tx(0x704, ecus, profile=active()) == 0x784
+        assert rx_for_tx(0x7E4, ecus, profile=active()) == 0x7EC
 
     def test_rx_for_tx_unknown_uses_offset(self):
-        assert rx_for_tx(0x750, {}, rx_offset=0x80) == 0x7D0
-        assert rx_for_tx(0x750, {}) == 0x758  # default +8
+        assert rx_for_tx(0x750, {}, rx_offset=0x80, profile=active()) == 0x7D0
+        assert rx_for_tx(0x750, {}, profile=active()) == 0x758  # default +8
 
     def test_build_rx_index(self):
-        idx = build_rx_index(self._ecus())
+        idx = build_rx_index(self._ecus(), profile=active())
         assert idx == {0x7EC: "BMS", 0x784: "VCU"}
 
     def test_build_rx_tx_index(self):
-        idx = build_rx_tx_index(self._ecus())
+        idx = build_rx_tx_index(self._ecus(), profile=active())
         assert idx == {0x7EC: 0x7E4, 0x784: 0x704}
 
     def test_resolve_tx_from_nonstandard_rx(self):
         ecus = self._ecus()
         # 0x784 is VCU's response addr -> resolves back to its TX 0x704.
-        assert resolve_tx("0x784", name_index={}, ecus=ecus) == 0x704
+        assert resolve_tx("0x784", name_index={}, ecus=ecus, profile=active()) == 0x704
         # A known TX passes straight through.
-        assert resolve_tx("0x704", name_index={}, ecus=ecus) == 0x704
+        assert resolve_tx("0x704", name_index={}, ecus=ecus, profile=active()) == 0x704
 
 
 class TestAddressingMode:

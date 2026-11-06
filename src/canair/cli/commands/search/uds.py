@@ -52,7 +52,7 @@ def _definition_findings(needle: Needle, ecus_filter: set[str] | None) -> list[F
     if needle.text is None:
         return []
     try:
-        ecus = load_pids().get("ecus") or {}
+        ecus = load_pids(profile=active()).get("ecus") or {}
     except (OSError, yaml.YAMLError) as e:
         # The captures were searched already; one unreadable definition file should
         # cost the --defs part of the answer, loudly, not the whole of it.
@@ -112,7 +112,7 @@ def run(args) -> int:
         return _error(str(e))
 
     entries = filter_by_text(
-        filter_by_date_range(load_all_captures(), since, until),
+        filter_by_date_range(load_all_captures(profile=active()), since, until),
         state=args.state,
         label=args.label,
         profile=active(),

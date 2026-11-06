@@ -15,6 +15,7 @@ import json
 import sys
 
 from canair.privacy.sensitive import MASK, request_hidden
+from canair.profile import Profile
 from canair.render import ansi
 from canair.render.paint import Painter
 from canair.uds.echo import request_echo
@@ -74,6 +75,8 @@ async def mode_identity(
     wake: bool,
     as_json: bool,
     protocol: str = "auto",
+    *,
+    profile: Profile,
 ):
     """Query identity DIDs/records from an ECU across UDS and KWP2000."""
     paint = Painter(sys.stdout)
@@ -85,7 +88,7 @@ async def mode_identity(
         _, tester_task = await terminal.enter_extended_session(wake=wake)
 
     try:
-        resolved = resolve_protocol_hint(tx_id, protocol)
+        resolved = resolve_protocol_hint(tx_id, protocol, profile=profile)
         probe_reason = None
         if resolved is None:
             resolved, probe_reason = await _probe_protocol(terminal)
@@ -94,7 +97,10 @@ async def mode_identity(
             fam = ""
             if resolved:
                 fam = "UDS (22 F1xx)" if resolved == UDS else "KWP2000 (1A 8x/9x)"
-            print(f"\n  {paint(ecu_display(tx_id), ansi.raw.BOLD + ansi.raw.CYAN)}", end="")
+            print(
+                f"\n  {paint(ecu_display(tx_id, profile=profile), ansi.raw.BOLD + ansi.raw.CYAN)}",
+                end="",
+            )
             print(paint(f" · identity · {fam}" if fam else " · identity", ansi.raw.DIM))
             if resolved and probe_reason:
                 print(paint(f"  {probe_reason}", ansi.raw.DIM))
@@ -103,7 +109,15 @@ async def mode_identity(
         if resolved is None:
             msg = probe_reason or "could not determine identity protocol"
             if as_json:
-                print(json.dumps({"ecu": ecu_display(tx_id), "protocol": None, "results": []}))
+                print(
+                    json.dumps(
+                        {
+                            "ecu": ecu_display(tx_id, profile=profile),
+                            "protocol": None,
+                            "results": [],
+                        }
+                    )
+                )
             else:
                 print(f"  No identity data: {msg}.")
                 if "asleep" in msg:
@@ -130,7 +144,7 @@ async def mode_identity(
                 payload = response["bytes"][offset:]
                 decoded = decode_identity_payload(payload, fmt)
                 raw_hex = payload.hex().upper()
-                if request_hidden(tx_id, f"{prefix}{did_hex}"):
+                if request_hidden(tx_id, f"{prefix}{did_hex}", profile=profile):
                     decoded = raw_hex = MASK
                 if as_json:
                     results.append(
@@ -161,7 +175,7 @@ async def mode_identity(
             revision = None
         if as_json:
             out = {
-                "ecu": ecu_display(tx_id),
+                "ecu": ecu_display(tx_id, profile=profile),
                 "protocol": resolved,
                 "summary": {
                     "ok": n_ok,

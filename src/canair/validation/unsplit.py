@@ -10,6 +10,7 @@ from pathlib import Path
 
 from canair.analysis.unsplit_batches import UnsplitBatch, find_unsplit_batches
 from canair.captures.payload_corpus import PayloadCorpus, load_payload_corpus
+from canair.profile import Profile
 
 from .report import CaptureWarning
 
@@ -26,6 +27,8 @@ def unsplit_batch_warnings(
     files: list[Path],
     names: dict[int, str] | None = None,
     corpus: PayloadCorpus | None = None,
+    *,
+    profile: Profile,
 ) -> dict[Path, list[CaptureWarning]]:
     """Per-file warnings for service-22 captures that hold a whole multi-DID reply.
 
@@ -34,7 +37,7 @@ def unsplit_batch_warnings(
     if names is None:
         from canair.ecus.registry import build_rx_index
 
-        names = build_rx_index()
+        names = build_rx_index(profile=profile)
     if corpus is None:
         corpus = load_payload_corpus(files)
     out: dict[Path, list[CaptureWarning]] = {}

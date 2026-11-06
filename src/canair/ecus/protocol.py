@@ -4,10 +4,13 @@ from collections.abc import Mapping
 
 from canair.ecus.names import resolve_tx
 from canair.ecus.registry import EcuRegistryEntry, load_ecus
+from canair.profile import Profile
 from canair.uds.protocol import KWP, DiagProtocol, classify_protocol
 
 
-def ecu_protocol(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> DiagProtocol:
+def ecu_protocol(
+    tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None, *, profile: Profile
+) -> DiagProtocol:
     """The diagnostic protocol the registry records for a TX ID.
 
     :data:`~canair.uds.protocol.UNKNOWN` when the ECU is not in the registry or its
@@ -15,12 +18,12 @@ def ecu_protocol(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None)
     :func:`~canair.uds.protocol.classify_protocol`.
     """
     if ecus is None:
-        ecus = load_ecus()
+        ecus = load_ecus(profile)
     info = ecus.get(tx_id)
     return classify_protocol(info.get("id_protocol") if info else None)
 
 
-def split_ecus_by_protocol(names: list[str]) -> tuple[list[str], list[str]]:
+def split_ecus_by_protocol(names: list[str], *, profile: Profile) -> tuple[list[str], list[str]]:
     """Partition ECU names into (uds, kwp) by their registry ``id_protocol``.
 
     KWP2000 ECUs (BMS/VCU/MCU/LDC/AAF) need the KWP variants of the discovery
@@ -37,8 +40,8 @@ def split_ecus_by_protocol(names: list[str]) -> tuple[list[str], list[str]]:
     uds: list[str] = []
     kwp: list[str] = []
     for name in names:
-        tx_id = resolve_tx(name)
-        if tx_id is not None and ecu_protocol(tx_id) == KWP:
+        tx_id = resolve_tx(name, profile=profile)
+        if tx_id is not None and ecu_protocol(tx_id, profile=profile) == KWP:
             kwp.append(name)
         else:
             uds.append(name)

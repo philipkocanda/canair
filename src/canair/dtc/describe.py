@@ -16,6 +16,8 @@ annotate each decoded record, naming the ECU that reported it.
 
 from __future__ import annotations
 
+from canair.profile import Profile
+
 from .failure_types import FAILURE_TYPE
 
 CATEGORY = {
@@ -58,7 +60,9 @@ def dtc_kind(letter: str, first_digit: int | None) -> str:
     }.get(first_digit, "unknown")
 
 
-def describe_dtc(code: str, defs: dict | None = None, *, ecu: str | None = None) -> dict:
+def describe_dtc(
+    code: str, defs: dict | None = None, *, ecu: str | None = None, profile: Profile
+) -> dict:
     """Return an interpretation of a formatted DTC string.
 
     Accepts ``"B2915-00"`` (UDS, with failure-type byte) or ``"P0420"`` (KWP /
@@ -78,7 +82,7 @@ def describe_dtc(code: str, defs: dict | None = None, *, ecu: str | None = None)
     for ``ecu`` (pass ``{}`` for none).
     """
     if defs is None:
-        defs = profile_dtc_defs(ecu)
+        defs = profile_dtc_defs(ecu, profile=profile)
     profile_dtcs = defs.get("dtcs", {})
 
     code = (code or "").strip().upper()
@@ -119,7 +123,7 @@ def describe_dtc(code: str, defs: dict | None = None, *, ecu: str | None = None)
     }
 
 
-def profile_dtc_defs(ecu: str | None = None) -> dict:
+def profile_dtc_defs(ecu: str | None = None, *, profile: Profile) -> dict:
     """The active profile's DTC meanings for ``ecu``, or {} if unavailable.
 
     ``dtcs`` is the profile-wide ``dtcs:`` (in ``profile.yaml``, for codes that mean the
@@ -129,7 +133,7 @@ def profile_dtc_defs(ecu: str | None = None) -> dict:
     each ECU's entry, and the profile-wide one — agrees: otherwise the answer would
     depend on which unit reported it.
     """
-    index = _profile_dtc_index()
+    index = _profile_dtc_index(profile=profile)
     if not index:
         return {}
     shared, by_ecu = index
@@ -172,13 +176,13 @@ def _codes(dtcs: object) -> dict[str, object]:
     return {str(code).upper(): e for code, e in dtcs.items()} if isinstance(dtcs, dict) else {}
 
 
-def _profile_dtc_index() -> _DtcIndex | None:
+def _profile_dtc_index(profile: Profile) -> _DtcIndex | None:
     """``(profile-wide {code: entry}, {ECU: {code: entry}})`` for the active profile."""
     global _index_cache
     try:
         from canair.ecus.pids import load_pids
 
-        data = load_pids()
+        data = load_pids(profile=profile)
     except Exception:
         return None
     if _index_cache is not None and _index_cache[0] is data:

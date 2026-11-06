@@ -47,6 +47,7 @@ from typing import TYPE_CHECKING
 from canair.captures.types import CaptureRecord
 from canair.ecus.protocol import ecu_protocol
 from canair.ecus.registry import EcuRegistryEntry, rx_addr_str, rx_for_tx
+from canair.profile import Profile
 from canair.uds.isotp_passive import ReassemblyStats, reassemble
 from canair.uds.multi_did import split_chain
 from canair.uds.nrc import is_response_pending, nrc_description
@@ -144,10 +145,11 @@ def extract_replies(
     ecus: Mapping[int, EcuRegistryEntry],
     *,
     keep_negative: bool = False,
+    profile: Profile,
 ) -> Extraction:
     """Find every data-read reply in ``frames`` from an ECU in ``ecus`` (keyed by TX id)."""
     result = Extraction()
-    rx_to_tx = {rx_for_tx(tx, ecus): tx for tx in ecus}
+    rx_to_tx = {rx_for_tx(tx, ecus, profile=profile): tx for tx in ecus}
     outstanding: dict[tuple[int | str | None, int], _Outstanding] = {}
 
     # Losses are tallied on the reply ids only: a request lost on its way to the ECU
@@ -205,13 +207,19 @@ def extract_replies(
                 result.negatives_skipped += 1
                 continue
             pid = f"{request.service:02X}{request.first_id.hex().upper()}"
-            protocol = ecu_protocol(tx, ecus)
+            protocol = ecu_protocol(tx, ecus, profile=profile)
             notes = f"NRC 0x{payload[2]:02X} {nrc_description(payload[2], protocol)}"
         else:
             result.other_services[sid] += 1
             continue
         result.replies.append(
-            ExtractedReply(msg.timestamp, rx_addr_str(tx, ecus), pid, payload.hex().upper(), notes)
+            ExtractedReply(
+                msg.timestamp,
+                rx_addr_str(tx, ecus, profile=profile),
+                pid,
+                payload.hex().upper(),
+                notes,
+            )
         )
     return result
 

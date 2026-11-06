@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from canair.profile import Profile
 from canair.render import ansi
 from canair.render.formatting import format_value
 
@@ -48,13 +49,13 @@ def _did_lines(did: Mapping[str, Any], indent: str) -> list[str]:
     return out
 
 
-def undefined_hints(results: Iterable[Mapping[str, Any]]) -> list[str]:
+def undefined_hints(results: Iterable[Mapping[str, Any]], *, profile: Profile) -> list[str]:
     """One "define it" hint per snapshot DID the profile has no signals for."""
     from canair.ecus.names import ecu_name
 
     seen: dict[tuple[str, str], int] = {}
     for result in results:
-        ecu = ecu_name(int(result["tx"], 16))
+        ecu = ecu_name(int(result["tx"], 16), profile=profile)
         for code in result.get("dtcs") or ():
             for snap in code.get("snapshots") or ():
                 for did in snap.get("dids") or ():
@@ -82,6 +83,8 @@ def logged_lines(
     indent: str,
     previous: Mapping[str, Any] | None = None,
     previous_records: list[Mapping[str, Any]] | None = None,
+    *,
+    profile: Profile,
 ) -> list[str]:
     """A logged code's snapshots, decoded now, noting when the previous scan read the same."""
     if not records:
@@ -92,7 +95,9 @@ def logged_lines(
     if previous is not None and _replies(previous_records) == _replies(records):
         stamp = previous.get("timestamp", "?")
         lines.append(f"{indent}{ansi.DIM}snapshots unchanged since the scan of {stamp}{ansi.RESET}")
-    return lines + snapshot_lines({"snapshots": decode_logged(ecu, list(records))}, indent)
+    return lines + snapshot_lines(
+        {"snapshots": decode_logged(ecu, list(records), profile=profile)}, indent
+    )
 
 
 def _replies(records: Iterable[Mapping[str, Any]] | None) -> list[tuple[Any, str]]:

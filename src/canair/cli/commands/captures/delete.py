@@ -15,6 +15,7 @@ from canair.captures.store import entry_path
 from canair.captures.types import CaptureEntry
 from canair.cli.args.query import parse_canonical_query
 from canair.core.prompt import confirm
+from canair.profile import active
 from canair.render import ansi, messages
 from canair.render.paint import Painter
 
@@ -92,7 +93,11 @@ def cmd_delete(
         print("  (--dry-run: nothing deleted)", file=out)
         return 0
 
-    if blocked := layers.refusal((entry_path(e, captures_dir) for e in matched), "deleted"):
+    if blocked := layers.refusal(
+        (entry_path(e, captures_dir, profile=active()) for e in matched),
+        "deleted",
+        profile=active(),
+    ):
         print(blocked, file=sys.stderr)
         return 1
 
@@ -109,13 +114,17 @@ def cmd_delete(
     deleted = 0
     for e in to_delete:
         try:
-            target = entry_path(e, captures_dir)
+            target = entry_path(e, captures_dir, profile=active())
             delete_capture(target, e["_session_idx"], e["_capture_idx"])
             deleted += 1
         except Exception as ex:  # keep going; report the failure
             messages.error(f"{e.get('file', '?')} {e.get('ecu', '?')} {e.get('pid', '?')}: {ex}")
 
-    echo_write(f"Deleted {deleted} capture(s)", (entry_path(e, captures_dir) for e in matched), out)
+    echo_write(
+        f"Deleted {deleted} capture(s)",
+        (entry_path(e, captures_dir, profile=active()) for e in matched),
+        out,
+    )
     if as_json:
         print(_json.dumps([_row(e) for e in matched], indent=2))
     return 0 if deleted == len(matched) else 1

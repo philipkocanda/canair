@@ -315,7 +315,7 @@ def discover_signal_specs(
     scan/probe reads and untimed legacy captures can't take part in a time join,
     so including them would offer the caller specs that always yield zero samples.
     """
-    entries = load_all_captures(captures_dir)
+    entries = load_all_captures(captures_dir, profile=profile)
     entries = filter_by_date_range(entries, since, until)
     entries = filter_by_text(entries, state=state, label=label, profile=profile)
 
@@ -370,7 +370,7 @@ def load_signal_captures(
     wanted = {(e.upper(), str(p).upper()) for e, p in specs}
     result: dict[tuple[str, str], LoadedPid] = {}
 
-    entries = load_all_captures(captures_dir)
+    entries = load_all_captures(captures_dir, profile=profile)
     entries = filter_by_date_range(entries, since, until)
     entries = filter_by_text(entries, state=state, label=label, profile=profile)
     if one_revision:

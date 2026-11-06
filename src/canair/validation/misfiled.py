@@ -12,6 +12,7 @@ from pathlib import Path
 from canair.analysis.misfiled import Misfile, find_misfiled
 from canair.captures.payload_corpus import PayloadCorpus, load_payload_corpus
 from canair.ecus.registry import build_rx_index, load_ecus, rx_for_tx
+from canair.profile import Profile
 
 from .report import CaptureWarning
 
@@ -36,7 +37,7 @@ def _message(m: Misfile, names: dict[int, str]) -> str:
     )
 
 
-def legacy_rx_aliases(ecus) -> dict[int, int]:
+def legacy_rx_aliases(ecus, *, profile: Profile) -> dict[int, int]:
     """``legacy rx -> current rx`` for ECUs whose history may sit under ``TX + 0x08``.
 
     Before the profile ``addressing:`` block was honoured everywhere, a save could record
@@ -47,10 +48,10 @@ def legacy_rx_aliases(ecus) -> dict[int, int]:
     """
     from canair.uds.addressing import DEFAULT_RX_OFFSET
 
-    current = {rx_for_tx(tx, ecus) for tx in ecus}
+    current = {rx_for_tx(tx, ecus, profile=profile) for tx in ecus}
     out: dict[int, int] = {}
     for tx in ecus:
-        legacy, rx = tx + DEFAULT_RX_OFFSET, rx_for_tx(tx, ecus)
+        legacy, rx = tx + DEFAULT_RX_OFFSET, rx_for_tx(tx, ecus, profile=profile)
         if legacy != rx and legacy not in current:
             out[legacy] = rx
     return out
@@ -61,6 +62,8 @@ def misfile_warnings(
     names: dict[int, str] | None = None,
     corpus: PayloadCorpus | None = None,
     same_ecu: Mapping[int, int] | None = None,
+    *,
+    profile: Profile,
 ) -> dict[Path, list[CaptureWarning]]:
     """Per-file warnings for captures that look like another ECU's reply.
 
@@ -70,10 +73,10 @@ def misfile_warnings(
     the caller shares one load across several cross-file checks.
     """
     if names is None:
-        ecus = load_ecus()
-        names = build_rx_index(ecus)
+        ecus = load_ecus(profile=profile)
+        names = build_rx_index(ecus, profile=profile)
         if same_ecu is None:
-            same_ecu = legacy_rx_aliases(ecus)
+            same_ecu = legacy_rx_aliases(ecus, profile=profile)
     if corpus is None:
         corpus = load_payload_corpus(files)
     out: dict[Path, list[CaptureWarning]] = {}

@@ -21,6 +21,7 @@ import asyncio
 import pytest
 
 from canair.live.actuate.iocontrol_actuate import IOControlActuator
+from canair.profile import active
 
 ON_CMD = "2FBC0103"
 OFF_CMD = "2FBC0100"
@@ -606,7 +607,11 @@ class TestTuiProtocol:
         from canair.live.actuate.iocontrol import mode_iocontrol_tui
 
         with pytest.raises(SystemExit) as exc:
-            asyncio.run(mode_iocontrol_tui(FakeTerminal(), self.KWP_DATA, "BCM", poll=True))  # type: ignore[arg-type]
+            asyncio.run(
+                mode_iocontrol_tui(
+                    FakeTerminal(), self.KWP_DATA, "BCM", poll=True, profile=active()
+                )
+            )  # type: ignore[arg-type]
         assert exc.value.code == 2
         assert "no BCM entry has one" in capsys.readouterr().err
 
@@ -615,7 +620,7 @@ class TestTuiProtocol:
         from canair.live.actuate.iocontrol import _IOControlTUI
 
         entry = build_iocontrol_index(self.KWP_DATA, include_discoveries=True)["BCM"]
-        tui = _IOControlTUI(FakeTerminal(), "BCM", entry, self.KWP_DATA)  # type: ignore[arg-type]
+        tui = _IOControlTUI(FakeTerminal(), "BCM", entry, self.KWP_DATA, profile=active())  # type: ignore[arg-type]
         assert tui.protocol == "kwp"
         assert tui.actuator.is_kwp()
 

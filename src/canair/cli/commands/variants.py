@@ -162,7 +162,7 @@ def cmd_set_revisions(args) -> int:
     revs = [r.strip() for part in args.revisions for r in part.split(",") if r.strip()]
     if args.clear == bool(revs):
         raise EditError("give the revisions, or --clear")
-    ecus = load_raw_pids().get("ecus") or {}
+    ecus = load_raw_pids(profile=active()).get("ecus") or {}
     ecu = canonical_ecu(args.ecu, ecus)
     if ecu is None:
         raise EditError(f"no ECU {args.ecu!r} in ecus/")

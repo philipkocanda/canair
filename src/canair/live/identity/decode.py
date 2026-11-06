@@ -11,6 +11,7 @@ way); this module re-exports ``decode_date`` and layers the identity-specific
 """
 
 from canair.expression.decode_value import bytes_to_ascii, decode_date
+from canair.profile import Profile
 from canair.uds.nrc import NOT_IN_ACTIVE_SESSION_NRCS, NRC_SERVICE_NOT_SUPPORTED
 from canair.uds.protocol import KWP, UDS, UNKNOWN
 from canair.uds.response import UdsResponse
@@ -50,7 +51,7 @@ def decode_identity_payload(payload_bytes: bytes, fmt: str) -> str:
     return bytes_to_ascii(stripped)
 
 
-def resolve_protocol_hint(tx_id: int, requested: str) -> str | None:
+def resolve_protocol_hint(tx_id: int, requested: str, *, profile: Profile) -> str | None:
     """Resolve the requested/registry protocol to ``"uds"``/``"kwp"``/``None``.
 
     ``requested`` is the user's ``--protocol`` (``auto``/``uds``/``kwp``).
@@ -59,7 +60,7 @@ def resolve_protocol_hint(tx_id: int, requested: str) -> str | None:
     requested = (requested or "auto").lower()
     if requested in (UDS, KWP):
         return requested
-    hint = ecu_protocol(tx_id)
+    hint = ecu_protocol(tx_id, profile=profile)
     return None if hint == UNKNOWN else hint  # "none"/"unknown"/missing -> probe
 
 

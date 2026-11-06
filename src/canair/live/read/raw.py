@@ -76,7 +76,7 @@ async def mode_raw(
 
     try:
         response = await terminal.send_uds(service_pid, retries=1)
-        hidden = response["ok"] and request_hidden(tx_id, service_pid)
+        hidden = response["ok"] and request_hidden(tx_id, service_pid, profile=profile)
 
         if as_json:
             print_json_result(masked_response(response) if hidden else response)
@@ -144,13 +144,13 @@ def _save_raw(
     from ...ecus.names import ecu_name
     from ...ecus.registry import rx_addr_str
 
-    ecu = ecu_name(tx_id)
+    ecu = ecu_name(tx_id, profile=profile)
     suggested = suggest_raw_label(ecu, request)
     meta = resolve_metadata(label, vehicle_states, notes, suggested_label=suggested)
     if meta:
         label, vehicle_states, notes = meta
         session_dict = build_raw_session(
-            ecu_ref=rx_addr_str(tx_id),
+            ecu_ref=rx_addr_str(tx_id, profile=profile),
             tx_id=tx_id,
             request=request,
             response=response,

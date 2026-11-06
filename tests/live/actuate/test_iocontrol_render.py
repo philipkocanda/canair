@@ -10,6 +10,7 @@ from canair.ecus.pids import build_iocontrol_index, build_routines_index
 from canair.live.actuate.iocontrol import _IOControlTUI, _log_file
 from canair.live.actuate.routines import _log_file as _routines_log_file
 from canair.live.actuate.routines import _RoutinesTUI
+from canair.profile import active
 
 DATA = {
     "ecus": {
@@ -35,12 +36,12 @@ DATA = {
 
 def _io_tui() -> _IOControlTUI:
     info = build_iocontrol_index(DATA, include_discoveries=True)["IGPM"]
-    return _IOControlTUI(object(), "IGPM", info, pids_data=DATA)  # type: ignore[arg-type]
+    return _IOControlTUI(object(), "IGPM", info, pids_data=DATA, profile=active())  # type: ignore[arg-type]
 
 
 def _routines_tui() -> _RoutinesTUI:
     info = build_routines_index(DATA)["IGPM"]
-    return _RoutinesTUI(object(), "IGPM", info, pids_data=DATA)  # type: ignore[arg-type]
+    return _RoutinesTUI(object(), "IGPM", info, pids_data=DATA, profile=active())  # type: ignore[arg-type]
 
 
 @pytest.fixture(params=["io", "routines"])

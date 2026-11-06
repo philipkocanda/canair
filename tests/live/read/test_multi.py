@@ -34,34 +34,34 @@ class TestResolveTxId:
         }
 
     def test_resolve_name_upper(self):
-        assert resolve_tx_id("IGPM", self._ecu_index()) == 0x770
+        assert resolve_tx_id("IGPM", self._ecu_index(), profile=active()) == 0x770
 
     def test_resolve_name_lower(self):
-        assert resolve_tx_id("igpm", self._ecu_index()) == 0x770
+        assert resolve_tx_id("igpm", self._ecu_index(), profile=active()) == 0x770
 
     def test_resolve_name_mixed(self):
-        assert resolve_tx_id("Bms", self._ecu_index()) == 0x7E4
+        assert resolve_tx_id("Bms", self._ecu_index(), profile=active()) == 0x7E4
 
     def test_resolve_hex_no_prefix(self):
-        assert resolve_tx_id("770", self._ecu_index()) == 0x770
+        assert resolve_tx_id("770", self._ecu_index(), profile=active()) == 0x770
 
     def test_resolve_hex_with_prefix(self):
-        assert resolve_tx_id("0x7A5", self._ecu_index()) == 0x7A5
+        assert resolve_tx_id("0x7A5", self._ecu_index(), profile=active()) == 0x7A5
 
     def test_resolve_hex_lowercase(self):
-        assert resolve_tx_id("7e4", self._ecu_index()) == 0x7E4
+        assert resolve_tx_id("7e4", self._ecu_index(), profile=active()) == 0x7E4
 
     def test_resolve_unknown_returns_none(self):
-        assert resolve_tx_id("UNKNOWN", self._ecu_index()) is None
+        assert resolve_tx_id("UNKNOWN", self._ecu_index(), profile=active()) is None
 
     def test_resolve_invalid_hex_returns_none(self):
-        assert resolve_tx_id("ZZZ", self._ecu_index()) is None
+        assert resolve_tx_id("ZZZ", self._ecu_index(), profile=active()) is None
 
     def test_resolve_ecus_alias(self):
         # ECU-registry alias 'LDC' canonicalises to the ecus/ key 'OBC' (0x7E5).
         index = {"OBC": {"tx_id": 0x7E5, "pids": {}}}
-        assert resolve_tx_id("LDC", index) == 0x7E5
-        assert resolve_tx_id("ldc", index) == 0x7E5
+        assert resolve_tx_id("LDC", index, profile=active()) == 0x7E5
+        assert resolve_tx_id("ldc", index, profile=active()) == 0x7E5
 
 
 # --- parse_sub_commands ---
@@ -69,73 +69,73 @@ class TestResolveTxId:
 
 class TestParseSubCommands:
     def test_skm_wake_default(self):
-        result = parse_sub_commands(["skm-wake"])
+        result = parse_sub_commands(["skm-wake"], profile=active())
         assert len(result) == 1
         assert result[0] == {"type": "skm-wake", "level": "acc"}
 
     def test_skm_wake_with_level(self):
-        result = parse_sub_commands(["skm-wake ign1"])
+        result = parse_sub_commands(["skm-wake ign1"], profile=active())
         assert result[0]["level"] == "ign1"
 
     def test_session_basic(self):
-        result = parse_sub_commands(["session IGPM"])
+        result = parse_sub_commands(["session IGPM"], profile=active())
         assert result[0] == {"type": "session", "target": "IGPM", "wake": False, "mode": "03"}
 
     def test_session_with_mode(self):
-        result = parse_sub_commands(["session BMS --mode 81"])
+        result = parse_sub_commands(["session BMS --mode 81"], profile=active())
         assert result[0]["target"] == "BMS"
         assert result[0]["mode"] == "81"
 
     def test_session_with_wake(self):
-        result = parse_sub_commands(["session SKM --wake"])
+        result = parse_sub_commands(["session SKM --wake"], profile=active())
         assert result[0]["wake"] is True
         assert result[0]["target"] == "SKM"
 
     def test_session_missing_target(self):
         with pytest.raises(ValueError, match="requires"):
-            parse_sub_commands(["session"])
+            parse_sub_commands(["session"], profile=active())
 
     def test_query_with_pids(self):
-        result = parse_sub_commands(["query IGPM:BC03,BC06"])
+        result = parse_sub_commands(["query IGPM:BC03,BC06"], profile=active())
         assert result[0]["type"] == "query"
         assert result[0]["ecu"] == "IGPM"
         assert result[0]["pids"] == ["BC03", "BC06"]
 
     def test_query_no_pids(self):
-        result = parse_sub_commands(["query BMS"])
+        result = parse_sub_commands(["query BMS"], profile=active())
         assert result[0]["pids"] == []
 
     def test_query_missing_ecu(self):
         with pytest.raises(ValueError, match="requires"):
-            parse_sub_commands(["query"])
+            parse_sub_commands(["query"], profile=active())
 
     def test_query_cross_ecu_fans_out(self):
-        result = parse_sub_commands(["query VCU:2101 BMS:2101"])
+        result = parse_sub_commands(["query VCU:2101 BMS:2101"], profile=active())
         assert [(c["type"], c["ecu"], c["pids"]) for c in result] == [
             ("query", "VCU", ["2101"]),
             ("query", "BMS", ["2101"]),
         ]
 
     def test_query_uppercases(self):
-        result = parse_sub_commands(["query vcu:2101"])
+        result = parse_sub_commands(["query vcu:2101"], profile=active())
         assert result[0]["ecu"] == "VCU"
         assert result[0]["pids"] == ["2101"]
 
     def test_query_dedups_identical_selectors(self):
-        result = parse_sub_commands(["query VCU:2101 VCU:2101"])
+        result = parse_sub_commands(["query VCU:2101 VCU:2101"], profile=active())
         assert len(result) == 1
 
     def test_query_all_pids_across_ecus(self):
-        result = parse_sub_commands(["query VCU BMS"])
+        result = parse_sub_commands(["query VCU BMS"], profile=active())
         assert [(c["ecu"], c["pids"]) for c in result] == [("VCU", []), ("BMS", [])]
 
     def test_query_malformed_double_colon_raises(self):
         with pytest.raises(ValueError):
-            parse_sub_commands(["query VCU::2101"])
+            parse_sub_commands(["query VCU::2101"], profile=active())
 
     def test_query_malformed_empty_ecu_raises(self):
         with pytest.raises(ValueError):
-            parse_sub_commands(["query :2101"])
+            parse_sub_commands(["query :2101"], profile=active())
 
     # --- space-vs-colon guard rail (a bare PID/DID in the ECU slot) ---
 
@@ -143,72 +143,72 @@ class TestParseSubCommands:
         # "query IGPM 22BC07" is the classic mistake for "query IGPM:22BC07":
         # the space makes 22BC07 an independent (bogus) ECU selector.
         with pytest.raises(ValueError, match="looks like a PID/DID"):
-            parse_sub_commands(["query IGPM 22BC07"])
+            parse_sub_commands(["query IGPM 22BC07"], profile=active())
 
     def test_query_space_form_suggests_colon_form(self):
         with pytest.raises(ValueError, match=r"IGPM:22BC07"):
-            parse_sub_commands(["query IGPM 22BC07"])
+            parse_sub_commands(["query IGPM 22BC07"], profile=active())
 
     def test_query_space_form_short_did_raises(self):
         with pytest.raises(ValueError, match="looks like a PID/DID"):
-            parse_sub_commands(["query BCM C00B B00E"])
+            parse_sub_commands(["query BCM C00B B00E"], profile=active())
 
     def test_query_lone_pid_raises(self):
         with pytest.raises(ValueError, match="looks like a PID/DID"):
-            parse_sub_commands(["query 2101"])
+            parse_sub_commands(["query 2101"], profile=active())
 
     def test_query_explicit_hex_tx_id_not_flagged(self):
         # An explicit 0x-prefixed token is a deliberate hex TX-id selector, not a
         # PID stranded from its ECU — it must parse cleanly.
-        result = parse_sub_commands(["query 0x770"])
+        result = parse_sub_commands(["query 0x770"], profile=active())
         assert result[0] == {"type": "query", "ecu": "0X770", "pids": []}
 
     def test_query_bare_hex_tx_id_still_raises(self):
         # Without the 0x prefix, a bare hex-with-digit token is ambiguous with a
         # PID and stays rejected.
         with pytest.raises(ValueError, match="looks like a PID/DID"):
-            parse_sub_commands(["query 770"])
+            parse_sub_commands(["query 770"], profile=active())
 
     def test_query_colon_form_ok(self):
         # The correct form must still parse cleanly.
-        result = parse_sub_commands(["query IGPM:22BC07"])
+        result = parse_sub_commands(["query IGPM:22BC07"], profile=active())
         assert result[0] == {"type": "query", "ecu": "IGPM", "pids": ["22BC07"]}
 
     def test_query_two_alpha_ecus_not_flagged(self):
         # Two real (alphabetic) ECU names are a legitimate cross-ECU query.
-        result = parse_sub_commands(["query VCU BMS"])
+        result = parse_sub_commands(["query VCU BMS"], profile=active())
         assert [(c["ecu"], c["pids"]) for c in result] == [("VCU", []), ("BMS", [])]
 
     def test_query_hex_only_ecu_name_not_flagged(self):
         # A bare hex-letters-only token (no digit) is not treated as a PID, so a
         # hypothetical all-letter ECU name still works.
-        result = parse_sub_commands(["query BMS ABC"])
+        result = parse_sub_commands(["query BMS ABC"], profile=active())
         assert [(c["ecu"], c["pids"]) for c in result] == [("BMS", []), ("ABC", [])]
 
     def test_raw_basic(self):
-        result = parse_sub_commands(["raw 770:22BC03"])
+        result = parse_sub_commands(["raw 770:22BC03"], profile=active())
         assert result[0] == {"type": "raw", "spec": "770:22BC03", "hold": False}
 
     def test_raw_with_hold(self):
-        result = parse_sub_commands(["raw 770:2FBC1003 --hold"])
+        result = parse_sub_commands(["raw 770:2FBC1003 --hold"], profile=active())
         assert result[0]["hold"] is True
 
     def test_raw_missing_spec(self):
         with pytest.raises(ValueError, match="requires"):
-            parse_sub_commands(["raw"])
+            parse_sub_commands(["raw"], profile=active())
 
     def test_raw_odd_length_request_refused(self):
         # An ELM327 reads a trailing nibble as a response-frame count, so an odd
         # request would go out as a different request rather than fail.
         with pytest.raises(ValueError, match="odd number of hex digits"):
-            parse_sub_commands(["raw 7B3:2313000000040"])
+            parse_sub_commands(["raw 7B3:2313000000040"], profile=active())
 
     def test_raw_malformed_spec_refused(self):
         with pytest.raises(ValueError, match="expected TX:REQUEST"):
-            parse_sub_commands(["raw 7B3"])
+            parse_sub_commands(["raw 7B3"], profile=active())
 
     def test_scan(self):
-        result = parse_sub_commands(["scan 770 22 BC00-BCFF"])
+        result = parse_sub_commands(["scan 770 22 BC00-BCFF"], profile=active())
         assert result[0] == {
             "type": "scan",
             "tx": "770",
@@ -218,31 +218,31 @@ class TestParseSubCommands:
         }
 
     def test_scan_with_append(self):
-        result = parse_sub_commands(["scan 7A0 2F B000-B0FF 00"])
+        result = parse_sub_commands(["scan 7A0 2F B000-B0FF 00"], profile=active())
         assert result[0]["append"] == "00"
 
     def test_scan_missing_args(self):
         with pytest.raises(ValueError, match="requires"):
-            parse_sub_commands(["scan 770 22"])
+            parse_sub_commands(["scan 770 22"], profile=active())
 
     def test_sleep_default(self):
-        result = parse_sub_commands(["sleep"])
+        result = parse_sub_commands(["sleep"], profile=active())
         assert result[0] == {"type": "sleep", "seconds": 1.0}
 
     def test_sleep_custom(self):
-        result = parse_sub_commands(["sleep 2.5"])
+        result = parse_sub_commands(["sleep 2.5"], profile=active())
         assert result[0]["seconds"] == 2.5
 
     def test_repl(self):
-        result = parse_sub_commands(["repl"])
+        result = parse_sub_commands(["repl"], profile=active())
         assert result[0] == {"type": "repl"}
 
     def test_unknown_command(self):
         with pytest.raises(ValueError, match="Unknown sub-command"):
-            parse_sub_commands(["bogus"])
+            parse_sub_commands(["bogus"], profile=active())
 
     def test_empty_args_skipped(self):
-        result = parse_sub_commands(["", "repl"])
+        result = parse_sub_commands(["", "repl"], profile=active())
         assert len(result) == 1
 
     def test_multi_command_pipeline(self):
@@ -252,14 +252,15 @@ class TestParseSubCommands:
                 "session IGPM --wake",
                 "query IGPM:BC03",
                 "sleep 1",
-            ]
+            ],
+            profile=active(),
         )
         assert len(result) == 4
         assert [r["type"] for r in result] == ["skm-wake", "session", "query", "sleep"]
 
     def test_underscore_alias(self):
         """skm_wake (underscore) should work same as skm-wake (hyphen)."""
-        result = parse_sub_commands(["skm_wake ign2"])
+        result = parse_sub_commands(["skm_wake ign2"], profile=active())
         assert result[0] == {"type": "skm-wake", "level": "ign2"}
 
 
@@ -296,7 +297,9 @@ class TestExecQueryTimestamp:
         }
         sm = self._make_sm(latency=0.02)
         _label, results = asyncio.run(
-            _exec_query(sm, "MCU", [], ecu_index, {}, verbose=False, return_results=True)
+            _exec_query(
+                sm, "MCU", [], ecu_index, {}, verbose=False, return_results=True, profile=active()
+            )
         )
         assert len(results) == 2
         for r in results:
@@ -314,7 +317,9 @@ class TestExecQueryTimestamp:
 
         sm.terminal.send_uds = fail_send_uds
         _label, results = asyncio.run(
-            _exec_query(sm, "MCU", [], ecu_index, {}, verbose=False, return_results=True)
+            _exec_query(
+                sm, "MCU", [], ecu_index, {}, verbose=False, return_results=True, profile=active()
+            )
         )
         assert len(results) == 1
         assert "error" in results[0]
@@ -518,7 +523,7 @@ class TestExecIocontrolSession:
         sm.terminal.set_header = AsyncMock()
         sm.terminal.send_uds = AsyncMock(return_value={"ok": True, "hex": "6FBC0103"})
 
-        asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", False, {}, {}, False))
+        asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", False, {}, {}, False, profile=active()))
         sm.open_session.assert_awaited_once_with(0x770, mode="03")
         sm.terminal.send_uds.assert_awaited_once()
 
@@ -571,7 +576,7 @@ class TestExecIocontrolPolarity:
         index = self._index(**(cmd_overrides or {}))
         monkeypatch.setattr(multi_exec, "build_iocontrol_index", lambda _pids: index)
         sm = self._sm()
-        asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", off, {}, {}, False))
+        asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", off, {}, {}, False, profile=active()))
         return sm
 
     def test_on_request_sends_the_on_command(self, monkeypatch):
@@ -716,7 +721,7 @@ class TestSelectorText:
 
 class TestNormalizeQuerySteps:
     def _norm(self, steps):
-        return normalize_query_steps(steps, name_index=_NAME_INDEX)
+        return normalize_query_steps(steps, name_index=_NAME_INDEX, profile=active())
 
     def test_exact_repeat_collapses(self):
         out = self._norm([_q("IGPM"), _q("IGPM")])
@@ -786,17 +791,23 @@ class TestNormalizeQuerySteps:
 
 class TestMergedSelectorNotes:
     def test_repeats_collapse_to_a_count(self):
-        out = normalize_query_steps([_q("IGPM"), _q("IGPM")], name_index=_NAME_INDEX)
+        out = normalize_query_steps(
+            [_q("IGPM"), _q("IGPM")], name_index=_NAME_INDEX, profile=active()
+        )
         assert merged_selector_notes(out) == ["IGPM \u2190 IGPM \u00d72"]
 
     def test_distinct_sources_are_listed(self):
         out = normalize_query_steps(
-            [_q("AAF"), _q("AAF", "2180"), _q("AAF", "2181")], name_index=_NAME_INDEX
+            [_q("AAF"), _q("AAF", "2180"), _q("AAF", "2181")],
+            name_index=_NAME_INDEX,
+            profile=active(),
         )
         assert merged_selector_notes(out) == ["AAF \u2190 AAF, AAF:2180, AAF:2181"]
 
     def test_silent_when_nothing_overlapped(self):
-        out = normalize_query_steps([_q("BMS", "2101"), _q("IGPM")], name_index=_NAME_INDEX)
+        out = normalize_query_steps(
+            [_q("BMS", "2101"), _q("IGPM")], name_index=_NAME_INDEX, profile=active()
+        )
         assert merged_selector_notes(out) == []
 
 
@@ -813,7 +824,7 @@ class TestOverlappingSelectorRegression:
         from canair.cli.live.steps import expand_step_groups, to_step
 
         raw = ["IGPM", "OBC", "AAF", "@driving"]
-        return parse_sub_commands(expand_step_groups([to_step(s) for s in raw]))
+        return parse_sub_commands(expand_step_groups([to_step(s) for s in raw]), profile=active())
 
     def test_one_step_per_ecu(self):
         steps = [c for c in self._steps() if c["type"] == "query"]
@@ -824,7 +835,7 @@ class TestOverlappingSelectorRegression:
         from canair.ecus.pids import build_ecu_index, load_pids
         from canair.live.read.exec import build_query_plan
 
-        index = build_ecu_index(load_pids())
+        index = build_ecu_index(load_pids(profile=active()))
         requests = []
         for step in self._steps():
             info = index.get(step["ecu"])

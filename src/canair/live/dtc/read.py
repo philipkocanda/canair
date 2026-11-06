@@ -20,7 +20,7 @@ from .snapshot_capture import report_saved
 from .snapshots import SnapshotRun, ecu_pids, fetch_snapshots, wants_snapshots
 
 
-def _report_read(as_json: bool, result: dict, verbose: bool = False) -> None:
+def _report_read(as_json: bool, result: dict, verbose: bool = False, *, profile: Profile) -> None:
     """Print a read result (positive, NRC, or error) as text or JSON, snapshots included."""
     if as_json:
         print(json.dumps(result, indent=2))
@@ -57,7 +57,7 @@ def _report_read(as_json: bool, result: dict, verbose: bool = False) -> None:
             print(line)
     if verbose and (line := status_line(result)):
         print(line)
-    for hint in undefined_hints([result]):
+    for hint in undefined_hints([result], profile=profile):
         print(hint)
     print()
 
@@ -91,7 +91,7 @@ async def mode_dtc_read(
     stored with it (:mod:`.snapshots`), decoded by ``pids_data``'s definitions. ``save``
     keeps those snapshot replies as captures (:mod:`.snapshot_capture`).
     """
-    proto = resolve_protocol(protocol, tx_id)
+    proto = resolve_protocol(protocol, tx_id, profile=profile)
     if supported and proto != KWP:
         raise ValueError("--supported is only available for KWP2000 ECUs (id_protocol: KWP2000)")
     if supported:
@@ -111,20 +111,26 @@ async def mode_dtc_read(
             )
             if supported:
                 fam += ", supported-DTC list"
-            print(f"\n  DTC read: {ecu_display(tx_id)}")
+            print(f"\n  DTC read: {ecu_display(tx_id, profile=profile)}")
             print(f"  Protocol: {fam}\n")
 
-        result = await _read_one(terminal, tx_id, mask, protocol, verbose, supported=supported)
+        result = await _read_one(
+            terminal, tx_id, mask, protocol, verbose, supported=supported, profile=profile
+        )
         if snapshots and not supported and wants_snapshots(result):
-            ecu, pids = ecu_pids(pids_data, tx_id)
-            await fetch_snapshots(terminal, tx_id, result, pids, ecu, SnapshotRun())
-        _report_read(as_json, result, verbose)
+            ecu, pids = ecu_pids(pids_data, tx_id, profile=profile)
+            await fetch_snapshots(
+                terminal, tx_id, result, pids, ecu, SnapshotRun(), profile=profile
+            )
+        _report_read(as_json, result, verbose, profile=profile)
         if save:
             report_saved(terminal, [result], label, vehicle_states, notes, as_json, profile=profile)
         if log and "dtcs" in result:
-            path, previous, diff = _log_scan(ecu_ref(tx_id), [result], label, vehicle_states)
+            path, previous, diff = _log_scan(
+                ecu_ref(tx_id, profile=profile), [result], label, vehicle_states, profile=profile
+            )
             if not as_json:
-                _print_log_result(path, previous, diff)
+                _print_log_result(path, previous, diff, profile=profile)
     finally:
         if tester_task:
             tester_task.cancel()

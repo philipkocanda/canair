@@ -13,6 +13,7 @@ import sys
 
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.ecus.pids import build_ecu_index, load_pids
+from canair.profile import active
 from canair.render import messages
 
 from .one import decode_one
@@ -79,7 +80,7 @@ def run(args) -> int:
     candidate_names = set(try_params)
 
     # Load PID definitions
-    pids_data = load_pids()
+    pids_data = load_pids(profile=active())
     ecu_index = build_ecu_index(pids_data)
 
     targets, terr = resolve_targets(

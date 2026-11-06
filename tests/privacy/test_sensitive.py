@@ -68,7 +68,7 @@ def _cap(pid: str, payload: str, rx: str = "0x73B") -> dict:
 
 class TestSets:
     def test_the_set_is_keyed_by_name_request_and_response(self, prof):
-        sset = sensitive.profile_set()
+        sset = sensitive.profile_set(profile=active())
         assert sset.has("ccm", "22f102") and sset.has("CCM", "22F103")
         assert not sset.has("CCM", "22F101")
         assert sset.has_request(0x733, "22 F1 02")
@@ -80,9 +80,9 @@ class TestLiveMasking:
     def _entry(self, pid: str, payload: str, tx: int | str = 0x733):
         from canair.live.read.batch import _decode_pid_result
 
-        info = build_ecu_index(load_pids())["CCM"]["pids"][pid]
+        info = build_ecu_index(load_pids(profile=active()))["CCM"]["pids"][pid]
         return _decode_pid_result(
-            pid, info, False, payload, bytes.fromhex(payload), None, target=tx
+            pid, info, False, payload, bytes.fromhex(payload), None, target=tx, profile=active()
         )
 
     def test_a_sensitive_pid_hides_its_payload(self, prof):
@@ -161,7 +161,7 @@ class TestStoredHistory:
 
         _noted_sensitive.clear()
         _write_store(prof, [_cap("22F102", "62F102AABBCCDDEEFF"), _cap("22F101", "62F101")])
-        assert [e["pid"] for e in load_all_captures()] == ["22F101"]
+        assert [e["pid"] for e in load_all_captures(profile=active())] == ["22F101"]
         assert "purge-sensitive" in capsys.readouterr().err
 
     def test_validate_reports_and_purge_removes_it(self, prof):
@@ -169,7 +169,7 @@ class TestStoredHistory:
 
         _write_store(prof, [_cap("22F102", "62F102AABBCCDDEEFF"), _cap("22F101", "62F101")])
         path = prof / "captures" / "2026-11-02.json"
-        sset = sensitive.profile_set()
+        sset = sensitive.profile_set(profile=active())
         assert len(sensitive_findings(path, sset)) == 1
         assert [r.removed for r in purge_dir(prof / "captures", sset, dry_run=True)] == [1]
         assert "AABBCC" in path.read_text()  # dry run
@@ -180,7 +180,7 @@ class TestStoredHistory:
         from canair.captures.sensitive_purge import purge_dir
 
         _write_store(prof, [_cap("22F102", "62F102AABBCCDDEEFF")])
-        (result,) = purge_dir(prof / "captures", sensitive.profile_set())
+        (result,) = purge_dir(prof / "captures", sensitive.profile_set(profile=active()))
         assert result.sessions_dropped == 1
         doc = capture_io.load_capture_file(prof / "captures" / "2026-11-02.json")
         assert doc["sessions"] == []
@@ -204,9 +204,9 @@ class TestStoredHistory:
         redacted = {"rx": "0x73B", "pid": "22F102", "response": mask, "notes": "redacted"}
         _write_store(prof, [redacted, _cap("22F102", "62F102AABBCCDDEEFF")])
         path = prof / "captures" / "2026-11-02.json"
-        sset = sensitive.profile_set()
+        sset = sensitive.profile_set(profile=active())
         assert len(sensitive_findings(path, sset)) == 1  # the real reply only
-        assert [e.get("response") for e in load_all_captures()] == [mask]
+        assert [e.get("response") for e in load_all_captures(profile=active())] == [mask]
         purge_dir(prof / "captures", sset)
         assert mask in path.read_text() and not sensitive_findings(path, sset)
 
@@ -231,7 +231,7 @@ class TestNeverShared:
     def test_autopid_never_ships_a_sensitive_signal(self, prof):
         from canair.interop.autopid.profile import ship_profile
 
-        data = load_pids()
+        data = load_pids(profile=active())
         data["ecus"]["CCM"]["pids"]["22F103"]["status"] = "active"
         shipped = ship_profile(data)
         names = {p for sp in shipped.pids for p in sp.params}
@@ -289,11 +289,11 @@ class TestBundledIoniqIdentity:
 
     @pytest.mark.parametrize("request_hex", ["1A80", "1A90"])
     def test_the_vin_records_are_hidden(self, ioniq, request_hex):
-        assert sensitive.request_hidden(0x7E2, request_hex)
+        assert sensitive.request_hidden(0x7E2, request_hex, profile=active())
 
     def test_the_part_number_records_are_not(self, ioniq):
-        assert not sensitive.request_hidden(0x7E2, "1A8C")
-        assert not sensitive.request_hidden(0x7E2, "1A91")
+        assert not sensitive.request_hidden(0x7E2, "1A8C", profile=active())
+        assert not sensitive.request_hidden(0x7E2, "1A91", profile=active())
 
     @pytest.mark.asyncio
     async def test_identity_does_not_print_the_vin(self, ioniq, monkeypatch, capsys):
@@ -302,10 +302,12 @@ class TestBundledIoniqIdentity:
         from tests.support.fakes import FakeTerminal
         from tests.support.fakes import ok as _ok
 
-        monkeypatch.setattr(idec, "ecu_protocol", lambda tx: "kwp")
+        monkeypatch.setattr(idec, "ecu_protocol", lambda tx, **__: "kwp")
         vin_hex = self.VIN.encode().hex().upper()
         term = FakeTerminal({"1A80": _ok("5A80" + vin_hex), "1A90": _ok("5A90" + vin_hex)})
-        await ident.mode_identity(term, 0x7E2, session=False, wake=False, as_json=False)
+        await ident.mode_identity(
+            term, 0x7E2, session=False, wake=False, as_json=False, profile=active()
+        )
         out = capsys.readouterr().out
         assert self.VIN not in out and vin_hex not in out
         assert out.count(sensitive.MASK) >= 2

@@ -11,7 +11,7 @@ from canair.transport.session_manager import SessionManager
 from canair.uds.echo import request_echo
 
 from ...transport.protocol import Terminal
-from .exec import timed_exchange
+from .exec_read import timed_exchange
 
 
 def _param_def(p: dict) -> dict:

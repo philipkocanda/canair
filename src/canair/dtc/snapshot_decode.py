@@ -27,6 +27,7 @@ from canair.dtc.snapshot import (
 )
 from canair.ecus.sensitivity import pid_sensitive
 from canair.expression.decoding import decode_param_rows
+from canair.profile import Profile
 
 # The live reply header a snapshot DID's data is wrapped in: 62 <DID>.
 _READ_REPLY_HEADER = 3
@@ -36,16 +37,22 @@ def length_resolver(
     pids: Mapping[str, Mapping[str, Any]],
     ecu: str,
     live_length: Callable[[str, str], int | None] | None = None,
+    *,
+    profile: Profile,
 ) -> Callable[[int], int | None]:
     """A ``length_of(did)`` for one ECU: its declared ``snapshot_length``, else its live length.
 
     ``pids`` is the ECU's ``pids`` index (:func:`canair.ecus.pids.build_ecu_index`). The live
-    length (``live_length(ecu, pid)``, :func:`live_reply_length` by default) is only
+    length (``live_length(ecu, pid)``, :func:`live_reply_length` of ``profile`` by default) is only
     consulted for a DID with no declaration, since it reads the capture history, and never
     for a ``variable_length:`` PID: its live replies have no one length, so their most
     common one would be a guess that silently mis-splits the rest of the record.
     """
-    lookup = live_length or live_reply_length
+
+    def lookup(ecu_name: str, pid: str) -> int | None:
+        if live_length is not None:
+            return live_length(ecu_name, pid)
+        return live_reply_length(ecu_name, pid, profile=profile)
 
     def length_of(did: int) -> int | None:
         pid_info = pids.get(read_pid(did)) or {}
@@ -60,7 +67,7 @@ def length_resolver(
 
 
 @lru_cache(maxsize=256)
-def live_reply_length(ecu: str, pid: str) -> int | None:
+def live_reply_length(ecu: str, pid: str, *, profile: Profile) -> int | None:
     """The data length of this DID's live replies in the captures (their most common), if any.
 
     Only replies that echo the DID count, so a misfiled payload never sets a length.
@@ -69,7 +76,7 @@ def live_reply_length(ecu: str, pid: str) -> int | None:
 
     echo = f"62{pid[2:]}".upper()
     lengths: Counter[int] = Counter()
-    for row in load_pid_captures(ecu, pid):
+    for row in load_pid_captures(ecu, pid, profile=profile):
         payload = str(row.get("payload", "")).upper()
         if payload.startswith(echo) and len(payload) % 2 == 0:
             lengths[len(payload) // 2 - _READ_REPLY_HEADER] += 1
@@ -148,7 +155,7 @@ def snapshot_entries(
     return entry
 
 
-def ecu_pids_index(ecu: str | None) -> Mapping[str, Mapping[str, Any]]:
+def ecu_pids_index(ecu: str | None, *, profile: Profile) -> Mapping[str, Mapping[str, Any]]:
     """The active profile's ``pids`` index for ``ecu`` (empty when it has none or no profile)."""
     if not ecu:
         return {}
@@ -156,20 +163,22 @@ def ecu_pids_index(ecu: str | None) -> Mapping[str, Mapping[str, Any]]:
     from canair.profile import ProfileError
 
     try:
-        entry = build_ecu_index(load_pids()).get(ecu.upper()) or {}
+        entry = build_ecu_index(load_pids(profile=profile)).get(ecu.upper()) or {}
     except (ProfileError, OSError):
         return {}
     return entry.get("pids") or {}
 
 
-def decode_logged(ecu: str | None, records: list[Mapping[str, Any]]) -> list[dict]:
+def decode_logged(
+    ecu: str | None, records: list[Mapping[str, Any]], *, profile: Profile
+) -> list[dict]:
     """Logged ``{record, hex}`` replies decoded with today's definitions, as ``snapshot_entries``.
 
     The DTC log keeps only the raw ``59 04`` replies, so an entry recorded before a DID was
     defined decodes once it is.
     """
-    pids = ecu_pids_index(ecu)
-    length_of = length_resolver(pids, ecu or "")
+    pids = ecu_pids_index(ecu, profile=profile)
+    length_of = length_resolver(pids, ecu or "", profile=profile)
     out: list[dict] = []
     for logged in records:
         number, reply_hex = logged.get("record"), str(logged.get("hex") or "")

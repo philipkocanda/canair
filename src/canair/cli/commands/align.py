@@ -99,7 +99,9 @@ def _load_one(spec: str, *, since, until, state, label, fill=None):
             f"no timed captures for {sref.ecu}:{sref.pid} in scope"
             + (f" ({lp.n_no_time} untimed skipped)" if lp.n_no_time else "")
         )
-    ecu_pids = build_ecu_index(load_pids()).get(sref.ecu.upper(), {}).get("pids", {})
+    ecu_pids = (
+        build_ecu_index(load_pids(profile=active())).get(sref.ecu.upper(), {}).get("pids", {})
+    )
     params = ecu_pids.get(sref.pid.upper(), {}).get("parameters", {})
     series = extract_series(lp, sref.name_or_expr, parameters=params, fill=fill)
     if not series:

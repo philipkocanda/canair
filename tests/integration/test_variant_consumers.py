@@ -15,7 +15,7 @@ import yaml
 from canair.cli import main
 from canair.config import file as config_file
 from canair.ecus.pids import load_pids
-from canair.profile import set_active
+from canair.profile import active, set_active
 
 FIXTURE = Path(__file__).parent.parent / "fixtures" / "profiles" / "variants"
 REPO = Path(__file__).parents[2]
@@ -168,9 +168,9 @@ class TestResearch:
         doc = yaml.safe_load((copy / "ecus" / "vcu.yaml").read_text())["VCU"]
         assert doc["research"][0]["revisions"] == ["uds"]
         set_active(str(copy), variant="40kwh")
-        assert load_pids()["ecus"]["VCU"].get("research") == []
+        assert load_pids(profile=active())["ecus"]["VCU"].get("research") == []
         set_active(str(copy), variant="60kwh", revisions=["VCU=uds"])
-        assert len(load_pids()["ecus"]["VCU"]["research"]) == 1
+        assert len(load_pids(profile=active())["ecus"]["VCU"]["research"]) == 1
 
     def test_a_research_gate_must_name_a_revision(self):
         from canair.variants.revisions import check_ecu

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 
+from canair.profile import Profile
 from canair.render import ansi, messages
 from canair.uds.protocol import KWP
 from canair.uds.requests import clear_dtc_request
@@ -31,6 +32,8 @@ async def mode_dtc_clear(
     label: str | None = None,
     snapshots: bool = True,
     pids_data: dict | None = None,
+    *,
+    profile: Profile,
 ):
     """Clear stored DTCs via ClearDiagnosticInformation (0x14).
 
@@ -43,7 +46,7 @@ async def mode_dtc_clear(
     ``snapshots`` too, the snapshots a UDS ECU stored with those codes are read and logged
     with the clear, since clearing erases them and nothing else would keep them.
     """
-    proto = resolve_protocol(protocol, tx_id)
+    proto = resolve_protocol(protocol, tx_id, profile=profile)
     await terminal.set_header(tx_id)
 
     tester_task = None
@@ -55,19 +58,21 @@ async def mode_dtc_clear(
         pre_codes = None
         pre_snapshots: dict = {}
         if log:
-            pre = await _read_one(terminal, tx_id, 0xFF, protocol, verbose)
+            pre = await _read_one(terminal, tx_id, 0xFF, protocol, verbose, profile=profile)
             if "dtcs" in pre:
                 pre_codes = [d["dtc"] for d in pre["dtcs"]]
             if snapshots and wants_snapshots(pre):
-                ecu, pids = ecu_pids(pids_data, tx_id)
-                await fetch_snapshots(terminal, tx_id, pre, pids, ecu, SnapshotRun())
+                ecu, pids = ecu_pids(pids_data, tx_id, profile=profile)
+                await fetch_snapshots(
+                    terminal, tx_id, pre, pids, ecu, SnapshotRun(), profile=profile
+                )
                 pre_snapshots = logged_snapshots(pre["dtcs"])
             await terminal.set_header(tx_id)
 
         cmd = clear_dtc_request(group, kwp=proto == KWP)
 
         if not as_json:
-            print(f"\n  DTC clear: {ecu_display(tx_id)}")
+            print(f"\n  DTC clear: {ecu_display(tx_id, profile=profile)}")
             print(f"  Command: {cmd} (ClearDiagnosticInformation, {proto})\n")
 
         response = await terminal.send_uds(
@@ -75,14 +80,16 @@ async def mode_dtc_clear(
         )
 
         base = {
-            "ecu": ecu_display(tx_id),
+            "ecu": ecu_display(tx_id, profile=profile),
             "protocol": proto,
             "command": cmd,
             "group": f"0x{cmd[2:]}",  # the group as sent, after the SID
         }
         if response["ok"]:
             if log:
-                _log_manual_clear(tx_id, proto, base["group"], pre_codes, label, pre_snapshots)
+                _log_manual_clear(
+                    tx_id, proto, base["group"], pre_codes, label, pre_snapshots, profile=profile
+                )
             if as_json:
                 cleared = {**base, "cleared": True, "cleared_codes": pre_codes}
                 if pre_snapshots:

@@ -59,7 +59,7 @@ class TestJournalProvenance:
                 "date": "2026-07-28",
             },
         ]
-        sessions = build_session_from_records(records)
+        sessions = build_session_from_records(records, profile=active())
         assert len(sessions) == 1
         assert sessions[0]["transport"] == "slcan-tcp"
         assert sessions[0]["quality"] == {"exchanges": 3}
@@ -76,7 +76,7 @@ class TestJournalProvenance:
                 },
             },
         ]
-        sessions = build_session_from_records(records)
+        sessions = build_session_from_records(records, profile=active())
         assert sessions[0]["transport"] == "slcan-tcp"
 
 
@@ -179,7 +179,7 @@ class TestElapsedMs:
                 "elapsed_ms": 33,
             },
         ]
-        sessions = build_session_from_records(records)
+        sessions = build_session_from_records(records, profile=active())
         assert sessions[0]["captures"][0]["elapsed_ms"] == 33
 
 
@@ -190,7 +190,14 @@ class TestDecodePidResultElapsed:
         from canair.live.read.batch import _decode_pid_result
 
         entry = _decode_pid_result(
-            "2101", None, True, "6101AA", bytes.fromhex("6101AA"), 1.0, elapsed_ms=55
+            "2101",
+            None,
+            True,
+            "6101AA",
+            bytes.fromhex("6101AA"),
+            1.0,
+            elapsed_ms=55,
+            profile=active(),
         )
         assert entry["elapsed_ms"] == 55
 
@@ -198,5 +205,7 @@ class TestDecodePidResultElapsed:
         from canair.live.read.batch import _decode_pid_result
 
         # Batched callers don't pass elapsed_ms (defaults to None → omitted).
-        entry = _decode_pid_result("22B001", None, True, "62B00100", bytes.fromhex("62B00100"), 1.0)
+        entry = _decode_pid_result(
+            "22B001", None, True, "62B00100", bytes.fromhex("62B00100"), 1.0, profile=active()
+        )
         assert "elapsed_ms" not in entry

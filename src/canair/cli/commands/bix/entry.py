@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from canair.profile import active
 from canair.render import messages
 from canair.uds.support_map import SupportMapError, declaration
 
@@ -37,12 +38,12 @@ def run(args) -> int:
             from canair.ecus.pids import build_ecu_index, load_pids
             from canair.ecus.protocol import ecu_protocol
 
-            ecu = canonical_ecu_name_safe(args.ecu).upper()
+            ecu = canonical_ecu_name_safe(args.ecu, profile=active()).upper()
             pid = args.pid.upper()
-            idx = build_ecu_index(load_pids())
+            idx = build_ecu_index(load_pids(profile=active()))
             ecu_entry = idx.get(ecu)
             if ecu_entry is not None:
-                protocol = ecu_protocol(ecu_entry["tx_id"])
+                protocol = ecu_protocol(ecu_entry["tx_id"], profile=active())
             pid_entry = (ecu_entry or {}).get("pids", {}).get(pid, {})
             params = pid_entry.get("parameters", {})
             try:

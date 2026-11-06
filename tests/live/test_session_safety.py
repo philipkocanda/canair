@@ -206,7 +206,7 @@ class TestRefusalIsReportedNotRaised:
         async def _blocked(*a, **k):
             raise SafetyBlocked("BLOCKED: programmingSession")
 
-        monkeypatch.setattr(session, "_persist_frame_counts", lambda *a: None)
+        monkeypatch.setattr(session, "_persist_frame_counts", lambda *a, **__: None)
         rc = asyncio.run(
             session.run_session_guarded(
                 object(),  # type: ignore[arg-type]

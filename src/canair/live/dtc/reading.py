@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 
+from canair.profile import Profile
 from canair.uds.nrc import NRC_REQUEST_OUT_OF_RANGE
 from canair.uds.protocol import KWP, UDS
 from canair.uds.services import KWP_READ_DTC_BY_STATUS, READ_DTC_INFORMATION
@@ -59,19 +60,29 @@ async def _read_one(
     verbose: bool,
     timeout: float = 3.0,
     supported: bool = False,
+    *,
+    profile: Profile,
 ) -> dict:
     """Set the header and read DTCs from one ECU (no session handling)."""
-    proto = resolve_protocol(protocol, tx_id)
+    proto = resolve_protocol(protocol, tx_id, profile=profile)
     await terminal.set_header(tx_id)
     if proto == KWP:
-        return await _read_kwp(terminal, tx_id, timeout=timeout, supported=supported)
-    return await _read_uds(terminal, tx_id, mask, verbose, timeout=timeout)
+        return await _read_kwp(
+            terminal, tx_id, timeout=timeout, supported=supported, profile=profile
+        )
+    return await _read_uds(terminal, tx_id, mask, verbose, timeout=timeout, profile=profile)
 
 
 async def _read_uds(
-    terminal: Terminal, tx_id: int, mask: int, verbose: bool, timeout: float = 3.0
+    terminal: Terminal,
+    tx_id: int,
+    mask: int,
+    verbose: bool,
+    timeout: float = 3.0,
+    *,
+    profile: Profile,
 ) -> dict:
-    ecu = ecu_display(tx_id)
+    ecu = ecu_display(tx_id, profile=profile)
     cmd = f"1902{mask & 0xFF:02X}"
     response = await terminal.send_uds(cmd, timeout=timeout, expected_sid=READ_DTC_INFORMATION)
 
@@ -100,7 +111,7 @@ async def _read_uds(
             **base,
             "status_availability_mask": f"0x{avail:02X}" if avail is not None else None,
             "count": len(records),
-            "dtcs": _jsonable(records, tx_id),
+            "dtcs": _jsonable(records, tx_id, profile=profile),
         }
     if response.get("nrc") is not None:
         return {**base, "nrc": f"0x{response['nrc']:02X}", "nrc_desc": response["nrc_desc"]}
@@ -108,9 +119,14 @@ async def _read_uds(
 
 
 async def _read_kwp(
-    terminal: Terminal, tx_id: int, timeout: float = 3.0, supported: bool = False
+    terminal: Terminal,
+    tx_id: int,
+    timeout: float = 3.0,
+    supported: bool = False,
+    *,
+    profile: Profile,
 ) -> dict:
-    ecu = ecu_display(tx_id)
+    ecu = ecu_display(tx_id, profile=profile)
     response = None
     requests = (_KWP_SUPPORTED_REQUEST,) if supported else _KWP_READ_REQUESTS
     cmd = requests[0]
@@ -148,7 +164,7 @@ async def _read_kwp(
                 ],
                 "note": _KWP_SUPPORTED_NOTE,
             }
-        result = {**base, "count": len(records), "dtcs": _jsonable(records, tx_id)}
+        result = {**base, "count": len(records), "dtcs": _jsonable(records, tx_id, profile=profile)}
         if cmd in _KWP_FORM_NOTES:
             result["note"] = _KWP_FORM_NOTES[cmd]
         return result
@@ -157,20 +173,20 @@ async def _read_kwp(
     return {**base, "error": response.get("error", "unknown")}
 
 
-def _jsonable(records: list[dict], tx_id: int) -> list[dict]:
+def _jsonable(records: list[dict], tx_id: int, *, profile: Profile) -> list[dict]:
     """Render internal records (int status) into the JSON/print-friendly shape,
     annotated with each code's interpretation on the ECU ``tx_id`` that reported it."""
     from canair.dtc.describe import describe_dtc
     from canair.ecus.names import ecu_name
 
-    ecu = ecu_name(tx_id)
+    ecu = ecu_name(tx_id, profile=profile)
     return [
         {
             "dtc": r["dtc"],
             "raw": r["raw"],
             "status": f"0x{r['status']:02X}",
             "status_bits": r["status_bits"],
-            "interpretation": describe_dtc(r["dtc"], ecu=ecu),
+            "interpretation": describe_dtc(r["dtc"], ecu=ecu, profile=profile),
         }
         for r in records
     ]

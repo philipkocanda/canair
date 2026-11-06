@@ -59,7 +59,7 @@ class MonitorSessions:
         for step in session_steps or []:
             if step["type"] != "session":
                 continue
-            tgt = ecu_index_key(step["target"], c._ecu_index)
+            tgt = ecu_index_key(step["target"], c._ecu_index, profile=self.c.profile)
             if tgt is None:
                 continue
             mode = str(step.get("mode", "03")).upper().removeprefix("0X").zfill(2)
@@ -82,7 +82,7 @@ class MonitorSessions:
         assert c._ecu_index is not None  # built by setup() before this runs
         reads: list[tuple[str, EcuIndexEntry, str]] = []
         for step in c.query_steps:
-            ecu = ecu_index_key(step["ecu"], c._ecu_index)
+            ecu = ecu_index_key(step["ecu"], c._ecu_index, profile=self.c.profile)
             if ecu is None:
                 continue
             info = c._ecu_index[ecu]

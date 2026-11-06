@@ -64,23 +64,25 @@ def current_capture_tag(captures_dir: Path | None = None, *, profile: Profile) -
     return capture_tag(profile)
 
 
-def _captured_ecus(session: CaptureSession) -> set[str]:
+def _captured_ecus(session: CaptureSession, *, profile: Profile) -> set[str]:
     """Upper-cased names of the ECUs whose replies ``session`` holds."""
     from canair.ecus.registry import build_rx_index, ecu_name_from_ref
 
     try:
-        index = build_rx_index()
+        index = build_rx_index(profile=profile)
     except Exception:
         return set()
     names = set()
     for cap in session.get("captures") or []:
         rx = capture_io.capture_rx(cap)
         if rx:
-            names.add(str(ecu_name_from_ref(rx, index)).upper())
+            names.add(str(ecu_name_from_ref(rx, index, profile=profile)).upper())
     return names
 
 
-def apply_capture_tag(session: CaptureSession, tag: dict | None) -> CaptureSession:
+def apply_capture_tag(
+    session: CaptureSession, tag: dict | None, *, profile: Profile
+) -> CaptureSession:
     """``session`` with ``tag`` set, unless it already carries a tag of its own.
 
     Revisions are kept only for the ECUs the session captured.
@@ -90,7 +92,7 @@ def apply_capture_tag(session: CaptureSession, tag: dict | None) -> CaptureSessi
     from canair.variants.tags import TAG_FIELDS, narrow_to_captured
 
     if tag.get("revisions"):
-        tag = narrow_to_captured(tag, _captured_ecus(session))
+        tag = narrow_to_captured(tag, _captured_ecus(session, profile=profile))
     tagged = cast(CaptureSession, dict(session))
     for key in TAG_FIELDS:
         if key in tag:
@@ -144,7 +146,9 @@ def save_session(
     """
     session = _stamp_version(session)
     if stamp_variant:
-        session = apply_capture_tag(session, current_capture_tag(captures_dir, profile=profile))
+        session = apply_capture_tag(
+            session, current_capture_tag(captures_dir, profile=profile), profile=profile
+        )
     if captures_dir is None:
         captures_dir = profile.captures_dir
     # The last gate before disk: a reply to a sensitive PID is never written,
@@ -153,7 +157,9 @@ def save_session(
 
     session = cast(
         CaptureSession,
-        sensitive.withhold_session(dict(session), sensitive.set_for_captures(captures_dir)),
+        sensitive.withhold_session(
+            dict(session), sensitive.set_for_captures(captures_dir, profile=profile)
+        ),
     )
     # Use the session's own date (leading YYYY-MM-DD, tolerating a same-day
     # suffix like "2026-04-17-b") so the file matches when the payloads were

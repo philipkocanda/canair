@@ -158,7 +158,7 @@ async def mode_discover_functional(
     request = request.replace(" ", "").upper()
     mode = resolve_mode(pids_data)
     tx_id = functional_request_id(mode)
-    ecus = load_ecus()
+    ecus = load_ecus(profile=profile)
     out = sys.stderr if as_json else sys.stdout
 
     paint = Painter(out)
@@ -215,9 +215,13 @@ async def mode_discover_functional(
 
     if register:
         _register_discovered(
-            list(alive.values()), dry_run=dry_run, via=f"functional {request}", out=out
+            list(alive.values()),
+            dry_run=dry_run,
+            via=f"functional {request}",
+            out=out,
+            profile=profile,
         )
-    await _offer_identify(terminal, list(alive.values()), identify, as_json)
+    await _offer_identify(terminal, list(alive.values()), identify, as_json, profile=profile)
     print(file=out)
     return rounds
 

@@ -58,6 +58,7 @@ from typing import TYPE_CHECKING, Any
 
 from canair.dtc.refs import EcuRefs
 from canair.dtc.scope import ALL_SCOPE, Car, current_car, entry_revision
+from canair.profile import Profile
 from canair.render import ansi
 
 if TYPE_CHECKING:
@@ -165,9 +166,9 @@ def build_scan(
     return entry
 
 
-def append_scan(entry: dict, path: Path | None = None) -> Path:
+def append_scan(entry: dict, path: Path | None = None, *, profile: Profile) -> Path:
     """Append a scan entry to the log (comment-preserving), returning the path."""
-    return _append("scans", entry, path)
+    return _append("scans", entry, path, profile=profile)
 
 
 def build_clear(
@@ -195,9 +196,9 @@ def build_clear(
     return entry
 
 
-def append_clear(entry: dict, path: Path | None = None) -> Path:
+def append_clear(entry: dict, path: Path | None = None, *, profile: Profile) -> Path:
     """Append a clear to the log's ``clears:`` list, returning the path."""
-    return _append("clears", entry, path)
+    return _append("clears", entry, path, profile=profile)
 
 
 def entry_ecus(entry: Mapping[str, Any], refs: EcuRefs) -> list[str] | None:
@@ -209,7 +210,7 @@ def entry_ecus(entry: Mapping[str, Any], refs: EcuRefs) -> list[str] | None:
     return [name] if name else []
 
 
-def _with_tag(entry: dict) -> dict:
+def _with_tag(entry: dict, *, profile: Profile) -> dict:
     """``entry`` tagged with the car it was read from: the selected variant and the
     revisions of the multi-revision ECUs it covers. A code means something only for
     the car and ECU revision that reported it."""
@@ -225,7 +226,7 @@ def _with_tag(entry: dict) -> dict:
         return entry
     if not tag:
         return entry
-    ecus = entry_ecus(entry, EcuRefs.current())
+    ecus = entry_ecus(entry, EcuRefs.current(profile=profile))
     if ecus is not None:
         tag = narrow_to_captured(tag, {e.upper() for e in ecus})
     out = dict(entry)
@@ -235,9 +236,9 @@ def _with_tag(entry: dict) -> dict:
     return out
 
 
-def _append(section: str, entry: dict, path: Path | None = None) -> Path:
+def _append(section: str, entry: dict, path: Path | None = None, *, profile: Profile) -> Path:
     """Append ``entry`` to the named top-level list, preserving comments."""
-    entry = _with_tag(entry)
+    entry = _with_tag(entry, profile=profile)
     from ruamel.yaml.comments import CommentedMap
 
     from canair.core.yaml_rt import round_trip_yaml as _yaml
@@ -259,9 +260,11 @@ def _same_scope(entry: Mapping, scope: str, car: Car, refs: EcuRefs) -> bool:
     return entry.get("scope") == scope and car.admits(entry, entry_ecus(entry, refs))
 
 
-def latest_matching(scope: str, path: Path | None = None, car: Car | None = None) -> dict | None:
+def latest_matching(
+    scope: str, path: Path | None = None, car: Car | None = None, *, profile: Profile
+) -> dict | None:
     """The most recent logged scan of ``scope`` on ``car`` (default: the active one)."""
-    car, refs = car or current_car(), EcuRefs.current()
+    car, refs = car or current_car(), EcuRefs.current(profile=profile)
     for entry in reversed(load_log(path).get("scans", [])):
         if _same_scope(entry, scope, car, refs):
             return entry
@@ -269,11 +272,11 @@ def latest_matching(scope: str, path: Path | None = None, car: Car | None = None
 
 
 def prior_matching(
-    scope: str, before: str, path: Path | None = None, car: Car | None = None
+    scope: str, before: str, path: Path | None = None, car: Car | None = None, *, profile: Profile
 ) -> dict | None:
     """The most recent same-scope scan logged strictly *before* the ``before``
     timestamp — the entry a stored scan was diffed against when it was recorded."""
-    car, refs = car or current_car(), EcuRefs.current()
+    car, refs = car or current_car(), EcuRefs.current(profile=profile)
     match = None
     for entry in load_log(path).get("scans", []):
         if _same_scope(entry, scope, car, refs) and entry.get("timestamp", "") < before:
@@ -282,10 +285,10 @@ def prior_matching(
 
 
 def clears_between(
-    after: str, before: str, path: Path | None = None, car: Car | None = None
+    after: str, before: str, path: Path | None = None, car: Car | None = None, *, profile: Profile
 ) -> list[dict]:
     """The clears logged after ``after`` and up to ``before`` (timestamps) on ``car``."""
-    car, refs = car or current_car(), EcuRefs.current()
+    car, refs = car or current_car(), EcuRefs.current(profile=profile)
     return [
         e
         for e in load_log(path).get("clears") or []
@@ -320,7 +323,12 @@ def _comparable(rx: str, previous: Mapping, current: Mapping, refs: EcuRefs) -> 
 
 
 def diff_scans(
-    previous: Mapping, current: Mapping, clears: Iterable[Mapping] = (), refs: EcuRefs | None = None
+    previous: Mapping,
+    current: Mapping,
+    clears: Iterable[Mapping] = (),
+    refs: EcuRefs | None = None,
+    *,
+    profile: Profile,
 ) -> dict:
     """Return ``{cleared, new, persisting, cleared_manually}`` lists of (rx, code) pairs.
 
@@ -328,7 +336,7 @@ def diff_scans(
     ``cleared_manually``, not "cleared", and one that is back is "new" again. An ECU one
     of the scans could not read, or read as another revision, is left out: its codes
     neither cleared nor appeared, they were not comparable."""
-    refs = refs or EcuRefs.current()
+    refs = refs or EcuRefs.current(profile=profile)
     wiped = {str(c.get("rx")) for c in clears}
     prev = {p for p in _pairs(previous) if _comparable(p[0], previous, current, refs)}
     curr = {p for p in _pairs(current) if _comparable(p[0], previous, current, refs)}
@@ -342,9 +350,11 @@ def diff_scans(
     }
 
 
-def format_diff(diff: dict, previous: Mapping, refs: EcuRefs | None = None) -> list[str]:
+def format_diff(
+    diff: dict, previous: Mapping, refs: EcuRefs | None = None, *, profile: Profile
+) -> list[str]:
     """Human-readable lines comparing the current scan to ``previous``."""
-    resolved = refs or EcuRefs.current()
+    resolved = refs or EcuRefs.current(profile=profile)
 
     def pairs(items) -> str:
         return ", ".join(f"{resolved.label(rx)} {code}" for rx, code in items)
@@ -375,12 +385,14 @@ def describe_car(entry: Mapping) -> str | None:
     return " · ".join(parts) or None
 
 
-def scope_label(scope: str, refs: EcuRefs | None = None) -> str:
+def scope_label(scope: str, refs: EcuRefs | None = None, *, profile: Profile) -> str:
     """``all``, or the scanned ECU as people name it."""
-    return scope if scope == ALL_SCOPE else (refs or EcuRefs.current()).label(scope)
+    return scope if scope == ALL_SCOPE else (refs or EcuRefs.current(profile=profile)).label(scope)
 
 
-def _erased_snapshot_lines(clears: Iterable[Mapping], refs: EcuRefs) -> list[str]:
+def _erased_snapshot_lines(
+    clears: Iterable[Mapping], refs: EcuRefs, *, profile: Profile
+) -> list[str]:
     """The snapshots each ``--clear`` erased, read just before it, decoded now."""
     from canair.dtc.snapshot_report import logged_lines
 
@@ -395,13 +407,17 @@ def _erased_snapshot_lines(clears: Iterable[Mapping], refs: EcuRefs) -> list[str
         )
         for code, records in erased.items():
             lines.append(f"    {code}")
-            lines.extend(logged_lines(refs.name(rx), records, "      "))
+            lines.extend(logged_lines(refs.name(rx), records, "      ", profile=profile))
         lines.append("")
     return lines
 
 
 def render_scan(
-    entry: Mapping, previous: Mapping | None = None, clears: Iterable[Mapping] = ()
+    entry: Mapping,
+    previous: Mapping | None = None,
+    clears: Iterable[Mapping] = (),
+    *,
+    profile: Profile,
 ) -> list[str]:
     """Human-readable, decoded view of a logged scan entry (offline; no device).
 
@@ -412,8 +428,8 @@ def render_scan(
     from canair.dtc.describe import describe_dtc
     from canair.dtc.snapshot_report import logged_lines
 
-    refs = EcuRefs.current()
-    lines = [f"\n  DTC log: {scope_label(str(entry.get('scope', '?')), refs)}"]
+    refs = EcuRefs.current(profile=profile)
+    lines = [f"\n  DTC log: {scope_label(str(entry.get('scope', '?')), refs, profile=profile)}"]
     lines.append(f"  Scanned:     {entry.get('timestamp', '?')}")
     car = describe_car(entry)
     if car:
@@ -441,7 +457,7 @@ def render_scan(
             snapshots = (ecus[rx] or {}).get("snapshots") or {}
             before = ((previous or {}).get("ecus") or {}).get(rx) or {}
             for code in codes:
-                meaning = describe_dtc(code, ecu=name).get("meaning") or ""
+                meaning = describe_dtc(code, ecu=name, profile=profile).get("meaning") or ""
                 lines.append(f"    {code:<{code_w}}  {meaning}".rstrip())
                 lines.extend(
                     logged_lines(
@@ -450,6 +466,7 @@ def render_scan(
                         f"    {'':<{code_w}}  ",
                         previous,
                         (before.get("snapshots") or {}).get(code),
+                        profile=profile,
                     )
                 )
             lines.append("")
@@ -458,9 +475,16 @@ def render_scan(
         lines.append(f"  {ansi.DIM}Not read: {unread}{ansi.RESET}")
         lines.append("")
 
-    lines.extend(_erased_snapshot_lines(clears, refs))
+    lines.extend(_erased_snapshot_lines(clears, refs, profile=profile))
     if previous is not None:
-        lines.extend(format_diff(diff_scans(previous, entry, clears, refs), previous, refs))
+        lines.extend(
+            format_diff(
+                diff_scans(previous, entry, clears, refs, profile=profile),
+                previous,
+                refs,
+                profile=profile,
+            )
+        )
     else:
         lines.append(f"  {ansi.DIM}(no earlier scan of this scope to compare against){ansi.RESET}")
     lines.append("")

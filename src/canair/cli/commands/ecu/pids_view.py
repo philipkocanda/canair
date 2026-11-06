@@ -9,6 +9,7 @@ from typing import Any
 
 from canair.analysis.ecu_summary import pids_latest_records
 from canair.core.terminal import terminal_columns
+from canair.profile import active
 from canair.render import ansi
 
 
@@ -63,7 +64,7 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
     Points at `canair captures`/`canair decode` for full history and statistics.
     """
     name = info.get("name") or f"0x{tx_id:03X}"
-    records = pids_latest_records(ecu_def, name)
+    records = pids_latest_records(ecu_def, name, profile=active())
 
     if as_json:
         json.dump(

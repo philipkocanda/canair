@@ -65,7 +65,7 @@ def cmd_set_state(
             "vocabulary (writing anyway; see `canair states`)"
         )
 
-    sessions = group_sessions(entries)
+    sessions = group_sessions(entries, profile=active())
     rows: list[dict] = [
         {
             "file": g["file"],

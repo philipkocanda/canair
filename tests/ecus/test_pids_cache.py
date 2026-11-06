@@ -6,6 +6,7 @@ import pytest
 
 from canair import profile
 from canair.ecus.pids import clear_cache, register_derived_cache
+from canair.profile import active
 
 
 def _mk_profile(tmp_path, name, ecu, param, sensitive=False):
@@ -70,10 +71,10 @@ class TestDecodePreviewIndex:
 
         entry = {"payload": "6101AABBCCDD", "ecu": "BMS", "pid": "2101"}
         _activate(_mk_profile(tmp_path, "a", "BMS", "A_VOLTS"), "a")
-        assert "A_VOLTS" in (decoded_preview(entry) or {})
+        assert "A_VOLTS" in (decoded_preview(entry, profile=active()) or {})
 
         _activate(_mk_profile(tmp_path, "b", "BMS", "B_VOLTS"), "b")
-        preview = decoded_preview(entry) or {}
+        preview = decoded_preview(entry, profile=active()) or {}
         assert "B_VOLTS" in preview, f"stale index decoded {sorted(preview)}"
 
     def test_editing_a_param_is_reflected(self, tmp_path):
@@ -83,66 +84,53 @@ class TestDecodePreviewIndex:
         root = _mk_profile(tmp_path, "c", "BMS", "OLD_NAME")
         _activate(root, "c")
         entry = {"payload": "6101AABBCCDD", "ecu": "BMS", "pid": "2101"}
-        assert "OLD_NAME" in (decoded_preview(entry) or {})
+        assert "OLD_NAME" in (decoded_preview(entry, profile=active()) or {})
 
         rename_parameter("BMS", "2101", "OLD_NAME", "NEW_NAME", pids_dir=root / "ecus")
-        preview = decoded_preview(entry) or {}
+        preview = decoded_preview(entry, profile=active()) or {}
         assert "NEW_NAME" in preview, f"stale index decoded {sorted(preview)}"
 
 
-class TestLogEcuLookup:
-    def test_switching_profile_remaps_tx_ids(self, tmp_path):
-        from canair.transport import ecu_log as log
-
-        _activate(_mk_profile(tmp_path, "la", "BMS", "X"), "la")
-        assert log._load_ecu_lookup().get(0x7E4) == "BMS"
-
-        _activate(_mk_profile(tmp_path, "lb", "MCU", "Y"), "lb")
-        assert log._load_ecu_lookup().get(0x7E4) == "MCU"
-
-
 class TestSwitchingProfiles:
-    """A profile switch needs no cache clearing: every derived cache is keyed by the profile."""
+    """Two profiles in one process need no cache clearing: every cache is keyed by the profile."""
 
-    def test_each_profile_reads_its_own_definitions_decode_index_and_sensitive_set(
-        self, tmp_path, monkeypatch
-    ):
+    def test_each_profile_reads_its_own_definitions_decode_index_and_sensitive_set(self, tmp_path):
         from canair.captures.store import decoded_preview
         from canair.ecus.pids import load_pids
         from canair.privacy.sensitive import profile_set
-        from canair.transport import ecu_log
+        from canair.profile import Profile
 
-        _mk_profile(tmp_path, "one", "BMS", "ONE_VOLTS", sensitive=True)
-        _mk_profile(tmp_path, "two", "MCU", "TWO_VOLTS")
-        monkeypatch.setenv("CANAIR_PROFILES_DIR", str(tmp_path))
+        one = Profile("one", _mk_profile(tmp_path, "one", "BMS", "ONE_VOLTS", sensitive=True))
+        two = Profile("two", _mk_profile(tmp_path, "two", "MCU", "TWO_VOLTS"))
         entry = {"payload": "6101AABBCCDD", "ecu": "BMS", "pid": "2101"}
 
-        def read():
+        def read(prof):
+            ecu = sorted(load_pids(prof)["ecus"])[0]
+            preview = decoded_preview(dict(entry, ecu=ecu), profile=prof)
             return (
-                sorted(load_pids()["ecus"]),
-                sorted(decoded_preview(dict(entry, ecu=sorted(load_pids()["ecus"])[0])) or {}),
-                ecu_log._load_ecu_lookup().get(0x7E4),
-                profile_set().has("BMS", "2101"),
+                sorted(load_pids(prof)["ecus"]),
+                sorted(preview or {}),
+                profile_set(prof).has("BMS", "2101"),
             )
 
-        profile.set_active("one", profiles_dir=tmp_path)
-        first = read()
-        profile.set_active("two", profiles_dir=tmp_path)
-        second = read()
-        profile.set_active("one", profiles_dir=tmp_path)
-        assert read() == first
+        first = read(one)
+        second = read(two)
+        assert read(one) == first
 
-        assert first == (["BMS"], ["ONE_VOLTS"], "BMS", True)
-        assert second == (["MCU"], ["TWO_VOLTS"], "MCU", False)
+        assert first == (["BMS"], ["ONE_VOLTS"], True)
+        assert second == (["MCU"], ["TWO_VOLTS"], False)
 
     def test_switching_does_not_clear_the_caches(self, tmp_path):
-        calls = []
-        _mk_profile(tmp_path, "one", "BMS", "X")
-        _mk_profile(tmp_path, "two", "MCU", "Y")
+        from canair.ecus.pids import load_pids
+        from canair.profile import Profile
 
-        profile.set_active("one", profiles_dir=tmp_path)
+        calls = []
+        one = Profile("one", _mk_profile(tmp_path, "one", "BMS", "X"))
+        two = Profile("two", _mk_profile(tmp_path, "two", "MCU", "Y"))
+
+        load_pids(one)
         register_derived_cache(lambda: calls.append(1))
-        profile.set_active("two", profiles_dir=tmp_path)
+        load_pids(two)
         assert calls == []
 
 
@@ -225,12 +213,12 @@ class TestLoadPidsCacheKey:
 
             profile._active = profile.Profile("one", tmp_path / "one")
             clear_cache()
-            assert list(load_pids()["ecus"]) == ["BMS"]
+            assert list(load_pids(profile=active())["ecus"]) == ["BMS"]
 
             profile._active = profile.Profile("two", tmp_path / "two")
             assert profile._active.cache_key == str(tmp_path / "two")
             clear_cache()
-            assert list(load_pids()["ecus"]) == ["MCU"]
+            assert list(load_pids(profile=active())["ecus"]) == ["MCU"]
         finally:
             profile._active = saved
             clear_cache()

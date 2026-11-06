@@ -22,13 +22,15 @@ SESSION_NOTE = (
 )
 
 
-def snapshot_rows(results: Iterable[Mapping[str, Any]]) -> list[tuple[str, str, str, str]]:
+def snapshot_rows(
+    results: Iterable[Mapping[str, Any]], *, profile: Profile
+) -> list[tuple[str, str, str, str]]:
     """``(rx, request, payload, time)`` for every snapshot reply in ``results``."""
     from canair.ecus.registry import rx_addr_str
 
     rows = []
     for result in results:
-        rx = rx_addr_str(int(result["tx"], 16))
+        rx = rx_addr_str(int(result["tx"], 16), profile=profile)
         for code in result.get("dtcs") or ():
             for snap in code.get("snapshots") or ():
                 # A reply holding a sensitive DID is never written (canair.privacy.sensitive).
@@ -47,7 +49,7 @@ def save_snapshot_captures(
     profile: Profile,
 ) -> Path | None:
     """Save the snapshot replies as one capture session; None when there were none."""
-    rows = snapshot_rows(results)
+    rows = snapshot_rows(results, profile=profile)
     if not rows:
         return None
     session_notes = f"{notes} — {SESSION_NOTE}" if notes else SESSION_NOTE

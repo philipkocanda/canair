@@ -69,13 +69,13 @@ class FakeTerminal(_SharedFakeTerminal):
 class TestClassifyAlive:
     def test_splits_known_and_new(self, tmp_path):
         _mk_profile(tmp_path, seed_ecus=SEED_BMS)
-        known, new = disc._classify_alive(ALIVE)
+        known, new = disc._classify_alive(ALIVE, profile=active())
         assert [(tx, name) for tx, _, _, name in known] == [(0x7E4, "BMS")]
         assert [tx for tx, _, _, _ in new] == [0x7A0]
 
     def test_all_new_when_registry_empty(self, tmp_path):
         _mk_profile(tmp_path)
-        known, new = disc._classify_alive(ALIVE)
+        known, new = disc._classify_alive(ALIVE, profile=active())
         assert known == []
         assert len(new) == 2
 
@@ -85,7 +85,7 @@ class TestOfferIdentify:
     async def test_flag_runs_identity_on_each(self, tmp_path):
         _mk_profile(tmp_path, seed_ecus=SEED_BMS)
         term = FakeTerminal()
-        await disc._offer_identify(term, ALIVE, identify=True, as_json=False)
+        await disc._offer_identify(term, ALIVE, identify=True, as_json=False, profile=active())
         # mode_identity sets the header for every alive ECU.
         assert 0x7E4 in term.headers
         assert 0x7A0 in term.headers
@@ -95,7 +95,7 @@ class TestOfferIdentify:
         _mk_profile(tmp_path)
         term = FakeTerminal()
         monkeypatch.setattr(disc.sys, "stdin", _FakeStdin(tty=True, line="y\n"))
-        await disc._offer_identify(term, ALIVE, identify=False, as_json=True)
+        await disc._offer_identify(term, ALIVE, identify=False, as_json=True, profile=active())
         assert term.headers == []
 
     @pytest.mark.asyncio
@@ -103,7 +103,7 @@ class TestOfferIdentify:
         _mk_profile(tmp_path)
         term = FakeTerminal()
         monkeypatch.setattr(disc.sys, "stdin", _FakeStdin(tty=False))
-        await disc._offer_identify(term, ALIVE, identify=False, as_json=False)
+        await disc._offer_identify(term, ALIVE, identify=False, as_json=False, profile=active())
         assert term.headers == []
 
     @pytest.mark.asyncio
@@ -111,7 +111,7 @@ class TestOfferIdentify:
         _mk_profile(tmp_path)
         term = FakeTerminal()
         monkeypatch.setattr(disc.sys, "stdin", _FakeStdin(tty=True, line="y\n"))
-        await disc._offer_identify(term, ALIVE, identify=False, as_json=False)
+        await disc._offer_identify(term, ALIVE, identify=False, as_json=False, profile=active())
         assert term.headers  # ran
 
     @pytest.mark.asyncio
@@ -119,14 +119,14 @@ class TestOfferIdentify:
         _mk_profile(tmp_path)
         term = FakeTerminal()
         monkeypatch.setattr(disc.sys, "stdin", _FakeStdin(tty=True, line="\n"))
-        await disc._offer_identify(term, ALIVE, identify=False, as_json=False)
+        await disc._offer_identify(term, ALIVE, identify=False, as_json=False, profile=active())
         assert term.headers == []
 
     @pytest.mark.asyncio
     async def test_empty_alive_is_noop(self, tmp_path):
         _mk_profile(tmp_path)
         term = FakeTerminal()
-        await disc._offer_identify(term, [], identify=True, as_json=False)
+        await disc._offer_identify(term, [], identify=True, as_json=False, profile=active())
         assert term.headers == []
 
 

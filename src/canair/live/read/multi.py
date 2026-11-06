@@ -233,7 +233,7 @@ async def _run_pipeline(
     profile: Profile,
 ):
     """Run the steps of :func:`mode_multi`; ``json_results`` collects the JSON entries."""
-    commands = parse_sub_commands(sub_commands)
+    commands = parse_sub_commands(sub_commands, profile=profile)
     ecu_index = build_ecu_index(pids_data)
     sm = SessionManager(terminal, verbose=verbose)
     repl_executed = False
@@ -263,14 +263,12 @@ async def _run_pipeline(
         )
 
     def _collect_query(ecu_label: str, pid_results: list[ResultEntry]) -> None:
-        ecu_ref = _rx_addr_for_ecu_label(ecu_label, ecu_index)
+        ecu_ref = _rx_addr_for_ecu_label(ecu_label, ecu_index, profile=profile)
         for entry in pid_results or []:
             raw_hex = entry.get("raw_hex", "")
             if raw_hex:
-                # Preserve the per-PID acquisition timestamp (moment the response
-                # arrived) at millisecond precision, mirroring the monitor — so
-                # sequentially-polled PIDs keep their true sub-second skew that
-                # cross-signal correlate/hunt/--corr rely on.
+                # Keep the per-PID acquisition timestamp (ms precision, as the monitor does) so
+                # sequentially-polled PIDs keep the sub-second skew correlate/hunt/--corr use.
                 cap_date, cap_time = _capture_stamp(entry.get("acquired_at"))
                 collected.append((ecu_ref, entry["pid"], raw_hex, cap_time))
                 if journal is not None:
@@ -306,9 +304,8 @@ async def _run_pipeline(
         return join_states(matched) if matched else None
 
     try:
-        # Shared batch state so multi_did-capable ECUs batch service-22 DIDs in
-        # the one-shot pipeline too (previously only the monitor did). Learns
-        # per-DID lengths across steps and auto-falls back per-DID on rejection.
+        # Shared batch state so multi_did-capable ECUs batch service-22 DIDs here too: it learns
+        # per-DID lengths across steps and falls back per-DID on rejection.
         from ...transport.isotp_params import resolve_rx_padding
 
         batch_state = BatchState(resolve_rx_padding(pids_data))
@@ -333,7 +330,12 @@ async def _run_pipeline(
             elif cmd_type == "session":
                 print(f"\n{step} Session on {cmd['target']}…")
                 await _exec_session(
-                    sm, cmd["target"], cmd["wake"], ecu_index, cmd.get("mode", "03")
+                    sm,
+                    cmd["target"],
+                    cmd["wake"],
+                    ecu_index,
+                    cmd.get("mode", "03"),
+                    profile=profile,
                 )
 
             elif cmd_type == "query":
@@ -350,6 +352,7 @@ async def _run_pipeline(
                         return_results=True,
                         batch_state=batch_state,
                         include_static=include_static,
+                        profile=profile,
                     )
                     if result:
                         ecu_label, pid_results = result
@@ -371,16 +374,17 @@ async def _run_pipeline(
                         verbose,
                         batch_state=batch_state,
                         include_static=include_static,
+                        profile=profile,
                     )
 
             elif cmd_type == "raw":
                 print(f"\n{step} Raw {cmd['spec']}…")
-                raw_result = await _exec_raw(sm, cmd["spec"], cmd["hold"], verbose)
+                raw_result = await _exec_raw(sm, cmd["spec"], cmd["hold"], verbose, profile=profile)
                 if json_results is not None and raw_result:
-                    json_results.append(raw_document(*raw_result))
+                    json_results.append(raw_document(*raw_result, profile=profile))
                 if save and raw_result:
                     tx_id, req, resp = raw_result
-                    ecu_ref = _rx_addr_for_tx(tx_id)
+                    ecu_ref = _rx_addr_for_tx(tx_id, profile=profile)
                     cap_date, cap_time = _capture_stamp(None)
                     if resp.get("ok") and resp.get("hex"):
                         collected.append((ecu_ref, req, resp["hex"], cap_time))
@@ -423,13 +427,27 @@ async def _run_pipeline(
             elif cmd_type == "repl":
                 print(f"\n{step} Entering REPL…")
                 repl_executed = True
-                await _multi_repl(sm, ecu_index, pids_data, verbose, include_static=include_static)
+                await _multi_repl(
+                    sm,
+                    ecu_index,
+                    pids_data,
+                    verbose,
+                    include_static=include_static,
+                    profile=profile,
+                )
 
             elif cmd_type == "iocontrol":
                 action = "OFF" if cmd["off"] else "ON"
                 print(f"\n{step} IOControl {cmd['ecu']} {cmd['did']} ({action})…")
                 await _exec_iocontrol(
-                    sm, cmd["ecu"], cmd["did"], cmd["off"], pids_data, ecu_index, verbose
+                    sm,
+                    cmd["ecu"],
+                    cmd["did"],
+                    cmd["off"],
+                    pids_data,
+                    ecu_index,
+                    verbose,
+                    profile=profile,
                 )
 
         # Save collected payloads before any REPL handoff
@@ -452,7 +470,9 @@ async def _run_pipeline(
             if sessions_str:
                 print(f"\n  Active sessions: {sessions_str}")
             print("\n  Pipeline complete. Entering REPL…")
-            await _multi_repl(sm, ecu_index, pids_data, verbose, include_static=include_static)
+            await _multi_repl(
+                sm, ecu_index, pids_data, verbose, include_static=include_static, profile=profile
+            )
 
     except KeyboardInterrupt:
         print("\n  Interrupted.")

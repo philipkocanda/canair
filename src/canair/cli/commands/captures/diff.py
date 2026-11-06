@@ -12,6 +12,7 @@ from canair.captures.entries import dedupe_payloads, group_by_key
 from canair.captures.store import NO_DEFS, PidDefs, decoded_preview
 from canair.captures.types import CaptureEntry
 from canair.expression.notation import ByteDisplay, ByteNotation
+from canair.profile import active
 from canair.render.console import console as make_console
 from canair.render.console import escape
 from canair.uds.layout import subfunction_bytes_for_pid
@@ -135,7 +136,7 @@ def cmd_diff(
                     "total": len(group),
                     "unique": len(unique),
                     "payloads": [e["payload"].upper().replace(" ", "") for e in render_list],
-                    "decoded": decoded_preview(group[-1]),
+                    "decoded": decoded_preview(group[-1], profile=active()),
                 }
             )
         _dump_json(out)

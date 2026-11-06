@@ -996,7 +996,7 @@ class TestControllerSuggestedState:
         from canair.states import vocabulary as states_vocabulary
 
         c = make_controller(terminal=None, query_steps=[], pids_data={}, verbose=False)
-        monkeypatch.setattr(states_vocabulary, "load_states", lambda profile=None: rules)
+        monkeypatch.setattr(states_vocabulary, "load_states", lambda *_, **__: rules)
         return c
 
     def test_suggests_from_decoded_values(self, monkeypatch):
@@ -1128,7 +1128,7 @@ class TestDynamicSchedulePerPidClock:
                 "DRIVING", predicate=compile_predicate("ESC.SPEED > 0.5"), implies=("READY",)
             ),
         ]
-        monkeypatch.setattr(states_vocabulary, "load_states", lambda profile=None: rules)
+        monkeypatch.setattr(states_vocabulary, "load_states", lambda *_, **__: rules)
         steps = [
             {"type": "query", "ecu": "VCU", "pids": ["2101"]},
             {"type": "query", "ecu": "ESC", "pids": ["22C101"]},
@@ -1218,11 +1218,11 @@ class TestQueryEcuError:
 
     def test_all_known(self):
         steps = [{"type": "query", "ecu": "BMS", "pids": []}]
-        assert query_ecu_error(steps, self._pids()) is None
+        assert query_ecu_error(steps, self._pids(), profile=active()) is None
 
     def test_case_insensitive(self):
         steps = [{"type": "query", "ecu": "bms", "pids": []}]
-        assert query_ecu_error(steps, self._pids()) is None
+        assert query_ecu_error(steps, self._pids(), profile=active()) is None
 
     def test_unknown_ecu_flagged(self):
         # The typo "ECS" (meant "ESC") must be reported, not silently skipped.
@@ -1230,7 +1230,7 @@ class TestQueryEcuError:
             {"type": "query", "ecu": "ESC", "pids": []},
             {"type": "query", "ecu": "ECS", "pids": []},
         ]
-        err = query_ecu_error(steps, self._pids())
+        err = query_ecu_error(steps, self._pids(), profile=active())
         assert err is not None
         assert "ECS" in err
         assert "ESC" not in err.split("\n")[0]  # ESC is valid, only ECS flagged
@@ -1241,7 +1241,7 @@ class TestQueryEcuError:
             {"type": "query", "ecu": "ECS", "pids": []},
             {"type": "query", "ecu": "ecs", "pids": ["2101"]},
         ]
-        err = query_ecu_error(steps, self._pids())
+        err = query_ecu_error(steps, self._pids(), profile=active())
         assert err.split("\n")[0].count("ECS") + err.split("\n")[0].count("ecs") == 1
 
 

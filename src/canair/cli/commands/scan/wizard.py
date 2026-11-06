@@ -12,6 +12,7 @@ from canair.live.scan.presets import (
     preset_by_service,
     resolve_service,
 )
+from canair.profile import active
 from canair.render import messages
 from canair.render.console import console, escape
 from canair.render.glyphs import WARN
@@ -42,11 +43,11 @@ def _ecu_choices() -> list[tuple[str, int, str]]:
     from canair.ecus.registry import load_ecus
 
     try:
-        ecus = load_ecus()
+        ecus = load_ecus(profile=active())
     except Exception:
         ecus = {}
     try:
-        pids = load_pids()
+        pids = load_pids(profile=active())
     except Exception:
         pids = {}
 
@@ -97,7 +98,7 @@ def run_wizard(args) -> bool:
 
         # Compute the smart plan to seed defaults.
         try:
-            plan = plan_scan(args.tx)
+            plan = plan_scan(args.tx, profile=active())
         except Exception:
             plan = None
 

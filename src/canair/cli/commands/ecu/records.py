@@ -49,13 +49,13 @@ def detail_record(
         "can_bus": can_bus,
         "can_bus_labels": [bus_labels.get(c, c) for c in (can_bus or [])],
         "tx": f"0x{tx_id:03X}",
-        "rx": rx_addr_str(tx_id),
+        "rx": rx_addr_str(tx_id, profile=active()),
         "notes": info.get("notes"),
         "identity": {k: info[k] for k, _ in IDENTITY_FIELDS if info.get(k) is not None},
         "identity_note": _identity_note(name),
     }
     rec["dtcs"] = _dtc_status(tx_id)
-    per_pid, total = ecu_summary.captures_by_pid(name)
+    per_pid, total = ecu_summary.captures_by_pid(name, profile=active())
     if ecu_def is not None:
         rec["stats"] = ecu_summary.pid_stats(ecu_def)
         rec["vehicle_states"] = ecu_def.get("vehicle_states")
@@ -74,7 +74,7 @@ def _dtc_status(tx_id: int) -> dict | None:
     from canair.dtc.refs import ecu_ref
 
     try:
-        status = ecu_status(ecu_ref(tx_id))
+        status = ecu_status(ecu_ref(tx_id, profile=active()), profile=active())
     except (ProfileError, OSError):
         return None
     return status.as_dict() if status is not None else None
@@ -91,7 +91,7 @@ def _identity_note(name: str) -> str | None:
     from canair.ecus.revisions import determined_revisions
     from canair.variants.revisions import canonical_ecu, identity_reference
 
-    raw = load_raw_pids().get("ecus") or {}
+    raw = load_raw_pids(profile=active()).get("ecus") or {}
     key = canonical_ecu(name, raw)
     reference = identity_reference(raw[key]) if key else None
     if reference is None:

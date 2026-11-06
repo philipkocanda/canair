@@ -31,10 +31,9 @@ reply; it reconciles into an untimed capture with a ``response`` field. ``event`
 an interval's start and end share an ``id``, and a start whose end never arrived (the
 process died mid-disconnect) reconciles open-ended.
 
-Multiple ``meta`` lines may appear (metadata edited mid-session); reconcile uses
-the **last** one. For one-shot producers that already build a full session dict
-(scan/raw/discover), a single ``{"type": "session", "session": {...}}`` line is
-written instead of ``capture`` lines.
+Multiple ``meta`` lines may appear (metadata edited mid-session); reconcile uses the **last**
+one. One-shot producers that already build a full session dict (scan/raw/discover) write a
+single ``{"type": "session", "session": {...}}`` line instead of ``capture`` lines.
 """
 
 from __future__ import annotations
@@ -154,7 +153,7 @@ class CaptureJournal:
         from canair.privacy import sensitive
 
         if self._sensitive is None:
-            self._sensitive = sensitive.set_for_captures(self.captures_dir)
+            self._sensitive = sensitive.set_for_captures(self.captures_dir, profile=self.profile)
         if record.get("type") in ("capture", "response"):
             return bool(sensitive.withhold([record], self._sensitive))
         if record.get("type") == "session":
@@ -366,7 +365,11 @@ def _dedup(
 
 
 def build_session_from_records(
-    records: list[dict], keep_mode: KeepMode | None = None, recovered: bool = False
+    records: list[dict],
+    keep_mode: KeepMode | None = None,
+    recovered: bool = False,
+    *,
+    profile: Profile,
 ) -> list[CaptureSession]:
     """Build capture session dicts from journal records — one per capture date.
 
@@ -428,25 +431,20 @@ def build_session_from_records(
                 )
             )
 
-    # meta values come from a loosely-typed journal dict; the label/notes fields
-    # are always strings at runtime, so coerce to satisfy build_query_session.
+    # meta values come from a loosely-typed journal dict: coerce for build_query_session.
     label = str(meta.get("label") or "Recovered session")
     vehicle_states = list(meta.get("vehicle_states") or [])
     notes = str(meta.get("notes") or "")
     if recovered:
         notes = f"{notes} [recovered]".strip()
-    # The journal is a loosely-typed JSONL file (possibly hand-inspected, or
-    # written by an older canair), so its recorded mode is re-narrowed here.
+    # The journal is loosely-typed JSONL (maybe hand-edited, or from an older canair): re-narrow.
     effective_keep = keep_mode if keep_mode is not None else parse_keep_mode(meta.get("keep_mode"))
 
-    # One-shot producer stored a complete session; merge its captures in. These
-    # carry their own session date, so they are not day-split here.
+    # A one-shot producer stored a complete session: merge its captures in (not day-split).
     if session_records:
-        # Only the first session dict carries the base; append others' captures.
-        # Narrowed at the *entry* boundary (the journal is untyped JSONL) so every
-        # field write below is checked, rather than casting the finished dict.
-        # Fields go through set_session_field so one added here (the
-        # ``[recovered]`` note, say) lands above ``captures``, not after it.
+        # The first session dict carries the base; append the others' captures. Narrowed at
+        # the *entry* boundary (untyped JSONL) so every field write below is checked, and
+        # written through set_session_field so a new field lands above ``captures``.
         base = cast(CaptureSession, dict(session_records[0]))
         base["label"] = label
         set_session_field(base, "vehicle_states", vehicle_states)
@@ -458,15 +456,14 @@ def build_session_from_records(
             set_session_field(base, "quality", quality)
         for extra in session_records[1:]:
             base.setdefault("captures", []).extend(extra.get("captures", []))
-        return [apply_capture_tag(base, tag)]
+        return [apply_capture_tag(base, tag, profile=profile)]
 
     if not rows and not non_answers:
         return []
 
     rows = _dedup(rows, effective_keep)
 
-    # Group by capture date so each day becomes its own session. Preserve the
-    # order dates first appear so the earliest day is saved first.
+    # Group by capture date: each day becomes its own session, in order of first appearance.
     by_date: dict[str, list[tuple[str, str, str, str, int | None]]] = {}
     for ecu, pid, hex_val, ts, rdate, elapsed_ms in rows:
         by_date.setdefault(rdate, []).append((ecu, pid, hex_val, ts, elapsed_ms))
@@ -491,7 +488,7 @@ def build_session_from_records(
             link_events=link_events.get(rdate, ()),
         )
         sessions.append(session)
-    return [apply_capture_tag(s, tag) for s in sessions]
+    return [apply_capture_tag(s, tag, profile=profile) for s in sessions]
 
 
 def reconcile_file(
@@ -508,7 +505,9 @@ def reconcile_file(
         return None
     captures_dir = path.parent.parent
     records = _read_records(path)
-    sessions = build_session_from_records(records, keep_mode=keep_mode, recovered=recovered)
+    sessions = build_session_from_records(
+        records, keep_mode=keep_mode, recovered=recovered, profile=profile
+    )
     sessions = [s for s in sessions if s and s.get("captures")]
     if not sessions:
         # Nothing worth keeping — drop the journal.

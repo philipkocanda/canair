@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from canair.tui.apps.captures_step.model import StepModel
+from tests.support.profiles import bundled_profile
 
 PARAMS = {
     "P_STATIC": {"expression": "B04", "unit": "", "verified": True},
@@ -41,7 +42,7 @@ def model(*, keys=None, entries=None, **kw) -> StepModel:
     keys = keys or sorted({(e["ecu"], str(e["pid"])) for e in entries})
     defs = dict.fromkeys(keys, (PARAMS, 0x7B3))
     kw.setdefault("captures_dir", None)
-    return StepModel.from_entries(entries, keys, defs, **kw)
+    return StepModel.from_entries(entries, keys, defs, profile=bundled_profile(), **kw)
 
 
 def _three_pid_entries() -> list[dict]:

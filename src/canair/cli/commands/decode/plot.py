@@ -15,6 +15,7 @@ from canair.captures.store import load_pid_captures
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.ecus.pids import build_ecu_index, load_pids
 from canair.expression.decoding import decode_payload, ordered_signal_names
+from canair.profile import active
 from canair.tui.apps.decode_plot.model import PlotModel
 from canair.uds.byteindex import payload_to_wican_bytes
 
@@ -77,7 +78,7 @@ def plot_pid_options() -> list[tuple[str, str]]:
 
     seen: dict[tuple[str, str], None] = {}
     try:
-        for e in load_all_captures():
+        for e in load_all_captures(profile=active()):
             if not e.get("payload"):
                 continue
             ecu = str(e.get("ecu", "")).upper()
@@ -109,14 +110,14 @@ def build_plot_model(args, ecu: str, pid: str) -> PlotModel | None:
         "first": args.first,
         "last": args.last,
     }
-    pids_data = load_pids()
+    pids_data = load_pids(profile=active())
     ecu_index = build_ecu_index(pids_data)
     parameters: dict = {}
     if ecu_key in ecu_index:
         parameters = ecu_index[ecu_key]["pids"].get(pid_key, {}).get("parameters", {}) or {}
     defined_params = dict(parameters)
 
-    captures = scope_captures(load_pid_captures(ecu_key, pid_key), **scope)
+    captures = scope_captures(load_pid_captures(ecu_key, pid_key, profile=active()), **scope)
     all_results: list[dict] = []
     for cap in captures:
         try:

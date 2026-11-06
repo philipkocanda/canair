@@ -54,7 +54,7 @@ def _load_usage() -> dict[str, int]:
 
     counts: dict[str, int] = {}
     try:
-        _collect_state_usage(load_pids().get("ecus", {}), counts)
+        _collect_state_usage(load_pids(profile=active()).get("ecus", {}), counts)
     except Exception:
         pass
     return counts

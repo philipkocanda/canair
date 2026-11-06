@@ -48,6 +48,7 @@ from canair.captures.store import (
 )
 from canair.captures.types import CaptureEntry
 from canair.expression.notation import ByteNotation
+from canair.profile import Profile
 from canair.states.tokens import join_states as _join_states
 
 from .gaps import describe_gap, gaps_before
@@ -79,39 +80,35 @@ AUTO_STACK_MAX_KEYS = 6
 #: Tolerance ladder stepped by ``<``/``>`` in the TUI (seconds).
 TOL_LADDER = (0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 300.0)
 
-#: Default join window for the stepper — deliberately wider than the shared
-#: :data:`canair.analysis.align.DEFAULT_JOIN_TOL_S` (5s) used by
-#: ``align``/``correlate``/``hunt``.
+#: Default join window for the stepper, deliberately wider than the shared
+#: :data:`canair.analysis.align.DEFAULT_JOIN_TOL_S` (5s) of ``align``/``correlate``/``hunt``.
 #:
-#: A full round-robin ``monitor`` cycle over several ECUs routinely spans ~8-10s,
-#: so two PIDs polled in the *same* cycle can sit further apart than 5s and would
-#: not be joined — the frames split, and the comparison the view exists for
-#: disappears. The stepper can afford the wider window because it is a *viewer*:
-#: every block reports its own ``Δt`` from the anchor, so an over-wide join is
-#: visible and self-correcting. The statistics tools cannot — a loose pairing
-#: silently changes a correlation coefficient — which is why they keep the
-#: tighter shared default.
+#: A full round-robin ``monitor`` cycle over several ECUs spans ~8-10s, so two PIDs polled in
+#: the *same* cycle can sit further apart than 5s and would not be joined, and the comparison
+#: the view exists for disappears. The stepper can afford the wider window because it is a
+#: *viewer*: every block reports its own ``Δt`` from the anchor, so an over-wide join is
+#: visible. The statistics tools cannot: a loose pairing silently changes a correlation
+#: coefficient, which is why they keep the tighter shared default.
 DEFAULT_STEP_JOIN_TOL_S = 10.0
 
 # Frames skipped by a "page" jump.
 PAGE_JUMP = 100
 
-#: A capture's immutable identity: ``(path, session_idx, capture_idx)``. Indices
-#: into :attr:`StepModel.captures` are invalidated by every rebuild, so anything
-#: that outlives a rebuild (a jump target) addresses captures by this instead.
-#: The full path, not the display name: a layered profile's base and overlay hold
-#: same-named date files, so ``(file, idx)`` would conflate two sessions.
+#: A capture's immutable identity: ``(path, session_idx, capture_idx)``. Indices into
+#: :attr:`StepModel.captures` are invalidated by every rebuild, so anything that outlives one
+#: (a jump target) uses this. The full path, not the display name: a layered profile's base and
+#: overlay hold same-named date files.
 CaptureRef = tuple[str, int, int]
 
 
-def session_id(entry: Mapping[str, Any]) -> tuple[str, int]:
+def session_id(entry: Mapping[str, Any], *, profile: Profile) -> tuple[str, int]:
     """The ``(path, session_idx)`` identity of the session a capture belongs to."""
-    return (str(entry_path(entry)), int(entry.get("_session_idx", 0)))
+    return (str(entry_path(entry, profile=profile)), int(entry.get("_session_idx", 0)))
 
 
-def capture_ref(entry: Mapping[str, Any]) -> CaptureRef:
+def capture_ref(entry: Mapping[str, Any], *, profile: Profile) -> CaptureRef:
     """The ``(path, session_idx, capture_idx)`` locator of a capture entry."""
-    return (*session_id(entry), int(entry.get("_capture_idx", 0)))
+    return (*session_id(entry, profile=profile), int(entry.get("_capture_idx", 0)))
 
 
 # Why a jump target can't be shown, or "" when it can. Kept short: they are
@@ -183,6 +180,7 @@ class StepModel:
     index: dict[tuple[str, str], list[CaptureEntry]]
     keys: list[tuple[str, str]]
     defs: dict[tuple[str, str], PidDefs]
+    profile: Profile
     view: str = VIEW_STACKED
     tol_s: float = DEFAULT_STEP_JOIN_TOL_S
     show_all: bool = False
@@ -225,6 +223,7 @@ class StepModel:
         keys: list[tuple[str, str]],
         defs: dict[tuple[str, str], PidDefs],
         *,
+        profile: Profile,
         view: str = VIEW_AUTO,
         tol_s: float = DEFAULT_STEP_JOIN_TOL_S,
         show_all: bool = False,
@@ -237,6 +236,7 @@ class StepModel:
             index=key_index(entries),
             keys=sorted(keys),
             defs=dict(defs),
+            profile=profile,
             view=resolve_view(view, len(keys)),
             tol_s=tol_s,
             show_all=show_all,
@@ -297,7 +297,7 @@ class StepModel:
         addressed by its immutable ``(file, session, capture)`` locator and
         resolved through here instead.
         """
-        self._at = {capture_ref(e): i for i, e in enumerate(self.captures)}
+        self._at = {capture_ref(e, profile=self.profile): i for i, e in enumerate(self.captures)}
         frame_of: dict[int, int] = {}
         if self.stacked:
             for n, frame in enumerate(self.frames):
@@ -310,7 +310,7 @@ class StepModel:
 
     def reload_from_disk(self) -> bool:
         """Re-read captures from disk (after a note edit / delete). False if empty."""
-        entries = load_all_captures(self.captures_dir)
+        entries = load_all_captures(self.captures_dir, profile=self.profile)
         self.entries = entries
         self.index = key_index(entries)
         self.rebuild(preserve_time=True)
@@ -381,7 +381,7 @@ class StepModel:
         rows: list[JumpTarget] = []
         hidden = 0
         hidden_notes = 0
-        for g in reversed(group_sessions(self.entries)):
+        for g in reversed(group_sessions(self.entries, profile=self.profile)):
             sid = (g["path"], g["session_idx"])
             reachable = self._session_frame(sid) is not None
             noted = [e for e in g["noted"] if self._note_placeable(e)]
@@ -430,7 +430,7 @@ class StepModel:
             is_note=True,
             label=_one_line(str(e.get("notes") or "")),
             detail=f"{str(e.get('time') or '—').split('.')[0]}  {key[0]}:{key[1]}",
-            ref=capture_ref(e),
+            ref=capture_ref(e, profile=self.profile),
             key=key,
             blocked=self._note_block(e),
         )
@@ -461,7 +461,7 @@ class StepModel:
         """The earliest frame showing a capture from that session, if any."""
         best: int | None = None
         for i, e in enumerate(self.captures):
-            if session_id(e) != sid:
+            if session_id(e, profile=self.profile) != sid:
                 continue
             n = self._frame_of.get(i)
             if n is not None and (best is None or n < best):
@@ -576,7 +576,7 @@ class StepModel:
         for k in self.keys:
             if k not in self.defs:
                 if not self._ecu_index:
-                    self._ecu_index = load_ecu_index()
+                    self._ecu_index = load_ecu_index(profile=self.profile)
                 self.defs[k] = resolve_pid_defs(self._ecu_index, *k)
         self.rebuild(preserve_time=True)
 
@@ -781,7 +781,7 @@ class StepModel:
                 if idx is None:
                     blocks.append(None)
                     continue
-                block = entry_to_dict(self.captures[idx])
+                block = entry_to_dict(self.captures[idx], profile=self.profile)
                 dt = entry_datetime(self.captures[idx])
                 block["key"] = key_label(key)
                 block["dt_s"] = (

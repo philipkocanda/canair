@@ -13,7 +13,7 @@ from canair.dtc import history
 from canair.dtc import log as dtc_log
 from canair.dtc.refs import EcuRefs
 from canair.dtc.scope import ANY_CAR, Car
-from canair.profile import Profile
+from canair.profile import Profile, active
 
 # A two-ECU registry as the log sees it: rx -> name, rx -> request id.
 REFS = EcuRefs(tx_by_rx={0x7EC: 0x7E4, 0x7EA: 0x7E2}, names={0x7EC: "BMS", 0x7EA: "VCU"})
@@ -40,7 +40,7 @@ def logp(tmp_path, monkeypatch):
 @pytest.fixture
 def refs(monkeypatch):
     """Resolve logged references against :data:`REFS` instead of the active profile."""
-    monkeypatch.setattr(EcuRefs, "current", classmethod(lambda cls: REFS))
+    monkeypatch.setattr(EcuRefs, "current", classmethod(lambda cls, *_, **__: REFS))
     return REFS
 
 
@@ -86,10 +86,10 @@ class TestCar:
 class TestTagging:
     def test_entries_carry_the_car_and_the_scoped_ecus_revision(self, logp, refs, monkeypatch):
         tag = {"variant": "28kwh", "revisions": {"VCU": "kwp", "BMS": "uds"}, "attribution": {}}
-        monkeypatch.setattr("canair.captures.tags.capture_tag", lambda _p: dict(tag))
-        dtc_log.append_scan(_scan("all"))
-        dtc_log.append_scan(_scan(VCU))
-        dtc_log.append_clear(dtc_log.build_clear(BMS, timestamp="t"))
+        monkeypatch.setattr("canair.captures.tags.capture_tag", lambda _p, **__: dict(tag))
+        dtc_log.append_scan(_scan("all"), profile=active())
+        dtc_log.append_scan(_scan(VCU), profile=active())
+        dtc_log.append_clear(dtc_log.build_clear(BMS, timestamp="t"), profile=active())
         data = dtc_log.load_log()
         scans = data["scans"]
         assert scans[0]["variant"] == "28kwh"
@@ -100,7 +100,7 @@ class TestTagging:
 
     def test_the_log_file_is_written_with_a_header_and_its_format(self, tmp_path):
         p = tmp_path / "sub" / "log.yaml"
-        dtc_log.append_scan(_scan("all"), path=p)
+        dtc_log.append_scan(_scan("all"), path=p, profile=active())
         assert p.read_text().startswith("# DTC scan history")
         assert yaml.safe_load(p.read_text())["format"] == dtc_log.FORMAT
 
@@ -113,8 +113,8 @@ class TestLatestMatching:
     def test_skips_another_cars_scans(self, logp, refs):
         _write(logp, _scan("all", ts="t1", variant="28kwh"), _scan("all", ts="t2", variant="38kwh"))
         car = Car(variant="28kwh", several=True)
-        assert dtc_log.latest_matching("all", car=car)["timestamp"] == "t1"
-        assert dtc_log.prior_matching("all", "t3", car=car)["timestamp"] == "t1"
+        assert dtc_log.latest_matching("all", car=car, profile=active())["timestamp"] == "t1"
+        assert dtc_log.prior_matching("all", "t3", car=car, profile=active())["timestamp"] == "t1"
 
     def test_skips_another_revision_of_the_ecu(self, logp, refs):
         _write(
@@ -123,14 +123,17 @@ class TestLatestMatching:
             _scan(VCU, ts="t2", revisions={"VCU": "kwp"}),
         )
         car = Car(variant="v", revisions={"VCU": "uds"})
-        assert dtc_log.latest_matching(VCU, car=car)["timestamp"] == "t1"
+        assert dtc_log.latest_matching(VCU, car=car, profile=active())["timestamp"] == "t1"
 
     def test_clears_between_two_timestamps(self, logp, refs):
         _write(
             logp,
             clears=[dtc_log.build_clear(BMS, timestamp=t) for t in ("t1", "t2", "t3")],
         )
-        assert [c["timestamp"] for c in dtc_log.clears_between("t1", "t2", car=ANY_CAR)] == ["t2"]
+        assert [
+            c["timestamp"]
+            for c in dtc_log.clears_between("t1", "t2", car=ANY_CAR, profile=active())
+        ] == ["t2"]
 
 
 class TestDiff:
@@ -139,17 +142,19 @@ class TestDiff:
     def test_an_unread_ecu_is_not_cleared(self):
         prev = _scan("all", {BMS: _codes("P1")})
         curr = _scan("all", unread=[BMS])
-        assert dtc_log.diff_scans(prev, curr, refs=REFS) == self.EMPTY
+        assert dtc_log.diff_scans(prev, curr, refs=REFS, profile=active()) == self.EMPTY
 
     def test_another_revision_is_not_compared(self):
         prev = _scan("all", {VCU: _codes("P1")}, revisions={"VCU": "kwp"})
         curr = _scan("all", {VCU: _codes("P2")}, revisions={"VCU": "uds"})
-        assert dtc_log.diff_scans(prev, curr, refs=REFS) == self.EMPTY
+        assert dtc_log.diff_scans(prev, curr, refs=REFS, profile=active()) == self.EMPTY
 
     def test_codes_a_clear_wiped_are_not_reported_as_cleared(self):
         prev = _scan("all", {BMS: _codes("P1", "P2"), VCU: _codes("U1")})
         curr = _scan("all", {BMS: _codes("P2")})
-        diff = dtc_log.diff_scans(prev, curr, [dtc_log.build_clear(BMS)], refs=REFS)
+        diff = dtc_log.diff_scans(
+            prev, curr, [dtc_log.build_clear(BMS)], refs=REFS, profile=active()
+        )
         assert diff["cleared_manually"] == [(BMS, "P1"), (BMS, "P2")]
         assert diff["cleared"] == [(VCU, "U1")]  # gone on its own
         assert diff["new"] == [(BMS, "P2")]  # came back after the clear
@@ -157,7 +162,12 @@ class TestDiff:
     def test_the_diff_names_ecus_from_the_profile(self):
         prev = _scan("all", {BMS: _codes("P1")}, ts="t0")
         lines = "\n".join(
-            dtc_log.format_diff(dtc_log.diff_scans(prev, _scan("all"), refs=REFS), prev, REFS)
+            dtc_log.format_diff(
+                dtc_log.diff_scans(prev, _scan("all"), refs=REFS, profile=active()),
+                prev,
+                REFS,
+                profile=active(),
+            )
         )
         assert "BMS (0x7E4) P1" in lines
 
@@ -170,13 +180,13 @@ class TestEcuStatus:
                 _scan(BMS, {BMS: _codes("P2")}, ts="t2"),
             ]
         }
-        status = history.ecu_status(BMS, car=ANY_CAR, data=data, refs=REFS)
+        status = history.ecu_status(BMS, car=ANY_CAR, data=data, refs=REFS, profile=active())
         assert status is not None and status.codes == ("P2",) and status.timestamp == "t2"
         assert status.ecu == "BMS (0x7E4)"
 
     def test_a_sweep_that_read_it_but_lists_nothing_means_clean(self):
         data = {"scans": [_scan("all", {BMS: _codes("P1")}, ts="t1"), _scan("all", ts="t2")]}
-        status = history.ecu_status(BMS, car=ANY_CAR, data=data, refs=REFS)
+        status = history.ecu_status(BMS, car=ANY_CAR, data=data, refs=REFS, profile=active())
         assert status is not None and status.codes == ()
 
     def test_a_sweep_that_could_not_read_it_says_nothing(self):
@@ -186,31 +196,33 @@ class TestEcuStatus:
                 _scan("all", unread=[BMS], ts="t2"),
             ]
         }
-        status = history.ecu_status(BMS, car=ANY_CAR, data=data, refs=REFS)
+        status = history.ecu_status(BMS, car=ANY_CAR, data=data, refs=REFS, profile=active())
         assert status is not None and status.codes == ("P1",) and status.timestamp == "t1"
 
     def test_a_clear_leaves_it_clean_until_it_is_read_again(self):
         scans = [_scan(BMS, {BMS: _codes("P1")}, ts="t1")]
         clears = [dtc_log.build_clear(BMS, timestamp="t1")]  # same second as the read
         status = history.ecu_status(
-            BMS, car=ANY_CAR, data={"scans": scans, "clears": clears}, refs=REFS
+            BMS, car=ANY_CAR, data={"scans": scans, "clears": clears}, refs=REFS, profile=active()
         )
         assert status is not None and status.codes == () and status.cleared
         scans.append(_scan(BMS, {BMS: _codes("P1")}, ts="t2"))
         status = history.ecu_status(
-            BMS, car=ANY_CAR, data={"scans": scans, "clears": clears}, refs=REFS
+            BMS, car=ANY_CAR, data={"scans": scans, "clears": clears}, refs=REFS, profile=active()
         )
         assert status is not None and status.codes == ("P1",) and not status.cleared
 
     def test_another_ecus_scan_is_ignored_and_none_means_never_scanned(self):
         data = {"scans": [_scan(VCU, {VCU: _codes("P1")})]}
-        assert history.ecu_status(BMS, car=ANY_CAR, data=data, refs=REFS) is None
+        assert history.ecu_status(BMS, car=ANY_CAR, data=data, refs=REFS, profile=active()) is None
 
     def test_a_revision_change_hides_the_old_codes(self):
         data = {"scans": [_scan("all", {VCU: _codes("P1")}, revisions={"VCU": "kwp"})]}
         car = Car(variant="v", revisions={"VCU": "uds"})
-        assert history.ecu_status(VCU, car=car, data=data, refs=REFS) is None
-        assert history.ecu_status(VCU, car=ANY_CAR, data=data, refs=REFS) is not None
+        assert history.ecu_status(VCU, car=car, data=data, refs=REFS, profile=active()) is None
+        assert (
+            history.ecu_status(VCU, car=ANY_CAR, data=data, refs=REFS, profile=active()) is not None
+        )
 
 
 class TestStats:
@@ -221,7 +233,7 @@ class TestStats:
             _scan("all", {BMS: _codes("B1")}, ts="t2", variant="a"),
             _scan("all", {BMS: _codes("B9")}, ts="t3", variant="b"),
         )
-        stats = history.log_stats(car=Car(variant="a", several=True))
+        stats = history.log_stats(car=Car(variant="a", several=True), profile=active())
         assert (stats.scans, stats.seen, stats.open_codes, stats.other_cars) == (2, 2, 1, 1)
         assert stats.last_scan == "t2"
         assert [s.codes for s in stats.open] == [("B1",)]
@@ -417,9 +429,9 @@ class TestCommands:
         from canair.dtc.refs import ecu_ref
         from canair.ecus.names import resolve_tx
 
-        tx = resolve_tx("BMS")
+        tx = resolve_tx("BMS", profile=active())
         assert tx is not None
-        _write(logp, _scan("all", {ecu_ref(tx): _codes("P1AAA-00")}))
+        _write(logp, _scan("all", {ecu_ref(tx, profile=active()): _codes("P1AAA-00")}))
         assert ecu_cmd.run(argparse.Namespace(ecu="BMS", view=None, json=False)) == 0
         out = capsys.readouterr().out
         assert "1 open" in out and "P1AAA-00" in out

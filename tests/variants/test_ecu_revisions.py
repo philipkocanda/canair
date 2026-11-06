@@ -21,7 +21,7 @@ from canair.captures.tags import capture_tag
 from canair.cli import main
 from canair.config import file as config_file
 from canair.ecus.pids import clear_cache, load_pids, load_raw_pids, revision_resolutions
-from canair.profile import ProfileError, set_active
+from canair.profile import ProfileError, active, set_active
 from canair.variants import check_variants_doc, effective_meta, load_variants
 from canair.variants import revisions as rv
 from canair.variants.tags import narrow_to_captured, revisions_in_scope
@@ -55,7 +55,7 @@ def _activate(root=FIXTURE, variant=None, pins=None):
 
 
 def _ecus():
-    return load_pids()["ecus"]
+    return load_pids(profile=active())["ecus"]
 
 
 def _pids(ecu: str) -> dict:
@@ -68,8 +68,8 @@ def _pids(ecu: str) -> dict:
 class TestResolution:
     def test_the_40kwh_car_has_only_the_kwp_vcu(self):
         _activate(variant="40kwh")
-        assert revision_resolutions()["VCU"].revision == "kwp"
-        assert revision_resolutions()["VCU"].source == "only"
+        assert revision_resolutions(profile=active())["VCU"].revision == "kwp"
+        assert revision_resolutions(profile=active())["VCU"].source == "only"
         pids = _pids("VCU")
         assert set(pids) == {"2101", "21F0"}
         assert set(pids["21F0"]["parameters"]) == {"GEAR"}
@@ -83,21 +83,21 @@ class TestResolution:
 
     def test_undetermined_skips_gated_definitions_and_says_so(self, capsys):
         _activate(variant="60kwh")
-        assert revision_resolutions()["VCU"].revision is None
+        assert revision_resolutions(profile=active())["VCU"].revision is None
         pids = _pids("VCU")
         assert set(pids) == {"21F0"}
         assert set(pids["21F0"]["parameters"]) == {"GEAR"}
         err = capsys.readouterr().err
         assert "VCU could be any of kwp, uds" in err
         assert "--pin VCU=kwp" in err
-        load_pids()
+        load_pids(profile=active())
         _activate(variant="60kwh")
-        load_pids()
+        load_pids(profile=active())
         assert "could be any" not in capsys.readouterr().err  # once per process
 
     def test_with_no_car_chosen_the_note_says_to_name_it(self, capsys):
         _activate()
-        load_pids()
+        load_pids(profile=active())
         err = capsys.readouterr().err
         assert "No car is chosen (40kwh, 60kwh)" in err
         assert "--variant 40kwh" in err
@@ -105,7 +105,7 @@ class TestResolution:
 
     def test_a_pin_applies_the_revisions_overrides_and_gates(self):
         _activate(variant="60kwh", pins=["VCU=uds"])
-        res = revision_resolutions()["VCU"]
+        res = revision_resolutions(profile=active())["VCU"]
         assert (res.revision, res.source) == ("uds", "flag")
         pids = _pids("VCU")
         assert set(pids) == {"22E001", "21F0"}
@@ -140,8 +140,8 @@ class TestResolution:
             (["VCU=kwp"], None),
         ):
             _activate(variant="60kwh", pins=pins)
-            tx = resolve_tx("VCU")
-            rec = _detail_record(load_ecus()[tx], tx, "VCU", _ecus()["VCU"])
+            tx = resolve_tx("VCU", profile=active())
+            rec = _detail_record(load_ecus(profile=active())[tx], tx, "VCU", _ecus()["VCU"])
             assert cmd_detail(rec, False) == 0
             out = capsys.readouterr().out
             assert (expected in out) if expected else ("None recorded" not in out)
@@ -150,15 +150,15 @@ class TestResolution:
         config_file.set_config_key("profile_settings.variants.revisions.VCU", "kwp")
         config_file.load_config.cache_clear()
         _activate(variant="60kwh")
-        assert revision_resolutions()["VCU"].source == "config"
+        assert revision_resolutions(profile=active())["VCU"].source == "config"
         assert "2101" in _pids("VCU")
         _activate(variant="60kwh", pins=["VCU=uds"])
-        assert revision_resolutions()["VCU"].revision == "uds"
+        assert revision_resolutions(profile=active())["VCU"].revision == "uds"
 
     def test_no_car_selected_keeps_every_ecu(self):
         _activate()
         assert "HEATER" in _ecus()
-        assert revision_resolutions()["VCU"].possible == ("kwp", "uds")
+        assert revision_resolutions(profile=active())["VCU"].possible == ("kwp", "uds")
 
     @pytest.mark.parametrize(
         ("variant", "pin", "message"),
@@ -172,7 +172,7 @@ class TestResolution:
     def test_a_pin_that_cannot_be_is_an_error(self, variant, pin, message):
         _activate(variant=variant, pins=[pin])
         with pytest.raises(ProfileError, match=message):
-            load_pids()
+            load_pids(profile=active())
 
     def test_a_malformed_pin_is_refused_up_front(self):
         with pytest.raises(ProfileError, match="expected ECU=REVISION"):
@@ -186,11 +186,11 @@ class TestResolution:
             effective_meta(_activate(variant="40kwh"))["car_model"]
             == "Variants fixture (synthetic)"
         )
-        assert load_raw_pids()["car_model"] == "Variants fixture (synthetic)"
+        assert load_raw_pids(profile=active())["car_model"] == "Variants fixture (synthetic)"
 
     def test_the_raw_loader_sees_every_revision(self):
         _activate(variant="40kwh")
-        raw = load_raw_pids()["ecus"]
+        raw = load_raw_pids(profile=active())["ecus"]
         assert set(map(str, raw["VCU"]["pids"])) == {"2101", "22E001", "21F0"}
         assert "HEATER" in raw
 
@@ -215,7 +215,7 @@ class TestCacheKey:
 
     def test_a_bundled_profile_without_revisions_is_untouched(self):
         set_active("hyundai-kona-os-ev")
-        assert load_pids()["ecus"] is load_raw_pids()["ecus"]
+        assert load_pids(profile=active())["ecus"] is load_raw_pids(profile=active())["ecus"]
 
 
 class TestIoniqFaceliftBms:
@@ -223,14 +223,14 @@ class TestIoniqFaceliftBms:
 
     def test_the_28kwh_car_reads_exactly_the_kwp_pages(self):
         set_active("hyundai-ioniq-ae-ev", variant="28kwh")
-        bms = load_pids()["ecus"]["BMS"]
+        bms = load_pids(profile=active())["ecus"]["BMS"]
         assert {str(p) for p in bms["pids"]} == {"2101", "2102", "2103", "2104", "2105", "21F2"}
         assert bms["identity"]["id_protocol"] == "KWP2000"
         assert "revisions" not in bms and "revisions" not in bms["pids"][2101]
 
     def test_the_38kwh_car_reads_only_the_ported_uds_pages_unverified(self):
         set_active("hyundai-ioniq-ae-ev", variant="38kwh")
-        bms = load_pids()["ecus"]["BMS"]
+        bms = load_pids(profile=active())["ecus"]["BMS"]
         assert {str(p) for p in bms["pids"]} == {"220101", "220105"}
         assert bms["identity"]["id_protocol"] == "UDS"
         params = [p for pid in bms["pids"].values() for p in pid["parameters"].values()]
@@ -344,7 +344,7 @@ class TestChecks:
 def _labels() -> set[str]:
     from canair.captures.store import load_all_captures
 
-    return {e["session_label"] for e in load_all_captures()}
+    return {e["session_label"] for e in load_all_captures(profile=active())}
 
 
 class TestCaptures:
@@ -388,9 +388,11 @@ class TestCaptures:
             "label": "x",
             "captures": [{"rx": "0x7EC", "pid": "2101"}],
         }
-        assert "revisions" not in apply_capture_tag(bms_only, capture_tag(prof))
+        assert "revisions" not in apply_capture_tag(bms_only, capture_tag(prof), profile=active())
         vcu = {"date": "2026-02-01", "label": "x", "captures": [{"rx": "0x7EA", "pid": "21F0"}]}
-        assert apply_capture_tag(vcu, capture_tag(prof))["revisions"] == {"VCU": "uds"}
+        assert apply_capture_tag(vcu, capture_tag(prof), profile=active())["revisions"] == {
+            "VCU": "uds"
+        }
 
     def test_an_import_ignores_a_config_pin(self, copy):
         from canair.variants.selection import require_named_car
@@ -665,14 +667,14 @@ class TestOverridesAndEvidence:
             _activate(copy, variant="60kwh", pins=[f"VCU={rid}"])
             ledger = FrameCountLedger()
             ledger.confirm((0x7E2, "21F0"), frames)
-            assert persist(load_pids(), ledger) == 1
+            assert persist(load_pids(profile=active()), ledger, profile=active()) == 1
         pid = _vcu_doc(copy)["pids"]["21F0"]
         assert pid["response_frames"] == 2  # kwp is the reference revision
         assert pid["per_revision"] == {"uds": {"response_frames": 4}}
         _activate(copy, variant="60kwh", pins=["VCU=kwp"])
-        assert seed_counts(load_pids())[(0x7E2, "21F0")] == 2
+        assert seed_counts(load_pids(profile=active()))[(0x7E2, "21F0")] == 2
         _activate(copy, variant="60kwh", pins=["VCU=uds"])
-        assert seed_counts(load_pids())[(0x7E2, "21F0")] == 4
+        assert seed_counts(load_pids(profile=active()))[(0x7E2, "21F0")] == 4
 
     def test_an_undetermined_revision_persists_nothing(self, copy):
         from canair.uds.frame_counts import FrameCountLedger
@@ -682,7 +684,7 @@ class TestOverridesAndEvidence:
         ledger = FrameCountLedger()
         ledger.confirm((0x7E2, "21F0"), 3)
         before = (copy / "ecus" / "vcu.yaml").read_text()
-        assert persist(load_pids(), ledger) == 0
+        assert persist(load_pids(profile=active()), ledger, profile=active()) == 0
         assert (copy / "ecus" / "vcu.yaml").read_text() == before
 
     def test_upsert_param_revision_on_an_existing_signal(self, copy):
@@ -708,8 +710,8 @@ class TestOverridesAndEvidence:
 
     def test_the_28kwh_ioniq_keeps_its_verified_and_counts(self):
         set_active("hyundai-ioniq-ae-ev", variant="28kwh")
-        resolved = load_pids()["ecus"]["BMS"]["pids"]
-        raw = load_raw_pids()["ecus"]["BMS"]["pids"]
+        resolved = load_pids(profile=active())["ecus"]["BMS"]["pids"]
+        raw = load_raw_pids(profile=active())["ecus"]["BMS"]["pids"]
         for code, pid in resolved.items():
             assert pid.get("response_frames") == raw[code].get("response_frames")
             for name, param in pid["parameters"].items():

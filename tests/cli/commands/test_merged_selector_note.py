@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from canair.cli.live.steps import report_merged_selectors
+from canair.profile import active
 from canair.query.steps import normalize_query_steps
 
 
@@ -11,7 +12,8 @@ def test_the_note_goes_to_stderr(capsys):
         [
             {"type": "query", "ecu": "BMS", "pids": []},
             {"type": "query", "ecu": "BMS", "pids": ["2101"]},
-        ]
+        ],
+        profile=active(),
     )
     report_merged_selectors(steps)
     captured = capsys.readouterr()

@@ -9,6 +9,7 @@ from textual.binding import Binding
 from canair.expression.notation import ByteDisplay, ByteNotation
 from canair.live.monitor.render import MONITOR_LEGEND, _render_results
 from canair.live.read.batch import _decode_pid_result
+from canair.profile import active
 from canair.render.formatting import (
     _HIGHLIGHT_STYLE,
     BYTE_COLOUR_LEGEND,
@@ -94,12 +95,16 @@ class TestColours:
 class TestMonitorPlumbing:
     def test_a_decoded_entry_carries_the_map_bytes(self):
         info = {"parameters": {"DOOR": {"expression": "B10:0"}}, "support_map": DECL}
-        entry = _decode_pid_result("22BC03", info, False, PAYLOAD, bytes.fromhex(PAYLOAD), None)
+        entry = _decode_pid_result(
+            "22BC03", info, False, PAYLOAD, bytes.fromhex(PAYLOAD), None, profile=active()
+        )
         assert entry["map_bytes"] == MAP
 
     def test_a_pid_without_a_map_carries_none(self):
         info = {"parameters": {"DOOR": {"expression": "B10:0"}}, "support_map": None}
-        entry = _decode_pid_result("22BC03", info, False, PAYLOAD, bytes.fromhex(PAYLOAD), None)
+        entry = _decode_pid_result(
+            "22BC03", info, False, PAYLOAD, bytes.fromhex(PAYLOAD), None, profile=active()
+        )
         assert "map_bytes" not in entry
 
     def test_the_monitor_renders_map_bytes_muted(self):

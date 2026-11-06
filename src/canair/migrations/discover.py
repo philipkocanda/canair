@@ -33,6 +33,7 @@ from typing import Any
 from canair.captures import io as capture_io
 from canair.ecus.names import EcuNameCollision, build_name_tx_index
 from canair.ecus.registry import EcuRegistryEntry, rx_for_tx
+from canair.profile import Profile
 from canair.uds.addressing import AddressingMode
 
 # The offset the old writer applied to an unregistered TX, whatever the profile.
@@ -123,9 +124,13 @@ def infer_tx(entry: Mapping[str, Any], names: Mapping[str, int] | None) -> int |
     return tx
 
 
-def _repair_entry(entry: dict[str, Any], tx: int, addressing: Addressing) -> str:
+def _repair_entry(
+    entry: dict[str, Any], tx: int, addressing: Addressing, *, profile: Profile
+) -> str:
     """Rewrite ``entry`` in place as ``{tx, rx, …rest}``; return the new ``rx``."""
-    rx = _hex(rx_for_tx(tx, addressing.ecus, addressing.rx_offset, addressing.mode))
+    rx = _hex(
+        rx_for_tx(tx, addressing.ecus, addressing.rx_offset, addressing.mode, profile=profile)
+    )
     rest = {k: v for k, v in entry.items() if k not in ("tx", "rx")}
     entry.clear()
     entry.update({"tx": _hex(tx), "rx": rx, **rest})
@@ -140,10 +145,12 @@ def _is_discover(capture: Any) -> bool:
     )
 
 
-def repair_doc(data: Any, addressing: Addressing) -> tuple[list[Repair], list[Skip]]:
+def repair_doc(
+    data: Any, addressing: Addressing, *, profile: Profile
+) -> tuple[list[Repair], list[Skip]]:
     """Repair every legacy discover responder in a parsed capture doc, in place."""
     try:
-        names: dict[str, int] | None = build_name_tx_index(addressing.ecus)
+        names: dict[str, int] | None = build_name_tx_index(addressing.ecus, profile=profile)
     except EcuNameCollision:
         # An ambiguous name could map a label to the wrong TX; refuse every named
         # responder (with that reason), but still repair the unregistered ones.
@@ -166,17 +173,17 @@ def repair_doc(data: Any, addressing: Addressing) -> tuple[list[Repair], list[Sk
                     skipped.append(Skip(idx, response, tx))
                     continue
                 old_rx = str(entry.get("rx"))
-                rx = _repair_entry(entry, tx, addressing)
+                rx = _repair_entry(entry, tx, addressing, profile=profile)
                 repairs.append(Repair(idx, response, old_rx, _hex(tx), rx))
     return repairs, skipped
 
 
 def migrate_file(
-    path: Path, addressing: Addressing, *, dry_run: bool = False
+    path: Path, addressing: Addressing, *, dry_run: bool = False, profile: Profile
 ) -> DiscoverMigrationResult:
     """Repair one capture file's discover captures (idempotent)."""
     data = capture_io.load_capture_file(path)
-    repairs, skipped = repair_doc(data, addressing)
+    repairs, skipped = repair_doc(data, addressing, profile=profile)
     write = bool(repairs) and not dry_run
     if write:
         capture_io.dump_capture_file(path, data)
@@ -184,10 +191,10 @@ def migrate_file(
 
 
 def migrate_dir(
-    captures_dir: Path, addressing: Addressing, *, dry_run: bool = False
+    captures_dir: Path, addressing: Addressing, *, dry_run: bool = False, profile: Profile
 ) -> list[DiscoverMigrationResult]:
     """Repair the discover captures in every capture file in ``captures_dir``."""
     return [
-        migrate_file(p, addressing, dry_run=dry_run)
+        migrate_file(p, addressing, dry_run=dry_run, profile=profile)
         for p in capture_io.iter_capture_files(captures_dir)
     ]

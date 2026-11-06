@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from canair.captures import io as capture_io
+from canair.profile import active
 from canair.render import ansi, messages
 
 
@@ -30,7 +31,7 @@ def cmd_compact(captures_dir: Path | None, *, dry_run: bool = False, as_json: bo
     from canair.captures import layers
     from canair.migrations.compact import CompactError, compact_paths
 
-    cdir = capture_io.resolve_captures_dir(captures_dir)
+    cdir = capture_io.resolve_captures_dir(captures_dir, profile=active())
     if not cdir.is_dir():
         return _fail(f"no such captures directory: {cdir}", as_json, 2)
     capture_io.ensure_migrated(cdir)
@@ -40,7 +41,7 @@ def cmd_compact(captures_dir: Path | None, *, dry_run: bool = False, as_json: bo
         # files the rewrite would touch are checked before any of them is.
         plan = compact_paths(files, dry_run=True)
         if blocked := layers.refusal(
-            [r.path for r in plan if r.changed], "compacted", captures_dir
+            [r.path for r in plan if r.changed], "compacted", captures_dir, profile=active()
         ):
             return _fail(blocked, as_json, 1)
         results = plan if dry_run else compact_paths(files)

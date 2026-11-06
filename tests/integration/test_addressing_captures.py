@@ -54,14 +54,20 @@ class TestProfileAddressing:
             raise ProfileError("no profile")
 
         monkeypatch.setattr("canair.ecus.pids.load_pids", lambda *a, **k: boom())
-        assert ecus_registry._profile_addressing() == (DEFAULT_RX_OFFSET, DEFAULT_MODE)
+        assert ecus_registry._profile_addressing(profile=active()) == (
+            DEFAULT_RX_OFFSET,
+            DEFAULT_MODE,
+        )
 
     def test_a_fixed_29bit_profile_swaps_an_unregistered_id(self, make_profile):
         from canair.ecus import registry as ecus_registry
 
         make_profile(FIXED_29)
-        assert ecus_registry._profile_addressing() == (0x08, AddressingMode.NORMAL_FIXED_29BIT)
-        assert ecus_registry.rx_for_tx(0x18DA10F1, {}) == 0x18DAF110
+        assert ecus_registry._profile_addressing(profile=active()) == (
+            0x08,
+            AddressingMode.NORMAL_FIXED_29BIT,
+        )
+        assert ecus_registry.rx_for_tx(0x18DA10F1, {}, profile=active()) == 0x18DAF110
 
     def test_a_profile_without_ecus_dir_still_answers(self, make_profile):
         """A freshly scaffolded bundle has no ecus/ yet; that is not an error here."""
@@ -70,7 +76,7 @@ class TestProfileAddressing:
         make_profile(
             'car_model: "T"\ninit: "x"\naddressing:\n  rx_offset: 0x20\n', with_ecus_dir=False
         )
-        assert ecus_registry._profile_addressing() == (0x20, DEFAULT_MODE)
+        assert ecus_registry._profile_addressing(profile=active()) == (0x20, DEFAULT_MODE)
 
 
 class TestCaptureSchemaAccepts29BitRx:

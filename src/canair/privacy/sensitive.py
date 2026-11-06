@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from canair.ecus.sensitivity import param_sensitive, pid_sensitive
+from canair.profile import Profile
 from canair.uds.memory import MEMORY_SIGNAL_MAX_BYTES, exceeds_signal_cap
 
 MASK = "*****"
@@ -162,20 +163,17 @@ def _clear_sets() -> None:
     _sets.clear()
 
 
-def profile_set(profile=None) -> SensitiveSet:
-    """The active (or given) profile's sensitive set; empty when none resolves.
+def profile_set(profile: Profile) -> SensitiveSet:
+    """``profile``'s sensitive set.
 
     Built from the definitions *as written* (every variant and revision), so a flag
     on any revision of a PID protects it on every car. Memoized per profile root and
     cleared with the definitions (:func:`canair.ecus.pids.register_derived_cache`).
     """
     from canair.ecus.pids import load_raw_pids, register_derived_cache
-    from canair.profile import ProfileError, active
+    from canair.profile import ProfileError
 
-    try:
-        prof = profile or active()
-    except ProfileError:
-        return SensitiveSet()
+    prof = profile
     key = str(prof.root)
     cached = _sets.get(key)
     if cached is not None:
@@ -189,19 +187,16 @@ def profile_set(profile=None) -> SensitiveSet:
     return built
 
 
-def set_for_captures(captures_dir: Path | None) -> SensitiveSet:
+def set_for_captures(captures_dir: Path | None, *, profile: Profile) -> SensitiveSet:
     """The sensitive set governing writes into ``captures_dir``.
 
-    The union of the active profile's set and that of the profile owning the
-    directory (when it has definitions of its own), so an explicit ``--dir`` or a
-    layered overlay is never judged against the wrong — or an empty — vocabulary.
+    The union of ``profile``'s set and that of the profile owning the directory (when it has
+    definitions of its own), so an explicit ``--dir`` or a layered overlay is never judged
+    against the wrong — or an empty — vocabulary.
     """
-    from canair.profile import ProfileError, active, profile_for_path
+    from canair.profile import profile_for_path
 
-    try:
-        out = profile_set(active())
-    except ProfileError:
-        out = SensitiveSet()
+    out = profile_set(profile)
     if captures_dir is not None:
         owner = profile_for_path(captures_dir)
         if owner.ecus_dir.is_dir():
@@ -272,9 +267,9 @@ def take_withheld_note() -> str:
 # ---------------------------------------------------------------------------
 
 
-def request_hidden(tx_id: int, request: Any) -> bool:
+def request_hidden(tx_id: int, request: Any, *, profile: Profile) -> bool:
     """Should the reply to this raw request be masked on screen right now?"""
-    return masked(profile_set().has_request(tx_id, request))
+    return masked(profile_set(profile).has_request(tx_id, request))
 
 
 def masked_response(response: Mapping[str, Any]) -> Any:
@@ -287,7 +282,14 @@ def masked_response(response: Mapping[str, Any]) -> Any:
     return out
 
 
-def mask_result(entry: Any, target: int | str, pid_info: Any, sset: SensitiveSet | None = None):
+def mask_result(
+    entry: Any,
+    target: int | str,
+    pid_info: Any,
+    sset: SensitiveSet | None = None,
+    *,
+    profile: Profile,
+):
     """Mask one live read result in place when it answers a sensitive PID.
 
     ``entry`` is a :data:`~canair.expression.results.ResultEntry`; ``target`` the
@@ -299,7 +301,7 @@ def mask_result(entry: Any, target: int | str, pid_info: Any, sset: SensitiveSet
     """
     if "raw_hex" not in entry:
         return entry
-    sset = profile_set() if sset is None else sset
+    sset = profile_set(profile) if sset is None else sset
     pid = entry.get("pid", "")
     hit = sset.has_request(target, pid) if isinstance(target, int) else sset.has(target, pid)
     if not hit:

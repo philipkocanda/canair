@@ -222,17 +222,13 @@ _resolution_cache: dict[str, dict] = {}
 _noted_skips: set[str] = set()
 
 
-def load_pids(profile: Profile | None = None) -> dict:
+def load_pids(profile: Profile) -> dict:
     """``profile``'s ECU/PID definitions, resolved for the car it names.
 
     Only the ECUs the car is fitted with, each at its resolved revision (see
     :mod:`canair.variants.revisions`), with ``profile.yaml`` as the variant overrides it.
     Memoized per process by ``profile.cache_key``.
     """
-    if profile is None:
-        from canair.profile import active
-
-        profile = active()
     cached = _cache.get(profile.cache_key)
     if cached is None:
         cached = _cache[profile.cache_key] = _resolved(profile)
@@ -253,19 +249,18 @@ def load_pids_dir(path: Path) -> dict:
     return _load_dir(path, meta=read_meta(profile_for_path(path).meta_file))
 
 
-def load_raw_pids(profile: Profile | None = None) -> dict:
-    """The active (or given) profile's definitions as written: no variant, no revision.
+def load_raw_pids(profile: Profile) -> dict:
+    """``profile``'s definitions as written: no variant, no revision.
 
     For the variant-aware readers — ``validate``, the editors, and anything that must
     see every revision at once. Memoized like :func:`load_pids`.
     """
-    from canair.profile import active, read_meta
+    from canair.profile import read_meta
 
-    prof = profile or active()
-    key = f"{prof.root}|raw"
+    key = f"{profile.root}|raw"
     cached = _cache.get(key)
     if cached is None:
-        cached = _load_dir(prof.ecus_dir, meta=read_meta(prof.meta_file))
+        cached = _load_dir(profile.ecus_dir, meta=read_meta(profile.meta_file))
         _cache[key] = cached
     return cached
 
@@ -284,16 +279,16 @@ def _selected_variant_def(prof):
         raise ProfileError(str(e)) from None
 
 
-def revision_resolutions(profile: Profile | None = None) -> dict:
+def revision_resolutions(profile: Profile) -> dict:
     """ECU name -> :class:`~canair.variants.revisions.Resolution`, for the selected car.
 
     Only ECUs that declare revisions appear. Raises :class:`~canair.profile.ProfileError`
     when a pin names an ECU or revision that cannot be.
     """
-    from canair.profile import ProfileError, active
+    from canair.profile import ProfileError
     from canair.variants.revisions import RevisionError, resolve
 
-    prof = profile or active()
+    prof = profile
     key = prof.cache_key
     cached = _resolution_cache.get(key)
     if cached is not None:
@@ -666,7 +661,7 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
     return index
 
 
-def ecu_index_key(name: str, index: Mapping[str, object]) -> str | None:
+def ecu_index_key(name: str, index: Mapping[str, object], *, profile: Profile) -> str | None:
     """The :func:`build_ecu_index` key a query step's ECU name selects, or None.
 
     The upper-cased name when the index has it, else the canonical name of an
@@ -678,5 +673,5 @@ def ecu_index_key(name: str, index: Mapping[str, object]) -> str | None:
         return upper
     from canair.ecus.names import canonical_ecu_name_safe
 
-    canonical = canonical_ecu_name_safe(name).upper()
+    canonical = canonical_ecu_name_safe(name, profile=profile).upper()
     return canonical if canonical in index else None

@@ -169,7 +169,7 @@ class TestLayeredReadCountsAnEditedSessionOnce:
         _write(layered.base / "captures" / "2026-07-28.json", _session())
         mine = layered.overlay / "captures" / "2026-07-28.json"
         _write(mine, _session(notes="corrected"))
-        rows = load_all_captures()
+        rows = load_all_captures(profile=active())
         assert len(rows) == 1
         assert rows[0]["session_notes"] == "corrected"
         assert rows[0]["_path"] == str(mine)
@@ -180,7 +180,7 @@ class TestLayeredReadCountsAnEditedSessionOnce:
         theirs = layered.base / "captures" / "2026-07-28.json"
         _write(theirs, _session())
         _write(layered.overlay / "captures" / "2026-07-28.json", _session())
-        [row] = load_all_captures()
+        [row] = load_all_captures(profile=active())
         assert row["_path"] == str(theirs)
 
     def test_a_single_layer_with_shared_anchors_is_unchanged(self, tmp_path):
@@ -190,7 +190,7 @@ class TestLayeredReadCountsAnEditedSessionOnce:
         cdir = tmp_path / "captures"
         cdir.mkdir()
         _write(cdir / "2026-07-28.json", _session(), _session(notes="x"))
-        assert len(load_all_captures(cdir)) == 2
+        assert len(load_all_captures(cdir, profile=active())) == 2
 
 
 class TestLayeredScopeKeysByPath:
@@ -211,7 +211,7 @@ class TestLayeredScopeKeysByPath:
 
         _write(layered.base / "captures" / "2026-07-28.json", multi("base", "08:00:00"))
         _write(layered.overlay / "captures" / "2026-07-28.json", multi("mine", "18:00:00"))
-        assert unresolved_state_summary(load_all_captures()) == (2, 2)
+        assert unresolved_state_summary(load_all_captures(profile=active())) == (2, 2)
 
 
 # --------------------------------------------------------------------------
@@ -268,7 +268,7 @@ def _args(**kw):
 
 @pytest.fixture
 def no_gh(monkeypatch):
-    monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+    monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
     monkeypatch.setattr(
         gates, "preflight", lambda: C_git.Preflight(gh="gh", git="git", authenticated=True)
     )

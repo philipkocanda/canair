@@ -30,6 +30,7 @@ from canair.captures.store import load_pid_captures
 from canair.cli.args.join import fill_policy_from_args
 from canair.cli.args.notation import resolve_notation
 from canair.expression.decoding import decode_payload, ordered_signal_names
+from canair.profile import active
 from canair.render import ansi, messages
 from canair.uds.byteindex import payload_to_wican_bytes
 from canair.uds.layout import subfunction_bytes_for_pid
@@ -362,7 +363,7 @@ def decode_one(
     if not parameters and not args.plot and not args.dump_bytes and not raw_byte_mode:
         # Terminating path, so loading captures here doesn't double-load — the
         # normal load below is only reached when there are signals to decode.
-        caps = scope_captures(load_pid_captures(ecu_key, pid_key), **scope)
+        caps = scope_captures(load_pid_captures(ecu_key, pid_key, profile=active()), **scope)
         return _report_nothing_to_decode(ecu_key, pid_key, defined_params, caps, multi=multi)
 
     fill = fill_policy_from_args(args)
@@ -373,7 +374,7 @@ def decode_one(
         messages.error(cerr)
         return 1
 
-    captures = scope_captures(load_pid_captures(ecu_key, pid_key), **scope)
+    captures = scope_captures(load_pid_captures(ecu_key, pid_key, profile=active()), **scope)
     if args.dump_bytes or raw_byte_mode or getattr(args, "try_expr", None):
         from canair.variants.tags import require_one_revision
 

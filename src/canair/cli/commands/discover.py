@@ -11,7 +11,7 @@ from canair.cli.live.handlers import scans
 from canair.cli.live.handlers.ranges import parse_range
 from canair.ecus.pids import load_pids
 from canair.live.discover.physical import discovery_targets, fmt_id
-from canair.profile import ProfileError
+from canair.profile import ProfileError, active
 from canair.uds.addressing import (
     DEFAULT_MODE,
     AddressingMode,
@@ -175,7 +175,7 @@ def _profile_error() -> str | None:
     from canair.transport.isotp_params import build_isotp_params
 
     try:
-        pids_data = load_pids()
+        pids_data = load_pids(profile=active())
     except ProfileError:
         return None
     mode = resolve_mode(pids_data)
@@ -205,7 +205,7 @@ def _range_error(args) -> str | None:
     except argparse.ArgumentTypeError as e:
         return str(e)
     try:
-        mode = resolve_mode(load_pids())
+        mode = resolve_mode(load_pids(profile=active()))
     except ProfileError:
         mode = DEFAULT_MODE
     if discovery_targets(addr_range, mode):

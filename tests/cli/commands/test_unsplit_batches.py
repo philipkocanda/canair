@@ -17,6 +17,7 @@ from canair.captures.payload_corpus import PayloadSample
 from canair.cli.commands.captures.maint import cmd_split_batched
 from canair.cli.commands.validate.captures import run_captures
 from canair.ecus.pids import clear_cache
+from canair.profile import active
 from canair.validation.unsplit import unsplit_batch_warnings
 
 IGPM, BCM = 0x778, 0x7A8
@@ -376,7 +377,7 @@ class TestSplitKeepsTheSessionsDedupPromise:
 
 def test_validate_warning_names_the_dids_and_the_repair(tmp_path):
     path = _write(tmp_path, _caps(dict(BLOB)))
-    [warning] = unsplit_batch_warnings([path], {IGPM: "IGPM"})[path]
+    [warning] = unsplit_batch_warnings([path], {IGPM: "IGPM"}, profile=active())[path]
     assert warning.location == "sessions[0].captures[3] (IGPM 22BC01 @ 10:07:16.000)"
     assert "3-DID reply (22BC01 + 22BC02 + 22BC03) stored whole as 22BC01" in warning.message
     assert "canair captures split-batched" in warning.message
@@ -440,9 +441,9 @@ class TestSplitBatchedCommand:
         base_file = _write(base, _caps(dict(BLOB)))
         overlay.mkdir()
         monkeypatch.setattr(
-            "canair.captures.io.resolve_capture_layers", lambda d=None: [base, overlay]
+            "canair.captures.io.resolve_capture_layers", lambda *_, **__: [base, overlay]
         )
-        monkeypatch.setattr("canair.ecus.registry.build_rx_index", lambda: {IGPM: "IGPM"})
+        monkeypatch.setattr("canair.ecus.registry.build_rx_index", lambda *_, **__: {IGPM: "IGPM"})
         import io
         from contextlib import redirect_stdout
 

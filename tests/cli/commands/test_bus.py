@@ -31,8 +31,8 @@ def _patched(monkeypatch):
         0x7D2: {"name": "SRS"},  # unbussed
     }
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canair.ecus.can_buses.load_can_buses", lambda prof=None: buses)
-    monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda path=None: ecus)
+    monkeypatch.setattr("canair.ecus.can_buses.load_can_buses", lambda *_, **__: buses)
+    monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda *_, **__: ecus)
     monkeypatch.setattr("canair.profile._active", _FakeProfile())
 
 
@@ -89,8 +89,8 @@ def test_gateway_all_counted_on_every_segment(monkeypatch, capsys):
         0x7A0: {"name": "BCM", "can_bus": ["B-CAN"]},
     }
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canair.ecus.can_buses.load_can_buses", lambda prof=None: buses)
-    monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda path=None: ecus)
+    monkeypatch.setattr("canair.ecus.can_buses.load_can_buses", lambda *_, **__: buses)
+    monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda *_, **__: ecus)
     monkeypatch.setattr("canair.profile._active", _FakeProfile())
 
     rc = _run(json=True)
@@ -113,8 +113,8 @@ def test_gateway_all_skips_private_segment(monkeypatch, capsys):
         0x7B3: {"name": "HVAC", "can_bus": ["P-CAN", "CLIMATE-CAN"]},
     }
     monkeypatch.setenv("NO_COLOR", "1")
-    monkeypatch.setattr("canair.ecus.can_buses.load_can_buses", lambda prof=None: buses)
-    monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda path=None: ecus)
+    monkeypatch.setattr("canair.ecus.can_buses.load_can_buses", lambda *_, **__: buses)
+    monkeypatch.setattr("canair.ecus.registry.load_ecus", lambda *_, **__: ecus)
     monkeypatch.setattr("canair.profile._active", _FakeProfile())
 
     assert _run(json=True) == 0

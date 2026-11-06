@@ -177,7 +177,7 @@ def check_states() -> FileReport:
     )
 
 
-def check_groups() -> FileReport:
+def check_groups(profile: Profile) -> FileReport:
     """Check the profile's optional groups.yaml (schema, names, selectors and member ECUs)."""
     from canair.ecus.names import build_canonical_name_index, canonical_ecu_name_safe
     from canair.ecus.pids import build_ecu_index, load_pids
@@ -195,8 +195,8 @@ def check_groups() -> FileReport:
     # Registry for the member ECU-existence check (best-effort — an absent/partial
     # registry just skips that check, mirroring the query resolver's tolerance).
     try:
-        ecu_index = build_ecu_index(load_pids())
-        name_index = build_canonical_name_index()
+        ecu_index = build_ecu_index(load_pids(profile=profile))
+        name_index = build_canonical_name_index(profile=profile)
     except Exception:
         ecu_index, name_index = {}, None
 
@@ -222,7 +222,7 @@ def check_groups() -> FileReport:
                 errors.append(f"group '{key}': invalid member selector '{tok}': {ex}")
                 continue
             if ecu_index:
-                canon = canonical_ecu_name_safe(sel.ecu, name_index).upper()
+                canon = canonical_ecu_name_safe(sel.ecu, name_index, profile=profile).upper()
                 if canon not in ecu_index:
                     errors.append(f"group '{key}': member '{tok}' names unknown ECU '{sel.ecu}'")
 
@@ -231,7 +231,7 @@ def check_groups() -> FileReport:
     return FileReport("groups.yaml", summary=f"({len(seen)} groups, {n_members} members)")
 
 
-def check_actions() -> FileReport:
+def check_actions(profile: Profile) -> FileReport:
     """Check the profile's optional actions.yaml (guarded profile actions).
 
     Structure and the guard rules come from the loader itself
@@ -256,7 +256,7 @@ def check_actions() -> FileReport:
         return FileReport("actions.yaml", errors=(*errors, str(e)))
     notes: tuple[str, ...] = ()
     try:
-        pids_data = load_pids()
+        pids_data = load_pids(profile=profile)
     except Exception as ex:
         pids_data = None
         notes = (f"actions.yaml: registry checks skipped — could not load ecus/ ({ex})",)
@@ -268,7 +268,9 @@ def check_actions() -> FileReport:
             if issues:
                 continue
             try:
-                action_policy(action, plan_requests(action, pids_data), policy, pids_data)
+                action_policy(
+                    action, plan_requests(action, pids_data, profile=profile), policy, pids_data
+                )
             except (ActionError, SafetyBlocked) as e:
                 errors.append(str(e))
     if errors:

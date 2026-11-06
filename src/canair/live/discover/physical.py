@@ -204,9 +204,9 @@ async def mode_discover(
 
     # Each responder's RX is resolved exactly once, so the printed table, the
     # --json document and the saved capture cannot disagree about it.
-    ecus = load_ecus()
-    rx_of = {tx_id: rx_for_tx(tx_id, ecus, mode=mode) for tx_id, _, _ in alive}
-    names = {tx: name for tx, _, _, name in _classify_alive(alive)[0]}
+    ecus = load_ecus(profile=profile)
+    rx_of = {tx_id: rx_for_tx(tx_id, ecus, mode=mode, profile=profile) for tx_id, _, _ in alive}
+    names = {tx: name for tx, _, _, name in _classify_alive(alive, profile=profile)[0]}
 
     if alive:
         n_new = len(alive) - len(names)
@@ -270,16 +270,16 @@ async def mode_discover(
 
     # Auto-register newly-discovered ECUs into ecus/
     if register:
-        _register_discovered(alive, dry_run=dry_run, out=out)
+        _register_discovered(alive, dry_run=dry_run, out=out, profile=profile)
 
     # Offer to identify the discovered ECUs (the natural next RE step).
-    await _offer_identify(terminal, alive, identify, as_json)
+    await _offer_identify(terminal, alive, identify, as_json, profile=profile)
 
     say()
 
 
 def _classify_alive(
-    alive: list[tuple[int, str, str]],
+    alive: list[tuple[int, str, str]], *, profile: Profile
 ) -> tuple[list[tuple[int, str, str, str]], list[tuple[int, str, str, None]]]:
     """Split alive probes into (known, new) against the profile's ECU registry.
 
@@ -287,7 +287,7 @@ def _classify_alive(
     with no ``ecus/`` entry yet. TX ids are matched against the registry, which
     is keyed by TX-id int.
     """
-    ecus = load_ecus()
+    ecus = load_ecus(profile=profile)
     known: list[tuple[int, str, str, str]] = []
     new: list[tuple[int, str, str, None]] = []
     for tx, status, detail in alive:
@@ -304,6 +304,8 @@ async def _offer_identify(
     alive: list[tuple[int, str, str]],
     identify: bool,
     as_json: bool,
+    *,
+    profile: Profile,
 ) -> None:
     """Offer to run ``canair identity`` on each alive ECU as the next RE step.
 
@@ -327,7 +329,9 @@ async def _offer_identify(
     from ..identity.read import mode_identity
 
     for tx_id, _status, _detail in alive:
-        await mode_identity(terminal, tx_id, session=False, wake=False, as_json=False)
+        await mode_identity(
+            terminal, tx_id, session=False, wake=False, as_json=False, profile=profile
+        )
 
 
 def _register_discovered(
@@ -335,6 +339,8 @@ def _register_discovered(
     dry_run: bool = False,
     via: str = "10 01",
     out: TextIO | None = None,
+    *,
+    profile: Profile,
 ) -> None:
     """Register alive TX ids that don't yet have an ``ecus/<name>.yaml`` file.
 
@@ -356,7 +362,7 @@ def _register_discovered(
         say("  No alive ECUs to register.")
         return
 
-    known = set(load_ecus().keys())
+    known = set(load_ecus(profile=profile).keys())
 
     new = [(tx, status) for tx, status, _ in alive if tx not in known]
     if not new:

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, TypedDict
 
 from canair.live.monitor.backoff import PollCost
 from canair.live.monitor.schedule import Key
+from canair.profile import Profile
 from canair.uds.multi_did import BATCH_REFUSAL_NRCS
 from canair.uds.nrc import nrc_description
 from canair.uds.services import NEGATIVE_RESPONSE_SID
@@ -57,6 +58,8 @@ def _raw_pid_result(
     acquired_at: float | None,
     ecu: str | None = None,
     protocol: DiagProtocol | None = None,
+    *,
+    profile: Profile,
 ) -> ResultEntry:
     """Turn a raw-CAN poll result (bytes / Exception / None) into a result dict.
 
@@ -94,7 +97,14 @@ def _raw_pid_result(
             "acquired_at": acquired_at,
         }
     return _decode_pid_result(
-        pid_code, pid_info, unmapped, resp.hex().upper(), resp, acquired_at, target=ecu
+        pid_code,
+        pid_info,
+        unmapped,
+        resp.hex().upper(),
+        resp,
+        acquired_at,
+        target=ecu,
+        profile=profile,
     )
 
 
@@ -157,7 +167,7 @@ class MonitorRawPoller:
         submissions: list[Submission] = []
         plan_by_ecu: list[tuple[str, int, list[PlanEntry]]] = []
         for step in c.query_steps:
-            ecu = ecu_index_key(step["ecu"], c._ecu_index)
+            ecu = ecu_index_key(step["ecu"], c._ecu_index, profile=self.c.profile)
             if ecu is None:
                 continue
             info = c._ecu_index[ecu]
@@ -359,13 +369,27 @@ class MonitorRawPoller:
                     outcome = ValueError("multi-DID reply did not split into the requested DIDs")
                 for code, pi, un in s["members"]:
                     by_pid[(ecu, code)] = _raw_pid_result(
-                        code, pi, un, outcome, acquired, ecu, self._protocol(ecu)
+                        code,
+                        pi,
+                        un,
+                        outcome,
+                        acquired,
+                        ecu,
+                        self._protocol(ecu),
+                        profile=self.c.profile,
                     )
             else:
                 for code, pi, un in s["members"]:
                     sub = bytes.fromhex(split[_did4(code)])
                     by_pid[(ecu, code)] = _raw_pid_result(
-                        code, pi, un, sub, acquired, ecu, self._protocol(ecu)
+                        code,
+                        pi,
+                        un,
+                        sub,
+                        acquired,
+                        ecu,
+                        self._protocol(ecu),
+                        profile=self.c.profile,
                     )
             return
 
@@ -390,7 +414,9 @@ class MonitorRawPoller:
                 )
             val = ValueError(LEAKED_BATCH_ERROR)
             resp = None
-        by_pid[(ecu, code)] = _raw_pid_result(code, pi, un, val, acquired, ecu, self._protocol(ecu))
+        by_pid[(ecu, code)] = _raw_pid_result(
+            code, pi, un, val, acquired, ecu, self._protocol(ecu), profile=self.c.profile
+        )
         if _is_did22(code) and resp and resp[0] != NEGATIVE_RESPONSE_SID:  # learn length
             dlen = _did_data_len(resp.hex().upper(), _did4(code))
             if dlen is not None and dlen >= 1:

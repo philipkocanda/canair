@@ -42,7 +42,7 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
         )
         return
 
-    tx_id = resolve_tx(args.dtc)
+    tx_id = resolve_tx(args.dtc, profile=active())
     if tx_id is None:
         messages.fail(
             f"could not resolve ECU '{args.dtc}' (use a name like BMS or a hex TX id like 7E4)"
@@ -54,7 +54,7 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
             messages.fail(f"--group must be hex (e.g. FFFFFF), got {args.group!r}", code=2)
         messages.warning("clearing DTCs erases the stored fault memory")
         if not confirm(
-            f"Clear DTCs on {ecu_display(tx_id)} (group 0x{group & 0xFFFFFF:06X})?",
+            f"Clear DTCs on {ecu_display(tx_id, profile=active())} (group 0x{group & 0xFFFFFF:06X})?",
             yes=getattr(args, "yes", False),
             danger=True,
         ):
@@ -72,6 +72,7 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
             label=args.label,
             snapshots=getattr(args, "dtc_snapshots", True),
             pids_data=pids_data,
+            profile=active(),
         )
     else:
         try:
@@ -79,7 +80,7 @@ async def handle_dtc(args, terminal: Terminal, pids_data, host, *, reconnect=Non
         except ValueError:
             messages.fail(f"--mask must be hex (e.g. FF), got {args.mask!r}", code=2)
         supported = getattr(args, "dtc_supported", False)
-        if supported and resolve_protocol(args.protocol, tx_id) != KWP:
+        if supported and resolve_protocol(args.protocol, tx_id, profile=active()) != KWP:
             messages.fail(
                 f"--supported needs a KWP2000 ECU, but {args.dtc} is not one "
                 "(see `canair ecu`; --protocol kwp forces it)",

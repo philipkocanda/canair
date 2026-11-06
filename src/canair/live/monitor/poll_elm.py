@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 
 from canair.live.read import multi
 from canair.live.read.batch import BatchState
-from canair.live.read.exec import timed_exchange
+from canair.live.read.exec_read import timed_exchange
 from canair.transport.isotp_params import resolve_rx_padding
 from canair.uds.echo import request_echo
 
@@ -58,6 +58,7 @@ class MonitorElmPoller:
                     step.get("wake", False),
                     c._ecu_index,
                     mode=step.get("mode", "03"),
+                    profile=self.c.profile,
                 )
         c.sm.start_background_keepalive(interval=2.0)
         # Prime each ECU once (parity with the raw path): the first request after
@@ -118,6 +119,7 @@ class MonitorElmPoller:
                     batch_state=self.batch_state,
                     include_static=c.include_static,
                     plan_filter=_take_due,
+                    profile=self.c.profile,
                 )
             except ConnectionError:
                 c.mark_disconnected("error")

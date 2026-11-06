@@ -13,9 +13,8 @@ Sub-functions (UDS 0x31):
     0x02  stopRoutine        — stops a running routine
     0x03  requestRoutineResults — safe read-only: "what happened last time?"
 
-The TUI always defaults to 0x03 (requestRoutineResults). The user must press
-'!' (exclamation mark) to send 0x01 startRoutine after an explicit prompt —
-matching the UDS philosophy of keeping read-only and write operations separate.
+The TUI defaults to 0x03 (requestRoutineResults). The user must press '!' to send 0x01
+startRoutine after an explicit prompt, keeping read-only and write operations separate.
 """
 
 import asyncio
@@ -34,6 +33,7 @@ from canair.ecus.pids import RoutineIndexEntry, build_routines_index, load_pids
 from canair.live.actuate.iocontrol_render import CARET
 from canair.live.actuate.not_found import report_not_found
 from canair.live.actuate.routines_execute import sf_label
+from canair.profile import Profile
 from canair.render import ansi, glyphs, messages
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import nrc_abbrev
@@ -47,9 +47,6 @@ _tui_logger = logging.getLogger("routines-tui")
 def _log_file() -> Path:
     """The TUI debug log, cleared each session, next to canair's other logs."""
     return config_dir() / "logs" / "routines-tui.log"
-
-
-# ── TUI ───────────────────────────────────────────────────────────────────────
 
 
 class _RoutinesTUI:
@@ -74,8 +71,10 @@ class _RoutinesTUI:
         ecu_key: str,
         ecu_info: RoutineIndexEntry,
         pids_data: dict,
+        profile: Profile,
         verbose: bool = False,
     ):
+        self.profile = profile
         self.terminal = terminal
         self.ecu_key = ecu_key
         self.tx_id = ecu_info["tx_id"]
@@ -311,7 +310,7 @@ class _RoutinesTUI:
             return
 
         try:
-            fresh = load_pids()
+            fresh = load_pids(profile=self.profile)
             self.pids_data.clear()
             self.pids_data.update(fresh)
             idx = build_routines_index(self.pids_data)
@@ -505,6 +504,7 @@ async def mode_routines_tui(
     terminal: Terminal,
     pids_data: dict,
     ecu_name: str,
+    profile: Profile,
     verbose: bool = False,
 ):
     """Interactive Routines TUI for an ECU."""
@@ -517,5 +517,5 @@ async def mode_routines_tui(
         )
         raise SystemExit(1)
 
-    tui = _RoutinesTUI(terminal, ecu_key, rindex[ecu_key], pids_data=pids_data, verbose=verbose)
+    tui = _RoutinesTUI(terminal, ecu_key, rindex[ecu_key], pids_data, profile, verbose)
     await tui.run()

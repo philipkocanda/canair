@@ -45,11 +45,16 @@ def add_parser(kinds) -> argparse.ArgumentParser:
 def cmd_rename(args) -> int:
     from canair.yaml_edit.ecu import rename_ecu, tx_key
 
-    tx_id = resolve_tx(args.ecu)
+    tx_id = resolve_tx(args.ecu, profile=active())
     if tx_id is None:
-        return unknown_ecu(args.ecu, list_records(load_ecus(), load_pids(), profile=active()))
+        return unknown_ecu(
+            args.ecu,
+            list_records(
+                load_ecus(profile=active()), load_pids(profile=active()), profile=active()
+            ),
+        )
 
-    old_name = (load_ecus().get(tx_id) or {}).get("name")
+    old_name = (load_ecus(profile=active()).get(tx_id) or {}).get("name")
     with edit_scope(args):
         new_path = rename_ecu(tx_id, args.new_name, ecus_dir=args.dir)
 

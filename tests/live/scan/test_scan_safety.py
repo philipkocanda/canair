@@ -126,7 +126,7 @@ class TestIOControlScanDispatch:
             calls.append(kw)
             return {}
 
-        monkeypatch.setattr(scans, "split_ecus_by_protocol", lambda names: ([], ["BMS"]))
+        monkeypatch.setattr(scans, "split_ecus_by_protocol", lambda names, **__: ([], ["BMS"]))
         monkeypatch.setattr(kwp_iocontrol_scan, "mode_kwp_iocontrol_scan", _kwp)
         monkeypatch.setattr("sys.stdin", (_Tty if tty else io.StringIO)(stdin))
         args = SimpleNamespace(
@@ -204,7 +204,7 @@ class TestRoutinesScanDispatch:
             calls.append(kw)
             return {}
 
-        monkeypatch.setattr(scans, "split_ecus_by_protocol", lambda names: ([], ["BCM"]))
+        monkeypatch.setattr(scans, "split_ecus_by_protocol", lambda names, **__: ([], ["BCM"]))
         monkeypatch.setattr(kwp_routines_scan, "mode_kwp_routines_scan", _kwp)
         monkeypatch.setattr("sys.stdin", (_Tty if tty else io.StringIO)(stdin))
         args = SimpleNamespace(
@@ -246,7 +246,7 @@ def test_iocontrol_scan_defaults_uds_ecus_to_03_in_a_mixed_scan(monkeypatch):
     async def _kwp(*a, **kw):
         seen["kwp"] = kw["session_mode"]
 
-    monkeypatch.setattr(scans, "split_ecus_by_protocol", lambda names: (["IGPM"], ["BMS"]))
+    monkeypatch.setattr(scans, "split_ecus_by_protocol", lambda names, **__: (["IGPM"], ["BMS"]))
     monkeypatch.setattr(scans, "mode_iocontrol_scan", _uds)
     monkeypatch.setattr(kwp_iocontrol_scan, "mode_kwp_iocontrol_scan", _kwp)
     args = SimpleNamespace(
@@ -294,7 +294,7 @@ def test_json_listing_of_an_unknown_ecu_is_an_error_on_stderr(command, monkeypat
     from canair.cli.commands import io as io_cmd
     from canair.cli.commands import routines as routines_cmd
 
-    monkeypatch.setattr("canair.ecus.pids.load_pids", lambda: {"ecus": {}})
+    monkeypatch.setattr("canair.ecus.pids.load_pids", lambda *_, **__: {"ecus": {}})
     mod = io_cmd if command == "io" else routines_cmd
     args = SimpleNamespace(json=True, did=None, rid=None, iocontrol="NOPE", routines="NOPE")
     assert mod.run(args) == 1

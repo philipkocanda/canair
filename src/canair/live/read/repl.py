@@ -10,6 +10,7 @@ import asyncio
 import re
 
 from canair.ecus.pids import build_param_index
+from canair.profile import Profile
 from canair.query.steps import query_selectors, resolve_tx_id
 from canair.render import messages
 from canair.transport.elm327.terminal import Elm327Terminal
@@ -25,6 +26,8 @@ async def _multi_repl(
     pids_data: dict,
     verbose: bool,
     include_static: bool = False,
+    *,
+    profile: Profile,
 ):
     """Interactive REPL with multi-ECU session awareness.
 
@@ -129,7 +132,7 @@ async def _multi_repl(
 
             if cmd_lower.startswith("session "):
                 target = cmd.split()[1]
-                tx_id = resolve_tx_id(target, ecu_index)
+                tx_id = resolve_tx_id(target, ecu_index, profile=profile)
                 if tx_id is None:
                     messages.error(f"unknown ECU: {target}")
                 else:
@@ -162,7 +165,14 @@ async def _multi_repl(
                 sm.stop_background_keepalive()
                 for ecu, pids in selectors:
                     await _exec_query(
-                        sm, ecu, pids, ecu_index, pids_data, verbose, include_static=include_static
+                        sm,
+                        ecu,
+                        pids,
+                        ecu_index,
+                        pids_data,
+                        verbose,
+                        include_static=include_static,
+                        profile=profile,
                     )
                 sm.start_background_keepalive(interval=2.0)
                 continue
@@ -173,7 +183,7 @@ async def _multi_repl(
                 if spec.startswith("!"):
                     spec = spec.lstrip("!")
                 sm.stop_background_keepalive()
-                await _exec_raw(sm, spec, hold=False, verbose=verbose)
+                await _exec_raw(sm, spec, hold=False, verbose=verbose, profile=profile)
                 sm.start_background_keepalive(interval=2.0)
                 continue
 

@@ -436,7 +436,7 @@ def pick_selectors(
         raise ValueError("the active profile defines no pollable PIDs, so there is nothing to pick")
 
     groups = build_group_choices(
-        load_groups(profile=profile), choices, include_static=include_static
+        load_groups(profile=profile), choices, include_static=include_static, profile=profile
     )
     picked = MonitorSelectApp(choices, groups, include_static=include_static).run()
     if not picked:

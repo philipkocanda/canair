@@ -31,7 +31,7 @@ def _probe() -> DiscoveryProbe:
         service=0x2F,
         probe=lambda t, i: t.send_uds(f"2F{i:02X}00"),
         classify=classify,
-        make_hit=lambda *a: a,
+        make_hit=lambda *a, **__: a,
         request_display=lambda i: f"2F {i:02X} 00",
         write_hit=None,
     )

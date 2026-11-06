@@ -181,7 +181,9 @@ def _pick_steps(args) -> list[str] | None:
     from canair.cli.live import load_pids
     from canair.tui.apps.monitor_select.app import pick_selectors
 
-    return pick_selectors(load_pids(), include_static=args.include_static, profile=active())
+    return pick_selectors(
+        load_pids(profile=active()), include_static=args.include_static, profile=active()
+    )
 
 
 def run(args) -> int:
@@ -220,7 +222,7 @@ def run(args) -> int:
     # Validate the mini-language up front so ambiguous/malformed steps fail
     # loudly *before* we acquire the device lock and open a connection.
     try:
-        commands = parse_sub_commands(args.multi)
+        commands = parse_sub_commands(args.multi, profile=active())
     except ValueError as e:
         messages.error(str(e))
         return 2
@@ -235,7 +237,7 @@ def run(args) -> int:
     from canair.cli.live import load_pids
     from canair.live.monitor.controller import query_ecu_error
 
-    ecu_err = query_ecu_error(query_steps, load_pids())
+    ecu_err = query_ecu_error(query_steps, load_pids(profile=active()), profile=active())
     if ecu_err:
         messages.error(ecu_err)
         return 2

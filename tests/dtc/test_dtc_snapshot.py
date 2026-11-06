@@ -14,6 +14,7 @@ from canair.dtc.snapshot import (
     parse_snapshot_reply,
     read_pid,
 )
+from tests.support.profiles import bundled_profile
 
 RECORD_01 = bytes.fromhex("5904582C000801014710021AA7207C0AFFFFFF")
 BOTH = bytes.fromhex("5904582C000801014710021AA7207C0AFFFFFF02014710C02E6736FC0AFFFFF8")
@@ -131,7 +132,9 @@ class TestLengthResolver:
         def no_captures(ecu, pid):
             raise AssertionError("the captures must not be read")
 
-        length_of = length_resolver({"224710": {"snapshot_length": 9}}, "CCM", no_captures)
+        length_of = length_resolver(
+            {"224710": {"snapshot_length": 9}}, "CCM", no_captures, profile=bundled_profile()
+        )
         assert length_of(0x4710) == 9
 
     def test_falls_back_to_the_live_length(self):
@@ -143,7 +146,7 @@ class TestLengthResolver:
             seen.append((ecu, pid))
             return 4
 
-        assert length_resolver({}, "BCM", live)(0xB004) == 4
+        assert length_resolver({}, "BCM", live, profile=bundled_profile())(0xB004) == 4
         assert seen == [("BCM", "22B004")]
 
     def test_a_variable_length_pid_has_no_live_length(self):
@@ -156,13 +159,18 @@ class TestLengthResolver:
 
         pids = {"22B004": {"variable_length": True, "parameters": {}}}
         index = build_ecu_index({"ecus": {"BCM": {"tx_id": 0x7A0, "pids": pids}}})
-        assert length_resolver(index["BCM"]["pids"], "BCM", no_captures)(0xB004) is None
+        assert (
+            length_resolver(index["BCM"]["pids"], "BCM", no_captures, profile=bundled_profile())(
+                0xB004
+            )
+            is None
+        )
 
     def test_a_declared_length_still_wins_on_a_variable_length_pid(self):
         from canair.dtc.snapshot_decode import length_resolver
 
         pids = {"22B004": {"variable_length": True, "snapshot_length": 4}}
-        assert length_resolver(pids, "BCM", lambda *_: 9)(0xB004) == 4
+        assert length_resolver(pids, "BCM", lambda *_: 9, profile=bundled_profile())(0xB004) == 4
 
     def test_live_length_is_the_most_common_echoing_reply(self, monkeypatch):
         from canair.dtc import snapshot_decode
@@ -173,20 +181,47 @@ class TestLengthResolver:
             {"payload": "62B004112233"},
             {"payload": "62C00B1122334455"},  # misfiled: another DID's reply
         ]
-        monkeypatch.setattr("canair.captures.store.load_pid_captures", lambda ecu, pid: rows)
+        monkeypatch.setattr("canair.captures.store.load_pid_captures", lambda ecu, pid, **__: rows)
         snapshot_decode.live_reply_length.cache_clear()
         try:
-            assert snapshot_decode.live_reply_length("BCM", "22B004") == 4
+            assert (
+                snapshot_decode.live_reply_length("BCM", "22B004", profile=bundled_profile()) == 4
+            )
+        finally:
+            snapshot_decode.live_reply_length.cache_clear()
+
+    def test_the_length_is_read_from_the_profile_it_is_asked_for(self, monkeypatch, tmp_path):
+        """A profile switch in one process must not return the other car's cached length."""
+        from canair.dtc import snapshot_decode
+        from canair.profile import Profile
+
+        rows = {
+            "short": [{"payload": "62B00411223344"}],
+            "long": [{"payload": "62B0041122334455"}],
+        }
+        monkeypatch.setattr(
+            "canair.captures.store.load_pid_captures",
+            lambda ecu, pid, *, profile: rows[profile.name],
+        )
+        short, long = Profile("short", tmp_path / "a"), Profile("long", tmp_path / "b")
+        snapshot_decode.live_reply_length.cache_clear()
+        try:
+            assert snapshot_decode.live_reply_length("BCM", "22B004", profile=short) == 4
+            assert snapshot_decode.live_reply_length("BCM", "22B004", profile=long) == 5
+            assert snapshot_decode.live_reply_length("BCM", "22B004", profile=short) == 4
         finally:
             snapshot_decode.live_reply_length.cache_clear()
 
     def test_no_live_reply_means_unknown(self, monkeypatch):
         from canair.dtc import snapshot_decode
 
-        monkeypatch.setattr("canair.captures.store.load_pid_captures", lambda ecu, pid: [])
+        monkeypatch.setattr("canair.captures.store.load_pid_captures", lambda ecu, pid, **__: [])
         snapshot_decode.live_reply_length.cache_clear()
         try:
-            assert snapshot_decode.live_reply_length("BCM", "22B004") is None
+            assert (
+                snapshot_decode.live_reply_length("BCM", "22B004", profile=bundled_profile())
+                is None
+            )
         finally:
             snapshot_decode.live_reply_length.cache_clear()
 

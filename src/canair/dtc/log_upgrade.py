@@ -110,18 +110,18 @@ class _Addresses:
 
 
 def _addresses(profile: Profile) -> _Addresses | None:
-    from canair.ecus.registry import load_ecus, rx_for_tx
+    from canair.ecus.registry import load_ecus_dir, rx_for_tx
     from canair.uds.addressing import resolve_mode, resolve_rx_offset
 
     try:
-        registry = load_ecus(profile.ecus_dir) if profile.ecus_dir.is_dir() else {}
+        registry = load_ecus_dir(profile.ecus_dir) if profile.ecus_dir.is_dir() else {}
         meta = effective_meta(profile)
     except Exception:
         return None
     offset, mode = resolve_rx_offset(meta), resolve_mode(meta)
 
     def to_rx(tx: int) -> str:
-        return f"0x{rx_for_tx(tx, registry, offset, mode):03X}"
+        return f"0x{rx_for_tx(tx, registry, offset, mode, profile=profile):03X}"
 
     return _Addresses(to_rx, {to_rx(tx): str(info["name"]) for tx, info in registry.items()})
 

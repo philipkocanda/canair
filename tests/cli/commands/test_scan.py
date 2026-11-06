@@ -14,6 +14,7 @@ from canair.live.scan.presets import (
     resolve_service,
     service_label,
 )
+from canair.profile import active
 
 
 class TestResolveService:
@@ -152,50 +153,59 @@ class TestPlanScan:
         }
 
     def test_kwp_ecu_from_pids(self):
-        p = plan_scan("BMS", pids_data=self._pids(), ecus_data=self._ecus())
+        p = plan_scan("BMS", pids_data=self._pids(), ecus_data=self._ecus(), profile=active())
         assert p.service == 0x21
         assert p.service_name == "live-data"
         assert p.ranges == ((0x01, 0xFF),)
         assert "known PID" in p.reason
 
     def test_uds_ecu_from_pids(self):
-        p = plan_scan("IGPM", pids_data=self._pids(), ecus_data=self._ecus())
+        p = plan_scan("IGPM", pids_data=self._pids(), ecus_data=self._ecus(), profile=active())
         assert p.service == 0x22
         assert p.ranges == ((0xBC00, 0xBCFF),)
 
     def test_separate_families_are_swept_not_the_span_between(self):
-        p = plan_scan("BCM", pids_data=self._pids(), ecus_data=self._ecus())
+        p = plan_scan("BCM", pids_data=self._pids(), ecus_data=self._ecus(), profile=active())
         assert p.ranges == ((0xB000, 0xB0FF), (0xC000, 0xC0FF))
 
     def test_an_ecu_known_only_by_its_actuators_reads_their_family(self):
-        p = plan_scan("PSM", pids_data=self._pids(), ecus_data=self._ecus())
+        p = plan_scan("PSM", pids_data=self._pids(), ecus_data=self._ecus(), profile=active())
         assert p.service == 0x22
         assert p.ranges == ((0xB400, 0xB4FF),)
         assert "B4xx (IOControl)" in p.reason
 
     def test_slots_narrow_each_family(self):
-        p = plan_scan("BCM", pids_data=self._pids(), ecus_data=self._ecus(), slots=0x20)
+        p = plan_scan(
+            "BCM", pids_data=self._pids(), ecus_data=self._ecus(), slots=0x20, profile=active()
+        )
         assert p.ranges == ((0xB000, 0xB01F), (0xC000, 0xC01F))
         assert "first 32" in p.reason
 
     def test_uds_ecu_no_pids_falls_back_to_identity(self):
-        p = plan_scan("MYSTERY_UDS", pids_data=self._pids(), ecus_data=self._ecus())
+        p = plan_scan(
+            "MYSTERY_UDS", pids_data=self._pids(), ecus_data=self._ecus(), profile=active()
+        )
         assert p.service == 0x22
         assert p.ranges == ((0xF100, 0xF1FF),)
         assert "identity" in p.reason.lower()
 
     def test_kwp_ecu_no_pids_falls_back_to_live_data(self):
-        p = plan_scan("NOPIDS_KWP", pids_data=self._pids(), ecus_data=self._ecus())
+        p = plan_scan(
+            "NOPIDS_KWP", pids_data=self._pids(), ecus_data=self._ecus(), profile=active()
+        )
         assert p.service == 0x21
         assert p.ranges == ((0x01, 0xFF),)
 
     def test_resolve_by_hex_tx(self):
-        p = plan_scan("7E4", pids_data=self._pids(), ecus_data=self._ecus())
+        p = plan_scan("7E4", pids_data=self._pids(), ecus_data=self._ecus(), profile=active())
         assert p.ecu == "BMS"
         assert p.tx_id == 0x7E4
 
     def test_unresolvable_returns_none(self):
-        assert plan_scan("NOPE", pids_data=self._pids(), ecus_data=self._ecus()) is None
+        assert (
+            plan_scan("NOPE", pids_data=self._pids(), ecus_data=self._ecus(), profile=active())
+            is None
+        )
 
 
 class TestCommandHelpers:

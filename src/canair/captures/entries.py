@@ -14,9 +14,10 @@ from canair.captures.keepmode import EntryKeepMode
 from canair.captures.link_events import LinkEvent
 from canair.captures.store import decoded_preview, entry_path
 from canair.captures.types import CaptureEntry, Quality
+from canair.profile import Profile
 
 
-def entry_to_dict(e: Mapping[str, Any], *, decoded: bool = True) -> dict:
+def entry_to_dict(e: Mapping[str, Any], *, decoded: bool = True, profile: Profile) -> dict:
     """Serialize a capture entry to a clean, JSON-ready dict.
 
     Includes the regenerated ``decoded`` preview (param -> formatted value) when
@@ -36,7 +37,7 @@ def entry_to_dict(e: Mapping[str, Any], *, decoded: bool = True) -> dict:
         "scan_results": e.get("scan_results") or None,
     }
     if decoded:
-        d["decoded"] = decoded_preview(e)
+        d["decoded"] = decoded_preview(e, profile=profile)
     return d
 
 
@@ -165,7 +166,7 @@ class SessionGroup(TypedDict):
     noted: list  # every capture entry carrying a note, in file order
 
 
-def group_sessions(entries: Sequence[CaptureEntry]) -> list[SessionGroup]:
+def group_sessions(entries: Sequence[CaptureEntry], *, profile: Profile) -> list[SessionGroup]:
     """Reconstruct per-session metadata from flat capture entries.
 
     Groups by ``(_path, _session_idx)`` — the true session identity — and rolls
@@ -177,7 +178,7 @@ def group_sessions(entries: Sequence[CaptureEntry]) -> list[SessionGroup]:
     """
     groups: dict[tuple[str, int], SessionGroup] = {}
     for e in entries:
-        path = str(entry_path(e))
+        path = str(entry_path(e, profile=profile))
         key = (path, e.get("_session_idx", 0))
         g: SessionGroup | None = groups.get(key)
         if g is None:

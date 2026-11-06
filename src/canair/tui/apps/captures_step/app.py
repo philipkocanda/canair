@@ -643,8 +643,8 @@ class CapturesStepApp(HelpMixin, App):
         from canair.captures import layers
         from canair.captures.store import entry_path
 
-        target = entry_path(cap, self.model.captures_dir)
-        if layers.read_only_files([target], self.model.captures_dir):
+        target = entry_path(cap, self.model.captures_dir, profile=self.model.profile)
+        if layers.read_only_files([target], self.model.captures_dir, profile=self.model.profile):
             self._flash("Read-only: this capture belongs to the profile's base layer", "error")
             return None
         return target

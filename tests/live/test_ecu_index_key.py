@@ -15,6 +15,7 @@ import pytest
 import canair.ecus.names
 from canair.ecus.wake import WakePlan
 from canair.live.read.exec import _exec_iocontrol, _exec_query, _exec_session
+from canair.profile import active
 from canair.query.steps import resolve_tx_id
 from tests.support.fakes import FakeTerminal, ok
 from tests.support.monitor_controller import make_controller
@@ -47,13 +48,15 @@ def _sm():
 
 
 def test_resolve_tx_id():
-    assert resolve_tx_id("sjb", INDEX) == 0x770
-    assert resolve_tx_id("7A0", INDEX) == 0x7A0
+    assert resolve_tx_id("sjb", INDEX, profile=active()) == 0x770
+    assert resolve_tx_id("7A0", INDEX, profile=active()) == 0x7A0
 
 
 def test_exec_query():
     label, results = asyncio.run(
-        _exec_query(_sm(), "sjb", [], INDEX, {}, False, return_results=True, quiet=True)
+        _exec_query(
+            _sm(), "sjb", [], INDEX, {}, False, return_results=True, quiet=True, profile=active()
+        )
     )
     assert label == "IGPM (0x770)"
     assert [r["pid"] for r in results] == ["22BC03"]
@@ -61,7 +64,7 @@ def test_exec_query():
 
 def test_exec_session_finds_the_wake_plan():
     sm = _sm()
-    asyncio.run(_exec_session(sm, "sjb", True, INDEX))
+    asyncio.run(_exec_session(sm, "sjb", True, INDEX, profile=active()))
     assert sm.open_session.await_args.kwargs["wake_plan"] == INDEX["IGPM"]["wake"]
 
 
@@ -70,7 +73,7 @@ def test_exec_iocontrol(monkeypatch, capsys):
         "canair.live.read.exec.build_iocontrol_index",
         lambda _data: {"IGPM": {"tx_id": 0x770, "protocol": "UDS", "cmds": {}}},
     )
-    asyncio.run(_exec_iocontrol(_sm(), "sjb", "BC01", False, {}, INDEX, False))
+    asyncio.run(_exec_iocontrol(_sm(), "sjb", "BC01", False, {}, INDEX, False, profile=active()))
     err = capsys.readouterr().err
     assert "unknown DID BC01 for IGPM" in err  # found the ECU, not "no IOControl DIDs"
 

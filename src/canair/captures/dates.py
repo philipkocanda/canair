@@ -304,7 +304,7 @@ def _session_starts(
     placeable timestamp are skipped, so they can't anchor a --last-sessions
     window (consistent with time-aware date filtering dropping untimed data).
     """
-    entries = load_all_captures(captures_dir)
+    entries = load_all_captures(captures_dir, profile=profile)
     entries = filter_by_date_range(entries, since, until)
     entries = filter_by_text(entries, state=state, label=label, profile=profile)
 

@@ -27,7 +27,7 @@ def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:
     from canair.captures.journal import list_orphans
     from canair.captures.journal import recover as _recover
 
-    cdir = resolve_captures_dir(captures_dir)
+    cdir = resolve_captures_dir(captures_dir, profile=active())
     orphans = list_orphans(cdir)
     if not orphans:
         print("  No orphaned capture journals found.")
@@ -60,7 +60,7 @@ def cmd_migrate(captures_dir: Path | None, *, dry_run: bool = False, as_json: bo
 
     from canair.migrations.captures import MigrationError, migrate_dir
 
-    cdir = resolve_captures_dir(captures_dir)
+    cdir = resolve_captures_dir(captures_dir, profile=active())
     try:
         results = migrate_dir(cdir, dry_run=dry_run)
     except MigrationError as e:
@@ -110,7 +110,7 @@ def cmd_migrate_rx(
 
     from canair.migrations.capture_fields import migrate_dir
 
-    cdir = resolve_captures_dir(captures_dir)
+    cdir = resolve_captures_dir(captures_dir, profile=active())
     results = migrate_dir(cdir, dry_run=dry_run)
     touched = [r for r in results if r.renamed]
     total = sum(r.renamed for r in results)
@@ -149,7 +149,7 @@ def _discover_addressing(prof):
     error rather than a traceback.
     """
     from canair.ecus.pids import load_pids_dir
-    from canair.ecus.registry import load_ecus
+    from canair.ecus.registry import load_ecus_dir
     from canair.migrations.discover import Addressing
     from canair.profile import ProfileError
     from canair.uds.addressing import resolve_mode, resolve_rx_offset
@@ -163,7 +163,7 @@ def _discover_addressing(prof):
     # A layered profile's captures sit in the overlay; its definitions in the root.
     data = load_pids_dir(prof.ecus_dir)
     return Addressing(
-        ecus=load_ecus(prof.ecus_dir),
+        ecus=load_ecus_dir(prof.ecus_dir),
         rx_offset=resolve_rx_offset(data),
         mode=resolve_mode(data),
     )
@@ -179,12 +179,12 @@ def cmd_migrate_discover(
     from canair.captures import layers
     from canair.migrations import discover as discover_migrate
 
-    cdir = resolve_captures_dir(captures_dir)
-    prof = layers.owning_profile(captures_dir)
+    cdir = resolve_captures_dir(captures_dir, profile=active())
+    prof = layers.owning_profile(captures_dir, profile=active())
     addressing = _discover_addressing(prof)
     # Plan first, then write: a layered profile's base is read-only, so the files
     # a repair would rewrite are checked before any of them is touched.
-    results = discover_migrate.migrate_dir(cdir, addressing, dry_run=True)
+    results = discover_migrate.migrate_dir(cdir, addressing, dry_run=True, profile=active())
     if not dry_run:
         to_write = [r.path for r in results if r.repairs]
         if blocked := layers.refusal(to_write, "repaired", profile=prof):
@@ -194,7 +194,7 @@ def cmd_migrate_discover(
             else:
                 print(blocked, file=sys.stderr)
             return 1
-        results = discover_migrate.migrate_dir(cdir, addressing)
+        results = discover_migrate.migrate_dir(cdir, addressing, profile=active())
     touched = [r for r in results if r.repairs or r.skipped]
 
     if as_json:
@@ -251,7 +251,7 @@ def cmd_split_batched(
     from canair.captures.io import resolve_capture_layers
     from canair.ecus.registry import build_rx_index
 
-    cdir = resolve_captures_dir(captures_dir)
+    cdir = resolve_captures_dir(captures_dir, profile=active())
     if captures_dir is not None and not cdir.is_dir():
         if as_json:
             _json.dump({"error": f"no such captures directory: {cdir}"}, sys.stdout)
@@ -259,8 +259,10 @@ def cmd_split_batched(
         else:
             messages.error(f"no such captures directory: {cdir}")
         return 2
-    report = split_unsplit_batches(resolve_capture_layers(captures_dir), cdir, dry_run=dry_run)
-    names = build_rx_index()
+    report = split_unsplit_batches(
+        resolve_capture_layers(captures_dir, profile=active()), cdir, dry_run=dry_run
+    )
+    names = build_rx_index(profile=active())
 
     def _row(s) -> dict:
         return {
@@ -329,7 +331,7 @@ def orphan_notice(captures_dir: Path | None = None) -> None:
     try:
         from canair.captures.journal import list_orphans
 
-        cdir = resolve_captures_dir(captures_dir)
+        cdir = resolve_captures_dir(captures_dir, profile=active())
         orphans = list_orphans(cdir)
     except Exception:
         return

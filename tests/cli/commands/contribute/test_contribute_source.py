@@ -201,7 +201,7 @@ def _contributing(tmp_path, monkeypatch, *, pii: bool = False):
 
     ok = C_git.Step(cmd=["stub"], returncode=0, stdout="https://github.com/x/canair/pull/9\n")
     monkeypatch.setattr(pipeline, "active", lambda: Profile("testcar", prof))
-    monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+    monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
     monkeypatch.setattr(gates, "preflight", _ready)
     for module in (gates, C_workspace):
         monkeypatch.setattr(module, "workspace_dir", lambda: ws)

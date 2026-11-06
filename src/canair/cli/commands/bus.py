@@ -78,7 +78,7 @@ def run(args) -> int:
 
     prof = active()
     buses = load_can_buses(prof)
-    ecus = load_ecus()
+    ecus = load_ecus(profile=active())
     declared_codes = [b.code for b in buses]
     private_codes = [b.code for b in buses if b.private]
 

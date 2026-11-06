@@ -78,7 +78,9 @@ class TestSelectors:
 
 class TestGroups:
     def _groups(self, *groups: Group) -> list:
-        return build_group_choices({g.name: g for g in groups}, build_choices(_index()))
+        return build_group_choices(
+            {g.name: g for g in groups}, build_choices(_index()), profile=active()
+        )
 
     def test_members_resolve_to_pids_and_bare_ecus_to_their_sweep(self):
         (g,) = self._groups(Group("charging", "plugged in", ("BMS:2105", "VCU")))
@@ -234,7 +236,9 @@ class TestApp:
     def _grouped_app(self) -> MonitorSelectApp:
         choices = build_choices(_index())
         groups = build_group_choices(
-            {"drive": Group("drive", "driving", ("BMS:2105", "VCU:2102"))}, choices
+            {"drive": Group("drive", "driving", ("BMS:2105", "VCU:2102"))},
+            choices,
+            profile=active(),
         )
         return MonitorSelectApp(choices, groups)
 

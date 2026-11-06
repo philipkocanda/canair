@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from canair.profile import Profile
 from canair.uds.protocol import UDS
 from canair.uds.response import UdsResponse
 from canair.uds.services import READ_DTC_INFORMATION
@@ -46,12 +47,14 @@ class SnapshotRun:
     records_read: int = 0
 
 
-def ecu_pids(pids_data: Mapping[str, Any] | None, tx_id: int) -> tuple[str, Mapping[str, Any]]:
+def ecu_pids(
+    pids_data: Mapping[str, Any] | None, tx_id: int, *, profile: Profile
+) -> tuple[str, Mapping[str, Any]]:
     """The ECU's name and its ``pids`` index, for lengths and decoding (empty without a profile)."""
     from canair.ecus.names import ecu_name
     from canair.ecus.pids import build_ecu_index
 
-    name = ecu_name(tx_id)
+    name = ecu_name(tx_id, profile=profile)
     if not pids_data:
         return name, {}
     entry = build_ecu_index(dict(pids_data)).get(name.upper()) or {}
@@ -72,6 +75,7 @@ async def fetch_snapshots(
     run: SnapshotRun,
     *,
     timeout: float = 3.0,
+    profile: Profile,
 ) -> None:
     """Attach ``snapshots`` to every code in ``result`` that has any, reading them from the ECU.
 
@@ -106,7 +110,7 @@ async def fetch_snapshots(
         result["snapshot_status"] = {"status": "unreadable", "detail": str(e)}
         return
 
-    length_of = length_resolver(pids, ecu)
+    length_of = length_resolver(pids, ecu, profile=profile)
     for code in result["dtcs"]:
         raw = bytes.fromhex(code["raw"])
         records = [number for dtc, number in stored if dtc == raw]

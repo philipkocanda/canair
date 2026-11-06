@@ -50,7 +50,7 @@ def run(args) -> int:
         messages.error(f"{err}")
         return 2
 
-    ecu = canonical_ecu_name_safe(args.ecu)
+    ecu = canonical_ecu_name_safe(args.ecu, profile=active())
     pid = args.pid.upper()
 
     if args.physical:
@@ -178,7 +178,7 @@ def run(args) -> int:
         method=args.method,
         all_interps=args.all_interps,
         control=control_series,
-        ref_unit=None if args.against_file else ref_unit_for(args.against),
+        ref_unit=None if args.against_file else ref_unit_for(args.against, profile=active()),
         candidates=resolve_unit_candidates(effective_meta(active())),
         per_session=args.per_session,
         session_gap_s=args.session_gap,

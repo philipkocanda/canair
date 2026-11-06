@@ -13,6 +13,7 @@ from typing import ClassVar
 import pytest
 
 from canair.live.read.exec import build_query_plan
+from canair.profile import active
 from canair.query import (
     QueryError,
     explicit_request,
@@ -157,12 +158,12 @@ class TestQueryPlan:
         assert [(c, u) for c, _i, u in plan] == [("0101", False)]
 
     def test_the_query_step_parser_accepts_it(self):
-        steps = parse_sub_commands(["query BMS:01/0D,2101"])
+        steps = parse_sub_commands(["query BMS:01/0D,2101"], profile=active())
         assert steps == [{"type": "query", "ecu": "BMS", "pids": ["01/0D", "2101"]}]
 
     def test_space_instead_of_colon_is_caught(self):
         with pytest.raises(ValueError, match="looks like a PID"):
-            parse_sub_commands(["query BMS 01/0D"])
+            parse_sub_commands(["query BMS 01/0D"], profile=active())
 
 
 class TestEchoOnTheElm327Wire:

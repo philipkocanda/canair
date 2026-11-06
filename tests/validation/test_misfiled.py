@@ -16,6 +16,7 @@ from canair.analysis.misfiled import find_misfiled
 from canair.captures.payload_corpus import PayloadSample
 from canair.cli.commands.validate.captures import run_captures
 from canair.ecus.pids import clear_cache
+from canair.profile import active
 from canair.validation.misfiled import misfile_warnings
 
 MCU, VCU, BMS = 0x7EB, 0x7EA, 0x7EC
@@ -121,7 +122,7 @@ def _capture_file(tmp_path, misfiled: bool):
 
 def test_validate_warning_names_both_ecus_and_the_capture(tmp_path):
     path = _capture_file(tmp_path, misfiled=True)
-    [warning] = misfile_warnings([path], NAMES)[path]
+    [warning] = misfile_warnings([path], NAMES, profile=active())[path]
     assert warning.location == "sessions[0].captures[29] (MCU 21F2 @ 10:07:16)"
     assert "86 bytes like VCU's 21F2 replies (9 captures), not MCU's usual 67" in warning.message
     assert "byte-identical" in warning.message
@@ -129,7 +130,9 @@ def test_validate_warning_names_both_ecus_and_the_capture(tmp_path):
 
 
 def test_clean_corpus_has_no_warnings(tmp_path):
-    assert misfile_warnings([_capture_file(tmp_path, misfiled=False)], NAMES) == {}
+    assert (
+        misfile_warnings([_capture_file(tmp_path, misfiled=False)], NAMES, profile=active()) == {}
+    )
 
 
 @pytest.fixture
@@ -204,4 +207,4 @@ def test_legacy_aliases_fold_only_addresses_no_other_ecu_owns():
         0x7E3: {"name": "MCU", "rx_id": 0x7EA},
         0x7A0: {"name": "BCM", "rx_id": 0x7A8},  # conventional → nothing to fold
     }
-    assert legacy_rx_aliases(ecus) == {0x7EC: 0x804, 0x7EB: 0x7EA}
+    assert legacy_rx_aliases(ecus, profile=active()) == {0x7EC: 0x804, 0x7EB: 0x7EA}

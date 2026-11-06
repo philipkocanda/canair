@@ -22,6 +22,7 @@ from canair.core.stop_signals import graceful_stop
 from canair.device.lock import WiCANLock
 from canair.device.lock_watchdog import LockWatchdog
 from canair.ecus.pids import load_pids
+from canair.ecus.registry import load_ecus
 from canair.live.session import SessionOptions, run_session_guarded
 from canair.profile import active
 from canair.render import messages
@@ -98,7 +99,7 @@ async def async_main(args, operation: LiveOperation):
         transport = select_reachable_transport(candidates, connect_timeout=_connect_timeout)
     host = transport.host
 
-    init_logging()
+    init_logging({tx: e["name"] for tx, e in load_ecus(active()).items()})
 
     if conn.unsafe:
         messages.warning(
@@ -106,7 +107,7 @@ async def async_main(args, operation: LiveOperation):
             "Each blocked command will require explicit consent before it is sent."
         )
 
-    pids_data = load_pids()
+    pids_data = load_pids(profile=active())
 
     # Raw transport (slcan-tcp): route to the client-side ISO-TP/UDS path instead
     # of the ELM327 WebSocket. The device must already be in slcan mode.

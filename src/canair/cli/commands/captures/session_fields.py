@@ -131,7 +131,7 @@ def cmd_set_field(
             "new": value,
             "will_write": (g.get(field.key) or "") != value,
         }
-        for g in group_sessions(entries)
+        for g in group_sessions(entries, profile=active())
     ]
     to_write = [r for r in rows if r["will_write"]]
 

@@ -197,12 +197,12 @@ def annotate_session_spans(
         rules = load_states(profile=profile)
         if not any(r.predicate is not None for r in rules):
             return None
-        entries = flatten_session(fpath, idx, session)
+        entries = flatten_session(fpath, idx, session, profile=profile)
         result = session_state_spans(
             recorded,
             [e for e in entries if e.get("payload")],
             rules,
-            build_ecu_index(load_pids()),
+            build_ecu_index(load_pids(profile=profile)),
             cycle_tol=cycle_tol if cycle_tol is not None else DEFAULT_CYCLE_TOL_S,
             profile=profile,
         )

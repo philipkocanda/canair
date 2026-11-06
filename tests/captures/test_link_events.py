@@ -193,7 +193,7 @@ class TestJournalRoundTrip:
             _start(1, "23:59:00", date=DAY),
             _end(1, "23:59:30", date=DAY),
         ]
-        sessions = build_session_from_records(recs)
+        sessions = build_session_from_records(recs, profile=active())
         assert "link_events" in sessions[0]
         assert "link_events" not in sessions[1]
 
@@ -363,7 +363,9 @@ class TestSessionsView:
             {"at": "14:04:00.000", "kind": "disconnect"},
             {"at": "14:03:00.000", "kind": "resync", "count": 3},
         ]
-        entries = flatten_session(tmp_path / f"{DAY}.json", 0, _session(events), rx_index={})
+        entries = flatten_session(
+            tmp_path / f"{DAY}.json", 0, _session(events), rx_index={}, profile=active()
+        )
         assert entries[0]["session_link_events"] == events
         cmd_sessions(entries)
         out = capsys.readouterr().out
@@ -376,7 +378,9 @@ class TestSessionsView:
         from canair.cli.commands.captures.sessions import cmd_sessions
 
         events = [{"at": "14:01:00.000", "kind": "resync"}]
-        entries = flatten_session(tmp_path / f"{DAY}.json", 0, _session(events), rx_index={})
+        entries = flatten_session(
+            tmp_path / f"{DAY}.json", 0, _session(events), rx_index={}, profile=active()
+        )
         cmd_sessions(entries, as_json=True)
         assert json.loads(capsys.readouterr().out)[0]["link_events"] == events
 
@@ -386,7 +390,9 @@ class TestSessionsView:
 
         session = _session([])
         del session["link_events"]
-        cmd_sessions(flatten_session(tmp_path / f"{DAY}.json", 0, session, rx_index={}))
+        cmd_sessions(
+            flatten_session(tmp_path / f"{DAY}.json", 0, session, rx_index={}, profile=active())
+        )
         assert "gaps:" not in capsys.readouterr().out
 
 
@@ -779,7 +785,9 @@ class TestInferredGaps:
 
         session = _session([], times=self._times(*range(0, 20, 2), 200, 202))
         del session["link_events"]
-        entries = flatten_session(tmp_path / f"{DAY}.json", 0, session, rx_index={})
+        entries = flatten_session(
+            tmp_path / f"{DAY}.json", 0, session, rx_index={}, profile=active()
+        )
         cmd_sessions(entries)
         assert "inferred gaps: 1" in capsys.readouterr().out
         cmd_sessions(entries, as_json=True)

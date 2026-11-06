@@ -330,7 +330,7 @@ class TestBundledProfiles:
         from canair.states.refs import profile_predicates
 
         prof = profile.set_active(name)
-        issues = check_references(profile_predicates(prof), load_pids())
+        issues = check_references(profile_predicates(prof), load_pids(profile=active()))
         assert issues == [], "\n".join(str(i) for i in issues)
 
     def test_the_reference_profile_actually_has_predicates(self):

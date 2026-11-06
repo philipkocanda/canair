@@ -20,11 +20,11 @@ from .report import CapturesReport, CaptureWarning, FileFindings
 from .variant_tags import variant_tag_report
 
 
-def load_valid_rx_addrs() -> set[int]:
+def load_valid_rx_addrs(profile: Profile) -> set[int]:
     """Set of valid ECU CAN response addresses (each ECU's resolved ``rx_id``)."""
     from canair.ecus.registry import build_rx_index
 
-    return set(build_rx_index())
+    return set(build_rx_index(profile=profile))
 
 
 def _path_str(abs_path) -> str:
@@ -117,7 +117,7 @@ def _check_captures(
         schema = json.load(f)
     Draft202012Validator.check_schema(schema)
     validator = CaptureSchemaChecker(schema)
-    rx_addrs = load_valid_rx_addrs()
+    rx_addrs = load_valid_rx_addrs(profile=profile)
 
     from canair.profile import active
 
@@ -158,8 +158,8 @@ def _check_captures(
     from .unsplit import unsplit_batch_warnings
 
     corpus = load_payload_corpus(files)
-    misfiled = misfile_warnings(files, corpus=corpus)
-    unsplit = unsplit_batch_warnings(files, corpus=corpus)
+    misfiled = misfile_warnings(files, corpus=corpus, profile=profile)
+    unsplit = unsplit_batch_warnings(files, corpus=corpus, profile=profile)
 
     from canair.captures.sensitive_purge import sensitive_findings
     from canair.privacy.sensitive import profile_set

@@ -35,7 +35,7 @@ def _probe(service=0x30):
         service=service,
         probe=lambda t, i: t.send_uds(f"{service:02X}{i:02X}00"),
         classify=_classify,
-        make_hit=lambda *a: a,
+        make_hit=lambda *a, **__: a,
         request_display=lambda i: f"{service:02X} {i:02X} 00",
         write_hit=None,
     )

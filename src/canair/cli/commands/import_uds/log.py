@@ -63,13 +63,13 @@ def _import_log(args: argparse.Namespace) -> int:
     from canair.states.tokens import parse_states
     from canair.uds.addressing import resolve_mode
 
-    mode = str(resolve_mode(load_pids()))
+    mode = str(resolve_mode(load_pids(profile=active())))
     if mode not in _NORMAL_ADDRESSING:
         raise LogImportError(
             f"this profile uses {mode} addressing, whose ISO-TP frames carry a target-address "
             "byte before the PCI byte; passive reassembly of such a log is not supported"
         )
-    ecus = load_ecus()
+    ecus = load_ecus(profile=active())
     if not ecus:
         raise LogImportError("the active profile has no ECUs; register them first (canair ecu add)")
 
@@ -82,6 +82,7 @@ def _import_log(args: argparse.Namespace) -> int:
             _select_frames(can_logs.iter_frames(path, fmt), args),
             ecus,
             keep_negative=args.keep_nrc,
+            profile=active(),
         )
     except can_logs.CanLogError as e:
         raise LogImportError(str(e)) from e

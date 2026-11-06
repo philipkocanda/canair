@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from canair.profile import active
+
 
 def _pids_data() -> dict:
     try:
         from canair.ecus.pids import load_pids
 
-        return load_pids()
+        return load_pids(profile=active())
     except Exception:
         return {}
 

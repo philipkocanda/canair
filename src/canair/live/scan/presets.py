@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from canair.core.id_ranges import IdRange
 from canair.ecus.did_families import FAMILY_SIZE, did_families, family_ranges
+from canair.profile import Profile
 from canair.uds.protocol import KWP, classify_protocol
 from canair.uds.services import (
     INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
@@ -244,6 +245,7 @@ def plan_scan(
     ecus_data: dict | None = None,
     *,
     slots: int = FAMILY_SIZE,
+    profile: Profile,
 ) -> ScanPlan | None:
     """Suggest a sensible scan for ``ecu`` (name or hex TX id).
 
@@ -266,24 +268,24 @@ def plan_scan(
 
     if ecus_data is None:
         try:
-            ecus_data = load_ecus()
+            ecus_data = load_ecus(profile=profile)
         except Exception:
             ecus_data = {}
     if pids_data is None:
         from canair.ecus.pids import load_pids
 
         try:
-            pids_data = load_pids()
+            pids_data = load_pids(profile=profile)
         except Exception:
             pids_data = {}
 
     # Resolve names against the provided ecus_data (not just the active profile).
-    name_index = build_name_tx_index(ecus_data) if ecus_data else None
-    tx_id = resolve_tx(ecu, name_index=name_index)
+    name_index = build_name_tx_index(ecus_data, profile=profile) if ecus_data else None
+    tx_id = resolve_tx(ecu, name_index=name_index, profile=profile)
     if tx_id is None:
         return None
 
-    canonical_name = _ecu_name(tx_id, ecus_data)
+    canonical_name = _ecu_name(tx_id, ecus_data, profile=profile)
     info = ecus_data.get(tx_id, {}) if ecus_data else {}
     protocol = classify_protocol(info.get("id_protocol"))
 

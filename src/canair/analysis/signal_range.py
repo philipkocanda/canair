@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from canair.captures.store import load_pid_captures
 from canair.expression.decoding import decode_payload
+from canair.profile import Profile
 from canair.uds.byteindex import payload_to_wican_bytes
 
 
@@ -19,9 +20,9 @@ class CaptureRange:
     error: str | None
 
 
-def capture_range(ecu: str, pid: str, name: str, param: dict) -> CaptureRange:
+def capture_range(ecu: str, pid: str, name: str, param: dict, *, profile: Profile) -> CaptureRange:
     """Decode ``param`` over every saved capture of the PID; no printing."""
-    caps = load_pid_captures(ecu, pid)
+    caps = load_pid_captures(ecu, pid, profile=profile)
     displays: list[str] = []
     values: list[float] = []
     err: str | None = None

@@ -68,7 +68,10 @@ class MonitorView:
         c = self.c
         parts: list[str] = []
         for step in c.query_steps:
-            ecu = ecu_index_key(step["ecu"], c._ecu_index or {}) or step["ecu"].upper()
+            ecu = (
+                ecu_index_key(step["ecu"], c._ecu_index or {}, profile=self.c.profile)
+                or step["ecu"].upper()
+            )
             pids = step.get("pids") or []
             parts.append(f"{ecu}:{','.join(pids)}" if pids else ecu)
         return " ".join(parts)

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from canair.profile import Profile
 from canair.render import ansi
 
 from ...dtc.refs import ecu_ref
 
 
-def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states=None):
+def _log_scan(
+    scope: str, results: list[dict], label: str | None, vehicle_states=None, *, profile: Profile
+):
     """Append this scan to the DTC log; return (path, previous_scan, diff).
 
     ``scope`` is ``all`` or the scanned ECU's reference (:func:`canair.dtc.refs.ecu_ref`).
@@ -23,7 +26,7 @@ def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states
     ecus: dict = {}
     unread: list[str] = []
     for r in results:
-        rx = ecu_ref(int(r["tx"], 16))
+        rx = ecu_ref(int(r["tx"], 16), profile=profile)
         if "dtcs" not in r:
             unread.append(rx)
             continue
@@ -44,12 +47,12 @@ def _log_scan(scope: str, results: list[dict], label: str | None, vehicle_states
         vehicle_states=vehicle_states,
         unread=unread if scope == "all" else None,
     )
-    previous = latest_matching(scope)
+    previous = latest_matching(scope, profile=profile)
     diff = None
     if previous:
-        since = clears_between(previous.get("timestamp", ""), current["timestamp"])
-        diff = diff_scans(previous, current, since)
-    path = append_scan(current)
+        since = clears_between(previous.get("timestamp", ""), current["timestamp"], profile=profile)
+        diff = diff_scans(previous, current, since, profile=profile)
+    path = append_scan(current, profile=profile)
     return path, previous, diff
 
 
@@ -73,18 +76,18 @@ def logged_snapshots(dtcs: list[dict]) -> dict[str, list[dict]]:
     return out
 
 
-def _print_log_result(path, previous, diff) -> None:
+def _print_log_result(path, previous, diff, *, profile: Profile) -> None:
     from canair.dtc.log import format_diff
 
     if previous:
-        for line in format_diff(diff, previous):
+        for line in format_diff(diff, previous, profile=profile):
             print(line)
     else:
         print("  No previous scan of this scope — recorded as baseline.")
     print(f"  {ansi.DIM}Logged scan to {path} (`canair dtc log` to review){ansi.RESET}\n")
 
 
-def _log_manual_clear(tx_id, proto, group, pre_codes, label, snapshots=None):
+def _log_manual_clear(tx_id, proto, group, pre_codes, label, snapshots=None, *, profile: Profile):
     """Record a ``--clear``: readers take the ECU as clean from here until it is read.
 
     ``snapshots`` (``{code: [{record, hex}]}``) are the snapshots the clear erased, read
@@ -93,11 +96,12 @@ def _log_manual_clear(tx_id, proto, group, pre_codes, label, snapshots=None):
 
     append_clear(
         build_clear(
-            ecu_ref(tx_id),
+            ecu_ref(tx_id, profile=profile),
             protocol=proto,
             group=group,
             codes=pre_codes or None,
             label=label,
             snapshots=snapshots or None,
-        )
+        ),
+        profile=profile,
     )

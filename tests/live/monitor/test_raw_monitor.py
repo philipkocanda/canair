@@ -5,6 +5,7 @@ import asyncio
 from canair.live.monitor.backoff import PollCost
 from canair.live.monitor.raw_poller import _raw_pid_result
 from canair.live.monitor.raw_run import query_ecu_addresses
+from canair.profile import active
 from canair.uds.addressing import EcuAddress
 from tests.support.monitor_controller import make_controller
 from tests.support.raw_monitor import FakeRawClient
@@ -39,39 +40,43 @@ class TestQueryEcuAddresses:
 
 class TestRawPidResult:
     def test_positive_mapped(self):
-        r = _raw_pid_result("22BC03", {"parameters": {}}, False, bytes.fromhex("62BC03FDEE"), 1.0)
+        r = _raw_pid_result(
+            "22BC03", {"parameters": {}}, False, bytes.fromhex("62BC03FDEE"), 1.0, profile=active()
+        )
         assert r["raw_hex"] == "62BC03FDEE"
         assert r["acquired_at"] == 1.0
         assert "error" not in r
 
     def test_positive_unmapped(self):
-        r = _raw_pid_result("22B003", None, True, bytes.fromhex("62B003AA"), 2.0)
+        r = _raw_pid_result("22B003", None, True, bytes.fromhex("62B003AA"), 2.0, profile=active())
         assert r["raw_hex"] == "62B003AA"
         assert r["unmapped"] is True
 
     def test_negative_response_nrc(self):
-        r = _raw_pid_result("22B004", None, False, bytes.fromhex("7F2213"), 3.0)
+        r = _raw_pid_result("22B004", None, False, bytes.fromhex("7F2213"), 3.0, profile=active())
         assert "NRC 0x13" in r["error"]
         assert r["nrc"] == 0x13
 
     def test_a_truncated_negative_response_carries_no_code(self):
-        r = _raw_pid_result("22B004", None, False, bytes.fromhex("7F22"), 3.0)
+        r = _raw_pid_result("22B004", None, False, bytes.fromhex("7F22"), 3.0, profile=active())
         assert "too short" in r["error"] and "nrc" not in r
 
     def test_timeout_none(self):
-        r = _raw_pid_result("2101", {"parameters": {}}, False, None, 4.0)
+        r = _raw_pid_result("2101", {"parameters": {}}, False, None, 4.0, profile=active())
         assert r["error"] == "timeout"
 
     def test_exception_value(self):
-        r = _raw_pid_result("2101", {"parameters": {}}, False, TimeoutError("x"), 5.0)
+        r = _raw_pid_result(
+            "2101", {"parameters": {}}, False, TimeoutError("x"), 5.0, profile=active()
+        )
         assert r["error"] == "timeout"
 
     def test_other_exception(self):
-        r = _raw_pid_result("2101", None, False, ValueError("boom"), 6.0)
+        r = _raw_pid_result("2101", None, False, ValueError("boom"), 6.0, profile=active())
         assert "boom" in r["error"]
 
     def test_empty_response(self):
-        r = _raw_pid_result("2101", None, False, b"", 7.0)
+        r = _raw_pid_result("2101", None, False, b"", 7.0, profile=active())
         assert "empty" in r["error"]
 
 
@@ -336,6 +341,7 @@ class TestLayoutStability:
                 {"type": "query", "ecu": "BMS", "pids": ["2101"]},
             ],
             name_index={},
+            profile=active(),
         )
         table = {
             ("IGPM", bytes.fromhex("22BC03")): bytes.fromhex("62BC03AA"),

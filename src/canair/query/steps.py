@@ -12,6 +12,7 @@ name/alias canonicalisation only, and its absence is tolerated.
 import re
 import shlex
 
+from canair.profile import Profile
 from canair.query import looks_like_pid
 
 _RAW_SPEC = re.compile(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$")
@@ -37,7 +38,7 @@ def parse_raw_spec(spec: str) -> tuple[int, str]:
     return int(match.group(1), 16), request
 
 
-def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
+def resolve_tx_id(name_or_hex: str, ecu_index: dict, *, profile: Profile) -> int | None:
     """Resolve an ECU name or hex TX ID to an integer.
 
     Accepts: 'IGPM', 'igpm', '770', '0x770', '7A0', and ECU-registry aliases
@@ -45,7 +46,7 @@ def resolve_tx_id(name_or_hex: str, ecu_index: dict) -> int | None:
     """
     from canair.ecus.pids import ecu_index_key
 
-    key = ecu_index_key(name_or_hex, ecu_index)
+    key = ecu_index_key(name_or_hex, ecu_index, profile=profile)
     if key is not None:
         return ecu_index[key]["tx_id"]
 
@@ -125,17 +126,19 @@ def selector_text(step: dict) -> str:
     return f"{step['ecu']}:{','.join(pids)}" if pids else step["ecu"]
 
 
-def _canonical_name_index() -> dict[str, str] | None:
+def _canonical_name_index(profile: Profile) -> dict[str, str] | None:
     """The ECU name/alias index, or ``None`` when no registry is available."""
     from canair.ecus.names import build_canonical_name_index
 
     try:
-        return build_canonical_name_index()
+        return build_canonical_name_index(profile=profile)
     except FileNotFoundError:
         return None
 
 
-def _merge_query_run(run: list[dict], name_index: dict[str, str] | None) -> list[dict]:
+def _merge_query_run(
+    run: list[dict], name_index: dict[str, str] | None, *, profile: Profile
+) -> list[dict]:
     """Coalesce one contiguous run of ``query`` steps to one step per ECU.
 
     ECU names are canonicalised first, so an alias selector (``LDC``) merges with
@@ -157,7 +160,7 @@ def _merge_query_run(run: list[dict], name_index: dict[str, str] | None) -> list
     overlapped: set[str] = set()
     order: list[str] = []
     for step in run:
-        canon = canonical_ecu_name_safe(step["ecu"], name_index).upper()
+        canon = canonical_ecu_name_safe(step["ecu"], name_index, profile=profile).upper()
         pids = list(step.get("pids") or [])
         prev = merged.get(canon)
         if prev is None:
@@ -188,7 +191,7 @@ def _merge_query_run(run: list[dict], name_index: dict[str, str] | None) -> list
 
 
 def normalize_query_steps(
-    commands: list[dict], name_index: dict[str, str] | None = None
+    commands: list[dict], name_index: dict[str, str] | None = None, *, profile: Profile
 ) -> list[dict]:
     """Canonicalise ECU names and coalesce overlapping ``query`` selectors.
 
@@ -209,17 +212,17 @@ def normalize_query_steps(
     when omitted, and a missing registry degrades to plain upper-casing.
     """
     if name_index is None:
-        name_index = _canonical_name_index()
+        name_index = _canonical_name_index(profile=profile)
     out: list[dict] = []
     run: list[dict] = []
     for cmd in commands:
         if cmd["type"] == "query":
             run.append(cmd)
             continue
-        out.extend(_merge_query_run(run, name_index))
+        out.extend(_merge_query_run(run, name_index, profile=profile))
         run = []
         out.append(cmd)
-    out.extend(_merge_query_run(run, name_index))
+    out.extend(_merge_query_run(run, name_index, profile=profile))
     return out
 
 
@@ -241,7 +244,7 @@ def merged_selector_notes(commands: list[dict]) -> list[str]:
     return notes
 
 
-def parse_sub_commands(args: list[str]) -> list[dict]:
+def parse_sub_commands(args: list[str], *, profile: Profile) -> list[dict]:
     """Parse multi-mode sub-command strings into structured dicts.
 
     Each string is a mini-command like 'skm-wake acc' or 'raw 770:22BC03'.
@@ -325,4 +328,4 @@ def parse_sub_commands(args: list[str]) -> list[dict]:
                 f"iocontrol, repl"
             )
 
-    return normalize_query_steps(commands)
+    return normalize_query_steps(commands, profile=profile)

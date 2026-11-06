@@ -205,7 +205,7 @@ class TestGroupSessions:
             ),
             _entry(_session_idx=1, session_label="park", vehicle_states=["ready"], time="17:00:00"),
         ]
-        sessions = group_sessions(entries)
+        sessions = group_sessions(entries, profile=active())
         assert len(sessions) == 2
         a = sessions[0]
         assert a["label"] == "drive A" and a["n"] == 2
@@ -218,14 +218,14 @@ class TestGroupSessions:
             _entry(_session_idx=0, session_label="dup", time="10:00:00"),
             _entry(_session_idx=1, session_label="dup", time="11:00:00"),
         ]
-        assert len(group_sessions(entries)) == 2
+        assert len(group_sessions(entries, profile=active())) == 2
 
     def test_chronological_order(self):
         entries = [
             _entry(_session_idx=0, date="2026-07-22", time="18:00:00"),
             _entry(_session_idx=1, date="2026-07-20", time="09:00:00"),
         ]
-        sessions = group_sessions(entries)
+        sessions = group_sessions(entries, profile=active())
         assert [s["date"] for s in sessions] == ["2026-07-20", "2026-07-22"]
 
     def test_distinct_capture_notes_deduped(self):
@@ -234,7 +234,7 @@ class TestGroupSessions:
             _entry(_session_idx=0, notes="note X"),
             _entry(_session_idx=0, notes="note Y"),
         ]
-        assert group_sessions(entries)[0]["cap_notes"] == ["note X", "note Y"]
+        assert group_sessions(entries, profile=active())[0]["cap_notes"] == ["note X", "note Y"]
 
 
 class TestCmdSessions:
@@ -420,7 +420,9 @@ class TestSummarySessionCount:
             _entry(file="a.json", _session_idx=1, session_label="dup", time="11:00:02"),
             _entry(file="b.json", _session_idx=0, session_label="", time="12:00:00"),
         ]
-        assert self._summary_sessions(entries, capsys) == len(group_sessions(entries))
+        assert self._summary_sessions(entries, capsys) == len(
+            group_sessions(entries, profile=active())
+        )
 
     def test_text_view_reports_the_same_count(self, capsys):
         entries = [
@@ -1009,23 +1011,23 @@ class TestCmdDelete:
         from canair.cli.commands.captures.delete import cmd_delete
 
         self._seed(tmp_path)
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         rc = cmd_delete(entries, "MCU:2102", captures_dir=tmp_path, dry_run=True)
         out = capsys.readouterr().out
         assert rc == 0
         assert "Would delete 2 capture(s)" in out
         # File untouched: all 3 captures still present.
-        assert len(load_all_captures(tmp_path)) == 3
+        assert len(load_all_captures(tmp_path, profile=active())) == 3
 
     def test_deletes_matching_only(self, tmp_path):
         from canair.captures.store import load_all_captures
         from canair.cli.commands.captures.delete import cmd_delete
 
         self._seed(tmp_path)
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         rc = cmd_delete(entries, "MCU:2102", captures_dir=tmp_path, assume_yes=True)
         assert rc == 0
-        remaining = load_all_captures(tmp_path)
+        remaining = load_all_captures(tmp_path, profile=active())
         # The two 2102 captures are gone; the 2101 one survives.
         assert [(e["ecu"], str(e["pid"])) for e in remaining] == [("MCU", "2101")]
 
@@ -1034,18 +1036,18 @@ class TestCmdDelete:
         from canair.cli.commands.captures.delete import cmd_delete
 
         self._seed(tmp_path)
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         rc = cmd_delete(entries, "MCU:9999", captures_dir=tmp_path, assume_yes=True)
         assert rc == 1
         assert "nothing to delete" in capsys.readouterr().err
-        assert len(load_all_captures(tmp_path)) == 3
+        assert len(load_all_captures(tmp_path, profile=active())) == 3
 
     def test_json_dry_run_emits_rows(self, tmp_path, capsys):
         from canair.captures.store import load_all_captures
         from canair.cli.commands.captures.delete import cmd_delete
 
         self._seed(tmp_path)
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         capsys.readouterr()  # discard save_session's "Saved N capture(s)" banner
         rc = cmd_delete(entries, "MCU:2102", captures_dir=tmp_path, dry_run=True, as_json=True)
         assert rc == 0
@@ -1068,12 +1070,12 @@ class TestCmdDelete:
         self._seed(mine)
         self._seed(theirs)
 
-        entries = load_all_captures(mine)
+        entries = load_all_captures(mine, profile=active())
         rc = cmd_delete(entries, "MCU:2102", captures_dir=theirs, assume_yes=True)
 
         assert rc == 0
-        assert [str(e["pid"]) for e in load_all_captures(mine)] == ["2101"]
-        assert len(load_all_captures(theirs)) == 3
+        assert [str(e["pid"]) for e in load_all_captures(mine, profile=active())] == ["2101"]
+        assert len(load_all_captures(theirs, profile=active())) == 3
 
 
 class TestCmdBackfillStates:
@@ -1105,7 +1107,9 @@ class TestCmdBackfillStates:
         from canair.captures.store import load_all_captures
         from canair.cli.commands.captures.backfill import cmd_backfill_states
 
-        return cmd_backfill_states(load_all_captures(cdir), captures_dir=cdir, **kw)
+        return cmd_backfill_states(
+            load_all_captures(cdir, profile=active()), captures_dir=cdir, **kw
+        )
 
     def test_fill_from_empty(self, tmp_path):
         self._seed(tmp_path, self._VCU_READY_PARK, [])
@@ -1192,7 +1196,9 @@ class TestCmdSetState:
         from canair.captures.store import load_all_captures
         from canair.cli.commands.captures.set_state import cmd_set_state
 
-        return cmd_set_state(load_all_captures(cdir), states_arg, captures_dir=cdir, **kw)
+        return cmd_set_state(
+            load_all_captures(cdir, profile=active()), states_arg, captures_dir=cdir, **kw
+        )
 
     def test_sets_state(self, tmp_path):
         self._seed(tmp_path, [])
@@ -1739,7 +1745,9 @@ class TestCmdBackfillStateSpans:
         from canair.captures.store import load_all_captures
         from canair.cli.commands.captures.backfill_spans import cmd_backfill_state_spans
 
-        return cmd_backfill_state_spans(load_all_captures(cdir), captures_dir=cdir, **kw)
+        return cmd_backfill_state_spans(
+            load_all_captures(cdir, profile=active()), captures_dir=cdir, **kw
+        )
 
     def test_writes_a_timeline_for_a_sequential_session(self, tmp_path):
         self._seed(tmp_path, ["READY", "PARKED"])
@@ -1760,7 +1768,7 @@ class TestCmdBackfillStateSpans:
         self._seed(tmp_path, ["READY", "PARKED"])
         self._run(tmp_path, assume_yes=True)
 
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         assert len(entries) == 2
         ready = filter_by_text(entries, state="READY", profile=active())
         assert [e["time"] for e in ready] == ["10:00:00"]
@@ -1782,7 +1790,12 @@ class TestCmdBackfillStateSpans:
         block = self._session(tmp_path)["state_spans"]
         assert all("SLEEP" in s["states"] for s in block["spans"])
         assert (
-            len(filter_by_text(load_all_captures(tmp_path), state="SLEEP", profile=active())) == 2
+            len(
+                filter_by_text(
+                    load_all_captures(tmp_path, profile=active()), state="SLEEP", profile=active()
+                )
+            )
+            == 2
         )
 
     def test_live_spans_are_not_clobbered(self, tmp_path, capsys):
@@ -1874,7 +1887,7 @@ class TestSaveSessionAnnotatesSpans:
         from canair.captures.dates import filter_by_text
         from canair.captures.store import load_all_captures
 
-        entries = load_all_captures(tmp_path)
+        entries = load_all_captures(tmp_path, profile=active())
         assert [e["time"] for e in filter_by_text(entries, state="READY", profile=active())] == [
             "10:00:00"
         ]

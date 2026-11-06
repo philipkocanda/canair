@@ -207,11 +207,13 @@ def run_coverage(monkeypatch, capsys):
         monkeypatch.setattr("canair.captures.store.load_all_captures", lambda *a, **k: rows)
         # `--last-session` resolves its cutoff from the same rows.
         monkeypatch.setattr("canair.captures.dates.load_all_captures", lambda *a, **k: rows)
-        monkeypatch.setattr(coverage, "load_pids", lambda *_: {})
+        monkeypatch.setattr(coverage, "load_pids", lambda *_, **__: {})
         monkeypatch.setattr(
-            coverage, "build_ecu_index", lambda *_: {ECU: {"pids": {PID: {"parameters": params}}}}
+            coverage,
+            "build_ecu_index",
+            lambda *_, **__: {ECU: {"pids": {PID: {"parameters": params}}}},
         )
-        monkeypatch.setattr("canair.ecus.names.canonical_ecu_name_safe", lambda n: n)
+        monkeypatch.setattr("canair.ecus.names.canonical_ecu_name_safe", lambda n, **__: n)
         p = coverage.add_parser(argparse.ArgumentParser().add_subparsers())
         rc = coverage.run(p.parse_args(argv))
         captured = capsys.readouterr()

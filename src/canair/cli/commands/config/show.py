@@ -91,14 +91,14 @@ def dtc_log_stats(active_name: str | None) -> dict:
     directory = log_dir()
     logs = []
     for path in sorted(directory.glob("*.yaml")) if directory.is_dir() else []:
-        active = path.stem == active_name
+        is_active = path.stem == active_name
         try:
-            stats = log_stats(path, car=None if active else ANY_CAR)
+            stats = log_stats(path, car=None if is_active else ANY_CAR, profile=active())
         except Exception as e:
             logs.append({"profile": path.stem, "file": str(path), "error": str(e)})
             continue
-        entry = {"profile": path.stem, "active": active, **stats.as_dict()}
-        if not active:
+        entry = {"profile": path.stem, "active": is_active, **stats.as_dict()}
+        if not is_active:
             del entry["open"], entry["open_codes"]
         logs.append(entry)
     return {"dir": str(directory), "logs": logs}

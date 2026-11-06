@@ -13,12 +13,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from canair.profile import Profile
 
-def ecu_ref(tx_id: int) -> str:
+
+def ecu_ref(tx_id: int, *, profile: Profile) -> str:
     """The reference the log records for the ECU asked on ``tx_id`` (its rx, as hex)."""
     from canair.ecus.registry import rx_addr_str
 
-    return rx_addr_str(tx_id)
+    return rx_addr_str(tx_id, profile=profile)
 
 
 def _parse(ref: object) -> int | None:
@@ -36,15 +38,15 @@ class EcuRefs:
     names: Mapping[int, str] = field(default_factory=dict)
 
     @classmethod
-    def current(cls) -> EcuRefs:
-        """From the active profile's registry, or empty when none resolves."""
+    def current(cls, profile: Profile) -> EcuRefs:
+        """From ``profile``'s registry, or empty when it cannot be read."""
         from canair.ecus.registry import build_rx_index, build_rx_tx_index, load_ecus
 
         try:
-            ecus = load_ecus()
+            ecus = load_ecus(profile)
         except Exception:
             return cls()
-        return cls(build_rx_tx_index(ecus), build_rx_index(ecus))
+        return cls(build_rx_tx_index(ecus, profile=profile), build_rx_index(ecus, profile=profile))
 
     def name(self, ref: object) -> str | None:
         """The ECU's registry name, or None when the profile doesn't know the address."""

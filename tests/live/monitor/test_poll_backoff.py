@@ -15,6 +15,7 @@ from canair.live.monitor.backoff import (
     slowdown_log_message,
     summarize_slowed,
 )
+from canair.profile import active
 from tests.support.fakes import FakeTerminal, nrc, ok
 from tests.support.monitor_controller import make_controller
 
@@ -268,7 +269,7 @@ class TestElmCostAttribution:
         # wait behind it on the serial pipe; that wait is session upkeep, not the read.
         from contextlib import asynccontextmanager
 
-        from canair.live.read.exec import _read_single
+        from canair.live.read.exec_read import _read_single
         from canair.transport.session_manager import SessionManager
 
         class SerialTerminal(_ElmTerminal):
@@ -287,10 +288,14 @@ class TestElmCostAttribution:
         term.keepalive_delay = 0.2
         sm = SessionManager(term)
 
+        profile = active()  # resolved before the clock starts: the first resolution is slow
+
         async def run():
             keepalive = asyncio.create_task(sm.send_keepalive(0x7A5))
             await asyncio.sleep(0)  # the keepalive now holds the transaction
-            entry = await _read_single(sm, 0x770, "22BC03", {"parameters": {}}, False, None)
+            entry = await _read_single(
+                sm, 0x770, "22BC03", {"parameters": {}}, False, None, profile=profile
+            )
             await keepalive
             return entry
 

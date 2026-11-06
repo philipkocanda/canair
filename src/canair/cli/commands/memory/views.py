@@ -78,7 +78,7 @@ def cmd_export(args: argparse.Namespace) -> int:
 
 
 def cmd_set(args: argparse.Namespace) -> int:
-    tx = resolve_tx(args.ecu)
+    tx = resolve_tx(args.ecu, profile=active())
     if tx is None:
         raise EditError(f"could not resolve ECU {args.ecu!r}")
     fmt = parse_format(args.format) if args.format else None

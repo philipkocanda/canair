@@ -22,6 +22,7 @@ from canair.contribute.workspace import (
     is_managed_workspace,
     reset_workspace,
 )
+from canair.profile import active
 from canair.render import glyphs
 from canair.render.console import escape
 
@@ -108,7 +109,7 @@ def summarize(run_: Contribution):
     try:
         from canair.ecus.registry import build_rx_index
 
-        rx_names = build_rx_index()
+        rx_names = build_rx_index(profile=active())
     except Exception:
         rx_names = {}
     name = run_.profile.name

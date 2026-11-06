@@ -7,36 +7,16 @@ diagnostics log is :mod:`canair.core.eventlog`.
 
 import logging
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from canair.core import eventlog
 
 _ecu_loggers: dict[str, logging.Logger] = {}  # ecu_name -> logger
 _active_ecu: str | None = None  # current ECU name (from ATSH header)
-_ecu_lookups: dict[str, dict[int, str]] = {}  # profile cache key -> (tx_id -> name)
+_ecu_names: dict[int, str] = {}  # tx_id -> ECU name, given to init_logging
 _date_str: str = ""
 _initialized: bool = False
-
-
-def _load_ecu_lookup() -> dict[int, str]:
-    """Lazy-load the active profile's ECU TX ID → name mapping from the ECU registry."""
-    try:
-        from canair.ecus.pids import register_derived_cache
-        from canair.ecus.registry import load_ecus
-        from canair.profile import active
-
-        key = active().cache_key
-        if key not in _ecu_lookups:
-            _ecu_lookups[key] = {tx_id: info["name"] for tx_id, info in load_ecus().items()}
-            register_derived_cache(_clear_ecu_lookup)
-        return _ecu_lookups[key]
-    except Exception:
-        return {}
-
-
-def _clear_ecu_lookup() -> None:
-    """Drop the tx_id → name caches (registered with canair.ecus.pids.clear_cache)."""
-    _ecu_lookups.clear()
 
 
 def ecu_log_dir():
@@ -66,10 +46,11 @@ def _get_ecu_logger(ecu_name: str) -> logging.Logger:
     return logger
 
 
-def init_logging():
-    """Initialize logging (sets date string for log filenames)."""
-    global _date_str, _initialized
+def init_logging(ecu_names: Mapping[int, str] | None = None):
+    """Initialize logging: the date string for log filenames and the TX id -> ECU name map."""
+    global _date_str, _initialized, _ecu_names
     _date_str = datetime.now().strftime("%Y-%m-%d")
+    _ecu_names = dict(ecu_names or {})
     _initialized = True
 
 
@@ -79,8 +60,7 @@ def log_command(cmd: str):
     m = re.match(r"ATSH([0-9A-Fa-f]{3})", cmd)
     if m:
         tx_id = int(m.group(1), 16)
-        lookup = _load_ecu_lookup()
-        _active_ecu = lookup.get(tx_id, f"0x{tx_id:03X}")
+        _active_ecu = _ecu_names.get(tx_id, f"0x{tx_id:03X}")
 
 
 def log_response(cmd: str, response: str):

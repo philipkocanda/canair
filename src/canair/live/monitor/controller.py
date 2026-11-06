@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     from .reconnect import Reconnector
 
 
-def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
+def query_ecu_error(query_steps: list[dict], pids_data: dict, *, profile: Profile) -> str | None:
     """Return an error message if any query step names an unknown ECU, else None.
 
     Guards against typos like ``query ESC ECS`` (the second selector is a
@@ -65,13 +65,13 @@ def query_ecu_error(query_steps: list[dict], pids_data: dict) -> str | None:
 
     ecu_index = build_ecu_index(pids_data)
     try:
-        name_index = build_canonical_name_index()
+        name_index = build_canonical_name_index(profile=profile)
     except FileNotFoundError:
         name_index = None
     seen: set[str] = set()
     unknown: list[str] = []
     for step in query_steps:
-        key = canonical_ecu_name_safe(step["ecu"], name_index).upper()
+        key = canonical_ecu_name_safe(step["ecu"], name_index, profile=profile).upper()
         if key not in ecu_index and key not in seen:
             seen.add(key)
             unknown.append(step["ecu"])
@@ -418,11 +418,11 @@ class MonitorController:
         from ...ecus.names import build_name_tx_index, rx_from_name
 
         if self._name_index is None:
-            self._name_index = build_name_tx_index()
+            self._name_index = build_name_tx_index(profile=self.profile)
         m = re.match(r"(\w+)", ecu_label)
         assert m is not None  # ecu_label is an ECU name/label, always starts with a word char
         ecu_short = m.group(1)
-        return rx_from_name(ecu_short, self._name_index) or ecu_short
+        return rx_from_name(ecu_short, self._name_index, profile=self.profile) or ecu_short
 
     def interrupt(self) -> None:
         """Abort an in-flight raw poll ASAP so Ctrl-C / SIGTERM exit is prompt.

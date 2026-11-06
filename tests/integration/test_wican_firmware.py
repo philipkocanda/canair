@@ -470,7 +470,7 @@ class TestRebootRegression:
 
         assert sync.requests is not None
         monkeypatch.setattr(sync.requests, "post", post)
-        monkeypatch.setattr(sync.time, "sleep", lambda *_a: None)
+        monkeypatch.setattr(sync.time, "sleep", lambda *_a, **__: None)
         payload = {"cars": [{"pids": []}]}
         sync.upload_profile("http://192.0.2.1", payload, reboot=True)
         err = capsys.readouterr().err
@@ -485,7 +485,7 @@ def _elm_session(monkeypatch, ttype: str, *, calls: list):
     cand = TransportConfig(type=ttype, host="192.0.2.1")
     monkeypatch.setattr("canair.transport.resolve_transport_candidates", lambda args: [cand])
     monkeypatch.setattr("canair.transport.select_reachable_transport", lambda c, **k: c[0])
-    monkeypatch.setattr(runtime, "load_pids", lambda: {"init": "ATZ;"})
+    monkeypatch.setattr(runtime, "load_pids", lambda *_, **__: {"init": "ATZ;"})
     monkeypatch.setattr(
         "canair.device.wican.mode.require_ws_reachable", lambda *a, **k: calls.append("reach")
     )
@@ -871,7 +871,7 @@ class TestWicanCommandSurfaces:
             lambda *a, **k: pytest.fail("must not talk to the 4.x API on v6"),
         )
         monkeypatch.setattr(
-            autopid, "download_profile", lambda *a: pytest.fail("must not download on v6")
+            autopid, "download_profile", lambda *a, **__: pytest.fail("must not download on v6")
         )
         _v6(monkeypatch)
         args = argparse.Namespace(
@@ -919,7 +919,9 @@ class TestWicanCommandSurfaces:
         uploaded: list = []
         monkeypatch.setattr(autopid, "upload_profile", lambda *a, **k: uploaded.append(a))
         monkeypatch.setattr(autopid, "generate", lambda args: ({}, {}))
-        monkeypatch.setattr(autopid, "to_device_format", lambda p, d: {"cars": [{"pids": []}]})
+        monkeypatch.setattr(
+            autopid, "to_device_format", lambda p, d, **__: {"cars": [{"pids": []}]}
+        )
         args = argparse.Namespace(wican="http://192.0.2.1", reboot=False)
         assert autopid.cmd_autopid_upload(args) == 0
         assert uploaded
@@ -962,12 +964,12 @@ class TestStatusSurface:
             monkeypatch.setattr(
                 gather_mod,
                 "load_device_config",
-                lambda *a: (
+                lambda *a, **__: (
                     pytest.fail("no 4.x routes on v6") if info.generation == "v6" else cfg_body
                 ),
             )
-            monkeypatch.setattr(gather_mod, "device_status", lambda *a: None)
-            monkeypatch.setattr(gather_mod, "tcp_open", lambda *a: tcp)
+            monkeypatch.setattr(gather_mod, "device_status", lambda *a, **__: None)
+            monkeypatch.setattr(gather_mod, "tcp_open", lambda *a, **__: tcp)
             return gather_mod.gather(argparse.Namespace(transport=None, wican=None))
 
         return run

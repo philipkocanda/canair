@@ -46,7 +46,7 @@ def cmd_show_state(args) -> int:
         return 1
 
     rule = next((r for r in rules if r.name.upper() == target), None)
-    matches = ecus_in_state(target, load_pids(), prof, rules)
+    matches = ecus_in_state(target, load_pids(profile=active()), prof, rules)
     implies = list(rule.implies) if rule else []
     specialized_by = [r.name for r in rules if target in r.implies]
     # excludes: is symmetric, so a pair declared on either side is reported here.
@@ -55,7 +55,7 @@ def cmd_show_state(args) -> int:
     )
 
     # Join CAN-bus segment(s) from the registry for context.
-    ecus = load_ecus()
+    ecus = load_ecus(profile=active())
     by_tx = {tx: info for tx, info in ecus.items() if isinstance(info, dict)}
     for m in matches:
         info = by_tx.get(m.get("tx_id")) or {}

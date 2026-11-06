@@ -283,7 +283,9 @@ class TestScanLog:
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
         # Pre-read shows one DTC (1902FF), then the clear (14FFFFFF) succeeds.
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F"), "14FFFFFF": _ok("54")})
-        await dtc.mode_dtc_clear(t, 0x7E4, group=0xFFFFFF, protocol="uds", log=True, label="fixed")
+        await dtc.mode_dtc_clear(
+            t, 0x7E4, group=0xFFFFFF, protocol="uds", log=True, label="fixed", profile=active()
+        )
         out = capsys.readouterr().out
         assert "cleared" in out.lower()
         assert "P0123-00" in out  # showed what was cleared
@@ -303,7 +305,8 @@ class TestScanLog:
         dtc_log.append_scan(
             dtc_log.build_scan(
                 "0x7EC", {"0x7EC": {"dtcs": ["P0123-00"]}}, timestamp="2000-01-01T00:00:00"
-            )
+            ),
+            profile=active(),
         )
         t2 = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
         await dtc.mode_dtc_read(t2, 0x7E4, protocol="uds", log=True, profile=active())
@@ -325,11 +328,11 @@ class TestScanAll:
         monkeypatch.setattr(
             dtc,
             "resolve_protocol",
-            lambda proto, tx: "kwp" if tx == 0x7E4 else "uds",
+            lambda proto, tx, **__: "kwp" if tx == 0x7E4 else "uds",
         )
         _patch_load_ecus(
             monkeypatch,
-            lambda: {
+            lambda *_, **__: {
                 0x7A0: {"name": "BCM", "id_protocol": "UDS"},
                 0x7E4: {"name": "BMS", "id_protocol": "KWP2000"},
             },
@@ -350,10 +353,12 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_text_no_dtcs(self, monkeypatch, capsys):
-        monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr(
+            "canair.live.dtc.reading.resolve_protocol", lambda proto, tx, **__: "uds"
+        )
         _patch_load_ecus(
             monkeypatch,
-            lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
+            lambda *_, **__: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
         )
         t = FakeTerminal({"1902FF": _ok("5902FF")})  # both clean
         await dtc.mode_dtc_scan_all(t, as_json=False, profile=active())
@@ -368,10 +373,12 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_reports_no_response_separately(self, monkeypatch, capsys):
-        monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
+        monkeypatch.setattr(
+            "canair.live.dtc.reading.resolve_protocol", lambda proto, tx, **__: "uds"
+        )
         _patch_load_ecus(
             monkeypatch,
-            lambda: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
+            lambda *_, **__: {0x7A0: {"name": "BCM"}, 0x770: {"name": "IGPM"}},
         )
         # BCM clean; IGPM never answers (not in table).
         t = FakeTerminal({"1902FF": _ok("5902FF")})
@@ -382,8 +389,10 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_retry_recovers_slow_ecu(self, monkeypatch, capsys):
-        monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
-        _patch_load_ecus(monkeypatch, lambda: {0x7A0: {"name": "BCM"}})
+        monkeypatch.setattr(
+            "canair.live.dtc.reading.resolve_protocol", lambda proto, tx, **__: "uds"
+        )
+        _patch_load_ecus(monkeypatch, lambda *_, **__: {0x7A0: {"name": "BCM"}})
         # NO DATA on first read, a DTC once retried (after the wake).
         t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
         await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=True, profile=active())
@@ -394,8 +403,10 @@ class TestScanAll:
 
     @pytest.mark.asyncio
     async def test_scan_all_no_retry_leaves_no_response(self, monkeypatch, capsys):
-        monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
-        _patch_load_ecus(monkeypatch, lambda: {0x7A0: {"name": "BCM"}})
+        monkeypatch.setattr(
+            "canair.live.dtc.reading.resolve_protocol", lambda proto, tx, **__: "uds"
+        )
+        _patch_load_ecus(monkeypatch, lambda *_, **__: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal(flaky_recover={"1902FF": "5902FF0123002F"})
         await dtc.mode_dtc_scan_all(t, as_json=True, timeout=0.1, retry=False, profile=active())
         data = json.loads(capsys.readouterr().out)
@@ -411,8 +422,10 @@ class TestScanAll:
 
         logp = tmp_path / "dtc_log.yaml"
         monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
-        monkeypatch.setattr("canair.live.dtc.reading.resolve_protocol", lambda proto, tx: "uds")
-        _patch_load_ecus(monkeypatch, lambda: {0x7A0: {"name": "BCM"}})
+        monkeypatch.setattr(
+            "canair.live.dtc.reading.resolve_protocol", lambda proto, tx, **__: "uds"
+        )
+        _patch_load_ecus(monkeypatch, lambda *_, **__: {0x7A0: {"name": "BCM"}})
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})  # BCM: 1 DTC
         args = live_args(dtc_all=True, mask="FF")
         assert not hasattr(args, "dtc_log")  # nothing opted in
@@ -427,7 +440,9 @@ class TestModeClear:
     @pytest.mark.asyncio
     async def test_clear_ok(self, capsys):
         t = FakeTerminal({"14FFFFFF": _ok("54")})
-        await dtc.mode_dtc_clear(t, 0x7E4, group=0xFFFFFF, protocol="uds", as_json=True)
+        await dtc.mode_dtc_clear(
+            t, 0x7E4, group=0xFFFFFF, protocol="uds", as_json=True, profile=active()
+        )
         data = json.loads(capsys.readouterr().out)
         assert data["cleared"] is True
         assert data["group"] == "0xFFFFFF"
@@ -436,7 +451,9 @@ class TestModeClear:
     @pytest.mark.asyncio
     async def test_clear_kwp_uses_2byte_group(self, capsys):
         t = FakeTerminal({"14FFFF": _ok("54")})
-        await dtc.mode_dtc_clear(t, 0x7E4, group=0xFFFFFF, protocol="kwp", as_json=True)
+        await dtc.mode_dtc_clear(
+            t, 0x7E4, group=0xFFFFFF, protocol="kwp", as_json=True, profile=active()
+        )
         data = json.loads(capsys.readouterr().out)
         assert data["cleared"] is True
         assert data["group"] == "0xFFFF"
@@ -447,7 +464,7 @@ class TestModeClear:
         t = FakeTerminal(
             {"14FFFFFF": {"ok": False, "nrc": 0x22, "nrc_desc": "conditionsNotCorrect"}}
         )
-        await dtc.mode_dtc_clear(t, 0x7E4, protocol="uds", as_json=True)
+        await dtc.mode_dtc_clear(t, 0x7E4, protocol="uds", as_json=True, profile=active())
         data = json.loads(capsys.readouterr().out)
         assert data["cleared"] is False
         assert data["nrc"] == "0x22"
@@ -518,14 +535,16 @@ class TestLogOffline:
                     }
                 },
                 timestamp="2026-07-22T10:00:00",
-            )
+            ),
+            profile=active(),
         )
         dtc_log.append_scan(
             dtc_log.build_scan(
                 "all",
                 {"AMP (0x783)": {"tx": "0x783", "protocol": "uds", "dtcs": ["B2915-00"]}},
                 timestamp="2026-07-22T11:00:00",
-            )
+            ),
+            profile=active(),
         )
         rc = dtc_cmd.run(self._args())
         out = capsys.readouterr().out
@@ -543,10 +562,13 @@ class TestLogOffline:
         from canair.ecus.names import ecu_display, resolve_tx
 
         self._seed(monkeypatch, tmp_path)
-        tx = resolve_tx("BMS")
+        tx = resolve_tx("BMS", profile=active())
         assert tx is not None
-        scope = ecu_display(tx)
-        dtc_log.append_scan(dtc_log.build_scan(ecu_ref(tx), {}, timestamp="2026-07-22T09:00:00"))
+        scope = ecu_display(tx, profile=active())
+        dtc_log.append_scan(
+            dtc_log.build_scan(ecu_ref(tx, profile=active()), {}, timestamp="2026-07-22T09:00:00"),
+            profile=active(),
+        )
         rc = dtc_cmd.run(self._args(dtc="BMS"))
         out = capsys.readouterr().out
         assert rc == 0

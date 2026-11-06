@@ -60,19 +60,19 @@ class TestRxForTxHonoursTheProfile:
     def test_unregistered_tx_uses_the_profile_rx_offset(self, prof):
         from canair.ecus.registry import rx_addr_str, rx_for_tx
 
-        assert rx_for_tx(0x74E) == 0x76E
-        assert rx_addr_str(0x74E) == "0x76E"
+        assert rx_for_tx(0x74E, profile=active()) == 0x76E
+        assert rx_addr_str(0x74E, profile=active()) == "0x76E"
 
     def test_registered_rx_id_override_wins(self, prof):
         from canair.ecus.registry import rx_for_tx
 
-        assert rx_for_tx(0x70E) == 0x70F
-        assert rx_for_tx(0x740) == 0x760
+        assert rx_for_tx(0x70E, profile=active()) == 0x70F
+        assert rx_for_tx(0x740, profile=active()) == 0x760
 
     def test_an_explicit_offset_still_wins(self, prof):
         from canair.ecus.registry import rx_for_tx
 
-        assert rx_for_tx(0x74E, rx_offset=0x08) == 0x756
+        assert rx_for_tx(0x74E, rx_offset=0x08, profile=active()) == 0x756
 
 
 class TestDiscoverSave:

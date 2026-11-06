@@ -62,13 +62,13 @@ def write_merged(
     """
     from ...ecus.names import build_name_tx_index, rx_from_name
 
-    name_index = build_name_tx_index()
+    name_index = build_name_tx_index(profile=profile)
     results: list[tuple[str, str, str, str]] = []
     for (ecu_label, pid), entries in sorted(merged.items()):
         m = re.match(r"(\w+)", ecu_label)
         assert m is not None  # ecu_label is an ECU name/label, always starts with a word char
         ecu_short = m.group(1)
-        ecu_ref = rx_from_name(ecu_short, name_index) or ecu_short
+        ecu_ref = rx_from_name(ecu_short, name_index, profile=profile) or ecu_short
         for hex_val, ts in entries:
             results.append((ecu_ref, pid, hex_val, ts))
 

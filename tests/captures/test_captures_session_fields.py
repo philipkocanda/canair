@@ -40,7 +40,7 @@ def _run(cdir, editor: str, value: str, **kw) -> int:
     from canair.captures.store import load_all_captures
     from canair.cli.commands.captures import session_fields
 
-    return getattr(session_fields, editor)(load_all_captures(cdir), value, **kw)
+    return getattr(session_fields, editor)(load_all_captures(cdir, profile=active()), value, **kw)
 
 
 def _cli(cdir, *argv: str) -> int:

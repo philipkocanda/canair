@@ -721,7 +721,7 @@ class TestContributeCommand:
     def test_gh_missing_reports_cannot(self, tmp_path, monkeypatch):
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(
             gates, "preflight", lambda: C_git.Preflight(gh=None, git="git", authenticated=True)
         )
@@ -735,7 +735,7 @@ class TestContributeCommand:
 
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), dry_run=True))
@@ -755,7 +755,7 @@ class TestContributeCommand:
         prof = _make_profile(root)
         (root / "profile.yaml").write_text("car_model: owner me@example.com\ninit: ATSP6;\n")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
         assert rc == report.CANNOT
@@ -767,7 +767,7 @@ class TestContributeCommand:
         _seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), diff=True, json=True))
@@ -789,7 +789,7 @@ class TestContributeCommand:
         _seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
         assert rc == report.CANNOT
@@ -801,7 +801,7 @@ class TestContributeCommand:
         root = tmp_path / "site-packages" / "profiles" / "testcar"
         prof = _make_profile(root)
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(yes=False, json=True))
         assert rc == report.CANNOT
@@ -826,7 +826,7 @@ class TestContributeCommand:
         prof = Profile("testcar", root)
 
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
         rc = cmd.run(_cmd_args(repo_dir=str(ws), captures=False, yes=False, json=True))
         assert rc == report.CANNOT
@@ -843,7 +843,7 @@ class TestContributeCommand:
         ws = tmp_path / "ws"
         prof = _make_profile(ws / "profiles" / "testcar")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=True, json=True))
@@ -860,7 +860,7 @@ class TestContributeCommand:
         ws = tmp_path / "ws"
         prof = _make_profile(ws / "myprofiles" / "testcar")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
@@ -881,7 +881,7 @@ class TestContributeCommand:
         _seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
         monkeypatch.setattr(gates, "dir_size", lambda p: gates.CAPTURES_WARN_BYTES + 1)
 
@@ -898,7 +898,7 @@ class TestContributeCommand:
 
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(
             gates, "preflight", lambda: C_git.Preflight(gh=None, git="git", authenticated=True)
         )
@@ -923,7 +923,7 @@ class TestWorkspaceHygiene:
 
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
         for module in (gates, C_workspace):
             monkeypatch.setattr(module, "workspace_dir", lambda: ws)
@@ -961,7 +961,7 @@ class TestWorkspaceHygiene:
         ws, _, stale = self._staged_on_an_old_branch(tmp_path)
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
         for module in (gates, C_workspace):
             monkeypatch.setattr(module, "workspace_dir", lambda: ws)
@@ -991,7 +991,7 @@ class TestWorkspaceHygiene:
         ws, tracked, _ = self._staged_on_an_old_branch(tmp_path)
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
         for module in (gates, C_workspace):
             monkeypatch.setattr(module, "workspace_dir", lambda: ws)
@@ -1011,7 +1011,7 @@ class TestWorkspaceHygiene:
         _seed_profile_repo(ws)
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
         for module in (gates, C_workspace):
             monkeypatch.setattr(module, "workspace_dir", lambda: ws)
@@ -1032,7 +1032,7 @@ class TestWorkspaceHygiene:
 
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
 
         rc = cmd.run(_cmd_args(repo_dir=str(ws), yes=False, json=True))
@@ -1052,7 +1052,7 @@ class TestExistingPullRequest:
         _seed_repo(ws)
         prof = _make_profile(tmp_path / "prof")
         monkeypatch.setattr(pipeline, "active", lambda: prof)
-        monkeypatch.setattr(gates, "_validate", lambda p: (True, ""))
+        monkeypatch.setattr(gates, "_validate", lambda p, **__: (True, ""))
         monkeypatch.setattr(gates, "preflight", lambda: _ready())
         monkeypatch.setattr(
             submit,

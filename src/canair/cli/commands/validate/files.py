@@ -65,11 +65,11 @@ def run_states() -> int:
 
 
 def run_groups() -> int:
-    return print_file_report(check_groups())
+    return print_file_report(check_groups(profile=active()))
 
 
 def run_actions() -> int:
-    return print_file_report(check_actions())
+    return print_file_report(check_actions(profile=active()))
 
 
 def run_can_buses() -> int:

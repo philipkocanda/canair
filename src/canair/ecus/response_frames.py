@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from canair.ecus.pid_status import pid_status
+from canair.profile import Profile
 from canair.uds.frame_counts import CountKey, FrameCountLedger
 
 FIELD = "response_frames"
@@ -223,7 +224,7 @@ def resolve_edits(
     return edits, notes
 
 
-def revision_target(ecu: str, pid: str) -> tuple[bool, str | None]:
+def revision_target(ecu: str, pid: str, *, profile: Profile) -> tuple[bool, str | None]:
     """Where a count learned for ``ecu``/``pid`` this session belongs: ``(routable, rev)``.
 
     ``rev`` None: the PID's own ``response_frames`` — an ECU without revisions, or the
@@ -236,12 +237,12 @@ def revision_target(ecu: str, pid: str) -> tuple[bool, str | None]:
     from canair.ecus.pids import load_raw_pids, revision_resolutions
     from canair.variants.revisions import declared, gate, reference_of
 
-    ecus = load_raw_pids().get("ecus") or {}
+    ecus = load_raw_pids(profile=profile).get("ecus") or {}
     ecu_def = ecus.get(ecu) or {}
     revs = declared(ecu_def)
     if not revs:
         return True, None
-    res = revision_resolutions().get(ecu)
+    res = revision_resolutions(profile=profile).get(ecu)
     if res is None or res.revision is None:
         return False, None
     pid_def = next(

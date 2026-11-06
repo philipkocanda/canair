@@ -47,12 +47,12 @@ def pid_stats(ecu_def: dict) -> dict:
     }
 
 
-def captures_by_pid(ecu_name: str) -> tuple[Counter, int]:
+def captures_by_pid(ecu_name: str, *, profile: Profile) -> tuple[Counter, int]:
     """Return (per-PID capture counts, total captures) for an ECU name."""
     try:
         from canair.captures.store import load_all_captures
 
-        caps = load_all_captures()
+        caps = load_all_captures(profile=profile)
     except Exception:
         return Counter(), 0
     per_pid: Counter = Counter()
@@ -64,12 +64,12 @@ def captures_by_pid(ecu_name: str) -> tuple[Counter, int]:
     return per_pid, total
 
 
-def all_captures_by_ecu() -> Counter:
+def all_captures_by_ecu(profile: Profile) -> Counter:
     """Total capture counts keyed by canonical ECU short name (upper-cased)."""
     try:
         from canair.captures.store import load_all_captures
 
-        caps = load_all_captures()
+        caps = load_all_captures(profile=profile)
     except Exception:
         return Counter()
     return Counter(str(c.get("ecu", "")).upper() for c in caps)
@@ -135,7 +135,7 @@ def list_records(ecus: dict, pids_data: dict, sort: str = "bus", *, profile: Pro
     other column in ``SORT_COLUMNS`` — numeric columns descending, string/hex
     ascending, with ``name`` as the tie-breaker.
     """
-    cap_counts = all_captures_by_ecu()
+    cap_counts = all_captures_by_ecu(profile=profile)
     records = []
     for tx_id, info in ecus.items():
         if not isinstance(info, dict):
@@ -147,7 +147,7 @@ def list_records(ecus: dict, pids_data: dict, sort: str = "bus", *, profile: Pro
             "alias": info.get("alias"),
             "tx_id": tx_id,
             "tx": f"0x{tx_id:03X}",
-            "rx": rx_addr_str(tx_id),
+            "rx": rx_addr_str(tx_id, profile=profile),
             "description": info.get("description", ""),
             "id_protocol": info.get("id_protocol"),
             "can_bus": info.get("can_bus"),
@@ -187,7 +187,7 @@ def pid_details(ecu_def: dict, per_pid: Counter) -> list[dict]:
     return out
 
 
-def latest_capture_by_pid(ecu_name: str) -> dict[str, CaptureEntry]:
+def latest_capture_by_pid(ecu_name: str, *, profile: Profile) -> dict[str, CaptureEntry]:
     """Map each PID (upper-cased) to this ECU's most recent payload capture.
 
     Capture files are chronological, so the last-seen payload entry per PID wins.
@@ -196,7 +196,7 @@ def latest_capture_by_pid(ecu_name: str) -> dict[str, CaptureEntry]:
     try:
         from canair.captures.store import load_all_captures
 
-        caps = load_all_captures()
+        caps = load_all_captures(profile=profile)
     except Exception:
         return {}
     latest: dict[str, CaptureEntry] = {}
@@ -209,7 +209,7 @@ def latest_capture_by_pid(ecu_name: str) -> dict[str, CaptureEntry]:
     return latest
 
 
-def pids_latest_records(ecu_def: dict | None, ecu_name: str) -> list[dict]:
+def pids_latest_records(ecu_def: dict | None, ecu_name: str, *, profile: Profile) -> list[dict]:
     """One record per defined PID with its latest decoded parameter values.
 
     Values are the *decoded* parameters (name -> formatted value string) from the
@@ -218,7 +218,7 @@ def pids_latest_records(ecu_def: dict | None, ecu_name: str) -> list[dict]:
     """
     from canair.captures.store import decoded_preview
 
-    latest = latest_capture_by_pid(ecu_name)
+    latest = latest_capture_by_pid(ecu_name, profile=profile)
     out: list[dict] = []
     for pid_code, pid_def in (ecu_def or {}).get("pids", {}).items():
         if not isinstance(pid_def, dict):
@@ -237,7 +237,7 @@ def pids_latest_records(ecu_def: dict | None, ecu_name: str) -> list[dict]:
             "vehicle_states": None,
         }
         if cap is not None:
-            rec["values"] = decoded_preview(cap) or {}
+            rec["values"] = decoded_preview(cap, profile=profile) or {}
             rec["date"] = cap.get("date")
             rec["time"] = cap.get("time")
             rec["vehicle_states"] = list(cap.get("vehicle_states") or [])

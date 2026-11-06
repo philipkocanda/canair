@@ -27,6 +27,7 @@ from canair.cli.live import (
     to_step,
 )
 from canair.cli.live.handlers import elm_only, multi, reads
+from canair.profile import active
 from canair.render import messages
 
 NAME = "read"
@@ -128,7 +129,7 @@ def run(args) -> int:
         from canair.live.read.multi import parse_sub_commands
 
         try:
-            commands = parse_sub_commands(args.multi)
+            commands = parse_sub_commands(args.multi, profile=active())
         except ValueError as e:
             messages.error(str(e))
             return 2
@@ -141,7 +142,7 @@ def run(args) -> int:
             from canair.cli.live import load_pids
             from canair.live.monitor.controller import query_ecu_error
 
-            ecu_err = query_ecu_error(query_steps, load_pids())
+            ecu_err = query_ecu_error(query_steps, load_pids(profile=active()), profile=active())
             if ecu_err:
                 messages.error(ecu_err)
                 return 2

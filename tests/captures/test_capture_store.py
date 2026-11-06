@@ -24,6 +24,7 @@ from canair.captures.store import (
     resolve_pid_defs,
     unresolved_state_summary,
 )
+from canair.profile import active
 from canair.states.spans import span_keys
 
 CANLIB = Path(__file__).resolve().parents[2] / "src" / "canair"
@@ -35,7 +36,7 @@ def _seed(dirpath: Path, name: str, sessions: list[dict]) -> None:
 
 class TestLoadAllCaptures:
     def test_empty_dir_is_no_captures(self, tmp_path):
-        assert load_all_captures(tmp_path) == []
+        assert load_all_captures(tmp_path, profile=active()) == []
 
     def test_session_metadata_is_denormalised_onto_every_row(self, tmp_path):
         _seed(
@@ -58,7 +59,7 @@ class TestLoadAllCaptures:
                 }
             ],
         )
-        rows = load_all_captures(tmp_path)
+        rows = load_all_captures(tmp_path, profile=active())
         assert len(rows) == 2
         for row in rows:
             assert row["date"] == "2026-01-01"
@@ -83,7 +84,7 @@ class TestLoadAllCaptures:
                 },
             ],
         )
-        rows = load_all_captures(tmp_path)
+        rows = load_all_captures(tmp_path, profile=active())
         assert [(r["_session_idx"], r["_capture_idx"]) for r in rows] == [(0, 0), (1, 0), (1, 1)]
 
     def test_rx_address_is_kept_and_resolved(self, tmp_path):
@@ -94,7 +95,7 @@ class TestLoadAllCaptures:
             "2026-01-01.json",
             [{"date": "2026-01-01", "captures": [{"rx": "0x7EC", "pid": "2101"}]}],
         )
-        (row,) = load_all_captures(tmp_path)
+        (row,) = load_all_captures(tmp_path, profile=active())
         assert row["ecu_addr"] == "0x7EC"
         assert row["ecu"] == "BMS"
 
@@ -106,7 +107,7 @@ class TestLoadAllCaptures:
             "2026-01-01.json",
             [{"date": "2026-01-01", "captures": [{"ecu": "0x7EC", "pid": "2101"}]}],
         )
-        (row,) = load_all_captures(tmp_path)
+        (row,) = load_all_captures(tmp_path, profile=active())
         assert row["ecu_addr"] == "0x7EC"
         assert row["ecu"] == "BMS"
 
@@ -116,7 +117,7 @@ class TestLoadAllCaptures:
             "2026-01-01.json",
             [{"date": "2026-01-01", "captures": [{"rx": "0x123", "pid": "2101"}]}],
         )
-        (row,) = load_all_captures(tmp_path)
+        (row,) = load_all_captures(tmp_path, profile=active())
         assert row["ecu_addr"] == "0x123"
 
     def test_files_are_read_in_date_order(self, tmp_path):
@@ -126,11 +127,11 @@ class TestLoadAllCaptures:
                 f"{day}.json",
                 [{"date": day, "captures": [{"rx": "0x7EC", "pid": pid}]}],
             )
-        assert [r["pid"] for r in load_all_captures(tmp_path)] == ["2101", "2102"]
+        assert [r["pid"] for r in load_all_captures(tmp_path, profile=active())] == ["2101", "2102"]
 
     def test_missing_optional_fields_default_empty(self, tmp_path):
         _seed(tmp_path, "2026-01-01.json", [{"date": "2026-01-01", "captures": [{"rx": "0x7EC"}]}])
-        (row,) = load_all_captures(tmp_path)
+        (row,) = load_all_captures(tmp_path, profile=active())
         assert row["pid"] == ""
         assert row["time"] == ""
         assert row["payload"] is None
@@ -138,21 +139,21 @@ class TestLoadAllCaptures:
 
     def test_a_file_without_sessions_is_skipped(self, tmp_path):
         (tmp_path / "broken.json").write_text(json.dumps({"not_sessions": []}))
-        assert load_all_captures(tmp_path) == []
+        assert load_all_captures(tmp_path, profile=active()) == []
 
 
 class TestResolvePidDefs:
     def test_exact_pid_match_returns_parameters_and_tx_id(self):
         from canair.captures.store import load_ecu_index
 
-        params, tx_id, _maps = resolve_pid_defs(load_ecu_index(), "BMS", "2101")
+        params, tx_id, _maps = resolve_pid_defs(load_ecu_index(profile=active()), "BMS", "2101")
         assert tx_id == 0x7E4
         assert "SOC_BMS" in params
 
     def test_case_insensitive_on_both_ecu_and_pid(self):
         from canair.captures.store import load_ecu_index
 
-        index = load_ecu_index()
+        index = load_ecu_index(profile=active())
         assert resolve_pid_defs(index, "bms", "2101") == resolve_pid_defs(index, "BMS", "2101")
 
     def test_unknown_ecu_is_empty(self):
@@ -163,7 +164,7 @@ class TestResolvePidDefs:
         # but the ECU is still known, so its request address is still reported.
         from canair.captures.store import load_ecu_index
 
-        params, tx_id, _maps = resolve_pid_defs(load_ecu_index(), "BMS", "FFFF")
+        params, tx_id, _maps = resolve_pid_defs(load_ecu_index(profile=active()), "BMS", "FFFF")
         assert params == {}
         assert tx_id == 0x7E4
 
@@ -179,11 +180,13 @@ class TestDecodedPreview:
         ],
     )
     def test_incomplete_entry_decodes_to_nothing(self, entry):
-        assert decoded_preview(entry) is None
+        assert decoded_preview(entry, profile=active()) is None
 
     def test_undecodable_payload_is_swallowed(self):
         # A malformed payload must not take the whole view down.
-        assert decoded_preview({"ecu": "BMS", "pid": "2101", "payload": "ZZ"}) in (None, {})
+        assert decoded_preview(
+            {"ecu": "BMS", "pid": "2101", "payload": "ZZ"}, profile=active()
+        ) in (None, {})
 
 
 class TestEntryPath:
@@ -191,11 +194,14 @@ class TestEntryPath:
 
     def test_uses_the_rows_own_locator(self, tmp_path):
         _seed(tmp_path, "2026-01-01.json", [{"captures": [{"rx": "0x7EC", "pid": "2101"}]}])
-        (row,) = load_all_captures(tmp_path)
+        (row,) = load_all_captures(tmp_path, profile=active())
         assert row["file"] == "2026-01-01.json"
-        assert entry_path(row) == tmp_path / "2026-01-01.json"
+        assert entry_path(row, profile=active()) == tmp_path / "2026-01-01.json"
         # An unrelated captures dir cannot redirect a located row.
-        assert entry_path(row, tmp_path / "elsewhere") == tmp_path / "2026-01-01.json"
+        assert (
+            entry_path(row, tmp_path / "elsewhere", profile=active())
+            == tmp_path / "2026-01-01.json"
+        )
 
     def test_two_dirs_with_the_same_file_name_stay_distinct(self, tmp_path):
         for name in ("a", "b"):
@@ -205,13 +211,16 @@ class TestEntryPath:
                 "2026-01-01.json",
                 [{"captures": [{"rx": "0x7EC", "pid": "2101"}]}],
             )
-        (a,) = load_all_captures(tmp_path / "a")
-        (b,) = load_all_captures(tmp_path / "b")
+        (a,) = load_all_captures(tmp_path / "a", profile=active())
+        (b,) = load_all_captures(tmp_path / "b", profile=active())
         assert a["file"] == b["file"]
-        assert entry_path(a) != entry_path(b)
+        assert entry_path(a, profile=active()) != entry_path(b, profile=active())
 
     def test_falls_back_to_the_captures_dir_for_a_hand_built_row(self, tmp_path):
-        assert entry_path({"file": "2026-01-01.json"}, tmp_path) == tmp_path / "2026-01-01.json"
+        assert (
+            entry_path({"file": "2026-01-01.json"}, tmp_path, profile=active())
+            == tmp_path / "2026-01-01.json"
+        )
 
 
 class TestLayering:
@@ -308,7 +317,7 @@ class TestPerCaptureStateResolution:
 
     def test_case1_spans_resolve_each_capture_to_its_instant(self, tmp_path):
         self._seed_trip(tmp_path)
-        rows = load_all_captures(tmp_path)
+        rows = load_all_captures(tmp_path, profile=active())
         assert [r["vehicle_states"] for r in rows] == [
             ["READY", "DRIVING"],
             ["CHARGING", "PLUGGED", "PARKED"],
@@ -318,7 +327,7 @@ class TestPerCaptureStateResolution:
 
     def test_case1_the_reported_defect_charging_no_longer_returns_driving(self, tmp_path):
         self._seed_trip(tmp_path)
-        rows = load_all_captures(tmp_path)
+        rows = load_all_captures(tmp_path, profile=active())
         charging = [r for r in rows if "CHARGING" in r["vehicle_states"]]
         assert len(charging) == 1
         assert charging[0]["payload"] == "610102"
@@ -326,7 +335,7 @@ class TestPerCaptureStateResolution:
 
     def test_session_union_is_preserved_separately(self, tmp_path):
         self._seed_trip(tmp_path)
-        for row in load_all_captures(tmp_path):
+        for row in load_all_captures(tmp_path, profile=active()):
             assert row["session_states"] == [
                 "READY",
                 "DRIVING",
@@ -350,7 +359,7 @@ class TestPerCaptureStateResolution:
                 }
             ],
         )
-        (row,) = load_all_captures(tmp_path)
+        (row,) = load_all_captures(tmp_path, profile=active())
         assert row["vehicle_states"] == ["CHARGING"]
         assert row["states_resolved"] is True
 
@@ -366,13 +375,13 @@ class TestPerCaptureStateResolution:
                 }
             ],
         )
-        (row,) = load_all_captures(tmp_path)
+        (row,) = load_all_captures(tmp_path, profile=active())
         assert row["vehicle_states"] == []
         assert row["states_resolved"] is True
 
     def test_case3_multi_state_without_spans_degrades_loudly(self, tmp_path):
         self._seed_trip(tmp_path, spans=False)
-        rows = load_all_captures(tmp_path)
+        rows = load_all_captures(tmp_path, profile=active())
         # The union is still the honest best answer -- but it is flagged, not
         # silently presented as if it were exact.
         assert all(r["vehicle_states"] == r["session_states"] for r in rows)
@@ -396,7 +405,7 @@ class TestPerCaptureStateResolution:
                 }
             ],
         )
-        timed, untimed = load_all_captures(tmp_path)
+        timed, untimed = load_all_captures(tmp_path, profile=active())
         assert timed["vehicle_states"] == ["DRIVING"]
         assert timed["states_resolved"] is True
         assert untimed["vehicle_states"] == ["DRIVING", "CHARGING"]
@@ -418,7 +427,7 @@ class TestPerCaptureStateResolution:
                 }
             ],
         )
-        (row,) = load_all_captures(tmp_path)
+        (row,) = load_all_captures(tmp_path, profile=active())
         assert row["vehicle_states"] == ["DRIVING", "CHARGING"]
         assert row["states_resolved"] is False
 
@@ -443,7 +452,7 @@ class TestPerCaptureStateResolution:
                 }
             ],
         )
-        (row,) = load_all_captures(tmp_path)
+        (row,) = load_all_captures(tmp_path, profile=active())
         assert row["vehicle_states"] == []
         assert row["states_resolved"] is True
 
@@ -473,7 +482,7 @@ class TestPerCaptureStateResolution:
                     }
                 ],
             )
-            (row,) = load_all_captures(tmp_path)
+            (row,) = load_all_captures(tmp_path, profile=active())
             assert row["vehicle_states"] == ["DRIVING", "CHARGING"]
             assert row["states_resolved"] is False
 

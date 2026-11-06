@@ -290,7 +290,7 @@ class TestRawUdsClientAddressing:
 
         monkeypatch.setattr(uds_raw.can, "Notifier", FakeNotifier)
         monkeypatch.setattr(uds_raw, "build_isotp_stack", _build)
-        monkeypatch.setattr(uds_raw.time, "sleep", lambda *_a: None)  # skip warmup settle
+        monkeypatch.setattr(uds_raw.time, "sleep", lambda *_a, **__: None)  # skip warmup settle
 
         addresses = {
             # Renault functional-TX 29-bit with a physical FC override (gap G-J).
@@ -349,7 +349,7 @@ class TestRawUdsClientEcuIsotp:
 
         monkeypatch.setattr(uds_raw.can, "Notifier", FakeNotifier)
         monkeypatch.setattr(uds_raw, "build_isotp_stack", _build)
-        monkeypatch.setattr(uds_raw.time, "sleep", lambda *_a: None)
+        monkeypatch.setattr(uds_raw.time, "sleep", lambda *_a, **__: None)
         RawUdsClient(
             bus=object(),
             addresses=_addrs({"EWP": (0x746, 0x74E), "BMS": (0x7E4, 0x7EC)}),

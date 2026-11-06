@@ -9,10 +9,13 @@ from __future__ import annotations
 import sys
 
 from canair.ecus.response_frames import FIELD, resolve_edits, revision_target
+from canair.profile import Profile
 from canair.uds.frame_counts import FrameCountLedger
 
 
-def persist(pids_data: dict, ledger: FrameCountLedger, *, verbose: bool = False) -> int:
+def persist(
+    pids_data: dict, ledger: FrameCountLedger, *, verbose: bool = False, profile: Profile
+) -> int:
     """Write a session's confirmed counts into the profile; return how many landed.
 
     Called from the shared session teardown, so it covers every transport with one
@@ -53,7 +56,7 @@ def persist(pids_data: dict, ledger: FrameCountLedger, *, verbose: bool = False)
     written = 0
     for edit in edits:
         try:
-            routable, target = revision_target(edit.ecu, edit.pid)
+            routable, target = revision_target(edit.ecu, edit.pid, profile=profile)
         except Exception as e:  # pragma: no cover - an unloadable profile
             routable, target = False, None
             print(f"  [count] could not route {edit.ecu} {edit.pid}: {e}", file=sys.stderr)

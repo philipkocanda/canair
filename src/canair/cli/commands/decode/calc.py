@@ -119,7 +119,7 @@ def load_cross_ref_series(ref: str, *, scope: dict, tol_s: float, fill: FillPoli
         )
     # Resolve a defined param name to its expression when possible.
     params: dict = {}
-    ecu_index = build_ecu_index(load_pids())
+    ecu_index = build_ecu_index(load_pids(profile=active()))
     ecu_pids = ecu_index.get(sref.ecu.upper(), {}).get("pids", {})
     if sref.pid.upper() in ecu_pids:
         params = ecu_pids[sref.pid.upper()]["parameters"]

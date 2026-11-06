@@ -12,6 +12,7 @@ import json
 import sys
 
 from canair.cli.live import ecu_completer
+from canair.profile import active
 from canair.render import ansi, messages
 
 
@@ -51,8 +52,8 @@ def _scope(ecu: str | None) -> str | None:
     from canair.dtc.refs import ecu_ref
     from canair.ecus.names import resolve_tx
 
-    tx_id = resolve_tx(ecu)
-    return None if tx_id is None else ecu_ref(tx_id)
+    tx_id = resolve_tx(ecu, profile=active())
+    return None if tx_id is None else ecu_ref(tx_id, profile=active())
 
 
 def run(args) -> int:
@@ -74,11 +75,13 @@ def run(args) -> int:
         print(ecu_hint(), file=sys.stderr)
         return 2
 
-    stats = log_stats()
-    entry = latest_matching(scope)
-    previous = prior_matching(scope, entry.get("timestamp", "")) if entry else None
+    stats = log_stats(profile=active())
+    entry = latest_matching(scope, profile=active())
+    previous = (
+        prior_matching(scope, entry.get("timestamp", ""), profile=active()) if entry else None
+    )
     since = (
-        clears_between(previous.get("timestamp", ""), entry.get("timestamp", ""))
+        clears_between(previous.get("timestamp", ""), entry.get("timestamp", ""), profile=active())
         if entry and previous
         else []
     )
@@ -88,7 +91,9 @@ def run(args) -> int:
             "scan": entry,
             "previous": previous,
             "clears_since": since,
-            "diff": diff_scans(previous, entry, since) if entry and previous else None,
+            "diff": diff_scans(previous, entry, since, profile=active())
+            if entry and previous
+            else None,
             "log": stats.as_dict(),
         }
         print(json.dumps(out, indent=2, default=str))
@@ -103,14 +108,14 @@ def run(args) -> int:
             )
         else:
             print(
-                f"No logged DTC scan for scope '{scope_label(scope)}'. Run `canair dtc "
+                f"No logged DTC scan for scope '{scope_label(scope, profile=active())}'. Run `canair dtc "
                 + (args.dtc if args.dtc else "--all")
                 + "` while connected to record one."
             )
         _print_footer(stats)
         return 1
 
-    for line in render_scan(entry, previous, since):
+    for line in render_scan(entry, previous, since, profile=active()):
         print(line)
     _print_footer(stats)
     return 0
@@ -130,7 +135,7 @@ def log_hint() -> str | None:
     try:
         from canair.dtc.history import log_stats
 
-        stats = log_stats()
+        stats = log_stats(profile=active())
     except (ProfileError, OSError):
         return None
     if not stats.scans and not stats.other_cars:

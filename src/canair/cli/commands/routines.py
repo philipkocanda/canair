@@ -7,6 +7,7 @@ import sys
 
 from canair.cli.live import LiveOperation, add_connection_args, ecu_completer, run_live
 from canair.cli.live.handlers import actuators
+from canair.profile import active
 from canair.render import messages
 
 NAME = "routines"
@@ -62,5 +63,7 @@ def run(args) -> int:
         from canair.ecus.pids import load_pids
         from canair.live.actuate.routines_list import mode_routines_list
 
-        return 0 if mode_routines_list(load_pids(), args.routines, as_json=True) else 1
+        return (
+            0 if mode_routines_list(load_pids(profile=active()), args.routines, as_json=True) else 1
+        )
     return run_live(args, _OPERATION)

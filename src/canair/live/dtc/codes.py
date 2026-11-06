@@ -6,6 +6,7 @@ Pure (no I/O). UDS records are 4 bytes (3-byte DTC + status); KWP2000 records ar
 
 from __future__ import annotations
 
+from canair.profile import Profile
 from canair.uds.protocol import KWP, UDS
 
 # SAE J2012 DTC category letters, selected by the top two bits of the first byte.
@@ -81,10 +82,10 @@ def decode_kwp_dtc_records(data: bytes) -> list[dict]:
     return records
 
 
-def resolve_protocol(protocol: str, tx_id: int) -> str:
+def resolve_protocol(protocol: str, tx_id: int, *, profile: Profile) -> str:
     """Resolve ``auto`` to ``uds``/``kwp`` from the ECU's id_protocol registry."""
     if protocol in (UDS, KWP):
         return protocol
     from ...ecus.protocol import ecu_protocol
 
-    return KWP if ecu_protocol(tx_id) == KWP else UDS
+    return KWP if ecu_protocol(tx_id, profile=profile) == KWP else UDS

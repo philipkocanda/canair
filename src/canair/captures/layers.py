@@ -44,23 +44,19 @@ def _same(a: Path, b: Path) -> bool:
         return a == b
 
 
-def owning_profile(captures_dir: Path | None) -> Profile:
+def owning_profile(captures_dir: Path | None, *, profile: Profile) -> Profile:
     """The profile — layered when it is one — whose captures ``captures_dir`` holds.
 
-    ``None`` is the active profile. An explicit directory resolves to the active
-    profile when it is one of its capture layers, else to the discovered profile
-    of the same name whose layers include it, else to the plain bundle around it
-    (:func:`canair.profile.profile_for_path`) — never silently to the active one.
+    ``None`` is ``profile``. An explicit directory resolves to ``profile`` when it is one of
+    its capture layers, else to the discovered profile of the same name whose layers include
+    it, else to the plain bundle around it (:func:`canair.profile.profile_for_path`) — never
+    silently to ``profile``.
     """
-    from canair.profile import ProfileError, active, profile_for_path, resolve_profile
+    from canair.profile import ProfileError, profile_for_path, resolve_profile
 
     if captures_dir is None:
-        return active()
-    candidates = []
-    try:
-        candidates.append(active())
-    except ProfileError:
-        pass
+        return profile
+    candidates = [profile]
     plain = profile_for_path(captures_dir)
     if plain.name:
         try:
@@ -74,18 +70,14 @@ def owning_profile(captures_dir: Path | None) -> Profile:
 
 
 def read_only_files(
-    paths: Iterable[Path], captures_dir: Path | None = None, *, profile: Profile | None = None
+    paths: Iterable[Path], captures_dir: Path | None = None, *, profile: Profile
 ) -> list[Path]:
-    """Those of ``paths`` that live outside the layer writes go to.
+    """Those of ``paths`` that live outside the layer writes go to, among ``profile``'s layers.
 
-    ``profile`` judges against that profile's layers instead of the ones
-    ``captures_dir`` resolves to.
+    An explicit ``captures_dir`` is judged as exactly that directory.
     """
-    if profile is not None:
-        layers, write_layer = profile.capture_layers, profile.captures_dir
-    else:
-        layers = capture_io.resolve_capture_layers(captures_dir)
-        write_layer = capture_io.resolve_captures_dir(captures_dir)
+    layers = capture_io.resolve_capture_layers(captures_dir, profile=profile)
+    write_layer = capture_io.resolve_captures_dir(captures_dir, profile=profile)
     if len(layers) < 2:
         return []
     return sorted({p for p in paths if not _under(p, write_layer)})
@@ -96,16 +88,13 @@ def refusal(
     action: str,
     captures_dir: Path | None = None,
     *,
-    profile: Profile | None = None,
+    profile: Profile,
 ) -> str | None:
     """A ready-to-print refusal when ``paths`` reach the base layer, else None."""
     blocked = read_only_files(paths, captures_dir, profile=profile)
     if not blocked:
         return None
 
-    from canair.profile import active
-
-    profile = profile or active()
     shown = "\n".join(f"  {p}" for p in blocked[:5])
     if len(blocked) > 5:
         shown += f"\n  … and {len(blocked) - 5} more"

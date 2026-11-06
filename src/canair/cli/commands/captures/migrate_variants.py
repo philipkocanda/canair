@@ -29,7 +29,7 @@ def cmd_migrate_variants(args) -> int:
     until = args.date or args.until
 
     # Only the profile's own store: a layered profile's base is someone else's history.
-    cdir = capture_io.resolve_captures_dir(args.dir)
+    cdir = capture_io.resolve_captures_dir(args.dir, profile=active())
     if not cdir.is_dir():
         messages.error(f"no such captures directory: {cdir}")
         return 2

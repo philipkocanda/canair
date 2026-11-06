@@ -71,19 +71,25 @@ class EcuRegistryEntry(_EcuIdentity):
     address: EcuAddress
 
 
-def load_ecus(
-    path: Path | None = None, *, profile: Profile | None = None
-) -> dict[int, EcuRegistryEntry]:
+def load_ecus(profile: Profile) -> dict[int, EcuRegistryEntry]:
     """Load the ECU registry, keyed by TX id (int) -> {name, identity fields...}.
 
     Derived from the profile's per-ECU ``ecus/`` files: each ECU's short name
-    (the file's top-level key) plus its flattened ``identity:`` block. When
-    ``path`` is None, ``profile``'s definitions are used; otherwise ``path`` is a
-    directory of per-ECU YAML files.
+    (the file's top-level key) plus its flattened ``identity:`` block.
     """
-    from canair.ecus.pids import load_pids, load_pids_dir
+    from canair.ecus.pids import load_pids
 
-    data = load_pids_dir(path) if path is not None else load_pids(profile)
+    return _registry_of(load_pids(profile))
+
+
+def load_ecus_dir(path: Path) -> dict[int, EcuRegistryEntry]:
+    """:func:`load_ecus` for a directory of per-ECU YAML files, as written."""
+    from canair.ecus.pids import load_pids_dir
+
+    return _registry_of(load_pids_dir(path))
+
+
+def _registry_of(data: dict) -> dict[int, EcuRegistryEntry]:
     result: dict[int, EcuRegistryEntry] = {}
     for name, ecu_def in (data.get("ecus") or {}).items():
         if not isinstance(ecu_def, dict):
@@ -186,6 +192,8 @@ def rx_for_tx(
     ecus: Mapping[int, EcuRegistryEntry] | None = None,
     rx_offset: int | None = None,
     mode: AddressingMode | None = None,
+    *,
+    profile: Profile,
 ) -> int:
     """Resolve a TX id to its CAN response (RX) address int.
 
@@ -199,19 +207,19 @@ def rx_for_tx(
     profile resolves the way a registered one would.
     """
     if ecus is None:
-        ecus = load_ecus()
+        ecus = load_ecus(profile)
     info = ecus.get(tx_id)
     if info and info.get("rx_id") is not None:
         return int(info["rx_id"])
     if rx_offset is None or mode is None:
-        default_offset, default_mode = _profile_addressing()
+        default_offset, default_mode = _profile_addressing(profile)
         rx_offset = default_offset if rx_offset is None else rx_offset
         mode = default_mode if mode is None else mode
     return resolve_rx(tx_id, rx_offset=rx_offset, mode=mode)
 
 
-def _profile_addressing() -> tuple[int, AddressingMode]:
-    """The active profile's default ``(rx_offset, mode)``, or the built-in defaults.
+def _profile_addressing(profile: Profile) -> tuple[int, AddressingMode]:
+    """``profile``'s default ``(rx_offset, mode)``, or the built-in defaults.
 
     Falls back to ``TX + 0x08`` / 11-bit when no profile resolves, so a caller
     that passed its own registry still gets an answer outside a profile.
@@ -220,20 +228,22 @@ def _profile_addressing() -> tuple[int, AddressingMode]:
     from canair.profile import ProfileError
 
     try:
-        data = load_pids()
+        data = load_pids(profile)
     except ProfileError:
         return DEFAULT_RX_OFFSET, DEFAULT_MODE
     return resolve_rx_offset(data), resolve_mode(data)
 
 
-def rx_addr_str(tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None) -> str:
+def rx_addr_str(
+    tx_id: int, ecus: Mapping[int, EcuRegistryEntry] | None = None, *, profile: Profile
+) -> str:
     """Format the CAN response address for a TX id as a hex string.
 
     Resolved by :func:`rx_for_tx`: a registered ECU's ``rx_id``, else the active
     profile's ``addressing:`` rule for an unknown address, e.g.
     ``rx_addr_str(0x7E4) == "0x7EC"`` on a ``+0x08`` profile.
     """
-    return f"0x{rx_for_tx(tx_id, ecus):03X}"
+    return f"0x{rx_for_tx(tx_id, ecus, profile=profile):03X}"
 
 
 def parse_ecu_ref(value) -> int | None:
@@ -255,7 +265,9 @@ def parse_ecu_ref(value) -> int | None:
         return None
 
 
-def build_rx_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[int, str]:
+def build_rx_index(
+    ecus: Mapping[int, EcuRegistryEntry] | None = None, *, profile: Profile
+) -> dict[int, str]:
     """Build lookup: RX address (int) -> canonical ECU short name.
 
     Derived from the ECU registry (the superset of all known addresses, including
@@ -263,25 +275,27 @@ def build_rx_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[i
     Uses each ECU's resolved ``rx_id`` (per-ECU override / profile offset).
     """
     if ecus is None:
-        ecus = load_ecus()
-    return {rx_for_tx(tx_id, ecus): info["name"] for tx_id, info in ecus.items()}
+        ecus = load_ecus(profile)
+    return {rx_for_tx(tx_id, ecus, profile=profile): info["name"] for tx_id, info in ecus.items()}
 
 
-def build_rx_tx_index(ecus: Mapping[int, EcuRegistryEntry] | None = None) -> dict[int, int]:
+def build_rx_tx_index(
+    ecus: Mapping[int, EcuRegistryEntry] | None = None, *, profile: Profile
+) -> dict[int, int]:
     """Build lookup: RX address (int) -> TX id, using each ECU's resolved rx_id."""
     if ecus is None:
-        ecus = load_ecus()
-    return {rx_for_tx(tx_id, ecus): tx_id for tx_id in ecus}
+        ecus = load_ecus(profile)
+    return {rx_for_tx(tx_id, ecus, profile=profile): tx_id for tx_id in ecus}
 
 
-def ecu_name_from_ref(value, rx_index: dict[int, str] | None = None) -> str:
+def ecu_name_from_ref(value, rx_index: dict[int, str] | None = None, *, profile: Profile) -> str:
     """Resolve a capture ``ecu`` reference (RX address) to a canonical name.
 
     Sentinels and unresolvable references are returned unchanged (stringified),
     so callers always get a printable label.
     """
     if rx_index is None:
-        rx_index = build_rx_index()
+        rx_index = build_rx_index(profile=profile)
     rx = parse_ecu_ref(value)
     if rx is not None and rx in rx_index:
         return rx_index[rx]

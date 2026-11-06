@@ -32,6 +32,7 @@ from typing import Any
 
 from canair.captures.folding import CaptureFormatError, expand_file, fold_file
 from canair.captures.types import CaptureFile
+from canair.profile import Profile
 
 # On-disk capture-file extension. Legacy profiles used ``.yaml`` (pre-migration);
 # see :func:`find_legacy_yaml` and ``canair captures migrate``.
@@ -55,23 +56,16 @@ def _is_capture_file(path: Path) -> bool:
     return not path.name.startswith(_SKIP_PREFIXES)
 
 
-def resolve_captures_dir(explicit: Path | None = None) -> Path:
+def resolve_captures_dir(explicit: Path | None = None, *, profile: Profile) -> Path:
     """The captures directory to work in: ``explicit`` (``--dir``), else the profile's.
 
     Every command that reads or writes the store needs this, so it lives here
-    rather than being re-derived per caller (it previously existed as three
-    verbatim copies under ``commands/captures/`` plus two open-coded sites). The
-    profile import is deferred because ``canair.profile`` pulls in the definition
-    loaders, which this module must not depend on at import time.
+    rather than being re-derived per caller.
     """
-    if explicit is not None:
-        return explicit
-    from canair.profile import active
-
-    return active().captures_dir
+    return explicit if explicit is not None else profile.captures_dir
 
 
-def resolve_capture_layers(explicit: Path | None = None) -> list[Path]:
+def resolve_capture_layers(explicit: Path | None = None, *, profile: Profile) -> list[Path]:
     """Every captures directory to *read*, least specific (the base) first.
 
     An explicit ``--dir`` means exactly that directory. Otherwise a layered
@@ -79,11 +73,7 @@ def resolve_capture_layers(explicit: Path | None = None) -> list[Path]:
     overlay, so analysis sees the whole history while
     :func:`resolve_captures_dir` keeps writes in the overlay.
     """
-    if explicit is not None:
-        return [explicit]
-    from canair.profile import active
-
-    return active().capture_layers
+    return [explicit] if explicit is not None else profile.capture_layers
 
 
 def iter_capture_files(captures_dir: Path) -> list[Path]:

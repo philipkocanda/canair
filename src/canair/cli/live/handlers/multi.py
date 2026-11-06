@@ -21,7 +21,7 @@ def monitor_options(args) -> MonitorOptions:
     """The monitor's options from the parsed flags (``args.multi`` already holds a query step)."""
     from canair.live.read.multi import parse_sub_commands
 
-    commands = parse_sub_commands(args.multi)
+    commands = parse_sub_commands(args.multi, profile=active())
     return MonitorOptions(
         query_steps=[c for c in commands if c["type"] == "query"],
         session_steps=[c for c in commands if c["type"] in ("session", "skm-wake", "sleep")],

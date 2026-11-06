@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from canair.captures import layers
 from canair.core.prompt import confirm
+from canair.profile import active
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -25,7 +26,7 @@ def refuse_write(paths: Iterable[Path], *, verb: str, prompt: str, assume_yes: b
     confirmation question. A decline returns 1 and no terminal without ``--yes`` raises
     ``PromptUnavailable`` (exit 2). The question goes to stderr, so stdout stays the result.
     """
-    if blocked := layers.refusal(paths, verb):
+    if blocked := layers.refusal(paths, verb, profile=active()):
         print(blocked, file=sys.stderr)
         return 1
     return None if confirm(prompt, yes=assume_yes) else 1

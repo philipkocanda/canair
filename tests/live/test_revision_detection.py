@@ -93,19 +93,19 @@ class TestResolution:
     def test_a_remembered_detection_resolves_an_ambiguous_ecu(self):
         cache.remember("variants", "60kwh", "VCU", "uds")
         set_active(str(FIXTURE), variant="60kwh")
-        res = revision_resolutions()["VCU"]
+        res = revision_resolutions(profile=active())["VCU"]
         assert (res.revision, res.source) == ("uds", "detected")
-        assert "22E001" in {str(k) for k in load_pids()["ecus"]["VCU"]["pids"]}
+        assert "22E001" in {str(k) for k in load_pids(profile=active())["ecus"]["VCU"]["pids"]}
 
     def test_a_pin_outranks_it(self):
         cache.remember("variants", "60kwh", "VCU", "uds")
         set_active(str(FIXTURE), variant="60kwh", revisions=["VCU=kwp"])
-        assert revision_resolutions()["VCU"].source == "flag"
+        assert revision_resolutions(profile=active())["VCU"].source == "flag"
 
     def test_a_detection_the_car_cannot_carry_is_ignored(self):
         cache.remember("variants", "40kwh", "VCU", "uds")
         set_active(str(FIXTURE), variant="40kwh")
-        assert revision_resolutions()["VCU"].revision == "kwp"
+        assert revision_resolutions(profile=active())["VCU"].revision == "kwp"
 
     def test_forget(self):
         cache.remember("variants", None, "VCU", "kwp")
@@ -127,8 +127,8 @@ class TestProbe:
         term = FakeTerminal(answers={"22F187"})
         assert _detect(term, "VCU") is True
         assert term.sent == [(0x7E2, "1A90"), (0x7E2, "22F187")]
-        assert revision_resolutions()["VCU"].revision == "uds"
-        assert "22E001" in {str(k) for k in load_pids()["ecus"]["VCU"]["pids"]}
+        assert revision_resolutions(profile=active())["VCU"].revision == "uds"
+        assert "22E001" in {str(k) for k in load_pids(profile=active())["ecus"]["VCU"]["pids"]}
         assert cache.remembered("variants", "60kwh") == {"VCU": "uds"}
         # The next session already knows: nothing is sent.
         set_active(str(FIXTURE), variant="60kwh")
@@ -140,12 +140,12 @@ class TestProbe:
         term = FakeTerminal(answers={"1A90"})
         assert _detect(term, "VCU") is True
         assert term.sent == [(0x7E2, "1A90")]
-        assert revision_resolutions()["VCU"].revision == "kwp"
+        assert revision_resolutions(profile=active())["VCU"].revision == "kwp"
 
     def test_a_silent_ecu_stays_undetermined(self, capsys):
         set_active(str(FIXTURE), variant="60kwh")
         assert _detect(FakeTerminal(), "VCU") is False
-        assert revision_resolutions()["VCU"].revision is None
+        assert revision_resolutions(profile=active())["VCU"].revision is None
         assert cache.remembered("variants", "60kwh") == {}
         assert "stays undetermined" in capsys.readouterr().err
 
@@ -256,10 +256,10 @@ class TestSoftwareFingerprint:
         term = SoftwareTerminal("SW2.04")
         assert _detect(term, "VCU") is True
         assert term.sent == [(0x7E2, "1A95")]
-        assert revision_resolutions()["VCU"].revision == "uds"
+        assert revision_resolutions(profile=active())["VCU"].revision == "uds"
         assert "software 95:SW2.04" in capsys.readouterr().err
 
     def test_an_unknown_build_stays_undetermined(self, by_software):
         set_active(str(by_software), variant="60kwh")
         assert _detect(SoftwareTerminal("SW9"), "VCU") is False
-        assert revision_resolutions()["VCU"].revision is None
+        assert revision_resolutions(profile=active())["VCU"].revision is None

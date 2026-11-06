@@ -275,7 +275,7 @@ class TestOrphanRecovery:
 class TestBuildSessionFromRecords:
     def test_default_label_when_missing(self):
         recs = [{"type": "capture", "rx": "0x7EC", "pid": "2101", "payload": "6101"}]
-        sessions = build_session_from_records(recs)
+        sessions = build_session_from_records(recs, profile=active())
         assert len(sessions) == 1
         assert sessions[0]["label"] == "Recovered session"
 
@@ -283,13 +283,13 @@ class TestBuildSessionFromRecords:
         # A journal written before the ecu→rx rename still reconciles: the
         # reconcile read falls back to the legacy `ecu` key.
         recs = [{"type": "capture", "ecu": "0x7EC", "pid": "2101", "payload": "6101"}]
-        sessions = build_session_from_records(recs)
+        sessions = build_session_from_records(recs, profile=active())
         assert len(sessions) == 1
         assert sessions[0]["captures"][0]["rx"] == "0x7EC"
 
     def test_none_when_no_payloads(self):
         recs = [{"type": "meta", "label": "L"}]
-        assert build_session_from_records(recs) == []
+        assert build_session_from_records(recs, profile=active()) == []
 
     def test_non_answer_alone_is_a_session(self):
         # A probe whose only result is a refusal still records that refusal.
@@ -302,7 +302,7 @@ class TestBuildSessionFromRecords:
                 "response": "NRC 0x11 (serviceNotSupported)",
             },
         ]
-        (session,) = build_session_from_records(recs)
+        (session,) = build_session_from_records(recs, profile=active())
         assert session["date"] == "2026-11-01"
         assert session["captures"] == [
             {"rx": "0x7A8", "pid": "24B004", "response": "NRC 0x11 (serviceNotSupported)"}
@@ -329,7 +329,7 @@ class TestBuildSessionFromRecords:
             },
             refusal,
         ]
-        (session,) = build_session_from_records(recs)
+        (session,) = build_session_from_records(recs, profile=active())
         caps = session["captures"]
         assert [c["pid"] for c in caps] == ["1902FF", "190A", "190A"]
         assert all("time" not in c for c in caps[1:])
@@ -354,7 +354,7 @@ class TestBuildSessionFromRecords:
                 "date": "2026-07-23",
             },
         ]
-        by_date = {s["date"]: s for s in build_session_from_records(recs)}
+        by_date = {s["date"]: s for s in build_session_from_records(recs, profile=active())}
         assert [c["pid"] for c in by_date["2026-07-22"]["captures"]] == ["2101"]
         assert [c["pid"] for c in by_date["2026-07-23"]["captures"]] == ["0101"]
 
@@ -388,7 +388,7 @@ class TestBuildSessionFromRecords:
                 "time": "00:00:03.200",
             },
         ]
-        sessions = build_session_from_records(recs)
+        sessions = build_session_from_records(recs, profile=active())
         assert len(sessions) == 2
         by_date = {s["date"]: s for s in sessions}
         assert set(by_date) == {"2026-07-22", "2026-07-23"}
@@ -411,7 +411,7 @@ class TestBuildSessionFromRecords:
                 "time": "08:00:00",
             },
         ]
-        sessions = build_session_from_records(recs)
+        sessions = build_session_from_records(recs, profile=active())
         assert len(sessions) == 1
         assert sessions[0]["date"] == "2026-01-05"
 

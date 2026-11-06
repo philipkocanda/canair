@@ -14,6 +14,7 @@ from typing import Any
 from canair.expression.decoding import ParamRow
 from canair.expression.results import ResultEntry
 from canair.privacy.sensitive import MASK, request_hidden
+from canair.profile import Profile
 from canair.uds.response import UdsResponse
 
 
@@ -61,9 +62,11 @@ def query_documents(ecu_label: str, pid_results: list[ResultEntry]) -> list[dict
     return docs
 
 
-def raw_document(tx_id: int, request: str, response: UdsResponse) -> dict[str, Any]:
+def raw_document(
+    tx_id: int, request: str, response: UdsResponse, *, profile: Profile
+) -> dict[str, Any]:
     """The entry for a ``raw`` step: the request and the reply (or why there was none)."""
-    shown = MASK if request_hidden(tx_id, request) else response.get("hex")
+    shown = MASK if request_hidden(tx_id, request, profile=profile) else response.get("hex")
     doc: dict[str, Any] = {
         "ecu": f"0x{tx_id:03X}",
         "pid": request,

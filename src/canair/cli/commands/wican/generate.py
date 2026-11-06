@@ -52,7 +52,7 @@ def require_resolved_revisions() -> None:
     from canair.ecus.pids import revision_resolutions
     from canair.profile import ProfileError
 
-    open_ = [r for r in revision_resolutions().values() if r.revision is None]
+    open_ = [r for r in revision_resolutions(profile=active()).values() if r.revision is None]
     if not open_:
         return
     prof = active()
@@ -70,7 +70,7 @@ def load_yaml() -> dict:
     """Load and return the YAML PID definitions."""
     from canair.ecus.pids import load_pids
 
-    return load_pids()
+    return load_pids(profile=active())
 
 
 def write_json(data: dict, path: Path) -> None:

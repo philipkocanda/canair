@@ -79,7 +79,7 @@ class TestInferTx:
 class TestRepairDoc:
     def test_records_tx_and_the_profile_rx(self):
         doc = _doc(LEGACY)
-        repairs, skipped = repair_doc(doc, ADDRESSING)
+        repairs, skipped = repair_doc(doc, ADDRESSING, profile=active())
         assert skipped == []
         assert [(e["tx"], e["rx"], e["response"]) for e in _responding(doc)] == [
             ("0x70E", "0x70F", "BRAKE (NRC 0x12)"),
@@ -94,14 +94,14 @@ class TestRepairDoc:
 
     def test_fields_follow_the_builder_order(self):
         doc = _doc(LEGACY[:1])
-        repair_doc(doc, ADDRESSING)
+        repair_doc(doc, ADDRESSING, profile=active())
         assert list(_responding(doc)[0]) == ["tx", "rx", "response", "notes"]
 
     def test_is_idempotent(self):
         doc = _doc(LEGACY)
-        repair_doc(doc, ADDRESSING)
+        repair_doc(doc, ADDRESSING, profile=active())
         once = json.dumps(doc)
-        repairs, _ = repair_doc(doc, ADDRESSING)
+        repairs, _ = repair_doc(doc, ADDRESSING, profile=active())
         assert repairs == []
         assert json.dumps(doc) == once
 
@@ -110,7 +110,7 @@ class TestRepairDoc:
         from canair.captures.build import build_discover_session
 
         doc = _doc(LEGACY)
-        repair_doc(doc, ADDRESSING)
+        repair_doc(doc, ADDRESSING, profile=active())
         fresh = build_discover_session(
             [
                 (0x70E, 0x70F, "BRAKE (NRC 0x12)", "subFunctionNotSupported"),
@@ -133,7 +133,7 @@ class TestRepairDoc:
             {"rx": "0x7BB", "pid": "2101", "payload": "6101AA", "time": "12:00:00"}
         )
         before = json.dumps(doc["sessions"][0]["captures"][1])
-        repair_doc(doc, ADDRESSING)
+        repair_doc(doc, ADDRESSING, profile=active())
         assert json.dumps(doc["sessions"][0]["captures"][1]) == before
         assert doc["sessions"][0]["transport"] == "slcan-tcp"  # not inferable
 
@@ -144,13 +144,13 @@ class TestMigrateDir:
         (path,) = tmp_path.glob("*.json")
         original = path.read_text()
 
-        (dry,) = migrate_dir(tmp_path, ADDRESSING, dry_run=True)
+        (dry,) = migrate_dir(tmp_path, ADDRESSING, dry_run=True, profile=active())
         assert len(dry.repairs) == 4 and not dry.written
         assert path.read_text() == original
 
-        (real,) = migrate_dir(tmp_path, ADDRESSING)
+        (real,) = migrate_dir(tmp_path, ADDRESSING, profile=active())
         assert real.written
-        (again,) = migrate_dir(tmp_path, ADDRESSING)
+        (again,) = migrate_dir(tmp_path, ADDRESSING, profile=active())
         assert again.repairs == [] and not again.written
 
     def test_the_cli_resolves_the_profile_owning_the_captures(self, tmp_path, capsys):
@@ -181,7 +181,7 @@ class TestRepairEdgeCases:
         """Two ECUs claiming one alias must not read as "no longer in the registry"."""
         ecus = {**ECUS, 0x7E4: {"name": "BMS", "alias": "ABS", "rx_id": 0x7EC}}
         doc = _doc(LEGACY)
-        repairs, skipped = repair_doc(doc, Addressing(ecus, 0x20, DEFAULT_MODE))
+        repairs, skipped = repair_doc(doc, Addressing(ecus, 0x20, DEFAULT_MODE), profile=active())
         assert {s.reason for s in skipped} == {"ambiguous ECU name/alias in the registry"}
         assert [s.response for s in skipped] == ["BRAKE (NRC 0x12)", "ABS (positive)"]
         # Unregistered responders need no name, so they are still repaired.
@@ -191,7 +191,7 @@ class TestRepairEdgeCases:
     def test_a_status_suffix_without_a_single_name_is_skipped_not_guessed(self, label):
         """Falling through to the ``rx - 8`` inverse would write a wrong TX."""
         doc = _doc([{"rx": "0x760", "response": label}])
-        repairs, [skip] = repair_doc(doc, ADDRESSING)
+        repairs, [skip] = repair_doc(doc, ADDRESSING, profile=active())
         assert repairs == []
         assert "does not name a single ECU" in skip.reason
         assert "tx" not in _responding(doc)[0]
@@ -201,7 +201,7 @@ class TestRepairEdgeCases:
 
         doc = _doc([{"rx": "0x18DA10F9", "response": "positive"}])
         fixed = Addressing({}, 0x08, AddressingMode.NORMAL_FIXED_29BIT)
-        [repair], skipped = repair_doc(doc, fixed)
+        [repair], skipped = repair_doc(doc, fixed, profile=active())
         assert skipped == []
         assert (repair.tx, repair.rx) == ("0x18DA10F1", "0x18DAF110")
         assert _responding(doc)[0] == {
@@ -215,5 +215,5 @@ class TestRepairEdgeCases:
         doc = _doc(LEGACY)
         doc["sessions"][0]["captures"][0]["pid"] = pid
         before = json.dumps(doc)
-        assert repair_doc(doc, ADDRESSING) == ([], [])
+        assert repair_doc(doc, ADDRESSING, profile=active()) == ([], [])
         assert json.dumps(doc) == before

@@ -25,8 +25,8 @@ def unknown_ecu(value: str, records: list[dict]) -> int:
 def run(args) -> int:
     from canair.ecus.can_buses import bus_names
 
-    ecus = load_ecus()
-    pids_data = load_pids()
+    ecus = load_ecus(profile=active())
+    pids_data = load_pids(profile=active())
     labels = bus_names(profile=active())
 
     if not args.ecu:
@@ -39,7 +39,7 @@ def run(args) -> int:
         show_states = getattr(args, "states", False) or getattr(args, "sort", "bus") == "states"
         return cmd_list(records, args.json, show_states=show_states)
 
-    tx_id = resolve_tx(args.ecu)
+    tx_id = resolve_tx(args.ecu, profile=active())
     info = ecus.get(tx_id) if tx_id is not None else None
     if info is None:
         return unknown_ecu(args.ecu, list_records(ecus, pids_data, profile=active()))

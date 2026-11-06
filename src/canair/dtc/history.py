@@ -20,6 +20,7 @@ from typing import Any
 from canair.dtc.log import load_log
 from canair.dtc.refs import EcuRefs
 from canair.dtc.scope import ALL_SCOPE, Car, current_car
+from canair.profile import Profile
 
 
 @dataclass(frozen=True)
@@ -72,10 +73,11 @@ def ecu_status(
     car: Car | None = None,
     data: Mapping[str, Any] | None = None,
     refs: EcuRefs | None = None,
+    profile: Profile,
 ) -> EcuStatus | None:
     """The ECU ``rx``'s codes after its latest admitted reading or clear, or None when
     neither ever happened."""
-    car, refs = car or current_car(), refs or EcuRefs.current()
+    car, refs = car or current_car(), refs or EcuRefs.current(profile=profile)
     data = data if data is not None else load_log()
     name = refs.name(rx)
     for timestamp, kind, entry in _events(data):
@@ -107,13 +109,15 @@ def logged_ecus(data: Mapping[str, Any]) -> list[str]:
     )
 
 
-def open_dtcs(*, car: Car | None = None, data: Mapping[str, Any] | None = None) -> list[EcuStatus]:
+def open_dtcs(
+    *, car: Car | None = None, data: Mapping[str, Any] | None = None, profile: Profile
+) -> list[EcuStatus]:
     """Every ECU whose latest admitted reading still has codes."""
-    car, refs = car or current_car(), EcuRefs.current()
+    car, refs = car or current_car(), EcuRefs.current(profile=profile)
     data = data if data is not None else load_log()
     out = []
     for rx in logged_ecus(data):
-        status = ecu_status(rx, car=car, data=data, refs=refs)
+        status = ecu_status(rx, car=car, data=data, refs=refs, profile=profile)
         if status is not None and status.codes:
             out.append(status)
     return out
@@ -149,7 +153,7 @@ class LogStats:
         }
 
 
-def log_stats(path: Path | None = None, *, car: Car | None = None) -> LogStats:
+def log_stats(path: Path | None = None, *, car: Car | None = None, profile: Profile) -> LogStats:
     """Totals of the DTC log at ``path`` (default: the active profile's) for ``car``."""
     from canair.dtc.log import log_path
 
@@ -170,7 +174,7 @@ def log_stats(path: Path | None = None, *, car: Car | None = None) -> LogStats:
         scans=len(admitted),
         clears=len(clears),
         seen=len(seen),
-        open=open_dtcs(car=car, data=data),
+        open=open_dtcs(car=car, data=data, profile=profile),
         last_scan=str(admitted[-1].get("timestamp")) if admitted else None,
         other_cars=len(scans) - len(admitted),
         unnamed=car.unnamed,

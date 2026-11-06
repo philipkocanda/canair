@@ -17,7 +17,7 @@ from canair.transport.protocol import Terminal
 async def handle_identity(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
     from canair.ecus.names import resolve_tx
 
-    tx_id = resolve_tx(args.tx)
+    tx_id = resolve_tx(args.tx, profile=active())
     if tx_id is None:
         messages.fail(
             f"could not resolve ECU '{args.tx}' (use a name like IGPM or a hex TX id like 770)"
@@ -29,6 +29,7 @@ async def handle_identity(args, terminal: Terminal, pids_data, host, *, reconnec
         wake=args.wake,
         as_json=args.json,
         protocol=getattr(args, "protocol", "auto"),
+        profile=active(),
     )
 
 

@@ -30,21 +30,16 @@ from canair.captures import merge as captures_merge
 from canair.captures.link_events import session_link_events
 from canair.captures.types import CaptureEntry
 from canair.ecus.revisions import determined_revisions
+from canair.profile import Profile
 from canair.render import messages
 from canair.states.spans import span_keys, states_at
 from canair.variants import tags as variant_tags
 from canair.variants.tags import SCOPE_ALL, SCOPE_UNTAGGED
 
-# ---------------------------------------------------------------------------
-# On-the-fly decoding
-# ---------------------------------------------------------------------------
-#
-# Decoded parameter values are NOT stored in capture files (they are derived
-# data). We regenerate them on demand from the payload + PID definitions when
-# displaying previews. The PID index is built once and cached.
-
-# Keyed by the active profile's cache key, so a profile switch never decodes with the previous
-# car's definitions; an ECU edit drops it through the clear hook.
+# Decoded parameter values are NOT stored in capture files (they are derived data): they are
+# regenerated on demand from the payload and the PID definitions. The PID index is built once,
+# keyed by the profile's cache key so a profile switch never decodes with the previous car's
+# definitions; an ECU edit drops it through the clear hook.
 _decoders: dict[str, tuple[Any, Any]] = {}
 
 
@@ -53,23 +48,22 @@ def _clear_decode_index() -> None:
     _decoders.clear()
 
 
-def _decoder() -> tuple[Any, Any] | None:
-    """``(decode function, ECU index)`` for the active profile, or None when unavailable."""
+def _decoder(profile: Profile) -> tuple[Any, Any] | None:
+    """``(decode function, ECU index)`` for ``profile``, or None when unavailable."""
     try:
         from canair.captures.decode import _decode_payload
         from canair.ecus.pids import build_ecu_index, load_pids, register_derived_cache
-        from canair.profile import active
 
-        key = active().cache_key
+        key = profile.cache_key
         if key not in _decoders:
-            _decoders[key] = (_decode_payload, build_ecu_index(load_pids()))
+            _decoders[key] = (_decode_payload, build_ecu_index(load_pids(profile)))
             register_derived_cache(_clear_decode_index)
         return _decoders[key]
     except Exception:
         return None
 
 
-def decoded_preview(entry: Mapping[str, Any]) -> dict | None:
+def decoded_preview(entry: Mapping[str, Any], *, profile: Profile) -> dict | None:
     """Regenerate decoded parameter values for a capture entry, or None.
 
     Lazily loads PID definitions on first use. Returns a dict of
@@ -82,7 +76,7 @@ def decoded_preview(entry: Mapping[str, Any]) -> dict | None:
     if not payload or not ecu or not pid:
         return None
 
-    decoder = _decoder()
+    decoder = _decoder(profile)
     if decoder is None:
         return None
     decode, ecu_index = decoder
@@ -174,6 +168,8 @@ def flatten_session(
     session_idx: int,
     session: Mapping[str, Any],
     rx_index: dict[int, str] | None = None,
+    *,
+    profile: Profile,
 ) -> list[CaptureEntry]:
     """Flatten one session into per-capture entries, resolving each row's states.
 
@@ -187,7 +183,7 @@ def flatten_session(
     from canair.ecus.registry import ecu_name_from_ref
 
     if rx_index is None:
-        rx_index = _rx_index()
+        rx_index = _rx_index(profile=profile)
 
     date = session.get("date", "")
     label = session.get("label", "")
@@ -222,7 +218,7 @@ def flatten_session(
                 "transport": transport,
                 "quality": quality,
                 "session_link_events": link_events,
-                "ecu": ecu_name_from_ref(raw_ecu, rx_index) if raw_ecu else "",
+                "ecu": ecu_name_from_ref(raw_ecu, rx_index, profile=profile) if raw_ecu else "",
                 "ecu_addr": raw_ecu,
                 "pid": cap.get("pid", ""),
                 "payload": cap.get("payload"),
@@ -239,17 +235,19 @@ def flatten_session(
     return entries
 
 
-def _rx_index() -> dict[int, str]:
+def _rx_index(profile: Profile) -> dict[int, str]:
     """The rx-address → ECU-name index, tolerating an unreadable registry."""
     from canair.ecus.registry import build_rx_index
 
     try:
-        return build_rx_index()
+        return build_rx_index(profile=profile)
     except Exception:
         return {}
 
 
-def entry_path(entry: Mapping[str, Any], captures_dir: Path | None = None) -> Path:
+def entry_path(
+    entry: Mapping[str, Any], captures_dir: Path | None = None, *, profile: Profile
+) -> Path:
     """The capture file a mutation must reopen for ``entry``.
 
     Rows from :func:`load_all_captures` carry the resolved ``_path``; ``file`` is
@@ -261,10 +259,10 @@ def entry_path(entry: Mapping[str, Any], captures_dir: Path | None = None) -> Pa
     located = entry.get("_path")
     if located:
         return Path(located)
-    return capture_io.resolve_captures_dir(captures_dir) / entry["file"]
+    return capture_io.resolve_captures_dir(captures_dir, profile=profile) / entry["file"]
 
 
-def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
+def load_all_captures(captures_dir: Path | None = None, *, profile: Profile) -> list[CaptureEntry]:
     """Load all capture files and return a flat list of (session, capture) tuples.
 
     Each entry is a dict with keys:
@@ -300,10 +298,10 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
     only layer an edit can reach, so its copy is the current one. Either way every
     recording is counted once.
     """
-    rx_index = _rx_index()
-    layers = capture_io.resolve_capture_layers(captures_dir)
-    scope, several = _variant_scope() if captures_dir is None else (SCOPE_ALL, False)
-    resolved = _revision_scope() if captures_dir is None else {}
+    rx_index = _rx_index(profile)
+    layers = capture_io.resolve_capture_layers(captures_dir, profile=profile)
+    scope, several = _variant_scope(profile) if captures_dir is None else (SCOPE_ALL, False)
+    resolved = _revision_scope(profile) if captures_dir is None else {}
     untagged = 0
 
     stored: list[tuple[int, Path, int, Mapping[str, Any]]] = []
@@ -339,8 +337,8 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
         if key in seen:
             continue
         seen.add(key)
-        entries.extend(flatten_session(fpath, s_idx, session, rx_index))
-    entries = _hide_sensitive(entries, captures_dir)
+        entries.extend(flatten_session(fpath, s_idx, session, rx_index, profile=profile))
+    entries = _hide_sensitive(entries, captures_dir, profile)
     if len(layers) > 1:
         # Within one store, file order already is chronological; across layers it
         # is not, and a stable sort leaves the single-layer result untouched.
@@ -351,7 +349,9 @@ def load_all_captures(captures_dir: Path | None = None) -> list[CaptureEntry]:
 _noted_sensitive: list[int] = []
 
 
-def _hide_sensitive(entries: list[CaptureEntry], captures_dir: Path | None) -> list[CaptureEntry]:
+def _hide_sensitive(
+    entries: list[CaptureEntry], captures_dir: Path | None, profile: Profile
+) -> list[CaptureEntry]:
     """``entries`` minus every reply to a sensitive PID, said once per process.
 
     Nothing writes one any more (:mod:`canair.privacy.sensitive`), but a PID marked
@@ -360,7 +360,7 @@ def _hide_sensitive(entries: list[CaptureEntry], captures_dir: Path | None) -> l
     """
     from canair.privacy import sensitive
 
-    sset = sensitive.set_for_captures(captures_dir)
+    sset = sensitive.set_for_captures(captures_dir, profile=profile)
     if not sset:
         return entries
     kept = [
@@ -378,24 +378,23 @@ def _hide_sensitive(entries: list[CaptureEntry], captures_dir: Path | None) -> l
     return kept
 
 
-def _variant_scope() -> tuple[str | None, bool]:
-    """The active profile's variant scope, and whether it declares several variants."""
-    from canair.profile import ProfileError, active
+def _variant_scope(profile: Profile) -> tuple[str | None, bool]:
+    """``profile``'s variant scope, and whether it declares several variants."""
+    from canair.profile import ProfileError
     from canair.variants import VariantsError, load_variants
 
     try:
-        prof = active()
-        return prof.variant, len(load_variants(prof)) > 1
+        return profile.variant, len(load_variants(profile)) > 1
     except (ProfileError, VariantsError):
         return SCOPE_ALL, False
 
 
-def _revision_scope() -> dict[str, str]:
-    """The active profile's determined ECU revisions (ECU -> revision)."""
-    from canair.profile import ProfileError, active
+def _revision_scope(profile: Profile) -> dict[str, str]:
+    """``profile``'s determined ECU revisions (ECU -> revision)."""
+    from canair.profile import ProfileError
 
     try:
-        return determined_revisions(active())
+        return determined_revisions(profile)
     except ProfileError:
         return {}
 
@@ -461,7 +460,7 @@ def _superseded_by_a_later_layer(stored: Sequence[tuple[int, Path, int, Any]]) -
     return out
 
 
-def load_pid_captures(ecu: str, pid: str) -> list[dict]:
+def load_pid_captures(ecu: str, pid: str, *, profile: Profile) -> list[dict]:
     """Every payload capture for one ECU+PID, as the slim rows the analysis verbs use.
 
     Narrows :func:`load_all_captures` to a single ECU+PID (both matched
@@ -473,7 +472,7 @@ def load_pid_captures(ecu: str, pid: str) -> list[dict]:
     ``keep_mode``. Captures with no payload are skipped.
     """
     entries: list[dict] = []
-    for e in load_all_captures():
+    for e in load_all_captures(profile=profile):
         if str(e.get("ecu", "")).upper() != ecu.upper():
             continue
         if str(e.get("pid", "")).upper() != pid.upper():
@@ -517,12 +516,12 @@ class PidDefs(NamedTuple):
 NO_DEFS = PidDefs({}, None)
 
 
-def load_ecu_index() -> dict:
+def load_ecu_index(profile: Profile) -> dict:
     """Load + build the ECU/PID definition index once (empty dict on failure)."""
     try:
         from canair.ecus.pids import build_ecu_index, load_pids
 
-        return build_ecu_index(load_pids())
+        return build_ecu_index(load_pids(profile))
     except Exception:
         return {}
 

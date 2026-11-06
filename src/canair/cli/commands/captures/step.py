@@ -31,7 +31,7 @@ def _safe_alias_index() -> dict[str, str]:
     from canair.ecus.names import build_alias_index
 
     try:
-        return build_alias_index()
+        return build_alias_index(profile=active())
     except Exception:
         return {}
 
@@ -73,6 +73,7 @@ def build_model(
         notation=notation,
         captures_dir=captures_dir,
         aliases=_safe_alias_index(),
+        profile=active(),
     )
 
 

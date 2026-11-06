@@ -4,12 +4,13 @@ import pytest
 
 from canair.ecus.pid_status import DEFAULT_PID_STATUS, PID_STATUSES, pid_status
 from canair.ecus.pids import build_ecu_index, build_param_index, build_sessions_index, load_pids
+from canair.profile import active
 
 
 @pytest.fixture(scope="module")
 def pids_data():
     """Load the real YAML PID definitions once."""
-    return load_pids()
+    return load_pids(profile=active())
 
 
 class TestLoadPids:

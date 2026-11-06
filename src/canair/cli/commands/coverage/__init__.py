@@ -52,6 +52,7 @@ from canair.cli.args.scope import active_scope_flags, add_scope_args, resolve_sc
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.cli.commands._hints import pid_completer as _pid_completer
 from canair.ecus.pids import build_ecu_index, load_pids
+from canair.profile import active
 from canair.render import messages
 from canair.uds.support_map import MapDecl, SupportMapError, declaration
 
@@ -299,7 +300,7 @@ def run(args) -> int:
     if err:
         messages.error(f"{err}")
         return 2
-    pids_data = load_pids()
+    pids_data = load_pids(profile=active())
     ecu_index = build_ecu_index(pids_data)
     captures = load_coverage_captures(
         since,
@@ -314,7 +315,7 @@ def run(args) -> int:
     # `canair captures`/`decode`. Canonicalises to the ecus/ key before filtering.
     from canair.ecus.names import canonical_ecu_name_safe
 
-    ecu_filter = canonical_ecu_name_safe(args.ecu).upper() if args.ecu else None
+    ecu_filter = canonical_ecu_name_safe(args.ecu, profile=active()).upper() if args.ecu else None
     pid_filter = args.pid.upper() if args.pid else None
     scope = active_scope_flags(args)
 

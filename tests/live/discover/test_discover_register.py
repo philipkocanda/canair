@@ -7,6 +7,7 @@ import yaml
 
 from canair import profile
 from canair.ecus.pids import clear_cache
+from canair.profile import active
 
 
 @pytest.fixture(autouse=True)
@@ -46,7 +47,7 @@ class TestRegisterDiscovered:
         from canair.live.discover.physical import _register_discovered
 
         root = _mk_profile(tmp_path)
-        _register_discovered(ALIVE, dry_run=False)
+        _register_discovered(ALIVE, dry_run=False, profile=active())
         e0 = _load(root, "unknown-7e0.yaml")["Unknown-7E0"]
         e1 = _load(root, "unknown-7a0.yaml")["Unknown-7A0"]
         assert e0["tx_id"] == 0x7E0
@@ -57,7 +58,7 @@ class TestRegisterDiscovered:
         from canair.live.discover.physical import _register_discovered
 
         root = _mk_profile(tmp_path)
-        _register_discovered(ALIVE, dry_run=False)
+        _register_discovered(ALIVE, dry_run=False, profile=active())
         # 10 01 can't distinguish UDS/KWP — must not fabricate id_protocol.
         assert "id_protocol" not in _load(root, "unknown-7e0.yaml")["Unknown-7E0"]["identity"]
 
@@ -65,17 +66,17 @@ class TestRegisterDiscovered:
         from canair.live.discover.physical import _register_discovered
 
         root = _mk_profile(tmp_path)
-        _register_discovered(ALIVE, dry_run=True)
+        _register_discovered(ALIVE, dry_run=True, profile=active())
         assert list((root / "ecus").glob("*.yaml")) == []
 
     def test_idempotent_skips_known(self, tmp_path):
         from canair.live.discover.physical import _register_discovered
 
         root = _mk_profile(tmp_path)
-        _register_discovered(ALIVE, dry_run=False)
+        _register_discovered(ALIVE, dry_run=False, profile=active())
         clear_cache()
         before = (root / "ecus" / "unknown-7e0.yaml").read_text()
-        _register_discovered(ALIVE, dry_run=False)
+        _register_discovered(ALIVE, dry_run=False, profile=active())
         assert (root / "ecus" / "unknown-7e0.yaml").read_text() == before
 
     def test_preserves_existing_named_ecu(self, tmp_path):
@@ -84,7 +85,7 @@ class TestRegisterDiscovered:
         root = _mk_profile(
             tmp_path, seed_ecus="ECM:\n  tx_id: 0x7E0\n  identity:\n    id_protocol: UDS\n"
         )
-        _register_discovered(ALIVE, dry_run=False)
+        _register_discovered(ALIVE, dry_run=False, profile=active())
         # 0x7E0 already known (ECM) → untouched; only 0x7A0 added.
         assert "ECM" in _load(root, "ecm.yaml")
         assert (root / "ecus" / "unknown-7a0.yaml").exists()
@@ -94,5 +95,5 @@ class TestRegisterDiscovered:
         from canair.live.discover.physical import _register_discovered
 
         root = _mk_profile(tmp_path)
-        _register_discovered(ALIVE, dry_run=False)
+        _register_discovered(ALIVE, dry_run=False, profile=active())
         assert _load(root, "unknown-7e0.yaml")["Unknown-7E0"]["tx_id"] == 0x7E0

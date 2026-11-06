@@ -75,7 +75,7 @@ def make_terminal(monkeypatch):
             "NotifierBasedCanStack",
             lambda bus, notifier, address=None, params=None: FakeStack(address._txid, table),
         )
-        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)  # skip settle
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a, **__: None)  # skip settle
         return raw_terminal.RawTerminal("h", 3333, 500000, timeout=0.3)
 
     return build
@@ -165,7 +165,7 @@ class TestRawTerminalSendUds:
             "NotifierBasedCanStack",
             lambda bus, notifier, address=None, params=None: SeqStack(address._txid, seq),
         )
-        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a, **__: None)
         t = raw_terminal.RawTerminal("h", 3333, 500000, timeout=0.3)
         await t.set_header(0x7A0)
         r = await t.send_uds("1902FF", expected_sid=0x19)
@@ -207,7 +207,7 @@ class TestRawTerminalSendUds:
             "NotifierBasedCanStack",
             lambda bus, notifier, address=None, params=None: RetryStack(address._txid, responses),
         )
-        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a, **__: None)
         t = raw_terminal.RawTerminal("h", 3333, 500000, timeout=0.3)
         await t.set_header(0x770)
         r = await t.send_uds("22BC03", retries=1)
@@ -398,7 +398,7 @@ class TestRawTerminalRxResolution:
             "NotifierBasedCanStack",
             lambda bus, notifier, address=None, params=None: FakeStack(address._txid, {}),
         )
-        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a, **__: None)
         return seen
 
     def test_addr_map_used(self, capture_addr):
@@ -445,7 +445,7 @@ class TestRawTerminalModeResolution:
             "NotifierBasedCanStack",
             lambda bus, notifier, address=None, params=None: FakeStack(address._txid, {}),
         )
-        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a, **__: None)
         return seen
 
     def test_per_ecu_addr_map(self, capture_mode):
@@ -498,7 +498,7 @@ class TestRawTerminalFcOverride:
         monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
         monkeypatch.setattr(raw_terminal.isotp, "Address", _addr)
         monkeypatch.setattr(raw_terminal, "build_isotp_stack", _build)
-        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a, **__: None)
         return seen
 
     def test_fc_id_threaded_from_addr_map(self, capture_fc):
@@ -599,7 +599,7 @@ class TestEcuIsotp:
         monkeypatch.setattr(slcan_mod, "SlcanTcpBus", FakeBus)
         monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
         monkeypatch.setattr(raw_terminal, "build_isotp_stack", _build)
-        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a: None)
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a, **__: None)
         t = raw_terminal.RawTerminal(
             "h", 3333, 500000, isotp_config={"stmin": 5}, ecu_isotp={0x746: {"blocksize": 8}}
         )

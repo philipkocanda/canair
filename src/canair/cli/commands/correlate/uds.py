@@ -296,7 +296,9 @@ def run(args) -> int:
                 ref_series,
                 ref_label,
                 args.join_tol,
-                ref_unit=None if args.against_file else ref_unit_for(args.against),
+                ref_unit=None
+                if args.against_file
+                else ref_unit_for(args.against, profile=active()),
             )
         rows = rows[: args.top]
         if args.json:

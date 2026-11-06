@@ -52,7 +52,7 @@ def run_sweep(specs: list[tuple[str, str]], args, since, until, fill) -> int:
 
     from canair.ecus.pids import build_ecu_index, load_pids
 
-    ecu_index = build_ecu_index(load_pids())
+    ecu_index = build_ecu_index(load_pids(profile=active()))
     loaded = load_signal_captures(
         specs,
         since=since,

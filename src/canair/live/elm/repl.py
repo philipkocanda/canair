@@ -4,6 +4,7 @@ import re
 
 from canair.ecus.pids import build_ecu_index
 from canair.expression.decoding import decode_param_rows
+from canair.profile import Profile
 from canair.render import messages
 from canair.render.formatting import print_decoded_params, print_hexdump
 from canair.transport.elm327.terminal import Elm327Terminal
@@ -30,7 +31,9 @@ _ONE_BYTE_ID_REPLIES = frozenset(
 )
 
 
-async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: bool):
+async def mode_interactive(
+    terminal: Elm327Terminal, pids_data: dict, verbose: bool, *, profile: Profile
+):
     """Interactive REPL mode -- type ELM327/UDS commands directly."""
     # Lazy imports to avoid circular dependencies for modes that reference each other
     import asyncio
@@ -179,7 +182,9 @@ async def mode_interactive(terminal: Elm327Terminal, pids_data: dict, verbose: b
             if last_tx_id is None:
                 messages.error("no ECU header set. Use ATSH<id> first (e.g., ATSH7A0).")
             else:
-                await mode_identity(terminal, last_tx_id, session=False, wake=False, as_json=False)
+                await mode_identity(
+                    terminal, last_tx_id, session=False, wake=False, as_json=False, profile=profile
+                )
             continue
 
         # Track ATSH commands to know current TX ID

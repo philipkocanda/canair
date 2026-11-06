@@ -73,7 +73,7 @@ def redirect_writes(pids_dir: Path, monkeypatch):
         return set_response_frames(ecu, pid, frames, pids_dir=pids_dir)
 
     monkeypatch.setattr(pids_edit, "set_response_frames", _set)
-    monkeypatch.setattr(profile, "require_writable_definitions", lambda: None)
+    monkeypatch.setattr(profile, "require_writable_definitions", lambda *_, **__: None)
     return pids_dir
 
 
@@ -178,7 +178,7 @@ class TestSessionWriteBack:
         import canair.profile as profile
         import canair.yaml_edit.pids as pids_edit
 
-        monkeypatch.setattr(profile, "require_writable_definitions", lambda: None)
+        monkeypatch.setattr(profile, "require_writable_definitions", lambda *_, **__: None)
         monkeypatch.setattr(
             pids_edit,
             "set_response_frames",

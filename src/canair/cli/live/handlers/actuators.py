@@ -39,6 +39,7 @@ async def handle_iocontrol(args, terminal: Terminal, pids_data, host, *, reconne
             args.iocontrol,
             verbose=args.verbose,
             poll=getattr(args, "poll", False),
+            profile=active(),
         )
 
 
@@ -76,6 +77,7 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
             pids_data,
             args.routines,
             verbose=args.verbose,
+            profile=active(),
         )
 
 
