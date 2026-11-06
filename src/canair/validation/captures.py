@@ -1,8 +1,10 @@
 """captures/ validation — payload files vs captures_schema.json + soft warnings."""
 
 import json
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from jsonschema import Draft202012Validator
 from jsonschema.protocols import Validator
@@ -248,7 +250,7 @@ def _capture_state_warnings(
     return warnings
 
 
-def _has_spans(session: dict) -> bool:
+def _has_spans(session: Mapping[str, Any]) -> bool:
     """Whether a session carries a non-empty ``state_spans`` timeline."""
     block = session.get("state_spans")
     return isinstance(block, dict) and bool(block.get("spans"))
