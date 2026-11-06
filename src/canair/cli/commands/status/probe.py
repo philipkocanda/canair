@@ -1,16 +1,6 @@
-"""The read-only probes of ``canair status``: a TCP connect and the device's own status."""
+"""The read-only probes of ``canair status``: the device's own status and config."""
 
 from __future__ import annotations
-
-import socket
-
-
-def tcp_open(host: str, port: int, timeout: float) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
 
 
 def load_device_config(host: str, timeout: float) -> dict | None:

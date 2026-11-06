@@ -172,37 +172,33 @@ class TestSelectReachable:
         assert chosen.host == "10.0.0.9"
 
     def test_primary_reachable(self, monkeypatch):
-        from canair.device.wican import mode as wican_mode
         from canair.transport.fallback import select_reachable_transport
 
-        monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: True)
+        monkeypatch.setattr("canair.core.tcp.tcp_open", lambda h, p, t: True)
         chosen = select_reachable_transport(
             self._cands(), connect_timeout=2.0, notice=lambda m: None
         )
         assert chosen.host == "10.0.0.9"
 
     def test_falls_back_to_second(self, monkeypatch):
-        from canair.device.wican import mode as wican_mode
         from canair.transport.fallback import select_reachable_transport
 
-        monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: h == "1.2.3.4")
+        monkeypatch.setattr("canair.core.tcp.tcp_open", lambda h, p, t: h == "1.2.3.4")
         msgs: list[str] = []
         chosen = select_reachable_transport(self._cands(), connect_timeout=2.0, notice=msgs.append)
         assert chosen.host == "1.2.3.4"
         assert any("falling back" in m for m in msgs)
 
     def test_all_down_returns_primary(self, monkeypatch):
-        from canair.device.wican import mode as wican_mode
         from canair.transport.fallback import select_reachable_transport
 
-        monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: False)
+        monkeypatch.setattr("canair.core.tcp.tcp_open", lambda h, p, t: False)
         chosen = select_reachable_transport(
             self._cands(), connect_timeout=2.0, notice=lambda m: None
         )
         assert chosen.host == "10.0.0.9"  # primary, so the normal error path fires
 
     def test_probes_port_80_for_wican(self, monkeypatch):
-        from canair.device.wican import mode as wican_mode
         from canair.transport.fallback import select_reachable_transport
 
         seen: list[tuple] = []
@@ -211,7 +207,7 @@ class TestSelectReachable:
             seen.append((h, p))
             return True
 
-        monkeypatch.setattr(wican_mode, "_tcp_open", probe)
+        monkeypatch.setattr("canair.core.tcp.tcp_open", probe)
         select_reachable_transport(self._cands(), connect_timeout=2.0, notice=lambda m: None)
         assert seen[0] == ("10.0.0.9", 80)
 
@@ -439,13 +435,12 @@ class TestStatusFallback:
     @pytest.fixture
     def patch_status(self, monkeypatch, env):
         from canair.cli.commands.status import gather as gather_mod
-        from canair.device.wican import mode as wican_mode
 
         # Two candidates (vpn primary, home fallback), fallback enabled.
         monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 2.0, None))
 
         def setup(*, reachable: set[str]):
-            monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: h in reachable)
+            monkeypatch.setattr("canair.core.tcp.tcp_open", lambda h, p, t: h in reachable)
             monkeypatch.setattr(gather_mod, "tcp_open", lambda h, p, t: h in reachable)
             monkeypatch.setattr(
                 gather_mod,
@@ -495,11 +490,10 @@ class TestStatusFallback:
     def test_probe_timeout_honours_a_raised_connect_timeout(self, monkeypatch, env):
         """A user who raised `transport.connect_timeout` must not be second-guessed."""
         from canair.cli.commands.status import gather as gather_mod
-        from canair.device.wican import mode as wican_mode
 
         monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 30.0, None))
         monkeypatch.setattr("canair.config.devices.fallback_settings", lambda: (True, 30.0, None))
-        monkeypatch.setattr(wican_mode, "_tcp_open", lambda h, p, t: True)
+        monkeypatch.setattr("canair.core.tcp.tcp_open", lambda h, p, t: True)
         seen: list[float] = []
 
         def probe(h, p, t):

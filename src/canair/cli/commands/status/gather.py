@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from .probe import device_status, load_device_config, tcp_open
+from canair.core.tcp import tcp_open
+
+from .probe import device_status, load_device_config
 
 # Exit codes.
 _OK = 0

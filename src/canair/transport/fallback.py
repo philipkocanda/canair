@@ -44,10 +44,10 @@ def _first_reachable(
     candidates: list[TransportConfig], connect_timeout: float
 ) -> TransportConfig | None:
     """First candidate (in order) that answers a liveness probe, else ``None``."""
-    from canair.device.wican.mode import _tcp_open
+    from canair.core.tcp import tcp_open
 
     for cand in candidates:
-        if cand.host and _tcp_open(cand.host, _probe_port(cand), connect_timeout):
+        if cand.host and tcp_open(cand.host, _probe_port(cand), connect_timeout):
             return cand
     return None
 
@@ -77,12 +77,12 @@ def select_reachable_transport(
     if len(candidates) <= 1:
         return candidates[0]
 
-    from canair.device.wican.mode import _tcp_open
+    from canair.core.tcp import tcp_open
 
     for i, cand in enumerate(candidates):
         if not cand.host:
             continue
-        if _tcp_open(cand.host, _probe_port(cand), connect_timeout):
+        if tcp_open(cand.host, _probe_port(cand), connect_timeout):
             if i > 0:
                 notice(f"falling back to {cand.describe()} (earlier device unreachable)")
             return cand

@@ -23,7 +23,7 @@ def T(host="1.2.3.4", port=35000, bitrate=500000):
 @pytest.fixture(autouse=True)
 def _http_port_open(monkeypatch):
     """The pre-flight's HTTP-port check answers, so the 4.x mode check runs."""
-    monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: True)
+    monkeypatch.setattr("canair.core.tcp.tcp_open", lambda host, port, timeout: True)
 
 
 MONITOR = MonitorOptions(query_steps=[{"type": "query", "ecu": "BMS", "pids": []}])

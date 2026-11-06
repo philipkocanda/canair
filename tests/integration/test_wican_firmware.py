@@ -641,7 +641,7 @@ class TestLiveSurfaces:
         from canair.live.monitor import raw_run as raw_monitor
 
         calls: list = []
-        monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: http_up)
+        monkeypatch.setattr("canair.core.tcp.tcp_open", lambda host, port, timeout: http_up)
         monkeypatch.setattr(
             wican_mode, "require_protocol", lambda *a, **k: calls.append("require_protocol")
         )
@@ -763,7 +763,7 @@ class TestLiveSurfaces:
 
         ran: list = []
         monkeypatch.setattr("canair.transport.resolve_transport", lambda args: self._cand())
-        monkeypatch.setattr(wican_mode, "_tcp_open", lambda host, port, timeout: http_up)
+        monkeypatch.setattr("canair.core.tcp.tcp_open", lambda host, port, timeout: http_up)
         monkeypatch.setattr(wican_mode, "require_protocol", lambda *a, **k: None)
         monkeypatch.setattr(wican_mode, "require_slcan_reachable", lambda *a, **k: None)
         monkeypatch.setattr(

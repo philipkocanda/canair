@@ -100,11 +100,11 @@ def _ports(open_ports=(), error=TimeoutError):
 
 class TestRequireWsReachable:
     def test_ok_when_port_open(self, monkeypatch):
-        monkeypatch.setattr(wican_mode, "_tcp_probe", _ports({80}))
+        monkeypatch.setattr(wican_mode, "tcp_probe", _ports({80}))
         require_ws_reachable("10.0.2.86")  # no raise
 
     def test_raises_when_port_closed(self, monkeypatch):
-        monkeypatch.setattr(wican_mode, "_tcp_probe", _ports(error=ConnectionRefusedError))
+        monkeypatch.setattr(wican_mode, "tcp_probe", _ports(error=ConnectionRefusedError))
         with pytest.raises(ModeError) as exc:
             require_ws_reachable("10.0.2.86")
         msg = str(exc.value)
@@ -118,14 +118,14 @@ class TestRequireWsReachable:
 
     def test_default_port_is_the_http_websocket_port(self, monkeypatch):
         probe = _ports({80})
-        monkeypatch.setattr(wican_mode, "_tcp_probe", probe)
+        monkeypatch.setattr(wican_mode, "tcp_probe", probe)
         require_ws_reachable("10.0.2.86")
         assert probe.seen == [80]
 
     def test_a_dead_port_is_probed_once(self, monkeypatch):
         """It used to connect twice — once to test, once for the reason — doubling the wait."""
         probe = _ports()
-        monkeypatch.setattr(wican_mode, "_tcp_probe", probe)
+        monkeypatch.setattr(wican_mode, "tcp_probe", probe)
         with pytest.raises(ModeError):
             require_ws_reachable("10.0.2.86")
         assert probe.seen == [80]
@@ -133,13 +133,13 @@ class TestRequireWsReachable:
 
 class TestRequireSlcanReachable:
     def test_ok_when_port_open(self, monkeypatch):
-        monkeypatch.setattr(wican_mode, "_tcp_probe", _ports({35000}))
+        monkeypatch.setattr(wican_mode, "tcp_probe", _ports({35000}))
         require_slcan_reachable("10.0.2.86", 35000)  # no raise
 
     def test_raises_when_slcan_closed_but_device_online(self, monkeypatch):
         # SLCAN port (35000) closed, but the HTTP config API (80) responds → the
         # device is online and the SLCAN socket itself is wedged (reboot hint).
-        monkeypatch.setattr(wican_mode, "_tcp_probe", _ports({80}))
+        monkeypatch.setattr(wican_mode, "tcp_probe", _ports({80}))
         with pytest.raises(ModeError) as exc:
             require_slcan_reachable("10.0.2.86", 35000)
         msg = str(exc.value)
@@ -153,7 +153,7 @@ class TestRequireSlcanReachable:
 
     def test_raises_when_device_offline(self, monkeypatch):
         # Neither port responds → the device looks offline; no false "it's online".
-        monkeypatch.setattr(wican_mode, "_tcp_probe", _ports())
+        monkeypatch.setattr(wican_mode, "tcp_probe", _ports())
         with pytest.raises(ModeError) as exc:
             require_slcan_reachable("10.0.2.86", 35000)
         msg = str(exc.value)
@@ -162,20 +162,20 @@ class TestRequireSlcanReachable:
 
     def test_probes_the_given_slcan_port(self, monkeypatch):
         probe = _ports({35000})
-        monkeypatch.setattr(wican_mode, "_tcp_probe", probe)
+        monkeypatch.setattr(wican_mode, "tcp_probe", probe)
         require_slcan_reachable("10.0.2.86", 35000)
         assert probe.seen == [35000]
 
     def test_a_dead_port_is_probed_once_plus_the_http_check(self, monkeypatch):
         probe = _ports()
-        monkeypatch.setattr(wican_mode, "_tcp_probe", probe)
+        monkeypatch.setattr(wican_mode, "tcp_probe", probe)
         with pytest.raises(ModeError):
             require_slcan_reachable("10.0.2.86", 3333)
         assert probe.seen == [3333, 80]
 
     def test_a_known_http_state_is_not_probed_again(self, monkeypatch):
         probe = _ports()
-        monkeypatch.setattr(wican_mode, "_tcp_probe", probe)
+        monkeypatch.setattr(wican_mode, "tcp_probe", probe)
         with pytest.raises(ModeError) as exc:
             require_slcan_reachable("10.0.2.86", 3333, http_ok=False)
         assert probe.seen == [3333]
@@ -184,7 +184,7 @@ class TestRequireSlcanReachable:
     def test_v6_hints_name_its_settings_not_the_4x_mode(self, monkeypatch):
         from canair.device.wican.firmware import FirmwareInfo
 
-        monkeypatch.setattr(wican_mode, "_tcp_probe", _ports({80}))
+        monkeypatch.setattr(wican_mode, "tcp_probe", _ports({80}))
         with pytest.raises(ModeError) as exc:
             require_slcan_reachable("10.0.2.86", 3333, firmware=FirmwareInfo("v6"))
         msg = str(exc.value)

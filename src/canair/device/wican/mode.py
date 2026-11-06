@@ -14,9 +14,9 @@ Mode changes go through the HTTP config API:
 
 from __future__ import annotations
 
-import socket
 import time
 
+from canair.core.tcp import tcp_open, tcp_probe
 from canair.device.wican.api import get_config, resolve_wican_url, store_config
 from canair.device.wican.firmware import FirmwareInfo
 
@@ -68,25 +68,6 @@ def require_protocol(
         raise ModeError(msg)
 
 
-def _tcp_probe(host: str, port: int, timeout: float) -> OSError | None:
-    """Try to open ``host:port``; return the ``OSError`` on failure, ``None`` on success.
-
-    Callers that want the *reason* a connection failed (to show the user what
-    actually happened — timed out vs refused vs no route vs bad name) inspect the
-    returned exception; :func:`_tcp_open` is the bool-only convenience wrapper.
-    """
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return None
-    except OSError as e:
-        return e
-
-
-def _tcp_open(host: str, port: int, timeout: float) -> bool:
-    """Return True if a TCP connection to ``host:port`` succeeds within ``timeout``."""
-    return _tcp_probe(host, port, timeout) is None
-
-
 def require_ws_reachable(host: str, *, port: int = 80, timeout: float = 4.0) -> None:
     """Raise :class:`ModeError` if the WiCAN's WebSocket/HTTP port doesn't respond.
 
@@ -103,7 +84,7 @@ def require_ws_reachable(host: str, *, port: int = 80, timeout: float = 4.0) -> 
     A closed HTTP port also hides the firmware generation, so the hints cover
     both 4.x and v6 (which has no ``/ws`` terminal at all).
     """
-    err = _tcp_probe(host, port, timeout)
+    err = tcp_probe(host, port, timeout)
     if err is None:
         return
     from canair.core.oserrors import connect_error_detail
@@ -152,7 +133,7 @@ def require_slcan_reachable(
     settings, since v6 has neither a protocol mode nor a ``/ws`` terminal.
     ``http_ok`` passes on an HTTP-port check the caller already made.
     """
-    err = _tcp_probe(host, port, timeout)
+    err = tcp_probe(host, port, timeout)
     if err is None:
         return
     from canair.core.oserrors import connect_error_detail
@@ -161,7 +142,7 @@ def require_slcan_reachable(
     detail = connect_error_detail(err)
     # Is the device otherwise reachable? A quick TCP check of its HTTP config port.
     if http_ok is None:
-        http_ok = _tcp_open(host, 80, timeout=2.0)
+        http_ok = tcp_probe(host, 80, 2.0) is None
     lines = [f"can't reach the WiCAN's SLCAN data port at {host}:{port} — {detail}."]
     if http_ok and v6:
         lines += [
@@ -205,7 +186,7 @@ def require_elm327_tcp_reachable(host: str, port: int, *, timeout: float = 5.0) 
     ``asyncio.open_connection`` hang out its connect timeout before failing with
     no guidance. A no-op when the port answers.
     """
-    err = _tcp_probe(host, port, timeout)
+    err = tcp_probe(host, port, timeout)
     if err is None:
         return
     from canair.core.oserrors import connect_error_detail
@@ -232,7 +213,7 @@ def wait_until_ready(host: str, port: int = 80, timeout: float = 45.0) -> bool:
     """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if _tcp_open(host, port, timeout=2.0):
+        if tcp_open(host, port, 2.0):
             return True
         time.sleep(1.0)
     return False

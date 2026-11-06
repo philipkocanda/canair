@@ -32,8 +32,7 @@
   "test_to_test_imports": [],
   "flat_tests": [],
   "cross_package_private_imports": [
-    "canair.cli.commands.captures.query._parse_query",
-    "canair.device.wican.mode._tcp_open"
+    "canair.cli.commands.captures.query._parse_query"
   ],
   "ui_standards": {
     "raw_escapes": {},

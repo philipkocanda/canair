@@ -19,6 +19,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from canair.core import tcp
 from canair.render import messages
 
 from ...transport.config import ConnectionOptions, TransportConfig
@@ -63,7 +64,6 @@ def slcan_preflight(
     )
     from canair.device.wican.mode import (
         ModeError,
-        _tcp_open,
         require_protocol,
         require_slcan_reachable,
     )
@@ -73,7 +73,7 @@ def slcan_preflight(
         raise ModeError("transport has no host configured.")
 
     _, connect_timeout, _ = fallback_settings()
-    http_up = transport.is_wican_http and _tcp_open(host, 80, connect_timeout)
+    http_up = transport.is_wican_http and tcp.tcp_open(host, 80, connect_timeout)
     firmware = detect(host, "slcan-tcp") if http_up else UNKNOWN
     v6 = firmware.generation == "v6"
 
