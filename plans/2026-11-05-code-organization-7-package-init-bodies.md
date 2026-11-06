@@ -1,6 +1,7 @@
 # Code organization, part 7: package `__init__.py` bodies
 
-Status: **IN PROGRESS** (2026-11-06; see "As built"). Part of
+Status: **IN PROGRESS** (2026-11-06; `config/`, `ecus/`, `states/`, `captures/`, `contribute/` and
+`tui/` are done, `profile/` waits for sub-plan 3 part B; see "As built"). Part of
 [`2026-11-05-code-organization.md`](2026-11-05-code-organization.md). Depends on sub-plan 3 for
 `profile/` only. The other packages can start after sub-plan 1.
 
@@ -144,3 +145,25 @@ pkg` aliases, `import canair.pkg` and the dotted strings).
   definitions. Seven modules import `captures.*` at the top (`captures/journal.py` and six under
   `live/`): 1099 to 1094. `tests/live/test_dtc_snapshot_mode.py` once wrote into the bundled
   profile's `captures/` when a patch missed a hoisted binding; the patch guard found it.
+- **`contribute/`** (done): `git.py`, `workspace.py`, `copy.py`, `checks.py`, `github.py`. 934 lines
+  to 27. The check passes for 57 definitions. The plan's `preflight.py` is `checks.py`: the step
+  and preflight types sit in `git.py` (the runner returns them), so a `preflight.py` holding the
+  types and the checks would be a cycle. The tests that faked `contribute._run` fake it in every
+  module that binds it (`_patch_run`), and the command package imports the names it uses instead
+  of the `C` alias, so the tests that faked a `C.` function patch the command module.
+- **`tui/`** (done): `picker.py` (`select_from_list`, `key_to_action`, `read_key_raw`,
+  `PICKER_FOOTER`). 131 lines to 15. `__all__` is dropped.
+
+Measured: the deferred-import ceiling fell from 1104 to 1094; `canair --help` takes the same
+time as before (a median of about 236 ms under load, in alternating runs).
+
+Left: `profile/` (656 lines), after sub-plan 3 part B moves `active()` to `cli/`. The other
+`__init__.py` files over 100 lines are `actions/`, `variants/`, `query/` (left by this plan) and
+the command packages `cli/commands/*/__init__.py`, `cli/__init__.py` and `yaml_edit/pids/__init__.py`.
+
+Method notes for the next package: a deferred `from canair.pkg import a, b` that needs two new
+modules becomes two statements, and the ceiling may not rise. Choose the groups by what callers
+import together (`codemods/p7/count_splits.py` counts the splits for a spec before the move), and
+import at the top in a module whose package already loads at `--help`
+(`python -X importtime -m canair --help` lists what loads). A patch string has to name the module
+that looks the name up, and `codemods/p7/patch_guard.py` finds the ones that miss.
