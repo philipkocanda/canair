@@ -12,7 +12,7 @@
 states:
   - name: CHARGING
     description: HV battery actively charging (implies plugged).
-    # when: "BMS.BATTERY_CURRENT < -1"
+    # when: "BMU.BATTERY_CURRENT < -1"
   - name: READY
     description: HV active, driveable.
     # when: "VCU.EV_READY == 1"
