@@ -28,6 +28,7 @@ import asyncio
 import sys
 from typing import NamedTuple
 
+from canair.profile import Profile
 from canair.render import messages
 from canair.render.paint import Painter
 from canair.safety.blocklist import SessionPolicy
@@ -99,11 +100,11 @@ async def probe_session(terminal: Terminal, mode: int) -> UdsResponse:
     return await terminal.send_uds(req, timeout=3.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL)
 
 
-def _write_hit(ecu_name: str, hits: list[SessionHit]) -> None:
+def _write_hit(ecu_name: str, hits: list[SessionHit], *, profile: Profile) -> None:
     from canair.yaml_edit.pids import append_sessions_block
 
     try:
-        append_sessions_block(ecu_name, hits)
+        append_sessions_block(ecu_name, hits, profile=profile)
     except Exception as exc:  # pragma: no cover - defensive I/O guard
         messages.error(f"[{ecu_name}] writing YAML failed: {exc}")
 
@@ -128,6 +129,8 @@ async def scan_ecu_sessions(
     throttle_ms: int = 200,
     verbose: bool = False,
     write_yaml: bool = True,
+    *,
+    profile: Profile,
 ) -> list[SessionHit]:
     """Probe each session ``mode`` on one ECU and return the hits.
 
@@ -185,7 +188,7 @@ async def scan_ecu_sessions(
             await asyncio.sleep(throttle_ms / 1000.0)
 
     if write_yaml and hits:
-        _write_hit(ecu_name, hits)
+        _write_hit(ecu_name, hits, profile=profile)
 
     supported = sum(1 for h in hits if h.supported)
     print(f"  [{ecu_name}] done — {supported}/{len(hits)} session type(s) supported")
@@ -200,6 +203,8 @@ async def mode_sessions_scan(
     throttle_ms: int = 200,
     verbose: bool = False,
     write_yaml: bool = True,
+    *,
+    profile: Profile,
 ) -> dict[str, list[SessionHit]]:
     """Probe the supported diagnostic session types on one or more ECUs.
 
@@ -252,6 +257,7 @@ async def mode_sessions_scan(
             throttle_ms=throttle_ms,
             verbose=verbose,
             write_yaml=write_yaml,
+            profile=profile,
         )
 
     print("\n  --- Diagnostic Session Type Scan Summary ---")

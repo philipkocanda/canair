@@ -24,7 +24,7 @@ from canair.device.lock_watchdog import LockWatchdog
 from canair.ecus.pids import load_pids
 from canair.ecus.registry import load_ecus
 from canair.live.session import SessionOptions, run_session_guarded
-from canair.profile import active
+from canair.profile import active, replace_active
 from canair.render import messages
 from canair.transport.config import ConnectionOptions
 from canair.transport.ecu_log import init_logging
@@ -67,6 +67,7 @@ def session_options(args: argparse.Namespace) -> SessionOptions:
         learn_frames=not getattr(args, "no_learn_frames", False),
         saving=saving(args),
         steps=tuple(steps) if steps else None,
+        adopt_profile=replace_active,
     )
 
 

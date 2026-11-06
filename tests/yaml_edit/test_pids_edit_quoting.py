@@ -17,6 +17,7 @@ import pytest
 import yaml
 
 from canair.core.yaml_rt import round_trip_yaml
+from canair.profile import active
 from canair.yaml_edit import text as _text
 from canair.yaml_edit.pids import (
     PidsEditError,
@@ -55,21 +56,27 @@ class TestScannerKeys:
     @pytest.mark.parametrize("rid", [0x0203, 0x0700, 0x1E00])
     def test_routine_keys_read_back_as_strings(self, tmp_path, rid):
         d = _write(tmp_path, BASE)
-        append_routines_block("ECU", [_hit(rid=rid, response_hex="7101")], pids_dir=d)
+        append_routines_block(
+            "ECU", [_hit(rid=rid, response_hex="7101")], pids_dir=d, profile=active()
+        )
         for ecu in _read_both(d):
             assert [str(k) for k in ecu["routines"]] == [f"{rid:04X}"]
             assert all(isinstance(k, str) for k in ecu["routines"])
 
     def test_an_unambiguous_key_stays_bare(self, tmp_path):
         d = _write(tmp_path, BASE)
-        append_routines_block("ECU", [_hit(rid=0xB0A1)], pids_dir=d)
+        append_routines_block("ECU", [_hit(rid=0xB0A1)], pids_dir=d, profile=active())
         assert "\n    B0A1:\n" in (d / "test.yaml").read_text()
 
     def test_a_quoted_rid_can_be_edited_and_rescanned(self, tmp_path):
         d = _write(tmp_path, BASE)
-        append_routines_block("ECU", [_hit(rid=0x0203), _hit(rid=0x0300)], pids_dir=d)
-        update_routines_field("ECU", "0203", "notes", "hand note", pids_dir=d)
-        append_routines_block("ECU", [_hit(rid=0x0300, response_hex="7103")], pids_dir=d)
+        append_routines_block(
+            "ECU", [_hit(rid=0x0203), _hit(rid=0x0300)], pids_dir=d, profile=active()
+        )
+        update_routines_field("ECU", "0203", "notes", "hand note", pids_dir=d, profile=active())
+        append_routines_block(
+            "ECU", [_hit(rid=0x0300, response_hex="7103")], pids_dir=d, profile=active()
+        )
         py, _ = _read_both(d)
         assert py["routines"]["0203"]["notes"] == "hand note"  # survived the merge
         assert set(py["routines"]) == {"0203", "0300"}
@@ -85,7 +92,7 @@ class TestScannerKeys:
                   notes: "kept"
             """,
         )
-        append_iocontrol_discoveries_block("ECU", [_hit(did=0x0800)], pids_dir=d)
+        append_iocontrol_discoveries_block("ECU", [_hit(did=0x0800)], pids_dir=d, profile=active())
         py, _ = _read_both(d)
         assert set(py["iocontrol_discoveries"]) == {"0700", "0800"}
         assert py["iocontrol_discoveries"]["0700"]["notes"] == "kept"
@@ -110,11 +117,11 @@ class TestPromoteDiscoveryKeys:
     def test_refuses_a_quoted_curated_duplicate(self, tmp_path):
         d = _write(tmp_path, self.DISC)
         with pytest.raises(PidsEditError, match="already exists"):
-            promote_discovery("ECU", "0700", "Again", pids_dir=d)
+            promote_discovery("ECU", "0700", "Again", pids_dir=d, profile=active())
 
     def test_promoted_key_reads_back_as_a_string(self, tmp_path):
         d = _write(tmp_path, self.DISC)
-        promote_discovery("ECU", "1E00", "Lamp", pids_dir=d)
+        promote_discovery("ECU", "1E00", "Lamp", pids_dir=d, profile=active())
         for ecu in _read_both(d):
             assert [str(k) for k in ecu["iocontrol"]] == ["0700", "1E00"]
             assert all(isinstance(k, str) for k in ecu["iocontrol"])
@@ -122,7 +129,7 @@ class TestPromoteDiscoveryKeys:
 
     def test_discoveries_before_iocontrol_keep_offsets_right(self, tmp_path):
         d = _write(tmp_path, self.DISC)
-        promote_discovery("ECU", "1E00", "Lamp", pids_dir=d)
+        promote_discovery("ECU", "1E00", "Lamp", pids_dir=d, profile=active())
         text = (d / "test.yaml").read_text()
         assert text.index('    "1E00":\n      label: Lamp') > text.index("  iocontrol:")
 
@@ -130,7 +137,9 @@ class TestPromoteDiscoveryKeys:
 class TestResearchTargetQuoting:
     def test_exponent_shaped_target_reads_back_as_a_string(self, tmp_path):
         d = _write(tmp_path, BASE)
-        add_research_entry("ECU", type="decode", target="220E01", status="open", pids_dir=d)
+        add_research_entry(
+            "ECU", type="decode", target="220E01", status="open", pids_dir=d, profile=active()
+        )
         for ecu in _read_both(d):
             assert ecu["research"][0]["target"] == "220E01"
             assert isinstance(ecu["research"][0]["target"], str)

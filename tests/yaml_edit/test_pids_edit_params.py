@@ -5,6 +5,7 @@ import textwrap
 import pytest
 import yaml
 
+from canair.profile import active
 from canair.yaml_edit.pids import (
     PidsEditError,
     add_pid,
@@ -76,6 +77,7 @@ class TestUpsertParameterNew:
             verified=False,
             source="test",
             pids_dir=pids_dir,
+            profile=active(),
         )
         params = _params(pids_dir, "2101")
         assert "EXISTING" in params  # preserved
@@ -86,12 +88,14 @@ class TestUpsertParameterNew:
         assert "Header comment that must survive" in (pids_dir / "test.yaml").read_text()
 
     def test_convert_inline_empty_map(self, pids_dir):
-        upsert_parameter("TESTECU", "2102", "FIRST", "B9", unit="V", pids_dir=pids_dir)
+        upsert_parameter(
+            "TESTECU", "2102", "FIRST", "B9", unit="V", pids_dir=pids_dir, profile=active()
+        )
         params = _params(pids_dir, "2102")
         assert params == {"FIRST": {"expression": "B9", "unit": "V"}}
 
     def test_add_when_no_parameters_key(self, pids_dir):
-        upsert_parameter("TESTECU", "2103", "X", "B4", pids_dir=pids_dir)
+        upsert_parameter("TESTECU", "2103", "X", "B4", pids_dir=pids_dir, profile=active())
         assert _params(pids_dir, "2103")["X"]["expression"] == "B4"
         # sibling field preserved
         ecu = _load(pids_dir)["TESTECU"]
@@ -108,6 +112,7 @@ class TestUpsertParameterNew:
             min="0",
             max="500",
             pids_dir=pids_dir,
+            profile=active(),
         )
         params = _params(pids_dir, "22C00B")
         assert params["TPMS"]["expression"] == "B7"
@@ -115,13 +120,21 @@ class TestUpsertParameterNew:
         assert params["TPMS"]["min"] == "0" and params["TPMS"]["max"] == "500"
 
     def test_expression_with_brackets_is_quoted(self, pids_dir):
-        upsert_parameter("TESTECU", "2101", "RANGED", "[S4:S5]", pids_dir=pids_dir)
+        upsert_parameter(
+            "TESTECU", "2101", "RANGED", "[S4:S5]", pids_dir=pids_dir, profile=active()
+        )
         raw = (pids_dir / "test.yaml").read_text()
         assert 'expression: "[S4:S5]"' in raw
 
     def test_notes_render_as_block_scalar(self, pids_dir):
         upsert_parameter(
-            "TESTECU", "2101", "WITHNOTE", "B3", notes="line one\nline two", pids_dir=pids_dir
+            "TESTECU",
+            "2101",
+            "WITHNOTE",
+            "B3",
+            notes="line one\nline two",
+            pids_dir=pids_dir,
+            profile=active(),
         )
         assert _params(pids_dir, "2101")["WITHNOTE"]["notes"].strip().startswith("line one")
 
@@ -149,7 +162,9 @@ class TestUpsertCreatesPidsSection:
                 description: Cluster
             """,
         )
-        upsert_parameter("NEWECU", "B002", "ODOMETER", "B6*65536+B7", unit="km", pids_dir=d)
+        upsert_parameter(
+            "NEWECU", "B002", "ODOMETER", "B6*65536+B7", unit="km", pids_dir=d, profile=active()
+        )
         ecu = self._ecu(d)
         assert ecu["pids"]["B002"]["status"] == "active"
         assert ecu["pids"]["B002"]["parameters"]["ODOMETER"]["expression"] == "B6*65536+B7"
@@ -165,7 +180,7 @@ class TestUpsertCreatesPidsSection:
               pids:
             """,
         )
-        upsert_parameter("NEWECU", "B002", "ODO", "B6", unit="km", pids_dir=d)
+        upsert_parameter("NEWECU", "B002", "ODO", "B6", unit="km", pids_dir=d, profile=active())
         assert self._ecu(d)["pids"]["B002"]["parameters"]["ODO"]["expression"] == "B6"
 
     def test_inline_empty_map_pids(self, tmp_path):
@@ -177,7 +192,7 @@ class TestUpsertCreatesPidsSection:
               pids: {}
             """,
         )
-        upsert_parameter("NEWECU", "B002", "ODO", "B6", unit="km", pids_dir=d)
+        upsert_parameter("NEWECU", "B002", "ODO", "B6", unit="km", pids_dir=d, profile=active())
         assert self._ecu(d)["pids"]["B002"]["parameters"]["ODO"]["expression"] == "B6"
 
     def test_result_round_trips_through_loader(self, tmp_path):
@@ -190,7 +205,7 @@ class TestUpsertCreatesPidsSection:
                 description: Cluster
             """,
         )
-        upsert_parameter("NEWECU", "B002", "ODO", "B6", unit="km", pids_dir=d)
+        upsert_parameter("NEWECU", "B002", "ODO", "B6", unit="km", pids_dir=d, profile=active())
         from canair.ecus.pids import build_ecu_index, load_pids_dir
 
         idx = build_ecu_index(load_pids_dir(d))
@@ -209,6 +224,7 @@ class TestAddPid:
             period=0,
             notes="discovery placeholder",
             pids_dir=pids_dir,
+            profile=active(),
         )
         ecu = _load(pids_dir)["TESTECU"]
         block = next(v for k, v in ecu["pids"].items() if str(k).upper() == "21F2")
@@ -224,22 +240,22 @@ class TestAddPid:
         assert "# Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
 
     def test_default_status_is_draft(self, pids_dir):
-        add_pid("TESTECU", "21FF", pids_dir=pids_dir)
+        add_pid("TESTECU", "21FF", pids_dir=pids_dir, profile=active())
         ecu = _load(pids_dir)["TESTECU"]
         block = next(v for k, v in ecu["pids"].items() if str(k).upper() == "21FF")
         assert block["status"] == "draft"
 
     def test_rejects_existing_pid(self, pids_dir):
         with pytest.raises(PidsEditError, match="already exists"):
-            add_pid("TESTECU", "2101", pids_dir=pids_dir)
+            add_pid("TESTECU", "2101", pids_dir=pids_dir, profile=active())
 
     def test_rejects_bad_status(self, pids_dir):
         with pytest.raises(PidsEditError, match="status must be one of"):
-            add_pid("TESTECU", "21F2", status="bogus", pids_dir=pids_dir)
+            add_pid("TESTECU", "21F2", status="bogus", pids_dir=pids_dir, profile=active())
 
     def test_rejects_non_hex_pid(self, pids_dir):
         with pytest.raises(PidsEditError, match="invalid PID"):
-            add_pid("TESTECU", "NOTHEX", pids_dir=pids_dir)
+            add_pid("TESTECU", "NOTHEX", pids_dir=pids_dir, profile=active())
 
     def test_scaffolds_missing_pids_section(self, tmp_path):
         (tmp_path / "_meta.yaml").write_text('car_model: "Test"\ninit: "ATSP6;"\n')
@@ -254,7 +270,7 @@ class TestAddPid:
                 """
             )
         )
-        add_pid("NEWECU", "21F2", status="draft", pids_dir=tmp_path)
+        add_pid("NEWECU", "21F2", status="draft", pids_dir=tmp_path, profile=active())
         ecu = yaml.safe_load((tmp_path / "e.yaml").read_text())["NEWECU"]
         assert ecu["pids"]["21F2"]["status"] == "draft"
         assert ecu["identity"]["description"] == "Climate"  # sibling preserved
@@ -262,7 +278,7 @@ class TestAddPid:
 
     def test_result_round_trips_and_is_swept(self, pids_dir):
         # A draft PID must be indexed by the loader (draft = swept/queryable).
-        add_pid("TESTECU", "21F2", status="draft", pids_dir=pids_dir)
+        add_pid("TESTECU", "21F2", status="draft", pids_dir=pids_dir, profile=active())
         from canair.ecus.pids import build_ecu_index, load_pids_dir
 
         idx = build_ecu_index(load_pids_dir(pids_dir))
@@ -271,7 +287,7 @@ class TestAddPid:
 
 class TestUpsertParameterUpdate:
     def test_update_single_field_preserves_others(self, pids_dir):
-        upsert_parameter("TESTECU", "2101", "EXISTING", "B5", pids_dir=pids_dir)
+        upsert_parameter("TESTECU", "2101", "EXISTING", "B5", pids_dir=pids_dir, profile=active())
         p = _params(pids_dir, "2101")["EXISTING"]
         assert p["expression"] == "B5"  # changed
         assert p["unit"] == "%"  # preserved
@@ -279,7 +295,9 @@ class TestUpsertParameterUpdate:
         assert "original note" in p["notes"]  # preserved
 
     def test_update_flips_verified(self, pids_dir):
-        upsert_parameter("TESTECU", "2101", "EXISTING", "B3", verified=False, pids_dir=pids_dir)
+        upsert_parameter(
+            "TESTECU", "2101", "EXISTING", "B3", verified=False, pids_dir=pids_dir, profile=active()
+        )
         assert _params(pids_dir, "2101")["EXISTING"]["verified"] is False
 
 
@@ -287,14 +305,18 @@ class TestSetParamField:
     def test_flips_verified(self, pids_dir):
         from canair.yaml_edit.pids import set_param_field
 
-        set_param_field("TESTECU", "2101", "EXISTING", "verified", False, pids_dir=pids_dir)
+        set_param_field(
+            "TESTECU", "2101", "EXISTING", "verified", False, pids_dir=pids_dir, profile=active()
+        )
         assert _params(pids_dir, "2101")["EXISTING"]["verified"] is False
 
     def test_appends_ship_when_absent(self, pids_dir):
         from canair.yaml_edit.pids import set_param_field
 
         # EXISTING has no `ship:` — the setter should add it.
-        set_param_field("TESTECU", "2101", "EXISTING", "ship", False, pids_dir=pids_dir)
+        set_param_field(
+            "TESTECU", "2101", "EXISTING", "ship", False, pids_dir=pids_dir, profile=active()
+        )
         assert _params(pids_dir, "2101")["EXISTING"]["ship"] is False
 
     def test_preserves_expression_quoting(self, pids_dir):
@@ -302,7 +324,9 @@ class TestSetParamField:
 
         before = (pids_dir / "test.yaml").read_text()
         assert 'expression: "B3"' in before  # hand-quoted on disk
-        set_param_field("TESTECU", "2101", "EXISTING", "verified", False, pids_dir=pids_dir)
+        set_param_field(
+            "TESTECU", "2101", "EXISTING", "verified", False, pids_dir=pids_dir, profile=active()
+        )
         after = (pids_dir / "test.yaml").read_text()
         # The expression line — and its (unnecessary) quotes — must be untouched.
         assert 'expression: "B3"' in after
@@ -311,30 +335,44 @@ class TestSetParamField:
         from canair.yaml_edit.pids import set_param_field
 
         with pytest.raises(PidsEditError):
-            set_param_field("TESTECU", "2101", "EXISTING", "expression", True, pids_dir=pids_dir)
+            set_param_field(
+                "TESTECU",
+                "2101",
+                "EXISTING",
+                "expression",
+                True,
+                pids_dir=pids_dir,
+                profile=active(),
+            )
 
     def test_missing_param_raises(self, pids_dir):
         from canair.yaml_edit.pids import set_param_field
 
         with pytest.raises(PidsEditError):
-            set_param_field("TESTECU", "2101", "NOPE", "verified", True, pids_dir=pids_dir)
+            set_param_field(
+                "TESTECU", "2101", "NOPE", "verified", True, pids_dir=pids_dir, profile=active()
+            )
 
 
 class TestUpsertValidation:
     def test_bad_name_raises(self, pids_dir):
         with pytest.raises(PidsEditError):
-            upsert_parameter("TESTECU", "2101", "1BAD NAME", "B3", pids_dir=pids_dir)
+            upsert_parameter(
+                "TESTECU", "2101", "1BAD NAME", "B3", pids_dir=pids_dir, profile=active()
+            )
 
     def test_empty_expression_raises(self, pids_dir):
         with pytest.raises(PidsEditError):
-            upsert_parameter("TESTECU", "2101", "P", "  ", pids_dir=pids_dir)
+            upsert_parameter("TESTECU", "2101", "P", "  ", pids_dir=pids_dir, profile=active())
 
     def test_unknown_ecu_raises(self, pids_dir):
         with pytest.raises(PidsEditError):
-            upsert_parameter("NOPE", "2101", "P", "B3", pids_dir=pids_dir)
+            upsert_parameter("NOPE", "2101", "P", "B3", pids_dir=pids_dir, profile=active())
 
     def test_result_still_valid_yaml_and_loads(self, pids_dir):
-        upsert_parameter("TESTECU", "2101", "NEWP", "B6", unit="A", pids_dir=pids_dir)
+        upsert_parameter(
+            "TESTECU", "2101", "NEWP", "B6", unit="A", pids_dir=pids_dir, profile=active()
+        )
         # Whole file must still round-trip through the real loader.
         from canair.ecus.pids import build_ecu_index, load_pids_dir
 
@@ -353,6 +391,7 @@ class TestResearch:
             vehicle_states=["acc"],
             notes="cross-ref",
             pids_dir=pids_dir,
+            profile=active(),
         )
         research = _load(pids_dir)["TESTECU"]["research"]
         assert len(research) == 2
@@ -363,14 +402,24 @@ class TestResearch:
         # Remove research section first by rewriting a section-less ECU.
         (pids_dir / "test2.yaml").write_text("OTHER:\n  tx_id: 0x700\n  pids: {}\n")
         add_research_entry(
-            "OTHER", type="verify", target="B002", status="pending", pids_dir=pids_dir
+            "OTHER",
+            type="verify",
+            target="B002",
+            status="pending",
+            pids_dir=pids_dir,
+            profile=active(),
         )
         assert _load2(pids_dir)["OTHER"]["research"][0]["target"] == "B002"
 
     def test_add_entry_requires_core_fields(self, pids_dir):
         with pytest.raises(PidsEditError):
             add_research_entry(
-                "TESTECU", type="scan", target="", status="pending", pids_dir=pids_dir
+                "TESTECU",
+                type="scan",
+                target="",
+                status="pending",
+                pids_dir=pids_dir,
+                profile=active(),
             )
 
     def test_numeric_target_stays_string(self, pids_dir):
@@ -383,6 +432,7 @@ class TestResearch:
             target="220101",
             status="captured",
             pids_dir=pids_dir,
+            profile=active(),
         )
         raw = (pids_dir / "test.yaml").read_text()
         assert 'target: "220101"' in raw
@@ -400,6 +450,7 @@ class TestResearch:
             status="pending",
             notes=note.strip(),
             pids_dir=pids_dir,
+            profile=active(),
         )
         raw = (pids_dir / "test.yaml").read_text()
         assert "notes: >-" in raw
@@ -416,19 +467,20 @@ class TestResearch:
             status="captured",
             capture_protocol="Hold wheel at centre, full-lock each way.",
             pids_dir=pids_dir,
+            profile=active(),
         )
         research = _load(pids_dir)["TESTECU"]["research"]
         new = next(e for e in research if e["target"] == "22C101")
         assert "full-lock" in new["capture_protocol"]
 
     def test_set_status(self, pids_dir):
-        set_research_status("TESTECU", "2102", "done", pids_dir=pids_dir)
+        set_research_status("TESTECU", "2102", "done", pids_dir=pids_dir, profile=active())
         research = _load(pids_dir)["TESTECU"]["research"]
         assert research[0]["status"] == "done"
 
     def test_set_status_not_found(self, pids_dir):
         with pytest.raises(PidsEditError):
-            set_research_status("TESTECU", "9999", "done", pids_dir=pids_dir)
+            set_research_status("TESTECU", "9999", "done", pids_dir=pids_dir, profile=active())
 
     def test_add_entry_auto_timestamps(self, pids_dir):
         import datetime
@@ -440,6 +492,7 @@ class TestResearch:
             target="22 F001-F010",
             status="pending",
             pids_dir=pids_dir,
+            profile=active(),
         )
         new = next(
             e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22 F001-F010"
@@ -456,6 +509,7 @@ class TestResearch:
             created="2020-01-01",
             updated="2020-02-02",
             pids_dir=pids_dir,
+            profile=active(),
         )
         new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22 G001")
         assert new["created"] == "2020-01-01"
@@ -472,8 +526,11 @@ class TestResearch:
             status="captured",
             updated="2020-01-01",
             pids_dir=pids_dir,
+            profile=active(),
         )
-        set_research_status("TESTECU", "22H001", "done", type="decode", pids_dir=pids_dir)
+        set_research_status(
+            "TESTECU", "22H001", "done", type="decode", pids_dir=pids_dir, profile=active()
+        )
         new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22H001")
         assert new["status"] == "done"
         assert new["updated"] == datetime.date.today().isoformat()
@@ -482,7 +539,7 @@ class TestResearch:
         # The pre-seeded fixture entry has no `updated` field; set-status must add it.
         import datetime
 
-        set_research_status("TESTECU", "2102", "done", pids_dir=pids_dir)
+        set_research_status("TESTECU", "2102", "done", pids_dir=pids_dir, profile=active())
         entry = _load(pids_dir)["TESTECU"]["research"][0]
         assert entry["status"] == "done"
         assert entry["updated"] == datetime.date.today().isoformat()
@@ -492,33 +549,49 @@ class TestResearch:
         # PID as it's captured across multiple sessions -- type alone can't
         # disambiguate them (this was the reported blocker).
         add_research_entry(
-            "TESTECU", type="decode", target="2102", status="captured", pids_dir=pids_dir
+            "TESTECU",
+            type="decode",
+            target="2102",
+            status="captured",
+            pids_dir=pids_dir,
+            profile=active(),
         )
         with pytest.raises(PidsEditError, match="ambiguous"):
-            set_research_status("TESTECU", "2102", "done", type="decode", pids_dir=pids_dir)
+            set_research_status(
+                "TESTECU", "2102", "done", type="decode", pids_dir=pids_dir, profile=active()
+            )
 
-        set_research_status("TESTECU", "2102", "done", type="decode", index=1, pids_dir=pids_dir)
+        set_research_status(
+            "TESTECU", "2102", "done", type="decode", index=1, pids_dir=pids_dir, profile=active()
+        )
         research = [e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "2102"]
         assert research[0]["status"] == "captured"  # index 0 untouched
         assert research[1]["status"] == "done"  # index 1 picked
 
     def test_set_status_index_out_of_range(self, pids_dir):
         with pytest.raises(PidsEditError, match="out of range"):
-            set_research_status("TESTECU", "2102", "done", index=5, pids_dir=pids_dir)
+            set_research_status(
+                "TESTECU", "2102", "done", index=5, pids_dir=pids_dir, profile=active()
+            )
 
 
 class TestDeleteResearchEntry:
     def test_delete_removes_matching_item(self, pids_dir):
         add_research_entry(
-            "TESTECU", type="decode", target="22Z001", status="pending", pids_dir=pids_dir
+            "TESTECU",
+            type="decode",
+            target="22Z001",
+            status="pending",
+            pids_dir=pids_dir,
+            profile=active(),
         )
-        delete_research_entry("TESTECU", "22Z001", pids_dir=pids_dir)
+        delete_research_entry("TESTECU", "22Z001", pids_dir=pids_dir, profile=active())
         research = _load(pids_dir)["TESTECU"]["research"]
         assert all(e["target"] != "22Z001" for e in research)
 
     def test_delete_last_item_drops_whole_section(self, pids_dir):
         # The fixture's only research item is target "2102"/type decode.
-        delete_research_entry("TESTECU", "2102", type="decode", pids_dir=pids_dir)
+        delete_research_entry("TESTECU", "2102", type="decode", pids_dir=pids_dir, profile=active())
         assert _load(pids_dir)["TESTECU"].get("research") is None
 
     @pytest.mark.parametrize("victim", ["R1", "R2", "R3"])
@@ -534,7 +607,7 @@ class TestDeleteResearchEntry:
             + ("\n  iocontrol_scan_ranges: [F000-F0FF]\n" if followed else "")
         )
         (tmp_path / "x.yaml").write_text(text)
-        delete_research_entry("X", victim, pids_dir=tmp_path)
+        delete_research_entry("X", victim, pids_dir=tmp_path, profile=active())
         after = (tmp_path / "x.yaml").read_text()
         assert "\n\n\n" not in after and not after.endswith("\n\n")
         assert after.count("\n\n") == (2 if followed else 1)
@@ -547,20 +620,27 @@ class TestDeleteResearchEntry:
             "    - type: scan\n      target: R1\n      status: pending\n" + tail
         )
         (tmp_path / "x.yaml").write_text(text)
-        delete_research_entry("X", "R1", pids_dir=tmp_path)
+        delete_research_entry("X", "R1", pids_dir=tmp_path, profile=active())
         expected = "X:\n  tx_id: 0x700\n  pids:\n    '2101':\n      status: draft\n" + tail
         assert (tmp_path / "x.yaml").read_text() == expected
 
     def test_delete_not_found(self, pids_dir):
         with pytest.raises(PidsEditError):
-            delete_research_entry("TESTECU", "9999", pids_dir=pids_dir)
+            delete_research_entry("TESTECU", "9999", pids_dir=pids_dir, profile=active())
 
     def test_delete_ambiguous_without_index(self, pids_dir):
         add_research_entry(
-            "TESTECU", type="decode", target="2102", status="captured", pids_dir=pids_dir
+            "TESTECU",
+            type="decode",
+            target="2102",
+            status="captured",
+            pids_dir=pids_dir,
+            profile=active(),
         )
         with pytest.raises(PidsEditError, match="ambiguous"):
-            delete_research_entry("TESTECU", "2102", type="decode", pids_dir=pids_dir)
+            delete_research_entry(
+                "TESTECU", "2102", type="decode", pids_dir=pids_dir, profile=active()
+            )
 
     def test_delete_with_index_removes_correct_item(self, pids_dir):
         add_research_entry(
@@ -570,8 +650,11 @@ class TestDeleteResearchEntry:
             status="captured",
             notes="dup",
             pids_dir=pids_dir,
+            profile=active(),
         )
-        delete_research_entry("TESTECU", "2102", type="decode", index=0, pids_dir=pids_dir)
+        delete_research_entry(
+            "TESTECU", "2102", type="decode", index=0, pids_dir=pids_dir, profile=active()
+        )
         research = [e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "2102"]
         assert len(research) == 1
         assert research[0].get("notes") == "dup"
@@ -579,7 +662,7 @@ class TestDeleteResearchEntry:
 
 class TestSetResearchNotes:
     def test_set_new_notes(self, pids_dir):
-        set_research_notes("TESTECU", "2102", "new lead notes", pids_dir=pids_dir)
+        set_research_notes("TESTECU", "2102", "new lead notes", pids_dir=pids_dir, profile=active())
         entry = _load(pids_dir)["TESTECU"]["research"][0]
         assert entry["notes"] == "new lead notes"
 
@@ -591,8 +674,11 @@ class TestSetResearchNotes:
             status="pending",
             notes="stale note",
             pids_dir=pids_dir,
+            profile=active(),
         )
-        set_research_notes("TESTECU", "22Z002", "corrected note", pids_dir=pids_dir)
+        set_research_notes(
+            "TESTECU", "22Z002", "corrected note", pids_dir=pids_dir, profile=active()
+        )
         new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22Z002")
         assert new["notes"] == "corrected note"
 
@@ -604,22 +690,32 @@ class TestSetResearchNotes:
             status="pending",
             notes="to be cleared",
             pids_dir=pids_dir,
+            profile=active(),
         )
-        set_research_notes("TESTECU", "22Z003", None, pids_dir=pids_dir)
+        set_research_notes("TESTECU", "22Z003", None, pids_dir=pids_dir, profile=active())
         new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22Z003")
         assert new.get("notes") is None
 
     def test_clear_notes_when_absent_raises(self, pids_dir):
         with pytest.raises(PidsEditError):
-            set_research_notes("TESTECU", "2102", None, pids_dir=pids_dir)
+            set_research_notes("TESTECU", "2102", None, pids_dir=pids_dir, profile=active())
 
     def test_disambiguates_with_index(self, pids_dir):
         add_research_entry(
-            "TESTECU", type="decode", target="2102", status="captured", pids_dir=pids_dir
+            "TESTECU",
+            type="decode",
+            target="2102",
+            status="captured",
+            pids_dir=pids_dir,
+            profile=active(),
         )
         with pytest.raises(PidsEditError, match="ambiguous"):
-            set_research_notes("TESTECU", "2102", "text", type="decode", pids_dir=pids_dir)
-        set_research_notes("TESTECU", "2102", "text", type="decode", index=1, pids_dir=pids_dir)
+            set_research_notes(
+                "TESTECU", "2102", "text", type="decode", pids_dir=pids_dir, profile=active()
+            )
+        set_research_notes(
+            "TESTECU", "2102", "text", type="decode", index=1, pids_dir=pids_dir, profile=active()
+        )
         research = [e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "2102"]
         assert research[1]["notes"] == "text"
         assert research[0].get("notes") is None
@@ -627,7 +723,9 @@ class TestSetResearchNotes:
 
 class TestSetResearchResult:
     def test_set_new_result(self, pids_dir):
-        set_research_result("TESTECU", "2102", "confirmed at B3", pids_dir=pids_dir)
+        set_research_result(
+            "TESTECU", "2102", "confirmed at B3", pids_dir=pids_dir, profile=active()
+        )
         entry = _load(pids_dir)["TESTECU"]["research"][0]
         assert entry["result"] == "confirmed at B3"
 
@@ -639,8 +737,11 @@ class TestSetResearchResult:
             status="pending",
             result="stale result",
             pids_dir=pids_dir,
+            profile=active(),
         )
-        set_research_result("TESTECU", "22Z002", "corrected result", pids_dir=pids_dir)
+        set_research_result(
+            "TESTECU", "22Z002", "corrected result", pids_dir=pids_dir, profile=active()
+        )
         new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22Z002")
         assert new["result"] == "corrected result"
 
@@ -652,22 +753,32 @@ class TestSetResearchResult:
             status="pending",
             result="to be cleared",
             pids_dir=pids_dir,
+            profile=active(),
         )
-        set_research_result("TESTECU", "22Z003", None, pids_dir=pids_dir)
+        set_research_result("TESTECU", "22Z003", None, pids_dir=pids_dir, profile=active())
         new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22Z003")
         assert new.get("result") is None
 
     def test_clear_result_when_absent_raises(self, pids_dir):
         with pytest.raises(PidsEditError):
-            set_research_result("TESTECU", "2102", None, pids_dir=pids_dir)
+            set_research_result("TESTECU", "2102", None, pids_dir=pids_dir, profile=active())
 
     def test_disambiguates_with_index(self, pids_dir):
         add_research_entry(
-            "TESTECU", type="decode", target="2102", status="captured", pids_dir=pids_dir
+            "TESTECU",
+            type="decode",
+            target="2102",
+            status="captured",
+            pids_dir=pids_dir,
+            profile=active(),
         )
         with pytest.raises(PidsEditError, match="ambiguous"):
-            set_research_result("TESTECU", "2102", "text", type="decode", pids_dir=pids_dir)
-        set_research_result("TESTECU", "2102", "text", type="decode", index=1, pids_dir=pids_dir)
+            set_research_result(
+                "TESTECU", "2102", "text", type="decode", pids_dir=pids_dir, profile=active()
+            )
+        set_research_result(
+            "TESTECU", "2102", "text", type="decode", index=1, pids_dir=pids_dir, profile=active()
+        )
         research = [e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "2102"]
         assert research[1]["result"] == "text"
         assert research[0].get("result") is None
@@ -680,8 +791,9 @@ class TestSetResearchResult:
             status="pending",
             notes="existing note",
             pids_dir=pids_dir,
+            profile=active(),
         )
-        set_research_result("TESTECU", "22Z004", "the result", pids_dir=pids_dir)
+        set_research_result("TESTECU", "22Z004", "the result", pids_dir=pids_dir, profile=active())
         new = next(e for e in _load(pids_dir)["TESTECU"]["research"] if e["target"] == "22Z004")
         assert new["result"] == "the result"
         assert new["notes"] == "existing note"
@@ -702,30 +814,36 @@ class TestSetResearchText:
         return tmp_path
 
     def test_capture_protocol_goes_last_and_keeps_the_gap(self, tmp_path):
-        set_research_capture_protocol("X", "R1", "read it in READY", pids_dir=self._write(tmp_path))
+        set_research_capture_protocol(
+            "X", "R1", "read it in READY", pids_dir=self._write(tmp_path), profile=active()
+        )
         after = (tmp_path / "x.yaml").read_text()
         assert "        - one\n      capture_protocol: read it in READY\n\n    - type" in after
         assert yaml.safe_load(after)["X"]["research"][0]["capture_protocol"] == "read it in READY"
 
     def test_replace_and_clear_capture_protocol(self, tmp_path):
         d = self._write(tmp_path)
-        set_research_capture_protocol("X", "R2", "first", pids_dir=d)
-        set_research_capture_protocol("X", "R2", "second", pids_dir=d)
+        set_research_capture_protocol("X", "R2", "first", pids_dir=d, profile=active())
+        set_research_capture_protocol("X", "R2", "second", pids_dir=d, profile=active())
         assert (
             yaml.safe_load((d / "x.yaml").read_text())["X"]["research"][1]["capture_protocol"]
             == "second"
         )
-        set_research_capture_protocol("X", "R2", None, pids_dir=d)
+        set_research_capture_protocol("X", "R2", None, pids_dir=d, profile=active())
         assert (d / "x.yaml").read_text() == self.TEXT
 
     def test_notes_go_before_a_later_field(self, tmp_path):
-        set_research_text("X", "R1", "notes", "a note", pids_dir=self._write(tmp_path))
+        set_research_text(
+            "X", "R1", "notes", "a note", pids_dir=self._write(tmp_path), profile=active()
+        )
         after = (tmp_path / "x.yaml").read_text()
         assert "      notes: a note\n      what_to_test:" in after
 
     def test_other_fields_are_refused(self, tmp_path):
         with pytest.raises(PidsEditError, match="not one of"):
-            set_research_text("X", "R1", "status", "done", pids_dir=self._write(tmp_path))
+            set_research_text(
+                "X", "R1", "status", "done", pids_dir=self._write(tmp_path), profile=active()
+            )
 
 
 def _load2(pids_dir):
@@ -736,7 +854,9 @@ class TestRenameParameter:
     def test_rename_preserves_fields(self, pids_dir):
         from canair.yaml_edit.pids import rename_parameter
 
-        rename_parameter("TESTECU", "2101", "EXISTING", "RENAMED", pids_dir=pids_dir)
+        rename_parameter(
+            "TESTECU", "2101", "EXISTING", "RENAMED", pids_dir=pids_dir, profile=active()
+        )
         params = _load(pids_dir)["TESTECU"]["pids"][2101]["parameters"]
         assert "EXISTING" not in params
         assert params["RENAMED"]["expression"] == "B3"
@@ -746,27 +866,33 @@ class TestRenameParameter:
     def test_rename_preserves_header_comment(self, pids_dir):
         from canair.yaml_edit.pids import rename_parameter
 
-        rename_parameter("TESTECU", "2101", "EXISTING", "RENAMED", pids_dir=pids_dir)
+        rename_parameter(
+            "TESTECU", "2101", "EXISTING", "RENAMED", pids_dir=pids_dir, profile=active()
+        )
         assert "Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
 
     def test_rename_missing_raises(self, pids_dir):
         from canair.yaml_edit.pids import rename_parameter
 
         with pytest.raises(PidsEditError, match="not found"):
-            rename_parameter("TESTECU", "2101", "NOPE", "X", pids_dir=pids_dir)
+            rename_parameter("TESTECU", "2101", "NOPE", "X", pids_dir=pids_dir, profile=active())
 
     def test_rename_collision_raises(self, pids_dir):
         from canair.yaml_edit.pids import rename_parameter, upsert_parameter
 
-        upsert_parameter("TESTECU", "2101", "OTHER", "B4", pids_dir=pids_dir)
+        upsert_parameter("TESTECU", "2101", "OTHER", "B4", pids_dir=pids_dir, profile=active())
         with pytest.raises(PidsEditError, match="already exists"):
-            rename_parameter("TESTECU", "2101", "EXISTING", "OTHER", pids_dir=pids_dir)
+            rename_parameter(
+                "TESTECU", "2101", "EXISTING", "OTHER", pids_dir=pids_dir, profile=active()
+            )
 
     def test_rename_invalid_name_raises(self, pids_dir):
         from canair.yaml_edit.pids import rename_parameter
 
         with pytest.raises(PidsEditError, match="invalid parameter name"):
-            rename_parameter("TESTECU", "2101", "EXISTING", "bad name", pids_dir=pids_dir)
+            rename_parameter(
+                "TESTECU", "2101", "EXISTING", "bad name", pids_dir=pids_dir, profile=active()
+            )
 
 
 class TestDeleteParameter:
@@ -774,8 +900,8 @@ class TestDeleteParameter:
         from canair.yaml_edit.pids import delete_parameter
 
         # 2101 has KEEP + EXISTING so a delete leaves a non-empty parameters: map.
-        upsert_parameter("TESTECU", "2101", "KEEP", "B5", pids_dir=pids_dir)
-        delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir)
+        upsert_parameter("TESTECU", "2101", "KEEP", "B5", pids_dir=pids_dir, profile=active())
+        delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir, profile=active())
         params = _load(pids_dir)["TESTECU"]["pids"][2101]["parameters"] or {}
         assert "EXISTING" not in params
 
@@ -785,7 +911,7 @@ class TestDeleteParameter:
         # schema ("'parameters' must be a dict"). Leaves a valid identity-only PID.
         from canair.yaml_edit.pids import delete_parameter
 
-        delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir)
+        delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir, profile=active())
         block = _load(pids_dir)["TESTECU"]["pids"][2101]
         assert "parameters" not in block  # whole block gone, not left empty/None
         assert block["period"] == 5000  # other PID fields preserved
@@ -794,13 +920,13 @@ class TestDeleteParameter:
         from canair.yaml_edit.pids import delete_parameter
 
         with pytest.raises(PidsEditError, match="not found"):
-            delete_parameter("TESTECU", "2101", "NOPE", pids_dir=pids_dir)
+            delete_parameter("TESTECU", "2101", "NOPE", pids_dir=pids_dir, profile=active())
 
     def test_delete_preserves_other_params(self, pids_dir):
         from canair.yaml_edit.pids import delete_parameter, upsert_parameter
 
-        upsert_parameter("TESTECU", "2101", "KEEP", "B5", pids_dir=pids_dir)
-        delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir)
+        upsert_parameter("TESTECU", "2101", "KEEP", "B5", pids_dir=pids_dir, profile=active())
+        delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir, profile=active())
         params = _load(pids_dir)["TESTECU"]["pids"][2101]["parameters"]
         assert "KEEP" in params and "EXISTING" not in params
 
@@ -813,7 +939,7 @@ class TestDeleteParameter:
         text = (pids_dir / "test.yaml").read_text().replace("\n    2102:", "\n\n    2102:", 1)
         (pids_dir / "test.yaml").write_text(text)
         assert "\n\n    2102:" in text  # precondition
-        delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir)
+        delete_parameter("TESTECU", "2101", "EXISTING", pids_dir=pids_dir, profile=active())
         after = (pids_dir / "test.yaml").read_text()
         assert "\n\n    2102:" in after  # blank separator preserved
         assert yaml.safe_load(after)["TESTECU"]["pids"][2102] == {
@@ -826,7 +952,7 @@ class TestRenamePid:
     def test_rename_preserves_status_and_params(self, pids_dir):
         from canair.yaml_edit.pids import rename_pid
 
-        rename_pid("TESTECU", "2101", "22B002", pids_dir=pids_dir)
+        rename_pid("TESTECU", "2101", "22B002", pids_dir=pids_dir, profile=active())
         pids = _load(pids_dir)["TESTECU"]["pids"]
         keys = {str(k).upper() for k in pids}
         assert "22B002" in keys and "2101" not in keys
@@ -837,34 +963,34 @@ class TestRenamePid:
     def test_rename_preserves_header_comment(self, pids_dir):
         from canair.yaml_edit.pids import rename_pid
 
-        rename_pid("TESTECU", "2101", "22B002", pids_dir=pids_dir)
+        rename_pid("TESTECU", "2101", "22B002", pids_dir=pids_dir, profile=active())
         assert "Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
 
     def test_rename_missing_raises(self, pids_dir):
         from canair.yaml_edit.pids import rename_pid
 
         with pytest.raises(PidsEditError, match="not found"):
-            rename_pid("TESTECU", "9999", "22B002", pids_dir=pids_dir)
+            rename_pid("TESTECU", "9999", "22B002", pids_dir=pids_dir, profile=active())
 
     def test_rename_collision_raises(self, pids_dir):
         from canair.yaml_edit.pids import rename_pid
 
         with pytest.raises(PidsEditError, match="already exists"):
-            rename_pid("TESTECU", "2101", "2102", pids_dir=pids_dir)
+            rename_pid("TESTECU", "2101", "2102", pids_dir=pids_dir, profile=active())
 
     def test_rename_invalid_code_raises(self, pids_dir):
         from canair.yaml_edit.pids import rename_pid
 
         with pytest.raises(PidsEditError, match="invalid PID code"):
-            rename_pid("TESTECU", "2101", "ZZTOP", pids_dir=pids_dir)
+            rename_pid("TESTECU", "2101", "ZZTOP", pids_dir=pids_dir, profile=active())
 
     def test_rename_does_not_touch_substring_sibling(self, pids_dir):
         # Renaming B002 must not clobber a sibling 22B002 that contains it.
         from canair.yaml_edit.pids import rename_pid, upsert_parameter
 
-        upsert_parameter("TESTECU", "B002", "SHORT", "B1", pids_dir=pids_dir)
-        upsert_parameter("TESTECU", "22B002", "LONG", "B2", pids_dir=pids_dir)
-        rename_pid("TESTECU", "B002", "B003", pids_dir=pids_dir)
+        upsert_parameter("TESTECU", "B002", "SHORT", "B1", pids_dir=pids_dir, profile=active())
+        upsert_parameter("TESTECU", "22B002", "LONG", "B2", pids_dir=pids_dir, profile=active())
+        rename_pid("TESTECU", "B002", "B003", pids_dir=pids_dir, profile=active())
         keys = {str(k).upper() for k in _load(pids_dir)["TESTECU"]["pids"]}
         assert "B003" in keys and "B002" not in keys and "22B002" in keys
 
@@ -873,7 +999,7 @@ class TestDeletePid:
     def test_delete_removes_whole_pid(self, pids_dir):
         from canair.yaml_edit.pids import delete_pid
 
-        delete_pid("TESTECU", "2101", pids_dir=pids_dir)
+        delete_pid("TESTECU", "2101", pids_dir=pids_dir, profile=active())
         keys = {str(k).upper() for k in _load(pids_dir)["TESTECU"]["pids"]}
         assert "2101" not in keys
         assert "2102" in keys and "2103" in keys  # siblings preserved
@@ -882,12 +1008,12 @@ class TestDeletePid:
         from canair.yaml_edit.pids import delete_pid
 
         with pytest.raises(PidsEditError, match="not found"):
-            delete_pid("TESTECU", "9999", pids_dir=pids_dir)
+            delete_pid("TESTECU", "9999", pids_dir=pids_dir, profile=active())
 
     def test_delete_preserves_header_comment(self, pids_dir):
         from canair.yaml_edit.pids import delete_pid
 
-        delete_pid("TESTECU", "2102", pids_dir=pids_dir)
+        delete_pid("TESTECU", "2102", pids_dir=pids_dir, profile=active())
         assert "Header comment that must survive edits" in (pids_dir / "test.yaml").read_text()
 
     def test_delete_only_pid_drops_pids_section(self, tmp_path):
@@ -912,7 +1038,7 @@ class TestDeletePid:
                 """
             )
         )
-        delete_pid("SOLO", "22B002", pids_dir=tmp_path)
+        delete_pid("SOLO", "22B002", pids_dir=tmp_path, profile=active())
         doc = yaml.safe_load((tmp_path / "solo.yaml").read_text())["SOLO"]
         assert "pids" not in doc
         assert doc["identity"]["description"] == "Solo ECU"
@@ -944,7 +1070,7 @@ class TestRemovalLeavesNoGap:
                   status: active
             """,
         )
-        delete_pid("E", "220E01", pids_dir=tmp_path)
+        delete_pid("E", "220E01", pids_dir=tmp_path, profile=active())
         assert f.read_text() == "E:\n  tx_id: 0x7E0\n  pids:\n    220E2E:\n      status: active\n"
 
     def test_first_of_blank_separated_pids(self, tmp_path):
@@ -965,7 +1091,7 @@ class TestRemovalLeavesNoGap:
                   status: active
             """,
         )
-        delete_pid("E", "2101", pids_dir=tmp_path)
+        delete_pid("E", "2101", pids_dir=tmp_path, profile=active())
         assert f.read_text().startswith("E:\n  pids:\n    2102:\n")
 
     def test_middle_of_blank_separated_pids(self, tmp_path):
@@ -986,7 +1112,7 @@ class TestRemovalLeavesNoGap:
                   status: active
             """,
         )
-        delete_pid("E", "2102", pids_dir=tmp_path)
+        delete_pid("E", "2102", pids_dir=tmp_path, profile=active())
         assert "status: active\n\n    2103:" in f.read_text()
 
     def test_last_pid_keeps_separator_before_next_section(self, tmp_path):
@@ -1005,7 +1131,7 @@ class TestRemovalLeavesNoGap:
               research: []
             """,
         )
-        delete_pid("E", "2102", pids_dir=tmp_path)
+        delete_pid("E", "2102", pids_dir=tmp_path, profile=active())
         assert "      status: active\n\n  research: []\n" in f.read_text()
 
     def test_last_pid_at_end_of_file(self, tmp_path):
@@ -1023,7 +1149,7 @@ class TestRemovalLeavesNoGap:
                   status: active
             """,
         )
-        delete_pid("E", "2102", pids_dir=tmp_path)
+        delete_pid("E", "2102", pids_dir=tmp_path, profile=active())
         assert f.read_text().endswith("    2101:\n      status: active\n")
 
     def test_only_param_of_a_pid(self, tmp_path):
@@ -1042,7 +1168,7 @@ class TestRemovalLeavesNoGap:
                   period: 1000
             """,
         )
-        delete_parameter("E", "2101", "X", pids_dir=tmp_path)
+        delete_parameter("E", "2101", "X", pids_dir=tmp_path, profile=active())
         assert "      status: draft\n      period: 1000\n" in f.read_text()
 
 
@@ -1058,6 +1184,7 @@ class TestUpsertTypedParameter:
             type="enum",
             values={40: "fan1", 45: "fanMAX"},
             pids_dir=pids_dir,
+            profile=active(),
         )
         p = _params(pids_dir, "2101")["FAN"]
         assert p["type"] == "enum"
@@ -1072,6 +1199,7 @@ class TestUpsertTypedParameter:
             type="bitmask",
             bits={0: "mon", 5: "sat"},
             pids_dir=pids_dir,
+            profile=active(),
         )
         p = _params(pids_dir, "2101")["DAYS"]
         assert p["type"] == "bitmask"
@@ -1079,7 +1207,14 @@ class TestUpsertTypedParameter:
 
     def test_update_enum_map_in_place(self, pids_dir):
         upsert_parameter(
-            "TESTECU", "2101", "FAN", "B5", type="enum", values={40: "a"}, pids_dir=pids_dir
+            "TESTECU",
+            "2101",
+            "FAN",
+            "B5",
+            type="enum",
+            values={40: "a"},
+            pids_dir=pids_dir,
+            profile=active(),
         )
         # Re-upsert with a larger map — the old nested block must be replaced,
         # not appended-to (exercises _replace_field_in_block_at nested-map skip).
@@ -1091,6 +1226,7 @@ class TestUpsertTypedParameter:
             type="enum",
             values={40: "a", 45: "b", 50: "c"},
             pids_dir=pids_dir,
+            profile=active(),
         )
         p = _params(pids_dir, "2101")["FAN"]
         assert p["values"] == {40: "a", 45: "b", 50: "c"}
@@ -1099,17 +1235,40 @@ class TestUpsertTypedParameter:
 
     def test_type_change_drops_the_old_map(self, pids_dir):
         upsert_parameter(
-            "TESTECU", "2101", "FAN", "B5", type="enum", values={40: "a"}, pids_dir=pids_dir
+            "TESTECU",
+            "2101",
+            "FAN",
+            "B5",
+            type="enum",
+            values={40: "a"},
+            pids_dir=pids_dir,
+            profile=active(),
         )
-        upsert_parameter("TESTECU", "2101", "FAN", "B5", type="numeric", pids_dir=pids_dir)
+        upsert_parameter(
+            "TESTECU", "2101", "FAN", "B5", type="numeric", pids_dir=pids_dir, profile=active()
+        )
         p = _params(pids_dir, "2101")["FAN"]
         assert p["type"] == "numeric"
         assert "values" not in p
         upsert_parameter(
-            "TESTECU", "2101", "FAN", "B5", type="bitmask", bits={0: "on"}, pids_dir=pids_dir
+            "TESTECU",
+            "2101",
+            "FAN",
+            "B5",
+            type="bitmask",
+            bits={0: "on"},
+            pids_dir=pids_dir,
+            profile=active(),
         )
         upsert_parameter(
-            "TESTECU", "2101", "FAN", "B5", type="enum", values={1: "on"}, pids_dir=pids_dir
+            "TESTECU",
+            "2101",
+            "FAN",
+            "B5",
+            type="enum",
+            values={1: "on"},
+            pids_dir=pids_dir,
+            profile=active(),
         )
         p = _params(pids_dir, "2101")["FAN"]
         assert p["values"] == {1: "on"}
@@ -1123,7 +1282,7 @@ class TestLeadingZeroPidKeys:
     that the edit silently reverts ("PID ... missing after edit")."""
 
     def test_add_pid_leading_zero(self, pids_dir):
-        add_pid("TESTECU", "0105", status="active", pids_dir=pids_dir)
+        add_pid("TESTECU", "0105", status="active", pids_dir=pids_dir, profile=active())
         # Round-trips as the string key "0105" (not int 105).
         keys = {str(k) for k in _load(pids_dir)["TESTECU"]["pids"]}
         assert "0105" in keys
@@ -1131,27 +1290,35 @@ class TestLeadingZeroPidKeys:
         assert '"0105":' in (pids_dir / "test.yaml").read_text()
 
     def test_upsert_param_creates_leading_zero_pid(self, pids_dir):
-        upsert_parameter("TESTECU", "0105", "COOLANT", "B03 - 40", unit="degC", pids_dir=pids_dir)
+        upsert_parameter(
+            "TESTECU",
+            "0105",
+            "COOLANT",
+            "B03 - 40",
+            unit="degC",
+            pids_dir=pids_dir,
+            profile=active(),
+        )
         assert _params(pids_dir, "0105")["COOLANT"]["expression"] == "B03 - 40"
 
     def test_upsert_then_edit_same_leading_zero_pid(self, pids_dir):
         # Second upsert must find the (quoted) key and add a second param.
-        upsert_parameter("TESTECU", "0902", "A", "B03", pids_dir=pids_dir)
-        upsert_parameter("TESTECU", "0902", "B", "B04", pids_dir=pids_dir)
+        upsert_parameter("TESTECU", "0902", "A", "B03", pids_dir=pids_dir, profile=active())
+        upsert_parameter("TESTECU", "0902", "B", "B04", pids_dir=pids_dir, profile=active())
         params = _params(pids_dir, "0902")
         assert set(params) == {"A", "B"}
 
     def test_rename_to_leading_zero_key(self, pids_dir):
         from canair.yaml_edit.pids import rename_pid
 
-        rename_pid("TESTECU", "2103", "0100", pids_dir=pids_dir)
+        rename_pid("TESTECU", "2103", "0100", pids_dir=pids_dir, profile=active())
         keys = {str(k) for k in _load(pids_dir)["TESTECU"]["pids"]}
         assert "0100" in keys and "2103" not in keys
 
     def test_ordinary_numeric_key_not_quoted(self, pids_dir):
         # A key that already round-trips via str() (2104 -> "2104") must NOT be
         # quoted — existing profiles shouldn't churn.
-        add_pid("TESTECU", "2104", status="active", pids_dir=pids_dir)
+        add_pid("TESTECU", "2104", status="active", pids_dir=pids_dir, profile=active())
         text = (pids_dir / "test.yaml").read_text()
         assert "    2104:" in text and '"2104":' not in text
 
@@ -1160,7 +1327,9 @@ class TestLeadingZeroPidKeys:
         # (YAML 1.1 mode) parses it as the float 2200.0 — so it must be quoted.
         from canair.core.yaml_rt import round_trip_yaml
 
-        upsert_parameter("TESTECU", "220E01", "ODOMETER", "[B4:B6]", pids_dir=pids_dir)
+        upsert_parameter(
+            "TESTECU", "220E01", "ODOMETER", "[B4:B6]", pids_dir=pids_dir, profile=active()
+        )
         text = (pids_dir / "test.yaml").read_text()
         assert '"220E01":' in text
         rt_keys = round_trip_yaml().load(text)["TESTECU"]["pids"]
@@ -1169,7 +1338,7 @@ class TestLeadingZeroPidKeys:
 
     def test_hex_key_with_letter_e_tail_not_quoted(self, pids_dir):
         # 220E2E has no numeric exponent, so neither reader mistakes it.
-        add_pid("TESTECU", "220E2E", status="active", pids_dir=pids_dir)
+        add_pid("TESTECU", "220E2E", status="active", pids_dir=pids_dir, profile=active())
         text = (pids_dir / "test.yaml").read_text()
         assert "    220E2E:" in text and '"220E2E":' not in text
 
@@ -1177,35 +1346,69 @@ class TestLeadingZeroPidKeys:
 class TestUpsertSendTo:
     def test_sets_send_to_on_a_new_signal(self, pids_dir):
         upsert_parameter(
-            "TESTECU", "2101", "POWER", "B4", send_to="car/stream/power", pids_dir=pids_dir
+            "TESTECU",
+            "2101",
+            "POWER",
+            "B4",
+            send_to="car/stream/power",
+            pids_dir=pids_dir,
+            profile=active(),
         )
         assert _params(pids_dir, "2101")["POWER"]["send_to"] == "car/stream/power"
 
     def test_sets_send_to_on_an_existing_signal(self, pids_dir):
-        upsert_parameter("TESTECU", "2101", "EXISTING", "B3", send_to="car/x", pids_dir=pids_dir)
+        upsert_parameter(
+            "TESTECU",
+            "2101",
+            "EXISTING",
+            "B3",
+            send_to="car/x",
+            pids_dir=pids_dir,
+            profile=active(),
+        )
         p = _params(pids_dir, "2101")["EXISTING"]
         assert p["send_to"] == "car/x"
         assert p["unit"] == "%"  # preserved
 
     def test_an_empty_value_clears_send_to(self, pids_dir):
-        upsert_parameter("TESTECU", "2101", "EXISTING", "B3", send_to="car/x", pids_dir=pids_dir)
-        upsert_parameter("TESTECU", "2101", "EXISTING", "B3", send_to="", pids_dir=pids_dir)
+        upsert_parameter(
+            "TESTECU",
+            "2101",
+            "EXISTING",
+            "B3",
+            send_to="car/x",
+            pids_dir=pids_dir,
+            profile=active(),
+        )
+        upsert_parameter(
+            "TESTECU", "2101", "EXISTING", "B3", send_to="", pids_dir=pids_dir, profile=active()
+        )
         p = _params(pids_dir, "2101")["EXISTING"]
         assert "send_to" not in p
         assert p["verified"] is True  # preserved
 
     def test_an_empty_value_on_a_new_signal_writes_nothing(self, pids_dir):
-        upsert_parameter("TESTECU", "2101", "POWER", "B4", send_to="", pids_dir=pids_dir)
+        upsert_parameter(
+            "TESTECU", "2101", "POWER", "B4", send_to="", pids_dir=pids_dir, profile=active()
+        )
         assert "send_to" not in _params(pids_dir, "2101")["POWER"]
 
 
 class TestUpsertKeepsUnchangedExpression:
     def test_a_notes_edit_leaves_the_quoted_expression_untouched(self, pids_dir):
         assert 'expression: "B3"' in (pids_dir / "test.yaml").read_text()
-        upsert_parameter("TESTECU", "2101", "EXISTING", "B3", notes="new note", pids_dir=pids_dir)
+        upsert_parameter(
+            "TESTECU",
+            "2101",
+            "EXISTING",
+            "B3",
+            notes="new note",
+            pids_dir=pids_dir,
+            profile=active(),
+        )
         assert 'expression: "B3"' in (pids_dir / "test.yaml").read_text()
         assert "new note" in _params(pids_dir, "2101")["EXISTING"]["notes"]
 
     def test_a_changed_expression_is_still_written(self, pids_dir):
-        upsert_parameter("TESTECU", "2101", "EXISTING", "B4", pids_dir=pids_dir)
+        upsert_parameter("TESTECU", "2101", "EXISTING", "B4", pids_dir=pids_dir, profile=active())
         assert _params(pids_dir, "2101")["EXISTING"]["expression"] == "B4"

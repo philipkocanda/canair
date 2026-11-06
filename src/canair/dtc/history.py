@@ -77,8 +77,8 @@ def ecu_status(
 ) -> EcuStatus | None:
     """The ECU ``rx``'s codes after its latest admitted reading or clear, or None when
     neither ever happened."""
-    car, refs = car or current_car(), refs or EcuRefs.current(profile=profile)
-    data = data if data is not None else load_log()
+    car, refs = car or current_car(profile=profile), refs or EcuRefs.current(profile=profile)
+    data = data if data is not None else load_log(profile=profile)
     name = refs.name(rx)
     for timestamp, kind, entry in _events(data):
         if kind == "clears":
@@ -113,8 +113,8 @@ def open_dtcs(
     *, car: Car | None = None, data: Mapping[str, Any] | None = None, profile: Profile
 ) -> list[EcuStatus]:
     """Every ECU whose latest admitted reading still has codes."""
-    car, refs = car or current_car(), EcuRefs.current(profile=profile)
-    data = data if data is not None else load_log()
+    car, refs = car or current_car(profile=profile), EcuRefs.current(profile=profile)
+    data = data if data is not None else load_log(profile=profile)
     out = []
     for rx in logged_ecus(data):
         status = ecu_status(rx, car=car, data=data, refs=refs, profile=profile)
@@ -157,9 +157,9 @@ def log_stats(path: Path | None = None, *, car: Car | None = None, profile: Prof
     """Totals of the DTC log at ``path`` (default: the active profile's) for ``car``."""
     from canair.dtc.log import log_path
 
-    car = car or current_car()
-    p = log_path(path)
-    data = load_log(p)
+    car = car or current_car(profile=profile)
+    p = log_path(path, profile=profile)
+    data = load_log(p, profile=profile)
     scans = [e for e in data.get("scans") or [] if isinstance(e, Mapping)]
     admitted = [e for e in scans if car.admits(e)]
     clears = [e for e in data.get("clears") or [] if isinstance(e, Mapping) and car.admits(e)]

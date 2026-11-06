@@ -6,6 +6,8 @@ import argparse
 from pathlib import Path
 
 from canair.cli.commands._edit import clear_sentinel, edit_scope
+from canair.cli.profile_context import target_profile
+from canair.profile import active
 from canair.yaml_edit.pids import (
     find_ecu_file,
 )
@@ -15,7 +17,7 @@ def apply_in_scope(args: argparse.Namespace, do, ecu: str | None = None) -> Path
     """Run ``do`` (the editor calls) in an edit scope; return the ECU's file for the echo."""
     with edit_scope(args):
         do()
-    return find_ecu_file(ecu or args.ecu, pids_dir=args.dir)
+    return find_ecu_file(ecu or args.ecu, pids_dir=args.dir, profile=target_profile(args))
 
 
 def words_verb(text: str | None) -> str:
@@ -31,7 +33,7 @@ def ecu_names(ecus_dir: Path | None) -> list[str]:
     from canair.ecus.files import iter_ecu_files
 
     names: list[str] = []
-    for path in iter_ecu_files(ecus_dir):
+    for path in iter_ecu_files(ecus_dir, profile=None if ecus_dir else active()):
         doc = yaml.safe_load(path.read_text())
         if isinstance(doc, dict):
             names.extend(str(k) for k in doc)

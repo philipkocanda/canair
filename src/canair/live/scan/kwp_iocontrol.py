@@ -50,6 +50,7 @@ import dataclasses
 from typing import NamedTuple
 
 from canair.live.scan.discovery import DiscoveryProbe, mode_discovery_scan
+from canair.profile import Profile
 from canair.render import messages
 from canair.safety.quirks import NISSAN_C0_SESSION, has_quirk
 from canair.transport.protocol import Terminal
@@ -184,12 +185,12 @@ def _make_hit(lid, session, response_hex, nrc, nrc_desc) -> KwpIOControlHit:
     return KwpIOControlHit(lid, session, response_hex, nrc, nrc_desc)
 
 
-def _write_hit(ecu_name: str, hit: KwpIOControlHit) -> None:
+def _write_hit(ecu_name: str, hit: KwpIOControlHit, profile: Profile) -> None:
     from canair.yaml_edit.pids import append_iocontrol_discoveries_block
 
     try:
         # KWP local identifiers are a single byte → 2-hex-digit keys.
-        append_iocontrol_discoveries_block(ecu_name, [hit], key_width=2)
+        append_iocontrol_discoveries_block(ecu_name, [hit], key_width=2, profile=profile)
     except Exception as exc:
         messages.error(f"[{ecu_name}] writing YAML failed: {exc}")
 
@@ -244,6 +245,8 @@ async def mode_kwp_iocontrol_scan(
     wake: bool = False,
     session_mode: str | None = None,
     confirmed: bool = False,
+    *,
+    profile: Profile,
 ) -> dict[str, list[KwpIOControlHit]]:
     """Scan KWP2000 IOControl local identifiers.
 
@@ -277,4 +280,5 @@ async def mode_kwp_iocontrol_scan(
         session=session,
         wake=wake,
         session_mode=session_mode or DEFAULT_SESSION_MODE,
+        profile=profile,
     )

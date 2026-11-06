@@ -20,7 +20,7 @@ import yaml
 
 from canair.config import file as config_file
 from canair.ecus.pids import load_pids, revision_resolutions
-from canair.profile import ProfileError, active, set_active
+from canair.profile import ProfileError, active, replace_active, set_active
 from canair.variants import detected as cache
 from canair.variants import fingerprints as fp
 
@@ -60,7 +60,12 @@ class FakeTerminal:
 def _detect(terminal, *steps):
     from canair.live.revision_probe import detect_revisions, targeted_ecus
 
-    return asyncio.run(detect_revisions(terminal, targeted_ecus(steps, profile=active())))
+    settled = asyncio.run(
+        detect_revisions(terminal, targeted_ecus(steps, profile=active()), profile=active())
+    )
+    if settled is not None:
+        replace_active(settled)  # what the session's adopt_profile does
+    return settled is not None
 
 
 class TestMatching:
@@ -170,10 +175,10 @@ class TestIdentity:
         from canair.live.revision_probe import describe_identity_report, identity_report
 
         set_active(str(FIXTURE))
-        report = identity_report(0x7E2, {"1A90": True, "1A91": False})
+        report = identity_report(0x7E2, {"1A90": True, "1A91": False}, profile=active())
         assert report["matches"] == ["kwp"] and report["variants"] == ["40kwh", "60kwh"]
         assert "kwp" in describe_identity_report(report)[0]
-        report = identity_report(0x7E2, {"22F187": True})
+        report = identity_report(0x7E2, {"22F187": True}, profile=active())
         assert report["variants"] == ["60kwh"]
         assert cache.remembered("variants", None) == {"VCU": "uds"}
 
@@ -182,14 +187,14 @@ class TestIdentity:
 
         cache.remember("variants", "60kwh", "VCU", "uds")
         set_active(str(FIXTURE), variant="60kwh")
-        assert identity_report(0x7E2, {"1A90": True})["replaced"] == "uds"
+        assert identity_report(0x7E2, {"1A90": True}, profile=active())["replaced"] == "uds"
         assert cache.remembered("variants", "60kwh") == {"VCU": "kwp"}
 
     def test_a_reading_matching_nothing_is_a_question(self):
         from canair.live.revision_probe import describe_identity_report, identity_report
 
         set_active(str(FIXTURE))
-        report = identity_report(0x7E2, {"1A90": False})
+        report = identity_report(0x7E2, {"1A90": False}, profile=active())
         assert report["matches"] == []
         assert "doesn't know yet" in describe_identity_report(report)[0]
 
@@ -197,7 +202,7 @@ class TestIdentity:
         from canair.live.revision_probe import identity_report
 
         set_active(str(FIXTURE))
-        assert identity_report(0x7E4, {"1A90": True}) is None
+        assert identity_report(0x7E4, {"1A90": True}, profile=active()) is None
 
 
 def test_the_refusal_points_at_identity():

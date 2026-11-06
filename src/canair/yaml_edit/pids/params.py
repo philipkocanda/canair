@@ -17,6 +17,7 @@ from pathlib import Path
 
 import yaml
 
+from canair.profile import Profile
 from canair.yaml_edit.text import (
     PidsEditError,
     _cut_block,
@@ -43,11 +44,9 @@ from canair.yaml_edit.text import (
 
 # ── Parameter editing (reverse-engineering workflow) ──────────────────────────
 #
-# Unlike the scanner sections above (routines / iocontrol_discoveries), these
-# edit the hand-authored pids: structures used when decoding a new
-# PID. The deeper nesting (pids: PID: parameters: PARAM: field) needs its own
-# indent-anchored locators. Every write is followed by a YAML re-parse; on any
-# failure the original text is restored so a botched edit never lands on disk.
+# Unlike the scanner sections above, these edit the hand-authored pids: structures used when
+# decoding a new PID. The deeper nesting (pids: PID: parameters: PARAM: field) needs its own
+# indent-anchored locators. Every write is re-parsed; on failure the original is restored.
 
 # Canonical field order for a rendered parameter (matches pids/_schema.yaml).
 PARAM_FIELD_ORDER = (
@@ -135,6 +134,7 @@ def upsert_parameter(
     values: dict | None = None,
     bits: dict | None = None,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Add or update one parameter under ``ECU.pids.<PID>.parameters``.
 
@@ -189,10 +189,9 @@ def upsert_parameter(
         ecu_start, ecu_end = _find_ecu_block(text, ecu_name)
         pids = _keyed_block(text, "pids", 2, ecu_start, ecu_end)
         if not pids:
-            # ECU exists but has no pids: section yet (e.g. a freshly registered
-            # ECU). upsert is the create path, so scaffold the whole
-            # pids: -> PID -> parameters: -> param chain at the end of the ECU
-            # block.
+            # ECU exists but has no pids: section yet (e.g. a freshly registered ECU).
+            # upsert is the create path: scaffold the whole pids: -> PID -> parameters: -> param
+            # chain at the end of the ECU block.
             param_lines = _format_param_block(param_name, fields, indent=8)
             block = [
                 "  pids:",
@@ -293,7 +292,7 @@ def upsert_parameter(
         if params[param_name].get("expression") != expression:
             raise PidsEditError("expression mismatch after edit")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
 # Boolean param fields a surgical single-field set is allowed to touch.
@@ -308,6 +307,7 @@ def set_param_field(
     value: bool,
     *,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Set a single boolean field (``verified``/``ship``) on an existing param.
 
@@ -337,11 +337,19 @@ def set_param_field(
         if bool(pm.get(field)) != bool(value):
             raise PidsEditError(f"{field} mismatch after edit")
 
-    return edit_ecu_text(ecu_name, transform, pid_checker(pid_u, check), pids_dir=pids_dir)
+    return edit_ecu_text(
+        ecu_name, transform, pid_checker(pid_u, check), pids_dir=pids_dir, profile=profile
+    )
 
 
 def rename_parameter(
-    ecu_name: str, pid: str, old_name: str, new_name: str, *, pids_dir: Path | None = None
+    ecu_name: str,
+    pid: str,
+    old_name: str,
+    new_name: str,
+    *,
+    pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Rename a parameter's key under ``ECU.pids.<PID>.parameters``.
 
@@ -374,11 +382,13 @@ def rename_parameter(
         if old_name in params:
             raise PidsEditError(f"old parameter {old_name!r} still present after rename")
 
-    return edit_ecu_text(ecu_name, transform, pid_checker(pid_u, check), pids_dir=pids_dir)
+    return edit_ecu_text(
+        ecu_name, transform, pid_checker(pid_u, check), pids_dir=pids_dir, profile=profile
+    )
 
 
 def delete_parameter(
-    ecu_name: str, pid: str, param_name: str, *, pids_dir: Path | None = None
+    ecu_name: str, pid: str, param_name: str, *, pids_dir: Path | None = None, profile: Profile
 ) -> Path:
     """Remove a parameter block from ``ECU.pids.<PID>.parameters``.
 
@@ -406,7 +416,9 @@ def delete_parameter(
         if param_name in (pdef.get("parameters") or {}):
             raise PidsEditError(f"parameter {param_name!r} still present after delete")
 
-    return edit_ecu_text(ecu_name, transform, pid_checker(pid_u, check), pids_dir=pids_dir)
+    return edit_ecu_text(
+        ecu_name, transform, pid_checker(pid_u, check), pids_dir=pids_dir, profile=profile
+    )
 
 
 def add_pid(
@@ -418,6 +430,7 @@ def add_pid(
     period: int | None = None,
     notes: str | None = None,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Create a new *parameter-less* PID under ``ECU.pids.<PID>``.
 
@@ -482,10 +495,12 @@ def add_pid(
         if got != status:
             raise PidsEditError(f"status mismatch after edit: {got!r} != {status!r}")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
-def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | None = None) -> Path:
+def set_pid_status(
+    ecu_name: str, pid: str, status: str, *, pids_dir: Path | None = None, profile: Profile
+) -> Path:
     """Set a PID's ``status:`` — one of active/draft/static/ignored.
 
     ``status:`` is required and explicit on every PID, so the value is always
@@ -509,11 +524,12 @@ def set_pid_status(ecu_name: str, pid: str, status: str, *, pids_dir: Path | Non
         lambda block: set_scalar(block, "status", f"status: {status}"),
         check,
         pids_dir=pids_dir,
+        profile=profile,
     )
 
 
 def set_pid_variable_length(
-    ecu_name: str, pid: str, value: bool, *, pids_dir: Path | None = None
+    ecu_name: str, pid: str, value: bool, *, pids_dir: Path | None = None, profile: Profile
 ) -> Path:
     """Set (or clear) a PID's ``variable_length:`` flag.
 
@@ -535,11 +551,11 @@ def set_pid_variable_length(
         if got != value:
             raise PidsEditError(f"variable_length mismatch after edit: {got!r} != {value!r}")
 
-    return edit_pid(ecu_name, pid, edit, check, pids_dir=pids_dir)
+    return edit_pid(ecu_name, pid, edit, check, pids_dir=pids_dir, profile=profile)
 
 
 def set_pid_period(
-    ecu_name: str, pid: str, value: int | None, *, pids_dir: Path | None = None
+    ecu_name: str, pid: str, value: int | None, *, pids_dir: Path | None = None, profile: Profile
 ) -> Path:
     """Set (or clear) a PID's AutoPID ``period:`` in milliseconds.
 
@@ -576,11 +592,11 @@ def set_pid_period(
         if got != value:
             raise PidsEditError(f"period mismatch after edit: {got!r} != {value!r}")
 
-    return edit_pid(ecu_name, pid, edit, check, pids_dir=pids_dir)
+    return edit_pid(ecu_name, pid, edit, check, pids_dir=pids_dir, profile=profile)
 
 
 def set_response_frames(
-    ecu_name: str, pid: str, value: int | None, *, pids_dir: Path | None = None
+    ecu_name: str, pid: str, value: int | None, *, pids_dir: Path | None = None, profile: Profile
 ) -> Path:
     """Set (or clear) a PID's ``response_frames:`` count.
 
@@ -618,11 +634,12 @@ def set_response_frames(
         ),
         check,
         pids_dir=pids_dir,
+        profile=profile,
     )
 
 
 def set_pid_notes(
-    ecu_name: str, pid: str, notes: str | None, *, pids_dir: Path | None = None
+    ecu_name: str, pid: str, notes: str | None, *, pids_dir: Path | None = None, profile: Profile
 ) -> Path:
     """Set (or clear) a PID's free-text ``notes:``.
 
@@ -680,10 +697,12 @@ def set_pid_notes(
         if " ".join(str(got).split()) != " ".join(text_val.split()):
             raise PidsEditError(f"PID {pid_u!r} notes mismatch after edit")
 
-    return edit_pid(ecu_name, pid, edit, check, pids_dir=pids_dir)
+    return edit_pid(ecu_name, pid, edit, check, pids_dir=pids_dir, profile=profile)
 
 
-def rename_pid(ecu_name: str, old_pid: str, new_pid: str, *, pids_dir: Path | None = None) -> Path:
+def rename_pid(
+    ecu_name: str, old_pid: str, new_pid: str, *, pids_dir: Path | None = None, profile: Profile
+) -> Path:
     """Rename a PID key under ``ECU.pids`` (e.g. ``B002`` -> ``22B002``).
 
     Only the mapping key is changed; the PID's status, parameters, and formatting
@@ -716,10 +735,10 @@ def rename_pid(ecu_name: str, old_pid: str, new_pid: str, *, pids_dir: Path | No
         if new_u != old_u and old_u in keys:
             raise PidsEditError(f"old PID {old_u!r} still present after rename")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
-def delete_pid(ecu_name: str, pid: str, *, pids_dir: Path | None = None) -> Path:
+def delete_pid(ecu_name: str, pid: str, *, pids_dir: Path | None = None, profile: Profile) -> Path:
     """Remove an entire PID block from ``ECU.pids`` (header, status, parameters).
 
     Fails if the PID is absent. Removing the ECU's *only* PID drops the whole
@@ -745,7 +764,7 @@ def delete_pid(ecu_name: str, pid: str, *, pids_dir: Path | None = None) -> Path
         if any(str(k).upper() == pid_u for k in (ecu_def.get("pids") or {})):
             raise PidsEditError(f"PID {pid_u!r} still present after delete")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
 def _replace_param_field_line(indent: str, key: str, value) -> str:
@@ -755,19 +774,13 @@ def _replace_param_field_line(indent: str, key: str, value) -> str:
 
 # ── Identity field editor ─────────────────────────────────────────────────────
 #
-# The ``identity:`` block (part number, versions, protocol, notes, …) is normally
-# populated by ``canair discover``/``identity`` from decoded DIDs, but a few
-# fields — notably free-text ``notes`` and the human ``description`` — are curated
-# by hand. This editor keeps those surgical/validated too, so nothing has to be
-# hand-edited in the YAML.
+# The ``identity:`` block (part number, versions, protocol, notes, …) is normally filled by
+# ``canair discover``/``identity``, but a few fields (free-text ``notes``, ``description``) are
+# curated by hand. This editor keeps those surgical and validated too.
 
 
 def set_identity_field(
-    ecu_name: str,
-    field: str,
-    value: str,
-    *,
-    pids_dir: Path | None = None,
+    ecu_name: str, field: str, value: str, *, pids_dir: Path | None = None, profile: Profile
 ) -> Path:
     """Set a single field under ``ECU.identity`` (e.g. ``notes``/``description``).
 
@@ -803,14 +816,11 @@ def set_identity_field(
         if " ".join(str(got).split()) != " ".join(str(value).split()):
             raise PidsEditError(f"identity.{field} mismatch after edit")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
 def remove_identity_field(
-    ecu_name: str,
-    field: str,
-    *,
-    pids_dir: Path | None = None,
+    ecu_name: str, field: str, *, pids_dir: Path | None = None, profile: Profile
 ) -> Path:
     """Remove a single field from ``ECU.identity`` (the inverse of :func:`set_identity_field`).
 
@@ -851,21 +861,17 @@ def remove_identity_field(
         if field in identity:
             raise PidsEditError(f"identity.{field} still present after edit")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
 # ── Top-level list-field editor ───────────────────────────────────────────────
 #
-# `can_bus` is a top-level ECU field (a sibling of tx_id/identity), a list of
-# physical CAN bus segment codes. It is curated by hand — no DID reads it — so it
-# gets a surgical/validated editor like the other hand-curated fields.
+# `can_bus` is a top-level ECU field (a sibling of tx_id/identity): a list of physical CAN bus
+# segment codes, curated by hand, so it gets a surgical/validated editor too.
 
 
 def set_can_bus(
-    ecu_name: str,
-    codes: list[str],
-    *,
-    pids_dir: Path | None = None,
+    ecu_name: str, codes: list[str], *, pids_dir: Path | None = None, profile: Profile
 ) -> Path:
     """Set the top-level ``can_bus:`` list on an ECU (physical bus segment codes).
 
@@ -901,7 +907,7 @@ def set_can_bus(
         if got != cleaned:
             raise PidsEditError(f"can_bus mismatch after edit (got {got!r})")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
 def _normalize_iocontrol_range(spec: str) -> str:
@@ -926,10 +932,7 @@ def _normalize_iocontrol_range(spec: str) -> str:
 
 
 def set_iocontrol_scan_ranges(
-    ecu_name: str,
-    ranges: list[str],
-    *,
-    pids_dir: Path | None = None,
+    ecu_name: str, ranges: list[str], *, pids_dir: Path | None = None, profile: Profile
 ) -> Path:
     """Set the top-level ``iocontrol_scan_ranges:`` list on an ECU.
 
@@ -965,7 +968,7 @@ def set_iocontrol_scan_ranges(
         if got != cleaned:
             raise PidsEditError(f"{field} mismatch after edit (got {got!r})")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
 # Canonical field order for a rendered `wake:` block (matches pids_schema.yaml).
@@ -981,10 +984,7 @@ WAKE_FIELD_ORDER = (
 
 
 def set_wake(
-    ecu_name: str,
-    fields: dict,
-    *,
-    pids_dir: Path | None = None,
+    ecu_name: str, fields: dict, *, pids_dir: Path | None = None, profile: Profile
 ) -> Path:
     """Set (or replace) the top-level ``wake:`` block on an ECU.
 
@@ -1040,4 +1040,4 @@ def set_wake(
         if got.get("method") != method:
             raise PidsEditError(f"wake.method mismatch after edit (got {got.get('method')!r})")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)

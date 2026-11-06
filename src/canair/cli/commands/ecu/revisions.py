@@ -114,7 +114,7 @@ def cmd_add(args) -> int:
     from canair.yaml_edit.revisions import add_revision
 
     return run_edit(
-        lambda: add_revision(args.ecu, args.revision, protocol=args.protocol),
+        lambda: add_revision(args.ecu, args.revision, protocol=args.protocol, profile=active()),
         f"{args.ecu}: added revision {args.revision}",
     )
 
@@ -136,6 +136,7 @@ def cmd_set_fingerprint(args) -> int:
             identity=identity or None,
             software=args.software,
             clear=args.clear,
+            profile=active(),
         ),
         f"{args.ecu} {args.revision}: fingerprints updated",
     )
@@ -147,7 +148,7 @@ def cmd_rename(args) -> int:
     written: list = []
 
     def action():
-        path, others = rename_revision(args.ecu, args.old, args.new)
+        path, others = rename_revision(args.ecu, args.old, args.new, profile=active())
         written.extend(others)
         return path
 
@@ -161,7 +162,7 @@ def cmd_rm(args) -> int:
     from canair.yaml_edit.revisions import remove_revision
 
     return run_edit(
-        lambda: remove_revision(args.ecu, args.revision),
+        lambda: remove_revision(args.ecu, args.revision, profile=active()),
         f"{args.ecu}: removed revision {args.revision}",
     )
 
@@ -174,7 +175,7 @@ def cmd_set_variants(args) -> int:
     ids = [v for part in args.variants for v in part.split(",") if v.strip()]
     what = ", ".join(ids) if ids else "every variant"
     return run_edit(
-        lambda: set_ecu_variants(args.ecu, None if args.clear else ids),
+        lambda: set_ecu_variants(args.ecu, None if args.clear else ids, profile=active()),
         f"{args.ecu}: fitted to {what}",
     )
 

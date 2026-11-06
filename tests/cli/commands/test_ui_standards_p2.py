@@ -11,6 +11,7 @@ import pytest
 
 from canair.cli import main
 from canair.core.prompt import PromptUnavailable
+from canair.profile import profile_for_path
 
 ECU = """\
 TESTECU:
@@ -110,7 +111,8 @@ class TestValidateFindings:
         report = PidsReport(
             errors=["bms.yaml: bad"], warnings=["bms.yaml: odd"], stats={}, n_files=1
         )
-        monkeypatch.setattr(mod, "check_pids", lambda files: report)
+        monkeypatch.setattr(mod, "check_pids", lambda files, profile: report)
+        monkeypatch.setattr("canair.profile._active", profile_for_path(profile))
         assert run_pids(None, False) == 1
         captured = capsys.readouterr()
         assert "warning: bms.yaml: odd" in captured.err

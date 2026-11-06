@@ -119,9 +119,7 @@ def _check_captures(
     validator = CaptureSchemaChecker(schema)
     rx_addrs = load_valid_rx_addrs(profile=profile)
 
-    from canair.profile import active
-
-    prof = active()
+    prof = profile
     # Both layers are validated: a layered profile's base holds captures the user
     # cannot edit, but a schema break there still breaks every analysis, so
     # `validate captures` must report it rather than only auditing the overlay.

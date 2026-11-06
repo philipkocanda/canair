@@ -184,7 +184,7 @@ def rename_everywhere(old: str, new: str, profile: Profile) -> tuple[Path, list[
         for name, ids in fitted.items():
             from canair.ecus.files import find_by_name
 
-            fpath = find_by_name(name, profile.ecus_dir)
+            fpath = find_by_name(name, profile.ecus_dir, profile=profile)
             if fpath is not None:
                 ecu_files.setdefault(fpath, fpath.read_text())
             renamed = [new_id if v == old_id else v for v in ids or ()]

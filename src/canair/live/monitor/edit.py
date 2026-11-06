@@ -223,6 +223,7 @@ class MonitorEditor:
                 ship=ship,
                 notes=_opt("notes"),
                 pids_dir=self.c.pids_dir,
+                profile=self.c.profile,
             )
         except PidsEditError as exc:
             return f"Edit failed: {exc}"
@@ -250,7 +251,9 @@ class MonitorEditor:
         # would re-render (and re-normalize the quoting of) a field the user never
         # changed (e.g. strip the hand-added quotes from `expression: "B10:1"`).
         try:
-            set_param_field(ecu, pid, name, field, new_val, pids_dir=self.c.pids_dir)
+            set_param_field(
+                ecu, pid, name, field, new_val, pids_dir=self.c.pids_dir, profile=self.c.profile
+            )
         except (PidsEditError, Exception) as exc:
             return f"Toggle failed: {exc}"
         self.c.reload_pids()

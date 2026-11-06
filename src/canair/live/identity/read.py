@@ -170,7 +170,7 @@ async def mode_identity(
         from ..revision_probe import describe_identity_report, identity_report
 
         try:
-            revision = identity_report(tx_id, responded) if n_ok else None
+            revision = identity_report(tx_id, responded, profile=profile) if n_ok else None
         except Exception:  # an advisory report never fails the reading itself
             revision = None
         if as_json:

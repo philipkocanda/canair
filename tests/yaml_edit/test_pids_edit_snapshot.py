@@ -10,6 +10,7 @@ from canair.cli.commands.pids import pid_settings
 from canair.core.edit_errors import EditError
 from canair.ecus.pid_status import pid_ships, pid_swept
 from canair.ecus.pids import build_ecu_index
+from canair.profile import active
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.schema_fields import load_schema
 from canair.yaml_edit.pids import PidsEditError, set_snapshot_only
@@ -43,51 +44,53 @@ def _pid(pids_dir, pid="224710"):
 
 class TestSetSnapshotOnly:
     def test_written_after_the_header(self, pids_dir):
-        set_snapshot_only("TEST", "224710", True, length=9, pids_dir=pids_dir)
+        set_snapshot_only("TEST", "224710", True, length=9, pids_dir=pids_dir, profile=active())
         text = (pids_dir / "test.yaml").read_text()
         assert "    224710:\n      snapshot_only: true\n      snapshot_length: 9\n" in text
         assert _pid(pids_dir)["snapshot_only"] is True
         assert _pid(pids_dir)["snapshot_length"] == 9
 
     def test_without_a_length_writes_only_the_flag(self, pids_dir):
-        set_snapshot_only("TEST", "224710", True, pids_dir=pids_dir)
+        set_snapshot_only("TEST", "224710", True, pids_dir=pids_dir, profile=active())
         assert "snapshot_length" not in _pid(pids_dir)
 
     def test_re_marking_keeps_the_length(self, pids_dir):
-        set_snapshot_only("TEST", "224710", True, length=9, pids_dir=pids_dir)
-        set_snapshot_only("TEST", "224710", True, pids_dir=pids_dir)
+        set_snapshot_only("TEST", "224710", True, length=9, pids_dir=pids_dir, profile=active())
+        set_snapshot_only("TEST", "224710", True, pids_dir=pids_dir, profile=active())
         assert _pid(pids_dir)["snapshot_length"] == 9
         assert (pids_dir / "test.yaml").read_text().count("snapshot_only") == 1
 
     def test_clearing_removes_both_and_restores_the_bytes(self, pids_dir):
         before = (pids_dir / "test.yaml").read_text()
-        set_snapshot_only("TEST", "224710", True, length=9, pids_dir=pids_dir)
-        set_snapshot_only("TEST", "224710", False, pids_dir=pids_dir)
+        set_snapshot_only("TEST", "224710", True, length=9, pids_dir=pids_dir, profile=active())
+        set_snapshot_only("TEST", "224710", False, pids_dir=pids_dir, profile=active())
         assert (pids_dir / "test.yaml").read_text() == before
 
     def test_only_the_named_pid_changes(self, pids_dir):
-        set_snapshot_only("TEST", "224710", True, pids_dir=pids_dir)
+        set_snapshot_only("TEST", "224710", True, pids_dir=pids_dir, profile=active())
         assert "snapshot_only" not in _pid(pids_dir, "22C350")
 
     @pytest.mark.parametrize("pid", ["2101", "1904582C00", "22471"])
     def test_refused_on_a_non_did_key(self, pids_dir, pid):
         before = (pids_dir / "test.yaml").read_text()
         with pytest.raises(PidsEditError, match="service-22"):
-            set_snapshot_only("TEST", pid, True, pids_dir=pids_dir)
+            set_snapshot_only("TEST", pid, True, pids_dir=pids_dir, profile=active())
         assert (pids_dir / "test.yaml").read_text() == before
 
     def test_a_length_needs_the_flag(self, pids_dir):
         with pytest.raises(PidsEditError, match="only goes with"):
-            set_snapshot_only("TEST", "224710", False, length=9, pids_dir=pids_dir)
+            set_snapshot_only(
+                "TEST", "224710", False, length=9, pids_dir=pids_dir, profile=active()
+            )
 
     def test_a_zero_length_is_refused(self, pids_dir):
         with pytest.raises(PidsEditError, match=">= 1"):
-            set_snapshot_only("TEST", "224710", True, length=0, pids_dir=pids_dir)
+            set_snapshot_only("TEST", "224710", True, length=0, pids_dir=pids_dir, profile=active())
 
     def test_unknown_pid_leaves_the_file_alone(self, pids_dir):
         before = (pids_dir / "test.yaml").read_text()
         with pytest.raises(PidsEditError, match="not found"):
-            set_snapshot_only("TEST", "22FFFF", True, pids_dir=pids_dir)
+            set_snapshot_only("TEST", "22FFFF", True, pids_dir=pids_dir, profile=active())
         assert (pids_dir / "test.yaml").read_text() == before
 
 

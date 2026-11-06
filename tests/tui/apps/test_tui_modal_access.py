@@ -10,6 +10,7 @@ import pytest
 from textual.containers import VerticalScroll
 from textual.widgets import Input, OptionList
 
+from canair.profile import active
 from canair.tui.apps.captures_step.app import CapturesStepApp
 from canair.tui.apps.monitor.app import (
     EditParamDialog,
@@ -171,7 +172,12 @@ class TestPickersAreFilterable:
         from tests.support.plot_model import plot_model as _plot_model
 
         options_in = [("BMS", "2101"), ("HVAC", "220100"), ("IGPM", "22BC07")]
-        app = PlotApp(_plot_model(), reload_pid=lambda *a, **__: None, pid_options=options_in)
+        app = PlotApp(
+            _plot_model(),
+            reload_pid=lambda *a, **__: None,
+            pid_options=options_in,
+            profile=active(),
+        )
         async with app.run_test(size=(110, 30)) as pilot:
             await pilot.pause(0.1)
             await pilot.press("p")

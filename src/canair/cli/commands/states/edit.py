@@ -44,6 +44,7 @@ def cmd_add(args) -> int:
             when=args.when,
             implies=args.implies,
             excludes=args.excludes,
+            profile=active(),
         ),
         f"added state {args.name.upper()}",
     )
@@ -54,14 +55,16 @@ def cmd_add(args) -> int:
 def cmd_rm(args) -> int:
     from canair.yaml_edit.states import remove_state
 
-    return run_edit(lambda: remove_state(args.name), f"removed state {args.name.upper()}")
+    return run_edit(
+        lambda: remove_state(args.name, profile=active()), f"removed state {args.name.upper()}"
+    )
 
 
 def cmd_rename(args) -> int:
     from canair.profile import require_writable_definitions
     from canair.yaml_edit.state_rename import apply_state_rename, plan_state_rename
 
-    profile = require_writable_definitions()
+    profile = require_writable_definitions(profile=active())
     plan = plan_state_rename(args.old, args.new, profile=profile)
 
     _print_rename_plan(plan, profile.root)
@@ -111,7 +114,7 @@ def cmd_set_description(args) -> int:
     from canair.yaml_edit.states import set_state_field
 
     return run_edit(
-        lambda: set_state_field(args.name, "description", args.value),
+        lambda: set_state_field(args.name, "description", args.value, profile=active()),
         f"set description on {args.name.upper()}",
     )
 
@@ -120,7 +123,7 @@ def cmd_set_predicate(args) -> int:
     from canair.yaml_edit.states import set_state_field
 
     rc = run_edit(
-        lambda: set_state_field(args.name, "when", args.value or None),
+        lambda: set_state_field(args.name, "when", args.value or None, profile=active()),
         f"{set_or_clear(args.value)} when: predicate on {args.name.upper()}",
     )
     _warn_unresolved_refs(args.name.upper(), args.value)
@@ -131,7 +134,7 @@ def _set_relation(args, field: str) -> int:
     from canair.yaml_edit.states import set_state_field
 
     return run_edit(
-        lambda: set_state_field(args.name, field, args.value or None),
+        lambda: set_state_field(args.name, field, args.value or None, profile=active()),
         f"{set_or_clear(args.value)} {field}: on {args.name.upper()}",
     )
 

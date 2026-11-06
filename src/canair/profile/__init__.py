@@ -634,7 +634,7 @@ def config_dir_hint() -> Path:
     return config_dir() / "profiles"
 
 
-def require_writable_definitions(profile: Profile | None = None) -> Profile:
+def require_writable_definitions(profile: Profile) -> Profile:
     """Refuse a definition edit whose target is a layered profile's read-only base.
 
     An overlay carries recorded evidence only: definitions still resolve from the
@@ -643,7 +643,6 @@ def require_writable_definitions(profile: Profile | None = None) -> Profile:
     and vanish at the next reinstall. Every authoring command calls this first, so
     the refusal names the fix instead of leaving a half-written file behind.
     """
-    profile = profile or active()
     if not profile.layered:
         return profile
     raise ProfileError(

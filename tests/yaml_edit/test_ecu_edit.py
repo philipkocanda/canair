@@ -13,6 +13,7 @@ import pytest
 from canair import profile
 from canair.cli.commands.ecu.edit import cmd_edit
 from canair.ecus.pids import clear_cache
+from canair.profile import active
 from canair.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu
 
 
@@ -47,22 +48,22 @@ def _activate(root):
 class TestFindEcuFile:
     def test_finds_registered_file(self, tmp_path):
         root = _mk_profile(tmp_path)
-        register_ecu(0x7C6, name="CLU", ecus_dir=root / "ecus")
+        register_ecu(0x7C6, name="CLU", ecus_dir=root / "ecus", profile=active())
         _activate(root)
-        path = find_ecu_file_by_tx(0x7C6)
+        path = find_ecu_file_by_tx(0x7C6, profile=active())
         assert path is not None
         assert path.name == "clu.yaml"
 
     def test_missing_returns_none(self, tmp_path):
         root = _mk_profile(tmp_path)
         _activate(root)
-        assert find_ecu_file_by_tx(0x7C6) is None
+        assert find_ecu_file_by_tx(0x7C6, profile=active()) is None
 
 
 class TestEcuEditTtyGuard:
     def test_refuses_without_tty(self, tmp_path, capsys, monkeypatch):
         root = _mk_profile(tmp_path)
-        register_ecu(0x7C6, name="CLU", ecus_dir=root / "ecus")
+        register_ecu(0x7C6, name="CLU", ecus_dir=root / "ecus", profile=active())
         _activate(root)
         # Non-interactive stdin/stdout (pytest capture) — must refuse.
         rc = cmd_edit({"name": "CLU"}, 0x7C6)
@@ -79,7 +80,7 @@ class TestEcuEditInteractive:
 
     def test_opens_editor_then_validates(self, tmp_path, monkeypatch):
         root = _mk_profile(tmp_path)
-        register_ecu(0x7C6, name="CLU", ecus_dir=root / "ecus")
+        register_ecu(0x7C6, name="CLU", ecus_dir=root / "ecus", profile=active())
         _activate(root)
         self._force_tty(monkeypatch)
         monkeypatch.setenv("EDITOR", "true")
@@ -106,7 +107,7 @@ class TestEcuEditInteractive:
 
     def test_editor_nonzero_skips_validation(self, tmp_path, capsys, monkeypatch):
         root = _mk_profile(tmp_path)
-        register_ecu(0x7C6, name="CLU", ecus_dir=root / "ecus")
+        register_ecu(0x7C6, name="CLU", ecus_dir=root / "ecus", profile=active())
         _activate(root)
         self._force_tty(monkeypatch)
         monkeypatch.setenv("EDITOR", "false")

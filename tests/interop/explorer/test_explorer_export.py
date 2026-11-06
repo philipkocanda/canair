@@ -10,6 +10,7 @@ import yaml
 
 from canair.interop.explorer.export import export_profile, profile_maturity
 from canair.interop.explorer.layout import layout_buses
+from canair.profile import active
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROFILES = sorted(
@@ -31,7 +32,7 @@ def _ids(paths):
 @pytest.fixture(scope="module", params=PROFILES, ids=_ids(PROFILES))
 def exported(request):
     root: Path = request.param
-    return root, export_profile(root)
+    return root, export_profile(root, profile=active())
 
 
 def _records(data):
@@ -56,7 +57,7 @@ def _records(data):
 
 def test_export_is_deterministic_and_json_serialisable(exported):
     root, data = exported
-    assert json.dumps(data) == json.dumps(export_profile(root))
+    assert json.dumps(data) == json.dumps(export_profile(root, profile=active()))
 
 
 def test_stats_match_the_profiles_index_counts(exported):

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 
 from canair.cli.commands._edit import add_edit_args, run_edit
+from canair.cli.profile_context import target_profile
 from canair.core.edit_errors import EditError, translate
 from canair.ecus.pid_status import PID_STATUSES
 from canair.ecus.pids import INHERITED_PARAM_FIELDS
@@ -239,7 +240,9 @@ def add_parsers(sub) -> None:
 
 def cmd_set_pid_status(args: argparse.Namespace) -> int:
     return run_edit(
-        lambda: set_pid_status(args.ecu, args.pid, args.status, pids_dir=args.dir),
+        lambda: set_pid_status(
+            args.ecu, args.pid, args.status, pids_dir=args.dir, profile=target_profile(args)
+        ),
         f"{args.ecu} {args.pid} status -> {args.status}",
         args=args,
     )
@@ -250,7 +253,9 @@ def cmd_set_pid_variable_length(args: argparse.Namespace) -> int:
 
     state = "true" if value else "false (cleared)"
     return run_edit(
-        lambda: set_pid_variable_length(args.ecu, args.pid, value, pids_dir=args.dir),
+        lambda: set_pid_variable_length(
+            args.ecu, args.pid, value, pids_dir=args.dir, profile=target_profile(args)
+        ),
         f"{args.ecu} {args.pid} variable_length -> {state}",
         args=args,
     )
@@ -264,7 +269,14 @@ def cmd_set_snapshot_only(args: argparse.Namespace) -> int:
     else:
         state = "true" + (f", snapshot_length {args.length}" if args.length is not None else "")
     return run_edit(
-        lambda: set_snapshot_only(args.ecu, args.pid, value, length=args.length, pids_dir=args.dir),
+        lambda: set_snapshot_only(
+            args.ecu,
+            args.pid,
+            value,
+            length=args.length,
+            pids_dir=args.dir,
+            profile=target_profile(args),
+        ),
         f"{args.ecu} {args.pid} snapshot_only -> {state}",
         args=args,
     )
@@ -274,7 +286,14 @@ def cmd_set_sensitive(args: argparse.Namespace) -> int:
     value = args.value == "true"
 
     def do():
-        set_sensitive(args.ecu, args.pid, value, param=args.param, pids_dir=args.dir)
+        set_sensitive(
+            args.ecu,
+            args.pid,
+            value,
+            param=args.param,
+            pids_dir=args.dir,
+            profile=target_profile(args),
+        )
 
     fpath = apply_in_scope(args, do)
     what = f"{args.ecu} {args.pid}" + (f" {args.param}" if args.param else "")
@@ -316,7 +335,9 @@ def cmd_set_support_map(args: argparse.Namespace) -> int:
 
     state = decl.flow() if decl else "cleared"
     return run_edit(
-        lambda: set_support_map(args.ecu, args.pid, decl, pids_dir=args.dir),
+        lambda: set_support_map(
+            args.ecu, args.pid, decl, pids_dir=args.dir, profile=target_profile(args)
+        ),
         f"{args.ecu} {args.pid} support_map -> {state}",
         args=args,
     )
@@ -327,7 +348,9 @@ def cmd_set_pid_period(args: argparse.Namespace) -> int:
 
     state = "cleared (device default 5000)" if value is None else f"{value} ms"
     return run_edit(
-        lambda: set_pid_period(args.ecu, args.pid, value, pids_dir=args.dir),
+        lambda: set_pid_period(
+            args.ecu, args.pid, value, pids_dir=args.dir, profile=target_profile(args)
+        ),
         f"{args.ecu} {args.pid} period -> {state}",
         args=args,
     )
@@ -338,7 +361,9 @@ def cmd_set_response_frames(args: argparse.Namespace) -> int:
 
     state = "cleared" if value is None else str(value)
     return run_edit(
-        lambda: set_response_frames(args.ecu, args.pid, value, pids_dir=args.dir),
+        lambda: set_response_frames(
+            args.ecu, args.pid, value, pids_dir=args.dir, profile=target_profile(args)
+        ),
         f"{args.ecu} {args.pid} response_frames -> {state}",
         args=args,
     )
@@ -349,7 +374,9 @@ def cmd_set_pid_notes(args: argparse.Namespace) -> int:
 
     what = words_verb(notes)
     return run_edit(
-        lambda: set_pid_notes(args.ecu, args.pid, notes, pids_dir=args.dir),
+        lambda: set_pid_notes(
+            args.ecu, args.pid, notes, pids_dir=args.dir, profile=target_profile(args)
+        ),
         f"{args.ecu} {args.pid} notes {what}",
         args=args,
     )
@@ -369,7 +396,9 @@ def cmd_set_pid_defaults(args: argparse.Namespace) -> int:
 
     detail = ", ".join([*fields, *(f"-{c}" for c in clear)])
     return run_edit(
-        lambda: set_pid_defaults(args.ecu, args.pid, fields, clear=clear, pids_dir=args.dir),
+        lambda: set_pid_defaults(
+            args.ecu, args.pid, fields, clear=clear, pids_dir=args.dir, profile=target_profile(args)
+        ),
         f"{args.ecu} {args.pid} defaults: {detail}",
         args=args,
     )
@@ -384,11 +413,19 @@ def cmd_hoist_defaults(args: argparse.Namespace) -> int:
         found: list = []
 
         def do(ecu=ecu, found=found):
-            found.extend(hoist_defaults(ecu, args.pid, dry_run=args.dry_run, pids_dir=args.dir))
+            found.extend(
+                hoist_defaults(
+                    ecu,
+                    args.pid,
+                    dry_run=args.dry_run,
+                    pids_dir=args.dir,
+                    profile=target_profile(args),
+                )
+            )
 
         if args.dry_run:
             do()
-            fpath = find_ecu_file(ecu, pids_dir=args.dir)
+            fpath = find_ecu_file(ecu, pids_dir=args.dir, profile=target_profile(args))
         else:
             fpath = apply_in_scope(args, do, ecu)
         by_pid: dict[str, list] = {}

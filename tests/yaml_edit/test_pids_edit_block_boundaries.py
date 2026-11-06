@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from canair.profile import active
 from canair.yaml_edit.pids import (
     PidsEditError,
     delete_parameter,
@@ -67,7 +68,7 @@ ECU:
 class TestRemovalKeepsTheNextKeysComments:
     def test_rm_pid_before_a_section_banner(self, tmp_path):
         d = _write(tmp_path, IOCONTROL_BANNER)
-        delete_pid("ECU", "2102", pids_dir=d)
+        delete_pid("ECU", "2102", pids_dir=d, profile=active())
         assert _text(d) == IOCONTROL_BANNER.replace(
             "\n    2102:\n      status: ignored\n      parameters: {}\n", ""
         )
@@ -85,7 +86,7 @@ class TestRemovalKeepsTheNextKeysComments:
                   status: active
             """,
         )
-        delete_pid("ECU", "2101", pids_dir=d)
+        delete_pid("ECU", "2101", pids_dir=d, profile=active())
         assert _text(d) == "ECU:\n  pids:\n    # about 2102\n    2102:\n      status: active\n"
 
     def test_rm_param_before_a_shallower_pid_banner(self, tmp_path):
@@ -109,7 +110,7 @@ class TestRemovalKeepsTheNextKeysComments:
                   status: static
             """,
         )
-        delete_parameter("ECU", "22B003", "DROP", pids_dir=d)
+        delete_parameter("ECU", "22B003", "DROP", pids_dir=d, profile=active())
         text = _text(d)
         assert "      expression: B4\n    # ─── TPMS configuration DIDs ───\n" in text
         assert "    # Static sensor registration.\n    22C001:" in text
@@ -128,7 +129,7 @@ class TestRemovalKeepsTheNextKeysComments:
                   status: active
             """,
         )
-        delete_pid("ECU", "2101", pids_dir=d)
+        delete_pid("ECU", "2101", pids_dir=d, profile=active())
         assert _text(d) == "ECU:\n  pids:\n    2102:\n      status: active\n"
 
     def test_rm_identity_field_before_a_section_comment(self, tmp_path):
@@ -147,7 +148,7 @@ class TestRemovalKeepsTheNextKeysComments:
                   status: active
             """,
         )
-        remove_identity_field("ECU", "notes", pids_dir=d)
+        remove_identity_field("ECU", "notes", pids_dir=d, profile=active())
         assert _text(d) == (
             'ECU:\n  identity:\n    part_number: "123"\n\n'
             "  # --- pids ---\n  pids:\n    2101:\n      status: active\n"
@@ -169,7 +170,7 @@ class TestRemovalKeepsTheNextKeysComments:
                   status: active
             """,
         )
-        remove_identity_field("ECU", "notes", pids_dir=d)
+        remove_identity_field("ECU", "notes", pids_dir=d, profile=active())
         assert "identity" not in _load(d)
         assert _text(d) == (
             "ECU:\n  tx_id: 0x7A0\n\n  # --- pids ---\n  pids:\n    2101:\n      status: active\n"
@@ -191,7 +192,7 @@ class TestRemovalKeepsTheNextKeysComments:
                   label: Unknown
             """,
         )
-        delete_research_entry("ECU", "2101", pids_dir=d)
+        delete_research_entry("ECU", "2101", pids_dir=d, profile=active())
         assert _text(d) == (
             "ECU:\n  # --- iocontrol ---\n  iocontrol:\n    B003:\n      label: Unknown\n"
         )
@@ -211,7 +212,7 @@ class TestRemovalKeepsTheNextKeysComments:
                   status: open
             """,
         )
-        delete_research_entry("ECU", "A", pids_dir=d)
+        delete_research_entry("ECU", "A", pids_dir=d, profile=active())
         assert _text(d) == (
             "ECU:\n  research:\n    # the next lead\n"
             "    - type: decode\n      target: B\n      status: open\n"
@@ -224,7 +225,7 @@ class TestRemovalGaps:
             tmp_path,
             "ECU:\n  pids:\n    2101:\n      status: active\n\n    2102:\n      status: active",
         )
-        delete_pid("ECU", "2102", pids_dir=d)
+        delete_pid("ECU", "2102", pids_dir=d, profile=active())
         assert _text(d) == "ECU:\n  pids:\n    2101:\n      status: active\n"
 
     def test_whitespace_only_separator_lines(self, tmp_path):
@@ -234,7 +235,7 @@ class TestRemovalGaps:
             "    2102:\n      status: active\n    \n  # banner\n  research:\n"
             "    - type: decode\n      target: A\n      status: open\n",
         )
-        delete_pid("ECU", "2102", pids_dir=d)
+        delete_pid("ECU", "2102", pids_dir=d, profile=active())
         text = _text(d)
         assert text == (
             "ECU:\n  pids:\n    2101:\n      status: active\n    \n  # banner\n  research:\n"
@@ -257,7 +258,7 @@ class TestRemovalGaps:
                   status: open
             """,
         )
-        delete_research_entry("ECU", "A", pids_dir=d)
+        delete_research_entry("ECU", "A", pids_dir=d, profile=active())
         assert _text(d).startswith("ECU:\n  research:\n    - type: decode\n      target: B\n")
 
     def test_rm_the_last_research_item_after_whitespace_only_lines(self, tmp_path):
@@ -266,7 +267,7 @@ class TestRemovalGaps:
             "ECU:\n  tx_id: 0x7A0\n  \n\n  research:\n"
             "    - type: decode\n      target: A\n      status: open\n",
         )
-        delete_research_entry("ECU", "A", pids_dir=d)
+        delete_research_entry("ECU", "A", pids_dir=d, profile=active())
         assert _text(d) == "ECU:\n  tx_id: 0x7A0\n"
 
 
@@ -288,7 +289,7 @@ class TestAppendStopsBeforeTheNextKeysComments:
                   status: active
             """,
         )
-        upsert_parameter("ECU", "2101", "B", "B5", pids_dir=d)
+        upsert_parameter("ECU", "2101", "B", "B5", pids_dir=d, profile=active())
         assert "        B:\n          expression: B5\n\n    # ─── next group ───\n" in _text(d)
 
     def test_new_iocontrol_field_lands_inside_its_entry(self, tmp_path):
@@ -304,15 +305,15 @@ class TestAppendStopsBeforeTheNextKeysComments:
                   label: Second
             """,
         )
-        update_iocontrol_field("ECU", "B001", "verified", True, pids_dir=d)
+        update_iocontrol_field("ECU", "B001", "verified", True, pids_dir=d, profile=active())
         assert "      label: First\n      verified: true\n    # about B002\n" in _text(d)
 
 
 class TestLineEndings:
     def test_crlf_file_stays_crlf(self, tmp_path):
         d = _write(tmp_path, IOCONTROL_BANNER, newline="\r\n")
-        delete_pid("ECU", "2102", pids_dir=d)
-        upsert_parameter("ECU", "2101", "A", "B4", notes="x " * 80, pids_dir=d)
+        delete_pid("ECU", "2102", pids_dir=d, profile=active())
+        upsert_parameter("ECU", "2101", "A", "B4", notes="x " * 80, pids_dir=d, profile=active())
         raw = (d / "test.yaml").read_bytes()
         assert raw.count(b"\n") == raw.count(b"\r\n") > 10
 
@@ -320,19 +321,19 @@ class TestLineEndings:
         d = _write(tmp_path, IOCONTROL_BANNER, newline="\r\n")
         before = (d / "test.yaml").read_bytes()
         with pytest.raises(PidsEditError):
-            delete_pid("ECU", "9999", pids_dir=d)
+            delete_pid("ECU", "9999", pids_dir=d, profile=active())
         assert (d / "test.yaml").read_bytes() == before
 
     def test_scanner_writers_keep_crlf(self, tmp_path):
         d = _write(tmp_path, IOCONTROL_BANNER, newline="\r\n")
-        update_iocontrol_field("ECU", "B003", "label", "Lamp", pids_dir=d)
+        update_iocontrol_field("ECU", "B003", "label", "Lamp", pids_dir=d, profile=active())
         raw = (d / "test.yaml").read_bytes()
         assert b"label: Lamp\r\n" in raw
         assert raw.count(b"\n") == raw.count(b"\r\n")
 
     def test_lf_file_stays_lf(self, tmp_path):
         d = _write(tmp_path, IOCONTROL_BANNER)
-        delete_pid("ECU", "2102", pids_dir=d)
+        delete_pid("ECU", "2102", pids_dir=d, profile=active())
         assert b"\r" not in (d / "test.yaml").read_bytes()
 
 
@@ -356,7 +357,7 @@ class TestUpsertUnchangedExpressionGuard:
     def test_a_block_with_an_alias_does_not_crash(self, tmp_path):
         # The block alone can't parse (its anchor lives in another param).
         d = _write(tmp_path, PARAM_FILE)
-        upsert_parameter("ECU", "2101", "ALIASED", "B6", pids_dir=d)
+        upsert_parameter("ECU", "2101", "ALIASED", "B6", pids_dir=d, profile=active())
         p = _load(d)["pids"][2101]["parameters"]["ALIASED"]
         assert p["expression"] == "B6"
         assert p["unit"] == "V"
@@ -365,7 +366,7 @@ class TestUpsertUnchangedExpressionGuard:
         d = _write(tmp_path, "ECU:\n  pids:\n    2101:\n      parameters:\n        P: 5\n")
         before = _text(d)
         with pytest.raises(PidsEditError):
-            upsert_parameter("ECU", "2101", "P", "B4", pids_dir=d)
+            upsert_parameter("ECU", "2101", "P", "B4", pids_dir=d, profile=active())
         assert _text(d) == before
 
     def test_an_int_stored_expression_is_rewritten_as_a_string(self, tmp_path):
@@ -373,12 +374,14 @@ class TestUpsertUnchangedExpressionGuard:
             tmp_path,
             "ECU:\n  pids:\n    2101:\n      parameters:\n        P:\n          expression: 5\n",
         )
-        upsert_parameter("ECU", "2101", "P", "5", pids_dir=d)
+        upsert_parameter("ECU", "2101", "P", "5", pids_dir=d, profile=active())
         assert _load(d)["pids"][2101]["parameters"]["P"]["expression"] == "5"
 
     def test_clear_and_skip_in_one_edit(self, tmp_path):
         d = _write(tmp_path, PARAM_FILE.replace("unit: *volts", "unit: mV"))
-        upsert_parameter("ECU", "2101", "ALIASED", "B5", send_to="", unit="A", pids_dir=d)
+        upsert_parameter(
+            "ECU", "2101", "ALIASED", "B5", send_to="", unit="A", pids_dir=d, profile=active()
+        )
         text = _text(d)
         assert "          expression: 'B5'\n" in text  # byte-identical: not re-rendered
         assert "send_to" not in text
@@ -387,5 +390,5 @@ class TestUpsertUnchangedExpressionGuard:
     def test_an_indented_first_line_note_no_longer_reverts(self, tmp_path):
         d = _write(tmp_path, PARAM_FILE)
         note = "  - first bullet\n  - second bullet"
-        upsert_parameter("ECU", "2101", "BASE", "B4", notes=note, pids_dir=d)
+        upsert_parameter("ECU", "2101", "BASE", "B4", notes=note, pids_dir=d, profile=active())
         assert _load(d)["pids"][2101]["parameters"]["BASE"]["notes"] == note

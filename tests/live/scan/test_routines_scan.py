@@ -8,6 +8,7 @@ import pytest
 import yaml
 
 from canair.live.scan.routines import NRC_ABSENT, NRC_EXISTS_HINTS, RoutineHit, classify
+from canair.profile import active
 from canair.uds.nrc import NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION
 from canair.yaml_edit.pids import PidsEditError, append_routines_block, update_routines_field
 
@@ -123,7 +124,7 @@ def test_append_routines_block_adds_new_section(pids_dir):
             nrc_desc="requestSequenceError",
         ),
     ]
-    path = append_routines_block("TEST", hits, pids_dir=pids_dir)
+    path = append_routines_block("TEST", hits, pids_dir=pids_dir, profile=active())
     text = path.read_text()
     data = yaml.safe_load(text)
 
@@ -140,8 +141,10 @@ def test_append_routines_block_adds_new_section(pids_dir):
 
 def test_a_note_can_be_added_to_a_scanned_routine_that_has_none(pids_dir):
     hit = RoutineHit(rid=0xF010, session="default", response_hex="71 03", nrc=None, nrc_desc=None)
-    append_routines_block("TEST", [hit], pids_dir=pids_dir)
-    update_routines_field("TEST", "F010", "notes", "starts the pump", pids_dir=pids_dir)
+    append_routines_block("TEST", [hit], pids_dir=pids_dir, profile=active())
+    update_routines_field(
+        "TEST", "F010", "notes", "starts the pump", pids_dir=pids_dir, profile=active()
+    )
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
     assert data["TEST"]["routines"]["F010"]["notes"] == "starts the pump"
     assert data["TEST"]["routines"]["F010"]["response"] == "71 03"
@@ -157,7 +160,7 @@ def test_append_routines_preserves_existing_sections(pids_dir):
             nrc_desc="securityAccessDenied",
         ),
     ]
-    append_routines_block("TEST", hits, pids_dir=pids_dir)
+    append_routines_block("TEST", hits, pids_dir=pids_dir, profile=active())
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
 
     # Original sections intact
@@ -179,7 +182,7 @@ def test_append_routines_merges_with_existing(pids_dir):
             nrc_desc="requestSequenceError",
         ),
     ]
-    append_routines_block("TEST", first, pids_dir=pids_dir)
+    append_routines_block("TEST", first, pids_dir=pids_dir, profile=active())
 
     second = [
         RoutineHit(
@@ -190,7 +193,7 @@ def test_append_routines_merges_with_existing(pids_dir):
             nrc_desc="securityAccessDenied",
         ),
     ]
-    append_routines_block("TEST", second, pids_dir=pids_dir)
+    append_routines_block("TEST", second, pids_dir=pids_dir, profile=active())
 
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
     routines = data["TEST"]["routines"]
@@ -202,7 +205,7 @@ def test_append_routines_merges_with_existing(pids_dir):
 
 def test_append_empty_hits_is_noop(pids_dir):
     original = (pids_dir / "test.yaml").read_text()
-    append_routines_block("TEST", [], pids_dir=pids_dir)
+    append_routines_block("TEST", [], pids_dir=pids_dir, profile=active())
     assert (pids_dir / "test.yaml").read_text() == original
 
 
@@ -217,7 +220,7 @@ def test_append_unknown_ecu_raises(pids_dir):
         )
     ]
     with pytest.raises(PidsEditError):
-        append_routines_block("NONEXISTENT", hits, pids_dir=pids_dir)
+        append_routines_block("NONEXISTENT", hits, pids_dir=pids_dir, profile=active())
 
 
 def test_append_yaml_is_still_valid_after_write(pids_dir):
@@ -227,7 +230,7 @@ def test_append_yaml_is_still_valid_after_write(pids_dir):
         )
         for i in (0xF000, 0xF001, 0xF010, 0xF0FF)
     ]
-    path = append_routines_block("TEST", hits, pids_dir=pids_dir)
+    path = append_routines_block("TEST", hits, pids_dir=pids_dir, profile=active())
     # Must round-trip cleanly
     data = yaml.safe_load(path.read_text())
     assert len(data["TEST"]["routines"]) == 4

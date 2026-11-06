@@ -5,6 +5,7 @@ import textwrap
 import pytest
 import yaml
 
+from canair.profile import active
 from canair.yaml_edit.pids import PidsEditError, set_wake
 
 
@@ -46,6 +47,7 @@ def test_adds_full_block(pids_dir):
             "sleep_timer_ms": 2000,
         },
         pids_dir=pids_dir,
+        profile=active(),
     )
     wake = _ecu(pids_dir)["wake"]
     assert wake["method"] == "rapid_read"
@@ -62,14 +64,18 @@ def test_adds_full_block(pids_dir):
 
 
 def test_method_only(pids_dir):
-    set_wake("TESTECU", {"method": "session"}, pids_dir=pids_dir)
+    set_wake("TESTECU", {"method": "session"}, pids_dir=pids_dir, profile=active())
     wake = _ecu(pids_dir)["wake"]
     assert wake == {"method": "session"}
 
 
 def test_replaces_in_place(pids_dir):
-    set_wake("TESTECU", {"method": "rapid_read", "attempts": 4}, pids_dir=pids_dir)
-    set_wake("TESTECU", {"method": "rapid_read", "attempts": 10}, pids_dir=pids_dir)
+    set_wake(
+        "TESTECU", {"method": "rapid_read", "attempts": 4}, pids_dir=pids_dir, profile=active()
+    )
+    set_wake(
+        "TESTECU", {"method": "rapid_read", "attempts": 10}, pids_dir=pids_dir, profile=active()
+    )
     wake = _ecu(pids_dir)["wake"]
     assert wake["attempts"] == 10
     assert (pids_dir / "test.yaml").read_text().count("wake:") == 1
@@ -77,17 +83,19 @@ def test_replaces_in_place(pids_dir):
 
 def test_notes_folded(pids_dir):
     long = "This is a fairly long note about why this ECU needs a rapid-read wake " * 2
-    set_wake("TESTECU", {"method": "rapid_read", "notes": long}, pids_dir=pids_dir)
+    set_wake(
+        "TESTECU", {"method": "rapid_read", "notes": long}, pids_dir=pids_dir, profile=active()
+    )
     got = _ecu(pids_dir)["wake"]["notes"]
     assert " ".join(got.split()) == " ".join(long.split())
 
 
 def test_rejects_missing_method(pids_dir):
     with pytest.raises(PidsEditError):
-        set_wake("TESTECU", {"attempts": 4}, pids_dir=pids_dir)
+        set_wake("TESTECU", {"attempts": 4}, pids_dir=pids_dir, profile=active())
 
 
 def test_missing_ecu(tmp_path):
     (tmp_path / "_meta.yaml").write_text('car_model: "T"\ninit: "x"\n')
     with pytest.raises(PidsEditError):
-        set_wake("NOPE", {"method": "rapid_read"}, pids_dir=tmp_path)
+        set_wake("NOPE", {"method": "rapid_read"}, pids_dir=tmp_path, profile=active())

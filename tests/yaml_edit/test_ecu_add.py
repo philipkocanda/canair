@@ -20,6 +20,7 @@ from canair.cli.commands.ecu.add import cmd_add
 from canair.cli.commands.ecu.rename import cmd_rename
 from canair.core.edit_errors import EditError
 from canair.ecus.pids import clear_cache
+from canair.profile import active
 from canair.yaml_edit.ecu import register_ecu
 
 
@@ -175,7 +176,7 @@ class TestEcuRename:
 
     def test_rename_by_name(self, tmp_path, monkeypatch, capsys):
         root = self._activate(tmp_path, monkeypatch)
-        register_ecu(0x7D5, "Unknown-7D5", ecus_dir=root / "ecus")
+        register_ecu(0x7D5, "Unknown-7D5", ecus_dir=root / "ecus", profile=active())
         clear_cache()
         rc = cmd_rename(self._rargs(ecu="Unknown-7D5", new_name="EPB"))
         assert rc == 0
@@ -185,7 +186,7 @@ class TestEcuRename:
 
     def test_rename_by_hex(self, tmp_path, monkeypatch):
         root = self._activate(tmp_path, monkeypatch)
-        register_ecu(0x7D5, "Unknown-7D5", ecus_dir=root / "ecus")
+        register_ecu(0x7D5, "Unknown-7D5", ecus_dir=root / "ecus", profile=active())
         clear_cache()
         rc = cmd_rename(self._rargs(ecu="0x7D5", new_name="EPB"))
         assert rc == 0
@@ -200,8 +201,8 @@ class TestEcuRename:
 
     def test_collision_is_error(self, tmp_path, monkeypatch, capsys):
         root = self._activate(tmp_path, monkeypatch)
-        register_ecu(0x7D5, "Unknown-7D5", ecus_dir=root / "ecus")
-        register_ecu(0x7E0, "VCU", ecus_dir=root / "ecus")
+        register_ecu(0x7D5, "Unknown-7D5", ecus_dir=root / "ecus", profile=active())
+        register_ecu(0x7E0, "VCU", ecus_dir=root / "ecus", profile=active())
         clear_cache()
         with pytest.raises(EditError, match="already exists"):
             cmd_rename(self._rargs(ecu="Unknown-7D5", new_name="VCU"))
@@ -228,6 +229,8 @@ class TestOfflineValidationProfileScoping:
             profile.resolve_profile(profiles_dir=str(tmp_path))
 
         # ...but a scoped write still validates and persists.
-        wrote = register_ecu(0x7C6, name="CLU", ecus_dir=root_a / "ecus")
+        wrote = register_ecu(
+            0x7C6, name="CLU", ecus_dir=root_a / "ecus", profile=profile.profile_for_path(root_a)
+        )
         assert wrote is True
         assert (root_a / "ecus" / "clu.yaml").exists()

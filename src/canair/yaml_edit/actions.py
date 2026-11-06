@@ -88,7 +88,7 @@ def add_action(
     require: str,
     requests: Sequence[ActionRequest],
     description: str | None = None,
-    profile: Profile | None = None,
+    profile: Profile,
 ) -> Path:
     """Add a new action (scaffolds actions.yaml when absent). Errors if it exists."""
     key = normalize_name(name)
@@ -108,7 +108,7 @@ def update_action(
     reads: Sequence[str] | None = None,
     require: str | None = None,
     requests: Sequence[ActionRequest] | None = None,
-    profile: Profile | None = None,
+    profile: Profile,
 ) -> Path:
     """Replace the given fields of an existing action. ``description=""`` clears it."""
     key = normalize_name(name)
@@ -130,7 +130,7 @@ def update_action(
     return doc.path
 
 
-def remove_action(name: str, *, profile: Profile | None = None) -> Path:
+def remove_action(name: str, *, profile: Profile) -> Path:
     """Remove an action. Errors if it isn't declared."""
     key = normalize_name(name)
     with edit_doc(ACTIONS, profile) as doc:

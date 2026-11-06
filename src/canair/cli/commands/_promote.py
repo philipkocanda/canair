@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from canair.profile import active
 from canair.render import messages
 from canair.yaml_edit.echo import echo_edit
 
@@ -64,6 +65,7 @@ def write_candidate(ecu: str, pid: str, name: str, expr: str, *, source: str, no
             source=source,
             notes=notes,
             verified=False,
+            profile=active(),
         )
 
 

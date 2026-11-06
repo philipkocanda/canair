@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from canair.cli.commands._edit import add_edit_args, run_edit
+from canair.cli.profile_context import target_profile
 from canair.core.edit_errors import EditError
 from canair.ecus.names import resolve_tx
 from canair.memory.diff import diff_dumps
@@ -92,6 +93,7 @@ def cmd_set(args: argparse.Namespace) -> int:
             session=args.session,
             clear=args.clear or (),
             ecus_dir=args.dir,
+            profile=target_profile(args),
         ),
         f"{args.ecu} memory updated",
         args=args,

@@ -83,8 +83,6 @@ class TestDirResolution:
         prof = Profile("p", tmp_path)
         assert ecu_files.ecus_dir(None, profile=prof) == tmp_path / "ecus"
 
-    def test_defaults_to_the_active_profile(self, tmp_path, monkeypatch):
-        from canair import profile
-
-        monkeypatch.setattr(profile, "_active", Profile("p", tmp_path))
-        assert ecu_files.ecus_dir() == tmp_path / "ecus"
+    def test_without_a_directory_or_a_profile_it_is_an_error(self):
+        with pytest.raises(TypeError):
+            ecu_files.ecus_dir()

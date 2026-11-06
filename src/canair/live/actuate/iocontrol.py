@@ -192,7 +192,7 @@ class _IOControlTUI:
         successful regex match).
         """
         try:
-            fpath = update_iocontrol_field(self.ecu_key, did, field, value)
+            fpath = update_iocontrol_field(self.ecu_key, did, field, value, profile=self.profile)
         except PidsEditError as exc:
             self._status = ansi.c(f"{glyphs.FAIL} Edit failed: {exc}", ansi.RED)
             _tui_logger.error("edit %s %s=%r: %s", did, field, value, exc)
@@ -231,7 +231,7 @@ class _IOControlTUI:
             self._status = ansi.c(f"{glyphs.FAIL} Promote cancelled: empty label", ansi.RED)
             return
         try:
-            fpath = promote_discovery(self.ecu_key, did, label)
+            fpath = promote_discovery(self.ecu_key, did, label, profile=self.profile)
         except PidsEditError as exc:
             self._status = ansi.c(f"{glyphs.FAIL} Promote failed: {exc}", ansi.RED)
             _tui_logger.error("promote %s label=%r: %s", did, label, exc)

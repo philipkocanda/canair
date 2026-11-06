@@ -75,7 +75,7 @@ def test_writeback_two_digit_lid_keys(tmp_path):
         KwpRoutineHit(0x80, "extended", "738000", None, None),
         KwpRoutineHit(0x0A, "extended", "", 0x24, "requestSequenceError"),
     ]
-    path = append_routines_block("TEST", hits, pids_dir=tmp_path, key_width=2)
+    path = append_routines_block("TEST", hits, pids_dir=tmp_path, key_width=2, profile=active())
     raw = path.read_text()
     assert '"80":' in raw and '"0A":' in raw
     data = yaml.safe_load(raw)
@@ -109,7 +109,13 @@ async def test_a_nissan_profile_warns_that_0x33_is_unproven(capsys):
     pids = {"quirks": ["nissan_c0_session"], "ecus": {"VCM": {"tx_id": 0x797}}}
     term = FakeTerminal(default=nrc(0x31))
     await mode_kwp_routines_scan(
-        term, pids, ["VCM"], lid_range=(0x01, 0x01), throttle_ms=0, write_yaml=False
+        term,
+        pids,
+        ["VCM"],
+        lid_range=(0x01, 0x01),
+        throttle_ms=0,
+        write_yaml=False,
+        profile=active(),
     )
     assert "not proven to be side-effect-free" in capsys.readouterr().err
 
@@ -127,5 +133,6 @@ async def test_other_profiles_scan_without_the_warning(capsys):
         lid_range=(0x01, 0x01),
         throttle_ms=0,
         write_yaml=False,
+        profile=active(),
     )
     assert "WARNING" not in capsys.readouterr().err

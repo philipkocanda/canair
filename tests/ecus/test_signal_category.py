@@ -18,6 +18,7 @@ from canair.ecus.signal_category import (
     unit_category,
 )
 from canair.interop.autopid.classes import autopid_class
+from canair.profile import active
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.schema_fields import load_schema
 from canair.yaml_edit.pids import migrate_categories, upsert_parameter
@@ -179,7 +180,7 @@ def _pids(pids_dir):
 
 class TestMigration:
     def test_dry_run_reports_and_writes_nothing(self, pids_dir):
-        found = migrate_categories("TEST", dry_run=True, pids_dir=pids_dir)
+        found = migrate_categories("TEST", dry_run=True, pids_dir=pids_dir, profile=active())
         assert (pids_dir / "test.yaml").read_text() == YAML
         assert {(m.pid, m.param): m.category for m in found} == {
             ("2101", "SOC"): "state_of_charge",
@@ -192,7 +193,7 @@ class TestMigration:
         }
 
     def test_rewrites_in_place(self, pids_dir):
-        migrate_categories("TEST", pids_dir=pids_dir)
+        migrate_categories("TEST", pids_dir=pids_dir, profile=active())
         text = (pids_dir / "test.yaml").read_text()
         assert "ha_class" not in text
         assert '          unit: "%"\n          category: state_of_charge\n          notes:' in text
@@ -209,8 +210,8 @@ class TestMigration:
         assert not [w for w in warnings if "category" in w or "ha_class" in w]
 
     def test_a_second_run_finds_nothing(self, pids_dir):
-        migrate_categories("TEST", pids_dir=pids_dir)
-        assert migrate_categories("TEST", pids_dir=pids_dir) == []
+        migrate_categories("TEST", pids_dir=pids_dir, profile=active())
+        assert migrate_categories("TEST", pids_dir=pids_dir, profile=active()) == []
 
     def test_cli_over_every_ecu(self, pids_dir, capsys):
         args = argparse.Namespace(ecu=None, dir=pids_dir, dry_run=False, no_validate=False)
@@ -224,8 +225,18 @@ def test_validate_points_an_unmigrated_profile_at_the_migration(pids_dir):
 
 
 def test_upsert_writes_and_an_empty_value_removes(pids_dir):
-    migrate_categories("TEST", pids_dir=pids_dir)
-    upsert_parameter("TEST", "2101", "SOC", "B10/2", category="", pids_dir=pids_dir)
+    migrate_categories("TEST", pids_dir=pids_dir, profile=active())
+    upsert_parameter(
+        "TEST", "2101", "SOC", "B10/2", category="", pids_dir=pids_dir, profile=active()
+    )
     assert "category" not in _pids(pids_dir)["2101"]["parameters"]["SOC"]
-    upsert_parameter("TEST", "2101", "SOC", "B10/2", category="state_of_charge", pids_dir=pids_dir)
+    upsert_parameter(
+        "TEST",
+        "2101",
+        "SOC",
+        "B10/2",
+        category="state_of_charge",
+        pids_dir=pids_dir,
+        profile=active(),
+    )
     assert _pids(pids_dir)["2101"]["parameters"]["SOC"]["category"] == "state_of_charge"

@@ -45,7 +45,7 @@ def persist(
         return 0
 
     try:
-        require_writable_definitions()
+        require_writable_definitions(profile=profile)
     except ProfileError as e:
         # A layered profile's base is read-only by design; the counts are simply
         # not recorded rather than the session failing over it.
@@ -70,9 +70,11 @@ def persist(
             continue
         try:
             if target is None:
-                path = set_response_frames(edit.ecu, edit.pid, edit.frames)
+                path = set_response_frames(edit.ecu, edit.pid, edit.frames, profile=profile)
             else:
-                path = _set_revision_frames(edit.ecu, edit.pid, target, edit.frames)
+                path = _set_revision_frames(
+                    edit.ecu, edit.pid, target, edit.frames, profile=profile
+                )
         except (PidsEditError, OSError) as e:
             print(f"  [count] could not record {edit.ecu} {edit.pid}: {e}", file=sys.stderr)
             continue
@@ -82,14 +84,16 @@ def persist(
     return written
 
 
-def _set_revision_frames(ecu: str, pid: str, revision: str, frames: int | None):
+def _set_revision_frames(
+    ecu: str, pid: str, revision: str, frames: int | None, *, profile: Profile
+):
     from canair.yaml_edit.ecu import EcusEditError
     from canair.yaml_edit.pids import PidsEditError
     from canair.yaml_edit.revisions import set_override
 
     try:
         if frames is None:
-            return set_override(ecu, pid, None, revision, {}, clear=[FIELD])
-        return set_override(ecu, pid, None, revision, {FIELD: int(frames)})
+            return set_override(ecu, pid, None, revision, {}, clear=[FIELD], profile=profile)
+        return set_override(ecu, pid, None, revision, {FIELD: int(frames)}, profile=profile)
     except EcusEditError as e:
         raise PidsEditError(str(e)) from e

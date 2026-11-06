@@ -29,14 +29,12 @@ _ECU_KEY_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_\-]*):\s*$", re.MULTILINE)
 
 
 def ecus_dir(dir_or_none: Path | str | None = None, *, profile: Profile | None = None) -> Path:
-    """Resolve the ECU definitions directory (default: the active profile's)."""
+    """The ECU definitions directory: ``dir_or_none`` (an explicit ``--dir``), else ``profile``'s."""
     if dir_or_none is not None:
         return Path(dir_or_none)
-    if profile is not None:
-        return profile.ecus_dir
-    from canair.profile import active
-
-    return active().ecus_dir
+    if profile is None:
+        raise TypeError("an ECU directory or a profile is required")
+    return profile.ecus_dir
 
 
 def iter_ecu_files(

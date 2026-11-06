@@ -69,7 +69,7 @@ def cmd_plot(
 
     from canair.tui.apps.decode_plot.app import run_plot_app
 
-    run_plot_app(model, reload_pid=reload_pid, pid_options=pid_options)
+    run_plot_app(model, reload_pid=reload_pid, pid_options=pid_options, profile=active())
 
 
 def plot_pid_options() -> list[tuple[str, str]]:

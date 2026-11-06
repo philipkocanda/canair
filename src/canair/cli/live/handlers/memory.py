@@ -48,6 +48,7 @@ async def handle_memory_scan(args, terminal: Terminal, pids_data, host, *, recon
         find_block=not args.no_block,
         block_limit=args.block_limit,
         write_yaml=not args.dry_run,
+        profile=active(),
     )
     print_scan(scan, as_json=args.json)
 

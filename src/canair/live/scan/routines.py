@@ -34,6 +34,7 @@ from __future__ import annotations
 from typing import NamedTuple
 
 from canair.live.scan.discovery import DiscoveryProbe, mode_discovery_scan
+from canair.profile import Profile
 from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import (
@@ -118,11 +119,11 @@ def _make_hit(rid, session, response_hex, nrc, nrc_desc) -> RoutineHit:
     return RoutineHit(rid, session, response_hex, nrc, nrc_desc)
 
 
-def _write_hit(ecu_name: str, hit: RoutineHit) -> None:
+def _write_hit(ecu_name: str, hit: RoutineHit, profile: Profile) -> None:
     from canair.yaml_edit.pids import append_routines_block
 
     try:
-        append_routines_block(ecu_name, [hit])
+        append_routines_block(ecu_name, [hit], profile=profile)
     except Exception as exc:
         messages.error(f"[{ecu_name}] writing YAML failed: {exc}")
 
@@ -152,6 +153,8 @@ async def mode_routines_scan(
     session: bool = False,
     wake: bool = False,
     session_mode: str = "03",
+    *,
+    profile: Profile,
 ) -> dict[str, list[RoutineHit]]:
     """Scan RoutineControl IDs on one or more ECUs (safe SF 0x03).
 
@@ -172,4 +175,5 @@ async def mode_routines_scan(
         session=session,
         wake=wake,
         session_mode=session_mode,
+        profile=profile,
     )

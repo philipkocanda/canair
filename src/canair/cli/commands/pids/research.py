@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 
 from canair.cli.commands._edit import add_edit_args, run_edit
+from canair.cli.profile_context import target_profile
 from canair.yaml_edit.echo import echo_edit
 from canair.yaml_edit.pids import (
     add_research_entry,
@@ -140,6 +141,7 @@ def cmd_add_research(args: argparse.Namespace) -> int:
             capture_protocol=args.capture_protocol,
             revisions=args.revisions or None,
             pids_dir=args.dir,
+            profile=target_profile(args),
         ),
         f"research {args.ecu} {args.type} {args.target} [{args.status}]",
         args=args,
@@ -149,7 +151,13 @@ def cmd_add_research(args: argparse.Namespace) -> int:
 def cmd_set_status(args: argparse.Namespace) -> int:
     return run_edit(
         lambda: set_research_status(
-            args.ecu, args.target, args.status, type=args.type, index=args.index, pids_dir=args.dir
+            args.ecu,
+            args.target,
+            args.status,
+            type=args.type,
+            index=args.index,
+            pids_dir=args.dir,
+            profile=target_profile(args),
         ),
         f"{args.ecu} research {args.target} -> {args.status}",
         args=args,
@@ -159,7 +167,12 @@ def cmd_set_status(args: argparse.Namespace) -> int:
 def cmd_rm_research(args: argparse.Namespace) -> int:
     def do():
         delete_research_entry(
-            args.ecu, args.target, type=args.type, index=args.index, pids_dir=args.dir
+            args.ecu,
+            args.target,
+            type=args.type,
+            index=args.index,
+            pids_dir=args.dir,
+            profile=target_profile(args),
         )
 
     fpath = apply_in_scope(args, do)
@@ -182,7 +195,14 @@ def cmd_set_research_text(args: argparse.Namespace) -> int:
     what = words_verb(text)
     return run_edit(
         lambda: set_research_text(
-            args.ecu, args.target, field, text, type=args.type, index=args.index, pids_dir=args.dir
+            args.ecu,
+            args.target,
+            field,
+            text,
+            type=args.type,
+            index=args.index,
+            pids_dir=args.dir,
+            profile=target_profile(args),
         ),
         f"{args.ecu} research {args.target} {field} {what}",
         args=args,

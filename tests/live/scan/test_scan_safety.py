@@ -13,6 +13,7 @@ from canair.ecus.pids import normalize_session_mode
 from canair.live.scan import kwp_iocontrol as kwp_iocontrol_scan
 from canair.live.scan import kwp_routines as kwp_routines_scan
 from canair.live.scan.sessions import mode_sessions_scan
+from canair.profile import active
 from tests.support.fakes import FakeTerminal, nrc
 
 KWP_BCM = {"BCM": {"tx_id": 0x745, "identity": {"id_protocol": "KWP2000"}}}
@@ -32,7 +33,12 @@ def test_session_scan_probes_c0_on_a_nissan_kwp_ecu():
     term = FakeTerminal(default=nrc(0x12))
     asyncio.run(
         mode_sessions_scan(
-            term, _data(["nissan_c0_session"]), ["BCM"], throttle_ms=0, write_yaml=False
+            term,
+            _data(["nissan_c0_session"]),
+            ["BCM"],
+            throttle_ms=0,
+            write_yaml=False,
+            profile=active(),
         )
     )
     assert term.sent == ["1081", "1082", "1083", "10C0"]
@@ -40,7 +46,11 @@ def test_session_scan_probes_c0_on_a_nissan_kwp_ecu():
 
 def test_session_scan_without_the_quirk_keeps_the_kwp_set():
     term = FakeTerminal(default=nrc(0x12))
-    asyncio.run(mode_sessions_scan(term, _data(), ["BCM"], throttle_ms=0, write_yaml=False))
+    asyncio.run(
+        mode_sessions_scan(
+            term, _data(), ["BCM"], throttle_ms=0, write_yaml=False, profile=active()
+        )
+    )
     assert term.sent == ["1081", "1082", "1083"]
 
 
@@ -55,6 +65,7 @@ def test_session_scan_skips_explicit_modes_the_guard_refuses(capsys):
             modes=(0x01, 0x82, 0x03, 0x02),
             throttle_ms=0,
             write_yaml=False,
+            profile=active(),
         )
     )
     assert term.sent == ["1001", "1003"]
@@ -76,6 +87,7 @@ def _io_scan(data, confirmed=False, **kw):
             throttle_ms=0,
             write_yaml=False,
             confirmed=confirmed,
+            profile=active(),
         )
     )
     return term
@@ -166,7 +178,12 @@ def test_nissan_routine_scan_is_refused_unconfirmed(capsys):
     term = FakeTerminal(default=nrc(0x31))
     out = asyncio.run(
         kwp_routines_scan.mode_kwp_routines_scan(
-            term, _data(["nissan_c0_session"]), ["BCM"], throttle_ms=0, write_yaml=False
+            term,
+            _data(["nissan_c0_session"]),
+            ["BCM"],
+            throttle_ms=0,
+            write_yaml=False,
+            profile=active(),
         )
     )
     assert out == {}
@@ -185,6 +202,7 @@ def test_nissan_routine_scan_runs_once_confirmed():
             throttle_ms=0,
             write_yaml=False,
             confirmed=True,
+            profile=active(),
         )
     )
     assert term.sent == ["3301"]

@@ -259,6 +259,7 @@ def cmd_upsert(args) -> int:
             msg_length=args.msg_length,
             extended=args.extended,
             fd=args.fd,
+            profile=active(),
         ),
         lambda _p: (
             f"[{ansi.CYAN}{active().name}{ansi.RESET}] {args.bus}: {args.arb_id} {args.name}"
@@ -270,6 +271,6 @@ def cmd_rm(args) -> int:
     from canair.yaml_edit.signals import remove_signal
 
     return run_edit(
-        lambda: remove_signal(args.bus, args.arb_id, args.name),
+        lambda: remove_signal(args.bus, args.arb_id, args.name, profile=active()),
         lambda _p: f"[{ansi.CYAN}{active().name}{ansi.RESET}] removed {args.arb_id} {args.name}",
     )

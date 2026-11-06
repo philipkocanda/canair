@@ -208,7 +208,7 @@ def _plan_round_trip(plan: StateRenamePlan, path: Path) -> None:
         plan._texts[path] = buf.getvalue()
 
 
-def plan_state_rename(old: str, new: str, *, profile: Profile | None = None) -> StateRenamePlan:
+def plan_state_rename(old: str, new: str, *, profile: Profile) -> StateRenamePlan:
     """Compute every edit renaming ``old`` to ``new`` makes. Writes nothing.
 
     Raises :class:`StateRenameError` (or a
@@ -217,11 +217,9 @@ def plan_state_rename(old: str, new: str, *, profile: Profile | None = None) -> 
     ``ALL``, or a reference is in a form this cannot rewrite.
     """
     from canair.dtc.log import log_file as dtc_log_file
-    from canair.profile import active
     from canair.yaml_edit.doc import load_doc
     from canair.yaml_edit.states import STATES, find_state, normalize_name
 
-    profile = profile or active()
     old, new = normalize_name(old), normalize_name(new)
     if ALL_STATE in (old, new):
         raise StateRenameError(f"{ALL_STATE} is the every-state meta-token and cannot be renamed")
@@ -241,18 +239,16 @@ def plan_state_rename(old: str, new: str, *, profile: Profile | None = None) -> 
     return plan
 
 
-def apply_state_rename(plan: StateRenamePlan, *, profile: Profile | None = None) -> None:
+def apply_state_rename(plan: StateRenamePlan, *, profile: Profile) -> None:
     """Write ``plan``: the vocabulary first, then every reference.
 
     All or nothing: if any write or post-write validation fails, every file
     already written (the vocabulary included) is restored before the error is
     re-raised.
     """
-    from canair.profile import active
     from canair.validation.pids import validate_pids_file
     from canair.yaml_edit.states import rename_state
 
-    profile = profile or active()
     originals: dict[Path, str] = {plan.states_file: plan.states_file.read_text()}
     try:
         rename_state(plan.old, plan.new, profile=profile)

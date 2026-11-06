@@ -7,6 +7,7 @@ import yaml
 
 from canair.cli.commands.pids import pid_settings
 from canair.core.edit_errors import EditError
+from canair.profile import active
 from canair.uds.support_map import MapDecl
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.schema_fields import load_schema
@@ -42,7 +43,7 @@ def _pid(pids_dir, pid="22BC03"):
 
 class TestSetSupportMap:
     def test_written_as_a_one_line_flow_mapping_after_the_header(self, pids_dir):
-        set_support_map("TEST", "22BC03", DECL, pids_dir=pids_dir)
+        set_support_map("TEST", "22BC03", DECL, pids_dir=pids_dir, profile=active())
         text = (pids_dir / "test.yaml").read_text()
         assert "    22BC03:\n      support_map: {at: 0, length: 4, unit: bit, order: msb}\n" in text
         assert _pid(pids_dir)["support_map"] == {
@@ -54,44 +55,46 @@ class TestSetSupportMap:
 
     def test_the_rest_of_the_file_is_untouched(self, pids_dir):
         before = (pids_dir / "test.yaml").read_text().splitlines()
-        set_support_map("TEST", "22BC03", DECL, pids_dir=pids_dir)
+        set_support_map("TEST", "22BC03", DECL, pids_dir=pids_dir, profile=active())
         after = (pids_dir / "test.yaml").read_text().splitlines()
         assert [ln for ln in after if "support_map" not in ln] == before
 
     def test_only_the_named_pid_changes(self, pids_dir):
-        set_support_map("TEST", "22BC03", DECL, pids_dir=pids_dir)
+        set_support_map("TEST", "22BC03", DECL, pids_dir=pids_dir, profile=active())
         assert "support_map" not in _pid(pids_dir, "22BC04")
 
     def test_replacing_leaves_exactly_one_declaration(self, pids_dir):
-        set_support_map("TEST", "22BC03", DECL, pids_dir=pids_dir)
-        set_support_map("TEST", "22BC03", MapDecl(2, 1, "byte"), pids_dir=pids_dir)
+        set_support_map("TEST", "22BC03", DECL, pids_dir=pids_dir, profile=active())
+        set_support_map(
+            "TEST", "22BC03", MapDecl(2, 1, "byte"), pids_dir=pids_dir, profile=active()
+        )
         assert (pids_dir / "test.yaml").read_text().count("support_map") == 1
         assert _pid(pids_dir)["support_map"]["unit"] == "byte"
 
     def test_clearing_restores_the_original_bytes(self, pids_dir):
         before = (pids_dir / "test.yaml").read_text()
-        set_support_map("TEST", "22BC03", DECL, pids_dir=pids_dir)
-        set_support_map("TEST", "22BC03", None, pids_dir=pids_dir)
+        set_support_map("TEST", "22BC03", DECL, pids_dir=pids_dir, profile=active())
+        set_support_map("TEST", "22BC03", None, pids_dir=pids_dir, profile=active())
         assert (pids_dir / "test.yaml").read_text() == before
 
     def test_clearing_an_unset_map_is_a_no_op(self, pids_dir):
         before = (pids_dir / "test.yaml").read_text()
-        set_support_map("TEST", "22BC03", None, pids_dir=pids_dir)
+        set_support_map("TEST", "22BC03", None, pids_dir=pids_dir, profile=active())
         assert (pids_dir / "test.yaml").read_text() == before
 
     def test_pid_lookup_is_case_insensitive(self, pids_dir):
-        set_support_map("test", "22bc03", DECL, pids_dir=pids_dir)
+        set_support_map("test", "22bc03", DECL, pids_dir=pids_dir, profile=active())
         assert "support_map" in _pid(pids_dir)
 
     def test_unknown_pid_leaves_the_file_alone(self, pids_dir):
         before = (pids_dir / "test.yaml").read_text()
         with pytest.raises(PidsEditError, match="not found"):
-            set_support_map("TEST", "9999", DECL, pids_dir=pids_dir)
+            set_support_map("TEST", "9999", DECL, pids_dir=pids_dir, profile=active())
         assert (pids_dir / "test.yaml").read_text() == before
 
     def test_unknown_ecu(self, pids_dir):
         with pytest.raises(PidsEditError):
-            set_support_map("NOPE", "22BC03", DECL, pids_dir=pids_dir)
+            set_support_map("NOPE", "22BC03", DECL, pids_dir=pids_dir, profile=active())
 
 
 class _Args(argparse.Namespace):

@@ -14,6 +14,7 @@ from typing import Any
 
 import yaml
 
+from canair.profile import Profile
 from canair.transport.isotp_params import ECU_ISOTP_FIELDS
 from canair.yaml_edit.text import (
     PidsEditError,
@@ -43,6 +44,7 @@ def set_ecu_isotp(
     values: Mapping[str, int | None],
     *,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Set (an int) or remove (``None``) fields of an ECU's own ``isotp:`` block."""
     unknown = [k for k in values if k not in ECU_ISOTP_FIELDS]
@@ -84,4 +86,4 @@ def set_ecu_isotp(
         if (dict(got) if isinstance(got, Mapping) else {}) != want:
             raise PidsEditError(f"{FIELD} mismatch after edit (got {got!r})")
 
-    return edit_ecu_text(ecu_name, transform, check, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, check, pids_dir=pids_dir, profile=profile)

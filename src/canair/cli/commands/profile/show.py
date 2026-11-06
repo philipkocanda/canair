@@ -153,7 +153,7 @@ def cmd_show(args) -> int:
     from canair.dtc.log import load_log, log_file
 
     dtc_log = log_file(prof)
-    scans = len(load_log(dtc_log)["scans"]) if dtc_log.exists() else 0
+    scans = len(load_log(dtc_log, profile=active())["scans"]) if dtc_log.exists() else 0
     detail = f"{scans} scan(s) — user state" if scans else "none — user state"
     print(f"{'dtc log:':<12}{dtc_log}  ({detail})")
     return 0

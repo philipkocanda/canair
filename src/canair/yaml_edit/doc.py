@@ -163,7 +163,7 @@ def edit_doc(
 ) -> Iterator[Doc]:
     """Open ``target`` for editing; leaving the block without an exception writes it back.
 
-    ``path`` overrides the profile lookup (an explicit ``--dir``); ``route`` is passed to
+    ``path`` overrides the lookup in ``profile`` (an explicit ``--dir``); ``route`` is passed to
     ``target.path`` (a signals editor routes by ``bus=``). ``create`` allows a file that does not
     exist yet (``missing`` words the error when it must). ``validate=False`` skips the target's schema check but not its structural one.
     """
@@ -171,9 +171,7 @@ def edit_doc(
         if target.path is None:
             raise TypeError(f"target {target.key!r} needs an explicit path")
         if profile is None:
-            from canair.profile import active
-
-            profile = active()
+            raise TypeError(f"editing {target.key!r} needs a profile or an explicit path")
         path = target.path(profile, **route)
     doc = load_doc(target, path, create=create, section_of=section_of, missing=missing)
     yield doc

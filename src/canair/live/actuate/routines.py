@@ -303,7 +303,7 @@ class _RoutinesTUI:
 
     def _apply_edit(self, rid: str, field: str, value) -> None:
         try:
-            fpath = update_routines_field(self.ecu_key, rid, field, value)
+            fpath = update_routines_field(self.ecu_key, rid, field, value, profile=self.profile)
         except PidsEditError as exc:
             self._status = ansi.c(f"{glyphs.FAIL} Edit failed: {exc}", ansi.RED)
             _tui_logger.error("edit %s %s=%r: %s", rid, field, value, exc)

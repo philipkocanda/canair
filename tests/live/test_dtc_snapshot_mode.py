@@ -270,7 +270,7 @@ def logp(monkeypatch, tmp_path):
     from canair.dtc import log as dtc_log
 
     path = tmp_path / "dtc_log.yaml"
-    monkeypatch.setattr(dtc_log, "log_path", lambda p=None: path if p is None else p)
+    monkeypatch.setattr(dtc_log, "log_path", lambda p=None, **_: path if p is None else p)
     return path
 
 
@@ -293,7 +293,7 @@ class TestLog:
         await dtc.mode_dtc_read(
             t, CCM, protocol="uds", log=True, pids_data=PIDS_DATA, profile=active()
         )
-        (scan,) = dtc_log.load_log(logp)["scans"]
+        (scan,) = dtc_log.load_log(logp, profile=active())["scans"]
         (info,) = scan["ecus"].values()
         assert info["snapshots"] == {
             "C182C-00": [
@@ -317,7 +317,7 @@ class TestLog:
                 profile=active(),
             )
         capsys.readouterr()
-        first, second = dtc_log.load_log(logp)["scans"]
+        first, second = dtc_log.load_log(logp, profile=active())["scans"]
         text = "\n".join(dtc_log.render_scan(second, first, profile=active()))
         assert "snapshot 02  DID 4710" in text
         assert "SNAP_PROGRESS_BYTE  54 raw" in text
@@ -340,7 +340,7 @@ class TestClear:
             t, CCM, protocol="uds", log=True, pids_data=PIDS_DATA, profile=active()
         )
         assert t.sent == ["1902FF", "1903", "1904582C0001", "1904582C0002", "14FFFFFF"]
-        (clear,) = dtc_log.load_log(logp)["clears"]
+        (clear,) = dtc_log.load_log(logp, profile=active())["clears"]
         assert [r["record"] for r in clear["snapshots"]["C182C-00"]] == [1, 2]
         assert "2 snapshot record(s) read before clearing" in capsys.readouterr().out
 
@@ -353,7 +353,7 @@ class TestClear:
         await dtc.mode_dtc_clear(
             t, CCM, protocol="uds", log=True, pids_data=PIDS_DATA, profile=active()
         )
-        clears = dtc_log.load_log(logp)["clears"]
+        clears = dtc_log.load_log(logp, profile=active())["clears"]
         scan = dtc_log.build_scan("0x73B", {"0x73B": {"dtcs": []}}, timestamp="2999-01-01T00:00")
         text = "\n".join(dtc_log.render_scan(scan, None, clears, profile=active()))
         assert "Snapshots erased by the clear" in text and "SNAP_EV_READY" in text
@@ -483,6 +483,6 @@ class TestSensitive:
         snap = json.loads(capsys.readouterr().out)["dtcs"][0]["snapshots"][0]
         assert snap["hex"] == MASK and snap["dids"][0]["data"] == MASK
         assert {s["value"] for s in snap["dids"][0]["signals"]} == {MASK}
-        (scan,) = dtc_log.load_log(logp)["scans"]
+        (scan,) = dtc_log.load_log(logp, profile=active())["scans"]
         assert "snapshots" not in next(iter(scan["ecus"].values()))
         assert saved == []

@@ -13,14 +13,14 @@ def test_append_and_load(tmp_path):
         timestamp="2026-07-22T10:00:00",
     )
     dtc_log.append_scan(entry, path=p, profile=active())
-    data = dtc_log.load_log(p)
+    data = dtc_log.load_log(p, profile=active())
     assert len(data["scans"]) == 1
     assert data["scans"][0]["scope"] == "all"
     assert data["scans"][0]["label"] == "baseline"
 
 
 def test_load_missing_is_empty(tmp_path):
-    assert dtc_log.load_log(tmp_path / "nope.yaml") == {"scans": []}
+    assert dtc_log.load_log(tmp_path / "nope.yaml", profile=active()) == {"scans": []}
 
 
 def test_build_scan_records_vehicle_states(tmp_path):
@@ -34,7 +34,10 @@ def test_build_scan_records_vehicle_states(tmp_path):
     )
     assert entry["vehicle_states"] == ["plugged", "charging"]
     dtc_log.append_scan(entry, path=p, profile=active())
-    assert dtc_log.load_log(p)["scans"][0]["vehicle_states"] == ["plugged", "charging"]
+    assert dtc_log.load_log(p, profile=active())["scans"][0]["vehicle_states"] == [
+        "plugged",
+        "charging",
+    ]
 
 
 def test_build_scan_omits_empty_vehicle_states():
@@ -98,7 +101,7 @@ def test_append_clear_and_coexist_with_scans(tmp_path):
         path=p,
         profile=active(),
     )
-    data = dtc_log.load_log(p)
+    data = dtc_log.load_log(p, profile=active())
     assert len(data["scans"]) == 1
     assert len(data["clears"]) == 1
     clr = data["clears"][0]

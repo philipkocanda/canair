@@ -21,6 +21,7 @@ import yaml
 
 from canair.ecus.pids import effective_param
 from canair.ecus.signal_category import CATEGORIES, RETIRED_FIELD, unit_category
+from canair.profile import Profile
 from canair.yaml_edit.pids.defaults import _ecu_def, _params
 from canair.yaml_edit.text import (
     PidsEditError,
@@ -112,7 +113,7 @@ def _rewrite_param(block: str, m: Migrated) -> str:
 
 
 def migrate_categories(
-    ecu_name: str, *, dry_run: bool = False, pids_dir: Path | None = None
+    ecu_name: str, *, dry_run: bool = False, pids_dir: Path | None = None, profile: Profile
 ) -> list[Migrated]:
     """Replace every ``ha_class`` of one ECU with ``category`` (or nothing).
 
@@ -120,7 +121,7 @@ def migrate_categories(
     kept: no ``ha_class`` may remain, and every signal must carry exactly the planned
     category.
     """
-    original = find_ecu_file(ecu_name, pids_dir=pids_dir).read_text()
+    original = find_ecu_file(ecu_name, pids_dir=pids_dir, profile=profile).read_text()
     plan = plan_ecu(_ecu_def(yaml.safe_load(original), ecu_name))
     if dry_run or not plan:
         return plan
@@ -147,5 +148,5 @@ def migrate_categories(
             if RETIRED_FIELD in param or param.get("category") != m.category:
                 raise PidsEditError(f"{m.pid}/{m.param}: category not migrated, reverted")
 
-    edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
     return plan

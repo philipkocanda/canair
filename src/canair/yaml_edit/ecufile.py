@@ -13,6 +13,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from canair.core.edit_errors import EditError
+from canair.profile import Profile
 
 
 def clear_cache() -> None:
@@ -39,7 +40,9 @@ def schema_validator(error: type[EditError]) -> Callable[[Path], None]:
     return validate
 
 
-def find_ecu_file(ecu_name: str, ecus_dir: Path | None = None, *, error: type[EditError]) -> Path:
+def find_ecu_file(
+    ecu_name: str, ecus_dir: Path | None = None, *, error: type[EditError], profile: Profile
+) -> Path:
     """The ``ecus/<ecu>.yaml`` file that defines ``ecu_name`` (``error`` if none does).
 
     The write-target resolver for every name-keyed editor. An edit must never invent a
@@ -47,7 +50,7 @@ def find_ecu_file(ecu_name: str, ecus_dir: Path | None = None, *, error: type[Ed
     """
     from canair.ecus.files import find_by_name
 
-    fpath = find_by_name(ecu_name, ecus_dir)
+    fpath = find_by_name(ecu_name, ecus_dir, profile=profile)
     if fpath is None:
         raise error(f"ECU {ecu_name!r} not found in any ecus/*.yaml")
     return fpath

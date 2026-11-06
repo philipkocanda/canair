@@ -137,7 +137,7 @@ class TestExplorer:
     def test_gates_overrides_and_presence_are_exported(self):
         from canair.interop.explorer.export import export_profile
 
-        data = export_profile(FIXTURE)
+        data = export_profile(FIXTURE, profile=active())
         ecus = {e["name"]: e for e in data["ecus"]}
         assert [r["id"] for r in ecus["VCU"]["revisions"]] == ["kwp", "uds"]
         assert ecus["VCU"]["revisions"][1]["protocol"] == "UDS"
@@ -154,7 +154,7 @@ class TestExplorer:
     def test_the_ioniq_38kwh_bms_is_unverified_uds(self):
         from canair.interop.explorer.export import export_profile
 
-        data = export_profile(REPO / "profiles" / "hyundai-ioniq-ae-ev")
+        data = export_profile(REPO / "profiles" / "hyundai-ioniq-ae-ev", profile=active())
         bms = next(e for e in data["ecus"] if e["name"] == "BMS")
         uds = [p for p in bms["pids"] if p.get("revisions") == ["UDS"]]
         assert {p["id"] for p in uds} == {"220101", "220105"}

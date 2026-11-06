@@ -133,7 +133,9 @@ def cmd_add(args) -> int:
     from canair.yaml_edit.variants import add_variant
 
     meta = _assignments(args.meta)
-    return run_edit(lambda: add_variant(args.id, args.name, meta), f"added variant {args.id}")
+    return run_edit(
+        lambda: add_variant(args.id, args.name, meta, profile=active()), f"added variant {args.id}"
+    )
 
 
 def cmd_set_meta(args) -> int:
@@ -141,7 +143,10 @@ def cmd_set_meta(args) -> int:
 
     meta = _assignments(args.meta)
     keys = ", ".join(dict.fromkeys(k for k, _ in meta))
-    return run_edit(lambda: set_variant_meta(args.id, meta), f"set {keys} on variant {args.id}")
+    return run_edit(
+        lambda: set_variant_meta(args.id, meta, profile=active()),
+        f"set {keys} on variant {args.id}",
+    )
 
 
 def cmd_unset_meta(args) -> int:
@@ -149,7 +154,7 @@ def cmd_unset_meta(args) -> int:
 
     keys = ", ".join(args.keys)
     return run_edit(
-        lambda: unset_variant_meta(args.id, args.keys),
+        lambda: unset_variant_meta(args.id, args.keys, profile=active()),
         f"removed {keys} from variant {args.id}",
     )
 
@@ -176,7 +181,7 @@ def cmd_set_revisions(args) -> int:
         )
     what = f"[{', '.join(revs)}]" if revs else "any revision"
     return run_edit(
-        lambda: set_variant_revisions(args.id, ecu, None if args.clear else revs),
+        lambda: set_variant_revisions(args.id, ecu, None if args.clear else revs, profile=active()),
         f"variant {args.id}: {ecu} -> {what}",
     )
 

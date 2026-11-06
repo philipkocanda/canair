@@ -6,6 +6,7 @@ import sys
 from collections.abc import Mapping
 from typing import Any
 
+from canair.profile import active
 from canair.render import messages
 
 
@@ -35,7 +36,7 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
         )
         return 2
 
-    path = find_ecu_file_by_tx(tx_id)
+    path = find_ecu_file_by_tx(tx_id, profile=active())
     if path is None or not path.exists():
         messages.error(f"no ecus/ file found for {name} (0x{tx_id:03X})")
         messages.hint("register it first with `canair ecu add`")

@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from canair.dtc.snapshot import did_of_read
+from canair.profile import Profile
 from canair.yaml_edit.text import PidsEditError, edit_pid, set_scalar
 
 ONLY_FIELD = "snapshot_only"
@@ -22,6 +23,7 @@ def set_snapshot_only(
     *,
     length: int | None = None,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Mark a PID as served only inside a DTC snapshot, or (``value=False``) clear the mark.
 
@@ -59,7 +61,7 @@ def set_snapshot_only(
         if got != want:
             raise PidsEditError(f"snapshot fields mismatch after edit: {got!r} != {want!r}")
 
-    return edit_pid(ecu_name, pid_u, edit, check, pids_dir=pids_dir)
+    return edit_pid(ecu_name, pid_u, edit, check, pids_dir=pids_dir, profile=profile)
 
 
 def _current_length(block: str) -> int | None:

@@ -69,8 +69,8 @@ def redirect_writes(pids_dir: Path, monkeypatch):
     import canair.profile as profile
     import canair.yaml_edit.pids as pids_edit
 
-    def _set(ecu, pid, frames):
-        return set_response_frames(ecu, pid, frames, pids_dir=pids_dir)
+    def _set(ecu, pid, frames, **_):
+        return set_response_frames(ecu, pid, frames, pids_dir=pids_dir, profile=active())
 
     monkeypatch.setattr(pids_edit, "set_response_frames", _set)
     monkeypatch.setattr(profile, "require_writable_definitions", lambda *_, **__: None)
@@ -138,7 +138,7 @@ class TestSessionWriteBack:
         assert "response_frames" not in _reload(redirect_writes)["2101"]
 
     def test_a_retired_count_is_cleared_from_the_yaml(self, pids_dir, redirect_writes):
-        set_response_frames("BMS", "2101", 4, pids_dir=pids_dir)
+        set_response_frames("BMS", "2101", 4, pids_dir=pids_dir, profile=active())
         from canair.ecus.pids import load_pids_dir
 
         data = load_pids_dir(pids_dir)
@@ -192,7 +192,7 @@ class TestSessionWriteBack:
         assert self._run(_args(), term, pids_data) == 0
 
     def test_a_steady_state_session_rewrites_nothing(self, pids_dir, redirect_writes):
-        set_response_frames("BMS", "2101", 4, pids_dir=pids_dir)
+        set_response_frames("BMS", "2101", 4, pids_dir=pids_dir, profile=active())
         from canair.ecus.pids import load_pids_dir
 
         data = load_pids_dir(pids_dir)

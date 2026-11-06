@@ -8,6 +8,7 @@ from pathlib import Path
 from canair.analysis.ecu_summary import list_records
 from canair.cli.commands._edit import edit_scope
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
+from canair.cli.profile_context import target_profile
 from canair.ecus.names import resolve_tx
 from canair.ecus.pids import load_pids
 from canair.ecus.registry import load_ecus
@@ -56,7 +57,7 @@ def cmd_rename(args) -> int:
 
     old_name = (load_ecus(profile=active()).get(tx_id) or {}).get("name")
     with edit_scope(args):
-        new_path = rename_ecu(tx_id, args.new_name, ecus_dir=args.dir)
+        new_path = rename_ecu(tx_id, args.new_name, ecus_dir=args.dir, profile=target_profile(args))
 
     echo_edit(f"renamed {args.ecu} → {args.new_name} ({tx_key(tx_id)})", new_path)
     if args.dir is None and old_name and old_name != args.new_name:

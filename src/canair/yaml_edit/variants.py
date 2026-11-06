@@ -227,7 +227,7 @@ def add_variant(
     name: str,
     meta: Sequence[tuple[str, str]] = (),
     *,
-    profile: Profile | None = None,
+    profile: Profile,
 ) -> Path:
     """Add a variant (scaffolding the file if absent). Errors if the ID exists."""
     vid = _checked_id(variant_id)
@@ -244,7 +244,7 @@ def add_variant(
 
 
 def set_variant_meta(
-    variant_id: str, assignments: Sequence[tuple[str, str]], *, profile: Profile | None = None
+    variant_id: str, assignments: Sequence[tuple[str, str]], *, profile: Profile
 ) -> Path:
     """Set metadata fields (``battery.<x>`` for a battery field) on a variant.
 
@@ -259,9 +259,7 @@ def set_variant_meta(
     return doc.path
 
 
-def unset_variant_meta(
-    variant_id: str, keys: Sequence[str], *, profile: Profile | None = None
-) -> Path:
+def unset_variant_meta(variant_id: str, keys: Sequence[str], *, profile: Profile) -> Path:
     """Remove metadata fields from a variant. ``name`` cannot be removed."""
     vid = _checked_id(variant_id)
     with edit_doc(VARIANTS, profile, create=True) as doc:
@@ -284,7 +282,7 @@ def unset_variant_meta(
     return doc.path
 
 
-def rename_variant(old: str, new: str, *, profile: Profile | None = None) -> Path:
+def rename_variant(old: str, new: str, *, profile: Profile) -> Path:
     """Change a variant's ID, keeping its position and metadata."""
     old_id, new_id = _checked_id(old), _checked_id(new)
     with edit_doc(VARIANTS, profile, create=True) as doc:
@@ -297,7 +295,7 @@ def rename_variant(old: str, new: str, *, profile: Profile | None = None) -> Pat
     return doc.path
 
 
-def remove_variant(variant_id: str, *, profile: Profile | None = None) -> Path:
+def remove_variant(variant_id: str, *, profile: Profile) -> Path:
     """Remove a variant."""
     vid = _checked_id(variant_id)
     with edit_doc(VARIANTS, profile, create=True) as doc:
@@ -309,7 +307,7 @@ def remove_variant(variant_id: str, *, profile: Profile | None = None) -> Path:
 
 
 def set_variant_revisions(
-    variant_id: str, ecu: str, revisions: Sequence[str] | None, *, profile: Profile | None = None
+    variant_id: str, ecu: str, revisions: Sequence[str] | None, *, profile: Profile
 ) -> Path:
     """Say which revisions of ``ecu`` the variant can carry (None: any — the entry is removed).
 
@@ -338,14 +336,12 @@ def set_variant_revisions(
     return doc.path
 
 
-def rename_variant_revisions_ecu(old: str, new: str, *, profile: Profile | None = None) -> bool:
+def rename_variant_revisions_ecu(old: str, new: str, *, profile: Profile) -> bool:
     """Follow an ECU rename: rename its key in every variant's ``revisions:``.
 
     Returns whether anything changed (the file is left untouched otherwise).
     """
-    from canair.profile import active
-
-    if not (profile or active()).variants_file.exists():
+    if not profile.variants_file.exists():
         return False
     found = False
     with edit_doc(VARIANTS, profile) as doc:

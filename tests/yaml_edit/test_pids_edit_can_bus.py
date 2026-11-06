@@ -5,6 +5,7 @@ import textwrap
 import pytest
 import yaml
 
+from canair.profile import active
 from canair.yaml_edit.pids import PidsEditError, set_can_bus
 
 
@@ -35,7 +36,7 @@ def _ecu(pids_dir):
 
 
 def test_adds_single_code(pids_dir):
-    set_can_bus("TESTECU", ["B-CAN"], pids_dir=pids_dir)
+    set_can_bus("TESTECU", ["B-CAN"], pids_dir=pids_dir, profile=active())
     ecu = _ecu(pids_dir)
     assert ecu["can_bus"] == ["B-CAN"]
     # Sibling fields and header comment survive; placed before identity.
@@ -48,14 +49,14 @@ def test_adds_single_code(pids_dir):
 
 
 def test_adds_multiple_codes(pids_dir):
-    set_can_bus("TESTECU", ["H-CAN", "P-CAN"], pids_dir=pids_dir)
+    set_can_bus("TESTECU", ["H-CAN", "P-CAN"], pids_dir=pids_dir, profile=active())
     assert _ecu(pids_dir)["can_bus"] == ["H-CAN", "P-CAN"]
     assert "can_bus: [H-CAN, P-CAN]" in (pids_dir / "test.yaml").read_text()
 
 
 def test_replaces_existing_in_place(pids_dir):
-    set_can_bus("TESTECU", ["B-CAN"], pids_dir=pids_dir)
-    set_can_bus("TESTECU", ["C-CAN", "M-CAN"], pids_dir=pids_dir)
+    set_can_bus("TESTECU", ["B-CAN"], pids_dir=pids_dir, profile=active())
+    set_can_bus("TESTECU", ["C-CAN", "M-CAN"], pids_dir=pids_dir, profile=active())
     ecu = _ecu(pids_dir)
     assert ecu["can_bus"] == ["C-CAN", "M-CAN"]
     # No duplicate can_bus key left behind.
@@ -78,7 +79,7 @@ def test_replaces_block_style_with_flow(pids_dir):
             """
         )
     )
-    set_can_bus("TESTECU", ["H-CAN", "P-CAN"], pids_dir=pids_dir)
+    set_can_bus("TESTECU", ["H-CAN", "P-CAN"], pids_dir=pids_dir, profile=active())
     text = (pids_dir / "test.yaml").read_text()
     assert _ecu(pids_dir)["can_bus"] == ["H-CAN", "P-CAN"]
     assert "can_bus: [H-CAN, P-CAN]" in text
@@ -87,16 +88,16 @@ def test_replaces_block_style_with_flow(pids_dir):
 
 
 def test_strips_and_dedups_blanks(pids_dir):
-    set_can_bus("TESTECU", [" B-CAN ", ""], pids_dir=pids_dir)
+    set_can_bus("TESTECU", [" B-CAN ", ""], pids_dir=pids_dir, profile=active())
     assert _ecu(pids_dir)["can_bus"] == ["B-CAN"]
 
 
 def test_rejects_empty(pids_dir):
     with pytest.raises(PidsEditError):
-        set_can_bus("TESTECU", ["  "], pids_dir=pids_dir)
+        set_can_bus("TESTECU", ["  "], pids_dir=pids_dir, profile=active())
 
 
 def test_missing_ecu(tmp_path):
     (tmp_path / "_meta.yaml").write_text('car_model: "T"\ninit: "x"\n')
     with pytest.raises(PidsEditError):
-        set_can_bus("NOPE", ["B-CAN"], pids_dir=tmp_path)
+        set_can_bus("NOPE", ["B-CAN"], pids_dir=tmp_path, profile=active())

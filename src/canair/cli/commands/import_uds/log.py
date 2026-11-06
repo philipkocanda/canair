@@ -17,6 +17,7 @@ from datetime import date, datetime, time
 from pathlib import Path
 
 from canair.captures.types import CaptureSession, Quality
+from canair.cli.profile_context import dir_profile
 from canair.interop.frame_log import Extraction, extract_replies, stamp
 from canair.profile import active
 from canair.render import ansi, glyphs, messages
@@ -126,7 +127,7 @@ def _import_log(args: argparse.Namespace) -> int:
             )
         # The saved-to banner is for people; --json promises machine-readable stdout.
         with contextlib.redirect_stdout(sys.stderr) if args.json else contextlib.nullcontext():
-            fpath = save_session(session, args.dir, profile=active())
+            fpath = save_session(session, args.dir, profile=dir_profile(args.dir))
     else:
         fpath = None
 

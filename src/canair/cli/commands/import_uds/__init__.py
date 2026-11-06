@@ -48,6 +48,7 @@ from datetime import datetime
 from pathlib import Path
 
 from canair.captures.types import CaptureRecord
+from canair.cli.profile_context import dir_profile
 from canair.profile import active
 from canair.render import ansi, glyphs, messages
 
@@ -151,7 +152,7 @@ def run(args) -> int:
     for w in warnings:
         messages.warning(w)
 
-    fpath = save_session(session, args.dir, profile=active())
+    fpath = save_session(session, args.dir, profile=dir_profile(args.dir))
 
     if args.json:
         print(json.dumps({"file": str(fpath), "session": session, "warnings": warnings}))

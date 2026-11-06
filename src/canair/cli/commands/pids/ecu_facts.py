@@ -6,6 +6,7 @@ import argparse
 
 from canair.cli.args.hexarg import parse_hex_arg
 from canair.cli.commands._edit import add_edit_args, edit_scope, run_edit
+from canair.cli.profile_context import target_profile
 from canair.core.edit_errors import EditError
 from canair.profile import active
 from canair.render import ansi
@@ -268,7 +269,9 @@ def add_parsers(sub) -> None:
 
 def cmd_set_identity(args: argparse.Namespace) -> int:
     return run_edit(
-        lambda: set_identity_field(args.ecu, args.field, args.value, pids_dir=args.dir),
+        lambda: set_identity_field(
+            args.ecu, args.field, args.value, pids_dir=args.dir, profile=target_profile(args)
+        ),
         f"{args.ecu} identity.{args.field} updated",
         args=args,
     )
@@ -276,7 +279,9 @@ def cmd_set_identity(args: argparse.Namespace) -> int:
 
 def cmd_rm_identity(args: argparse.Namespace) -> int:
     return run_edit(
-        lambda: remove_identity_field(args.ecu, args.field, pids_dir=args.dir),
+        lambda: remove_identity_field(
+            args.ecu, args.field, pids_dir=args.dir, profile=target_profile(args)
+        ),
         f"{args.ecu} identity.{args.field} removed",
         args=args,
     )
@@ -297,7 +302,7 @@ def cmd_set_can_bus(args: argparse.Namespace) -> int:
             )
 
     return run_edit(
-        lambda: set_can_bus(args.ecu, args.codes, pids_dir=args.dir),
+        lambda: set_can_bus(args.ecu, args.codes, pids_dir=args.dir, profile=target_profile(args)),
         f"{args.ecu} can_bus -> [{', '.join(args.codes)}]",
         args=args,
     )
@@ -314,7 +319,7 @@ def cmd_set_revisions(args: argparse.Namespace) -> int:
     if args.clear == bool(revs):
         raise EditError("give the revisions, or --clear")
     with edit_scope(args):
-        fpath = set_gate(ecu, pid, signal, None if args.clear else revs)
+        fpath = set_gate(ecu, pid, signal, None if args.clear else revs, profile=active())
     what = f"[{', '.join(revs)}]" if revs else "every revision (cleared)"
     echo_edit(f"{args.target} revisions -> {what}", fpath)
     return 0
@@ -322,7 +327,9 @@ def cmd_set_revisions(args: argparse.Namespace) -> int:
 
 def cmd_set_iocontrol_ranges(args: argparse.Namespace) -> int:
     return run_edit(
-        lambda: set_iocontrol_scan_ranges(args.ecu, args.ranges, pids_dir=args.dir),
+        lambda: set_iocontrol_scan_ranges(
+            args.ecu, args.ranges, pids_dir=args.dir, profile=target_profile(args)
+        ),
         f"{args.ecu} iocontrol_scan_ranges -> [{', '.join(args.ranges)}]",
         args=args,
     )
@@ -363,7 +370,9 @@ def cmd_set_iocontrol(args: argparse.Namespace) -> int:
 
     def do():
         for name, value in fields.items():
-            update_iocontrol_field(args.ecu, args.did, name, value, pids_dir=args.dir)
+            update_iocontrol_field(
+                args.ecu, args.did, name, value, pids_dir=args.dir, profile=target_profile(args)
+            )
 
     fpath = apply_in_scope(args, do)
     detail = ", ".join(f"{k}={v}" for k, v in fields.items() if k != "notes")
@@ -388,7 +397,7 @@ def cmd_set_wake(args: argparse.Namespace) -> int:
 
     detail = ", ".join(f"{k}={v}" for k, v in fields.items() if k != "notes")
     return run_edit(
-        lambda: set_wake(args.ecu, fields, pids_dir=args.dir),
+        lambda: set_wake(args.ecu, fields, pids_dir=args.dir, profile=target_profile(args)),
         f"{args.ecu} wake -> {{{detail}}}",
         args=args,
     )
@@ -397,7 +406,7 @@ def cmd_set_wake(args: argparse.Namespace) -> int:
 def cmd_set_isotp(args: argparse.Namespace) -> int:
     values = {f: int_or_clear(v) for f in ECU_ISOTP_FIELDS if (v := getattr(args, f)) is not None}
     detail = ", ".join(f"{k}={'cleared' if v is None else v}" for k, v in values.items())
-    run = lambda: set_ecu_isotp(args.ecu, values, pids_dir=args.dir)  # noqa: E731
+    run = lambda: set_ecu_isotp(args.ecu, values, pids_dir=args.dir, profile=target_profile(args))  # noqa: E731
     return run_edit(run, f"{args.ecu} isotp -> {{{detail}}}", args=args)
 
 
@@ -413,7 +422,7 @@ def cmd_set_addressing(args: argparse.Namespace) -> int:
             "nothing to set — pass at least one of --mode/--target-address/--source-address/--fc-id/--rx-id"
         )
 
-    fpath = find_ecu_file(args.ecu, pids_dir=args.dir)
+    fpath = find_ecu_file(args.ecu, pids_dir=args.dir, profile=target_profile(args))
     doc = yaml_io.safe_load(fpath.read_text()) or {}
     tx_id = next(
         (int(d["tx_id"]) for d in doc.values() if isinstance(d, dict) and "tx_id" in d),
@@ -431,6 +440,7 @@ def cmd_set_addressing(args: argparse.Namespace) -> int:
             fc_id=parse_hex_arg(args.fc_id, "fc-id"),
             rx_id=parse_hex_arg(args.rx_id, "rx-id"),
             ecus_dir=args.dir,
+            profile=target_profile(args),
         )
 
     disp = tx_key(tx_id)

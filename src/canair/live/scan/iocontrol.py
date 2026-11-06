@@ -42,6 +42,7 @@ from typing import NamedTuple
 
 from canair.core.id_ranges import parse_id_range
 from canair.live.scan.discovery import DiscoveryProbe, mode_discovery_scan
+from canair.profile import Profile
 from canair.render import messages
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import (
@@ -186,11 +187,11 @@ def _make_hit(did, session, response_hex, nrc, nrc_desc) -> IOControlHit:
     return IOControlHit(did, session, response_hex, nrc, nrc_desc)
 
 
-def _write_hit(ecu_name: str, hit: IOControlHit) -> None:
+def _write_hit(ecu_name: str, hit: IOControlHit, profile: Profile) -> None:
     from canair.yaml_edit.pids import append_iocontrol_discoveries_block
 
     try:
-        append_iocontrol_discoveries_block(ecu_name, [hit])
+        append_iocontrol_discoveries_block(ecu_name, [hit], profile=profile)
     except Exception as exc:
         messages.error(f"[{ecu_name}] writing YAML failed: {exc}")
 
@@ -220,6 +221,8 @@ async def mode_iocontrol_scan(
     session: bool = False,
     wake: bool = False,
     session_mode: str = "03",
+    *,
+    profile: Profile,
 ) -> dict[str, list[IOControlHit]]:
     """Scan IOControl DIDs on one or more ECUs using SF 00 returnControlToECU.
 
@@ -256,4 +259,5 @@ async def mode_iocontrol_scan(
         session=session,
         wake=wake,
         session_mode=session_mode,
+        profile=profile,
     )

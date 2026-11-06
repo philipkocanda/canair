@@ -128,7 +128,7 @@ def add_group(
     members: Sequence[str],
     *,
     description: str | None = None,
-    profile: Profile | None = None,
+    profile: Profile,
 ) -> Path:
     """Add a new group (scaffolds the file if absent). Errors if it exists."""
     name = normalize_name(name)
@@ -140,7 +140,7 @@ def add_group(
     return doc.path
 
 
-def remove_group(name: str, *, profile: Profile | None = None) -> Path:
+def remove_group(name: str, *, profile: Profile) -> Path:
     """Remove a group. Errors if it isn't declared."""
     name = normalize_name(name)
     with edit_doc(GROUPS, profile) as doc:
@@ -148,7 +148,7 @@ def remove_group(name: str, *, profile: Profile | None = None) -> Path:
     return doc.path
 
 
-def rename_group(old: str, new: str, *, profile: Profile | None = None) -> Path:
+def rename_group(old: str, new: str, *, profile: Profile) -> Path:
     """Rename a group's key (references in scripts/history are NOT rewritten)."""
     old = normalize_name(old)
     new = normalize_name(new)
@@ -160,7 +160,7 @@ def rename_group(old: str, new: str, *, profile: Profile | None = None) -> Path:
     return doc.path
 
 
-def set_group_description(name: str, value: str | None, *, profile: Profile | None = None) -> Path:
+def set_group_description(name: str, value: str | None, *, profile: Profile) -> Path:
     """Set/clear a group's description."""
     name = normalize_name(name)
     with edit_doc(GROUPS, profile) as doc:
@@ -176,7 +176,7 @@ def set_group_description(name: str, value: str | None, *, profile: Profile | No
     return doc.path
 
 
-def set_group_members(name: str, members: Sequence[str], *, profile: Profile | None = None) -> Path:
+def set_group_members(name: str, members: Sequence[str], *, profile: Profile) -> Path:
     """Replace a group's member selectors."""
     name = normalize_name(name)
     cleaned = _validate_members(members)

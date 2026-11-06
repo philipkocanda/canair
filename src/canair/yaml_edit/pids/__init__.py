@@ -3,8 +3,9 @@
 Split by concern into a package:
   * :mod:`._text`  — shared block-location + field-mutation primitives + the
     YAML re-parse/rollback safety wrapper
+  * :mod:`.promote` — promoting an iocontrol discovery into a curated entry
   * :mod:`.hits`   — scanner-section editors (routines / iocontrol_discoveries /
-    sessions + discovery promotion)
+    sessions)
   * :mod:`.params` — parameter / PID / identity editors (the RE workflow)
   * :mod:`.research` — the ``research:`` backlog editors
   * :mod:`.support_map` — the per-PID ``support_map:`` declaration editor
@@ -29,7 +30,6 @@ from canair.yaml_edit.pids.hits import (
     append_iocontrol_discoveries_block,
     append_routines_block,
     append_sessions_block,
-    promote_discovery,
     update_iocontrol_field,
     update_routines_field,
 )
@@ -53,6 +53,7 @@ from canair.yaml_edit.pids.params import (
     set_wake,
     upsert_parameter,
 )
+from canair.yaml_edit.pids.promote import promote_discovery
 from canair.yaml_edit.pids.research import (
     RESEARCH_TEXT_FIELDS,
     add_research_entry,

@@ -14,6 +14,7 @@ from canair.live.scan.kwp_iocontrol import (
     probe_kwp_iocontrol,
     probe_nissan_iocontrol,
 )
+from canair.profile import active
 from canair.uds.subfunctions import KwpIoControlParameter as Iocp
 from canair.yaml_edit.pids import append_iocontrol_discoveries_block
 from tests.support.fakes import FakeTerminal, nrc
@@ -118,7 +119,9 @@ def test_writeback_two_digit_lid_keys(tmp_path):
         KwpIOControlHit(0x80, "extended", "708000", None, None),
         KwpIOControlHit(0x0A, "extended", "", 0x22, "conditionsNotCorrect"),
     ]
-    path = append_iocontrol_discoveries_block("TEST", hits, pids_dir=tmp_path, key_width=2)
+    path = append_iocontrol_discoveries_block(
+        "TEST", hits, pids_dir=tmp_path, key_width=2, profile=active()
+    )
     raw = path.read_text()
     # Keys must be quoted so all-digit LIDs aren't parsed as ints/octal.
     assert '"80":' in raw
@@ -172,6 +175,7 @@ async def test_nissan_profile_scans_with_the_nissan_probe_inside_c0():
         lid_range=(0x07, 0x08),
         throttle_ms=0,
         write_yaml=False,
+        profile=active(),
     )
     assert term.sessions == [(False, "C0")]
     assert term.sent == ["30070100", "30080100"]
@@ -188,6 +192,7 @@ async def test_an_explicit_session_mode_still_wins_on_nissan():
         throttle_ms=0,
         write_yaml=False,
         session_mode="81",
+        profile=active(),
     )
     assert term.sessions == [(False, "81")]
     assert term.sent == ["30070100"]
@@ -204,6 +209,7 @@ async def test_other_profiles_keep_the_iso_probe_and_lazy_session():
         throttle_ms=0,
         write_yaml=False,
         confirmed=True,
+        profile=active(),
     )
     assert term.sessions == []
     assert term.sent == ["300700"]

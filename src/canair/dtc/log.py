@@ -97,20 +97,16 @@ def log_file(profile: Profile) -> Path:
     return dest
 
 
-def log_path(path: Path | None = None) -> Path:
-    """Path to the active profile's DTC log (or the override ``path``)."""
-    if path is not None:
-        return path
-    from canair.profile import active
-
-    return log_file(active())
+def log_path(path: Path | None = None, *, profile: Profile) -> Path:
+    """Path to ``profile``'s DTC log (or the override ``path``)."""
+    return path if path is not None else log_file(profile)
 
 
-def load_log(path: Path | None = None) -> dict:
+def load_log(path: Path | None = None, *, profile: Profile) -> dict:
     """Load the DTC log, or an empty ``{"scans": []}`` when absent."""
     from canair.core import yaml_io
 
-    p = log_path(path)
+    p = log_path(path, profile=profile)
     if not p.exists():
         return {"scans": []}
     with open(p) as f:
@@ -217,13 +213,9 @@ def _with_tag(entry: dict, *, profile: Profile) -> dict:
     if "variant" in entry or "revisions" in entry:
         return entry
     from canair.captures.tags import capture_tag
-    from canair.profile import ProfileError, active
     from canair.variants.tags import narrow_to_captured
 
-    try:
-        tag = capture_tag(active())
-    except ProfileError:
-        return entry
+    tag = capture_tag(profile)
     if not tag:
         return entry
     ecus = entry_ecus(entry, EcuRefs.current(profile=profile))
@@ -243,7 +235,7 @@ def _append(section: str, entry: dict, path: Path | None = None, *, profile: Pro
 
     from canair.core.yaml_rt import round_trip_yaml as _yaml
 
-    p = log_path(path)
+    p = log_path(path, profile=profile)
     data = None
     if p.exists():
         with open(p) as f:
@@ -264,8 +256,8 @@ def latest_matching(
     scope: str, path: Path | None = None, car: Car | None = None, *, profile: Profile
 ) -> dict | None:
     """The most recent logged scan of ``scope`` on ``car`` (default: the active one)."""
-    car, refs = car or current_car(), EcuRefs.current(profile=profile)
-    for entry in reversed(load_log(path).get("scans", [])):
+    car, refs = car or current_car(profile=profile), EcuRefs.current(profile=profile)
+    for entry in reversed(load_log(path, profile=profile).get("scans", [])):
         if _same_scope(entry, scope, car, refs):
             return entry
     return None
@@ -276,9 +268,9 @@ def prior_matching(
 ) -> dict | None:
     """The most recent same-scope scan logged strictly *before* the ``before``
     timestamp — the entry a stored scan was diffed against when it was recorded."""
-    car, refs = car or current_car(), EcuRefs.current(profile=profile)
+    car, refs = car or current_car(profile=profile), EcuRefs.current(profile=profile)
     match = None
-    for entry in load_log(path).get("scans", []):
+    for entry in load_log(path, profile=profile).get("scans", []):
         if _same_scope(entry, scope, car, refs) and entry.get("timestamp", "") < before:
             match = entry
     return match
@@ -288,10 +280,10 @@ def clears_between(
     after: str, before: str, path: Path | None = None, car: Car | None = None, *, profile: Profile
 ) -> list[dict]:
     """The clears logged after ``after`` and up to ``before`` (timestamps) on ``car``."""
-    car, refs = car or current_car(), EcuRefs.current(profile=profile)
+    car, refs = car or current_car(profile=profile), EcuRefs.current(profile=profile)
     return [
         e
-        for e in load_log(path).get("clears") or []
+        for e in load_log(path, profile=profile).get("clears") or []
         if isinstance(e, Mapping)
         and after < str(e.get("timestamp", "")) <= before
         and car.admits(e, entry_ecus(e, refs))

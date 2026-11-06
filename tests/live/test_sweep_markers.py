@@ -8,6 +8,7 @@ import pytest
 
 from canair.live.scan.discovery import DiscoveryProbe, scan_ecu
 from canair.live.scan.sessions import scan_ecu_sessions
+from canair.profile import active
 from canair.render import discover as discover_render
 from tests.support.fakes import FakeTerminal, nrc, ok
 
@@ -43,7 +44,9 @@ async def test_discovery_scan_marks_hits_and_absences(capsys):
         {"2F0000": ok("6F00"), "2F0100": nrc(0x22), "2F0200": nrc(0x31)},
         default={"ok": False, "error": "NO DATA", "raw": "NO DATA"},
     )
-    await scan_ecu(term, _probe(), "BMS", 0x7E4, (0x00, 0x03), throttle_ms=0, verbose=True)
+    await scan_ecu(
+        term, _probe(), "BMS", 0x7E4, (0x00, 0x03), throttle_ms=0, verbose=True, profile=active()
+    )
     out = capsys.readouterr().out
     assert re.search(r"^\s+\+ 0x00: positive", out, re.M)
     assert re.search(r"^\s+~ 0x01: exists \(NRC 0x22", out, re.M)
@@ -58,7 +61,14 @@ async def test_sessions_scan_uses_the_same_markers(capsys):
         default={"ok": False, "error": "NO DATA", "raw": "NO DATA"},
     )
     await scan_ecu_sessions(
-        term, "BMS", 0x7E4, (0x01, 0x03, 0x81, 0x83), throttle_ms=0, verbose=True, write_yaml=False
+        term,
+        "BMS",
+        0x7E4,
+        (0x01, 0x03, 0x81, 0x83),
+        throttle_ms=0,
+        verbose=True,
+        write_yaml=False,
+        profile=active(),
     )
     out = capsys.readouterr().out
     assert re.search(r"^\s+\+ 10 01: supported", out, re.M)

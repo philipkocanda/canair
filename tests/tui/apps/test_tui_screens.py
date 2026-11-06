@@ -13,6 +13,7 @@ import pytest
 from textual.widgets import Input, Label
 
 from canair.analysis.sniff_stats import SniffStats
+from canair.profile import active
 from canair.tui.apps.captures_step.app import CapturesStepApp
 from canair.tui.apps.decode_plot.app import PlotApp
 from canair.tui.apps.monitor.app import MonitorApp
@@ -35,7 +36,7 @@ def _top_level_apps():
     return {
         "monitor": lambda: MonitorApp(FakeController()),
         "stepper": lambda: CapturesStepApp(_step_model()),
-        "plot": lambda: PlotApp(_plot_model()),
+        "plot": lambda: PlotApp(_plot_model(), profile=active()),
         "sniff": lambda: SniffApp(SniffStats(), host="10.0.0.1"),
     }
 
@@ -91,7 +92,7 @@ class TestEscapeAtTheTopLevel:
 class TestPlotInfoView:
     @pytest.mark.asyncio
     async def test_q_closes_the_info_view_before_it_quits(self):
-        app = PlotApp(_plot_model())
+        app = PlotApp(_plot_model(), profile=active())
         async with app.run_test(size=(110, 30)) as pilot:
             await pilot.pause(0.1)
             await pilot.press("i")
@@ -107,7 +108,7 @@ class TestPlotInfoView:
 
     @pytest.mark.asyncio
     async def test_the_status_bar_names_the_keys_that_close_the_view(self):
-        app = PlotApp(_plot_model())
+        app = PlotApp(_plot_model(), profile=active())
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause(0.1)
             await pilot.press("i")
@@ -121,7 +122,7 @@ class TestPlotInfoView:
 class TestPlotHints:
     @pytest.mark.asyncio
     async def test_byte_order_is_b_and_annotate_is_e(self):
-        app = PlotApp(_plot_model())
+        app = PlotApp(_plot_model(), profile=active())
         async with app.run_test(size=(200, 30)) as pilot:
             await pilot.pause(0.1)
             status = _plain(app.query_one("#status").render())
@@ -131,7 +132,7 @@ class TestPlotHints:
 
     @pytest.mark.asyncio
     async def test_comma_and_full_stop_pan_and_plus_minus_zoom(self):
-        app = PlotApp(_plot_model())
+        app = PlotApp(_plot_model(), profile=active())
         async with app.run_test(size=(240, 30)) as pilot:
             await pilot.pause(0.1)
             status = _plain(app.query_one("#status").render())

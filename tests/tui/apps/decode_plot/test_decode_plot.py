@@ -5,6 +5,7 @@ import math
 from canair.analysis.stats import fmt_num
 from canair.expression import inspect_bytes
 from canair.expression.inspect_bytes import INSPECT_TYPES, InspectType
+from canair.profile import active
 from canair.tui.apps.decode_plot import draw as decode_plot_draw
 
 U16 = InspectType("u16", 2, "int", False)
@@ -261,7 +262,7 @@ class TestPlotApp:
     async def test_renders_and_navigates(self):
         from canair.tui.apps.decode_plot.app import PlotApp
 
-        app = PlotApp(_plot_model())
+        app = PlotApp(_plot_model(), profile=active())
         async with app.run_test(size=(110, 30)) as pilot:
             await pilot.pause(0.1)
             body = app.query_one("#body").render()
@@ -277,7 +278,7 @@ class TestPlotApp:
         from canair.tui.apps.decode_plot.app import PlotApp
         from canair.tui.help import HelpModal
 
-        app = PlotApp(_plot_model())
+        app = PlotApp(_plot_model(), profile=active())
         async with app.run_test(size=(110, 30)) as pilot:
             await pilot.pause(0.1)
             await pilot.press("question_mark")
@@ -296,7 +297,9 @@ class TestPlotApp:
         def reload(ecu, pid):
             return other if (ecu, pid) == ("VCU", "2102") else None
 
-        app = PlotApp(_plot_model(), reload_pid=reload, pid_options=[("VCU", "2102")])
+        app = PlotApp(
+            _plot_model(), reload_pid=reload, pid_options=[("VCU", "2102")], profile=active()
+        )
         async with app.run_test(size=(110, 30)) as pilot:
             await pilot.pause(0.1)
             await pilot.press("p")
@@ -320,7 +323,7 @@ class TestPlotApp:
 
         monkeypatch.setattr("canair.yaml_edit.pids.upsert_parameter", fake_upsert)
 
-        app = PlotApp(_plot_model())
+        app = PlotApp(_plot_model(), profile=active())
         async with app.run_test(size=(110, 30)) as pilot:
             await pilot.pause(0.1)
             await pilot.press("m")  # param mode -> annotate current param P

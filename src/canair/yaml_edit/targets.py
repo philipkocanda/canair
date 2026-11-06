@@ -56,9 +56,7 @@ def target(key: str) -> Target:
         raise KeyError(f"no edit target {key!r} (known: {', '.join(targets())})") from None
 
 
-def open_target(
-    key: str, profile: Profile | None = None, **kwargs: Any
-) -> AbstractContextManager[Doc]:
+def open_target(key: str, profile: Profile, **kwargs: Any) -> AbstractContextManager[Doc]:
     """:func:`~canair.yaml_edit.doc.edit_doc` for the target registered as ``key``."""
     from .doc import edit_doc
 

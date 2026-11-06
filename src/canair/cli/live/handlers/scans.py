@@ -98,6 +98,7 @@ async def handle_routines_scan(
             session=_session,
             wake=_wake,
             session_mode=_mode,
+            profile=active(),
         )
     if kwp_ecus:
         # For KWP2000 ECUs the id is an 8-bit LID; only pass an explicit range
@@ -115,6 +116,7 @@ async def handle_routines_scan(
             wake=_wake,
             session_mode=_mode,
             confirmed=confirmed,
+            profile=active(),
         )
 
 
@@ -160,6 +162,7 @@ async def handle_iocontrol_scan(
             session=_session,
             wake=_wake,
             session_mode=_mode or "03",
+            profile=active(),
         )
     if kwp_ecus:
         await mode_kwp_iocontrol_scan(
@@ -174,6 +177,7 @@ async def handle_iocontrol_scan(
             wake=_wake,
             session_mode=_mode,
             confirmed=confirmed,
+            profile=active(),
         )
 
 
@@ -193,6 +197,7 @@ async def handle_sessions_scan(
         throttle_ms=args.throttle_ms,
         verbose=args.verbose,
         write_yaml=True,
+        profile=active(),
     )
 
 

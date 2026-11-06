@@ -23,6 +23,7 @@ from pathlib import Path
 
 from canair.ecus.memory import MemoryRegion
 from canair.live.identity.software import read_software_version
+from canair.profile import Profile
 from canair.render.progress import ProgressLine
 from canair.transport.protocol import Terminal
 from canair.uds.memory import (
@@ -291,6 +292,7 @@ async def mode_memory_scan(
     find_block: bool = True,
     block_limit: int = DEFAULT_BLOCK_LIMIT,
     write_yaml: bool = True,
+    profile: Profile,
 ) -> MemoryScan:
     """Map ``ranges`` on ``target``; record the regions in its ``memory:`` section."""
     fmt = fmt or target.format
@@ -325,6 +327,6 @@ async def mode_memory_scan(
     scan.reads = prober.reads
     if write_yaml and scan.format is not None and scan.regions:
         scan.written = record_scan(
-            target.tx_id, scan.regions, fmt=scan.format, max_block=scan.max_block
+            target.tx_id, scan.regions, fmt=scan.format, max_block=scan.max_block, profile=profile
         )
     return scan

@@ -20,6 +20,7 @@ from typing import Any
 import yaml
 
 from canair.ecus.pids import INHERITED_PARAM_FIELDS, effective_param
+from canair.profile import Profile
 from canair.yaml_edit.text import (
     PidsEditError,
     _format_list_field,
@@ -146,6 +147,7 @@ def set_pid_defaults(
     *,
     clear: Iterable[str] = (),
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Set (and/or clear) a PID's shared parameter fields.
 
@@ -192,7 +194,7 @@ def set_pid_defaults(
             if field in pdef:
                 raise PidsEditError(f"PID {pid_u!r} {field} still present after clear")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
 def _hoist_in_block(block: str, plan: dict[str, tuple[Any, tuple[str, ...]]]) -> str:
@@ -219,6 +221,7 @@ def hoist_defaults(
     *,
     dry_run: bool = False,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> list[Hoisted]:
     """Move fields repeated across a PID's parameters up to the PID.
 
@@ -227,7 +230,7 @@ def hoist_defaults(
     the same shared fields as before, so the move never changes what any signal reports.
     With ``dry_run`` nothing is written. Returns what moved (or would).
     """
-    original = find_ecu_file(ecu_name, pids_dir=pids_dir).read_text()
+    original = find_ecu_file(ecu_name, pids_dir=pids_dir, profile=profile).read_text()
     ecu_def = _ecu_def(yaml.safe_load(original), ecu_name)
     wanted = str(pid).strip().upper() if pid else None
     if wanted and _pid_def(ecu_def, wanted) is None:
@@ -274,5 +277,5 @@ def hoist_defaults(
                             f"{pid_u}/{name}: {field} changed by the hoist, reverted"
                         )
 
-    edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
     return hoisted

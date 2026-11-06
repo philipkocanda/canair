@@ -26,6 +26,7 @@ from textual.css.query import NoMatches
 from textual.widgets import Static
 from textual.widgets.option_list import Option
 
+from canair.profile import Profile
 from canair.render.glyphs import ARROW
 from canair.tui import styles
 from canair.tui.flash import Flash, Severity, severity_of
@@ -118,9 +119,12 @@ class PlotApp(HelpMixin, App):
         model: PlotModel,
         reload_pid: ReloadFn | None = None,
         pid_options: list[tuple[str, str]] | None = None,
+        *,
+        profile: Profile,
     ):
         super().__init__()
         self.model = model
+        self.profile = profile
         self._reload_pid = reload_pid
         self._pid_options = pid_options or []
         self.flash = Flash()
@@ -369,6 +373,7 @@ class PlotApp(HelpMixin, App):
                 expr,
                 notes=notes or None,
                 verified=verified,
+                profile=self.profile,
             )
         except Exception as exc:
             self._flash(f"Write failed: {exc}", "error")
@@ -386,7 +391,7 @@ class PlotApp(HelpMixin, App):
             from canair.yaml_edit.pids import rename_pid
 
             try:
-                rename_pid(self.model.ecu_key, old, new)
+                rename_pid(self.model.ecu_key, old, new, profile=self.profile)
             except Exception as exc:
                 self._flash(f"Rename failed: {exc}", "error")
                 return
@@ -402,6 +407,8 @@ def run_plot_app(
     model: PlotModel,
     reload_pid: ReloadFn | None = None,
     pid_options: list[tuple[str, str]] | None = None,
+    *,
+    profile: Profile,
 ) -> None:
     """Run the plot explorer TUI to completion."""
-    PlotApp(model, reload_pid=reload_pid, pid_options=pid_options).run()
+    PlotApp(model, reload_pid=reload_pid, pid_options=pid_options, profile=profile).run()

@@ -22,13 +22,11 @@ def _reference_errors(profile: Profile) -> list[str]:
     return variant_reference_errors(load_variants(profile), ecus)
 
 
-def check_variants() -> FileReport:
+def check_variants(profile: Profile) -> FileReport:
     """Check ``variants.yaml``: structure, IDs, every metadata field, and that every ECU
     revision it names exists."""
-    from canair.profile import active
     from canair.variants import check_variants_doc
 
-    profile = active()
     path = profile.variants_file
     if not path.exists():
         return FileReport(path.name, skipped="No variants.yaml (optional) — skipping.")

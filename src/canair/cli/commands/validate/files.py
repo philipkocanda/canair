@@ -61,7 +61,7 @@ def print_signals_report(report: SignalsReport) -> int:
 
 
 def run_states() -> int:
-    return print_file_report(check_states())
+    return print_file_report(check_states(profile=active()))
 
 
 def run_groups() -> int:
@@ -73,7 +73,7 @@ def run_actions() -> int:
 
 
 def run_can_buses() -> int:
-    return print_file_report(check_can_buses())
+    return print_file_report(check_can_buses(profile=active()))
 
 
 def run_signals() -> int:
@@ -81,8 +81,8 @@ def run_signals() -> int:
 
 
 def run_can() -> int:
-    return print_file_report(check_can())
+    return print_file_report(check_can(profile=active()))
 
 
 def run_variants() -> int:
-    return print_file_report(check_variants())
+    return print_file_report(check_variants(profile=active()))

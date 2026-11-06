@@ -34,7 +34,6 @@ from canair.contribute.workspace import (
     workspace_dir,
 )
 from canair.install.context import installed_snapshot_kind
-from canair.profile import active
 from canair.render import glyphs
 from canair.render.console import escape
 
@@ -443,7 +442,7 @@ def _rx_names(profile) -> dict[int, str]:
     from canair.ecus.registry import build_rx_index, load_ecus_dir
 
     try:
-        return build_rx_index(load_ecus_dir(profile.ecus_dir), profile=active())
+        return build_rx_index(load_ecus_dir(profile.ecus_dir), profile=profile)
     except Exception:
         return {}
 

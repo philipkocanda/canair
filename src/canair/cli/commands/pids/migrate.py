@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 
 from canair.cli.commands._edit import add_edit_args
+from canair.cli.profile_context import target_profile
 from canair.yaml_edit.echo import echo_edit
 from canair.yaml_edit.pids import (
     Migrated,
@@ -44,11 +45,15 @@ def cmd_migrate_categories(args: argparse.Namespace) -> int:
         found: list[Migrated] = []
 
         def do(ecu=ecu, found=found):
-            found.extend(migrate_categories(ecu, dry_run=args.dry_run, pids_dir=args.dir))
+            found.extend(
+                migrate_categories(
+                    ecu, dry_run=args.dry_run, pids_dir=args.dir, profile=target_profile(args)
+                )
+            )
 
         if args.dry_run:
             do()
-            fpath = find_ecu_file(ecu, pids_dir=args.dir)
+            fpath = find_ecu_file(ecu, pids_dir=args.dir, profile=target_profile(args))
         else:
             fpath = apply_in_scope(args, do, ecu)
         for m in found:

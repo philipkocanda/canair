@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 from canair.captures.io import resolve_captures_dir
+from canair.cli.profile_context import dir_profile
 from canair.profile import active
 from canair.render import ansi, glyphs, messages
 
@@ -27,7 +28,7 @@ def cmd_recover(captures_dir: Path | None, discard: bool = False) -> int:
     from canair.captures.journal import list_orphans
     from canair.captures.journal import recover as _recover
 
-    cdir = resolve_captures_dir(captures_dir, profile=active())
+    cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
     orphans = list_orphans(cdir)
     if not orphans:
         print("  No orphaned capture journals found.")
@@ -60,7 +61,7 @@ def cmd_migrate(captures_dir: Path | None, *, dry_run: bool = False, as_json: bo
 
     from canair.migrations.captures import MigrationError, migrate_dir
 
-    cdir = resolve_captures_dir(captures_dir, profile=active())
+    cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
     try:
         results = migrate_dir(cdir, dry_run=dry_run)
     except MigrationError as e:
@@ -110,7 +111,7 @@ def cmd_migrate_rx(
 
     from canair.migrations.capture_fields import migrate_dir
 
-    cdir = resolve_captures_dir(captures_dir, profile=active())
+    cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
     results = migrate_dir(cdir, dry_run=dry_run)
     touched = [r for r in results if r.renamed]
     total = sum(r.renamed for r in results)
@@ -179,8 +180,8 @@ def cmd_migrate_discover(
     from canair.captures import layers
     from canair.migrations import discover as discover_migrate
 
-    cdir = resolve_captures_dir(captures_dir, profile=active())
-    prof = layers.owning_profile(captures_dir, profile=active())
+    cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
+    prof = layers.owning_profile(captures_dir, profile=dir_profile(captures_dir))
     addressing = _discover_addressing(prof)
     # Plan first, then write: a layered profile's base is read-only, so the files
     # a repair would rewrite are checked before any of them is touched.
@@ -251,7 +252,7 @@ def cmd_split_batched(
     from canair.captures.io import resolve_capture_layers
     from canair.ecus.registry import build_rx_index
 
-    cdir = resolve_captures_dir(captures_dir, profile=active())
+    cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
     if captures_dir is not None and not cdir.is_dir():
         if as_json:
             _json.dump({"error": f"no such captures directory: {cdir}"}, sys.stdout)
@@ -260,7 +261,9 @@ def cmd_split_batched(
             messages.error(f"no such captures directory: {cdir}")
         return 2
     report = split_unsplit_batches(
-        resolve_capture_layers(captures_dir, profile=active()), cdir, dry_run=dry_run
+        resolve_capture_layers(captures_dir, profile=dir_profile(captures_dir)),
+        cdir,
+        dry_run=dry_run,
     )
     names = build_rx_index(profile=active())
 
@@ -331,7 +334,7 @@ def orphan_notice(captures_dir: Path | None = None) -> None:
     try:
         from canair.captures.journal import list_orphans
 
-        cdir = resolve_captures_dir(captures_dir, profile=active())
+        cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
         orphans = list_orphans(cdir)
     except Exception:
         return

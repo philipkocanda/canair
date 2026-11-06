@@ -14,6 +14,7 @@ from pathlib import Path
 from canair.captures.store import entry_path
 from canair.captures.types import CaptureEntry
 from canair.cli.args.query import parse_canonical_query
+from canair.cli.profile_context import dir_profile
 from canair.core.prompt import confirm
 from canair.profile import active
 from canair.render import ansi, messages
@@ -94,7 +95,7 @@ def cmd_delete(
         return 0
 
     if blocked := layers.refusal(
-        (entry_path(e, captures_dir, profile=active()) for e in matched),
+        (entry_path(e, captures_dir, profile=dir_profile(captures_dir)) for e in matched),
         "deleted",
         profile=active(),
     ):
@@ -114,7 +115,7 @@ def cmd_delete(
     deleted = 0
     for e in to_delete:
         try:
-            target = entry_path(e, captures_dir, profile=active())
+            target = entry_path(e, captures_dir, profile=dir_profile(captures_dir))
             delete_capture(target, e["_session_idx"], e["_capture_idx"])
             deleted += 1
         except Exception as ex:  # keep going; report the failure
@@ -122,7 +123,7 @@ def cmd_delete(
 
     echo_write(
         f"Deleted {deleted} capture(s)",
-        (entry_path(e, captures_dir, profile=active()) for e in matched),
+        (entry_path(e, captures_dir, profile=dir_profile(captures_dir)) for e in matched),
         out,
     )
     if as_json:

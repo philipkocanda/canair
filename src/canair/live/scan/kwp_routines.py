@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import NamedTuple
 
 from canair.live.scan.discovery import DiscoveryProbe, mode_discovery_scan
+from canair.profile import Profile
 from canair.render import messages
 from canair.safety.quirks import NISSAN_C0_SESSION, has_quirk
 from canair.transport.protocol import Terminal
@@ -114,12 +115,12 @@ def _make_hit(lid, session, response_hex, nrc, nrc_desc) -> KwpRoutineHit:
     return KwpRoutineHit(lid, session, response_hex, nrc, nrc_desc)
 
 
-def _write_hit(ecu_name: str, hit: KwpRoutineHit) -> None:
+def _write_hit(ecu_name: str, hit: KwpRoutineHit, profile: Profile) -> None:
     from canair.yaml_edit.pids import append_routines_block
 
     try:
         # KWP routine local identifiers are a single byte → 2-hex-digit keys.
-        append_routines_block(ecu_name, [hit], key_width=2)
+        append_routines_block(ecu_name, [hit], key_width=2, profile=profile)
     except Exception as exc:
         messages.error(f"[{ecu_name}] writing YAML failed: {exc}")
 
@@ -167,6 +168,8 @@ async def mode_kwp_routines_scan(
     wake: bool = False,
     session_mode: str = "03",
     confirmed: bool = False,
+    *,
+    profile: Profile,
 ) -> dict[str, list[KwpRoutineHit]]:
     """Scan KWP2000 routine local identifiers via the safe 0x33 results read.
 
@@ -194,4 +197,5 @@ async def mode_kwp_routines_scan(
         session=session,
         wake=wake,
         session_mode=session_mode,
+        profile=profile,
     )

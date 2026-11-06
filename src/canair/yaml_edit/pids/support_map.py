@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from canair.profile import Profile
 from canair.uds.support_map import MapDecl, SupportMapError, declaration
 from canair.yaml_edit.text import PidsEditError, edit_pid, set_scalar
 
@@ -15,7 +16,7 @@ FIELD = "support_map"
 
 
 def set_support_map(
-    ecu_name: str, pid: str, decl: MapDecl | None, *, pids_dir: Path | None = None
+    ecu_name: str, pid: str, decl: MapDecl | None, *, pids_dir: Path | None = None, profile: Profile
 ) -> Path:
     """Set (or, with ``None``, clear) a PID's ``support_map:`` as a one-line flow mapping.
 
@@ -38,4 +39,5 @@ def set_support_map(
         lambda block: set_scalar(block, FIELD, None if decl is None else f"{FIELD}: {decl.flow()}"),
         check,
         pids_dir=pids_dir,
+        profile=profile,
     )

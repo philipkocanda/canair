@@ -9,6 +9,7 @@ import yaml
 
 from canair.cli.commands.pids import pid_settings
 from canair.ecus.pids import effective_param, load_pids_dir
+from canair.profile import active
 from canair.validation.pids import load_schema, validate_ecu_file, validate_pids_file
 from canair.yaml_edit.pids import PidsEditError, hoist_defaults, set_pid_defaults
 from canair.yaml_edit.pids.defaults import plan_hoist
@@ -189,7 +190,7 @@ class TestPlanHoist:
 
 class TestHoist:
     def test_moves_shared_values_up_and_leaves_the_override(self, pids_dir):
-        moved = hoist_defaults("TEST", "2101", pids_dir=pids_dir)
+        moved = hoist_defaults("TEST", "2101", pids_dir=pids_dir, profile=active())
         assert {(h.pid, h.field) for h in moved} == {("2101", "source"), ("2101", "source_links")}
         pid = _load(pids_dir)[2101]
         assert pid["source"] == "shared source"
@@ -200,7 +201,7 @@ class TestHoist:
         assert "source_links" not in params["C"]
 
     def test_a_cell_group_collapses_to_its_pid(self, pids_dir):
-        hoist_defaults("TEST", "2104", pids_dir=pids_dir)
+        hoist_defaults("TEST", "2104", pids_dir=pids_dir, profile=active())
         text = (pids_dir / "test.yaml").read_text()
         assert (
             "    2104:\n      status: active\n      unit: V\n"
@@ -211,7 +212,7 @@ class TestHoist:
 
     def test_no_parameter_changes_what_it_resolves_to(self, pids_dir):
         before = _load_text()
-        hoist_defaults("TEST", pids_dir=pids_dir)
+        hoist_defaults("TEST", pids_dir=pids_dir, profile=active())
         after = {str(k): v for k, v in _load(pids_dir).items()}
         for pid, pdef in before.items():
             for name, param in pdef["parameters"].items():
@@ -220,7 +221,7 @@ class TestHoist:
                 )
 
     def test_everything_else_in_the_file_is_untouched(self, pids_dir):
-        hoist_defaults("TEST", pids_dir=pids_dir)
+        hoist_defaults("TEST", pids_dir=pids_dir, profile=active())
         text = (pids_dir / "test.yaml").read_text()
         assert "      notes: page note\n      source: shared source\n" in text
         assert "          notes: only A\n" in text
@@ -228,25 +229,25 @@ class TestHoist:
 
     def test_dry_run_writes_nothing(self, pids_dir):
         before = (pids_dir / "test.yaml").read_text()
-        assert hoist_defaults("TEST", dry_run=True, pids_dir=pids_dir)
+        assert hoist_defaults("TEST", dry_run=True, pids_dir=pids_dir, profile=active())
         assert (pids_dir / "test.yaml").read_text() == before
 
     def test_can_be_narrowed_to_one_pid(self, pids_dir):
-        assert hoist_defaults("TEST", "2102", pids_dir=pids_dir) == []
+        assert hoist_defaults("TEST", "2102", pids_dir=pids_dir, profile=active()) == []
         assert "source" not in _load(pids_dir)[2101]
 
     def test_is_idempotent(self, pids_dir):
-        hoist_defaults("TEST", pids_dir=pids_dir)
+        hoist_defaults("TEST", pids_dir=pids_dir, profile=active())
         text = (pids_dir / "test.yaml").read_text()
-        assert hoist_defaults("TEST", pids_dir=pids_dir) == []
+        assert hoist_defaults("TEST", pids_dir=pids_dir, profile=active()) == []
         assert (pids_dir / "test.yaml").read_text() == text
 
     def test_unknown_pid_is_an_error(self, pids_dir):
         with pytest.raises(PidsEditError):
-            hoist_defaults("TEST", "9999", pids_dir=pids_dir)
+            hoist_defaults("TEST", "9999", pids_dir=pids_dir, profile=active())
 
     def test_result_validates(self, pids_dir):
-        hoist_defaults("TEST", pids_dir=pids_dir)
+        hoist_defaults("TEST", pids_dir=pids_dir, profile=active())
         ok, out = validate_pids_file(pids_dir / "test.yaml")
         assert ok, out
 
@@ -254,7 +255,11 @@ class TestHoist:
 class TestSetDefaults:
     def test_new_fields_go_above_parameters_in_canonical_order(self, pids_dir):
         set_pid_defaults(
-            "TEST", "2102", {"max": "5", "unit": "V", "verified": True}, pids_dir=pids_dir
+            "TEST",
+            "2102",
+            {"max": "5", "unit": "V", "verified": True},
+            pids_dir=pids_dir,
+            profile=active(),
         )
         text = (pids_dir / "test.yaml").read_text()
         assert (
@@ -263,16 +268,24 @@ class TestSetDefaults:
         ) in text
 
     def test_replaces_in_place(self, pids_dir):
-        set_pid_defaults("TEST", "2102", {"unit": "V"}, pids_dir=pids_dir)
-        set_pid_defaults("TEST", "2102", {"unit": "A"}, pids_dir=pids_dir)
+        set_pid_defaults("TEST", "2102", {"unit": "V"}, pids_dir=pids_dir, profile=active())
+        set_pid_defaults("TEST", "2102", {"unit": "A"}, pids_dir=pids_dir, profile=active())
         assert _load(pids_dir)[2102]["unit"] == "A"
         assert (pids_dir / "test.yaml").read_text().count("\n      unit:") == 1
 
     def test_sets_links_and_clears_fields(self, pids_dir):
         links = ["https://a", "https://b"]
-        set_pid_defaults("TEST", "2102", {"source_links": links, "unit": "V"}, pids_dir=pids_dir)
+        set_pid_defaults(
+            "TEST",
+            "2102",
+            {"source_links": links, "unit": "V"},
+            pids_dir=pids_dir,
+            profile=active(),
+        )
         assert _load(pids_dir)[2102]["source_links"] == links
-        set_pid_defaults("TEST", "2102", {}, clear=["source_links", "unit"], pids_dir=pids_dir)
+        set_pid_defaults(
+            "TEST", "2102", {}, clear=["source_links", "unit"], pids_dir=pids_dir, profile=active()
+        )
         assert {"source_links", "unit"}.isdisjoint(_load(pids_dir)[2102])
 
     @pytest.mark.parametrize(
@@ -288,13 +301,15 @@ class TestSetDefaults:
     def test_refuses_what_cannot_be_shared(self, pids_dir, fields, clear):
         before = (pids_dir / "test.yaml").read_text()
         with pytest.raises(PidsEditError):
-            set_pid_defaults("TEST", "2102", fields, clear=clear, pids_dir=pids_dir)
+            set_pid_defaults(
+                "TEST", "2102", fields, clear=clear, pids_dir=pids_dir, profile=active()
+            )
         assert (pids_dir / "test.yaml").read_text() == before
 
     def test_unknown_pid_is_an_error_and_leaves_the_file_alone(self, pids_dir):
         before = (pids_dir / "test.yaml").read_text()
         with pytest.raises(PidsEditError):
-            set_pid_defaults("TEST", "9999", {"unit": "V"}, pids_dir=pids_dir)
+            set_pid_defaults("TEST", "9999", {"unit": "V"}, pids_dir=pids_dir, profile=active())
         assert (pids_dir / "test.yaml").read_text() == before
 
 

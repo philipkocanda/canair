@@ -425,24 +425,24 @@ class TestSetPidStatus:
         return tmp_path
 
     def test_sets_status(self, pids_dir):
-        set_pid_status("TEST", "2101", "static", pids_dir=pids_dir)
+        set_pid_status("TEST", "2101", "static", pids_dir=pids_dir, profile=active())
         assert self._load(pids_dir)["TEST"]["pids"][2101]["status"] == "static"
 
     def test_active_writes_key(self, pids_dir):
         # status is required + explicit, so setting active writes the key.
-        set_pid_status("TEST", "2102", "active", pids_dir=pids_dir)
+        set_pid_status("TEST", "2102", "active", pids_dir=pids_dir, profile=active())
         assert self._load(pids_dir)["TEST"]["pids"][2102]["status"] == "active"
 
     def test_rejects_bad_value(self, pids_dir):
         with pytest.raises(PidsEditError):
-            set_pid_status("TEST", "2101", "bogus", pids_dir=pids_dir)
+            set_pid_status("TEST", "2101", "bogus", pids_dir=pids_dir, profile=active())
 
     def test_unknown_pid_raises(self, pids_dir):
         with pytest.raises(PidsEditError):
-            set_pid_status("TEST", "9999", "draft", pids_dir=pids_dir)
+            set_pid_status("TEST", "9999", "draft", pids_dir=pids_dir, profile=active())
 
     def test_preserves_other_fields(self, pids_dir):
-        set_pid_status("TEST", "2101", "ignored", pids_dir=pids_dir)
+        set_pid_status("TEST", "2101", "ignored", pids_dir=pids_dir, profile=active())
         pid = self._load(pids_dir)["TEST"]["pids"][2101]
         assert pid["status"] == "ignored"
         assert pid["period"] == 5000

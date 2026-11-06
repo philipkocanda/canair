@@ -74,29 +74,30 @@ async def _ask(terminal: Terminal, tx_id: int, request: str) -> bool | None:
     return bool(resp.get("ok"))
 
 
-async def detect_revisions(terminal: Terminal, targets: set[str] | None) -> bool:
-    """Probe each ambiguous ECU in ``targets``; return whether a revision was settled.
+async def detect_revisions(
+    terminal: Terminal, targets: set[str] | None, *, profile: Profile
+) -> Profile | None:
+    """Probe each ambiguous ECU in ``targets``; return ``profile`` carrying what was settled.
 
-    On a detection the active profile is replaced by one carrying it (which drops the
-    cached definitions), so the caller must reload them with ``load_pids()``.
+    None when no revision was settled. The caller adopts the returned profile and reloads
+    the definitions with it, since a settled revision changes which PIDs exist.
     """
     from canair.ecus.pids import load_raw_pids, revision_resolutions
-    from canair.profile import active, replace_active
     from canair.variants.detected import remember
     from canair.variants.fingerprints import detected, match, probes, wants_software
     from canair.variants.selection import with_detections
     from canair.variants.tags import selected_variant
 
     if targets is None:
-        return False
-    prof = active()
+        return None
+    prof = profile
     ambiguous = [
         r
         for r in revision_resolutions(prof).values()
         if r.revision is None and len(r.possible) > 1 and r.ecu.upper() in targets
     ]
     if not ambiguous:
-        return False
+        return None
     ecus = load_raw_pids(prof).get("ecus") or {}
     settled = False
     for res in ambiguous:
@@ -131,9 +132,7 @@ async def detect_revisions(terminal: Terminal, targets: set[str] | None) -> bool
         which = next((r for r, ok in responded.items() if ok), f"software {software}")
         print(f"note: {res.ecu} is revision {rid} (it answered {which}).", file=sys.stderr)
         settled = True
-    if settled:
-        replace_active(with_detections(prof))
-    return settled
+    return with_detections(prof) if settled else None
 
 
 async def _software(terminal: Terminal, tx_id: int, ecu_def: dict) -> str | None:
@@ -144,7 +143,7 @@ async def _software(terminal: Terminal, tx_id: int, ecu_def: dict) -> str | None
         return None
 
 
-def identity_report(tx_id: int, responded: dict[str, bool]) -> dict | None:
+def identity_report(tx_id: int, responded: dict[str, bool], *, profile: Profile) -> dict | None:
     """Which revision an identity reading of ``tx_id`` matches, and which cars allow it.
 
     Matched across every declared revision and every variant, so it answers "which car
@@ -152,14 +151,13 @@ def identity_report(tx_id: int, responded: dict[str, bool]) -> dict | None:
     detection it contradicts). None when the ECU declares no revisions.
     """
     from canair.ecus.pids import load_raw_pids
-    from canair.profile import active
     from canair.variants import load_variants
     from canair.variants.detected import remember, remembered
     from canair.variants.fingerprints import detected, match
     from canair.variants.revisions import declared
     from canair.variants.tags import selected_variant
 
-    prof = active()
+    prof = profile
     ecus = load_raw_pids(prof).get("ecus") or {}
     name, ecu_def = next(
         ((n, d) for n, d in ecus.items() if isinstance(d, dict) and d.get("tx_id") == tx_id),

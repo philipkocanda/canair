@@ -252,7 +252,9 @@ class TestScanLog:
         from canair.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
-        monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
+        monkeypatch.setattr(
+            dtc_log, "log_path", lambda path=None, **_: logp if path is None else path
+        )
 
         # First scan: BMS has one DTC -> recorded as baseline.
         t1 = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
@@ -269,7 +271,7 @@ class TestScanLog:
         assert "P0123-00" in out2
         # Two scans recorded, same scope, the ECU named by its response address. The
         # self-clear is worked out from them, not stored as an entry of its own.
-        data = dtc_log.load_log(logp)
+        data = dtc_log.load_log(logp, profile=active())
         assert [s["scope"] for s in data["scans"]] == ["0x7EC", "0x7EC"]
         assert list(data["scans"][0]["ecus"]) == ["0x7EC"]
         assert "tx" not in data["scans"][0]["ecus"]["0x7EC"]
@@ -280,7 +282,9 @@ class TestScanLog:
         from canair.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
-        monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
+        monkeypatch.setattr(
+            dtc_log, "log_path", lambda path=None, **_: logp if path is None else path
+        )
         # Pre-read shows one DTC (1902FF), then the clear (14FFFFFF) succeeds.
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F"), "14FFFFFF": _ok("54")})
         await dtc.mode_dtc_clear(
@@ -290,7 +294,7 @@ class TestScanLog:
         assert "cleared" in out.lower()
         assert "P0123-00" in out  # showed what was cleared
 
-        data = dtc_log.load_log(logp)
+        data = dtc_log.load_log(logp, profile=active())
         clears = data.get("clears", [])
         assert len(clears) == 1
         assert clears[0]["rx"] == "0x7EC"
@@ -421,7 +425,9 @@ class TestScanAll:
         from canair.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
-        monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
+        monkeypatch.setattr(
+            dtc_log, "log_path", lambda path=None, **_: logp if path is None else path
+        )
         monkeypatch.setattr(
             "canair.live.dtc.reading.resolve_protocol", lambda proto, tx, **__: "uds"
         )
@@ -433,7 +439,7 @@ class TestScanAll:
         out = capsys.readouterr().out
         assert "P0123-00" in out
         assert logp.exists()  # recorded without any flag
-        assert len(dtc_log.load_log(logp)["scans"]) == 1
+        assert len(dtc_log.load_log(logp, profile=active())["scans"]) == 1
 
 
 class TestModeClear:
@@ -516,7 +522,9 @@ class TestLogOffline:
         from canair.dtc import log as dtc_log
 
         logp = tmp_path / "dtc_log.yaml"
-        monkeypatch.setattr(dtc_log, "log_path", lambda path=None: logp if path is None else path)
+        monkeypatch.setattr(
+            dtc_log, "log_path", lambda path=None, **_: logp if path is None else path
+        )
         return logp
 
     def test_log_all_shows_latest_and_diff(self, monkeypatch, tmp_path, capsys):

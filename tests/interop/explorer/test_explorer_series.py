@@ -21,6 +21,7 @@ from canair.interop.explorer.series import (
     export_sessions,
     rx_by_address,
 )
+from canair.profile import active
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROFILES = sorted(
@@ -41,14 +42,14 @@ def _gz(obj) -> int:
 @pytest.fixture(scope="module", params=PROFILES, ids=[p.name for p in PROFILES])
 def exported(request):
     root: Path = request.param
-    data = export_profile(root)
-    index, docs = export_sessions(root, rx_by_address(data))
+    data = export_profile(root, profile=active())
+    index, docs = export_sessions(root, rx_by_address(data), profile=active())
     return root, data, index, docs
 
 
 def test_export_is_deterministic(exported):
     root, data, index, docs = exported
-    again = export_sessions(root, rx_by_address(data))
+    again = export_sessions(root, rx_by_address(data), profile=active())
     assert json.dumps((index, docs)) == json.dumps(again)
 
 
@@ -153,7 +154,7 @@ def test_clock_handles_out_of_order_times_around_midnight():
 
 def test_session_ids_are_unique_and_stable(exported):
     root, data, index, _docs = exported
-    again, _ = export_sessions(root, rx_by_address(data))
+    again, _ = export_sessions(root, rx_by_address(data), profile=active())
     assert [e["id"] for e in index] == [e["id"] for e in again]
     assert all(e["id"].startswith(e["date"] + "-") for e in index)
 

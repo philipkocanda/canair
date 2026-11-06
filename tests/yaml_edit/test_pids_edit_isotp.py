@@ -8,6 +8,7 @@ import pytest
 import yaml
 
 from canair.cli.commands.pids import ecu_facts as cli
+from canair.profile import active
 from canair.yaml_edit.pids import PidsEditError, set_ecu_isotp
 
 PLAIN = """# A comment that must survive.
@@ -42,34 +43,34 @@ def _ecu(ecus, name: str, file: str) -> dict:
 
 
 def test_a_new_block_goes_after_tx_id_and_nothing_else_changes(ecus):
-    set_ecu_isotp("EWP", {"blocksize": 8}, pids_dir=ecus)
+    set_ecu_isotp("EWP", {"blocksize": 8}, pids_dir=ecus, profile=active())
     text = (ecus / "ewp.yaml").read_text()
     assert text == PLAIN.replace("0x746\n", "0x746\n  isotp:\n    blocksize: 8\n")
 
 
 def test_a_new_block_goes_after_the_addressing_block(ecus):
-    set_ecu_isotp("DME", {"blocksize": 2}, pids_dir=ecus)
+    set_ecu_isotp("DME", {"blocksize": 2}, pids_dir=ecus, profile=active())
     text = (ecus / "dme.yaml").read_text()
     assert text.index("target_address") < text.index("isotp:") < text.index("can_bus")
     assert _ecu(ecus, "DME", "dme.yaml")["isotp"] == {"blocksize": 2}
 
 
 def test_fields_merge_and_keep_their_canonical_order(ecus):
-    set_ecu_isotp("EWP", {"rx_consecutive_frame_timeout": 500}, pids_dir=ecus)
-    set_ecu_isotp("EWP", {"blocksize": 8}, pids_dir=ecus)
+    set_ecu_isotp("EWP", {"rx_consecutive_frame_timeout": 500}, pids_dir=ecus, profile=active())
+    set_ecu_isotp("EWP", {"blocksize": 8}, pids_dir=ecus, profile=active())
     block = _ecu(ecus, "EWP", "ewp.yaml")["isotp"]
     assert list(block.items()) == [("blocksize", 8), ("rx_consecutive_frame_timeout", 500)]
 
 
 def test_clearing_the_last_field_removes_the_block(ecus):
-    set_ecu_isotp("EWP", {"blocksize": 8}, pids_dir=ecus)
-    set_ecu_isotp("EWP", {"blocksize": None}, pids_dir=ecus)
+    set_ecu_isotp("EWP", {"blocksize": 8}, pids_dir=ecus, profile=active())
+    set_ecu_isotp("EWP", {"blocksize": None}, pids_dir=ecus, profile=active())
     assert (ecus / "ewp.yaml").read_text() == PLAIN
 
 
 def test_a_profile_wide_field_is_refused(ecus):
     with pytest.raises(PidsEditError, match="cannot be set per ECU"):
-        set_ecu_isotp("EWP", {"tx_padding": 0x55}, pids_dir=ecus)
+        set_ecu_isotp("EWP", {"tx_padding": 0x55}, pids_dir=ecus, profile=active())
     assert (ecus / "ewp.yaml").read_text() == PLAIN
 
 

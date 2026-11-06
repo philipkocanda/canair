@@ -102,6 +102,7 @@ def cmd_add(args) -> int:
             require=args.require,
             requests=_requests(args.request) or [],
             description=args.description,
+            profile=active(),
         )
 
     return run_edit(edit, f"added action {args.name.strip().lower()}")
@@ -117,6 +118,7 @@ def cmd_set(args) -> int:
             reads=args.read,
             require=args.require,
             requests=_requests(args.request),
+            profile=active(),
         ),
         f"updated action {args.name.strip().lower()}",
     )
@@ -125,7 +127,10 @@ def cmd_set(args) -> int:
 def cmd_rm(args) -> int:
     from canair.yaml_edit.actions import remove_action
 
-    return run_edit(lambda: remove_action(args.name), f"removed action {args.name.strip().lower()}")
+    return run_edit(
+        lambda: remove_action(args.name, profile=active()),
+        f"removed action {args.name.strip().lower()}",
+    )
 
 
 def _add_definition_args(p: argparse.ArgumentParser) -> None:

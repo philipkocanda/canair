@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from canair.profile import Profile
 from canair.yaml_edit.text import (
     Block,
     PidsEditError,
@@ -34,6 +35,7 @@ def set_sensitive(
     *,
     param: str | None = None,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Set (or clear) ``sensitive:`` on a PID, or with ``param`` on one of its signals."""
     pid_u = str(pid).strip().upper()
@@ -63,4 +65,6 @@ def set_sensitive(
         if (target.get(FIELD) is True) != value:
             raise PidsEditError(f"{FIELD} mismatch after edit")
 
-    return edit_ecu_text(ecu_name, transform, pid_checker(pid_u, check), pids_dir=pids_dir)
+    return edit_ecu_text(
+        ecu_name, transform, pid_checker(pid_u, check), pids_dir=pids_dir, profile=profile
+    )

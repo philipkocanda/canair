@@ -250,10 +250,8 @@ async def _run_pipeline(
     if save:
         from canair.captures.journal import CaptureJournal
 
-        from ...profile import active
-
         journal = CaptureJournal.open(
-            active().captures_dir,
+            profile.captures_dir,
             label=label or "Multi query session",
             vehicle_states=vehicle_states,
             notes=notes,

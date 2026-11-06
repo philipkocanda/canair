@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from canair.ecus.revisions import determined_revisions
+from canair.profile import Profile
 from canair.variants.tags import SCOPE_ALL, in_scope, revisions_in_scope
 
 ALL_SCOPE = "all"
@@ -55,20 +56,19 @@ class Car:
 ANY_CAR = Car(everything=True)
 
 
-def current_car() -> Car:
-    """The active profile's car, or :data:`ANY_CAR` when no profile resolves."""
-    from canair.profile import ProfileError, active
+def current_car(profile: Profile) -> Car:
+    """``profile``'s car, or :data:`ANY_CAR` when its variants or revisions cannot be read."""
+    from canair.profile import ProfileError
     from canair.variants import VariantsError, load_variants
 
     try:
-        prof = active()
-        several = len(load_variants(prof)) > 1
-        revisions = determined_revisions(prof)
+        several = len(load_variants(profile)) > 1
+        revisions = determined_revisions(profile)
     except (ProfileError, VariantsError):
         return ANY_CAR
-    if prof.variant == SCOPE_ALL:
+    if profile.variant == SCOPE_ALL:
         return ANY_CAR
-    return Car(variant=prof.variant, several=several, revisions=revisions)
+    return Car(variant=profile.variant, several=several, revisions=revisions)
 
 
 def entry_revision(entry: Mapping[str, Any], ecu: str) -> str | None:

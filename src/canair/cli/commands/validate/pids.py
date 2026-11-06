@@ -2,12 +2,13 @@
 
 from pathlib import Path
 
+from canair.profile import active
 from canair.render import messages
 from canair.validation.pids import check_pids
 
 
 def run_pids(files: list[str] | None, stats: bool) -> int:
-    report = check_pids([Path(f) for f in files] if files else None)
+    report = check_pids([Path(f) for f in files] if files else None, profile=active())
     all_errors, all_warnings, total_stats = report.errors, report.warnings, report.stats
 
     for w in all_warnings:

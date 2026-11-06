@@ -28,6 +28,7 @@ from canair.ecus.files import iter_ecu_files
 from canair.ecus.pid_status import pid_status
 from canair.ecus.pids import effective_param
 from canair.interop.explorer.layout import layout_buses
+from canair.profile import Profile
 from canair.uds.addressing import resolve_mode, resolve_rx, resolve_rx_offset
 
 DEFAULT_BLOB_BASE = "https://github.com/philipkocanda/canair/blob/main/"
@@ -338,7 +339,9 @@ def _variant_records(root: Path) -> list[dict[str, Any]]:
     ]
 
 
-def export_profile(root: Path, *, blob_base: str = DEFAULT_BLOB_BASE) -> dict[str, Any]:
+def export_profile(
+    root: Path, *, blob_base: str = DEFAULT_BLOB_BASE, profile: Profile
+) -> dict[str, Any]:
     """The explorer data for the profile bundle at ``root``.
 
     ``blob_base`` is the URL prefix a ``src.file`` is appended to (a commit-pinned GitHub
@@ -349,7 +352,7 @@ def export_profile(root: Path, *, blob_base: str = DEFAULT_BLOB_BASE) -> dict[st
     meta = _mapping(_load(meta_path)) if meta_path.exists() else {}
 
     ecus = []
-    for path in iter_ecu_files(root / "ecus") if (root / "ecus").is_dir() else []:
+    for path in iter_ecu_files(root / "ecus", profile=profile) if (root / "ecus").is_dir() else []:
         doc = _load(path)
         file = f"profiles/{root.name}/ecus/{path.name}"
         for name, ecu_def in _mapping(doc).items():

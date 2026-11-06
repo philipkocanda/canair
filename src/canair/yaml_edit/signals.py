@@ -132,7 +132,7 @@ def upsert_signal(
     msg_length: int | None = None,
     extended: bool | None = None,
     fd: bool | None = None,
-    profile: Profile | None = None,
+    profile: Profile,
 ) -> Path:
     """Add or update one broadcast signal in ``signals/<bus>.yaml`` (validated).
 
@@ -228,7 +228,7 @@ def merge_bus(
     bus: str,
     imported: dict,
     *,
-    profile: Profile | None = None,
+    profile: Profile,
 ) -> tuple[Path, int]:
     """Merge a batch of messages/signals into ``signals/<bus>.yaml`` in one write.
 
@@ -274,9 +274,7 @@ def merge_bus(
     return doc.path, n
 
 
-def remove_signal(
-    bus: str, arb_id: str | int, name: str, *, profile: Profile | None = None
-) -> Path:
+def remove_signal(bus: str, arb_id: str | int, name: str, *, profile: Profile) -> Path:
     """Remove a signal (and any now-empty message) from ``signals/<bus>.yaml``."""
     mid = _normalize_id(arb_id)
     with edit_doc(SIGNALS, profile, bus=bus, missing=f"no signals file for bus {bus!r}") as doc:

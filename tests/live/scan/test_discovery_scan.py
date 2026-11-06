@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from canair.live.scan.discovery import DiscoveryProbe, scan_ecu
+from canair.profile import active
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import nrc as _nrc
 
@@ -53,6 +54,7 @@ async def test_session_opened_upfront_with_mode():
         throttle_ms=0,
         session=True,
         session_mode="81",
+        profile=active(),
     )
     # Session opened exactly once, up front, with the requested KWP mode.
     assert term.sessions == [(False, "81")]
@@ -61,7 +63,7 @@ async def test_session_opened_upfront_with_mode():
 @pytest.mark.asyncio
 async def test_no_session_when_not_requested():
     term = _FakeTerminal()
-    await scan_ecu(term, _probe(), "BMS", 0x7E4, (0x00, 0x02), throttle_ms=0)
+    await scan_ecu(term, _probe(), "BMS", 0x7E4, (0x00, 0x02), throttle_ms=0, profile=active())
     # No pre-opened session and no lazy escalation (responses were plain "absent").
     assert term.sessions == []
 
@@ -78,5 +80,6 @@ async def test_lazy_escalation_uses_session_mode():
         (0x00, 0x01),
         throttle_ms=0,
         session_mode="81",
+        profile=active(),
     )
     assert term.sessions == [(False, "81")]

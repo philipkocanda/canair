@@ -18,6 +18,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+from canair.profile import active
 from canair.yaml_edit.commit import schema_validation
 from canair.yaml_edit.echo import echo_edit
 
@@ -42,7 +43,7 @@ def edit_scope(args: argparse.Namespace | None = None) -> Iterator[None]:
     from canair.profile import require_writable_definitions
 
     if getattr(args, "dir", None) is None:
-        require_writable_definitions()
+        require_writable_definitions(profile=active())
     with schema_validation(not getattr(args, "no_validate", False)):
         yield
 

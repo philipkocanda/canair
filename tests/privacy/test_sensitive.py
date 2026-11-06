@@ -248,12 +248,16 @@ class TestEditor:
     def test_set_sensitive_on_a_pid_and_a_signal_round_trips(self, prof):
         from canair.yaml_edit.pids import set_sensitive
 
-        set_sensitive("CCM", "22F101", True, pids_dir=prof / "ecus")
-        set_sensitive("CCM", "22F101", True, param="APP_SW", pids_dir=prof / "ecus")
+        set_sensitive("CCM", "22F101", True, pids_dir=prof / "ecus", profile=active())
+        set_sensitive(
+            "CCM", "22F101", True, param="APP_SW", pids_dir=prof / "ecus", profile=active()
+        )
         pid = load_pids_dir(prof / "ecus")["ecus"]["CCM"]["pids"]["22F101"]
         assert pid["sensitive"] is True and pid["parameters"]["APP_SW"]["sensitive"] is True
-        set_sensitive("CCM", "22F101", False, pids_dir=prof / "ecus")
-        set_sensitive("CCM", "22F101", False, param="APP_SW", pids_dir=prof / "ecus")
+        set_sensitive("CCM", "22F101", False, pids_dir=prof / "ecus", profile=active())
+        set_sensitive(
+            "CCM", "22F101", False, param="APP_SW", pids_dir=prof / "ecus", profile=active()
+        )
         assert "sensitive" not in (prof / "ecus" / "ccm.yaml").read_text().split("22F101")[1]
 
     def test_validate_rejects_send_to_on_a_sensitive_signal(self, prof, capsys):

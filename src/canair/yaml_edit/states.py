@@ -209,7 +209,7 @@ def add_state(
     when: str | None = None,
     implies=None,
     excludes=None,
-    profile: Profile | None = None,
+    profile: Profile,
 ) -> Path:
     """Add a new state to the vocabulary (scaffolds the file if absent).
 
@@ -238,7 +238,7 @@ def add_state(
     return doc.path
 
 
-def remove_state(name: str, *, profile: Profile | None = None) -> Path:
+def remove_state(name: str, *, profile: Profile) -> Path:
     """Remove a state from the vocabulary. Errors if it isn't declared.
 
     The removed entry's own leading comment goes with it; every surviving
@@ -260,7 +260,7 @@ def remove_state(name: str, *, profile: Profile | None = None) -> Path:
     return doc.path
 
 
-def rename_state(old: str, new: str, *, profile: Profile | None = None) -> Path:
+def rename_state(old: str, new: str, *, profile: Profile) -> Path:
     """Rename a state's ``name`` in the vocabulary (references are NOT rewritten).
 
     Only the vocabulary entry changes; existing ECU/capture ``vehicle_states``
@@ -294,7 +294,7 @@ def set_state_field(
     field: str,
     value: str | None,
     *,
-    profile: Profile | None = None,
+    profile: Profile,
 ) -> Path:
     """Set/clear a state's ``description``, ``when:``, ``implies:`` or ``excludes:``.
 

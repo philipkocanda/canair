@@ -15,6 +15,7 @@ from canair.live.scan.iocontrol import (
     classify,
     probe_iocontrol,
 )
+from canair.profile import active
 from canair.uds.nrc import (
     NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
     NRC_SUB_FUNCTION_NOT_SUPPORTED,
@@ -157,7 +158,7 @@ def test_append_iocontrol_discoveries_adds_new_section(pids_dir):
             nrc_desc="securityAccessDenied",
         ),
     ]
-    path = append_iocontrol_discoveries_block("TEST", hits, pids_dir=pids_dir)
+    path = append_iocontrol_discoveries_block("TEST", hits, pids_dir=pids_dir, profile=active())
     data = yaml.safe_load(path.read_text())
 
     disc = data["TEST"]["iocontrol_discoveries"]
@@ -182,7 +183,7 @@ def test_append_iocontrol_discoveries_preserves_curated_iocontrol(pids_dir):
             nrc_desc="conditionsNotCorrect",
         ),
     ]
-    path = append_iocontrol_discoveries_block("TEST", hits, pids_dir=pids_dir)
+    path = append_iocontrol_discoveries_block("TEST", hits, pids_dir=pids_dir, profile=active())
     # Check raw text: PyYAML parses `on:`/`off:` as boolean keys (YAML 1.1
     # quirk) so we can't rely on yaml.safe_load to preserve those field names.
     text = path.read_text()
@@ -205,7 +206,7 @@ def test_append_iocontrol_discoveries_preserves_other_sections(pids_dir):
             nrc_desc="securityAccessDenied",
         ),
     ]
-    append_iocontrol_discoveries_block("TEST", hits, pids_dir=pids_dir)
+    append_iocontrol_discoveries_block("TEST", hits, pids_dir=pids_dir, profile=active())
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
 
     assert data["TEST"]["tx_id"] == 0x770
@@ -225,7 +226,7 @@ def test_append_iocontrol_discoveries_merges_with_existing(pids_dir):
             nrc_desc="securityAccessDenied",
         )
     ]
-    append_iocontrol_discoveries_block("TEST", first, pids_dir=pids_dir)
+    append_iocontrol_discoveries_block("TEST", first, pids_dir=pids_dir, profile=active())
 
     second = [
         IOControlHit(
@@ -236,7 +237,7 @@ def test_append_iocontrol_discoveries_merges_with_existing(pids_dir):
             nrc_desc="conditionsNotCorrect",
         )
     ]
-    append_iocontrol_discoveries_block("TEST", second, pids_dir=pids_dir)
+    append_iocontrol_discoveries_block("TEST", second, pids_dir=pids_dir, profile=active())
 
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
     disc = data["TEST"]["iocontrol_discoveries"]
@@ -258,7 +259,7 @@ def test_append_iocontrol_discoveries_upserts_same_did(pids_dir):
             nrc_desc="securityAccessDenied",
         )
     ]
-    append_iocontrol_discoveries_block("TEST", first, pids_dir=pids_dir)
+    append_iocontrol_discoveries_block("TEST", first, pids_dir=pids_dir, profile=active())
 
     # Same DID, different response (e.g., session-state changed between runs)
     second = [
@@ -266,7 +267,7 @@ def test_append_iocontrol_discoveries_upserts_same_did(pids_dir):
             did=0xB001, session="extended", response_hex="6FB00100", nrc=None, nrc_desc=None
         )
     ]
-    append_iocontrol_discoveries_block("TEST", second, pids_dir=pids_dir)
+    append_iocontrol_discoveries_block("TEST", second, pids_dir=pids_dir, profile=active())
 
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
     entry = data["TEST"]["iocontrol_discoveries"]["B001"]
@@ -278,7 +279,7 @@ def test_append_iocontrol_discoveries_upserts_same_did(pids_dir):
 
 def test_append_iocontrol_discoveries_empty_is_noop(pids_dir):
     original = (pids_dir / "test.yaml").read_text()
-    append_iocontrol_discoveries_block("TEST", [], pids_dir=pids_dir)
+    append_iocontrol_discoveries_block("TEST", [], pids_dir=pids_dir, profile=active())
     assert (pids_dir / "test.yaml").read_text() == original
 
 
@@ -293,7 +294,7 @@ def test_append_iocontrol_discoveries_unknown_ecu_raises(pids_dir):
         )
     ]
     with pytest.raises(PidsEditError):
-        append_iocontrol_discoveries_block("NONEXISTENT", hits, pids_dir=pids_dir)
+        append_iocontrol_discoveries_block("NONEXISTENT", hits, pids_dir=pids_dir, profile=active())
 
 
 def test_append_iocontrol_discoveries_yaml_round_trip(pids_dir):
@@ -303,7 +304,7 @@ def test_append_iocontrol_discoveries_yaml_round_trip(pids_dir):
         )
         for i in (0xB000, 0xB001, 0xB050, 0xBFFF)
     ]
-    path = append_iocontrol_discoveries_block("TEST", hits, pids_dir=pids_dir)
+    path = append_iocontrol_discoveries_block("TEST", hits, pids_dir=pids_dir, profile=active())
     data = yaml.safe_load(path.read_text())
     assert len(data["TEST"]["iocontrol_discoveries"]) == 4
     assert "BFFF" in data["TEST"]["iocontrol_discoveries"]
@@ -333,8 +334,8 @@ def test_routines_and_discoveries_coexist(pids_dir):
         )
     ]
 
-    append_routines_block("TEST", r_hits, pids_dir=pids_dir)
-    append_iocontrol_discoveries_block("TEST", d_hits, pids_dir=pids_dir)
+    append_routines_block("TEST", r_hits, pids_dir=pids_dir, profile=active())
+    append_iocontrol_discoveries_block("TEST", d_hits, pids_dir=pids_dir, profile=active())
 
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
     assert "F010" in data["TEST"]["routines"]

@@ -86,7 +86,9 @@ class TestDecodePreviewIndex:
         entry = {"payload": "6101AABBCCDD", "ecu": "BMS", "pid": "2101"}
         assert "OLD_NAME" in (decoded_preview(entry, profile=active()) or {})
 
-        rename_parameter("BMS", "2101", "OLD_NAME", "NEW_NAME", pids_dir=root / "ecus")
+        rename_parameter(
+            "BMS", "2101", "OLD_NAME", "NEW_NAME", pids_dir=root / "ecus", profile=active()
+        )
         preview = decoded_preview(entry, profile=active()) or {}
         assert "NEW_NAME" in preview, f"stale index decoded {sorted(preview)}"
 

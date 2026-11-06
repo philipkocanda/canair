@@ -17,6 +17,7 @@ from pathlib import Path
 
 from canair.captures.entries import capture_key
 from canair.captures.types import CaptureEntry
+from canair.cli.profile_context import dir_profile
 from canair.expression.notation import ByteNotation
 from canair.profile import active
 from canair.render import ansi, messages
@@ -73,7 +74,7 @@ def build_model(
         notation=notation,
         captures_dir=captures_dir,
         aliases=_safe_alias_index(),
-        profile=active(),
+        profile=dir_profile(captures_dir),
     )
 
 

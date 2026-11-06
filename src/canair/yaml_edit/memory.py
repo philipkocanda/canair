@@ -21,6 +21,7 @@ from canair.ecus.memory import (
     memory_format_of,
     section_problems,
 )
+from canair.profile import Profile
 from canair.uds.memory import MemoryFormat, MemoryRequestError, memory_request, parse_memory_token
 
 from .ecu import EcusEditError, find_ecu_file_by_tx, tx_key
@@ -29,9 +30,9 @@ from .text import _find_ecu_block, _keyed_block, edit_ecu_text, find_ecu_file
 _CLEARABLE = ("format", "max_block", "session")
 
 
-def _ecu_of(tx_id: int, ecus_dir: Path | None) -> tuple[Path, str, dict]:
+def _ecu_of(tx_id: int, ecus_dir: Path | None, *, profile: Profile) -> tuple[Path, str, dict]:
     """The file, YAML key and parsed mapping of the ECU whose ``tx_id`` this is."""
-    fpath = find_ecu_file_by_tx(tx_id, ecus_dir)
+    fpath = find_ecu_file_by_tx(tx_id, ecus_dir, profile=profile)
     if fpath is None:
         raise EcusEditError(f"ECU {tx_key(tx_id)} not registered; call `canair ecu add` first")
     data = yaml_io.safe_load(fpath.read_text()) or {}
@@ -70,7 +71,9 @@ def _render(section: Mapping[str, Any], width: int) -> list[str]:
     return lines
 
 
-def _write(fpath: Path, name: str, section: dict[str, Any], width: int) -> Path:
+def _write(
+    fpath: Path, name: str, section: dict[str, Any], width: int, *, profile: Profile
+) -> Path:
     errors, _ = section_problems(section)
     if errors:
         raise EcusEditError("; ".join(errors))
@@ -94,10 +97,12 @@ def _write(fpath: Path, name: str, section: dict[str, Any], width: int) -> Path:
         }:
             raise EcusEditError(f"memory: mismatch after edit (got {got!r})")
 
-    return edit_ecu_text(name, transform, check, pids_dir=fpath.parent)
+    return edit_ecu_text(name, transform, check, pids_dir=fpath.parent, profile=profile)
 
 
-def memory_pid_key(ecu_name: str, pid: str, ecus_dir: Path | None = None) -> str:
+def memory_pid_key(
+    ecu_name: str, pid: str, ecus_dir: Path | None = None, *, profile: Profile
+) -> str:
     """The PID key a ``23/ADDRESS+SIZE`` token names on this ECU; any other PID unchanged.
 
     The key is the full request, built with the ECU's memory format, so an editor can be
@@ -108,7 +113,7 @@ def memory_pid_key(ecu_name: str, pid: str, ecus_dir: Path | None = None) -> str
             return pid
     except MemoryRequestError as e:
         raise EcusEditError(str(e)) from None
-    fpath = find_ecu_file(ecu_name, ecus_dir)
+    fpath = find_ecu_file(ecu_name, ecus_dir, profile=profile)
     data = yaml_io.safe_load(fpath.read_text()) or {}
     ecu_def = next((v for k, v in data.items() if str(k).upper() == ecu_name.upper()), None)
     fmt = memory_format_of(ecu_def)
@@ -132,13 +137,14 @@ def set_memory(
     session: str | None = None,
     clear: Iterable[str] = (),
     ecus_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Set the ECU's memory ``format``/``max_block``/``session``; ``clear`` names fields to drop.
 
     Returns the file written. Raises :class:`EcusEditError` for an unknown ECU or a value
     the section's checks refuse.
     """
-    fpath, name, ecu_def = _ecu_of(tx_id, ecus_dir)
+    fpath, name, ecu_def = _ecu_of(tx_id, ecus_dir, profile=profile)
     section = dict(ecu_def.get(SECTION) or {})
     for key in clear:
         if key not in _CLEARABLE:
@@ -151,7 +157,7 @@ def set_memory(
     if session is not None:
         section["session"] = session.strip().upper()
     width = 2 * fmt.address_bytes if fmt is not None else 8
-    return _write(fpath, name, section, width)
+    return _write(fpath, name, section, width, profile=profile)
 
 
 def _overlaps(entry: Mapping, region: MemoryRegion) -> bool:
@@ -169,13 +175,14 @@ def record_scan(
     fmt: MemoryFormat | None = None,
     max_block: int | None = None,
     ecus_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Record what ``canair scan memory`` found: its regions, and the format and block it used.
 
     A new region replaces every recorded region it overlaps; the rest are kept, so a scan of
     one range never erases what a scan of another found. Regions stay sorted by address.
     """
-    fpath, name, ecu_def = _ecu_of(tx_id, ecus_dir)
+    fpath, name, ecu_def = _ecu_of(tx_id, ecus_dir, profile=profile)
     section = dict(ecu_def.get(SECTION) or {})
     if fmt is not None:
         section["format"] = fmt.name
@@ -200,4 +207,4 @@ def record_scan(
     ]
     section["regions"] = sorted(kept + new, key=lambda e: _num(e["start"]))
     width = 2 * fmt.address_bytes if fmt is not None else 8
-    return _write(fpath, name, section, width)
+    return _write(fpath, name, section, width, profile=profile)

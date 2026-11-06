@@ -15,6 +15,7 @@ from canair.live.scan.sessions import (
     mode_sessions_scan,
     scan_ecu_sessions,
 )
+from canair.profile import active
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.pids import collect_pids_validation
 from canair.validation.schema_fields import load_schema
@@ -109,7 +110,7 @@ def test_append_sessions_adds_section(pids_dir):
             nrc_desc="subFunctionNotSupported",
         ),
     ]
-    path = append_sessions_block("TEST", hits, pids_dir=pids_dir)
+    path = append_sessions_block("TEST", hits, pids_dir=pids_dir, profile=active())
     data = yaml.safe_load(path.read_text())
 
     sessions = data["TEST"]["sessions"]
@@ -130,14 +131,14 @@ def test_append_sessions_keys_stay_hex_strings(pids_dir):
             mode=0x03, name="extendedDiagnosticSession", supported=True, nrc=None, nrc_desc=None
         ),
     ]
-    path = append_sessions_block("TEST", hits, pids_dir=pids_dir)
+    path = append_sessions_block("TEST", hits, pids_dir=pids_dir, profile=active())
     data = yaml.safe_load(path.read_text())
     assert set(data["TEST"]["sessions"].keys()) == {"01", "03"}
 
 
 def test_append_sessions_preserves_existing_sections(pids_dir):
     hits = [SessionHit(mode=0x81, name=None, supported=True, nrc=None, nrc_desc=None)]
-    append_sessions_block("TEST", hits, pids_dir=pids_dir)
+    append_sessions_block("TEST", hits, pids_dir=pids_dir, profile=active())
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
 
     assert data["TEST"]["tx_id"] == 0x7E4
@@ -151,11 +152,13 @@ def test_append_sessions_merges_and_sorts(pids_dir):
         "TEST",
         [SessionHit(mode=0x83, name=None, supported=False, nrc=0x12, nrc_desc="x")],
         pids_dir=pids_dir,
+        profile=active(),
     )
     append_sessions_block(
         "TEST",
         [SessionHit(mode=0x81, name=None, supported=True, nrc=None, nrc_desc=None)],
         pids_dir=pids_dir,
+        profile=active(),
     )
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
     sessions = data["TEST"]["sessions"]
@@ -168,6 +171,7 @@ def test_append_sessions_upserts_on_conflict(pids_dir):
         "TEST",
         [SessionHit(mode=0x81, name=None, supported=False, nrc=0x12, nrc_desc="old")],
         pids_dir=pids_dir,
+        profile=active(),
     )
     append_sessions_block(
         "TEST",
@@ -177,6 +181,7 @@ def test_append_sessions_upserts_on_conflict(pids_dir):
             )
         ],
         pids_dir=pids_dir,
+        profile=active(),
     )
     data = yaml.safe_load((pids_dir / "test.yaml").read_text())
     assert data["TEST"]["sessions"]["81"]["supported"] is True
@@ -185,7 +190,7 @@ def test_append_sessions_upserts_on_conflict(pids_dir):
 
 def test_append_empty_hits_is_noop(pids_dir):
     original = (pids_dir / "test.yaml").read_text()
-    append_sessions_block("TEST", [], pids_dir=pids_dir)
+    append_sessions_block("TEST", [], pids_dir=pids_dir, profile=active())
     assert (pids_dir / "test.yaml").read_text() == original
 
 
@@ -202,7 +207,7 @@ def test_written_sessions_pass_schema_validation(pids_dir):
             nrc_desc="subFunctionNotSupported",
         ),
     ]
-    path = append_sessions_block("TEST", hits, pids_dir=pids_dir)
+    path = append_sessions_block("TEST", hits, pids_dir=pids_dir, profile=active())
     errors, _warnings, stats = collect_pids_validation([path])
     assert errors == [], errors
     assert stats["sessions"] == 2
@@ -286,6 +291,7 @@ async def test_scan_ecu_sessions_records_supported_and_unsupported():
         KWP_SESSION_MODES,
         throttle_ms=0,
         write_yaml=False,
+        profile=active(),
     )
     by_mode = {h.mode: h for h in hits}
     assert by_mode[0x81].supported is True
@@ -309,6 +315,7 @@ async def test_scan_ecu_sessions_aborts_on_service_absent():
         UDS_SESSION_MODES,
         throttle_ms=0,
         write_yaml=False,
+        profile=active(),
     )
     assert hits == []
     # Aborted after the first probe returned 0x11.
@@ -333,6 +340,7 @@ async def test_mode_sessions_scan_autoselects_by_protocol(tmp_path):
         ecus=["TEST"],
         throttle_ms=0,
         write_yaml=False,
+        profile=active(),
     )
     # KWP2000 id_protocol → probes 81/82/83, not the UDS 01/03.
     assert term.sent == ["1081", "1082", "1083"]
@@ -359,6 +367,7 @@ async def test_mode_sessions_scan_write_yaml_false_does_not_write(tmp_path):
         ecus=["TEST"],
         throttle_ms=0,
         write_yaml=False,
+        profile=active(),
     )
     assert (tmp_path / "test.yaml").read_text() == original
 
@@ -374,6 +383,7 @@ def test_sessions_writeback_round_trips_through_writer(tmp_path):
             )
         ],
         pids_dir=tmp_path,
+        profile=active(),
     )
     data = yaml.safe_load((tmp_path / "test.yaml").read_text())
     assert data["TEST"]["sessions"]["81"]["supported"] is True

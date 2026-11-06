@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from canair.profile import active
 from canair.validation.pids import collect_pids_validation
 from canair.yaml_edit.ecu import (
     EcusEditError,
@@ -61,52 +62,58 @@ class TestTxKey:
 
 class TestRegisterEcu:
     def test_adds_new_file(self, ecus_dir):
-        changed = register_ecu(0x7E0, "VCU", id_protocol="KWP2000", ecus_dir=ecus_dir)
+        changed = register_ecu(
+            0x7E0, "VCU", id_protocol="KWP2000", ecus_dir=ecus_dir, profile=active()
+        )
         assert changed is True
         data = _load_ecu(ecus_dir, "vcu.yaml")
         assert data["VCU"]["tx_id"] == 0x7E0
         assert data["VCU"]["identity"] == {"id_protocol": "KWP2000"}
 
     def test_default_unknown_name(self, ecus_dir):
-        register_ecu(0x7C0, ecus_dir=ecus_dir)
+        register_ecu(0x7C0, ecus_dir=ecus_dir, profile=active())
         data = _load_ecu(ecus_dir, "unknown-7c0.yaml")
         assert "Unknown-7C0" in data
 
     def test_creates_dir_when_absent(self, tmp_path):
         d = tmp_path / "ecus"
-        register_ecu(0x7E2, "MCU", ecus_dir=d)
+        register_ecu(0x7E2, "MCU", ecus_dir=d, profile=active())
         assert (d / "mcu.yaml").exists()
         assert _load_ecu(d, "mcu.yaml")["MCU"]["tx_id"] == 0x7E2
 
     def test_merge_fills_blank_identity(self, ecus_dir):
         # Existing IGPM (found by tx) — merge fills its identity, keeps the key.
-        changed = register_ecu(0x770, "SHOULD_NOT_WIN", part_number="91950G7510", ecus_dir=ecus_dir)
+        changed = register_ecu(
+            0x770, "SHOULD_NOT_WIN", part_number="91950G7510", ecus_dir=ecus_dir, profile=active()
+        )
         assert changed is True
         entry = _load_ecu(ecus_dir, "igpm.yaml")["IGPM"]
         assert entry["identity"]["part_number"] == "91950G7510"
         assert entry["identity"]["description"] == "Integrated Gateway & Power Module"
 
     def test_merge_noop_returns_false(self, ecus_dir):
-        assert register_ecu(0x770, id_protocol="UDS", ecus_dir=ecus_dir) is False
+        assert register_ecu(0x770, id_protocol="UDS", ecus_dir=ecus_dir, profile=active()) is False
 
     def test_overwrite_replaces_identity_field(self, ecus_dir):
-        register_ecu(0x770, description="New desc", overwrite=True, ecus_dir=ecus_dir)
+        register_ecu(
+            0x770, description="New desc", overwrite=True, ecus_dir=ecus_dir, profile=active()
+        )
         entry = _load_ecu(ecus_dir, "igpm.yaml")["IGPM"]
         assert entry["identity"]["description"] == "New desc"
 
     def test_rejects_unknown_field(self, ecus_dir):
         with pytest.raises(EcusEditError, match="unknown identity field"):
-            register_ecu(0x7E0, "VCU", bogus_field="x", ecus_dir=ecus_dir)
+            register_ecu(0x7E0, "VCU", bogus_field="x", ecus_dir=ecus_dir, profile=active())
 
     def test_preserves_header_comment(self, ecus_dir):
-        register_ecu(0x770, part_number="91950G7510", ecus_dir=ecus_dir)
+        register_ecu(0x770, part_number="91950G7510", ecus_dir=ecus_dir, profile=active())
         assert "hand-authored header comment" in (ecus_dir / "igpm.yaml").read_text()
 
 
 class TestRenameEcu:
     def test_renames_key_and_file(self, ecus_dir):
-        register_ecu(0x7D5, "Unknown-7D5", ecus_dir=ecus_dir)
-        new_path = rename_ecu(0x7D5, "EPB", ecus_dir=ecus_dir)
+        register_ecu(0x7D5, "Unknown-7D5", ecus_dir=ecus_dir, profile=active())
+        new_path = rename_ecu(0x7D5, "EPB", ecus_dir=ecus_dir, profile=active())
         assert new_path == ecus_dir / "epb.yaml"
         assert new_path.exists()
         assert not (ecus_dir / "unknown-7d5.yaml").exists()  # old file gone
@@ -117,31 +124,31 @@ class TestRenameEcu:
 
     def test_preserves_header_comment(self, ecus_dir):
         # The IGPM seed carries a leading document comment; renaming keeps it.
-        rename_ecu(0x770, "Gateway", ecus_dir=ecus_dir)
+        rename_ecu(0x770, "Gateway", ecus_dir=ecus_dir, profile=active())
         assert "hand-authored header comment" in (ecus_dir / "gateway.yaml").read_text()
 
     def test_resolves_old_by_tx(self, ecus_dir):
         # The caller resolves the selector to a tx_id; rename finds the file by it.
-        rename_ecu(0x770, "Gateway", ecus_dir=ecus_dir)
+        rename_ecu(0x770, "Gateway", ecus_dir=ecus_dir, profile=active())
         assert _load_ecu(ecus_dir, "gateway.yaml")["Gateway"]["tx_id"] == 0x770
 
     def test_empty_name_rejected(self, ecus_dir):
         with pytest.raises(EcusEditError, match="non-empty"):
-            rename_ecu(0x770, "   ", ecus_dir=ecus_dir)
+            rename_ecu(0x770, "   ", ecus_dir=ecus_dir, profile=active())
 
     def test_same_name_rejected(self, ecus_dir):
         with pytest.raises(EcusEditError, match="already named"):
-            rename_ecu(0x770, "IGPM", ecus_dir=ecus_dir)
+            rename_ecu(0x770, "IGPM", ecus_dir=ecus_dir, profile=active())
 
     def test_unregistered_rejected(self, ecus_dir):
         with pytest.raises(EcusEditError, match="not registered"):
-            rename_ecu(0x7E0, "VCU", ecus_dir=ecus_dir)
+            rename_ecu(0x7E0, "VCU", ecus_dir=ecus_dir, profile=active())
 
     def test_collision_with_other_ecu_rejected(self, ecus_dir):
         # A second ECU already owns the target slug — refuse rather than clobber.
-        register_ecu(0x7E0, "VCU", ecus_dir=ecus_dir)
+        register_ecu(0x7E0, "VCU", ecus_dir=ecus_dir, profile=active())
         with pytest.raises(EcusEditError, match="already exists"):
-            rename_ecu(0x770, "VCU", ecus_dir=ecus_dir)
+            rename_ecu(0x770, "VCU", ecus_dir=ecus_dir, profile=active())
         # The would-be victim and source both survive untouched.
         assert _load_ecu(ecus_dir, "vcu.yaml")["VCU"]["tx_id"] == 0x7E0
         assert "IGPM" in _load_ecu(ecus_dir, "igpm.yaml")
@@ -149,42 +156,54 @@ class TestRenameEcu:
 
 class TestSetEcuFields:
     def test_updates_existing(self, ecus_dir):
-        changed = set_ecu_fields(0x770, part_number="91950G7510", ecus_dir=ecus_dir)
+        changed = set_ecu_fields(
+            0x770, part_number="91950G7510", ecus_dir=ecus_dir, profile=active()
+        )
         assert changed is True
         entry = _load_ecu(ecus_dir, "igpm.yaml")["IGPM"]
         assert entry["identity"]["part_number"] == "91950G7510"
 
     def test_no_clobber_without_overwrite(self, ecus_dir):
-        assert set_ecu_fields(0x770, id_protocol="KWP2000", ecus_dir=ecus_dir) is False
+        assert (
+            set_ecu_fields(0x770, id_protocol="KWP2000", ecus_dir=ecus_dir, profile=active())
+            is False
+        )
         entry = _load_ecu(ecus_dir, "igpm.yaml")["IGPM"]
         assert entry["identity"]["id_protocol"] == "UDS"
 
     def test_raises_for_unregistered(self, ecus_dir):
         with pytest.raises(EcusEditError, match="not registered"):
-            set_ecu_fields(0x7E0, description="VCU", ecus_dir=ecus_dir)
+            set_ecu_fields(0x7E0, description="VCU", ecus_dir=ecus_dir, profile=active())
 
     def test_invalid_value_is_reverted(self, ecus_dir):
         # id_protocol passes the field-name check but fails schema validation,
         # so the write must be rolled back and the file left untouched.
         before = (ecus_dir / "igpm.yaml").read_text()
         with pytest.raises(EcusEditError, match="invalid after edit"):
-            set_ecu_fields(0x770, id_protocol="BOGUS", overwrite=True, ecus_dir=ecus_dir)
+            set_ecu_fields(
+                0x770, id_protocol="BOGUS", overwrite=True, ecus_dir=ecus_dir, profile=active()
+            )
         assert (ecus_dir / "igpm.yaml").read_text() == before
 
 
 class TestSetAddressing:
     def test_set_rx_only(self, ecus_dir):
-        register_ecu(0x704, "VCU", ecus_dir=ecus_dir)
-        changed = set_addressing(0x704, rx_id=0x784, ecus_dir=ecus_dir)
+        register_ecu(0x704, "VCU", ecus_dir=ecus_dir, profile=active())
+        changed = set_addressing(0x704, rx_id=0x784, ecus_dir=ecus_dir, profile=active())
         assert changed is True
         entry = _load_ecu(ecus_dir, "vcu.yaml")["VCU"]
         assert entry["rx_id"] == 0x784
 
     def test_extended_11bit(self, ecus_dir):
         # BMW/PSA extended-11-bit: mode + target byte. Gap G-I.
-        register_ecu(0x6F1, "DME", ecus_dir=ecus_dir)
+        register_ecu(0x6F1, "DME", ecus_dir=ecus_dir, profile=active())
         set_addressing(
-            0x6F1, mode="normal_extended_11bit", target_address=0x12, rx_id=0x612, ecus_dir=ecus_dir
+            0x6F1,
+            mode="normal_extended_11bit",
+            target_address=0x12,
+            rx_id=0x612,
+            ecus_dir=ecus_dir,
+            profile=active(),
         )
         entry = _load_ecu(ecus_dir, "dme.yaml")["DME"]
         assert entry["addressing"]["mode"] == "normal_extended_11bit"
@@ -201,6 +220,7 @@ class TestSetAddressing:
             mode="normal_29bit",
             rx_id=0x18DAF1DB,
             fc_id=0x18DADBF1,
+            profile=active(),
         )
         entry = _load_ecu(ecus_dir, "evc.yaml")["EVC"]
         assert entry["tx_id"] == 0x18DB33F1
@@ -208,14 +228,14 @@ class TestSetAddressing:
         assert entry["addressing"]["fc_id"] == 0x18DADBF1
 
     def test_unknown_mode_rejected(self, ecus_dir):
-        register_ecu(0x704, "VCU", ecus_dir=ecus_dir)
+        register_ecu(0x704, "VCU", ecus_dir=ecus_dir, profile=active())
         with pytest.raises(EcusEditError, match="unknown addressing mode"):
-            set_addressing(0x704, mode="bogus", ecus_dir=ecus_dir)
+            set_addressing(0x704, mode="bogus", ecus_dir=ecus_dir, profile=active())
 
     def test_noop_returns_false_and_leaves_file_untouched(self, ecus_dir):
         # Applying the same values twice is a no-op: the second call reports False
         # ("nothing to change") and must not rewrite the file.
-        register_ecu(0x6F1, "DME", ecus_dir=ecus_dir)
+        register_ecu(0x6F1, "DME", ecus_dir=ecus_dir, profile=active())
         assert (
             set_addressing(
                 0x6F1,
@@ -223,6 +243,7 @@ class TestSetAddressing:
                 target_address=0x12,
                 rx_id=0x612,
                 ecus_dir=ecus_dir,
+                profile=active(),
             )
             is True
         )
@@ -237,6 +258,7 @@ class TestSetAddressing:
                 target_address=0x12,
                 rx_id=0x612,
                 ecus_dir=ecus_dir,
+                profile=active(),
             )
             is False
         )
@@ -244,13 +266,13 @@ class TestSetAddressing:
         assert fpath.stat().st_mtime_ns == before_mtime
 
     def test_byte_out_of_range_rejected(self, ecus_dir):
-        register_ecu(0x6F1, "DME", ecus_dir=ecus_dir)
+        register_ecu(0x6F1, "DME", ecus_dir=ecus_dir, profile=active())
         with pytest.raises(EcusEditError, match="target_address"):
-            set_addressing(0x6F1, target_address=0x100, ecus_dir=ecus_dir)
+            set_addressing(0x6F1, target_address=0x100, ecus_dir=ecus_dir, profile=active())
 
     def test_raises_for_unregistered(self, ecus_dir):
         with pytest.raises(EcusEditError, match="not registered"):
-            set_addressing(0x7E0, rx_id=0x7E8, ecus_dir=ecus_dir)
+            set_addressing(0x7E0, rx_id=0x7E8, ecus_dir=ecus_dir, profile=active())
 
 
 class TestAppendScanLog:
@@ -262,6 +284,7 @@ class TestAppendScanLog:
             hits=3,
             vehicle_states=["acc"],
             ecus_dir=ecus_dir,
+            profile=active(),
         )
         entry = _load_ecu(ecus_dir, "igpm.yaml")["IGPM"]
         entries = entry["scan_log"]
@@ -272,13 +295,13 @@ class TestAppendScanLog:
         assert "date" in entries[0]  # defaulted to today
 
     def test_appends_to_existing_list(self, ecus_dir):
-        append_scan_log(0x770, service=0x21, ecus_dir=ecus_dir)
-        append_scan_log(0x770, service=0x22, ecus_dir=ecus_dir)
+        append_scan_log(0x770, service=0x21, ecus_dir=ecus_dir, profile=active())
+        append_scan_log(0x770, service=0x22, ecus_dir=ecus_dir, profile=active())
         assert len(_load_ecu(ecus_dir, "igpm.yaml")["IGPM"]["scan_log"]) == 2
 
     def test_raises_for_unregistered(self, ecus_dir):
         with pytest.raises(EcusEditError, match="not registered"):
-            append_scan_log(0x7E0, service=0x22, ecus_dir=ecus_dir)
+            append_scan_log(0x7E0, service=0x22, ecus_dir=ecus_dir, profile=active())
 
 
 _LONG_NOTE = (
@@ -294,7 +317,7 @@ class TestNoteRendering:
     wrapped folded (``>-``) block — and folding never reflows the rest of the file."""
 
     def test_long_note_folds_and_wraps(self, ecus_dir):
-        register_ecu(0x7E0, "VCU", notes=_LONG_NOTE, ecus_dir=ecus_dir)
+        register_ecu(0x7E0, "VCU", notes=_LONG_NOTE, ecus_dir=ecus_dir, profile=active())
         text = (ecus_dir / "vcu.yaml").read_text()
         assert "notes: >-" in text  # folded block, not inline
         # Wrapped for readability, and value-preserving on round-trip.
@@ -302,19 +325,21 @@ class TestNoteRendering:
         assert _load_ecu(ecus_dir, "vcu.yaml")["VCU"]["identity"]["notes"] == _LONG_NOTE
 
     def test_short_note_stays_inline(self, ecus_dir):
-        register_ecu(0x7E0, "VCU", notes="Short battery ECU note.", ecus_dir=ecus_dir)
+        register_ecu(
+            0x7E0, "VCU", notes="Short battery ECU note.", ecus_dir=ecus_dir, profile=active()
+        )
         text = (ecus_dir / "vcu.yaml").read_text()
         assert "notes: >" not in text
         assert "notes: Short battery ECU note." in text
 
     def test_scan_log_note_folds(self, ecus_dir):
-        append_scan_log(0x770, service=0x22, notes=_LONG_NOTE, ecus_dir=ecus_dir)
+        append_scan_log(0x770, service=0x22, notes=_LONG_NOTE, ecus_dir=ecus_dir, profile=active())
         text = (ecus_dir / "igpm.yaml").read_text()
         assert "notes: >-" in text
         assert _load_ecu(ecus_dir, "igpm.yaml")["IGPM"]["scan_log"][0]["notes"] == _LONG_NOTE
 
     def test_set_ecu_fields_note_folds(self, ecus_dir):
-        set_ecu_fields(0x770, notes=_LONG_NOTE, overwrite=True, ecus_dir=ecus_dir)
+        set_ecu_fields(0x770, notes=_LONG_NOTE, overwrite=True, ecus_dir=ecus_dir, profile=active())
         text = (ecus_dir / "igpm.yaml").read_text()
         assert "notes: >-" in text
         assert _load_ecu(ecus_dir, "igpm.yaml")["IGPM"]["identity"]["notes"] == _LONG_NOTE
@@ -336,7 +361,7 @@ class TestNoteRendering:
             f'          expression: "{long_expr}"\n'
         )
         (d / "bms.yaml").write_text(seed)
-        set_ecu_fields(0x7E4, notes=_LONG_NOTE, overwrite=True, ecus_dir=d)
+        set_ecu_fields(0x7E4, notes=_LONG_NOTE, overwrite=True, ecus_dir=d, profile=active())
         text = (d / "bms.yaml").read_text()
         assert f'expression: "{long_expr}"' in text  # untouched, not wrapped
         assert "notes: >-" in text
@@ -430,7 +455,9 @@ class TestIndentationPreserved:
         p = d / "igpm.yaml"
         p.write_text(SEED_INDENTED_SEQ)
         before = p.read_text()
-        set_ecu_fields(0x770, overwrite=True, ecus_dir=d, identity_confidence="confirmed")
+        set_ecu_fields(
+            0x770, overwrite=True, ecus_dir=d, identity_confidence="confirmed", profile=active()
+        )
         after = p.read_text()
         # The scan_log block (unrelated to the edit) must be byte-identical.
         before_scanlog = before[before.index("scan_log:") :]

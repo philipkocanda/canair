@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from canair.profile import active
 from canair.yaml_edit.pids import (
     EDITABLE_FIELDS,
     PidsEditError,
@@ -91,20 +92,22 @@ def _reload(path: Path) -> dict:
 
 class TestFindEcuFile:
     def test_locates_by_name(self, tmp_pids_dir: Path):
-        p = find_ecu_file("TEST", pids_dir=tmp_pids_dir)
+        p = find_ecu_file("TEST", pids_dir=tmp_pids_dir, profile=active())
         assert p.name == "test.yaml"
 
     def test_case_insensitive(self, tmp_pids_dir: Path):
-        assert find_ecu_file("test", pids_dir=tmp_pids_dir).name == "test.yaml"
+        assert find_ecu_file("test", pids_dir=tmp_pids_dir, profile=active()).name == "test.yaml"
 
     def test_unknown_raises(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
-            find_ecu_file("NOPE", pids_dir=tmp_pids_dir)
+            find_ecu_file("NOPE", pids_dir=tmp_pids_dir, profile=active())
 
 
 class TestUpdateLabel:
     def test_simple_replace(self, tmp_pids_dir: Path):
-        update_iocontrol_field("TEST", "AA01", "label", "New label", pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA01", "label", "New label", pids_dir=tmp_pids_dir, profile=active()
+        )
         data = _reload(tmp_pids_dir / "test.yaml")
         assert data["TEST"]["iocontrol"]["AA01"]["label"] == "New label"
         # sibling fields preserved (YAML parses bare on/off keys as booleans)
@@ -112,12 +115,16 @@ class TestUpdateLabel:
         assert data["TEST"]["iocontrol"]["AA01"][False] == "2FAA0100"
 
     def test_replace_quoted(self, tmp_pids_dir: Path):
-        update_iocontrol_field("TEST", "AA02", "label", "Plain again", pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA02", "label", "Plain again", pids_dir=tmp_pids_dir, profile=active()
+        )
         data = _reload(tmp_pids_dir / "test.yaml")
         assert data["TEST"]["iocontrol"]["AA02"]["label"] == "Plain again"
 
     def test_label_with_colon_gets_quoted(self, tmp_pids_dir: Path):
-        update_iocontrol_field("TEST", "AA01", "label", "HVAC: fan", pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA01", "label", "HVAC: fan", pids_dir=tmp_pids_dir, profile=active()
+        )
         raw = (tmp_pids_dir / "test.yaml").read_text()
         assert '"HVAC: fan"' in raw
         data = _reload(tmp_pids_dir / "test.yaml")
@@ -125,7 +132,9 @@ class TestUpdateLabel:
 
     def test_does_not_disturb_other_dids(self, tmp_pids_dir: Path):
         original = (tmp_pids_dir / "test.yaml").read_text()
-        update_iocontrol_field("TEST", "AA01", "label", "Changed", pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA01", "label", "Changed", pids_dir=tmp_pids_dir, profile=active()
+        )
         updated = (tmp_pids_dir / "test.yaml").read_text()
         # AA02 and AA03 blocks unchanged
         assert '"Quoted: label"' in updated
@@ -134,7 +143,9 @@ class TestUpdateLabel:
         assert original.splitlines()[0] == updated.splitlines()[0]
 
     def test_preserves_blank_line_between_dids(self, tmp_pids_dir: Path):
-        update_iocontrol_field("TEST", "AA01", "label", "Changed", pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA01", "label", "Changed", pids_dir=tmp_pids_dir, profile=active()
+        )
         updated = (tmp_pids_dir / "test.yaml").read_text()
         # The blank line between AA01 and AA02 must remain (readability).
         assert "\n\n    AA02:" in updated
@@ -142,31 +153,41 @@ class TestUpdateLabel:
 
 class TestUpdateVerified:
     def test_false_to_true(self, tmp_pids_dir: Path):
-        update_iocontrol_field("TEST", "AA01", "verified", True, pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA01", "verified", True, pids_dir=tmp_pids_dir, profile=active()
+        )
         data = _reload(tmp_pids_dir / "test.yaml")
         assert data["TEST"]["iocontrol"]["AA01"]["verified"] is True
 
     def test_true_to_false(self, tmp_pids_dir: Path):
-        update_iocontrol_field("TEST", "AA02", "verified", False, pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA02", "verified", False, pids_dir=tmp_pids_dir, profile=active()
+        )
         data = _reload(tmp_pids_dir / "test.yaml")
         assert data["TEST"]["iocontrol"]["AA02"]["verified"] is False
 
 
 class TestUpdateNotes:
     def test_replace_inline_notes(self, tmp_pids_dir: Path):
-        update_iocontrol_field("TEST", "AA01", "notes", "Updated.", pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA01", "notes", "Updated.", pids_dir=tmp_pids_dir, profile=active()
+        )
         data = _reload(tmp_pids_dir / "test.yaml")
         assert data["TEST"]["iocontrol"]["AA01"]["notes"].strip() == "Updated."
 
     def test_replace_block_scalar_notes(self, tmp_pids_dir: Path):
-        update_iocontrol_field("TEST", "AA02", "notes", "Line A\nLine B", pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA02", "notes", "Line A\nLine B", pids_dir=tmp_pids_dir, profile=active()
+        )
         data = _reload(tmp_pids_dir / "test.yaml")
         got = data["TEST"]["iocontrol"]["AA02"]["notes"]
         # YAML block scalar folds newlines to spaces; ensure both lines survive
         assert "Line A" in got and "Line B" in got
 
     def test_add_notes_where_absent(self, tmp_pids_dir: Path):
-        update_iocontrol_field("TEST", "AA03", "notes", "Brand new note.", pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA03", "notes", "Brand new note.", pids_dir=tmp_pids_dir, profile=active()
+        )
         data = _reload(tmp_pids_dir / "test.yaml")
         assert data["TEST"]["iocontrol"]["AA03"]["notes"].strip() == "Brand new note."
         # Did not mutate other DIDs' notes
@@ -182,7 +203,9 @@ class TestUpdateNotes:
             "https://docs.google.com/spreadsheets/d/1R2dW_4-ANg04TQdkHH52-8wdYItBkWDfppXcsqOc-m1M "
             "for the reference data. Enabled unverified pending scale confirmation."
         )
-        update_iocontrol_field("TEST", "AA02", "notes", note, pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA02", "notes", note, pids_dir=tmp_pids_dir, profile=active()
+        )
         raw = (tmp_pids_dir / "test.yaml").read_text()
         # readability: at least one wrapped continuation line ≤ ~101 cols
         note_lines = [
@@ -198,11 +221,15 @@ class TestUpdateNotes:
 class TestGuards:
     def test_unknown_field(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
-            update_iocontrol_field("TEST", "AA01", "bogus", "x", pids_dir=tmp_pids_dir)
+            update_iocontrol_field(
+                "TEST", "AA01", "bogus", "x", pids_dir=tmp_pids_dir, profile=active()
+            )
 
     def test_unknown_did(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
-            update_iocontrol_field("TEST", "FFFF", "label", "x", pids_dir=tmp_pids_dir)
+            update_iocontrol_field(
+                "TEST", "FFFF", "label", "x", pids_dir=tmp_pids_dir, profile=active()
+            )
 
     def test_editable_fields_list(self):
         assert set(EDITABLE_FIELDS) == {"label", "verified", "notes"}
@@ -210,13 +237,19 @@ class TestGuards:
     def test_a_pid_sharing_the_key_is_not_an_iocontrol_entry(self, tmp_pids_dir: Path):
         # 2200 exists only under pids:, so it must not be found (and edited) as a DID.
         with pytest.raises(PidsEditError, match="iocontrol"):
-            update_iocontrol_field("TEST", "2200", "label", "x", pids_dir=tmp_pids_dir)
+            update_iocontrol_field(
+                "TEST", "2200", "label", "x", pids_dir=tmp_pids_dir, profile=active()
+            )
 
 
 class TestUpdateCommandFields:
     def test_command_fields_are_written_quoted(self, tmp_pids_dir: Path):
-        update_iocontrol_field("TEST", "AA01", "on", "2faa0103ff", pids_dir=tmp_pids_dir)
-        update_iocontrol_field("TEST", "AA01", "session_mode", "c0", pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA01", "on", "2faa0103ff", pids_dir=tmp_pids_dir, profile=active()
+        )
+        update_iocontrol_field(
+            "TEST", "AA01", "session_mode", "c0", pids_dir=tmp_pids_dir, profile=active()
+        )
         raw = (tmp_pids_dir / "test.yaml").read_text()
         assert 'session_mode: "C0"' in raw
         entry = _reload(tmp_pids_dir / "test.yaml")["TEST"]["iocontrol"]["AA01"]
@@ -224,13 +257,19 @@ class TestUpdateCommandFields:
         assert entry["session_mode"] == "C0"
 
     def test_a_numeric_session_mode_stays_a_string(self, tmp_pids_dir: Path):
-        update_iocontrol_field("TEST", "AA01", "session_mode", "03", pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA01", "session_mode", "03", pids_dir=tmp_pids_dir, profile=active()
+        )
         entry = _reload(tmp_pids_dir / "test.yaml")["TEST"]["iocontrol"]["AA01"]
         assert entry["session_mode"] == "03"
 
     def test_bool_fields_are_added_when_absent(self, tmp_pids_dir: Path):
-        update_iocontrol_field("TEST", "AA03", "hold", False, pids_dir=tmp_pids_dir)
-        update_iocontrol_field("TEST", "AA03", "session", True, pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "AA03", "hold", False, pids_dir=tmp_pids_dir, profile=active()
+        )
+        update_iocontrol_field(
+            "TEST", "AA03", "session", True, pids_dir=tmp_pids_dir, profile=active()
+        )
         entry = _reload(tmp_pids_dir / "test.yaml")["TEST"]["iocontrol"]["AA03"]
         assert entry["hold"] is False
         assert entry["session"] is True
@@ -238,18 +277,20 @@ class TestUpdateCommandFields:
     def test_a_quoted_leading_zero_key_is_found(self, tmp_pids_dir: Path):
         path = tmp_pids_dir / "test.yaml"
         path.write_text(path.read_text().replace("    AA03:", '    "0700":'))
-        update_iocontrol_field("TEST", "0700", "label", "Doors", pids_dir=tmp_pids_dir)
+        update_iocontrol_field(
+            "TEST", "0700", "label", "Doors", pids_dir=tmp_pids_dir, profile=active()
+        )
         assert _reload(path)["TEST"]["iocontrol"]["0700"]["label"] == "Doors"
 
 
 class TestPromoteDiscovery:
     def test_a_kwp_local_identifier_is_refused_with_the_reason(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError, match="KWP2000 local identifier"):
-            promote_discovery("TEST", "0A", "Fan", pids_dir=tmp_pids_dir)
+            promote_discovery("TEST", "0A", "Fan", pids_dir=tmp_pids_dir, profile=active())
 
     def test_promotes_with_inferred_single_byte_state(self, tmp_pids_dir: Path):
         """BB01 response 6FBB010100 → tail=0100 → on=2FBB01030100 (replay state)."""
-        promote_discovery("TEST", "BB01", "Fan speed", pids_dir=tmp_pids_dir)
+        promote_discovery("TEST", "BB01", "Fan speed", pids_dir=tmp_pids_dir, profile=active())
         data = _reload(tmp_pids_dir / "test.yaml")
         entry = data["TEST"]["iocontrol"]["BB01"]
         assert entry["label"] == "Fan speed"
@@ -262,80 +303,84 @@ class TestPromoteDiscovery:
 
     def test_infers_from_longer_response(self, tmp_pids_dir: Path):
         """BB02 response 6FBB02010000 → tail=010000 → on=2FBB0203010000."""
-        promote_discovery("TEST", "BB02", "Three-byte actuator", pids_dir=tmp_pids_dir)
+        promote_discovery(
+            "TEST", "BB02", "Three-byte actuator", pids_dir=tmp_pids_dir, profile=active()
+        )
         data = _reload(tmp_pids_dir / "test.yaml")
         assert data["TEST"]["iocontrol"]["BB02"][True] == "2FBB0203010000"
 
     def test_falls_back_on_short_response(self, tmp_pids_dir: Path):
         """BB03 response 6FBB03 (3 bytes, no tail) → fallback payload 00."""
-        promote_discovery("TEST", "BB03", "Fallback default", pids_dir=tmp_pids_dir)
+        promote_discovery(
+            "TEST", "BB03", "Fallback default", pids_dir=tmp_pids_dir, profile=active()
+        )
         data = _reload(tmp_pids_dir / "test.yaml")
         assert data["TEST"]["iocontrol"]["BB03"][True] == "2FBB030300"
 
     def test_removes_discoveries_section_when_emptied(self, tmp_pids_dir: Path):
-        promote_discovery("TEST", "BB01", "a", pids_dir=tmp_pids_dir)
-        promote_discovery("TEST", "BB02", "b", pids_dir=tmp_pids_dir)
-        promote_discovery("TEST", "BB03", "c", pids_dir=tmp_pids_dir)
+        promote_discovery("TEST", "BB01", "a", pids_dir=tmp_pids_dir, profile=active())
+        promote_discovery("TEST", "BB02", "b", pids_dir=tmp_pids_dir, profile=active())
+        promote_discovery("TEST", "BB03", "c", pids_dir=tmp_pids_dir, profile=active())
         raw = (tmp_pids_dir / "test.yaml").read_text()
         assert "iocontrol_discoveries:" not in raw
         data = _reload(tmp_pids_dir / "test.yaml")
         assert set(data["TEST"]["iocontrol"]) >= {"AA01", "AA02", "AA03", "BB01", "BB02", "BB03"}
 
     def test_keeps_other_discoveries_intact(self, tmp_pids_dir: Path):
-        promote_discovery("TEST", "BB01", "a", pids_dir=tmp_pids_dir)
+        promote_discovery("TEST", "BB01", "a", pids_dir=tmp_pids_dir, profile=active())
         data = _reload(tmp_pids_dir / "test.yaml")
         disc = data["TEST"]["iocontrol_discoveries"]
         assert set(disc) == {"BB02", "BB03"}
 
     def test_refuses_duplicate_did(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError, match="already exists"):
-            promote_discovery("TEST", "AA01", "dup", pids_dir=tmp_pids_dir)
+            promote_discovery("TEST", "AA01", "dup", pids_dir=tmp_pids_dir, profile=active())
 
     def test_unknown_did(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
-            promote_discovery("TEST", "FFFF", "nope", pids_dir=tmp_pids_dir)
+            promote_discovery("TEST", "FFFF", "nope", pids_dir=tmp_pids_dir, profile=active())
 
     def test_rejects_invalid_did_format(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError, match="4 hex digits"):
-            promote_discovery("TEST", "ZZZZ", "bad", pids_dir=tmp_pids_dir)
+            promote_discovery("TEST", "ZZZZ", "bad", pids_dir=tmp_pids_dir, profile=active())
 
     def test_rejects_empty_label(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError, match="label"):
-            promote_discovery("TEST", "BB01", "   ", pids_dir=tmp_pids_dir)
+            promote_discovery("TEST", "BB01", "   ", pids_dir=tmp_pids_dir, profile=active())
 
     def test_unknown_ecu(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
-            promote_discovery("NOPE", "BB01", "x", pids_dir=tmp_pids_dir)
+            promote_discovery("NOPE", "BB01", "x", pids_dir=tmp_pids_dir, profile=active())
 
 
 class TestSetPidPeriod:
     """The AutoPID polling interval, edited through the validated path."""
 
     def test_sets_an_interval(self, tmp_pids_dir: Path):
-        p = set_pid_period("TEST", "2200", 60000, pids_dir=tmp_pids_dir)
+        p = set_pid_period("TEST", "2200", 60000, pids_dir=tmp_pids_dir, profile=active())
         pid = _reload(p)["TEST"]["pids"][2200]
         assert pid["period"] == 60000
         assert pid["parameters"]["DUMMY"]["expression"] == "B:0"
 
     def test_overwrites_rather_than_duplicating(self, tmp_pids_dir: Path):
-        set_pid_period("TEST", "2200", 1000, pids_dir=tmp_pids_dir)
-        p = set_pid_period("TEST", "2200", 10000, pids_dir=tmp_pids_dir)
+        set_pid_period("TEST", "2200", 1000, pids_dir=tmp_pids_dir, profile=active())
+        p = set_pid_period("TEST", "2200", 10000, pids_dir=tmp_pids_dir, profile=active())
         assert p.read_text().count("      period:") == 1
         assert _reload(p)["TEST"]["pids"][2200]["period"] == 10000
 
     def test_rewrites_in_place_keeping_field_order(self, tmp_pids_dir: Path):
-        set_pid_period("TEST", "2200", 1000, pids_dir=tmp_pids_dir)
-        set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
+        set_pid_period("TEST", "2200", 1000, pids_dir=tmp_pids_dir, profile=active())
+        set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir, profile=active())
         before = (tmp_pids_dir / "test.yaml").read_text().splitlines()
-        p = set_pid_period("TEST", "2200", 5000, pids_dir=tmp_pids_dir)
+        p = set_pid_period("TEST", "2200", 5000, pids_dir=tmp_pids_dir, profile=active())
         after = p.read_text().splitlines()
         changed = [i for i, (a, b) in enumerate(zip(before, after, strict=False)) if a != b]
         assert len(before) == len(after) and len(changed) == 1
         assert after[changed[0]].strip() == "period: 5000"
 
     def test_clears_when_none(self, tmp_pids_dir: Path):
-        set_pid_period("TEST", "2200", 1000, pids_dir=tmp_pids_dir)
-        p = set_pid_period("TEST", "2200", None, pids_dir=tmp_pids_dir)
+        set_pid_period("TEST", "2200", 1000, pids_dir=tmp_pids_dir, profile=active())
+        p = set_pid_period("TEST", "2200", None, pids_dir=tmp_pids_dir, profile=active())
         assert "period" not in _reload(p)["TEST"]["pids"][2200]
 
     @pytest.mark.parametrize("bad", [0, -5])
@@ -343,31 +388,31 @@ class TestSetPidPeriod:
         # 0 reads as "unset" to the firmware, which substitutes a default — it
         # never means "do not poll", so the editor will not write it.
         with pytest.raises(PidsEditError, match="period"):
-            set_pid_period("TEST", "2200", bad, pids_dir=tmp_pids_dir)
+            set_pid_period("TEST", "2200", bad, pids_dir=tmp_pids_dir, profile=active())
 
     def test_unknown_pid(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
-            set_pid_period("TEST", "ZZZZ", 1000, pids_dir=tmp_pids_dir)
+            set_pid_period("TEST", "ZZZZ", 1000, pids_dir=tmp_pids_dir, profile=active())
 
 
 class TestSetResponseFrames:
     """The persisted ELM327 expected-response-frame count."""
 
     def test_sets_a_count(self, tmp_pids_dir: Path):
-        p = set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
+        p = set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir, profile=active())
         pid = _reload(p)["TEST"]["pids"][2200]
         assert pid["response_frames"] == 4
         # Existing content preserved.
         assert pid["parameters"]["DUMMY"]["expression"] == "B:0"
 
     def test_clears_when_none(self, tmp_pids_dir: Path):
-        set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
-        p = set_response_frames("TEST", "2200", None, pids_dir=tmp_pids_dir)
+        set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir, profile=active())
+        p = set_response_frames("TEST", "2200", None, pids_dir=tmp_pids_dir, profile=active())
         assert "response_frames" not in _reload(p)["TEST"]["pids"][2200]
 
     def test_overwrites_rather_than_duplicating(self, tmp_pids_dir: Path):
-        set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
-        p = set_response_frames("TEST", "2200", 7, pids_dir=tmp_pids_dir)
+        set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir, profile=active())
+        p = set_response_frames("TEST", "2200", 7, pids_dir=tmp_pids_dir, profile=active())
         text = p.read_text()
         assert text.count("response_frames:") == 1
         assert _reload(p)["TEST"]["pids"][2200]["response_frames"] == 7
@@ -375,76 +420,76 @@ class TestSetResponseFrames:
     def test_rejects_zero(self, tmp_pids_dir: Path):
         # A response always occupies at least one frame, so 0 is never evidence.
         with pytest.raises(PidsEditError, match="response_frames"):
-            set_response_frames("TEST", "2200", 0, pids_dir=tmp_pids_dir)
+            set_response_frames("TEST", "2200", 0, pids_dir=tmp_pids_dir, profile=active())
 
     def test_rejects_a_negative_count(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError, match="response_frames"):
-            set_response_frames("TEST", "2200", -1, pids_dir=tmp_pids_dir)
+            set_response_frames("TEST", "2200", -1, pids_dir=tmp_pids_dir, profile=active())
 
     def test_refuses_a_variable_length_pid(self, tmp_pids_dir: Path):
         # A response whose length varies has no single frame count, and asking for
         # the wrong one leaves the tail queued for the next request.
-        set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
+        set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir, profile=active())
         with pytest.raises(PidsEditError):
-            set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
+            set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir, profile=active())
 
     def test_a_refusal_leaves_the_file_untouched(self, tmp_pids_dir: Path):
-        set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
+        set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir, profile=active())
         before = (tmp_pids_dir / "test.yaml").read_text()
         with pytest.raises(PidsEditError):
-            set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
+            set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir, profile=active())
         assert (tmp_pids_dir / "test.yaml").read_text() == before
 
     def test_clearing_an_unset_count_is_a_no_op(self, tmp_pids_dir: Path):
         before = (tmp_pids_dir / "test.yaml").read_text()
-        set_response_frames("TEST", "2200", None, pids_dir=tmp_pids_dir)
+        set_response_frames("TEST", "2200", None, pids_dir=tmp_pids_dir, profile=active())
         assert (tmp_pids_dir / "test.yaml").read_text() == before
 
     def test_unknown_pid(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError, match="not found"):
-            set_response_frames("TEST", "9999", 4, pids_dir=tmp_pids_dir)
+            set_response_frames("TEST", "9999", 4, pids_dir=tmp_pids_dir, profile=active())
 
     def test_unknown_ecu(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
-            set_response_frames("NOPE", "2200", 4, pids_dir=tmp_pids_dir)
+            set_response_frames("NOPE", "2200", 4, pids_dir=tmp_pids_dir, profile=active())
 
 
 class TestSetPidVariableLength:
     def test_setting_it_drops_a_stored_frame_count(self, tmp_pids_dir: Path):
         # A count is wrong by definition once the length varies, and the two together
         # fail validation, so the flag takes the count with it.
-        set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir)
-        p = set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
+        set_response_frames("TEST", "2200", 4, pids_dir=tmp_pids_dir, profile=active())
+        p = set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir, profile=active())
         pid = _reload(p)["TEST"]["pids"][2200]
         assert pid["variable_length"] is True
         assert "response_frames" not in pid
 
     def test_sets_true(self, tmp_pids_dir: Path):
-        p = set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
+        p = set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir, profile=active())
         pid = _reload(p)["TEST"]["pids"][2200]
         assert pid["variable_length"] is True
         # Existing content preserved.
         assert pid["parameters"]["DUMMY"]["expression"] == "B:0"
 
     def test_clears_when_false(self, tmp_pids_dir: Path):
-        set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
-        p = set_pid_variable_length("TEST", "2200", False, pids_dir=tmp_pids_dir)
+        set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir, profile=active())
+        p = set_pid_variable_length("TEST", "2200", False, pids_dir=tmp_pids_dir, profile=active())
         assert "variable_length" not in _reload(p)["TEST"]["pids"][2200]
 
     def test_idempotent_true(self, tmp_pids_dir: Path):
-        set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
-        p = set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir)
+        set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir, profile=active())
+        p = set_pid_variable_length("TEST", "2200", True, pids_dir=tmp_pids_dir, profile=active())
         text = p.read_text()
         # No duplicate line.
         assert text.count("variable_length: true") == 1
 
     def test_unknown_pid(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError, match="not found"):
-            set_pid_variable_length("TEST", "9999", True, pids_dir=tmp_pids_dir)
+            set_pid_variable_length("TEST", "9999", True, pids_dir=tmp_pids_dir, profile=active())
 
     def test_unknown_ecu(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
-            set_pid_variable_length("NOPE", "2200", True, pids_dir=tmp_pids_dir)
+            set_pid_variable_length("NOPE", "2200", True, pids_dir=tmp_pids_dir, profile=active())
 
     def test_mixed_case_ecu_key(self, tmp_path: Path):
         # ECU file keys may be mixed-case (e.g. `Unknown-746`) while callers pass
@@ -461,7 +506,7 @@ class TestSetPidVariableLength:
             "        DUMMY:\n"
             '          expression: "B:0"\n'
         )
-        p = set_pid_variable_length("Unknown-746", "21F2", True, pids_dir=d)
+        p = set_pid_variable_length("Unknown-746", "21F2", True, pids_dir=d, profile=active())
         assert _reload(p)["Unknown-746"]["pids"]["21F2"]["variable_length"] is True
 
 
@@ -502,7 +547,9 @@ class TestSetPidNotes:
         return p
 
     def test_replaces_existing_block_scalar_in_place(self, d: Path):
-        p = set_pid_notes("TEST", "2200", "Corrected: the tail bytes are a counter.", pids_dir=d)
+        p = set_pid_notes(
+            "TEST", "2200", "Corrected: the tail bytes are a counter.", pids_dir=d, profile=active()
+        )
         pid = _reload(p)["TEST"]["pids"]["2200"]
         assert pid["notes"] == "Corrected: the tail bytes are a counter."
         # Siblings and the parameter block survive.
@@ -513,7 +560,7 @@ class TestSetPidNotes:
         assert text.index("notes:") < text.index("parameters:")
 
     def test_inserts_above_parameters_when_absent(self, d: Path):
-        p = set_pid_notes("TEST", "2201", "A brand new note.", pids_dir=d)
+        p = set_pid_notes("TEST", "2201", "A brand new note.", pids_dir=d, profile=active())
         assert _reload(p)["TEST"]["pids"]["2201"]["notes"] == "A brand new note."
         block = p.read_text().split('"2201":')[1]
         assert block.index("notes:") < block.index("parameters:"), (
@@ -522,61 +569,63 @@ class TestSetPidNotes:
 
     def test_long_note_becomes_wrapped_folded_block(self, d: Path):
         long = " ".join(f"word{i}" for i in range(60))
-        p = set_pid_notes("TEST", "2201", long, pids_dir=d)
+        p = set_pid_notes("TEST", "2201", long, pids_dir=d, profile=active())
         text = p.read_text()
         assert "notes: >-" in text
         assert _reload(p)["TEST"]["pids"]["2201"]["notes"] == long
         assert max(len(ln) for ln in text.splitlines()) <= 100
 
     def test_short_note_stays_inline(self, d: Path):
-        p = set_pid_notes("TEST", "2201", "13 bytes.", pids_dir=d)
+        p = set_pid_notes("TEST", "2201", "13 bytes.", pids_dir=d, profile=active())
         assert "notes: 13 bytes." in p.read_text()
 
     def test_clears_a_block_scalar_without_orphaning_its_body(self, d: Path):
         # Regression: removing only the `notes:` header line leaves the folded
         # body indented under nothing, which is invalid YAML.
-        p = set_pid_notes("TEST", "2200", None, pids_dir=d)
+        p = set_pid_notes("TEST", "2200", None, pids_dir=d, profile=active())
         pid = _reload(p)["TEST"]["pids"]["2200"]
         assert "notes" not in pid
         assert pid["parameters"]["DUMMY"]["expression"] == "B:0"
         assert "spanning several lines" not in p.read_text()
 
     def test_blank_value_clears(self, d: Path):
-        p = set_pid_notes("TEST", "2200", "   ", pids_dir=d)
+        p = set_pid_notes("TEST", "2200", "   ", pids_dir=d, profile=active())
         assert "notes" not in _reload(p)["TEST"]["pids"]["2200"]
 
     def test_clearing_absent_note_errors(self, d: Path):
         with pytest.raises(PidsEditError, match="no notes"):
-            set_pid_notes("TEST", "2201", None, pids_dir=d)
+            set_pid_notes("TEST", "2201", None, pids_dir=d, profile=active())
 
     def test_preserves_blank_line_between_pid_blocks(self, d: Path):
         # The blank separator before the next PID must survive, and must keep
         # surviving across repeated edits (it used to be eaten one line at a time).
         for i in range(3):
-            p = set_pid_notes("TEST", "2200", f"note {i}", pids_dir=d)
+            p = set_pid_notes("TEST", "2200", f"note {i}", pids_dir=d, profile=active())
         assert '\n\n    "2201":' in p.read_text()
 
     def test_round_trips_repeated_edits(self, d: Path):
         for i in range(3):
-            p = set_pid_notes("TEST", "2200", f"revision {i} of the note", pids_dir=d)
+            p = set_pid_notes(
+                "TEST", "2200", f"revision {i} of the note", pids_dir=d, profile=active()
+            )
         text = p.read_text()
         assert text.count("notes:") == 1, "no duplicate notes: field"
         assert _reload(p)["TEST"]["pids"]["2200"]["notes"] == "revision 2 of the note"
 
     def test_unknown_pid(self, d: Path):
         with pytest.raises(PidsEditError, match="not found"):
-            set_pid_notes("TEST", "9999", "x", pids_dir=d)
+            set_pid_notes("TEST", "9999", "x", pids_dir=d, profile=active())
 
     def test_unknown_ecu(self, d: Path):
         with pytest.raises(PidsEditError):
-            set_pid_notes("NOPE", "2200", "x", pids_dir=d)
+            set_pid_notes("NOPE", "2200", "x", pids_dir=d, profile=active())
 
     def test_ecu_without_pids_section(self, tmp_path: Path):
         p = tmp_path / "pids"
         p.mkdir()
         (p / "bare.yaml").write_text("BARE:\n  tx_id: 0x700\n")
         with pytest.raises(PidsEditError, match="no pids:"):
-            set_pid_notes("BARE", "2200", "x", pids_dir=p)
+            set_pid_notes("BARE", "2200", "x", pids_dir=p, profile=active())
 
 
 class TestRemoveFieldLine:

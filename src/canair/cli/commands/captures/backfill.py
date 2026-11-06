@@ -23,6 +23,7 @@ from canair.captures.state_inference import (
     infer_session_states,
 )
 from canair.captures.store import entry_path
+from canair.cli.profile_context import dir_profile
 from canair.core.prompt import confirm
 from canair.profile import active
 from canair.render import messages
@@ -114,7 +115,10 @@ def cmd_backfill_states(
     for e in entries:
         if not e.get("payload"):
             continue
-        key = (str(entry_path(e, captures_dir, profile=active())), e.get("_session_idx", 0))
+        key = (
+            str(entry_path(e, captures_dir, profile=dir_profile(captures_dir))),
+            e.get("_session_idx", 0),
+        )
         payloads_by_session.setdefault(key, []).append(e)
 
     sessions = group_sessions(entries, profile=active())

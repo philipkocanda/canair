@@ -28,14 +28,14 @@ from ruamel.yaml.scalarint import HexCapsInt
 
 from canair.core.edit_errors import EditError
 from canair.core.yaml_rt import folded as _folded
+from canair.profile import Profile
 
 from .doc import Doc, Target, edit_doc
 from .ecufile import clear_cache, schema_validator
 from .ruamel_ops import flow_seq, rename_key, state_token
 
-# Free-text ECU fields rendered per the shared note policy (canair.core.yaml_rt):
-# inline when short, else a wrapped folded block scalar. Kept in one place so a
-# new curated free-text field only needs adding here to gain the same treatment.
+# Free-text ECU fields rendered per the shared note policy (canair.core.yaml_rt): inline when
+# short, else a wrapped folded block scalar. A new curated free-text field is added here.
 FREE_TEXT_FIELDS = frozenset({"notes"})
 
 # Order used when rendering a brand-new identity block (unknown fields last).
@@ -100,12 +100,6 @@ def _hex_tx(tx_id: int) -> HexCapsInt:
     return HexCapsInt(tx_id, width=8 if tx_id > 0x7FF else 3)
 
 
-def _resolve_dir(ecus_dir: Path | None) -> Path:
-    from canair.ecus.files import ecus_dir as resolve
-
-    return resolve(ecus_dir)
-
-
 def _slug(name: str) -> str:
     return name.strip().lower().replace(" ", "-") + ".yaml"
 
@@ -134,13 +128,15 @@ def _find_file_by_tx(tx_id: int, ecus_dir: Path) -> tuple[Path | None, str | Non
     return find_by_tx(tx_id, ecus_dir)
 
 
-def find_ecu_file_by_tx(tx_id: int, ecus_dir: Path | None = None) -> Path | None:
+def find_ecu_file_by_tx(
+    tx_id: int, ecus_dir: Path | None = None, *, profile: Profile
+) -> Path | None:
     """Return the ``ecus/<name>.yaml`` path for the ECU with ``tx_id`` (or None).
 
     The address-keyed counterpart of :func:`canair.yaml_edit.pids.find_ecu_file`
     (which is name-keyed): a scanner knows a CAN address before it knows a name.
     """
-    fpath, _name = _find_file_by_tx(tx_id, _resolve_dir(ecus_dir))
+    fpath, _name = _find_file_by_tx(tx_id, (ecus_dir or profile.ecus_dir))
     return fpath
 
 
@@ -222,6 +218,7 @@ def register_ecu(
     target_address: int | None = None,
     source_address: int | None = None,
     fc_id: int | None = None,
+    profile: Profile,
     **fields,
 ) -> bool:
     """Register an ECU as ``ecus/<name>.yaml``, or merge into the existing file.
@@ -239,7 +236,7 @@ def register_ecu(
     _check_fields(fields)
     mode = _normalize_addressing_args(mode, target_address, source_address, fc_id, rx_id)
     disp = tx_key(tx_id)  # validates range
-    ecus_dir = _resolve_dir(ecus_dir)
+    ecus_dir = ecus_dir or profile.ecus_dir
 
     fpath, existing_name = _find_file_by_tx(tx_id, ecus_dir)
 
@@ -251,8 +248,7 @@ def register_ecu(
                 ident = CommentedMap()
                 ecu_def["identity"] = ident
             changed = _merge_fields(ident, fields, overwrite)
-            # Don't clobber an existing rx_id unless overwrite is requested; the rest
-            # of the addressing block merges (only differing values change).
+            # Keep an existing rx_id unless overwrite is requested; the rest of the block merges.
             merge_rx = rx_id if (overwrite or ecu_def.get("rx_id") is None) else None
             changed |= _apply_addressing(
                 ecu_def,
@@ -290,7 +286,9 @@ def register_ecu(
     return True
 
 
-def rename_ecu(tx_id: int, new_name: str, *, ecus_dir: Path | None = None) -> Path:
+def rename_ecu(
+    tx_id: int, new_name: str, *, ecus_dir: Path | None = None, profile: Profile
+) -> Path:
     """Rename an ECU: rewrite its top-level key and rename ``ecus/<name>.yaml``.
 
     An ECU's name *is* its single top-level YAML key plus its filename, so a
@@ -309,7 +307,7 @@ def rename_ecu(tx_id: int, new_name: str, *, ecus_dir: Path | None = None) -> Pa
         raise EcusEditError("new ECU name must be non-empty")
 
     disp = tx_key(tx_id)
-    ecus_dir = _resolve_dir(ecus_dir)
+    ecus_dir = ecus_dir or profile.ecus_dir
     fpath, old_name = _find_file_by_tx(tx_id, ecus_dir)
     if fpath is None:
         raise EcusEditError(f"ECU {disp} not registered; nothing to rename")
@@ -322,9 +320,8 @@ def rename_ecu(tx_id: int, new_name: str, *, ecus_dir: Path | None = None) -> Pa
             f"cannot rename {old_name!r} → {new_name!r}: {new_path.name} already exists"
         )
 
-    # In-place validate+revert first, then move the file (a pure rename can't
-    # invalidate an already-validated document), so a broken edit never leaves a
-    # renamed file behind.
+    # Validate+revert in place first, then move the file (a pure rename can't invalidate a
+    # validated document), so a broken edit never leaves a renamed file behind.
     with edit_ecu(fpath, None) as doc:
         keys = list(doc.data.keys())
         if len(keys) != 1 or keys[0] != old_name:
@@ -343,6 +340,7 @@ def set_ecu_fields(
     *,
     overwrite: bool = False,
     ecus_dir: Path | None = None,
+    profile: Profile,
     **fields,
 ) -> bool:
     """Update identity fields on an existing ECU file. Returns True if changed.
@@ -352,7 +350,7 @@ def set_ecu_fields(
     """
     _check_fields(fields)
     disp = tx_key(tx_id)
-    ecus_dir = _resolve_dir(ecus_dir)
+    ecus_dir = ecus_dir or profile.ecus_dir
 
     fpath, name = _find_file_by_tx(tx_id, ecus_dir)
     if fpath is None:
@@ -451,6 +449,7 @@ def set_addressing(
     fc_id: int | None = None,
     rx_id: int | None = None,
     ecus_dir: Path | None = None,
+    profile: Profile,
 ) -> bool:
     """Set an ECU's ``addressing:`` override block (and/or top-level ``rx_id``).
 
@@ -465,7 +464,7 @@ def set_addressing(
     mode = _normalize_addressing_args(mode, target_address, source_address, fc_id, rx_id)
 
     disp = tx_key(tx_id)
-    ecus_dir = _resolve_dir(ecus_dir)
+    ecus_dir = ecus_dir or profile.ecus_dir
     fpath, name = _find_file_by_tx(tx_id, ecus_dir)
     if fpath is None:
         raise EcusEditError(f"ECU {disp} not registered; call register_ecu first")
@@ -494,10 +493,11 @@ def append_scan_log(
     vehicle_states: list | None = None,
     notes: str | None = None,
     ecus_dir: Path | None = None,
+    profile: Profile,
 ) -> None:
     """Append a probe-outcome entry under the ECU's ``scan_log:`` (date defaults to today)."""
     disp = tx_key(tx_id)
-    ecus_dir = _resolve_dir(ecus_dir)
+    ecus_dir = ecus_dir or profile.ecus_dir
 
     fpath, name = _find_file_by_tx(tx_id, ecus_dir)
     if fpath is None:

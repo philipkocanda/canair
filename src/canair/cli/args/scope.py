@@ -12,7 +12,7 @@ from pathlib import Path
 
 from canair.captures import dates
 from canair.captures.dates import Scope
-from canair.profile import active
+from canair.cli.profile_context import dir_profile
 
 __all__ = [
     "active_scope_flags",
@@ -93,7 +93,9 @@ def resolve_scope_bounds(
     args: argparse.Namespace, captures_dir: Path | None = None
 ) -> tuple[date | datetime | None, date | datetime | None, str | None]:
     """:func:`canair.captures.dates.resolve_scope_bounds` over the parsed flags."""
-    return dates.resolve_scope_bounds(scope_of(args), captures_dir, profile=active())
+    return dates.resolve_scope_bounds(
+        scope_of(args), captures_dir, profile=dir_profile(captures_dir)
+    )
 
 
 def active_scope_flags(args: argparse.Namespace) -> list[str]:

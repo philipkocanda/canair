@@ -1,9 +1,8 @@
 """Shared primitives for surgical in-place editing of per-ECU PID YAML files.
 
 These helpers locate ECU/DID/signal blocks and mutate a single field without rewriting the whole
-file — preserving comments, anchors, block-scalar styles, and hand-curated ordering that a
-``yaml.safe_dump`` round-trip would destroy. The domain editors (``hits`` for scanner sections,
-``params`` for the hand-authored pids:/research:/identity: structures) build on these.
+file, preserving comments, anchors, block-scalar styles and hand-curated ordering that a
+``yaml.safe_dump`` round-trip would destroy. The editors ``hits`` and ``params`` build on them.
 
 Assumptions about file layout (all current ecus/*.yaml files conform):
 
@@ -31,6 +30,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from canair.core.edit_errors import EditError
+from canair.profile import Profile
 
 from .commit import commit_text, resolve_validate
 from .ecufile import clear_cache, schema_validator
@@ -44,14 +44,14 @@ class PidsEditError(EditError):
 # ── File discovery ───────────────────────────────────────────────────────────
 
 
-def find_ecu_file(ecu_name: str, pids_dir: Path | None = None) -> Path:
+def find_ecu_file(ecu_name: str, pids_dir: Path | None = None, *, profile: Profile) -> Path:
     """Return the ``ecus/<ecu>.yaml`` file that defines ``ecu_name``.
 
     The write-target resolver for every name-keyed editor: the file returned is
     the one that will be rewritten. Raises when no file claims the ECU (an edit
     must never invent a definition file — that is `canair ecu add`'s job).
     """
-    return _find_ecu_file(ecu_name, pids_dir, error=PidsEditError)
+    return _find_ecu_file(ecu_name, pids_dir, error=PidsEditError, profile=profile)
 
 
 # ── DID block location ───────────────────────────────────────────────────────
@@ -175,8 +175,8 @@ def _format_label(value: str, *, flow: bool = False) -> str:
 
     if not value:
         return '""'
-    # Characters special at the start of a YAML scalar, a ': '/' #' sequence, or a
-    # bare scalar that would re-parse as something else (int/float/bool/null/date).
+    # Quote when special at the start of a YAML scalar, a ': '/' #' sequence, or a bare
+    # scalar that would re-parse as something else (int/float/bool/null/date).
     needs_quote = (
         value[0] in "!&*[]{}|>%@`\"'#,"
         or ": " in value
@@ -239,8 +239,7 @@ def _find_ecu_block(text: str, ecu_name: str) -> tuple[int, int]:
     if ecu_start is None:
         raise PidsEditError(f"ECU {ecu_name!r} not found at top level")
 
-    # Next top-level sibling (not indented, not a comment-only line)
-    # Start the search after the ECU's header line, not mid-token.
+    # Next top-level sibling (not indented, not a comment-only line), after the header line.
     header_end = text.find("\n", ecu_start)
     if header_end == -1:
         return ecu_start, len(text)
@@ -511,8 +510,7 @@ def _ecu_def_of(data: dict, ecu: str) -> dict:
     """The ECU's mapping in a parsed file (the key's case may differ from ``ecu``)."""
     ecu_def = data.get(ecu)
     if not isinstance(ecu_def, dict):
-        # ECU file keys may be mixed-case (e.g. `Unknown-746`) while callers
-        # pass the upper-cased key — resolve case-insensitively.
+        # ECU file keys may be mixed-case (`Unknown-746`); callers pass them upper-cased.
         ecu_def = next((v for k, v in data.items() if str(k).upper() == str(ecu).upper()), None)
     if not isinstance(ecu_def, dict):
         raise PidsEditError(f"ECU {ecu!r} missing after edit")
@@ -560,6 +558,7 @@ def edit_ecu_text(
     *,
     pids_dir: Path | None = None,
     validate: bool = False,
+    profile: Profile,
 ) -> Path:
     """Apply a text edit to the ECU's file; the one entry point of every text editor.
 
@@ -568,10 +567,15 @@ def edit_ecu_text(
     ``PidsEditError`` to reject the result. The file is restored on any failure. Returns the
     path written.
     """
-    fpath = find_ecu_file(ecu_name, pids_dir)
+    fpath = find_ecu_file(ecu_name, pids_dir, profile=profile)
     original = fpath.read_text()
     write_ecu_text(
-        fpath, original, transform(original), ecu_name.strip().upper(), checker, validate=validate
+        fpath,
+        original,
+        transform(original),
+        ecu_name.strip().upper(),
+        checker,
+        validate=validate,
     )
     return fpath
 
@@ -630,6 +634,7 @@ def edit_pid(
     assert_pid: Callable[[dict], None],
     *,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Edit one PID's own block; ``assert_pid`` judges the re-parsed PID mapping.
 
@@ -643,6 +648,7 @@ def edit_pid(
         lambda text: edit_pid_block(text, ecu_name, pid_u, edit_block),
         pid_checker(pid_u, assert_pid),
         pids_dir=pids_dir,
+        profile=profile,
     )
 
 
@@ -696,9 +702,8 @@ def _remove_field_line(block: str, field: str, indent: int) -> str:
     while i < len(lines):
         line = lines[i]
         if not removed and header_re.match(line):
-            # Everything indented deeper than the field is its value — a block
-            # scalar's text, a nested list/map, or a multi-line quoted scalar's
-            # continuation — so it goes too, else it would be orphaned.
+            # Everything indented deeper than the field is its value (a block scalar's text,
+            # a nested list/map, a quoted scalar's continuation), so it goes too.
             i = _nested_body_end(lines, i + 1, indent)
             removed = True
             continue
@@ -739,11 +744,8 @@ def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent
     while i < len(lines):
         line = lines[i]
         if not replaced and field_re.match(line):
-            # The OLD value's deeper-indented body (block scalar text, a nested
-            # list/map such as values:/bits: or a block-style can_bus:, a multi-
-            # line quoted scalar) is replaced with the header. Keyed on the old
-            # body's shape, not the replacement's, so a block field can become an
-            # inline one (block can_bus: -> can_bus: [B-CAN, P-CAN]).
+            # The OLD value's deeper-indented body (block scalar, nested list/map, multi-line
+            # quoted scalar) is replaced with the header; keyed on the old body's shape.
             i = _nested_body_end(lines, i + 1, indent)
             out.extend(replacement_lines)
             replaced = True
@@ -754,10 +756,8 @@ def _replace_field_in_block_at(block: str, field: str, new_line_or_lines, indent
         while out and out[-1].strip() == "":
             out.pop()
         out.extend(replacement_lines)
-    # ``splitlines()`` + ``"\n".join()`` collapses a trailing blank line, which
-    # would silently eat the blank separator between this block and its next
-    # sibling — and compound over repeated edits. Re-attach the block's exact
-    # trailing newline run instead.
+    # ``splitlines()`` + ``"\n".join()`` collapses a trailing blank line, silently eating the
+    # separator before the next sibling (and compounding over edits): re-attach the exact run.
     trailing = block[len(block.rstrip("\n")) :]
     return "\n".join(out).rstrip("\n") + (trailing or ("\n" if block.endswith("\n") else ""))
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from canair.profile import Profile
 from canair.yaml_edit.text import (
     PidsEditError,
     _attached_comments_start,
@@ -97,6 +98,7 @@ def add_research_entry(
     capture_protocol: str | None = None,
     revisions: list | None = None,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Append a new item to the ECU's ``research:`` list (creating it if absent).
 
@@ -145,7 +147,7 @@ def add_research_entry(
         ):
             raise PidsEditError("research entry missing after edit")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
 def _find_research_block(text: str, ecu_name: str):
@@ -246,6 +248,7 @@ def set_research_status(
     type: str | None = None,
     index: int | None = None,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Update the ``status:`` of the research item matching ``target`` (and ``type``).
 
@@ -263,7 +266,7 @@ def set_research_status(
     target_norm = str(target).strip().strip('"').strip("'")
     today = _today()
 
-    original = find_ecu_file(ecu_name, pids_dir=pids_dir).read_text()
+    original = find_ecu_file(ecu_name, pids_dir=pids_dir, profile=profile).read_text()
     research_block = _find_research_block(original, ecu_name)
     matches = _match_research_items(original, research_block, target, type)
     s, e = _select_research_match(target, type, matches, index=index)
@@ -291,7 +294,7 @@ def set_research_status(
         if not ok:
             raise PidsEditError("status not applied after edit")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
 def delete_research_entry(
@@ -301,6 +304,7 @@ def delete_research_entry(
     type: str | None = None,
     index: int | None = None,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Remove an item from the ECU's ``research:`` list.
 
@@ -315,7 +319,7 @@ def delete_research_entry(
     """
     target_norm = str(target).strip().strip('"').strip("'")
 
-    original = find_ecu_file(ecu_name, pids_dir=pids_dir).read_text()
+    original = find_ecu_file(ecu_name, pids_dir=pids_dir, profile=profile).read_text()
     research_block = _find_research_block(original, ecu_name)
     matches = _match_research_items(original, research_block, target, type)
     s, e = _select_research_match(target, type, matches, index=index)
@@ -342,7 +346,7 @@ def delete_research_entry(
         if post_count != pre_count - 1:
             raise PidsEditError("research entry still present after delete")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
 #: The free-text fields :func:`set_research_text` edits, each rendered by the shared
@@ -359,6 +363,7 @@ def set_research_text(
     type: str | None = None,
     index: int | None = None,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Set (or clear) one free-text field of a research item.
 
@@ -379,7 +384,7 @@ def set_research_text(
     later = "|".join(RESEARCH_FIELD_ORDER[RESEARCH_FIELD_ORDER.index(field) + 1 :])
     later_re = re.compile(rf"^ {{6}}({later}):") if later else None
 
-    original = find_ecu_file(ecu_name, pids_dir=pids_dir).read_text()
+    original = find_ecu_file(ecu_name, pids_dir=pids_dir, profile=profile).read_text()
     research_block = _find_research_block(original, ecu_name)
     matches = _match_research_items(original, research_block, target, type)
     s, e = _select_research_match(target, type, matches, index=index)
@@ -426,7 +431,7 @@ def set_research_text(
         if " ".join(str(got).split()) != " ".join(text_val.split()):
             raise PidsEditError(f"{field} mismatch after edit")
 
-    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir)
+    return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
 def set_research_notes(
@@ -437,10 +442,11 @@ def set_research_notes(
     type: str | None = None,
     index: int | None = None,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Set (or clear) a research item's ``notes:`` (see :func:`set_research_text`)."""
     return set_research_text(
-        ecu_name, target, "notes", notes, type=type, index=index, pids_dir=pids_dir
+        ecu_name, target, "notes", notes, type=type, index=index, pids_dir=pids_dir, profile=profile
     )
 
 
@@ -452,10 +458,18 @@ def set_research_result(
     type: str | None = None,
     index: int | None = None,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Set (or clear) a research item's ``result:`` (see :func:`set_research_text`)."""
     return set_research_text(
-        ecu_name, target, "result", result, type=type, index=index, pids_dir=pids_dir
+        ecu_name,
+        target,
+        "result",
+        result,
+        type=type,
+        index=index,
+        pids_dir=pids_dir,
+        profile=profile,
     )
 
 
@@ -467,8 +481,16 @@ def set_research_capture_protocol(
     type: str | None = None,
     index: int | None = None,
     pids_dir: Path | None = None,
+    profile: Profile,
 ) -> Path:
     """Set (or clear) a research item's ``capture_protocol:`` (see :func:`set_research_text`)."""
     return set_research_text(
-        ecu_name, target, "capture_protocol", protocol, type=type, index=index, pids_dir=pids_dir
+        ecu_name,
+        target,
+        "capture_protocol",
+        protocol,
+        type=type,
+        index=index,
+        pids_dir=pids_dir,
+        profile=profile,
     )

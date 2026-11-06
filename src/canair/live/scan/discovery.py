@@ -22,6 +22,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from canair.live.scan.progress import ScanStateWriter
+from canair.profile import Profile
 from canair.render import messages
 from canair.render.paint import Painter
 from canair.uds.response import UdsResponse
@@ -57,7 +58,7 @@ class DiscoveryProbe[HitT]:
     # Human-readable request preview for the progress line, e.g. "2F 00A0 00".
     request_display: Callable[[int], str]
     # Persist a single hit incrementally (survives disconnects). None = don't write.
-    write_hit: Callable[[str, HitT], None] | None = None
+    write_hit: Callable[[str, HitT, Profile], None] | None = None
 
     def id_fmt(self) -> str:
         """Zero-padded hex format spec matching the id width (e.g. ``04X``)."""
@@ -75,6 +76,8 @@ async def scan_ecu[HitT](
     session: bool = False,
     wake: bool = False,
     session_mode: str = "03",
+    *,
+    profile: Profile,
 ) -> list[HitT]:
     """Scan one ECU over ``id_range`` (inclusive) using ``probe``.
 
@@ -147,7 +150,7 @@ async def scan_ecu[HitT](
                 hit = probe.make_hit(id_, session_label, response.get("hex", ""), None, None)
                 hits.append(hit)
                 if probe.write_hit:
-                    probe.write_hit(ecu_name, hit)
+                    probe.write_hit(ecu_name, hit, profile)
                 resp_hex = response.get("hex", "")
                 nbytes = len(response.get("bytes", []))
                 progress.clear()
@@ -160,7 +163,7 @@ async def scan_ecu[HitT](
                 hit = probe.make_hit(id_, session_label, "", nrc, desc)
                 hits.append(hit)
                 if probe.write_hit:
-                    probe.write_hit(ecu_name, hit)
+                    probe.write_hit(ecu_name, hit, profile)
                 progress.clear()
                 print(f"    {paint(*REFUSED)} 0x{id_:{fmt}}: exists (NRC 0x{nrc:02X} {desc})")
             elif category == "absent":
@@ -209,6 +212,8 @@ async def mode_discovery_scan[HitT](
     session: bool = False,
     wake: bool = False,
     session_mode: str = "03",
+    *,
+    profile: Profile,
 ) -> dict[str, list[HitT]]:
     """Run ``probe`` across one or more ECUs.
 
@@ -262,6 +267,7 @@ async def mode_discovery_scan[HitT](
                     session=session,
                     wake=wake,
                     session_mode=session_mode,
+                    profile=profile,
                 )
             )
         results[key] = ecu_hits

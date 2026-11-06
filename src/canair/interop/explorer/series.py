@@ -29,6 +29,7 @@ from canair.ecus.pid_status import pid_status
 from canair.ecus.pids import load_pids_dir
 from canair.ecus.sensitivity import pid_sensitive
 from canair.expression.decoding import decode_param_rows
+from canair.profile import Profile
 from canair.states.spans import parse_time_key
 
 # Sessions with fewer numeric samples than this are not worth a plot and are left out.
@@ -216,7 +217,7 @@ def _session(
 
 
 def export_sessions(
-    root: Path, rx_names: Mapping[int, str]
+    root: Path, rx_names: Mapping[int, str], *, profile: Profile
 ) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
     """``(index, documents)`` for every plottable session of the profile at ``root``.
 

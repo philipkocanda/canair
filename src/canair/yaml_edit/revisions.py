@@ -42,17 +42,11 @@ if TYPE_CHECKING:
     from canair.profile import Profile
 
 
-def _profile(profile: Profile | None) -> Profile:
-    from canair.profile import active
-
-    return profile or active()
-
-
 def _ecu_file(ecu: str, profile: Profile) -> tuple[Path, str]:
     """The ECU's file and its canonical (top-level key) name."""
     from canair.core import yaml_io
 
-    fpath = find_ecu_file(ecu, profile.ecus_dir, error=EcusEditError)
+    fpath = find_ecu_file(ecu, profile.ecus_dir, error=EcusEditError, profile=profile)
     keys = list(yaml_io.safe_load(fpath.read_text()) or {})
     name = next((k for k in keys if str(k).upper() == ecu.strip().upper()), None)
     if name is None:  # matched by alias: the file holds one ECU
@@ -67,9 +61,8 @@ def _checked_id(raw: str) -> str:
     return rid
 
 
-def _edit_ecu(ecu: str, profile: Profile | None, change) -> Path:
-    prof = _profile(profile)
-    fpath, name = _ecu_file(ecu, prof)
+def _edit_ecu(ecu: str, profile: Profile, change) -> Path:
+    fpath, name = _ecu_file(ecu, profile)
     with edit_ecu(fpath, name) as doc:
         change(name, doc.section)
     return fpath
@@ -92,9 +85,7 @@ def _find(block: Mapping, rid: str) -> Any:
     return find_key(block, revision_key(rid), revision_key)
 
 
-def add_revision(
-    ecu: str, revision: str, *, protocol: str | None = None, profile: Profile | None = None
-) -> Path:
+def add_revision(ecu: str, revision: str, *, protocol: str | None = None, profile: Profile) -> Path:
     """Declare a revision of ``ecu`` (appended: the first declared is the reference)."""
     rid = _checked_id(revision)
 
@@ -121,7 +112,7 @@ def set_fingerprint(
     identity: Mapping[str, str] | None = None,
     software: str | None = None,
     clear: bool = False,
-    profile: Profile | None = None,
+    profile: Profile,
 ) -> Path:
     """Add a fingerprint to a revision (``--clear``: drop all of them first).
 
@@ -160,13 +151,11 @@ def set_fingerprint(
     return _edit_ecu(ecu, profile, change)
 
 
-def set_ecu_variants(
-    ecu: str, variants: Sequence[str] | None, *, profile: Profile | None = None
-) -> Path:
+def set_ecu_variants(ecu: str, variants: Sequence[str] | None, *, profile: Profile) -> Path:
     """Say which variants ``ecu`` is fitted to (None: every variant — the key is removed)."""
     from canair.variants import load_variants, normalize_variant_id
 
-    prof = _profile(profile)
+    prof = profile
     ids = [normalize_variant_id(v) for v in (variants or []) if str(v).strip()]
     if ids:
         known = load_variants(prof)
@@ -202,7 +191,7 @@ def set_gate(
     signal: str | None,
     revisions: Sequence[str] | None,
     *,
-    profile: Profile | None = None,
+    profile: Profile,
 ) -> Path:
     """Gate a PID (or one of its signals) to ``revisions`` (None: every revision)."""
     revs = [_checked_id(r) for r in (revisions or []) if str(r).strip()]
@@ -330,7 +319,7 @@ def find_revision_references(ecu: str, revision: str, profile: Profile) -> Revis
 def _dtc_log_entries(profile: Profile) -> list:
     from canair.dtc.log import load_log, log_file
 
-    data = load_log(log_file(profile))
+    data = load_log(log_file(profile), profile=profile)
     return [
         e for section in ("scans", "clears") for e in data.get(section) or [] if isinstance(e, dict)
     ]
@@ -388,9 +377,7 @@ def _write_all(planned: Mapping[Path, str]) -> list[Path]:
     return written
 
 
-def rename_revision(
-    ecu: str, old: str, new: str, *, profile: Profile | None = None
-) -> tuple[Path, list[Path]]:
+def rename_revision(ecu: str, old: str, new: str, *, profile: Profile) -> tuple[Path, list[Path]]:
     """Rename a revision of ``ecu`` and every reference to it, all or nothing.
 
     Rewrites the declaration (keeping its position), every PID/signal gate naming it,
@@ -400,7 +387,7 @@ def rename_revision(
     """
     from canair.yaml_edit.variants import set_variant_revisions
 
-    prof = _profile(profile)
+    prof = profile
     old_id, new_id = _checked_id(old), _checked_id(new)
     fpath, name = _ecu_file(ecu, prof)
 
@@ -455,9 +442,9 @@ def rename_revision(
     return fpath, written
 
 
-def remove_revision(ecu: str, revision: str, *, profile: Profile | None = None) -> Path:
+def remove_revision(ecu: str, revision: str, *, profile: Profile) -> Path:
     """Remove a revision of ``ecu``, refusing while anything still refers to it."""
-    prof = _profile(profile)
+    prof = profile
     rid = _checked_id(revision)
     refs = find_revision_references(ecu, rid, prof)
     if refs.total:
@@ -515,7 +502,7 @@ def set_override(
     fields: Mapping[str, Any],
     *,
     clear: Sequence[str] = (),
-    profile: Profile | None = None,
+    profile: Profile,
 ) -> Path:
     """Set ``fields`` (and remove ``clear``) in a PID's or signal's ``per_revision.<rev>``.
 

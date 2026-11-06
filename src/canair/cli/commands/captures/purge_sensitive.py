@@ -8,8 +8,8 @@ import sys
 from pathlib import Path
 
 from canair.captures import io as capture_io
+from canair.cli.profile_context import dir_profile
 from canair.core.prompt import confirm
-from canair.profile import active
 from canair.render import ansi, messages
 
 from .echo import echo_write
@@ -22,13 +22,15 @@ def cmd_purge_sensitive(
     from canair.captures.sensitive_purge import purge_dir
     from canair.privacy.sensitive import set_for_captures
 
-    cdir = capture_io.resolve_captures_dir(captures_dir, profile=active())
+    cdir = capture_io.resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
     if not cdir.is_dir():
         messages.error(f"no such captures directory: {cdir}")
         return 2
-    sset = set_for_captures(captures_dir, profile=active())
+    sset = set_for_captures(captures_dir, profile=dir_profile(captures_dir))
     plan = purge_dir(cdir, sset, dry_run=True)
-    if blocked := layers.refusal([r.path for r in plan], "purged", captures_dir, profile=active()):
+    if blocked := layers.refusal(
+        [r.path for r in plan], "purged", captures_dir, profile=dir_profile(captures_dir)
+    ):
         print(blocked, file=sys.stderr)
         return 1
     total = sum(r.removed for r in plan)

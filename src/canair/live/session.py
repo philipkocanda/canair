@@ -49,6 +49,8 @@ class SessionOptions:
     saving: bool = False
     # The read/monitor steps, which name the ECUs whose revision to detect first.
     steps: Sequence[str] | None = None
+    # Told the profile that carries a revision settled by detection, so the caller can adopt it.
+    adopt_profile: Callable[[Profile], object] | None = None
 
 
 async def run_session_guarded(
@@ -83,11 +85,17 @@ async def run_session_guarded(
     try:
         from canair.live.revision_probe import detect_revisions, targeted_ecus
 
-        if await detect_revisions(terminal, targeted_ecus(options.steps, profile=profile)):
+        detected = await detect_revisions(
+            terminal, targeted_ecus(options.steps, profile=profile), profile=profile
+        )
+        if detected is not None:
             from canair.ecus.pids import load_pids
 
+            profile = detected
+            if options.adopt_profile is not None:
+                options.adopt_profile(profile)
             # A settled revision changes which PIDs exist; read them before the mode does.
-            pids_data = load_pids(profile=profile)
+            pids_data = load_pids(profile)
         await operation(terminal, pids_data)
         if options.timings:
             from canair.transport.timing import print_timings

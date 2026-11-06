@@ -33,7 +33,7 @@ def _codes(*codes):
 def logp(tmp_path, monkeypatch):
     """The active profile's DTC log, redirected to a scratch file."""
     p = tmp_path / "log.yaml"
-    monkeypatch.setattr(dtc_log, "log_path", lambda path=None: p if path is None else path)
+    monkeypatch.setattr(dtc_log, "log_path", lambda path=None, **_: p if path is None else path)
     return p
 
 
@@ -90,7 +90,7 @@ class TestTagging:
         dtc_log.append_scan(_scan("all"), profile=active())
         dtc_log.append_scan(_scan(VCU), profile=active())
         dtc_log.append_clear(dtc_log.build_clear(BMS, timestamp="t"), profile=active())
-        data = dtc_log.load_log()
+        data = dtc_log.load_log(profile=active())
         scans = data["scans"]
         assert scans[0]["variant"] == "28kwh"
         assert scans[0]["revisions"] == {"VCU": "kwp", "BMS": "uds"}
@@ -264,7 +264,11 @@ class TestLegacyMigration:
 
         assert dtc_log.log_file(Profile("car", root)) == dest
         assert not legacy.exists()
-        assert [s["timestamp"] for s in dtc_log.load_log(dest)["scans"]] == ["t1", "t2", "t3"]
+        assert [s["timestamp"] for s in dtc_log.load_log(dest, profile=active())["scans"]] == [
+            "t1",
+            "t2",
+            "t3",
+        ]
         assert "moved the DTC log into user state" in capsys.readouterr().err
 
     def test_folds_in_a_log_filed_under_an_old_profile_name(self, tmp_path, monkeypatch):
@@ -275,7 +279,7 @@ class TestLegacyMigration:
         _write(old, _scan("all", ts="t1"))
         dest = dtc_log.log_file(Profile("new-name", root))
         assert not old.exists()
-        assert len(dtc_log.load_log(dest)["scans"]) == 1
+        assert len(dtc_log.load_log(dest, profile=active())["scans"]) == 1
 
     def test_a_current_log_with_nothing_to_fold_in_is_left_alone(self, tmp_path, monkeypatch):
         monkeypatch.setattr(dtc_log, "log_dir", lambda: tmp_path / "state")
@@ -498,7 +502,7 @@ class TestBackfill:
         log = tmp_path / "variants.yaml"
         _write(log, _scan("all", ts="t1", variant="40kwh"), _scan("all", ts="t2", variant="60kwh"))
         dtc_log.log_file(Profile("variants", root))
-        scans = dtc_log.load_log(log)["scans"]
+        scans = dtc_log.load_log(log, profile=active())["scans"]
         assert scans[0]["revisions"] == {"VCU": "kwp"}
         assert "revisions" not in scans[1]
         assert "tagged 1 earlier DTC-log entr" in capsys.readouterr().err
@@ -523,7 +527,9 @@ class TestMigrateAll:
         migrate_all()
         for name in ("car-a", "car-b"):
             assert not (roots / name / "dtc_log.yaml").exists()
-            moved = dtc_log.load_log(tmp_path / "state" / f"{name}.yaml")["scans"]
+            moved = dtc_log.load_log(
+                tmp_path / "state" / f"{name}.yaml", profile=Profile(name, roots / name)
+            )["scans"]
             assert [s["timestamp"] for s in moved] == [name]
 
     def test_update_moves_them_before_a_reinstall(self, monkeypatch):

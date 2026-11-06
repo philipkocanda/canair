@@ -6,6 +6,7 @@ import pytest
 import yaml
 
 from canair.live.monitor.edit import MonitorEditor
+from tests.support.profiles import bundled_profile
 
 
 class FakeController:
@@ -15,6 +16,7 @@ class FakeController:
         self.pids_data = pids_data
         self.last_queries = last_queries
         self.pids_dir = pids_dir
+        self.profile = bundled_profile()
         self.reloaded = 0
 
     def reload_pids(self):

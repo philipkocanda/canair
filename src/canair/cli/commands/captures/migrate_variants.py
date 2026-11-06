@@ -8,6 +8,7 @@ from pathlib import Path
 
 from canair.captures import io as capture_io
 from canair.cli.args.scope import parse_iso_date
+from canair.cli.profile_context import dir_profile
 from canair.profile import active
 from canair.render import messages
 
@@ -29,7 +30,7 @@ def cmd_migrate_variants(args) -> int:
     until = args.date or args.until
 
     # Only the profile's own store: a layered profile's base is someone else's history.
-    cdir = capture_io.resolve_captures_dir(args.dir, profile=active())
+    cdir = capture_io.resolve_captures_dir(args.dir, profile=dir_profile(args.dir))
     if not cdir.is_dir():
         messages.error(f"no such captures directory: {cdir}")
         return 2

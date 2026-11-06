@@ -382,7 +382,7 @@ def _register_discovered(
     added = 0
     for tx, status in new:
         try:
-            register_ecu(tx, notes=f"Discovered {today} via {via} ({status}).")
+            register_ecu(tx, notes=f"Discovered {today} via {via} ({status}).", profile=profile)
             added += 1
             say(
                 f"{INDENT}{paint(*POSITIVE)} {fmt_id(tx)} -> Unknown-{tx:03X}  "

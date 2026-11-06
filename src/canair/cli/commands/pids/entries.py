@@ -6,6 +6,7 @@ import argparse
 
 from canair.analysis.signal_range import capture_range
 from canair.cli.commands._edit import add_edit_args, edit_scope, run_edit
+from canair.cli.profile_context import target_profile
 from canair.core.edit_errors import EditError
 from canair.ecus.pid_status import PID_STATUSES
 from canair.ecus.signal_category import CATEGORIES, QUANTITY_CATEGORIES
@@ -246,6 +247,7 @@ def cmd_upsert_param(args: argparse.Namespace) -> int:
             values=values,
             bits=bits,
             pids_dir=args.dir,
+            profile=target_profile(args),
         )
 
     fpath = apply_in_scope(args, do)
@@ -290,7 +292,7 @@ def _signal_exists(ecu: str, pid: str, name: str, pids_dir) -> bool:
 def _gate_new_signal(args: argparse.Namespace, revision: str) -> None:
     from canair.yaml_edit.revisions import set_gate
 
-    set_gate(args.ecu, args.pid, args.name, [revision])
+    set_gate(args.ecu, args.pid, args.name, [revision], profile=active())
 
 
 def _upsert_revision_override(args: argparse.Namespace, ptype, values, bits) -> int:
@@ -328,7 +330,7 @@ def _upsert_revision_override(args: argparse.Namespace, ptype, values, bits) -> 
     if unsupported:
         raise EditError(f"{', '.join(unsupported)} cannot differ by revision")
     with edit_scope(args):
-        fpath = set_override(args.ecu, args.pid, args.name, args.revision, fields)
+        fpath = set_override(args.ecu, args.pid, args.name, args.revision, fields, profile=active())
     echo_edit(f"{args.ecu} {args.pid} {args.name} (revision {args.revision})", fpath)
     return 0
 
@@ -359,7 +361,9 @@ def _warn_state_predicates(ecu: str, param: str, consequence: str, hint: str) ->
 
 def cmd_rename_param(args: argparse.Namespace) -> int:
     def do():
-        rename_parameter(args.ecu, args.pid, args.old, args.new, pids_dir=args.dir)
+        rename_parameter(
+            args.ecu, args.pid, args.old, args.new, pids_dir=args.dir, profile=target_profile(args)
+        )
 
     fpath = apply_in_scope(args, do)
     echo_edit(f"{args.ecu} {args.pid} {args.old} → {args.new}", fpath)
@@ -374,7 +378,9 @@ def cmd_rename_param(args: argparse.Namespace) -> int:
 
 def cmd_rm_param(args: argparse.Namespace) -> int:
     def do():
-        delete_parameter(args.ecu, args.pid, args.name, pids_dir=args.dir)
+        delete_parameter(
+            args.ecu, args.pid, args.name, pids_dir=args.dir, profile=target_profile(args)
+        )
 
     fpath = apply_in_scope(args, do)
     echo_edit(f"removed {args.ecu} {args.pid} {args.name}", fpath)
@@ -390,7 +396,9 @@ def cmd_rm_param(args: argparse.Namespace) -> int:
 
 def cmd_rename_pid(args: argparse.Namespace) -> int:
     return run_edit(
-        lambda: rename_pid(args.ecu, args.old, args.new, pids_dir=args.dir),
+        lambda: rename_pid(
+            args.ecu, args.old, args.new, pids_dir=args.dir, profile=target_profile(args)
+        ),
         f"{args.ecu} {args.old} → {args.new}",
         args=args,
     )
@@ -398,7 +406,7 @@ def cmd_rename_pid(args: argparse.Namespace) -> int:
 
 def cmd_rm_pid(args: argparse.Namespace) -> int:
     return run_edit(
-        lambda: delete_pid(args.ecu, args.pid, pids_dir=args.dir),
+        lambda: delete_pid(args.ecu, args.pid, pids_dir=args.dir, profile=target_profile(args)),
         f"removed {args.ecu} {args.pid}",
         args=args,
     )
@@ -414,6 +422,7 @@ def cmd_add_pid(args: argparse.Namespace) -> int:
             period=args.period,
             notes=args.notes,
             pids_dir=args.dir,
+            profile=target_profile(args),
         ),
         f"{args.ecu} {args.pid} [{args.status}]",
         args=args,

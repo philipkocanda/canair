@@ -7,6 +7,7 @@ from pathlib import Path
 
 from canair.cli.args.hexarg import parse_hex_arg
 from canair.cli.commands._edit import edit_scope
+from canair.cli.profile_context import target_profile
 from canair.core.edit_errors import EditError
 from canair.render import messages
 from canair.yaml_edit.echo import echo_edit
@@ -105,13 +106,14 @@ def cmd_add(args) -> int:
             target_address=target_address,
             source_address=source_address,
             fc_id=fc_id,
+            profile=target_profile(args),
             **fields,
         )
 
     disp = tx_key(tx_id)
     label = args.name or f"Unknown-{tx_id:03X}"
     if wrote:
-        fpath = find_ecu_file_by_tx(tx_id, args.dir)
+        fpath = find_ecu_file_by_tx(tx_id, args.dir, profile=target_profile(args))
         if fpath is not None:
             echo_edit(f"registered {label} ({disp})", fpath)
     else:

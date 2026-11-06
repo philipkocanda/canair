@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator
 from canair.core import yaml_io
 from canair.core.json_schema import schema_errors
 from canair.core.paths import CAN_BUSES_SCHEMA_FILE, GROUPS_SCHEMA_FILE, STATES_SCHEMA_FILE
-from canair.profile import Profile, active
+from canair.profile import Profile
 
 from ._common import CAN_INDEX_SCHEMA_FILE, duplicate_key_errors
 from .report import FileReport, SignalsReport
@@ -17,7 +17,9 @@ from .report import FileReport, SignalsReport
 LFS_POINTER_PREFIX = "version https://git-lfs.github.com/spec/v1"
 
 
-def _state_reference_errors(predicates: list[tuple[str, str]]) -> tuple[list[str], str | None]:
+def _state_reference_errors(
+    predicates: list[tuple[str, str]], profile: Profile
+) -> tuple[list[str], str | None]:
     """Cross-reference each ``when:`` predicate's ECU.PARAM refs against the registry.
 
     Returns ``(errors, skip_reason)``. An unresolvable reference makes its state
@@ -34,7 +36,6 @@ def _state_reference_errors(predicates: list[tuple[str, str]]) -> tuple[list[str
 
     if not predicates:
         return ([], None)
-    profile = active()
     try:
         if not load_raw_pids(profile).get("ecus"):
             return ([], "no ECUs defined in ecus/ yet")
@@ -114,11 +115,11 @@ def _state_relation_errors(
     return errors
 
 
-def check_states() -> FileReport:
+def check_states(profile: Profile) -> FileReport:
     """Check the profile's optional vehicle_states.yaml (schema, predicates and relations)."""
     from canair.states.predicates import StatePredicateError, compile_predicate
 
-    path = active().states_file
+    path = profile.states_file
     name = path.name
     if not path.exists():
         return FileReport(name, skipped="No vehicle_states.yaml (optional) — skipping.")
@@ -155,7 +156,7 @@ def check_states() -> FileReport:
 
     errors += _state_relation_errors(implies_entries, excludes_entries, {n.upper() for n in seen})
 
-    ref_errors, skipped = _state_reference_errors(predicates)
+    ref_errors, skipped = _state_reference_errors(predicates, profile)
     errors += ref_errors
 
     if errors:
@@ -183,7 +184,7 @@ def check_groups(profile: Profile) -> FileReport:
     from canair.ecus.pids import build_ecu_index, load_pids
     from canair.query import QueryError, parse_selector
 
-    path = active().groups_file
+    path = profile.groups_file
     if not path.exists():
         return FileReport("groups.yaml", skipped="No groups.yaml (optional) — skipping.")
 
@@ -245,7 +246,7 @@ def check_actions(profile: Profile) -> FileReport:
     from canair.ecus.pids import load_pids
     from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 
-    path = active().actions_file
+    path = profile.actions_file
     if not path.exists():
         return FileReport("actions.yaml", skipped="No actions.yaml (optional) — skipping.")
     text = path.read_text()
@@ -278,10 +279,10 @@ def check_actions(profile: Profile) -> FileReport:
     return FileReport("actions.yaml", summary=f"({len(actions)} actions)", notes=notes)
 
 
-def check_can_buses() -> FileReport:
+def check_can_buses(profile: Profile) -> FileReport:
     """Check the profile's optional can_buses.yaml (CAN bus vocabulary) against its schema."""
 
-    path = active().can_buses_file
+    path = profile.can_buses_file
     if not path.exists():
         return FileReport("can_buses.yaml", skipped="No can_buses.yaml (optional) — skipping.")
 
@@ -323,11 +324,11 @@ def check_signals(profile: Profile) -> SignalsReport:
     return SignalsReport(files=tuple(files), total_signals=total_signals)
 
 
-def check_can() -> FileReport:
+def check_can(profile: Profile) -> FileReport:
     """Check the profile's optional captures/can/index.yaml (raw-CAN log index)."""
 
     name = "captures/can/index.yaml"
-    path = active().can_index_file
+    path = profile.can_index_file
     if not path.exists():
         return FileReport(name, skipped="No captures/can/index.yaml (optional) — skipping.")
     with open(CAN_INDEX_SCHEMA_FILE) as f:
