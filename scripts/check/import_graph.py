@@ -150,6 +150,47 @@ def cycles(result: Scan) -> list[list[str]]:
     return sorted(found, key=len, reverse=True)
 
 
+def owning_package(module: str) -> str:
+    """The package a name is private to.
+
+    That is the top-level unit, except that each command of the CLI (``canair.cli.commands.<cmd>``,
+    a package or a single module) counts as a package of its own.
+    """
+    parts = module.split(".")
+    if parts[:3] == [PACKAGE, "cli", "commands"] and len(parts) > 3:
+        return ".".join(parts[:4])
+    return ".".join(parts[:2])
+
+
+def cross_package_private_imports(root: Path | None = None) -> list[str]:
+    """Underscore names that a module imports from another package, as ``module.name``.
+
+    ``from canair.x import _y`` counts when ``_y`` is a name, not a submodule, and the importer
+    sits in another package (see ``owning_package``). Imports under ``TYPE_CHECKING`` count.
+    Attribute access (``obj._y``) does not, and neither does a test.
+    """
+    root = root or REPO_ROOT / "src" / PACKAGE
+    parsed: dict[str, tuple[Path, ast.Module]] = {}
+    for path in sorted(root.rglob("*.py")):
+        if "__pycache__" not in path.parts:
+            parsed[module_name(path, root)] = (path, ast.parse(path.read_text(encoding="utf8")))
+    found: set[str] = set()
+    for name, (path, tree) in parsed.items():
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom):
+                continue
+            source = _resolve(node, name, path.name == "__init__.py")
+            if not source.startswith(f"{PACKAGE}.") or owning_package(source) == owning_package(
+                name
+            ):
+                continue
+            for alias in node.names:
+                private = alias.name.startswith("_") and not alias.name.startswith("__")
+                if private and f"{source}.{alias.name}" not in parsed:
+                    found.add(f"{source}.{alias.name}")
+    return sorted(found)
+
+
 def root_modules(result: Scan) -> list[str]:
     """Modules that sit directly in the package root (not ``__init__``/``__main__``)."""
     root = REPO_ROOT / "src" / PACKAGE

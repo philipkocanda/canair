@@ -31,6 +31,23 @@
   "packages_without_charter": [],
   "test_to_test_imports": [],
   "flat_tests": [],
+  "cross_package_private_imports": [
+    "canair.captures.entries._capture_key",
+    "canair.captures.entries._dedupe_payloads",
+    "canair.captures.entries._entry_to_dict",
+    "canair.captures.entries._group_by_key",
+    "canair.captures.entries._is_hex_payload",
+    "canair.captures.entries._key_ordinals",
+    "canair.captures.entries._prev_same_index",
+    "canair.captures.session_edit._set_session_field",
+    "canair.cli.commands.captures.query._parse_query",
+    "canair.device.wican.mode._tcp_open",
+    "canair.install.update_check._is_newer",
+    "canair.query.steps._looks_like_pid",
+    "canair.query.steps._query_selectors",
+    "canair.render.formatting._render_hex_line",
+    "canair.states.vocabulary._order_states"
+  ],
   "ui_standards": {
     "raw_escapes": {},
     "rich_console": {},

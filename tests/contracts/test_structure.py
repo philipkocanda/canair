@@ -7,8 +7,9 @@ a contract cannot say, and runs ``lint-imports`` so plain ``pytest`` is a comple
 
 Each check compares the tree with ``baseline.json``:
 
-* a **list** baseline (root modules, flat tests, packages without a charter) fails on a
-  new entry *and* on an entry that no longer applies, so a fix has to leave the baseline;
+* a **list** baseline (root modules, flat tests, packages without a charter, private names used
+  across packages) fails on a new entry *and* on an entry that no longer applies, so a fix has
+  to leave the baseline;
 * a **ceiling** baseline (module sizes, deferred imports, import-linter debt) fails when the
   number grows. Lower it when it falls:
   ``uv run python -m tests.contracts.test_structure --write``.
@@ -244,6 +245,16 @@ def test_every_package_has_a_charter():
     assert not problems, "\n".join(problems)
 
 
+def test_no_package_imports_a_private_name_of_another():
+    problems = _diff(
+        "private import",
+        set(graph.cross_package_private_imports()),
+        set(_baseline()["cross_package_private_imports"]),
+        "Another package uses it, so give the name no leading underscore (or move it).",
+    )
+    assert not problems, "\n".join(problems)
+
+
 def test_tests_do_not_import_other_tests():
     problems = _diff(
         "test import",
@@ -327,6 +338,10 @@ def _fresh_baseline(old: dict) -> dict:
     new["flat_tests"] = [t for t in old["flat_tests"] if t in set(_flat_tests())]
     current_tests = set(_test_to_test_imports())
     new["test_to_test_imports"] = [t for t in old["test_to_test_imports"] if t in current_tests]
+    now = set(graph.cross_package_private_imports())
+    new["cross_package_private_imports"] = [
+        n for n in old["cross_package_private_imports"] if n in now
+    ]
     new["ui_standards"] = ui_standards.lowered(old.get("ui_standards", {}), ui_standards.counts())
     return new
 
@@ -343,6 +358,7 @@ def _initial_baseline() -> dict:
         "packages_without_charter": sorted(p for p, i in packages.items() if not _has_charter(i)),
         "test_to_test_imports": _test_to_test_imports(),
         "flat_tests": _flat_tests(),
+        "cross_package_private_imports": graph.cross_package_private_imports(),
         "ui_standards": ui_standards.counts(),
     }
 
