@@ -72,10 +72,8 @@ def test_render_timings_table(monkeypatch):
 
 
 def test_print_timings_json_to_stderr(capsys, monkeypatch):
-    from canair.ecus import names as ecus_mod_names
-
     monkeypatch.setattr(
-        ecus_mod_names, "ecu_name", lambda tx, **__: "VCU" if tx == 0x7E2 else f"0x{tx:03X}"
+        timing_mod, "ecu_name", lambda tx, **__: "VCU" if tx == 0x7E2 else f"0x{tx:03X}"
     )
     rec = TimingRecorder()
     rec.record("0x7E2", "2101", 0.4)

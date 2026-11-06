@@ -262,7 +262,8 @@ def test_parser_build_does_not_load_more_modules():
 
     A count, not a time: it gives the same result on every machine, and it catches the small
     steps that a timing threshold misses. From 2026-11-04 to 2026-11-06 the count went from 334
-    to 637 modules and start-up rose by about 70 ms, in steps of 3 to 15 ms each.
+    to 637 modules and start-up rose by about 70 ms, in steps of 3 to 15 ms each. The count is
+    with eager imports, as on Python before 3.15 (``canair.core.lazy_imports``).
     """
     count = len(deferred.loaded_modules())
     ceiling = _baseline()["parser_build_modules"]

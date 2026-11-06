@@ -13,8 +13,13 @@ import os
 
 import pytest
 
-from canair.cli import profile_context
-from tests.support.network import NetworkBlocked
+from canair.core import lazy_imports
+
+# As the `canair` command does (canair/__main__.py), so the suite runs the code the way it ships.
+lazy_imports.enable()
+
+from canair.cli import profile_context  # noqa: E402
+from tests.support.network import NetworkBlocked  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)

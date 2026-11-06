@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.scripts]
-canair = "canair.cli:main"
+canair = "canair.__main__:main"
 
 [build-system]
 requires = ["hatchling"]
