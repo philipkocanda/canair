@@ -37,8 +37,8 @@ class TestFramesForPayload:
         assert frames_for_payload(length) == frames
 
     def test_the_ioniq_bms_21f2_response_needs_thirteen_frames(self):
-        # 90 bytes is the length that AGENTS.md pins as too long to request, so
-        # this is the arithmetic behind that PID staying unoptimized.
+        # 90 bytes is the size of that reply. 13 frames is over the ceiling, so the PID stays
+        # unoptimized (docs/development/frame-counts.md).
         assert frames_for_payload(90) == 13
 
 

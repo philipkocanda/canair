@@ -4,7 +4,8 @@ The mains-voltage and line-frequency bands the physical scan looks for depend on
 *where the car charges*, not on the car itself — the same EV charges from
 230 V / 50 Hz in Berlin and split-phase 120/240 V / 60 Hz in Denver. So the grid
 bands come from a user-config ``grid_region`` preset (set once per location),
-not from the vehicle profile. See :mod:`canair.analysis.physical.bands` for the two-axis
+not from the vehicle profile: ``grid_region`` lives in the user config, an unset one assumes
+EU, and the first physical scan offers to set it. See :mod:`canair.analysis.physical.bands` for the two-axis
 design and the precedence rules.
 
 RMS ranges are nominal ±~10 %; peak = RMS·√2 with a similar margin; line

@@ -155,7 +155,9 @@ class TransportConfig:
         resolved host): the WiCAN transports (``slcan-tcp`` / ``wican-ws``) can
         query ``/load_config`` / ``/check_status`` for mode/port/bitrate and
         liveness, whereas a generic ELM327 adapter (``elm327-tcp``) has no such
-        API.
+        API. Spec-driven, deliberately not ``host is not None``: it gates the WiCAN-only paths
+        (the sleep banner, ``reboot_wican``, the WebSocket reachability check, ``canair status``)
+        and tells the fallback probe to try port 80 instead of the data port.
         """
         if self.host is None:
             return False

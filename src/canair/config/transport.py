@@ -51,7 +51,7 @@ _DEFAULT_FIRMWARE_CHECK = True
 def reconnect_max_wait() -> float:
     """Bounded reconnect window (seconds) for a mid-session monitor drop.
 
-    Read from ``transport.reconnect_max_wait`` (default 6.0). This bounds the
+    Read from ``transport.reconnect_max_wait`` (default 60.0). This bounds the
     automatic reconnect attempt when the user did *not* pass ``--wait``; with
     ``--wait`` the monitor retries indefinitely instead. A non-positive or
     non-finite value falls back to the default.

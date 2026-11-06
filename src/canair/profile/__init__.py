@@ -25,6 +25,12 @@ config, or auto-selected when only one profile exists. A same-named user bundle 
 definitions keep resolving from the read-only base while captures read from every layer and are
 written to the user's.
 
+``profile.yaml`` is checked against ``src/canair/schema/profile_schema.json`` and starts with a
+``yaml-language-server`` modeline naming it (every file with an entry in
+``core/paths.py::EDITOR_SCHEMAS`` does). A new ``profile.yaml`` field goes in that schema first,
+because the schema is the check. The design of layering and write targets is
+``docs/development/layered-profiles.md``.
+
 Belongs: the bundle's members (``bundle``), the resolved profile (``model``), finding, resolving
 and layering profiles (``discovery``), the refusal to edit a read-only base (``writable``),
 creating one (``scaffold``) and what cars call a profile (``names``).

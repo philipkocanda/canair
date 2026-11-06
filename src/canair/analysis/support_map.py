@@ -10,6 +10,10 @@ which of the following bits (or bytes) are real signals — the layout is docume
   violation (see :data:`MAX_FIELD_WIDTH`).
 * ``byte`` — map bit *i* (MSB first across the map) marks the *i*-th covered data byte.
 
+A map is a fact about one PID, not about a make (BCM ``22B005`` is a documented exception), so
+it is *declared* (``canair pids set-support-map``) and never inferred when a payload is read.
+Detection only proposes one.
+
 This module is the **leaf**: rows of data bytes in (SID and DID echo already stripped), scored
 fits out. It knows nothing of WiCAN indices, ISO-TP framing or captures, so any bridge can feed it.
 

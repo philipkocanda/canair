@@ -14,6 +14,16 @@ plus the store-maintenance kinds (``migrate``, ``migrate-rx``,
 ``canair captures BMS 2102`` is shorthand for the ``uds`` kind, injected by
 ``cli.py``'s ``_GROUP_DEFAULTS``.
 
+Rules the views and modes keep:
+
+* The default list view is capped at ``--limit`` (50) with a loud footer for the hidden history,
+  so a bare query cannot flood a terminal or an agent's context.
+* A mutating mode never touches a base layer of a layered profile (``session_gate.refuse_write``),
+  and ``--delete`` refuses to run bare. ``--set-state``, ``--set-notes``, ``--set-transport`` and
+  ``--set-variant`` require a scope filter, so none can relabel the whole history by accident.
+* ``--backfill-states`` fills unset states and only reports contradicted ones unless
+  ``--overwrite``. ``--dry-run`` previews every mutation.
+
 This module is only the group: it wires the kinds together and re-exports the
 handful of names other commands consume. Each kind and view lives in its own
 submodule — ``uds`` (parser + orchestration), ``listing``/``sessions``/``diff``

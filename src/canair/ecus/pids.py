@@ -48,8 +48,8 @@ INHERITED_PARAM_FIELDS: tuple[str, ...] = (
 def effective_param(pid_def: dict, param_def: dict) -> dict:
     """The parameter with the PID's shared fields filled in where it sets none of its own.
 
-    Returns ``param_def`` itself when there is nothing to inherit, else a copy — the
-    definition on file is never modified.
+    Returns ``param_def`` itself, or a copy (the file is never modified). Loaded definitions have
+    it resolved already: only code that parses the YAML itself (validator, editors) must call it.
     """
     inherited = {
         field: pid_def[field]

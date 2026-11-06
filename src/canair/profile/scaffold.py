@@ -12,6 +12,11 @@ bundle under a writable root, which is what these two functions produce:
   ``~/.config/canair/profiles/``, where it *shadows* the read-only original by
   name and becomes writable.
 
+The scaffold comes from ``templates/`` at the repo root, shipped in the wheel (``force-include``
+in ``pyproject.toml``) so an installed copy can still scaffold. Placeholders use
+``string.Template`` (``$car_model``), so literal braces in the YAML need no escaping. Change the
+scaffold's output by editing those files, never Python strings.
+
 Both are pure of argparse, so the CLI (``canair profile create``/``adopt``) and
 the first-run wizard call the same code.
 """
