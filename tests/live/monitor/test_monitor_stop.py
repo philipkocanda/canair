@@ -144,7 +144,6 @@ class TestTeardown:
         """A SIGHUP leaves stdout broken; the recorded data must still be written."""
         import builtins
 
-        import canair.states.tokens
         from canair.cli import profile_context
 
         journal = _FakeJournal(tmp_path / "journal.jsonl")
@@ -157,7 +156,7 @@ class TestTeardown:
         monkeypatch.setattr(run_mod, "MonitorController", _make_controller)
         monkeypatch.setattr(run_mod, "open_journal", lambda *a, **k: journal)
         monkeypatch.setattr(profile_context, "_active", type("P", (), {"captures_dir": tmp_path})())
-        monkeypatch.setattr(canair.states.tokens, "parse_states", lambda v: [])
+        monkeypatch.setattr(run_mod, "parse_states", lambda v: [])
 
         async def _noop(controller):
             # The terminal goes away mid-session: every write fails from here on.
@@ -189,13 +188,12 @@ class TestInteractiveScreen:
     """``mode_monitor`` runs the screen the caller passes, and only on a TTY."""
 
     def _run(self, monkeypatch, tmp_path, *, tty: bool, interactive) -> list[str]:
-        import canair.states.tokens
         from canair.cli import profile_context
 
         ran: list[str] = []
         monkeypatch.setattr(run_mod, "MonitorController", lambda *a, **k: _TeardownController())
         monkeypatch.setattr(profile_context, "_active", type("P", (), {"captures_dir": tmp_path})())
-        monkeypatch.setattr(canair.states.tokens, "parse_states", lambda v: [])
+        monkeypatch.setattr(run_mod, "parse_states", lambda v: [])
 
         async def _poll(controller):
             ran.append("poll")

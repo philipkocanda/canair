@@ -183,7 +183,6 @@ class TestRawUdsClientGuard:
 
     def test_build_raw_client_wires_the_profile_policy(self, monkeypatch):
         from canair.live.monitor import raw_run as raw_monitor
-        from canair.transport.raw import slcan_tcp
 
         seen = {}
 
@@ -191,9 +190,8 @@ class TestRawUdsClientGuard:
             def __init__(self, *a, session_policy=None, **k):
                 seen["policy"] = session_policy
 
-        monkeypatch.setattr("canair.transport.RawUdsClient", _Client)
-        monkeypatch.setattr(slcan_tcp, "SlcanTcpBus", lambda *a, **k: object())
-        monkeypatch.setattr("canair.transport.SlcanTcpBus", lambda *a, **k: object())
+        monkeypatch.setattr(raw_monitor, "RawUdsClient", _Client)
+        monkeypatch.setattr(raw_monitor, "SlcanTcpBus", lambda *a, **k: object())
 
         raw_monitor.build_raw_client("h", 1, 500_000, {}, ConnectionOptions(), PIDS)
         assert seen["policy"].protocol(0x7E4) == KWP

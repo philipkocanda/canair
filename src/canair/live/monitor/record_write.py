@@ -17,6 +17,7 @@ from canair.profile.model import Profile
 
 from ...captures.build import build_query_session
 from ...captures.save import save_session
+from ...ecus.names import build_name_tx_index, rx_from_name
 
 
 def merge_history(
@@ -60,7 +61,6 @@ def write_merged(
     The ECU label (e.g. "BMS") is resolved to its CAN response address; an
     unknown label falls back to its leading token verbatim.
     """
-    from ...ecus.names import build_name_tx_index, rx_from_name
 
     name_index = build_name_tx_index(profile=profile)
     results: list[tuple[str, str, str, str]] = []

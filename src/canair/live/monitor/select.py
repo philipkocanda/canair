@@ -16,6 +16,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from canair.profile.model import Profile
+from canair.query.steps import parse_sub_commands
+
+from ...query import pids_named_by
 
 if TYPE_CHECKING:
     from canair.ecus.ecu_groups import Group
@@ -50,7 +53,6 @@ class EcuChoice:
         :func:`canair.query.pids_named_by` (``BC03`` picks ``22BC03``), the same
         rule :func:`canair.live.read.exec.build_query_plan` polls by.
         """
-        from ...query import pids_named_by
 
         wanted = [f.upper() for f in filters]
         if not wanted:
@@ -112,8 +114,6 @@ def _resolve_members(
     *,
     profile: Profile,
 ) -> tuple[dict[str, tuple[str, ...]], list[str]]:
-    from canair.query.steps import parse_sub_commands
-
     try:
         steps = parse_sub_commands([f"query {m}" for m in members], profile=profile)
     except ValueError:

@@ -21,6 +21,8 @@ import logging
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, TypedDict
 
+from canair.core.eventlog import log_event
+from canair.ecus.pids import ecu_index_key
 from canair.live.monitor.backoff import PollCost
 from canair.live.monitor.schedule import Key
 from canair.profile.model import Profile
@@ -28,7 +30,19 @@ from canair.uds.multi_did import BATCH_REFUSAL_NRCS
 from canair.uds.nrc import nrc_description
 from canair.uds.services import NEGATIVE_RESPONSE_SID
 
+from ...transport.isotp_params import resolve_rx_padding
 from ...uds.protocol import DiagProtocol, classify_protocol
+from ..read.batch import (
+    LEAKED_BATCH_ERROR,
+    LEAKED_BATCH_REASON,
+    _decode_pid_result,
+    _did4,
+    _did_data_len,
+    _is_did22,
+    is_leaked_batch_reply,
+    split_multi_did,
+)
+from ..read.exec import build_query_plan
 
 if TYPE_CHECKING:
     from canair.expression.results import EcuFrame, ResultEntry
@@ -68,7 +82,6 @@ def _raw_pid_result(
     ``protocol`` (its :data:`~canair.uds.protocol.DiagProtocol`) names an NRC the
     way the ELM path's parser does.
     """
-    from ..read.batch import _decode_pid_result
 
     if value is None or isinstance(value, Exception):
         err = "timeout" if value is None or isinstance(value, TimeoutError) else str(value)
@@ -125,8 +138,6 @@ class MonitorRawPoller:
         self.lengths: dict[tuple[str, str], int] = {}
         self.nobatch: set[str] = set()
         # The byte ECU replies are padded with (profile isotp.rx_padding), to strip/split.
-        from ...transport.isotp_params import resolve_rx_padding
-
         self.pad = resolve_rx_padding(getattr(controller, "pids_data", None))
 
     async def setup(self, session_steps: list[dict] | None) -> None:
@@ -156,10 +167,6 @@ class MonitorRawPoller:
         ``multi_did_max``, default 3); everything else is a single request (and
         22-DID lengths are learned from single reads).
         """
-        from canair.ecus.pids import ecu_index_key
-
-        from ..read.batch import _did4, _is_did22
-        from ..read.exec import build_query_plan
 
         c = self.c
         # Only reached during polling, after setup() built the ECU index.
@@ -336,17 +343,6 @@ class MonitorRawPoller:
     ) -> None:
         """Fold one completed submission's response into ``by_pid`` (split batches,
         learn 22-DID lengths, track ECUs that can't batch)."""
-        from canair.core.eventlog import log_event
-
-        from ..read.batch import (
-            LEAKED_BATCH_ERROR,
-            LEAKED_BATCH_REASON,
-            _did4,
-            _did_data_len,
-            _is_did22,
-            is_leaked_batch_reply,
-            split_multi_did,
-        )
 
         ecu = s["ecu"]
         resp = bytes(val) if isinstance(val, (bytes, bytearray)) else None

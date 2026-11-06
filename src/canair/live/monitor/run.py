@@ -24,6 +24,7 @@ from canair.profile.model import Profile
 from canair.render.console import console, escape
 from canair.render.glyphs import FAIL
 
+from ...states.tokens import parse_states
 from .controller import MonitorController
 from .options import MonitorOptions
 from .record_write import open_journal
@@ -134,7 +135,6 @@ async def mode_monitor(
     status item shows each ECU's currently-open diagnostic session type; each
     signal row shows a small circle (green when fresh, grey when stale).
     """
-    from ...states.tokens import parse_states
 
     captures_dir = profile.captures_dir
     states = parse_states(monitor.vehicle_states)

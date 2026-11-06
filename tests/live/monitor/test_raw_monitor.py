@@ -396,7 +396,7 @@ class TestRawBatchRepliesNeverLandUnderOneDid:
     def test_a_leak_stops_batching_the_ecu_and_is_logged(self, monkeypatch):
         events: list[tuple] = []
         monkeypatch.setattr(
-            "canair.core.eventlog.log_event",
+            "canair.live.monitor.raw_poller.log_event",
             lambda cat, detail="", **kw: events.append((cat, detail, kw)),
         )
         c = self._ctrl(

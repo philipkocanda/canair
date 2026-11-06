@@ -25,6 +25,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ...states.implies import most_specific_states
+from ...states.predicates import StatePredicateError
+from ...states.suggest import collect_values, suggest_states
+from ...states.vocabulary import load_states, state_options
 from .health import label_ecu
 
 if TYPE_CHECKING:
@@ -80,7 +84,6 @@ class MonitorStateSuggester:
 
     def observe(self, new_queries: list[EcuFrame]) -> None:
         """Fold a cycle's freshly-polled payloads into the state-input snapshot."""
-        from ...states.suggest import collect_values
 
         for ecu_label, pid_results in new_queries:
             ecu = label_ecu(ecu_label)
@@ -126,7 +129,6 @@ class MonitorStateSuggester:
         state another match specializes (:func:`canair.states.implies.most_specific_states`).
         Among states unrelated in that hierarchy, file order still decides.
         """
-        from ...states.implies import most_specific_states
 
         matched = self.suggested_states()
         if not matched:
@@ -143,9 +145,6 @@ class MonitorStateSuggester:
         ``[READY, PARKED]``), or ``[]`` when no rule matches / the profile
         declares no states.
         """
-        from ...states.predicates import StatePredicateError
-        from ...states.suggest import suggest_states
-        from ...states.vocabulary import load_states
 
         if self._state_rules is None:
             try:
@@ -159,7 +158,6 @@ class MonitorStateSuggester:
 
     def state_options(self) -> list[tuple[str, str]]:
         """The profile's ordered ``(state, description)`` vocabulary for the save dialog."""
-        from ...states.vocabulary import state_options
 
         try:
             return state_options(self.c.profile)

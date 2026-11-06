@@ -993,10 +993,8 @@ class TestControllerJournal:
 
 class TestControllerSuggestedState:
     def _controller(self, monkeypatch, rules):
-        from canair.states import vocabulary as states_vocabulary
-
         c = make_controller(terminal=None, query_steps=[], pids_data={}, verbose=False)
-        monkeypatch.setattr(states_vocabulary, "load_states", lambda *_, **__: rules)
+        monkeypatch.setattr("canair.live.monitor.state.load_states", lambda *_, **__: rules)
         return c
 
     def test_suggests_from_decoded_values(self, monkeypatch):
@@ -1119,7 +1117,6 @@ class TestDynamicSchedulePerPidClock:
     the tick count. Drives the real scheduler + _record together."""
 
     def _controller(self, monkeypatch):
-        from canair.states import vocabulary as states_vocabulary
         from canair.states.predicates import StateRule, compile_predicate
 
         rules = [
@@ -1128,7 +1125,7 @@ class TestDynamicSchedulePerPidClock:
                 "DRIVING", predicate=compile_predicate("ESC.SPEED > 0.5"), implies=("READY",)
             ),
         ]
-        monkeypatch.setattr(states_vocabulary, "load_states", lambda *_, **__: rules)
+        monkeypatch.setattr("canair.live.monitor.state.load_states", lambda *_, **__: rules)
         steps = [
             {"type": "query", "ecu": "VCU", "pids": ["2101"]},
             {"type": "query", "ecu": "ESC", "pids": ["22C101"]},
@@ -1301,7 +1298,7 @@ def test_the_elm327_warmup_read_is_one_validated_transaction(monkeypatch):
     terminal = FakeTerminal({"22BC03": ok("62BC03AA")})
     c = make_controller(terminal, [{"ecu": "IGPM", "pids": []}], {}, verbose=False)
     monkeypatch.setattr(
-        "canair.ecus.pids.build_ecu_index",
+        "canair.live.monitor.controller.build_ecu_index",
         lambda _data: {"IGPM": {"tx_id": 0x770, "pids": {"22BC03": {"parameters": {}}}}},
     )
 

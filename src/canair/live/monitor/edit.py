@@ -21,6 +21,7 @@ import re
 from typing import TYPE_CHECKING
 
 from canair.ecus.shipping import param_ships
+from canair.yaml_edit.pids import PidsEditError, set_param_field, upsert_parameter
 
 if TYPE_CHECKING:
     from canair.expression.decoding import ParamRow
@@ -198,7 +199,6 @@ class MonitorEditor:
             return "No parameter selected."
         ecu_label, pid, name = self.selected
         ecu = _ecu_name(ecu_label)
-        from canair.yaml_edit.pids import PidsEditError, upsert_parameter
 
         def _opt(key):  # keep empty strings from clobbering existing values
             val = fields.get(key)
@@ -245,7 +245,6 @@ class MonitorEditor:
             return f"{name}: no expression — edit it first."
         default = field == "ship"
         new_val = not bool(pdef.get(field, default))
-        from canair.yaml_edit.pids import PidsEditError, set_param_field
 
         # Surgically flip only the boolean line — do NOT re-send expression, which
         # would re-render (and re-normalize the quoting of) a field the user never

@@ -11,13 +11,19 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING
 
+from canair.ecus.pids import build_ecu_index
 from canair.profile.model import Profile
 from canair.render import messages
+from canair.safety.blocklist import SessionPolicy
+from canair.transport.timing import print_timings
 
+from ...transport import RawUdsClient, SlcanTcpBus
 from ...transport.config import ConnectionOptions, TransportConfig
+from ...transport.errors import describe_transport_error, transport_error_types
 from ...transport.isotp_params import ecu_isotp_blocks
 from ..session import SessionOptions
 from .options import MonitorOptions
+from .run import mode_monitor
 
 if TYPE_CHECKING:
     from canair.ecus.pids import EcuIndexEntry
@@ -51,10 +57,7 @@ def build_raw_client(
     mid-session reconnect, so both apply the same timeouts / ISO-TP config.
     Raises ``OSError`` if the SLCAN socket can't be opened.
     """
-    from canair.safety.blocklist import SessionPolicy
     from canair.transport.timeouts import cli_timeout, ecu_timeouts_by_name
-
-    from ...transport import RawUdsClient, SlcanTcpBus
 
     bus = SlcanTcpBus(host, port=port, bitrate=bitrate)
     cli = cli_timeout(conn.timeout)
@@ -110,9 +113,6 @@ async def run_raw_monitor(
     profile: Profile,
 ) -> int:
     """Run the live monitor over raw CAN. Assumes the device is in slcan mode."""
-    from canair.ecus.pids import build_ecu_index
-
-    from .run import mode_monitor
 
     ecu_index = build_ecu_index(pids_data)
     ecus = query_ecu_addresses(monitor.query_steps, ecu_index)
@@ -139,8 +139,6 @@ async def run_raw_monitor(
     # here through the shared classifier so a dropped bus is a clean message, not
     # a traceback. (The ELM monitor gets this via run_session_guarded; the raw
     # monitor bypasses it for its pipelined client, so guard here.)
-    from ...transport.errors import describe_transport_error, transport_error_types
-
     try:
         await mode_monitor(
             None,
@@ -156,7 +154,5 @@ async def run_raw_monitor(
         )
         return 1
     if session.timings:
-        from canair.transport.timing import print_timings
-
         print_timings(client.timings, as_json=session.as_json, profile=profile)
     return 0

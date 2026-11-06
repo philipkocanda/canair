@@ -24,6 +24,13 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
+from canair.config.devices import fallback_settings
+from canair.config.transport import reconnect_max_wait
+from canair.device.wican.firmware import check
+
+from ...transport.errors import transport_error_types
+from ...transport.fallback import wait_for_reachable
+
 if TYPE_CHECKING:
     from ...transport.config import TransportConfig
     from .controller import MonitorController
@@ -71,8 +78,6 @@ class ReconnectPolicy:
 
 def reconnect_policy(*, wait: bool = False) -> ReconnectPolicy:
     """Build a :class:`ReconnectPolicy` from ``--wait`` + user config."""
-    from canair.config.devices import fallback_settings
-    from canair.config.transport import reconnect_max_wait
 
     _, connect_timeout, _ = fallback_settings()
     return ReconnectPolicy(
@@ -89,7 +94,6 @@ def firmware_admission(cand: TransportConfig) -> str | None:
     so a re-home never lands on, say, a v6 WiCAN configured for ``wican-ws`` —
     which would otherwise loop on WebSocket 404s with no explanation.
     """
-    from canair.device.wican.firmware import check
 
     if not cand.host:
         return None
@@ -129,9 +133,6 @@ class MonitorReconnector:
         stop: StopFn | None = None,
         notice: NoticeFn | None = None,
     ) -> bool:
-        from ...transport.errors import transport_error_types
-        from ...transport.fallback import wait_for_reachable
-
         stopped: StopFn = stop or (lambda: False)
         say: NoticeFn = notice or (lambda _m: None)
 

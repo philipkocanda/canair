@@ -23,9 +23,12 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING
 
-from canair.ecus.pids import ecu_index_key
-from canair.safety.blocklist import SafetyBlocked
+from canair.ecus.pids import build_sessions_index, ecu_index_key
+from canair.safety.blocklist import SafetyBlocked, SessionPolicy
 from canair.uds.requests import session_request
+from canair.uds.subfunctions import SUBFUNCTION_NAMES
+
+from ..read.multi import build_query_plan
 
 if TYPE_CHECKING:
     from canair.ecus.pids import EcuIndexEntry
@@ -76,7 +79,6 @@ class MonitorSessions:
         The first request after idle is slow, so each backend sends this once before the
         first displayed cycle.
         """
-        from ..read.multi import build_query_plan
 
         c = self.c
         assert c._ecu_index is not None  # built by setup() before this runs
@@ -129,7 +131,6 @@ class MonitorSessions:
         so the picker, a live switch and the raw-backend setup can never disagree
         with what the transport itself would refuse.
         """
-        from canair.safety.blocklist import SessionPolicy
 
         if len(mode) != 2 or any(c not in "0123456789ABCDEFabcdef" for c in mode):
             return f"Invalid session mode {mode!r} (expected one hex byte, e.g. 03)."
@@ -149,12 +150,9 @@ class MonitorSessions:
         are offered — never a programming session, and never ``0x82`` on an ECU
         that is not known to speak KWP2000 (on UDS it is programmingSession).
         """
-        from canair.uds.subfunctions import SUBFUNCTION_NAMES
 
         names = SUBFUNCTION_NAMES.get(0x10, {})
         if self._index is None:
-            from canair.ecus.pids import build_sessions_index
-
             self._index = build_sessions_index(self.c.pids_data)
         entry = self._index.get(ecu_name.upper())
         if entry and entry.get("sessions"):
@@ -180,7 +178,6 @@ class MonitorSessions:
         would otherwise silently no-op the switch. Returns a human status
         string for the TUI's flash message.
         """
-        from canair.uds.subfunctions import SUBFUNCTION_NAMES
 
         c = self.c
         ecu = ecu_name.upper()

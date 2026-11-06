@@ -97,9 +97,13 @@ class TestReconnectPolicy:
 
     def test_wait_is_forever(self, monkeypatch):
         monkeypatch.setattr(
-            "canair.config.devices.fallback_settings", lambda: (True, 2.0, None), raising=True
+            "canair.live.monitor.reconnect.fallback_settings",
+            lambda: (True, 2.0, None),
+            raising=True,
         )
-        monkeypatch.setattr("canair.config.transport.reconnect_max_wait", lambda: 9.0, raising=True)
+        monkeypatch.setattr(
+            "canair.live.monitor.reconnect.reconnect_max_wait", lambda: 9.0, raising=True
+        )
 
         p = reconnect_policy(wait=True)
         assert p.forever is True
@@ -108,9 +112,13 @@ class TestReconnectPolicy:
 
     def test_default_is_bounded(self, monkeypatch):
         monkeypatch.setattr(
-            "canair.config.devices.fallback_settings", lambda: (True, 2.0, None), raising=True
+            "canair.live.monitor.reconnect.fallback_settings",
+            lambda: (True, 2.0, None),
+            raising=True,
         )
-        monkeypatch.setattr("canair.config.transport.reconnect_max_wait", lambda: 6.0, raising=True)
+        monkeypatch.setattr(
+            "canair.live.monitor.reconnect.reconnect_max_wait", lambda: 6.0, raising=True
+        )
 
         assert reconnect_policy(wait=False).forever is False
 

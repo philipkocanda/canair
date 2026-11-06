@@ -25,6 +25,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from ..read.exec import build_query_plan
 from .health import label_ecu
 from .select import (
     EcuChoice,
@@ -128,7 +129,6 @@ class MonitorSelectors:
 
     def _polled_pairs(self, steps: Sequence[Mapping]) -> set[tuple[str, str]]:
         """``(ECU, PID)`` for every request ``steps`` polls, raw ones included."""
-        from ..read.exec import build_query_plan
 
         out: set[tuple[str, str]] = set()
         for step in steps:

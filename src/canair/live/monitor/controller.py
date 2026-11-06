@@ -28,6 +28,13 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from canair.ecus.names import (
+    build_canonical_name_index,
+    build_name_tx_index,
+    canonical_ecu_name_safe,
+    rx_from_name,
+)
+from canair.ecus.pids import build_ecu_index, load_pids, load_pids_dir
 from canair.expression.results import EcuFrame, ResultEntry
 from canair.profile.model import Profile
 from canair.transport.session_manager import SessionManager
@@ -60,9 +67,6 @@ def query_ecu_error(query_steps: list[dict], pids_data: dict, *, profile: Profil
     non-existent ECU) that would otherwise be silently skipped every poll cycle.
     ECU names are matched case-insensitively against the active profile.
     """
-    from ...ecus.names import build_canonical_name_index, canonical_ecu_name_safe
-    from ...ecus.pids import build_ecu_index
-
     ecu_index = build_ecu_index(pids_data)
     try:
         name_index = build_canonical_name_index(profile=profile)
@@ -269,16 +273,12 @@ class MonitorController:
         picks up the just-edited expression/flags; the rebuilt ECU index makes
         the next poll decode with the new definition.
         """
-        from ...ecus.pids import build_ecu_index, load_pids, load_pids_dir
-
         self.pids_data = load_pids_dir(self.pids_dir) if self.pids_dir else load_pids(self.profile)
         self._ecu_index = build_ecu_index(self.pids_data)
         self.sessions.invalidate_index()  # rebuilt lazily on next access
 
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, open the sessions, prime each ECU and start keepalives."""
-        from canair.ecus.pids import build_ecu_index
-
         self._ecu_index = build_ecu_index(self.pids_data)
         if self.raw:
             await self.raw_poller.setup(session_steps)
@@ -415,8 +415,6 @@ class MonitorController:
         Falls back to the label's leading token when it isn't a known ECU name.
         Caches the name→TX index for repeated calls during polling.
         """
-        from ...ecus.names import build_name_tx_index, rx_from_name
-
         if self._name_index is None:
             self._name_index = build_name_tx_index(profile=self.profile)
         m = re.match(r"(\w+)", ecu_label)
