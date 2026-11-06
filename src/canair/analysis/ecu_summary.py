@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 
+from canair.captures.store import decoded_preview, load_all_captures
 from canair.captures.types import CaptureEntry
 from canair.ecus.pid_status import pid_status
 from canair.ecus.registry import rx_addr_str
@@ -50,8 +51,6 @@ def pid_stats(ecu_def: dict) -> dict:
 def captures_by_pid(ecu_name: str, *, profile: Profile) -> tuple[Counter, int]:
     """Return (per-PID capture counts, total captures) for an ECU name."""
     try:
-        from canair.captures.store import load_all_captures
-
         caps = load_all_captures(profile=profile)
     except Exception:
         return Counter(), 0
@@ -67,8 +66,6 @@ def captures_by_pid(ecu_name: str, *, profile: Profile) -> tuple[Counter, int]:
 def all_captures_by_ecu(profile: Profile) -> Counter:
     """Total capture counts keyed by canonical ECU short name (upper-cased)."""
     try:
-        from canair.captures.store import load_all_captures
-
         caps = load_all_captures(profile=profile)
     except Exception:
         return Counter()
@@ -194,8 +191,6 @@ def latest_capture_by_pid(ecu_name: str, *, profile: Profile) -> dict[str, Captu
     Returns an empty dict when captures can't be loaded.
     """
     try:
-        from canair.captures.store import load_all_captures
-
         caps = load_all_captures(profile=profile)
     except Exception:
         return {}
@@ -216,7 +211,6 @@ def pids_latest_records(ecu_def: dict | None, ecu_name: str, *, profile: Profile
     most recent capture of that PID — never raw hex. PIDs with no capture, or no
     parameters defined, are still listed (so the view shows *all* available PIDs).
     """
-    from canair.captures.store import decoded_preview
 
     latest = latest_capture_by_pid(ecu_name, profile=profile)
     out: list[dict] = []

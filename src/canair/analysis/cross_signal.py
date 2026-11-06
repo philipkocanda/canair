@@ -24,6 +24,7 @@ from canair.analysis.align import (
     detrend_by_session,
     extract_series,
     join_nearest,
+    join_nearest_triple,
     load_signal_captures,
 )
 from canair.analysis.corrmatrix import (
@@ -35,7 +36,8 @@ from canair.analysis.corrmatrix import (
 from canair.analysis.fill import FillPolicy
 from canair.analysis.physical.bands import DEFAULT_PHYSICAL_BANDS
 from canair.analysis.physical.unit_guess import DEFAULT_UNIT_CANDIDATES as _UNIT_CANDIDATES
-from canair.analysis.stats import correlation, linear_fit, pearson
+from canair.analysis.stats import correlation, linear_fit, partial_correlation, pearson
+from canair.ecus.pids import build_ecu_index, load_pids
 from canair.expression.inspect_bytes import (
     INSPECT_TYPES,
     NO_EXPR,
@@ -47,6 +49,10 @@ from canair.expression.inspect_bytes import (
     wican_expr_indices,
 )
 from canair.profile.model import Profile
+from canair.states.selectors import state_bucket_key
+from canair.states.vocabulary import load_states
+from canair.uds.byteindex import mappable_data_indices, payload_to_wican_bytes, wican_to_isotp
+from canair.uds.layout import subfunction_bytes_for_pid
 
 __all__ = [
     "PHYSICAL_BANDS",
@@ -283,8 +289,6 @@ def build_byte_series(
     (which handles the first-frame 2-byte PCI and every consecutive-frame PCI).
     """
 
-    from canair.uds.byteindex import wican_to_isotp
-
     skip_offsets = set(skip_offsets or set())
     # Each capture's WiCAN frame + timestamp is decoded ONCE by LoadedPid.decoded
     # (shared with every other pass over this PID), then every byte offset is read
@@ -319,8 +323,6 @@ def build_bit_series(
     the point-biserial coefficient (bit vs analog) or φ (bit vs bit). PCI framing
     bytes are skipped by default.
     """
-
-    from canair.uds.byteindex import wican_to_isotp
 
     rows = list(zip(loaded.timed_frames(), loaded.timed_holds(fill), strict=True))
     max_len = max((len(fr) for (_dt, fr), _h in rows), default=0)
@@ -406,9 +408,6 @@ def byte_state_buckets(
     the vehicle state); when it returns ``None`` for a capture, that capture is
     skipped. Defaults to the session vehicle-state key.
     """
-    from canair.states.selectors import state_bucket_key
-    from canair.states.vocabulary import load_states
-    from canair.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
 
     rules = load_states(profile=profile) if group_of is None else []
     key_cache: dict[tuple[str, ...], str] = {}
@@ -586,9 +585,6 @@ def hunt_byte(
     appears once the dominant driver is regressed out (and demoting bytes that
     merely track the control). The linear fit stays on the raw (ref, cand) pairs.
     """
-    from canair.analysis.align import join_nearest_triple
-    from canair.analysis.stats import partial_correlation
-    from canair.uds.byteindex import wican_to_isotp
 
     # (datetime, frame) per timed capture, decoded once by LoadedPid.decoded. A
     # non-hex payload (a stored "NO DATA", a mis-transcribed capture) is dropped
@@ -743,7 +739,6 @@ def load_ref(
     ``fill`` stamps the samples with their validity windows, so a run-length
     reference can still be joined onto instants it has no sample at.
     """
-    from canair.ecus.pids import build_ecu_index, load_pids
 
     sref = SignalRef.parse(ref_spec)
     loaded = load_signal_captures(
@@ -777,7 +772,6 @@ def ref_unit_for(ref_spec: str, *, profile: Profile) -> str | None:
     Returns None for an expression reference (no named param) or when anything
     can't be resolved — the sniffer treats None as "don't gate".
     """
-    from canair.ecus.pids import build_ecu_index, load_pids
 
     try:
         sref = SignalRef.parse(ref_spec)
@@ -865,8 +859,6 @@ def physical_scan(
     :func:`canair.analysis.physical.bands.resolve_physical_bands`); ``None`` falls back to
     the built-in :data:`PHYSICAL_BANDS` defaults.
     """
-    from canair.uds.byteindex import mappable_data_indices
-    from canair.uds.layout import subfunction_bytes_for_pid
 
     if bands is None:
         bands = PHYSICAL_BANDS

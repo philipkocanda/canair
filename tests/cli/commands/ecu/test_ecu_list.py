@@ -274,7 +274,9 @@ def test_pids_latest_records_shape(monkeypatch):
             }
         },
     )
-    monkeypatch.setattr("canair.captures.store.decoded_preview", lambda e, **__: {"SOC": "79.0 %"})
+    monkeypatch.setattr(
+        "canair.analysis.ecu_summary.decoded_preview", lambda e, **__: {"SOC": "79.0 %"}
+    )
     recs = records.pids_latest_records(_pids_data_multi(), "BMS", profile=active())
     by_pid = {r["pid"]: r for r in recs}
     assert by_pid["2101"]["values"] == {"SOC": "79.0 %"}
@@ -293,7 +295,9 @@ def test_cmd_pids_renders_values_not_hex(monkeypatch, capsys):
         "latest_capture_by_pid",
         lambda name, **__: {"2101": {"payload": "6201DEADBEEF", "date": "2026-07-22"}},
     )
-    monkeypatch.setattr("canair.captures.store.decoded_preview", lambda e, **__: {"SOC": "79.0 %"})
+    monkeypatch.setattr(
+        "canair.analysis.ecu_summary.decoded_preview", lambda e, **__: {"SOC": "79.0 %"}
+    )
     rc = pids_view.cmd_pids({"name": "BMS"}, 0x7E4, _pids_data_multi(), as_json=False)
     out = capsys.readouterr().out
     assert rc == 0

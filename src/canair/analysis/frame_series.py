@@ -16,7 +16,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from canair.analysis.align import TimePoint
+from canair.analysis.align import TimePoint, join_nearest
+from canair.analysis.cross_signal import (
+    HuntHit,
+    _rank_and_collapse,
+    correlation,
+    linear_fit,
+    sniff_unit,
+)
 from canair.captures.can_logs import detect_format, iter_frames
 from canair.expression.inspect_bytes import (
     INSPECT_TYPES,
@@ -164,15 +171,6 @@ def hunt_frame(
     :class:`~canair.analysis.cross_signal.HuntHit` with raw-CAN ``rN`` labels.
     """
     from pathlib import Path
-
-    from canair.analysis.align import join_nearest
-    from canair.analysis.cross_signal import (
-        HuntHit,
-        _rank_and_collapse,
-        correlation,
-        linear_fit,
-        sniff_unit,
-    )
 
     p = Path(path)
     resolved = detect_format(p, fmt)

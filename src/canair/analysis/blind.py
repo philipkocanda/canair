@@ -38,10 +38,12 @@ from typing import Any
 from canair.analysis.cross_signal import linear_fit
 from canair.analysis.stats import cramers_v, pearson, spearman
 from canair.captures import io as capture_io
+from canair.captures.sensitive_purge import purge_dir
 from canair.core import yaml_rt
 from canair.ecus.pids import INHERITED_PARAM_FIELDS, build_ecu_index, load_pids_dir
 from canair.expression import evaluate_expression
 from canair.expression.decode_value import decode_typed
+from canair.privacy.sensitive import profile_set
 from canair.profile.bundle import BUNDLE_MEMBERS
 from canair.profile.model import Profile, profile_for_path
 from canair.uds.byteindex import payload_to_wican_bytes
@@ -281,9 +283,6 @@ def strip_profile(src: Path, dst: Path, *, scrub_labels: bool = True) -> StripRe
 
     sandbox = Profile(dst.name, dst)
     # Before the definitions lose their signals (and so their signal-level flags).
-    from canair.captures.sensitive_purge import purge_dir
-    from canair.privacy.sensitive import profile_set
-
     purge_dir(sandbox.captures_dir, profile_set(sandbox))
     report = StripReport()
     yaml = yaml_rt.round_trip_yaml()

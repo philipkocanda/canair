@@ -30,7 +30,9 @@ from canair.captures.store import load_all_captures
 from canair.captures.types import CaptureEntry
 from canair.expression import evaluate_expression
 from canair.profile.model import Profile
+from canair.query import parse_query
 from canair.uds.byteindex import payload_to_wican_bytes as _payload_to_wican_bytes
+from canair.variants.tags import require_one_revision
 
 __all__ = [
     "DEFAULT_JOIN_TOL_S",
@@ -321,8 +323,6 @@ def discover_signal_specs(
 
     q = None
     if query:
-        from canair.query import parse_query
-
         q = parse_query(query)
 
     specs: set[tuple[str, str]] = set()
@@ -374,8 +374,6 @@ def load_signal_captures(
     entries = filter_by_date_range(entries, since, until)
     entries = filter_by_text(entries, state=state, label=label, profile=profile)
     if one_revision:
-        from canair.variants.tags import require_one_revision
-
         require_one_revision(entries, {e for e, _ in wanted}, one_revision)
     session_ends = session_end_times(entries)
 

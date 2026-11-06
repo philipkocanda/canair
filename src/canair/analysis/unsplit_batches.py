@@ -28,6 +28,7 @@ from canair.captures import merge as captures_merge
 from canair.captures.keepmode import KEEP_CHANGES, KEEP_UNIQUE
 from canair.captures.payload_corpus import Locator, PayloadSample, load_payload_corpus
 from canair.captures.types import CaptureRecord, CaptureSession
+from canair.ecus.registry import parse_ecu_ref
 from canair.uds.multi_did import POSITIVE_READ_SID, is_fill, is_padding, split_chain
 
 # A DID's data length is "established" only once it is seen often and almost exclusively, so
@@ -201,7 +202,6 @@ def _per_did_rows(cap: CaptureRecord, parts: tuple[tuple[str, bytes], ...]) -> l
 
 def _dedup_key(cap: CaptureRecord) -> tuple[int, str, str] | None:
     """``(rx, PID, payload)`` as the recording dedup compares rows, or ``None`` for no payload."""
-    from canair.ecus.registry import parse_ecu_ref
 
     rx = parse_ecu_ref(capture_io.capture_rx(cap) or None)
     pid, payload = cap.get("pid"), cap.get("payload")
