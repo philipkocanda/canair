@@ -323,6 +323,7 @@ def _patch_load_ecus(monkeypatch, fake) -> None:
     """Replace the registry for every module that bound ``load_ecus`` for itself."""
     for module in ("registry", "names", "protocol"):
         monkeypatch.setattr(f"canair.ecus.{module}.load_ecus", fake)
+    monkeypatch.setattr("canair.live.dtc.sweep.load_ecus", fake)
 
 
 class TestScanAll:

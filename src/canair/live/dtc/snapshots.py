@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from canair.ecus.names import ecu_name
+from canair.ecus.pids import build_ecu_index
 from canair.profile.model import Profile
 from canair.uds.protocol import UDS
 from canair.uds.response import UdsResponse
@@ -51,8 +53,6 @@ def ecu_pids(
     pids_data: Mapping[str, Any] | None, tx_id: int, *, profile: Profile
 ) -> tuple[str, Mapping[str, Any]]:
     """The ECU's name and its ``pids`` index, for lengths and decoding (empty without a profile)."""
-    from canair.ecus.names import ecu_name
-    from canair.ecus.pids import build_ecu_index
 
     name = ecu_name(tx_id, profile=profile)
     if not pids_data:

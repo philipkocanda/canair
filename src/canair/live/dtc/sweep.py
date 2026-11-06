@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import json
 
+from canair.core.skip_key import skip_listener
 from canair.profile.model import Profile
 from canair.render import ansi
+from canair.uds.nrc import nrc_abbrev
 from canair.uds.services import DEFAULT_SESSION_REQUEST
 
 from ...dtc.snapshot_report import snapshot_lines, undefined_hints
 from ...ecus.names import ecu_display
+from ...ecus.registry import load_ecus
 from ...transport.protocol import Terminal
 from .reading import _read_one
 from .scan_log import _log_scan, _print_log_result
@@ -24,8 +27,6 @@ def _scan_status(res: dict) -> str:
         base = f"{n} DTC(s)" if n else "clean"
         return f"{base} (via {res['command']})" if res.get("note") else base
     if "nrc" in res:
-        from canair.uds.nrc import nrc_abbrev
-
         return f"NRC {res['nrc']} {nrc_abbrev(int(res['nrc'], 16), res.get('protocol'))}"
     err = res.get("error", "error")
     return "no response" if ("NO DATA" in err or "No response" in err) else err
@@ -97,7 +98,6 @@ async def mode_dtc_scan_all(
     read last, once every ECU's codes are in, so a slow snapshot read never delays them.
     On a TTY a keypress skips the rest of that step (:func:`_snapshot_step`).
     """
-    from ...ecus.registry import load_ecus
 
     registry = load_ecus(profile=profile)
     tx_ids = sorted(registry)
@@ -240,7 +240,6 @@ async def _snapshot_step(
     profile: Profile,
 ) -> SnapshotRun:
     """Read the snapshots of every code the sweep found, skippable with a keypress on a TTY."""
-    from canair.core.skip_key import skip_listener
 
     pending = [r for r in results if wants_snapshots(r)]
     codes = sum(len(r["dtcs"]) for r in pending)

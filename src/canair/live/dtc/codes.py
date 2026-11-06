@@ -9,6 +9,8 @@ from __future__ import annotations
 from canair.profile.model import Profile
 from canair.uds.protocol import KWP, UDS
 
+from ...ecus.protocol import ecu_protocol
+
 # SAE J2012 DTC category letters, selected by the top two bits of the first byte.
 _DTC_LETTERS = ("P", "C", "B", "U")
 
@@ -86,6 +88,5 @@ def resolve_protocol(protocol: str, tx_id: int, *, profile: Profile) -> str:
     """Resolve ``auto`` to ``uds``/``kwp`` from the ECU's id_protocol registry."""
     if protocol in (UDS, KWP):
         return protocol
-    from ...ecus.protocol import ecu_protocol
 
     return KWP if ecu_protocol(tx_id, profile=profile) == KWP else UDS

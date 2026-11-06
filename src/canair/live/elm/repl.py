@@ -20,6 +20,8 @@ from canair.uds.services import (
 )
 from canair.uds.wican_layout import uds_hex_to_wican_bytes
 
+from ..identity.read import mode_identity
+
 # Positive replies whose identifier is one byte, so the PID is the request SID plus it.
 _ONE_BYTE_ID_REPLIES = frozenset(
     positive_response_sid(sid)
@@ -38,7 +40,6 @@ async def mode_interactive(
     # Lazy imports to avoid circular dependencies for modes that reference each other
     import asyncio
 
-    from ..identity.read import mode_identity
     from .skm_wakeup import mode_skm_wakeup
     from .tester import mode_tester_present
 

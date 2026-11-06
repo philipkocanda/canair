@@ -193,7 +193,7 @@ class TestPerEcuMeaning:
         from canair.dtc.refs import EcuRefs
         from canair.live.dtc import reading as dtc
 
-        monkeypatch.setattr("canair.ecus.names.ecu_name", lambda tx, **__: {0x7D4: "EPS"}[tx])
+        monkeypatch.setattr("canair.live.dtc.reading.ecu_name", lambda tx, **__: {0x7D4: "EPS"}[tx])
         refs = EcuRefs(tx_by_rx={0x7DC: 0x7D4}, names={0x7DC: "EPS"})
         monkeypatch.setattr(EcuRefs, "current", classmethod(lambda cls, *_, **__: refs))
         rec = {"dtc": "C1616-00", "raw": "561600", "status": 0x09, "status_bits": []}

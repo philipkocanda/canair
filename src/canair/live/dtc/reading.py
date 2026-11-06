@@ -9,7 +9,7 @@ from canair.uds.nrc import NRC_REQUEST_OUT_OF_RANGE
 from canair.uds.protocol import KWP, UDS
 from canair.uds.services import KWP_READ_DTC_BY_STATUS, READ_DTC_INFORMATION
 
-from ...ecus.names import ecu_display
+from ...ecus.names import ecu_display, ecu_name
 from ...transport.protocol import Terminal
 from .codes import decode_dtc_records, decode_kwp_dtc_records, resolve_protocol
 
@@ -177,7 +177,6 @@ def _jsonable(records: list[dict], tx_id: int, *, profile: Profile) -> list[dict
     """Render internal records (int status) into the JSON/print-friendly shape,
     annotated with each code's interpretation on the ECU ``tx_id`` that reported it."""
     from canair.dtc.describe import describe_dtc
-    from canair.ecus.names import ecu_name
 
     ecu = ecu_name(tx_id, profile=profile)
     return [

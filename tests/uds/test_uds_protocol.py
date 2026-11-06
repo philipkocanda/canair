@@ -55,13 +55,13 @@ def test_dtc_and_identity_resolve_through_the_registry(monkeypatch):
     from canair.live.dtc import codes
     from canair.live.identity import decode as identity_decode
 
-    monkeypatch.setattr("canair.ecus.protocol.ecu_protocol", lambda tx, **__: UNKNOWN)
+    monkeypatch.setattr(codes, "ecu_protocol", lambda tx, **__: UNKNOWN)
     monkeypatch.setattr(identity_decode, "ecu_protocol", lambda tx, **__: UNKNOWN)
     # An unknown ECU reads DTCs over UDS (the historical default) but probes identity.
     assert codes.resolve_protocol("auto", 0x7E0, profile=active()) == UDS
     assert identity_decode.resolve_protocol_hint(0x7E0, "auto", profile=active()) is None
 
-    monkeypatch.setattr("canair.ecus.protocol.ecu_protocol", lambda tx, **__: KWP)
+    monkeypatch.setattr(codes, "ecu_protocol", lambda tx, **__: KWP)
     monkeypatch.setattr(identity_decode, "ecu_protocol", lambda tx, **__: KWP)
     assert codes.resolve_protocol("auto", 0x7E0, profile=active()) == KWP
     assert identity_decode.resolve_protocol_hint(0x7E0, "auto", profile=active()) == KWP

@@ -14,7 +14,9 @@ from typing import Any
 
 from canair.captures.build import build_query_session
 from canair.captures.save import save_session_journaled
+from canair.ecus.registry import rx_addr_str
 from canair.profile.model import Profile
+from canair.transport.stats import client_transport
 
 SESSION_NOTE = (
     "DTC snapshot replies (19 04), stored under their request. Each time is when the reply "
@@ -26,7 +28,6 @@ def snapshot_rows(
     results: Iterable[Mapping[str, Any]], *, profile: Profile
 ) -> list[tuple[str, str, str, str]]:
     """``(rx, request, payload, time)`` for every snapshot reply in ``results``."""
-    from canair.ecus.registry import rx_addr_str
 
     rows = []
     for result in results:
@@ -68,8 +69,6 @@ def report_saved(
 ) -> None:
     """Save the snapshot replies in ``results`` and say where they landed (on stderr)."""
     import sys
-
-    from canair.transport.stats import client_transport
 
     path = save_snapshot_captures(
         results,

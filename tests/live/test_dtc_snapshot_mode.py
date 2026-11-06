@@ -45,9 +45,11 @@ PIDS_DATA = {
 
 @pytest.fixture(autouse=True)
 def _ccm_name(monkeypatch):
-    monkeypatch.setattr(
-        "canair.ecus.names.ecu_name", lambda tx, *a, **k: {CCM: "CCM"}.get(tx, f"X{tx:03X}")
-    )
+    def fake(tx, *a, **k):
+        return {CCM: "CCM"}.get(tx, f"X{tx:03X}")
+
+    monkeypatch.setattr("canair.live.dtc.reading.ecu_name", fake)
+    monkeypatch.setattr("canair.live.dtc.snapshots.ecu_name", fake)
 
 
 class TestRead:
@@ -155,7 +157,7 @@ class _Pressed:
 class TestSweep:
     def _registry(self, monkeypatch, tx_ids):
         monkeypatch.setattr(
-            "canair.ecus.registry.load_ecus", lambda *_, **__: {tx: {} for tx in tx_ids}
+            "canair.live.dtc.sweep.load_ecus", lambda *_, **__: {tx: {} for tx in tx_ids}
         )
         monkeypatch.setattr(
             "canair.live.dtc.reading.resolve_protocol", lambda proto, tx, **__: "uds"
@@ -196,7 +198,7 @@ class TestSweep:
         def pressed(enabled=True):
             yield _Pressed()
 
-        monkeypatch.setattr("canair.core.skip_key.skip_listener", pressed)
+        monkeypatch.setattr("canair.live.dtc.sweep.skip_listener", pressed)
         t = FakeTerminal(CCM_REPLIES)
         await dtc.mode_dtc_scan_all(t, retry=False, pids_data=PIDS_DATA, profile=active())
         assert "1904582C0001" not in t.sent
