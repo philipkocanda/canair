@@ -134,3 +134,8 @@ pkg` aliases, `import canair.pkg` and the dotted strings).
   logs a call made while the definition's module is patched. It found the `load_ecus` patches
   of `tests/dtc/test_dtc.py` and the `load_config` patches of
   `tests/transport/test_transport_config.py`; both now patch every module.
+- **`states/`** (done): `tokens.py`, `predicates.py`, `implies.py`, `vocabulary.py`, `suggest.py`,
+  `selectors.py`. 987 lines to 44. The check passes for 49 definitions. `tokens.py` is new:
+  `load_states` needs `implies`, and `implies` needs `parse_states`, so `parse_states` cannot sit
+  in `vocabulary`. The check also covers the comment blocks and the `TYPE_CHECKING` import. Seven
+  command, validation and monitor modules import `states.*` at the top: 1101 to 1099.
