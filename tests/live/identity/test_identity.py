@@ -185,7 +185,9 @@ class TestSilentEcu:
 
     @pytest.mark.asyncio
     async def test_it_never_stops_once_a_record_drew_an_nrc(self, monkeypatch):
-        term = FakeTerminal({"22F188": nrc(0x31)})
+        # Two silent reads, then an NRC on the third: the ECU is awake.
+        third = ident.UDS_IDENTITY_DIDS[2][0]
+        term = FakeTerminal({"22" + third: nrc(0x31)})
         await _identity(term, monkeypatch=monkeypatch)
         assert len(term.sent) == len(ident.UDS_IDENTITY_DIDS)
 
@@ -215,6 +217,7 @@ class TestRefusalHints:
         )
         captured = capsys.readouterr()
         assert term.sent == ["22F190", "1A90"]
+        assert captured.err.count("hint:") == 1
         summary = json.loads(captured.out)["summary"]
         assert summary["not_asked"] == len(ident.UDS_IDENTITY_DIDS)
         assert "try --session" in captured.err

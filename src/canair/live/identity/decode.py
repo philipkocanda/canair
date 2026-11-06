@@ -18,9 +18,11 @@ from canair.profile.model import Profile
 from canair.uds.nrc import (
     KWP_NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_DIAGNOSTIC_SESSION,
     NOT_IN_ACTIVE_SESSION_NRCS,
+    NRC_REQUEST_OUT_OF_RANGE,
     NRC_SECURITY_ACCESS_DENIED,
     NRC_SERVICE_NOT_SUPPORTED,
     NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION,
+    NRC_SUB_FUNCTION_NOT_SUPPORTED,
     NRC_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION,
 )
 from canair.uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol
@@ -45,11 +47,16 @@ _SERVICE_REFUSALS = frozenset({NRC_SERVICE_NOT_SUPPORTED, *NOT_IN_ACTIVE_SESSION
 SESSION_NRCS = frozenset(
     {*NOT_IN_ACTIVE_SESSION_NRCS, NRC_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION}
 )
-# 0x7E and 0x7F exist only in UDS (ISO 14229-1). 0x80 is KWP2000's spelling; UDS does not define it.
+# 0x7E and 0x7F exist only in UDS (ISO 14229-1). 0x80 is the KWP2000 code, which UDS does not
+# define.
 _UDS_SESSION_NRCS = frozenset(
     {NRC_SUB_FUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION, NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION}
 )
 _KWP_SESSION_NRC = KWP_NRC_SERVICE_NOT_SUPPORTED_IN_ACTIVE_DIAGNOSTIC_SESSION
+# The record does not exist on this ECU, or the service does not.
+_ABSENT_NRCS = frozenset(
+    {NRC_REQUEST_OUT_OF_RANGE, NRC_SUB_FUNCTION_NOT_SUPPORTED, NRC_SERVICE_NOT_SUPPORTED}
+)
 
 
 def decode_identity_payload(payload_bytes: bytes, fmt: str) -> str:
@@ -158,12 +165,17 @@ def decide_protocol(
         if uds_in_session:
             return UDS, f"UDS service 22 exists but is refused in this session (0x{uds_nrc:02X})"
         return KWP, f"KWP2000 service 1A exists but is refused in this session (0x{kwp_nrc:02X})"
-    if uds in ("refused", "session") and kwp in ("refused", "session"):
-        return None, (
-            "neither UDS 22 nor KWP2000 1A supported (NRC 0x11, or 0x7F/0x80 "
-            "refused in the active session)"
-        )
-    return None, "no response to probe (22F190 / 1A90) — ECU may be asleep or unpowered"
+    if uds == kwp == "silent":
+        return None, "no response to probe (22F190 / 1A90) — ECU may be asleep or unpowered"
+    return None, (
+        f"neither UDS 22 nor KWP2000 1A supported (22F190 {_described(uds, uds_nrc)}, "
+        f"1A90 {_described(kwp, kwp_nrc)})"
+    )
+
+
+def _described(state: ProbeState, nrc: int | None) -> str:
+    """A probe reply for a reason: its state, and the NRC that drew it."""
+    return state if nrc is None else f"{state} 0x{nrc:02X}"
 
 
 def refusal_hint(
@@ -194,7 +206,7 @@ def refusal_hint(
         return text
     if codes.get(NRC_SECURITY_ACCESS_DENIED, 0) * 2 > total:
         return "these records need security access, which canair does not unlock"
-    absent = sum(codes.get(code, 0) for code in (0x31, 0x12, 0x11))
+    absent = sum(n for code, n in codes.items() if code in _ABSENT_NRCS)
     if absent * 2 > total:
         return "this ECU answers none of the standard identity records"
     return None

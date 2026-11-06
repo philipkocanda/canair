@@ -1,4 +1,5 @@
-"""The identity probe proves an ECU's protocol only when one service answers and the other refuses."""
+"""The identity probe proves an ECU's protocol only when one service answers and the other
+refuses."""
 
 from __future__ import annotations
 
@@ -165,6 +166,20 @@ async def test_1a_refused_in_session_and_22_refused_is_kwp_without_a_finding(mon
     assert probe.protocol == "kwp"
     assert "refused in this session (0x80)" in probe.reason
     assert await _identity(term) is None
+
+
+@pytest.mark.parametrize(
+    ("uds", "kwp", "uds_nrc", "kwp_nrc", "named"),
+    [
+        ("refused", "silent", 0x11, None, "22F190 refused 0x11, 1A90 silent"),
+        ("session", "refused", 0x80, 0x11, "22F190 session 0x80, 1A90 refused 0x11"),
+    ],
+)
+def test_an_undecided_reason_names_both_replies(uds, kwp, uds_nrc, kwp_nrc, named):
+    protocol, reason = decide_protocol(uds, kwp, uds_nrc, kwp_nrc)
+    assert protocol is None
+    assert named in reason
+    assert "asleep" not in reason
 
 
 @pytest.mark.asyncio

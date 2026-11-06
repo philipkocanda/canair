@@ -314,7 +314,8 @@ Three faults of the phase 0c reading, from `plans/2026-11-06-identity-probe-hand
 - A refusal for this session names its protocol. `0x7E`/`0x7F` exist only in UDS and `0x80` only
   in KWP2000, so `live/identity/decode.py::decide_protocol` takes the two probe NRCs
   (`ProbeResult.uds_nrc`, `kwp_nrc`) and reads `22 F190` refused with `0x7F` as UDS, and
-  `1A 90` refused with `0x80` as KWP2000. When both probes say so, it decides nothing. The proof
+  `1A 90` refused with `0x80` as KWP2000. When both probes say so, it decides nothing, and the
+  reason names both replies; only two silent probes read as "asleep". The proof
   rule is unchanged: a `ProtocolFinding` still needs `0x11` from the other service. With no
   `--session`, a probe refused for the session skips the record loop, because the records draw
   the same NRC. `--json` `probe` carries `uds_nrc` and `kwp_nrc`.

@@ -13,6 +13,10 @@ back on one protocol while the other's service was refused *proves* the protocol
 operation returns that :class:`ProtocolFinding`, so the command can offer to record it in
 the profile (``identity.id_protocol``), which the routine and IOControl paths read to tell
 UDS from KWP2000.
+
+An ECU that has not answered :data:`SILENT_READS_BEFORE_STOP` reads in a row is not asked
+the rest of the table, and the NRCs the records draw pick the hint
+(:func:`.decode.refusal_hint`).
 """
 
 import json
@@ -57,7 +61,8 @@ SILENT_READS_BEFORE_STOP = 3
 
 @dataclass(frozen=True)
 class ProbeResult:
-    """What the two protocol probes said: the protocol they point to, why, and each reply."""
+    """What the two protocol probes said: the protocol they point to, why, and each reply with
+    the NRC that drew it."""
 
     protocol: DiagProtocol | None
     reason: str
@@ -193,7 +198,7 @@ async def mode_identity(
                 )
             else:
                 print(f"  No identity data: {msg}.")
-            if "asleep" in msg:
+            if probe is not None and probe.uds == probe.kwp == "silent":
                 messages.hint("try --session/--wake, or power the ECU (ACC/ignition on)")
             if probe is not None and not session and {probe.uds_nrc, probe.kwp_nrc} & SESSION_NRCS:
                 messages.hint("a probe was refused in this session: try --session")
@@ -278,7 +283,7 @@ async def mode_identity(
         else:
             if n_ok == 0:
                 if skip_reads:
-                    print(f"  Not read: {probe_reason}.")
+                    print("  Records not read: the probe was refused in this session.")
                 elif n_nodata and not n_nrc:
                     print("  No response — ECU may be asleep or unpowered.")
                 else:
