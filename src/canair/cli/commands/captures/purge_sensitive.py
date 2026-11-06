@@ -9,6 +9,7 @@ from pathlib import Path
 
 from canair.captures import io as capture_io
 from canair.captures import layers
+from canair.captures.sensitive_purge import purge_dir
 from canair.cli.profile_context import dir_profile
 from canair.core.prompt import confirm
 from canair.privacy.sensitive import set_for_captures
@@ -20,8 +21,6 @@ from .echo import echo_write
 def cmd_purge_sensitive(
     captures_dir: Path | None, *, dry_run: bool = False, yes: bool = False, as_json: bool = False
 ) -> int:
-    from canair.captures.sensitive_purge import purge_dir
-
     cdir = capture_io.resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
     if not cdir.is_dir():
         messages.error(f"no such captures directory: {cdir}")

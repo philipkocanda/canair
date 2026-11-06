@@ -39,6 +39,7 @@ from canair.states.predicates import StatePredicateError
 from canair.states.tokens import join_states, parse_states
 from canair.states.vocabulary import load_states
 
+from .backfill_spans_render import print_span_report
 from .echo import echo_write
 
 if TYPE_CHECKING:
@@ -92,8 +93,6 @@ def cmd_backfill_state_spans(
 ) -> int:
     """Reconstruct and write per-session state_spans over the scoped entries."""
     import json as _json
-
-    from .backfill_spans_render import print_span_report
 
     try:
         rules = load_states(profile=active())

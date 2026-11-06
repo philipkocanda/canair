@@ -22,6 +22,7 @@ import sys
 from typing import TypedDict
 
 from canair.cli.profile_context import active
+from canair.ecus.can_buses import ALL_CODE, expand_bus_membership, load_can_buses
 from canair.ecus.registry import load_ecus
 from canair.render import ansi
 
@@ -73,8 +74,6 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 def run(args) -> int:
     from collections import Counter
-
-    from canair.ecus.can_buses import ALL_CODE, expand_bus_membership, load_can_buses
 
     prof = active()
     buses = load_can_buses(prof)

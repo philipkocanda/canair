@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from canair.contribute import logs as L
+from canair.contribute import summary as S
 from canair.contribute.git import commit_profile, push_branch
 from canair.contribute.github import (
     create_pr,
@@ -24,8 +26,6 @@ from .tidy import tidy_source
 
 def pr_body(run_: Contribution) -> str:
     """The PR body: ``--body`` as given, else the generated summary (+ logs)."""
-    from canair.contribute import logs as L
-    from canair.contribute import summary as S
 
     if run_.args.body:
         return run_.args.body

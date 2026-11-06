@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 from canair.analysis.align import (
     SignalRef,
+    TimePoint,
     extract_series,
     join_indices,
     load_signal_captures,
@@ -34,7 +35,6 @@ from canair.expression.inspect_bytes import apply_transform
 from canair.uds.byteindex import payload_to_wican_bytes
 
 if TYPE_CHECKING:
-    from canair.analysis.align import TimePoint
     from canair.analysis.fill import FillPolicy
 
 
@@ -89,8 +89,6 @@ def _local_series(all_results: list[dict], name: str) -> list:
     Used to time-align local params against a cross-signal reference on a
     different ECU/PID. Captures with no usable ``datetime`` are dropped.
     """
-    from canair.analysis.align import TimePoint
-
     out = []
     for r in all_results:
         v = r["decoded"].get(name, {}).get("value")
@@ -225,7 +223,5 @@ def find_mirrors(
 
 def _transform_series(series: list[TimePoint], mode: str) -> list[TimePoint]:
     """Apply a POST_TRANSFORMS mode to a TimePoint series (preserving times)."""
-    from canair.analysis.align import TimePoint
-
     vals = apply_transform([tp.value for tp in series], mode)
     return [TimePoint(tp.dt, v) for tp, v in zip(series, vals, strict=True)]

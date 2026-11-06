@@ -446,8 +446,8 @@ class TestCommands:
     def test_config_reports_dtc_logs(self, tmp_path, monkeypatch):
         from canair.cli.commands.config.show import dtc_log_stats as _dtc_log_stats
 
-        monkeypatch.setattr(dtc_log, "log_dir", lambda: tmp_path)
-        monkeypatch.setattr("canair.dtc.log_upgrade.migrate_all", lambda: None)
+        monkeypatch.setattr("canair.cli.commands.config.show.log_dir", lambda: tmp_path)
+        monkeypatch.setattr("canair.cli.commands.config.show.migrate_all", lambda: None)
         _write(tmp_path / "other.yaml", _scan("all", {"0x708": _codes("B1")}))
         stats = _dtc_log_stats(None)
         assert stats["dir"] == str(tmp_path)

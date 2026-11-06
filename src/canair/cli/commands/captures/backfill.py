@@ -34,6 +34,7 @@ from canair.states.predicates import StatePredicateError
 from canair.states.tokens import join_states, parse_states
 from canair.states.vocabulary import load_states, order_states
 
+from .backfill_render import print_report
 from .echo import echo_write
 
 if TYPE_CHECKING:
@@ -91,8 +92,6 @@ def cmd_backfill_states(
 ) -> int:
     """Infer and back-fill session vehicle_states over the scope-filtered entries."""
     import json as _json
-
-    from .backfill_render import print_report
 
     try:
         rules = load_states(profile=active())

@@ -6,6 +6,7 @@ import sys
 from datetime import datetime
 from typing import Any
 
+from canair.contribute import source as src
 from canair.contribute.workspace import backup_dir
 from canair.core.prompt import confirm
 from canair.render import glyphs
@@ -23,7 +24,6 @@ def tidy_source(run_: Contribution) -> dict[str, Any] | None:
     the rest are listed and left alone. Asked interactively, kept under ``--yes`` or
     ``--json`` unless ``--discard-local`` says otherwise.
     """
-    from canair.contribute import source as src
 
     rep = run_.rep
     changes = src.find_changes(run_.pre, run_.profile.root, run_.profile.name, run_.workspace)

@@ -9,8 +9,10 @@ families, not here.
 
 from __future__ import annotations
 
+from canair.actions import ActionError
 from canair.cli.profile_context import active
 from canair.core.prompt import confirm
+from canair.live.actuate.action import mode_action
 from canair.live.actuate.iocontrol import mode_iocontrol_tui
 from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 from canair.live.actuate.routines import mode_routines_tui
@@ -83,8 +85,6 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
 
 async def handle_action(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
     """``canair action run NAME``: a guarded, profile-defined action (live/actuate/action)."""
-    from canair.actions import ActionError
-    from canair.live.actuate.action import mode_action
 
     try:
         await mode_action(

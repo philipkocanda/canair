@@ -13,10 +13,13 @@ from canair.cli.profile_context import active
 from canair.core.prompt import confirm
 from canair.ecus.names import resolve_tx
 from canair.ecus.protocol import split_ecus_by_protocol
+from canair.live.discover.functional import DEFAULT_REQUEST, mode_discover_functional
 from canair.live.discover.physical import DEFAULT_TESTER_ADDRESS, mode_discover
+from canair.live.scan import kwp_iocontrol, kwp_routines
 from canair.live.scan.iocontrol import mode_iocontrol_scan
 from canair.live.scan.range import mode_scan
 from canair.live.scan.routines import mode_routines_scan
+from canair.live.scan.sessions import mode_sessions_scan
 from canair.render import messages
 from canair.transport.functional import DEFAULT_WINDOW_S
 from canair.transport.protocol import Terminal
@@ -60,12 +63,6 @@ async def handle_scan(args, terminal: Terminal, pids_data, host, *, reconnect=No
 async def handle_routines_scan(
     args, terminal: Terminal, pids_data, host, *, reconnect=None
 ) -> None:
-    from canair.live.scan.kwp_routines import (
-        UNPROVEN_WARNING,
-        mode_kwp_routines_scan,
-        needs_confirmation,
-    )
-
     rid_range = parse_range(args.rid_range)
 
     # Auto-select by id_protocol. UDS ECUs use RoutineControl (0x31 SF03,
@@ -81,8 +78,8 @@ async def handle_routines_scan(
     # Asked before anything is sent, like a DTC clear. With no terminal a script must pass
     # --yes explicitly.
     confirmed = bool(getattr(args, "yes", False))
-    if kwp_ecus and needs_confirmation(pids_data) and not confirmed:
-        messages.warning(UNPROVEN_WARNING)
+    if kwp_ecus and kwp_routines.needs_confirmation(pids_data) and not confirmed:
+        messages.warning(kwp_routines.UNPROVEN_WARNING)
         if not confirm(f"Sweep {', '.join(kwp_ecus)} with 0x33 anyway?", danger=True):
             raise SystemExit(1)
         confirmed = True
@@ -105,7 +102,7 @@ async def handle_routines_scan(
         # For KWP2000 ECUs the id is an 8-bit LID; only pass an explicit range
         # if the user gave one that fits a single byte, else use the 00-FF default.
         lid_range = rid_range if rid_range[1] <= 0xFF else None
-        await mode_kwp_routines_scan(
+        await kwp_routines.mode_kwp_routines_scan(
             terminal,
             pids_data,
             ecus=kwp_ecus,
@@ -124,12 +121,6 @@ async def handle_routines_scan(
 async def handle_iocontrol_scan(
     args, terminal: Terminal, pids_data, host, *, reconnect=None
 ) -> None:
-    from canair.live.scan.kwp_iocontrol import (
-        UNPROVEN_WARNING,
-        mode_kwp_iocontrol_scan,
-        needs_confirmation,
-    )
-
     did_range = parse_range(args.did_range) if args.did_range else None
 
     # Auto-select the service by the ECU's identity protocol: KWP2000 ECUs
@@ -145,8 +136,8 @@ async def handle_iocontrol_scan(
     # Asked before anything is sent, like the routine scan. With no terminal a script must
     # pass --yes.
     confirmed = bool(getattr(args, "yes", False))
-    if kwp_ecus and needs_confirmation(pids_data) and not confirmed:
-        messages.warning(UNPROVEN_WARNING)
+    if kwp_ecus and kwp_iocontrol.needs_confirmation(pids_data) and not confirmed:
+        messages.warning(kwp_iocontrol.UNPROVEN_WARNING)
         if not confirm(f"Sweep {', '.join(kwp_ecus)} with 30 {{LID}} 00 anyway?", danger=True):
             raise SystemExit(1)
         confirmed = True
@@ -166,7 +157,7 @@ async def handle_iocontrol_scan(
             profile=active(),
         )
     if kwp_ecus:
-        await mode_kwp_iocontrol_scan(
+        await kwp_iocontrol.mode_kwp_iocontrol_scan(
             terminal,
             pids_data,
             ecus=kwp_ecus,
@@ -185,8 +176,6 @@ async def handle_iocontrol_scan(
 async def handle_sessions_scan(
     args, terminal: Terminal, pids_data, host, *, reconnect=None
 ) -> None:
-    from canair.live.scan.sessions import mode_sessions_scan
-
     modes = None
     if getattr(args, "modes", None):
         modes = tuple(int(tok, 16) for tok in str(args.modes).replace(" ", "").split(",") if tok)
@@ -204,8 +193,6 @@ async def handle_sessions_scan(
 
 async def handle_discover(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
     if getattr(args, "functional", False):
-        from canair.live.discover.functional import DEFAULT_REQUEST, mode_discover_functional
-
         # Set only by the discover parser, whose --request/--window default to None
         # (meaning the defaults here) and whose functional_args_error has already
         # refused a non-positive --window, so a None test cannot hide a zero.

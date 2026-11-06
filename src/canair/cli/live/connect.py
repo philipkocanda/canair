@@ -11,7 +11,9 @@ import contextlib
 import sys
 
 from canair.config import transport as config_transport
+from canair.device.wican.api import get_config, get_status
 from canair.ecus.response_frames import seed_counts, variable_length_keys
+from canair.live.monitor.reconnect import MonitorReconnector, reconnect_policy
 from canair.render.console import console, escape
 from canair.render.glyphs import ELLIPSIS, WARN
 from canair.safety.blocklist import SessionPolicy
@@ -20,6 +22,7 @@ from canair.transport.config import ConnectionOptions, TransportConfig
 from canair.transport.elm327.addressing import flow_control_data
 from canair.transport.elm327.wican import WiCANTerminal
 from canair.transport.protocol import Terminal
+from canair.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
 from canair.uds.addressing import AddressBook
 
 
@@ -31,8 +34,6 @@ def _print_sleep_banner(host: str, timeout: int = 5) -> None:
     the banner rather than ending the session.
     """
     try:
-        from canair.device.wican.api import get_config, get_status
-
         base_url = f"http://{host}"
         status = get_status(base_url, timeout)
         config = get_config(base_url, timeout)
@@ -82,7 +83,6 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
     reconnect. Raises a transport error on failure (closing the partially-opened
     terminal first); the caller classifies it.
     """
-    from canair.transport.timeouts import cli_timeout, ecu_timeouts_by_tx
 
     init_string = pids_data.get("init")
     assert init_string, "profile init string must be validated by the caller"
@@ -171,7 +171,6 @@ def build_elm_reconnector(candidates, pids_data: dict, conn: ConnectionOptions):
     per-candidate connect step, so a mid-session drop reconnects exactly the way the initial
     connect did.
     """
-    from canair.live.monitor.reconnect import MonitorReconnector, reconnect_policy
 
     elm_candidates = [c for c in candidates if c.is_elm]
 

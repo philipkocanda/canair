@@ -278,3 +278,12 @@ because the tree moved since `0ce4f742`. Building the parser loads 539 of 658 mo
   moved from `ecus/pids.py` to `ecus/names.py`, so `pids` no longer imports `names` and
   `registry` imports `pids` at the top. Start-up (40 alternating runs): 231.4 ms before,
   234.5 ms after.
+- Group h1 (`cli/__init__`, `profile_context`, `cli/args`, `cli/live`, `cli/commands` `_edit`,
+  `_hints`, `_promote` and the `a` to `d` commands): 213 function-level imports of canair
+  modules before, 3 after, all three `heavy` (Textual, ~40 ms) with a `# deferred:` comment. 154
+  were `loaded`, the rest `other`. The `other` imports pull 46 more modules into the parser build
+  (`live.dtc`, `dtc.*`, `migrations.*`, `contribute.*`, `actions`); together they cost about 11 ms
+  of import time, none above 1 ms, and `python -m canair --help` goes from a median of 225 ms to
+  237 ms (30 alternating runs). The `captures/__init__.py` "cycle" went away: its own submodules
+  now import at the top, after `.query`. Real cycle seen outside the group: `dtc/log.py` and
+  `dtc/log_upgrade.py` import each other (now reported as `cycle`).

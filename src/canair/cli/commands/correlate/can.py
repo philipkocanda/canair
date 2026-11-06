@@ -10,6 +10,7 @@ from __future__ import annotations
 import json as _json
 import sys
 
+from canair.analysis import frame_series as frame_series
 from canair.analysis.align import (
     join_prepared,
     prepare_series,
@@ -19,6 +20,7 @@ from canair.analysis.cross_signal import (
     correlate_matrix,
     correlation,
 )
+from canair.captures.can_logs import CanLogError
 from canair.render import ansi, messages
 
 from .promote import _warn_thin_reference_join
@@ -41,9 +43,6 @@ def _run_can_log(args) -> int:
     cross-ID relationships surface first.
     """
     from pathlib import Path
-
-    from canair.analysis import frame_series as frame_series
-    from canair.captures.can_logs import CanLogError
 
     path = Path(args.file)
     if not path.is_file():

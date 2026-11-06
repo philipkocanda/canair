@@ -8,6 +8,7 @@ mini-language parser ever sees them, so a group composes with ad-hoc selectors.
 from __future__ import annotations
 
 from canair.cli.profile_context import active
+from canair.ecus.ecu_groups import expand_group_refs, load_groups
 from canair.query.steps import merged_selector_notes
 from canair.render import messages
 
@@ -34,7 +35,6 @@ def expand_step_groups(steps: list[str]) -> list[str]:
     Raises ``GroupError`` (a ``ValueError``) on a bad/unknown reference — callers
     already guard step parsing with a ``ValueError`` handler.
     """
-    from canair.ecus.ecu_groups import expand_group_refs, load_groups
 
     return expand_group_refs(steps, load_groups(profile=active()))
 

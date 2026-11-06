@@ -9,13 +9,12 @@ from pathlib import Path
 from canair.captures import io as capture_io
 from canair.cli.args.scope import parse_iso_date
 from canair.cli.profile_context import active, dir_profile
+from canair.migrations.variants import stamp_untagged
 from canair.render import messages
 from canair.variants import load_variants, normalize_variant_id
 
 
 def cmd_migrate_variants(args) -> int:
-    from canair.migrations.variants import stamp_untagged
-
     variant = normalize_variant_id(args.id)
     declared = load_variants(active())
     if variant not in declared:

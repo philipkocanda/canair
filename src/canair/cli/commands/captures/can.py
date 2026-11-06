@@ -7,6 +7,7 @@ Ingest is ``canair import can`` (:mod:`canair.cli.commands.import_`).
 
 import argparse
 
+from canair.captures import can_logs
 from canair.cli.profile_context import active
 from canair.render import ansi
 
@@ -14,8 +15,6 @@ from canair.render import ansi
 def cmd_can_logs(as_json: bool = False) -> int:
     """List imported raw broadcast-CAN frame logs from captures/can/index.yaml."""
     import json as _json
-
-    from canair.captures import can_logs
 
     logs = can_logs.list_logs(active())
     if as_json:

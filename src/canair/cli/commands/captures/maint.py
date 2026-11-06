@@ -12,6 +12,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from canair.analysis.unsplit_batches import split_unsplit_batches
 from canair.captures import layers
 from canair.captures.io import resolve_capture_layers, resolve_captures_dir
 from canair.captures.journal import list_orphans
@@ -19,6 +20,11 @@ from canair.captures.journal import recover as _recover
 from canair.cli.profile_context import active, dir_profile
 from canair.ecus.pids import load_pids_dir
 from canair.ecus.registry import build_rx_index, load_ecus_dir
+from canair.migrations import discover as discover_migrate
+from canair.migrations.capture_fields import migrate_dir as migrate_capture_fields
+from canair.migrations.captures import MigrationError
+from canair.migrations.captures import migrate_dir as migrate_captures
+from canair.migrations.discover import Addressing
 from canair.profile.model import ProfileError
 from canair.render import ansi, glyphs, messages
 from canair.uds.addressing import resolve_mode, resolve_rx_offset
@@ -63,11 +69,9 @@ def cmd_migrate(captures_dir: Path | None, *, dry_run: bool = False, as_json: bo
     """Convert legacy captures/*.yaml → *.json for the active profile (or --dir)."""
     import json as _json
 
-    from canair.migrations.captures import MigrationError, migrate_dir
-
     cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
     try:
-        results = migrate_dir(cdir, dry_run=dry_run)
+        results = migrate_captures(cdir, dry_run=dry_run)
     except MigrationError as e:
         if as_json:
             _json.dump({"error": str(e)}, sys.stdout)
@@ -113,10 +117,8 @@ def cmd_migrate_rx(
     """Rename the capture ``ecu`` field → ``rx`` for the active profile (or --dir)."""
     import json as _json
 
-    from canair.migrations.capture_fields import migrate_dir
-
     cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
-    results = migrate_dir(cdir, dry_run=dry_run)
+    results = migrate_capture_fields(cdir, dry_run=dry_run)
     touched = [r for r in results if r.renamed]
     total = sum(r.renamed for r in results)
 
@@ -153,7 +155,6 @@ def _discover_addressing(prof):
     names against (a ``--dir`` outside any profile), which the CLI reports as an
     error rather than a traceback.
     """
-    from canair.migrations.discover import Addressing
 
     if not prof.ecus_dir.is_dir():
         raise ProfileError(
@@ -176,8 +177,6 @@ def cmd_migrate_discover(
     """Give legacy discover responders their probed ``tx`` and the profile's ``rx``."""
     import json as _json
     from dataclasses import asdict
-
-    from canair.migrations import discover as discover_migrate
 
     cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
     prof = layers.owning_profile(captures_dir, profile=dir_profile(captures_dir))
@@ -246,8 +245,6 @@ def cmd_split_batched(
 ) -> int:
     """Split multi-DID replies stored whole under one DID into one capture per DID."""
     import json as _json
-
-    from canair.analysis.unsplit_batches import split_unsplit_batches
 
     cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
     if captures_dir is not None and not cdir.is_dir():
@@ -329,8 +326,6 @@ def cmd_split_batched(
 def orphan_notice(captures_dir: Path | None = None) -> None:
     """Print a one-line notice if orphaned journals exist (best-effort, silent on error)."""
     try:
-        from canair.captures.journal import list_orphans
-
         cdir = resolve_captures_dir(captures_dir, profile=dir_profile(captures_dir))
         orphans = list_orphans(cdir)
     except Exception:

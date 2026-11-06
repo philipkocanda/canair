@@ -14,6 +14,16 @@ import sys
 from canair.cli.commands._hints import ecu_hint
 from canair.cli.live import ecu_completer
 from canair.cli.profile_context import active
+from canair.dtc.history import log_stats
+from canair.dtc.log import (
+    clears_between,
+    diff_scans,
+    latest_matching,
+    prior_matching,
+    render_scan,
+    scope_label,
+)
+from canair.dtc.refs import ecu_ref
 from canair.ecus.names import resolve_tx
 from canair.profile.model import ProfileError
 from canair.render import ansi, messages
@@ -52,23 +62,12 @@ def _scope(ecu: str | None) -> str | None:
     """The log scope for ``ecu`` (``all`` when None), or None for an unknown ECU."""
     if not ecu:
         return "all"
-    from canair.dtc.refs import ecu_ref
 
     tx_id = resolve_tx(ecu, profile=active())
     return None if tx_id is None else ecu_ref(tx_id, profile=active())
 
 
 def run(args) -> int:
-    from canair.dtc.history import log_stats
-    from canair.dtc.log import (
-        clears_between,
-        diff_scans,
-        latest_matching,
-        prior_matching,
-        render_scan,
-        scope_label,
-    )
-
     scope = _scope(args.dtc)
     if scope is None:
         messages.error(f"unknown ECU '{args.dtc}'")
@@ -132,8 +131,6 @@ def log_hint() -> str | None:
     """One line saying what the DTC log holds, for a bare ``canair dtc``; None when empty."""
 
     try:
-        from canair.dtc.history import log_stats
-
         stats = log_stats(profile=active())
     except (ProfileError, OSError):
         return None

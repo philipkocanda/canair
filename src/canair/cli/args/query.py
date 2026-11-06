@@ -1,4 +1,5 @@
 from canair.cli.profile_context import active
+from canair.ecus.names import build_canonical_name_index
 from canair.query import parse_query
 
 """The QUERY mini-language as the analysis commands take it: ECU aliases resolved."""
@@ -14,8 +15,6 @@ def parse_canonical_query(query):
 
     q = parse_query(query)
     try:
-        from canair.ecus.names import build_canonical_name_index
-
         name_index = build_canonical_name_index(profile=active())
     except FileNotFoundError:
         return q

@@ -18,6 +18,7 @@ import sys
 
 from canair.captures.keepmode import wants_save
 from canair.cli.args.transport import transport_overrides
+from canair.cli.car import require_car
 from canair.cli.commands.captures import orphan_notice
 from canair.cli.profile_context import active, replace_active
 from canair.config.devices import fallback_settings
@@ -25,12 +26,15 @@ from canair.core.stop_signals import graceful_stop
 from canair.device.lock import WiCANLock
 from canair.device.lock_watchdog import LockWatchdog
 from canair.device.wican.firmware import check, print_verdict
+from canair.device.wican.mode import ModeError, require_elm327_tcp_reachable, require_ws_reachable
 from canair.ecus.pids import load_pids
 from canair.ecus.registry import load_ecus
+from canair.live.read.raw_ops import run_raw
 from canair.live.scan.progress import find_aborted_scans
 from canair.live.session import SessionOptions, run_session_guarded
 from canair.render import messages
 from canair.transport import (
+    DEFAULT_ELM327_TCP_PORT,
     resolve_transport_candidates,
     select_reachable_transport,
     wait_for_reachable,
@@ -116,7 +120,6 @@ async def async_main(args, operation: LiveOperation):
     # Raw transport (slcan-tcp): route to the client-side ISO-TP/UDS path instead
     # of the ELM327 WebSocket. The device must already be in slcan mode.
     if transport.is_raw:
-        from canair.live.read.raw_ops import run_raw
 
         async def operate(terminal: Terminal, pids_data: dict) -> None:
             await operation.handler(args, terminal, pids_data, host)
@@ -184,19 +187,12 @@ async def async_main(args, operation: LiveOperation):
     # ELM327 adapter (elm327-tcp) has no HTTP API, so we probe its data port.
     # This cheap TCP check runs before the firmware probe, so an offline host
     # fails after one connect timeout rather than after the probe's too.
-    from canair.device.wican.mode import (
-        ModeError,
-        require_elm327_tcp_reachable,
-        require_ws_reachable,
-    )
 
     is_elm_tcp = transport.type == "elm327-tcp"
     transport_label = "ELM327/TCP" if is_elm_tcp else "WebSocket"
 
     try:
         if is_elm_tcp:
-            from canair.transport import DEFAULT_ELM327_TCP_PORT
-
             require_elm327_tcp_reachable(host, transport.port or DEFAULT_ELM327_TCP_PORT)
         else:
             require_ws_reachable(host)
@@ -262,7 +258,6 @@ _IDENTIFYING_COMMANDS = frozenset({"discover", "disc", "identity", "id"})
 
 def _require_car(args) -> None:
     """Refuse a live command until the profile's car is named (see require_car)."""
-    from canair.cli.car import require_car
 
     saving = bool(getattr(args, "save", False))
     if getattr(args, "command", None) in _IDENTIFYING_COMMANDS and not saving:

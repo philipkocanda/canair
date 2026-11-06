@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from canair.cli.profile_context import active
+from canair.profile.writable import require_writable_definitions
 from canair.yaml_edit.commit import schema_validation
 from canair.yaml_edit.echo import echo_edit
 
@@ -40,7 +41,6 @@ def edit_scope(args: argparse.Namespace | None = None) -> Iterator[None]:
     An explicit ``--dir`` names another profile's files, so the active profile's read-only
     check does not apply to it.
     """
-    from canair.profile.writable import require_writable_definitions
 
     if getattr(args, "dir", None) is None:
         require_writable_definitions(profile=active())

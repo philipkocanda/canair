@@ -67,6 +67,7 @@ def cmd_plot(
         print("  (interactive --plot needs a TTY for navigation)")
         return
 
+    # deferred: textual adds ~40 ms to start-up, and only the interactive plot needs it
     from canair.tui.apps.decode_plot.app import run_plot_app
 
     run_plot_app(model, reload_pid=reload_pid, pid_options=pid_options, profile=active())

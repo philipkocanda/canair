@@ -13,6 +13,7 @@ from canair.analysis.align import (
 )
 from canair.analysis.cross_signal import linear_fit, sniff_unit
 from canair.cli.commands._analysis_warning import warn_analysis
+from canair.cli.commands._promote import print_promoted, write_candidate
 from canair.render import messages
 from canair.yaml_edit.pids import PidsEditError
 
@@ -42,8 +43,6 @@ def _promote_top_byte(name, rows, series, ref_series, ref_label, tol, *, ref_uni
     and unit guess added to the evidence notes.
     """
     import re
-
-    from canair.cli.commands._promote import print_promoted, write_candidate
 
     byte_hit = None
     for sig, r, n in rows:

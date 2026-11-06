@@ -29,6 +29,7 @@ import argparse
 
 from canair.cli.args.group import group_help
 
+from . import compact, merge_driver, migrate_variants, purge_sensitive
 from .can import _add_can_parser
 from .maint import (
     _add_migrate_discover_parser,
@@ -38,6 +39,7 @@ from .maint import (
     orphan_notice,
 )
 from .query import build_query
+from .uds import _add_uds_parser
 
 NAME = "captures"
 ALIASES = ["cap"]
@@ -52,9 +54,6 @@ __all__ = [
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
-    from . import compact, merge_driver, migrate_variants, purge_sensitive
-    from .uds import _add_uds_parser
-
     parser = subparsers.add_parser(
         NAME,
         aliases=ALIASES,

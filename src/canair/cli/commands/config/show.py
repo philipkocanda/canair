@@ -6,7 +6,12 @@ from canair.cli.profile_context import active
 from canair.config.devices import fallback_settings, wican_devices, wican_model, wican_settings
 from canair.config.file import load_config, user_config_file, user_profiles_dir
 from canair.core.paths import CONFIG_DOCS_URL, CONFIG_FILE, config_dir
+from canair.dtc.history import log_stats
+from canair.dtc.log import log_dir
+from canair.dtc.log_upgrade import migrate_all
+from canair.dtc.scope import ANY_CAR
 from canair.render.console import console, escape
+from canair.transport import resolve_transport
 
 
 def _gather(args) -> dict:
@@ -50,8 +55,6 @@ def _gather(args) -> dict:
     }
 
     try:
-        from canair.transport import resolve_transport
-
         t = resolve_transport()
         info["transport"] = {
             "type": t.type,
@@ -76,10 +79,6 @@ def _gather(args) -> dict:
 
 def dtc_log_stats(active_name: str | None) -> dict:
     """Every profile's DTC log in user state; open codes only for the active car."""
-    from canair.dtc.history import log_stats
-    from canair.dtc.log import log_dir
-    from canair.dtc.log_upgrade import migrate_all
-    from canair.dtc.scope import ANY_CAR
 
     try:
         migrate_all()  # a legacy in-profile log is counted only once it is moved

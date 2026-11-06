@@ -22,8 +22,10 @@ import io
 from pathlib import Path
 from typing import Any
 
+from canair.analysis.unsplit_batches import find_unsplit_batches
 from canair.captures import io as capture_io
 from canair.captures.merge import session_key
+from canair.captures.payload_corpus import load_payload_corpus
 from canair.contribute import pii
 from canair.contribute.checks import workspace_collision
 from canair.contribute.copy import CaptureReplacement, dir_size
@@ -398,8 +400,6 @@ def unsplit_in_contribution(profile, pre: Preflight, ws: Path) -> list[tuple[str
     sessions byte-identical to the upstream base are not this contribution's doing
     and are left to the repair on upstream's side.
     """
-    from canair.analysis.unsplit_batches import find_unsplit_batches
-    from canair.captures.payload_corpus import load_payload_corpus
 
     cdir = ws / "profiles" / profile.name / "captures"
     if not cdir.is_dir():

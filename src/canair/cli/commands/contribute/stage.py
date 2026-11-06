@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from canair.cli.profile_context import active
+from canair.contribute import summary as S
 from canair.contribute.checks import definition_rollback
 from canair.contribute.copy import copy_profile
 from canair.contribute.git import (
@@ -23,6 +24,7 @@ from canair.contribute.workspace import (
     is_managed_workspace,
     reset_workspace,
 )
+from canair.ecus.registry import build_rx_index
 from canair.render import glyphs
 from canair.render.console import escape
 
@@ -104,11 +106,8 @@ def stage_contribution(run_: Contribution) -> int | None:
 
 def summarize(run_: Contribution):
     """What the staged contribution adds, for the PR body and ``--json``."""
-    from canair.contribute import summary as S
 
     try:
-        from canair.ecus.registry import build_rx_index
-
         rx_names = build_rx_index(profile=active())
     except Exception:
         rx_names = {}

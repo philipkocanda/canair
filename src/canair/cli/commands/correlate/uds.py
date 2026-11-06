@@ -15,6 +15,7 @@ from canair.analysis.align import (
     discover_signal_specs,
     join_nearest_triple,
     join_prepared,
+    load_reference_file,
     prepare_series,
 )
 from canair.analysis.corrmatrix import CLUSTER_THRESHOLD
@@ -135,8 +136,6 @@ def run(args) -> int:
     if args.against or args.against_file:
         try:
             if args.against_file:
-                from canair.analysis.align import load_reference_file
-
                 ref_series, ref_label = load_reference_file(args.against_file)
             else:
                 ref_series, ref_label = load_ref(
@@ -208,8 +207,6 @@ def run(args) -> int:
                 return 2
             try:
                 if args.control_file:
-                    from canair.analysis.align import load_reference_file
-
                     control_series, control_label = load_reference_file(args.control_file)
                 else:
                     control_series, control_label = load_ref(

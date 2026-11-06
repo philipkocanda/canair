@@ -41,7 +41,7 @@ def cleared(monkeypatch):
     async def fake_clear(terminal, tx_id, **kw):
         calls.append({"tx_id": tx_id, **kw})
 
-    monkeypatch.setattr("canair.live.dtc.mode_dtc_clear", fake_clear)
+    monkeypatch.setattr("canair.cli.live.handlers.diagnostics.mode_dtc_clear", fake_clear)
     return calls
 
 

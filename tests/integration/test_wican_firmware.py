@@ -489,10 +489,10 @@ def _elm_session(monkeypatch, ttype: str, *, calls: list):
     monkeypatch.setattr(runtime, "select_reachable_transport", lambda c, **k: c[0])
     monkeypatch.setattr(runtime, "load_pids", lambda *_, **__: {"init": "ATZ;"})
     monkeypatch.setattr(
-        "canair.device.wican.mode.require_ws_reachable", lambda *a, **k: calls.append("reach")
+        "canair.cli.live.runtime.require_ws_reachable", lambda *a, **k: calls.append("reach")
     )
     monkeypatch.setattr(
-        "canair.device.wican.mode.require_elm327_tcp_reachable",
+        "canair.cli.live.runtime.require_elm327_tcp_reachable",
         lambda *a, **k: calls.append("reach"),
     )
 
@@ -564,7 +564,7 @@ class TestLiveSurfaces:
         def _down(*a, **k):
             raise ModeError("can't reach the WiCAN")
 
-        monkeypatch.setattr("canair.device.wican.mode.require_ws_reachable", _down)
+        monkeypatch.setattr("canair.cli.live.runtime.require_ws_reachable", _down)
         with pytest.raises(SystemExit):
             asyncio.run(runtime.async_main(_live_args(), _operation()))
         assert calls == []

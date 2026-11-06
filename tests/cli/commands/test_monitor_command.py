@@ -144,7 +144,7 @@ class TestMonitorGroupExpansion:
         )
         monkeypatch.setattr("canair.cli.live.load_pids", lambda *_, **__: {})
         monkeypatch.setattr(
-            "canair.ecus.ecu_groups.load_groups",
+            "canair.cli.live.steps.load_groups",
             lambda *_, **__: {
                 "charging": Group("charging", "", ("BMS:2101", "OBC", "VCU")),
             },

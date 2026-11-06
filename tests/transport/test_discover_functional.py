@@ -150,7 +150,7 @@ class TestDispatchForwardsTheParsedValues:
         async def fake_mode(terminal, pids_data, **kwargs):
             seen.update(kwargs)
 
-        monkeypatch.setattr("canair.live.discover.functional.mode_discover_functional", fake_mode)
+        monkeypatch.setattr("canair.cli.live.handlers.scans.mode_discover_functional", fake_mode)
         common = {"json": False, "save": False, "label": None, "state": None, "notes": None}
         args = _discover_args(functional=True, **common, **kw)
         asyncio.run(handle_discover(args, object(), {}, None))

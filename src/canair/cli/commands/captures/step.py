@@ -130,6 +130,7 @@ def cmd_step(
         _print_frames(model, limit=limit)
         return
 
+    # deferred: textual adds ~40 ms to start-up, and only the interactive stepper needs it
     from canair.tui.apps.captures_step.app import run_step_app
 
     run_step_app(model)

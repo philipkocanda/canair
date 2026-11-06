@@ -22,11 +22,13 @@ import argparse
 import json
 import sys
 
+from canair.actions import ActionError, load_actions, parse_request_spec
 from canair.cli.commands._edit import run_edit, subcommand_dispatch
 from canair.cli.live import LiveOperation, add_connection_args, live_command
 from canair.cli.live.handlers import actuators
 from canair.cli.profile_context import active
 from canair.render import ansi, messages
+from canair.yaml_edit.actions import add_action, remove_action, update_action
 
 NAME = "action"
 _RUN = LiveOperation(actuators.handle_action)
@@ -48,8 +50,6 @@ def _records(actions) -> list[dict]:
 
 
 def cmd_list(args) -> int:
-    from canair.actions import ActionError, load_actions
-
     prof = active()
     try:
         actions = load_actions(prof)
@@ -84,15 +84,10 @@ def cmd_list(args) -> int:
 
 
 def _requests(specs):
-    from canair.actions import parse_request_spec
-
     return [parse_request_spec(s) for s in specs] if specs else None
 
 
 def cmd_add(args) -> int:
-    from canair.actions import ActionError
-    from canair.yaml_edit.actions import add_action
-
     def edit():
         if not args.read or not args.require or not args.request:
             raise ActionError("add needs --read, --require and at least one --request")
@@ -109,8 +104,6 @@ def cmd_add(args) -> int:
 
 
 def cmd_set(args) -> int:
-    from canair.yaml_edit.actions import update_action
-
     return run_edit(
         lambda: update_action(
             args.name,
@@ -125,8 +118,6 @@ def cmd_set(args) -> int:
 
 
 def cmd_rm(args) -> int:
-    from canair.yaml_edit.actions import remove_action
-
     return run_edit(
         lambda: remove_action(args.name, profile=active()),
         f"removed action {args.name.strip().lower()}",

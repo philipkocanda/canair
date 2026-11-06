@@ -11,6 +11,7 @@ from canair.cli.live.handlers import scans
 from canair.cli.live.handlers.ranges import parse_range
 from canair.cli.profile_context import active
 from canair.ecus.pids import load_pids
+from canair.live.discover.functional import MIN_INTERVAL_S
 from canair.live.discover.physical import discovery_targets, fmt_id
 from canair.profile.model import ProfileError
 from canair.safety.blocklist import check_functional_request
@@ -140,7 +141,6 @@ functional requests:
 
 def functional_args_error(args) -> str | None:
     """Why the functional-sweep flags are inconsistent, or None."""
-    from canair.live.discover.functional import MIN_INTERVAL_S
 
     if not getattr(args, "functional", False):
         given = [

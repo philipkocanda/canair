@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from canair.cli.profile_context import active
+from canair.ecus.ecu_groups import GROUP_SIGIL, load_groups
 from canair.ecus.pids import load_pids
 
 
@@ -63,8 +64,6 @@ def step_completer(prefix, parsed_args=None, **kwargs):
     """Complete a query STEP: ``@group`` refs when it starts with ``@``, else ECUs."""
     if prefix.startswith("@"):
         try:
-            from canair.ecus.ecu_groups import GROUP_SIGIL, load_groups
-
             names = [f"{GROUP_SIGIL}{g}" for g in load_groups(profile=active())]
         except Exception:
             return []

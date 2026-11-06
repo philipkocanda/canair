@@ -20,9 +20,23 @@ import re
 import sys
 from typing import NoReturn
 
+from canair.captures.io import LegacyCaptureError
+from canair.cli.args.categories import CategorizedHelpFormatter
+from canair.cli.args.domain import apply_domain_tags
 from canair.cli.commands import iter_command_modules
+from canair.cli.first_run import run_first_run_setup, should_offer
 from canair.cli.lock_notice import warn_if_connection_held
+from canair.cli.profile_context import set_active
+from canair.config.file import ensure_config_dir
+from canair.core.edit_errors import EditError
 from canair.core.prompt import PromptUnavailable
+from canair.install import update_check
+from canair.install.build_info import build_summary, full_version
+from canair.migrations.devices import maybe_auto_migrate
+from canair.privacy.sensitive import take_withheld_note
+from canair.profile.model import ProfileError
+from canair.render import ansi, messages
+from canair.safety.blocklist import SafetyBlocked
 
 # Global options (before the subcommand) that consume a following value. Used by
 # _inject_default_subcommand to find the command token.
@@ -243,16 +257,12 @@ class _VersionAction(argparse.Action):
         )
 
     def __call__(self, parser, namespace, values, option_string=None):
-        from canair.install.build_info import build_summary, full_version
-
         print(f"{parser.prog} {full_version()} ({build_summary()})")
         parser.exit()
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level argument parser with all subcommands registered."""
-    from canair.cli.args.categories import CategorizedHelpFormatter
-
     parser = _CanairParser(
         prog="canair",
         description=__doc__.split("Belongs:")[0].rstrip(),
@@ -300,8 +310,6 @@ def build_parser() -> argparse.ArgumentParser:
     for module in iter_command_modules():
         module.add_parser(subparsers)
 
-    from canair.cli.args.domain import apply_domain_tags
-
     apply_domain_tags(subparsers)
 
     return parser
@@ -325,29 +333,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # Ensure ~/.config/canair (and profiles/) exists so no manual setup is needed.
-    from canair.config.file import ensure_config_dir
-
     seeded = ensure_config_dir()
 
     # One-time, best-effort migration of a legacy wican_addresses block to the
     # richer devices: form (never blocks; runtime precedence handles the rest).
-    from canair.migrations.devices import maybe_auto_migrate
-
     maybe_auto_migrate()
 
     # On a genuine first run, offer to pick or create a vehicle profile (only
     # when interactive and the command actually needs one).
-    from canair.cli.first_run import run_first_run_setup, should_offer
-
     if should_offer(args, seeded=seeded):
         run_first_run_setup(args)
-
-    from canair.captures.io import LegacyCaptureError
-    from canair.cli.profile_context import set_active
-    from canair.core.edit_errors import EditError
-    from canair.profile.model import ProfileError
-    from canair.render import ansi, messages
-    from canair.safety.blocklist import SafetyBlocked
 
     # Resolve the active vehicle profile before dispatching.
     if (
@@ -371,8 +366,6 @@ def main(argv: list[str] | None = None) -> int:
 
     # Fire a non-blocking, cached update check (interactive only; opt-out via
     # config/env). Never blocks or affects the command's outcome.
-    from canair.install import update_check
-
     check_updates = _update_check_allowed(args)
     if check_updates:
         update_check.maybe_check_in_background()
@@ -388,8 +381,6 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     finally:
         # A save whose every row was withheld printed no banner to carry the note.
-        from canair.privacy.sensitive import take_withheld_note
-
         if note := take_withheld_note():
             print(note, file=sys.stderr)
     if check_updates:
