@@ -15,6 +15,8 @@ Each check compares the tree with ``baseline.json``:
   ``uv run python -m tests.contracts.test_structure --write``.
 
 One check has no baseline: a protocol byte written as a literal outside ``canair.uds``.
+The calls that read the process-global active profile outside ``canair.cli`` have a ceiling
+(``ambient_profile_calls``, scripts/check/ambient_profile.py).
 The CLI/TUI output rules (``scripts/check/ui_standards.py``, tested in test_ui_standards.py) keep
 a per-file ceiling for each check under ``ui_standards``; ``--write`` lowers those too.
 
@@ -56,6 +58,7 @@ def _load_check(name: str):
 
 graph = _load_check("import_graph")
 protocol_literals = _load_check("protocol_literals")
+ambient_profile = _load_check("ambient_profile")
 ui_standards = _load_check("ui_standards")
 
 
@@ -206,6 +209,21 @@ def test_no_protocol_byte_is_written_as_a_literal():
     )
 
 
+def test_library_code_does_not_read_the_active_profile():
+    """Library code takes the profile as an argument; only ``canair.cli`` holds the active one.
+
+    The scan is scripts/check/ambient_profile.py, the migration is
+    plans/2026-11-05-code-organization-3-explicit-profile.md (part B).
+    """
+    found = ambient_profile.scan()
+    ceiling = _baseline()["ambient_profile_calls"]
+    assert len(found) <= ceiling, (
+        f"{len(found)} calls read the active profile outside canair.cli (ceiling {ceiling}). "
+        "Take a `profile` argument and let the command pass it:\n"
+        + "\n".join(f"    {f.module}:{f.line}: {f.call}()" for f in found)
+    )
+
+
 def test_deferred_imports_do_not_grow(scan):
     total = sum(scan.deferred.values())
     ceiling = _baseline()["deferred_internal_imports"]
@@ -328,6 +346,7 @@ def _fresh_baseline(old: dict) -> dict:
         old["deferred_internal_imports"], sum(result.deferred.values())
     )
     new["root_init_internal_imports"] = min(old["root_init_internal_imports"], _root_reexports())
+    new["ambient_profile_calls"] = min(old["ambient_profile_calls"], len(ambient_profile.scan()))
     new["import_linter_ignores"] = min(old["import_linter_ignores"], _ignore_import_count())
     packages = _packages()
     new["packages_without_charter"] = [
@@ -354,6 +373,7 @@ def _initial_baseline() -> dict:
         "root_init_internal_imports": _root_reexports(),
         "oversized_modules": graph.oversized(result, MODULE_LINE_LIMIT),
         "deferred_internal_imports": sum(result.deferred.values()),
+        "ambient_profile_calls": len(ambient_profile.scan()),
         "import_linter_ignores": _ignore_import_count(),
         "packages_without_charter": sorted(p for p, i in packages.items() if not _has_charter(i)),
         "test_to_test_imports": _test_to_test_imports(),
