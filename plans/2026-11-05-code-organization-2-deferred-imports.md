@@ -242,3 +242,16 @@ because the tree moved since `0ce4f742`. Building the parser loads 539 of 658 mo
   test_wican_firmware.py`, whose `wf.detect` patch must also reach `raw_ops.detect`, and which
   must import `raw_ops` first, or a first import under the patch binds the fake. `canair --help`:
   274.6 ms before, 273.2 ms after (40 alternating runs).
+- `cli/commands` e to z (agent h2): 227 -> 2 function-level imports (142 `loaded`, 83 `other`,
+  2 `heavy`), `deferred_imports_without_reason` 0 there. The 83 `other` were 71 outside and 12
+  inside a `try` that guards the call, not the import (moved by hand). The 2 left are the Textual
+  apps of `monitor` and `sniff`, commented `# deferred: textual adds ~40 ms`. Every hoisted
+  target costs under 2 ms after the parser build (`python -X importtime`), but 40 more modules
+  now load at parser build: `canair --help` goes from 278.5 to 290.8 ms (60 alternating runs,
+  median, busy machine, base tree at `a56df317`). `investigate/support_map_report.py` imported
+  `PidScan` from `support_map` while `support_map` imported the report: the deferral hid a cycle,
+  fixed by importing `PidScan` under `TYPE_CHECKING`. A test that patches `canair.x.name` stops
+  working once a command imports `name`: 12 test files now patch the new home, some of which had
+  passed unchanged because the stub only guarded real state (a states test rewrote a bundled
+  `vehicle_states.yaml` until its patch was fixed). `update` reads `canair.__version__` at call
+  time, so a patched version still applies.
