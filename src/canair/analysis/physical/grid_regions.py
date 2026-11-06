@@ -14,7 +14,7 @@ frequency ±1 Hz. A region absent here is a one-line addition to
 
 from __future__ import annotations
 
-from canair.analysis.physical.bands import _label_for
+from canair.analysis.physical.default_bands import band_label
 
 # Region -> {grid band key -> list of (low, high)}. A region may emit more than
 # one band per key (US Level 1 120 V *and* Level 2 240 V; Japan's dual 50/60 Hz).
@@ -66,4 +66,4 @@ def resolve_grid_bands(region: str | None) -> dict[str, list[tuple[str, float, f
     ranges = _PRESET_RANGES.get(region.strip().upper())
     if ranges is None:
         return {}
-    return {key: [(_label_for(key), lo, hi) for lo, hi in pairs] for key, pairs in ranges.items()}
+    return {key: [(band_label(key), lo, hi) for lo, hi in pairs] for key, pairs in ranges.items()}

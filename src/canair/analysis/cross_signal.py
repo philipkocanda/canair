@@ -34,7 +34,7 @@ from canair.analysis.corrmatrix import (
     signal_group_key,
 )
 from canair.analysis.fill import FillPolicy
-from canair.analysis.physical.bands import DEFAULT_PHYSICAL_BANDS
+from canair.analysis.physical.default_bands import DEFAULT_PHYSICAL_BANDS
 from canair.analysis.physical.unit_guess import DEFAULT_UNIT_CANDIDATES as _UNIT_CANDIDATES
 from canair.analysis.stats import correlation, linear_fit, partial_correlation, pearson
 from canair.ecus.pids import build_ecu_index, load_pids
@@ -790,7 +790,7 @@ def ref_unit_for(ref_spec: str, *, profile: Profile) -> str | None:
 # Named physical bands: (label, low, high) in the band's natural unit. A byte's raw value is
 # multiplied by a candidate scaling before the band test, so e.g. a 16-bit centivolt word (raw
 # ~22200) is caught by the mains-RMS band at x0.01. Bands are car-class + grid-region
-# assumptions. The built-in defaults live in canair.analysis.physical.bands; a profile (vehicle
+# assumptions. The built-in defaults live in canair.analysis.physical.default_bands; a profile (vehicle
 # axis) and the user's grid_region (grid axis) override them via resolve_physical_bands(). This
 # constant is the default when no bands are threaded in.
 PHYSICAL_BANDS: list[tuple[str, float, float]] = list(DEFAULT_PHYSICAL_BANDS.values())

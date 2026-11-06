@@ -23,8 +23,8 @@
     "canair.yaml_edit.revisions": 539,
     "canair.yaml_edit.text": 777
   },
-  "deferred_internal_imports": 303,
-  "deferred_imports_without_reason": 221,
+  "deferred_internal_imports": 302,
+  "deferred_imports_without_reason": 220,
   "ambient_profile_calls": 0,
   "import_linter_ignores": 0,
   "packages_without_charter": [],

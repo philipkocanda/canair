@@ -23,29 +23,12 @@ from __future__ import annotations
 
 from typing import Any
 
-# Canonical built-in bands keyed by a stable identifier decoupled from the
-# display label. Insertion order matches the historical PHYSICAL_BANDS list so
-# the default (no-override) output is byte-identical to the pre-config behaviour.
-DEFAULT_PHYSICAL_BANDS: dict[str, tuple[str, float, float]] = {
-    "mains_rms": ("mains RMS V", 200.0, 250.0),
-    "mains_peak": ("mains peak V", 300.0, 340.0),
-    "line_freq": ("line freq Hz", 49.0, 51.0),
-    "rail_12v": ("12V rail V", 11.0, 15.0),
-    "hv_pack": ("HV pack V", 300.0, 450.0),
-    "temp_c": ("temp °C", -30.0, 130.0),
-}
+from canair.analysis.physical.default_bands import DEFAULT_PHYSICAL_BANDS, band_label
+from canair.analysis.physical.grid_regions import resolve_grid_bands
 
 # The three bands that belong to the grid axis (owned by grid_region, not the
 # profile). Everything else is a vehicle-axis band.
 GRID_KEYS: tuple[str, ...] = ("mains_rms", "mains_peak", "line_freq")
-
-
-def _label_for(key: str) -> str:
-    """Display label for a band key — the built-in label, or a humanized key."""
-    known = DEFAULT_PHYSICAL_BANDS.get(key)
-    if known is not None:
-        return known[0]
-    return key.replace("_", " ")
 
 
 def _parse_range(rng: Any) -> tuple[float, float] | None:
@@ -86,8 +69,6 @@ def resolve_physical_bands(
     }
 
     if grid_region is not None:
-        from canair.analysis.physical.grid_regions import resolve_grid_bands
-
         preset = resolve_grid_bands(grid_region)
         for key in GRID_KEYS:
             if key in preset:
@@ -102,6 +83,6 @@ def resolve_physical_bands(
             lo, hi = parsed
             # Assigning replaces a built-in in place, or appends a custom key
             # at the end (dicts preserve insertion order).
-            bands[str(key)] = [(_label_for(str(key)), lo, hi)]
+            bands[str(key)] = [(band_label(str(key)), lo, hi)]
 
     return [band for band_list in bands.values() for band in band_list]

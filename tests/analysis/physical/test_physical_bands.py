@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from canair.analysis.physical.bands import DEFAULT_PHYSICAL_BANDS, resolve_physical_bands
+from canair.analysis.physical.bands import resolve_physical_bands
+from canair.analysis.physical.default_bands import DEFAULT_PHYSICAL_BANDS
 
 
 def _as_dict(bands):
