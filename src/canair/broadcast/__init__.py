@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from canair.core import yaml_io
 from canair.profile.model import Profile
 
 __all__ = ["SignalDoc", "load_signals", "signals_dir"]
@@ -46,7 +47,6 @@ def load_signals(bus: str | None = None, *, profile: Profile) -> list[SignalDoc]
     tell those apart (to explain themselves to the user) can check
     ``signals_dir(...).is_dir()``.
     """
-    from canair.core import yaml_io
 
     directory = signals_dir(profile)
     if not directory.is_dir():
