@@ -78,6 +78,23 @@ canair identity IGPM                 # probe, read, and offer to record the prot
 canair identity IGPM --set-protocol  # record it without asking (scripts)
 ```
 
+## How `canair identity` labels the records
+
+`canair identity` names each record by its standard: ISO 14229-1 Table C.1 for UDS (`22 F1xx`)
+and SSF 14230-3 for KWP2000 (`1A xx`). "VM" in a label is the vehicle manufacturer, as in
+`VM ECU software number` (`F188`). A record that the standard leaves to the manufacturer or the
+supplier, with no known meaning, shows its range: `Manufacturer-specific F110`.
+
+Some makes use a record their own way. On a profile whose name starts with `hyundai-` or `kia-`,
+canair uses the Hyundai/Kia meaning (ES95486 Annex C and the bundled cars): `F100` is the CAN
+database version, `F1A0` the software version, KWP2000 `8C` a module code. It also reads `F1A1`
+(the supplier code), `F1B0` (the number of software units) and one `F1B1`… version per unit.
+A record whose value fits no label still prints under its standard name. For example, the Ioniq
+BMS answers `1A 90`, which SSF 14230-3 names the VIN, with its ECU name.
+
+Before you file a value in the ECU's `identity:` block, check the record it came from. `F187` is
+the part number on Hyundai/Kia, `F188` is a software number.
+
 !!! tip "The prefix is optional but recommended"
     Because canair knows each ECU's protocol, a UDS ECU accepts a bare DID
     (`CLU:B002`) as well as the full `CLU:22B002`. **Prefer the full form**
@@ -122,7 +139,7 @@ canair identity BMS        # reads identity, auto-picking 21 vs 22 by protocol
 ## Further reading
 
 Marque-specific DID conventions — range semantics (`22Bxxx` cluster, `22Cxxx`
-body, `22Fxxx` flash), paging vs indexing, and the Hyundai/Kia identity-DID `-1`
-offset — are worked through in the `reverse-engineer-signal` skill's UDS-conventions
-reference. Those patterns vary by manufacturer; expect to re-derive them for a new
-car.
+body, `22Fxxx` flash), paging vs indexing, and the Hyundai/Kia ECUs that repeat their
+previous reply to an identity DID they lack — are worked through in the `reverse-engineer-signal`
+skill's UDS-conventions reference. Those patterns vary by manufacturer; expect to re-derive them
+for a new car.

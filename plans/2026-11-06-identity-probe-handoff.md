@@ -239,7 +239,8 @@ rule that hints go to stderr. The NRC codes are not kept, so nothing can say whi
 
 ## Out of scope (later review items)
 
-Leave these for a later change, and list them in your report if you notice more:
+Leave these for a later change, and list them in your report if you notice more. The record
+labels and missing records have their own plan, `plans/2026-11-06-identity-record-labels.md`.
 
 - The UDS table lacks `F189` (the first record `live/identity/software.py` reads), `F180`–
   `F185`, `F18E` and `F199`. Some labels look wrong (`F188` "ECU Part Number"; KWP2000 `8C`,

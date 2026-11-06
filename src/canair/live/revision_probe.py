@@ -24,6 +24,7 @@ from canair.ecus.ecu_groups import expand_group_refs, load_groups
 from canair.ecus.memory import protocol_of
 from canair.ecus.pids import load_raw_pids, revision_resolutions
 from canair.profile.model import Profile
+from canair.profile.names import make_of
 from canair.safety.blocklist import SafetyBlocked
 from canair.transport.protocol import Terminal
 from canair.uds.echo import request_echo
@@ -115,7 +116,7 @@ async def detect_revisions(
                 break  # one positive answer is the evidence; don't spend another read
         software = None
         if by_software and not any(responded.values()):
-            software = await _software(terminal, int(tx_id), ecu_def)
+            software = await _software(terminal, int(tx_id), ecu_def, make_of(prof.name))
         rid = detected(
             match(ecu_def, possible=res.possible, responded=responded, software=software)
         )
@@ -134,10 +135,10 @@ async def detect_revisions(
     return with_detections(prof) if settled else None
 
 
-async def _software(terminal: Terminal, tx_id: int, ecu_def: dict) -> str | None:
+async def _software(terminal: Terminal, tx_id: int, ecu_def: dict, make: str) -> str | None:
     """The ECU's software version for a ``software:`` fingerprint (None: no answer)."""
     try:
-        return await read_software_version(terminal, tx_id, protocol_of(ecu_def))
+        return await read_software_version(terminal, tx_id, protocol_of(ecu_def), make=make)
     except (SafetyBlocked, ValueError):
         return None
 

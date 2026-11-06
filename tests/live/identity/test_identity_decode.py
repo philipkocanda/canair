@@ -42,6 +42,29 @@ class TestDecodePayload:
     def test_auto_ascii(self):
         assert idec.decode_identity_payload(b"AEEV__ BMS", "auto") == "AEEV__ BMS"
 
+    def test_hex_keeps_every_byte(self):
+        # Printable bytes and zero padding stay hex: a functional-unit map is not text.
+        assert idec.decode_identity_payload(b"\x00AB\x00", "hex") == "00414200"
+
+    @pytest.mark.parametrize(
+        ("payload", "decoded"),
+        [("03", "extendedDiagnosticSession (03)"), ("01", "defaultSession (01)"), ("60", "60")],
+    )
+    def test_session(self, payload, decoded):
+        assert idec.decode_identity_payload(bytes.fromhex(payload), "session") == decoded
+
+    def test_count_is_the_first_byte(self):
+        assert idec.decode_identity_payload(b"\x00", "count") == "0"
+        assert idec.decode_identity_payload(b"\x03", "count") == "3"
+
+    def test_modules_names_the_count_then_shows_hex(self):
+        assert idec.decode_identity_payload(b"\x02AB", "modules") == "2 modules: 4142"
+        assert idec.decode_identity_payload(b"\x01", "modules") == "1 module"
+
+    @pytest.mark.parametrize("fmt", ["hex", "session", "count", "modules"])
+    def test_structured_empty(self, fmt):
+        assert idec.decode_identity_payload(b"", fmt) == "(empty)"
+
 
 # --- decode_date ---
 

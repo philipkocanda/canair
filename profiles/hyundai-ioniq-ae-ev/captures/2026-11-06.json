@@ -1,0 +1,94 @@
+{
+  "sessions": [
+    {
+      "date": "2026-11-06",
+      "label": "identity 1A89",
+      "version": "5.0.0+main.272efa6.dirty",
+      "notes": "VM ECU software version (SSF 14230-3 89), plans/2026-11-06-identity-record-labels.md",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EC","pid":"1A89","response":"NRC 0x12 (subFunctionNotSupportedOrInvalidFormat)"}
+      ]
+    },
+    {
+      "date": "2026-11-06",
+      "label": "identity 1A89",
+      "version": "5.0.0+main.272efa6.dirty",
+      "notes": "VM ECU software version (SSF 14230-3 89), plans/2026-11-06-identity-record-labels.md",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7ED","pid":"1A89","response":"NRC 0x12 (subFunctionNotSupportedOrInvalidFormat)"}
+      ]
+    },
+    {
+      "date": "2026-11-06",
+      "label": "identity 1A89",
+      "version": "5.0.0+main.272efa6.dirty",
+      "notes": "VM ECU software version (SSF 14230-3 89), plans/2026-11-06-identity-record-labels.md",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"1A89","response":"NRC 0x12 (subFunctionNotSupportedOrInvalidFormat)"}
+      ]
+    },
+    {
+      "date": "2026-11-06",
+      "label": "identity 1A89",
+      "version": "5.0.0+main.272efa6.dirty",
+      "notes": "VM ECU software version (SSF 14230-3 89), plans/2026-11-06-identity-record-labels.md",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7EB","pid":"1A89","response":"NRC 0x12 (subFunctionNotSupportedOrInvalidFormat)"}
+      ]
+    },
+    {
+      "date": "2026-11-06",
+      "label": "identity F189",
+      "version": "5.0.0+main.272efa6.dirty",
+      "notes": "VM ECU software version (ISO 14229-1 F189), plans/2026-11-06-identity-record-labels.md",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"22F189","response":"NRC 0x31 (requestOutOfRange)"}
+      ]
+    },
+    {
+      "date": "2026-11-06",
+      "label": "identity F189",
+      "version": "5.0.0+main.272efa6.dirty",
+      "notes": "VM ECU software version (ISO 14229-1 F189), plans/2026-11-06-identity-record-labels.md",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7A8","pid":"22F189","response":"NRC 0x31 (requestOutOfRange)"}
+      ]
+    }
+  ]
+}

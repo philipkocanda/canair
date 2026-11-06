@@ -24,6 +24,7 @@ from pathlib import Path
 from canair.ecus.memory import MemoryRegion
 from canair.live.identity.software import read_software_version
 from canair.profile.model import Profile
+from canair.profile.names import make_of
 from canair.render.progress import ProgressLine
 from canair.transport.protocol import Terminal
 from canair.uds.memory import (
@@ -302,7 +303,9 @@ async def mode_memory_scan(
     points: list[Point] = []
     try:
         async with maybe_session(terminal, target.tx_id, session_mode):
-            scan.software = await read_software_version(terminal, target.tx_id, target.protocol)
+            scan.software = await read_software_version(
+                terminal, target.tx_id, target.protocol, make=make_of(profile.name)
+            )
             if scan.format is None:
                 line.update("    finding the memory format…")
                 scan.format = await _find_format(prober, ranges[0][0], scan)

@@ -21,6 +21,7 @@ from pathlib import Path
 
 from canair.live.identity.software import read_software_version
 from canair.memory.store import Dump, Gap, Stretch, merge_stretches, save_dump
+from canair.profile.names import make_of
 from canair.render.progress import ProgressLine
 from canair.transport.protocol import Terminal
 from canair.uds.memory import MemoryFormat, RegionResult, memory_read
@@ -255,7 +256,9 @@ async def mode_memory_dump(
     pending = list(ranges)
     try:
         async with maybe_session(terminal, target.tx_id, session_mode):
-            dump.software = await read_software_version(terminal, target.tx_id, target.protocol)
+            dump.software = await read_software_version(
+                terminal, target.tx_id, target.protocol, make=make_of(dump.profile or "")
+            )
             while pending:
                 start, end = pending[0]
                 await _dump_range(reader, run, start, end, skip, line.update, throttle_ms / 1000)

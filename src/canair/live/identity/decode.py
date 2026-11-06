@@ -10,7 +10,7 @@ way); this module re-exports ``decode_date`` and layers the identity-specific
 ``fmt`` selection on top.
 """
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Literal
 
 from canair.expression.decode_value import bytes_to_ascii, decode_date
@@ -27,6 +27,7 @@ from canair.uds.nrc import (
 )
 from canair.uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol
 from canair.uds.response import UdsResponse
+from canair.uds.subfunctions import SUBFUNCTION_NAMES, format_session_type
 
 from ...ecus.protocol import ecu_protocol
 
@@ -62,11 +63,17 @@ _ABSENT_NRCS = frozenset(
 def decode_identity_payload(payload_bytes: bytes, fmt: str) -> str:
     """Decode an identity payload to a human-readable string.
 
-    ``fmt`` is a hint (``ascii``/``date``/``hex``/``auto``). ``date`` is only
-    honored when the bytes form a plausible calendar date; otherwise (and for
-    ``ascii``/``auto``) the payload is rendered as text when mostly printable,
-    else as hex.
+    ``fmt`` is a hint. ``hex`` shows the bytes as they are; ``session`` names the session
+    type in the first byte; ``count`` is the first byte as a number; ``modules`` is ISO
+    14229-1's numberOfModules byte, then the rest as hex. ``date`` is only honored when the
+    bytes form a plausible calendar date; otherwise (and for ``ascii``/``auto``) the payload
+    is rendered as text when mostly printable, else as hex.
     """
+    if fmt in _STRUCTURED:
+        if not payload_bytes:
+            return "(empty)"
+        return _STRUCTURED[fmt](payload_bytes)
+
     stripped = payload_bytes.rstrip(b"\xaa\x00\xff").lstrip(b"\x00")
 
     if not stripped:
@@ -79,6 +86,26 @@ def decode_identity_payload(payload_bytes: bytes, fmt: str) -> str:
         # Not a real date — fall through to text/hex rather than fake one.
 
     return bytes_to_ascii(stripped)
+
+
+def _session(payload: bytes) -> str:
+    name = SUBFUNCTION_NAMES[0x10].get(payload[0])
+    code = format_session_type(payload[0])
+    return f"{name} ({code})" if name else code
+
+
+def _modules(payload: bytes) -> str:
+    n, rest = payload[0], payload[1:]
+    text = f"{n} module{'' if n == 1 else 's'}"
+    return f"{text}: {rest.hex().upper()}" if rest else text
+
+
+_STRUCTURED: dict[str, Callable[[bytes], str]] = {
+    "hex": lambda payload: payload.hex().upper(),
+    "session": _session,
+    "count": lambda payload: str(payload[0]),
+    "modules": _modules,
+}
 
 
 def resolve_protocol_hint(tx_id: int, requested: str, *, profile: Profile) -> str | None:

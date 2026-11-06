@@ -26,6 +26,7 @@ from dataclasses import dataclass
 
 from canair.privacy.sensitive import MASK, request_hidden
 from canair.profile.model import Profile
+from canair.profile.names import make_of
 from canair.render import ansi, messages
 from canair.render.paint import Painter
 from canair.uds.echo import request_echo
@@ -45,7 +46,15 @@ from .decode import (
     refusal_hint,
     resolve_protocol_hint,
 )
-from .records import IDENTITY_DIDS, KWP_IDENTITY_RECORDS, PROTOCOLS, UDS_IDENTITY_DIDS
+from .records import (
+    IDENTITY_DIDS,
+    KWP_IDENTITY_RECORDS,
+    PROTOCOLS,
+    SW_UNIT_COUNT_DID,
+    UDS_IDENTITY_DIDS,
+    records_for,
+    sw_unit_records,
+)
 
 __all__ = [
     "IDENTITY_DIDS",
@@ -205,11 +214,11 @@ async def mode_identity(
             return None
 
         spec = PROTOCOLS[resolved]
-        records = spec["records"]
+        records = records_for(resolved, make_of(profile.name))
         offset = spec["payload_offset"]
         prefix = spec["prefix"]
-        label_width = max(len(label) for _, label, _ in records)
-        did_width = max(len(did) for did, _, _ in records)
+        label_width = max(len(r.label) for r in records)
+        did_width = max(len(r.id) for r in records)
 
         results = []
         n_ok = n_nrc = n_nodata = 0
@@ -219,7 +228,8 @@ async def mode_identity(
         # The probe's own DID drew the session refusal, so the records draw it too.
         skip_reads = not session and _probe_refused_in_session(probe, resolved)
 
-        for did_hex, label, fmt in records:
+        for record in records:
+            did_hex, label, fmt = record.id, record.label, record.decode
             if skip_reads or (
                 probe is None and not (n_ok or n_nrc) and silent_run >= SILENT_READS_BEFORE_STOP
             ):
@@ -231,6 +241,9 @@ async def mode_identity(
             if response["ok"]:
                 n_ok += 1
                 payload = response["bytes"][offset:]
+                if resolved == UDS and did_hex == SW_UNIT_COUNT_DID and payload:
+                    # The loop reads the unit versions next: the list grows under it.
+                    records.extend(sw_unit_records(payload[0]))
                 decoded = decode_identity_payload(payload, fmt)
                 raw_hex = payload.hex().upper()
                 if request_hidden(tx_id, f"{prefix}{did_hex}", profile=profile):

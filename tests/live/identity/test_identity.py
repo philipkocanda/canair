@@ -7,6 +7,7 @@ import pytest
 from canair.cli.profile_context import active
 from canair.live.identity import decode as idec
 from canair.live.identity import read as ident
+from canair.live.identity.records import records_for
 from canair.uds.parse import parse_uds_response
 from tests.support.fakes import FakeTerminal, nrc
 from tests.support.fakes import ok as _ok
@@ -144,8 +145,12 @@ class TestProbedDids:
         assert "22C0DE" not in t.sent
 
     def test_no_hk_label_in_tables(self):
-        for _did, label, _fmt in ident.UDS_IDENTITY_DIDS:
-            assert "(HK)" not in label
+        for record in ident.UDS_IDENTITY_DIDS:
+            assert "(HK)" not in record.label
+
+
+# The UDS records read on the active (Hyundai) profile.
+UDS_READS = len(records_for("uds", "hyundai"))
 
 
 async def _identity(term, *, as_json=True, session=False, protocol="uds", monkeypatch=None):
@@ -166,7 +171,7 @@ class TestSilentEcu:
         assert len(term.sent) == ident.SILENT_READS_BEFORE_STOP == 3
         summary = json.loads(captured.out)["summary"]
         assert summary["no_data"] == 3
-        assert summary["not_asked"] == len(ident.UDS_IDENTITY_DIDS) - 3 == 19
+        assert summary["not_asked"] == UDS_READS - 3
         assert "hint: try --session/--wake" in captured.err
         assert "hint" not in captured.out
 
@@ -175,28 +180,28 @@ class TestSilentEcu:
         await _identity(FakeTerminal({}), as_json=False, monkeypatch=monkeypatch)
         out = capsys.readouterr().out
         assert "No response — ECU may be asleep or unpowered." in out
-        assert "3 no-response, 19 not asked (of 22)." in out
+        assert f"3 no-response, {UDS_READS - 3} not asked (of {UDS_READS})." in out
 
     @pytest.mark.asyncio
     async def test_it_never_stops_once_a_record_answered(self, monkeypatch):
         term = FakeTerminal({"22F190": _ok("62F190414243")})
         await _identity(term, monkeypatch=monkeypatch)
-        assert len(term.sent) == len(ident.UDS_IDENTITY_DIDS)
+        assert len(term.sent) == UDS_READS
 
     @pytest.mark.asyncio
     async def test_it_never_stops_once_a_record_drew_an_nrc(self, monkeypatch):
         # Two silent reads, then an NRC on the third: the ECU is awake.
-        third = ident.UDS_IDENTITY_DIDS[2][0]
+        third = ident.UDS_IDENTITY_DIDS[2].id
         term = FakeTerminal({"22" + third: nrc(0x31)})
         await _identity(term, monkeypatch=monkeypatch)
-        assert len(term.sent) == len(ident.UDS_IDENTITY_DIDS)
+        assert len(term.sent) == UDS_READS
 
     @pytest.mark.asyncio
     async def test_a_stale_reply_does_not_count_as_silence(self, monkeypatch):
         stale = {"ok": False, "error": "echo mismatch", "error_kind": "stale"}
         term = FakeTerminal({}, default=stale)
         await _identity(term, monkeypatch=monkeypatch)
-        assert len(term.sent) == len(ident.UDS_IDENTITY_DIDS)
+        assert len(term.sent) == UDS_READS
 
 
 class TestRefusalHints:
@@ -219,7 +224,7 @@ class TestRefusalHints:
         assert term.sent == ["22F190", "1A90"]
         assert captured.err.count("hint:") == 1
         summary = json.loads(captured.out)["summary"]
-        assert summary["not_asked"] == len(ident.UDS_IDENTITY_DIDS)
+        assert summary["not_asked"] == UDS_READS
         assert "try --session" in captured.err
 
     @pytest.mark.asyncio
@@ -231,7 +236,7 @@ class TestRefusalHints:
         err = capsys.readouterr().err
         assert "refused these records in the session canair opened (10 03)" in err
         assert "try --session" not in err
-        assert sum(request.startswith("22") for request in term.sent) == 22
+        assert sum(request.startswith("22") for request in term.sent) == UDS_READS
 
     @pytest.mark.asyncio
     async def test_kwp2000_notes_the_session_it_cannot_open(self, monkeypatch, capsys):
@@ -264,10 +269,10 @@ class TestRefusalHints:
     async def test_the_json_counts_the_nrc_codes_and_stdout_stays_one_document(
         self, monkeypatch, capsys
     ):
-        refused = {"22" + did: nrc(0x31) for did, _, _ in ident.UDS_IDENTITY_DIDS[:2]}
+        refused = {"22" + r.id: nrc(0x31) for r in ident.UDS_IDENTITY_DIDS[:2]}
         term = FakeTerminal(refused, default=nrc(0x7F))
         await _identity(term, monkeypatch=monkeypatch)
         summary = json.loads(capsys.readouterr().out)["summary"]
-        assert summary["nrc_codes"] == {"0x31": 2, "0x7F": 20}
-        assert summary["nrc"] == 22
+        assert summary["nrc_codes"] == {"0x31": 2, "0x7F": UDS_READS - 2}
+        assert summary["nrc"] == UDS_READS
         assert summary["not_asked"] == 0

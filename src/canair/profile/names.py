@@ -42,6 +42,11 @@ def convention_problem(name: str) -> str | None:
     )
 
 
+def make_of(name: str) -> str:
+    """The make a profile name starts with (``hyundai-ioniq-ae-ev`` → ``hyundai``)."""
+    return name.split("-", 1)[0].lower()
+
+
 def declared_aliases(root: Path) -> dict[str, dict]:
     """The ``aliases:`` a bundle's ``profile.yaml`` declares (old name → entry)."""
     meta_file = root / "profile.yaml"

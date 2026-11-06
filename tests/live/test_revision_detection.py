@@ -261,7 +261,8 @@ class TestSoftwareFingerprint:
         set_active(str(by_software), variant="60kwh")
         term = SoftwareTerminal("SW2.04")
         assert _detect(term, "VCU") is True
-        assert term.sent == [(0x7E2, "1A95")]
+        # 89 (the VM software version) is asked first; this ECU does not answer it.
+        assert term.sent == [(0x7E2, "1A89"), (0x7E2, "1A95")]
         assert revision_resolutions(profile=active())["VCU"].revision == "uds"
         assert "software 95:SW2.04" in capsys.readouterr().err
 
