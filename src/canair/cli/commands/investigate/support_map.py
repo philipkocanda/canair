@@ -30,6 +30,7 @@ from canair.analysis.support_map import (
     family_chance_log10,
 )
 from canair.cli.profile_context import active
+from canair.ecus.pids import build_ecu_index, load_pids
 from canair.render import ansi, messages
 from canair.uds.byteindex import payload_index_to_wican
 from canair.uds.layout import subfunction_bytes_for_pid
@@ -152,8 +153,6 @@ def _prefer_fields(scan: PidScan) -> None:
 
 def run_support_map(specs: list[tuple[str, str]], args, since, until) -> int:
     """Detect and report support maps for ``specs`` (siblings on the same ECU corroborate)."""
-    from canair.ecus.pids import build_ecu_index, load_pids
-
     # The report module imports PidScan from here, so it is imported where it is used.
     from .support_map_report import absence_tally, as_json, print_scan
 

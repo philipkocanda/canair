@@ -13,6 +13,7 @@ from canair.ecus.names import resolve_tx
 from canair.ecus.pids import load_pids
 from canair.ecus.registry import load_ecus
 from canair.yaml_edit.echo import echo_edit
+from canair.yaml_edit.ecu import rename_ecu, tx_key
 
 from .show import unknown_ecu
 
@@ -43,8 +44,6 @@ def add_parser(kinds) -> argparse.ArgumentParser:
 
 
 def cmd_rename(args) -> int:
-    from canair.yaml_edit.ecu import rename_ecu, tx_key
-
     tx_id = resolve_tx(args.ecu, profile=active())
     if tx_id is None:
         return unknown_ecu(

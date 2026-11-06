@@ -17,10 +17,13 @@ import json as _json
 import sys
 
 from canair.analysis.align import longest_payload_len
+from canair.captures.dates import entry_datetime
 from canair.captures.keepmode import CHANGES_BANNER, scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.notation import resolve_notation
+from canair.expression.decode_value import decode_typed, render
 from canair.expression.notation import relabel_signal
 from canair.render import ansi, messages
+from canair.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
 from canair.uds.layout import subfunction_bytes_for_pid
 
 
@@ -136,9 +139,6 @@ def iter_edges(lp, mapped, mapped_bit, *, bits: bool):
     Walks each varying byte (and, with ``bits``, each toggling bit) in time order
     and emits one row per transition — the raw material for the event timeline.
     """
-    from canair.captures.dates import entry_datetime
-    from canair.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
-
     frames = []
     max_len = 0
     for cap in lp.captures:
@@ -222,10 +222,6 @@ def iter_field_edges(lp, param: dict):
     so a schedule/mode change reads as ``{Mon 08:00}->{Tue 07:30}`` rather than
     scattered per-byte edges.
     """
-    from canair.captures.dates import entry_datetime
-    from canair.expression.decode_value import decode_typed, render
-    from canair.uds.byteindex import payload_to_wican_bytes
-
     frames = []
     for cap in lp.captures:
         dt = entry_datetime(cap)
@@ -368,8 +364,6 @@ def _median(xs: list[float]) -> float:
 def _poll_interval_s(lp) -> float | None:
     """Median gap (s) between consecutive timed captures — the sampling cadence."""
     from itertools import pairwise
-
-    from canair.captures.dates import entry_datetime
 
     dts = sorted(dt for cap in lp.captures if (dt := entry_datetime(cap)) is not None)
     gaps = [(b - a).total_seconds() for a, b in pairwise(dts)]

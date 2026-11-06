@@ -11,6 +11,7 @@ from canair.analysis.ecu_summary import pids_latest_records
 from canair.cli.profile_context import active
 from canair.core.terminal import terminal_columns
 from canair.render import ansi
+from canair.states.tokens import join_states
 
 
 def _value_grid(values: Mapping[str, Any], width: int, indent: str, ncols: int = 2) -> list[str]:
@@ -95,8 +96,6 @@ def cmd_pids(info: Mapping[str, Any], tx_id: int, ecu_def: dict | None, as_json:
         f"  {ansi.DIM}{len(records)} PIDs · {n_with} with a recent capture "
         f"(each PID's newest value + the vehicle state it was read in){ansi.RESET}\n"
     )
-
-    from canair.states.tokens import join_states
 
     width = min(terminal_columns(), 120)
     for r in records:

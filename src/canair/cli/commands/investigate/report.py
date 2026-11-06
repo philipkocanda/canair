@@ -20,10 +20,13 @@ from canair.analysis.align import (
 )
 from canair.analysis.cross_signal import (
     correlation,
+    discriminability,
     linear_fit,
     sniff_unit,
 )
 from canair.analysis.triage import WordCandidate
+from canair.expression.notation import ByteRef
+from canair.uds.byteindex import wican_to_isotp
 
 NAME = "investigate"
 
@@ -68,8 +71,6 @@ def _independence_score(state_f: float | None, driver_r: float | None) -> float 
 
 
 def _state_f(frames_by_state: dict[str, list[float]]):
-    from canair.analysis.cross_signal import discriminability
-
     return discriminability(frames_by_state)
 
 
@@ -144,9 +145,6 @@ def _word_expr(word: WordCandidate) -> str | None:
     as a misleading ``[Bhi:Blo]`` range. Adjacent pairs (including PCI-straddling
     ones) render via :class:`ByteRef`, which emits the correct shift-composition.
     """
-    from canair.expression.notation import ByteRef
-    from canair.uds.byteindex import wican_to_isotp
-
     hi_key, lo_key = word.hi_key, word.lo_key
     if not (isinstance(hi_key, int) and isinstance(lo_key, int)):
         return None  # only int byte-offset keys form a UDS word expression

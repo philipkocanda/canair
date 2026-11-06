@@ -28,21 +28,20 @@ from canair.cli.commands._edit import run_edit
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.cli.profile_context import active
 from canair.core.edit_errors import EditError
+from canair.ecus.pids import load_raw_pids, revision_resolutions
 from canair.render import ansi, messages
+from canair.variants import load_variants
+from canair.variants.revisions import (
+    canonical_ecu,
+    canonical_revision,
+    declared,
+    describe_resolution,
+)
 
 _EXAMPLES = __doc__.split("Examples:")[1]
 
 
 def cmd_list(args) -> int:
-    from canair.ecus.pids import load_raw_pids, revision_resolutions
-    from canair.variants import load_variants
-    from canair.variants.revisions import (
-        canonical_ecu,
-        canonical_revision,
-        declared,
-        describe_resolution,
-    )
-
     prof = active()
     ecus = load_raw_pids(prof).get("ecus") or {}
     name = canonical_ecu(args.ecu, ecus)

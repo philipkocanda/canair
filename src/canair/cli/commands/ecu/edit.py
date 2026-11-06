@@ -6,8 +6,10 @@ import sys
 from collections.abc import Mapping
 from typing import Any
 
+from canair.cli.commands.validate.pids import run_pids
 from canair.cli.profile_context import active
 from canair.render import messages
+from canair.yaml_edit.ecu import find_ecu_file_by_tx
 
 
 def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
@@ -22,8 +24,6 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
     import os
     import shutil
     import subprocess
-
-    from canair.yaml_edit.ecu import find_ecu_file_by_tx
 
     name = info.get("name") or f"0x{tx_id:03X}"
 
@@ -55,8 +55,6 @@ def cmd_edit(info: Mapping[str, Any], tx_id: int) -> int:
         return rc
 
     # Re-validate the edited file (not auto-reverted — the user owns the edit).
-    from canair.cli.commands.validate.pids import run_pids
-
     messages.note(f"validating {path.name} …")
     vrc = run_pids([str(path)], stats=False)
     if vrc:

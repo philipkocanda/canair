@@ -7,8 +7,11 @@ from typing import Any
 
 from canair.analysis import ecu_summary
 from canair.cli.profile_context import active
+from canair.ecus.pids import load_raw_pids
 from canair.ecus.registry import rx_addr_str
+from canair.ecus.revisions import determined_revisions
 from canair.profile.model import ProfileError
+from canair.variants.revisions import canonical_ecu, identity_reference
 
 # Identity fields to surface in the detail view, in display order.
 # (name/alias/description/id_protocol are handled separately in the header.)
@@ -88,10 +91,6 @@ def _identity_note(name: str) -> str | None:
     the loader withholds them from another revision, so say why they are absent rather than
     leave the identity looking merely unrecorded.
     """
-    from canair.ecus.pids import load_raw_pids
-    from canair.ecus.revisions import determined_revisions
-    from canair.variants.revisions import canonical_ecu, identity_reference
-
     raw = load_raw_pids(profile=active()).get("ecus") or {}
     key = canonical_ecu(name, raw)
     reference = identity_reference(raw[key]) if key else None

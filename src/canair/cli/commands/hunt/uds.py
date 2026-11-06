@@ -6,8 +6,12 @@ import json as _json
 import sys
 
 from canair.analysis.align import (
+    TimePoint,
+    join_prepared,
     load_signal_captures,
     longest_payload_len,
+    prepare_series,
+    thin_join_warning,
 )
 from canair.analysis.cross_signal import (
     hunt_byte,
@@ -18,6 +22,8 @@ from canair.analysis.cross_signal import (
     transform_ref,
 )
 from canair.analysis.fill import forced_hold_warning
+from canair.analysis.physical.unit_guess import resolve_unit_candidates
+from canair.analysis.stats import categorical_method_nudge
 from canair.cli.args.join import (
     fill_policy_from_args,
     fill_summaries,
@@ -27,6 +33,7 @@ from canair.cli.args.notation import resolve_notation
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
 from canair.cli.profile_context import active
+from canair.ecus.names import canonical_ecu_name_safe
 from canair.expression.inspect_bytes import NO_EXPR
 from canair.render import ansi, messages
 from canair.uds.layout import subfunction_bytes_for_pid
@@ -38,9 +45,6 @@ from .render import hit_label
 
 
 def run(args) -> int:
-    from canair.analysis.physical.unit_guess import resolve_unit_candidates
-    from canair.ecus.names import canonical_ecu_name_safe
-
     if not args.ecu or not args.pid:
         messages.error("ECU and PID are required (e.g. `hunt AAF 2181 --against …`)")
         return 2
@@ -101,8 +105,6 @@ def run(args) -> int:
         ref_label = f"{args.transform}({ref_label})"
 
     if reference_is_bimodal([tp.value for tp in ref_series]):
-        from canair.analysis.stats import categorical_method_nudge
-
         messages.warning(
             f"reference {ref_label!r} collapses into ~2 clusters "
             "(bimodal) \u2014 |r| then ranks cluster separation, not a signal match, so "
@@ -270,8 +272,6 @@ def _warn_thin_reference_join(args, lp, ref_series, ref_label: str) -> None:
     that bound is 0 (or under ``--min-n``), the sweep can only come back empty —
     for a *scope/tolerance* reason, not because nothing correlates.
     """
-    from canair.analysis.align import TimePoint, join_prepared, prepare_series, thin_join_warning
-
     frames = lp.timed_frames()
     if not frames or not ref_series:
         return

@@ -19,14 +19,20 @@ from canair.analysis.cross_signal import (
     build_bit_series,
     build_byte_series,
     build_param_series,
+    load_ref,
+    physical_scan,
 )
+from canair.analysis.cross_signal import byte_state_buckets as _byte_state_buckets
 from canair.analysis.fill import forced_hold_warning
+from canair.analysis.physical.bands import resolve_physical_bands
 from canair.analysis.triage import detect_words, triage_byte
 from canair.captures.keepmode import scope_is_keep_changes, scope_is_keep_unique
 from canair.cli.args.join import fill_policy_from_args, fill_summaries, fill_summary_line
 from canair.cli.args.scope import resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
 from canair.cli.profile_context import active
+from canair.ecus.names import canonical_ecu_name_safe
+from canair.ecus.pids import build_ecu_index, load_pids
 from canair.render import messages
 from canair.uds.byteindex import mapped_bits, mapped_offsets
 from canair.variants import effective_meta
@@ -96,8 +102,6 @@ def _resolve_targets(args, since, until) -> tuple[list[tuple[str, str]], tuple[s
     query; a full QUERY is passed through to the shared mini-language parser. A
     query that resolves to exactly one PID is still rendered in full.
     """
-    from canair.ecus.names import canonical_ecu_name_safe
-
     if args.ecu and args.pid:
         ecu = canonical_ecu_name_safe(args.ecu, profile=active()).upper()
         spec = (ecu, args.pid.upper())
@@ -115,9 +119,6 @@ def _resolve_targets(args, since, until) -> tuple[list[tuple[str, str]], tuple[s
 
 
 def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
-    from canair.analysis.cross_signal import byte_state_buckets as _byte_state_buckets
-    from canair.ecus.pids import build_ecu_index, load_pids
-
     loaded = load_signal_captures(
         [(ecu, pid)],
         since=since,
@@ -172,8 +173,6 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
 
     # Physical-band hits per starting offset (plausibility, needs no reference).
     # Computed after the --events short-circuit so it isn't wasted there.
-    from canair.analysis.cross_signal import physical_scan
-    from canair.analysis.physical.bands import resolve_physical_bands
     from canair.cli.grid_prompt import resolve_grid_region
 
     bands = resolve_physical_bands(effective_meta(active()), grid_region=resolve_grid_region())
@@ -188,8 +187,6 @@ def _run_single(ecu: str, pid: str, args, since, until, fill) -> int:
         messages.error("--independent-of and --independent-of-file are mutually exclusive")
         return 2
     if args.independent_of or args.independent_of_file:
-        from canair.analysis.cross_signal import load_ref
-
         try:
             if args.independent_of_file:
                 from canair.analysis.align import load_reference_file

@@ -129,7 +129,7 @@ class TestCountersCli:
     def test_unmapped_only_hides_a_mapped_window(self, tmp_path, monkeypatch, capsys):
         _write_odometer(tmp_path, days=_DAYS)
         monkeypatch.setattr(
-            "canair.ecus.pids.load_pids",
+            "canair.cli.commands.investigate.uds.load_pids",
             lambda *a, **k: {
                 "ecus": {
                     "CLU": {
@@ -177,7 +177,7 @@ class TestCountersCli:
         """
         _write_odometer(tmp_path, days=_DAYS)
         monkeypatch.setattr(
-            "canair.ecus.pids.load_pids",
+            "canair.cli.commands.investigate.uds.load_pids",
             lambda *a, **k: {
                 "ecus": {
                     "CLU": {
@@ -211,7 +211,7 @@ class TestCountersCli:
     def test_verified_mapping_is_reported_as_settled(self, tmp_path, monkeypatch, capsys):
         _write_odometer(tmp_path, days=_DAYS)
         monkeypatch.setattr(
-            "canair.ecus.pids.load_pids",
+            "canair.cli.commands.investigate.uds.load_pids",
             lambda *a, **k: {
                 "ecus": {
                     "CLU": {

@@ -21,8 +21,13 @@ import json as _json
 import sys
 
 from canair.analysis.align import LoadedPid, load_signal_captures
+from canair.analysis.cross_signal import build_byte_series, byte_state_buckets, physical_scan
+from canair.analysis.physical.bands import resolve_physical_bands
 from canair.cli.args.notation import resolve_notation
+from canair.cli.args.scope import active_scope_flags
+from canair.cli.commands.investigate.report import _state_f
 from canair.cli.profile_context import active
+from canair.ecus.pids import build_ecu_index, load_pids
 from canair.expression.notation import ByteNotation
 from canair.render import ansi, messages
 from canair.uds.byteindex import mapped_offsets
@@ -50,8 +55,6 @@ def run_sweep(specs: list[tuple[str, str]], args, since, until, fill) -> int:
         messages.error("no timed captures in scope to investigate")
         return 1
 
-    from canair.ecus.pids import build_ecu_index, load_pids
-
     ecu_index = build_ecu_index(load_pids(profile=active()))
     loaded = load_signal_captures(
         specs,
@@ -75,8 +78,6 @@ def run_sweep(specs: list[tuple[str, str]], args, since, until, fill) -> int:
 
 
 def _sweep_counters(specs, loaded, args, params_of) -> int:
-    from canair.cli.args.scope import active_scope_flags
-
     scope_flags = active_scope_flags(args)
     if scope_flags:
         messages.warning(warn_scoped_counters(scope_flags))
@@ -166,9 +167,6 @@ def _sweep_counters(specs, loaded, args, params_of) -> int:
 
 def _pid_summary(lp: LoadedPid, params_def: dict, args, fill) -> dict | None:
     """Cheap, LOCAL per-PID facts for the sweep summary (no cross-PID joins)."""
-    from canair.analysis.cross_signal import build_byte_series, byte_state_buckets, physical_scan
-    from canair.analysis.physical.bands import resolve_physical_bands
-    from canair.cli.commands.investigate.report import _state_f
     from canair.cli.grid_prompt import resolve_grid_region
 
     target = build_byte_series(lp, min_distinct=2, fill=fill)

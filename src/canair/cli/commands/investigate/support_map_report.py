@@ -14,6 +14,7 @@ from canair.expression.notation import ByteNotation, relabel_signal
 from canair.render import ansi
 from canair.uds.byteindex import declared_bits, extract_byte_indices, references_full_byte
 from canair.uds.layout import subfunction_bytes_for_pid
+from canair.uds.support_marks import continuation_bits, marked_bits
 
 from .support_fields import field_declare, field_json, print_field_headline, print_field_note
 from .support_map import PidScan
@@ -61,8 +62,6 @@ def _label(scan: PidScan, slot: Slot, notation: ByteNotation) -> str:
 
 def _outside_defined(scan: PidScan, fit: MapFit) -> list[tuple[str, str, bool]]:
     """Defined signals that read a position the map does not mark: (name, where, continuation)."""
-    from canair.uds.support_marks import continuation_bits, marked_bits
-
     if fit.unit != "bit":
         return []
     by_w = {w: p for p, w in scan.labels.items()}

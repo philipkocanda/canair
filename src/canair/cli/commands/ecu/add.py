@@ -11,6 +11,7 @@ from canair.cli.profile_context import target_profile
 from canair.core.edit_errors import EditError
 from canair.render import messages
 from canair.yaml_edit.echo import echo_edit
+from canair.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu, tx_key
 
 
 def add_parser(kinds) -> argparse.ArgumentParser:
@@ -74,8 +75,6 @@ def add_parser(kinds) -> argparse.ArgumentParser:
 
 
 def cmd_add(args) -> int:
-    from canair.yaml_edit.ecu import find_ecu_file_by_tx, register_ecu, tx_key
-
     try:
         tx_id = int(str(args.tx), 16)
     except ValueError:
