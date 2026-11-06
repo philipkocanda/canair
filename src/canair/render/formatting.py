@@ -11,7 +11,7 @@ from canair.expression.decoding import ParamRow
 from canair.privacy.sensitive import MASK
 from canair.render import ansi, glyphs
 from canair.render.console import console
-from canair.uds.byteindex import extract_byte_indices, wican_to_elm_idx
+from canair.uds.byteindex import extract_byte_indices, isotp_to_wican, wican_to_elm_idx
 from canair.uds.response import UdsResponse
 
 if TYPE_CHECKING:
@@ -579,7 +579,6 @@ def print_hexdump(data: bytes, prefix: str = "  ", *, layout: ByteLayout = "isot
     Passing a WiCAN-layout buffer without ``layout="wican"`` shifts every label
     by the framing offset — silently, since both are ``bytes``.
     """
-    from canair.uds.byteindex import isotp_to_wican
 
     def label(j: int) -> int:
         return j if layout == "wican" else isotp_to_wican(j)
@@ -599,7 +598,6 @@ def format_raw_with_bnn(data: bytes) -> str:
     Returns a string like: B02=62 B03=BC B04=03 B05=FD ...
     Helps avoid byte offset confusion when reading raw output.
     """
-    from canair.uds.byteindex import isotp_to_wican
 
     parts = []
     for i, b in enumerate(data):
