@@ -75,6 +75,109 @@ options:
   -h, --help  show this help message and exit
 ```
 
+### `canair wican autopid write`
+
+```
+usage: canair wican autopid write [-h] [--firmware {4,6}] [--out PATH]
+                                  [--include-unverified]
+                                  [--no-expected-responses]
+
+Generate the WiCAN AutoPID profile and write it to the active bundle's out/,
+once per firmware generation: autopid-v4.json is the 4.x vehicle profile,
+autopid-v6.json the v6 AutoPID table (from 6.0.0-beta.3; it also names the
+car's 'vehicle' and 'specific_init' device settings). On a profile with
+several variants both go to out/<variant>/, one device profile per car. With
+--include-unverified they are autopid-v4-unverified.json and
+autopid-v6-unverified.json instead, so the verified-only files stay as they
+are. Refused while an ECU's revision is undetermined: the device polls a fixed
+list and can't detect it.
+
+options:
+  -h, --help            show this help message and exit
+  --firmware {4,6}      Write only the file for this WiCAN firmware generation
+                        (default: both)
+  --out PATH            Write to PATH instead of the bundle's out/ (needs
+                        --firmware: one file)
+  --include-unverified  Include unverified parameters (default: verified only)
+  --no-expected-responses
+                        Do not append each PID's recorded response_frames
+                        count to its request (by default the count is
+                        appended, so the adapter answers as soon as that many
+                        frames arrive instead of waiting out its ~614ms
+                        budget)
+```
+
+### `canair wican autopid upload`
+
+```
+usage: canair wican autopid upload [-h] [--reboot] [--include-unverified]
+                                   [--no-expected-responses] [--wican WICAN]
+
+Generate the AutoPID profile and upload it to the WiCAN device (POST
+/store_car_data). WiCAN Pro on firmware 4.x only.
+
+options:
+  -h, --help            show this help message and exit
+  --reboot              Reboot the device after upload
+  --include-unverified  Include unverified parameters (default: verified only)
+  --no-expected-responses
+                        Do not append each PID's recorded response_frames
+                        count to its request (by default the count is
+                        appended, so the adapter answers as soon as that many
+                        frames arrive instead of waiting out its ~614ms
+                        budget)
+  --wican WICAN         WiCAN address: ap, an IP/host, or a URL (default:
+                        config transport.host / default_wican=ap)
+```
+
+### `canair wican autopid download`
+
+```
+usage: canair wican autopid download [-h] [--wican WICAN]
+
+Download the WiCAN device's current AutoPID profile (GET
+/load_auto_pid_car_data) and print it, normalized. WiCAN Pro on firmware 4.x
+only.
+
+options:
+  -h, --help     show this help message and exit
+  --wican WICAN  WiCAN address: ap, an IP/host, or a URL (default: config
+                 transport.host / default_wican=ap)
+```
+
+### `canair wican autopid diff`
+
+```
+usage: canair wican autopid diff [-h] [--include-unverified]
+                                 [--no-expected-responses] [--wican WICAN]
+
+Download the device's current AutoPID profile and show a parameter-level diff
+against the freshly generated one. WiCAN Pro on firmware 4.x only.
+
+options:
+  -h, --help            show this help message and exit
+  --include-unverified  Include unverified parameters (default: verified only)
+  --no-expected-responses
+                        Do not append each PID's recorded response_frames
+                        count to its request (by default the count is
+                        appended, so the adapter answers as soon as that many
+                        frames arrive instead of waiting out its ~614ms
+                        budget)
+  --wican WICAN         WiCAN address: ap, an IP/host, or a URL (default:
+                        config transport.host / default_wican=ap)
+```
+
+### `canair wican autopid stats`
+
+```
+usage: canair wican autopid stats [-h]
+
+Print a per-ECU/PID statistics table for the active bundle.
+
+options:
+  -h, --help  show this help message and exit
+```
+
 ## `canair wican mode`
 
 ```
@@ -89,4 +192,45 @@ positional arguments:
 
 options:
   -h, --help  show this help message and exit
+```
+
+### `canair wican mode show`
+
+```
+usage: canair wican mode show [-h] [--wican WICAN]
+
+Report the WiCAN device's currently active protocol/mode.
+
+options:
+  -h, --help     show this help message and exit
+  --wican WICAN  WiCAN address: ap, an IP/host, or a URL (default: config
+                 transport.host / default_wican=ap)
+```
+
+### `canair wican mode set`
+
+```
+usage: canair wican mode set [-h] [--yes] [--no-transport] [--wican WICAN]
+                             {elm327,slcan,savvycan,realdash66,auto_pid}
+
+Switch the WiCAN device to MODE and reboot it, then align canair's transport to match (slcan -> slcan-tcp, elm327 -> wican-ws). WiCAN Pro on firmware 4.x only.
+
+Valid modes:
+  slcan        raw CAN — canair drives ISO-TP client-side; enables sniff
+  elm327       ELM327 terminal — the dongle runs ISO-TP
+  auto_pid     restore Home Assistant AutoPID broadcasting
+  savvycan     stream frames to SavvyCAN
+  realdash66   stream frames to RealDash (CAN 66)
+
+positional arguments:
+  {elm327,slcan,savvycan,realdash66,auto_pid}
+                        Target protocol/mode
+
+options:
+  -h, --help            show this help message and exit
+  --yes                 Skip the confirmation prompt
+  --no-transport        Don't auto-align the config transport.type to the new
+                        mode
+  --wican WICAN         WiCAN address: ap, an IP/host, or a URL (default:
+                        config transport.host / default_wican=ap)
 ```

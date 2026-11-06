@@ -3,8 +3,8 @@
 
 The CLI's argparse help is the single source of truth for flags and usage, so we
 render it into Markdown rather than hand-maintaining a copy that drifts. Each
-top-level `canair <cmd>` becomes docs/reference/cli/<cmd>.md, including one level
-of nested sub-kinds (e.g. `scan range`, `ecu add`, `wican autopid write`).
+top-level `canair <cmd>` becomes docs/reference/cli/<cmd>.md, including every nested
+sub-kind at any depth (e.g. `scan range`, `ecu add`, `wican autopid write`).
 
 Usage:
     python3 scripts/gen/gen_cli_reference.py            # write the pages
@@ -78,18 +78,27 @@ def _render_command(
         hint = ", ".join(f"`{a}`" for a in aliases)
         lines += [f"*Alias{'es' if len(aliases) > 1 else ''}: {hint}*", ""]
     lines += ["```", _format_help(parser), "```", ""]
-
-    sub = _subparsers_action(parser)
-    if sub is not None:
-        # choices maps sub-kind name -> its ArgumentParser (dedup shared parsers).
-        seen: set[int] = set()
-        for kind, subparser in sub.choices.items():
-            if id(subparser) in seen:
-                continue
-            seen.add(id(subparser))
-            lines += [f"## `canair {name} {kind}`", ""]
-            lines += ["```", _format_help(subparser), "```", ""]
+    lines += _render_kinds(name, parser, depth=2)
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_kinds(prefix: str, parser: argparse.ArgumentParser, depth: int) -> list[str]:
+    """Render every sub-kind of ``parser``, and theirs in turn, one heading level deeper each."""
+    sub = _subparsers_action(parser)
+    if sub is None:
+        return []
+    lines: list[str] = []
+    # choices maps sub-kind name -> its ArgumentParser (dedup aliases sharing one parser).
+    seen: set[int] = set()
+    for kind, subparser in sub.choices.items():
+        if id(subparser) in seen:
+            continue
+        seen.add(id(subparser))
+        path = f"{prefix} {kind}"
+        lines += [f"{'#' * depth} `canair {path}`", ""]
+        lines += ["```", _format_help(subparser), "```", ""]
+        lines += _render_kinds(path, subparser, depth + 1)
+    return lines
 
 
 def _command_names() -> list[str]:

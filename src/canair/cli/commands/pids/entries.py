@@ -24,17 +24,19 @@ from canair.yaml_edit.pids import (
 )
 from canair.yaml_edit.revisions import set_gate, set_override
 
-from .common import apply_in_scope
+from .common import ECU_HELP, PID_HELP, apply_in_scope
 
 
 def add_parsers(sub) -> None:
     """Register the kinds of this group under ``canair pids``."""
     up = sub.add_parser("upsert-param", help="Add or update a signal")
-    up.add_argument("ecu")
-    up.add_argument("pid")
-    up.add_argument("name")
-    up.add_argument("expression")
-    up.add_argument("--unit")
+    up.add_argument("ecu", help=ECU_HELP)
+    up.add_argument("pid", help=PID_HELP)
+    up.add_argument("name", help="Signal name, e.g. BATTERY_VOLTAGE")
+    up.add_argument(
+        "expression", help='WiCAN expression that decodes the signal, e.g. "[B10:B11]/10"'
+    )
+    up.add_argument("--unit", help="Unit of the decoded value, e.g. V, A, kW, °C, %%")
     up.add_argument(
         "--category",
         choices=[*CATEGORIES, ""],
@@ -58,12 +60,17 @@ def add_parsers(sub) -> None:
         "only in the AutoPID batch (e.g. wican/car/stream/battery_power). Must be unique "
         "across shipped signals. Pass an empty string to stop streaming the signal",
     )
-    up.add_argument("--min")
-    up.add_argument("--max")
-    up.add_argument("--source")
-    up.add_argument("--source-link", action="append", metavar="URL")
-    up.add_argument("--display")
-    up.add_argument("--notes")
+    up.add_argument("--min", help="Lowest plausible decoded value")
+    up.add_argument("--max", help="Highest plausible decoded value")
+    up.add_argument("--source", help="Where the decoding came from, e.g. a service manual")
+    up.add_argument(
+        "--source-link",
+        action="append",
+        metavar="URL",
+        help="Reference for --source (repeatable)",
+    )
+    up.add_argument("--display", help="Text shown beside the decoded value (free text)")
+    up.add_argument("--notes", help="Free-text notes for this signal only")
     up.add_argument(
         "--type",
         dest="ptype",
@@ -86,11 +93,33 @@ def add_parsers(sub) -> None:
         help="Bitmask mapping (repeatable, 0=LSB), e.g. --bit 5=driver --bit 7=trunk",
     )
     ver = up.add_mutually_exclusive_group()
-    ver.add_argument("--verified", dest="verified", action="store_true", default=None)
-    ver.add_argument("--unverified", dest="verified", action="store_false")
+    ver.add_argument(
+        "--verified",
+        dest="verified",
+        action="store_true",
+        default=None,
+        help="Mark the decoding as checked against the car",
+    )
+    ver.add_argument(
+        "--unverified",
+        dest="verified",
+        action="store_false",
+        help="Mark the decoding as a guess not yet checked against the car",
+    )
     ship = up.add_mutually_exclusive_group()
-    ship.add_argument("--ship", dest="ship", action="store_true", default=None)
-    ship.add_argument("--no-ship", dest="ship", action="store_false", help="Keep off the device")
+    ship.add_argument(
+        "--ship",
+        dest="ship",
+        action="store_true",
+        default=None,
+        help="Ship the signal to the WiCAN device profile (the default)",
+    )
+    ship.add_argument(
+        "--no-ship",
+        dest="ship",
+        action="store_false",
+        help="Keep off the device (still polled, decoded and captured)",
+    )
     up.add_argument(
         "--revision",
         metavar="ID",
@@ -102,37 +131,37 @@ def add_parsers(sub) -> None:
     up.set_defaults(_pids_func=cmd_upsert_param)
 
     rn = sub.add_parser("rename-param", help="Rename a signal (key only; fields preserved)")
-    rn.add_argument("ecu")
-    rn.add_argument("pid")
+    rn.add_argument("ecu", help=ECU_HELP)
+    rn.add_argument("pid", help=PID_HELP)
     rn.add_argument("old", help="Current signal name")
     rn.add_argument("new", help="New signal name")
     add_edit_args(rn)
     rn.set_defaults(_pids_func=cmd_rename_param)
 
     rm = sub.add_parser("rm-param", help="Remove a signal")
-    rm.add_argument("ecu")
-    rm.add_argument("pid")
-    rm.add_argument("name")
+    rm.add_argument("ecu", help=ECU_HELP)
+    rm.add_argument("pid", help=PID_HELP)
+    rm.add_argument("name", help="Signal name to remove")
     add_edit_args(rm)
     rm.set_defaults(_pids_func=cmd_rm_param)
 
     rnp = sub.add_parser("rename-pid", help="Rename a PID key (e.g. B002 -> 22B002)")
-    rnp.add_argument("ecu")
+    rnp.add_argument("ecu", help=ECU_HELP)
     rnp.add_argument("old", help="Current PID code")
     rnp.add_argument("new", help="New PID code (hex, e.g. 22B002)")
     add_edit_args(rnp)
     rnp.set_defaults(_pids_func=cmd_rename_pid)
 
     rmp = sub.add_parser("rm-pid", help="Remove a whole PID (header, status, parameters)")
-    rmp.add_argument("ecu")
-    rmp.add_argument("pid")
+    rmp.add_argument("ecu", help=ECU_HELP)
+    rmp.add_argument("pid", help=PID_HELP)
     add_edit_args(rmp)
     rmp.set_defaults(_pids_func=cmd_rm_pid)
 
     adp = sub.add_parser(
         "add-pid", help="Create a new parameter-less PID (discovery/identity placeholder)"
     )
-    adp.add_argument("ecu")
+    adp.add_argument("ecu", help=ECU_HELP)
     adp.add_argument("pid", help="PID code, hex (e.g. 21F2)")
     adp.add_argument(
         "--status",

@@ -206,7 +206,7 @@ def add_parsers(kinds) -> None:
         "(--identity), or the ECU's software version matching a glob (--software, read as "
         "RECORD:TEXT, e.g. F195:1.04*). A live session matches them to detect the revision.",
     )
-    fp.add_argument("revision", metavar="ID")
+    fp.add_argument("revision", metavar="ID", help="Revision ID to add the fingerprint to")
     fp.add_argument("--responds", metavar="HEX", help="A safe read only it answers (e.g. 1A90)")
     fp.add_argument(
         "--identity",
@@ -226,12 +226,12 @@ def add_parsers(kinds) -> None:
         "rename",
         help="Rename a revision, rewriting its gates, variants' lists and capture tags",
     )
-    ren.add_argument("old", metavar="OLD")
-    ren.add_argument("new", metavar="NEW")
+    ren.add_argument("old", metavar="OLD", help="Current revision ID")
+    ren.add_argument("new", metavar="NEW", help="New revision ID")
     ren.set_defaults(func=cmd_rename)
 
     rm = sub.add_parser("rm", help="Remove a revision (refused while anything refers to it)")
-    rm.add_argument("revision", metavar="ID")
+    rm.add_argument("revision", metavar="ID", help="Revision ID to remove")
     rm.set_defaults(func=cmd_rm)
     rev.set_defaults(func=cmd_list)
 

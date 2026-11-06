@@ -93,14 +93,16 @@ usage: canair pids upsert-param [-h] [--unit UNIT] [--category CATEGORY]
                                 ecu pid name expression
 
 positional arguments:
-  ecu
-  pid
-  name
-  expression
+  ecu                   ECU name (a key in ecus/)
+  pid                   PID code, hex (e.g. 2101, 22B002); a memory read is
+                        23/ADDRESS+SIZE
+  name                  Signal name, e.g. BATTERY_VOLTAGE
+  expression            WiCAN expression that decodes the signal, e.g.
+                        "[B10:B11]/10"
 
 options:
   -h, --help            show this help message and exit
-  --unit UNIT
+  --unit UNIT           Unit of the decoded value, e.g. V, A, kW, °C, %
   --category CATEGORY   What the signal measures or represents, only where the
                         unit does not say it: state_of_charge,
                         state_of_health, humidity, door, opening, lock, lamp,
@@ -116,12 +118,12 @@ options:
                         wican/car/stream/battery_power). Must be unique across
                         shipped signals. Pass an empty string to stop
                         streaming the signal
-  --min MIN
-  --max MAX
-  --source SOURCE
-  --source-link URL
-  --display DISPLAY
-  --notes NOTES
+  --min MIN             Lowest plausible decoded value
+  --max MAX             Highest plausible decoded value
+  --source SOURCE       Where the decoding came from, e.g. a service manual
+  --source-link URL     Reference for --source (repeatable)
+  --display DISPLAY     Text shown beside the decoded value (free text)
+  --notes NOTES         Free-text notes for this signal only
   --type {numeric,enum,bitmask,ascii,date,bcd}
                         Typed decoding: enum/bitmask/ascii/date/bcd (default
                         numeric). See --value / --bit for the enum/bitmask
@@ -130,10 +132,13 @@ options:
                         --value 40=drive
   --bit INDEX=LABEL     Bitmask mapping (repeatable, 0=LSB), e.g. --bit
                         5=driver --bit 7=trunk
-  --verified
-  --unverified
-  --ship
-  --no-ship             Keep off the device
+  --verified            Mark the decoding as checked against the car
+  --unverified          Mark the decoding as a guess not yet checked against
+                        the car
+  --ship                Ship the signal to the WiCAN device profile (the
+                        default)
+  --no-ship             Keep off the device (still polled, decoded and
+                        captured)
   --revision ID         The ECU revision this was seen on: an existing signal
                         gets the given fields under per_revision.ID (the rest
                         stay shared); a new one is created gated to revisions:
@@ -149,8 +154,9 @@ usage: canair pids rename-param [-h] [--dir DIR] [--no-validate]
                                 ecu pid old new
 
 positional arguments:
-  ecu
-  pid
+  ecu            ECU name (a key in ecus/)
+  pid            PID code, hex (e.g. 2101, 22B002); a memory read is
+                 23/ADDRESS+SIZE
   old            Current signal name
   new            New signal name
 
@@ -166,9 +172,10 @@ options:
 usage: canair pids rm-param [-h] [--dir DIR] [--no-validate] ecu pid name
 
 positional arguments:
-  ecu
-  pid
-  name
+  ecu            ECU name (a key in ecus/)
+  pid            PID code, hex (e.g. 2101, 22B002); a memory read is
+                 23/ADDRESS+SIZE
+  name           Signal name to remove
 
 options:
   -h, --help     show this help message and exit
@@ -182,7 +189,7 @@ options:
 usage: canair pids rename-pid [-h] [--dir DIR] [--no-validate] ecu old new
 
 positional arguments:
-  ecu
+  ecu            ECU name (a key in ecus/)
   old            Current PID code
   new            New PID code (hex, e.g. 22B002)
 
@@ -198,8 +205,9 @@ options:
 usage: canair pids rm-pid [-h] [--dir DIR] [--no-validate] ecu pid
 
 positional arguments:
-  ecu
-  pid
+  ecu            ECU name (a key in ecus/)
+  pid            PID code, hex (e.g. 2101, 22B002); a memory read is
+                 23/ADDRESS+SIZE
 
 options:
   -h, --help     show this help message and exit
@@ -216,7 +224,7 @@ usage: canair pids add-pid [-h] [--status {active,draft,static,slow,ignored}]
                            ecu pid
 
 positional arguments:
-  ecu
+  ecu                   ECU name (a key in ecus/)
   pid                   PID code, hex (e.g. 21F2)
 
 options:
@@ -242,7 +250,7 @@ usage: canair pids add-research [-h]
                                 --target TARGET
                                 --status {pending,captured,nrc,done}
                                 [--priority {P1,P2,P3}] [--prereq PREREQ]
-                                [--date DATE] [--created YYYY-MM-DD]
+                                [--date YYYY-MM-DD] [--created YYYY-MM-DD]
                                 [--updated YYYY-MM-DD] [--result RESULT]
                                 [--notes NOTES] [--source SRC]
                                 [--what-to-test ITEM]
@@ -251,26 +259,32 @@ usage: canair pids add-research [-h]
                                 ecu
 
 positional arguments:
-  ecu
+  ecu                   ECU name (a key in ecus/)
 
 options:
   -h, --help            show this help message and exit
   --type {scan,decode,verify,iocontrol_scan}
-  --target TARGET
+                        What the task is: scan a range, decode a captured
+                        payload, verify a signal, or scan IOControl
+  --target TARGET       The PID, DID range or scan description the task
+                        concerns (e.g. 2103)
   --status {pending,captured,nrc,done}
+                        Where the task stands
   --priority {P1,P2,P3}
+                        P1 = high value, P2 = medium, P3 = speculative
   --prereq, --vehicle-states PREREQ
                         Power state(s) prerequisite for this research
                         (repeatable). Validated against the profile's vehicle-
                         state vocabulary at write time.
-  --date DATE
+  --date YYYY-MM-DD     When the task was last tested
   --created YYYY-MM-DD  Override auto creation date (default: today)
   --updated YYYY-MM-DD  Override auto updated date (default: today)
-  --result RESULT
-  --notes NOTES
-  --source SRC
-  --what-to-test ITEM
+  --result RESULT       Short summary of the outcome
+  --notes NOTES         Details, and what to look for
+  --source SRC          Cross-reference: a URL or file (repeatable)
+  --what-to-test ITEM   A specific thing to check (repeatable)
   --capture-protocol TEXT
+                        How to capture the data needed to decode it
   --revision ID         An ECU revision the task concerns (repeatable; absent
                         = every revision): a car on another revision doesn't
                         list it
@@ -287,9 +301,11 @@ usage: canair pids set-status [-h]
                               ecu target {pending,captured,nrc,done}
 
 positional arguments:
-  ecu
-  target
+  ecu                   ECU name (a key in ecus/)
+  target                The research item's target (the PID or DID it
+                        concerns, e.g. 2103)
   {pending,captured,nrc,done}
+                        New status of the item
 
 options:
   -h, --help            show this help message and exit
@@ -311,8 +327,9 @@ usage: canair pids rm-research [-h]
                                ecu target
 
 positional arguments:
-  ecu
-  target
+  ecu                   ECU name (a key in ecus/)
+  target                The research item's target (the PID or DID it
+                        concerns, e.g. 2103)
 
 options:
   -h, --help            show this help message and exit
@@ -339,8 +356,9 @@ Set a research: item's notes: without touching status: or other fields.
 Omit VALUE to clear the field. Short text stays inline; longer text becomes a word-wrapped folded block scalar. Disambiguate with --type/--index the same way as set-status/rm-research.
 
 positional arguments:
-  ecu
-  target
+  ecu                   ECU name (a key in ecus/)
+  target                The research item's target (the PID or DID it
+                        concerns, e.g. 2103)
   value                 New notes text (omit to clear the field)
 
 options:
@@ -368,8 +386,9 @@ Set a research: item's result: without touching status: or other fields.
 Omit VALUE to clear the field. Short text stays inline; longer text becomes a word-wrapped folded block scalar. Disambiguate with --type/--index the same way as set-status/rm-research.
 
 positional arguments:
-  ecu
-  target
+  ecu                   ECU name (a key in ecus/)
+  target                The research item's target (the PID or DID it
+                        concerns, e.g. 2103)
   value                 New result text (omit to clear the field)
 
 options:
@@ -397,8 +416,9 @@ Set a research: item's capture_protocol: without touching status: or other field
 Omit VALUE to clear the field. Short text stays inline; longer text becomes a word-wrapped folded block scalar. Disambiguate with --type/--index the same way as set-status/rm-research.
 
 positional arguments:
-  ecu
-  target
+  ecu                   ECU name (a key in ecus/)
+  target                The research item's target (the PID or DID it
+                        concerns, e.g. 2103)
   value                 New capture_protocol text (omit to clear the field)
 
 options:
@@ -419,9 +439,11 @@ usage: canair pids set-pid-status [-h] [--dir DIR] [--no-validate]
                                   ecu pid {active,draft,static,slow,ignored}
 
 positional arguments:
-  ecu
-  pid
+  ecu                   ECU name (a key in ecus/)
+  pid                   PID code, hex (e.g. 2101, 22B002); a memory read is
+                        23/ADDRESS+SIZE
   {active,draft,static,slow,ignored}
+                        New lifecycle status
 
 options:
   -h, --help            show this help message and exit
@@ -436,8 +458,9 @@ usage: canair pids set-pid-variable-length [-h] [--dir DIR] [--no-validate]
                                            ecu pid {true,false}
 
 positional arguments:
-  ecu
-  pid
+  ecu            ECU name (a key in ecus/)
+  pid            PID code, hex (e.g. 2101, 22B002); a memory read is
+                 23/ADDRESS+SIZE
   {true,false}   true = variable-length (a short payload is not truncation,
                  and no frame count is ever requested or recorded; drops any
                  response_frames count); false = clear the flag (fixed-length,
@@ -464,7 +487,7 @@ snapshot record, which a record holding several DIDs needs (a one-DID record
 is self-describing). --clear removes the mark and the length.
 
 positional arguments:
-  ecu
+  ecu              ECU name (a key in ecus/)
   pid              The DID's read PID, e.g. 224710
 
 options:
@@ -490,8 +513,9 @@ strip, the docs explorer and the WiCAN AutoPID export. A sensitive signal also
 hides its PID's raw bytes, which give it away.
 
 positional arguments:
-  ecu
-  pid
+  ecu            ECU name (a key in ecus/)
+  pid            PID code, hex (e.g. 2101, 22B002); a memory read is
+                 23/ADDRESS+SIZE
   {true,false}   true = sensitive; false = clear
 
 options:
@@ -522,8 +546,9 @@ than 32 parameters, carry further bitmaps (--also-at). `canair investigate ECU
 signal. --clear removes the declaration.
 
 positional arguments:
-  ecu
-  pid
+  ecu                   ECU name (a key in ecus/)
+  pid                   PID code, hex (e.g. 2101, 22B002); a memory read is
+                        23/ADDRESS+SIZE
 
 options:
   -h, --help            show this help message and exit
@@ -552,8 +577,9 @@ poll every selector once per cycle regardless. 0 is refused because the
 firmware treats it as unset and substitutes a default.
 
 positional arguments:
-  ecu
-  pid
+  ecu            ECU name (a key in ecus/)
+  pid            PID code, hex (e.g. 2101, 22B002); a memory read is
+                 23/ADDRESS+SIZE
   MS|clear       interval in milliseconds (int >= 1), or 'clear' to remove it
                  (device default 5000)
 
@@ -570,8 +596,9 @@ usage: canair pids set-response-frames [-h] [--dir DIR] [--no-validate]
                                        ecu pid N|clear
 
 positional arguments:
-  ecu
-  pid
+  ecu            ECU name (a key in ecus/)
+  pid            PID code, hex (e.g. 2101, 22B002); a memory read is
+                 23/ADDRESS+SIZE
   N|clear        frame count (int >= 1), or 'clear' to remove it. Normally
                  maintained automatically by the live commands once a count is
                  confirmed on the wire
@@ -593,8 +620,9 @@ Set the PID-level notes: — the record of what the page is and what is known ab
 Omit VALUE to clear the field. Short notes stay inline; longer ones become a word-wrapped folded block scalar. An existing note keeps its position; a new one is inserted above parameters:.
 
 positional arguments:
-  ecu
-  pid
+  ecu            ECU name (a key in ecus/)
+  pid            PID code, hex (e.g. 2101, 22B002); a memory read is
+                 23/ADDRESS+SIZE
   value          New notes text (omit to clear the field)
 
 options:
@@ -621,16 +649,19 @@ describe the page, a parameter's the signal. --clear removes a default.
 `hoist-defaults` finds repetition you already have.
 
 positional arguments:
-  ecu
-  pid
+  ecu                ECU name (a key in ecus/)
+  pid                PID code, hex (e.g. 2101, 22B002); a memory read is
+                     23/ADDRESS+SIZE
 
 options:
   -h, --help         show this help message and exit
-  --unit UNIT
-  --min MIN
-  --max MAX
-  --verified
-  --unverified
+  --unit UNIT        Unit every signal of the PID inherits
+  --min MIN          Lowest plausible value every signal inherits
+  --max MAX          Highest plausible value every signal inherits
+  --verified         Every signal without its own setting counts as checked
+                     against the car
+  --unverified       Every signal without its own setting counts as not yet
+                     checked
   --source SOURCE    Where the page's decoding came from
   --source-link URL  Repeatable
   --clear FIELD      Remove a PID-level default (repeatable): unit, min, max,
@@ -697,7 +728,7 @@ usage: canair pids set-identity [-h] [--dir DIR] [--no-validate]
                                 ecu field value
 
 positional arguments:
-  ecu
+  ecu            ECU name (a key in ecus/)
   field          Identity field name, e.g. notes or description
   value          New value (notes are stored as a folded block scalar)
 
@@ -713,7 +744,7 @@ options:
 usage: canair pids rm-identity [-h] [--dir DIR] [--no-validate] ecu field
 
 positional arguments:
-  ecu
+  ecu            ECU name (a key in ecus/)
   field          Identity field name to drop, e.g. software
 
 options:
@@ -729,7 +760,7 @@ usage: canair pids set-can-bus [-h] [--dir DIR] [--no-validate]
                                ecu CODE [CODE ...]
 
 positional arguments:
-  ecu
+  ecu            ECU name (a key in ecus/)
   CODE           One or more bus codes from the profile's can_buses.yaml
                  (Hyundai: B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN/ALL); some ECUs span
                  two, e.g. H-CAN P-CAN
@@ -753,7 +784,7 @@ revision is undetermined skips it. A signal's revisions must be within its
 PID's. --clear: it applies to every revision (the default).
 
 positional arguments:
-  ECU:PID[:SIGNAL]
+  ECU:PID[:SIGNAL]  The PID, or one signal of it, to gate
   REVISION          Revision IDs (or a comma list)
 
 options:
@@ -774,7 +805,7 @@ the old hardcoded HK body-controller zones with a per-ECU, profile-declared
 range.
 
 positional arguments:
-  ecu
+  ecu            ECU name (a key in ecus/)
   RANGE          One or more 'START-END' hex DID ranges (e.g. B000-BFFF
                  C000-C0FF)
 
@@ -799,12 +830,12 @@ usage: canair pids set-iocontrol [-h] [--label LABEL] [--notes NOTES]
 Set fields of an existing iocontrol: entry (the actuators `canair io` drives). Writes only the fields given, adding any the entry lacks. Promote a scanner discovery first (the `canair io` TUI's P key).
 
 positional arguments:
-  ecu
+  ecu                   ECU name (a key in ecus/)
   DID                   The iocontrol: entry key (e.g. BC01)
 
 options:
   -h, --help            show this help message and exit
-  --label LABEL
+  --label LABEL         Human label for the actuator
   --notes NOTES         Free-text note (replaces the existing one)
   --verified, --no-verified
                         Mark as tested on this car (--no-verified to clear)
@@ -852,7 +883,7 @@ fires a cheap prime PID back-to-back to hold the transceiver awake, then opens
 a session — honoured by `session <ECU> --wake` on both transports.
 
 positional arguments:
-  ecu
+  ecu                   ECU name (a key in ecus/)
 
 options:
   -h, --help            show this help message and exit
@@ -888,7 +919,7 @@ usage: canair pids set-addressing [-h] [--mode MODE]
 Set the make-specific CAN addressing knobs on an ECU: the addressing `mode` (11-bit vs the 29-bit modes / extended-11-bit), the ISO-TP extension bytes (`target_address`/`source_address`, for BMW/PSA extended-11-bit), a flow-control arbitration override (`fc_id`, for functional-TX / physical-RX ECUs like Renault/Mitsubishi), and/or the response-address `rx_id`. Writes only the fields given.
 
 positional arguments:
-  ecu
+  ecu                   ECU name (a key in ecus/)
 
 options:
   -h, --help            show this help message and exit
@@ -927,13 +958,19 @@ Set or clear an ECU's own isotp: fields, laid over the profile's on slcan-tcp:
 for an ECU that sends no consecutive frame after BlockSize 0.
 
 positional arguments:
-  ecu
+  ecu                   ECU name (a key in ecus/)
 
 options:
   -h, --help            show this help message and exit
-  --blocksize N|clear
+  --blocksize N|clear   Flow-control BlockSize canair sends (0 = send all
+                        consecutive frames) (a number, or clear to inherit the
+                        profile's)
   --rx-flowcontrol-timeout N|clear
+                        Milliseconds to wait for a flow-control frame (a
+                        number, or clear to inherit the profile's)
   --rx-consecutive-frame-timeout N|clear
+                        Milliseconds to wait for the next consecutive frame (a
+                        number, or clear to inherit the profile's)
   --dir DIR             ecus/ directory (default: active profile)
   --no-validate         Skip the post-edit schema validation gate
 

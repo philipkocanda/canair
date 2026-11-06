@@ -82,7 +82,7 @@ options:
 usage: canair variants set-meta [-h] id KEY=VALUE [KEY=VALUE ...]
 
 positional arguments:
-  id
+  id          Variant ID
   KEY=VALUE   Metadata as KEY=VALUE (battery.<field>=…; repeat sources= per
               source)
 
@@ -96,7 +96,7 @@ options:
 usage: canair variants unset-meta [-h] id KEY [KEY ...]
 
 positional arguments:
-  id
+  id          Variant ID
   KEY         Field (battery.<field> for battery)
 
 options:
@@ -115,7 +115,7 @@ any of them (the default).
 
 positional arguments:
   id          Variant ID
-  ECU
+  ECU         ECU name
   REVISION    Revision IDs (or a comma list)
 
 options:
@@ -129,8 +129,8 @@ options:
 usage: canair variants rename [-h] old new
 
 positional arguments:
-  old
-  new
+  old         Current variant ID
+  new         New variant ID
 
 options:
   -h, --help  show this help message and exit
@@ -142,7 +142,7 @@ options:
 usage: canair variants rm [-h] id
 
 positional arguments:
-  id
+  id          Variant ID
 
 options:
   -h, --help  show this help message and exit

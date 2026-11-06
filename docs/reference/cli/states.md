@@ -84,7 +84,7 @@ options:
 usage: canair states rm [-h] name
 
 positional arguments:
-  name
+  name        State name
 
 options:
   -h, --help  show this help message and exit
@@ -101,8 +101,8 @@ timeline, the DTC log and the raw-CAN log index. All or nothing: a failed
 write restores every file. Rewriting recorded data asks first unless --yes.
 
 positional arguments:
-  old
-  new
+  old         Current state name
+  new         New state name (normalized to UPPERCASE)
 
 options:
   -h, --help  show this help message and exit
@@ -116,7 +116,7 @@ options:
 usage: canair states set-description [-h] name [value]
 
 positional arguments:
-  name
+  name        State name
   value       Description (omit to clear)
 
 options:
@@ -129,7 +129,7 @@ options:
 usage: canair states set-predicate [-h] name [EXPR]
 
 positional arguments:
-  name
+  name        State name
   EXPR        Predicate (omit to clear)
 
 options:
@@ -146,7 +146,7 @@ predicates match, DRIVING is the more specific (and shown) reading. Targets
 must be declared states and the hierarchy must stay acyclic.
 
 positional arguments:
-  name
+  name        State name
   STATES      Comma-separated state names (omit to clear)
 
 options:
@@ -166,7 +166,7 @@ either side is enough. Targets must be declared states and may not also be
 related by implies:.
 
 positional arguments:
-  name
+  name        State name
   STATES      Comma-separated state names (omit to clear)
 
 options:

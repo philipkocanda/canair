@@ -233,6 +233,81 @@ examples:
   canair ecu set-variants HEATER --clear           # fitted to every variant
 ```
 
+### `canair ecu revisions list`
+
+```
+usage: canair ecu revisions ECU list [-h] [--json]
+
+options:
+  -h, --help  show this help message and exit
+  --json      Output as JSON
+```
+
+### `canair ecu revisions add`
+
+```
+usage: canair ecu revisions ECU add [-h] [--protocol PROTOCOL] ID
+
+positional arguments:
+  ID                   Revision ID naming what differs (KWP, UDS)
+
+options:
+  -h, --help           show this help message and exit
+  --protocol PROTOCOL  The revision's identity protocol (UDS | KWP2000)
+```
+
+### `canair ecu revisions set-fingerprint`
+
+```
+usage: canair ecu revisions ECU set-fingerprint [-h] [--responds HEX]
+                                                [--identity FIELD=GLOB]
+                                                [--software GLOB] [--clear]
+                                                ID
+
+Add one fingerprint to a revision: a safe identity read only this revision
+answers (--responds), identity fields matching glob patterns (--identity), or
+the ECU's software version matching a glob (--software, read as RECORD:TEXT,
+e.g. F195:1.04*). A live session matches them to detect the revision.
+
+positional arguments:
+  ID                    Revision ID to add the fingerprint to
+
+options:
+  -h, --help            show this help message and exit
+  --responds HEX        A safe read only it answers (e.g. 1A90)
+  --identity FIELD=GLOB
+                        An identity field and the pattern it matches
+                        (repeatable, one fingerprint)
+  --software GLOB       The software version it reports, as RECORD:TEXT (e.g.
+                        'F195:1.04*')
+  --clear               Drop the existing fingerprints first
+```
+
+### `canair ecu revisions rename`
+
+```
+usage: canair ecu revisions ECU rename [-h] OLD NEW
+
+positional arguments:
+  OLD         Current revision ID
+  NEW         New revision ID
+
+options:
+  -h, --help  show this help message and exit
+```
+
+### `canair ecu revisions rm`
+
+```
+usage: canair ecu revisions ECU rm [-h] ID
+
+positional arguments:
+  ID          Revision ID to remove
+
+options:
+  -h, --help  show this help message and exit
+```
+
 ## `canair ecu set-variants`
 
 ```

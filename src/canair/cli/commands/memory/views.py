@@ -118,8 +118,8 @@ def add_offline_parsers(kinds) -> None:
         "differ, with both values. Dumps of two software builds are refused: a reflash moves "
         "what an address holds.",
     )
-    diff.add_argument("a", metavar="DUMP_A")
-    diff.add_argument("b", metavar="DUMP_B")
+    diff.add_argument("a", metavar="DUMP_A", help="The first dump (id, prefix or path)")
+    diff.add_argument("b", metavar="DUMP_B", help="The second dump, of the same ECU")
     diff.add_argument(
         "--min-run", type=int, default=1, help="Only runs of at least N changed bytes"
     )
@@ -132,8 +132,13 @@ def add_offline_parsers(kinds) -> None:
         description="Write a dump for other tools. Intel HEX and S-record keep its holes; a "
         "raw binary needs --fill for one. The file holds ECU memory: keep it local.",
     )
-    export.add_argument("dump", metavar="DUMP")
-    export.add_argument("--format", choices=("ihex", "srec", "bin"), default="ihex")
+    export.add_argument("dump", metavar="DUMP", help="A dump id (from `memory ls`), prefix or path")
+    export.add_argument(
+        "--format",
+        choices=("ihex", "srec", "bin"),
+        default="ihex",
+        help="Intel HEX, Motorola S-record or raw binary (default ihex)",
+    )
     export.add_argument("--fill", metavar="HEX", help="bin: the byte to write into holes")
     export.add_argument("-o", "--output", metavar="FILE", help="Output file (default stdout)")
     export.set_defaults(func=cmd_export)
@@ -145,7 +150,7 @@ def add_offline_parsers(kinds) -> None:
         "largest block that comes back whole and the session they need. `canair scan "
         "memory` writes the same fields from what it finds.",
     )
-    st.add_argument("ecu", metavar="ECU")
+    st.add_argument("ecu", metavar="ECU", help="ECU name or TX id")
     st.add_argument(
         "--format", type=memory_format, metavar="ALFID|kwp", help="UDS ALFID (e.g. 24) or kwp"
     )

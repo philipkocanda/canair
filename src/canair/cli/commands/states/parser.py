@@ -64,7 +64,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     add.set_defaults(_states_func=cmd_add)
 
     rm = sub.add_parser("rm", help="Remove a state from the vocabulary")
-    rm.add_argument("name")
+    rm.add_argument("name", help="State name")
     rm.set_defaults(_states_func=cmd_rm)
 
     ren = sub.add_parser(
@@ -75,8 +75,8 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "timeline, the DTC log and the raw-CAN log index. All or nothing: a failed write "
         "restores every file. Rewriting recorded data asks first unless --yes.",
     )
-    ren.add_argument("old")
-    ren.add_argument("new")
+    ren.add_argument("old", help="Current state name")
+    ren.add_argument("new", help="New state name (normalized to UPPERCASE)")
     ren.add_argument(
         "--dry-run", action="store_true", help="List the files and references; write nothing"
     )
@@ -86,12 +86,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     ren.set_defaults(_states_func=cmd_rename)
 
     sd = sub.add_parser("set-description", help="Set/clear a state's description")
-    sd.add_argument("name")
+    sd.add_argument("name", help="State name")
     sd.add_argument("value", nargs="?", default=None, help="Description (omit to clear)")
     sd.set_defaults(_states_func=cmd_set_description)
 
     sp = sub.add_parser("set-predicate", help="Set/clear a state's when: auto-suggest predicate")
-    sp.add_argument("name")
+    sp.add_argument("name", help="State name")
     sp.add_argument(
         "value", nargs="?", default=None, metavar="EXPR", help="Predicate (omit to clear)"
     )
@@ -104,7 +104,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "both predicates match, DRIVING is the more specific (and shown) reading. Targets must "
         "be declared states and the hierarchy must stay acyclic.",
     )
-    si.add_argument("name")
+    si.add_argument("name", help="State name")
     si.add_argument(
         "value",
         nargs="?",
@@ -123,7 +123,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "filtering to be exact. The relation is symmetric — declaring it on either side is "
         "enough. Targets must be declared states and may not also be related by implies:.",
     )
-    sx.add_argument("name")
+    sx.add_argument("name", help="State name")
     sx.add_argument(
         "value",
         nargs="?",

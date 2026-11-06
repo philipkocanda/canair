@@ -28,26 +28,32 @@ from canair.yaml_edit.pids import (
 )
 from canair.yaml_edit.revisions import set_gate
 
-from .common import apply_in_scope, int_or_clear
+from .common import ECU_HELP, apply_in_scope, int_or_clear
+
+_ISOTP_FIELD_HELP = {
+    "blocksize": "Flow-control BlockSize canair sends (0 = send all consecutive frames)",
+    "rx_flowcontrol_timeout": "Milliseconds to wait for a flow-control frame",
+    "rx_consecutive_frame_timeout": "Milliseconds to wait for the next consecutive frame",
+}
 
 
 def add_parsers(sub) -> None:
     """Register the kinds of this group under ``canair pids``."""
     si = sub.add_parser("set-identity", help="Set a curated identity field (e.g. notes)")
-    si.add_argument("ecu")
+    si.add_argument("ecu", help=ECU_HELP)
     si.add_argument("field", help="Identity field name, e.g. notes or description")
     si.add_argument("value", help="New value (notes are stored as a folded block scalar)")
     add_edit_args(si)
     si.set_defaults(_pids_func=cmd_set_identity)
 
     ri = sub.add_parser("rm-identity", help="Remove an identity field from an ECU")
-    ri.add_argument("ecu")
+    ri.add_argument("ecu", help=ECU_HELP)
     ri.add_argument("field", help="Identity field name to drop, e.g. software")
     add_edit_args(ri)
     ri.set_defaults(_pids_func=cmd_rm_identity)
 
     scb = sub.add_parser("set-can-bus", help="Set the physical CAN bus segment(s) the ECU sits on")
-    scb.add_argument("ecu")
+    scb.add_argument("ecu", help=ECU_HELP)
     scb.add_argument(
         "codes",
         nargs="+",
@@ -69,7 +75,9 @@ def add_parsers(sub) -> None:
             "PID's. --clear: it applies to every revision (the default)."
         ),
     )
-    srv.add_argument("target", metavar="ECU:PID[:SIGNAL]")
+    srv.add_argument(
+        "target", metavar="ECU:PID[:SIGNAL]", help="The PID, or one signal of it, to gate"
+    )
     srv.add_argument(
         "revisions", nargs="*", metavar="REVISION", help="Revision IDs (or a comma list)"
     )
@@ -85,7 +93,7 @@ def add_parsers(sub) -> None:
         "else the full DID space (0000-FFFF). This replaces the old hardcoded "
         "HK body-controller zones with a per-ECU, profile-declared range.",
     )
-    sir.add_argument("ecu")
+    sir.add_argument("ecu", help=ECU_HELP)
     sir.add_argument(
         "ranges",
         nargs="+",
@@ -108,9 +116,9 @@ def add_parsers(sub) -> None:
         "  canair pids set-iocontrol HVAC F010 --on 2FF01003FF --off 2FF01000\n"
         "  canair pids set-iocontrol BCM 6900 --release 30690000\n",
     )
-    sio.add_argument("ecu")
+    sio.add_argument("ecu", help=ECU_HELP)
     sio.add_argument("did", metavar="DID", help="The iocontrol: entry key (e.g. BC01)")
-    sio.add_argument("--label", default=None)
+    sio.add_argument("--label", default=None, help="Human label for the actuator")
     sio.add_argument("--notes", default=None, help="Free-text note (replaces the existing one)")
     sio.add_argument(
         "--verified",
@@ -167,7 +175,7 @@ def add_parsers(sub) -> None:
         "the transceiver awake, then opens a session — honoured by "
         "`session <ECU> --wake` on both transports.",
     )
-    sw.add_argument("ecu")
+    sw.add_argument("ecu", help=ECU_HELP)
     sw.add_argument(
         "--method",
         required=True,
@@ -229,7 +237,7 @@ def add_parsers(sub) -> None:
         "  canair pids set-addressing EVC --mode normal_29bit --fc-id 0x18DADBF1\n"
         "  canair pids set-addressing BMS --rx-id 0x784\n",
     )
-    sad.add_argument("ecu")
+    sad.add_argument("ecu", help=ECU_HELP)
     sad.add_argument(
         "--mode",
         help="Addressing mode (normal_11bit | normal_29bit | normal_fixed_29bit | "
@@ -265,9 +273,14 @@ def add_parsers(sub) -> None:
         "slcan-tcp: for an ECU that sends no consecutive frame after BlockSize 0.",
         epilog="example: canair pids set-isotp EWP --blocksize 8 (or --blocksize clear)",
     )
-    sis.add_argument("ecu")
+    sis.add_argument("ecu", help=ECU_HELP)
     for field in ECU_ISOTP_FIELDS:
-        sis.add_argument(f"--{field.replace('_', '-')}", dest=field, metavar="N|clear")
+        sis.add_argument(
+            f"--{field.replace('_', '-')}",
+            dest=field,
+            metavar="N|clear",
+            help=f"{_ISOTP_FIELD_HELP[field]} (a number, or clear to inherit the profile's)",
+        )
     add_edit_args(sis)
     sis.set_defaults(_pids_func=cmd_set_isotp)
 

@@ -28,15 +28,15 @@ from canair.yaml_edit.pids import (
     set_support_map,
 )
 
-from .common import apply_in_scope, ecu_names, int_or_clear, words_verb
+from .common import ECU_HELP, PID_HELP, apply_in_scope, ecu_names, int_or_clear, words_verb
 
 
 def add_parsers(sub) -> None:
     """Register the kinds of this group under ``canair pids``."""
     sps = sub.add_parser("set-pid-status", help="Set a PID's lifecycle status")
-    sps.add_argument("ecu")
-    sps.add_argument("pid")
-    sps.add_argument("status", choices=list(PID_STATUSES))
+    sps.add_argument("ecu", help=ECU_HELP)
+    sps.add_argument("pid", help=PID_HELP)
+    sps.add_argument("status", choices=list(PID_STATUSES), help="New lifecycle status")
     add_edit_args(sps)
     sps.set_defaults(_pids_func=cmd_set_pid_status)
 
@@ -44,8 +44,8 @@ def add_parsers(sub) -> None:
         "set-pid-variable-length",
         help="Flag a PID as returning legitimately variable-length responses",
     )
-    spv.add_argument("ecu")
-    spv.add_argument("pid")
+    spv.add_argument("ecu", help=ECU_HELP)
+    spv.add_argument("pid", help=PID_HELP)
     spv.add_argument(
         "value",
         choices=["true", "false"],
@@ -68,7 +68,7 @@ def add_parsers(sub) -> None:
             "--clear removes the mark and the length."
         ),
     )
-    sso.add_argument("ecu")
+    sso.add_argument("ecu", help=ECU_HELP)
     sso.add_argument("pid", help="The DID's read PID, e.g. 224710")
     sso.add_argument("--length", type=int, help="Data length in a snapshot record, in bytes")
     sso.add_argument("--clear", action="store_true", help="Remove snapshot_only and the length")
@@ -87,8 +87,8 @@ def add_parsers(sub) -> None:
             "hides its PID's raw bytes, which give it away."
         ),
     )
-    sse.add_argument("ecu")
-    sse.add_argument("pid")
+    sse.add_argument("ecu", help=ECU_HELP)
+    sse.add_argument("pid", help=PID_HELP)
     sse.add_argument("value", choices=["true", "false"], help="true = sensitive; false = clear")
     sse.add_argument("--param", metavar="NAME", help="Flag this signal instead of the whole PID")
     add_edit_args(sse)
@@ -110,8 +110,8 @@ def add_parsers(sub) -> None:
             "declaration."
         ),
     )
-    ssm.add_argument("ecu")
-    ssm.add_argument("pid")
+    ssm.add_argument("ecu", help=ECU_HELP)
+    ssm.add_argument("pid", help=PID_HELP)
     ssm.add_argument("--at", type=int, help="Data offset of the first map byte (usually 0)")
     ssm.add_argument("--length", type=int, help="Map length in bytes (1-4)")
     ssm.add_argument("--unit", choices=["bit", "byte", "field"], help="What one map bit marks")
@@ -140,8 +140,8 @@ def add_parsers(sub) -> None:
             "the firmware treats it as unset and substitutes a default."
         ),
     )
-    spp.add_argument("ecu")
-    spp.add_argument("pid")
+    spp.add_argument("ecu", help=ECU_HELP)
+    spp.add_argument("pid", help=PID_HELP)
     spp.add_argument(
         "value",
         metavar="MS|clear",
@@ -154,8 +154,8 @@ def add_parsers(sub) -> None:
         "set-response-frames",
         help="Set how many CAN frames a PID's response occupies (skips the adapter's wait)",
     )
-    srf.add_argument("ecu")
-    srf.add_argument("pid")
+    srf.add_argument("ecu", help=ECU_HELP)
+    srf.add_argument("pid", help=PID_HELP)
     srf.add_argument(
         "value",
         metavar="N|clear",
@@ -178,8 +178,8 @@ def add_parsers(sub) -> None:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    spn.add_argument("ecu")
-    spn.add_argument("pid")
+    spn.add_argument("ecu", help=ECU_HELP)
+    spn.add_argument("pid", help=PID_HELP)
     spn.add_argument(
         "value",
         nargs="?",
@@ -200,13 +200,24 @@ def add_parsers(sub) -> None:
             "`hoist-defaults` finds repetition you already have."
         ),
     )
-    spd.add_argument("ecu")
-    spd.add_argument("pid")
-    spd.add_argument("--unit")
-    spd.add_argument("--min")
-    spd.add_argument("--max")
-    spd.add_argument("--verified", dest="verified", action="store_true", default=None)
-    spd.add_argument("--unverified", dest="verified", action="store_false")
+    spd.add_argument("ecu", help=ECU_HELP)
+    spd.add_argument("pid", help=PID_HELP)
+    spd.add_argument("--unit", help="Unit every signal of the PID inherits")
+    spd.add_argument("--min", help="Lowest plausible value every signal inherits")
+    spd.add_argument("--max", help="Highest plausible value every signal inherits")
+    spd.add_argument(
+        "--verified",
+        dest="verified",
+        action="store_true",
+        default=None,
+        help="Every signal without its own setting counts as checked against the car",
+    )
+    spd.add_argument(
+        "--unverified",
+        dest="verified",
+        action="store_false",
+        help="Every signal without its own setting counts as not yet checked",
+    )
     spd.add_argument("--source", help="Where the page's decoding came from")
     spd.add_argument("--source-link", action="append", metavar="URL", help="Repeatable")
     spd.add_argument(

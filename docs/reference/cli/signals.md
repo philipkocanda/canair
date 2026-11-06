@@ -83,13 +83,14 @@ options:
   --integer             Integer raw value (default)
   --scale SCALE         physical = raw * scale + offset (default 1)
   --offset OFFSET       Default 0
-  --min MIN
-  --max MAX
-  --unit UNIT
-  --verified
-  --unverified
+  --min MIN             Lowest physical value
+  --max MAX             Highest physical value
+  --unit UNIT           Unit of the physical value, e.g. km/h
+  --verified            Mark the decoding as checked against the car
+  --unverified          Mark the decoding as a guess not yet checked against
+                        the car
   --source SOURCE       Provenance (DBC, log file, or RE evidence)
-  --notes NOTES
+  --notes NOTES         Free-text notes for this signal
   --clear FIELD         Remove a field (repeatable): scale, offset, min, max,
                         unit, source, notes
   --msg-name MSG_NAME   Message name (DBC BO_ name)
@@ -112,9 +113,9 @@ options:
 usage: canair signals rm [-h] bus arb_id name
 
 positional arguments:
-  bus
+  bus         Bus name (signals/<bus>.yaml)
   arb_id      Arbitration ID, e.g. 0x386
-  name
+  name        Signal name to remove
 
 options:
   -h, --help  show this help message and exit

@@ -100,14 +100,25 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     p_up.add_argument("--scale", type=float, help="physical = raw * scale + offset (default 1)")
     p_up.add_argument("--offset", type=float, help="Default 0")
-    p_up.add_argument("--min", type=float)
-    p_up.add_argument("--max", type=float)
-    p_up.add_argument("--unit")
+    p_up.add_argument("--min", type=float, help="Lowest physical value")
+    p_up.add_argument("--max", type=float, help="Highest physical value")
+    p_up.add_argument("--unit", help="Unit of the physical value, e.g. km/h")
     ver = p_up.add_mutually_exclusive_group()
-    ver.add_argument("--verified", dest="verified", action="store_true", default=None)
-    ver.add_argument("--unverified", dest="verified", action="store_false")
+    ver.add_argument(
+        "--verified",
+        dest="verified",
+        action="store_true",
+        default=None,
+        help="Mark the decoding as checked against the car",
+    )
+    ver.add_argument(
+        "--unverified",
+        dest="verified",
+        action="store_false",
+        help="Mark the decoding as a guess not yet checked against the car",
+    )
     p_up.add_argument("--source", help="Provenance (DBC, log file, or RE evidence)")
-    p_up.add_argument("--notes")
+    p_up.add_argument("--notes", help="Free-text notes for this signal")
     p_up.add_argument(
         "--clear",
         action="append",
@@ -156,9 +167,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     p_up.set_defaults(_signals_func=cmd_upsert)
 
     p_rm = sub.add_parser("rm", help="Remove a broadcast signal")
-    p_rm.add_argument("bus")
+    p_rm.add_argument("bus", help="Bus name (signals/<bus>.yaml)")
     p_rm.add_argument("arb_id", help="Arbitration ID, e.g. 0x386")
-    p_rm.add_argument("name")
+    p_rm.add_argument("name", help="Signal name to remove")
     p_rm.set_defaults(_signals_func=cmd_rm)
 
     parser.set_defaults(func=run, _signals_func=cmd_list, bus=None, json=False)

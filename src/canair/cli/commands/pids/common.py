@@ -12,6 +12,10 @@ from canair.yaml_edit.pids import (
     find_ecu_file,
 )
 
+ECU_HELP = "ECU name (a key in ecus/)"
+PID_HELP = "PID code, hex (e.g. 2101, 22B002); a memory read is 23/ADDRESS+SIZE"
+TARGET_HELP = "The research item's target (the PID or DID it concerns, e.g. 2103)"
+
 
 def apply_in_scope(args: argparse.Namespace, do, ecu: str | None = None) -> Path:
     """Run ``do`` (the editor calls) in an edit scope; return the ECU's file for the echo."""

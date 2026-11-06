@@ -229,12 +229,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     add.set_defaults(_variants_func=cmd_add)
 
     sm = sub.add_parser("set-meta", help="Set metadata fields on a variant")
-    sm.add_argument("id")
+    sm.add_argument("id", help="Variant ID")
     sm.add_argument("meta", nargs="+", metavar="KEY=VALUE", help=meta_help)
     sm.set_defaults(_variants_func=cmd_set_meta)
 
     um = sub.add_parser("unset-meta", help="Remove metadata fields from a variant")
-    um.add_argument("id")
+    um.add_argument("id", help="Variant ID")
     um.add_argument("keys", nargs="+", metavar="KEY", help="Field (battery.<field> for battery)")
     um.set_defaults(_variants_func=cmd_unset_meta)
 
@@ -247,7 +247,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "any of them (the default).",
     )
     srv.add_argument("id", help="Variant ID")
-    srv.add_argument("ecu", metavar="ECU")
+    srv.add_argument("ecu", metavar="ECU", help="ECU name")
     srv.add_argument(
         "revisions", nargs="*", metavar="REVISION", help="Revision IDs (or a comma list)"
     )
@@ -258,14 +258,14 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "rename",
         help="Change a variant's ID, retagging the captures, logs and ECU files that use it",
     )
-    ren.add_argument("old")
-    ren.add_argument("new")
+    ren.add_argument("old", help="Current variant ID")
+    ren.add_argument("new", help="New variant ID")
     ren.set_defaults(_variants_func=cmd_rename)
 
     rm = sub.add_parser(
         "rm", help="Remove a variant (refused while captures, logs or ECU files use it)"
     )
-    rm.add_argument("id")
+    rm.add_argument("id", help="Variant ID")
     rm.set_defaults(_variants_func=cmd_rm)
 
     parser.set_defaults(func=run)

@@ -188,12 +188,12 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     add.set_defaults(_action_func=cmd_add)
 
     st = sub.add_parser("set", help="Change fields of an action")
-    st.add_argument("name")
+    st.add_argument("name", help="Action name")
     _add_definition_args(st)
     st.set_defaults(_action_func=cmd_set)
 
     rm = sub.add_parser("rm", help="Remove an action")
-    rm.add_argument("name")
+    rm.add_argument("name", help="Action name")
     rm.set_defaults(_action_func=cmd_rm)
 
     parser.set_defaults(func=run)

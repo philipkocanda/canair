@@ -14,17 +14,36 @@ from canair.yaml_edit.pids import (
     set_research_text,
 )
 
-from .common import apply_in_scope, words_verb
+from .common import ECU_HELP, TARGET_HELP, apply_in_scope, words_verb
 
 
 def add_parsers(sub) -> None:
     """Register the kinds of this group under ``canair pids``."""
     ar = sub.add_parser("add-research", help="Append a research: entry")
-    ar.add_argument("ecu")
-    ar.add_argument("--type", required=True, choices=["scan", "decode", "verify", "iocontrol_scan"])
-    ar.add_argument("--target", required=True)
-    ar.add_argument("--status", required=True, choices=["pending", "captured", "nrc", "done"])
-    ar.add_argument("--priority", choices=["P1", "P2", "P3"])
+    ar.add_argument("ecu", help=ECU_HELP)
+    ar.add_argument(
+        "--type",
+        required=True,
+        choices=["scan", "decode", "verify", "iocontrol_scan"],
+        help="What the task is: scan a range, decode a captured payload, verify a signal, "
+        "or scan IOControl",
+    )
+    ar.add_argument(
+        "--target",
+        required=True,
+        help="The PID, DID range or scan description the task concerns (e.g. 2103)",
+    )
+    ar.add_argument(
+        "--status",
+        required=True,
+        choices=["pending", "captured", "nrc", "done"],
+        help="Where the task stands",
+    )
+    ar.add_argument(
+        "--priority",
+        choices=["P1", "P2", "P3"],
+        help="P1 = high value, P2 = medium, P3 = speculative",
+    )
     ar.add_argument(
         "--prereq",
         "--vehicle-states",
@@ -34,18 +53,30 @@ def add_parsers(sub) -> None:
         help="Power state(s) prerequisite for this research (repeatable). "
         "Validated against the profile's vehicle-state vocabulary at write time.",
     )
-    ar.add_argument("--date")
+    ar.add_argument("--date", metavar="YYYY-MM-DD", help="When the task was last tested")
     ar.add_argument(
         "--created", metavar="YYYY-MM-DD", help="Override auto creation date (default: today)"
     )
     ar.add_argument(
         "--updated", metavar="YYYY-MM-DD", help="Override auto updated date (default: today)"
     )
-    ar.add_argument("--result")
-    ar.add_argument("--notes")
-    ar.add_argument("--source", action="append", metavar="SRC")
-    ar.add_argument("--what-to-test", action="append", metavar="ITEM")
-    ar.add_argument("--capture-protocol", metavar="TEXT")
+    ar.add_argument("--result", help="Short summary of the outcome")
+    ar.add_argument("--notes", help="Details, and what to look for")
+    ar.add_argument(
+        "--source",
+        action="append",
+        metavar="SRC",
+        help="Cross-reference: a URL or file (repeatable)",
+    )
+    ar.add_argument(
+        "--what-to-test",
+        action="append",
+        metavar="ITEM",
+        help="A specific thing to check (repeatable)",
+    )
+    ar.add_argument(
+        "--capture-protocol", metavar="TEXT", help="How to capture the data needed to decode it"
+    )
     ar.add_argument(
         "--revision",
         dest="revisions",
@@ -58,9 +89,11 @@ def add_parsers(sub) -> None:
     ar.set_defaults(_pids_func=cmd_add_research)
 
     ss = sub.add_parser("set-status", help="Update a research item's status")
-    ss.add_argument("ecu")
-    ss.add_argument("target")
-    ss.add_argument("status", choices=["pending", "captured", "nrc", "done"])
+    ss.add_argument("ecu", help=ECU_HELP)
+    ss.add_argument("target", help=TARGET_HELP)
+    ss.add_argument(
+        "status", choices=["pending", "captured", "nrc", "done"], help="New status of the item"
+    )
     ss.add_argument(
         "--type",
         choices=["scan", "decode", "verify", "iocontrol_scan"],
@@ -76,8 +109,8 @@ def add_parsers(sub) -> None:
     ss.set_defaults(_pids_func=cmd_set_status)
 
     rr = sub.add_parser("rm-research", help="Remove a research: item")
-    rr.add_argument("ecu")
-    rr.add_argument("target")
+    rr.add_argument("ecu", help=ECU_HELP)
+    rr.add_argument("target", help=TARGET_HELP)
     rr.add_argument(
         "--type",
         choices=["scan", "decode", "verify", "iocontrol_scan"],
@@ -104,8 +137,8 @@ def add_parsers(sub) -> None:
             ),
             formatter_class=argparse.RawDescriptionHelpFormatter,
         )
-        p.add_argument("ecu")
-        p.add_argument("target")
+        p.add_argument("ecu", help=ECU_HELP)
+        p.add_argument("target", help=TARGET_HELP)
         p.add_argument("value", nargs="?", help=f"New {field} text (omit to clear the field)")
         p.add_argument(
             "--type",

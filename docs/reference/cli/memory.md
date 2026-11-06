@@ -154,8 +154,8 @@ differ, with both values. Dumps of two software builds are refused: a reflash
 moves what an address holds.
 
 positional arguments:
-  DUMP_A
-  DUMP_B
+  DUMP_A             The first dump (id, prefix or path)
+  DUMP_B             The second dump, of the same ECU
 
 options:
   -h, --help         show this help message and exit
@@ -174,11 +174,13 @@ Write a dump for other tools. Intel HEX and S-record keep its holes; a raw
 binary needs --fill for one. The file holds ECU memory: keep it local.
 
 positional arguments:
-  DUMP
+  DUMP                  A dump id (from `memory ls`), prefix or path
 
 options:
   -h, --help            show this help message and exit
   --format {ihex,srec,bin}
+                        Intel HEX, Motorola S-record or raw binary (default
+                        ihex)
   --fill HEX            bin: the byte to write into holes
   -o, --output FILE     Output file (default stdout)
 ```
@@ -196,7 +198,7 @@ block that comes back whole and the session they need. `canair scan memory`
 writes the same fields from what it finds.
 
 positional arguments:
-  ECU
+  ECU                   ECU name or TX id
 
 options:
   -h, --help            show this help message and exit

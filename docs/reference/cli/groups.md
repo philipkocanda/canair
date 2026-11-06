@@ -61,7 +61,7 @@ options:
 usage: canair groups rm [-h] name
 
 positional arguments:
-  name
+  name        Group name
 
 options:
   -h, --help  show this help message and exit
@@ -73,8 +73,8 @@ options:
 usage: canair groups rename [-h] old new
 
 positional arguments:
-  old
-  new
+  old         Current group name
+  new         New group name (lower-cased)
 
 options:
   -h, --help  show this help message and exit
@@ -86,7 +86,7 @@ options:
 usage: canair groups set-description [-h] name [value]
 
 positional arguments:
-  name
+  name        Group name
   value       Description (omit to clear)
 
 options:
@@ -99,7 +99,7 @@ options:
 usage: canair groups set-members [-h] name SEL [SEL ...]
 
 positional arguments:
-  name
+  name        Group name
   SEL         Member selectors (ECU or ECU:PID)
 
 options:

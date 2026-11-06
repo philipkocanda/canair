@@ -136,7 +136,7 @@ usage: canair action set [-h] [--description DESCRIPTION] [--read ECU:PID]
                          name
 
 positional arguments:
-  name
+  name                  Action name
 
 options:
   -h, --help            show this help message and exit
@@ -160,7 +160,7 @@ options:
 usage: canair action rm [-h] name
 
 positional arguments:
-  name
+  name        Action name
 
 options:
   -h, --help  show this help message and exit

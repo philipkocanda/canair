@@ -155,21 +155,21 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     add.set_defaults(_groups_func=cmd_add)
 
     rm = sub.add_parser("rm", help="Remove a group")
-    rm.add_argument("name")
+    rm.add_argument("name", help="Group name")
     rm.set_defaults(_groups_func=cmd_rm)
 
     ren = sub.add_parser("rename", help="Rename a group")
-    ren.add_argument("old")
-    ren.add_argument("new")
+    ren.add_argument("old", help="Current group name")
+    ren.add_argument("new", help="New group name (lower-cased)")
     ren.set_defaults(_groups_func=cmd_rename)
 
     sd = sub.add_parser("set-description", help="Set/clear a group's description")
-    sd.add_argument("name")
+    sd.add_argument("name", help="Group name")
     sd.add_argument("value", nargs="?", default=None, help="Description (omit to clear)")
     sd.set_defaults(_groups_func=cmd_set_description)
 
     sm = sub.add_parser("set-members", help="Replace a group's member selectors")
-    sm.add_argument("name")
+    sm.add_argument("name", help="Group name")
     sm.add_argument("members", nargs="+", metavar="SEL", help="Member selectors (ECU or ECU:PID)")
     sm.set_defaults(_groups_func=cmd_set_members)
 
