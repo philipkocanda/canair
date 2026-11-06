@@ -1,9 +1,10 @@
 # Diagnostic sessions: one owner on every transport
 
-Status: **PROPOSED** (2026-11-05; checked against the tree on 2026-11-06). No code changed. This
-is the proposal that `plans/2026-11-03-transport-review-follow-ups.md` asked for under
-"Deliberately out of scope" ("Unifying the two session rituals … propose it to the user before
-starting"). The three decisions at the end are agreed.
+Status: **DONE** (2026-11-06) as `7858cbea`..`e21df1ea`, one commit per phase; the on-car checks
+at the end are open. This is the proposal that `plans/2026-11-03-transport-review-follow-ups.md`
+asked for under "Deliberately out of scope" ("Unifying the two session rituals … propose it to
+the user before starting"). "Today" below describes the tree before the work; "As built"
+records where the code differs from the design.
 
 Opening a diagnostic session (`10 xx`), waking a sleeping ECU and keeping the session alive with
 TesterPresent (`3E 00`) are one concern. Today four pieces of code do it, with different timeouts,
@@ -297,6 +298,28 @@ gets a `3E 00` between polls; one polled every second gets none; NRC 0x11 stops 
 Remove the stop/start of the background keepalive around each command, and run a typed command
 and its header restore as one transaction. Restore the SIGINT handler in the `finally`. Add tests
 for the REPL's command dispatch (9 % today).
+
+## As built
+
+- `SessionManager.open_session` returns a `SessionOutcome` and reports a refusal itself, once,
+  through `render.messages`; a caller that shows the outcome (the monitor's switch, the TUIs)
+  passes `report=False`.
+- "Only when idle" reads `TransportStats.answered`, the time each ECU last answered any request,
+  which both terminals record. A command needs no `mark_active` calls for it.
+- The single-ECU commands use `live/hold.py::held_session` (the profile's `wake:` plan via
+  `ecus/wake.py::wake_plan_for`). Two use `SessionManager` directly: `scan` discovery, whose
+  session can open mid-sweep, and the IOControl one-shot, which sends its release after the
+  keepalive stops.
+- The IOControl and routines TUIs own a `SessionManager` instead of `_tester_task`;
+  `_session_active` and `_session_mode` stay as what the screen shows (an attempted mode is
+  "unconfirmed").
+- The raw monitor's `SessionManager` works over `transport/raw/client_terminal.py`, and its
+  keepalive runs between polls, from the poll loops (`MonitorSessions.keep_alive`, also while
+  paused), rather than inside a poll round: a keepalive-only round would have counted as a
+  tick without answers in the liveness check. Every answered poll counts as a keepalive. The
+  ledger plan's §2 is still open, so the live session switch can still read the client while
+  a poll is in flight, as it could before.
+- `exec_query` lost its underscore too: the monitor and the action runner import it.
 
 ## Decisions (agreed 2026-11-06)
 
