@@ -19,6 +19,7 @@ from canair.captures.store import (
     load_ecu_index,
     resolve_pid_defs,
 )
+from canair.cli.args.query import parse_canonical_query
 from canair.render import ansi
 
 
@@ -51,25 +52,6 @@ def build_query(tokens: list[str]) -> str:
     return " ".join(tokens)
 
 
-def _parse_query(query):
-    """Parse a QUERY and canonicalize selector ECUs (aliases -> primary name).
-
-    So `canair captures SMK` resolves to the SKM module. Falls back to the raw
-    parse if the ECU registry is unavailable; :class:`EcuNameCollision` from an
-    ambiguous registry is allowed to propagate.
-    """
-    from canair.query import parse_query
-
-    q = parse_query(query)
-    try:
-        from canair.ecus.names import build_canonical_name_index
-
-        name_index = build_canonical_name_index()
-    except FileNotFoundError:
-        return q
-    return q.canonicalize_ecus(lambda ecu: name_index.get(ecu, ecu).upper())
-
-
 # ---------------------------------------------------------------------------
 # Query gathering (shared by --diff and --step)
 # ---------------------------------------------------------------------------
@@ -89,7 +71,7 @@ def _gather_query[R: Mapping[str, Any]](
     When ``warn`` is set, prints a note for any selector that matched nothing
     (with an ``ECU:PID`` hint when a bare selector looks like a DID).
     """
-    q = _parse_query(query)
+    q = parse_canonical_query(query)
     payloads = [e for e in entries if is_hex_payload(e.get("payload"))]
     matched, empty = q.filter(payloads, ecu_of=lambda e: e["ecu"], pid_of=lambda e: e["pid"])
 

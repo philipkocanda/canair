@@ -6,7 +6,7 @@ from canair.core.tcp import tcp_open, tcp_probe
 def _listening() -> socket.socket:
     server = socket.socket()
     server.bind(("127.0.0.1", 0))
-    server.listen(1)
+    server.listen(8)
     return server
 
 

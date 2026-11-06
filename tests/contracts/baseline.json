@@ -31,9 +31,7 @@
   "packages_without_charter": [],
   "test_to_test_imports": [],
   "flat_tests": [],
-  "cross_package_private_imports": [
-    "canair.cli.commands.captures.query._parse_query"
-  ],
+  "cross_package_private_imports": [],
   "ui_standards": {
     "raw_escapes": {},
     "rich_console": {},

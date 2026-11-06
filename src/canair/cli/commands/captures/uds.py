@@ -12,6 +12,7 @@ from canair.captures.state_inference import DEFAULT_CYCLE_TOL_S
 from canair.captures.store import load_all_captures
 from canair.captures.types import CaptureEntry
 from canair.cli.args.notation import add_notation_arg, resolve_notation
+from canair.cli.args.query import parse_canonical_query
 from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._hints import ecu_completer as _ecu_completer
 from canair.render import messages
@@ -30,7 +31,7 @@ from .diff import cmd_diff
 from .listing import cmd_latest, cmd_list
 from .maint import cmd_recover
 from .mode_select import Mode, ModeError, resolve_mode
-from .query import _parse_query, build_query
+from .query import build_query
 from .session_fields import cmd_set_notes, cmd_set_transport, cmd_set_variant, known_transports
 from .sessions import cmd_sessions, cmd_summary
 from .set_state import cmd_set_state
@@ -372,7 +373,7 @@ def _dispatch(mode: Mode, args, query: str, entries: list[CaptureEntry]) -> int:
         # ECU/PID selection comes from the QUERY (e.g. `BMS --latest`,
         # `BMS:2102 --latest`); a bare `--latest` shows every PID's latest.
         if query:
-            q = _parse_query(query)
+            q = parse_canonical_query(query)
             entries, _empty = q.filter(
                 entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"])
             )

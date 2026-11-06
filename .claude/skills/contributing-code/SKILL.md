@@ -176,8 +176,9 @@ canonical selection surface across `read`/`captures`/`decode`/`correlate`, so re
 consistent, composable and multi-ECU-capable for free; a flag pair is single-target and drifts.
 
 - **Parse through the shared helper, never re-implement the grammar:** `src/canair/query/__init__.py`
-  (`parse_query`/`parse_selector`); capture/analysis commands use the alias-aware `_parse_query` in
-  `cli/commands/captures/query.py`; device-pipeline commands use `query/steps.py`. Templates:
+  (`parse_query`/`parse_selector`); capture/analysis commands use the alias-aware
+  `parse_canonical_query` in `cli/args/query.py`; device-pipeline commands use `query/steps.py`.
+  Templates:
   `cli/commands/captures/` (positional QUERY), `cli/commands/correlate/` (optional `ECU[:PID]`).
 - Surviving `--ecu`/`--pid`/`--param` flags are **legacy narrow filters, not precedent**.
 - If you need a genuine *filter* on top of a QUERY, extend the shared scoping surface below rather

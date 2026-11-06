@@ -88,10 +88,10 @@ def _apply_query(args, entries: list) -> tuple[list, set[str] | None, str | None
     """Narrow ``entries`` to the ``--query`` selection: ``(entries, ecus, error)``."""
     if not args.query:
         return entries, None, None
-    from canair.cli.commands.captures.query import _parse_query
+    from canair.cli.args.query import parse_canonical_query
 
     try:
-        query = _parse_query(args.query)
+        query = parse_canonical_query(args.query)
     except QueryError as e:
         return entries, None, f"bad --query: {e}"
     matched, empty = query.filter(

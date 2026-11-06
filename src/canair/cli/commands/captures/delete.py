@@ -13,12 +13,12 @@ from pathlib import Path
 
 from canair.captures.store import entry_path
 from canair.captures.types import CaptureEntry
+from canair.cli.args.query import parse_canonical_query
 from canair.core.prompt import confirm
 from canair.render import ansi, messages
 from canair.render.paint import Painter
 
 from .echo import echo_write
-from .query import _parse_query
 
 
 def cmd_delete(
@@ -44,7 +44,7 @@ def cmd_delete(
     from canair.captures.session_edit import delete_capture
     from canair.query import QueryError
 
-    q = _parse_query(query)
+    q = parse_canonical_query(query)
     try:
         matched, _empty = q.filter(
             entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"])

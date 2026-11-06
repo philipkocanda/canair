@@ -12,11 +12,12 @@ from collections.abc import Sequence
 from canair.captures.entries import entry_to_dict
 from canair.captures.store import decoded_preview
 from canair.captures.types import CaptureEntry
+from canair.cli.args.query import parse_canonical_query
 from canair.core.terminal import terminal_columns, truncate_text
 from canair.render import ansi, glyphs, messages
 from canair.states.tokens import join_states as _join_states
 
-from .query import _dump_json, _parse_query
+from .query import _dump_json
 
 
 def _text_width(prefix: str) -> int:
@@ -37,7 +38,7 @@ def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limi
     is never silent — the full set is still available with ``--limit 0`` or a
     tighter scope (``--since``/``--last-session``/…).
     """
-    q = _parse_query(query)
+    q = parse_canonical_query(query)
     matched, empty = q.filter(entries, ecu_of=lambda e: e["ecu"], pid_of=lambda e: str(e["pid"]))
 
     total = len(matched)

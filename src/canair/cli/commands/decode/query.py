@@ -87,11 +87,11 @@ def resolve_targets(
     PID).
     Returns ``(targets, error)``; ``error`` is a message when nothing resolved.
     """
-    from canair.cli.commands.captures.query import _parse_query
+    from canair.cli.args.query import parse_canonical_query
     from canair.query import QueryError
 
     try:
-        q = _parse_query(query_str)
+        q = parse_canonical_query(query_str)
     except QueryError as e:
         return [], f"invalid query: {e}"
 
