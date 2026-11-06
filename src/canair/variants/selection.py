@@ -24,10 +24,12 @@ import os
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Literal
 
+from canair.config.file import load_config
 from canair.profile.model import ProfileError
 from canair.profile.names import declared_aliases
 from canair.variants import Variant, VariantsError, describe, load_variants, normalize_variant_id
-from canair.variants.revisions import PinSource
+from canair.variants.detected import remembered
+from canair.variants.revisions import PinSource, RevisionError, parse_pin
 from canair.variants.tags import SCOPES, selected_variant
 
 if TYPE_CHECKING:
@@ -47,7 +49,6 @@ def _declared(profile: Profile) -> dict[str, Variant]:
 
 def configured_variant(profile: Profile) -> str | None:
     """The variant remembered for ``profile`` in the user config, if any."""
-    from canair.config.file import load_config
 
     settings = load_config().get("profile_settings")
     entry = settings.get(profile.name) if isinstance(settings, dict) else None
@@ -66,7 +67,6 @@ def alias_variant(profile: Profile) -> str | None:
 
 def configured_pins(profile: Profile) -> dict[str, str]:
     """The ECU revisions pinned for ``profile`` in the user config (ECU -> revision)."""
-    from canair.config.file import load_config
 
     settings = load_config().get("profile_settings")
     entry = settings.get(profile.name) if isinstance(settings, dict) else None
@@ -82,7 +82,6 @@ def _revision_pins(profile: Profile, flags) -> tuple[tuple[str, str, PinSource],
     Only the shape is checked here; whether each names a real ECU and revision is
     checked when the definitions are resolved (that needs the ECU files).
     """
-    from canair.variants.revisions import RevisionError, parse_pin
 
     pins: list[tuple[str, str, PinSource]] = []
     for text in flags or ():
@@ -116,9 +115,6 @@ def apply_variant(profile: Profile, flag: str | None = None, revisions=None) -> 
 
 def with_detections(profile: Profile) -> Profile:
     """``profile`` carrying the revisions remembered as detected for its car."""
-    from canair.variants.detected import remembered
-    from canair.variants.tags import selected_variant
-
     found = remembered(profile.name, selected_variant(profile))
     detections = tuple(sorted(found.items()))
     if detections == profile.revision_detections:

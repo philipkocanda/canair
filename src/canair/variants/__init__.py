@@ -34,6 +34,8 @@ from typing import TYPE_CHECKING, Any, Literal
 from canair.core import yaml_io
 from canair.core.json_schema import schema_errors
 from canair.core.paths import VARIANTS_SCHEMA_FILE
+from canair.profile.model import read_meta
+from canair.variants.tags import selected_variant
 
 if TYPE_CHECKING:
     from canair.profile.model import Profile
@@ -307,8 +309,6 @@ def effective_meta(profile: Profile) -> dict:
     The selected variant's ``profile_overrides:`` replace the settings they name; the
     file as written is :func:`canair.profile.model.read_meta`.
     """
-    from canair.profile.model import read_meta
-    from canair.variants.tags import selected_variant
 
     meta = read_meta(profile.meta_file)
     vid = selected_variant(profile)

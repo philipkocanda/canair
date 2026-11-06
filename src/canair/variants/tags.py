@@ -23,6 +23,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
+from canair.profile.model import ProfileError
+
 if TYPE_CHECKING:
     from canair.profile.model import Profile
 
@@ -150,7 +152,6 @@ def require_one_revision(
     ``correlate``, ``coverage`` and ``decode --dump-bytes``/``--try`` call this before
     reading bytes. Raises :class:`~canair.profile.model.ProfileError` naming the fix.
     """
-    from canair.profile.model import ProfileError
 
     spread = {e: r for e, r in revision_spread(entries, ecus).items() if len(r) > 1}
     if not spread:

@@ -18,13 +18,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from canair.core import yaml_io
+from canair.core.paths import config_dir
 
 NO_VARIANT = ""
 
 
 def cache_file() -> Path:
-    from canair.core.paths import config_dir
-
     return config_dir() / "state" / "detected_revisions.yaml"
 
 
