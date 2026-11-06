@@ -139,3 +139,8 @@ pkg` aliases, `import canair.pkg` and the dotted strings).
   `load_states` needs `implies`, and `implies` needs `parse_states`, so `parse_states` cannot sit
   in `vocabulary`. The check also covers the comment blocks and the `TYPE_CHECKING` import. Seven
   command, validation and monitor modules import `states.*` at the top: 1101 to 1099.
+- **`captures/`** (done): `build.py`, `save.py`, `session_edit.py`, and `decode.py` (new: it holds
+  `_decode_payload`, which the plan did not place). 845 lines to 6. The check passes for 31
+  definitions. Seven modules import `captures.*` at the top (`captures/journal.py` and six under
+  `live/`): 1099 to 1094. `tests/live/test_dtc_snapshot_mode.py` once wrote into the bundled
+  profile's `captures/` when a patch missed a hoisted binding; the patch guard found it.
