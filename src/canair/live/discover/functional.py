@@ -32,7 +32,8 @@ from canair.transport.functional import DEFAULT_WINDOW_S
 from canair.transport.protocol import Terminal
 from canair.transport.stats import client_transport
 from canair.uds.addressing import functional_request_id, resolve_mode, resolve_rx_offset
-from canair.uds.services import TESTER_PRESENT_REQUEST
+from canair.uds.services import TESTER_PRESENT_REQUEST, service_name
+from canair.uds.subfunctions import subfunction_name
 
 from .physical import _offer_identify, _register_discovered
 from .sweep import (
@@ -58,6 +59,21 @@ MIN_INTERVAL_S = 1.0
 
 _PHYSICAL_HINT = "Some ECUs answer only a physical request; ask one with `canair raw ECU:3E00`."
 _MARKS_LEGEND = "one mark per round: + positive, ~ negative response, - no reply"
+
+
+def describe_request(request: str) -> str:
+    """The service (and sub-function) a request names, or ``""`` when it is not known."""
+    try:
+        data = bytes.fromhex(request)
+    except ValueError:
+        return ""
+    if not data:
+        return ""
+    name = service_name(data[0])
+    if name is None:
+        return ""
+    sub = subfunction_name(data[0], data[1]) if len(data) > 1 else None
+    return f"{name} ({sub})" if sub else name
 
 
 def _bus_heading(bus: str, paint: Painter) -> str:
@@ -219,6 +235,7 @@ async def mode_discover_functional(
     paint = Painter(out)
     settings = [
         ("request", f"{request} on {hex_id(tx_id)}"),
+        *([("service", meaning)] if (meaning := describe_request(request)) else []),
         ("mode", mode.value),
         ("window", f"{window * 1000:.0f} ms"),
     ]

@@ -269,6 +269,11 @@ SUBFUNCTION_NAMES[0x30] = {
     0x07: "shortTermAdjustment",
     0x08: "longTermAdjustment",
 }
+# TesterPresent's only sub-function, per ISO 14229-1; 0x80 is it with suppressPosRspMsgIndication.
+SUBFUNCTION_NAMES[0x3E] = {
+    0x00: "zeroSubFunction",
+    0x80: "zeroSubFunction, suppressPosRspMsgIndication",
+}
 
 
 def subfunction_name(request_sid: int, value: int) -> str | None:
