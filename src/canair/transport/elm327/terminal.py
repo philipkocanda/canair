@@ -14,8 +14,8 @@ channel, a clock, or an event loop:
 
 - :mod:`~canair.transport.elm327.pipe` — the ``>``-prompt ledger that decides
   *which* reply answers the command in hand.
-- :mod:`~canair.transport.elm327.session` — DiagnosticSessionControl and the
-  TesterPresent keepalive.
+- :mod:`~canair.transport.elm327.session` — the short ECU wait a wake burst needs
+  (sessions themselves are ``transport/session_manager.py``'s).
 - :mod:`~canair.transport.elm327.frame_count` — expected-response-count policy.
 - :mod:`~canair.transport.elm327.addressing` — which header, receive filter and
   flow control each ECU needs, and the cached adapter state.
@@ -55,7 +55,7 @@ from canair.transport.elm327.eeprom import init_commands
 from canair.transport.elm327.frame_count import CountKey, FrameCountCache
 from canair.transport.elm327.functional import elm_functional_exchange
 from canair.transport.elm327.pipe import ResponsePipe
-from canair.transport.elm327.session import enter_extended_session
+from canair.transport.elm327.session import short_ecu_wait
 from canair.transport.errors import AdapterRefusedError
 from canair.transport.functional import DEFAULT_WINDOW_S, FunctionalResult, functional_request_bytes
 from canair.transport.link_latency import LinkLatency
@@ -753,6 +753,7 @@ class Elm327Terminal:
                     resp,
                     ecu=(f"0x{header:03X}" if header is not None else None),
                     pid=service_pid,
+                    tx_id=header,
                 )
 
                 verdict = counting.verdict(resp)
@@ -820,16 +821,6 @@ class Elm327Terminal:
         """The command that turns reply headers ``on``/off, or None if already so."""
         return self._address.headers_command(on)
 
-    async def enter_extended_session(
-        self, wake: bool = False, mode: str = "03"
-    ) -> tuple[bool, asyncio.Task | None]:
-        """Enter a diagnostic session and start the TesterPresent keepalive.
-
-        Required by :class:`canair.transport.protocol.Terminal`; the ritual itself
-        lives in :mod:`canair.transport.elm327.session`, since it is UDS-level
-        policy rather than part of speaking ELM327.
-
-        Returns:
-            ``(success, tester_task)`` — the caller owns cancelling the task.
-        """
-        return await enter_extended_session(self, wake=wake, mode=mode)
+    def short_ecu_wait(self) -> contextlib.AbstractAsyncContextManager[None]:
+        """The adapter's ECU wait cut to 64 ms for a wake burst (see :mod:`.session`)."""
+        return short_ecu_wait(self)

@@ -154,8 +154,14 @@ thing automatically:
     There is no `tester-present` command or flag. Once a session is open, canair
     keeps it alive by sending TesterPresent (`3E00`) whenever the session goes
     idle past the timeout; real request traffic resets that timer, so a busy
-    polling loop injects no redundant keepalives. TesterPresent is shared by UDS
-    and KWP2000, so it's sent identically regardless of the ECU's protocol.
+    polling loop or scan injects no redundant keepalives. TesterPresent is shared
+    by UDS and KWP2000, so it's sent identically regardless of the ECU's protocol.
+    Every command and every transport opens and keeps sessions the same way.
+
+`--wake` (or `session <ECU> --wake`) rouses a sleeping ECU before the session request. An
+ECU whose profile declares a `wake:` ritual gets that ritual (a burst of cheap reads, for a
+module such as a smart key unit that sleeps again within seconds); any other ECU gets a
+`10 01`, asked twice if the first draws no answer.
 
 To send one by hand, use a raw step (`canair read "raw 7E4:3E00"`): as a query token,
 `3E00` would be read as the DID `0x3E00`.

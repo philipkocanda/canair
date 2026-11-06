@@ -25,11 +25,13 @@ from canair.live.scan.progress import ScanStateWriter
 from canair.profile.model import Profile
 from canair.render import messages
 from canair.render.paint import Painter
+from canair.transport.session_manager import SessionManager
 from canair.uds.response import UdsResponse
 
 from ...render.discover import ABSENT, POSITIVE, PROBE_FAILED, REFUSED
 from ...render.progress import ProgressLine
 from ...transport.protocol import Terminal
+from ..hold import wake_plan
 
 
 @dataclass(frozen=True)
@@ -102,13 +104,18 @@ async def scan_ecu[HitT](
     hits: list[HitT] = []
     absent = 0
     errors = 0
-    tester_task: asyncio.Task | None = None
+    sm = SessionManager(terminal, verbose=verbose)
     in_extended = False
+
+    async def enter_session(wake_first: bool) -> None:
+        plan = wake_plan(tx_id, profile=profile, wake=wake_first)
+        await sm.open_session(tx_id, wake=wake_first, mode=session_mode, wake_plan=plan)
+        sm.start_background_keepalive()
 
     # Open the requested session up front (e.g. KWP2000 10 81 on the BMS, which
     # rejects the lazy 10 03 escalation) and keep it alive for the whole sweep.
     if session or wake:
-        _, tester_task = await terminal.enter_extended_session(wake=wake, mode=session_mode)
+        await enter_session(wake)
         in_extended = True
 
     state = ScanStateWriter(probe.scan_type, ecu_name, tx_id, start, end)
@@ -137,9 +144,7 @@ async def scan_ecu[HitT](
                 if verbose:
                     progress.clear()
                     print(f"    0x{id_:{fmt}}: NRC 7F — entering session (10 {session_mode})")
-                _, tester_task = await terminal.enter_extended_session(
-                    wake=False, mode=session_mode
-                )
+                await enter_session(False)
                 in_extended = True
                 response = await probe.probe(terminal, id_)
                 category, nrc = probe.classify(response)
@@ -185,12 +190,7 @@ async def scan_ecu[HitT](
             if throttle_ms > 0:
                 await asyncio.sleep(throttle_ms / 1000.0)
     finally:
-        if tester_task:
-            tester_task.cancel()
-            try:
-                await tester_task
-            except asyncio.CancelledError:
-                pass
+        await sm.stop_background_keepalive()
 
     progress.clear()
     print(f"  [{ecu_name}] done — {len(hits)} hits, {absent} absent, {errors} errors")

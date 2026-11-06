@@ -36,6 +36,7 @@ from canair.live.actuate.routines_execute import sf_label
 from canair.profile.model import Profile
 from canair.render import ansi, glyphs, messages
 from canair.transport.protocol import Terminal
+from canair.transport.session_manager import SessionManager
 from canair.uds.nrc import nrc_abbrev
 from canair.uds.requests import routine_control_request
 from canair.uds.subfunctions import RoutineControlType
@@ -93,7 +94,7 @@ class _RoutinesTUI:
         self.last_sf: dict[str, int] = {}  # which sub-function was last sent
 
         self._session_active = False
-        self._tester_task: asyncio.Task | None = None
+        self.sm = SessionManager(terminal, verbose=verbose)
         self._quit = False
         self._busy = False
         self._status = ""
@@ -263,10 +264,10 @@ class _RoutinesTUI:
         if self._session_active:
             return
         _tui_logger.info("Opening extended session (10 03) on 0x%03X", self.tx_id)
-        await self.terminal.set_header(self.tx_id)
-        ok, self._tester_task = await self.terminal.enter_extended_session()
-        self._session_active = ok
-        _tui_logger.info("Session established: %s", ok)
+        outcome = await self.sm.open_session(self.tx_id, force=True, report=False)
+        self.sm.start_background_keepalive()
+        self._session_active = outcome.ok
+        _tui_logger.info("Session established: %s (%s)", outcome.ok, outcome.problem() or "ok")
 
     async def _send_sf(self, rid: str, sub_function: int):
         """Send ``31 {SF} {RID_HI} {RID_LO}`` and update state."""
@@ -332,12 +333,7 @@ class _RoutinesTUI:
         sys.stdout.flush()
 
     async def _cleanup(self):
-        if self._tester_task:
-            self._tester_task.cancel()
-            try:
-                await self._tester_task
-            except asyncio.CancelledError:
-                pass
+        await self.sm.stop_background_keepalive()
 
     async def run(self):
         if not self.rids:

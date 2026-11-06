@@ -17,18 +17,25 @@ Device-free: a fake terminal stands in for the UDS surface.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 import pytest
 
 from canair.cli.profile_context import active
 from canair.live.actuate.iocontrol_actuate import IOControlActuator
+from canair.transport.session_manager import SessionManager
+from canair.transport.stats import TransportStats
 
 ON_CMD = "2FBC0103"
 OFF_CMD = "2FBC0100"
 
 
 class FakeTerminal:
-    """Minimal stand-in for the terminal surface the actuator uses."""
+    """Minimal stand-in for the terminal surface the actuator uses.
+
+    A session request (``10 xx``) is answered positively and recorded in ``sessions``, not
+    in ``sent``, so ``sent`` is what the actuator itself put on the bus.
+    """
 
     def __init__(self, *, fail_on: set[str] | None = None):
         self.sent: list[str] = []
@@ -36,21 +43,32 @@ class FakeTerminal:
         self.sessions: list[str] = []
         self.kwargs: list[dict] = []
         self.fail_on = fail_on or set()
+        self.diag = TransportStats(transport="fake")
 
     async def set_header(self, tx_id: int) -> None:
         self.headers.append(tx_id)
 
+    @contextlib.asynccontextmanager
+    async def transaction(self):
+        yield
+
+    @contextlib.asynccontextmanager
+    async def short_ecu_wait(self):
+        yield
+
+    async def session_reply(self, mode: str) -> dict:
+        self.sessions.append(mode)
+        return {"ok": True, "hex": "50" + mode, "bytes": list(bytes.fromhex("50" + mode))}
+
     async def send_uds(self, cmd: str, timeout: float = 3.0, **kwargs) -> dict:
+        if len(cmd) == 4 and cmd.startswith("10"):
+            return await self.session_reply(cmd[2:])
         self.sent.append(cmd)
         self.kwargs.append(kwargs)
         if cmd in self.fail_on:
             raise ConnectionError("bus dropped")
         reply = f"{int(cmd[:2], 16) + 0x40:02X}{cmd[2:]}"
         return {"ok": True, "hex": reply, "bytes": list(bytes.fromhex(reply))}
-
-    async def enter_extended_session(self, mode: str = "03"):
-        self.sessions.append(mode)
-        return True, None
 
 
 class FakeTui:
@@ -77,7 +95,7 @@ class FakeTui:
         self.last_value: dict[str, str] = {}
         self._session_active = True
         self._session_mode: str | None = "03"
-        self._tester_task = None
+        self.sm = SessionManager(self.terminal)
         self._busy = False
         self._status = ""
         self._quit = False
@@ -187,26 +205,17 @@ class TestCleanup:
 
         act.release_all = traced  # type: ignore[method-assign]
 
-        async def run():
-            async def keepalive():
-                try:
-                    await asyncio.sleep(3600)
-                except asyncio.CancelledError:
-                    order.append("keepalive-cancelled")
-                    raise
+        async def stop() -> None:
+            order.append("keepalive-stopped")
 
-            tui._tester_task = asyncio.create_task(keepalive())
-            await asyncio.sleep(0)  # let it start
-            await act.cleanup()
-
-        asyncio.run(run())
-        assert order == ["release", "keepalive-cancelled"]
+        tui.sm.stop_background_keepalive = stop  # type: ignore[method-assign]
+        asyncio.run(act.cleanup())
+        assert order == ["release", "keepalive-stopped"]
         assert tui.state["BC01"] == "off"
 
     def test_cleanup_without_a_keepalive_task_is_safe(self):
         act, tui = _actuator()
         tui.state["BC01"] = "on"
-        tui._tester_task = None
         asyncio.run(act.cleanup())  # must not raise
         assert tui.state["BC01"] == "off"
 
@@ -243,13 +252,14 @@ class TestEnsureSession:
         act, tui = _actuator()
 
         async def run():
-            old = asyncio.create_task(asyncio.sleep(3600))
-            tui._tester_task = old
+            old = tui.sm.start_background_keepalive()
             await act.ensure_session("C0")
+            assert tui.sm.keepalive_running
+            await tui.sm.stop_background_keepalive()
             return old
 
         old = asyncio.run(run())
-        assert old.cancelled()
+        assert old.done()
         assert tui.terminal.sessions == ["C0"]
         assert tui._session_mode == "C0"
 
@@ -385,7 +395,7 @@ class TestSingleCommand:
 
 
 class FailingSessionTerminal(FakeTerminal):
-    async def enter_extended_session(self, mode: str = "03"):
+    async def session_reply(self, mode: str) -> dict:
         self.sessions.append(mode)
         raise ValueError("BLOCKED: refused")
 
@@ -397,26 +407,26 @@ class TestEnsureSessionFailure:
         act, tui = _actuator(terminal=FailingSessionTerminal())
 
         async def run():
-            tui._tester_task = asyncio.create_task(asyncio.sleep(3600))
+            tui.sm.start_background_keepalive()
             with pytest.raises(ValueError):
                 await act.ensure_session("C0")
 
         asyncio.run(run())
         assert tui._session_active is False
         assert tui._session_mode is None
-        assert tui._tester_task is None
+        assert not tui.sm.keepalive_running
 
     def test_a_refused_session_is_unconfirmed_not_active(self):
         act, tui = _actuator(terminal=FakeTerminal())
-        tui.terminal.enter_extended_session = _refusing  # type: ignore[method-assign]
+        tui.terminal.session_reply = _refusing  # type: ignore[method-assign]
         tui._session_active = False
         asyncio.run(act.ensure_session("C0"))
         assert tui._session_active is False
         assert tui._session_mode == "C0"
 
 
-async def _refusing(mode: str = "03"):
-    return False, None
+async def _refusing(mode: str = "03") -> dict:
+    return {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"}
 
 
 class TestSessionHeader:
@@ -533,7 +543,7 @@ class TestKwpActuators:
 
     def test_poll_stops_when_no_session_can_be_opened(self):
         act, tui = _actuator(dids=("BC01", "BC02"))
-        tui.terminal.enter_extended_session = _refusing  # type: ignore[method-assign]
+        tui.terminal.session_reply = _refusing  # type: ignore[method-assign]
         tui._session_active, tui._session_mode = False, None
         for c in tui.cmds.values():
             c["session"] = True
@@ -593,11 +603,7 @@ def _with_release(data: dict, release: str) -> dict:
 
 
 class HoldingTerminal(FakeTerminal):
-    """A terminal whose session hands back a keepalive task, so --did holds."""
-
-    async def enter_extended_session(self, mode: str = "03"):
-        self.sessions.append(mode)
-        return True, asyncio.ensure_future(asyncio.sleep(3600))
+    """A terminal whose ECU accepts the session, so --did holds."""
 
 
 class TestTuiProtocol:

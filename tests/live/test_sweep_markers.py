@@ -59,6 +59,7 @@ async def test_sessions_scan_uses_the_same_markers(capsys):
     term = FakeTerminal(
         {"1001": ok("5001"), "1003": nrc(0x7F), "1081": nrc(0x12)},
         default={"ok": False, "error": "NO DATA", "raw": "NO DATA"},
+        session_ok=False,
     )
     await scan_ecu_sessions(
         term,

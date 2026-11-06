@@ -274,7 +274,7 @@ def test_sessions_field_declared_in_schema():
 def _FakeTerminal(responses=None):
     """Session-scan terminal double: unscripted requests answer
     subFunctionNotSupported (NRC 0x12)."""
-    return FakeTerminal(responses, default=_nrc(0x12, "subFunctionNotSupported"))
+    return FakeTerminal(responses, default=_nrc(0x12, "subFunctionNotSupported"), session_ok=False)
 
 
 @pytest.mark.asyncio

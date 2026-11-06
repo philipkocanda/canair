@@ -91,7 +91,8 @@ options:
                         groups)
   --yes, -y             Skip the clear confirmation prompt
   --session             Enter extended session (10 03)
-  --wake                Wake ECU from deep sleep (10 01)
+  --wake                Wake ECUs from deep sleep first (the ECU's wake:
+                        ritual, else 10 01)
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}

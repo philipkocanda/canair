@@ -10,7 +10,6 @@ protocol-selection helpers in :mod:`identity_decode`; this module is just the
 async device orchestration.
 """
 
-import asyncio
 import json
 import sys
 
@@ -24,6 +23,7 @@ from canair.uds.response import UdsResponse
 
 from ...ecus.names import ecu_display
 from ...transport.protocol import Terminal
+from ..hold import held_session
 from ..revision_probe import describe_identity_report, identity_report
 from .decode import decode_identity_payload, resolve_protocol_hint, service_supported
 from .records import IDENTITY_DIDS, KWP_IDENTITY_RECORDS, PROTOCOLS, UDS_IDENTITY_DIDS
@@ -84,11 +84,7 @@ async def mode_identity(
 
     await terminal.set_header(tx_id)
 
-    tester_task = None
-    if session:
-        _, tester_task = await terminal.enter_extended_session(wake=wake)
-
-    try:
+    async with held_session(terminal, tx_id, profile=profile, enabled=session, wake=wake):
         resolved = resolve_protocol_hint(tx_id, protocol, profile=profile)
         probe_reason = None
         if resolved is None:
@@ -200,11 +196,3 @@ async def mode_identity(
             print(f"\n  {paint(summary, ansi.raw.DIM)}")
             if revision is not None:
                 print("\n".join(describe_identity_report(revision)))
-
-    finally:
-        if tester_task:
-            tester_task.cancel()
-            try:
-                await tester_task
-            except asyncio.CancelledError:
-                pass

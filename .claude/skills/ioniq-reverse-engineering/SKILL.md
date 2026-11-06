@@ -319,10 +319,11 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
   (`set_capture_note`/`delete_capture`). After saving, run `canair captures uds
   --summary` to spot patterns missed live, or `canair captures uds --sessions` for a
   metadata table of contents (date/state/label/notes/ECUs per session; `--json`).
-- **`--session` / `--wake`.** `--session` = extended session (`10 03`) + 2s
-  TesterPresent keepalive; required for IGPM `22BCxx`/`2FBCxx`. `--wake` sends
-  `10 01` to rouse a deep-sleeping ECU (implies `--session`; first try may return
-  NO DATA — allow a retry). **IGPM (0x770) and BCM (0x7A0) wake from CAN activity
+- **`--session` / `--wake`.** `--session` = extended session (`10 03`), kept alive with
+  TesterPresent while the ECU is idle; required for IGPM `2FBCxx` (its `22BCxx` reads need
+  none). `--wake` rouses a deep-sleeping ECU first (implies `--session`): the ECU's `wake:`
+  ritual where the profile declares one (the SKM), else `10 01`, asked twice if the first
+  draws no answer. **IGPM (0x770) and BCM (0x7A0) wake from CAN activity
   alone; BMS/MCU answer only while the IG3 rail is on (ignition ON, charging, the 12 V
   top-up), and the VCU a few minutes beyond, so ACC alone is not enough.**
 - **`canair io --poll` can actuate hardware.** The IOControl TUI's background

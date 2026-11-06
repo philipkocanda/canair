@@ -20,7 +20,8 @@ options:
   -h, --help            show this help message and exit
   --session             Enter extended session (10 03)
   --hold                Keep session alive until Ctrl+C
-  --wake                Wake ECUs from deep sleep (10 01)
+  --wake                Wake ECUs from deep sleep first (the ECU's wake:
+                        ritual, else 10 01)
   --save                Save result to captures/
   --label TEXT          Session label for --save (asked for when omitted; with
                         no terminal the session is saved under a generated

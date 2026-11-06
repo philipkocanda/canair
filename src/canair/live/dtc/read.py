@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 
 from canair.profile.model import Profile
@@ -13,6 +12,7 @@ from ...dtc.refs import ecu_ref
 from ...dtc.snapshot_report import snapshot_lines, status_line, undefined_hints
 from ...ecus.names import ecu_display
 from ...transport.protocol import Terminal
+from ..hold import held_session
 from .codes import resolve_protocol
 from .reading import _read_one
 from .scan_log import _log_scan, _print_log_result
@@ -97,12 +97,7 @@ async def mode_dtc_read(
     if supported:
         log = False
 
-    tester_task = None
-    if session:
-        await terminal.set_header(tx_id)
-        _, tester_task = await terminal.enter_extended_session(wake=wake)
-
-    try:
+    async with held_session(terminal, tx_id, profile=profile, enabled=session, wake=wake):
         if not as_json:
             fam = (
                 "UDS 19 02 (reportDTCByStatusMask)"
@@ -131,10 +126,3 @@ async def mode_dtc_read(
             )
             if not as_json:
                 _print_log_result(path, previous, diff, profile=profile)
-    finally:
-        if tester_task:
-            tester_task.cancel()
-            try:
-                await tester_task
-            except asyncio.CancelledError:
-                pass

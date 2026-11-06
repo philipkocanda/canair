@@ -109,7 +109,8 @@ def test_the_iso_probe_runs_once_confirmed():
 
 def test_the_nissan_probe_needs_no_confirmation(capsys):
     term = _io_scan(_data(["nissan_c0_session"]))
-    assert term.sent == ["30070100"]
+    assert term.sessions == ["C0"]
+    assert term.requests == ["30070100"]
     assert "--yes" not in capsys.readouterr().err
 
 
@@ -117,8 +118,8 @@ def test_kwp_wrong_session_nrc_escalates_lazily_on_a_non_nissan_profile():
     # 0x80 serviceNotSupportedInActiveDiagnosticMode is a session problem, not a
     # hit: the engine opens the default session and retries.
     term = _io_scan(_data(["skm_wakeup"]), confirmed=True, responses={"300700": nrc(0x80)})
-    assert term.sessions == [(False, "03")]
-    assert term.sent == ["300700", "300700"]
+    assert term.sessions == ["03"]
+    assert term.requests == ["300700", "300700"]
 
 
 class _Tty(io.StringIO):

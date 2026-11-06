@@ -19,6 +19,7 @@ from ...captures.oneshot import save_session_journaled
 from ...ecus.names import ecu_name
 from ...ecus.registry import rx_addr_str
 from ...transport.protocol import Terminal
+from ..hold import held_session
 
 
 async def mode_raw(
@@ -72,11 +73,7 @@ async def mode_raw(
 
     await terminal.set_header(tx_id)
 
-    tester_task = None
-    if session:
-        _, tester_task = await terminal.enter_extended_session(wake=wake)
-
-    try:
+    async with held_session(terminal, tx_id, profile=profile, enabled=session, wake=wake) as held:
         response = await terminal.send_uds(service_pid, retries=1)
         hidden = response["ok"] and request_hidden(tx_id, service_pid, profile=profile)
 
@@ -110,7 +107,7 @@ async def mode_raw(
                 print()
                 print_hexdump(response["bytes"])
 
-        if hold and tester_task:
+        if hold and held is not None:
             human = sys.stderr if as_json else sys.stdout
             print(file=human)
             print("  Session held open (TesterPresent keepalive active).", file=human)
@@ -121,13 +118,6 @@ async def mode_raw(
                 print("\n  Releasing session…", file=human)
         elif save:
             save_result(response)
-    finally:
-        if tester_task:
-            tester_task.cancel()
-            try:
-                await tester_task
-            except asyncio.CancelledError:
-                pass
 
 
 def _save_raw(

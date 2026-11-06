@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 from dataclasses import dataclass, field
 
+from canair.transport.stats import TransportStats
 from canair.uds.memory import parse_memory_request
 from canair.uds.parse import parse_uds_response
 from canair.uds.protocol import UDS, DiagProtocol
@@ -39,9 +40,13 @@ class MemoryEcu:
     async def set_header(self, tx_id, **_kw):
         self.tx = tx_id
 
-    async def enter_extended_session(self, wake=False, mode="03"):
-        self.sessions.append(mode)
-        return True, None
+    @contextlib.asynccontextmanager
+    async def short_ecu_wait(self):
+        yield
+
+    @property
+    def diag(self):
+        return TransportStats(transport="fake")
 
     def _reply(self, request: str) -> str:
         if self._hung:
@@ -69,6 +74,9 @@ class MemoryEcu:
         return "7F2331"
 
     async def send_uds(self, request, timeout=None, expected_sid=None, expected_echo=None, **_kw):
+        if len(request) == 4 and request.startswith("10"):  # a session request
+            self.sessions.append(request[2:])
+            return parse_uds_response("50" + request[2:], expected_sid=expected_sid)
         self.sent.append(request)
         raw = self._reply(request)
         if raw.startswith("63"):

@@ -1,5 +1,4 @@
-"""A TesterPresent keepalive stops once the ECU answers NRC 0x11 (canair.transport.keepalive); the raw terminal's loop
-is tested in test_raw_terminal.py.
+"""A TesterPresent keepalive stops once the ECU answers NRC 0x11 (canair.transport.keepalive).
 
 The Ioniq's BMS has no TesterPresent in any session, so a keepalive to it only costs bus time.
 NRC 0x7F/0x80/0x22 say "not in this session" or "not now" and do not stop it.
@@ -7,13 +6,9 @@ NRC 0x7F/0x80/0x22 say "not in this session" or "not now" and do not stop it.
 
 from __future__ import annotations
 
-import asyncio
-from types import SimpleNamespace
-
 import pytest
 
 from canair.transport import keepalive
-from canair.transport.elm327 import session as elm327_session
 from canair.transport.session_manager import SessionManager
 from canair.uds.nrc import NRC_SERVICE_NOT_SUPPORTED
 from tests.support.fakes import FakeTerminal, nrc, ok
@@ -82,38 +77,3 @@ class TestSessionManager:
         monkeypatch.setattr(keepalive, "log_event", lambda *a, **k: seen.append((a, k)))
         await self._sweeps(nrc(NRC_SERVICE_NOT_SUPPORTED))
         assert len(seen) == 1 and "0x7E4" in seen[0][0][1]
-
-
-class TestElmLoop:
-    @staticmethod
-    def _terminal(replies):
-        calls = []
-
-        async def send_uds(request, **kwargs):
-            calls.append(request)
-            return replies[min(len(calls), len(replies)) - 1]
-
-        term = SimpleNamespace(
-            send_uds=send_uds,
-            verbose=False,
-            _cur_header=BMS,
-            diag=SimpleNamespace(transport="fake"),
-        )
-        return term, calls
-
-    @pytest.mark.asyncio
-    async def test_the_loop_ends_on_service_not_supported(self, monkeypatch):
-        monkeypatch.setattr(elm327_session, "_KEEPALIVE_INTERVAL", 0.0)
-        term, calls = self._terminal([nrc(NRC_SERVICE_NOT_SUPPORTED)])
-        await asyncio.wait_for(elm327_session._tester_present_loop(term), 1.0)
-        assert calls == ["3E00"]
-
-    @pytest.mark.asyncio
-    async def test_the_loop_goes_on_after_a_not_in_session_refusal(self, monkeypatch):
-        monkeypatch.setattr(elm327_session, "_KEEPALIVE_INTERVAL", 0.0)
-        term, calls = self._terminal([nrc(0x80)])
-        task = asyncio.create_task(elm327_session._tester_present_loop(term))
-        await asyncio.sleep(0.05)
-        assert not task.done() and len(calls) > 1
-        task.cancel()
-        await task

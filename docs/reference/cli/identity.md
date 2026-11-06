@@ -21,7 +21,8 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --session             Enter extended session (10 03)
-  --wake                Wake ECUs from deep sleep (10 01)
+  --wake                Wake ECUs from deep sleep first (the ECU's wake:
+                        ritual, else 10 01)
   --protocol {auto,uds,kwp}
                         Identity protocol: uds (22 F1xx), kwp (1A 8x/9x
                         KWP2000), or auto (registry hint, else on-device

@@ -131,3 +131,11 @@ def resolve_wake(ecu_def: Mapping[str, Any] | None) -> WakePlan | None:
         session_mode=session_mode,
         sleep_timer_ms=sleep_timer_ms,
     )
+
+
+def wake_plan_for(tx_id: int, pids_data: Mapping[str, Any]) -> WakePlan | None:
+    """The wake ritual of the ECU at request id ``tx_id``, or None (a plain ``10 01``)."""
+    for ecu_def in (pids_data.get("ecus") or {}).values():
+        if isinstance(ecu_def, Mapping) and ecu_def.get("tx_id") == tx_id:
+            return resolve_wake(ecu_def)
+    return None

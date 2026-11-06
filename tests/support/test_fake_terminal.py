@@ -67,16 +67,16 @@ class TestSurface:
         assert (await t.send_uds("2101"))["hex"] == "6101AB"  # recovers after
 
     @pytest.mark.asyncio
-    async def test_enter_extended_session_mode_contract(self):
-        # The dual-transport contract: mode= keyword recorded per call.
+    async def test_a_session_request_is_answered_and_recorded(self):
         t = FakeTerminal()
-        assert await t.enter_extended_session(wake=True, mode="81") == (True, None)
-        assert t.sessions == [(True, "81")]
+        assert (await t.send_uds("1081"))["hex"] == "5081"
+        await t.send_uds("1001")
+        assert t.sessions == ["81"]
 
     @pytest.mark.asyncio
-    async def test_session_result_override(self):
-        t = FakeTerminal(session_result=(None, None))
-        assert await t.enter_extended_session() == (None, None)
+    async def test_session_ok_false_leaves_it_to_the_default(self):
+        t = FakeTerminal(session_ok=False)
+        assert await t.send_uds("1003") == NO_DATA
 
     @pytest.mark.asyncio
     async def test_send_command_reply(self):

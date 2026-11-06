@@ -8,13 +8,15 @@ import json
 import pytest
 
 from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
+from tests.support.fakes import FakeTerminal as SharedFakeTerminal
 
 DATA = {
     "ecus": {
         "IGPM": {
             "tx_id": 0x770,
             "iocontrol": {
-                "BC01": {"label": "Low beam", "on": "2FBC0103", "off": "2FBC0100"},
+                # hold: False, or the one-shot would hold the output until Ctrl+C.
+                "BC01": {"label": "Low beam", "on": "2FBC0103", "off": "2FBC0100", "hold": False},
                 "BC02": {"label": "No ON", "on": "", "off": "2FBC0200"},
             },
         }
@@ -22,20 +24,15 @@ DATA = {
 }
 
 
-class FakeTerminal:
-    def __init__(self):
-        self.sent: list[str] = []
+class FakeTerminal(SharedFakeTerminal):
+    """Answers every request positively."""
 
-    async def set_header(self, tx_id: int) -> None:
-        pass
-
-    async def send_uds(self, cmd: str, timeout: float = 3.0, **kwargs) -> dict:
-        self.sent.append(cmd)
+    async def send_uds(self, cmd: str, timeout: float | None = 3.0, **kwargs) -> dict:
+        await super().send_uds(cmd, timeout, **kwargs)
+        if len(cmd) == 4 and cmd.startswith("10"):
+            return {"ok": True, "hex": "50" + cmd[2:]}
         reply = f"{int(cmd[:2], 16) + 0x40:02X}{cmd[2:]}"
         return {"ok": True, "hex": reply, "bytes": list(bytes.fromhex(reply))}
-
-    async def enter_extended_session(self, mode: str = "03"):
-        return True, None
 
 
 def _run(ecu: str, did: str, **kw):
@@ -75,7 +72,7 @@ class TestLookupFailures:
 class TestJson:
     def test_stdout_is_only_the_json_document(self, capsys):
         term = _run("IGPM", "BC01", yes=True, as_json=True)
-        assert term.sent[0] == "2FBC0103"
+        assert term.requests[0] == "2FBC0103"
         captured = capsys.readouterr()
         doc = json.loads(captured.out)
         assert doc["ok"] is True and doc["command"] == "2FBC0103"

@@ -22,6 +22,7 @@ from canair.live.actuate.not_found import report_not_found
 from canair.profile.model import Profile
 from canair.render import ansi, glyphs, messages
 from canair.transport.protocol import Terminal
+from canair.transport.session_manager import SessionManager
 from canair.uds.protocol import DiagProtocol
 from canair.yaml_edit.pids import PidsEditError, promote_discovery, update_iocontrol_field
 
@@ -107,12 +108,11 @@ class _IOControlTUI:
         # ON/OFF/ADJUST send. None = never seen a response yet.
         self.status_bytes: dict[str, str | None] = dict.fromkeys(self.dids)
         self._status_polling: bool = False  # True while background poll loop is running
-
         self._session_active: bool = False
-        # Sub-function of the open session, so an actuator that needs a different
-        # one (a Nissan 10 C0 next to a UDS 10 03) re-enters instead of reusing it.
+        # The mode of the open session: an actuator that needs another one (a Nissan
+        # 10 C0 next to a UDS 10 03) re-enters instead of reusing it.
         self._session_mode: str | None = None
-        self._tester_task: asyncio.Task | None = None
+        self.sm = SessionManager(terminal, verbose=verbose)  # opens and keeps it alive
         self._quit: bool = False
         self._busy: bool = False  # prevent concurrent CAN commands
         self._status: str = ""  # bottom status line

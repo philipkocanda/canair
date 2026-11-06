@@ -390,7 +390,10 @@ class _RawStepTerminal:
     """Answers each request from a table; anything else gets NO DATA."""
 
     def __init__(self, replies: dict):
+        from canair.transport.stats import TransportStats
+
         self.replies = replies
+        self.diag = TransportStats(transport="fake")
 
     async def set_header(self, tx_id):
         pass

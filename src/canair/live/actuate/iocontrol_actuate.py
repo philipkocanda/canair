@@ -102,21 +102,14 @@ class IOControlActuator:
         t._session_active = False
         t._session_mode = None
         _tui_logger.info("Opening diagnostic session (10 %s) on 0x%03X", wanted, t.tx_id)
-        await t.terminal.set_header(t.tx_id)
-        ok, t._tester_task = await t.terminal.enter_extended_session(mode=wanted)
-        t._session_active = ok
+        outcome = await t.sm.open_session(t.tx_id, mode=wanted, force=True, report=False)
+        t.sm.start_background_keepalive()
+        t._session_active = outcome.ok
         t._session_mode = wanted
-        _tui_logger.info("Session established: %s", ok)
+        _tui_logger.info("Session established: %s (%s)", outcome.ok, outcome.problem() or "ok")
 
     async def _stop_keepalive(self) -> None:
-        task, self.t._tester_task = self.t._tester_task, None
-        if task is None:
-            return
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        await self.t.sm.stop_background_keepalive()
 
     def extract_status_bytes(self, did: str, resp: UdsResponse) -> None:
         """Extract the controlStatusRecord tail from an IOControl response and store it.

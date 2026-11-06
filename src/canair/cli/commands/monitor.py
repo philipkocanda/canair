@@ -22,6 +22,7 @@ import shlex
 import sys
 
 from canair.cli.args.notation import add_notation_arg
+from canair.cli.args.session import add_wake_arg
 from canair.cli.live import (
     add_connection_args,
     expand_step_groups,
@@ -132,7 +133,7 @@ For a single one-shot read (no live refresh) use `canair read` instead.
         "(default: poll it less often until it recovers, so it can't hold up the rest)",
     )
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
-    parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")
+    add_wake_arg(parser)
     keep = parser.add_mutually_exclusive_group()
     keep.add_argument(
         "--keep-all",

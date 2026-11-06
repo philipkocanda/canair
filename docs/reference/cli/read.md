@@ -26,7 +26,8 @@ options:
   --param NAME [NAME ...]
                         Read named signals instead of selectors
   --session             Enter extended session (10 03)
-  --wake                Wake ECUs from deep sleep (10 01)
+  --wake                Wake ECUs from deep sleep first (the ECU's wake:
+                        ritual, else 10 01)
   --repl                Drop into REPL after the pipeline
   --save                Save results to captures/
   --label TEXT          Session label for --save (asked for when omitted; with

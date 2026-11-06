@@ -6,7 +6,7 @@ import time
 import pytest
 
 from canair.transport.session_manager import SessionManager
-from tests.support.fakes import FakeTerminal
+from tests.support.fakes import FakeTerminal, nrc
 from tests.support.fakes import ok as _ok
 
 
@@ -408,3 +408,87 @@ class TestReporting:
         outcome = await SessionManager(t).open_session(0x770, report=False)
         assert capsys.readouterr().err == ""
         assert outcome.problem() == "no answer from 0x770 to session 10 03 (NO DATA)"
+
+
+class TestOneRitual:
+    """The ritual every command shares (plans/2026-11-05-one-session-owner.md, phase 4)."""
+
+    @pytest.mark.asyncio
+    async def test_a_default_wake_runs_with_the_short_ecu_wait_and_asks_twice(self, monkeypatch):
+        slept: list[float] = []
+
+        async def no_sleep(s):
+            slept.append(s)
+
+        t = FakeTerminal({"1003": _ok("5003")}, session_ok=False)  # 10 01 draws NO DATA
+        sm = SessionManager(t)
+        monkeypatch.setattr("canair.transport.session_manager.asyncio.sleep", no_sleep)
+        await sm.open_session(0x7A5, wake=True)
+        calls = [c for c in t.calls if c[0] in ("short_ecu_wait", "send_uds")]
+        assert calls == [
+            ("short_ecu_wait", None),
+            ("send_uds", "1001"),
+            ("send_uds", "1001"),
+            ("send_uds", "1003"),
+        ]
+        assert t.uds_kwargs[0] == {
+            "timeout": 3.0,
+            "expected_sid": 0x10,
+            "expected_echo": None,
+            "retries": 0,
+        }
+        assert slept == []  # no fixed pause after the wake
+
+    @pytest.mark.asyncio
+    async def test_a_wake_ritual_runs_with_the_short_ecu_wait(self):
+        from canair.ecus.wake import WakePlan
+
+        t = FakeTerminal(send_command_reply="62 B0 03 00")
+        plan = WakePlan("rapid_read", "22B003", attempts=4, interval_ms=0, session_mode="03")
+        await SessionManager(t).open_session(0x7A5, wake=True, wake_plan=plan)
+        names = [c[0] for c in t.calls]
+        assert names.index("short_ecu_wait") < names.index("send_command")
+
+    @pytest.mark.asyncio
+    async def test_a_session_request_with_no_answer_is_asked_once_more(self):
+        t = FakeTerminal(session_ok=False)
+        outcome = await SessionManager(t).open_session(0x770, report=False)
+        assert t.sent == ["1003", "1003"]
+        assert outcome.ok is False
+
+    @pytest.mark.asyncio
+    async def test_a_refusal_is_not_asked_again(self):
+        t = FakeTerminal({"1003": nrc(0x12, "SFNS")})
+        await SessionManager(t).open_session(0x770, report=False)
+        assert t.sent == ["1003"]
+
+    @pytest.mark.asyncio
+    async def test_held_opens_keeps_alive_and_lets_go(self):
+        t = FakeTerminal()
+        sm = SessionManager(t)
+        async with sm.held(0x7E4, mode="81") as outcome:
+            assert outcome.ok and sm.keepalive_running
+            assert sm.session_mode(0x7E4) == 0x81
+        assert not sm.keepalive_running
+        assert not sm.has_session(0x7E4)
+        assert t.sent == ["1081"]  # left to time out: no 10 01
+
+    @pytest.mark.asyncio
+    async def test_held_with_close_returns_to_the_default_session(self):
+        t = FakeTerminal()
+        async with SessionManager(t).held(0x7E4, close=True):
+            pass
+        assert t.sent == ["1003", "1001"]
+
+    @pytest.mark.asyncio
+    async def test_no_keepalive_while_the_ecu_keeps_answering(self):
+        t = FakeTerminal({"3E00": _ok("7E00")})
+        sm = SessionManager(t)
+        sm.table.track(0x770, at=time.monotonic() - 10)  # stale by its own clock
+        t.diag.answered[0x770] = time.monotonic()  # but a scan probe was just answered
+        await sm.keepalive_stale()
+        assert "3E00" not in t.sent
+        t.diag.answered[0x770] = time.monotonic() - 10
+        sm.table.track(0x770, at=time.monotonic() - 10)
+        await sm.keepalive_stale()
+        assert t.sent == ["3E00"]

@@ -9,23 +9,20 @@ import pytest
 
 from canair.live.actuate.routines_execute import mode_routines_execute
 from canair.live.actuate.routines_list import mode_routines_list
+from tests.support.fakes import FakeTerminal as SharedFakeTerminal
 
 DATA = {"ecus": {"BCM": {"tx_id": 0x745, "routines": {"12A1": {"label": "Self test"}}}}}
 
 
-class FakeTerminal:
-    def __init__(self):
-        self.sent: list[str] = []
+class FakeTerminal(SharedFakeTerminal):
+    """Answers every request positively."""
 
-    async def set_header(self, tx_id: int) -> None:
-        pass
-
-    async def send_uds(self, cmd: str, timeout: float = 3.0, **kwargs) -> dict:
-        self.sent.append(cmd)
-        return {"ok": True, "hex": "7101" + cmd[4:]}
-
-    async def enter_extended_session(self, mode: str = "03"):
-        return True, None
+    async def send_uds(self, cmd: str, timeout: float | None = 3.0, **kwargs) -> dict:
+        await super().send_uds(cmd, timeout, **kwargs)
+        if len(cmd) == 4 and cmd.startswith("10"):
+            return {"ok": True, "hex": "50" + cmd[2:]}
+        reply = "7101" + cmd[4:]
+        return {"ok": True, "hex": reply, "bytes": list(bytes.fromhex(reply))}
 
 
 def _run(ecu: str, rid: str, **kw):
@@ -56,7 +53,7 @@ def test_unknown_rid_is_an_error_with_exit_1(capsys):
 
 def test_json_stdout_is_only_the_document(capsys):
     term = _run("BCM", "12A1", as_json=True)
-    assert len(term.sent) == 1
+    assert len(term.requests) == 1
     captured = capsys.readouterr()
     assert json.loads(captured.out)["rid"] == "12A1"
     assert "Command:" in captured.err and "Positive response" in captured.err

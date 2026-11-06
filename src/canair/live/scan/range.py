@@ -1,6 +1,5 @@
 """Scan one or more ranges of PIDs/DIDs."""
 
-import asyncio
 import json
 from collections.abc import Sequence
 
@@ -20,6 +19,7 @@ from ...captures.oneshot import save_session_journaled
 from ...ecus.names import ecu_display, ecu_name
 from ...ecus.registry import rx_addr_str
 from ...transport.protocol import Terminal
+from ..hold import held_session
 
 
 async def mode_scan(
@@ -86,10 +86,6 @@ async def mode_scan(
 
     await terminal.set_header(tx_id)
 
-    tester_task = None
-    if session:
-        _, tester_task = await terminal.enter_extended_session(wake=wake)
-
     positive = []
     negative = []
     errors = []
@@ -109,7 +105,7 @@ async def mode_scan(
         disable=not is_tty,
     )
 
-    try:
+    async with held_session(terminal, tx_id, profile=profile, enabled=session, wake=wake):
         with progress:
             task = progress.add_task(f"Scanning {ecu}", total=total, hits=0)
             for pid_val in iter_ids(ranges):
@@ -154,13 +150,6 @@ async def mode_scan(
                         )
 
                 progress.advance(task)
-    finally:
-        if tester_task:
-            tester_task.cancel()
-            try:
-                await tester_task
-            except asyncio.CancelledError:
-                pass
             if verbose:
                 console.print("  [dim][tester] Background keepalive stopped.[/dim]")
 

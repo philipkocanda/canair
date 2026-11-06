@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 
+from canair.cli.args.session import add_wake_arg
 from canair.cli.live import LiveOperation, add_connection_args, live_command
 from canair.cli.live.handlers import reads
 
@@ -32,7 +33,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         help="ECU name or TX ID (e.g. IGPM or 770)",
     )
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
-    parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")
+    add_wake_arg(parser)
     parser.add_argument(
         "--protocol",
         choices=("auto", "uds", "kwp"),

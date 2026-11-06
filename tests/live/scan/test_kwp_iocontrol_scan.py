@@ -177,8 +177,8 @@ async def test_nissan_profile_scans_with_the_nissan_probe_inside_c0():
         write_yaml=False,
         profile=active(),
     )
-    assert term.sessions == [(False, "C0")]
-    assert term.sent == ["30070100", "30080100"]
+    assert term.sessions == ["C0"]
+    assert term.requests == ["30070100", "30080100"]
 
 
 @pytest.mark.asyncio
@@ -194,8 +194,8 @@ async def test_an_explicit_session_mode_still_wins_on_nissan():
         session_mode="81",
         profile=active(),
     )
-    assert term.sessions == [(False, "81")]
-    assert term.sent == ["30070100"]
+    assert term.sessions == ["81"]
+    assert term.requests == ["30070100"]
 
 
 @pytest.mark.asyncio

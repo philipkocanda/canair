@@ -77,7 +77,7 @@ def test_elm327_tcp_terminal_satisfies_protocol():
 )
 @pytest.mark.parametrize(
     "method",
-    ["set_header", "send_uds", "send_command", "enter_extended_session", "close"],
+    ["set_header", "transaction", "send_uds", "send_command", "short_ecu_wait", "close"],
 )
 def test_every_elm_backend_exposes_the_shared_surface(backend, method):
     """Both ELM transports must expose the whole surface, not just one of them.

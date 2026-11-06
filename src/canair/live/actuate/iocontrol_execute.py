@@ -15,6 +15,7 @@ from canair.render import ansi, glyphs, messages
 from canair.render.paint import Painter
 from canair.safety.actuation import on_refusal
 from canair.transport.protocol import Terminal
+from canair.transport.session_manager import SessionManager
 
 
 async def mode_iocontrol_execute(
@@ -87,12 +88,13 @@ async def mode_iocontrol_execute(
 
     await terminal.set_header(tx_id)
 
-    tester_task = None
+    sm = SessionManager(terminal, verbose=verbose)
     if needs_session:
         mode = cmd_def["session_mode"]
         if verbose:
             say(f"  Entering diagnostic session (10 {mode}){glyphs.ELLIPSIS}")
-        _, tester_task = await terminal.enter_extended_session(mode=mode)
+        await sm.open_session(tx_id, mode=mode)
+        sm.start_background_keepalive()
 
     # Query the mapped readback PID before executing. This is a best-effort hint
     # only: IOControl overrides may drive an output without changing the ECU
@@ -132,7 +134,7 @@ async def mode_iocontrol_execute(
             print(json.dumps(out, indent=2))
 
         # Hold session if needed (keep TesterPresent alive until Ctrl+C)
-        if needs_hold and response["ok"] and tester_task:
+        if needs_hold and response["ok"] and sm.has_session(tx_id):
             say(f"\n  Holding session (Ctrl+C to release){glyphs.ELLIPSIS}")
             try:
                 await asyncio.Future()  # block forever
@@ -142,12 +144,7 @@ async def mode_iocontrol_execute(
     except KeyboardInterrupt:
         say(f"\n  Releasing{glyphs.ELLIPSIS}")
     finally:
-        if tester_task:
-            tester_task.cancel()
-            try:
-                await tester_task
-            except asyncio.CancelledError:
-                pass
+        await sm.stop_background_keepalive()
 
         # Hand the output back if we were holding it ON: the entry's release
         # (returnControlToECU on UDS, the declared request on KWP2000), else OFF.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 
+from canair.cli.args.session import add_wake_arg
 from canair.cli.live import add_connection_args, ecu_completer, live_command
 from canair.cli.live.handlers import scans
 
@@ -52,7 +53,7 @@ def add_iocontrol_parser(kinds) -> argparse.ArgumentParser:
     parser.add_argument(
         "--session", action="store_true", help="Open a diagnostic session before scanning"
     )
-    parser.add_argument("--wake", action="store_true", help="Wake ECU from deep sleep first")
+    add_wake_arg(parser)
     parser.add_argument(
         "--mode",
         dest="session_mode",
@@ -111,7 +112,7 @@ def add_routines_parser(kinds) -> argparse.ArgumentParser:
     parser.add_argument(
         "--session", action="store_true", help="Open a diagnostic session before scanning"
     )
-    parser.add_argument("--wake", action="store_true", help="Wake ECU from deep sleep first")
+    add_wake_arg(parser)
     parser.add_argument(
         "--mode",
         dest="session_mode",

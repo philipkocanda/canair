@@ -23,9 +23,12 @@ additionally emitted to the central rotating event log
 from __future__ import annotations
 
 import logging
+import time
 
 from canair.core.eventlog import log_event
 from canair.uds.response import (
+    CAT_NRC,
+    CAT_OK,
     ERROR_CATEGORIES,
     RESPONSE_CATEGORIES,
     UdsResponse,
@@ -83,6 +86,9 @@ class TransportStats:
         # outcome of an exchange — it must not inflate `errors`, and the stale
         # responses that provoked it are already counted under `stale`.
         self.resyncs: int = 0
+        # When each ECU (by request id) last answered, with data or a refusal: an answer
+        # resets its session timer, so a session manager need not send a keepalive then.
+        self.answered: dict[int, float] = {}
 
     # -- recording ---------------------------------------------------------
     def record(
@@ -107,11 +113,21 @@ class TransportStats:
             )
 
     def record_response(
-        self, resp: UdsResponse, *, ecu: str | None = None, pid: str | None = None
+        self,
+        resp: UdsResponse,
+        *,
+        ecu: str | None = None,
+        pid: str | None = None,
+        tx_id: int | None = None,
     ) -> str:
-        """Classify + record a parsed :class:`UdsResponse`. Returns the category."""
+        """Classify + record a parsed :class:`UdsResponse`. Returns the category.
+
+        With ``tx_id``, an answer (positive or negative) is noted in :attr:`answered`.
+        """
         category = classify_response(resp)
         self.record(category, ecu=ecu, pid=pid, detail=resp.get("error"))
+        if tx_id is not None and category in (CAT_OK, CAT_NRC):
+            self.answered[tx_id] = time.monotonic()
         return category
 
     def record_raw(self, value, *, ecu: str | None = None, pid: str | None = None) -> str:

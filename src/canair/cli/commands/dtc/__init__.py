@@ -19,6 +19,7 @@ import argparse
 import sys
 
 from canair.cli.args.group import group_help
+from canair.cli.args.session import add_wake_arg
 from canair.cli.commands._hints import ecu_hint
 from canair.cli.commands.dtc.log import add_parser as _add_log_parser
 from canair.cli.commands.dtc.log import log_hint
@@ -187,7 +188,7 @@ examples:
         "--yes", "-y", action="store_true", help="Skip the clear confirmation prompt"
     )
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
-    parser.add_argument("--wake", action="store_true", help="Wake ECU from deep sleep (10 01)")
+    add_wake_arg(parser)
     add_connection_args(parser)
     parser.set_defaults(func=run)
     return parser

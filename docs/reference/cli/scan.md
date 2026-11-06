@@ -72,7 +72,8 @@ options:
                         family). Can't be combined with --range.
   --append HEX          Hex bytes to append after each DID
   --session             Enter extended session (10 03)
-  --wake                Wake ECUs from deep sleep (10 01)
+  --wake                Wake ECUs from deep sleep first (the ECU's wake:
+                        ritual, else 10 01)
   --save                Save results to captures/
   --label TEXT          Session label for --save (asked for when omitted; with
                         no terminal the session is saved under a generated
@@ -173,7 +174,8 @@ options:
   --throttle-ms THROTTLE_MS
                         Delay in ms between probes (default 150)
   --session             Open a diagnostic session before scanning
-  --wake                Wake ECU from deep sleep first
+  --wake                Wake ECUs from deep sleep first (the ECU's wake:
+                        ritual, else 10 01)
   --mode HEX            Session mode for --session (default 03 = UDS extended;
                         81 = KWP2000 standard, e.g. BMS; on a profile with the
                         nissan_c0_session quirk KWP2000 ECUs default to C0 and
@@ -253,7 +255,8 @@ options:
   --throttle-ms THROTTLE_MS
                         Delay in ms between probes (default 150)
   --session             Open a diagnostic session before scanning
-  --wake                Wake ECU from deep sleep first
+  --wake                Wake ECUs from deep sleep first (the ECU's wake:
+                        ritual, else 10 01)
   --mode HEX            Session mode for --session (default 03 = UDS extended;
                         81 = KWP2000 standard, e.g. BMS)
   --yes, -y             Skip the confirmation a KWP2000 sweep asks for where

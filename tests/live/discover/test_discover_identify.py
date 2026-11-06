@@ -59,11 +59,11 @@ class _FakeStdin:
 
 
 class FakeTerminal(_SharedFakeTerminal):
-    """Records set_header calls; returns NO DATA so identity probes finish fast.
-    ``enter_extended_session`` reports no success (``(None, None)``)."""
+    """Records set_header calls; returns NO DATA so identity probes finish fast, and a
+    session request draws no answer either."""
 
     def __init__(self):
-        super().__init__(session_result=(None, None))
+        super().__init__(session_ok=False)
 
 
 class TestClassifyAlive:

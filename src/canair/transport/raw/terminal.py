@@ -1,8 +1,8 @@
 """``RawTerminal`` — a WiCANTerminal-compatible adapter over raw CAN (SLCAN + ISO-TP).
 
 Presents the small surface the live modes use on a ``WiCANTerminal``
-(``set_header`` / ``send_uds`` / ``send_command`` / ``enter_extended_session`` /
-``close``) but drives the bus with python-can + client-side ISO-TP. This lets the
+(``set_header`` / ``transaction`` / ``send_uds`` / ``send_command`` / ``close``) but drives
+the bus with python-can + client-side ISO-TP. This lets the
 existing ELM-path modes (scan, discover, identity, iocontrol, routines, and the
 *-scan probers) run unchanged over the ``slcan-tcp`` transport.
 
@@ -21,7 +21,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-import sys
 import time
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
@@ -29,9 +28,7 @@ from typing import Any
 import can
 import isotp
 
-from canair.render import messages
 from canair.safety.blocklist import SessionPolicy, enforce_command_safety
-from canair.transport import keepalive
 from canair.transport.ecu_log import log_response
 from canair.transport.functional import (
     CAN_FD_REFUSAL,
@@ -59,10 +56,7 @@ from canair.uds.addressing import (
 from canair.uds.frame_counts import FrameCountLedger, frames_for_payload
 from canair.uds.nrc import is_response_pending
 from canair.uds.parse import parse_uds_response
-from canair.uds.requests import session_request
 from canair.uds.response import UdsResponse
-from canair.uds.services import DEFAULT_SESSION_REQUEST, TESTER_PRESENT_REQUEST
-from canair.uds.subfunctions import format_session_type, parse_session_type
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
 
@@ -218,6 +212,7 @@ class RawTerminal:
                     resp,
                     ecu=(f"0x{tx:03X}" if tx is not None else None),
                     pid=service_pid,
+                    tx_id=tx,
                 )
                 # Retry only a non-answer (NO DATA / timeout); an NRC is definitive.
                 if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
@@ -283,53 +278,10 @@ class RawTerminal:
                 return None
         return physical_request_id(rx_id, self.addr_map, self.rx_offset, self.mode)
 
-    async def enter_extended_session(
-        self, wake: bool = False, mode: str = "03"
-    ) -> tuple[bool, asyncio.Task | None]:
-        """Enter a diagnostic session (default 10 03) on the current ECU + keepalive.
-
-        Mirrors WiCANTerminal.enter_extended_session; the TesterPresent loop
-        targets the ECU that was current at entry.
-
-        Args:
-            wake: If True, send a default session request (10 01) first to wake the
-                ECU from deep sleep before entering the session.
-            mode: DiagnosticSessionControl sub-function (hex, no 0x). Default
-                ``"03"`` (UDS extendedDiagnosticSession); use ``"81"`` for the
-                KWP2000 standardDiagnosticSession on ECUs that reject 10 03.
-        """
-        mode = format_session_type(parse_session_type(mode))
-        tx = self._cur
-        # set_header must have run before a session is entered (send_uds below
-        # would raise otherwise), so the keepalive target is always known.
-        assert tx is not None
-        if wake:
-            await self.send_uds(DEFAULT_SESSION_REQUEST, timeout=3.0)
-            await asyncio.sleep(0.3)
-        resp = await self.send_uds(session_request(mode), timeout=3.0)
-        if resp.get("ok"):
-            print(f"  Session (10 {mode}) established.", file=sys.stderr)
-        elif resp.get("nrc") is not None:
-            messages.warning(f"session NRC 0x{resp['nrc']:02X} ({resp['nrc_desc']}) — continuing")
-
-        async def _tester_loop():
-            try:
-                while True:
-                    await asyncio.sleep(2.0)
-                    with _suppress():
-                        # Through the lock, so it never reads off a stack mid-exchange.
-                        async with self.transaction():
-                            reply = await self._exchange_tx(
-                                tx, bytes.fromhex(TESTER_PRESENT_REQUEST), 1.5
-                            )
-                        if keepalive.unsupported_bytes(reply):
-                            keepalive.report_unsupported(tx, transport=self.diag.transport)
-                            return
-            except asyncio.CancelledError:
-                pass
-
-        task = asyncio.create_task(_tester_loop())
-        return resp.get("ok", False), task
+    @contextlib.asynccontextmanager
+    async def short_ecu_wait(self) -> AsyncIterator[None]:
+        """No adapter wait to shorten: each request's timeout is canair's own here."""
+        yield
 
     async def close(self) -> None:
         for st in self._stacks.values():

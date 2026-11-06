@@ -12,7 +12,7 @@ from tests.support.fakes import nrc as _nrc
 
 def _FakeTerminal(responses=None):
     """Discovery-scan terminal double: unscripted requests answer 'absent' (NRC
-    0x31); ``enter_extended_session`` records ``(wake, mode)`` in ``.sessions``."""
+    0x31); a session request is answered and its mode recorded in ``.sessions``."""
     return FakeTerminal(responses, default=_nrc(0x31))
 
 
@@ -57,7 +57,7 @@ async def test_session_opened_upfront_with_mode():
         profile=active(),
     )
     # Session opened exactly once, up front, with the requested KWP mode.
-    assert term.sessions == [(False, "81")]
+    assert term.sessions == ["81"]
 
 
 @pytest.mark.asyncio
@@ -82,4 +82,4 @@ async def test_lazy_escalation_uses_session_mode():
         session_mode="81",
         profile=active(),
     )
-    assert term.sessions == [(False, "81")]
+    assert term.sessions == ["81"]

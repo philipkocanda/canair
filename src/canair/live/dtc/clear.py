@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 
 from canair.profile.model import Profile
@@ -13,6 +12,7 @@ from canair.uds.services import CLEAR_DIAGNOSTIC_INFORMATION
 
 from ...ecus.names import ecu_display
 from ...transport.protocol import Terminal
+from ..hold import held_session
 from .codes import resolve_protocol
 from .reading import _read_one
 from .scan_log import _log_manual_clear, logged_snapshots
@@ -49,11 +49,7 @@ async def mode_dtc_clear(
     proto = resolve_protocol(protocol, tx_id, profile=profile)
     await terminal.set_header(tx_id)
 
-    tester_task = None
-    if session:
-        _, tester_task = await terminal.enter_extended_session(wake=wake)
-
-    try:
+    async with held_session(terminal, tx_id, profile=profile, enabled=session, wake=wake):
         # Read what's there first so the clear log is accurate (best-effort).
         pre_codes = None
         pre_snapshots: dict = {}
@@ -129,10 +125,3 @@ async def mode_dtc_clear(
                 messages.error(error)
                 if "NO DATA" in error or "No response" in error:
                     messages.hint("the ECU may be asleep or unpowered — try --session/--wake")
-    finally:
-        if tester_task:
-            tester_task.cancel()
-            try:
-                await tester_task
-            except asyncio.CancelledError:
-                pass

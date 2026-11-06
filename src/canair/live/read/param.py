@@ -3,6 +3,7 @@
 import json
 
 from canair.ecus.pids import build_param_index
+from canair.ecus.wake import wake_plan_for
 from canair.expression.decoding import decode_param_rows
 from canair.privacy.sensitive import mask_rows
 from canair.render import messages
@@ -79,7 +80,8 @@ async def mode_param(
             # Every session is open before the background keepalive starts, so nothing
             # competes with an open for the adapter.
             for tx_id in dict.fromkeys(tx for tx, _pid in groups):
-                await sm.open_session(tx_id, wake=wake)
+                plan = wake_plan_for(tx_id, pids_data) if wake else None
+                await sm.open_session(tx_id, wake=wake, wake_plan=plan)
             sm.start_background_keepalive(interval=2.0)
         for (tx_id, pid), params in groups.items():
             await sm.keepalive_stale()

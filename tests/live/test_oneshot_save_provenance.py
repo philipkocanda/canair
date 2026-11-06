@@ -85,6 +85,7 @@ class TestDiscoverSave:
                 (0x74E, "1001"): ok("5001003201F4"),
             },
             key_by_header=True,
+            session_ok=False,
         )
         await disc.mode_discover(
             term,

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -10,6 +9,7 @@ from typing import Any
 
 from canair.ecus.memory import EcuMemory, ecu_memory, protocol_of
 from canair.transport.protocol import Terminal
+from canair.transport.session_manager import SessionManager
 from canair.uds.memory import MemoryFormat, MemoryRead, RegionResult, classify_memory_reply
 from canair.uds.protocol import DiagProtocol
 from canair.uds.response import UdsResponse
@@ -81,14 +81,5 @@ async def maybe_session(terminal: Terminal, tx_id: int, mode: str | None) -> Asy
     if mode is None:
         yield
         return
-    await terminal.set_header(tx_id)
-    _, task = await terminal.enter_extended_session(wake=False, mode=mode)
-    try:
+    async with SessionManager(terminal).held(tx_id, mode=mode):
         yield
-    finally:
-        if task is not None:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass

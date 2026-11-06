@@ -26,8 +26,10 @@ Usage::
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import sys
 import time
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
 from canair.core.eventlog import log_event
@@ -47,6 +49,15 @@ from canair.uds.subfunctions import SessionType, format_session_type, parse_sess
 
 #: The session :meth:`SessionManager.open_session` enters unless told otherwise.
 DEFAULT_SESSION_MODE = SessionType.EXTENDED_DIAGNOSTIC_SESSION
+
+# Seconds. One set for every command (plans/2026-11-05-one-session-owner.md, decision 1).
+WAKE_TIMEOUT_S = 3.0  # each 10 01 of a default wake
+SESSION_TIMEOUT_S = 5.0  # the 10 xx request
+KEEPALIVE_TIMEOUT_S = 1.5  # a 3E 00
+# TesterPresent cadence: well inside the UDS S3 timer (nominally 5 s), so one lost keepalive
+# does not end the session. A session is idle once nothing refreshed it for KEEPALIVE_IDLE_S.
+KEEPALIVE_INTERVAL_S = 2.0
+KEEPALIVE_IDLE_S = 1.5
 
 
 def _status(*args, **kwargs) -> None:
@@ -234,27 +245,14 @@ class SessionManager:
         async with self.terminal.transaction():
             await self.terminal.set_header(tx_id)
             if wake:
-                if wake_plan is not None:
-                    # Profile-declared ritual — rapid-fire prime loop (fast-sleepers).
-                    await self.rapid_read_wake(tx_id, wake_plan)
-                else:
-                    if self.verbose:
-                        _status(f"  [session] Sending wake-up (1001) to 0x{tx_id:03X}...")
-                    await self.terminal.send_uds(
-                        DEFAULT_SESSION_REQUEST,
-                        timeout=15.0,
-                        expected_sid=DIAGNOSTIC_SESSION_CONTROL,
-                    )
-                    await asyncio.sleep(0.5)
-
+                await self._wake(tx_id, wake_plan)
             if self.verbose:
                 _status(f"  [session] Entering session (10{sub:02X}) on 0x{tx_id:03X}...")
-            # Checked by service, so a stale reply to an earlier read is not taken for an
-            # open session; the sub-function echo is left alone, since some KWP2000 ECUs
-            # are not known to repeat it.
-            resp = await self.terminal.send_uds(
-                session_request(sub), timeout=5.0, expected_sid=DIAGNOSTIC_SESSION_CONTROL
-            )
+            resp = await self._session_request(sub)
+            if not resp.get("ok") and resp.get("nrc") is None:
+                # No answer at all (the ECU was still waking, a frame was lost): ask once
+                # more. A refusal is an answer and is not retried.
+                resp = await self._session_request(sub)
 
         outcome = SessionOutcome(
             tx_id,
@@ -271,6 +269,68 @@ class SessionManager:
         if problem and report:
             messages.warning(f"{problem} — continuing anyway")
         return outcome
+
+    async def _wake(self, tx_id: int, wake_plan: WakePlan | None) -> None:
+        """Rouse a sleeping ECU with the adapter's own wait shortened, so frames go out densely.
+
+        The profile's ritual when the ECU declares one, else ``10 01`` (asked twice when
+        the first draws no answer: the first frame may only wake the transceiver).
+        """
+        async with self.terminal.short_ecu_wait():
+            if wake_plan is not None:
+                await self.rapid_read_wake(tx_id, wake_plan)
+                return
+            if self.verbose:
+                _status(f"  [session] Sending wake-up (1001) to 0x{tx_id:03X}...")
+            for _attempt in range(2):
+                resp = await self.terminal.send_uds(
+                    DEFAULT_SESSION_REQUEST,
+                    timeout=WAKE_TIMEOUT_S,
+                    expected_sid=DIAGNOSTIC_SESSION_CONTROL,
+                )
+                if resp.get("ok"):
+                    return
+
+    async def _session_request(self, sub: int):
+        # Checked by service, so a stale reply to an earlier read is not taken for an open
+        # session; the sub-function echo is left alone, since some KWP2000 ECUs are not
+        # known to repeat it.
+        return await self.terminal.send_uds(
+            session_request(sub),
+            timeout=SESSION_TIMEOUT_S,
+            expected_sid=DIAGNOSTIC_SESSION_CONTROL,
+        )
+
+    @contextlib.asynccontextmanager
+    async def held(
+        self,
+        tx_id: int,
+        *,
+        mode: int | str = DEFAULT_SESSION_MODE,
+        wake: bool = False,
+        wake_plan: WakePlan | None = None,
+        close: bool = False,
+        report: bool = True,
+    ) -> AsyncIterator[SessionOutcome]:
+        """Hold a session on one ECU for the block, kept alive while the block runs.
+
+        Opens it (always sending the request, so a second ``held`` can change the mode),
+        runs the background keepalive, and on exit stops it. The ECU is returned to its
+        default session only with ``close``; otherwise it is left to time out, as a
+        single-ECU command always has.
+        """
+        outcome = await self.open_session(
+            tx_id, wake=wake, mode=mode, wake_plan=wake_plan, force=True, report=report
+        )
+        self.start_background_keepalive()
+        try:
+            yield outcome
+        finally:
+            await self.stop_background_keepalive()
+            if close:
+                await self.close_session(tx_id)
+            else:
+                self.table.forget(tx_id)
 
     # -- keeping alive ---------------------------------------------------------
     async def send_keepalive(self, tx_id: int):
@@ -292,7 +352,9 @@ class SessionManager:
                 try:
                     await self.terminal.set_header(tx_id)
                     resp = await self.terminal.send_uds(
-                        TESTER_PRESENT_REQUEST, timeout=1.5, expected_sid=TESTER_PRESENT
+                        TESTER_PRESENT_REQUEST,
+                        timeout=KEEPALIVE_TIMEOUT_S,
+                        expected_sid=TESTER_PRESENT,
                     )
                 finally:
                     self.keepalive_seconds += time.monotonic() - t0
@@ -313,7 +375,7 @@ class SessionManager:
             state = "ok" if resp.get("ok") else resp.get("error", "failed")
             _status(f"  [session] 3E00 -> 0x{tx_id:03X}: {state}")
 
-    async def keepalive_stale(self, threshold: float = 1.5):
+    async def keepalive_stale(self, threshold: float = KEEPALIVE_IDLE_S):
         """Send keepalives to all sessions that haven't been refreshed recently.
 
         Args:
@@ -325,8 +387,23 @@ class SessionManager:
         """
         if self.link_error is not None:
             raise self.link_error
+        self._note_answers()
         for tx_id in self.table.stale(threshold):
             await self.send_keepalive(tx_id)
+
+    def _note_answers(self) -> None:
+        """Count every request an ECU answered as a keepalive, whoever sent it.
+
+        A command that holds a session and keeps reading (a scan) never calls
+        :meth:`mark_active`; the terminal's tally of answers says the session timer was
+        reset all the same, so no ``3E 00`` goes out while the ECU is busy.
+        """
+        answered = self.terminal.diag.answered
+        for tx_id in self.table.tracked():
+            at = answered.get(tx_id)
+            refreshed = self.table.refreshed_at(tx_id)
+            if at is not None and (refreshed is None or at > refreshed):
+                self.table.track(tx_id, at=at)
 
     async def keepalive_all(self):
         """Send keepalives to ALL active sessions (regardless of staleness)."""
@@ -334,7 +411,7 @@ class SessionManager:
             if self.table.wants_keepalive(tx_id):
                 await self.send_keepalive(tx_id)
 
-    def start_background_keepalive(self, interval: float = 2.0) -> asyncio.Task:
+    def start_background_keepalive(self, interval: float = KEEPALIVE_INTERVAL_S) -> asyncio.Task:
         """Start a background task that sends keepalives to all tracked sessions.
 
         Returns the task; stop it with :meth:`stop_background_keepalive`. When the link
@@ -360,6 +437,11 @@ class SessionManager:
 
         self._bg_task = asyncio.create_task(_loop())
         return self._bg_task
+
+    @property
+    def keepalive_running(self) -> bool:
+        """Is the background keepalive task running?"""
+        return self._bg_task is not None and not self._bg_task.done()
 
     async def stop_background_keepalive(self) -> None:
         """Stop the background keepalive task and wait until it has ended."""

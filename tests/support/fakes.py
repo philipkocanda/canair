@@ -5,7 +5,7 @@ a whole terminal; :class:`QueuedChannel` stands in for the byte channel *beneath
 one, so a test can drive the real ELM327 engine.
 
 canair talks to the bus through a terminal exposing a small async surface
-(``set_header``/``send_uds``/``send_command``/``enter_extended_session``/
+(``set_header``/``transaction``/``send_uds``/``send_command``/``short_ecu_wait``/
 ``close``); both real transports (``WiCANTerminal``, ``RawTerminal``) implement
 it identically, and every live command is driven through the shared
 ``dispatch_mode`` against *that surface only*. Tests therefore drive modes with a
@@ -13,11 +13,10 @@ fake exposing the same surface — historically hand-rolled once per test file
 (``MockTerminal``/``FakeTerminal``/``FlakyTerminal``/ad-hoc ``AsyncMock``), with
 six divergent ``send_uds`` signatures and five recorder conventions.
 
-``FakeTerminal`` consolidates that plumbing: the faithful async surface (with the
-``enter_extended_session(wake, mode)`` keyword the dual-transport contract needs),
-a scriptable per-request response map, and a uniform set of recorders. Per-test
-*scripting* stays local — pass a ``responses`` map, tweak ``default``/
-``flaky_recover``/``session_result``, or subclass and override ``send_uds``.
+``FakeTerminal`` consolidates that plumbing: the faithful async surface, a scriptable
+per-request response map, and a uniform set of recorders. Per-test *scripting* stays
+local — pass a ``responses`` map, tweak ``default``/``flaky_recover``/``session_ok``, or
+subclass and override ``send_uds``.
 
 Response dicts mirror :func:`canair.uds.parse.parse_uds_response`: positives are
 ``{"ok": True, "hex", "bytes", "raw"}`` (build with :func:`ok`); negatives are
@@ -60,6 +59,10 @@ def nrc(code: int, desc: str = "") -> UdsResponse:
     return d
 
 
+def _is_session_request(req: str) -> bool:
+    return len(req) == 4 and req[:2] == "10"
+
+
 class FakeTerminal:
     """Scriptable async fake exposing the real terminal surface.
 
@@ -71,17 +74,19 @@ class FakeTerminal:
             time a request is seen it returns ``default``, subsequent times the
             positive ``ok(hex)`` (the old ``FlakyTerminal`` behaviour).
         send_command_reply: what ``send_command`` returns (default ``"OK"``).
-        session_result: what ``enter_extended_session`` returns (default
-            ``(True, None)``).
+        session_ok: answer an unscripted session request (``10 xx``) positively, as
+            most ECUs do; False leaves it to ``default`` (NO DATA unless changed).
         key_by_header: look responses up by ``(current_header, request)``.
         serialize: model the ELM327 engine's locking. Each command holds a lock,
             ``transaction()`` holds it across several (re-entrant per task), and every
             command yields to the event loop, so a concurrent task can interleave
             wherever the real terminal would let it. Off by default.
 
-    Recorders (assert against these): ``sent`` (request strings), ``addressed``
+    Recorders (assert against these): ``sent`` (request strings), ``requests`` (``sent``
+    without the session requests), ``addressed``
     (``(header, request)`` as each request went out), ``headers`` (tx_ids),
-    ``sessions`` (``(wake, mode)`` tuples), ``calls`` (``(method, arg)`` tuples),
+    ``sessions`` (the mode of each session request but ``10 01``), ``calls``
+    (``(method, arg)`` tuples),
     ``uds_kwargs`` (per-call ``send_uds`` keyword dicts).
 
     :meth:`intrude` runs a coroutine as a separate task right after the next
@@ -95,7 +100,7 @@ class FakeTerminal:
         default: dict | None = None,
         flaky_recover: dict | None = None,
         send_command_reply: str = "OK",
-        session_result: tuple = (True, None),
+        session_ok: bool = True,
         key_by_header: bool = False,
         serialize: bool = False,
     ) -> None:
@@ -103,7 +108,7 @@ class FakeTerminal:
         self.default = NO_DATA if default is None else default
         self.flaky_recover = flaky_recover or {}
         self.send_command_reply = send_command_reply
-        self.session_result = session_result
+        self.session_ok = session_ok
         self.key_by_header = key_by_header
         self.serialize = serialize
         self._lock = asyncio.Lock()
@@ -116,7 +121,6 @@ class FakeTerminal:
         self.sent: list[str] = []
         self.addressed: list[tuple[int | None, str]] = []
         self.headers: list[int] = []
-        self.sessions: list[tuple] = []
         self.calls: list[tuple] = []
         self.uds_kwargs: list[dict] = []
         self._seen: set[str] = set()
@@ -220,7 +224,26 @@ class FakeTerminal:
                 return dict(self.default)
             return ok(self.flaky_recover[req])
         key = (self.header, req) if self.key_by_header else req
-        return dict(self.responses.get(key, self.default))
+        if key in self.responses:
+            return dict(self.responses[key])
+        if self.session_ok and _is_session_request(req):
+            return ok("50" + req[2:])
+        return dict(self.default)
+
+    @property
+    def requests(self) -> list[str]:
+        """Every request sent but the session requests (``10 xx``): what a command asked."""
+        return [req for req in self.sent if not _is_session_request(req)]
+
+    @property
+    def sessions(self) -> list[str]:
+        """The mode of every session request sent, ``10 01`` (a wake or a close) aside."""
+        return [req[2:] for req in self.sent if _is_session_request(req) and req != "1001"]
+
+    @contextlib.asynccontextmanager
+    async def short_ecu_wait(self):
+        self.calls.append(("short_ecu_wait", None))
+        yield
 
     async def send_command(self, cmd: str, timeout: float | None = None) -> str:
         async with self._command():
@@ -247,11 +270,6 @@ class FakeTerminal:
             FunctionalMessage(rx, bytes.fromhex(hex_), 10 + i) for i, (rx, hex_) in enumerate(rows)
         ]
         return FunctionalResult(tx_id, req, messages)
-
-    async def enter_extended_session(self, wake: bool = False, mode: str = "03") -> tuple:
-        self.sessions.append((wake, mode))
-        self.calls.append(("enter_extended_session", (wake, mode)))
-        return self.session_result
 
     async def close(self) -> None:
         self.calls.append(("close", None))

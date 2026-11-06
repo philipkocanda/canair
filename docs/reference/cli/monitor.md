@@ -35,7 +35,8 @@ options:
                         slowly at its normal rate (default: poll it less often
                         until it recovers, so it can't hold up the rest)
   --session             Enter extended session (10 03)
-  --wake                Wake ECUs from deep sleep (10 01)
+  --wake                Wake ECUs from deep sleep first (the ECU's wake:
+                        ritual, else 10 01)
   --keep-all            Record every polled payload (full time-series) — the
                         default. Repeated payloads are folded on disk, so the
                         capture file stays compact

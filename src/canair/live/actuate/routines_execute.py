@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import sys
 
@@ -11,6 +10,7 @@ from canair.live.actuate.not_found import report_not_found
 from canair.render import ansi, glyphs
 from canair.render.paint import Painter
 from canair.transport.protocol import Terminal
+from canair.transport.session_manager import SessionManager
 from canair.uds.requests import routine_control_request
 from canair.uds.services import ROUTINE_CONTROL
 from canair.uds.subfunctions import RoutineControlType, subfunction_name
@@ -70,10 +70,7 @@ async def mode_routines_execute(
     )
     say(f"  Command: {hex_cmd}")
 
-    await terminal.set_header(tx_id)
-    _, tester_task = await terminal.enter_extended_session()
-
-    try:
+    async with SessionManager(terminal, verbose=verbose).held(tx_id):
         response = await terminal.send_uds(hex_cmd, timeout=3.0)
 
         fail_mark = paint(glyphs.FAIL, ansi.raw.RED)
@@ -98,13 +95,5 @@ async def mode_routines_execute(
                 "nrc": f"0x{response['nrc']:02X}" if response.get("nrc") is not None else None,
             }
             print(json.dumps(out, indent=2))
-
-    finally:
-        if tester_task:
-            tester_task.cancel()
-            try:
-                await tester_task
-            except asyncio.CancelledError:
-                pass
 
     say()

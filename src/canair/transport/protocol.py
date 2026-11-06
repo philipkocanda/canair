@@ -18,7 +18,6 @@ signatures — the real oracle is ``ty check`` over the retyped seam.
 
 from __future__ import annotations
 
-import asyncio
 from contextlib import AbstractAsyncContextManager
 from typing import Protocol, runtime_checkable
 
@@ -99,8 +98,14 @@ class Terminal(Protocol):
         """
         ...
 
-    async def enter_extended_session(
-        self, wake: bool = ..., mode: str = ...
-    ) -> tuple[bool, asyncio.Task | None]: ...
+    def short_ecu_wait(self) -> AbstractAsyncContextManager[None]:
+        """Shorten the adapter's own wait for an ECU's reply for the block, then restore it.
+
+        A wake burst needs requests back-to-back; an ELM327 otherwise waits its full
+        ``ATST`` budget after each one. A backend whose every timeout is canair's own (the
+        raw path) does nothing. Sessions themselves are
+        :class:`~canair.transport.session_manager.SessionManager`'s, never a terminal's.
+        """
+        ...
 
     async def close(self) -> None: ...

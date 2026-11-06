@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 
+from canair.cli.args.session import add_wake_arg
 from canair.cli.live import add_connection_args, ecu_completer
 from canair.live.scan.presets import presets_help
 
@@ -84,7 +85,7 @@ tips:
     )
     parser.add_argument("--append", metavar="HEX", help="Hex bytes to append after each DID")
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
-    parser.add_argument("--wake", action="store_true", help="Wake ECUs from deep sleep (10 01)")
+    add_wake_arg(parser)
     parser.add_argument("--save", action="store_true", help="Save results to captures/")
     parser.add_argument(
         "--label",

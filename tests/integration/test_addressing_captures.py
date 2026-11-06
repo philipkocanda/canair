@@ -123,7 +123,9 @@ class TestDiscoverRxConsistency:
             ecus={"abs": "ABS:\n  tx_id: 0x740\n  rx_id: 0x761\n"},
         )
         term = FakeTerminal(
-            {(0x740, "1001"): ok("5001"), (0x74E, "1001"): ok("5001")}, key_by_header=True
+            {(0x740, "1001"): ok("5001"), (0x74E, "1001"): ok("5001")},
+            key_by_header=True,
+            session_ok=False,
         )
         await disc.mode_discover(
             term,
@@ -150,7 +152,9 @@ class TestDiscoverRxConsistency:
         from canair.validation.captures import CAPTURES_SCHEMA_FILE, validate_captures_file
 
         root = make_profile(FIXED_29)
-        term = FakeTerminal({(0x18DA10F1, "1001"): ok("5001")}, key_by_header=True)
+        term = FakeTerminal(
+            {(0x18DA10F1, "1001"): ok("5001")}, key_by_header=True, session_ok=False
+        )
         await disc.mode_discover(
             term,
             (0x10, 0x11),
