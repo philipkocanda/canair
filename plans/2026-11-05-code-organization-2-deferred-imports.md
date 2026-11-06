@@ -255,3 +255,14 @@ because the tree moved since `0ce4f742`. Building the parser loads 539 of 658 mo
   passed unchanged because the stub only guarded real state (a states test rewrote a bundled
   `vehicle_states.yaml` until its patch was fixed). `update` reads `canair.__version__` at call
   time, so a patched version still applies.
+- Group h5 (`transport`, `contribute`, `ecus`, `install`, `tui`, `actions`, `variants`, `privacy`,
+  `states`, `query`, `migrations`, `profile`, `render`, `broadcast`; `interop` had none): 152
+  imports -> 3, none without a reason. The three left are in `install/build_info.py`, with a
+  `# deferred:` comment: `hatch_build.py` loads that module by path without canair installed, so
+  its top level imports only the standard library (two of them also close a cycle with
+  `install/context.py`, which imports `build_info` at the top). The five `transport` and four
+  `ecus` imports the report calls cycles were not cycles: the transport ones met only through
+  the package `__init__` and import fine at the top. The `ecus` ones were real: `ecu_index_key`
+  moved from `ecus/pids.py` to `ecus/names.py`, so `pids` no longer imports `names` and
+  `registry` imports `pids` at the top. Start-up (40 alternating runs): 231.4 ms before,
+  234.5 ms after.
