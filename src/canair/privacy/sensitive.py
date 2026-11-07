@@ -5,9 +5,11 @@ its owner in a way a VIN does — the Ioniq CCM's ``22F102`` is the PLC MAC addr
 car sends a CCS charger as its EVCCID, which Autocharge chargers bill against. The
 rule is one decision, applied at every seam rather than per command:
 
-* **On screen** a sensitive value renders as :data:`MASK`. A sensitive *signal*
-  also masks its PID's raw payload, since the bytes give the value away. Only
-  ``canair read --reveal`` lifts the mask, for that one process
+* **On screen** a sensitive value renders as :data:`MASK`. A sensitive *PID* also
+  masks its whole raw payload. A sensitive *signal* masks only the payload bytes its
+  expression reads (each shown as :data:`MASKED_BYTE`), so the rest of the reply stays
+  readable. If those bytes cannot be placed in the reply, the whole payload is masked.
+  Only ``canair read --reveal`` lifts the mask, for that one process
   (:func:`set_reveal`), and it cannot be combined with ``--save``.
 * **On disk** a reply to a sensitive PID is never written — not to the journal, not
   to ``captures/`` — whatever the reveal setting (:func:`withhold`). Neither is a memory
@@ -33,12 +35,15 @@ from typing import Any
 
 from canair.ecus.pids import load_raw_pids, register_derived_cache
 from canair.ecus.registry import parse_ecu_ref
-from canair.ecus.sensitivity import param_sensitive, pid_sensitive
+from canair.ecus.sensitivity import param_sensitive, pid_sensitive, whole_pid_sensitive
 from canair.profile.model import Profile, ProfileError, profile_for_path
 from canair.uds.addressing import resolve_ecu_address
+from canair.uds.byteindex import extract_byte_indices, wican_to_elm_idx
 from canair.uds.memory import MEMORY_SIGNAL_MAX_BYTES, exceeds_signal_cap
 
 MASK = "*****"
+# One masked byte in a partly masked payload hex: two characters, like a hex byte.
+MASKED_BYTE = "**"
 
 # Values a person already redacted by hand before the PID was flagged. A stored reply
 # that holds only one of these discloses nothing, so it is kept, with the note that
@@ -217,11 +222,17 @@ def _oversized_memory(row: Mapping[str, Any]) -> bool:
     return bool(row.get("payload")) and exceeds_signal_cap(row.get("pid", ""))
 
 
+def _masked_payload(row: Mapping[str, Any]) -> bool:
+    """Was this row's payload masked for the screen (whole, or some of its bytes)?"""
+    payload = row.get("payload")
+    return isinstance(payload, str) and (payload == MASK or MASKED_BYTE in payload)
+
+
 def withhold(rows: Iterable[Mapping[str, Any]], sset: SensitiveSet) -> list[Any]:
     """``rows`` minus every reply to a sensitive PID or an oversized memory read, counted."""
     kept: list[Any] = []
     for row in rows:
-        if (sset and sset.has_capture(row)) or row.get("payload") == MASK:
+        if (sset and sset.has_capture(row)) or _masked_payload(row):
             _withheld[sset.label(row)] += 1
             continue
         if _oversized_memory(row):
@@ -292,9 +303,11 @@ def mask_result(
     ``entry`` is a :data:`~canair.expression.results.ResultEntry`; ``target`` the
     request id (or the ECU's name); ``pid_info`` the PID's index entry (its own
     ``sensitive`` flag and ``parameters``). The entry is tagged ``sensitive`` either
-    way, and — unless revealed — its raw payload, UDS decode and sensitive signal
-    values are replaced by :data:`MASK` *before* any renderer or recorder sees them,
-    so no display path can leak the bytes and no save path can persist them.
+    way, and — unless revealed — its UDS decode and sensitive signal values are
+    replaced by :data:`MASK` and the bytes they read by :data:`MASKED_BYTE` (the whole
+    payload by :data:`MASK` for a sensitive PID), *before* any renderer or recorder
+    sees them, so no display path can leak the bytes and no save path can persist
+    them. A signal that reads a masked byte is masked too.
     """
     if "raw_hex" not in entry:
         return entry
@@ -306,11 +319,68 @@ def mask_result(
     entry["sensitive"] = True
     if _reveal:
         return entry
-    entry["raw_hex"] = MASK
+    raw_hex = entry["raw_hex"]
+    n_bytes = len(raw_hex) // 2
+    hidden = _sensitive_bytes(pid_info, n_bytes)
+    entry["raw_hex"] = _mask_bytes(raw_hex, hidden)
     if entry.get("decode"):
         entry["decode"] = MASK
-    entry["params"] = mask_rows(entry.get("params") or [], pid_info)
+    rows = mask_rows(entry.get("params") or [], pid_info)
+    if hidden:
+        # A signal that reads a masked byte would give that byte away.
+        rows = [
+            _masked_row(row) if hidden & _payload_bytes(row[3] or "", n_bytes) else row
+            for row in rows
+        ]
+    entry["params"] = rows
     return entry
+
+
+def _sensitive_bytes(pid_def: Any, n_bytes: int) -> set[int] | None:
+    """Payload positions of the sensitive signals' bytes, or ``None`` to mask them all.
+
+    ``None`` when the PID itself is sensitive, when ``pid_def`` names no sensitive
+    signal (another revision may flag the PID), or when a sensitive signal reads a
+    byte past the end of this reply: a reply shorter than its definition is a
+    different layout, so no byte of it is known to be safe.
+    """
+    if whole_pid_sensitive(pid_def):
+        return None
+    params = (pid_def or {}).get("parameters") or {}
+    hidden: set[int] = set()
+    for param in params.values():
+        if not param_sensitive(pid_def, param):
+            continue
+        expression = str((param or {}).get("expression") or "")
+        if not extract_byte_indices(expression):
+            return None
+        positions = _payload_bytes(expression, n_bytes, keep_out_of_range=True)
+        if any(not 0 <= i < n_bytes for i in positions):
+            return None
+        hidden |= positions
+    return hidden or None
+
+
+def _payload_bytes(expression: str, n_bytes: int, *, keep_out_of_range: bool = False) -> set[int]:
+    """The payload positions an expression reads; ISO-TP PCI bytes have none."""
+    out: set[int] = set()
+    for wican_idx in extract_byte_indices(expression):
+        idx = wican_to_elm_idx(wican_idx, n_bytes)
+        if idx is not None and (keep_out_of_range or 0 <= idx < n_bytes):
+            out.add(idx)
+    return out
+
+
+def _mask_bytes(raw_hex: str, hidden: set[int] | None) -> str:
+    if hidden is None:
+        return MASK
+    return "".join(
+        MASKED_BYTE if i in hidden else raw_hex[2 * i : 2 * i + 2] for i in range(len(raw_hex) // 2)
+    )
+
+
+def _masked_row(row: tuple) -> tuple:
+    return (row[0], MASK, "", row[3], None, row[5], "")
 
 
 def mask_rows(rows: list, pid_def: Any) -> list:
@@ -327,6 +397,6 @@ def mask_rows(rows: list, pid_def: Any) -> list:
     out = []
     for row in rows:
         if param_sensitive(pid_def, params.get(row[0])):
-            row = (row[0], MASK, "", row[3], None, row[5], "")
+            row = _masked_row(row)
         out.append(row)
     return out

@@ -8,7 +8,7 @@ from rich.markup import escape
 from rich.text import Text
 
 from canair.expression.decoding import ParamRow
-from canair.privacy.sensitive import MASK
+from canair.privacy.sensitive import MASK, MASKED_BYTE
 from canair.render import ansi, glyphs
 from canair.render.console import console
 from canair.uds.byteindex import extract_byte_indices, isotp_to_wican, wican_to_elm_idx
@@ -48,8 +48,8 @@ BYTE_COLOUR_LEGEND: tuple[tuple[str, str, str], ...] = (
 
 
 def _bytes_to_ascii(raw_hex: str) -> str:
-    """Convert hex string to ASCII representation (printable chars or '.')."""
-    data = bytes.fromhex(raw_hex)
+    """Convert hex string to ASCII representation (printable chars or '.'); ``**`` shows ``*``."""
+    data = bytes.fromhex(raw_hex.replace(MASKED_BYTE, b"*".hex()))
     return "".join(chr(b) if 32 <= b < 127 else "." for b in data)
 
 
@@ -283,7 +283,7 @@ def render_hex_line(
         for i, hb in enumerate(elm_bytes):
             if i > 0:
                 t.append(" ")
-            base = byte_color[i]
+            base = "bright_black" if hb == MASKED_BYTE else byte_color[i]
             changed = i < len(prev_bytes) and prev_bytes[i] != hb
             style = _HIGHLIGHT_STYLE.get(base, base) if changed else base
             t.append(hb, style=style)

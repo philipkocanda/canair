@@ -284,8 +284,11 @@ canair pids set-sensitive ECU PID true --param SIGNAL     # one signal
 What a sensitive reading gets:
 
 - **It is masked on screen.** Every read view (`read`, `monitor`, `raw`,
-  `identity`, `scan`) shows `*****` instead of the value. A sensitive signal
-  also hides its PID's raw bytes, which give the value away. To see it once, run
+  `identity`, `scan`) shows `*****` instead of the value. A sensitive PID hides
+  its whole raw reply. In `read` and `monitor`, a sensitive signal hides only the
+  bytes it reads, each shown as `**`, so the rest of the reply stays readable. If
+  the reply is too short to hold those bytes, the whole reply is hidden. The other
+  views hide the whole reply. To see it once, run
   `canair read CCM:22F102 --reveal`. This only changes the display and can't be
   combined with `--save`.
 - **It is never saved.** A `--save` session leaves the reply out of the journal

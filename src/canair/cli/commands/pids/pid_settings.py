@@ -83,8 +83,9 @@ def add_parsers(sub) -> None:
             "car or its owner like a VIN does — e.g. the CCM's EVCCID, which Autocharge "
             "chargers bill against. Its reply is shown as ***** (`canair read --reveal` "
             "shows it), never written to captures/, and left out of contribute, the blind "
-            "strip, the docs explorer and the WiCAN AutoPID export. A sensitive signal also "
-            "hides its PID's raw bytes, which give it away."
+            "strip, the docs explorer and the WiCAN AutoPID export. A sensitive signal "
+            "masks only the reply bytes it reads (shown as **), and the whole reply is still "
+            "never saved."
         ),
     )
     sse.add_argument("ecu", help=ECU_HELP)

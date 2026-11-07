@@ -89,11 +89,33 @@ class TestLiveMasking:
         entry = self._entry("22F102", "62F102AABBCCDDEEFF")
         assert entry["raw_hex"] == sensitive.MASK and entry["sensitive"]
 
-    def test_a_sensitive_signal_hides_its_value_and_the_raw_bytes_only(self, prof):
+    def test_a_sensitive_signal_hides_its_value_and_its_bytes_only(self, prof):
         entry = self._entry("22F103", "62F1033132", tx="CCM")
         values = {row[0]: row[1] for row in entry["params"]}
         assert values == {"ID_HI": sensitive.MASK, "VERSION": 0x32}
+        assert entry["raw_hex"] == "62F103" + sensitive.MASKED_BYTE + "32"
+
+    def test_a_reply_too_short_for_the_sensitive_signal_hides_everything(self, prof):
+        entry = self._entry("22F103", "62F103", tx="CCM")
         assert entry["raw_hex"] == sensitive.MASK
+
+    def test_a_signal_that_reads_a_masked_byte_is_masked_too(self, prof):
+        from canair.live.read.batch import _decode_pid_result
+
+        info = build_ecu_index(load_pids(profile=active()))["CCM"]["pids"]["22F103"]
+        info = {**info, "parameters": {**info["parameters"], "WORD": {"expression": "B04*256+B05"}}}
+        entry = _decode_pid_result(
+            "22F103", info, False, "62F1033132", b"", None, target="CCM", profile=active()
+        )
+        values = {row[0]: row[1] for row in entry["params"]}
+        assert values["WORD"] == sensitive.MASK and values["VERSION"] == 0x32
+
+    def test_the_hex_line_shows_masked_bytes(self):
+        from canair.render.formatting import render_hex_line
+
+        row = ("ID_HI", sensitive.MASK, "", "B04", None, True, "")
+        assert "62 F1 03 ** 32" in render_hex_line("62F103**32", [row], False).plain
+        assert render_hex_line("62F103**32", [], True).plain.count("*") >= 3
 
     def test_a_plain_pid_is_untouched(self, prof):
         entry = self._entry("22F101", "62F10131313034")
@@ -146,6 +168,10 @@ class TestNeverSaved:
         path = save_session(session, prof / "captures", profile=active())
         assert "AABBCC" not in path.read_text()
         assert "Not saved: CCM:22F102" in capsys.readouterr().err  # a status line, not the result
+
+    def test_a_partly_masked_payload_is_never_saved(self):
+        row = _cap("22F101", "62F101" + sensitive.MASKED_BYTE + "34")
+        assert sensitive.withhold([row], sensitive.SensitiveSet()) == []
 
 
 def _write_store(prof, captures: list[dict]) -> None:
@@ -281,6 +307,22 @@ class TestBundledIoniqIdentity:
     """KWP2000 1A80 and 1A90 on the VCU both carry the VIN, so both are masked."""
 
     VIN = "TESTVIN0000000000"
+    # Record 0x80 as read on the car: records 8A, 8B, 90, 91, 98, 99, 8C, 8D, 8E, 92.
+    RECORD_80 = (
+        (
+            b"\x5a\x80"
+            + b" " * 10
+            + bytes.fromhex("1E090D14")
+            + VIN.encode()
+            + b"36601-0E250 "
+            + b" " * 10
+            + bytes.fromhex("1E090D14")
+            + b"AEVLDC53EAEEO5L-NS7-D060C5210617"
+            + bytes(8)
+        )
+        .hex()
+        .upper()
+    )
 
     @pytest.fixture
     def ioniq(self):
@@ -298,6 +340,29 @@ class TestBundledIoniqIdentity:
     def test_the_part_number_records_are_not(self, ioniq):
         assert not sensitive.request_hidden(0x7E2, "1A8C", profile=active())
         assert not sensitive.request_hidden(0x7E2, "1A91", profile=active())
+
+    def test_a_live_1a80_read_masks_the_vin_bytes_only(self, ioniq):
+        from canair.live.read.batch import _decode_pid_result
+
+        info = build_ecu_index(load_pids(profile=active()))["VCU"]["pids"]["1A80"]
+        payload = self.RECORD_80
+        entry = _decode_pid_result(
+            "1A80",
+            info,
+            False,
+            payload,
+            bytes.fromhex(payload),
+            None,
+            target=0x7E2,
+            profile=active(),
+        )
+        vin_hex = self.VIN.encode().hex().upper()
+        assert vin_hex not in entry["raw_hex"]
+        assert entry["raw_hex"].count(sensitive.MASKED_BYTE) == len(self.VIN)
+        assert entry["raw_hex"].replace(sensitive.MASKED_BYTE, "") == payload.replace(vin_hex, "")
+        values = {row[0]: row[1] for row in entry["params"]}
+        assert values["VIN"] == sensitive.MASK
+        assert values["VCU_ID_SW_ID"] == "EAEEO5L-NS7-D060"
 
     @pytest.mark.asyncio
     async def test_identity_does_not_print_the_vin(self, ioniq, monkeypatch, capsys):

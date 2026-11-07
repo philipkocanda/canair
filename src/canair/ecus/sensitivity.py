@@ -18,6 +18,11 @@ def _flag(defn: Any) -> bool:
     return isinstance(defn, Mapping) and defn.get(FIELD) is True
 
 
+def whole_pid_sensitive(pid_def: Any) -> bool:
+    """Does the PID itself say ``sensitive: true`` (not only one of its signals)?"""
+    return _flag(pid_def)
+
+
 def pid_sensitive(pid_def: Any) -> bool:
     """Is a PID's reply sensitive: the PID says so, or any of its signals does."""
     if _flag(pid_def):
