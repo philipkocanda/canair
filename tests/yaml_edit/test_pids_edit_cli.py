@@ -144,6 +144,11 @@ def test_set_iocontrol_rejects_a_non_hex_release(io_dir):
         ecu_facts.cmd_set_iocontrol(_io_args(io_dir, release="off"))
 
 
+def test_set_iocontrol_reports_a_notes_only_edit(io_dir, capsys):
+    assert ecu_facts.cmd_set_iocontrol(_io_args(io_dir, notes="Folds both mirrors.")) == 0
+    assert "iocontrol 6900 -> {notes set (3 words)}" in capsys.readouterr().out
+
+
 def test_set_iocontrol_writes_a_quoted_enable_mask(io_dir):
     assert ecu_facts.cmd_set_iocontrol(_io_args(io_dir, enable_mask="80")) == 0
     assert 'enable_mask: "80"' in (io_dir / "e.yaml").read_text()
