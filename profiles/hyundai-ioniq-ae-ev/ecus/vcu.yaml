@@ -475,6 +475,7 @@ VCU:
         re-read VCU:1A90 to confirm. Draft: a VIN must never ship to the device AutoPID, and an
         ascii range is not a device float expression.
     1A80:
+      response_frames: 15
       sensitive: true
       status: draft
       vehicle_states: [READY]
