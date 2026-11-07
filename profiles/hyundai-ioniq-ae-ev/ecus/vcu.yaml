@@ -1261,3 +1261,12 @@ VCU:
       supported: false
       nrc: 0x12
       nrc_desc: "subFunctionNotSupported"
+  memory:
+    format: "kwp"
+    max_block: 64
+    regions:
+      - start: 0x000000
+        end: 0x3FFFFF
+        result: readable
+        software: "8D:EAEEO5L-NS7-D060"
+        scanned: "2026-11-07"

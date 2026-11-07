@@ -1,0 +1,264 @@
+{
+  "sessions": [
+    {
+      "date": "2026-11-08",
+      "label": "vcu memory: health after 1D0000",
+      "version": "5.2.0+main.ab45320.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009211059064303000000004479000720","time":"00:05:06.643","elapsed_ms":60},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF8E26482648A3FFE70E7F070707070707070007C10BC101000094000592AA00059036000205230001F494016293190D01730000000003E8","time":"00:05:06.814","elapsed_ms":115}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu memory: health after 1E0000",
+      "version": "5.2.0+main.ab45320.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009211059064503000000003A79000720","time":"00:08:14.148","elapsed_ms":64},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF8F26482648A3FFE80E81070707070707070007C10BC101000093000592AB00059036000205230001F494016293D40D01730000000003E8","time":"00:08:14.313","elapsed_ms":108}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu memory: health after 1F0000",
+      "version": "5.2.0+main.ab45320.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009211056064303000000004479000720","time":"00:18:16.559","elapsed_ms":63},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF8F26482648A3FFE80E89070707070707070007C10BC101000094000592AE00059036000205240001F4940162962E0D01740000000003E8","time":"00:18:16.712","elapsed_ms":105}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu memory: health after 200000",
+      "version": "5.2.0+main.ab45320.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009211054064503000000004179000720","time":"00:21:13.785","elapsed_ms":58},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF9026482648A3FFE70E8B070707070707070007C20BC101000094000592AF00059036000205240001F494016296DF0D01740000000003E8","time":"00:21:13.951","elapsed_ms":116}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu memory: health after 210000",
+      "version": "5.2.0+main.ab45320.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921105606430300000000F768000720","time":"00:24:12.251","elapsed_ms":57},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF9026482648A3FFE80E8E070707070707070007C20BC101000080000592B000059036000205250001F494016297910D01740000000003E8","time":"00:24:12.417","elapsed_ms":112}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu memory: health after 220000",
+      "version": "5.2.0+main.ab45320.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921105B064803000000004279000720","time":"00:27:10.417","elapsed_ms":78},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF9026482648A3FFE70E90070707070707070007C211C101000093000592B100059036000205250001F494016298430D01740000000003E8","time":"00:27:10.594","elapsed_ms":112}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu memory: health after gap 040000",
+      "version": "5.2.0+main.ab45320.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009211059064503000000004979000720","time":"00:33:14.432","elapsed_ms":56},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF9126482648A3FFE70E96070707070707070007C211C201000094000592B300059036000205260001F494016299AF0D01750000000003E8","time":"00:33:14.582","elapsed_ms":106}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu memory: health after gap 150000",
+      "version": "5.2.0+main.ab45320.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009211056064303000000005079000720","time":"00:34:05.808","elapsed_ms":51},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF9126482648A3FFE80E97070707070707070007C211C201000094000592B400059036000205260001F494016299E20D01750000000003E8","time":"00:34:05.975","elapsed_ms":102}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu memory: health after gap 230000",
+      "version": "5.2.0+main.ab45320.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921105B064803000000004979000720","time":"00:41:49.019","elapsed_ms":59},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF9126482648A3FFE70E9E070707070707070007C30BC201000094000592B700059036000205270001F49401629BB10D01760000000003E8","time":"00:41:49.176","elapsed_ms":110}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu memory: final health",
+      "version": "5.2.0+main.ab45320.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921105E064803000000004979000720","time":"00:47:03.860","elapsed_ms":57},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF9226482648A3FFE70EA4070707070707070007C311C201000093000592B900059036000205280001F49401629CEC0D01760000000003E8","time":"00:47:04.022","elapsed_ms":109}
+      ]
+    }
+  ]
+}

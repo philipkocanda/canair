@@ -409,3 +409,31 @@ differs from the design above:
 - `scan memory IGPM` and `scan memory CCM` stop on the first read: both answer
   serviceNotSupported (`0x11`), in the default and the extended session. Neither can be dumped
   with `0x23`.
+
+### Live test on the VCU, a KWP2000 ECU (2026-11-07, charging)
+
+AC charging at 6 A (`VCU_POWER_STATE` 7), transport `wican-ws`, default session, no
+SecurityAccess. The VCU's health (`VCU:2101`, `BMS:2101`) was read after every scan and dump.
+
+- `scan memory VCU --range 000000-FFFFFF --step 10000 --no-block` mapped `0x000000`-`0x3FFFFF`
+  (4 MiB) as readable. Reads from `0x400000` up draw no answer, not an NRC, so the scan stopped
+  with "the ECU stopped answering" after three of them. The VCU still answered right after: the
+  silence is how it refuses an unmapped address, not a hang. A rescan of `0x3F0000`-`0x3FFFFF`
+  at a 4 KiB step confirmed the edge.
+- Block search: 16, 32 and 64 bytes all worked (`--block-limit 32`, then 64). Nothing larger
+  was tried. `max_block: 64` is recorded in `ecus/vcu.yaml`.
+- Throughput over `wican-ws`: about 125 B/s at 32-byte blocks and about 330 B/s at 64, so a
+  64 KiB chunk takes about 3 min 20 s.
+- The reply checks caught several dropped or truncated multi-frame replies during the dumps
+  (`canair logs`: non-contiguous ISO-TP frames, truncated ISO-TP); `dump` re-read them, and both
+  repeat dumps (`0x000000`-`0x00FFFF`, `0x140000`-`0x14FFFF`) diff with no changed runs.
+- The 4 MiB holds about 1.2 MiB of programmed flash in three areas: `0x000000`-`0x0306FF`,
+  `0x140000`-`0x1451FF` and `0x180000`-`0x224CFF`. The rest read `FF` (erased): every 64 KiB
+  chunk around those areas was read in full, and the remaining space was sampled at 64 bytes
+  every 1 KiB with no byte other than `FF`.
+- The image holds the VCU's identity strings (part number, `sw_id`, calibration, `ecu_id`), so
+  it is this unit's firmware. It has many PowerPC return (`blr`) and `mflr r0` words, so the
+  VCU is probably a PowerPC part like the MCU.
+- Side effects: none seen. Charging continued through about 1.5 h of reads; the VCU kept its one
+  code (U1112), and the MCU, OBC, BMS and IGPM stored none. One WebSocket drop ended a dump
+  early; the chunk was read again.
