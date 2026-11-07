@@ -132,8 +132,8 @@ def promote_discovery(
         f"    {_key_token(did_u)}:",
         f"      label: {_format_label(label)}",
         "      verified: false",
-        f'      on: "2F{did_u}03{on_payload}"',
-        f'      off: "2F{did_u}00"',
+        f'      "on": "2F{did_u}03{on_payload}"',
+        f'      "off": "2F{did_u}00"',
     ]
 
     # Append the entry to the iocontrol: section — located afresh, since removing

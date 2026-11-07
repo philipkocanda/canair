@@ -77,6 +77,12 @@ def validate_iocontrol(
                 f"{did_label}: legacy field 'availability' — renamed to vehicle_states "
                 "(run scripts/migrate_states_status.py)"
             )
+        for key, name in ((True, "on"), (False, "off")):
+            if key in did_def:
+                warnings.append(
+                    f"{did_label}: the key of the {name} request reads as {str(key).lower()}; "
+                    f'write it quoted, as "{name}": (a bare {name}: is text in an editor)'
+                )
         _validate_session_mode(
             did_def.get("session_mode"), did_label, errors, warnings, protocol, profile_meta
         )
@@ -149,7 +155,7 @@ def _validate_enable_mask(did_def, did_label, protocol, errors, warnings) -> Non
     if protocol == KWP:
         errors.append(f"{did_label}: enable_mask is a UDS 0x2F field; KWP2000 0x30 has none")
         return
-    # YAML reads an unquoted on/off key as the booleans True/False.
+    # A bare on:/off: key loads as True/False (YAML 1.1); `validate_iocontrol` warns about it.
     for field, yaml_key in (("on", True), ("off", False), ("release", None)):
         request = did_def.get(field) or (did_def.get(yaml_key) if yaml_key is not None else None)
         if not isinstance(request, str) or not request:

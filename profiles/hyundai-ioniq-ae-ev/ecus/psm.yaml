@@ -33,54 +33,54 @@ PSM:
       vehicle_states: []
       label: Seat slide forward
       verified: true
-      true: "2FB40103"
-      false: "2FB40100"
+      "on": "2FB40103"
+      "off": "2FB40100"
 
     B402:
       vehicle_states: []
       label: Seat slide backward
       verified: true
-      true: "2FB40203"
-      false: "2FB40200"
+      "on": "2FB40203"
+      "off": "2FB40200"
 
     B403:
       vehicle_states: []
       label: Seat recline upright
       verified: true
-      true: "2FB40303"
-      false: "2FB40300"
+      "on": "2FB40303"
+      "off": "2FB40300"
 
     B404:
       vehicle_states: []
       label: Seat recline backward
       verified: true
-      true: "2FB40403"
-      false: "2FB40400"
+      "on": "2FB40403"
+      "off": "2FB40400"
 
     B405:
       vehicle_states: []
       label: Seat front height up
       verified: true
-      true: "2FB40503"
-      false: "2FB40500"
+      "on": "2FB40503"
+      "off": "2FB40500"
 
     B406:
       vehicle_states: []
       label: Seat front height down
       verified: true
-      true: "2FB40603"
-      false: "2FB40600"
+      "on": "2FB40603"
+      "off": "2FB40600"
 
     B407:
       vehicle_states: []
       label: Seat rear height up
       verified: true
-      true: "2FB40703"
-      false: "2FB40700"
+      "on": "2FB40703"
+      "off": "2FB40700"
 
     B408:
       vehicle_states: []
       label: Seat rear height down
       verified: true
-      true: "2FB40803"
-      false: "2FB40800"
+      "on": "2FB40803"
+      "off": "2FB40800"

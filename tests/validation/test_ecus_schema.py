@@ -83,7 +83,8 @@ class TestPinnedVocabularies:
 
         assert _deprecated("pid") == {*_LEGACY_PID_FIELDS, RETIRED_FIELD}
         assert _deprecated("signal") == {*_RENAMED_PARAM_FIELDS, RETIRED_FIELD}
-        assert _deprecated("ecu") == _deprecated("iocontrol_entry") == {"availability"}
+        assert _deprecated("ecu") == {"availability"}
+        assert _deprecated("iocontrol_entry") == {"availability", "true", "false"}
         assert _deprecated("research_entry") == {"prerequisite"}
 
     def test_research_choices_of_the_editor(self):
@@ -151,6 +152,6 @@ class TestFindings:
         entry = {"service": 0x22, "date": datetime.date(2026, 7, 22)}
         assert _check({"E": {"tx_id": 0x7E0, "scan_log": [entry]}}) == ([], [])
 
-    def test_an_unquoted_on_key_is_an_actuator_request(self):
+    def test_an_unquoted_on_key_is_left_to_python(self):
         entry = {"label": "x", True: "2FBC0103", False: "2FBC0100"}
         assert _check({"E": {"tx_id": 0x7E0, "iocontrol": {"BC01": entry}}}) == ([], [])

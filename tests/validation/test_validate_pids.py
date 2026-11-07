@@ -330,18 +330,18 @@ class TestIoControlValidation:
     KWP = "  identity:\n    id_protocol: KWP2000\n"
 
     def test_a_kwp_on_without_a_release_warns_that_io_refuses_it(self, tmp_path):
-        entry = '      on: "300100"\n      off: "300111"\n'
+        entry = '      "on": "300100"\n      "off": "300111"\n'
         errs, warns = self._validate(tmp_path, entry, key='"01"', head=self.KWP)
         assert errs == []
         assert any("refuses its ON" in w and "no release declared" in w for w in warns)
 
     def test_a_declared_kwp_release_is_clean(self, tmp_path):
-        entry = '      on: "300100"\n      off: "300111"\n      release: "300111"\n'
+        entry = '      "on": "300100"\n      "off": "300111"\n      release: "300111"\n'
         errs, warns = self._validate(tmp_path, entry, key='"01"', head=self.KWP)
         assert errs == [] and warns == []
 
     def test_a_uds_on_needs_no_declared_release(self, tmp_path):
-        entry = '      on: "2FBC0103"\n      off: "2FBC0100"\n'
+        entry = '      "on": "2FBC0103"\n      "off": "2FBC0100"\n'
         assert self._validate(tmp_path, entry) == ([], [])
 
     @pytest.mark.parametrize(
@@ -354,35 +354,43 @@ class TestIoControlValidation:
         ],
     )
     def test_a_bad_release_is_an_error(self, tmp_path, release, message):
-        entry = f'      on: "300100"\n      release: {release}\n'
+        entry = f'      "on": "300100"\n      release: {release}\n'
         errs, _ = self._validate(tmp_path, entry, key='"01"', head=self.KWP)
         assert any(message in e for e in errs)
 
     def test_a_uds_release_other_than_return_control_warns(self, tmp_path):
-        entry = '      on: "2FBC0103"\n      release: "2FBC0101"\n'
+        entry = '      "on": "2FBC0103"\n      release: "2FBC0101"\n'
         errs, warns = self._validate(tmp_path, entry)
         assert errs == []
         assert any("not returnControlToECU" in w for w in warns)
 
     UDS = "  identity:\n    id_protocol: UDS\n"
 
+    def test_a_bare_on_key_warns_to_quote_it(self, tmp_path):
+        errs, warns = self._validate(tmp_path, '      on: "2FBC0103"\n      "off": "2FBC0100"\n')
+        assert errs == []
+        assert warns == [
+            "e.yaml/ECU/iocontrol/BC01: the key of the on request reads as true; write it "
+            'quoted, as "on": (a bare on: is text in an editor)'
+        ]
+
     def test_a_masked_entry_is_clean(self, tmp_path):
-        entry = '      on: "2FBC010307FF"\n      enable_mask: "FF"\n'
+        entry = '      "on": "2FBC010307FF"\n      enable_mask: "FF"\n'
         assert self._validate(tmp_path, entry, head=self.UDS) == ([], [])
 
     def test_a_request_too_short_for_the_mask_warns(self, tmp_path):
-        entry = '      on: "2FBC0103"\n      release: "2FBC0100"\n      enable_mask: "FF"\n'
+        entry = '      "on": "2FBC0103"\n      release: "2FBC0100"\n      enable_mask: "FF"\n'
         errs, warns = self._validate(tmp_path, entry, head=self.UDS)
         assert errs == []
         assert sum("too short to carry" in w for w in warns) == 2
 
     def test_a_mask_on_a_kwp_entry_is_an_error(self, tmp_path):
-        entry = '      on: "300100"\n      release: "300111"\n      enable_mask: "80"\n'
+        entry = '      "on": "300100"\n      release: "300111"\n      enable_mask: "80"\n'
         errs, _ = self._validate(tmp_path, entry, key='"01"', head=self.KWP)
         assert any("enable_mask is a UDS 0x2F field" in e for e in errs)
 
     def test_an_unquoted_mask_is_an_error(self, tmp_path):
-        errs, _ = self._validate(tmp_path, '      on: "2FBC010380"\n      enable_mask: 80\n')
+        errs, _ = self._validate(tmp_path, '      "on": "2FBC010380"\n      enable_mask: 80\n')
         assert any("BC01.enable_mask: must be quoted hex" in e for e in errs)
 
 

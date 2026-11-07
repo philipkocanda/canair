@@ -575,15 +575,15 @@ HVAC:
     F011:
       label: "Unknown actuator 1"
       verified: false
-      true: ""
-      false: "2FF01100"
+      "on": ""
+      "off": "2FF01100"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F012:
       label: "Unknown actuator 2"
       verified: false
-      true: ""
-      false: ""
+      "on": ""
+      "off": ""
       hold: false
       notes: >-
         ReturnControlToECU (00) returns NRC 0x31, so there is no release. ShortTermAdjustment (03)
@@ -591,85 +591,85 @@ HVAC:
     F013:
       label: "Unknown actuator 3"
       verified: false
-      true: ""
-      false: "2FF01300"
+      "on": ""
+      "off": "2FF01300"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F014:
       label: "Unknown actuator 4"
       verified: false
-      true: ""
-      false: "2FF01400"
+      "on": ""
+      "off": "2FF01400"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F015:
       label: "Unknown actuator 5"
       verified: false
-      true: ""
-      false: "2FF01500"
+      "on": ""
+      "off": "2FF01500"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F016:
       label: "Unknown actuator 6"
       verified: false
-      true: ""
-      false: "2FF01600"
+      "on": ""
+      "off": "2FF01600"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F017:
       label: "Unknown actuator 7"
       verified: false
-      true: ""
-      false: "2FF01700"
+      "on": ""
+      "off": "2FF01700"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F018:
       label: "Unknown actuator 8"
       verified: false
-      true: ""
-      false: "2FF01800"
+      "on": ""
+      "off": "2FF01800"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F022:
       label: "Unknown actuator 9"
       verified: false
-      true: ""
-      false: "2FF02200"
+      "on": ""
+      "off": "2FF02200"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F023:
       label: "Unknown actuator 10"
       verified: false
-      true: ""
-      false: "2FF02300"
+      "on": ""
+      "off": "2FF02300"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F024:
       label: "Unknown actuator 11"
       verified: false
-      true: ""
-      false: "2FF02400"
+      "on": ""
+      "off": "2FF02400"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F025:
       label: "Unknown actuator 12"
       verified: false
-      true: ""
-      false: "2FF02500"
+      "on": ""
+      "off": "2FF02500"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F026:
       label: "Unknown actuator 13"
       verified: false
-      true: ""
-      false: "2FF02600"
+      "on": ""
+      "off": "2FF02600"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
     F027:
       label: "Unknown actuator 14"
       verified: false
-      true: ""
-      false: "2FF02700"
+      "on": ""
+      "off": "2FF02700"
       hold: false
       notes: "ReturnControlToECU confirmed. Value bytes needed for 03."
   research:

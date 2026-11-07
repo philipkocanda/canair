@@ -796,16 +796,19 @@ definitions:
         $ref: "#/definitions/verified"
       "on":
         type: string
-        description: The full request that turns it on ("2FBC0103").
+        description: >-
+          The full request that turns it on ("2FBC0103"). Quote the key: YAML 1.1 reads a bare on
+          as true.
       "off":
         type: string
-        description: The full request that turns it off ("2FBC0100").
+        description: The full request that turns it off ("2FBC0100"). Quote the key.
       "true":
-        type: string
-        description: An unquoted on key, which YAML 1.1 reads as true.
+        deprecationMessage: >-
+          an on request under a key canair reads as true (a bare on, or true): write the key as "on"
       "false":
-        type: string
-        description: An unquoted off key, which YAML 1.1 reads as false.
+        deprecationMessage: >-
+          an off request under a key canair reads as false (a bare off, or false): write the key
+          as "off"
       release:
         type: string
         errorMessage: must be a quoted hex request

@@ -117,7 +117,8 @@
       "period": "5000",
       "parameters": {
         "CHARGE_PORT_LOCK": "B11:7",
-        "CHARGE_PORT_LOCK_INV": "B12:0"
+        "CHARGE_PORT_LOCK_INV": "B12:0",
+        "IG3_RELAY_OUTPUT": "B12:3"
       }
     },
     {
