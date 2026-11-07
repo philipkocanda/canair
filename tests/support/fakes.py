@@ -263,7 +263,7 @@ class FakeTerminal:
             functional_request_bytes,
         )
 
-        req = functional_request_bytes(tx_id, request)
+        req = functional_request_bytes(tx_id, request, self.session_policy)
         self.calls.append(("send_functional", (tx_id, request, window)))
         rows = self.functional_replies.get(request.replace(" ", "").upper(), [])
         messages = [

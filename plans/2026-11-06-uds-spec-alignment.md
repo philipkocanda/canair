@@ -360,8 +360,9 @@ As built:
   fake terminal without the `session_policy` attribute that `transport/protocol.py::Terminal`
   declares then failed in `SessionManager`. That fake got the attribute in a later commit, and
   the full suite passes.
-- Not changed: `live/actuate/action.py` sends a profile action's request with no
-  `expected_sid`; a functional action has many responders, so it needs its own rule.
+- Not changed here: `live/actuate/action.py` sent a profile action's request with no
+  `expected_sid`; a functional action has many responders, so it needs its own rule. Done
+  later, see "`canair action` replies" below.
 
 The original design:
 
@@ -536,6 +537,39 @@ says "extended" and notes that ISO 15765-2 mixed addressing is not implemented. 
 not a defect: the functional id `0x18DB33F1` carries the tester address, and replies go to it.
 `transport/functional.py::accepts_response_id` now reads the tester from the functional id's
 low byte instead of writing it out.
+
+### `canair action` replies (done, 2026-11-07)
+
+Three defects of `live/actuate/action.py::_send`, found after phase 7:
+
+1. A request to one ECU passed no `expected_sid`. The guard reads go to the same ECUs just
+   before, so a late reply to one of them could be reported as the action's answer.
+2. A broadcast that expects replies went down the one-ECU path, which keeps one reply (the
+   ELM327 parser picks one line; on `slcan-tcp` the ISO-TP stack hears one reply id). So
+   "answered" could mean one ECU accepted while others refused or stayed silent.
+3. `safety/actuation.py::classify` read every `0x10` request as `read`, so phase 4's busy
+   repeat would have sent Hyundai/Kia's `10 D1` sleep request again on a `7F 10 21`.
+
+As built:
+
+- `_send_physical` passes the request's SID and the echo its ECU's protocol fixes
+  (`uds/echo.py::request_echo`), and reports a suppressed reply as "sent (no reply
+  expected)", not "answered".
+- `_send_functional` uses `send_functional` and keeps only replies to the request's service.
+  The action is answered only when every responder accepted and at least one answered; any
+  refusal, or no reply, stops it. `--json` lists each responder under `responders`.
+- `transport/functional.py::functional_request_bytes` takes the terminal's policy, and its
+  exact grants lift the allow-list for that request on that id, as on the ordinary send
+  path. Every terminal and the test fake pass `session_policy`.
+- `classify` reads `0x10` as `read` only into a standard session: UDS `01`/`03` (bit 7
+  ignored) and KWP2000 `81`–`83` (and `01`/`03`). Every other session type, and a bare
+  `10`, is `actuate`; an unknown protocol must read on both. So the busy repeat never
+  repeats one, and `canair scan range --service 10` now asks before it sends a session that
+  only a quirk permits (Nissan `C0`, Hyundai/Kia `90`).
+  No flag on `send_uds` was needed: the repeat already applies only to reads.
+- Tests: `tests/live/actuate/test_action_mode.py::TestSend` and `TestFunctionalGrants`, and
+  the session cases in `tests/safety/test_actuation.py` and `tests/transport/test_timeouts.py`.
+- Docs: `docs/concepts/safety.md` (profile actions).
 
 ## Out of scope
 

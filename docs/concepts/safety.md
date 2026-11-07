@@ -194,6 +194,13 @@ sends it. A profile cannot use this to get around the rules above:
   (`--yes` skips this; with no terminal to ask on, `--yes` is required). The
   reads are then repeated, so a long pause at the prompt is never what the
   request goes out on. `--dry-run` reads and checks without sending.
+- **Each reply must answer its request.** A request to one ECU must draw a reply
+  to its own service (and, on a UDS ECU, its own sub-function and identifier), so
+  a late answer to one of the guard reads is never taken for the action's. A
+  broadcast that expects replies collects every responder: the action counts as
+  answered only when every responder accepted it, and the report lists each one.
+  A refusal or a silence stops the action before its next request, and canair
+  never repeats an action's request on its own.
 
 The Ioniq profile's `sleep` action requires IGN1 and IGN2 off, the IGPM's IG3
 relay off (no 12 V top-up in progress) and the charge port unlocked (not

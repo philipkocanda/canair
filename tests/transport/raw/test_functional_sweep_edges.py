@@ -175,10 +175,12 @@ class TestRawTerminal:
 
     @pytest.mark.asyncio
     async def test_can_fd_is_refused(self):
+        from canair.safety.blocklist import SessionPolicy
         from canair.transport.raw.terminal import RawTerminal
 
         term = RawTerminal.__new__(RawTerminal)
         term._classic_can = False
+        term.session_policy = SessionPolicy()
         with pytest.raises(ValueError, match="classic CAN"):
             await term.send_functional(0x7DF, "3E00")
 

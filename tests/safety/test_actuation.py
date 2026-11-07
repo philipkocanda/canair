@@ -44,6 +44,18 @@ class TestClassify:
         for option in ("01", "02", "03"):
             assert classify(f"2FBC01{option}", protocol) == ACTUATE
 
+    @pytest.mark.parametrize("protocol", PROTOCOLS)
+    @pytest.mark.parametrize("request_hex", ["10D1", "1002", "1004", "1085", "1090", "10C0", "10"])
+    def test_a_session_outside_the_standard_ones_actuates(self, request_hex, protocol):
+        # 10 D1 is Hyundai/Kia's sleep request; the others program, test or are OEM modes.
+        assert classify(request_hex, protocol) == ACTUATE
+
+    def test_10_82_depends_on_the_protocol(self):
+        # KWP2000 periodicDiagnosticSession; UDS programmingSession with the suppress bit.
+        assert classify("1082", KWP) == READ
+        assert classify("1082", UDS) == ACTUATE
+        assert classify("1082", UNKNOWN) == ACTUATE
+
     def test_2f_00_on_a_kwp_ecu_is_not_assumed_to_release(self):
         assert classify("2FBC0100", KWP) == ACTUATE
 

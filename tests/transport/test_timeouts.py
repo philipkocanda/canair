@@ -81,7 +81,9 @@ class TestBusyRetryDelay:
         delays = [busy_retry_delay(BUSY, "22F190", UDS, n) for n in range(4)]
         assert delays == [*BUSY_RETRY_DELAYS, None]
 
-    @pytest.mark.parametrize("request_hex", ["2FBC1003FF", "3101F000", "14FFFFFF", "1101"])
+    @pytest.mark.parametrize(
+        "request_hex", ["2FBC1003FF", "3101F000", "14FFFFFF", "1101", "10D1", "10C0"]
+    )
     def test_a_request_that_acts_is_not_repeated(self, request_hex):
         assert busy_retry_delay(BUSY, request_hex, UDS, 0) is None
 

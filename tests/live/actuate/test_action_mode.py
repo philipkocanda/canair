@@ -185,3 +185,71 @@ def test_a_request_to_an_ecu_resolves_its_tx_id():
     )
     (planned,) = mode.plan_requests(action, PIDS, profile=active())
     assert planned.tx_id == 0x770
+
+
+def _planned(requests):
+    action = parse_action(
+        "probe",
+        {"reads": ["IGPM:22BC03"], "require": "IGPM.IGN1_SWITCH == 0", "requests": requests},
+    )
+    return mode.plan_requests(action, PIDS, profile=active())
+
+
+class TestSend:
+    """How each request goes out once the guard has passed."""
+
+    def test_a_physical_request_is_checked_against_its_reply(self):
+        t = FakeTerminal(responses={"2FBC0103": {"ok": True, "hex": "6FBC0103"}})
+        t.session_policy = SessionPolicy({0x770: "uds"})
+        rows = asyncio.run(
+            mode._send(t, _planned([{"to": "igpm", "send": "2FBC0103"}]), t.session_policy)
+        )
+        assert rows[0]["outcome"] == "answered"
+        assert t.uds_kwargs[0]["expected_sid"] == 0x2F
+
+    def test_a_routine_on_a_uds_ecu_must_echo_its_type_and_id(self):
+        t = FakeTerminal(responses={"3101F000": {"ok": True, "hex": "7101F000"}})
+        t.session_policy = SessionPolicy({0x770: "uds"})
+        asyncio.run(mode._send(t, _planned([{"to": "igpm", "send": "3101F000"}]), t.session_policy))
+        assert t.uds_kwargs[0]["expected_echo"] == bytes.fromhex("01F000")
+
+    def test_a_functional_request_reports_every_responder(self):
+        t = FakeTerminal()
+        t.functional_replies["22F190"] = [(0x778, "62F19041"), (0x7A8, "7F2231")]
+        rows = asyncio.run(
+            mode._send(t, _planned([{"to": "functional", "send": "22F190"}]), t.session_policy)
+        )
+        (row,) = rows
+        assert row["outcome"] == "refused by 0x7A8 (NRC 0x31)"
+        assert [r["from"] for r in row["responders"]] == ["0x778", "0x7A8"]
+        assert t.sent == []  # never sent down the one-ECU path
+
+    def test_a_functional_request_is_answered_only_when_every_responder_accepts(self):
+        t = FakeTerminal()
+        t.functional_replies["22F190"] = [(0x778, "62F19041"), (0x7EC, "62F19042")]
+        (row,) = asyncio.run(
+            mode._send(t, _planned([{"to": "functional", "send": "22F190"}]), t.session_policy)
+        )
+        assert row["outcome"] == "answered"
+
+    def test_a_functional_request_nobody_answers_stops_the_action(self):
+        t = FakeTerminal()
+        planned = _planned(
+            [{"to": "functional", "send": "22F190"}, {"to": "igpm", "send": "22BC03"}]
+        )
+        rows = asyncio.run(mode._send(t, planned, t.session_policy))
+        assert [r["outcome"] for r in rows] == ["no reply"]
+
+
+class TestFunctionalGrants:
+    def test_a_grant_lifts_the_allow_list_for_that_request_only(self):
+        from canair.transport.functional import functional_request_bytes
+
+        granted = SessionPolicy().granting([(0x7DF, "10 D1")])
+        assert functional_request_bytes(0x7DF, "10D1", granted) == bytes.fromhex("10D1")
+        with pytest.raises(SafetyBlocked):
+            functional_request_bytes(0x7DF, "10D1", SessionPolicy())
+        with pytest.raises(SafetyBlocked):
+            functional_request_bytes(0x7DF, "10D0", granted)
+        with pytest.raises(SafetyBlocked):
+            functional_request_bytes(0x18DB33F1, "10D1", granted)

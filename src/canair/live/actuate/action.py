@@ -38,6 +38,10 @@ from canair.states.predicates import UNKNOWN, compile_predicate, predicate_refer
 from canair.states.suggest import collect_values
 from canair.transport.protocol import Terminal
 from canair.transport.session_manager import SessionManager
+from canair.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
+from canair.uds.echo import request_echo
+from canair.uds.nrc import is_negative_response, is_response_pending
+from canair.uds.services import positive_response_sid
 
 # How long a request that expects no reply waits before it counts as sent.
 _NO_RESPONSE_WAIT_S = 1.0
@@ -119,31 +123,92 @@ async def _send(terminal: Terminal, planned: list[PlannedRequest], policy: Sessi
     try:
         for p in planned:
             no_reply = p.request.response == "none"
-            async with terminal.transaction():
-                await terminal.set_header(p.tx_id)
-                resp = await terminal.send_uds(
-                    p.request.send, timeout=_NO_RESPONSE_WAIT_S if no_reply else None
-                )
-            row: dict[str, Any] = {
-                "to": f"0x{p.tx_id:03X}",
-                "send": p.request.send,
-                "response": resp.get("hex") if resp.get("ok") else None,
-                "nrc": resp.get("nrc"),
-            }
-            if resp.get("nrc") is not None:
-                row["outcome"] = f"refused: NRC 0x{resp['nrc']:02X} {resp.get('nrc_desc', '')}"
-            elif resp.get("ok"):
-                row["outcome"] = "answered"
-            elif no_reply:
-                row["outcome"] = "sent (no reply expected)"
+            if p.tx_id in (FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID) and not no_reply:
+                row = await _send_functional(terminal, p)
             else:
-                row["outcome"] = f"no reply: {resp.get('error') or 'timeout'}"
+                row = await _send_physical(terminal, p, no_reply)
             results.append(row)
-            if not no_reply and not resp.get("ok"):
+            if not no_reply and row["outcome"] != "answered":
                 break
     finally:
         terminal.session_policy = base
     return results
+
+
+async def _send_physical(terminal: Terminal, p: PlannedRequest, no_reply: bool) -> dict[str, Any]:
+    """Send one request to one id, checked against the reply its request fixes.
+
+    The guard reads went to the same ECUs just before, so a late reply to one of them must
+    read as stale, not as this request's answer.
+    """
+    send = p.request.send
+    expected = request_echo(send, terminal.session_policy.protocol(p.tx_id))
+    async with terminal.transaction():
+        await terminal.set_header(p.tx_id)
+        resp = await terminal.send_uds(
+            send,
+            timeout=_NO_RESPONSE_WAIT_S if no_reply else None,
+            expected_sid=int(send[:2], 16),
+            expected_echo=expected[1] if expected is not None else None,
+        )
+    row: dict[str, Any] = {
+        "to": f"0x{p.tx_id:03X}",
+        "send": send,
+        "response": resp.get("hex") if resp.get("ok") and not resp.get("suppressed") else None,
+        "nrc": resp.get("nrc"),
+    }
+    if resp.get("nrc") is not None:
+        row["outcome"] = f"refused: NRC 0x{resp['nrc']:02X} {resp.get('nrc_desc', '')}"
+    elif resp.get("ok") and not resp.get("suppressed"):
+        row["outcome"] = "answered"
+    elif no_reply or resp.get("suppressed"):
+        row["outcome"] = "sent (no reply expected)"
+    else:
+        row["outcome"] = f"no reply: {resp.get('error') or 'timeout'}"
+    return row
+
+
+async def _send_functional(terminal: Terminal, p: PlannedRequest) -> dict[str, Any]:
+    """Broadcast one request that expects replies, and report every responder.
+
+    The one-ECU send path would keep a single reply, so "answered" could mean one ECU
+    agreed while another refused. Here the action counts as answered only when every
+    responder accepted it and at least one did.
+    """
+    send = p.request.send
+    result = await terminal.send_functional(p.tx_id, send)
+    sid = int(send[:2], 16)
+    replies = [
+        m
+        for m in result.messages
+        if m.payload[:1] == bytes([positive_response_sid(sid) & 0xFF])
+        or is_negative_response(m.payload, sid)
+    ]
+    responders = [
+        {
+            "from": f"0x{m.rx_id:X}",
+            "response": m.payload.hex().upper(),
+            "nrc": m.payload[2] if is_negative_response(m.payload, sid) else None,
+        }
+        for m in replies
+        if not is_response_pending(m.payload, sid)
+    ]
+    refused = [r for r in responders if r["nrc"] is not None]
+    if refused:
+        names = ", ".join(f"{r['from']} (NRC 0x{r['nrc']:02X})" for r in refused)
+        outcome = f"refused by {names}"
+    elif responders:
+        outcome = "answered"
+    else:
+        outcome = "no reply"
+    return {
+        "to": f"0x{p.tx_id:03X}",
+        "send": send,
+        "response": None,
+        "nrc": refused[0]["nrc"] if refused else None,
+        "responders": responders,
+        "outcome": outcome,
+    }
 
 
 async def mode_action(
@@ -204,6 +269,8 @@ async def mode_action(
         report["sent"] = await _send(terminal, planned, policy)
         for row in report["sent"]:
             print(f"  {row['send']} → {row['to']}: {row['outcome']}", file=out)
+            for r in row.get("responders", ()):
+                print(f"    {r['from']}: {r['response']}", file=out)
         print(
             "  Done. Anything that talks to the car afterwards (canair, the WiCAN's AutoPID "
             "polling, a phone app) can wake it again.",

@@ -94,7 +94,8 @@ class Terminal(Protocol):
 
         The one request that draws many replies, which ``send_uds`` cannot carry.
         Refuses (``SafetyBlocked``) anything outside
-        :func:`canair.safety.blocklist.check_functional_request`.
+        :func:`canair.safety.blocklist.check_functional_request`, unless
+        ``session_policy`` grants exactly that request (a guarded profile action).
         """
         ...
 

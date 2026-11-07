@@ -24,7 +24,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final
 
-from canair.safety.blocklist import SafetyBlocked, check_functional_request
+from canair.safety.blocklist import SafetyBlocked, SessionPolicy, check_functional_request
 from canair.transport.timeouts import PENDING_RECV_TIMEOUT, PENDING_TOTAL_TIMEOUT
 from canair.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 from canair.uds.isotp_passive import Reassembler, ReassemblyStats, is_first_frame
@@ -83,21 +83,29 @@ def accepts_response_id(can_id: int, extended: bool, functional_id: int) -> bool
     return _DIAG_11BIT_LOW <= can_id <= _DIAG_11BIT_HIGH and can_id != functional_id
 
 
-def functional_request_bytes(tx_id: int, request: str) -> bytes:
+def functional_request_bytes(
+    tx_id: int, request: str, policy: SessionPolicy | None = None
+) -> bytes:
     """Check a functional request and return its bytes; every transport calls this first.
+
+    ``policy`` is the terminal's session policy. Its exact grants (a guarded profile action,
+    :meth:`canair.safety.blocklist.SessionPolicy.granting`) lift the allow-list for exactly
+    that request on that id, as they do on the ordinary send path; ``--unsafe`` never does.
 
     Raises:
         SafetyBlocked: ``request`` is not one of the allowed reads
-            (:func:`canair.safety.blocklist.check_functional_request`).
+            (:func:`canair.safety.blocklist.check_functional_request`) nor granted.
         ValueError: ``tx_id`` is not a functional id.
     """
 
     if tx_id not in (FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID):
         raise ValueError(f"0x{tx_id:X} is not a functional request id")
-    blocked = check_functional_request(request)
-    if blocked is not None:
-        raise SafetyBlocked(blocked)
-    return bytes.fromhex(request.replace(" ", ""))
+    compact = "".join(request.split()).upper()
+    if policy is None or not policy.is_granted(compact, tx_id):
+        blocked = check_functional_request(request)
+        if blocked is not None:
+            raise SafetyBlocked(blocked)
+    return bytes.fromhex(compact)
 
 
 def classic_can(isotp_params: Mapping[str, object]) -> bool:
