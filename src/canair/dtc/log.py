@@ -319,13 +319,19 @@ def diff_scans(
     }
 
 
-def _styled_label(refs: EcuRefs, rx: str, *, heading: bool = False) -> str:
+def styled_label(refs: EcuRefs, rx: str, *, heading: bool = False) -> str:
     """``AMP (0x783)`` with the name in cyan (bold for a heading) and the address dim."""
     label, name = refs.label(rx), refs.name(rx)
     if not name or not label.startswith(name):
         return label
     style = f"{ansi.BOLD}{ansi.CYAN}" if heading else ansi.CYAN
     return f"{style}{name}{ansi.RESET}{ansi.DIM}{label[len(name) :]}{ansi.RESET}"
+
+
+def code_line(code: str, width: int, ecu: str | None, indent: str, *, profile: Profile) -> str:
+    """``C220B-00  Charge inlet actuator failure``, the code in red, padded to ``width``."""
+    meaning = describe_dtc(code, ecu=ecu, profile=profile).get("meaning") or ""
+    return f"{indent}{ansi.RED}{code:<{width}}{ansi.RESET}  {meaning}".rstrip()
 
 
 def format_diff(
@@ -335,7 +341,7 @@ def format_diff(
     resolved = refs or EcuRefs.current(profile=profile)
 
     def pairs(items) -> str:
-        return ", ".join(f"{_styled_label(resolved, rx)} {code}" for rx, code in items)
+        return ", ".join(f"{styled_label(resolved, rx)} {code}" for rx, code in items)
 
     lines = [f"  Compared to last scan ({previous.get('timestamp', '?')}):"]
     cleared, new = diff["cleared"], diff["new"]
@@ -379,7 +385,7 @@ def _erased_snapshot_lines(
             continue
         rx = str(clear.get("rx", "?"))
         lines.append(
-            f"  Snapshots erased by the clear of {_styled_label(refs, rx)} "
+            f"  Snapshots erased by the clear of {styled_label(refs, rx)} "
             f"at {clear.get('timestamp', '?')}:"
         )
         for code, records in erased.items():
@@ -404,7 +410,7 @@ def render_scan(
     ``canair dtc log`` prints."""
     refs = EcuRefs.current(profile=profile)
     scope = str(entry.get("scope", "?"))
-    shown = scope if scope == ALL_SCOPE else _styled_label(refs, scope, heading=True)
+    shown = scope if scope == ALL_SCOPE else styled_label(refs, scope, heading=True)
     lines = [f"\n  {ansi.BOLD}DTC log:{ansi.RESET} {shown}"]
     fields = [("Scanned:", str(entry.get("timestamp", "?")))]
     car = describe_car(entry)
@@ -428,14 +434,13 @@ def render_scan(
             codes = (ecus[rx] or {}).get("dtcs") or []
             if not codes:
                 continue
-            lines.append(f"  {_styled_label(refs, rx, heading=True)} — {len(codes)} DTC(s):")
+            lines.append(f"  {styled_label(refs, rx, heading=True)} — {len(codes)} DTC(s):")
             code_w = max(len(c) for c in codes)
             name = refs.name(rx)
             snapshots = (ecus[rx] or {}).get("snapshots") or {}
             before = ((previous or {}).get("ecus") or {}).get(rx) or {}
             for code in codes:
-                meaning = describe_dtc(code, ecu=name, profile=profile).get("meaning") or ""
-                lines.append(f"    {ansi.RED}{code:<{code_w}}{ansi.RESET}  {meaning}".rstrip())
+                lines.append(code_line(code, code_w, name, "    ", profile=profile))
                 lines.extend(
                     logged_lines(
                         name,

@@ -456,35 +456,67 @@ VCU:
         end, an event count and fields that change after a drive or charge (B38-B44 after charging),
         plus the ASCII tag 6000 at B95-B99. See the 21F2 research entries.
     1A90:
-      sensitive: true
+      status: static
       response_frames: 3
       parameters:
         VIN:
+          sensitive: true
           expression: "[B04:B22]"
           type: ascii
-          source: 2026-04-17 KWP2000 1A80-1A9F identity scan (decoded ASCII only; raw bytes not retained)
-          verified: false
-          notes: >-
-            17 ASCII characters across WiCAN B04-B22, skipping the PCI bytes B08 and B16. The
-            payload length is inferred from the VIN length; only the redacted string was kept.
-            Personally identifying: redact before sharing.
-      status: draft
+          source: canair read VCU:1A80 --reveal vs canair identity VCU, 2026-11-07
+          verified: true
+          notes: 17 ASCII characters across WiCAN B04-B22, skipping the PCI bytes B08 and B16.
       vehicle_states: [READY]
       notes: >-
-        KWP2000 ReadEcuIdentification record 0x90: the VIN as ASCII. Only the redacted decoded
-        string from the 2026-04-17 identity scan was kept, so the record length is unconfirmed;
-        re-read VCU:1A90 to confirm. Draft: a VIN must never ship to the device AutoPID, and an
-        ascii range is not a device float expression.
+        KWP2000 ReadEcuIdentification record 0x90, 19 bytes: the service and record bytes and the
+        17-character VIN, nothing else (read 2026-11-07).
     1A80:
+      status: static
       response_frames: 15
-      sensitive: true
-      status: draft
       vehicle_states: [READY]
       notes: >-
-        KWP2000 ReadEcuIdentification record 0x80: the general identification block. It contains the
-        VIN in clear text (the same VIN as 1A90) next to the part number and software IDs, so the
-        PID is sensitive and its reply is masked. Read the part number and software IDs from 1A8C,
-        1A8D, 1A8E and 1A91.
+        KWP2000 ReadEcuIdentification record 0x80, 99 bytes: records 8A, 8B, 90, 91, 98, 99, 8C, 8D,
+        8E and 92 joined in that order, with no field of its own (read 2026-11-07). It holds the VIN
+        (record 90), so the VIN signal is sensitive and its bytes are masked. The only undecoded
+        bytes are 1E 09 0D 14 at B15-B19 (record 8B) and B65-B68 (record 99), which canair identity
+        labels the manufacturing and programming dates. They are not a BCD or binary date, and the
+        OBC reads the same 4 bytes.
+      source: canair read VCU:1A80 --reveal vs canair identity VCU, 2026-11-07
+      verified: true
+      parameters:
+        VIN:
+          sensitive: true
+          expression: "[B20:B38]"
+          type: ascii
+          notes: Record 0x90.
+        VCU_ID_SYSTEM_SUPPLIER:
+          expression: "[B04:B14]"
+          type: ascii
+          notes: Record 0x8A. 10 spaces on this car.
+        VCU_ID_HW_NUMBER:
+          expression: "[B39:B52]"
+          type: ascii
+          notes: "Record 0x91: identity part_number and one space."
+        VCU_ID_REPAIR_SHOP_CODE:
+          expression: "[B53:B63]"
+          type: ascii
+          notes: Record 0x98. 10 spaces on this car.
+        VCU_ID_MODULE_CODE:
+          expression: "[B69:B77]"
+          type: ascii
+          notes: "Record 0x8C: identity ecu_id."
+        VCU_ID_SW_ID:
+          expression: "[B78:B95]"
+          type: ascii
+          notes: "Record 0x8D: identity sw_id."
+        VCU_ID_CALIBRATION:
+          expression: "[B97:B105]"
+          type: ascii
+          notes: "Record 0x8E: identity calibration."
+        VCU_ID_SUPPLIER_HW_NUMBER:
+          expression: "[B106:B114]"
+          type: ascii
+          notes: Record 0x92. 8 zero bytes on this car.
 
   # Meanings, causes, thresholds and fail-safes are from the Ioniq Electric 2017 service manual.
   # The manual files these codes under its DC/DC Converter chapter and names the reporting module

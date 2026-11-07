@@ -380,8 +380,8 @@ SKM:
       vehicle_states: []
       label: ACC relay
       verified: true
-      true: "2FB108030A0A05"
-      false: "2FB10800"
+      "on": "2FB108030A0A05"
+      "off": "2FB10800"
       hold: false
       notes: >-
         Needs the fob in range: without it the ECU answers positively but the relay does not close,
@@ -395,8 +395,8 @@ SKM:
       vehicle_states: []
       label: IGN1 relay
       verified: false
-      true: "2FB109030A0A05"
-      false: "2FB10900"
+      "on": "2FB109030A0A05"
+      "off": "2FB10900"
       hold: false
       notes: >-
         Drives the Button Start #2 (IG1) relay E43 (SMK connector B pin 2), which feeds the 'hot in
@@ -407,8 +407,8 @@ SKM:
       vehicle_states: []
       label: IGN2 relay
       verified: false
-      true: "2FB10A030A0A05"
-      false: "2FB10A00"
+      "on": "2FB10A030A0A05"
+      "off": "2FB10A00"
       hold: false
       notes: >-
         Drives the Button Start #3 (IG2) relay E46 (SMK connector B pin 1), which feeds the 'hot in
@@ -420,8 +420,8 @@ SKM:
       vehicle_states: []
       label: Start output
       verified: false
-      true: "2FB10B030A0A05"
-      false: "2FB10B00"
+      "on": "2FB10B030A0A05"
+      "off": "2FB10B00"
       hold: false
       notes: >-
         SMK Start Relay Output (connector C pin 10). On this EV it switches no starter: it feeds the
@@ -433,8 +433,8 @@ SKM:
       vehicle_states: []
       label: "⚠ DO NOT TEST — likely B+ relay or ESCL"
       verified: false
-      true: "2FB10103"
-      false: "2FB10100"
+      "on": "2FB10103"
+      "off": "2FB10100"
       notes: >-
         Do not test until identified by non-destructive means: may be the main power relay or the
         ESCL (steering column lock). Actuating an ESCL over raw UDS can corrupt its state machine so
@@ -444,8 +444,8 @@ SKM:
       vehicle_states: []
       label: "⚠ DO NOT TEST — likely ESCL or immobilizer"
       verified: false
-      true: "2FB10203"
-      false: "2FB10200"
+      "on": "2FB10203"
+      "off": "2FB10200"
       notes: >-
         Do not test (see B101): may be ESCL lock/unlock or immobiliser control. The ESCL's wear
         counter and error state cannot be reset without dealer tools.
@@ -453,8 +453,8 @@ SKM:
       vehicle_states: []
       label: "⚠ DO NOT TEST — likely immobilizer lamp or ESCL"
       verified: false
-      true: "2FB10303"
-      false: "2FB10300"
+      "on": "2FB10303"
+      "off": "2FB10300"
       notes: >-
         Do not test (see B101): may be the immobiliser lamp or ESCL-related. Skip until B101/B102
         are identified.
@@ -462,104 +462,104 @@ SKM:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB10403"
-      false: "2FB10400"
+      "on": "2FB10403"
+      "off": "2FB10400"
     B106:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB10603"
-      false: "2FB10600"
+      "on": "2FB10603"
+      "off": "2FB10600"
     B10C:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB10C03"
-      false: "2FB10C00"
+      "on": "2FB10C03"
+      "off": "2FB10C00"
     B10E:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB10E03"
-      false: "2FB10E00"
+      "on": "2FB10E03"
+      "off": "2FB10E00"
     B111:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB11103"
-      false: "2FB11100"
+      "on": "2FB11103"
+      "off": "2FB11100"
     B114:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB11403"
-      false: "2FB11400"
+      "on": "2FB11403"
+      "off": "2FB11400"
     B115:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB11503"
-      false: "2FB11500"
+      "on": "2FB11503"
+      "off": "2FB11500"
     B118:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB11803"
-      false: "2FB11800"
+      "on": "2FB11803"
+      "off": "2FB11800"
     B119:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB11903"
-      false: "2FB11900"
+      "on": "2FB11903"
+      "off": "2FB11900"
     B11A:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB11A03"
-      false: "2FB11A00"
+      "on": "2FB11A03"
+      "off": "2FB11A00"
     B11B:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB11B03"
-      false: "2FB11B00"
+      "on": "2FB11B03"
+      "off": "2FB11B00"
     B120:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB12003"
-      false: "2FB12000"
+      "on": "2FB12003"
+      "off": "2FB12000"
     B123:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB12303"
-      false: "2FB12300"
+      "on": "2FB12303"
+      "off": "2FB12300"
     B125:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB12503"
-      false: "2FB12500"
+      "on": "2FB12503"
+      "off": "2FB12500"
     B127:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB12703"
-      false: "2FB12700"
+      "on": "2FB12703"
+      "off": "2FB12700"
     B12A:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB12A03"
-      false: "2FB12A00"
+      "on": "2FB12A03"
+      "off": "2FB12A00"
     B130:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB13003"
-      false: "2FB13000"
+      "on": "2FB13003"
+      "off": "2FB13000"
   research:
     - type: decode
       target: "22B002"

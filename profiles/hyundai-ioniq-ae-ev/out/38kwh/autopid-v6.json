@@ -365,6 +365,12 @@
           "expression": "B12:0",
           "unit": "",
           "class": "lock"
+        },
+        {
+          "name": "IG3_RELAY_OUTPUT",
+          "expression": "B12:3",
+          "unit": "",
+          "class": ""
         }
       ]
     },

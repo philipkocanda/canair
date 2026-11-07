@@ -10,7 +10,7 @@ from canair.uds.protocol import KWP, UDS
 
 from ...dtc.refs import ecu_ref
 from ...dtc.snapshot_report import snapshot_lines, status_line, undefined_hints
-from ...ecus.names import ecu_display
+from ...ecus.names import ecu_display, ecu_name
 from ...transport.protocol import Terminal
 from ..hold import held_session
 from .advice import no_response_hints
@@ -143,4 +143,5 @@ async def mode_dtc_read(
                 ecu_ref(tx_id, profile=profile), [result], label, vehicle_states, profile=profile
             )
             if not as_json:
-                _print_log_result(path, previous, diff, profile=profile)
+                review = ecu_name(tx_id, profile=profile)
+                _print_log_result(path, previous, diff, review, profile=profile)

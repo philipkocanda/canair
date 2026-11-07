@@ -159,7 +159,7 @@ examples:
 ```
 usage: canair dtc log [-h] [--json] [ECU]
 
-Show the most recent logged DTC scan without touching the device (useful when the WiCAN is offline): each code decoded, and the change since the previous scan of the same scope. The scope is the full sweep (`canair dtc --all`) by default, or one ECU when named.
+Show the most recent logged DTC scan without touching the device (useful when the WiCAN is offline): each code decoded, and the change since the previous scan of the same scope. The scope is the full sweep (`canair dtc --all`) by default, or one ECU when named. The full-sweep view also lists every ECU read or cleared on its own since that sweep, so a later single-ECU scan is not hidden behind an older sweep.
 
 Only scans recorded for the selected car (--variant) and its ECU revisions are used: a code read from another car, or from another revision of the ECU, says nothing about this one. The log lives in user state (<config dir>/dtc_log/<profile>.yaml), not in the profile, so reinstalling or re-cloning canair cannot erase it; `canair config` shows where.
 
@@ -171,7 +171,8 @@ options:
   --json      Output as JSON
 
 examples:
-  canair dtc log                       Last logged full sweep, with the change since the one before
+  canair dtc log                       Last logged full sweep, and each ECU read on its own since
   canair dtc log BMS                   Last logged scan of one ECU
-  canair dtc log --json                Machine-readable (the scan, the previous one, the diff)
+  canair dtc log --json                Machine-readable (the scan, the previous one, the diff,
+                                       the ECUs read since)
 ```

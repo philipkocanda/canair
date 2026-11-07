@@ -800,16 +800,16 @@ BCM:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB00303"
-      false: "2FB00300"
+      "on": "2FB00303"
+      "off": "2FB00300"
       notes: NRC 0x22 (conditionsNotCorrect) in SLEEP (locked).
 
     B006:
       vehicle_states: [ACC, READY]
       label: Parking sensors
       verified: true
-      true: "2FB00603"
-      false: "2FB00600"
+      "on": "2FB00603"
+      "off": "2FB00600"
       notes: >-
         Turns on the parking-sensor switch LED. NRC 0x22 (conditionsNotCorrect) in SLEEP (locked).
 
@@ -817,126 +817,126 @@ BCM:
       vehicle_states: []
       label: Wiper Motor (slow)
       verified: true
-      true: "2FB00803"
-      false: "2FB00800"
+      "on": "2FB00803"
+      "off": "2FB00800"
       notes: NRC 0x22 (conditionsNotCorrect) in SLEEP (locked).
 
     B009:
       vehicle_states: []
       label: Wiper Motor (fast)
       verified: true
-      true: "2FB00903"
-      false: "2FB00900"
+      "on": "2FB00903"
+      "off": "2FB00900"
       notes: NRC 0x22 (conditionsNotCorrect) in SLEEP (locked).
 
     B00A:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB00A03"
-      false: "2FB00A00"
+      "on": "2FB00A03"
+      "off": "2FB00A00"
       notes: NRC 0x22 (conditionsNotCorrect) in SLEEP (locked).
 
     B00F:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB00F03"
-      false: "2FB00F00"
+      "on": "2FB00F03"
+      "off": "2FB00F00"
       notes: No visible effect and no NRC in SLEEP (locked).
 
     B019:
       vehicle_states: []
       label: Room lamp (interior)
       verified: true
-      true: "2FB01903"
-      false: "2FB01900"
+      "on": "2FB01903"
+      "off": "2FB01900"
       notes: Works in ACC; no visible effect (no NRC) in SLEEP (locked).
 
     B01A:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB01A03"
-      false: "2FB01A00"
+      "on": "2FB01A03"
+      "off": "2FB01A00"
 
     B025:
       vehicle_states: [SLEEP, PLUGGED]
       label: Puddle lights
       verified: true
-      true: "2FB02503"
-      false: "2FB02500"
+      "on": "2FB02503"
+      "off": "2FB02500"
 
     B028:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB02803"
-      false: "2FB02800"
+      "on": "2FB02803"
+      "off": "2FB02800"
       notes: NRC 0x22 (conditionsNotCorrect) in ACC.
 
     B029:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB02903"
-      false: "2FB02900"
+      "on": "2FB02903"
+      "off": "2FB02900"
 
     B030:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB03003"
-      false: "2FB03000"
+      "on": "2FB03003"
+      "off": "2FB03000"
 
     B038:
       vehicle_states: []
       label: Seatbelt warn driver
       verified: true
-      true: "2FB03803"
-      false: "2FB03800"
+      "on": "2FB03803"
+      "off": "2FB03800"
 
     B039:
       vehicle_states: []
       label: Seatbelt warn pass 1
       verified: true
-      true: "2FB03903"
-      false: "2FB03900"
+      "on": "2FB03903"
+      "off": "2FB03900"
 
     B03A:
       vehicle_states: []
       label: Seatbelt warn pass 2
       verified: true
-      true: "2FB03A03"
-      false: "2FB03A00"
+      "on": "2FB03A03"
+      "off": "2FB03A00"
 
     B03B:
       vehicle_states: []
       label: Seatbelt warn pass 3
       verified: true
-      true: "2FB03B03"
-      false: "2FB03B00"
+      "on": "2FB03B03"
+      "off": "2FB03B00"
 
     B04D:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB04D03"
-      false: "2FB04D00"
+      "on": "2FB04D03"
+      "off": "2FB04D00"
 
     B057:
       vehicle_states: []
       label: Unknown
       verified: false
-      true: "2FB05703"
-      false: "2FB05700"
+      "on": "2FB05703"
+      "off": "2FB05700"
 
     B059:
       vehicle_states: []
       label: Heated steering wheel
       verified: true
-      true: "2FB05903"
-      false: "2FB05900"
+      "on": "2FB05903"
+      "off": "2FB05900"
       notes: >-
         Labelled heated door handle on the e-Niro; drives the heated steering wheel on this car. NRC
         0x22 (conditionsNotCorrect) in SLEEP (locked).
@@ -945,16 +945,16 @@ BCM:
       vehicle_states: []
       label: Heated steering wheel LED
       verified: true
-      true: "2FB05A03"
-      false: "2FB05A00"
+      "on": "2FB05A03"
+      "off": "2FB05A00"
       notes: NRC 0x22 (conditionsNotCorrect) in SLEEP (locked).
 
     B05B:
       vehicle_states: [ALL]
       label: Mirror fold
       verified: true
-      true: "2FB05B03"
-      false: "2FB05B00"
+      "on": "2FB05B03"
+      "off": "2FB05B00"
       notes: >-
         Folds the side mirrors in (e-Niro DID). Must be turned off again before B05C (unfold) works.
 
@@ -962,38 +962,38 @@ BCM:
       vehicle_states: [ALL]
       label: Mirror unfold
       verified: true
-      true: "2FB05C03"
-      false: "2FB05C00"
+      "on": "2FB05C03"
+      "off": "2FB05C00"
       notes: Unfolds the side mirrors (e-Niro DID).
 
     B061:
       vehicle_states: []
       label: N/A
       verified: false
-      true: "2FB06103"
-      false: "2FB06100"
+      "on": "2FB06103"
+      "off": "2FB06100"
       notes: NRC 0x31 (requestOutOfRange), with and without ACC power.
 
     B071:
       vehicle_states: [ALL]
       label: Unknown
       verified: false
-      true: "2FB07103"
-      false: "2FB07100"
+      "on": "2FB07103"
+      "off": "2FB07100"
 
     B072:
       vehicle_states: [ALL]
       label: Unknown
       verified: false
-      true: "2FB07203"
-      false: "2FB07200"
+      "on": "2FB07203"
+      "off": "2FB07200"
 
     C001:
       vehicle_states: []
       label: Unknown (TPMS region)
       verified: false
-      true: "2FC00103"
-      false: "2FC00100"
+      "on": "2FC00103"
+      "off": "2FC00100"
       notes: >-
         C001-C006 lie in the TPMS DID range and were found by a returnControl (00) probe only. Do
         not activate (03) blind: it may reset TPMS pairing.
@@ -1002,40 +1002,40 @@ BCM:
       vehicle_states: []
       label: Unknown (TPMS region)
       verified: false
-      true: "2FC00203"
-      false: "2FC00200"
+      "on": "2FC00203"
+      "off": "2FC00200"
       notes: TPMS DID range; do not activate blind. See C001.
 
     C003:
       vehicle_states: []
       label: Unknown (TPMS region)
       verified: false
-      true: "2FC00303"
-      false: "2FC00300"
+      "on": "2FC00303"
+      "off": "2FC00300"
       notes: TPMS DID range; do not activate blind. See C001.
 
     C004:
       vehicle_states: []
       label: Unknown (TPMS region)
       verified: false
-      true: "2FC00403"
-      false: "2FC00400"
+      "on": "2FC00403"
+      "off": "2FC00400"
       notes: TPMS DID range; do not activate blind. See C001.
 
     C005:
       vehicle_states: []
       label: Unknown (TPMS region)
       verified: false
-      true: "2FC00503"
-      false: "2FC00500"
+      "on": "2FC00503"
+      "off": "2FC00500"
       notes: TPMS DID range; do not activate blind. See C001.
 
     C006:
       vehicle_states: []
       label: Unknown (TPMS region)
       verified: false
-      true: "2FC00603"
-      false: "2FC00600"
+      "on": "2FC00603"
+      "off": "2FC00600"
       notes: TPMS DID range; do not activate blind. See C001.
 
   research:

@@ -558,40 +558,40 @@ IGPM:
       vehicle_states: [ALL]
       label: Low beam
       verified: true
-      true: "2FBC0103"
-      false: "2FBC0100"
+      "on": "2FBC0103"
+      "off": "2FBC0100"
       status_param: LOW_BEAM
 
     BC02:
       vehicle_states: [ALL]
       label: High beam
       verified: true
-      true: "2FBC0203"
-      false: "2FBC0200"
+      "on": "2FBC0203"
+      "off": "2FBC0200"
       status_param: HIGH_BEAM
 
     BC03:
       vehicle_states: [ALL]
       label: Front fog light
       verified: true
-      true: "2FBC0303"
-      false: "2FBC0300"
+      "on": "2FBC0303"
+      "off": "2FBC0300"
       notes: "No visible effect: this trim has no front fog lamps."
 
     BC04:
       vehicle_states: [ALL]
       label: Tail / rear light
       verified: true
-      true: "2FBC0403"
-      false: "2FBC0400"
+      "on": "2FBC0403"
+      "off": "2FBC0400"
       status_param: TAIL_LIGHTS
 
     BC05:
       vehicle_states: [ALL]
       label: Tail lamp output (interior)
       verified: true
-      true: "2FBC0503"
-      false: "2FBC0500"
+      "on": "2FBC0503"
+      "off": "2FBC0500"
       notes: >-
         GDS 'Tail Lamp Output (Interior)': the instrument illumination circuit. Lights the blue
         instrument LEDs and the green dash indicator.
@@ -601,23 +601,23 @@ IGPM:
       vehicle_states: [ALL]
       label: Burglar alarm horn relay
       verified: true
-      true: "2FBC0703"
-      false: "2FBC0700"
+      "on": "2FBC0703"
+      "off": "2FBC0700"
       notes: "GDS 'Burglar Horn Relay': the alarm horn. Loud."
 
     BC08:
       vehicle_states: [ALL]
       label: Rear fog light
       verified: true
-      true: "2FBC0803"
-      false: "2FBC0800"
+      "on": "2FBC0803"
+      "off": "2FBC0800"
 
     BC09:
       vehicle_states: [ALL]
       label: Trunk unlock
       verified: true
-      true: "2FBC0903"
-      false: "2FBC0900"
+      "on": "2FBC0903"
+      "off": "2FBC0900"
       status_param: TRUNK_OPEN
       notes: Releases the latch only (no lift motor). Sounds the alarm if the car is locked.
 
@@ -625,24 +625,24 @@ IGPM:
       vehicle_states: [ALL]
       label: Start inhibit relay (option)
       verified: false
-      true: "2FBC0A03"
-      false: "2FBC0A00"
+      "on": "2FBC0A03"
+      "off": "2FBC0A00"
       notes: GDS 'Start Inhibit Relay (Option)' by ScanDoc numbering. No visible effect in ACC.
 
     BC0C:
       vehicle_states: [ALL]
       label: Rear defogger relay
       verified: true
-      true: "2FBC0C03"
-      false: "2FBC0C00"
+      "on": "2FBC0C03"
+      "off": "2FBC0C00"
       notes: "Rear window heater. ACC: audible relay click; lights the button on the HVAC controls."
 
     BC10:
       vehicle_states: [ALL]
       label: Door LOCK all
       verified: true
-      true: "2FBC1003"
-      false: "2FBC1000"
+      "on": "2FBC1003"
+      "off": "2FBC1000"
       status_param: DOOR_LOCK_FL
       notes: Locks the doors only; does not arm the alarm.
 
@@ -650,8 +650,8 @@ IGPM:
       vehicle_states: [ALL]
       label: Door UNLOCK all
       verified: true
-      true: "2FBC1103"
-      false: "2FBC1100"
+      "on": "2FBC1103"
+      "off": "2FBC1100"
       status_param: DOOR_LOCK_FL
       notes: "Does not disarm the alarm: opening a door then sounds the horn."
 
@@ -659,8 +659,8 @@ IGPM:
       vehicle_states: [ALL]
       label: Driver door unlock relay (option)
       verified: false
-      true: "2FBC1203"
-      false: "2FBC1200"
+      "on": "2FBC1203"
+      "off": "2FBC1200"
       status_param: DOOR_LOCK_FL
       notes: "GDS 'Driver Door Unlock Relay (Option)' by ScanDoc numbering. ACC: relay click."
 
@@ -668,8 +668,8 @@ IGPM:
       vehicle_states: [ALL]
       label: Deadlock relay (probable)
       verified: false
-      true: "2FBC1303"
-      false: "2FBC1300"
+      "on": "2FBC1303"
+      "off": "2FBC1300"
       notes: >-
         Deadlock relay by ScanDoc numbering (the EU DOOR LOCK fuse feeds the ICM dead lock relay).
         Deadlocked doors cannot be opened from inside: do not actuate with anyone in the car. ACC:
@@ -679,8 +679,8 @@ IGPM:
       vehicle_states: [ALL]
       label: Power window relay (probable)
       verified: false
-      true: "2FBC1403"
-      false: "2FBC1400"
+      "on": "2FBC1403"
+      "off": "2FBC1400"
       notes: >-
         GDS 'Power Window Relay' by ScanDoc numbering. ConditionsNotCorrect in ACC; accepted only
         with the car asleep.
@@ -689,24 +689,24 @@ IGPM:
       vehicle_states: [ALL]
       label: Left turn indicator
       verified: true
-      true: "2FBC1503"
-      false: "2FBC1500"
+      "on": "2FBC1503"
+      "off": "2FBC1500"
       status_param: LEFT_TURN_SIGNAL
 
     BC16:
       vehicle_states: [ALL]
       label: Right turn indicator
       verified: true
-      true: "2FBC1603"
-      false: "2FBC1600"
+      "on": "2FBC1603"
+      "off": "2FBC1600"
       status_param: RIGHT_TURN_SIGNAL
 
     BC18:
       vehicle_states: [ALL]
       label: Dedicated DRL output
       verified: true
-      true: "2FBC1803"
-      false: "2FBC1800"
+      "on": "2FBC1803"
+      "off": "2FBC1800"
       status_param: DRL_DEDICATED_OUTPUT
       notes: GDS 'Dedicated DRL Output (Option)'.
 
@@ -714,8 +714,8 @@ IGPM:
       vehicle_states: [ALL]
       label: Auto cut relay (LCAD)
       verified: false
-      true: "2FBC1B03"
-      false: "2FBC1B00"
+      "on": "2FBC1B03"
+      "off": "2FBC1B00"
       notes: >-
         GDS 'Auto Cut Relay': the leak-current autocut relay for the interior lamp, memory and
         multimedia fuse feeds. ACC: single relay click, the dome light goes off. NRC 0x22 in other
@@ -726,15 +726,15 @@ IGPM:
       vehicle_states: [ALL]
       label: Luggage lamp
       verified: true
-      true: "2FBC1C03"
-      false: "2FBC1C00"
+      "on": "2FBC1C03"
+      "off": "2FBC1C00"
 
     BC25:
       vehicle_states: [ALL]
       label: High beam relay (probable)
       verified: false
-      true: "2FBC2503"
-      false: "2FBC2500"
+      "on": "2FBC2503"
+      "off": "2FBC2500"
       notes: >-
         ScanDoc 'High beam relay' by numbering; the 22BC04 support map marks B13:4 for it. Accepted
         in READY with no visible or audible effect.
@@ -743,24 +743,24 @@ IGPM:
       vehicle_states: [ALL]
       label: Rear left brake light
       verified: true
-      true: "2FBC2B03"
-      false: "2FBC2B00"
+      "on": "2FBC2B03"
+      "off": "2FBC2B00"
       status_param: BRAKE_LIGHT
 
     BC2C:
       vehicle_states: [ALL]
       label: Rear right brake light
       verified: true
-      true: "2FBC2C03"
-      false: "2FBC2C00"
+      "on": "2FBC2C03"
+      "off": "2FBC2C00"
       status_param: BRAKE_LIGHT
 
     BC2D:
       vehicle_states: [ALL]
       label: CHMSL (center brake light)
       verified: true
-      true: "2FBC2D03"
-      false: "2FBC2D00"
+      "on": "2FBC2D03"
+      "off": "2FBC2D00"
       status_param: BRAKE_LIGHT
       notes: Center high-mount stop lamp.
 
@@ -768,23 +768,23 @@ IGPM:
       vehicle_states: [ALL]
       label: Charge cable LOCK
       verified: true
-      true: "2FBC3F03"
-      false: "2FBC3F00"
+      "on": "2FBC3F03"
+      "off": "2FBC3F00"
 
     BC41:
       vehicle_states: [ALL]
       label: Charge cable UNLOCK
       verified: true
-      true: "2FBC4103"
-      false: "2FBC4100"
+      "on": "2FBC4103"
+      "off": "2FBC4100"
       notes: The car re-locks the cable at once. Untested during an active charge.
 
     BC42:
       vehicle_states: [ALL]
       label: Front charge door lamp
       verified: false
-      true: "2FBC4203"
-      false: "2FBC4200"
+      "on": "2FBC4203"
+      "off": "2FBC4200"
       notes: >-
         ScanDoc 'Front charge door lamp output' by numbering; this car has no front charge door.
         Accepted in READY with no visible or audible effect.
@@ -793,8 +793,8 @@ IGPM:
       vehicle_states: [ALL]
       label: Rear charge door lamp
       verified: true
-      true: "2FBC4303"
-      false: "2FBC4300"
+      "on": "2FBC4303"
+      "off": "2FBC4300"
       notes: >-
         ScanDoc 'Rear charge door lamp output' by numbering. The lamp sits inside the charge-port
         door; accepted in READY with the door closed, with no visible effect.
@@ -804,8 +804,8 @@ IGPM:
       vehicle_states: [ALL]
       label: Ignition 3 relay
       verified: true
-      true: "2FBC4403"
-      false: "2FBC4400"
+      "on": "2FBC4403"
+      "off": "2FBC4400"
       notes: >-
         The IGPM's IG3 relay by ScanDoc numbering ('Ignition 3 relay'). Verified 2026-11-06:
         switching it on gives an audible relay click with no key or fob in the car. With the

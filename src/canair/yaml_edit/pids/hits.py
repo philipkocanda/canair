@@ -48,6 +48,17 @@ _IOCONTROL_BOOL_FIELDS = frozenset({"verified", "session", "hold"})
 _IOCONTROL_QUOTED_FIELDS = frozenset({"on", "off", "release", "enable_mask", "session_mode"})
 
 
+# An actuator's on/off keys in the spellings a file may hold. Unquoted, YAML 1.1 (canair's
+# loader) reads them as true/false and YAML 1.2 (an editor) as text, so they are written quoted.
+_SWITCH_KEY_LINE = re.compile(r"^( {6})(on|off|true|false|'on'|'off'):", re.MULTILINE)
+
+
+def _quote_switch_keys(block: str) -> str:
+    """``block`` (one iocontrol: entry) with its on/off keys written ``"on":`` and ``"off":``."""
+    names = {"on": "on", "true": "on", "'on'": "on", "off": "off", "false": "off", "'off'": "off"}
+    return _SWITCH_KEY_LINE.sub(lambda m: f'{m[1]}"{names[m[2]]}":', block)
+
+
 # ── Routines section appender ────────────────────────────────────────────────
 
 
@@ -382,10 +393,11 @@ def update_iocontrol_field(
     text = fpath.read_text()
     start, end = _find_did_block(text, did)
     block = text[start:end]
+    entry = _quote_switch_keys(block)
 
     if field == "notes":
         new_lines = _format_block_scalar("      ", "notes", str(value))
-        new_block = _replace_field_in_block(block, "notes", new_lines)
+        new_block = _replace_field_in_block(entry, "notes", new_lines)
     else:
         if field in _IOCONTROL_BOOL_FIELDS:
             rendered = _format_verified(bool(value))
@@ -393,7 +405,8 @@ def update_iocontrol_field(
             rendered = f'"{str(value).strip().upper()}"'
         else:
             rendered = _format_label(str(value).strip())
-        new_block = _replace_field_in_block(block, field, f"      {field}: {rendered}")
+        key = _key_token(field)
+        new_block = _replace_field_in_block(entry, key, f"      {key}: {rendered}")
 
     if new_block == block:
         return fpath  # no-op

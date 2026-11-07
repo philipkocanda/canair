@@ -509,8 +509,9 @@ Mark a PID (or, with --param, one of its signals) whose value identifies the
 car or its owner like a VIN does — e.g. the CCM's EVCCID, which Autocharge
 chargers bill against. Its reply is shown as ***** (`canair read --reveal`
 shows it), never written to captures/, and left out of contribute, the blind
-strip, the docs explorer and the WiCAN AutoPID export. A sensitive signal also
-hides its PID's raw bytes, which give it away.
+strip, the docs explorer and the WiCAN AutoPID export. A sensitive signal
+masks only the reply bytes it reads (shown as **), and the whole reply is
+still never saved.
 
 positional arguments:
   ecu            ECU name (a key in ecus/)

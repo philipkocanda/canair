@@ -32,6 +32,6 @@ VESS:
       vehicle_states: []
       label: Play VESS sound
       verified: true
-      true: "2FF011030001"
-      false: "2FF01100"
+      "on": "2FF011030001"
+      "off": "2FF01100"
       notes: Plays the pedestrian warning sound for ~5 s.

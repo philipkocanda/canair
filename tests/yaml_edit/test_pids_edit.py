@@ -111,8 +111,8 @@ class TestUpdateLabel:
         data = _reload(tmp_pids_dir / "test.yaml")
         assert data["TEST"]["iocontrol"]["AA01"]["label"] == "New label"
         # sibling fields preserved (YAML parses bare on/off keys as booleans)
-        assert data["TEST"]["iocontrol"]["AA01"][True] == "2FAA0103"
-        assert data["TEST"]["iocontrol"]["AA01"][False] == "2FAA0100"
+        assert data["TEST"]["iocontrol"]["AA01"]["on"] == "2FAA0103"
+        assert data["TEST"]["iocontrol"]["AA01"]["off"] == "2FAA0100"
 
     def test_replace_quoted(self, tmp_pids_dir: Path):
         update_iocontrol_field(
@@ -252,8 +252,10 @@ class TestUpdateCommandFields:
         )
         raw = (tmp_pids_dir / "test.yaml").read_text()
         assert 'session_mode: "C0"' in raw
+        # The entry's bare on:/off: keys (YAML 1.1 reads them as true/false) come back quoted.
+        assert '      "on": "2FAA0103FF"\n      "off": "2FAA0100"\n' in raw
         entry = _reload(tmp_pids_dir / "test.yaml")["TEST"]["iocontrol"]["AA01"]
-        assert entry[True] == "2FAA0103FF"
+        assert entry["on"] == "2FAA0103FF"
         assert entry["session_mode"] == "C0"
 
     def test_a_numeric_session_mode_stays_a_string(self, tmp_pids_dir: Path):
@@ -295,9 +297,8 @@ class TestPromoteDiscovery:
         entry = data["TEST"]["iocontrol"]["BB01"]
         assert entry["label"] == "Fan speed"
         assert entry["verified"] is False
-        # YAML parses bare on/off keys as booleans
-        assert entry[True] == "2FBB01030100"
-        assert entry[False] == "2FBB0100"
+        assert entry["on"] == "2FBB01030100"
+        assert entry["off"] == "2FBB0100"
         # Removed from discoveries
         assert "BB01" not in (data["TEST"].get("iocontrol_discoveries") or {})
 
@@ -307,7 +308,7 @@ class TestPromoteDiscovery:
             "TEST", "BB02", "Three-byte actuator", pids_dir=tmp_pids_dir, profile=active()
         )
         data = _reload(tmp_pids_dir / "test.yaml")
-        assert data["TEST"]["iocontrol"]["BB02"][True] == "2FBB0203010000"
+        assert data["TEST"]["iocontrol"]["BB02"]["on"] == "2FBB0203010000"
 
     def test_falls_back_on_short_response(self, tmp_pids_dir: Path):
         """BB03 response 6FBB03 (3 bytes, no tail) → fallback payload 00."""
@@ -315,7 +316,7 @@ class TestPromoteDiscovery:
             "TEST", "BB03", "Fallback default", pids_dir=tmp_pids_dir, profile=active()
         )
         data = _reload(tmp_pids_dir / "test.yaml")
-        assert data["TEST"]["iocontrol"]["BB03"][True] == "2FBB030300"
+        assert data["TEST"]["iocontrol"]["BB03"]["on"] == "2FBB030300"
 
     def test_removes_discoveries_section_when_emptied(self, tmp_pids_dir: Path):
         promote_discovery("TEST", "BB01", "a", pids_dir=tmp_pids_dir, profile=active())

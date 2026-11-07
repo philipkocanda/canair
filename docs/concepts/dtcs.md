@@ -210,9 +210,13 @@ Review the log **without touching the device** (handy when the car is off) with
 `canair dtc log`:
 
 ```bash
-canair dtc log         # the last logged full sweep, offline
+canair dtc log         # the last logged full sweep, and every ECU read on its own since
 canair dtc log BMS     # the last logged scan for one ECU, offline
 ```
+
+A full sweep is only as current as its date. When you read or clear one ECU after it
+(`canair dtc IGPM`), the bare `canair dtc log` lists that ECU's latest reading under
+**Read since this sweep**, so the newer codes are not hidden behind the older sweep.
 
 A bare `canair dtc` says how many codes the log holds and how many are still open,
 `canair ecu <ECU>` lists that ECU's **open** codes in red (the codes its most recent

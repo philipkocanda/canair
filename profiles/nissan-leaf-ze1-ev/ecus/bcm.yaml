@@ -41,8 +41,8 @@ BCM:
     "0700":
       label: Doors lock / unlock
       verified: false
-      on: "30070001"
-      off: "30070000"
+      "on": "30070001"
+      "off": "30070000"
       notes: >-
         Function 00 (one-shot): 1 = lock, 2 = unlock all doors, 3 = unlock driver door, 4 = unlock
         passenger doors (values 3 and 4 from the Qashqai J10 table). The ON command locks; send
@@ -54,8 +54,8 @@ BCM:
     6900:
       label: Mirrors fold / unfold
       verified: false
-      on: "30690001"
-      off: "30690000"
+      "on": "30690001"
+      "off": "30690000"
       notes: >-
         Function 00 (one-shot): 1 = fold, 2 = unfold. The ON command folds; send 30690002 to unfold.
         OFF is a no-op.
@@ -66,8 +66,8 @@ BCM:
     2200:
       label: Horn
       verified: false
-      on: "30220001"
-      off: "30220000"
+      "on": "30220001"
+      "off": "30220000"
       notes: >-
         Function 00 (one-shot): 1 = sound the horn, for a duration the ECU decides. OFF is a no-op.
       session: true
@@ -77,8 +77,8 @@ BCM:
     4520:
       label: Wiper
       verified: false
-      on: "30452003"
-      off: "30452000"
+      "on": "30452003"
+      "off": "30452000"
       notes: >-
         Function 20 (reverts after ~5 s): 3 = one wipe. Qashqai J10 values: 1 = fast, 2 = slow, 0 =
         off for ~5 s, which OFF sends.
@@ -89,8 +89,8 @@ BCM:
     3B20:
       label: Headlights low / high beam
       verified: false
-      on: "303b2002"
-      off: "303b2000"
+      "on": "303b2002"
+      "off": "303b2000"
       notes: >-
         Function 20 (reverts after ~5 s): 2 = high beam, as captured; 1 = low beam per the Qashqai
         J10 table. 0 = off for ~5 s, which OFF sends.
