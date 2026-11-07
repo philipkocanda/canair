@@ -811,13 +811,14 @@ IGPM:
         charging cable plugged in, it also lights the red 'plug connected' lamp on the dash. It
         closes the IG3 rail and wakes the ECUs on it: the VCU did not answer before the ON (it never
         answers with the car asleep), and 3 s after the ON IG3_RELAY_OUTPUT and VCU_IG3_ON read 1
-        and the VCU, BMS, OBC, MCU, AAF and HVAC all answered. The rail holds after the OFF: 75 s
-        later the VCU still read IG3 on and the others still answered although IG3_RELAY_OUTPUT read
-        0, and about 110 s after the OFF the VCU read IG3 off and only the VCU answered, in the
-        run-on it has after IG3 falls (about 3 min at the end of the 2026-11-03 top-up). A second
-        OFF went out at the 75 s mark. IG3 powers the EPCU, OBC and BMS: do not toggle it casually.
-        Accepted in READY with no effect (IG3 already on); ConditionsNotCorrect in ACC. Captures:
-        label 'IGPM BC44 IG3 test', 2026-11-06.
+        and the VCU, BMS, OBC, MCU, AAF and HVAC all answered. It starts nothing: VCU_POWER_STATE
+        read 6 and BMS_MAIN_RELAY stayed 0 (HV main relay open), with the cable plugged in. The rail
+        holds after the OFF: 75 s later the VCU still read IG3 on and the others still answered
+        although IG3_RELAY_OUTPUT read 0, and about 110 s after the OFF the VCU read IG3 off and
+        only the VCU answered, in the run-on it has after IG3 falls (about 3 min at the end of the
+        2026-11-03 top-up). A second OFF went out at the 75 s mark. IG3 powers the EPCU, OBC and
+        BMS: do not toggle it casually. Accepted in READY with no effect (IG3 already on);
+        ConditionsNotCorrect in ACC. Captures: label 'IGPM BC44 IG3 test', 2026-11-06.
       status_param: IG3_RELAY_OUTPUT
   research:
     - type: verify
@@ -983,19 +984,6 @@ IGPM:
         - projectgus car_hacking, bench_kona/igpm.py CGW_5EC (Kona OS EV)
       what_to_test:
         - Tapped P-CAN sniff while locking/unlocking the charge port; look for 0x5EC byte0 toggling.
-    - type: decode
-      target: broadcast 0x567 (gateway real-time clock)
-      status: done
-      priority: P3
-      vehicle_states: [ALL]
-      created: "2026-10-29"
-      updated: "2026-10-29"
-      result: >-
-        Defined in signals/body.yaml CGW_CLOCK (hour, minute, second, valid). No byte of IGPM
-        22BC01-07, BCM 22B00E/22C00B or CLU 22B002 tracks wall-clock time (plain or BCD), so the
-        clock is not exposed in any captured status DID.
-      sources:
-        - projectgus car_hacking, bench_kona/igpm.py CGW_Clock (Kona OS EV)
     - type: decode
       target: 22BC03-07 support bitmap (B05-B07, B09)
       status: pending
@@ -1178,6 +1166,33 @@ IGPM:
         ReadScalingDataByIdentifier on BC03 and BC07 returns NRC 0x11.
       sources:
         - on-car 2026-11-01 support probe (canair read raw steps --save, wican-ws, AC charging)
+    - type: decode
+      target: broadcast 0x567 (gateway copy of the head unit's clock)
+      status: done
+      priority: P3
+      vehicle_states: [ALL]
+      created: "2026-10-29"
+      updated: "2026-11-07"
+      date: "2026-11-07"
+      result: >-
+        Defined in signals/body.yaml CGW_CLOCK (hour, minute, second, valid). The IGPM copies the
+        head unit's HU_GW_P_05 (MM-CAN 0x54F) to P-CAN and keeps no running clock of its own: with
+        the head unit silent, 0x567 stays frozen at the last time received. No captured DID carries
+        the time of day: 70 PIDs on 23 ECUs, about 60 distinct hours, minute/hour/second plain and
+        BCD and 16-bit minute of day, checked 2026-11-07.
+      notes: >-
+        uhi22 Logging126 (Ioniq 28, 2023-06-08, DC charge with the head unit off): 0x567 read
+        12:06:35 ready=0 for all 138 s while the VCU and OBC ran. Logging127, about 25 min later: at
+        wake-up the IGPM sent the same 12:06:35, then all zeros for about 15 s, then the head unit's
+        ticking time (ready 0, then 1). So the IGPM keeps the last value across a sleep without
+        advancing it. ready=0 does not mark the IGPM as the sender: the head unit also sends ticking
+        time with ready=0. The only clocks in the captured DIDs count time awake (BMS
+        OPERATING_TIME).
+      sources:
+        - projectgus car_hacking, bench_kona/igpm.py CGW_Clock (Kona OS EV)
+        - uhi22 IoniqMotorCAN Traces/Logging126_twoTimes_withPyPlcIntoTheChargingLoop.asc and Logging127_twoTimes_withPyPlcSuppressedChargeParamDiscoveryResponse.asc
+        - ioniq-avn-fw docs/micom/micom-can-findings.md section 6.6
+        - canair decode --dump-bytes time-of-day scan over all timed captures, 2026-11-07
 
   iocontrol_discoveries:
     BC01:

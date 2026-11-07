@@ -981,7 +981,11 @@ VCU:
         re-broadcasts its stored copy on 0x57A and 0x579, also on a bench with no gateway or head
         unit (uhi22). Decoded in signals/body.yaml (GW_DEPART_*, GW_ECON_*) and
         signals/powertrain.yaml (VCU_DEPART_*, VCU_ECON_*). No diagnostic page known.
-      notes: Find a VCU diagnostic page that exposes the stored departure and off-peak schedules.
+      notes: >-
+        Find a VCU diagnostic page that exposes the stored departure and off-peak schedules. The
+        head unit offers no way in either: its UDS server writes only DID F110, a configuration
+        record, and sends the schedules only as 0x57A/0x57B (ioniq-avn-fw micom-can-findings.md
+        section 7C).
       what_to_test:
         - Read VCU 2101/2102/21F2 before and after changing the departure and off-peak schedules in the head unit, and look for bytes that follow the 0x57A/0x579 content.
     - type: verify
@@ -1095,6 +1099,120 @@ VCU:
       capture_protocol: >-
         canair monitor OBC:2101 VCU:2101 BMS:2101 --save --keep-all --interval 2 --label 'head-unit
         charge mode start/stop' --state CHARGING; press s at each menu change and name the mode.
+    - type: scan
+      target: KWP2000 service support (0x30, 0x31, 0x3B, 0x27) and session 10 90
+      status: pending
+      priority: P2
+      vehicle_states: [IG3]
+      created: "2026-11-07"
+      updated: "2026-11-07"
+      notes: >-
+        Find out whether the VCU implements a write, routine or IOControl service before looking for
+        a schedule or remote-start path in it. Only service-21 pages 01, 02 and F2 answer, and only
+        session 81 is accepted (82 and 83 answer NRC 0x12). Read support from the NRC, never by
+        running the service: 0x11 means absent, 0x12 or 0x13 means present. Hyundai/Kia KWP2000
+        units do implement WriteDataByLocalIdentifier: the Kia Soul EV TPMS module accepts 3B writes
+        after a 27 01 that needs no key. canair's blocklist refuses every 3B request, even a bare
+        SID, so 3B waits for the planned 'scan services --include-risky'. 10 90 is the
+        extended-session alias the Soul EV BMS uses; canair refuses it on a KWP2000 ECU until
+        profile.yaml grants it. Never send 10 85 or 10 86. uhi22 runs an EPCU alone on a bench
+        (CN1000 P3 and Q3 to 12 V), a safe place for anything beyond the NRC probe.
+      sources:
+        - plans/2026-10-29-service-id-enumeration.md
+        - profiles/hyundai-ioniq-ae-ev/references/kia-soul-ev-can-messages.xlsx (OBD PIDs and BMC sheets)
+        - https://github.com/uhi22/Ioniq28Investigations/blob/main/EPCU_ElectronicPowerControlUnit/readme.md
+      what_to_test:
+        - "Bare 30 and bare 31 (no local id): NRC 0x11 means absent, 0x12 or 0x13 present"
+        - "27 01 (seed request only, never a key): a seed or an NRC other than 0x11 means SecurityAccess exists"
+        - 3B presence, once scan services --include-risky exists
+        - 10 90, after deciding to grant it in profile.yaml
+      capture_protocol: >-
+        With IG3 on (READY, charging, or IGPM 2F BC44 03): canair raw 7E2:30 --save --label 'VCU
+        service probe' --state IG3, then the same for 7E2:31 and 7E2:2701. Record each NRC.
+    - type: decode
+      target: 2101 B10:6 charge-timer inhibit (Soul 'CH tmr Inh')
+      status: pending
+      priority: P3
+      vehicle_states: [PLUGGED]
+      created: "2026-11-07"
+      updated: "2026-11-07"
+      notes: >-
+        On the Kia Soul EV, the VMCU 2101 byte with the P/R/N/D bits has b5 'ECO off sw', b6 'CH tmr
+        Inh' and b7 'Immobilizer?'. Here B10:0-3 are the gear bits, so B10:6 is the candidate.
+        B10:4, B10:6 and B10:7 read 0 in all 13,183 stored 2101 replies (2026-11-07), and no capture
+        had a charge schedule pending. B10:5 is GEAR_SIGNAL_VALID here, not an ECO switch.
+      sources:
+        - profiles/hyundai-ioniq-ae-ev/references/kia-soul-ev-can-messages.xlsx (VMCU_Data sheet)
+        - canair decode VCU:2101 --try --stats, 2026-11-07
+      what_to_test:
+        - "Plugged in with 'Charge on Schedule' and an off-peak window that excludes now: B10:6 reads 1 while the charge waits and 0 after switching to 'Charge Now'"
+      capture_protocol: >-
+        canair monitor VCU:2101 OBC:2101 --save --keep-all --interval 2 --label 'charge timer
+        inhibit' --state PLUGGED; press s at each menu change.
+    - type: verify
+      target: "remote climate and charge start: the TMU path and what the OBD port reaches"
+      status: pending
+      priority: P2
+      vehicle_states: [IG3]
+      created: "2026-11-07"
+      updated: "2026-11-07"
+      notes: >-
+        Hyundai's 2017 Ioniq Electric manual (VCU Main Features) lists 'Reserve/Remote Charge/A/C:
+        remote control via Center/Smartphone through synchronization with TMU', so a remote start is
+        a CAN request from the telematics unit, not a diagnostic service. The US head unit defines
+        that request as TMU1 0x587 (CF_TMU_IG3RLY, AIRCONCTR, CHARGECTR;
+        research/IONIQ_AVN_FW_FINDINGS.md section 6). The EU car has no TMU, and the EU head unit's
+        UDS server has no charge or climate service (ioniq-avn-fw micom-can-findings.md section 7C).
+        The same manual has the climate unit run its compressor and heater only within the power the
+        VCU allows. On a Kona the gateway passes only listed diagnostic ids from the OBD port
+        (research/IGPM_FINDINGS.md section 4); the Ioniq's table is not measured. IGPM 2F BC44 03
+        wakes the IG3 controllers but starts nothing: in the 2026-11-06 test, plugged in,
+        VCU_POWER_STATE read 6 and BMS_MAIN_RELAY stayed 0.
+      sources:
+        - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Hybrid%2FElectric%20Powertrain/Electric%20Converters%20and%20Controllers/Electric%20Power%20Control%20Unit%20%28EPCU%29%20%28EV%29/Vehicle%20Control%20Unit%20%28VCU%29/Description%20And%20Operation/Description/Main%20Features/
+        - profiles/hyundai-ioniq-ae-ev/research/IONIQ_AVN_FW_FINDINGS.md
+        - profiles/hyundai-ioniq-ae-ev/research/IGPM_FINDINGS.md
+        - ioniq-avn-fw docs/micom/micom-can-findings.md sections 7B and 7C
+        - https://github.com/tylerharvey/Ioniq5_CAN
+        - canair align VCU:2101 BMS:2101 IGPM:22BC07 --label BC44, 2026-11-07
+      what_to_test:
+        - "With a P-CAN tap on IGPM I/P-G pins 1 and 2: does a 0x587, 0x55C or 0x588 frame sent at the OBD port appear on P-CAN?"
+        - "On the P-CAN tap, with IG3 on: does a 0x587 frame with AIRCONCTR set start the climate? The gateway sends 0x55C and 0x588 itself, so an injected copy competes with its own."
+    - type: verify
+      target: who wakes the car for a scheduled start, and which clock it uses
+      status: pending
+      priority: P2
+      vehicle_states: [PLUGGED]
+      created: "2026-11-07"
+      updated: "2026-11-07"
+      notes: >-
+        Only the head unit keeps a running clock; the IGPM forwards a frozen copy on 0x567 (IGPM
+        research entry on 0x567), and the VCU cannot keep time while parked (the EPCU supply needs
+        its wake line; the VCU never answers asleep). So something must wake the car at a scheduled
+        start. Candidates: the head unit (its kernel has RTC alarm wake), the IGPM holding a
+        countdown (it already closes its IG3 relay for the parked 12 V top-up), or the OBC holding a
+        countdown (schedules need the cable plugged in). The claim that a schedule ran with the AVN
+        fuse pulled is unconfirmed: the 2026-10-22 capture behind it shows only the timer icon, with
+        the car in READY. BMS OPERATING_TIME ([B57:B60], seconds awake) times the wake without
+        polling in the waiting window, so the test does not keep the bus awake.
+      sources:
+        - profiles/hyundai-ioniq-ae-ev/ecus/igpm.yaml
+        - uhi22 IoniqMotorCAN Traces/Logging126 and Logging127
+        - uhi22 Ioniq28Investigations EPCU readme (CN1000 P3 wake line)
+        - ioniq-avn-fw docs/power-sleep-model.md (RTC alarm wake)
+        - projectgus hyundai-kona-ev-can-logs 221228-5-2019-scheduled-charge-session.csv
+      what_to_test:
+        - "No start: the head unit is the waker"
+        - "Start at about T + (S - P): the VCU used the frozen IGPM time and handed off a countdown"
+        - "Start at T: something else keeps time; IG3_RELAY_OUTPUT (22BC07 B12:3) = 1 means the IGPM closed IG3, 0 with VCU_IG3_ON = 1 means the OBC's relay"
+        - Repeat with a different S - P to separate the last two cases, and once with the AVN fuse in as a control
+      capture_protocol: >-
+        Plugged in. Set a departure time T about 30 min ahead with the head unit. Pull the AVN fuse
+        at time P; keep the car awake until S, then: canair read BMS:2101 --save --label 'scheduled
+        wake: before lock' --state PLUGGED, and lock. Send nothing until T + 10 min. Then: canair
+        read BMS:2101 VCU:2101 IGPM:22BC07 HVAC:220100 OBC:2101 --save --label 'scheduled wake:
+        after T' --state PLUGGED. Start time = read time minus the OPERATING_TIME gain since the
+        first read (assumes no other wake in between).
   sessions:
     "81":
       name: "standardDiagnosticSession"
