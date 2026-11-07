@@ -106,20 +106,20 @@ class CategorizedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         by_name = {sub.dest: sub for sub in subactions}
         emitted: set[str] = set()
 
+        header_indent = " " * self._current_indent
         self._indent()
-        indent = " " * self._current_indent
         try:
             for title, names in CATEGORIES:
                 group = [by_name[n] for n in names if n in by_name]
                 if not group:
                     continue
-                parts.append(_header(title, indent))
+                parts.append(_header(title, header_indent))
                 for sub in group:
                     parts.append(self._format_subcommand(sub))
                     emitted.add(sub.dest)
             leftover = [sub for sub in subactions if sub.dest not in emitted]
             if leftover:
-                parts.append(_header(OTHER_TITLE, indent))
+                parts.append(_header(OTHER_TITLE, header_indent))
                 for sub in leftover:
                     parts.append(self._format_subcommand(sub))
         finally:
@@ -128,19 +128,23 @@ class CategorizedHelpFormatter(argparse.RawDescriptionHelpFormatter):
         return "".join(parts)
 
     def _format_subcommand(self, sub: argparse.Action) -> str:
-        """Format one subcommand line, bolding its ``(alias, …)`` hint on a TTY.
+        """Format one subcommand line: name in plain green, ``(alias, …)`` hint in grey.
 
-        argparse renders an aliased subcommand's invocation as ``name (a, b)``.
-        We bold only the parenthesised hint so the shortcuts stand out. The ANSI
-        codes are injected *after* argparse has padded the line (column widths are
-        computed from the plain text), and escapes have zero display width, so the
-        help-text column stays aligned.
+        argparse renders an aliased subcommand's invocation as ``name (a, b)`` in its
+        bold-green action colour. The colour is dropped to plain green (the hue alone
+        marks a command) and the alias hint is greyed out. The codes are injected *after*
+        argparse has padded the line (column widths are computed from the plain text), and
+        escapes have zero display width, so the help-text column stays aligned. When
+        argparse emits no colour, the theme's codes are empty and the line is unchanged.
         """
         text = super()._format_action(sub)
-        if not sys.stdout.isatty():
+        theme = self._theme  # ty: ignore[unresolved-attribute]
+        if not theme.reset:
             return text
-        inv = self._format_action_invocation(sub)
-        if "(" not in inv or ")" not in inv:
-            return text
-        hint = inv[inv.index("(") : inv.rindex(")") + 1]
-        return text.replace(hint, f"{ansi.BOLD}{hint}{ansi.RESET}", 1)
+        colored = self._format_action_invocation(sub)
+        plain = self._decolor(colored)  # ty: ignore[unresolved-attribute]
+        name, _, hint = plain.partition(" (")
+        styled = f"{theme.summary_action}{name}{theme.reset}"
+        if hint:
+            styled += f" {theme.default}({hint}{theme.reset}"
+        return text.replace(colored, styled, 1)
