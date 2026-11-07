@@ -1,4 +1,4 @@
-"""Handlers for the surfaces that can actuate hardware: IOControl, routines, actions.
+"""Handlers for the surfaces that change the car: IOControl, routines, actions, ECU resets.
 
 IOControl and routines have a read-only listing/TUI path and an execute path.
 ``routines --sf start`` sends startRoutine, which may move something, so it
@@ -7,7 +7,10 @@ ECU before anything else
 (:func:`canair.live.actuate.routines_execute.check_routines_protocol`), and asks first
 about an ECU whose profile records no protocol (:func:`.reads.confirm_unknown_protocol`). A profile
 action is always guarded by a live condition check and a confirmation
-(:mod:`canair.live.actuate.action`). The KWP2000 scans live in the scan families.
+(:mod:`canair.live.actuate.action`). An ECU reset is refused by its rule
+(:mod:`canair.safety.reset`) before the user is asked to type the ECU's name. The
+``safety.allow_reset`` gate is the command's, checked before it connects. The KWP2000 scans live
+in the scan families.
 """
 
 from __future__ import annotations
@@ -15,13 +18,18 @@ from __future__ import annotations
 from canair.actions import ActionError
 from canair.cli.live.handlers.reads import confirm_unknown_protocol
 from canair.cli.profile_context import active
-from canair.core.prompt import confirm
+from canair.core.prompt import confirm, typed_confirm
+from canair.ecus.names import ecu_display, ecu_name, resolve_tx
 from canair.live.actuate.action import mode_action
+from canair.live.actuate.ecu_reset import mode_ecu_reset
 from canair.live.actuate.iocontrol import mode_iocontrol_tui
 from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 from canair.live.actuate.routines import mode_routines_tui
 from canair.live.actuate.routines_execute import check_routines_protocol, mode_routines_execute
+from canair.live.hold import wake_plan
 from canair.render import messages
+from canair.safety.blocklist import SafetyBlocked
+from canair.safety.reset import RESET_TYPES, reset_block, reset_type_name
 from canair.transport.protocol import Terminal
 from canair.uds.subfunctions import RoutineControlType
 
@@ -131,3 +139,42 @@ async def handle_action(args, terminal: Terminal, pids_data, host, *, reconnect=
         )
     except ActionError as e:
         messages.fail(str(e), code=2)
+
+
+async def handle_reset(args, terminal: Terminal, pids_data, host, *, reconnect=None) -> None:
+    """``canair reset ECU TYPE``: one ECUReset, after the rule and the user agree."""
+    profile = active()
+    tx_id = resolve_tx(args.reset, profile=profile)
+    if tx_id is None:
+        messages.fail(
+            f"could not resolve ECU '{args.reset}' (use a name like BMS or a hex TX id like 7E4)",
+            code=2,
+        )
+    reset_type = RESET_TYPES[args.reset_type]
+    # Before the question: a refused reset is never asked about.
+    blocked = reset_block(reset_type, terminal.session_policy.protocol(tx_id), tx_id)
+    if blocked is not None:
+        raise SafetyBlocked(blocked)
+    name = ecu_name(tx_id, profile=profile)
+    word = f"{tx_id:03X}" if name.startswith("0x") else name
+    ecu = ecu_display(tx_id, profile=profile)
+    messages.warning(
+        f"{ecu} stops working while it restarts. Reset it only with the car parked and not in use"
+    )
+    question = f"Reset {ecu} ({reset_type_name(reset_type)}, 11 {reset_type:02X})?"
+    if not typed_confirm(question, word, yes=getattr(args, "yes", False)):
+        raise SystemExit(1)
+    accepted = await mode_ecu_reset(
+        terminal,
+        tx_id,
+        reset_type,
+        ecu=ecu,
+        session=args.session,
+        wake=args.wake,
+        wake_plan=wake_plan(tx_id, profile=profile, wake=args.wake, pids_data=pids_data),
+        restart_timeout=args.restart_timeout,
+        as_json=args.json,
+        verbose=args.verbose,
+    )
+    if not accepted:
+        raise SystemExit(1)

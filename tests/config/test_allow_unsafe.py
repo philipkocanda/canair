@@ -1,4 +1,4 @@
-"""``safety.allow_unsafe``: only a boolean true in the user config file enables ``--unsafe``."""
+"""The safety gates: only a boolean true in the user config file enables `--unsafe` or a reset."""
 
 from __future__ import annotations
 
@@ -54,4 +54,17 @@ def test_reads_the_file_on_each_call(user_config):
     user_config.write_text("safety:\n  allow_unsafe: true\n")
     assert unsafe_allowed() is True
     user_config.write_text("safety:\n  allow_unsafe: false\n")
+    assert unsafe_allowed() is False
+
+
+def test_allow_reset_is_its_own_boolean_gate(user_config):
+    from canair.config.file import reset_allowed
+
+    assert reset_allowed() is False
+    user_config.write_text("safety:\n  allow_unsafe: true\n")
+    assert reset_allowed() is False
+    user_config.write_text('safety:\n  allow_reset: "true"\n')
+    assert reset_allowed() is False
+    user_config.write_text("safety:\n  allow_reset: true\n")
+    assert reset_allowed() is True
     assert unsafe_allowed() is False

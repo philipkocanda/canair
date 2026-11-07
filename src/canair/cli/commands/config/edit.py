@@ -5,11 +5,13 @@ from __future__ import annotations
 import sys
 
 from canair.config.file import (
+    ALLOW_RESET_KEY,
     ALLOW_UNSAFE_KEY,
     coerce_scalar,
     ensure_config_dir,
     get_config_key,
     load_config,
+    reset_allowed,
     set_config_key,
     unsafe_allowed,
     unset_config_key,
@@ -94,15 +96,15 @@ def cmd_set(args) -> int:
                 "ignored at runtime — this value will have no effect"
             )
 
-    # The merged config also reads the legacy repo-local file, which unsafe_allowed() ignores.
-    enabling_unsafe = args.key == ALLOW_UNSAFE_KEY and value is True and not unsafe_allowed()
+    # The merged config also reads the legacy repo-local file, which the safety gates ignore.
+    enabling_gate = value is True and args.key in _GATES and not _GATES[args.key][0]()
     old = get_config_key(args.key)
-    if old == value and not enabling_unsafe:
+    if old == value and not enabling_gate:
         print(f"{args.key} is already {value!r} (unchanged)")
         return 0
 
-    if enabling_unsafe:
-        refused = _consent_to_allow_unsafe()
+    if enabling_gate:
+        refused = _consent_to_enable(args.key)
         if refused is not None:
             return refused
 
@@ -112,25 +114,35 @@ def cmd_set(args) -> int:
     return 0
 
 
-def _consent_to_allow_unsafe() -> int | None:
-    """Ask the user to type YES before ``--unsafe`` is enabled; the exit code if not.
+# Each safety gate: whether it is on now, and what the consent prompt says it enables.
+_GATES = {
+    ALLOW_UNSAFE_KEY: (
+        unsafe_allowed,
+        f"{ALLOW_UNSAFE_KEY} lets live commands take --unsafe. Then a request the blocklist "
+        "refuses is sent after you type YES,\n!! and such a request can damage an ECU beyond "
+        "repair. Enable --unsafe?",
+    ),
+    ALLOW_RESET_KEY: (
+        reset_allowed,
+        f"{ALLOW_RESET_KEY} lets `canair reset` restart an ECU. A restarting ECU stops "
+        "working, which is dangerous\n!! while the car is in use. Enable `canair reset`?",
+    ),
+}
 
-    No flag answers this prompt, on purpose: the key exists so that a flag passed with good
-    intentions (by an agent, or a script) cannot reach the ``--unsafe`` prompts. A run with no
-    terminal is refused (exit 2) and a decline exits 1.
+
+def _consent_to_enable(key: str) -> int | None:
+    """Ask the user to type YES before a safety gate is enabled; the exit code if not.
+
+    No flag answers this prompt, on purpose: the gate exists so that a flag passed with good
+    intentions (by an agent, or a script) cannot reach what it guards. A run with no terminal
+    is refused (exit 2) and a decline exits 1.
     """
     if not sys.stdin.isatty():
         messages.error(
-            f"{ALLOW_UNSAFE_KEY} can only be enabled at an interactive terminal, "
-            "and no flag skips this"
+            f"{key} can only be enabled at an interactive terminal, and no flag skips this"
         )
         return 2
-    question = (
-        f"{ALLOW_UNSAFE_KEY} lets live commands take --unsafe. Then a request the blocklist "
-        "refuses is sent after you type YES,\n!! and such a request can damage an ECU beyond "
-        "repair. Enable --unsafe?"
-    )
-    return None if typed_confirm(question, "YES") else 1
+    return None if typed_confirm(_GATES[key][1], "YES") else 1
 
 
 def cmd_unset(args) -> int:

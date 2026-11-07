@@ -29,9 +29,9 @@ action in this conversation.** Approval is never implied. None of these is appro
 earlier approval for other commands, the car being on, or the device answering.
 
 - **Covered:** every command whose `--help` lists `--wican` (`read`, `monitor`, `scan`,
-  `discover`, `identity`, `io`, `routines`, `action`, `memory dump`, `dtc read`, `sniff`, `raw`,
-  `repl`, `status`, the `wican autopid`/`mode` device calls), every `wican-cli` command, and any
-  HTTP, WebSocket or socket to a device address. Offline commands and the loopback emulator
+  `discover`, `identity`, `io`, `routines`, `reset`, `action`, `memory dump`, `dtc read`, `sniff`,
+  `raw`, `repl`, `status`, the `wican autopid`/`mode` device calls), every `wican-cli` command, and
+  any HTTP, WebSocket or socket to a device address. Offline commands and the loopback emulator
   (`docs/development/offline-testing.md`) are not the car.
 - **Ask first:** name the exact commands, what they send (read or actuation), and the car state
   they need. Then stop and wait. Do not run them in the same turn.
@@ -258,6 +258,8 @@ exit), and **`g`/`G` address the view's primary axis**. The rest of the TUI and 
   **Mutative**: the user approves each actuation. Actuators auto-release when the session ends.
   `canair io` refuses a KWP `0x30` ON until the entry declares a `release:` — never declare one you
   have not seen hand the output back on the car (`safety/actuation.py`).
+- **`canair reset`** — Restart one ECU (ECUReset `0x11`), off until the user sets
+  `safety.allow_reset`. Never enable that key for the user. Rules: `safety/reset.py`.
 - **`canair action`** — List, run and edit the profile's guarded, make-specific actions
   (`actions.yaml`). Two rules: every request still passes the blocklist (a quirk may grant exactly
   one request; `--unsafe` plays no part), and every action is guarded by mandatory `reads` and

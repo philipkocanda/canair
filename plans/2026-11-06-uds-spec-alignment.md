@@ -75,7 +75,7 @@ path, so the ISO-TP items below are about how canair configures that library.
 | statusOfDTC bit names | `live/dtc/codes.py::_STATUS_BITS` | ISO names |
 | `0x14` group of 3 bytes, `FFFFFF` = all | `uds/requests.py::clear_dtc_request` | `clear_dtc(group=0xFFFFFF)` |
 | Session types `01`–`04` | `uds/subfunctions.py::SessionType` | `DiagnosticSessionControl.Session` |
-| ECUReset types `01`–`05` | names only, service blocked | `ECUReset.ResetType` |
+| ECUReset types `01`–`05` | `uds/subfunctions.py::EcuResetType`; blocked, `canair reset` sends `01`–`03` (`safety/reset.py`) | `ECUReset.ResetType` |
 | RoutineControl `01`/`02`/`03` | `uds/requests.py::routine_control_request` | `RoutineControl.ControlType` |
 | IOControl parameters `00`–`03` | `uds/subfunctions.py::IoControlParameter` | `ControlParam` |
 | SecurityAccess: odd level = seed, even = key | `uds/describe.py::_security_access` | same |

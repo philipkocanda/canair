@@ -45,6 +45,7 @@ from typing import Any, Final
 
 from canair.core.prompt import typed_confirm
 from canair.safety.quirks import allowed_session_modes
+from canair.safety.reset import reset_granted
 from canair.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 from canair.uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol, classify_protocol
 from canair.uds.services import (
@@ -76,7 +77,7 @@ from canair.uds.subfunctions import (
 # data in the ECU), 0x38 (UDS file transfer, KWP2000 start-routine-at-address) and 0x39
 # and 0x3B, which exist only on KWP2000.
 BLOCKED_UDS_SERVICES = {
-    0x11: "ECUReset (restarts the ECU, unsafe while the car is in use)",
+    0x11: "ECUReset (restarts the ECU, unsafe while the car is in use; see `canair reset`)",
     0x28: "CommunicationControl (stops the ECU's normal CAN traffic)",
     0x29: "Authentication (a certificate exchange that changes the tester's access rights)",
     0x2C: (
@@ -329,9 +330,9 @@ class SessionPolicy:
 
     ``grants`` are exact ``(tx_id, request hex)`` requests whose *soft* session block
     is lifted, and which may go to a functional id although they are not one of
-    :data:`FUNCTIONAL_READS`. :meth:`from_profile` never sets them: only a guarded
-    profile action (:mod:`canair.actions`) adds them, through :meth:`granting`, for
-    the duration of its own send.
+    :data:`FUNCTIONAL_READS`. :meth:`from_profile` never sets them: a guarded profile
+    action (:mod:`canair.actions`) and ``canair reset`` add them, through :meth:`granting`,
+    for their own send. A granted ECU reset passes only :mod:`canair.safety.reset`'s rule.
     """
 
     protocols: Mapping[int, DiagProtocol] = field(default_factory=dict)
@@ -458,10 +459,10 @@ def check_command_safety(
         return None
 
     service_byte = int(hex_only[:2], 16)
+    active = policy or _NO_POLICY
 
-    if service_byte in BLOCKED_UDS_SERVICES:
-        desc = BLOCKED_UDS_SERVICES[service_byte]
-        return f"BLOCKED: UDS service 0x{service_byte:02X} -- {desc}"
+    if service_byte in BLOCKED_UDS_SERVICES and not reset_granted(hex_only, active, tx_id):
+        return f"BLOCKED: UDS service 0x{service_byte:02X} -- {BLOCKED_UDS_SERVICES[service_byte]}"
 
     if service_byte in GUARDED_SERVICES:
         sub_text = hex_only[2:4]
@@ -470,7 +471,6 @@ def check_command_safety(
         )
 
     if service_byte == DIAGNOSTIC_SESSION_CONTROL and len(hex_only) >= 4:
-        active = policy or _NO_POLICY
         sub = int(hex_only[2:4], 16)
         protocol = active.protocol(tx_id)
         block = session_mode_block(sub, protocol, active.allowed_for(protocol))
@@ -480,7 +480,7 @@ def check_command_safety(
 
     if service_byte == ROUTINE_CONTROL and len(hex_only) >= 8:
         # On KWP2000, 0x31 is StartRoutineByLocalIdentifier: byte 2 is a local id.
-        if (policy or _NO_POLICY).protocol(tx_id) != KWP:
+        if active.protocol(tx_id) != KWP:
             sub, rid = int(hex_only[2:4], 16), int(hex_only[4:8], 16)
             return check_safety_system_routine(sub, rid) or check_routine(sub, rid)
 

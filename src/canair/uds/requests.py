@@ -1,9 +1,9 @@
 """Builders for the requests canair sends, as the hex text every terminal takes.
 
 A request's layout (which byte comes where) is a protocol fact like the bytes themselves, so
-code that sends a session change, an I/O control, a routine control or a DTC clear builds it
-here from named values instead of spelling ``f"2F{did}03…"`` by hand. What a field *means*
-(``IoControlParameter.SHORT_TERM_ADJUSTMENT`` drives the output) then shows at the call.
+code that sends a session change, an ECU reset, an I/O control, a routine control or a DTC clear
+builds it here from named values instead of spelling ``f"2F{did}03…"`` by hand. What a field
+*means* (``IoControlParameter.SHORT_TERM_ADJUSTMENT`` drives the output) then shows at the call.
 
 Read requests (``22 DID``, ``21 LID``) stay hex templates where they are built: their layout
 is the standard's notation, and echo validation catches a wrong one. See
@@ -17,6 +17,7 @@ from __future__ import annotations
 from canair.uds.services import (
     CLEAR_DIAGNOSTIC_INFORMATION,
     DIAGNOSTIC_SESSION_CONTROL,
+    ECU_RESET,
     INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
     KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER,
     ROUTINE_CONTROL,
@@ -42,6 +43,11 @@ def session_request(mode: int | str) -> str:
     """
     sub = int(mode, 16) if isinstance(mode, str) else mode
     return _request(DIAGNOSTIC_SESSION_CONTROL, _field(sub, 1, "session type"))
+
+
+def ecu_reset_request(reset_type: int) -> str:
+    """``11 {type}``: ECUReset with reset type ``reset_type``."""
+    return _request(ECU_RESET, _field(reset_type, 1, "reset type"))
 
 
 def io_control_request(did: int, parameter: int, state: bytes = b"", mask: bytes = b"") -> str:

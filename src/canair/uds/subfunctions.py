@@ -47,6 +47,20 @@ class KwpSessionType(IntEnum):
     PROGRAMMING_SESSION = 0x85
 
 
+class EcuResetType(IntEnum):
+    """ECUReset (``0x11``) resetType, ISO 14229-1.
+
+    Only the first three restart the ECU. 0x04/0x05 change how it powers down, and 0x40-0x7E
+    are vehicleManufacturerSpecific and systemSupplierSpecific.
+    """
+
+    HARD_RESET = 0x01
+    KEY_OFF_ON_RESET = 0x02
+    SOFT_RESET = 0x03
+    ENABLE_RAPID_POWER_SHUT_DOWN = 0x04
+    DISABLE_RAPID_POWER_SHUT_DOWN = 0x05
+
+
 class DtcReportType(IntEnum):
     """ReadDTCInformation (``0x19``) reportType, ISO 14229-1."""
 

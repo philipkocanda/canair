@@ -33,6 +33,7 @@ COMMAND_NAMES: list[str] = [
     "sniff",
     "io",
     "routines",
+    "reset",
     "action",
     "identity",
     "dtc",

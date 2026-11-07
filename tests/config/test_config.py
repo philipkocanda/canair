@@ -688,3 +688,47 @@ class TestSetAllowUnsafe:
         self._setup(tmp_path, monkeypatch, _Stdin("YES\n"))
         assert _set_allow_unsafe() == 0
         assert unsafe_allowed() is True
+
+
+def _set_allow_reset(value: str = "true") -> int:
+    return edit_cmd.cmd_set(argparse.Namespace(key="safety.allow_reset", value=value, string=False))
+
+
+class TestSetAllowReset:
+    """``safety.allow_reset`` is a safety gate like ``allow_unsafe``: typed consent, no flag."""
+
+    def _setup(self, tmp_path, monkeypatch, stdin):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        monkeypatch.setattr("sys.stdin", stdin)
+        _reset()
+
+    def test_typing_yes_enables_it(self, tmp_path, monkeypatch, capsys):
+        from canair.config.file import reset_allowed, unsafe_allowed
+
+        self._setup(tmp_path, monkeypatch, _Stdin("YES\n"))
+        assert _set_allow_reset() == 0
+        assert reset_allowed() is True
+        assert unsafe_allowed() is False
+        assert "lets `canair reset` restart an ECU" in capsys.readouterr().err
+
+    def test_a_decline_leaves_it_off(self, tmp_path, monkeypatch):
+        from canair.config.file import reset_allowed
+
+        self._setup(tmp_path, monkeypatch, _Stdin("yes\n"))
+        assert _set_allow_reset() == 1
+        assert reset_allowed() is False
+
+    def test_no_terminal_is_refused(self, tmp_path, monkeypatch, capsys):
+        from canair.config.file import reset_allowed
+
+        self._setup(tmp_path, monkeypatch, _Stdin("YES\n", tty=False))
+        assert _set_allow_reset() == 2
+        assert reset_allowed() is False
+        assert "safety.allow_reset can only be enabled at an interactive terminal" in (
+            capsys.readouterr().err
+        )
+
+    def test_a_non_boolean_is_rejected(self, tmp_path, monkeypatch, capsys):
+        self._setup(tmp_path, monkeypatch, _Stdin("YES\n"))
+        assert _set_allow_reset("on") == 2
+        assert "valid: true, false" in capsys.readouterr().err

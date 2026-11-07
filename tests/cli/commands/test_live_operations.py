@@ -45,6 +45,7 @@ CASES = [
     (["dtc", "read", "--all"], "handle_dtc", True, set()),
     (["io", "IGPM"], "handle_iocontrol", False, set()),
     (["routines", "BCM"], "handle_routines", False, set()),
+    (["reset", "BMS", "hard"], "handle_reset", False, set()),
     (["action", "run", "sleep"], "handle_action", False, set()),
 ]
 
@@ -78,11 +79,13 @@ def reached(monkeypatch):
         "dtc",
         "io",
         "routines",
+        "reset",
     ):
         module = __import__(f"canair.cli.commands.{name}", fromlist=["run_live"])
         if hasattr(module, "run_live"):
             monkeypatch.setattr(module, "run_live", fake_run_live)
     monkeypatch.setattr("canair.cli.commands.scan.run.run_live", fake_run_live)
+    monkeypatch.setattr("canair.cli.commands.reset.reset_allowed", lambda: True)
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)
 
     def go(argv: list[str]):
