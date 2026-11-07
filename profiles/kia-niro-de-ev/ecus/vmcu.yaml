@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 VMCU:
   tx_id: 0x7E2
   can_bus: [H-CAN, P-CAN]

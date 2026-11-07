@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 LBC:
   tx_id: 0x79B
   can_bus: [EV-CAN]

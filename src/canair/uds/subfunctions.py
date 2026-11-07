@@ -56,6 +56,27 @@ class DtcReportType(IntEnum):
     REPORT_DTC_SNAPSHOT_RECORD_BY_DTC_NUMBER = 0x04
 
 
+class DtcFormatIdentifier(IntEnum):
+    """The DTCFormatIdentifier a ``59 01`` reply carries, ISO 14229-1:2013 Table D.14.
+
+    Not a sub-function: the byte says how to read every 3-byte DTC the ECU reports, and an
+    ECU supports one. Only the two SAE J2012-DA formats have the ``P0123-45`` text form;
+    ISO 14229-1's own format leaves the decoding to the maker.
+    """
+
+    SAE_J2012_DA_DTC_FORMAT_00 = 0x00  # ISO 15031-6
+    ISO_14229_1_DTC_FORMAT = 0x01  # manufacturer-defined decoding
+    SAE_J1939_73_DTC_FORMAT = 0x02
+    ISO_11992_4_DTC_FORMAT = 0x03
+    SAE_J2012_DA_DTC_FORMAT_04 = 0x04  # ISO 27145-2 (WWH-OBD)
+
+
+#: The DTC formats canair shows as SAE J2012 text (``B2915-00``).
+J2012_DTC_FORMATS: Final = frozenset(
+    {DtcFormatIdentifier.SAE_J2012_DA_DTC_FORMAT_00, DtcFormatIdentifier.SAE_J2012_DA_DTC_FORMAT_04}
+)
+
+
 class DtcGroup(IntEnum):
     """ClearDiagnosticInformation (``0x14``) groupOfDTC values that mean every DTC.
 

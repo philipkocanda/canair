@@ -20,7 +20,6 @@ from canair.ecus.signal_category import (
 )
 from canair.interop.autopid.classes import autopid_class
 from canair.validation.ecu_file import validate_ecu_file
-from canair.validation.schema_fields import load_schema
 from canair.yaml_edit.pids import migrate_categories, upsert_parameter
 from canair.yaml_edit.pids.categories import convert
 
@@ -205,7 +204,7 @@ class TestMigration:
         # The PID default resolves into the one signal whose unit no longer implies it.
         assert "category" not in pids["2102"]["parameters"]["CELL_1"]
         assert pids["2102"]["parameters"]["CELL_2"]["category"] == "voltage"
-        errors, warnings, _ = validate_ecu_file(pids_dir / "test.yaml", load_schema())
+        errors, warnings, _ = validate_ecu_file(pids_dir / "test.yaml")
         assert not errors
         assert not [w for w in warnings if "category" in w or "ha_class" in w]
 
@@ -220,7 +219,7 @@ class TestMigration:
 
 
 def test_validate_points_an_unmigrated_profile_at_the_migration(pids_dir):
-    _, warnings, _ = validate_ecu_file(pids_dir / "test.yaml", load_schema())
+    _, warnings, _ = validate_ecu_file(pids_dir / "test.yaml")
     assert any("ha_class is retired" in w and "migrate-categories" in w for w in warnings)
 
 

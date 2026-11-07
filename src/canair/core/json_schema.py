@@ -1,13 +1,22 @@
 """Checking a parsed document against one of canair's JSON Schemas, with readable findings.
 
-:func:`schema_errors` returns one line per problem and never raises. A line reads
-``path: message``: the path is dotted with ``[i]`` for a list index
-(``messages.0x220.signals.GEAR.length``), and the message is phrased for a person editing YAML
-(``unknown field 'x' (allowed: a, b)``, ``must be an integer (got 'abc')``).
+:func:`schema_findings` returns one line per problem, split into errors and warnings, and never
+raises; :func:`schema_errors` returns both in one list. A line reads ``path: message``: the path
+is dotted with ``[i]`` for a list index (``messages.0x220.signals.GEAR.length``), and the message
+is phrased for a person editing YAML (``unknown field 'x' (allowed: a, b)``, ``must be an integer
+(got 'abc')``).
 
 A subschema can replace the message with ``errorMessage`` (any failure in that subschema) or
 ``patternErrorMessage`` (a failed ``pattern``). VS Code and yaml-language-server show the same two
-keywords, so canair and an editor say the same thing.
+keywords, so canair and an editor say the same thing. A property that carries a
+``deprecationMessage`` is left out of the fields an ``unknown field`` message lists.
+
+A failure is an error unless its subschema lists the failed keyword in ``x-warn``:
+``x-warn: [additionalProperties]`` makes an unknown field of that mapping a warning. Editors
+ignore the keyword.
+
+YAML gives keys and dates types that JSON does not have, so the data is checked as text: every
+mapping key, and every date (``2026-07-22``, which a YAML 1.2 editor reads as text too).
 
 The schemas refer to each other by ``$id``, the URL the docs site publishes them at, so a
 ``$ref`` to ``profile.json#/properties/quirks`` resolves here as it does in an editor.
@@ -15,6 +24,7 @@ The schemas refer to each other by ``$id``, the URL the docs site publishes them
 
 from __future__ import annotations
 
+import datetime
 import json
 import re
 from collections.abc import Iterable, Sequence
@@ -51,14 +61,29 @@ def load_schema_file(path: Path) -> dict:
 
 def schema_errors(path: Path, data: Any) -> list[str]:
     """Every problem in ``data`` against the schema at ``path``, in document order."""
-    validator = _validator(path)
-    found = sorted(validator.iter_errors(_text_keys(data)), key=_sort_key)
-    out: list[str] = []
+    errors, warnings = schema_findings(path, data)
+    return errors + warnings
+
+
+def schema_findings(
+    path: Path, data: Any, *, definition: str | None = None, at: Sequence[str] = ()
+) -> tuple[list[str], list[str]]:
+    """``(errors, warnings)`` in ``data`` against the schema at ``path``, in document order.
+
+    ``definition`` checks ``data`` against ``#/definitions/<definition>`` of that schema instead,
+    for a part of another file that follows the same rules; ``at`` is where that part sits, put in
+    front of every finding's path.
+    """
+    validator = _validator(path, definition)
+    found = sorted(validator.iter_errors(_as_json(data)), key=_sort_key)
+    errors: list[str] = []
+    warnings: list[str] = []
     for error in found:
-        for line in _lines(error):
+        for line, warn in _lines(error, at):
+            out = warnings if warn else errors
             if line not in out:
                 out.append(line)
-    return out
+    return errors, warnings
 
 
 def check_schema_file(path: Path) -> None:
@@ -84,21 +109,29 @@ def _registry():
 
 
 @cache
-def _validator(path: Path) -> Validator:
+def _validator(path: Path, definition: str | None = None) -> Validator:
     from jsonschema.validators import validator_for
 
     schema = load_schema_file(path)
     cls = validator_for(schema)
     cls.check_schema(schema)
-    return cls(schema, registry=_registry())
+    registry = _registry()
+    if definition is not None:
+        from referencing import Resource
+
+        registry = registry.with_resource(schema["$id"], Resource.from_contents(schema))
+        schema = {"$ref": f"{schema['$id']}#/definitions/{definition}"}
+    return cls(schema, registry=registry)
 
 
-def _text_keys(data: Any) -> Any:
-    """``data`` with every mapping key as text: JSON Schema knows only string keys."""
+def _as_json(data: Any) -> Any:
+    """``data`` with every mapping key and every date as text: JSON has neither."""
     if isinstance(data, dict):
-        return {_key_text(k): _text_keys(v) for k, v in data.items()}
+        return {_key_text(k): _as_json(v) for k, v in data.items()}
     if isinstance(data, list | tuple):
-        return [_text_keys(v) for v in data]
+        return [_as_json(v) for v in data]
+    if isinstance(data, datetime.date):
+        return data.isoformat()
     return data
 
 
@@ -123,17 +156,19 @@ def _where(path: Iterable[Any]) -> str:
     return out
 
 
-def _lines(error: ValidationError) -> list[str]:
+def _lines(error: ValidationError, at: Sequence[str] = ()) -> list[tuple[str, bool]]:
+    """Each line ``error`` reads as, and whether it is a warning."""
     from jsonschema.exceptions import best_match
 
     schema = error.schema if isinstance(error.schema, dict) else {}
     if error.validator in ("anyOf", "oneOf") and error.context and "errorMessage" not in schema:
-        return _lines(best_match(error.context))
-    path = list(error.absolute_path)
+        return _lines(best_match(error.context), at)
+    path = [*at, *error.absolute_path]
     if "propertyNames" in error.absolute_schema_path:
         path.append(error.instance)
     where = _where(path)
-    return [f"{where}: {m}" if where else m for m in _messages(error, schema)]
+    warn = error.validator in (schema.get("x-warn") or ())
+    return [(f"{where}: {m}" if where else m, warn) for m in _messages(error, schema)]
 
 
 def _messages(error: ValidationError, schema: dict) -> list[str]:
@@ -170,6 +205,8 @@ def _messages(error: ValidationError, schema: dict) -> list[str]:
         return [f"must hold {'at least' if keyword == 'minItems' else 'at most'} {value} items"]
     if keyword == "minLength":
         return ["must not be empty" if value == 1 else f"must be at least {value} characters"]
+    if keyword == "minProperties":
+        return ["must not be empty" if value == 1 else f"must hold at least {value} fields"]
     if keyword == "pattern":
         return [f"must match {value}{got}"]
     if keyword == "uniqueItems":
@@ -180,7 +217,10 @@ def _messages(error: ValidationError, schema: dict) -> list[str]:
 def _unknown_fields(schema: dict, instance: dict) -> list[str]:
     props = schema.get("properties") or {}
     patterns = schema.get("patternProperties") or {}
-    allowed = f" (allowed: {', '.join(props)})" if props else ""
+    current = [
+        k for k, v in props.items() if not (isinstance(v, dict) and "deprecationMessage" in v)
+    ]
+    allowed = f" (allowed: {', '.join(current)})" if current else ""
     return [
         f"unknown field '{key}'{allowed}"
         for key in instance

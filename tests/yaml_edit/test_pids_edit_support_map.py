@@ -8,9 +8,10 @@ import yaml
 from canair.cli.commands.pids import pid_settings
 from canair.cli.profile_context import active
 from canair.core.edit_errors import EditError
+from canair.core.json_schema import load_schema_file
+from canair.core.paths import ECUS_SCHEMA_FILE
 from canair.uds.support_map import MapDecl
 from canair.validation.ecu_file import validate_ecu_file
-from canair.validation.schema_fields import load_schema
 from canair.yaml_edit.pids import PidsEditError, set_support_map
 
 YAML = """\
@@ -184,7 +185,7 @@ class TestValidation:
             "        A:\n"
             "          expression: B10:1\n"
         )
-        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p)
         return errors
 
     def test_a_valid_declaration_passes(self, tmp_path):
@@ -216,4 +217,5 @@ class TestValidation:
         assert any("support_map" in e and needle in e for e in errs), errs
 
     def test_the_field_is_known_to_the_schema(self):
-        assert "support_map" in load_schema()["optional_pid_fields"]
+        pid = load_schema_file(ECUS_SCHEMA_FILE)["definitions"]["pid"]
+        assert "support_map" in pid["properties"]

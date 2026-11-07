@@ -2,7 +2,7 @@
 
 Validators merged into one subcommand:
 
-  * ``validate pids`` — per-ECU definition files in ecus/ vs pids_schema.yaml
+  * ``validate pids`` — per-ECU definition files in ecus/ vs pids_schema.yaml (the ECU schema)
     (also validates profile.yaml). ``validate ecus`` is an alias.
   * ``validate captures`` — capture files in captures/ vs captures_schema.json
   * ``validate states`` — vehicle_states.yaml (power-state vocabulary + predicates)

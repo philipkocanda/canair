@@ -277,7 +277,7 @@ class RawTerminal:
         read (:func:`~canair.safety.blocklist.check_functional_request`), and ValueError on
         a CAN-FD profile (the request and its flow control are classic frames).
         """
-        req = functional_request_bytes(tx_id, request)
+        req = functional_request_bytes(tx_id, request, self.session_policy)
         if not self._classic_can:
             raise ValueError(CAN_FD_REFUSAL)
         result = await raw_functional_exchange(

@@ -18,6 +18,8 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from canair.actions import (
     ActionError,
     ActionRequest,
+    HeldSession,
+    ThenReads,
     normalize_name,
     parse_action,
     parse_actions_doc,
@@ -41,18 +43,58 @@ def _request_map(req: ActionRequest) -> CommentedMap:
     )
 
 
+def _then_map(then: ThenReads) -> CommentedMap:
+    wait: float | int = int(then.wait) if then.wait == int(then.wait) else then.wait
+    return flow_map({"wait": wait, "read": flow_seq(then.read)})
+
+
+def _set_extras(
+    entry: CommentedMap,
+    hold: Sequence[HeldSession] | None,
+    then: ThenReads | None,
+    release: Sequence[ActionRequest] | None,
+    *,
+    clear_then: bool = False,
+) -> None:
+    """Write ``hold``/``then``/``release`` in the order a reader expects them; an empty list
+    (or ``clear_then``) removes the field."""
+    if hold is not None:
+        if hold:
+            entry["hold"] = flow_seq([h.describe() for h in hold])
+        else:
+            entry.pop("hold", None)
+    if clear_then:
+        entry.pop("then", None)
+    elif then is not None:
+        entry["then"] = _then_map(then)
+    if release is not None:
+        if release:
+            entry["release"] = CommentedSeq([_request_map(r) for r in release])
+        else:
+            entry.pop("release", None)
+
+
 def _entry(
     description: str | None,
     reads: Sequence[str],
     require: str,
     requests: Sequence[ActionRequest],
+    hold: Sequence[HeldSession] = (),
+    then: ThenReads | None = None,
+    release: Sequence[ActionRequest] = (),
 ) -> CommentedMap:
     entry = CommentedMap()
     if description:
         entry["description"] = _folded(description, key="description")
     entry["reads"] = flow_seq(reads)
     entry["require"] = _folded(require, key="require")
+    if hold:
+        entry["hold"] = flow_seq([h.describe() for h in hold])
     entry["requests"] = CommentedSeq([_request_map(r) for r in requests])
+    if then is not None:
+        entry["then"] = _then_map(then)
+    if release:
+        entry["release"] = CommentedSeq([_request_map(r) for r in release])
     return entry
 
 
@@ -88,11 +130,14 @@ def add_action(
     require: str,
     requests: Sequence[ActionRequest],
     description: str | None = None,
+    hold: Sequence[HeldSession] = (),
+    then: ThenReads | None = None,
+    release: Sequence[ActionRequest] = (),
     profile: Profile,
 ) -> Path:
     """Add a new action (scaffolds actions.yaml when absent). Errors if it exists."""
     key = normalize_name(name)
-    entry = _entry(description, reads, require, requests)
+    entry = _entry(description, reads, require, requests, hold, then, release)
     parse_action(key, entry)  # fail before touching the file
     with edit_doc(ACTIONS, profile, create=True) as doc:
         if find_key(doc.section, key, _normalized) is not None:
@@ -108,9 +153,14 @@ def update_action(
     reads: Sequence[str] | None = None,
     require: str | None = None,
     requests: Sequence[ActionRequest] | None = None,
+    hold: Sequence[HeldSession] | None = None,
+    then: ThenReads | None = None,
+    release: Sequence[ActionRequest] | None = None,
+    clear_then: bool = False,
     profile: Profile,
 ) -> Path:
-    """Replace the given fields of an existing action. ``description=""`` clears it."""
+    """Replace the given fields of an existing action. ``description=""`` clears it, and an
+    empty ``hold``/``release`` or ``clear_then`` removes that field."""
     key = normalize_name(name)
     with edit_doc(ACTIONS, profile) as doc:
         entry = doc.section[_key(doc, key)]
@@ -127,6 +177,7 @@ def update_action(
             entry["require"] = _folded(require, key="require")
         if requests is not None:
             entry["requests"] = CommentedSeq([_request_map(r) for r in requests])
+        _set_extras(entry, hold, then, release, clear_then=clear_then)
     return doc.path
 
 

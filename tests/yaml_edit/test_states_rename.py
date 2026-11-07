@@ -209,7 +209,7 @@ class TestBooleanWordStates:
         path.write_text(_ECU.replace("[READY, ACC2]", "[READY, ON]"))
         ok, msg = validate_pids_file(path, prof)
         assert not ok
-        assert "unquoted YAML boolean" in msg
+        assert "ENGINE.vehicle_states[1]: must be text (got true: YAML reads an unquoted ON" in msg
 
     def test_validate_states_errors_on_a_bare_boolean(self, prof, monkeypatch, capsys):
         from canair.cli.commands.validate.files import run_states

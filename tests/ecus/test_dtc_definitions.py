@@ -10,7 +10,6 @@ from canair.ecus.dtc_definitions import effective_entries, is_dtc_code, split_se
 from canair.ecus.pids import load_pids_dir
 from canair.interop.explorer.export import _dtc_records
 from canair.validation.ecu_file import validate_ecu_file
-from canair.validation.schema_fields import load_schema
 
 ECU = """\
 ESC:
@@ -105,7 +104,7 @@ def test_loaded_definitions_carry_resolved_entries_only(ecus_dir):
 class TestValidation:
     def _check(self, ecus_dir, text):
         (ecus_dir / "esc.yaml").write_text(text)
-        return validate_ecu_file(ecus_dir / "esc.yaml", load_schema())
+        return validate_ecu_file(ecus_dir / "esc.yaml")
 
     def test_section_fields_validate_and_are_not_counted_as_codes(self, ecus_dir):
         errors, warnings, stats = self._check(ecus_dir, ECU)
@@ -115,13 +114,13 @@ class TestValidation:
 
     def test_section_field_of_the_wrong_type_is_an_error(self, ecus_dir):
         errors, _, _ = self._check(ecus_dir, ECU.replace("verified: false", "verified: maybe"))
-        assert any("ESC/dtcs: verified must be a boolean" in e for e in errors)
+        assert any("ESC.dtcs.verified: must be true or false" in e for e in errors)
 
     def test_entry_field_of_the_wrong_type_is_an_error(self, ecus_dir):
         errors, _, _ = self._check(
             ecus_dir, ECU.replace("      source_links: []", "      source_links: nope")
         )
-        assert any("dtcs/C1604: source_links must be a list of strings" in e for e in errors)
+        assert any("dtcs.C1604.source_links: must be a list" in e for e in errors)
 
     def test_key_that_is_neither_a_code_nor_a_section_field_warns(self, ecus_dir):
         _, warnings, _ = self._check(

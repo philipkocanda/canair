@@ -64,7 +64,12 @@ from canair.uds.services import (
     TESTER_PRESENT,
     identifier_width,
 )
-from canair.uds.subfunctions import IoControlParameter, RoutineControlType
+from canair.uds.subfunctions import (
+    IoControlParameter,
+    KwpSessionType,
+    RoutineControlType,
+    SessionType,
+)
 
 RequestClass = Literal["read", "release", "actuate"]
 READ: Final[RequestClass] = "read"
@@ -76,8 +81,8 @@ ACTUATE: Final[RequestClass] = "actuate"
 _UDS_RETURN_CONTROL = IoControlParameter.RETURN_CONTROL_TO_ECU
 
 # Services that only read, or only move the diagnostic session, on every protocol:
-# the OBD-II read modes, session control, DTC and data reads, SecurityAccess and
-# TesterPresent. 0x04 (OBD-II clear) and 0x14 (clear diagnostic information) are
+# the OBD-II read modes, DTC and data reads, SecurityAccess and TesterPresent. Session
+# control is judged by its session type (_session_class). 0x04 (OBD-II clear) and 0x14 (clear diagnostic information) are
 # deliberately absent: clearing DTCs changes ECU state.
 _READ_SERVICES: Final = frozenset(
     {
@@ -87,7 +92,6 @@ _READ_SERVICES: Final = frozenset(
         OBD_SHOW_PENDING_DTCS,
         OBD_REQUEST_VEHICLE_INFORMATION,
         OBD_SHOW_PERMANENT_DTCS,
-        DIAGNOSTIC_SESSION_CONTROL,
         KWP_READ_FREEZE_FRAME_DATA,
         KWP_READ_DTCS,
         KWP_READ_STATUS_OF_DTCS,
@@ -203,6 +207,8 @@ def classify(
         return RELEASE
     if sid in _READ_SERVICES:
         return READ
+    if sid == DIAGNOSTIC_SESSION_CONTROL:
+        return _session_class(data, protocol)
     if sid == INPUT_OUTPUT_CONTROL_BY_IDENTIFIER:
         # Any bytes after returnControlToECU are its controlEnableMaskRecord (Table E.1).
         if protocol != KWP and len(data) >= 4 and data[3] == _UDS_RETURN_CONTROL:
@@ -221,6 +227,34 @@ def classify(
         if sid in _KWP_RELEASE:
             return RELEASE
     return ACTUATE
+
+
+# The standard diagnostic sessions, which only change what the ECU answers. Any other session
+# type is a programming, safety-system or manufacturer mode: Hyundai/Kia's 10 D1 puts every
+# ECU to sleep, so a session request is not a read by its service alone.
+_UDS_READ_SESSION_TYPES: Final = frozenset(
+    {SessionType.DEFAULT_SESSION, SessionType.EXTENDED_DIAGNOSTIC_SESSION}
+)
+_KWP_READ_SESSION_TYPES: Final = _UDS_READ_SESSION_TYPES | {
+    KwpSessionType.STANDARD_DIAGNOSTIC_SESSION,
+    KwpSessionType.PERIODIC_DIAGNOSTIC_SESSION,
+    KwpSessionType.EXTENDED_DIAGNOSTIC_SESSION,
+}
+
+
+def _session_class(data: bytes, protocol: DiagProtocol) -> RequestClass:
+    """``read`` for a request into a standard diagnostic session, else ``actuate``.
+
+    UDS is judged without the suppress-positive-response bit; KWP2000's 0x81-0x83 are its
+    standard sessions. An unknown protocol must be read on both, and a request with no
+    session type is not judged at all.
+    """
+    if len(data) < 2:
+        return ACTUATE
+    uds = (data[1] & 0x7F) in _UDS_READ_SESSION_TYPES
+    kwp = data[1] in _KWP_READ_SESSION_TYPES
+    reads = {UDS: uds, KWP: kwp}.get(protocol, uds and kwp)
+    return READ if reads else ACTUATE
 
 
 def default_release(request: str | bytes, protocol: DiagProtocol, mask_length: int = 0) -> str:

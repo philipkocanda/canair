@@ -222,13 +222,11 @@ class TestPhysicalBands:
 
 
 class TestProfileWideDtcs:
-    FIELDS = frozenset({"description", "causes", "source", "source_links", "verified"})
-
     def _findings(self, tmp_path, dtcs: str):
         from canair.validation.dtcs import profile_dtc_findings
 
         p = _write(tmp_path, 'car_model: "C"\ninit: "ATSP6;"\ndtcs:\n' + dtcs)
-        return profile_dtc_findings(p, self.FIELDS)
+        return profile_dtc_findings(p)
 
     def test_a_valid_section(self, tmp_path):
         errors, warnings = self._findings(
@@ -240,18 +238,18 @@ class TestProfileWideDtcs:
         errors, warnings = self._findings(
             tmp_path, "  verified: maybe\n  U1100-87:\n    description: x\n    colour: red\n"
         )
-        assert any("verified must be a boolean" in e for e in errors)
+        assert errors == ["profile.yaml: dtcs.verified: must be true or false (got 'maybe')"]
         assert any("U1100-87" in w and "not a DTC code" in w for w in warnings)
-        assert any("unknown field 'colour'" in w for w in warnings)
+        assert any("dtcs.U1100-87: unknown field 'colour'" in w for w in warnings)
 
     def test_must_be_a_mapping(self, tmp_path):
         errors, _ = self._findings(tmp_path, "  - U1100\n")
-        assert errors == ["profile.yaml: 'dtcs' must be a dict"]
+        assert errors == ["profile.yaml: dtcs: must be a mapping (got a list)"]
 
     def test_failure_types_is_retired(self, tmp_path):
         from canair.validation.dtcs import profile_dtc_findings
 
         p = _write(tmp_path, 'car_model: "C"\ninit: "ATSP6;"\nfailure_types: {0xF3: x}\n')
-        errors, warnings = profile_dtc_findings(p, self.FIELDS)
+        errors, warnings = profile_dtc_findings(p)
         assert errors == []
         assert any("'failure_types' is no longer read" in w for w in warnings)

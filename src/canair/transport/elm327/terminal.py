@@ -821,7 +821,7 @@ class Elm327Terminal:
         Raises :class:`~canair.safety.blocklist.SafetyBlocked` for anything but an allowed
         read (:func:`~canair.safety.blocklist.check_functional_request`).
         """
-        req = functional_request_bytes(tx_id, request)
+        req = functional_request_bytes(tx_id, request, self.session_policy)
         return await elm_functional_exchange(self, tx_id, req, window)
 
     def headers_command(self, on: bool) -> str | None:

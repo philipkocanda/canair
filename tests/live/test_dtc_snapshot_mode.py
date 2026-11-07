@@ -59,7 +59,7 @@ class TestRead:
         await dtc.mode_dtc_read(
             t, CCM, protocol="uds", as_json=True, pids_data=PIDS_DATA, profile=active()
         )
-        assert t.sent == ["1902FF", "1903", "1904582C0001", "1904582C0002"]
+        assert t.sent == ["1902FF", "1901FF", "1903", "1904582C0001", "1904582C0002"]
         code = json.loads(capsys.readouterr().out)["dtcs"][0]
         assert [s["record"] for s in code["snapshots"]] == [1, 2]
         did = code["snapshots"][1]["dids"][0]
@@ -82,7 +82,7 @@ class TestRead:
         await dtc.mode_dtc_read(
             t, CCM, protocol="uds", snapshots=False, pids_data=PIDS_DATA, profile=active()
         )
-        assert t.sent == ["1902FF"]
+        assert t.sent == ["1902FF", "1901FF"]
 
     @pytest.mark.asyncio
     async def test_a_clean_ecu_is_not_asked(self):
@@ -171,8 +171,8 @@ class TestSweep:
             t, as_json=True, retry=False, pids_data=PIDS_DATA, profile=active()
         )
         # Every ECU's codes are read before any snapshot request.
-        assert t.sent[:2] == ["1902FF", "1902FF"]
-        assert "1903" not in t.sent[:2]
+        assert t.sent[:4] == ["1902FF", "1901FF", "1902FF", "1901FF"]
+        assert "1903" not in t.sent[:4]
         data = json.loads(capsys.readouterr().out)
         assert data["snapshots"]["records_read"] == 4  # two ECUs answer with the CCM replies
         assert data["snapshots"]["skipped"] is False
@@ -212,7 +212,7 @@ class TestSweep:
         self._registry(monkeypatch, [CCM])
         t = FakeTerminal(CCM_REPLIES)
         await dtc.mode_dtc_scan_all(t, as_json=True, retry=False, snapshots=False, profile=active())
-        assert t.sent == ["1902FF"]
+        assert t.sent == ["1902FF", "1901FF"]
 
 
 class TestSkipListener:
@@ -258,7 +258,7 @@ class TestDispatch:
         )
         t = FakeTerminal(CCM_REPLIES)
         await handle_dtc(args, t, PIDS_DATA, "1.2.3.4")
-        assert t.sent == ["1902FF"]
+        assert t.sent == ["1902FF", "1901FF"]
 
 
 def test_wants_snapshots():
@@ -341,7 +341,7 @@ class TestClear:
         await dtc.mode_dtc_clear(
             t, CCM, protocol="uds", log=True, pids_data=PIDS_DATA, profile=active()
         )
-        assert t.sent == ["1902FF", "1903", "1904582C0001", "1904582C0002", "14FFFFFF"]
+        assert t.sent == ["1902FF", "1901FF", "1903", "1904582C0001", "1904582C0002", "14FFFFFF"]
         (clear,) = dtc_log.load_log(logp, profile=active())["clears"]
         assert [r["record"] for r in clear["snapshots"]["C182C-00"]] == [1, 2]
         assert "2 snapshot record(s) read before clearing" in capsys.readouterr().out
@@ -375,7 +375,7 @@ class TestClear:
         await dtc.mode_dtc_clear(
             t, CCM, protocol="uds", log=True, snapshots=False, profile=active()
         )
-        assert t.sent == ["1902FF", "14FFFFFF"]
+        assert t.sent == ["1902FF", "1901FF", "14FFFFFF"]
 
 
 class TestSave:

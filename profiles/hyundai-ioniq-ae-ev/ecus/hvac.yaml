@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 # ─── HVAC (Heating, Ventilation, Air Conditioning) ────────────────────
 HVAC:
   tx_id: 0x7B3
@@ -819,7 +820,12 @@ HVAC:
         %, Driver Mode Door Vent/Floor/Defrost, Air Inlet Mode Selection Fresh/Recirculation; the
         list continues below the screenshot. These are the actuators behind the 14 unnamed F011-F027
         entries; the ShortTermAdjustment value bytes are probably a door position. Mapping DIDs to
-        actuators needs a sniffed GDS test or a value-byte probe with the doors watched.
+        actuators needs a sniffed GDS test or a value-byte probe with the doors watched. More of the
+        list may be on the 2017 Ioniq Electric manual's HVAC pages 'How To Diagnose Failure Using
+        GDS' (intake, mode, temperature and auto-defog actuators) and 'DATC Self-diagnostics'; read
+        them from LEMON's offline copy, since the live site forbids automated access. The compressor
+        and PTC heater run only within the power the VCU allows, so an actuator here may not reach
+        them.
       sources:
         - Ioniq 2017 US shop manual, HVAC actuator inspection screenshots
       what_to_test:

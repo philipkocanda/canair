@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from canair.validation.ecu_file import validate_ecu_file
-from canair.validation.schema_fields import load_schema
 
 BCM = """\
 BCM:
@@ -29,7 +28,7 @@ def ecus_dir(tmp_path):
 
 def _validate(ecus_dir, extra: str) -> tuple[list[str], list[str]]:
     (ecus_dir / "bcm.yaml").write_text(BCM.replace("  pids:\n", extra + "  pids:\n"))
-    errors, warnings, _ = validate_ecu_file(ecus_dir / "bcm.yaml", load_schema())
+    errors, warnings, _ = validate_ecu_file(ecus_dir / "bcm.yaml")
     return errors, warnings
 
 
@@ -49,7 +48,7 @@ class TestValidation:
         (ecus_dir / "bcm.yaml").write_text(
             (ecus_dir / "bcm.yaml").read_text().replace("  pids:\n", "  pids:\n" + MEMORY_PID)
         )
-        errors, warnings, _ = validate_ecu_file(ecus_dir / "bcm.yaml", load_schema())
+        errors, warnings, _ = validate_ecu_file(ecus_dir / "bcm.yaml")
         assert errors == []
         assert any("not gated to a revision" in w for w in warnings)
 
@@ -64,7 +63,7 @@ class TestValidation:
         (ecus_dir / "bcm.yaml").write_text(
             BCM.replace("  pids:\n", '  memory:\n    format: "24"\n  pids:\n' + big)
         )
-        errors, _, _ = validate_ecu_file(ecus_dir / "bcm.yaml", load_schema())
+        errors, _, _ = validate_ecu_file(ecus_dir / "bcm.yaml")
         assert any("reads 128 bytes" in e for e in errors)
         assert any("ship: true on a memory read" in e for e in errors)
 
@@ -72,5 +71,5 @@ class TestValidation:
         (ecus_dir / "bcm.yaml").write_text(
             BCM.replace("  pids:\n", '  memory:\n    format: "13"\n  pids:\n' + MEMORY_PID)
         )
-        errors, _, _ = validate_ecu_file(ecus_dir / "bcm.yaml", load_schema())
+        errors, _, _ = validate_ecu_file(ecus_dir / "bcm.yaml")
         assert any("memory format 24" in e for e in errors)

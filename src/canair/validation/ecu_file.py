@@ -1,80 +1,86 @@
-"""Validation of one ECU file: its top-level fields, then each section by its own module."""
+"""Validation of one ECU file: the ECU schema, then the checks a schema cannot make.
 
+The ECU schema (``pids_schema.yaml``, published as ``ecus.json``) checks every field's type,
+the required fields, the vocabularies that live in it and the rules between two fields of one
+mapping; an unknown field is a warning. The section modules then check what depends on another
+file, on parsing, or on the addressing mode.
+"""
+
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import yaml
 
 from canair.core import yaml_io
 from canair.core.id_ranges import parse_id_range
+from canair.core.json_schema import schema_findings
+from canair.core.paths import ECUS_SCHEMA_FILE
 from canair.ecus.can_buses import allowed_can_buses
+from canair.ecus.registry import IDENTITY_FIELDS
 from canair.profile.model import profile_for_path
 from canair.states.vocabulary import allowed_states
 from canair.uds.addressing import is_extended, resolve_mode
+from canair.uds.protocol import ID_PROTOCOL_VALUES
 from canair.variants import VariantsError, effective_meta, load_variants
 from canair.variants.revisions import check_ecu as check_revisions
 
 from ._common import duplicate_key_errors, is_int, validate_state_list
-from .addressing import validate_ecu_addressing
 from .dtcs import validate_dtcs
 from .ecu_sections import (
-    validate_hit_section,
-    validate_identity,
+    entries,
+    hit_warnings,
+    identity_warnings,
+    session_warnings,
     validate_research,
-    validate_scan_log,
-    validate_sessions,
 )
 from .iocontrol import validate_iocontrol
-from .isotp import validate_ecu_isotp
 from .memory import validate_memory
 from .pid_defs import validate_pids_block
-from .schema_fields import SchemaFields, new_ecu_stats
 
 
-def _validate_can_bus_list(value, label: str, errors: list, allowed: set) -> None:
-    """Validate an ECU's top-level ``can_bus`` list.
+def new_ecu_stats() -> dict:
+    """Fresh zeroed stats accumulator for one ECU file."""
+    return {
+        "ecus": 0,
+        "pids": 0,
+        "params": 0,
+        "verified": 0,
+        "unverified": 0,
+        "ignored": 0,
+        "iocontrol": 0,
+        "research": 0,
+        "routines": 0,
+        "iocontrol_discoveries": 0,
+        "scan_log": 0,
+        "dtcs": 0,
+        "sessions": 0,
+    }
 
-    Enforces list shape and no duplicates. Codes are checked against the
-    profile's declared vocabulary (``can_buses.yaml``) only when that vocabulary
-    is non-empty — a profile need not declare its buses, in which case any code
-    is accepted (membership can't be checked).
+
+def _can_bus_errors(value, label: str, allowed: set) -> list[str]:
+    """Each ``can_bus`` code the profile's ``can_buses.yaml`` does not declare.
+
+    A profile need not declare its buses; then any code is accepted.
     """
-    if value is None:
-        return
-    if not isinstance(value, list):
-        errors.append(f"{label}: can_bus must be a list")
-        return
-    if allowed:
-        for v in value:
-            if v not in allowed:
-                errors.append(
-                    f"{label}: invalid can_bus value '{v}' "
-                    f"(declared in can_buses.yaml: {sorted(allowed)})"
-                )
-    if len(value) != len(set(value)):
-        errors.append(f"{label}: duplicate can_bus values")
+    if not allowed or not isinstance(value, list):
+        return []
+    return [
+        f"{label}: invalid can_bus value '{v}' (declared in can_buses.yaml: {sorted(allowed)})"
+        for v in value
+        if v not in allowed
+    ]
 
 
-def _allowed_can_buses(profile) -> set:
-    """The profile's declared CAN bus vocabulary (empty when undeclared)."""
+def _iocontrol_scan_range_errors(value, label: str) -> list[str]:
+    """Each ``iocontrol_scan_ranges`` entry that is not a ``"START-END"`` range of DIDs.
 
-    return allowed_can_buses(profile)
-
-
-def _validate_iocontrol_scan_ranges(value, label: str, errors: list) -> None:
-    """Validate an ECU's optional ``iocontrol_scan_ranges`` list.
-
-    Each entry must be a ``"START-END"`` hex string with ``start <= end`` and
-    both in the 16-bit DID space. Shape-only — the resolver
-    (``iocontrol_scan.resolve_iocontrol_ranges``) tolerates a malformed entry by
-    dropping it, but a definition committed to ``ecus/`` should be well-formed.
-    Both read an entry through :func:`canair.core.id_ranges.parse_id_range`.
+    The resolver (``iocontrol_scan.resolve_iocontrol_ranges``) drops a malformed entry, but a
+    definition committed to ``ecus/`` should be well-formed. Both read an entry through
+    :func:`canair.core.id_ranges.parse_id_range`.
     """
-    if value is None:
-        return
     if not isinstance(value, list):
-        errors.append(f"{label}: iocontrol_scan_ranges must be a list of 'START-END' hex strings")
-        return
+        return []
+    errors = []
     for spec in value:
         rng = f"{label}: iocontrol_scan_ranges entry '{spec}'"
         try:
@@ -84,17 +90,7 @@ def _validate_iocontrol_scan_ranges(value, label: str, errors: list) -> None:
             continue
         if not 0 <= lo <= 0xFFFF or not 0 <= hi <= 0xFFFF:
             errors.append(f"{rng} bounds must be within 0000-FFFF")
-
-
-def _profile_for_ecu_file(path: Path):
-    """The profile owning an ECU file (``<root>/ecus/x.yaml``).
-
-    Scopes state-vocabulary validation to the profile the file belongs to,
-    independent of the globally-active profile. A bare test/tmp file (no
-    ``vehicle_states.yaml`` at that root) simply yields the base ``POWER_STATES``.
-    """
-
-    return profile_for_path(path)
+    return errors
 
 
 def _declared_variant_ids(profile) -> list[str] | None:
@@ -106,46 +102,17 @@ def _declared_variant_ids(profile) -> list[str] | None:
         return None  # reported by `canair validate variants`
 
 
-def _validate_wake(wake: Any, label: str, fields: "SchemaFields", errors: list[str]) -> None:
-    """Validate an ECU's optional ``wake:`` block (canair.ecus.wake wake ritual).
+@dataclass(frozen=True)
+class _Context:
+    """What every ECU of one file is checked against."""
 
-    Enforces a mapping shape, known fields, a required + known ``method``, and
-    sane types on the numeric knobs. Value semantics (interval < sleep timer) are
-    left to the resolver's tolerant defaults — this catches structural mistakes.
-    """
-    if wake is None:
-        return
-    if not isinstance(wake, dict):
-        errors.append(f"{label}: 'wake' must be a mapping")
-        return
-
-    for key in wake:
-        if key not in fields.wake:
-            errors.append(
-                f"{label}: unknown wake field '{key}' (allowed: {', '.join(sorted(fields.wake))})"
-            )
-    method = wake.get("method")
-    if method is None:
-        errors.append(
-            f"{label}: 'wake' requires a 'method' (one of {sorted(fields.valid_wake_methods)})"
-        )
-    elif method not in fields.valid_wake_methods:
-        errors.append(
-            f"{label}: 'wake.method' must be one of "
-            f"{', '.join(sorted(fields.valid_wake_methods))}, got {method!r}"
-        )
-    for key in ("attempts", "interval_ms", "sleep_timer_ms"):
-        if key in wake and not (is_int(wake[key]) and wake[key] >= 0):
-            errors.append(f"{label}: 'wake.{key}' must be a non-negative integer")
-    if "attempts" in wake and is_int(wake["attempts"]) and wake["attempts"] < 1:
-        errors.append(f"{label}: 'wake.attempts' must be at least 1")
+    path: Path
+    allowed_states: set
+    allowed_can_buses: set
+    profile_meta: dict
 
 
-def validate_ecu_file(
-    path: Path,
-    schema: dict,
-    profile=None,
-) -> tuple[list[str], list[str], dict]:
+def validate_ecu_file(path: Path, profile=None) -> tuple[list[str], list[str], dict]:
     """Validate a single ECU YAML file.
 
     ``profile`` scopes the accepted vehicle-state vocabulary to that profile's
@@ -155,17 +122,11 @@ def validate_ecu_file(
     file in a non-active profile works even when several profiles are discovered
     (avoids a spurious "Multiple profiles found").
 
-    Returns (errors, warnings, stats). The per-section validation is delegated to
-    the ``_validate_*`` helpers below; this is the file-level orchestrator.
+    Returns (errors, warnings, stats): the schema's findings first, then the rest.
     """
 
     if profile is None:
-        profile = _profile_for_ecu_file(path)
-    allowed_states_set = allowed_states(profile)
-    allowed_can_buses_set = _allowed_can_buses(profile)
-    profile_meta = effective_meta(profile)
-    fields = SchemaFields.from_schema(schema)
-    variant_ids = _declared_variant_ids(profile)
+        profile = profile_for_path(path)
     stats = new_ecu_stats()
 
     try:
@@ -177,144 +138,80 @@ def validate_ecu_file(
     if not data or not isinstance(data, dict):
         return [f"{path.name}: empty or invalid YAML"], [], stats
 
-    errors: list[str] = [f"{path.name}: {e}" for e in duplicate_key_errors(text)]
-    warnings: list[str] = []
+    schema_errs, schema_warns = schema_findings(ECUS_SCHEMA_FILE, data)
+    errors = [f"{path.name}: {e}" for e in duplicate_key_errors(text) + schema_errs]
+    warnings = [f"{path.name}: {w}" for w in schema_warns]
+    context = _Context(
+        path=path,
+        allowed_states=allowed_states(profile),
+        allowed_can_buses=allowed_can_buses(profile),
+        profile_meta=effective_meta(profile),
+    )
+    variant_ids = _declared_variant_ids(profile)
     for ecu_name, ecu_def in data.items():
         stats["ecus"] += 1
-        if isinstance(ecu_def, dict):
-            errors += [
-                f"{path.name}/{e}"
-                for e in check_revisions(
-                    ecu_name,
-                    ecu_def,
-                    variant_ids=variant_ids,
-                    identity_fields=fields.identity,
-                    valid_protocols=fields.valid_protocols,
-                )
-            ]
-        _validate_ecu_entry(
-            ecu_name,
-            ecu_def,
-            path,
-            fields,
-            allowed_states_set,
-            allowed_can_buses_set,
-            profile_meta,
-            errors,
-            warnings,
-            stats,
-        )
+        if not isinstance(ecu_def, dict):
+            continue
+        errors += [
+            f"{path.name}/{e}"
+            for e in check_revisions(
+                ecu_name,
+                ecu_def,
+                variant_ids=variant_ids,
+                identity_fields=set(IDENTITY_FIELDS),
+                valid_protocols=set(ID_PROTOCOL_VALUES),
+            )
+        ]
+        _validate_ecu_entry(ecu_name, ecu_def, context, errors, warnings, stats)
 
     return errors, warnings, stats
 
 
-def _validate_ecu_entry(
-    ecu_name,
-    ecu_def,
-    path,
-    fields: SchemaFields,
-    allowed_states_set,
-    allowed_can_buses_set,
-    profile_meta,
-    errors,
-    warnings,
-    stats,
-) -> None:
-    """Validate one ECU definition (the top-level loop body of a file)."""
-    if not isinstance(ecu_def, dict):
-        errors.append(f"{path.name}/{ecu_name}: ECU definition must be a dict")
-        return
-
+def _validate_ecu_entry(ecu_name, ecu_def: dict, ctx: _Context, errors, warnings, stats) -> None:
+    """Check one ECU definition (the top-level loop body of a file)."""
+    path = ctx.path
     label = f"{path.name}/{ecu_name}"
 
-    # Required / unknown ECU fields
-    for field in fields.required_ecu:
-        if field not in ecu_def:
-            errors.append(f"{label}: missing required field '{field}'")
-    for field in ecu_def:
-        if field not in fields.all_ecu:
-            warnings.append(f"{label}: unknown ECU field '{field}'")
-
-    if "multi_did_max" in ecu_def and (
-        not isinstance(ecu_def["multi_did_max"], int)
-        or isinstance(ecu_def["multi_did_max"], bool)
-        or ecu_def["multi_did_max"] < 1
-    ):
-        errors.append(f"{label}: 'multi_did_max' must be a positive integer")
-
-    # Legacy ECU-level availability -> vehicle_states
     if "availability" in ecu_def:
         errors.append(
             f"{label}: legacy field 'availability' — renamed to "
             "vehicle_states (run scripts/migrate_states_status.py)"
         )
     validate_state_list(
-        ecu_def.get("vehicle_states"), label, "vehicle_states", errors, allowed_states_set
+        ecu_def.get("vehicle_states"), label, "vehicle_states", errors, ctx.allowed_states
     )
+    errors += _can_bus_errors(ecu_def.get("can_bus"), label, ctx.allowed_can_buses)
+    errors += _iocontrol_scan_range_errors(ecu_def.get("iocontrol_scan_ranges"), label)
 
-    # can_bus: physical CAN bus segment(s), validated against the profile's
-    # declared vocabulary (can_buses.yaml) — vendor-specific, so per-profile.
-    _validate_can_bus_list(ecu_def.get("can_bus"), label, errors, allowed_can_buses_set)
+    # The id width follows this ECU's addressing mode (per-ECU addressing.mode → profile →
+    # 11-bit): 11-bit (0x7FF) or 29-bit (0x1FFFFFFF). The schema checks the 29-bit limit.
+    mode = resolve_mode(ctx.profile_meta, ecu_def)
+    if not is_extended(mode):
+        for field in ("tx_id", "rx_id"):
+            value = ecu_def.get(field)
+            if is_int(value) and value > 0x7FF:
+                errors.append(f"{label}: {field} must be 0x000-0x7FF in {mode}, got 0x{value:X}")
 
-    # iocontrol_scan_ranges: optional list of "START-END" hex DID ranges the
-    # 0x2F scanner sweeps on this ECU (replaces the old hardcoded HK zones).
-    _validate_iocontrol_scan_ranges(ecu_def.get("iocontrol_scan_ranges"), label, errors)
+    warnings += identity_warnings(ecu_def, path, ecu_name)
+    warnings += session_warnings(ecu_def, path, ecu_name)
+    for section in ("scan_log", "sessions"):
+        stats[section] += entries(ecu_def.get(section))
+    validate_dtcs(ecu_def, path, ecu_name, warnings, stats)
 
-    # wake: how to rouse a fast-sleeping ECU before reads (canair.ecus.wake).
-    _validate_wake(ecu_def.get("wake"), label, fields, errors)
-
-    validate_ecu_addressing(ecu_def.get("addressing"), label, errors)
-    validate_ecu_isotp(ecu_def.get("isotp"), label, errors)
-    # Resolve this ECU's addressing mode (per-ECU addressing.mode → profile → 11-bit)
-    # to pick the valid arbitration-id width: 11-bit (0x7FF) vs 29-bit (0x1FFFFFFF).
-    mode = resolve_mode(profile_meta, ecu_def)
-    max_id = 0x1FFFFFFF if is_extended(mode) else 0x7FF
-    width = "0x00000000-0x1FFFFFFF (29-bit)" if is_extended(mode) else "0x000-0x7FF"
-
-    # Validate tx_id
-    tx_id = ecu_def.get("tx_id")
-    if tx_id is not None and (
-        not isinstance(tx_id, int) or isinstance(tx_id, bool) or tx_id < 0 or tx_id > max_id
-    ):
-        errors.append(f"{label}: tx_id must be {width}, got {tx_id}")
-
-    # Validate rx_id (optional CAN response-address override)
-    rx_id = ecu_def.get("rx_id")
-    if rx_id is not None and (
-        not isinstance(rx_id, int) or isinstance(rx_id, bool) or rx_id < 0 or rx_id > max_id
-    ):
-        errors.append(f"{label}: rx_id must be {width}, got {rx_id}")
-
-    validate_identity(
-        ecu_def,
-        path,
-        ecu_name,
-        fields.identity,
-        fields.valid_protocols,
-        fields.valid_confidence,
-        errors,
-        warnings,
-    )
-    validate_scan_log(ecu_def, path, ecu_name, fields.scan_log, errors, warnings, stats)
-    validate_dtcs(ecu_def, path, ecu_name, fields.dtcs, errors, warnings, stats)
-    validate_sessions(ecu_def, path, ecu_name, fields.sessions, errors, warnings, stats)
-
-    # A malformed `pids:` block short-circuits the rest of the ECU (preserves the
-    # original loop's `continue`).
+    # A malformed `pids:` block short-circuits the rest of the ECU.
     if not validate_pids_block(
-        ecu_def, path, ecu_name, fields, allowed_states_set, errors, warnings, stats
+        ecu_def, path, ecu_name, ctx.allowed_states, errors, warnings, stats
     ):
         return
 
     validate_iocontrol(
-        ecu_def, path, ecu_name, allowed_states_set, errors, warnings, stats, profile_meta
+        ecu_def, path, ecu_name, ctx.allowed_states, errors, warnings, stats, ctx.profile_meta
     )
-    validate_research(ecu_def, path, ecu_name, allowed_states_set, errors, warnings, stats)
+    validate_research(ecu_def, path, ecu_name, ctx.allowed_states, errors, warnings, stats)
 
-    # routines (RoutineControl 0x31) + iocontrol_discoveries (0x2F/0x30 scan
-    # output). Each entry maps an id to
-    # {session, response, nrc, nrc_desc, label, verified, notes}.
-    validate_hit_section(ecu_def, "routines", path, ecu_name, errors, warnings, stats)
-    validate_hit_section(ecu_def, "iocontrol_discoveries", path, ecu_name, errors, warnings, stats)
+    # routines (RoutineControl 0x31) + iocontrol_discoveries (0x2F/0x30 scan output).
+    for section in ("routines", "iocontrol_discoveries"):
+        warnings += hit_warnings(ecu_def, section, path, ecu_name)
+        stats[section] += entries(ecu_def.get(section))
     # memory: (ReadMemoryByAddress format and scan map) and the memory PIDs.
     validate_memory(ecu_def, path, ecu_name, errors, warnings)

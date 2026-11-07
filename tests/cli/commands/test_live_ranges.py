@@ -11,7 +11,7 @@ import pytest
 
 from canair.cli.live.handlers.ranges import parse_range, parse_ranges
 from canair.live.scan.iocontrol import resolve_iocontrol_ranges
-from canair.validation.ecu_file import _validate_iocontrol_scan_ranges
+from canair.validation.ecu_file import _iocontrol_scan_range_errors
 
 
 @pytest.mark.parametrize(
@@ -36,7 +36,7 @@ def test_the_profile_field_and_its_validator_agree():
     entries = ["B000-BFFF", "0xB000-0xBFFF", "FFFF-0000", "B000", "G000-G0FF", "B000-1FFFF"]
     errors: list[str] = []
     for entry in entries:
-        _validate_iocontrol_scan_ranges([entry], "BCM", errors)
+        errors += _iocontrol_scan_range_errors([entry], "BCM")
     flagged = {e.split("'")[1] for e in errors}
     resolved = resolve_iocontrol_ranges({"iocontrol_scan_ranges": entries})
     # The resolver drops what is not a range; the validator also holds bounds to 16 bits.

@@ -17,6 +17,7 @@ from canair.core.prompt import PromptUnavailable
 from canair.live.actuate import action as mode
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
 from tests.support.fakes import FakeTerminal
+from tests.support.fakes import ok as _ok
 
 SLEEP = parse_action(
     "sleep",
@@ -185,3 +186,153 @@ def test_a_request_to_an_ecu_resolves_its_tx_id():
     )
     (planned,) = mode.plan_requests(action, PIDS, profile=active())
     assert planned.tx_id == 0x770
+
+
+def _planned(requests, release=None):
+    raw = {"reads": ["IGPM:22BC03"], "require": "IGPM.IGN1_SWITCH == 0", "requests": requests}
+    if release:
+        raw["release"] = release
+    return mode.plan_requests(parse_action("probe", raw), PIDS, profile=active())
+
+
+class TestSend:
+    """How each request goes out once the guard has passed."""
+
+    def test_a_physical_request_is_checked_against_its_reply(self):
+        t = FakeTerminal(responses={"2FBC0103": {"ok": True, "hex": "6FBC0103"}})
+        t.session_policy = SessionPolicy({0x770: "uds"})
+        planned = _planned(
+            [{"to": "igpm", "send": "2FBC0103"}], release=[{"to": "igpm", "send": "2FBC0100"}]
+        )
+        rows = asyncio.run(mode._send(t, planned, t.session_policy))
+        assert rows[0]["outcome"] == "answered"
+        assert t.uds_kwargs[0]["expected_sid"] == 0x2F
+
+    def test_a_routine_on_a_uds_ecu_must_echo_its_type_and_id(self):
+        t = FakeTerminal(responses={"3101F000": {"ok": True, "hex": "7101F000"}})
+        t.session_policy = SessionPolicy({0x770: "uds"})
+        asyncio.run(mode._send(t, _planned([{"to": "igpm", "send": "3101F000"}]), t.session_policy))
+        assert t.uds_kwargs[0]["expected_echo"] == bytes.fromhex("01F000")
+
+    def test_a_functional_request_reports_every_responder(self):
+        t = FakeTerminal()
+        t.functional_replies["22F190"] = [(0x778, "62F19041"), (0x7A8, "7F2231")]
+        rows = asyncio.run(
+            mode._send(t, _planned([{"to": "functional", "send": "22F190"}]), t.session_policy)
+        )
+        (row,) = rows
+        assert row["outcome"] == "refused by 0x7A8 (NRC 0x31)"
+        assert [r["from"] for r in row["responders"]] == ["0x778", "0x7A8"]
+        assert t.sent == []  # never sent down the one-ECU path
+
+    def test_a_functional_request_is_answered_only_when_every_responder_accepts(self):
+        t = FakeTerminal()
+        t.functional_replies["22F190"] = [(0x778, "62F19041"), (0x7EC, "62F19042")]
+        (row,) = asyncio.run(
+            mode._send(t, _planned([{"to": "functional", "send": "22F190"}]), t.session_policy)
+        )
+        assert row["outcome"] == "answered"
+
+    def test_a_functional_request_nobody_answers_stops_the_action(self):
+        t = FakeTerminal()
+        planned = _planned(
+            [{"to": "functional", "send": "22F190"}, {"to": "igpm", "send": "22BC03"}]
+        )
+        rows = asyncio.run(mode._send(t, planned, t.session_policy))
+        assert [r["outcome"] for r in rows] == ["no reply"]
+
+
+class TestFunctionalGrants:
+    def test_a_grant_lifts_the_allow_list_for_that_request_only(self):
+        from canair.transport.functional import functional_request_bytes
+
+        granted = SessionPolicy().granting([(0x7DF, "10 D1")])
+        assert functional_request_bytes(0x7DF, "10D1", granted) == bytes.fromhex("10D1")
+        with pytest.raises(SafetyBlocked):
+            functional_request_bytes(0x7DF, "10D1", SessionPolicy())
+        with pytest.raises(SafetyBlocked):
+            functional_request_bytes(0x7DF, "10D0", granted)
+        with pytest.raises(SafetyBlocked):
+            functional_request_bytes(0x18DB33F1, "10D1", granted)
+
+
+IG3 = parse_action(
+    "ig3",
+    {
+        "reads": ["IGPM:22BC03"],
+        "require": "IGPM.IGN1_SWITCH == 0",
+        "hold": ["IGPM"],
+        "requests": [{"to": "igpm", "send": "2FBC4403"}],
+        "then": {"wait": 0, "read": ["VCU:2101"]},
+        "release": [{"to": "igpm", "send": "2FBC4400"}],
+    },
+)
+IG3_PIDS = {
+    "ecus": {"IGPM": {"tx_id": 0x770, "pids": {}}, "VCU": {"tx_id": 0x7E2, "pids": {}}},
+}
+
+
+class TestHeldAction:
+    """hold → requests → then reads → release, with the release sent whatever happens."""
+
+    @pytest.fixture
+    def run(self, monkeypatch):
+        monkeypatch.setattr(
+            "canair.live.actuate.action.load_actions", lambda *_, **__: {"ig3": IG3}
+        )
+        monkeypatch.setattr("canair.live.actuate.action.exec_query", _values({"IGN1_SWITCH": 0}))
+        self.then_calls: list[list[str]] = []
+
+        async def fake_multi(terminal, steps, pids_data, verbose, **kw):
+            self.then_calls.append(steps)
+            terminal.sent.append("<then>")
+            if getattr(self, "then_fails", False):
+                raise ConnectionError("link dropped")
+
+        monkeypatch.setattr("canair.live.actuate.action.mode_multi", fake_multi)
+
+        def _run(terminal, **kw):
+            return asyncio.run(
+                mode.mode_action(terminal, IG3_PIDS, "ig3", yes=True, profile=active(), **kw)
+            )
+
+        return _run
+
+    def _terminal(self, **responses):
+        return FakeTerminal(
+            responses={"2FBC4403": _ok("6FBC4403"), "2FBC4400": _ok("6FBC4400"), **responses}
+        )
+
+    def test_the_whole_sequence(self, run):
+        t = self._terminal()
+        run(t)
+        # The session first, then ON, the reads, the release, and the session is closed.
+        assert t.sent == ["1003", "2FBC4403", "<then>", "2FBC4400", "1001"]
+        assert self.then_calls == [["query VCU:2101"]]
+
+    def test_the_release_is_sent_when_the_reads_fail(self, run):
+        self.then_fails = True
+        t = self._terminal()
+        with pytest.raises(ConnectionError):
+            run(t)
+        assert "2FBC4400" in t.sent and t.sent.index("2FBC4400") > t.sent.index("<then>")
+
+    def test_a_refused_on_skips_the_reads_but_still_releases(self, run):
+        t = self._terminal(**{"2FBC4403": {"ok": False, "nrc": 0x22, "nrc_desc": "CNC"}})
+        run(t)
+        assert "<then>" not in t.sent
+        assert t.sent[-2:] == ["2FBC4400", "1001"]
+
+    def test_a_hold_that_cannot_open_sends_nothing(self, run):
+        t = self._terminal(**{"1003": {"ok": False, "nrc": 0x22, "nrc_desc": "CNC"}})
+        with pytest.raises(SafetyBlocked, match="could not open the 03 session on IGPM"):
+            run(t)
+        assert "2FBC4403" not in t.sent and "2FBC4400" not in t.sent
+
+    def test_json_carries_every_phase(self, run, capsys):
+        import json
+
+        run(self._terminal(), as_json=True)
+        report = json.loads(capsys.readouterr().out)
+        assert [r["send"] for r in report["sent"]] == ["2FBC4403"]
+        assert [r["send"] for r in report["released"]] == ["2FBC4400"]

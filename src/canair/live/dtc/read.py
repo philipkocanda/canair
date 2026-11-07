@@ -15,7 +15,7 @@ from ...transport.protocol import Terminal
 from ..hold import held_session
 from .advice import no_response_hints
 from .codes import resolve_protocol
-from .reading import _read_one
+from .reading import _read_one, dtc_format_note
 from .scan_log import _log_scan, _print_log_result
 from .snapshot_capture import report_saved
 from .snapshots import SnapshotRun, ecu_pids, fetch_snapshots, wants_snapshots
@@ -47,6 +47,8 @@ def _report_read(
 
     if result.get("status_availability_mask") is not None:
         print(f"  Status availability mask: {result['status_availability_mask']}")
+    if (note := dtc_format_note(result.get("dtc_format"))) is not None:
+        messages.note(note)
     if result.get("note"):
         messages.note(result["note"])
     dtcs = result["dtcs"]

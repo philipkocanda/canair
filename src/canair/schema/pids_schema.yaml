@@ -1,666 +1,918 @@
-# ECU Definition Schema
-# Validates the per-ECU YAML files in the profile's `ecus/` directory.
-# Each file is the SINGLE source of truth for one ECU: address, identity,
-# probe history, DTC meanings, and all readable/actuatable data.
-# Run: canair validate pids   (alias: canair validate ecus)
+# yaml-language-server: $schema=http://json-schema.org/draft-07/schema#
+# ECU files: the profile's ecus/<name>.yaml, one file per ECU
 #
-# Each ECU file (e.g. bcm.yaml) must have this top-level structure:
-#   ECU_NAME:              # the canonical short name IS the top-level key
-#     tx_id: 0xNNN         # required — hex OBD-II request arbitration ID. 11-bit
-#                          #   (0x000-0x7FF) for normal addressing; a full 29-bit
-#                          #   id (e.g. 0x18DA10F1) when the profile/ECU addressing
-#                          #   mode is a 29-bit mode.
-#     rx_id: 0xNNN         # optional — hex CAN response address. Defaults to
-#                          #   tx_id + the profile's addressing.rx_offset (itself
-#                          #   defaulting to +0x08) for 11-bit modes, or the
-#                          #   byte-swapped id for normal_fixed_29bit. Set this only
-#                          #   for an ECU whose response address doesn't follow the
-#                          #   profile's rule (an irregular per-ECU mapping).
-#     identity:            # optional — who this module is (see identity_fields)
-#       description: str   # human-readable module name
-#       part_number: str   # from F187/F188 (UDS) or 1A 8x (KWP2000)
-#       id_protocol: UDS   # how identity DIDs are read (see valid_id_protocols)
-#       ...                # see identity_fields below
-#     can_bus: [...]       # optional — physical CAN bus segment(s) the ECU sits on.
-#                          #   A list of codes drawn from the profile's own
-#                          #   can_buses.yaml vocabulary (vendor-specific: Hyundai
-#                          #   B-CAN/P-CAN/C-CAN/MM-CAN/H-CAN, Ford HS/MS, …). Some
-#                          #   ECUs span more than one segment (e.g. [H-CAN, P-CAN]);
-#                          #   the gateway is [ALL].
-#     vehicle_states: [...]  # optional — ECU-level power states in which this
-#                          #   ECU responds to session control (1001).
-#                          #   Tokens: sleep, plugged, acc, acc2, ready, charging
-#     session: bool        # optional — requires extended diagnostic session (10 03)
-#     sessions:            # optional — supported diagnostic session types, keyed by the
-#                          #   DiagnosticSessionControl (service 0x10) sub-function.
-#                          #   Populated by `canair scan sessions`. See sessions_fields.
-#       "81":              # sub-function hex (UDS: 01/02/03…; KWP2000: 81/82/83…)
-#         name: standardDiagnosticSession
-#         supported: true  # 50 xx positive response
-#       "83":
-#         supported: false # NRC-based
-#         nrc: 0x12
-#         nrc_desc: subFunctionNotSupported
-#     scan_log:            # optional — probe-history audit (see scan_log_entry_fields)
-#       - service: 0x22
-#         range: "0101-010F"
-#         date: 2026-07-22
-#         hits: 0
-#     dtcs:                # optional — manufacturer DTC meanings (see dtcs_fields)
-#       B2915:
-#         description: str
-#     pids:                # optional — readable PIDs (identity-only modules omit this)
-#       PID_CODE:          # e.g. 22C00B, 2101
-#         period: N        # polling interval in ms (optional, default 5000)
-#         status: STR      # REQUIRED — PID lifecycle, explicit on every PID. One of:
-#                          #   active  — real & live: indexed, swept, queryable, shipped
-#                          #             to the WiCAN device profile. (the default)
-#                          #   draft   — discovered/undecoded placeholder or speculative
-#                          #             work: indexed, swept, queryable, but NOT shipped.
-#                          #   static  — unchanging identity/calibration block: queryable
-#                          #             and analysed, but skipped in a bare-ECU sweep
-#                          #             (needs --include-static) and NOT shipped.
-#                          #   slow    — real & live but changes too rarely to poll every
-#                          #             cycle (e.g. a last-cycle summary): queryable and
-#                          #             shipped at its own long `period` (REQUIRED), but
-#                          #             skipped in a bare-ECU sweep (needs --include-static).
-#                          #   ignored — dead/useless DID (NRC, no decodable data): a
-#                          #             documented tombstone excluded from ALL tooling.
-#                          # Confidence (`verified:`) is a SEPARATE, per-parameter axis.
-#         vehicle_states: [...]  # optional — power states in which this PID responds
-#         variable_length: bool  # optional — PID returns variable-length responses
-#                                #   (legit; a short payload is not truncation)
-#         notes: str       # optional — PID-level notes
+# Each file is the SINGLE source of truth for one ECU: its address, identity, probe history, DTC
+# meanings, and all readable and actuatable data. The ECU's short name is the one top-level key:
+#
+#   BCM:
+#     tx_id: 0x7A0
+#     identity: {description: Body Control Module, id_protocol: UDS}
+#     pids:
+#       22B001:
+#         status: active
 #         parameters:
-#           PARAM_NAME:
-#             expression: str     # required — WiCAN formula
-#             unit: str           # optional — display unit
-#             ...                 # see optional_param_fields below
+#           DOOR_FL: {expression: "B4:0", type: enum, values: {0: closed, 1: open}}
 #
-# Profile-wide settings live one level up in `<profile>/profile.yaml`:
-#   car_model: str
-#   init: str              # AT command init string (ELM327/wican-ws transport only)
-#   response_timeout_ms: int   # ELM ATST response timeout in ms (--elm-timeout overrides)
-#   can_bitrate: int       # optional — vehicle bus speed in bit/s (default 500000).
-#                          #   Config transport.bitrate > this > device config > 500000.
-#   addressing: {...}      # optional — CAN diagnostic addressing rule:
-#                          #   mode: normal_11bit (default) | normal_29bit |
-#                          #     normal_fixed_29bit | normal_extended_11bit |
-#                          #     extended_29bit. Selects how the CAN arbitration ids
-#                          #     are formed. normal_fixed_29bit is the ISO
-#                          #     0x18DA{target}{tester} diagnostic convention
-#                          #     (Ford/VAG/etc.); its response id is derived by swapping
-#                          #     the address bytes (no rx_offset). normal_extended_11bit
-#                          #     is the ISO-TP extended (mixed) 11-bit scheme (BMW 0x6F1,
-#                          #     PSA/Stellantis): an 11-bit header plus a per-ECU target
-#                          #     -address extension byte in the payload. A per-ECU
-#                          #     addressing.mode overrides this profile default.
-#                          #   rx_offset: int  # response = tx_id + this (default 0x08;
-#                          #     11-bit modes only). May be negative (PSA -0x20). Set once
-#                          #     here for a make with a non-standard fixed offset (e.g.
-#                          #     XPeng 0x80); per-ECU rx_id overrides it.
-#                          #   target_address: int  # profile-default ISO-TP target
-#                          #     extension byte (extended modes; usually per-ECU).
-#                          #   source_address: int  # tester address (default 0xF1;
-#                          #     extended-11-bit modes).
-#   multi_did_batching: bool   # profile default for per-ECU service-22 multi-DID batching
-#   multi_did_max: int         # profile default cap on DIDs combined per multi-DID request
-#                              #   (default 3; per-ECU multi_did_max overrides it)
-#   dtcs: {CODE: {...}}        # optional — DTC meanings shared by every ECU (see dtcs_fields)
-#   quirks: [str]          # optional — make-specific behavior toggles the profile opts
-#                          #   into (make-neutral profiles omit). Known: skm_wakeup,
-#                          #   nissan_c0_session, hk_90_session, hk_forced_sleep
-#                          #   (see src/canair/safety/quirks.py).
-#   isotp: {...}           # optional — client-side ISO-TP tuning (slcan-tcp transport):
-#                          #   tx_padding/rx_padding/blocksize/stmin/
-#                          #   rx_flowcontrol_timeout/rx_consecutive_frame_timeout/can_fd/
-#                          #   tx_data_length.
-#                          #   Defaults suit 11-bit/classic-CAN; see
-#                          #   src/canair/transport/isotp_params.py for every field.
-
-required_ecu_fields:
-  - tx_id
-
-optional_ecu_fields:
-  - identity        # ECU identity (name/part-number/protocol) — see identity_fields
-  - rx_id           # CAN response address override (default tx_id + profile rx_offset)
-  - addressing      # Per-ECU addressing override — a mapping with `mode:` (see the
-                    #   profile addressing block); overrides the profile-wide mode.
-                    #   May also carry `target_address` (ISO-TP extension byte, per
-                    #   module for extended-11-bit BMW/PSA schemes), `source_address`
-                    #   (tester address, default 0xF1), and `fc_id` (flow-control
-                    #   arbitration override for functional-TX / physical-RX ECUs,
-                    #   e.g. Renault/Mitsubishi).
-  - isotp           # This ECU's own ISO-TP flow control on slcan-tcp, laid over the
-                    #   profile's isotp: block: blocksize, rx_flowcontrol_timeout,
-                    #   rx_consecutive_frame_timeout (ECU_ISOTP_FIELDS in
-                    #   src/canair/transport/isotp_params.py). For an ECU that sends no
-                    #   consecutive frame after a FlowControl with BlockSize 0.
-  - can_bus         # Physical CAN bus segment(s) the ECU sits on — see valid_can_bus_codes
-  - vehicle_states  # ECU-level: power states in which the ECU responds (10 01)
-  - wake            # How to rouse a fast-sleeping ECU before reads — see wake_fields
-  - session
-  - sessions        # Supported diagnostic session types (service 0x10) — see sessions_fields
-  - multi_did       # bool: attempt UDS service-22 multi-DID batching on this ECU
-  - multi_did_max   # int: max service-22 DIDs combined per multi-DID request
-                    #   (per-ECU override of the profile-wide multi_did_max; default 3)
-  - response_timeout_ms  # int: per-ECU UDS response budget in ms (slow ECUs get more;
-                         #   overridden by the global --timeout flag). See canair.timeouts.
-  - scan_log        # Probe-history audit log — see scan_log_entry_fields below
-  - dtcs            # Manufacturer-specific DTC meanings — see dtcs_fields below
-  - pids            # Readable PIDs (omit for identity-only modules like AMP/SRS)
-  - iocontrol       # IOControl (service 2F) commands — see iocontrol_fields below
-  - iocontrol_discoveries  # Raw 0x2F SF 00 scanner output — see iocontrol_discoveries_fields
-  - iocontrol_scan_ranges  # Optional list of "START-END" hex DID ranges the 0x2F
-                    #   scanner sweeps on this ECU (e.g. ["B000-BFFF", "C000-C0FF"]).
-                    #   When absent, ranges are PID-derived, else the full DID space.
-  - research        # Untested/undecoded PIDs and scan TODOs — see research_fields below
-  - routines        # RoutineControl (service 0x31) discoveries — see routines_fields below
-  - revisions       # The ECU's revisions: versions of it that differ in protocol or decoding,
-                    #   keyed by a local ID naming what differs (KWP/UDS, 150s), the first
-                    #   being the reference — see revision_fields below
-  - variants        # The variants (variants.yaml IDs) this ECU is fitted to; absent = all
-  - memory          # ReadMemoryByAddress (service 0x23): how a memory read is formed and
-                    #   what `canair scan memory` found. A mapping of
-                    #     format: "24"   # UDS ALFID (size nibble, address nibble), or kwp
-                    #     max_block: 128 # the largest read that worked
-                    #     session: "03"  # the session the reads need, when not the default
-                    #     regions: [{start, end, result, nrc?, software?, scanned?}]
-                    #   Field lists and checks: src/canair/ecus/memory.py. Edit with
-                    #   `canair pids set-memory` and `canair scan memory`, never by hand.
-
-# Identity section (under ECU_NAME.identity) — who this module is. The canonical
-# short name is the top-level ECU key, not a field here. All fields optional.
+# `canair validate pids` (alias `validate ecus`) and every ECU editor check a file against this
+# schema (src/canair/validation/ecu_file.py), then check what a schema cannot:
 #
-# The version-ish fields below are near-synonyms by necessity (each marque names
-# its identity DIDs differently), which makes it easy to file the SAME value under
-# two of them. `validate pids` therefore (a) ERRORS on a field name not listed here
-# and (b) WARNS when two *synonymous* fields hold an identical value. Pick the field
-# that names what the ECU actually reported; don't mirror a value into a second one.
-identity_fields:
-  optional:
-    - alias          # secondary name the ECU self-identifies as (e.g. SMK for SKM)
-    - description    # human-readable module name
-    - part_number    # from F187 (UDS) or 1A 87, or 1A 91 on Hyundai/Kia (KWP2000)
-    - mfg_date       # manufacturing / calibration date
-    - hw_version
-    - sw_version
-    - hw_sw          # combined hardware/software id (some ECUs)
-    - boot_sw        # boot software identification (F180); F100 is not it on Hyundai/Kia
-    - app_sw         # application software version
-    - fw_version
-    - firmware
-    - serial         # from F18C (UDS), or 1A 8C (KWP2000) except on Hyundai/Kia
-    - ecu_id         # module code: KWP2000 1A 8C on Hyundai/Kia
-    - sw_id
-    - calibration
-    - supplier
-    - diag_address   # legacy name for F1A0, which Hyundai/Kia use for their SW version
-    - vin            # from F190
-    - id_protocol    # how identity DIDs are read (see valid_id_protocols)
-    - identity_confidence  # how sure we are of this ECU's identity (see valid_identity_confidence)
-    - notes
-
-# Accepted values for the top-level `can_bus:` list are NOT fixed here — bus
-# naming is vendor-specific, so each profile declares its own vocabulary in
-# `<profile>/can_buses.yaml` (schema: can_buses_schema.yaml). `validate pids`
-# checks each ECU's `can_bus` values against that per-profile list.
-
-# Accepted values for identity.id_protocol.
-valid_id_protocols:
-  - UDS            # ISO 14229 — identity via 22 F1xx
-  - KWP2000        # ISO 14230 — identity via 1A 8x/9x
-  - none           # responds to session control but exposes no identity DIDs
-  - unknown        # not yet determined
-
-# Accepted values for identity.identity_confidence — how well-established the
-# ECU's identity is. Omit to let the tool derive it from evidence.
-#   confirmed    — identity read from the ECU (part number) and/or physically
-#                  or behaviorally verified for this car.
-#   probable     — self-reported identity fields present, OR multiple converging
-#                  circumstantial evidences.
-#   tentative    — single weak basis (cross-vehicle address match or behavioral
-#                  guess) with no self-reported identity.
-#   speculative  — address-proximity or naming guess with little/no support.
-valid_identity_confidence:
-  - confirmed
-  - probable
-  - tentative
-  - speculative
-
-# scan_log section (under ECU_NAME.scan_log) — a list of probe outcomes tracking
-# which UDS/KWP service+range combos were tried on this ECU.
-scan_log_entry_fields:
-  optional:
-    - service
-    - range
-    - date
-    - hits
-    - probes
-    - vehicle_states
-    - notes
-
-# dtcs section (under ECU_NAME.dtcs) — manufacturer-specific meanings for this
-# ECU's Diagnostic Trouble Codes. Keys are the base SAE code WITHOUT the -FTB
-# suffix (e.g. B2915, not B2915-00). The tool derives structural interpretation
-# (category / generic-vs-manufacturer / failure-type byte) on its own; this
-# supplies the meanings it cannot infer. Codes that mean the same on every ECU
-# may instead sit in <profile>/profile.yaml under a `dtcs:` of the same shape; an
-# ECU's own entry wins.
-# `source`, `source_links` and `verified` may also sit directly under `dtcs:`, next
-# to the codes, stated once for every entry; an entry that sets one keeps its own.
-# The field list is src/canair/ecus/dtc_definitions.py::SECTION_FIELDS.
-dtcs_fields:
-  optional:
-    - description
-    - causes
-    - source
-    - source_links
-    - verified
-    - notes
-
-# sessions section (under ECU_NAME.sessions) — the diagnostic session types
-# (DiagnosticSessionControl, service 0x10) this ECU supports, as probed by
-# `canair scan sessions`. Keys are the 0x10 sub-function hex WITHOUT the 0x10
-# prefix, quoted so all-digit values keep their hex meaning:
-#   UDS      : 01 (default), 02 (programming — NOT probed), 03 (extended), …
-#   KWP2000  : 81 (standard), 82, 83 (extended), 85 (programming — NOT probed), …
-# Each entry records whether the mode is supported (a 50 xx positive response)
-# and, for unsupported modes, the negative response code that was returned.
-# Example:
-#   sessions:
-#     "81":
-#       name: standardDiagnosticSession   # optional human label
-#       supported: true                   # 50 81 positive
-#     "83":
-#       supported: false
-#       nrc: 0x12                         # subFunctionNotSupported
-#       nrc_desc: subFunctionNotSupported
-#       notes: "extended session not implemented on this ECU"
-# Exactly the safe read-only session modes are probed; programming sessions
-# (UDS 0x02, KWP2000 0x85) are never sent.
-sessions_fields:
-  optional:
-    - name
-    - supported
-    - nrc
-    - nrc_desc
-    - response
-    - vehicle_states
-    - date
-    - verified
-    - notes
-
-# wake section (under ECU_NAME.wake) — how to rouse a fast-sleeping ECU before
-# reads. Some modules (e.g. a Smart Key Module) power their CAN transceiver only
-# briefly: they answer one request, then sleep again within a second or two, so a
-# normal single 10 01 wake (SessionManager.open_session's default) races the
-# sleep timer and the follow-up reads return NO DATA. This block declares — per
-# ECU, in profile data, not hardcoded — the ritual that reliably wakes it, so
-# `session <ECU> --wake` (and any read that opts in) honours it on BOTH
-# transports. Make-neutral: absent = the default single-1001 wake.
+#   - the tx_id/rx_id width, which depends on the addressing mode (0x7FF for the 11-bit modes);
+#   - the vocabularies of other files: vehicle_states (vehicle_states.yaml), can_bus
+#     (can_buses.yaml), variants (variants.yaml), and the ECU's own revisions;
+#   - parsing: WiCAN expressions, support maps, iocontrol requests and their release, the
+#     iocontrol_scan_ranges, memory reads, and signal categories against their unit;
+#   - the session_mode of an actuator against the session blocklist;
+#   - a PID key that YAML read as an octal integer (write "0105":, not 0105:), and keys repeated
+#     in one mapping;
+#   - legacy fields, with the migration to run (they are listed below with a deprecationMessage);
+#   - across files: ECU names, shipped signal names and send_to topics must be unique.
 #
-# Format:
-#   wake:
-#     method: rapid_read     # required — how to wake (see valid_wake_methods)
-#     prime_pid: "22B003"    # rapid_read/relay: a cheap full UDS request (SID-first)
-#                            #   fired repeatedly to hold the transceiver awake —
-#                            #   e.g. 22B003 (read DID), 1001, 3E00 (default 1001).
-#                            #   Author the service byte; a bare DID is not prefixed.
-#     attempts: 8            # how many back-to-back prime frames to send (default 6)
-#     interval_ms: 80        # gap between prime frames in ms — MUST be shorter than
-#                            #   the ECU's sleep timer (default 60)
-#     sleep_timer_ms: 2000   # documented time the ECU stays awake after a frame
-#                            #   (informational; tunes defaults/warnings)
-#     session_mode: "03"     # DiagnosticSessionControl sub-function to enter after
-#                            #   waking (default 03 = UDS extended)
-#     notes: str             # optional — free text (why this ritual, quirks)
-# The `relay` method additionally uses the ECU's iocontrol: block to close a power
-# relay after waking (the Ioniq SKM ACC/IGN procedure); it is gated behind the
-# profile `skm_wakeup` quirk. See src/canair/ecus/wake.py (resolver) and
-# src/canair/safety/quirks.py.
-wake_fields:
-  required: [method]
-  optional: [prime_pid, attempts, interval_ms, sleep_timer_ms, session_mode, notes]
-
-# Accepted values for wake.method.
-#   rapid_read — fire `prime_pid` (or 10 01) back-to-back `attempts` times at
-#                `interval_ms` spacing to hold the transceiver awake, then open a
-#                session. The general, transport-agnostic primitive.
-#   session    — a single 10 01 wake + session (the built-in default behaviour;
-#                declaring it is documentary).
-#   relay      — rapid_read wake, then actuate a power relay via the ECU's
-#                iocontrol: block (Ioniq SKM ACC/IGN). Gated behind the
-#                `skm_wakeup` profile quirk.
-valid_wake_methods:
-  - rapid_read
-  - session
-  - relay
-
-# revisions section (under ECU_NAME.revisions) — the versions of this ECU that differ in
-# protocol or decoding. A revision exists only if some definition differs; a new part
-# number with identical diagnostics is a fingerprint, not a revision. Which one a car has:
-# a pin (`profile use --pin ECU=ID`, `--revision ECU=ID`), else the only one its variant
-# allows (variants.yaml revisions:), else undetermined — and then the ECU's revision-gated
-# PIDs and signals are skipped. Edit with `canair ecu revisions`.
-#   revisions:
-#     KWP:                              # listed first = the reference revision
-#       identity: {id_protocol: KWP2000}
-#       fingerprints:
-#         - {responds: "1A90"}          # a safe identity read only this revision answers
-#     UDS:
-#       identity: {id_protocol: UDS}
-#       fingerprints:
-#         - {identity: {part_number: "36601-0E1*"}}   # identity fields, glob patterns
-#         - {software: "F195:1.04*"}                  # the software version (RECORD:TEXT)
-# A revision's other keys override the ECU's own, replaced whole (identity: only
-# id_protocol). Fingerprints are matched at connect (src/canair/live/revision_probe.py) and
-# by `canair identity`.
-revision_fields:
-  overrides:
-    [identity, sessions, wake, multi_did, multi_did_max, response_timeout_ms, addressing, rx_id]
-  optional: [fingerprints]
-valid_fingerprint_kinds: [identity, responds, software]
-
-required_pid_fields:
-  - status           # PID lifecycle: active | draft | static | ignored.
-                     #   Required + explicit on every PID (no implicit default in
-                     #   the data). Semantics:
-                     #   active  — indexed, swept, queryable, shipped to the device.
-                     #   draft   — indexed/swept/queryable but NOT shipped (placeholder
-                     #             or speculative work not yet ready for the device).
-                     #   static  — unchanging identity/calibration block: queryable &
-                     #             analysed, skipped in a bare-ECU sweep (unless
-                     #             --include-static) and NOT shipped.
-                     #   slow    — real & live but too slow-changing to poll every cycle
-                     #             (e.g. a last-cycle summary): shipped at its own long
-                     #             `period` (required), skipped in a bare-ECU sweep
-                     #             (unless --include-static).
-                     #   ignored — dead/useless DID: documented tombstone, excluded
-                     #             from ALL tooling (index/query/coverage/profile).
-
-optional_pid_fields:
-  - period
-  - variable_length   # bool: this PID legitimately returns variable-length
-                      #   responses (the ECU populates a different number of
-                      #   trailing bytes/records depending on state or content),
-                      #   so a shorter-than-usual payload is NOT evidence of a
-                      #   truncated ISO-TP read. Omit (or false) for a
-                      #   fixed-length PID, where a short payload is suspect.
-                      #   Truncation is guarded at capture time regardless (the
-                      #   ISO-TP declared-length check in parse_uds_response);
-                      #   this flag documents intent for analysis/lint tooling,
-                      #   and stops the ELM327 transports ever requesting a frame
-                      #   count for the PID (no count fits a varying length).
-  - response_frames   # int >= 1: how many CAN frames this PID's positive response
-                      #   occupies on the wire, measured and confirmed live (never
-                      #   inferred from stored payload lengths, which multi-DID
-                      #   batching and historical truncated reads make unreliable).
-                      #   Lets an ELM327 adapter be told up front how many frames to
-                      #   wait for, instead of sitting out its ~614ms ATST budget on
-                      #   every read. Maintained automatically by the live commands;
-                      #   edit with `canair pids set-response-frames`. Mutually
-                      #   exclusive with variable_length (a response with no fixed
-                      #   length has no count, and shipping one would be a
-                      #   deliberate undercount). The true count is recorded even
-                      #   when it exceeds what an adapter can be asked for — that
-                      #   ceiling is consumer policy (MAX_REQUESTABLE_FRAMES).
-  - support_map      # {at, length, unit, order, also_at}: the PID's data starts with a
-                     #   constant support map — `length` bytes at data offset `at` (counted
-                     #   after the SID and DID echo) marking which of the data that follows
-                     #   are real signals. unit: bit = one map bit per data bit (a mark may
-                     #   start a multi-bit field), byte = one per data byte, field = one
-                     #   per parameter of the record whatever its width (the service-21
-                     #   pages; widths come from the defined signals); order: msb (map bit
-                     #   7 = first) or, for field only, lsb; also_at (field only): data
-                     #   offsets of the further bitmaps a record of more than 32 parameters
-                     #   carries. Only the layout is stored; the map bytes are read from
-                     #   each payload. Found by `canair investigate ECU --support-map`,
-                     #   written by `canair pids set-support-map`, read by `canair
-                     #   coverage` (which then stops reporting bytes and bits that are not
-                     #   signals) and drawn muted by `monitor`/`read`/`captures`. Per-PID
-                     #   by design: the layout is not make-wide.
-  - snapshot_only    # bool: the ECU serves this DID only inside a DTC snapshot (a live
-                     #   `22` read draws an NRC). Defined so `canair dtc` can decode the
-                     #   snapshot data with its signals; never polled in a bare-ECU sweep and
-                     #   never shipped, whatever its status. Only on a service-22 PID.
-                     #   Edit with `canair pids set-snapshot-only`.
-  - snapshot_length  # int >= 1: the DID's data length in a snapshot record (the reply does
-                     #   not carry it). Needed to split a record that holds several DIDs;
-                     #   a record of one DID is self-describing. Set with
-                     #   `canair pids set-snapshot-only --length N`.
-  - sensitive        # bool: the reply identifies the car or its owner like a VIN (e.g. the
-                     #   CCM's EVCCID). Masked as ***** on screen (`read --reveal` shows it),
-                     #   never saved to captures/, left out of contribute, the blind strip,
-                     #   the docs explorer and the WiCAN AutoPID export. A signal may set it
-                     #   too, which also hides its PID's raw bytes. Rules: src/canair/privacy/sensitive.py;
-                     #   set with `canair pids set-sensitive`.
-  - vehicle_states   # Power states in which this PID responds. Array of tokens from the
-                     # profile's vehicle_states.yaml; the bundled Ioniq's include:
-                     #   SLEEP    — deep sleep, 12V standby only (unplugged)
-                     #   PLUGGED  — charge cable connected (AC or DC)
-                     #   ACC      — one start button press, accessory power
-                     #   "ON"     — two presses without brake, full ignition, HV may be off
-                     #              (quoted: YAML reads a bare ON as true)
-                     #   READY    — brake + start, HV active, driveable
-                     #   CHARGING — actively charging (implies plugged)
-                     #   IG3      — the EV supply rail the battery-side ECUs run on
-                     # These are independent properties — e.g. [SLEEP, PLUGGED] means
-                     # the ECU responds both during unplugged sleep AND when plugged in.
-                     # A profile's vehicle_states.yaml may add composite tokens (parked/driving).
-                     # Empty array [] means untested/unknown. Omitting is also valid.
-  - notes
-  # Shared parameter fields. Each is also a parameter field (see optional_param_fields); stated
-  # here it is the default for every parameter of the PID that does not set it itself (a
-  # parameter's own value, including an explicit "" / [] / false, wins). `canair pids
-  # hoist-defaults` moves a value shared by most of a PID's parameters up to this level. Notes
-  # are NOT inherited: a PID's describe the page, a parameter's the signal.
-  - unit
-  - min
-  - max
-  - verified
-  - source           # str: where the PID's decoding came from
-  - source_links     # list[str]: references for `source`
-  - revisions        # list[str]: the ECU revisions this PID applies to (absent = all). A
-                     #   signal's own revisions: must be within its PID's.
-  - per_revision     # {revision: {field: value}}: fields that differ on that revision —
-                     #   period, response_frames, verified, notes, source, source_links. The
-                     #   PID's own verified/response_frames speak for its reference revision
-                     #   (the first one it applies to); another revision has only these.
-  - parameters
-
-# Accepted values for a PID's `status:` lifecycle field.
-valid_pid_status:
-  - active
-  - draft
-  - static
-  - slow
-  - ignored
-
-required_param_fields:
-  - expression
-
-optional_param_fields:
-  - unit
-  - category        # What the signal measures or represents, stated ONLY where its unit does
-                    #   not imply it (a % that is a state of charge, a bit that is a door).
-                    #   Vocabulary and the unit table: src/canair/ecus/signal_category.py. A binary
-                    #   category (door, lock, lamp…) names the thing; its two-state
-                    #   `type: enum` `values:` says which value is which. Never inherited.
-  - mqtt_topic
-  - send_to         # Full MQTT topic the WiCAN publishes this signal to on EVERY poll,
-                    #   independent of the AutoPID batch cycle (device config canair does
-                    #   not manage). Unique across shipped signals; no wildcards, no
-                    #   leading/trailing '/'. Rule: src/canair/autopid_send_to.py. Unrelated to
-                    #   the inert legacy mqtt_topic (a bare name no code reads).
-  - min
-  - max
-  - source
-  - source_links
-  - verified
-  - notes
-  - ship            # bool, default true: `ship: false` keeps this signal out of the WiCAN device
-                    #   profile (a verified duplicate of another signal, say). The signal is still
-                    #   polled, decoded, shown, captured and analysed. It is one of four gates; a
-                    #   signal ships only when ALL hold: its PID status is active or slow (and
-                    #   not snapshot_only), it is not `ship: false`, it is not `sensitive`, and
-                    #   it is `verified` (unless `wican autopid write --include-unverified`).
-                    #   Edit with `canair pids upsert-param --no-ship`. Replaced `enabled`.
-  - display
-  - sensitive       # bool: this signal's value is masked, never saved or shared (see the
-                    #   PID-level `sensitive`; a PID's flag covers all its signals).
-  # --- typed (multi-modal) decoding ---------------------------------------
-  # A param is a numeric scalar by default. Declaring `type:` (and its
-  # companion map) attaches a PARALLEL typed decoding: the WiCAN `expression`
-  # still yields the raw integer the device ships/analyses, and the typed layer
-  # (src/canair/decode_value.py) interprets that raw value for display/analysis.
-  # This never changes the device output or the numeric analysis path.
-  #   type: numeric   — (default) the expression's float value, as today.
-  #   type: enum      — a discrete mode; `values:` maps raw int -> label.
-  #   type: bitmask   — a set of flags; `bits:` maps bit index (0=LSB) -> label.
-  #   type: ascii     — the payload bytes rendered as text.
-  #   type: date      — a manufacture/schedule date (BCD or binary; YYYY-MM-DD).
-  #   type: bcd       — a binary-coded-decimal integer.
-  #   type: struct    — an ordered set of typed sub-`fields:` (e.g. a schedule
-  #                     record: day-of-week bitmask + hour + minute).
-  - type
-  - values          # enum: {raw_int: "label", ...}
-  - bits            # bitmask: {bit_index: "label", ...}  (0 = LSB)
-  - fields          # struct: [{name, type, expression, values/bits/...}, ...]
-  - per_revision    # {revision: {field: value}}: fields that differ on that revision —
-                    #   expression, unit, min, max, type, values, bits, fields, verified,
-                    #   notes, source, source_links. Base verified speaks for the signal's
-                    #   reference revision; another is unverified unless it says otherwise.
-  - revisions       # list[str]: the ECU revisions this signal applies to (absent = its
-                    #   PID's). Two PIDs may ship the same signal name only when their
-                    #   revisions are disjoint (one signal, followed across a revision).
-
-# Accepted values for a param's optional `type:` field (typed decoding).
-valid_param_types:
-  - numeric
-  - enum
-  - bitmask
-  - ascii
-  - date
-  - bcd
-  - struct
-
-# IOControl section — per-ECU actuator commands: UDS InputOutputControlByIdentifier
-# (0x2F), or KWP2000 InputOutputControlByLocalIdentifier (0x30) on ECUs that speak
-# it. Lives under ECU_NAME.iocontrol alongside ECU_NAME.pids.
-# Format:
-#   iocontrol:
-#     DID_HEX:                         # e.g. BC01, B05B
-#       label: str                     # Human-readable name (required)
-#       verified: bool                 # Tested on this car? (same as PID parameters)
-#       on: str                        # Full hex command for ON (e.g. "2FBC0103")
-#       off: str                       # Full hex command for OFF (e.g. "2FBC0100")
-#       release: str                   # Request that hands the output back to the ECU,
-#                                      #   sent on exit, on Ctrl+C and by --poll. UDS
-#                                      #   implies 2F<DID>00; KWP2000 0x30 has no standard
-#                                      #   one, so `canair io` refuses a 0x30 ON without it
-#       enable_mask: str               # UDS only: the controlEnableMaskRecord (quoted hex)
-#                                      #   a packeted DID's requests end with, when its
-#                                      #   maker uses the mask concept (ISO 14229-1
-#                                      #   12.2.2). The value keys append it, and the
-#                                      #   implied release becomes 2F<DID>00 + FF per mask
-#                                      #   byte, which hands every parameter back
-#       notes: str                     # Additional context (use > for multiline)
-#       session: bool                  # Open a diagnostic session first (default: true)
-#       session_mode: str              # Its sub-function, quoted hex (default: "03"; Nissan
-#                                      #   "C0", which needs the nissan_c0_session quirk)
-#       hold: bool                     # Needs --hold to keep active (default: true)
+# An unknown field is a warning (`x-warn: [additionalProperties]`), except in identity:, wake:,
+# addressing: and isotp:, where it is an error.
 #
-# UDS control type suffixes (appended to 2F<DID>):
-#   03 = shortTermAdjustment (ON)
-#   00 = returnControl (OFF / release)
-# KWP2000 0x30 is 30 <LID> <option> [state...] with an 8-bit local identifier.
-# ISO 14230-3 leaves the option byte to the manufacturer, and 00 is not a release
-# everywhere (Nissan: a one-shot command; Hyundai/Kia: unknown), so
-# declare the release explicitly. The key is then a free-form label for the
-# command (e.g. the LID, or the LID plus its function byte).
+# Python vocabularies pinned to this file by tests (tests/validation/test_ecus_schema.py):
+# PID_STATUSES (canair.ecus.pid_status), VALID_TYPES (canair.expression.decode_value),
+# KNOWN_METHODS (canair.ecus.wake), ECU_ISOTP_FIELDS (canair.transport.isotp_params),
+# IDENTITY_FIELDS (canair.ecus.registry), ID_PROTOCOL_VALUES (canair.uds.protocol),
+# SECTION_FIELDS (canair.ecus.dtc_definitions), MEMORY_FIELDS (canair.ecus.memory),
+# DECL_FIELDS (canair.uds.support_map), SCAN_LOG_FIELDS (canair.yaml_edit.ecu), and the
+# research choices of `canair pids add-research`.
 #
-# Usage with canair:
-#   canair io <ECU> --did <DID>
-#   e.g.: canair io IGPM --did BC01
-iocontrol_fields:
-  - label
-  - verified
-  - "on"
-  - "off"
-  - release        # optional: request that hands the output back (see above)
-  - enable_mask    # optional: a packeted DID's controlEnableMaskRecord (see above)
-  - notes
-  - session
-  - session_mode
-  - hold
-  - status_param   # optional: param name from pids section to query as status indicator
+# Profile-wide settings live one level up, in profile.yaml (profile_schema.json).
 
-# Research section — untested PIDs, undecoded captures, pending scans, and
-# IOControl discovery. Lives under ECU_NAME.research alongside pids/iocontrol.
-# Items graduate to pids/iocontrol once decoded/verified; mark research entry "done".
-#
-# Format:
-#   research:
-#     - type: scan | decode | verify | iocontrol_scan
-#       target: "22 E001-E010"     # PID, DID range, or scan description
-#       status: pending | captured | nrc | done
-#       priority: P1 | P2 | P3    # P1=high value, P2=medium, P3=speculative
-#       vehicle_states: [acc]      # Car power states needed (same vocabulary as
-#                                  #   the PID/ECU vehicle_states field)
-#       revisions: [UDS]           # The ECU revisions it concerns (absent = all): a car
-#                                  #   on another revision doesn't list it
-#       created: "2026-04-15"      # Auto-set to today when the entry is added
-#       updated: "2026-04-20"      # Auto-set to today on add and on set-status
-#       date: "2026-04-15"         # When last tested (optional)
-#       result: "..."              # Short result summary (optional)
-#       notes: "..."               # Details, what to look for
-#       sources: [...]             # Cross-references (URLs, file references)
-#       what_to_test: [...]        # Specific things to check (optional)
-#       capture_protocol: "..."    # How to capture the data needed to decode (optional)
-#
-# type values:
-#   scan           — broad PID/DID range scan not yet performed
-#   decode         — response captured but payload not decoded
-#   verify         — parameter exists but value unverified on this car
-#   iocontrol_scan — IOControl (2F) discovery scan
-research_fields:
-  required: [type, target, status]
-  optional: [priority, vehicle_states, revisions, created, updated, date, result, notes, sources, what_to_test, capture_protocol]
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "https://philipkocanda.github.io/canair/schema/ecus.json"
+title: canair ecus/<name>.yaml
+description: >-
+  One ECU of a canair vehicle profile: its address, identity, PIDs and signals, actuators, DTC
+  meanings and research backlog. The ECU's short name is the top-level key.
+type: object
+additionalProperties:
+  $ref: "#/definitions/ecu"
 
-# Routines section — RoutineControl discovery results.
-# Populated by `canair scan routines` (UDS 0x31 SF03 requestRoutineResults with
-# 4-digit RID keys, or KWP2000 0x33 RequestRoutineResultsByLocalIdentifier with
-# 2-digit LID keys). Lives under ECU_NAME.routines.
-#
-# Format:
-#   routines:
-#     RID_HEX:                       # 4-digit hex Routine Identifier (e.g. F010)
-#       response: str                # hex payload of positive 71-response (optional)
-#       nrc: 0xNN                    # negative response code (if NRC-based hit)
-#       nrc_desc: str                # NRC description text
-#       label: str                   # optional human label (filled in as research proceeds)
-#       verified: bool               # optional — tested/decoded on this car
-#       notes: str                   # optional — findings, cross-refs
-#
-# Exactly one of {response, nrc} is set per hit. Routines enter here from
-# the scanner as leads; promotion to iocontrol (if start-routine is ever
-# attempted and verified safe) is a manual step and requires explicit consent.
-routines_fields:
-  optional: [response, nrc, nrc_desc, label, verified, notes]
+definitions:
+  text:
+    type: string
+  texts:
+    type: array
+    items:
+      type: string
+  notes:
+    type: string
+    description: Free text. Keep it technical.
+  can_id:
+    type: integer
+    minimum: 0
+    maximum: 0x1FFFFFFF
+  hex_byte:
+    type: string
+    pattern: "^[0-9A-Fa-f]{2}$"
+    errorMessage: >-
+      must be one quoted hex byte (e.g. "03" or "C0"); quote it, or YAML reads it as a number
+  vehicle_states:
+    type: array
+    uniqueItems: true
+    items:
+      type: string
+    description: >-
+      Power states, from the profile's vehicle_states.yaml (SLEEP, PLUGGED, ACC, "ON", READY,
+      CHARGING, IG3 on the bundled Ioniq). Quote "ON": YAML reads a bare ON as true. The tokens are
+      independent properties: [SLEEP, PLUGGED] means both. [] means untested.
 
-# IOControl discoveries section — IOControl discovery scan output (UDS 0x2F SF 00
-# returnControlToECU, or KWP2000 0x30 IOCP 00). Populated by `canair scan iocontrol`.
-# Lives under
-# ECU_NAME.iocontrol_discoveries. Distinct from ECU_NAME.iocontrol (the
-# curated, human-authored actuator list) so the scanner can rerun without
-# clobbering on/off/notes.
-#
-# Format: same shape as routines_fields — each entry is a DID_HEX (4-digit
-# hex) mapping to {response, nrc, nrc_desc, label, verified, notes}.
-# Exactly one of {response, nrc} is set per hit.
-#
-# Promotion workflow: a discovery becomes a real iocontrol entry manually
-# once on/off commands have been determined and verified on the car.
-iocontrol_discoveries_fields:
-  optional: [response, nrc, nrc_desc, label, verified, notes]
+  # Fields a PID can state once for all its signals, and a signal for itself; a dtcs: section and
+  # its entries use the same ones. A signal's own value, including an explicit "" / [] / false,
+  # wins over its PID's.
+  unit:
+    type: string
+    description: Display unit.
+  bound:
+    type: [number, string]
+    description: A number, or a numeric string.
+  verified:
+    type: boolean
+    description: Checked on a real car.
+  source:
+    type: string
+    description: Where the decoding came from.
+  source_links:
+    type: array
+    items:
+      type: string
+    description: References for source.
+
+  ecu:
+    type: object
+    x-warn: [additionalProperties]
+    required: [tx_id]
+    additionalProperties: false
+    properties:
+      tx_id:
+        $ref: "#/definitions/can_id"
+        description: >-
+          Request arbitration ID, in hex. 11-bit (0x000-0x7FF) for normal addressing; a full 29-bit
+          ID (e.g. 0x18DA10F1) in a 29-bit addressing mode.
+      rx_id:
+        $ref: "#/definitions/can_id"
+        description: >-
+          Response arbitration ID, for an ECU that does not follow the profile's rule (tx_id + the
+          addressing.rx_offset, default 0x08, in the 11-bit modes; the byte-swapped ID in
+          normal_fixed_29bit).
+      identity:
+        $ref: "#/definitions/identity"
+      addressing:
+        $ref: "#/definitions/addressing"
+      isotp:
+        $ref: "#/definitions/isotp"
+      can_bus:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+        description: >-
+          The CAN bus segments the ECU sits on, as codes from the profile's can_buses.yaml (bus
+          names are vendor-specific: B-CAN/P-CAN on Hyundai, HS/MS on Ford). A gateway spans them
+          all ([ALL]).
+      vehicle_states:
+        $ref: "#/definitions/vehicle_states"
+        description: The power states in which the ECU answers session control (10 01).
+      wake:
+        $ref: "#/definitions/wake"
+      session:
+        type: boolean
+        description: The ECU needs the extended diagnostic session (10 03).
+      sessions:
+        $ref: "#/definitions/sessions"
+      multi_did:
+        type: boolean
+        description: Try UDS service-22 multi-DID batching on this ECU.
+      multi_did_max:
+        $ref: "profile.json#/properties/multi_did_max"
+        description: Most DIDs per multi-DID request (overrides profile.yaml; default 3).
+      response_timeout_ms:
+        $ref: "profile.json#/properties/response_timeout_ms"
+        description: >-
+          This ECU's response budget in ms, for a slow ECU (the global --timeout overrides it).
+      scan_log:
+        type: array
+        description: Which services and ranges were probed on this ECU, and what they found.
+        items:
+          $ref: "#/definitions/scan_log_entry"
+      dtcs:
+        $ref: "#/definitions/dtcs"
+      pids:
+        type: object
+        description: >-
+          Readable PIDs, keyed by request (22C00B, 2101). Quote a key with a leading zero ("0105"):
+          YAML reads 0105 as an octal number. An identity-only module omits this.
+        additionalProperties:
+          $ref: "#/definitions/pid"
+      iocontrol:
+        type: object
+        description: >-
+          Curated actuators: UDS InputOutputControlByIdentifier (0x2F), or KWP2000
+          InputOutputControlByLocalIdentifier (0x30). Keyed by DID (BC01), or by a free label on
+          KWP2000. Run one with `canair io <ECU> --did <DID>`.
+        additionalProperties:
+          $ref: "#/definitions/iocontrol_entry"
+      iocontrol_discoveries:
+        type: object
+        description: >-
+          What `canair scan iocontrol` found (UDS 0x2F SF 00, or KWP2000 0x30 IOCP 00), keyed by
+          DID. Kept apart from iocontrol: so a rescan never overwrites a curated entry. A discovery
+          becomes an iocontrol: entry by hand, once its requests are verified on the car.
+        additionalProperties:
+          $ref: "#/definitions/hit"
+      iocontrol_scan_ranges:
+        type: array
+        items:
+          type: string
+        description: >-
+          "START-END" hex DID ranges `canair scan iocontrol` sweeps on this ECU (["B000-BFFF"]).
+          Without it, the ranges come from the ECU's PIDs, else the whole DID space.
+      research:
+        type: array
+        description: >-
+          Open work: untested PIDs, undecoded captures, pending scans. An entry graduates to pids:
+          or iocontrol: once decoded and verified, and is then marked done.
+        items:
+          $ref: "#/definitions/research_entry"
+      routines:
+        type: object
+        description: >-
+          What `canair scan routines` found: UDS 0x31 SF 03 (requestRoutineResults) with 4-digit
+          RID keys, or KWP2000 0x33 with 2-digit LID keys. Leads only: starting a routine is a
+          manual step that needs explicit consent.
+        additionalProperties:
+          $ref: "#/definitions/hit"
+      revisions:
+        description: >-
+          The versions of this ECU that differ in protocol or decoding, keyed by a local ID naming
+          what differs (KWP, UDS, 150s); the first is the reference. Each may override identity
+          (only id_protocol), sessions, wake, multi_did, multi_did_max, response_timeout_ms,
+          addressing and rx_id, and lists the fingerprints that recognise it ({identity: {...}},
+          {responds: "1A90"}, {software: "F195:1.04*"}). Edit with `canair ecu revisions`; checked
+          by src/canair/variants/revisions.py.
+      variants:
+        description: >-
+          The variants (IDs from variants.yaml) this ECU is fitted to; absent means all. Edit with
+          `canair ecu set-variants`.
+      memory:
+        description: >-
+          ReadMemoryByAddress (service 0x23): how a memory read is formed, and what `canair scan
+          memory` found. Edit with `canair pids set-memory` and `canair scan memory`; checked by
+          src/canair/ecus/memory.py.
+        properties:
+          format:
+            description: The UDS addressAndLengthFormatIdentifier ("24"), or kwp.
+          max_block:
+            description: The largest read that worked, in bytes.
+          session:
+            description: The session the reads need, when not the default ("03").
+          regions:
+            description: "The scan map: [{start, end, result, nrc, software, scanned}]."
+      availability:
+        deprecationMessage: renamed to vehicle_states (run scripts/migrate_states_status.py)
+
+  # Who the module is. The version-ish fields are near-synonyms by necessity (each marque names
+  # its identity DIDs differently), so `validate pids` warns when two synonyms hold the same
+  # value: keep the field that names what the ECU reported.
+  identity:
+    type: object
+    description: Who this module is. Every field is optional.
+    additionalProperties: false
+    properties:
+      alias:
+        description: A second name the ECU calls itself (SMK for SKM).
+      description:
+        description: Human-readable module name.
+      part_number:
+        description: From F187 (UDS), or 1A 87 (KWP2000; 1A 91 on Hyundai/Kia).
+      mfg_date:
+        description: Manufacturing or calibration date.
+      hw_version:
+        description: Hardware version.
+      sw_version:
+        description: Software version.
+      hw_sw:
+        description: A combined hardware/software ID (some ECUs).
+      boot_sw:
+        description: Boot software identification (F180; F100 is not it on Hyundai/Kia).
+      app_sw:
+        description: Application software version.
+      fw_version:
+        description: Firmware version.
+      firmware:
+        description: Firmware identification.
+      serial:
+        description: From F18C (UDS), or 1A 8C (KWP2000) except on Hyundai/Kia.
+      ecu_id:
+        description: Module code (KWP2000 1A 8C on Hyundai/Kia).
+      sw_id:
+        description: Software identification.
+      calibration:
+        description: Calibration identification.
+      supplier:
+        description: Who makes the module.
+      diag_address:
+        description: Legacy name for F1A0, which Hyundai/Kia use for their software version.
+      vin:
+        description: From F190.
+      id_protocol:
+        enum: [UDS, KWP2000, none, unknown]
+        description: >-
+          How the identity is read: UDS (ISO 14229, 22 F1xx), KWP2000 (ISO 14230, 1A 8x/9x), none
+          (answers session control, exposes no identity), or unknown (not yet determined).
+      identity_confidence:
+        enum: [confirmed, probable, tentative, speculative]
+        description: >-
+          How well the identity is established; omit it to let canair derive it. confirmed: read
+          from the ECU (part number) or verified on this car. probable: self-reported fields, or
+          several pieces of circumstantial evidence. tentative: one weak basis (an address match on
+          another car, a behavioural guess). speculative: little or no support.
+      notes:
+        $ref: "#/definitions/notes"
+
+  addressing:
+    type: object
+    description: >-
+      This ECU's addressing, over the profile's addressing: block. No rx_offset here: a per-ECU
+      rx_id is the per-ECU response override.
+    additionalProperties: false
+    properties:
+      mode:
+        $ref: "profile.json#/properties/addressing/properties/mode"
+      target_address:
+        $ref: "profile.json#/properties/addressing/properties/target_address"
+        description: ISO-TP target address byte (extended 11-bit schemes such as BMW and PSA).
+      source_address:
+        $ref: "profile.json#/properties/addressing/properties/source_address"
+        description: Tester address byte (default 0xF1).
+      fc_id:
+        type: integer
+        exclusiveMinimum: 0
+        description: >-
+          Flow-control arbitration ID, for an ECU that takes a functional request and answers
+          physically (Renault, Mitsubishi).
+
+  isotp:
+    type: object
+    description: >-
+      This ECU's own ISO-TP flow control on slcan-tcp, over the profile's isotp: block. For an ECU
+      that sends no consecutive frame after a FlowControl with BlockSize 0.
+    minProperties: 1
+    propertyNames:
+      enum: [blocksize, rx_flowcontrol_timeout, rx_consecutive_frame_timeout]
+      errorMessage: >-
+        cannot be set per ECU (allowed: blocksize, rx_flowcontrol_timeout,
+        rx_consecutive_frame_timeout; set the rest in profile.yaml)
+    properties:
+      blocksize:
+        type: integer
+        minimum: 0
+        maximum: 255
+        description: Flow-control BlockSize (one byte; 0 = send every consecutive frame).
+      rx_flowcontrol_timeout:
+        type: integer
+        minimum: 0
+        description: ms to wait for a flow-control frame.
+      rx_consecutive_frame_timeout:
+        type: integer
+        minimum: 0
+        description: ms to wait for the next consecutive frame.
+
+  # Some modules (a Smart Key Module, say) power their CAN transceiver only briefly: they answer
+  # one request and sleep again within a second or two, so a single 10 01 races the sleep timer.
+  # This block declares the ritual that wakes the ECU, honoured by `session <ECU> --wake` and by
+  # any read that opts in, on every transport. Absent: the default single 10 01.
+  wake:
+    type: object
+    description: How to wake an ECU that falls asleep quickly, before reads.
+    required: [method]
+    additionalProperties: false
+    properties:
+      method:
+        enum: [rapid_read, session, relay]
+        description: >-
+          rapid_read: send prime_pid back to back to hold the transceiver awake, then open a
+          session. session: one 10 01 and a session (the default; documentary). relay: rapid_read,
+          then close a power relay through the ECU's iocontrol: block (the Ioniq SKM ACC/IGN
+          procedure); needs the skm_wakeup quirk.
+      prime_pid:
+        type: string
+        description: >-
+          A cheap, complete request, service byte first (22B003, 1001, 3E00; default 1001).
+      attempts:
+        type: integer
+        minimum: 1
+        description: How many prime requests to send (default 6).
+      interval_ms:
+        type: integer
+        minimum: 0
+        description: Gap between prime requests in ms, shorter than the sleep timer (default 60).
+      sleep_timer_ms:
+        type: integer
+        minimum: 0
+        description: How long the ECU stays awake after a frame, in ms (informational).
+      session_mode:
+        type: string
+        description: The 0x10 sub-function to enter after waking (default "03", UDS extended).
+      notes:
+        $ref: "#/definitions/notes"
+
+  # Keys are the 0x10 sub-function in hex without the 0x10, quoted so an all-digit key keeps its
+  # hex meaning: UDS 01 (default), 02 (programming, never probed), 03 (extended); KWP2000 81
+  # (standard), 83 (extended), 85 (programming, never probed). Only the read-only sessions are
+  # probed.
+  sessions:
+    type: object
+    description: >-
+      The diagnostic sessions (service 0x10) this ECU supports, as `canair scan sessions` found
+      them, keyed by sub-function ("03", "81").
+    propertyNames:
+      pattern: "^[0-9A-Fa-f]{1,2}$"
+      patternErrorMessage: >-
+        a session key is the 0x10 sub-function as 1-2 hex digits (e.g. '03' or '81')
+    additionalProperties:
+      $ref: "#/definitions/session_entry"
+
+  session_entry:
+    type: object
+    x-warn: [additionalProperties]
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        description: The session's name (standardDiagnosticSession).
+      supported:
+        type: boolean
+        description: The ECU answered 50 xx.
+      nrc:
+        type: integer
+        description: The negative response code of an unsupported session.
+      nrc_desc:
+        type: string
+        description: The NRC's name (subFunctionNotSupported).
+      response:
+        type: string
+        description: The positive response, in hex.
+      vehicle_states:
+        $ref: "#/definitions/vehicle_states"
+      date:
+        type: string
+        description: When it was probed (YYYY-MM-DD).
+      verified:
+        $ref: "#/definitions/verified"
+      notes:
+        $ref: "#/definitions/notes"
+    if:
+      required: [supported]
+      properties:
+        supported:
+          const: true
+    then:
+      properties:
+        nrc:
+          type: "null"
+          errorMessage: a supported session must not also carry an nrc
+
+  scan_log_entry:
+    type: object
+    x-warn: [additionalProperties]
+    additionalProperties: false
+    properties:
+      service:
+        type: integer
+        description: The service probed (0x22).
+      range:
+        type: string
+        description: The identifiers probed ("0101-010F").
+      date:
+        type: string
+        description: When (YYYY-MM-DD).
+      hits:
+        type: [integer, string]
+        description: How many identifiers answered.
+      probes:
+        type: integer
+        description: How many requests were sent.
+      vehicle_states:
+        $ref: "#/definitions/vehicle_states"
+      notes:
+        $ref: "#/definitions/notes"
+
+  # Keys are the SAE code without the -FTB suffix (B2915, not B2915-00); `validate pids` warns
+  # about a key that is neither a code nor a shared field. canair works out the structure of a
+  # code itself (category, generic or manufacturer, the failure-type byte); this section supplies
+  # the meanings it cannot. profile.yaml may hold a dtcs: of the same shape for codes that mean
+  # the same on every ECU (checked against this definition too); an ECU's own entry wins.
+  dtcs:
+    type: object
+    description: >-
+      Manufacturer DTC meanings, keyed by code (B2915). source, source_links and verified may also
+      sit here, next to the codes, stated once for every entry.
+    properties:
+      source:
+        $ref: "#/definitions/source"
+      source_links:
+        $ref: "#/definitions/source_links"
+      verified:
+        $ref: "#/definitions/verified"
+    additionalProperties:
+      $ref: "#/definitions/dtc_entry"
+
+  dtc_entry:
+    type: object
+    x-warn: [additionalProperties]
+    additionalProperties: false
+    properties:
+      description:
+        type: string
+        description: What the code means on this ECU.
+      causes:
+        type: string
+        description: What sets it.
+      source:
+        $ref: "#/definitions/source"
+      source_links:
+        $ref: "#/definitions/source_links"
+      verified:
+        $ref: "#/definitions/verified"
+      notes:
+        $ref: "#/definitions/notes"
+
+  pid:
+    type: object
+    x-warn: [additionalProperties]
+    required: [status]
+    additionalProperties: false
+    properties:
+      status:
+        enum: [active, draft, static, slow, ignored]
+        description: >-
+          The PID's lifecycle, explicit on every PID. active: real and live; read, swept and
+          shipped to the device. draft: a placeholder or speculative work; read and swept, not
+          shipped. static: an unchanging identity or calibration block; read, skipped in a bare-ECU
+          sweep (--include-static), not shipped. slow: live but changes too rarely to poll every
+          cycle; shipped at its own long period (required), skipped in a bare-ECU sweep. ignored: a
+          dead DID (an NRC, no decodable data), kept as a record and excluded from all tooling.
+          Confidence is a separate, per-signal field (verified).
+      period:
+        type: integer
+        minimum: 0
+        description: >-
+          Polling interval in ms (default 5000). Not 0: the firmware reads 0 as unset and
+          substitutes a default.
+      variable_length:
+        type: boolean
+        description: >-
+          The PID legitimately answers with a varying length (the ECU fills a different number of
+          records), so a short reply is not a truncated read. canair then never asks an ELM327 for
+          a frame count for it.
+      response_frames:
+        type: integer
+        minimum: 1
+        description: >-
+          How many CAN frames the positive response takes, measured live (never inferred from
+          stored payloads), so an ELM327 can be told how many to wait for. Kept up to date by the
+          live commands; edit with `canair pids set-response-frames`.
+      support_map:
+        description: >-
+          The PID's data starts with a constant support map marking which of the data that follows
+          are real signals. Only the layout is stored; the map bytes are read from each payload.
+          Found by `canair investigate ECU --support-map`, written by `canair pids
+          set-support-map`, read by `canair coverage`; checked by src/canair/uds/support_map.py.
+        properties:
+          at:
+            description: Data offset of the map, counted after the SID and the DID echo.
+          length:
+            description: Bytes in the map.
+          unit:
+            description: >-
+              bit: one map bit per data bit. byte: one per data byte. field: one per signal of the
+              record, whatever its width (the service-21 pages).
+          order:
+            description: msb (map bit 7 first), or lsb (field only).
+          also_at:
+            description: >-
+              Field only: data offsets of the further maps a record of more than 8 * length
+              signals carries.
+      snapshot_only:
+        type: boolean
+        description: >-
+          The ECU serves this DID only inside a DTC snapshot (a live 22 read draws an NRC). Defined
+          so `canair dtc` can decode the snapshot; never polled in a bare-ECU sweep and never
+          shipped. Only on a service-22 PID. Edit with `canair pids set-snapshot-only`.
+      snapshot_length:
+        type: integer
+        minimum: 1
+        description: >-
+          The DID's data length in a snapshot record, needed to split a record of several DIDs
+          (`canair pids set-snapshot-only --length N`).
+      sensitive:
+        type: boolean
+        description: >-
+          The reply identifies the car or its owner, like a VIN. Masked on screen (`read --reveal`
+          shows it), never saved to captures/, and left out of contribute, the blind strip, the
+          docs explorer and the AutoPID export. Set with `canair pids set-sensitive`.
+      vehicle_states:
+        $ref: "#/definitions/vehicle_states"
+        description: The power states in which this PID answers.
+      notes:
+        $ref: "#/definitions/notes"
+        description: About the page. Not inherited by its signals.
+      unit:
+        $ref: "#/definitions/unit"
+      min:
+        $ref: "#/definitions/bound"
+      max:
+        $ref: "#/definitions/bound"
+      verified:
+        $ref: "#/definitions/verified"
+      source:
+        $ref: "#/definitions/source"
+      source_links:
+        $ref: "#/definitions/source_links"
+      revisions:
+        description: >-
+          The ECU revisions this PID applies to (absent: all). A signal's own revisions must be
+          among its PID's.
+      per_revision:
+        description: >-
+          {revision: {field: value}}: what differs on that revision (period, response_frames,
+          verified, notes, source, source_links). The PID's own fields speak for its reference
+          revision, the first it applies to.
+      parameters:
+        type: object
+        description: The PID's signals, keyed by name.
+        additionalProperties:
+          $ref: "#/definitions/signal"
+      enabled:
+        deprecationMessage: >-
+          use status: draft (a signal states ship: false instead); run
+          scripts/migrate_states_status.py
+      ignored:
+        deprecationMessage: "use status: ignored (run scripts/migrate_states_status.py)"
+      static:
+        deprecationMessage: "use status: static (run scripts/migrate_states_status.py)"
+      availability:
+        deprecationMessage: renamed to vehicle_states (run scripts/migrate_states_status.py)
+      ha_class:
+        deprecationMessage: retired in favour of category (run canair pids migrate-categories)
+    allOf:
+      - if:
+          required: [status]
+          properties:
+            status:
+              const: slow
+        then:
+          required: [period]
+          errorMessage: >-
+            status 'slow' needs an explicit period: without one the device polls it every 5 s,
+            which is what 'slow' exists to avoid (canair pids set-pid-period)
+      - if:
+          required: [variable_length]
+          properties:
+            variable_length:
+              const: true
+        then:
+          properties:
+            response_frames:
+              not: {}
+              errorMessage: >-
+                cannot be set with variable_length: true (a variable-length response has no fixed
+                frame count)
+
+  # A signal is a numeric scalar by default. `type:` (with its companion map) adds a typed reading
+  # alongside: the expression still yields the raw value the device ships and analysis uses, and
+  # the typed layer (src/canair/expression/decode_value.py) interprets it for display.
+  signal:
+    type: object
+    x-warn: [additionalProperties]
+    required: [expression]
+    additionalProperties: false
+    properties:
+      expression:
+        type: string
+        description: >-
+          The WiCAN formula. Bnn counts the ISO-TP PCI bytes: confirm an offset with `canair bix`.
+      unit:
+        $ref: "#/definitions/unit"
+      min:
+        $ref: "#/definitions/bound"
+      max:
+        $ref: "#/definitions/bound"
+      verified:
+        $ref: "#/definitions/verified"
+      source:
+        $ref: "#/definitions/source"
+      source_links:
+        $ref: "#/definitions/source_links"
+      notes:
+        $ref: "#/definitions/notes"
+        description: About this signal. A PID's notes are not inherited.
+      category:
+        description: >-
+          What the signal measures, stated only where its unit does not say it (a % that is a
+          state of charge, a bit that is a door). A binary category (door, lock, lamp) names the
+          thing, and a two-state type: enum says which value is which. Never inherited. The
+          vocabulary is src/canair/ecus/signal_category.py.
+      mqtt_topic:
+        type: string
+        description: Legacy bare name that no code reads; see send_to.
+      send_to:
+        type: string
+        description: >-
+          The full MQTT topic the WiCAN publishes this signal to on every poll, apart from the
+          AutoPID batch. Unique across shipped signals; no wildcards, no leading or trailing '/'.
+      ship:
+        type: boolean
+        description: >-
+          false keeps the signal out of the device profile; it is still polled, decoded and
+          captured. A signal ships only when its PID is active or slow (and not snapshot_only),
+          it is not ship: false, not sensitive, and verified (unless `wican autopid write
+          --include-unverified`). Edit with `canair pids upsert-param --no-ship`.
+      display:
+        type: string
+        description: How to show the value.
+      sensitive:
+        type: boolean
+        description: >-
+          The value is masked, never saved or shared (a PID's sensitive covers all its signals).
+      type:
+        enum: [numeric, enum, bitmask, ascii, date, bcd, struct]
+        description: >-
+          numeric (default): the expression's value. enum: a mode, named by values:. bitmask:
+          flags, named by bits:. ascii: the bytes as text. date: a date (BCD or binary). bcd: a
+          binary-coded decimal. struct: typed sub-fields:.
+      values:
+        type: object
+        description: "type: enum: {raw value: label}."
+        propertyNames:
+          pattern: "^-?[0-9]+$"
+          patternErrorMessage: an enum value must be an integer
+      bits:
+        type: object
+        description: "type: bitmask: {bit index: label}, 0 = LSB."
+        propertyNames:
+          pattern: "^([0-9]|[1-5][0-9]|6[0-3])$"
+          patternErrorMessage: a bit index must be an integer 0-63
+      fields:
+        type: array
+        description: "type: struct: [{name, type, expression, values/bits}, ...]."
+        items:
+          type: object
+          required: [name]
+          properties:
+            name:
+              type: string
+              minLength: 1
+      revisions:
+        description: >-
+          The ECU revisions this signal applies to (absent: its PID's). Two PIDs may ship one
+          signal name only when their revisions do not overlap.
+      per_revision:
+        description: >-
+          {revision: {field: value}}: what differs on that revision (expression, unit, min, max,
+          type, values, bits, fields, verified, notes, source, source_links). Another revision
+          than the reference is unverified unless it says otherwise.
+      enabled:
+        deprecationMessage: "renamed to ship (enabled: false is now ship: false)"
+      ha_class:
+        deprecationMessage: retired in favour of category (run canair pids migrate-categories)
+    allOf:
+      - if:
+          required: [type]
+          properties:
+            type:
+              const: enum
+        then:
+          required: [values]
+          errorMessage: "type: enum needs a values: map of raw value -> label"
+        else:
+          properties:
+            values:
+              not: {}
+              errorMessage: "is only valid with type: enum"
+      - if:
+          required: [type]
+          properties:
+            type:
+              const: bitmask
+        then:
+          required: [bits]
+          errorMessage: "type: bitmask needs a bits: map of bit index -> label"
+        else:
+          properties:
+            bits:
+              not: {}
+              errorMessage: "is only valid with type: bitmask"
+      - if:
+          required: [type]
+          properties:
+            type:
+              const: struct
+        then:
+          required: [fields]
+          errorMessage: "type: struct needs a fields: list"
+        else:
+          properties:
+            fields:
+              not: {}
+              errorMessage: "is only valid with type: struct"
+
+  # UDS control types appended to 2F<DID>: 03 shortTermAdjustment (on), 00 returnControlToECU
+  # (off, release). KWP2000 0x30 is 30 <LID> <option> [state...]; ISO 14230-3 leaves the option
+  # byte to the maker, and 00 is not a release everywhere, so a KWP2000 entry declares its release
+  # (`canair io` refuses its on without one).
+  iocontrol_entry:
+    type: object
+    x-warn: [additionalProperties]
+    additionalProperties: false
+    properties:
+      label:
+        type: string
+        description: Human-readable name.
+      verified:
+        $ref: "#/definitions/verified"
+      "on":
+        type: string
+        description: The full request that turns it on ("2FBC0103").
+      "off":
+        type: string
+        description: The full request that turns it off ("2FBC0100").
+      "true":
+        type: string
+        description: An unquoted on key, which YAML 1.1 reads as true.
+      "false":
+        type: string
+        description: An unquoted off key, which YAML 1.1 reads as false.
+      release:
+        type: string
+        errorMessage: must be a quoted hex request
+        description: >-
+          The request that hands the output back to the ECU, sent on exit, on Ctrl+C and by
+          --poll. UDS implies 2F<DID>00; KWP2000 0x30 has no standard one.
+      enable_mask:
+        type: string
+        errorMessage: must be quoted hex
+        description: >-
+          UDS only: the controlEnableMaskRecord a packeted DID's requests end with, when its maker
+          uses the mask (ISO 14229-1 12.2.2). The implied release then ends with FF per mask byte.
+      notes:
+        $ref: "#/definitions/notes"
+      session:
+        type: boolean
+        description: Open a diagnostic session first (default true).
+      session_mode:
+        $ref: "#/definitions/hex_byte"
+        description: >-
+          The session's sub-function, quoted hex (default "03"; Nissan "C0" needs the
+          nissan_c0_session quirk).
+      hold:
+        type: boolean
+        description: Needs --hold to stay active (default true).
+      vehicle_states:
+        $ref: "#/definitions/vehicle_states"
+      status_param:
+        type: string
+        description: "A signal of this ECU's pids: to read as the actuator's status."
+      availability:
+        deprecationMessage: renamed to vehicle_states (run scripts/migrate_states_status.py)
+
+  # A scanner hit (routines:, iocontrol_discoveries:): exactly one of response and nrc is set.
+  hit:
+    type: object
+    x-warn: [additionalProperties]
+    additionalProperties: false
+    properties:
+      session:
+        enum: [default, extended]
+        description: The session the probe ran in.
+      response:
+        type: string
+        description: The positive response, in hex.
+      nrc:
+        type: integer
+        description: The negative response code, for a hit the NRC reveals.
+      nrc_desc:
+        type: string
+        description: The NRC's name.
+      label:
+        type: string
+        description: A name, added as research proceeds.
+      verified:
+        $ref: "#/definitions/verified"
+      notes:
+        $ref: "#/definitions/notes"
+
+  research_entry:
+    type: object
+    x-warn: [additionalProperties]
+    required: [type, target, status]
+    additionalProperties: false
+    properties:
+      type:
+        enum: [scan, decode, verify, iocontrol_scan]
+        description: >-
+          scan: a range not yet scanned. decode: a captured payload not yet decoded. verify: a
+          signal not yet checked on the car. iocontrol_scan: an IOControl (2F) discovery scan.
+      target:
+        type: string
+        description: The PID, DID range or scan the task concerns ("22 E001-E010").
+      status:
+        enum: [pending, captured, nrc, done]
+      priority:
+        enum: [P1, P2, P3]
+        description: P1 = high value, P2 = medium, P3 = speculative.
+      vehicle_states:
+        $ref: "#/definitions/vehicle_states"
+        description: The power states the task needs.
+      revisions:
+        description: >-
+          The ECU revisions it concerns (absent: all); a car on another revision does not list it.
+      created:
+        type: string
+        description: Set to today when the entry is added (YYYY-MM-DD).
+      updated:
+        type: string
+        description: Set to today when the entry is added and when its status changes.
+      date:
+        type: string
+        description: When it was last tested.
+      result:
+        type: string
+        description: A short summary of the outcome.
+      notes:
+        $ref: "#/definitions/notes"
+        description: Details, and what to look for.
+      sources:
+        type: array
+        description: Cross-references (URLs, files).
+      what_to_test:
+        type: array
+        description: Specific things to check.
+      capture_protocol:
+        type: string
+        description: How to capture the data needed to decode it.
+      prerequisite:
+        deprecationMessage: renamed to vehicle_states (run scripts/migrate_states_status.py)

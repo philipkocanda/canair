@@ -49,7 +49,7 @@ from canair.yaml_edit.text import (
 # decoding a new PID. The deeper nesting (pids: PID: parameters: PARAM: field) needs its own
 # indent-anchored locators. Every write is re-parsed; on failure the original is restored.
 
-# Canonical field order for a rendered parameter (matches pids/_schema.yaml).
+# Canonical field order for a rendered signal (fields of the ECU schema's signal; test-pinned).
 PARAM_FIELD_ORDER = (
     "expression",
     "type",
@@ -970,7 +970,7 @@ def set_iocontrol_scan_ranges(
     return edit_ecu_text(ecu_name, transform, checker, pids_dir=pids_dir, profile=profile)
 
 
-# Canonical field order for a rendered `wake:` block (matches pids_schema.yaml).
+# Canonical field order for a rendered `wake:` block (the ECU schema's wake properties).
 WAKE_FIELD_ORDER = (
     "method",
     "prime_pid",

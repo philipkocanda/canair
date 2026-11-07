@@ -1,7 +1,8 @@
 # UDS specification alignment: canair checked against udsoncan
 
-Status: **PHASES 0, 1, 2, 4, 5, 7, 8 DONE** (2026-11-06), and phase 6 item 2. Phases 3 and 6
-need the car. Checked against `3e652f46`. Paths are relative to
+Status: **PHASES 0, 1, 2, 4, 5, 7, 8 DONE** (2026-11-06); phase 6 items 1 and 2 done
+(2026-11-07). Open: phase 3 (needs the car) and phase 6 item 3 (needs an ECU that answers
+`19 06`). Checked against `3e652f46`. Paths are relative to
 `src/canair/` unless they start with `plans/`, `docs/` or `tests/`.
 
 ## Summary
@@ -359,8 +360,9 @@ As built:
   fake terminal without the `session_policy` attribute that `transport/protocol.py::Terminal`
   declares then failed in `SessionManager`. That fake got the attribute in a later commit, and
   the full suite passes.
-- Not changed: `live/actuate/action.py` sends a profile action's request with no
-  `expected_sid`; a functional action has many responders, so it needs its own rule.
+- Not changed here: `live/actuate/action.py` sent a profile action's request with no
+  `expected_sid`; a functional action has many responders, so it needs its own rule. Done
+  later, see "`canair action` replies" below.
 
 The original design:
 
@@ -426,7 +428,7 @@ As built:
   reads, never a suppressed request.
 - Tests: `tests/uds/test_uds_echo.py`.
 
-### Phase 6 — DTC format and extended data
+### Phase 6 — DTC format and extended data (format done 2026-11-07; extended data open)
 
 1. `19 01` once per ECU (decision 6). `live/dtc/codes.py` formats by the format byte: SAE J2012 for
    `00` and `04`, plain hex for `01` and `03`, SPN and FMI for `02`.
@@ -438,6 +440,44 @@ As built:
 4. Help, `docs/concepts/dtcs.md` and the generated `docs/reference/cli/dtc.md` change in the same
    commit.
 5. On the car: `dtc read` on an ECU with a stored code, with and without `--extended`.
+
+On the car (2026-11-07, Ioniq off, 12 V battery at the WiCAN's 12.2 V sleep threshold, so the
+probes were few; every reply is in `captures/2026-11-07.json`, labels `dtc-format-probe` and
+`dtc-extdata-probe`):
+
+| ECU | Request | Reply |
+|---|---|---|
+| BCM | `19 01 FF` | `59 01 09 00 0000`: availability mask `09`, format `00` (SAE J2012-DA format 00), no codes |
+| IGPM | `19 01 FF` | NRC `0x31` |
+| AMP | `19 01 FF` | NRC `0x12`: the service exists, the report type does not |
+| AMP | `19 02 FF` | the seven known `B29xx-00` codes |
+| AMP | `19 06 A91900 FF`, `19 06 A91900 01` | NRC `0x13` both times |
+| CCM, CLU, ESC | `19 01 FF` | no reply (asleep) |
+
+As built (items 1 and 2):
+
+- Decision 6 changed: canair does not store the format. It sends `19 01 <the read's mask>`
+  only when `19 02` returned codes, so a clean ECU costs nothing, and the format cannot go
+  stale after a module swap. Storing it in `identity:` would need an editor, a schema field
+  and a revision rule for one request on the rare read that finds codes.
+- `uds/subfunctions.py::DtcFormatIdentifier` holds Table D.14, and `J2012_DTC_FORMATS` the
+  two formats with the `Lxxxx-yy` text form. `live/dtc/codes.py::format_dtc` prints any other
+  format as six hex digits. The plan said "SPN and FMI for 02": ISO 14229-1 does not give the
+  J1939 byte layout, and SAE J1939-73 is not in `references/`, so a guessed SPN would mislead;
+  `02` prints as hex too.
+- `live/dtc/reading.py`: the result gains `dtc_format` (`"0x01"`, or `null` when the ECU did
+  not say), a non-J2012 code gets no SAE J2012 interpretation, and `dtc_format_note` makes
+  `canair dtc` say which format it saw.
+- Item 2: a `000000` record is skipped (2026-11-06). A trailing partial record is still
+  dropped without a warning.
+- Tests: `tests/dtc/test_dtc.py::TestDtcFormat`; the request lists in
+  `tests/dtc/test_dtc.py` and `tests/live/test_dtc_snapshot_mode.py` gained the `19 01`.
+- Docs: `docs/concepts/dtcs.md` ("When a code is not SAE J2012").
+
+Open (item 3, `--extended`): the only ECU with codes that answered refuses `19 06` with
+`0x13` in both standard forms, so no ECU on this car is known to support extended data.
+Building `--extended` without one reply to check it against would be guessing. Try it on a
+car whose ECU answers `19 06`, or on this one with the ignition on (the AMP may need it).
 
 ### Phase 7 — IOControl mask (done, 2026-11-06)
 
@@ -497,6 +537,39 @@ says "extended" and notes that ISO 15765-2 mixed addressing is not implemented. 
 not a defect: the functional id `0x18DB33F1` carries the tester address, and replies go to it.
 `transport/functional.py::accepts_response_id` now reads the tester from the functional id's
 low byte instead of writing it out.
+
+### `canair action` replies (done, 2026-11-07)
+
+Three defects of `live/actuate/action.py::_send`, found after phase 7:
+
+1. A request to one ECU passed no `expected_sid`. The guard reads go to the same ECUs just
+   before, so a late reply to one of them could be reported as the action's answer.
+2. A broadcast that expects replies went down the one-ECU path, which keeps one reply (the
+   ELM327 parser picks one line; on `slcan-tcp` the ISO-TP stack hears one reply id). So
+   "answered" could mean one ECU accepted while others refused or stayed silent.
+3. `safety/actuation.py::classify` read every `0x10` request as `read`, so phase 4's busy
+   repeat would have sent Hyundai/Kia's `10 D1` sleep request again on a `7F 10 21`.
+
+As built:
+
+- `_send_physical` passes the request's SID and the echo its ECU's protocol fixes
+  (`uds/echo.py::request_echo`), and reports a suppressed reply as "sent (no reply
+  expected)", not "answered".
+- `_send_functional` uses `send_functional` and keeps only replies to the request's service.
+  The action is answered only when every responder accepted and at least one answered; any
+  refusal, or no reply, stops it. `--json` lists each responder under `responders`.
+- `transport/functional.py::functional_request_bytes` takes the terminal's policy, and its
+  exact grants lift the allow-list for that request on that id, as on the ordinary send
+  path. Every terminal and the test fake pass `session_policy`.
+- `classify` reads `0x10` as `read` only into a standard session: UDS `01`/`03` (bit 7
+  ignored) and KWP2000 `81`–`83` (and `01`/`03`). Every other session type, and a bare
+  `10`, is `actuate`; an unknown protocol must read on both. So the busy repeat never
+  repeats one, and `canair scan range --service 10` now asks before it sends a session that
+  only a quirk permits (Nissan `C0`, Hyundai/Kia `90`).
+  No flag on `send_uds` was needed: the repeat already applies only to reads.
+- Tests: `tests/live/actuate/test_action_mode.py::TestSend` and `TestFunctionalGrants`, and
+  the session cases in `tests/safety/test_actuation.py` and `tests/transport/test_timeouts.py`.
+- Docs: `docs/concepts/safety.md` (profile actions).
 
 ## Out of scope
 

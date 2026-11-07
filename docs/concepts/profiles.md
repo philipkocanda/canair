@@ -84,12 +84,15 @@ The other profile files have a schema too, published next to it:
 | `groups.yaml` | `schema/groups.json` |
 | `variants.yaml` | `schema/variants.json` |
 | `signals/<bus>.yaml` | `schema/signals.json` |
+| `ecus/<name>.yaml` | `schema/ecus.json` |
 
 `canair validate` checks each file against the same schema, so the editor and canair report the
-same problems with the same message. `canair validate` also makes the checks a schema cannot,
-such as references to other files and predicate syntax. `canair profile create`, `canair profile
-overlay` and the editors that create one of these files write the modeline. Add it by hand to a
-file created before that.
+same problems with the same message. In an ECU file, an unknown field is a warning (an error only
+inside `identity:`, `wake:`, `addressing:` and `isotp:`), so a file that still holds an old field
+stays editable. `canair validate` also makes the checks a schema cannot, such as references to
+other files, expressions and predicate syntax. `canair profile create`, `canair profile overlay`,
+`canair ecu add` and the editors that create one of these files write the modeline. Add it by hand
+to a file created before that.
 
 ### Addressing
 

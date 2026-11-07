@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 # ─── OBC / LDC (On-Board Charger + Low-Voltage DC-DC Converter) ─────
 #
 # Self-identifies (KWP2000 1A8C) as "AEEOBC51". Part 36400-0E150. Reports two functions:

@@ -10,6 +10,7 @@ from canair.uds.echo import request_echo
 from canair.uds.nrc import NRC_REQUEST_OUT_OF_RANGE
 from canair.uds.protocol import KWP, UDS
 from canair.uds.services import KWP_READ_DTC_BY_STATUS, READ_DTC_INFORMATION
+from canair.uds.subfunctions import J2012_DTC_FORMATS, DtcFormatIdentifier
 
 from ...ecus.names import ecu_display, ecu_name
 from ...transport.protocol import Terminal
@@ -86,6 +87,17 @@ async def _send_report(terminal: Terminal, cmd: str, timeout: float):
     )
 
 
+async def _read_dtc_format(terminal: Terminal, mask_hex: str, timeout: float) -> int | None:
+    """The ECU's DTCFormatIdentifier, from ``19 01 <mask>`` (``59 01 avail format count``).
+
+    None when the ECU does not answer it: not every ECU implements reportNumberOfDTC
+    (the Ioniq's amplifier refuses it with 0x12), and its codes are then read as SAE J2012.
+    """
+    response = await _send_report(terminal, f"1901{mask_hex}", timeout)
+    data = response.get("bytes") or b""
+    return data[3] if response["ok"] and len(data) >= 6 else None
+
+
 async def _read_uds(
     terminal: Terminal,
     tx_id: int,
@@ -120,11 +132,18 @@ async def _read_uds(
         data = response["bytes"]
         avail = data[2] if len(data) >= 3 else None
         records = decode_dtc_records(bytes(data[3:]))
+        dtc_format = None
+        if records:
+            # Only an ECU that reported codes is asked how to read them: one more request.
+            dtc_format = await _read_dtc_format(terminal, cmd[4:6], timeout)
+            if dtc_format is not None:
+                records = decode_dtc_records(bytes(data[3:]), dtc_format)
         return {
             **base,
             "status_availability_mask": f"0x{avail:02X}" if avail is not None else None,
+            "dtc_format": f"0x{dtc_format:02X}" if dtc_format is not None else None,
             "count": len(records),
-            "dtcs": _jsonable(records, tx_id, profile=profile),
+            "dtcs": _jsonable(records, tx_id, dtc_format, profile=profile),
         }
     if response.get("nrc") is not None:
         return {**base, "nrc": f"0x{response['nrc']:02X}", "nrc_desc": response["nrc_desc"]}
@@ -186,17 +205,40 @@ async def _read_kwp(
     return {**base, "error": response.get("error", "unknown")}
 
 
-def _jsonable(records: list[dict], tx_id: int, *, profile: Profile) -> list[dict]:
+def _jsonable(
+    records: list[dict], tx_id: int, dtc_format: int | None = None, *, profile: Profile
+) -> list[dict]:
     """Render internal records (int status) into the JSON/print-friendly shape,
-    annotated with each code's interpretation on the ECU ``tx_id`` that reported it."""
+    annotated with each code's interpretation on the ECU ``tx_id`` that reported it.
+
+    A code in a format other than SAE J2012 has no standard reading, so it gets none.
+    """
     ecu = ecu_name(tx_id, profile=profile)
+    j2012 = dtc_format is None or dtc_format in J2012_DTC_FORMATS
     return [
         {
             "dtc": r["dtc"],
             "raw": r["raw"],
             "status": f"0x{r['status']:02X}",
             "status_bits": r["status_bits"],
-            "interpretation": describe_dtc(r["dtc"], ecu=ecu, profile=profile),
+            "interpretation": describe_dtc(r["dtc"], ecu=ecu, profile=profile) if j2012 else None,
         }
         for r in records
     ]
+
+
+def dtc_format_note(dtc_format: str | None) -> str | None:
+    """What to say about a reported DTCFormatIdentifier (``"0x01"``), or None for J2012."""
+    if dtc_format is None:
+        return None
+    value = int(dtc_format, 16)
+    if value in J2012_DTC_FORMATS:
+        return None
+    try:
+        name = DtcFormatIdentifier(value).name
+    except ValueError:
+        name = f"reserved format {dtc_format}"
+    return (
+        f"the ECU reports its codes in {name} (DTCFormatIdentifier {dtc_format}), which has no "
+        "standard text form: they are shown as hex, and not looked up as SAE J2012 codes"
+    )

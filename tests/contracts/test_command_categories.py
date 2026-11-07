@@ -8,8 +8,6 @@ the actual registered subcommands and check the grouped help renders correctly.
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 from canair.cli import _inject_default_subcommand, build_parser
 from canair.cli.args.categories import CATEGORIES, OTHER_TITLE, categorized_names
 from canair.cli.commands import iter_command_modules
@@ -106,14 +104,22 @@ class TestCommandAliases:
         # A help flag is left alone (show the group help).
         assert _inject_default_subcommand(["cap", "-h"]) == ["cap", "-h"]
 
-    def test_alias_hint_bolded_on_tty_only(self):
+    def test_alias_hint_greyed_when_color_is_on(self, monkeypatch):
         parser = build_parser()
-        with patch("sys.stdout") as mock_stdout:
-            mock_stdout.isatty.return_value = True
-            tty_text = parser.format_help()
-        plain_text = parser.format_help()  # not a tty under pytest capture
-        # On a TTY the parenthesised alias hint is wrapped in bold ANSI.
-        assert "\033[1m(mon)\033[0m" in tty_text
-        # Piped/redirected output stays plain — no escape codes.
-        assert "\033[1m" not in plain_text
-        assert "(mon)" in plain_text
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        monkeypatch.setenv("FORCE_COLOR", "1")
+        color_text = parser.format_help()
+        monkeypatch.delenv("FORCE_COLOR")
+        monkeypatch.setenv("NO_COLOR", "1")
+        plain_text = parser.format_help()
+        # The command name is plain green (not bold); the alias hint is grey.
+        assert "\033[32mmonitor\033[0m \033[90m(mon)\033[0m" in color_text
+        assert "\033[1;32mmonitor" not in color_text
+        assert "\033[" not in plain_text
+        assert "monitor (mon)" in plain_text
+
+    def test_category_headers_sit_one_level_above_their_commands(self):
+        lines = build_parser().format_help().splitlines()
+        header = next(i for i, line in enumerate(lines) if line.strip() == "LIVE DEVICE")
+        assert lines[header].startswith("  LIVE DEVICE")
+        assert lines[header + 1].startswith("    status")

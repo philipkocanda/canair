@@ -20,6 +20,7 @@ from canair.cli.commands.ecu.add import cmd_add
 from canair.cli.commands.ecu.rename import cmd_rename
 from canair.cli.profile_context import active
 from canair.core.edit_errors import EditError
+from canair.core.paths import schema_modeline
 from canair.ecus.pids import clear_cache
 from canair.profile import discovery as profile_discovery
 from canair.profile import model as profile_model
@@ -72,6 +73,7 @@ class TestEcuAdd:
         rc = cmd_add(_args(tx="7C6", name="CLU", description="Cluster", dir=root / "ecus"))
         assert rc == 0
         text = (root / "ecus" / "clu.yaml").read_text()
+        assert text.splitlines()[0] == schema_modeline("ecus")
         assert "tx_id: 0x7C6" in text  # stored as hex
         data = yaml.safe_load(text)
         assert data["CLU"]["tx_id"] == 0x7C6

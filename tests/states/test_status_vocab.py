@@ -350,7 +350,9 @@ TEST:
 """,
         )
         errors, _w, _s = collect_pids_validation([path])
-        assert any("invalid status 'bogus'" in e for e in errors), errors
+        assert any("2101.status: must be one of" in e and "(got 'bogus')" in e for e in errors), (
+            errors
+        )
 
     def test_missing_status_is_error(self, tmp_path):
         # status is required on every PID (explicit lifecycle, no implicit default).
@@ -367,7 +369,7 @@ TEST:
 """,
         )
         errors, _w, _s = collect_pids_validation([path])
-        assert any("missing required PID field 'status'" in e for e in errors), errors
+        assert any("2101: missing required field 'status'" in e for e in errors), errors
 
     def test_clean_status_and_vehicle_states_pass(self, tmp_path):
         path = _write(

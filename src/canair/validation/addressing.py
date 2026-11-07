@@ -1,8 +1,7 @@
-"""Addressing checks: the ``addressing:`` blocks, and warnings for the ELM327 transports.
+"""Addressing warnings for the ELM327 transports and AutoPID.
 
-The ECU file's block validator (:func:`validate_ecu_addressing`) is at the end;
-``profile_schema.json`` checks the ``profile.yaml`` block. The rest is the warnings for
-the ELM327 transports and AutoPID.
+The ``addressing:`` blocks themselves are checked by their JSON Schemas: ``profile_schema.json``
+for ``profile.yaml``, and the ECU schema (``pids_schema.yaml``) for an ECU's own block.
 
 canair sets each ECU's header, flow control and receive filter itself, from the
 profile's ``addressing:`` and the per-ECU ``rx_id``/``fc_id`` (see
@@ -28,8 +27,6 @@ from canair.uds.addressing import (
     resolve_mode,
     shared_tx_ids,
 )
-
-from ._common import is_int
 
 # Modes in which several ECUs share one request id by design.
 _EXTENDED_ADDRESSING_MODES = frozenset(
@@ -144,52 +141,3 @@ def addressing_warnings(pids_data: Mapping[str, Any]) -> list[str]:
             f"{protocol}; the ELM327 transports need {wanted} for it"
         )
     return warnings
-
-
-# Accepted keys in a per-ECU `addressing:` override block: the profile-level fields
-# (profile_schema.json) plus fc_id, a flow-control arbitration override, minus rx_offset
-# (a per-ECU rx_id is the per-ECU response override).
-_ECU_ADDRESSING_FIELDS: set[str] = {"mode", "target_address", "source_address", "fc_id"}
-
-
-def _valid_addressing_modes() -> set[str]:
-    """The addressing-mode vocabulary, sourced from canair.uds.addressing (no drift)."""
-    return {m.value for m in AddressingMode}
-
-
-def _validate_addressing_byte(block: dict, key: str, label: str, errors: list[str]) -> None:
-    """A shared 0–255 byte check for an addressing extension field (target/source)."""
-    if key in block and not (is_int(block[key]) and 0 <= block[key] <= 0xFF):
-        errors.append(f"{label}: 'addressing.{key}' must be a byte (0–255)")
-
-
-def validate_ecu_addressing(addressing: Any, label: str, errors: list[str]) -> None:
-    """Validate a per-ECU ``addressing:`` override block.
-
-    Accepts ``mode``, the ISO-TP extension bytes ``target_address``/
-    ``source_address`` (extended 11-bit/29-bit modes), and a flow-control
-    arbitration override ``fc_id`` (functional-TX / physical-RX ECUs).
-    """
-    if addressing is None:
-        return
-    if not isinstance(addressing, dict):
-        errors.append(f"{label}: 'addressing' must be a mapping")
-        return
-
-    for key in addressing:
-        if key not in _ECU_ADDRESSING_FIELDS:
-            errors.append(
-                f"{label}: unknown addressing field '{key}' "
-                f"(allowed: {', '.join(sorted(_ECU_ADDRESSING_FIELDS))})"
-            )
-    if "mode" in addressing:
-        modes = _valid_addressing_modes()
-        if addressing["mode"] not in modes:
-            errors.append(
-                f"{label}: 'addressing.mode' must be one of "
-                f"{', '.join(sorted(modes))}, got {addressing['mode']!r}"
-            )
-    _validate_addressing_byte(addressing, "target_address", label, errors)
-    _validate_addressing_byte(addressing, "source_address", label, errors)
-    if "fc_id" in addressing and not (is_int(addressing["fc_id"]) and addressing["fc_id"] > 0):
-        errors.append(f"{label}: 'addressing.fc_id' must be a positive CAN arbitration id")

@@ -8,6 +8,8 @@ import pytest
 import yaml
 
 from canair.cli.profile_context import active
+from canair.core.json_schema import load_schema_file
+from canair.core.paths import ECUS_SCHEMA_FILE
 from canair.live.scan.sessions import (
     KWP_SESSION_MODES,
     UDS_SESSION_MODES,
@@ -18,7 +20,6 @@ from canair.live.scan.sessions import (
 )
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.pids import collect_pids_validation
-from canair.validation.schema_fields import load_schema
 from canair.yaml_edit.pids import append_sessions_block
 from tests.support.fakes import FakeTerminal
 from tests.support.fakes import nrc as _nrc
@@ -235,7 +236,9 @@ def test_schema_rejects_supported_with_nrc(tmp_path):
         'E:\n  tx_id: 0x7E0\n  sessions:\n    "81":\n      supported: true\n      nrc: 0x12\n',
     )
     errors, _w, _s = collect_pids_validation([p])
-    assert any("must not also carry an 'nrc'" in e for e in errors)
+    assert any(
+        "sessions.81.nrc: a supported session must not also carry an nrc" in e for e in errors
+    )
 
 
 def test_schema_rejects_bad_session_key(tmp_path):
@@ -244,7 +247,7 @@ def test_schema_rejects_bad_session_key(tmp_path):
         'E:\n  tx_id: 0x7E0\n  sessions:\n    "XYZ":\n      supported: true\n',
     )
     errors, _w, _s = collect_pids_validation([p])
-    assert any("session key must be a 1-2 digit hex" in e for e in errors)
+    assert any("sessions.XYZ: a session key is the 0x10 sub-function" in e for e in errors)
 
 
 def test_schema_warns_unsupported_without_nrc(tmp_path):
@@ -263,16 +266,15 @@ def test_schema_accepts_valid_sessions(tmp_path):
         '    "01":\n      supported: true\n'
         '    "03":\n      supported: false\n      nrc: 0x12\n      nrc_desc: subFunctionNotSupported\n',
     )
-    schema = load_schema()
-    errors, _w, stats = validate_ecu_file(p, schema)
+    errors, _w, stats = validate_ecu_file(p)
     assert errors == [], errors
     assert stats["sessions"] == 2
 
 
 def test_sessions_field_declared_in_schema():
-    schema = load_schema()
-    assert "sessions" in set(schema.get("optional_ecu_fields", []))
-    assert "sessions_fields" in schema
+    schema = load_schema_file(ECUS_SCHEMA_FILE)
+    assert "sessions" in schema["definitions"]["ecu"]["properties"]
+    assert "session_entry" in schema["definitions"]
 
 
 # ── scanner probing (fake terminal) ──────────────────────────────────────────

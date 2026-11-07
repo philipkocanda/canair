@@ -1,7 +1,7 @@
 """Which diagnostic protocol an ECU speaks — the one vocabulary and its one classifier.
 
-A profile records an ECU's protocol as free-form ``identity.id_protocol`` text (``UDS``,
-``KWP2000``, ``none``, ``unknown``; see ``valid_id_protocols`` in the pids schema). Every
+A profile records an ECU's protocol as ``identity.id_protocol`` text, one of
+:data:`ID_PROTOCOL_VALUES` (the ECU schema's ``identity.id_protocol`` enum). Every
 protocol-dependent decision — the session and routine blocklist, NRC names, IOControl
 release semantics, the DTC/identity/routine/IOControl service choice — reads it through
 :func:`classify_protocol`, so the ``"KWP2000"`` → ``kwp`` mapping cannot drift between
@@ -21,6 +21,10 @@ DiagProtocol = Literal["uds", "kwp", "unknown"]
 UDS: Final[DiagProtocol] = "uds"
 KWP: Final[DiagProtocol] = "kwp"
 UNKNOWN: Final[DiagProtocol] = "unknown"
+
+# What `identity.id_protocol` may say: UDS (ISO 14229), KWP2000 (ISO 14230), none (answers
+# session control, exposes no identity) and unknown (not yet determined).
+ID_PROTOCOL_VALUES: Final = ("UDS", "KWP2000", "none", "unknown")
 
 
 def classify_protocol(id_protocol: object) -> DiagProtocol:

@@ -16,7 +16,7 @@ SAFE session modes are probed — the programming sessions (UDS ``0x02``, also a
 checked against :mod:`canair.safety.blocklist` for the ECU's protocol before the sweep.
 
 Results are written to each ``ecus/<ecu>.yaml`` under a structured ``sessions:``
-section (see the schema's ``sessions_fields``), replacing the free-text session
+section (the ECU schema's ``session_entry``), replacing the free-text session
 notes that used to live in top-of-file comments.
 
 Session modes are protocol-specific and auto-selected from each ECU's

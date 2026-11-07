@@ -3,11 +3,11 @@
 import pytest
 
 from canair.cli.profile_context import active
+from canair.core.json_schema import schema_findings
+from canair.core.paths import ECUS_SCHEMA_FILE
 from canair.validation.cross_file import duplicate_param_errors
 from canair.validation.ecu_file import validate_ecu_file
 from canair.validation.expressions import check_pci_bytes
-from canair.validation.pid_defs import _validate_param_type
-from canair.validation.schema_fields import load_schema
 
 
 def _warn(expr):
@@ -145,7 +145,7 @@ class TestRxIdValidation:
 
         p = tmp_path / "e.yaml"
         p.write_text(textwrap.dedent(body))
-        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p)
         return errors
 
     def test_valid_rx_id(self, tmp_path):
@@ -169,7 +169,7 @@ class TestWakeValidation:
 
         p = tmp_path / "e.yaml"
         p.write_text(textwrap.dedent(body))
-        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p)
         return errors
 
     def test_valid_wake_block(self, tmp_path):
@@ -212,7 +212,7 @@ class TestPeriodValidation:
             f"ECU:\n  tx_id: 0x745\n  pids:\n    2101:\n      status: draft\n"
             f"      period: {period}\n"
         )
-        errors, warnings, _ = validate_ecu_file(p, load_schema())
+        errors, warnings, _ = validate_ecu_file(p)
         return errors, warnings
 
     def test_zero_warns(self, tmp_path):
@@ -232,7 +232,7 @@ class TestSlowStatusNeedsAPeriod:
     def _errors(self, tmp_path, period_line: str):
         p = tmp_path / "e.yaml"
         p.write_text(f"ECU:\n  tx_id: 0x745\n  pids:\n    21F2:\n      status: slow\n{period_line}")
-        errors, _warnings, _ = validate_ecu_file(p, load_schema())
+        errors, _warnings, _ = validate_ecu_file(p)
         return errors
 
     def test_missing_period_is_an_error(self, tmp_path):
@@ -248,7 +248,7 @@ class TestOctalPidKey:
     def _errors(self, tmp_path, key: str) -> list[str]:
         p = tmp_path / "e.yaml"
         p.write_text(f"ECU:\n  tx_id: 0x7E0\n  pids:\n    {key}:\n      status: draft\n")
-        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p)
         return errors
 
     def test_unquoted_mode_01_key_is_an_error(self, tmp_path):
@@ -268,7 +268,7 @@ class TestIoControlValidation:
         p.write_text(
             f"ECU:\n  tx_id: 0x745\n{head}  iocontrol:\n    {key}:\n      label: x\n{entry}"
         )
-        errors, warnings, _stats = validate_ecu_file(p, load_schema())
+        errors, warnings, _stats = validate_ecu_file(p)
         return errors, warnings
 
     def test_quoted_session_mode_is_valid(self, tmp_path):
@@ -293,7 +293,7 @@ class TestIoControlValidation:
             "ECU:\n  tx_id: 0x745\n  identity:\n    id_protocol: KWP2000\n  iocontrol:\n"
             '    BC01:\n      label: x\n      session_mode: "C0"\n'
         )
-        errors, warnings, _ = validate_ecu_file(p, load_schema())
+        errors, warnings, _ = validate_ecu_file(p)
         assert errors == []
         assert not any("session_mode" in w for w in warnings)
 
@@ -383,7 +383,7 @@ class TestIoControlValidation:
 
     def test_an_unquoted_mask_is_an_error(self, tmp_path):
         errs, _ = self._validate(tmp_path, '      on: "2FBC010380"\n      enable_mask: 80\n')
-        assert any("enable_mask must be quoted hex" in e for e in errs)
+        assert any("BC01.enable_mask: must be quoted hex" in e for e in errs)
 
 
 class TestAddressingModeValidation:
@@ -394,7 +394,7 @@ class TestAddressingModeValidation:
 
         p = tmp_path / "e.yaml"
         p.write_text(textwrap.dedent(body))
-        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p)
         return errors
 
     def test_29bit_tx_id_rejected_without_mode(self, tmp_path):
@@ -415,7 +415,7 @@ class TestAddressingModeValidation:
 
     def test_unknown_per_ecu_addressing_key(self, tmp_path):
         errs = self._validate(tmp_path, "ECU:\n  tx_id: 0x704\n  addressing:\n    rx_offset: 8\n")
-        assert any("unknown addressing field" in e for e in errs)
+        assert any("ECU.addressing: unknown field 'rx_offset'" in e for e in errs)
 
     def test_extended_11bit_target_source(self, tmp_path):
         # BMW/PSA extended-11-bit: mode + target/source bytes. Gap G-I.
@@ -456,49 +456,49 @@ class TestAddressingModeValidation:
 
 
 class TestTypedParamValidation:
-    """validate._validate_param_type — typed-decoding field rules."""
-
-    VALID = frozenset({"numeric", "enum", "bitmask", "ascii", "date", "bcd", "struct"})
+    """The ECU schema's typed-decoding rules for a signal (type/values/bits/fields)."""
 
     def _v(self, param):
-        return _validate_param_type(param, "P", "2101", "ECU", self.VALID)
+        errors, _warnings = schema_findings(ECUS_SCHEMA_FILE, param, definition="signal")
+        return errors
 
     def test_numeric_untyped_ok(self):
         assert self._v({"expression": "B3"}) == []
 
     def test_companion_map_without_type_errors(self):
-        errs = self._v({"expression": "B3", "values": {1: "a"}})
-        assert errs and "requires a 'type:'" in errs[0]
+        assert self._v({"expression": "B3", "values": {1: "a"}}) == [
+            "values: is only valid with type: enum"
+        ]
 
     def test_unknown_type_errors(self):
         errs = self._v({"expression": "B3", "type": "bogus"})
-        assert any("invalid type" in e for e in errs)
+        assert any(e.startswith("type: must be one of") for e in errs)
 
     def test_enum_requires_values(self):
-        assert any(
-            "requires a 'values:'" in e for e in self._v({"expression": "B3", "type": "enum"})
-        )
+        assert self._v({"expression": "B3", "type": "enum"}) == [
+            "type: enum needs a values: map of raw value -> label"
+        ]
 
     def test_enum_non_int_key_errors(self):
         errs = self._v({"expression": "B3", "type": "enum", "values": {"x": "a"}})
-        assert any("must be an integer" in e for e in errs)
+        assert errs == ["values.x: an enum value must be an integer"]
 
     def test_enum_ok(self):
-        assert self._v({"expression": "B3", "type": "enum", "values": {40: "a"}}) == []
+        assert self._v({"expression": "B3", "type": "enum", "values": {40: "a", -1: "b"}}) == []
 
     def test_bitmask_index_range(self):
         errs = self._v({"expression": "B3", "type": "bitmask", "bits": {64: "x"}})
-        assert any("out of range" in e for e in errs)
+        assert errs == ["bits.64: a bit index must be an integer 0-63"]
 
     def test_values_only_with_enum(self):
         errs = self._v(
             {"expression": "B3", "type": "bitmask", "bits": {0: "a"}, "values": {1: "b"}}
         )
-        assert any("only valid with type 'enum'" in e for e in errs)
+        assert errs == ["values: is only valid with type: enum"]
 
     def test_struct_requires_named_fields(self):
         errs = self._v({"expression": "0", "type": "struct", "fields": [{"expression": "B3"}]})
-        assert any("missing 'name'" in e for e in errs)
+        assert errs == ["fields[0]: missing required field 'name'"]
 
     def test_struct_ok(self):
         param = {
@@ -535,9 +535,8 @@ class TestCanBusValidation:
                 """
             )
         )
-        schema = load_schema()
         profile = Profile(tmp_path.name, tmp_path)
-        errors, _warnings, _stats = validate_ecu_file(p, schema, profile)
+        errors, _warnings, _stats = validate_ecu_file(p, profile)
         return errors
 
     def test_valid_codes_ok(self, tmp_path):
@@ -549,11 +548,11 @@ class TestCanBusValidation:
 
     def test_non_list_errors(self, tmp_path):
         errs = self._errors(tmp_path, "B-CAN")
-        assert any("can_bus must be a list" in e for e in errs)
+        assert any("ECUX.can_bus: must be a list" in e for e in errs)
 
     def test_duplicate_codes_error(self, tmp_path):
         errs = self._errors(tmp_path, "[B-CAN, B-CAN]")
-        assert any("duplicate can_bus" in e for e in errs)
+        assert any("ECUX.can_bus: must not list an item twice" in e for e in errs)
 
     def test_no_vocabulary_skips_membership(self, tmp_path):
         # No can_buses.yaml declared → any code accepted (shape/dup still checked).
@@ -577,7 +576,7 @@ class TestResponseFramesValidation:
             "        SOC:\n"
             "          expression: B09/2\n"
         )
-        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p)
         return errors
 
     def test_a_valid_count_passes(self, tmp_path):
@@ -625,7 +624,7 @@ class TestDuplicateKeys:
         (tmp_path / "ecus").mkdir()
         path = tmp_path / "ecus" / "vcu.yaml"
         path.write_text(doc)
-        errors, _, _ = validate_ecu_file(path, load_schema())
+        errors, _, _ = validate_ecu_file(path)
         return errors
 
     def test_a_repeated_signal_is_an_error(self, tmp_path):
@@ -647,7 +646,7 @@ class TestEcuIsotpValidation:
     def _validate(self, tmp_path, block: str):
         p = tmp_path / "e.yaml"
         p.write_text(f"EWP:\n  tx_id: 0x746\n  isotp:\n{block}")
-        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p)
         return errors
 
     def test_flow_control_fields_are_accepted(self, tmp_path):
@@ -663,10 +662,13 @@ class TestEcuIsotpValidation:
 
     def test_values_are_non_negative_integers(self, tmp_path):
         errs = self._validate(tmp_path, "    blocksize: -1\n    rx_flowcontrol_timeout: fast\n")
-        assert len([e for e in errs if "non-negative integer" in e]) == 2
+        assert errs == [
+            "e.yaml: EWP.isotp.blocksize: must be at least 0 (got -1)",
+            "e.yaml: EWP.isotp.rx_flowcontrol_timeout: must be an integer (got 'fast')",
+        ]
 
     def test_an_empty_block_is_refused(self, tmp_path):
         p = tmp_path / "e.yaml"
         p.write_text("EWP:\n  tx_id: 0x746\n  isotp: {}\n")
-        errors, _w, _s = validate_ecu_file(p, load_schema())
-        assert any("non-empty mapping" in e for e in errors)
+        errors, _w, _s = validate_ecu_file(p)
+        assert any("EWP.isotp: must not be empty" in e for e in errors)

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 # ─── WPC (Wireless Phone Charging unit) ────────────────────────────────────────
 WPC:
   tx_id: 0x725

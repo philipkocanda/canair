@@ -194,6 +194,33 @@ sends it. A profile cannot use this to get around the rules above:
   (`--yes` skips this; with no terminal to ask on, `--yes` is required). The
   reads are then repeated, so a long pause at the prompt is never what the
   request goes out on. `--dry-run` reads and checks without sending.
+- **Each reply must answer its request.** A request to one ECU must draw a reply
+  to its own service (and, on a UDS ECU, its own sub-function and identifier), so
+  a late answer to one of the guard reads is never taken for the action's. A
+  broadcast that expects replies collects every responder: the action counts as
+  answered only when every responder accepted it, and the report lists each one.
+  A refusal or a silence stops the action before its next request, and canair
+  never repeats an action's request on its own.
+
+An action can also drive an output, read while it is driven, and hand it back:
+
+- **`hold:`** names the ECUs whose diagnostic session canair opens before the
+  requests and keeps alive to the end, as an IOControl needs. A hold is checked by
+  the session rules above, so it can never be a programming session.
+- **`then:`** waits (`wait:`, 0–60 s), then reads its selectors through the same
+  path as `canair read`. They run only when every request was answered.
+  `canair action run NAME --save` keeps them in `captures/`, labelled `action NAME`
+  unless you pass `--label`, so nothing is asked while the output is driven.
+- **`release:`** is sent at the end whatever happened: after a refused request,
+  after an error, and on Ctrl-C. Only then are the held sessions closed. An
+  IOControl request that drives an output is refused at load time unless a
+  release on the same ECU and identifier hands it back, as `canair io` requires.
+
+The Ioniq profile's `ig3-read` action closes the IGPM's IG3 relay (`2F BC44 03`)
+with the ignition off, waits 3 s, reads the VCU, BMS, OBC, MCU, AAF and HVAC, and
+releases the relay (`2F BC44 00`). It requires the same state as `sleep` below,
+because IG3 also powers the OBC. The rail stays up for about 75–110 s after the
+release, so a follow-up `canair read` in that window still reaches those ECUs.
 
 The Ioniq profile's `sleep` action requires IGN1 and IGN2 off, the IGPM's IG3
 relay off (no 12 V top-up in progress) and the charge port unlocked (not

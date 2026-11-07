@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 # ─── BSD-R (Blind Spot Detection — Right) ─────────────────────────────
 # Right BSD radar at 0x755. Part: 95821G2000
 BSD-R:

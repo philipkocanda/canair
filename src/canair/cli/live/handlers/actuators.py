@@ -123,6 +123,10 @@ async def handle_action(args, terminal: Terminal, pids_data, host, *, reconnect=
             dry_run=getattr(args, "dry_run", False),
             as_json=args.json,
             verbose=args.verbose,
+            save=getattr(args, "save", False),
+            label=getattr(args, "label", None),
+            vehicle_states=getattr(args, "state", None),
+            notes=getattr(args, "notes", None),
             profile=active(),
         )
     except ActionError as e:

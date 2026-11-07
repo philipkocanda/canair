@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 # ─── DDM (Driver Door Module) ─────────────────────────────────────────
 # Driver door module at 0x7A1. Part: 93570G2110
 DDM:

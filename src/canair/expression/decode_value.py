@@ -28,7 +28,7 @@ from canair.expression import evaluate_expression
 from canair.uds.byteindex import NotAFrameError, declared_payload_len, framed_to_wican_frame
 from canair.uds.layout import layout_of
 
-# Param `type:` values (mirror src/canair/schema/pids_schema.yaml valid_param_types).
+# Signal `type:` values (the ECU schema's signal type enum, pinned to it by a test).
 NUMERIC = "numeric"
 ENUM = "enum"
 BITMASK = "bitmask"

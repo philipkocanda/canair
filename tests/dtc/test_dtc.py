@@ -78,7 +78,7 @@ class TestModeRead:
         assert "confirmedDTC" in data["dtcs"][0]["status_bits"]
         assert data["dtcs"][0]["interpretation"]["category"] == "Powertrain"
         # A UDS ECU that reported a code is asked which snapshots it stored (here: none).
-        assert t.sent == ["1902FF", "1903"]
+        assert t.sent == ["1902FF", "1901FF", "1903"]
         assert data["snapshot_status"]["status"] == "unsupported"
 
     @pytest.mark.asyncio
@@ -532,7 +532,7 @@ class TestDispatchTransportAgnostic:
         t = FakeTerminal({"1902FF": _ok("5902FF" + "0123002F")})
         args = self._args(dtc="7E4", mask="FF", protocol="uds", clear=False)
         await handle_dtc(args, t, {}, "1.2.3.4")
-        assert t.sent == ["1902FF", "1903"]
+        assert t.sent == ["1902FF", "1901FF", "1903"]
         assert "P0123-00" in capsys.readouterr().out
 
     @pytest.mark.asyncio
@@ -633,3 +633,50 @@ class TestLogOffline:
         rc = dtc_cmd.run(self._args(dtc="ZZZNOPE"))
         assert rc == 2
         assert "error: unknown ECU 'ZZZNOPE'" in capsys.readouterr().err
+
+
+class TestDtcFormat:
+    """ISO 14229-1 Table D.14: the DTCFormatIdentifier a 59 01 reply carries."""
+
+    def test_the_j2012_formats_keep_the_text_form(self):
+        assert dtc.format_dtc(0xA9, 0x19, 0x00, 0x00) == "B2919-00"
+        assert dtc.format_dtc(0xA9, 0x19, 0x00, 0x04) == "B2919-00"
+        assert dtc.format_dtc(0xA9, 0x19, 0x00) == "B2919-00"
+
+    @pytest.mark.parametrize("fmt", [0x01, 0x02, 0x03, 0x05])
+    def test_other_formats_are_hex(self, fmt):
+        assert dtc.format_dtc(0xA9, 0x19, 0x00, fmt) == "A91900"
+
+    @pytest.mark.asyncio
+    async def test_the_read_asks_the_format_and_formats_by_it(self, capsys):
+        t = FakeTerminal({"1902FF": _ok("5902FF" + "A919002F"), "1901FF": _ok("5901FF010001")})
+        await dtc.mode_dtc_read(
+            t, 0x7A0, protocol="uds", as_json=True, snapshots=False, profile=active()
+        )
+        data = json.loads(capsys.readouterr().out)
+        assert data["dtc_format"] == "0x01"
+        assert data["dtcs"][0]["dtc"] == "A91900"
+        assert data["dtcs"][0]["interpretation"] is None
+
+    @pytest.mark.asyncio
+    async def test_a_refused_format_request_keeps_j2012(self, capsys):
+        t = FakeTerminal(
+            {
+                "1902FF": _ok("5902FF" + "A919002F"),
+                "1901FF": {"ok": False, "nrc": 0x12, "nrc_desc": "subFunctionNotSupported"},
+            }
+        )
+        await dtc.mode_dtc_read(
+            t, 0x7A0, protocol="uds", as_json=True, snapshots=False, profile=active()
+        )
+        data = json.loads(capsys.readouterr().out)
+        assert data["dtc_format"] is None
+        assert data["dtcs"][0]["dtc"] == "B2919-00"
+
+    def test_the_note_names_a_non_j2012_format(self):
+        from canair.live.dtc.reading import dtc_format_note
+
+        assert dtc_format_note(None) is None
+        assert dtc_format_note("0x00") is None
+        assert "ISO_14229_1_DTC_FORMAT" in dtc_format_note("0x01")
+        assert "reserved format 0x09" in dtc_format_note("0x09")

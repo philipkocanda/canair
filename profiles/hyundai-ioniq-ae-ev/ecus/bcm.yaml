@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 # ─── BCM (Body Control Module) / TPMS ──────────────────────────────────
 # BCM and TPMS share TX ID 0x7A0 (same physical ECU, part 95400G7470).
 BCM:

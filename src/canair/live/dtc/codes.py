@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from canair.profile.model import Profile
 from canair.uds.protocol import KWP, UDS
+from canair.uds.subfunctions import J2012_DTC_FORMATS
 
 from ...ecus.protocol import ecu_protocol
 
@@ -27,8 +28,15 @@ _STATUS_BITS = (
 )
 
 
-def format_dtc(b0: int, b1: int, b2: int) -> str:
-    """Format a 3-byte UDS DTC as ``Lxxxx-yy`` (SAE J2012 + failure type)."""
+def format_dtc(b0: int, b1: int, b2: int, dtc_format: int | None = None) -> str:
+    """Format a 3-byte UDS DTC by the ECU's DTCFormatIdentifier.
+
+    The SAE J2012-DA formats, and an unknown format, give ``Lxxxx-yy`` (SAE J2012 code +
+    failure type). Any other format has no standard text form in ISO 14229-1, so the code
+    is shown as its six hex digits.
+    """
+    if dtc_format is not None and dtc_format not in J2012_DTC_FORMATS:
+        return f"{b0:02X}{b1:02X}{b2:02X}"
     letter = _DTC_LETTERS[(b0 >> 6) & 0x03]
     d1 = (b0 >> 4) & 0x03
     d2 = b0 & 0x0F
@@ -48,8 +56,10 @@ def decode_status(status: int) -> list[str]:
     return [name for bit, name in enumerate(_STATUS_BITS) if status & (1 << bit)]
 
 
-def decode_dtc_records(data: bytes) -> list[dict]:
+def decode_dtc_records(data: bytes, dtc_format: int | None = None) -> list[dict]:
     """Decode UDS 4-byte DTC records (3-byte DTC + 1-byte status).
+
+    ``dtc_format`` is the ECU's DTCFormatIdentifier, when it reported one (``19 01``).
 
     A record whose DTC is ``000000`` is skipped: no fault has that number, and a reply padded
     with zeros would otherwise list one.
@@ -61,7 +71,7 @@ def decode_dtc_records(data: bytes) -> list[dict]:
             continue
         records.append(
             {
-                "dtc": format_dtc(b0, b1, b2),
+                "dtc": format_dtc(b0, b1, b2, dtc_format),
                 "raw": f"{b0:02X}{b1:02X}{b2:02X}",
                 "status": status,
                 "status_bits": decode_status(status),

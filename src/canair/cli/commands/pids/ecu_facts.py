@@ -28,7 +28,7 @@ from canair.yaml_edit.pids import (
 )
 from canair.yaml_edit.revisions import set_gate
 
-from .common import ECU_HELP, apply_in_scope, int_or_clear
+from .common import ECU_HELP, apply_in_scope, int_or_clear, words_verb
 
 _ISOTP_FIELD_HELP = {
     "blocksize": "Flow-control BlockSize canair sends (0 = send all consecutive frames)",
@@ -397,7 +397,9 @@ def cmd_set_iocontrol(args: argparse.Namespace) -> int:
             )
 
     fpath = apply_in_scope(args, do)
-    detail = ", ".join(f"{k}={v}" for k, v in fields.items() if k != "notes")
+    detail = ", ".join(
+        f"notes {words_verb(args.notes)}" if k == "notes" else f"{k}={v}" for k, v in fields.items()
+    )
     echo_edit(f"{args.ecu} iocontrol {args.did.upper()} -> {{{detail}}}", fpath)
     return 0
 

@@ -75,6 +75,7 @@ CAN_BUSES_SCHEMA_FILE = SCHEMA_DIR / "can_buses_schema.yaml"
 GROUPS_SCHEMA_FILE = SCHEMA_DIR / "groups_schema.yaml"
 VARIANTS_SCHEMA_FILE = SCHEMA_DIR / "variants_schema.yaml"
 SIGNALS_SCHEMA_FILE = SCHEMA_DIR / "signals_schema.yaml"
+ECUS_SCHEMA_FILE = SCHEMA_DIR / "pids_schema.yaml"
 EDITOR_SCHEMAS: dict[str, Path] = {
     "profile": PROFILE_SCHEMA_FILE,
     "vehicle_states": STATES_SCHEMA_FILE,
@@ -82,6 +83,7 @@ EDITOR_SCHEMAS: dict[str, Path] = {
     "groups": GROUPS_SCHEMA_FILE,
     "variants": VARIANTS_SCHEMA_FILE,
     "signals": SIGNALS_SCHEMA_FILE,
+    "ecus": ECUS_SCHEMA_FILE,
 }
 PROFILE_SCHEMA_URL = schema_url("profile")
 PROFILE_SCHEMA_MODELINE = schema_modeline("profile")

@@ -211,3 +211,117 @@ class TestEditor:
         add("sleep")
         with pytest.raises(ActionError, match="already exists"):
             add("SLEEP")
+
+
+IG3 = {
+    "reads": ["IGPM:22BC07"],
+    "require": "IGPM.IG3_RELAY_OUTPUT == 0",
+    "hold": ["IGPM"],
+    "requests": [{"to": "igpm", "send": "2FBC4403"}],
+    "then": {"wait": 3, "read": ["VCU:2101", "BMS"]},
+    "release": [{"to": "igpm", "send": "2FBC4400"}],
+}
+
+
+class TestHoldThenRelease:
+    """An action that drives an output, reads while it is driven, and hands it back."""
+
+    def test_parse(self):
+        a = parse_action("ig3", IG3)
+        assert [h.describe() for h in a.hold] == ["IGPM:03"]
+        assert a.then is not None and a.then.wait == 3 and a.then.read == ("VCU:2101", "BMS")
+        assert a.release == (ActionRequest("IGPM", "2FBC4400"),)
+
+    def test_an_output_without_a_release_is_refused(self):
+        with pytest.raises(ActionError, match="drives an output"):
+            parse_action("ig3", {**IG3, "release": []})
+        with pytest.raises(ActionError, match="drives an output"):
+            parse_action("ig3", {k: v for k, v in IG3.items() if k != "release"})
+
+    @pytest.mark.parametrize(
+        "release",
+        [
+            [{"to": "igpm", "send": "2FBC4500"}],  # another DID
+            [{"to": "bcm", "send": "2FBC4400"}],  # another ECU
+            [{"to": "igpm", "send": "2FBC4403"}],  # the ON request itself
+        ],
+    )
+    def test_the_release_must_hand_back_the_same_output(self, release):
+        with pytest.raises(ActionError, match="drives an output"):
+            parse_action("ig3", {**IG3, "release": release})
+
+    def test_a_masked_release_releases(self):
+        raw = {
+            **IG3,
+            "requests": [{"to": "igpm", "send": "2FBC440307FF"}],
+            "release": [{"to": "igpm", "send": "2FBC4400FF"}],
+        }
+        assert parse_action("ig3", raw).release[0].send == "2FBC4400FF"
+
+    @pytest.mark.parametrize("hold", [["IGPM:02"], ["IGPM:85"], ["IGPM:zz"], [":03"], "IGPM"])
+    def test_a_hold_must_be_a_safe_session(self, hold):
+        with pytest.raises(ActionError):
+            parse_action("ig3", {**IG3, "hold": hold})
+
+    @pytest.mark.parametrize(
+        "then",
+        [
+            {"wait": 61, "read": ["VCU:2101"]},
+            {"wait": 3},
+            {"read": []},
+            {"wait": "x", "read": ["VCU"]},
+            ["VCU"],
+            {"read": ["VCU"], "x": 1},
+        ],
+    )
+    def test_then_is_checked(self, then):
+        with pytest.raises(ActionError):
+            parse_action("ig3", {**IG3, "then": then})
+
+    def test_registry_checks_hold_then_and_release(self):
+        pids = {
+            "ecus": {
+                "IGPM": {
+                    "tx_id": 0x770,
+                    "pids": {"22BC07": {"parameters": {"IG3_RELAY_OUTPUT": {}}}},
+                },
+                "VCU": {"tx_id": 0x7E2, "pids": {"2101": {}}},
+            }
+        }
+        raw = {
+            **IG3,
+            "hold": ["IGPM", "XYZ"],
+            "then": {"read": ["VCU:2101", "VCU:2199", "BMS"]},
+        }
+        issues = "\n".join(registry_issues(parse_action("ig3", raw), pids))
+        assert "hold 'XYZ'" in issues
+        assert "PID 2199 is not defined on VCU" in issues
+        assert "then.read 'BMS' names unknown ECU" in issues
+
+    def test_the_editor_round_trips_the_new_fields(self, tmp_path):
+        from canair.actions import ThenReads, parse_hold_spec
+
+        (tmp_path / "profile.yaml").write_text("car_model: test\n")
+        (tmp_path / "ecus").mkdir()
+        prof = Profile("t", tmp_path)
+        add_action(
+            "ig3",
+            reads=IG3["reads"],
+            require=IG3["require"],
+            requests=[parse_request_spec("IGPM:2FBC4403")],
+            hold=[parse_hold_spec("IGPM")],
+            then=ThenReads(3.0, ("VCU:2101",)),
+            release=[parse_request_spec("IGPM:2FBC4400")],
+            profile=prof,
+        )
+        text = prof.actions_file.read_text()
+        assert "hold: [IGPM:03]" in text and "then: {wait: 3, read: [VCU:2101]}" in text
+        a = load_actions(prof)["ig3"]
+        assert a.then == ThenReads(3.0, ("VCU:2101",)) and a.release[0].send == "2FBC4400"
+        update_action("ig3", clear_then=True, profile=prof)
+        assert load_actions(prof)["ig3"].then is None
+        # Removing the release of a driven output is refused, and the file is left as it was.
+        before = prof.actions_file.read_text()
+        with pytest.raises(ActionError, match="drives an output"):
+            update_action("ig3", release=[], profile=prof)
+        assert prof.actions_file.read_text() == before

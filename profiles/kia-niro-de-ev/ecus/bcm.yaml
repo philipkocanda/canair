@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 BCM:
   tx_id: 0x7A0
   can_bus: [B-CAN, C-CAN]

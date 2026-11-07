@@ -30,12 +30,17 @@ def functional_id(pids_data: dict) -> int:
     return functional_request_id(resolve_mode(pids_data))
 
 
-def plan_requests(action: Action, pids_data: dict, *, profile: Profile) -> list[PlannedRequest]:
-    """Resolve each request's target to a request id (raises :class:`ActionError`)."""
+def plan_requests(
+    action: Action, pids_data: dict, *, profile: Profile, release: bool = False
+) -> list[PlannedRequest]:
+    """Resolve each request's target to a request id (raises :class:`ActionError`).
+
+    ``release`` plans the action's ``release:`` requests instead of its ``requests:``.
+    """
 
     index = build_ecu_index(pids_data)
     planned: list[PlannedRequest] = []
-    for req in action.requests:
+    for req in action.release if release else action.requests:
         if req.target == FUNCTIONAL:
             planned.append(PlannedRequest(req, functional_id(pids_data)))
             continue
