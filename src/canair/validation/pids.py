@@ -17,10 +17,9 @@ from .cross_file import (
     variants_yaml_errors,
 )
 from .dtcs import profile_dtc_findings
-from .ecu_file import validate_ecu_file
+from .ecu_file import new_ecu_stats, validate_ecu_file
 from .meta import retired_quirk_warnings, validate_meta
 from .profile_names import profile_name_findings
-from .schema_fields import load_schema, new_ecu_stats
 from .send_to import send_to_findings
 
 
@@ -31,8 +30,6 @@ def collect_pids_validation(files: list[Path], profile=None) -> tuple[list[str],
     ``profile`` scopes the accepted vehicle-state vocabulary (see
     :func:`validate_ecu_file`).
     """
-    schema = load_schema()
-
     all_errors = []
     all_warnings = []
     total_stats = new_ecu_stats()
@@ -41,7 +38,7 @@ def collect_pids_validation(files: list[Path], profile=None) -> tuple[list[str],
         if fpath.name.startswith("_"):
             continue
 
-        errors, warnings, stats = validate_ecu_file(fpath, schema, profile)
+        errors, warnings, stats = validate_ecu_file(fpath, profile)
         all_errors.extend(errors)
         all_warnings.extend(warnings)
         for k in total_stats:
@@ -92,12 +89,10 @@ def check_pids(files: list[Path] | None, profile: Profile) -> PidsReport:
     all_errors, all_warnings, total_stats = collect_pids_validation(file_paths)
 
     if not files:
-        schema = load_schema()
         profile_yaml = prof.meta_file
         if profile_yaml.exists():
             all_errors.extend(validate_meta(profile_yaml))
-            dtcs_fields = set((schema.get("dtcs_fields", {}) or {}).get("optional", []))
-            dtc_errors, dtc_warnings = profile_dtc_findings(profile_yaml, dtcs_fields)
+            dtc_errors, dtc_warnings = profile_dtc_findings(profile_yaml)
             all_errors.extend(dtc_errors)
             all_warnings.extend(dtc_warnings)
             name_errors, name_warnings = profile_name_findings(prof)

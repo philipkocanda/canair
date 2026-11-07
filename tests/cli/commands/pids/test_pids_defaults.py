@@ -10,7 +10,7 @@ import yaml
 from canair.cli.commands.pids import pid_settings
 from canair.cli.profile_context import active
 from canair.ecus.pids import effective_param, load_pids_dir
-from canair.validation.pids import load_schema, validate_ecu_file, validate_pids_file
+from canair.validation.pids import validate_ecu_file, validate_pids_file
 from canair.yaml_edit.pids import PidsEditError, hoist_defaults, set_pid_defaults
 from canair.yaml_edit.pids.defaults import plan_hoist
 
@@ -328,22 +328,22 @@ class TestValidation:
 
     def test_source_must_be_a_string(self, pids_dir):
         ok, out = self._validate(pids_dir, "      source: [a, b]\n")
-        assert not ok and "source must be a string" in out
+        assert not ok and "2101.source: must be text" in out
 
     def test_verified_must_be_a_boolean(self, pids_dir):
         ok, out = self._validate(pids_dir, "      verified: maybe\n")
-        assert not ok and "verified must be a boolean" in out
+        assert not ok and "2101.verified: must be true or false" in out
 
     def test_links_must_be_a_list_of_strings(self, pids_dir):
         ok, out = self._validate(pids_dir, "      source_links: just-a-string\n")
-        assert not ok and "source_links must be a list of strings" in out
+        assert not ok and "2101.source_links: must be a list" in out
 
     def test_an_inherited_verified_counts_as_verified(self, pids_dir):
         (pids_dir / "test.yaml").write_text(
             "TEST:\n  tx_id: 0x700\n  pids:\n    2101:\n      status: active\n"
             "      verified: true\n      parameters:\n        A:\n          expression: B10\n"
         )
-        errors, _, stats = validate_ecu_file(pids_dir / "test.yaml", load_schema())
+        errors, _, stats = validate_ecu_file(pids_dir / "test.yaml")
         assert not errors and stats["verified"] == 1 and stats["unverified"] == 0
 
 

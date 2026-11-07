@@ -1,6 +1,6 @@
 # Check the shape of profile files with JSON Schema
 
-Status: **IN PROGRESS** (2026-11-05). Steps 1 and 2 are done. Step 3 is open.
+Status: **DONE** (2026-11-07). Steps 1, 2 and 3 are done.
 
 ## Problem
 
@@ -67,10 +67,10 @@ The result:
    the format-version proposal (`plans/2026-11-02-profile-format-version-and-validation.md`)
    decides when that changes.
 8. **Every file names its schema.** A `yaml-language-server` modeline is line 1 of each
-   `vehicle_states.yaml`, `can_buses.yaml`, `groups.yaml`, `variants.yaml` and `signals/*.yaml`,
-   as it already is for `profile.yaml`. The templates write it, and so does each editor that
-   creates such a file (`Target.header`). The modelines and URLs live in `core/paths.py`
-   (`EDITOR_SCHEMAS`).
+   `vehicle_states.yaml`, `can_buses.yaml`, `groups.yaml`, `variants.yaml`, `signals/*.yaml` and
+   `ecus/*.yaml`, as it already is for `profile.yaml`. The templates write it, and so does each
+   editor that creates such a file (`Target.header`). The modelines and URLs live in
+   `core/paths.py` (`EDITOR_SCHEMAS`).
 
 ## Step 1 — `profile.yaml` (done)
 
@@ -122,21 +122,41 @@ Each companion file becomes a real draft-07 schema, written in YAML, and keeps i
   changed here: making them stricter would refuse an edit to a file that already holds an old
   unknown field. The format-version proposal (its Phase 4 "edit guard") is where that is decided.
 
-## Step 3 — the ECU files (open)
+## Step 3 — the ECU files (done)
 
-`pids_schema.yaml` becomes a draft-07 schema for one ECU file. This is the largest step:
+`pids_schema.yaml` is a draft-07 schema for one ECU file, published as `schema/ecus.json`, and
+every bundled and fixture ECU file names it on line 1. `ecu add` and `discover --register` write
+the modeline into a new file.
 
-- Severity: an unknown ECU, PID or signal field is a warning today. The helper needs a way to
-  report a keyword as a warning (`additionalProperties` → warning), unless the format-version
-  plan makes unknown fields errors first.
-- `SchemaFields` and `schema_fields.py` go. The Python copies of the vocabularies
-  (`expression/decode_value.py` signal types, `ecus/wake.py` wake methods, the identity fields in
-  `ecus/__init__.py` and `yaml_edit/ecu.py`) are pinned to the schema by tests, or read from it.
-- PID keys need care: YAML reads `0105` as the octal integer 69, and that check must stay in
-  Python before the keys become text.
-- The per-ECU `addressing:` block shares its rules with `profile.yaml` through a `$ref`.
-- Python keeps the mode-dependent id limit, state and bus vocabularies, expressions, support
-  maps, categories, revisions and the cross-file checks.
+- **Severity.** An unknown ECU, PID or signal field, and an unknown field of an entry in
+  `scan_log:`, `sessions:`, `dtcs:`, `iocontrol:`, `routines:`, `iocontrol_discoveries:` or
+  `research:`, stays a warning, so an editor still accepts a file that holds one. The helper
+  reads a schema extension keyword for it: a subschema lists the keywords whose failures are
+  warnings (`x-warn: [additionalProperties]`), and `schema_findings` returns errors and warnings
+  apart. An unknown field in `identity:`, `wake:`, `addressing:` and `isotp:` stays an error.
+- **Legacy fields** (`availability`, a PID's `enabled`/`ignored`/`static`, a signal's `enabled`,
+  `ha_class`, a research entry's `prerequisite`) are schema properties with a
+  `deprecationMessage`, so the schema neither rejects them nor offers them; Python reports each
+  with its migration. A test pins the two lists together.
+- **Sections Python owns** (`revisions:`, `variants:`, `memory:`, `support_map:`, `per_revision:`,
+  a PID's or signal's `revisions:`, `category:`) have descriptions only in the schema: editors
+  complete and explain them, and their checks stay in `variants/revisions.py`, `ecus/memory.py`,
+  `uds/support_map.py` and `ecus/signal_category.py`, which the editors share.
+- **YAML 1.1 keys and dates.** The helper checks every date as text, as a YAML 1.2 editor reads
+  it. An `iocontrol:` entry accepts `true`/`false` beside `on`/`off`, which is what PyYAML makes
+  of an unquoted `on:` key.
+- **The profile-wide `dtcs:`** in `profile.yaml` is checked against the same `dtcs` definition
+  (`schema_findings(..., definition="dtcs", at=["dtcs"])`). `profile_schema.json` does not `$ref`
+  it yet, because `validate_meta` reports every schema finding as an error.
+- `SchemaFields`, `load_schema` and `validation/isotp.py` are gone, with the shape checks in
+  `ecu_file.py`, `pid_defs.py`, `ecu_sections.py`, `dtcs.py`, `iocontrol.py` and
+  `addressing.py`. `tests/validation/test_ecus_schema.py` pins the schema to `PID_STATUSES`,
+  `VALID_TYPES`, `KNOWN_METHODS`, `WAKE_FIELD_ORDER`, `ECU_ISOTP_FIELDS`, `IDENTITY_FIELDS` (new,
+  in `ecus/registry.py`), `ID_PROTOCOL_VALUES` (new, in `uds/protocol.py`), the DTC section
+  fields, `MEMORY_FIELDS`, `DECL_FIELDS`, `SCAN_LOG_FIELDS` and the `pids add-research` choices.
+- Python keeps the octal PID key, the mode-dependent 11-bit id limit, the state, bus and variant
+  vocabularies, expressions, support maps, categories, revisions, the actuator requests and their
+  session, and the cross-file checks.
 
 ## Relation to the format-version proposal
 

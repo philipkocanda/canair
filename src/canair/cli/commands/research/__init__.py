@@ -2,7 +2,7 @@
 """Report open reverse-engineering work from the ecus/ `research:` sections.
 
 Each ECU file in ecus/ may carry a `research:` list tracking untested scans,
-undecoded captures, and unverified parameters (schema in pids_schema.yaml).
+undecoded captures, and unverified signals (schema: research_entry in pids_schema.yaml).
 This tool aggregates those entries across every ECU so you can answer
 "what should I reverse-engineer next?" at a glance.
 

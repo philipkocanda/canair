@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 # ─── MCU (Motor Control Unit) ─────────────────────────────────────────
 #
 # Power electronics and control for the traction motor: inverter switching (DC → 3-phase AC),

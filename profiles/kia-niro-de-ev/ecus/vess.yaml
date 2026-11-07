@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 VESS:
   tx_id: 0x736
   can_bus: [P-CAN]

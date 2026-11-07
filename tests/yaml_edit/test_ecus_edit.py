@@ -388,7 +388,7 @@ class TestIdentityValidation:
     def test_invalid_protocol_is_error(self, tmp_path):
         p = self._write(tmp_path, "X:\n  tx_id: 0x770\n  identity:\n    id_protocol: FOO\n")
         errors, _, _ = collect_pids_validation([p])
-        assert any("invalid id_protocol" in e for e in errors)
+        assert any("identity.id_protocol: must be one of" in e for e in errors)
 
     def test_unknown_identity_field_is_error(self, tmp_path):
         p = self._write(tmp_path, "X:\n  tx_id: 0x770\n  identity:\n    wat: 1\n")

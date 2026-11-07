@@ -43,6 +43,7 @@ def test_each_target_is_well_formed(key):
         ("groups", "groups"),
         ("signals", "signals"),
         ("variants", "variants"),
+        ("ecu", "ecus"),
     ],
 )
 def test_a_created_file_names_its_schema(key, schema):

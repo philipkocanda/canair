@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 # ─── CCM (Charge Control Module) ──────────────────────────────────
 # Power Line Communication (PLC) for DC CCS fast-charging at 0x733, under the front left seat.
 # Its firmware has 11 DIDs (10 readable, 12A0 write-only; see pids:): identification, the last

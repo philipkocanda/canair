@@ -119,7 +119,7 @@ class TestPidStatus:
 
 
 class TestPidStatusVocabulary:
-    """`PidStatus` (Python) and `valid_pid_status:` (schema) must not drift.
+    """`PidStatus` (Python) and the ECU schema's PID `status` enum must not drift.
 
     Both are deliberate: `src/canair/schema/` validates *data* without importing
     Python, while the `Literal` gives the Python side static checking. Deleting
@@ -134,12 +134,11 @@ class TestPidStatusVocabulary:
         assert PID_STATUSES == get_args(PidStatus)
 
     def test_schema_matches_the_literal(self):
-        from canair.validation._common import SCHEMA_FILE
-        from canair.validation.schema_fields import load_schema
+        from canair.core.json_schema import load_schema_file
+        from canair.core.paths import ECUS_SCHEMA_FILE
 
-        schema_statuses = load_schema(SCHEMA_FILE).get("valid_pid_status")
-        assert schema_statuses, "pids_schema.yaml must declare valid_pid_status"
-        assert set(schema_statuses) == set(PID_STATUSES)
+        pid = load_schema_file(ECUS_SCHEMA_FILE)["definitions"]["pid"]
+        assert tuple(pid["properties"]["status"]["enum"]) == PID_STATUSES
 
     def test_default_is_a_known_status(self):
         assert DEFAULT_PID_STATUS in PID_STATUSES

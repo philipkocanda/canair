@@ -12,7 +12,7 @@ without clobbering hand-authored edits:
 
 All writes go through :func:`canair.yaml_edit.doc.edit_doc`, which re-parses and
 schema-validates the file and reverts on failure — a broken edit never persists. Identity fields
-are validated against ``src/canair/schema/pids_schema.yaml`` (``identity_fields``).
+are checked against :data:`canair.ecus.registry.IDENTITY_FIELDS`.
 Merges never overwrite existing non-empty values unless ``overwrite=True``.
 """
 
@@ -27,12 +27,13 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.scalarint import HexCapsInt
 
 from canair.core.edit_errors import EditError
+from canair.core.paths import schema_modeline
 from canair.core.yaml_rt import folded as _folded
 from canair.ecus.files import find_by_tx
+from canair.ecus.registry import IDENTITY_FIELDS
 from canair.profile.model import Profile
 from canair.states.tokens import parse_states
 from canair.uds.addressing import AddressingMode
-from canair.validation.schema_fields import load_schema
 
 from .doc import Doc, Target, edit_doc
 from .ecufile import clear_cache, schema_validator
@@ -41,31 +42,6 @@ from .ruamel_ops import flow_seq, rename_key, state_token
 # Free-text ECU fields rendered per the shared note policy (canair.core.yaml_rt): inline when
 # short, else a wrapped folded block scalar. A new curated free-text field is added here.
 FREE_TEXT_FIELDS = frozenset({"notes"})
-
-# Order used when rendering a brand-new identity block (unknown fields last).
-CANONICAL_FIELD_ORDER = (
-    "alias",
-    "description",
-    "part_number",
-    "mfg_date",
-    "hw_version",
-    "sw_version",
-    "hw_sw",
-    "boot_sw",
-    "app_sw",
-    "fw_version",
-    "firmware",
-    "serial",
-    "ecu_id",
-    "sw_id",
-    "calibration",
-    "supplier",
-    "diag_address",
-    "vin",
-    "id_protocol",
-    "identity_confidence",
-    "notes",
-)
 
 
 class EcusEditError(EditError):
@@ -107,18 +83,12 @@ def _slug(name: str) -> str:
     return name.strip().lower().replace(" ", "-") + ".yaml"
 
 
-def _allowed_identity_fields() -> set[str]:
-    schema = load_schema()
-    ident = schema.get("identity_fields", {}) or {}
-    return set(ident.get("required", [])) | set(ident.get("optional", []))
-
-
 def _check_fields(fields: dict) -> None:
-    unknown = set(fields) - _allowed_identity_fields()
+    unknown = set(fields) - set(IDENTITY_FIELDS)
     if unknown:
         raise EcusEditError(
-            f"unknown identity field(s): {', '.join(sorted(unknown))}. "
-            f"See identity_fields in src/canair/schema/pids_schema.yaml."
+            f"unknown identity field(s): {', '.join(sorted(unknown))} "
+            f"(allowed: {', '.join(IDENTITY_FIELDS)})"
         )
 
 
@@ -168,7 +138,7 @@ def _merge_fields(entry: dict, updates: dict, overwrite: bool) -> bool:
 
 def _new_identity(fields: dict) -> CommentedMap:
     ident = CommentedMap()
-    for key in CANONICAL_FIELD_ORDER:
+    for key in IDENTITY_FIELDS:
         if fields.get(key) is not None:
             ident[key] = _render_field(key, fields[key], key_indent=4)
     for key, val in fields.items():
@@ -182,6 +152,7 @@ ECU = Target(
     path=None,
     error=EcusEditError,
     validate=schema_validator(EcusEditError),
+    header=schema_modeline("ecus") + "\n",
     after_write=clear_cache,
 )
 
@@ -226,7 +197,7 @@ def register_ecu(
     A new file defaults its name to ``Unknown-<TX>`` when none is given. Existing
     files keep their human-authored identity fields; only missing/empty ones are
     filled unless ``overwrite=True``. ``fields`` are identity fields (see
-    ``identity_fields`` in the schema). ``rx_id`` is the optional top-level CAN
+    :data:`~canair.ecus.registry.IDENTITY_FIELDS`). ``rx_id`` is the optional top-level CAN
     response-address override (for an ECU whose response address doesn't follow
     the profile's ``addressing.rx_offset``). ``mode``/``target_address``/
     ``source_address``/``fc_id`` seed the per-ECU ``addressing:`` block — needed
@@ -366,8 +337,8 @@ def set_ecu_fields(
     return changed
 
 
-# scan_log entry fields we accept (mirrors pids_schema scan_log_entry_fields).
-_SCAN_LOG_FIELDS = ("service", "range", "date", "hits", "probes", "vehicle_states", "notes")
+# The scan_log entry fields, in the order they are written (the ECU schema's scan_log_entry).
+SCAN_LOG_FIELDS = ("service", "range", "date", "hits", "probes", "vehicle_states", "notes")
 
 
 def _normalize_addressing_args(
@@ -519,7 +490,7 @@ def append_scan_log(
             "notes": notes,
         }
         entry = CommentedMap()
-        for field in _SCAN_LOG_FIELDS:
+        for field in SCAN_LOG_FIELDS:
             if values[field] is not None:
                 # scan_log entries are list items: dash at 4, fields at 6.
                 entry[field] = _render_field(field, values[field], key_indent=6)

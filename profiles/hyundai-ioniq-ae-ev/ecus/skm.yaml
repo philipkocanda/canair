@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 # ─── SKM (Smart Key Module) ────────────────────────────────────────────
 # Self-identifies as "SMK". Key fob detection, immobiliser and remote functions. Sleeps within
 # seconds of its last request, so reads need the wake ritual below. Has a dedicated CAN line to

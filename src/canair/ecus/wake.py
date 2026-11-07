@@ -32,7 +32,7 @@ from typing import Any, Final
 
 from canair.uds.services import DEFAULT_SESSION_REQUEST
 
-# Wake methods (mirror valid_wake_methods in pids_schema.yaml).
+# Wake methods (the ECU schema's wake.method enum, pinned to it by a test).
 RAPID_READ: Final = "rapid_read"
 SESSION: Final = "session"
 RELAY: Final = "relay"

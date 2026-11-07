@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 # Two revisions: a running change from KWP2000 to UDS. The 40 kWh car only ever had the
 # KWP2000 one; the 60 kWh car may have either, so its VCU is pinned or undetermined.
 VCU:

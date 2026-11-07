@@ -34,9 +34,9 @@ from canair.uds.memory import is_memory_request
 #
 # A closed vocabulary, so it's a `Literal`: every comparison and every write is
 # checked statically, with the runtime tuple derived from the type (one source of
-# truth for the argparse `choices=` and the editor guards). The schema keeps its
-# own `valid_pid_status:` list — `src/canair/schema/` must validate data without
-# importing Python — and a drift test asserts the two agree.
+# truth for the argparse `choices=` and the editor guards). The ECU schema keeps its
+# own `status` enum — `src/canair/schema/` must validate data without importing
+# Python — and a drift test asserts the two agree.
 PidStatus = Literal["active", "draft", "static", "slow", "ignored"]
 PID_STATUSES: tuple[PidStatus, ...] = get_args(PidStatus)
 DEFAULT_PID_STATUS: PidStatus = "active"

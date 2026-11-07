@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 ENGINE:
   tx_id: 0x7E0
   identity:

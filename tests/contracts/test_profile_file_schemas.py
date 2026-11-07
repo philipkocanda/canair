@@ -26,7 +26,8 @@ FILES = {
 
 def _profile_files(root: Path) -> list[tuple[Path, str]]:
     found = [(root / name, schema) for name, schema in FILES.items() if (root / name).exists()]
-    return found + [(p, "signals") for p in sorted((root / "signals").glob("*.yaml"))]
+    found += [(p, "signals") for p in sorted((root / "signals").glob("*.yaml"))]
+    return found + [(p, "ecus") for p in sorted((root / "ecus").glob("*.yaml"))]
 
 
 PROFILES = sorted(

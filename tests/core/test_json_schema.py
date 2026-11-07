@@ -7,7 +7,12 @@ import json
 import pytest
 
 from canair.core import json_schema
-from canair.core.json_schema import check_schema_file, load_schema_file, schema_errors
+from canair.core.json_schema import (
+    check_schema_file,
+    load_schema_file,
+    schema_errors,
+    schema_findings,
+)
 from canair.core.paths import EDITOR_SCHEMAS, SCHEMA_DIR, schema_url
 
 
@@ -103,12 +108,49 @@ class TestMessages:
         path = schema({"properties": {"v": {"anyOf": [{"type": "integer"}, {"type": "null"}]}}})
         assert len(schema_errors(path, {"v": "x"})) == 1
 
+    def test_x_warn_makes_a_keyword_a_warning(self, schema):
+        path = schema(
+            {
+                "type": "object",
+                "x-warn": ["additionalProperties"],
+                "additionalProperties": False,
+                "required": ["name"],
+                "properties": {"name": {"type": "string"}, "old": {"deprecationMessage": "gone"}},
+            }
+        )
+        assert schema_findings(path, {"colour": 1}) == (
+            ["missing required field 'name'"],
+            ["unknown field 'colour' (allowed: name)"],
+        )
+        assert schema_errors(path, {"colour": 1}) == [
+            "missing required field 'name'",
+            "unknown field 'colour' (allowed: name)",
+        ]
+
+    def test_a_definition_is_checked_where_it_sits(self, schema):
+        path = schema(
+            {
+                "$id": "https://example.invalid/s.json",
+                "definitions": {"part": {"properties": {"n": {"type": "integer"}}}},
+            }
+        )
+        errors, _ = schema_findings(path, {"n": "x"}, definition="part", at=["parts", "a"])
+        assert errors == ["parts.a.n: must be an integer (got 'x')"]
+
+    def test_dates_are_checked_as_text(self, schema):
+        import datetime
+
+        path = schema({"properties": {"date": {"type": "string"}}})
+        assert schema_errors(path, {"date": datetime.date(2026, 7, 22)}) == []
+
+    def test_an_empty_mapping(self, schema):
+        path = schema({"properties": {"m": {"type": "object", "minProperties": 1}}})
+        assert schema_errors(path, {"m": {}}) == ["m: must not be empty"]
+
 
 class TestCanairSchemas:
     @pytest.mark.parametrize("path", sorted(SCHEMA_DIR.glob("*_schema.*")), ids=lambda p: p.name)
     def test_every_machine_schema_is_valid(self, path):
-        if "$schema" not in load_schema_file(path):
-            pytest.skip("a field list, not a JSON Schema yet")
         check_schema_file(path)
 
     @pytest.mark.parametrize("name", sorted(EDITOR_SCHEMAS))

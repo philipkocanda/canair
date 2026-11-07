@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 # ─── PSM (Power Seat Module) ──────────────────────────────────────────
 # Actuator DIDs come from the e-Niro and are confirmed on this car (power seats: Premium trim).
 PSM:

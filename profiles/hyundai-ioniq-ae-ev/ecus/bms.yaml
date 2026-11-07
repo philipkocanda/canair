@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 # ─── BMS (Battery Management System) ─────────────────────────────────
 #
 # 21xx live-data reads work in the default session; 10 81 unlocks no extra data.

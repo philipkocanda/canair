@@ -22,13 +22,38 @@ from canair.uds.protocol import UNKNOWN, classify_protocol
 # captures that don't map to a single physical responder).
 SENTINELS = frozenset({"broadcast"})
 
+# The fields of an ECU's ``identity:`` block, in the order an editor writes them (the ECU
+# schema's ``identity`` properties, pinned to it by a test).
+IDENTITY_FIELDS: tuple[str, ...] = (
+    "alias",
+    "description",
+    "part_number",
+    "mfg_date",
+    "hw_version",
+    "sw_version",
+    "hw_sw",
+    "boot_sw",
+    "app_sw",
+    "fw_version",
+    "firmware",
+    "serial",
+    "ecu_id",
+    "sw_id",
+    "calibration",
+    "supplier",
+    "diag_address",
+    "vin",
+    "id_protocol",
+    "identity_confidence",
+    "notes",
+)
+
 
 class _EcuIdentity(TypedDict, total=False):
     """Optional identity fields flattened onto a registry entry.
 
-    Mirrors ``identity_fields.optional`` in ``src/canair/schema/pids_schema.yaml`` —
-    the ECU's self-reported identity block, plus the top-level ``can_bus`` list.
-    All optional (an identity-only or barely-probed ECU may carry none).
+    The :data:`IDENTITY_FIELDS` of the ECU's self-reported identity block, plus the top-level
+    ``can_bus`` list. All optional (an identity-only or barely-probed ECU may carry none).
     """
 
     alias: str
@@ -152,7 +177,7 @@ def derive_identity_confidence(info: EcuRegistryEntry) -> str:
     """Heuristically rate how well-established an ECU's identity is.
 
     Returns one of ``confirmed`` / ``probable`` / ``tentative`` / ``speculative``
-    (see ``valid_identity_confidence`` in pids_schema.yaml). Used when an entry
+    (the ``identity_confidence`` enum of the ECU schema). Used when an entry
     has no explicit ``identity_confidence``.
     """
     name = str(info.get("name") or "")

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
 BRAKE:
   tx_id: 0x70E
   can_bus: [CHASSIS-CAN]

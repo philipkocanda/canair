@@ -9,10 +9,11 @@ import yaml
 from canair.cli.commands.pids import pid_settings
 from canair.cli.profile_context import active
 from canair.core.edit_errors import EditError
+from canair.core.json_schema import load_schema_file
+from canair.core.paths import ECUS_SCHEMA_FILE
 from canair.ecus.pid_status import pid_ships, pid_swept
 from canair.ecus.pids import build_ecu_index
 from canair.validation.ecu_file import validate_ecu_file
-from canair.validation.schema_fields import load_schema
 from canair.yaml_edit.pids import PidsEditError, set_snapshot_only
 
 YAML = """\
@@ -139,7 +140,7 @@ class TestValidation:
             "        A:\n"
             "          expression: B05\n"
         )
-        errors, _warnings, _stats = validate_ecu_file(p, load_schema())
+        errors, _warnings, _stats = validate_ecu_file(p)
         return errors
 
     def test_a_valid_declaration_passes(self, tmp_path):
@@ -148,10 +149,10 @@ class TestValidation:
     @pytest.mark.parametrize(
         "fields, needle",
         [
-            (["snapshot_only: yes please"], "snapshot_only must be a boolean"),
-            (["snapshot_length: 0"], "snapshot_length must be an int >= 1"),
-            (["snapshot_length: true"], "snapshot_length must be an int >= 1"),
-            (["snapshot_length: nine"], "snapshot_length must be an int >= 1"),
+            (["snapshot_only: yes please"], "snapshot_only: must be true or false"),
+            (["snapshot_length: 0"], "snapshot_length: must be at least 1"),
+            (["snapshot_length: true"], "snapshot_length: must be an integer"),
+            (["snapshot_length: nine"], "snapshot_length: must be an integer"),
         ],
     )
     def test_malformed_fields_are_errors(self, tmp_path, fields, needle):
@@ -163,7 +164,7 @@ class TestValidation:
         assert any("service-22 DID key" in e for e in errs), errs
 
     def test_the_fields_are_known_to_the_schema(self):
-        fields = load_schema()["optional_pid_fields"]
+        fields = load_schema_file(ECUS_SCHEMA_FILE)["definitions"]["pid"]["properties"]
         assert "snapshot_only" in fields and "snapshot_length" in fields
 
 
