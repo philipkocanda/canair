@@ -142,6 +142,9 @@ unverified). B11's gaps at bits 3, 4, 7 are visible at a glance.
 Correlation cannot decode a door bit; **a narrated event log can.** Bits need
 captures where you *caused* the transitions and wrote down what you did.
 
+This step talks to the car. Propose the command and the action sequence to the user, and run it
+only after the user explicitly approves it (`AGENTS.md` → The car).
+
 ```
 uv run canair --profile hyundai-ioniq-ae-ev monitor IGPM:22BC03 --save \
     --label "IGPM bitfield events" --state ACC \

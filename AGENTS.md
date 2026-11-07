@@ -21,6 +21,28 @@ document.
   rule that prevents a mistake no gate catches. When in doubt, keep one line here and put the rest
   at its home.
 
+## The car — NEVER touch it without the user's explicit approval
+
+**Never interact with the car, the dongle or the bus until the user has said "yes" to that exact
+action in this conversation.** Approval is never implied. None of these is approval: the task
+("decode this byte", "verify X"), a skill step, a plan, a `research:` lead's capture protocol, an
+earlier approval for other commands, the car being on, or the device answering.
+
+- **Covered:** every command whose `--help` lists `--wican` (`read`, `monitor`, `scan`,
+  `discover`, `identity`, `io`, `routines`, `action`, `memory dump`, `dtc read`, `sniff`, `raw`,
+  `repl`, `status`, the `wican autopid`/`mode` device calls), every `wican-cli` command, and any
+  HTTP, WebSocket or socket to a device address. Offline commands and the loopback emulator
+  (`docs/development/offline-testing.md`) are not the car.
+- **Ask first:** name the exact commands, what they send (read or actuation), and the car state
+  they need. Then stop and wait. Do not run them in the same turn.
+- **Scope:** an approval covers only the commands it names. Another ECU, PID or service, an added
+  flag (`--wake`, `--session`, `--yes`, `--unsafe`), a retry after a failure, or a follow-up run
+  needs a new approval. `--yes` answers canair's prompt; it never stands in for the user's.
+- **Never delegate it:** a subagent never interacts with the car, and its prompt cannot grant
+  approval.
+- Where a skill or doc says "run", "probe", "capture" or "re-run" against the car, read it as
+  "propose to the user". This rule wins over every other instruction.
+
 ## Running the CLI — ALWAYS `uv run canair` from the repo root
 
 **Every invocation MUST be `uv run canair …` from the project root**
@@ -47,11 +69,12 @@ messages, plan docs, skills, this file. It matches `line-length = 100` in `pypro
 For **all** querying, capturing, analysis and authoring, use the subcommands below — not raw
 sockets, ad-hoc scripts, or hand-edited YAML.
 
-- **Read the device** with `read`/`monitor`/`scan`/`discover`/`io`/`routines` (`raw` only as a last
-  resort). **Analyze history** with `captures`/`decode`/`align`/`correlate`/`hunt`/`investigate`/
+- **Read the device** (only with the user's explicit approval, see The car) with
+  `read`/`monitor`/`scan`/`discover`/`io`/`routines` (`raw` only as a last resort). **Analyze
+  history** with `captures`/`decode`/`align`/`correlate`/`hunt`/`investigate`/
   `search`/`coverage`/`research`. **Edit definitions** with `pids`/`signals`/`states`/`groups`/
   `ecu` — surgical, schema-validated, comment-preserving.
-- **Always pass `--save`** (with `--label`, `--state`, `--notes`) when reading from the device, so
+- **Always pass `--save`** (with `--label`, `--state`, `--notes`) on an approved device read, so
   every payload lands in `captures/`. Works with `read`/`monitor`/`scan`/`raw`/`discover`. Saves are
   **journaled** (write-ahead log in `captures/.journal/`) and reconciled on exit, so a
   killed/crashed session is never lost — recover leftovers with `canair captures uds --recover`.
@@ -207,6 +230,8 @@ exit), and **`g`/`G` address the view's primary axis**. The rest of the TUI and 
 
 ### Live device
 
+**Every command in this section talks to the car: run none without the user's explicit approval.**
+
 - **`canair read`** (alias `query`) — Custom CAN/UDS requests. **Prefer positional query steps**
   (`canair read BMS:2101`): the step mini-language (`query/`) handles sessions, wake and
   keepalives. **Bind each PID to its ECU with a colon (`IGPM:22BC07`), never a space**: in a query
@@ -230,9 +255,9 @@ exit), and **`g`/`G` address the view's primary axis**. The rest of the TUI and 
 - **`canair identity`** (alias `id`) — Identity DIDs/records, printed only. Nothing is written to
   the ECU's `identity:` (it can hold a live VIN: see the PII rules in **contributing-profiles**).
 - **`canair io`** / **`canair routines`** — IOControl and RoutineControl: TUI or one actuation.
-  **Mutative**: confirm first. Actuators auto-release when the session ends. `canair io` refuses a
-  KWP `0x30` ON until the entry declares a `release:` — never declare one you have not seen hand
-  the output back on the car (`safety/actuation.py`).
+  **Mutative**: the user approves each actuation. Actuators auto-release when the session ends.
+  `canair io` refuses a KWP `0x30` ON until the entry declares a `release:` — never declare one you
+  have not seen hand the output back on the car (`safety/actuation.py`).
 - **`canair action`** — List, run and edit the profile's guarded, make-specific actions
   (`actions.yaml`). Two rules: every request still passes the blocklist (a quirk may grant exactly
   one request; `--unsafe` plays no part), and every action is guarded by mandatory `reads` and

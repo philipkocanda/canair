@@ -92,7 +92,8 @@ variant before new profile.
   live detection sends. Use `identity:` globs when a layout changed under one protocol (a SW-ID
   or ROM ID). Record only fingerprints you have seen answer; an unverified one can mis-detect.
 - **Never guess a revision** to make PIDs appear. An undetermined ECU skips its gated PIDs on
-  purpose; ask the user, run `canair identity ECU` (it names the matching revision), and pin it (`profile use NAME --pin ECU=ID`, or
+  purpose. Ask the user, or ask for approval to run `canair identity ECU` (it names the matching
+  revision; it talks to the car), and pin it (`profile use NAME --pin ECU=ID`, or
   `--revision ECU=ID` once). A seeded revision's definitions stay `verified: false`.
 - **Evidence belongs to a revision.** A definition's own `verified` and `response_frames` speak
   for its reference revision (the first it applies to); never assume a signal verified there holds
@@ -110,9 +111,9 @@ AutoPID profile until a variant is named — and there is no default, by design.
 `canair profile use NAME --variant ID` (remembered per profile) or the global `--variant` for one
 command; `docs/concepts/variants.md` has the precedence.
 
-- **Never pick a variant to make a refusal go away.** Ask the user which car they have, or run
-  `discover`/`identity` (allowed without a choice) and read the evidence. A wrong choice tags
-  every recording with the wrong car.
+- **Never pick a variant to make a refusal go away.** Ask the user which car they have, or ask
+  for approval to run `discover`/`identity` (allowed without a choice; both talk to the car) and
+  read the evidence. A wrong choice tags every recording with the wrong car.
 - **An old profile name may imply a variant** (`ioniq-2017` is the 28 kWh car). Those tags are
   attributed `alias` and shown as unconfirmed; replace them with an explicit choice when the user
   confirms.
@@ -153,8 +154,9 @@ say which: its `variant` tag, set by the global `--variant ID` flag (see
   a model's life (a successor generation; an EREV added part-way through a generation), and the
   name then has to change too.
 - **Finding the model code:** start with the car itself. ECUs often report it in their identity
-  strings (`canair identity`, or `canair search` over the captures) — the Ioniq Electric's BMS
-  answers `AEEV__ BMS`, which is the model code `AEEV` (Ioniq `AE`, `EV`). Then the maker's
+  strings (`canair search` over the captures, or `canair identity` with the user's approval) — the
+  Ioniq Electric's BMS answers `AEEV__ BMS`, which is the model code `AEEV` (Ioniq `AE`, `EV`).
+  Then the maker's
   documentation, then a well-sourced reference, and record where it came from.
 - The rule and its pattern live once, in `src/canair/profile/names.py`; `canair validate` enforces
   them for bundled profiles, and `canair profile create` notes a non-conforming name.

@@ -26,14 +26,18 @@ reference lives in **AGENTS.md**, `docs/reference/cli/`, and `canair <cmd>
 
 ## Safety (non-negotiable)
 
+- **NEVER interact with the car without the user's explicit approval** (`AGENTS.md` → The
+  car). Approval is never implied by the task or by a skill. This covers every `canair` live
+  command, `canair status`, every `wican-cli` command and the device's HTTP API. Propose the
+  exact commands, then wait for an explicit "yes".
 - **NEVER** use the UDS programming session (`10 02`) or any firmware
-  write/upload command. This is a real, un-brickable car — a bad flash bricks an
+  write/upload command. This is a real car that cannot be un-bricked — a bad flash bricks an
   ECU or the whole vehicle.
-- **Never `2E` write** unless you know exactly what it does. Reads (`22`) are safe in
-  any DID range; canair's guard also refuses `10 05` (Hyundai/Kia's programming-mode
-  alias), ECU resets and reprogramming routines (`docs/concepts/safety.md`).
+- **Never `2E` write** unless you know exactly what it does. A read (`22`) cannot harm an ECU in
+  any DID range (it still needs approval); canair's guard also refuses `10 05` (Hyundai/Kia's
+  programming-mode alias), ECU resets and reprogramming routines (`docs/concepts/safety.md`).
 - **IOControl (`2F`) actuates real hardware** — only with the car stationary and
-  in a safe state.
+  in a safe state, and only for an actuation the user approved by name.
 - Be gentle: the ECUs are old and slow. **No concurrent requests to one ECU.**
 - **One `canair` connection at a time, any transport.** canair enforces this with
   a `flock` mutex (`/tmp/wican-connection.lock`, `src/canair/device/lock.py`); a second
@@ -45,12 +49,12 @@ reference lives in **AGENTS.md**, `docs/reference/cli/`, and `canair <cmd>
   won't go. Inspect/clear a stuck one with `canair lock` (`lock steal`/`lock
   kill`); a session whose terminal vanished stands down by itself once another run
   asks for the connection.
-- **Never reboot the WiCAN without asking.** A bus reset via ELM327 is usually
-  enough. Using the WebSocket (`wican-ws`) terminal overrides AutoPID; a reboot
-  is needed to resume the MQTT feed afterward — ask first.
-- **ALWAYS talk to the car through `canair`** (`uv run canair …` from the repo
-  root). Never hand-roll a WebSocket/socket or send raw ELM327 yourself. If
-  canair can't do something, discuss with the user first.
+- **Never reboot the WiCAN without the user's explicit approval.** A bus reset via ELM327 is
+  usually enough (that needs approval too). Using the WebSocket (`wican-ws`) terminal overrides
+  AutoPID; a reboot is needed to resume the MQTT feed afterward — ask first.
+- **When the user approves car access, ALWAYS talk to the car through `canair`** (`uv run
+  canair …` from the repo root). Never hand-roll a WebSocket/socket or send raw ELM327 yourself.
+  If canair can't do something, discuss with the user first.
 
 ## Goals
 
@@ -305,7 +309,8 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
   **plus** a bogus ECU `BC03`" (rejected). Write `query IGPM:BC03,BC06`. Bare
   `canair read BMS` / `BMS:2101` and `--param NAME` are single-ECU shortcuts.
 - **`--save` discipline.** NEVER hand-write/edit `captures/` YAML — record via
-  `canair read/monitor/scan/raw/discover … --save`. Agents must pass
+  `canair read/monitor/scan/raw/discover … --save`, once the user approves that read. Agents must
+  pass
   `--label` (+ optional `--state`/`--notes`) for non-interactive save; without
   `--label` it prompts. Saves are **journaled** to `captures/.journal/` as they
   stream and reconciled into the dated file on exit, so a killed/disconnected
@@ -315,7 +320,7 @@ Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
   `n` to close the current segment and start a fresh one (several labelled
   sessions per run); a `● REC` blinks while `--save` is recording. The **state is
   auto-suggested** from decoded PID values via the profile's
-  `vehicle_states.yaml`. For edits/removals use `canair.captures`
+  `vehicle_states.yaml`. For edits/removals use `canair.captures.session_edit`
   (`set_capture_note`/`delete_capture`). After saving, run `canair captures uds
   --summary` to spot patterns missed live, or `canair captures uds --sessions` for a
   metadata table of contents (date/state/label/notes/ECUs per session; `--json`).
@@ -431,8 +436,9 @@ wican sleep --disable   # before an RE session    wican protocol --set auto_pid
 wican sleep --enable    # after                    wican logs --query SOC_BMS --limit 20
 ```
 
-**Tip:** disable sleep before probing (12V can sag with the car off and put the
-WiCAN to sleep mid-session), re-enable after.
+**Tip:** sleep should be off before probing (12V can sag with the car off and put the
+WiCAN to sleep mid-session) and on again after. These commands touch the device: ask the user to
+run them, or to approve them.
 
 ## ECU status
 

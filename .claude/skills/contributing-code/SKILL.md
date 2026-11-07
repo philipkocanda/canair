@@ -38,6 +38,8 @@ if it has drifted (Boy Scout). This applies to this skill too — keep it intent
    See Transports.
 3. **Never break the real car.** No UDS programming session (`10 02`), no firmware/write/upload
    services. The blocklist in `src/canair/safety/blocklist.py` exists for this — extend it, never bypass it.
+   **Never run a live command against the car without the user's explicit approval**
+   (`AGENTS.md` → The car): test against fakes or the loopback emulator instead.
 4. **Tests pass and cover the change** (see Test coverage).
 5. **Two data domains, one tool.** canair analyzes diagnostic request/response traffic *and* raw
    broadcast CAN frames; treat frames as first-class and the WiCAN as a replaceable transport.
@@ -208,8 +210,9 @@ declared once (`AGENTS.md` → Analysis lists the shared-flag homes). Two standi
 
 Anything that changes ECU or device state (clearing DTCs, IOControl, actuating routines, config
 writes, reboots) must **confirm before acting** with an explicit `--yes` escape hatch for scripting
-— follow the DTC-clear and routine-start paths. Reads are free, but stay gentle: old, slow ECUs and
-one connection at a time.
+— follow the DTC-clear and routine-start paths. A read needs no prompt in the code, but stay
+gentle: old, slow ECUs and one connection at a time. "No prompt" is a rule for the code only. An
+agent still needs the user's explicit approval for every read it runs on the car.
 
 ## Data & generated artifacts — the plumbing you maintain
 

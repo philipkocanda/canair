@@ -30,7 +30,8 @@ role" applies to any powertrain):
   temperatures, fan/compressor state, flap positions.
 - **BCM/IGPM (body)** — mostly *discrete*: lights, locks, doors, switches ⇒ **bitfields
   and enums**, not analog. Decode with the bit-level, event-driven loop: capture a
-  *narrated* event sequence (`monitor --save`, noting each physical action), then
+  *narrated* event sequence (`monitor --save`, noting each physical action; propose it, and run
+  it only on the user's explicit approval), then
   `investigate <ECU> <PID> --events --bits` for the edge timeline aligned to your notes,
   and `correlate --find-mirrors --bits` for the same bit on a second ECU (an IGPM door
   bit mirrored in BCM). This decoded DOOR_DRV_OPEN / HOOD_OPEN / the BC05 unlock+trunk

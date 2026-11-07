@@ -31,21 +31,26 @@ result upstream).
 
 Full policy: `docs/concepts/safety.md`. The essentials:
 
+- **NEVER interact with the car without the user's explicit approval** (`AGENTS.md` → The car).
+  Approval is never implied by the task or by this skill. Every step below that sends something
+  to the car (discover, scan, capture, a live check, a retry) means: propose the exact commands,
+  then wait for an explicit "yes". Steps 1 and 5–9 work on the existing captures and need no car.
 - **NEVER** open a programming session (`10 02`) or do any firmware write/upload —
   ECUs can be bricked. canair blocks these; never work around it. The same guard refuses
   ECU resets (`11`), silencing an ECU's traffic (`28`), memory writes (`2E`/`3B`/`3D`) and
   reprogramming routines (`31 01 FF00`, Hyundai/Kia's `10 05` alias); the list is in
   `docs/concepts/safety.md`.
-- Reads (`22`) are safe in any DID range. `2E` writes and `2F` actuation can brick or
-  move hardware — out of scope for signal decoding.
+- A read (`22`) cannot harm an ECU in any DID range, but it still needs approval. `2E` writes
+  and `2F` actuation can brick or move hardware — out of scope for signal decoding.
 - **One canair connection at a time, any transport** (a `flock` mutex enforces it); no
   concurrent requests to one ECU. Clear a stuck session with `--force` or
   `canair lock` — **never by rebooting the device**, and never reboot without asking
   (the WebSocket terminal overrides AutoPID; the reboot is what restores it).
-- Be gentle: the first request after idle often fails — retry once before concluding a
-  PID/ECU is dead.
-- Disable device sleep for a long session, then re-enable. That is **`wican-cli`** (a
-  *separate* package), NOT canair: `wican sleep --disable`. Status: `canair status`.
+- Be gentle: the first request after idle often fails. Do not conclude from one failure that
+  a PID/ECU is dead: report it and ask the user before you retry.
+- Device sleep should be off for a long session and on again after. That is **`wican-cli`** (a
+  *separate* package), NOT canair: `wican sleep --disable`. Status: `canair status`. Both touch
+  the device, so ask the user to run them or to approve them.
 
 ## Working principles
 
@@ -134,9 +139,12 @@ meta-token — the same field on PIDs/ECUs and in `research:`, written as an inl
 states`) and whether the
 ECU needs waking or an extended session. Body ECUs (Ioniq IGPM 0x770, BCM 0x7A0) wake from CAN
 activity; powertrain ECUs (BMS/VCU/MCU) generally need the ignition on or a charge. `canair
-discover` shows what answers now.
+discover` shows what answers now (it talks to the car: approval first).
 
 ### 3. Discover — which DIDs respond
+
+Steps 3 and 4 send requests to the car. Propose the commands, and run them only after the
+user's explicit approval of those exact commands.
 
 ```bash
 canair scan MCU --service 21 --range 01-FF --save                        # KWP live data
@@ -152,8 +160,8 @@ signal types: `scan sessions` (which session types the ECU supports — informs 
 the ECU's `routines:`/`iocontrol_discoveries:`. **After an IOControl scan, run
 `canair research --gaps`:** ECUs often keep their live-data records in their actuators'
 family, so an ECU that "has no live data" frequently just has never been read there. A saved
-sweep the ECU slept through does not count as a read, so save sweeps (`--save`) and re-run
-asleep ones with `--wake`.
+sweep the ECU slept through does not count as a read, so save sweeps (`--save`) and propose a
+re-run of asleep ones with `--wake`.
 
 **Always record the outcome — a discovered DID must never be lost:**
 
@@ -177,9 +185,9 @@ Whether an ECU speaks UDS (`22`/`0x19`/`0x31`/`0x2F`) or KWP2000
 (`21`/`0x18`/`0x33`/`0x30`) is recorded per-ECU as **`id_protocol`**, and
 `scan`/`dtc`/`routines`/`iocontrol` auto-select the service from it — so a wrong value
 makes an ECU blind-probe the wrong service and NRC everything. On a non-Hyundai car,
-confirm each ECU's protocol with one successful read before bulk scanning
+propose one read per ECU to confirm its protocol before any bulk scan
 (`docs/concepts/ecu-protocols.md`). Ioniq example: the KWP2000 powertrain ECUs reliably
-NRC every `22 xxxx` DID ported from the Ioniq 5 — confirm once, mark `nrc`, move on.
+NRC every `22 xxxx` DID ported from the Ioniq 5 — check once, mark `nrc`, move on.
 Expect the analogous mismatch on your own car.
 
 ### 4. Capture — record real payloads across states
@@ -265,7 +273,7 @@ bit) maps each byte and flags `unmapped` ones — the fastest way to catch a wro
 
 !!! note "Scripting over captures — use `load_all_captures()`, mind the RX address"
     For a bulk edit/delete keyed on a predicate the QUERY can't express, go through
-    `canair.commands.captures.query.load_all_captures()`: flat entries with `ecu`
+    `canair.captures.store.load_all_captures()`: flat entries with `ecu`
     already **resolved to the short name** (`OBC`), the raw `ecu_addr` (`0x7ED`), and
     `_session_idx`/`_capture_idx` locators for `canair.captures.session_edit.delete_capture` (delete
     in reverse `(file, session, capture)` order). **Do not re-derive the list with a raw
@@ -419,7 +427,8 @@ Every outcome counts, not just success:
 - **Decoded / verified → `done`** (a real `parameters:` entry exists, promoted to
   `verified` where possible).
 - **Candidate still needs a live check → keep it `captured`** (a `verify`-type item)
-  with the shipping, unverified param in place, noting exactly what to test.
+  with the shipping, unverified param in place, noting exactly what to test. The live check
+  itself is a proposal to the user, never something to run on your own.
 - **"Nothing to decode here" is also a result → `done`.** If analysis proves the
   unmapped bytes are constants/padding, counters, checksums or exact mirrors of a mapped
   param, record that finding *with its evidence* in the lead's notes and close it — the
@@ -440,7 +449,7 @@ and confirm no lead you touched still shows its old status.
 
 ```bash
 canair wican autopid write   # regenerate out/[<variant>/]autopid-v{4,6}.json
-canair wican autopid diff    # compare to device (optional)
+canair wican autopid diff    # compare to device (optional; talks to the device: approval first)
 uv run pytest -q             # keep the suite green (always `uv run` from the repo root)
 ```
 
@@ -459,7 +468,7 @@ Flags live in each command's `--help`; `docs/concepts/analysis-commands.md` is t
 |------|------|
 | what to work on | `canair research` (`--gaps` for unread actuator families), `canair coverage` |
 | what's captured | `canair captures uds --sessions` (TOC; `--json`) |
-| talk to the car | `canair read`/`monitor`/`scan`/`discover` (`--save`) |
+| talk to the car (explicit approval first) | `canair read`/`monitor`/`scan`/`discover` (`--save`) |
 | onboard a reading (no device) | `canair import uds ECU:PID=PAYLOAD --label … --state …` |
 | see captures | `canair captures uds` (`--diff`/`--step`/`--rulers`/`--latest`/`--summary`) |
 | map bytes | `canair bix --annotate` (+ `--ecu`/`--pid`: which param maps each byte) |

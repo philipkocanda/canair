@@ -37,6 +37,10 @@ Companion analysis with the full throughput argument and the reclaimable-win ran
 **Do not load this skill for normal work.** It is for people editing
 `src/canair/transport/`, chasing a desync or timeout, calling a device API, or reading the firmware.
 
+**Every device call in this skill needs the user's explicit approval** (`AGENTS.md` → The car):
+`canair status`, `canair repl`, a timing run, an HTTP or WebSocket route, a reboot. Read the
+firmware source freely. Propose any call against the device, and wait for an explicit "yes".
+
 ## Rule 0 — read the right source, or every conclusion is wrong
 
 This cost a whole audit round. **Four separate traps, all of which produce plausible-looking but
@@ -93,7 +97,8 @@ rtk grep -rn ws_router wican-fw/main/CMakeLists.txt      # must return nothing
 
 ### Trap 3: the checked-out tag is not necessarily the running firmware
 
-Get the device's own version from `canair status`, which names the tag. On 4.x, `/check_status`
+Get the device's own version from `canair status` (with the user's approval, or ask the user for
+its output), which names the tag. On 4.x, `/check_status`
 reports it twice: **`fw_version` is only `"4.50"`** (`sscanf(version, "v%ld.%ld")` printed as
 `"%ld.%02ld"`, so the `p` suffix and any beta/dirty marker are dropped, and an unparseable version
 reads `"0.00"`; `wican-fw/main/config_server.c:1751-1756`), while **`git_version` carries the real
@@ -622,7 +627,8 @@ link.
 ## Checklist before changing transport code
 
 - [ ] `wican-fw` on `wican-pro`, and the tag diffed against the device's `git_version`.
-- [ ] Device firmware generation known (`canair status`); anything that uses a 4.x-only interface
+- [ ] Device firmware generation known (`canair status`, approved or run by the user); anything
+      that uses a 4.x-only interface
       (`/ws`, the protocol mode, the legacy HTTP routes, AutoPID sync) is gated through
       `src/canair/device/wican/firmware.py`'s policy table, not an ad-hoc version check.
 - [ ] Not reading the `!= WICAN_PRO` emulator block, or `wican-fw/main/ws_router.c`.

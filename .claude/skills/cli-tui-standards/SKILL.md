@@ -288,7 +288,8 @@ When you are asked to flag deviations, or you notice one while working:
 
 1. Run `uv run python scripts/check/ui_standards.py` for the mechanical ones, then read the
    command: press `?`, `esc`, `q` on every TUI screen and modal; run it with `NO_COLOR=1`, piped,
-   and with `--json | python -m json.tool`.
+   and with `--json | python -m json.tool`. Run a live command only against the loopback emulator
+   (`docs/development/offline-testing.md`), or against the car with the user's explicit approval.
 2. Check it against the rules above, then against the plan's deviation report
    (`plans/2026-11-05-cli-tui-standards.md`). If it is listed, cite the item. If it is new, add
    it to the report under the severity it earns: **High** is a missing confirmation, a lost

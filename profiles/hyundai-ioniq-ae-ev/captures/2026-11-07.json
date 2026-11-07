@@ -5775,6 +5775,39 @@
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009218051063E03000000008E66000620","time":"21:34:29.678"},
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009218051063E03000000008C66000620","time":"21:34:30.109"}
       ]
+    },
+    {
+      "date": "2026-11-07",
+      "label": "lock state after C220B",
+      "version": "5.2.0+main.f5ee3f8",
+      "notes": "Read-only check after the failed 21:30 charge start",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 17,
+        "no_data": 1
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"22BC07","payload":"62BC070841FBCC00001100","time":"22:11:21.271","elapsed_ms":55},
+        {"rx":"0x7A8","pid":"22B001","payload":"62B00140C0000000010000000000000201000000","time":"22:11:22.221","elapsed_ms":887},
+        {"rx":"0x7A8","pid":"22B002","payload":"62B002C00000000300","time":"22:11:22.271","elapsed_ms":49},
+        {"rx":"0x7A8","pid":"22B003","payload":"62B003BF8B80009B3D0ACED2F8F8F73DF800000000000000","time":"22:11:22.335","elapsed_ms":64},
+        {"rx":"0x7A8","pid":"22B004","payload":"62B0047402990C00008000","time":"22:11:22.389","elapsed_ms":53},
+        {"rx":"0x7A8","pid":"22B005","payload":"62B00520001000A0000800","time":"22:11:22.439","elapsed_ms":48},
+        {"rx":"0x7A8","pid":"22B006","payload":"62B0062000000000000000","time":"22:11:22.488","elapsed_ms":49},
+        {"rx":"0x7A8","pid":"22B007","payload":"62B007002001E000000000","time":"22:11:22.546","elapsed_ms":58},
+        {"rx":"0x7A8","pid":"22B008","payload":"62B00800510C2000880000","time":"22:11:22.596","elapsed_ms":50},
+        {"rx":"0x7A8","pid":"22B009","payload":"62B009FEEEFEEE00000000","time":"22:11:22.649","elapsed_ms":52},
+        {"rx":"0x7A8","pid":"22B00A","payload":"62B00AE3FEE30000400500","time":"22:11:22.694","elapsed_ms":45},
+        {"rx":"0x7A8","pid":"22B00C","payload":"62B00C3F00000000000000","time":"22:11:22.746","elapsed_ms":52},
+        {"rx":"0x7A8","pid":"22B00D","payload":"62B00DFCFCE00003000000","time":"22:11:22.806","elapsed_ms":60},
+        {"rx":"0x7A8","pid":"22B00E","payload":"62B00E0C00000020000000","time":"22:11:22.856","elapsed_ms":50},
+        {"rx":"0x7A8","pid":"22C00B","payload":"62C00BFFFF0000C4400100C6400100C53E0100C43F0100","time":"22:11:22.925","elapsed_ms":68},
+        {"rx":"0x7A8","pid":"22C011","payload":"62C011E0000000009E832843","time":"22:11:22.979","elapsed_ms":54}
+      ]
     }
   ]
 }
