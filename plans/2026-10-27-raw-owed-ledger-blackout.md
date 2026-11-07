@@ -1,6 +1,8 @@
 # slcan-tcp: owed-response ledger blacks out an ECU after one lost reply
 
-Status: **PROPOSED** (2026-10-27). Reproduced against the real `can-isotp` stack; no code changed.
+Status: **PROPOSED** (2026-10-27). Reproduced against the real `can-isotp` stack. §2 (one
+exchange per ECU at a time) is **DONE** (2026-11-07) as part of
+`plans/2026-11-07-monitor-actuator-pane.md`; the rest is open.
 
 `RawUdsClient` (the `monitor` client on `slcan-tcp`) keeps a per-ECU count of answers it is
 still owed, so a late reply to an abandoned request is not served as the next request's answer.

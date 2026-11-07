@@ -6,6 +6,10 @@ class FakeRawClient:
 
     def __init__(self, table):
         self.table = table
+        self.ensured: list[str] = []
+
+    def ensure_ecu(self, name, address):
+        self.ensured.append(name)
 
     def read(self, ecu, req, timeout=None):
         return self.table.get((ecu, bytes(req)))

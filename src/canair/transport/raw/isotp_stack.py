@@ -14,13 +14,23 @@ broadcast), which is wrong. :func:`build_isotp_stack` returns a thin
 ``NotifierBasedCanStack`` subclass that rewrites the flow-control frame's
 arbitration id when an ``fc_id`` is given. See gap G-J in
 ``plans/2026-07-28-multi-vehicle-support.md``.
+
+:class:`EcuStacks` holds what a client keeps per ECU name: the stack, the request id and the
+lock that allows one exchange on that ECU at a time. The client hands it the factory (it owns
+the bus, the notifier and the ISO-TP parameters). An ECU that joins after the client was built
+(one the monitor's picker adds, a session step's target that is not polled, an actuator's ECU)
+gets its stack from :meth:`EcuStacks.ensure` on first use, from any thread.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import threading
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import isotp
+
+from canair.uds.addressing import EcuAddress
 
 if TYPE_CHECKING:
     import can
@@ -68,3 +78,39 @@ def build_isotp_stack(
     if fc_id is not None:
         return _FcAddressStack(bus, notifier, address=address, params=params, fc_id=fc_id)
     return isotp.NotifierBasedCanStack(bus, notifier, address=address, params=params)
+
+
+class EcuStacks:
+    """``name -> stack``, ``name -> lock`` and ``name -> request id`` for one raw client."""
+
+    def __init__(self, build: Callable[[EcuAddress], Any], settle: Callable[[], None]) -> None:
+        self._build = build
+        self._settle = settle
+        self.stacks: dict[str, Any] = {}
+        self.locks: dict[str, threading.Lock] = {}
+        self.tx_ids: dict[str, int] = {}
+        self._build_lock = threading.Lock()
+
+    def add(self, name: str, address: EcuAddress) -> None:
+        """Build and start ``name``'s stack (the caller settles it)."""
+        stack = self._build(address)
+        stack.start()
+        self.tx_ids[name] = address.tx_id
+        self.locks[name] = threading.Lock()
+        # Last: a name in `stacks` means its lock and its id are there too.
+        self.stacks[name] = stack
+
+    def ensure(self, name: str, address: EcuAddress) -> None:
+        """Give ``name`` a settled stack if it has none (thread-safe; blocks while it settles)."""
+        if name in self.stacks:
+            return
+        with self._build_lock:
+            if name in self.stacks:
+                return
+            self.add(name, address)
+            self._settle()
+
+    def require(self, name: str) -> None:
+        """Raise ``LookupError`` when ``name`` has no stack."""
+        if name not in self.stacks:
+            raise LookupError(f"no ISO-TP stack for {name}: call ensure_ecu() first")

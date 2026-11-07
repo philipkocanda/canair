@@ -173,6 +173,18 @@ class TestBuildRawSubmissions:
 
 
 class TestPollRaw:
+    def test_an_ecu_the_picker_adds_gets_its_stack_before_the_poll(self):
+        # Regression: the raw client knew only the ECUs it was built for, so an ECU added
+        # mid-run raised KeyError inside poll() and the monitor took it for a dead link.
+        index = {
+            "IGPM": {**_IGPM_BMS_INDEX["IGPM"], "address": EcuAddress(0x770, 0x778)},
+            "BMS": {**_IGPM_BMS_INDEX["BMS"], "address": EcuAddress(0x7E4, 0x7EC)},
+        }
+        c = _mk_ctrl([{"ecu": "IGPM", "pids": ["BC03"]}], index)
+        c.query_steps.append({"type": "query", "ecu": "BMS", "pids": ["2101"]})
+        asyncio.run(c.raw_poller.poll())
+        assert c.raw_client.ensured == ["IGPM", "BMS"]
+
     def test_learn_then_batch_and_decode(self):
         bc03 = "62BC03FDEE3C730A000000"
         bc06 = "62BC06B480000000000000"

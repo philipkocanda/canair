@@ -28,10 +28,14 @@ class RawClient:
 
     def __init__(self, replies: dict[bytes, bytes] | None = None):
         self.reads: list[tuple[str, bytes]] = []
+        self.ensured: list[tuple[str, int]] = []
         self.replies = replies or {}
         self.diag = TransportStats(transport="slcan-tcp")
         self.timings = TimingRecorder()
         self.session_policy = SessionPolicy()
+
+    def ensure_ecu(self, name, address):
+        self.ensured.append((name, address.tx_id))
 
     def read(self, ecu, req, timeout=None):
         req = bytes(req)
@@ -90,3 +94,11 @@ def test_nothing_is_sent_without_a_session():
     assert isinstance(ctrl.sessions, MonitorSessions)
     asyncio.run(ctrl.sessions.keep_alive())
     assert client.reads == []
+
+
+def test_a_session_on_an_ecu_that_is_not_polled_gets_its_stack_first():
+    # Regression: the raw client knew only the polled ECUs, so a session step on any other
+    # ECU raised KeyError in the real client and read as a dead link.
+    ctrl, client = _ready([{"type": "session", "target": "SKM"}])
+    assert client.ensured and client.ensured[0] == ("SKM", 0x7A5)
+    assert ctrl.sessions.active_modes() == {"SKM": "03"}

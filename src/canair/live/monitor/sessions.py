@@ -16,10 +16,11 @@ Callers read it as ``controller.sessions``; the controller holds the transport s
 Both backends open and track sessions with a
 :class:`~canair.transport.session_manager.SessionManager` (:meth:`MonitorSessions.new_manager`).
 The ELM327 one keeps them alive from its background task. The raw backend's polls run on an
-executor thread that owns the ISO-TP stacks, so its manager works over a
-:class:`~canair.transport.raw.client_terminal.RawClientTerminal` and only between polls: the
-poll loops call :meth:`MonitorSessions.keep_alive`, and every answered poll counts as a
-keepalive.
+executor thread, so its manager works over a
+:class:`~canair.transport.raw.client_terminal.RawClientTerminal` and keeps the sessions alive
+between polls: the poll loops call :meth:`MonitorSessions.keep_alive`, and every answered poll
+counts as a keepalive. A request through it may also run while a poll is in flight (a live
+session switch): the raw client's per-ECU lock makes it wait for that ECU's request only.
 """
 
 from __future__ import annotations
@@ -36,6 +37,7 @@ from canair.transport.session_manager import (
     KEEPALIVE_INTERVAL_S,
     SessionManager,
 )
+from canair.uds.addressing import EcuAddress
 from canair.uds.subfunctions import SUBFUNCTION_NAMES, format_session_type, parse_session_type
 
 from ..read.exec import exec_session
@@ -68,15 +70,15 @@ class MonitorSessions:
         c = self.c
         if c.raw:
             assert c.raw_client is not None  # c.raw ⟺ raw_client was provided
-            terminal = RawClientTerminal(c.raw_client, self._ecu_named)
+            terminal = RawClientTerminal(c.raw_client, self._ecu_at)
             return SessionManager(terminal, verbose=c.verbose)
         return SessionManager(c.terminal, verbose=c.verbose)
 
-    def _ecu_named(self, tx_id: int) -> str | None:
-        """The raw client's name for the ECU at request id ``tx_id``."""
+    def _ecu_at(self, tx_id: int) -> tuple[str, EcuAddress] | None:
+        """The raw client's name and the address of the ECU at request id ``tx_id``."""
         for name, info in (self.c._ecu_index or {}).items():
             if info.get("tx_id") == tx_id:
-                return name
+                return name, info["address"]
         return None
 
     async def open_raw(self, session_steps: list[dict] | None) -> None:

@@ -256,12 +256,22 @@ class MonitorRawPoller:
         loop = asyncio.get_event_loop()
         q: asyncio.Queue = asyncio.Queue()
         sentinel = object()
+        index = c._ecu_index or {}
+        # Every ECU this tick asks, with its address: one the picker added mid-run gets its
+        # stack before the poll (on the executor thread, since building one blocks).
+        joining = {
+            s["ecu"]: address
+            for s in submissions
+            if (address := index.get(s["ecu"], {}).get("address")) is not None
+        }
 
         def _on_result(key, value):  # fired from the executor thread
             loop.call_soon_threadsafe(q.put_nowait, (key, value))
 
         def _run():
             try:
+                for name, address in joining.items():
+                    raw_client.ensure_ecu(name, address)
                 return raw_client.poll(requests, on_result=_on_result)
             finally:
                 loop.call_soon_threadsafe(q.put_nowait, sentinel)

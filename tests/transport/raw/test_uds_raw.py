@@ -2,6 +2,7 @@
 
 import threading
 import time
+from typing import ClassVar
 
 import pytest
 
@@ -9,6 +10,11 @@ from canair.transport.raw import uds_client as uds_raw
 from canair.transport.raw.uds_client import RawUdsClient, response_id
 from canair.uds.addressing import EcuAddress
 from tests.support.uds_raw import FakeNotifier, FakeStack
+
+# Resolve the lazily imported stack factory now: its module subclasses
+# isotp.NotifierBasedCanStack when it loads, and the tests below replace that class.
+# Run alone, this file would otherwise load it after the patch, with a lambda as base.
+assert uds_raw.build_isotp_stack is not None
 
 
 def _addrs(mapping: dict[str, tuple[int, int]]) -> dict[str, EcuAddress]:
@@ -395,3 +401,129 @@ class TestRawUdsClientEcuIsotp:
         )
         assert seen[0x746]["blocksize"] == 8
         assert seen[0x7E4]["blocksize"] == 0
+
+
+class _SlowStack(FakeStack):
+    """A FakeStack whose reply is available ``delay`` seconds after the request."""
+
+    def __init__(self, txid, table, delay):
+        super().__init__(txid, table)
+        self.delay = delay
+        self.sent_at: list[float] = []
+        self._ready_at = 0.0
+
+    def send(self, data, *a, **k):
+        super().send(data)
+        self.sent_at.append(time.monotonic())
+        self._ready_at = time.monotonic() + self.delay
+
+    def available(self):
+        return self._resp is not None and time.monotonic() >= self._ready_at
+
+    def recv(self, block=False, timeout=None):
+        if block:
+            end = time.monotonic() + (timeout or 0.0)
+            while not self.available() and time.monotonic() < end:
+                time.sleep(0.001)
+        if not self.available():
+            return None
+        return super().recv()
+
+
+def _slow_client(monkeypatch, table, ecus, delays):
+    monkeypatch.setattr(uds_raw.can, "Notifier", FakeNotifier)
+    monkeypatch.setattr(uds_raw, "STACK_WARMUP_S", 0.0)
+    monkeypatch.setattr(
+        uds_raw.isotp,
+        "NotifierBasedCanStack",
+        lambda bus, notifier, address=None, params=None: _SlowStack(
+            address._txid, table, delays.get(address._txid, 0.0)
+        ),
+    )
+    return RawUdsClient(bus=object(), addresses=_addrs(ecus), timeout=1.0)
+
+
+class TestOneExchangePerEcu:
+    """read() from another thread interleaves with poll() request by request, per ECU."""
+
+    TABLE: ClassVar = {
+        (0x770, bytes.fromhex("22BC03")): bytes.fromhex("62BC03AA"),
+        (0x770, bytes.fromhex("22BC06")): bytes.fromhex("62BC06BB"),
+        (0x770, bytes.fromhex("2FBC0C03")): bytes.fromhex("6FBC0C03"),
+        (0x7E4, bytes.fromhex("2101")): bytes.fromhex("6101CC"),
+        (0x7E4, bytes.fromhex("2102")): bytes.fromhex("6102DD"),
+    }
+    ECUS: ClassVar = {"IGPM": (0x770, 0x778), "BMS": (0x7E4, 0x7EC)}
+
+    def test_a_read_on_another_ecu_does_not_wait_for_the_poll(self, monkeypatch):
+        c = _slow_client(monkeypatch, self.TABLE, self.ECUS, {0x7E4: 0.3})
+        poll = threading.Thread(
+            target=c.poll, args=([("BMS", bytes.fromhex("2101")), ("BMS", bytes.fromhex("2102"))],)
+        )
+        poll.start()
+        time.sleep(0.02)
+        t0 = time.monotonic()
+        assert c.read("IGPM", bytes.fromhex("2FBC0C03")) == bytes.fromhex("6FBC0C03")
+        assert time.monotonic() - t0 < 0.1
+        poll.join(timeout=2.0)
+
+    def test_a_read_on_a_polled_ecu_waits_for_one_request_not_the_poll(self, monkeypatch):
+        c = _slow_client(monkeypatch, self.TABLE, self.ECUS, {0x770: 0.15})
+        reqs = [("IGPM", bytes.fromhex("22BC03")), ("IGPM", bytes.fromhex("22BC06"))]
+        out: dict = {}
+        poll = threading.Thread(target=lambda: out.update(c.poll(reqs)))
+        poll.start()
+        time.sleep(0.03)  # the first poll request is in flight
+        t0 = time.monotonic()
+        assert c.read("IGPM", bytes.fromhex("2FBC0C03")) == bytes.fromhex("6FBC0C03")
+        waited = time.monotonic() - t0
+        poll.join(timeout=2.0)
+        # It waited for the request in flight and its own exchange (0.15 s each), not
+        # for the poll's second request as well.
+        assert waited < 0.4
+        sent = c._stacks["IGPM"].sent
+        assert sent == [bytes.fromhex(h) for h in ("22BC03", "2FBC0C03", "22BC06")]
+        assert out[("IGPM", bytes.fromhex("22BC06"))] == bytes.fromhex("62BC06BB")
+
+    def test_poll_skips_a_held_ecu_and_sends_it_later(self, monkeypatch):
+        c = _slow_client(monkeypatch, self.TABLE, self.ECUS, {})
+        lock = c._ecu_locks["IGPM"]
+        lock.acquire()
+        threading.Timer(0.05, lock.release).start()
+        out = c.poll([("IGPM", bytes.fromhex("22BC03")), ("BMS", bytes.fromhex("2101"))])
+        assert out[("IGPM", bytes.fromhex("22BC03"))] == bytes.fromhex("62BC03AA")
+        assert out[("BMS", bytes.fromhex("2101"))] == bytes.fromhex("6101CC")
+        assert c._stacks["BMS"].sent_at[0] < c._stacks["IGPM"].sent_at[0]
+
+    def test_an_interrupted_poll_releases_its_locks(self, monkeypatch):
+        c = _slow_client(monkeypatch, {}, self.ECUS, {})  # silent: the request stays in flight
+        poll = threading.Thread(target=c.poll, args=([("BMS", bytes.fromhex("2101"))],))
+        poll.start()
+        time.sleep(0.05)
+        c.interrupt()
+        poll.join(timeout=1.0)
+        assert c._ecu_locks["BMS"].acquire(blocking=False)
+
+
+class TestEnsureEcu:
+    def test_an_unknown_ecu_is_refused_by_read(self, monkeypatch):
+        c = _client(monkeypatch, {}, {"BMS": (0x7E4, 0x7EC)})
+        with pytest.raises(LookupError, match="IGPM"):
+            c.read("IGPM", bytes.fromhex("22BC03"))
+
+    def test_an_unknown_ecu_fails_its_own_poll_requests_only(self, monkeypatch):
+        table = {(0x7E4, bytes.fromhex("2101")): bytes.fromhex("6101BB")}
+        c = _client(monkeypatch, table, {"BMS": (0x7E4, 0x7EC)})
+        out = c.poll([("IGPM", bytes.fromhex("22BC03")), ("BMS", bytes.fromhex("2101"))])
+        assert isinstance(out[("IGPM", bytes.fromhex("22BC03"))], LookupError)
+        assert out[("BMS", bytes.fromhex("2101"))] == bytes.fromhex("6101BB")
+
+    def test_ensure_adds_a_stack_once(self, monkeypatch):
+        table = {(0x770, bytes.fromhex("22BC03")): bytes.fromhex("62BC03AA")}
+        c = _client(monkeypatch, table, {"BMS": (0x7E4, 0x7EC)})
+        monkeypatch.setattr(uds_raw, "STACK_WARMUP_S", 0.0)
+        c.ensure_ecu("IGPM", EcuAddress(0x770, 0x778))
+        stack = c._stacks["IGPM"]
+        c.ensure_ecu("IGPM", EcuAddress(0x770, 0x778))
+        assert c._stacks["IGPM"] is stack and stack.started
+        assert c.read("IGPM", bytes.fromhex("22BC03")) == bytes.fromhex("62BC03AA")

@@ -7,10 +7,10 @@ job, so this adapter gives it the calls it makes (``set_header``, ``transaction`
 ``send_uds``, ``send_command``, ``short_ecu_wait``) over ``RawUdsClient.read``, run off the
 event loop. Nothing else goes through it: polling stays on the client's own pipelined path.
 
-The client allows one exchange per ECU at a time and its ``poll()`` runs on an executor
-thread, so a caller must not use this while a poll is in flight. The monitor calls it only
-between polls; the live session switch is the exception the owed-response ledger plan
-(``plans/2026-10-27-raw-owed-ledger-blackout.md``, §2) addresses.
+The client allows one exchange per ECU at a time and locks each ECU for it, so a read here may
+run while the monitor's ``poll()`` runs on another thread: it waits for the poll's request to
+the same ECU, if any (``plans/2026-10-27-raw-owed-ledger-blackout.md``, §2). Each read first
+gives its ECU a stack (``ensure_ecu``), so a session on an ECU that is not polled works too.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from canair.transport.functional import FunctionalResult
 from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 from canair.transport.stats import TransportStats
 from canair.transport.timing import TimingRecorder
+from canair.uds.addressing import EcuAddress
 from canair.uds.frame_counts import FrameCountLedger
 from canair.uds.parse import parse_uds_response
 from canair.uds.response import UdsResponse
@@ -37,13 +38,19 @@ class _Client(Protocol):
 
     def read(self, ecu: str, request: bytes, timeout: float | None = None) -> bytes: ...
 
+    def ensure_ecu(self, name: str, address: EcuAddress) -> None: ...
+
+
+#: The ECU a request id belongs to: its name in the client, and its address.
+EcuLookup = Callable[[int], tuple[str, EcuAddress] | None]
+
 
 class RawClientTerminal:
-    """``SessionManager``'s view of a raw pipelined client; ``ecu_name`` maps a TX id to it."""
+    """``SessionManager``'s view of a raw pipelined client; ``ecu_for`` maps a TX id to an ECU."""
 
-    def __init__(self, client: _Client, ecu_name: Callable[[int], str | None]) -> None:
+    def __init__(self, client: _Client, ecu_for: EcuLookup) -> None:
         self.client = client
-        self._ecu_name = ecu_name
+        self._ecu_for = ecu_for
         self.frame_counts = FrameCountLedger()
         self.max_request_bytes = ISOTP_MAX_REQUEST_BYTES
         self._cur: int | None = None
@@ -97,14 +104,19 @@ class RawClientTerminal:
 
     async def _read(self, request: str, timeout: float | None) -> bytes | None:
         tx = self._cur
-        ecu = self._ecu_name(tx) if tx is not None else None
-        if ecu is None:
+        found = self._ecu_for(tx) if tx is not None else None
+        if found is None:
             raise RuntimeError(f"no ECU in the monitor answers to 0x{tx or 0:03X}")
+        ecu, address = found
+        client = self.client
+
+        def _exchange() -> bytes:
+            client.ensure_ecu(ecu, address)
+            return client.read(ecu, bytes.fromhex(request), timeout)
+
         loop = asyncio.get_running_loop()
         try:
-            return await loop.run_in_executor(
-                None, self.client.read, ecu, bytes.fromhex(request), timeout
-            )
+            return await loop.run_in_executor(None, _exchange)
         except TimeoutError:
             return None
 

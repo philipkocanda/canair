@@ -44,6 +44,9 @@ class RecordingRawClient:
         self.timings = TimingRecorder()
         self.session_policy = SessionPolicy()
 
+    def ensure_ecu(self, name, address):
+        pass
+
     def read(self, ecu, req, timeout=None):
         self.reads.append((ecu, bytes(req)))
         return bytes([0x50, req[1]]) if req[0] == 0x10 else b""
