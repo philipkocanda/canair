@@ -277,7 +277,6 @@ class TestExecQueryTimestamp:
         sm = MagicMock()
         sm.keepalive_stale = AsyncMock()
         sm.has_session = MagicMock(return_value=True)
-        sm.keepalive_seconds = 0.0
         sm.terminal = MagicMock()
         sm.terminal.set_header = AsyncMock()
         sm.terminal.max_request_bytes = ISOTP_MAX_REQUEST_BYTES

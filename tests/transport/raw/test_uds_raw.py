@@ -456,7 +456,7 @@ class TestOneExchangePerEcu:
     ECUS: ClassVar = {"IGPM": (0x770, 0x778), "BMS": (0x7E4, 0x7EC)}
 
     def test_a_read_on_another_ecu_does_not_wait_for_the_poll(self, monkeypatch):
-        c = _slow_client(monkeypatch, self.TABLE, self.ECUS, {0x7E4: 0.3})
+        c = _slow_client(monkeypatch, self.TABLE, self.ECUS, {0x7E4: 1.0})
         poll = threading.Thread(
             target=c.poll, args=([("BMS", bytes.fromhex("2101")), ("BMS", bytes.fromhex("2102"))],)
         )
@@ -464,23 +464,23 @@ class TestOneExchangePerEcu:
         time.sleep(0.02)
         t0 = time.monotonic()
         assert c.read("IGPM", bytes.fromhex("2FBC0C03")) == bytes.fromhex("6FBC0C03")
-        assert time.monotonic() - t0 < 0.1
-        poll.join(timeout=2.0)
+        assert time.monotonic() - t0 < 0.5
+        poll.join(timeout=3.0)
 
     def test_a_read_on_a_polled_ecu_waits_for_one_request_not_the_poll(self, monkeypatch):
-        c = _slow_client(monkeypatch, self.TABLE, self.ECUS, {0x770: 0.15})
+        c = _slow_client(monkeypatch, self.TABLE, self.ECUS, {0x770: 0.3})
         reqs = [("IGPM", bytes.fromhex("22BC03")), ("IGPM", bytes.fromhex("22BC06"))]
         out: dict = {}
         poll = threading.Thread(target=lambda: out.update(c.poll(reqs)))
         poll.start()
-        time.sleep(0.03)  # the first poll request is in flight
+        time.sleep(0.05)  # the first poll request is in flight
         t0 = time.monotonic()
         assert c.read("IGPM", bytes.fromhex("2FBC0C03")) == bytes.fromhex("6FBC0C03")
         waited = time.monotonic() - t0
         poll.join(timeout=2.0)
-        # It waited for the request in flight and its own exchange (0.15 s each), not
-        # for the poll's second request as well.
-        assert waited < 0.4
+        # It waited for the request in flight and its own exchange (0.3 s each), not
+        # for the poll's second request as well (0.85 s).
+        assert waited < 0.8
         sent = c._stacks["IGPM"].sent
         assert sent == [bytes.fromhex(h) for h in ("22BC03", "2FBC0C03", "22BC06")]
         assert out[("IGPM", bytes.fromhex("22BC06"))] == bytes.fromhex("62BC06BB")

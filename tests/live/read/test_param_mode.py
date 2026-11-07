@@ -68,7 +68,7 @@ def _keepalive_headers(terminal: FakeTerminal) -> list[int | None]:
 @pytest.fixture
 def clock(monkeypatch) -> _Clock:
     clock = _Clock()
-    monkeypatch.setattr("canair.transport.session_manager.time.monotonic", clock)
+    monkeypatch.setattr("canair.transport.session_table.time.monotonic", clock)
     return clock
 
 

@@ -36,18 +36,19 @@ async def timed_exchange(
     """Send ``request`` to ``tx_id``: its reply, wall seconds, and seconds it held the pipe.
 
     set_header + send_uds run inside one transaction, so a background keepalive can't
-    re-point the ELM header between them and send this request to the wrong ECU. A
-    keepalive queued ahead of it on the serial pipe still delays it, so the time spent on
-    keepalives meanwhile is no part of what this request cost (the monitor's backoff
-    must not slow a PID for another ECU's session upkeep).
+    re-point the ELM header between them and send this request to the wrong ECU. The
+    held time starts once the transaction is ours: a keepalive or a user's request (the
+    monitor's foreground lane) queued ahead of this one on the serial pipe delays it, and
+    that wait is no part of what this request cost (the monitor's backoff must not slow a
+    PID for other traffic).
     """
-    keepalive0 = sm.keepalive_seconds
     t0 = time.monotonic()
     async with sm.terminal.transaction():
+        held0 = time.monotonic()
         await sm.terminal.set_header(tx_id)
         resp = await sm.terminal.send_uds(request, **kwargs)
-    wall = time.monotonic() - t0
-    return resp, wall, max(0.0, wall - (sm.keepalive_seconds - keepalive0))
+        held = time.monotonic() - held0
+    return resp, time.monotonic() - t0, held
 
 
 async def _read_single(

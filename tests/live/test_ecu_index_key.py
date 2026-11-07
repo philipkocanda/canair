@@ -17,12 +17,14 @@ from canair.cli.profile_context import active
 from canair.ecus.wake import WakePlan
 from canair.live.read.exec import _exec_iocontrol, exec_query, exec_session
 from canair.query.steps import resolve_tx_id
+from canair.uds.addressing import EcuAddress
 from tests.support.fakes import FakeTerminal, ok
 from tests.support.monitor_controller import make_controller
 
 INDEX = {
     "IGPM": {
         "tx_id": 0x770,
+        "address": EcuAddress(0x770, 0x778),
         "pids": {"22BC03": {"parameters": {}}},
         "wake": WakePlan("rapid_read", "1001", 10, 50, "03"),
     }
@@ -41,7 +43,6 @@ def sjb_is_an_alias_of_igpm(monkeypatch):
 def _sm():
     sm = MagicMock()
     sm.keepalive_stale = AsyncMock()
-    sm.keepalive_seconds = 0.0
     sm.open_session = AsyncMock(return_value=True)
     sm.terminal = FakeTerminal({"22BC03": ok("62BC03AA")})
     return sm

@@ -259,9 +259,11 @@ class TestElmCostAttribution:
         c = _igpm_controller(term)
         assert c.sm is not None
         c.sm.table.track(0x7A5, at=time.monotonic() - 10.0)  # SKM's session is stale
+        before = time.monotonic()
         _poll(c)
         assert "3E00" not in term.sent  # answered by the subclass, never recorded
-        assert c.sm.keepalive_seconds >= 0.2
+        refreshed = c.sm.table.refreshed_at(0x7A5)
+        assert refreshed is not None and refreshed >= before + 0.2  # the keepalive took 0.2 s
         assert all(cost.seconds < 0.1 for cost in c.health.poll_costs.values())
 
     def test_a_background_keepalive_queued_ahead_is_not_its_cost(self):

@@ -28,7 +28,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import sys
-import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 
@@ -105,10 +104,6 @@ class SessionManager:
         # Why the background keepalive stopped on its own: the link failed under it.
         # Nothing awaits that task, so the error is kept here for the caller to act on.
         self.link_error: ConnectionError | None = None
-        # Seconds spent sending keepalives, inline or from the background task. The
-        # live monitor takes it out of an ECU's poll cost: on a serial ELM327 pipe a
-        # keepalive to another ECU is not time the polled ECU held everyone up.
-        self.keepalive_seconds = 0.0
 
     # -- state ---------------------------------------------------------------
     @property
@@ -355,16 +350,10 @@ class SessionManager:
         """
         try:
             async with self.terminal.transaction():
-                # Timed inside the transaction: a background keepalive queued behind a
-                # slow read must not count that read's time as its own.
-                t0 = time.monotonic()
-                try:
-                    await self.terminal.set_header(tx_id)
-                    resp = await self._send_checked(
-                        tx_id, TESTER_PRESENT_REQUEST, TESTER_PRESENT, KEEPALIVE_TIMEOUT_S
-                    )
-                finally:
-                    self.keepalive_seconds += time.monotonic() - t0
+                await self.terminal.set_header(tx_id)
+                resp = await self._send_checked(
+                    tx_id, TESTER_PRESENT_REQUEST, TESTER_PRESENT, KEEPALIVE_TIMEOUT_S
+                )
         except ConnectionError:
             # The pipe could not be realigned — surface it so the caller's
             # reconnect path runs rather than silently polling a broken link.
