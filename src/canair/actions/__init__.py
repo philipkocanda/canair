@@ -13,6 +13,22 @@ requests do it and which live signals prove it is safe to send them::
         requests:
           - {to: functional, send: 10D1, response: none}
 
+An action can also hold something on while it reads, and hand it back afterwards::
+
+      ig3_read:
+        reads: [IGPM:22BC03, IGPM:22BC07]
+        require: IGPM.IGN1_SWITCH == 0 and IGPM.IG3_RELAY_OUTPUT == 0
+        hold: [IGPM]                       # sessions canair keeps alive throughout
+        requests:
+          - {to: igpm, send: 2FBC4403}     # IOControl ON
+        then: {wait: 3, read: [VCU:2101, BMS:2101]}
+        release:
+          - {to: igpm, send: 2FBC4400}     # sent at the end, also on Ctrl-C or an error
+
+An IOControl request that drives an output (``0x2F``/``0x30``) must have a ``release``
+that hands the same output back (:func:`canair.safety.actuation.release_mismatch`), as
+``canair io`` requires: an action never leaves an output driven on purpose.
+
 Two rules keep a profile from using this to get around canair's safety policy:
 
 - **Every request still passes the command blocklist** (:mod:`canair.safety.blocklist`).
@@ -47,8 +63,12 @@ from canair.core import yaml_io
 from canair.core.edit_errors import EditError
 from canair.ecus.pids import build_ecu_index
 from canair.query import QueryError, parse_selector, pids_named_by
+from canair.safety.actuation import ACTUATE, classify, parse_io_request, release_mismatch
+from canair.safety.blocklist import check_session_mode
 from canair.states.predicates import StatePredicateError, compile_predicate, predicate_references
 from canair.states.refs import check_references
+from canair.uds.protocol import UNKNOWN
+from canair.uds.subfunctions import format_session_type, parse_session_type
 
 if TYPE_CHECKING:
     from canair.profile.model import Profile
@@ -59,8 +79,13 @@ FUNCTIONAL: Final = "functional"
 ResponseMode = Literal["none", "expected"]
 RESPONSE_MODES: Final[tuple[ResponseMode, ...]] = ("none", "expected")
 
-ACTION_FIELDS: Final = frozenset({"description", "reads", "require", "requests"})
+ACTION_FIELDS: Final = frozenset(
+    {"description", "reads", "require", "hold", "requests", "then", "release"}
+)
 REQUEST_FIELDS: Final = frozenset({"to", "send", "response"})
+THEN_FIELDS: Final = frozenset({"wait", "read"})
+# The longest a `then:` may wait: an action holds sessions (and maybe outputs) meanwhile.
+MAX_THEN_WAIT_S: Final = 60.0
 
 # An action name: a lower-cased token, like a group name.
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
@@ -84,6 +109,25 @@ class ActionRequest:
 
 
 @dataclass(frozen=True)
+class HeldSession:
+    """A diagnostic session canair opens before the requests and keeps alive to the end."""
+
+    ecu: str
+    mode: str = "03"
+
+    def describe(self) -> str:
+        return f"{self.ecu}:{self.mode}"
+
+
+@dataclass(frozen=True)
+class ThenReads:
+    """What an action reads after its requests: wait ``wait`` seconds, then read ``read``."""
+
+    wait: float
+    read: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class Action:
     """A named, guarded profile action."""
 
@@ -92,6 +136,9 @@ class Action:
     reads: tuple[str, ...]
     require: str
     requests: tuple[ActionRequest, ...]
+    hold: tuple[HeldSession, ...] = ()
+    then: ThenReads | None = None
+    release: tuple[ActionRequest, ...] = ()
 
 
 def normalize_name(name: str) -> str:
@@ -182,6 +229,73 @@ def _require(raw: Any, reads: Sequence[str], where: str) -> str:
     return expr
 
 
+def parse_hold_spec(spec: Any) -> HeldSession:
+    """Parse ``ECU`` or ``ECU:MODE`` (MODE two hex digits, default ``03``)."""
+    ecu, _, mode = str(spec).strip().partition(":")
+    if not ecu.strip():
+        raise ActionError(f"hold {spec!r}: expected ECU or ECU:MODE, e.g. IGPM:03")
+    try:
+        sub = parse_session_type(mode or "03")
+    except ValueError as e:
+        raise ActionError(f"hold {spec!r}: {e}") from None
+    blocked = check_session_mode(sub)
+    if blocked is not None:
+        raise ActionError(f"hold {spec!r}: {blocked}")
+    return HeldSession(ecu.strip().upper(), format_session_type(sub))
+
+
+def _hold(raw: Any, where: str) -> tuple[HeldSession, ...]:
+    if raw is None:
+        return ()
+    if not isinstance(raw, list):
+        raise ActionError(f"{where}: 'hold' must be a list of ECU or ECU:MODE")
+    return tuple(parse_hold_spec(item) for item in raw)
+
+
+def parse_then(raw: Any, where: str) -> ThenReads | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, Mapping):
+        raise ActionError(f"{where}: 'then' must be a mapping with 'read' (and 'wait')")
+    unknown = set(raw) - THEN_FIELDS
+    if unknown:
+        raise ActionError(
+            f"{where}: 'then' has unknown field(s) {', '.join(sorted(map(str, unknown)))}"
+        )
+    try:
+        wait = float(raw.get("wait") or 0)
+    except (TypeError, ValueError):
+        raise ActionError(
+            f"{where}: 'then.wait' must be seconds, got {raw.get('wait')!r}"
+        ) from None
+    if not 0 <= wait <= MAX_THEN_WAIT_S:
+        raise ActionError(f"{where}: 'then.wait' must be 0-{MAX_THEN_WAIT_S:g} s, got {wait:g}")
+    read = raw.get("read")
+    if not isinstance(read, list) or not read:
+        raise ActionError(f"{where}: 'then.read' must be a non-empty list of ECU[:PID] selectors")
+    for tok in read:
+        try:
+            parse_selector(str(tok).strip())
+        except QueryError as e:
+            raise ActionError(f"{where}: invalid then.read selector {tok!r}: {e}") from None
+    return ThenReads(wait, tuple(str(tok).strip() for tok in read))
+
+
+def _unreleased(requests: Sequence[ActionRequest], release: Sequence[ActionRequest]) -> list[str]:
+    """The IOControl requests that drive an output no ``release`` request hands back."""
+    missing = []
+    for req in requests:
+        io = parse_io_request(req.send)
+        if io is None or classify(req.send, UNKNOWN) != ACTUATE:
+            continue
+        if not any(
+            rel.target == req.target and release_mismatch(req.send, rel.send) is None
+            for rel in release
+        ):
+            missing.append(f"{req.target}:{req.send}")
+    return missing
+
+
 def parse_action(name: str, raw: Any) -> Action:
     """Build an :class:`Action` from its YAML mapping, raising :class:`ActionError`."""
     key = normalize_name(name)
@@ -197,8 +311,29 @@ def parse_action(name: str, raw: Any) -> Action:
     if not isinstance(requests_raw, list) or not requests_raw:
         raise ActionError(f"{where}: 'requests' must be a non-empty list")
     requests = tuple(_request(r, f"{where} request {i + 1}") for i, r in enumerate(requests_raw))
+    release_raw = raw.get("release")
+    if release_raw is not None and not isinstance(release_raw, list):
+        raise ActionError(f"{where}: 'release' must be a list of requests")
+    release = tuple(
+        _request(r, f"{where} release {i + 1}") for i, r in enumerate(release_raw or [])
+    )
+    missing = _unreleased(requests, release)
+    if missing:
+        raise ActionError(
+            f"{where}: {', '.join(missing)} drives an output, so 'release' must hand it back "
+            "(an IOControl request on the same ECU and identifier, e.g. returnControlToECU)"
+        )
     description = str(raw.get("description") or "").strip()
-    return Action(key, description, reads, require, requests)
+    return Action(
+        key,
+        description,
+        reads,
+        require,
+        requests,
+        hold=_hold(raw.get("hold"), where),
+        then=parse_then(raw.get("then"), where),
+        release=release,
+    )
 
 
 def parse_actions_doc(doc: Any) -> dict[str, Action]:
@@ -227,9 +362,21 @@ def registry_issues(action: Action, pids_data: Mapping[str, Any]) -> list[str]:
     index = build_ecu_index(dict(pids_data))
     issues: list[str] = []
     where = f"action {action.name!r}"
-    for req in action.requests:
+    for req in (*action.requests, *action.release):
         if req.target != FUNCTIONAL and req.target not in index:
             issues.append(f"{where}: request target {req.target!r} is not a registered ECU")
+    for held in action.hold:
+        if held.ecu not in index:
+            issues.append(f"{where}: hold {held.ecu!r} is not a registered ECU")
+    for tok in action.then.read if action.then else ():
+        sel = parse_selector(tok)
+        entry = index.get(sel.ecu)
+        if entry is None:
+            issues.append(f"{where}: then.read {tok!r} names unknown ECU {sel.ecu!r}")
+            continue
+        for pid in sel.pids:
+            if not pids_named_by(pid, entry["pids"]):
+                issues.append(f"{where}: then.read {tok!r}: PID {pid} is not defined on {sel.ecu}")
     for tok in action.reads:
         sel = parse_selector(tok)
         entry = index.get(sel.ecu)

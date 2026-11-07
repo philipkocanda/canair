@@ -268,9 +268,11 @@ def check_actions(profile: Profile) -> FileReport:
             if issues:
                 continue
             try:
-                action_policy(
-                    action, plan_requests(action, pids_data, profile=profile), policy, pids_data
-                )
+                planned = [
+                    *plan_requests(action, pids_data, profile=profile),
+                    *plan_requests(action, pids_data, profile=profile, release=True),
+                ]
+                action_policy(action, planned, policy, pids_data)
             except (ActionError, SafetyBlocked) as e:
                 errors.append(str(e))
     if errors:

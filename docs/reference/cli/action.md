@@ -26,6 +26,10 @@ examples:
   canair action run sleep --yes                  # no prompt (scripts, agents)
   canair action add sleep --read IGPM:22BC03 \
       --require "IGPM.IGN1_SWITCH == 0" --request functional:10D1:none
+  canair action add ig3-read --read IGPM:22BC07 --require "IGPM.IG3_RELAY_OUTPUT == 0" \
+      --hold IGPM --request IGPM:2FBC4403 --wait 3 --then-read VCU:2101 \
+      --release IGPM:2FBC4400
+  canair action run ig3-read --save --label 'IG3 wake read'   # keep the reads
   canair action set sleep --description "Put every ECU to sleep"
   canair action rm sleep
 ```
@@ -43,7 +47,8 @@ options:
 ## `canair action run`
 
 ```
-usage: canair action run [-h] [--yes] [--dry-run] [--wican WICAN]
+usage: canair action run [-h] [--yes] [--dry-run] [--save] [--label TEXT]
+                         [--state TEXT] [--notes TEXT] [--wican WICAN]
                          [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                          [--no-fallback] [--wait] [--elm-timeout MS]
                          [--timeout SECONDS] [--no-learn-frames] [--json]
@@ -62,6 +67,11 @@ options:
   -h, --help            show this help message and exit
   --yes, -y             Skip the confirmation prompt
   --dry-run             Read and check the car, but send nothing
+  --save                Save the action's then: reads to captures/
+  --label TEXT          Session label for --save (default: 'action NAME', so
+                        nothing is asked while the action holds an output)
+  --state TEXT          Session state for --save
+  --notes TEXT          Session notes for --save
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}
@@ -110,6 +120,8 @@ options:
 ```
 usage: canair action add [-h] [--description DESCRIPTION] [--read ECU:PID]
                          [--require EXPR] [--request TARGET:HEX[:none]]
+                         [--hold ECU[:MODE]] [--then-read ECU[:PID]]
+                         [--wait SECONDS] [--release TARGET:HEX[:none]]
                          name
 
 positional arguments:
@@ -129,6 +141,23 @@ options:
                         request hex, and ':none' when no reply is expected
                         (repeatable, sent in order; replaces the list on
                         `set`)
+  --hold ECU[:MODE]     Open a diagnostic session on ECU (MODE two hex digits,
+                        default 03) before the requests and keep it alive
+                        until the release is sent, as an IOControl needs
+                        (repeatable; replaces the list on `set`, and --hold ''
+                        clears it)
+  --then-read ECU[:PID]
+                        Read these after the requests, while the holds last
+                        (repeatable; the mini-language selectors of `canair
+                        read`; replaces the list on `set`)
+  --wait SECONDS        Seconds to wait between the requests and the --then-
+                        read reads (0-60)
+  --release TARGET:HEX[:none]
+                        A request sent at the end, also on Ctrl-C or an error,
+                        that hands back what the requests drove. Required for
+                        an IOControl that drives an output (repeatable;
+                        replaces the list on `set`, and --release '' clears
+                        it)
 ```
 
 ## `canair action set`
@@ -136,6 +165,9 @@ options:
 ```
 usage: canair action set [-h] [--description DESCRIPTION] [--read ECU:PID]
                          [--require EXPR] [--request TARGET:HEX[:none]]
+                         [--hold ECU[:MODE]] [--then-read ECU[:PID]]
+                         [--wait SECONDS] [--release TARGET:HEX[:none]]
+                         [--no-then]
                          name
 
 positional arguments:
@@ -155,6 +187,24 @@ options:
                         request hex, and ':none' when no reply is expected
                         (repeatable, sent in order; replaces the list on
                         `set`)
+  --hold ECU[:MODE]     Open a diagnostic session on ECU (MODE two hex digits,
+                        default 03) before the requests and keep it alive
+                        until the release is sent, as an IOControl needs
+                        (repeatable; replaces the list on `set`, and --hold ''
+                        clears it)
+  --then-read ECU[:PID]
+                        Read these after the requests, while the holds last
+                        (repeatable; the mini-language selectors of `canair
+                        read`; replaces the list on `set`)
+  --wait SECONDS        Seconds to wait between the requests and the --then-
+                        read reads (0-60)
+  --release TARGET:HEX[:none]
+                        A request sent at the end, also on Ctrl-C or an error,
+                        that hands back what the requests drove. Required for
+                        an IOControl that drives an output (repeatable;
+                        replaces the list on `set`, and --release '' clears
+                        it)
+  --no-then             Remove the action's then: reads
 ```
 
 ## `canair action rm`

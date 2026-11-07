@@ -15,12 +15,18 @@ The order is the safety argument, so it is fixed here:
 4. **Check again** with fresh reads, so a verdict from before a long pause at the
    prompt is never the one the requests go out on.
 5. **Send**, with the grants active only for these requests, then restore the
-   ordinary policy. Nothing else is sent afterwards.
+   ordinary policy. The ``hold:`` sessions open first and stay alive to the end.
+6. **Read** the ``then:`` selectors, after its ``wait``, if every request was answered.
+7. **Release**: the ``release:`` requests go out whenever a request did, also after a
+   refusal, an error or Ctrl-C, and only then do the held sessions close. Nothing else is
+   sent afterwards.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import io
 import json
 import sys
 from dataclasses import dataclass, field
@@ -31,6 +37,7 @@ from canair.actions.plan import PlannedRequest, action_policy, plan_requests
 from canair.core.prompt import typed_confirm
 from canair.ecus.pids import build_ecu_index
 from canair.live.read.exec import exec_query
+from canair.live.read.multi import mode_multi
 from canair.profile.model import Profile
 from canair.query import parse_selector
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy
@@ -211,6 +218,101 @@ async def _send_functional(terminal: Terminal, p: PlannedRequest) -> dict[str, A
     }
 
 
+def _print_rows(rows: list[dict[str, Any]], out) -> None:
+    for row in rows:
+        print(f"  {row['send']} → {row['to']}: {row['outcome']}", file=out)
+        for r in row.get("responders", ()):
+            print(f"    {r['from']}: {r['response']}", file=out)
+
+
+@dataclass(frozen=True)
+class _Run:
+    """Everything one action run needs once its plan and policy are settled."""
+
+    terminal: Terminal
+    sm: SessionManager
+    action: Action
+    pids_data: dict
+    planned: list[PlannedRequest]
+    releases: list[PlannedRequest]
+    policy: SessionPolicy
+    out: Any
+    verbose: bool
+    profile: Profile
+    # How the then: reads are kept (``canair action run --save``).
+    save: bool = False
+    label: str = ""
+    vehicle_states: Any = None
+    notes: str | None = None
+    as_json: bool = False
+
+
+async def _run_held(run: _Run, report: dict[str, Any]) -> None:
+    """Hold the sessions, send the requests, read, and always send the release."""
+    index = build_ecu_index(run.pids_data)
+    async with contextlib.AsyncExitStack() as stack:
+        for held in run.action.hold:
+            outcome = await stack.enter_async_context(
+                run.sm.held(int(index[held.ecu]["tx_id"]), mode=held.mode, close=True, report=False)
+            )
+            if not outcome.ok:
+                raise SafetyBlocked(
+                    f"action {run.action.name!r}: could not open the {held.mode} session on "
+                    f"{held.ecu} ({outcome.problem()}); nothing was sent"
+                )
+        try:
+            report["sent"] = await _send(run.terminal, run.planned, run.policy)
+            _print_rows(report["sent"], run.out)
+            complete = len(report["sent"]) == len(run.planned) and all(
+                row["outcome"] in ("answered", "sent (no reply expected)") for row in report["sent"]
+            )
+            if run.action.then and complete:
+                report["then"] = await _read_then(run)
+        finally:
+            if run.releases:
+                print("  Releasing…", file=run.out)
+                report["released"] = await _send_releases(run)
+                _print_rows(report["released"], run.out)
+
+
+async def _send_releases(run: _Run) -> list[dict[str, Any]]:
+    """Send every release, even after one fails: each hands back a different output."""
+    rows: list[dict[str, Any]] = []
+    for p in run.releases:
+        try:
+            rows.extend(await _send(run.terminal, [p], run.policy))
+        except Exception as exc:  # a dropped link must not skip the next release
+            rows.append(
+                {"to": f"0x{p.tx_id:03X}", "send": p.request.send, "outcome": f"failed: {exc}"}
+            )
+    return rows
+
+
+async def _read_then(run: _Run) -> list[dict] | None:
+    """Wait, then read the ``then:`` selectors through the ``canair read`` pipeline."""
+    then = run.action.then
+    assert then is not None
+    if then.wait:
+        print(f"  Waiting {then.wait:g} s…", file=run.out)
+        await asyncio.sleep(then.wait)
+    steps = [f"query {' '.join(then.read)}"]
+    kwargs: dict[str, Any] = {
+        "no_repl": True,
+        "save": run.save,
+        "label": run.label,
+        "vehicle_states": run.vehicle_states,
+        "notes": run.notes,
+        "profile": run.profile,
+    }
+    if not run.as_json:
+        await mode_multi(run.terminal, steps, run.pids_data, run.verbose, **kwargs)
+        return None
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        await mode_multi(run.terminal, steps, run.pids_data, run.verbose, as_json=True, **kwargs)
+    return json.loads(buf.getvalue() or '{"results": []}')["results"]
+
+
 async def mode_action(
     terminal: Terminal,
     pids_data: dict,
@@ -220,9 +322,17 @@ async def mode_action(
     dry_run: bool = False,
     as_json: bool = False,
     verbose: bool = False,
+    save: bool = False,
+    label: str | None = None,
+    vehicle_states=None,
+    notes: str | None = None,
     profile: Profile,
 ) -> None:
-    """Check, confirm and send one profile action (see the module docstring)."""
+    """Check, confirm and send one profile action (see the module docstring).
+
+    ``save`` and its metadata keep the ``then:`` reads in captures/. The label defaults to
+    ``action NAME``, so nothing is asked while the action holds an output.
+    """
     out = sys.stderr if as_json else sys.stdout
     actions = load_actions(profile=profile)
     action = actions.get(name.strip().lower())
@@ -231,11 +341,19 @@ async def mode_action(
         raise ActionError(f"no action {name!r} in this profile (defined: {known})")
 
     planned = plan_requests(action, pids_data, profile=profile)
-    policy = action_policy(action, planned, terminal.session_policy, pids_data)
+    releases = plan_requests(action, pids_data, profile=profile, release=True)
+    policy = action_policy(action, [*planned, *releases], terminal.session_policy, pids_data)
 
     print(f"\n  Action '{action.name}': {action.description or '(no description)'}", file=out)
+    for held in action.hold:
+        print(f"    will hold a {held.mode} session on {held.ecu}", file=out)
     for p in planned:
         print(f"    will send {p.request.send} to 0x{p.tx_id:03X}", file=out)
+    if action.then:
+        then = f"wait {action.then.wait:g} s, then read {' '.join(action.then.read)}"
+        print(f"    will {then}", file=out)
+    for p in releases:
+        print(f"    will release with {p.request.send} to 0x{p.tx_id:03X}", file=out)
     print(f"  Checking: {action.require}", file=out)
 
     sm = SessionManager(terminal, verbose=verbose)
@@ -266,16 +384,32 @@ async def mode_action(
                 f"action {action.name!r} refused: the condition became {verdict.result} "
                 "before sending"
             )
-        report["sent"] = await _send(terminal, planned, policy)
-        for row in report["sent"]:
-            print(f"  {row['send']} → {row['to']}: {row['outcome']}", file=out)
-            for r in row.get("responders", ()):
-                print(f"    {r['from']}: {r['response']}", file=out)
-        print(
-            "  Done. Anything that talks to the car afterwards (canair, the WiCAN's AutoPID "
-            "polling, a phone app) can wake it again.",
-            file=out,
+        run = _Run(
+            terminal,
+            sm,
+            action,
+            pids_data,
+            planned,
+            releases,
+            policy,
+            out,
+            verbose,
+            profile,
+            save=save,
+            label=label or f"action {action.name}",
+            vehicle_states=vehicle_states,
+            notes=notes,
+            as_json=as_json,
         )
+        await _run_held(run, report)
+        if action.then or action.release:
+            print("  Done.", file=out)
+        else:
+            print(
+                "  Done. Anything that talks to the car afterwards (canair, the WiCAN's AutoPID "
+                "polling, a phone app) can wake it again.",
+                file=out,
+            )
     if as_json:
         json.dump(report, sys.stdout, indent=2, default=str)
         print()

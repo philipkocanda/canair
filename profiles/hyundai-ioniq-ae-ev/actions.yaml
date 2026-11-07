@@ -10,3 +10,19 @@ actions:
       IGPM.CHARGE_PORT_LOCK == 0 and IGPM.CHARGE_PORT_LOCK_INV == 1
     requests:
       - {to: functional, send: 10D1, response: none}
+  ig3-read:
+    description: >-
+      Close the IGPM's IG3 relay (BC44) so the ECUs on the IG3 rail wake with the car off, read
+      them, then hand the relay back. Only with the ignition off and the car not charging: IG3 also
+      powers the OBC. It starts nothing (the HV main relay stays open), and the rail holds for about
+      75-110 s after the release.
+    reads: [IGPM:22BC03, IGPM:22BC07]
+    require: >-
+      IGPM.IGN1_SWITCH == 0 and IGPM.IGN2_SWITCH == 0 and IGPM.IG3_RELAY_OUTPUT == 0 and
+      IGPM.CHARGE_PORT_LOCK == 0 and IGPM.CHARGE_PORT_LOCK_INV == 1
+    hold: [IGPM:03]
+    requests:
+      - {to: IGPM, send: 2FBC4403, response: expected}
+    then: {wait: 3, read: [VCU, BMS, OBC, MCU, AAF, HVAC]}
+    release:
+      - {to: IGPM, send: 2FBC4400, response: expected}

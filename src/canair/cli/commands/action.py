@@ -12,6 +12,10 @@ Examples:
   canair action run sleep --yes                  # no prompt (scripts, agents)
   canair action add sleep --read IGPM:22BC03 \\
       --require "IGPM.IGN1_SWITCH == 0" --request functional:10D1:none
+  canair action add ig3-read --read IGPM:22BC07 --require "IGPM.IG3_RELAY_OUTPUT == 0" \\
+      --hold IGPM --request IGPM:2FBC4403 --wait 3 --then-read VCU:2101 \\
+      --release IGPM:2FBC4400
+  canair action run ig3-read --save --label 'IG3 wake read'   # keep the reads
   canair action set sleep --description "Put every ECU to sleep"
   canair action rm sleep
 """
@@ -22,7 +26,13 @@ import argparse
 import json
 import sys
 
-from canair.actions import ActionError, load_actions, parse_request_spec
+from canair.actions import (
+    ActionError,
+    load_actions,
+    parse_hold_spec,
+    parse_request_spec,
+    parse_then,
+)
 from canair.cli.commands._edit import run_edit, subcommand_dispatch
 from canair.cli.live import LiveOperation, add_connection_args, live_command
 from canair.cli.live.handlers import actuators
@@ -43,6 +53,11 @@ def _records(actions) -> list[dict]:
             "require": a.require,
             "requests": [
                 {"to": r.target, "send": r.send, "response": r.response} for r in a.requests
+            ],
+            "hold": [h.describe() for h in a.hold],
+            "then": {"wait": a.then.wait, "read": list(a.then.read)} if a.then else None,
+            "release": [
+                {"to": r.target, "send": r.send, "response": r.response} for r in a.release
             ],
         }
         for a in actions.values()
@@ -78,6 +93,14 @@ def cmd_list(args) -> int:
         print(f"    {ansi.c('sends:', ansi.DIM)} {', '.join(r.describe() for r in a.requests)}")
         print(f"    {ansi.c('reads:', ansi.DIM)} {' '.join(a.reads)}")
         print(f"    {ansi.c('requires:', ansi.DIM)} {a.require}")
+        if a.hold:
+            print(f"    {ansi.c('holds:', ansi.DIM)} {' '.join(h.describe() for h in a.hold)}")
+        if a.then:
+            then = f"wait {a.then.wait:g} s, read {' '.join(a.then.read)}"
+            print(f"    {ansi.c('then:', ansi.DIM)} {then}")
+        if a.release:
+            released = ", ".join(r.describe() for r in a.release)
+            print(f"    {ansi.c('releases:', ansi.DIM)} {released}")
     print(f"\n  {ansi.c(f'source: {prof.actions_file}', ansi.DIM)}")
     print(f"  {ansi.c('run one with: canair action run NAME [--dry-run]', ansi.DIM)}\n")
     return 0
@@ -85,6 +108,27 @@ def cmd_list(args) -> int:
 
 def _requests(specs):
     return [parse_request_spec(s) for s in specs] if specs else None
+
+
+def _hold(specs):
+    if specs is None:
+        return None
+    return [parse_hold_spec(s) for s in specs if s]
+
+
+def _release(specs):
+    if specs is None:
+        return None
+    return [parse_request_spec(s) for s in specs if s]
+
+
+def _then(args):
+    reads = getattr(args, "then_read", None)
+    if not reads:
+        if getattr(args, "wait", None) is not None:
+            raise ActionError("--wait needs at least one --then-read")
+        return None
+    return parse_then({"wait": args.wait or 0, "read": reads}, f"action {args.name!r}")
 
 
 def cmd_add(args) -> int:
@@ -97,6 +141,9 @@ def cmd_add(args) -> int:
             require=args.require,
             requests=_requests(args.request) or [],
             description=args.description,
+            hold=_hold(args.hold) or [],
+            then=_then(args),
+            release=_release(args.release) or [],
             profile=active(),
         )
 
@@ -111,6 +158,10 @@ def cmd_set(args) -> int:
             reads=args.read,
             require=args.require,
             requests=_requests(args.request),
+            hold=_hold(args.hold),
+            then=_then(args),
+            release=_release(args.release),
+            clear_then=args.no_then,
             profile=active(),
         ),
         f"updated action {args.name.strip().lower()}",
@@ -144,6 +195,35 @@ def _add_definition_args(p: argparse.ArgumentParser) -> None:
         metavar="TARGET:HEX[:none]",
         help="A request to send: an ECU name or 'functional', the request hex, and ':none' "
         "when no reply is expected (repeatable, sent in order; replaces the list on `set`)",
+    )
+    p.add_argument(
+        "--hold",
+        action="append",
+        metavar="ECU[:MODE]",
+        help="Open a diagnostic session on ECU (MODE two hex digits, default 03) before the "
+        "requests and keep it alive until the release is sent, as an IOControl needs "
+        "(repeatable; replaces the list on `set`, and --hold '' clears it)",
+    )
+    p.add_argument(
+        "--then-read",
+        action="append",
+        metavar="ECU[:PID]",
+        help="Read these after the requests, while the holds last (repeatable; the "
+        "mini-language selectors of `canair read`; replaces the list on `set`)",
+    )
+    p.add_argument(
+        "--wait",
+        type=float,
+        metavar="SECONDS",
+        help="Seconds to wait between the requests and the --then-read reads (0-60)",
+    )
+    p.add_argument(
+        "--release",
+        action="append",
+        metavar="TARGET:HEX[:none]",
+        help="A request sent at the end, also on Ctrl-C or an error, that hands back what the "
+        "requests drove. Required for an IOControl that drives an output (repeatable; "
+        "replaces the list on `set`, and --release '' clears it)",
     )
 
 
@@ -179,6 +259,17 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     run_p.add_argument(
         "--dry-run", action="store_true", help="Read and check the car, but send nothing"
     )
+    run_p.add_argument(
+        "--save", action="store_true", help="Save the action's then: reads to captures/"
+    )
+    run_p.add_argument(
+        "--label",
+        metavar="TEXT",
+        help="Session label for --save (default: 'action NAME', so nothing is asked while "
+        "the action holds an output)",
+    )
+    run_p.add_argument("--state", metavar="TEXT", help="Session state for --save")
+    run_p.add_argument("--notes", metavar="TEXT", help="Session notes for --save")
     add_connection_args(run_p)
     run_p.set_defaults(func=live_command(_RUN))
 
@@ -190,6 +281,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     st = sub.add_parser("set", help="Change fields of an action")
     st.add_argument("name", help="Action name")
     _add_definition_args(st)
+    st.add_argument("--no-then", action="store_true", help="Remove the action's then: reads")
     st.set_defaults(_action_func=cmd_set)
 
     rm = sub.add_parser("rm", help="Remove an action")
