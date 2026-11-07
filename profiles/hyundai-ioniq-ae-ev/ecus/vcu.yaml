@@ -870,8 +870,9 @@ VCU:
       notes: >-
         Find the climate and driving power the dash shows next to electronics. VCU_AUX_POWER is the
         electronics term: flat 256-309 W while the HV climate load swung the pack power 1.29-2.27 kW
-        (r=-0.09, 2026-07-22). No byte on VCU 2101/2102/21F2 tracks the climate power (|r|<0.26);
-        HVAC_HEAT_POWER and HVAC_COMPRESSOR_POWER carry it on the HVAC. Untested: a broadcast frame.
+        (r=-0.09, 2026-07-22). No byte on VCU 2101/2102/21F2 tracks the climate power (|r|<0.26); on
+        the HVAC, HVAC_COMPRESSOR_POWER and HVAC_PTC_LOAD (about 0.25 kW per count) carry it.
+        Untested: a broadcast frame.
     - type: decode
       target: SOC mirror search (21F2 open)
       status: captured

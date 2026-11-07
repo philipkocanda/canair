@@ -22,14 +22,6 @@
           "max": 87
         },
         {
-          "name": "HEATER_ELEMENT_TEMP",
-          "expression": "S17/2",
-          "unit": "\u00b0C",
-          "class": "temperature",
-          "min": -40,
-          "max": 120
-        },
-        {
           "name": "HEATSINK_TEMP",
           "expression": "B20-40",
           "unit": "\u00b0C",
@@ -1927,7 +1919,7 @@
           "max": 87.5
         },
         {
-          "name": "HVAC_HEAT_PUMP_TEMP",
+          "name": "HVAC_EVAPORATOR_TEMP",
           "expression": "(B13/2)-40",
           "unit": "\u00b0C",
           "class": "temperature",
@@ -2051,12 +2043,12 @@
           "max": 1
         },
         {
-          "name": "HVAC_HOTSIDE_TEMP",
-          "expression": "B19",
-          "unit": "\u00b0C",
-          "class": "temperature",
+          "name": "HVAC_REFRIGERANT_PRESSURE",
+          "expression": "B19*0.1961",
+          "unit": "bar",
+          "class": "pressure",
           "min": 0,
-          "max": 127
+          "max": 50
         },
         {
           "name": "HVAC_HEAT_PUMP_ON_MIRROR_B12",
@@ -2111,12 +2103,12 @@
           "max": 1
         },
         {
-          "name": "HVAC_HEAT_MODE",
-          "expression": "B06",
+          "name": "HVAC_HEAT_DEMAND",
+          "expression": "[B06:B07]",
           "unit": "",
           "class": "",
           "min": 0,
-          "max": 2
+          "max": 1000
         },
         {
           "name": "HVAC_DEFROST_FLAGS",
@@ -2129,14 +2121,6 @@
         {
           "name": "HVAC_ACTUATOR_TARGET_1",
           "expression": "B5",
-          "unit": "",
-          "class": "",
-          "min": 0,
-          "max": 255
-        },
-        {
-          "name": "HVAC_ACTUATOR_TARGET_2",
-          "expression": "B7",
           "unit": "",
           "class": "",
           "min": 0,
@@ -2227,7 +2211,7 @@
       "enabled": true,
       "parameters": [
         {
-          "name": "HVAC_HEAT_POWER",
+          "name": "HVAC_PTC_POWER_REQUEST",
           "expression": "B42/10",
           "unit": "kW",
           "class": "power",
@@ -2243,12 +2227,12 @@
           "max": 255
         },
         {
-          "name": "HVAC_HEAT_LOAD_B17",
+          "name": "HVAC_PTC_LOAD",
           "expression": "B17",
-          "unit": "A",
-          "class": "current",
+          "unit": "",
+          "class": "",
           "min": 0,
-          "max": 255
+          "max": 15
         },
         {
           "name": "HVAC_A2_UNKNOWN_B44",

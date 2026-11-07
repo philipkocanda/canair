@@ -307,7 +307,7 @@ canair decode MCU 2102 --try "MOTOR_RPM:RPM=[S10:S11]"           # value range
 canair decode MCU 2102 --try "TORQUE:Nm=[S12:S13]/100" --stats    # distribution
 canair decode MCU 2102 --try "T=[S17:S18]" --corr MCU_MOTOR_RPM   # validate by correlation
 canair hunt AAF 2181 --against ESC:22C101:REAL_SPEED_KMH --state DRIVING
-canair align HVAC:2201A2:HVAC_HEAT_POWER HVAC:2201A2:B41 BMS:2101:BATTERY_POWER --state READY
+canair align HVAC:2201A2:HVAC_PTC_LOAD HVAC:2201A2:B41 BMS:2101:BATTERY_POWER --state READY
 canair decode MCU 2102 --try "T=[S12:S13]/100" --state DRIVING --stats   # scope one drive
 canair decode ESC 22C101 --param REAL_SPEED_KMH --state DRIVING --compact --changes-only
 ```

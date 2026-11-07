@@ -107,16 +107,16 @@ HVAC:
           notes: >-
             Ambient air temperature at the HVAC sensor. 8-31.5 °C across 1758 captures. 2201A0 B17
             is a copy.
-        HVAC_HEAT_PUMP_TEMP:
+        HVAC_EVAPORATOR_TEMP:
           expression: (B13/2)-40
           unit: "°C"
           min: "-40"
           max: "87.5"
           verified: true
           notes: >-
-            Refrigerant-circuit temperature, 2.5-32.5 °C across 1758 captures. Fell from 27.5 to
-            6 °C within a minute of the A/C starting (2026-07-21); 6-21.5 °C during heat-pump
-            heating. Which sensor is unknown.
+            0.5-32.5 °C across 3452 captures. Fell from 27.5 to 6 °C within a minute of the A/C
+            starting (2026-07-21); 0.5-3 °C during heat-pump heating at 5 °C ambient (2026-11-07).
+          source: Kia e-Niro 7B3 220100 sheet ('Evaporator temp', same byte); A/C start 2026-07-21
         HVAC_UNKNOWN_B15:
           expression: B15
           min: "0"
@@ -219,8 +219,9 @@ HVAC:
           min: "-40"
           max: "87.5"
           notes: >-
-            Name is unconfirmed. 8.5-79 °C across 950 captures. Rose from 24 to 57 °C during A/C
-            cooling (2026-07-21).
+            Name is unconfirmed. 8.5-79 °C. In heat-pump mode it equals the R1234yf saturation
+            temperature at HVAC_REFRIGERANT_PRESSURE (median difference 0.3 °C, n=314); under A/C
+            cooling it reads 5-24 °C above it (session medians, 2026-07-21 to 2026-11-02).
         HVAC_HEAT_EXCHANGER_TEMP_2:
           expression: (B11/2)-40
           unit: "°C"
@@ -234,9 +235,10 @@ HVAC:
             Monitor session 2026-04-17; heat-pump vs PTC 2026-07-22; A/C cooling 2026-07-21
           verified: true
           notes: >-
-            1 exactly when 2201A0 HVAC_HEAT_MODE is 2, heat pump (all 1420 time-joined rows); 1 in
-            127 of 950 captures. 0 throughout A/C cooling with the compressor running
-            (2026-07-21), so it does not indicate the compressor in cooling.
+            1 while the compressor runs for heat-pump heating. AAF:2181:AAF_2181_B27 reads 2 (or 1)
+            in every time-joined row with this at 1 (n=289) and in none with it at 0. 0 throughout
+            A/C cooling with the compressor running (2026-07-21, 2026-08-08). Independent of
+            HVAC_HEAT_DEMAND: 1 from 154 to 630 on 2026-11-07.
 
         HVAC_HEAT_PUMP_ON_MIRROR_B18:
           expression: "B18"
@@ -244,15 +246,20 @@ HVAC:
           notes: >-
             0/1. Agrees with HVAC_HEAT_PUMP_ON in 915 of 950 captures; 1 in 152, against 127.
 
-        HVAC_HOTSIDE_TEMP:
-          expression: B19
-          unit: °C
-          max: "127"
-          source: Monitor session 2026-04-17; reclassified 2026-07-20; OBDb label added 2026-10-27
+        HVAC_REFRIGERANT_PRESSURE:
+          expression: B19*0.1961
+          unit: bar
+          max: "50"
+          source: Kia e-Niro 7B3 220102 sheet; saturation-curve check 2026-11-07
           notes: >-
-            Raw byte in °C, 16-82 across 950 captures. Tracks MCU_HEATSINK_TEMP at r=+0.87 (n=435,
-            slope 0.82); r=+0.80 vs HVAC_HEAT_EXCHANGER_TEMP. OBDb labels this byte 'Inverter
-            temperature' (bix 96) with raw/2-40, which reads -32 to 1 °C here.
+            Refrigerant high-side gauge pressure, 0.2 kgf/cm2 (0.196 bar) per count; raw 16-94. The
+            e-Niro sheet labels this byte 'pressure (kgf/cm2)/5'. AAF:2180:AAF_REFRIGERANT_PRESSURE
+            carries the same value in 2 psi counts (B19 = 1.42 x AAF B17, r=1.000, n=2387). The
+            R1234yf saturation temperature at this pressure is within 0.3 °C of HVAC_AAT with the
+            compressor off and the circuit at ambient (median, n=58), and within 0.3 °C of
+            HVAC_HEAT_EXCHANGER_TEMP in heat-pump mode (median, n=314).
+          min: "0"
+          verified: true
         HVAC_HEAT_PUMP_ON_MIRROR_B12:
           expression: B12
           source: coverage analysis 2026-07-23
@@ -266,9 +273,9 @@ HVAC:
       period: 10000
       vehicle_states: ["ON", IG3]
       notes: >-
-        59-byte response (56 data bytes after the DID): set temperature, heating source, blower
+        59-byte response (56 data bytes after the DID): set temperature, HVAC_HEAT_DEMAND, blower
         feedback, air-door positions and temperature copies. Copies of other bytes: B10 = B9, B20 =
-        B19, B45 = B44, B51 = B6 and B52 = B7 in every capture; B14 = 220100 B11 and B17 = 220100
+        B19, B45 = B44 and [B51:B52] = [B06:B07] in every capture; B14 = 220100 B11 and B17 = 220100
         B12 in over 98 % of time-joined rows. Constant in all 2256 captures: B28=0x28, B39=0x0A,
         B42-B43=0xFF, and 0x00 at B22, B54, B57, B58, B61-B63, and B65. B21 reads 0, 90 or 96, and
         B23 is 0 exactly when B21 is non-zero (one exception).
@@ -307,22 +314,27 @@ HVAC:
           max: "1"
           source: "Monitor session 2026-04-17; HVAC audit 2026-10-22"
           notes: >-
-            0/1. 1 in 372 of 375 resistive-heating rows and in every heat-pump row; with no heating
-            it reads 0 in 1534 rows and 1 in 217 (time-joined against HVAC_HEAT_MODE).
+            0/1. 1 in 372 of 375 rows with B06 (the HVAC_HEAT_DEMAND high byte) at 1 and in every
+            row with it at 2; at 0 it reads 0 in 1534 rows and 1 in 217 (time-joined, before
+            2026-11-07).
 
-        HVAC_HEAT_MODE:
-          expression: B06
-          max: "2"
-          source: 2026-07-26 heater-high session (regime split vs HVAC_HEAT_PUMP_ON)
+        HVAC_HEAT_DEMAND:
+          expression: "[B06:B07]"
+          max: "1000"
+          source: set-point and cabin-temperature transitions, 2026-04-17 to 2026-11-07
           notes: >-
-            Heating source: 0 off, 1 resistive heater (PTC), 2 heat pump. 2 exactly when 220102
-            HVAC_HEAT_PUMP_ON is 1. Reads 1 at 8-13.5 °C ambient (2026-08-08, 2026-10-22). Copied at
-            B51, 2201A1 B21 and 2201A2 B19.
-          type: enum
-          values:
-            0: "off"
-            1: ptc_resistive
-            2: heat_pump
+            16-bit big-endian climate demand value; B06 alone (read as 0/1/2 before 2026-11-07) is
+            its high byte, B07 its low byte. 0-669 across 3395 time-joined rows. Rises with the set
+            point and falls with the cabin and ambient temperatures: per session it fits +43 to +79
+            counts per °C of set point and -5 to -24 per °C of cabin (r=0.96-0.999 on the
+            2026-04-17, 2026-07-21, 2026-07-26, 2026-10-25, 2026-11-02 and 2026-11-07 sessions).
+            36-208 in the A/C cooling sessions (2026-07-21, 2026-07-30, 2026-08-09). Shifts with the
+            vent mode at a fixed 21 °C set point: about 122 face, 137-157 face and legs, 230 floor,
+            237 floor and windshield (2026-07-26). Not the heat source: 256-511 with only the PTC
+            running, only the heat pump, or the A/C compressor running. HVAC_ACTUATOR_TARGET_1 (B05)
+            follows it (r=0.86-1.00 per session). Copied at [B51:B52], 2201A1 [B21:B22] and 2201A2
+            [B19:B20].
+          type: numeric
 
         HVAC_DEFROST_FLAGS:
           expression: (B58 << 8) | B59
@@ -336,16 +348,8 @@ HVAC:
           max: "255"
           source: coverage analysis 2026-07-23; mode-cycle capture 2026-07-26
           notes: >-
-            Air-door position, 2-209 across 2256 captures. Moves with B9 and B11 (r >= 0.995,
-            n=1420) at an offset that differs between sessions. r=+0.51 vs B7.
-        HVAC_ACTUATOR_TARGET_2:
-          expression: B7
-          max: "255"
-          source: coverage analysis 2026-07-23; mode-cycle capture 2026-07-26
-          notes: >-
-            Mode door position, by direction at 21 °C (2026-07-26): face about 122, face and legs
-            137-157, floor about 230, floor and windshield about 237; repeats vary by about 20.
-            Copied at B52; 2201A1 B22 and 2201A2 B20 follow it (r=+0.998 and +0.999).
+            Air-door position, 2-212. Follows HVAC_HEAT_DEMAND (r=0.86-1.00 per session) and moves
+            with B9 and B11 (r >= 0.995, n=1420) at an offset that differs between sessions.
         HVAC_ACTUATOR_TARGET_3:
           expression: B9
           max: "255"
@@ -426,11 +430,10 @@ HVAC:
       status: draft
       vehicle_states: ["ON", IG3]
       notes: >-
-        59-byte response (56 data bytes after the DID). B6, B9 and B11 change fast. B21 equals
-        2201A0 B6 (heat mode) in 1419 of 1420 time-joined rows and B22 follows 2201A0 B7
-        (r=+0.998). B12 and B13 read 1 except in 26 (all 2026-04-17) and 71 of 1657 captures.
-        B14 is 0 in every capture; B15 reads 120 in 1500 of 1657. B68 reads 5 at fan 1-2 and
-        mostly 10 at fan 3-8.
+        59-byte response (56 data bytes after the DID). B6, B9 and B11 change fast. [B21:B22]
+        follows 2201A0 HVAC_HEAT_DEMAND ([B06:B07]). B12 and B13 read 1 except in 26 (all
+        2026-04-17) and 71 of 1657 captures. B14 is 0 in every capture; B15 reads 120 in 1500 of
+        1657. B68 reads 5 at fan 1-2 and mostly 10 at fan 3-8.
       parameters:
         HVAC_COMPRESSOR_POWER:
           expression: "[B57:B58]/1000"
@@ -440,11 +443,11 @@ HVAC:
           source: "RE 2026-10-27: parked pack residual vs 2201A1, 2026-07-30 and 2026-08-09"
           verified: true
           notes: >-
-            Electric A/C compressor input power, 16-bit big-endian in W (shown as kW); 0-1.33 kW
-            across 1692 captures. Parked in READY with the PTC off, BMS BATTERY_POWER minus
-            VCU_AUX_POWER/0.9 = 1.09 x this + 0.08 kW (r=0.957, n=71). Equals
-            HVAC_COMPRESSOR_CURRENT x about 358 V. In heat-pump mode it reads 0.53-0.63 kW and is
-            included in HVAC_HEAT_POWER. Mirrored at [B30:B31] in 82 % of captures.
+            Electric A/C compressor input power, 16-bit big-endian in W (shown as kW); 0-1.47 kW
+            across 2211 captures. Parked in READY with the PTC off, BMS BATTERY_POWER minus
+            VCU_AUX_POWER/0.9 = 1.09 x this + 0.08 kW (r=0.957, n=71); pack minus LDC = 1.00 x this
+            in heat-pump heating (2026-11-07). Equals HVAC_COMPRESSOR_CURRENT x about 358 V. Not
+            part of HVAC_PTC_POWER_REQUEST. Mirrored at [B30:B31] in 82 % of captures.
         HVAC_COMPRESSOR_CURRENT:
           expression: "[B33:B34]/10"
           unit: A
@@ -463,48 +466,51 @@ HVAC:
       status: active
       period: 10000
       notes: >-
-        51-byte response (48 data bytes after the DID), mostly 16-bit words. B19 equals 2201A0 B6
-        (heat mode) in 1419 of 1420 time-joined rows and B20 follows 2201A0 B7 (r=+0.999). Constant
-        in all 1499 captures: B45=0xFF, B46=0xD8, and 0x00 at B10, B30, B35, B37, B39, B43, B55, B58
-        and B59.
+        51-byte response (48 data bytes after the DID), mostly 16-bit words. [B19:B20] follows
+        2201A0 HVAC_HEAT_DEMAND ([B06:B07]). Constant in all 1499 captures: B45=0xFF, B46=0xD8, and
+        0x00 at B10, B30, B35, B37, B39, B43, B55, B58 and B59.
       vehicle_states: ["ON", IG3]
       min: "0"
       max: "255"
       verified: false
       parameters:
-        HVAC_HEAT_POWER:
+        HVAC_PTC_POWER_REQUEST:
           expression: B42/10
           unit: kW
           max: "12"
-          source: >-
-            2026-07-26 heater-high + 2026-07-22 heat-pump sessions vs BMS BATTERY_POWER; pack minus
-            LDC residual 2026-10-21
-          verified: true
+          source: parked pack-power residuals 2026-07-26, 2026-11-02, 2026-11-07
+          verified: false
           notes: >-
-            High-voltage heating draw (resistive heater and heat pump), 0.1 kW per bit. Parked in
-            READY it equals pack power minus the LDC input (median ratio 0.99, r=0.88, n=129,
-            2026-10-21); r=0.956 vs BMS BATTERY_POWER (n=152, 0.25-4.39 kW, 2026-07-26). 0 with
-            climate off and during A/C cooling.
+            PTC heater power in 0.1 kW counts; 0-4.5 kW. It is not the measured draw: non-zero
+            values start at 1.0 kW, and it reads 1.0-1.1 kW in 86 of 282 non-zero parked rows with
+            HVAC_PTC_LOAD at 0 and no matching pack draw (2026-11-02, 2026-11-07). Parked, pack
+            power minus HVAC_COMPRESSOR_POWER and the LDC = 1.17 x this - 1.0 kW (r=0.93, n=41,
+            2026-11-07). Falls up to about 30 s ahead of HVAC_PTC_LOAD as the heater ramps down
+            (2026-07-26). Excludes the compressor: 0 while HVAC_COMPRESSOR_POWER read 1.2 kW in
+            heat-pump heating (2026-11-07). 0 with climate off and under A/C cooling.
         HVAC_COOL_LOAD_B41:
           expression: B41
           source: 2026-07-21 AC-cooling + 2026-07-26 heating (align time-series)
           notes: >-
             10-60 across 1499 captures; 20 at idle. Read 50-60 under A/C on 2026-07-21 but stayed 20
             throughout A/C cooling on 2026-10-25, so it does not track cooling power. 10 or 20
-            during heating, independent of HVAC_HEAT_MODE.
-        HVAC_HEAT_LOAD_B17:
+            during heating, independent of HVAC_HEAT_DEMAND.
+        HVAC_PTC_LOAD:
           expression: B17
-          unit: A
-          source: 2026-07-26 heater-high vs 2026-07-21 cooling
+          unit: ""
+          source: parked pack-power residuals 2026-07-26, 2026-11-02, 2026-11-07
           notes: >-
-            0-11 across 1499 captures; r=+0.97 vs HVAC_HEAT_POWER (n=1420), reading 9-11 at
-            4.0-4.5 kW. 0 during A/C cooling. The ampere unit is not confirmed.
+            PTC heater draw, 0-12 across 3221 captures. Parked, pack power minus
+            HVAC_COMPRESSOR_POWER and the LDC rises 0.25 kW per count (r=0.94 on 2026-07-26, n=88;
+            r=0.92 on 2026-11-07, n=41); amperes at the 363 V pack would give 0.36 kW. 0 in every
+            row with HVAC_PTC_POWER_REQUEST at 0 (n=935) and during heat-pump-only heating.
+          max: "15"
         HVAC_A2_UNKNOWN_B44:
           expression: B44
           source: 2026-07-21 cooling + 2026-07-26 heating; HVAC audit 2026-10-22
           notes: >-
             8-49 across 1499 captures. r=+0.68 vs 220102 HVAC_HEAT_EXCHANGER_TEMP, -0.20 vs
-            HVAC_HEAT_PUMP_TEMP (n=1420).
+            HVAC_EVAPORATOR_TEMP (n=1420).
     2201A3:
       response_frames: 8
       status: draft
@@ -704,9 +710,11 @@ HVAC:
       created: "2026-07-23"
       updated: "2026-10-22"
       notes: >-
-        B7 is the mode door (positions in HVAC_ACTUATOR_TARGET_2); B5, B9 and B11 move together at
-        session-dependent offsets. Recirculation and driver-only set no flag on 2201A0 or 220100.
-        Open: hold each direction about 30 s, noting each, to map B7 and B5.
+        B07 is not a door: it is the low byte of HVAC_HEAT_DEMAND ([B06:B07]), which shifts with the
+        vent mode (2026-11-07). B5, B9 and B11 move together at session-dependent offsets and follow
+        HVAC_HEAT_DEMAND. Recirculation and driver-only set no flag on 2201A0 or 220100. Open: which
+        byte is the mode-door feedback; hold each vent direction about 30 s at a fixed set point,
+        noting each.
     - type: decode
       target: 220100 B14/B34/B35 signals
       status: captured
@@ -737,11 +745,14 @@ HVAC:
       created: "2026-10-21"
       updated: "2026-10-27"
       result: >-
-        PTC share = HVAC_HEAT_POWER - HVAC_COMPRESSOR_POWER in heat-pump mode; under A/C cooling
-        HVAC_HEAT_POWER is 0 and HVAC_COMPRESSOR_POWER is the whole draw (2026-10-27).
+        Climate draw = HVAC_COMPRESSOR_POWER + about 0.25 kW per HVAC_PTC_LOAD count (2026-11-07;
+        pack minus LDC fits 1.00 x compressor). HVAC_PTC_POWER_REQUEST covers the PTC only, starts
+        at 1.0 kW and can read 1.0-1.1 kW with no PTC draw; under A/C cooling the compressor is the
+        whole draw.
       notes: >-
-        Not yet seen: a PTC-only session with the heat pump off, to confirm HVAC_HEAT_POWER minus
-        the compressor equals the PTC share.
+        Not yet seen: a PTC-only session co-polled with BMS 2101 (2026-08-08 had PTC-only heating,
+        AAF_2181_B27 = 5, but no pack power), to fix the HVAC_PTC_LOAD scale without the compressor
+        in the residual.
       sources:
         - BMS:2101 BATTERY_POWER - VCU:2102 VCU_AUX_POWER residual, 2026-10-21
       what_to_test:
@@ -753,32 +764,12 @@ HVAC:
         --keep-all --label 'HVAC power split' --state READY. Parked, 3 min per mode: climate off,
         then heat at max with A/C off, noting each change with 's'.
     - type: decode
-      target: "220100 HVAC_HEAT_PUMP_TEMP and duct temperatures: which sensors"
-      status: pending
-      priority: P3
-      vehicle_states: [READY]
-      created: "2026-10-23"
-      updated: "2026-10-23"
-      notes: >-
-        The DATC reads an in-car sensor, an ambient sensor, an evaporator sensor, two duct sensors
-        (vent and floor) and, with the heat pump, two refrigerant sensors. Open: whether
-        HVAC_HEAT_PUMP_TEMP (B13, falls to 6 °C on A/C start) is the evaporator sensor and
-        HVAC_DUCT_TEMP_1/2 (B36/B37) are the duct sensors.
-      what_to_test:
-        - >-
-          A/C on at a fixed blower speed for 10 minutes: check whether B13 cycles with the
-          compressor. Then switch between face and floor modes and see which of B36/B37 follows
-          the mode door.
-      capture_protocol: >-
-        canair monitor HVAC:220100 --save --keep-changes --interval 2 --label 'A/C cycling and mode
-        change' --state READY; press s at A/C on and at each mode change.
-    - type: decode
       target: 220100 byte map (B05-B07, B09)
       status: pending
       priority: P3
       vehicle_states: [READY]
       created: "2026-10-29"
-      updated: "2026-10-29"
+      updated: "2026-11-07"
       result: >-
         The constant map 7E 50 07 C8 marks 14 data bytes (one bit per byte, MSB first): B11-B15,
         B17, B20, B22, B34-B38 and B42. Every varying byte and every defined signal is inside it.
@@ -844,6 +835,23 @@ HVAC:
         ReadScalingDataByIdentifier on 0100 returns NRC 0x11 in the default and extended sessions.
       sources:
         - on-car 2026-11-01 support probe (canair read raw steps --save, wican-ws, AC charging)
+    - type: decode
+      target: "220100 duct temperatures (B36/B37): which sensors"
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-23"
+      updated: "2026-11-07"
+      notes: >-
+        HVAC_EVAPORATOR_TEMP (B13) was named on 2026-11-07: the Kia e-Niro 7B3 220100 sheet labels
+        the same byte 'Evaporator temp', and it falls to 6 °C on A/C start. The DATC also reads two
+        duct sensors (vent and floor). Open: whether HVAC_DUCT_TEMP_1/2 (B36/B37) are those, and
+        which is which.
+      what_to_test:
+        - Heat at a fixed blower speed; switch face/floor; see which of B36/B37 follows
+      capture_protocol: >-
+        canair monitor HVAC:220100 --save --keep-all --interval 2 --label 'duct sensors vs mode'
+        --state READY; press s at each mode change.
   # Meanings, causes, thresholds and fail-safes are from the Ioniq Electric 2017 service manual,
   # Air Conditioning System chapter. The manual checks every code only with the ignition on.
   # "Listed as" gives the manual's code with its failure-type byte (B1285-77). The key is the

@@ -156,7 +156,7 @@ The levers that count as *evidence*:
   signal with a non-zero **baseline** or **mode-dependent** behaviour can post a strong r
   (or a tidy range) yet mean something quite different up close. Real case: HVAC 2201A2
   B41 read as a clean "cooling power, 0 in heating" from `--stats` (min = 0) and was
-  written as `HVAC_COOL_POWER`; an `align` beside `HVAC_HEAT_POWER`/`BATTERY_POWER`
+  written as `HVAC_COOL_POWER`; an `align` beside the HVAC heating power/`BATTERY_POWER`
   showed a **~20 idle baseline in *both* modes** (only cooling elevates it, heating never
   zeroes it) — correcting the mislabel to `HVAC_COOL_LOAD_B41` before it misled anyone.
   Make it routine on any candidate with an offset or a per-mode story.
@@ -203,6 +203,10 @@ charging captures while driving power was a few kW out. Tells, each usable on it
 - **A low byte that never uses half its range.** A continuous signal's low byte covers
   0x00–0xFF about evenly; the BMS current had 0 of 618 positive samples with a low byte
   ≥ 0x80. `decode --dump-bytes` shows it.
+- **A small enum next to a byte that wraps.** HVAC 2201A0 B06 read as a clean 0/1/2 "heat
+  mode" for months; one session with a slow ramp showed B07 falling 2 → 254 in the same poll
+  as B06 stepped 2 → 1, so `[B06:B07]` is one 16-bit word and B06 only its high byte.
+  Before you name an enum, look at its neighbour for a wrap at the same instant.
 - **An integral that misses its counter.** Integrate an instantaneous power/current over a
   drive and compare with the ECU's cumulative energy/charge counter (`investigate
   --counters` finds those); the BMS drive integrals came out 2–3× low.

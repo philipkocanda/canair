@@ -32,13 +32,19 @@ AAF:
             Matches the ITStromer community sheet rows at known temperatures (10 °C read 9, 0 °C
             read 0.5, 14 °C read 14).
 
-        HEATER_ELEMENT_TEMP:
-          expression: "S17/2"
-          max: "120"
-          source: "ITStromer community PID sheet (heating element = signed(l)/2)"
+        AAF_REFRIGERANT_PRESSURE:
+          expression: B17*0.1379
+          max: "35"
+          source: canair hunt vs HVAC:220102:HVAC_REFRIGERANT_PRESSURE 2026-11-07
           notes: >-
-            Community sheet: 8 °C with heat set to 15.5 °C, 27 °C with heat set to 30 °C, about
-            ambient with heat off. Range 14.5-51 °C.
+            Same quantity as HVAC:220102:HVAC_REFRIGERANT_PRESSURE in 2 psi (0.138 bar) counts: HVAC
+            B19 = 1.42 x B17, r=1.000, n=2387. Raw 96-133 during heat-pump heating at 5 °C ambient
+            (2026-11-07). The signed S17/2 reading of the community sheet ('heating element') jumps
+            to about -63 °C whenever the byte passes 127. Disabled as a duplicate.
+          unit: bar
+          min: "0"
+          verified: true
+          ship: false
 
         HEATSINK_TEMP:
           expression: "B20-40"
@@ -134,14 +140,19 @@ AAF:
           expression: B27
           type: enum
           values:
+            0: ac
             2: heat_pump
+            5: ptc
+            6: idle
             7: charging
-          source: 2026-08-08 DCFC byte-diff + full-corpus state check
+          source: 2026-08-08 DCFC byte-diff; HVAC heat-source cross-tab 2026-11-07
           notes: >-
-            7 in every charging capture, AC and DC. 2 in all 218 rows with HVAC_HEAT_PUMP_ON = 1
-            (2026-07-26, 2026-11-02) and in no row with it 0; on 2026-11-02 it went 2 -> 6 in the
-            same poll as the heat pump stopped. 6 only with the compressor off; 0 mostly with the
-            A/C running; 5 unknown. Fits a 3-bit mode (opendbc AAF11 CF_Aaf_ModeStatus).
+            Thermal mode as the AAF sees it, time-joined against the HVAC heat-pump, compressor and
+            PTC signals (all sessions to 2026-11-07): 0 in 427 rows, 386 with the compressor running
+            and the heat pump off (A/C); 2 in 281 rows, all with HVAC_HEAT_PUMP_ON at 1; 1 in 8
+            rows, all heat pump, only on 2026-11-07; 5 in 59 rows, 54 with only the PTC running; 6
+            in 403 rows with neither running; 7 in every charging capture, AC and DC. Fits a 3-bit
+            mode (opendbc AAF11 CF_Aaf_ModeStatus).
         AAF_2181_B15:
           expression: B15
           type: numeric
@@ -180,21 +191,6 @@ AAF:
       notes: >-
         B28 and B29 are an exact mirror pair (raw 141-152, near-constant) that does not track
         ambient. Undecoded; needs a capture over a wide temperature range.
-    - type: verify
-      target: 2181 AAF_2181_B27/AAF_2181_B15/AAF_COOLANT_TEMP_2
-      status: captured
-      priority: P2
-      vehicle_states: [CHARGING, DRIVING]
-      created: "2026-08-08"
-      updated: "2026-11-02"
-      notes: >-
-        B27 and B15 were reworked on 2026-11-02 against HVAC compressor and heat-pump data (see
-        their notes and the AAF11 lead). Open: B27 values 0, 5 and 6; AAF_COOLANT_TEMP_2 (B23-40,
-        r=0.976 vs VCU_COOLANT_TEMP) sensor location relative to MOTOR_COOLANT_TEMP (B22).
-      what_to_test:
-        - "AAF_2181_B27: what raw 0/2/5/6 correspond to"
-        - "AAF_2181_B15: correlate against AAF_VEHICLE_SPEED_KMH and time parked"
-        - "AAF_COOLANT_TEMP_2: sensor location relative to MOTOR_COOLANT_TEMP (B22)"
     - type: decode
       target: 2181 flap position/status (AAF11 lead)
       status: captured
@@ -242,3 +238,19 @@ AAF:
       what_to_test:
         - Confirm the one-byte gap against a 2180/2181 payload with bix --annotate before declaring it
         - Teach the support-map declaration (and investigate --support-map) an offset between map and covered data, then declare both pages
+    - type: verify
+      target: 2181 AAF_2181_B27/AAF_2181_B15/AAF_COOLANT_TEMP_2
+      status: captured
+      priority: P2
+      vehicle_states: [CHARGING, DRIVING]
+      created: "2026-08-08"
+      updated: "2026-11-07"
+      notes: >-
+        AAF_2181_B27 values 0, 5 and 6 were matched to A/C, PTC-only and idle on 2026-11-07 (see its
+        note); 1 appeared in 8 heat-pump rows that day and is unexplained. Open: AAF_2181_B15 (flap
+        position candidate) and AAF_COOLANT_TEMP_2 (B23-40, r=0.976 vs VCU_COOLANT_TEMP) sensor
+        location relative to MOTOR_COOLANT_TEMP (B22).
+      what_to_test:
+        - "AAF_2181_B27: what raw 1 means (seen only with the heat pump running)"
+        - "AAF_2181_B15: correlate against AAF_VEHICLE_SPEED_KMH and time parked"
+        - "AAF_COOLANT_TEMP_2: sensor location relative to MOTOR_COOLANT_TEMP (B22)"

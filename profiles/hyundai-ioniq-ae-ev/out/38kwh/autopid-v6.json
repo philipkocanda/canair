@@ -259,7 +259,7 @@
           "max": 87.5
         },
         {
-          "name": "HVAC_HEAT_PUMP_TEMP",
+          "name": "HVAC_EVAPORATOR_TEMP",
           "expression": "(B13/2)-40",
           "unit": "\u00b0C",
           "class": "temperature",
@@ -285,6 +285,14 @@
           "class": "",
           "min": 0,
           "max": 1
+        },
+        {
+          "name": "HVAC_REFRIGERANT_PRESSURE",
+          "expression": "B19*0.1961",
+          "unit": "bar",
+          "class": "pressure",
+          "min": 0,
+          "max": 50
         }
       ]
     },
@@ -321,26 +329,6 @@
           "class": "",
           "min": 0,
           "max": 121
-        }
-      ]
-    },
-    {
-      "name": "HVAC_2201A2",
-      "type": "specific",
-      "cmd": "2201A28",
-      "init": "ATSH7B3;ATFCSH7B3",
-      "rxheader": "",
-      "group": "default",
-      "period_ms": 10000,
-      "enabled": true,
-      "parameters": [
-        {
-          "name": "HVAC_HEAT_POWER",
-          "expression": "B42/10",
-          "unit": "kW",
-          "class": "power",
-          "min": 0,
-          "max": 12
         }
       ]
     },

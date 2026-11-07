@@ -100,7 +100,7 @@ CURATED: tuple[tuple[str, str, str, str], ...] = (
     ),
     ("OBC", "2101", "AC_INPUT_V", "the AC mains input voltage (RMS) at the charger inlet"),
     ("OBC", "2101", "LDC_TEMP", "the LDC / DC-DC converter temperature"),
-    ("HVAC", "220100", "HVAC_HEAT_PUMP_TEMP", "the heat-pump / refrigerant-circuit temperature"),
+    ("HVAC", "220100", "HVAC_EVAPORATOR_TEMP", "the A/C evaporator temperature"),
     ("AAF", "2180", "AMBIENT_TEMP", "the ambient / outside air temperature"),
     ("IGPM", "22BC03", "HOOD_OPEN", "the hood / bonnet ajar switch (single bit)"),
     ("CLU", "22B002", "ODOMETER", "the odometer (total distance, km)"),

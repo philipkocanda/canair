@@ -562,11 +562,14 @@ BCM:
         BCM_TEMP_RAW_B13:
           expression: B13
           max: "255"
-          source: "RE 2026-10-22: B13 vs HVAC_INTERIOR_TEMP, 2026-04-15..2026-10-22"
+          source: "RE 2026-10-22 and 2026-11-07: B13 vs HVAC_INTERIOR_TEMP"
           notes: >-
-            Raw count, falls as temperature rises. Against HVAC_INTERIOR_TEMP: B13 ~ 224.2 - 2.26 x
-            cabin degC, r=-0.955, n=830, cabin 9-38.5 degC; lags the cabin air. Isolated
-            single-sample drops to 62 (22 of 3676). Sensor location unknown.
+            Raw count, falls as temperature rises. Against HVAC_INTERIOR_TEMP: B13 = 241 - 2.7 x
+            cabin °C, r=-0.97, rmse 4.7 counts, n=1739, cabin 9-38.5 °C (2026-07-28 to 2026-11-07).
+            Lags the cabin air: on 2026-11-07 it fell 200 to 192 while the cabin heated 9.5 to 21 °C
+            in 4 min. Settled values at a steady cabin temperature: 137 at 36 °C (2026-07-28), 194
+            at 15 °C (2026-10-24), 196 at 17 °C (2026-10-25), 203 at about 10 °C (2026-11-07).
+            Isolated single-sample drops to 62 (22 of 3676). Sensor location unknown.
         BCM_IGN_SUPPLY_V_B23:
           expression: B23*0.08
           unit: V
@@ -1251,6 +1254,26 @@ BCM:
         returns NRC 0x11 for B003, B004, C00B and F190, in the default and extended sessions.
       sources:
         - on-car 2026-11-01 support probe (canair read raw steps --save, wican-ws, AC charging)
+    - type: decode
+      target: 22B003 BCM_TEMP_RAW_B13 formula
+      status: captured
+      priority: P3
+      vehicle_states: ["OFF", "ON"]
+      created: "2026-11-07"
+      updated: "2026-11-07"
+      notes: >-
+        A straight line (B13 = 241 - 2.7 x cabin °C, rmse 4.7 counts) and an NTC divider (255 x R/(R
+        + 0.47 x R25), beta about 4550, rmse 4.4) fit the corpus equally. The residual comes from
+        where the sensor sits, not from the curve shape: settled readings put the same line about 3
+        °C apart on two days (194 at 15 °C on 2026-10-24, 196 at 17 °C on 2026-10-25). A formula
+        needs reference temperatures at the sensor itself.
+      what_to_test:
+        - B13 after a 3 h soak, at two cabin temperatures 15 °C or more apart
+        - A thermometer at the BCM (driver-side lower dash), read with 22B003
+      capture_protocol: >-
+        canair monitor BCM:22B003 HVAC:220100 --save --keep-all --label 'BCM B13 soak reference'
+        --state ON; switch to ON after the soak, without climate, and note the thermometer reading
+        with s.
   iocontrol_discoveries:
     B003:
       response: "6FB00300"

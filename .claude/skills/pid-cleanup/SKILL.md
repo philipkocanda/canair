@@ -92,7 +92,7 @@ PID is fine. This rule is about individual params.
 
 The param name is a claim. Keep it honest:
 
-- **Known meaning** → name it (`HVAC_HEAT_POWER`, `HVAC_HEAT_PUMP_ON`).
+- **Known meaning** → name it (`HVAC_COMPRESSOR_POWER`, `HVAC_HEAT_PUMP_ON`).
 - **Meaning verified in one regime only** → name only what the test covered.
   `HVAC_COMPRESSOR_ON` was verified against heat-pump heating, then read 0 under
   A/C with the compressor running; it is now `HVAC_HEAT_PUMP_ON`.

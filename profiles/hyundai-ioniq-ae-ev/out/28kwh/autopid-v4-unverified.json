@@ -9,7 +9,6 @@
       "period": "60000",
       "parameters": {
         "AMBIENT_TEMP": "(B18-80)/2",
-        "HEATER_ELEMENT_TEMP": "S17/2",
         "HEATSINK_TEMP": "B20-40",
         "COMPRESSOR_TEMP": "B21-40",
         "AAF_COOLANT_TEMP_B25": "B25-100"
@@ -334,7 +333,7 @@
       "parameters": {
         "HVAC_INTERIOR_TEMP": "(B11/2)-40",
         "HVAC_AAT": "(B12/2)-40",
-        "HVAC_HEAT_PUMP_TEMP": "(B13/2)-40",
+        "HVAC_EVAPORATOR_TEMP": "(B13/2)-40",
         "HVAC_UNKNOWN_B15": "B15",
         "HVAC_UNKNOWN_B17": "B17",
         "HVAC_UNKNOWN_B22": "B22",
@@ -356,7 +355,7 @@
         "HVAC_HEAT_EXCHANGER_TEMP_2": "(B11/2)-40",
         "HVAC_HEAT_PUMP_ON": "B17",
         "HVAC_HEAT_PUMP_ON_MIRROR_B18": "B18",
-        "HVAC_HOTSIDE_TEMP": "B19",
+        "HVAC_REFRIGERANT_PRESSURE": "B19*0.1961",
         "HVAC_HEAT_PUMP_ON_MIRROR_B12": "B12"
       }
     },
@@ -370,10 +369,9 @@
         "HVAC_SET_TEMP_PASSENGER": "B45",
         "HVAC_A0_UNKNOWN_B23": "B23",
         "HVAC_A0_UNKNOWN_B25": "B25",
-        "HVAC_HEAT_MODE": "B06",
+        "HVAC_HEAT_DEMAND": "[B06:B07]",
         "HVAC_DEFROST_FLAGS": "(B58 << 8) | B59",
         "HVAC_ACTUATOR_TARGET_1": "B5",
-        "HVAC_ACTUATOR_TARGET_2": "B7",
         "HVAC_ACTUATOR_TARGET_3": "B9",
         "HVAC_ACTUATOR_TARGET_4": "B11",
         "HVAC_AAT_MIRROR_B17": "(B17/2)-40",
@@ -391,9 +389,9 @@
       "enabled": true,
       "period": "10000",
       "parameters": {
-        "HVAC_HEAT_POWER": "B42/10",
+        "HVAC_PTC_POWER_REQUEST": "B42/10",
         "HVAC_COOL_LOAD_B41": "B41",
-        "HVAC_HEAT_LOAD_B17": "B17",
+        "HVAC_PTC_LOAD": "B17",
         "HVAC_A2_UNKNOWN_B44": "B44"
       }
     },
