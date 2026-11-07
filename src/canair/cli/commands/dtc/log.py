@@ -14,7 +14,7 @@ import sys
 from canair.cli.commands._hints import ecu_hint
 from canair.cli.live import ecu_completer
 from canair.cli.profile_context import active
-from canair.dtc.history import log_stats
+from canair.dtc.history import log_stats, readings_after, render_readings
 from canair.dtc.log import (
     clears_between,
     diff_scans,
@@ -24,6 +24,7 @@ from canair.dtc.log import (
     scope_label,
 )
 from canair.dtc.refs import EcuRefs, ecu_ref
+from canair.dtc.scope import ALL_SCOPE
 from canair.ecus.names import resolve_tx
 from canair.profile.model import ProfileError
 from canair.render import ansi, messages
@@ -36,7 +37,9 @@ def add_parser(kinds) -> argparse.ArgumentParser:
         description="Show the most recent logged DTC scan without touching the device "
         "(useful when the WiCAN is offline): each code decoded, and the change since the "
         "previous scan of the same scope. The scope is the full sweep (`canair dtc --all`) "
-        "by default, or one ECU when named.\n\n"
+        "by default, or one ECU when named. The full-sweep view also lists every ECU read "
+        "or cleared on its own since that sweep, so a later single-ECU scan is not hidden "
+        "behind an older sweep.\n\n"
         "Only scans recorded for the selected car (--variant) and its ECU revisions are "
         "used: a code read from another car, or from another revision of the ECU, says "
         "nothing about this one. The log lives in user state "
@@ -45,9 +48,10 @@ def add_parser(kinds) -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
-  canair dtc log                       Last logged full sweep, with the change since the one before
+  canair dtc log                       Last logged full sweep, and each ECU read on its own since
   canair dtc log BMS                   Last logged scan of one ECU
-  canair dtc log --json                Machine-readable (the scan, the previous one, the diff)
+  canair dtc log --json                Machine-readable (the scan, the previous one, the diff,
+                                       the ECUs read since)
 """,
     )
     parser.add_argument(
@@ -84,6 +88,13 @@ def run(args) -> int:
         if entry and previous
         else []
     )
+    # A full sweep is only as current as the last one: show what single-ECU reads and
+    # clears changed since, or the reader takes a stale sweep for the car's state.
+    later = (
+        readings_after(str((entry or {}).get("timestamp", "")), profile=active())
+        if scope == ALL_SCOPE
+        else []
+    )
     if getattr(args, "json", False):
         out = {
             "scope": scope,
@@ -93,12 +104,13 @@ def run(args) -> int:
             "diff": diff_scans(previous, entry, since, profile=active())
             if entry and previous
             else None,
+            "read_since": [s.as_dict() for s in later],
             "log": stats.as_dict(),
         }
         print(json.dumps(out, indent=2, default=str))
-        return 0 if entry else 1
+        return 0 if entry or later else 1
 
-    if entry is None:
+    if entry is None and not later:
         if stats.unnamed:
             print(
                 "No car selected: this profile has several variants, and a DTC belongs to "
@@ -106,15 +118,23 @@ def run(args) -> int:
                 "(or `canair profile use NAME --variant ID`)."
             )
         else:
+            label = scope_label(scope, profile=active())
             print(
-                f"No logged DTC scan for scope '{scope_label(scope, profile=active())}'. Run `canair dtc "
+                f"No logged DTC scan for scope '{label}'. Run `canair dtc "
                 + (args.dtc if args.dtc else "--all")
                 + "` while connected to record one."
             )
         _print_footer(stats)
         return 1
 
-    for line in render_scan(entry, previous, since, profile=active()):
+    if entry is None:
+        print("\n  No logged full sweep: run `canair dtc --all` while connected to record one.\n")
+        heading = "Latest reading of each ECU:"
+    else:
+        for line in render_scan(entry, previous, since, profile=active()):
+            print(line)
+        heading = "Read since this sweep:"
+    for line in render_readings(later, heading, profile=active()):
         print(line)
     _print_footer(stats)
     messages.hint(_clear_hint(args.dtc, stats))

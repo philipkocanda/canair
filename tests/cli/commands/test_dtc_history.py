@@ -238,6 +238,27 @@ class TestEcuStatus:
         )
 
 
+class TestReadingsAfter:
+    def test_lists_only_ecus_read_or_cleared_after_the_sweep(self, refs):
+        data = {
+            "scans": [
+                _scan("all", {BMS: _codes("P1")}, ts="t1"),
+                _scan(VCU, {VCU: _codes("U1")}, ts="t2"),
+            ],
+            "clears": [dtc_log.build_clear(BMS, timestamp="t3")],
+        }
+        later = history.readings_after("t1", car=ANY_CAR, data=data, profile=active())
+        assert [(s.rx, s.codes, s.cleared) for s in later] == [
+            (BMS, (), True),
+            (VCU, ("U1",), False),
+        ]
+        assert history.readings_after("t3", car=ANY_CAR, data=data, profile=active()) == []
+
+    def test_the_sweeps_own_reading_is_not_repeated(self, refs):
+        data = {"scans": [_scan("all", {BMS: _codes("P1")}, ts="t1")]}
+        assert history.readings_after("t1", car=ANY_CAR, data=data, profile=active()) == []
+
+
 class TestStats:
     def test_counts_seen_open_and_other_cars(self, logp, refs):
         _write(
@@ -447,6 +468,43 @@ class TestCommands:
         assert [c["timestamp"] for c in out["clears_since"]] == ["t2"]
         assert out["diff"]["cleared_manually"] == [[BMS, "P1"]]
         assert out["log"]["scans"] == 2
+        assert out["read_since"] == []
+
+    def test_log_view_lists_single_ecu_scans_newer_than_the_sweep(self, logp, refs, capsys):
+        from canair.cli.commands.dtc import log as log_cmd
+
+        _write(
+            logp,
+            _scan("all", {BMS: _codes("B1")}, ts="t1"),
+            _scan(VCU, {VCU: _codes("U1")}, ts="t2"),
+        )
+        assert log_cmd.run(argparse.Namespace(dtc=None, json=False)) == 0
+        out = capsys.readouterr().out
+        assert "Scanned:     t1" in out
+        since = out.split("Read since this sweep:")[1]
+        assert "VCU (0x7E2) at t2 — 1 DTC(s):" in since and "U1" in since
+        assert "BMS" not in since
+
+        assert log_cmd.run(argparse.Namespace(dtc=None, json=True)) == 0
+        out = json.loads(capsys.readouterr().out)
+        assert [(s["rx"], s["open"]) for s in out["read_since"]] == [(VCU, ["U1"])]
+
+    def test_log_view_without_a_sweep_shows_the_single_ecu_scans(self, logp, refs, capsys):
+        from canair.cli.commands.dtc import log as log_cmd
+
+        _write(logp, _scan(VCU, {VCU: _codes("U1")}, ts="t2"))
+        assert log_cmd.run(argparse.Namespace(dtc=None, json=False)) == 0
+        out = capsys.readouterr().out
+        assert "No logged full sweep" in out
+        assert "VCU (0x7E2) at t2 — 1 DTC(s):" in out.split("Latest reading of each ECU:")[1]
+
+    def test_a_single_ecu_scan_points_at_its_own_log_view(self, capsys):
+        from canair.live.dtc.scan_log import _print_log_result
+
+        _print_log_result("log.yaml", None, None, "IGPM", profile=active())
+        assert "(`canair dtc log IGPM` to review)" in capsys.readouterr().out
+        _print_log_result("log.yaml", None, None, profile=active())
+        assert "(`canair dtc log` to review)" in capsys.readouterr().out
 
     def test_kinds_are_injected(self):
         from canair.cli import _inject_default_subcommand as inject

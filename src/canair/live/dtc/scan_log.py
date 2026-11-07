@@ -78,13 +78,16 @@ def logged_snapshots(dtcs: list[dict]) -> dict[str, list[dict]]:
     return out
 
 
-def _print_log_result(path, previous, diff, *, profile: Profile) -> None:
+def _print_log_result(path, previous, diff, review: str = "", *, profile: Profile) -> None:
+    """The change since the previous scan, and where it was logged; ``review`` names the
+    ECU for ``canair dtc log`` (empty for a full sweep)."""
     if previous:
         for line in format_diff(diff, previous, profile=profile):
             print(line)
     else:
         print("  No previous scan of this scope — recorded as baseline.")
-    print(f"  {ansi.DIM}Logged scan to {path} (`canair dtc log` to review){ansi.RESET}\n")
+    command = f"canair dtc log {review}".rstrip()
+    print(f"  {ansi.DIM}Logged scan to {path} (`{command}` to review){ansi.RESET}\n")
 
 
 def _log_manual_clear(tx_id, proto, group, pre_codes, label, snapshots=None, *, profile: Profile):
