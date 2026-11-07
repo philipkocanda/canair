@@ -67,6 +67,7 @@ IGPM:
 
         IG3_RELAY_OUTPUT:
           expression: "B12:3"
+          verified: true
           notes: >-
             ScanDoc 'Ignition 3 Relay' (actuator BC44): the IGPM's own IG3 relay output. 1 in every
             row with IGN1_SWITCH = 1 (1188 aligned rows), including 62 in ON without READY on
