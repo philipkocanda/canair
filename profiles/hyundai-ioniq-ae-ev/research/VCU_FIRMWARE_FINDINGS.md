@@ -662,7 +662,8 @@ resolves most of the coverage gaps in `canair coverage VCU`.
   The speed comes from motor rpm with a 2.0 m tyre (section 19.5).
 - `B23` (D17): bits 0/1 the regen paddles (section 13.1), bit2 the hard-wired ignition input
   (section 20.1; the profile calls it inverter-enabled), bits 3-6 bits 0-3 of `0x40005888` (from
-  the lever decode, not named; the profile's "armed" bits 4/5 are two of them); bit7 unused.
+  the SBW switch module's PWM code, section 27.5; the profile's "armed" bits 4/5 are two of
+  them); bit7 unused.
 - `B25` (D18) is a whole byte = `VCU_POWER_STATE` (states in section 20.1). `B26` (D19) packs the
   park request and the shift-by-wire unit's state (section 19.4).
 
@@ -1514,7 +1515,7 @@ processing (the APS1/APS2 correlation itself was not traced).
 | 6, 7 | 123, 124 | `0x4000587E`, `0x4000587D` | brake lamp switch and brake test switch (2101 `B11:0`/`B11:1`; DTC P0504) |
 | 15 | 150 | `0x40005883` (inverted) | probably the clock's `/INT` alarm line; only polled |
 | 20 | 198 | — | an LDC-side status input |
-| — | 182 (eMIOS 3) | `0x40006400`/`0x4000640C` | the shift-lever position, coded in 10 % duty steps (section 27.5); not a pump line |
+| — | 182 (eMIOS 3) | `0x40006400`/`0x4000640C` | the shift-by-wire switch module's PWM output, decoded into a code (section 27.5); not a pump line |
 
 The VCU also reads four unwired placeholders (`0x40005884`-`0x40005889`) from pad 114, so those
 variables copy the "−" paddle. In `1AFF` mode the analog values, the brake switches and DIO 5 come
@@ -1801,7 +1802,7 @@ fields that are gated by EV-ready, and **`0x200` bit 28 is not "close contactors
 ### 19.4 Gear and shift-by-wire
 
 The gear comes from the shift-by-wire (SBW) chart `FUN_001B0D04`, which section 27.2 describes
-(pass 4 first read the lever decoder `FUN_001AE390`, which is dead code on this car). 2101 `B10`
+(pass 4 first read the button decoder `FUN_001AE390`, which is dead code on this car). 2101 `B10`
 is one-hot (bit 0 P, 1 R, 2 N, 3 D, **bit 4 a shifter fault**, bit 5 "not invalid"), and `0x200`
 bits 11-14 carry the matching code. `0x10C` is the SBW unit's status (byte 0: 4 parked, 2 moving,
 1 released in uhi22's trace; its loss sets U1017). `FUN_001C1ADC` writes the park request into
@@ -2195,10 +2196,10 @@ statement, the earlier section was edited too. Tags are as before.
 
 | pass 4 said | correct reading | evidence |
 |---|---|---|
-| 2101 `B10` and `0x200` gear come from the lever decode `FUN_001AE390` (`0x40004BEB`/`4BEC`) | They come from the shift-by-wire chart `FUN_001B0D04` (`4CFB` and `4CF9`) because calibration `0x1025F` = 1. The `4BEB` path is dead code | 27.2 |
-| the lever inputs `5884`-`5889` are the `0x354` decode | they are five copies of one GPIO read (DIO 0) | `FUN_001D2F64` |
+| 2101 `B10` and `0x200` gear come from the button decoder `FUN_001AE390` (`0x40004BEB`/`4BEC`) | They come from the shift-by-wire chart `FUN_001B0D04` (`4CFB` and `4CF9`) because calibration `0x1025F` = 1. The `4BEB` path is dead code | 27.2 |
+| the button inputs `5884`-`5889` are the `0x354` decode | they are five copies of one GPIO read (DIO 0) | `FUN_001D2F64` |
 | `FUN_0018949C` is the LIN driver on eSCI B | it is a 4,800-baud byte UART interrupt handler for the `0x196xxx` key/immobilizer-type module; the LIN master is polled on **eSCI A** at 19.2 kbit/s | 27.4 |
-| the eMIOS 3 PWM input may be the water pump's status | it is the shift-lever position, coded in 10 % duty steps; the pump is on CAN | 27.5 |
+| the eMIOS 3 PWM input may be the water pump's status | it is the shift-by-wire switch module's PWM output, decoded into a code; the pump is on CAN | 27.5 |
 | IOControl LIDs `13`/`14` have no consumer | they inject a P / N button press into the gear chart | 27.2 |
 | `6199` is a limp counter | it is a DC-link voltage counter (190/230 V) that caps motor torque at 30 Nm | 27.3 |
 | 2102 `B9`=1/`B10`=0 rows (450) may be LDC calibration | they are the application's LDC-off request: 456 of 457 joined rows have 2101 `B11:7` = 1 | 27.9 |
@@ -2220,14 +2221,14 @@ statement, the earlier section was edited too. Tags are as before.
 electric parking actuator (shop manual 0805, wiring manual 0110). The VCU does not drive the
 actuator. It exchanges frames: `0x354` (button states in), `0x10C` (the actuator's state and
 fault codes in), `0x109` byte 0 (the park request out) and `0x200` bits 11-14 (the gear code
-out). A third path, the PWM lever line (27.5), is a fallback when `0x354` is lost.
+out). A third path, the switch module's PWM line (27.5), is a fallback when `0x354` is lost.
 
 **`0x354` decode** (`FUN_001D345C`): five two-bit channels, each sent twice; a channel is valid
 when its two copies sum to 3 and a button counts when copy A = 1 and copy B = 2. Roles by the
 requests the chart assigns (probable): channel A requests P, B and C request N (B while the
 ignition input is on, C while it is off), D requests R, E requests D. A button counts on its
 rising edge. If the frame is not valid (a channel pair does not sum to 3) or `0x354` times out,
-the request comes from the PWM lever code.
+the request comes from the PWM code.
 
 **The chart** (state `0x40004D0A`, gear `0x40004D09`; gear code 1 P, 2 R, 3 N, 4 D, 7 fault):
 
@@ -2240,7 +2241,7 @@ the request comes from the PWM lever code.
 | 5 | entering P | asks the actuator to lock; on `4CD9` = 4 the gear is P |
 | 6 | actuator timeout | not READY: gear N; P stays P |
 
-**Permission table** (`0x1B3614`): for each current gear and requested lever, a condition. Speeds
+**Permission table** (`0x1B3614`): for each current gear and requested gear, a condition. Speeds
 are the VCU's internal word (≈ 1.55 km/h true per 100); "slow" is below 2.5 km/h for 0.1 s with
 the motor nearly stopped.
 
@@ -2334,7 +2335,7 @@ acts as an N press from P. They answer NRC `0x78` and end after 400 cycles (prob
   18.4); the voltage and current feed the remote-sense trim and the charge-current cap; the
   current is integrated for the charge-history modes.
 
-### 27.5 The serial device on DSPI B, the PWM lever line and the unnamed outputs
+### 27.5 The serial device on DSPI B, the shift-by-wire PWM line and the unnamed outputs
 
 - **DSPI B** (pads 102-105, eDMA 12/13) sends 8 bytes (four 16-bit frames) and receives 8 bytes
   from the **0.5 ms PIT3 interrupt** (`FUN_0019F138`): a transfer about every 14 ms when active
@@ -2343,13 +2344,18 @@ acts as an N press from P. They answer NRC `0x78` and end after 400 cycles (prob
   the error flags `0x40002178`-`7A`. It is **probably the TLE7368E supply and watchdog IC**
   (inferred; its datasheet was not checked). The question/answer content was not decoded. If it
   is a challenge-response it stays unanalysed.
-- **eMIOS 3 PWM input (pad 182)** is the **shift-lever position**, coded in 10 % duty steps
-  (7-13 % → 1, 17-23 % → 2, 27-33 % → 3, 37-43 % → 4, 47-53 % → 6, 67-73 % → 5, 87-93 % → 7,
-  other duty above 3 % → 8, at or below 3 % → 0; `FUN_001A7AB4`, code at `0x4000681C`).
+- **eMIOS 3 PWM input (pad 182)** is the **shift-by-wire switch module's PWM output**, which the
+  VCU decodes into a code from the duty cycle in 10 % steps (7-13 % → 1, 17-23 % → 2,
+  27-33 % → 3, 37-43 % → 4, 47-53 % → 6, 67-73 % → 5, 87-93 % → 7, other duty above 3 % → 8, at
+  or below 3 % → 0; `FUN_001A7AB4`, code at `0x4000681C`).
   The accepted code goes to `0x40005888` and **2101 `B23` bits 3-6**, and is the gear logic's
   fallback when `0x354` is lost. The wiring manual lists "SBW PWM" on EPCU pin 23. In the
   captures `B23` reads `0x34`/`0x30` with the ignition on: bits 4-5 = code 6 (the 47-53 % band),
-  probably the lever's home position.
+  and 0 with the ignition off, apart from one row of 2. The car has P, R, N and D push buttons, not
+  a lever, and **which code means which button was not established**. Code 6 is probably "no
+  button pressed", which is a guess. A proposed signal is `VCU_SBW_SWITCH_PWM_CODE` (`B23` bits
+  3-6 as one enum, expression `(B23>>3)&15`, values 0 = no signal, 6 = idle), but `coverage` cannot
+  see a masked expression, which is why the profile defines single-bit signals.
 - **DIO 21, 22:** a complementary pair driven by the shifter module (`0x1A9xxx`), probably two of
   the SCU-side outputs on the wiring manual (back-up lamp relay control, IPS control). Which is
   which is open. **DIO 28** follows "ignition input on". "Channel `0x17`" has no direct caller
@@ -2502,7 +2508,7 @@ Tested offline against 13,509 stored 2101 and 14,657 stored 2102 replies:
 | `B25` takes values 1, 4, 6, 7 | **confirmed**; 0, 2, 3, 5, 8-11 never occur (state 2 is too brief for a 5 s poll) |
 | `B25` is valid only while `B11:4` = 1 | **new**: 305 rows keep the last value (up to 84 s) after `B11:4` drops |
 | `B23:2` is the ignition ON/START input | **confirmed** against the IGPM `IGN1_SWITCH` (494 of 497 on, 0 of 2,499 off); the profile name `VCU_INVERTER_ENABLED` is wrong |
-| `B23` bits 4-5 | set together (`0x30`) with the ignition on: lever code 6 (27.5); bits 3 and 6 never set |
+| `B23` bits 4-5 | set together (`0x30`) with the ignition on: PWM code 6 (27.5); bits 3 and 6 never set |
 | `B11:2` is the start signal | weak: set in 1 row, 53 s before READY |
 | `B11:6` | equals `B11:3` in every row; the "HV up" name cannot be told from "READY mirror" |
 | `B26` | `0x20` in P (11,701 of 11,702), `0x08` in R/N/D (1,807 of 1,807) = `0x10C` byte 0 bits 0-2 (4 parked, 1 released); bits 0-2 never set; one `0x40` row at the start press |
