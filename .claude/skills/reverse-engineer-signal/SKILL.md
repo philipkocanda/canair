@@ -13,8 +13,8 @@ fully worked — the *method* transfers, not the byte offsets. This skill is the
 *procedure*; the profile is the *data* (which ECU carries which signal, marque quirks
 and addresses live in the active profile's `ecus/`).
 
-Related skills: **`ioniq-reverse-engineering`** (bundled-car ECU table, device and
-transport reference — load it too when working the Ioniq), **`decode-bitfields`** (the
+Related skills: **`ioniq-reverse-engineering`** (bundled-car ignition lines, ECU gotchas and
+factory module names — load it too when working the Ioniq), **`decode-bitfields`** (the
 bit-level loop for discrete body signals), **`contributing-profiles`** (sharing the
 result upstream).
 
@@ -457,7 +457,7 @@ Then consider contributing the profile upstream with **`canair contribute`** (al
 `share`) — it opens the PR via `gh` and runs a PII pre-flight first. Load the
 **`contributing-profiles`** skill first: it covers the scrubbing that gates the PR and
 the quality bar a shared profile must clear. For the bundled car, also consider an
-upstream wican-fw PR — see `ioniq-reverse-engineering`.
+upstream wican-fw PR (repo link: `ioniq-reverse-engineering`, Key references).
 
 ## Tool cheat-sheet (this workflow)
 

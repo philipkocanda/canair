@@ -210,7 +210,7 @@ change a transport backend, debug a desync or timeout, or call a device API.
 > Workflows: how a command prints, prompts and exits, and how a TUI binds keys and builds modals,
 > is the **cli-tui-standards** skill (load it before touching output, a prompt or a TUI);
 > reverse-engineering a signal end-to-end is the **reverse-engineer-signal** skill;
-> partially-decoded bitflag bytes are **decode-bitfields**; bundled-car/device context is
+> partially-decoded bitflag bytes are **decode-bitfields**; bundled-car context is
 > **ioniq-reverse-engineering**; changing canair's code is **contributing-code**; whether a car
 > needs its own profile and how to name one is **profile-variants**; preparing a profile for
 > upstream (and its PII and security-key rules) is **contributing-profiles**.

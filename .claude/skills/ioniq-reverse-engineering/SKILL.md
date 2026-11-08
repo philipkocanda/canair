@@ -1,61 +1,32 @@
 ---
 name: ioniq-reverse-engineering
-description: Working with WiCAN OBD-II, Ioniq CAN bus, PID decoding, vehicle profiles, CAN request CLI tool, UDS protocol, expression evaluator. Load this skill when working on the Ioniq reverse engineering project, CAN bus analysis, or WiCAN device configuration.
+description: Facts about the bundled 2017 Hyundai Ioniq Electric that no other skill holds — ignition lines and how they map to canair's vehicle states, per-ECU gotchas, factory module names versus the profile's ECUs, the research findings documents, wake behaviour. Load this when working on the Ioniq reverse engineering project, together with reverse-engineer-signal.
 ---
 
 # Ioniq CAN Reverse Engineering Skill
 
-General project/device/tool context for the Hyundai Ioniq 2017 EV CAN
-reverse-engineering project.
+**This skill is the Ioniq-specific *context*; `reverse-engineer-signal` is the generic
+*procedure*: load both for Ioniq reverse-engineering work.** This one carries the vehicle's facts
+(ignition lines, per-ECU gotchas, factory module names). `reverse-engineer-signal` is the
+vehicle-agnostic decode lifecycle, byte-index and expression syntax, and signal-analysis
+reasoning. Decoding, adding, fixing or verifying any PID/DID on the Ioniq needs both. For a
+different car, load that generic skill plus that car's profile; this skill is then an example of
+a finished profile. Other skills own the rest:
 
-**This skill is the Ioniq-specific *context*; `reverse-engineer-signal` is the
-generic *procedure* — load both for Ioniq RE work.** This one carries the
-vehicle-specific facts (safety, ignition lines, per-ECU gotchas, device and
-transport details, project-specific tool gotchas — "what am I working on, with
-what tools"). **`reverse-engineer-signal`** is the **vehicle-agnostic** decoding
-procedure and reference — the discover→capture→analyze→define→verify lifecycle,
-byte-index/expression syntax, UDS conventions, and the signal-analysis reasoning
-(EE/power-electronics/physics/statistics) — written to apply to *any* car, using
-the Ioniq only as its worked example. **Decoding, adding, fixing, or verifying
-any PID/DID on the Ioniq? Load `reverse-engineer-signal` too** for the method, and
-use this skill for the Ioniq facts it needs. (Working a *different* car? That
-generic skill plus that car's profile is what you want; this Ioniq skill is then
-just an example of a finished profile.) The full `canair` subcommand + flag
-reference lives in **AGENTS.md**, `docs/reference/cli/`, and `canair <cmd>
---help`; this skill does not repeat it.
+- `wican-hardware-and-protocol`: the dongle, transports, the device API, sleep and power.
+- `contributing-profiles`, `profile-variants`, `pid-cleanup`: profile data and its upkeep.
+- `AGENTS.md`, `docs/reference/cli/` and `canair <cmd> --help`: commands, flags, config.
 
 ## Safety (non-negotiable)
 
-- **NEVER interact with the car without the user's explicit approval** (`AGENTS.md` → The
-  car). Approval is never implied by the task or by a skill. This covers every `canair` live
-  command, `canair status`, every `wican-cli` command and the device's HTTP API. Propose the
-  exact commands, then wait for an explicit "yes".
-- **NEVER** use the UDS programming session (`10 02`) or any firmware
-  write/upload command. This is a real car that cannot be un-bricked — a bad flash bricks an
-  ECU or the whole vehicle.
-- **Never `2E` write** unless you know exactly what it does. A read (`22`) cannot harm an ECU in
-  any DID range (it still needs approval); canair's guard also refuses `10 05` (Hyundai/Kia's
-  programming-mode alias), ECU resets (except `canair reset`, which is off until the user sets
-  `safety.allow_reset`) and reprogramming routines (`docs/concepts/safety.md`).
-- **IOControl (`2F`) actuates real hardware** — only with the car stationary and
-  in a safe state, and only for an actuation the user approved by name.
-- Be gentle: the ECUs are old and slow. **No concurrent requests to one ECU.**
-- **One `canair` connection at a time, any transport.** canair enforces this with
-  a `flock` mutex (`/tmp/wican-connection.lock`, `src/canair/device/lock.py`); a second
-  concurrent command fails fast. The WiCAN serves a single client per protocol —
-  a second `slcan-tcp` client hangs unserved until the first disconnects, and a
-  second `wican-ws` WebSocket can lock up the device (power-cycle to recover).
-  `--force` asks the current holder to release the connection and waits for it —
-  it never kills anything, and it reports the PID + `kill` command if the holder
-  won't go. Inspect/clear a stuck one with `canair lock` (`lock steal`/`lock
-  kill`); a session whose terminal vanished stands down by itself once another run
-  asks for the connection.
-- **Never reboot the WiCAN without the user's explicit approval.** A bus reset via ELM327 is
-  usually enough (that needs approval too). Using the WebSocket (`wican-ws`) terminal overrides
-  AutoPID; a reboot is needed to resume the MQTT feed afterward — ask first.
-- **When the user approves car access, ALWAYS talk to the car through `canair`** (`uv run
-  canair …` from the repo root). Never hand-roll a WebSocket/socket or send raw ELM327 yourself.
-  If canair can't do something, discuss with the user first.
+The rules are in `AGENTS.md` (section "The car") and in the `reverse-engineer-signal` skill
+(section "Safety first"). In short:
+
+- Never touch the car, the dongle or the bus without the user's explicit "yes" for that exact
+  action. Propose the exact commands, then wait.
+- Never open a programming session (`10 02`, `10 05`) or write firmware. This car cannot be
+  un-bricked.
+- One canair connection at a time. Never reboot the WiCAN without asking.
 
 ## Backlog and research documents
 
@@ -153,188 +124,29 @@ unlocked (`vehicle_states.yaml` has the numbers). During START (brake + press, u
 `IGN2_SWITCH` drops while `IGN1_SWITCH` stays on. SKM 22B006 B17/B18/B19 are the ACC, IGN1 and
 IGN2 relay outputs. SKM IOControl B108 to B10B are the ACC, IGN1, IGN2 and START outputs.
 
-## WiCAN device
+## AutoPID staleness
 
-### AutoPID / live data
+In AutoPID mode the latest values are at `http://<ip>/autopid_data` (cached, so they may be stale
+if the car is off). **AutoPID stops polling when the 12 V battery hits the `sleep_volt`
+threshold** while the WiCAN may stay WiFi-reachable. So `/autopid_data` and MQTT can go stale
+(lights reported "on" after parking) even though the device answers. A direct `canair read` still
+works and values self-correct on the next poll. The device API and the sleep logic are in
+`wican-hardware-and-protocol`.
 
-In AutoPID mode the latest values are at `http://<ip>/autopid_data` (cached — may
-be stale if the car is off). For real-time reads use `canair read` (direct
-CAN/UDS), which bypasses AutoPID. **AutoPID stops polling when the 12V battery
-hits the `sleep_volt` threshold** while the WiCAN may stay WiFi-reachable — so
-`/autopid_data` (and MQTT) can go stale (e.g. lights reported "on" after
-parking) even though the device answers. Direct `canair read` still works and
-values self-correct on the next poll. Check live sleep/voltage
-settings with `canair status` / `wican config`; don't rely on hardcoded numbers.
+## Ioniq-specific gotchas
 
-### REST API (JSON, no auth)
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET  | `/load_auto_pid_car_data` | Download vehicle profile (`{"cars":[…]}`) |
-| POST | `/store_car_data`         | Upload vehicle profile (raw to flash) |
-| GET/POST | `/load_auto_pid` / `/store_auto_data` | Custom AutoPID config |
-| GET  | `/autopid_data`           | Latest live PID values |
-| GET/POST | `/load_config` / `/store_config` | Full config (POST = full replace + reboot) |
-| GET  | `/check_status`           | WiFi/CAN/MQTT/battery/firmware status |
-| GET  | `/obd_logs[/<file>]`      | SD-card log index / download SQLite DB |
-| POST | `/system_reboot`          | Reboot (body `"reboot"`) |
-
-Most of this is wrapped by `canair` and `wican-cli` — prefer those over raw HTTP.
-
-## Transports
-
-canair reaches the bus over an **explicit, config-chosen transport** (never
-auto-switched). Registered in `src/canair/transport/config.py`; today there are three:
-
-- **`slcan-tcp`** (default) — raw SLCAN over TCP with client-side ISO-TP.
-  Requires the device in `slcan` mode. `monitor` uses the pipelined/batched
-  `RawUdsClient`; everything else runs the normal dispatch over a `RawTerminal`
-  adapter. **Only transport that supports passive `canair sniff`.**
-- **`wican-ws`** — WiCAN Pro WebSocket ELM327 terminal; the *dongle* does ISO-TP.
-  Works in any device protocol. No passive sniff.
-- **`elm327-tcp`** — a generic ELM327 WiFi adapter over a plain TCP socket (no WiCAN HTTP API).
-  No passive sniff.
-
-Select via the `transport:` block (`type`/`host`/`port`/`bitrate`) or per-command
-`--transport`/`--wican`. **`canair status`** shows the resolved transport and
-warns on a mode mismatch with the exact fix. Switch modes explicitly:
-`canair wican mode set slcan|auto_pid [--yes]` (never automatic).
-
-**On this car, passive sniffing sees ~nothing:** the OBD-II port is
-gateway-isolated — only diagnostic request/response reaches it, no internal
-broadcast traffic. So the raw-CAN value here is pipelined UDS (monitor batches a
-`multi_did` ECU's `22` DIDs into one ISO-TP request), not sniffing.
-
-## Tool gotchas (project-specific)
-
-Full reference: **AGENTS.md** + `canair <cmd> --help`. Key project behaviors:
-
-- **Selectors bind PID to ECU with a colon, never a space.** In a `query` step a
-  space separates *independent* selectors, so `query IGPM BC03` = "all of IGPM
-  **plus** a bogus ECU `BC03`" (rejected). Write `query IGPM:BC03,BC06`. Bare
-  `canair read BMS` / `BMS:2101` and `--param NAME` are single-ECU shortcuts.
-- **`--save` discipline.** NEVER hand-write/edit `captures/` YAML — record via
-  `canair read/monitor/scan/raw/discover … --save`, once the user approves that read. Agents must
-  pass
-  `--label` (+ optional `--state`/`--notes`) for non-interactive save; without
-  `--label` it prompts. Saves are **journaled** to `captures/.journal/` as they
-  stream and reconciled into the dated file on exit, so a killed/disconnected
-  session isn't lost — recover leftovers with `canair captures uds --recover`
-  (`--discard` to drop). In `canair monitor` press `s` to set/edit the current
-  session's label/state/notes live (the modal names the segment it labels), or
-  `n` to close the current segment and start a fresh one (several labelled
-  sessions per run); a `● REC` blinks while `--save` is recording. The **state is
-  auto-suggested** from decoded PID values via the profile's
-  `vehicle_states.yaml`. For edits/removals use `canair.captures.session_edit`
-  (`set_capture_note`/`delete_capture`). After saving, run `canair captures uds
-  --summary` to spot patterns missed live, or `canair captures uds --sessions` for a
-  metadata table of contents (date/state/label/notes/ECUs per session; `--json`).
-- **`--session` / `--wake`.** `--session` = extended session (`10 03`), kept alive with
-  TesterPresent while the ECU is idle; required for IGPM `2FBCxx` (its `22BCxx` reads need
-  none). `--wake` rouses a deep-sleeping ECU first (implies `--session`): the ECU's `wake:`
-  ritual where the profile declares one (the SKM), else `10 01`, asked twice if the first
-  draws no answer. **IGPM (0x770) and BCM (0x7A0) wake from CAN activity
-  alone; BMS/MCU answer only while the IG3 rail is on (ignition ON, charging, the 12 V
-  top-up), and the VCU a few minutes beyond, so ACC alone is not enough.**
-- **`canair io --poll` can actuate hardware.** The IOControl TUI's background
-  status poll (`--poll`, opt-in) sends each DID's release (`2F{DID}00`,
-  returnControlToECU) every 3s; on relay/solenoid DIDs this can re-assert defaults
-  and cause an audible click. Off by default. A KWP2000 `0x30` entry is polled, and
-  switched on, only once it declares a `release:` — none of the Ioniq's KWP ECUs
-  has one yet (see the OBC `iocontrol_scan` research entry).
-- **`--verbose`** debugs canair itself; not useful for normal reads.
-- **`canair raw`** is a last resort (hex only, no decoding) — use decoded
-  `query`/`--param` when a PID definition exists.
-
-### Query pipeline (multi mini-language)
-
-`canair read` runs a sequence of positional STEP strings in one session,
-managing extended sessions across ECUs with interleaved TesterPresent. Exits
-after the pipeline unless `--repl` (or an explicit `repl` step). Unknown ECU
-names are rejected up front.
-
-```bash
-canair read "query BMS:2101"                        # single PID, decoded
-canair read "query BMS:2101" "query VCU:2101"       # multi-ECU, one session
-canair read "session IGPM --wake" "query IGPM:BC03,BC06"   # wake + query
-canair read "skm-wake acc" "sleep 1" "query BCM:B00E" "repl"
-canair monitor "query BCM" --interval 2   # live refresh (default keep-all)
-canair monitor @charging                  # a saved selector group (see `canair groups`)
-```
-
-Step verbs: `skm-wake [acc|ign1|ign2|start]`, `session <ECU> [--wake] [--mode XX]`,
-`query <ECU>[:PIDLIST] …`, `raw <TX:PID> [--hold]`, `scan <TX> <SVC> <RANGE> [APPEND]`,
-`iocontrol <ECU> <DID> [--off]`, `sleep <s>`, `repl`.
-ECUs resolve by name (`IGPM`) or hex TX ID (`770`). A **`@group`** token in a
-`read`/`monitor` step expands to a saved set of selectors (`canair groups` to
-list/edit; e.g. `@charging`, `@driving`) and composes with ad-hoc selectors.
-
-### `canair monitor`
-
-Live-refreshing poll (its own top-level command; positional query steps like
-`canair read`). By default each PID refreshes twice as often as its profile
-`period:` and a PID without one every `--interval` seconds (5.0); `--schedule fixed`
-polls every PID every cycle, `--interval` apart. A slow or silent PID (every SKM PID once
-the SKM is asleep) is polled up to 32× less often until it recovers, while its ECU's
-healthy PIDs keep their rate (`--no-backoff` turns it off).
-Non-query steps run once as setup, `query` steps poll in a
-background worker with TesterPresent keepalives. On a TTY it's a scrollable
-Textual TUI (press `?` for its keys; they are defined once in `src/canair/tui/keys.py`); piped,
-it polls silently until Ctrl+C. Signals are listed in **payload order** (by the byte each reads
-first), so a value sits above the hex byte it came from. Hex view highlights bytes changed since
-the previous cycle, colors bytes by verification state (a declared support map's bytes in a
-muted grey-blue), and shows ASCII for unmapped PIDs; a changed byte also
-highlights the parameter row(s) whose expression decodes it, with the same
-coverage-coloured background the byte gets. The status line shows a
-**`captured N/uniq M`** frame counter — total fresh payloads received vs distinct
-values kept (both differ from the on-screen row count of one row per PID). **Keep-mode default is
-`--keep-all`** — every poll is recorded with its timestamp (full time-series, so real
-timing/rate, `correlate --transform delta` and dwell all work). The capture file stays
-compact because repeated payloads are folded on disk (lossless; see
-`docs/concepts/captures-and-states.md`). `--keep-changes` records only value-transitions
-per PID (run-length; sessions tagged `keep_mode: changes`, and the analysis tools caveat
-rate math on them). Many older sessions are `keep_mode: unique` (retired global dedup):
-return-to-previous transitions and durations are lost there, and the tools warn. The live
-view collapses each run of identical payloads into one row with a `×N` poll count and
-renders only the newest few per PID (`--keep N` sets how many); every poll is in the
-`--save` journal.
-Throughput is governed by ELM commands/cycle — cut via header caching + service-22
-multi-DID batching (IGPM 3 DIDs: 11→5→1 cmds/cycle). `--elm-timeout` overrides
-`response_timeout_ms`.
-
-### `canair identity`
-
-Queries standard + Hyundai/Kia identity DIDs (see the F1xx `-1` offset in the
-reverse-engineer-signal skill) and prints decoded results. `--session` for most
-ECUs, `--wake` for deep-sleepers (IGPM). Known deep-sleep results:
-
-- **BCM (0x7A0):** F18C=`1705310070`, F18B=`2017-05-31`, F100=`180`, F194=`100`
-- **IGPM (0x770):** F18B=`2017-06-06`, F100=`20`, F101=`160205`, F196=`109`
-
-### `canair io` (IOControl)
-
-Runs `2F` IOControl from the `iocontrol:` sections of `ecus/`. `canair io ECU`
-lists DIDs (offline, no connection). `--did BCxx` sends ON (`--off` for OFF);
-auto-enters a session if `session: true`; if `hold: true` (default) keeps
-TesterPresent until Ctrl+C then auto-sends OFF (SKM relays are `hold: false`).
-ECUs with IOControl DIDs: IGPM, BCM, HVAC, SKM, PSM, VESS.
-
-### `wican-cli` (separate package)
-
-Device management (config, sleep/power, protocol switching, status, OBD-log
-queries, reboots) lives in the standalone
-[`wican-cli`](https://github.com/philipkocanda/wican-cli) (`pip install
-wican-cli`), NOT in canair!
-
-```bash
-wican status            # device summary          wican protocol --set slcan
-wican sleep --disable   # before an RE session    wican protocol --set auto_pid
-wican sleep --enable    # after                    wican logs --query SOC_BMS --limit 20
-```
-
-**Tip:** sleep should be off before probing (12V can sag with the car off and put the
-WiCAN to sleep mid-session) and on again after. These commands touch the device: ask the user to
-run them, or to approve them.
+- **Passive sniffing sees almost nothing.** The OBD-II port is gateway-isolated: only diagnostic
+  request/response reaches it. The raw-CAN value here is pipelined UDS, not `canair sniff`.
+- **`--session` and `--wake`.** `--session` (extended session `10 03`) is required for IGPM
+  `2FBCxx`; its `22BCxx` reads need none. `--wake` rouses a deep-sleeping ECU first. IGPM (0x770)
+  and BCM (0x7A0) wake from CAN activity alone. BMS and MCU answer only while the IG3 rail is on
+  (ignition ON, charging, the 12 V top-up), and the VCU a few minutes beyond, so ACC alone is not
+  enough.
+- **`canair io --poll` can actuate hardware.** The IOControl TUI's background status poll
+  (opt-in) sends each DID's release (`2F{DID}00`, returnControlToECU) every 3 s. On relay and
+  solenoid DIDs this can re-assert defaults and cause an audible click. A KWP2000 `0x30` entry is
+  polled, and switched on, only once it declares a `release:`. None of the Ioniq's KWP ECUs has
+  one yet (see the OBC `iocontrol_scan` research entry).
 
 ## ECU status
 
@@ -378,19 +190,9 @@ module with no row below either does not answer at a 0x7xx address or was not aw
 private link to the compressor and PTC heater (`CLIMATE-CAN` in `can_buses.yaml`, marked
 `private: true`): neither the IGPM nor the OBD-II port is on it.
 
-## UDS notes
+## Part numbers
 
-Security Access, PID/DID conventions, byte-index notation, and the F1xx `-1`
-offset are in the **reverse-engineer-signal** skill. Quick reference:
-
-- Standard UDS: `27 01` (seed) → compute key → `27 02 <key>`. Most `21`/`22` reads
-  need no security; `2E` writes may need Security Access L1/L2.
-- One-off byte-index lookups: `canair bix <token>`, `canair bix --table`,
-  `canair bix --annotate <hex>`.
-
-## Memory
-
-### 2026-04-19 — BCM 95400-G7470 is Ioniq AE Electric (BEV) only
+### BCM 95400-G7470 is Ioniq AE Electric (BEV) only (2026-04-19)
 
 The `Gx` code in Hyundai part numbers identifies the model; `G7` is exclusive to
 the Ioniq AE Electric (BEV) — G2=Ioniq HEV, G5=Kia Niro, G6=Picanto all use a
