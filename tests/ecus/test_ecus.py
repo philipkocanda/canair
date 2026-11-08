@@ -155,7 +155,7 @@ class TestCanonicalEcuName:
 
 class TestCanonicalEcuNameSafe:
     def test_alias_resolves_to_primary(self):
-        assert canonical_ecu_name_safe("LDC", profile=active()) == "OBC"
+        assert canonical_ecu_name_safe("MDPS", profile=active()) == "EPS"
         assert canonical_ecu_name_safe("smk", profile=active()) == "SKM"
 
     def test_primary_and_unknown_passthrough(self):
@@ -175,7 +175,7 @@ class TestCanonicalEcuNameSafe:
             raise FileNotFoundError("ecus.yaml")
 
         monkeypatch.setattr(ecus_mod_names, "canonical_ecu_name", _raise)
-        assert canonical_ecu_name_safe("ldc", profile=active()) == "LDC"
+        assert canonical_ecu_name_safe("mdps", profile=active()) == "MDPS"
         assert canonical_ecu_name_safe(None, profile=active()) == ""
 
 

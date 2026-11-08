@@ -185,7 +185,7 @@ class TestFindSeriesMirrors:
     def test_offset_mirror_across_pids(self):
         vals = [float(v) for v in range(20)]
         series = self._prepared(
-            {"A:1:LDC_TEMP": _series(vals), "B:2:B19": _series([v + 100 for v in vals])}
+            {"A:1:OBC_TEMP": _series(vals), "B:2:B19": _series([v + 100 for v in vals])}
         )
         assert find_series_mirrors(series, min_n=10) == []
         hits = find_series_mirrors(series, min_n=10, allow_offset=True)

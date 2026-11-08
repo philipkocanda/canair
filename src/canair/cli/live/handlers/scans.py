@@ -77,7 +77,7 @@ async def handle_routines_scan(
     rid_range = parse_range(args.rid_range)
 
     # Auto-select by id_protocol. UDS ECUs use RoutineControl (0x31 SF03,
-    # requestRoutineResults). KWP2000 ECUs (BMS/VCU/MCU/LDC/AAF) MUST NOT
+    # requestRoutineResults). KWP2000 ECUs (BMS/VCU/MCU/AAF) MUST NOT
     # receive 0x31 — there it means StartRoutineByLocalIdentifier (actuates);
     # they use the read-only 0x33 RequestRoutineResultsByLocalIdentifier.
     uds_ecus, kwp_ecus = split_ecus_by_protocol(args.routines_scan, profile=active())
@@ -141,7 +141,7 @@ async def handle_iocontrol_scan(
     did_range = parse_range(args.did_range) if args.did_range else None
 
     # Auto-select the service by the ECU's identity protocol: KWP2000 ECUs
-    # (BMS/VCU/MCU/LDC/AAF) use IOControlByLocalIdentifier (0x30); the rest
+    # (BMS/VCU/MCU/AAF) use IOControlByLocalIdentifier (0x30); the rest
     # use UDS IOControlByIdentifier (0x2F).
     uds_ecus, kwp_ecus = split_ecus_by_protocol(args.iocontrol_scan, profile=active())
 

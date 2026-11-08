@@ -78,8 +78,7 @@ Added 2026-10-30. The tooling is in place; what is left needs the car. An IOCont
 carries its own `release:` (the request that hands the output back), resolved per entry by
 `src/canair/ecus/pids.py::build_iocontrol_index`: UDS implies `2F {DID} 00`, KWP2000 `0x30` implies nothing.
 `canair io` sends that release on exit and on Ctrl-C, `--poll` sends it, and a `0x30` ON without
-one is refused (`src/canair/safety/actuation.py::on_refusal`). The Ioniq's KWP ECUs (BMS, VCU, MCU, OBC, LDC,
-AAF) still have no actuators defined.
+one is refused (`src/canair/safety/actuation.py::on_refusal`). The Ioniq's KWP ECUs (BMS, VCU, MCU, OBC, AAF) still have no actuators defined.
 
 - [x] **Model KWP actuators** — `30 {LID} {option} [state…]` with an 8-bit local identifier
   (`src/canair/safety/actuation.py::parse_io_request`); each entry's `on`/`off`/`release` carry their own

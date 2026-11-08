@@ -173,7 +173,7 @@ def _print_cross_mirrors(specs, since, until, args, notation=ByteNotation.WICAN)
             continue
         # Defined params are included, not just raw bytes: the most valuable mirror
         # is an unknown byte on one ECU matching a *named, decoded* signal on
-        # another (AAF:2181:B19 - 100 is the OBC's LDC temperature), which a
+        # another (AAF:2181:B19 - 100 is the OBC's temperature), which a
         # bytes-only sweep can never report.
         params = ecu_index.get(ecu, {}).get("pids", {}).get(pid, {}).get("parameters", {})
         series.update(build_param_series(lp, params, fill=fill))

@@ -5,7 +5,7 @@ Two families of ECU identity service exist on the vehicles this tool targets:
 * **UDS** (ISO 14229) — ``22 F1xx`` ReadDataByIdentifier. Used by body/comfort
   ECUs (IGPM, BCM, clusters, ...).
 * **KWP2000** (ISO 14230) — ``1A 8x/9x`` ReadEcuIdentification. Used by
-  powertrain ECUs (BMS, VCU, MCU, LDC/OBC, gateways) which return
+  powertrain ECUs (BMS, VCU, MCU, OBC, gateways) which return
   ``NRC 0x11 serviceNotSupported`` to every UDS ``22 F1xx`` request.
 
 A label is a short form of the standard's name: ISO 14229-1 Table C.1 for UDS, SSF 14230-3

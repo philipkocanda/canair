@@ -225,7 +225,7 @@ AAF:
         significant bit first, map bit k marks ISO-TP data byte 7+k, which is WiCAN B10 onward with
         the PCI bytes B16 and B24 skipped; data byte 6 (B09) is covered by neither map. The 2180 map
         is a subset of the 2181 map, and their difference (3C 99 00) marks exactly the bytes that
-        vary in 2181 but read 00 in every 2180 row: B12, B13 (vehicle speed), B14, B15, B19 (LDC
+        vary in 2181 but read 00 in every 2180 row: B12, B13 (vehicle speed), B14, B15, B19 (OBC
         temperature), B22 (motor coolant), B23 and B27. Every byte that varies in 2180 except B09
         lies inside its own map. So each map says which fields that page fills in, and an unmarked
         field reads 0.

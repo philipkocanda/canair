@@ -59,10 +59,10 @@ class TestResolveTxId:
         assert resolve_tx_id("ZZZ", self._ecu_index(), profile=active()) is None
 
     def test_resolve_ecus_alias(self):
-        # ECU-registry alias 'LDC' canonicalises to the ecus/ key 'OBC' (0x7E5).
-        index = {"OBC": {"tx_id": 0x7E5, "pids": {}}}
-        assert resolve_tx_id("LDC", index, profile=active()) == 0x7E5
-        assert resolve_tx_id("ldc", index, profile=active()) == 0x7E5
+        # ECU-registry alias 'MDPS' canonicalises to the ecus/ key 'EPS' (0x7D4).
+        index = {"EPS": {"tx_id": 0x7D4, "pids": {}}}
+        assert resolve_tx_id("MDPS", index, profile=active()) == 0x7D4
+        assert resolve_tx_id("mdps", index, profile=active()) == 0x7D4
 
 
 # --- parse_sub_commands ---
@@ -708,10 +708,10 @@ class TestBuildQueryPlanStatic:
 
 # --- selector normalisation / coalescing ---
 
-# A minimal name/alias index: LDC is the Ioniq's alias for OBC, so the two must
+# A minimal name/alias index: MDPS is the Ioniq's alias for EPS, so the two must
 # resolve to one ECU instead of becoming two steps (only one of which the monitor
 # could look up in its canonical-only ECU index).
-_NAME_INDEX = {"OBC": "OBC", "LDC": "OBC", "IGPM": "IGPM", "AAF": "AAF", "BMS": "BMS"}
+_NAME_INDEX = {"EPS": "EPS", "MDPS": "EPS", "IGPM": "IGPM", "AAF": "AAF", "BMS": "BMS"}
 
 
 def _q(ecu, *pids):
@@ -768,14 +768,14 @@ class TestNormalizeQuerySteps:
         assert out[0]["merged_from"] == ["BMS:2101,2105", "BMS:2105"]
 
     def test_alias_merges_with_canonical_name(self):
-        out = self._norm([_q("LDC"), _q("OBC", "2101")])
-        assert [(c["ecu"], c["pids"]) for c in out] == [("OBC", [])]
+        out = self._norm([_q("MDPS"), _q("EPS", "220101")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("EPS", [])]
 
     def test_alias_alone_is_canonicalised(self):
         # The monitor's ECU index is keyed by canonical names only, so an alias
         # selector left as-is would be silently skipped every poll cycle.
-        out = self._norm([_q("LDC", "2101")])
-        assert [(c["ecu"], c["pids"]) for c in out] == [("OBC", ["2101"])]
+        out = self._norm([_q("MDPS", "220101")])
+        assert [(c["ecu"], c["pids"]) for c in out] == [("EPS", ["220101"])]
 
     def test_first_position_is_kept(self):
         out = self._norm([_q("IGPM"), _q("BMS", "2101"), _q("IGPM")])

@@ -20,6 +20,16 @@
 # The Vehicle Control Unit (VCU) and Motor Control Unit (MCU, the inverter)
 # are both part of the Electronic Powertrain Control Unit (EPCU) physical housing.
 #
+# The 12 V DC-DC converter (LDC) is integrated here, not a module of its own:
+# - The KWP2000 1A8C ecu_id is "AEVLDC53": VLDC, the VCU with the LDC integrated.
+# - uhi22's teardown shows the DC-DC boards inside the EPCU housing, next to the inverter.
+# - The VCU firmware decides when the LDC runs (2101 B11:7), packs the LDC frame 0x590 and copies
+#   it into 2102 (output power, 12 V rail). The manual files the DC/DC Converter DTCs under
+#   "VCU (LDC)" (dtcs below).
+# - The OBC has no DC-DC control: its LDC-looking 2101 bytes are its own measurements.
+# - No separate LDC module is registered. 0x7C5, the Kia Soul EV's LDC address, has not been
+#   probed on this car.
+#
 # Only KWP2000 session 0x81 is accepted; no session unlocks extra data. 2103-2105 answer NRC 0x12.
 #
 VCU:
@@ -29,12 +39,18 @@ VCU:
     alias: VLDC  # KWP2000 ecu_id module code (VCU with integrated LDC)
     description: Vehicle Control Unit (integrated LDC)
     part_number: "36601-0E250"
-    ecu_id: AEVLDC53  # KWP2000 1A8C — "VLDC": VCU with the LDC integrated (standalone at 0x7CD on Kia Soul)
+    ecu_id: AEVLDC53  # KWP2000 1A8C — "VLDC": VCU with the LDC integrated
     sw_id: "EAEEO5L-NS7-D060"
     calibration: "C5210617"
     vin: KMHCXXXXXXXXXXXXX
     id_protocol: KWP2000  # 1Axx
-    notes: Vehicle Control Unit (VMCU) with integrated LDC. Shares the EPCU housing with the MCU.
+    notes: >-
+      Vehicle Control Unit (VMCU) with the 12 V DC-DC converter (LDC) integrated: ecu_id AEVLDC53
+      ("VLDC") names the combination, and this car has no separate LDC module. The LDC boards sit in
+      the EPCU housing with the inverter and the MCU (uhi22 teardown). The VCU decides when the LDC
+      runs (VEHICLE_STATE_LDC_ENABLED), reports its output (VCU_AUX_POWER, VCU_LDC_OUTPUT_VOLTAGE)
+      and carries its DTCs. The EPCU broadcasts the DC-DC temperature on 0x523 bytes 2-3 (sensor
+      R147 on the DC-DC board).
   vehicle_states: [IG3]
   pids:
     2101:
@@ -413,8 +429,8 @@ VCU:
           source: RE 2026-08-02, live ON confirmed
           verified: true
           notes: >-
-            1 while the HV contactors are closed: went 1 to 0 as LDC_HV_INPUT fell 206 to 6.7 V, and
-            reads 0 in ON. Agrees with BMS_MAIN_RELAY.
+            1 while the HV contactors are closed: went 1 to 0 as OBC_BATTERY_SIDE_V fell 206 to 6.7
+            V, and reads 0 in ON. Agrees with BMS_MAIN_RELAY.
         VCU_DCLINK_VOLTAGE:
           expression: ((B25<<8)|B23)/100
           unit: V
@@ -1483,6 +1499,25 @@ VCU:
       capture_protocol: >-
         canair monitor OBC:2101 VCU:2101 BMS:2101 --save --keep-all --interval 2 --label 'head-unit
         charge mode start/stop' --state CHARGING; press s at each menu change and name the mode.
+    - type: decode
+      target: LDC output current
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-11-08"
+      updated: "2026-11-08"
+      result: >-
+        Not on OBC 2101 or VCU 2101/2102. Under a 137-651 W 12 V load swing at READY (VCU_AUX_POWER,
+        2026-07-30) only the OBC_12V_SUPPLY_V word sags (about 26 mOhm source resistance); no byte
+        tracks a current. Derived current VCU_AUX_POWER / OBC_12V_SUPPLY_V gives 9-48 A in that
+        window; it inherits VCU_AUX_POWER's unverified status.
+      notes: >-
+        Also absent from MCU 2102 (motor phase currents) and EWP 21F2. No hidden service-21 page on
+        OBC or VCU. VCU 21F2 has no charging capture yet. The Soul's standalone LDC (0x7C5)
+        DC_Current_Out has no counterpart here.
+      what_to_test:
+        - "12 V-only load step at READY (rear defroster, high beams, blower; A/C off) co-polling OBC:2101, VCU:2102, VCU:21F2 and BMS:2101 with --keep-all: pack BATTERY_CURRENT is then the LDC input alone, a cross-check on VCU_AUX_POWER / VCU_LDC_OUTPUT_VOLTAGE. The 2026-07-30 step also ran the A/C compressor."
+        - Capture VCU 21F2 with --keep-all while charging, to contrast its analog bytes against READY.
   sessions:
     "81":
       name: "standardDiagnosticSession"

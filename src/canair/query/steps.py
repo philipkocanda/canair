@@ -44,7 +44,7 @@ def resolve_tx_id(name_or_hex: str, ecu_index: dict, *, profile: Profile) -> int
     """Resolve an ECU name or hex TX ID to an integer.
 
     Accepts: 'IGPM', 'igpm', '770', '0x770', '7A0', and ECU-registry aliases
-    ('LDC' -> OBC, 'ABS' -> ESC).
+    ('MDPS' -> EPS, 'ABS' -> ESC).
     """
 
     key = ecu_index_key(name_or_hex, ecu_index, profile=profile)
@@ -140,8 +140,8 @@ def _merge_query_run(
 ) -> list[dict]:
     """Coalesce one contiguous run of ``query`` steps to one step per ECU.
 
-    ECU names are canonicalised first, so an alias selector (``LDC``) merges with
-    its canonical form (``OBC``) instead of becoming a second, unresolvable step.
+    ECU names are canonicalised first, so an alias selector (``MDPS``) merges with
+    its canonical form (``EPS``) instead of becoming a second, unresolvable step.
     PID lists are unioned in first-appearance order, and a **bare** ECU selector
     (empty ``pids`` = all PIDs) absorbs every PID-specific selector for that ECU
     rather than sitting beside it.

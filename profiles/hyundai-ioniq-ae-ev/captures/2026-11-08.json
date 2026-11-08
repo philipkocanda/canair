@@ -734,6 +734,69 @@
       "captures": [
         {"rx":"0x778","pid":"20","payload":"60","time":"14:16:09.281"}
       ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "OBC 0x23 first look at address 0",
+      "version": "5.2.0+main.0728e72.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 5
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF80000993C958956E5010B96024B00BB05BC43102000C802100062760012000B01F3958375480013","time":"14:18:55.133","elapsed_ms":91},
+        {"rx":"0x7ED","pid":"2300000010","payload":"63005A000000000024FFFFFFFFFFFFFFFF","time":"14:18:55.235","elapsed_ms":92},
+        {"rx":"0x7ED","pid":"2300001010","payload":"63FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF","time":"14:18:55.293","elapsed_ms":57},
+        {"rx":"0x7ED","pid":"2300002020","payload":"63380000003D604000616B20003D800000618C07C07D8903A6BC0B0000396B0080","time":"14:18:55.414","elapsed_ms":121},
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921106A065403000000000479000720","time":"14:18:55.517","elapsed_ms":50}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "health after OBC dump 1",
+      "version": "5.2.0+main.6088ce5.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921106A065703000000000279000720","time":"14:21:47.661","elapsed_ms":67},
+        {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF80000998F9590572D010B96024C00BB05BC43102000C802100062760012000B01F3958E3EC70013","time":"14:21:47.799","elapsed_ms":86}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "health after OBC image",
+      "version": "5.2.0+main.658dcf9.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921106A065203000000000179000720","time":"14:58:16.585","elapsed_ms":72},
+        {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF8000099EA96495777010B99024B00BB05BC43102000C802100062760012000B01F3963E73880013","time":"14:58:16.722","elapsed_ms":77}
+      ]
     }
   ]
 }

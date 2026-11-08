@@ -15,11 +15,11 @@ allowed. Both limits produced false negatives on real data
 
 - **Poll skew breaks unanimity.** canair polls one connection round-robin, so two
   ECUs read a *drifting* signal seconds apart and disagree by ±1. The AAF/OBC
-  LDC-temperature mirror is exactly equal in 94.9 % of 1729 rows and ±1 in the
+  OBC-temperature mirror is exactly equal in 94.9 % of 1729 rows and ±1 in the
   rest — obviously one signal, reported as no mirror. Hence
   :data:`DEFAULT_MIRROR_MATCH`: agreement on a *fraction* of rows, not all.
 - **Real mirrors are frequently offset or scaled.** ``AAF:2181:B19 - 100`` is the
-  OBC's LDC temperature; ``BCM:22C011:B11`` is ``12.8 x`` the decoded 12 V rail.
+  OBC's temperature; ``BCM:22C011:B11`` is ``12.8 x`` the decoded 12 V rail.
   Hence ``allow_offset``, which searches ``a = scale * b + offset``.
 
 **How the search stays cheap.** A fraction test cannot bail on the first

@@ -52,7 +52,7 @@ SERVICE_PRESETS: tuple[ServicePreset, ...] = (
         name="live-data",
         service=KWP_READ_DATA_BY_LOCAL_IDENTIFIER,
         default_range="01-FF",
-        summary="KWP2000 paged live data (powertrain ECUs: BMS, VCU, MCU, LDC)",
+        summary="KWP2000 paged live data (powertrain ECUs: BMS, VCU, MCU)",
     ),
     ServicePreset(
         name="read-did",

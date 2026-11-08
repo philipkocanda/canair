@@ -119,8 +119,8 @@ The rules:
   PID, so `AAF` + `AAF:2180` is just `AAF`.
 - **Different PIDs on one ECU union.** `BMS:2101` + `BMS:2105` becomes
   `BMS:2101,2105` — a legitimate combination, so it merges without a note.
-- **Aliases resolve to the canonical ECU.** `LDC` and `OBC` are one ECU, so
-  `canair read LDC OBC:2101` polls it once.
+- **Aliases resolve to the canonical ECU.** `MDPS` and `EPS` are one ECU, so
+  `canair read MDPS EPS:220101` polls it once.
 - **Position is the first mention's.** Coalescing never reorders the display.
 - **A non-`query` step ends the run.** A deliberate re-read across a pipeline
   (`canair read "query BMS:2101" "sleep 5" "query BMS:2101"`) keeps both reads.

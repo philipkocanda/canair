@@ -7,7 +7,7 @@ protocol-aware (auto-selected from the profile's ``id_protocol`` registry, like
 * **UDS** ECUs (BCM, IGPM, ...) use ReadDTCInformation ``0x19`` subfunction
   ``0x02`` (reportDTCByStatusMask) and ClearDiagnosticInformation ``0x14`` with a
   3-byte groupOfDTC. DTC records are 4 bytes (3-byte DTC + 1-byte status).
-* **KWP2000** ECUs (BMS, VCU, MCU, LDC, ...) use readDiagnosticTroubleCodesBy
+* **KWP2000** ECUs (BMS, VCU, MCU, ...) use readDiagnosticTroubleCodesBy
   Status ``0x18`` and clearDiagnosticInformation ``0x14`` with a 2-byte group.
   DTC records are 3 bytes (2-byte DTC + 1-byte status).
 

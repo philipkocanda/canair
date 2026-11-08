@@ -26,7 +26,7 @@ def ecu_protocol(
 def split_ecus_by_protocol(names: list[str], *, profile: Profile) -> tuple[list[str], list[str]]:
     """Partition ECU names into (uds, kwp) by their registry ``id_protocol``.
 
-    KWP2000 ECUs (BMS/VCU/MCU/LDC/AAF) need the KWP variants of the discovery
+    KWP2000 ECUs (BMS/VCU/MCU/AAF) need the KWP variants of the discovery
     scanners: InputOutputControlByLocalIdentifier (0x30) instead of UDS 0x2F, and
     RequestRoutineResultsByLocalIdentifier (0x33) instead of UDS RoutineControl
     (0x31) — sending 0x31 to a KWP2000 ECU means StartRoutine and can actuate, so

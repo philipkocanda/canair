@@ -313,7 +313,7 @@ def run(args) -> int:
         snapshot_only=snapshot_only_pids(pids_data),
     )
 
-    # Accept an ECU-registry alias (e.g. LDC for OBC) or any case, matching
+    # Accept an ECU-registry alias (e.g. MDPS for EPS) or any case, matching
     # `canair captures`/`decode`. Canonicalises to the ecus/ key before filtering.
 
     ecu_filter = canonical_ecu_name_safe(args.ecu, profile=active()).upper() if args.ecu else None

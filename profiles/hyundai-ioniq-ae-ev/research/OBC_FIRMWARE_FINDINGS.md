@@ -71,7 +71,7 @@ relations:
     - path: profiles/hyundai-ioniq-ae-ev/ecus/obc.yaml
       note: >-
         The identity block, the 2101/2102 records, the DTC list, and the research entries on the
-        2101 bytes, the B20:B21 word, the LDC host, the charge-current setting and the 0x30 scan.
+        2101 bytes, the B20:B21 word, the charge-current setting and the 0x30 scan.
     - path: plans/2026-11-05-read-memory-by-address.md
       note: The memory-read work that produced the image analysed here (KWP2000 results).
   related:
@@ -376,11 +376,11 @@ Checked against the payload of 2026-11-08 (charging at a 6 A pilot):
 Notes on the verdicts:
 
 - **The three `LDC_*` signals are the OBC's own measurements.** All three come from the OBC's
-  ADC, not from CAN. The firmware has no DC-DC converter control. This answers the research
-  entry "which module hosts the LDC": the LDC is the EPCU's (uhi22's teardown), and these bytes
-  were named after it by mistake. The data agrees: `B45:B46` reads the pack voltage at READY
-  while `OBC_OUTPUT_V` reads about 4 V, so it is on the battery side of the OBC's output relay
-  (the "output relay voltage sensor" of P1E16/P1E19 is the probable match).
+  ADC, not from CAN. The firmware has no DC-DC converter control. The LDC is integrated in the
+  VCU (ecu_id `AEVLDC53`, uhi22's teardown), and these bytes were named after it by mistake. The
+  data agrees: `B45:B46` reads the pack voltage at READY while `OBC_OUTPUT_V` reads about 4 V, so
+  it is on the battery side of the OBC's output relay (the "output relay voltage sensor" of
+  P1E16/P1E19 is the probable match).
 - **`OBC_CHARGE_STATE` is the coarse pilot voltage.** `B20` = volts / 2.56, so its 0/2/3 are
   "under 2.56 V", "5.12-7.67 V" (state C) and "7.68-10.23 V" (state B). The US logs' 1 and 4 are
   2.56-5.11 V and 10.24-12.79 V. The research entry on `[B20:B21]` is answered: it is one word,
@@ -593,7 +593,7 @@ not read the session variable.
 - **Renamed:** `LDC_TEMP` → `OBC_TEMP`, `LDC_OUTPUT_V` → `OBC_12V_SUPPLY_V`, `LDC_HV_INPUT_V` →
   `OBC_BATTERY_SIDE_V`, `OBC_CHARGE_V` → `OBC_PFC_V` (section 12), and AAF 2181 `AAF_LDC_TEMP` →
   `AAF_OBC_TEMP` (the same value). Every
-  note that named them was updated. The ECU alias `LDC` stays, so `LDC:2101` still resolves.
+  note that named them was updated. The OBC's ECU alias `LDC` was removed.
 - **Replaced:** `OBC_CHARGE_STATE` by `OBC_PILOT_V` (`[B20:B21]/100`, verified against the J1772
   levels); `OBC_AC_NOT_CONNECTED`, `OBC_MODE` and `OBC_DC_CHARGE_MODE` by `OBC_PROXIMITY_V`
   (`[B22:B23]/100`); `OBC_SESSION_FLAGS` by `OBC_PLUG_STATE`, `OBC_EVSE_READY` and
@@ -606,7 +606,7 @@ not read the session variable.
 - **Fixed:** `OBC_DC_POWER` and `OBC_EFFICIENCY` multiplied the DC current by the PFC voltage.
   They now use `OBC_OUTPUT_V`: the efficiency's median over 9507 charging rows moves from 98.1 %
   to 95.8 %, its maximum from 106 % to 97.6 %, in line with the 95 % wattmeter check.
-- **Research:** the 2101 charge-state entry, the `[B20:B21]` entry, the LDC-host entry, the 0x562
+- **Research:** the 2101 charge-state entry, the `[B20:B21]` entry, the 0x562
   entry, the `0x30` scan entry and the 2101 decode entry are done; the charge-current entry has
   the firmware result and stays pending until the setting is seen on a bus. A new entry records
   the `12 00 00` freeze-frame layout (section 13).

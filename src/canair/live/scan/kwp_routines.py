@@ -9,7 +9,7 @@ KWP2000 (ISO 14230-3) splits RoutineControl across three services:
 This is critically different from UDS, where ``0x31`` is RoutineControl and
 sub-function ``0x03`` (requestRoutineResults) is the safe read. On a KWP2000 ECU
 ``31 03 …`` parses as *StartRoutine LID 0x03* — it can drive hardware. So for
-KWP2000 ECUs (BMS, VCU, MCU, LDC, AAF) we probe **0x33** instead, which only asks
+KWP2000 ECUs (BMS, VCU, MCU, AAF) we probe **0x33** instead, which only asks
 "what was the result of routine X?" and never starts anything.
 
     request:  33 {LID}          (8-bit routine local identifier)

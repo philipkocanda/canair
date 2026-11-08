@@ -7,7 +7,7 @@ InputOutputControlByIdentifier:
     UDS 0x2F : 2F {DID_HI} {DID_LO} {IOCP}   -- 16-bit Data Identifier
     KWP 0x30 : 30 {LID}       {IOCP} [state] -- 8-bit Local Identifier
 
-The Ioniq's powertrain ECUs (BMS, VCU, MCU, LDC, AAF) speak KWP2000, so they
+The Ioniq's powertrain ECUs (BMS, VCU, MCU, AAF) speak KWP2000, so they
 answer UDS ``0x2F`` with ``NRC 0x11 serviceNotSupported`` — the ``0x2F`` scanner
 cannot reach them. This scanner probes ``0x30`` instead, enumerating which local
 identifiers accept IOControl (e.g. the air-cooled 28 kWh pack's battery fan).

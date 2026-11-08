@@ -272,7 +272,7 @@ def _write_offset_mirror(tmp_path):
     """Two co-polled PIDs where one PID's byte is another's, offset by +100.
 
     The measured shape the exact-equality detector missed: ``AAF:2181:B19 - 100``
-    is the OBC's LDC temperature.
+    is the OBC's temperature.
     """
     caps = []
     for i in range(20):

@@ -3,8 +3,8 @@
 #
 # Self-identifies (KWP2000 1A8C) as "AEEOBC51". Part 36400-0E150. Its firmware (sw
 # EAEEH5L-OS3-D000) is mapped in research/OBC_FIRMWARE_FINDINGS.md: every 2101/2102 byte, the
-# session matrix, the P-CAN frames. The 12 V DC-DC converter (LDC) is in the EPCU (VCU, ecu_id
-# "VLDC"), not here; the 2101 signals once named LDC_* are the OBC's own measurements.
+# session matrix, the P-CAN frames. It has no DC-DC converter control: the LDC is integrated in
+# the VCU (see vcu.yaml).
 #
 # KWP2000 sessions (2026-07-22, READY): only 0x81 is accepted; 2101/2102 answer in the default
 # session too. Never send SID 0x99 or, in session 0x90, 0x30 06/07 or 0x31 00/01 (findings §9).
@@ -13,7 +13,6 @@ OBC:
   tx_id: 0x7E5
   can_bus: [P-CAN]
   identity:
-    alias: LDC  # kept so LDC:2101 still resolves; the LDC itself is in the EPCU
     description: On-Board Charger
     part_number: "36400-0E150"
     ecu_id: AEEOBC51  # KWP2000 1A8C
@@ -22,9 +21,8 @@ OBC:
     id_protocol: KWP2000  # 1Axx
     notes: >-
       Reports the OBC's own measurements (AC input, DC output, pilot and proximity voltages, its
-      temperature and 12 V supply) and copies of its P-CAN frames 0x57F and BMS 0x597. The 12 V
-      DC-DC converter (LDC) and its enable/inhibit bits are in the EPCU (VCU 0x7E2, ecu_id VLDC).
-      Max AC charge 29 A / 6.6 kW (2017 model; the 2019 facelift does 32 A).
+      temperature and 12 V supply) and copies of its P-CAN frames 0x57F and BMS 0x597. Max AC charge
+      29 A / 6.6 kW (2017 model; the 2019 facelift does 32 A).
 
   vehicle_states: [IG3]
   pids:
@@ -49,11 +47,11 @@ OBC:
           source: Live READY vs charging + BMS cross-check (2026-07-20); OBC firmware 2101 builder (ADC channel), 2026-11-08
           notes: >-
             HV voltage at the OBC's output terminals, on the battery side of its output relay: one
-            of the OBC's own ADC channels, not an LDC value. Reads the pack voltage at READY while
-            OBC_OUTPUT_V reads about 4 V. r=0.998 vs VCU:2102:VCU_INVERTER_INPUT_VOLTAGE (n=5689).
-            At the end of the 2026-11-03 top-up it read 353.2 V 0.3 s after the BMS first reported
-            the relay open and 11.1 V 2.9 s later, while BMS BATTERY_VOLTAGE stayed at 361.8 V; 19 V
-            1.3 s after the relay was last seen closed at the 2026-10-21 top-up end.
+            of the OBC's own ADC channels. Reads the pack voltage at READY while OBC_OUTPUT_V reads
+            about 4 V. r=0.998 vs VCU:2102:VCU_INVERTER_INPUT_VOLTAGE (n=5689). At the end of the
+            2026-11-03 top-up it read 353.2 V 0.3 s after the BMS first reported the relay open and
+            11.1 V 2.9 s later, while BMS BATTERY_VOLTAGE stayed at 361.8 V; 19 V 1.3 s after the
+            relay was last seen closed at the 2026-10-21 top-up end.
 
         OBC_12V_SUPPLY_V:
           expression: "[B25:B26]/100"
@@ -425,8 +423,7 @@ OBC:
   # Meanings, causes, thresholds and fail-safes are from the Ioniq Electric 2017 service manual,
   # On Board Charger chapter. Unless an entry says "Enabled when", the manual checks the code only
   # while the charger connector is attached, the OBC charging mode is started (EVSE ready) and the
-  # auxiliary battery is at 9-16 V. "Also needs" adds to that. The manual lists the DC/DC
-  # converter (LDC) codes in its DC/DC Converter chapter (see the VCU entries), not here.
+  # auxiliary battery is at 9-16 V. "Also needs" adds to that.
   dtcs:
     source: Ioniq Electric 2017 service manual, On Board Charger diagnosis (EV)
     source_links:
@@ -944,26 +941,6 @@ OBC:
       sources:
         - "OVMS vehicle_kiasoulev: vehicle_kiasoulev.cpp BlueChargeLed(), ks_commands.cpp CommandParkBreakService, ks_can_send.cpp Send_EBP_Command (openvehicles/Open-Vehicle-Monitoring-System-3, read 2026-10-30)"
     - type: verify
-      target: which module hosts the LDC (OBC 0x7E5 vs the EPCU)
-      status: done
-      priority: P3
-      vehicle_states: [READY]
-      created: "2026-10-29"
-      updated: "2026-11-08"
-      result: >-
-        Not in the OBC. Its firmware (research/OBC_FIRMWARE_FINDINGS.md section 5.1, 2026-11-08) has
-        no DC-DC control, and the three 2101 signals named LDC_* come from the OBC's own ADC
-        channels; they are now OBC_TEMP, OBC_12V_SUPPLY_V and OBC_BATTERY_SIDE_V. The LDC is the
-        EPCU's, as uhi22's teardown shows.
-      notes: >-
-        uhi22's teardown shows the 12 V DC-DC converter (LDC) inside the EPCU housing with the
-        inverter, and the VCU's ecu_id is VLDC. This profile reads the LDC_* values from OBC 2101 at
-        0x7E5, so either the OBC relays the LDC's values or those signals are named after the wrong
-        module. The EPCU broadcasts its DC-DC temperature on 0x523 bytes 2-3 (sensor R147 on the
-        DC-DC board).
-      sources:
-        - uhi22 EPCU readme (teardown photos of the DC-DC boards inside the EPCU), 2026-10-29
-    - type: verify
       target: 2101 [B20:B21] 16-bit value
       status: done
       priority: P2
@@ -982,26 +959,6 @@ OBC:
         stops B21 decays 0xE3 to 0x34 with B20 = 0. Scale and meaning unknown.
       sources:
         - JejuSoul US Ioniq logs, canair 2026-10-23
-    - type: decode
-      target: 2101 12V output current
-      status: pending
-      priority: P3
-      vehicle_states: [READY]
-      created: "2026-07-28"
-      updated: "2026-11-08"
-      result: >-
-        Not on OBC 2101. Under a 137-651 W 12 V load swing at READY (VCU_AUX_POWER, 2026-07-30) only
-        the OBC_12V_SUPPLY_V word sags (about 26 mOhm source resistance); no byte tracks a current.
-        Derived current VCU_AUX_POWER / OBC_12V_SUPPLY_V gives 9-48 A in that window; it inherits
-        VCU_AUX_POWER's unverified status. The OBC firmware (2026-11-08) confirms it: the OBC has no
-        DC-DC converter, and OBC_12V_SUPPLY_V is its own 12 V supply.
-      notes: >-
-        Also absent from VCU 2101/2102, MCU 2102 (motor phase currents) and EWP 21F2. No hidden
-        service-21 page on OBC or VCU. VCU 21F2 has no charging capture yet. The Soul's standalone
-        LDC (0x7C5) DC_Current_Out has no counterpart here.
-      what_to_test:
-        - "12 V-only load step at READY (rear defroster, high beams, blower; A/C off) co-polling OBC:2101, VCU:2102, VCU:21F2 and BMS:2101 with --keep-all: pack BATTERY_CURRENT is then the LDC input alone, a cross-check on VCU_AUX_POWER / VCU_LDC_OUTPUT_VOLTAGE. The 2026-07-30 step also ran the A/C compressor."
-        - Capture VCU 21F2 with --keep-all while charging, to contrast its analog bytes against READY.
     - type: decode
       target: "2101"
       status: done
