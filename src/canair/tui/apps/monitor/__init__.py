@@ -2,6 +2,7 @@
 
 * :mod:`.app` — the app and its screens
 * :mod:`.panes` — the focusable regions and the keys each owns while it has focus
+* :mod:`.actuators` — the actuator pane (``--actuate``) and the app's actions for its keys
 * :mod:`.status` — what the status bar and the header say, as functions over the controller
 * :mod:`.polling` and :mod:`.recording` — the app's poll loop and its save keys, as mixins
 * :mod:`.dialogs` — the form dialogs (label a recording, edit a signal)

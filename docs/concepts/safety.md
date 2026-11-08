@@ -170,6 +170,32 @@ Note the difference between *discovering* a capability and *using* it:
   (`--poll`) sends each entry's release, so it skips a `0x30` entry without one, and
   its value keys build UDS `0x2F` requests, so they are refused for a KWP2000 ECU.
 
+### Actuating from the monitor
+
+`canair monitor` can switch outputs and run routines while it polls, so you can watch what an
+output does. It does so only when you name the ECUs with `--actuate`. Without the flag, a
+monitor run never actuates, which matters for a recording made while driving.
+
+```bash
+canair monitor IGPM:BC03 --actuate IGPM --save --label "rear defogger toggle"
+```
+
+- `A` shows the actuator pane: the named ECUs' IOControl entries and routines, beside the
+  values on a wide terminal and below them otherwise. `tab` moves between the values and the
+  pane, and `?` lists the pane's keys. A routine start asks first.
+- Each request goes out between two poll requests, not after the poll cycle. On `slcan-tcp`
+  it waits only for the poll's request to the same ECU, and the other ECUs keep polling.
+- A request opens the session mode its entry declares on the monitor's own session. When the
+  mode differs, the ECU switches, and the previous mode comes back once nothing on that ECU is
+  held (no output on, no routine started and not stopped). The session-type picker (`t`)
+  refuses an ECU that holds something.
+- Hiding the pane releases nothing. The status line shows how many outputs are on. Every
+  output still on is released when the monitor exits, and again after a reconnect: a dropped
+  link may or may not have ended the ECU's session, and a release is safe to repeat.
+- `--actuate` needs a terminal. In a script, a `canair read` pipeline drives an output with an
+  `iocontrol` step and releases it when the pipeline ends
+  ([pipelines](query-mini-language.md#pipelines)).
+
 ## Profile actions: guarded, make-specific requests
 
 Some things a car can be told to do are specific to its make, so canair has no

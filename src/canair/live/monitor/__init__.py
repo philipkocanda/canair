@@ -9,8 +9,8 @@
 * :mod:`.record`, :mod:`.record_write`, :mod:`.history` and :mod:`.link_events` — recording, the
   on-screen history, gaps
 * :mod:`.view` — the display model as plain values (labels, titles, view modes)
-* :mod:`.render` and :mod:`.render_cache` — the only modules that build Rich text, and the
-  per-PID block cache
+* :mod:`.render`, :mod:`.render_cache` and :mod:`.actuator_rows` — the only modules that build
+  Rich text: the values, the per-PID block cache, and the actuator pane's rows
 * :mod:`.stats` and :mod:`.state` — value ranges, state hints
 * :mod:`.foreground` — the user's requests (a session switch, an actuation), run one at a time
   beside the poll and interleaved with it by the transport, request by request

@@ -100,6 +100,7 @@ which `0x30` request hands each output back, and `canair io` refuses to switch a
 ```bash
 canair io IGPM          # interactive actuator TUI
 canair io IGPM --did BC01  # e.g. low beam (held until Ctrl+C)
+canair monitor IGPM:BC03 --actuate IGPM   # switch outputs while you watch IGPM 22BC03
 ```
 
 > Actuation is confirm-first and reversible, but it *does* drive real hardware.

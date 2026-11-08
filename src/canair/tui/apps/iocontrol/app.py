@@ -38,21 +38,10 @@ from canair.tui.row_view import (
     ROW_VIEW_HELP_ROWS,
     LiveTable,
     RowViewMixin,
+    hex_problem,
     label_problem,
 )
 from canair.tui.status import P_ESSENTIAL, P_LOW, P_NORMAL, StatusBar, StatusItem, hint_item
-
-
-def hex_problem(value: str) -> str | None:
-    """Why ``value`` is not a ShortTermAdjustment value (hex bytes), or None."""
-    digits = value.replace(" ", "")
-    if not digits:
-        return "Type at least one byte, such as 01"
-    try:
-        bytes.fromhex(digits)
-    except ValueError:
-        return "Type hex bytes, such as 01 or 0A0B"
-    return None
 
 
 class IOControlApp(RowViewMixin[IOControlController], HelpMixin, App):

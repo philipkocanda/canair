@@ -92,6 +92,18 @@ def label_problem(value: str) -> str | None:
     return None if value else "A label cannot be empty"
 
 
+def hex_problem(value: str) -> str | None:
+    """Why ``value`` is not a ShortTermAdjustment value (hex bytes), or None."""
+    digits = value.replace(" ", "")
+    if not digits:
+        return "Type at least one byte, such as 01"
+    try:
+        bytes.fromhex(digits)
+    except ValueError:
+        return "Type hex bytes, such as 01 or 0A0B"
+    return None
+
+
 def undimmed(text: Text) -> Text:
     """``text`` with its dim spans at full brightness, for the row under the cursor."""
 

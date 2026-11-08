@@ -5,9 +5,10 @@ from __future__ import annotations
 import pytest
 from textual.widgets import DataTable
 
-from canair.tui.apps.iocontrol.app import IOControlApp, hex_problem
+from canair.tui.apps.iocontrol.app import IOControlApp
 from canair.tui.help import HelpModal
 from canair.tui.modals import TextPromptModal
+from canair.tui.row_view import hex_problem
 from tests.support.iocontrol import io_controller
 
 

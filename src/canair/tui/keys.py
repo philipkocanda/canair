@@ -87,8 +87,8 @@ ROLES: dict[str, KeyRole] = {
         _r("axis_start", "g", "start", "top", "first frame"),
         _r("axis_end", "G", "end", "bottom", "last frame"),
         _r("goto", "colon", "goto", "goto frame"),
-        _r("block_next", "tab", "next block"),
-        _r("block_prev", "shift+tab", "prev block"),
+        _r("block_next", "tab", "next block", "next pane"),
+        _r("block_prev", "shift+tab", "prev block", "prev pane"),
         # -- choosing what is shown ----------------------------------------
         _r("pick", "p a", "add/remove signals", "compare PIDs", "switch PID", "select ECUs/PIDs"),
         _r("filter", "slash", "filter"),
@@ -119,6 +119,7 @@ ROLES: dict[str, KeyRole] = {
         _r("delete", "d", "delete", "delete capture"),
         _r("promote", "P", "promote"),
         # -- actuators ---------------------------------------------------------
+        _r("actuators", "A", "actuators"),
         _r("actuate_off", "O", "send OFF"),
         _r("set_value", "w", "set value"),
         _r("start_routine", "exclamation_mark", "start routine"),

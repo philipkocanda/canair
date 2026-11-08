@@ -12,7 +12,7 @@ import time
 from rich.markup import escape
 
 from canair.live.monitor.backoff import summarize_slowed
-from canair.render.glyphs import CURSOR, ELLIPSIS
+from canair.render.glyphs import CURSOR, ELLIPSIS, WARN
 from canair.tui import styles
 from canair.tui.keys import ARROWS, PAGE_HINT, arrows_hint, key_hint
 from canair.tui.status import (
@@ -66,6 +66,11 @@ def metric_items(c, *, paused: bool, flash: StatusItem | None) -> list[StatusIte
     if c.recorder.journal is not None:
         dot_style = styles.RECORDING if int(time.monotonic()) % 2 == 0 else styles.MUTED
         items.append(StatusItem(f"[{dot_style}]●[/] [{styles.RECORDING}]REC[/]", P_ESSENTIAL))
+    # An output this run switched on is the car's state, not the monitor's: always shown.
+    actuation = getattr(c, "actuation", None)
+    on = actuation.on_count() if actuation is not None else 0
+    if on:
+        items.append(StatusItem(f"[{styles.WARNING}]{WARN} {on} ON[/]", P_ESSENTIAL))
     if paused:
         items.append(StatusItem("[reverse] PAUSED [/]", P_ESSENTIAL))
     items.append(StatusItem(f"[dim]cycle[/] {c.cycle}", P_NORMAL))
@@ -183,13 +188,31 @@ def header_text(c, width: int) -> str:
     return "\n".join(lines)
 
 
-def hint_items(c) -> list[StatusItem]:
+def actuator_hint_items() -> list[StatusItem]:
+    """The hints while the actuator pane has focus: its own keys, then the way back."""
+    return [
+        hint_item(key_hint("accept", "toggle"), P_HIGH),
+        hint_item(key_hint("actuate_off"), P_HIGH),
+        hint_item(key_hint("set_value"), P_NORMAL),
+        hint_item(key_hint("start_routine"), P_NORMAL),
+        hint_item(key_hint("stop_routine"), P_LOW),
+        hint_item(key_hint("block_next", "next pane"), P_NORMAL),
+        hint_item(key_hint("actuators"), P_LOW),
+        hint_item(key_hint("help"), P_ESSENTIAL),
+        hint_item(key_hint("quit"), P_ESSENTIAL),
+    ]
+
+
+def hint_items(c, *, actuators: bool = False) -> list[StatusItem]:
     """Second status line: the current selection/filter plus the key hints.
 
     Ranked so a narrow terminal keeps the escape hatches (``? help``,
     ``q quit``), the recording controls and the current context, and drops
-    the browsing hints first — ``?`` is the complete key list either way.
+    the browsing hints first — ``?`` is the complete key list either way. While the actuator
+    pane has focus (``actuators``) the hints are its keys.
     """
+    if actuators:
+        return actuator_hint_items()
     # While recording (--save), `s` labels the session and `n` finishes it and
     # starts a new one; without --save, `s` is a one-off save and `n` is N/A.
     recording = c.recorder.journal is not None
@@ -229,6 +252,8 @@ def hint_items(c) -> list[StatusItem]:
     items.append(hint_item(key_hint("rulers", "byte ruler"), P_NORMAL))
     items.append(hint_item(key_hint("info", "session info"), P_NORMAL))
     items.append(hint_item(key_hint("value_type", "session type"), P_NORMAL))
+    if getattr(c, "actuation", None) is not None:
+        items.append(hint_item(key_hint("actuators"), P_HIGH))
     items.append(hint_item(key_hint("event_log"), P_LOW))
     items.append(hint_item(key_hint("pause"), P_LOW))
     if label:

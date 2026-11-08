@@ -32,6 +32,10 @@ read-only session-info overlay showing the current segment's label/state/notes,
 the run's frame/cycle counters and retain mode, where the ``--save`` journal is
 being written, and the history of finished ``--save`` segments this run.
 
+With ``--actuate``, ``A`` shows the actuator pane
+(:mod:`canair.tui.apps.monitor.actuators`): the named ECUs' outputs and routines, beside the
+values on a wide terminal and below them otherwise, switched while polling goes on.
+
 ``p`` opens the ECU → PID picker — the same screen a bare ``canair monitor``
 shows — on what is polled now; applying it swaps the live poll's selectors
 without restarting the session. ``t``
@@ -61,13 +65,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
+from textual import events
 from textual.app import App, ComposeResult
 from textual.binding import BindingType
-from textual.containers import VerticalScroll
+from textual.containers import Container, VerticalScroll
 from textual.css.query import NoMatches
 from textual.widgets import Static
 
 from canair.core.stop_signals import graceful_stop_async
+from canair.tui.apps.monitor.actuators import (
+    PANE_CSS,
+    ActuatorMixin,
+    ActuatorPane,
+    ActuatorTable,
+)
 from canair.tui.apps.monitor.dialogs import EditParamDialog, SaveDialog
 from canair.tui.apps.monitor.overlays import EventLogModal, SessionInfoModal, SessionPickerScreen
 from canair.tui.apps.monitor.panes import ValuesPane
@@ -105,18 +116,19 @@ __all__ = [
 ]
 
 
-class MonitorApp(PollingMixin, RecordingMixin, HelpMixin, App):
+class MonitorApp(PollingMixin, RecordingMixin, ActuatorMixin, HelpMixin, App):
     """Scrollable, in-place live-value monitor."""
 
     HELP_TITLE = "canair monitor — keyboard shortcuts"
     HELP_LEGEND = MONITOR_LEGEND
-    HELP_PANES = (ValuesPane,)
+    HELP_PANES = (ValuesPane, ActuatorTable)
 
     # canair uses no command-palette commands; disable Textual's ctrl+p palette.
     ENABLE_COMMAND_PALETTE = False
 
     CSS = (
         APP_BASE_CSS
+        + PANE_CSS
         + """
     #header { dock: top; height: auto; max-height: 3; padding: 0 1; background: transparent; }
     """
@@ -142,6 +154,9 @@ class MonitorApp(PollingMixin, RecordingMixin, HelpMixin, App):
         *bind("reconnect", "force_reconnect"),
         *bind("pick", "pid_picker", desc="select ECUs/PIDs"),
         *bind("value_type", "session_type", desc="session type"),
+        *bind("actuators", "toggle_actuators"),
+        *bind("block_next", "focus_pane(1)", desc="next pane", show=False),
+        *bind("block_prev", "focus_pane(-1)", desc="prev pane", show=False),
     ]
 
     def __init__(self, controller: MonitorController):
@@ -155,8 +170,11 @@ class MonitorApp(PollingMixin, RecordingMixin, HelpMixin, App):
     # -- layout ------------------------------------------------------------
     def compose(self) -> ComposeResult:
         yield Static("", id="header", markup=True)
-        with ValuesPane(id="scroll"):
-            yield Static(self.controller.renderer.render(), id="body", markup=False)
+        with Container(id="panes"):
+            with ValuesPane(id="scroll"):
+                yield Static(self.controller.renderer.render(), id="body", markup=False)
+            if self.controller.actuation is not None:
+                yield ActuatorPane(id="actuators")
         yield StatusBar(id="status")
 
     def on_mount(self) -> None:
@@ -173,8 +191,13 @@ class MonitorApp(PollingMixin, RecordingMixin, HelpMixin, App):
         self.controller.on_partial = self._refresh_body
         self.run_worker(self._poll_loop(), name="poll", exclusive=True)
         self.set_interval(0.25, self._update_status)
+        self.set_interval(0.25, self.refresh_actuators)
+        self.layout_panes(self.size.width)
         self._update_status()
         self._update_header()
+
+    def on_resize(self, event: events.Resize) -> None:
+        self.layout_panes(event.size.width)
 
     # -- polling -----------------------------------------------------------
     async def action_quit(self) -> None:
@@ -200,7 +223,7 @@ class MonitorApp(PollingMixin, RecordingMixin, HelpMixin, App):
             return
         status.set_lines(
             metric_items(self.controller, paused=self.paused, flash=self.flash.item()),
-            hint_items(self.controller),
+            hint_items(self.controller, actuators=self.actuators_focused()),
         )
 
     def _editor(self):
