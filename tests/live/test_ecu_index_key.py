@@ -15,7 +15,8 @@ import pytest
 import canair.ecus.names
 from canair.cli.profile_context import active
 from canair.ecus.wake import WakePlan
-from canair.live.read.exec import _exec_iocontrol, exec_query, exec_session
+from canair.live.actuate.iocontrol_execute import run_iocontrol_step
+from canair.live.read.exec import exec_query, exec_session
 from canair.query.steps import resolve_tx_id
 from canair.uds.addressing import EcuAddress
 from tests.support.fakes import FakeTerminal, ok
@@ -69,12 +70,12 @@ def test_exec_session_finds_the_wake_plan():
     assert sm.open_session.await_args.kwargs["wake_plan"] == INDEX["IGPM"]["wake"]
 
 
-def test_exec_iocontrol(monkeypatch, capsys):
+def testrun_iocontrol_step(monkeypatch, capsys):
     monkeypatch.setattr(
-        "canair.live.read.exec.build_iocontrol_index",
+        "canair.live.actuate.iocontrol_execute.build_iocontrol_index",
         lambda _data: {"IGPM": {"tx_id": 0x770, "protocol": "UDS", "cmds": {}}},
     )
-    asyncio.run(_exec_iocontrol(_sm(), "sjb", "BC01", False, {}, INDEX, False, profile=active()))
+    asyncio.run(run_iocontrol_step(_sm(), "sjb", "BC01", False, {}, INDEX, False, profile=active()))
     err = capsys.readouterr().err
     assert "unknown DID BC01 for IGPM" in err  # found the ECU, not "no IOControl DIDs"
 

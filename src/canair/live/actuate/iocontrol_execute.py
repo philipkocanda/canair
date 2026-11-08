@@ -1,4 +1,11 @@
-"""``canair io ECU --did DID``: send one IOControl ON or OFF request, then hand the output back."""
+"""One IOControl request outside the view: ``canair io ECU --did DID``, and the pipeline step.
+
+* :func:`mode_iocontrol_execute` — ``canair io ECU --did DID``: send one ON or OFF request, hold
+  it, then hand the output back.
+* :func:`run_iocontrol_step` — the ``read`` pipeline's ``iocontrol`` step, through one
+  :class:`~.iocontrol_actuate.IoBank` per ECU, and :func:`release_pipeline_actuators`, which
+  the pipeline runs when it ends.
+"""
 
 from __future__ import annotations
 
@@ -7,10 +14,13 @@ import json
 import sys
 
 from canair.core.prompt import confirm
+from canair.ecus.names import ecu_index_key
 from canair.ecus.pids import build_iocontrol_index
-from canair.live.actuate.iocontrol_actuate import send_iocontrol
+from canair.live.actuate.iocontrol_actuate import ACTUATOR_ERROR, IoBank, send_iocontrol
 from canair.live.actuate.not_found import report_not_found
+from canair.live.actuate.ports import SharedSessions, StatusLevel
 from canair.live.status import format_status_value, query_param_status
+from canair.profile.model import Profile
 from canair.render import ansi, glyphs, messages
 from canair.render.paint import Painter
 from canair.safety.actuation import on_refusal
@@ -170,3 +180,96 @@ async def mode_iocontrol_execute(
                 say(f"  Readback after: {status_param} = {format_status_value(after)}")
 
     say()
+
+
+#: The pipeline's IOControl banks, one per ECU, so it can release what it switched on.
+IoBanks = dict[str, IoBank]
+
+
+async def run_iocontrol_step(
+    sm: SessionManager,
+    ecu_name: str,
+    did: str,
+    off: bool,
+    pids_data: dict,
+    ecu_index: dict,
+    verbose: bool,
+    *,
+    profile: Profile,
+    banks: IoBanks | None = None,
+):
+    """Run the ``read`` pipeline's ``iocontrol ECU DID [--off]`` step.
+
+    The request goes through the ECU's :class:`IoBank` in ``banks`` (made on first use), so
+    the pipeline knows what it switched on and :func:`release_pipeline_actuators` can hand
+    it back when the pipeline ends.
+    """
+    ioctrl_index = build_iocontrol_index(pids_data)
+    ecu_key = ecu_index_key(ecu_name, ioctrl_index, profile=profile)
+    did_key = did.upper()
+
+    if ecu_key is None:
+        messages.error(f"no IOControl DIDs for ECU: {ecu_name}")
+        if ioctrl_index:
+            messages.hint(f"ECUs with IOControl: {', '.join(sorted(ioctrl_index))}")
+        return
+
+    ecu_info = ioctrl_index[ecu_key]
+    cmds = ecu_info["cmds"]
+
+    if did_key not in cmds:
+        available = sorted(cmds.keys())
+        messages.error(f"unknown DID {did_key} for {ecu_key}")
+        if available:
+            messages.hint(f"available: {', '.join(available)}")
+        return
+
+    cmd_def = cmds[did_key]
+    action = "OFF" if off else "ON"
+    hex_cmd = cmd_def["off"] if off else cmd_def["on"]
+    label = cmd_def["label"]
+
+    if not hex_cmd:
+        messages.error(f"no {action} command defined for {ecu_key} {did_key} ({label})")
+        return
+    if not off:
+        refusal = on_refusal(hex_cmd, cmd_def["release"], ecu_info["protocol"])
+        if refusal:
+            messages.error(f"{ecu_key} {did_key} ON refused — {refusal}")
+            return
+
+    banks = {} if banks is None else banks
+    bank = banks.get(ecu_key)
+    if bank is None:
+        bank = IoBank(
+            lambda: sm.terminal,
+            ecu_info["tx_id"],
+            ecu_info["protocol"],
+            cmds,
+            SharedSessions(lambda: sm),
+            _report_problem,
+        )
+        banks[ecu_key] = bank
+
+    await sm.keepalive_stale()
+    print(f"  {ecu_key} {did_key} ({label}) {glyphs.ARROW} {action}: {hex_cmd}")
+    await (bank.send_off(did_key) if off else bank.send_on(did_key))
+
+    if bank.state.get(did_key) == ACTUATOR_ERROR:
+        print(f"  {glyphs.FAIL} {bank.last_response.get(did_key, 'unknown error')}")
+    else:
+        print(f"  {glyphs.OK} Positive response: {bank.last_response.get(did_key, '')}")
+
+
+def _report_problem(text: str, level: StatusLevel) -> None:
+    if text and level in ("error", "warning"):
+        (messages.error if level == "error" else messages.warning)(text)
+
+
+async def release_pipeline_actuators(banks: IoBanks) -> None:
+    """Release every actuator the pipeline switched on (on exit, Ctrl-C included)."""
+    for ecu, bank in banks.items():
+        active = bank.active_dids()
+        if active:
+            messages.note(f"releasing {ecu} {', '.join(active)}")
+            await bank.release_all()

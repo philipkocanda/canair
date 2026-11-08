@@ -66,9 +66,9 @@ from ...states.tokens import join_states
 from ...states.vocabulary import load_states
 from ...transport.isotp_params import resolve_rx_padding
 from ...transport.protocol import Terminal
+from ..actuate.iocontrol_execute import IoBanks, release_pipeline_actuators, run_iocontrol_step
 from .batch import BatchState, _capture_stamp
 from .exec import (
-    _exec_iocontrol,
     _exec_raw,
     _exec_scan,
     _read_batch,
@@ -86,7 +86,6 @@ from .repl import _multi_repl
 
 __all__ = [
     "BatchState",
-    "_exec_iocontrol",
     "_exec_raw",
     "_exec_scan",
     "_finalize_journal",
@@ -244,6 +243,8 @@ async def _run_pipeline(
     commands = parse_sub_commands(sub_commands, profile=profile)
     ecu_index = build_ecu_index(pids_data)
     sm = SessionManager(terminal, verbose=verbose)
+    # The IOControl actuators the pipeline's steps switch on, released when it ends.
+    io_banks: IoBanks = {}
     repl_executed = False
     # Collected (ecu_ref, pid, hex, time) rows for --save (also counts for report).
     collected: list[tuple[str, str, str, str]] = []
@@ -430,7 +431,7 @@ async def _run_pipeline(
             elif cmd_type == "iocontrol":
                 action = "OFF" if cmd["off"] else "ON"
                 print(f"\n{step} IOControl {cmd['ecu']} {cmd['did']} ({action})…")
-                await _exec_iocontrol(
+                await run_iocontrol_step(
                     sm,
                     cmd["ecu"],
                     cmd["did"],
@@ -439,6 +440,7 @@ async def _run_pipeline(
                     ecu_index,
                     verbose,
                     profile=profile,
+                    banks=io_banks,
                 )
 
         # Save collected payloads before any REPL handoff
@@ -482,6 +484,9 @@ async def _run_pipeline(
             journal = None
 
     finally:
+        # Inside the sessions the actuators were switched on in: before the keepalive stops.
+        with contextlib.suppress(Exception):
+            await release_pipeline_actuators(io_banks)
         await sm.stop_background_keepalive()
         print("  Closing all sessions…")
         try:

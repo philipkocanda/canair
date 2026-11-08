@@ -9,8 +9,8 @@ import pytest
 
 from canair.captures.journal import CaptureJournal
 from canair.cli.profile_context import active
+from canair.live.actuate.iocontrol_execute import run_iocontrol_step
 from canair.live.read.multi import (
-    _exec_iocontrol,
     _finalize_journal,
     exec_query,
     merged_selector_notes,
@@ -498,7 +498,7 @@ class TestExecIocontrolSession:
     SessionManager API (open_session), not the non-existent ensure_session."""
 
     def test_opens_session_when_required(self, monkeypatch):
-        from canair.live.read import exec as multi_exec
+        from canair.live.actuate import iocontrol_execute as multi_exec
 
         idx = {
             "IGPM": {
@@ -530,8 +530,8 @@ class TestExecIocontrolSession:
         sm.terminal.set_header = AsyncMock()
         sm.terminal.send_uds = AsyncMock(return_value={"ok": True, "hex": "6FBC0103"})
 
-        asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", False, {}, {}, False, profile=active()))
-        sm.open_session.assert_awaited_once_with(0x770, mode=0x03)
+        asyncio.run(run_iocontrol_step(sm, "IGPM", "BC01", False, {}, {}, False, profile=active()))
+        sm.open_session.assert_awaited_once_with(0x770, mode=0x03, force=True, report=False)
         sm.terminal.send_uds.assert_awaited_once()
 
 
@@ -578,12 +578,12 @@ class TestExecIocontrolPolarity:
         return {"IGPM": {"tx_id": 0x770, "protocol": protocol, "cmds": {"BC01": cmd}}}
 
     def _run(self, monkeypatch, *, off, cmd_overrides=None):
-        from canair.live.read import exec as multi_exec
+        from canair.live.actuate import iocontrol_execute as multi_exec
 
         index = self._index(**(cmd_overrides or {}))
         monkeypatch.setattr(multi_exec, "build_iocontrol_index", lambda _pids: index)
         sm = self._sm()
-        asyncio.run(_exec_iocontrol(sm, "IGPM", "BC01", off, {}, {}, False, profile=active()))
+        asyncio.run(run_iocontrol_step(sm, "IGPM", "BC01", off, {}, {}, False, profile=active()))
         return sm
 
     def test_on_request_sends_the_on_command(self, monkeypatch):
@@ -608,7 +608,7 @@ class TestExecIocontrolPolarity:
     def test_an_open_session_of_another_mode_is_switched(self, monkeypatch):
         # A Nissan actuator needs 10 C0; reusing the tracked 10 03 would NRC.
         sm = self._run(monkeypatch, off=False, cmd_overrides={"session_mode": "C0"})
-        sm.open_session.assert_awaited_once_with(0x770, mode=0xC0, force=True)
+        sm.open_session.assert_awaited_once_with(0x770, mode=0xC0, force=True, report=False)
 
     def test_an_open_session_of_the_same_mode_is_reused(self, monkeypatch):
         sm = self._run(monkeypatch, off=False)

@@ -15,14 +15,13 @@ from collections.abc import Callable
 from canair.core.eventlog import log_event
 from canair.core.id_ranges import parse_id_ranges
 from canair.ecus.names import ecu_index_key
-from canair.ecus.pids import EcuIndexEntry, PidIndexEntry, build_iocontrol_index
+from canair.ecus.pids import EcuIndexEntry, PidIndexEntry
 from canair.privacy.sensitive import MASK, request_hidden
 from canair.profile.model import Profile
 from canair.query import QueryError, inferred_request, pids_named_by
 from canair.query.steps import parse_raw_spec, resolve_tx_id
 from canair.render import messages
 from canair.render.formatting import print_ecu_results, print_hexdump
-from canair.safety.actuation import on_refusal
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import (
     DEFAULT_SESSION_MODE,
@@ -34,7 +33,6 @@ from canair.uds.subfunctions import format_session_type, parse_session_type
 
 from ...ecus.names import resolve_tx
 from ...ecus.registry import rx_addr_str
-from ..actuate.iocontrol_actuate import send_iocontrol
 from ..elm.skm_wakeup import SKM_SESSION_MODE, SKM_TX_ID, mode_skm_wakeup
 from ..scan.presets import ServiceError, resolve_service
 from ..scan.range import confirm_actuating_scan, mode_scan
@@ -355,75 +353,6 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool, *,
             await sm.stop_background_keepalive()
 
     return tx_id, service_pid, response
-
-
-async def _exec_iocontrol(
-    sm: SessionManager,
-    ecu_name: str,
-    did: str,
-    off: bool,
-    pids_data: dict,
-    ecu_index: dict,
-    verbose: bool,
-    *,
-    profile: Profile,
-):
-    """Execute iocontrol sub-command within multi pipeline."""
-    ioctrl_index = build_iocontrol_index(pids_data)
-    ecu_key = ecu_index_key(ecu_name, ioctrl_index, profile=profile)
-    did_key = did.upper()
-
-    if ecu_key is None:
-        messages.error(f"no IOControl DIDs for ECU: {ecu_name}")
-        if ioctrl_index:
-            messages.hint(f"ECUs with IOControl: {', '.join(sorted(ioctrl_index))}")
-        return
-
-    ecu_info = ioctrl_index[ecu_key]
-    cmds = ecu_info["cmds"]
-
-    if did_key not in cmds:
-        available = sorted(cmds.keys())
-        messages.error(f"unknown DID {did_key} for {ecu_key}")
-        if available:
-            messages.hint(f"available: {', '.join(available)}")
-        return
-
-    cmd_def = cmds[did_key]
-    tx_id = ecu_info["tx_id"]
-    action = "OFF" if off else "ON"
-    hex_cmd = cmd_def["off"] if off else cmd_def["on"]
-    label = cmd_def["label"]
-
-    if not hex_cmd:
-        messages.error(f"no {action} command defined for {ecu_key} {did_key} ({label})")
-        return
-    if not off:
-        refusal = on_refusal(hex_cmd, cmd_def["release"], ecu_info["protocol"])
-        if refusal:
-            messages.error(f"{ecu_key} {did_key} ON refused — {refusal}")
-            return
-
-    # Ensure a session of the actuator's mode is open on this ECU if needed
-    if cmd_def["session"]:
-        mode = parse_session_type(cmd_def["session_mode"])
-        if not sm.has_session(tx_id):
-            await sm.open_session(tx_id, mode=mode)
-        elif sm.session_mode(tx_id) != mode:
-            await sm.open_session(tx_id, mode=mode, force=True)
-
-    await sm.keepalive_stale()
-    print(f"  {ecu_key} {did_key} ({label}) → {action}: {hex_cmd}")
-    async with sm.terminal.transaction():
-        await sm.terminal.set_header(tx_id)
-        response = await send_iocontrol(sm.terminal, hex_cmd)
-
-    if response["ok"]:
-        print(f"  ✓ Positive response: {response['hex']}")
-    elif response.get("nrc") is not None:
-        print(f"  ✗ NRC 0x{response['nrc']:02X}: {response['nrc_desc']}")
-    else:
-        print(f"  ✗ Error: {response.get('error', 'unknown')}")
 
 
 async def _exec_scan(

@@ -140,9 +140,17 @@ canair read "session IGPM --wake" "query IGPM:BC03,BC06"
 ```
 
 Step verbs include: `query`, `session <ECU> [--wake]`, `skm-wake [acc|ign1|ign2]`,
-`raw <TX:PID>`, `scan`, `iocontrol`, `sleep`, `repl`. This lets you,
+`raw <TX:PID>`, `scan`, `iocontrol <ECU> <DID> [--off]`, `sleep`, `repl`. This lets you,
 for example, wake an ECU, open a session, and read several PIDs in one command
 over one connection.
+
+An `iocontrol` step switches an actuator on (or off with `--off`) in the session its entry
+declares. When the pipeline ends, Ctrl-C included, canair releases every actuator it switched
+on and did not switch off, before it closes the sessions:
+
+```bash
+canair read "iocontrol IGPM BC0C" "sleep 2" IGPM:BC03   # the defogger is released at the end
+```
 
 ## Sessions and keepalive
 
