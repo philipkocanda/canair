@@ -91,7 +91,7 @@ CURATED: tuple[tuple[str, str, str, str], ...] = (
     ("ESC", "22C101", "STEERING_ANGLE", "the steering wheel angle (absolute SAS)"),
     ("EPS", "220101", "EPS_STEERING_ANGLE", "the steering wheel angle"),
     ("VCU", "2102", "VCU_INVERTER_INPUT_VOLTAGE", "the HV DC-link / traction-battery pack voltage"),
-    ("VCU", "2102", "VCU_AUX_BATTERY_VOLTAGE", "the 12V auxiliary battery voltage"),
+    ("VCU", "2102", "VCU_LDC_OUTPUT_VOLTAGE_COARSE", "the 12V auxiliary rail voltage"),
     (
         "BMS",
         "2101",

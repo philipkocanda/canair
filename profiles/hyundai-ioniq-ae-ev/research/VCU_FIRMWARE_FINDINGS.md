@@ -84,6 +84,15 @@ sections:
       only 0x000000-0xFFFFFF, so it cannot read them. The 0x18CAC8 table is a CCP 2.1 slave with no
       seed/key on CCP-CAN (0x6C0/0x6C2) that can read SRAM, but the OBD port does not reach it.
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
+  - section: "13"
+    status: integrated
+    date: 2026-11-08
+    note: >-
+      Drive mode and regen level (broadcast only), the paddle bits on 2101, 2102 as a copy of
+      0x590 (B14 renamed VCU_LDC_OUTPUT_VOLTAGE_COARSE, now B14/10), and the 21F2 supply voltage
+      and drive-mode/regen time shares. The 2101 drive-mode entry is done; the 21F2 entry is
+      captured.
+    target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
@@ -218,11 +227,13 @@ There is no other `21xx` record, which is why `2103`-`2105` answer NRC `0x12` on
 only in a secured session (see 2.1). Control local ids with real effects:
 `0x04`, `0x05`, `0x06`, `0x09`, `0x10`, `0x11`, `0x12`, `0x13`, `0x14`; status/read-only ids that
 return the current value: `0x00`, `0x20`, `0x40`, `0x60`, `0x80`, `0xA0`, `0xC0`, `0xE0`. Each
-writes a per-id state byte at `0x40009DEB + id` and some drive external hardware registers
-(`0x09` toggles bits in the `0x90020000` register space via `FUN_0019CEE0`/`FUN_0019D578`). The
-request mode byte is `0x07` (control) or `0x00` (return control to the ECU), as KWP2000 defines.
-What each id physically switches was not mapped; it needs a secured session to probe, which is out
-of scope.
+writes a per-id state byte at `0x40009DEB + id`. The `0x9002xxxx` words that `0x09` uses are not
+a register space: they are DSPI command words to the real-time clock (section 10.2). Control
+(`0x07`) arms the clock's countdown timer for a wake test, which cancels itself after about 10
+min (`FUN_0019D154`), and return-control (`0x00`) clears the timer and alarm flags. It needs the
+car not READY, the wake supply sensed and the clock healthy. The request mode byte is `0x07`
+(control) or `0x00` (return control to the ECU), as KWP2000 defines. What the other ids switch was
+not mapped; it needs a secured session to probe, which is out of scope.
 
 ### 3.3 Service 0x31 StartRoutineByLocalIdentifier — the routines
 
@@ -1054,3 +1065,84 @@ client.
   the next step.
 - Whether a bench EPCU keeps the standby RAM (and so the schedule) with the battery feed alone was
   not tested.
+
+## 13. Third pass: drive mode, regen level, the LDC frame and 21F2
+
+### 13.1 Drive mode and regen level are broadcast only
+
+The research entry on drive mode and regen level (`ecus/vcu.yaml`, target `2101`) found no
+diagnostic byte that steps with them. The firmware explains why: neither is on 2101, 2102 or 21F2
+as a live value.
+
+- **Drive mode** is an index 0-2 at `0x40004F99`, kept across sleep. `FUN_001B7FE8` steps it on
+  each rising edge of the cluster's drive-mode button (`0x578` `CF_Clu_DriveModeSW`, bit 47); with
+  calibration `0x133E2` = 0 the order is 0 → 1 → 2 → 0. It is sent in **`0x579` bits 53-54**.
+  Which index is Eco, Normal or Sport is not established; 13.4 has a lead.
+- **Regen level** is 0-3 at `0x40004F9D` (`FUN_001B744C`). Each drive mode starts from its own
+  setting (`0x40004F99` selects one of `0x400053AD`/`53B1`/`53B8`, which `0x579` also carries at
+  bits 34-39). A rising edge of a paddle switch steps the level down or up by one, in D only. It is
+  sent in **`0x202` bits 20-23**. uhi22's logs read level 2 and mode 0 throughout.
+- **The paddle switches** are on 2101: `B23:0` lowers the level, `B23:1` raises it (the 2101
+  producer copies `0x40004BE1` and `0x40004BE0`). uhi22 wires the right paddle, "decrease
+  recuperation", to EPCU pin 3H, and the left to 3J.
+
+Defined: `signals/powertrain.yaml` `VCU_REGEN_LEVEL` (`0x202`) and `VCU_DRIVE_MODE` (`0x579`);
+2101 `VCU_REGEN_PADDLE_MINUS`/`_PLUS`.
+
+### 13.2 2102 is a diagnostic copy of the LDC frame `0x590`
+
+`FUN_00219F0C` packs P-CAN `0x590` (and CCP-CAN `0x58F`) from LDC and 12 V values, byte-reversed
+from a RAM buffer at `0x40006F8A`. `FUN_0021AD44` builds 2102 from that same buffer:
+
+| 2102 | `0x590` | content |
+|---|---|---|
+| `B9`, `B10`, `B13` | byte 0 bits 1, 2, 3 | HV available, HV main relay on, (unnamed) |
+| `B11`, `B12` | byte 1 bits 0, 1 | (unnamed; 0 in every capture) |
+| `B14` | byte 4 | 12 V rail at the LDC, 0.1 V: the same value as `B19`/`B20` rounded |
+| `B15` | byte 2 | LDC output power, 10 W |
+| `B17` | CCP-CAN `0x58F` byte 5 | DC-link voltage / 2 |
+| `B18` | byte 7 | coolant temperature + 100 (255 = not available) |
+
+`0x590` byte 0 bits 6 and 7 are the 12 V charge request and done bits (section 11.2), and byte 6
+is a power-loss estimate (`0x40006DC8`, not named).
+
+The check against 14,657 stored 2102 replies holds: `B14/10` minus `[B19:B20]/1000` has median
+0.00 V and standard deviation 0.03 V. The profile's `B14 × 0.0974` was fitted to the battery
+voltage, about 0.08 V lower. The signal is now `VCU_LDC_OUTPUT_VOLTAGE_COARSE` with `B14/10`.
+`signals/powertrain.yaml` has the `0x590` twins: `VCU_AUX_POWER_590`,
+`VCU_LDC_OUTPUT_VOLTAGE_590`, `VCU_COOLANT_TEMP_590`.
+
+### 13.3 `0x55F`/`0x561` feed a route-based range estimate
+
+Each frame carries five pairs of a 4-bit and an 8-bit value (section 4.2). `FUN_001EE674` scales
+each 8-bit value by a calibration factor and divides it by a per-segment consumption term
+(`0x40006BB4`-`0x40006BC2`). This fits the head-unit findings' guess that the frames are
+navigation road segments: road type and distance, ten segments in all, turned into an energy
+figure for the range estimate. The names of the inputs were not traced further.
+
+### 13.4 21F2: supply voltage and the drive-mode/regen time shares
+
+21F2 is built once, at power-off (section 10.2), by `FUN_00204028`:
+
+- `B10`/`B11` is the 12 V supply word, `/2072` as in 2101: 11.9-13.1 V in the stored replies.
+- `B12`/`B13` is the BMS SoC × 256, and `B14`-`B18` the odometer × 256, as the profile has.
+- **`B45`-`B71` are twelve 16-bit shares of the cycle's time per drive mode and regen level**
+  (`FUN_001B7C68` counts each combination; the producer divides by the total). They sum to 97-100
+  in every stored reply. Order: mode 1 levels 0-3 (`B45`, `B47`/`B49`, `B50`, `B52`), mode 0
+  levels 0-3 (`B54`, `B57`, `B59`, `B61`), mode 2 levels 0-3 (`B63`, `B66`, `B68`, `B70`).
+- On this car the time is in mode 1 at level 1 (mean 74 %), mode 0 at level 2 (20 %) or mode 1
+  at level 0 (3 %), and never in mode 2. The owner's habitual mode is therefore index 1, which
+  would name it.
+- `B21`-`B37` (except the PCI bytes) copy range-estimation variables (`FUN_001E64B8`). `B38`/`B39`
+  and `B41`-`B44` are a 16-bit and a 32-bit value whose writer was not found. `B73`/`B74` and
+  `B75`/`B76` are outputs of scheduling subsystem `0x20A2D4`.
+
+Defined: 21F2 `VCU_21F2_SUPPLY_VOLTAGE` and `VCU_21F2_SHARE_MODEm_REGENr`.
+
+### 13.5 Still not traced
+
+- How the VCU asks the BMS to close the main relay and the IGPM to close IG3, for a top-up or a
+  remote climate session. The VCU's power state (2101 `B25`) also goes out in `0x200` bits 24-27
+  and is the obvious candidate, but its state machine (`FUN_001ABEBC`) was not reversed.
+- The charge-control state machine (`0x40006D2A`) and the names of the climate-request outputs.
+- The DTC table, and what the other IOControl ids switch.

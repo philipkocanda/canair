@@ -292,6 +292,21 @@ VCU:
             VEHICLE_STATE_NOT_BRAKING) reads 1 with the ignition on, both read 0 with it off. Equals
             IGPM IGN1_SWITCH in all 360 aligned rows, including charging with the ignition on. Does
             not tell ACC from off.
+        VCU_REGEN_PADDLE_MINUS:
+          expression: B23:0
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 13), producer FUN_001F46C0 and paddle logic FUN_001B744C
+          verified: false
+          notes: >-
+            Steering-paddle switch that lowers the regen level (a rising edge steps it down by one,
+            in D). uhi22 wires the right paddle, 'decrease recuperation', to EPCU pin 3H. Reads 0 in
+            every capture so far.
+        VCU_REGEN_PADDLE_PLUS:
+          expression: B23:1
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 13), producer FUN_001F46C0 and paddle logic FUN_001B744C
+          verified: false
+          notes: >-
+            Steering-paddle switch that raises the regen level (left paddle, EPCU pin 3J per uhi22).
+            Reads 0 in every capture so far.
     2102:
       response_frames: 4
       status: active
@@ -302,14 +317,16 @@ VCU:
         first one byte for byte, so readings taken with the IG3 rail off are not live. Motor RPM,
         torque and temperatures are not on this page; they are on the MCU (0x7E3). Firmware
         (producer FUN_0021AD44, r13=0x400063E4): B4-B7 are a constant header (F8 F8 00 00), not
-        signals. B9 to B13 are single status bits unpacked from an internal status word, not bytes;
-        B11, B12 and B13 read 0 in all 14657 captures, so they are inactive on this car rather than
-        undecoded. B14, B15, B17 and B18 are whole-byte copies. The four 16-bit little-endian pairs
-        are packed from internal floats with a fixed scale, which confirms the expressions here:
-        B19/B20 and B26/B27 are x1000 (matching the /1000 of VCU_LDC_OUTPUT_VOLTAGE and
-        VCU_AUX_BATTERY_VOLTAGE_FINE), B23/B25 is x100 (VCU_DCLINK_VOLTAGE, whose high byte alone is
-        the coarse variant since 256/100 = 2.56), and B21/B22 is x100 of a float carried in units of
-        10 W, which is why VCU_AUX_POWER's /10 reads correct watts.
+        signals. Most of the page is a diagnostic copy of the VCU's own LDC broadcast frames: B9,
+        B10 and B13 are 0x590 byte 0 bits 1, 2 and 3, B11 and B12 are 0x590 byte 1 bits 0 and 1,
+        B14, B15 and B18 are 0x590 bytes 4, 2 and 7, and B17 is CCP-CAN 0x58F byte 5. B11, B12 and
+        B13 read 0 in all 14657 captures, so they are inactive on this car rather than undecoded.
+        The four 16-bit little-endian pairs are packed from internal floats with a fixed scale,
+        which confirms the expressions here: B19/B20 and B26/B27 are x1000 (VCU_LDC_OUTPUT_VOLTAGE
+        and VCU_AUX_BATTERY_VOLTAGE_FINE), B23/B25 is x100 (VCU_DCLINK_VOLTAGE, whose high byte
+        alone is the coarse variant since 256/100 = 2.56), and B21/B22 is x100 of a float carried in
+        units of 10 W, which is why VCU_AUX_POWER's /10 reads correct watts. B14 is B19/B20 rounded
+        to 0.1 V.
       min: "0"
       verified: false
       parameters:
@@ -324,15 +341,17 @@ VCU:
             (n=5689, slope 0.5024 on the raw byte). 396 V vs BMS pack 396.4 V while charging on
             2026-07-20.
 
-        VCU_AUX_BATTERY_VOLTAGE:
-          expression: B14*0.0974
+        VCU_LDC_OUTPUT_VOLTAGE_COARSE:
+          expression: B14/10
           unit: V
           max: "16"
-          source: RE 2026-08-02 absolute-value anchoring + live ON, vs OBC/BMS/BCM consensus
+          source: VCU firmware EAEEO5L-NS7-D060 (FUN_00219F0C packs it, FUN_0021AD44 copies it into 2102); canair decode VCU 2102 --try --stats 2026-11-08
           verified: true
           notes: >-
-            12 V bus at the VCU. Empirical scale: within 0.032 V on average of the OBC, BMS and BCM
-            12 V readings over 12.4-15.0 V (n=696).
+            0.1 V copy of VCU_LDC_OUTPUT_VOLTAGE: the firmware rounds the same internal value x10
+            into 0x590 byte 4 and copies that byte here. B14/10 minus [B19:B20]/1000 has median 0.00
+            and stdev 0.03 V over 14657 captures. The earlier fitted x0.0974 tracked the battery,
+            about 0.08 V lower.
 
 
         VCU_DCLINK_VOLTAGE_COARSE:
@@ -479,6 +498,148 @@ VCU:
           unit: km
           min: "0"
           max: "255"
+        VCU_21F2_SHARE_MODE1_REGEN0:
+          expression: (B46<<8)|B45
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            Share of the previous cycle's time spent in drive mode index 1 (0x579 VCU_DRIVE_MODE) at
+            regen level 0 (0x202 VCU_REGEN_LEVEL), whole percent. The twelve shares sum to 97-100 in
+            every stored 21F2 (truncation).
+        VCU_21F2_SHARE_MODE1_REGEN1:
+          expression: (B49<<8)|B47
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            Share of the previous cycle's time spent in drive mode index 1 (0x579 VCU_DRIVE_MODE) at
+            regen level 1 (0x202 VCU_REGEN_LEVEL), whole percent. The twelve shares sum to 97-100 in
+            every stored 21F2 (truncation).
+        VCU_21F2_SHARE_MODE1_REGEN2:
+          expression: (B51<<8)|B50
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            Share of the previous cycle's time spent in drive mode index 1 (0x579 VCU_DRIVE_MODE) at
+            regen level 2 (0x202 VCU_REGEN_LEVEL), whole percent. The twelve shares sum to 97-100 in
+            every stored 21F2 (truncation).
+        VCU_21F2_SHARE_MODE1_REGEN3:
+          expression: (B53<<8)|B52
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            Share of the previous cycle's time spent in drive mode index 1 (0x579 VCU_DRIVE_MODE) at
+            regen level 3 (0x202 VCU_REGEN_LEVEL), whole percent. The twelve shares sum to 97-100 in
+            every stored 21F2 (truncation).
+        VCU_21F2_SHARE_MODE0_REGEN0:
+          expression: (B55<<8)|B54
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            Share of the previous cycle's time spent in drive mode index 0 (0x579 VCU_DRIVE_MODE) at
+            regen level 0 (0x202 VCU_REGEN_LEVEL), whole percent. The twelve shares sum to 97-100 in
+            every stored 21F2 (truncation).
+        VCU_21F2_SHARE_MODE0_REGEN1:
+          expression: (B58<<8)|B57
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            Share of the previous cycle's time spent in drive mode index 0 (0x579 VCU_DRIVE_MODE) at
+            regen level 1 (0x202 VCU_REGEN_LEVEL), whole percent. The twelve shares sum to 97-100 in
+            every stored 21F2 (truncation).
+        VCU_21F2_SHARE_MODE0_REGEN2:
+          expression: (B60<<8)|B59
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            Share of the previous cycle's time spent in drive mode index 0 (0x579 VCU_DRIVE_MODE) at
+            regen level 2 (0x202 VCU_REGEN_LEVEL), whole percent. The twelve shares sum to 97-100 in
+            every stored 21F2 (truncation).
+        VCU_21F2_SHARE_MODE0_REGEN3:
+          expression: (B62<<8)|B61
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            Share of the previous cycle's time spent in drive mode index 0 (0x579 VCU_DRIVE_MODE) at
+            regen level 3 (0x202 VCU_REGEN_LEVEL), whole percent. The twelve shares sum to 97-100 in
+            every stored 21F2 (truncation).
+        VCU_21F2_SHARE_MODE2_REGEN0:
+          expression: (B65<<8)|B63
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            Share of the previous cycle's time spent in drive mode index 2 (0x579 VCU_DRIVE_MODE) at
+            regen level 0 (0x202 VCU_REGEN_LEVEL), whole percent. The twelve shares sum to 97-100 in
+            every stored 21F2 (truncation).
+        VCU_21F2_SHARE_MODE2_REGEN1:
+          expression: (B67<<8)|B66
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            Share of the previous cycle's time spent in drive mode index 2 (0x579 VCU_DRIVE_MODE) at
+            regen level 1 (0x202 VCU_REGEN_LEVEL), whole percent. The twelve shares sum to 97-100 in
+            every stored 21F2 (truncation).
+        VCU_21F2_SHARE_MODE2_REGEN2:
+          expression: (B69<<8)|B68
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            Share of the previous cycle's time spent in drive mode index 2 (0x579 VCU_DRIVE_MODE) at
+            regen level 2 (0x202 VCU_REGEN_LEVEL), whole percent. The twelve shares sum to 97-100 in
+            every stored 21F2 (truncation).
+        VCU_21F2_SHARE_MODE2_REGEN3:
+          expression: (B71<<8)|B70
+          unit: "%"
+          min: "0"
+          max: "100"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            Share of the previous cycle's time spent in drive mode index 2 (0x579 VCU_DRIVE_MODE) at
+            regen level 3 (0x202 VCU_REGEN_LEVEL), whole percent. The twelve shares sum to 97-100 in
+            every stored 21F2 (truncation).
+        VCU_21F2_SUPPLY_VOLTAGE:
+          expression: ((B11<<8)|B10)/2072
+          unit: V
+          min: "0"
+          max: "16"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
+          verified: false
+          notes: >-
+            12 V supply voltage at the VCU when the record was built at power-off: the same internal
+            word and scale as 2101 VCU_SUPPLY_VOLTAGE. Reads 11.9-13.1 V in the stored replies.
 
 
       vehicle_states: [CHARGING, READY]
@@ -854,9 +1015,18 @@ VCU:
   research:
     - type: verify
       target: "2101"
-      status: pending
+      status: done
       priority: P1
       vehicle_states: [ACC]
+      result: >-
+        Neither is on a VCU diagnostic page (VCU firmware, research/VCU_FIRMWARE_FINDINGS.md section
+        13). The VCU keeps the drive mode as an index 0-2 (FUN_001B7FE8, stepped by the cluster's
+        drive-mode button on 0x578) and the regen level as 0-3 (FUN_001B744C, stepped by the
+        paddles); the 2101, 2102 and 21F2 producers read neither. Both go out on P-CAN only: the
+        regen level in 0x202 bits 20-23 and the drive mode in 0x579 bits 53-54
+        (signals/powertrain.yaml VCU_REGEN_LEVEL, VCU_DRIVE_MODE). 2101 does carry the raw paddle
+        switches, B23:0 (minus) and B23:1 (plus). This explains the 2026-07-21 negative result.
+        Open: which mode index is Eco, Normal and Sport.
       notes: >-
         Drive mode (Eco/Normal/Sport) and regen level are not found. A 2026-07-21 stationary session
         in D cycling the modes showed no byte on VCU 2101/2102, MCU 2101-2103, BCM 22B0xx or IGPM
@@ -867,6 +1037,7 @@ VCU:
         - "Regen level (0-3): a byte that steps with the level while coasting or braking"
       sources:
         - "Kia Soul EV VMCU CSV — drive-mode/state bits"
+      updated: "2026-11-08"
     - type: scan
       target: 21 00-FF
       status: done
@@ -1010,7 +1181,18 @@ VCU:
       status: captured
       priority: P3
       created: "2026-10-21"
-      updated: "2026-10-21"
+      updated: "2026-11-08"
+      result: >-
+        Mostly decoded from the firmware producer FUN_00204028, which builds 21F2 once, at power-off
+        (research/VCU_FIRMWARE_FINDINGS.md section 13). B10/B11 is the 12 V supply word
+        ((B11<<8)|B10)/2072, now VCU_21F2_SUPPLY_VOLTAGE. B45-B71 are twelve 16-bit shares of the
+        cycle's time per drive mode and regen level (VCU_21F2_SHARE_MODEm_REGENr), which sum to
+        97-100; on this car the time is in mode 1 at regen 1 or mode 0 at regen 2, and never in mode
+        2. That explains the 'sum to about 100' bytes and B45's 79-99 after parked READY cycles. B21
+        (0-22), B22/B23, B25-B28, B29/B30, B31-B35 (skipping PCI B32), B36 and B37 are copies of
+        range-estimation variables (FUN_001E64B8), not named yet. B38/B39 and B41-B44 are a 16-bit
+        and a 32-bit value whose writer was not found (accessed through a pointer). B73/B74 and
+        B75/B76 are two outputs of scheduling-model subsystem 0x20A2D4.
       notes: >-
         Unknown fields of the VCU 21F2 previous-cycle record: (B11<<8)|B10 /256 (97-106), B21
         (0-22), B29-B34, B36/B37, B38-B44 (change after charging), B45/B47/B54 (sum to about 100:

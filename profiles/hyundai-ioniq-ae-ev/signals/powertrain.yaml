@@ -745,6 +745,15 @@ messages:
         max: 3.0
         source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F2054, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.3); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: 'The VCU''s stored copy of the charge scheduling mode: 0 = Charge Now, 1 = Charge on Schedule without an off-peak window (the default), 2 = with off-peak time enabled, 3 = also with ''Charge ONLY during the time shown below'' ticked. Mapping from the head unit''s menu code (GreenCar DepartureClimateActivity, EconomyReservationSettingActivity). Not a charge-power setting. The VCU puts it first in the frame, ahead of the windows. Reads 0 in the uhi22 logs.'
+      VCU_DRIVE_MODE:
+        start_bit: 53
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 2.0
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 13.1), mode logic FUN_001B7FE8, pack FUN_001F2054; uhi22 Ioniq28 P-CAN tap
+        notes: Drive mode index 0-2, stepped by each press of the cluster's drive-mode button (0x578 CF_Clu_DriveModeSW) and kept across sleep. Which index is Eco, Normal or Sport is not established. Reads 0 in both uhi22 logs. Not on any VCU diagnostic page.
   '0x57F':
     name: OBC1
     tx_ecu: OBC
@@ -1091,3 +1100,50 @@ messages:
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060, static analysis (research/VCU_FIRMWARE_FINDINGS.md section 11) (FUN_00218B90, FUN_002190E8)
         notes: Byte 0 bit 7. Set when a timed 12 V top-up has run its full time; ends the top-up.
+      VCU_AUX_POWER_590:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        scale: 10.0
+        min: 0.0
+        max: 2550.0
+        unit: W
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (pack FUN_00219F0C, 2102 copy FUN_0021AD44; research/VCU_FIRMWARE_FINDINGS.md section 13.2); uhi22 Ioniq28 P-CAN tap
+        notes: 'Byte 2: LDC output power in 10 W steps, the byte the VCU copies into 2102 B15 (VCU_AUX_POWER_COARSE). Reads 180-530 W in READY in the uhi22 logs.'
+      VCU_LDC_OUTPUT_VOLTAGE_590:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        scale: 0.1
+        min: 0.0
+        max: 25.5
+        unit: V
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (pack FUN_00219F0C, 2102 copy FUN_0021AD44; research/VCU_FIRMWARE_FINDINGS.md section 13.2); uhi22 Ioniq28 P-CAN tap
+        notes: 'Byte 4: 12 V rail voltage at the LDC in 0.1 V steps, the byte the VCU copies into 2102 B14 (VCU_LDC_OUTPUT_VOLTAGE_COARSE). Reads 14.8-15.0 V in READY in the uhi22 logs.'
+      VCU_COOLANT_TEMP_590:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        offset: -100.0
+        min: -100.0
+        max: 155.0
+        unit: degC
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (pack FUN_00219F0C, 2102 copy FUN_0021AD44; research/VCU_FIRMWARE_FINDINGS.md section 13.2); uhi22 Ioniq28 P-CAN tap
+        notes: 'Byte 7: the temperature the VCU also reports as 2102 B18 (VCU_COOLANT_TEMP), sent +100 and 255 when not available. Reads 17-20 degC in the uhi22 logs.'
+  '0x202':
+    name: VCU_202
+    tx_ecu: VCU
+    length: 8
+    signals:
+      VCU_REGEN_LEVEL:
+        start_bit: 20
+        length: 4
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 13.1), pack FUN_001F2788; uhi22 Ioniq28 P-CAN tap
+        notes: Active regenerative-braking level 0-3, the one the paddles step (the firmware clamps it to 3). Reads 2 throughout both uhi22 logs. Not on any VCU diagnostic page.
