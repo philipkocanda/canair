@@ -99,7 +99,7 @@ CURATED: tuple[tuple[str, str, str, str], ...] = (
         "the HV battery pack current (signed; note ISO-TP PCI-skip)",
     ),
     ("OBC", "2101", "AC_INPUT_V", "the AC mains input voltage (RMS) at the charger inlet"),
-    ("OBC", "2101", "LDC_TEMP", "the LDC / DC-DC converter temperature"),
+    ("OBC", "2101", "OBC_TEMP", "the on-board charger's temperature"),
     ("HVAC", "220100", "HVAC_EVAPORATOR_TEMP", "the A/C evaporator temperature"),
     ("AAF", "2180", "AMBIENT_TEMP", "the ambient / outside air temperature"),
     ("IGPM", "22BC03", "HOOD_OPEN", "the hood / bonnet ajar switch (single bit)"),

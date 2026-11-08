@@ -499,3 +499,22 @@ messages:
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060, static analysis (research/VCU_FIRMWARE_FINDINGS.md section 11.4) (unpack FUN_001C22D4, use FUN_0020D368)
         notes: "The cluster's Aux. Battery Saver+ setting as the VCU reads it: 1 = off (no parked 12 V top-up), 2 = on; 0 and 3 make the VCU keep its stored setting. Not seen in the uhi22 P-CAN logs. opendbc names this ID CLU16 on C-CAN."
+  '0x414':
+    name: GW_414
+    tx_ecu: IGPM
+    length: 8
+    signals:
+      GW_CHARGE_CURRENT_PORTABLE:
+        start_bit: 0
+        length: 2
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08; Kona 2019 (IGPM_FINDINGS.md section 8)
+        notes: "The head unit's AC charge-current setting for the portable cable (HU_EV_PE_00 byte 3 bits 1-0): 0 Maximum, 1 Reduced, 2 Minimum. The OBC stores it and reports it in 0x58E."
+      GW_CHARGE_CURRENT_STATION:
+        start_bit: 2
+        length: 2
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08; Kona 2019 (IGPM_FINDINGS.md section 8)
+        notes: 'The setting for a charging station (HU_EV_PE_00 byte 3 bits 3-2): 0 Maximum, 1 Reduced, 2 Minimum.'

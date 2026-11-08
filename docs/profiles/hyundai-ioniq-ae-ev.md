@@ -93,9 +93,11 @@ toggle from the CLI — lights, horn, locks, charge-cable lock, mirrors, wipers,
 seat motors. The IGPM actuators release when the diagnostic session ends and
 work from deep sleep with `--wake`; others differ (the power-seat motors run
 until told to stop), so read an actuator's notes before driving it. The KWP2000
-ECUs (BMS, VCU, MCU, OBC, LDC, AAF) have no actuators defined yet: nobody knows
+ECUs (BMS, VCU, MCU, OBC, AAF) have no actuators defined yet: nobody knows
 which `0x30` request hands each output back, and `canair io` refuses to switch a
-`0x30` actuator on without one (see the OBC research entry in `canair research`).
+`0x30` actuator on without one. On the OBC, `0x30` is the factory sensor
+calibration, which drives the power stage: never send it (the OBC research entries
+in `canair research`).
 
 ```bash
 canair io IGPM          # interactive actuator TUI
@@ -115,7 +117,7 @@ canair monitor IGPM:BC03 --actuate IGPM   # switch outputs while you watch IGPM 
 | BMS | 0x7E4 | Battery Management System |
 | MCU | 0x7E3 | Motor Control Unit (inverter) |
 | VCU | 0x7E2 | Vehicle Control Unit |
-| OBC | 0x7E5 | On-Board Charger + LDC/DC-DC |
+| OBC | 0x7E5 | On-Board Charger |
 | ESC | 0x7D1 | Electronic Stability Control (wheel speeds) |
 | EPS | 0x7D4 | Electric Power Steering |
 | IGPM | 0x770 | Integrated Gateway & Power Module (body, IOControl) |

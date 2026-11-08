@@ -116,16 +116,17 @@ AAF:
             it on the 2026-08-08 DC charge day. Rose 29 to 44 °C over a 3 h AC charge; 34-37 °C
             while driving. The loop also serves the EPCU, OBC and LDC; which branch the sensor sits
             on is unknown.
-        AAF_LDC_TEMP:
+        AAF_OBC_TEMP:
           expression: B19-100
           unit: °C
           min: "-40"
           max: "150"
-          source: RE 2026-08-05 cross-ECU offset-mirror vs verified OBC LDC_TEMP
+          source: RE 2026-08-05 cross-ECU offset-mirror vs verified OBC_TEMP
           verified: true
           notes: >-
-            Same raw value as OBC:2101:LDC_TEMP (equal in 94.9 % of 1729 co-polled rows, otherwise
-            off by 1). Disabled as a duplicate.
+            Same raw value as OBC:2101:OBC_TEMP (equal in 94.9 % of 1729 co-polled rows, otherwise
+            off by 1), the OBC temperature the OBC also sends on P-CAN 0x57F byte 2. Disabled as a
+            duplicate.
         AMBIENT_TEMP:
           expression: (B18-80)/2
           unit: °C

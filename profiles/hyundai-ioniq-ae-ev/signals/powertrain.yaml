@@ -789,7 +789,7 @@ messages:
         length: 1
         byte_order: little
         source: CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra; uhi22 vehiclesim.py
-        notes: "Meaning unknown. The CCM edge-detects it: a 0 -> 1 change re-arms its session logic, and at 0 it resets the session state. 1 in uhi22's DC charging trace."
+        notes: "The charge-cable session flag, copied to OBC 2101 B37:4 (OBC_CABLE_SESSION); 0x581 is all zero while it is 0 (OBC firmware, 2026-11-08). The CCM edge-detects it: a 0 -> 1 change re-arms its session logic, and at 0 it resets the session state. 1 in uhi22's DC charging trace."
       OBC_B4_2:
         start_bit: 34
         length: 1
@@ -823,6 +823,104 @@ messages:
         unit: '%'
         source: ioniq-avn-fw OBC1 layout (USA head-unit firmware parser); uhi22 vehiclesim.py
         notes: CR_OBC_CP_DUTY, control-pilot PWM duty. Reads 5 in uhi22's DC charging trace (5 % = digital communication, as CCS requires) and 0 in READY.
+      OBC_STATUS_B0_0:
+        start_bit: 0
+        length: 1
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: A flag of the charge state machine; copied to OBC 2101 B27:1 (OBC_STATUS_B0_0).
+      OBC_STATUS_B0_7:
+        start_bit: 7
+        length: 1
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: Set at start-up; 1 in every OBC 2101 capture (B27:0).
+      OBC_STATUS_B1_0:
+        start_bit: 8
+        length: 1
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: Clears the OBC's 22 A latch (2101 OBC_AC_ABOVE_22A_LATCH) when it sets.
+      OBC_CP_VOLTAGE:
+        start_bit: 9
+        length: 7
+        byte_order: little
+        scale: 0.1
+        min: 0.0
+        max: 12.7
+        unit: V
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: Control-pilot voltage, the 2101 OBC_PILOT_V value in 0.1 V steps.
+      OBC_TEMP:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        offset: -100.0
+        min: -100.0
+        max: 155.0
+        unit: °C
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: The OBC temperature of 2101 OBC_TEMP; 255 (155 °C) on a temperature-sensor fault.
+      OBC_POWER_B3:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        scale: 20.0
+        min: 0.0
+        max: 5100.0
+        unit: W
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: A power value the OBC sets from an OBC_TEMP threshold and table; meaning not traced.
+      OBC_POWER_B6:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        scale: 20.0
+        min: 0.0
+        max: 5100.0
+        unit: W
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: A second power value set from a temperature table; meaning not traced.
+      OBC_STATUS_B4_0:
+        start_bit: 32
+        length: 1
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: State of OBC output 8.
+      OBC_STATUS_B4_5:
+        start_bit: 37
+        length: 1
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: Copied to OBC 2101 B27 bit 4; 0 in every capture.
+      OBC_STATUS_B5_2:
+        start_bit: 42
+        length: 1
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: Copied to OBC 2101 B27:3 (OBC_STATUS_B5_2).
+      OBC_STATUS_B5_3:
+        start_bit: 43
+        length: 1
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+      OBC_STATUS_B5_7:
+        start_bit: 47
+        length: 1
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
   '0x597':
     name: BMS_597
     tx_ecu: BMS
@@ -833,6 +931,28 @@ messages:
         byte_order: little
         source: uhi22 vehiclesim.py; CCM application firmware (uhi22 code-flash dump), Com receive table and DIN 70121 message builder decompiled in Ghidra
         notes: Toggles every frame. The CCM reads only this bit of 0x597; if it stops toggling for 60 s the CCM sets DTC C1865, saves a 22C350 session log and ends the session. If the frame stops arriving, the CCM sets B2211.
+      BMS_CHARGE_VOLTAGE_LIMIT:
+        start_bit: 24
+        length: 16
+        byte_order: little
+        scale: 0.1
+        min: 0.0
+        max: 6553.5
+        unit: V
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08; OBC 2101 B28:B29
+        notes: 'Read by the OBC and copied to its 2101 OBC_BMS_VOLTAGE_LIMIT: 412.8 V while plugged in, 0 otherwise.'
+      BMS_CHARGE_CURRENT_LIMIT:
+        start_bit: 40
+        length: 16
+        byte_order: little
+        scale: 0.1
+        min: 0.0
+        max: 6553.5
+        unit: A
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08; OBC 2101 B30:B31
+        notes: 'Read by the OBC and copied to its 2101 OBC_BMS_CURRENT_LIMIT: 20.0 A while charging.'
   '0x5D5':
     name: BMS_5D5
     tx_ecu: BMS
@@ -1147,3 +1267,150 @@ messages:
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 13.1), pack FUN_001F2788; uhi22 Ioniq28 P-CAN tap
         notes: Active regenerative-braking level 0-3, the one the paddles step (the firmware clamps it to 3). Reads 2 throughout both uhi22 logs. Not on any VCU diagnostic page.
+  '0x581':
+    name: OBC_581
+    tx_ecu: OBC
+    length: 8
+    signals:
+      OBC_581_AC_INPUT_A:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        scale: 0.01
+        min: 0.0
+        max: 655.35
+        unit: A
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08; Kona bench notes (IGPM_FINDINGS.md section 8)
+        notes: AC input current (2101 AC_INPUT_A). The whole frame is zero unless the cable session bit (0x57F OBC_B4_1) is set.
+      OBC_581_AC_INPUT_V:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        scale: 0.1
+        min: 0.0
+        max: 6553.5
+        unit: V
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08; Kona bench notes (IGPM_FINDINGS.md section 8)
+        notes: AC input voltage, RMS (2101 AC_INPUT_V).
+      OBC_581_OUTPUT_V:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        scale: 0.1
+        min: 0.0
+        max: 6553.5
+        unit: V
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: Output voltage (2101 OBC_OUTPUT_V). The Kona sends power here instead.
+      OBC_581_DC_A:
+        start_bit: 48
+        length: 16
+        byte_order: little
+        scale: 0.01
+        min: 0.0
+        max: 655.35
+        unit: A
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: DC output current (2101 OBC_DC_A).
+  '0x58E':
+    name: OBC_58E
+    tx_ecu: OBC
+    length: 8
+    signals:
+      OBC_58E_B0:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: A charge sub-state; meaning of the values not traced.
+      OBC_CHARGER_STATE:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08; Kona bench notes (IGPM_FINDINGS.md section 8)
+        notes: The charger's main state; 12 while charging, as the Kona's byte 1 reads 0x0C.
+      OBC_58E_B2:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        scale: 0.01
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: An internal value x0.01; meaning not traced.
+      OBC_PORT_LOCK_STATE:
+        start_bit: 32
+        length: 3
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: State of the charge-port lock state machine, 0-5.
+      OBC_58E_B4_3:
+        start_bit: 35
+        length: 2
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+      OBC_PORT_LOCK_MODE:
+        start_bit: 37
+        length: 1
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: The charge-port lock mode, kept across resets and toggled by the inlet lock-mode switch.
+      OBC_CURRENT_SETTING_STATION:
+        start_bit: 40
+        length: 2
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: 'The stored AC charge-current setting for a charging station, from 0x414: 0 Maximum (100 %), 1 Reduced (90 %), 2 Minimum (60 %).'
+      OBC_CURRENT_SETTING_PORTABLE:
+        start_bit: 42
+        length: 2
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: 'The stored AC charge-current setting for the portable cable, from 0x414: 0 Maximum (100 %), 1 Reduced (75 %), 2 Minimum (50 %).'
+      OBC_58E_B5_4:
+        start_bit: 44
+        length: 2
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: A calibration-defined value; 2 in this firmware.
+      OBC_CP_FREQUENCY:
+        start_bit: 46
+        length: 10
+        byte_order: little
+        scale: 10.0
+        min: 0.0
+        max: 10230.0
+        unit: Hz
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: 'Control-pilot frequency in 10 Hz steps (J1772: 1 kHz).'
+      OBC_58E_B7_3:
+        start_bit: 59
+        length: 1
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+        notes: Set in charger state 15 with a sub-state of 2.
+      OBC_58E_B7_4:
+        start_bit: 60
+        length: 1
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+      OBC_58E_B7_5:
+        start_bit: 61
+        length: 3
+        byte_order: little
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08

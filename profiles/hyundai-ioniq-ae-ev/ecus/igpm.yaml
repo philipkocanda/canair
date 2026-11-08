@@ -74,8 +74,8 @@ IGPM:
             2026-11-03, and through the parked 12 V top-ups (2026-10-21, 2026-10-30, 2026-11-03); at
             the 2026-11-03 top-up end it fell in the same 2 s as VCU_IG3_ON and the HV main relay
             opening. 0 while charging with the ignition off (239 of 242 BMS charging rows), from the
-            first sample of both 2026-08-08 DC fast charges. Not the same signal as
-            OBC_AC_NOT_CONNECTED, which reads 1 through those DC charges.
+            first sample of both 2026-08-08 DC fast charges. Not the same signal as the OBC's 'no AC
+            plug' level (OBC_PROXIMITY_V 2.56 V or more), which holds through those DC charges.
           source: align vs VCU 2101 and BMS 2101 over stored captures, 2026-10-23; power-state cycles 2026-11-03
         CHARGE_DOOR_LAMP_REAR:
           expression: B12:2
@@ -928,28 +928,6 @@ IGPM:
       capture_protocol: >-
         canair monitor IGPM:22BC07 VCU:2101 BMS:2101 OBC:2101 --save --keep-all --interval 1 --label
         'IG3 hand-over at plug-in' --state PLUGGED; press s at plug-in and at charge start.
-    - type: verify
-      target: "IG3 #1 / #2 / quick-charge relay: IGPM 22BC07 B12:3 vs OBC_AC_NOT_CONNECTED"
-      status: pending
-      priority: P2
-      vehicle_states: [PLUGGED, CHARGING, READY]
-      created: "2026-10-23"
-      updated: "2026-10-23"
-      notes: >-
-        IG3_RELAY_OUTPUT is 1 with the ignition on (ON and READY), in the 12 V top-up and in AC
-        charging with the ignition on, 0 in AC and DC charging with it off. OBC_AC_NOT_CONNECTED
-        (B22:0) is 0 whenever an AC cable is connected, ignition or not, and 1 during DC charging.
-        The IG3 rail itself is VCU_IG3_ON. The two disagree only where the stored data is thin.
-      sources:
-        - canair cross-tab 2026-10-23
-      what_to_test:
-        - "AC plug-in with the car in READY, then power off while still plugged: which of the two moves at each step"
-        - A relay click at the ICM relay box at the same instant as either bit
-      capture_protocol: >-
-        canair monitor IGPM:22BC07 OBC:2101 VCU:2101 BMS:2101 --save --keep-all --interval 1 --label
-        'IG3 relay hand-over' --state READY. In READY plug in an AC cable, wait for charging, power
-        off, wait 1 min, power on (no brake), unplug. A second person at the engine-bay relay box
-        notes clicks; press s at each step.
     - type: decode
       target: 22BC04/05/07 and BCM 22B00C body bits (OBDb names)
       status: pending
@@ -1090,7 +1068,7 @@ IGPM:
         fell from 0.8 A at 09:56:53 to 0.0 by 10:11, but on 2026-10-21 it read 0.0 while
         VCU_AUX_POWER still reported 85-110 W on the LDC output (143 W early on); the two disagree
         at that load (see BATTERY_CURRENT), so whether the load tapers to about 100 W or to nothing
-        is open. End: OBC LDC_OUTPUT_V 14.59 V at 10:16:18.8 and VCU B11 0x10 at 10:16:19.0; IGPM
+        is open. End: OBC_12V_SUPPLY_V 14.59 V at 10:16:18.8 and VCU B11 0x10 at 10:16:19.0; IGPM
         bit 1 at 10:16:20.0; BMS at 10:16:20.6 with the relay open, 12 V 13.5 V, DC link 356 V and
         B61:3 still 1; VCU B11 0x80 at 10:16:21.1; IGPM bit 0 at 10:16:21.6; BMS (B61 0x01) and OBC
         last answered at 10:16:23.3 and 10:16:23.7, the VCU at 10:19:25. 2026-10-21: BMS read the
@@ -1219,6 +1197,29 @@ IGPM:
         fingerprint).
       sources:
         - canair read 'raw 770:..' --save, labels 'IGPM bare-SID service presence probe' 1 and 2, 2026-11-08
+    - type: verify
+      target: "IG3 #1 / #2 / quick-charge relay: IGPM 22BC07 B12:3 vs OBC_PROXIMITY_V"
+      status: pending
+      priority: P2
+      vehicle_states: [PLUGGED, CHARGING, READY]
+      created: "2026-10-23"
+      updated: "2026-11-08"
+      notes: >-
+        IG3_RELAY_OUTPUT is 1 with the ignition on (ON and READY), in the 12 V top-up and in AC
+        charging with the ignition on, 0 in AC and DC charging with it off. OBC_PROXIMITY_V reads
+        1.86-1.89 V whenever an AC cable is connected, ignition or not, 3.71 V during DC charging
+        and 4.45 V unplugged. The IG3 rail itself is VCU_IG3_ON. The two disagree only where the
+        stored data is thin.
+      sources:
+        - canair cross-tab 2026-10-23
+      what_to_test:
+        - "AC plug-in with the car in READY, then power off while still plugged: which of the two moves at each step"
+        - A relay click at the ICM relay box at the same instant as either bit
+      capture_protocol: >-
+        canair monitor IGPM:22BC07 OBC:2101 VCU:2101 BMS:2101 --save --keep-all --interval 1 --label
+        'IG3 relay hand-over' --state READY. In READY plug in an AC cable, wait for charging, power
+        off, wait 1 min, power on (no brake), unplug. A second person at the engine-bay relay box
+        notes clicks; press s at each step.
 
   iocontrol_discoveries:
     BC01:

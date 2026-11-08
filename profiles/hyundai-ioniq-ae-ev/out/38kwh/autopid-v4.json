@@ -182,9 +182,9 @@
       "enabled": true,
       "period": "5000",
       "parameters": {
-        "LDC_HV_INPUT_V": "[B45:B46]/100",
-        "LDC_OUTPUT_V": "[B25:B26]/100",
-        "LDC_TEMP": "B19-100",
+        "OBC_BATTERY_SIDE_V": "[B45:B46]/100",
+        "OBC_12V_SUPPLY_V": "[B25:B26]/100",
+        "OBC_TEMP": "B19-100",
         "OBC_CHARGE_V": "[B10:B11]/100",
         "OBC_OUTPUT_V": "[B12:B13]/100",
         "OBC_DC_A": "[B17:B18]/100",
@@ -193,7 +193,7 @@
         "OBC_DC_POWER": "[B10:B11]*[B17:B18]/10000000",
         "AC_INPUT_V": "[B14:B15]/100",
         "AC_INPUT_A": "[B33:B34]/100",
-        "OBC_CHARGE_STATE": "B20"
+        "OBC_PILOT_V": "[B20:B21]/100"
       }
     },
     {
@@ -224,7 +224,7 @@
       "period": "10000",
       "parameters": {
         "VCU_INVERTER_INPUT_VOLTAGE": "B17*2",
-        "VCU_AUX_BATTERY_VOLTAGE": "B14*0.0974",
+        "VCU_LDC_OUTPUT_VOLTAGE_COARSE": "B14/10",
         "VCU_HV_MAIN_RELAY_ON": "B10"
       }
     }

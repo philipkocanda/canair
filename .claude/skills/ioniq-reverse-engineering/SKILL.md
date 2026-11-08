@@ -81,6 +81,9 @@ relations to the other documents and plans, and sources:
   rules behind NRC 0x22, identification DIDs, record-DID families and support maps, IOControl
   and routine id ranges, NRC and failure-type tables. The DID conventions for scanning are in the
   `reverse-engineer-signal` skill's `hyundai-kia-uds-conventions.md`.
+- `VCU_FIRMWARE_FINDINGS.md`, `OBC_FIRMWARE_FINDINGS.md` — static reads of the VCU and OBC flash
+  images: service sets and session matrices, every record byte's source, CAN frame layouts, and
+  (OBC section 9) requests that must never be sent.
 
 ## Vehicle
 
@@ -136,7 +139,7 @@ charge. VCU 2101 `VCU_IG3_ON` (B11:4) is the IG3 rail: the IG3-fed ECUs (OBC, BM
 answer only while it is 1. `VCU_IGN_ON` (B11:0|B11:1) is the
 ignition as the VCU sees it, and `VCU_POWER_STATE` (B25) the VCU's operating mode. Which of IG3
 #1/#2/quick-charge is closed is not decoded: IGPM 22BC07 `IG3_RELAY_OUTPUT` (B12:3) and OBC 2101
-`OBC_AC_NOT_CONNECTED` are the candidates (hypotheses; see the IGPM research entry);
+`OBC_PROXIMITY_V` are the candidates (hypotheses; see the IGPM research entry);
 `IG3_RELAY_OUTPUT` reads 1 whenever IGN1 is on, so it is not a READY signal.
 
 **Telling the power states apart** (narrated cycles, 2026-11-03):
@@ -456,7 +459,7 @@ Decode findings are recorded in each `ecus/<ecu>.yaml` `notes:`. Highlights:
 | AAF | 0x7E6 | ✅ | Active Air Flaps. `2180`/`2181`: ambient `(B18-80)/2` + heater/heatsink/compressor temps. |
 | VCU | 0x7E2 | 🔶 | 2101 gear/state/speed (speed in MPH: `((S20*256)+B19)*1.609344/100`, ~+4% vs dash; do NOT use B21). 2102 DC-link `B17*2` + 12V aux `B18/10`. Regen/drive-mode TODO. Motor RPM/torque live in MCU, not VCU. |
 | MCU | 0x7E3 | 🔶 | Inverter (36600-0E250). Motor RPM = 2102 `[S10:S11]` (signed BE, verified). Torque/phase-current/temps TODO. 2102 B27–B47 = static cal block. |
-| OBC | 0x7E5 | 🔶 | Combined OBC+LDC (alias LDC). 2101 verified: `LDC_HV_INPUT_V=[B45:B46]/100`, `LDC_TEMP=B19-100`, OBC charge/output V, DC current. OBC internal temps NOT broadcast. 2102 = cal. |
+| OBC | 0x7E5 | ✅ | On-board charger (alias LDC kept; the LDC itself is in the EPCU). Every 2101 byte mapped from the firmware: AC/DC voltages and currents, pilot and proximity voltages, `OBC_TEMP=B19-100`, its 12 V supply, 0x57F status bits, BMS limits. 2102 = stored sensor calibration. Never send `99`, or `30 06/07` / `31 00/01` in session 0x90 (OBC_FIRMWARE_FINDINGS.md §9). |
 | HVAC | 0x7B3 | 🔶 | `220100` IAT/AAT/evaporator (partially mapped). `220101`/`220102` unexplored. |
 | SKM | 0x7A5 | 🔶 | ACC relay IOControl accepted, but **relay only physically closes with the fob nearby**. `skm-wake` verifies via IGPM BC03. Powertrain stays dead without fob. |
 | ESC/EPS/PSM/VESS | 0x7D1/0x7D4/0x7A3/0x736 | 🔶 | Research: ESC/EPS partly decoded; PSM (power seat) + VESS (exterior sound) IOControl known from e-Niro, untested here. |

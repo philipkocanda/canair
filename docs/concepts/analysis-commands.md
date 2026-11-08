@@ -373,7 +373,7 @@ Two knobs, shared by all three:
 | Flag | Why |
 |---|---|
 | `--mirror-match FRACTION` (default `0.9`) | Round-robin polling reads a *drifting* signal on two ECUs seconds apart, so they disagree by ±1 on a minority of rows. Demanding every row (`--mirror-match 1`) is enough on its own to hide most real mirrors |
-| `--allow-offset` | Real mirrors are frequently the same quantity at a different zero or in different units — `AAF:2181:AAF_LDC_TEMP + 100` is the OBC's raw LDC temperature byte; a raw 12 V byte is `× 12.8` the decoded rail |
+| `--allow-offset` | Real mirrors are frequently the same quantity at a different zero or in different units — `AAF:2181:AAF_OBC_TEMP + 100` is the OBC's raw temperature byte; a raw 12 V byte is `× 12.8` the decoded rail |
 
 Raw agreement alone is not evidence, so a pair must *also* agree better than
 coincidence (Cohen's κ, reported whenever agreement isn't unanimous). Without that

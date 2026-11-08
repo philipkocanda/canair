@@ -184,7 +184,7 @@ SKM:
             GDS 'Battery Voltage Monitoring Input (by CPU)'. With the LDC on (above 14.2 V) it reads
             within 0.01 V on average of VCU_AUX_BATTERY_VOLTAGE_FINE (n=138, 2026-10-25; +0.07 to
             +0.09 V on 2026-10-22 and 10-24). BCM_12V_BATTERY reads a constant 0.19-0.21 V lower
-            from 11.6 to 15 V (slope 1.011, n=1503) and OBC LDC_OUTPUT_V 0.28-0.36 V lower, so the
+            from 11.6 to 15 V (slope 1.011, n=1503) and OBC_12V_SUPPLY_V 0.28-0.36 V lower, so the
             gaps are calibration offsets, not wiring drop. Not checked with a multimeter. About 12.0
             V parked since 2026-10-30, 14.8 V in READY, up to 15.04 V while charging (2026-11-05).
           source: Co-polled vs VCU 2102, BCM 22B003 and OBC 2101, 2026-08-15 to 2026-11-05

@@ -266,7 +266,7 @@ this, and the one that read the layouts out of the head unit's `parse()` code, a
 | `0x54F` `HU_GW_P_05` clock | gateway `0x567` | identical layout; weekday bit reads Saturday |
 | `0x57B` `HU_EV_P_02` departure schedule | gateway `0x55C` | decodes as two plausible slots; VCU echoes it |
 | `0x57A` `HU_EV_P_01` off-peak window | gateway `0x588` | first four bytes echoed by the VCU |
-| `0x1AA` `HU_EV_PE_00` EV settings | gateway `0x5DF` or `0x5B3` | both gateway-timed; not told apart |
+| `0x1AA` `HU_EV_PE_00` EV settings | gateway `0x5DF` or `0x5B3`; byte 3 (charge current) on `0x414` | both gateway-timed; not told apart. The OBC firmware reads the charge-current bits from `0x414` byte 0 (OBC_FIRMWARE_FINDINGS.md section 7) |
 | `0x54D`/`0x54E` nav road type/distance | gateway `0x55F`/`0x561`? | gateway-timed; all zero, no route active |
 | `0x1C0` `HU_DATC_PE_00` climate comfort | gateway `0x5D3` | opendbc C-CAN ID; only byte 4 bits 0-5 forwarded, into byte 0 |
 

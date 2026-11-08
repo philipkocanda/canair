@@ -337,7 +337,7 @@ VCU:
           source: "Kia Soul EV VMCU CSV (Inverter Input Voltage = f*2)"
           verified: true
           notes: >-
-            HV DC-link voltage, which is the pack voltage. r=0.998 vs OBC:2101:LDC_HV_INPUT_V
+            HV DC-link voltage, which is the pack voltage. r=0.998 vs OBC:2101:OBC_BATTERY_SIDE_V
             (n=5689, slope 0.5024 on the raw byte). 396 V vs BMS pack 396.4 V while charging on
             2026-07-20.
 
@@ -380,9 +380,9 @@ VCU:
           notes: 10 W per LSB; r²=0.994 vs VCU_AUX_POWER.
         VCU_LDC_OUTPUT_VOLTAGE:
           expression: ((B20<<8)|B19)/1000
-          source: canair hunt vs OBC:2101:LDC_OUTPUT_V 2026-10-21
+          source: canair hunt vs OBC:2101:OBC_12V_SUPPLY_V 2026-10-21
           notes: >-
-            12 V bus voltage at the LDC, 16-bit little-endian. r=+0.997 vs OBC:2101:LDC_OUTPUT_V
+            12 V bus voltage at the LDC, 16-bit little-endian. r=+0.997 vs OBC:2101:OBC_12V_SUPPLY_V
             (n=11057, slope 1.019). Reads 0.02-0.22 V above VCU_AUX_BATTERY_VOLTAGE_FINE; the gap
             tracks VCU_AUX_POWER (r=+0.86).
           unit: V
@@ -1328,34 +1328,6 @@ VCU:
       capture_protocol: >-
         canair monitor VCU:2101,2102,21F2 --save --keep-all --interval 0.5 --label 'regen paddles'
         --state READY; press 's' at each paddle press.
-    - type: verify
-      target: how the head unit starts and stops AC charging
-      status: pending
-      priority: P1
-      vehicle_states: [PLUGGED, CHARGING]
-      created: "2026-10-30"
-      updated: "2026-10-30"
-      result: >-
-        The EU head unit has no start or stop command; its only charge control is the scheduling
-        mode: Charge Now sends mode 0, Charge on Schedule resends the saved off-peak mode (1 no
-        window, 2 off-peak enabled, 3 charge only in the window). It goes out as HU_EV_P_01 (MM-CAN
-        0x57A byte 4 bits 1-0, with the off-peak windows in bytes 0-3), the gateway forwards it to
-        P-CAN as 0x588, and the VCU stores it, re-broadcasts it on 0x579 and starts or stops the
-        charge itself using the gateway clock 0x567. The dedicated start/stop frame HU_GW_P_00 is
-        never built and is dropped by the MICOM.
-      notes: >-
-        OBC_SESSION_FLAGS bit 2 follows the charger pilot PWM. All seven recorded charger-ended
-        sessions went 0x76 -> 0x72 with the pilot at 100 % duty; the one car-side stop (2026-08-05
-        15:28, 95 % SOC) kept the PWM and went 0x76 -> 0x7E with VCU_POWER_STATE 7 -> 6. A stop by
-        the scheduling mode should look like the car-side stop.
-      sources:
-        - ioniq-avn-fw EU firmware (GreenCar DepartureClimateActivity/EconomyReservationSettingActivity, IviServer GreenCarMessageSetting, MICOM tables); uhi22 IoniqMotorCAN P-CAN trace 2022-07-22 and Ioniq28Investigations logs; canair OBC 2101 captures; 2026-10-30
-      what_to_test:
-        - "Plugged in at home and charging: in 'Charging and Climate Settings' switch to 'Charge on Schedule' with an off-peak window that excludes now and 'Charge ONLY during the time shown below' ticked, then back to 'Charge Now'. Expect AC_INPUT_A to fall to 0 with the pilot still offered (OBC_SESSION_FLAGS 0x76 -> 0x7E, VCU_POWER_STATE 7 -> 6), then resume."
-        - Repeat with off-peak enabled but the box unticked (mode 2) and with off-peak disabled (mode 1), to learn which modes stop an ongoing charge.
-      capture_protocol: >-
-        canair monitor OBC:2101 VCU:2101 BMS:2101 --save --keep-all --interval 2 --label 'head-unit
-        charge mode start/stop' --state CHARGING; press s at each menu change and name the mode.
     - type: scan
       target: KWP2000 service support (0x30, 0x31, 0x3B, 0x27) and session 10 90
       status: pending
@@ -1483,6 +1455,34 @@ VCU:
         read BMS:2101 VCU:2101 IGPM:22BC07 HVAC:220100 OBC:2101 --save --label 'scheduled wake:
         after T' --state PLUGGED. Start time = read time minus the OPERATING_TIME gain since the
         first read (assumes no other wake in between).
+    - type: verify
+      target: how the head unit starts and stops AC charging
+      status: pending
+      priority: P1
+      vehicle_states: [PLUGGED, CHARGING]
+      created: "2026-10-30"
+      updated: "2026-11-08"
+      result: >-
+        The EU head unit has no start or stop command; its only charge control is the scheduling
+        mode: Charge Now sends mode 0, Charge on Schedule resends the saved off-peak mode (1 no
+        window, 2 off-peak enabled, 3 charge only in the window). It goes out as HU_EV_P_01 (MM-CAN
+        0x57A byte 4 bits 1-0, with the off-peak windows in bytes 0-3), the gateway forwards it to
+        P-CAN as 0x588, and the VCU stores it, re-broadcasts it on 0x579 and starts or stops the
+        charge itself using the gateway clock 0x567. The dedicated start/stop frame HU_GW_P_00 is
+        never built and is dropped by the MICOM.
+      notes: >-
+        OBC 2101 B37 bit 2 (OBC_EVSE_READY) follows the charger pilot PWM. All seven recorded
+        charger-ended sessions went 0x76 -> 0x72 with the pilot at 100 % duty; the one car-side stop
+        (2026-08-05 15:28, 95 % SOC) kept the PWM and went 0x76 -> 0x7E with VCU_POWER_STATE 7 -> 6.
+        A stop by the scheduling mode should look like the car-side stop.
+      sources:
+        - ioniq-avn-fw EU firmware (GreenCar DepartureClimateActivity/EconomyReservationSettingActivity, IviServer GreenCarMessageSetting, MICOM tables); uhi22 IoniqMotorCAN P-CAN trace 2022-07-22 and Ioniq28Investigations logs; canair OBC 2101 captures; 2026-10-30
+      what_to_test:
+        - "Plugged in at home and charging: in 'Charging and Climate Settings' switch to 'Charge on Schedule' with an off-peak window that excludes now and 'Charge ONLY during the time shown below' ticked, then back to 'Charge Now'. Expect AC_INPUT_A to fall to 0 with the pilot still offered (OBC 2101 B37 0x76 -> 0x7E, VCU_POWER_STATE 7 -> 6), then resume."
+        - Repeat with off-peak enabled but the box unticked (mode 2) and with off-peak disabled (mode 1), to learn which modes stop an ongoing charge.
+      capture_protocol: >-
+        canair monitor OBC:2101 VCU:2101 BMS:2101 --save --keep-all --interval 2 --label 'head-unit
+        charge mode start/stop' --state CHARGING; press s at each menu change and name the mode.
   sessions:
     "81":
       name: "standardDiagnosticSession"

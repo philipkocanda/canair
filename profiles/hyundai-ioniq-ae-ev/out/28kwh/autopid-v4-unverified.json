@@ -517,9 +517,9 @@
       "enabled": true,
       "period": "5000",
       "parameters": {
-        "LDC_HV_INPUT_V": "[B45:B46]/100",
-        "LDC_OUTPUT_V": "[B25:B26]/100",
-        "LDC_TEMP": "B19-100",
+        "OBC_BATTERY_SIDE_V": "[B45:B46]/100",
+        "OBC_12V_SUPPLY_V": "[B25:B26]/100",
+        "OBC_TEMP": "B19-100",
         "OBC_CHARGE_V": "[B10:B11]/100",
         "OBC_OUTPUT_V": "[B12:B13]/100",
         "OBC_DC_A": "[B17:B18]/100",
@@ -528,13 +528,16 @@
         "OBC_DC_POWER": "[B10:B11]*[B17:B18]/10000000",
         "AC_INPUT_V": "[B14:B15]/100",
         "AC_INPUT_A": "[B33:B34]/100",
-        "OBC_CHARGE_STATE": "B20",
         "OBC_EFFICIENCY": "100*[B10:B11]*[B17:B18]/([B14:B15]*[B33:B34])",
-        "OBC_AC_NOT_CONNECTED": "B22:0",
-        "OBC_MODE": "B23",
-        "OBC_DC_CHARGE_MODE": "B23:6",
-        "OBC_SESSION_FLAGS": "B37",
-        "OBC_CABLE_SESSION": "B37:4"
+        "OBC_CABLE_SESSION": "B37:4",
+        "OBC_PILOT_V": "[B20:B21]/100",
+        "OBC_PROXIMITY_V": "[B22:B23]/100",
+        "OBC_PLUG_STATE": "B37:1*2+B37:0",
+        "OBC_EVSE_READY": "B37:2",
+        "OBC_STATUS_B0_3": "B37:3",
+        "OBC_FAULT": "B27:2",
+        "OBC_BMS_VOLTAGE_LIMIT": "[B28:B29]/10",
+        "OBC_BMS_CURRENT_LIMIT": "[B30:B31]/10"
       }
     },
     {
@@ -565,7 +568,9 @@
         "VCU_INVERTER_ARMED": "B23:4",
         "GEAR_SIGNAL_VALID": "B10:5",
         "VCU_APS2_VOLTAGE": "((B15<<8)|B14)/2048",
-        "VCU_IGN_ON": "B11:0|B11:1"
+        "VCU_IGN_ON": "B11:0|B11:1",
+        "VCU_REGEN_PADDLE_MINUS": "B23:0",
+        "VCU_REGEN_PADDLE_PLUS": "B23:1"
       }
     },
     {
@@ -575,14 +580,15 @@
       "period": "10000",
       "parameters": {
         "VCU_INVERTER_INPUT_VOLTAGE": "B17*2",
-        "VCU_AUX_BATTERY_VOLTAGE": "B14*0.0974",
+        "VCU_LDC_OUTPUT_VOLTAGE_COARSE": "B14/10",
         "VCU_AUX_POWER": "((B22<<8)|B21)/10",
         "VCU_AUX_POWER_COARSE": "B15*10",
         "VCU_LDC_OUTPUT_VOLTAGE": "((B20<<8)|B19)/1000",
         "VCU_AUX_BATTERY_VOLTAGE_FINE": "((B27<<8)|B26)/1000",
         "VCU_COOLANT_TEMP": "B18-100",
         "VCU_HV_MAIN_RELAY_ON": "B10",
-        "VCU_DCLINK_VOLTAGE": "((B25<<8)|B23)/100"
+        "VCU_DCLINK_VOLTAGE": "((B25<<8)|B23)/100",
+        "VCU_HV_AVAILABLE": "B9"
       }
     },
     {
@@ -595,7 +601,20 @@
         "VCU_ODOMETER": "(B14 | (B15 << 8) | (B17 << 16) | (B18 << 24)) / 256",
         "VCU_21F2_SOC": "((B13<<8)|B12)/256",
         "VCU_21F2_RANGE_START": "B19",
-        "VCU_21F2_RANGE_END": "B20"
+        "VCU_21F2_RANGE_END": "B20",
+        "VCU_21F2_SHARE_MODE1_REGEN0": "(B46<<8)|B45",
+        "VCU_21F2_SHARE_MODE1_REGEN1": "(B49<<8)|B47",
+        "VCU_21F2_SHARE_MODE1_REGEN2": "(B51<<8)|B50",
+        "VCU_21F2_SHARE_MODE1_REGEN3": "(B53<<8)|B52",
+        "VCU_21F2_SHARE_MODE0_REGEN0": "(B55<<8)|B54",
+        "VCU_21F2_SHARE_MODE0_REGEN1": "(B58<<8)|B57",
+        "VCU_21F2_SHARE_MODE0_REGEN2": "(B60<<8)|B59",
+        "VCU_21F2_SHARE_MODE0_REGEN3": "(B62<<8)|B61",
+        "VCU_21F2_SHARE_MODE2_REGEN0": "(B65<<8)|B63",
+        "VCU_21F2_SHARE_MODE2_REGEN1": "(B67<<8)|B66",
+        "VCU_21F2_SHARE_MODE2_REGEN2": "(B69<<8)|B68",
+        "VCU_21F2_SHARE_MODE2_REGEN3": "(B71<<8)|B70",
+        "VCU_21F2_SUPPLY_VOLTAGE": "((B11<<8)|B10)/2072"
       }
     }
   ],

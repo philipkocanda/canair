@@ -125,8 +125,8 @@ ESC:
           source: canair investigate/hunt 2026-10-21
           verified: false
           notes: >-
-            12 V supply voltage at the ESC, 0.0625 V/bit. r=+0.997 vs OBC:2101:LDC_OUTPUT_V (n=1194)
-            and +0.995 vs BMS:2101:AUX_BATTERY_VOLTAGE (n=1608); read 13.81 V against
+            12 V supply voltage at the ESC, 0.0625 V/bit. r=+0.997 vs OBC:2101:OBC_12V_SUPPLY_V
+            (n=1194) and +0.995 vs BMS:2101:AUX_BATTERY_VOLTAGE (n=1608); read 13.81 V against
             VCU_AUX_BATTERY_VOLTAGE_FINE 13.79 V on 2026-08-08.
         BRAKE_PRESSURE_2:
           expression: B45

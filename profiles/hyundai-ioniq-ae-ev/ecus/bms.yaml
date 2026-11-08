@@ -1360,7 +1360,7 @@ BMS:
       priority: P3
       vehicle_states: [TOPUP]
       created: "2026-11-03"
-      updated: "2026-11-03"
+      updated: "2026-11-08"
       notes: >-
         Late in the 2026-10-21 top-up BATTERY_CURRENT read 0.0-0.1 A while VCU_AUX_POWER reported
         85-125 W, which needs about 0.25-0.35 A from a 390 V pack. Above 150 W the two agree within
@@ -1372,7 +1372,7 @@ BMS:
       sources:
         - canair BMS 2101 vs VCU 2102 nearest-join, 2026-11-03
       what_to_test:
-        - "Which of the two is off below 150 W: a DC clamp meter on the 12 V battery cable during a top-up gives the 12 V current, and with LDC_OUTPUT_V the true LDC output power"
+        - "Which of the two is off below 150 W: a DC clamp meter on the 12 V battery cable during a top-up gives the 12 V current, and with VCU_LDC_OUTPUT_VOLTAGE the true LDC output power"
         - Whether BATTERY_CURRENT ever reads 0.0 with the relay closed and VCU_AUX_POWER above 150 W
       capture_protocol: >-
         canair monitor BMS:2101 VCU:2101,2102 OBC:2101 IGPM:22BC07 --save --keep-all --wait --label

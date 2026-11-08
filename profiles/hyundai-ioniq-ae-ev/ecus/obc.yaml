@@ -1,31 +1,30 @@
 # yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
-# ─── OBC / LDC (On-Board Charger + Low-Voltage DC-DC Converter) ─────
+# ─── OBC (On-Board Charger) ─────
 #
-# Self-identifies (KWP2000 1A8C) as "AEEOBC51". Part 36400-0E150. Reports two functions:
-# - OBC_* / AC_INPUT_*: AC charging of the traction battery; read ~0 outside AC charging.
-# - LDC_*: the HV → 12 V DC-DC converter; live in READY and while driving with the OBC idle.
-# The LDC enable/inhibit bits are on the VCU (0x7E2, ecu_id "VLDC"), not here.
+# Self-identifies (KWP2000 1A8C) as "AEEOBC51". Part 36400-0E150. Its firmware (sw
+# EAEEH5L-OS3-D000) is mapped in research/OBC_FIRMWARE_FINDINGS.md: every 2101/2102 byte, the
+# session matrix, the P-CAN frames. The 12 V DC-DC converter (LDC) is in the EPCU (VCU, ecu_id
+# "VLDC"), not here; the 2101 signals once named LDC_* are the OBC's own measurements.
 #
 # KWP2000 sessions (2026-07-22, READY): only 0x81 is accepted; 2101/2102 answer in the default
-# session too.
+# session too. Never send SID 0x99 or, in session 0x90, 0x30 06/07 or 0x31 00/01 (findings §9).
 
 OBC:
   tx_id: 0x7E5
   can_bus: [P-CAN]
   identity:
-    alias: LDC  # also reports the LDC (DC-DC converter) values
-    description: On-Board Charger (integrated LDC / DC-DC converter)
+    alias: LDC  # kept so LDC:2101 still resolves; the LDC itself is in the EPCU
+    description: On-Board Charger
     part_number: "36400-0E150"
     ecu_id: AEEOBC51  # KWP2000 1A8C
     sw_id: "EAEEH5L-OS3-D000"
     calibration: "00000001"
     id_protocol: KWP2000  # 1Axx
     notes: >-
-      Reports the OBC values and the LDC (DC-DC converter) values; whether the LDC sits in this
-      module or the EPCU is an open research item. OBC signals are active only while AC charging;
-      the LDC 12 V output reads live while driving with the OBC idle. The LDC enable/inhibit bits
-      are on the VCU (0x7E2, ecu_id VLDC). Max AC charge 29 A / 6.6 kW (2017 model; the 2019
-      facelift does 32 A).
+      Reports the OBC's own measurements (AC input, DC output, pilot and proximity voltages, its
+      temperature and 12 V supply) and copies of its P-CAN frames 0x57F and BMS 0x597. The 12 V
+      DC-DC converter (LDC) and its enable/inhibit bits are in the EPCU (VCU 0x7E2, ecu_id VLDC).
+      Max AC charge 29 A / 6.6 kW (2017 model; the 2019 facelift does 32 A).
 
   vehicle_states: [IG3]
   pids:
@@ -36,41 +35,48 @@ OBC:
       vehicle_states: [IG3]
       source: canair cross-tab vs BMS 2101 B14 and VCU 2101, 2026-10-23; JejuSoul US Ioniq logs
       verified: true
+      notes: >-
+        42 data bytes, built from the OBC's measurements and its P-CAN frames (OBC firmware,
+        2026-11-08). Constant in the firmware and in all 13346 captures: the header B4-B7 (FF FF F8
+        00), B27 bit 0 (1), B27 bits 4-7 (bits 5-6 a calibration-set value of 2), and B37 bits 5 and
+        6 (1 while the stored sensor calibration sets 1 and 2 are present) and 7 (0).
       parameters:
-        LDC_HV_INPUT_V:
+        OBC_BATTERY_SIDE_V:
           expression: "[B45:B46]/100"
           unit: V
           min: "0"
           max: "500"
-          source: "Live READY vs charging + BMS cross-check (2026-07-20)"
+          source: Live READY vs charging + BMS cross-check (2026-07-20); OBC firmware 2101 builder (ADC channel), 2026-11-08
           notes: >-
-            HV DC-link voltage at the LDC input, downstream of the main relay: present at READY,
-            while charging and during the 12 V top-up. r=0.998 vs
-            VCU:2102:VCU_INVERTER_INPUT_VOLTAGE (n=5689). At the end of the 2026-11-03 top-up it
-            read 353.2 V 0.3 s after the BMS first reported the relay open and 11.1 V 2.9 s later,
-            while BMS BATTERY_VOLTAGE stayed at 361.8 V; 19 V 1.3 s after the relay was last seen
-            closed at the 2026-10-21 top-up end.
+            HV voltage at the OBC's output terminals, on the battery side of its output relay: one
+            of the OBC's own ADC channels, not an LDC value. Reads the pack voltage at READY while
+            OBC_OUTPUT_V reads about 4 V. r=0.998 vs VCU:2102:VCU_INVERTER_INPUT_VOLTAGE (n=5689).
+            At the end of the 2026-11-03 top-up it read 353.2 V 0.3 s after the BMS first reported
+            the relay open and 11.1 V 2.9 s later, while BMS BATTERY_VOLTAGE stayed at 361.8 V; 19 V
+            1.3 s after the relay was last seen closed at the 2026-10-21 top-up end.
 
-        LDC_OUTPUT_V:
+        OBC_12V_SUPPLY_V:
           expression: "[B25:B26]/100"
           unit: V
           min: "0"
           max: "20"
-          source: "Decoded from live captures (2026-04-14)"
+          source: Decoded from live captures (2026-04-14); OBC firmware 2101 builder (ADC channel), 2026-11-08
           notes: >-
-            12 V rail: 14.52 V charging, 14.31 V at READY, 14.59-14.62 V through the parked 12 V
-            top-ups. Sagged 14.5 to 13.6 V and recovered as a rear defroster load switched on and
-            off (2026-07-22). Down to 13.38 V 2.1 s after the last 14.59 V reading at the 2026-11-03
-            top-up end, once the LDC had stopped.
+            The OBC's own 12 V supply, measured on one of its ADC channels. 14.52 V charging, 14.31
+            V at READY, 14.59-14.62 V through the parked 12 V top-ups. Sagged 14.5 to 13.6 V and
+            recovered as a rear defroster load switched on and off (2026-07-22). Down to 13.38 V 2.1
+            s after the last 14.59 V reading at the 2026-11-03 top-up end, once the LDC had stopped.
 
-        LDC_TEMP:
+        OBC_TEMP:
           expression: "B19-100"
           unit: "°C"
           min: "-40"
           max: "120"
-          source: "Kia Soul EV LDC CSV (LDC Temp = i-100) + charging session trend (2026-07-19)"
+          source: Kia Soul EV LDC CSV (LDC Temp = i-100) + charging session trend (2026-07-19); OBC firmware 2101 builder, 2026-11-08
           notes: >-
-            Rose smoothly 28 to 65 °C over a 3 h AC charge; 21 °C at READY with about 18 °C ambient.
+            An OBC temperature sensor: one of its own ADC channels through an 18-point thermistor
+            table; the same value goes out on P-CAN 0x57F byte 2. Rose smoothly 28 to 65 °C over a 3
+            h AC charge; 21 °C at READY with about 18 °C ambient.
 
         OBC_CHARGE_V:
           expression: "[B10:B11]/100"
@@ -116,8 +122,8 @@ OBC:
           notes: >-
             Pilot duty x 0.6. Read 9.9, 12.9 and 15.9 A at 10, 13 and 16 A pilot (2026-07-27); reads
             60 at 100 % duty, when no current is offered.
-        # 2101 has no OBC heatsink/inside/water temperature (Soul OBC S/T/U): B28/B29 are constant
-        # through a 3 h charge and B21 does not track temperature. LDC_TEMP is the only one.
+        # 2101 has no OBC heatsink/inside/water temperature (Soul OBC S/T/U) other than OBC_TEMP:
+        # the rest of the record is voltages, currents, flags and the BMS limits (firmware).
         OBC_DC_POWER:
           expression: "[B10:B11]*[B17:B18]/10000000"
           unit: kW
@@ -143,18 +149,6 @@ OBC:
           notes: >-
             Measured AC input current. Read 9.3, 12.4 and 15.4 A at 10, 13 and 16 A pilot
             (2026-07-27), about 0.6 A below OBC_PILOT_AMPS.
-        OBC_CHARGE_STATE:
-          expression: B20
-          type: enum
-          values:
-            0: not connected / EVSE idle (no pilot PWM)
-            2: active charge session (current flowing)
-            3: connected/standby (pilot PWM present, not charging)
-          source: RE 2026-08-02 AC charge transitions, live ON confirmed; DCFC transitions confirmed 2026-08-08
-          notes: >-
-            0 also while driving. Goes 0, 3, 2 at the start of both AC and CCS DC charges, even
-            though OBC_DC_A stays 0 during DC charging. Only 0, 2 and 3 in this car's captures
-            (n=11441); the US logs also show 1 and 4.
         OBC_EFFICIENCY:
           expression: 100*[B10:B11]*[B17:B18]/([B14:B15]*[B33:B34])
           unit: "%"
@@ -166,73 +160,263 @@ OBC:
             OBC DC output power over AC apparent power (AC_INPUT_V x AC_INPUT_A); no value when
             AC_INPUT_A is 0. Mean 98.1 % at about 4.4 kW AC input (2026-08-05, n=1317); the
             wattmeter check gave 95 % at about 3.5 kW (2026-07-26).
-        OBC_AC_NOT_CONNECTED:
-          expression: B22:0
-          min: "0"
-          max: "1"
-          verified: false
-          notes: >-
-            0 while an AC charge cable is connected, 1 otherwise, including DC fast charging. The
-            complement of BMS 2101 AC_CHARGER_CONNECTED in all 10304 aligned rows, charging or not,
-            ignition on or off.
-        OBC_MODE:
-          expression: B23
-          type: enum
-          values:
-            115: dc_charging
-            186: ac_charging
-            187: ac_charging
-            188: idle
-            189: idle
-          verified: false
-          notes: >-
-            0xBC/0xBD idle (READY, 12 V top-up, plugged but not charging), 0xBA/0xBB AC charging,
-            0x73 throughout both recorded DC fast charges (2026-08-08). Bit 0 alternates between
-            reads in the idle and AC states, except in the 12 V top-up: 0xBD in all 533 reads of the
-            three recorded top-ups. The US logs add 0xB8 at power-up and 0x70, 0x74, 0x75 and 0x80
-            around AC plug-in and charge end.
-        OBC_DC_CHARGE_MODE:
-          expression: B23:6
-          min: "0"
-          max: "1"
-          verified: false
-          notes: >-
-            1 only during DC fast charging: all 54 OBC rows aligned with BMS 2101 B14 = 0x40/0xC3 on
-            2026-08-08, and the CCS log in the US data; 0 in every other state.
-        OBC_SESSION_FLAGS:
-          expression: B37
-          type: enum
-          values:
-            96: unplugged
-            114: plugged_not_charging
-            118: charging
-            122: post_charge_122
-            126: post_charge_126
-          verified: false
-          notes: >-
-            0x60 unplugged (all 2248 rows aligned with BMS B14 = 0x03); 0x72, 0x76, 0x7A or 0x7E
-            with a cable connected, AC or DC: 0x76 while charging (7942 of 7971 rows), 0x72
-            connected without charging, 0x7A/0x7E briefly after a charge ends. The US logs add 0x62
-            and 0x68. Bit 2 follows the charger's pilot PWM (set in 9797 of 9849 rows at 5-95 %
-            duty, none of 99 at 100 %): 0x76 -> 0x72 is the charger ending the session, 0x76 -> 0x7E
-            a stop by the car (2026-08-05, 95 % SOC).
         OBC_CABLE_SESSION:
           expression: B37:4
           min: "0"
           max: "1"
           verified: false
           notes: >-
-            1 whenever a charge cable is connected, AC or DC, and 0 unplugged, in every row aligned
-            with BMS 2101. In the US logs it read 0 for one sample just after an AC plug-in (0x62).
+            Copy of P-CAN 0x57F byte 4 bit 1. 1 whenever a charge cable is connected, AC or DC, and
+            0 unplugged, in every row aligned with BMS 2101. In the US logs it read 0 for one sample
+            just after an AC plug-in (B37 0x62). 0x581 is all zero while it is 0.
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+        OBC_PILOT_V:
+          expression: "[B20:B21]/100"
+          unit: V
+          min: "0"
+          max: "13"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08; matches the J1772 state voltages in this car's captures
+          verified: true
+          notes: >-
+            Control-pilot voltage. 0.50-0.53 V with no charger, 8.9-9.0 V connected (J1772 state B),
+            5.8-5.9 V charging (state C). B20 alone is the voltage / 2.56 (0, 2 or 3 in this car's
+            captures; the US logs add 1 and 4).
+        OBC_PROXIMITY_V:
+          expression: "[B22:B23]/100"
+          unit: V
+          min: "0"
+          max: "5"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08; cross-tab vs BMS 2101 AC_CHARGER_CONNECTED and the 2026-08-08 DC charges
+          verified: false
+          notes: >-
+            An OBC ADC channel with three levels: 4.44-4.45 V unplugged, 1.86-1.89 V with an AC
+            plug, 3.71 V during both recorded DC fast charges (2026-08-08).
+        OBC_PLUG_STATE:
+          expression: B37:1*2+B37:0
+          min: "0"
+          max: "3"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: >-
+            Copy of P-CAN 0x57F byte 0 bits 1-2 (OBC1 OBC_PLUG_STATE). 0 unplugged, 2 with a cable
+            connected (AC or DC) in this car's captures (n=13346).
+        OBC_EVSE_READY:
+          expression: B37:2
+          min: "0"
+          max: "1"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: >-
+            Copy of P-CAN 0x57F byte 0 bit 4 (OBC1 OBC_EVSE_READY). Set in 9797 of 9849 rows at 5-95
+            % pilot duty and in none of 99 at 100 %. 1 -> 0 with the cable still in: the charger
+            ended the session (B37 0x76 -> 0x72).
+        OBC_STATUS_B0_3:
+          expression: B37:3
+          min: "0"
+          max: "1"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: >-
+            Copy of P-CAN 0x57F byte 0 bit 3 (OBC1 OBC_STATUS_B0_3). 1 in 12 of 13346 rows, briefly
+            after a charge ends (B37 0x7A/0x7E).
+        OBC_STATUS_B0_0:
+          expression: B27:1
+          min: "0"
+          max: "1"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: >-
+            Copy of P-CAN 0x57F byte 0 bit 0, a flag of the charge state machine. 1 in 9708 of 13346
+            rows.
+          ship: false
+        OBC_FAULT:
+          expression: B27:2
+          min: "0"
+          max: "1"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: >-
+            Copy of P-CAN 0x57F byte 0 bit 6 (OBC1 OBC_FAULT): set while any of the OBC's four fault
+            groups is active. 0 in all 13346 rows.
+        OBC_STATUS_B5_2:
+          expression: B27:3
+          min: "0"
+          max: "1"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Copy of P-CAN 0x57F byte 5 bit 2. 1 in 49 of 13346 rows.
+          ship: false
+        OBC_AC_ABOVE_22A_LATCH:
+          expression: B9
+          min: "0"
+          max: "1"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: >-
+            Set after the AC input current stays above 22 A for 70 cycles in charger state 12
+            (charging); kept across resets; cleared once when 0x57F byte 1 bit 0 sets.
+          ship: false
+        OBC_BMS_VOLTAGE_LIMIT:
+          expression: "[B28:B29]/10"
+          unit: V
+          min: "0"
+          max: "500"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: >-
+            Copy of BMS frame 0x597 bytes 3-4 (LE, x0.1 V), which the OBC receives on P-CAN. 412.8 V
+            while plugged in, 0 otherwise.
+        OBC_BMS_CURRENT_LIMIT:
+          expression: "[B30:B31]/10"
+          unit: A
+          min: "0"
+          max: "50"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: >-
+            Copy of BMS frame 0x597 bytes 5-6 (LE, x0.1 A), which the OBC receives on P-CAN. 20.0 A
+            while charging, 0 when not plugged in.
+        OBC_INPUT_CURRENT_A_OFFSET:
+          expression: "[B38:B39]/100"
+          unit: A
+          min: "0"
+          max: "2"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: >-
+            Zero offset of input current sensor A: the mean of 1000 samples taken before the input
+            relay closes (AC input below 65 V), checked against +-1.5 A (P0D39). A negative offset
+            reads 0. 0 until the first charge after power-up.
+          ship: false
+        OBC_INPUT_CURRENT_B_OFFSET:
+          expression: "[B50:B51]/100"
+          unit: A
+          min: "0"
+          max: "2"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Zero offset of input current sensor B, measured like OBC_INPUT_CURRENT_A_OFFSET.
+          ship: false
+        OBC_DC_CURRENT_OFFSET:
+          expression: "[B41:B42]/100"
+          unit: A
+          min: "0"
+          max: "2"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: >-
+            Zero offset of the output (OBC_DC_A) current sensor, measured like
+            OBC_INPUT_CURRENT_A_OFFSET and checked against +-1.5 A (P0D52).
+          ship: false
+        OBC_5V_RAIL_V:
+          expression: "[B43:B44]/100"
+          unit: V
+          min: "0"
+          max: "6"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: An OBC ADC channel that reads 4.99-5.00 V in every state.
+          ship: false
+        AC_INPUT_V_SAMPLE:
+          expression: (B47*256+B49)/100
+          unit: V
+          min: "0"
+          max: "400"
+          source: OBC firmware 2101 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: >-
+            A 16-bit value split by the PCI byte B48: an instantaneous, filtered AC input voltage
+            sample. 0-317 V while charging at about 224 V RMS (317 V is the peak); 5-7 V with no AC.
+          ship: false
     2102:
       status: static
       period: 5000
       vehicle_states: [IG3]
       notes: >-
-        34 bytes. Byte-identical across 2316 captures in every state: a calibration table (6-byte
-        header and 7 groups of 4 bytes whose third byte is always 0x79). Answers while charging and
-        in ON; NRC with the car fully off.
-      parameters: {}
+        34 bytes, byte-identical across 2316 captures in every state: the OBC's stored end-of-line
+        sensor calibration. A constant header B4-B7 (FF FC 00 00), then seven offset and gain pairs,
+        each stored as (value + 30) x 1000, so a gain near 1.0 reads 0x79xx. Answers while charging
+        and in ON; NRC with the car fully off.
+      parameters:
+        OBC_CAL_AC_SAMPLE_GAIN:
+          expression: "[B11:B12]/1000-30"
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration gain of the AC_INPUT_V_SAMPLE channel.
+        OBC_CAL_AC_INPUT_V_GAIN:
+          expression: (B15*256+B17)/1000-30
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration gain of the AC_INPUT_V channel; the word straddles the PCI byte B16.
+        OBC_CAL_CHARGE_V_GAIN:
+          expression: "[B20:B21]/1000-30"
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration gain of the OBC_CHARGE_V channel.
+        OBC_CAL_OUTPUT_V_GAIN:
+          expression: "[B25:B26]/1000-30"
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration gain of the OBC_OUTPUT_V channel.
+        OBC_CAL_AC_INPUT_A_GAIN:
+          expression: "[B29:B30]/1000-30"
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration gain of the one-sensor AC input current path (AC_INPUT_A).
+        OBC_CAL_AC_INPUT_A_SUM_GAIN:
+          expression: "[B34:B35]/1000-30"
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration gain of the two-sensor AC input current path.
+        OBC_CAL_DC_A_GAIN:
+          expression: "[B38:B39]/1000-30"
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration gain of the OBC_DC_A channel.
+        OBC_CAL_AC_SAMPLE_OFFSET:
+          expression: "[B9:B10]/1000-30"
+          unit: V
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration offset of the AC_INPUT_V_SAMPLE channel.
+        OBC_CAL_AC_INPUT_V_OFFSET:
+          expression: "[B13:B14]/1000-30"
+          unit: V
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration offset of the AC_INPUT_V channel.
+        OBC_CAL_CHARGE_V_OFFSET:
+          expression: "[B18:B19]/1000-30"
+          unit: V
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration offset of the OBC_CHARGE_V channel.
+        OBC_CAL_OUTPUT_V_OFFSET:
+          expression: "[B22:B23]/1000-30"
+          unit: V
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration offset of the OBC_OUTPUT_V channel.
+        OBC_CAL_AC_INPUT_A_OFFSET:
+          expression: "[B27:B28]/1000-30"
+          unit: A
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration offset of the one-sensor AC input current path (AC_INPUT_A).
+        OBC_CAL_AC_INPUT_A_SUM_OFFSET:
+          expression: (B31*256+B33)/1000-30
+          unit: A
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: >-
+            Calibration offset of the two-sensor AC input current path; the word straddles the PCI
+            byte B32.
+        OBC_CAL_DC_A_OFFSET:
+          expression: "[B36:B37]/1000-30"
+          unit: A
+          source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
+          verified: false
+          notes: Calibration offset of the OBC_DC_A channel.
 
   # Meanings, causes, thresholds and fail-safes are from the Ioniq Electric 2017 service manual,
   # On Board Charger chapter. Unless an entry says "Enabled when", the manual checks the code only
@@ -245,6 +429,9 @@ OBC:
       - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Hybrid%2FElectric%20Powertrain/Testing%20and%20Diagnosis/On%20Board%20Charger%20Diagnosis%20%28EV%29/
       - https://lemon-manuals.org.ua/Hyundai/2017/Ioniq%20Electric/Repair%20and%20Diagnosis/Quick%20Lookups/DTC%20Index/DTC%20Index%20%28EV%29/On%20Board%20Charger%20DTCS/
     verified: false
+    P0D08:
+      source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
+      notes: In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual.
     P0D09:
       description: Battery charging system positive connector stuck open
       causes: faulty OBC fuse, faulty high voltage cable, BMS, OBC
@@ -252,6 +439,9 @@ OBC:
         Threshold: the voltage difference between the two is 30 V or more. Detection time: 5 sec.
         Also needs: turn the OBC relay 'ON'; voltage of the high voltage battery is over 220 V.
         Service lamp on.
+    P0D18:
+      source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
+      notes: In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual.
     P0D21:
       description: Battery charger output voltage too low
       causes: faulty high voltage cable, high voltage battery, OBC
@@ -267,13 +457,16 @@ OBC:
       description: Battery charger input voltage too low
       causes: >-
         external EV supply equipment (EVSE), AC input high voltage cable between inlet and OBC, OBC
-      notes: 'Threshold: AC input voltage (RMS) is less than a predetermined value.'
+      notes: >-
+        Threshold: AC input voltage (RMS) is less than a predetermined value. Not in the DTC table
+        of OBC firmware EAEEH5L-OS3-D000.
     P0D28:
       description: Battery charger input voltage too high
       causes: external AC power supply, OBC
       notes: >-
         Threshold: AC input voltage (RMS) is greater than a predetermined value. A second check
-        applies the same test with the input relay off.
+        applies the same test with the input relay off. Not in the DTC table of OBC firmware
+        EAEEH5L-OS3-D000.
     P0D2A:
       description: Battery charger input current too high
       causes: failure of the external AC power, OBC
@@ -387,7 +580,10 @@ OBC:
       causes: external AC power, OBC
       notes: >-
         Threshold: AC frequency is less than a predetermined value. Also needs: turn the input relay
-        'ON'.
+        'ON'. Not in the DTC table of OBC firmware EAEEH5L-OS3-D000.
+    P1CF5:
+      source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
+      notes: In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual.
     P1CF6:
       description: EVSE check
       causes: external EVSE (electric vehicle supply equipment), OBC
@@ -466,6 +662,9 @@ OBC:
       notes: >-
         Threshold: PFC voltage is greater than 455 V. Detection time: for 10 times or 60 sec. Also
         needs: turn the S2 switch 'ON'. Service lamp on.
+    P1E15:
+      source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
+      notes: In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual.
     P1E16:
       description: Battery charger output relay voltage sensor circuit high
       causes: OBC
@@ -492,6 +691,9 @@ OBC:
       notes: >-
         Threshold: output voltage of the output relay voltage sensor. is below 0.3 V. Detection
         time: 1 sec. Also needs: charging high voltage battery. Service lamp on.
+    P1E1C:
+      source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
+      notes: In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual.
     P1E1F:
       description: Battery charger ignition3 relay stuck open check
       causes: >-
@@ -518,6 +720,12 @@ OBC:
       notes: >-
         Threshold: driver fault signal of the inlet lock mode switch LED. Detection time: 300 ms.
         Enabled when: auxiliary battery 9-16 V.
+    P1E22:
+      source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
+      notes: In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual.
+    P1E23:
+      source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
+      notes: In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual.
     U0001:
       description: High speed CAN communication bus
       causes: >-
@@ -559,6 +767,12 @@ OBC:
       notes: >-
         Threshold: messages do not come from VCU. Detection time: 2 sec. Enabled when: IG3 ON;
         auxiliary battery 9-16 V. Service lamp on after 2 driving cycles.
+    U1116:
+      description: Lost communication with motor electronics coolant pump (P-CAN)
+      source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8); description from the MCU's service-manual entry for the same code
+      notes: >-
+        In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the OBC chapter of the service
+        manual. The OBC receives the pump's P-CAN frame 0x570.
 
   research:
     - type: decode
@@ -566,6 +780,11 @@ OBC:
       status: captured
       priority: P1
       vehicle_states: [READY, CHARGING]
+      result: >-
+        Every byte now has a firmware source (research/OBC_FIRMWARE_FINDINGS.md section 5.1,
+        2026-11-08), checked against 13346 captures. Still open: what OBC_CHARGE_V and OBC_OUTPUT_V
+        each measure; both are OBC ADC voltages, and OBC_OUTPUT_V is inside the output relay (about
+        4 V when idle, while OBC_BATTERY_SIDE_V reads the pack).
       notes: >-
         Main 2101 signals are decoded (see parameters). Open: what OBC_OUTPUT_V and OBC_CHARGE_V
         each measure.
@@ -584,63 +803,32 @@ OBC:
         Only 2101 and 2102 respond (OBC idle, ignition on); all other LIDs NRC. No 21F2, unlike
         BMS/MCU/VCU.
     - type: decode
-      target: 2101 12V output current
-      status: pending
-      priority: P3
-      vehicle_states: [READY]
-      created: "2026-07-28"
-      updated: "2026-07-30"
-      result: >-
-        Not on OBC 2101. Under a 137-651 W 12 V load swing at READY (VCU_AUX_POWER, 2026-07-30) only
-        the LDC_OUTPUT_V word sags (about 26 mOhm source resistance); no byte tracks a current.
-        Derived current VCU_AUX_POWER / LDC_OUTPUT_V gives 9-48 A in that window; it inherits
-        VCU_AUX_POWER's unverified status.
-      notes: >-
-        Also absent from VCU 2101/2102, MCU 2102 (motor phase currents) and EWP 21F2. No hidden
-        service-21 page on OBC or VCU. VCU 21F2 has no charging capture yet. The Soul's standalone
-        LDC (0x7C5) DC_Current_Out has no counterpart here.
-      what_to_test:
-        - "12 V-only load step at READY (rear defroster, high beams, blower; A/C off) co-polling OBC:2101, VCU:2102, VCU:21F2 and BMS:2101 with --keep-all: pack BATTERY_CURRENT is then the LDC input alone, a cross-check on VCU_AUX_POWER / LDC_OUTPUT_V. The 2026-07-30 step also ran the A/C compressor."
-        - "Capture VCU 21F2 with --keep-all while charging, to contrast its analog bytes against READY."
-    - type: decode
       target: 2101 charge state machine B17/B22/B35/B36
-      status: captured
+      status: done
       priority: P2
       vehicle_states: [CHARGING]
       created: "2026-08-02"
-      updated: "2026-08-02"
+      updated: "2026-11-08"
+      result: >-
+        Done from the firmware (research/OBC_FIRMWARE_FINDINGS.md section 5.1, 2026-11-08): B27 and
+        B37 are status bits copied from P-CAN 0x57F, B28-B31 the BMS 0x597 charge voltage and
+        current limits (412.8 V, 20.0 A), B38:B39, B41:B42 and B50:B51 current-sensor zero offsets,
+        B47/B49 one AC voltage sample word split by a PCI byte.
       notes: >-
-        B17, B22 and B35/B36 are decoded (high byte of OBC_DC_A, OBC_AC_NOT_CONNECTED, the
-        OBC_PILOT_DUTY word). Still undecoded: B27 (65/67), B28 = 16, B29 = 32 and B31 = 200 (fixed
-        while charging), B38, and B47/B49 (checksum-like). In the 2026-08-08 DC fast charges B21
-        reads 72-75 and B36 49; OBC_DC_A, OBC_DC_POWER and OBC_EFFICIENCY read 0.
-    - type: verify
-      target: 2101 [B20:B21] 16-bit value vs OBC_CHARGE_STATE enum
-      status: pending
-      priority: P2
-      vehicle_states: [PLUGGED, CHARGING]
-      created: "2026-10-23"
-      updated: "2026-10-23"
-      notes: >-
-        B20 (OBC_CHARGE_STATE) and B21 may be one big-endian 16-bit value. As (B20<<8)|B21 it reads
-        50-53 with B20 = 0, 582-591 with 2 and 890-900 with 3. In the US logs it ramps smoothly
-        across B20 boundaries (B20 = 1 and 4 also appear), and after a charge stops B21 decays 0xE3
-        to 0x34 with B20 = 0. Scale and meaning unknown.
-      sources:
-        - JejuSoul US Ioniq logs, canair 2026-10-23
-      what_to_test:
-        - Plot (B20<<8)|B21 at 1 s across plug-in, charge start, charge stop and unplug; check whether it moves within a B20 value and whether B20 = 1 or 4 ever appears
-      capture_protocol: >-
-        canair monitor OBC:2101 BMS:2101 --save --keep-all --interval 1 --label 'OBC B20:B21 pilot'
-        --state PLUGGED; plug in, let it charge 2 min, stop from the EVSE, unplug. Press s at each
-        step.
+        B17, B22 and B35/B36 were decoded first (high byte of OBC_DC_A, the proximity word B22:B23,
+        the OBC_PILOT_DUTY word). In the 2026-08-08 DC fast charges B21 reads 72-75 and B36 49;
+        OBC_DC_A, OBC_DC_POWER and OBC_EFFICIENCY read 0.
     - type: decode
       target: broadcast 0x562 (OBC AC charge current / charge-limit command)
-      status: pending
+      status: done
       priority: P2
       vehicle_states: [CHARGING, PLUGGED]
       created: "2026-10-29"
-      updated: "2026-10-29"
+      updated: "2026-11-08"
+      result: >-
+        Not used on this car: the OBC firmware (sw EAEEH5L-OS3-D000) does not receive 0x562. It
+        takes the AC charge-current setting from P-CAN 0x414 byte 0
+        (research/OBC_FIRMWARE_FINDINGS.md section 7), as the 2019 Kona does.
       notes: >-
         On the Kona the bench commands the OBC on broadcast 0x562: byte 1 is the AC charge-current
         level (0x08 max, 0x0C reduced, 0x04 min), byte 4 the AC charge target as percent x 2; a
@@ -651,23 +839,6 @@ OBC:
       what_to_test:
         - Tapped P-CAN sniff while changing the AC charge-current setting and the target SoC in the car menu; look for 0x562 (or a neighbour) with byte1/byte4 changing in step.
     - type: verify
-      target: which module hosts the LDC (OBC 0x7E5 vs the EPCU)
-      status: pending
-      priority: P3
-      vehicle_states: [READY]
-      created: "2026-10-29"
-      updated: "2026-10-29"
-      notes: >-
-        uhi22's teardown shows the 12 V DC-DC converter (LDC) inside the EPCU housing with the
-        inverter, and the VCU's ecu_id is VLDC. This profile reads the LDC_* values from OBC 2101 at
-        0x7E5, so either the OBC relays the LDC's values or those signals are named after the wrong
-        module. The EPCU broadcasts its DC-DC temperature on 0x523 bytes 2-3 (sensor R147 on the
-        DC-DC board).
-      sources:
-        - uhi22 EPCU readme (teardown photos of the DC-DC boards inside the EPCU), 2026-10-29
-      what_to_test:
-        - With a P-CAN tap, compare OBC 2101 LDC_TEMP against 0x523 byte 2 during a long READY idle with a heavy 12 V load (rear heater, blower, lights).
-    - type: verify
       target: "AC charge-current setting (station and portable): encoding and amps"
       status: pending
       priority: P2
@@ -675,20 +846,18 @@ OBC:
       created: "2026-10-30"
       updated: "2026-10-30"
       result: >-
-        Encoding found in the head-unit firmware, not yet seen on a bus. The EV menu 'Charge
-        Current' has a charging-station page and a portable-cable page, each with Maximum, Reduced
-        and Minimum, sent as 0, 1, 2 in HU_EV_PE_00 (MM-CAN 0x1AA) byte 3: bits 3-2 station, bits
-        1-0 portable, 3 = keep (a charge-current change sends bytes 0-2 as 0xFF, a drive-mode change
-        sends byte 3 as 0x0F). The menu then shows the mode the OBC reports back, so the OBC stores
-        the setting; the report frame is most likely GW_EV_P_02 (MM-CAN 0x55C byte 5 bits 3-2 / 1-0,
-        3 = invalid). P-CAN copy not identified: 0x5DF or 0x5B3 (see the AVN research entry); both
-        read 0 (Maximum) in byte 3 on uhi22's car. Details: ioniq-avn-fw micom-can-findings.md §6.1.
+        From the OBC firmware (research/OBC_FIRMWARE_FINDINGS.md section 7, 2026-11-08), not yet
+        seen on a bus: the setting arrives on P-CAN 0x414 byte 0, bits 2-3 station and bits 1-0
+        portable (0 Maximum, 1 Reduced, 2 Minimum), is kept across resets and is reported back in
+        0x58E byte 5 (bits 0-1 station, 2-3 portable). It scales the J1772 pilot current by
+        1.00/0.90/0.60 at a station and 1.00/0.75/0.50 on the portable cable. The head unit sends it
+        in HU_EV_PE_00 (MM-CAN 0x1AA) byte 3 (ioniq-avn-fw).
       notes: >-
         Every stored AC charge on the owner car (12 days, 7.9-23.9 A pilot) drew 92-97 % of the
-        pilot current, so all were at Maximum. No OBC 2101 byte differs between the 8 A sessions and
-        the others, so how the OBC tells the portable cable from a station is not visible there.
-        Other Hyundai/Kia models are reported at about 100/90/60 %; the Ioniq AE's steps are
-        unmeasured.
+        pilot current. The OBC tells a station from the portable cable by the pilot alone: a mean
+        duty of 23 % (13.8 A) or more is a station, so this car's 10 A and 13 A wallbox sessions
+        count as portable-cable charges and its 16 A sessions as station charges. No OBC 2101 byte
+        carries the setting.
       sources:
         - "ioniq-avn-fw EU firmware: GreenCar ChargeElectricSettingActivity and layouts, IviServer GreenCarMessageSetting, com.lge.ivi HuEvPe00/GwEvP02, MICOM 0x1AA setters 0x85E6C/0x85EC2; canair OBC 2101 captures; 2026-10-30"
       what_to_test:
@@ -698,31 +867,6 @@ OBC:
         canair monitor OBC:2101,2102 BMS:2101 --save --keep-all --interval 2 --label 'AC
         charge-current setting steps' --state CHARGING; press s at each menu change and name the
         setting.
-    - type: iocontrol_scan
-      target: 30 00-FF (LED LIDs 01-04 first)
-      status: pending
-      priority: P3
-      vehicle_states: [PARKED, ACC]
-      created: "2026-10-30"
-      updated: "2026-10-30"
-      notes: >-
-        OVMS (Open Vehicle Monitoring System) Kia Soul EV BlueChargeLed()
-        (vehicle_kiasoulev.cpp:1101-1115) sends the Soul OBC (0x794) 10 81, 10 90, then KWP2000 30
-        {led} {00 on | 11 off}, led 1 centre, 2 left, 3 right, 4 all; if real, 30 {LID} 00 actuates
-        rather than releases. Weak evidence: the function has no callers, builds an invalid
-        single-frame length (08 03 30 …) and never returns to 10 01. The Soul park-brake 30 commands
-        go to 0x7A5 (the smart key address), and OVMS's own TODO says they do not work. No captured
-        30 traffic exists for any HKMC car. The 2021 Kona OBC (7E5), VCU and MCU accept 10 90 and
-        reject 10 03 (profiles/hyundai-kona-os-ev/captures/can/221210-*); 10 90 is untested on this
-        OBC. Do not sweep 30 here until the meaning of 30 {LID} 00 is known.
-      sources:
-        - "OVMS vehicle_kiasoulev: vehicle_kiasoulev.cpp BlueChargeLed(), ks_commands.cpp CommandParkBreakService, ks_can_send.cpp Send_EBP_Command (openvehicles/Open-Vehicle-Monitoring-System-3, read 2026-10-30)"
-      what_to_test:
-        - "Car parked, ACC, charge port unplugged: use canair raw to open 10 81 then 10 90 on OBC (0x7E5) and check 10 90 is accepted (the hk_90_session quirk permits it); the earlier probe only accepted 0x81. Do not define an iocontrol: entry yet: canair io refuses a 0x30 ON until its release is known."
-        - "If 10 90 is accepted: send one 30 01 00 and watch the charge-port LED (second person), then 30 01 11. Stop on any unexpected NRC."
-      capture_protocol: >-
-        canair raw with --save --label 'OBC KWP 30 LED probe' --state ACC; record every request and
-        reply. Only LIDs 01-04, never a blind sweep.
     - type: scan
       target: 01 01, 01 21, 01 30, 01 31
       status: captured
@@ -739,8 +883,10 @@ OBC:
         or one-byte replies, so the OBC is the only ECU on this car that serves them.
       notes: >-
         01 31 is a candidate signal (distance since the last DTC clear); the CLU odometer read 75669
-        km on 2026-10-25, which puts that clear near 64800 km. Not defined yet; a READY or drive
-        capture would confirm it counts up.
+        km on 2026-10-25, which puts that clear near 64800 km. The firmware (2026-11-08) serves
+        exactly these four Mode 01 PIDs: 01 31 is the gateway odometer (P-CAN 0x5D0) minus the
+        odometer stored at the last clear, and the supported-PID entries (01 00, 20, 40) are
+        disabled, which is why they give no reply.
       sources:
         - on-car 2026-11-01 support probe (canair read and discover --functional --save, wican-ws, AC charging)
       what_to_test:
@@ -760,6 +906,7 @@ OBC:
         twice and the same, no new fault code on 14 ECUs, the charge kept running). 4 MiB at
         0x000000-0x3FFFFF: boot 0x000000-0x0065FF and 0x00FFC0-0x010EFF, calibration
         0x143000-0x1451BF, program 0x180000-0x19A13F and 0x19C440-0x1C0AFF, the rest erased.
+        Analysed statically in research/OBC_FIRMWARE_FINDINGS.md.
       notes: >-
         The first 4 KiB are byte for byte the VCU's, and the rest of the boot block nearly so: the
         same bootloader, with a flash-block table up to 0x380000 and a start-up loop that clears RAM
@@ -769,6 +916,90 @@ OBC:
         part number at 0x1C046A. The dump stays local.
       sources:
         - canair memory image OBC --range 000000-3FFFFF, 2026-11-08 (dump local only)
+    - type: iocontrol_scan
+      target: 30 00-FF (LED LIDs 01-04 first)
+      status: done
+      priority: P3
+      vehicle_states: [PARKED, ACC]
+      created: "2026-10-30"
+      updated: "2026-11-08"
+      result: >-
+        Answered by the firmware (research/OBC_FIRMWARE_FINDINGS.md section 4.3, 2026-11-08): 0x30
+        opens only in session 0x90, and only LIDs 06 and 07 are enabled. Both run the end-of-line
+        sensor calibration, which overwrites the stored calibration (2102); LID 06 also runs the
+        power stage. No LED LID exists: 30 01 00 gets NRC 0x80 in session 0x81 and NRC 0x79 in 0x90.
+        Do not send 0x30 to this OBC.
+      notes: >-
+        OVMS (Open Vehicle Monitoring System) Kia Soul EV BlueChargeLed()
+        (vehicle_kiasoulev.cpp:1101-1115) sends the Soul OBC (0x794) 10 81, 10 90, then KWP2000 30
+        {led} {00 on | 11 off}, led 1 centre, 2 left, 3 right, 4 all; if real, 30 {LID} 00 actuates
+        rather than releases. Weak evidence: the function has no callers, builds an invalid
+        single-frame length (08 03 30 …) and never returns to 10 01. The Soul park-brake 30 commands
+        go to 0x7A5 (the smart key address), and OVMS's own TODO says they do not work. No captured
+        30 traffic exists for any HKMC car. The 2021 Kona OBC (7E5), VCU and MCU accept 10 90 and
+        reject 10 03 (profiles/hyundai-kona-os-ev/captures/can/221210-*); 10 90 is untested on this
+        OBC. Do not sweep 30 here until the meaning of 30 {LID} 00 is known.
+      sources:
+        - "OVMS vehicle_kiasoulev: vehicle_kiasoulev.cpp BlueChargeLed(), ks_commands.cpp CommandParkBreakService, ks_can_send.cpp Send_EBP_Command (openvehicles/Open-Vehicle-Monitoring-System-3, read 2026-10-30)"
+    - type: verify
+      target: which module hosts the LDC (OBC 0x7E5 vs the EPCU)
+      status: done
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-10-29"
+      updated: "2026-11-08"
+      result: >-
+        Not in the OBC. Its firmware (research/OBC_FIRMWARE_FINDINGS.md section 5.1, 2026-11-08) has
+        no DC-DC control, and the three 2101 signals named LDC_* come from the OBC's own ADC
+        channels; they are now OBC_TEMP, OBC_12V_SUPPLY_V and OBC_BATTERY_SIDE_V. The LDC is the
+        EPCU's, as uhi22's teardown shows.
+      notes: >-
+        uhi22's teardown shows the 12 V DC-DC converter (LDC) inside the EPCU housing with the
+        inverter, and the VCU's ecu_id is VLDC. This profile reads the LDC_* values from OBC 2101 at
+        0x7E5, so either the OBC relays the LDC's values or those signals are named after the wrong
+        module. The EPCU broadcasts its DC-DC temperature on 0x523 bytes 2-3 (sensor R147 on the
+        DC-DC board).
+      sources:
+        - uhi22 EPCU readme (teardown photos of the DC-DC boards inside the EPCU), 2026-10-29
+    - type: verify
+      target: 2101 [B20:B21] 16-bit value
+      status: done
+      priority: P2
+      vehicle_states: [PLUGGED, CHARGING]
+      created: "2026-10-23"
+      updated: "2026-11-08"
+      result: >-
+        One word: the control-pilot voltage x100, now OBC_PILOT_V (research/OBC_FIRMWARE_FINDINGS.md
+        section 5.1, 2026-11-08). B20 alone is the voltage / 2.56: 0 below 2.56 V, 2 at J1772 state
+        C (5.8-5.9 V), 3 at state B (8.9-9.0 V); the US logs' 1 and 4 are 2.56-5.11 V and
+        10.24-12.79 V.
+      notes: >-
+        B20 (then defined alone as OBC_CHARGE_STATE) and B21 may be one big-endian 16-bit value. As
+        (B20<<8)|B21 it reads 50-53 with B20 = 0, 582-591 with 2 and 890-900 with 3. In the US logs
+        it ramps smoothly across B20 boundaries (B20 = 1 and 4 also appear), and after a charge
+        stops B21 decays 0xE3 to 0x34 with B20 = 0. Scale and meaning unknown.
+      sources:
+        - JejuSoul US Ioniq logs, canair 2026-10-23
+    - type: decode
+      target: 2101 12V output current
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-07-28"
+      updated: "2026-11-08"
+      result: >-
+        Not on OBC 2101. Under a 137-651 W 12 V load swing at READY (VCU_AUX_POWER, 2026-07-30) only
+        the OBC_12V_SUPPLY_V word sags (about 26 mOhm source resistance); no byte tracks a current.
+        Derived current VCU_AUX_POWER / OBC_12V_SUPPLY_V gives 9-48 A in that window; it inherits
+        VCU_AUX_POWER's unverified status. The OBC firmware (2026-11-08) confirms it: the OBC has no
+        DC-DC converter, and OBC_12V_SUPPLY_V is its own 12 V supply.
+      notes: >-
+        Also absent from VCU 2101/2102, MCU 2102 (motor phase currents) and EWP 21F2. No hidden
+        service-21 page on OBC or VCU. VCU 21F2 has no charging capture yet. The Soul's standalone
+        LDC (0x7C5) DC_Current_Out has no counterpart here.
+      what_to_test:
+        - "12 V-only load step at READY (rear defroster, high beams, blower; A/C off) co-polling OBC:2101, VCU:2102, VCU:21F2 and BMS:2101 with --keep-all: pack BATTERY_CURRENT is then the LDC input alone, a cross-check on VCU_AUX_POWER / VCU_LDC_OUTPUT_VOLTAGE. The 2026-07-30 step also ran the A/C compressor."
+        - Capture VCU 21F2 with --keep-all while charging, to contrast its analog bytes against READY.
 
   sessions:
     "81":

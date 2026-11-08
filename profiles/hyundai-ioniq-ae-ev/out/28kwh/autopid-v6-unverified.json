@@ -2767,7 +2767,7 @@
       "enabled": true,
       "parameters": [
         {
-          "name": "LDC_HV_INPUT_V",
+          "name": "OBC_BATTERY_SIDE_V",
           "expression": "[B45:B46]/100",
           "unit": "V",
           "class": "voltage",
@@ -2775,7 +2775,7 @@
           "max": 500
         },
         {
-          "name": "LDC_OUTPUT_V",
+          "name": "OBC_12V_SUPPLY_V",
           "expression": "[B25:B26]/100",
           "unit": "V",
           "class": "voltage",
@@ -2783,7 +2783,7 @@
           "max": 20
         },
         {
-          "name": "LDC_TEMP",
+          "name": "OBC_TEMP",
           "expression": "B19-100",
           "unit": "\u00b0C",
           "class": "temperature",
@@ -2855,12 +2855,6 @@
           "max": 40
         },
         {
-          "name": "OBC_CHARGE_STATE",
-          "expression": "B20",
-          "unit": "",
-          "class": ""
-        },
-        {
           "name": "OBC_EFFICIENCY",
           "expression": "100*[B10:B11]*[B17:B18]/([B14:B15]*[B33:B34])",
           "unit": "%",
@@ -2869,40 +2863,76 @@
           "max": 105
         },
         {
-          "name": "OBC_AC_NOT_CONNECTED",
-          "expression": "B22:0",
-          "unit": "",
-          "class": "",
-          "min": 0,
-          "max": 1
-        },
-        {
-          "name": "OBC_MODE",
-          "expression": "B23",
-          "unit": "",
-          "class": ""
-        },
-        {
-          "name": "OBC_DC_CHARGE_MODE",
-          "expression": "B23:6",
-          "unit": "",
-          "class": "",
-          "min": 0,
-          "max": 1
-        },
-        {
-          "name": "OBC_SESSION_FLAGS",
-          "expression": "B37",
-          "unit": "",
-          "class": ""
-        },
-        {
           "name": "OBC_CABLE_SESSION",
           "expression": "B37:4",
           "unit": "",
           "class": "",
           "min": 0,
           "max": 1
+        },
+        {
+          "name": "OBC_PILOT_V",
+          "expression": "[B20:B21]/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 13
+        },
+        {
+          "name": "OBC_PROXIMITY_V",
+          "expression": "[B22:B23]/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 5
+        },
+        {
+          "name": "OBC_PLUG_STATE",
+          "expression": "B37:1*2+B37:0",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 3
+        },
+        {
+          "name": "OBC_EVSE_READY",
+          "expression": "B37:2",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "OBC_STATUS_B0_3",
+          "expression": "B37:3",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "OBC_FAULT",
+          "expression": "B27:2",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "OBC_BMS_VOLTAGE_LIMIT",
+          "expression": "[B28:B29]/10",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 500
+        },
+        {
+          "name": "OBC_BMS_CURRENT_LIMIT",
+          "expression": "[B30:B31]/10",
+          "unit": "A",
+          "class": "current",
+          "min": 0,
+          "max": 50
         }
       ]
     },
@@ -3069,6 +3099,18 @@
           "class": "",
           "min": 0,
           "max": 1
+        },
+        {
+          "name": "VCU_REGEN_PADDLE_MINUS",
+          "expression": "B23:0",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "VCU_REGEN_PADDLE_PLUS",
+          "expression": "B23:1",
+          "unit": "",
+          "class": ""
         }
       ]
     },
@@ -3091,8 +3133,8 @@
           "max": 450
         },
         {
-          "name": "VCU_AUX_BATTERY_VOLTAGE",
-          "expression": "B14*0.0974",
+          "name": "VCU_LDC_OUTPUT_VOLTAGE_COARSE",
+          "expression": "B14/10",
           "unit": "V",
           "class": "voltage",
           "min": 0,
@@ -3153,6 +3195,14 @@
           "class": "voltage",
           "min": 0,
           "max": 450
+        },
+        {
+          "name": "VCU_HV_AVAILABLE",
+          "expression": "B9",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
         }
       ]
     },
@@ -3205,6 +3255,110 @@
           "class": "distance",
           "min": 0,
           "max": 255
+        },
+        {
+          "name": "VCU_21F2_SHARE_MODE1_REGEN0",
+          "expression": "(B46<<8)|B45",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_SHARE_MODE1_REGEN1",
+          "expression": "(B49<<8)|B47",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_SHARE_MODE1_REGEN2",
+          "expression": "(B51<<8)|B50",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_SHARE_MODE1_REGEN3",
+          "expression": "(B53<<8)|B52",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_SHARE_MODE0_REGEN0",
+          "expression": "(B55<<8)|B54",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_SHARE_MODE0_REGEN1",
+          "expression": "(B58<<8)|B57",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_SHARE_MODE0_REGEN2",
+          "expression": "(B60<<8)|B59",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_SHARE_MODE0_REGEN3",
+          "expression": "(B62<<8)|B61",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_SHARE_MODE2_REGEN0",
+          "expression": "(B65<<8)|B63",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_SHARE_MODE2_REGEN1",
+          "expression": "(B67<<8)|B66",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_SHARE_MODE2_REGEN2",
+          "expression": "(B69<<8)|B68",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_SHARE_MODE2_REGEN3",
+          "expression": "(B71<<8)|B70",
+          "unit": "%",
+          "class": "",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "VCU_21F2_SUPPLY_VOLTAGE",
+          "expression": "((B11<<8)|B10)/2072",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 16
         }
       ]
     }

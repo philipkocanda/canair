@@ -581,7 +581,7 @@
       "enabled": true,
       "parameters": [
         {
-          "name": "LDC_HV_INPUT_V",
+          "name": "OBC_BATTERY_SIDE_V",
           "expression": "[B45:B46]/100",
           "unit": "V",
           "class": "voltage",
@@ -589,7 +589,7 @@
           "max": 500
         },
         {
-          "name": "LDC_OUTPUT_V",
+          "name": "OBC_12V_SUPPLY_V",
           "expression": "[B25:B26]/100",
           "unit": "V",
           "class": "voltage",
@@ -597,7 +597,7 @@
           "max": 20
         },
         {
-          "name": "LDC_TEMP",
+          "name": "OBC_TEMP",
           "expression": "B19-100",
           "unit": "\u00b0C",
           "class": "temperature",
@@ -669,10 +669,12 @@
           "max": 40
         },
         {
-          "name": "OBC_CHARGE_STATE",
-          "expression": "B20",
-          "unit": "",
-          "class": ""
+          "name": "OBC_PILOT_V",
+          "expression": "[B20:B21]/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 13
         }
       ]
     },
@@ -789,8 +791,8 @@
           "max": 450
         },
         {
-          "name": "VCU_AUX_BATTERY_VOLTAGE",
-          "expression": "B14*0.0974",
+          "name": "VCU_LDC_OUTPUT_VOLTAGE_COARSE",
+          "expression": "B14/10",
           "unit": "V",
           "class": "voltage",
           "min": 0,

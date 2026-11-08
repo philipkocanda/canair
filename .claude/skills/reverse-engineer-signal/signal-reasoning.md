@@ -132,7 +132,7 @@ The levers that count as *evidence*:
   capture and no physical reasoning, so sweep for mirrors *before* correlation or physics
   when a PID is co-polled with well-mapped ECUs. Real mirrors are frequently not exact:
   pass **`--allow-offset`** (same quantity at a different zero/scale —
-  `OBC:2101:B19 == AAF_LDC_TEMP + 100`, a raw 12 V byte at `× 12.8`) and leave
+  `OBC:2101:B19 == AAF_OBC_TEMP + 100`, a raw 12 V byte at `× 12.8`) and leave
   **`--mirror-match`** at its 0.9 default, since round-robin polling reads a drifting
   signal on two ECUs seconds apart and they disagree by ±1 on a minority of rows
   (demanding every row alone hides most real mirrors). Beware a small `--min-n`: noisy
