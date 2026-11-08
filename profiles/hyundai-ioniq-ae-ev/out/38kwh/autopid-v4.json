@@ -213,7 +213,7 @@
         "VEHICLE_STATE_EV_READY": "B11:3",
         "VCU_IG3_ON": "B11:4",
         "DEBUG_GEAR_STATE_FLAGS": "B26",
-        "VCU_INVERTER_ENABLED": "B23:2",
+        "VCU_IGNITION_INPUT": "B23:2",
         "VCU_POWER_STATE": "B25"
       }
     },
@@ -225,7 +225,7 @@
       "parameters": {
         "VCU_INVERTER_INPUT_VOLTAGE": "B17*2",
         "VCU_LDC_OUTPUT_VOLTAGE_COARSE": "B14/10",
-        "VCU_HV_MAIN_RELAY_ON": "B10"
+        "VCU_LDC_RUNNING": "B10"
       }
     }
   ],

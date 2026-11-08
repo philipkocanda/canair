@@ -63,8 +63,8 @@ AAF:
           max: "150"
           source: canair correlate --find-mirrors --allow-offset 2026-10-21
           notes: >-
-            Same raw byte as VCU:2102 B18, so it reads VCU_COOLANT_TEMP (equal in 4321 of 4469
-            aligned rows, r=+0.999). Not a 12 V voltage: r=-0.04 vs VCU_AUX_BATTERY_VOLTAGE_FINE.
+            Same raw byte as VCU:2102 B18, so it reads VCU_LDC_TEMP (equal in 4321 of 4469 aligned
+            rows, r=+0.999). Not a 12 V voltage: r=-0.04 vs VCU_AUX_BATTERY_VOLTAGE_FINE.
     2181:
       response_frames: 4
       status: draft
@@ -96,8 +96,8 @@ AAF:
           max: "150"
           source: canair correlate --find-mirrors --allow-offset 2026-10-21
           notes: >-
-            Same byte as AAF:2180:AAF_COOLANT_TEMP_B25 and VCU:2102 B18 (VCU_COOLANT_TEMP). Disabled
-            as a duplicate.
+            Same byte as AAF:2180:AAF_COOLANT_TEMP_B25 and VCU:2102 B18 (VCU_LDC_TEMP). Disabled as
+            a duplicate.
         HEATSINK_TEMP:
           expression: B20-40
           unit: °C
@@ -110,12 +110,12 @@ AAF:
           unit: °C
           min: "-40"
           max: "150"
-          source: RE 2026-08-05 cross-ECU agreement with VCU:2102 VCU_COOLANT_TEMP
+          source: RE 2026-08-05 cross-ECU agreement with VCU:2102 VCU_LDC_TEMP
           notes: >-
-            Equals VCU:2102:VCU_COOLANT_TEMP in 77 % of 1729 co-polled rows; read up to 11 °C above
-            it on the 2026-08-08 DC charge day. Rose 29 to 44 °C over a 3 h AC charge; 34-37 °C
-            while driving. The loop also serves the EPCU, OBC and LDC; which branch the sensor sits
-            on is unknown.
+            Equals VCU:2102:VCU_LDC_TEMP in 77 % of 1729 co-polled rows; read up to 11 °C above it
+            on the 2026-08-08 DC charge day. Rose 29 to 44 °C over a 3 h AC charge; 34-37 °C while
+            driving. The loop also serves the EPCU, OBC and LDC; which branch the sensor sits on is
+            unknown.
         AAF_OBC_TEMP:
           expression: B19-100
           unit: °C
@@ -171,8 +171,8 @@ AAF:
           unit: °C
           source: 2026-08-08 DCFC session byte-diff
           notes: >-
-            r=+0.976 vs VCU:2102:VCU_COOLANT_TEMP; reads a few °C off MOTOR_COOLANT_TEMP. Rose 36 to
-            43 °C during the 2026-08-08 DC charge.
+            r=+0.976 vs VCU:2102:VCU_LDC_TEMP; reads a few °C off MOTOR_COOLANT_TEMP. Rose 36 to 43
+            °C during the 2026-08-08 DC charge.
 
   research:
     - type: scan
@@ -249,8 +249,8 @@ AAF:
       notes: >-
         AAF_2181_B27 values 0, 5 and 6 were matched to A/C, PTC-only and idle on 2026-11-07 (see its
         note); 1 appeared in 8 heat-pump rows that day and is unexplained. Open: AAF_2181_B15 (flap
-        position candidate) and AAF_COOLANT_TEMP_2 (B23-40, r=0.976 vs VCU_COOLANT_TEMP) sensor
-        location relative to MOTOR_COOLANT_TEMP (B22).
+        position candidate) and AAF_COOLANT_TEMP_2 (B23-40, r=0.976 vs VCU_LDC_TEMP) sensor location
+        relative to MOTOR_COOLANT_TEMP (B22).
       what_to_test:
         - "AAF_2181_B27: what raw 1 means (seen only with the heat pump running)"
         - "AAF_2181_B15: correlate against AAF_VEHICLE_SPEED_KMH and time parked"

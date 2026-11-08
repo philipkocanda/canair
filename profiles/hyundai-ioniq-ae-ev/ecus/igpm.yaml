@@ -365,7 +365,7 @@ IGPM:
             on: equals (NOT DOOR_LOCK_FL) OR B10:0 in 406 of 410 captures, falling in the same poll
             as the lock. The 4 exceptions read 1 while locked with the ignition off: 3 at the end of
             a recording, and an 18 s pulse on 2026-08-15 10:11:03. Mirrored by BCM 22B005 B10:3 and
-            VCU VCU_INVERTER_ARMED (kappa 0.98, n=358).
+            VCU VCU_LEVER_PWM_CODE_BIT1 (kappa 0.98, n=358).
         DRL_DEDICATED_OUTPUT:
           expression: B12:5
           min: "0"

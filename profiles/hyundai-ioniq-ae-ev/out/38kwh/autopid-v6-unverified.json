@@ -1779,10 +1779,12 @@
           "class": ""
         },
         {
-          "name": "VCU_INVERTER_ENABLED",
+          "name": "VCU_IGNITION_INPUT",
           "expression": "B23:2",
           "unit": "",
-          "class": ""
+          "class": "",
+          "min": 0,
+          "max": 1
         },
         {
           "name": "VCU_POWER_STATE",
@@ -1790,7 +1792,7 @@
           "unit": "",
           "class": "",
           "min": 0,
-          "max": 8
+          "max": 11
         },
         {
           "name": "VCU_SUPPLY_VOLTAGE",
@@ -1801,7 +1803,7 @@
           "max": 16
         },
         {
-          "name": "VCU_INVERTER_ARMED",
+          "name": "VCU_LEVER_PWM_CODE_BIT1",
           "expression": "B23:4",
           "unit": "",
           "class": ""
@@ -1839,6 +1841,22 @@
           "expression": "B23:1",
           "unit": "",
           "class": ""
+        },
+        {
+          "name": "VCU_GEAR_SHIFTER_FAULT",
+          "expression": "B10:4",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "VCU_START_INPUT",
+          "expression": "B11:2",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
         }
       ]
     },
@@ -1901,7 +1919,7 @@
           "max": 16
         },
         {
-          "name": "VCU_COOLANT_TEMP",
+          "name": "VCU_LDC_TEMP",
           "expression": "B18-100",
           "unit": "\u00b0C",
           "class": "temperature",
@@ -1909,7 +1927,7 @@
           "max": 150
         },
         {
-          "name": "VCU_HV_MAIN_RELAY_ON",
+          "name": "VCU_LDC_RUNNING",
           "expression": "B10",
           "unit": "",
           "class": "",
@@ -1925,8 +1943,24 @@
           "max": 450
         },
         {
-          "name": "VCU_HV_AVAILABLE",
+          "name": "VCU_LDC_STATE_GE3",
           "expression": "B9",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "VCU_LDC_FAULT_WARNING",
+          "expression": "B12",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "VCU_LDC_OUTPUT_LIMITED",
+          "expression": "B13",
           "unit": "",
           "class": "",
           "min": 0,
@@ -2087,6 +2121,30 @@
           "class": "voltage",
           "min": 0,
           "max": 16
+        },
+        {
+          "name": "VCU_21F2_RANGE_LOSS",
+          "expression": "B21",
+          "unit": "km",
+          "class": "distance",
+          "min": 0,
+          "max": 255
+        },
+        {
+          "name": "VCU_21F2_EFFICIENCY_NEWEST",
+          "expression": "((B39<<8)|B38)",
+          "unit": "m/kWh",
+          "class": "",
+          "min": 0,
+          "max": 65535
+        },
+        {
+          "name": "VCU_21F2_DISTANCE_NEWEST",
+          "expression": "((B44<<24)|(B43<<16)|(B42<<8)|B41)/1000000",
+          "unit": "km",
+          "class": "distance",
+          "min": 0,
+          "max": 4000
         }
       ]
     }

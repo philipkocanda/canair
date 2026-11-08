@@ -754,6 +754,13 @@ messages:
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 13.1), mode logic FUN_001B7FE8, pack FUN_001F2054; uhi22 Ioniq28 P-CAN tap
         notes: Drive mode index 0-2, stepped by each press of the cluster's drive-mode button (0x578 CF_Clu_DriveModeSW) and kept across sleep. Which index is Eco, Normal or Sport is not established. Reads 0 in both uhi22 logs. Not on any VCU diagnostic page.
+      VCU_ECO_MAX_SPEED_CODE:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.3); uhi22 Ioniq28 P-CAN tap
+        notes: Echo of the Eco maximum-speed setting (0x5B3 byte 2). Codes 90/100/110/120/130 km/h or 60/65/70/75/80 mph; 0xFE and 0xFD mean no limit. Reads 0xFE in the uhi22 trace. The VCU forwards it and does not enforce it.
   '0x57F':
     name: OBC1
     tx_ecu: OBC
@@ -970,13 +977,61 @@ messages:
     signals:
       GEAR_SHIFTER:
         start_bit: 11
-        length: 3
+        length: 4
         byte_order: little
         min: 0.0
-        max: 7.0
+        max: 15.0
         verified: false
         source: opendbc generator/hyundai/hyundai_can.dbc EMS20 HYDROGEN_GEAR_SHIFTER (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
-        notes: 'Gear lever. Enum per opendbc: P=0, D=5, N=6, R=7 (S=8 does not fit 3 bits; not seen). The drive log (IONIQ_PCAN_drive_fwd_neutral_drive_reverse_neutral.csv) reads P, D, N, R, N, the order the drive was made in; the second log stays P. Changes together with GEAR_354 GEAR_LEVER. opendbc names it for the hydrogen Nexo; the 2015 C-CAN DBC calls this byte part of FCO. The car sends 8 bytes, opendbc says 6. Unverified pending owner-car confirmation.'
+        notes: 'Gear code the VCU writes in bits 11-14: P=0, D=5, N=6, R=7, E=pending, F=shifter fault (the 2101 B10 bit 4 state). opendbc gives 3 bits, which cannot hold the fault code. The drive log (IONIQ_PCAN_drive_fwd_neutral_drive_reverse_neutral.csv) reads P, D, N, R, N, the order the drive was made in; the second log stays P. Changes together with GEAR_354 GEAR_LEVER. The car sends 8 bytes, opendbc says 6.'
+      VCU_POWER_STATE_200:
+        start_bit: 24
+        length: 4
+        byte_order: little
+        max: 11.0
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 19.3 and 27.6, pack FUN_001F3F18)
+        notes: VCU power state, the same value as 2101 B25 (VCU_POWER_STATE). Bit 28 is never written, so it is not a close-contactors request.
+      VCU_PEDAL_200:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        scale: 0.392157
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 19.3 and 27.6)
+        notes: Accelerator pedal, percent x 2.55; 0xFF on a pedal fault (decodes to 100.0).
+      VCU_READY_LAMP_REQUEST:
+        start_bit: 43
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.6)
+        notes: READY lamp request. Blinks 50 ticks on and 50 off when READY with an inhibit.
+      VCU_IG3_FLAG:
+        start_bit: 44
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.6)
+        notes: 1 whenever the power-state chart runs. With bits 40-41 it is the practical request for the battery to close its contactors (probable).
+      VCU_EV_READY:
+        start_bit: 45
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.6)
+        notes: 'EV-ready: power state 4 (2101 B11:3, VEHICLE_STATE_EV_READY).'
+      VCU_DISTANCE_TO_EMPTY_200:
+        start_bit: 15
+        length: 9
+        byte_order: little
+        max: 300.0
+        unit: km
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.6)
+        notes: Probably the distance to empty, clamp(range figure minus consumption figure, 0, 300) km. The meaning is inferred from the Kona DBC and the Battery-Emulator Ioniq code.
   '0x220':
     name: ESP12
     tx_ecu: ESC
@@ -1168,7 +1223,6 @@ messages:
         start_bit: 38
         length: 9
         byte_order: little
-        signed: true
         scale: 0.5
         offset: -40.0
         min: -40.0
@@ -1176,7 +1230,7 @@ messages:
         unit: degC
         verified: false
         source: opendbc generator/hyundai/hyundai_can.dbc BAT11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
-        notes: 12 V battery temperature. 1 and 2 degC in the two logs; the log dates and ambient temperature are unknown. Unverified pending owner-car confirmation.
+        notes: 12 V battery temperature, 9 bits, 0.5 degC per bit minus 40. The VCU reads and sends it unsigned (-40 to 215.5 degC raw range), so the opendbc signed reading is wrong. 1 and 2 degC in the two uhi22 logs; their dates and ambient temperature are unknown.
       BAT_SOH:
         start_bit: 48
         length: 7
@@ -1187,25 +1241,40 @@ messages:
         verified: false
         source: opendbc generator/hyundai/hyundai_can.dbc BAT11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
         notes: 12 V battery state of health. 89 % in both logs. Unverified pending owner-car confirmation.
+      BAT_SNSR_FLAG_47:
+        start_bit: 47
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.4)
+        notes: A status flag in the VCU's 0x549 packer. Its source is not established.
+      BAT_SNSR_FLAG_55:
+        start_bit: 55
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.4)
+        notes: Flag A of the battery sensor's LIN frame 0x10. When it is set, the LDC swaps the temperature for an ambient-type value from its CAN image.
+      BAT_SNSR_VALUE_56:
+        start_bit: 56
+        length: 7
+        byte_order: little
+        scale: 0.1
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.4)
+        notes: Unnamed value from LIN frame 0x12 byte 5, times 0.1. It feeds nothing in the VCU.
+      BAT_SNSR_FLAG_63:
+        start_bit: 63
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.4)
+        notes: Battery sensor flag B, OR the VCU's own LIN-fault state (U1112).
   '0x590':
     name: VCU_590
     tx_ecu: VCU
     length: 8
     signals:
-      VCU_HV_AVAILABLE_590:
-        start_bit: 1
-        length: 1
-        byte_order: little
-        verified: false
-        source: VCU firmware EAEEO5L-NS7-D060, static analysis (research/VCU_FIRMWARE_FINDINGS.md section 11); uhi22 Ioniq28 P-CAN tap
-        notes: Byte 0 bit 1, the same internal bit the VCU copies into 2102 B9 (VCU_HV_AVAILABLE). Reads 1 throughout both uhi22 drive logs (byte 0 = 0x07).
-      VCU_HV_MAIN_RELAY_ON_590:
-        start_bit: 2
-        length: 1
-        byte_order: little
-        verified: false
-        source: VCU firmware EAEEO5L-NS7-D060, static analysis (research/VCU_FIRMWARE_FINDINGS.md section 11); uhi22 Ioniq28 P-CAN tap
-        notes: Byte 0 bit 2, the same internal bit the VCU copies into 2102 B10 (VCU_HV_MAIN_RELAY_ON). The 12 V top-up charge timer counts only while it is 1.
       VCU_12V_CHARGE_REQUEST:
         start_bit: 6
         length: 1
@@ -1242,7 +1311,21 @@ messages:
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060 (pack FUN_00219F0C, 2102 copy FUN_0021AD44; research/VCU_FIRMWARE_FINDINGS.md section 13.2); uhi22 Ioniq28 P-CAN tap
         notes: 'Byte 4: 12 V rail voltage at the LDC in 0.1 V steps, the byte the VCU copies into 2102 B14 (VCU_LDC_OUTPUT_VOLTAGE_COARSE). Reads 14.8-15.0 V in READY in the uhi22 logs.'
-      VCU_COOLANT_TEMP_590:
+      VCU_LDC_STATE_GE3_590:
+        start_bit: 1
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.3, FUN_0021F08C); uhi22 Ioniq28 P-CAN tap
+        notes: 'Byte 0 bit 1: the LDC state machine is in state 3 or above. The VCU copies it into 2102 B9 (VCU_LDC_STATE_GE3). Reads 1 throughout both uhi22 drive logs (byte 0 = 0x07).'
+      VCU_LDC_RUNNING_590:
+        start_bit: 2
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.3, FUN_0021EFA4); uhi22 Ioniq28 P-CAN tap
+        notes: 'Byte 0 bit 2: the LDC is in its run state. The VCU copies it into 2102 B10 (VCU_LDC_RUNNING). The 12 V top-up charge timer counts only while it is 1.'
+      VCU_LDC_TEMP_590:
         start_bit: 56
         length: 8
         byte_order: little
@@ -1251,8 +1334,49 @@ messages:
         max: 155.0
         unit: degC
         verified: false
-        source: VCU firmware EAEEO5L-NS7-D060 (pack FUN_00219F0C, 2102 copy FUN_0021AD44; research/VCU_FIRMWARE_FINDINGS.md section 13.2); uhi22 Ioniq28 P-CAN tap
-        notes: 'Byte 7: the temperature the VCU also reports as 2102 B18 (VCU_COOLANT_TEMP), sent +100 and 255 when not available. Reads 17-20 degC in the uhi22 logs.'
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.6, pack FUN_00219F0C, 2102 copy FUN_0021AD44); uhi22 Ioniq28 P-CAN tap
+        notes: "Byte 7: the LDC's own temperature, sent as temperature + 100, and 255 when its sensor is invalid. The VCU also reports it as 2102 B18 (VCU_LDC_TEMP). Reads 17-20 degC in the uhi22 logs."
+      VCU_LDC_OUTPUT_LIMITED_590:
+        start_bit: 3
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 18.5 and 18.6)
+        notes: 'Byte 0 bit 3: the power limiter is lowering the LDC voltage command. The VCU copies it into 2102 B13 (VCU_LDC_OUTPUT_LIMITED).'
+      VCU_LDC_FAULT_WARNING_590:
+        start_bit: 9
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.6)
+        notes: 'Byte 1 bit 1: LDC fault warning. The VCU copies it into 2102 B12 (VCU_LDC_FAULT_WARNING).'
+      VCU_LDC_FAN_REQUEST_590:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        scale: 20.0
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.6)
+        notes: 'Byte 3: probably the cooling-fan request divided by 20. It follows the LDC temperature (75-82.5 degC) and the vehicle speed. The unit is not known.'
+      VCU_LDC_PUMP_REQUEST_590:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        scale: 20.0
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.6)
+        notes: 'Byte 5: probably the water-pump request divided by 20: 0 below 55 degC, then 1000-3320 (rpm-like) up to 75 degC. The unit is not known.'
+      VCU_LDC_INPUT_POWER_590:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        scale: 10.0
+        min: 0.0
+        max: 2550.0
+        unit: W
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.6)
+        notes: "Byte 6: the LDC's HV input power in 10 W steps, not a loss figure. VCU_AUX_POWER_590 / this is the converter efficiency. Divide by the DC-link voltage for the HV input current."
   '0x202':
     name: VCU_202
     tx_ecu: VCU
@@ -1267,6 +1391,26 @@ messages:
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 13.1), pack FUN_001F2788; uhi22 Ioniq28 P-CAN tap
         notes: Active regenerative-braking level 0-3, the one the paddles step (the firmware clamps it to 3). Reads 2 throughout both uhi22 logs. Not on any VCU diagnostic page.
+      VCU_TORQUE_COMMAND:
+        start_bit: 8
+        length: 12
+        byte_order: little
+        signed: true
+        scale: 0.146484375
+        unit: Nm
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 19.3); uhi22 Ioniq28 P-CAN tap
+        notes: Final motor torque command, the same value the VCU sends to the MCU on CCP-CAN 0x232 every 1 ms. About 0.1465 Nm per bit (2048 is 300 Nm). 0 unless EV-ready.
+      VCU_TORQUE_PRE_TCS:
+        start_bit: 32
+        length: 12
+        byte_order: little
+        signed: true
+        scale: 0.146484375
+        unit: Nm
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 19.3)
+        notes: Motor torque command before traction control limits it, same scale as VCU_TORQUE_COMMAND.
   '0x581':
     name: OBC_581
     tx_ecu: OBC
@@ -1414,3 +1558,265 @@ messages:
         byte_order: little
         verified: false
         source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+  '0x201':
+    name: VCU_201
+    tx_ecu: VCU
+    length: 8
+    signals:
+      VCU_DRIVER_WHEEL_TORQUE:
+        start_bit: 24
+        length: 16
+        byte_order: little
+        signed: true
+        unit: Nm
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 19.3 and 19.2); uhi22 Ioniq28 P-CAN tap
+        notes: 'Driver wheel-torque demand in 1 Nm (wheel, not motor): creep curve plus pedal share. About +350 at standstill with the brake released, negative for coast regen. 0x201 ends in an XOR checksum of bytes 0-6 and a 2-bit counter.'
+  '0x109':
+    name: VCU_109
+    tx_ecu: VCU
+    length: 8
+    signals:
+      VCU_PARK_REQUEST:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 19.4 and 27.2, FUN_001C1ADC)
+        notes: 'Park request to the shift-by-wire unit: 4 releases P, 2 engages P (probable; the trace shows 4 at the P to D shift). Also in 2101 B26 bits 0-2. Byte 7 holds a 2-bit counter and a 4-bit nibble-sum checksum.'
+      VCU_MOTORING_TORQUE_LIMIT:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        scale: 0.392157
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 19.3)
+        notes: "Motoring torque limit in percent of 300 Nm (about 0.39 % per bit): the BMS power limit less the auxiliary load, the MCU's available torque and the temperature derates."
+  '0x10C':
+    name: SBW_10C
+    length: 8
+    signals:
+      SBW_ACTUATOR_STATE:
+        start_bit: 0
+        length: 7
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 19.4 and 27.2); uhi22 Ioniq28 P-CAN tap
+        notes: 'Shift-by-wire actuator state in byte 0 bits 0-6: 4 parked, 1 released, 2 moving. Probably sent by the shift control unit. Its loss sets U1017. 2101 B26 bits 3-5 copy it.'
+  '0x291':
+    name: MCU_291
+    tx_ecu: MCU
+    length: 8
+    signals:
+      MCU_TORQUE_291:
+        start_bit: 0
+        length: 12
+        byte_order: little
+        signed: true
+        scale: 0.146484375
+        unit: Nm
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 19.3 and 22.2)
+        notes: Actual motor torque, the same layout as CCP-CAN 0x2C1. The VCU falls back to this frame when the CCP-CAN link fails.
+      MCU_RPM_291:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        signed: true
+        unit: rpm
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 19.3)
+        notes: Motor speed. 0x7FFF means invalid.
+  '0x594':
+    name: BMS_594
+    tx_ecu: BMS
+    length: 8
+    signals:
+      BMS_POWER_LIMIT_A_594:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        scale: 10.0
+        unit: W
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 22.2); uhi22 Ioniq28 P-CAN tap
+        notes: First BMS power limit (73.7 kW in the trace). Which of the two limits is charge and which discharge is not known.
+      BMS_POWER_LIMIT_B_594:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        scale: 10.0
+        unit: W
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 22.2); uhi22 Ioniq28 P-CAN tap
+        notes: Second BMS power limit (98.0 kW in the trace).
+      BMS_HV_READY_594:
+        start_bit: 34
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 20.1 and 20.2)
+        notes: The BMS reports its contactors closed and HV ready. The VCU waits for it before power state 2, before the LDC may run and in the climate chart.
+      BMS_SOC_594:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        scale: 0.5
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 22.2)
+        notes: HV state of charge in 0.5 % steps. The VCU shows it in the freeze frame and uses it for the low-SoC stop (2.4 %) and the top-up block (20 %).
+  '0x598':
+    name: BMS_598
+    tx_ecu: BMS
+    length: 8
+    signals:
+      BMS_REMAINING_ENERGY_598:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        unit: Wh
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 22.2)
+        notes: 'Probably the remaining energy in Wh: 21325 at 79.5 % on a 28 kWh pack. Feeds the range estimate.'
+  '0x10':
+    name: ACU13
+    tx_ecu: SRS
+    length: 8
+    signals:
+      ACU_CRASH_ACTIVE:
+        start_bit: 0
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 22.2)
+        notes: Crash active. It latches power state 8 (fault) and turns the LDC off. The VCU never times this frame out.
+  '0x5B3':
+    name: USER_SETTINGS_5B3
+    length: 8
+    signals:
+      CLU_ECO_MAX_SPEED_CODE:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 22.2 and 27.3)
+        notes: 'Eco-mode maximum-speed setting from the cluster or head unit: 90/100/110/120/130 km/h or 60/65/70/75/80 mph; 0xFE and 0xFD mean no limit. The same frame carries seven 2-bit settings, including the default regen level per drive mode.'
+  '0x57B':
+    name: VCU_57B
+    tx_ecu: VCU
+    length: 8
+    signals:
+      VCU_57B_CHARGE_CONTROL:
+        start_bit: 0
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 9.4 and 27.6)
+        notes: 'Charge-control output: charging requested or held. Bits 19 and 32 repeat it.'
+      VCU_57B_CHARGE_MODE:
+        start_bit: 1
+        length: 2
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 9.4 and 27.6)
+        notes: Scheduled-charge mode; reads 1 only while the effective mode is Charge Now (0x579 VCU_ECON_CHG_CTRL_MODE 0).
+      VCU_57B_CLIMATE_POWER_LIMITED:
+        start_bit: 9
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.6)
+        notes: The climate power limiter is active, or the climate chart is running.
+      VCU_57B_TOPUP_CHART_OUTPUT:
+        start_bit: 11
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.6)
+        notes: Output of the 12 V top-up chart.
+      VCU_57B_CLIMATE_END_REASON:
+        start_bit: 17
+        length: 2
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.6)
+        notes: 'Why the climate session ended: 1 fault, 2 energy budget exceeded, 3 other.'
+      VCU_IG3_RELAY_MODE_NIBBLE:
+        start_bit: 20
+        length: 4
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 9.4 and 27.6); IONIQ_AVN_FW_FINDINGS.md section 6
+        notes: 'Four flags the US head unit reads as CF_Vcu_IG3RlyMd: bits 20 and 21 from the charge subsystem, 22 climate active, 23 climate mode. The values 2 and 10 seen in the US fit bit 21, and bits 21 and 23 (probable). Whether the IGPM reads it is not established.'
+      VCU_57B_CLIMATE_SET_TEMP:
+        start_bit: 24
+        length: 6
+        byte_order: little
+        scale: 0.5
+        offset: 15.0
+        min: 15.0
+        max: 46.5
+        unit: degC
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 9.2 and 9.4)
+        notes: Climate set temperature, half degrees from 15 degC (the same encoding as the schedule frames).
+      VCU_TOPUP_PREPARE:
+        start_bit: 30
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 11.3 and 27.6)
+        notes: The 'prepare' output of the 12 V top-up and climate charts, debounced for 0.5 s.
+      VCU_WAKE_WITHOUT_IGNITION:
+        start_bit: 31
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 11.2)
+        notes: 'The wake supply is on without the ignition input: the parked 12 V check woke the VCU.'
+      VCU_DRIVER_MESSAGE_CODE:
+        start_bit: 34
+        length: 3
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.6)
+        notes: Driver-message code (the Kona DBC reads 'press the brake' as 0x2C in byte 4). Valid while VCU_DRIVER_MESSAGE_ACTIVE is 1.
+      VCU_DRIVER_MESSAGE_ACTIVE:
+        start_bit: 37
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.6)
+        notes: A driver message is active.
+  '0x592':
+    name: VCU_592
+    tx_ecu: VCU
+    length: 8
+    signals:
+      VCU_SERVICE_LAMP_REQUEST:
+        start_bit: 3
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 21.2 and 27.6)
+        notes: 'Service-lamp request (probable): set by any DTC of a lamp class. Also 0x202 bit 4.'
+      VCU_CLIMATE_POWER_ALLOWED:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        scale: 50.0
+        unit: W
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.5)
+        notes: "Allowed climate power, about 50 W per count: the climate unit's power-limit fields, the BMS SoC and the BMS power limit set it."
+      VCU_LDC_OFF_REQUEST:
+        start_bit: 56
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 18.1 and 18.3)
+        notes: The application's LDC-off request (2101 B11:7). The LDC runs only while it is 0.

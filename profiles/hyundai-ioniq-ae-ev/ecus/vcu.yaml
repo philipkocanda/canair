@@ -30,7 +30,11 @@
 # - No separate LDC module is registered. 0x7C5, the Kia Soul EV's LDC address, has not been
 #   probed on this car.
 #
-# Only KWP2000 session 0x81 is accepted; no session unlocks extra data. 2103-2105 answer NRC 0x12.
+# Sessions 0x82 and 0x83 answer NRC 0x12, so only 0x81 is known to work on the car. The firmware
+# also defines 0x85, 0x90 and 0xF1, and all three open without SecurityAccess; none was tried live.
+# Session 0x90 opens InputOutputControl (0x30), routines (0x31), ECUReset and 0x28/0x29, and some
+# of those requests hang the VCU or silence its torque command to the MCU, so canair refuses them
+# (research/VCU_FIRMWARE_FINDINGS.md sections 2 and 23). 2103-2105 answer NRC 0x12.
 #
 VCU:
   tx_id: 0x7E2
@@ -64,11 +68,15 @@ VCU:
         Stops updating while VCU_IG3_ON (B11:4) is 0. Firmware (producer FUN_001F46C0,
         r13=0x400063E4): B4-B8 are a header written at read time by FUN_00204480, so B9 is a
         constant 0x09 record-format byte, not a signal. B11:5 is never written by the producer, so
-        it is unused rather than undecoded. B10 bit 4 is set when the internal gear state reads 7, a
-        fifth state not yet observed on this car. The APS1 (B12/B13), APS2 (B14/B15), accelerator
-        (B17/B18), speed (B19/B20) and 12 V supply (B21/B22) signals are each a 16-bit little-endian
-        pair in the firmware, confirming the width and byte order of the expressions here. B25 is
-        written as a whole byte (VCU_POWER_STATE) and B26 as a packed gear-state debug byte.
+        it is unused rather than undecoded. B10 bit 4 is set when the gear state reads 7, the
+        shifter fault from a latched shift-by-wire (SBW) fault; not yet observed on this car. The
+        APS1 (B12/B13), APS2 (B14/B15), accelerator (B17/B18), speed (B19/B20) and 12 V supply
+        (B21/B22) signals are each a 16-bit little-endian pair in the firmware, confirming the width
+        and byte order of the expressions here. B23 packs the regen paddles (bits 0-1), the ignition
+        input (bit 2) and the shift-lever code (bits 3-6, from the lever's PWM line). B25 is written
+        as a whole byte (VCU_POWER_STATE) and is valid only while VCU_IG3_ON is 1: it keeps its last
+        value for minutes after the fall. B26 packs the park request to the SBW unit (bits 0-2, a
+        pulse shorter than the poll interval) and the SBW unit's state (bits 3-6, from CAN 0x10C).
       parameters:
         VCU_VEHICLE_SPEED:
           expression: ((S20*256)+B19)*1.609344/100
@@ -77,9 +85,11 @@ VCU:
           max: "250"
           notes: >-
             Speed in MPH (B20 signed high byte, B19 low byte) converted to km/h. r=0.999 vs
-            ESC:22C101:REAL_SPEED_KMH (n=124, 0-105.7 km/h). Reads about 3.6 % above true speed:
-            above 30 km/h MCU_MOTOR_RPM is 61.8 rpm per km/h of this signal (n=1372) against 64.07
-            from the 7.412 reduction ratio and 1928 mm tyre circumference.
+            ESC:22C101:REAL_SPEED_KMH (n=124, 0-105.7 km/h). Reads about 3.6 % above true speed: the
+            VCU computes it from motor rpm (rpm / 7.412 reduction ratio) assuming a 2.0 m tyre
+            circumference, against 1928 mm real. Above 30 km/h MCU_MOTOR_RPM is 61.8 rpm per km/h of
+            this signal (n=1372), against 64.07 from the ratio and the real tyre and 61.8 from the
+            firmware's 2.0 m.
           source: VCU 2101 speed lead (MPH formula) + cross-ECU verification vs ESC, 2026-07-23
         ACCEL_PEDAL_DEPTH:
           expression: "B18/2"
@@ -108,7 +118,9 @@ VCU:
           notes: >-
             Values: 0x21 Park, 0x28 Drive, 0x22 Reverse, 0x24 Neutral (8 captures), 0x01 Park with
             GEAR_SIGNAL_VALID clear (after ignition-on and READY edges). Bits 0-3 are one-hot
-            P/R/N/D, bit 5 is GEAR_SIGNAL_VALID; bits 4, 6 and 7 are always 0.
+            P/R/N/D, bit 5 is GEAR_SIGNAL_VALID; bits 6 and 7 are always 0, and bit 4
+            (VCU_GEAR_SHIFTER_FAULT) has never been seen set. The code comes from the SBW gear chart
+            (FUN_001B0D04), not from the lever decode.
           type: enum
           values:
             1: park_gear_signal_invalid
@@ -162,20 +174,23 @@ VCU:
         VEHICLE_STATE_EV_READY_MIRROR_B11_6:
           expression: B11:6
           notes: >-
-            Equals VEHICLE_STATE_EV_READY (B11:3) in every capture on this car. In the JejuSoul US
-            Ioniq logs it reads 1 with B11:3 at 0 at power-off (B11 = 0xD0 after a drive, 0xD2 after
-            an AC charge), so it is a separate signal. Disabled so it does not ship a duplicate.
+            Set in every READY row and equal to VEHICLE_STATE_EV_READY (B11:3) in every capture on
+            this car. In the JejuSoul US Ioniq logs it reads 1 with B11:3 at 0 at power-off (B11 =
+            0xD0 after a drive, 0xD2 after an AC charge), so it is a separate signal: the firmware
+            sets it in power state 2, HV up and start-ready, and VCU_POWER_STATE 2 appears there
+            too. Disabled so it does not ship a duplicate.
           source: canair bitfield analysis 2026-08-06; decode --find-mirrors --bits, n=6365 unanimous
           ship: false
         VEHICLE_STATE_LDC_ENABLED:
           expression: "1-B11:7"
           verified: false
           notes: >-
-            1 at READY (B11 = 0x5A), while charging and during the parked 12 V top-up (B11 = 0x10);
-            0 in accessory or off (B11 = 0x92, 0x91, 0x80). With VCU_POWER_STATE == 1 it is the
-            TOPUP state predicate: it matches the 640 VCU 2101 rows of the three recorded top-ups
-            (2026-10-21, 2026-10-30, 2026-11-03) and no other row. Does not tell ACC, ON and off
-            apart.
+            Inverse of the application's LDC-off request (B11:7, also 0x592 bit 56). 1 at READY (B11
+            = 0x5A), while charging and during the parked 12 V top-up (B11 = 0x10); 0 in accessory
+            or off (B11 = 0x92, 0x91, 0x80). With VCU_POWER_STATE == 1 it is the TOPUP state
+            predicate: it matches the 640 VCU 2101 rows of the three recorded top-ups (2026-10-21,
+            2026-10-30, 2026-11-03) and no other row. Does not tell ACC, ON and off apart. Not the
+            LDC's own state: see VCU 2102 VCU_LDC_RUNNING.
 
         VCU_APS1_VOLTAGE:
           expression: ((B13<<8)|B12)/2048
@@ -191,10 +206,13 @@ VCU:
           max: "5"
         DEBUG_GEAR_STATE_FLAGS:
           expression: B26
-          source: canair bitfield analysis 2026-08-06; same-payload cross-tab vs GEAR (B10) n=6365
+          source: canair bitfield analysis 2026-08-06; same-payload cross-tab vs GEAR (B10) n=6365; VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 19.4 and 27.9)
           notes: >-
-            Reads 0x20 in Park and 0x08 in Reverse, Neutral or Drive; no information beyond GEAR on
-            the car.
+            Not a VCU gear state: bits 0-2 are the park request the VCU sends to the shift-by-wire
+            (SBW) unit in 0x109 byte 0, bits 3-5 are 0x10C byte 0 bits 0-2 (the SBW actuator state:
+            4 parked, 1 released, 2 moving) and bit 6 is 0x10C bit 7. Reads 0x20 in Park (11701 of
+            11702) and 0x08 in Reverse, Neutral or Drive (1807 of 1807); bits 0-2 never set (the
+            request is a pulse shorter than the poll interval); one 0x40 row at the start press.
           type: enum
           values:
             8: not_park
@@ -205,9 +223,10 @@ VCU:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           notes: >-
-            Set in Reverse, Neutral and Drive; the exact complement of GEAR_P in every car capture.
-            Reads 0 in the uhi22 EPCU bench log (no shifter connected) while GEAR_P reads 1.
-            Disabled so it does not ship a duplicate.
+            SBW actuator state 'released' (0x10C byte 0 bit 0). Set in Reverse, Neutral and Drive;
+            the exact complement of GEAR_P in every car capture. Reads 0 in the uhi22 EPCU bench log
+            (no shifter connected, so no 0x10C frame) while GEAR_P reads 1. Disabled so it does not
+            ship a duplicate.
           ship: false
         GEAR_P_MIRROR_B26_5:
           expression: B26:5
@@ -215,35 +234,52 @@ VCU:
           source_links:
             - https://github.com/meatpiHQ/wican-fw/pull/716
           notes: >-
-            Equals GEAR_P (B10:0) in every car capture, but reads 0 in all 250 replies of the uhi22
-            EPCU bench log (no shifter connected) while GEAR_P reads 1, so B26 is not a copy of B10.
-            Disabled so it does not ship a duplicate.
+            SBW actuator state 'parked' (0x10C byte 0 bit 2). Equals GEAR_P (B10:0) in every car
+            capture, but reads 0 in all 250 replies of the uhi22 EPCU bench log (no shifter
+            connected, so no 0x10C frame) while GEAR_P reads 1. Disabled so it does not ship a
+            duplicate.
           ship: false
 
-        VCU_INVERTER_ENABLED:
+        VCU_IGNITION_INPUT:
           expression: B23:2
-          source: canair historical analysis 2026-07-23
+          source: canair historical analysis 2026-07-23; VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 20.1, DIO 4); canair align vs IGPM IGN1_SWITCH 2026-11-08
           notes: >-
-            B23 reads 0, 48 or 52; bit 2 is set only at 52. Agrees with VEHICLE_STATE_EV_READY
-            (r=+0.997, n=776).
+            The hard-wired ignition ON/START input (DIO 4), not an inverter state. Equals IGPM
+            IGN1_SWITCH: 1 in 494 of 497 aligned rows with it on, 0 in 2499 with it off. Also set in
+            READY (r=+0.997 vs VEHICLE_STATE_EV_READY, n=776). The input blocks a remote climate
+            start and the 12 V top-up.
+          min: "0"
+          max: "1"
         VCU_POWER_STATE:
           expression: B25
           min: "0"
-          max: "8"
-          source: canair historical analysis 2026-07-23; values 1, 2 and 6 re-read 2026-10-23 against stored captures and the JejuSoul US Ioniq logs
+          max: "11"
+          source: canair historical analysis 2026-07-23; VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 20.1, FUN_001ABEBC); canair captures 2026-11-08
           notes: >-
-            VCU operating mode: 4 drive-ready, 7 charging (AC, DC and plugged-in preconditioning), 6
-            at entry to and exit from a charge, 1 standby (ignition on but not READY, the parked 12
-            V top-up and the 3 min after a top-up ends). 2 appears only in the JejuSoul US Ioniq
-            logs, at power-off. Reads 8 in the uhi22 EPCU bench log, where the VCU stores
-            no-communication DTCs for the BMS, gateway and HVAC.
+            The VCU power-state machine, valid only while VCU_IG3_ON is 1: 305 rows keep the last
+            value for up to 84 s after it falls. Seen on this car: 4 drive-ready (READY), 7 charging
+            (AC, DC and plugged-in preconditioning), 6 at entry to and exit from a charge, 1 standby
+            (ignition on but not READY, the parked 12 V top-up and the 3 min after a top-up ends). 2
+            appears only in the JejuSoul US Ioniq logs at power-off, with B11 = 0xD0, and fits HV up
+            with the start-ready flag B11:6 set. Values 0, 3, 5 and 8-11 never occur in this car's
+            stored rows, and their names come from the firmware. 8 is a fault latched until
+            power-off (crash, BMS or MCU fault flags); it reads 8 in the uhi22 EPCU bench log, where
+            the VCU stores no-communication DTCs for the BMS, gateway and HVAC. Sent in 0x200 bits
+            24-27.
           type: enum
           values:
+            0: inactive
             1: standby
-            2: shutdown
+            2: hv_up_start_ready
+            3: start_inhibited
             4: drive_ready
-            6: charge_transition
+            5: drive_inhibited
+            6: charge_connected
             7: charging
+            8: fault
+            9: low_soc_stop
+            10: hv_lost_in_ready
+            11: ready_off
         VCU_SUPPLY_VOLTAGE:
           expression: ((B22<<8)|B21)/2072
           min: "0"
@@ -255,21 +291,23 @@ VCU:
             VCU_AUX_BATTERY_VOLTAGE_FINE (n=10357). The /2072 scale is fitted and matches the MCU
             and ESC supply words; /2048 reads about 1.2 % high.
           unit: V
-        VCU_INVERTER_ARMED:
+        VCU_LEVER_PWM_CODE_BIT1:
           expression: B23:4
-          source: canair bitfield analysis 2026-08-06; same-payload cross-tab n=6367
+          source: canair bitfield analysis 2026-08-06; VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.5, FUN_001A7AB4)
           verified: false
           notes: >-
-            Set whenever VCU_INVERTER_ENABLED is, and alone in 40 captures (B23 = 48). Clear while
-            charging, when BMS_MAIN_RELAY is set, so it follows the drive path rather than the
-            contactors.
-        VCU_INVERTER_ARMED_MIRROR_B23_5:
+            Bit 1 of the shift-lever code the VCU decodes from the lever's PWM line (47-53 % duty is
+            code 6, probably the home position). B23 reads 0x34 or 0x30 with the ignition on, so
+            bits 4 and 5 are set together and alone in 40 captures (B23 = 48). Clear while charging,
+            when BMS_MAIN_RELAY is set.
+        VCU_LEVER_PWM_CODE_BIT2:
           expression: B23:5
-          source: canair bitfield analysis 2026-08-06
+          source: canair bitfield analysis 2026-08-06; VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.5)
           verified: false
           notes: >-
-            Equals VCU_INVERTER_ARMED (B23:4) in every capture. Disabled so it does not ship a
-            duplicate; defined so bit 5 is accounted for.
+            Bit 2 of the shift-lever code (see VCU_LEVER_PWM_CODE_BIT1). Equals bit 1 in every
+            capture because the lever sits at code 6. Disabled so it does not ship a duplicate;
+            defined so bit 5 is accounted for.
           ship: false
         GEAR_SIGNAL_VALID:
           expression: B10:5
@@ -323,6 +361,44 @@ VCU:
           notes: >-
             Steering-paddle switch that raises the regen level (left paddle, EPCU pin 3J per uhi22).
             Reads 0 in every capture so far.
+        VCU_GEAR_SHIFTER_FAULT:
+          expression: B10:4
+          min: "0"
+          max: "1"
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 7.1 and 19.4, FUN_001F46C0)
+          verified: false
+          notes: >-
+            Set when the shift-by-wire gear state reads 7, a latched SBW fault (DTCs P1060-P1066).
+            Reads 0 in every stored reply.
+        VCU_START_INPUT:
+          expression: B11:2
+          min: "0"
+          max: "1"
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 20.1, FUN_001AE2C4); canair captures 2026-11-08
+          verified: false
+          notes: >-
+            The hard-wired input (DIO 5) that behaves as the smart key's start signal: a rising edge
+            in P starts READY. Weak evidence: set in 1 stored row, 53 s before READY.
+        VCU_LEVER_PWM_CODE_BIT0:
+          expression: B23:3
+          min: "0"
+          max: "1"
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.5)
+          verified: false
+          notes: >-
+            Bit 0 of the shift-lever code (see VCU_LEVER_PWM_CODE_BIT1). Never set in a stored
+            reply; defined so the bit is accounted for.
+          ship: false
+        VCU_LEVER_PWM_CODE_BIT3:
+          expression: B23:6
+          min: "0"
+          max: "1"
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.5)
+          verified: false
+          notes: >-
+            Bit 3 of the shift-lever code (see VCU_LEVER_PWM_CODE_BIT1). Never set in a stored
+            reply; defined so the bit is accounted for.
+          ship: false
     2102:
       response_frames: 4
       status: active
@@ -333,16 +409,19 @@ VCU:
         first one byte for byte, so readings taken with the IG3 rail off are not live. Motor RPM,
         torque and temperatures are not on this page; they are on the MCU (0x7E3). Firmware
         (producer FUN_0021AD44, r13=0x400063E4): B4-B7 are a constant header (F8 F8 00 00), not
-        signals. Most of the page is a diagnostic copy of the VCU's own LDC broadcast frames: B9,
-        B10 and B13 are 0x590 byte 0 bits 1, 2 and 3, B11 and B12 are 0x590 byte 1 bits 0 and 1,
-        B14, B15 and B18 are 0x590 bytes 4, 2 and 7, and B17 is CCP-CAN 0x58F byte 5. B11, B12 and
-        B13 read 0 in all 14657 captures, so they are inactive on this car rather than undecoded.
-        The four 16-bit little-endian pairs are packed from internal floats with a fixed scale,
-        which confirms the expressions here: B19/B20 and B26/B27 are x1000 (VCU_LDC_OUTPUT_VOLTAGE
-        and VCU_AUX_BATTERY_VOLTAGE_FINE), B23/B25 is x100 (VCU_DCLINK_VOLTAGE, whose high byte
-        alone is the coarse variant since 256/100 = 2.56), and B21/B22 is x100 of a float carried in
-        units of 10 W, which is why VCU_AUX_POWER's /10 reads correct watts. B14 is B19/B20 rounded
-        to 0.1 V.
+        signals. Most of the page is a diagnostic copy of the VCU's own LDC broadcast frame 0x590.
+        The LDC runs inside the VCU, so B9, B10 and B13 are converter states, not relay states:
+        0x590 byte 0 bits 1, 2 and 3 (LDC state 3 or above, LDC running, output limited). B11 and
+        B12 are byte 1 bits 0 and 1: B11 is never set in this build, B12 is the LDC fault warning.
+        B14, B15 and B18 are bytes 4, 2 and 7 (output voltage, output power, LDC temperature + 100),
+        and B17 is CCP-CAN 0x58F byte 5. B12 and B13 read 0 in all 14657 captures, so they are
+        inactive on this car rather than undecoded. The four 16-bit little-endian pairs are packed
+        from internal floats with a fixed scale, which confirms the expressions here: B19/B20 and
+        B26/B27 are x1000 (VCU_LDC_OUTPUT_VOLTAGE and VCU_AUX_BATTERY_VOLTAGE_FINE), B23/B25 is x100
+        (VCU_DCLINK_VOLTAGE, whose high byte alone is the coarse variant since 256/100 = 2.56), and
+        B21/B22 is x100 of a float carried in units of 10 W, which is why VCU_AUX_POWER's /10 reads
+        correct watts. B14 is B19/B20 rounded to 0.1 V. The LDC measures its output current but
+        never publishes it: derive it as VCU_AUX_POWER / VCU_LDC_OUTPUT_VOLTAGE.
       min: "0"
       verified: false
       parameters:
@@ -385,9 +464,10 @@ VCU:
           max: "6553"
           source: 2026-07-30 dash anchor (130->650 W); low byte B21 per decode/align 2026-10-21
           notes: >-
-            LDC output power, 16-bit little-endian. 0 whenever VCU_HV_MAIN_RELAY_ON is 0. Matched
-            the dash electronics bar from 130 to 650 W (2026-07-30) and rose 195 to 601 W with the
-            rear and side defrosters. Excludes HV climate power.
+            LDC output power, 16-bit little-endian. 0 whenever VCU_LDC_RUNNING is 0. Matched the
+            dash electronics bar from 130 to 650 W (2026-07-30) and rose 195 to 601 W with the rear
+            and side defrosters. Excludes HV climate power. Firmware: the measured output power in
+            units of 10 W, x100; B15 x 10 vs this is r=0.999.
         VCU_AUX_POWER_COARSE:
           expression: B15*10
           unit: W
@@ -400,7 +480,8 @@ VCU:
           notes: >-
             12 V bus voltage at the LDC, 16-bit little-endian. r=+0.997 vs OBC:2101:OBC_12V_SUPPLY_V
             (n=11057, slope 1.019). Reads 0.02-0.22 V above VCU_AUX_BATTERY_VOLTAGE_FINE; the gap
-            tracks VCU_AUX_POWER (r=+0.86).
+            tracks VCU_AUX_POWER (r=+0.86). Firmware: the LDC output-voltage channel (AN2, 0.0061066
+            V per count, 25 V full scale).
           unit: V
           max: "16"
 
@@ -410,27 +491,35 @@ VCU:
           notes: >-
             12 V battery voltage, 16-bit little-endian. r=+0.996 vs BMS:2101:AUX_BATTERY_VOLTAGE
             (n=10542, slope 0.998). Same offset as the Kia e-Niro VMCU sheet; the e-Niro 12 V
-            current and SOC that follow it are not in the Ioniq reply.
+            current and SOC that follow it are not in the Ioniq reply. Firmware: the 12 V supply
+            behind the reverse-polarity diode (AN1, 0.006775 V per count plus 0.6 V).
           unit: V
           max: "16"
-        VCU_COOLANT_TEMP:
+        VCU_LDC_TEMP:
           expression: B18-100
-          source: RE 2026-08-05 cross-ECU offset-mirror + within-PID state-divergence disambiguation
+          source: RE 2026-08-05 cross-ECU offset-mirror + within-PID state-divergence disambiguation; VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.6, 0x590 byte 7)
           notes: >-
-            Equals AAF:2181:MOTOR_COOLANT_TEMP exactly in 77 % of 1729 co-polled rows. Moves
-            opposite to the 12 V bus in ON, so it is not a voltage. Rose 29 to 44 °C over a 3 h AC
-            charge.
+            The LDC's own temperature sensor (the DC/DC converter temperature sensor of DTCs P0C3A,
+            P0C3B and P1A88), sent as temperature + 100. B18 = 255 means the sensor is invalid and
+            decodes to 155. It tracks the motor coolant because the converter sits on the coolant
+            plate: equals AAF:2181:MOTOR_COOLANT_TEMP exactly in 77 % of 1729 co-polled rows. Moves
+            opposite to the 12 V bus in ON. Rose 29 to 44 °C over a 3 h AC charge. The limiter
+            derates the LDC from 85 °C.
           unit: °C
           min: "-40"
           max: "150"
-        VCU_HV_MAIN_RELAY_ON:
+        VCU_LDC_RUNNING:
           expression: B10
           max: "1"
-          source: RE 2026-08-02, live ON confirmed
+          source: RE 2026-08-02, live ON confirmed; VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.3, FUN_0021EFA4)
           verified: true
           notes: >-
-            1 while the HV contactors are closed: went 1 to 0 as OBC_BATTERY_SIDE_V fell 206 to 6.7
-            V, and reads 0 in ON. Agrees with BMS_MAIN_RELAY.
+            1 while the LDC state machine is in its run state (0x590 byte 0 bit 2), the converter
+            enables on. Went 1 to 0 as OBC_BATTERY_SIDE_V fell 206 to 6.7 V, and agrees with
+            BMS_MAIN_RELAY there. 0 means the LDC is off, inhibited, calibrating or in standby, not
+            that HV is off: 37 rows have the DC link at 250-379 V. The 450 rows with
+            VCU_LDC_STATE_GE3 = 1 and this 0 are the application's LDC-off request: 2101 B11:7 is 1
+            in 456 of the 457 that join a 2101 read. Reads 0 in ON.
         VCU_DCLINK_VOLTAGE:
           expression: ((B25<<8)|B23)/100
           unit: V
@@ -439,18 +528,45 @@ VCU:
           notes: >-
             HV DC-link voltage, 0.01 V/bit, 16-bit little-endian split across the PCI byte B24. B25
             alone is VCU_DCLINK_VOLTAGE_COARSE (r=1.000). Read within 0.1-0.6 V of
-            BMS:2101:BATTERY_VOLTAGE while driving on 2026-08-08.
-        VCU_HV_AVAILABLE:
+            BMS:2101:BATTERY_VOLTAGE while driving on 2026-08-08. Firmware: the LDC HV input channel
+            (AN0, 0.15635 V per count).
+        VCU_LDC_STATE_GE3:
           expression: B9
           min: "0"
           max: "1"
-          source: VCU firmware FUN_0021AD44 (status bit from an internal word) + cross-tab vs VCU_HV_MAIN_RELAY_ON over 14657 captures, 2026-11-08
+          source: VCU firmware EAEEO5L-NS7-D060 (FUN_0021F08C, research/VCU_FIRMWARE_FINDINGS.md section 18.3) + cross-tab vs VCU_LDC_RUNNING over 14657 captures, 2026-11-08
           notes: >-
-            HV system available. Firmware packs it as a single status bit from an internal word, not
-            a byte. Strictly broader than VCU_HV_MAIN_RELAY_ON (B10): B9 reads 0 only while the main
-            relay is open (B9=0 with the relay closed never occurs in 14657 captures), and it is 0
-            in just 9 of them, against 450 relay-open rows. So it clears in a deeper HV-off state
-            than the relay bit.
+            1 while the LDC state machine is in state 3 or above: recovering, inhibited, standby,
+            calibrating or running (0x590 byte 0 bit 1). 0 in states 0-2: the 12 V outside 8-18 V,
+            the wake supply lost, or a hard fault. A single status bit, not a byte. Never 0 while
+            VCU_LDC_RUNNING is 1: 0 in 9 of 14657 captures, against 450 with VCU_LDC_RUNNING 0.
+        VCU_LDC_FAULT_WARNING:
+          expression: B12
+          min: "0"
+          max: "1"
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.6, 0x590 byte 1 bit 1)
+          verified: false
+          notes: LDC fault warning. A single status bit; 0 in all 14657 stored replies.
+        VCU_LDC_OUTPUT_LIMITED:
+          expression: B13
+          min: "0"
+          max: "1"
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 18.5 and 18.6, 0x590 byte 0 bit 3)
+          verified: false
+          notes: >-
+            1 while the power limiter lowers the LDC voltage command (output power over its ceiling
+            of at most 1.4 kW, or LDC temperature above 85 °C). A single status bit; 0 in all 14657
+            stored replies, where the LDC never passed 866 W or 50 °C.
+        VCU_LDC_RESERVED_B11:
+          expression: B11
+          min: "0"
+          max: "1"
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.6, 0x590 byte 1 bit 0)
+          verified: false
+          notes: >-
+            Never set in this build; 0 in all 14657 stored replies. Defined so the byte is accounted
+            for.
+          ship: false
     21F2:
       status: slow
       period: 300000
@@ -498,8 +614,9 @@ VCU:
         VCU_21F2_RANGE_START:
           expression: B19
           notes: >-
-            Continues the previous record VCU_21F2_RANGE_END to within 2 km in all 9 cases with no
-            unlogged drive in between, and resets upward after every charge (68 to 168 across the
+            Low byte of the range estimate 2 s into the previous READY cycle, so it wraps above 255
+            km. Continues the previous record VCU_21F2_RANGE_END to within 2 km in all 9 cases with
+            no unlogged drive in between, and resets upward after every charge (68 to 168 across the
             2026-08-09 AC charge). Rose 208 to 233 at the start of the 2026-08-08 drive, right after
             a preconditioning cycle.
           unit: km
@@ -508,9 +625,10 @@ VCU:
         VCU_21F2_RANGE_END:
           expression: B20
           notes: >-
-            Divided by VCU_21F2_SOC it gives 2.17-2.27 km per % in 19 of 22 distinct records (about
-            220 km at 100 %); 1.92-2.05 after highway driving. A charge does not update it: the
-            2026-07-30 charge to 95.2 % kept the 147 km of the READY cycle before it.
+            Low byte of the range estimate at the end of the previous READY cycle. Divided by
+            VCU_21F2_SOC it gives 2.17-2.27 km per % in 19 of 22 distinct records (about 220 km at
+            100 %); 1.92-2.05 after highway driving. A charge does not update it: the 2026-07-30
+            charge to 95.2 % kept the 147 km of the READY cycle before it.
           unit: km
           min: "0"
           max: "255"
@@ -656,6 +774,38 @@ VCU:
           notes: >-
             12 V supply voltage at the VCU when the record was built at power-off: the same internal
             word and scale as 2101 VCU_SUPPLY_VOLTAGE. Reads 11.9-13.1 V in the stored replies.
+        VCU_21F2_RANGE_LOSS:
+          expression: B21
+          unit: km
+          min: "0"
+          max: "255"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, efficiency history FUN_001ED170; research/VCU_FIRMWARE_FINDINGS.md section 27.8); canair decode VCU 21F2 --try 2026-11-08
+          verified: false
+          notes: >-
+            Distance by which the range estimate fell beyond the distance driven in the previous
+            cycle. 0-22 in the 202 stored replies.
+        VCU_21F2_EFFICIENCY_NEWEST:
+          expression: ((B39<<8)|B38)
+          unit: m/kWh
+          min: "0"
+          max: "65535"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, efficiency history FUN_001ED170; research/VCU_FIRMWARE_FINDINGS.md section 27.8); canair decode VCU 21F2 --try 2026-11-08
+          verified: false
+          notes: >-
+            Efficiency of the newest entry of the VCU's 20-deep per-charge driving history, battery
+            energy less climate energy. 6371-10144 in the stored replies, which is 9.9-15.7 kWh/100
+            km.
+        VCU_21F2_DISTANCE_NEWEST:
+          expression: ((B44<<24)|(B43<<16)|(B42<<8)|B41)/1000000
+          unit: km
+          min: "0"
+          max: "4000"
+          source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, efficiency history FUN_001ED170; research/VCU_FIRMWARE_FINDINGS.md section 27.8); canair decode VCU 21F2 --try 2026-11-08
+          verified: false
+          notes: >-
+            Distance of the newest entry of the per-charge driving history, in units of about 1 mm
+            (an entry closes after 17.5 km). 20-119 km in the stored replies. The unit is read from
+            the firmware, not measured.
 
 
       vehicle_states: [CHARGING, READY]
@@ -725,6 +875,29 @@ VCU:
           expression: "[B106:B114]"
           type: ascii
           notes: Record 0x92. 8 zero bytes on this car.
+    1AFF:
+      response_frames: 1
+      status: static
+      vehicle_states: [IG3]
+      notes: >-
+        KWP2000 ReadEcuIdentification record 0xFF, 1 byte: the VCU's test-mode byte. Read 0x00 on
+        2026-11-08 (AC charging). Writable with 3B 1A FF in a secured session, which canair refuses.
+        Firmware (research/VCU_FIRMWARE_FINDINGS.md sections 3.5, 4.4 and 28.4): a value of 1 makes
+        the VCU relay CCP-CAN 0x050/0x051 into 0x590/0x58F, take the pedal, brake and analog inputs
+        from CCP-CAN 0x300 and skip the whole LDC and 12 V application layer. It survives a warm
+        reset. Its purpose (an end-of-line or bench mode) is inferred.
+      parameters:
+        VCU_TEST_MODE:
+          expression: B03
+          type: enum
+          values:
+            0: normal
+            1: bench_test
+          min: "0"
+          max: "1"
+          source: canair read VCU:1AFF 2026-11-08; VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 4.4)
+          verified: false
+          notes: 0 on this car. 1 is the bench or end-of-line mode (inferred); never seen.
 
   # Meanings, causes, thresholds and fail-safes are from the Ioniq Electric 2017 service manual.
   # The manual files these codes under its DC/DC Converter chapter and names the reporting module
@@ -1199,16 +1372,18 @@ VCU:
       created: "2026-10-21"
       updated: "2026-11-08"
       result: >-
-        Mostly decoded from the firmware producer FUN_00204028, which builds 21F2 once, at power-off
-        (research/VCU_FIRMWARE_FINDINGS.md section 13). B10/B11 is the 12 V supply word
-        ((B11<<8)|B10)/2072, now VCU_21F2_SUPPLY_VOLTAGE. B45-B71 are twelve 16-bit shares of the
-        cycle's time per drive mode and regen level (VCU_21F2_SHARE_MODEm_REGENr), which sum to
-        97-100; on this car the time is in mode 1 at regen 1 or mode 0 at regen 2, and never in mode
-        2. That explains the 'sum to about 100' bytes and B45's 79-99 after parked READY cycles. B21
-        (0-22), B22/B23, B25-B28, B29/B30, B31-B35 (skipping PCI B32), B36 and B37 are copies of
-        range-estimation variables (FUN_001E64B8), not named yet. B38/B39 and B41-B44 are a 16-bit
-        and a 32-bit value whose writer was not found (accessed through a pointer). B73/B74 and
-        B75/B76 are two outputs of scheduling-model subsystem 0x20A2D4.
+        Decoded from the firmware producer FUN_00204028, which builds 21F2 once, at power-off
+        (research/VCU_FIRMWARE_FINDINGS.md sections 13.4 and 27.8). B10/B11 is the 12 V supply word
+        (VCU_21F2_SUPPLY_VOLTAGE). B45-B71 are twelve 16-bit shares of the cycle's time per drive
+        mode and regen level (VCU_21F2_SHARE_MODEm_REGENr), which sum to 97-100. B19/B20 are the low
+        bytes of the range estimate at 2 s into READY and at READY end, and B21 is the range lost
+        beyond the distance driven (VCU_21F2_RANGE_LOSS). B38/B39 and B41-B44 are the newest entry
+        of a 20-deep per-charge efficiency history (VCU_21F2_EFFICIENCY_NEWEST,
+        VCU_21F2_DISTANCE_NEWEST). Not defined yet: B22/B23 and B25-B28 (mean and integral of
+        climate field A, 0x5F6 bits 54-63, x10), B29/B30 and B31-B35 (the same for field B, 0x5F5
+        bits 14-23), B36/B37 (a small estimate at the same two moments, meaning unknown), and
+        B73-B76 (lifetime counts of entries into two scheduling-chart states; B75/B76 is
+        VCU_21F2_EVENT_COUNT, B73/B74 reads 91 throughout). B77-B94 are constant 0.
       notes: >-
         Unknown fields of the VCU 21F2 previous-cycle record: (B11<<8)|B10 /256 (97-106), B21
         (0-22), B29-B34, B36/B37, B38-B44 (change after charging), B45/B47/B54 (sum to about 100:
@@ -1351,6 +1526,13 @@ VCU:
       vehicle_states: [IG3]
       created: "2026-11-07"
       updated: "2026-11-07"
+      result: >-
+        Answered by the firmware (research/VCU_FIRMWARE_FINDINGS.md sections 2, 3 and 23), not yet
+        on the car. 0x27, 0x30, 0x31, 0x3B, 0x11, 0x28 and 0x29 all exist. 0x22, 0x2C, 0x2E and 0x3D
+        answer NRC 0x12. Sessions 85, 90 and F1 open without SecurityAccess; session 90 opens 0x30,
+        0x31, 0x11 and 0x28/0x29 without a key, and 0x3B needs a secured session and writes only
+        1A90 and 1AFF. Several session-90 requests hang the VCU or stop its torque command to the
+        MCU, so canair refuses them. Open on the car: whether 10 90 is accepted.
       notes: >-
         Find out whether the VCU implements a write, routine or IOControl service before looking for
         a schedule or remote-start path in it. Only service-21 pages 01, 02 and F2 answer, and only
@@ -1501,16 +1683,18 @@ VCU:
         charge mode start/stop' --state CHARGING; press s at each menu change and name the mode.
     - type: decode
       target: LDC output current
-      status: pending
+      status: done
       priority: P3
       vehicle_states: [READY]
       created: "2026-11-08"
       updated: "2026-11-08"
       result: >-
-        Not on OBC 2101 or VCU 2101/2102. Under a 137-651 W 12 V load swing at READY (VCU_AUX_POWER,
-        2026-07-30) only the OBC_12V_SUPPLY_V word sags (about 26 mOhm source resistance); no byte
-        tracks a current. Derived current VCU_AUX_POWER / OBC_12V_SUPPLY_V gives 9-48 A in that
-        window; it inherits VCU_AUX_POWER's unverified status.
+        Measured by the LDC (a current-sense channel, auto-zeroed before every start) but never
+        published: the firmware turns it into power through lookup tables and never computes an
+        output current (research/VCU_FIRMWARE_FINDINGS.md section 18.6). Not on OBC 2101 or VCU
+        2101/2102. Estimate it as VCU_AUX_POWER / VCU_LDC_OUTPUT_VOLTAGE, which gives 9-48 A under a
+        137-651 W 12 V load swing at READY (2026-07-30); it inherits VCU_AUX_POWER's unverified
+        status. The HV input current is 0x590 byte 6 (HV input power, 10 W) / the DC-link voltage.
       notes: >-
         Also absent from MCU 2102 (motor phase currents) and EWP 21F2. No hidden service-21 page on
         OBC or VCU. VCU 21F2 has no charging capture yet. The Soul's standalone LDC (0x7C5)
@@ -1518,6 +1702,89 @@ VCU:
       what_to_test:
         - "12 V-only load step at READY (rear defroster, high beams, blower; A/C off) co-polling OBC:2101, VCU:2102, VCU:21F2 and BMS:2101 with --keep-all: pack BATTERY_CURRENT is then the LDC input alone, a cross-check on VCU_AUX_POWER / VCU_LDC_OUTPUT_VOLTAGE. The 2026-07-30 step also ran the A/C compressor."
         - Capture VCU 21F2 with --keep-all while charging, to contrast its analog bytes against READY.
+    - type: decode
+      target: 12 00 00 freeze frame
+      status: pending
+      priority: P3
+      vehicle_states: [IG3]
+      created: "2026-11-08"
+      updated: "2026-11-08"
+      result: >-
+        Layout known from the firmware, not read from the car. ReadFreezeFrameData 12 00 00
+        (sessions 81 and 90, no key) returns the newest stored DTC's 27-byte freeze frame, then 00
+        and the DTC code; NRC 0x12 when none is stored. Little-endian words: 0-1 BMS SoC, 2-3 12 V
+        supply word, 4-5 vehicle speed, 6-9 odometer, 10 flags (EV-ready), 11-12 an operating-time
+        counter, 13-18 APS1, APS2 and pedal, 19 the gear state as 2101 B10, 20 the brake switches,
+        21-26 LDC detail bytes (byte 23 is the LDC event sub-code that tells the four P0A94 causes
+        apart).
+      notes: >-
+        canair has no KWP2000 freeze-frame decoder. Needs a stored DTC. A clear (14 FF 00) removes
+        the evidence, so read before clearing.
+      sources:
+        - profiles/hyundai-ioniq-ae-ev/research/VCU_FIRMWARE_FINDINGS.md section 21.4
+      what_to_test:
+        - "With a DTC stored: 12 00 00, then compare the speed, odometer, supply word and gear bytes with a 2101/21F2 read taken at the same time"
+      capture_protocol: >-
+        canair raw 7E2:120000 --save --label 'VCU freeze frame' --state IG3, only when 18 00 FF 00
+        lists a stored DTC
+    - type: verify
+      target: 2102 LDC ramp at a READY start and a 12 V top-up
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-11-08"
+      updated: "2026-11-08"
+      notes: >-
+        The firmware ramps the LDC output set-point at 0.2 V/s from the measured bus voltage at
+        every start, caps the 12 V charge current in steps (41 A for 10 s down to 23-14 A after 2
+        h), and runs the LDC states 3 to 7 before the run state (research/VCU_FIRMWARE_FINDINGS.md
+        sections 18.3 and 18.4). Stored 2102 reads are 2.5-10 s apart, too slow to see the ramp or
+        VCU_LDC_STATE_GE3 rising before VCU_LDC_RUNNING.
+      what_to_test:
+        - VCU_LDC_STATE_GE3 reads 1 before VCU_LDC_RUNNING at a start
+        - VCU_LDC_OUTPUT_VOLTAGE rises about 0.2 V/s from the bus voltage to the set-point
+      capture_protocol: >-
+        canair monitor VCU:2102 VCU:2101 --save --keep-all --interval 1 --label 'LDC ramp' --state
+        READY. Start READY from OFF with the brake, and keep recording for 2 min. Repeat across a
+        parked 12 V top-up when one occurs.
+    - type: verify
+      target: 2101 B11:2 start input and B23:2 ignition input
+      status: pending
+      priority: P2
+      vehicle_states: [ACC]
+      created: "2026-11-08"
+      updated: "2026-11-08"
+      notes: >-
+        Firmware: B23:2 is the hard-wired ignition ON/START input (DIO 4, confirmed against IGPM
+        IGN1_SWITCH) and B11:2 is the start signal (DIO 5), whose rising edge in P starts READY
+        (research/VCU_FIRMWARE_FINDINGS.md section 20.1). B11:2 was set in 1 stored row, 53 s before
+        READY. The chart does not test the brake; the smart-key module probably does.
+      what_to_test:
+        - B11:2 pulses at the start press, with and without the brake
+        - B23:2 reads 1 in ON and 0 in ACC
+      capture_protocol: >-
+        canair monitor VCU:2101 IGPM:22BC03 --save --keep-all --interval 0.5 --label 'start input'
+        --state ACC. From OFF press the button once (ACC), again (ON), then OFF, then once with the
+        brake (READY). Press s at each press.
+    - type: verify
+      target: after-run silence at power-off
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-11-08"
+      updated: "2026-11-08"
+      notes: >-
+        Firmware: after key-off the ECU state manager enters after-run (state 2), stops the
+        diagnostic task and freezes the model outputs; the VCU then stops answering while the 12 V
+        rail is still up (research/VCU_FIRMWARE_FINDINGS.md section 15.2). Stored reads show the VCU
+        answering for 1.7-3.1 min after the IG3 fall and then going silent, which fits an after-run
+        period of about 3 min (180 s after the ignition input falls, inferred from the firmware). A
+        poll at 1 s gives the period to within a second.
+      what_to_test:
+        - The last VCU answer comes a fixed time after the ignition input falls
+      capture_protocol: >-
+        canair monitor VCU:2101 --save --keep-all --interval 1 --label 'VCU after-run' --state
+        READY. From READY press the button to OFF and keep recording for 5 min.
   sessions:
     "81":
       name: "standardDiagnosticSession"

@@ -161,8 +161,8 @@ MCU:
           min: "-40"
           max: "150"
           notes: >-
-            Powertrain coolant temperature, 2 °C per count. Mirrors VCU:2102:VCU_COOLANT_TEMP:
-            r=+0.991 over 8332 rows, 1 °C below it (median). Slow: 36 to 42 °C over the 2026-08-08
+            Powertrain coolant temperature, 2 °C per count. Mirrors VCU:2102:VCU_LDC_TEMP: r=+0.991
+            over 8332 rows, 1 °C below it (median). Slow: 36 to 42 °C over the 2026-08-08
             15:33-16:31 drive.
 
         MCU_HEATSINK_TEMP:
@@ -287,15 +287,15 @@ MCU:
           max: "150"
           notes: >-
             Average coolant temperature over the previous cycle; within 1 °C of the time-weighted
-            VCU:2102 VCU_COOLANT_TEMP mean on the five 2026-08-08 cycles.
+            VCU:2102 VCU_LDC_TEMP mean on the five 2026-08-08 cycles.
         MCU_21F2_COOLANT_TEMP_MAX:
           expression: B68
           unit: °C
           min: "-40"
           max: "150"
           notes: >-
-            Peak coolant temperature of the previous cycle; within 1 °C of the sampled
-            VCU_COOLANT_TEMP peak on the five 2026-08-08 cycles.
+            Peak coolant temperature of the previous cycle; within 1 °C of the sampled VCU_LDC_TEMP
+            peak on the five 2026-08-08 cycles.
         MCU_21F2_SUPPLY_VOLTAGE_AVG:
           expression: B66/10
           unit: V

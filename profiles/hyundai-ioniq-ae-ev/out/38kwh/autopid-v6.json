@@ -757,10 +757,12 @@
           "class": ""
         },
         {
-          "name": "VCU_INVERTER_ENABLED",
+          "name": "VCU_IGNITION_INPUT",
           "expression": "B23:2",
           "unit": "",
-          "class": ""
+          "class": "",
+          "min": 0,
+          "max": 1
         },
         {
           "name": "VCU_POWER_STATE",
@@ -768,7 +770,7 @@
           "unit": "",
           "class": "",
           "min": 0,
-          "max": 8
+          "max": 11
         }
       ]
     },
@@ -799,7 +801,7 @@
           "max": 16
         },
         {
-          "name": "VCU_HV_MAIN_RELAY_ON",
+          "name": "VCU_LDC_RUNNING",
           "expression": "B10",
           "unit": "",
           "class": "",

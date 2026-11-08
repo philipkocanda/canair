@@ -372,15 +372,17 @@
         "VEHICLE_STATE_LDC_ENABLED": "1-B11:7",
         "VCU_APS1_VOLTAGE": "((B13<<8)|B12)/2048",
         "DEBUG_GEAR_STATE_FLAGS": "B26",
-        "VCU_INVERTER_ENABLED": "B23:2",
+        "VCU_IGNITION_INPUT": "B23:2",
         "VCU_POWER_STATE": "B25",
         "VCU_SUPPLY_VOLTAGE": "((B22<<8)|B21)/2072",
-        "VCU_INVERTER_ARMED": "B23:4",
+        "VCU_LEVER_PWM_CODE_BIT1": "B23:4",
         "GEAR_SIGNAL_VALID": "B10:5",
         "VCU_APS2_VOLTAGE": "((B15<<8)|B14)/2048",
         "VCU_IGN_ON": "B11:0|B11:1",
         "VCU_REGEN_PADDLE_MINUS": "B23:0",
-        "VCU_REGEN_PADDLE_PLUS": "B23:1"
+        "VCU_REGEN_PADDLE_PLUS": "B23:1",
+        "VCU_GEAR_SHIFTER_FAULT": "B10:4",
+        "VCU_START_INPUT": "B11:2"
       }
     },
     {
@@ -395,10 +397,12 @@
         "VCU_AUX_POWER_COARSE": "B15*10",
         "VCU_LDC_OUTPUT_VOLTAGE": "((B20<<8)|B19)/1000",
         "VCU_AUX_BATTERY_VOLTAGE_FINE": "((B27<<8)|B26)/1000",
-        "VCU_COOLANT_TEMP": "B18-100",
-        "VCU_HV_MAIN_RELAY_ON": "B10",
+        "VCU_LDC_TEMP": "B18-100",
+        "VCU_LDC_RUNNING": "B10",
         "VCU_DCLINK_VOLTAGE": "((B25<<8)|B23)/100",
-        "VCU_HV_AVAILABLE": "B9"
+        "VCU_LDC_STATE_GE3": "B9",
+        "VCU_LDC_FAULT_WARNING": "B12",
+        "VCU_LDC_OUTPUT_LIMITED": "B13"
       }
     },
     {
@@ -424,7 +428,10 @@
         "VCU_21F2_SHARE_MODE2_REGEN1": "(B67<<8)|B66",
         "VCU_21F2_SHARE_MODE2_REGEN2": "(B69<<8)|B68",
         "VCU_21F2_SHARE_MODE2_REGEN3": "(B71<<8)|B70",
-        "VCU_21F2_SUPPLY_VOLTAGE": "((B11<<8)|B10)/2072"
+        "VCU_21F2_SUPPLY_VOLTAGE": "((B11<<8)|B10)/2072",
+        "VCU_21F2_RANGE_LOSS": "B21",
+        "VCU_21F2_EFFICIENCY_NEWEST": "((B39<<8)|B38)",
+        "VCU_21F2_DISTANCE_NEWEST": "((B44<<24)|(B43<<16)|(B42<<8)|B41)/1000000"
       }
     }
   ],

@@ -8,10 +8,10 @@ Support maps — 1 of 3 PID(s) carry one
       declare: canair pids set-support-map VCU 2101 --at 0 --length 4 --unit field
 
   VCU 2102  REJECTED per-byte map F8 F8 00 at data+0, 5665 rows, chance 10^-0.6
-      10 signals marked: 7 defined, 3 open
+      10 signals marked: 9 defined, 1 open
       open, moving     -
       open, always on  -
-      open, never set  B7, B11, B12
+      open, never set  B7
       outside the map  B14, B15, B22, B23, B25, B26, B27
       closest fit only; not proposed for declaration
       per-field reading: broken: no split of the bytes keeps every unmarked parameter constant
