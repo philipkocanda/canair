@@ -747,6 +747,28 @@ OBC:
         - Does 01 31 grow with distance driven (co-poll with CLU 22B002 ODOMETER on a drive)?
       capture_protocol: >-
         canair monitor OBC:01/31 CLU:22B002 --save --label 'OBC 01 31 vs odometer' --state DRIVING
+    - type: scan
+      target: memory image (ReadMemoryByAddress 0x23)
+      status: captured
+      priority: P2
+      vehicle_states: [CHARGING]
+      created: "2026-11-08"
+      updated: "2026-11-08"
+      date: "2026-11-08"
+      result: >-
+        The whole programmed flash was read while AC charging (528 KiB in 30 min, 74 extents read
+        twice and the same, no new fault code on 14 ECUs, the charge kept running). 4 MiB at
+        0x000000-0x3FFFFF: boot 0x000000-0x0065FF and 0x00FFC0-0x010EFF, calibration
+        0x143000-0x1451BF, program 0x180000-0x19A13F and 0x19C440-0x1C0AFF, the rest erased.
+      notes: >-
+        The first 4 KiB are byte for byte the VCU's, and the rest of the boot block nearly so: the
+        same bootloader, with a flash-block table up to 0x380000 and a start-up loop that clears RAM
+        up to 0x40040000. So the OBC is probably the same 4 MiB, 256 KiB-RAM PowerPC part as the VCU
+        (MPC5674F class; not confirmed). Reads stayed below 0x400000: the MCU went silent at
+        0x864000. Identity strings: ecu_id at 0xFFF6, calibration at 0x10014, sw_id at 0x1C045A,
+        part number at 0x1C046A. The dump stays local.
+      sources:
+        - canair memory image OBC --range 000000-3FFFFF, 2026-11-08 (dump local only)
 
   sessions:
     "81":
@@ -762,3 +784,12 @@ OBC:
       supported: false
       nrc: 0x12
       nrc_desc: "subFunctionNotSupported"
+  memory:
+    format: "kwp"
+    max_block: 61
+    regions:
+      - start: 0x000000
+        end: 0x3FFFFF
+        result: readable
+        software: "8D:EAEEH5L-OS3-D000"
+        scanned: "2026-11-08"

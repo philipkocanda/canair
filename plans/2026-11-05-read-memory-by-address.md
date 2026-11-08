@@ -467,3 +467,9 @@ same nine codes (CCM, AMP, the VCU's U1112) and no new one.
 - **IGPM:** `23`, `21`, `1A`, `24` and `09` answer `0x11`. The remaining path is `0x2C`
   defineByMemoryAddress, which the blocklist refuses.
 - **CLU:** asleep while charging (no answer to `dtc read`); not tested.
+- **OBC: the whole programmed flash, the charge kept running.** Its boot block matches the VCU's
+  (the first 4 KiB byte for byte), with a flash-block table up to `0x380000`, so it has the same
+  4 MiB of flash. `memory image OBC --range 000000-3FFFFF` read 528 KiB (304 KiB in full, the
+  erased rest sampled) in 30 min at 296 B/s, against the plan's 22 min: dropped and truncated
+  ISO-TP replies over `wican-ws` cost about 2,800 extra reads. 74 extents read twice were the
+  same, and no ECU stored a new code.

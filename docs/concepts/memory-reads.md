@@ -192,6 +192,7 @@ cannot be dumped this way. What each one gives:
 - **BCM:** its SRAM (`0x40000000`-`0x4000BFFE`) and its data flash (`0x00804000`-`0x0080FFFE`).
   It refuses its code flash. Other windows answer with zeros and are not memory.
 - **VCU:** its flash (`0x000000`-`0x3FFFFF`), not its RAM.
+- **OBC:** its flash (`0x000000`-`0x3FFFFF`), read with that `--range` while charging.
 - **Climate unit:** no memory. It ignores the address and returns its transmit buffer.
 - **MCU:** do not read it while the car charges. A survey of its address space ended an AC charge
   on 2026-11-08.
