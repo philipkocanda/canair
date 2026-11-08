@@ -79,8 +79,9 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair read` | Send UDS/KWP2000 requests — signal reads, multi-ECU pipelines (alias: `query`). Companions: `discover`, `io`, `routines`, `raw`, `repl`. |
 | `canair monitor` | Live, continuously-refreshing view of ECU signals (scrollable TUI; bare `canair monitor` opens a group/ECU → PID picker); records with `--save`, `--wait` to start when the device appears and auto-reconnect on drops (alias: `mon`). |
 | `canair scan` | Probe DID/routine/iocontrol/session ranges for responses; `scan memory` maps readable ECU memory. |
-| `canair memory` | Read ECU memory (0x23) into local dumps, then list, diff and export them ([memory reads](https://philipkocanda.github.io/canair/concepts/memory-reads/)). |
+| `canair memory` | Read ECU memory (0x23) into local dumps, or a whole memory image as a resumable job, then list, diff and export them ([memory reads](https://philipkocanda.github.io/canair/concepts/memory-reads/)). |
 | `canair dtc` | Read/clear Diagnostic Trouble Codes; report changes since the last scan (`dtc log` reviews them offline). |
+| `canair reset` | Restart one ECU (ECUReset `0x11`: hard, key-off-on or soft); off until you enable `safety.allow_reset` ([safety](https://philipkocanda.github.io/canair/concepts/safety/#resetting-an-ecu)). |
 | `canair action` | Run a profile-defined, make-specific action (e.g. put a Hyundai/Kia to sleep), guarded by a live check of the car; list/edit them in `actions.yaml`. |
 | `canair identity` | Decode ECU identity DIDs — part number, versions, serial, VIN (alias: `id`). |
 | `canair sniff` | Passive CAN-bus sniffer (raw SLCAN) with optional frame logging. |

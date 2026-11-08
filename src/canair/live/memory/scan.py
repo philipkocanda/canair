@@ -1,11 +1,17 @@
 """``canair scan memory``: map which address ranges an ECU answers memory reads in.
 
 The scan reads as little as it can: one byte at every ``step`` across the ranges the user
-named, then one byte at a time to bisect each change between two probes to its exact
-address. Only inside a region that answered does it read more, to find the largest block
-the ECU and the transport deliver (``max_block``), climbing from small sizes to at most
-:data:`DEFAULT_BLOCK_LIMIT` unless told otherwise: some ECUs hang on a read larger than they
-support. Every read is ReadMemoryByAddress.
+named (or, with none, the whole space of a memory format with addresses of 3 bytes or fewer,
+at about 256 probes: :func:`space_and_step`), then one byte at a time to bisect each change
+between two probes to its exact address. Only inside a region that answered does it read
+more, to find the largest block the ECU and the transport deliver (``max_block``), climbing
+from small sizes to at most :data:`DEFAULT_BLOCK_LIMIT` unless told otherwise: some ECUs hang
+on a read larger than they support. Every read is ReadMemoryByAddress.
+
+Silence is classified. After a probe nothing answers, one byte is read at the last address
+that did: an answer makes the silent address a refusal (``no_answer``), and the map goes on.
+Above the last readable address the probes then step to the next boundary the silent address
+is aligned to, so a large silent space costs a few timeouts, not hundreds.
 
 It stops, and reports why, when the ECU does not support the service, answers
 securityAccessDenied (canair never unlocks), answers conditionsNotCorrect to every read
@@ -33,15 +39,15 @@ from canair.uds.memory import (
     MemoryFormat,
     MemoryRequestError,
     RegionResult,
+    default_scan_space,
+    default_scan_step,
     format_from_alfid,
     memory_read,
 )
 from canair.yaml_edit.memory import record_scan
 
-from .reads import MemoryTarget, classify, maybe_session, read_memory
+from .reads import SILENT_LIMIT, MemoryTarget, classify, maybe_session, read_memory
 
-#: Silent reads in a row after which the ECU is taken to have stopped answering.
-SILENT_LIMIT = 3
 #: conditionsNotCorrect reads in a row, with nothing else seen, after which the scan stops.
 CONDITIONS_LIMIT = 8
 
@@ -88,6 +94,7 @@ class MemoryScan:
     format_probes: list[FormatProbe] = field(default_factory=list)
     stopped: str | None = None
     reads: int = 0
+    ranges: list[tuple[int, int]] = field(default_factory=list)
     written: Path | None = None
 
 
@@ -99,6 +106,7 @@ class _Prober:
         self.target = target
         self.throttle_s = throttle_s
         self.reads = 0
+        self.last_readable: int | None = None
         self._silent = 0
         self._conditions = 0
         self._anything_else = False
@@ -113,9 +121,24 @@ class _Prober:
             await asyncio.sleep(self.throttle_s)
         return classify(resp), resp.get("nrc")
 
+    async def _alive(self, fmt: MemoryFormat) -> bool | None:
+        """Does the last readable address still answer? ``None``: none is known yet."""
+        if self.last_readable is None:
+            return None
+        result, _ = await self.ask(fmt, self.last_readable)
+        return result is not RegionResult.NO_ANSWER
+
     async def probe(self, fmt: MemoryFormat, address: int) -> tuple[RegionResult, int | None]:
         result, nrc = await self.ask(fmt, address)
-        self._silent = self._silent + 1 if result is RegionResult.NO_ANSWER else 0
+        if result is RegionResult.READABLE:
+            self.last_readable = address
+        if result is RegionResult.NO_ANSWER:
+            alive = await self._alive(fmt)
+            if alive is False:
+                raise ScanStopped("the ECU stopped answering", address)
+            self._silent = 0 if alive else self._silent + 1
+        else:
+            self._silent = 0
         if result is RegionResult.CONDITIONS:
             self._conditions += 1
         elif result is not RegionResult.NO_ANSWER:
@@ -177,13 +200,23 @@ async def _map_range(
     points: list[Point],
     progress: Callable[[str], None],
 ) -> None:
-    """Probe ``start..end`` every ``step`` bytes, then bisect every change to its address."""
-    addresses = list(range(start, end + 1, step))
-    if addresses[-1] != end:
-        addresses.append(end)
-    for i, address in enumerate(addresses, 1):
-        progress(f"    probing 0x{address:X}  [{i}/{len(addresses)}]")
-        points.append((address, *await prober.probe(fmt, address)))
+    """Probe ``start..end`` every ``step`` bytes, then bisect every change to its address.
+
+    Past a silent refusal above every readable address, the step grows to the alignment of
+    the silent address (``0x400000`` → probes at ``0x800000``, ``0xC00000``).
+    """
+    address, n = start, 0
+    while True:
+        n += 1
+        progress(f"    probing 0x{address:X}  [{n}]")
+        result, nrc = await prober.probe(fmt, address)
+        points.append((address, result, nrc))
+        top = prober.last_readable
+        if result is RegionResult.NO_ANSWER and top is not None and address > top:
+            step = max(step, address & -address)
+        if address >= end:
+            break
+        address = min(end, address + step)
     while True:
         points.sort(key=lambda p: p[0])
         pair = next(
@@ -281,12 +314,35 @@ async def _find_max_block(
         size = min(size * 2, top)
 
 
+def space_and_step(
+    fmt: MemoryFormat, ranges: list[tuple[int, int]] | None, step: int | None
+) -> tuple[list[tuple[int, int]], int]:
+    """The ranges and step to map: the given ones, or the format's whole space.
+
+    An explicit range keeps the 4 KiB default step; only the default space scales it, to about
+    256 probes. Raises :class:`ScanStopped` for a format whose space is too wide to default.
+    """
+    if ranges:
+        return list(ranges), step or DEFAULT_STEP
+    space = default_scan_space(fmt)
+    if space is None:
+        raise ScanStopped(
+            f"format {fmt.name} addresses {8 * fmt.address_bytes} bits, too wide to map whole: "
+            "pass --range from the chip's memory map"
+        )
+    return [space], step or default_scan_step(*space)
+
+
+#: The step between probes of an explicit range when none is given.
+DEFAULT_STEP = 0x1000
+
+
 async def mode_memory_scan(
     terminal: Terminal,
     target: MemoryTarget,
-    ranges: list[tuple[int, int]],
+    ranges: list[tuple[int, int]] | None,
     *,
-    step: int = 0x1000,
+    step: int | None = None,
     fmt: MemoryFormat | None = None,
     session_mode: str | None = None,
     throttle_ms: int = 20,
@@ -295,12 +351,18 @@ async def mode_memory_scan(
     write_yaml: bool = True,
     profile: Profile,
 ) -> MemoryScan:
-    """Map ``ranges`` on ``target``; record the regions in its ``memory:`` section."""
+    """Map ``ranges`` on ``target``; record the regions in its ``memory:`` section.
+
+    With no ``ranges`` the scan maps the whole space of the ECU's memory format, when its
+    addresses are 3 bytes or fewer (:func:`~canair.uds.memory.default_scan_space`); a format
+    not known yet is probed at address 0 first.
+    """
     fmt = fmt or target.format
     scan = MemoryScan(target.name, target.tx_id, fmt)
     prober = _Prober(terminal, target, throttle_ms / 1000.0)
     line = ProgressLine()
     points: list[Point] = []
+    asked = list(ranges or [])
     try:
         async with maybe_session(terminal, target.tx_id, session_mode):
             scan.software = await read_software_version(
@@ -308,10 +370,12 @@ async def mode_memory_scan(
             )
             if scan.format is None:
                 line.update("    finding the memory format…")
-                scan.format = await _find_format(prober, ranges[0][0], scan)
-            for start, end in ranges:
-                await _map_range(prober, scan.format, start, end, step, points, line.update)
-            scan.regions = _regions(points, ranges, scan.software, complete=True)
+                scan.format = await _find_format(prober, asked[0][0] if asked else 0, scan)
+            asked, every = space_and_step(scan.format, asked, step)
+            scan.ranges = asked
+            for start, end in asked:
+                await _map_range(prober, scan.format, start, end, every, points, line.update)
+            scan.regions = _regions(points, asked, scan.software, complete=True)
             readable = [r for r in scan.regions if r.readable]
             if find_block and readable:
                 line.update("    finding the largest block…")
@@ -321,8 +385,8 @@ async def mode_memory_scan(
         scan.stopped = stop.reason + (f" (at 0x{stop.at:X})" if stop.at is not None else "")
         if stop.point is not None:
             points.append(stop.point)
-        if scan.format is not None:
-            scan.regions = _regions(points, ranges, scan.software, complete=False)
+        if scan.format is not None and asked:
+            scan.regions = _regions(points, asked, scan.software, complete=False)
     except MemoryRequestError as e:
         scan.stopped = str(e)
     finally:

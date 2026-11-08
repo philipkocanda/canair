@@ -40,7 +40,7 @@ async def handle_memory_scan(args, terminal: Terminal, pids_data, host, *, recon
     scan = await mode_memory_scan(
         terminal,
         target,
-        list(args.ranges),
+        list(args.ranges) if args.ranges else None,
         step=args.step,
         fmt=parse_format(args.format) if args.format else None,
         session_mode=_session(args, target),

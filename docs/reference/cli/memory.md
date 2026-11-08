@@ -6,6 +6,7 @@
 usage: canair memory [-h] <kind> ...
 
 Read ECU memory with ReadMemoryByAddress (0x23) into dumps kept on this machine, and list, compare and export them. Choose a kind:
+  image   plan and read an ECU's whole memory image, resumably (talks to the car)
   dump    read address ranges into a new dump (talks to the car)
   ls      list the dumps
   show    summarise a dump, or hex-dump a range of it
@@ -17,6 +18,7 @@ Find which ranges an ECU answers with `canair scan memory`.
 
 positional arguments:
   <kind>
+    image     Plan and read an ECU's whole memory image, resumably and checked
     dump      Read address ranges into a local dump
     ls        List the dumps (offline)
     show      Summarise a dump, or hex-dump a range of it
@@ -39,6 +41,114 @@ Dumps can hold OEM software and secrets: they stay in your config directory and 
 that shares a profile can reach them.
 ```
 
+## `canair memory image`
+
+```
+usage: canair memory image [-h] [--resume DUMP] [--thorough]
+                           [--range START-END[,…]] [--step HEX] [--stride HEX]
+                           [--block-limit N] [--state STATE] [--health PID]
+                           [--health-every S] [--wait-minutes M]
+                           [--label TEXT] [--plan-only] [--dry-run]
+                           [--format ALFID|kwp] [--session] [--mode HEX]
+                           [--throttle-ms THROTTLE_MS] [--yes] [--wican WICAN]
+                           [--transport {slcan-tcp,wican-ws,elm327-tcp}]
+                           [--no-fallback] [--wait] [--elm-timeout MS]
+                           [--timeout SECONDS] [--no-learn-frames] [--json]
+                           [--verbose] [--timings] [--reboot] [--unsafe]
+                           [--force]
+                           [ECU]
+
+Read the readable memory of one ECU into one dump, unattended. The run maps the space (the readable regions ecus/ records for its software; else --range or the whole space of a memory format with addresses of 3 bytes or fewer, mapped like `scan memory` and written back to ecus/), finds the flash size and any aliasing, surveys which areas hold data, shows the plan with its time estimate and asks before it reads (--yes to skip). sparse reads the data areas in full and samples the erased ones; --thorough reads every byte twice. The block adapts to errors within the ECU's max_block and --block-limit. A silent ECU, a failed health or state check or a dropped link pauses the job; it reads on by itself when the checks pass within --wait-minutes, and is otherwise saved for --resume. A resume needs the same software build and re-reads the first and the last two extents first. The report has the stability checks, the fault codes against the baseline of the ECU and its bus neighbours, and where the ECU's identity strings sit in the image. Only ReadMemoryByAddress reads memory; nothing is written.
+
+positional arguments:
+  ECU                   ECU name or TX id (not with --resume)
+
+options:
+  -h, --help            show this help message and exit
+  --resume DUMP         Read on in an unfinished job (id, prefix or path)
+  --thorough            Read every readable byte, twice (default: sparse, the
+                        data areas in full and the erased areas sampled)
+  --range START-END[,…]
+                        Map these hex ranges first (default: the readable
+                        regions ecus/ records for the ECU's software, else the
+                        format's whole space if it has addresses of 3 bytes or
+                        fewer)
+  --step HEX            Map: probe every HEX bytes before bisecting (default
+                        1000 with --range; about 256 probes across the default
+                        space)
+  --stride HEX          Survey one sample every HEX bytes (default 1000)
+  --block-limit N       Largest read (default and maximum: the ECU's
+                        memory.max_block, else 64)
+  --state STATE         A vehicle state that must hold while the run reads
+                        (its when: predicate)
+  --health PID          The ECU PID read to check its health (default: its
+                        first active PID)
+  --health-every S      Check health and state every S seconds while reading
+                        (default 30)
+  --wait-minutes M      How long a paused run waits for the checks to pass
+                        again (default 15)
+  --label TEXT          A label for the dump
+  --plan-only           Map and survey, print the plan, read nothing
+  --dry-run             Do not write a new map or block size to the ECU's
+                        memory: section in ecus/
+  --format ALFID|kwp    Memory format when the ECU declares none: a UDS ALFID
+                        (24 = 2-byte size, 4-byte address) or kwp. Saved by
+                        `canair memory set` or `canair scan memory`.
+  --session             Open a diagnostic session first (--mode, else the
+                        ECU's memory.session, else 03)
+  --mode HEX            Session mode for --session
+  --throttle-ms THROTTLE_MS
+                        Delay in ms between reads (default 0)
+  --yes, -y             Skip the confirmation before the first read
+  --wican WICAN         WiCAN address: ap or IP (default: config
+                        transport.host / default_wican=ap)
+  --transport {slcan-tcp,wican-ws,elm327-tcp}
+                        CAN transport: slcan-tcp (raw CAN), wican-ws (WiCAN
+                        ELM327 WebSocket), or elm327-tcp (direct ELM327
+                        adapter over TCP). Overrides the config
+                        `transport.type` (default: slcan-tcp).
+  --no-fallback         Don't auto-fall-back to other configured devices when
+                        the selected one is unreachable (see config
+                        transport.fallback).
+  --wait                Keep retrying to reach the device indefinitely, then
+                        start as soon as it comes online (Ctrl-C to stop). For
+                        'monitor', also reconnects forever if the connection
+                        drops mid-session (auto-failover to another same-
+                        transport device is bounded by default; --wait makes
+                        it unbounded).
+  --elm-timeout MS      ELM327 ECU response timeout in ms (sent as ATSTxx
+                        after init)
+  --timeout SECONDS     Overall UDS response timeout in seconds (default 3.0
+                        ELM / 2.0 raw). Overrides any per-ECU
+                        response_timeout_ms for the whole run.
+  --no-learn-frames     Don't write response_frames back into the profile's
+                        ecus/ when this session confirms how many CAN frames a
+                        PID's response occupies (the count that lets the
+                        adapter answer without waiting out its full ECU
+                        timeout). Use when reading a car the active profile
+                        doesn't describe.
+  --json                Output results as JSON
+  --verbose, -v         Show raw transport traffic and expressions
+  --timings             Print per-ECU/PID round-trip timing stats on exit (to
+                        stderr)
+  --reboot              Reboot WiCAN after session to restore AutoPID mode
+                        (skipped on firmware v6, which resumes AutoPID by
+                        itself)
+  --unsafe              Bypass the dangerous-command blocklist: each refused
+                        command asks for typed consent before it is sent.
+                        Works only after the user sets safety.allow_unsafe to
+                        true at a terminal (canair config set
+                        safety.allow_unsafe true)
+  --force               Ask a session already holding the connection to
+                        release it, then wait for it
+
+examples:
+  canair memory image VCU --state CHARGING --plan-only
+  canair memory image VCU --state CHARGING --label "vcu flash"
+  canair memory image MCU --range 000000-0FFFFF --thorough
+  canair memory image --resume VCU/20261108-101500-vcu-flash
+```
+
 ## `canair memory dump`
 
 ```
@@ -56,8 +166,9 @@ Read address ranges of one ECU into a new dump. The block size alternates
 between N and N-1 bytes so a reply to the previous request is always caught by
 its length; a block that does not come back whole is halved. A refused range
 is recorded as a gap with its NRC, and a locked one (securityAccessDenied) is
-left alone. A keypress (s or escape) or Ctrl-C stops the dump and keeps what
-was read. Asks before the first read (--yes to skip).
+left alone, and so is one that refuses by silence. The dump is written to disk
+as it is read, so a keypress (s or escape), Ctrl-C or a killed process keeps
+what was read. Asks before the first read (--yes to skip).
 
 positional arguments:
   ECU                   ECU name or TX id
@@ -75,7 +186,7 @@ options:
                         ECU's memory.session, else 03)
   --mode HEX            Session mode for --session
   --throttle-ms THROTTLE_MS
-                        Delay in ms between reads (default 20)
+                        Delay in ms between reads (default 0)
   --yes, -y             Skip the confirmation before the first read
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)

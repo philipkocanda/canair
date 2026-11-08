@@ -37,9 +37,30 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from canair.uds.memory import memory_read, parse_memory_request
+from canair.uds.protocol import DiagProtocol
+
 # Keyed by the arbitration id the request was sent to *and* the request itself:
 # the same DID on two ECUs need not answer in the same number of frames.
 CountKey = tuple[int | None, str]
+
+
+def count_key(header: int | None, request: str, protocol: DiagProtocol | None = None) -> CountKey:
+    """The key a request's response length is tallied under.
+
+    A request's own string, except for a memory read (``0x23``): its reply is the ``63``
+    and exactly the bytes asked for, so its length depends on the size alone, and every
+    read has a different address. Keyed by its own string, a memory read would never
+    learn a count. Its key is the same read at address 0, so one plain read of a size
+    teaches the count for every address. The key stays a real, even-length request, so
+    the wire rules (:func:`canair.transport.elm327.frame_count.requestable`) apply to it
+    unchanged.
+    """
+    read = parse_memory_request(request, protocol)
+    if read is None:
+        return (header, request)
+    return (header, memory_read(read.format, 0, read.size).request)
+
 
 # One held digit is a direct test of the count, so it is enough on its own.
 CONFIRMATIONS_REQUIRED = 1

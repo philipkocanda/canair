@@ -14,7 +14,7 @@ from ...dtc.snapshot_report import snapshot_lines, undefined_hints
 from ...ecus.names import ecu_display
 from ...ecus.registry import load_ecus
 from ...transport.protocol import Terminal
-from .reading import _read_one
+from .reading import read_ecu_dtcs
 from .scan_log import _log_scan, _print_log_result
 from .snapshot_capture import report_saved
 from .snapshots import SnapshotRun, ecu_pids, fetch_snapshots, wants_snapshots
@@ -63,7 +63,7 @@ async def _wake_read(terminal, tx_id, mask, protocol, verbose, timeout, *, profi
         )
     except Exception:
         pass
-    return await _read_one(
+    return await read_ecu_dtcs(
         terminal, tx_id, mask, protocol, verbose, timeout=timeout, profile=profile
     )
 
@@ -117,7 +117,7 @@ async def mode_dtc_scan_all(
 
     results = []
     for tx_id in tx_ids:
-        res = await _read_one(
+        res = await read_ecu_dtcs(
             terminal, tx_id, mask, protocol, verbose, timeout=timeout, profile=profile
         )
         results.append(res)

@@ -11,19 +11,21 @@ read back under another would silently persist counts against the wrong PID.
 
 The key is ``(tx_id, request_hex)``: the arbitration id the terminal last sent
 ``ATSH`` for, and the request string exactly as ``build_ecu_index`` forms it
-(``str(pid_code).upper()``). Anything the ledger holds that does not resolve to a
-defined PID — a multi-DID batch request, a scan probe, an ECU discovered but not
-registered — is reported, never guessed at.
+(``str(pid_code).upper()``), passed through :func:`~canair.uds.frame_counts.count_key`,
+which keys a memory read by its size alone. Anything the ledger holds that does not
+resolve to a defined PID — a multi-DID batch request, a scan probe, an ECU discovered
+but not registered — is reported, never guessed at.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+from canair.ecus.memory import protocol_of
 from canair.ecus.pid_status import pid_status
 from canair.ecus.pids import load_raw_pids, revision_resolutions
 from canair.profile.model import Profile
-from canair.uds.frame_counts import CountKey, FrameCountLedger
+from canair.uds.frame_counts import CountKey, FrameCountLedger, count_key
 from canair.variants.revisions import declared, gate, reference_of
 
 FIELD = "response_frames"
@@ -86,7 +88,7 @@ def seed_counts(pids_data: dict) -> dict[CountKey, int]:
             frames = stored_count(pid_def)
             if frames is None:
                 continue
-            out[(int(tx), _pid_request(pid_code))] = frames
+            out[count_key(int(tx), _pid_request(pid_code), protocol_of(ecu_def))] = frames
     return out
 
 
@@ -110,7 +112,7 @@ def variable_length_keys(pids_data: dict) -> frozenset[CountKey]:
                 and pid_def.get("variable_length")
                 and pid_status(pid_def) != "ignored"
             ):
-                out.add((int(tx), _pid_request(pid_code)))
+                out.add(count_key(int(tx), _pid_request(pid_code), protocol_of(ecu_def)))
     return frozenset(out)
 
 

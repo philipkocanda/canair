@@ -7,9 +7,10 @@ selects one by inspecting which flags are set. Grouped by family:
 * :mod:`.reads`       — identity, named signals, raw hex.
 * :mod:`.multi`       — the ``read``/``monitor`` mini-language steps.
 * :mod:`.scans`       — PID/DID sweeps, routine and IOControl probes, discovery.
-* :mod:`.actuators`   — IOControl, routines and profile actions (can move hardware).
+* :mod:`.actuators`   — IOControl, routines, profile actions and ECU resets (change the car).
 * :mod:`.diagnostics` — DTC read, clear and scan-all.
 * :mod:`.memory`      — memory reads: the scan map and the dump (ReadMemoryByAddress).
+* :mod:`.memory_image` — a whole memory image: plan, confirm, read, report (loaded on use).
 * :mod:`.elm_only`    — the interactive REPL.
 * :mod:`.ranges`      — the hex-range flag parsers.
 

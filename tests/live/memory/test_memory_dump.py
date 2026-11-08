@@ -115,3 +115,34 @@ def test_confirmation_is_required_without_a_terminal(monkeypatch, capsys):
 def test_a_block_above_the_known_max_block_is_refused(tmp_path):
     with pytest.raises(ValueError, match="max_block 64"):
         _dump(MemoryEcu([]), [(0, 0xFF)], tmp_path, block=128, target=_target(max_block=64))
+
+
+def test_a_range_that_refuses_by_silence_is_left_alone(tmp_path):
+    ecu = MemoryEcu([(0x0, 0xFFFF, None)], silent_above=0xFFF)
+    run = _dump(ecu, [(0x0, 0x1FFF)], tmp_path, block=64)
+    dump = load_dump(run.dump.path)
+    assert run.stopped is None and dump.complete
+    assert dump.stretches[0].data == _expected(0x0, 0xFFF)
+    assert (dump.gaps[-1].start, dump.gaps[-1].end, dump.gaps[-1].result) == (
+        0x1000,
+        0x1FFF,
+        "no_answer",
+    )
+
+
+def test_a_killed_dump_keeps_what_it_read(tmp_path):
+    from canair.memory.store import iter_dumps
+
+    class Killed(MemoryEcu):
+        def _memory(self, read):
+            if self.memory_reads == 200:
+                raise KeyboardInterrupt
+            return super()._memory(read)
+
+    with pytest.raises(KeyboardInterrupt):
+        _dump(Killed([(0x0, 0xFFFF, None)]), [(0x0, 0xFFFF)], tmp_path, block=64)
+    (dump,) = iter_dumps(tmp_path)
+    assert not dump.complete and dump.extents
+    assert dump.stretches[0].start == 0 and dump.bytes_read % 0x1000 == 0
+    assert dump.stretches[0].data == _expected(0x0, dump.bytes_read - 1)
+    assert dump.gaps[-1].result == "skipped" and dump.gaps[-1].end == 0xFFFF

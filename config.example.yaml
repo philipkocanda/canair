@@ -113,8 +113,13 @@ default_wican: home
 # config file counts, not a legacy repo-local config.yaml. While it is on, every
 # command starts with a warning banner. This guards against accidental use (an AI
 # agent that means well), not against a malicious user. See docs/concepts/safety.md.
+#
+# allow_reset lets `canair reset` restart an ECU (ECUReset 0x11). A restarting ECU
+# stops working, so reset one only with the car parked and not in use. It is
+# enabled the same way: `canair config set safety.allow_reset true`, typed YES.
 # safety:
 #   allow_unsafe: false        # default false; only a YAML boolean true enables it
+#   allow_reset: false         # default false; only a YAML boolean true enables it
 
 # CAN transport selection (advanced). Chosen explicitly; never auto-detected.
 # The type/host are overridden per-command by --transport/--wican; port and

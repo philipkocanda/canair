@@ -1,14 +1,17 @@
 # Reading ECU memory
 
 Some of what an ECU knows is behind no DID: RAM variables, calibration tables and constants.
-ReadMemoryByAddress (service `0x23`, UDS and KWP2000) reads it directly. canair uses it in three
+ReadMemoryByAddress (service `0x23`, UDS and KWP2000) reads it directly. canair uses it in four
 ways:
 
 1. **`canair scan memory`** maps which address ranges an ECU answers, and records the map in the
    ECU's `memory:` section.
 2. **`canair memory dump`** reads ranges into a dump on your machine. `canair memory diff`
    compares two dumps, so a RAM variable shows up when you dump in two vehicle states.
-3. **A memory PID** reads a few bytes at one address like any other PID: `read`, `monitor
+3. **`canair memory image`** reads an ECU's whole readable memory into one dump, unattended. It
+   plans the read, checks it, and can pause and resume (see
+   [A whole memory image](#a-whole-memory-image)).
+4. **A memory PID** reads a few bytes at one address like any other PID: `read`, `monitor
    --save`, `decode`, `hunt` and `correlate` work on it.
 
 Every request is a read. canair never writes memory (`0x3D`), never starts a transfer (`0x34`
@@ -17,12 +20,17 @@ reported as locked and left alone.
 
 ## Safety
 
-- **Name the ranges yourself.** Neither command has a default range. Take the ranges from the
-  microcontroller's memory map. On some chips a read of a peripheral register clears a flag or
-  pops a queue, so a read is not always free of side effects. Most ECUs answer only inside
-  ranges their diagnostic stack allows, and refuse the rest with `requestOutOfRange`.
-- **Both commands ask first.** Pass `--yes` to skip the question. Without a terminal they refuse
-  unless you do.
+- **Name the ranges yourself, unless the space is small.** On some chips a read of a peripheral
+  register clears a flag or pops a queue, so a read is not always free of side effects. Take
+  the ranges from the microcontroller's memory map. Most ECUs answer only inside ranges their
+  diagnostic stack allows, and refuse the rest with `requestOutOfRange`.
+- **The default space.** With no `--range`, `scan memory` and `memory image` map the whole
+  space of the ECU's memory format when its addresses are 3 bytes or fewer: every KWP2000 ECU
+  (`0x000000-0xFFFFFF`, 16 MiB) and a UDS ECU whose ALFID has a 1- to 3-byte address. The probes
+  are then about 256, 64 KiB apart across 16 MiB. A UDS ECU with 4-byte addresses (4 GiB) still
+  needs `--range`. `memory dump` has no default range. The confirmation names the range.
+- **Every command that reads memory asks first.** Pass `--yes` to skip the question. Without a
+  terminal they refuse unless you do.
 - **The scan reads one byte at a time** until it finds a region that answers. Only inside one
   does it read more, to find the largest block that comes back whole. It doubles the size from
   16 bytes up to `--block-limit` (default 128) and stops at the first size that fails.
@@ -38,6 +46,10 @@ A dump can hold OEM software (copyright) and secrets such as immobilizer data. S
 state, under `~/.config/canair/memory/<profile>/<ECU>/`, never part of a profile. `contribute`,
 the blind-test strip, the docs explorer and the AutoPID export never see them. Do not share a
 dump or an exported file.
+
+A dump is written as it is read: each extent of 4 KiB goes to disk when it finishes. If the
+process is killed or the link drops, the dump keeps everything but the extent in flight, and
+`canair memory ls` shows it as incomplete (or resumable, for an image job).
 
 A memory PID reads at most 64 bytes. A larger memory read is not saved to `captures/` (the save
 says so), and `canair validate captures` reports one that got there anyway, which also stops
@@ -78,6 +90,73 @@ its only proof that it answers this request, and canair checks it on every read.
 wrong length counts as another request's reply, and the ELM327 transports realign their pipe.
 `memory dump` alternates its block size (`N`, `N-1`, `N`, …), so a reply to the previous request
 always has the wrong length.
+
+## Silence
+
+Some ECUs refuse an address by not answering at all. The Ioniq's VCU does this above
+`0x400000`. Silence also looks like an ECU that stopped answering, so after a silent read canair
+reads one byte at the last address that answered:
+
+- **It answers**: the silent address is a refusal (`no_answer`). `scan memory` maps it and goes
+  on, and above the last readable address it steps to the next aligned boundary, so a large
+  silent space costs a few timeouts. `memory dump` records the rest of the range as a gap.
+- **It does not answer**: the ECU is offline. `scan memory` and `memory dump` stop. `memory
+  image` pauses.
+
+## A whole memory image
+
+`canair memory image ECU` reads the readable memory of one ECU into one dump:
+
+1. **Preflight.** It reads the software version, the ECU's health PID (`--health`, by default
+   its first active PID) and, with `--state`, the signals of that vehicle state's `when:`
+   predicate. It stops if the state does not hold.
+2. **Map.** It takes the readable regions that `scan memory` recorded for this software build.
+   When there are none (or with `--range`), it maps the space itself first: `--range`, or the
+   default space above. With no `max_block` recorded, it then finds the largest block the way
+   `scan memory` does, from 16 bytes up to `--block-limit` (128). It writes the map, the format
+   and the block to the ECU's `memory:` section (`--dry-run`: not).
+3. **Size and aliases.** It matches the readable span against the common flash sizes. It also
+   tests whether the ECU ignores its high address bits and repeats one image. If it does, the
+   image reads the first period only.
+4. **Survey.** It reads a sample every `--stride` (4 KiB) and sorts it into erased (all `FF` or
+   all `00`) or data. It bisects every change between two samples to 64 bytes.
+5. **Plan.** It prints the areas, the number of reads and a time estimate, and asks before it
+   reads (`--plan-only` stops here). The default plan is **sparse**: data areas in full, erased
+   areas sampled 64 bytes every 1 KiB. A sampled extent that turns out to hold data is read in
+   full. `--thorough` reads every readable byte, twice.
+6. **Read.** The plan is cut into extents of 4 KiB, each written to the dump when it finishes.
+   It checks health and state every `--health-every` seconds (30).
+7. **Verify.** A sparse image reads again every extent that had an event, the first and last
+   extent of each area, and 5 % of the rest. If two reads of an extent differ, a third read
+   decides which one the link spoiled. A third read that matches neither means a volatile range
+   (RAM, a mapped peripheral or a link fault), and the job stops.
+8. **Report.** It reports the rate, every pause, the stability checks, the fault codes of the
+   ECU and its bus neighbours against the baseline from the start, and where the ECU's identity
+   strings (part number, `sw_id`, calibration, `ecu_id`, never the VIN) sit in the image.
+
+### Speed
+
+The block stays within the ECU's `max_block` and `--block-limit`. On an ELM327 transport the run
+prefers 61-byte blocks: a 62-byte reply fits the 9 CAN frames that the adapter's
+expected-frame-count digit can ask for, so the adapter answers without waiting out its `ATST`
+budget ([frame counts](../development/frame-counts.md)). Two errors within 50 reads halve the
+block and add 20 ms of throttle. 500 clean reads take one step back.
+
+### Pause and resume
+
+A silent ECU, a failed health or state check, or a dropped link pauses the job. The run then
+reads one byte every 30 s for at most `--wait-minutes` (15). When every check passes again, it
+re-reads the job's first extent and its last two, and reads on. Otherwise it saves the job and
+prints the command that resumes it:
+
+```bash
+canair memory image --resume VCU/20261108-101500-vcu-flash
+```
+
+A resume runs the preflight again and refuses another software build (the ECU was reflashed,
+or it is another ECU). It starts at the block the run had reached, never above it. Press `s` or
+escape during the read to stop and save the job. canair never acts on the car to restore a
+state: keep it charging or in READY yourself.
 
 ## The loop that finds a RAM variable
 

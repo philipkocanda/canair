@@ -221,6 +221,8 @@ def _read_yaml(path: Path) -> dict:
 # agent that wants a command to go through), so the flag works only once the user enables this in
 # their own config file, and `canair config set` asks for typed consent before it does.
 ALLOW_UNSAFE_KEY = "safety.allow_unsafe"
+# The key that lets `canair reset` restart an ECU, gated the same way.
+ALLOW_RESET_KEY = "safety.allow_reset"
 
 
 def unsafe_allowed() -> bool:
@@ -231,9 +233,21 @@ def unsafe_allowed() -> bool:
     it, so a quoted ``"true"`` or a typo leaves ``--unsafe`` refused. The file is read on each
     call (not the cached merged config), so a change takes effect on the next command.
     """
+    return _safety_flag(ALLOW_UNSAFE_KEY)
+
+
+def reset_allowed() -> bool:
+    """Whether the user config enables ``canair reset`` (``safety.allow_reset: true``).
+
+    Read by the same rules as :func:`unsafe_allowed`.
+    """
+    return _safety_flag(ALLOW_RESET_KEY)
+
+
+def _safety_flag(key: str) -> bool:
     data = _read_yaml(user_config_file())
     block = data.get("safety") if isinstance(data, dict) else None
-    return isinstance(block, dict) and block.get("allow_unsafe") is True
+    return isinstance(block, dict) and block.get(key.removeprefix("safety.")) is True
 
 
 @lru_cache(maxsize=1)

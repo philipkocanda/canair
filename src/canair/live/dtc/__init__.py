@@ -37,6 +37,7 @@ from .codes import (
     resolve_protocol,
 )
 from .read import mode_dtc_read
+from .reading import read_ecu_dtcs
 from .sweep import mode_dtc_scan_all
 
 __all__ = [
@@ -48,5 +49,6 @@ __all__ = [
     "mode_dtc_clear",
     "mode_dtc_read",
     "mode_dtc_scan_all",
+    "read_ecu_dtcs",
     "resolve_protocol",
 ]

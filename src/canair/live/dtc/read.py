@@ -15,7 +15,7 @@ from ...transport.protocol import Terminal
 from ..hold import held_session
 from .advice import no_response_hints
 from .codes import resolve_protocol
-from .reading import _read_one, dtc_format_note
+from .reading import dtc_format_note, read_ecu_dtcs
 from .scan_log import _log_scan, _print_log_result
 from .snapshot_capture import report_saved
 from .snapshots import SnapshotRun, ecu_pids, fetch_snapshots, wants_snapshots
@@ -121,7 +121,7 @@ async def mode_dtc_read(
             print(f"\n  DTC read: {ecu_display(tx_id, profile=profile)}")
             print(f"  Protocol: {fam}\n")
 
-        result = await _read_one(
+        result = await read_ecu_dtcs(
             terminal, tx_id, mask, protocol, verbose, supported=supported, profile=profile
         )
         if snapshots and not supported and wants_snapshots(result):

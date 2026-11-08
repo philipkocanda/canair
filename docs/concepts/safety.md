@@ -41,7 +41,8 @@ will not:
   (`2E`, `3B`, `3D`), or start or stop a KWP2000 routine at a raw memory address
   (`38`, `39`; reading its results with `3A` stays allowed).
 - Reset an ECU (`11`), stop its normal CAN traffic (`28`) or change its bit rate
-  (`87`). Each can take a system off the bus while the car is in use.
+  (`87`). Each can take a system off the bus while the car is in use. `canair reset`
+  is the one way to send a reset (see [Resetting an ECU](#resetting-an-ecu)).
 - Send a request it cannot judge or that changes what the ECU lets through:
   SecuredDataTransmission (`84`) carries another request inside it, Authentication
   (`29`) changes the tester's access rights, and DynamicallyDefineDataIdentifier
@@ -142,6 +143,57 @@ yellow banner on stderr that says unsafe mode is on, so you do not forget to tur
     against *accidental* use: most of all, an AI agent that means well, wants to finish its
     task, and sees `--unsafe` as the way to get a refused request through. The key, the
     typed consent and the hidden flag make sure that a person decides to turn it on.
+
+## Resetting an ECU
+
+`canair reset ECU TYPE` restarts one ECU with ECUReset (`0x11`). While an ECU restarts it
+does not do its job: an ESC stops its ABS and stability control, an EPS stops helping the
+steering, a BMS or VCU may open the high-voltage contactors, and a gateway takes a whole bus
+with it.
+**Reset an ECU only with the car parked and not in use.** canair does not check the car's
+state for you.
+
+The command is off until you turn it on in your own config file, the same way as
+`--unsafe`:
+
+```bash
+canair config set safety.allow_reset true
+```
+
+That asks you to type `YES`, and no flag skips it. Then every reset asks you to type the
+ECU's name. `--yes` skips that question, for scripts, but not the config key.
+
+| Type | Request | What the ECU does |
+|---|---|---|
+| `hard` | `11 01` | hardReset: restarts as if its power were cycled (KWP2000: powerOn) |
+| `key-off-on` | `11 02` | keyOffOnReset: restarts as if the key went off and on |
+| `soft` | `11 03` | softReset: restarts its application |
+
+The rules:
+
+- **One ECU at a time.** A reset on the functional (broadcast) id is refused.
+- **Only these three types.** `11 04`/`11 05` change how the ECU powers down and do not
+  restart it, and `11 40`–`11 7E` are the manufacturer's or supplier's, so canair refuses
+  them. So does the suppress-positive-response form (`11 81`): the reply is how you learn
+  that the ECU took the reset.
+- **A KWP2000 ECU, or one whose protocol the profile does not record, takes only `hard`.**
+  ISO 14230-3 calls `01` powerOn; canair has not checked what the other values do there.
+- `canair raw` and `canair read` still refuse `11 …`. The command sends its one request
+  under an exact grant that ends with the send.
+
+What to expect:
+
+- The ECU answers `51 {type}` and then restarts, or restarts before it answers. No reply
+  does not prove that nothing happened.
+- Many ECUs refuse a reset in the default session (`--session` opens the extended session
+  first), without security access, or unless their own conditions hold. Hyundai/Kia ECUs,
+  for one, reset only with the ignition on and the drive system off (NRC `0x22` otherwise).
+- After the restart the ECU is in its default session. Any security access or IOControl
+  override is gone. canair sends TesterPresent until the ECU answers again
+  (`--restart-timeout`, default 10 s) and reports how long that took.
+- A reset is not a battery disconnect. Stored DTCs, adaptations and coding survive it.
+  Other ECUs may store lost-communication DTCs while this one restarts: check with
+  `canair dtc --all`.
 
 ## Discovery vs. actuation
 

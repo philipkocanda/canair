@@ -10,6 +10,7 @@ from canair.uds.subfunctions import (
     SUBFUNCTION_NAMES,
     DtcReportType,
     DtcSettingType,
+    EcuResetType,
     IoControlParameter,
     KwpIoControlParameter,
     KwpSessionType,
@@ -26,6 +27,7 @@ from canair.uds.subfunctions import (
 SERVICE_OF: dict[type[IntEnum], int] = {
     SessionType: 0x10,
     KwpSessionType: 0x10,
+    EcuResetType: 0x11,
     DtcReportType: 0x19,
     IoControlParameter: 0x2F,
     KwpIoControlParameter: 0x30,

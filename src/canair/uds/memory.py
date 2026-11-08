@@ -138,6 +138,29 @@ def default_format(protocol: DiagProtocol | None) -> MemoryFormat | None:
     return KWP_FORMAT if protocol == KWP else None
 
 
+#: The widest address a format may have for its whole space to be mapped by default (16 MiB).
+#: Wider spaces (4 GiB) take hours to sweep and cross the chip's peripheral registers.
+DEFAULT_SPACE_ADDRESS_BYTES: Final = 3
+#: About how many probes a default map spends across the space.
+DEFAULT_SPACE_PROBES: Final = 256
+
+
+def default_scan_space(fmt: MemoryFormat) -> tuple[int, int] | None:
+    """The whole space ``fmt`` addresses, when it is small enough to map with no range given."""
+    if fmt.address_bytes > DEFAULT_SPACE_ADDRESS_BYTES:
+        return None
+    return (0, fmt.max_address)
+
+
+def default_scan_step(start: int, end: int) -> int:
+    """The power-of-two step that maps ``start``-``end`` in about :data:`DEFAULT_SPACE_PROBES`."""
+    span = end - start + 1
+    step = 1
+    while step * DEFAULT_SPACE_PROBES < span:
+        step *= 2
+    return step
+
+
 @dataclass(frozen=True)
 class MemoryRead:
     """One memory read: ``size`` bytes from ``address`` in ``format``."""

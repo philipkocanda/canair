@@ -35,6 +35,7 @@ from canair.transport.elm327.frame_count import (
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.uds.frame_counts import OBSERVATIONS_REQUIRED
 from canair.uds.response import CAT_BUS, CAT_DROP, CAT_NO_DATA
+from canair.uds.services import READ_MEMORY_BY_ADDRESS
 from tests.support.fakes import QueuedChannel
 
 # Real wire format of a live BCM 22C00B read: declared 0x017 = 23 bytes across
@@ -174,6 +175,22 @@ class TestLearningFromTheWire:
         ch.feed(_block(_COMPLETE))
         await term.send_uds("22C00B", timeout=5.0)
         assert ch.sent == ["22C00B\r", "22C00B\r"]
+
+    @pytest.mark.asyncio
+    async def test_one_memory_read_teaches_the_count_for_every_address(self):
+        """A memory reply's length is fixed by the size alone, so the size is the key."""
+        ch = QueuedChannel(_block("63AABBCC"))
+        term = _term(ch)
+        await term.send_uds("2324000010000003", timeout=5.0, expected_sid=READ_MEMORY_BY_ADDRESS)
+        ch.feed(_block("63DDEEFF"))
+        resp = await term.send_uds(
+            "2324000020000003", timeout=5.0, expected_sid=READ_MEMORY_BY_ADDRESS
+        )
+        assert resp["ok"] is True
+        assert ch.sent == ["2324000010000003\r", "23240000200000031\r"]
+        ch.feed(_block("6311"))
+        await term.send_uds("2324000030000001", timeout=5.0, expected_sid=READ_MEMORY_BY_ADDRESS)
+        assert ch.sent[-1] == "2324000030000001\r"  # another size learns its own count
 
     @pytest.mark.asyncio
     async def test_reconnecting_forgets_what_was_learned(self):

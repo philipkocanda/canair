@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 
 from canair.analysis.physical.grid_regions import GRID_REGIONS
-from canair.config.file import ALLOW_UNSAFE_KEY
+from canair.config.file import ALLOW_RESET_KEY, ALLOW_UNSAFE_KEY
 from canair.core.paths import CONFIG_DOCS_URL
 from canair.render import messages
 from canair.transport.config import VALID_TRANSPORTS
@@ -39,6 +39,7 @@ KNOWN_KEYS = (
     "transport.expected_responses",
     "transport.firmware_check",
     ALLOW_UNSAFE_KEY,
+    ALLOW_RESET_KEY,
 )
 
 
@@ -54,6 +55,8 @@ def _grid_regions() -> tuple[str, ...]:
 
 _WICAN_MODELS = ("pro", "classic")
 _BOOLEANS = ("true", "false")
+# The safety gates: booleans that `config set` enables only after typed consent (edit.py).
+SAFETY_GATE_KEYS = (ALLOW_UNSAFE_KEY, ALLOW_RESET_KEY)
 
 
 # Keys whose value is a list; `config set` splits a comma-separated value.
@@ -125,7 +128,7 @@ def enum_values(key: str) -> tuple[str, ...] | None:
         return _WICAN_MODELS
     if key == "grid_region":
         return _grid_regions()
-    if key == ALLOW_UNSAFE_KEY:
+    if key in SAFETY_GATE_KEYS:
         return _BOOLEANS
     return None
 
@@ -140,7 +143,7 @@ def invalid_value(key: str, value) -> str | None:
         return f"invalid wican_model {value!r}; valid: {', '.join(_WICAN_MODELS)}"
     if key == "grid_region" and str(value).strip().upper() not in _grid_regions():
         return f"invalid grid_region {value!r}; valid: {', '.join(_grid_regions())}"
-    if key == ALLOW_UNSAFE_KEY and not isinstance(value, bool):
+    if key in SAFETY_GATE_KEYS and not isinstance(value, bool):
         return f"invalid {key} {value!r}; valid: {', '.join(_BOOLEANS)}"
     return None
 

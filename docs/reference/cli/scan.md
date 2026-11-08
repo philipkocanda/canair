@@ -402,10 +402,10 @@ examples:
 ## `canair scan memory`
 
 ```
-usage: canair scan memory [-h] --range START-END[,…] [--step HEX] [--no-block]
-                          [--block-limit N] [--dry-run] [--format ALFID|kwp]
-                          [--session] [--mode HEX] [--throttle-ms THROTTLE_MS]
-                          [--yes] [--wican WICAN]
+usage: canair scan memory [-h] [--range START-END[,…]] [--step HEX]
+                          [--no-block] [--block-limit N] [--dry-run]
+                          [--format ALFID|kwp] [--session] [--mode HEX]
+                          [--throttle-ms THROTTLE_MS] [--yes] [--wican WICAN]
                           [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                           [--no-fallback] [--wait] [--elm-timeout MS]
                           [--timeout SECONDS] [--no-learn-frames] [--json]
@@ -413,7 +413,7 @@ usage: canair scan memory [-h] --range START-END[,…] [--step HEX] [--no-block]
                           [--force]
                           ECU
 
-Map which address ranges of one ECU answer memory reads. The scan reads one byte every --step bytes, bisects each change to its exact address, then finds the largest block that comes back whole inside a readable region, doubling from 16 bytes up to --block-limit and stopping at the first that fails. It stops on serviceNotSupported, on securityAccessDenied (canair never unlocks), on conditionsNotCorrect to every read, and when the ECU stops answering. The map, the format and the block are written to the ECU's memory: section (--dry-run: not). There is no default range: name ranges from the microcontroller's memory map. Asks before the first read (--yes to skip).
+Map which address ranges of one ECU answer memory reads. The scan reads one byte every --step bytes, bisects each change to its exact address, then finds the largest block that comes back whole inside a readable region, doubling from 16 bytes up to --block-limit and stopping at the first that fails. It stops on serviceNotSupported, on securityAccessDenied (canair never unlocks), on conditionsNotCorrect to every read, and when the ECU stops answering. A silent address is mapped as no_answer when the ECU still answers at the last readable one, and past it the probes step to the next aligned boundary. The map, the format and the block are written to the ECU's memory: section (--dry-run: not). With no --range the scan maps the whole space of the ECU's memory format when its addresses are 3 bytes or fewer (every KWP2000 ECU: 0x000000-0xFFFFFF) at about 256 probes; a wider space (4-byte UDS addresses) needs --range from the microcontroller's memory map. Asks before the first read, naming the range (--yes to skip).
 
 positional arguments:
   ECU                   ECU name or TX id
@@ -421,8 +421,11 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --range START-END[,…]
-                        Hex address ranges to map (required)
-  --step HEX            Probe every HEX bytes before bisecting (default 1000)
+                        Hex address ranges to map (default: the format's whole
+                        space, if it has addresses of 3 bytes or fewer)
+  --step HEX            Probe every HEX bytes before bisecting (default 1000
+                        with --range; about 256 probes across the default
+                        space)
   --no-block            Skip the search for the largest block
   --block-limit N       Largest block the search tries (default 128). Some
                         ECUs hang on a read larger than they support until
@@ -480,6 +483,7 @@ options:
                         release it, then wait for it
 
 examples:
+  canair scan memory OBC
   canair scan memory BCM --range FEDE0000-FEDFFFFF
   canair scan memory HVAC --range 000000-00FFFF --format 13 --step 100
   canair scan memory MCU --range 000000-0FFFFF --step 10000 --no-block

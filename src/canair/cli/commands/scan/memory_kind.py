@@ -8,7 +8,9 @@ from canair.cli.commands.memory.reads import (
     add_read_args,
     address_ranges,
     confirm_reads,
+    ecu_format,
     hex_int,
+    require_space,
 )
 from canair.cli.live import add_connection_args, ecu_completer, run_live
 from canair.cli.live.handlers import memory as handlers
@@ -24,12 +26,18 @@ def add_memory_parser(kinds) -> argparse.ArgumentParser:
         "finds the largest block that comes back whole inside a readable region, doubling "
         "from 16 bytes up to --block-limit and stopping at the first that fails. It stops "
         "on serviceNotSupported, on securityAccessDenied (canair never unlocks), on "
-        "conditionsNotCorrect to every read, and when the ECU stops answering. The map, the "
+        "conditionsNotCorrect to every read, and when the ECU stops answering. A silent "
+        "address is mapped as no_answer when the ECU still answers at the last readable one, "
+        "and past it the probes step to the next aligned boundary. The map, the "
         "format and the block are written to the ECU's memory: section (--dry-run: not). "
-        "There is no default range: name ranges from the microcontroller's memory map. "
-        "Asks before the first read (--yes to skip).",
+        "With no --range the scan maps the whole space of the ECU's memory format when its "
+        "addresses are 3 bytes or fewer (every KWP2000 ECU: 0x000000-0xFFFFFF) at about 256 "
+        "probes; a wider space (4-byte UDS addresses) needs --range from the "
+        "microcontroller's memory map. Asks before the first read, naming the range "
+        "(--yes to skip).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="examples:\n"
+        "  canair scan memory OBC\n"
         "  canair scan memory BCM --range FEDE0000-FEDFFFFF\n"
         "  canair scan memory HVAC --range 000000-00FFFF --format 13 --step 100\n"
         "  canair scan memory MCU --range 000000-0FFFFF --step 10000 --no-block\n",
@@ -39,16 +47,16 @@ def add_memory_parser(kinds) -> argparse.ArgumentParser:
         "--range",
         dest="ranges",
         type=address_ranges,
-        required=True,
         metavar="START-END[,…]",
-        help="Hex address ranges to map (required)",
+        help="Hex address ranges to map (default: the format's whole space, if it has "
+        "addresses of 3 bytes or fewer)",
     )
     parser.add_argument(
         "--step",
         type=hex_int,
-        default=0x1000,
         metavar="HEX",
-        help="Probe every HEX bytes before bisecting (default 1000)",
+        help="Probe every HEX bytes before bisecting (default 1000 with --range; about 256 "
+        "probes across the default space)",
     )
     parser.add_argument(
         "--no-block", action="store_true", help="Skip the search for the largest block"
@@ -71,6 +79,7 @@ def add_memory_parser(kinds) -> argparse.ArgumentParser:
 
 
 def run_memory_scan(args: argparse.Namespace) -> int:
-    if not confirm_reads(args, "Scan"):
+    where = None if args.ranges else require_space(args, ecu_format(args))
+    if not confirm_reads(args, "Scan", where):
         return 1
     return run_live(args, handlers.SCAN)

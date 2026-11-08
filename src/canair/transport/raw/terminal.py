@@ -58,7 +58,7 @@ from canair.uds.addressing import (
     resolve_rx,
 )
 from canair.uds.echo import positive_response_suppressed
-from canair.uds.frame_counts import FrameCountLedger, frames_for_payload
+from canair.uds.frame_counts import FrameCountLedger, count_key, frames_for_payload
 from canair.uds.nrc import is_negative_response, is_response_pending
 from canair.uds.parse import parse_uds_response
 from canair.uds.response import UdsResponse
@@ -236,7 +236,9 @@ class RawTerminal:
                     # which the payload length fixes.
                     resp["isotp_frame_count"] = frames_for_payload(len(resp_bytes))
                     if resp.get("ok"):
-                        self.frame_counts.observe((tx, service_pid), resp["isotp_frame_count"])
+                        self.frame_counts.observe(
+                            count_key(tx, service_pid, protocol), resp["isotp_frame_count"]
+                        )
                 self.diag.record_response(
                     resp,
                     ecu=(f"0x{tx:03X}" if tx is not None else None),

@@ -15,12 +15,15 @@ from __future__ import annotations
 import pytest
 
 from canair.ecus.response_frames import FIELD, resolve_edits, seed_counts, variable_length_keys
+from canair.transport.elm327.frame_count import requestable
 from canair.uds.frame_counts import (
     CONFIRMATIONS_REQUIRED,
     OBSERVATIONS_REQUIRED,
     FrameCountLedger,
+    count_key,
     frames_for_payload,
 )
+from canair.uds.protocol import KWP
 
 _KEY = (0x7E4, "2101")
 _OTHER = (0x7E4, "2105")
@@ -175,6 +178,25 @@ class TestSeedCounts:
             }
         }
         assert seed_counts(data) == {(0x7E4, "2101"): 4}
+
+    def test_a_memory_pid_seeds_the_count_of_its_size(self):
+        data = _profile({"2324FEDE12340002": {"status": "active", FIELD: 1}})
+        assert seed_counts(data) == {(0x7E4, "2324000000000002"): 1}
+
+
+class TestCountKey:
+    """A memory read is keyed by its size: its reply is ``63`` and exactly that many bytes."""
+
+    def test_a_memory_read_is_keyed_at_address_zero(self):
+        assert count_key(0x7A0, "2324FEDE12340040") == (0x7A0, "2324000000000040")
+        assert count_key(0x7E2, "2300100040", KWP) == (0x7E2, "2300000040")
+
+    def test_any_other_request_keeps_its_own_string(self):
+        assert count_key(0x7E4, "2101") == (0x7E4, "2101")
+        assert count_key(None, "22F190") == (None, "22F190")
+
+    def test_the_key_is_still_requestable(self):
+        assert requestable(count_key(0x7E2, "2300100040", KWP)[1], 9)
 
 
 class TestVariableLengthKeys:

@@ -42,6 +42,15 @@ VCU:
       period: 2500
       vehicle_states: [IG3]
       verified: true
+      notes: >-
+        Stops updating while VCU_IG3_ON (B11:4) is 0. Firmware (producer FUN_001F46C0,
+        r13=0x400063E4): B4-B8 are a header written at read time by FUN_00204480, so B9 is a
+        constant 0x09 record-format byte, not a signal. B11:5 is never written by the producer, so
+        it is unused rather than undecoded. B10 bit 4 is set when the internal gear state reads 7, a
+        fifth state not yet observed on this car. The APS1 (B12/B13), APS2 (B14/B15), accelerator
+        (B17/B18), speed (B19/B20) and 12 V supply (B21/B22) signals are each a 16-bit little-endian
+        pair in the firmware, confirming the width and byte order of the expressions here. B25 is
+        written as a whole byte (VCU_POWER_STATE) and B26 as a packed gear-state debug byte.
       parameters:
         VCU_VEHICLE_SPEED:
           expression: ((S20*256)+B19)*1.609344/100
@@ -289,7 +298,16 @@ VCU:
       notes: >-
         Stops updating while VCU_IG3_ON (2101 B11:4) is 0: every read after the fall repeats the
         first one byte for byte, so readings taken with the IG3 rail off are not live. Motor RPM,
-        torque and temperatures are not on this page; they are on the MCU (0x7E3).
+        torque and temperatures are not on this page; they are on the MCU (0x7E3). Firmware
+        (producer FUN_0021AD44, r13=0x400063E4): B4-B7 are a constant header (F8 F8 00 00), not
+        signals. B9 to B13 are single status bits unpacked from an internal status word, not bytes;
+        B11, B12 and B13 read 0 in all 14657 captures, so they are inactive on this car rather than
+        undecoded. B14, B15, B17 and B18 are whole-byte copies. The four 16-bit little-endian pairs
+        are packed from internal floats with a fixed scale, which confirms the expressions here:
+        B19/B20 and B26/B27 are x1000 (matching the /1000 of VCU_LDC_OUTPUT_VOLTAGE and
+        VCU_AUX_BATTERY_VOLTAGE_FINE), B23/B25 is x100 (VCU_DCLINK_VOLTAGE, whose high byte alone is
+        the coarse variant since 256/100 = 2.56), and B21/B22 is x100 of a float carried in units of
+        10 W, which is why VCU_AUX_POWER's /10 reads correct watts.
       min: "0"
       verified: false
       parameters:
@@ -385,6 +403,17 @@ VCU:
             HV DC-link voltage, 0.01 V/bit, 16-bit little-endian split across the PCI byte B24. B25
             alone is VCU_DCLINK_VOLTAGE_COARSE (r=1.000). Read within 0.1-0.6 V of
             BMS:2101:BATTERY_VOLTAGE while driving on 2026-08-08.
+        VCU_HV_AVAILABLE:
+          expression: B9
+          min: "0"
+          max: "1"
+          source: VCU firmware FUN_0021AD44 (status bit from an internal word) + cross-tab vs VCU_HV_MAIN_RELAY_ON over 14657 captures, 2026-11-08
+          notes: >-
+            HV system available. Firmware packs it as a single status bit from an internal word, not
+            a byte. Strictly broader than VCU_HV_MAIN_RELAY_ON (B10): B9 reads 0 only while the main
+            relay is open (B9=0 with the relay closed never occurs in 14657 captures), and it is 0
+            in just 9 of them, against 450 relay-open rows. So it clears in a deeper HV-off state
+            than the relay bit.
     21F2:
       status: slow
       period: 300000
@@ -1261,3 +1290,12 @@ VCU:
       supported: false
       nrc: 0x12
       nrc_desc: "subFunctionNotSupported"
+  memory:
+    format: "kwp"
+    max_block: 64
+    regions:
+      - start: 0x000000
+        end: 0x3FFFFF
+        result: readable
+        software: "8D:EAEEO5L-NS7-D060"
+        scanned: "2026-11-07"

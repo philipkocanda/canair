@@ -21,7 +21,7 @@ from ...transport.protocol import Terminal
 from ..hold import held_session
 from .advice import clear_nrc_hints, no_response_hints
 from .codes import resolve_protocol
-from .reading import _read_one
+from .reading import read_ecu_dtcs
 from .scan_log import _log_manual_clear, logged_snapshots
 from .snapshots import SnapshotRun, ecu_pids, fetch_snapshots, wants_snapshots
 
@@ -70,7 +70,7 @@ async def mode_dtc_clear(
         pre_codes = None
         pre_snapshots: dict = {}
         if log:
-            pre = await _read_one(terminal, tx_id, 0xFF, protocol, verbose, profile=profile)
+            pre = await read_ecu_dtcs(terminal, tx_id, 0xFF, protocol, verbose, profile=profile)
             if "error" in pre:
                 _report_failure(
                     {"ecu": ecu, "protocol": proto, "cleared": False, "error": pre["error"]},
