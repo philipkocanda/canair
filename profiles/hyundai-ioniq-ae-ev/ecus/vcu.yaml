@@ -291,24 +291,23 @@ VCU:
             VCU_AUX_BATTERY_VOLTAGE_FINE (n=10357). The /2072 scale is fitted and matches the MCU
             and ESC supply words; /2048 reads about 1.2 % high.
           unit: V
-        VCU_LEVER_PWM_CODE_BIT1:
-          expression: B23:4
-          source: canair bitfield analysis 2026-08-06; VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.5, FUN_001A7AB4)
+        VCU_SBW_SWITCH_PWM_CODE:
+          expression: (B23>>3)&15
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.5, FUN_001A7AB4); canair bitfield analysis 2026-08-06
           verified: false
           notes: >-
-            Bit 1 of the shift-lever code the VCU decodes from the lever's PWM line (47-53 % duty is
-            code 6, probably the home position). B23 reads 0x34 or 0x30 with the ignition on, so
-            bits 4 and 5 are set together and alone in 40 captures (B23 = 48). Clear while charging,
-            when BMS_MAIN_RELAY is set.
-        VCU_LEVER_PWM_CODE_BIT2:
-          expression: B23:5
-          source: canair bitfield analysis 2026-08-06; VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.5)
-          verified: false
-          notes: >-
-            Bit 2 of the shift-lever code (see VCU_LEVER_PWM_CODE_BIT1). Equals bit 1 in every
-            capture because the lever sits at code 6. Disabled so it does not ship a duplicate;
-            defined so bit 5 is accounted for.
-          ship: false
+            Code the VCU decodes from the PWM output of the shift-by-wire (SBW) switch module (EPCU
+            pin 23, eMIOS 3), in 10 % duty steps: 7-13 % is 1, 17-23 % 2, 27-33 % 3, 37-43 % 4,
+            47-53 % 6, 67-73 % 5, 87-93 % 7, other duty above 3 % 8, at or below 3 % 0. It is the
+            gear logic's fallback when 0x354 is lost. The car has P, R, N and D push buttons, and
+            which code means which button is not established. Stored replies: 0 in 9202 rows, 6 in
+            4306 and 2 in one. Code 6 is probably no button pressed. It follows the ignition input
+            within a poll or two (bits 4 and 5 are set together), so it also behaves like an
+            ignition mirror. Bits 3 and 6 are never set.
+          type: enum
+          values:
+            0: no_signal
+            6: idle_probable
         GEAR_SIGNAL_VALID:
           expression: B10:5
           source: canair bitfield analysis 2026-08-06; n=6365, 4 transitions in the 2026-07-30 power-cycle session
@@ -379,26 +378,6 @@ VCU:
           notes: >-
             The hard-wired input (DIO 5) that behaves as the smart key's start signal: a rising edge
             in P starts READY. Weak evidence: set in 1 stored row, 53 s before READY.
-        VCU_LEVER_PWM_CODE_BIT0:
-          expression: B23:3
-          min: "0"
-          max: "1"
-          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.5)
-          verified: false
-          notes: >-
-            Bit 0 of the shift-lever code (see VCU_LEVER_PWM_CODE_BIT1). Never set in a stored
-            reply; defined so the bit is accounted for.
-          ship: false
-        VCU_LEVER_PWM_CODE_BIT3:
-          expression: B23:6
-          min: "0"
-          max: "1"
-          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.5)
-          verified: false
-          notes: >-
-            Bit 3 of the shift-lever code (see VCU_LEVER_PWM_CODE_BIT1). Never set in a stored
-            reply; defined so the bit is accounted for.
-          ship: false
     2102:
       response_frames: 4
       status: active

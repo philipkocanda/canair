@@ -3075,8 +3075,8 @@
           "max": 16
         },
         {
-          "name": "VCU_LEVER_PWM_CODE_BIT1",
-          "expression": "B23:4",
+          "name": "VCU_SBW_SWITCH_PWM_CODE",
+          "expression": "(B23>>3)&15",
           "unit": "",
           "class": ""
         },
