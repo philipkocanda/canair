@@ -195,6 +195,8 @@ canair monitor IGPM:BC03 --actuate IGPM --save --label "rear defogger toggle"
 - `--actuate` needs a terminal. In a script, a `canair read` pipeline drives an output with an
   `iocontrol` step and releases it when the pipeline ends
   ([pipelines](query-mini-language.md#pipelines)).
+- With `--save`, every request is recorded in the session's `actuations` list
+  ([captures](captures-and-states.md#what-the-recording-switched-actuations)).
 
 ## Profile actions: guarded, make-specific requests
 

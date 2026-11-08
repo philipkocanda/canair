@@ -15,21 +15,31 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from datetime import datetime
 from typing import Literal
 
+from canair.captures.actuations import ActuationAction
 from canair.render import glyphs
 from canair.transport.protocol import Terminal
 from canair.uds.nrc import nrc_abbrev
 from canair.uds.requests import routine_control_request
 from canair.uds.response import UdsResponse
+from canair.uds.subfunctions import RoutineControlType
 
-from .ports import ActuationSessions, Report
+from .ports import ActuationSessions, Exchanged, Report
 from .routines_execute import send_routine, sf_label
 
 _logger = logging.getLogger("routines-tui")
 
 #: The outcome of the last request to a RID: a positive reply, an NRC, or a failure.
 RoutineState = Literal["ok", "nrc", "error"]
+
+#: The action each sub-function is recorded as (see :data:`~.ports.Exchanged`).
+_ACTIONS: dict[int, ActuationAction] = {
+    RoutineControlType.START_ROUTINE: "start",
+    RoutineControlType.STOP_ROUTINE: "stop",
+    RoutineControlType.REQUEST_ROUTINE_RESULTS: "results",
+}
 
 
 class RoutineBank:
@@ -53,6 +63,8 @@ class RoutineBank:
         self.last_response: dict[str, str] = {}
         self.last_sf: dict[str, int] = {}  # which sub-function was last sent
         self.busy = False
+        #: Told about each request sent (the monitor records them).
+        self.on_exchange: Exchanged | None = None
         self.set_routines(routines)
 
     @property
@@ -71,8 +83,11 @@ class RoutineBank:
         self.busy = True
         self.report(f"Sending {sf_label(sub_function)}: {rid}{glyphs.ELLIPSIS}", "info")
         _logger.info("SF %s %s cmd=%s", sf_label(sub_function), rid, hex_cmd)
+        resp: UdsResponse | None = None
+        sent_at = datetime.now()
         try:
             await self.sessions.ensure(self.tx_id, None)
+            sent_at = datetime.now()
             terminal = self.terminal
             async with terminal.transaction():
                 await terminal.set_header(self.tx_id)
@@ -100,3 +115,6 @@ class RoutineBank:
         finally:
             self.report("", "info")
             self.busy = False
+            action = _ACTIONS.get(sub_function)
+            if self.on_exchange is not None and action is not None:
+                self.on_exchange(action, rid, hex_cmd, resp, sent_at)

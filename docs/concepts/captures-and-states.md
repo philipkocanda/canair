@@ -227,6 +227,29 @@ Where they show up:
 `validate captures` warns about a payload timed inside a closed disconnect, pause or
 silence of its ECU: nothing answered then, so a clock or the event is wrong.
 
+### What the recording switched: `actuations`
+
+A `monitor --save --actuate` session drives outputs and runs routines from the actuator pane
+([Safety](safety.md#actuating-from-the-monitor)). Its `actuations` list records each request
+at the time it was sent, so a toggle can be lined up with the signal changes it caused:
+
+```json
+"actuations": [
+  {"at": "14:02:11.400", "rx": "0x778", "kind": "iocontrol", "id": "BC0C", "action": "on", "request": "2FBC0C03", "outcome": "ok", "response": "6FBC0C03"},
+  {"at": "14:05:02.010", "rx": "0x7A8", "kind": "routine", "id": "12A1", "action": "start", "request": "310112A1", "outcome": "nrc", "nrc": "0x22"}
+]
+```
+
+- **`kind`** is `iocontrol` (an output, `id` its DID) or `routine` (`id` its RID). `rx` is the
+  ECU's response address, as in a capture.
+- **`action`** is `on`, `off`, `adjust` (a value), `release` (handed back on exit or after a
+  reconnect), `start`, `stop` or `results`. `held` sends nothing: a new segment (`n`) starts
+  with one for each output that was still on.
+- **`outcome`** is `ok`, `nrc` (with the code) or `error` (no reply).
+
+Like `link_events`, the list is recorded live, never derived, and holds no labels or free
+text. It is absent on a session that actuated nothing.
+
 
 ## Recording captures
 

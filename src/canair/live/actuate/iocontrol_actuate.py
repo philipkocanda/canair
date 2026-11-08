@@ -18,8 +18,10 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable, Sequence
+from datetime import datetime
 from typing import Literal, get_args
 
+from canair.captures.actuations import ActuationAction
 from canair.ecus.pids import IoControlCommand
 from canair.render import glyphs
 from canair.safety.actuation import on_refusal, parse_io_request
@@ -35,7 +37,7 @@ from canair.uds.services import (
 )
 from canair.uds.subfunctions import IoControlParameter
 
-from .ports import ActuationSessions, Report
+from .ports import ActuationSessions, Exchanged, Report
 
 # Per-DID actuator state — the single source of truth for these sentinels.
 #
@@ -74,6 +76,15 @@ async def send_iocontrol(terminal: Terminal, hex_cmd: str) -> UdsResponse:
     return await terminal.send_uds(
         hex_cmd, timeout=3.0, expected_sid=io.service, expected_echo=io.identifier
     )
+
+
+#: The action each kind of request is recorded as (see :data:`~.ports.Exchanged`).
+_ACTIONS: dict[str, ActuationAction] = {
+    "ON": "on",
+    "OFF": "off",
+    "REL": "release",
+    "ADJ": "adjust",
+}
 
 
 def _nrc_text(resp: UdsResponse, protocol: DiagProtocol) -> str:
@@ -115,6 +126,8 @@ class IoBank:
         self.status_bytes: dict[str, str | None] = {}
         self.busy = False  # one request at a time
         self.stopping = False  # the owner is closing: a status poll stops
+        #: Told about each ON/OFF/adjust/release sent (the monitor records them).
+        self.on_exchange: Exchanged | None = None
         self.set_commands(cmds)
 
     @property
@@ -182,8 +195,11 @@ class IoBank:
         self.busy = True
         self.report(f"Sending {kind}: {did} ({label}){glyphs.ELLIPSIS}", "info")
         _logger.info("%-3s %s %s cmd=%s", kind, did, label, hex_cmd)
+        resp: UdsResponse | None = None
+        sent_at = datetime.now()
         try:
             await self._ensure_session(did)
+            sent_at = datetime.now()
             resp = await self._send(hex_cmd)
             _logger.info("%-3s %s resp: %s", kind, did, resp)
             self.extract_status_bytes(did, resp)
@@ -205,6 +221,8 @@ class IoBank:
         finally:
             self.report("", "info")
             self.busy = False
+            if self.on_exchange is not None:
+                self.on_exchange(_ACTIONS[kind], did, hex_cmd, resp, sent_at)
 
     async def send_on(self, did: str) -> None:
         """Send ON command for a DID."""

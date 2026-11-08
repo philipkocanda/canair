@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
 
+from canair.captures.actuations import Actuation
 from canair.captures.keepmode import EntryKeepMode, PersistedKeepMode
 from canair.captures.link_events import LinkEvent
 from canair.states.spans import StateSpan
@@ -158,6 +159,8 @@ class SessionMeta(TypedDict, total=False):
     quality: Quality
     # When the recording could not see the car (see canair.captures.link_events).
     link_events: list[LinkEvent]
+    # What the recording switched on the car (see canair.captures.actuations).
+    actuations: list[Actuation]
     # The profile variant (variants.yaml ID) the recorded car is, and how that was decided.
     variant: str
     # ECU name -> its revision, for each captured ECU that declares several.

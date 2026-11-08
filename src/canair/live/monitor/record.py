@@ -403,6 +403,10 @@ class MonitorRecorder:
         tracker = getattr(self.c, "link_events", None)
         if tracker is not None:
             tracker.segment_rotated()
+        # Likewise an output still on: the new segment says it was driven from its start.
+        actuation = getattr(self.c, "actuation", None)
+        if actuation is not None:
+            actuation.journal_held()
         # As with `s`: the pre-filled current state accepted unchanged is an
         # auto-suggestion, so the new segment still back-fills from what it sees.
         self.state_explicit = bool(states) and not self._is_offer(states, self._offered_next)

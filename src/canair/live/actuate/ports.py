@@ -11,16 +11,21 @@ RoutineControl requests. It opens no session itself: it asks its owner through
   background task, re-entered when an actuator needs another session mode.
 * :class:`SharedSessions` — the adapter over a manager somebody else keeps alive (the ``read``
   pipeline, the monitor): it opens or switches a session and never touches the keepalive.
+
+A bank also calls its owner's :data:`Exchanged` hook, when it has one, after each request.
 """
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from datetime import datetime
 from typing import Literal, Protocol
 
+from canair.captures.actuations import ActuationAction
 from canair.ecus.pids import DEFAULT_IOCONTROL_SESSION_MODE
 from canair.transport.session_manager import SessionManager
+from canair.uds.response import UdsResponse
 from canair.uds.subfunctions import parse_session_type
 
 _logger = logging.getLogger("iocontrol-tui")
@@ -30,6 +35,11 @@ StatusLevel = Literal["error", "warning", "success", "info"]
 
 #: Where a bank reports what it is doing and what went wrong.
 Report = Callable[[str, StatusLevel], None]
+
+#: What a bank tells its owner after each request it sent: the action (``on``, ``off``,
+#: ``adjust``, ``release``, ``start``, ``stop``, ``results``), the DID or RID, the request, the
+#: reply (None when the request raised) and when it was sent. The monitor records it.
+Exchanged = Callable[[ActuationAction, str, str, UdsResponse | None, datetime], None]
 
 
 class ActuationSessions(Protocol):

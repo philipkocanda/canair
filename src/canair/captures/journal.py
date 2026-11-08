@@ -29,7 +29,8 @@ start) is the fallback for rows written before per-record dates existed. A ``res
 reply; it reconciles into an untimed capture with a ``response`` field. ``event`` /
 ``event_end`` rows are the session's link events (:mod:`canair.captures.link_events`):
 an interval's start and end share an ``id``, and a start whose end never arrived (the
-process died mid-disconnect) reconciles open-ended.
+process died mid-disconnect) reconciles open-ended. An ``actuation`` row is one actuator-pane
+request (:mod:`canair.captures.actuations`).
 
 Multiple ``meta`` lines may appear (metadata edited mid-session); reconcile uses the **last**
 one. One-shot producers that already build a full session dict (scan/raw/discover) write a
@@ -44,6 +45,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
+from canair.captures.actuations import actuations_by_date
 from canair.captures.build import build_query_session
 from canair.captures.keepmode import KEEP_CHANGES, KeepMode, PersistedKeepMode, parse_keep_mode
 from canair.captures.link_events import (
@@ -152,7 +154,6 @@ class CaptureJournal:
         The gate sits here, not only in :func:`~canair.captures.save.save_session`, because
         the journal is on disk from the first append and outlives a crash.
         """
-
         if self._sensitive is None:
             self._sensitive = sensitive.set_for_captures(self.captures_dir, profile=self.profile)
         if record.get("type") in ("capture", "response"):
@@ -164,10 +165,8 @@ class CaptureJournal:
     def flush(self) -> None:
         """Flush buffered records durably (flush + ``fsync``).
 
-        Streaming :meth:`append` is buffered (no per-record fsync); the monitor
-        calls this once per poll cycle instead, so N payloads cost one ``fsync``
-        rather than N syncs on the event loop. Worst-case loss on a hard crash is
-        the last (~1 cycle) of appends; clean exit / ``__exit__`` reconciles all.
+        :meth:`append` is buffered; the monitor calls this once per poll cycle, so N payloads
+        cost one ``fsync``. A hard crash loses at most the last cycle's appends.
         """
         if self._fh is None or self._fh.closed:
             return
@@ -190,15 +189,10 @@ class CaptureJournal:
     ) -> None:
         """Append one captured payload row (buffered; caller flushes per cycle).
 
-        Payload rows are time-series samples, so each stamps both a ``date`` and
-        a ``time`` (the moment the response arrived). The per-record ``date`` is
-        what lets a session spanning midnight reconcile into the correct per-day
-        capture files — the session's date is no longer a single value fixed at
-        reconcile time. Callers pass the acquisition timestamp; both fall back to
-        "now" when omitted.
-
-        ``elapsed_ms`` (wall-clock UDS round-trip) is persisted when supplied —
-        only single per-DID reads carry it; batched/monitor rows pass ``None``.
+        Each row stamps the ``date`` and ``time`` its response arrived (both "now" when
+        omitted): the per-record date reconciles a session spanning midnight into the right
+        per-day files. ``elapsed_ms`` (wall-clock UDS round trip) is kept when supplied; only
+        single per-DID reads carry it.
         """
         rec: dict = {"type": "capture", "rx": ecu_ref, "pid": pid, "payload": hex_val.upper()}
         now = datetime.now()
@@ -254,6 +248,10 @@ class CaptureJournal:
             "at": format_time(at),
         }
         self._write(rec, durable=True)
+
+    def append_actuation(self, record: dict) -> None:
+        """Record one :func:`~canair.captures.actuations.actuation_record`, durably."""
+        self._write(record, durable=True)
 
     def update_meta(
         self,
@@ -473,6 +471,7 @@ def build_session_from_records(
 
     sessions: list[CaptureSession] = []
     link_events = events_by_date(records, meta_date)
+    actuations = actuations_by_date(records, meta_date)
     for rdate, day_rows in by_date.items():
         session = build_query_session(
             day_rows,
@@ -485,6 +484,7 @@ def build_session_from_records(
             quality=quality,
             non_answers=refused_by_date.get(rdate, ()),
             link_events=link_events.get(rdate, ()),
+            actuations=actuations.get(rdate, ()),
         )
         sessions.append(session)
     return [apply_capture_tag(s, tag, profile=profile) for s in sessions]

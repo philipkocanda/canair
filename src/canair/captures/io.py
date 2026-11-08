@@ -188,6 +188,7 @@ _ONE_LINE_ITEMS: dict[tuple[str, ...], tuple[str, str]] = {
     ("sessions", "captures"): (",", ":"),
     ("sessions", "state_spans", "spans"): (", ", ": "),
     ("sessions", "link_events"): (", ", ": "),
+    ("sessions", "actuations"): (", ", ": "),
 }
 
 

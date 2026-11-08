@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from datetime import datetime
 
+from canair.captures.actuations import Actuation
 from canair.captures.keepmode import KeepMode, persisted_keep_mode
 from canair.captures.link_events import LinkEvent
 from canair.captures.types import (
@@ -61,6 +62,7 @@ def build_query_session(
     quality: Quality | None = None,
     non_answers: Sequence[tuple[str, str, str]] = (),
     link_events: Sequence[LinkEvent] = (),
+    actuations: Sequence[Actuation] = (),
 ) -> CaptureSession:
     """Build a capture session dict from query/raw payload results.
 
@@ -92,7 +94,8 @@ def build_query_session(
     e.g. ``"slcan-tcp"``) and ``quality`` a small exchange/error footprint —
     provenance for judging how trustworthy the session's data is. Both are
     omitted when not supplied. ``link_events`` (when the recording could not see
-    the car, :mod:`canair.captures.link_events`) likewise.
+    the car, :mod:`canair.captures.link_events`) and ``actuations`` (what it switched on
+    the car, :mod:`canair.captures.actuations`) likewise.
     """
     meta = _session_meta(vehicle_states, notes)
     persisted = persisted_keep_mode(keep_mode)
@@ -105,6 +108,8 @@ def build_query_session(
         meta["quality"] = quality.copy()
     if link_events:
         meta["link_events"] = [event.copy() for event in link_events]
+    if actuations:
+        meta["actuations"] = [entry.copy() for entry in actuations]
 
     captures: list[CaptureRecord] = []
     for row in results:

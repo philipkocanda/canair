@@ -15,6 +15,10 @@ routine started and not stopped) the previous mode comes back, or the default se
 the ECU had none. The live session switch refuses an ECU that holds something
 (:meth:`MonitorActuation.switch_refusal`).
 
+With ``--save``, every request is journaled as one of the session's ``actuations``
+(:mod:`canair.captures.actuations`), and a new segment (``n``) starts with a ``held`` entry for
+each output still on.
+
 Every actuator still ON is released when the monitor exits (:meth:`MonitorActuation.release_all`),
 and again after a reconnect (:meth:`MonitorActuation.after_reconnect`): the dropped link may or
 may not have ended the ECU's session, and a release is safe to repeat.
@@ -26,8 +30,10 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 
+from canair.captures.actuations import HELD, ActuationAction, ActuationOutcome, actuation_record
 from canair.ecus.names import canonical_ecu_name_safe
 from canair.ecus.pids import build_iocontrol_index, build_routines_index
 from canair.live.actuate.iocontrol_actuate import ACTUATOR_ON, IoBank
@@ -35,6 +41,7 @@ from canair.live.actuate.ports import SharedSessions, StatusLevel
 from canair.live.actuate.routine_bank import RoutineBank
 from canair.live.actuate.routines_execute import routines_refusal
 from canair.profile.model import Profile
+from canair.uds.response import UdsResponse
 from canair.uds.subfunctions import RoutineControlType
 
 if TYPE_CHECKING:
@@ -129,6 +136,7 @@ class MonitorActuation:
                     sessions,
                     self.report,
                 )
+                self.io[ecu].on_exchange = self._recorder(ecu, "iocontrol")
             if ecu in r_index:
                 refusal = routines_refusal(pids_data, ecu)
                 if refusal is not None:
@@ -142,6 +150,7 @@ class MonitorActuation:
                     sessions,
                     self.report,
                 )
+                self.routines[ecu].on_exchange = self._recorder(ecu, "routine")
         # The session mode each ECU had before the first actuation (None: no session), to
         # restore once nothing on it is held.
         self._before: dict[int, int | None] = {}
@@ -230,6 +239,55 @@ class MonitorActuation:
         out = (self.status, self.status_level)
         self.report("")
         return out
+
+    # -- recording -----------------------------------------------------------------
+    def _recorder(self, ecu: str, kind: Literal["iocontrol", "routine"]):
+        """The bank hook that journals each request of ``ecu`` (when ``--save`` records)."""
+
+        def record(
+            action: ActuationAction,
+            ident: str,
+            request: str,
+            resp: UdsResponse | None,
+            at: datetime,
+        ) -> None:
+            journal = self.c.recorder.journal
+            rx = self.c._event_rx(ecu)
+            if journal is None or rx is None:
+                return
+            outcome: ActuationOutcome = "error"
+            if resp is not None and resp.get("ok"):
+                outcome = "ok"
+            elif resp is not None and resp.get("nrc") is not None:
+                outcome = "nrc"
+            journal.append_actuation(
+                actuation_record(
+                    at,
+                    rx,
+                    kind,
+                    ident,
+                    action,
+                    request=request,
+                    outcome=outcome,
+                    response=resp.get("hex") if resp is not None else None,
+                    nrc=resp.get("nrc") if resp is not None else None,
+                )
+            )
+
+        return record
+
+    def journal_held(self) -> None:
+        """Start a new segment's journal with a ``held`` entry per output still on."""
+        journal = self.c.recorder.journal
+        if journal is None:
+            return
+        now = datetime.now()
+        for ecu, bank in self.io.items():
+            rx = self.c._event_rx(ecu)
+            if rx is None:
+                continue
+            for did in bank.active_dids():
+                journal.append_actuation(actuation_record(now, rx, "iocontrol", did, HELD))
 
     # -- sessions ----------------------------------------------------------------
     def remember_mode(self, tx_id: int) -> None:

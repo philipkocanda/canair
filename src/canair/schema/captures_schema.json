@@ -49,6 +49,11 @@
           "type": "array",
           "items": { "$ref": "#/$defs/link_event" }
         },
+        "actuations": {
+          "description": "What the recording switched on the car: one entry per IOControl or RoutineControl request the monitor's actuator pane (--actuate) sent, at the time it was sent, plus 'held' for each output still on when a segment began. Recorded live, never derived. Lines a toggle up with the signal changes it caused. Absent when nothing was actuated.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/actuation" }
+        },
         "variant": {
           "description": "The profile variant the recorded car is: an ID from the profile's variants.yaml (e.g. '28kwh'). Absent when the session was recorded without one (untagged). Written by a save given --variant, by `captures migrate-variants`, or by `captures uds --set-variant`.",
           "type": "string",
@@ -155,6 +160,26 @@
         "decode": { "type": "integer", "description": "Malformed/undecodable responses." },
         "other": { "type": "integer", "description": "Unclassified errors." },
         "resyncs": { "type": "integer", "description": "Times the transport realigned a desynchronised pipe (a recovery, not a lost payload) — several means a marginal link." }
+      }
+    },
+    "actuation": {
+      "type": "object",
+      "required": ["at", "rx", "kind", "id", "action"],
+      "additionalProperties": false,
+      "description": "One actuation. Enums, addresses and hex only, never free text: labels come from the profile when the capture is read.",
+      "properties": {
+        "at": { "description": "When the request was sent, HH:MM:SS[.fff] on the session's own date.", "type": "string" },
+        "rx": { "description": "The ECU, by its CAN response address, as a capture's rx.", "type": "string", "pattern": "^0x[0-9A-Fa-f]{3,8}$" },
+        "kind": { "description": "'iocontrol' (an output; id is its DID or local identifier) or 'routine' (id is its RID).", "enum": ["iocontrol", "routine"] },
+        "id": { "type": "string", "pattern": "^[0-9A-F]{2,8}$" },
+        "action": {
+          "description": "on, off, adjust (a ShortTermAdjustment value), release (handed back on exit or after a reconnect), start, stop, results (RoutineControl sub-functions), or held (no request: still on when this segment began).",
+          "enum": ["on", "off", "adjust", "release", "start", "stop", "results", "held"]
+        },
+        "request": { "description": "The request sent, as hex.", "type": "string", "pattern": "^([0-9A-F]{2})+$" },
+        "outcome": { "description": "ok (a positive reply), nrc (a negative one) or error (no reply).", "enum": ["ok", "nrc", "error"] },
+        "response": { "description": "The positive reply, as hex.", "type": "string", "pattern": "^([0-9A-F]{2})+$" },
+        "nrc": { "description": "The negative response code of an nrc outcome.", "type": "string", "pattern": "^0x[0-9A-F]{2}$" }
       }
     },
     "link_event": {
