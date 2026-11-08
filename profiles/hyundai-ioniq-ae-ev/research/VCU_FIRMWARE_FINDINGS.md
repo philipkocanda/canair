@@ -251,3 +251,63 @@ tracing it end-to-end is the next step.
   correctly known absent rather than untested.
 - **The preconditioning path** belongs with the broadcast-frame work, not the diagnostic DIDs: it
   needs a P-CAN tap to see `0x587`/`0x567`/`0x57B`, which the OBD port does not carry.
+
+## 7. Record internals — what fills each byte of 2101/2102/21F2
+
+The records are built in RAM each cycle by producer functions (`2101` by `FUN_001F46C0`, `2102`
+by `FUN_0021AD44`, `21F2` by `FUN_00204028`); `FUN_00204480` overwrites only the header at read
+time. Decompiling the producers gives the width, byte order, scale and source of every byte, which
+resolves most of the coverage gaps in `canair coverage VCU`.
+
+**Byte-index note.** WiCAN `Bnn` counts the ISO-TP framing, so `B0`/`B1` are the first-frame PCI,
+`B2`/`B3` are `61 <id>`, and `B8`/`B16`/`B24` are consecutive-frame PCI bytes, not data. Data byte
+`Dn` therefore maps to `B4,B5,B6,B7, B9,B10,…,B15, B17,…,B23, B25,…` (skipping the PCI bytes).
+
+### 7.1 Record 2101 (`FUN_001F46C0`)
+
+- **`B9` (D4) is a constant `0x09`** — a record-format byte, not a signal. This is the lone
+  "unmapped" byte in the coverage report; it can be marked as a constant.
+- `B10` GEAR (D5): bits 0-3 are one-hot from an internal gear state (`1`=P, `2`=R, `3`=N, `4`=D),
+  **bit 4 is set when that state reads `7`** (a fifth state, not yet observed), and bit 5 is the
+  valid flag set separately by `FUN_00204480`.
+- `B11` vehicle-state flags (D6): bit0 brake-lamp, bit1 not-braking, **bit2** = an internal flag
+  (source `r13-0x17FA`, meaning not yet named), bit3 EV-ready, bit4 IG3, bit6 EV-ready mirror,
+  bit7 LDC-enabled. **Bit5 is never written (always 0, unused).**
+- `B12/B13` (D7/D8) APS1, `B14/B15` (D9/D10) APS2, `B17/B18` (D11/D12) accelerator pedal,
+  `B19/B20` (D13/D14) speed, `B21/B22` (D15/D16) 12 V supply — all 16-bit little-endian, matching
+  the profile's (previously unverified) signals. The firmware confirms the width and byte order.
+- `B23` (D17): bit2 inverter-enabled, bit4 armed, bit5 armed-mirror (profile), plus bits 0/1/3/6
+  from internal inverter flags (sources identified, not yet named); bit7 unused.
+- `B25` (D18) is a whole byte = `VCU_POWER_STATE`. `B26` (D19) is a gear-state debug byte.
+
+### 7.2 Record 2102 (`FUN_0021AD44`)
+
+- `B4-B7` (D0-D3) are a constant header (`F8 F8 00 00`), not signals.
+- `B9/B10/B11/B12/B13` (D4-D8) are single status bits unpacked from two internal words
+  (`r13+0xBAC`, `r13+0xBAB`); the profile has `B9/B11/B12/B13` unmapped — they are bit flags, not
+  bytes.
+- `B17` (D11) inverter input voltage (×2) and `B18` (D12) 12 V aux (÷10) match the profile.
+- **Four 16-bit little-endian scaled values** the profile lists as unverified, now with their
+  firmware scale: `B19/B20` = internal float ×1000 (so decode `((B20<<8)|B19)/1000`), `B21/B22`
+  = float ×100, `B23/B25` = float ×100 (spanning the frame boundary), `B26/B27` = float ×1000.
+  The physical quantity each float is (a current, a voltage, a temperature) still needs
+  correlating against captures; the scale and layout are now known.
+
+### 7.3 Record 21F2 (`FUN_00204028`) — the statistics record
+
+The 84-byte record is a last-cycle statistics block: a header, several 16- and 32-bit counters
+(e.g. a 32-bit value at `D9-D12`), and a block of about a dozen 16-bit values each computed as
+`internal_int / (sum_of_three_ints × 0.01)` — i.e. normalised ratios (percent-like) over a common
+denominator. `B21/B22` (D15/D16) reuse the same 12 V-supply source as 2101. The record is a
+distribution/counter dump, not live analogue signals, which is why most of it reads as a static
+byte field. Naming each counter and ratio needs correlation; the structure (counters + a
+normalised ratio block) is established.
+
+### 7.4 Honest limit
+
+The producers store values that were computed elsewhere in the firmware, so the decompile gives
+each byte's **width, byte order, scale, and the internal source variable** — not a human name for
+every quantity. Constants (`2101 B9`, the `2102` header), unused bits (`2101 B11:5`), bit-field
+sources, and the 16-bit scales above are now firm. The remaining flag bits and the scaled floats
+need a correlation pass against captures (or further tracing of the source variables) to attach
+physical names and units.
