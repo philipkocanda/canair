@@ -10,9 +10,9 @@ reverse-engineering project.
 
 **This skill is the Ioniq-specific *context*; `reverse-engineer-signal` is the
 generic *procedure* — load both for Ioniq RE work.** This one carries the
-vehicle-specific facts (ECU status table, safety, device/transport details, and
-the `canair`/`wican-cli` command reference — "what am I working on, with what
-tools"). **`reverse-engineer-signal`** is the **vehicle-agnostic** decoding
+vehicle-specific facts (safety, ignition lines, per-ECU gotchas, device and
+transport details, project-specific tool gotchas — "what am I working on, with
+what tools"). **`reverse-engineer-signal`** is the **vehicle-agnostic** decoding
 procedure and reference — the discover→capture→analyze→define→verify lifecycle,
 byte-index/expression syntax, UDS conventions, and the signal-analysis reasoning
 (EE/power-electronics/physics/statistics) — written to apply to *any* car, using
@@ -22,7 +22,7 @@ use this skill for the Ioniq facts it needs. (Working a *different* car? That
 generic skill plus that car's profile is what you want; this Ioniq skill is then
 just an example of a finished profile.) The full `canair` subcommand + flag
 reference lives in **AGENTS.md**, `docs/reference/cli/`, and `canair <cmd>
---help` — this skill covers project-specific facts and gotchas, not help text.
+--help`; this skill does not repeat it.
 
 ## Safety (non-negotiable)
 
@@ -35,7 +35,8 @@ reference lives in **AGENTS.md**, `docs/reference/cli/`, and `canair <cmd>
   ECU or the whole vehicle.
 - **Never `2E` write** unless you know exactly what it does. A read (`22`) cannot harm an ECU in
   any DID range (it still needs approval); canair's guard also refuses `10 05` (Hyundai/Kia's
-  programming-mode alias), ECU resets and reprogramming routines (`docs/concepts/safety.md`).
+  programming-mode alias), ECU resets (except `canair reset`, which is off until the user sets
+  `safety.allow_reset`) and reprogramming routines (`docs/concepts/safety.md`).
 - **IOControl (`2F`) actuates real hardware** — only with the car stationary and
   in a safe state, and only for an actuation the user approved by name.
 - Be gentle: the ECUs are old and slow. **No concurrent requests to one ECU.**
@@ -84,12 +85,13 @@ relations to the other documents and plans, and sources:
 - **Car:** Hyundai Ioniq Electric AE EV 2017 (28 kWh, Premium trim, NL market).
   Not the HEV/PHEV. The 2017 model year (2016–2019) has a different CAN layout
   and fewer PIDs than the 2020+ facelift. The 28 kWh is air-cooled (fan); the
-  38 kWh has a liquid-cooled battery, different BMS, and more cell-voltage PIDs.
+  38 kWh has a liquid-cooled battery, different BMS, and more cell-voltage PIDs. The profile
+  describes both as variants (`variants.yaml`: `28kwh`, `38kwh`); this car is the 28 kWh.
 - **Dongle:** WiCAN Pro (MeatPi), MAC `9888e006734d`.
 - **CAN:** ISO 15765-4 (11-bit, 500 kbps) — ELM327 protocol `6`.
 - **AT init** (`profile.yaml`): `ATSP6;ATS0;ATAL;ATST96;`, plus
   `response_timeout_ms: 614` (ECUs respond slowly; the first request after idle
-  can time out — retry once; see the RECON GOTCHA banner in `profile.yaml`).
+  can time out — retry once; see the Gotchas in `profile.yaml`).
 
 ## Ignition lines (what "ACC", "IGN1", "IGN2", "IG3" mean on this car)
 
@@ -158,8 +160,9 @@ Vehicle data lives in a *profile* bundle: `ecus/` (one file per ECU — the
 (car_model/init/shared dtcs), `captures/` (dated UDS payloads), `vehicle_states.yaml`
 (canonical operating states + auto-suggest predicates), `references/` (reference
 data), and **generated** `out/` (never hand-edit — run `canair wican autopid write`). The repo ships
-`profiles/hyundai-ioniq-ae-ev/` as the default. Local (uncommitted) profiles live in
-`~/.config/canair/profiles/` and shadow bundled ones by name; precedence:
+several profiles under `profiles/`; `hyundai-ioniq-ae-ev/` is the mature reference. Local
+(uncommitted) profiles live in `~/.config/canair/profiles/` and shadow bundled ones by name;
+precedence:
 `--profile NAME|PATH` > `CANAIR_PROFILE` > `default_profile` > single discovered.
 Inspect with `canair profile list|show|path`, `canair ecu`, and
 `canair validate pids --stats` (current counts). Set the default profile with
@@ -169,15 +172,19 @@ Inspect with `canair profile list|show|path`, `canair ecu`, and
 
 ### Access & config
 
-Device addresses live in `~/.config/canair/config.yaml` (a legacy repo-root
+Devices live in `~/.config/canair/config.yaml` (a legacy repo-root
 `config.yaml` is still read for back-compat; both gitignored). Copy from
-`config.example.yaml`. Manage with `canair config`. Keys: `default_profile`,
-`profiles_dir`, `wican_addresses`, `default_wican`, `transport`.
+`config.example.yaml`, the authoritative commented reference. Manage with `canair config`. Keys:
+`default_profile`, `profiles_dir`, `devices`, `default_wican`, `transport`.
 
 ```yaml
-wican_addresses:
-  home: "10.0.2.86"       # local LAN
-  vpn: "192.168.3.2"      # via WireGuard VPN
+devices:
+  home:
+    host: "10.0.2.86"     # local LAN
+    transport: slcan-tcp  # optional per-device transport
+  vpn:
+    host: "192.168.3.2"   # via WireGuard VPN
+    transport: wican-ws
 default_wican: home
 ```
 
@@ -278,7 +285,7 @@ hand-editing. After changes: `canair validate pids` then `canair wican autopid w
 ## Transports
 
 canair reaches the bus over an **explicit, config-chosen transport** (never
-auto-switched). Registered in `src/canair/transport/config.py`; today there are two:
+auto-switched). Registered in `src/canair/transport/config.py`; today there are three:
 
 - **`slcan-tcp`** (default) — raw SLCAN over TCP with client-side ISO-TP.
   Requires the device in `slcan` mode. `monitor` uses the pipelined/batched
@@ -286,6 +293,8 @@ auto-switched). Registered in `src/canair/transport/config.py`; today there are 
   adapter. **Only transport that supports passive `canair sniff`.**
 - **`wican-ws`** — WiCAN Pro WebSocket ELM327 terminal; the *dongle* does ISO-TP.
   Works in any device protocol. No passive sniff.
+- **`elm327-tcp`** — a generic ELM327 WiFi adapter over a plain TCP socket (no WiCAN HTTP API).
+  No passive sniff.
 
 Select via the `transport:` block (`type`/`host`/`port`/`bitrate`) or per-command
 `--transport`/`--wican`. **`canair status`** shows the resolved transport and
@@ -371,18 +380,9 @@ the SKM is asleep) is polled up to 32× less often until it recovers, while its 
 healthy PIDs keep their rate (`--no-backoff` turns it off).
 Non-query steps run once as setup, `query` steps poll in a
 background worker with TesterPresent keepalives. On a TTY it's a scrollable
-Textual TUI (`↑↓/j/k`/wheel scroll — the view **never** follows the tail, a
-repaint leaves the scroll position put; `space` pause, `=`/`-` poll
-faster/slower live (the interval on `--schedule fixed`, every PID's rate by 1.5×
-otherwise), `m` switch schedule,
-`r` toggle the byte ruler + per-signal byte-reference column
-(in `display.byte_notation`/`--notation`), `E` open the errors/diagnostics
-log overlay, `↑`/`↓` select a signal (`esc` deselects), `e`/`v`/`x`/`F`
-edit/verify/en-disable/filter, `s` save payloads with a metadata modal, `i` the
-session-info overlay (incl. the `--save` journal path), `?` a
-keybinding help modal with a colour legend, `q` quit); piped, it polls silently until
-Ctrl+C. Signals are listed in **payload order** (by the byte each reads first),
-so a value sits above the hex byte it came from. Hex view highlights bytes changed since
+Textual TUI (press `?` for its keys; they are defined once in `src/canair/tui/keys.py`); piped,
+it polls silently until Ctrl+C. Signals are listed in **payload order** (by the byte each reads
+first), so a value sits above the hex byte it came from. Hex view highlights bytes changed since
 the previous cycle, colors bytes by verification state (a declared support map's bytes in a
 muted grey-blue), and shows ASCII for unmapped PIDs; a changed byte also
 highlights the parameter row(s) whose expression decodes it, with the same
@@ -418,7 +418,7 @@ Runs `2F` IOControl from the `iocontrol:` sections of `ecus/`. `canair io ECU`
 lists DIDs (offline, no connection). `--did BCxx` sends ON (`--off` for OFF);
 auto-enters a session if `session: true`; if `hold: true` (default) keeps
 TesterPresent until Ctrl+C then auto-sends OFF (SKM relays are `hold: false`).
-ECUs with IOControl DIDs: IGPM, BCM, SKM, PSM, VESS.
+ECUs with IOControl DIDs: IGPM, BCM, HVAC, SKM, PSM, VESS.
 
 ### `wican-cli` (separate package)
 
@@ -439,24 +439,19 @@ run them, or to approve them.
 
 ## ECU status
 
-Live status: `canair ecu` (registry + per-ECU stats + identity confidence) and
-`canair research` (open backlog). Registry = 30 ECUs (18 with live PIDs; 27
-files carry a `pids:` section).
-Decode findings are recorded in each `ecus/<ecu>.yaml` `notes:`. Highlights:
+Live status: `canair ecu` (registry, per-ECU stats, identity confidence) and `canair research`
+(open backlog). The registry has 30 ECUs. Decode findings are recorded in each `ecus/<ecu>.yaml`;
+the table below carries only gotchas that a signal list does not show.
 
-| ECU | TX ID | Status | Key notes |
-|-----|-------|--------|-----------|
-| BMS | 0x7E4 | ✅ | 2101 (main), 2105 (temps/SOH), 2102–2104 (96 cell voltages). |
-| IGPM | 0x770 | ✅ | Full IOControl map (BC00–BCFF): lights, horn, signals, DRL, brake, trunk, locks, charge-cable lock. Wakes from `1001`; status reads (BC03/04/06) work in deep sleep. |
-| BCM | 0x7A0 | ✅ | Part 95400-G7470 (Ioniq AE BEV only). TPMS + full body state on `22C00B`. Wakes from CAN alone. IOControl B000–B072 scanned; B061 charge-door not supported here. |
-| CLU | 0x7C6 | ✅ | `22B002` → odometer (UINT24 BE @ byte 9). Also imperial. |
-| AAF | 0x7E6 | ✅ | Active Air Flaps. `2180`/`2181`: ambient `(B18-80)/2` + heater/heatsink/compressor temps. |
-| VCU | 0x7E2 | ✅ | 2101 gear/state/speed (speed in MPH: `((S20*256)+B19)*1.609344/100`, ~+4% vs dash; do NOT use B21). 2102 DC-link `B17*2` + 12V aux `B18/10`. Motor RPM/torque live in MCU, not VCU. The 12 V DC-DC converter (LDC) is integrated here (ecu_id `AEVLDC53`, "VLDC"); there is no separate LDC ECU. |
-| MCU | 0x7E3 | 🔶 | Inverter (36600-0E250). Motor RPM = 2102 `[S10:S11]` (signed BE, verified). Torque/phase-current/temps TODO. 2102 B27–B47 = static cal block. |
-| OBC | 0x7E5 | ✅ | On-board charger. Every 2101 byte mapped from the firmware: AC/DC voltages and currents, pilot and proximity voltages, `OBC_TEMP=B19-100`, its 12 V supply, 0x57F status bits, BMS limits. 2102 = stored sensor calibration. Never send `99`, or `30 06/07` / `31 00/01` in session 0x90 (OBC_FIRMWARE_FINDINGS.md §9). |
-| HVAC | 0x7B3 | 🔶 | `220100` IAT/AAT/evaporator (partially mapped). `220101`/`220102` unexplored. |
-| SKM | 0x7A5 | 🔶 | ACC relay IOControl accepted, but **relay only physically closes with the fob nearby**. `skm-wake` verifies via IGPM BC03. Powertrain stays dead without fob. |
-| ESC/EPS/PSM/VESS | 0x7D1/0x7D4/0x7A3/0x736 | 🔶 | Research: ESC/EPS partly decoded; PSM (power seat) + VESS (exterior sound) IOControl confirmed working. |
+| ECU | TX ID | Gotcha |
+|-----|-------|--------|
+| IGPM | 0x770 | IOControl map BC00–BCFF (lights, horn, signals, DRL, brake, trunk, locks, charge-cable lock). Status reads (BC03/04/06) need no session; `2FBCxx` does. |
+| BCM | 0x7A0 | Part 95400-G7470 (Ioniq AE BEV only). TPMS and body state share it: `22C00B`. IOControl B000–B072 scanned; B061 answers NRC 0x31 (charge door not supported here). |
+| VCU | 0x7E2 | Speed in 2101 is MPH (`((S20*256)+B19)*1.609344/100`), about 3.6 % above true speed. 2102 B18 is the coolant temperature (`B18-100`), not the 12 V rail: that is `VCU_LDC_OUTPUT_VOLTAGE` (`((B20<<8)|B19)/1000`). Motor RPM and torque live in the MCU. The 12 V DC-DC converter (LDC) is integrated here (ecu_id `AEVLDC53`, "VLDC"); there is no separate LDC ECU. |
+| MCU | 0x7E3 | Inverter (36600-0E250). Motor RPM = 2102 `(S10<<8)|B09` (signed, verified). Most other 2101/2102 signals are unverified. |
+| OBC | 0x7E5 | On-board charger only; no DC-DC control. Every 2101 byte is mapped from the firmware. Never send `99`, or `30 06/07` / `31 00/01` in session 0x90 (OBC_FIRMWARE_FINDINGS.md §9). |
+| SKM | 0x7A5 | ACC relay IOControl is accepted, but **the relay only closes with the fob nearby**. `skm-wake` verifies via IGPM BC03. The powertrain stays dead without the fob. |
+| PSM, VESS | 0x7A3, 0x736 | No readable live data. Both are driven by IOControl only (the seat motors run until OFF is sent). |
 
 ### Factory module names and the profile's ECUs
 
