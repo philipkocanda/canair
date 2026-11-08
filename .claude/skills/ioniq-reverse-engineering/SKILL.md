@@ -153,44 +153,7 @@ unlocked (`vehicle_states.yaml` has the numbers). During START (brake + press, u
 `IGN2_SWITCH` drops while `IGN1_SWITCH` stays on. SKM 22B006 B17/B18/B19 are the ACC, IGN1 and
 IGN2 relay outputs. SKM IOControl B108 to B10B are the ACC, IGN1, IGN2 and START outputs.
 
-## Profiles
-
-Vehicle data lives in a *profile* bundle: `ecus/` (one file per ECU — the
-**source of truth**, each carrying identity/scan_log/dtcs/pids), `profile.yaml`
-(car_model/init/shared dtcs), `captures/` (dated UDS payloads), `vehicle_states.yaml`
-(canonical operating states + auto-suggest predicates), `references/` (reference
-data), and **generated** `out/` (never hand-edit — run `canair wican autopid write`). The repo ships
-several profiles under `profiles/`; `hyundai-ioniq-ae-ev/` is the mature reference. Local
-(uncommitted) profiles live in `~/.config/canair/profiles/` and shadow bundled ones by name;
-precedence:
-`--profile NAME|PATH` > `CANAIR_PROFILE` > `default_profile` > single discovered.
-Inspect with `canair profile list|show|path`, `canair ecu`, and
-`canair validate pids --stats` (current counts). Set the default profile with
-`canair profile use NAME` (alias for `canair config set default_profile NAME`).
-
 ## WiCAN device
-
-### Access & config
-
-Devices live in `~/.config/canair/config.yaml` (a legacy repo-root
-`config.yaml` is still read for back-compat; both gitignored). Copy from
-`config.example.yaml`, the authoritative commented reference. Manage with `canair config`. Keys:
-`default_profile`, `profiles_dir`, `devices`, `default_wican`, `transport`.
-
-```yaml
-devices:
-  home:
-    host: "10.0.2.86"     # local LAN
-    transport: slcan-tcp  # optional per-device transport
-  vpn:
-    host: "192.168.3.2"   # via WireGuard VPN
-    transport: wican-ws
-default_wican: home
-```
-
-Select with `--wican home|vpn|<ip>`. Without a config, tools fall back to
-`192.168.80.1` (WiCAN factory AP). Live device state (transport, protocol/mode,
-sleep, battery, IP, active profile) is one command away: **`canair status`**.
 
 ### AutoPID / live data
 
@@ -200,7 +163,7 @@ CAN/UDS), which bypasses AutoPID. **AutoPID stops polling when the 12V battery
 hits the `sleep_volt` threshold** while the WiCAN may stay WiFi-reachable — so
 `/autopid_data` (and MQTT) can go stale (e.g. lights reported "on" after
 parking) even though the device answers. Direct `canair read` still works and
-values self-correct on the next poll. See Memory below. Check live sleep/voltage
+values self-correct on the next poll. Check live sleep/voltage
 settings with `canair status` / `wican config`; don't rely on hardcoded numbers.
 
 ### REST API (JSON, no auth)
@@ -217,70 +180,6 @@ settings with `canair status` / `wican config`; don't rely on hardcoded numbers.
 | POST | `/system_reboot`          | Reboot (body `"reboot"`) |
 
 Most of this is wrapped by `canair` and `wican-cli` — prefer those over raw HTTP.
-
-### Two profile formats (don't confuse them)
-
-1. **Vehicle Profile format** (`out/<variant>/autopid-v4.json`) — grouped params per PID
-   (`"PARAM": "expression"`), used for upstream PRs. **Generated** by
-   `canair wican autopid write` from `ecus/`, beside `autopid-v6.json` (the firmware v6
-   AutoPID table); never hand-edit.
-2. **Device format** — what the firmware parses: params as an array of objects
-   (`[{"name":…, "expression":…, "unit":…, "period":…}]`) wrapped in
-   `{"cars":[{"car_model":…, "init":…, "pids":[…]}]}`. `canair wican autopid upload`
-   converts grouped → device format automatically.
-
-**Firmware gotcha:** `load_all_pids()` in `autopid.c` requires `parameters` as an
-**array of objects**. POSTing the grouped (Vehicle Profile) dict to
-`/store_car_data` yields empty entries (`cJSON_GetObjectItem(param,"name")` is
-NULL). The upstream build (`cars.js process_profile()`) converts grouped→array at
-build time; the device never sees grouped format directly.
-
-### PID source of truth
-
-Per-ECU YAML under `ecus/` (one ECU per file, with its `tx_id`, `identity:`, and PIDs);
-`profile.yaml` holds `car_model`/`init`. A parameter looks like:
-
-```yaml
-SOC_BMS:
-  expression: "B09/2"      # WiCAN formula (see reverse-engineer-signal skill)
-  unit: "%"
-  category: state_of_charge  # only where the unit does not say it (src/canair/ecus/signal_category.py)
-  mqtt_topic: soc_bms
-  min: "0"
-  max: "100"
-  source: "Original WiCAN config"
-  verified: true           # tested on this car? (per-param confidence axis)
-  ship: false              # keep this param out of the device profile (default true; omit it)
-```
-
-Every PID carries a **required, explicit** lifecycle **`status:`** — the single
-field that replaced the old `ignored`/`static`/`enabled` booleans (a signal's own
-`ship: false` keeps one signal off the device; a signal ships only when its PID is
-`active`/`slow`, it is not `ship: false` or `sensitive`, and it is `verified` unless
-`wican autopid write --include-unverified`):
-`active` (indexed, swept, queryable, shipped) · `draft` (tracked/queryable but
-not shipped — RE placeholders/speculative) · `static` (unchanging cal/identity;
-skipped in bare-ECU sweeps and not shipped) · `slow` (live but too slow-changing
-to poll every cycle, e.g. the 21F2 last-cycle records; shipped at its own required
-`period`, skipped in bare-ECU sweeps) · `ignored` (dead DID, excluded
-everywhere). `validate` errors if a PID omits it; set it with
-`canair pids set-pid-status ECU PID STATUS` (and `canair pids upsert-param`
-seeds `status: active` on a newly-created PID). Power
-states in which a PID/ECU responds, and those a research lead needs, use the
-shared **`vehicle_states:`** list (UPPERCASE vocabulary from the profile's
-`vehicle_states.yaml` — `SLEEP, PLUGGED, "OFF", ACC, "ON", READY, PARKED, DRIVING, TOPUP, IG3`,
-CHARGING — plus the `ALL` meta-token; list/edit it with `canair states`). It's written as an
-inline flow list (`[READY, CHARGING]`); input is case-insensitive. Tag an ECU with the *broadest*
-state it answers in: `canair states READY` lists an ECU tagged `[IG3]` because READY implies IG3,
-so the battery-side ECUs (BMS, OBC, MCU, AAF, VCU) are `[IG3]` and HVAC `["ON", IG3]`. OFF, ACC and
-ON
-are the owner's manual names for the Start/Stop button positions; OFF and ON must stay quoted
-(`"OFF"`, `"ON"`), since YAML 1.1 reads them bare as booleans and `canair validate` rejects that.
-
-Edit with `canair pids upsert-param / add-research / set-status / set-pid-status /
-set-pid-notes`
-(surgical, comment-preserving, schema-validated, auto-reverted on failure) — prefer it over
-hand-editing. After changes: `canair validate pids` then `canair wican autopid write`.
 
 ## Transports
 
