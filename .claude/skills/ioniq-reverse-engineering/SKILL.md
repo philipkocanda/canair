@@ -56,13 +56,7 @@ reference lives in **AGENTS.md**, `docs/reference/cli/`, and `canair <cmd>
   canair …` from the repo root). Never hand-roll a WebSocket/socket or send raw ELM327 yourself.
   If canair can't do something, discuss with the user first.
 
-## Goals
-
-1. **Complete vehicle profile** — build a full Ioniq EV profile and submit a PR
-   to the [wican-fw repo](https://github.com/meatpiHQ/wican-fw). Close, but some
-   PIDs are still missing/broken.
-2. **Remote control** — remote pre-heat, door locks, etc. Likely needs direct CAN
-   write access, not just OBD-II reads.
+## Backlog and research documents
 
 Backlog: `canair research --summary` (per-ECU `research:` sections), plus `canair research
 --gaps` for actuator DID families never read with `22` (PSM `B4xx`, SKM `B1xx`, DDM `B1xx`,
@@ -452,17 +446,17 @@ Decode findings are recorded in each `ecus/<ecu>.yaml` `notes:`. Highlights:
 
 | ECU | TX ID | Status | Key notes |
 |-----|-------|--------|-----------|
-| BMS | 0x7E4 | ✅ | 2101 (main), 2105 (temps/SOH), 2102–2104 (96 cell voltages). Full ImHex patterns. |
+| BMS | 0x7E4 | ✅ | 2101 (main), 2105 (temps/SOH), 2102–2104 (96 cell voltages). |
 | IGPM | 0x770 | ✅ | Full IOControl map (BC00–BCFF): lights, horn, signals, DRL, brake, trunk, locks, charge-cable lock. Wakes from `1001`; status reads (BC03/04/06) work in deep sleep. |
 | BCM | 0x7A0 | ✅ | Part 95400-G7470 (Ioniq AE BEV only). TPMS + full body state on `22C00B`. Wakes from CAN alone. IOControl B000–B072 scanned; B061 charge-door not supported here. |
-| CLU | 0x7C6 | ✅ | `22B002` → odometer (UINT24 BE @ byte 9). Also imperial. Range/time/speed-limit TODO. |
+| CLU | 0x7C6 | ✅ | `22B002` → odometer (UINT24 BE @ byte 9). Also imperial. |
 | AAF | 0x7E6 | ✅ | Active Air Flaps. `2180`/`2181`: ambient `(B18-80)/2` + heater/heatsink/compressor temps. |
-| VCU | 0x7E2 | 🔶 | 2101 gear/state/speed (speed in MPH: `((S20*256)+B19)*1.609344/100`, ~+4% vs dash; do NOT use B21). 2102 DC-link `B17*2` + 12V aux `B18/10`. Regen/drive-mode TODO. Motor RPM/torque live in MCU, not VCU. The 12 V DC-DC converter (LDC) is integrated here (ecu_id `AEVLDC53`, "VLDC"); there is no separate LDC ECU. |
+| VCU | 0x7E2 | ✅ | 2101 gear/state/speed (speed in MPH: `((S20*256)+B19)*1.609344/100`, ~+4% vs dash; do NOT use B21). 2102 DC-link `B17*2` + 12V aux `B18/10`. Motor RPM/torque live in MCU, not VCU. The 12 V DC-DC converter (LDC) is integrated here (ecu_id `AEVLDC53`, "VLDC"); there is no separate LDC ECU. |
 | MCU | 0x7E3 | 🔶 | Inverter (36600-0E250). Motor RPM = 2102 `[S10:S11]` (signed BE, verified). Torque/phase-current/temps TODO. 2102 B27–B47 = static cal block. |
 | OBC | 0x7E5 | ✅ | On-board charger. Every 2101 byte mapped from the firmware: AC/DC voltages and currents, pilot and proximity voltages, `OBC_TEMP=B19-100`, its 12 V supply, 0x57F status bits, BMS limits. 2102 = stored sensor calibration. Never send `99`, or `30 06/07` / `31 00/01` in session 0x90 (OBC_FIRMWARE_FINDINGS.md §9). |
 | HVAC | 0x7B3 | 🔶 | `220100` IAT/AAT/evaporator (partially mapped). `220101`/`220102` unexplored. |
 | SKM | 0x7A5 | 🔶 | ACC relay IOControl accepted, but **relay only physically closes with the fob nearby**. `skm-wake` verifies via IGPM BC03. Powertrain stays dead without fob. |
-| ESC/EPS/PSM/VESS | 0x7D1/0x7D4/0x7A3/0x736 | 🔶 | Research: ESC/EPS partly decoded; PSM (power seat) + VESS (exterior sound) IOControl known from e-Niro, untested here. |
+| ESC/EPS/PSM/VESS | 0x7D1/0x7D4/0x7A3/0x736 | 🔶 | Research: ESC/EPS partly decoded; PSM (power seat) + VESS (exterior sound) IOControl confirmed working. |
 
 ### Factory module names and the profile's ECUs
 
@@ -501,15 +495,6 @@ offset are in the **reverse-engineer-signal** skill. Quick reference:
   `canair bix --annotate <hex>`.
 
 ## Memory
-
-### 2026-04-19 — AutoPID stops at `sleep_volt` even while WiCAN stays connected
-
-When 12V drops to `sleep_volt`, the WiCAN stops AutoPID polling but stays
-WiFi-connected: reachable, `/autopid_data` returns data, but values are stale.
-Observed after parking (DRL/beam/tail lights showed "on" via MQTT from an earlier
-poll during a lights-on drive); direct `canair read` confirmed they were off.
-Self-corrects on the next successful poll. Consider a small `sleep_volt` bump to
-widen the gap vs. the actual sleep trigger.
 
 ### 2026-04-19 — BCM 95400-G7470 is Ioniq AE Electric (BEV) only
 
