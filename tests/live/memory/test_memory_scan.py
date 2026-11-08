@@ -149,3 +149,43 @@ def test_an_ecu_that_stops_answering_still_stops_the_scan():
     ecu = MemoryEcu([(0x0, 0xFFFF, None)], offline_after=6)
     scan = _scan(ecu, [(0x0, 0xFFFF)], step=0x1000, find_block=False)
     assert scan.stopped and "stopped answering" in scan.stopped
+
+
+class TestDefaultSpace:
+    def test_no_range_maps_a_kwp2000_ecus_whole_space_at_64_kib_steps(self):
+        ecu = MemoryEcu([(0x0, 0xFFFFFF, None)], protocol=KWP, silent_above=0x3FFFFF)
+        scan = _scan(ecu, None, target=_target(KWP_FORMAT, KWP), find_block=False)
+        assert scan.stopped is None and scan.ranges == [(0, 0xFFFFFF)]
+        assert [(r.start, r.end, r.result) for r in scan.regions] == [
+            (0x0, 0x3FFFFF, "readable"),
+            (0x400000, 0xFFFFFF, "no_answer"),
+        ]
+        sweep = sorted({int(r[2:8], 16) for r in ecu.sent if int(r[2:8], 16) % 0x10000 == 0})
+        assert sweep[:3] == [0, 0x10000, 0x20000]
+        assert len(ecu.sent) < 300
+
+    def test_a_four_byte_space_needs_a_range(self):
+        ecu = MemoryEcu([(0x0, 0xFFFF, None)])
+        scan = _scan(ecu, None, find_block=False)
+        assert scan.stopped and "pass --range" in scan.stopped
+        assert not any(r.startswith("23") for r in ecu.sent)
+
+    def test_an_explicit_range_keeps_the_4_kib_step(self):
+        ecu = MemoryEcu([(0x0, 0xFFFF, None)])
+        _scan(ecu, [(0x0, 0xFFFF)], find_block=False)
+        assert {int(r[4:12], 16) for r in ecu.sent} >= {0x1000, 0x2000, 0xF000}
+
+    def test_without_a_terminal_the_prompt_names_the_space(self, monkeypatch, capsys):
+        from canair.cli import main
+
+        monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+        assert main(["scan", "memory", "VCU"]) == 2
+        assert "at 0x0-0xFFFFFF (1-byte probes every 0x10000, about 256)" in capsys.readouterr().err
+
+    def test_a_four_byte_ecu_is_refused_before_connecting(self, capsys):
+        from canair.cli import main
+
+        with pytest.raises(SystemExit) as stop:
+            main(["scan", "memory", "BCM", "--yes"])
+        assert stop.value.code == 2
+        assert "pass --range" in capsys.readouterr().err

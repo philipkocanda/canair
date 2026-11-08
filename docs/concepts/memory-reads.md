@@ -20,10 +20,15 @@ reported as locked and left alone.
 
 ## Safety
 
-- **Name the ranges yourself.** Neither command has a default range. Take the ranges from the
-  microcontroller's memory map. On some chips a read of a peripheral register clears a flag or
-  pops a queue, so a read is not always free of side effects. Most ECUs answer only inside
-  ranges their diagnostic stack allows, and refuse the rest with `requestOutOfRange`.
+- **Name the ranges yourself, unless the space is small.** On some chips a read of a peripheral
+  register clears a flag or pops a queue, so a read is not always free of side effects. Take
+  the ranges from the microcontroller's memory map. Most ECUs answer only inside ranges their
+  diagnostic stack allows, and refuse the rest with `requestOutOfRange`.
+- **The default space.** With no `--range`, `scan memory` and `memory image` map the whole
+  space of the ECU's memory format when its addresses are 3 bytes or fewer: every KWP2000 ECU
+  (`0x000000-0xFFFFFF`, 16 MiB) and a UDS ECU whose ALFID has a 1- to 3-byte address. The probes
+  are then about 256, 64 KiB apart across 16 MiB. A UDS ECU with 4-byte addresses (4 GiB) still
+  needs `--range`. `memory dump` has no default range. The confirmation names the range.
 - **Every command that reads memory asks first.** Pass `--yes` to skip the question. Without a
   terminal they refuse unless you do.
 - **The scan reads one byte at a time** until it finds a region that answers. Only inside one
@@ -106,7 +111,10 @@ reads one byte at the last address that answered:
    its first active PID) and, with `--state`, the signals of that vehicle state's `when:`
    predicate. It stops if the state does not hold.
 2. **Map.** It takes the readable regions that `scan memory` recorded for this software build.
-   With `--range` it maps the space itself first.
+   When there are none (or with `--range`), it maps the space itself first: `--range`, or the
+   default space above. With no `max_block` recorded, it then finds the largest block the way
+   `scan memory` does, from 16 bytes up to `--block-limit` (128). It writes the map, the format
+   and the block to the ECU's `memory:` section (`--dry-run`: not).
 3. **Size and aliases.** It matches the readable span against the common flash sizes. It also
    tests whether the ECU ignores its high address bits and repeats one image. If it does, the
    image reads the first period only.

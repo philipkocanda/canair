@@ -9,6 +9,8 @@ from canair.uds.memory import (
     MemoryRequestError,
     RegionResult,
     classify_memory_reply,
+    default_scan_space,
+    default_scan_step,
     exceeds_signal_cap,
     format_from_alfid,
     is_memory_request,
@@ -159,3 +161,20 @@ class TestClassify:
     )
     def test_nrc_meanings(self, response, result):
         assert classify_memory_reply(response) is result
+
+
+class TestDefaultScanSpace:
+    def test_a_kwp2000_ecu_maps_its_whole_16_mib(self):
+        assert default_scan_space(KWP_FORMAT) == (0, 0xFFFFFF)
+
+    def test_a_uds_format_with_a_short_address_maps_its_whole_space(self):
+        assert default_scan_space(parse_format("13")) == (0, 0xFFFFFF)
+        assert default_scan_space(parse_format("12")) == (0, 0xFFFF)
+
+    def test_a_four_byte_address_has_no_default(self):
+        assert default_scan_space(parse_format("24")) is None
+
+    def test_the_step_gives_about_256_probes(self):
+        assert default_scan_step(0, 0xFFFFFF) == 0x10000
+        assert default_scan_step(0, 0xFFFF) == 0x100
+        assert default_scan_step(0, 0x7F) == 1

@@ -45,6 +45,7 @@ def print_scan(scan: Any, *, as_json: bool) -> None:
             "format": scan.format.name if scan.format is not None else None,
             "software": scan.software,
             "max_block": scan.max_block,
+            "ranges": [{"start": a, "end": b} for a, b in scan.ranges],
             "reads": scan.reads,
             "stopped": scan.stopped,
             "format_probes": [

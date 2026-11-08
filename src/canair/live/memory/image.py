@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from canair.ecus.can_buses import bus_neighbours
+from canair.ecus.memory import MemoryRegion
 from canair.live.dtc import read_ecu_dtcs
 from canair.live.identity.software import read_software_version
 from canair.memory.job import SAMPLE_SIZE, SPARSE, JobPlan, job_plan
@@ -43,6 +44,7 @@ from canair.profile.model import Profile
 from canair.states.predicates import StateRule
 from canair.transport.errors import transport_error_types
 from canair.transport.protocol import Terminal
+from canair.yaml_edit.memory import record_scan
 
 from .dump import block_for
 from .extents import ImageStopped, JobReader, Pacing, Saved, now
@@ -57,7 +59,8 @@ from .liveness import (
     unmet,
 )
 from .reads import EcuSilent, MemoryTarget, maybe_session
-from .survey import MapFailed, Survey, map_ranges, recorded_regions, survey
+from .scan import DEFAULT_BLOCK_LIMIT, ScanStopped, space_and_step
+from .survey import MapFailed, Survey, find_block, map_ranges, recorded_regions, survey
 
 
 @dataclass(frozen=True)
@@ -66,7 +69,7 @@ class ImageOptions:
 
     mode: str = SPARSE
     ranges: tuple[tuple[int, int], ...] = ()
-    step: int = 0x10000
+    step: int | None = None
     stride: int = DEFAULT_STRIDE
     block_limit: int | None = None
     state: str | None = None
@@ -79,6 +82,7 @@ class ImageOptions:
     label: str | None = None
     digit: bool = False
     plan_only: bool = False
+    dry_run: bool = False
 
 
 @dataclass
@@ -102,6 +106,7 @@ class ImageRun:
     verdicts: Counter[str] = field(default_factory=Counter)
     dtc_changes: list[DtcChange] = field(default_factory=list)
     identity: dict[str, tuple[str, list[int]]] = field(default_factory=dict)
+    written: Path | None = None
 
     @property
     def complete(self) -> bool:
@@ -125,6 +130,7 @@ class _Context:
     make: str | None
     verified: bool = False
     start_bytes: int = 0
+    written: Path | None = None
 
 
 def _conditions(ctx: _Context, health: str | None) -> Conditions:
@@ -159,28 +165,50 @@ async def _fault_codes(ctx: _Context, ecus: list[str]) -> dict[str, list[str] | 
     return out
 
 
-async def _survey(ctx: _Context, software: str | None) -> Survey:
-    """Map (or take the recorded map), then size, aliases and the survey."""
-    job, opts = ctx.job, ctx.options
-    assert ctx.target.format is not None
-    if opts.ranges:
-        regions = await map_ranges(
-            job.reader, ctx.target.format, list(opts.ranges), opts.step, job.line.update
-        )
-        source = "a map of " + ", ".join(f"0x{a:X}-0x{b:X}" for a, b in opts.ranges)
-    else:
-        regions = recorded_regions(ctx.target, software)
-        source = "the readable regions in ecus/"
-        if not regions:
-            raise ImageStopped(
-                f"{ctx.target.name} records no readable region for this software: pass "
-                "--range, or map it first with `canair scan memory`"
-            )
+async def _map(ctx: _Context, software: str | None) -> tuple[list[tuple[int, int]], str]:
+    """The readable regions to survey: recorded for this build, or mapped and recorded now.
+
+    A fresh map covers ``--range`` or the format's default space, and is written to the
+    ECU's ``memory:`` section (not with ``--dry-run``) together with the block the search
+    finds when none is recorded.
+    """
+    job, opts, fmt = ctx.job, ctx.options, ctx.target.format
+    assert fmt is not None
+    regions = [] if opts.ranges else recorded_regions(ctx.target, software)
+    source = "the readable regions in ecus/"
+    fresh: list[MemoryRegion] = []
+    if not regions:
+        try:
+            ranges, step = space_and_step(fmt, list(opts.ranges) or None, opts.step)
+        except ScanStopped as e:
+            raise ImageStopped(f"{ctx.target.name} records no readable region: {e}") from None
+        mapped = await map_ranges(job.reader, fmt, ranges, step, software, job.line.update)
+        regions, fresh = mapped.readable, mapped.regions
+        source = "a new map of " + ", ".join(f"0x{a:X}-0x{b:X}" for a, b in ranges)
     if not regions:
         raise ImageStopped("no address in the range answers a memory read")
+    found_block = None
+    if ctx.target.memory is None or ctx.target.memory.max_block is None:
+        job.line.update("    finding the largest block…")
+        biggest = max(regions, key=lambda r: r[1] - r[0])
+        limit = opts.block_limit or DEFAULT_BLOCK_LIMIT
+        found_block = await find_block(job.reader, fmt, biggest, limit)
+        job.set_preferred(preferred_block(found_block, digit=opts.digit))
+    if (fresh or found_block is not None) and not opts.dry_run:
+        job.line.clear()
+        ctx.written = record_scan(
+            ctx.target.tx_id, fresh, fmt=fmt, max_block=found_block, profile=ctx.profile
+        )
+    return regions, source
+
+
+async def _survey(ctx: _Context, software: str | None) -> Survey:
+    """Map (or take the recorded map), then size, aliases and the survey."""
+    job = ctx.job
+    regions, source = await _map(ctx, software)
     size = min(job.rate.block, SAMPLE_SIZE)
     return await survey(
-        job.reader, regions, source, stride=opts.stride, size=size, progress=job.line.update
+        job.reader, regions, source, stride=ctx.options.stride, size=size, progress=job.line.update
     )
 
 
@@ -286,7 +314,7 @@ async def mode_memory_image(
     finally:
         job.line.clear()
         run.reads, run.seconds, run.rate = job.reader.reads, clock() - began, job.rate
-        run.verdicts = job.verdicts
+        run.verdicts, run.written = job.verdicts, ctx.written
         if job.writer is not None:
             run.bytes_now = job.writer.dump.bytes_read - ctx.start_bytes
             done = ctx.verified and not job.missing()

@@ -10,7 +10,16 @@ from canair.cli.live.handlers import memory as handlers
 from canair.core.prompt import confirm
 from canair.render import messages
 
-from .reads import RISK, add_read_args, address_ranges, confirm_reads, hex_int
+from .reads import (
+    RISK,
+    add_read_args,
+    address_ranges,
+    confirm_reads,
+    default_space_text,
+    ecu_format,
+    hex_int,
+    spans_text,
+)
 from .views import add_offline_parsers
 
 NAME = "memory"
@@ -90,8 +99,9 @@ def _add_image_parser(kinds) -> None:
         "image",
         help="Plan and read an ECU's whole memory image, resumably and checked",
         description="Read the readable memory of one ECU into one dump, unattended. The run "
-        "maps the space (the readable regions ecus/ records, or --range), finds the flash "
-        "size and any aliasing, surveys which areas hold data, shows the plan with its time "
+        "maps the space (the readable regions ecus/ records for its software; else --range or "
+        "the whole space of a memory format with addresses of 3 bytes or fewer, mapped like "
+        "`scan memory` and written back to ecus/), finds the flash size and any aliasing, surveys which areas hold data, shows the plan with its time "
         "estimate and asks before it reads (--yes to skip). sparse reads the data areas in "
         "full and samples the erased ones; --thorough reads every byte twice. The block adapts "
         "to errors within the ECU's max_block and --block-limit. A silent ECU, a failed "
@@ -126,14 +136,16 @@ examples:
         dest="ranges",
         type=address_ranges,
         metavar="START-END[,…]",
-        help="Map these hex ranges first (default: the readable regions ecus/ records)",
+        help="Map these hex ranges first (default: the readable regions ecus/ records for "
+        "the ECU's software, else the format's whole space if it has addresses of 3 bytes or "
+        "fewer)",
     )
     image.add_argument(
         "--step",
         type=hex_int,
-        default=0x10000,
         metavar="HEX",
-        help="--range: probe every HEX bytes before bisecting (default 10000)",
+        help="Map: probe every HEX bytes before bisecting (default 1000 with --range; about 256 "
+        "probes across the default space)",
     )
     image.add_argument(
         "--stride",
@@ -177,9 +189,33 @@ examples:
     image.add_argument(
         "--plan-only", action="store_true", help="Map and survey, print the plan, read nothing"
     )
+    image.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Do not write a new map or block size to the ECU's memory: section in ecus/",
+    )
     add_read_args(image, throttle_ms=0)
     add_connection_args(image)
     image.set_defaults(func=run_image)
+
+
+def _image_question(args: argparse.Namespace) -> str:
+    """What the image reads before its plan is shown, in the words of the confirmation."""
+    if args.resume:
+        return f"Resume {args.resume} (after the same checks as a new run)"
+    record = "" if args.dry_run else " and records the map in ecus/"
+    if args.ranges:
+        return f"Map {args.ecu} memory at {spans_text(args.ranges)}{record}, then survey it"
+    space = default_space_text(ecu_format(args), args.step)
+    if space is None:
+        return (
+            f"Survey {args.ecu} memory from the readable regions ecus/ records (with none for its "
+            "software, it stops: its address space needs --range)"
+        )
+    return (
+        f"Survey {args.ecu} memory (with no readable region recorded for its software, it maps "
+        f"{space} first{record}; the plan is shown before the reads)"
+    )
 
 
 def run_image(args: argparse.Namespace) -> int:
@@ -187,8 +223,7 @@ def run_image(args: argparse.Namespace) -> int:
         messages.fail("name an ECU, or pass --resume DUMP", code=2)
     if not args.yes:
         messages.warning(RISK)
-    what = f"Resume {args.resume}" if args.resume else f"Map and survey {args.ecu} memory"
-    if not confirm(f"{what} (the plan is shown before the reads)?", yes=args.yes, danger=True):
+    if not confirm(f"{_image_question(args)}?", yes=args.yes, danger=True):
         return 1
     # deferred: the image run loads 9 modules (planner, rate, verifier, job reader) that no
     # other command needs, and building the parser would pay for them on every command

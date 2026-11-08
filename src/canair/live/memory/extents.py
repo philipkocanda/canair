@@ -90,6 +90,11 @@ class JobReader:
         self.verdicts: Counter[str] = Counter()
         self._checked = clock()
 
+    def set_preferred(self, preferred: int) -> None:
+        """Read with ``preferred`` from now on: the block search found the ceiling."""
+        self.rate = start_rate(preferred, throttle_ms=self.rate.throttle_ms)
+        self.reader.block = self.rate.block
+
     def resume_rate(self, block: int | None) -> None:
         """Start at the block a job had reached, never above it."""
         self.rate = start_rate(self.rate.preferred, block=block, throttle_ms=self.rate.throttle_ms)

@@ -48,8 +48,8 @@ usage: canair memory image [-h] [--resume DUMP] [--thorough]
                            [--range START-END[,…]] [--step HEX] [--stride HEX]
                            [--block-limit N] [--state STATE] [--health PID]
                            [--health-every S] [--wait-minutes M]
-                           [--label TEXT] [--plan-only] [--format ALFID|kwp]
-                           [--session] [--mode HEX]
+                           [--label TEXT] [--plan-only] [--dry-run]
+                           [--format ALFID|kwp] [--session] [--mode HEX]
                            [--throttle-ms THROTTLE_MS] [--yes] [--wican WICAN]
                            [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                            [--no-fallback] [--wait] [--elm-timeout MS]
@@ -58,7 +58,7 @@ usage: canair memory image [-h] [--resume DUMP] [--thorough]
                            [--force]
                            [ECU]
 
-Read the readable memory of one ECU into one dump, unattended. The run maps the space (the readable regions ecus/ records, or --range), finds the flash size and any aliasing, surveys which areas hold data, shows the plan with its time estimate and asks before it reads (--yes to skip). sparse reads the data areas in full and samples the erased ones; --thorough reads every byte twice. The block adapts to errors within the ECU's max_block and --block-limit. A silent ECU, a failed health or state check or a dropped link pauses the job; it reads on by itself when the checks pass within --wait-minutes, and is otherwise saved for --resume. A resume needs the same software build and re-reads the first and the last two extents first. The report has the stability checks, the fault codes against the baseline of the ECU and its bus neighbours, and where the ECU's identity strings sit in the image. Only ReadMemoryByAddress reads memory; nothing is written.
+Read the readable memory of one ECU into one dump, unattended. The run maps the space (the readable regions ecus/ records for its software; else --range or the whole space of a memory format with addresses of 3 bytes or fewer, mapped like `scan memory` and written back to ecus/), finds the flash size and any aliasing, surveys which areas hold data, shows the plan with its time estimate and asks before it reads (--yes to skip). sparse reads the data areas in full and samples the erased ones; --thorough reads every byte twice. The block adapts to errors within the ECU's max_block and --block-limit. A silent ECU, a failed health or state check or a dropped link pauses the job; it reads on by itself when the checks pass within --wait-minutes, and is otherwise saved for --resume. A resume needs the same software build and re-reads the first and the last two extents first. The report has the stability checks, the fault codes against the baseline of the ECU and its bus neighbours, and where the ECU's identity strings sit in the image. Only ReadMemoryByAddress reads memory; nothing is written.
 
 positional arguments:
   ECU                   ECU name or TX id (not with --resume)
@@ -70,9 +70,12 @@ options:
                         data areas in full and the erased areas sampled)
   --range START-END[,…]
                         Map these hex ranges first (default: the readable
-                        regions ecus/ records)
-  --step HEX            --range: probe every HEX bytes before bisecting
-                        (default 10000)
+                        regions ecus/ records for the ECU's software, else the
+                        format's whole space if it has addresses of 3 bytes or
+                        fewer)
+  --step HEX            Map: probe every HEX bytes before bisecting (default
+                        1000 with --range; about 256 probes across the default
+                        space)
   --stride HEX          Survey one sample every HEX bytes (default 1000)
   --block-limit N       Largest read (default and maximum: the ECU's
                         memory.max_block, else 64)
@@ -86,6 +89,8 @@ options:
                         again (default 15)
   --label TEXT          A label for the dump
   --plan-only           Map and survey, print the plan, read nothing
+  --dry-run             Do not write a new map or block size to the ECU's
+                        memory: section in ecus/
   --format ALFID|kwp    Memory format when the ECU declares none: a UDS ALFID
                         (24 = 2-byte size, 4-byte address) or kwp. Saved by
                         `canair memory set` or `canair scan memory`.

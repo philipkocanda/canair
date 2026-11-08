@@ -3,8 +3,9 @@
 Each step reads as little as it can and leaves the decisions to :mod:`canair.memory.plan`:
 
 1. **Map.** The readable regions the ECU's ``memory:`` section records for this software
-   build, or a fresh map of ``--range`` with the ``scan memory`` probes (silence classified,
-   the step grown past a silent edge).
+   build, or a fresh map with the ``scan memory`` probes (silence classified, the step grown
+   past a silent edge) of ``--range`` or, with none, of the format's whole space when it has
+   addresses of 3 bytes or fewer. With no ``max_block`` recorded, the block search follows.
 2. **Size and aliases.** The largest region's span against the common flash sizes, and a
    few sample pairs per candidate period.
 3. **Survey.** A sample every stride, sorted into erased or data, and every change between
@@ -17,6 +18,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from canair.ecus.memory import MemoryRegion
 from canair.memory.job import Area
 from canair.memory.plan import (
     alias_candidates,
@@ -33,7 +35,7 @@ from canair.memory.store import Stretch
 from canair.uds.memory import MemoryFormat
 
 from .reads import BlockReader, MemoryTarget
-from .scan import ScanStopped, _map_range, _Prober, _regions
+from .scan import ScanStopped, _find_max_block, _map_range, _Prober, _regions
 
 #: The granule a change between two survey samples is bisected to.
 BISECT_GRANULE = 0x40
@@ -71,14 +73,23 @@ def recorded_regions(target: MemoryTarget, software: str | None) -> list[tuple[i
     ]
 
 
+@dataclass
+class Map:
+    """A fresh map: the readable regions, joined, and every region found, for ``ecus/``."""
+
+    readable: list[tuple[int, int]]
+    regions: list[MemoryRegion]
+
+
 async def map_ranges(
     reader: BlockReader,
     fmt: MemoryFormat,
     ranges: list[tuple[int, int]],
     step: int,
+    software: str | None,
     progress: Callable[[str], None],
-) -> list[tuple[int, int]]:
-    """Probe ``ranges`` like ``scan memory`` and return the readable regions, joined."""
+) -> Map:
+    """Probe ``ranges`` like ``scan memory`` and return what answers."""
     prober = _Prober(reader.terminal, reader.target, reader.throttle_s)
     points: list = []
     try:
@@ -88,8 +99,9 @@ async def map_ranges(
         raise MapFailed(stop.reason) from None
     finally:
         reader.reads += prober.reads
+    regions = _regions(points, ranges, software, complete=True)
     found: list[tuple[int, int]] = []
-    for region in _regions(points, ranges, None, complete=True):
+    for region in regions:
         if not region.readable:
             continue
         if found and found[-1][1] + 1 == region.start:
@@ -98,7 +110,23 @@ async def map_ranges(
             found.append((region.start, region.end))
     if prober.last_readable is not None:
         reader.last_answered = prober.last_readable
-    return found
+    return Map(found, regions)
+
+
+async def find_block(
+    reader: BlockReader, fmt: MemoryFormat, region: tuple[int, int], limit: int
+) -> int:
+    """The largest read that comes back whole in ``region``: the scan's climb from 16 bytes.
+
+    Raises :class:`MapFailed` when the ECU stops answering after a failing size.
+    """
+    prober = _Prober(reader.terminal, reader.target, reader.throttle_s)
+    try:
+        return await _find_max_block(prober, fmt, MemoryRegion(*region, "readable"), limit)
+    except ScanStopped as stop:
+        raise MapFailed(stop.reason) from None
+    finally:
+        reader.reads += prober.reads
 
 
 def joined(pieces: list[Stretch]) -> bytes:

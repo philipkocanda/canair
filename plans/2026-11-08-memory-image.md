@@ -301,7 +301,8 @@ parts; it holds no policy of its own. Mid-session link drops reuse `live/monitor
 - **Open question 2, blank value.** Erased stays "all `FF` or all `00`".
 - **Open question 3, extent size.** 4 KiB, for `memory dump` too. Not measured yet.
 - **The map.** Without `--range`, the image takes the readable regions `ecus/` records for the
-  current software build, so the VCU needs no new map. The alias test tries powers of two from
+  current software build, so the VCU needs no new map. With none recorded it maps the
+  format's default space and writes the map back: `plans/2026-11-08-memory-default-space.md`. The alias test tries powers of two from
   256 bytes, so a small repeating window such as the HVAC's is also found.
 - **Samples.** A sampled extent reads 64 and 63 bytes in turn (the stale-reply check), at fixed
   addresses, so a resumed job samples the same bytes as an uninterrupted one.

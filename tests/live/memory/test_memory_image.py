@@ -48,9 +48,23 @@ def _ecu(**kw) -> MemoryEcu:
     return MemoryEcu(software=SOFTWARE, data=flash, **kw)
 
 
-def _target(max_block: int = 64) -> MemoryTarget:
-    region = MemoryRegion(0, 0xFFFF, "readable", None, f"F189:{SOFTWARE}", "2026-11-01")
-    return MemoryTarget("BCM", 0x7A0, UDS, EcuMemory(UDS24, max_block, None, (region,)), ECU_DEF)
+def _target(max_block: int | None = 64, fmt=UDS24, regions=None) -> MemoryTarget:
+    if regions is None:
+        regions = (MemoryRegion(0, 0xFFFF, "readable", None, f"F189:{SOFTWARE}", "2026-11-01"),)
+    return MemoryTarget("BCM", 0x7A0, UDS, EcuMemory(fmt, max_block, None, regions), ECU_DEF)
+
+
+@pytest.fixture(autouse=True)
+def recorded(monkeypatch, tmp_path):
+    """Every map the image writes back lands here, never in a bundled profile."""
+    calls: list[dict] = []
+
+    def record(tx, regions, *, fmt=None, max_block=None, **_):
+        calls.append({"tx": tx, "regions": regions, "fmt": fmt, "max_block": max_block})
+        return tmp_path / "ecu.yaml"
+
+    monkeypatch.setattr("canair.live.memory.image.record_scan", record)
+    return calls
 
 
 class FakeTime:
@@ -391,3 +405,54 @@ def test_the_required_state_is_not_taken_for_a_capture_flag():
     args = build_parser().parse_args(["memory", "image", "VCU", "--state", "CHARGING"])
     assert args.required_state == "CHARGING"
     assert not saving(args)
+
+
+class TestDefaultSpace:
+    """With no region recorded, the image maps the format's whole space and records it."""
+
+    UDS13 = parse_format("13")  # a 3-byte address: a 16 MiB space
+
+    def test_no_recorded_region_maps_the_whole_space_and_records_it(self, tmp_path, recorded):
+        ecu = _ecu(silent_above=0xFFFF, regions=[(0, 0xFFFFFF, None)], max_block=100)
+        target = _target(max_block=None, fmt=self.UDS13, regions=())
+        run = _image(ecu, tmp_path, target=target, options=ImageOptions(plan_only=True))
+        assert run.stopped is None and run.plan is not None
+        assert (run.plan.start, run.plan.end) == (0, 0xFFFF)
+        probes = [r for r in _memory_reads(ecu) if r.size == 1 and r.address % 0x10000 == 0]
+        assert len({r.address for r in probes}) <= 257  # about 256 probes, 64 KiB apart
+        (write,) = recorded
+        assert write["fmt"] == self.UDS13 and write["max_block"] == 64  # 128 failed
+        first = write["regions"][0]
+        assert (first.start, first.end, first.result) == (0, 0xFFFF, "readable")
+        assert run.plan.ceiling == 64 and run.written == tmp_path / "ecu.yaml"
+
+    def test_a_region_of_another_software_build_is_mapped_again(self, tmp_path, recorded):
+        old = (MemoryRegion(0, 0xFFF, "readable", None, "F189:0.99", "2026-01-01"),)
+        ecu = _ecu(silent_above=0xFFFF, regions=[(0, 0xFFFFFF, None)])
+        target = _target(fmt=self.UDS13, regions=old)
+        run = _image(ecu, tmp_path, target=target, options=ImageOptions(plan_only=True))
+        assert run.plan is not None and run.plan.end == 0xFFFF
+        assert recorded and recorded[0]["max_block"] is None  # max_block was recorded
+
+    def test_dry_run_writes_nothing(self, tmp_path, recorded):
+        ecu = _ecu(silent_above=0xFFFF, regions=[(0, 0xFFFFFF, None)])
+        target = _target(max_block=None, fmt=self.UDS13, regions=())
+        options = ImageOptions(plan_only=True, dry_run=True)
+        run = _image(ecu, tmp_path, target=target, options=options)
+        assert run.plan is not None and recorded == [] and run.written is None
+
+    def test_a_four_byte_space_needs_a_range(self, tmp_path, recorded):
+        ecu = _ecu()
+        run = _image(
+            ecu, tmp_path, target=_target(regions=()), options=ImageOptions(plan_only=True)
+        )
+        assert run.stopped and "pass --range" in run.stopped
+        assert _memory_reads(ecu) == [] and recorded == []
+
+    def test_a_recorded_map_without_a_block_still_searches_it(self, tmp_path, recorded):
+        ecu = _ecu(max_block=40)
+        run = _image(
+            ecu, tmp_path, target=_target(max_block=None), options=ImageOptions(plan_only=True)
+        )
+        assert run.plan is not None and run.plan.ceiling == 32
+        assert recorded == [{"tx": 0x7A0, "regions": [], "fmt": UDS24, "max_block": 32}]

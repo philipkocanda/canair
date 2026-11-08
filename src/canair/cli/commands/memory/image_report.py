@@ -112,6 +112,7 @@ def image_doc(run: ImageRun) -> dict[str, Any]:
             {"ecu": c.ecu, "new": list(c.new), "gone": list(c.gone), "unknown": c.unknown}
             for c in run.dtc_changes
         ],
+        "written": str(run.written) if run.written else None,
         "identity": {
             f: {"text": text, "addresses": hits} for f, (text, hits) in run.identity.items()
         },
@@ -149,6 +150,11 @@ def _report_lines(run: ImageRun) -> list[str]:
     return lines
 
 
+def print_written(run: ImageRun) -> None:
+    if run.written is not None:
+        print(f"  {OK} Recorded the map in {run.written}", file=sys.stderr)
+
+
 def print_report(run: ImageRun, *, as_json: bool) -> None:
     """The result on stdout; new fault codes, stops and the resume hint on stderr."""
     for change in run.dtc_changes:
@@ -158,6 +164,7 @@ def print_report(run: ImageRun, *, as_json: bool) -> None:
         print(json.dumps(image_doc(run), indent=2))
     elif run.dump is not None:
         print("\n".join(_report_lines(run)))
+    print_written(run)
     if run.stopped:
         messages.error(f"the image stopped: {run.stopped}")
     elif run.saved:

@@ -10,7 +10,7 @@ import sys
 from contextlib import ExitStack
 from dataclasses import replace
 
-from canair.cli.commands.memory.image_report import print_plan, print_report
+from canair.cli.commands.memory.image_report import print_plan, print_report, print_written
 from canair.cli.live.operation import LiveOperation
 from canair.cli.profile_context import active
 from canair.core.prompt import confirm
@@ -81,6 +81,7 @@ async def handle_memory_image(args, terminal: Terminal, pids_data, host, *, reco
         label=args.dump_label,
         digit=isinstance(terminal, Elm327Terminal),
         plan_only=args.plan_only,
+        dry_run=args.dry_run,
     )
     provenance = {
         "profile": prof.name,
@@ -131,6 +132,7 @@ async def handle_memory_image(args, terminal: Terminal, pids_data, host, *, reco
             print_report(run, as_json=True)
         else:
             print_plan(run, sys.stdout)
+            print_written(run)
         if run.stopped:
             messages.error(f"the plan could not be made: {run.stopped}")
         return
