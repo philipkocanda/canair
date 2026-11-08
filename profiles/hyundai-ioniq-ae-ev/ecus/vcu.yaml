@@ -1045,10 +1045,14 @@ VCU:
         unit (uhi22). Decoded in signals/body.yaml (GW_DEPART_*, GW_ECON_*) and
         signals/powertrain.yaml (VCU_DEPART_*, VCU_ECON_*). No diagnostic page known.
       notes: >-
-        Find a VCU diagnostic page that exposes the stored departure and off-peak schedules. The
-        head unit offers no way in either: its UDS server writes only DID F110, a configuration
-        record, and sends the schedules only as 0x57A/0x57B (ioniq-avn-fw micom-can-findings.md
-        section 7C).
+        No diagnostic page or memory read reaches the stored schedules. The head unit offers no way
+        in either: its UDS server writes only DID F110, a configuration record, and sends the
+        schedules only as 0x57A/0x57B (ioniq-avn-fw micom-can-findings.md section 7C). The VCU keeps
+        them in SRAM (active copy 0x40006126-0x4000613E, standby copy 0x40000A07-0x40000A2F). Its
+        KWP2000 0x23 server reads only 0x000000-0xFFFFFF, which is flash, so a 23 read cannot reach
+        them. A CCP slave on the EPCU's CCP-CAN (0x6C0/0x6C2) can read SRAM, but the OBD port does
+        not reach that bus (research/VCU_FIRMWARE_FINDINGS.md section 12). Left: read 0x579/0x57A on
+        a P-CAN tap.
       what_to_test:
         - Read VCU 2101/2102/21F2 before and after changing the departure and off-peak schedules in the head unit, and look for bytes that follow the 0x57A/0x579 content.
     - type: verify

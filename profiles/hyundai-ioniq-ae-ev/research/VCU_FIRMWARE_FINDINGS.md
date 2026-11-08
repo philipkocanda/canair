@@ -77,6 +77,14 @@ sections:
       signals/ (0x590 VCU_590 bits 1, 2, 6, 7; 0x51B AUX_BATTERY_SAVER; 0x57A
       VCU_AUX_BATTERY_SAVER).
     target: profiles/hyundai-ioniq-ae-ev/ecus/igpm.yaml
+  - section: "12"
+    status: open
+    date: 2026-11-08
+    note: >-
+      The schedules are in SRAM (standby copy at 0x40000A07-0x40000A2F). The 0x23 server reaches
+      only 0x000000-0xFFFFFF, so it cannot read them. The 0x18CAC8 table is a CCP 2.1 slave with no
+      seed/key on CCP-CAN (0x6C0/0x6C2) that can read SRAM, but the OBD port does not reach it.
+    target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
@@ -184,9 +192,9 @@ SecurityAccess (`0x27`) itself is a seed/key exchange: sub-function `0x01` reque
 `0x02` sends the key, with higher levels `0xF1`/`0xF2`. The seed and key computation was not
 analysed and must not be (project rule); only the presence and shape are recorded here.
 
-There is a second, separate service table (an engineering/debug channel) whose `0x21` slot serves
-only local id `0x10` and writes a fixed unlock value to a control register. It is not the
-customer server and does not serve 2101/2102.
+There is a second, separate command table at `0x18CAC8`. It is a CCP (CAN Calibration Protocol
+2.1) slave on CCP-CAN, not a KWP2000 server: its slot numbers are CCP command codes, not service
+ids. Section 12.3 has the details. It does not serve 2101/2102.
 
 ## 3. The complete DID / actuator / routine inventory
 
@@ -413,8 +421,8 @@ Both tasks send nothing while the KWP2000 DisableNormalMessageTransmission (`0x2
 
 ### 4.4 The CCP-CAN side
 
-CCP-CAN carries the engineering channel (request `0x6C0`, 16 response slots on `0x6C2`, the service
-table at `0x18CAC8` in section 2), three request/response pairs (`0x011`/`0x001`,
+CCP-CAN carries the CCP slave (command `0x6C0`, 16 response slots on `0x6C2`, the command table
+at `0x18CAC8`, section 12.3), three request/response pairs (`0x011`/`0x001`,
 `0x012`/`0x002`, `0x013`/`0x003`), the MCU's `0x2C1`, and a test-mode set of frames:
 
 - `0x590`, `0x58F` and `0x549` are normally built from VCU data (`FUN_00219F0C`; `0x549` is the
@@ -435,7 +443,8 @@ exhaustively (section 2 and 3): the only readable items are the three `0x21` rec
 powertrain data in `2101`/`2102`, the static `21F2`), the `0x1A` identification records, memory
 (`0x23`), and DTCs. None carries a departure time, a charge window or a preconditioning timer, and
 there is no writable record for one (`0x22`/`0x2C`/`0x2E` are rejected, and `0x3B` writes only the
-VIN and one status byte). So a tester cannot read or set the schedule through KWP2000.
+VIN and one status byte). So a tester cannot read or set the schedule through KWP2000. Section 12
+shows why `0x23` cannot read it from memory either.
 
 **Where it lives instead (verified).** The VCU takes remote and scheduled climate and charge
 commands as broadcast CAN frames on P-CAN, and keeps the schedules itself:
@@ -958,3 +967,92 @@ not READY, only with the charge cable in. It uses the normal thresholds.
   reaches `0x57B` bit 30; nothing else from it was traced.
 - That the clock's alarm powers the EPCU (section 10.2). The exact-minute match in 11.1 makes it
   the likely wake source.
+
+## 12. Can the schedule be read from VCU memory?
+
+**Not from the OBD port.** The schedules live in SRAM, and the KWP2000 `0x23` server cannot address
+SRAM. A CCP slave on the EPCU's CCP-CAN can read SRAM, but the OBD port does not reach that bus.
+
+### 12.1 Where the schedules are in memory
+
+| what | address | written by |
+|---|---|---|
+| received copy of the departure slots and windows | `0x400054D6`-`0x400054FF` | `FUN_001C3168`, the model getters |
+| active schedule (the source of `0x579` and `0x57A`) | `0x40006126`-`0x4000613E` | the scheduling model (section 10.1) |
+| charge-schedule wake, climate-departure wake, 12 V check | `0x40006142`, `0x40006150`, `0x40006190` | section 11.1 |
+| standby copy of the active schedule and the wake times | `0x40000A07`-`0x40000A2F`, `0x4000093E`-`0x40000943`, `0x40000978`-`0x4000097D` | `FUN_001D5AF8` |
+
+`FUN_001D5AF8` copies the active schedule and the three wake times byte by byte into the low 8 KiB
+of SRAM (`0x40000000`-`0x40001FFF`). The boot code zeroes SRAM only from `0x40002000` (the loop at
+image offset `0x20`), and `.data` starts there too, so this low area probably survives a restart:
+it is the standby RAM. No
+diagnostic record overlaps any of these addresses. `21F2` is `0x4000005A`-`0x400000AD`, and the
+`0x1A` records are at the addresses in section 3.5.
+
+The application never writes flash at run time. Its flash-programming functions
+(`FUN_00182B28`-`FUN_00183194`, the two flash controllers at `0xC3F88000` and `0xC3F8C000`) have no
+caller and no pointer to them in the image. So the schedule has no copy in flash, and the 4 MiB
+image read with `0x23` cannot contain it. The dumps agree: the image is `FF` at
+`0x000940`-`0x000A2F`, and two reads of `0x000000`-`0x00FFFF` and of `0x140000`-`0x14FFFF` are
+identical.
+
+### 12.2 Why `0x23` reaches flash only
+
+The customer `0x23` handler is `FUN_00191C58`. It accepts only a 5-byte request (`23`, a 3-byte
+address and a 1-byte size; the request length at `0x400064C6` must be 5) and refuses size 0 or
+`0xFF` with NRC `0x53`. It reads from this address:
+
+```text
+(byte at 0x400064A9) << 24  |  the 3 address bytes of the request
+```
+
+`0x400064A9` is 13 bytes past the start of the 8-byte request frame at `0x4000649C`. Nothing in
+the image writes it: it has no reference in the decompiled code, and the only access in the
+listing is the load in this handler (`lbz r4, 0xc5(r13)` at `0x191D78`). It is in `.bss`, so the
+start-up code zeroes it. The address therefore always lies in `0x00000000`-`0x00FFFFFF`. There is
+no range check, so the MMU decides what answers. The application's TLB set-up
+(`0x180480`-`0x180960`) maps the flash at `0x000000`-`0x3FFFFF` in several entries. It probably maps
+nothing at `0x400000`-`0xFFFFFF`, which fits the silence above `0x400000`. This was read from the
+TLB code, not tested. SRAM is mapped only at `0x40000000`.
+
+### 12.3 The CCP slave on CCP-CAN
+
+The command table at `0x18CAC8` (section 2) is a CCP 2.1 slave. Its receive function
+(`FUN_0018A110`) reads mailbox slot 3, which is CAN id `0x6C0` on FlexCAN C (CCP-CAN, section 4.2).
+It answers on `0x6C2`. The frames follow CCP: a reply starts `FF`, then the return code, then the
+command counter. The slots match the CCP command codes:
+
+| code | CCP command | handler | code | CCP command | handler |
+|---|---|---|---|---|---|
+| `01` | CONNECT | `0x18B820` | `0F` | SHORT_UP | `0x18BAD0` |
+| `02` | SET_MTA | `0x18C5D0` | `10` | CLEAR_MEMORY | `0x18BBB4` |
+| `03` | DNLOAD | `0x18BA1C` | `11` | SELECT_CAL_PAGE | `0x18AC2C` |
+| `04` | UPLOAD | `0x18BAD0` | `12`, `13` | GET_SEED, UNLOCK | refused |
+| `05` | TEST | `0x18B9C4` | `14`-`16` | GET_DAQ_SIZE, SET_DAQ_PTR, WRITE_DAQ | `0x18B254`-`0x18B380` |
+| `06` | START_STOP | `0x18AFF4` | `17` | EXCHANGE_ID | `0x18B750` |
+| `07` | DISCONNECT | `0x18B8F8` | `18`, `22` | PROGRAM, PROGRAM_6 | refused |
+| `08` | START_STOP_ALL | `0x18B15C` | `19` | MOVE | `0x18BFC0` |
+| `09` | GET_ACTIVE_CAL_PAGE | `0x18ABC4` | `1B` | GET_CCP_VERSION | `0x18B7C0` |
+| `0C`, `0D` | SET_S_STATUS, GET_S_STATUS | `0x18C14C`, `0x18C200` | `20`, `21` | DIAG_SERVICE, ACTION_SERVICE | `0x18C264`, `0x18C32C` |
+| `0E` | BUILD_CHKSUM | `0x18AE4C` | `23` | DNLOAD_6 | `0x18BA1C` |
+
+This corrects `NOTES.md` beside the image, which read the table as KWP2000 service ids.
+
+CONNECT accepts station address `0x7234` or `0`. GET_SEED and UNLOCK are refused, so this build has
+no CCP resource protection. SET_MTA (`FUN_0018AAF0`, `FUN_0018AA40`) accepts SRAM
+`0x40000000`-`0x4003DFFF`, which an UPLOAD copies straight from memory, and the flash calibration
+area `0x010000`-`0x05FFFF`. So on CCP-CAN a CCP master could read every schedule address in 12.1.
+
+The OBD port does not reach CCP-CAN. The bus leaves the EPCU at its connector, and uhi22 found only
+the VCU and the MCU on it (section 4.1). Using it needs a tap on the EPCU harness. CCP also writes
+(DNLOAD, DNLOAD_6, CLEAR_MEMORY) and starts DAQ lists. The VCU accepts these without a key. Do not
+use it on a car that is driven or charging; use uhi22's bench set-up instead. canair has no CCP
+client.
+
+### 12.4 What remains
+
+- The schedule is readable from the OBD port only as the broadcast frames `0x579` and `0x57A`
+  (sections 9.2 and 9.3), and those are on P-CAN behind the gateway. A P-CAN tap or a bench EPCU is
+  the next step.
+- Whether a bench EPCU keeps the standby RAM (and so the schedule) with the battery feed alone was
+  not tested.
