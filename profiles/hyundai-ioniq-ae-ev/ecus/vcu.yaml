@@ -920,7 +920,9 @@ VCU:
       notes: >-
         Threshold: the case that normal open signal of brake and normal close signal of brake are
         same has occurred more than 12 times. Enabled when: ignition on; auxiliary battery 10-16 V.
-        DTC set after 2 driving cycles. Service lamp on.
+        DTC set after 2 driving cycles. Service lamp on. Firmware: compares the brake lamp switch
+        with the brake test switch while EV-ready; confirms after 2 cycles and lights the service
+        lamp.
     P0562:
       description: System voltage low
       causes: >-
@@ -928,7 +930,8 @@ VCU:
         VCU
       notes: >-
         Threshold: voltage is below 10 V. Detection time: 30 sec. Enabled when: ignition on. DTC set
-        after 2 driving cycles.
+        after 2 driving cycles. Firmware: tests the 2101 12 V supply word while EV-ready, below
+        about 9.9 V for 30 s (3,000 counts of 10 ms); confirms after 2 cycles, no lamp.
     P0563:
       description: System voltage high
       causes: >-
@@ -936,43 +939,48 @@ VCU:
         VCU
       notes: >-
         Threshold: voltage is higher than 16 V. Detection time: 30 sec. Enabled when: ignition on.
-        DTC set after 2 driving cycles.
+        DTC set after 2 driving cycles. Firmware: tests the 2101 12 V supply word while EV-ready,
+        above about 15.8 V for 30 s; confirms after 2 cycles, no lamp.
     P062F:
       description: Internal control module EEPROM error
       causes: poor connection, faulty VCU
       notes: >-
         Sets on an SPI communication error, an EEPROM write error or an EEPROM read error. DTC set
-        immediately. Service lamp on.
+        immediately. Service lamp on. Firmware: set from the result of an EEPROM access.
     P0630:
       description: VIN not programmed or incompatible-ECM/PCM
       causes: VIN is not programmed
       notes: >-
         Threshold: VIN not programmed in ECU. Detection time: immediately. DTC set immediately. MIL
-        on.
+        on. Firmware: the VIN check is enabled by calibration cell 0x2D5F1, which is 1.
     P0642:
       description: Sensor reference voltage 'A' circuit low
       causes: poor connection, APS2 short circuit
       notes: >-
         Threshold: reference voltage (5 V) is below 4.5 V. Detection time: 0.1 sec. Enabled when:
-        ignition on; auxiliary battery 10-16 V. DTC set immediately. MIL on.
+        ignition on; auxiliary battery 10-16 V. DTC set immediately. MIL on. Firmware: one of the
+        two 5 V pedal-sensor supplies read on eQADC B, below 4.5 V over 10 checks.
     P0643:
       description: Sensor reference voltage 'A' circuit high
       causes: poor connection, APS2 short circuit
       notes: >-
         Threshold: reference voltage (5 V) is higher than 5.5 V. Detection time: 0.1 sec. Enabled
-        when: ignition on; auxiliary battery 10-16 V. DTC set immediately. MIL on.
+        when: ignition on; auxiliary battery 10-16 V. DTC set immediately. MIL on. Firmware: one of
+        the two 5 V pedal-sensor supplies read on eQADC B, above 5.5 V over 10 checks.
     P0698:
       description: Sensor reference voltage 'C' circuit low
       causes: poor connection, APS1 short circuit
       notes: >-
         Threshold: reference voltage (5 V) is below 4.5 V. Detection time: 0.1 sec. Enabled when:
-        ignition on; auxiliary battery 10-16 V. DTC set immediately. MIL on.
+        ignition on; auxiliary battery 10-16 V. DTC set immediately. MIL on. Firmware: one of the
+        two 5 V pedal-sensor supplies read on eQADC B, below 4.5 V over 10 checks.
     P0699:
       description: Sensor reference voltage 'C' circuit high
       causes: poor connection, APS1 short circuit
       notes: >-
         Threshold: reference voltage (5 V) is higher than 5.5 V. Detection time: 0.1 sec. Enabled
-        when: ignition on; auxiliary battery 10-16 V. DTC set immediately. MIL on.
+        when: ignition on; auxiliary battery 10-16 V. DTC set immediately. MIL on. Firmware: one of
+        the two 5 V pedal-sensor supplies read on eQADC B, above 5.5 V over 10 checks.
     P0A94:
       description: DC/DC converter performance
       causes: LDC input/output wire harnesses and connectors, low battery wire harness, faulty LDC
@@ -980,20 +988,27 @@ VCU:
         Threshold: Case 1: the difference between the DC-DC converter desired output voltage and
         actual output voltage is 1 V or more for at least 10 seconds; Case 2: the output voltage
         over 22 V. Detection time: 10 s; immediately. Enabled when: ignition on. DTC set after 1
-        driving cycle. Service lamp on.
+        driving cycle. Service lamp on. Firmware: Case 1 is the target minus the output voltage at
+        1.0 V or more for too long, or the output below 8.4 V (latched on the 5th trip); Case 2 is
+        the output over-voltage hardware trip. Byte 23 of the freeze frame (the LDC event sub-code)
+        tells the four causes apart.
     P0C3A:
       description: DC/DC converter temperature sensor 'A' low
       causes: open temp sensor, open in signal circuit
       notes: >-
         Threshold: sensor signal is above 4.8 V. Detection time: 10 s. Also needs: MCU CAN normal
         reception; MCU temperature sensor in the absence error data; no lack of engine coolant. DTC
-        set after 1 driving cycle. Service lamp on.
+        set after 1 driving cycle. Service lamp on. Firmware: raw sensor value at 4.8 V or more for
+        10 s, checked only while the MCU's 0x523 temperatures are valid. The sensor is the LDC
+        temperature (VCU 2102 VCU_LDC_TEMP, which reads 255 when the sensor is invalid).
     P0C3B:
       description: DC/DC converter temperature sensor 'A' high
       causes: shorted temp sensor, short to ground in signal circuit
       notes: >-
         Threshold: sensor signal is below 0.3 V. Detection time: 1 s. Enabled when: ignition on (SSB
         LED "BLUE"); auxiliary battery 9-16 V. DTC set after 1 driving cycle. Service lamp on.
+        Firmware: raw sensor value below 0.3 V for 1 s. The sensor is the LDC temperature (VCU 2102
+        VCU_LDC_TEMP).
     P1060:
       description: SBW system error
       causes: SBW system wire harnesses, SBW system component, faulty SBW actuator power relay
@@ -1002,52 +1017,105 @@ VCU:
         of the actuator; Case 2: no current carrying status of a phase that is under the control of
         current carrying during the operation of the actuator; Case 3: no variance in the encoder
         sensor value during the operation of the actuator. Detection time: 500 ms; 64 ms. DTC set
-        after 1 driving cycle.
+        after 1 driving cycle. Firmware: set from the fault fields the shift-by-wire unit sends in
+        CAN 0x10C (value 2 is a fault), and only while the 12 V word is between 9.9 and 15.8 V.
     P1061:
       description: SBW actuator power relay error
       causes: poor connection, UVW wire harnesses, SBW actuator power relay
       notes: >-
         Threshold: actuator power relay high failure - abnormal voltage of UVW phase on the motor
         when the actuator power relay is turned off. Detection time: 500 ms. DTC set after 1 driving
-        cycle.
+        cycle. Firmware: set from the fault fields the shift-by-wire unit sends in CAN 0x10C (value
+        2 is a fault), and only while the 12 V word is between 9.9 and 15.8 V.
     P1062:
       description: SBW actuator error
       causes: poor connection, SBW ACT, abnormality in the parking equipment inside the reducer
       notes: >-
         Threshold: actuator operating conditions maintained over a period of time, or the actuator
         target position and the current position do not match. Detection time: 5 sec. DTC set after
-        1 driving cycle.
+        1 driving cycle. Firmware: set from the fault fields the shift-by-wire unit sends in CAN
+        0x10C (value 2 is a fault), and only while the 12 V word is between 9.9 and 15.8 V.
     P1065:
       description: SBW parking learning uncomplete
       causes: SBW system, VCU, communication lines
       notes: >-
         Threshold: learning decision incomplete. Detection time: 100 ms. Also needs: EV ready OFF;
         1600 ms have passed after the initial parking request was received from the VCU. DTC set
-        after 1 driving cycle.
+        after 1 driving cycle. Firmware: set 1,600 ms after a park request while learning is
+        incomplete, and only while the 12 V word is between 9.9 and 15.8 V.
     P1066:
       description: SBW control unit error
       causes: poor connection, SCU
       notes: >-
         Threshold: Case 1: faulty ROM/RAM/CPU; Case 2: overcurrent diagnosis. Detection time: 120
-        ms; 24 ms. DTC set after 1 driving cycle.
+        ms; 24 ms. DTC set after 1 driving cycle. Firmware: set from the fault fields the shift-by-
+        wire unit sends in CAN 0x10C (value 2 is a fault), and only while the 12 V word is between
+        9.9 and 15.8 V.
+    P1676:
+      description: Key or immobilizer-type module fault (name not known)
+      source: >-
+        VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 18.7, 21.2 and
+        21.3)
+      notes: >-
+        Not in the service manual set. Firmware only: reported by a module at 0x196xxx-0x198xxx that
+        was not analysed. Hyundai uses P16xx for immobilizer faults, so the meaning is inferred.
+        Confirms after 2 cycles, no service lamp.
+    P1690:
+      description: Key or immobilizer-type module fault (name not known)
+      source: >-
+        VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 18.7, 21.2 and
+        21.3)
+      notes: >-
+        Not in the service manual set. Firmware only, same module as P1676. Confirms after 2 cycles,
+        no service lamp.
+    P1696:
+      description: Key or immobilizer-type module fault (name not known)
+      source: >-
+        VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 18.7, 21.2 and
+        21.3)
+      notes: >-
+        Not in the service manual set. Firmware only, same module as P1676. Confirms after 2 cycles,
+        no service lamp.
+    P1699:
+      description: Key or immobilizer-type module fault (name not known)
+      source: >-
+        VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 18.7, 21.2 and
+        21.3)
+      notes: >-
+        Not in the service manual set. Firmware only, same module as P1676. Confirms after 1 cycle
+        (the second operation cycle), no service lamp.
     P1A78:
       description: Check IG3 relay or back up lamp circuit
       causes: fuse, poor connection, IG power line disconnection, short circuit, IG3 relay
       notes: >-
         Threshold: relay defective detectors. Detection time: 10 sec. Also needs: VCU ready ON; EV
-        ready ON. DTC set immediately. Service lamp on.
+        ready ON. DTC set immediately. Service lamp on. Firmware: checks the IG3 relay and back-up
+        lamp circuit while EV-ready, and confirms after 2 driving cycles where the manual says
+        immediately.
     P1A88:
       description: DC/DC converter cooling system fault
       causes: faulty cooling system, "water pump" water shortage, "water pump" fault
       notes: >-
         Threshold: LDC temperature greater than 221°F (105°C). Detection time: 2 sec. DTC set after
-        1 driving cycle. Service lamp on.
+        1 driving cycle. Service lamp on. Firmware: the LDC shuts down above 105 °C for 2 s and
+        recovers at 85 °C. The power limiter already derates it from 85 °C (20 % at 105 °C).
     P1A89:
       description: DC/DC converter current sensor fault
       causes: faulty LDC, current sensor circuit failure
       notes: >-
         Threshold: initial value of current sensor over 0.078 V or below -0.13 V. Detection time: 1
-        time after calibration complete. DTC set after 1 driving cycle. Service lamp on.
+        time after calibration complete. DTC set after 1 driving cycle. Service lamp on. Firmware:
+        the offset threshold is +0.070 V or below -0.129 V, against 0.078 V and -0.13 V in the
+        manual.
+    P1A8A:
+      description: DC/DC converter temperature sensor fault (second code)
+      source: >-
+        VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 18.7, 21.2 and
+        21.3)
+      notes: >-
+        Not in the service manual set. Firmware only: reported when the LDC temperature-sensor chart
+        reaches its state 4, which was not traced. Confirms after 1 driving cycle and lights the
+        service lamp.
     P1A8C:
       description: DC/DC converter input current over fail
       causes: >-
@@ -1055,7 +1123,8 @@ VCU:
         deterioration, discharge vehicle jump attempt, LDC failure
       notes: >-
         Threshold: abnormal input current 23.8 A. Detection time: immediately. DTC set after 1
-        driving cycle. Service lamp on.
+        driving cycle. Service lamp on. Firmware: the input over-current hardware trip disables the
+        converter and re-enables it after 100 ticks; the code is set on the 10th trip.
     P1A8D:
       description: DC/DC converter voltage path fault
       causes: >-
@@ -1064,6 +1133,7 @@ VCU:
       notes: >-
         Threshold: the output voltage difference between the absolute value of the power control is
         more than 8 V. Detection time: 1 sec. DTC set after 1 driving cycle. Service lamp on.
+        Firmware: output sense and 12 V sense differ by more than 8 V for 1 s while the LDC runs.
     P2122:
       description: Throttle/pedal position sensor/switch 'D' circuit low input
       causes: >-
@@ -1102,7 +1172,8 @@ VCU:
       notes: >-
         Threshold: when the signal value of APS1-APS2 is greater than or equal to threshold.
         Detection time: 0.35 sec. Enabled when: ignition on; auxiliary battery 10-16 V; when the
-        input signal APS1, 2. DTC set immediately. Service lamp on.
+        input signal APS1, 2. DTC set immediately. Service lamp on. Firmware: correlation of the
+        APS1 and APS2 range flags.
     U0001:
       description: High speed CAN communication bus (C-CAN)
       causes: >-
@@ -1112,13 +1183,23 @@ VCU:
       notes: >-
         Threshold: P-CAN can not send and receive messages. Detection time: 1 sec. Also needs: EPCU
         READY ON; diagnostic approach when kept for more than 0.5 seconds at the state meet
-        conditions. DTC set after 2 driving cycles. Service lamp on.
+        conditions. DTC set after 2 driving cycles. Service lamp on. Firmware: the P-CAN controller
+        is error-passive or bus-off.
+    U0103:
+      description: Lost communication with gear shift module (SAE meaning)
+      source: >-
+        VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 18.7, 21.2 and
+        21.3)
+      notes: >-
+        Not in the service manual set. The firmware lists the code but never reports it, so this VCU
+        cannot set it. Shift-by-wire communication loss is U1017.
     U0110:
       description: Lost communication with drive motor control module (C-CAN)
       causes: poor connection, CAN communication, open or short in MCU communication line
       notes: >-
         Threshold: if you do not receive data from the MCU. Detection time: 0.5 sec. Also needs: VCU
-        (LDC) READY ON. DTC set after 2 driving cycles. Service lamp on.
+        (LDC) READY ON. DTC set after 2 driving cycles. Service lamp on. Firmware: timeout of CAN
+        0x291, 0x523 and 0x524, the MCU's frames on P-CAN. Ignored while the car is plugged in.
     U0111:
       description: Lost communication with battery energy control module 'A' (C-CAN)
       causes: poor connection, CAN communication, open or short in BMS communication line
@@ -1127,13 +1208,16 @@ VCU:
         read (no BMS connected)
       notes: >-
         Threshold: if you do not receive data from the BMS. Detection time: 2 sec. Also needs: VCU
-        (LDC) READY ON. DTC set after 2 driving cycles. Service lamp on.
+        (LDC) READY ON. DTC set after 2 driving cycles. Service lamp on. Firmware: timeout of CAN
+        0x594-0x598 and 0x542, the BMS frames.
     U0129:
       description: Lost communication with brake system control module
       causes: poor connection, CAN communication, open or short in IBAU communication line
       notes: >-
         Threshold: if you do not receive data from the IBAU. Detection time: 2 sec. Also needs: VCU
-        (LDC) READY ON. DTC set after 2 driving cycles. Service lamp on.
+        (LDC) READY ON. DTC set after 2 driving cycles. Service lamp on. Firmware: timeout of CAN
+        0x2A2, 0x220, 0x153, 0x394, 0x507 and 0x386, the ESC and brake frames. Ignored while the car
+        is plugged in.
     U0146:
       description: Lost communication with gateway 'A'
       causes: poor connection, CAN communication, open or short in IGPM communication line
@@ -1142,7 +1226,9 @@ VCU:
         read (no gateway connected)
       notes: >-
         Threshold: if you do not receive data from the IGPM. Detection time: 0.5 sec ~ 5 sec. Also
-        needs: VCU (LDC) READY ON. DTC set after 2 driving cycles.
+        needs: VCU (LDC) READY ON. DTC set after 2 driving cycles. Firmware: timeout of CAN 0x541,
+        0x553, 0x490, 0x5D0, 0x450, 0x578, 0x462, 0x5B3, 0x4FE, 0x588, 0x55C, 0x55F, 0x561, 0x567
+        and 0x5DF, the frames that pass through the gateway. Confirms after 2 cycles, no lamp.
     U0164:
       description: Lost communication with HVAC control module
       causes: poor connection, CAN communication, open or short in FATC communication line
@@ -1151,13 +1237,15 @@ VCU:
         read (no HVAC unit connected)
       notes: >-
         Threshold: if you do not receive data from the FATC. Detection time: 2 sec. Also needs: VCU
-        (LDC) READY ON. DTC set after 2 driving cycles.
+        (LDC) READY ON. DTC set after 2 driving cycles. Firmware: timeout of CAN 0x5F5-0x5F9, the
+        climate unit frames.
     U04B1:
       description: Invalid data received from battery monitor module
       causes: poor connection, IBS
       notes: >-
         Threshold: IBS express fault message. Enabled when: ignition on; auxiliary battery voltage
-        is normal; LDC READY ON. DTC set after 2 driving cycles.
+        is normal; LDC READY ON. DTC set after 2 driving cycles. Firmware: set by the battery sensor
+        (LIN) fault monitor (probable).
     U1001:
       description: High speed CAN communication bus (H-CAN)
       causes: >-
@@ -1166,7 +1254,18 @@ VCU:
         time short to ground, poor contact connectors controller
       notes: >-
         Threshold: H-CAN can not send and receive messages. Detection time: 1 sec. Also needs: EPCU
-        READY ON. DTC set after 2 driving cycles. Service lamp on.
+        READY ON. DTC set after 2 driving cycles. Service lamp on. Firmware: the CCP-CAN controller
+        is error-passive or bus-off. Hyundai's text calls CCP-CAN, the EPCU's second external bus,
+        H-CAN.
+    U1005:
+      description: Lost communication with drive motor control module (H-CAN)
+      source: >-
+        VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 18.7, 21.2 and
+        21.3)
+      notes: >-
+        Not in the service manual set. Firmware only: timeout of CAN 0x2C1, the MCU's torque frame
+        on CCP-CAN (H-CAN). Ignored while the car is plugged in. Confirms after 2 cycles and lights
+        the service lamp after 2 cycles. U0110 is the same loss on P-CAN.
     U1017:
       description: SBW CAN communication error
       causes: poor connection, CAN communication, open or short in SCU communication line
@@ -1175,7 +1274,9 @@ VCU:
         read
       notes: >-
         Threshold: if you do not receive data from the SCU. Detection time: 0.5 sec. Also needs: VCU
-        (LDC) READY ON. DTC set after 2 driving cycles. Service lamp on.
+        (LDC) READY ON. DTC set after 2 driving cycles. Service lamp on. Firmware: timeout of CAN
+        0x10C, the shift-by-wire unit. Confirms after 2 cycles with no service lamp, where the
+        manual says the lamp is on.
     U1112:
       description: LIN communication error
       causes: poor connection, open or short in LIN communication line, IBS
@@ -1191,7 +1292,9 @@ VCU:
         the IBS (battery sensor), not to the AVN. To confirm: clear the VCU DTCs and rescan after a
         drive; if it returns, inspect the IBS connector and LIN wire. Threshold: framing error.
         Enabled when: ignition on; auxiliary battery voltage is normal; LDC READY ON. DTC set after
-        2 driving cycles. Service lamp on.
+        2 driving cycles. Service lamp on. Firmware: set by a LIN frame error from the 12 V battery
+        sensor, and cleared on the next good frame, so a DTC read can miss it. Confirms after 2
+        cycles with no service lamp, where the manual says the lamp is on.
     U1310:
       description: Lost communication with on-board charger
       causes: poor connection, CAN communication, open or short in OBC communication line
@@ -1200,7 +1303,8 @@ VCU:
         read
       notes: >-
         Threshold: if you do not receive data from the OBC. Detection time: 2 sec. Also needs: VCU
-        (LDC) READY ON. DTC set after 2 driving cycles.
+        (LDC) READY ON. DTC set after 2 driving cycles. Firmware: timeout of CAN 0x57F, the OBC
+        frame.
   research:
     - type: verify
       target: "2101"
