@@ -12,6 +12,8 @@
 * :mod:`.render` and :mod:`.render_cache` — the only modules that build Rich text, and the
   per-PID block cache
 * :mod:`.stats` and :mod:`.state` — value ranges, state hints
+* :mod:`.foreground` — the user's requests (a session switch, an actuation), run one at a time
+  beside the poll and interleaved with it by the transport, request by request
 * :mod:`.selectors`, :mod:`.select`, :mod:`.sessions` and :mod:`.edit` — changing what is polled
 * :mod:`.reconnect` and :mod:`.options` — re-homing a dropped session, and the options as values
 

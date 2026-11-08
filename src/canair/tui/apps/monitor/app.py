@@ -305,12 +305,20 @@ class MonitorApp(PollingMixin, RecordingMixin, HelpMixin, App):
             if result is None:
                 return
             ecu, mode = result
-            self.run_worker(self._apply_session_switch(ecu, mode), name="session-switch")
+            switch = self.controller.sessions.switch
+            done = self.controller.foreground.submit(
+                f"session {ecu} {mode}", lambda: switch(ecu, mode)
+            )
+            self.run_worker(self._report_session_switch(done), name="session-switch")
 
         self.push_screen(SessionPickerScreen(self.controller), _done)
 
-    async def _apply_session_switch(self, ecu: str, mode: str) -> None:
-        msg = await self.controller.sessions.switch(ecu, mode)
+    async def _report_session_switch(self, done) -> None:
+        """Flash what the switch, run on the foreground lane, came to."""
+        try:
+            msg = await done
+        except Exception as exc:  # a transport failure the switch did not turn into text
+            msg = f"Session switch failed: {exc}"
         self._flash(msg, severity_of(msg))
         self._update_status()
 

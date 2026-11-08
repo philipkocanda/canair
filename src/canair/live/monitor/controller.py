@@ -42,6 +42,7 @@ from canair.transport.session_manager import SessionManager
 from ...captures.link_events import is_rx
 from .backoff import PollBackoff
 from .edit import MonitorEditor
+from .foreground import ForegroundLane
 from .health import MonitorHealth, answered, is_nrc, label_ecu
 from .link_events import LinkEventTracker
 from .options import MonitorOptions
@@ -135,6 +136,9 @@ class MonitorController:
         # suggestions, live switching) live in MonitorSessions, on either backend.
         self.sessions = MonitorSessions(self)
         self.sm: SessionManager = self.sessions.new_manager()
+        # The user's requests (a session switch, an actuation) run here, one at a time,
+        # beside the poll; the transport interleaves them with it request by request.
+        self.foreground = ForegroundLane(ready=lambda: not self.disconnected)
         # Live PID-selector management (the TUI 'p' picker) lives in MonitorSelectors.
         self.selectors = MonitorSelectors(self)
         # Raw-backend poll cycle + multi-DID batching state lives in the poller.
@@ -434,6 +438,7 @@ class MonitorController:
 
     async def close(self) -> None:
         """Stop keepalives and close all open sessions / the raw client (best-effort)."""
+        await self.foreground.stop()
         if self.raw:
             print("  Closing raw CAN client...")
             assert self.raw_client is not None  # self.raw is True ⟺ raw_client was provided
