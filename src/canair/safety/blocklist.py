@@ -19,10 +19,12 @@ suppress-positive-response bit). :func:`check_session_mode` is the one rule, use
 at runtime (through a per-target :class:`SessionPolicy`) and by ``canair
 validate``; an ECU whose protocol is unknown gets whichever reading is stricter.
 RoutineControl (``0x31``) is judged the same way: its reprogramming routine ids
-(:data:`BLOCKED_ROUTINES`) are refused on any ECU not known to speak KWP2000. The
-ISO 14229-1 safety-system routine ids (:data:`SAFETY_SYSTEM_ROUTINES`, which deploy
+(:data:`canair.safety.routines.BLOCKED_ROUTINES`) are refused on any ECU not known to speak KWP2000. The
+ISO 14229-1 safety-system routine ids (:data:`~canair.safety.routines.SAFETY_SYSTEM_ROUTINES`, which deploy
 airbags and pretensioners) are refused there too, and ``--unsafe`` cannot lift that
-(:func:`safety_system_block`).
+(:func:`safety_system_block`). On an ECU the profile says speaks KWP2000, ``0x31`` is
+StartRoutineByLocalIdentifier instead, and the local ids that leave the application for
+the bootloader (:data:`~canair.safety.routines.BLOCKED_KWP_ROUTINES`) are refused.
 
 A *functional* (broadcast) request is judged by a separate, stricter rule,
 :func:`check_functional_request`: an allow-list of reads that ``--unsafe`` cannot
@@ -46,12 +48,18 @@ from typing import Any, Final
 from canair.core.prompt import typed_confirm
 from canair.safety.quirks import allowed_session_modes
 from canair.safety.reset import reset_granted
+from canair.safety.routines import (
+    check_kwp_routine,
+    check_routine,
+    check_safety_system_routine,
+)
 from canair.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 from canair.uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol, classify_protocol
 from canair.uds.services import (
     ACCESS_TIMING_PARAMETER,
     CONTROL_DTC_SETTING,
     DIAGNOSTIC_SESSION_CONTROL,
+    KWP_START_ROUTINE_BY_LOCAL_IDENTIFIER,
     READ_DATA_BY_PERIODIC_IDENTIFIER,
     RESPONSE_ON_EVENT,
     ROUTINE_CONTROL,
@@ -65,7 +73,6 @@ from canair.uds.subfunctions import (
     KwpSessionType,
     PeriodicTransmissionMode,
     ResponseOnEventType,
-    RoutineControlType,
     SessionType,
     TimingParameterAccessType,
 )
@@ -95,6 +102,10 @@ BLOCKED_UDS_SERVICES = {
     0x3D: "WriteMemoryByAddress (write to ECU memory)",
     0x84: "SecuredDataTransmission (carries another request, which the blocklist cannot judge)",
     0x87: "LinkControl (changes the ECU's CAN bit rate)",
+    0x99: (
+        "manufacturer-specific service (the Hyundai/Kia OBC erases its stored VIN on it, in any "
+        "session)"
+    ),
 }
 
 
@@ -141,37 +152,6 @@ GUARDED_SERVICES: Final[Mapping[int, GuardedService]] = {
         ),
     ),
 }
-
-# RoutineControl (UDS 0x31) routines that erase, reflash, swap firmware banks or
-# (de)activate paid features. ISO 14229-1 defines FF00/FF01, and its 2006 edition FF02;
-# the rest are Hyundai/Kia's (ES95486-02), in the manufacturer range, so on another make
-# the same id is some unrelated routine and the refusal is only a prompt (--unsafe).
-BLOCKED_ROUTINES = {
-    0xFF00: "eraseMemory",
-    0xFF01: "checkProgrammingDependencies",
-    0xFF02: "eraseMirrorMemoryDTCs (ISO 14229-1:2006)",
-    0x0211: "FinishUpdate / CopyActiveAreaTo (Hyundai/Kia)",
-    0x0212: "EraseTargetArea (Hyundai/Kia)",
-    0x0213: "SwapActiveArea (Hyundai/Kia)",
-    0x0220: "WriteDeltaPatch (Hyundai/Kia)",
-    0x0301: "EnableUpdateCondition (Hyundai/Kia OTA)",
-    0x0410: "PrepareFoDActivation (Hyundai/Kia features on demand)",
-    0x0411: "ExecuteFoDActivation (Hyundai/Kia features on demand)",
-    0x0412: "ConfirmFoDActivation (Hyundai/Kia features on demand)",
-    0x0420: "PrepareFoDDeactivation (Hyundai/Kia features on demand)",
-    0x0421: "ExecuteFoDDeactivation (Hyundai/Kia features on demand)",
-    0x0422: "ConfirmFoDDeactivation (Hyundai/Kia features on demand)",
-    0x0440: "DeleteFoDCertificates (Hyundai/Kia features on demand)",
-}
-# ISO 14229-1 Annex F: E200 executes the scrapping program loader, E201 is
-# DeployLoopRoutineID and E202-E2FF are safetySystemRoutineIDs (ISO 26021). They deploy
-# or disable airbags and seatbelt pretensioners, which can injure a person, so no flag
-# lifts the refusal.
-SAFETY_SYSTEM_ROUTINES: Final = range(0xE200, 0xE300)
-# startRoutine and stopRoutine act; requestRoutineResults (0x03) only reads.
-_ROUTINE_ACTING_SUBS = frozenset(
-    {RoutineControlType.START_ROUTINE, RoutineControlType.STOP_ROUTINE}
-)
 
 
 class SafetyBlocked(ValueError):
@@ -478,11 +458,14 @@ def check_command_safety(
             return None
         return active.check(sub, tx_id)
 
+    if service_byte == KWP_START_ROUTINE_BY_LOCAL_IDENTIFIER and active.protocol(tx_id) == KWP:
+        if len(hex_only) >= 4:
+            return check_kwp_routine(int(hex_only[2:4], 16))
+        return None
+
     if service_byte == ROUTINE_CONTROL and len(hex_only) >= 8:
-        # On KWP2000, 0x31 is StartRoutineByLocalIdentifier: byte 2 is a local id.
-        if active.protocol(tx_id) != KWP:
-            sub, rid = int(hex_only[2:4], 16), int(hex_only[4:8], 16)
-            return check_safety_system_routine(sub, rid) or check_routine(sub, rid)
+        sub, rid = int(hex_only[2:4], 16), int(hex_only[4:8], 16)
+        return check_safety_system_routine(sub, rid) or check_routine(sub, rid)
 
     return None
 
@@ -501,17 +484,6 @@ def check_guarded_service(sid: int, sub: int | None) -> str | None:
     return (
         f"BLOCKED: {name} {which} -- {guard.effect}; re-run with --unsafe if you are "
         "certain it is safe"
-    )
-
-
-def check_safety_system_routine(sub: int, rid: int) -> str | None:
-    """Why UDS ``31 {sub} {rid}`` starts or stops a safety-system routine, or None."""
-    if rid not in SAFETY_SYSTEM_ROUTINES or (sub & 0x7F) not in _ROUTINE_ACTING_SUBS:
-        return None
-    return (
-        f"BLOCKED: RoutineControl 0x{rid:04X} is a safety-system routine (ISO 26021: deploys "
-        "or disables airbags and seatbelt pretensioners); canair never sends it, with or "
-        "without --unsafe"
     )
 
 
@@ -536,17 +508,6 @@ def unliftable_block(
 ) -> str | None:
     """Why ``cmd`` to ``tx_id`` is refused with or without ``--unsafe``, or None."""
     return functional_block(cmd, policy, tx_id) or safety_system_block(cmd, policy, tx_id)
-
-
-def check_routine(sub: int, rid: int) -> str | None:
-    """Why UDS ``31 {sub} {rid}`` is refused, or None if it may be sent."""
-    name = BLOCKED_ROUTINES.get(rid)
-    if name is None or (sub & 0x7F) not in _ROUTINE_ACTING_SUBS:
-        return None
-    return (
-        f"BLOCKED: RoutineControl 0x{rid:04X} ({name}) -- reprogramming routine; "
-        "re-run with --unsafe if you are certain it is safe"
-    )
 
 
 # The only requests a functional sweep may broadcast, as (shape, what it reads).

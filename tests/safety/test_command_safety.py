@@ -361,7 +361,32 @@ class TestSafetySystemRoutines:
     def test_a_kwp2000_local_identifier_is_not_judged(self):
         # KWP2000 31 01 E201 starts local routine 0x01 with option bytes E2 01.
         assert safety_system_block("3101E201", POLICY, KWP_ECU) is None
-        assert check_command_safety("3101E201", POLICY, KWP_ECU) is None
+        assert check_command_safety("3102E201", POLICY, KWP_ECU) is None
+
+
+class TestKwpRoutines:
+    """KWP2000 StartRoutineByLocalIdentifier ids that enter the bootloader (Hyundai/Kia OBC)."""
+
+    @pytest.mark.parametrize("cmd", ["3100", "310000", "310100", "3101E201", "3100003"])
+    def test_bootloader_entries_are_refused_on_kwp(self, cmd):
+        blocked = check_command_safety(cmd, POLICY, KWP_ECU)
+        assert blocked is not None and "bootloader" in blocked and "--unsafe" in blocked
+
+    @pytest.mark.parametrize("cmd", ["3102", "3111", "31F1EEFF0011", "31"])
+    def test_other_local_ids_pass(self, cmd):
+        assert check_command_safety(cmd, POLICY, KWP_ECU) is None
+
+    @pytest.mark.parametrize("tx", [UDS_ECU, 0x7FF])
+    def test_a_uds_or_unknown_ecu_is_judged_as_routine_control(self, tx):
+        # UDS 31 01 F000 starts routine F000, not local id 0x01.
+        assert check_command_safety("3101F000", POLICY, tx) is None
+
+
+@pytest.mark.parametrize("tx", [KWP_ECU, UDS_ECU, 0x7FF])
+@pytest.mark.parametrize("cmd", ["99", "9900", "99FF00"])
+def test_the_manufacturer_service_99_is_refused(cmd, tx):
+    blocked = check_command_safety(cmd, POLICY, tx)
+    assert blocked is not None and "0x99" in blocked
 
     def test_an_ordinary_blocked_routine_stays_liftable(self):
         assert unliftable_block("3101FF00", POLICY, UDS_ECU) is None
@@ -378,9 +403,9 @@ def test_routine_results_and_other_routines_are_allowed():
 
 
 def test_routine_rule_skips_kwp_local_identifiers():
-    # KWP2000 31 01 FF00 starts local routine 0x01 with option bytes FF 00.
-    assert check_command_safety("3101FF00", POLICY, KWP_ECU) is None
-    assert check_command_safety("3101FF00", POLICY, 0x7FF) is not None  # unknown: stricter
+    # KWP2000 31 02 FF00 starts local routine 0x02 with option bytes FF 00, not UDS FF00.
+    assert check_command_safety("3102FF00", POLICY, KWP_ECU) is None
+    assert check_command_safety("3102FF01", POLICY, 0x7FF) is not None  # unknown: stricter
 
 
 class TestActionGrants:

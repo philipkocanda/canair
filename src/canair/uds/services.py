@@ -153,6 +153,8 @@ SERVICES: tuple[ServiceInfo, ...] = (
     # The ECU then sends replies on its own whenever the configured event fires.
     ServiceInfo(0x86, "ResponseOnEvent", BOTH),
     ServiceInfo(0x87, "LinkControl", UDS, actuates=True),
+    # Manufacturer-specific; the Hyundai/Kia OBC erases its stored VIN on it (OBC firmware read).
+    ServiceInfo(0x99, "EraseVin (Hyundai/Kia OBC, manufacturer-specific)", KWP2000, actuates=True),
 )
 
 _BY_SID: dict[int, ServiceInfo] = {s.sid: s for s in SERVICES}
@@ -218,6 +220,7 @@ SECURED_DATA_TRANSMISSION: Final = 0x84
 CONTROL_DTC_SETTING: Final = 0x85
 RESPONSE_ON_EVENT: Final = 0x86
 LINK_CONTROL: Final = 0x87
+ERASE_VIN: Final = 0x99
 
 #: The request SIDs of the diagnostic services, 0x10-0x3E (ISO 14229-1; KWP2000 adds 0x80+).
 REQUEST_SID_RANGE: Final = range(0x10, 0x3F)

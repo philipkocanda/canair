@@ -70,6 +70,12 @@ will not:
   and seatbelt pretensioners when a car is scrapped. A wrong request can injure a
   person, so `--unsafe` does not lift this refusal. A KWP2000 ECU is not judged by
   this rule, because there `31` takes a one-byte local identifier.
+- Start a **KWP2000 routine that enters the bootloader** (`31 00`, `31 01` on an ECU
+  the profile says speaks KWP2000). The Hyundai/Kia OBC leaves its application for a
+  reflash on either. On another make they may be unrelated routines; the refusal is
+  then only a prompt.
+- Send the manufacturer-specific service `99`. The Hyundai/Kia OBC erases its stored
+  VIN on it, in any diagnostic session.
 
 Session requests are judged by the protocol of the ECU they go to (its
 `identity.id_protocol`), because the same byte means different things: `10 82`
