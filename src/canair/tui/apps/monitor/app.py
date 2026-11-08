@@ -12,6 +12,9 @@ cursor over the decoded signal rows, ``e`` opens an in-place edit dialog
 quick-toggle the selected signal's verified/ship flags, and ``F`` cycles
 a display filter (all / verified / unverified / ship / no-ship). Edits are
 written through :mod:`canair.yaml_edit.pids` and picked up on the next poll.
+Those keys belong to the values pane (:class:`~canair.tui.apps.monitor.panes.ValuesPane`):
+each pane declares the keys that act on it, and the app only the ones that mean the same
+wherever focus is.
 
 With ``--save`` a blinking ``● REC`` (bold, never red: red means an error) marks the active
 recording. Because every
@@ -67,6 +70,7 @@ from textual.widgets import Static
 from canair.core.stop_signals import graceful_stop_async
 from canair.tui.apps.monitor.dialogs import EditParamDialog, SaveDialog
 from canair.tui.apps.monitor.overlays import EventLogModal, SessionInfoModal, SessionPickerScreen
+from canair.tui.apps.monitor.panes import ValuesPane
 from canair.tui.apps.monitor.polling import PollingMixin
 from canair.tui.apps.monitor.recording import RecordingMixin
 from canair.tui.apps.monitor.status import (
@@ -106,6 +110,7 @@ class MonitorApp(PollingMixin, RecordingMixin, HelpMixin, App):
 
     HELP_TITLE = "canair monitor — keyboard shortcuts"
     HELP_LEGEND = MONITOR_LEGEND
+    HELP_PANES = (ValuesPane,)
 
     # canair uses no command-palette commands; disable Textual's ctrl+p palette.
     ENABLE_COMMAND_PALETTE = False
@@ -131,18 +136,9 @@ class MonitorApp(PollingMixin, RecordingMixin, HelpMixin, App):
         *bind("increase", "faster", desc="poll faster"),
         *bind("decrease", "slower", desc="poll slower"),
         *bind("mode", "toggle_schedule", desc="poll schedule"),
-        # Down/up and j/k are the same movement: the signal cursor, which falls
-        # back to plain scrolling when nothing is selectable. priority beats the
-        # focused scroll container's own arrow handling.
-        *bind("move_down", "select(1)", desc="select down", show=False, priority=True),
-        *bind("move_up", "select(-1)", desc="select up", show=False, priority=True),
-        *bind("axis_start", "to_top", desc="top", show=False),
-        *bind("axis_end", "to_bottom", desc="bottom", show=False),
-        *bind("back", "clear_selection", desc="back", show=False),
-        *bind("edit", "edit"),
-        *bind("verify", "verify"),
-        *bind("exclude", "toggle_ship", desc="toggle ship"),
-        *bind("filter_cycle", "cycle_filter"),
+        # The values' own keys (the signal cursor, edit, verify, …) are the ValuesPane's.
+        # At the top level escape has nothing to back out of.
+        *bind("back", "stay", desc="back", show=False),
         *bind("reconnect", "force_reconnect"),
         *bind("pick", "pid_picker", desc="select ECUs/PIDs"),
         *bind("value_type", "session_type", desc="session type"),
@@ -159,7 +155,7 @@ class MonitorApp(PollingMixin, RecordingMixin, HelpMixin, App):
     # -- layout ------------------------------------------------------------
     def compose(self) -> ComposeResult:
         yield Static("", id="header", markup=True)
-        with VerticalScroll(id="scroll"):
+        with ValuesPane(id="scroll"):
             yield Static(self.controller.renderer.render(), id="body", markup=False)
         yield StatusBar(id="status")
 
@@ -326,13 +322,8 @@ class MonitorApp(PollingMixin, RecordingMixin, HelpMixin, App):
         """True when a dialog owns the screen (don't act on the view beneath it)."""
         return len(self.screen_stack) > 1
 
-    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
-        # The signal cursor's arrow bindings are priority bindings, which run
-        # before the focused widget — so while a dialog is up they must stand
-        # down, or the dialog's own list could never be moved.
-        if action == "select" and self._modal_active():
-            return False
-        return True
+    def action_stay(self) -> None:
+        """Escape outside a pane: nothing to back out of, and never a quit."""
 
     def action_select(self, delta: int) -> None:
         """Move the signal-selection cursor and scroll it into view.

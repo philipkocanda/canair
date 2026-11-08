@@ -25,6 +25,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
+from textual.widget import Widget
 from textual.widgets import Label, Static
 
 from canair.tui.keys import (
@@ -128,19 +129,30 @@ class HelpModal(OverlayScroll, ModalScreen[None]):
         title: str,
         rows: list[tuple[str, str]],
         legend: Sequence[LegendRow] = (),
+        sections: Sequence[tuple[str, list[tuple[str, str]]]] = (),
     ):
         super().__init__()
         self._title = title
         self._rows = rows
         self._legend = tuple(legend)
+        # (heading, rows) per pane: keys that act only while that pane has focus.
+        self._sections = tuple((h, r) for h, r in sections if r)
+
+    @property
+    def all_rows(self) -> list[tuple[str, str]]:
+        """Every ``(keys, description)`` row, the app's and each section's."""
+        return [*self._rows, *(row for _h, rows in self._sections for row in rows)]
 
     def compose(self) -> ComposeResult:
-        width = max((len(k) for k, _ in self._rows), default=4)
-        lines = "\n".join(f"{k:>{width}}  {desc}" for k, desc in self._rows)
+        width = max((len(k) for k, _ in self.all_rows), default=4)
+        text = Text("\n".join(f"{k:>{width}}  {desc}" for k, desc in self._rows))
+        for heading, rows in self._sections:
+            text.append(f"\n\n{heading}\n", style="bold")
+            text.append("\n".join(f"{k:>{width}}  {desc}" for k, desc in rows))
         with Vertical(id="help-box"):
             yield Label(self._title, id="help-title")
             with VerticalScroll(id="help-rows"):
-                yield Static(lines or "(no shortcuts)", markup=False)
+                yield Static(text if text.plain else "(no shortcuts)", markup=False)
                 if self._legend:
                     yield Static(legend_text(self._legend, width), id="help-legend")
             yield Label(hint(arrows_hint("scroll"), PAGE_HINT, CLOSE_HINT), id="help-hint")
@@ -164,6 +176,9 @@ class HelpMixin:
     HELP_EXTRA_ROWS: ClassVar[tuple[tuple[str, str], ...]] = SCROLL_HELP_ROWS
     #: ``(sample, style, meaning)`` rows drawn as a colour legend under the keys.
     HELP_LEGEND: ClassVar[tuple[LegendRow, ...]] = ()
+    #: Widgets whose own ``BINDINGS`` act while they have focus (the monitor's panes): each
+    #: gets a section headed by its ``HELP_SECTION``.
+    HELP_PANES: ClassVar[tuple[type[Widget], ...]] = ()
 
     def action_help(self) -> None:
         assert isinstance(self, App)
@@ -171,4 +186,8 @@ class HelpMixin:
         if len(self.screen_stack) > 1:
             return
         rows = bindings_help_rows(self) + list(self.HELP_EXTRA_ROWS)
-        self.push_screen(HelpModal(self.HELP_TITLE, rows, self.HELP_LEGEND))
+        sections = [
+            (getattr(pane, "HELP_SECTION", pane.__name__), binding_rows(pane.BINDINGS))
+            for pane in self.HELP_PANES
+        ]
+        self.push_screen(HelpModal(self.HELP_TITLE, rows, self.HELP_LEGEND, sections))

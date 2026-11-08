@@ -756,3 +756,40 @@ class TestMonitorEditing:
             await pilot.pause(0.1)
             assert not isinstance(app.screen, EventLogModal)
             await pilot.press("q")
+
+
+class TestPaneKeys:
+    """The values own their keys: they act while the values pane has focus."""
+
+    @pytest.mark.asyncio
+    async def test_help_lists_the_values_keys_in_their_own_section(self):
+        from textual.widgets import Static
+
+        from canair.tui.help import HelpModal
+
+        app = MonitorApp(FakeController())
+        async with app.run_test(size=(100, 40)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("question_mark")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, HelpModal)
+            text = "\n".join(_plain(s.render()) for s in app.screen.query(Static))
+            values = text.split("\nValues\n", 1)
+            assert len(values) == 2, text
+            assert "edit" in values[1] and "verify" in values[1]
+            assert not any(line.endswith("  edit") for line in values[0].splitlines())
+            await pilot.press("escape", "q")
+
+    @pytest.mark.asyncio
+    async def test_the_values_pane_has_focus_and_the_cursor_keys(self):
+        from canair.tui.apps.monitor.panes import ValuesPane
+
+        ed = FakeEditor()
+        app = MonitorApp(FakeController(editor=ed))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            assert isinstance(app.focused, ValuesPane)
+            await pilot.press("j")
+            await pilot.pause(0.05)
+            assert ed.selected is not None
+            await pilot.press("q")

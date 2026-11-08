@@ -23,6 +23,7 @@ import pytest
 from textual.app import App
 from textual.binding import Binding
 from textual.screen import ModalScreen, Screen
+from textual.widget import Widget
 
 import canair
 from canair.tui.keys import DISMISS_DESCRIPTION, KEY_ROLES, ROLES, bind, keys_for
@@ -34,7 +35,10 @@ _ALLOWED_MULTI_ROLE_KEYS = {"n"}
 
 
 def _tui_classes() -> list[type]:
-    """Every Textual ``App``/``Screen`` subclass defined in ``canair``.
+    """Every Textual ``App``/``Screen`` subclass defined in ``canair``, and every widget with keys.
+
+    A widget that declares its own ``BINDINGS`` (a monitor pane) owns those keys while it has
+    focus, so they follow the same keymap as an app's.
 
     Discovered by import rather than listed, so a new TUI is covered the moment
     it exists — a hand-maintained list would be exactly as driftable as the
@@ -49,7 +53,12 @@ def _tui_classes() -> list[type]:
         for _name, obj in inspect.getmembers(module, inspect.isclass):
             if obj.__module__ != mod_info.name:
                 continue
-            if issubclass(obj, App | Screen) and obj not in (App, Screen, ModalScreen):
+            own_keys = issubclass(obj, Widget) and "BINDINGS" in obj.__dict__
+            if (issubclass(obj, App | Screen) or own_keys) and obj not in (
+                App,
+                Screen,
+                ModalScreen,
+            ):
                 found[f"{obj.__module__}.{obj.__qualname__}"] = obj
     return list(found.values())
 
@@ -70,6 +79,7 @@ def test_tui_classes_are_discovered():
     assert {"MonitorApp", "CapturesStepApp", "PlotApp", "SniffApp", "MonitorSelectApp"} <= names
     assert {"HelpModal", "ConfirmModal", "TextPromptModal", "SaveDialog"} <= names
     assert {"MonitorSelectScreen", "LiveMonitorSelectScreen", "ListPickerModal"} <= names
+    assert "ValuesPane" in names
 
 
 def test_every_declared_key_is_in_the_keymap():
