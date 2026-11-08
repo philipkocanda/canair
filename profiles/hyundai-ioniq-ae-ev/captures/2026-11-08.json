@@ -259,6 +259,102 @@
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921105E064803000000004979000720","time":"00:47:03.860","elapsed_ms":57},
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF9226482648A3FFE70EA4070707070707070007C311C201000093000592B900059036000205280001F49401629CEC0D01760000000003E8","time":"00:47:04.022","elapsed_ms":109}
       ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu ident: health",
+      "version": "5.2.0+main.3cf5cdf",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921105406430300000000D678000720","time":"08:59:55.026","elapsed_ms":60},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFA61D852648A3FFED0F0C080607070706070007C83DC8010000940005930D00059036000205480001F4940162CC3E0901800000000003E8","time":"08:59:55.185","elapsed_ms":108}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu 1A non-standard DIDs (firmware-revealed)",
+      "version": "5.2.0+main.3cf5cdf.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 5
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"1AFF","payload":"5AFF00","time":"09:01:08.949"},
+        {"rx":"0x7EA","pid":"1A84","response":"NRC 0x12 (subFunctionNotSupportedOrInvalidFormat)"},
+        {"rx":"0x7EA","pid":"1A86","response":"NRC 0x12 (subFunctionNotSupportedOrInvalidFormat)"},
+        {"rx":"0x7EA","pid":"1A87","response":"NRC 0x12 (subFunctionNotSupportedOrInvalidFormat)"},
+        {"rx":"0x7EA","pid":"1A88","response":"NRC 0x12 (subFunctionNotSupportedOrInvalidFormat)"}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu 21 record enumeration check",
+      "version": "5.2.0+main.3cf5cdf.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 3
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2103","response":"NRC 0x12 (subFunctionNotSupportedOrInvalidFormat)"},
+        {"rx":"0x7EA","pid":"2104","response":"NRC 0x12 (subFunctionNotSupportedOrInvalidFormat)"},
+        {"rx":"0x7EA","pid":"2105","response":"NRC 0x12 (subFunctionNotSupportedOrInvalidFormat)"}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "vcu ident: health after sweep",
+      "version": "5.2.0+main.3cf5cdf.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921105406400300000000FD78000720","time":"09:02:07.644","elapsed_ms":57},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFA61D682648A3FFEB0F0E080607070706070007C83DC8010000940005930E00059036000205480001F4940162CCC20901810000000003E8","time":"09:02:07.831","elapsed_ms":105}
+      ]
     }
   ]
 }

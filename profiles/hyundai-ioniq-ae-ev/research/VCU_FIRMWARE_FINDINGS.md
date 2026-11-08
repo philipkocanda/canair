@@ -13,17 +13,19 @@ updated: 2026-11-08
 status: active
 verification: >-
   Static reverse-engineering of the VCU flash image (Ghidra, 32-bit PowerPC), cross-checked against
-  this car's live captures. The service list and the 0x21 record table are confirmed against live
-  reads (2101/2102/21F2 answer, 2103-2105 give NRC 0x12, 0x23 memory reads work). The four
-  identity strings in the 0x1A table match the profile. The RAM-backed 0x1A values and the
-  preconditioning control algorithm are NOT confirmed; each claim below is tagged.
+  this car's live captures. The service list, the 0x21 record table and the 0x1A read/write-flag
+  split are confirmed against live reads on 2026-11-08 (2101/2102/21F2 answer, 2103-2105 and the
+  read-flag-2 records give NRC 0x12, 1AFF reads 0x00, 0x23 memory reads work, 0x22 rejects). The
+  four identity strings in the 0x1A table match the profile. The preconditioning control algorithm
+  is NOT reversed; claims about it are tagged.
 sections:
   - section: "3"
     status: open
+    date: 2026-11-08
     note: >-
-      The 0x1A identification DID map. 8C/8D/8E/91 already match ecus/vcu.yaml's identity block;
-      the other 13 DIDs are not defined as signals or research entries yet, and their RAM-backed
-      values were not read live.
+      The 0x1A DID map, confirmed live. 8C/8D/8E/91/90(VIN) match ecus/vcu.yaml; the other readable
+      records (80, 8A, 8B, 92, 98, 99, FF) are not defined yet. The read-flag-2 slots (84/86/87/88/
+      94) are not 0x1A-readable (NRC 0x12 live).
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
   - section: "2"
     status: integrated
@@ -146,7 +148,8 @@ read (record `01` starts `FF E0 00 00 09`, which matches the live `2101` payload
 | `2102` | 21 | RAM `0x4000A1FE` | the live-data record |
 | `21F2` | 84 | RAM `0x4000005A` | the static / last-cycle record |
 
-There is no other `21xx` record, which is why `2103`-`2105` answer NRC `0x12` on the car.
+There is no other `21xx` record, which is why `2103`-`2105` answer NRC `0x12` on the car
+(confirmed live 2026-11-08).
 
 ### 3.2 Service 0x30 InputOutputControlByLocalIdentifier — the actuator map
 
@@ -178,39 +181,35 @@ status byte). Everything else in the `0x1A` table is read-only.
 ### 3.5 Service 0x1A ReadEcuIdentification — 17 DIDs
 
 A table of 17 records: record id, data length, a source pointer, and read/write flags. The same
-table backs InputOutputControl (`0x30`) and WriteDataByLocalIdentifier (`0x3B`), gated by the
-flags. Four records hold strings already in the profile's identity block, which confirms the
-decode:
+table backs InputOutputControl (`0x30`) and WriteDataByLocalIdentifier (`0x3B`), so not every
+record is readable with `0x1A`: only the records whose read flag is `1` answer a `0x1A` request;
+the read-flag-`2` records reject it with NRC `0x12` (they are slots for the other services). A
+live sweep on 2026-11-08 (charging) confirmed this split exactly.
 
-| DID | len | value / meaning | state |
+Readable with `0x1A` (read flag `1`), with the value seen live:
+
+| DID | len | value seen live (2026-11-08) | state |
 |---|---|---|---|
+| `1A80` | 97 | masked (canair treats it as sensitive — may embed the VIN) | not in profile |
+| `1A8A` | 10 | all `0x20` (blank system-supplier field) | not in profile |
+| `1A8B` | 4 | `1E 09 0D 14` (ECU manufacturing date, packed) | not in profile |
 | `1A8C` | 8 | `AEVLDC53` — ecu_id | in profile |
 | `1A8D` | 16 | `EAEEO5L-NS7-D060` — sw_id | in profile |
 | `1A8E` | 8 | `C5210617` — calibration | in profile |
+| `1A90` | 17 | VIN — masked/withheld (sensitive); **writable** | in profile (vin) |
 | `1A91` | 12 | `36601-0E250` — part number | in profile |
+| `1A92` | 8 | empty | not in profile |
+| `1A98` | 10 | all `0x20` (blank repair-shop/tester-serial field) | not in profile |
+| `1A99` | 4 | `1E 09 0D 14` (programming date, packed) | not in profile |
+| `1AFF` | 1 | `0x00` (status byte); **writable** | not in profile |
 
+Not readable with `0x1A` (read flag `2`) — these answer NRC `0x12` to a `0x1A` request, confirmed
+live for `84`/`86`/`87`/`88`; they are shared-table slots for IOControl/write, not identification
+reads: `1A84` (1 byte), `1A86` (1), `1A87` (4), `1A88` (2), `1A94` (10).
 
-The other 13 records are not in the profile yet:
-
-| DID | len | source | note |
-|---|---|---|---|
-| `1A80` | 97 | RAM | a large status / identification block (live value) |
-| `1A84` | 1 | RAM | live value |
-| `1A86` | 1 | RAM | live value |
-| `1A87` | 4 | RAM | live value |
-| `1A88` | 2 | RAM | live value |
-| `1A8A` | 10 | RAM | live value |
-| `1A8B` | 4 | flash | version/date bytes |
-| `1A90` | 17 | RAM, **writable** | VIN — sensitive; the only free-text writable record |
-| `1A92` | 8 | RAM | live value |
-| `1A94` | 10 | RAM | live value |
-| `1A98` | 10 | RAM | live value |
-| `1A99` | 4 | flash | version/date bytes |
-| `1AFF` | 1 | RAM, **writable** | a status byte |
-
-Only `1A90` (VIN) and `1AFF` are writable through WriteDataByLocalIdentifier (`0x3B`); the rest are
-read-only. The RAM-backed values were not read live (the car stopped charging, so the VCU was
-asleep, before the identity read). They need a session while the IG3 rail is on.
+Only `1A90` (VIN) and `1AFF` are writable through WriteDataByLocalIdentifier (`0x3B`), both gated
+to a secured session; everything else is read-only. The two writable records are the only way to
+change VCU state over diagnostics, and neither is a schedule.
 
 ## 4. CAN mailbox map
 
@@ -244,10 +243,11 @@ tracing it end-to-end is the next step.
 
 ## 6. What to fold into the profile next
 
-- **Confirm the 13 new `1A` DIDs live** (needs the car charging or in IG3), then record them with
-  `canair pids` — as research entries first, promoted to signals once their decode is known.
-  Keep `1A90` (VIN) `sensitive: true`.
-- **Record that service `0x21` has exactly three records**, so `2103`-`2105` are correctly known
-  absent rather than untested, on the pending service-ID research entry in `ecus/vcu.yaml`.
+- **The 7 new readable `1A` DIDs are confirmed live** (80, 8A, 8B, 92, 98, 99, FF). Record them
+  in `ecus/vcu.yaml` with `canair pids`/`ecu`. `1A8B`/`1A99` are packed date fields; `1A8A`/`1A92`/
+  `1A98` are blank on this unit; `1AFF` is a `0x00` status byte; `1A80` stays masked (`sensitive`),
+  as does the `1A90` VIN.
+- **Service `0x21` has exactly three records** (2103-2105 NRC `0x12` confirmed live), so they are
+  correctly known absent rather than untested.
 - **The preconditioning path** belongs with the broadcast-frame work, not the diagnostic DIDs: it
   needs a P-CAN tap to see `0x587`/`0x567`/`0x57B`, which the OBD port does not carry.
