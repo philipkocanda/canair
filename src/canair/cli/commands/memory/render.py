@@ -12,12 +12,14 @@ from canair.memory.store import Dump
 from canair.render import messages
 
 
-def _span(start: int, end: int, width: int) -> str:
+def span_text(start: int, end: int, width: int) -> str:
     return f"0x{start:0{width}X}-0x{end:0{width}X}"
 
 
-def _size(n: int) -> str:
-    return f"{n} B" if n < 1024 else f"{n / 1024:.1f} KiB"
+def size_text(n: int) -> str:
+    if n < 1024:
+        return f"{n} B"
+    return f"{n / 1024:.1f} KiB" if n < 1024 * 1024 else f"{n / 1024 / 1024:.1f} MiB"
 
 
 def region_rows(regions: list[MemoryRegion]) -> list[dict[str, Any]]:
@@ -64,8 +66,8 @@ def print_scan(scan: Any, *, as_json: bool) -> None:
         print()
         for r in scan.regions:
             nrc = f"  NRC 0x{r.nrc:02X}" if r.nrc is not None else ""
-            size = _size(r.end - r.start + 1)
-            print(f"    {_span(r.start, r.end, width)}  {size:>10}  {r.result}{nrc}")
+            size = size_text(r.end - r.start + 1)
+            print(f"    {span_text(r.start, r.end, width)}  {size:>10}  {r.result}{nrc}")
     if scan.max_block:
         print(f"\n  Largest block that came back whole: {scan.max_block} bytes")
     print(f"  {scan.reads} read(s)")
@@ -86,6 +88,7 @@ def dump_doc(dump: Dump) -> dict[str, Any]:
         "taken": dump.taken,
         "label": dump.label,
         "complete": dump.complete,
+        "resumable": dump.resumable,
         "bytes_read": dump.bytes_read,
         "stretches": [{"start": s.start, "end": s.end} for s in dump.stretches],
         "gaps": [
@@ -99,14 +102,14 @@ def print_dump_summary(dump: Dump, *, as_json: bool, note: str | None = None) ->
         print(json.dumps(dump_doc(dump), indent=2))
         return
     width = 2 * max(4, len(f"{max((s.end for s in dump.stretches), default=0):X}") // 2)
-    print(f"\n  {dump.id}  ·  {dump.ecu} · {_size(dump.bytes_read)} read", end="")
+    print(f"\n  {dump.id}  ·  {dump.ecu} · {size_text(dump.bytes_read)} read", end="")
     print(f" · software {dump.software}" if dump.software else "")
     for s in dump.stretches:
-        print(f"    {_span(s.start, s.end, width)}  {_size(len(s.data)):>10}  read")
+        print(f"    {span_text(s.start, s.end, width)}  {size_text(len(s.data)):>10}  read")
     for g in dump.gaps:
         nrc = f"  NRC 0x{g.nrc:02X}" if g.nrc is not None else ""
         print(
-            f"    {_span(g.start, g.end, width)}  {_size(g.end - g.start + 1):>10}  {g.result}{nrc}"
+            f"    {span_text(g.start, g.end, width)}  {size_text(g.end - g.start + 1):>10}  {g.result}{nrc}"
         )
     if note:
         messages.warning(note)
@@ -122,9 +125,9 @@ def print_listing(dumps: list[Dump], *, as_json: bool) -> None:
         print("  No dumps yet (make one with `canair memory dump`).")
         return
     for d in dumps:
-        state = "" if d.complete else "  (incomplete)"
+        state = "  (resumable)" if d.resumable else "" if d.complete else "  (incomplete)"
         label = f"  {d.label}" if d.label else ""
-        print(f"  {d.id:<40} {_size(d.bytes_read):>10}  {d.software or '-'}{label}{state}")
+        print(f"  {d.id:<40} {size_text(d.bytes_read):>10}  {d.software or '-'}{label}{state}")
 
 
 def print_hexdump(dump: Dump, start: int | None, end: int | None, *, as_json: bool) -> None:

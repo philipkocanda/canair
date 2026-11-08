@@ -4,6 +4,7 @@ from canair.ecus.can_buses import (
     ALL_CODE,
     allowed_can_buses,
     bus_names,
+    bus_neighbours,
     expand_bus_membership,
     load_can_bus_codes,
     load_can_buses,
@@ -124,3 +125,16 @@ def test_validate_rejects_non_boolean_private(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr("canair.cli.profile_context._active", prof)
     assert run_can_buses() == 1
     assert "can_buses.B-CAN.private: must be true or false" in capsys.readouterr().err
+
+
+def test_bus_neighbours_share_a_segment_or_the_gateway():
+    ecus = {
+        "VCU": {"can_bus": ["P-CAN"]},
+        "BMS": {"can_bus": ["P-CAN"]},
+        "BCM": {"can_bus": ["B-CAN", "C-CAN"]},
+        "IGPM": {"can_bus": ["ALL"]},
+        "AVN": {},
+    }
+    assert bus_neighbours(ecus, "VCU") == ["BMS", "IGPM"]
+    assert bus_neighbours(ecus, "IGPM") == ["VCU", "BMS", "BCM"]
+    assert bus_neighbours(ecus, "AVN") == []

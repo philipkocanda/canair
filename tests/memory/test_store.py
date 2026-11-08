@@ -7,13 +7,18 @@ import pytest
 from canair.memory.diff import diff_dumps
 from canair.memory.export import to_bin, to_ihex, to_srec
 from canair.memory.store import (
+    DATA,
+    MANIFEST,
     Dump,
     DumpError,
+    DumpWriter,
+    Extent,
     Gap,
     Stretch,
     iter_dumps,
     load_dump,
     merge_stretches,
+    pieces_hash,
     resolve_dump,
     save_dump,
 )
@@ -40,7 +45,7 @@ class TestStore:
             gaps=[Gap(0x1002, 0x107F, "out_of_range", 0x31)],
         )
         path = save_dump(dump, tmp_path)
-        assert path.parent.name == "BCM" and (path / "00001000-00001001.bin").is_file()
+        assert path.parent.name == "BCM" and (path / DATA).read_bytes() == b"\x01\x02\x03"
         back = load_dump(path)
         assert back.stretches == dump.stretches and back.gaps == dump.gaps
         assert back.software == "F195:1" and back.id == f"BCM/{path.name}"
@@ -61,6 +66,67 @@ class TestStore:
     def test_merge_stretches(self):
         merged = merge_stretches([Stretch(2, b"c"), Stretch(0, b"ab"), Stretch(5, b"x")])
         assert merged == [Stretch(0, b"abc"), Stretch(5, b"x")]
+
+
+class TestIncrementalWrites:
+    def _writer(self, tmp_path):
+        dump = _dump([])
+        dump.complete = False
+        return DumpWriter.create(dump, tmp_path, address_width=8)
+
+    def test_each_extent_is_on_disk_once_it_is_added(self, tmp_path):
+        writer = self._writer(tmp_path)
+        writer.add([Stretch(0x1000, b"ab")], [], Extent(0x1000, 0x1001, "h1"))
+        assert writer.dump.path is not None
+        back = load_dump(writer.dump.path)
+        assert back.stretches == [Stretch(0x1000, b"ab")] and not back.complete
+        assert [e.start for e in back.extents] == [0x1000]
+        writer.add([Stretch(0x1002, b"cd")], [Gap(0x1004, 0x1007, "out_of_range", 0x31)])
+        writer.finish(True)
+        back = load_dump(writer.dump.path)
+        assert back.stretches == [Stretch(0x1000, b"abcd")] and back.complete
+        assert back.gaps == [Gap(0x1004, 0x1007, "out_of_range", 0x31)]
+
+    def test_bytes_no_manifest_names_are_ignored(self, tmp_path):
+        """A crash after the append and before the manifest loses only that extent."""
+        writer = self._writer(tmp_path)
+        writer.add([Stretch(0, b"ok")], [])
+        writer.close()
+        assert writer.dump.path is not None
+        with (writer.dump.path / DATA).open("ab") as f:
+            f.write(b"half an extent")
+        assert load_dump(writer.dump.path).stretches == [Stretch(0, b"ok")]
+        again = DumpWriter(load_dump(writer.dump.path))
+        again.add([Stretch(2, b"!")], [])
+        assert load_dump(writer.dump.path).stretches == [Stretch(0, b"ok!")]
+
+    def test_replace_swaps_one_extent(self, tmp_path):
+        writer = self._writer(tmp_path)
+        writer.add([Stretch(0, b"aaaa")], [], Extent(0, 3, "x"))
+        writer.add([Stretch(4, b"bbbb")], [], Extent(4, 7, "y"))
+        writer.replace(Extent(4, 7, "z", verified="first_read_error"), [Stretch(4, b"cccc")])
+        assert writer.dump.path is not None
+        back = load_dump(writer.dump.path)
+        assert back.stretches == [Stretch(0, b"aaaacccc")]
+        assert [(e.start, e.sha256) for e in back.extents] == [(0, "x"), (4, "z")]
+
+    def test_a_version_1_dump_still_loads(self, tmp_path):
+        path = tmp_path / "BCM" / "old"
+        path.mkdir(parents=True)
+        (path / "00001000-00001001.bin").write_bytes(b"\x01\x02")
+        (path / MANIFEST).write_text(
+            "manifest: 1\necu: BCM\ntx_id: '0x7A0'\nmemory_format: '24'\ntaken: x\n"
+            "stretches:\n- {start: '0x00001000', end: '0x00001001', file: 00001000-00001001.bin}\n"
+        )
+        back = load_dump(path)
+        assert back.stretches == [Stretch(0x1000, b"\x01\x02")] and back.complete
+        assert not back.resumable
+
+    def test_the_hash_does_not_depend_on_how_many_reads_brought_the_bytes(self):
+        assert pieces_hash([Stretch(0, b"ab"), Stretch(2, b"c")]) == pieces_hash(
+            [Stretch(0, b"abc")]
+        )
+        assert pieces_hash([Stretch(0, b"abc")]) != pieces_hash([Stretch(1, b"abc")])
 
 
 class TestDiff:

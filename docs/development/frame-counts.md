@@ -45,6 +45,16 @@ parse. So four rules hold, and a change to this code must keep them:
     - An **NRC counts as held**: it is a complete answer that occupies fewer frames. Otherwise
       every PID that an ECU refuses while a session is closed would opt out.
 
+## A memory read is keyed by its size
+
+The count is learned per `CountKey`, the request header and the request string. A memory read
+(`0x23`) has a different string at every address, so it would never learn a count. Its reply is
+`63` and exactly the bytes asked for, so the size alone fixes the length.
+`uds/frame_counts.py::count_key` therefore keys a memory read as the same read at address 0.
+One plain read of a size teaches the count for every address, and the key is still a real,
+even-length request, so `requestable()` applies to it unchanged. Both terminals and the profile
+seed use `count_key`. A 61-byte memory read is the largest whose 62-byte reply fits 9 frames.
+
 ## Who owns what
 
 | Piece | Module | Job |

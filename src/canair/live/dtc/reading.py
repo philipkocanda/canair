@@ -55,7 +55,7 @@ _KWP_FORM_NOTES = {
 }
 
 
-async def _read_one(
+async def read_ecu_dtcs(
     terminal: Terminal,
     tx_id: int,
     mask: int,

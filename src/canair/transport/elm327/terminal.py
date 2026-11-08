@@ -52,7 +52,7 @@ from canair.transport.elm327.addressing import (
 from canair.transport.elm327.channel import Channel
 from canair.transport.elm327.commands import RESET_COMMANDS, canonical
 from canair.transport.elm327.eeprom import init_commands
-from canair.transport.elm327.frame_count import CountKey, FrameCountCache
+from canair.transport.elm327.frame_count import CountKey, FrameCountCache, count_key
 from canair.transport.elm327.functional import elm_functional_exchange
 from canair.transport.elm327.pipe import ResponsePipe
 from canair.transport.elm327.session import short_ecu_wait
@@ -735,7 +735,7 @@ class Elm327Terminal:
         # was forgotten that sends nothing.
         header = self._cur_header
         protocol = self.session_policy.protocol(header)
-        counting = self._frame_counts.attempt((header, service_pid))
+        counting = self._frame_counts.attempt(count_key(header, service_pid, protocol))
         # One transaction for the whole retry sequence: a keepalive slipping in
         # between attempts would re-point the header and invalidate the retry.
         async with self.transaction():

@@ -30,7 +30,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from canair.uds.frame_counts import CountKey, FrameCountLedger
+from canair.uds.frame_counts import CountKey, FrameCountLedger, count_key
 from canair.uds.response import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse
 
 # Highest count we are willing to emit. The digit is a single hex nibble, so the
@@ -40,10 +40,10 @@ from canair.uds.response import CAT_DECODE, CAT_DROP, CAT_STALE, UdsResponse
 # whose response needs more frames than this simply keeps the unoptimized path.
 MAX_REQUESTABLE_FRAMES = 9
 
-# ``CountKey`` is defined with the ledger, in ``src/canair/uds/frame_counts.py``: the key
-# identifies a *response length*, which both transport families observe, while only
-# this module decides what to ask for. Re-exported because the terminals key their
-# call sites off it.
+# ``CountKey`` and ``count_key`` are defined with the ledger, in
+# ``src/canair/uds/frame_counts.py``: the key identifies a *response length*, which both
+# transport families observe, while only this module decides what to ask for.
+# Re-exported because the terminals key their call sites off it.
 __all__ = [
     "MAX_REQUESTABLE_FRAMES",
     "CountAttempt",
@@ -51,6 +51,7 @@ __all__ = [
     "CountVerdict",
     "FrameCountCache",
     "annotate_request",
+    "count_key",
     "digit_held",
     "requestable",
 ]

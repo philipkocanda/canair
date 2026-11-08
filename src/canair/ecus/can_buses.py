@@ -32,8 +32,9 @@ declare buses at all).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from canair.core import yaml_io
 
@@ -174,4 +175,26 @@ def expand_bus_membership(
             out.update(declared_list)
         else:
             out.add(code)
+    return out
+
+
+def bus_neighbours(ecus: Mapping[str, Any], name: str) -> list[str]:
+    """The ECUs that share a ``can_bus:`` segment with ``name`` (a gateway on ``ALL`` too).
+
+    ``ecus`` is the profile's ``ecus:`` mapping. ``name`` itself is not in the list.
+    """
+
+    def codes(ecu_def: Any) -> set[str]:
+        value = ecu_def.get("can_bus") if isinstance(ecu_def, Mapping) else None
+        items = [value] if isinstance(value, str) else list(value or ())
+        return {str(c).strip().upper() for c in items if str(c).strip()}
+
+    mine = codes(ecus.get(name))
+    if not mine:
+        return []
+    out = []
+    for other, ecu_def in ecus.items():
+        theirs = codes(ecu_def)
+        if other != name and theirs and (mine & theirs or ALL_CODE in theirs | mine):
+            out.append(other)
     return out

@@ -24,7 +24,9 @@ def add_memory_parser(kinds) -> argparse.ArgumentParser:
         "finds the largest block that comes back whole inside a readable region, doubling "
         "from 16 bytes up to --block-limit and stopping at the first that fails. It stops "
         "on serviceNotSupported, on securityAccessDenied (canair never unlocks), on "
-        "conditionsNotCorrect to every read, and when the ECU stops answering. The map, the "
+        "conditionsNotCorrect to every read, and when the ECU stops answering. A silent "
+        "address is mapped as no_answer when the ECU still answers at the last readable one, "
+        "and past it the probes step to the next aligned boundary. The map, the "
         "format and the block are written to the ECU's memory: section (--dry-run: not). "
         "There is no default range: name ranges from the microcontroller's memory map. "
         "Asks before the first read (--yes to skip).",

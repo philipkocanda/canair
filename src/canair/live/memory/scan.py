@@ -7,6 +7,11 @@ the ECU and the transport deliver (``max_block``), climbing from small sizes to 
 :data:`DEFAULT_BLOCK_LIMIT` unless told otherwise: some ECUs hang on a read larger than they
 support. Every read is ReadMemoryByAddress.
 
+Silence is classified. After a probe nothing answers, one byte is read at the last address
+that did: an answer makes the silent address a refusal (``no_answer``), and the map goes on.
+Above the last readable address the probes then step to the next boundary the silent address
+is aligned to, so a large silent space costs a few timeouts, not hundreds.
+
 It stops, and reports why, when the ECU does not support the service, answers
 securityAccessDenied (canair never unlocks), answers conditionsNotCorrect to every read
 (wrong session or vehicle state), or stops answering.
@@ -38,10 +43,8 @@ from canair.uds.memory import (
 )
 from canair.yaml_edit.memory import record_scan
 
-from .reads import MemoryTarget, classify, maybe_session, read_memory
+from .reads import SILENT_LIMIT, MemoryTarget, classify, maybe_session, read_memory
 
-#: Silent reads in a row after which the ECU is taken to have stopped answering.
-SILENT_LIMIT = 3
 #: conditionsNotCorrect reads in a row, with nothing else seen, after which the scan stops.
 CONDITIONS_LIMIT = 8
 
@@ -99,6 +102,7 @@ class _Prober:
         self.target = target
         self.throttle_s = throttle_s
         self.reads = 0
+        self.last_readable: int | None = None
         self._silent = 0
         self._conditions = 0
         self._anything_else = False
@@ -113,9 +117,24 @@ class _Prober:
             await asyncio.sleep(self.throttle_s)
         return classify(resp), resp.get("nrc")
 
+    async def _alive(self, fmt: MemoryFormat) -> bool | None:
+        """Does the last readable address still answer? ``None``: none is known yet."""
+        if self.last_readable is None:
+            return None
+        result, _ = await self.ask(fmt, self.last_readable)
+        return result is not RegionResult.NO_ANSWER
+
     async def probe(self, fmt: MemoryFormat, address: int) -> tuple[RegionResult, int | None]:
         result, nrc = await self.ask(fmt, address)
-        self._silent = self._silent + 1 if result is RegionResult.NO_ANSWER else 0
+        if result is RegionResult.READABLE:
+            self.last_readable = address
+        if result is RegionResult.NO_ANSWER:
+            alive = await self._alive(fmt)
+            if alive is False:
+                raise ScanStopped("the ECU stopped answering", address)
+            self._silent = 0 if alive else self._silent + 1
+        else:
+            self._silent = 0
         if result is RegionResult.CONDITIONS:
             self._conditions += 1
         elif result is not RegionResult.NO_ANSWER:
@@ -177,13 +196,23 @@ async def _map_range(
     points: list[Point],
     progress: Callable[[str], None],
 ) -> None:
-    """Probe ``start..end`` every ``step`` bytes, then bisect every change to its address."""
-    addresses = list(range(start, end + 1, step))
-    if addresses[-1] != end:
-        addresses.append(end)
-    for i, address in enumerate(addresses, 1):
-        progress(f"    probing 0x{address:X}  [{i}/{len(addresses)}]")
-        points.append((address, *await prober.probe(fmt, address)))
+    """Probe ``start..end`` every ``step`` bytes, then bisect every change to its address.
+
+    Past a silent refusal above every readable address, the step grows to the alignment of
+    the silent address (``0x400000`` → probes at ``0x800000``, ``0xC00000``).
+    """
+    address, n = start, 0
+    while True:
+        n += 1
+        progress(f"    probing 0x{address:X}  [{n}]")
+        result, nrc = await prober.probe(fmt, address)
+        points.append((address, result, nrc))
+        top = prober.last_readable
+        if result is RegionResult.NO_ANSWER and top is not None and address > top:
+            step = max(step, address & -address)
+        if address >= end:
+            break
+        address = min(end, address + step)
     while True:
         points.sort(key=lambda p: p[0])
         pair = next(

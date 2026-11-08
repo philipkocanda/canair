@@ -45,7 +45,7 @@ def hex_int(value: str) -> int:
     return n
 
 
-def add_read_args(parser: argparse.ArgumentParser) -> None:
+def add_read_args(parser: argparse.ArgumentParser, *, throttle_ms: int = 20) -> None:
     """The flags every memory read takes: format, session, throttle and the confirmation."""
     parser.add_argument(
         "--format",
@@ -63,7 +63,10 @@ def add_read_args(parser: argparse.ArgumentParser) -> None:
         "--mode", dest="session_mode", metavar="HEX", help="Session mode for --session"
     )
     parser.add_argument(
-        "--throttle-ms", type=int, default=20, help="Delay in ms between reads (default 20)"
+        "--throttle-ms",
+        type=int,
+        default=throttle_ms,
+        help=f"Delay in ms between reads (default {throttle_ms})",
     )
     parser.add_argument(
         "--yes", "-y", action="store_true", help="Skip the confirmation before the first read"

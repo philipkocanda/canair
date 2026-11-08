@@ -131,3 +131,21 @@ def test_confirmation_is_required_without_a_terminal(argv, monkeypatch, capsys):
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)
     assert main(argv) == 2
     assert "--yes" in capsys.readouterr().err
+
+
+def test_silence_above_an_edge_is_a_refusal_and_the_step_grows():
+    ecu = MemoryEcu([(0x0, 0xFFFFFF, None)], silent_above=0x3FFFFF)
+    scan = _scan(ecu, [(0x0, 0xFFFFFF)], step=0x40000, find_block=False)
+    assert scan.stopped is None
+    assert [(r.start, r.end, r.result) for r in scan.regions] == [
+        (0x0, 0x3FFFFF, "readable"),
+        (0x400000, 0xFFFFFF, "no_answer"),
+    ]
+    above = [r for r in ecu.sent if int(r[4:12], 16) > 0x3FFFFF]
+    assert len(above) <= 4  # 0x400000, 0x800000, 0xC00000 and the end, not every step
+
+
+def test_an_ecu_that_stops_answering_still_stops_the_scan():
+    ecu = MemoryEcu([(0x0, 0xFFFF, None)], offline_after=6)
+    scan = _scan(ecu, [(0x0, 0xFFFF)], step=0x1000, find_block=False)
+    assert scan.stopped and "stopped answering" in scan.stopped
