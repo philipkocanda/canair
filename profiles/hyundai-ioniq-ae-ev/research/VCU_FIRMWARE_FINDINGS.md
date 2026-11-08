@@ -123,12 +123,12 @@ sections:
       sections 7.1 and 19.4; candidates for signals/powertrain.yaml and vcu.yaml.
     target: profiles/hyundai-ioniq-ae-ev/signals/
   - section: "23"
-    status: open
+    status: integrated
     date: 2026-11-08
     note: >-
       KWP 31 F1 EE FF 00 11 (hangs the VCU, no READY gate) and 31 F3 CC DD 33 44 (silences every
-      periodic frame) pass canair's guard after 10 90. Proposed: add F1 and F3 to
-      BLOCKED_KWP_ROUTINES.
+      periodic frame) passed canair's guard after 10 90. Both are now in BLOCKED_KWP_ROUTINES
+      and refused unless --unsafe.
     target: src/canair/safety/routines.py
 relations:
   expands_on:
@@ -1993,15 +1993,16 @@ driver from a bench or end-of-line tool. A second entry, `FUN_001A9254`, was not
 ## 23. Requests canair must never send to this VCU
 
 canair's guard refuses `0x11`, `0x28`, `0x29`, `0x2C`, `0x2E`, `0x34`-`0x39`, `0x3B`, `0x3D`,
-`0x84`, `0x87`, `0x99`, KWP `10 85` and KWP `31 00`/`31 01`. The profile's `hk_90_session` quirk
-lets `10 90` through, and session `90` needs no key. Each item below follows `10 90`, and each
-also works on the functional id `0x7DF` (canair's functional allow-list refuses them there):
+`0x84`, `0x87`, `0x99`, KWP `10 85` and KWP `31 00`/`31 01`/`31 F1`/`31 F3` (the last two since
+pass 4). The profile's `hk_90_session` quirk lets `10 90` through, and session `90` needs no key.
+Each item below follows `10 90`, and each also works on the functional id `0x7DF` (canair's
+functional allow-list refuses them there):
 
 | request | effect | guard |
 |---|---|---|
 | `31 00 xx`, `31 01 xx` | **the VCU enters its bootloader** and waits for a reflash (gate: ignition input on, not EV-ready) | refused |
-| `31 F1 EE FF 00 11` | **the VCU hangs** in the CCP-CAN loader with interrupts off, then probably resets on its watchdog. **No READY gate**: it would act while driving | **passes** |
-| `31 F3 CC DD 33 44` | runs the test sequence; when it completes, **every periodic VCU frame stops until a reset**, and the other ECUs set U-codes | **passes** |
+| `31 F1 EE FF 00 11` | **the VCU hangs** in the CCP-CAN loader with interrupts off, then probably resets on its watchdog. **No READY gate**: it would act while driving | refused |
+| `31 F3 CC DD 33 44` | runs the test sequence; when it completes, **every periodic VCU frame stops until a reset**, and the other ECUs set U-codes | refused |
 | `30 05 07` | the VCU stays awake until a reset (no release): a 12 V drain | passes `raw` and the REPL; `canair io` refuses a KWP `0x30` ON without a `release:` |
 | `30 06`/`11`/`12 07 01`/`02` | overwrites the LDC sensor calibration in standby RAM (and so the EEPROM) | as above |
 | `30 10 07` | forces output channel `0x17` on | as above |
@@ -2012,9 +2013,9 @@ also works on the functional id `0x7DF` (canair's functional allow-list refuses 
 | `14 FF 00` | clears every DTC, freeze frame and timeout state: evidence loss, not a hazard | passes, by design |
 | `99` | erases the VIN in the EEPROM; on the VCU it needs SecurityAccess | refused |
 
-**Recommendation:** refuse KWP2000 `31 F1` and `31 F3` on KWP ECUs, as `31 00`/`31 01` already
-are (`safety/routines.py`, `BLOCKED_KWP_ROUTINES`). On the OBC `31 F1` is a no-op, so the refusal
-costs nothing there.
+Pass 4 found that `31 F1` and `31 F3` passed the guard. `BLOCKED_KWP_ROUTINES` in
+`safety/routines.py` now lists both next to `31 00`/`31 01`, so every row above is refused unless
+`--unsafe`. On the OBC `31 F1` is a no-op, so the refusal costs nothing there.
 
 ## 24. Surprises and traps for future reverse engineering
 
@@ -2022,7 +2023,7 @@ costs nothing there.
 
 - **Session `90` needs no key**, and it opens IOControl, routines and ECUReset. With the profile's
   `hk_90_session` quirk, canair can send `10 90` to the VCU. Section 23 lists what then must
-  never follow; `31 F1` and `31 F3` still pass the guard.
+  never follow; the guard now refuses `31 F1` and `31 F3` as well.
 - **The VCU serves every KWP2000 service on the functional id `0x7DF`**, not only OBD-II.
 - `30 05 07` cannot be undone except by a reset.
 - The boot manager accepts a CAN reflash token for about 2,000 polls after reset (14.2).

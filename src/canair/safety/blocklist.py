@@ -23,8 +23,9 @@ RoutineControl (``0x31``) is judged the same way: its reprogramming routine ids
 ISO 14229-1 safety-system routine ids (:data:`~canair.safety.routines.SAFETY_SYSTEM_ROUTINES`, which deploy
 airbags and pretensioners) are refused there too, and ``--unsafe`` cannot lift that
 (:func:`safety_system_block`). On an ECU the profile says speaks KWP2000, ``0x31`` is
-StartRoutineByLocalIdentifier instead, and the local ids that leave the application for
-the bootloader (:data:`~canair.safety.routines.BLOCKED_KWP_ROUTINES`) are refused.
+StartRoutineByLocalIdentifier instead, and the local ids that harm a Hyundai/Kia ECU (the
+bootloader entries and the VCU's loader and test sequence,
+:data:`~canair.safety.routines.BLOCKED_KWP_ROUTINES`) are refused.
 
 A *functional* (broadcast) request is judged by a separate, stricter rule,
 :func:`check_functional_request`: an allow-list of reads that ``--unsafe`` cannot

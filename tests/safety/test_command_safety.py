@@ -365,14 +365,27 @@ class TestSafetySystemRoutines:
 
 
 class TestKwpRoutines:
-    """KWP2000 StartRoutineByLocalIdentifier ids that enter the bootloader (Hyundai/Kia OBC)."""
+    """KWP2000 StartRoutineByLocalIdentifier ids that harm a Hyundai/Kia OBC or VCU."""
 
     @pytest.mark.parametrize("cmd", ["3100", "310000", "310100", "3101E201", "3100003"])
     def test_bootloader_entries_are_refused_on_kwp(self, cmd):
         blocked = check_command_safety(cmd, POLICY, KWP_ECU)
         assert blocked is not None and "bootloader" in blocked and "--unsafe" in blocked
 
-    @pytest.mark.parametrize("cmd", ["3102", "3111", "31F1EEFF0011", "31"])
+    @pytest.mark.parametrize(
+        ("cmd", "effect"),
+        [
+            ("31F1EEFF0011", "bench loader"),
+            ("31F1", "bench loader"),
+            ("31F3CCDD3344", "silences every periodic frame"),
+            ("31F3", "silences every periodic frame"),
+        ],
+    )
+    def test_vcu_loader_and_test_sequence_are_refused_on_kwp(self, cmd, effect):
+        blocked = check_command_safety(cmd, POLICY, KWP_ECU)
+        assert blocked is not None and effect in blocked and "--unsafe" in blocked
+
+    @pytest.mark.parametrize("cmd", ["3102", "3111", "31F2", "31"])
     def test_other_local_ids_pass(self, cmd):
         assert check_command_safety(cmd, POLICY, KWP_ECU) is None
 
@@ -380,6 +393,7 @@ class TestKwpRoutines:
     def test_a_uds_or_unknown_ecu_is_judged_as_routine_control(self, tx):
         # UDS 31 01 F000 starts routine F000, not local id 0x01.
         assert check_command_safety("3101F000", POLICY, tx) is None
+        assert check_command_safety("31F1EEFF0011", POLICY, tx) is None
 
 
 @pytest.mark.parametrize("tx", [KWP_ECU, UDS_ECU, 0x7FF])
