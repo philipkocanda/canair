@@ -5,7 +5,7 @@ subject: >-
   ECU diagnostic addresses, broadcast schedule/charge frames and bus usage recovered from the EU
   and US head-unit firmware of the 2017 Ioniq AE EV
 created: 2026-10-19
-updated: 2026-10-30
+updated: 2026-11-08
 status: partially-superseded
 verification: >-
   Firmware-derived. Sections 2 (EPB, TPMS) and 8 checked on this car; section 9 checked against a
@@ -43,6 +43,21 @@ sections:
     target:
       - profiles/hyundai-ioniq-ae-ev/signals/body.yaml
       - profiles/hyundai-ioniq-ae-ev/signals/powertrain.yaml
+  - section: "9 (0x55C/0x57A and 0x588/0x579 layouts)"
+    status: superseded
+    date: 2026-11-08
+    by: profiles/hyundai-ioniq-ae-ev/research/VCU_FIRMWARE_FINDINGS.md section 9
+    note: >-
+      The VCU, which receives 0x55C/0x588 and sends 0x57A/0x579, uses other bit positions: two
+      interleaved 25-bit departure slots, and the charge mode first in the off-peak frame.
+      signals/ now carries the VCU's layouts.
+  - section: "6 (0x587 bytes 0-2)"
+    status: superseded
+    date: 2026-11-08
+    by: profiles/hyundai-ioniq-ae-ev/research/VCU_FIRMWARE_FINDINGS.md section 9.5
+    note: >-
+      The VCU reads TempSet at bits 6-21 and DefrostCtr at bit 22, as opendbc's TMU11 does, not
+      CHARGECTR/DEFROSTCTR at byte 0 bits 6-7. The byte-4 fields agree.
 relations:
   expanded_by:
     - path: profiles/hyundai-ioniq-ae-ev/research/IGPM_FINDINGS.md
@@ -265,12 +280,14 @@ Consequences for the claims above:
 - §3 and §7: the gateway does **not** repeat `0x57A`/`0x57B` onto P-CAN under the same IDs; on
   P-CAN those IDs belong to the VCU. The Soul EV `C_CAN` sheet rows for `0x57A`/`0x57B` describe the
   VCU's frames.
-- Gateway translations change the ID. Fields that fit inside one byte keep their bits, so the head
-  unit's own layouts decode the P-CAN copies of the clock and schedule frames. `HU_DATC_PE_00` is
+- Gateway translations change the ID. For the clock (`0x567`) the head unit's layout decodes the
+  P-CAN copy. **For the schedule frames it does not:** the VCU's firmware reads `0x55C` and
+  `0x588` (and writes `0x57A` and `0x579`) with other bit positions, and `signals/` now uses the
+  VCU's layouts (VCU_FIRMWARE_FINDINGS.md section 9, 2026-11-08). `HU_DATC_PE_00` is
   cut down to its byte 4 bits 0-5 (voice, phone, blower noise), moved to byte 0, as opendbc's C-CAN
   DBC has it; `0x5D4` is the same shape for the telematics unit's `TMU_GW_PE_01`. Multi-byte
   signals change byte order between MM-CAN (high byte first) and P-CAN (low byte first); see the
   IGPM research entry on gateway frame forwarding. Definitions: `signals/body.yaml` (`CGW_CLOCK`,
   `GW_DEPART_*`, `GW_ECON_*`) and `signals/powertrain.yaml` (`VCU_DEPART_*`, `VCU_ECON_*`).
-- The departure temperature field reads 63 and 7 in uhi22's car with preconditioning off, so its
-  encoding is still unknown.
+- Read with the VCU's layout, the departure temperatures in uhi22's car are 23.0 and 22.0 °C (raw
+  × 0.5 + 15); the 63 and 7 this layout gave came from the wrong bit positions.

@@ -6,7 +6,7 @@ subject: >-
   hardware, signal routing between the five buses, network management, the 22BCxx status DIDs
   and the 2F BCxx actuators
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-08
 status: active
 verification: >-
   Mostly sibling-vehicle (Kona, Niro, i30) and first-party document evidence; each claim is tagged
@@ -31,6 +31,13 @@ sections:
   - section: "11"
     status: open
     note: No on-car action from the list has been run, apart from item 1.
+  - section: "5 (parked wake timer)"
+    status: superseded
+    date: 2026-11-08
+    by: profiles/hyundai-ioniq-ae-ev/research/VCU_FIRMWARE_FINDINGS.md section 11
+    note: >-
+      The VCU, not the IGPM, keeps the 24 h 12 V check and arms it in its own real-time clock. The
+      IGPM's IG3 relay still supplies the rail during the top-up.
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/research/IONIQ_AVN_FW_FINDINGS.md
@@ -403,8 +410,11 @@ no `0x567`, `0x5D0`, `0x55C`, `0x588` or `0x5EC` (those are P-CAN-only). **Confi
   description, as quoted on insideevsforum: "Before : Check the condition of the vehicle once 24
   hours after starting off … After : Monitor the vehicle condition for 2 hours in a row … (Total of
   2.5 days)". projectgus's Kona bench also shows the IGPM sending the clock (`0x567`). Together with
-  this car's IG3-relay bit being set during the parked 12 V top-up (section 6), the IGPM is the
-  likely owner of the parked wake timer behind the 24 h 12 V top-up. **Speculative.**
+  this car's IG3-relay bit being set during the parked 12 V top-up (section 6), the IGPM looked
+  like the owner of the parked wake timer behind the 24 h 12 V top-up. **Superseded:** the VCU's
+  firmware keeps that timer itself (a 24 h check armed in its own real-time clock,
+  VCU_FIRMWARE_FINDINGS.md section 11). The IGPM supplies IG3 during the top-up; how the car
+  powers up for it is still open.
 
 ## 6. The status DIDs `22BC01`–`22BC07`
 

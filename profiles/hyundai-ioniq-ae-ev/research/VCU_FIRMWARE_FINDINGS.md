@@ -37,13 +37,12 @@ sections:
       only session 0x81, and 0x21/0x23/0x1A/0x18/0x10/0x3E present. No 3B write path beyond VIN.
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
   - section: "4"
-    status: open
+    status: integrated
     date: 2026-11-08
     note: >-
       The CAN layer: three FlexCAN controllers, two used (P-CAN and the EPCU's CCP-CAN), 98
       mailbox slots, the RAM buffer and unpack/pack function of every frame. Bus assignment matches
-      uhi22's EPCU transceiver test exactly. can_buses.yaml has no CCP-CAN entry yet.
-    target: profiles/hyundai-ioniq-ae-ev/can_buses.yaml
+      uhi22's EPCU transceiver test exactly. CCP-CAN is deliberately not in can_buses.yaml.
   - section: "5"
     status: open
     date: 2026-11-08
@@ -53,12 +52,12 @@ sections:
       state machines are not named.
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
   - section: "9"
-    status: open
+    status: integrated
     date: 2026-11-08
     note: >-
-      Frame layouts as the VCU reads and writes them. 0x567, 0x549 and most received frames match
-      signals/. 0x55C/0x57A (bits 16-49) and 0x588/0x579 (all fields) do not: the profile's
-      layouts are wrong and need replacing.
+      Frame layouts as the VCU reads and writes them. 0x567, 0x549 and most received frames
+      matched signals/. The 0x55C/0x57A and 0x588/0x579 definitions in signals/ were replaced with
+      the VCU's layouts on 2026-11-08; the smaller differences in section 9.6 are not applied.
     target: profiles/hyundai-ioniq-ae-ev/signals/
   - section: "10"
     status: integrated
@@ -290,7 +289,7 @@ the EPCU, each wired to both the MCU and the VCU. On the "left CAN, CCP-CAN" the
 transceiver sends `0x232` and `0x58F` and the MCU's sends `0x2C1`. On P-CAN the VCU sends `0x109`,
 `0x200`-`0x202`, `0x549`, `0x579`-`0x57B`, `0x590` and `0x592`. These are exactly the firmware's
 FlexCAN C and FlexCAN A transmit slots. None of the CCP-CAN ids appears in either uhi22 P-CAN log.
-`can_buses.yaml` has no entry for this bus yet.
+`can_buses.yaml` does not list this bus.
 
 ### 4.2 The slot table
 
@@ -472,10 +471,9 @@ car has no telematics unit, so `0x587` is absent from uhi22's P-CAN logs.
   correctly known absent rather than untested.
 - **The preconditioning path** belongs with the broadcast-frame work, not the diagnostic DIDs: it
   needs a P-CAN tap to see `0x587`/`0x567`/`0x57B`, which the OBD port does not carry.
-- **Replace the `0x55C`/`0x57A` and `0x588`/`0x579` layouts in `signals/`** with the VCU's
-  (section 9.2 and 9.3), using `canair signals`. The first 16 bits of `0x55C`/`0x57A` are already
-  right.
-- **Add the CCP-CAN bus** to `can_buses.yaml` (section 4.1), as a private EPCU segment.
+- **Done 2026-11-08:** `signals/` now carries the VCU's `0x55C`/`0x57A` and `0x588`/`0x579`
+  layouts (sections 9.2 and 9.3), with the same signal names.
+- **Not applied, by the owner's choice:** a CCP-CAN entry in `can_buses.yaml` (section 4.1).
 - **Done 2026-11-08:** the scheduled-wake entry in `ecus/vcu.yaml` and the top-up entry in
   `ecus/igpm.yaml` carry sections 10.2 and 11 as their results; both stay pending until the car
   shows that the clock's alarm powers the EPCU. `signals/` has the `0x590` top-up bits, the
@@ -630,24 +628,24 @@ the frames are constant: `0x55C` = `8D C0 90 9E FE 1D 01 00`, `0x57A` = `8D C0 9
 Two 25-bit slots, back to back. Unpacked by `FUN_001C47F4`, packed by `FUN_001F1D38`. Both frames
 use the same bits 0-49.
 
-| bits | field | VCU variable (in / out) | `signals/` today |
+| bits | field | VCU variable (in / out) | head-unit layout used before |
 |---|---|---|---|
 | 0\|5 | slot 1 hour | `554A` / `6128` | same |
 | 5\|3 | slot 1 minute, ×10 | `554B` / `6129` | same |
 | 8\|7 | slot 1 weekday mask, bit 0 Monday … bit 6 Sunday | `5519` / `612A` | same |
 | 15\|1 | slot 1 enabled | `551E` / `6137` | same |
-| 16\|6 | slot 1 cabin temperature: °C = raw × 0.5 + 15 | `5556` / `6138` | wrong (`SET2_HOUR`/`SET2_MIN`) |
-| 22\|1 | slot 1 temperature unit (inferred) | `5521` / `6139` | wrong |
-| 23\|1 | slot 1 defrost | `551A` / `613A` | wrong |
-| 24\|1 | slot 1 precondition (inferred) | `551B` / `6127` | wrong |
-| 25\|5 | slot 2 hour | `554C` / `612C` | wrong |
-| 30\|3 | slot 2 minute, ×10 | `554D` / `612D` | wrong |
-| 33\|7 | slot 2 weekday mask | `5525` / `612E` | wrong |
-| 40\|1 | slot 2 enabled | `552A` / `613B` | wrong (`SET1_DEFROST`) |
-| 41\|6 | slot 2 cabin temperature | `5557` / `613C` | wrong |
-| 47\|1 | slot 2 temperature unit (inferred) | `552D` / `613D` | wrong |
-| 48\|1 | slot 2 defrost | `5526` / `613E` | wrong |
-| 49\|1 | slot 2 precondition (inferred) | `5527` / `612B` | wrong |
+| 16\|6 | slot 1 cabin temperature: °C = raw × 0.5 + 15 | `5556` / `6138` | differed (`SET2_HOUR`/`SET2_MIN`) |
+| 22\|1 | slot 1 temperature unit (inferred) | `5521` / `6139` | differed |
+| 23\|1 | slot 1 defrost | `551A` / `613A` | differed |
+| 24\|1 | slot 1 precondition (inferred) | `551B` / `6127` | differed |
+| 25\|5 | slot 2 hour | `554C` / `612C` | differed |
+| 30\|3 | slot 2 minute, ×10 | `554D` / `612D` | differed |
+| 33\|7 | slot 2 weekday mask | `5525` / `612E` | differed |
+| 40\|1 | slot 2 enabled | `552A` / `613B` | differed (`SET1_DEFROST`) |
+| 41\|6 | slot 2 cabin temperature | `5557` / `613C` | differed |
+| 47\|1 | slot 2 temperature unit (inferred) | `552D` / `613D` | differed |
+| 48\|1 | slot 2 defrost | `5526` / `613E` | differed |
+| 49\|1 | slot 2 precondition (inferred) | `5527` / `612B` | differed |
 | 50\|1 | `0x57A` only: scheduler output | — / `6188` | — |
 | 62\|2 | `0x57A` only: scheduler status (reads 2 in the trace) | — / `618C` | — |
 
@@ -661,26 +659,26 @@ precondition flag, a temperature, a temperature unit and a defrost flag.
 
 Decoded with this layout, uhi22's frame reads: slot 1 at 13:40 on Sunday, enabled, 23.0 °C,
 defrost on, precondition off; slot 2 at 15:20 every day, enabled, 22.0 °C, defrost on, precondition
-off. The IONIQ_AVN_FW_FINDINGS notes say preconditioning was off in that car. The layout in
-`signals/` reads the same frame as slot 2 at 16:40 Tuesday-Friday with temperatures 63 and 7,
-which those notes could not explain.
+off. The IONIQ_AVN_FW_FINDINGS notes say preconditioning was off in that car. The head-unit
+layout read the same frame as slot 2 at 16:40 Tuesday-Friday with temperatures 63 and 7, which
+those notes could not explain.
 
 ### 9.3 `0x588` charge mode and off-peak windows (gateway) and `0x579` (the VCU's copy)
 
 Unpacked by `FUN_001C5000`, packed by `FUN_001F2054`. Both frames use the same bits 0-33. The VCU
 puts the charge mode **first** and every window 2 bits later than `signals/` does.
 
-| bits | field | VCU variable (in / out) | `signals/` today |
+| bits | field | VCU variable (in / out) | head-unit layout used before |
 |---|---|---|---|
-| 0\|2 | charge mode (0 = Charge Now) | `550F` / `6126` | wrong (at 32\|2) |
-| 2\|5 | weekday window start hour | `5552` / `612F` | wrong (at 0\|5) |
-| 7\|3 | weekday window start minute, ×10 | `5554` / `6130` | wrong |
-| 10\|5 | weekday window end hour | `554E` / `6131` | wrong |
-| 15\|3 | weekday window end minute, ×10 | `5550` / `6132` | wrong |
-| 18\|5 | weekend window start hour | `5553` / `6133` | wrong |
-| 23\|3 | weekend window start minute, ×10 | `5555` / `6134` | wrong |
-| 26\|5 | weekend window end hour | `554F` / `6135` | wrong |
-| 31\|3 | weekend window end minute, ×10 | `5551` / `6136` | wrong |
+| 0\|2 | charge mode (0 = Charge Now) | `550F` / `6126` | differed (at 32\|2) |
+| 2\|5 | weekday window start hour | `5552` / `612F` | differed (at 0\|5) |
+| 7\|3 | weekday window start minute, ×10 | `5554` / `6130` | differed |
+| 10\|5 | weekday window end hour | `554E` / `6131` | differed |
+| 15\|3 | weekday window end minute, ×10 | `5550` / `6132` | differed |
+| 18\|5 | weekend window start hour | `5553` / `6133` | differed |
+| 23\|3 | weekend window start minute, ×10 | `5555` / `6134` | differed |
+| 26\|5 | weekend window end hour | `554F` / `6135` | differed |
+| 31\|3 | weekend window end minute, ×10 | `5551` / `6136` | differed |
 | 34\|2, 36\|2, 38\|2 | `0x579` only: other VCU state | — / `53AD`, `53B1`, `53B8` | — |
 | 53\|2, 55\|1 | `0x579` only | — / `4F99`, `4F9A` | — |
 | 56\|8 | `0x579` only (reads `FE` in the trace) | — / `53AF` | — |
@@ -691,7 +689,7 @@ the weekend, and handles windows that cross midnight. `0x57B` bits 1-2 also foll
 read 1 only while the effective mode is 0 (a table at `0x1A8822`).
 
 Decoded with this layout, uhi22's frame reads: Charge Now, weekday window 09:30-18:00, weekend
-window 09:30-18:00. The layout in `signals/` reads 04:50-09:20 for both.
+window 09:30-18:00. The head-unit layout read 04:50-09:20 for both.
 
 ### 9.4 `0x57B` scheduler and remote-climate status (VCU, 100 ms)
 

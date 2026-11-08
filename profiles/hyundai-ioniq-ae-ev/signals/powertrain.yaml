@@ -545,8 +545,8 @@ messages:
         byte_order: little
         max: 23.0
         unit: h
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: Departure 1 hour. Layout from the AVN firmware (HuEvP02 compose = GwEvP07 parse).
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 1 hour. Layout from the VCU firmware, which receives 0x55C and sends its stored copy as 0x57A; it is not the head unit's MM-CAN layout.
       VCU_DEPART_SET1_MIN:
         start_bit: 5
         length: 3
@@ -554,101 +554,109 @@ messages:
         scale: 10.0
         max: 50.0
         unit: min
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: Departure 1 minute, 10-minute steps.
       VCU_DEPART_SET1_DAYS:
         start_bit: 8
         length: 7
         byte_order: little
         max: 127.0
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: 'Departure 1 weekday mask: bit 0 Monday ... bit 6 Sunday.'
       VCU_DEPART_SET1_ENABLE:
         start_bit: 15
         length: 1
         byte_order: little
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: Departure 1 enabled.
       VCU_DEPART_SET2_HOUR:
-        start_bit: 16
+        start_bit: 25
         length: 5
         byte_order: little
         max: 23.0
         unit: h
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: Departure 2 hour.
       VCU_DEPART_SET2_MIN:
-        start_bit: 21
+        start_bit: 30
         length: 3
         byte_order: little
         scale: 10.0
         max: 50.0
         unit: min
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: Departure 2 minute, 10-minute steps.
       VCU_DEPART_SET2_DAYS:
-        start_bit: 24
+        start_bit: 33
         length: 7
         byte_order: little
         max: 127.0
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: 'Departure 2 weekday mask: bit 0 Monday ... bit 6 Sunday.'
       VCU_DEPART_SET2_ENABLE:
-        start_bit: 31
-        length: 1
-        byte_order: little
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: Departure 2 enabled.
-      VCU_DEPART_SET1_PRECOND:
-        start_bit: 32
-        length: 1
-        byte_order: little
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: 'Departure 1: precondition the cabin.'
-      VCU_DEPART_SET1_TEMP:
-        start_bit: 33
-        length: 6
-        byte_order: little
-        max: 63.0
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: Departure 1 cabin set temperature, raw. Encoding not known (the firmware only says 6 bits).
-      VCU_DEPART_SET1_TEMP_UNIT:
-        start_bit: 39
-        length: 1
-        byte_order: little
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: Departure 1 temperature unit flag.
-      VCU_DEPART_SET1_DEFROST:
         start_bit: 40
         length: 1
         byte_order: little
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: 'Departure 1: defrost.'
-      VCU_DEPART_SET2_PRECOND:
-        start_bit: 41
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 2 enabled.
+      VCU_DEPART_SET1_PRECOND:
+        start_bit: 24
         length: 1
         byte_order: little
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: 'Departure 2: precondition the cabin.'
-      VCU_DEPART_SET2_TEMP:
-        start_bit: 42
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'Departure 1: precondition the cabin (inferred: the VCU reads it with the slot''s time and weekdays). 0 in the uhi22 logs, where preconditioning was off.'
+      VCU_DEPART_SET1_TEMP:
+        start_bit: 16
         length: 6
         byte_order: little
-        max: 63.0
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: Departure 2 cabin set temperature, raw; encoding not known.
-      VCU_DEPART_SET2_TEMP_UNIT:
-        start_bit: 48
+        scale: 0.5
+        offset: 15.0
+        min: 15.0
+        max: 32.0
+        unit: degC
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 1 cabin set temperature. The VCU adds 30 to the raw value as half-degrees and rejects results above 64, so the range is 15-32 degC. Reads 23.0 degC in the uhi22 logs.
+      VCU_DEPART_SET1_TEMP_UNIT:
+        start_bit: 22
         length: 1
         byte_order: little
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: Departure 2 temperature unit flag.
-      VCU_DEPART_SET2_DEFROST:
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'Departure 1 temperature unit flag (inferred: the VCU pairs it with 0x587 CF_Tmu_TempMd). 0 in the uhi22 logs.'
+      VCU_DEPART_SET1_DEFROST:
+        start_bit: 23
+        length: 1
+        byte_order: little
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'Departure 1 defrost (the VCU pairs it with 0x587 CF_Tmu_DefrostCtr). 1 in the uhi22 logs.'
+      VCU_DEPART_SET2_PRECOND:
         start_bit: 49
         length: 1
         byte_order: little
-        source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: 'Departure 2: defrost.'
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'Departure 2: precondition the cabin (inferred, as slot 1).'
+      VCU_DEPART_SET2_TEMP:
+        start_bit: 41
+        length: 6
+        byte_order: little
+        scale: 0.5
+        offset: 15.0
+        min: 15.0
+        max: 32.0
+        unit: degC
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 2 cabin set temperature, same encoding as slot 1. Reads 22.0 degC in the uhi22 logs.
+      VCU_DEPART_SET2_TEMP_UNIT:
+        start_bit: 47
+        length: 1
+        byte_order: little
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Departure 2 temperature unit flag (inferred, as slot 1).
+      VCU_DEPART_SET2_DEFROST:
+        start_bit: 48
+        length: 1
+        byte_order: little
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F1D38, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.2); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'Departure 2 defrost.'
       VCU_AUX_BATTERY_SAVER:
         start_bit: 62
         length: 2
@@ -663,80 +671,80 @@ messages:
     tx_ecu: VCU
     signals:
       VCU_ECON_WEEKDAY_START_HOUR:
-        start_bit: 0
+        start_bit: 2
         length: 5
         byte_order: little
         max: 23.0
         unit: h
-        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: Off-peak (ECON) charge window, weekday start hour. Layout from the AVN firmware (HuEvP01 compose, GwEvP06 parse).
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F2054, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.3); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: Off-peak window, weekday start hour. The VCU's off-peak code repeats this window for five weekdays and the weekend window for two days. Reads 09:30-18:00 in the uhi22 logs.
       VCU_ECON_WEEKDAY_START_MIN:
-        start_bit: 5
+        start_bit: 7
         length: 3
         byte_order: little
         scale: 10.0
         max: 50.0
         unit: min
-        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F2054, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.3); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: Weekday start minute, 10-minute steps.
       VCU_ECON_WEEKDAY_END_HOUR:
-        start_bit: 8
+        start_bit: 10
         length: 5
         byte_order: little
         max: 23.0
         unit: h
-        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F2054, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.3); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: Weekday end hour.
       VCU_ECON_WEEKDAY_END_MIN:
-        start_bit: 13
+        start_bit: 15
         length: 3
         byte_order: little
         scale: 10.0
         max: 50.0
         unit: min
-        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F2054, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.3); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: Weekday end minute, 10-minute steps.
       VCU_ECON_WEEKEND_START_HOUR:
-        start_bit: 16
+        start_bit: 18
         length: 5
         byte_order: little
         max: 23.0
         unit: h
-        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F2054, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.3); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: Weekend start hour.
       VCU_ECON_WEEKEND_START_MIN:
-        start_bit: 21
+        start_bit: 23
         length: 3
         byte_order: little
         scale: 10.0
         max: 50.0
         unit: min
-        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F2054, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.3); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: Weekend start minute, 10-minute steps.
       VCU_ECON_WEEKEND_END_HOUR:
-        start_bit: 24
+        start_bit: 26
         length: 5
         byte_order: little
         max: 23.0
         unit: h
-        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F2054, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.3); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: Weekend end hour.
       VCU_ECON_WEEKEND_END_MIN:
-        start_bit: 29
+        start_bit: 31
         length: 3
         byte_order: little
         scale: 10.0
         max: 50.0
         unit: min
-        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F2054, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.3); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: Weekend end minute, 10-minute steps.
       VCU_ECON_CHG_CTRL_MODE:
-        start_bit: 32
+        start_bit: 0
         length: 2
         byte_order: little
         max: 3.0
-        source: AVN firmware layout (GwEvP06); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
-        notes: 'The VCU''s stored copy of the charge scheduling mode (same values as the gateway''s 0x588): 0 = Charge Now, 1 = Charge on Schedule without an off-peak window (the default), 2 = with off-peak time enabled, 3 = also with ''Charge ONLY during the time shown below'' ticked. Matches 0x588 in both uhi22 recordings. Bits 2 and 6 of the same byte read 1 in every recording (raw 0x44/0x47), meaning unknown.'
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F2054, bit-probed by emulation (research/VCU_FIRMWARE_FINDINGS.md section 9.3); uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
+        notes: 'The VCU''s stored copy of the charge scheduling mode: 0 = Charge Now, 1 = Charge on Schedule without an off-peak window (the default), 2 = with off-peak time enabled, 3 = also with ''Charge ONLY during the time shown below'' ticked. Mapping from the head unit''s menu code (GreenCar DepartureClimateActivity, EconomyReservationSettingActivity). Not a charge-power setting. The VCU puts it first in the frame, ahead of the windows. Reads 0 in the uhi22 logs.'
   '0x57F':
     name: OBC1
     tx_ecu: OBC

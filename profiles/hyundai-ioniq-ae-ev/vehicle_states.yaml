@@ -44,7 +44,8 @@
 #        ^                 |   ^                      |
 #        +--- cable out ---+   +---- charge ends -----+
 #
-#   Parked 12 V top-up (what wakes the VCU is open; see the IGPM research entry):
+#   Parked 12 V top-up (the VCU's 24 h check, armed in its own real-time clock; how the car
+#   powers up for it is open, see the IGPM research entry):
 #
 #      SLEEP ---- VCU wakes ----> TOPUP ---- top-up done ----> SLEEP
 #

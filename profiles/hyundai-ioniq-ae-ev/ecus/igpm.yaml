@@ -1066,7 +1066,7 @@ IGPM:
       priority: P2
       vehicle_states: [SLEEP, TOPUP]
       created: "2026-10-30"
-      updated: "2026-11-03"
+      updated: "2026-11-08"
       result: >-
         The VCU owns the top-up; the IGPM's IG3 relay supplies the rail (VCU firmware,
         research/VCU_FIRMWARE_FINDINGS.md section 11). The VCU keeps the next check time in standby

@@ -10,8 +10,10 @@
 # - Coordination between motor, inverter, battery, and safety systems
 # - Calculates remaining range
 # - Controls allowed AC power
-# - Decides and runs the parked 12V battery top-up once woken (the Aux. Battery Saver+ setting is
-#   in the cluster's user settings). What wakes it: see the IGPM research entry.
+# - Schedules, decides and runs the parked 12V battery top-up: a check every 24 h kept in its own
+#   real-time clock, then 10 or 20 min of LDC charging if the battery is low (the Aux. Battery
+#   Saver+ setting is in the cluster's user settings). Firmware: research/VCU_FIRMWARE_FINDINGS.md
+#   section 11; how the car powers up for it: see the IGPM research entry.
 # - Controls ECO setting and drive modes
 # - Preconditioning (climate) timer, charge timer, charge power limit settings.
 #
@@ -1091,7 +1093,13 @@ VCU:
       priority: P3
       vehicle_states: [READY, CHARGING]
       created: "2026-10-23"
-      updated: "2026-10-23"
+      updated: "2026-11-08"
+      result: >-
+        This VCU has no 4-bit IG3 relay mode in 0x57B. Byte 2 bits 4-7 are four separate flags
+        (FUN_001F3A44): bits 20 and 21 from the charge-control subsystem, bits 22 and 23 from the
+        climate subsystem (research/VCU_FIRMWARE_FINDINGS.md section 9.4). The US values 2 and 10
+        fit flags (bit 21, and bits 21 + 23). VCU_POWER_STATE (2101 B25) comes from a different
+        variable. Comparing the flags with charge and climate states still needs a P-CAN tap.
       notes: >-
         The US head-unit firmware reads an IG3 relay mode from the VCU in frame 0x57B
         (CF_Vcu_IG3RlyMd, byte 2 bits 7-4, values 2 and 10 seen). Compare its encoding with
@@ -1198,11 +1206,17 @@ VCU:
         service probe' --state IG3, then the same for 7E2:31 and 7E2:2701. Record each NRC.
     - type: decode
       target: 2101 B10:6 charge-timer inhibit (Soul 'CH tmr Inh')
-      status: pending
+      status: done
       priority: P3
       vehicle_states: [PLUGGED]
       created: "2026-11-07"
-      updated: "2026-11-07"
+      updated: "2026-11-08"
+      result: >-
+        Not on this VCU. The firmware's 2101 producer (FUN_001F46C0) writes only B10 bits 0-4
+        (one-hot gear state, bit 4 for state 7), and FUN_00204480 sets bit 5 (GEAR_SIGNAL_VALID).
+        Nothing writes bits 6 and 7, so they are always 0 (research/VCU_FIRMWARE_FINDINGS.md section
+        7.1). The charge-schedule state is in the scheduling model and reaches P-CAN in 0x57B, not
+        2101.
       notes: >-
         On the Kia Soul EV, the VMCU 2101 byte with the P/R/N/D bits has b5 'ECO off sw', b6 'CH tmr
         Inh' and b7 'Immobilizer?'. Here B10:0-3 are the gear bits, so B10:6 is the candidate.
@@ -1251,7 +1265,7 @@ VCU:
       priority: P2
       vehicle_states: [PLUGGED]
       created: "2026-11-07"
-      updated: "2026-11-07"
+      updated: "2026-11-08"
       result: >-
         The VCU keeps its own time (VCU firmware, research/VCU_FIRMWARE_FINDINGS.md sections 10.2
         and 11.1). An SPI real-time clock with the NXP PCF2123 register map is set from 0x567
