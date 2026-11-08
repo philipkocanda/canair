@@ -85,43 +85,97 @@ The firmware image and the analysis scripts are kept locally under
 `references/firmware/vcu-36601-0E250-EAEEO5L-NS7-D060/` (a gitignored path). They are not part of
 this repository.
 
-## 2. The customer KWP2000 server and its service set
+## 2. The customer KWP2000 server, its service set, and how each service is gated
 
 The diagnostic server on `0x7E2` is a dispatcher (`FUN_00192788`) that switches on the request
 service id, with one handler per service. A positive reply is built as `request SID + 0x40`; a
-negative reply is sent by a shared builder as `7F <SID> <NRC>`. Each service runs a
-session/precondition check before its handler.
+negative reply is sent by a shared builder as `7F <SID> <NRC>`. Before its handler, every service
+is checked against a permission matrix (`FUN_00192E7C`, table at `DAT_00193C70`, stride 5) keyed
+by the current session.
 
-Present (handler decompiled): `0x10` StartDiagnosticSession, `0x11` ECUReset, `0x14`
-ClearDiagnosticInformation, `0x17` ReadStatusOfDTC, `0x18` ReadDTCByStatus, `0x1A`
-ReadEcuIdentification, `0x20` StopDiagnosticSession, `0x21` ReadDataByLocalIdentifier, `0x22`
-ReadDataByCommonIdentifier, `0x27`, `0x28`, `0x29`, `0x2C`, `0x2E`, `0x30`
-InputOutputControlByLocalIdentifier, `0x31`, `0x3B` WriteDataByLocalIdentifier, `0x3D`
-WriteMemoryByAddress, `0x3E` TesterPresent.
+**Services implemented** (handler decompiled): `0x10` StartDiagnosticSession, `0x11` ECUReset,
+`0x14` ClearDiagnosticInformation, `0x17` ReadStatusOfDTC, `0x18` ReadDTCByStatus, `0x1A`
+ReadEcuIdentification, `0x20` StopDiagnosticSession, `0x21` ReadDataByLocalIdentifier, `0x23`
+ReadMemoryByAddress, `0x27` SecurityAccess, `0x28` DisableNormalMessageTransmission, `0x29`
+EnableNormalMessageTransmission, `0x30` InputOutputControlByLocalIdentifier, `0x31`
+StartRoutineByLocalIdentifier, `0x3B` WriteDataByLocalIdentifier, `0x3E` TesterPresent. The
+download/transfer cases `0x34`/`0x36`/`0x37` exist in the switch but are empty (they build no
+response in this build), so they are reserved, not active.
 
-Confirmed live (this session and earlier): `0x21`, `0x23`, `0x1A`, `0x18`, `0x10` (session `0x81`
-only; `0x82`/`0x83` give NRC `0x12`), and `0x3E`.
+**Services that always answer NRC `0x12`** (the handler is a one-line reject, so they are absent
+in practice): `0x22` ReadDataByCommonIdentifier, `0x2C` DynamicallyDefineLocalIdentifier, `0x2E`
+WriteDataByCommonIdentifier, `0x3D` WriteMemoryByAddress.
+
+### 2.1 Session and security gating (the permission matrix)
+
+The matrix gives, per service, what is allowed in each session. The default session is `0x81`;
+the firmware also defines `0x85`, `0x90` and `0xF1` sessions, which require SecurityAccess
+(`0x27`) to enter. This exactly matches the car: only `0x81` is reachable without a key, and
+`0x82`/`0x83` answer NRC `0x12`.
+
+- **Allowed in the default `0x81` session (no security):** `0x10`/`0x20` session control, `0x1A`
+  identification, `0x21` ReadDataByLocalIdentifier, `0x23` ReadMemoryByAddress, `0x17`/`0x18`
+  DTC read, `0x14` ClearDiagnosticInformation. Every live read this profile makes is in this set,
+  and nothing here can change vehicle state. **`0x23` memory read is in the open set** — no
+  SecurityAccess is needed, which is how the firmware image was dumped.
+- **Gated behind a secured session (`0x85`/`0x90`/`0xF1`):** `0x11` ECUReset, `0x28`/`0x29` normal
+  message control, `0x30` InputOutputControl, `0x31` routines, `0x3B` write, and the reserved
+  `0x34`/`0x36`/`0x37` download/transfer cases. IOControl and routines open in session `0x90`;
+  download opens in `0x85`. canair cannot reach these (it performs no SecurityAccess, by policy),
+  so the VCU's actuators and routines are not usable through it.
+
+SecurityAccess (`0x27`) itself is a seed/key exchange: sub-function `0x01` requests a 2-byte seed,
+`0x02` sends the key, with higher levels `0xF1`/`0xF2`. The seed and key computation was not
+analysed and must not be (project rule); only the presence and shape are recorded here.
 
 There is a second, separate service table (an engineering/debug channel) whose `0x21` slot serves
 only local id `0x10` and writes a fixed unlock value to a control register. It is not the
 customer server and does not serve 2101/2102.
 
-## 3. KWP identification and data DIDs (the main new finding)
+## 3. The complete DID / actuator / routine inventory
 
 ### 3.1 Service 0x21 ReadDataByLocalIdentifier — three records only
 
 A table of three records (then the table ends). The length is the data length; the response adds
-two bytes (the SID echo and the record id).
+two bytes (the SID echo and the record id). `FUN_00204480` fills the record header before each
+read (record `01` starts `FF E0 00 00 09`, which matches the live `2101` payload).
 
 | DID | data bytes | source | profile |
 |---|---|---|---|
-| `2101` | 20 | RAM | the live-data record (22-byte payload matches a capture) |
-| `2102` | 21 | RAM | the live-data record |
-| `21F2` | 84 | RAM | the static / last-cycle record |
+| `2101` | 20 | RAM `0x4000A1EA` | the live-data record (22-byte payload matches a capture) |
+| `2102` | 21 | RAM `0x4000A1FE` | the live-data record |
+| `21F2` | 84 | RAM `0x4000005A` | the static / last-cycle record |
 
 There is no other `21xx` record, which is why `2103`-`2105` answer NRC `0x12` on the car.
 
-### 3.2 Service 0x1A ReadEcuIdentification — 17 DIDs
+### 3.2 Service 0x30 InputOutputControlByLocalIdentifier — the actuator map
+
+`FUN_0020451C` is a switch over the IOControl local id (the byte after the SID). It is reachable
+only in a secured session (see 2.1). Control local ids with real effects:
+`0x04`, `0x05`, `0x06`, `0x09`, `0x10`, `0x11`, `0x12`, `0x13`, `0x14`; status/read-only ids that
+return the current value: `0x00`, `0x20`, `0x40`, `0x60`, `0x80`, `0xA0`, `0xC0`, `0xE0`. Each
+writes a per-id state byte at `0x40009DEB + id` and some drive external hardware registers
+(`0x09` toggles bits in the `0x90020000` register space via `FUN_0019CEE0`/`FUN_0019D578`). The
+request mode byte is `0x07` (control) or `0x00` (return control to the ECU), as KWP2000 defines.
+What each id physically switches was not mapped; it needs a secured session to probe, which is out
+of scope.
+
+### 3.3 Service 0x31 StartRoutineByLocalIdentifier — the routines
+
+Routine ids accepted (`FUN_00204D5C`): `0x11`, `0x14`, `0x31`, `0x3B`, each gated to a secured
+session. `0x11`/`0x31` also require an internal precondition flag. The start/stop path runs
+`FUN_0018CB64`, which calls `WriteExternalEnableImmediate` and a low-vector routine — it looks
+like a reflash/reset preparation, not a user feature. Two further manufacturer routines run only
+in the programming session and only on an exact magic argument: routine `0xF1` with
+`EE FF 00 11`, and routine `0xF3` with `CC DD 33 44`. Their effect was not traced; they are
+flagged here as present and guarded, and must not be exercised.
+
+### 3.4 Service 0x3B WriteDataByLocalIdentifier — the writable records
+
+Only two records are writable, both gated to a secured session: `1A90` (VIN) and `1AFF` (one
+status byte). Everything else in the `0x1A` table is read-only.
+
+### 3.5 Service 0x1A ReadEcuIdentification — 17 DIDs
 
 A table of 17 records: record id, data length, a source pointer, and read/write flags. The same
 table backs InputOutputControl (`0x30`) and WriteDataByLocalIdentifier (`0x3B`), gated by the
@@ -134,6 +188,7 @@ decode:
 | `1A8D` | 16 | `EAEEO5L-NS7-D060` — sw_id | in profile |
 | `1A8E` | 8 | `C5210617` — calibration | in profile |
 | `1A91` | 12 | `36601-0E250` — part number | in profile |
+
 
 The other 13 records are not in the profile yet:
 
@@ -166,16 +221,21 @@ that matter for section 5 are the remote-climate / charge-schedule receive frame
 remote frame), `0x567` (clock), `0x55C`, `0x588`, `0x55F`, `0x561`, and the VCU's own status
 transmit frames `0x579`, `0x57A`, `0x57B` (`0x57B` = `CF_Vcu_IG3RlyMd`).
 
-## 5. Preconditioning and the charge timer
+## 5. Preconditioning and the charge timer — is the schedule on the diagnostic bus?
 
-**Established (verified).** The VCU takes remote and scheduled climate and charge commands as
-broadcast CAN frames, not as a diagnostic service. It receives them on `0x587` (the TMU remote
-frame, carrying the air-conditioning and charge-control bits) together with the clock on `0x567`
-and the companion frames `0x55C`/`0x588`/`0x55F`/`0x561`, and it reports its own charge and IG3
-state on `0x579`/`0x57A`/`0x57B`. This matches the owner's manual ("remote control via
-Center/Smartphone through the TMU") and the TMU frame definition in the head-unit findings. The
-only writable diagnostic records are the VIN and one status byte, so there is no diagnostic
-"start preconditioning" or "set charge timer" service.
+**No. The schedule is not exposed over the diagnostic interface.** The service set was enumerated
+exhaustively (section 2 and 3): the only readable items are the three `0x21` records (live
+powertrain data in `2101`/`2102`, the static `21F2`), the `0x1A` identification records, memory
+(`0x23`), and DTCs. None carries a departure time, a charge window or a preconditioning timer, and
+there is no writable record for one (`0x22`/`0x2C`/`0x2E` are rejected, and `0x3B` writes only the
+VIN and one status byte). So a tester cannot read or set the schedule through KWP2000.
+
+**Where it lives instead (verified).** The VCU takes remote and scheduled climate and charge
+commands as broadcast CAN frames. It receives them on `0x587` (the TMU remote frame, carrying the
+air-conditioning and charge-control bits) together with the clock on `0x567` and the companion
+frames `0x55C`/`0x588`/`0x55F`/`0x561`, and it reports its own charge and IG3 state on
+`0x579`/`0x57A`/`0x57B`. This matches the owner's manual ("remote control via Center/Smartphone
+through the TMU") and the TMU frame definition in the head-unit findings.
 
 **Not established.** The bit decode of the `0x587` command and the `0x567` clock, the arming and
 countdown logic, and the frame the VCU uses to command the e-compressor and heater within its
