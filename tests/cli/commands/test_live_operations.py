@@ -65,9 +65,7 @@ def reached(monkeypatch):
     monkeypatch.setattr(runtime, "run_live", fake_run_live)
     monkeypatch.setattr("canair.cli.live.parser.run_live", fake_run_live)
     # The pre-flight reads of read/monitor/scan need a profile, not a device.
-    monkeypatch.setattr(
-        "canair.live.monitor.controller.query_ecu_error", lambda steps, pids, **__: None
-    )
+    monkeypatch.setattr("canair.query.steps.query_ecu_error", lambda steps, pids, **__: None)
     monkeypatch.setattr("canair.cli.live.load_pids", lambda *_, **__: {})
     monkeypatch.setattr(monitor, "run_live", fake_run_live)
     monkeypatch.setattr(read, "run_live", fake_run_live)

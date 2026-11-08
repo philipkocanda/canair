@@ -4,6 +4,8 @@ from typing import ClassVar
 
 from rich.text import Text
 
+from canair.live.monitor.foreground import ForegroundLane
+
 
 class FakeRecorder:
     """Stand-in for MonitorRecorder: the values the TUI reads and the saves it triggers."""
@@ -143,6 +145,9 @@ class FakeController:
         self.cycle = 0
         self.elapsed = 0.0
         from canair.live.monitor.schedule import PollScheduler
+
+        self.foreground = ForegroundLane()
+        self.actuation = None
 
         self.schedule = PollScheduler("fixed", 0.05)
         self.last_cmds = 0

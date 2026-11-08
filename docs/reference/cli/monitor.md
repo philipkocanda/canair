@@ -9,7 +9,8 @@ usage: canair monitor [-h] [--interval SECONDS] [--schedule {dynamic,fixed}]
                       [--no-backoff] [--session] [--wake] [--keep-all |
                       --keep-changes | --keep N] [--save] [--label TEXT]
                       [--state TEXT] [--notes TEXT] [--rulers]
-                      [--notation NAME] [--include-static] [--wican WICAN]
+                      [--notation NAME] [--include-static]
+                      [--actuate ECU[,ECU]] [--wican WICAN]
                       [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                       [--no-fallback] [--wait] [--elm-timeout MS]
                       [--timeout SECONDS] [--no-learn-frames] [--verbose]
@@ -59,6 +60,12 @@ options:
                         ECU sweep. By default `canair monitor ECU` omits PIDs
                         with status: static or slow; naming one explicitly
                         (ECU:21F2) always polls it.
+  --actuate ECU[,ECU]   Let the actuator pane (A in the TUI) switch these
+                        ECUs' IOControl outputs and run their routines;
+                        repeatable or comma-separated. Without it the monitor
+                        never actuates. Each request goes out between two poll
+                        requests, and every output still on is released on
+                        exit and after a reconnect. Needs a terminal
   --wican WICAN         WiCAN address: ap or IP (default: config
                         transport.host / default_wican=ap)
   --transport {slcan-tcp,wican-ws,elm327-tcp}
@@ -110,6 +117,7 @@ examples:
   canair monitor @driving CLU:220B          A group plus an extra selector
   canair monitor "skm-wake acc" "query IGPM:BC03,BC06"
   canair monitor BMS:2101 --save --label "…" --state "READY, PARKED"  Record while monitoring
+  canair monitor IGPM:BC03 --actuate IGPM --save --label "…"   Switch outputs, watch them
 
 Polling: by default each PID is read every half of its own `period:` from the profile
 (the period is the WiCAN AutoPID cadence; set one with `canair pids set-pid-period`), and a
@@ -128,6 +136,7 @@ r toggles the byte-index ruler, E opens this session's errors/diagnostics log,
 V cycles the view mode (ecus / ranges / signals / full),
 i opens the session-info overlay (segment history + summary),
 ↑/↓ select a signal (esc deselects), e/v/x/F edit/verify/en-disable/filter,
+A shows the actuator pane (with --actuate), tab moves between the values and it,
 s labels the recording (or saves now when not using --save),
 n finishes the current --save session and starts a fresh one,
 ? shows all shortcuts, q quits.

@@ -1,5 +1,12 @@
 """Fake ISO-TP stack and notifier for the raw UDS client tests."""
 
+from canair.transport.raw import isotp_stack
+
+# Load the stack factory's module now: it subclasses isotp.NotifierBasedCanStack when it
+# loads, and the tests that use these fakes replace that class. Under lazy imports a test
+# run alone would otherwise load it after the patch, with a lambda as its base.
+assert isotp_stack.EcuStacks is not None
+
 
 class FakeStack:
     """Stand-in for isotp.NotifierBasedCanStack keyed by txid + request bytes."""

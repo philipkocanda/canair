@@ -39,6 +39,7 @@ def monitor_options(args) -> MonitorOptions:
         schedule=getattr(args, "schedule", DEFAULT_SCHEDULE),
         backoff=not getattr(args, "no_backoff", False),
         verbose=args.verbose,
+        actuate=tuple(getattr(args, "actuate", None) or ()),
         interactive=_run_monitor_app,
     )
 

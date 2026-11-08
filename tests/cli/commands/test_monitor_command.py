@@ -71,9 +71,7 @@ class TestMonitorRunWiring:
 
         # Skip the ECU-name preflight (needs a profile) and the device connect.
         monkeypatch.setattr(monitor, "run_live", fake_run_live)
-        monkeypatch.setattr(
-            "canair.live.monitor.controller.query_ecu_error", lambda steps, pids, **__: None
-        )
+        monkeypatch.setattr("canair.query.steps.query_ecu_error", lambda steps, pids, **__: None)
         monkeypatch.setattr("canair.cli.live.load_pids", lambda *_, **__: {})
 
         args = _parse(["monitor", "BMS:2101", "--interval", "3"])
@@ -101,9 +99,7 @@ class TestMonitorRunWiring:
         monkeypatch.setattr(monitor, "_pick_steps", lambda args: ["BMS", "VCU:2101"])
         monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
         monkeypatch.setattr("sys.stdout.isatty", lambda: True, raising=False)
-        monkeypatch.setattr(
-            "canair.live.monitor.controller.query_ecu_error", lambda steps, pids, **__: None
-        )
+        monkeypatch.setattr("canair.query.steps.query_ecu_error", lambda steps, pids, **__: None)
         monkeypatch.setattr("canair.cli.live.load_pids", lambda *_, **__: {})
 
         assert monitor.run(_parse(["monitor"])) == 0
@@ -139,9 +135,7 @@ class TestMonitorGroupExpansion:
             return 0
 
         monkeypatch.setattr(monitor, "run_live", fake_run_live)
-        monkeypatch.setattr(
-            "canair.live.monitor.controller.query_ecu_error", lambda steps, pids, **__: None
-        )
+        monkeypatch.setattr("canair.query.steps.query_ecu_error", lambda steps, pids, **__: None)
         monkeypatch.setattr("canair.cli.live.load_pids", lambda *_, **__: {})
         monkeypatch.setattr(
             "canair.cli.live.steps.load_groups",
@@ -167,3 +161,48 @@ class TestMonitorGroupExpansion:
         captured: dict = {}
         monitor = self._stub(monkeypatch, captured)
         assert monitor.run(_parse(["monitor", "@bogus"])) == 2
+
+
+class TestActuate:
+    """``--actuate`` is refused before anything connects unless a terminal can show the pane."""
+
+    def _patch(self, monkeypatch, *, tty: bool):
+        from canair.cli.commands import monitor
+
+        captured = {}
+
+        def fake_run_live(args, operation):
+            captured["options"] = operation.monitor
+            return 0
+
+        pids = {
+            "ecus": {
+                "IGPM": {"tx_id": 0x770, "iocontrol": {"BC0C": {"on": "2FBC0C03"}}},
+                "BCM": {"tx_id": 0x7A0, "routines": {"12A1": {}}},
+            }
+        }
+        monkeypatch.setattr(monitor, "run_live", fake_run_live)
+        monkeypatch.setattr(monitor, "load_pids", lambda **_: pids)
+        monkeypatch.setattr(monitor, "query_ecu_error", lambda steps, pids, **__: None)
+        monkeypatch.setattr("sys.stdin.isatty", lambda: tty, raising=False)
+        monkeypatch.setattr("sys.stdout.isatty", lambda: tty, raising=False)
+        return monitor, captured
+
+    def test_a_piped_run_is_refused(self, monkeypatch, capsys):
+        monitor, captured = self._patch(monkeypatch, tty=False)
+        args = _parse(["monitor", "IGPM:BC03", "--actuate", "IGPM"])
+        assert monitor.run(args) == 2
+        assert "--actuate needs a terminal" in capsys.readouterr().err
+        assert captured == {}
+
+    def test_an_ecu_without_actuators_is_refused(self, monkeypatch, capsys):
+        monitor, captured = self._patch(monkeypatch, tty=True)
+        assert monitor.run(_parse(["monitor", "IGPM:BC03", "--actuate", "NOPE"])) == 2
+        assert "no such ECU" in capsys.readouterr().err
+        assert captured == {}
+
+    def test_the_ecus_reach_the_monitor_options(self, monkeypatch):
+        monitor, captured = self._patch(monkeypatch, tty=True)
+        args = _parse(["monitor", "IGPM:BC03", "--actuate", "igpm,BCM", "--actuate", "IGPM"])
+        assert monitor.run(args) == 0
+        assert captured["options"].actuate == ("IGPM", "BCM")

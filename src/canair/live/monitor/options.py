@@ -35,6 +35,9 @@ class MonitorOptions:
     schedule: Schedule = DEFAULT_SCHEDULE
     backoff: bool = True
     verbose: bool = False
+    # The ECUs whose actuators and routines the actuator pane may drive (--actuate). Empty: the
+    # monitor never actuates.
+    actuate: tuple[str, ...] = ()
     # The screen a TTY gets, given the monitor's controller; None polls without one. The CLI
     # passes the Textual app, which sits above this layer.
     interactive: Callable[[Any], Awaitable[None]] | None = None

@@ -29,9 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from canair.ecus.names import (
-    build_canonical_name_index,
     build_name_tx_index,
-    canonical_ecu_name_safe,
     rx_from_name,
 )
 from canair.ecus.pids import build_ecu_index, load_pids, load_pids_dir
@@ -40,6 +38,7 @@ from canair.profile.model import Profile
 from canair.transport.session_manager import SessionManager
 
 from ...captures.link_events import is_rx
+from .actuation import MonitorActuation
 from .backoff import PollBackoff
 from .edit import MonitorEditor
 from .foreground import ForegroundLane
@@ -60,31 +59,6 @@ from .view import MonitorView
 if TYPE_CHECKING:
     from ...captures.link_events import DisconnectCause
     from .reconnect import Reconnector
-
-
-def query_ecu_error(query_steps: list[dict], pids_data: dict, *, profile: Profile) -> str | None:
-    """Return an error message if any query step names an unknown ECU, else None.
-
-    Guards against typos like ``query ESC ECS`` (the second selector is a
-    non-existent ECU) that would otherwise be silently skipped every poll cycle.
-    ECU names are matched case-insensitively against the active profile.
-    """
-    ecu_index = build_ecu_index(pids_data)
-    try:
-        name_index = build_canonical_name_index(profile=profile)
-    except FileNotFoundError:
-        name_index = None
-    seen: set[str] = set()
-    unknown: list[str] = []
-    for step in query_steps:
-        key = canonical_ecu_name_safe(step["ecu"], name_index, profile=profile).upper()
-        if key not in ecu_index and key not in seen:
-            seen.add(key)
-            unknown.append(step["ecu"])
-    if not unknown:
-        return None
-    available = ", ".join(sorted(ecu_index.keys()))
-    return f"unknown ECU(s) in query: {', '.join(unknown)}.\n  Available ECUs: {available}"
 
 
 class MonitorController:
@@ -139,6 +113,10 @@ class MonitorController:
         # The user's requests (a session switch, an actuation) run here, one at a time,
         # beside the poll; the transport interleaves them with it request by request.
         self.foreground = ForegroundLane(ready=lambda: not self.disconnected)
+        # The --actuate ECUs' actuators (the actuator pane); None when the run may not actuate.
+        self.actuation: MonitorActuation | None = (
+            MonitorActuation(self, options.actuate) if options.actuate else None
+        )
         # Live PID-selector management (the TUI 'p' picker) lives in MonitorSelectors.
         self.selectors = MonitorSelectors(self)
         # Raw-backend poll cycle + multi-DID batching state lives in the poller.

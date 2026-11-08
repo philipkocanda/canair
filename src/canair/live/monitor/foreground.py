@@ -44,6 +44,7 @@ class ForegroundLane:
         self._ready = ready
         self._queue: asyncio.Queue[_Job] | None = None
         self._worker: asyncio.Task | None = None
+        self._job: asyncio.Task | None = None  # the job on the bus
         #: The label of the job on the bus, or None.
         self.current: str | None = None
 
@@ -76,7 +77,8 @@ class ForegroundLane:
                 while not self._ready():
                     await asyncio.sleep(_READY_POLL_S)
                 self.current = job.label
-                result = await job.make()
+                self._job = asyncio.ensure_future(job.make())
+                result = await self._job
             except asyncio.CancelledError:
                 if not job.done.done():
                     job.done.cancel()
@@ -90,6 +92,7 @@ class ForegroundLane:
                     job.done.set_result(result)
             finally:
                 self.current = None
+                self._job = None
                 queue.task_done()
 
     async def drain(self) -> None:
@@ -97,15 +100,22 @@ class ForegroundLane:
         if self._queue is not None and self._worker is not None and not self._worker.done():
             await self._queue.join()
 
-    async def stop(self) -> None:
-        """Cancel the job on the bus and every queued one, and stop the worker."""
+    async def stop(self, timeout: float = 5.0) -> None:
+        """Cancel every queued job, let the one on the bus finish (``timeout``), stop the worker.
+
+        A request cut off mid-exchange would leave its reply on the pipe for whoever reads
+        next, and an actuation would be left in an unknown state, so the job on the bus is
+        given its time.
+        """
+        if self._queue is not None:
+            while not self._queue.empty():
+                self._queue.get_nowait().done.cancel()
+                self._queue.task_done()
+        if self._job is not None:
+            await asyncio.wait({self._job}, timeout=timeout)
         if self._worker is not None:
             self._worker.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self._worker
             self._worker = None
-        if self._queue is not None:
-            while not self._queue.empty():
-                job = self._queue.get_nowait()
-                job.done.cancel()
-            self._queue = None
+        self._queue = None

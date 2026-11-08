@@ -31,9 +31,9 @@ from canair.cli.live import (
 from canair.cli.live.handlers import elm_only, multi, reads
 from canair.cli.profile_context import active
 from canair.ecus.ecu_groups import GroupError
-from canair.live.monitor.controller import query_ecu_error
 from canair.live.read.multi import parse_sub_commands
 from canair.privacy.sensitive import set_reveal
+from canair.query.steps import query_ecu_error
 from canair.render import messages
 
 NAME = "read"

@@ -17,6 +17,7 @@ import pytest
 from canair.cli.profile_context import active
 from canair.core.stop_signals import STOP_SIGNALS
 from canair.live.monitor import run as run_mod
+from canair.live.monitor.foreground import ForegroundLane
 from canair.live.monitor.options import MonitorOptions
 
 
@@ -122,6 +123,8 @@ class _TeardownController:
         self.reconnect = None
         self.session_steps = None
         self.cycle = 0
+        self.actuation = None
+        self.foreground = ForegroundLane()
 
     def diag_recorder(self):
         return None

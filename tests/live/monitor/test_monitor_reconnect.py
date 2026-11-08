@@ -138,6 +138,7 @@ class FakeController:
         self.closed = 0
         self.rebound: list[object] = []
         self.setup_calls: list[object] = []
+        self.actuation = None
 
     async def close_client(self) -> None:
         self.closed += 1

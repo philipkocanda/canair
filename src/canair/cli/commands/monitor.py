@@ -25,6 +25,7 @@ from canair.cli.args.notation import add_notation_arg
 from canair.cli.args.session import add_wake_arg
 from canair.cli.live import (
     add_connection_args,
+    ecu_completer,
     expand_step_groups,
     load_pids,
     report_merged_selectors,
@@ -35,9 +36,10 @@ from canair.cli.live import (
 from canair.cli.live.handlers.multi import monitor_operation, monitor_options
 from canair.cli.profile_context import active
 from canair.ecus.ecu_groups import GroupError
-from canair.live.monitor.controller import query_ecu_error
+from canair.live.monitor.actuation import actuate_ecus, actuate_problem
 from canair.live.monitor.schedule import DEFAULT_SCHEDULE, MIN_INTERVAL, SCHEDULES
 from canair.live.read.multi import parse_sub_commands
+from canair.query.steps import query_ecu_error
 from canair.render import messages
 
 NAME = "monitor"
@@ -80,6 +82,7 @@ examples:
   canair monitor @driving CLU:220B          A group plus an extra selector
   canair monitor "skm-wake acc" "query IGPM:BC03,BC06"
   canair monitor BMS:2101 --save --label "…" --state "READY, PARKED"  Record while monitoring
+  canair monitor IGPM:BC03 --actuate IGPM --save --label "…"   Switch outputs, watch them
 
 Polling: by default each PID is read every half of its own `period:` from the profile
 (the period is the WiCAN AutoPID cadence; set one with `canair pids set-pid-period`), and a
@@ -98,6 +101,7 @@ r toggles the byte-index ruler, E opens this session's errors/diagnostics log,
 V cycles the view mode (ecus / ranges / signals / full),
 i opens the session-info overlay (segment history + summary),
 ↑/↓ select a signal (esc deselects), e/v/x/F edit/verify/en-disable/filter,
+A shows the actuator pane (with --actuate), tab moves between the values and it,
 s labels the recording (or saves now when not using --save),
 n finishes the current --save session and starts a fresh one,
 ? shows all shortcuts, q quits.
@@ -172,6 +176,16 @@ For a single one-shot read (no live refresh) use `canair read` instead.
         "PIDs with status: static or slow; naming one explicitly (ECU:21F2) always "
         "polls it.",
     )
+    parser.add_argument(
+        "--actuate",
+        action="append",
+        metavar="ECU[,ECU]",
+        default=None,
+        help="Let the actuator pane (A in the TUI) switch these ECUs' IOControl outputs and "
+        "run their routines; repeatable or comma-separated. Without it the monitor never "
+        "actuates. Each request goes out between two poll requests, and every output still "
+        "on is released on exit and after a reconnect. Needs a terminal",
+    ).completer = ecu_completer
     add_connection_args(parser, json=False)
     parser.set_defaults(func=run)
     return parser
@@ -239,5 +253,18 @@ def run(args) -> int:
     if ecu_err:
         messages.error(ecu_err)
         return 2
+
+    args.actuate = actuate_ecus(args.actuate or [])
+    if args.actuate:
+        if not (sys.stdin.isatty() and sys.stdout.isatty()):
+            messages.error(
+                "--actuate needs a terminal: the actuator pane is where outputs are switched. "
+                'In a script, use `canair read "iocontrol ECU DID" …` instead'
+            )
+            return 2
+        problem = actuate_problem(load_pids(profile=active()), args.actuate, profile=active())
+        if problem:
+            messages.error(problem)
+            return 2
 
     return run_live(args, monitor_operation(monitor_options(args)))

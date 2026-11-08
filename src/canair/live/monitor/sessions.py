@@ -230,12 +230,17 @@ class MonitorSessions:
         blocked = self.check(ecu, mode)
         if blocked:
             return blocked
+        held = c.actuation.switch_refusal(ecu) if c.actuation is not None else None
+        if held:
+            return held
         label = SUBFUNCTION_NAMES.get(0x10, {}).get(int(mode, 16), "")
         suffix = f" ({label})" if label else ""
         try:
             outcome = await c.sm.open_session(info["tx_id"], mode=mode, force=True, report=False)
         except transport_error_types() as exc:
             return f"{ecu}: session switch failed ({exc})"
+        if c.actuation is not None:
+            c.actuation.forget_mode(info["tx_id"])  # the user chose this ECU's session now
         if outcome.ok:
             return f"{ecu}: switched to session 0x10{mode}{suffix}."
         return f"{ecu}: session 0x10{mode}{suffix} not opened — {outcome.problem()}."

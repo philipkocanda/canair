@@ -15,18 +15,16 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 from canair.render import glyphs
+from canair.transport.protocol import Terminal
 from canair.uds.nrc import nrc_abbrev
 from canair.uds.requests import routine_control_request
 from canair.uds.response import UdsResponse
 
 from .ports import ActuationSessions, Report
 from .routines_execute import send_routine, sf_label
-
-if TYPE_CHECKING:
-    from canair.transport.protocol import Terminal
 
 _logger = logging.getLogger("routines-tui")
 

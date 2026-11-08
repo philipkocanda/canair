@@ -13,6 +13,7 @@ import re
 import shlex
 
 from canair.ecus.names import build_canonical_name_index, canonical_ecu_name_safe, ecu_index_key
+from canair.ecus.pids import build_ecu_index
 from canair.profile.model import Profile
 from canair.query import looks_like_pid, parse_query
 
@@ -326,3 +327,28 @@ def parse_sub_commands(args: list[str], *, profile: Profile) -> list[dict]:
             )
 
     return normalize_query_steps(commands, profile=profile)
+
+
+def query_ecu_error(query_steps: list[dict], pids_data: dict, *, profile: Profile) -> str | None:
+    """Return an error message if any query step names an unknown ECU, else None.
+
+    Guards against typos like ``query ESC ECS`` (the second selector is a
+    non-existent ECU) that would otherwise be silently skipped every poll cycle.
+    ECU names are matched case-insensitively against the active profile.
+    """
+    ecu_index = build_ecu_index(pids_data)
+    try:
+        name_index = build_canonical_name_index(profile=profile)
+    except FileNotFoundError:
+        name_index = None
+    seen: set[str] = set()
+    unknown: list[str] = []
+    for step in query_steps:
+        key = canonical_ecu_name_safe(step["ecu"], name_index, profile=profile).upper()
+        if key not in ecu_index and key not in seen:
+            seen.add(key)
+            unknown.append(step["ecu"])
+    if not unknown:
+        return None
+    available = ", ".join(sorted(ecu_index.keys()))
+    return f"unknown ECU(s) in query: {', '.join(unknown)}.\n  Available ECUs: {available}"

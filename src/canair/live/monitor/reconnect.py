@@ -182,6 +182,8 @@ class MonitorReconnector:
                 continue
             controller.rebind(client)
             await controller.setup(session_steps)
+            if controller.actuation is not None:
+                await controller.actuation.after_reconnect()
             say(f"reconnected to {cand.describe()} — resuming")
             return True
         return False

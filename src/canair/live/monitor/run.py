@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from canair.core.stop_signals import graceful_stop
 from canair.profile.model import Profile
+from canair.render import messages
 from canair.render.console import console, escape
 from canair.render.glyphs import FAIL
 
@@ -98,6 +99,20 @@ async def _attempt_reconnect(controller: MonitorController, stop_flag: dict, not
         # User stopped mid-reconnect: a deliberate stop, not a failure.
         controller.disconnected = False
     return False
+
+
+async def _release_actuators(controller: MonitorController) -> None:
+    """Finish the user's request on the bus, drop the queued ones, release every output ON."""
+    await controller.foreground.stop()
+    if controller.actuation is None or controller.disconnected:
+        return
+    try:
+        released = await controller.actuation.release_all()
+    except Exception as exc:  # the link died on the way out: the session timeout releases
+        messages.warning(f"could not release the actuators: {exc}")
+        return
+    if released:
+        messages.note(f"released {', '.join(released)}")
 
 
 async def mode_monitor(
@@ -193,6 +208,9 @@ async def mode_monitor(
             print("  Monitoring stopped.", file=sys.stderr)
 
     finally:
+        # Before the journal is reconciled (it records the releases) and before the sessions
+        # close (the releases go out inside them).
+        await _release_actuators(controller)
         # Replay the save banners the TUI swallowed (an in-run 's' save / 'n'
         # rotate wrote a real capture file while Textual owned stdout). The app —
         # and any modal — is gone by now, so this is the first moment those

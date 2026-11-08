@@ -11,11 +11,6 @@ from canair.transport.raw.uds_client import RawUdsClient, response_id
 from canair.uds.addressing import EcuAddress
 from tests.support.uds_raw import FakeNotifier, FakeStack
 
-# Resolve the lazily imported stack factory now: its module subclasses
-# isotp.NotifierBasedCanStack when it loads, and the tests below replace that class.
-# Run alone, this file would otherwise load it after the patch, with a lambda as base.
-assert uds_raw.build_isotp_stack is not None
-
 
 def _addrs(mapping: dict[str, tuple[int, int]]) -> dict[str, EcuAddress]:
     """Convert a {name: (tx, rx)} test map to {name: EcuAddress} (11-bit)."""

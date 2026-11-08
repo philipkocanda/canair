@@ -18,11 +18,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Literal, get_args
+from typing import Literal, get_args
 
 from canair.ecus.pids import IoControlCommand
 from canair.render import glyphs
 from canair.safety.actuation import on_refusal, parse_io_request
+from canair.transport.protocol import Terminal
 from canair.uds.nrc import nrc_abbrev
 from canair.uds.protocol import KWP, DiagProtocol
 from canair.uds.requests import io_control_request
@@ -35,9 +36,6 @@ from canair.uds.services import (
 from canair.uds.subfunctions import IoControlParameter
 
 from .ports import ActuationSessions, Report
-
-if TYPE_CHECKING:
-    from ...transport.protocol import Terminal
 
 # Per-DID actuator state — the single source of truth for these sentinels.
 #

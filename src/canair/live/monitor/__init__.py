@@ -14,6 +14,8 @@
 * :mod:`.stats` and :mod:`.state` — value ranges, state hints
 * :mod:`.foreground` — the user's requests (a session switch, an actuation), run one at a time
   beside the poll and interleaved with it by the transport, request by request
+* :mod:`.actuation` — the ``--actuate`` ECUs' actuators and routines, their sessions, and their
+  release on exit and after a reconnect
 * :mod:`.selectors`, :mod:`.select`, :mod:`.sessions` and :mod:`.edit` — changing what is polled
 * :mod:`.reconnect` and :mod:`.options` — re-homing a dropped session, and the options as values
 
@@ -22,7 +24,8 @@ Belongs: everything between the CLI and the screen for one monitoring session, o
 Not here: the Textual screens (``tui/apps/monitor/``), the one-shot step executor
 (``live/read/``), the flags (``cli/commands/monitor``) and the capture store (``captures/``).
 Imports: ``transport``, ``safety``, ``captures``, ``ecus``, ``query``, ``analysis``, ``render``,
-``states``, ``uds`` and below, and ``live.read`` for the step primitives.
+``states``, ``uds`` and below, ``live.read`` for the step primitives and ``live.actuate`` for
+the actuation banks.
 
 This package imports nothing eagerly. The CLI parser imports ``schedule`` at start-up, and a
 package ``__init__`` that imported the controller would load the whole monitor with it.
