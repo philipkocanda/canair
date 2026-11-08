@@ -1,4 +1,4 @@
-"""Tests for canair.live.actuate.iocontrol_actuate: the IOControl actuator backend.
+"""Tests for canair.live.actuate.iocontrol_actuate: the IOControl actuator bank.
 
 This is the only code in canair that **energises physical vehicle outputs**, and
 it was almost entirely untested — replacing `release_all` (the "switch every
@@ -9,7 +9,7 @@ lamp, or motor is on the other end:
 - ON/OFF send the *requested* command and set the state the renderer reads;
 - `release_all` actually releases everything it turned on, is resilient to a
   failing release, and doesn't touch actuators it never enabled;
-- `cleanup` releases before cancelling the TesterPresent keepalive.
+- `canair io` releases before it stops the TesterPresent keepalive.
 
 Device-free: a fake terminal stands in for the UDS surface.
 """
@@ -22,7 +22,8 @@ import contextlib
 import pytest
 
 from canair.cli.profile_context import active
-from canair.live.actuate.iocontrol_actuate import IOControlActuator
+from canair.live.actuate.iocontrol_actuate import IoBank
+from canair.live.actuate.ports import OwnSessions
 from canair.safety.blocklist import SessionPolicy
 from canair.transport.session_manager import SessionManager
 from canair.transport.stats import TransportStats
@@ -73,14 +74,14 @@ class FakeTerminal:
         return {"ok": True, "hex": reply, "bytes": list(bytes.fromhex(reply))}
 
 
-class FakeTui:
-    """The display/session state the actuator reads and updates via `self.t`."""
+class Rig:
+    """An IoBank on a fake terminal, with its own session and the view state tests read."""
 
     def __init__(self, dids: list[str], *, terminal: FakeTerminal | None = None):
         self.dids = dids
         self.tx_id = 0x770
         self.terminal = terminal or FakeTerminal()
-        self.cmds = {
+        cmds = {
             d: {
                 "on": ON_CMD,
                 "off": OFF_CMD,
@@ -91,28 +92,73 @@ class FakeTui:
             }
             for d in dids
         }
-        self.all_cmds = self.cmds
-        self.state = dict.fromkeys(dids, "off")
-        self.last_response: dict[str, str] = {}
-        self.status_bytes: dict[str, str] = {}
-        self.last_value: dict[str, str] = {}
-        self.session_active = True
-        self.session_mode: str | None = "03"
         self.sm = SessionManager(self.terminal)
-        self.busy = False
+        self.sessions = OwnSessions(self.sm, active=True, mode="03")
         self.status = ""
         self.status_level = "info"
-        self.stopping = False
         self.polling = False
-        self.protocol = "uds"
+        self.bank = IoBank(
+            lambda: self.terminal,
+            0x770,
+            "uds",
+            cmds,
+            self.sessions,
+            self.report,  # type: ignore[arg-type]
+        )
+        for d in dids:
+            self.bank.state[d] = "off"
 
     def report(self, text: str, level: str = "info") -> None:
         self.status, self.status_level = text, level
 
+    @property
+    def cmds(self):
+        return self.bank.all_cmds
+
+    @property
+    def state(self):
+        return self.bank.state
+
+    @property
+    def status_bytes(self):
+        return self.bank.status_bytes
+
+    @property
+    def last_value(self):
+        return self.bank.last_value
+
+    @property
+    def busy(self):
+        return self.bank.busy
+
+    @property
+    def protocol(self):
+        return self.bank.protocol
+
+    @protocol.setter
+    def protocol(self, value):
+        self.bank.protocol = value
+
+    @property
+    def session_active(self):
+        return self.sessions.active
+
+    @session_active.setter
+    def session_active(self, value):
+        self.sessions.active = value
+
+    @property
+    def session_mode(self):
+        return self.sessions.mode
+
+    @session_mode.setter
+    def session_mode(self, value):
+        self.sessions.mode = value
+
 
 def _actuator(dids=("BC01", "BC02", "BC03"), **kw):
-    tui = FakeTui(list(dids), **kw)
-    return IOControlActuator(tui), tui
+    rig = Rig(list(dids), **kw)
+    return rig.bank, rig
 
 
 class TestSendOnOff:
@@ -198,47 +244,66 @@ class TestReleaseAll:
         assert tui.state["BC03"] == "off"
 
 
-class TestCleanup:
-    def test_releases_actuators_before_cancelling_the_keepalive(self):
-        act, tui = _actuator()
-        tui.state["BC01"] = "on"
+IGPM_DATA = {
+    "ecus": {
+        "IGPM": {
+            "tx_id": 0x770,
+            "iocontrol": {"BC01": {"label": "Low beam", "on": ON_CMD, "off": OFF_CMD}},
+        }
+    }
+}
 
+
+def _controller(terminal: FakeTerminal):
+    from canair.ecus.pids import build_iocontrol_index
+    from canair.live.actuate.iocontrol import IOControlController
+
+    entry = build_iocontrol_index(IGPM_DATA, include_discoveries=True)["IGPM"]
+    return IOControlController(terminal, "IGPM", entry, IGPM_DATA, profile=active())  # type: ignore[arg-type]
+
+
+class TestClose:
+    def test_releases_actuators_before_stopping_the_keepalive(self):
+        terminal = FakeTerminal()
+        c = _controller(terminal)
         order: list[str] = []
-        original = act.release_all
 
-        async def traced() -> None:
-            order.append("release")
-            await original()
+        async def run() -> None:
+            await c.actuator.send_on("BC01")
+            c.sm.start_background_keepalive()
+            original = c.sm.stop_background_keepalive
 
-        act.release_all = traced  # type: ignore[method-assign]
+            async def stop() -> None:
+                order.append(f"keepalive stopped after {terminal.sent[-1]}")
+                await original()
 
-        async def stop() -> None:
-            order.append("keepalive-stopped")
+            c.sm.stop_background_keepalive = stop  # type: ignore[method-assign]
+            await c.close()
 
-        tui.sm.stop_background_keepalive = stop  # type: ignore[method-assign]
-        asyncio.run(act.cleanup())
-        assert order == ["release", "keepalive-stopped"]
-        assert tui.state["BC01"] == "off"
+        asyncio.run(run())
+        assert order == [f"keepalive stopped after {OFF_CMD}"]
+        assert c.state["BC01"] == "off"
 
-    def test_cleanup_without_a_keepalive_task_is_safe(self):
-        act, tui = _actuator()
-        tui.state["BC01"] = "on"
-        asyncio.run(act.cleanup())  # must not raise
-        assert tui.state["BC01"] == "off"
+    def test_close_without_a_keepalive_task_is_safe(self):
+        c = _controller(FakeTerminal())
+        c.actuator.all_cmds["BC01"]["session"] = False  # no session, so no keepalive
+        asyncio.run(c.actuator.send_on("BC01"))
+        asyncio.run(c.close())  # must not raise
+        assert c.state["BC01"] == "off"
 
 
 class TestEnsureSession:
     def test_opens_a_session_on_the_target_ecu(self):
-        act, tui = _actuator()
+        _act, tui = _actuator()
         tui.session_active = False
-        asyncio.run(act.ensure_session())
+        asyncio.run(tui.sessions.ensure(0x770, None))
         assert tui.terminal.headers == [0x770]
         assert tui.session_active is True
 
     def test_is_a_noop_when_a_session_is_already_active(self):
-        act, tui = _actuator()
+        _act, tui = _actuator()
         tui.session_active = True
-        asyncio.run(act.ensure_session())
+        asyncio.run(tui.sessions.ensure(0x770, None))
         assert tui.terminal.headers == []
 
     def test_opens_the_session_mode_the_actuator_declares(self):
@@ -251,16 +316,16 @@ class TestEnsureSession:
         assert tui.terminal.sent == [ON_CMD]
 
     def test_reuses_an_open_session_of_the_same_mode(self):
-        act, tui = _actuator()
-        asyncio.run(act.ensure_session("03"))
+        _act, tui = _actuator()
+        asyncio.run(tui.sessions.ensure(0x770, "03"))
         assert tui.terminal.sessions == []
 
     def test_switches_session_and_stops_the_old_keepalive(self):
-        act, tui = _actuator()
+        _act, tui = _actuator()
 
         async def run():
             old = tui.sm.start_background_keepalive()
-            await act.ensure_session("C0")
+            await tui.sessions.ensure(0x770, "C0")
             assert tui.sm.keepalive_running
             await tui.sm.stop_background_keepalive()
             return old
@@ -411,12 +476,12 @@ class TestEnsureSessionFailure:
     """Regression: a failed re-entry left the header claiming the old session."""
 
     def test_a_raising_session_open_forgets_the_old_session(self):
-        act, tui = _actuator(terminal=FailingSessionTerminal())
+        _act, tui = _actuator(terminal=FailingSessionTerminal())
 
         async def run():
             tui.sm.start_background_keepalive()
             with pytest.raises(ValueError):
-                await act.ensure_session("C0")
+                await tui.sessions.ensure(0x770, "C0")
 
         asyncio.run(run())
         assert tui.session_active is False
@@ -424,10 +489,10 @@ class TestEnsureSessionFailure:
         assert not tui.sm.keepalive_running
 
     def test_a_refused_session_is_unconfirmed_not_active(self):
-        act, tui = _actuator(terminal=FakeTerminal())
+        _act, tui = _actuator(terminal=FakeTerminal())
         tui.terminal.session_reply = _refusing  # type: ignore[method-assign]
         tui.session_active = False
-        asyncio.run(act.ensure_session("C0"))
+        asyncio.run(tui.sessions.ensure(0x770, "C0"))
         assert tui.session_active is False
         assert tui.session_mode == "C0"
 
@@ -525,7 +590,7 @@ class TestKwpActuators:
         act, tui = self._kwp(release="3001AA")
         asyncio.run(act.send_on("01"))
         assert tui.state["01"] == "on"
-        asyncio.run(act.cleanup())
+        asyncio.run(act.release_all())
         assert tui.terminal.sent == ["300100", "3001AA"]
         assert tui.state["01"] == "off"
 
@@ -548,13 +613,13 @@ class TestKwpActuators:
     def test_poll_skips_kwp_entries_without_a_release(self):
         act, tui = self._kwp()
         tui.session_active = False
-        asyncio.run(act.poll_status_once())
+        asyncio.run(act.poll_status_once(tui.dids))
         assert tui.terminal.sent == []
         assert tui.terminal.sessions == []
 
     def test_poll_sends_a_declared_kwp_release(self):
         act, tui = self._kwp(release="3001AA")
-        asyncio.run(act.poll_status_once())
+        asyncio.run(act.poll_status_once(tui.dids))
         assert tui.terminal.sent == ["3001AA"]
         # 70 {LID} echo, then the status record.
         assert tui.status_bytes["01"] == "AA"
@@ -563,7 +628,7 @@ class TestKwpActuators:
         act, tui = _actuator(dids=("BC01",))
         tui.session_active, tui.session_mode = False, None
         tui.cmds["BC01"].update(session=True, session_mode="83")
-        asyncio.run(act.poll_status_once())
+        asyncio.run(act.poll_status_once(tui.dids))
         assert tui.terminal.sessions == ["83"]
         assert tui.terminal.sent == ["2FBC0100"]
 
@@ -573,7 +638,7 @@ class TestKwpActuators:
         tui.session_active, tui.session_mode = False, None
         for c in tui.cmds.values():
             c["session"] = True
-        asyncio.run(act.poll_status_once())
+        asyncio.run(act.poll_status_once(tui.dids))
         assert tui.terminal.sent == []
 
     def test_release_reenters_the_actuators_own_session(self):
@@ -675,3 +740,15 @@ class TestListJson:
         assert captured.out == ""
         assert "error: no IOControl DIDs for ECU: NOPE" in captured.err
         assert "hint: ECUs with IOControl: BCM" in captured.err
+
+
+class TestOneTransaction:
+    """Every request sets its header inside the transaction it is sent in."""
+
+    def test_the_header_is_set_before_every_request(self):
+        act, tui = _actuator(dids=("BC01",))
+        tui.terminal.headers.clear()
+        asyncio.run(act.send_on("BC01"))
+        asyncio.run(act.send_off("BC01"))
+        assert tui.terminal.headers == [0x770, 0x770]
+        assert tui.terminal.sent == [ON_CMD, OFF_CMD]

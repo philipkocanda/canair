@@ -12,8 +12,9 @@ Sub-functions (UDS 0x31):
     0x02  stopRoutine        — stops a running routine
     0x03  requestRoutineResults — safe read-only: "what happened last time?"
 
-:class:`RoutinesController` holds what the view shows and does: the result of the last request
-per RID, the diagnostic session, and the edits to ``ecus/<ecu>.yaml``; :func:`routine_cells`
+:class:`RoutinesController` holds what the view shows and does: the diagnostic session it owns
+and the edits to ``ecus/<ecu>.yaml``. Its :class:`~.routine_bank.RoutineBank` holds the result
+of the last request per RID and sends the requests; :func:`routine_cells`
 says what each row shows, in the colours of the cli-tui-standards skill. The screen is a Textual
 app (``tui/apps/routines/``) that the CLI passes in as ``interactive``, because nothing below
 ``tui/`` imports Textual. The view sends 0x03 by default; startRoutine needs its own key and a
@@ -26,7 +27,6 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Literal
 
 from rich.table import Table
 from rich.text import Text
@@ -35,24 +35,18 @@ from canair.core.paths import config_dir
 from canair.core.terminal import is_interactive
 from canair.ecus.pids import RoutineIndexEntry, build_routines_index, load_pids
 from canair.live.actuate.not_found import report_not_found
-from canair.live.actuate.routines_execute import check_routines_protocol, send_routine, sf_label
+from canair.live.actuate.ports import OwnSessions, StatusLevel
+from canair.live.actuate.routine_bank import RoutineBank, RoutineState
+from canair.live.actuate.routines_execute import check_routines_protocol, sf_label
 from canair.profile.model import Profile
 from canair.render import glyphs, messages
 from canair.render.console import console
 from canair.transport.protocol import Terminal
 from canair.transport.session_manager import SessionManager
-from canair.uds.nrc import nrc_abbrev
-from canair.uds.requests import routine_control_request
 from canair.uds.subfunctions import RoutineControlType
 from canair.yaml_edit.pids import PidsEditError, update_routines_field
 
 _tui_logger = logging.getLogger("routines-tui")
-
-#: How a status message reads: the view colours it and gives it a glyph.
-StatusLevel = Literal["error", "warning", "success", "info"]
-
-#: The outcome of the last request to a RID: a positive reply, an NRC, or a failure.
-RoutineState = Literal["ok", "nrc", "error"]
 
 
 def _log_file() -> Path:
@@ -76,23 +70,46 @@ class RoutinesController:
         self.terminal = terminal
         self.ecu_key = ecu_key
         self.tx_id = ecu_info["tx_id"]
-        # {RID: {label, nrc, nrc_desc, response, verified, notes}}
-        self.routines: dict[str, dict] = ecu_info["routines"]
-        self.rids = list(self.routines)
         self.pids_data = pids_data
         self.verbose = verbose
-
-        self.state: dict[str, RoutineState | None] = dict.fromkeys(self.rids)
-        self.last_response: dict[str, str] = {}
-        self.last_sf: dict[str, int] = {}  # which sub-function was last sent
-
-        self.session_active = False
-        self.sm = SessionManager(terminal, verbose=verbose)
-        self.busy = False
         self.stopping = False  # set once the user quits
         # The latest message for the user; the view shows it and clears it.
         self.status = ""
         self.status_level: StatusLevel = "info"
+        self.sm = SessionManager(terminal, verbose=verbose)
+        self.sessions = OwnSessions(self.sm)
+        self.bank = RoutineBank(
+            lambda: self.terminal, self.tx_id, ecu_info["routines"], self.sessions, self.report
+        )
+
+    # -- what the bank holds, as the view reads it --------------------------
+    @property
+    def routines(self) -> dict[str, dict]:
+        return self.bank.routines
+
+    @property
+    def rids(self) -> list[str]:
+        return list(self.bank.routines)
+
+    @property
+    def state(self) -> dict[str, RoutineState | None]:
+        return self.bank.state
+
+    @property
+    def last_response(self) -> dict[str, str]:
+        return self.bank.last_response
+
+    @property
+    def last_sf(self) -> dict[str, int]:
+        return self.bank.last_sf
+
+    @property
+    def busy(self) -> bool:
+        return self.bank.busy
+
+    @property
+    def session_active(self) -> bool:
+        return self.sessions.active
 
     # -- messages ----------------------------------------------------------
     def report(self, text: str, level: StatusLevel = "info") -> None:
@@ -108,50 +125,12 @@ class RoutinesController:
         return out
 
     # -- requests ----------------------------------------------------------
-    async def _ensure_session(self) -> None:
-        if self.session_active:
-            return
-        _tui_logger.info("Opening extended session (10 03) on 0x%03X", self.tx_id)
-        outcome = await self.sm.open_session(self.tx_id, force=True, report=False)
-        self.sm.start_background_keepalive()
-        self.session_active = outcome.ok
-        _tui_logger.info("Session established: %s (%s)", outcome.ok, outcome.problem() or "ok")
-
     async def send(self, rid: str, sub_function: int) -> None:
         """Send ``31 {SF} {RID_HI} {RID_LO}`` and record the outcome."""
-        hex_cmd = routine_control_request(sub_function, int(rid, 16))
-        self.busy = True
-        self.report(f"Sending {sf_label(sub_function)}: {rid}{glyphs.ELLIPSIS}")
-        _tui_logger.info("SF %s %s cmd=%s", sf_label(sub_function), rid, hex_cmd)
-        try:
-            await self._ensure_session()
-            await self.terminal.set_header(self.tx_id)
-            resp = await send_routine(self.terminal, self.tx_id, hex_cmd)
-            _tui_logger.info("SF %s resp: %s", rid, resp)
-            self.last_sf[rid] = sub_function
-            if resp["ok"]:
-                self.state[rid] = "ok"
-                self.last_response[rid] = resp["hex"]
-            elif resp.get("nrc") is not None:
-                self.state[rid] = "nrc"
-                protocol = self.terminal.session_policy.protocol(self.tx_id)
-                self.last_response[rid] = (
-                    f"NRC 0x{resp['nrc']:02X} {nrc_abbrev(resp['nrc'], protocol)}"
-                )
-            else:
-                self.state[rid] = "error"
-                self.last_response[rid] = resp.get("error", "unknown error")
-            self.report("")
-        except Exception as e:
-            _tui_logger.error("SF %s %s exception: %s", rid, sub_function, e, exc_info=True)
-            self.state[rid] = "error"
-            self.last_response[rid] = str(e)
-            self.report("")
-        finally:
-            self.busy = False
+        await self.bank.send(rid, sub_function)
 
     async def cleanup(self) -> None:
-        await self.sm.stop_background_keepalive()
+        await self.sessions.close()
 
     # -- edits to ecus/ ----------------------------------------------------
     def apply_edit(self, rid: str, field: str, value: str | bool) -> None:
@@ -167,10 +146,7 @@ class RoutinesController:
             self.pids_data.clear()
             self.pids_data.update(fresh)
             idx = build_routines_index(self.pids_data)
-            self.routines = idx[self.ecu_key]["routines"]
-            self.rids = list(self.routines)
-            for r in self.rids:
-                self.state.setdefault(r, None)
+            self.bank.set_routines(idx[self.ecu_key]["routines"])
         except Exception as exc:
             _tui_logger.warning("reload after edit failed: %s", exc)
         self.report(f"Saved {field} on {rid} {glyphs.ARROW} {fpath.name}", "success")

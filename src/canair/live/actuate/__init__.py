@@ -1,8 +1,13 @@
 """The operations that change the car's state: IOControl, RoutineControl and profile actions.
 
-* :mod:`.iocontrol` — ``canair io``, the state of the actuator view (:mod:`.iocontrol_actuate`
-  and :mod:`.iocontrol_render` hold its actuation and its rows; the Textual screen is
-  ``tui/apps/iocontrol/``)
+* :mod:`.iocontrol` — ``canair io``, the state of the actuator view (:mod:`.iocontrol_render`
+  holds its rows; the Textual screen is ``tui/apps/iocontrol/``)
+* :mod:`.iocontrol_actuate` and :mod:`.routine_bank` — one ECU's IOControl actuators and
+  routines, their state and their requests, shared by ``io``, ``routines``, the ``read``
+  pipeline and the monitor's actuator pane
+* :mod:`.ports` — what a bank needs from its owner: a session (:class:`~.ports.OwnSessions`
+  for a one-ECU view, :class:`~.ports.SharedSessions` for a manager somebody else keeps alive)
+  and a place to report
 * :mod:`.iocontrol_execute` and :mod:`.iocontrol_list` — one actuation, and the profile listing
 * :mod:`.routines` — ``canair routines``, the state and the rows of the routine view (the
   Textual screen is ``tui/apps/routines/``)

@@ -1,10 +1,10 @@
 """IOControl mode — the interactive actuator view of ``canair io ECU``.
 
 :class:`IOControlController` holds what the view shows and does: the DIDs of the current view
-mode, what was sent to each and what came back, the diagnostic session, and the edits to
-``ecus/<ecu>.yaml``. Its actuator (:mod:`.iocontrol_actuate`) puts the requests on the bus. The
-screen itself is a Textual app (``tui/apps/iocontrol/``) that the CLI passes in as
-``interactive``, because nothing below ``tui/`` imports Textual.
+mode, the diagnostic session it owns, and the edits to ``ecus/<ecu>.yaml``. Its actuator, an
+:class:`~.iocontrol_actuate.IoBank`, holds what was sent to each DID and what came back, and
+puts the requests on the bus. The screen itself is a Textual app (``tui/apps/iocontrol/``) that
+the CLI passes in as ``interactive``, because nothing below ``tui/`` imports Textual.
 
 :func:`mode_iocontrol_tui` runs one session: it starts the opt-in ``--poll`` loop, runs the app,
 then releases every actuator the session switched on and prints the final table.
@@ -21,9 +21,10 @@ from typing import Literal
 from canair.core.paths import config_dir
 from canair.core.terminal import is_interactive
 from canair.ecus.pids import IoControlCommand, IoControlIndexEntry, build_iocontrol_index, load_pids
-from canair.live.actuate.iocontrol_actuate import ACTUATOR_ON, ActuatorState, IOControlActuator
+from canair.live.actuate.iocontrol_actuate import ActuatorState, IoBank, status_poll_loop
 from canair.live.actuate.iocontrol_render import iocontrol_table, session_text
 from canair.live.actuate.not_found import report_not_found
+from canair.live.actuate.ports import OwnSessions, StatusLevel
 from canair.profile.model import Profile
 from canair.render import glyphs, messages
 from canair.render.console import console
@@ -33,9 +34,6 @@ from canair.uds.protocol import DiagProtocol
 from canair.yaml_edit.pids import PidsEditError, promote_discovery, update_iocontrol_field
 
 _tui_logger = logging.getLogger("iocontrol-tui")
-
-#: How a status message reads: the view colours it and gives it a glyph.
-StatusLevel = Literal["error", "warning", "success", "info"]
 
 ViewMode = Literal["curated", "all", "discoveries"]
 VIEW_MODES: tuple[ViewMode, ...] = ("curated", "all", "discoveries")
@@ -72,46 +70,83 @@ class IOControlController:
         self.terminal = terminal
         self.ecu_key = ecu_key
         self.tx_id = ecu_info["tx_id"]
-        # Full cmd map (curated + discoveries); the filtered view is in self.cmds.
-        self.all_cmds: dict[str, IoControlCommand] = ecu_info["cmds"]
         self.pids_data = pids_data
         self.verbose = verbose
-        # A KWP2000 ECU's actuators are service 0x30 (manufacturer-defined control option): an
-        # ON needs a declared release, and UDS-shaped value keys are refused (safety.actuation).
-        self.protocol: DiagProtocol = ecu_info["protocol"]
         # Background status polling is OPT-IN: the poll loop sends each DID's release
         # (2F{DID}00, returnControlToECU, on UDS), which can actuate relay/solenoid-backed DIDs
         # (audible click). Off by default so launching the view sends no CAN traffic.
         self.poll_enabled: bool = poll
+        self.polling: bool = False  # True while the background poll loop runs
+
+        # The latest message for the user; the view shows it and clears it.
+        self.status: str = ""
+        self.status_level: StatusLevel = "info"
+
+        self.sm = SessionManager(terminal, verbose=verbose)  # opens and keeps it alive
+        self.sessions = OwnSessions(self.sm)
+        # Every entry (curated + discoveries) and its state; the filtered view is in self.cmds.
+        self.actuator = IoBank(
+            lambda: self.terminal,
+            self.tx_id,
+            ecu_info["protocol"],
+            ecu_info["cmds"],
+            self.sessions,
+            self.report,
+        )
 
         self.view_mode: ViewMode = "curated"
         self.cmds: dict[str, IoControlCommand] = {}
         self.dids: list[str] = []
         self._apply_view_filter()
 
-        # Per-DID state: None=idle, else one of ActuatorState ("on"/"off"/"error").
-        # Typed so a drifted sentinel can't silently disable release_all's
-        # switch-everything-back-off safety net (see iocontrol_actuate).
-        self.state: dict[str, ActuatorState | None] = dict.fromkeys(self.all_cmds)
-        self.last_response: dict[str, str] = {}  # DID → last response text
-        self.last_value: dict[str, bytes] = {}  # DID → last ShortTermAdjustment value bytes
-        # Per-DID status: the controlStatusRecord tail of the last 0x2F response, as hex.
-        # None = no response seen yet.
-        self.status_bytes: dict[str, str | None] = dict.fromkeys(self.all_cmds)
+    # -- what the bank holds, as the view reads it --------------------------
+    @property
+    def all_cmds(self) -> dict[str, IoControlCommand]:
+        return self.actuator.all_cmds
 
-        self.polling: bool = False  # True while the background poll loop runs
-        self.session_active: bool = False
-        # The mode of the open session: an actuator that needs another one (a Nissan
-        # 10 C0 next to a UDS 10 03) re-enters instead of reusing it.
-        self.session_mode: str | None = None
-        self.sm = SessionManager(terminal, verbose=verbose)  # opens and keeps it alive
-        self.stopping: bool = False
-        self.busy: bool = False  # one CAN request at a time
-        # The latest message for the user; the view shows it and clears it.
-        self.status: str = ""
-        self.status_level: StatusLevel = "info"
+    @property
+    def state(self) -> dict[str, ActuatorState | None]:
+        return self.actuator.state
 
-        self.actuator: IOControlActuator = IOControlActuator(self)
+    @property
+    def last_response(self) -> dict[str, str]:
+        return self.actuator.last_response
+
+    @property
+    def last_value(self) -> dict[str, bytes]:
+        return self.actuator.last_value
+
+    @property
+    def status_bytes(self) -> dict[str, str | None]:
+        return self.actuator.status_bytes
+
+    @property
+    def busy(self) -> bool:
+        return self.actuator.busy
+
+    @property
+    def protocol(self) -> DiagProtocol:
+        return self.actuator.protocol
+
+    @protocol.setter
+    def protocol(self, value: DiagProtocol) -> None:
+        self.actuator.protocol = value
+
+    @property
+    def stopping(self) -> bool:
+        return self.actuator.stopping
+
+    @stopping.setter
+    def stopping(self, value: bool) -> None:
+        self.actuator.stopping = value
+
+    @property
+    def session_active(self) -> bool:
+        return self.sessions.active
+
+    @property
+    def session_mode(self) -> str | None:
+        return self.sessions.mode
 
     # -- view mode ---------------------------------------------------------
     def _apply_view_filter(self) -> None:
@@ -137,7 +172,15 @@ class IOControlController:
 
     def active_dids(self) -> list[str]:
         """The DIDs this session switched on and has not released."""
-        return [d for d, s in self.state.items() if s == ACTUATOR_ON]
+        return self.actuator.active_dids()
+
+    async def close(self) -> None:
+        """Release every actuator this session switched on, then stop the keepalive.
+
+        In that order: the releases go out inside the session the keepalive holds open.
+        """
+        await self.actuator.release_all()
+        await self.sessions.close()
 
     # -- messages ----------------------------------------------------------
     def report(self, text: str, level: StatusLevel = "info") -> None:
@@ -159,11 +202,8 @@ class IOControlController:
         self.pids_data.clear()
         self.pids_data.update(fresh)
         idx = build_iocontrol_index(self.pids_data, include_discoveries=True)
-        self.all_cmds = idx[self.ecu_key]["cmds"]
+        self.actuator.set_commands(idx[self.ecu_key]["cmds"])
         self._apply_view_filter()
-        for d in self.all_cmds:
-            self.state.setdefault(d, None)
-            self.status_bytes.setdefault(d, None)
 
     def apply_edit(self, did: str, field: str, value: str | bool) -> None:
         """Write one field of ``did`` to ecus/<ecu>.yaml and reload; report the result."""
@@ -204,6 +244,14 @@ class IOControlController:
         _tui_logger.info("promote %s label=%r -> %s", did, label, fpath)
 
 
+async def _poll(c: IOControlController) -> None:
+    c.polling = True
+    try:
+        await status_poll_loop(c.actuator, lambda: c.dids)
+    finally:
+        c.polling = False
+
+
 #: Runs the interactive view on a controller and returns when the user quits.
 InteractiveView = Callable[[IOControlController], Awaitable[None]]
 
@@ -236,7 +284,7 @@ async def run_iocontrol_view(controller: IOControlController, interactive: Inter
     # read: returnControlToECU hands the I/O back to the ECU's own logic and can physically
     # actuate relay/solenoid-backed DIDs (e.g. IGPM door lock/unlock, trunk, charge cable lock,
     # defogger), with an audible click on the first poll.
-    poll_task = asyncio.ensure_future(c.actuator.status_poll_loop()) if c.poll_enabled else None
+    poll_task = asyncio.ensure_future(_poll(c)) if c.poll_enabled else None
     try:
         await interactive(c)
     finally:
@@ -249,7 +297,7 @@ async def run_iocontrol_view(controller: IOControlController, interactive: Inter
                 pass
         if c.active_dids():
             messages.note(f"releasing {', '.join(c.active_dids())}{glyphs.ELLIPSIS}")
-        await c.actuator.cleanup()
+        await c.close()
         out = console()
         out.print(session_text(c))
         out.print(iocontrol_table(c))

@@ -75,7 +75,9 @@ Screen { layout: vertical; background: transparent; }
 class RowController(Protocol):
     """What the mixin reads off a view's controller."""
 
-    busy: bool
+    @property
+    def busy(self) -> bool: ...
+
     stopping: bool
     status: str
     status_level: Any
