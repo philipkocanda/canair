@@ -1,6 +1,8 @@
 # Monitor: an actuator pane for IOControl and routines
 
-Status: **IN PROGRESS** (2026-11-07), on branch `monitor-actuator-pane`.
+Status: **DONE** (2026-11-08) on branch `monitor-actuator-pane`, `64127ae0`..`1fa09358`, one
+commit per phase. The on-car checks at the end are open. "As built" records where the code
+differs from the design below.
 
 Paths are relative to `src/canair/`. Point at code by file and symbol: line numbers drift.
 
@@ -218,6 +220,33 @@ A session-level **`actuations`** list, a sibling of `link_events`, in a pure lea
 - **Consumers:** `captures uds --sessions` shows the count, `captures --step` marks the frame
   nearest each actuation, and `investigate --events` puts actuations on its timeline.
 
+## As built
+
+- **Module names.** `IoBank` stayed in `live/actuate/iocontrol_actuate.py` (it replaced
+  `IOControlActuator` there) instead of a new `io_bank.py`. The session ports, `StatusLevel` and
+  the `Exchanged` hook are `live/actuate/ports.py`. The pipeline's `iocontrol` step moved next
+  to `canair io --did` in `live/actuate/iocontrol_execute.py` (`run_iocontrol_step`), which kept
+  `live/read/exec.py` under 500 lines. `EcuStacks` lives in `transport/raw/isotp_stack.py`
+  instead of a module of its own.
+- **The lane.** `live/monitor/foreground.py::ForegroundLane`. Its `stop()` cancels the queued
+  jobs but lets the job on the bus finish (5 s), because a request cut off mid-exchange would
+  leave its reply on the pipe.
+- **The pane.** `tui/apps/monitor/actuators.py` (`ActuatorPane`, `ActuatorTable`, the app's
+  `ActuatorMixin`) and `live/monitor/actuator_rows.py` (the Rich cells). The table, not the
+  pane, owns the keys: a subclass binding is what replaces a `DataTable`'s own `enter`. The
+  wide layout starts at 160 columns.
+- **Recording.** The banks report each request through an `Exchanged` hook, and only the
+  monitor's journals it. `held` covers outputs only: a started routine is not restated in a new
+  segment.
+- **Restore.** A started routine holds its ECU's session until it is stopped, like an output
+  that is on.
+- **`query_ecu_error`** moved from the monitor controller to `query/steps.py`.
+- **Consumers.** The stepper's frame-pair logic moved into `captures_step/gaps.py`;
+  `investigate --events` gets its rows from `cli/commands/investigate/actuations.py`.
+- **Ceilings.** `parser_build_modules` rose by one per new module the parser loads (637 to
+  643), with the user's approval. The parser loads the whole live layer through
+  `cli/live/handlers`, which is the follow-up below.
+
 ## Phases
 
 One commit per phase. Each passes the gates in the **contributing-code** skill.
@@ -263,3 +292,5 @@ approval.
 - Profile actions (`actions.yaml`) in the pane.
 - More panes (a recording pane, a session pane) on the pane-scoped keys of phase 5.
 - The rest of `plans/2026-10-27-raw-owed-ledger-blackout.md` (the probe that settles a debt).
+- Stop the CLI parser from importing the live layer (`cli/live/handlers`), which would bring
+  `parser_build_modules` well below its ceiling.
