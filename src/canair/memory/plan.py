@@ -47,6 +47,25 @@ def flash_size(span: int) -> int | None:
     return next((s for s in FLASH_SIZES if s >= span), None)
 
 
+def answers_everywhere(regions: Iterable[tuple[int, int]], space: tuple[int, int]) -> bool:
+    """Do the readable ``regions`` cover all of ``space``, so that no address refused a read?
+
+    An ECU that answers every address of its format's whole space does not check the range of
+    a memory read. Its readable span then says nothing about where its memory is, and a read
+    of an address the chip does not implement can stop the ECU (the Ioniq's motor controller
+    went silent at ``0x864000``, and the AC charge stopped).
+    """
+    start, end = space
+    covered = start
+    for a, b in sorted(regions):
+        if a > covered:
+            return False
+        covered = max(covered, b + 1)
+        if covered > end:
+            return True
+    return False
+
+
 def alias_candidates(start: int, end: int, sample: int) -> list[int]:
     """The periods worth testing in ``start``-``end``: there is room for ``A + S + sample``."""
     span = end - start + 1

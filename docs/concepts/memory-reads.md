@@ -41,8 +41,11 @@ reported as locked and left alone.
   read fails after a failing large one.
 - **A read of an address the chip does not implement can stop the ECU.** On the same car a
   `memory image` survey of the motor controller (MCU) went silent at `0x864000`, and the AC
-  charge stopped. An ECU that answers every address of its space probably ignores some address
-  bits or does not check the range: map such an ECU on a bench, not on a car in use.
+  charge stopped. That ECU answered every address of its 16 MiB space, so it does not check the
+  range of a memory read. `memory image` now stops after its map when an ECU answers its whole
+  default space, or when `ecus/` records such a map, and reads nothing larger than the map's
+  1-byte probes. Name the ranges its memory occupies with `--range`: from the chip's memory map,
+  or from what a dump of its boot block names. `scan memory` still records such a map.
 
 ## Dumps stay on your machine
 
@@ -118,7 +121,8 @@ reads one byte at the last address that answered:
    When there are none (or with `--range`), it maps the space itself first: `--range`, or the
    default space above. With no `max_block` recorded, it then finds the largest block the way
    `scan memory` does, from 16 bytes up to `--block-limit` (128). It writes the map, the format
-   and the block to the ECU's `memory:` section (`--dry-run`: not).
+   and the block to the ECU's `memory:` section (`--dry-run`: not). Without `--range`, it stops
+   here when the readable regions cover the whole default space (see Safety).
 3. **Size and aliases.** It matches the readable span against the common flash sizes. It also
    tests whether the ECU ignores its high address bits and repeats one image. If it does, the
    image reads the first period only.

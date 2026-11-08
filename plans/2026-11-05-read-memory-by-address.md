@@ -449,9 +449,10 @@ same nine codes (CCM, AMP, the VCU's U1112) and no new one.
   at 12:00:02 UTC, and right after it the MCU, BMS and OBC went silent: the AC charge had stopped
   (`VCU_POWER_STATE` 7 to 6, `VCU_IG3_ON` 0). No charge schedule was set. The charge resumed
   when it was restarted at the car, and no ECU stored a code. The map was not kept in
-  `ecus/mcu.yaml`. The MCU and the OBC are out of scope for memory reads on a car in use. A
-  `memory image` that maps a whole space as readable should stop before its survey and ask:
-  that answer means the ECU does not check the range.
+  `ecus/mcu.yaml`. The MCU is out of scope for memory reads on a car in use. That answer means
+  the ECU does not check the range, so `memory image` now stops after its map when the readable
+  regions cover the whole default space, and asks for `--range`
+  (`memory/plan.py::answers_everywhere`).
 - **BCM: SRAM and data flash.** The window recorded on 2026-11-05 (`0xFEDC0000`-`0xFEE0FFFF`)
   answers with zeros only, and so does everything from `0xC3F90000` up: these are not memory.
   A coarse scan found SRAM at `0x40000000`-`0x4000BFFE` (48 KiB, live: two dumps 2 min apart

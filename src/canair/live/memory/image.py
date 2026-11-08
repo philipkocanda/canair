@@ -36,7 +36,7 @@ from canair.ecus.memory import MemoryRegion
 from canair.live.dtc import read_ecu_dtcs
 from canair.live.identity.software import read_software_version
 from canair.memory.job import SAMPLE_SIZE, SPARSE, JobPlan, job_plan
-from canair.memory.plan import DEFAULT_STRIDE, Estimate, estimate
+from canair.memory.plan import DEFAULT_STRIDE, Estimate, answers_everywhere, estimate
 from canair.memory.rate import Rate, ceiling, preferred_block
 from canair.memory.store import Dump, DumpWriter
 from canair.memory.verify import DtcChange, dtc_changes, find_strings, identity_strings
@@ -44,6 +44,7 @@ from canair.profile.model import Profile
 from canair.states.predicates import StateRule
 from canair.transport.errors import transport_error_types
 from canair.transport.protocol import Terminal
+from canair.uds.memory import default_scan_space
 from canair.yaml_edit.memory import record_scan
 
 from .dump import block_for
@@ -187,6 +188,7 @@ async def _map(ctx: _Context, software: str | None) -> tuple[list[tuple[int, int
         source = "a new map of " + ", ".join(f"0x{a:X}-0x{b:X}" for a, b in ranges)
     if not regions:
         raise ImageStopped("no address in the range answers a memory read")
+    _refuse_an_unchecked_space(ctx, regions)
     found_block = None
     if ctx.target.memory is None or ctx.target.memory.max_block is None:
         job.line.update("    finding the largest block…")
@@ -200,6 +202,25 @@ async def _map(ctx: _Context, software: str | None) -> tuple[list[tuple[int, int
             ctx.target.tx_id, fresh, fmt=fmt, max_block=found_block, profile=ctx.profile
         )
     return regions, source
+
+
+def _refuse_an_unchecked_space(ctx: _Context, regions: list[tuple[int, int]]) -> None:
+    """Stop before any larger read when the ECU answered its whole default space.
+
+    Such an ECU does not check the range, so the size test, the alias test and the survey
+    would read where the chip may have no memory. ``--range`` is the user saying where it is.
+    """
+    fmt = ctx.target.format
+    assert fmt is not None
+    space = None if ctx.options.ranges else default_scan_space(fmt)
+    if space is None or not answers_everywhere(regions, space):
+        return
+    raise ImageStopped(
+        f"every address of 0x{space[0]:X}-0x{space[1]:X} answers a memory read, so "
+        f"{ctx.target.name} does not check the range and the map does not show where its "
+        "memory is. A read where the chip has none can stop the ECU. Pass --range with the "
+        "ranges its memory occupies (the chip's memory map, or what its boot code names)"
+    )
 
 
 async def _survey(ctx: _Context, software: str | None) -> Survey:

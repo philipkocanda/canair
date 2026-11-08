@@ -449,6 +449,32 @@ class TestDefaultSpace:
         assert run.stopped and "pass --range" in run.stopped
         assert _memory_reads(ecu) == [] and recorded == []
 
+    def test_an_ecu_that_answers_its_whole_space_stops_after_the_map(self, tmp_path, recorded):
+        ecu = _ecu(regions=[(0, 0xFFFFFF, None)])
+        target = _target(max_block=None, fmt=self.UDS13, regions=())
+        run = _image(ecu, tmp_path, target=target, options=ImageOptions(plan_only=True))
+        assert run.stopped and "does not check the range" in run.stopped
+        assert "--range" in run.stopped and run.plan is None
+        assert {r.size for r in _memory_reads(ecu)} == {1}  # the map's probes, nothing larger
+        assert recorded == []
+
+    def test_a_recorded_whole_space_region_stops_before_any_read(self, tmp_path, recorded):
+        everywhere = (MemoryRegion(0, 0xFFFFFF, "readable", None, f"F189:{SOFTWARE}", "x"),)
+        ecu = _ecu(regions=[(0, 0xFFFFFF, None)])
+        target = _target(fmt=self.UDS13, regions=everywhere)
+        run = _image(ecu, tmp_path, target=target, options=ImageOptions(plan_only=True))
+        assert run.stopped and "does not check the range" in run.stopped
+        assert _memory_reads(ecu) == [] and recorded == []
+
+    def test_a_named_range_that_answers_whole_is_read(self, tmp_path, recorded):
+        ecu = _ecu(regions=[(0, 0xFFFFFF, None)])
+        target = _target(max_block=None, fmt=self.UDS13, regions=())
+        options = ImageOptions(ranges=((0, 0xFFFF),), plan_only=True)
+        run = _image(ecu, tmp_path, target=target, options=options)
+        assert run.stopped is None and run.plan is not None
+        assert (run.plan.start, run.plan.end) == (0, 0xFFFF)
+        assert all(r.address <= 0xFFFF for r in _memory_reads(ecu))
+
     def test_a_recorded_map_without_a_block_still_searches_it(self, tmp_path, recorded):
         ecu = _ecu(max_block=40)
         run = _image(

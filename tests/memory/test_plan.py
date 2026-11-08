@@ -18,6 +18,7 @@ from canair.memory.plan import (
     alias_candidates,
     alias_pairs,
     aliased,
+    answers_everywhere,
     areas,
     bisect_mid,
     changes,
@@ -39,6 +40,23 @@ def test_flash_size_is_the_smallest_common_size_that_holds_the_span():
     assert flash_size(4 * MIB) == 4 * MIB
     assert flash_size(4 * MIB - 1) == 4 * MIB
     assert flash_size(1 * MIB + 1) == 3 * MIB // 2
+
+
+class TestAnswersEverywhere:
+    SPACE = (0, 0xFFFFFF)
+
+    def test_one_region_over_the_whole_space(self):
+        assert answers_everywhere([(0, 0xFFFFFF)], self.SPACE)
+
+    def test_adjoining_and_overlapping_regions_cover_it(self):
+        assert answers_everywhere([(0x800000, 0xFFFFFF), (0, 0x7FFFFF)], self.SPACE)
+        assert answers_everywhere([(0, 0x900000), (0x800000, 0xFFFFFF)], self.SPACE)
+
+    def test_a_refused_address_anywhere_breaks_it(self):
+        assert not answers_everywhere([(0, 0x3FFFFF)], self.SPACE)
+        assert not answers_everywhere([(0, 0x7FFFFF), (0x800001, 0xFFFFFF)], self.SPACE)
+        assert not answers_everywhere([(1, 0xFFFFFF)], self.SPACE)
+        assert not answers_everywhere([], self.SPACE)
 
 
 class TestAliasing:
