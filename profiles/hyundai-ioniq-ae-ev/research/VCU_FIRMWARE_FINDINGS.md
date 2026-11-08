@@ -311,3 +311,62 @@ every quantity. Constants (`2101 B9`, the `2102` header), unused bits (`2101 B11
 sources, and the 16-bit scales above are now firm. The remaining flag bits and the scaled floats
 need a correlation pass against captures (or further tracing of the source variables) to attach
 physical names and units.
+
+## 8. Second pass: resolving the small-data base, and what it proved
+
+### 8.1 r13 = 0x400063E4
+
+The producers read their inputs as `r13 + offset`: in the PowerPC EABI, r13 is the small-data-area
+base. Scanning every instruction that writes r13 found the startup pair
+`lis r13,0x4000; ori r13,r13,0x63e4` at image offset `0x145104` — so **r13 = `0x400063E4`**, and
+the `0x140000`-`0x1451FF` area is startup/init code, not only calibration data as first assumed.
+Cross-checks hold: the diagnostic request buffer is then `r13+0xDC` = `0x400064C0` with the service
+id at +0, the record id at +1 and the length at +6, exactly as the handlers use it.
+
+With the base known, every anonymous producer input resolves to an address, e.g. `2101`'s speed
+word at `0x40004E46`, its 12 V supply word at `0x4000507E`, the unnamed `B11:2` flag at
+`0x40004BEA`, and the four `2102` floats at `0x4000A52C`, `0x40006DCC`, `0x4000A514`,
+`0x4000A550`.
+
+### 8.2 What the resolution did *not* give
+
+Two attempts did not produce usable names, and are recorded so they are not repeated:
+
+- **Cross-referencing the sources to CAN transmit builders.** The `2101` inputs are reached only
+  by r13-relative addressing, which carries no Ghidra reference, so the xref came back empty. The
+  `2102` floats do have referencing functions, but the "CAN id" constants in them are dense
+  (dozens per function) and are struct offsets, not frame ids. No name can be claimed from this.
+- **Naming the internal floats from the firmware alone.** The producers only pack values computed
+  elsewhere, so the decompile gives scale and layout, not physics.
+
+### 8.3 What the firmware scales proved against the captures
+
+Checking the firmware-derived expressions against the stored captures with
+`canair decode VCU:2102 --try … --stats` (14,657 captures) **confirms all four 16-bit pairs that
+the profile already carries as unverified**, independently of the original correlations:
+
+| bytes | firmware | profile signal | verdict |
+|---|---|---|---|
+| `B19`/`B20` | float ×1000 | `VCU_LDC_OUTPUT_VOLTAGE` (`/1000`) | scale and byte order match |
+| `B21`/`B22` | float ×100 | `VCU_AUX_POWER` (`/10`, W) | consistent: the internal float is in units of 10 W |
+| `B23`/`B25` | float ×100 | `VCU_DCLINK_VOLTAGE` (`/100`) | match; a `--try` of the firmware expression reproduced it exactly (4915 distinct values) |
+| `B26`/`B27` | float ×1000 | `VCU_AUX_BATTERY_VOLTAGE_FINE` (`/1000`) | scale and byte order match |
+
+`VCU_DCLINK_VOLTAGE_COARSE` is explained rather than merely correlated: it reads the **high byte**
+of the `B23`/`B25` pair, and `256/100 = 2.56` is exactly its empirical scale factor.
+
+### 8.4 New signal and newly explained bytes in 2102
+
+The firmware says `2102 B9`-`B13` are single status bits from an internal word, not bytes. Testing
+each against the captures:
+
+- **`B9` is a new signal, now defined as `VCU_HV_AVAILABLE`.** It is strictly broader than
+  `VCU_HV_MAIN_RELAY_ON` (`B10`): a cross-tab over 14,657 captures gives B9=1/B10=1 in 14,198 rows,
+  B9=1/B10=0 in 450, B9=0/B10=0 in 9, and **B9=0/B10=1 in none**. So B9 never clears while the main
+  relay is closed, and clears only in a deeper HV-off state.
+- **`B11`, `B12` and `B13` read 0 in all 14,657 captures.** They are real status bits that are
+  inactive on this car in the recorded states, not undecoded bytes, so they should not be counted
+  as coverage gaps.
+- `B4`-`B7` are a constant header (`F8 F8 00 00`).
+
+Both PIDs' notes now carry these facts, so `canair coverage VCU` reports only genuinely open bytes.
