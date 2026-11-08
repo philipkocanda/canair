@@ -649,6 +649,15 @@ messages:
         byte_order: little
         source: AVN firmware layout (GwEvP07); observed on the uhi22 Ioniq28 P-CAN tap; sent by the VCU (uhi22 EPCU transceiver test)
         notes: 'Departure 2: defrost.'
+      VCU_AUX_BATTERY_SAVER:
+        start_bit: 62
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060, static analysis (research/VCU_FIRMWARE_FINDINGS.md section 11.4) (pack FUN_001F1D38); uhi22 Ioniq28 P-CAN tap
+        notes: The VCU's stored Aux. Battery Saver+ setting (1 = off, 2 = on), kept in standby RAM across sleep. Reads 2 in both uhi22 logs (byte 7 = 0x80).
   '0x579':
     name: VCU_ECON_WINDOW
     tx_ecu: VCU
@@ -1041,3 +1050,36 @@ messages:
         verified: false
         source: opendbc generator/hyundai/hyundai_can.dbc BAT11 (commaai, MIT); observed on the uhi22 Ioniq28 P-CAN tap (scripts/fetch_can_corpus.py)
         notes: 12 V battery state of health. 89 % in both logs. Unverified pending owner-car confirmation.
+  '0x590':
+    name: VCU_590
+    tx_ecu: VCU
+    length: 8
+    signals:
+      VCU_HV_AVAILABLE_590:
+        start_bit: 1
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060, static analysis (research/VCU_FIRMWARE_FINDINGS.md section 11); uhi22 Ioniq28 P-CAN tap
+        notes: Byte 0 bit 1, the same internal bit the VCU copies into 2102 B9 (VCU_HV_AVAILABLE). Reads 1 throughout both uhi22 drive logs (byte 0 = 0x07).
+      VCU_HV_MAIN_RELAY_ON_590:
+        start_bit: 2
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060, static analysis (research/VCU_FIRMWARE_FINDINGS.md section 11); uhi22 Ioniq28 P-CAN tap
+        notes: Byte 0 bit 2, the same internal bit the VCU copies into 2102 B10 (VCU_HV_MAIN_RELAY_ON). The 12 V top-up charge timer counts only while it is 1.
+      VCU_12V_CHARGE_REQUEST:
+        start_bit: 6
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060, static analysis (research/VCU_FIRMWARE_FINDINGS.md section 11) (FUN_00218B90)
+        notes: Byte 0 bit 6. The VCU sets it when the 12 V battery stays low for 30 s with the HV relay open, and clears it when the timed top-up ends (20 min, or 10 min above 80 % 12 V SoC) or the relay opens early. The top-up chart runs the LDC while it is 1.
+      VCU_12V_CHARGE_DONE:
+        start_bit: 7
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060, static analysis (research/VCU_FIRMWARE_FINDINGS.md section 11) (FUN_00218B90, FUN_002190E8)
+        notes: Byte 0 bit 7. Set when a timed 12 V top-up has run its full time; ends the top-up.

@@ -477,3 +477,17 @@ messages:
         max: 3.0
         source: opendbc hyundai_2015_ccan.dbc TMU_GW_PE_01 (0x5D4); observed on the uhi22 Ioniq28 P-CAN tap and 2022 trace
         notes: Telematics-unit phone activity. Constant 3; the EU car has no telematics unit.
+  '0x51B':
+    name: CLU_51B
+    tx_ecu: IGPM
+    length: 8
+    signals:
+      AUX_BATTERY_SAVER:
+        start_bit: 46
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060, static analysis (research/VCU_FIRMWARE_FINDINGS.md section 11.4) (unpack FUN_001C22D4, use FUN_0020D368)
+        notes: "The cluster's Aux. Battery Saver+ setting as the VCU reads it: 1 = off (no parked 12 V top-up), 2 = on; 0 and 3 make the VCU keep its stored setting. Not seen in the uhi22 P-CAN logs. opendbc names this ID CLU16 on C-CAN."

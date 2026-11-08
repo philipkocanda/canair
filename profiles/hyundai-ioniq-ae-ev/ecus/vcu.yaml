@@ -1248,6 +1248,13 @@ VCU:
       vehicle_states: [PLUGGED]
       created: "2026-11-07"
       updated: "2026-11-07"
+      result: >-
+        The VCU keeps its own time (VCU firmware, research/VCU_FIRMWARE_FINDINGS.md sections 10.2
+        and 11.1). An SPI real-time clock with the NXP PCF2123 register map is set from 0x567
+        whenever that clock is valid. At shutdown the VCU arms its alarm with the earliest of the
+        next charge-schedule wake, departure-climate wake and 24 h 12 V check, and after waking it
+        matches the clock against those times. So it does not need the gateway's frozen 0x567. Not
+        confirmed on the car: that the alarm output powers the EPCU.
       notes: >-
         Only the head unit keeps a running clock; the IGPM forwards a frozen copy on 0x567 (IGPM
         research entry on 0x567), and the VCU cannot keep time while parked (the EPCU supply needs

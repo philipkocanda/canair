@@ -1068,16 +1068,19 @@ IGPM:
       created: "2026-10-30"
       updated: "2026-11-03"
       result: >-
-        The IGPM's IG3 relay starts it; who decides is open. 2026-11-06: IOControl BC44 alone closed
-        IG3 and woke the VCU, which had not answered before (car plugged in, not charging, no key),
-        and its click is the same relay sound the owner hears when a top-up starts. Not a recorded
-        start: the match is by ear. The end is ordered from the HV side. In the 2026-10-21 and
-        2026-11-03 top-ups the LDC stopped with the BMS still awake, and the HV main relay opened
-        while the BMS still read IG3 on (B61:3); VCU_IG3_ON and the IGPM bit (22BC07 B12:3) fell
-        within the same 2 s, and no other IGPM or BCM bit moved. The VCU cannot start itself: on
-        uhi22's bench the EPCU's supply came up only from its wake-line pin (CN1000 3P), which
-        VCU_IG3_ON follows. Still open: whether the IGPM decides to start a top-up itself, or the
-        BCM, which measures the 12 V battery during deep sleep, asks it to close the relay.
+        The VCU owns the top-up; the IGPM's IG3 relay supplies the rail (VCU firmware,
+        research/VCU_FIRMWARE_FINDINGS.md section 11). The VCU keeps the next check time in standby
+        RAM, 24 h (calibration 1440 min) after the previous check ends, and arms it as an alarm in
+        its own SPI real-time clock. A check runs only when the VCU is awake at that exact minute.
+        If the 12 V battery then reads 12.7 V or less, or 85 % SoC or less, for 30 s, it closes the
+        HV side and runs the LDC for 20 min (10 min above 80 % 12 V SoC). It is blocked by HV SoC
+        below 20 %, any door, hood or tailgate open without the cable, or Aux. Battery Saver+ off.
+        On the car: 2026-11-06 IOControl BC44 alone closed IG3 and woke the VCU, and its click
+        matches the top-up start by ear. The end is ordered from the HV side (LDC stops first, then
+        the main relay opens, VCU_IG3_ON and 22BC07 B12:3 fall within 2 s), as the firmware
+        predicts. On uhi22's bench the EPCU's supply came up only from its wake-line pin (CN1000
+        3P), which VCU_IG3_ON follows. Still open: how the clock's alarm reaches that line, either
+        directly or by waking the IGPM, and how the VCU gets the IGPM to close IG3.
       notes: >-
         Three top-ups are recorded (2026-10-21, 2026-10-30, 2026-11-03), all joined mid-run with the
         relay already closed and the LDC at 14.6 V: a sleeping WiCAN wakes only when the 12 V rises

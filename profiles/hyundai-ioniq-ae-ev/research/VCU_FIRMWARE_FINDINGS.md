@@ -60,6 +60,23 @@ sections:
       signals/. 0x55C/0x57A (bits 16-49) and 0x588/0x579 (all fields) do not: the profile's
       layouts are wrong and need replacing.
     target: profiles/hyundai-ioniq-ae-ev/signals/
+  - section: "10"
+    status: integrated
+    date: 2026-11-08
+    note: >-
+      The VCU's own real-time clock and wake alarm. Folded into the vcu.yaml research entry "who
+      wakes the car for a scheduled start" (result). Whether the alarm powers the EPCU is still
+      open there.
+    target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
+  - section: "11"
+    status: integrated
+    date: 2026-11-08
+    note: >-
+      The parked 12 V top-up is the VCU's: 24 h check, thresholds, 10/20 min timer, inhibits.
+      Folded into the igpm.yaml top-up research entry (result), the TOPUP state description, and
+      signals/ (0x590 VCU_590 bits 1, 2, 6, 7; 0x51B AUX_BATTERY_SAVER; 0x57A
+      VCU_AUX_BATTERY_SAVER).
+    target: profiles/hyundai-ioniq-ae-ev/ecus/igpm.yaml
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
@@ -450,8 +467,11 @@ car has no telematics unit, so `0x587` is absent from uhi22's P-CAN logs.
   (section 9.2 and 9.3), using `canair signals`. The first 16 bits of `0x55C`/`0x57A` are already
   right.
 - **Add the CCP-CAN bus** to `can_buses.yaml` (section 4.1), as a private EPCU segment.
-- **Answer the scheduled-wake research entry** in `ecus/vcu.yaml` with section 10.2: the VCU has its
-  own real-time clock with an alarm. Whether the alarm powers the EPCU is still a bench question.
+- **Done 2026-11-08:** the scheduled-wake entry in `ecus/vcu.yaml` and the top-up entry in
+  `ecus/igpm.yaml` carry sections 10.2 and 11 as their results; both stay pending until the car
+  shows that the clock's alarm powers the EPCU. `signals/` has the `0x590` top-up bits, the
+  `0x51B` Aux. Battery Saver+ setting and its `0x57A` echo, and the `TOPUP` state description
+  names the 24 h check.
 - **The `0x57B` IG3-relay-mode entry** in `ecus/vcu.yaml`: on this VCU, byte 2 bits 4-7 are four
   separate flags from two subsystems (section 9.4), not one 4-bit mode.
 
