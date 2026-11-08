@@ -530,6 +530,7 @@ IGPM:
       parameters: {}
 
     22BCFD:
+      response_frames: 3
       status: draft
       vehicle_states: [READY]
       notes: >-
@@ -1213,7 +1214,9 @@ IGPM:
         Left: DynamicallyDefineDataIdentifier (0x2C 02, define by memory address, then 22 F2xx) is
         the remaining read path. canair's blocklist refuses 0x2C, even a bare SID, because it
         defines a DID in the ECU. A bare 2C (NRC 0x11 absent, 0x13 present) would settle presence
-        without defining anything.
+        without defining anything. 22 sweeps of F000-FFFF, B000-BBFF, BD00-BFFF and C000-CFFF found
+        no DID that names the MCU (research/IGPM_FINDINGS.md section 2.6, with the stack
+        fingerprint).
       sources:
         - canair read 'raw 770:..' --save, labels 'IGPM bare-SID service presence probe' 1 and 2, 2026-11-08
 

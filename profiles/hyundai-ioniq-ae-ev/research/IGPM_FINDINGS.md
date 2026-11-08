@@ -20,6 +20,13 @@ sections:
       Renames folded into signal names, notes and status_param readbacks. The bits marked "new"
       are not defined as signals yet.
     target: profiles/hyundai-ioniq-ae-ev/ecus/igpm.yaml
+  - section: "2.6"
+    status: open
+    date: 2026-11-08
+    note: >-
+      Live DID sweeps and a stack fingerprint. The bus does not identify the MCU; the IGPM research
+      entry "memory access without 0x23" carries the result.
+    target: profiles/hyundai-ioniq-ae-ev/ecus/igpm.yaml
   - section: "7.2"
     status: integrated
     date: 2026-10-30
@@ -256,6 +263,38 @@ manual's open-lamp detection "applied to the turn signal lamp 4 channel").
   wires are intact).
 - Consequence: tapping M-CAN (and probably B-CAN) needs an ISO 11898-3 transceiver (TJA1055 class)
   in listen-only mode; the WiCAN's high-speed transceiver is not suited.
+
+### 2.6 What the diagnostic interface says about the chip (live, 2026-11-08)
+
+**The OBD port does not identify the MCU.** Everything below was read on this car with read-only
+requests while it charged. Every item names the diagnostic software, not the silicon.
+
+- **Identification DIDs.** A `22` sweep of `F000`-`FFFF` answers only `F100`-`F104` (ASCII
+  `20`, `160205`, `46`, `46`, `42`: probably the CAN database version of each bus), `F187`,
+  `F18B`, `F193` and `F195`. A sweep of `B000`-`BBFF`, `BD00`-`BFFF` and `C000`-`CFFF` answers
+  nothing. No supplier code (`F18A`, `F1A1`), boot version or serial number exists, and `BCFD`
+  (`FF FF FF FF 0C 0E 16 2B 3F 26 36 00 …`) is not decoded.
+- **Services.** `23`, `21`, `1A`, `24` and `09` answer NRC `0x11`, so no read service reaches
+  memory. `19` and `31` answer `0x13` to a bare SID; `2F` and `27` answer `0x7F` in the default
+  session. A bare `22` answers `62` with no data. The KWP2000 StopDiagnosticSession `20` answers
+  `60`, as on the Kona IGPM (projectgus `221210-1` log, which also shows `10 90` → `50 90`).
+- **Stack details.** `10 01` and `10 03` answer `50 01`/`50 03` without the P2/P2* bytes that
+  ISO 14229-1:2013 adds. The DTC availability mask is `09` (`19 01 09` → `59 01 09 00 00 00`, format
+  ISO 15031-6); `19 02 FF` and `19 02 0B` answer `0x31`. `19 0A` answers `0x13` and `19 0A 00`
+  `0x12`, so the length check runs before the sub-function check. Frames are always 8 bytes padded
+  with `AA`, and the IGPM's flow control is `30 08 0A`: block size 8, STmin 10 ms. The Kona
+  IGPM's consecutive frames are 10.0 ms apart and its replies come 20-29 ms after the request,
+  which fits a 10 ms diagnostic task.
+- **What the board adds** (section 2.3, speculative): a Freescale MC33972 switch interface, five
+  CAN transceivers, an LQFP-144 MCU and a 2 × 6 (possibly 2 × 7) through-hole `JTAG2` footprint.
+  Freescale reference designs pair the MC33972 with MPC560xB parts, and this car's BCM has an
+  MPC560xB/C memory map (`ecus/bcm.yaml` research). That makes a Freescale/ST MPC560xB the first
+  candidate, but nothing above proves it.
+
+**What would settle it.** On a used 91950-G75xx module on the bench, a JTAG adapter on `JTAG2` can
+read the IEEE 1149.1 IDCODE register, which names the maker and the part. Reading it changes
+nothing in the module. Raking light, or removing the conformal coating over the marking, is the
+other way. Neither is possible on the car without removing the IGPM.
 
 ## 3. The gateway: how frames cross buses ("ID conversion")
 

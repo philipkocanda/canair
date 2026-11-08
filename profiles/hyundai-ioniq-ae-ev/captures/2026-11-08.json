@@ -562,6 +562,178 @@
         {"rx":"0x778","pid":"31","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
         {"rx":"0x778","pid":"27","response":"NRC 0x7F (serviceNotSupportedInActiveSession)"}
       ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "end of memory session health",
+      "version": "5.2.0+main.68ce0b1",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 4
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921106A065203000000000579000720","time":"13:46:08.599","elapsed_ms":61},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFA023C42648A3FFEA0EDF0A090A0A0A090A000AC614C60100009300059363000590A5000205670001F4BD0163028A09017C0000000003E8","time":"13:46:08.762","elapsed_ms":106},
+        {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF7A666B00EF7EFFFF7EFF11FFFFFFFFFFFFFFFFFF00ED736E00FFFF00FFFF","time":"13:46:08.901","elapsed_ms":99},
+        {"rx":"0x7A8","pid":"22C00B","payload":"62C00BFFFF0000C7430100C8430100C8410100C6420100","time":"13:46:09.023","elapsed_ms":79}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "IGPM bare-SID service presence probe",
+      "version": "5.2.0+main.68ce0b1.dirty",
+      "vehicle_states": [
+        "C",
+        "H",
+        "A",
+        "R",
+        "G",
+        "I",
+        "N",
+        "G"
+      ],
+      "notes": "[recovered]",
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"23","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x778","pid":"21","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x778","pid":"1A","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x778","pid":"24","response":"NRC 0x11 (serviceNotSupported)"}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "IGPM F10x identity records",
+      "version": "5.2.0+main.68ce0b1.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 5
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"22F100","payload":"62F1003230","time":"13:53:32.607"},
+        {"rx":"0x778","pid":"22F101","payload":"62F101313630323035","time":"13:53:33.282"},
+        {"rx":"0x778","pid":"22F102","payload":"62F1023436","time":"13:53:33.935"},
+        {"rx":"0x778","pid":"22F103","payload":"62F1033436","time":"13:53:34.073"},
+        {"rx":"0x778","pid":"22F104","payload":"62F1043432","time":"13:53:34.206"}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "IGPM 22 F196-FFFF sweep",
+      "version": "5.2.0+main.68ce0b1.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"scan 22 F196-FFFF","scan_results":{"rejected":"3690 DIDs returned 3690 NRC"}}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "IGPM BCFD/BCFF identity-like records",
+      "version": "5.2.0+main.ccec154.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 5
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"22BCFD","payload":"62BCFDFFFFFFFF0C0E162B3F2636000000000000","time":"14:01:32.447","elapsed_ms":133},
+        {"rx":"0x778","pid":"22BCFF","payload":"62BCFF31303930","time":"14:01:32.490","elapsed_ms":39},
+        {"rx":"0x778","pid":"22BCFD","payload":"62BCFDFFFFFFFF0C0E162B3F2636000000000000","time":"14:01:32.565"},
+        {"rx":"0x778","pid":"22BCFF","payload":"62BCFF31303930","time":"14:01:32.612"},
+        {"rx":"0x778","pid":"22BC08","response":"NRC 0x31 (requestOutOfRange)"}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "IGPM 22 B000-CFFF sweep (minus BC)",
+      "version": "5.2.0+main.ccec154.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"scan 22 B000-BBFF,BD00-BFFF,C000-CFFF","scan_results":{"rejected":"7936 DIDs returned 7936 NRC"}}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "IGPM legacy SID 20 probe",
+      "version": "5.2.0+main.ccec154.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 2
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"20","payload":"60","time":"14:15:58.453"},
+        {"rx":"0x778","pid":"22F186","response":"NRC 0x31 (requestOutOfRange)"}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "IGPM legacy SID 20 probe 2",
+      "version": "5.2.0+main.ccec154.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 1
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"20","payload":"60","time":"14:16:09.281"}
+      ]
     }
   ]
 }
