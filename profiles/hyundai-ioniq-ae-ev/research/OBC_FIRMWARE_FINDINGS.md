@@ -45,6 +45,21 @@ sections:
       (station 100/90/60 %, portable 100/75/50 %). In the OBC charge-current research entry (still
       pending a bus check), the AVN entry, the 0x562 entry (closed), and signals/ (0x414, 0x58E).
     target: profiles/hyundai-ioniq-ae-ev/ecus/obc.yaml
+  - section: "12"
+    status: integrated
+    date: 2026-11-08
+    note: >-
+      The fault catalogue names the voltage channels: B10:B11 is the PFC voltage (OBC_CHARGE_V
+      renamed OBC_PFC_V), and OBC_DC_POWER and OBC_EFFICIENCY now use OBC_OUTPUT_V. The DTC
+      notes carry this firmware's thresholds.
+    target: profiles/hyundai-ioniq-ae-ev/ecus/obc.yaml
+  - section: "13"
+    status: open
+    date: 2026-11-08
+    note: >-
+      The 12 00 00 freeze-frame layout, in a pending OBC research entry until a stored DTC can be
+      read.
+    target: profiles/hyundai-ioniq-ae-ev/ecus/obc.yaml
   - section: "9"
     status: integrated
     date: 2026-11-08
@@ -284,7 +299,7 @@ read live (the profile's identity block).
   stores new gains and offsets at `0x40001E10`/`0x40001E24` with the marker `0xCDC1`. While it
   runs it calls `FUN_001B7E0C`, which switches output 9 on and programs eTPU PWM channels at a
   calibrated frequency: it runs the power stage. It aborts when the voltage at `0x40002304`
-  (2101's `OBC_CHARGE_V`) is below 100 V. **LID `07`** probably does the same for the three
+  (2101's `OBC_PFC_V`) is below 100 V. **LID `07`** probably does the same for the three
   current channels (marker `0xCDC2`, reference values ×0.001); its steps were not traced, so
   whether it also runs the power stage is not known.
 - So the OVMS Soul EV reading (`30 {led} 00` lights the charge-port LED) does not apply here:
@@ -337,8 +352,8 @@ Checked against the payload of 2026-11-08 (charging at a 6 A pilot):
 |---|---|---|---|---|---|
 | `B4-B7` | D0-D3 | constants | header `FF FF F8 00` | - | constant |
 | `B9` | D4 | `0x40000A00` | latch: 1 after the AC input current stayed above 22 A for 70 cycles in charger state 12; cleared once when 0x57F byte 1 bit 0 sets | - | new (0/1 in READY captures) |
-| `B10:B11` | D5-6 | `0x40002304` ×100 | voltage, ADC channel | `OBC_CHARGE_V` | ✓ |
-| `B12:B13` | D7-8 | `0x40002314` ×100 | voltage, ADC channel | `OBC_OUTPUT_V` | ✓ |
+| `B10:B11` | D5-6 | `0x40002304` ×100 | **the PFC stage's DC-bus voltage** (its faults P1E01-P1E03 and P1E14 read this channel, section 12) | `OBC_CHARGE_V` | **misnamed** |
+| `B12:B13` | D7-8 | `0x40002314` ×100 | output voltage, inside the output relay (P0D4D-P0D4F, P0D21, P1E0A) | `OBC_OUTPUT_V` | ✓ |
 | `B14:B15` | D9-10 | `0x40002324` ×100 | AC input voltage (RMS) | `AC_INPUT_V` | ✓ |
 | `B17:B18` | D11-12 | `0x400022A4` ×100 | DC output current | `OBC_DC_A` | ✓ |
 | `B19` | D13 | `0x400023B4` + 100 | **an OBC thermistor**: one of its own ADC channels through an 18-point table (`0x10224`/`0x1026C`) | `LDC_TEMP` | **misnamed** |
@@ -576,7 +591,8 @@ not read the session variable.
 ## 10. What went into the profile (2026-11-08)
 
 - **Renamed:** `LDC_TEMP` → `OBC_TEMP`, `LDC_OUTPUT_V` → `OBC_12V_SUPPLY_V`, `LDC_HV_INPUT_V` →
-  `OBC_BATTERY_SIDE_V`, and AAF 2181 `AAF_LDC_TEMP` → `AAF_OBC_TEMP` (the same value). Every
+  `OBC_BATTERY_SIDE_V`, `OBC_CHARGE_V` → `OBC_PFC_V` (section 12), and AAF 2181 `AAF_LDC_TEMP` →
+  `AAF_OBC_TEMP` (the same value). Every
   note that named them was updated. The ECU alias `LDC` stays, so `LDC:2101` still resolves.
 - **Replaced:** `OBC_CHARGE_STATE` by `OBC_PILOT_V` (`[B20:B21]/100`, verified against the J1772
   levels); `OBC_AC_NOT_CONNECTED`, `OBC_MODE` and `OBC_DC_CHARGE_MODE` by `OBC_PROXIMITY_V`
@@ -587,15 +603,73 @@ not read the session variable.
   current-sensor offsets, `OBC_5V_RAIL_V`, and `AC_INPUT_V_SAMPLE` (`(B47*256+B49)/100`). The
   constant header and bits (B27 bits 0 and 4-7, B37 bits 5-7) are described in the PID notes.
 - **2102:** 14 offset and gain signals (`/1000-30`), all constant.
+- **Fixed:** `OBC_DC_POWER` and `OBC_EFFICIENCY` multiplied the DC current by the PFC voltage.
+  They now use `OBC_OUTPUT_V`: the efficiency's median over 9507 charging rows moves from 98.1 %
+  to 95.8 %, its maximum from 106 % to 97.6 %, in line with the 95 % wattmeter check.
 - **Research:** the 2101 charge-state entry, the `[B20:B21]` entry, the LDC-host entry, the 0x562
-  entry and the `0x30` scan entry are done; the charge-current entry has the firmware result and
-  stays pending until the setting is seen on a bus; the 2101 decode entry stays open on what
-  `OBC_CHARGE_V` and `OBC_OUTPUT_V` each measure.
-- **DTCs:** the eight codes of section 8 are added (U1116 with the MCU's manual text); P0D27,
-  P0D28 and P0D90 note that this firmware cannot set them.
+  entry, the `0x30` scan entry and the 2101 decode entry are done; the charge-current entry has
+  the firmware result and stays pending until the setting is seen on a bus. A new entry records
+  the `12 00 00` freeze-frame layout (section 13).
+- **DTCs:** the eight codes of section 8 are added (U1116 with the MCU's manual text, P0D18,
+  P1CF5, P0D08 and P1E1C with what their detectors test); P0D27, P0D28 and P0D90 note that this
+  firmware cannot set them; P0D24, P1E0A and P1E14 carry this firmware's thresholds.
 - **signals/:** the rest of `0x57F`, the `0x581` and `0x58E` layouts, the `0x597` limits and
   `0x414` byte 0, all unverified.
 - **The guard** refuses SID `0x99` and KWP2000 `31 00`/`31 01` (section 9).
+
+## 12. The fault catalogue: which channel each DTC tests
+
+Every fault detector calls `FUN_001A4B20(group, index, state)`. Three tables in `.data`
+(`0x40003004`, `0x400031F2`, `0x400033E4`, 7 bytes per fault) give the fault id, a severity
+class, the DTC index, two flag bits (one feeds `0x57F` `OBC_FAULT`) and the failure type. The
+fault id of the active fault goes out in `0x58E` byte 0. `analysis/faults.py` lists every
+detector with the channels and calibration constants it reads. The detectors name the 2101
+channels, which the decoded values alone could not:
+
+| channel (2101 signal) | DTCs whose detectors read it |
+|---|---|
+| `B10:B11` (`OBC_PFC_V`) | P1E03/P1E02 (raw sensor above 4.8 V / below 0.3 V), P1E01 (against the AC input), P1E14 (above 435 V), P0D5C |
+| `B12:B13` (`OBC_OUTPUT_V`) | P0D4F/P0D4E/P0D4D (raw sensor), P0D21 (below 220 V), P1E0A (above 430 V), P1E17, P1E18 |
+| `B45:B46` (`OBC_BATTERY_SIDE_V`) | P1E16/P1E19 (raw sensor), P1E1C, P1E18, P0D09; P0D08 against the BMS pack voltage from `0x595` |
+| `B47`/`B49` (`AC_INPUT_V_SAMPLE`) | P0D40/P0D3F (raw sensor): the manual's "input voltage sensor" |
+| `B14:B15` (`AC_INPUT_V`) | P1CF5-01 (above 290 V), P1E01, P1E02 (enable at 65 V) |
+| `B17:B18` (`OBC_DC_A`) | P0D54/P0D53 (raw sensor), P0D52 (offset ±1.5 A), P0D5C |
+| input current sensors A and B | P0D3B/P0D3A (raw sensor, failure types 01/02), P0D39 (offsets ±1.5 A) |
+| `B19` (`OBC_TEMP`) | P1E06/P1E05 (raw sensor), P1E04 (rate, and against the EPCU temperatures in `0x523` bytes 2 and 4), P0D24 (above 120 °C) |
+| `B43:B44` (`OBC_5V_RAIL_V`) | P0D18 (below 4.75 V) |
+| `B20:B21` (`OBC_PILOT_V`), pilot duty and frequency | P1CF6 failure types 01-05 (pilot below 4 V, frequency outside 850-1150 Hz, duty outside 8-98 %); 06-07 are AC-input checks |
+| `B25:B26` (`OBC_12V_SUPPLY_V`) | no DTC: faults 0x0B and 0x0C above 17.2 V or below 8.6 V, cleared between 9 and 16.8 V |
+
+Where this firmware's thresholds differ from the service manual: P0D24 120 °C (manual 110 °C),
+P1E0A 430 V (470 V), P1E14 435 V (455 V). The manual's P0D27, P0D28 and P0D90 (AC input
+voltage low and high, frequency) do not exist here; P1CF5's failure types cover the same tests.
+The detectors behind P0D08 also confirm the profile's `BMS_PACK_VOLTAGE` (`0x595` bytes 6-7
+×0.1).
+
+## 13. Freeze frames (KWP2000 0x12)
+
+When a fault sets its DTC, `FUN_001A4188` snapshots the measurements, and `FUN_001A311C` keeps a
+20-byte freeze frame per DTC in reset-proof RAM (`0x40000020 + 0x30 × DTC index`). `12 00 00`
+(allowed in the default session) returns `52 00`, the newest stored DTC's frame, `00` and the
+DTC code; with no stored DTC it answers NRC `0x12`. Frame layout (16-bit words big-endian):
+
+| bytes | content |
+|---|---|
+| 0-1 | 12 V supply ×10 |
+| 2-3 | AC input voltage ×10 |
+| 4-5 | AC input current ×10 |
+| 6-7 | PFC voltage ×10 |
+| 8-9 | output voltage ×10 |
+| 10-11 | DC output current ×10 |
+| 12 | OBC temperature + 100 |
+| 13-14 | pilot duty ×1000 |
+| 15 | pilot voltage ×10 |
+| 16-17 | battery-side voltage ×10 |
+| 18 | bits 0-1 plug state, bit 2 BMS `0x597` byte 0 bit 2, bits 3+ charge mode |
+| 19 | failure type |
+
+canair has no KWP2000 freeze-frame decoder; the OBC research entry "12 00 00 freeze frame"
+records this layout.
 
 ## 11. Not established
 
@@ -603,7 +677,12 @@ not read the session variable.
   semantics of the charger states in `0x58E` bytes 0 and 1.
 - The CCP channel on `0x6AC`/`0x6AD` (not analysed; the OBD port does not reach P-CAN anyway).
 - What `1A87` controls. No application code reads it.
-- The fields of `0x57B`, `0x599`, `0x5A3`, `0x5D5`, `0x5D7`, `0x5E8`/`0x5E9`, `0x587`, `0x579`
-  and `0x553` that the OBC uses.
+- The charge state machine (`FUN_001B99CC`, 25 states in `0x40003C84`). It reads the VCU's
+  `0x57B` bits 0, 12-15, 20 and 30 (charge and "prepare" outputs of the VCU's scheduling model,
+  VCU_FIRMWARE_FINDINGS section 9.4), `0x579` `VCU_ECON_CHG_CTRL_MODE`, the gear from `0x200`
+  (it charges in P only) and BMS `0x597` byte 0 bits 0 and 3; their roles were not traced, so
+  how a scheduled charge is held and released is still open.
+- The fields of `0x599`, `0x5A3`, `0x5D5`, `0x5D7`, `0x5E8`/`0x5E9`, `0x587` and `0x553` that the
+  OBC uses, and which frame's loss sets each U-code.
 - The physical meaning of `0x57F` bytes 3 and 6 and of `0x58E` byte 2.
 - The content of the two areas that sampled as `00` (section 1).

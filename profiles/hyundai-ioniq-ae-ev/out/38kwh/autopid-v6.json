@@ -605,7 +605,7 @@
           "max": 120
         },
         {
-          "name": "OBC_CHARGE_V",
+          "name": "OBC_PFC_V",
           "expression": "[B10:B11]/100",
           "unit": "V",
           "class": "voltage",
@@ -646,7 +646,7 @@
         },
         {
           "name": "OBC_DC_POWER",
-          "expression": "[B10:B11]*[B17:B18]/10000000",
+          "expression": "[B12:B13]*[B17:B18]/10000000",
           "unit": "kW",
           "class": "power",
           "min": 0,

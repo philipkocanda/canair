@@ -78,13 +78,16 @@ OBC:
             table; the same value goes out on P-CAN 0x57F byte 2. Rose smoothly 28 to 65 °C over a 3
             h AC charge; 21 °C at READY with about 18 °C ambient.
 
-        OBC_CHARGE_V:
+        OBC_PFC_V:
           expression: "[B10:B11]/100"
           unit: V
           min: "0"
           max: "500"
-          source: "Decoded from live captures (2026-04-14)"
-          notes: About 370 V during AC charging, about 6 V when the OBC is idle.
+          source: Decoded from live captures (2026-04-14); OBC firmware fault detectors P1E01-P1E03 and P1E14 read this channel (OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
+          notes: >-
+            The PFC stage's DC-bus voltage: the firmware's PFC-voltage faults (P1E02/P1E03 sensor
+            low/high, P1E14 above 435 V, P1E01 below 80 % of the AC input) read this channel. About
+            370-400 V during AC charging, about 6 V when the OBC is idle.
 
         OBC_OUTPUT_V:
           expression: "[B12:B13]/100"
@@ -125,14 +128,15 @@ OBC:
         # 2101 has no OBC heatsink/inside/water temperature (Soul OBC S/T/U) other than OBC_TEMP:
         # the rest of the record is voltages, currents, flags and the BMS limits (firmware).
         OBC_DC_POWER:
-          expression: "[B10:B11]*[B17:B18]/10000000"
+          expression: "[B12:B13]*[B17:B18]/10000000"
           unit: kW
           min: "0"
           max: "10"
-          source: Derived OBC_CHARGE_V*OBC_DC_A; validated vs wattmeter 2026-07-26
+          source: Derived OBC_OUTPUT_V*OBC_DC_A; wattmeter check 2026-07-26; output voltage instead of the PFC voltage from 2026-11-08 (OBC firmware)
           notes: >-
-            OBC_CHARGE_V x OBC_DC_A. Steady 3.30-3.36 kW over the 2026-07-26 16 A AC charge, 0 when
-            idle; matched an external wattmeter.
+            OBC_OUTPUT_V x OBC_DC_A. Until 2026-11-08 it used the PFC voltage (B10:B11), about 2.5 %
+            higher; the 2026-07-26 wattmeter check (3.30-3.36 kW at 16 A) did not separate the two.
+            0 when idle.
         AC_INPUT_V:
           expression: "[B14:B15]/100"
           unit: V
@@ -150,16 +154,16 @@ OBC:
             Measured AC input current. Read 9.3, 12.4 and 15.4 A at 10, 13 and 16 A pilot
             (2026-07-27), about 0.6 A below OBC_PILOT_AMPS.
         OBC_EFFICIENCY:
-          expression: 100*[B10:B11]*[B17:B18]/([B14:B15]*[B33:B34])
+          expression: 100*[B12:B13]*[B17:B18]/([B14:B15]*[B33:B34])
           unit: "%"
           min: "0"
           max: "105"
-          source: "Derived: 100 * OBC_DC_POWER*1000 / (AC_INPUT_V*AC_INPUT_A), reduced to raw bytes (2026-08-06)"
+          source: "Derived: 100 * OBC_DC_POWER*1000 / (AC_INPUT_V*AC_INPUT_A), reduced to raw bytes; output voltage from 2026-11-08 (OBC firmware)"
           verified: false
           notes: >-
             OBC DC output power over AC apparent power (AC_INPUT_V x AC_INPUT_A); no value when
-            AC_INPUT_A is 0. Mean 98.1 % at about 4.4 kW AC input (2026-08-05, n=1317); the
-            wattmeter check gave 95 % at about 3.5 kW (2026-07-26).
+            AC_INPUT_A is 0. Median 95.8 %, at most 97.6 % over 9507 charging rows; the wattmeter
+            check gave 95 % at about 3.5 kW (2026-07-26). With the PFC voltage it read up to 106 %.
         OBC_CABLE_SESSION:
           expression: B37:4
           min: "0"
@@ -348,11 +352,11 @@ OBC:
           source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
           verified: false
           notes: Calibration gain of the AC_INPUT_V channel; the word straddles the PCI byte B16.
-        OBC_CAL_CHARGE_V_GAIN:
+        OBC_CAL_PFC_V_GAIN:
           expression: "[B20:B21]/1000-30"
           source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
           verified: false
-          notes: Calibration gain of the OBC_CHARGE_V channel.
+          notes: Calibration gain of the OBC_PFC_V channel.
         OBC_CAL_OUTPUT_V_GAIN:
           expression: "[B25:B26]/1000-30"
           source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
@@ -385,12 +389,12 @@ OBC:
           source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
           verified: false
           notes: Calibration offset of the AC_INPUT_V channel.
-        OBC_CAL_CHARGE_V_OFFSET:
+        OBC_CAL_PFC_V_OFFSET:
           expression: "[B18:B19]/1000-30"
           unit: V
           source: OBC firmware 2102 builder (OBC_FIRMWARE_FINDINGS.md), 2026-11-08
           verified: false
-          notes: Calibration offset of the OBC_CHARGE_V channel.
+          notes: Calibration offset of the OBC_PFC_V channel.
         OBC_CAL_OUTPUT_V_OFFSET:
           expression: "[B22:B23]/1000-30"
           unit: V
@@ -431,7 +435,10 @@ OBC:
     verified: false
     P0D08:
       source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
-      notes: In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual.
+      notes: >-
+        In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual. Set when the
+        battery-side voltage (2101 OBC_BATTERY_SIDE_V) and the BMS pack voltage (P-CAN 0x595) differ
+        by 30 V or more; two failure types.
     P0D09:
       description: Battery charging system positive connector stuck open
       causes: faulty OBC fuse, faulty high voltage cable, BMS, OBC
@@ -440,8 +447,11 @@ OBC:
         Also needs: turn the OBC relay 'ON'; voltage of the high voltage battery is over 220 V.
         Service lamp on.
     P0D18:
+      description: OBC 5 V sensor supply low (from the firmware's detector)
       source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
-      notes: In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual.
+      notes: >-
+        In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual. Set when the
+        5 V rail (2101 OBC_5V_RAIL_V) reads below 4.75 V.
     P0D21:
       description: Battery charger output voltage too low
       causes: faulty high voltage cable, high voltage battery, OBC
@@ -453,6 +463,7 @@ OBC:
       causes: failure in the cooling system, lack of coolant, faulty EWP (electronic water pump)
       notes: >-
         Threshold: OBC temperature is higher than 110°C. Detection time: 2 sec. Service lamp on.
+        This firmware (EAEEH5L-OS3-D000) sets it above 120 °C.
     P0D27:
       description: Battery charger input voltage too low
       causes: >-
@@ -582,8 +593,13 @@ OBC:
         Threshold: AC frequency is less than a predetermined value. Also needs: turn the input relay
         'ON'. Not in the DTC table of OBC firmware EAEEH5L-OS3-D000.
     P1CF5:
+      description: AC input out of range (from the firmware's detectors)
       source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
-      notes: In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual.
+      notes: >-
+        In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual. Failure types:
+        01 AC input above 290 V (back below 285 V to clear); 03 and 04 an internal value, probably
+        the AC frequency, below 15 or above 105; 02 a charge-mode condition. The manual's P0D27,
+        P0D28 and P0D90 tests map here in this firmware.
     P1CF6:
       description: EVSE check
       causes: external EVSE (electric vehicle supply equipment), OBC
@@ -637,7 +653,8 @@ OBC:
       causes: faulty high voltage cable, OBC relay, main relay, OBC fuse, high voltage battery, OBC
       notes: >-
         Threshold: output voltage is greater than 470 V. Detection time: for 10 times or 60 sec.
-        Also needs: turn the S2 switch 'ON'. Service lamp on.
+        Also needs: turn the S2 switch 'ON'. Service lamp on. This firmware (EAEEH5L-OS3-D000) sets
+        it above 430 V (OBC_OUTPUT_V).
     P1E0B:
       description: Battery charging output current too high
       causes: faulty high voltage cable, OBC
@@ -661,7 +678,8 @@ OBC:
       causes: OBC
       notes: >-
         Threshold: PFC voltage is greater than 455 V. Detection time: for 10 times or 60 sec. Also
-        needs: turn the S2 switch 'ON'. Service lamp on.
+        needs: turn the S2 switch 'ON'. Service lamp on. This firmware (EAEEH5L-OS3-D000) sets it
+        above 435 V (OBC_PFC_V).
     P1E15:
       source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
       notes: In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual.
@@ -693,7 +711,9 @@ OBC:
         time: 1 sec. Also needs: charging high voltage battery. Service lamp on.
     P1E1C:
       source: OBC firmware DTC table (research/OBC_FIRMWARE_FINDINGS.md section 8), 2026-11-08
-      notes: In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual.
+      notes: >-
+        In the DTC table of OBC firmware EAEEH5L-OS3-D000; not in the service manual. Set when the
+        battery-side voltage sensor's raw output stays above 0.3 V for 500 cycles.
     P1E1F:
       description: Battery charger ignition3 relay stuck open check
       causes: >-
@@ -775,24 +795,6 @@ OBC:
         manual. The OBC receives the pump's P-CAN frame 0x570.
 
   research:
-    - type: decode
-      target: "2101"
-      status: captured
-      priority: P1
-      vehicle_states: [READY, CHARGING]
-      result: >-
-        Every byte now has a firmware source (research/OBC_FIRMWARE_FINDINGS.md section 5.1,
-        2026-11-08), checked against 13346 captures. Still open: what OBC_CHARGE_V and OBC_OUTPUT_V
-        each measure; both are OBC ADC voltages, and OBC_OUTPUT_V is inside the output relay (about
-        4 V when idle, while OBC_BATTERY_SIDE_V reads the pack).
-      notes: >-
-        Main 2101 signals are decoded (see parameters). Open: what OBC_OUTPUT_V and OBC_CHARGE_V
-        each measure.
-      what_to_test:
-        - "Compare OBC_OUTPUT_V ([B12:B13]) and OBC_CHARGE_V ([B10:B11]) against a DC meter while charging"
-      sources:
-        - "Kia Soul EV LDC CSV (0x7C5 2101) + OBC CSV (0x794 2102)"
-        - "Kia Niro PR#660"
     - type: scan
       target: 21 00-FF
       status: done
@@ -1000,6 +1002,46 @@ OBC:
       what_to_test:
         - "12 V-only load step at READY (rear defroster, high beams, blower; A/C off) co-polling OBC:2101, VCU:2102, VCU:21F2 and BMS:2101 with --keep-all: pack BATTERY_CURRENT is then the LDC input alone, a cross-check on VCU_AUX_POWER / VCU_LDC_OUTPUT_VOLTAGE. The 2026-07-30 step also ran the A/C compressor."
         - Capture VCU 21F2 with --keep-all while charging, to contrast its analog bytes against READY.
+    - type: decode
+      target: "2101"
+      status: done
+      priority: P1
+      vehicle_states: [READY, CHARGING]
+      created: "2026-11-08"
+      updated: "2026-11-08"
+      result: >-
+        Every byte has a firmware source (research/OBC_FIRMWARE_FINDINGS.md section 5.1,
+        2026-11-08), checked against 13346 captures. The firmware's fault detectors name the voltage
+        channels: B10:B11 is the PFC DC-bus voltage (now OBC_PFC_V; P1E01-P1E03, P1E14), B12:B13 the
+        output voltage inside the output relay (OBC_OUTPUT_V; P0D4D-P0D4F, P0D21, P1E0A), B45:B46
+        the output-relay voltage on the battery side (OBC_BATTERY_SIDE_V; P1E16, P1E19).
+        OBC_DC_POWER and OBC_EFFICIENCY now use OBC_OUTPUT_V.
+      notes: >-
+        Main 2101 signals were decoded from captures first; the OBC firmware (2026-11-08) gave every
+        byte's source.
+      sources:
+        - Kia Soul EV LDC CSV (0x7C5 2101) + OBC CSV (0x794 2102)
+        - Kia Niro PR#660
+    - type: decode
+      target: 12 00 00 freeze frame (KWP2000 ReadFreezeFrameData)
+      status: pending
+      priority: P3
+      vehicle_states: [IG3]
+      created: "2026-11-08"
+      updated: "2026-11-08"
+      notes: >-
+        From the OBC firmware (OBC_FIRMWARE_FINDINGS.md section 13, 2026-11-08): 12 00 00 answers
+        only while a DTC is stored (NRC 0x12 otherwise), with 52 00, a 20-byte freeze frame of the
+        newest DTC, 00 and the DTC code. Frame bytes, big-endian words: 0-1 12 V supply x10, 2-3 AC
+        input V x10, 4-5 AC input A x10, 6-7 PFC V x10, 8-9 output V x10, 10-11 DC A x10, 12 OBC
+        temperature +100, 13-14 pilot duty x1000, 15 pilot V x10, 16-17 battery-side V x10, 18 plug
+        state (bits 0-1), 0x597 byte 0 bit 2 (bit 2) and charge mode (bits 3+), 19 failure type.
+        Allowed in the default session.
+      what_to_test:
+        - When the OBC next stores a DTC, read 12 00 00 alongside 18 00 FF 00 and check the layout against the DTC's conditions
+      capture_protocol: >-
+        Send 12 00 00 to the OBC (0x7E5) with canair raw --save --label 'OBC freeze frame', only
+        while an OBC DTC is stored; read the stored DTCs first (canair dtc OBC).
 
   sessions:
     "81":
