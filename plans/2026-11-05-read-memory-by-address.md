@@ -437,3 +437,32 @@ SecurityAccess. The VCU's health (`VCU:2101`, `BMS:2101`) was read after every s
 - Side effects: none seen. Charging continued through about 1.5 h of reads; the VCU kept its one
   code (U1112), and the MCU, OBC, BMS and IGPM stored none. One WebSocket drop ended a dump
   early; the chunk was read again.
+
+### Live tests on the MCU, BCM, climate unit and IGPM (2026-11-08, charging)
+
+AC charging, transport `wican-ws`, default session. `dtc read --all` before and after found the
+same nine codes (CCM, AMP, the VCU's U1112) and no new one.
+
+- **MCU: a survey stopped the charge.** `memory image MCU --plan-only --block-limit 64` mapped
+  the whole `0x000000`-`0xFFFFFF` as readable (every 1-byte probe answered). Its survey (64-byte
+  reads every 4 KiB) then answered up to about `0x863000`. The read at `0x864000` drew no answer
+  at 12:00:02 UTC, and right after it the MCU, BMS and OBC went silent: the AC charge had stopped
+  (`VCU_POWER_STATE` 7 to 6, `VCU_IG3_ON` 0). No charge schedule was set. The charge resumed
+  when it was restarted at the car, and no ECU stored a code. The map was not kept in
+  `ecus/mcu.yaml`. The MCU and the OBC are out of scope for memory reads on a car in use. A
+  `memory image` that maps a whole space as readable should stop before its survey and ask:
+  that answer means the ECU does not check the range.
+- **BCM: SRAM and data flash.** The window recorded on 2026-11-05 (`0xFEDC0000`-`0xFEE0FFFF`)
+  answers with zeros only, and so does everything from `0xC3F90000` up: these are not memory.
+  A coarse scan found SRAM at `0x40000000`-`0x4000BFFE` (48 KiB, live: two dumps 2 min apart
+  differ in 195 runs) and data flash at `0x00804000`-`0x0080FFFE` (48 KiB of EEPROM-emulation
+  records, two dumps identical). Code flash (`0x00000000`-`0x003FFFFF`) and the shadow block
+  (`0x00200000`) answer NRC `0x31`. The map fits a Freescale MPC560xB/C part. The coarse scan read
+  1 byte at a few addresses in the peripheral space (`0xC3F90000` up); the BCM kept answering.
+  A 48 KiB dump at 61-byte blocks takes 1 min 50 s.
+- **Climate unit: no memory.** Its `0x23` ignores the low 16 address bits and returns its
+  transmit buffer (16 bytes it writes, then the stale tail of the previous reply). An address
+  high byte of `01`-`FF` answers NRC `0x52`. The 2026-11-05 dumps are that buffer.
+- **IGPM:** `23`, `21`, `1A`, `24` and `09` answer `0x11`. The remaining path is `0x2C`
+  defineByMemoryAddress, which the blocklist refuses.
+- **CLU:** asleep while charging (no answer to `dtc read`); not tested.

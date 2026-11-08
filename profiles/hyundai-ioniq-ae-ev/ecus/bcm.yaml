@@ -1274,6 +1274,31 @@ BCM:
         canair monitor BCM:22B003 HVAC:220100 --save --keep-all --label 'BCM B13 soak reference'
         --state ON; switch to ON after the soak, without climate, and note the thermometer reading
         with s.
+    - type: scan
+      target: memory map (ReadMemoryByAddress 0x23)
+      status: captured
+      priority: P2
+      vehicle_states: [CHARGING]
+      created: "2026-11-08"
+      updated: "2026-11-08"
+      date: "2026-11-08"
+      result: >-
+        SRAM 0x40000000-0x4000BFFE (48 KiB, live) and data flash 0x00804000-0x0080FFFE (48 KiB,
+        EEPROM-emulation records, stable) are readable in the default session. Code flash
+        (0x00000000-0x003FFFFF) answers NRC 0x31.
+      notes: >-
+        The map (SRAM at 0x40000000, data flash at 0x00800000, peripherals from 0xC3F90000) fits a
+        Freescale MPC560xB/C (Bolero) part; the part was not identified. 0xFEDC0000-0xFEE0FFFF and
+        everything probed from 0xC3F90000 up return a positive reply of all zeros: that is not
+        memory, so the readable FEDC0000 region in memory: is a dummy window. Do not probe
+        0xC3F90000 and above again: it is the peripheral space, where a read can clear a flag. Two
+        SRAM dumps 2 min apart differ in 195 runs, so RAM variables can be found by diffing dumps
+        across a state change. The last byte of each window (0x4000BFFF, 0x0080FFFF) answers NRC
+        0x31.
+      sources:
+        - canair memory dump/scan memory BCM, 2026-11-08 (dumps local only)
+      what_to_test:
+        - Dump SRAM with the doors locked and unlocked, lights on and off, and diff the dumps to find body-state variables
   iocontrol_discoveries:
     B003:
       response: "6FB00300"
@@ -1561,6 +1586,36 @@ BCM:
     format: "24"
     max_block: 254
     regions:
+      - start: 0x007FF000
+        end: 0x00803FFE
+        result: out_of_range
+        nrc: 0x31
+        scanned: "2026-11-08"
+      - start: 0x00803FFF
+        end: 0x0080FFFE
+        result: readable
+        software: "F195:220"
+        scanned: "2026-11-08"
+      - start: 0x0080FFFF
+        end: 0x00810FFF
+        result: out_of_range
+        nrc: 0x31
+        scanned: "2026-11-08"
+      - start: 0x3FFF0000
+        end: 0x3FFFFFFF
+        result: out_of_range
+        nrc: 0x31
+        scanned: "2026-11-08"
+      - start: 0x40000000
+        end: 0x4000BFFE
+        result: readable
+        software: "F195:220"
+        scanned: "2026-11-08"
+      - start: 0x4000BFFF
+        end: 0x4001FFFF
+        result: out_of_range
+        nrc: 0x31
+        scanned: "2026-11-08"
       - start: 0xFEDC0000
         end: 0xFEE0FFFF
         result: readable

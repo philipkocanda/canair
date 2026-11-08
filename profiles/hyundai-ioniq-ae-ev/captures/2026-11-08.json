@@ -355,6 +355,213 @@
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921105406400300000000FD78000720","time":"09:02:07.644","elapsed_ms":57},
         {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFA61D682648A3FFEB0F0E080607070706070007C83DC8010000940005930E00059036000205480001F4940162CCC20901810000000003E8","time":"09:02:07.831","elapsed_ms":105}
       ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "memory session health baseline",
+      "version": "5.2.0+main.3a64937",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 4
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921106F065403000000003679000720","time":"12:54:56.151","elapsed_ms":53},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF9C24B42648A3FFE80EC80A090A0A0A090A000BC533C40100009300059353000590A5000205610001F4BD0162F7D109017A0000000003E8","time":"12:54:56.318","elapsed_ms":109},
+        {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF8000097E593E457C801118B024B00BB05BF43102000C80210006276000B000501F494204BAD000E","time":"12:54:56.436","elapsed_ms":79},
+        {"rx":"0x7EB","pid":"2102","payload":"610207FFFFFF0000000000001C00090B0D0DF7FFF5FF7DD6CDABC2CD7F00DF042C007C07F726F606C1CD0900F93100000000000000000000","time":"12:54:56.571","elapsed_ms":99}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "health check after MCU map",
+      "version": "5.2.0+main.3a64937.dirty",
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 7,
+        "no_data": 6
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921806F065203000000006F67000620","time":"13:00:42.759","elapsed_ms":64}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "after charge restart (post MCU incident)",
+      "version": "5.2.0+main.3a64937.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 4
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009211074065203000000001979000720","time":"13:09:33.728","elapsed_ms":57},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFF9D248F2648A3FFE80ECC0A090A0A0A090A000AC53DC50100009300059356000590A5000205620001F4BD0162F9F909017A0000000003E8","time":"13:09:33.895","elapsed_ms":117},
+        {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF8000097CD942A58C201128A024900BB05BD43102000C802100062760012000B01F3943076AA0013","time":"13:09:34.018","elapsed_ms":89},
+        {"rx":"0x7EB","pid":"2101","payload":"6101000003FF083801E3938E3A0000000A0035025204543A00001800E8FF","time":"13:09:34.122","elapsed_ms":60}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "BCM RAM window spot reads",
+      "version": "5.2.0+main.3a64937.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 3
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7A8","pid":"2324FEDC00000020","payload":"630000000000000000000000000000000000000000000000000000000000000000","time":"13:11:24.509","elapsed_ms":158},
+        {"rx":"0x7A8","pid":"2324FEDFFFC00020","payload":"630000000000000000000000000000000000000000000000000000000000000000","time":"13:11:24.660","elapsed_ms":148},
+        {"rx":"0x7A8","pid":"2324FEE0FFC00020","payload":"630000000000000000000000000000000000000000000000000000000000000000","time":"13:11:24.749","elapsed_ms":89}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "BCM memory spot reads 2",
+      "version": "5.2.0+main.3a64937.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 4
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7A8","pid":"2324FEB000000020","payload":"630000000000000000000000000000000000000000000000000000000000000000","time":"13:12:01.601","elapsed_ms":174},
+        {"rx":"0x7A8","pid":"2324FEEF00000020","payload":"630000000000000000000000000000000000000000000000000000000000000000","time":"13:12:01.687","elapsed_ms":85},
+        {"rx":"0x7A8","pid":"2324FF0000000010","payload":"6300000000000000000000000000000000","time":"13:12:01.835","elapsed_ms":147},
+        {"rx":"0x7A8","pid":"2324FF2000000020","payload":"630000000000000000000000000000000000000000000000000000000000000000","time":"13:12:01.928","elapsed_ms":93}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "BCM SRAM 0x40000000 first read",
+      "version": "5.2.0+main.3a64937.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 3
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7A8","pid":"22C00B","payload":"62C00BFFFF0000C7430100C8430100C8410100C6420100","time":"13:12:57.204","elapsed_ms":66},
+        {"rx":"0x7A8","pid":"2324400000000020","payload":"633A3A3A3A3A3A3A3A3A3A3A3A3A3A3B3C3D3E3F4041424345464748494A4B4B4B","time":"13:12:57.383","elapsed_ms":166},
+        {"rx":"0x7A8","pid":"23244000BFC0003F","payload":"6300000005000000050000000500000005000000050000000500000005000000050000000500000005000000050000000500000005000000050000000540004F","time":"13:12:57.578","elapsed_ms":192}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "HVAC 0x23 high-byte probe",
+      "version": "5.2.0+main.3a64937.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 8
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF7B656A01EF7EFFFF7EFF11FFFFFFFFFFFFFFFFFF00EB756F00FFFF00FFFF","time":"13:17:14.188","elapsed_ms":103},
+        {"rx":"0x7BB","pid":"231300000010","payload":"63000000000000000000001E0028003200","time":"13:17:14.353","elapsed_ms":152},
+        {"rx":"0x7BB","pid":"231300001010","payload":"63000000000000000000001E0028003200","time":"13:17:14.421","elapsed_ms":67}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "HVAC 0x23 address-bit probe",
+      "version": "5.2.0+main.3a64937.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 7
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7BB","pid":"220100","payload":"6201007E5007C8FF7B656A01EF7EFFFF7EFF11FFFFFFFFFFFFFFFFFF00E9756F00FFFF00FFFF","time":"13:17:41.930","elapsed_ms":101},
+        {"rx":"0x7BB","pid":"231300000010","payload":"63000000000000000000001E0028003200","time":"13:17:42.083","elapsed_ms":143},
+        {"rx":"0x7BB","pid":"231300000040","payload":"63000000000000000000001E0028003200FF11FFFFFFFFFFFFFFFFFF00E9756F00FFFF00FFFFFFD8000003B600000C000F000000000000005CCCFF302020202020","time":"13:17:42.266","elapsed_ms":182},
+        {"rx":"0x7BB","pid":"231300000110","payload":"63000000000000000000001E0028003200","time":"13:17:42.325","elapsed_ms":60},
+        {"rx":"0x7BB","pid":"231300010010","payload":"63000000000000000000001E0028003200","time":"13:17:42.384","elapsed_ms":59},
+        {"rx":"0x7BB","pid":"231300ABCD10","payload":"63000000000000000000001E0028003200","time":"13:17:42.446","elapsed_ms":61},
+        {"rx":"0x7BB","pid":"231300FFF010","payload":"63000000000000000000001E0028003200","time":"13:17:42.511","elapsed_ms":65}
+      ]
+    },
+    {
+      "date": "2026-11-08",
+      "label": "IGPM bare-SID service presence probe 2",
+      "version": "5.2.0+main.3a64937.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "wican-ws",
+      "quality": {
+        "exchanges": 6
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x778","pid":"22","payload":"62","time":"13:18:33.943"},
+        {"rx":"0x778","pid":"0902","response":"NRC 0x11 (serviceNotSupported)"},
+        {"rx":"0x778","pid":"19","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x778","pid":"2F","response":"NRC 0x7F (serviceNotSupportedInActiveSession)"},
+        {"rx":"0x778","pid":"31","response":"NRC 0x13 (incorrectMessageLengthOrInvalidFormat)"},
+        {"rx":"0x778","pid":"27","response":"NRC 0x7F (serviceNotSupportedInActiveSession)"}
+      ]
     }
   ]
 }

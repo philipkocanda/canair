@@ -1197,6 +1197,25 @@ IGPM:
         - uhi22 IoniqMotorCAN Traces/Logging126_twoTimes_withPyPlcIntoTheChargingLoop.asc and Logging127_twoTimes_withPyPlcSuppressedChargeParamDiscoveryResponse.asc
         - ioniq-avn-fw docs/micom/micom-can-findings.md section 6.6
         - canair decode --dump-bytes time-of-day scan over all timed captures, 2026-11-07
+    - type: scan
+      target: memory access without 0x23
+      status: nrc
+      priority: P3
+      vehicle_states: [CHARGING]
+      created: "2026-11-08"
+      updated: "2026-11-08"
+      date: "2026-11-08"
+      result: >-
+        Bare-SID probes: 23, 21, 1A, 24 and 09 answer NRC 0x11; 19 and 31 answer 0x13; 2F and 27
+        answer 0x7F in the default session; a bare 22 answers 62 with no data. No read service
+        reaches memory.
+      notes: >-
+        Left: DynamicallyDefineDataIdentifier (0x2C 02, define by memory address, then 22 F2xx) is
+        the remaining read path. canair's blocklist refuses 0x2C, even a bare SID, because it
+        defines a DID in the ECU. A bare 2C (NRC 0x11 absent, 0x13 present) would settle presence
+        without defining anything.
+      sources:
+        - canair read 'raw 770:..' --save, labels 'IGPM bare-SID service presence probe' 1 and 2, 2026-11-08
 
   iocontrol_discoveries:
     BC01:

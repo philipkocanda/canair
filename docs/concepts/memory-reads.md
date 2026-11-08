@@ -39,6 +39,10 @@ reported as locked and left alone.
   cycled (charging off and on). So the block search stays small by default, `memory dump`
   refuses a `--block` above the ECU's recorded `max_block`, and the scan stops if a 1-byte
   read fails after a failing large one.
+- **A read of an address the chip does not implement can stop the ECU.** On the same car a
+  `memory image` survey of the motor controller (MCU) went silent at `0x864000`, and the AC
+  charge stopped. An ECU that answers every address of its space probably ignores some address
+  bits or does not check the range: map such an ECU on a bench, not on a car in use.
 
 ## Dumps stay on your machine
 
@@ -179,4 +183,14 @@ writes a dump for a disassembler; Intel HEX and S-record keep its holes.
 
 On the 2017 Ioniq Electric the BCM, the climate unit, the VCU, the MCU and the OBC answer `0x23`
 in the default session. The gateway (IGPM), the BMS and the CCM refuse the service, so they
-cannot be dumped this way. The details are in `plans/2026-11-05-read-memory-by-address.md`.
+cannot be dumped this way. What each one gives:
+
+- **BCM:** its SRAM (`0x40000000`-`0x4000BFFE`) and its data flash (`0x00804000`-`0x0080FFFE`).
+  It refuses its code flash. Other windows answer with zeros and are not memory.
+- **VCU:** its flash (`0x000000`-`0x3FFFFF`), not its RAM.
+- **Climate unit:** no memory. It ignores the address and returns its transmit buffer.
+- **MCU:** do not read it while the car charges. A survey of its address space ended an AC charge
+  on 2026-11-08.
+
+The details are in `plans/2026-11-05-read-memory-by-address.md` and in each ECU's `research:`
+entries.

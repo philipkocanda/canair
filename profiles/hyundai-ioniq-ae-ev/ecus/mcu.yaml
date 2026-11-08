@@ -808,6 +808,29 @@ MCU:
       what_to_test:
         - Tapped P-CAN sniff in READY; correlate 0x524 EPCU_DC_VOLTAGE against
           VCU:2102:VCU_INVERTER_INPUT_VOLTAGE to confirm the scale on this car.
+    - type: verify
+      target: ReadMemoryByAddress (0x23) survey stopped the AC charge
+      status: captured
+      priority: P1
+      vehicle_states: [CHARGING]
+      created: "2026-11-08"
+      updated: "2026-11-08"
+      date: "2026-11-08"
+      result: >-
+        A memory image survey (64-byte reads every 4 KiB) answered up to about 0x863000; the 61-byte
+        read at 0x864000 drew no answer at 12:00:02 UTC, then the MCU, BMS and OBC went silent and
+        the AC charge stopped (VCU_POWER_STATE 7 -> 6, VCU_IG3_ON 0). No charge schedule was set. No
+        ECU stored a new code; the charge resumed when restarted at the car.
+      notes: >-
+        Treat the MCU as unsafe to memory-read while charging. The 1-byte map probes answered across
+        the whole 0x000000-0xFFFFFF space, so the MCU probably decodes few address bits or maps
+        something there; the map was not kept. The MCU is probably an MPC56xx part (00 5A boot
+        header at 0x000000); on those, a read of an unimplemented address raises a machine check,
+        which may reset the MCU and make the VCU end the charge. Not proven: the stop may have
+        another cause. Do not repeat on a car in use; a bench EPCU is the place to find the MCU's
+        real flash size.
+      sources:
+        - canair logs (run ec52bbec), canair memory image MCU --plan-only, 2026-11-08
 
   sessions:
     "81":

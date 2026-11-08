@@ -852,6 +852,25 @@ HVAC:
       capture_protocol: >-
         canair monitor HVAC:220100 --save --keep-all --interval 2 --label 'duct sensors vs mode'
         --state READY; press s at each mode change.
+    - type: verify
+      target: ReadMemoryByAddress (0x23) reads no memory
+      status: done
+      priority: P3
+      vehicle_states: [CHARGING]
+      created: "2026-11-08"
+      updated: "2026-11-08"
+      date: "2026-11-08"
+      result: >-
+        The 0x23 handler ignores the low 16 address bits and returns its diagnostic transmit buffer:
+        16 bytes it fills itself, then the stale tail of the previous reply (the 220100 record).
+        Address high byte 01-FF answers NRC 0x52. So the HVAC exposes no memory through 0x23.
+      notes: >-
+        Reads at 0x000000, 0x000001, 0x000100, 0x00ABCD and 0x00FFF0 all returned the same bytes;
+        0x010000, 0x400000, 0x800000, 0xF00000 and 0xFF0000 answered 7F 23 52. The 2026-11-05 dumps
+        that repeat a 255-byte image are the same buffer. The hang after a read above 128 bytes is
+        probably that buffer overrunning; keep max_block at 128 or below.
+      sources:
+        - canair read HVAC:23/... --save, labels 'HVAC 0x23 high-byte probe' and 'HVAC 0x23 address-bit probe', 2026-11-08
   # Meanings, causes, thresholds and fail-safes are from the Ioniq Electric 2017 service manual,
   # Air Conditioning System chapter. The manual checks every code only with the ignition on.
   # "Listed as" gives the manual's code with its failure-type byte (B1285-77). The key is the
