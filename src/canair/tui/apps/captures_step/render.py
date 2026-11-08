@@ -215,10 +215,12 @@ def frame_header_text(
     states: str = "",
     label: str = "",
     gaps: str = "",
+    actuated: str = "",
 ) -> Text:
     """The stacked view's frame header: locator, anchor time, tolerance, session tags.
 
-    ``gaps`` names the recorded gaps since the previous frame, on a line of its own.
+    ``gaps`` names the recorded gaps since the previous frame, and ``actuated`` what the
+    recording switched since then, each on a line of its own.
     """
     out = Text()
     out.append("\n  ")
@@ -237,4 +239,7 @@ def frame_header_text(
     out.append("\n")
     if gaps:
         out.append(f"  {WARN} since the previous frame: {gaps}\n", style=styles.WARNING)
+    if actuated:
+        out.append("  switched since the previous frame: ", style=styles.HEADING)
+        out.append(f"{actuated}\n")
     return out

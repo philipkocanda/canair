@@ -27,6 +27,7 @@ from typing import Any, NamedTuple
 
 from canair.captures import io as capture_io
 from canair.captures import merge as captures_merge
+from canair.captures.actuations import session_actuations
 from canair.captures.decode import _decode_payload
 from canair.captures.link_events import session_link_events
 from canair.captures.types import CaptureEntry
@@ -180,10 +181,8 @@ def flatten_session(
     session (a save-time hook annotating what it just wrote) can resolve it
     without paying for the whole store.
 
-    Takes the source file's ``path`` rather than its name so each row can carry
-    both the display ``file`` and the ``_path`` a mutation reopens.
+    Takes the file's ``path`` so each row carries the display ``file`` and the ``_path``.
     """
-
     if rx_index is None:
         rx_index = _rx_index(profile=profile)
 
@@ -197,7 +196,7 @@ def flatten_session(
     keep_mode = session.get("keep_mode", "")
     transport = session.get("transport", "")
     quality = session.get("quality") or None
-    link_events = session_link_events(session)
+    link_events, actuations = session_link_events(session), session_actuations(session)
 
     entries: list[CaptureEntry] = []
     for c_idx, cap in enumerate(session.get("captures", [])):
@@ -220,6 +219,7 @@ def flatten_session(
                 "transport": transport,
                 "quality": quality,
                 "session_link_events": link_events,
+                "session_actuations": actuations,
                 "ecu": ecu_name_from_ref(raw_ecu, rx_index, profile=profile) if raw_ecu else "",
                 "ecu_addr": raw_ecu,
                 "pid": cap.get("pid", ""),

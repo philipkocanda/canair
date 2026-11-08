@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
+from canair.captures.actuations import Actuation
 from canair.captures.keepmode import EntryKeepMode
 from canair.captures.link_events import LinkEvent
 from canair.captures.store import decoded_preview, entry_path
@@ -158,6 +159,7 @@ class SessionGroup(TypedDict):
     transport: str
     quality: Quality | None
     link_events: list[LinkEvent]
+    actuations: list[Actuation]
     variant: str  # "" when untagged
     n: int
     ecus: dict  # ordered set (dict) of ECU names
@@ -199,6 +201,7 @@ def group_sessions(entries: Sequence[CaptureEntry], *, profile: Profile) -> list
                 "transport": e.get("transport", ""),
                 "quality": e.get("quality") or None,
                 "link_events": list(e.get("session_link_events") or []),
+                "actuations": list(e.get("session_actuations") or []),
                 "variant": e.get("session_variant", ""),
                 "n": 0,
                 "ecus": {},  # ordered set (dict) of ECU names

@@ -52,7 +52,7 @@ from canair.expression.notation import ByteNotation
 from canair.profile.model import Profile
 from canair.states.tokens import join_states as _join_states
 
-from .gaps import describe_gap, gaps_before
+from .gaps import FINDERS, actuations_before, between_lines, frame_pair, gaps_before
 from .join import JoinFrame, build_join_frames
 from .render import (
     capture_block_text,
@@ -672,7 +672,7 @@ class StepModel:
             tol_s=self.tol_s if len(self.keys) > 1 else None,
             states=_join_states((lead or {}).get("vehicle_states")),
             label=str((lead or {}).get("session_label") or ""),
-            gaps=self._gaps_line(n),
+            **between_lines(self.before(n), self.before(n, actuations_before), self._ecu_names()),
         )
 
         for slot, key in enumerate(self.keys):
@@ -702,24 +702,10 @@ class StepModel:
             )
         return out
 
-    def gaps_before(self, n: int) -> list[Mapping[str, Any]]:
-        """The recorded gaps between frame ``n - 1`` and frame ``n`` (stacked views)."""
-        if not self.stacked or not 0 <= n < len(self.frames):
-            return []
-        frame = self.frames[n]
-        here = [self.captures[i] for i in frame.indices if i is not None]
-        if n == 0:
-            return gaps_before(here, frame.anchor_dt, [], None)
-        prev = self.frames[n - 1]
-        before = [self.captures[i] for i in prev.indices if i is not None]
-        return gaps_before(here, frame.anchor_dt, before, prev.anchor_dt)
-
-    def _gaps_line(self, n: int) -> str:
-        gaps = self.gaps_before(n)
-        if not gaps:
-            return ""
-        names = self._ecu_names()
-        return " · ".join(describe_gap(e, names) for e in gaps)
+    def before(self, n: int, find=gaps_before) -> list[Mapping[str, Any]]:
+        """What ``find`` (the gaps, or ``actuations_before``) records since frame ``n - 1``."""
+        args = frame_pair(self.frames, self.captures, n) if self.stacked else None
+        return find(*args) if args else []
 
     def _ecu_names(self) -> dict[str, str]:
         """Response address (upper-case) → ECU name, for naming a scoped gap."""
@@ -795,8 +781,9 @@ class StepModel:
                 "time": anchor.isoformat(sep=" ") if anchor else None,
                 "blocks": blocks,
             }
-            if gaps := self.gaps_before(n):
-                frame["gaps_before"] = [dict(g) for g in gaps]
+            for name, find in FINDERS:
+                if found := self.before(n, find):
+                    frame[name] = [dict(x) for x in found]
             frames.append(frame)
         return {
             "view": self.view,

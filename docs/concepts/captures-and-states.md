@@ -250,6 +250,16 @@ at the time it was sent, so a toggle can be lined up with the signal changes it 
 Like `link_events`, the list is recorded live, never derived, and holds no labels or free
 text. It is absent on a session that actuated nothing.
 
+Where they show up:
+
+- `captures uds --sessions` adds an `actuated:` line per session (and `--json` carries the
+  list).
+- `captures uds --step` says, in the frame header, what was switched between the previous
+  frame and this one, whatever ECU the frame shows (`--json` adds `actuations_before`).
+- `investigate ECU PID --events` prints each actuation of the sessions in scope among the
+  edges, in time order (`--json` adds `actuations`), so a bit that flips right after a toggle
+  reads against it.
+
 
 ## Recording captures
 

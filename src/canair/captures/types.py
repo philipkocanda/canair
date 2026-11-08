@@ -236,6 +236,7 @@ class CaptureEntry(TypedDict):
     quality: Quality | None
     # The session's link events, one list shared by every row of the session.
     session_link_events: list[LinkEvent]
+    session_actuations: list[Actuation]
     # -- the capture itself --
     ecu: str  # resolved short name ("" when the rx address is unknown)
     ecu_addr: str  # raw CAN response address, e.g. "0x7EC"

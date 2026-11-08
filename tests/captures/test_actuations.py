@@ -201,3 +201,81 @@ class TestMonitorRecording:
         c.recorder.new_segment("second")
         records = self._records(c)
         assert [(r["action"], r["id"]) for r in records] == [("held", "BC0C")]
+
+
+def _stored_session() -> dict:
+    return {
+        "date": DAY,
+        "label": "defogger",
+        "actuations": [
+            {
+                "at": "14:00:05.000",
+                "rx": "0x778",
+                "kind": "iocontrol",
+                "id": "BC0C",
+                "action": "on",
+                "request": "2FBC0C03",
+                "outcome": "ok",
+                "response": "6FBC0C03",
+            },
+            {
+                "at": "14:00:20.000",
+                "rx": "0x778",
+                "kind": "iocontrol",
+                "id": "BC0C",
+                "action": "off",
+                "request": "2FBC0C00",
+                "outcome": "ok",
+                "response": "6FBC0C00",
+            },
+        ],
+        "captures": [
+            {"rx": "0x778", "pid": "22BC03", "payload": "62BC0300", "time": "14:00:00.000"},
+            {"rx": "0x778", "pid": "22BC03", "payload": "62BC0301", "time": "14:00:10.000"},
+            {"rx": "0x778", "pid": "22BC03", "payload": "62BC0300", "time": "14:00:30.000"},
+        ],
+    }
+
+
+def _entries(tmp_path):
+    from canair.captures.store import flatten_session
+
+    return flatten_session(
+        tmp_path / f"{DAY}.json", 0, _stored_session(), rx_index={0x778: "IGPM"}, profile=active()
+    )
+
+
+class TestReaders:
+    def test_the_sessions_view_says_what_was_switched(self, tmp_path, capsys):
+        from canair.cli.commands.captures.sessions import cmd_sessions
+
+        cmd_sessions(_entries(tmp_path))
+        assert "actuated: 2 requests · IGPM BC0C" in capsys.readouterr().out
+        cmd_sessions(_entries(tmp_path), as_json=True)
+        doc = json.loads(capsys.readouterr().out)
+        assert [a["action"] for a in doc[0]["actuations"]] == ["on", "off"]
+
+    def test_captures_step_names_what_was_switched_between_frames(self, tmp_path):
+        from canair.tui.apps.captures_step.gaps import actuations_before, between_lines
+
+        entries = _entries(tmp_path)
+        at = [datetime(2026, 11, 7, 14, 0, s) for s in (0, 10, 30)]
+        assert actuations_before([entries[0]], at[0], [], None) == []
+        (on,) = actuations_before([entries[1]], at[1], [entries[0]], at[0])
+        assert on["action"] == "on"
+        lines = between_lines([], [on], {"0X778": "IGPM"})
+        assert lines == {"gaps": "", "actuated": "IGPM iocontrol BC0C on (ok) at 14:00:05"}
+
+    def test_investigate_events_puts_them_among_the_edges(self, tmp_path, capsys):
+        from canair.cli.commands.investigate import render
+
+        class LP:
+            captures = _entries(tmp_path)
+            n_no_time = 0
+
+        args = type("A", (), {"field": None, "json": False, "bits": False, "notation": None})()
+        render.print_events("IGPM", "22BC03", LP(), {}, {}, args, {})
+        lines = [line.strip() for line in capsys.readouterr().out.splitlines() if line.strip()]
+        timeline = [line for line in lines if line[:2] == "14"]
+        assert [line.split()[1] for line in timeline] == ["switched", "B4", "switched", "B4"]
+        assert "IGPM iocontrol BC0C on (ok)" in timeline[0]

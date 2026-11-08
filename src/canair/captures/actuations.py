@@ -157,6 +157,30 @@ def session_actuations(session: Mapping[str, Any]) -> list[Actuation]:
     return out
 
 
+def actuations_in(entries: Iterable[Mapping[str, Any]]) -> list[tuple[datetime, Actuation]]:
+    """Every actuation of the sessions ``entries`` come from, once each, in time order.
+
+    ``entries`` are flat capture entries (``captures/store.py``): each carries its session's
+    ``session_actuations`` and ``date``, and the ``_path`` and ``_session_idx`` that tell two
+    sessions apart.
+    """
+    seen: set[tuple[Any, Any]] = set()
+    out: list[tuple[datetime, Actuation]] = []
+    for entry in entries:
+        session = (entry.get("_path") or entry.get("file"), entry.get("_session_idx", 0))
+        if session in seen:
+            continue
+        seen.add(session)
+        for act in entry.get("session_actuations") or ():
+            try:
+                when = datetime.fromisoformat(f"{entry.get('date', '')}T{act['at']}")
+            except (KeyError, ValueError):
+                continue
+            out.append((when, act))
+    out.sort(key=lambda pair: pair[0])
+    return out
+
+
 def describe(entry: Mapping[str, Any]) -> str:
     """``iocontrol BC0C on (ok)`` — one actuation as a timeline line says it."""
     text = f"{entry.get('kind', '')} {entry.get('id', '')} {entry.get('action', '')}"

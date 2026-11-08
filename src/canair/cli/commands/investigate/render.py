@@ -26,6 +26,8 @@ from canair.render import ansi, messages
 from canair.uds.byteindex import payload_to_wican_bytes, wican_to_isotp
 from canair.uds.layout import subfunction_bytes_for_pid
 
+from .actuations import actuation_marks, mark_line, marks_json
+
 
 # ANSI colors — kept local (not imported from investigate) so this module has no
 # import-time dependency on the command, which imports the renderers back.
@@ -299,6 +301,7 @@ def print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> Non
         print_field_events(ecu, pid, lp, args, param)
         return
     edges = iter_edges(lp, mapped, mapped_bit, bits=args.bits)
+    marks = actuation_marks(lp.captures)
     if args.json:
         _json.dump(
             {
@@ -317,6 +320,7 @@ def print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> Non
                     }
                     for e in edges
                 ],
+                "actuations": marks_json(marks),
             },
             sys.stdout,
             indent=2,
@@ -335,6 +339,8 @@ def print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> Non
     sub_bytes = subfunction_bytes_for_pid(pid)
     plen = longest_payload_len(getattr(lp, "captures", None))
     for dt, label, before, after, mapped_by, verified, cap, _kind in edges:
+        while marks and marks[0][0] <= dt:  # what the recording switched before this edge
+            print(mark_line(*marks.pop(0)))
         if mapped_by is None:
             tag = f"{ansi.YELLOW}candidate{ansi.RESET}"
         elif verified:
@@ -352,6 +358,8 @@ def print_events(ecu, pid, lp, mapped, mapped_bit, args, params_def=None) -> Non
         print(
             f"    {ansi.DIM}{dt.strftime('%H:%M:%S')}{ansi.RESET}  {ansi.BOLD}{shown}{ansi.RESET} {arrow}  {tag}{note_str}"
         )
+    for mark in marks:
+        print(mark_line(*mark))
     print()
 
 

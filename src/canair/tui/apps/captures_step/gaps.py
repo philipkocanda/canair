@@ -4,6 +4,10 @@ Stepping from one frame to the next can jump across a recorded gap (a disconnect
 pause, an ECU falling silent, a PID taken out of the poll set). The frame after one says
 so, from the session's ``link_events`` (:mod:`canair.captures.link_events`), so a value
 that "jumped" across a minute of missing data is not read as a step change.
+
+It also says what the recording switched in between (an output on, a routine started), from
+the session's ``actuations`` (:mod:`canair.captures.actuations`), so a value that changed right
+after a toggle is read against it.
 """
 
 from __future__ import annotations
@@ -13,6 +17,7 @@ from datetime import datetime
 from typing import Any
 
 from canair.analysis.fill import format_hold_duration
+from canair.captures.actuations import describe
 from canair.captures.link_events import (
     DISCONNECT,
     ECU_SILENT,
@@ -87,3 +92,60 @@ def _session(entry: CaptureEntry) -> tuple[str, int]:
 
 def _scopes(entries: Iterable[CaptureEntry]) -> list[tuple[str, str]]:
     return [(str(e.get("ecu_addr")), str(e.get("pid"))) for e in entries if e.get("ecu_addr")]
+
+
+def actuations_before(
+    frame: Sequence[CaptureEntry],
+    anchor: datetime,
+    previous: Sequence[CaptureEntry],
+    previous_anchor: datetime | None,
+) -> list[Mapping[str, Any]]:
+    """The session's actuations sent after the previous frame and up to this one.
+
+    Every one in the session counts, whatever ECU or PID the frame shows: an output on one ECU
+    moves signals on another. When the previous frame belongs to another session (or there is
+    none), everything from the session's start counts.
+    """
+    if not frame:
+        return []
+    lead = frame[0]
+    same_session = bool(previous) and _session(previous[0]) == _session(lead)
+    lo = _key(previous_anchor) if same_session and previous_anchor is not None else -1.0
+    hi = _key(anchor)
+    return [
+        a
+        for a in lead.get("session_actuations") or []
+        if (at := parse_time_key(a.get("at"))) is not None and lo < at <= hi
+    ]
+
+
+def describe_actuation(entry: Mapping[str, Any], names: Mapping[str, str]) -> str:
+    """``IGPM iocontrol BC0C on (ok) at 14:02:11``."""
+    rx = str(entry.get("rx") or "")
+    return f"{names.get(rx.upper(), rx)} {describe(entry)} at {_clock(entry.get('at'))}"
+
+
+#: The JSON field each finder fills on a frame of ``captures --step --json``.
+FINDERS = (("gaps_before", gaps_before), ("actuations_before", actuations_before))
+
+
+def frame_pair(frames: Sequence[Any], captures: Sequence[CaptureEntry], n: int) -> tuple | None:
+    """Frame ``n``'s captures and anchor, and frame ``n - 1``'s, as the finders take them."""
+    if not 0 <= n < len(frames):
+        return None
+    frame, prev = frames[n], frames[n - 1] if n else None
+    here = [captures[i] for i in frame.indices if i is not None]
+    before = [captures[i] for i in prev.indices if i is not None] if prev else []
+    return here, frame.anchor_dt, before, prev.anchor_dt if prev else None
+
+
+def between_lines(
+    gaps: Sequence[Mapping[str, Any]],
+    switched: Sequence[Mapping[str, Any]],
+    names: Mapping[str, str],
+) -> dict[str, str]:
+    """The frame header's ``gaps`` and ``actuated`` lines (empty when nothing happened)."""
+    return {
+        "gaps": " · ".join(describe_gap(e, names) for e in gaps),
+        "actuated": " · ".join(describe_actuation(a, names) for a in switched),
+    }

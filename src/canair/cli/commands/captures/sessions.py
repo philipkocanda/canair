@@ -178,6 +178,21 @@ def _gaps_tag(
     )
 
 
+def _actuations_tag(entries: Sequence[Mapping], names: Mapping[str, str]) -> str:
+    """``actuated: 3 requests · IGPM BC0C, BCM 12A1`` for a session that switched outputs."""
+    sent = [e for e in entries if e.get("action") != "held"]
+    if not entries:
+        return ""
+    targets = dict.fromkeys(
+        f"{names.get(str(e.get('rx', '')).upper(), e.get('rx', ''))} {e.get('id', '')}"
+        for e in entries
+    )
+    return (
+        f"{ansi.BOLD}actuated:{ansi.RESET} {_plural(len(sent), 'request')} "
+        f"{ansi.DIM}·{ansi.RESET} {ansi.CYAN}{', '.join(targets)}{ansi.RESET}"
+    )
+
+
 def _inferred(session: SessionGroup) -> list[tuple[float, float]]:
     return infer_gaps(session["times"], session["link_events"], session["keep_mode"])
 
@@ -234,6 +249,7 @@ def cmd_sessions(
                 "transport": s["transport"],
                 "quality": s["quality"],
                 "link_events": s["link_events"],
+                "actuations": s["actuations"],
                 "inferred_gaps": [
                     {"at": format_key(a), "until": format_key(b)} for a, b in _inferred(s)
                 ],
@@ -301,6 +317,9 @@ def cmd_sessions(
         itag = _inferred_tag(_inferred(s))
         if itag:
             print(f"    {itag}")
+        atag = _actuations_tag(s["actuations"], names)
+        if atag:
+            print(f"    {atag}")
         # Distinct capture-level notes (RE annotations) — the other place notes live.
         for cn in s["cap_notes"][:max_notes]:
             clean = _clean(cn)
