@@ -127,7 +127,7 @@ sections:
     date: 2026-11-08
     note: >-
       Pass 5 results. vcu.yaml and signals/ should take: the 2101 B10/B11/B23/B26 and 2102
-      B9/B10/B12/B13 renames and notes (K_capture_checks proposals), BAT11 temperature unsigned
+      B9/B10/B12/B13 renames and notes (the table in 27.9), BAT11 temperature unsigned
       plus its flag bits, 0x10C/0x354/0x200/0x57B/0x592 definitions, the 21F2 byte map, and the
       LDC-current result.
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
@@ -668,16 +668,18 @@ resolves most of the coverage gaps in `canair coverage VCU`.
 
 ### 7.2 Record 2102 (`FUN_0021AD44`)
 
+2102 is a copy of the LDC's status frame `0x590` plus four scaled LDC measurements (sections 13.2
+and 18.6 have the full map).
+
 - `B4-B7` (D0-D3) are a constant header (`F8 F8 00 00`), not signals.
-- `B9/B10/B11/B12/B13` (D4-D8) are single status bits unpacked from two internal words
-  (`r13+0xBAC`, `r13+0xBAB`); the profile has `B9/B11/B12/B13` unmapped — they are bit flags, not
-  bytes.
-- `B17` (D11) inverter input voltage (×2) and `B18` (D12) 12 V aux (÷10) match the profile.
-- **Four 16-bit little-endian scaled values** the profile lists as unverified, now with their
-  firmware scale: `B19/B20` = internal float ×1000 (so decode `((B20<<8)|B19)/1000`), `B21/B22`
-  = float ×100, `B23/B25` = float ×100 (spanning the frame boundary), `B26/B27` = float ×1000.
-  The physical quantity each float is (a current, a voltage, a temperature) still needs
-  correlating against captures; the scale and layout are now known.
+- `B9`-`B13` (D4-D8) are single status bits, not bytes: `B9` LDC state ≥ 3, `B10` LDC running,
+  `B11` always 0, `B12` LDC fault warning, `B13` LDC output limited (section 18.3).
+- `B14` is the output voltage ×10, `B15` the output power in 10 W, `B17` the HV input voltage ÷ 2
+  (from `0x58F`), `B18` the LDC's own temperature + 100.
+- **Four 16-bit little-endian scaled values**, each an internal float: `B19/B20` = LDC output
+  voltage ×1000 (decode `((B20<<8)|B19)/1000`), `B21/B22` = output power (in 10 W units) ×100,
+  `B23/B25` = DC-link voltage ×100 (spanning the frame boundary), `B26/B27` = 12 V supply ×1000.
+  Section 8.3 checks them against the captures.
 
 ### 7.3 Record 21F2 (`FUN_00204028`) — the statistics record
 
@@ -694,9 +696,8 @@ normalised ratio block) is established.
 The producers store values that were computed elsewhere in the firmware, so the decompile gives
 each byte's **width, byte order, scale, and the internal source variable** — not a human name for
 every quantity. Constants (`2101 B9`, the `2102` header), unused bits (`2101 B11:5`), bit-field
-sources, and the 16-bit scales above are now firm. The remaining flag bits and the scaled floats
-need a correlation pass against captures (or further tracing of the source variables) to attach
-physical names and units.
+sources, and the 16-bit scales above are firm. Pass 4 and 5 attached names to most of the rest
+(sections 18.6, 20.1, 27.8 and 27.9).
 
 ## 8. Second pass: resolving the small-data base, and what it proved
 
@@ -723,7 +724,8 @@ Two attempts did not produce usable names, and are recorded so they are not repe
   `2102` floats do have referencing functions, but the "CAN id" constants in them are dense
   (dozens per function) and are struct offsets, not frame ids. No name can be claimed from this.
 - **Naming the internal floats from the firmware alone.** The producers only pack values computed
-  elsewhere, so the decompile gives scale and layout, not physics.
+  elsewhere, so the decompile gives scale and layout, not physics. (Pass 4 later named them by
+  following the ADC channels; see section 18.6.)
 
 ### 8.3 What the firmware scales proved against the captures
 
@@ -1328,9 +1330,9 @@ The peripheral set matches the NXP MPC5674F (e200z7, 4 MiB flash, 256 KiB SRAM) 
 - every timer reload assumes a 132 MHz peripheral clock (PIT 132,000 = 1 ms). With the FMPLL
   setting that gives a 264 MHz core (crystal inferred as 8 MHz).
 
-The eTPU (`0xC3FC0000`) and FlexCAN D are not used. About 700 instructions are SPE float
-operations, which capstone (`listing.txt`) shows as `.word` and the Ghidra `MPC8270` language does
-not decode: check float arithmetic in a decompile against the raw words.
+The eTPU (`0xC3FC0000`) and FlexCAN D are not used. About 700 instructions are SPE
+single-precision float operations (`efsadd`, `efsmul`, ...). The capstone listing
+(`listing.txt`) shows them as `.word`; `listing_e500.txt` decodes them (section 29.2).
 
 ### 14.2 Image layout
 
@@ -1424,8 +1426,9 @@ mailbox is polled, at 1 ms or 10 ms.
 | `00` | `FUN_0018160C` | idle | CCP background, calibration-page copy |
 
 Interrupts in use: PIT0 (1 ms tick), PIT1 (100 µs: starts one ADC scan), PIT3 (0.5 ms,
-`FUN_0019F138`, role not known), the eDMA completions of the ADC and DSPI B, the eMIOS input
-captures and the three LDC trip inputs (section 17.3), and eSCI B (the LIN driver). The ADC scan
+`FUN_0019F138`: the DSPI B transaction engine, section 27.5), the eDMA completions of the ADC and
+DSPI B, the eMIOS input captures and the three LDC trip inputs (section 17.3), and eSCI B (a
+4,800-baud UART for the key/immobilizer-type module, not the LIN sensor; section 27.4). The ADC scan
 completion runs the LDC fast loop (`FUN_0021A95C`), so the converter's control clock is the 100 µs
 ADC scan.
 
@@ -1486,7 +1489,7 @@ arguments of those two calls in many places, so read the `li r3`/`li r4` before 
 
 | channel | firmware | scale (cal) | meaning |
 |---|---|---|---|
-| A AN16 | `0x400065B0` → `0x400065B6` | on above 1330 counts, off below 760, 9-scan peak hold, off-delay | the wake/ignition supply sense (uhi22: CN1000 pin 3P) |
+| A AN16 | `0x400065B0` → `0x400065B6` | on above 1330 counts, off below 760, 9-scan peak hold, off-delay | the wake supply sense (uhi22: CN1000 pin 3P); not the ignition input |
 | A AN0 | → `0x4000A514` | 0.15635 V/count (`0x2D640`), optional EOL trim | **LDC HV input = DC-link voltage**, 2102 `VCU_DCLINK_VOLTAGE` |
 | A AN1 | → `0x4000A550` | 0.006775 V/count + **0.6 V** (`0x2D64C`/`0x2D648`) | the 12 V supply behind the reverse-polarity diode; 2102 `VCU_AUX_BATTERY_VOLTAGE_FINE`, and (raw × 14 + `0x533`, filtered) the 2101 12 V word (/2072) |
 | A AN2 | → `0x4000A52C` | 0.0061066 V/count (25 V full scale, `0x2D658`) | **LDC output voltage**, 2102 `VCU_LDC_OUTPUT_VOLTAGE` |
@@ -1507,11 +1510,11 @@ processing (the APS1/APS2 correlation itself was not traced).
 |---|---|---|---|
 | 0, 1 | 114, 115 | `0x40004BE1`, `0x40004BE0` | regen paddles "−" / "+" (2101 `B23:0`/`B23:1`; uhi22 pins 3H/3J) |
 | 4 | 118 | `0x40005881` | the hard-wired ignition-type input that 2101 `B23:2` reports; it blocks remote climate and the top-up |
-| 5 | 122 | `0x4000588A` | not named |
+| 5 | 122 | `0x4000588A` | the smart key's start signal (2101 `B11:2`; section 20.1) |
 | 6, 7 | 123, 124 | `0x4000587E`, `0x4000587D` | brake lamp switch and brake test switch (2101 `B11:0`/`B11:1`; DTC P0504) |
 | 15 | 150 | `0x40005883` (inverted) | probably the clock's `/INT` alarm line; only polled |
 | 20 | 198 | — | an LDC-side status input |
-| — | 182 (eMIOS 3) | `0x40006400`/`0x4000640C` | a PWM-coded input (period and duty), not named; perhaps the electric water pump's status line |
+| — | 182 (eMIOS 3) | `0x40006400`/`0x4000640C` | the shift-lever position, coded in 10 % duty steps (section 27.5); not a pump line |
 
 The VCU also reads four unwired placeholders (`0x40005884`-`0x40005889`) from pad 114, so those
 variables copy the "−" paddle. In `1AFF` mode the analog values, the brake switches and DIO 5 come
@@ -1525,7 +1528,7 @@ from CCP-CAN `0x300` instead.
 | 10, 11, 12 | 130-132 | set only by the LDC chart (`FUN_0021EFA4`, LDC state 7, wake sensed); cleared by the trips | **the LDC enables** (probable) |
 | eMIOS 4 | 183 | duty from `FUN_00212294` | **the LDC PWM**: period 1,320 counts, so 100 kHz at the inferred 132 MHz clock (cal `0x2D6D2` = 100 kHz) |
 | 18 | 191 | the EEPROM driver | EEPROM write-protect release |
-| 21, 22 | 200, 201 | the power-state module (`0x1A9xxx`) | power-path outputs, not named |
+| 21, 22 | 200, 201 | the shifter module (`0x1A9xxx`) | a complementary pair, probably two SCU-side outputs (section 27.5) |
 | 23 (`0x17`) | — | follows the shifter-fault state; forced by IOControl `30 10 07` | not named |
 | 28 | 437 | `FUN_001AA0F0`, follows "ignition input on" | a wake or enable request inside the EPCU (inferred) |
 
@@ -1536,12 +1539,11 @@ over-current, over-voltage or over-temperature was not traced. They do nothing i
 ### 17.4 Serial links
 
 - **FlexCAN A** = P-CAN, **C** = CCP-CAN, **B** pads set up but unused (section 4.1).
-- **LIN for the 12 V battery sensor** behind `0x549` (uhi22: an L9637 transceiver at pin 1O). The
-  LIN driver (`FUN_0018949C`, `FUN_00189540`, `FUN_00189844`) runs on the eSCI B interrupt; eSCI
-  A is also configured with DMA. Which module drives the sensor was not settled. A LIN frame
-  error sets U1112.
-- **DSPI C:** CS0 the EEPROM, CS1 the clock. **DSPI B:** one device with continuous DMA traffic,
-  not identified (perhaps a watchdog, safety or power-stage IC).
+- **LIN for the 12 V battery sensor** behind `0x549` (uhi22: an L9637 transceiver at pin 1O): the
+  VCU is the LIN master on eSCI A at 19.2 kbit/s, polled from the 10 ms task (section 27.4). A LIN
+  error sets U1112. eSCI B is a separate 4,800-baud UART for the key/immobilizer-type module.
+- **DSPI C:** CS0 the EEPROM, CS1 the clock. **DSPI B:** one on-board device, probably the supply
+  and watchdog IC, polled every 14 ms or 0.68 s (section 27.5).
 
 ### 17.5 Does the clock's alarm power the EPCU?
 
@@ -1627,9 +1629,9 @@ run (0) only when:
 **This corrects two 2102 names.** `B10` (`VCU_HV_MAIN_RELAY_ON`, `0x590` byte 0 bit 2) is "LDC in
 run state 7", and `B9` (`VCU_HV_AVAILABLE`, bit 1) is "LDC in state 3 or above" (verified,
 `FUN_0021EFA4`, `FUN_0021F08C`). Both imply HV is up, so the cross-tab of section 8.4 still holds,
-but they are converter states, not relay states: `B9 = 1, B10 = 0` (450 captures) is the LDC
-awake but inhibited, calibrating or in standby. Section 11.3 step 3 therefore waits for the LDC
-to run, not for the relay.
+but they are converter states, not relay states. In the captures `B9 = 1, B10 = 0` (450 rows) is
+the application's LDC-off request (section 27.9), and `B10 = 0` does not mean HV is off. Section
+11.3 step 3 therefore waits for the LDC to run, not for the relay.
 
 ### 18.4 The output voltage set-point (`FUN_002190E8`, 100 ms)
 
@@ -1652,16 +1654,44 @@ HV-ready bit gives 12.7 V. **The `0x592` voltage mode has no effect in this cali
 selects a column of two tables whose columns are all equal (verified). The VCU sets it to 0 in P,
 1 at low speed, 2 when moving.
 
-### 18.5 Power limit and derating (`FUN_00212CA8`, 1 ms)
+### 18.5 Power limit and derating (`FUN_00212CA8`, every 1 ms)
 
-- **1.4 kW** at HV ≥ 250 V and a low output voltage (1.22 kW at 250 V and 15.1 V, 1.3 kW from
-  260 V up); at 220 V, 1.2 kW at 12.8 V falling to 410 W at
-  15.1 V (table `0x2D860`). The maximum output voltage drops to 14.7 V below about 260 V and
-  14.5 V below about 230 V, with hysteresis.
-- **Thermal derating** from the LDC temperature: 100 % at 85 °C, 80 % at 90 °C, 60 % at 95 °C,
-  40 % at 100 °C, 20 % at 105 °C, and 20 % if the sensor is invalid.
-- When the limiter acts, `0x590` byte 0 bit 3 (= **2102 `B13`, "output limited"**) and `0x58F`
-  byte 6 bit 3 are set; byte 6 bit 2 adds "above 85 °C".
+The limiter keeps the converter's output power under a ceiling that depends on three things. It
+does not cut the output. It lowers the voltage command until the measured power fits.
+
+**1. The ceiling from the HV voltage and the output voltage** (table `0x2D860`, 24 output voltages
+× 6 HV voltages, in 10 W units; axes `0x2D800` and `0x2D7E8`):
+
+| LDC output voltage | HV 220 V | 230 V | 240 V | 250 V | 260 V | 270 V |
+|---|---|---|---|---|---|---|
+| 12.8 V | 1,200 W | 1,400 | 1,400 | 1,400 | 1,400 | 1,400 |
+| 13.4 V | 990 | 1,210 | 1,400 | 1,400 | 1,400 | 1,400 |
+| 14.0 V | 780 | 1,000 | 1,390 | 1,390 | 1,390 | 1,390 |
+| 14.6 V | 580 | 790 | 1,180 | 1,340 | 1,340 | 1,340 |
+| 15.1 V | 410 | 630 | 1,010 | 1,220 | 1,300 | 1,300 |
+
+The ceiling is 1.4 kW at best. It falls when the HV voltage is low (a low battery pack) and when
+the output voltage is high. Between the table points it probably interpolates (not checked). The
+firmware does not say why the ceiling has this shape (probably the converter's own limits).
+
+**2. A thermal factor** from the LDC temperature multiplies the ceiling: 100 % up to 85 °C, 80 %
+at 90 °C, 60 % at 95 °C, 40 % at 100 °C and 20 % at 105 °C (P1A88 shuts the LDC down above
+105 °C). If the temperature sensor is invalid the factor is 20 %.
+
+**3. A cap on the output voltage itself** from the HV voltage (with hysteresis): 14.5 V below
+about 230 V, 14.7 V up to about 260 V, 15.1 V above that.
+
+**How it acts.** A small PI controller compares the measured output power (`0x40006DCC`) with the
+ceiling. When the power is over the ceiling it subtracts a correction from the voltage command,
+between 0 and 7.5 V. A lower voltage means less charge current into the 12 V battery, so the power
+falls. The ceiling has a slew limit of 0.005 per step (`0x2D788`/`0x2D78C`; its unit was not
+established), so it changes smoothly. In READY the 12 V loads and the battery draw at most 866 W in
+the stored captures, so on this car the ceiling is not reached in ordinary use (the LDC temperature
+also stayed at or below 50 °C).
+
+**What the VCU publishes while it acts:** `0x590` byte 0 bit 3 (= **2102 `B13`, "output
+limited"**) and `0x58F` byte 6 bit 3; `0x58F` byte 6 bit 2 adds "above 85 °C". `B13` is 0 in all
+14,657 stored 2102 replies.
 
 ### 18.6 Every LDC value the VCU publishes
 
@@ -1770,13 +1800,14 @@ fields that are gated by EV-ready, and **`0x200` bit 28 is not "close contactors
 
 ### 19.4 Gear and shift-by-wire
 
-`FUN_001AE390` turns the lever (`0x354`) into two codes: 2101 `B10`'s state (P 1, R 2, N 3, D 4,
-6 a fifth lever position, **7 a shifter fault**) and the `0x200` code. So **2101 `B10` bit 4 is
-the shifter-fault flag**. `0x10C` is the shift-by-wire (SBW) unit's status (byte 0: 4 parked, 2
-moving, 1 released in uhi22's trace; its loss sets U1017), and `FUN_001C1ADC` writes the park
-request into `0x109` byte 0 below a speed threshold (`0x1CA56`). **2101 `B26` is not a VCU gear
-state:** bits 0-2 are `0x109` byte 0, bits 3-5 `0x10C` byte 0, bit 6 `0x10C` bit 7, which is why
-it reads `0x20` in P and `0x08` otherwise. P1060-P1066 are shift-by-wire faults (section 21.3).
+The gear comes from the shift-by-wire (SBW) chart `FUN_001B0D04`, which section 27.2 describes
+(pass 4 first read the lever decoder `FUN_001AE390`, which is dead code on this car). 2101 `B10`
+is one-hot (bit 0 P, 1 R, 2 N, 3 D, **bit 4 a shifter fault**, bit 5 "not invalid"), and `0x200`
+bits 11-14 carry the matching code. `0x10C` is the SBW unit's status (byte 0: 4 parked, 2 moving,
+1 released in uhi22's trace; its loss sets U1017). `FUN_001C1ADC` writes the park request into
+`0x109` byte 0. **2101 `B26` is not a VCU gear state:** bits 0-2 are `0x109` byte 0, bits 3-5
+`0x10C` byte 0, bit 6 `0x10C` bit 7, which is why it reads `0x20` in P and `0x08` otherwise (bits
+0-2 were never set in the stored replies). P1060-P1066 are shift-by-wire faults (section 21.3).
 
 ### 19.5 Vehicle speed
 
@@ -1787,10 +1818,10 @@ profile's known +3.6 % speed error. The word is signed (negative in reverse).
 ### 19.6 Not traced
 
 Brake-pressure-to-regen blending (the brake system's `0x2A2` and `0x462` feed the regen torque,
-section 22.2), brake-accelerator override, limp-home torque modes, the full shift and auto-P
-conditions, cruise control (`FUN_001CD364` replaces the pedal sum with a target torque and reads
-`0x394` ACC bits; the switch frame was not found), and which of `0x594`'s two power limits is
-charge and which discharge.
+section 22.2), brake-accelerator override, limp-home torque modes, cruise control
+(`FUN_001CD364` replaces the pedal sum with a target torque and reads `0x394` ACC bits; the
+switch frame was not found), and which of `0x594`'s two power limits is charge and which
+discharge.
 
 ## 20. Fourth pass: power states, HV sequencing, charging and cooling
 
@@ -1803,7 +1834,7 @@ the names are probable.
 |---|---|---|
 | 0 | inactive | no wake supply: all outputs 0 |
 | 1 | standby (awake, not READY) | the wake supply appears; return from 3, 9 or the end of a charge |
-| 2 | HV up, start-ready | ignition input on, SoC not low, BMS HV ready (`0x594` bit 34 or 59), DC link above 200 V (`0x524`), no SBW fault, MCU and BMS frames present; sets 2101 `B11:6` |
+| 2 | HV up, start-ready | ignition input on, SoC not low, BMS HV ready (`0x594` bit 34 or 59), DC link above 200 V (`0x524`), no SBW fault, MCU and BMS frames present; sets 2101 `B11:6`, which the captures also show throughout READY |
 | 3 | start inhibited | P-CAN bus-off or lost MCU or BMS frames, with the ignition on and not plugged |
 | 4 | **READY** | a start request (a rising edge of DIO 5 in P, or a restart while rolling in R/N/D), no remote immobilisation (`0x587` bit 1), MCU ready (`0x523` bit 2), BMS ready (`0x594` bit 38) |
 | 5 | READY, drive inhibited | READY with the BMS not ready, a frame loss or another inhibit |
@@ -1822,13 +1853,18 @@ unit's pinout lists a "[VCU Ready] signal input" (shop manual page 0414), so a h
 runs from the VCU back to the smart key; the start wire into the EPCU was not checked in the
 wiring manual. Both names need an ON-not-READY capture to confirm.
 
-### 20.2 HV sequencing: still not traced
+In the stored 2101 replies `B25` takes only the values 1, 4, 6 and 7 (section 27.9), and it keeps
+its last value for minutes once `B11:4` drops, so read `B25` only while `B11:4` = 1. State 2 is
+too brief for a 5 s poll.
 
-No frame bit was found that commands the BMS contactors. The VCU waits for `0x594` bit 34 (HV
-ready) and a DC link above 200 V before state 2 and before it lets the LDC run. The candidates
-for the request are `0x200` bits 24-27 (the power state), 44 and 45, and `0x57B` bit 30
-("prepare", top-up and climate). No output follows the IG3 flag `0x40004B17`, so the VCU does not
-drive the IG3 relay itself in this code (probable): the IGPM does that.
+### 20.2 HV sequencing
+
+No VCU pin or frame bit is a dedicated "close the contactors" command; the battery controller
+closes its own relays. The practical request is `0x200` bit 44 (IG3) with bits 40-41, sent from
+power state 1 (probable, section 27.6). The VCU waits for `0x594` bit 34 (HV ready) and a DC link
+above 200 V before state 2 and before it lets the LDC run. No output follows the IG3 flag
+`0x40004B17`, so the VCU does not drive the IG3 relay itself in this code (probable): the IGPM
+does that, and `0x57B` bits 20-23 are the likely request (not shown to be read).
 
 ### 20.3 Charging and cooling
 
@@ -1836,13 +1872,14 @@ drive the IG3 relay itself in this code (probable): the IGPM does that.
   of the scheduling model (`0x40006D2A`, section 10.1) is still not named.
 - **Cooling:** the LDC requests cooling and does not drive it (probable): `0x590` bytes 3 and 5
   (18.6). The manual's cooling chapter says the EPCU commands the electric water pump and the
-  fan; `0x523` byte 6 carries the MCU's pump figure, and an eMIOS PWM input (pad 182) may be the
-  pump's status line. Who merges the LDC's and the MCU's requests into the pump and fan commands
-  was not traced. Battery thermal management is the BMS's.
+  fan; `0x523` byte 6 carries the MCU's pump figure. The wiring manual says the pump is commanded
+  and reports over CAN, and the VCU has no fan PWM output (section 27.5). Who merges the LDC's
+  and the MCU's requests into the pump and fan commands was not traced. Battery thermal
+  management is the BMS's.
 - **Range and energy:** `0x598` 32\|16 (probably the remaining energy in Wh), the climate power
   from `0x5F5`/`0x5F6`, the route segments in `0x55F`/`0x561` and the map stream `0x419`-`0x41C`
-  feed the range estimate (`0x1E6400`-`0x1EEFFF`); its outputs go into 21F2 (section 13.4). The
-  published distance-to-empty frame was not identified.
+  feed the range estimate (`0x1E6400`-`0x1EEFFF`); its outputs go into 21F2 (sections 13.4 and
+  27.8). The distance to empty goes out in `0x200` bits 15-23 (section 27.6).
 
 ## 21. Fourth pass: the diagnostic interface, completed
 
@@ -1988,7 +2025,7 @@ C before calling a byte unused.**
 - **`0x592`** (100 ms, `FUN_001F2340`): drivetrain status from the `0x1EF000`-`0x1F0C54`
   functions. Probable fields: bits 0-3 flags (bit 3 the service-lamp request), 4\|4 a mode, 8\|8,
   16\|7 (varies while driving), 24\|8, 32-36 flags, 37\|2 a gear-related state, 40\|8 signed
-  −100..100, 48\|8, 58\|4 a state, 62\|2 counter. Names are not established.
+  −100..100, 48\|8, 58\|4 a state, 62\|2 counter. Section 27.6 has the probable names.
 - **`0x58F`** (CCP-CAN) carries the `0x590` buffer; byte 5 is the DC-link voltage / 2 (2102
   `B17`).
 - **`0x6FC`** is disabled (`0x2D612` = 0) and its buffer is never written; **`0x060`/`0x061`** are
@@ -1999,8 +2036,9 @@ C before calling a byte unused.**
 Not CCP or XCP: a bespoke download-and-execute loader (`FUN_0019C9F8`, verified). It busy-waits
 for `0x011` and echoes it on `0x001`, takes a target address and length from `0x012` (echo
 `0x002`), copies each 8-byte `0x013` to memory (echo `0x003`), and then calls the downloaded code.
-Routine `31 F1 EE FF 00 11` enters it with interrupts off (section 3.3), probably to load a flash
-driver from a bench or end-of-line tool. A second entry, `FUN_001A9254`, was not traced.
+Routine `31 F1 EE FF 00 11` enters it with interrupts and the watchdog off (section 3.3),
+probably to load a flash driver from a bench or end-of-line tool. A second entry, `FUN_001A9254`,
+is reached from the DSPI B state machine (section 28.3).
 
 ### 22.5 Traps when reading frames
 
@@ -2045,16 +2083,17 @@ Pass 4 found that `31 F1` and `31 F3` passed the guard. `BLOCKED_KWP_ROUTINES` i
   `hk_90_session` quirk, canair can send `10 90` to the VCU. Section 23 lists what then must
   never follow; the guard now refuses `31 F1` and `31 F3` as well.
 - **The VCU serves every KWP2000 service on the functional id `0x7DF`**, not only OBD-II.
-- `30 05 07` cannot be undone except by a reset.
+- `30 05 07` cannot be undone except by a reset; it skips the after-run period (section 29.1).
 - The boot manager accepts a CAN reflash token for about 2,000 polls after reset (14.2).
 
 **Reading the firmware**
 
 - Ghidra misread the KWP switch's case labels in the first pass, and `FUN_00204D5C` checks SIDs,
   not routine ids (sections 2 and 3 are corrected).
-- About 700 SPE float instructions are `.word` in `listing.txt`, and Ghidra misses some task
-  bodies and the PIT1 interrupt (`0x181440`-`0x18147C`, `0x181584`, `0x181590`, `0x1815D0`,
-  `0x1815DC`, `0x183488`): `fn.py` does not find them.
+- About 700 SPE float instructions are `.word` in `listing.txt`, and the first Ghidra project
+  missed some task bodies and the PIT1 interrupt (`0x181440`-`0x18147C`, `0x181584`, `0x181590`,
+  `0x1815D0`, `0x1815DC`, `0x183488`): `fn.py` does not find them. `all_e500.c` and
+  `listing_e500.txt` do (section 29.2).
 - Ghidra drops the arguments of the DIO calls `FUN_00187C64`/`FUN_00187F54`; read the `li`
   instructions. A DIO index is not a pad number.
 - The bit probes (`fields_rx.txt`, `fields_tx.txt`) miss fields behind a condition (`0x5B3`, the
@@ -2067,7 +2106,8 @@ Pass 4 found that `31 F1` and `31 F3` passed the guard. `BLOCKED_KWP_ROUTINES` i
 **Reading the captures**
 
 - **2102 `B9`/`B10` are LDC states, not relay states** (18.3). `B10` reads 0 with HV up whenever
-  the LDC is inhibited, calibrating or in standby.
+  the application asks the LDC to stay off (2101 `B11:7`); 37 stored rows have the DC link at
+  250-379 V with `B10` = 0.
 - **`VCU_COOLANT_TEMP` is the LDC's own temperature sensor**, and 255 means the sensor is invalid.
 - **`0x590` byte 6 is the LDC's input power**, not a loss figure.
 - **2101 `B26` is not a VCU gear state**: it packs the park request and the SBW unit's state.
@@ -2090,8 +2130,9 @@ Pass 4 found that `31 F1` and `31 F3` passed the guard. `BLOCKED_KWP_ROUTINES` i
   `VCU_COOLANT_TEMP` to the LDC temperature (255 = invalid). Add the firmware ADC scales to the
   2102 voltage notes.
 - 2101: `B10` bit 4 = shifter fault; `B11:2` = DIO 5, the start signal (probable); `B23:2` = the
-  ignition input (probable; the current name `VCU_INVERTER_ENABLED` needs checking); `B26` = park
-  request + SBW state; the speed's 2.0 m tyre.
+  ignition input (confirmed against the IGPM; the current name `VCU_INVERTER_ENABLED` is wrong);
+  `B26` = park request + SBW state; the speed's 2.0 m tyre. The capture-tested renames are
+  tabulated in section 27.9.
 - DTCs: add P1A8A, U1005, U0103 (cannot be set), P1676, P1690, P1696, P1699; add the firmware
   frame lists to the U-codes, the LDC thresholds, and the confirm and lamp classes.
 - The research entry "LDC output current": result = measured, never published; derive it as
@@ -2104,7 +2145,8 @@ Pass 4 found that `31 F1` and `31 F3` passed the guard. `BLOCKED_KWP_ROUTINES` i
   6, `0x010` crash bit, `0x490` `EPB_STATUS`, `0x507` lamps, `0x523` temperatures.
 - Vehicle-state predicates: LDC running (2102 `B10`), LDC inhibited with HV up (`B9` and not
   `B10`), VCU fault latch (2101 `B25` = 8), HV up but not READY (`B25` = 2), low-SoC stop
-  (`B25` = 9).
+  (`B25` = 9). Only `B25` = 1, 4, 6 and 7 occur in the stored replies, so predicates on 2, 8 or 9
+could not be tested.
 
 **Captures to propose (each needs the user's approval):**
 
@@ -2126,13 +2168,18 @@ the LDC event ring `0x40000BD4`, the DTC records `0x400000AE`, `0x58F`, and whet
 
 ## 26. Not established after pass 4
 
+This was the open list at the end of pass 4. Pass 5 closed some items; section 27.10 is the
+current list. What pass 5 closed is marked here.
+
 - How the VCU asks the BMS to close the contactors (20.2), and the charge-control state machine.
+  (Contactors: probable answer in 27.6. State machine: still open.)
 - Brake blending, brake-accelerator override, limp-home modes, shift and auto-P conditions,
-  cruise-control inputs.
+  cruise-control inputs. (Shift and auto-P: closed in 27.2.)
 - The DSPI B device, the PIT3 0.5 ms task, the 1 ms supervisor `FUN_00196B5C`, the 20 ms task, and
-  the unmapped code ranges of section 16.
-- Which eSCI drives the LIN battery sensor, and its frame layout.
-- The pins of DIO 21, 22, 28 and channel `0x17`, and the eMIOS 3 PWM input.
+  the unmapped code ranges of section 16. (DSPI B and PIT3: closed in 27.5.)
+- Which eSCI drives the LIN battery sensor, and its frame layout. (Closed in 27.4.)
+- The pins of DIO 21, 22, 28 and channel `0x17`, and the eMIOS 3 PWM input. (The PWM input is
+  closed in 27.5; DIO 21 and 22 are partly closed; `0x17` is open.)
 - The senders of `0x462`, `0x4FE`, `0x570`, `0x5DF` and `0x418`-`0x41C`; most `0x592` fields.
 - The `0x18` status filters and the `0x17` format; LDC events 5, 10, 14 and 17; the P16xx module.
 - Whether the clock's alarm powers the EPCU (17.5).
@@ -2179,7 +2226,8 @@ out). A third path, the PWM lever line (27.5), is a fallback when `0x354` is los
 when its two copies sum to 3 and a button counts when copy A = 1 and copy B = 2. Roles by the
 requests the chart assigns (probable): channel A requests P, B and C request N (B while the
 ignition input is on, C while it is off), D requests R, E requests D. A button counts on its
-rising edge. If every channel is not valid, the request comes from the PWM lever code.
+rising edge. If the frame is not valid (a channel pair does not sum to 3) or `0x354` times out,
+the request comes from the PWM lever code.
 
 **The chart** (state `0x40004D0A`, gear `0x40004D09`; gear code 1 P, 2 R, 3 N, 4 D, 7 fault):
 
@@ -2192,15 +2240,16 @@ rising edge. If every channel is not valid, the request comes from the PWM lever
 | 5 | entering P | asks the actuator to lock; on `4CD9` = 4 the gear is P |
 | 6 | actuator timeout | not READY: gear N; P stays P |
 
-**Permission table** (`0x1B3614`, rows current gear, columns requested lever; speed in the VCU's
-internal units, ≈ 1.55 km/h true per 100):
+**Permission table** (`0x1B3614`): for each current gear and requested lever, a condition. Speeds
+are the VCU's internal word (≈ 1.55 km/h true per 100); "slow" is below 2.5 km/h for 0.1 s with
+the motor nearly stopped.
 
 | from \ to | P | R | N | D |
 |---|---|---|---|---|
 | P | - | brake pressed | brake pressed | brake pressed |
-| R | slow (< 2.5 km/h for 0.1 s) | - | always | speed < 11.9 km/h |
-| N | slow | rolling ≥ 2 km/h, or stopped with brake (R: also < 7.9 km/h) | - | rolling ≥ 2 km/h, or stopped with brake |
-| D | slow | speed < 11.9 km/h | always | - |
+| R | slow | - | always | below 11.9 km/h |
+| N | slow | stopped with the brake pressed, or rolling between 2 and 7.9 km/h | - | stopped with the brake pressed, or rolling at 2 km/h or more |
+| D | slow | below 11.9 km/h | always | - |
 
 A rejected request sets a reason code (`4CFC`: 2 too fast, 3 brake needed, 4 too fast for P).
 Calibration `0x10214` = 0 makes the pause when R↔D passes through N one tick.
@@ -2446,7 +2495,7 @@ exceeded the chart ends with reason 2. The index rule was not checked.
 
 ### 27.9 What the stored captures confirm and refute
 
-Tested offline against 13,509 stored 2101 and 14,657 stored 2102 replies (`pass5/K`):
+Tested offline against 13,509 stored 2101 and 14,657 stored 2102 replies:
 
 | reading | result |
 |---|---|
@@ -2467,6 +2516,22 @@ New observations: during AC charging the set-point dips from ≈ 14.9 V to 13.0 
 returns with a 15.08 V overshoot (7 events, not traced to a firmware mode), and two plateaus at
 13.15 V lasted 6,667 s and 1,083 s (a low charge band, 47 °C).
 
+**Proposed profile changes that the captures support** (not applied; run each with
+`uv run canair --profile hyundai-ioniq-ae-ev pids rename-param ...` or `upsert-param ...`, and
+check `canair validate all` for references to the old names):
+
+| signal | proposal | evidence |
+|---|---|---|
+| 2101 `B23:2` | rename `VCU_INVERTER_ENABLED` to `VCU_IGN_ON_INPUT` | equals the IGPM `IGN1_SWITCH` |
+| 2101 `B11:7` | new `VCU_LDC_OFF_REQUEST` (the existing `VEHICLE_STATE_LDC_ENABLED` is its inverse) | 456 of 457 rows agree with 2102 `B10` = 0 |
+| 2101 `B11:2` | new `VCU_START_SIGNAL_DI5`, unverified | one row |
+| 2101 `B26:3`, `B26:5` | rename to `VCU_SBW_RELEASED`, `VCU_SBW_PARKED` | 1,807 of 1,807 non-P rows, 11,701 of 11,702 P rows |
+| 2101 `B25` | add `values:` 1, 4, 6, 7 and a note: valid only while `B11:4` = 1 | 305 frozen rows |
+| 2102 `B9`, `B10` | rename to `VCU_LDC_STATE_GE3`, `VCU_LDC_RUNNING` | `0x590` byte 0 bits 1 and 2 |
+| 2102 `B12`, `B13` | new `VCU_LDC_FAULT_WARNING`, `VCU_LDC_OUTPUT_LIMITED`, unverified | never set |
+| 2102 `B15`, `B21:B22` | mark `VCU_AUX_POWER` verified | r = 0.999 |
+| 2101 `B23:3`, `B23:6`, `B26:0-2`, `B26:4`, `B4`-`B7`, `B9` | leave unmapped | never set, or constant |
+
 ### 27.10 Still open after pass 5
 
 - Whether the BMS keys on `0x200` bits 44/40-41, and whether the IGPM reads `0x57B` bits 20-23.
@@ -2486,7 +2551,8 @@ returns with a 15.08 V overshoot (7 events, not traced to a firmware mode), and 
 ### 28.1 Calibration switches
 
 Four kinds of calibration cell act as switches. A full catalogue was not built; the scan
-(`pass5/I/cal_catalogue.tsv`) lists 2,898 referenced cells with their readers.
+(`analysis/reports/cal_catalogue.tsv`, local only) lists 2,898 referenced cells with their
+readers.
 
 | kind | where | value in this build |
 |---|---|---|
