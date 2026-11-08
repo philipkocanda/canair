@@ -37,15 +37,16 @@ BLOCKED_ROUTINES = {
 # ECU speaks KWP2000; there byte 1 is a one-byte local id. On the Hyundai/Kia OBC and VCU
 # (firmware read in profiles/hyundai-ioniq-ae-ev/research/OBC_FIRMWARE_FINDINGS.md and
 # VCU_FIRMWARE_FINDINGS.md) 00 and 01 leave the application for the bootloader. On the VCU F1
-# (with the argument EE FF 00 11) hands the ECU to a bench loader that waits on a bus the OBD
-# port does not reach, and F3 (CC DD 33 44) starts a test sequence that stops every periodic
-# frame until a reset. Both need only session 90, which asks for no key. On another make the
-# same id is an unrelated routine, so the refusal is only a prompt (--unsafe).
+# (with the argument EE FF 00 11) switches the watchdog off and hands the ECU to a bench loader
+# that waits on a bus the OBD port does not reach, so it stays hung until power is removed, and
+# F3 (CC DD 33 44) starts a board self-test loop that runs until a reset. Both need only session
+# 90, which asks for no key. On another make the same id is an unrelated routine, so the refusal
+# is only a prompt (--unsafe).
 BLOCKED_KWP_ROUTINES: Final[Mapping[int, str]] = {
     0x00: "enters the bootloader on the Hyundai/Kia OBC and VCU",
     0x01: "enters the bootloader on the Hyundai/Kia OBC and VCU",
-    0xF1: "hangs the Hyundai/Kia VCU in a bench loader even while the car is READY",
-    0xF3: "silences every periodic frame of the Hyundai/Kia VCU until it is reset",
+    0xF1: "hangs the Hyundai/Kia VCU in a bench loader, watchdog off, even while the car is READY",
+    0xF3: "starts a board self-test loop on the Hyundai/Kia VCU that runs until it is reset",
 }
 # ISO 14229-1 Annex F: E200 executes the scrapping program loader, E201 is
 # DeployLoopRoutineID and E202-E2FF are safetySystemRoutineIDs (ISO 26021). They deploy

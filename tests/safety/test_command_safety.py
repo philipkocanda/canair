@@ -377,8 +377,8 @@ class TestKwpRoutines:
         [
             ("31F1EEFF0011", "bench loader"),
             ("31F1", "bench loader"),
-            ("31F3CCDD3344", "silences every periodic frame"),
-            ("31F3", "silences every periodic frame"),
+            ("31F3CCDD3344", "board self-test"),
+            ("31F3", "board self-test"),
         ],
     )
     def test_vcu_loader_and_test_sequence_are_refused_on_kwp(self, cmd, effect):

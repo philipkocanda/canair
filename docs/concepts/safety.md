@@ -72,10 +72,10 @@ will not:
   this rule, because there `31` takes a one-byte local identifier.
 - Start a **KWP2000 routine that harms the Hyundai/Kia OBC or VCU** (on an ECU the profile
   says speaks KWP2000): `31 00` and `31 01` leave the application for the bootloader and wait for
-  a reflash, `31 F1` hangs the VCU in a bench loader even while the car is READY, and `31 F3`
-  silences every periodic frame of the VCU until it is reset. All four need only the `10 90`
-  session, which asks for no key. On another make they may be unrelated routines; the refusal is
-  then only a prompt.
+  a reflash, `31 F1` hangs the VCU in a bench loader with the watchdog off even while the car is
+  READY, and `31 F3` starts a board self-test loop on the VCU that runs until it is reset. All
+  four need only the `10 90` session, which asks for no key. On another make they may be
+  unrelated routines; the refusal is then only a prompt.
 - Send the manufacturer-specific service `99`. The Hyundai/Kia OBC erases its stored
   VIN on it, in any diagnostic session.
 
