@@ -61,7 +61,7 @@ async def handle_memory_image(args, terminal: Terminal, pids_data, host, *, reco
             messages.fail(str(e), code=2)
     plan = job_plan(resume) if resume is not None else None
     target = _target(pids_data, resume.ecu if resume else args.ecu, args.format)
-    state = args.state or (plan.state if plan else None)
+    state = args.required_state or (plan.state if plan else None)
     rule = None
     if state is not None:
         rule = next((r for r in load_states(prof) if r.name == state.upper()), None)

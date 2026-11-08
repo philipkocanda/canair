@@ -381,3 +381,13 @@ def test_a_reflash_during_a_pause_stops_the_job(tmp_path):
     run = _image(ecu, tmp_path, time=FakeTime(reflash))
     assert run.stopped and "reflashed" in run.stopped
     assert not run.complete
+
+
+def test_the_required_state_is_not_taken_for_a_capture_flag():
+    """`--state` here names a state the run needs; the runtime refuses capture flags."""
+    from canair.cli import build_parser
+    from canair.cli.live.runtime import saving
+
+    args = build_parser().parse_args(["memory", "image", "VCU", "--state", "CHARGING"])
+    assert args.required_state == "CHARGING"
+    assert not saving(args)

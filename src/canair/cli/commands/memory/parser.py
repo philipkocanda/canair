@@ -150,6 +150,7 @@ examples:
     )
     image.add_argument(
         "--state",
+        dest="required_state",
         metavar="STATE",
         help="A vehicle state that must hold while the run reads (its when: predicate)",
     )
