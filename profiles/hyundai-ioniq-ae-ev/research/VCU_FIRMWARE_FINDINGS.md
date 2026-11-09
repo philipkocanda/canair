@@ -69,11 +69,14 @@ sections:
     target: profiles/hyundai-ioniq-ae-ev/signals/
   - section: "10"
     status: integrated
-    date: 2026-11-08
+    date: 2026-11-09
     note: >-
       The VCU's own real-time clock and wake alarm. Folded into the vcu.yaml research entry "who
       wakes the car for a scheduled start" (result). Whether the alarm powers the EPCU is still
-      open there.
+      open there. Section 10.4 (2026-11-09) traces the whole remote-climate/charge path end to end:
+      what TMU_RDY is for (the schedule-source selector, not a trigger), the climate chart's
+      event-code output matrix, the charge state machine, and proof that CHAR_CANCEL stops
+      charging. Feeds the vcu.yaml TMU-path test entry.
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
   - section: "11"
     status: integrated
@@ -962,6 +965,29 @@ the last frame.
   keeps 5x inside the 0.5 s window. The timeout monitor is off for the first 0.5 s after wake and
   outside the supply window, so the first frames after a wake may not register.
 
+Four more facts from a 2026-11-09 sweep of the dump, all bearing on the test:
+
+- **`TMU_RDY` (bit 34) feeds the gate.** The getter for `TMU_RDY` (`FUN_0020E474`, returns
+  `DAT_40005536`) is called by both the schedule-input subsystem (`0x205AAC`) and the
+  climate-request subsystem (`0x20B9D4`). Schedule-input takes the slots from CAN only when
+  `0x567` is valid (bit 32) **or** `TMU_RDY` is set (section 10.1), so a frame meant to drive the
+  *schedule* should set `TMU_RDY`. For a remote `AirconCtr` start it is **not** required: the
+  climate chart ignores the `TMU_RDY`-derived flag (traced in section 10.4).
+- **No diagnostic tell-tale.** None of the TMU/climate/charge state (`CF_TMU_*`, the climate-chart
+  output `0x40006D5D`, the charge state `0x40006D2A`) is read by any `2101`/`2102`/`21F2` record
+  builder — a whole-image search finds those vars only in the unpack and the scheduling-model
+  getters. So an injected `0x587` cannot be confirmed directly. (But a *resulting* HV-up changes
+  `VCU_POWER_STATE`, `2101 B25`, which is readable — section 10.4.) Otherwise the confirmations are
+  on P-CAN (`0x57B` bit 16 echoes `0x587` bit 37, `DAT_40005531`; `0x579`/`0x57A` carry schedule
+  state) or physical (blower, contactors).
+- **No diagnostic shortcut.** There is no `0x30`/`0x31` service that starts preconditioning. The
+  `0x30` IOControl LIDs (`kwp_30_io_control_body`, `0x20451C`) are engineering test outputs gated
+  to the secured session and the `DAT_400064A6` lock; the `0x31` routines (`kwp_31_start_routine`)
+  are the bootloader/loader/`F3` test only. CAN is the only path, as the `ecus/vcu.yaml` entry says.
+- **`0x587` is a P-CAN frame.** Its slot registers on bus 0 (`FUN_001885d4(0x587, 0x28, 0, 0, 0)`;
+  bus 2 is the EPCU's CCP-CAN). So an injected frame has to reach **P-CAN** — the OBD-II port does
+  not, which is the IGPM-routing question the test turns on.
+
 Still unconfirmed on the car: that an `0x587` frame injected at the OBD-II port reaches P-CAN at
 all (the IGPM routing question). This section is the firmware side only; it says the VCU would act
 on such a frame if it arrived, not that it does arrive.
@@ -1081,6 +1107,92 @@ effectively unlimited above about 50 %. What exceeding it does is not traced.
 
 Not traced: which frame or signal closes the HV contactors and powers the compressor and heater for
 a remote session. `0x57B` carries the climate state and set temperature to the climate unit.
+
+### 10.4 The remote-climate and charge system end to end (2026-11-09)
+
+A full trace of the scheduling-model subsystems that consume `0x587`, to answer "what is `TMU_RDY`
+for" and "how does a remote precondition actually run". The model (`FUN_0020ED4C`, 37 subsystems,
+10 ms) reads each CAN signal through one-line getters (`0x20E26C`-`0x20E8C4`), so every bit's
+consumers are exact; the chart internals are generated Stateflow code, read state by state. It
+follows up section 9.7 and settles the `TMU_RDY` and `CHAR_CANCEL` questions left open there.
+
+**What `TMU_RDY` (bit 34) is for.** Its getter `FUN_0020E474` (`DAT_40005536`) is read in exactly
+two places.
+
+- In `schedule_input` (`FUN_00205AAC`): `schedule_valid = TMU_RDY OR 0x567-clock-valid` (bit 32,
+  `DAT_40005535`, from the `0x567` buffer). While valid, the VCU takes the departure slots, charge
+  windows and temperatures from the CAN frames (`0x55C`/`0x588`); while not, it holds its stored
+  copy (standby RAM, EEPROM-backed, section 12.1). So `TMU_RDY` means "a telematics unit is present
+  and its schedule and remote data are live — trust them". It is the data-source selector, not a
+  trigger.
+- In `climate_inputs` it sets `DAT_40006D85` (with three other flags), which **nothing reads**
+  (dead, like the alive counter in 9.7).
+- The EU car has no telematics unit, so `TMU_RDY` is always 0 and the VCU falls back to the `0x567`
+  clock-valid bit (the head unit's clock, forwarded by the gateway) or its stored schedule. This is
+  why scheduled charge and departure still work with no TMU. For injection `TMU_RDY` is irrelevant
+  to a remote `AirconCtr` start, and matters only if you try to push a *schedule* over CAN.
+
+**The remote-climate trigger chain.**
+
+1. `AirconCtr` (bit 4, `DAT_4000550A`) 0→1 edge starts the remote timer `0x4000614C` (subsystem
+   `0x207AD0`), 15 (`0x2D5A8`).
+2. `climate_inputs` (`FUN_0020B9D4`) reads that timer (`FUN_0020E934`) and sets `DAT_40006D7D` =
+   "remote timer running", one of the chart's two triggers (the other is the departure window).
+3. `climate_chart` (`FUN_0020C66C`) is a nested state machine: top state `DAT_4000A466` (4 = idle,
+   then 3/2/1), inner states `a460`-`a465`, output `climate_event_code` = `DAT_40006D5D` (0-12). The
+   idle→start gates are section 10.3's list; the inhibit `DAT_40006D84` is set only by climate-unit
+   faults (`FUN_0020E374`-`0x20E38C`, and `DAT_40005052`/`0x5063` = `0x5F5` bits 36-37) — **no
+   `0x587` bit** — so the injected frame never sets or clears it.
+4. `climate_outputs` (`FUN_0020B2D8`) maps `climate_event_code` through eleven 13-entry tables
+   (breakpoints 0-12, read out of the image) to the output block `DAT_4000616B`-`617D`, which the
+   100 ms task folds into **`0x57B`** to the climate unit (DATC). The decoded output matrix:
+
+   | event code | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+   |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+   | compressor (`cb74`) | | | | | | | | 1 | | | 1 | 1 | |
+   | heater (`cb8e`) | | | | | 1 | 1 | 1 | | | | | | |
+   | HV/precharge (`cba8`) | | 1 | 1 | 1 | | | 1 | | | | | | |
+   | setpoint enable (`cbc2`) | | | 1 | 1 | 1 | 1 | 1 | | | | | | |
+
+   So codes 1-3 are HV precharge/startup, 4-6 a heating run, 7-11 a cooling (compressor) run, 0 is
+   idle and 12 reset. Which family is heat versus cool is probable (fewer heater states), not proven.
+5. **The HV contactors are not closed by the climate or charge chart.** They request HV through the
+   power-state machine (section 20.1): the chart drives `power_state`, broadcast on `0x200` bits
+   24-27 and readable as `2101 B25` `VCU_POWER_STATE`; the BMS closes the main relay and reports
+   `0x594` bit 34, and only then do the running event codes appear. The compressor and heater run on
+   the DATC over `0x57B` and the private climate bus, which the OBD port does not carry. This
+   resolves the "not traced" item at the end of section 10.3 to the power-state request plus the
+   DATC output.
+
+**The charge state machine** (`charge_chart_state`, transitions in `FUN_0020AD10`, states 0-0x1E;
+input conditioning `charge_control_in`, `FUN_002095D4`):
+
+- `CHARGECTR` (bit 23, `DAT_4000550E`) → debounced `DAT_40006D39`/`D38` → the start-charge
+  transitions.
+- **`CHAR_CANCEL` (bit 36) is proven to stop charging.** Its getter `FUN_0020E564` feeds a
+  rising-edge detector (`DAT_40006D37 = previous < current`, at image `0x209D8C`); in the running
+  state a set `D37` drives `charge_chart_state` to `0x0D`, the cancel/stop state. This upgrades
+  9.7's "routing confirmed, effect inferred" to confirmed.
+- `CF_TMU_IG3RLY` (bits 32-33, `DAT_40005532`): value 1 ("immediate") sets `DAT_40006D22`, which
+  gates the charge transitions; value 3 ("reservation") is latched by `FUN_0020CC94`, which counts
+  `IG3RLY == 3` held with `CHARGECTR` or `AirconCtr` set and raises `DAT_40006D93`. Confirms the
+  0/1/2/3 = none/immediate/monitoring/reservation reading and the "no latched `IG3RLY` = 1" climate
+  precondition (section 10.3).
+
+**Immobiliser (bit 1) and slowdown (bit 0)** appear in none of these subsystems' getters; they are
+read directly by the power-state machine (blocks READY) and the torque path (caps torque), as
+section 9.7 records. They are independent, always-live hazards.
+
+**Correction to 9.7's "no diagnostic tell-tale".** The `climate_event_code` and the `0x587` bits
+are not in any `2101`/`2102`/`21F2` record, but `VCU_POWER_STATE` (`2101 B25`) **is**. So an
+injection that brings HV up for a remote climate or charge session is observable over OBD as a
+power-state change (the BC44 wake test read state 6). The chart's own progress still needs a P-CAN
+tap (`0x57B`) or a physical sign (blower, contactors).
+
+Net for the test: to drive a remote precondition, set only `AirconCtr` (bit 4), keep the car in P,
+not READY, plugged in with `OBC_EVSE_READY`, and leave bits 0, 1, 32-33 and 36 at 0. `TMU_RDY` can
+stay 0. The run state still depends on the plug, the BMS and the power-state machine (section 20.1),
+which `VCU_POWER_STATE` (`2101 B25`) shows and a P-CAN tap confirms in full.
 
 ## 11. The parked 12 V top-up: the VCU decides, schedules and runs it
 
