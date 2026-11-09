@@ -11,7 +11,7 @@ subject: >-
   (LDC), the hard-wired I/O, the platform and its runtime, and the requests that must never be
   sent
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 status: active
 verification: >-
   Static reverse-engineering of the VCU flash image (Ghidra, 32-bit PowerPC), cross-checked against
@@ -58,11 +58,14 @@ sections:
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
   - section: "9"
     status: integrated
-    date: 2026-11-08
+    date: 2026-11-09
     note: >-
       Frame layouts as the VCU reads and writes them. 0x567, 0x549 and most received frames
       matched signals/. The 0x55C/0x57A and 0x588/0x579 definitions in signals/ were replaced with
       the VCU's layouts on 2026-11-08; the smaller differences in section 9.6 are not applied.
+      Section 9.7 (2026-11-09): the VCU accepts a 0x587 frame with no rolling-counter or checksum
+      check and a 0.5 s timeout, so an injected TMU frame at ~100 ms would be acted on (feasibility
+      input for the TMU-path test in ecus/vcu.yaml).
     target: profiles/hyundai-ioniq-ae-ev/signals/
   - section: "10"
     status: integrated
@@ -932,6 +935,36 @@ A bit-overlap check of every `signals/` definition on a frame the VCU receives o
 
 Not in `signals/` at all: `0x109`, `0x201`, `0x202`, `0x57B`, `0x587`, `0x590`, `0x592` and the
 CCP-CAN frames. Their layouts can be read off the probe output in the local analysis directory.
+
+### 9.7 Injecting `0x587`: no counter or checksum check, 0.5 s hold-up
+
+For the TMU-path injection test (`ecus/vcu.yaml` research entry "remote climate and charge start",
+and the broadcast-frame question in the IGPM/functional work), the VCU accepts a plain `0x587`
+frame: it validates neither a rolling counter nor a checksum, and holds the signal for 0.5 s after
+the last frame.
+
+- **The alive counter is not validated.** `CF_Tmu_AliveCnt1` (bits 56-59) unpacks into
+  `DAT_4000550C` (`unpack_0x587`), which the unpack sanitises (if the frame is stale or the field
+  reads `0xF`, it takes the calibration byte `0x1CAFD`/`0x1CAFF`, both `0x00` on this car) and then
+  **no other code reads**. A whole-image search finds the write in the unpack and no consumer. So a
+  fixed counter, or any constant except `0xF`, is accepted; the frame need not roll it.
+- **No checksum field.** `0x587`'s layout (`fields_rx.txt`, `== 0x587@1c5354`) has no CRC or
+  checksum byte, so there is nothing else to satisfy.
+- **Timeout class 0 = 0.5 s.** `FUN_0019F9EC` (10 ms) counts 10 ms steps since the last fresh frame
+  up to a per-class limit in the table at image `0x1878E0`, read out of the binary as 16-bit
+  big-endian: `0032 0064 0096 00C8 012C 0190 01F4 01F4` = classes 0-7 of 0.5, 1, 1.5, 2, 3, 4, 5,
+  5 s (confirms section 22.1). `0x587` registers as `FUN_001885d4(0x587, 0x28, 0, 0, 0)`
+  (`can_slots_init.c`): fields (id, slot, direction=0 RX, bus=0 P-CAN, class=**0**), so its timeout
+  is 0.5 s. On timeout the validity gate `DAT_40004BC7` (from `DAT_40007212` bits 3-4) flips and
+  `unpack_0x587` holds the last latched value or a calibrated default; it is not a fault (`0x587`
+  sets no DTC, section 21.3).
+- **Send rate.** The real telematics unit sends `0x587` every 100 ms (opendbc). Sending at ~100 ms
+  keeps 5x inside the 0.5 s window. The timeout monitor is off for the first 0.5 s after wake and
+  outside the supply window, so the first frames after a wake may not register.
+
+Still unconfirmed on the car: that an `0x587` frame injected at the OBD-II port reaches P-CAN at
+all (the IGPM routing question). This section is the firmware side only; it says the VCU would act
+on such a frame if it arrived, not that it does arrive.
 
 ## 10. The scheduling model, the real-time clock and the wake alarm
 
@@ -2043,7 +2076,13 @@ is reached from the DSPI B state machine (section 28.3).
 
 ### 22.5 Traps when reading frames
 
-- In Hyundai's DTC text, **CCP-CAN is the "H-CAN"** (U1001).
+- **"H-CAN" is Hyundai's label, "CCP-CAN" is uhi22's.** The wiring manual draws a second CAN
+  pair labelled H-CAN on the EPCU connector (E15-S pins 11 and 12), next to P-CAN, and DTC U1001
+  reads "High speed CAN communication bus (H-CAN)". The firmware sets U1001 from the FlexCAN C
+  controller, the bus that carries the MCU's `0x2C1`, while U0001 covers P-CAN. So the two are
+  probably the same bus (inferred from the EPCU having exactly two external CAN pairs and the
+  firmware two used controllers). The manual's own expansion is "high speed". Whether the H
+  originally stood for "Hybrid" on the shared Ioniq platform was not established.
 - CCP-CAN `0x2C1` has `0x291`'s layout and `0x58F` carries the `0x590` buffer: a capture that
   merges buses, or a definition with no bus, would mix them. `can_buses.yaml` has no H-CAN entry.
 - opendbc names that do not apply here: P-CAN `0x523` is the MCU's, not `GW_SWRC_PE`; `0x570` is
