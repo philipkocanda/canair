@@ -9,7 +9,7 @@ subject: >-
   2101 and 2102 byte, the P-CAN frames it reads and sends, the AC charge-current setting, and the
   requests that canair's guard lets through but must never be sent
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-10
 status: active
 verification: >-
   Static reverse-engineering of the OBC flash image (Ghidra 12.2, PowerPC e500 language for the
@@ -66,6 +66,15 @@ sections:
     note: >-
       The guard now refuses SID 0x99 and KWP2000 31 00/31 01 (safety/blocklist.py,
       docs/concepts/safety.md). 0x30 06/07 stays refused by canair io only; raw would send it.
+  - section: "14"
+    status: open
+    date: 2026-11-10
+    note: >-
+      The OBC does not drive the three dash charge LEDs: no LED LID, no run-time output or PWM
+      with a lamp pattern, no charge-level test. The Charge Lamp is a P-CAN node on the IG3 2
+      fuse; the frames it listens to are open (needs a P-CAN capture, which the car's OBD port
+      does not reach).
+    target: profiles/hyundai-ioniq-ae-ev/ecus/obc.yaml
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/ecus/obc.yaml
@@ -98,6 +107,11 @@ sources:
     location: profiles/hyundai-ioniq-ae-ev/captures/
   - name: projectgus Kona EV bench and logs
     kind: the Kona OBC's 0x581/0x58E/0x414 behaviour, via IGPM_FINDINGS.md section 8
+  - name: 2017 Ioniq US service and wiring manuals
+    kind: >-
+      the OBC connector pinout (shop manual page 0741), the warning-lamp table (page 0650), the
+      data-link and fuse pages (ETM pages 0056 and 0102), used for section 14
+    location: references/manuals/Ioniq_2017_US/ (local only)
 ---
 
 # OBC firmware findings: diagnostic server, records, CAN frames
@@ -671,8 +685,74 @@ DTC code; with no stored DTC it answers NRC `0x12`. Frame layout (16-bit words b
 canair has no KWP2000 freeze-frame decoder; the OBC research entry "12 00 00 freeze frame"
 records this layout.
 
+## 14. The dash charge LEDs: the OBC does not drive them
+
+Checked 2026-11-10. The three blue LEDs on top of the dash show the charge level in 33 % steps,
+a charging error, a set charge timer, a charge interrupted by a power failure, and a 12 V
+top-up or scheduled climate run (owner's manual, "Charge indicator lamp for electric vehicle").
+Nothing in the OBC program sets them, by pin or by CAN frame. Each check below is from
+`all.c`, the decompile in `references/firmware/obc-36400-0E150-EAEEH5L-OS3-D000/analysis/`.
+
+**What the wiring documents say** (2017 US manuals, `references/manuals/Ioniq_2017_US/`)
+
+- The OBC signal connector (shop manual page 0741) lists pins 8, 9 and 10 as "Charging Status
+  Indicator" right, centre and left, 18 V.
+- The wiring manual's data-link page (ETM page 0056, "Data Link Details (4)") lists "Charge
+  Lamp" (`CHARGER LP`) among the P-CAN nodes, next to the OBC, BMS and EPCU.
+- The fuse page (ETM page 0102) puts the Charge Lamp on the `IG3 2` fuse, with the head unit,
+  the cluster and the A/C control module. IG3 is on in READY and while charging.
+- The shop manual's warning-lamp table (page 0650) names the BMS as the control unit of the
+  cluster's red and green charging lamp. That lamp is not the blue LEDs.
+
+**Service 0x30.** The enable flag of LID `n` sits at `0x40004294 + n`. `FUN_001B4A18` sets only
+LIDs `06` and `07`. The one other writer, `FUN_00189A08`, has no caller. No LED LID is
+reachable, so section 4.3 stands.
+
+**Pins.** `FUN_00185FC8` builds a 29-entry table at `0x40004550` (6 bytes per entry: level,
+direction flag, pad number, a constant). `FUN_00186254` writes an output and `FUN_00186200`
+reads an entry, through the SIU data registers at `0xC3F90600` and `0xC3F90E00`. The pad
+configuration is at `0xC3F90040 + 2 × pad`. Fourteen entries are outputs:
+
+| entries (index, pad) | writes | reading |
+|---|---|---|
+| 0 (191) | `FUN_00185F8C` around the DSPI transfers | the SPI EEPROM chip select (probable) |
+| 2 (204), 3 (129), 4 (203), 9 (201) | `FUN_001B99CC` states 0, 4 and 6, shutdown | charge sequencing (names not established) |
+| 5 (130), 6 (128) | 5 around the power-stage start and shutdown; 6 in the reset path (`FUN_00193420`) | enable and hold lines (probable) |
+| 7 (149), 11 (199) | `FUN_001B9608`, from inputs 10 and 12 | the charge-port lock drive (probable) |
+| 8 (150) | `FUN_001B99CC`, many states; also read back into `0x57F` byte 4 bit 0 | charge sequencing |
+| 16 (170) | `FUN_001B96E4`, from the lock-mode switch input 14 | lock-mode output |
+| 1 (192), 18 (172), 20 (eMIOS) | never, after the start-up level | held at 1, 0 and 1 |
+
+None of these writes has a blink timer, a charge-level test or a three-way pattern. Three
+outputs are never written, but one of them is an eMIOS bit, so they do not match the three
+connector pins. The roles in the right-hand column come from the surrounding code, not from a
+name in the firmware.
+
+**PWM.** The eTPU channels (`FUN_0019D884`, `FUN_0019CFC8`) run only the power stage, from
+`FUN_001B7E0C`. The eMIOS handlers (`FUN_00183E28` to `FUN_00183FF8`) count edges and read
+capture registers. No code sets an output compare for a slow blink.
+
+**Charge level.** The BMS value from `0x594` (`DAT_40004084`, byte × 0.5, `FUN_001BD37C`) is
+read in `FUN_001A3634`, `FUN_001B3530` and `FUN_001B394C`: the record and freeze-frame writers.
+No comparison with 33, 34, 66, 67 or 99 exists in the OBC program. The VCU has none either.
+
+**CAN.** The OBC sends `0x57F`, `0x581` and `0x58E` (section 6.3), plus diagnostics and the
+CCP channel. No bit in them is a lamp request.
+
+**Result.** The OBC firmware cannot show the charge level, so it does not run the three LEDs.
+The connector pins 8-10 are unused in this software, or driven by a path the decompile does
+not show. The likely design is that the Charge Lamp unit builds the pattern from P-CAN frames:
+the plug and charger state from the OBC, the charge level from the BMS, and the scheduled,
+top-up and climate flags from the VCU (`0x57B`, `0x579`). The frames the lamp listens to are
+not known. A P-CAN capture with the LED pattern noted would show them (the car is not
+touched by this document).
+
+Limits: the decompile drops some call arguments (read from the listing where it mattered),
+and the two sampled areas in section 1 are unknown.
+
 ## 11. Not established
 
+- Which frames the Charge Lamp unit uses (section 14).
 - The meaning of the bits and fields marked with a RAM address only in sections 5 and 6, and the
   semantics of the charger states in `0x58E` bytes 0 and 1.
 - The CCP channel on `0x6AC`/`0x6AD` (not analysed; the OBD port does not reach P-CAN anyway).

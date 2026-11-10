@@ -11,7 +11,7 @@ subject: >-
   (LDC), the hard-wired I/O, the platform and its runtime, and the requests that must never be
   sent
 created: 2026-11-08
-updated: 2026-11-09
+updated: 2026-11-10
 status: active
 verification: >-
   Static reverse-engineering of the VCU flash image (Ghidra, 32-bit PowerPC), cross-checked against
@@ -152,6 +152,14 @@ sections:
       periodic frame) passed canair's guard after 10 90. Both are now in BLOCKED_KWP_ROUTINES
       and refused unless --unsafe.
     target: src/canair/safety/routines.py
+  - section: "30"
+    status: open
+    date: 2026-11-10
+    note: >-
+      The VCU does not drive the three dash charge LEDs: no output pin, no frame bit. It supplies
+      inputs (scheduled-charge mode, top-up and climate flags). Who builds the pattern is open;
+      see OBC_FIRMWARE_FINDINGS.md section 14.
+    target: profiles/hyundai-ioniq-ae-ev/ecus/obc.yaml
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
@@ -2852,3 +2860,28 @@ addresses and calibration cells (`xrefs_e500.tsv`) and the 85 SPE functions
 the earlier float arithmetic (the first decompile already had it), adds 113 functions the first
 project missed, and shows integer functions with 64-bit register parameters, so the first
 `all.c` stays easier to read for integer code.
+
+## 30. The dash charge LEDs: the VCU does not drive them
+
+Checked 2026-11-10, with the OBC check in `OBC_FIRMWARE_FINDINGS.md` section 14. The three blue
+LEDs on top of the dash show the charge level in 33 % steps, an error, a set timer or an
+interrupted charge, and a 12 V top-up or scheduled climate run.
+
+- **No pin.** The VCU's outputs are the power self-hold, the LDC enables and PWM, the EEPROM
+  write-protect, two shifter-module lines and one wake request (section 17.3). None is a lamp
+  line.
+- **No frame bit.** No bit in `0x200`, `0x201`, `0x202`, `0x109`, `0x57B`, `0x579`, `0x57A`,
+  `0x590` or `0x592` carries a charge-LED pattern. The lamp bits that exist are the READY lamp
+  (`0x200` bit 43) and the service lamp (`0x592` bit 3).
+- **No charge-level steps.** The decompile (`all_e500.c`) has no comparison with 33, 34, 66, 67
+  or 99 on the BMS charge level. The only `< 99` test belongs to the range estimate
+  (`FUN_001ECB18`).
+- **What the VCU supplies.** The scheduled-charge mode (`0x57B` bits 1-2, `0x579`), the 12 V
+  top-up chart output and request (`0x57B` bits 11 and 30), the climate outputs (bits 9 and 10)
+  and the IG3 mode nibble (bits 20-23). The OBC's charge state machine reads `0x57B` bits 0,
+  12-15, 20 and 30 and `0x579` (OBC findings section 11). These fit the middle LED (scheduled
+  charge) and the third LED (12 V top-up or scheduled climate) in the owner's manual table.
+  That a lamp unit reads them is a guess.
+- **The lamp.** The wiring manual lists a "Charge Lamp" as a P-CAN node on the `IG3 2` fuse
+  (`references/manuals/Ioniq_2017_US/.cache/text/etm/0056.txt` and `0102.txt`). Its CAN ID and the
+  frames it listens to are not known.
