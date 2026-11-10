@@ -114,7 +114,7 @@ states:
   # matches charging, and VCU_POWER_STATE == 1 alone also matches ignition-on standby (LDC off
   # there). Not called "conditioning", which reads as HVAC preconditioning.
   - name: TOPUP
-    description: 'Parked and off, HV relay closed so the LDC can top up the 12 V battery. Run by the VCU: a check every 24 h, then 10 or 20 min of charging if the battery is low.'
+    description: 'Parked and off, HV relay closed so the LDC can top up the 12 V battery. The Ioniq calls this the "Battery Saver+" feature. Run by the VCU: a check every 24 h, then 10 or 20 min of charging if the battery is low.'
     implies: [PARKED, IG3]
     excludes: [READY, CHARGING, DRIVING, "ON"]
     when: VCU.VCU_POWER_STATE == 1 and VCU.VEHICLE_STATE_LDC_ENABLED == 1 and VCU.VCU_IGN_ON == 0
