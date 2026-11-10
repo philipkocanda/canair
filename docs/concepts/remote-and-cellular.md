@@ -97,7 +97,7 @@ seconds. Two different failures have to be handled, and only one of them raises 
 **The link dies.** `canair monitor` re-homes the session: it re-probes reachable
 same-transport devices, rebuilds the client, re-opens any diagnostic sessions and resumes. A
 `--save` recording continues on the same journal, and the session's `link_events` records the
-gap and its cause ([Captures & states](captures-and-states.md#gaps-link_events)). This is
+gap and its cause ([Capture file format and data quality](capture-format.md#gaps-link_events)). This is
 bounded by `transport.reconnect_max_wait` (default 60 s) — or retries forever with `--wait`.
 
 **The link stays open but stops being useful.** This is the subtler one. A half-open socket keeps
@@ -238,4 +238,4 @@ device. Press `R` to force a reconnect.
 - [Configuration](../reference/config.md) — every key, including the `transport:` block.
 - [ECU protocols & PID prefixes](ecu-protocols.md) — why a response is multi-frame at all.
 - [Broadcast CAN frames](broadcast-frames.md) — the `slcan-tcp`-only sniffing path.
-- [Captures & states](captures-and-states.md) — where a session's `quality` provenance is recorded.
+- [Capture file format and data quality](capture-format.md) — where a session's `quality` provenance is recorded.

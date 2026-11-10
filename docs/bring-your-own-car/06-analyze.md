@@ -14,6 +14,16 @@ canair's analysis tools support each of those steps, and all work over your save
 captures — no live car needed. Below is the workflow, worked through on a real
 example: finding vehicle speed.
 
+!!! tip "Short on time? Start here"
+    1. Run `canair investigate MyECU 2101`. It gives one ranked report for every byte of a PID.
+    2. Read [the one-shot shortcut](#the-one-shot-shortcut-investigate).
+    3. If you know a signal that should move with the byte, run
+       `canair hunt MyECU 2101 --against REF`.
+    4. Go on to [7. Define & verify](07-define-and-verify.md) when a byte matches.
+
+    For a table of "I have X, I want Y", see
+    [Which analysis command when](../concepts/analysis-commands.md).
+
 ## First, two families of signal: continuous vs discrete
 
 Before reasoning about any byte, work out which of two broad families it belongs
@@ -355,7 +365,7 @@ Cross-check a distance candidate against your cluster odometer, and confirm it i
 *distance* and not *time* by checking that its ratio to a known time counter is not
 constant.
 
-See [Analysis commands](../concepts/analysis-commands.md#counters-the-one-thing-correlation-cannot-find)
+See [Analysis commands](../concepts/analysis-techniques.md#counters-the-one-thing-correlation-cannot-find)
 for the fingerprint table and the ISO-TP window details.
 
 ## Categorical signals: modes, flags, schedules

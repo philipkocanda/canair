@@ -1,11 +1,11 @@
-# Architecture
+# How canair connects
 
 canair **never talks CAN directly** — it reaches the bus through an adapter
 (a WiCAN dongle, or a generic ELM327 clone) over one of several
 explicitly-selected transports. Responses are parsed and decoded into named
 signals using the active [profile](profiles.md)'s definitions.
 
-## How it connects
+## The path from canair to the car
 
 ```mermaid
 flowchart LR
@@ -30,6 +30,11 @@ flowchart LR
     bus <--> ecus
     defs -.->|"decode responses"| cli
 ```
+
+In words: canair sends a request. With `slcan-tcp`, canair splits and joins the CAN frames itself.
+With `wican-ws` and `elm327-tcp`, the dongle does this. The dongle puts the frames on the CAN bus
+of the car. An ECU answers. The response returns along the same path, and canair decodes it into
+named signals with the definitions of the active profile.
 
 ## Transports
 

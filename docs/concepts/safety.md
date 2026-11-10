@@ -256,7 +256,7 @@ canair monitor IGPM:BC03 --actuate IGPM --save --label "rear defogger toggle"
   `iocontrol` step and releases it when the pipeline ends
   ([pipelines](query-mini-language.md#pipelines)).
 - With `--save`, every request is recorded in the session's `actuations` list
-  ([captures](captures-and-states.md#what-the-recording-switched-actuations)).
+  ([captures](capture-format.md#what-the-recording-switched-actuations)).
 
 ## Profile actions: guarded, make-specific requests
 

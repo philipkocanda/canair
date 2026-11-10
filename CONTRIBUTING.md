@@ -1,29 +1,23 @@
 # Contributing to canair
 
-Thanks for helping! canair gets more useful with every car and signal people
-share — **contributions are genuinely wanted.**
+Thank you for helping. canair becomes more useful with every car and signal that people
+share. **Contributions are wanted.**
 
-## Contribute a profile or PIDs (most wanted 🎉)
+## Contribute a profile or PIDs (most wanted)
 
-The highest-value contribution, and it needs no code changes: reverse-engineer
-your car and share the result.
+This is the highest-value contribution. It needs no code changes. Reverse engineer your car,
+then share the result.
 
-1. Build a profile with the [Bring your own car](https://philipkocanda.github.io/canair/bring-your-own-car/overview/)
-   walkthrough (or decode more of an existing one).
-2. Make it clean: `canair validate all` must pass; prefer `--verified` signals
-   with a `--source`; set `car_model` precisely; include a representative subset
-   of `captures/`.
-3. Share it with **`canair contribute`** — one command that opens the pull
-   request for you (no manual fork/clone/branch), wherever your profile is
-   stored. It validates and scans for VIN/PII first, then opens the PR via the
-   [GitHub CLI](https://github.com/cli/cli#installation) (`gh` — install it and
-   run `gh auth login` once). Prefer doing it by hand? A normal PR putting your
-   profile under `profiles/<your-car>/` works too.
+1. Build a profile with the
+   [Bring your own car](https://philipkocanda.github.io/canair/bring-your-own-car/overview/)
+   walkthrough, or decode more of an existing profile.
+2. Run `canair validate all`. It must pass.
+3. Run `canair contribute`. It opens the pull request for you. Install the
+   [GitHub CLI](https://github.com/cli/cli#installation) (`gh`) and run `gh auth login` once.
 
-**Partial is welcome** — a few verified signals, a corrected offset, or a new
-`research:` lead all help. See
-[docs/contributing](https://github.com/philipkocanda/canair/blob/main/docs/contributing/index.md)
-and [Share your profile](https://github.com/philipkocanda/canair/blob/main/docs/bring-your-own-car/08-share.md).
+A partial contribution is welcome. A few verified signals, a corrected offset or a new `research:`
+lead all help. The full steps are in
+[Contributing](https://philipkocanda.github.io/canair/contributing/).
 
 ## Report a bug or request a feature
 
@@ -57,21 +51,11 @@ checks on push), so a clean local run means a green CI.
 
 ### Commit messages
 
-canair uses [Conventional Commits](https://www.conventionalcommits.org/) —
-`type(scope): summary`, e.g. `fix(captures): …` or `feat(monitor): …`. Releases
-are automated from these subjects, so they are what determines the version bump
-and what appears in the changelog:
-
-- `feat` → minor, any other type → patch, `!` (or a `BREAKING CHANGE:` footer)
-  → major.
-- Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `chore`, `ci`,
-  `build`, `revert`, `style`, `deps`. The scope is the area touched
-  (`captures`, `monitor`, `pids`, `profiles`, …) and is optional.
-- The `commit-msg` hook enforces this. It exists because a non-conforming
-  subject is *silently* left out of the release notes rather than rejected.
-
-Write the subject for the changelog reader — it is the first draft of a release
-note.
+canair uses [Conventional Commits](https://www.conventionalcommits.org/):
+`type(scope): summary`. Releases are built from these subjects, and the `commit-msg` hook
+enforces the format. See
+[docs/development/commit-messages.md](docs/development/commit-messages.md) for the types and the
+version bump rules.
 
 Update the docs and README in the same PR for any user-facing change (see the
 README ↔ `docs/` policy in `AGENTS.md`).

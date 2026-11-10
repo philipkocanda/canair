@@ -66,7 +66,7 @@ The monitor colors the payload bytes by what reads them:
 - Yellow: an unverified signal.
 - Grey: nothing reads the byte.
 - Muted grey-blue: the declared
-  [support map](../concepts/analysis-commands.md#support-maps-which-bits-are-signals-at-all) of
+  [support map](../concepts/analysis-techniques.md#support-maps-which-bits-are-signals-at-all) of
   the PID (layout bytes, not data).
 
 Press **`?`** for the keys and a color legend.

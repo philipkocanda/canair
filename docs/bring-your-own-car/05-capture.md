@@ -16,7 +16,7 @@ canair read MyECU:2101 --save --label "highway 100 km/h" --state driving
 - `--label` is a free-text description of the moment ("plugged in, charging").
 - `--state` is the vehicle power state (`driving`, `charging`, `ready`, `sleep`, …). canair can
   suggest the state from the decoded values. See
-  [Captures & states](../concepts/captures-and-states.md).
+  [Vehicle states](../concepts/vehicle-states.md).
 - `--notes` is anything else that you want to remember.
 
 `--save` works with `read`, `monitor`, `scan` and `discover`. canair **journals** each save while

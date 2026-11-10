@@ -61,7 +61,7 @@ variants:
 | Field | Meaning |
 |---|---|
 | `name` | Human-readable name (required) |
-| `also_known_as` | Other names owners call this version (`Ioniq 28`, `Ioniq vFL`), shown on the [profile pages](../concepts/profiles.md#other-names-for-a-car). Labels only |
+| `also_known_as` | Other names owners call this version (`Ioniq 28`, `Ioniq vFL`), shown on the [profile pages](profiles.md#other-names-for-a-car). Labels only |
 | `model_code` | The maker's model code, often reported by the car's own ECUs (`AEEV`) |
 | `designation` | The maker's name for this version (`IONIQ EV PE`, Hyundai's facelift name) |
 | `generation` | Generation code (`AE`, `OS`, `ZE1`) |

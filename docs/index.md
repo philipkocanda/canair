@@ -70,27 +70,35 @@ canair helps you capture, decode, correlate and document this data. The result i
 These docs follow **what you want to do**. The command list is in the
 [CLI reference](reference/cli/index.md).
 
-## Pick your path
+## Where do I start?
 
-- **New here?** Read [Getting started](getting-started/install.md). Install canair, connect your
-  dongle, and read live data from the bundled example car in a few minutes.
-- **Does your car differ from the bundled Ioniq?** Read
-  [Bring your own car](bring-your-own-car/overview.md). This is the main journey. It takes you
-  from an empty profile to decoded, verified signals for *your* vehicle.
-- **Do you want to contribute PID definitions?** Read
-  [Define & verify](bring-your-own-car/07-define-and-verify.md) and
-  [Share your profile](bring-your-own-car/08-share.md). They show how a reverse-engineered
-  signal becomes a validated signal that others can use.
-- **Do you want the details?** [Concepts](concepts/architecture.md) explain how canair works.
-  The [Reference](reference/config.md) documents every flag, config key and schema.
-- **Do you want to learn from a real hunt?** The [Case studies](case-studies/index.md) describe
-  real reverse-engineering investigations from start to end, including the wrong turns. One
-  example is [finding the hidden AC input voltage](case-studies/ac-input-voltage.md).
-- **Do you want to look around?** The [profile explorer](profiles/explorer.md) plots real Ioniq
-  drives and charges in your browser. You install nothing.
-- **Do you want to use a bundled car?** [Bundled profiles](profiles/index.md) lists the profiles
-  that ship. They include the mature [Ioniq Electric profile](profiles/hyundai-ioniq-ae-ev.md).
-  Each page lists the ECUs, decoded signals and IOControl actuators.
+Answer these questions in order. Take the first path that fits.
+
+1. **Do you have a WiCAN dongle and a car with an OBD-II port, and canair is not installed yet?**
+   Read [Getting started](getting-started/install.md). You install canair, connect the dongle and
+   read live data from the bundled example car in a few minutes.
+2. **Does something not work?** Read [Troubleshooting](getting-started/troubleshooting.md).
+3. **Is your car one of the bundled cars?** Read [Bundled profiles](profiles/index.md). The
+   [Ioniq Electric profile](profiles/hyundai-ioniq-ae-ev.md) is the most complete. Each page lists
+   the ECUs, decoded signals and IOControl actuators.
+4. **Is your car not bundled?** Read [Bring your own car](bring-your-own-car/overview.md). This is
+   the main journey. It takes you from an empty profile to decoded, verified signals.
+5. **Do you want to share what you decoded?** Read
+   [Define & verify](bring-your-own-car/07-define-and-verify.md), then
+   [Share your profile](bring-your-own-car/08-share.md).
+6. **Do you want to look around first?** Open the [profile explorer](profiles/explorer.md). It
+   plots real Ioniq drives and charges in your browser. You install nothing.
+7. **Do you want to learn from a real hunt?** Read the [case studies](case-studies/index.md). They
+   show real investigations from start to end, including the wrong turns. One example is
+   [finding the hidden AC input voltage](case-studies/ac-input-voltage.md).
+
+## Look something up
+
+- [Cheat sheet](reference/cheat-sheet.md): the commands you use most, on one page.
+- [CLI reference](reference/cli/index.md): every command and flag.
+- [Configuration](reference/config.md): every config key.
+- [Glossary](reference/glossary.md): ECU, PID, DID, ISO-TP and other terms.
+- [Concepts](concepts/architecture.md): how canair works.
 
 ## What you need
 
@@ -108,9 +116,6 @@ and why.
 
 ## Contribute back
 
-canair becomes more useful with every car and signal that people share. If you reverse engineer
-*your* vehicle, **please send it back as a pull request** to
-[`philipkocanda/canair`](https://github.com/philipkocanda/canair). You can send a whole profile, a
-few decoded signals, or a fix. This is the best way to help other owners of the same car. See
-[Contributing](contributing/index.md) and
-[Share your profile](bring-your-own-car/08-share.md#contribute-your-profile-back).
+If you reverse engineer *your* vehicle, **please send it back as a pull request**. A whole
+profile, a few decoded signals or a fix all help other owners of the same car. See
+[Contributing](contributing/index.md).

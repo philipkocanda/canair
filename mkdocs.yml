@@ -1,5 +1,5 @@
 site_name: canair
-site_description: CLI for reverse-engineering CAN/OBD diagnostics over-the-air with a WiCAN dongle
+site_description: CLI for reverse-engineering CAN/OBD diagnostics over the air with a WiCAN dongle
 site_url: https://philipkocanda.github.io/canair/
 repo_url: https://github.com/philipkocanda/canair
 repo_name: philipkocanda/canair
@@ -12,6 +12,7 @@ exclude_docs: |
   screenshots/shots.yaml
   screenshots/freeze.json
   screenshots/tapes/
+  _snippets/
 
 theme:
   name: material
@@ -31,21 +32,29 @@ theme:
         icon: material/weather-sunny
         name: Switch to light mode
   features:
+    - navigation.tabs
     - navigation.instant
     - navigation.tracking
     - navigation.sections
     - navigation.top
     - navigation.footer
     - content.code.copy
+    - content.tooltips
     - search.suggest
     - search.highlight
     - toc.follow
 
 markdown_extensions:
+  - abbr
   - admonition
+  - def_list
   - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
+  - pymdownx.snippets:
+      base_path: docs/_snippets
+      auto_append:
+        - abbreviations.md
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -84,6 +93,7 @@ nav:
       - Install: getting-started/install.md
       - Connect your dongle: getting-started/connect-device.md
       - Read live data: getting-started/first-read.md
+      - Troubleshooting: getting-started/troubleshooting.md
   - Bring your own car:
       - Overview: bring-your-own-car/overview.md
       - 1. Create a profile: bring-your-own-car/01-create-profile.md
@@ -95,26 +105,40 @@ nav:
       - 7. Define & verify: bring-your-own-car/07-define-and-verify.md
       - 8. Share: bring-your-own-car/08-share.md
       - 9. Broadcast CAN frames (optional): bring-your-own-car/09-broadcast-frames.md
+      - Case studies:
+          - Overview: case-studies/index.md
+          - Finding the hidden AC input voltage: case-studies/ac-input-voltage.md
   - Concepts:
-      - Architecture: concepts/architecture.md
-      - Profiles: concepts/profiles.md
-      - Variants: concepts/variants.md
-      - ECU protocols & PID prefixes: concepts/ecu-protocols.md
-      - Query mini-language: concepts/query-mini-language.md
-      - Which analysis command when: concepts/analysis-commands.md
-      - Byte indexing: concepts/byte-indexing.md
-      - WiCAN byte index (firmware reference): concepts/wican-byte-index.md
-      - Broadcast CAN frames: concepts/broadcast-frames.md
-      - Typed (multi-modal) signals: concepts/typed-signals.md
-      - Captures & states: concepts/captures-and-states.md
-      - Reading & interpreting DTCs: concepts/dtcs.md
-      - Reading ECU memory: concepts/memory-reads.md
-      - Remote & cellular links: concepts/remote-and-cellular.md
-      - Safety: concepts/safety.md
-  - Case studies:
-      - Overview: case-studies/index.md
-      - Finding the hidden AC input voltage: case-studies/ac-input-voltage.md
+      - Core ideas:
+          - How canair connects: concepts/architecture.md
+          - Profiles: concepts/profiles.md
+          - profile.yaml settings: concepts/profile-settings.md
+          - Variants: concepts/variants.md
+          - Captures & states: concepts/captures-and-states.md
+          - Vehicle states: concepts/vehicle-states.md
+          - Capture file format: concepts/capture-format.md
+          - Safety: concepts/safety.md
+      - Talking to the car:
+          - ECU protocols & PID prefixes: concepts/ecu-protocols.md
+          - Query mini-language: concepts/query-mini-language.md
+          - Reading & interpreting DTCs: concepts/dtcs.md
+          - Reading ECU memory: concepts/memory-reads.md
+          - Remote & cellular links: concepts/remote-and-cellular.md
+      - Analyzing and decoding:
+          - Which analysis command when: concepts/analysis-commands.md
+          - Analysis techniques in depth: concepts/analysis-techniques.md
+          - Byte indexing (start here): concepts/byte-indexing.md
+          - WiCAN byte index (firmware reference): concepts/wican-byte-index.md
+          - Broadcast CAN frames: concepts/broadcast-frames.md
+          - Typed (multi-modal) signals: concepts/typed-signals.md
+  - Bundled profiles:
+      - Overview: profiles/index.md
+      - Explorer: profiles/explorer.md
+      - Hyundai Ioniq Electric (AE): profiles/hyundai-ioniq-ae-ev.md
+      - Nissan Leaf (ZE1): profiles/nissan-leaf-ze1-ev.md
   - Reference:
+      - Cheat sheet: reference/cheat-sheet.md
+      - Glossary: reference/glossary.md
       - Configuration: reference/config.md
       - CLI:
           - Overview: reference/cli/index.md
@@ -161,20 +185,16 @@ nav:
           - canair logs: reference/cli/logs.md
           - canair update: reference/cli/update.md
           - canair completion: reference/cli/completion.md
-  - Bundled profiles:
-      - Overview: profiles/index.md
-      - Explorer: profiles/explorer.md
-      - Hyundai Ioniq Electric (AE): profiles/hyundai-ioniq-ae-ev.md
-      - Nissan Leaf (ZE1): profiles/nissan-leaf-ze1-ev.md
-  - Development:
-      - Overview: development/index.md
-      - Architecture: development/architecture.md
-      - Response frame counts: development/frame-counts.md
-      - "Link health: fallback, reconnect, desync": development/link-health.md
-      - Variants and ECU revisions: development/variants-and-revisions.md
-      - Layered profiles and write targets: development/layered-profiles.md
-      - The contribute pipeline: development/contribute-pipeline.md
-      - Commit messages: development/commit-messages.md
-      - Documentation screenshots: development/screenshots.md
-      - Offline testing (emulator): development/offline-testing.md
-  - Contributing: contributing/index.md
+  - Contributing:
+      - Contribute a profile or code: contributing/index.md
+      - Changing canair's code:
+          - Overview: development/index.md
+          - Where code belongs: development/architecture.md
+          - Response frame counts: development/frame-counts.md
+          - "Link health: fallback, reconnect, desync": development/link-health.md
+          - Variants and ECU revisions: development/variants-and-revisions.md
+          - Layered profiles and write targets: development/layered-profiles.md
+          - The contribute pipeline: development/contribute-pipeline.md
+          - Commit messages: development/commit-messages.md
+          - Documentation screenshots: development/screenshots.md
+          - Offline testing (emulator): development/offline-testing.md

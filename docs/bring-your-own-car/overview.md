@@ -21,6 +21,9 @@ flowchart LR
     F -.->|more data needed| E
 ```
 
+In words: you do steps 1 to 8 in order. If the analysis in step 6 shows that you need more data,
+you go back to step 5 and capture again.
+
 | Step | You do | Result |
 |---|---|---|
 | [1. Create a profile](01-create-profile.md) | `canair profile create` | An empty, valid profile bundle |

@@ -203,7 +203,7 @@ canair dtc BMS --label "after replacing sensor"
 
 - `--label` annotates the log entry.
 - `--state` records the vehicle power state(s) during the scan (comma-separated,
-  from the [`vehicle_states.yaml`](captures-and-states.md) vocabulary, e.g.
+  from the [`vehicle_states.yaml`](vehicle-states.md) vocabulary, e.g.
   `ready` or `sleep, plugged`).
 
 Review the log **without touching the device** (handy when the car is off) with
@@ -334,5 +334,5 @@ on it, as `--session` does.
 
 - [`canair dtc` CLI reference](../reference/cli/dtc.md) — every flag.
 - [ECU protocols & PID prefixes](ecu-protocols.md) — why UDS vs KWP2000 matters.
-- [Captures & states](captures-and-states.md) — the vehicle-state vocabulary.
+- [Vehicle states](vehicle-states.md) — the vehicle-state vocabulary.
 - [Safety](safety.md) — what canair will and won't do to the car.

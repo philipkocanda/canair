@@ -93,7 +93,7 @@ What it reports per PID:
 | `UNVERIFIED` | a data byte read only by unverified signals |
 | `BITS` | a byte read bit by bit with some bits still undecoded |
 | `PAST END` | a signal reading beyond the end of the payload — a short reply, or a wrong offset |
-| `MAP` | the PID declares a [support map](../concepts/analysis-commands.md#support-maps-which-bits-are-signals-at-all): its own bytes, and any covered bytes that carry no signal, are not data to decode |
+| `MAP` | the PID declares a [support map](../concepts/analysis-techniques.md#support-maps-which-bits-are-signals-at-all): its own bytes, and any covered bytes that carry no signal, are not data to decode |
 | `OUTSIDE MAP` | a signal reads a bit or byte the declared support map does not mark (a bit just above a mark is shown dimmed as `FIELD CONTINUATION`) |
 | `FIELDS` | a field map: how many parameters it marks against how many the bytes hold and how many signals define (`FIELDS BROKEN` when no split fits) |
 | `OPEN FIELDS` | a field map's marked parameters no signal reads, as byte ranges |

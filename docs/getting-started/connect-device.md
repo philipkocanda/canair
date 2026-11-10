@@ -92,15 +92,34 @@ chip firmware yet. A 4.x version outside this range still works, with a one-line
 requests: first `/api/info`, then `/check_status` (unless `/api/info` showed v6). If the interface
 cannot work, canair refuses it or warns you, and it gives the fix.
 
-| On firmware v6 | What canair does |
+| On firmware v6 | Result |
 |---|---|
-| `elm327-tcp` transport | **Works.** v6 serves a plain ELM327 socket on port 35000 by default. The socket is shared. AutoPID (if enabled) takes the chip back after 10 s without a command. canair notes this when `transport.firmware_check` is `always`. By default, canair does not probe `elm327-tcp` hosts, because they are usually clones |
-| `wican-ws` transport | **Refused.** v6 has no `/ws` terminal. Use `elm327-tcp` |
-| `slcan-tcp` transport (the default) | **Warns, then tries.** A stock v6 device serves no SLCAN until you enable three settings (below) |
-| `sniff --listen-only` | **Refused.** v6 ignores the listen-only command of SLCAN. Set `can_manager.silent` on the device instead. If canair cannot confirm the generation, it warns that listen-only is not guaranteed |
-| `wican mode show`/`set` | **Refused.** v6 has no protocol mode |
-| `wican autopid upload`/`download`/`diff` | **Refused.** v6 changed the AutoPID format and API, and canair cannot sync them yet. `autopid write` also generates the v6 table (`autopid-v6.json`, for `6.0.0-beta.3` and later). You can load it through the web UI of the device ([Share](../bring-your-own-car/08-share.md)). If canair cannot confirm the generation, an upload goes ahead with a warning |
-| `--reboot` | **Skipped.** v6 resumes AutoPID by itself |
+| `elm327-tcp` transport | **Works** |
+| `wican-ws` transport | **Refused** |
+| `slcan-tcp` transport (the default) | **Warns, then tries** |
+| `sniff --listen-only` | **Refused** |
+| `wican mode show`/`set` | **Refused** |
+| `wican autopid upload`/`download`/`diff` | **Refused** |
+| `--reboot` | **Skipped** |
+
+Details for each row:
+
+- **`elm327-tcp`.** v6 serves a plain ELM327 socket on port 35000 by default. The socket is
+  shared. AutoPID (if enabled) takes the chip back after 10 s without a command. canair notes this
+  when `transport.firmware_check` is `always`. By default, canair does not probe `elm327-tcp`
+  hosts, because they are usually clones.
+- **`wican-ws`.** v6 has no `/ws` terminal. Use `elm327-tcp`.
+- **`slcan-tcp`.** A stock v6 device serves no SLCAN until you enable three settings (below).
+- **`sniff --listen-only`.** v6 ignores the listen-only command of SLCAN. Set
+  `can_manager.silent` on the device instead. If canair cannot confirm the generation, it warns
+  that listen-only is not guaranteed.
+- **`wican mode show`/`set`.** v6 has no protocol mode.
+- **`wican autopid upload`/`download`/`diff`.** v6 changed the AutoPID format and API, and canair
+  cannot sync them yet. `autopid write` also generates the v6 table (`autopid-v6.json`, for
+  `6.0.0-beta.3` and later). You can load it through the web UI of the device
+  ([Share](../bring-your-own-car/08-share.md)). If canair cannot confirm the generation, an upload
+  goes ahead with a warning.
+- **`--reboot`.** v6 resumes AutoPID by itself.
 
 On v6, point canair at the ELM327 socket:
 

@@ -87,7 +87,7 @@ Change the settings in these cases:
 
 - Your car uses a different bitrate, non-standard response addresses, or 29-bit addressing, or it
   needs ISO-TP tuning. Set `can_bitrate:`, `addressing:` or `isotp:`. See
-  [Profiles → `profile.yaml` settings](../concepts/profiles.md#profileyaml-settings).
+  [`profile.yaml` settings](../concepts/profile-settings.md).
 - Your car uses a different bitrate or 29-bit IDs. Also set the matching ELM327 protocol in
   `init`: `ATSP7` (29-bit, 500 kbit), `ATSP8` (11-bit, 250 kbit) or `ATSP9` (29-bit, 250 kbit).
 - You port a WiCAN community profile. canair derives the header, the receive filter and the flow
@@ -95,7 +95,7 @@ Change the settings in these cases:
   `ATFCSM` commands out of `init`.
 
 `vehicle_states.yaml` starts with a generic power-state vocabulary. You refine it later. See
-[Captures & states](../concepts/captures-and-states.md).
+[Vehicle states](../concepts/vehicle-states.md).
 
 ## Confirm it's active
 

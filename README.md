@@ -110,6 +110,9 @@ flowchart LR
     defs -.->|"decode responses"| cli
 ```
 
+In words: canair sends a request through the adapter to the CAN bus of the car. An ECU answers,
+and canair decodes the response into named signals with the profile definitions.
+
 canair decodes the responses into named signals. It uses the definitions in the active profile.
 [Architecture](https://philipkocanda.github.io/canair/concepts/architecture/) describes the
 transports, the protocols (UDS, KWP2000, ISO-TP) and the two data domains.
@@ -117,74 +120,76 @@ transports, the protocols (UDS, KWP2000, ISO-TP) and the two data domains.
 ## Commands
 
 Run every function as `canair <subcommand>`. Use `canair <cmd> --help` for details. The
-[CLI reference](https://philipkocanda.github.io/canair/reference/cli/) lists every flag.
+[CLI reference](https://philipkocanda.github.io/canair/reference/cli/) describes every command and
+flag. The [cheat sheet](https://philipkocanda.github.io/canair/reference/cheat-sheet/) lists the
+ones you use most.
 
-**Live device**
-
-| Subcommand | Purpose |
-|--------|---------|
-| `canair status` | Show the transport, device mode, reachability, and the canair and WiCAN versions (alias: `st`). |
-| `canair logs` | Show the central diagnostics log of transport drops and errors. The log rotates by size and cleans itself. |
-| `canair read` | Send UDS and KWP2000 requests: signal reads and multi-ECU pipelines (alias: `query`). Related commands: `discover`, `io`, `routines`, `raw`, `repl`. |
-| `canair monitor` | Show a live, refreshing view of ECU signals in a scrollable text interface (alias: `mon`). A bare `canair monitor` opens a picker for groups, ECUs and PIDs. `--save` records the data. `--wait` starts when the device appears and reconnects after a drop. |
-| `canair scan` | Probe DID, routine, IOControl and session ranges for responses. `scan memory` maps the readable ECU memory. |
-| `canair memory` | Read ECU memory (service `0x23`) into local dumps, or read a whole memory image as a resumable job. List, compare and export the dumps. See [memory reads](https://philipkocanda.github.io/canair/concepts/memory-reads/). |
-| `canair dtc` | Read and clear diagnostic trouble codes (DTCs). Report the changes since the last scan. `dtc log` shows them offline. |
-| `canair reset` | Restart one ECU (ECUReset `0x11`: hard, key-off-on or soft). The command stays off until you enable `safety.allow_reset`. See [safety](https://philipkocanda.github.io/canair/concepts/safety/#resetting-an-ecu). |
-| `canair action` | Run a make-specific action that the profile defines, for example to put a Hyundai or Kia to sleep. A live check of the car guards each action. List and edit actions in `actions.yaml`. |
-| `canair identity` | Decode the identity DIDs of an ECU: part number, versions, serial number and VIN (alias: `id`). |
-| `canair sniff` | Listen passively on the CAN bus (raw SLCAN). You can log the frames. |
-| `canair lock` | Show or clear the single-session device lock. Use it when a session is stuck or orphaned. See [safety](https://philipkocanda.github.io/canair/concepts/safety/). |
-
-**Analysis**
+**Live device** (these commands talk to the car)
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair captures` | Search, compare and step through saved diagnostic captures (`captures uds`). Back-fill or set session states. Correct notes and transport. List raw-CAN frame logs (`captures can`) (alias: `cap`). |
-| `canair decode` | Decode captures by value. It takes a mini-language QUERY, including several PIDs. It shows statistics and correlation, plots with `--plot`, and tests candidate expressions (alias: `dec`). |
-| `canair align` | Show several cross-ECU signals side by side in one time-aligned table (CSV, JSON or table). |
-| `canair correlate` | Rank the strongest relationships between signals across a drive. Find mirrored signals. It works on `uds` captures or on a `can` frame log. |
-| `canair hunt` | Find which byte *is* a known signal. It sweeps, correlates, fits and guesses units. It works on a `uds` PID or a `can` frame ID. |
-| `canair investigate` | Show a per-byte report for an unknown PID, or a ranked summary for one ECU or the whole profile. `--counters` finds monotonic counters (odometer, hour meter, cycle count). |
-| `canair search` | Find a string, VIN or byte pattern anywhere in the captures. You do not need to know the ECU or PID. With no pattern, it lists every plausible string (part numbers, versions) with a `pids upsert-param` command that you can paste. |
+| `canair status` | Show the transport, device and versions, and whether the device works (alias: `st`). |
+| `canair logs` | Show the diagnostics log of transport drops and errors. |
+| `canair read` | Send UDS and KWP2000 requests and decode the responses (alias: `query`). |
+| `canair monitor` | Show a live, refreshing view of ECU signals, and record it with `--save` (alias: `mon`). |
+| `canair scan` | Probe DID, routine, IOControl, session and memory ranges for responses. |
+| `canair memory` | Read ECU memory (service `0x23`) into local dumps. |
+| `canair dtc` | Read and clear diagnostic trouble codes, and review the log of changes. |
+| `canair reset` | Restart one ECU. It stays off until you enable `safety.allow_reset`. |
+| `canair action` | Run a guarded, make-specific action from `actions.yaml`. |
+| `canair identity` | Decode the identity DIDs of an ECU (alias: `id`). |
+| `canair sniff` | Listen passively on the CAN bus (`slcan-tcp` only). |
+| `canair lock` | Show or clear the single-session device lock. |
+
+Related commands: `discover` (which ECUs answer), `io` and `routines` (actuators and routines),
+`raw` and `repl` (low-level access). See [safety](https://philipkocanda.github.io/canair/concepts/safety/).
+
+**Analysis** (offline, never touches the car)
+
+| Subcommand | Purpose |
+|--------|---------|
+| `canair captures` | Search, compare and step through saved captures (alias: `cap`). |
+| `canair decode` | Decode captures by value, plot them, and test expressions (alias: `dec`). |
+| `canair align` | Show several signals side by side in one time-aligned table. |
+| `canair correlate` | Rank the strongest relationships between signals, and find mirrored signals. |
+| `canair hunt` | Find which byte is a known signal. |
+| `canair investigate` | Report on every byte of a PID, an ECU or the whole profile. |
+| `canair search` | Find a string, VIN or byte pattern in the captures. |
 | `canair coverage` | Find decoding gaps in the PID definitions (alias: `cov`). |
 | `canair research` | Show the open reverse-engineering backlog. |
 
-**Authoring**
+[Which analysis command when](https://philipkocanda.github.io/canair/concepts/analysis-commands/)
+helps you choose.
+
+**Authoring** (edits the profile)
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair pids` | Add or update signals and research entries in `ecus/`. The command validates each edit. |
-| `canair signals` | Add or update broadcast signal definitions in `signals/` (DBC-compatible linear model). |
-| `canair ecu` | Inspect ECUs. `ecu <ECU> pids` shows the latest state of each PID. `ecu add` registers an ECU offline. `ecu <ECU> rename` renames one. `ecu <ECU> edit` opens its YAML in `$EDITOR` (TTY only). |
-| `canair bus` | List the CAN bus segments of the profile with their descriptions and ECU counts. |
-| `canair states` | List and edit the vehicle-state vocabulary and its specificity hierarchy. `states <STATE>` shows which ECUs you can read in that state. |
-| `canair groups` | List and edit named selector groups (saved queries). Recall a group as `@name` in `read` and `monitor`, for example `monitor @charging`. |
-| `canair variants` | List and edit the variants of the profile car (battery, facelift, market) and their metadata. |
-| `canair wican` | Generate the WiCAN AutoPID JSON. Upload, download and compare it (Pro). |
-| `canair validate` | Check the whole profile against its schemas: `ecus/`, `captures/`, states, groups, actions, variants and `signals/` (alias: `val`). |
+| `canair pids` | Add or update signals and research entries in `ecus/`. |
+| `canair signals` | Add or update broadcast signal definitions in `signals/`. |
+| `canair ecu` | Inspect, add, rename and edit ECUs. |
+| `canair bus` | List the CAN bus segments of the profile. |
+| `canair states` | List and edit the vehicle-state vocabulary. |
+| `canair groups` | List and edit named selector groups, for example `monitor @charging`. |
+| `canair variants` | List and edit the variants of the profile car. |
+| `canair wican` | Generate the WiCAN AutoPID JSON, and sync it with the device (Pro). |
+| `canair validate` | Check the whole profile against its schemas (alias: `val`). |
 
-**Import / export**
-
-| Subcommand | Purpose |
-|--------|---------|
-| `canair import` | Bring data into the profile. `import uds` takes a UDS payload without a device. `import can` takes a raw frame log. `import dbc` takes signal definitions. |
-| `canair export` | Export the broadcast signal definitions (`signals/`) to DBC for SavvyCAN, cabana and Wireshark. |
-
-**Setup**
+**Import, export and setup**
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair profile` | Manage profile bundles: list, show, path, use and create. `adopt` and `overlay` keep your writes out of the install (alias: `prof`). |
-| `canair contribute` | Open a pull request that shares the active profile upstream. It uses `gh`, so you do not fork by hand. |
-| `canair config` | Show and manage the user config. |
-| `canair update` | Update canair from its git clone: check out the release tag and reinstall. The command links the changelog. |
+| `canair import` | Bring in a UDS payload (`uds`), a raw frame log (`can`) or a DBC file (`dbc`). |
+| `canair export` | Export broadcast signal definitions to DBC. |
+| `canair profile` | List, show, choose, create, adopt and overlay profiles (alias: `prof`). |
+| `canair contribute` | Open a pull request that shares the active profile (alias: `share`). |
+| `canair config` | Show and change the user config. |
+| `canair update` | Update canair from its git clone. |
 
-> Two utilities complete the set: `canair bix` (byte-index converter for WiCAN, ISO-TP, Torque and
-> OBDb) and `canair completion`.
-
-> The separate package [`wican-cli`](https://github.com/philipkocanda/wican-cli) manages the WiCAN
-> *device*: config, sleep and power, status and reboots. Install it with `pip install wican-cli`.
+Two utilities complete the set: `canair bix` (byte-index converter) and `canair completion`
+(tab-completion). The separate package [`wican-cli`](https://github.com/philipkocanda/wican-cli)
+manages the WiCAN *device*: config, sleep and power, and reboots. Install it with
+`pip install wican-cli`.
 
 ## Quick start
 
@@ -232,6 +237,10 @@ flowchart LR
     G --> H["coverage · verify"]
     H --> I["wican autopid write<br/>· share the profile"]
 ```
+
+In words: create a profile, discover the ECUs, read their identity, scan for data, capture it while
+you drive or charge, analyze it, define the signals, check the coverage, and then generate the
+AutoPID file or share the profile.
 
 Each step has its own page under
 [**Bring your own car**](https://philipkocanda.github.io/canair/bring-your-own-car/overview/):
