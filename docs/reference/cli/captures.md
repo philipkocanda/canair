@@ -155,7 +155,7 @@ options:
   --join-tol SECONDS    For --step: max timestamp difference when joining
                         captures of different PIDs into one stacked frame
                         (default 10s, sized for a full round-robin monitor
-                        cycle; adjustable live with t / < / >)
+                        cycle; adjustable live with J)
   --json                Machine-readable JSON output
                         (summary/sessions/latest/diff/step and the default
                         QUERY list)

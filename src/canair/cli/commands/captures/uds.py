@@ -244,7 +244,7 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         metavar="SECONDS",
         help=f"For --step: max timestamp difference when joining captures of "
         f"different PIDs into one stacked frame (default {DEFAULT_STEP_JOIN_TOL_S:g}s, "
-        f"sized for a full round-robin monitor cycle; adjustable live with t / < / >)",
+        f"sized for a full round-robin monitor cycle; adjustable live with J)",
     )
 
     parser.add_argument(
