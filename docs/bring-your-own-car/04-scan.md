@@ -1,8 +1,8 @@
 # 4. Scan for data
 
-Identity tells you *what* an ECU is; **scanning** tells you *what it answers*.
-`canair scan` sweeps a range of PIDs/DIDs on one ECU and reports which ones
-return data — the raw material you'll capture and decode.
+Identity tells you *what* an ECU is. **Scanning** tells you *what the ECU answers*. `canair scan`
+sweeps a range of PIDs or DIDs on one ECU and reports which ones return data. This data is the raw
+material that you capture and decode.
 
 ## Sweep a range
 
@@ -10,28 +10,27 @@ return data — the raw material you'll capture and decode.
 canair scan range MyECU --range 2100-21FF --save
 ```
 
-- `range` is the general-purpose kind (a bare `canair scan MyECU` is shorthand
-  for it).
-- `--range START-END` — the DID/PID range in hex, or a comma list of ranges
-  (`B000-B01F,B100-B11F`). Omit it for a smart per-ECU default: on a UDS ECU that is
-  every **DID family** (a high byte such as `B4xx`) the profile shows the ECU using,
-  from its `22`/`2F` PIDs and the actuators an IOControl scan found. ECUs often keep their
-  live-data DIDs in the same few families as their actuators, so an ECU known only
-  by its actuators still gets a useful read sweep. `--slots N` narrows each family to
-  its first N DIDs.
-- `--service SVC` — which UDS service to probe (e.g. `read-did` for `22`,
-  `live-data` for `21`). Presets are listed in `canair scan range --help`.
-- `--save` — record responders to `captures/` so the hits are preserved.
-- `--session` / `--wake` — enter an extended session / wake a sleeping ECU first,
-  for ECUs that only answer under those conditions.
+- `range` is the general-purpose kind. A bare `canair scan MyECU` is a shorthand for it.
+- `--range START-END` is the DID or PID range in hex, or a comma list of ranges
+  (`B000-B01F,B100-B11F`). If you omit it, canair uses a smart default for each ECU. On a UDS
+  ECU, the default is every **DID family** (a high byte such as `B4xx`) that the profile shows the
+  ECU using. canair reads the families from the `22` and `2F` PIDs of the ECU and from the
+  actuators that an IOControl scan found. An ECU often keeps its live-data DIDs in the same few
+  families as its actuators. An ECU that you know only by its actuators therefore still gets a
+  useful read sweep. `--slots N` limits each family to its first N DIDs.
+- `--service SVC` selects the UDS service to probe, for example `read-did` for `22` or
+  `live-data` for `21`. `canair scan range --help` lists the presets.
+- `--save` records the responders to `captures/`, so canair keeps the hits.
+- `--session` and `--wake` enter an extended session and wake a sleeping ECU first. Some ECUs
+  answer only under these conditions.
 
-Run `canair scan range --help` for the full flag list, or `canair scan range`
-with no ECU for an interactive wizard.
+Run `canair scan range --help` for the full flag list. Run `canair scan range` with no ECU for an
+interactive wizard.
 
 ## Safe discovery of other capabilities
 
-`canair scan` has dedicated, **safe** sub-kinds for probing what an ECU can *do*,
-each auto-selecting the right UDS/KWP2000 service:
+`canair scan` has dedicated, **safe** sub-kinds. They probe what an ECU can *do*. Each one selects
+the correct UDS or KWP2000 service automatically:
 
 ```bash
 canair scan iocontrol MyECU   # discover IOControl actuators (returnControlToECU)
@@ -39,17 +38,20 @@ canair scan routines MyECU    # discover diagnostic routines (safe: requestRouti
 canair scan sessions MyECU    # discover which diagnostic session types it supports
 ```
 
-These probes ask *whether* a capability exists rather than actuating it. One
-exception: KWP2000's IOControl service leaves its control-option byte to the
-manufacturer, and the `00` that `scan iocontrol` sends switches an output *on* on
-at least one Kia ECU. On a KWP2000 ECU the scan therefore asks before it sweeps
-(`--yes` to skip). Actually *triggering* an actuator or routine is a separate,
-confirm-first action (see [Safety](../concepts/safety.md)).
+These probes ask *whether* a capability exists. They do not actuate it.
+
+There is one exception. The IOControl service of KWP2000 leaves its control-option byte to the
+manufacturer. The `00` that `scan iocontrol` sends switches an output *on* on at least one Kia
+ECU. For this reason, the scan asks for confirmation before it sweeps a KWP2000 ECU. Use `--yes`
+to skip the question.
+
+To *trigger* an actuator or a routine, use a separate action that asks for confirmation first (see
+[Safety](../concepts/safety.md)).
 
 ## Turning hits into a plan
 
-A scan hit means "this DID returns bytes," not "you know what they mean." Record
-what to investigate next as a research lead so it's tracked:
+A scan hit means "this DID returns bytes". It does not mean that you know what the bytes mean.
+Record what to investigate next as a research lead. Then canair tracks it:
 
 ```bash
 canair pids add-research MyECU --type decode --target 2101 \
@@ -57,17 +59,20 @@ canair pids add-research MyECU --type decode --target 2101 \
 canair research --summary    # your open reverse-engineering backlog
 ```
 
-Once `scan iocontrol` has found an ECU's actuators, ask which of their DID families
-nobody has read yet. ECUs often keep their live-data records next to their actuators,
-so this is where to look on an ECU that seemed to have no live data:
+After `scan iocontrol` finds the actuators of an ECU, ask which of their DID families nobody has
+read yet. An ECU often keeps its live-data records next to its actuators. Use this check on an ECU
+that seemed to have no live data:
 
 ```bash
 canair research --gaps       # actuator families no 0x22 read has reached, with the scan to run
 ```
 
-It works from what the profile already records: the `iocontrol:` and
-`iocontrol_discoveries:` entries, `scan_log:`, `research:` targets and saved
-`scan range --save` sessions (a sweep the ECU slept through doesn't count).
+The command uses what the profile already records:
+
+- the `iocontrol:` and `iocontrol_discoveries:` entries
+- `scan_log:`
+- the targets in `research:`
+- the saved `scan range --save` sessions (a sweep that the ECU slept through does not count)
 
 ---
 

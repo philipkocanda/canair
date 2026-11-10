@@ -1,9 +1,9 @@
 # 3. Read identity
 
-Once ECUs are [registered](02-discover-ecus.md), `canair identity` reads an
-ECU's standard identity data — part number, hardware/software version, serial
-number, and VIN — and decodes it for display. It queries UDS (`22 F1xx`) or
-KWP2000 (`1A 8x/9x`) automatically based on what the ECU speaks (see
+After you [register](02-discover-ecus.md) the ECUs, `canair identity` reads the standard identity
+data of an ECU and decodes it for display. The data includes the part number, the hardware and
+software versions, the serial number and the VIN. canair uses UDS (`22 F1xx`) or KWP2000
+(`1A 8x/9x`), according to the protocol that the ECU speaks (see
 [ECU protocols & PID prefixes](../concepts/ecu-protocols.md)).
 
 ```bash
@@ -13,47 +13,47 @@ canair identity MyECU --session  # some ECUs only answer in an extended session
 canair identity BMS --protocol kwp   # force KWP2000 for a powertrain ECU
 ```
 
-`canair identity` is a **read** — it displays what it finds and writes nothing to
-`ecus/`, except that it may offer to record a protocol it proved in `identity.id_protocol`.
-To capture identity for every ECU as part of the discovery sweep, use
-`canair discover --identify` (see [step 2](02-discover-ecus.md)).
+`canair identity` is a **read**. It displays what it finds and writes nothing to `ecus/`. One
+exception: it can offer to record a protocol that it proved in `identity.id_protocol`.
 
-Already captured an identity DID and want to know where a part number landed?
-`canair search 95400G7470` finds it across every ECU and PID, and `canair search`
-with no pattern lists every plausible string in your captures — see
+To capture the identity of every ECU during the discovery sweep, use `canair discover --identify`
+(see [step 2](02-discover-ecus.md)).
+
+Did you capture an identity DID, and you want to know where a part number landed? Run
+`canair search 95400G7470`. It finds the value in every ECU and PID. `canair search` with no
+pattern lists every plausible string in your captures. See
 [6. Analyze](06-analyze.md#finding-text-part-numbers-versions-vins).
 
 ## Why it's worth doing early
 
-Identity tells you *what each ECU actually is*, which lets you rename the
-placeholder ECU entries meaningfully (`Unknown-770` → `IGPM`) and cross-reference
-part numbers against other vehicles' known signal maps — a huge head start on
-[analysis](06-analyze.md). Cross-referencing a shared part number with another
-car's public PID data is one of the fastest ways to seed hypotheses.
+Identity tells you *what each ECU is*. You can then rename the placeholder ECU entries
+(`Unknown-770` → `IGPM`). You can also compare part numbers with the known signal maps of other
+vehicles. This gives you a large head start on [analysis](06-analyze.md). A shared part number
+with the public PID data of another car is one of the fastest ways to get hypotheses.
 
 ## Recording curated identity fields
 
-Anything you want to *store* about an ECU beyond the raw decoded DIDs — notes, a
-description — is easiest through the validated editor:
+To *store* more about an ECU than the raw decoded DIDs, use the validated editor. You can store
+notes or a description:
 
 ```bash
 canair pids set-identity MyECU notes "Body control module; mirrors IGPM door bits"
 canair pids rm-identity  MyECU sw_version   # drop a field you filed wrongly
 ```
 
-The field name must be one the ECU schema declares (`identity` in
-`src/canair/schema/pids_schema.yaml`): a typo is a validation **error** and the edit is reverted,
-so a misfiled `sofware:` can't sit in the profile unnoticed.
+The field name must be one that the ECU schema declares (`identity` in
+`src/canair/schema/pids_schema.yaml`). A typo is a validation **error**, and canair reverts the
+edit. A misfiled `sofware:` cannot stay in the profile unnoticed.
 
 ### One reading, one field
 
-Several of those fields are near-synonyms (`firmware` / `fw_version` /
-`sw_version` / `sw_id`, and `hw_version` / `hw_sw`) because every marque names its
-identity DIDs differently. Pick the one that matches what the ECU actually
-reported and **don't mirror the value into a second field** — the copy becomes
-dead data that later readers mistake for independent evidence. `canair validate
-pids` warns when two synonymous fields hold the same value and points you at
-`rm-identity`.
+Several of these fields have nearly the same meaning: `firmware`, `fw_version`, `sw_version` and
+`sw_id`, and `hw_version` and `hw_sw`. Each marque names its identity DIDs differently. Pick the
+field that matches what the ECU reported. **Do not copy the value into a second field.** The copy
+becomes dead data, and later readers mistake it for independent evidence.
+
+`canair validate pids` warns when two fields with the same meaning hold the same value. The
+warning points you to `rm-identity`.
 
 ---
 

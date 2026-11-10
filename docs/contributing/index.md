@@ -1,53 +1,58 @@
 # Contributing
 
-canair thrives on contributions — **especially vehicle profiles and decoded
-signals.** Every profile or PID you share means the next person with the same car
-starts ahead instead of from zero. This page is the friendly version; the
-repo-root [`CONTRIBUTING.md`](https://github.com/philipkocanda/canair/blob/main/CONTRIBUTING.md)
-is the same information in brief.
+canair needs contributions. **Vehicle profiles and decoded signals** are the most wanted. Every
+profile or PID that you share lets the next owner of the same car start ahead, not from zero. This
+page is the detailed version. The
+[`CONTRIBUTING.md`](https://github.com/philipkocanda/canair/blob/main/CONTRIBUTING.md) file in the
+repository root has the same information in brief.
 
 ## Contribute a profile or PIDs (most wanted)
 
-This is the highest-value contribution and needs no changes to canair's code.
+This contribution has the highest value. It needs no change to the code of canair.
 
-1. **Do the work** — follow the [Bring your own car](../bring-your-own-car/overview.md)
-   journey to build a profile for your car (or decode more of an existing one).
-2. **Make it clean and honest:**
-   - `canair validate all` must pass (schema + duplicate-signal-name checks).
-   - Prefer `--verified` signals with a `--source` recording your evidence;
-     mark genuine guesses `--unverified`.
-   - `car_model` should pin down model/year/market/battery so others can tell if
-     it matches theirs.
-   - Include a representative subset of `captures/` as evidence (they can be
-     large — you don't have to ship everything).
-3. **Share it with `canair contribute`** — one command opens the pull request for you, wherever
-   your profile is stored. It validates, scans your captures *and* `ecus/` identity blocks for
-   a VIN or other PII, then opens the PR via the
-   [GitHub CLI](https://github.com/cli/cli#installation) (install `gh` and run `gh auth login`
-   once; `canair contribute` prints these steps if it's missing). Use `--no-captures` for a
-   smaller, definitions-only PR, or `--dry-run` to preview. Prefer git yourself? A standard PR
-   putting your profile under `profiles/<your-car>/` works just as well.
+1. **Do the work.** Follow the [Bring your own car](../bring-your-own-car/overview.md) journey to
+   build a profile for your car. You can also decode more of an existing profile.
+2. **Make the profile clean and honest:**
 
-**Partial is welcome.** A handful of verified signals, a corrected byte offset,
-or a new `research:` lead all help — you don't need a "finished" profile.
+    - `canair validate all` must pass (schema and duplicate-signal-name checks).
+    - Prefer `--verified` signals with a `--source` that records your evidence. Mark real guesses
+      `--unverified`.
+    - Let `car_model` identify the model, year, market and battery. Then others can see if it
+      matches their car.
+    - Include a representative subset of `captures/` as evidence. Captures can be large, so you
+      do not have to ship all of them.
+
+3. **Share it with `canair contribute`.** One command opens the pull request for you, wherever
+   your profile is stored. The command does these steps:
+
+    - It validates the profile.
+    - It scans your captures *and* the `ecus/` identity blocks for a VIN or other personal data.
+    - It opens the pull request through the [GitHub CLI](https://github.com/cli/cli#installation).
+
+    Install `gh` and run `gh auth login` once. If `gh` is missing, `canair contribute` prints these
+    steps. Use `--no-captures` for a smaller pull request that has definitions only. Use `--dry-run`
+    to preview. If you prefer git, a standard pull request that puts your profile under
+    `profiles/<your-car>/` works as well.
+
+**A partial contribution is welcome.** A few verified signals, a corrected byte offset, or a new
+`research:` lead all help. You do not need a finished profile.
 
 See [Share your profile](../bring-your-own-car/08-share.md) for the full detail.
 
 ## Report a bug or request a feature
 
-Open a [GitHub issue](https://github.com/philipkocanda/canair/issues) and pick
-the matching form (bug, feature, or profile). It prompts for what you ran, what
-you expected, and what happened (a `--json` dump or the exact command helps).
-Rough edges in the CLI or docs are fair game too.
+Open a [GitHub issue](https://github.com/philipkocanda/canair/issues) and pick the matching form:
+bug, feature or profile. The form asks what you ran, what you expected, and what happened. A
+`--json` dump or the exact command helps. You can also report rough edges in the CLI or the docs.
 
 ## Contribute code
 
-Changes to canair itself (the `src/canair/` package) are welcome — the dev setup, the
-checks to run before a PR, commit-message format, and the screenshot pipeline all
-live in [Development](../development/index.md).
+Changes to canair itself (the `src/canair/` package) are welcome.
+[Development](../development/index.md) describes the development setup, the checks to run before
+a pull request, the commit-message format, and the screenshot pipeline.
 
 ## Code of conduct
 
-Be kind and constructive. This is a hobbyist project for people curious about
-their cars — assume good faith, and help newcomers. The full text is in
+Be kind and constructive. This is a hobby project for people who are curious about their cars.
+Assume good faith, and help newcomers. The full text is in
 [`CODE_OF_CONDUCT.md`](https://github.com/philipkocanda/canair/blob/main/CODE_OF_CONDUCT.md).

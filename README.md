@@ -1,6 +1,6 @@
 # canair
 
-**CLI for reverse engineering CAN/OBD diagnostics over-the-air using a WiCAN dongle**
+**CLI for reverse engineering CAN/OBD diagnostics over the air with a WiCAN dongle**
 
 [![Docs](https://img.shields.io/badge/docs-philipkocanda.github.io%2Fcanair-blue)](https://philipkocanda.github.io/canair/)
 [![CI](https://github.com/philipkocanda/canair/actions/workflows/ci.yml/badge.svg)](https://github.com/philipkocanda/canair/actions/workflows/ci.yml)
@@ -8,34 +8,66 @@
 
 <img width="300" alt="Jul-23-2026 00-14-52" src="https://github.com/user-attachments/assets/e74ce18d-5350-4a69-b96e-d3b312b25b2f" />
 
-canair interfaces with a [WiCAN](https://www.meatpi.com/products/wican-pro) OBD-II WiFi dongle to work with a vehicle's data across **two domains**: request/response **diagnostics** (querying ECUs over UDS and KWP2000) and the **raw broadcast CAN** the car emits on its own (passively sniffed, or imported from external logs and DBCs). On top of both it gives you a full **analysis suite** — capture, decode, statistically correlate, and hunt down which byte carries which signal — then turns the results into a [WiCAN vehicle profile](https://meatpihq.github.io/wican-fw/config/automate/new_vehicle_profiles) or shareable documentation.
+canair is a command-line tool (CLI). It connects to a
+[WiCAN](https://www.meatpi.com/products/wican-pro) OBD-II (On-Board Diagnostics) WiFi dongle. It
+works with the data of a vehicle in **two domains**:
 
-Everything ships as a single installable CLI, **`canair`**. Vehicle data lives in a *profile* bundle; the repo ships several under [`profiles/`](profiles/), with the 2017 Hyundai Ioniq Electric as the mature reference. The tooling is vehicle-agnostic — [build one for your car](https://philipkocanda.github.io/canair/bring-your-own-car/overview/).
+- **Diagnostics.** canair sends requests to the electronic control units (ECUs) of the car and
+  reads the responses. It uses the UDS (Unified Diagnostic Services) and KWP2000 (Keyword
+  Protocol 2000) protocols.
+- **Raw broadcast CAN.** The car sends these Controller Area Network (CAN) frames on its own.
+  canair listens passively, or imports frames from external logs and DBC (CAN database) files.
 
-**Built for humans *and* agents.** Every capability is a scriptable subcommand with structured (`--json`) output, so a person or an AI coding agent can drive it equally well. The reverse-engineering workflows are captured as agent skills in `.claude/skills/`.
+canair also has a set of analysis commands. They capture data, decode it, find statistical
+correlations, and show which byte carries which signal. You can then turn the results into a
+[WiCAN vehicle profile](https://meatpihq.github.io/wican-fw/config/automate/new_vehicle_profiles)
+or into documentation that you can share.
 
-**Both the WiCAN Pro and the classic WiCAN are supported** over the default raw-SLCAN transport. A few features are Pro-only (AutoPID device sync, `wican mode set`, the `wican-ws` transport); set `wican_model: classic` and canair refuses them cleanly. See [connecting your dongle](https://philipkocanda.github.io/canair/getting-started/connect-device/).
+The CLI is one command: **`canair`**. Vehicle data lives in a *profile* bundle. The repository
+has several profiles in [`profiles/`](profiles/). The 2017 Hyundai Ioniq Electric is the most
+complete one. The tool works with any vehicle, so you can
+[build a profile for your car](https://philipkocanda.github.io/canair/bring-your-own-car/overview/).
 
-**WiCAN firmware 4.x is supported; on the v6 rewrite only `elm327-tcp` works today** — see
+**For humans and agents.** Every capability is a subcommand that you can script. Subcommands
+give structured output with `--json`, so a person or an AI coding agent can use them in the same
+way. The reverse-engineering workflows are available as agent skills in `.claude/skills/`.
+
+**The WiCAN Pro and the classic WiCAN both work** with the default raw-SLCAN transport. Some
+features need a Pro: AutoPID device sync, `wican mode set` and the `wican-ws` transport. If you
+set `wican_model: classic`, canair refuses these features with a clear message. See
+[connect your dongle](https://philipkocanda.github.io/canair/getting-started/connect-device/).
+
+**canair supports WiCAN firmware 4.x.** On the firmware v6 rewrite, only the `elm327-tcp`
+transport works today. See
 [firmware compatibility](https://philipkocanda.github.io/canair/getting-started/connect-device/#firmware-compatibility).
 
-> **📖 Documentation:** **[philipkocanda.github.io/canair](https://philipkocanda.github.io/canair/)** —
-> [Getting started](https://philipkocanda.github.io/canair/getting-started/install/) · [**Bring your own car**](https://philipkocanda.github.io/canair/bring-your-own-car/overview/) (the full new-vehicle walkthrough) · [**Profile explorer**](https://philipkocanda.github.io/canair/profiles/explorer/) (browse and plot real Ioniq data in your browser) · [Concepts](https://philipkocanda.github.io/canair/concepts/architecture/) · [Reference](https://philipkocanda.github.io/canair/reference/config/). (Source in [`docs/`](docs/index.md).)
+> **Documentation:** **[philipkocanda.github.io/canair](https://philipkocanda.github.io/canair/)** —
+> [Getting started](https://philipkocanda.github.io/canair/getting-started/install/) ·
+> [**Bring your own car**](https://philipkocanda.github.io/canair/bring-your-own-car/overview/)
+> (the full walkthrough for a new vehicle) ·
+> [**Profile explorer**](https://philipkocanda.github.io/canair/profiles/explorer/) (browse and
+> plot real Ioniq data in your browser) ·
+> [Concepts](https://philipkocanda.github.io/canair/concepts/architecture/) ·
+> [Reference](https://philipkocanda.github.io/canair/reference/config/). The source is in
+> [`docs/`](docs/index.md).
 
 | | |
 |---|---|
-| ![decode plot](https://github.com/user-attachments/assets/7cab4e56-550a-4443-83dd-2f96bb5eedc7) | Analyzing/decoding a captured signal with `canair decode <query> --plot` |
-| ![capture diff](https://github.com/user-attachments/assets/525affb7-836e-4f2d-9064-020858a4a268) | Byte-level capture diffs with `canair captures <query> --diff` (also the default view for `canair read` on a live vehicle) |
+| ![decode plot](https://github.com/user-attachments/assets/7cab4e56-550a-4443-83dd-2f96bb5eedc7) | Decode and analyze a captured signal with `canair decode <query> --plot` |
+| ![capture diff](https://github.com/user-attachments/assets/525affb7-836e-4f2d-9064-020858a4a268) | Byte-level capture diffs with `canair captures <query> --diff`. This is also the default view of `canair read` on a live vehicle. |
 
 ## How it connects
 
-`canair` reaches the bus through an adapter, using one of three transports you select explicitly:
+canair reaches the bus through an adapter. You select one of three transports explicitly:
 
-- **`slcan-tcp`** (default) — raw SLCAN over TCP on any WiCAN; canair does ISO-TP and UDS.
-- **`wican-ws`** (Pro only) — ELM327 over WebSocket; the dongle does ISO-TP.
-- **`elm327-tcp`** — a generic ELM327 clone (Kiwi, vLinker, OBDLink) or the [ELM327-Emulator](https://philipkocanda.github.io/canair/development/offline-testing/) over a plain TCP socket; no WiCAN needed.
+- **`slcan-tcp`** (default): raw SLCAN over TCP on any WiCAN. canair handles ISO-TP and UDS.
+- **`wican-ws`** (Pro only): ELM327 over WebSocket. The dongle handles ISO-TP.
+- **`elm327-tcp`**: a plain TCP socket to a generic ELM327 clone (Kiwi, vLinker, OBDLink) or to the
+  [ELM327-Emulator](https://philipkocanda.github.io/canair/development/offline-testing/). You do
+  not need a WiCAN.
 
-The **WiCAN is recommended and best-tested**. Generic clones are best-effort and less likely to work on newer vehicles (long multi-frame ISO-TP, extended addressing).
+The **WiCAN is the recommended and best-tested adapter.** Generic clones are best-effort. They
+are less likely to work on newer vehicles that use long multi-frame ISO-TP or extended addressing.
 
 ```mermaid
 flowchart LR
@@ -64,80 +96,86 @@ flowchart LR
     defs -.->|"decode responses"| cli
 ```
 
-Responses are decoded into named signals using the active profile's definitions. See [Architecture](https://philipkocanda.github.io/canair/concepts/architecture/) for the transports, protocols (UDS / KWP2000 / ISO-TP), and the two data domains.
+canair decodes the responses into named signals. It uses the definitions in the active profile.
+[Architecture](https://philipkocanda.github.io/canair/concepts/architecture/) describes the
+transports, the protocols (UDS, KWP2000, ISO-TP) and the two data domains.
 
 ## Commands
 
-All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help` for details, or see the [CLI reference](https://philipkocanda.github.io/canair/reference/cli/).
+Run every function as `canair <subcommand>`. Use `canair <cmd> --help` for details. The
+[CLI reference](https://philipkocanda.github.io/canair/reference/cli/) lists every flag.
 
 **Live device**
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair status` | Snapshot of transport, device mode, reachability, and canair/WiCAN versions (alias: `st`). |
-| `canair logs` | View the central diagnostics log (transport drops/errors), size-rotated and self-cleaning. |
-| `canair read` | Send UDS/KWP2000 requests — signal reads, multi-ECU pipelines (alias: `query`). Companions: `discover`, `io`, `routines`, `raw`, `repl`. |
-| `canair monitor` | Live, continuously-refreshing view of ECU signals (scrollable TUI; bare `canair monitor` opens a group/ECU → PID picker); records with `--save`, `--wait` to start when the device appears and auto-reconnect on drops (alias: `mon`). |
-| `canair scan` | Probe DID/routine/iocontrol/session ranges for responses; `scan memory` maps readable ECU memory. |
-| `canair memory` | Read ECU memory (0x23) into local dumps, or a whole memory image as a resumable job, then list, diff and export them ([memory reads](https://philipkocanda.github.io/canair/concepts/memory-reads/)). |
-| `canair dtc` | Read/clear Diagnostic Trouble Codes; report changes since the last scan (`dtc log` reviews them offline). |
-| `canair reset` | Restart one ECU (ECUReset `0x11`: hard, key-off-on or soft); off until you enable `safety.allow_reset` ([safety](https://philipkocanda.github.io/canair/concepts/safety/#resetting-an-ecu)). |
-| `canair action` | Run a profile-defined, make-specific action (e.g. put a Hyundai/Kia to sleep), guarded by a live check of the car; list/edit them in `actions.yaml`. |
-| `canair identity` | Decode ECU identity DIDs — part number, versions, serial, VIN (alias: `id`). |
-| `canair sniff` | Passive CAN-bus sniffer (raw SLCAN) with optional frame logging. |
-| `canair lock` | Show or clear the single-session device lock — the escape hatch for a stuck/orphaned session ([safety](https://philipkocanda.github.io/canair/concepts/safety/)). |
+| `canair status` | Show the transport, device mode, reachability, and the canair and WiCAN versions (alias: `st`). |
+| `canair logs` | Show the central diagnostics log of transport drops and errors. The log rotates by size and cleans itself. |
+| `canair read` | Send UDS and KWP2000 requests: signal reads and multi-ECU pipelines (alias: `query`). Related commands: `discover`, `io`, `routines`, `raw`, `repl`. |
+| `canair monitor` | Show a live, refreshing view of ECU signals in a scrollable text interface (alias: `mon`). A bare `canair monitor` opens a picker for groups, ECUs and PIDs. `--save` records the data. `--wait` starts when the device appears and reconnects after a drop. |
+| `canair scan` | Probe DID, routine, IOControl and session ranges for responses. `scan memory` maps the readable ECU memory. |
+| `canair memory` | Read ECU memory (service `0x23`) into local dumps, or read a whole memory image as a resumable job. List, compare and export the dumps. See [memory reads](https://philipkocanda.github.io/canair/concepts/memory-reads/). |
+| `canair dtc` | Read and clear diagnostic trouble codes (DTCs). Report the changes since the last scan. `dtc log` shows them offline. |
+| `canair reset` | Restart one ECU (ECUReset `0x11`: hard, key-off-on or soft). The command stays off until you enable `safety.allow_reset`. See [safety](https://philipkocanda.github.io/canair/concepts/safety/#resetting-an-ecu). |
+| `canair action` | Run a make-specific action that the profile defines, for example to put a Hyundai or Kia to sleep. A live check of the car guards each action. List and edit actions in `actions.yaml`. |
+| `canair identity` | Decode the identity DIDs of an ECU: part number, versions, serial number and VIN (alias: `id`). |
+| `canair sniff` | Listen passively on the CAN bus (raw SLCAN). You can log the frames. |
+| `canair lock` | Show or clear the single-session device lock. Use it when a session is stuck or orphaned. See [safety](https://philipkocanda.github.io/canair/concepts/safety/). |
 
 **Analysis**
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair captures` | Search, diff and `--step` through saved diagnostic captures (`captures uds`); back-fill or set session states and correct notes/transport; list raw-CAN frame logs (`captures can`) (alias: `cap`). |
-| `canair decode` | Value-centric decoding of captures (mini-language QUERY, multi-PID) — stats, correlation, `--plot`, candidate-expression testing (alias: `dec`). |
-| `canair align` | Time-aligned wide table of several cross-ECU signals side by side (CSV/JSON/table). |
-| `canair correlate` | Rank the strongest cross-signal relationships across a drive; find mirrored signals (`uds` captures \| `can` frame log). |
-| `canair hunt` | "Which byte *is* this known signal?" — sweep, correlate, fit, unit-guess (`uds` PID \| `can` frame ID). |
-| `canair investigate` | One-shot per-byte report for an unknown PID, or a ranked summary sweep over an ECU / the whole profile; `--counters` hunts monotonic counters (odometer / hour meter / cycle count). |
-| `canair search` | Find a string, VIN or byte pattern anywhere in the captures without knowing the ECU or PID; with no pattern, list every plausible string (part numbers, versions) with a paste-ready `pids upsert-param` command. |
-| `canair coverage` | Audit PID definitions for decoding gaps (alias: `cov`). |
-| `canair research` | Report the open reverse-engineering backlog. |
+| `canair captures` | Search, compare and step through saved diagnostic captures (`captures uds`). Back-fill or set session states. Correct notes and transport. List raw-CAN frame logs (`captures can`) (alias: `cap`). |
+| `canair decode` | Decode captures by value. It takes a mini-language QUERY, including several PIDs. It shows statistics and correlation, plots with `--plot`, and tests candidate expressions (alias: `dec`). |
+| `canair align` | Show several cross-ECU signals side by side in one time-aligned table (CSV, JSON or table). |
+| `canair correlate` | Rank the strongest relationships between signals across a drive. Find mirrored signals. It works on `uds` captures or on a `can` frame log. |
+| `canair hunt` | Find which byte *is* a known signal. It sweeps, correlates, fits and guesses units. It works on a `uds` PID or a `can` frame ID. |
+| `canair investigate` | Show a per-byte report for an unknown PID, or a ranked summary for one ECU or the whole profile. `--counters` finds monotonic counters (odometer, hour meter, cycle count). |
+| `canair search` | Find a string, VIN or byte pattern anywhere in the captures. You do not need to know the ECU or PID. With no pattern, it lists every plausible string (part numbers, versions) with a `pids upsert-param` command that you can paste. |
+| `canair coverage` | Find decoding gaps in the PID definitions (alias: `cov`). |
+| `canair research` | Show the open reverse-engineering backlog. |
 
 **Authoring**
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair pids` | Add/update `ecus/` signals and research entries (validated). |
-| `canair signals` | Add/update broadcast signal definitions (`signals/`, DBC-compatible linear model). |
-| `canair ecu` | Inspect ECUs (`ecu <ECU> pids` = per-PID latest state), register one offline (`ecu add`), rename one (`ecu rename`), or open its YAML in `$EDITOR` (`ecu <ECU> edit`, TTY only). |
-| `canair bus` | List the profile's CAN bus segments, their descriptions, and ECU counts. |
-| `canair states` | List/edit the vehicle operating-state vocabulary and its specificity hierarchy; `states <STATE>` shows which ECUs are readable in it. |
-| `canair groups` | List/edit named selector groups (saved queries); recall one as `@name` in `read`/`monitor` (e.g. `monitor @charging`). |
-| `canair variants` | List/edit the profile car's variants (battery, facelift, market) and their metadata. |
-| `canair wican` | Generate the WiCAN AutoPID JSON; upload/download/diff (Pro). |
-| `canair validate` | Validate the whole profile — `ecus/`, `captures/`, states, groups, actions, variants and `signals/` — against its schemas (alias: `val`). |
+| `canair pids` | Add or update signals and research entries in `ecus/`. The command validates each edit. |
+| `canair signals` | Add or update broadcast signal definitions in `signals/` (DBC-compatible linear model). |
+| `canair ecu` | Inspect ECUs. `ecu <ECU> pids` shows the latest state of each PID. `ecu add` registers an ECU offline. `ecu <ECU> rename` renames one. `ecu <ECU> edit` opens its YAML in `$EDITOR` (TTY only). |
+| `canair bus` | List the CAN bus segments of the profile with their descriptions and ECU counts. |
+| `canair states` | List and edit the vehicle-state vocabulary and its specificity hierarchy. `states <STATE>` shows which ECUs you can read in that state. |
+| `canair groups` | List and edit named selector groups (saved queries). Recall a group as `@name` in `read` and `monitor`, for example `monitor @charging`. |
+| `canair variants` | List and edit the variants of the profile car (battery, facelift, market) and their metadata. |
+| `canair wican` | Generate the WiCAN AutoPID JSON. Upload, download and compare it (Pro). |
+| `canair validate` | Check the whole profile against its schemas: `ecus/`, `captures/`, states, groups, actions, variants and `signals/` (alias: `val`). |
 
 **Import / export**
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair import` | Bring data into the profile: `import uds` (device-free UDS payload), `import can` (raw frame log), `import dbc` (signal defs). |
-| `canair export` | Export broadcast signal defs (`signals/`) to DBC for SavvyCAN/cabana/Wireshark. |
+| `canair import` | Bring data into the profile. `import uds` takes a UDS payload without a device. `import can` takes a raw frame log. `import dbc` takes signal definitions. |
+| `canair export` | Export the broadcast signal definitions (`signals/`) to DBC for SavvyCAN, cabana and Wireshark. |
 
 **Setup**
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair profile` | Manage profile bundles — list/show/path/use/create, plus `adopt` and `overlay` to keep your writes out of the install (alias: `prof`). |
-| `canair contribute` | Open a pull request sharing the active profile upstream (via `gh`; no manual fork). |
-| `canair config` | View/manage user config. |
-| `canair update` | Update canair from its git clone (checkout release tag + reinstall); links the changelog. |
+| `canair profile` | Manage profile bundles: list, show, path, use and create. `adopt` and `overlay` keep your writes out of the install (alias: `prof`). |
+| `canair contribute` | Open a pull request that shares the active profile upstream. It uses `gh`, so you do not fork by hand. |
+| `canair config` | Show and manage the user config. |
+| `canair update` | Update canair from its git clone: check out the release tag and reinstall. The command links the changelog. |
 
-> The byte-index converter `canair bix` (WiCAN ↔ ISO-TP ↔ Torque ↔ OBDb) and `canair completion` round out the utilities.
+> Two utilities complete the set: `canair bix` (byte-index converter for WiCAN, ISO-TP, Torque and
+> OBDb) and `canair completion`.
 
-> Separate package [`wican-cli`](https://github.com/philipkocanda/wican-cli) handles WiCAN *device* management (config, sleep/power, status, reboots). `pip install wican-cli`.
+> The separate package [`wican-cli`](https://github.com/philipkocanda/wican-cli) manages the WiCAN
+> *device*: config, sleep and power, status and reboots. Install it with `pip install wican-cli`.
 
 ## Quick start
 
-You need a **WiCAN dongle** (Pro *or* classic), a car with an OBD-II port, and [`uv`](https://docs.astral.sh/uv/).
+You need a **WiCAN dongle** (Pro or classic), a car with an OBD-II port, and
+[`uv`](https://docs.astral.sh/uv/).
 
 ```bash
 git clone https://github.com/philipkocanda/canair.git
@@ -152,15 +190,22 @@ canair read BMS:2101                    # read a PID (Ioniq profile)
 canair monitor @charging                # monitor a saved selector group (see `canair groups`)
 ```
 
-Full setup — installing, connecting the dongle (Pro vs classic, AP vs LAN), tab-completion, and your first read — is in [Getting started](https://philipkocanda.github.io/canair/getting-started/install/).
+[Getting started](https://philipkocanda.github.io/canair/getting-started/install/) describes the
+full setup: install, connect the dongle (Pro or classic, access point or LAN), tab-completion and
+your first read.
 
-canair checks once a day for a newer release (offline-safe, never blocking); upgrade with `canair update`. See [staying up to date](https://philipkocanda.github.io/canair/getting-started/install/#staying-up-to-date).
+canair checks for a newer release once a day. The check works offline and never blocks a command.
+Upgrade with `canair update`. See
+[staying up to date](https://philipkocanda.github.io/canair/getting-started/install/#staying-up-to-date).
 
-> **You don't need to be a CAN expert to start.** Reading is safe and free — canair only *reads* unless you explicitly actuate something, and every state-changing action confirms first. Interacting with a vehicle bus still carries real risk: see the [Warning](#warning).
+> **You do not need to be a CAN expert to start.** Reading is safe. canair only *reads* unless you
+> tell it to actuate something, and every action that changes state asks for confirmation first.
+> Working with a vehicle bus still has real risk. Read the [Warning](#warning).
 
 ## Bring your own car
 
-The bundled Ioniq profile is just an *example*. To reverse-engineer *your* car, build your own profile and let the discovery/scan commands populate it as you go:
+The bundled Ioniq profile is an *example*. To reverse engineer *your* car, build your own profile.
+The discovery and scan commands fill it as you work:
 
 ```mermaid
 flowchart LR
@@ -174,38 +219,63 @@ flowchart LR
     H --> I["wican autopid write<br/>· share the profile"]
 ```
 
-Each step has a dedicated page under [**Bring your own car**](https://philipkocanda.github.io/canair/bring-your-own-car/overview/): [create](https://philipkocanda.github.io/canair/bring-your-own-car/01-create-profile/) · [discover](https://philipkocanda.github.io/canair/bring-your-own-car/02-discover-ecus/) · [identity](https://philipkocanda.github.io/canair/bring-your-own-car/03-identity/) · [scan](https://philipkocanda.github.io/canair/bring-your-own-car/04-scan/) · [capture](https://philipkocanda.github.io/canair/bring-your-own-car/05-capture/) · [analyze](https://philipkocanda.github.io/canair/bring-your-own-car/06-analyze/) · [define & verify](https://philipkocanda.github.io/canair/bring-your-own-car/07-define-and-verify/) · [share](https://philipkocanda.github.io/canair/bring-your-own-car/08-share/).
+Each step has its own page under
+[**Bring your own car**](https://philipkocanda.github.io/canair/bring-your-own-car/overview/):
+[create](https://philipkocanda.github.io/canair/bring-your-own-car/01-create-profile/) ·
+[discover](https://philipkocanda.github.io/canair/bring-your-own-car/02-discover-ecus/) ·
+[identity](https://philipkocanda.github.io/canair/bring-your-own-car/03-identity/) ·
+[scan](https://philipkocanda.github.io/canair/bring-your-own-car/04-scan/) ·
+[capture](https://philipkocanda.github.io/canair/bring-your-own-car/05-capture/) ·
+[analyze](https://philipkocanda.github.io/canair/bring-your-own-car/06-analyze/) ·
+[define & verify](https://philipkocanda.github.io/canair/bring-your-own-car/07-define-and-verify/) ·
+[share](https://philipkocanda.github.io/canair/bring-your-own-car/08-share/).
 
 ## Profiles
 
-A *profile* bundles one vehicle's data: `ecus/` (one file per ECU, the source of truth), `profile.yaml`, `captures/`, `references/` and a generated `out/`. Manage profiles with `canair profile list` / `create` / `use`, and select one with `--profile`, `CANAIR_PROFILE` or `default_profile`. See [Bundled profiles](https://philipkocanda.github.io/canair/profiles/) for what ships and [Profiles](https://philipkocanda.github.io/canair/concepts/profiles/) for layout, precedence and discovery order.
+A *profile* bundles the data of one vehicle: `ecus/` (one file per ECU, the source of truth),
+`profile.yaml`, `captures/`, `references/` and a generated `out/`. Manage profiles with
+`canair profile list`, `create` and `use`. Select a profile with `--profile`, `CANAIR_PROFILE` or
+`default_profile`. [Bundled profiles](https://philipkocanda.github.io/canair/profiles/) lists the
+profiles that ship. [Profiles](https://philipkocanda.github.io/canair/concepts/profiles/)
+describes the layout, the precedence and the discovery order.
 
 ## The bundled Ioniq profile
 
-The `hyundai-ioniq-ae-ev` profile makes canair a ready-to-use diagnostics toolkit for the
-**Hyundai Ioniq Electric (`AE`)**, built on a 2017 28 kWh car — read live battery, motor,
-charging, climate, and body data over WiFi with no dealer tools. It maps **30 ECUs** and
-**600+ signals** (250+ verified on the car), including:
+The `hyundai-ioniq-ae-ev` profile is a ready-to-use diagnostics toolkit for the **Hyundai Ioniq
+Electric (`AE`)**. It comes from a 2017 28 kWh car. You read live battery, motor, charging,
+climate and body data over WiFi, and you do not need dealer tools. The profile maps **30 ECUs**
+and **600+ signals**. More than 250 of them are verified on the car. They include:
 
-- Battery SOC / voltage / current / power, all 96 individual cell voltages, and State of Health
-- Motor gear, torque, and temperatures; vehicle speed and **individual wheel speeds** (from the ESC module)
-- Charging state (AC / DC CCS) and charge-port lock
-- On-board charger AC/DC (input/output) voltage and current, EVSE pilot current.
-- Electric power steering, tyre pressures/temperatures, HVAC/climate, and body controls (locks, trunk, lights, indicators)
-- **IOControl** actuators (UDS `0x2F`) for hardware you can safely toggle — lights, horn, locks, charge-cable lock, mirrors, wipers (all auto-release when the session ends)
+- Battery state of charge (SOC), voltage, current and power, all 96 cell voltages, and state of
+  health.
+- Motor gear, torque and temperatures. Vehicle speed and **individual wheel speeds** (from the ESC
+  module).
+- Charging state (AC and DC CCS) and charge-port lock.
+- On-board charger AC and DC (input and output) voltage and current, and EVSE pilot current.
+- Electric power steering, tyre pressures and temperatures, HVAC (climate), and body controls
+  (locks, trunk, lights, indicators).
+- **IOControl** actuators (UDS `0x2F`) for hardware that is safe to toggle: lights, horn, locks,
+  charge-cable lock, mirrors and wipers. All actuators release when the session ends.
 
-See [the bundled Ioniq profile](https://philipkocanda.github.io/canair/profiles/hyundai-ioniq-ae-ev/) for the full tour, or the per-ECU files under `profiles/hyundai-ioniq-ae-ev/ecus/`.
+[The bundled Ioniq profile](https://philipkocanda.github.io/canair/profiles/hyundai-ioniq-ae-ev/)
+gives the full tour. The per-ECU files are in `profiles/hyundai-ioniq-ae-ev/ecus/`.
 
-## Contributing 🎉
+## Contributing
 
-**Reverse-engineered your car? Please contribute it back!** A profile you share means the next person with the same vehicle starts with a head start instead of from zero — it's how canair grows beyond one car. Whole profiles, a few decoded signals, corrected offsets, or fixes to canair itself are all welcome as pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md) and [Bring your own car → Share](https://philipkocanda.github.io/canair/bring-your-own-car/08-share/#contribute-your-profile-back).
+**Did you reverse engineer your car? Please contribute it back.** A shared profile gives the next
+owner of the same vehicle a head start. This is how canair grows beyond one car. Pull requests are
+welcome for whole profiles, a few decoded signals, corrected offsets, and fixes to canair itself.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and
+[Bring your own car → Share](https://philipkocanda.github.io/canair/bring-your-own-car/08-share/#contribute-your-profile-back).
 
 ## License
 
-Code: [MIT](LICENSE). Vehicle profiles (`profiles/`): [CC BY 4.0](profiles/LICENSE). Both require
-attribution — keep the copyright notice, and credit "The canair contributors" when you reuse
-profile data.
+Code: [MIT](LICENSE). Vehicle profiles (`profiles/`): [CC BY 4.0](profiles/LICENSE). Both licenses
+require attribution. Keep the copyright notice. When you reuse profile data, credit "The canair
+contributors".
 
 ## Warning
 
-Interacting with your vehicle's CAN bus and ECUs can damage your car, trigger faults, or leave it in an unsafe state. **Use this software entirely at your own risk.** You are solely responsible for any consequences.
+Work on the CAN bus and the ECUs of your vehicle can damage the car, cause faults, or leave the
+car in an unsafe state. **Use this software at your own risk.** You are responsible for all
+consequences.

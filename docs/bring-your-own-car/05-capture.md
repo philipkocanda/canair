@@ -1,53 +1,57 @@
 # 5. Capture
 
-Decoding needs **data under known conditions**. A single reading tells you almost
-nothing; a byte only reveals itself when you watch it change as the car does
-something. Capturing records payloads — tagged with *what the car was doing* — so
-the [analysis](06-analyze.md) tools have something to work with.
+Decoding needs **data under known conditions**. One reading tells you almost nothing. A byte shows
+its meaning only when you watch it change while the car does something. A capture records payloads
+and tags them with *what the car was doing*. The [analysis](06-analyze.md) tools then have data to
+work with.
 
 ## Save what you read
 
-Add `--save` to any read to record it, with context:
+Add `--save` to any read to record it with context:
 
 ```bash
 canair read MyECU:2101 --save --label "highway 100 km/h" --state driving
 ```
 
-- `--label` — a free-text description of the moment ("plugged in, charging").
-- `--state` — the vehicle power state (`driving`, `charging`, `ready`, `sleep`,
-  …). canair can auto-suggest this from decoded values; see
+- `--label` is a free-text description of the moment ("plugged in, charging").
+- `--state` is the vehicle power state (`driving`, `charging`, `ready`, `sleep`, …). canair can
+  suggest the state from the decoded values. See
   [Captures & states](../concepts/captures-and-states.md).
-- `--notes` — anything else worth remembering.
+- `--notes` is anything else that you want to remember.
 
-`--save` works with `read`, `monitor`, `scan`, and `discover`. Saves are
-**journaled** as they stream, so a crashed or disconnected session is never
-lost — recover leftovers with `canair captures uds --recover`.
+`--save` works with `read`, `monitor`, `scan` and `discover`. canair **journals** each save while
+the data streams. A session that crashes or disconnects loses no data. To recover leftovers, run
+`canair captures uds --recover`.
 
 ## No device on hand? Import a reading
 
-Got a payload from elsewhere — a forum post, a GitHub issue, a reading someone
-took on another tool — and want it in your profile? `canair import uds`
-records it through the same machinery as `--save`, so it's indistinguishable from
-a device-recorded capture and immediately decodable:
+You may have a payload from another source: a forum post, a GitHub issue, or a reading that
+someone took with another tool. `canair import uds` records it in your profile. It uses the same
+machinery as `--save`. The result looks the same as a capture from a device, and you can decode it
+immediately:
 
 ```bash
 canair import uds CLU:22B002=62B002E0000000FFB7008D08000000 \
     --label "Odometer" --state acc2 --notes "Verified 36104 km on dash"
 ```
 
-Each capture is `ECU:PID=PAYLOAD` (ECU short name or hex TX id; the PID/DID; the
-reassembled UDS payload, SID-first). Pass several to group them into one session.
-canair resolves the ECU address, rejects non-hex payloads, and warns if the
-payload's SID/DID echo doesn't match the PID (a misfiled frame). This is how
-community-contributed readings get onboarded without a live bus.
+Each capture has the form `ECU:PID=PAYLOAD`:
+
+- `ECU` is the short name of the ECU or its hex TX ID.
+- `PID` is the PID or DID.
+- `PAYLOAD` is the reassembled UDS payload, with the SID first.
+
+Pass several captures to group them in one session. canair resolves the ECU address and rejects
+payloads that are not hex. It warns if the SID and DID echo of the payload does not match the PID
+(a misfiled frame). This is how canair onboards community readings without a live bus.
 
 ### Import a whole frame log
 
-Someone may have logged the diagnostic bus while *their* tool polled the car (a
-Bluetooth dongle running an app's custom PIDs, a workshop tester) and shared the
-log — the [Kona EV logs](https://github.com/projectgus/hyundai-kona-ev-can-logs)
-are one such public (CC0) corpus. Every reply in it is a capture
-`canair read --save` would have recorded, so extract them in one go:
+Someone may have logged the diagnostic bus while *their* tool polled the car. Examples are a
+Bluetooth dongle that runs an app with custom PIDs, or a workshop tester. The person then shared
+the log. The [Kona EV logs](https://github.com/projectgus/hyundai-kona-ev-can-logs) are one such
+public (CC0) corpus. Every reply in a log is a capture that `canair read --save` would have
+recorded. Extract them all at once:
 
 ```bash
 canair import uds --from-log dongle-polling.csv --bus 1 \
@@ -55,41 +59,50 @@ canair import uds --from-log dongle-polling.csv --bus 1 \
     --until-ts 2565 --dry-run          # preview; drop --dry-run to write
 ```
 
-The log is read with the same readers as `import can` (GVRET `.csv`, `.asc`,
-`.blf`, candump `.log`, `.trc`). Each positive reply to a data read (`22 DID`,
-or `21 LID` on KWP2000) from an ECU in the profile becomes one capture with its
-own timestamp, filed by what the *reply* says it answers. What is left out is
-counted and reported, never guessed:
+canair reads the log with the same readers as `import can`: GVRET `.csv`, `.asc`, `.blf`, candump
+`.log` and `.trc`. Each positive reply to a data read (`22 DID`, or `21 LID` on KWP2000) from an
+ECU in the profile becomes one capture. The capture keeps its own timestamp. canair files it
+under what the *reply* says it answers.
 
-- multi-frame replies with a lost frame (also noted in the session's `quality`);
-- replies to batched requests (`22 D1 D2 …`), which cannot be split safely;
-- negative responses, unless you pass `--keep-nrc`;
-- replies from CAN ids not in the profile (the report names them — `canair ecu
-  add` them and re-run).
+canair counts and reports everything that it leaves out. It never guesses. It leaves out:
 
-A log has no absolute clock unless it was recorded on the wall clock, so `--date`
-and `--time` stamp the *first* reply and the rest follow the log's own timing.
-`--from-ts`/`--until-ts` (in the log's timestamps) cut away a stretch that is
-known to be bad, such as where a capture tool starts dropping messages. States are
-not guessed from the log: pass `--state`, or run
-`canair captures uds --backfill-states` afterwards. Importing the same log twice
-is refused. Only normal addressing is supported (not the extended-addressing
-profiles whose frames carry a target-address byte before the PCI byte).
+- multi-frame replies with a lost frame (canair also notes these in the `quality` of the session)
+- replies to batched requests (`22 D1 D2 …`), which canair cannot split safely
+- negative responses, unless you pass `--keep-nrc`
+- replies from CAN IDs that are not in the profile (the report names them. Run `canair ecu add`
+  for them, then run the import again)
+
+A log has no absolute clock, unless someone recorded it on the wall clock. `--date` and `--time`
+stamp the *first* reply. The other replies follow the timing of the log.
+
+`--from-ts` and `--until-ts` (in the timestamps of the log) cut away a stretch that is known to be
+bad. An example is the point where a capture tool starts to drop messages.
+
+canair does not guess states from the log. Pass `--state`, or run
+`canair captures uds --backfill-states` afterwards.
+
+canair refuses to import the same log twice. It supports only normal addressing. It does not
+support the extended-addressing profiles whose frames carry a target-address byte before the PCI
+byte.
 
 ## Capture *contrast*, not just data
 
-The single most useful thing you can do is capture the **same PID in different
-conditions**. A byte that's constant while parked but ramps while accelerating is
-a torque/speed candidate; one that flips only when you lock the doors is a body
-signal. Plan runs that create contrast:
+The most useful thing you can do is capture the **same PID in different conditions**. Some
+examples:
+
+- A byte that is constant while parked but ramps while you accelerate is a torque or speed
+  candidate.
+- A byte that flips only when you lock the doors is a body signal.
+
+Plan runs that create contrast:
 
 - Driving: accelerate, cruise, brake, coast.
 - Charging: unplugged → plugged → charging → full.
-- Body: lock/unlock, lights on/off, doors open/closed.
+- Body: lock and unlock, lights on and off, doors open and closed.
 
-Capture a reference signal you *already* understand alongside the unknown (e.g.
-GPS-confirmed speed, or a known speed PID) — that reference is what makes
-[`hunt`](06-analyze.md) and correlation work.
+Also capture a reference signal that you *already* understand, next to the unknown signal. Examples
+are GPS-confirmed speed or a known speed PID. The reference makes [`hunt`](06-analyze.md) and
+correlation work.
 
 ## Review what you've collected
 
@@ -99,20 +112,18 @@ canair captures uds MyECU --summary  # stats per PID
 canair captures uds MyECU:2101 --diff  # byte-level diff across captures
 ```
 
-A bare `canair captures MyECU 2101` still works — it's shorthand for
-`canair captures uds …` (the diagnostic domain). `canair captures can` lists
-imported raw broadcast-CAN frame logs instead.
+A bare `canair captures MyECU 2101` still works. It is a shorthand for `canair captures uds …`
+(the diagnostic domain). `canair captures can` lists the imported raw broadcast-CAN frame logs.
 
 !!! note
-    Capture files under `captures/` are **never hand-edited** — they're written
-    by `--save` / `import uds` and managed by canair. See
-    [Captures & states](../concepts/captures-and-states.md).
+    **Never edit the capture files in `captures/` by hand.** `--save` and `import uds` write
+    them, and canair manages them. See [Captures & states](../concepts/captures-and-states.md).
 
 !!! tip "Captures are shareable evidence"
-    Well-labelled captures are valuable to the whole project — they're the raw
-    material others use to decode and cross-check signals on the same car.
-    Consider [contributing](08-share.md#contribute-your-profile-back)
-    a representative subset alongside your profile.
+    Well-labelled captures help the whole project. Others use them as raw material to decode and
+    cross-check signals on the same car. Consider
+    [contributing](08-share.md#contribute-your-profile-back) a representative subset with your
+    profile.
 
 ---
 

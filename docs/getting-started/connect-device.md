@@ -1,56 +1,70 @@
 # Connect your dongle
 
-canair reaches the CAN bus *through* an adapter — a WiCAN dongle, or a generic
-ELM327 clone — it never talks CAN directly. This page gets your computer talking
-to the dongle and confirms it's usable.
+canair reaches the CAN bus *through* an adapter: a WiCAN dongle or a generic ELM327 clone. It
+never talks to the CAN bus directly. This page connects your computer to the dongle and checks that
+the dongle works.
 
 ## 1. Plug in and power up
 
-Plug the WiCAN into the vehicle's OBD-II port and switch the car to
-ignition/accessory (so the ECUs are awake). The dongle powers from the port.
+1. Plug the WiCAN into the OBD-II port of the vehicle.
+2. Switch the car to ignition or accessory mode, so the ECUs are awake.
+
+The dongle takes its power from the port.
 
 ## 2. Get on the same network
 
-Two options:
+You have two options:
 
-- **Access-point mode** — the WiCAN broadcasts its own `WiCAN_xxxx` WiFi
-  network. Join it; the dongle is reachable at `192.168.80.1` (canair's default
-  when no address is configured).
-- **Your LAN** — use the WiCAN web UI to put the dongle on your home WiFi. It
-  then gets a normal LAN IP you point canair at. This is the more convenient
-  setup for repeated sessions.
+- **Access-point mode.** The WiCAN broadcasts its own `WiCAN_xxxx` WiFi network. Join this
+  network. The dongle is at `192.168.80.1`. This is the address that canair uses when you
+  configure none.
+- **Your LAN.** Use the WiCAN web UI to connect the dongle to your home WiFi. The dongle gets a
+  normal LAN IP address, and you point canair at it. This setup is more convenient for repeated
+  sessions.
 
 ## 3. Tell canair the address
 
-Edit `~/.config/canair/config.yaml` or use `canair config set`:
+Edit `~/.config/canair/config.yaml`, or use `canair config set`:
 
 ```bash
 canair config set devices.home.host 192.168.1.100
 canair config set default_wican home
 ```
 
-Any command takes `--wican home|vpn|<ip>` to pick a device. Each device can carry its own
-transport (`canair config set devices.vpn.transport wican-ws`), and if the chosen device is
-unreachable canair falls back to the others (`--no-fallback` disables this per command).
-`canair status` follows the same fallback, so it reports the device a live command would really
-use. Add `--wait` to any live command to block until the device comes online; with
-`canair monitor @driving --save --wait` it also keeps reconnecting if the link drops. Every key
-is documented in the [config reference](../reference/config.md).
+Add `--wican home|vpn|<ip>` to any command to pick a device. Each device can have its own
+transport:
+
+```bash
+canair config set devices.vpn.transport wican-ws
+```
+
+If the chosen device is unreachable, canair falls back to the other devices. Add `--no-fallback`
+to a command to turn this off. `canair status` follows the same fallback, so it reports the device
+that a live command would use.
+
+Add `--wait` to any live command to wait until the device is online. With
+`canair monitor @driving --save --wait`, canair also reconnects when the link drops. The
+[config reference](../reference/config.md) documents every key.
 
 ## 4. Pro vs. classic
 
-canair supports both the **WiCAN Pro** and the regular **classic** (non-Pro)
-WiCAN. The default is `pro`; if you have a classic, tell canair so it cleanly
-refuses Pro-only features instead of failing against the device:
+canair supports the **WiCAN Pro** and the regular **classic** (non-Pro) WiCAN. The default is
+`pro`. If you have a classic, tell canair. Then canair refuses Pro-only features with a clear
+message, instead of failing against the device:
 
 ```bash
 canair config set wican_model classic
 ```
 
-**Pro-only features:** AutoPID device sync (`wican autopid upload`/`download`/
-`diff`), `wican mode set`, and the `wican-ws` WebSocket transport. All the core
-reverse-engineering — query, scan, discover, decode, DTCs, sniff, and generating
-AutoPID JSON — works on **both** over the default raw-SLCAN transport.
+**Pro-only features:**
+
+- AutoPID device sync (`wican autopid upload`, `download` and `diff`)
+- `wican mode set`
+- the `wican-ws` WebSocket transport
+
+All the core reverse-engineering features work on **both** models over the default raw-SLCAN
+transport. These features are query, scan, discover, decode, DTCs, sniff, and AutoPID JSON
+generation.
 
 ## 5. Confirm it's working
 
@@ -59,36 +73,36 @@ canair config    # config locations, WiCAN model + addresses, resolved transport
 canair status    # what am I talking to, in what mode, is it reachable?
 ```
 
-If `canair status` reports a reachable device, you're ready. New to the bundled
-example car? Go to [Read live data](first-read.md). Building a profile for your
-own car? Jump to [Bring your own car](../bring-your-own-car/overview.md).
+If `canair status` reports a reachable device, you are ready.
 
-On WiCAN firmware v6, or with a generic ELM327 adapter, read the two sections below first.
+- To try the bundled example car, go to [Read live data](first-read.md).
+- To build a profile for your own car, go to
+  [Bring your own car](../bring-your-own-car/overview.md).
+
+If you use WiCAN firmware v6 or a generic ELM327 adapter, read the two sections below first.
 
 ## Firmware compatibility
 
-canair is built and tested against **WiCAN firmware 4.x**, specifically
-**4.50 to 4.52**. (4.52 only changes the OBD chip firmware it bundles, to
-`V2.3.24`, which hasn't been measured yet.) A 4.x version outside that range
-still works, with a one-line warning.
+canair is built and tested against **WiCAN firmware 4.x**, specifically **4.50 to 4.52**. Version
+4.52 changes only the OBD chip firmware that it bundles (`V2.3.24`). canair has not measured that
+chip firmware yet. A 4.x version outside this range still works, with a one-line warning.
 
-**WiCAN Pro firmware v6** (6.0.0, in beta) is a rewrite rather than an update.
-Before using a 4.x-only interface, canair asks the device which generation it
-runs — read-only `GET`s, `/api/info` and then (unless that was v6)
-`/check_status` — and refuses or warns with the fix instead of failing
-obscurely:
+**WiCAN Pro firmware v6** (6.0.0, in beta) is a rewrite, not an update. Before canair uses a
+4.x-only interface, it asks the device which generation it runs. It sends read-only `GET`
+requests: first `/api/info`, then `/check_status` (unless `/api/info` showed v6). If the interface
+cannot work, canair refuses it or warns you, and it gives the fix.
 
 | On firmware v6 | What canair does |
 |---|---|
-| `elm327-tcp` transport | **Works.** v6 serves a plain ELM327 socket on port 35000 by default. The socket is shared: AutoPID (if enabled) takes the chip back after 10 s without a command. canair notes this when `transport.firmware_check` is `always` (`elm327-tcp` hosts aren't probed by default, since they're usually clones) |
-| `wican-ws` transport | **Refused.** v6 has no `/ws` terminal; use `elm327-tcp` |
+| `elm327-tcp` transport | **Works.** v6 serves a plain ELM327 socket on port 35000 by default. The socket is shared. AutoPID (if enabled) takes the chip back after 10 s without a command. canair notes this when `transport.firmware_check` is `always`. By default, canair does not probe `elm327-tcp` hosts, because they are usually clones |
+| `wican-ws` transport | **Refused.** v6 has no `/ws` terminal. Use `elm327-tcp` |
 | `slcan-tcp` transport (the default) | **Warns, then tries.** A stock v6 device serves no SLCAN until you enable three settings (below) |
-| `sniff --listen-only` | **Refused.** v6 ignores SLCAN's listen-only command; set `can_manager.silent` on the device instead. If the generation can't be confirmed, canair warns that listen-only isn't guaranteed |
+| `sniff --listen-only` | **Refused.** v6 ignores the listen-only command of SLCAN. Set `can_manager.silent` on the device instead. If canair cannot confirm the generation, it warns that listen-only is not guaranteed |
 | `wican mode show`/`set` | **Refused.** v6 has no protocol mode |
-| `wican autopid upload`/`download`/`diff` | **Refused.** v6 changed the AutoPID format and API, which canair can't sync yet. `autopid write` generates the v6 table too (`autopid-v6.json`, for `6.0.0-beta.3` and later), which you can load through the device's web UI ([Share](../bring-your-own-car/08-share.md)). If the generation can't be confirmed, an upload goes ahead with a warning |
+| `wican autopid upload`/`download`/`diff` | **Refused.** v6 changed the AutoPID format and API, and canair cannot sync them yet. `autopid write` also generates the v6 table (`autopid-v6.json`, for `6.0.0-beta.3` and later). You can load it through the web UI of the device ([Share](../bring-your-own-car/08-share.md)). If canair cannot confirm the generation, an upload goes ahead with a warning |
 | `--reboot` | **Skipped.** v6 resumes AutoPID by itself |
 
-So on v6, point canair at the ELM327 socket:
+On v6, point canair at the ELM327 socket:
 
 ```bash
 canair config set devices.home.transport elm327-tcp
@@ -96,31 +110,33 @@ canair config set devices.home.port 35000
 canair status                                        # confirm it's usable
 ```
 
-To use `slcan-tcp` on v6 anyway, enable all three of these in the device's
-settings, then submit them (the device reboots):
+To use `slcan-tcp` on v6, enable all three of these settings on the device. Then submit them. The
+device reboots.
 
 1. **`socket_manager`**: the `slcan0` server (TCP 3333).
-2. **`bridge_manager`**: a bridge from `can` to `slcan0` with translator `slcan`.
+2. **`bridge_manager`**: a bridge from `can` to `slcan0` with the translator `slcan`.
 3. **`can_manager`**: enabled.
 
-Without the bridge (or with `can_manager` off), the SLCAN port accepts the
-connection and then silently discards everything, so every ECU looks dead.
+If the bridge is missing, or `can_manager` is off, the SLCAN port accepts the connection and then
+discards everything without a message. Every ECU then looks dead.
 
-`canair status` shows the generation, version and build it found, and exits `2` when the
-selected transport can't work on that firmware. `canair config set transport.firmware_check
-false` turns the check off for live commands (`status` still reports it); `always` also checks
-`elm327-tcp` hosts. See [the reference](../reference/config.md#firmware-generation-check).
+`canair status` shows the generation, version and build that it found. It exits with code `2`
+when the selected transport cannot work on that firmware.
+
+`canair config set transport.firmware_check false` turns the check off for live commands.
+`status` still reports it. The value `always` also checks `elm327-tcp` hosts. See
+[the reference](../reference/config.md#firmware-generation-check).
 
 !!! warning "Before upgrading a WiCAN to v6"
-    Upgrading from 4.x **erases the device's saved configuration**, stored files
-    and logs. Going back means uploading the 4.x image by hand, after which the
-    device starts with factory defaults.
+    An upgrade from 4.x **erases the saved configuration**, the stored files and the logs of the
+    device. To go back, you upload the 4.x image by hand. The device then starts with factory
+    defaults.
 
 ## Using a generic ELM327 clone (no WiCAN)
 
-Don't have a WiCAN? A generic **WiFi ELM327 adapter** (Kiwi, vLinker, OBDLink, or
-any no-name $10 clone) works over the **`elm327-tcp`** transport — a plain TCP
-socket to the dongle's ELM327 terminal, no WiCAN required:
+If you have no WiCAN, a generic **WiFi ELM327 adapter** works over the **`elm327-tcp`**
+transport. Examples are Kiwi, vLinker, OBDLink, or any no-name $10 clone. The transport is a plain
+TCP socket to the ELM327 terminal of the dongle. You do not need a WiCAN.
 
 ```bash
 canair config set devices.clone.host 192.168.0.10   # the dongle's WiFi IP
@@ -130,20 +146,21 @@ canair config set default_wican clone
 canair status                                        # confirm it's reachable
 ```
 
-Join the dongle's WiFi network first (many clones host their own access point).
-The ELM327 protocol engine is shared with `wican-ws`, so every canair command
-works the same — the dongle performs ISO-TP. There's no HTTP config API on a
-generic clone, so `canair status` reports transport reachability by probing the
-ELM socket directly. (Pointing `elm327-tcp` at a WiCAN running
-[firmware v6](#firmware-compatibility)? Set `transport.firmware_check` to `always`
-and `status` shows its firmware too.)
+First join the WiFi network of the dongle. Many clones host their own access point.
+
+`elm327-tcp` and `wican-ws` share one ELM327 protocol engine. Every canair command works the same
+way, and the dongle does the ISO-TP. A generic clone has no HTTP config API. For this reason,
+`canair status` probes the ELM socket directly to report whether the transport is reachable.
+
+To point `elm327-tcp` at a WiCAN with [firmware v6](#firmware-compatibility), set
+`transport.firmware_check` to `always`. Then `status` also shows the firmware.
 
 !!! warning "Third-party dongles are best-effort"
-    The **WiCAN is the recommended and best-tested adapter**. Generic ELM327 clones vary
-    widely in firmware quality, and cheap ones often struggle with **newer vehicles**, which
-    rely on long multi-frame ISO-TP responses and **extended (29-bit) addressing**. If reads are
-    flaky or truncated, or a clone can't reach an ECU, that's usually the adapter, not canair —
-    try a WiCAN before filing a bug.
+    The **WiCAN is the recommended and best-tested adapter**. The firmware quality of generic
+    ELM327 clones varies widely. Cheap clones often fail on **newer vehicles**, which use long
+    multi-frame ISO-TP responses and **extended (29-bit) addressing**. If reads are flaky or
+    truncated, or a clone cannot reach an ECU, the adapter is usually the cause, not canair. Try a
+    WiCAN before you file a bug.
 
-Want to try canair with **no hardware at all**? See
+To try canair with **no hardware at all**, see
 [Offline testing with ELM327-Emulator](../development/offline-testing.md).

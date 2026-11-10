@@ -1,13 +1,11 @@
 # Bring your own car
 
-The bundled Ioniq profile is just an **example**. canair's tooling is
-vehicle-agnostic — this journey takes you from *nothing* to decoded, verified
-diagnostic signals for **your** car, stored in a [profile](../concepts/profiles.md)
-you can share.
+The bundled Ioniq profile is an **example**. The tooling of canair works with any vehicle. This
+journey takes you from *nothing* to decoded, verified diagnostic signals for **your** car. You
+store the result in a [profile](../concepts/profiles.md) that you can share.
 
-You don't need to know your car's PIDs in advance. The discovery and scan
-commands are a **write path**: they populate the profile as they find things, so
-the profile grows itself as you work.
+You do not need to know the PIDs of your car in advance. The discovery and scan commands are a
+**write path**. They add what they find to the profile, so the profile grows while you work.
 
 ## The arc
 
@@ -31,31 +29,30 @@ flowchart LR
 | [4. Scan for data](04-scan.md) | `canair scan` | Which PIDs/DIDs each ECU answers |
 | [5. Capture](05-capture.md) | `canair read … --save` | Real payloads with driving/charging context |
 | [6. Analyze](06-analyze.md) | `decode` / `correlate` / `hunt` / `investigate` | Which byte *is* which signal |
-| [7. Define & verify](07-define-and-verify.md) | `canair pids upsert-param`, `coverage` | Named parameters in `ecus/` |
-| [8. Share](08-share.md) | `canair wican autopid write` | WiCAN AutoPID JSON; a profile to contribute |
+| [7. Define & verify](07-define-and-verify.md) | `canair pids upsert-param`, `coverage` | Named signals in `ecus/` |
+| [8. Share](08-share.md) | `canair wican autopid write` | WiCAN AutoPID JSON and a profile to contribute |
 
-Optional side-journey: [9. Broadcast CAN frames](09-broadcast-frames.md) decodes
-signals that are *broadcast* on the internal bus (drive mode, regen, wheel
-speeds) rather than answered on request — a parallel import → analyze → define
-arc for when you have a raw frame log. See also
+There is an optional side journey. [9. Broadcast CAN frames](09-broadcast-frames.md) decodes
+signals that the car *broadcasts* on its internal bus, such as drive mode, regen and wheel speeds.
+The ECUs do not answer these on request. The side journey is a parallel import, analyze and define
+arc. Use it when you have a raw frame log. See also
 [Broadcast CAN frames](../concepts/broadcast-frames.md).
 
 ## It's a loop, not a line
 
-Reverse-engineering is iterative. You'll often capture some data, analyze it,
-realize you need *different* conditions (accelerating vs. coasting, plugged vs.
-charging), and go capture again. That's expected — the dashed arrow above.
+Reverse engineering is iterative. You often capture data and analyze it. Then you find that you
+need *different* conditions, for example accelerating or coasting, and plugged in or charging.
+Then you capture again. This is normal. The dashed arrow in the diagram shows it.
 
-The rule of thumb: **read and capture freely, define conservatively.** Mark new
-signals `--unverified` until you've confirmed them against a known reference
-or across enough captures, then promote them. See
-[Define & verify](07-define-and-verify.md).
+The rule: **read and capture freely, define conservatively.** Mark new signals `--unverified`.
+Promote a signal only after you confirm it against a known reference, or across enough captures.
+See [Define & verify](07-define-and-verify.md).
 
 ## Before you start
 
-Make sure you've done [Getting started](../getting-started/install.md) — canair
-installed, your dongle configured, and `canair status` reporting a reachable
-device. Everything below assumes that works.
+Complete [Getting started](../getting-started/install.md) first. canair must be installed, your
+dongle must be configured, and `canair status` must report a reachable device. Every step below
+needs this.
 
 ---
 

@@ -1,9 +1,9 @@
 # 2. Discover ECUs
 
-`canair discover` sweeps a range of CAN addresses, sends each a diagnostic
-session request (`10 01`), and classifies which ones respond. Crucially, with
-`--register` it **writes** the responders into your profile's `ecus/` — so
-discovery is how your empty profile gets its first content.
+`canair discover` sweeps a range of CAN addresses. It sends each address a diagnostic session
+request (`10 01`) and classifies which addresses respond. With `--register`, it **writes** the
+responders into the `ecus/` directory of your profile. Discovery is how your empty profile gets its
+first content.
 
 ## Sweep and register
 
@@ -11,22 +11,24 @@ discovery is how your empty profile gets its first content.
 canair discover --register
 ```
 
-This probes the default address range (`700–7EF`, where most OBD-II ECUs live),
-then adds a file under `ecus/` for each newly-found ECU. The sweep skips `7DF`, the functional
-(broadcast) id inside that range: a request there reaches every ECU at once, so it has its own
-[functional sweep](#map-which-buses-the-gateway-reaches). Preview without writing:
+The command probes the default address range (`700–7EF`, where most OBD-II ECUs live). It adds a
+file under `ecus/` for each new ECU.
+
+The sweep skips `7DF`, the functional (broadcast) ID in this range. A request on `7DF` reaches
+every ECU at once. It has its own [functional sweep](#map-which-buses-the-gateway-reaches).
+
+To preview the result without writing:
 
 ```bash
 canair discover --register --dry-run
 ```
 
-Already-registered ECUs are skipped, so it's safe to re-run as you find more.
+The command skips ECUs that are already registered. You can run it again when you find more.
 
 ## Also read identity in one pass
 
-Add `--identify` to run [identity decoding](03-identity.md) on each live ECU
-right after the sweep — pulling part numbers, hardware/software versions, and the
-VIN where available:
+Add `--identify` to run [identity decoding](03-identity.md) on each live ECU after the sweep. It
+reads part numbers, hardware and software versions, and the VIN where available:
 
 ```bash
 canair discover --register --identify
@@ -45,12 +47,12 @@ canair discover --register --identify
 
 ## What gets written
 
-Each newly-registered ECU becomes an `ecus/<name>.yaml` file with a placeholder
-name (derived from its address), its TX/RX addresses, and a note recording when
-and how it was discovered. You'll rename and enrich these as you learn what each
-one is — the [identity](03-identity.md) step is the fastest way to start.
+Each new ECU becomes an `ecus/<name>.yaml` file. The file has a placeholder name (derived from the
+address of the ECU), the TX and RX addresses, and a note. The note records when and how canair
+discovered the ECU. You rename and enrich these files when you learn what each ECU is. The
+[identity](03-identity.md) step is the fastest way to start.
 
-Confirm what landed:
+Check what canair wrote:
 
 ```bash
 canair ecu            # list registered ECUs
@@ -59,57 +61,73 @@ canair validate all   # everything still valid
 
 ## Map which buses the gateway reaches
 
-On a car with a central gateway, the OBD-II port sits on its own diagnostic bus and the gateway
-forwards requests to the others. A *functional* (broadcast) request, on `0x7DF` (or `0x18DB33F1`
-in a 29-bit profile), is answered by every ECU the gateway forwards it to, each on its own
-response ID. One such request shows which ECUs, and so which buses, are reachable from the port:
+A car with a central gateway has a separate diagnostic bus at the OBD-II port. The gateway
+forwards requests to the other buses.
+
+A *functional* (broadcast) request goes to `0x7DF`. In a 29-bit profile, it goes to `0x18DB33F1`.
+Every ECU that the gateway forwards the request to answers it, each on its own response ID. One
+request therefore shows which ECUs, and so which buses, you can reach from the port:
 
 ```bash
 canair discover --functional
 ```
 
-It sends `3E 00` (TesterPresent, harmless and answered by both UDS and KWP2000 ECUs), listens for
-1 s (`--window`), and lists every responder grouped by the `can_bus:` your profile gives it.
-Responders the profile does not know are flagged, and known ECUs that stayed silent are listed per
-bus: a whole bus that stays silent is probably not routed. `--register` and `--identify` work as in
-the physical sweep.
+The command sends `3E 00` (TesterPresent). This request is harmless, and both UDS and KWP2000
+ECUs answer it. The command listens for 1 s (`--window`). It lists every responder, grouped by the
+`can_bus:` that your profile gives it.
 
-- **Allowed requests:** a functional frame reaches every ECU at once, so only these reads can be
-  sent with `--request`, and `--unsafe` does not widen the list: `3E00`, `22xxxx` (one DID),
-  `1Axx`, `1902xx`, `1800FF00`, `01xx` (one OBD-II mode 01 PID, the request a generic scan tool
-  broadcasts). Session control, resets, DTC clears and anything that writes or actuates are
-  refused.
-- **Not every ECU answers everything:** UDS ECUs stay silent for a request they do not support,
-  while KWP2000-style ECUs often answer with an NRC. Try a second request such as `--request
-  22F18C` (serial number) or `--request 190208` (DTCs) before concluding a bus is unreachable.
-- **Repeats:** `--repeat N --interval S` sends the request again, at least 1 s apart. It prints one
-  line per round, then one map with a mark per round before each ECU (`+` positive, `~` negative
-  response, `-` no reply), which shows a bus that drops out under load.
-- **Side effect:** on Hyundai/Kia any functional request also tells ECUs that poll other ECUs
-  themselves to stop, as the manufacturer's diagnostic spec requires. That changes what the car
-  does, so it is not a purely passive read.
-- **Transport:** `slcan-tcp` sees every frame and sends each multi-frame responder its flow
-  control on that ECU's own request ID. An ELM327 (`wican-ws`, `elm327-tcp`) is best-effort: the
-  adapter handles flow control and decides when to stop listening, and overlapping multi-frame
-  replies are where it is weakest. For the request canair opens the adapter's receive filter to
-  every diagnostic reply ID, since its automatic filter would pass only `0x7E8`-`0x7EF`; an
-  adapter that refuses is named in the report.
-- **Silent is not off:** an ECU can ignore a functional request and still answer a physical one.
-  The Ioniq's cluster does, and its audio amplifier needs the 1 s window. Before you decide an ECU
-  is asleep or unreachable, ask it directly: `canair raw ECU:3E00`.
-- **Slow answers:** an ECU that only sent ResponsePending (`7F xx 78`) by the end of the window
+- It flags responders that the profile does not know.
+- It lists the known ECUs that stayed silent, for each bus. A bus that is completely silent is
+  probably not routed.
+- `--register` and `--identify` work as in the physical sweep.
+
+Some details:
+
+- **Allowed requests.** A functional frame reaches every ECU at once. For this reason,
+  `--request` accepts only these reads, and `--unsafe` does not widen the list:
+
+    - `3E00`
+    - `22xxxx` (one DID)
+    - `1Axx`
+    - `1902xx`
+    - `1800FF00`
+    - `01xx` (one OBD-II mode 01 PID, the request that a generic scan tool broadcasts)
+
+    canair refuses session control, resets, DTC clears, and anything that writes or actuates.
+
+- **Not every ECU answers every request.** A UDS ECU stays silent for a request that it does not
+  support. A KWP2000-style ECU often answers with a negative response code (NRC). Before you
+  decide that a bus is unreachable, try a second request. Examples are `--request 22F18C` (serial
+  number) and `--request 190208` (DTCs).
+- **Repeats.** `--repeat N --interval S` sends the request again, at least 1 s apart. canair
+  prints one line for each round. Then it prints one map with one mark per round before each ECU:
+  `+` for a positive response, `~` for a negative response, `-` for no reply. The map shows a bus
+  that drops out under load.
+- **Side effect.** On Hyundai and Kia vehicles, any functional request also tells the ECUs that
+  poll other ECUs themselves to stop. The manufacturer's diagnostic specification requires this.
+  The request changes what the car does, so it is not a purely passive read.
+- **Transport.** `slcan-tcp` sees every frame. It sends the flow control to each multi-frame
+  responder on the request ID of that ECU. An ELM327 (`wican-ws`, `elm327-tcp`) is
+  best-effort. The adapter handles flow control and decides when to stop listening. It is weakest
+  when multi-frame replies overlap. For this request, canair opens the receive filter of the
+  adapter to every diagnostic reply ID, because the automatic filter passes only `0x7E8` to
+  `0x7EF`. If an adapter refuses, the report names it.
+- **Silent is not off.** An ECU can ignore a functional request and still answer a physical
+  request. The cluster of the Ioniq does this. Its audio amplifier needs the 1 s window. Before you
+  decide that an ECU is asleep or unreachable, ask it directly: `canair raw ECU:3E00`.
+- **Slow answers.** An ECU that sent only ResponsePending (`7F xx 78`) by the end of the window
   is listed as `pending`, not as silent.
-- **Limits:** profiles on CAN-FD, and on `normal_29bit` addressing (free-form 29-bit reply IDs),
-  are refused; `normal_fixed_29bit` (`0x18DAF1xx` replies) works.
+- **Limits.** canair refuses profiles on CAN-FD and profiles with `normal_29bit` addressing
+  (free-form 29-bit reply IDs). `normal_fixed_29bit` (`0x18DAF1xx` replies) works.
 
-`--save` records each round as a discover-style capture, one entry per responder.
+`--save` records each round as a discover-style capture, with one entry for each responder.
 
 ## No car handy? (starting a profile offline)
 
-`discover` needs a live vehicle. If you're bootstrapping a **blank profile for
-contribution** — e.g. seeding one ECU you *know* exists from another model-year —
-register it offline with `canair ecu add` (the offline counterpart to
-`discover --register`; the write is validated and comment-preserving):
+`discover` needs a live vehicle. You can start a **blank profile for contribution** without one.
+For example, you can seed one ECU that you *know* exists from another model year. Register it
+offline with `canair ecu add`. This is the offline counterpart of `discover --register`. canair
+validates the write and keeps the comments in the file.
 
 ```bash
 canair --profile my-car ecu add 7C6 --name CLU \
@@ -117,11 +135,17 @@ canair --profile my-car ecu add 7C6 --name CLU \
     --notes "Shares 0x7C6 with another model-year; no PIDs decoded yet."
 ```
 
-Flags: `--name` (defaults to `Unknown-<TX>`), `--description`, `--id-protocol`
-(`UDS`/`KWP2000`), `--notes`, `--overwrite` (replace existing identity fields),
-and `--dir` (target a specific `ecus/`). Re-running with the same TX is
-idempotent. Everything after this step assumes you'll enrich the ECU with a live
-car.
+Flags:
+
+- `--name` (default: `Unknown-<TX>`)
+- `--description`
+- `--id-protocol` (`UDS` or `KWP2000`)
+- `--notes`
+- `--overwrite` (replace existing identity fields)
+- `--dir` (target a specific `ecus/` directory)
+
+If you run the command again with the same TX, nothing changes. The steps after this one assume
+that you enrich the ECU with a live car.
 
 ---
 
