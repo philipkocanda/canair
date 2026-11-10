@@ -40,13 +40,13 @@ The **WiCAN is recommended and best-tested**. Generic clones are best-effort and
 ```mermaid
 flowchart LR
     subgraph host["Your computer — canair"]
-        cli["canair CLI<br/>transport: wican-ws | slcan-tcp"]
+        cli["canair CLI<br/>transport: wican-ws | slcan-tcp | elm327-tcp"]
         defs["Profile PID/DID defs<br/>+ captures"]
         isotp["client-side ISO-TP + UDS<br/>(pipelined; slcan-tcp only)"]
     end
 
-    subgraph wican["WiCAN dongle — one protocol at a time"]
-        ws["ELM327 WebSocket terminal<br/>ws://HOST/ws"]
+    subgraph wican["WiCAN dongle (or ELM327 clone) — one protocol at a time"]
+        ws["ELM327 terminal<br/>ws://HOST/ws (wican-ws)<br/>or a clone's TCP port (elm327-tcp)"]
         slcan["SLCAN socket<br/>tcp://HOST:PORT"]
     end
 
@@ -55,7 +55,7 @@ flowchart LR
         ecus["ECUs<br/>BMS · VCU · MCU · IGPM · BCM …"]
     end
 
-    cli -->|"wican-ws:<br/>ELM327 AT + UDS/KWP2000 hex"| ws
+    cli -->|"wican-ws, elm327-tcp:<br/>ELM327 AT + UDS/KWP2000 hex"| ws
     cli --> isotp
     isotp <-->|"slcan-tcp:<br/>raw CAN frames"| slcan
     ws <-->|"dongle does ISO-TP"| bus

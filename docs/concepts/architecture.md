@@ -3,26 +3,26 @@
 canair **never talks CAN directly** — it reaches the bus through an adapter
 (a WiCAN dongle, or a generic ELM327 clone) over one of several
 explicitly-selected transports. Responses are parsed and decoded into named
-parameters using the active [profile](profiles.md)'s definitions.
+signals using the active [profile](profiles.md)'s definitions.
 
 ## How it connects
 
 ```mermaid
 flowchart LR
     subgraph host["Your computer — canair"]
-        cli["canair CLI<br/>transport: wican-ws | slcan-tcp"]
+        cli["canair CLI<br/>transport: wican-ws | slcan-tcp | elm327-tcp"]
         defs["Profile PID/DID defs<br/>+ captures"]
         isotp["client-side ISO-TP + UDS<br/>(pipelined; slcan-tcp only)"]
     end
-    subgraph wican["WiCAN dongle — one protocol at a time"]
-        ws["ELM327 WebSocket terminal"]
+    subgraph wican["WiCAN dongle (or ELM327 clone) — one protocol at a time"]
+        ws["ELM327 terminal<br/>(WebSocket, or TCP on a clone)"]
         slcan["SLCAN socket"]
     end
     subgraph car["Vehicle (OBD-II port)"]
         bus["CAN bus"]
         ecus["ECUs"]
     end
-    cli -->|"wican-ws: ELM327 + UDS/KWP2000"| ws
+    cli -->|"wican-ws, elm327-tcp: ELM327 + UDS/KWP2000"| ws
     cli --> isotp
     isotp <-->|"slcan-tcp: raw CAN frames"| slcan
     ws <-->|"dongle does ISO-TP"| bus
