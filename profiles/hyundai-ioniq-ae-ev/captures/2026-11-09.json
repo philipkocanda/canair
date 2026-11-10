@@ -1,0 +1,84 @@
+{
+  "sessions": [
+    {
+      "date": "2026-11-09",
+      "label": "0x587 AirconCtr injection test",
+      "version": "5.2.0+main.b523996.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "slcan-tcp",
+      "quality": {
+        "exchanges": 9
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009211051064A0300000000DA78000720","time":"22:41:29.727","elapsed_ms":45},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFAB1B872648A3FFEA0F19080707080707080007C903C90100009400059390000590A6000205790001F4BD016326D80901820000000003E8","time":"22:41:29.992","elapsed_ms":108}
+      ]
+    },
+    {
+      "date": "2026-11-09",
+      "label": "0x587 post-injection live check",
+      "version": "5.2.0+main.b523996.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "slcan-tcp",
+      "quality": {
+        "exchanges": 3
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921105906480300000000DF78000720","time":"22:44:03.730","elapsed_ms":112},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFAB1B6D2648A3FFEA0F1C080707080707080007C93CC90100009400059391000590A6000205790001F4BD016327710901820000000003E8","time":"22:44:03.900","elapsed_ms":155}
+      ]
+    },
+    {
+      "date": "2026-11-09",
+      "label": "0x587 injection retest",
+      "version": "5.2.0+main.b523996.dirty",
+      "vehicle_states": [
+        "CHARGING"
+      ],
+      "transport": "slcan-tcp",
+      "quality": {
+        "exchanges": 10
+      },
+      "variant": "28kwh",
+      "revisions": {
+        "BMS": "KWP"
+      },
+      "attribution": {
+        "variant": "selected",
+        "revisions": {
+          "BMS": "only"
+        }
+      },
+      "captures": [
+        {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921104F06450300000000F678000720","time":"22:47:46.846","elapsed_ms":60},
+        {"rx":"0x7BB","pid":"2201A0","payload":"6201A08C00FA98989B315D5D59594D939300000101004628153C05000C00F40F000A00FFFF15150046000000FA1400000000000000000000004200","time":"22:47:47.102","elapsed_ms":183},
+        {"rx":"0x7BB","pid":"2201A1","payload":"6201A1000000000000010100780043004100FA00460008057F000000000EE102320100000000000000000AD508370190029100000000001D000005","time":"22:47:47.220","elapsed_ms":117},
+        {"rx":"0x7EC","pid":"2101","payload":"6101FFFFFFFFAB1B522648A3FFEB0F1F080707080707080007C903C90100009300059392000590A6000205790001F4BD016328510901820000000003E8","time":"22:47:47.329","elapsed_ms":102}
+      ]
+    }
+  ]
+}

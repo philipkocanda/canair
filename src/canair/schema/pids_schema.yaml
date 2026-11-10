@@ -219,7 +219,7 @@ definitions:
       memory:
         description: >-
           ReadMemoryByAddress (service 0x23): how a memory read is formed, and what `canair scan
-          memory` found. Edit with `canair pids set-memory` and `canair scan memory`; checked by
+          memory` found. Edit with `canair memory set` and `canair scan memory`; checked by
           src/canair/ecus/memory.py.
         properties:
           format:

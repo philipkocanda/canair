@@ -10,7 +10,7 @@
         - {start: 0xFEDE0000, end: 0xFEDFFFFF, result: readable, software: "220", scanned: …}
 
 A KWP2000 ECU's form is fixed, so it reads memory with no ``format:``. The section is
-written by ``canair pids set-memory`` and ``canair scan memory``
+written by ``canair memory set`` and ``canair scan memory``
 (:mod:`canair.yaml_edit.memory`) and checked by :mod:`canair.validation.memory`.
 """
 

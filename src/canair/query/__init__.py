@@ -131,7 +131,7 @@ def explicit_request(token: str, memory_format: MemoryFormat | None = None) -> s
         if memory_format is None:
             raise QueryError(
                 f"PID {token!r} is a memory read, and its ECU declares no memory format "
-                "(set one with `canair pids set-memory ECU --format 24`)"
+                "(set one with `canair memory set ECU --format 24`)"
             )
         try:
             return memory_request(memory_format, address, size)
