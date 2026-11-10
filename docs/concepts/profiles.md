@@ -18,7 +18,7 @@ Electric profile](../profiles/hyundai-ioniq-ae-ev.md) for what a mature profile 
   groups.yaml      # named selector groups, recalled as @name
   variants.yaml    # (optional) the car's variants — battery, facelift, market — see Variants
   ecus/            # ONE FILE PER ECU — the single source of truth
-    bms.yaml       #   identity, scan log, DTC meanings, PIDs, parameters, research
+    bms.yaml       #   identity, scan log, DTC meanings, PIDs, signals, research
     igpm.yaml
     …
   captures/        # recorded UDS payloads, split by date (never hand-edited)
@@ -31,7 +31,7 @@ Electric profile](../profiles/hyundai-ioniq-ae-ev.md) for what a mature profile 
 
 `ecus/` is the heart of it: each `ecus/<name>.yaml` fully describes one ECU — its
 identity, the history of what's been probed on it, DTC meanings, its PIDs and
-decoded parameters, and a `research:` backlog of what's left to do. Each ECU also
+decoded signals, and a `research:` backlog of what's left to do. Each ECU also
 records its `id_protocol` (UDS vs KWP2000) — see
 [ECU protocols & PID prefixes](ecu-protocols.md).
 
@@ -44,13 +44,16 @@ are absent unless you import broadcast data; `canair validate signals` and
 ## `profile.yaml` settings
 
 `profile.yaml` holds the profile-wide, vehicle-level settings. Only `car_model`
-and `init` are required; everything else is optional with a sensible default.
+and `init` are required, except in a capture layer (`extends`), which needs neither;
+everything else is optional with a sensible default.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `car_model` | str | Human description (required). |
+| `car_model` | str | Human description (required unless `extends` is set). |
+| `extends` | str | Makes this bundle a capture layer over the named profile (`canair profile overlay`). See [Layered profiles](../development/layered-profiles.md). |
+| `aliases` | map | Former names of the profile, which still resolve to it. See [Renamed profiles](#renamed-profiles). |
 | `also_known_as` | list | Other names owners call the car, for finding it: `[Classic Ioniq, Ioniq EV]`. See [Other names for a car](#other-names-for-a-car). |
-| `init` | str | ELM327 AT init string, `;`-separated (required). Used by the ELM327 transports (`wican-ws`, `elm327-tcp`) only; `slcan-tcp` ignores it. A fresh profile scaffolds `ATSP6;ATS0;ATAL;` (ISO 15765-4, 11-bit, 500 kbit). Leave out `ATSH`/`ATFCSH`/`ATFCSD`/`ATFCSM` — canair sets those per ECU from `addressing`, and `canair validate` warns about them. An `ATCRA` filter set here stays in force for conventional (`tx + 0x08`) ECUs. The init is sent on every connect, so canair keeps it from writing the adapter's EEPROM (rated for about 10,000 writes): it turns the memory function off (`ATM0`) after every reset and sends `ATSP h` as `ATTP h`, which selects the same protocol without saving it. `canair validate` warns about init commands that would still write it (`ATPP`, `ATSD`, `ATCV`, `STWBR`, `STSAVCAL`, `ATSP00`). |
+| `init` | str | ELM327 AT init string, `;`-separated (required unless `extends` is set). Used by the ELM327 transports (`wican-ws`, `elm327-tcp`) only; `slcan-tcp` ignores it. A fresh profile scaffolds `ATSP6;ATS0;ATAL;` (ISO 15765-4, 11-bit, 500 kbit). Leave out `ATSH`/`ATFCSH`/`ATFCSD`/`ATFCSM` — canair sets those per ECU from `addressing`, and `canair validate` warns about them. An `ATCRA` filter set here stays in force for conventional (`tx + 0x08`) ECUs. The init is sent on every connect, so canair keeps it from writing the adapter's EEPROM (rated for about 10,000 writes): it turns the memory function off (`ATM0`) after every reset and sends `ATSP h` as `ATTP h`, which selects the same protocol without saving it. `canair validate` warns about init commands that would still write it (`ATPP`, `ATSD`, `ATCV`, `STWBR`, `STSAVCAL`, `ATSP00`). |
 | `can_bitrate` | int | Vehicle bus speed in bit/s, used by the raw `slcan-tcp` transport and `canair sniff` (an ELM327 takes its speed from the `ATSP` protocol in `init`). Set it when the diagnostic bus isn't 500 kbit/s (e.g. `250000`). Precedence: the device's config entry or `transport.bitrate` > this > the WiCAN's own setting > `500000`. |
 | `addressing` | map | How arbitration IDs are formed: `mode`, `rx_offset`, and the extended-mode address bytes. See [Addressing](#addressing) below. |
 | `response_timeout_ms` | int | ELM327 response timeout (applied as `ATSTxx`; `--elm-timeout` overrides). Raise it for slow ECUs (the Ioniq needs `614`), lower it to speed up cycles. |
@@ -60,6 +63,7 @@ and `init` are required; everything else is optional with a sensible default.
 | `quirks` | list | Make-specific behaviour toggles; make-neutral profiles omit it. `skm_wakeup`: enables the Ioniq Smart Key Module relay wake. `nissan_c0_session`: permits the Nissan session `10 C0` on KWP2000 ECUs (otherwise blocked, see [Safety](safety.md)) and adapts the `scan iocontrol`, `scan sessions` and `scan routines` probes to it. `hk_90_session`: permits the Hyundai/Kia session `10 90`, which their KWP2000 actuator tests run in, on KWP2000 ECUs (`scan sessions` then probes it too). `hk_forced_sleep`: lets a guarded profile action send the Hyundai/Kia functional `10 D1` sleep request; it is not a session allowance (see [Safety](safety.md#profile-actions-guarded-make-specific-requests)). The retired `hk_f1xx_minus_one` does nothing: the Hyundai/Kia identity DIDs it let answer one lower were ECUs repeating their previous reply. `canair validate` warns about it. |
 | `isotp` | map | Client-side ISO-TP tuning for `slcan-tcp` (see below). `stmin` also sets the ELM327 flow-control data (`ATFCSD 30 00 {stmin}`); the block size there is always `0`. |
 | `physical_bands` | map | Vehicle-axis overrides for the reference-free physical-value scan (see below). |
+| `unit_guess_candidates` | list | Make-specific scalings for the slope-to-unit sniffer (`hunt`, `investigate`). Each entry has a `factor` and a `label`, and optionally an `offset`, `hint` and `dimension`. |
 
 ### Editor validation
 
@@ -128,7 +132,7 @@ per this car's needs (e.g. a car whose ECUs pad their replies with `0x00` instea
 or a CAN-FD bus). The accepted keys — `tx_padding`, `rx_padding`, `blocksize`, `stmin`,
 `rx_flowcontrol_timeout`, `rx_consecutive_frame_timeout`, `wftmax`, `can_fd`,
 `tx_data_length` — and their defaults are defined in
-[`src/canair/transport/isotp_params.py`](https://github.com/philipkocanda/canair/blob/main/canair/transport/isotp_params.py).
+[`src/canair/transport/isotp_params.py`](https://github.com/philipkocanda/canair/blob/main/src/canair/transport/isotp_params.py).
 `canair validate` type-checks every field and rejects an unknown `isotp:` key.
 
 The two padding keys are different bytes:
@@ -237,8 +241,10 @@ name keeps working everywhere a profile is named:
 
 ```yaml
 aliases:
-  ioniq-2017: {}
+  ioniq-2017: {variant: 28kwh}
 ```
+
+An alias may also name the variant the old name implied (`variant:`). `{}` implies nothing.
 
 - `--profile ioniq-2017` and `CANAIR_PROFILE=ioniq-2017` resolve to `hyundai-ioniq-ae-ev`, with a
   one-line note naming the new name.
