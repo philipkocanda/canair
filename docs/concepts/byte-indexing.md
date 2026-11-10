@@ -63,7 +63,7 @@ correct in one is off-by-one-or-two in another.
 
 ## canair expressions use WiCAN `Bnn`
 
-Parameter expressions reference bytes as `[Bnn]` (and bits as `[Bnn:k]`), using
+Signal expressions reference bytes as `[Bnn]` (and bits as `[Bnn:k]`), using
 the WiCAN byte index. So `"[B12]"` extracts WiCAN byte 12.
 
 ## Let the tool do the conversion
@@ -132,7 +132,7 @@ a data byte.
 An unrecognised service falls back to the generic `SID` + `PID`/`DID` labelling
 using the width from `-1`/`-2` or `--pid`.
 
-Add `--ecu ECU --pid PID` to `--annotate` to overlay which defined parameter maps
+Add `--ecu ECU --pid PID` to `--annotate` to overlay which defined signal maps
 each byte and flag `unmapped` data bytes — the fastest way to catch a wrong
 offset in an expression:
 
@@ -155,7 +155,7 @@ Write the PID with its full service prefix (`22B004`, not the short `B004`) if y
 are relying on it: a short-form DID doesn't state its service, so it can't be told
 from a 1-byte PID.
 
-![canair bix --annotate with --ecu/--pid — per-byte notations, roles, and mapped params](../screenshots/bix-annotate.svg)
+![canair bix --annotate with --ecu/--pid — per-byte notations, roles, and mapped signals](../screenshots/bix-annotate.svg)
 
 ## Switch the notation in analysis output
 

@@ -154,7 +154,7 @@ an override. See [Byte indexing](byte-indexing.md) for how this feeds into `Bnn`
 
 ```bash
 canair ecu                 # every ECU with its protocol
-canair ecu BMS             # one ECU: protocol, addresses, PID/param counts
+canair ecu BMS             # one ECU: protocol, addresses, PID and signal counts
 canair identity BMS        # reads identity, auto-picking 21 vs 22 by protocol
 ```
 

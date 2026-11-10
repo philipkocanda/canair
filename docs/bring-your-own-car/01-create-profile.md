@@ -1,7 +1,7 @@
 # 1. Create a profile
 
 A **profile** is a directory bundling everything canair knows about one vehicle:
-its ECUs, PID/parameter definitions, captured payloads, and settings. See
+its ECUs, PID and signal definitions, captured payloads, and settings. See
 [Profiles](../concepts/profiles.md) for the full layout.
 
 ## Scaffold it

@@ -57,7 +57,7 @@ drive: 2–8 distinct values (or a byte whose bits toggle independently) is almo
 certainly an enum/flag; dozens of smoothly-changing values is continuous.
 
 The worked example below (finding vehicle speed) follows the **continuous** path.
-The **discrete** path — typed parameters and categorical statistics — is covered
+The **discrete** path — typed signals and categorical statistics — is covered
 under [Categorical signals](#categorical-signals-modes-flags-schedules) further
 down.
 
@@ -83,7 +83,7 @@ raw payload to byte indices so you know exactly what you're looking at:
 canair bix --annotate 6101FFFF… --ecu MyECU --pid 2101
 ```
 
-![canair bix --annotate — map a payload to byte notations and params](../screenshots/bix-annotate.svg)
+![canair bix --annotate — map a payload to byte notations and signals](../screenshots/bix-annotate.svg)
 
 > Byte indexing is the classic trap — WiCAN, ISO-TP, and Torque all count bytes
 > differently, and there are transport (PCI) bytes you must not read across. See
@@ -113,7 +113,7 @@ scroll a tall frame (`g`/`G` for its first/last frame, `Home`/`End` for the view
 top/bottom), **`p`** adds/removes signals from the comparison,
 **`J`** changes the join tolerance,
 **`V`** switches rendering (`signals` drops the hex to fit more PIDs; `changed`
-shows only parameters whose value actually moved), **`tab`** picks a block so
+shows only signals whose value actually moved), **`tab`** picks a block so
 **`e`** can annotate that capture, and **`?`** lists every key.
 
 **Moving between frames keeps your scroll position.** A stacked frame is usually taller than the
@@ -133,7 +133,7 @@ while you remember what you did, and analysis becomes "jump to the event, then s
 Notes are stored with the capture and show up in `canair captures --sessions`.
 
 To see what's still undecoded across a whole ECU (or PID), `canair coverage`
-audits every parameter expression against the payload length of the PID's newest
+audits every signal expression against the payload length of the PID's newest
 session and lists the **unmapped** and partially-decoded bytes (every finding, and how the
 length is chosen, is in [Audit for gaps](07-define-and-verify.md#audit-for-gaps)). The usual
 scope flags apply, so `--until DATE` audits against the history as it stood on that date:
@@ -248,7 +248,7 @@ canair decode MyECU 2101 --try "SPEED_KMH=[B12]" --corr ESC:22C101:REAL_SPEED_KM
 canair decode MyECU 2101 --plot               # interactive: sweep interpretations visually
 ```
 
-`--plot` opens an interactive explorer: step through parameters/bytes, sweep
+`--plot` opens an interactive explorer: step through signals/bytes, sweep
 `u8`/`i16`/`f32` interpretations and endianness, apply transforms, and read off
 the equivalent WiCAN expression — all against your saved captures, no car needed:
 
@@ -297,7 +297,7 @@ canair investigate MyECU 2101 --independent-of OBC:2101:OBC_DC_A --state chargin
 ## The one-shot shortcut: `investigate`
 
 `canair investigate` bundles inspect + reason + correlate into a single report:
-for every varying byte it tells you whether a parameter already maps it, how well
+for every varying byte it tells you whether a signal already maps it, how well
 it separates across vehicle states, and its strongest relationship to a
 co-captured signal — with a unit guess. Point it at an unknown PID first:
 
@@ -344,7 +344,7 @@ Two things to know before you trust a hit:
 - **Evidence is reported in bits.** Each clean rise with no fall is one bit, so a
   window at 3 bits rose three times and never fell — a 1-in-8 coincidence, i.e. a
   *lead*, not a finding. A long-running accumulator scores in the hundreds. Don't
-  write a parameter off a handful of bits; go get more captures across more days.
+  write a signal off a handful of bits; go get more captures across more days.
 - **Don't scope it.** This is the one analysis that wants your whole history —
   `--state`/`--since` shorten the horizon, and the horizon is the evidence.
 
@@ -365,7 +365,7 @@ mode, a gear, a day-of-week schedule mask. The worked speed example took the
 continuous path; here the numeric spacing is meaningless (`Drive=3` isn't "one
 more than" `Neutral=2`), so Pearson correlation and the variance-F don't apply.
 
-canair models these as **typed** parameters (`enum`/`bitmask`/`ascii`/`date`/
+canair models these as **typed** signals (`enum`/`bitmask`/`ascii`/`date`/
 `struct`) and analyzes them with *categorical* statistics — see
 [Typed signals](../concepts/typed-signals.md) for the model. The analysis levers:
 
@@ -373,7 +373,7 @@ canair models these as **typed** parameters (`enum`/`bitmask`/`ascii`/`date`/
 # "Which byte is the gear?" — rank by nominal association, not linear r
 canair correlate uds VCU --against VCU:2101:GEAR --method cramers_v
 
-# "Which byte separates the power states?" — Cramér's V for typed params
+# "Which byte separates the power states?" — Cramér's V for typed signals
 canair decode VCU 2101 --discriminate state
 
 # Once defined as an enum, see the transitions as labels over time
@@ -422,7 +422,7 @@ Only step 5 is worth doing for bytes that actually moved in step 4. If nothing c
 setting lives in another DID (or is written by a command you can't see), so go back to step 1
 with a different candidate instead of modelling a byte that never moves.
 
-For a whole schedule record, define a `struct` param whose ordered `fields:`
+For a whole schedule record, define a `struct` signal whose ordered `fields:`
 cover the day-mask, hour, and minute — `investigate --events --field` then reads
 each schedule change as one logical `{days=…, hour=…, minute=…}` transition.
 
@@ -431,7 +431,7 @@ each schedule change as one logical `{days=…, hour=…, minute=…}` transitio
 A hypothesis is a hypothesis until the data confirms it. Don't accept a byte
 because it "looks about right" — check the range, the distribution, correlation
 against a known reference, and physical plausibility across states. State your
-confidence honestly. This is exactly why the next step starts every new parameter
+confidence honestly. This is exactly why the next step starts every new signal
 as **unverified**.
 
 > The full reasoning toolkit — thermal-mass tricks, signed/symmetry tests,
@@ -448,4 +448,4 @@ as **unverified**.
 
 You now have a confident hypothesis (*"byte 12 of `MyECU:2101` is speed in
 km/h"*). Next: **[7. Define & verify →](07-define-and-verify.md)** turns it into a
-stored parameter.
+stored signal.

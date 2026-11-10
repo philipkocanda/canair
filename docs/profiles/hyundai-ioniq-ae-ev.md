@@ -47,7 +47,7 @@ a gateway in front of the OBD port, or body ECUs that don't answer the 28 kWh PI
 becomes a profile of its own.
 
 It's also the best thing to *study*: it shows what a mature profile looks like
-(verified parameters with sources, `research:` backlogs, IOControl actuators,
+(verified signals with sources, `research:` backlogs, IOControl actuators,
 scan logs), which is exactly the shape you're building toward for your own car.
 
 !!! warning "Your car may differ"

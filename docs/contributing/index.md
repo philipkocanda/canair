@@ -14,7 +14,7 @@ This is the highest-value contribution and needs no changes to canair's code.
    journey to build a profile for your car (or decode more of an existing one).
 2. **Make it clean and honest:**
    - `canair validate all` must pass (schema + duplicate-signal-name checks).
-   - Prefer `--verified` parameters with a `--source` recording your evidence;
+   - Prefer `--verified` signals with a `--source` recording your evidence;
      mark genuine guesses `--unverified`.
    - `car_model` should pin down model/year/market/battery so others can tell if
      it matches theirs.

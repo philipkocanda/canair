@@ -57,7 +57,7 @@ command list (that lives in the [CLI reference](reference/cli/index.md)).
 - **Contributing PID definitions? →**
   [Define & verify](bring-your-own-car/07-define-and-verify.md) and
   [Share your profile](bring-your-own-car/08-share.md) — how a reverse-engineered
-  signal becomes a validated parameter others can use.
+  signal becomes a validated signal others can use.
 - **Want the details? →** [Concepts](concepts/architecture.md) explain *how* it
   works; the [Reference](reference/config.md) documents every flag, config key,
   and schema.
@@ -87,7 +87,7 @@ to actuate hardware, and every state-changing action confirms first. That said,
 ## Contribute back 🎉
 
 canair gets more useful with every car and signal people share. If you
-reverse-engineer *your* vehicle — a whole profile, a few decoded parameters, or a
+reverse-engineer *your* vehicle — a whole profile, a few decoded signals, or a
 fix — **please contribute it back via a pull request** to
 [`philipkocanda/canair`](https://github.com/philipkocanda/canair). It's the
 single best way to help others with the same car. See

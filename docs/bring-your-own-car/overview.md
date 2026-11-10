@@ -47,7 +47,7 @@ realize you need *different* conditions (accelerating vs. coasting, plugged vs.
 charging), and go capture again. That's expected — the dashed arrow above.
 
 The rule of thumb: **read and capture freely, define conservatively.** Mark new
-parameters `--unverified` until you've confirmed them against a known reference
+signals `--unverified` until you've confirmed them against a known reference
 or across enough captures, then promote them. See
 [Define & verify](07-define-and-verify.md).
 

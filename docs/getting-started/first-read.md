@@ -19,16 +19,16 @@ canair variants                                          # what the profile's va
 # See every ECU responding on the bus (works on any vehicle)
 canair discover
 
-# Read the battery ECU's main PID, decoded into named parameters (Ioniq)
+# Read the battery ECU's main PID, decoded into named signals (Ioniq)
 canair read BMS:2101
 
-# Read all known parameters for an ECU
+# Read all known signals for an ECU
 canair read BMS
 
-# Read specific named parameters across ECUs
+# Read specific named signals across ECUs
 canair read --param SOC_BMS BATTERY_VOLTAGE BATTERY_POWER
 
-# Watch a value live — refreshes, highlights changed bytes and the params they decode
+# Watch a value live — refreshes, highlights changed bytes and the signals they decode
 canair monitor BMS:2101
 
 # Read Diagnostic Trouble Codes across every ECU
@@ -39,14 +39,14 @@ canair dtc --all
 (`ECU:PID`) and can run multi-step pipelines over one session.
 
 Once you've captured some readings, `canair ecu <ECU> pids` shows each PID's
-latest decoded value — raw payloads turned into named, unit-bearing parameters:
+latest decoded value — raw payloads turned into named, unit-bearing signals:
 
 ![canair ecu BMS pids — latest decoded values](../screenshots/ecu-bms-pids.svg)
 
 ## Watch it live
 
 `canair monitor` refreshes in place, highlighting the bytes that change and the
-parameters they decode. Here it is polling the **battery** with the car in READY
+signals they decode. Here it is polling the **battery** with the car in READY
 mode — SOC, pack voltage/current, cell voltages, and module temperatures, with
 changed values highlighted and the live payload byte-diff underneath:
 

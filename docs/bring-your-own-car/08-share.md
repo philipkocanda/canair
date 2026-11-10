@@ -1,12 +1,12 @@
 # 8. Share
 
-You've got named, verified parameters for your car. Two ways to put them to use:
+You've got named, verified signals for your car. Two ways to put them to use:
 push them to your WiCAN dongle as an AutoPID profile, and/or contribute the
 profile so others with the same vehicle benefit.
 
 ## Generate the WiCAN AutoPID JSON
 
-`canair wican autopid write` renders your profile's **verified** parameters into
+`canair wican autopid write` renders your profile's **verified** signals into
 the JSON the WiCAN's AutoPID feature consumes, once per firmware generation, in the
 bundle's `out/` (`out/<variant>/` when the profile describes several
 [variants](../concepts/variants.md), one device profile per car):
@@ -121,7 +121,7 @@ normal batch. The message is retained, so the broker keeps the last sample. Pass
 project.** 🎉 Every profile you contribute means the next person with your car
 gets a head start instead of starting from zero — that's how canair becomes
 useful beyond one vehicle. Contributions are genuinely wanted and warmly
-welcomed, whether it's a whole new car, a handful of newly-decoded parameters, or
+welcomed, whether it's a whole new car, a handful of newly-decoded signals, or
 a fix to an existing one.
 
 ### The easy way: `canair contribute`
@@ -242,7 +242,7 @@ A standard GitHub pull request works too:
 2. Make sure it's clean and honest:
    - **Validate:** `canair validate all` must pass (including the
      duplicate-signal-name check).
-   - **Verify what you claim.** Prefer `--verified` parameters with a `--source`
+   - **Verify what you claim.** Prefer `--verified` signals with a `--source`
      recording your evidence; an unverified guess should say so.
    - **Name the vehicle precisely.** `car_model` should pin down
      model/year/market/battery so someone can tell if it matches theirs.
@@ -255,7 +255,7 @@ A standard GitHub pull request works too:
 3. Open a PR. Even a *partial* profile is welcome — a few verified signals beats
    nothing, and others can build on it.
 
-Not ready for a full profile? **Individual PID/parameter contributions are just
+Not ready for a full profile? **Individual PID and signal contributions are just
 as valuable** — a single verified signal, a corrected offset, or a new
 `research:` lead all help. And if you find a bug or a rough edge in canair
 itself, an issue or PR is appreciated too.

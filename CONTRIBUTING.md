@@ -10,7 +10,7 @@ your car and share the result.
 
 1. Build a profile with the [Bring your own car](https://philipkocanda.github.io/canair/bring-your-own-car/overview/)
    walkthrough (or decode more of an existing one).
-2. Make it clean: `canair validate all` must pass; prefer `--verified` params
+2. Make it clean: `canair validate all` must pass; prefer `--verified` signals
    with a `--source`; set `car_model` precisely; include a representative subset
    of `captures/`.
 3. Share it with **`canair contribute`** — one command that opens the pull

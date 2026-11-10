@@ -72,7 +72,7 @@ takes the required `--id` and `--against`, plus `--min-n`, `--top` and `--json`.
 ### 3. Define signals
 
 Once you've identified a byte/bit field, record it in the **`signals/`** sidecar —
-the domain-B analogue of a PID's parameters. Unlike the freeform WiCAN
+the domain-B analogue of a PID's signals. Unlike the freeform WiCAN
 `expression`, a broadcast signal is a **linear** model (`physical = raw*scale +
 offset` over a contiguous bit range), deliberately DBC-compatible.
 

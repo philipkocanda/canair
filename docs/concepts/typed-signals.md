@@ -1,7 +1,7 @@
 # Typed (multi-modal) signals
 
 Most vehicle signals are **continuous linear numbers** — a temperature, a speed,
-a state of charge. canair's default parameter model captures these with a WiCAN
+a state of charge. canair's default signal model captures these with a WiCAN
 `expression` (a formula over byte indices) plus an optional `unit`/`min`/`max`,
 and the whole analysis suite (`decode`/`correlate`/`hunt`/`investigate`) is built
 to reason about them as scalar floats.
@@ -16,7 +16,7 @@ But some signals are **not numbers on a line**:
 
 For these, min/max and Pearson correlation are meaningless: the numeric spacing
 between `Drive=3` and `Neutral=2` carries no physical meaning. canair models them
-with an optional parameter **`type:`** and a small companion map.
+with an optional signal **`type:`** and a small companion map.
 
 ## The parallel decoder
 
@@ -34,9 +34,9 @@ This never changes device output or the numeric path.
 | `ascii`   | —               | the decoded text |
 | `date`    | —               | `2017-06-06` (BCD or binary) |
 | `bcd`     | —               | the decoded decimal |
-| `struct`  | `fields:` (ordered sub-params) | `{days=tue, hour=7, minute=30}` |
+| `struct`  | `fields:` (ordered sub-signals) | `{days=tue, hour=7, minute=30}` |
 
-## Defining a typed param
+## Defining a typed signal
 
 Use `canair pids upsert-param`:
 
@@ -61,8 +61,8 @@ syntax rather than a signal still to be found. With the rear doors locked and ev
 `--value`/`--bit` are repeatable `KEY=LABEL` pairs (`KEY` may be decimal or
 `0x`-hex). Passing only `--value`/`--bit` infers `--type enum`/`bitmask`.
 
-`struct` params (ordered `fields:`) are defined in the YAML directly today; each
-sub-field is itself a typed mini-param over the same payload.
+`struct` signals (ordered `fields:`) are defined in the YAML directly today; each
+sub-field is itself a typed mini-signal over the same payload.
 
 ## Byte-run types: `ascii` and `date`
 
@@ -93,9 +93,9 @@ up as obvious garbage instead of silently plausible text.
 
 ## Analyzing categorical signals
 
-- **`canair decode ECU PID`** renders typed params as their labels, and shows the
+- **`canair decode ECU PID`** renders typed signals as their labels, and shows the
   set of distinct decoded values rather than a numeric range.
-- **`canair decode ECU PID --discriminate state`** scores an enum/bitmask param
+- **`canair decode ECU PID --discriminate state`** scores an enum/bitmask signal
   with **Cramér's V** (nominal association) instead of the interval-scale F —
   answering "which byte separates the power states?" correctly.
 - **`canair correlate … --method cramers_v|mutual_info`** (also on `decode

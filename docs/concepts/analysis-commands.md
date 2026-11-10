@@ -16,8 +16,8 @@ four quadrants, and it's the fastest way to pick the right tool.
                     (what does it say?)              (how do things move together?)
 
    ┌─────────────────────────────────────┬──────────────────────────────────────┐
- S │  captures       raw payloads / diff  │  decode --corr    param vs 1 reference │
- I │  decode         one PID's params     │  decode --try     test a hypothesis    │
+ S │  captures       raw payloads / diff  │  decode --corr    signal vs 1 reference │
+ I │  decode         one PID's signals    │  decode --try     test a hypothesis    │
  N │  decode         --dump-bytes matrix  │  decode --plot    sweep interps (TUI)  │
  G │                                      │  hunt             which byte IS ref Y? │
  L │                                      │  investigate      one PID, all angles  │
@@ -112,7 +112,7 @@ unmapped byte counts, best state-separation F, physical-band hits) that mark a P
 worth a deep-dive. `--top N` caps it. The per-signal timelines
 (`--events`/`--dwell`/`--field`) stay single-PID.
 
-`--unmapped-only` hides a window only when **every** parameter covering it is
+`--unmapped-only` hides a window only when **every** signal covering it is
 `verified`. A window mapped by an *unverified* guess is kept and tagged
 `[NAME?]`, because monotonicity is frequently the evidence that **refutes** the
 guess — a byte labelled as a user-set hour that in fact only ever rises is a
@@ -264,7 +264,7 @@ They share the *same* nearest-timestamp join, but differ in what they emit:
 
 A third shape of the same join is **`captures --step`** with a multi-PID QUERY: it
 emits neither a table nor a coefficient but the **raw captures themselves**, stacked
-one block per PID in a time-joined frame (decoded params + byte-diff hex). Reach for
+one block per PID in a time-joined frame (decoded signals + byte-diff hex). Reach for
 it when you want to *look at the bytes* of several PIDs at one instant — typically
 walking the frames across the moment a known signal switched. The PID set, the join
 tolerance and the rendering are all editable inside the TUI; `--json` emits the same
@@ -272,7 +272,7 @@ frames as data. See [Analyze](../bring-your-own-car/06-analyze.md#reading-severa
 
 ## `--discriminate` by any axis
 
-`decode --discriminate` ranks which params/bytes/bits most cleanly separate across
+`decode --discriminate` ranks which signals/bytes/bits most cleanly separate across
 groups. The axis is either:
 
 - **`state`** — the vehicle power state (charging / ready / driving), or
@@ -285,7 +285,7 @@ canair decode HVAC 2201A2 --discriminate HVAC:220102:HVAC_HEAT_PUMP_ON --bytes
 
 The axis signal is nearest-joined onto each capture and discretized into
 low-cardinality groups (enum/flag/mode); a too-continuous axis is rejected. Numeric
-signals are scored with an F ratio, typed enum/bitmask params with Cramér's V.
+signals are scored with an F ratio, typed enum/bitmask signals with Cramér's V.
 
 ## Scope every analysis to the right drive
 
@@ -360,7 +360,7 @@ a pure numeric table and reports the carry on stderr instead.
 
 A mirror is one physical value exposed by two signals — a status bit an ECU
 publishes that another repeats, a temperature a second module reports at a
-different offset, a raw byte and the parameter derived from it. It is the fastest
+different offset, a raw byte and the signal derived from it. It is the fastest
 possible identification of an unknown byte, because it needs no correlation
 reasoning: the byte simply *is* the known signal.
 

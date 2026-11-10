@@ -2,14 +2,14 @@
 
 [Analysis](06-analyze.md) gave you a hypothesis confirmed by data — say,
 *"byte 12 of `MyECU:2101` correlates with a known speed signal at r=0.99, ~1:1,
-so it's speed in km/h."* Now you turn that into a named **parameter** stored in
+so it's speed in km/h."* Now you turn that into a named **signal** stored in
 the profile — the unit that makes `canair read MyECU` decode the value for
 anyone using your profile.
 
 This is the heart of **contributing PIDs**: a raw byte becomes a documented,
 validated, shareable signal.
 
-## Write the parameter
+## Write the signal
 
 Use `canair pids upsert-param`, which is surgical,
 comment-preserving, and schema-validated (and auto-reverts if the edit would
@@ -21,7 +21,7 @@ canair pids upsert-param MyECU 2101 SPEED_KMH "[B12]" \
     --source "hunt vs GPS speed, r=0.99" --unverified
 ```
 
-- `SPEED_KMH` — the parameter name (must be unique across the profile's shipped
+- `SPEED_KMH` — the signal name (must be unique across the profile's shipped
   signals).
 - `"[B12]"` — the [expression](../concepts/byte-indexing.md) that extracts the
   value from the payload. Byte indexing matters — confirm the offset with
@@ -43,7 +43,7 @@ canair pids upsert-param MyECU 2101 SPEED_KMH "[B12]" \
 
 ## Verify before you trust it
 
-Mark a parameter `--verified` only once you've confirmed it holds up — the value
+Mark a signal `--verified` only once you've confirmed it holds up — the value
 tracks a known reference, stays physically plausible across vehicle states, and
 survives more captures:
 
@@ -77,7 +77,7 @@ target makes the same check on its file (`profile.yaml`, `variants.yaml`, `vehic
 
 ## Audit for gaps
 
-`canair coverage` cross-references your parameter expressions against the payload
+`canair coverage` cross-references your signal expressions against the payload
 length from each PID's newest session and flags what's still undecoded:
 
 ```bash
@@ -125,7 +125,7 @@ Unmapped bytes are your next research leads — loop back to
 [capture](05-capture.md) and [analyze](06-analyze.md).
 
 > **Verified a signal? Consider contributing it back.** You don't have to wait
-> for a "finished" profile — a single verified parameter (or a corrected one) is
+> for a "finished" profile — a single verified signal (or a corrected one) is
 > a welcome pull request that helps everyone with your car. See
 > [Share](08-share.md#contribute-your-profile-back).
 
