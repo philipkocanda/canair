@@ -35,6 +35,7 @@ canair config edit           # open in $EDITOR
 | `display.byte_notation` | Default byte-index notation for analysis output labels, and for the byte ruler / signal byte-reference column in `monitor` and `captures --diff/--step`: `wican` (default), `isotp`, `torque`, or `bix`. Overridden per-command by `--notation`. |
 | `safety.allow_unsafe` | `false` (default) or `true`. Live commands refuse `--unsafe` until this is `true` in the user config file, and while it is, every command starts with a warning banner (see [Safety](../concepts/safety.md#enabling-unsafe)). |
 | `safety.allow_reset` | `false` (default) or `true`. `canair reset` refuses to run until this is `true` in the user config file. Setting it asks you to type `YES` at a terminal, and no flag skips that (see [Safety](../concepts/safety.md#resetting-an-ecu)). |
+| `safety.allow_frame_injection` | `false` (default) or `true`. Profile actions that put a crafted broadcast CAN frame on the bus (`canair action`, `slcan-tcp` only) refuse to run until this is `true` in the user config file. Setting it asks you to type `YES` at a terminal, and no flag skips that (see [Safety](../concepts/safety.md#injecting-a-broadcast-frame)). |
 | `transport` | Advanced: explicit CAN transport selection (see below). |
 
 ## `grid_region` — physical-scan grid bands
@@ -68,7 +69,7 @@ Each alias maps to a device with a `host` (IP or hostname) and, optionally, its
 own `transport`, `port`, and `bitrate`. This lets a multi-device setup bind each
 device to the transport that suits it — e.g. a low-latency home LAN device to
 `slcan-tcp` and a laggy cellular/VPN device to the device-side-ISO-TP `wican-ws`
-(see [cellular timeouts](../concepts/architecture.md)).
+(see [Remote & cellular links](../concepts/remote-and-cellular.md)).
 
 ```yaml
 devices:
