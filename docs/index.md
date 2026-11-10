@@ -18,7 +18,7 @@ document that data — turning it into a shareable
   different ECUs on one timeline, and let it point out which signals move together. No install,
   nothing to connect.</p>
   <p><a class="md-button md-button--primary" href="profiles/explorer/">Open the explorer →</a>
-  <span class="cx-muted">Try it on the 2017 Ioniq: 30 ECUs, 435 signals, 98 recorded drives and charges.</span></p>
+  <span class="cx-muted">Try it on the 2017 Ioniq: 30 ECUs, 600+ signals, 100+ recorded sessions.</span></p>
   <div class="cx-hero-cards">
     <a href="profiles/explorer/#hyundai-ioniq-ae-ev/BMS">
       <img src="assets/explorer/explorer-bus.png#only-light" alt="CAN bus map of the Ioniq's ECUs, coloured by how much of each is decoded" loading="lazy">
