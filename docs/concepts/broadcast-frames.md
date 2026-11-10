@@ -30,7 +30,7 @@ import a frame log → correlate / hunt → define signals → export (DBC)
 `canair import can` reads a raw frame log and stores it **verbatim** under the
 profile's `captures/can/`, indexing its metadata in `captures/can/index.yaml`
 (frame count, distinct arbitration IDs, bitrate, …). High-volume logs stay
-native — they are **not** exploded into the `captures/*.yaml` schema.
+native — they are **not** exploded into the `captures/*.json` schema.
 
 ```bash
 canair import can drive.blf --label "drive fwd/N/rev" --bitrate 500000
@@ -64,7 +64,8 @@ canair correlate can drive.blf --find-mirrors
 
 Both reuse the correlation / interpretation-sweep / linear-fit machinery of the
 diagnostic `correlate uds` / `hunt uds`, so the output (ranked `|r|`, fit, unit
-guess) reads the same. `--bits`, `--id`, `--min-r`, `--json`, etc. apply. (The
+guess) reads the same. `correlate can` takes `--bits`, `--min-r` and `--json`; `hunt can`
+takes the required `--id` and `--against`, plus `--min-n`, `--top` and `--json`. (The
 `can` kind is the domain-B counterpart of the default `uds` kind — a bare
 `canair correlate …` / `hunt …` still targets diagnostic captures.)
 
