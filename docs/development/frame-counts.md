@@ -27,7 +27,7 @@ parse. So four rules hold, and a change to this code must keep them:
    digit holds exactly as many frames as the digit asked for. Learning from it would confirm its
    own premise.
 2. **`learn()` opts out; it never clamps.** Above `MAX_REQUESTABLE_FRAMES` (9) the PID gets no
-   count. Clamping would be a deliberate undercount. The Ioniq's `0x7EA:21F2` needs 13 frames, so
+   count. Clamping would be a deliberate undercount. The Ioniq BMS's `21F2` needs 18 frames, so
    it stays unoptimized.
 3. **A mismatch realigns the pipe and retries plain, without charging the caller's `retries`.**
    The mismatch categories in `_DIRTY_PIPE` (`drop`, `stale`, `decode`) realign the pipe,
