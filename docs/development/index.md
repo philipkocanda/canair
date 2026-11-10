@@ -23,8 +23,8 @@ for why.
 ## Enable the git hooks (once per clone)
 
 The hooks run the fast CI gates automatically — `ruff format`/`ruff check`/`ty`, the import
-contracts, the structure tests and skill-frontmatter validation on each commit, the [Conventional Commits](commit-messages.md) check on each commit
-message, and the generated-artifact currency checks on each push:
+contracts, the structure tests and skill-frontmatter validation on each commit, the
+[Conventional Commits](commit-messages.md) check on each commit message, and the generated-artifact currency checks on each push:
 
 ```bash
 make install                                 # Git LFS + hooks + uv sync + `canair` tool (alias: setup)
