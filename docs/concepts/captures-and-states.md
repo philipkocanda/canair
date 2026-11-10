@@ -59,8 +59,8 @@ Each `captures/YYYY-MM-DD.json` holds one day, as sessions of captures:
   imports.
 - **`variant`** (optional) names which of the profile's [variants](variants.md) the recorded
   car is (`"28kwh"`), and **`attribution`** how that was decided:
-  `{"variant": "selected" | "migrated" | "asserted"}`. A session recorded without the global
-  `--variant` flag is untagged. See [Tagging captures with the
+  `{"variant": "selected" | "alias" | "only" | "migrated" | "asserted"}`. A session recorded
+  without the global `--variant` flag is untagged. See [Tagging captures with the
   car](variants.md#tagging-captures-with-the-car).
 - Stored as JSON because it parses ~60× faster than YAML — the dominant cost of
   every history-consuming command (`ecu`, `coverage`, `decode`, `correlate`,

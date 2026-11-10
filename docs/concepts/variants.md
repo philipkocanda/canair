@@ -10,8 +10,9 @@ profile's **variants**, declared in its `variants.yaml`.
     [name yours](#choosing-your-car) once, and [captures are
     tagged](#tagging-captures-with-the-car) with the one they came from. An ECU can declare
     [revisions](#ecu-revisions), and a variant can say which of them its car carries, which
-    ECUs it has and which `profile.yaml` settings differ for it. Recognising an ECU's revision
-    from the car itself is not built yet: pin it. The design for what follows is in
+    ECUs it has and which `profile.yaml` settings differ for it. canair can also
+    [detect](#which-revision-your-car-has) an ECU's revision from the car itself; pin it when
+    detection can't settle it. The design for what follows is in
     [`plans/2026-10-30-profile-variants-and-rename.md`](https://github.com/philipkocanda/canair/blob/main/plans/2026-10-30-profile-variants-and-rename.md).
 
 ## What is a variant, and what is not
@@ -236,7 +237,9 @@ VCU:
   same signal name when their revisions are disjoint — that is how `VCU.VEHICLE_SPEED` stays one
   name, for state predicates and Home Assistant, across a protocol change.
 - **Presence:** `variants: [60kwh]` on an ECU says only those cars have it.
-- **Fingerprints** are recorded and checked, but canair does not match them against a car yet.
+- **Fingerprints** decide which revision an ECU is: `canair identity` matches a full reading,
+  and `read`/`monitor` send the cheapest `responds:` probe
+  ([detection](#which-revision-your-car-has)).
 
 The bundled Ioniq is the worked case: its BMS has a `KWP` revision (every page the 28 kWh car
 answers, `2101`…`21F2`) and a `UDS` one (the Kona-family `220101`/`220105` pages the 38 kWh
@@ -302,7 +305,8 @@ ECU's revision and where it came from.
 ### Captures and analysis
 
 A recording tags each captured ECU that declares several revisions with the one it was on
-(`revisions: {VCU: UDS}`, attributed `pinned` or `only`). Analysis then reads only the
+(`revisions: {VCU: UDS}`, attributed `pinned`, `only` or `detected`; `migrated` and `asserted`
+mark tags added by a migration or an explicit assertion). Analysis then reads only the
 sessions that agree with your car's resolved revisions (an untagged session is read as yours).
 **Byte-level analyses** — `investigate`, `hunt`, `correlate`, `coverage`, and `decode
 --dump-bytes`/`--try` — refuse a scope that spans two revisions of an ECU they analyse, since a
