@@ -113,7 +113,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 | `canair groups` | List/edit named selector groups (saved queries); recall one as `@name` in `read`/`monitor` (e.g. `monitor @charging`). |
 | `canair variants` | List/edit the profile car's variants (battery, facelift, market) and their metadata. |
 | `canair wican` | Generate the WiCAN AutoPID JSON; upload/download/diff (Pro). |
-| `canair validate` | Validate `ecus/`, `profile.yaml`, and `captures/` against their schemas (alias: `val`). |
+| `canair validate` | Validate the whole profile — `ecus/`, `captures/`, states, groups, actions, variants and `signals/` — against its schemas (alias: `val`). |
 
 **Import / export**
 
@@ -126,7 +126,7 @@ All functionality is exposed as `canair <subcommand>`; run `canair <cmd> --help`
 
 | Subcommand | Purpose |
 |--------|---------|
-| `canair profile` | Manage profile bundles — create/list/show/path (alias: `prof`). |
+| `canair profile` | Manage profile bundles — list/show/path/use/create, plus `adopt` and `overlay` to keep your writes out of the install (alias: `prof`). |
 | `canair contribute` | Open a pull request sharing the active profile upstream (via `gh`; no manual fork). |
 | `canair config` | View/manage user config. |
 | `canair update` | Update canair from its git clone (checkout release tag + reinstall); links the changelog. |
