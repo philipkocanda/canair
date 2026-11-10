@@ -28,9 +28,23 @@ has several profiles in [`profiles/`](profiles/). The 2017 Hyundai Ioniq Electri
 complete one. The tool works with any vehicle, so you can
 [build a profile for your car](https://philipkocanda.github.io/canair/bring-your-own-car/overview/).
 
-**For humans and agents.** Every capability is a subcommand that you can script. Subcommands
-give structured output with `--json`, so a person or an AI coding agent can use them in the same
-way. The reverse-engineering workflows are available as agent skills in `.claude/skills/`.
+## Why canair?
+
+- **Evidence stays with the definition.** Most tools store only the PID, DID and signal
+  definitions. canair also stores the captures that support each definition. Anyone can check a
+  definition against the data, and the community can decode together. A definition without proof
+  has little worth.
+- **Two kinds of data in one profile.** canair combines request/response diagnostics (OBD-II,
+  UDS, KWP2000) with raw broadcast CAN frames (for example from DBC files). Both kinds use the
+  same profile and the same analysis tools. What you know about a signal in one kind of data helps
+  you find the same signal in the other.
+- **Made for humans and agents.** Helpers import and analyze both kinds of captures. Every
+  capability is a subcommand that you can script, with structured output (`--json`). A person or
+  an AI coding agent can use it in the same way. The reverse-engineering workflows are available
+  as agent skills in `.claude/skills/`.
+- **Shareable without copied definitions.** Profiles come from captures of real cars. They do not
+  copy the definitions of a dealer scan tool. People can share them without copying the content of
+  a vendor tool. This opens vehicle maintenance and diagnostics to a wider community.
 
 **The WiCAN Pro and the classic WiCAN both work** with the default raw-SLCAN transport. Some
 features need a Pro: AutoPID device sync, `wican mode set` and the `wican-ws` transport. If you
