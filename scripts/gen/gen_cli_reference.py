@@ -7,8 +7,8 @@ top-level `canair <cmd>` becomes docs/reference/cli/<cmd>.md, including every ne
 sub-kind at any depth (e.g. `scan range`, `ecu add`, `wican autopid write`).
 
 Usage:
-    python3 scripts/gen/gen_cli_reference.py            # write the pages
-    python3 scripts/gen/gen_cli_reference.py --check     # fail if pages are stale (CI)
+    uv run python scripts/gen/gen_cli_reference.py            # write the pages
+    uv run python scripts/gen/gen_cli_reference.py --check     # fail if pages are stale (CI)
 
 Run it after changing any command's parser (add/rename a flag, a new subcommand).
 """
@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import io
 import os
+import re
 import sys
 import tempfile
 from contextlib import redirect_stdout
@@ -119,6 +120,27 @@ def _command_names() -> list[str]:
     return [module.NAME for module in iter_command_modules()]
 
 
+def _summary(description: str, name: str) -> str:
+    """One overview line for a command: its first sentence, as Markdown.
+
+    Takes the first paragraph (a description is hard-wrapped), turns reStructuredText double
+    backticks into Markdown code, drops a leading ``canair NAME —`` that the bullet already
+    shows and a leading domain tag (``[UDS] …``; each command page states its domain), and cuts
+    at the first sentence end.
+    """
+    text = " ".join((description or "").strip().split("\n\n")[0].split())
+    text = text.replace("``", "`")
+    if text.startswith("["):
+        text = text.split("]", 1)[-1].lstrip()
+    text = re.sub(rf"^`canair {re.escape(name)}`\s*[—-]\s*", "", text)
+    if text[:1].islower():
+        text = text[0].upper() + text[1:]
+    sentence = re.match(r"(.+?[.?]['\"]?)(?:\s|$)", text)
+    if sentence:
+        text = sentence.group(1)
+    return text.rstrip(":").rstrip()
+
+
 def _index_page(names: list[str]) -> str:
     """Rewrite the cli/ index to list the generated per-command pages.
 
@@ -134,13 +156,7 @@ def _index_page(names: list[str]) -> str:
     help_by_name = {}
     if sub is not None:
         for n, p in sub.choices.items():
-            summary = (p.description or "").strip().split("\n")[0]
-            # Drop the leading domain tag ("[UDS] …") — this index is an overview
-            # and each linked command page states its domain, so repeating it here
-            # is redundant (mirrors the top-level --help command map).
-            if summary.startswith("["):
-                summary = summary.split("]", 1)[-1].lstrip()
-            help_by_name[n] = summary
+            help_by_name[n] = _summary(p.description or "", n)
 
     lines = [
         "# CLI reference",
@@ -149,7 +165,7 @@ def _index_page(names: list[str]) -> str:
         "from each command's `--help` (the source of truth), so they never drift "
         "from the code.",
         "",
-        "> Regenerate with `python3 scripts/gen/gen_cli_reference.py`; CI checks they are current.",
+        "> Regenerate with `uv run python scripts/gen/gen_cli_reference.py`; CI checks they are current.",
         "",
         "## Commands",
         "",
@@ -237,7 +253,8 @@ def main(argv: list[str] | None = None) -> int:
         if stale:
             print(
                 "CLI reference is out of date; run "
-                "`python3 scripts/gen/gen_cli_reference.py`. Stale: " + ", ".join(sorted(stale)),
+                "`uv run python scripts/gen/gen_cli_reference.py`. Stale: "
+                + ", ".join(sorted(stale)),
                 file=sys.stderr,
             )
             return 1
