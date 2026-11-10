@@ -93,7 +93,7 @@ A different bitrate or 29-bit IDs also need the matching ELM327 protocol in `ini
 (`ATSP7` 29-bit 500 kbit, `ATSP8` 11-bit 250 kbit, `ATSP9` 29-bit 250 kbit).
 canair derives the header, receive filter and flow control per ECU from
 `addressing`, so when porting a WiCAN community profile leave its
-`ATSH`/`ATCRA`/`ATFCSH`/`ATFCSM` commands out of `init`.
+`ATSH`/`ATCRA`/`ATFCSH`/`ATFCSD`/`ATFCSM` commands out of `init`.
 
 `vehicle_states.yaml` starts with a generic power-state vocabulary you'll refine
 later — see [Captures & states](../concepts/captures-and-states.md).

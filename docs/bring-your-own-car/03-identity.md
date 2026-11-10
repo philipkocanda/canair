@@ -13,8 +13,9 @@ canair identity MyECU --session  # some ECUs only answer in an extended session
 canair identity BMS --protocol kwp   # force KWP2000 for a powertrain ECU
 ```
 
-`canair identity` is a **read** — it displays what it finds, it doesn't edit
-`ecus/`. To capture identity for every ECU as part of the discovery sweep, use
+`canair identity` is a **read** — it displays what it finds and writes nothing to
+`ecus/`, except that it may offer to record a protocol it proved in `identity.id_protocol`.
+To capture identity for every ECU as part of the discovery sweep, use
 `canair discover --identify` (see [step 2](02-discover-ecus.md)).
 
 Already captured an identity DID and want to know where a part number landed?
