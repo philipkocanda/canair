@@ -125,11 +125,11 @@ canair monitor IGPM:BC03 --actuate IGPM   # switch outputs while you watch IGPM 
 | HVAC | 0x7B3 | Climate control |
 | CLU | 0x7C6 | Cluster / instrument panel (odometer) |
 
-…plus AAF, ADM, AMP, AVN, BSD-L/R, CCM, DDM, GSA, MFC, PSM, RCAM, SCC, SKM, SRS,
-VESS, WPC, and a few still-`Unknown-*` modules. List them all with:
+…plus AAF, ADM, AMP, AVN, BSD-L/R, CCM, DDM, EPB, EWP, GSA, MFC, PSM, RCAM, SCC, SKM,
+SRS, VESS, WPC, and one still-unnamed module, `Unknown-7C0`. List them all with:
 
 ```bash
-canair ecu               # every ECU + PID/param/verified counts
+canair ecu               # every ECU + PID, verified-signal and capture counts
 canair ecu BMS           # one ECU's identity + per-PID breakdown
 ```
 
@@ -148,7 +148,7 @@ canair research --summary     # the open RE backlog
 The source of truth is
 [`profiles/hyundai-ioniq-ae-ev/ecus/`](https://github.com/philipkocanda/canair/tree/main/profiles/hyundai-ioniq-ae-ev/ecus)
 — one file per ECU, each carrying that ECU's identity, scan log, DTC meanings,
-PIDs, parameters, and research leads. See [Profiles](../concepts/profiles.md) for
+PIDs, signals, and research leads. See [Profiles](../concepts/profiles.md) for
 the bundle layout.
 
 ## A note on the hardware quirks
