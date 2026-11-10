@@ -13,6 +13,10 @@
 
 ## Provenance — grounded in current `wican-fw` truth
 
+The file and line references on this page are to `wican-fw` **v4.52p** (commit `fab54ad`), the
+version canair is tested against. Line numbers move between firmware releases, so read them as
+pointers to the named function.
+
 ## TL;DR
 
 The WiCAN `Bnn` index is the position of a byte in the **flat buffer the firmware
@@ -75,11 +79,11 @@ prints the whole table out to `--max`.
 
 A UDS response arrives as one or more CAN frames carrying an ISO-TP payload. The
 firmware turns the ELM327 text response into a byte buffer in
-`parse_elm327_response()` — `wican-fw/main/autopid.c:1210`.
+`parse_elm327_response()` — `wican-fw/components/autopid/autopid.c:2114`.
 
 For each response line it strips the **arbitration-ID header** (the `7EC ` prefix)
 and then copies **every remaining data byte of the frame, in order, into one flat
-buffer** `response->data` — `wican-fw/main/autopid.c:1326-1341`. It does **not**
+buffer** `response->data` — `wican-fw/components/autopid/autopid.c:2269-2289`. It does **not**
 strip the ISO-TP PCI bytes; they are ordinary data bytes as far as this loop is
 concerned. (AutoPID runs with ELM327 headers ON and spaces ON, so each line is
 `7EC <b0> <b1> … `; the parser requires that header/space to locate the data.)
@@ -88,7 +92,7 @@ For the PID kinds this project defines — `PID_CUSTOM` / `PID_SPECIFIC` — the
 expression is then evaluated **directly against that buffer**:
 
 ```c
-// wican-fw/main/autopid.c:1691-1693
+// wican-fw/components/autopid/autopid.c:3996-3998
 evaluate_expression((uint8_t*)param->expression, elm327_response.data, 0, &result)
 ```
 
@@ -160,30 +164,30 @@ line up 1:1. Two nuances only:
 ## Worked example: a real capture, byte by byte
 
 `canair bix --annotate` maps a real payload; add `--ecu`/`--pid` to overlay which
-defined parameter reads each byte and to flag data bytes nothing maps yet. Below is
+defined signal reads each byte and to flag data bytes nothing maps yet. Below is
 a genuine `BMS 2101` battery-status response from the bundled Ioniq profile:
 
 ```text
 $ canair bix -a 6101FFFFFFFF80264826480300050E32 --ecu BMS --pid 2101
-  WiCAN | ISO-TP ‖  Hex | Dec | Role   | Param
+  WiCAN | ISO-TP ‖  Hex | Dec | Role   | Signal
   ──────┼────────╫──────┼─────┼────────┼─────────────
   ── Frame 0 ─────────────────────────
     B00 |      — ‖ 0x10 |  16 | PCI    |
     B01 |      — ‖ 0x10 |  16 | PCI    |
     B02 |   0x00 ‖ 0x61 |  97 | SID    |
     B03 |   0x01 ‖ 0x01 |   1 | LID    |
-    B04 |   0x02 ‖ 0xFF | 255 |        | unmapped
-    B05 |   0x03 ‖ 0xFF | 255 |        | unmapped
-    B06 |   0x04 ‖ 0xFF | 255 |        | unmapped
-    B07 |   0x05 ‖ 0xFF | 255 |        | unmapped
+    B04 |   0x02 ‖ 0xFF | 255 |        | support map
+    B05 |   0x03 ‖ 0xFF | 255 |        | support map
+    B06 |   0x04 ‖ 0xFF | 255 |        | support map
+    B07 |   0x05 ‖ 0xFF | 255 |        | support map
   ── Frame 1 ─────────────────────────
     B08 |      — ‖ 0x21 |  33 | PCI    |
     B09 |   0x06 ‖ 0x80 | 128 |        | [SOC_BMS]
-    B10 |   0x07 ‖ 0x26 |  38 |        | [BMS_2101_B10?]
-    B11 |   0x08 ‖ 0x48 |  72 |        | unmapped
-    B12 |   0x09 ‖ 0x26 |  38 |        | unmapped
-    B13 |   0x0A ‖ 0x48 |  72 |        | unmapped
-    B14 |   0x0B ‖ 0x03 |   3 |        | [BMS_MAIN_RELAY:0] [CHARGER_CONNECTED:5] [CHARGING_DC?:6] [CHARGING:7]
+    B10 |   0x07 ‖ 0x26 |  38 |        | [AVAIL_CHARGE_POWER_MIRROR?]
+    B11 |   0x08 ‖ 0x48 |  72 |        | [AVAIL_CHARGE_POWER_MIRROR?]
+    B12 |   0x09 ‖ 0x26 |  38 |        | [AVAIL_DISCHARGE_POWER_MIRROR?]
+    B13 |   0x0A ‖ 0x48 |  72 |        | [AVAIL_DISCHARGE_POWER_MIRROR?]
+    B14 |   0x0B ‖ 0x03 |   3 |        | [BMS_MAIN_RELAY:0] [BMS_CONTROLLABLE_STATE:1] [BMS_WARNING?:2] [BMS_FAULT?:3] [BMS_WELD_FLAG?:4] [AC_CHARGER_CONNECTED:5] [CHARGING_DC:6] [CHARGING:7]
     B15 |   0x0C ‖ 0x00 |   0 |        | [BATTERY_POWER]
   ── Frame 2 ─────────────────────────
     B16 |      — ‖ 0x22 |  34 | PCI    |
@@ -200,7 +204,7 @@ means. Expressions index with the WiCAN `Bnn` column — never with a `Hex` valu
 Everything the rest of this document claims is visible in one screen:
 
 - **PCI bytes at B00, B01, B08, B16** — the `Role` column names them, and no
-  parameter ever maps them.
+  signal ever maps them.
 - **`SOC_BMS = B09/2`** reads the state-of-charge byte at **B09** — the very first
   byte *after* the Frame 1 PCI byte at B08. Here `B09 = 0x80 = 128`, so
   `128 / 2 = 64 %`.
@@ -209,9 +213,10 @@ Everything the rest of this document claims is visible in one screen:
   read `0xFF` (one of the `FF FF FF FF` bytes at B04–B07) and give a plausible-looking `127.5 %`.
   **That off-by-PCI shift is the entire trap this document is about**, and the overlay makes it
   obvious.
-- Bit-level params can share one byte (`B14`: four flags at bits 0/5/6/7 via
-  `B14:k`), and a multi-byte value can span several (`BATTERY_POWER` over B15–B19).
-  `unmapped` flags data bytes still open for reverse-engineering.
+- Bit-level signals can share one byte (`B14`: eight flags, one per bit, via `B14:k`), and a
+  multi-byte value can span several (`BATTERY_POWER` over B15–B19). A data byte that no signal
+  reads is labelled `unmapped`, which flags it as still open for reverse-engineering. B04–B07
+  are labelled `support map` instead: the PID declares them as layout bytes that hold no data.
 
 For a `22xxxx` DID the two identifier bytes are labelled `DID` (B03–B04) and the first data byte
 is **B05**, not B04 (also where `Torque A` lands under `--torque`). `bix` identifies the service
@@ -287,7 +292,7 @@ stepping over the framing byte — rather than the range form `[B07:B09]`.
 
 For built-in `PID_STD` standard OBD PIDs the firmware instead uses
 `extract_signal_value()` with `start_bit`/`bit_length` over merged frames /
-`priority_data` (`wican-fw/main/autopid.c:1729-1746`). That path is **not** what
+`priority_data` (`wican-fw/components/autopid/autopid.c:4034-4042`). That path is **not** what
 this project uses — all our vehicle PIDs are custom expressions, so the
 `evaluate_expression` → PCI-inclusive `Bnn` rule above is the one that governs
 every definition in `profiles/*/ecus/`.
@@ -313,7 +318,7 @@ canair bix B09                                 # one lookup: every notation + th
 canair bix --torque                            # add the Torque letter column (Torque app, Car Scanner)
 canair bix --obdb                              # add the OBDb bix (bit-index) column
 canair bix --table                             # the full conversion table
-canair bix -a 6101FFFF… --ecu BMS --pid 2101   # annotate a payload + overlay defined params
+canair bix -a 6101FFFF… --ecu BMS --pid 2101   # annotate a payload + overlay defined signals
 canair bix -a 7F2231                           # a refused read: REJ SID + NRC, named
 canair bix -a 710312A1…                        # a routine response: SF + RID
 ```
