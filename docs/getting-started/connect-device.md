@@ -52,6 +52,19 @@ canair config set wican_model classic
 reverse-engineering — query, scan, discover, decode, DTCs, sniff, and generating
 AutoPID JSON — works on **both** over the default raw-SLCAN transport.
 
+## 5. Confirm it's working
+
+```bash
+canair config    # config locations, WiCAN model + addresses, resolved transport
+canair status    # what am I talking to, in what mode, is it reachable?
+```
+
+If `canair status` reports a reachable device, you're ready. New to the bundled
+example car? Go to [Read live data](first-read.md). Building a profile for your
+own car? Jump to [Bring your own car](../bring-your-own-car/overview.md).
+
+On WiCAN firmware v6, or with a generic ELM327 adapter, read the two sections below first.
+
 ## Firmware compatibility
 
 canair is built and tested against **WiCAN firmware 4.x**, specifically
@@ -134,14 +147,3 @@ and `status` shows its firmware too.)
 
 Want to try canair with **no hardware at all**? See
 [Offline testing with ELM327-Emulator](../development/offline-testing.md).
-
-## 5. Confirm it's working
-
-```bash
-canair config    # config locations, WiCAN model + addresses, resolved transport
-canair status    # what am I talking to, in what mode, is it reachable?
-```
-
-If `canair status` reports a reachable device, you're ready. New to the bundled
-example car? Go to [Read live data](first-read.md). Building a profile for your
-own car? Jump to [Bring your own car](../bring-your-own-car/overview.md).
