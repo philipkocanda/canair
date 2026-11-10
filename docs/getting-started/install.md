@@ -118,21 +118,21 @@ includes the full `install` block (`running_origin`, `running_build`, `tool_vers
 ### The version tells you which build you're running
 
 The bare package version can't tell builds apart: a release, a clone with local
-edits and a wheel built from a feature branch would all say `1.15.0`. So
+edits and a wheel built from a feature branch would all say `5.2.0`. So
 `canair --version` (or `-V`) names the branch and short commit unless the code is
-exactly a release (a clean tree at the `v1.15.0` tag), and then says where the
+exactly a release (a clean tree at the `v5.2.0` tag), and then says where the
 copy came from:
 
 ```console
 $ canair --version
 # uv run in a clone, on `main` at commit 343b244 (".dirty" with uncommitted edits)
-canair 1.15.0+main.343b244 (from source)
+canair 5.2.0+main.343b244 (from source)
 # uv tool install . from the same clone
-canair 1.15.0+main.343b244 (local build 343b244, 2026-11-05 10:12 UTC)
+canair 5.2.0+main.343b244 (local build 343b244, 2026-11-05 10:12 UTC)
 # after canair update: a clean build of the release tag
-canair 1.15.0 (local build 9f2c1d0, 2026-11-05 10:12 UTC)
+canair 5.2.0 (local build 9f2c1d0, 2026-11-05 10:12 UTC)
 # a wheel built by GitHub Actions
-canair 1.15.0 (CI build 9f2c1d0, 2026-11-05 10:12 UTC)
+canair 5.2.0 (CI build 9f2c1d0, 2026-11-05 10:12 UTC)
 ```
 
 A run from source reads its git checkout live. An installed copy reads the build

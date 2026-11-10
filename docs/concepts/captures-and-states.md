@@ -149,7 +149,7 @@ became suspect; see the note below):
 
 - **`version`** — the canair version that recorded the session, for tracing a capture issue to
   a release. Recorded from a git checkout, it also carries the branch and short commit
-  (`1.15.0+main.343b244`, plus `.dirty` for uncommitted edits). Older sessions omit it.
+  (`5.2.0+main.343b244`, plus `.dirty` for uncommitted edits). Older sessions omit it.
 - **`transport`** — how the payloads were acquired: the transport label
   (`slcan-tcp` / `wican-ws`) for a device-recorded session, or `import` for a
   device-free `canair import uds`.

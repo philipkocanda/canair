@@ -7,7 +7,7 @@ device mode. Designed to answer "what am I talking to, in what mode, and is it
 reachable/usable?" at a glance, with actionable hints and Unix-style exit codes.
 Also reports the running canair version — which, when canair is running from a
 git checkout rather than an installed release, names that checkout's branch and
-short commit (``1.15.0+main.343b244``) — and, when the WiCAN HTTP API answers,
+short commit (``5.2.0+main.343b244``) — and, when the WiCAN HTTP API answers,
 the device's firmware generation, version and hardware version. On WiCAN
 firmware v6 it also says which canair transports work there, and exits 2 when
 the selected one cannot.
