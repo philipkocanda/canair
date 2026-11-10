@@ -15,6 +15,82 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [5.3.0](https://github.com/philipkocanda/canair/compare/v5.2.0...v5.3.0) (2026-11-10)
+
+
+### Added
+
+* **action:** hold sessions, read while an output is driven, and always release it ([587bea4](https://github.com/philipkocanda/canair/commit/587bea4f8bf244d6aa7345cdbfe3d85955d74d18))
+* **actions:** inject guarded broadcast CAN frames from profile actions ([8e4a147](https://github.com/philipkocanda/canair/commit/8e4a147024a2c7f0eea97e504fd0bb1de026dfe6))
+* **analysis:** show a recording's actuations beside the data they moved ([1fa0935](https://github.com/philipkocanda/canair/commit/1fa093587972e9d080da352a1ed82c3e75371475))
+* **captures:** a monitor recording keeps what its actuator pane switched ([6a6b4c6](https://github.com/philipkocanda/canair/commit/6a6b4c64f1dfe16b3ef5d01c0f876651356216e2))
+* **hyundai-ioniq-ae-ev:** add heater capture with cool ambient temp ([0301f19](https://github.com/philipkocanda/canair/commit/0301f1906cc12e49d169228bc2bb6074bd7235b0))
+* **hyundai-ioniq-ae-ev:** add the VCU's firmware DTCs and detectors ([293cbfe](https://github.com/philipkocanda/canair/commit/293cbfe23c75adca6872ac45dff1afafa3c0747f))
+* **hyundai-ioniq-ae-ev:** apply the VCU firmware findings to the profile ([01f9cea](https://github.com/philipkocanda/canair/commit/01f9cea236547cbc3d8fd18f26a65220afdae835))
+* **hyundai-ioniq-ae-ev:** decode every OBC 2101 and 2102 byte from its firmware ([a693149](https://github.com/philipkocanda/canair/commit/a693149fbd88b0485286348b52716fedf085cbaa))
+* **hyundai-ioniq-ae-ev:** decode the shift-by-wire PWM code as one VCU signal ([dc199b6](https://github.com/philipkocanda/canair/commit/dc199b650135c8bcaf063ebd60d1f39b1ca06f5e))
+* **hyundai-ioniq-ae-ev:** decode the VCU's parked 12 V top-up from its firmware ([a4841cc](https://github.com/philipkocanda/canair/commit/a4841cc69ab75350953a835cd7774b54ff57f926))
+* **hyundai-ioniq-ae-ev:** drive mode, regen level, the LDC frame and 21F2 from the VCU firmware ([6088ce5](https://github.com/philipkocanda/canair/commit/6088ce54728ba4804e4b135d0b72dfb03de5d989))
+* **hyundai-ioniq-ae-ev:** map the VCU's memory reads ([4641e78](https://github.com/philipkocanda/canair/commit/4641e78195244c62ae6d710b25efcb90b57f113e))
+* **hyundai-ioniq-ae-ev:** re-decode the climate signals from the cold-heating capture ([2a231fd](https://github.com/philipkocanda/canair/commit/2a231fd5cadc80cec1472af66e2e526deadea833))
+* **hyundai-ioniq-ae-ev:** resolve the VCU small-data base, confirm 2102 scales, add VCU_HV_AVAILABLE ([28d117e](https://github.com/philipkocanda/canair/commit/28d117e4b59efca9471d0600c6df4f51c4dc71ca))
+* **ioniq:** capture of attempted charging session with charge port actuator failure (DTC on IGPM) ([344c109](https://github.com/philipkocanda/canair/commit/344c1098e6fdd2a42f481d60820c253f860e9bfe))
+* **memory:** keep the image's --state apart from the capture --state ([54d1eca](https://github.com/philipkocanda/canair/commit/54d1eca7ba2d1acef6aa43a6bf392ecde7b3f3b9))
+* **memory:** map a small memory space whole when no range is given ([412d616](https://github.com/philipkocanda/canair/commit/412d6168aaa99b7db0ac9162e13d31d889368da9))
+* **memory:** read a whole memory image unattended with `canair memory image` ([2fb2c3a](https://github.com/philipkocanda/canair/commit/2fb2c3a4b55084b406d6d0e2ade3db4a392dc459))
+* **monitor:** --actuate names the ECUs a monitor run may actuate ([6e64413](https://github.com/philipkocanda/canair/commit/6e6441380d7b7f4ff9abbbcbc4738b97ee2baa2e))
+* **monitor:** a foreground lane for the user's requests ([7f10bf1](https://github.com/philipkocanda/canair/commit/7f10bf125daae2e94df622f849ef732e8ba374ba))
+* **monitor:** an actuator pane to switch outputs while you watch them ([1a66a6d](https://github.com/philipkocanda/canair/commit/1a66a6d5207c27926742df055fc75bccbda106e6))
+* **privacy:** mask only a sensitive signal's bytes, not its whole reply ([f884bf2](https://github.com/philipkocanda/canair/commit/f884bf2cd2e674a074ec11271ceca4930e72caa0))
+* **reset:** restart one ECU with `canair reset ECU hard|key-off-on|soft` ([ab45320](https://github.com/philipkocanda/canair/commit/ab45320956f4f9d66e6f6c57bfbf88c994c4fab6))
+* **validation:** check ECU files against a JSON Schema that editors read too ([5894c83](https://github.com/philipkocanda/canair/commit/5894c83233bd4d0ba0d2b89d6d7bf45e69ee9d91))
+
+
+### Fixed
+
+* **action:** check each action reply, report every broadcast responder, never repeat a session ([9b2a597](https://github.com/philipkocanda/canair/commit/9b2a5976b3b051a8f42e9d853961697edda53385))
+* **dtc:** show single-ECU scans newer than the last sweep in `dtc log` ([f9aca1e](https://github.com/philipkocanda/canair/commit/f9aca1edf96918e965cf9e6664073f819fd0aed8))
+* **hyundai-ioniq-ae-ev:** compute OBC DC power and efficiency from the output voltage ([6bd0cb9](https://github.com/philipkocanda/canair/commit/6bd0cb9cfeed54017e1b07a299c2e8caeaea9020))
+* **hyundai-ioniq-ae-ev:** use the VCU's layouts for the schedule frames ([ccec154](https://github.com/philipkocanda/canair/commit/ccec1541da7f92a325d4a4f00a6d4a0e6d090b29))
+* **memory:** stop an image when the ECU answers its whole default space ([658dcf9](https://github.com/philipkocanda/canair/commit/658dcf931df33880f7b0247df31197323480db98))
+* **monitor:** a poll read costs the time it held the pipe ([4ba920a](https://github.com/philipkocanda/canair/commit/4ba920ad5f3af3bfff518fb8ac3e731eeae8865f))
+* **pids:** say when set-iocontrol changed only the notes ([0a37a2d](https://github.com/philipkocanda/canair/commit/0a37a2d40ff84f5adab0a9e4c1cc0bf74ea18933))
+* **pids:** write an actuator's on/off keys quoted, so editors and canair read the same key ([3dae859](https://github.com/philipkocanda/canair/commit/3dae8592834c98f90b0a4bd967655df95706d336))
+* **read:** release the actuators a pipeline switched on ([0ddee87](https://github.com/philipkocanda/canair/commit/0ddee877cabba214462d829c80c2107f1acd96f3))
+* **safety:** refuse SID 0x99 and the KWP2000 routines that enter the bootloader ([753bc02](https://github.com/philipkocanda/canair/commit/753bc02fc73f0aa566272a3de7832683d4993de3))
+* **safety:** refuse the VCU's KWP routines F1 and F3 ([89a319c](https://github.com/philipkocanda/canair/commit/89a319cb75ae3fedb76ba97b0b0f4392dc8fa0d9))
+* **transport:** one exchange per ECU on slcan-tcp, and stacks for late ECUs ([64127ae](https://github.com/philipkocanda/canair/commit/64127ae0341b7190bb29848335c5abad3d4fb2d2))
+* verify IG3 relay output DID ([0715a9a](https://github.com/philipkocanda/canair/commit/0715a9a3495b68e382f571f6fab2d4aa7c01f57f))
+
+
+### Changed
+
+* **io:** one actuation core for the io and routines views ([c1fff9b](https://github.com/philipkocanda/canair/commit/c1fff9b0161de9c477429a870402bc2f580bf901))
+* **tui:** the monitor's values own their keys ([d2246ca](https://github.com/philipkocanda/canair/commit/d2246cac8a78b6b22a0783a9b99cc80f6ec8bd37))
+
+
+### Documentation
+
+* **agents:** never touch the car without the user's explicit approval ([180986d](https://github.com/philipkocanda/canair/commit/180986d4307a329c98605ed89052b572e0eadaca))
+* **hyundai-ioniq-ae-ev:** confirm VCU diagnostic DID map live ([6c74a87](https://github.com/philipkocanda/canair/commit/6c74a877234760e8d7b5c0f0514f52cea2f26daf))
+* **hyundai-ioniq-ae-ev:** decode the VCU record internals from the firmware ([fbfae07](https://github.com/philipkocanda/canair/commit/fbfae0741d050df66ed9d77a119789c94cbd79bb))
+* **hyundai-ioniq-ae-ev:** document the LDC as integrated in the VCU ([1395f61](https://github.com/philipkocanda/canair/commit/1395f618d0f43f519a21c462d85eb53ed984a523))
+* **hyundai-ioniq-ae-ev:** fifth VCU firmware pass and audit corrections ([a7c19fd](https://github.com/philipkocanda/canair/commit/a7c19fd3e0953c66b5680b9a7da5faddf41b43ab))
+* **hyundai-ioniq-ae-ev:** file the remote-control and clock research leads ([4a752a1](https://github.com/philipkocanda/canair/commit/4a752a1b3ce9e732da0c2ec4a1ea6a8b2f22d694))
+* **hyundai-ioniq-ae-ev:** fingerprint the IGPM's diagnostic interface ([0728e72](https://github.com/philipkocanda/canair/commit/0728e725a5d1e2b0f93d33865794bd5653fc7ce8))
+* **hyundai-ioniq-ae-ev:** full VCU diagnostic interface — gating, actuators, routines ([3cf5cdf](https://github.com/philipkocanda/canair/commit/3cf5cdf50aa1dc5421506a06016da1c6186aa34c))
+* **hyundai-ioniq-ae-ev:** map the BCM's memory, rule out the climate unit's, log the MCU incident ([68ce0b1](https://github.com/philipkocanda/canair/commit/68ce0b1bf7edd7941cf846ef941dc72ec22a6178))
+* **hyundai-ioniq-ae-ev:** map the whole VCU from its firmware ([7349c9f](https://github.com/philipkocanda/canair/commit/7349c9fe624ede203634047bf40b2fe590136045))
+* **hyundai-ioniq-ae-ev:** read the OBC's flash image and record its map ([d987e54](https://github.com/philipkocanda/canair/commit/d987e54756b8e18c1ba7189f3aa58c9910c2d0eb))
+* **hyundai-ioniq-ae-ev:** say H-CAN is Hyundai's label and CCP-CAN uhi22's ([342d54f](https://github.com/philipkocanda/canair/commit/342d54f15b6cb78edcd3766b8200967b708a54b5))
+* **hyundai-ioniq-ae-ev:** stop calling the shift-by-wire PWM output a lever ([f2faa97](https://github.com/philipkocanda/canair/commit/f2faa97770cfbee96564ef24ab90c9a292098508))
+* **hyundai-ioniq-ae-ev:** the VCU's schedules are out of reach of its memory read ([3a64937](https://github.com/philipkocanda/canair/commit/3a6493714495df3578ce8795de1e30ec5a3e569f))
+* **hyundai-ioniq-ae-ev:** trace the VCU remote-climate and charge path from firmware ([b523996](https://github.com/philipkocanda/canair/commit/b5239966e36c4086545a2b07115c915af36f9bac))
+* **hyundai-ioniq-ae-ev:** untangle the VCU findings after the fifth pass ([53abbd7](https://github.com/philipkocanda/canair/commit/53abbd77239caecc838f2ef6a207cf7081d1b5f7))
+* **hyundai-ioniq-ae-ev:** VCU firmware findings — KWP interface and DIDs ([4f78c84](https://github.com/philipkocanda/canair/commit/4f78c840b3828c6fc006eaaaa1c16050121353c8))
+* **skills:** leave to other skills what ioniq-reverse-engineering duplicated ([2c5aa96](https://github.com/philipkocanda/canair/commit/2c5aa96092c7651304e4efc558bc4da5e291c63f))
+* update VCU firmware findings ([9f5f5da](https://github.com/philipkocanda/canair/commit/9f5f5da7c67305eec7ab09ab14beb737f74ad607))
+
 ## [5.2.0](https://github.com/philipkocanda/canair/compare/v5.1.0...v5.2.0) (2026-11-06)
 
 
