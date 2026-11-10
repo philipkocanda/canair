@@ -131,6 +131,7 @@ nav:
           - canair action: reference/cli/action.md
           - canair identity: reference/cli/identity.md
           - canair dtc: reference/cli/dtc.md
+          - canair memory: reference/cli/memory.md
           - canair repl: reference/cli/repl.md
           - canair lock: reference/cli/lock.md
           - canair captures: reference/cli/captures.md
