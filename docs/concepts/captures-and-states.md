@@ -151,7 +151,7 @@ became suspect; see the note below):
   a release. Recorded from a git checkout, it also carries the branch and short commit
   (`5.2.0+main.343b244`, plus `.dirty` for uncommitted edits). Older sessions omit it.
 - **`transport`** — how the payloads were acquired: the transport label
-  (`slcan-tcp` / `wican-ws`) for a device-recorded session, or `import` for a
+  (`slcan-tcp` / `wican-ws` / `elm327-tcp`) for a device-recorded session, or `import` for a
   device-free `canair import uds`.
 - **`quality`** — the transport's exchange/error tally for the session:
   `exchanges` (total UDS round-trips) plus any **non-zero** error categories
@@ -269,7 +269,7 @@ Add `--save` to a read, with context flags:
 canair read MyECU:2101 --save --label "highway" --state driving --notes "…"
 ```
 
-`--save` works with `read`, `monitor`, `scan`, and `discover`.
+`--save` works with `read`, `monitor`, `scan`, `discover`, `raw`, `dtc` and `action run`.
 
 !!! note "Truncated reads are rejected, not stored"
     A multi-frame ISO-TP response is self-describing — its first frame declares
@@ -370,7 +370,7 @@ value-transitions per PID (run-length), and the session records `keep_mode: chan
 analysis tools know to [carry each value forward](analysis-commands.md#forward-fill-a-run-length-row-is-a-segment-not-a-sample). The live view
 collapses each run of identical payloads into one row with its poll count (`×37`) and shows
 the newest few (`--keep N` sets how many). The scrollable live view shows a blinking `● REC`
-whenever a `--save` recording is active, and two keys control the session:
+whenever a `--save` recording is active, and these keys control the session:
 
 - **`s` (label recording)** — set or edit the label / state / notes of the **current**
   recording. Everything is already journaled, so this only *labels* the session; it doesn't
@@ -432,7 +432,7 @@ just read, so tagging is mostly automatic. A session is naturally **composite** 
 tie-breaks states unrelated in the hierarchy below.
 
 Predicates use **three-valued (Kleene) logic**: a predicate that depends on a
-parameter that wasn't polled *abstains* (neither matches nor is falsified) rather
+signal that wasn't polled *abstains* (neither matches nor is falsified) rather
 than reading false. So `BMS.BATTERY_CURRENT < -1 or OBC.OBC_DC_A > 0.5` still
 resolves to `CHARGING` from an OBC-only read where the BMS wasn't queried.
 
