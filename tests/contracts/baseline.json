@@ -14,7 +14,7 @@
     "canair.ecus.pids": 637,
     "canair.render.formatting": 617,
     "canair.safety.blocklist": 618,
-    "canair.transport.elm327.terminal": 833,
+    "canair.transport.elm327.terminal": 840,
     "canair.uds.byteindex": 541,
     "canair.variants.revisions": 745,
     "canair.yaml_edit.pids.params": 1042,
@@ -24,7 +24,7 @@
   "long_modules": {},
   "deferred_internal_imports": 86,
   "deferred_imports_without_reason": 0,
-  "parser_build_modules": 647,
+  "parser_build_modules": 649,
   "ambient_profile_calls": 0,
   "import_linter_ignores": 0,
   "packages_without_charter": [],
@@ -49,6 +49,6 @@
     "stderr_gating": {},
     "tui_key_hints": {}
   },
-  "agents_md_lines": 463,
+  "agents_md_lines": 464,
   "agents_md_code_paths": 7
 }

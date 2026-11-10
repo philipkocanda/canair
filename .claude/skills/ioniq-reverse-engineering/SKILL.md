@@ -147,6 +147,13 @@ works and values self-correct on the next poll. The device API and the sleep log
   solenoid DIDs this can re-assert defaults and cause an audible click. A KWP2000 `0x30` entry is
   polled, and switched on, only once it declares a `release:`. None of the Ioniq's KWP ECUs has
   one yet (see the OBC `iocontrol_scan` research entry).
+- **Remote climate is a broadcast frame, not a diagnostic service.** The telematics unit's `0x587`
+  (`TMU11`) carries `CF_Tmu_AirconCtr` (a 0→1 edge starts a ~15-min precondition in P, not READY,
+  plugged); the EU car has no TMU, so nothing competes with an injected copy. Test it with a
+  `frames:` profile action (`slcan-tcp` only, gated by `safety.allow_frame_injection`, dangerous
+  bits — VehImmo/VehSld/CHAR_CANCEL/IG3RLY — held 0 by the frame's `mask`). Open question: whether
+  the OBD→P-CAN gateway even forwards it (probably not; see the VCU `research:` entry and
+  `plans/2026-11-09-broadcast-frame-actions.md`).
 
 ## ECU status
 

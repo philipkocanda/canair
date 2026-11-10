@@ -128,6 +128,9 @@ class RawTerminal:
         # We run ISO-TP ourselves, so a long request is segmented rather than
         # refused; the ceiling is ISO-TP's own single-message limit.
         self.max_request_bytes = ISOTP_MAX_REQUEST_BYTES
+        # This transport drives python-can directly, so it can put a crafted broadcast
+        # frame on the bus (send_frame); an ELM327 cannot.
+        self.sends_raw_frames = True
         # Per-exchange outcome tally (drops/errors/decode), same as WiCANTerminal
         # and RawUdsClient — read by the monitor + stamped into capture provenance.
         self.diag = TransportStats(transport="slcan-tcp")
@@ -295,6 +298,24 @@ class RawTerminal:
         self.cmd_count += 1
         record_functional_losses(self.diag, result)
         return result
+
+    async def send_frame(self, can_id: int, data: bytes) -> None:
+        """Put one crafted broadcast frame on the bus (classic CAN, no reply collected).
+
+        For a guarded profile action that injects a non-diagnostic frame. Raises
+        ``ValueError`` on a CAN-FD profile (the frame is a classic 8-byte frame), as
+        the functional path does.
+        """
+        if not self._classic_can:
+            raise ValueError(CAN_FD_REFUSAL)
+        self.bus.send(
+            can.Message(
+                arbitration_id=can_id,
+                data=bytes(data),
+                is_extended_id=can_id > 0x7FF,
+            )
+        )
+        self.cmd_count += 1
 
     def _functional_fc_target(self, rx_id: int) -> int | None:
         """Where a functional responder's flow control goes (None: its stack sends it).

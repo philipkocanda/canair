@@ -89,6 +89,7 @@ def reached(monkeypatch):
         "io",
         "routines",
         "reset",
+        "action",
     ):
         module = __import__(f"canair.cli.commands.{name}", fromlist=["run_live"])
         if hasattr(module, "run_live"):

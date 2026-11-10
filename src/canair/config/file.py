@@ -223,6 +223,10 @@ def _read_yaml(path: Path) -> dict:
 ALLOW_UNSAFE_KEY = "safety.allow_unsafe"
 # The key that lets `canair reset` restart an ECU, gated the same way.
 ALLOW_RESET_KEY = "safety.allow_reset"
+# The key that lets a profile action inject a crafted broadcast CAN frame, gated the same way.
+# This is the most dangerous capability canair has: the frame is unauthenticated and reaches
+# ECUs directly, with no reply to confirm it.
+ALLOW_FRAME_INJECTION_KEY = "safety.allow_frame_injection"
 
 
 def unsafe_allowed() -> bool:
@@ -242,6 +246,14 @@ def reset_allowed() -> bool:
     Read by the same rules as :func:`unsafe_allowed`.
     """
     return _safety_flag(ALLOW_RESET_KEY)
+
+
+def frame_injection_allowed() -> bool:
+    """Whether the user config enables broadcast-frame actions (``safety.allow_frame_injection``).
+
+    Read by the same rules as :func:`unsafe_allowed`.
+    """
+    return _safety_flag(ALLOW_FRAME_INJECTION_KEY)
 
 
 def _safety_flag(key: str) -> bool:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 
 from canair.analysis.physical.grid_regions import GRID_REGIONS
-from canair.config.file import ALLOW_RESET_KEY, ALLOW_UNSAFE_KEY
+from canair.config.file import ALLOW_FRAME_INJECTION_KEY, ALLOW_RESET_KEY, ALLOW_UNSAFE_KEY
 from canair.core.paths import CONFIG_DOCS_URL
 from canair.render import messages
 from canair.transport.config import VALID_TRANSPORTS
@@ -40,6 +40,7 @@ KNOWN_KEYS = (
     "transport.firmware_check",
     ALLOW_UNSAFE_KEY,
     ALLOW_RESET_KEY,
+    ALLOW_FRAME_INJECTION_KEY,
 )
 
 
@@ -56,7 +57,7 @@ def _grid_regions() -> tuple[str, ...]:
 _WICAN_MODELS = ("pro", "classic")
 _BOOLEANS = ("true", "false")
 # The safety gates: booleans that `config set` enables only after typed consent (edit.py).
-SAFETY_GATE_KEYS = (ALLOW_UNSAFE_KEY, ALLOW_RESET_KEY)
+SAFETY_GATE_KEYS = (ALLOW_UNSAFE_KEY, ALLOW_RESET_KEY, ALLOW_FRAME_INJECTION_KEY)
 
 
 # Keys whose value is a list; `config set` splits a comma-separated value.

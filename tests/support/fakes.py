@@ -132,6 +132,10 @@ class FakeTerminal:
         # A segmenting transport's ceiling, so batching tests aren't clamped
         # unless they opt in by lowering it.
         self.max_request_bytes = ISOTP_MAX_REQUEST_BYTES
+        # Like the raw transport, the fake can inject a frame; set False to stand in
+        # for an ELM327 and test the capability refusal. Injected frames are recorded.
+        self.sends_raw_frames = True
+        self.sent_frames: list[tuple[int, bytes]] = []
         # Recorded only; the fake does not enforce the blocklist.
         self.session_policy = SessionPolicy()
 
@@ -270,6 +274,16 @@ class FakeTerminal:
             FunctionalMessage(rx, bytes.fromhex(hex_), 10 + i) for i, (rx, hex_) in enumerate(rows)
         ]
         return FunctionalResult(tx_id, req, messages)
+
+    async def send_frame(self, can_id: int, data: bytes) -> None:
+        """Record an injected broadcast frame; raise when the fake stands in for an ELM327."""
+        if not self.sends_raw_frames:
+            from canair.transport.errors import TransportUnsupported
+
+            raise TransportUnsupported("this transport cannot inject a raw frame")
+        async with self._command():
+            self.sent_frames.append((can_id, bytes(data)))
+            self.calls.append(("send_frame", (can_id, bytes(data))))
 
     async def close(self) -> None:
         self.calls.append(("close", None))

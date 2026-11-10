@@ -316,6 +316,35 @@ charging). The request expects no reply, so canair can only report that it was
 sent. Anything that talks to the car afterwards wakes it again, including the
 WiCAN's own AutoPID polling.
 
+### Injecting a broadcast frame
+
+An action can also put a crafted **non-diagnostic broadcast CAN frame** on the bus
+(`frames:`), for a make-specific function that no diagnostic service exposes — a
+remote-preconditioning command a telematics unit would normally send, for
+instance. This is the most dangerous thing canair can do: the frame is
+unauthenticated, reaches ECUs directly, and no reply confirms it. Four independent
+guards must all pass:
+
+- **The profile declares the exact frame**, never a free-form id and payload: an
+  arbitration `id`, an 8-byte `data` template, a `mask` of the bits the frame may
+  drive, an optional free-running `counter`, and an optional repeat (`rate_ms` with
+  `count` or `duration_s`). canair refuses at load time if `data` (or the counter)
+  sets a bit outside `mask`, so every bit the author did not name stays 0 — that is
+  how a dangerous bit on the same frame is provably held low.
+- **`safety.allow_frame_injection` must be on**, a fail-closed config key like
+  `safety.allow_unsafe`: read only from this user config file, only a YAML `true`
+  enables it, and `canair config set safety.allow_frame_injection true` asks you to
+  type YES at a terminal (no flag answers for it). `canair action run` refuses a
+  frame action before it connects when the key is off.
+- **The action's `reads`/`require` still gate it**, exactly as above.
+- **It is `slcan-tcp` only**, and the `id` must be below `0x700`, so a frame can
+  never forge a diagnostic response. An ELM327 transport is refused before the
+  confirm.
+
+Stopping the stream returns the bus to normal, but any behaviour the frame
+*started* (a timed climate session, say) runs on until it ends on its own — a
+frame action cannot always undo what it set in motion.
+
 ## Be gentle
 
 ECUs vary in how quickly and reliably they respond — some are slow or finicky,

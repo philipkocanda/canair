@@ -64,6 +64,13 @@ class Terminal(Protocol):
     # policy with its exact grants for the length of its own send.
     session_policy: SessionPolicy
 
+    # Whether this transport can put a crafted non-diagnostic broadcast frame on the
+    # bus (`send_frame`). True for the raw slcan-tcp path, which drives python-can
+    # directly; False for an ELM327, which only speaks request/response. A frame
+    # action checks this before it sends, so the user is not asked to confirm a send
+    # the transport cannot make.
+    sends_raw_frames: bool
+
     async def set_header(self, tx_id: int) -> None: ...
 
     def transaction(self) -> AbstractAsyncContextManager[None]:
@@ -86,6 +93,16 @@ class Terminal(Protocol):
     ) -> UdsResponse: ...
 
     async def send_command(self, cmd: str, timeout: float | None = ...) -> str: ...
+
+    async def send_frame(self, can_id: int, data: bytes) -> None:
+        """Put one crafted broadcast CAN frame on the bus (no reply is expected).
+
+        For a guarded profile action that injects a non-diagnostic frame. The raw
+        ``slcan-tcp`` path sends it; an ELM327 raises
+        :class:`canair.transport.errors.TransportUnsupported` (:attr:`sends_raw_frames`
+        is False there, so a caller refuses before it reaches this).
+        """
+        ...
 
     async def send_functional(
         self, tx_id: int, request: str, window: float = ...

@@ -32,6 +32,23 @@ class AdapterRefusedError(ConnectionError):
     """
 
 
+class TransportUnsupported(Exception):
+    """A capability the selected transport does not have (not a link failure).
+
+    Raised when a feature needs a transport that this one is not, e.g. injecting a
+    raw broadcast CAN frame, which needs ``slcan-tcp`` (an ELM327 adapter cannot).
+    The message names the working transport, so the caller reports it cleanly
+    rather than as a dropped-link error.
+    """
+
+
+# Why an ELM327 refuses a raw broadcast frame (its send_frame raises this).
+CANNOT_INJECT_FRAME = (
+    "injecting a raw broadcast CAN frame needs the slcan-tcp transport; an ELM327 adapter "
+    "(wican-ws, elm327-tcp) speaks request/response only"
+)
+
+
 def transport_error_types() -> tuple[type[BaseException], ...]:
     """Exception classes that count as a recoverable transport/IO failure (cached).
 

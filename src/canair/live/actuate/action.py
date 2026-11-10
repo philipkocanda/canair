@@ -16,6 +16,8 @@ The order is the safety argument, so it is fixed here:
    prompt is never the one the requests go out on.
 5. **Send**, with the grants active only for these requests, then restore the
    ordinary policy. The ``hold:`` sessions open first and stay alive to the end.
+   A ``frames:`` broadcast is injected after the diagnostic requests (``slcan-tcp``
+   only; refused before the confirm on any other transport).
 6. **Read** the ``then:`` selectors, after its ``wait``, if every request was answered.
 7. **Release**: the ``release:`` requests go out whenever a request did, also after a
    refusal, an error or Ctrl-C, and only then do the held sessions close. Nothing else is
@@ -29,10 +31,11 @@ import contextlib
 import io
 import json
 import sys
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from canair.actions import Action, ActionError, load_actions
+from canair.actions import Action, ActionError, FrameRequest, load_actions
 from canair.actions.plan import PlannedRequest, action_policy, plan_requests
 from canair.core.prompt import typed_confirm
 from canair.ecus.pids import build_ecu_index
@@ -225,6 +228,52 @@ def _print_rows(rows: list[dict[str, Any]], out) -> None:
             print(f"    {r['from']}: {r['response']}", file=out)
 
 
+def _apply_counter(payload: bytearray, frame: FrameRequest, i: int) -> None:
+    """Write iteration ``i`` of ``frame``'s free-running counter into ``payload``."""
+    counter = frame.counter
+    if counter is None:
+        return
+    shift = 4 if counter.high else 0
+    start = (frame.data[counter.byte] & counter.nibble_mask) >> shift
+    value = (start + i * counter.step) & 0xF
+    payload[counter.byte] = (payload[counter.byte] & ~counter.nibble_mask) | (value << shift)
+
+
+async def _send_frames(terminal: Terminal, frames: tuple[FrameRequest, ...], out) -> list[dict]:
+    """Inject each broadcast frame (one shot or a bounded stream); report what was sent."""
+    rows: list[dict[str, Any]] = []
+    for frame in frames:
+        sent = await _inject(terminal, frame, out)
+        rows.append({"id": f"0x{frame.can_id:X}", "frames": sent, "outcome": "sent"})
+    return rows
+
+
+async def _inject(terminal: Terminal, frame: FrameRequest, out) -> int:
+    """Send one frame, or repeat it every ``rate_ms`` until its count/duration; return the tally."""
+    payload = bytearray(frame.data)
+    if frame.rate_ms is None:
+        await terminal.send_frame(frame.can_id, bytes(payload))
+        print(f"  injected 0x{frame.can_id:X}: {payload.hex().upper()}", file=out)
+        return 1
+    period = frame.rate_ms / 1000
+    deadline = None if frame.duration_s is None else time.monotonic() + frame.duration_s
+    span = f"{frame.count}x" if frame.count is not None else f"{frame.duration_s:g} s"
+    print(
+        f"  injecting 0x{frame.can_id:X} every {frame.rate_ms} ms for {span} (Ctrl-C to stop)…",
+        file=out,
+    )
+    i = 0
+    while (frame.count is None or i < frame.count) and (
+        deadline is None or time.monotonic() < deadline
+    ):
+        _apply_counter(payload, frame, i)
+        await terminal.send_frame(frame.can_id, bytes(payload))
+        i += 1
+        await asyncio.sleep(period)
+    print(f"  stopped after {i} frame(s)", file=out)
+    return i
+
+
 @dataclass(frozen=True)
 class _Run:
     """Everything one action run needs once its plan and policy are settled."""
@@ -263,10 +312,12 @@ async def _run_held(run: _Run, report: dict[str, Any]) -> None:
         try:
             report["sent"] = await _send(run.terminal, run.planned, run.policy)
             _print_rows(report["sent"], run.out)
-            complete = len(report["sent"]) == len(run.planned) and all(
+            diag_ok = len(report["sent"]) == len(run.planned) and all(
                 row["outcome"] in ("answered", "sent (no reply expected)") for row in report["sent"]
             )
-            if run.action.then and complete:
+            if run.action.frames:
+                report["frames"] = await _send_frames(run.terminal, run.action.frames, run.out)
+            if run.action.then and diag_ok:
                 report["then"] = await _read_then(run)
         finally:
             if run.releases:
@@ -344,11 +395,19 @@ async def mode_action(
     releases = plan_requests(action, pids_data, profile=profile, release=True)
     policy = action_policy(action, [*planned, *releases], terminal.session_policy, pids_data)
 
+    if action.frames and not terminal.sends_raw_frames:
+        raise SafetyBlocked(
+            f"action {action.name!r} injects a broadcast CAN frame, which needs the slcan-tcp "
+            "transport; this one speaks request/response only. Re-run with --transport slcan-tcp."
+        )
+
     print(f"\n  Action '{action.name}': {action.description or '(no description)'}", file=out)
     for held in action.hold:
         print(f"    will hold a {held.mode} session on {held.ecu}", file=out)
     for p in planned:
         print(f"    will send {p.request.send} to 0x{p.tx_id:03X}", file=out)
+    for frame in action.frames:
+        print(f"    will inject frame {frame.describe()}", file=out)
     if action.then:
         then = f"wait {action.then.wait:g} s, then read {' '.join(action.then.read)}"
         print(f"    will {then}", file=out)
@@ -402,7 +461,13 @@ async def mode_action(
             as_json=as_json,
         )
         await _run_held(run, report)
-        if action.then or action.release:
+        if action.frames:
+            print(
+                "  Done. The injected frame has stopped, but any car behaviour it started "
+                "(a climate session, a timer) runs on its own until it ends.",
+                file=out,
+            )
+        elif action.then or action.release:
             print("  Done.", file=out)
         else:
             print(

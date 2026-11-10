@@ -29,6 +29,28 @@ An IOControl request that drives an output (``0x2F``/``0x30``) must have a ``rel
 that hands the same output back (:func:`canair.safety.actuation.release_mismatch`), as
 ``canair io`` requires: an action never leaves an output driven on purpose.
 
+An action may also inject a non-diagnostic broadcast CAN frame, under ``frames:``::
+
+      remote-climate-start:
+        reads: [VCU:2101]
+        require: VCU.VCU_IG3_ON == 1
+        frames:
+          - id: 0x587                             # the arbitration id (must be < 0x700)
+            data: "10 00 00 00 00 00 00 00"        # the 8-byte payload template
+            mask: "10 00 00 00 00 00 00 0F"        # the only bits this frame may drive
+            counter: {byte: 7, nibble: low, step: 1}   # advance a free-running counter
+            rate_ms: 100
+            duration_s: 30
+
+A frame is far more dangerous than a diagnostic request: it is unauthenticated and reaches
+ECUs directly, with no reply to confirm it. Four independent guards gate it: the profile
+declares the exact frame (never a free-form id/payload); ``safety.allow_frame_injection`` is a
+fail-closed config key; the action's ``reads``/``require`` still gate it; and it is refused on
+any id ``>= 0x700`` (so an action can never forge a diagnostic response) and on any transport
+but ``slcan-tcp``. The ``mask`` is the author's statement of which bits the frame may set: a
+``data`` (or ``counter``) bit outside it is a load error, which is how every dangerous bit of a
+frame is provably held at 0.
+
 Two rules keep a profile from using this to get around canair's safety policy:
 
 - **Every request still passes the command blocklist** (:mod:`canair.safety.blocklist`).
@@ -59,8 +81,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final, Literal
 
+from canair.actions.errors import ActionError
+from canair.actions.frames import FrameRequest as FrameRequest
+from canair.actions.frames import _frame
+from canair.actions.frames import parse_frame_spec as parse_frame_spec
 from canair.core import yaml_io
-from canair.core.edit_errors import EditError
 from canair.ecus.pids import build_ecu_index
 from canair.query import QueryError, parse_selector, pids_named_by
 from canair.safety.actuation import ACTUATE, classify, parse_io_request, release_mismatch
@@ -80,7 +105,7 @@ ResponseMode = Literal["none", "expected"]
 RESPONSE_MODES: Final[tuple[ResponseMode, ...]] = ("none", "expected")
 
 ACTION_FIELDS: Final = frozenset(
-    {"description", "reads", "require", "hold", "requests", "then", "release"}
+    {"description", "reads", "require", "hold", "requests", "then", "release", "frames"}
 )
 REQUEST_FIELDS: Final = frozenset({"to", "send", "response"})
 THEN_FIELDS: Final = frozenset({"wait", "read"})
@@ -90,10 +115,6 @@ MAX_THEN_WAIT_S: Final = 60.0
 # An action name: a lower-cased token, like a group name.
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 _HEX_RE = re.compile(r"^(?:[0-9A-F]{2})+$")
-
-
-class ActionError(EditError, ValueError):
-    """An actions.yaml definition (or a reference to one) is invalid."""
 
 
 @dataclass(frozen=True)
@@ -139,6 +160,7 @@ class Action:
     hold: tuple[HeldSession, ...] = ()
     then: ThenReads | None = None
     release: tuple[ActionRequest, ...] = ()
+    frames: tuple[FrameRequest, ...] = ()
 
 
 def normalize_name(name: str) -> str:
@@ -308,9 +330,17 @@ def parse_action(name: str, raw: Any) -> Action:
     reads = _reads(raw.get("reads"), where)
     require = _require(raw.get("require"), reads, where)
     requests_raw = raw.get("requests")
-    if not isinstance(requests_raw, list) or not requests_raw:
-        raise ActionError(f"{where}: 'requests' must be a non-empty list")
-    requests = tuple(_request(r, f"{where} request {i + 1}") for i, r in enumerate(requests_raw))
+    frames_raw = raw.get("frames")
+    if requests_raw is not None and not isinstance(requests_raw, list):
+        raise ActionError(f"{where}: 'requests' must be a list")
+    if frames_raw is not None and not isinstance(frames_raw, list):
+        raise ActionError(f"{where}: 'frames' must be a list")
+    if not requests_raw and not frames_raw:
+        raise ActionError(f"{where}: needs at least one 'requests' or 'frames' entry")
+    requests = tuple(
+        _request(r, f"{where} request {i + 1}") for i, r in enumerate(requests_raw or [])
+    )
+    frames = tuple(_frame(f, f"{where} frame {i + 1}") for i, f in enumerate(frames_raw or []))
     release_raw = raw.get("release")
     if release_raw is not None and not isinstance(release_raw, list):
         raise ActionError(f"{where}: 'release' must be a list of requests")
@@ -333,6 +363,7 @@ def parse_action(name: str, raw: Any) -> Action:
         hold=_hold(raw.get("hold"), where),
         then=parse_then(raw.get("then"), where),
         release=release,
+        frames=frames,
     )
 
 

@@ -5,10 +5,12 @@ from __future__ import annotations
 import sys
 
 from canair.config.file import (
+    ALLOW_FRAME_INJECTION_KEY,
     ALLOW_RESET_KEY,
     ALLOW_UNSAFE_KEY,
     coerce_scalar,
     ensure_config_dir,
+    frame_injection_allowed,
     get_config_key,
     load_config,
     reset_allowed,
@@ -126,6 +128,13 @@ _GATES = {
         reset_allowed,
         f"{ALLOW_RESET_KEY} lets `canair reset` restart an ECU. A restarting ECU stops "
         "working, which is dangerous\n!! while the car is in use. Enable `canair reset`?",
+    ),
+    ALLOW_FRAME_INJECTION_KEY: (
+        frame_injection_allowed,
+        f"{ALLOW_FRAME_INJECTION_KEY} lets a profile action put a crafted broadcast CAN frame "
+        "on the bus. The frame is unauthenticated,\n!! reaches ECUs directly, and no reply "
+        "confirms it — a wrong bit can disrupt a moving or charging car. Only a person at the "
+        "car should enable this. Enable frame injection?",
     ),
 }
 

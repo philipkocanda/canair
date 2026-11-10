@@ -77,7 +77,15 @@ def test_elm327_tcp_terminal_satisfies_protocol():
 )
 @pytest.mark.parametrize(
     "method",
-    ["set_header", "transaction", "send_uds", "send_command", "short_ecu_wait", "close"],
+    [
+        "set_header",
+        "transaction",
+        "send_uds",
+        "send_command",
+        "send_frame",
+        "short_ecu_wait",
+        "close",
+    ],
 )
 def test_every_elm_backend_exposes_the_shared_surface(backend, method):
     """Both ELM transports must expose the whole surface, not just one of them.
@@ -86,6 +94,21 @@ def test_every_elm_backend_exposes_the_shared_surface(backend, method):
     cover the transport surface.
     """
     assert hasattr(backend(), method)
+
+
+def test_only_the_raw_transport_advertises_frame_injection(monkeypatch):
+    monkeypatch.setattr(raw_terminal, "SlcanTcpBus", _FakeBus)
+    monkeypatch.setattr(raw_terminal.can, "Notifier", _FakeNotifier)
+    assert raw_terminal.RawTerminal("h", 3333, 500000).sends_raw_frames is True
+    assert WiCANTerminal(host="10.0.2.86").sends_raw_frames is False
+
+
+@pytest.mark.asyncio
+async def test_an_elm327_refuses_to_inject_a_frame():
+    from canair.transport.errors import TransportUnsupported
+
+    with pytest.raises(TransportUnsupported, match="slcan-tcp"):
+        await WiCANTerminal(host="10.0.2.86").send_frame(0x587, bytes(8))
 
 
 def test_static_conformance_module_is_side_effect_free():

@@ -26,3 +26,19 @@ actions:
     then: {wait: 3, read: [VCU, BMS, OBC, MCU, AAF, HVAC]}
     release:
       - {to: IGPM, send: 2FBC4400, response: expected}
+  remote-climate-start:
+    description: >-
+      Inject the telematics unit's TMU11 frame (0x587) with CF_Tmu_AirconCtr set, to test whether a
+      remote preconditioning start reaches the VCU from the OBD-II port. Car charging (plugged, in
+      P, not READY). Observe HVAC diagnostics and VCU power draw. HYPOTHESIS: 0x587 bit 4 =
+      AirconCtr; the mask holds every other bit (immobiliser, charge-cancel, IG3RLY) at 0.
+    reads: [BMS:2101, VCU:2101, IGPM:22BC07]
+    require: BMS.CHARGING == 1 and VCU.VEHICLE_STATE_EV_READY == 0 and IGPM.CHARGE_PORT_LOCK == 1
+    frames:
+      - id: '0x587'
+        data: 10 00 00 00 00 00 00 00
+        mask: 10 00 00 00 00 00 00 0F
+        counter: {byte: 7, nibble: low}
+        rate_ms: 100
+        duration_s: 30
+    then: {wait: 2, read: [VCU:2101, HVAC:2201A0, HVAC:2201A1, BMS:2101]}

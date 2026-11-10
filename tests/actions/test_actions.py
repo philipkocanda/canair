@@ -16,6 +16,7 @@ from canair.actions import (
     load_actions,
     parse_action,
     parse_actions_doc,
+    parse_frame_spec,
     parse_request_spec,
     registry_issues,
 )
@@ -324,4 +325,132 @@ class TestHoldThenRelease:
         before = prof.actions_file.read_text()
         with pytest.raises(ActionError, match="drives an output"):
             update_action("ig3", release=[], profile=prof)
+        assert prof.actions_file.read_text() == before
+
+
+CLIMATE = {
+    "reads": ["IGPM:22BC03"],
+    "require": "IGPM.IGN1_SWITCH == 0",
+    "frames": [
+        {
+            "id": "0x587",
+            "data": "10 00 00 00 00 00 00 00",
+            "mask": "10 00 00 00 00 00 00 0F",
+            "counter": {"byte": 7, "nibble": "low"},
+            "rate_ms": 100,
+            "duration_s": 30,
+        }
+    ],
+}
+
+
+class TestFrames:
+    """A profile action that injects a crafted broadcast CAN frame."""
+
+    def test_parse(self):
+        a = parse_action("climate", CLIMATE)
+        assert not a.requests
+        (frame,) = a.frames
+        assert frame.can_id == 0x587
+        assert frame.data == bytes.fromhex("1000000000000000")
+        assert frame.mask == bytes.fromhex("100000000000000F")
+        assert frame.counter is not None and frame.counter.byte == 7 and not frame.counter.high
+        assert frame.rate_ms == 100 and frame.duration_s == 30 and frame.count is None
+
+    def test_an_action_needs_requests_or_frames(self):
+        with pytest.raises(ActionError, match="at least one 'requests' or 'frames'"):
+            parse_action("x", {"reads": CLIMATE["reads"], "require": CLIMATE["require"]})
+
+    def test_frames_and_requests_may_coexist(self):
+        raw = {**CLIMATE, "requests": [{"to": "igpm", "send": "22BC03"}]}
+        a = parse_action("mix", raw)
+        assert a.requests and a.frames
+
+    def test_a_diagnostic_id_is_refused(self):
+        bad = {**CLIMATE["frames"][0], "id": "0x770"}
+        with pytest.raises(ActionError, match="below 0x700"):
+            parse_action("x", {**CLIMATE, "frames": [bad]})
+
+    def test_data_bits_outside_the_mask_are_refused(self):
+        # bit 1 (VehImmo) set in data but not in mask.
+        bad = {**CLIMATE["frames"][0], "data": "12 00 00 00 00 00 00 00"}
+        with pytest.raises(ActionError, match="outside 'mask'"):
+            parse_action("x", {**CLIMATE, "frames": [bad]})
+
+    def test_the_dangerous_bits_of_0x587_are_outside_the_test_mask(self):
+        # VehSld(0) VehImmo(1) IG3RLY(32,33) CHAR_CANCEL(36) AIRCONCTR_CANCEL(38).
+        (frame,) = parse_action("climate", CLIMATE).frames
+        for bit in (0, 1, 32, 33, 36, 38):
+            byte, offset = bit // 8, bit % 8
+            assert not frame.mask[byte] & (1 << offset), f"bit {bit} must be outside the mask"
+
+    def test_a_counter_outside_the_mask_is_refused(self):
+        bad = {**CLIMATE["frames"][0], "counter": {"byte": 0, "nibble": "low"}}
+        with pytest.raises(ActionError, match="outside 'mask'"):
+            parse_action("x", {**CLIMATE, "frames": [bad]})
+
+    def test_a_repeating_frame_needs_a_bound(self):
+        bad = {"id": "0x587", "data": "00" * 8, "mask": "00" * 8, "rate_ms": 100}
+        with pytest.raises(ActionError, match="one of 'count' or 'duration_s'"):
+            parse_action("x", {**CLIMATE, "frames": [bad]})
+
+    def test_a_bound_needs_a_rate(self):
+        bad = {"id": "0x587", "data": "00" * 8, "mask": "00" * 8, "count": 10}
+        with pytest.raises(ActionError, match="need 'rate_ms'"):
+            parse_action("x", {**CLIMATE, "frames": [bad]})
+
+    @pytest.mark.parametrize(
+        "field,value,match",
+        [
+            ("rate_ms", 1, "at least"),
+            ("duration_s", 999, "0-300"),
+            ("data", "00 10", "8 whole hex bytes"),
+        ],
+    )
+    def test_bounds(self, field, value, match):
+        frame = {**CLIMATE["frames"][0]}
+        frame.pop("count", None)
+        frame[field] = value
+        if field == "rate_ms":
+            frame["count"] = 5  # a valid bound, so the rate itself is what fails
+            frame.pop("duration_s", None)
+        with pytest.raises(ActionError, match=match):
+            parse_action("x", {**CLIMATE, "frames": [frame]})
+
+    def test_frame_spec_parses(self):
+        spec = (
+            "id=0x587,data=1000000000000000,mask=100000000000000F,counter=7:low,rate_ms=100,count=5"
+        )
+        frame = parse_frame_spec(spec)
+        assert frame.can_id == 0x587 and frame.count == 5 and frame.counter.byte == 7
+
+    def test_frame_spec_rejects_a_bad_field(self):
+        with pytest.raises(ActionError, match="bad field"):
+            parse_frame_spec("id=0x587,nope=1")
+
+    def test_the_editor_round_trips_a_frame(self, tmp_path):
+        (tmp_path / "profile.yaml").write_text("car_model: test\n")
+        (tmp_path / "ecus").mkdir()
+        prof = Profile("t", tmp_path)
+        spec = (
+            "id=0x587,data=1000000000000000,mask=100000000000000F,"
+            "counter=7:low,rate_ms=100,duration_s=30"
+        )
+        add_action(
+            "climate",
+            reads=CLIMATE["reads"],
+            require=CLIMATE["require"],
+            requests=[],
+            frames=[parse_frame_spec(spec)],
+            profile=prof,
+        )
+        text = prof.actions_file.read_text()
+        assert "frames:" in text and "0x587" in text and "10 00 00 00 00 00 00 0F" in text
+        a = load_actions(prof)["climate"]
+        (frame,) = a.frames
+        assert frame.can_id == 0x587 and frame.rate_ms == 100 and frame.duration_s == 30
+        # Clearing the frames leaves an action with no requests either: refused and reverted.
+        before = prof.actions_file.read_text()
+        with pytest.raises(ActionError, match="at least one"):
+            update_action("climate", frames=[], profile=prof)
         assert prof.actions_file.read_text() == before

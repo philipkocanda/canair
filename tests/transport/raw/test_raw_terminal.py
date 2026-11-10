@@ -22,9 +22,13 @@ def _answer(monkeypatch, typed: str) -> None:
 class FakeBus:
     def __init__(self, *a, **k):
         self.shutdown_called = False
+        self.sent: list = []
         # The real SlcanTcpBus measures the link at its TCP handshake; an
         # unmeasured estimate keeps the LAN defaults, which is what these tests want.
         self.link = LinkLatency()
+
+    def send(self, msg):
+        self.sent.append(msg)
 
     def shutdown(self):
         self.shutdown_called = True
@@ -279,6 +283,29 @@ class TestRawShortEcuWait:
         async with t.short_ecu_wait():
             pass
         assert t.cmd_count == 0
+        await t.close()
+
+
+class TestRawTerminalSendFrame:
+    @pytest.mark.asyncio
+    async def test_it_puts_the_frame_on_the_bus(self, make_terminal):
+        t = make_terminal({})
+        assert t.sends_raw_frames is True
+        await t.send_frame(0x587, bytes.fromhex("1000000000000000"))
+        (msg,) = t.bus.sent
+        assert msg.arbitration_id == 0x587
+        assert bytes(msg.data) == bytes.fromhex("1000000000000000")
+        assert msg.is_extended_id is False
+        assert t.cmd_count == 1
+        await t.close()
+
+    @pytest.mark.asyncio
+    async def test_a_can_fd_profile_is_refused(self, make_terminal):
+        t = make_terminal({})
+        t._classic_can = False
+        with pytest.raises(ValueError):
+            await t.send_frame(0x587, bytes(8))
+        assert t.bus.sent == []
         await t.close()
 
 

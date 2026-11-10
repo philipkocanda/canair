@@ -336,3 +336,77 @@ class TestHeldAction:
         report = json.loads(capsys.readouterr().out)
         assert [r["send"] for r in report["sent"]] == ["2FBC4403"]
         assert [r["send"] for r in report["released"]] == ["2FBC4400"]
+
+
+CLIMATE = parse_action(
+    "climate",
+    {
+        "reads": ["IGPM:22BC03"],
+        "require": "IGPM.IGN1_SWITCH == 0",
+        "frames": [
+            {
+                "id": "0x587",
+                "data": "10 00 00 00 00 00 00 00",
+                "mask": "10 00 00 00 00 00 00 0F",
+                "counter": {"byte": 7, "nibble": "low"},
+                "rate_ms": 10,
+                "count": 3,
+            }
+        ],
+    },
+)
+
+
+class TestFrameAction:
+    """An action that injects a broadcast frame (slcan-tcp only)."""
+
+    @pytest.fixture
+    def run(self, monkeypatch):
+        monkeypatch.setattr(mode, "_REREAD_DELAY_S", 0)
+        monkeypatch.setattr(
+            "canair.live.actuate.action.load_actions", lambda *_, **__: {"climate": CLIMATE}
+        )
+        self._monkeypatch = monkeypatch
+        monkeypatch.setattr("canair.live.actuate.action.exec_query", _values({"IGN1_SWITCH": 0}))
+
+        def _run(terminal, **kw):
+            return asyncio.run(
+                mode.mode_action(terminal, PIDS, "climate", yes=True, profile=active(), **kw)
+            )
+
+        return _run
+
+    def test_injects_the_frame_when_the_condition_holds(self, run):
+        t = FakeTerminal()
+        run(t)
+        template = bytes.fromhex("1000000000000000")
+        assert [can_id for can_id, _ in t.sent_frames] == [0x587, 0x587, 0x587]
+        for i, (_, data) in enumerate(t.sent_frames):
+            # Only the counter nibble (byte 7 low) changes; every other bit holds the template.
+            assert data[:7] == template[:7]
+            assert data[7] & 0x0F == i
+            assert data[7] & 0xF0 == template[7] & 0xF0
+
+    def test_a_false_condition_injects_nothing(self, run):
+        self._monkeypatch.setattr(
+            "canair.live.actuate.action.exec_query", _values({"IGN1_SWITCH": 1})
+        )
+        t = FakeTerminal()
+        with pytest.raises(SafetyBlocked, match="FALSE"):
+            run(t)
+        assert t.sent_frames == []
+
+    def test_an_elm327_transport_is_refused_before_sending(self, run):
+        t = FakeTerminal()
+        t.sends_raw_frames = False
+        with pytest.raises(SafetyBlocked, match="slcan-tcp"):
+            run(t)
+        assert t.sent_frames == []
+
+    def test_json_reports_the_frames(self, run, capsys):
+        import json
+
+        run(FakeTerminal(), as_json=True)
+        report = json.loads(capsys.readouterr().out)
+        assert report["frames"][0]["id"] == "0x587"
+        assert report["frames"][0]["frames"] == 3

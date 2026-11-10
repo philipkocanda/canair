@@ -5,7 +5,7 @@
 ```
 usage: canair action [-h] [--json] {list,run,add,set,rm} ...
 
-Profile-defined actions: named requests for make-specific things such as putting the car to sleep. Each action declares live reads and a condition that must be TRUE before it is sent; its requests still pass the command blocklist, which only a code-owned profile quirk can relax for that exact request.
+Profile-defined actions: named requests for make-specific things such as putting the car to sleep. Each action declares live reads and a condition that must be TRUE before it is sent; its requests still pass the command blocklist, which only a code-owned profile quirk can relax for that exact request. An action may also inject a crafted broadcast CAN frame (slcan-tcp only), gated by safety.allow_frame_injection and a per-frame bit mask.
 
 positional arguments:
   {list,run,add,set,rm}
@@ -30,6 +30,9 @@ examples:
       --hold IGPM --request IGPM:2FBC4403 --wait 3 --then-read VCU:2101 \
       --release IGPM:2FBC4400
   canair action run ig3-read --save --label 'IG3 wake read'   # keep the reads
+  canair action add remote-climate-start --read VCU:2101 \
+      --require "VCU.VCU_IG3_ON == 1" \
+      --frame "id=0x587,data=1000000000000000,mask=100000000000000F,counter=7:low,rate_ms=100,duration_s=30"
   canair action set sleep --description "Put every ECU to sleep"
   canair action rm sleep
 ```
@@ -120,8 +123,9 @@ options:
 ```
 usage: canair action add [-h] [--description DESCRIPTION] [--read ECU:PID]
                          [--require EXPR] [--request TARGET:HEX[:none]]
-                         [--hold ECU[:MODE]] [--then-read ECU[:PID]]
-                         [--wait SECONDS] [--release TARGET:HEX[:none]]
+                         [--frame SPEC] [--hold ECU[:MODE]]
+                         [--then-read ECU[:PID]] [--wait SECONDS]
+                         [--release TARGET:HEX[:none]]
                          name
 
 positional arguments:
@@ -141,6 +145,13 @@ options:
                         request hex, and ':none' when no reply is expected
                         (repeatable, sent in order; replaces the list on
                         `set`)
+  --frame SPEC          A broadcast CAN frame to inject (slcan-tcp only; needs
+                        safety.allow_frame_injection). SPEC is comma-separated
+                        k=v: id=0x587,data=1000000000000000,mask=1000000000000
+                        00F[,counter=7:low][,rate_ms=100][,count=N|duration_s=
+                        S][,bus=NAME]. 'id' must be below 0x700 and every
+                        'data'/counter bit must be inside 'mask' (repeatable;
+                        replaces the list on `set`, --frame '' clears it)
   --hold ECU[:MODE]     Open a diagnostic session on ECU (MODE two hex digits,
                         default 03) before the requests and keep it alive
                         until the release is sent, as an IOControl needs
@@ -165,9 +176,9 @@ options:
 ```
 usage: canair action set [-h] [--description DESCRIPTION] [--read ECU:PID]
                          [--require EXPR] [--request TARGET:HEX[:none]]
-                         [--hold ECU[:MODE]] [--then-read ECU[:PID]]
-                         [--wait SECONDS] [--release TARGET:HEX[:none]]
-                         [--no-then]
+                         [--frame SPEC] [--hold ECU[:MODE]]
+                         [--then-read ECU[:PID]] [--wait SECONDS]
+                         [--release TARGET:HEX[:none]] [--no-then]
                          name
 
 positional arguments:
@@ -187,6 +198,13 @@ options:
                         request hex, and ':none' when no reply is expected
                         (repeatable, sent in order; replaces the list on
                         `set`)
+  --frame SPEC          A broadcast CAN frame to inject (slcan-tcp only; needs
+                        safety.allow_frame_injection). SPEC is comma-separated
+                        k=v: id=0x587,data=1000000000000000,mask=1000000000000
+                        00F[,counter=7:low][,rate_ms=100][,count=N|duration_s=
+                        S][,bus=NAME]. 'id' must be below 0x700 and every
+                        'data'/counter bit must be inside 'mask' (repeatable;
+                        replaces the list on `set`, --frame '' clears it)
   --hold ECU[:MODE]     Open a diagnostic session on ECU (MODE two hex digits,
                         default 03) before the requests and keep it alive
                         until the release is sent, as an IOControl needs

@@ -53,6 +53,9 @@ class RawClientTerminal:
         self._ecu_for = ecu_for
         self.frame_counts = FrameCountLedger()
         self.max_request_bytes = ISOTP_MAX_REQUEST_BYTES
+        # The monitor never injects a broadcast frame; an action (which can) runs over
+        # RawTerminal, not this pipelined client.
+        self.sends_raw_frames = False
         self._cur: int | None = None
         self._lock = asyncio.Lock()
         self._lock_owner: asyncio.Task | None = None
@@ -154,6 +157,9 @@ class RawClientTerminal:
         self, tx_id: int, request: str, window: float = 0.3
     ) -> FunctionalResult:
         raise NotImplementedError("a functional request goes through RawTerminal, not the monitor")
+
+    async def send_frame(self, can_id: int, data: bytes) -> None:
+        raise NotImplementedError("a frame injection goes through RawTerminal, not the monitor")
 
     async def close(self) -> None:
         """Nothing to close: the client belongs to the monitor."""

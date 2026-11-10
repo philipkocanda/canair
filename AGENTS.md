@@ -261,9 +261,10 @@ exit), and **`g`/`G` address the view's primary axis**. The rest of the TUI and 
 - **`canair reset`** — Restart one ECU (ECUReset `0x11`), off until the user sets
   `safety.allow_reset`. Never enable that key for the user. Rules: `safety/reset.py`.
 - **`canair action`** — List, run and edit the profile's guarded, make-specific actions
-  (`actions.yaml`). Two rules: every request still passes the blocklist (a quirk may grant exactly
-  one request; `--unsafe` plays no part), and every action is guarded by mandatory `reads` and
-  `require`. See `actions/` and `live/actuate/action.py`.
+  (`actions.yaml`): every request still passes the blocklist (a quirk may grant exactly one;
+  `--unsafe` plays no part), and every action is guarded by mandatory `reads`/`require`. It may also
+  inject a broadcast CAN frame (`frames:`, **`slcan-tcp` only**, id `< 0x700`, masked), off until
+  the user sets `safety.allow_frame_injection` — **never enable it**. Design: `actions/`.
 - **`canair memory`** — Memory reads (`0x23` only). **Dumps are user state**
   (`<config dir>/memory/<profile>/`), never profile data. A memory PID never ships to AutoPID.
   Concepts: `docs/concepts/memory-reads.md`; design: `memory/`, `live/memory/`.

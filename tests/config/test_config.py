@@ -732,3 +732,53 @@ class TestSetAllowReset:
         self._setup(tmp_path, monkeypatch, _Stdin("YES\n"))
         assert _set_allow_reset("on") == 2
         assert "valid: true, false" in capsys.readouterr().err
+
+
+def _set_allow_frames(value: str = "true") -> int:
+    return edit_cmd.cmd_set(
+        argparse.Namespace(key="safety.allow_frame_injection", value=value, string=False)
+    )
+
+
+class TestSetAllowFrameInjection:
+    """``safety.allow_frame_injection`` is a safety gate: typed consent, no flag."""
+
+    def _setup(self, tmp_path, monkeypatch, stdin):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        monkeypatch.setattr("sys.stdin", stdin)
+        _reset()
+
+    def test_typing_yes_enables_it(self, tmp_path, monkeypatch, capsys):
+        from canair.config.file import frame_injection_allowed
+
+        self._setup(tmp_path, monkeypatch, _Stdin("YES\n"))
+        assert _set_allow_frames() == 0
+        assert frame_injection_allowed() is True
+        assert "broadcast CAN frame" in capsys.readouterr().err
+
+    def test_a_decline_leaves_it_off(self, tmp_path, monkeypatch):
+        from canair.config.file import frame_injection_allowed
+
+        self._setup(tmp_path, monkeypatch, _Stdin("yes\n"))
+        assert _set_allow_frames() == 1
+        assert frame_injection_allowed() is False
+
+    def test_no_terminal_is_refused(self, tmp_path, monkeypatch, capsys):
+        from canair.config.file import frame_injection_allowed
+
+        self._setup(tmp_path, monkeypatch, _Stdin("YES\n", tty=False))
+        assert _set_allow_frames() == 2
+        assert frame_injection_allowed() is False
+        assert "safety.allow_frame_injection can only be enabled at an interactive terminal" in (
+            capsys.readouterr().err
+        )
+
+    def test_only_a_yaml_true_enables_it(self, tmp_path, monkeypatch):
+        """A quoted string in the user file does not count (parity with the other gates)."""
+        from canair.config.file import frame_injection_allowed, user_config_file
+
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+        _reset()
+        user_config_file().parent.mkdir(parents=True, exist_ok=True)
+        user_config_file().write_text('safety:\n  allow_frame_injection: "true"\n')
+        assert frame_injection_allowed() is False

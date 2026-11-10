@@ -16,6 +16,9 @@ Examples:
       --hold IGPM --request IGPM:2FBC4403 --wait 3 --then-read VCU:2101 \\
       --release IGPM:2FBC4400
   canair action run ig3-read --save --label 'IG3 wake read'   # keep the reads
+  canair action add remote-climate-start --read VCU:2101 \\
+      --require "VCU.VCU_IG3_ON == 1" \\
+      --frame "id=0x587,data=1000000000000000,mask=100000000000000F,counter=7:low,rate_ms=100,duration_s=30"
   canair action set sleep --description "Put every ECU to sleep"
   canair action rm sleep
 """
@@ -29,19 +32,42 @@ import sys
 from canair.actions import (
     ActionError,
     load_actions,
+    parse_frame_spec,
     parse_hold_spec,
     parse_request_spec,
     parse_then,
 )
 from canair.cli.commands._edit import run_edit, subcommand_dispatch
-from canair.cli.live import LiveOperation, add_connection_args, live_command
+from canair.cli.live import LiveOperation, add_connection_args, run_live
 from canair.cli.live.handlers import actuators
 from canair.cli.profile_context import active
+from canair.config.file import ALLOW_FRAME_INJECTION_KEY, frame_injection_allowed, user_config_file
 from canair.render import ansi, messages
 from canair.yaml_edit.actions import add_action, remove_action, update_action
 
 NAME = "action"
 _RUN = LiveOperation(actuators.handle_action)
+
+
+def _frame_record(f) -> dict:
+    return {
+        "id": f"0x{f.can_id:X}",
+        "data": f.data.hex().upper(),
+        "mask": f.mask.hex().upper(),
+        "counter": (
+            {
+                "byte": f.counter.byte,
+                "nibble": "high" if f.counter.high else "low",
+                "step": f.counter.step,
+            }
+            if f.counter
+            else None
+        ),
+        "rate_ms": f.rate_ms,
+        "duration_s": f.duration_s,
+        "count": f.count,
+        "bus": f.bus,
+    }
 
 
 def _records(actions) -> list[dict]:
@@ -54,6 +80,7 @@ def _records(actions) -> list[dict]:
             "requests": [
                 {"to": r.target, "send": r.send, "response": r.response} for r in a.requests
             ],
+            "frames": [_frame_record(f) for f in a.frames],
             "hold": [h.describe() for h in a.hold],
             "then": {"wait": a.then.wait, "read": list(a.then.read)} if a.then else None,
             "release": [
@@ -90,7 +117,12 @@ def cmd_list(args) -> int:
         print(f"  {ansi.c(a.name, ansi.CYAN)}")
         if a.description:
             print(f"    {ansi.c(a.description, ansi.DIM)}")
-        print(f"    {ansi.c('sends:', ansi.DIM)} {', '.join(r.describe() for r in a.requests)}")
+        if a.requests:
+            sends = ", ".join(r.describe() for r in a.requests)
+            print(f"    {ansi.c('sends:', ansi.DIM)} {sends}")
+        if a.frames:
+            injects = ", ".join(f.describe() for f in a.frames)
+            print(f"    {ansi.c('injects:', ansi.DIM)} {injects}")
         print(f"    {ansi.c('reads:', ansi.DIM)} {' '.join(a.reads)}")
         print(f"    {ansi.c('requires:', ansi.DIM)} {a.require}")
         if a.hold:
@@ -122,6 +154,12 @@ def _release(specs):
     return [parse_request_spec(s) for s in specs if s]
 
 
+def _frames(specs):
+    if specs is None:
+        return None
+    return [parse_frame_spec(s) for s in specs if s]
+
+
 def _then(args):
     reads = getattr(args, "then_read", None)
     if not reads:
@@ -133,8 +171,8 @@ def _then(args):
 
 def cmd_add(args) -> int:
     def edit():
-        if not args.read or not args.require or not args.request:
-            raise ActionError("add needs --read, --require and at least one --request")
+        if not args.read or not args.require or not (args.request or args.frame):
+            raise ActionError("add needs --read, --require and at least one --request or --frame")
         return add_action(
             args.name,
             reads=args.read,
@@ -144,6 +182,7 @@ def cmd_add(args) -> int:
             hold=_hold(args.hold) or [],
             then=_then(args),
             release=_release(args.release) or [],
+            frames=_frames(args.frame) or [],
             profile=active(),
         )
 
@@ -161,6 +200,7 @@ def cmd_set(args) -> int:
             hold=_hold(args.hold),
             then=_then(args),
             release=_release(args.release),
+            frames=_frames(args.frame),
             clear_then=args.no_then,
             profile=active(),
         ),
@@ -195,6 +235,16 @@ def _add_definition_args(p: argparse.ArgumentParser) -> None:
         metavar="TARGET:HEX[:none]",
         help="A request to send: an ECU name or 'functional', the request hex, and ':none' "
         "when no reply is expected (repeatable, sent in order; replaces the list on `set`)",
+    )
+    p.add_argument(
+        "--frame",
+        action="append",
+        metavar="SPEC",
+        help="A broadcast CAN frame to inject (slcan-tcp only; needs "
+        "safety.allow_frame_injection). SPEC is comma-separated k=v: "
+        "id=0x587,data=1000000000000000,mask=100000000000000F[,counter=7:low][,rate_ms=100]"
+        "[,count=N|duration_s=S][,bus=NAME]. 'id' must be below 0x700 and every 'data'/counter "
+        "bit must be inside 'mask' (repeatable; replaces the list on `set`, --frame '' clears it)",
     )
     p.add_argument(
         "--hold",
@@ -234,7 +284,9 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         description="Profile-defined actions: named requests for make-specific things such "
         "as putting the car to sleep. Each action declares live reads and a condition that "
         "must be TRUE before it is sent; its requests still pass the command blocklist, "
-        "which only a code-owned profile quirk can relax for that exact request.",
+        "which only a code-owned profile quirk can relax for that exact request. An action may "
+        "also inject a crafted broadcast CAN frame (slcan-tcp only), gated by "
+        "safety.allow_frame_injection and a per-frame bit mask.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="examples:" + __doc__.split("Examples:")[1]
         if __doc__ and "Examples:" in __doc__
@@ -271,7 +323,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     run_p.add_argument("--state", metavar="TEXT", help="Session state for --save")
     run_p.add_argument("--notes", metavar="TEXT", help="Session notes for --save")
     add_connection_args(run_p)
-    run_p.set_defaults(func=live_command(_RUN))
+    run_p.set_defaults(func=_run_action)
 
     add = sub.add_parser("add", help="Add an action")
     add.add_argument("name", help="Action name (lower-cased)")
@@ -293,3 +345,27 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
 
 
 run = subcommand_dispatch("_action_func", cmd_list)
+
+
+def _run_action(args) -> int:
+    """Gate a frame-injecting action behind safety.allow_frame_injection, then run it.
+
+    The check is here, before the device lock, so an agent or a script is refused without
+    connecting. The gate is set once, at a terminal; no flag answers for it.
+    """
+    try:
+        actions = load_actions(active())
+    except ActionError:
+        return run_live(args, _RUN)  # let the handler report the bad actions.yaml
+    action = actions.get(str(args.action).strip().lower())
+    if action is not None and action.frames and not frame_injection_allowed():
+        messages.error(
+            f"action {action.name!r} injects a broadcast CAN frame, which is off: "
+            f"{ALLOW_FRAME_INJECTION_KEY} is not true in {user_config_file()}"
+        )
+        messages.hint(
+            f"the car's owner enables it at a terminal (it asks you to type YES):\n"
+            f"  canair config set {ALLOW_FRAME_INJECTION_KEY} true"
+        )
+        return 2
+    return run_live(args, _RUN)

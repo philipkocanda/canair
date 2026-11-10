@@ -117,9 +117,16 @@ default_wican: home
 # allow_reset lets `canair reset` restart an ECU (ECUReset 0x11). A restarting ECU
 # stops working, so reset one only with the car parked and not in use. It is
 # enabled the same way: `canair config set safety.allow_reset true`, typed YES.
+#
+# allow_frame_injection lets a profile action put a crafted broadcast CAN frame on
+# the bus (slcan-tcp only). Unlike a diagnostic request, the frame is
+# unauthenticated, reaches ECUs directly, and no reply confirms it — a wrong bit can
+# disrupt a moving or charging car. Only a person at the car should enable it, the
+# same way: `canair config set safety.allow_frame_injection true`, typed YES.
 # safety:
 #   allow_unsafe: false        # default false; only a YAML boolean true enables it
 #   allow_reset: false         # default false; only a YAML boolean true enables it
+#   allow_frame_injection: false  # default false; only a YAML boolean true enables it
 
 # CAN transport selection (advanced). Chosen explicitly; never auto-detected.
 # The type/host are overridden per-command by --transport/--wican; port and

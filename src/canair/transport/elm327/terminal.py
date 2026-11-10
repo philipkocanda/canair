@@ -56,7 +56,7 @@ from canair.transport.elm327.frame_count import CountKey, FrameCountCache, count
 from canair.transport.elm327.functional import elm_functional_exchange
 from canair.transport.elm327.pipe import ResponsePipe
 from canair.transport.elm327.session import short_ecu_wait
-from canair.transport.errors import AdapterRefusedError
+from canair.transport.errors import CANNOT_INJECT_FRAME, AdapterRefusedError, TransportUnsupported
 from canair.transport.functional import DEFAULT_WINDOW_S, FunctionalResult, functional_request_bytes
 from canair.transport.link_latency import LinkLatency
 from canair.transport.stats import TransportStats
@@ -145,6 +145,9 @@ _ADDRESSING_ROUNDS = 3
 
 class Elm327Terminal:
     """ELM327 protocol engine over an injected byte :class:`Channel`."""
+
+    # An ELM327 speaks request/response only; it cannot inject a raw broadcast frame.
+    sends_raw_frames = False
 
     def __init__(
         self,
@@ -823,6 +826,10 @@ class Elm327Terminal:
         """
         req = functional_request_bytes(tx_id, request, self.session_policy)
         return await elm_functional_exchange(self, tx_id, req, window)
+
+    async def send_frame(self, can_id: int, data: bytes) -> None:
+        """Refuse: an ELM327 cannot inject a raw frame (checked via sends_raw_frames first)."""
+        raise TransportUnsupported(CANNOT_INJECT_FRAME)
 
     def headers_command(self, on: bool) -> str | None:
         """The command that turns reply headers ``on``/off, or None if already so."""
