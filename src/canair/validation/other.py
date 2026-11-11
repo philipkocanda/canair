@@ -256,7 +256,7 @@ def check_actions(profile: Profile) -> FileReport:
         return FileReport("actions.yaml", errors=(*errors, str(e)))
     notes: tuple[str, ...] = ()
     try:
-        pids_data = load_pids(profile=profile)
+        pids_data = load_raw_pids(profile)
     except Exception as ex:
         pids_data = None
         notes = (f"actions.yaml: registry checks skipped — could not load ecus/ ({ex})",)
