@@ -10,19 +10,18 @@ You do not need to know the PIDs of your car in advance. The discovery and scan 
 ## The arc
 
 ```mermaid
+%% pele: horizontal
 flowchart LR
-    A["1. create profile"] --> B["2. discover ECUs"]
-    B --> C["3. read identity"]
-    C --> D["4. scan for data"]
-    D --> E["5. capture<br/>(while driving/charging)"]
-    E --> F["6. analyze"]
-    F --> G["7. define & verify"]
-    G --> H["8. share"]
-    F -.->|more data needed| E
+    A["Set up<br/>steps 1–4"] --> B["Capture<br/>step 5"]
+    B --> C["Analyze<br/>step 6"]
+    C --> D["Define & verify<br/>step 7"]
+    D --> E["Share<br/>step 8"]
+    C -.->|more data needed| B
 ```
 
-In words: you do steps 1 to 8 in order. If the analysis in step 6 shows that you need more data,
-you go back to step 5 and capture again.
+In words: you set up the profile in steps 1 to 4. Then you capture data (step 5), analyze it
+(step 6), define and verify the signals (step 7), and share the result (step 8). If the analysis
+shows that you need more data, you go back and capture again.
 
 | Step | You do | Result |
 |---|---|---|

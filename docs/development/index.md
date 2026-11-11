@@ -110,6 +110,8 @@ built site (`make docs-serve`).
   `mermaid`, because Material loads Mermaid.js for every `.mermaid` element.
 - `docs/assets/pele/pele-init.js` loads the bundle only on pages that have a diagram. It sets
   `directionBreakpoint` so that a wide `flowchart LR` becomes top to bottom in the page column.
+  To keep a diagram horizontal, make the comment `%% pele: horizontal` its first line. Keep such
+  a diagram narrow, about 850 px or less, so that its labels stay readable.
 - `docs/assets/pele/pele.css` maps the Pele colors and fonts to the Material theme. A light or
   dark switch recolors the diagrams without a new render.
 - `docs/assets/pele/vendor/` holds the pinned bundle (Pele 1.13.0, MIT license). To update it,

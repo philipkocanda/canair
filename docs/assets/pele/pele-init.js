@@ -8,6 +8,7 @@
   // Pele switches a wide flowchart from left to right to top to bottom below this width. The
   // diagrams of the docs are wider than the page, so they stay vertical with readable labels.
   var DIRECTION_BREAKPOINT = 1200;
+  var KEEP_DIRECTION = /^\s*%%\s*pele:\s*horizontal\b/;
 
   function loadPele() {
     if (window.pele) return Promise.resolve();
@@ -46,6 +47,8 @@
           try {
             window.pele.mount(el, source, {
               directionBreakpoint: DIRECTION_BREAKPOINT,
+              // A diagram that starts with the comment "%% pele: horizontal" keeps its direction.
+              autoDirection: !KEEP_DIRECTION.test(source),
               onError: function (error) {
                 console.error("Pele could not render a diagram:", error);
               },
