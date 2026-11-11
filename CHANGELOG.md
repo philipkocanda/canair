@@ -15,6 +15,62 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [5.4.0](https://github.com/philipkocanda/canair/compare/v5.3.0...v5.4.0) (2026-11-11)
+
+
+### Added
+
+* **captures:** cap --sessions at the latest --limit sessions ([2c83e24](https://github.com/philipkocanda/canair/commit/2c83e24f08aeb990539ceda029dd36715b7b1420))
+* **research:** show the 20 highest-priority items by default ([ab30638](https://github.com/philipkocanda/canair/commit/ab3063826682facc53ff8fcc32c67258fa7d8182))
+* **wican:** add autopid show to print the generated JSON for a QUERY ([fc18315](https://github.com/philipkocanda/canair/commit/fc18315563f4e6b40c6c14de02b84995fda2ed07))
+
+
+### Fixed
+
+* **captures:** stop repeating the keep:changes note and the decode hint ([20510fb](https://github.com/philipkocanda/canair/commit/20510fbb19c1b578b022c1e898657cafe8f4ec41))
+* **cli:** accept the global options after the subcommand ([cb604d1](https://github.com/philipkocanda/canair/commit/cb604d1bfb8b4a9594f1f7832ae2119693d85ca2))
+* **cli:** end quietly when the reader closes stdout early ([e06f1b1](https://github.com/philipkocanda/canair/commit/e06f1b128a70a3f88ce4488d9d59b932e4b57c46))
+* **decode:** report an unknown ECU, PID or signal as an error with a suggestion ([e3c4002](https://github.com/philipkocanda/canair/commit/e3c4002734534f136393cdb30a064b22a41477b1))
+* **research:** count done items in --summary ([79f0393](https://github.com/philipkocanda/canair/commit/79f039343b1252502261b1779cc5787e54172238))
+* **validation:** check actions against every variant, not the selected car ([b6cadb8](https://github.com/philipkocanda/canair/commit/b6cadb8d4e8874f47079bae5811310d36e51957e))
+
+
+### Documentation
+
+* add a Why canair section to the README and docs home ([2e3c0cb](https://github.com/philipkocanda/canair/commit/2e3c0cb509bfaaba6e43fcc12b3a883a6a430cd8))
+* add the canair memory reference page to the nav ([602a93d](https://github.com/philipkocanda/canair/commit/602a93d903d55e99d069aeeae818ebb071596b6c))
+* **bring-your-own-car:** state what identity writes and which AT commands to omit ([6820a1e](https://github.com/philipkocanda/canair/commit/6820a1e563d7bc7d2e3beb37b285c9c5afd09e2f))
+* **broadcast-frames:** say which options belong to correlate can and hunt can ([18bd1b8](https://github.com/philipkocanda/canair/commit/18bd1b86a6cac003d52bba60935e3a30f46b7acb))
+* **byte-index:** refresh the firmware references and the worked bix example ([5d8b25e](https://github.com/philipkocanda/canair/commit/5d8b25ee1a18c9d5a55917205ee63de9ab14644b))
+* **captures:** list every transport, --save command and session key ([a4211ea](https://github.com/philipkocanda/canair/commit/a4211eaf5b3e0f2f8142d9207590fabe7186d57c))
+* **captures:** name the J key in the --join-tol help ([8642a09](https://github.com/philipkocanda/canair/commit/8642a09f5cfcb024f0c6d654d46ff0bbe371e94a))
+* **cli-reference:** summarise each command in one clean sentence on the index ([6d7369d](https://github.com/philipkocanda/canair/commit/6d7369de29ee5f6a21aafc4fa306c89c6a4230b2))
+* **config:** document safety.allow_frame_injection and fix the cellular link ([7104351](https://github.com/philipkocanda/canair/commit/7104351fad460f2cc37ec914d99d021c39f28414))
+* correct the bundled Ioniq signal and session counts ([6cebe1f](https://github.com/philipkocanda/canair/commit/6cebe1f1b1d9ab89a896f39913758a9642a2d2b1))
+* **development:** finish re-wrapping the hooks paragraph ([5678382](https://github.com/philipkocanda/canair/commit/56783826460e84dce580867c773c96558af0a054))
+* **development:** fix the frame-count example and the commit hook list ([6a10cc9](https://github.com/philipkocanda/canair/commit/6a10cc9ee603a698f5b370f9660c557ca79dc539))
+* **development:** re-wrap the hooks paragraph at 100 columns ([7c76020](https://github.com/philipkocanda/canair/commit/7c76020bec8fd30fa3e036e590a261e0cd85bcdd))
+* draw the analysis-commands map and lifecycle as mermaid diagrams ([847468a](https://github.com/philipkocanda/canair/commit/847468ae5d32f6842c201a35706ef76ef61f3245))
+* draw the bring-your-own-car arc horizontally ([2b2f38e](https://github.com/philipkocanda/canair/commit/2b2f38e206a51f8043ab9516aa24702509aee33e))
+* fix unclear and stale facts found in the plain-English pass ([d564f97](https://github.com/philipkocanda/canair/commit/d564f972092818e58f212fefee608beb529d61d6))
+* **getting-started:** put the confirm step before the firmware and clone sections ([3179315](https://github.com/philipkocanda/canair/commit/3179315fce13f423e290df82e804609a2f4b07e0))
+* **hyundai-ioniq-ae-ev:** list all 30 ECUs on the profile page ([9d6a9f4](https://github.com/philipkocanda/canair/commit/9d6a9f4a2b279a388cf83813f8e964484afaa42a))
+* **hyundai-ioniq-ae-ev:** note TOPUP is the Ioniq's Battery Saver+ feature ([aa27082](https://github.com/philipkocanda/canair/commit/aa2708237607983a71545b6469757f23cdc313e5))
+* make the landing page the overview of Getting started ([f3474ac](https://github.com/philipkocanda/canair/commit/f3474ac15ead1970bb2093927cde98800c9665e3))
+* **profiles:** add a page for the Ioniq 5 (NE) profile ([f8204f1](https://github.com/philipkocanda/canair/commit/f8204f1c6767b4c1c30d7289f9b51f20d33b6844))
+* **profiles:** complete the profile.yaml table, alias example and isotp link ([4dff8b1](https://github.com/philipkocanda/canair/commit/4dff8b1eb9a62ff91f83c93641f0d475a21ce9c2))
+* **readme:** complete the profile and validate rows ([0089c5f](https://github.com/philipkocanda/canair/commit/0089c5f8d5ae6632ca17e06b86fb256405e54e1b))
+* reorganize navigation and split the longest concept pages ([829877e](https://github.com/philipkocanda/canair/commit/829877e2f2d0681f42ca46f02c9d011625cb2d1e))
+* **research:** record that the OBC and VCU do not drive the dash charge LEDs ([a22cd8c](https://github.com/philipkocanda/canair/commit/a22cd8cd62642b058efd4789d77e24e7572bf38b))
+* rewrite the main user-facing pages in Simplified Technical English ([1660b0f](https://github.com/philipkocanda/canair/commit/1660b0f435c2e46f5b8efb68f10f258c162f6eea))
+* rewrite the remaining pages in Simplified Technical English ([d691e60](https://github.com/philipkocanda/canair/commit/d691e60ea947efae8f9fa8fc935c213c4651fdc7))
+* say signal instead of parameter in user-facing prose ([55d58d2](https://github.com/philipkocanda/canair/commit/55d58d27d6ea495125c7add412a7d0a39ed42bf2))
+* show elm327-tcp in the architecture diagrams ([83d16c2](https://github.com/philipkocanda/canair/commit/83d16c2a174094d31ccb8aaf9f7ff4e65d12cb1d))
+* **skills:** split wican-hardware-and-protocol into side files ([741b8a4](https://github.com/philipkocanda/canair/commit/741b8a45466dac92212838401cfb1c8f3a3e157b))
+* use pele for mermaid diagram rendering ([30ee369](https://github.com/philipkocanda/canair/commit/30ee36900bb7c94fc8b172e09cd255c55d626319))
+* use the current version in the --version examples ([399de4e](https://github.com/philipkocanda/canair/commit/399de4ee35658fd671a0214ec32c199be38c3d26))
+* **variants:** describe revision detection and the full attribution values ([1b243a4](https://github.com/philipkocanda/canair/commit/1b243a420057cc3fda73a857cf4fb72d27bf7d25))
+
 ## [5.3.0](https://github.com/philipkocanda/canair/compare/v5.2.0...v5.3.0) (2026-11-10)
 
 
