@@ -239,6 +239,14 @@ data itself is **`contributing-profiles`**.
 - `profiles/*/out/*.json` is generated — regenerate (`uv run python scripts/gen/gen_autopid.py` writes
   both the verified-only and the `-unverified` build of every bundled car), never hand-edit.
 - Schemas are tool-owned in `src/canair/schema/`; validate with `canair validate`.
+- **Agent tooling hides bulk data on purpose.** `opencode.json` (OpenCode) and
+  `.claude/settings.json` (Claude Code) deny file reads of `profiles/*/captures/*.json`, the raw-CAN
+  logs in `profiles/*/captures/can/` (not its `index.yaml`), `profiles/*/out/` and `uv.lock`, and
+  `.ignore` hides the same paths from `rg`. So a `Read`, `Grep` or `Glob` that "finds nothing" or
+  is refused there is not a missing file: go through `canair captures`, `canair search` or
+  `canair wican autopid write`. Claude Code's `Read` deny also blocks its Edit and Write tools on
+  those paths. A shell `rg --no-ignore` or `cat` is not blocked, so do not use it to dodge the
+  rule. Keep the three files in step when a bulk path moves or a new one appears.
 
 ## No PII or location data — the tree is public
 

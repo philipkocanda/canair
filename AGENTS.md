@@ -382,8 +382,8 @@ a new write path must too. Fix an existing setup with `canair config set profile
 - **`profiles/<car>/ecus/`** — **SOURCE OF TRUTH**, one file per ECU. Its sections and fields are
   checked by `src/canair/schema/pids_schema.yaml` and described in `ecus/` (package docstring) and
   `docs/concepts/profiles.md`. Edit via `canair pids`/`ecu`, validate with `canair validate pids`.
-  An ECU file can exceed 100 KB: search it (`rg`) or read a slice (`offset`/`limit`), never the
-  whole file. `opencode.json` and `.ignore` hide `captures/*.json`, `out/` and `uv.lock`.
+  An ECU file can exceed 100 KB: search it (`rg`) or read a slice, never the whole file.
+  `opencode.json`, `.claude/settings.json`, `.ignore`: file tools skip captures, `out/`, `uv.lock`.
   A PID or signal may be **`sensitive: true`**: masked on screen, never journaled, saved or shared.
   The rule lives once in `privacy/sensitive.py`; a new display or save path goes through it
   (`mask_result`, `withhold`) and never re-checks the flag.

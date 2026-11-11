@@ -1,4 +1,5 @@
 profiles/*/captures/*.json
-profiles/*/captures/can/
+profiles/*/captures/can/*
+!profiles/*/captures/can/index.yaml
 profiles/*/out/
 uv.lock

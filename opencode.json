@@ -4,6 +4,7 @@
     "read": {
       "profiles/*/captures/*.json": "deny",
       "profiles/*/captures/can/**": "deny",
+      "profiles/*/captures/can/index.yaml": "allow",
       "profiles/*/out/**": "deny",
       "uv.lock": "deny"
     }

@@ -250,6 +250,10 @@ doesn't purge history, and the key may need rotating.
   unlicensed corpora stay fetch-on-demand) — see
   `docs/concepts/broadcast-frames.md`.
 - Schemas are tool-owned in `src/canair/schema/`; `canair validate` is the gate.
+- **`captures/*.json`, `captures/can/` logs, `out/` and `uv.lock` are hidden from agent file
+  tools** (`opencode.json`, `.claude/settings.json`, `.ignore`). A refused or empty `Read`/`Grep`
+  there is deliberate, not a missing file: use `canair captures`, `canair search` and
+  `canair wican autopid write`. Details: `contributing-code`.
 
 ## Before you submit
 

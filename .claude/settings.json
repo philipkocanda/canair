@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./profiles/*/captures/*.json)",
+      "Read(./profiles/*/captures/can/**/*.asc)",
+      "Read(./profiles/*/captures/can/**/*.csv)",
+      "Read(./profiles/*/captures/can/**/*.blf)",
+      "Read(./profiles/*/captures/can/**/*.trc)",
+      "Read(./profiles/*/out/**)",
+      "Read(./uv.lock)"
+    ]
+  }
+}
