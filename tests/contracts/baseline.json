@@ -13,7 +13,7 @@
     "canair.device.lock": 563,
     "canair.ecus.pids": 637,
     "canair.render.formatting": 617,
-    "canair.safety.blocklist": 618,
+    "canair.safety.blocklist": 580,
     "canair.transport.elm327.terminal": 840,
     "canair.uds.byteindex": 541,
     "canair.variants.revisions": 745,
@@ -49,6 +49,6 @@
     "stderr_gating": {},
     "tui_key_hints": {}
   },
-  "agents_md_lines": 464,
+  "agents_md_lines": 446,
   "agents_md_code_paths": 7
 }

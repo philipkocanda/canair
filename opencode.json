@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "read": {
+      "profiles/*/captures/*.json": "deny",
+      "profiles/*/captures/can/**": "deny",
+      "profiles/*/out/**": "deny",
+      "uv.lock": "deny"
+    }
+  }
+}

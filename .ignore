@@ -1,0 +1,4 @@
+profiles/*/captures/*.json
+profiles/*/captures/can/
+profiles/*/out/
+uv.lock

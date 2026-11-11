@@ -232,77 +232,66 @@ exit), and **`g`/`G` address the view's primary axis**. The rest of the TUI and 
 
 **Every command in this section talks to the car: run none without the user's explicit approval.**
 
-- **`canair read`** (alias `query`) — Custom CAN/UDS requests. **Prefer positional query steps**
-  (`canair read BMS:2101`): the step mini-language (`query/`) handles sessions, wake and
-  keepalives. **Bind each PID to its ECU with a colon (`IGPM:22BC07`), never a space**: in a query
-  step a space separates *independent ECU selectors*, so `"query IGPM 22BC07"` means "all of IGPM
-  plus a bogus ECU" and is rejected. `@group` expands to a saved selector set. A token picks PIDs
-  by prefix *or* suffix (`VCU:22`); an undefined token is inferred or refused, never guessed
-  (`query/__init__.py::inferred_request`); OBD-II is `BMS:01/0D`. TesterPresent keepalives are
-  automatic: there is no `tester-present` command. `--reboot` restores AutoPID.
-- **`canair monitor`** (alias `mon`) — Live refreshing view; same steps as `read`. Recording
-  (`--save`/`--label`/`--state`/`--notes`) and the keep-modes live **here, not on `read`**. A bare
-  `canair monitor` on a TTY opens a group/ECU → PID picker first. Polling is per-PID
-  (`--schedule dynamic`) with per-PID backoff. Design: `live/monitor/` (package docstring).
-- **`canair scan`** — Kinds `range` (bare `scan <ECU>`), `sessions`, `routines`, `iocontrol`,
-  `memory`. All are **safe probes** except a KWP `0x30` sweep and a `range` of an actuating
-  service, which ask first. Hits go to the ECU's `routines:`/`iocontrol_discoveries:`/`memory:`.
-  Without `--range`, `range` sweeps the ECU's DID families (`ecus/did_families.py`).
-- **`canair discover`** (alias `disc`) — Which ECUs answer; `--register` writes a new ECU into
-  `ecus/`; `--functional` sends one allow-listed read on the functional id and groups responders by
-  `can_bus:`. That allow-list is never widened by `--unsafe`
-  (`safety/blocklist.py::check_functional_request`).
-- **`canair identity`** (alias `id`) — Identity DIDs/records, printed only. Nothing is written to
-  the ECU's `identity:` (it can hold a live VIN: see the PII rules in **contributing-profiles**).
-- **`canair io`** / **`canair routines`** — IOControl and RoutineControl: TUI or one actuation.
-  **Mutative**: the user approves each actuation. Actuators auto-release when the session ends.
-  `canair io` refuses a KWP `0x30` ON until the entry declares a `release:` — never declare one you
-  have not seen hand the output back on the car (`safety/actuation.py`).
-- **`canair reset`** — Restart one ECU (ECUReset `0x11`), off until the user sets
-  `safety.allow_reset`. Never enable that key for the user. Rules: `safety/reset.py`.
-- **`canair action`** — List, run and edit the profile's guarded, make-specific actions
-  (`actions.yaml`): every request still passes the blocklist (a quirk may grant exactly one;
-  `--unsafe` plays no part), and every action is guarded by mandatory `reads`/`require`. It may also
-  inject a broadcast CAN frame (`frames:`, **`slcan-tcp` only**, id `< 0x700`, masked), off until
-  the user sets `safety.allow_frame_injection` — **never enable it**. Design: `actions/`.
-- **`canair memory`** — Memory reads (`0x23` only). **Dumps are user state**
-  (`<config dir>/memory/<profile>/`), never profile data. A memory PID never ships to AutoPID.
-  Concepts: `docs/concepts/memory-reads.md`; design: `memory/`, `live/memory/`.
-- **`canair dtc`** — Read (`dtc read`, the default kind), clear (`--clear`) and `dtc log`. **The DTC
-  log is user state, not a bundle member** (`<config dir>/dtc_log/<profile>.yaml`). Design:
-  `dtc/` and `live/dtc/` docstrings; user view: `docs/concepts/dtcs.md`.
-- **`canair sniff`** — Passive sniffer, **`slcan-tcp` only**. The only way to see broadcasts.
-- **`canair raw`** — Last resort: hex in, hex out. **`canair repl`** — ELM327 terminal (ELM
-  transports only).
-- **`canair status`** (alias `st`) — What am I talking to, and is it usable? It runs the same
-  fallback probe as a live command. Never resolve only the selected device there.
-- **`canair lock`** — Inspect or clear the device connection mutex. **canair never kills another
-  process on its own**: `--force` asks the holder to leave, then names the PID and the `kill` to
-  run. Design: `device/lock.py`.
-- **`canair logs`** — The central diagnostics log (`~/.config/canair/logs/canair.log`): dropped
-  frames, timeouts, decode failures. Written by `transport/stats.py`.
+- **`read`** (alias `query`) — Custom CAN/UDS requests. **Prefer positional query steps**
+  (`canair read BMS:2101`; `query/` handles sessions, wake and keepalives). **Bind each PID to its
+  ECU with a colon (`IGPM:22BC07`), never a space**: a space separates *independent ECU
+  selectors*, so `"query IGPM 22BC07"` means "all of IGPM plus a bogus ECU" and is rejected.
+  `@group` expands to a saved selector set. A token picks PIDs by prefix *or* suffix (`VCU:22`);
+  an undefined token is inferred or refused, never guessed (`query/__init__.py::inferred_request`);
+  OBD-II is `BMS:01/0D`. TesterPresent keepalives are automatic. `--reboot` restores AutoPID.
+- **`monitor`** (alias `mon`) — Live view; same steps as `read`. Recording (`--save`/`--label`/
+  `--state`/`--notes`) and the keep-modes live **here, not on `read`**. Bare `monitor` on a TTY
+  opens a picker. Polling is per-PID with backoff. Design: `live/monitor/`.
+- **`scan`** — Kinds `range` (bare `scan <ECU>`), `sessions`, `routines`, `iocontrol`, `memory`.
+  All are **safe probes** except a KWP `0x30` sweep and a `range` of an actuating service, which
+  ask first. Hits go to the ECU's `routines:`/`iocontrol_discoveries:`/`memory:`. Without
+  `--range`, `range` sweeps the ECU's DID families (`ecus/did_families.py`).
+- **`discover`** (alias `disc`) — Which ECUs answer; `--register` writes a new ECU into `ecus/`;
+  `--functional` sends one allow-listed read on the functional id. That allow-list is never
+  widened by `--unsafe` (`safety/blocklist.py::check_functional_request`).
+- **`identity`** (alias `id`) — Identity DIDs/records, printed only. Nothing is written to the
+  ECU's `identity:` (it can hold a live VIN: see the PII rules in **contributing-profiles**).
+- **`io`** / **`routines`** — IOControl and RoutineControl. **Mutative**: the user approves each
+  actuation. Actuators auto-release when the session ends. `io` refuses a KWP `0x30` ON until the
+  entry declares a `release:` — never declare one you have not seen hand the output back on the
+  car (`safety/actuation.py`).
+- **`reset`** — ECUReset `0x11`, off until the user sets `safety.allow_reset`. Never enable that
+  key for the user. Rules: `safety/reset.py`.
+- **`action`** — The profile's guarded `actions.yaml`. Every request passes the blocklist
+  (`--unsafe` plays no part). A `frames:` action injects a broadcast frame (`slcan-tcp` only), off
+  until the user sets `safety.allow_frame_injection` — **never enable it**. Design: `actions/`.
+- **`memory`** — Memory reads (`0x23` only). **Dumps are user state**
+  (`<config dir>/memory/<profile>/`), never profile data; a memory PID never ships to AutoPID.
+  Docs: `docs/concepts/memory-reads.md`; design: `memory/`, `live/memory/`.
+- **`dtc`** — Read, clear (`--clear`) and `dtc log`. **The DTC log is user state, not a bundle
+  member** (`<config dir>/dtc_log/<profile>.yaml`). Design: `dtc/`, `live/dtc/`.
+- **`sniff`** — Passive sniffer, **`slcan-tcp` only**; the only way to see broadcasts.
+- **`raw`** (hex in, hex out; last resort) and **`repl`** (ELM327 terminal, ELM transports only).
+- **`status`** (alias `st`) — What am I talking to, and is it usable? It runs the same fallback
+  probe as a live command. Never resolve only the selected device there.
+- **`lock`** — Inspect or clear the device connection mutex. **canair never kills another process
+  on its own**: `--force` asks the holder to leave, then names the PID and the `kill` to run.
+  Design: `device/lock.py`.
+- **`logs`** — The central diagnostics log (`~/.config/canair/logs/canair.log`), written by
+  `transport/stats.py`.
 
 ### Analysis (read-only — never touches the device)
 
 > **Method lives in the skills.** *How* to choose and read these tools is the
-> **reverse-engineer-signal** skill (plus its `signal-reasoning.md`) and
-> `docs/concepts/analysis-commands.md`. Below is what each command *is*.
+> **reverse-engineer-signal** skill and `docs/concepts/analysis-commands.md`.
 
-- **`canair captures`** (alias `cap`) — Query captured data. `captures uds` (domain A, a bare
+- **`captures`** (alias `cap`) — Query captured data. `captures uds` (domain A; a bare
   `canair captures BMS 2102` is shorthand) has the views `--diff`, `--step`, `--latest`,
-  `--summary`, `--sessions`, and the mutating modes. The list view is capped by `--limit`.
-  `captures can` (domain B) lists imported frame logs. Rules: `cli/commands/captures/` docstring.
-- **`canair decode`** (alias `dec`) — Value-centric decoding; `--try` tests an expression without
-  editing YAML, `--plot` is the explorer. **`canair align`** — a time-aligned wide table of
-  cross-ECU signals. **`canair correlate`** — ranks cross-signal relationships (`correlate can`
-  for raw frames). **`canair hunt`** — which byte *is* a signal I know (`--promote` writes it).
-- **`canair investigate`** — One-shot per-byte verdict for a PID (or an ECU, or the profile);
-  `--events`/`--dwell`/`--bits` narrated views, `--counters`, `--support-map`. A support map is
-  per-PID and *declared* (`pids set-support-map`), never inferred at read time.
-- **`canair search`** — Where in my captures is this string, VIN or byte pattern? No ECU or PID
-  needed. **`canair coverage`** — decoding gaps: UNMAPPED bytes, incomplete BITS. **Author bits as
-  `Bn:k`, never as an `&` mask**: coverage cannot see a mask. **`canair research`** — the open
-  backlog from the per-ECU `research:` sections; `--gaps` derives unplanned work.
+  `--summary`, `--sessions` and the mutating modes. `captures can` (domain B) lists imported frame
+  logs. Rules: `cli/commands/captures/` docstring.
+- **`decode`** (alias `dec`; `--try` tests an expression, `--plot` explores), **`align`**
+  (time-aligned cross-ECU table), **`correlate`** (`correlate can` for raw frames), **`hunt`**
+  (which byte *is* a known signal; `--promote` writes it), **`investigate`** (per-byte verdict;
+  `--events`/`--dwell`/`--bits`, `--counters`, `--support-map`), **`search`** (string, VIN or byte
+  pattern across captures), **`research`** (open backlog; `--gaps`).
+- A support map is per-PID and *declared* (`pids set-support-map`), never inferred at read time.
+- **`coverage`** — Decoding gaps: UNMAPPED bytes, incomplete BITS. **Author bits as `Bn:k`, never
+  as an `&` mask**: coverage cannot see a mask.
 
 **Shared flags are declared once so their defaults cannot drift** — reuse these helpers when you
 add an analysis command: `cli/args/join.py::add_join_args` (`--join-tol`/`--fill`/`--max-hold`),
@@ -318,51 +307,47 @@ declares a `Target`, registers it in `yaml_edit/targets.py`, and writes through 
 raises `EditError`; no command catches it. A new editor never opens the file itself, and removes or
 renames an entry with `yaml_edit.ruamel_ops` (a bare `del` loses the comments).
 
-- **`canair pids`** — Add/update `ecus/` signals and research entries; prefer it over hand-editing.
-  Before you author an expression: **WiCAN `Bnn` includes the ISO-TP PCI bytes**, so confirm an
-  offset with `canair bix -a HEX --ecu … --pid …`. A successful `upsert-param` echoes the decoded
-  range across existing captures; a `constant` where you expected variation usually means the
-  offset landed on a PCI byte. **State a shared value once, never per signal**: whatever holds for
-  the whole page (`unit`/`min`/`max`/`verified`/`source`) goes on the PID (`pids set-pid-defaults`,
-  `pids hoist-defaults`), and a signal's own `notes` carry only what is specific to it. Pass plain
-  strings for `notes`; they are formatted for you.
-- **`canair signals`** — The domain-B analogue: the broadcast sidecar `signals/<bus>.yaml`
-  (DBC-style linear signals). **Never hand-edit `signals/`.**
-- **`canair ecu`** — Inspect the ECU registry; `ecu add TX …` registers an ECU offline; `ecu <ECU>
-  rename NEW` renames it everywhere; `ecu revisions`/`set-variants` edit revisions and presence.
-  `ecu <ECU> edit` opens `$EDITOR` and is **TTY-only — agents use `pids …`/`ecu add`**.
-- **`canair states`** — The vehicle-state vocabulary (`vehicle_states.yaml`). **Never hand-edit
-  it**: the editors also retarget `implies:` references, and `states rename` rewrites every
-  reference in the profile (`yaml_edit/state_rename.py`).
-- **`canair groups`** — The `@group` selector sets. Overlapping selectors are coalesced to one step
-  per ECU (`query/steps.py::normalize_query_steps`): load-bearing for `monitor`.
-- **`canair variants`** — The profile's variants (`variants.yaml`). Design:
-  `docs/development/variants-and-revisions.md`.
-- **`canair bus`** — The profile's CAN bus segments (`can_buses.yaml`).
-- **`canair validate`** (alias `val`) — Schema and consistency checks of the whole profile.
-  **`validate states` is the only place a renamed or mistyped `when:` signal is caught.** What each
-  target catches: `validation/__init__.py`. CI ratchets: `--max-untimed`, `--max-untagged`.
-- **`canair wican`** — Build and sync the device's AutoPID profile from `ecus/`
-  (`wican autopid write` → `out/`). Verified-only by default. Details: `interop/autopid/`.
-- **`canair bix`** — Byte-index converter and payload annotator. **Never convert a byte index by
-  hand**: it depends on the response's length and service, which `bix` reads off the payload.
-- **`canair config`** — The user config (`~/.config/canair/config.yaml`). `config example` prints
-  the authoritative `config.example.yaml`. Prefer it over hand-editing.
-- **`canair profile`** (alias `prof`) — see Profiles below.
+- **`pids`** — Add/update `ecus/` signals and research entries; prefer it over hand-editing.
+  **WiCAN `Bnn` includes the ISO-TP PCI bytes**: confirm an offset with
+  `canair bix -a HEX --ecu … --pid …`. A successful `upsert-param` echoes the decoded range across
+  existing captures; a `constant` where you expected variation usually means the offset landed on
+  a PCI byte. **State a shared value once, never per signal**: whatever holds for the whole page
+  (`unit`/`min`/`max`/`verified`/`source`) goes on the PID (`pids set-pid-defaults`,
+  `pids hoist-defaults`); a signal's `notes` carry only what is specific to it. Pass plain strings
+  for `notes`; they are formatted for you.
+- **`signals`** — The domain-B analogue: the broadcast sidecar `signals/<bus>.yaml`. **Never
+  hand-edit `signals/`.**
+- **`ecu`** — Inspect the registry; `ecu add TX …` registers an ECU offline; `ecu <ECU> rename NEW`
+  renames it everywhere; `ecu revisions`/`set-variants` edit revisions and presence. `ecu <ECU>
+  edit` opens `$EDITOR` and is **TTY-only — agents use `pids …`/`ecu add`**.
+- **`states`** — The state vocabulary. **Never hand-edit `vehicle_states.yaml`**: the editors also
+  retarget `implies:` references, and `states rename` rewrites every reference
+  (`yaml_edit/state_rename.py`).
+- **`groups`** (`@group` sets; overlapping selectors are coalesced to one step per ECU in
+  `query/steps.py::normalize_query_steps`, load-bearing for `monitor`), **`variants`**
+  (`variants.yaml`; `docs/development/variants-and-revisions.md`), **`bus`** (`can_buses.yaml`).
+- **`validate`** (alias `val`) — Schema and consistency checks. **`validate states` is the only
+  place a renamed or mistyped `when:` signal is caught.** Per-target detail:
+  `validation/__init__.py`. CI ratchets: `--max-untimed`, `--max-untagged`.
+- **`wican`** — Build and sync the device's AutoPID profile from `ecus/` (`wican autopid write` →
+  `out/`). Verified-only by default. Details: `interop/autopid/`.
+- **`bix`** — Byte-index converter and payload annotator. **Never convert a byte index by hand**:
+  it depends on the response's length and service, which `bix` reads off the payload.
+- **`config`** — The user config (`~/.config/canair/config.yaml`); `config example` prints the
+  authoritative `config.example.yaml`. Prefer it over hand-editing.
 
 ### Import / export / sharing
 
-- **`canair import uds ECU:PID=PAYLOAD …`** — Device-free capture import (domain A): how community
-  readings are onboarded. `--label` is required. `--from-log FILE` is the bulk form from a frame
-  log: always `--dry-run` first. **`import can`** stores a raw frame log verbatim in
-  `captures/can/`. **`import dbc`** imports a DBC into `signals/`; add a dialect repair in
-  `interop/dbc/repair.py`, never a pre-edited copy. **`canair export dbc`** writes `signals/` out.
-- **`canair contribute`** (alias `share`) — Opens the upstream PR for the **active** profile via
-  `gh`. It runs `validate all`, a PII pre-flight and several guards first. Read the
-  **contributing-profiles** skill before using it; design:
-  `docs/development/contribute-pipeline.md`.
-- **`canair update`** — Updates the CLI from its git-clone install: checks out the latest
-  **released** tag and reinstalls; refuses a dirty clone or an unknown latest tag.
+- **`import uds ECU:PID=PAYLOAD …`** — Device-free capture import (domain A). `--label` is
+  required. `--from-log FILE` is the bulk form: always `--dry-run` first. **`import can`** stores a
+  raw frame log verbatim in `captures/can/`. **`import dbc`** imports a DBC into `signals/`; add a
+  dialect repair in `interop/dbc/repair.py`, never a pre-edited copy. **`export dbc`** writes
+  `signals/` out.
+- **`contribute`** (alias `share`) — Opens the upstream PR for the **active** profile via `gh`,
+  after `validate all`, a PII pre-flight and several guards. Read **contributing-profiles** first;
+  design: `docs/development/contribute-pipeline.md`.
+- **`update`** — Checks out the latest **released** tag of a git-clone install and reinstalls;
+  refuses a dirty clone or an unknown latest tag.
 
 ### Profiles
 
@@ -374,34 +359,31 @@ once, in `profile/bundle.py`. The repo bundles several under `profiles/`
 `load_pids(profile)` returns the definitions for exactly that car, and anything that must see every
 car reads `load_raw_pids(profile)`.
 
-Since more than one profile ships, **none is auto-selected**: `--profile NAME|PATH` (a global flag,
-before the subcommand) > `CANAIR_PROFILE` > `default_profile` in config > a single discovered
-profile. Names follow `make-model-code-drivetrain`, never a year (`profile/names.py`; the reasoning
-is in **profile-variants**). `canair profile list/show/path/use/create/adopt/overlay` manage them:
-`adopt` copies a read-only profile where you can write to it, and `overlay` keeps the base
-read-only and puts your captures in a layer. Discovery, layering and aliases:
-`docs/development/layered-profiles.md`.
+**None is auto-selected**: `--profile NAME|PATH` (a global flag, before the subcommand) >
+`CANAIR_PROFILE` > `default_profile` in config > a single discovered profile. Names follow
+`make-model-code-drivetrain`, never a year (`profile/names.py`; see **profile-variants**).
+`canair profile list/show/path/use/create/adopt/overlay` manage them. Discovery, layering and
+aliases: `docs/development/layered-profiles.md`.
 
 > **Pass `--profile NAME` explicitly on every mutative/authoring command** — `pids …`, `signals
 > upsert`, `import uds|can|dbc`, `discover --register`, `ecu add`, `wican autopid write`, and
-> `--save` reads. Without it they write to whatever `default_profile`/`CANAIR_PROFILE` resolves to —
-> **not necessarily the car you mean**. This is exactly how Ioniq-28-derived `WHL_SPD11` signals
-> once landed in the Ioniq 5 profile instead of the Ioniq Electric one (fixed in the git history).
-> `signals`/`import` echo the target profile and full path on write — read it back. Read-only
-> commands resolve the same way, so prefer explicit `--profile` there too.
+> `--save` reads. Without it they write to whatever `default_profile`/`CANAIR_PROFILE` resolves to,
+> which is not necessarily the car you mean (Ioniq-28-derived signals once landed in the Ioniq 5
+> profile this way). `signals`/`import` echo the target profile and path on write — read it back.
 
 **Never let a write land in the install snapshot.** A profile resolved from `site-packages` (a bare
-`canair` from `uv tool install`/`pipx`/`pip`) accepts writes that the next reinstall deletes — this
-really happened, costing two sessions' captures. Every write path emits a note about it
-(`captures/save.py::saved_banner`, `yaml_edit/echo.py::echo_edit`): a new write path must too.
-Fix an existing setup with `canair config set profiles_dir <clone>/profiles` or `canair profile
-adopt <name>`. Details: `docs/development/layered-profiles.md`.
+`canair` from `uv tool install`/`pipx`/`pip`) accepts writes that the next reinstall deletes. Every
+write path emits a note about it (`captures/save.py::saved_banner`, `yaml_edit/echo.py::echo_edit`):
+a new write path must too. Fix an existing setup with `canair config set profiles_dir
+<clone>/profiles` or `canair profile adopt <name>`.
 
 ## Where the data is described
 
 - **`profiles/<car>/ecus/`** — **SOURCE OF TRUTH**, one file per ECU. Its sections and fields are
   checked by `src/canair/schema/pids_schema.yaml` and described in `ecus/` (package docstring) and
   `docs/concepts/profiles.md`. Edit via `canair pids`/`ecu`, validate with `canair validate pids`.
+  An ECU file can exceed 100 KB: search it (`rg`) or read a slice (`offset`/`limit`), never the
+  whole file. `opencode.json` and `.ignore` hide `captures/*.json`, `out/` and `uv.lock`.
   A PID or signal may be **`sensitive: true`**: masked on screen, never journaled, saved or shared.
   The rule lives once in `privacy/sensitive.py`; a new display or save path goes through it
   (`mask_result`, `withhold`) and never re-checks the flag.
