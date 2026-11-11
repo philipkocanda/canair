@@ -38,6 +38,7 @@ theme:
     - navigation.instant
     - navigation.tracking
     - navigation.sections
+    - navigation.indexes
     - navigation.top
     - navigation.footer
     - content.code.copy
@@ -101,8 +102,8 @@ extra_javascript:
   - assets/explorer/discover.js
 
 nav:
-  - Home: index.md
   - Getting started:
+      - Overview: index.md
       - Install: getting-started/install.md
       - Connect your dongle: getting-started/connect-device.md
       - Read live data: getting-started/first-read.md

@@ -67,16 +67,13 @@ canair helps you capture, decode, correlate and document this data. The result i
 
 ![canair analysis commands and the interactive decode --plot signal explorer in action](screenshots/tour.gif)
 
-These docs follow **what you want to do**. The command list is in the
-[CLI reference](reference/cli/index.md).
-
 ## Where do I start?
 
 Answer these questions in order. Take the first path that fits.
 
 1. **Do you have a WiCAN dongle and a car with an OBD-II port, and canair is not installed yet?**
-   Read [Getting started](getting-started/install.md). You install canair, connect the dongle and
-   read live data from the bundled example car in a few minutes.
+   Read [Install](getting-started/install.md). You install canair, connect the dongle and read
+   live data from the bundled example car in a few minutes.
 2. **Does something not work?** Read [Troubleshooting](getting-started/troubleshooting.md).
 3. **Is your car one of the bundled cars?** Read [Bundled profiles](profiles/index.md). The
    [Ioniq Electric profile](profiles/hyundai-ioniq-ae-ev.md) is the most complete. Each page lists
@@ -85,20 +82,14 @@ Answer these questions in order. Take the first path that fits.
    the main journey. It takes you from an empty profile to decoded, verified signals.
 5. **Do you want to share what you decoded?** Read
    [Define & verify](bring-your-own-car/07-define-and-verify.md), then
-   [Share your profile](bring-your-own-car/08-share.md).
-6. **Do you want to look around first?** Open the [profile explorer](profiles/explorer.md). It
-   plots real Ioniq drives and charges in your browser. You install nothing.
-7. **Do you want to learn from a real hunt?** Read the [case studies](case-studies/index.md). They
+   [Share your profile](bring-your-own-car/08-share.md). A whole profile, a few decoded signals
+   or a fix all help other owners of the same car. See also [Contributing](contributing/index.md).
+6. **Do you want to learn from a real hunt?** Read the [case studies](case-studies/index.md). They
    show real investigations from start to end, including the wrong turns. One example is
    [finding the hidden AC input voltage](case-studies/ac-input-voltage.md).
 
-## Look something up
-
-- [Cheat sheet](reference/cheat-sheet.md): the commands you use most, on one page.
-- [CLI reference](reference/cli/index.md): every command and flag.
-- [Configuration](reference/config.md): every config key.
-- [Glossary](reference/glossary.md): ECU, PID, DID, ISO-TP and other terms.
-- [Concepts](concepts/architecture.md): how canair works.
+The command list is in the [CLI reference](reference/cli/index.md), and
+[Concepts](concepts/architecture.md) explains how canair works.
 
 ## What you need
 
@@ -113,9 +104,3 @@ Reading data is safe. canair only *reads* unless you tell it to actuate hardware
 action that changes state asks for confirmation first. However, **work on the CAN bus of a
 vehicle has real risk**. [Safety](concepts/safety.md) explains what canair does and does not do,
 and why.
-
-## Contribute back
-
-If you reverse engineer *your* vehicle, **please send it back as a pull request**. A whole
-profile, a few decoded signals or a fix all help other owners of the same car. See
-[Contributing](contributing/index.md).
