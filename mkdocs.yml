@@ -75,9 +75,7 @@ plugins:
 # block and the profile explorer's data are rendered from profiles/ rather than
 # committed, so they cannot go stale.
 hooks:
-  - scripts/mkdocs_hooks/profiles_index.py
-  - scripts/mkdocs_hooks/explorer.py
-  - scripts/mkdocs_hooks/schemas.py
+  - scripts/mkdocs_hooks/docs_site.py
 
 extra_css:
   - assets/layout.css

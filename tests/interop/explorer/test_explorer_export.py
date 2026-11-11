@@ -11,6 +11,7 @@ import yaml
 from canair.cli.profile_context import active
 from canair.interop.explorer.export import export_profile, profile_maturity
 from canair.interop.explorer.layout import layout_buses
+from scripts.docs_site.content import profile_stats
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROFILES = sorted(
@@ -62,16 +63,7 @@ def test_export_is_deterministic_and_json_serialisable(exported):
 
 def test_stats_match_the_profiles_index_counts(exported):
     root, data = exported
-    pytest.importorskip("mkdocs")
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location(
-        "profiles_index_hook", REPO_ROOT / "scripts" / "mkdocs_hooks" / "profiles_index.py"
-    )
-    assert spec and spec.loader
-    hook = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(hook)
-    expected = hook.profile_stats(root / "ecus")
+    expected = profile_stats(root / "ecus")
     assert data["profile"]["stats"] == expected
 
 

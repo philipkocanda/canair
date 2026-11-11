@@ -1,25 +1,20 @@
-"""Tests for the build-time bundled-profiles MkDocs hook (scripts/mkdocs_hooks/)."""
+"""Tests for the bundled-profile pages that the docs site renders (scripts/docs_site/)."""
 
 from __future__ import annotations
 
-import importlib.util
+import json
 from pathlib import Path
 
 import pytest
 
-pytest.importorskip("mkdocs")
+from scripts.docs_site import content, data
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-HOOK = REPO_ROOT / "scripts" / "mkdocs_hooks" / "profiles_index.py"
 
 
 @pytest.fixture(scope="module")
 def mod():
-    spec = importlib.util.spec_from_file_location("profiles_index_hook", HOOK)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return content
 
 
 def _counts(ecus: int, params: int, verified: int) -> dict[str, int]:
@@ -83,13 +78,13 @@ def test_index_lists_every_bundled_profile(mod, tmp_path):
 
 def test_dedicated_page_links_resolve_from_the_index(mod):
     """The index's links to a tour page are relative to profiles/index.md."""
-    assert mod._page_link("profiles/hyundai-ioniq-ae-ev.md") == "hyundai-ioniq-ae-ev.md"
+    assert mod.page_link("profiles/hyundai-ioniq-ae-ev.md") == "hyundai-ioniq-ae-ev.md"
 
 
 def test_index_links_every_dedicated_page(mod):
     index = mod.render_index(mod.discover_bundled())
     for name, page_uri in mod.DEDICATED_PAGES.items():
-        assert f"[{name}]({mod._page_link(page_uri)})" in index
+        assert f"[{name}]({mod.page_link(page_uri)})" in index
         assert (REPO_ROOT / "docs" / page_uri).exists()
 
 
@@ -107,9 +102,7 @@ def test_stats_block_replaces_the_placeholder(mod):
 
 
 def test_page_without_markers_fails_the_build(mod):
-    from mkdocs.exceptions import PluginError
-
-    with pytest.raises(PluginError, match="generated-stats"):
+    with pytest.raises(mod.DocsContentError, match="generated-stats"):
         mod.fill_stats_block("no markers here", _counts(1, 1, 1), "p.md")
 
 
@@ -120,5 +113,23 @@ def test_every_dedicated_page_carries_the_markers(mod):
 
 
 def test_index_page_is_not_committed(mod):
-    """The hook generates it; a committed copy would make the build fail."""
+    """The site build generates it; a committed copy would make the build fail."""
     assert not (REPO_ROOT / "docs" / mod.INDEX_URI).exists()
+
+
+def test_schemas_are_published_as_json_at_the_url_the_modeline_names():
+    from canair.core.paths import EDITOR_SCHEMAS, schema_url
+
+    files = data.schema_files()
+    assert len(files) == len(EDITOR_SCHEMAS)
+    for name in EDITOR_SCHEMAS:
+        uri = schema_url(name).rsplit("/", 2)[-2:]
+        text = files["/".join(uri)]
+        assert json.loads(text)["$id"] == schema_url(name)
+        assert text.endswith("}\n")
+
+
+def test_blob_links_are_pinned_to_the_commit_being_built():
+    assert data.blob_base("abc123").endswith("/blob/abc123/")
+    assert data.blob_base(None).endswith("/blob/main/")
+    assert data.blob_base("").endswith("/blob/main/")

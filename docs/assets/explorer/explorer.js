@@ -1,6 +1,6 @@
 /* Profile explorer: browse a bundled profile's ECUs, PIDs, signals and IO controls.
  *
- * Renders the JSON that scripts/mkdocs_hooks/explorer.py writes at docs build time
+ * Renders the JSON that scripts/docs_site/data.py writes at docs build time
  * (assets/explorer/data/<profile>.json). All content decisions live in
  * src/canair/interop/explorer/export.py; this file only draws. No framework, no bundler.
  * State lives in the URL hash: #<profile>/<ECU>/<tab or PID>/<signal>.

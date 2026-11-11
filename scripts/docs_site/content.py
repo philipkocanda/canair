@@ -1,14 +1,14 @@
-"""MkDocs hook: render the bundled-profile stats when the docs site is built.
+"""Render the bundled-profile pages of the docs site from the profile data.
 
 The repo ships one or more vehicle profiles under ``profiles/``. Their headline
 counts (ECUs / PIDs / signals / verified / research leads) change with nearly
 every profile commit, so they are derived from ``profiles/*/ecus/`` at build time
 instead of being committed:
 
-- ``profiles/index.md`` is a virtual page, generated whole (``on_files``).
+- ``profiles/index.md`` is a page that is generated whole (``render_index``).
 - Each dedicated tour page (see ``DEDICATED_PAGES``) keeps its hand-written prose;
   only the block between the ``<!-- BEGIN/END generated-stats -->`` markers is
-  replaced (``on_page_markdown``). In the source, that block holds a placeholder
+  replaced (``fill_stats_block``). In the source, that block holds a placeholder
   row for readers browsing the Markdown on GitHub.
 - The other names people call a car by (``also_known_as:`` in ``profile.yaml`` and
   ``variants.yaml``) are rendered on the index, in a dedicated page's managed block
@@ -18,7 +18,8 @@ Committing the rendered numbers instead made every profile commit also
 regenerate the docs; forgetting to was the cause of nearly every red CI run, and
 a ``canair contribute`` pull request could not regenerate them at all.
 
-Wired up by ``hooks:`` in ``mkdocs.yml``; ``mkdocs build``/``serve`` run it.
+Nothing here imports the site generator, so the engine can change without touching this code.
+``scripts/mkdocs_hooks/docs_site.py`` is the glue that ``mkdocs build``/``serve`` run.
 """
 
 from __future__ import annotations
@@ -27,9 +28,6 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from mkdocs.exceptions import PluginError
-from mkdocs.structure.files import File, Files
-
 if TYPE_CHECKING:
     from canair.profile.names import AlsoKnownAs
 
@@ -37,6 +35,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PROFILES_DIR = REPO_ROOT / "profiles"
 INDEX_URI = "profiles/index.md"
 GITHUB_TREE = "https://github.com/philipkocanda/canair/tree/main/profiles"
+
+
+class DocsContentError(Exception):
+    """A docs page or profile cannot be rendered; the build must stop."""
+
 
 # Managed-block markers on a dedicated profile page. Everything between them is
 # rendered at build time; the surrounding prose is hand-written.
@@ -90,13 +93,13 @@ def profile_stats(ecus_dir: Path) -> dict[str, int]:
     return counts
 
 
-def _also_known_as(root: Path) -> AlsoKnownAs:
+def also_known_as_for(root: Path) -> AlsoKnownAs:
     from canair.profile.names import also_known_as
 
     return also_known_as(root)
 
 
-def _car_model(root: Path) -> str:
+def car_model(root: Path) -> str:
     import yaml
 
     meta_path = root / "profile.yaml"
@@ -137,7 +140,7 @@ def _plural(n: int, word: str) -> str:
     return f"{n} {word}" + ("" if n == 1 else "s")
 
 
-def _page_link(page_uri: str) -> str:
+def page_link(page_uri: str) -> str:
     """A dedicated page's link target, relative to the index page."""
     return Path(page_uri).relative_to(Path(INDEX_URI).parent).as_posix()
 
@@ -208,7 +211,7 @@ def fill_stats_block(
 ) -> str:
     """Return ``markdown`` with its managed stats block rendered from ``counts`` and ``names``."""
     if not _STATS_BLOCK.search(markdown):
-        raise PluginError(
+        raise DocsContentError(
             f"{page_uri} has no {STATS_BEGIN} / {STATS_END} block — add one around its "
             '"At a glance" count rows.'
         )
@@ -237,10 +240,10 @@ def render_index(profiles: list[tuple[str, Path]]) -> str:
         "|---|---|---:|---:|---:|---:|---|---|",
     ]
 
-    rows = [(name, root, profile_stats(root / "ecus"), _car_model(root)) for name, root in profiles]
+    rows = [(name, root, profile_stats(root / "ecus"), car_model(root)) for name, root in profiles]
     for name, _root, counts, model in rows:
         page = DEDICATED_PAGES.get(name)
-        name_cell = f"[{name}]({_page_link(page)})" if page else f"`{name}`"
+        name_cell = f"[{name}]({page_link(page)})" if page else f"`{name}`"
         source = f"[`profiles/{name}/`]({GITHUB_TREE}/{name})"
         lines.append(
             f"| {name_cell} | {model} | {counts['ecus']} | {counts['pids']} | "
@@ -250,19 +253,19 @@ def render_index(profiles: list[tuple[str, Path]]) -> str:
     lines += ["", "## The profiles", ""]
     for name, root, counts, model in rows:
         page = DEDICATED_PAGES.get(name)
-        known = _also_known_as(root).all()
+        known = also_known_as_for(root).all()
         model = f"{model}. Also known as {', '.join(known)}" if known else model
         source = f"[`profiles/{name}/`]({GITHUB_TREE}/{name})"
         if page and _maturity(counts) == "mature":
             lines.append(
-                f"- **[{name}]({_page_link(page)})** — {model}. "
+                f"- **[{name}]({page_link(page)})** — {model}. "
                 f"A mature, worked reference profile ({counts['verified']} verified "
                 f"signals across {counts['ecus']} ECUs). See the full tour, or "
                 f"browse {source}."
             )
         elif page:
             lines.append(
-                f"- **[{name}]({_page_link(page)})** — {model}. "
+                f"- **[{name}]({page_link(page)})** — {model}. "
                 f"{profile_summary(counts, source)} See its page for what it decodes."
             )
         else:
@@ -270,24 +273,3 @@ def render_index(profiles: list[tuple[str, Path]]) -> str:
     lines.append("")
 
     return "\n".join(lines)
-
-
-def on_files(files: Files, config) -> Files:
-    if files.get_file_from_path(INDEX_URI) is not None:
-        raise PluginError(
-            f"docs/{INDEX_URI} is generated at build time by {Path(__file__).name}; "
-            "delete the committed copy."
-        )
-    files.append(File.generated(config, INDEX_URI, content=render_index(discover_bundled())))
-    return files
-
-
-def on_page_markdown(markdown: str, page, config, files) -> str:
-    uri = page.file.src_uri
-    for name, page_uri in DEDICATED_PAGES.items():
-        if uri == page_uri:
-            root = PROFILES_DIR / name
-            names = _also_known_as(root)
-            page.meta.setdefault("description", page_description(_car_model(root), names))
-            return fill_stats_block(markdown, profile_stats(root / "ecus"), uri, names)
-    return markdown

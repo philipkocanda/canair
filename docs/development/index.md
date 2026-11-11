@@ -70,12 +70,12 @@ uv run python scripts/gen/gen_cli_reference.py --check   # if you changed a comm
 uv run python scripts/gen/gen_screenshots.py --check     # if you changed screenshotted command output
 ```
 
-You do not need to regenerate the counts of the [bundled profiles](../profiles/index.md). An
-MkDocs hook (`scripts/mkdocs_hooks/profiles_index.py`) computes them from `profiles/*/ecus/` each
-time the site is built.
+You do not need to regenerate the counts of the [bundled profiles](../profiles/index.md). The
+docs build (`scripts/docs_site/content.py`) computes them from `profiles/*/ecus/` each time it
+builds the site.
 
 The [profile explorer](../profiles/explorer.md) works the same way. The build exports its data
-(`src/canair/interop/explorer/export.py`, written out by `scripts/mkdocs_hooks/explorer.py`).
+(`src/canair/interop/explorer/export.py`, written out by `scripts/docs_site/data.py`).
 `docs/assets/explorer/explorer.{js,css}` only render that data. To change what the explorer shows,
 change the exporter. The exporter has unit tests. Check the JavaScript by hand in a browser.
 

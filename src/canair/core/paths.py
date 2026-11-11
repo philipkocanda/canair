@@ -67,7 +67,7 @@ def schema_modeline(name: str) -> str:
 
 
 # The JSON Schemas that check a profile's YAML files, by published name. canair validates with
-# them, and the docs site publishes each as JSON (scripts/mkdocs_hooks/schemas.py) for the
+# them, and the docs site publishes each as JSON (scripts/docs_site/data.py) for the
 # modeline every such file carries, so editors check the same rules.
 PROFILE_SCHEMA_FILE = SCHEMA_DIR / "profile_schema.json"
 STATES_SCHEMA_FILE = SCHEMA_DIR / "states_schema.yaml"

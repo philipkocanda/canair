@@ -1,13 +1,12 @@
 """Tests for ``also_known_as:`` — the other names owners call a car by.
 
 They live in ``profile.yaml`` (the whole car) and ``variants.yaml`` (one variant), are
-read by ``canair.profile.names.also_known_as``, and are rendered by the docs hook so a
+read by ``canair.profile.names.also_known_as``, and are rendered by the docs site build so a
 search for "Classic Ioniq" finds the profile. Labels only: nothing resolves them.
 """
 
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -17,6 +16,7 @@ import yaml
 from canair.profile.names import AlsoKnownAs, VariantNames, also_known_as, duplicate_names
 from canair.validation.profile_names import profile_name_findings
 from canair.variants import check_variants_doc
+from scripts.docs_site import content
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -99,16 +99,10 @@ class TestValidation:
 
 @pytest.fixture(scope="module")
 def hook():
-    pytest.importorskip("mkdocs")
-    path = REPO_ROOT / "scripts" / "mkdocs_hooks" / "profiles_index.py"
-    spec = importlib.util.spec_from_file_location("profiles_index_hook_aka", path)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return content
 
 
-class TestDocsHook:
+class TestDocsPage:
     NAMES = AlsoKnownAs(
         ("Classic Ioniq",), (VariantNames("38kwh", "Ioniq 38 kWh", ("Ioniq vFL", "Ioniq FL")),)
     )

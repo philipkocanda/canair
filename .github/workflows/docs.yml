@@ -8,10 +8,11 @@ on:
       - "mkdocs.yml"
       - ".github/workflows/docs.yml"
       # The bundled-profile pages render their counts from the profile data at
-      # build time (scripts/mkdocs_hooks/), so a profile change must redeploy.
+      # build time (scripts/docs_site/), so a profile change must redeploy.
+      - "scripts/docs_site/**"
       - "scripts/mkdocs_hooks/**"
       - "src/canair/interop/explorer/**"
-      # The published editor schemas (scripts/mkdocs_hooks/schemas.py).
+      # The published editor schemas (scripts/docs_site/data.py).
       - "src/canair/schema/**"
       - "profiles/*/ecus/**"
       - "profiles/*/profile.yaml"
