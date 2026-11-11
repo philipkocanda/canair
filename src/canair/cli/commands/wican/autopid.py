@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from canair.cli.args.group import group_help
+from canair.cli.args.query import parse_canonical_query
 from canair.device.wican.api import resolve_wican_url
 from canair.interop.autopid.profile import (
     normalize_device_profile,
@@ -103,6 +105,29 @@ def add_parsers(groups) -> argparse.ArgumentParser:
     add_generate_args(diff)
     add_wican_arg(diff)
     diff.set_defaults(_wican_func=cmd_autopid_diff)
+
+    show = sub.add_parser(
+        "show",
+        help="Print the AutoPID JSON that write would generate, for the PIDs a QUERY selects",
+        description="Generate the AutoPID profile in memory and print it as one JSON "
+        'document, {"v4": …, "v6": …}, narrowed to the PIDs the QUERY selects. Reads '
+        "ecus/, never out/, and writes nothing. The progress lines go to stderr. The "
+        "smallest way to check what one PID ships as.",
+    )
+    show.add_argument(
+        "query",
+        nargs="*",
+        metavar="QUERY",
+        help="ECU/PID selection, e.g. 'BMS:2101' or 'VCU' (default: every shipped PID)",
+    )
+    show.add_argument(
+        "--firmware",
+        choices=sorted(FIRMWARE_FILES),
+        default=None,
+        help="Print only this WiCAN firmware generation's document (default: both)",
+    )
+    add_generate_args(show)
+    show.set_defaults(_wican_func=cmd_autopid_show)
 
     stats = sub.add_parser(
         "stats",
@@ -201,6 +226,34 @@ def cmd_autopid_diff(args) -> int:
     current_raw = download_profile(base_url)
     show_diff(current_raw, profile)
     print("\nDone.")
+    return 0
+
+
+def cmd_autopid_show(args) -> int:
+    """Print what ``write`` would generate, narrowed to the PIDs a QUERY selects.
+
+    The files in ``out/`` run to tens of kilobytes. This renders the same documents in
+    memory from ``ecus/`` (it never reads ``out/`` and writes nothing) and prints one JSON
+    document keyed by firmware generation, ``{"v4": …, "v6": …}``, whatever ``--firmware``
+    picks. The progress lines go to stderr.
+    """
+    _data, shipped = ship(args, log=sys.stderr)
+    query = " ".join(args.query or [])
+    if query:
+        q = parse_canonical_query(query)
+        pids, empty = q.filter(shipped.pids, ecu_of=lambda p: p.ecu, pid_of=lambda p: p.pid)
+        if not pids:
+            messages.error(
+                f"no shipped PID matches {query!r} (an unverified one needs --include-unverified)"
+            )
+            return 1
+        for sel in empty:
+            messages.warning(f"no shipped PID matches '{sel}'")
+        shipped = replace(shipped, pids=pids)
+    renderers = {"4": render_v4, "6": render_v6}
+    wanted = [args.firmware] if args.firmware else sorted(FIRMWARE_FILES)
+    json.dump({f"v{fw}": renderers[fw](shipped) for fw in wanted}, sys.stdout, indent=2)
+    print()
     return 0
 
 

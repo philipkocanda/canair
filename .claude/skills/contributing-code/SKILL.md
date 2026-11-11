@@ -243,10 +243,22 @@ data itself is **`contributing-profiles`**.
   `.claude/settings.json` (Claude Code) deny file reads of `profiles/*/captures/*.json`, the raw-CAN
   logs in `profiles/*/captures/can/` (not its `index.yaml`), `profiles/*/out/` and `uv.lock`, and
   `.ignore` hides the same paths from `rg`. So a `Read`, `Grep` or `Glob` that "finds nothing" or
-  is refused there is not a missing file: go through `canair captures`, `canair search` or
-  `canair wican autopid write`. Claude Code's `Read` deny also blocks its Edit and Write tools on
-  those paths. A shell `rg --no-ignore` or `cat` is not blocked, so do not use it to dodge the
-  rule. Keep the three files in step when a bulk path moves or a new one appears.
+  is refused there is not a missing file: use the commands below. Claude Code's `Read` deny also
+  blocks its Edit and Write tools on those paths. A shell `rg --no-ignore` or `cat` is not
+  blocked, so do not use it to dodge the rule. Keep the three files in step when a bulk path
+  moves or a new one appears.
+
+  | To see | Run (`uv run canair --profile NAME …`) |
+  |---|---|
+  | what the captures hold | `captures uds --summary`, then `captures uds --sessions --last-sessions 5` |
+  | one PID's latest or recent payloads | `captures uds BMS 2101 --latest`, `… --limit 5` |
+  | a byte pattern or string anywhere | `search PATTERN` |
+  | a raw-CAN log | `captures can` (the index), `correlate can FILE --id IDS --top N` |
+  | what one PID ships as to the device | `wican autopid show BMS:2101 --firmware 4` |
+  | a dependency version | `uv tree --depth 1`, `uv pip show NAME` |
+
+  `captures uds` lists and `--sessions` keep the latest 50 (`--limit`) and say what they hid.
+  `research` and `coverage` print tens of kilobytes bare: start from `--summary` or `--ecu`.
 
 ## No PII or location data — the tree is public
 

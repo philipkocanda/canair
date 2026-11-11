@@ -29,6 +29,7 @@ signal name that is longer than the 31 bytes the firmware allows.
 canair wican autopid write                    # verified-only — ship what you've confirmed
 canair wican autopid write --include-unverified  # verified + in-progress candidates
 canair wican autopid write --firmware 6 --out my-car.json  # just the v6 table, elsewhere
+canair wican autopid show BMS:2101            # print what one PID ships as, write nothing
 ```
 
 The two files carry the same parameter identifiers (PIDs) and the same expressions. From

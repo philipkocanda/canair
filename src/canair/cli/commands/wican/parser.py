@@ -23,6 +23,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "  autopid upload    generate + upload to the device (Pro)\n"
         "  autopid download  download the device's current AutoPID JSON (Pro)\n"
         "  autopid diff      download + diff against the generated JSON (Pro)\n"
+        "  autopid show      print the generated JSON for a QUERY, offline\n"
         "  autopid stats     per-ECU/PID statistics table\n"
         "  mode show         show the device's active protocol\n"
         "  mode set MODE     switch the device protocol/mode, reboot + align transport (Pro)",

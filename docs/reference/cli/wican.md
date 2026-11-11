@@ -12,6 +12,7 @@ Nothing is written until you ask for it — a bare `canair wican` prints this he
   autopid upload    generate + upload to the device (Pro)
   autopid download  download the device's current AutoPID JSON (Pro)
   autopid diff      download + diff against the generated JSON (Pro)
+  autopid show      print the generated JSON for a QUERY, offline
   autopid stats     per-ECU/PID statistics table
   mode show         show the device's active protocol
   mode set MODE     switch the device protocol/mode, reboot + align transport (Pro)
@@ -40,6 +41,7 @@ Subcommands:
   autopid upload              Generate + upload to the device (Pro only)
   autopid download            Download the device's current AutoPID JSON (Pro)
   autopid diff                Download + diff against the generated JSON (Pro)
+  autopid show [QUERY]        Print the generated JSON for some PIDs (offline)
   autopid stats               Per-ECU/PID statistics table
   mode show                   Show the device's active protocol
   mode set MODE               Switch the device protocol/mode + align transport (Pro)
@@ -51,6 +53,7 @@ Examples:
   canair wican autopid write --no-expected-responses  # omit the response-frame counts
   canair wican autopid upload --reboot             # upload + reboot to apply
   canair wican autopid diff --wican home           # compare device vs generated
+  canair wican autopid show BMS:2101 --firmware 6  # what one PID ships as
   canair wican mode set slcan                 # raw CAN + set transport slcan-tcp
 ```
 
@@ -69,6 +72,8 @@ positional arguments:
     download  Download the device's current AutoPID profile (Pro)
     diff      Download + diff the device profile against the generated one
               (Pro)
+    show      Print the AutoPID JSON that write would generate, for the PIDs a
+              QUERY selects
     stats     Show a per-ECU/PID statistics table
 
 options:
@@ -165,6 +170,36 @@ options:
                         budget)
   --wican WICAN         WiCAN address: ap, an IP/host, or a URL (default:
                         config transport.host / default_wican=ap)
+```
+
+### `canair wican autopid show`
+
+```
+usage: canair wican autopid show [-h] [--firmware {4,6}]
+                                 [--include-unverified]
+                                 [--no-expected-responses]
+                                 [QUERY ...]
+
+Generate the AutoPID profile in memory and print it as one JSON document,
+{"v4": …, "v6": …}, narrowed to the PIDs the QUERY selects. Reads ecus/, never
+out/, and writes nothing. The progress lines go to stderr. The smallest way to
+check what one PID ships as.
+
+positional arguments:
+  QUERY                 ECU/PID selection, e.g. 'BMS:2101' or 'VCU' (default:
+                        every shipped PID)
+
+options:
+  -h, --help            show this help message and exit
+  --firmware {4,6}      Print only this WiCAN firmware generation's document
+                        (default: both)
+  --include-unverified  Include unverified parameters (default: verified only)
+  --no-expected-responses
+                        Do not append each PID's recorded response_frames
+                        count to its request (by default the count is
+                        appended, so the adapter answers as soon as that many
+                        frames arrive instead of waiting out its ~614ms
+                        budget)
 ```
 
 ### `canair wican autopid stats`

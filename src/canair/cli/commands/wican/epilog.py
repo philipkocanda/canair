@@ -17,6 +17,7 @@ Subcommands:
   autopid upload              Generate + upload to the device (Pro only)
   autopid download            Download the device's current AutoPID JSON (Pro)
   autopid diff                Download + diff against the generated JSON (Pro)
+  autopid show [QUERY]        Print the generated JSON for some PIDs (offline)
   autopid stats               Per-ECU/PID statistics table
   mode show                   Show the device's active protocol
   mode set MODE               Switch the device protocol/mode + align transport (Pro)
@@ -28,5 +29,6 @@ Examples:
   canair wican autopid write --no-expected-responses  # omit the response-frame counts
   canair wican autopid upload --reboot             # upload + reboot to apply
   canair wican autopid diff --wican home           # compare device vs generated
+  canair wican autopid show BMS:2101 --firmware 6  # what one PID ships as
   canair wican mode set slcan                 # raw CAN + set transport slcan-tcp
 """

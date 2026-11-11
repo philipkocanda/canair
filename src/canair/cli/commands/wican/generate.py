@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+from typing import TextIO
 
 from canair.cli.car import require_car
 from canair.cli.profile_context import active
@@ -88,32 +90,40 @@ def want_verified_only(args) -> bool:
     return not getattr(args, "include_unverified", False)
 
 
-def ship(args) -> tuple[dict, ShippedProfile]:
-    """Load the active bundle and decide what ships to the device, for any firmware."""
+def ship(args, log: TextIO | None = None) -> tuple[dict, ShippedProfile]:
+    """Load the active bundle and decide what ships to the device, for any firmware.
+
+    The progress lines go to ``log`` (stdout by default), so a command whose stdout is a
+    JSON document can send them to stderr.
+    """
+    log = log or sys.stdout
     require_car("generate the AutoPID profile")
     require_resolved_revisions()
-    print(f"Loading {active().ecus_dir}")
+    print(f"Loading {active().ecus_dir}", file=log)
     data = load_yaml()
 
     verified_only = want_verified_only(args)
     label = "" if getattr(args, "include_unverified", False) else " (verified only)"
     counts = getattr(args, "expected_responses", True)
-    print(f"\nGenerating AutoPID profile{label}…")
+    print(f"\nGenerating AutoPID profile{label}…", file=log)
     try:
         shipped = ship_profile(data, verified_only, expected_responses=counts)
     except ProfileGenerationError as e:
         messages.fail(str(e))
     n_groups = len(shipped.pids)
     n_params = sum(len(p.params) for p in shipped.pids)
-    print(f"  {n_groups} PID groups, {n_params} signals")
+    print(f"  {n_groups} PID groups, {n_params} signals", file=log)
     n_streams = sum(len(p.send_to) for p in shipped.pids)
     if n_streams:
-        print(f"  {n_streams} stream(s) to their own MQTT topic on every poll (send_to)")
+        print(f"  {n_streams} stream(s) to their own MQTT topic on every poll (send_to)", file=log)
     if counts:
         n_counted = sum(1 for p in shipped.pids if len(p.request) % 2)
-        print(f"  {n_counted}/{n_groups} carry an expected-response count")
+        print(f"  {n_counted}/{n_groups} carry an expected-response count", file=log)
         if n_counted < n_groups:
-            print("  (the rest keep the unoptimized path — record more with canair monitor)")
+            print(
+                "  (the rest keep the unoptimized path — record more with canair monitor)",
+                file=log,
+            )
     return data, shipped
 
 
