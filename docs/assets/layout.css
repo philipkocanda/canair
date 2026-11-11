@@ -1,0 +1,17 @@
+/* Wider page so tables, diagrams and code have room. Prose keeps a short line length,
+   which is easier to read, so only the blocks that need width use it. */
+.md-grid {
+  max-width: 76rem;
+}
+
+.md-typeset > p,
+.md-typeset > ul,
+.md-typeset > ol,
+.md-typeset > dl,
+.md-typeset > blockquote,
+.md-typeset > h1,
+.md-typeset > h2,
+.md-typeset > h3,
+.md-typeset > h4 {
+  max-width: 43rem;
+}

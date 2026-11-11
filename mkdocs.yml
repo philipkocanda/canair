@@ -57,9 +57,11 @@ markdown_extensions:
         - abbreviations.md
   - pymdownx.superfences:
       custom_fences:
+        # Diagrams are written as Mermaid and drawn by Pele (assets/pele/). The class is not
+        # "mermaid" on purpose: Material loads Mermaid.js for every .mermaid element.
         - name: mermaid
-          class: mermaid
-          format: !!python/name:pymdownx.superfences.fence_code_format
+          class: pele-diagram
+          format: !!python/name:pymdownx.superfences.fence_div_format
   - pymdownx.tabbed:
       alternate_style: true
   - tables
@@ -78,9 +80,12 @@ hooks:
   - scripts/mkdocs_hooks/schemas.py
 
 extra_css:
+  - assets/layout.css
+  - assets/pele/pele.css
   - assets/explorer/vendor/uPlot.min.css
   - assets/explorer/explorer.css
 extra_javascript:
+  - assets/pele/pele-init.js
   - assets/explorer/vendor/uPlot.iife.min.js
   - assets/explorer/analysis.js
   - assets/explorer/explorer.js

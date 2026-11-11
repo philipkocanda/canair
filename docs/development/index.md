@@ -99,6 +99,24 @@ expects `problems: 0`:
 uv run python scripts/check/check_dbc_corpus.py --fetch
 ```
 
+## Diagrams and page layout
+
+Write a diagram as a fenced `mermaid` block. GitHub draws the blocks in the README with
+Mermaid. The docs site draws them with [Pele](https://pele.run), a small renderer from Obsidian.
+Pele reads Mermaid syntax but lays the diagram out in its own way, so check each diagram in the
+built site (`make docs-serve`).
+
+- The configuration is in `mkdocs.yml` (the `mermaid` fence). The class is `pele-diagram`, not
+  `mermaid`, because Material loads Mermaid.js for every `.mermaid` element.
+- `docs/assets/pele/pele-init.js` loads the bundle only on pages that have a diagram. It sets
+  `directionBreakpoint` so that a wide `flowchart LR` becomes top to bottom in the page column.
+- `docs/assets/pele/pele.css` maps the Pele colors and fonts to the Material theme. A light or
+  dark switch recolors the diagrams without a new render.
+- `docs/assets/pele/vendor/` holds the pinned bundle (Pele 1.13.0, MIT license). To update it,
+  download `dist/pele.global.js` from the `pele` package on npm, and replace the file.
+- `docs/assets/layout.css` widens the page for tables, diagrams and code. Paragraphs, lists and
+  headings keep a line length of about 43 rem, which is easier to read.
+
 ## Keep the docs current
 
 If your change adds, removes or alters a user-facing capability, update the docs and the README in

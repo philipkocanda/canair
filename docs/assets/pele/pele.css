@@ -1,0 +1,33 @@
+/* Colors and fonts of the Pele diagrams follow the Material theme, so a light/dark switch
+   recolors them without a new render. */
+.pele-diagram {
+  --pele-bg: var(--md-default-bg-color);
+  --pele-fg: var(--md-default-fg-color);
+  --pele-muted: var(--md-default-fg-color--light);
+  --pele-line: var(--md-default-fg-color--light);
+  --pele-surface: var(--md-code-bg-color);
+  --pele-surface-alt: var(--md-default-fg-color--lightest);
+  --pele-border: var(--md-default-fg-color--lighter);
+  --pele-accent: var(--md-accent-fg-color);
+  --pele-font: var(--md-text-font-family);
+  --pele-font-mono: var(--md-code-font-family);
+
+  margin: 1em 0;
+  overflow-x: auto;
+}
+
+.pele-diagram svg {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
+/* Before the script runs, or if it fails, show the diagram source as code. */
+.pele-diagram:not([data-pele-mounted]) {
+  background: var(--md-code-bg-color);
+  border-radius: 0.1rem;
+  font-family: var(--md-code-font-family);
+  font-size: 0.85em;
+  padding: 0.7em 1em;
+  white-space: pre;
+}
