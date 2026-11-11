@@ -320,6 +320,34 @@ class TestCmdSessions:
         assert "x" * 87 + "…" in out
         assert "x" * 89 not in out
 
+    @staticmethod
+    def _three_sessions():
+        return [_entry(session_label=f"s{i}", _session_idx=i, time=f"10:00:0{i}") for i in range(3)]
+
+    def test_limit_keeps_the_latest_sessions_and_says_so(self, capsys):
+        cmd_sessions(self._three_sessions(), limit=2)
+        out = capsys.readouterr().out
+        assert "latest 2 of 3" in out
+        assert "s0" not in out and "s1" in out and "s2" in out
+        assert "1 more sessions not shown" in out
+
+    def test_limit_zero_shows_every_session(self, capsys):
+        cmd_sessions(self._three_sessions(), limit=0)
+        out = capsys.readouterr().out
+        assert "3 total" in out and "not shown" not in out
+
+    def test_limit_in_json_keeps_the_list_and_warns_on_stderr(self, capsys):
+        import json
+
+        cmd_sessions(self._three_sessions(), as_json=True, limit=2)
+        captured = capsys.readouterr()
+        assert [s["label"] for s in json.loads(captured.out)] == ["s1", "s2"]
+        assert "latest 2 of 3 sessions" in captured.err
+
+    def test_limit_above_the_count_is_silent(self, capsys):
+        cmd_sessions(self._three_sessions(), as_json=True, limit=5)
+        assert capsys.readouterr().err == ""
+
 
 class TestQualityTag:
     """The transport-health footprint shown per session in the TOC."""

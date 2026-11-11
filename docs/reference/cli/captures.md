@@ -76,7 +76,8 @@ options:
   --summary, -s         Overview statistics
   --sessions, -n        List sessions with their metadata
                         (date/state/label/notes/ECUs) — a searchable table of
-                        contents; no payloads. Honors the scope filters.
+                        contents; no payloads. Shows the latest --limit
+                        sessions. Honors the scope filters.
   --latest, -l          Latest payload per PID (ECU/PID taken from the QUERY,
                         e.g. `BMS --latest`)
   --recover             Reconcile orphaned capture journals (from a
@@ -137,9 +138,10 @@ options:
   --all, -a             For --diff/--step: use every payload instead of
                         unique-only
   --limit, -L N         Default list view: show only the most recent N
-                        captures (default 50; 0 = no cap). A loud footer
-                        reports any hidden history. Also caps the frames
-                        rendered by a piped/--json --step.
+                        captures (default 50; 0 = no cap). With --sessions:
+                        the most recent N sessions. A loud footer reports any
+                        hidden history. Also caps the frames rendered by a
+                        piped/--json --step.
   --rulers, -r          For --diff/--step: show the byte-index ruler above the
                         hex (in the notation from --notation /
                         display.byte_notation)
@@ -213,8 +215,8 @@ are aggregate modes that take no QUERY.
   --set-variant ID      Tag the scope-selected sessions with the car's variant
   --summary             Overview: captures per ECU, per date, total payloads
   --sessions            Session table of contents: date/time-span/state/label/
-                        notes/ECUs per session (no payloads); --json for machine
-                        output. Honors the scope filters.
+                        notes/ECUs per session (no payloads; latest --limit);
+                        --json for machine output. Honors the scope filters.
 
 Step views (--view; default auto — stacked for up to 6 PIDs, else interleaved):
   stacked               One block per PID per frame: signals + byte-diff hex
@@ -222,11 +224,12 @@ Step views (--view; default auto — stacked for up to 6 PIDs, else interleaved)
   changed               Only signals whose decoded value moved, per block
   interleaved           One capture per frame, chronologically across the PIDs
 
-Output size (default list view):
-  --limit N             Show only the most recent N captures (default 50; 0 =
-                        no cap). A loud footer reports any hidden history — use
-                        --limit 0 or a tighter scope (--since/--last-session) to
-                        see the rest.
+Output size (default list view and --sessions):
+  --limit N             Show only the most recent N captures, or with --sessions
+                        the most recent N sessions (default 50; 0 = no cap). A
+                        loud footer reports any hidden history — use --limit 0
+                        or a tighter scope (--since/--last-session) to see the
+                        rest.
 
 QUERY mini-language (see src/canair/query/__init__.py):
   ECU PID               one PID (bare ECU + PID)       e.g. BMS 2102

@@ -82,7 +82,8 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         "-n",
         action="store_true",
         help="List sessions with their metadata (date/state/label/notes/ECUs) — a "
-        "searchable table of contents; no payloads. Honors the scope filters.",
+        "searchable table of contents; no payloads. Shows the latest --limit "
+        "sessions. Honors the scope filters.",
     )
     standalone.add_argument(
         "--latest",
@@ -213,8 +214,9 @@ def _add_uds_parser(kinds) -> argparse.ArgumentParser:
         default=50,
         metavar="N",
         help="Default list view: show only the most recent N captures (default 50; "
-        "0 = no cap). A loud footer reports any hidden history. Also caps the "
-        "frames rendered by a piped/--json --step.",
+        "0 = no cap). With --sessions: the most recent N sessions. A loud footer "
+        "reports any hidden history. Also caps the frames rendered by a piped/--json "
+        "--step.",
     )
 
     parser.add_argument(
@@ -319,7 +321,7 @@ def _dispatch(mode: Mode, args, query: str, entries: list[CaptureEntry]) -> int:
     if mode == "summary":
         cmd_summary(entries, as_json=args.json)
     elif mode == "sessions":
-        cmd_sessions(entries, as_json=args.json)
+        cmd_sessions(entries, as_json=args.json, limit=args.limit)
     elif mode == "backfill_states":
         return cmd_backfill_states(
             entries,

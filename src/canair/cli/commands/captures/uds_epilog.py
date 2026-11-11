@@ -28,8 +28,8 @@ are aggregate modes that take no QUERY.
   --set-variant ID      Tag the scope-selected sessions with the car's variant
   --summary             Overview: captures per ECU, per date, total payloads
   --sessions            Session table of contents: date/time-span/state/label/
-                        notes/ECUs per session (no payloads); --json for machine
-                        output. Honors the scope filters.
+                        notes/ECUs per session (no payloads; latest --limit);
+                        --json for machine output. Honors the scope filters.
 
 Step views (--view; default auto — stacked for up to 6 PIDs, else interleaved):
   stacked               One block per PID per frame: signals + byte-diff hex
@@ -37,11 +37,12 @@ Step views (--view; default auto — stacked for up to 6 PIDs, else interleaved)
   changed               Only signals whose decoded value moved, per block
   interleaved           One capture per frame, chronologically across the PIDs
 
-Output size (default list view):
-  --limit N             Show only the most recent N captures (default 50; 0 =
-                        no cap). A loud footer reports any hidden history — use
-                        --limit 0 or a tighter scope (--since/--last-session) to
-                        see the rest.
+Output size (default list view and --sessions):
+  --limit N             Show only the most recent N captures, or with --sessions
+                        the most recent N sessions (default 50; 0 = no cap). A
+                        loud footer reports any hidden history — use --limit 0
+                        or a tighter scope (--since/--last-session) to see the
+                        rest.
 
 QUERY mini-language (see src/canair/query/__init__.py):
   ECU PID               one PID (bare ECU + PID)       e.g. BMS 2102

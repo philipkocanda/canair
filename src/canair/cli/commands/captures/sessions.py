@@ -28,7 +28,7 @@ from canair.captures.types import CaptureEntry, Quality
 from canair.cli.profile_context import active
 from canair.core.terminal import terminal_columns, truncate_text
 from canair.profile.model import ProfileError
-from canair.render import ansi, glyphs
+from canair.render import ansi, glyphs, messages
 from canair.states.spans import parse_time_key
 from canair.states.tokens import join_states as _join_states
 from canair.variants import VariantsError, load_variants
@@ -221,7 +221,10 @@ def _declared_variants() -> dict:
 
 
 def cmd_sessions(
-    entries: Sequence[CaptureEntry], as_json: bool = False, max_notes: int = 6
+    entries: Sequence[CaptureEntry],
+    as_json: bool = False,
+    max_notes: int = 6,
+    limit: int = 0,
 ) -> None:
     """List capture *sessions* with their metadata — a searchable table of contents.
 
@@ -230,8 +233,16 @@ def cmd_sessions(
     the ECUs touched, and distinct capture-level notes. Honors the shared scope
     filters (``--since``/``--until``/``--date``/``--state``/``--label``), so e.g.
     ``--sessions --state driving`` is a quick index of every drive.
+
+    ``limit`` keeps the most recent ``limit`` sessions (0 = no cap). A truncated
+    view says so: a footer in text, a stderr warning under ``--json`` (whose
+    document stays a bare list).
     """
     sessions = group_sessions(entries, profile=active())
+    total = len(sessions)
+    if limit > 0 and total > limit:
+        sessions = sessions[-limit:]
+    hidden = total - len(sessions)
     names = {str(e.get("ecu_addr") or "").upper(): e["ecu"] for e in entries if e.get("ecu")}
 
     if as_json:
@@ -264,13 +275,19 @@ def cmd_sessions(
         ]
         json.dump(out, sys.stdout, indent=2, default=str)
         print()
+        if hidden:
+            messages.warning(
+                f"showing the latest {len(sessions)} of {total} sessions: "
+                "pass --limit 0 for all, or narrow with --since/--last-sessions/--state"
+            )
         return
 
     if not sessions:
         print("  No sessions found.")
         return
 
-    print(f"\n  {ansi.BOLD}Sessions{ansi.RESET} — {len(sessions)} total\n")
+    header = f"latest {len(sessions)} of {total}" if hidden else f"{total} total"
+    print(f"\n  {ansi.BOLD}Sessions{ansi.RESET} — {header}\n")
     # Only a profile with several variants needs every untagged session called out.
     flag_untagged = len(_declared_variants()) > 1
     for s in sessions:
@@ -330,3 +347,11 @@ def cmd_sessions(
                 f"      {ansi.DIM}… +{len(s['cap_notes']) - max_notes} more capture-notes{ansi.RESET}"
             )
         print()
+    if hidden:
+        # Loud, always-printed (not TTY-gated) so an agent sees hidden sessions.
+        print(
+            f"  {ansi.YELLOW}… {hidden} more sessions not shown{ansi.RESET} "
+            f"(showing latest {len(sessions)} of {total}). "
+            f"Use {ansi.BOLD}--limit 0{ansi.RESET} for all, or narrow with "
+            f"--since/--last-sessions/--state.\n"
+        )
