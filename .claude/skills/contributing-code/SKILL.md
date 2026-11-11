@@ -257,8 +257,8 @@ data itself is **`contributing-profiles`**.
   | what one PID ships as to the device | `wican autopid show BMS:2101 --firmware 4` |
   | a dependency version | `uv tree --depth 1`, `uv pip show NAME` |
 
-  `captures uds` lists and `--sessions` keep the latest 50 (`--limit`) and say what they hid.
-  `research` and `coverage` print tens of kilobytes bare: start from `--summary` or `--ecu`.
+  `captures uds` lists and `--sessions` keep the latest 50 (`--limit`), and `research` the top
+  20, and each says what it hid. Start `research` and `coverage` from `--summary` or `--ecu`.
 
 ## No PII or location data — the tree is public
 

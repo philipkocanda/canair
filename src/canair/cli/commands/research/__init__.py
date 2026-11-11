@@ -25,6 +25,7 @@ Modes / filters (all combine with AND):
   --summary             Counts by status / type / priority / ECU
   --gaps                IOControl DID families never read with 0x22 (derived)
   --all                 Include done items (hidden by default)
+  --limit N             Show the N highest-priority items (default 20; 0 = all)
   --verbose             Show full notes/results (default caps long prose)
   --json                Machine-readable output
   --dir DIR             Override ecus/ directory
@@ -35,7 +36,8 @@ themselves (``ecus/did_families.py``).
 Imports: any package below ``cli`` and the shared flag helpers (``cli/args/``).
 
 Examples:
-  canair research                      # all open items, highest priority first
+  canair research                      # the 20 highest-priority open items
+  canair research --limit 0            # every open item
   canair research --summary            # overview counts
   canair research --ecu MCU            # just the MCU backlog
   canair research --type decode        # captured-but-undecoded work
@@ -75,6 +77,10 @@ VALID_PRIORITIES = ("P1", "P2", "P3")
 _PRIO_RANK = {"P1": 0, "P2": 1, "P3": 2}
 # Open statuses roughly ordered by "closeness to done" for stable display.
 _STATUS_RANK = {"pending": 0, "nrc": 1, "captured": 2, "done": 3}
+
+# The list view runs to ~750 bytes per item, so a mature profile's whole backlog is ~80 KB.
+DEFAULT_LIMIT = 20
+_NARROW = "--limit 0 for all, narrow with --ecu/--priority/--type/--states, or --summary for counts"
 
 
 # Priority + status colour lookups. Defined as functions (not module-level
@@ -236,8 +242,13 @@ def cmd_summary(records: list[dict]) -> None:
     print()
 
 
-def cmd_list(records: list[dict], hidden_done: int = 0, verbose: bool = False) -> None:
-    """Print the filtered research items, highest priority first."""
+def cmd_list(
+    records: list[dict], hidden_done: int = 0, verbose: bool = False, limit: int = 0
+) -> None:
+    """Print the filtered research items, highest priority first.
+
+    ``limit`` keeps the ``limit`` highest-priority items (0 = all); a footer names what it hid.
+    """
     if not records:
         print("  No research items match the filter criteria.")
         return
@@ -245,8 +256,13 @@ def cmd_list(records: list[dict], hidden_done: int = 0, verbose: bool = False) -
     # Cap prose blocks in the default view; -v shows the full text.
     cap = None if verbose else 4
     records = sorted(records, key=_sort_key)
+    total = len(records)
+    if limit > 0:
+        records = records[:limit]
+    hidden = total - len(records)
     hint = f"  {ansi.DIM}({hidden_done} done hidden — use --all){ansi.RESET}" if hidden_done else ""
-    print(f"\n  {ansi.BOLD}Research backlog{ansi.RESET} — {len(records)} items{hint}")
+    count = f"top {len(records)} of {total} items" if hidden else f"{total} items"
+    print(f"\n  {ansi.BOLD}Research backlog{ansi.RESET} — {count}{hint}")
 
     prio = None
     for r in records:
@@ -301,6 +317,12 @@ def cmd_list(records: list[dict], hidden_done: int = 0, verbose: bool = False) -
             for line in _wrapped("capture", r["capture_protocol"], max_lines=cap):
                 print(line)
     print()
+    if hidden:
+        # Loud, always-printed (not TTY-gated) so an agent sees the hidden items.
+        print(
+            f"  {ansi.YELLOW}… {hidden} more items not shown{ansi.RESET} "
+            f"(showing the top {len(records)} of {total}). Use {_NARROW}.\n"
+        )
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -346,6 +368,16 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "--all", "-a", action="store_true", help="Include done items (hidden by default)"
     )
     parser.add_argument(
+        "--limit",
+        "-L",
+        type=int,
+        default=DEFAULT_LIMIT,
+        metavar="N",
+        help=f"Show only the N highest-priority items (default {DEFAULT_LIMIT}; 0 = all), "
+        "in the list and under --json. A footer, or a stderr warning under --json, reports "
+        "what it hid. --summary always counts every item.",
+    )
+    parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -388,8 +420,14 @@ def run(args) -> int:
     )
 
     if args.json:
-        json.dump(sorted(filtered, key=_sort_key), sys.stdout, indent=2, default=str)
+        ordered = sorted(filtered, key=_sort_key)
+        shown = ordered[: args.limit] if args.limit > 0 else ordered
+        json.dump(shown, sys.stdout, indent=2, default=str)
         print()
+        if len(shown) < len(ordered):
+            messages.warning(
+                f"showing the top {len(shown)} of {len(ordered)} items: pass {_NARROW}"
+            )
         return 0
 
     if args.summary:
@@ -400,7 +438,7 @@ def run(args) -> int:
         hidden_done = 0
         if not args.all and args.status is None:
             hidden_done = sum(1 for r in records if r.get("status") == "done")
-        cmd_list(filtered, hidden_done=hidden_done, verbose=args.verbose)
+        cmd_list(filtered, hidden_done=hidden_done, verbose=args.verbose, limit=args.limit)
     return 0
 
 

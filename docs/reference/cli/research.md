@@ -7,7 +7,8 @@ usage: canair research [-h] [--ecu ECU]
                        [--type {scan,decode,verify,iocontrol_scan}]
                        [--status {pending,captured,nrc,done}]
                        [--priority {P1,P2,P3}] [--states STATE] [--summary]
-                       [--gaps] [--all] [--verbose] [--json] [--dir DIR]
+                       [--gaps] [--all] [--limit N] [--verbose] [--json]
+                       [--dir DIR]
 
 [UDS] Report open reverse-engineering work from ecus/ research: sections.
 
@@ -29,11 +30,16 @@ options:
                         saved scans (combines with --ecu, --json and --dir
                         only; with --dir, saved scans are not consulted)
   --all, -a             Include done items (hidden by default)
+  --limit, -L N         Show only the N highest-priority items (default 20; 0
+                        = all), in the list and under --json. A footer, or a
+                        stderr warning under --json, reports what it hid.
+                        --summary always counts every item.
   --verbose, -v         Show full notes/results (default caps long prose)
   --json                Output as JSON
   --dir DIR             ecus/ directory (default: active profile)
 
-  canair research                      # all open items, highest priority first
+  canair research                      # the 20 highest-priority open items
+  canair research --limit 0            # every open item
   canair research --summary            # overview counts
   canair research --ecu MCU            # just the MCU backlog
   canair research --type decode        # captured-but-undecoded work

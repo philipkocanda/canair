@@ -148,3 +148,48 @@ class TestFormatting:
         out = capsys.readouterr().out
         # The MCU decode 2102 item carries what_to_test ["a", "b"].
         assert "- a" in out and "- b" in out
+
+    def test_list_limit_keeps_the_highest_priority_and_says_so(self, pids_dir, capsys):
+        recs = research.filter_records(research.load_research(pids_dir))
+        research.cmd_list(recs, limit=2)
+        out = capsys.readouterr().out
+        assert "top 2 of 3 items" in out
+        assert "2F E000-E0FF" in out and "2102" in out  # the two P1 items
+        assert "22 E001-E010" not in out  # the P2 item
+        assert "1 more items not shown" in out and "--limit 0" in out
+
+    def test_list_limit_zero_or_above_the_count_hides_nothing(self, pids_dir, capsys):
+        recs = research.filter_records(research.load_research(pids_dir))
+        for limit in (0, 3):
+            research.cmd_list(recs, limit=limit)
+            out = capsys.readouterr().out
+            assert "3 items" in out and "not shown" not in out
+
+
+class TestRunLimit:
+    def _run(self, pids_dir, capsys, *argv):
+        import argparse
+
+        parser = argparse.ArgumentParser()
+        research.add_parser(parser.add_subparsers())
+        args = parser.parse_args(["research", "--dir", str(pids_dir), *argv])
+        assert research.run(args) == 0
+        return capsys.readouterr()
+
+    def test_default_limit_is_twenty(self, pids_dir, capsys):
+        import argparse
+
+        parser = argparse.ArgumentParser()
+        research.add_parser(parser.add_subparsers())
+        assert parser.parse_args(["research"]).limit == research.DEFAULT_LIMIT == 20
+
+    def test_json_keeps_the_list_and_warns_on_stderr(self, pids_dir, capsys):
+        import json
+
+        captured = self._run(pids_dir, capsys, "--json", "--limit", "1")
+        assert [r["target"] for r in json.loads(captured.out)] == ["2F E000-E0FF"]
+        assert "top 1 of 3 items" in captured.err
+
+    def test_summary_counts_every_item(self, pids_dir, capsys):
+        out = self._run(pids_dir, capsys, "--summary", "--limit", "1").out
+        assert "3 total" in out
