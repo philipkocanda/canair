@@ -11,24 +11,33 @@ whole drive**. This gives four quadrants. They are the fastest way to pick the r
 
 ## The map
 
-```
-                    READ THE VALUES  ─────────────►  FIND RELATIONSHIPS
-                    (what does it say?)              (how do things move together?)
-
-   ┌─────────────────────────────────────┬──────────────────────────────────────┐
- S │  captures       raw payloads / diff  │  decode --corr    signal vs 1 reference │
- I │  decode         one PID's signals    │  decode --try     test a hypothesis    │
- N │  decode         --dump-bytes matrix  │  decode --plot    sweep interps (TUI)  │
- G │                                      │  hunt             which byte IS ref Y? │
- L │                                      │  investigate      one PID, all angles  │
- E │                                      │  decode --discriminate <axis>          │
- ─ ├─────────────────────────────────────┼──────────────────────────────────────┤
- M │                                      │  correlate        rank all pair rels    │
- A │   align                              │  correlate --against   vs 1 reference   │
- N │   several signals, time-aligned      │  correlate --overlap   what's co-polled │
- Y │   rows (CSV / JSON / table)          │  correlate --find-mirrors  dup signals  │
-   └─────────────────────────────────────┴──────────────────────────────────────┘
-     cross-ECU / whole-drive grain ▲
+```mermaid
+%% pele: horizontal
+flowchart LR
+    subgraph s1["One PID: read the values"]
+        n1["captures: raw payloads, diff<br/>
+            decode: one PID's signals<br/>
+            decode --dump-bytes: byte matrix"]
+    end
+    subgraph s2["One PID: find relationships"]
+        n2["decode --corr: vs one reference<br/>
+            decode --try: test a hypothesis<br/>
+            decode --plot: sweep interpretations<br/>
+            decode --discriminate: what separates groups<br/>
+            hunt: which byte is the reference<br/>
+            investigate: one PID, all angles"]
+    end
+    subgraph m1["Many signals: read the values"]
+        n3["align: several signals, time-aligned"]
+    end
+    subgraph m2["Many signals: find relationships"]
+        n4["correlate: rank all pairs<br/>
+            correlate --against: vs one reference<br/>
+            correlate --overlap: what is co-polled<br/>
+            correlate --find-mirrors: duplicate signals"]
+    end
+    s1 --> s2
+    m1 --> m2
 ```
 
 `captures` and `decode` are the "look at it" tools. `investigate`, `hunt` and `correlate` are the
@@ -75,16 +84,23 @@ Use these when a PID has nothing co-polled to correlate against.
 
 ## Where each sits in the RE lifecycle
 
+```mermaid
+flowchart LR
+    A["Orient<br/>research<br/>coverage"] --> B["Discover<br/>scan<br/>discover"]
+    B --> C["Capture<br/>read / monitor<br/>(--save)"]
+    C --> D["Inspect<br/>captures<br/>decode<br/>align<br/>decode --dump-bytes"]
+    D --> E["Hypothesize<br/>investigate<br/>hunt<br/>correlate<br/>decode --try<br/>
+            decode --discriminate<br/>decode --plot"]
+    E --> F["Define<br/>pids upsert-param"]
+    F --> G["Verify<br/>decode --stats<br/>decode --corr"]
+    O["correlate --overlap<br/>what is even co-polled?"]
+    D -.-> O
+    O -.-> E
 ```
-orient ──► discover ──► capture ──► INSPECT ──► HYPOTHESIZE ──► DEFINE ──► VERIFY
-research    scan/       query/      captures     investigate     pids       decode
-coverage    discover    monitor     decode        hunt           upsert     (--stats,
-                        (--save)    align         correlate                  --corr)
-                                    decode        decode --try
-                                    --dump-bytes  --discriminate
-                                                  --plot
-            └─────────────── correlate --overlap (what's even co-polled?) ──┘
-```
+
+In words: you orient, discover, capture, inspect, hypothesize, define and verify, in that order.
+`correlate --overlap` helps while you inspect and hypothesize, because it shows which signals canair
+polled at the same time.
 
 ## `align` vs the correlation tools
 
