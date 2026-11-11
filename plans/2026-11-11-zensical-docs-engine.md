@@ -1,8 +1,9 @@
 # Move the docs site from MkDocs Material to Zensical
 
-Status: **PROPOSED**. No repo file changed yet. The findings below come from trial builds in a
-throwaway copy of `docs/`, `mkdocs.yml` and `scripts/` (Zensical 0.1.1, Python 3.15.2, macOS).
-Nothing ran on CI's Linux runner and nobody opened the result in a browser.
+Status: **IN PROGRESS**. Phase 1 is done (commit `d0c747d6`). Phases 2 to 4 are open. The
+findings below come from trial builds in a throwaway copy of `docs/`, `mkdocs.yml` and
+`scripts/` (Zensical 0.1.1, Python 3.15.2, macOS). Nothing ran on CI's Linux runner and
+nobody opened the result in a browser.
 
 Paths are relative to the repo root. Point at code by file and symbol: line numbers drift.
 
@@ -101,7 +102,8 @@ These are my defaults. Say so if you disagree with one.
 
 ### Code layout
 
-Replace `scripts/mkdocs_hooks/` with `scripts/docs_site/`:
+`scripts/docs_site/` replaces `scripts/mkdocs_hooks/`. `content.py` and `data.py` exist.
+`macros.py` and the write step are phase 2:
 
 - `content.py`: the pure rendering code moved from `profiles_index.py`
   (`profile_stats`, `render_index`, `render_stats_block`, `fill_stats_block`,
@@ -110,9 +112,10 @@ Replace `scripts/mkdocs_hooks/` with `scripts/docs_site/`:
 - `macros.py`: `define_env(env)`. It registers `bundled_profiles_index()` and
   `profile_stats_rows(name)`, and sets `env.page.meta["description"]` for the dedicated
   pages. It never caches: `zensical serve` rebuilds in one process and must see new data.
-- `data.py`: writes the explorer JSON and the schema JSON into
-  `docs/assets/explorer/data/` and `docs/schema/`. It deletes both directories first, so a
-  removed profile leaves no stale file. The two directories are gitignored.
+- `data.py` (exists): builds the explorer JSON and the schema JSON as a dict. Phase 2 adds the
+  step that writes them into `docs/assets/explorer/data/` and `docs/schema/`. That step deletes
+  both directories first, so a removed profile leaves no stale file. The two directories are
+  gitignored.
   `python -m scripts.docs_site.data` is the entry point (a small `__main__` guard).
 
 `scripts/` is not a shipped package and not a layer, so the layering contracts do not apply.
@@ -176,10 +179,11 @@ fake env and checks that the macros return the expected text and set the descrip
 Each phase is a separate commit on `main`. Commit type is `build(docs)` or `docs`, as
 `docs/development/commit-messages.md` describes.
 
-1. **Make the content code engine-free.** Create `scripts/docs_site/content.py` from
-   `profiles_index.py`. Leave the three hooks as thin wrappers that call it and raise
-   `PluginError` from the new error. Move and fix the tests. MkDocs still builds the site, so
-   this commit is green and reviewable alone.
+1. **Make the content code engine-free. Done.** `scripts/docs_site/content.py` holds the
+   rendering code and `scripts/docs_site/data.py` builds the explorer and schema files as a
+   `{site path: text}` dict. One thin hook, `scripts/mkdocs_hooks/docs_site.py`, replaced the
+   three old hooks. The tests import the new modules and no longer call
+   `importorskip("mkdocs")`. A build before and after gave byte-identical generated files.
 2. **Switch the engine.** One commit, because MkDocs and Zensical cannot share the macro
    pages: add `macros.py` and `data.py`, change the pages, the config, the lock, the
    Makefile and both workflows, delete `scripts/mkdocs_hooks/`.
