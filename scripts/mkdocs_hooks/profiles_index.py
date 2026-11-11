@@ -47,6 +47,7 @@ _STATS_BLOCK = re.compile(re.escape(STATS_BEGIN) + r".*?" + re.escape(STATS_END)
 # Profiles that have their own dedicated tour page, keyed to its docs-relative URI.
 DEDICATED_PAGES = {
     "hyundai-ioniq-ae-ev": "profiles/hyundai-ioniq-ae-ev.md",
+    "hyundai-ioniq-5-ne-ev": "profiles/hyundai-ioniq-5-ne-ev.md",
     "nissan-leaf-ze1-ev": "profiles/nissan-leaf-ze1-ev.md",
 }
 

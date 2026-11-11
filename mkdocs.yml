@@ -140,6 +140,7 @@ nav:
       - Overview: profiles/index.md
       - Explorer: profiles/explorer.md
       - Hyundai Ioniq Electric (AE): profiles/hyundai-ioniq-ae-ev.md
+      - Hyundai Ioniq 5 (NE): profiles/hyundai-ioniq-5-ne-ev.md
       - Nissan Leaf (ZE1): profiles/nissan-leaf-ze1-ev.md
   - Reference:
       - Cheat sheet: reference/cheat-sheet.md
