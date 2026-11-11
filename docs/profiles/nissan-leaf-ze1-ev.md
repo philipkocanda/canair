@@ -36,8 +36,8 @@ canair profile use nissan-leaf-ze1-ev
 
 | | |
 |---|---|
-| Vehicle | Nissan Leaf ZE1, 2018–2024, 40 kWh and 62 kWh e+ | <!-- BEGIN generated-stats -->
-| Counts | *Filled in when the [docs site](https://philipkocanda.github.io/canair/profiles/nissan-leaf-ze1-ev/) is built* | <!-- END generated-stats -->
+| Vehicle | Nissan Leaf ZE1, 2018–2024, 40 kWh and 62 kWh e+ |
+{{ profile_stats_rows("nissan-leaf-ze1-ev") }}
 
 > The build computes these numbers from the `ecus/` files of the profile whenever it builds this
 > site. It counts them the same way as `canair validate pids --stats` and `canair research`.

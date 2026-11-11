@@ -2,14 +2,6 @@
 # runs through `uv run` so it uses the pinned toolchain (see pyproject.toml).
 # CI and the pre-commit hooks call these same scripts directly.
 
-# Material for MkDocs prints a red MkDocs-2.0 advocacy notice on every mkdocs
-# invocation (stderr, exit 0 — it never fails a build). It is not actionable
-# here: canair uses no third-party plugins and no theme overrides, and
-# mkdocs-material already pins mkdocs<2, so for us it is pure log noise.
-# Revisit if MkDocs 1.x takes a security issue or Material 9.x stops building.
-# Rationale: plans/2026-07-24-documentation-strategy.md.
-export NO_MKDOCS_2_WARNING := 1
-
 .PHONY: help install setup lfs-check docs docs-serve screenshots screenshots-check gen gen-check check structure
 
 help:
@@ -20,7 +12,7 @@ help:
 	@echo "  screenshots-check  Verify screenshots are current (no render; used by CI)"
 	@echo "  gen                Regenerate all committed generated docs (CLI reference, screenshots)"
 	@echo "  gen-check          Verify all committed generated docs are current"
-	@echo "  docs               Build the docs site (mkdocs --strict)"
+	@echo "  docs               Build the docs site (zensical --strict)"
 	@echo "  docs-serve         Serve the docs locally with live reload"
 	@echo "  lfs-check          Verify every Git LFS pointer has its object on the server"
 	@echo "  structure          Check the package layout: import contracts and the structure gates"
@@ -75,11 +67,15 @@ gen-check:
 	uv run python scripts/gen/gen_architecture.py --check
 	uv run python scripts/gen/gen_screenshots.py --check
 
+# The explorer data and the editor schemas are generated into docs/ first (gitignored), so
+# `docs-serve` also has to be restarted to pick up a change to the profiles they come from.
 docs:
-	uv run mkdocs build --strict --site-dir site
+	uv run python -m scripts.docs_site.data
+	uv run zensical build --strict
 
 docs-serve:
-	uv run mkdocs serve
+	uv run python -m scripts.docs_site.data
+	uv run zensical serve
 
 lfs-check:
 	uv run python scripts/check/check_lfs_objects.py

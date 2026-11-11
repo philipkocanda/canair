@@ -298,6 +298,10 @@ done.
 
 ## Toolchain: the MkDocs 2.0 / Zensical split (decided 2026-08-04)
 
+> **Superseded by `plans/2026-11-11-zensical-docs-engine.md`.** The site builds with Zensical.
+> The text below records the reasoning of 2026-08-04. Its "hooks: 0" row was out of date by
+> then: the tree had three hooks, which the later plan replaced with macros.
+
 Since Material for MkDocs 9.7.2, every `mkdocs` invocation prints a red
 "Warning from the Material for MkDocs team" about MkDocs 2.0. It is **not** a
 warning about our configuration, and it never fails a build: it goes to stderr

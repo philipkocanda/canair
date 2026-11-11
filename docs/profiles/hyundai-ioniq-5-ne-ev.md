@@ -34,8 +34,8 @@ canair profile use hyundai-ioniq-5-ne-ev --variant 77kwh   # replace 77kwh with 
 
 | | |
 |---|---|
-| Vehicle | Hyundai Ioniq 5 (NE), 2021–2026, six battery variants, E-GMP 800 V platform | <!-- BEGIN generated-stats -->
-| Counts | *Filled in when the [docs site](https://philipkocanda.github.io/canair/profiles/hyundai-ioniq-5-ne-ev/) is built* | <!-- END generated-stats -->
+| Vehicle | Hyundai Ioniq 5 (NE), 2021–2026, six battery variants, E-GMP 800 V platform |
+{{ profile_stats_rows("hyundai-ioniq-5-ne-ev") }}
 
 > The build computes these numbers from the `ecus/` files of the profile whenever it builds this
 > site. It counts them the same way as `canair validate pids --stats` and `canair research`.

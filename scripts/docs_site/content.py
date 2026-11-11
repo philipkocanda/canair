@@ -5,13 +5,12 @@ counts (ECUs / PIDs / signals / verified / research leads) change with nearly
 every profile commit, so they are derived from ``profiles/*/ecus/`` at build time
 instead of being committed:
 
-- ``profiles/index.md`` is a page that is generated whole (``render_index``).
-- Each dedicated tour page (see ``DEDICATED_PAGES``) keeps its hand-written prose;
-  only the block between the ``<!-- BEGIN/END generated-stats -->`` markers is
-  replaced (``fill_stats_block``). In the source, that block holds a placeholder
-  row for readers browsing the Markdown on GitHub.
+- ``profiles/index.md`` holds a title and one macro call; ``render_index`` renders the rest.
+- Each dedicated tour page (see ``DEDICATED_PAGES``) keeps its hand-written prose. Its
+  "At a glance" table ends with one macro call, which ``render_stats_rows`` answers with the
+  count rows.
 - The other names people call a car by (``also_known_as:`` in ``profile.yaml`` and
-  ``variants.yaml``) are rendered on the index, in a dedicated page's managed block
+  ``variants.yaml``) are rendered on the index, in a dedicated page's count rows
   and in its meta description, so a search for "Classic Ioniq" finds the right page.
 
 Committing the rendered numbers instead made every profile commit also
@@ -19,12 +18,11 @@ regenerate the docs; forgetting to was the cause of nearly every red CI run, and
 a ``canair contribute`` pull request could not regenerate them at all.
 
 Nothing here imports the site generator, so the engine can change without touching this code.
-``scripts/mkdocs_hooks/docs_site.py`` is the glue that ``mkdocs build``/``serve`` run.
+``macros.py`` is the glue that the site build runs.
 """
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -40,12 +38,6 @@ GITHUB_TREE = "https://github.com/philipkocanda/canair/tree/main/profiles"
 class DocsContentError(Exception):
     """A docs page or profile cannot be rendered; the build must stop."""
 
-
-# Managed-block markers on a dedicated profile page. Everything between them is
-# rendered at build time; the surrounding prose is hand-written.
-STATS_BEGIN = "<!-- BEGIN generated-stats -->"
-STATS_END = "<!-- END generated-stats -->"
-_STATS_BLOCK = re.compile(re.escape(STATS_BEGIN) + r".*?" + re.escape(STATS_END), re.DOTALL)
 
 # Profiles that have their own dedicated tour page, keyed to its docs-relative URI.
 DEDICATED_PAGES = {
@@ -177,20 +169,11 @@ def page_description(car_model: str, names: AlsoKnownAs) -> str:
     return f"canair vehicle profile for the {car_model}{suffix}."
 
 
-def render_stats_block(counts: dict[str, int], names: AlsoKnownAs | None = None) -> str:
-    """The managed "At a glance" rows for a dedicated profile page.
+def render_stats_rows(counts: dict[str, int], names: AlsoKnownAs | None = None) -> str:
+    """The "At a glance" rows of a dedicated profile page that come from the profile data.
 
-    The derived counts and the car's other names live here, because they come from the
-    profile's data; the vehicle description row above them is hand-written prose outside
-    the markers.
-
-    The BEGIN marker is glued to the end of the *preceding* (hand-written) table
-    row and the END marker to the end of the *last* generated row, rather than
-    sitting on its own line — Markdown's ``tables`` extension only recognizes a
-    contiguous run of ``|``-prefixed lines as one table, so a bare HTML comment
-    line in between silently splits it into a real table plus a dangling
-    paragraph of literal pipe characters. A comment glued to the end of an
-    existing row is simply dropped by the table renderer instead.
+    The derived counts and the car's other names live here. The vehicle description row above
+    them is hand-written prose in the page.
     """
     unverified = counts["params"] - counts["verified"]
     rows = [f"| Also known as | {known_as_cell(names)} |"] if names and names.all() else []
@@ -202,27 +185,32 @@ def render_stats_block(counts: dict[str, int], names: AlsoKnownAs | None = None)
         f"| IOControl DIDs | **{counts['iocontrol']}** actuators (UDS `0x2F` / KWP2000 `0x30`) |",
         f"| Research backlog | **{counts['research']}** open reverse-engineering leads |",
     ]
-    body = "\n".join([*rows[:-1], f"{rows[-1]} {STATS_END}"])
-    return f"{STATS_BEGIN}\n{body}"
+    return "\n".join(rows)
 
 
-def fill_stats_block(
-    markdown: str, counts: dict[str, int], page_uri: str, names: AlsoKnownAs | None = None
-) -> str:
-    """Return ``markdown`` with its managed stats block rendered from ``counts`` and ``names``."""
-    if not _STATS_BLOCK.search(markdown):
+def tour_page_rows(name: str) -> str:
+    """The count rows of the tour page for the bundled profile ``name``."""
+    root = _dedicated_root(name)
+    return render_stats_rows(profile_stats(root / "ecus"), also_known_as_for(root))
+
+
+def tour_page_description(name: str) -> str:
+    """The meta description of the tour page for ``name``, which carries the car's other names."""
+    root = _dedicated_root(name)
+    return page_description(car_model(root), also_known_as_for(root))
+
+
+def _dedicated_root(name: str) -> Path:
+    if name not in DEDICATED_PAGES:
         raise DocsContentError(
-            f"{page_uri} has no {STATS_BEGIN} / {STATS_END} block — add one around its "
-            '"At a glance" count rows.'
+            f"{name!r} has no tour page; the profiles with one are {', '.join(DEDICATED_PAGES)}."
         )
-    return _STATS_BLOCK.sub(lambda _m: render_stats_block(counts, names), markdown)
+    return PROFILES_DIR / name
 
 
 def render_index(profiles: list[tuple[str, Path]]) -> str:
-    """The whole bundled-profiles index page."""
+    """The bundled-profiles index page, below its title."""
     lines = [
-        "# Bundled profiles",
-        "",
         "The repo ships these vehicle profiles under "
         f"[`profiles/`]({GITHUB_TREE}). Each is a self-contained "
         "[profile bundle](../concepts/profiles.md) you can select with "

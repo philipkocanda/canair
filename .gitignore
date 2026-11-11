@@ -26,8 +26,10 @@ htmlcov/
 # NodeJS
 node_modules
 
-# MkDocs build output
+# Docs site build output, and the files that scripts/docs_site/data.py generates into docs/
 site/
+/docs/assets/explorer/data/
+/docs/schema/
 
 # Project-specific
 wican-fw/

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from scripts.docs_site import content, data
+from scripts.docs_site import content, data, macros
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -88,33 +89,74 @@ def test_index_links_every_dedicated_page(mod):
         assert (REPO_ROOT / "docs" / page_uri).exists()
 
 
-def test_stats_block_replaces_the_placeholder(mod):
-    source = (
-        "| Vehicle | x | <!-- BEGIN generated-stats -->\n"
-        "| Counts | *placeholder* | <!-- END generated-stats -->\n"
-        "\nprose\n"
-    )
+def test_stats_rows_come_from_the_counts(mod):
     counts = {"ecus": 3, "pids": 4, "params": 5, "verified": 2, "iocontrol": 6, "research": 7}
-    out = mod.fill_stats_block(source, counts, "p.md")
-    assert "placeholder" not in out
-    assert "| Signals | **5** decoded (**2 verified**, 3 unverified/candidate) |" in out
-    assert out.endswith("<!-- END generated-stats -->\n\nprose\n")
+    rows = mod.render_stats_rows(counts).splitlines()
+    assert "| Signals | **5** decoded (**2 verified**, 3 unverified/candidate) |" in rows
+    assert all(row.startswith("| ") and row.endswith(" |") for row in rows)
 
 
-def test_page_without_markers_fails_the_build(mod):
-    with pytest.raises(mod.DocsContentError, match="generated-stats"):
-        mod.fill_stats_block("no markers here", _counts(1, 1, 1), "p.md")
-
-
-def test_every_dedicated_page_carries_the_markers(mod):
-    for page_uri in mod.DEDICATED_PAGES.values():
+def test_every_dedicated_page_asks_for_its_own_rows(mod):
+    for name, page_uri in mod.DEDICATED_PAGES.items():
         text = (REPO_ROOT / "docs" / page_uri).read_text()
-        assert mod.STATS_BEGIN in text and mod.STATS_END in text, page_uri
+        assert f'{{{{ profile_stats_rows("{name}") }}}}' in text, page_uri
 
 
-def test_index_page_is_not_committed(mod):
-    """The site build generates it; a committed copy would make the build fail."""
-    assert not (REPO_ROOT / "docs" / mod.INDEX_URI).exists()
+def test_the_index_page_asks_for_the_generated_index(mod):
+    text = (REPO_ROOT / "docs" / mod.INDEX_URI).read_text()
+    assert "{{ bundled_profiles_index() }}" in text
+
+
+def test_a_profile_without_a_tour_page_cannot_be_asked_for_one(mod):
+    with pytest.raises(mod.DocsContentError, match="no tour page"):
+        mod.tour_page_rows("no-such-profile")
+
+
+class FakeEnv:
+    def __init__(self, path: str):
+        self.page = SimpleNamespace(path=path, meta={})
+        self.macros: dict = {}
+
+    def macro(self, function):
+        self.macros[function.__name__] = function
+        return function
+
+
+def _env_for(path: str) -> FakeEnv:
+    env = FakeEnv(path)
+    macros.define_env(env)
+    return env
+
+
+def test_macros_answer_with_the_rendered_content():
+    env = _env_for("profiles/index.md")
+    assert env.macros["bundled_profiles_index"]().startswith("The repo ships")
+    name = next(iter(content.DEDICATED_PAGES))
+    assert env.macros["profile_stats_rows"](name) == content.tour_page_rows(name)
+
+
+def test_a_tour_page_gets_its_description_but_keeps_one_it_sets():
+    name, uri = next(iter(content.DEDICATED_PAGES.items()))
+    assert _env_for(uri).page.meta["description"] == content.tour_page_description(name)
+    other = FakeEnv(uri)
+    other.page.meta["description"] = "mine"
+    macros.define_env(other)
+    assert other.page.meta["description"] == "mine"
+
+
+def test_other_pages_get_no_description():
+    assert _env_for("concepts/profiles.md").page.meta == {}
+
+
+def test_write_all_replaces_the_generated_directories(tmp_path):
+    stale = tmp_path / data.SCHEMA_DIR / "gone.json"
+    stale.parent.mkdir()
+    stale.write_text("{}")
+    count = data.write_all(tmp_path)
+    assert not stale.exists()
+    assert (tmp_path / data.EXPLORER_DATA_DIR / "index.json").is_file()
+    assert (tmp_path / data.SCHEMA_DIR / "profile.json").is_file()
+    assert count == sum(1 for p in tmp_path.rglob("*") if p.is_file())
 
 
 def test_schemas_are_published_as_json_at_the_url_the_modeline_names():

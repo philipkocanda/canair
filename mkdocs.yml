@@ -5,6 +5,7 @@ repo_url: https://github.com/philipkocanda/canair
 repo_name: philipkocanda/canair
 edit_uri: edit/main/docs/
 docs_dir: docs
+site_dir: site
 
 # The screenshot pipeline's inputs live beside the generated images under
 # docs/screenshots/ but aren't part of the site — keep them out of the build.
@@ -16,6 +17,7 @@ exclude_docs: |
 
 theme:
   name: material
+  variant: classic
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -58,7 +60,7 @@ markdown_extensions:
   - pymdownx.superfences:
       custom_fences:
         # Diagrams are written as Mermaid and drawn by Pele (assets/pele/). The class is not
-        # "mermaid" on purpose: Material loads Mermaid.js for every .mermaid element.
+        # "mermaid" on purpose: the theme loads Mermaid.js for every .mermaid element.
         - name: mermaid
           class: pele-diagram
           format: !!python/name:pymdownx.superfences.fence_div_format
@@ -70,12 +72,20 @@ markdown_extensions:
 
 plugins:
   - search
+  # Generated page content (the bundled-profiles index, each profile tour's counts and its
+  # meta description) comes from scripts/docs_site/. A failing macro stops the build.
+  - macros:
+      module_name: scripts/docs_site/macros
+      on_error_fail: true
+      on_undefined: strict
 
-# Build-time content: the bundled-profiles index, each profile tour's stats
-# block and the profile explorer's data are rendered from profiles/ rather than
-# committed, so they cannot go stale.
-hooks:
-  - scripts/mkdocs_hooks/docs_site.py
+# Files that scripts/docs_site/data.py writes into docs/ (the explorer data and the editor
+# schemas) are generated before the build (`make docs`). A change to their sources rebuilds the
+# site but does not regenerate them: restart `make docs-serve` for that.
+watch:
+  - profiles
+  - src/canair/interop/explorer
+  - scripts/docs_site
 
 extra_css:
   - assets/layout.css

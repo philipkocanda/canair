@@ -68,8 +68,8 @@ you are building toward for your own car.
 
 | | |
 |---|---|
-| Vehicle | 2017 Hyundai Ioniq Electric, 28 kWh, `AE` platform (NL market) | <!-- BEGIN generated-stats -->
-| Counts | *Filled in when the [docs site](https://philipkocanda.github.io/canair/profiles/hyundai-ioniq-ae-ev/) is built* | <!-- END generated-stats -->
+| Vehicle | 2017 Hyundai Ioniq Electric, 28 kWh, `AE` platform (NL market) |
+{{ profile_stats_rows("hyundai-ioniq-ae-ev") }}
 
 > The build computes these numbers from the `ecus/` files of the profile whenever it builds this
 > site. It counts them the same way as `canair validate pids --stats` and `canair research`.

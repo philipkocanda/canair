@@ -107,7 +107,7 @@ Pele reads Mermaid syntax but lays the diagram out in its own way, so check each
 built site (`make docs-serve`).
 
 - The configuration is in `mkdocs.yml` (the `mermaid` fence). The class is `pele-diagram`, not
-  `mermaid`, because Material loads Mermaid.js for every `.mermaid` element.
+  `mermaid`, because the theme loads Mermaid.js for every `.mermaid` element.
 - `docs/assets/pele/pele-init.js` loads the bundle only on pages that have a diagram. It sets
   `directionBreakpoint` so that a wide `flowchart LR` becomes top to bottom in the page column.
   To keep a diagram horizontal, make the comment `%% pele: horizontal` its first line. Keep such

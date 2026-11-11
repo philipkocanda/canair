@@ -14,6 +14,9 @@ Two sets, both derived from the repository so they always match it and are never
   modeline names (``schema_modeline``) and the schema's own ``$id``. A schema written in YAML is
   published as JSON, which every editor reads.
 
+``write_all`` puts both sets under ``docs/``, in two gitignored directories, before the site is
+built (``python -m scripts.docs_site.data``). The site engine then copies them like any asset.
+
 Source links in the explorer data are pinned to the commit being built, so a line number cannot
 drift when the YAML is edited later. A local build links to ``main``.
 
@@ -23,10 +26,14 @@ Plan: plans/2026-10-21-profile-explorer.md
 from __future__ import annotations
 
 import json
+import os
+import shutil
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PROFILES_DIR = REPO_ROOT / "profiles"
+DOCS_DIR = REPO_ROOT / "docs"
+SCHEMA_DIR = "schema"
 EXPLORER_DATA_DIR = "assets/explorer/data"
 BLOB_ROOT = "https://github.com/philipkocanda/canair/blob/"
 
@@ -81,3 +88,23 @@ def schema_files() -> dict[str, str]:
         + "\n"
         for name, path in EDITOR_SCHEMAS.items()
     }
+
+
+def write_all(docs_dir: Path = DOCS_DIR, commit: str | None = None) -> int:
+    """Replace the generated directories under ``docs_dir`` with a fresh build; return the count.
+
+    Each directory is deleted first, so a removed profile or schema leaves no stale file.
+    """
+    files = {**explorer_files(commit), **schema_files()}
+    for directory in (EXPLORER_DATA_DIR, SCHEMA_DIR):
+        shutil.rmtree(docs_dir / directory, ignore_errors=True)
+    for uri, text in files.items():
+        target = docs_dir / uri
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+    return len(files)
+
+
+if __name__ == "__main__":
+    count = write_all(commit=os.environ.get("GITHUB_SHA"))
+    print(f"wrote {count} generated files under docs/")

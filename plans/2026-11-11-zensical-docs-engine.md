@@ -1,9 +1,9 @@
 # Move the docs site from MkDocs Material to Zensical
 
-Status: **IN PROGRESS**. Phase 1 is done (commit `d0c747d6`). Phases 2 to 4 are open. The
-findings below come from trial builds in a throwaway copy of `docs/`, `mkdocs.yml` and
-`scripts/` (Zensical 0.1.1, Python 3.15.2, macOS). Nothing ran on CI's Linux runner and
-nobody opened the result in a browser.
+Status: **IN PROGRESS**. Phases 1 to 3 are done. Phase 4, the check of the first live deploy,
+is open. The findings below come from trial builds in a throwaway copy of `docs/`,
+`mkdocs.yml` and `scripts/` (Zensical 0.1.1, Python 3.15.2, macOS). "Results of phase 2" near
+the end lists what the real build showed. Nothing ran on CI's Linux runner.
 
 Paths are relative to the repo root. Point at code by file and symbol: line numbers drift.
 
@@ -184,18 +184,13 @@ Each phase is a separate commit on `main`. Commit type is `build(docs)` or `docs
    `{site path: text}` dict. One thin hook, `scripts/mkdocs_hooks/docs_site.py`, replaced the
    three old hooks. The tests import the new modules and no longer call
    `importorskip("mkdocs")`. A build before and after gave byte-identical generated files.
-2. **Switch the engine.** One commit, because MkDocs and Zensical cannot share the macro
-   pages: add `macros.py` and `data.py`, change the pages, the config, the lock, the
-   Makefile and both workflows, delete `scripts/mkdocs_hooks/`.
-3. **Clean up the words.** Update every text that names the old setup:
-   - `docs/development/index.md` ("An MkDocs hook ..." and the explorer paragraph, plus the
-     "Material loads Mermaid.js" bullet if the check above says it no longer holds).
-   - The header comment in `docs/assets/explorer/explorer.js`.
-   - Docstrings in `src/canair/interop/explorer/__init__.py` and the comment on the schema
-     table in `src/canair/core/paths.py` ("mkdocs `site_url`" and the hook path).
-   - The "Toolchain" section of `plans/2026-07-24-documentation-strategy.md`: mark its
-     "do not migrate" decision as superseded by this plan and correct the hooks row.
-   - Run `uv run python scripts/check/doc_paths.py`.
+2. **Switch the engine. Done.** One commit: `macros.py`, the write step in `data.py`, the
+   macro calls in the pages, the config, the lock, the Makefile and both workflows. The hook
+   directory is gone. The tour pages lost their marker comments, so `content.py` lost
+   `fill_stats_block` and the marker constants.
+3. **Clean up the words. Done.** The pages, docstrings and comments name the new setup, and the
+   "Toolchain" section of `plans/2026-07-24-documentation-strategy.md` records that its
+   "do not migrate" decision is superseded.
 4. **Post-merge check.** Watch the first `docs.yml` run on `main`. Open the live site and
    run the checklist below. Set this plan's status to DONE with the date.
 
@@ -227,8 +222,8 @@ By hand in a browser (`make docs-serve`). I could not run these:
 ## Risks
 
 - **A hook-like setting fails silently.** Zensical ignores unknown plugin settings and
-  unsupported plugins without a warning. Mitigation: `on_error_fail: true`, and the CI
-  check that the profile index has one row per profile.
+  unsupported plugins without a warning. Mitigation: `on_error_fail: true`, and the unit
+  tests that every tour page and the index page call their macro.
 - **Stale generated data in `serve`.** The data step runs once at start. Mitigation: the
   Makefile comment, and the `watch:` entries do not claim to regenerate.
 - **A 0.x break.** Mitigation: the `<0.2` cap and a committed `uv.lock`.
@@ -245,10 +240,26 @@ By hand in a browser (`make docs-serve`). I could not run these:
   Adding `llmstxt` may suit an agent-heavy repo later. That is a separate plan.
 - Changing what the explorer or the profile index shows.
 
+## Results of phase 2
+
+Measured on macOS with `make docs` (Zensical 0.1.1):
+
+- `zensical build --strict` reports "No issues found". The generated-files step plus the
+  build take about 30 seconds in total, 10 seconds of that in the build.
+- The set of 102 HTML pages equals the MkDocs build's set. The other asset files are the same.
+- The explorer data and the 7 schemas are byte-identical to the MkDocs build.
+- The article text of the profiles index and of the 3 tour pages is identical, and so are
+  their meta descriptions.
+- A misspelled macro name makes the build exit 1. `on_undefined: strict` and `on_error_fail`
+  work as intended.
+- In headless Chrome (dark scheme): the Pele diagram on `concepts/architecture` mounts, the
+  explorer loads its data and draws the bus view, and a tour page renders.
+
+Not checked: search, the palette toggle, instant navigation across pages, light mode, the
+explorer's session plots, and a build on CI's Linux runner.
+
 ## Open questions
 
-- Does Zensical pick up a `docs/` file that the data step writes **after** `serve` started?
-  The `watch:` list says only paths it watches trigger a rebuild. Test this in phase 2.
-  The answer decides whether `watch:` can include `docs/assets/explorer/data`.
-- Does `on_undefined: strict` fail the build on a misspelled macro name? I read the setting
-  in the docs but did not test its effect. Test it in phase 2 with a deliberate typo.
+- Does `zensical serve` rebuild when the data step rewrites files under `docs/` while it
+  runs? Not tested. Until then, `make docs-serve` generates the files once at start, and the
+  comment in `mkdocs.yml` says that a restart refreshes them.

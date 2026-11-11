@@ -97,41 +97,37 @@ class TestValidation:
         assert check_variants_doc(doc) == []
 
 
-@pytest.fixture(scope="module")
-def hook():
-    return content
-
-
 class TestDocsPage:
     NAMES = AlsoKnownAs(
         ("Classic Ioniq",), (VariantNames("38kwh", "Ioniq 38 kWh", ("Ioniq vFL", "Ioniq FL")),)
     )
 
-    def test_the_stats_block_gains_a_row_with_the_names(self, hook):
+    def test_the_rows_gain_one_with_the_names(self):
         counts = {"ecus": 1, "pids": 1, "params": 1, "verified": 1, "iocontrol": 0, "research": 0}
-        block = hook.render_stats_block(counts, self.NAMES)
-        assert "| Also known as | Classic Ioniq<br>**Ioniq 38 kWh**: Ioniq vFL, Ioniq FL |" in block
-        # The BEGIN marker still ends the hand-written row above, so the table stays whole.
-        assert block.startswith(hook.STATS_BEGIN + "\n| Also known as")
+        rows = content.render_stats_rows(counts, self.NAMES)
+        assert "| Also known as | Classic Ioniq<br>**Ioniq 38 kWh**: Ioniq vFL, Ioniq FL |" in rows
+        assert rows.startswith("| Also known as")
 
-    def test_no_names_means_no_row(self, hook):
+    def test_no_names_means_no_row(self):
         counts = {"ecus": 1, "pids": 1, "params": 1, "verified": 1, "iocontrol": 0, "research": 0}
-        assert "Also known as" not in hook.render_stats_block(counts, AlsoKnownAs())
-        assert "Also known as" not in hook.render_stats_block(counts)
+        assert "Also known as" not in content.render_stats_rows(counts, AlsoKnownAs())
+        assert "Also known as" not in content.render_stats_rows(counts)
 
-    def test_a_pipe_in_a_name_cannot_split_the_table(self, hook):
+    def test_a_pipe_in_a_name_cannot_split_the_table(self):
         names = AlsoKnownAs(("A | B",))
-        assert "A \\| B" in hook.known_as_cell(names)
+        assert "A \\| B" in content.known_as_cell(names)
 
-    def test_the_description_carries_every_name(self, hook):
-        text = hook.page_description("Hyundai Ioniq Electric (AE)", self.NAMES)
+    def test_the_description_carries_every_name(self):
+        text = content.page_description("Hyundai Ioniq Electric (AE)", self.NAMES)
         assert "Hyundai Ioniq Electric (AE)" in text
         assert "Classic Ioniq, Ioniq vFL, Ioniq FL" in text
-        assert hook.page_description("Car", AlsoKnownAs()) == "canair vehicle profile for the Car."
+        assert (
+            content.page_description("Car", AlsoKnownAs()) == "canair vehicle profile for the Car."
+        )
 
-    def test_the_index_lists_names_for_a_bundled_profile(self, hook, tmp_path):
+    def test_the_index_lists_names_for_a_bundled_profile(self, tmp_path):
         _bundle(tmp_path / "test-car", "also_known_as: [Classic Car]\n")
-        page = hook.render_index(hook.discover_bundled(tmp_path))
+        page = content.render_index(content.discover_bundled(tmp_path))
         assert "Test Car. Also known as Classic Car." in page
 
 

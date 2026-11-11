@@ -51,7 +51,7 @@ CONFIG_FILE = DATA_ROOT / "config.yaml"
 # (`canair update`) and the target for contributions (`canair contribute`).
 GITHUB_REPO = "philipkocanda/canair"
 
-# Hosted docs site (mkdocs `site_url`) — for doc pointers in --help text.
+# Hosted docs site (`site_url` in mkdocs.yml) — for doc pointers in --help text.
 DOCS_URL = "https://philipkocanda.github.io/canair"
 CONFIG_DOCS_URL = f"{DOCS_URL}/reference/config/"
 
