@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Check that the code paths named in the agent documents still exist.
 
-``AGENTS.md``, the skills and the developer docs name modules, symbols and test files. A move
-leaves those names behind, and an agent that follows a stale one wastes a search or edits the
-wrong file. This scan reads the documents and reports three kinds of stale reference:
+``AGENTS.md``, the skills (with their side files) and the developer docs name modules, symbols
+and test files. A move leaves those names behind, and an agent that follows a stale one wastes a
+search or edits the wrong file. This scan reads the documents and reports three kinds of stale
+reference:
 
 * **missing file** — ``src/canair/…/x.py`` is not a file.
 * **missing symbol** — ``src/canair/…/x.py::name`` names something that module does not define
@@ -31,7 +32,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-DOC_GLOBS = ("AGENTS.md", ".claude/skills/*/SKILL.md", "docs/development/*.md")
+DOC_GLOBS = ("AGENTS.md", ".claude/skills/*/*.md", "docs/development/*.md")
 
 _BEFORE = r"(?<![\w/.\-])"
 _SRC_REF = re.compile(

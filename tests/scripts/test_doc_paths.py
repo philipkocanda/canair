@@ -139,7 +139,12 @@ def test_documents_in_scope(repo: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("`tests/gone.py`\n", encoding="utf8")
     scanned = {f.doc for f in checker.scan(repo)}
-    assert scanned == {"AGENTS.md", ".claude/skills/one/SKILL.md", "docs/development/page.md"}
+    assert scanned == {
+        "AGENTS.md",
+        ".claude/skills/one/SKILL.md",
+        ".claude/skills/one/extra.md",
+        "docs/development/page.md",
+    }
 
 
 def test_the_repository_documents_are_clean() -> None:
