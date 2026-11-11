@@ -41,7 +41,7 @@ from .calc import _local_series, _paired, _series, axis_group_keys, load_cross_r
 from .dump import _dump_bytes
 from .format import scope_banner
 from .plot import build_plot_model, cmd_plot, plot_pid_options
-from .query import resolve_ref, scope_captures, tolerates_missing_pid
+from .query import resolve_ref, scope_captures, signal_suggestion, tolerates_missing_pid
 from .views import print_compact, print_stats_grouped, print_stats_table, print_value_ranges
 
 
@@ -81,6 +81,7 @@ def _resolve_parameters(
         missing = filter_names - {k.upper() for k in parameters}
         if missing:
             messages.warning(f"signals not found: {', '.join(sorted(missing))}")
+            messages.hint(signal_suggestion(missing, list(defined_params), ecu_key, pid_key))
     if args.verified:
         parameters = {k: v for k, v in parameters.items() if v.get("verified", False)}
     if args.unverified:
@@ -111,11 +112,10 @@ def _report_nothing_to_decode(
         print(f"\n{ansi.BOLD}{ecu_key} {pid_key}{ansi.RESET} — {ansi.DIM}{note}{ansi.RESET}")
         return 1
     if defined_params:
-        # Params exist for this PID; the active --param/--verified/--unverified
+        # Signals exist for this PID; the active --param/--verified/--unverified
         # filters just excluded them all.
-        print(
-            f"No parameters match the filter criteria "
-            f"({len(defined_params)} defined for {ecu_key} {pid_key})."
+        messages.error(
+            f"no signals match the filters ({len(defined_params)} defined for {ecu_key} {pid_key})"
         )
     elif caps:
         # Captured but not yet decoded — signpost the byte-level tools.
@@ -339,8 +339,8 @@ def decode_one(
         args, ecu_key, pid_key, ecu_index, try_params
     )
     if perr:
-        print(perr)
-        return 1
+        messages.error(perr)
+        return 2
 
     # Scope arguments shared by every capture load in this run (date/state/label
     # range + first/last slice). Resolved once so all paths stay consistent.

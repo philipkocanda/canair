@@ -86,7 +86,7 @@ def run(args) -> int:
     )
     if terr:
         messages.error(f"{terr}")
-        return 1
+        return 2
 
     # Analysis modes bind to one PID's byte layout; require a single target.
     single_mode = any(getattr(args, f, False) for f in SINGLE_PID_FLAGS) or bool(args.try_expr)

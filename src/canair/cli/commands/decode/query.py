@@ -9,6 +9,8 @@ testable on its own.
 
 from __future__ import annotations
 
+import difflib
+
 from canair.captures.dates import filter_by_date_range, filter_by_text
 from canair.cli.args.query import parse_canonical_query
 from canair.cli.profile_context import active
@@ -132,3 +134,19 @@ def tolerates_missing_pid(args) -> bool:
     return bool(
         args.try_expr or args.plot or args.find_mirrors or args.dump_bytes or args.discriminate
     )
+
+
+def signal_suggestion(missing: set[str], defined: list[str], ecu_key: str, pid_key: str) -> str:
+    """The hint after an unknown ``--param``: close names, else every name the PID defines."""
+    by_upper = {name.upper(): name for name in defined}
+    close: list[str] = []
+    for name in sorted(missing):
+        hits = [by_upper[u] for u in by_upper if name in u]
+        if not hits:
+            hits = [by_upper[u] for u in difflib.get_close_matches(name, by_upper, n=3)]
+        close += [h for h in hits if h not in close]
+    if close:
+        return f"did you mean: {', '.join(close[:5])}"
+    if not defined:
+        return f"{ecu_key} {pid_key} defines no signals"
+    return f"{ecu_key} {pid_key} defines: {', '.join(defined)}"
